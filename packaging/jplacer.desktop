@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=jplacer
+GenericName=Pick and Place
+Comment=Pick-and-place machine control
+Exec=jplacer
+Icon=jplacer
+Terminal=false
+Categories=Development;Electronics;Engineering;
+Keywords=pick;place;pnp;smt;smd;openpnp;
+StartupNotify=true
+# JFramework sets WM_CLASS to the executable's name, so this matches the window.
+StartupWMClass=jplacer

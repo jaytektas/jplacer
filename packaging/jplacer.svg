@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <rect x="8" y="8" width="240" height="240" rx="40" fill="#1f2a36"/>
+  <!-- the board -->
+  <rect x="36" y="168" width="184" height="44" rx="6" fill="#2e7d4f"/>
+  <rect x="58" y="160" width="40" height="12" rx="2" fill="#d9dee4"/>
+  <rect x="158" y="160" width="40" height="12" rx="2" fill="#d9dee4"/>
+  <!-- the head and nozzle -->
+  <rect x="88" y="40" width="80" height="44" rx="8" fill="#5fa8e8"/>
+  <rect x="120" y="84" width="16" height="40" fill="#cfd8e3"/>
+  <!-- the part on the nozzle -->
+  <rect x="108" y="124" width="40" height="16" rx="2" fill="#1a1a1a"/>
+  <rect x="104" y="128" width="4" height="8" fill="#d9dee4"/>
+  <rect x="148" y="128" width="4" height="8" fill="#d9dee4"/>
+</svg>

@@ -1,0 +1,6 @@
+reference/
+build/
+build-*/
+dist/
+genesis.log
+genesis.log.*
