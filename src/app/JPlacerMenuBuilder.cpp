@@ -4,6 +4,7 @@
 #include "JPlacerMenuBuilder.h"
 
 #include "JPlacerApp.h"
+#include "JPlacerHelpPages.h"
 
 #include <j/core/MenuSystem.h>
 
@@ -15,6 +16,11 @@
 inline namespace jf {
 
 namespace {
+
+// How long the Help menu's status messages stay: a confirmation briefly, a
+// failure long enough to read the reason.
+constexpr int kStatusMs = 3000;
+constexpr int kErrorMs  = 8000;
 
 // JAppWindow's menu bar stores raw JMenu pointers, so the menus must outlive the
 // builder call. They live here for the process lifetime, which is exactly as
@@ -61,6 +67,19 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
     addPending(job, graph, { "Board Setup\xE2\x80\xA6", "Feeders\xE2\x80\xA6", "Parts and Packages\xE2\x80\xA6" });
 
     JMenu* help = newMenu(window, "Help");
+    // The manual opens in the browser; whatever went wrong is said in the status bar.
+    auto open = [&window](bool (*page)(std::string&), const char* opened) {
+        std::string why;
+        if (page(why)) window.showStatus(opened, kStatusMs);
+        else           window.showStatus(why, kErrorMs);
+    };
+    help->add(graph, "User Manual")->onTriggered.connect([open] {
+        open(&JPlacerHelpPages::openManual, "User manual opened in your browser");
+    });
+    help->add(graph, "What's New")->onTriggered.connect([open] {
+        open(&JPlacerHelpPages::openWhatsNew, "What's New opened in your browser");
+    });
+    help->addSeparator(graph);
     help->add(graph, "Check for Updates")->onTriggered.connect([&app] { app.updater().check(true); });
     help->addSeparator(graph);
     help->add(graph, "About jplacer")->onTriggered.connect([&app] { app.showAbout(); });

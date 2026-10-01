@@ -29,6 +29,15 @@ Enable an entry in the same change that implements it.
 **Settings.** Preferences live in `JSettings::instance()`, backed by the file
 `JPlacerSettings` names. Key names are constants in `JPlacerSettings` only.
 
+**The manual is kept in step with the code.** `manual/` is the user manual
+(MkDocs), written to `manual/STANDARD.md`: every fact comes from the code and
+carries a `<!-- src: -->` note naming the file it comes from (never a line
+number). A change a user would notice updates the manual IN THE SAME COMMIT,
+and adds a plain-words line under `## Unreleased` in `CHANGES.md`. The manual
+ships inside the AppImage (Help > User Manual), What's New is generated from
+`CHANGES.md`, and `manual/tools/build.sh` fails on a stale source note or a
+broken link.
+
 **App shell stays small.** `JPlacerApp` wires things together; features get
 classes of their own.
 
@@ -38,13 +47,17 @@ classes of their own.
     cmake --build build
     ./build/jplacer [--verbose] [--trace <category>] [--settings <file>]
 
-## Releases and updates
+## Manual
 
-The version is `project(jplacer VERSION x.y.z)` plus `JPLACER_PRERELEASE` in
-`CMakeLists.txt`. `packaging/build-release.sh --publish` builds the AppImage and
-SHA256SUMS, tags `v<version>` and creates the GitHub release; a version with a
-pre-release (e.g. `beta.1`) is published as a GitHub pre-release, which only
-users with Preferences > Include beta versions are offered.
+    manual/tools/build.sh      # check source notes, build manual/site (--strict)
+    manual/tools/publish.sh    # build and push to GitHub Pages (done by a release)
 
-`JAppUpdater` checks at startup and on Help > Check for Updates. Set
+## Releases and betas
+
+Use the `release` and `beta` skills; they run `packaging/build-release.sh` and
+`packaging/build-beta.sh`. CMakeLists.txt holds the last release's version: a
+release raises the patch (a hand-raised version is kept) and commits it with
+the CHANGES.md notes; a beta is built as `<next patch>-beta.N` without
+committing any version, and published as a GitHub pre-release from the `beta`
+branch. `JAppUpdater` checks at startup and on Help > Check for Updates; set
 `JPLACER_UPDATE_URL` to point it at a test releases URL.

@@ -1,14 +1,13 @@
 cmake_minimum_required(VERSION 3.16)
 project(jplacer VERSION 0.1.1 LANGUAGES CXX)
 
-# A BETA is the next version with a pre-release after it: set this to "beta.1"
-# and 0.2.0 ships as 0.2.0-beta.1, which orders before 0.2.0 itself. Empty for
-# a full release. packaging/build-release.sh reads both lines, and publishes a
-# version with a pre-release as a GitHub pre-release -- which is what keeps it
-# away from everyone but the people who ticked "Include beta versions".
-set(JPLACER_PRERELEASE "")
-if(JPLACER_PRERELEASE)
-    set(JPLACER_FULL_VERSION "${PROJECT_VERSION}-${JPLACER_PRERELEASE}")
+# THE VERSION is the line above: the last release, raised by packaging/build-release.sh as it cuts the
+# next one. A BETA is never written here -- packaging/build-beta.sh builds one as <next patch>-beta.N by
+# passing JPLACER_VERSION_OVERRIDE, and puts the build back to the plain version afterwards, so a later
+# build cannot say beta by accident.
+set(JPLACER_VERSION_OVERRIDE "" CACHE STRING "Build as this version instead of PROJECT_VERSION (betas)")
+if(JPLACER_VERSION_OVERRIDE)
+    set(JPLACER_FULL_VERSION "${JPLACER_VERSION_OVERRIDE}")
 else()
     set(JPLACER_FULL_VERSION "${PROJECT_VERSION}")
 endif()

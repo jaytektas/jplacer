@@ -1,71 +1,46 @@
 ---
 name: beta
-description: Publish a jplacer beta (vX.Y.Z-beta.N) as a GitHub pre-release, offered only to users with Preferences > Include beta versions. Use when the user asks for a beta, pre-release, or test build of jplacer.
+description: Build and publish a jplacer beta (<next patch>-beta.N) as a GitHub pre-release for jplacers with Include beta versions ticked, numbering it automatically. Use when asked to "push a beta", "publish a beta", "make a beta" or "a test build".
 ---
 
-# Beta jplacer
+# A jplacer beta
 
-A beta is a GitHub PRE-release. `/releases/latest` never returns one, so only
-users who ticked Preferences > Include beta versions are offered it (their
-updater reads the full release list). It orders before the release it leads
-to: 0.2.0-beta.1 < 0.2.0-beta.2 < 0.2.0.
+A beta is a GitHub **pre-release**. `/releases/latest` never returns one, so only jplacers with
+**Preferences ▸ Include beta versions** are offered it. It sorts below the release it leads to
+(0.1.2-beta.3 < 0.1.2), so that release later supersedes it everywhere. For a release, use the
+`release` skill. Being asked for a beta is the go-ahead to publish it.
 
-Argument (optional): the target version (`0.2.0`), or `next` for the next
-beta of the version already in beta. With none, work it out:
+## 0. Before anything
 
-- `JPLACER_PRERELEASE` in `CMakeLists.txt` is `beta.N` and v<X.Y.Z>-beta.N is
-  already published → next beta of the same version: `beta.N+1`.
-- Otherwise the beta leads up to a version not yet released: ask whether it is
-  the next minor (new features, the usual case) or the next patch, then use
-  `beta.1`.
+- Everything is **committed**; `git status --short` is empty (any branch).
+- `gh auth status` works (see the `release` skill for logging in from the NFS token file).
+- `## Unreleased` in `CHANGES.md` says what the beta changes, and the manual describes it (the
+  `release` skill's steps 1 and 2) — the beta carries both: the notes become the pre-release's notes,
+  and the manual inside the AppImage shows them under What's New as this beta.
 
-## 1. Preconditions — stop and report if any fail
+## 1. Build and publish
 
-- `git status --porcelain` is empty and the branch is `main`, up to date with
-  `origin/main` (`git fetch origin && git status -sb`).
-- `gh auth status` succeeds. If the token is invalid, log in from the token
-  file on the NFS, never printing it:
-  `grep -oE "ghp_[A-Za-z0-9_]+" "/mnt/nfs/github access token" | head -1 | gh auth login -h github.com --with-token`
-- `appimagetool` and `rsvg-convert` are on PATH.
-- The tag `vX.Y.Z-beta.N` does not already exist (`gh release view` must fail),
-  and `vX.Y.Z` itself has not been released — a beta of a shipped version
-  would never be offered to anyone.
+    packaging/build-beta.sh --publish
 
-## 2. Set the version
+It does, in order:
+1. **The version**: `<next patch>-beta.N`, the patch after CMakeLists.txt's (the last release) with N
+   one past every beta of it already published — a beta numbered below one already out reaches nobody.
+   It refuses when that patch is already released (run a release first).
+2. Builds jplacer AS that version (`JPLACER_VERSION_OVERRIDE`), the manual, the AppImage, and
+   `dist/release-<beta>/` + SHA256SUMS, then puts the build back to the plain version. **Nothing is
+   committed**: CMakeLists.txt keeps the last release's version.
+3. Pushes the commit to the **`beta`** branch on origin and backup (never `main`'s history is changed),
+   creates the pre-release with the Unreleased notes, and mirrors the tag to backup.
 
-In `CMakeLists.txt`:
-- `project(jplacer VERSION X.Y.Z ...)` — the version the beta leads up to.
-- `set(JPLACER_PRERELEASE "beta.N")`.
+## 2. Verify
 
-Build to make sure it compiles before anything is committed:
+    gh release view v<beta> --json isPrerelease,assets --jq '{pre:.isPrerelease, assets:[.assets[].name]}'
+    gh api repos/jaytektas/jplacer/releases/latest --jq .tag_name
 
-    cmake -S . -B build -G Ninja -DCMAKE_PREFIX_PATH=$HOME/jframework-sdk
-    cmake --build build
+`pre` must be true and Latest must still be the last full release — otherwise the beta went out to
+everyone. Never publish a beta without `--prerelease`.
 
-## 3. Commit and push
+## 3. Tell the user
 
-Commit only the version change, with a subject `X.Y.Z-beta.N: <what is being
-tried out>` — summarise from the log since the previous release or beta tag.
-Then:
-
-    git push origin main
-    git push backup main
-
-## 4. Build and publish
-
-    packaging/build-release.sh --publish
-
-The script sees the pre-release in `CMakeLists.txt` and creates the GitHub
-release with `--prerelease`. Then mirror the tag to the backup:
-
-    git push backup vX.Y.Z-beta.N
-
-## 5. Verify — report each result
-
-- `gh release view vX.Y.Z-beta.N --json isPrerelease,assets -q '{pre: .isPrerelease, assets: [.assets[].name]}'`
-  shows `pre: true` and both `jplacer-X.Y.Z-beta.N-x86_64.AppImage` and `SHA256SUMS`.
-- `gh api repos/jaytektas/jplacer/releases/latest -q .tag_name` is still the
-  last FULL release, not the beta — otherwise the beta went out to everyone.
-
-Finish with the release URL. Leave `JPLACER_PRERELEASE` set: the next beta
-bumps N, and the `release` skill clears it when the version ships.
+The beta's version and URL, that only jplacers with Include beta versions ticked are offered it, and
+anything not verified.

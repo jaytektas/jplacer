@@ -1,64 +1,62 @@
 ---
 name: release
-description: Publish a full jplacer release (vX.Y.Z) to GitHub that every user's updater is offered. Use when the user asks to release, ship, or publish a version of jplacer (not a beta).
+description: Build and publish a jplacer release (AppImage + SHA256SUMS + manual) to github.com/jaytektas/jplacer, raising the version automatically. Use when asked to "release", "cut a release", "ship it" or "push a release".
 ---
 
-# Release jplacer
+# Releasing jplacer
 
-A full release is a normal (non-pre-release) GitHub release. `/releases/latest`
-returns it, so every jplacer offers it on its next update check.
+A release is a normal GitHub release: `/releases/latest` returns it, so every jplacer is offered it.
+Being asked to release is the go-ahead to publish. Never delete or overwrite a published release; a
+mistake is fixed by the next release.
 
-Argument (optional): the version (`0.2.0`) or the part to bump (`patch`,
-`minor`, `major`). With none, ask which; suggest `patch` for fixes only and
-`minor` when there are new features.
+## 0. Before anything
 
-## 1. Preconditions — stop and report if any fail
-
-- `git status --porcelain` is empty and the branch is `main`, up to date with
-  `origin/main` (`git fetch origin && git status -sb`).
-- `gh auth status` succeeds. If the token is invalid, log in from the token
-  file on the NFS, never printing it:
+- Everything to ship is **committed** on `main`; `git status --short` is empty.
+- `gh auth status` works. If the token is invalid, log in from the NFS token file without printing it:
   `grep -oE "ghp_[A-Za-z0-9_]+" "/mnt/nfs/github access token" | head -1 | gh auth login -h github.com --with-token`
-- `appimagetool` and `rsvg-convert` are on PATH.
-- The tag `v<version>` does not already exist locally or on GitHub
-  (`gh release view v<version>` must fail).
+- The SDK is current: `cat ~/jframework-sdk/jframework.commit` against `git -C ~/workspace/JFramework rev-parse HEAD`.
+  If they differ, say so — jplacer would ship against an older framework.
 
-## 2. Set the version
+## 1. Release notes — CHANGES.md
 
-In `CMakeLists.txt`:
-- `project(jplacer VERSION X.Y.Z ...)` — the new version. It must be newer than
-  the latest release (`gh release list --limit 5`).
-- `set(JPLACER_PRERELEASE "")` — empty. Promoting a beta to its release means
-  clearing this and keeping X.Y.Z (0.2.0-beta.3 → 0.2.0).
+`## Unreleased` must hold a plain-words line for every change a user would notice since the last
+release: no hashes, no file names. Check it against what actually changed:
 
-Build to make sure it compiles before anything is committed:
+    git log --oneline v<last>..HEAD
 
-    cmake -S . -B build -G Ninja -DCMAKE_PREFIX_PATH=$HOME/jframework-sdk
-    cmake --build build
+Write any missing lines and commit them. The build script refuses a release with no notes, and prints
+those commits.
 
-## 3. Commit and push
+## 2. The manual says what this release does
 
-Commit only the version change, with a subject `X.Y.Z: <what this release
-brings>` — summarise from `git log v<previous>..HEAD --oneline`. Then:
+The manual ships inside the AppImage and on GitHub Pages, so a stale manual ships with the release.
+For each change in the notes, search `manual/docs` for the labels, settings and source files it touches
+and make the pages describe the release, to `manual/STANDARD.md` (facts from the code, a
+`<!-- src: -->` note per paragraph, labels in **bold**). Things that are gone must not be named anywhere.
+Commit it (`manual: <what>`).
 
-    git push origin main
-    git push backup main
+`manual/tools/build.sh` must pass: it checks every source note and builds `--strict`.
 
-## 4. Build and publish
+## 3. Build and publish
 
     packaging/build-release.sh --publish
 
-It builds the AppImage and SHA256SUMS, tags `vX.Y.Z`, pushes the tag to
-origin and creates the GitHub release with generated notes. Then mirror the
-tag to the backup:
+It does, in order:
+1. **The version**: one past the last published release (patch), committed with the notes as
+   `jplacer x.y.z`. A version already raised past the last release (a hand-raised minor/major, or a
+   re-run after a failure) is kept, so re-running is safe.
+2. Builds jplacer, the manual, the AppImage (manual inside), and `dist/release-<version>/` + SHA256SUMS.
+3. Pushes `main` to origin and backup, creates the release with the version's CHANGES.md section as its
+   notes, mirrors the tag to backup, and publishes the manual to GitHub Pages.
 
-    git push backup vX.Y.Z
+## 4. Verify
 
-## 5. Verify — report each result
+    gh release view v<version> --json isPrerelease,assets --jq '{pre:.isPrerelease, assets:[.assets[].name]}'
+    gh api repos/jaytektas/jplacer/releases/latest --jq .tag_name
 
-- `gh release view vX.Y.Z --json isPrerelease,assets -q '{pre: .isPrerelease, assets: [.assets[].name]}'`
-  shows `pre: false` and both `jplacer-X.Y.Z-x86_64.AppImage` and `SHA256SUMS`.
-- `gh api repos/jaytektas/jplacer/releases/latest -q .tag_name` is `vX.Y.Z`.
+`pre` is false, the assets are the AppImage and SHA256SUMS, and Latest is the new tag.
 
-Finish with the release URL. Never delete or re-tag a published release to
-fix a mistake; publish the next patch version instead.
+## 5. Tell the user
+
+The release URL, the version, the manual URL (https://jaytektas.github.io/jplacer/), and anything not
+verified (for example, an update from the previous version not tried).

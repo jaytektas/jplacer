@@ -1,0 +1,50 @@
+site_name: jplacer User Manual
+site_description: Using jplacer, pick-and-place machine control.
+# Where the published copy lives (manual/tools/publish.sh): canonical links and the sitemap need it.
+site_url: https://jaytektas.github.io/jplacer/
+repo_url: https://github.com/jaytektas/jplacer
+repo_name: jaytektas/jplacer
+docs_dir: docs
+site_dir: site
+strict: true
+
+nav:
+  - index.md
+  - getting-started.md
+  - menus.md
+  - preferences.md
+  - updates.md
+  - whats-new.md
+
+theme:
+  name: material
+  logo: img/jplacer.png
+  favicon: img/jplacer.png
+  features:
+    - navigation.top
+    - navigation.footer
+    - search.highlight
+    - search.suggest
+    - toc.integrate
+  palette:
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue
+      accent: amber
+      toggle: { icon: material/weather-sunny, name: Light }
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue
+      accent: amber
+      toggle: { icon: material/weather-night, name: Dark }
+
+plugins:
+  - search
+  - offline          # works from the copy shipped inside the AppImage, with no internet
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - def_list
+  - toc: { permalink: true }

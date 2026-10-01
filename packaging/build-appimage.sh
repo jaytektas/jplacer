@@ -30,6 +30,11 @@ mkdir -p "$APPDIR/usr/bin"
 install -m755 "$BIN" "$APPDIR/usr/bin/jplacer"
 strip "$APPDIR/usr/bin/jplacer"
 
+# The user manual travels beside the executable: Help > User Manual opens usr/bin/manual/index.html.
+# Not optional -- an AppImage without it has a Help menu that cannot help.
+[ -f "$ROOT/manual/site/index.html" ] || fail "no built manual -- run manual/tools/build.sh first"
+cp -r "$ROOT/manual/site" "$APPDIR/usr/bin/manual"
+
 # The icon twice: the PNG is what the AppImage itself shows, and both are what jplacer copies into the
 # icon theme when it adds itself to the applications menu (src/app/JPlacerLauncher.cpp).
 rsvg-convert -w 256 -h 256 -o "$APPDIR/jplacer.png" "$ROOT/packaging/jplacer.svg"

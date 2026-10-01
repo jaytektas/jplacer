@@ -4,3 +4,6 @@ build-*/
 dist/
 genesis.log
 genesis.log.*
+manual/.venv/
+manual/site/
+manual/docs/whats-new.md

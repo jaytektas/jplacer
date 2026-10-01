@@ -1,57 +1,71 @@
 #!/usr/bin/env bash
-# Build every file a jplacer release carries, for the version in CMakeLists.txt:
+# Cut a jplacer RELEASE: raise the version, build, package, and (with --publish) put it on GitHub.
 #
-#   dist/release-<version>/
-#       jplacer-<version>-x86_64.AppImage   Linux, updates itself
-#       SHA256SUMS                          `sha256sum` of the above
+#   packaging/build-release.sh             raise the version, build and gather dist/release-<version>/
+#   packaging/build-release.sh --publish   ...and push main, create the GitHub release, mirror the tag,
+#                                          publish the manual
 #
-#   packaging/build-release.sh             build only
-#   packaging/build-release.sh --publish   build, tag v<version>, push the tag, and create the GitHub release
+# THE NOTES come from CHANGES.md: everything under ## Unreleased becomes this version's section, the
+# GitHub release's notes and the manual's What's New. No notes, no release.
 #
-# SHA256SUMS is not optional: the updater refuses to install a release without it, because the checksum
-# is what proves the file that arrived is the file that was published. The update picks its file by name
-# (-x86_64.AppImage on Linux), so that name is part of the contract.
+# THE VERSION. Every release is newer than the last one published. CMakeLists.txt holds the last
+# release's version, so this raises the patch and commits it with the notes ("jplacer x.y.z"). A version
+# already raised past the last release -- a hand-raised minor or major, or a re-run after a failure --
+# is kept, not raised again.
 #
-# A version with a pre-release (JPLACER_PRERELEASE in CMakeLists.txt) is published as a GitHub
-# PRE-RELEASE. /releases/latest never returns one, so only people who ticked Preferences > Include beta
-# versions are offered it.
-
+# A release is a normal GitHub release: /releases/latest returns it, so every jplacer is offered it.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DIST="$ROOT/dist"
-source "$ROOT/packaging/version.sh"
-
-fail() { echo "build-release: $*" >&2; exit 1; }
+cd "$ROOT"
+say()  { printf '  release: %s\n' "$*"; }
+fail() { printf '  release: %s\n' "$*" >&2; exit 1; }
 
 PUBLISH=0
 [ "${1:-}" = "--publish" ] && PUBLISH=1
 
-OUT="$DIST/release-$VERSION"
+# 1. committed, on main
+[ -z "$(git status --porcelain)" ] || { git status --short | head -10 >&2; fail "commit everything first"; }
+[ "$(git rev-parse --abbrev-ref HEAD)" = main ] || fail "releases are cut from main"
+
+# 2. the version, and its notes
+source packaging/version.sh
+LAST=$(gh release list -L 100 --exclude-pre-releases --json tagName --jq '.[].tagName' | sed 's/^v//' | sort -V | tail -1) \
+    || fail "could not list the published releases"
+newer() { [ "$1" != "$2" ] && [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | tail -1)" = "$1" ]; }
+NEW="$PLAIN_VERSION"
+[ -n "$LAST" ] && ! newer "$PLAIN_VERSION" "$LAST" && NEW=$(next_patch "$LAST")
+# The notes are written by hand, as the changes are made (CHANGES.md, ## Unreleased). A release with none
+# is refused, with the commits to write them from.
+if ! packaging/changes.py unreleased >/dev/null && ! packaging/changes.py notes "$NEW" >/dev/null 2>&1; then
+    git log --oneline ${LAST:+"v$LAST..HEAD"} | sed 's/^/    /' >&2
+    fail "nothing under '## Unreleased' in CHANGES.md -- write what this release changes, from the commits above"
+fi
+sed -i -E "s/^project\(jplacer VERSION [0-9.]+/project(jplacer VERSION $NEW/" CMakeLists.txt
+packaging/changes.py prepare "$NEW"
+if [ -n "$(git status --porcelain CMakeLists.txt CHANGES.md)" ]; then
+    git commit -q -m "jplacer $NEW" CMakeLists.txt CHANGES.md
+    say "committed: jplacer $NEW (last release: ${LAST:-none})"
+fi
+source packaging/version.sh
 TAG="v$VERSION"
+say "jplacer $VERSION"
 
-# A release is cut from committed work, so the tag points at exactly what was built.
-git -C "$ROOT" diff-index --quiet HEAD -- || fail "uncommitted changes -- commit first"
-
-cmake -S "$ROOT" -B "$ROOT/build" -G Ninja -DCMAKE_BUILD_TYPE=Release >/dev/null
-cmake --build "$ROOT/build" --target jplacer --parallel
-"$ROOT/packaging/build-appimage.sh"
-
-rm -rf "$OUT"
-mkdir -p "$OUT"
-cp "$DIST/jplacer-$VERSION-x86_64.AppImage" "$OUT/"
-( cd "$OUT" && sha256sum jplacer-* > SHA256SUMS )
-
-echo
-echo "release $VERSION: $OUT"
-( cd "$OUT" && ls -l | sed 's/^/  /' && sed 's/^/  /' SHA256SUMS )
+# 3. build, package, gather -- always as the plain version
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DJPLACER_VERSION_OVERRIDE= >/dev/null
+cmake --build build --target jplacer --parallel
+manual/tools/build.sh
+packaging/build-appimage.sh
+packaging/gather-release.sh
 
 [ "$PUBLISH" = 1 ] || exit 0
 
-command -v gh >/dev/null || fail "no gh on PATH"
-git -C "$ROOT" rev-parse -q --verify "refs/tags/$TAG" >/dev/null || git -C "$ROOT" tag -a "$TAG" -m "jplacer $VERSION"
-git -C "$ROOT" push origin "$TAG"
-PRE=()
-[ -n "$PRERELEASE" ] && PRE=(--prerelease)
-( cd "$OUT" && gh release create "$TAG" "${PRE[@]}" --verify-tag --title "jplacer $VERSION" \
-      --generate-notes jplacer-* SHA256SUMS )
+# 4. publish: the commit first, so the tag GitHub makes points at something it has
+git push -q origin main
+git push -q backup main
+gh release create "$TAG" --target "$(git rev-parse HEAD)" --title "jplacer $VERSION" \
+    --notes "$(packaging/changes.py notes "$VERSION")" "dist/release-$VERSION"/*
+git fetch -q origin tag "$TAG"
+git push -q backup "$TAG"
+manual/tools/publish.sh
+say "published: $(gh release view "$TAG" --json url --jq .url)"
