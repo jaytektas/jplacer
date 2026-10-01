@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(jplacer VERSION 0.1.0 LANGUAGES CXX)
+project(jplacer VERSION 0.1.1 LANGUAGES CXX)
 
 # A BETA is the next version with a pre-release after it: set this to "beta.1"
 # and 0.2.0 ships as 0.2.0-beta.1, which orders before 0.2.0 itself. Empty for

@@ -1,14 +1,60 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
-  <rect x="8" y="8" width="240" height="240" rx="40" fill="#1f2a36"/>
-  <!-- the board -->
-  <rect x="36" y="168" width="184" height="44" rx="6" fill="#2e7d4f"/>
-  <rect x="58" y="160" width="40" height="12" rx="2" fill="#d9dee4"/>
-  <rect x="158" y="160" width="40" height="12" rx="2" fill="#d9dee4"/>
-  <!-- the head and nozzle -->
-  <rect x="88" y="40" width="80" height="44" rx="8" fill="#5fa8e8"/>
-  <rect x="120" y="84" width="16" height="40" fill="#cfd8e3"/>
-  <!-- the part on the nozzle -->
-  <rect x="108" y="124" width="40" height="16" rx="2" fill="#1a1a1a"/>
-  <rect x="104" y="128" width="4" height="8" fill="#d9dee4"/>
-  <rect x="148" y="128" width="4" height="8" fill="#d9dee4"/>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2b3a4c"/>
+      <stop offset="1" stop-color="#141c26"/>
+    </linearGradient>
+    <linearGradient id="head" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#4f9be6"/>
+      <stop offset="1" stop-color="#2f6fb8"/>
+    </linearGradient>
+    <linearGradient id="pcb" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2f9a5e"/>
+      <stop offset="1" stop-color="#1d6b40"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="8" y="8" width="240" height="240" rx="48" fill="url(#bg)"/>
+
+  <!-- gantry rail -->
+  <rect x="28" y="38" width="200" height="14" rx="7" fill="#7d8b9c"/>
+
+  <!-- head on the rail -->
+  <rect x="92" y="30" width="72" height="56" rx="10" fill="url(#head)"/>
+  <rect x="104" y="44" width="48" height="6" rx="3" fill="#9fcaf4"/>
+
+  <!-- nozzle -->
+  <path d="M118 86 h20 v22 l-5 16 h-10 l-5 -16 z" fill="#d6dde6"/>
+
+  <!-- vision crosshair around the part -->
+  <g stroke="#ffcf4a" stroke-width="5" stroke-linecap="round" fill="none">
+    <path d="M90 126 v-10 h10"/>
+    <path d="M166 126 v-10 h-10"/>
+    <path d="M90 150 v10 h10"/>
+    <path d="M166 150 v10 h-10"/>
+  </g>
+
+  <!-- the part on the nozzle tip -->
+  <rect x="104" y="124" width="48" height="28" rx="3" fill="#20242a"/>
+  <g fill="#c9d1da">
+    <rect x="98"  y="128" width="6" height="5" rx="1"/>
+    <rect x="98"  y="136" width="6" height="5" rx="1"/>
+    <rect x="98"  y="144" width="6" height="5" rx="1"/>
+    <rect x="152" y="128" width="6" height="5" rx="1"/>
+    <rect x="152" y="136" width="6" height="5" rx="1"/>
+    <rect x="152" y="144" width="6" height="5" rx="1"/>
+  </g>
+  <circle cx="111" cy="131" r="2.5" fill="#5b6470"/>
+
+  <!-- the board, with pads waiting and two parts already placed -->
+  <rect x="28" y="182" width="200" height="42" rx="8" fill="url(#pcb)"/>
+  <g fill="#e2b04a">
+    <rect x="104" y="188" width="48" height="6" rx="2"/>
+    <rect x="44"  y="196" width="10" height="12" rx="2"/>
+    <rect x="68"  y="196" width="10" height="12" rx="2"/>
+    <rect x="182" y="196" width="10" height="12" rx="2"/>
+    <rect x="202" y="196" width="10" height="12" rx="2"/>
+  </g>
+  <rect x="52" y="194" width="18" height="16" rx="2" fill="#262a30"/>
+  <rect x="190" y="194" width="14" height="16" rx="2" fill="#8a5a2b"/>
 </svg>

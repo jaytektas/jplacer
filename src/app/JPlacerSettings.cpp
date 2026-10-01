@@ -46,4 +46,12 @@ bool JPlacerSettings::updatesAtStartup() {
     return JSettings::instance().get<bool>(kUpdatesAtStartup, true);
 }
 
+bool JPlacerSettings::tearOffMenus() {
+    return JSettings::instance().get<bool>(kTearOffMenus, false);
+}
+
+bool JPlacerSettings::launcher() {
+    return JSettings::instance().get<bool>(kLauncher, true);
+}
+
 } // inline namespace jf

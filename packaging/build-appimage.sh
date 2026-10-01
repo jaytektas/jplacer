@@ -30,7 +30,10 @@ mkdir -p "$APPDIR/usr/bin"
 install -m755 "$BIN" "$APPDIR/usr/bin/jplacer"
 strip "$APPDIR/usr/bin/jplacer"
 
+# The icon twice: the PNG is what the AppImage itself shows, and both are what jplacer copies into the
+# icon theme when it adds itself to the applications menu (src/app/JPlacerLauncher.cpp).
 rsvg-convert -w 256 -h 256 -o "$APPDIR/jplacer.png" "$ROOT/packaging/jplacer.svg"
+cp "$ROOT/packaging/jplacer.svg" "$APPDIR/jplacer.svg"
 cp "$ROOT/packaging/jplacer.desktop" "$APPDIR/jplacer.desktop"
 
 cat > "$APPDIR/AppRun" <<'RUN'

@@ -3,6 +3,7 @@
 
 #include "JPlacerApp.h"
 
+#include "JPlacerLauncher.h"
 #include "JPlacerLog.h"
 #include "JPlacerMenuBuilder.h"
 #include "JPlacerPreferencesDialog.h"
@@ -10,6 +11,7 @@
 
 #include <j/core/Dialog.h>
 #include <j/core/Log.h>
+#include <j/core/MenuSystem.h>
 
 inline namespace jf {
 
@@ -37,8 +39,12 @@ JPlacerApp::JPlacerApp(std::string settingsPath) {
         *m_window, JAppUpdater::JConfig{ "jplacer", JPLACER_VERSION, kReleasesApi, kUpdateUrlEnv,
                                          JPlacerSettings::kUpdatesBeta });
 
+    JMenuManager::instance().setTearOffEnabled(JPlacerSettings::tearOffMenus());
     JPlacerMenuBuilder::build(*m_window, m_app.sceneGraph(), *this);
     m_window->setStatusText("jplacer " JPLACER_VERSION);
+
+    // Re-run on every start, so a moved AppImage gets its launcher re-pointed.
+    if (JPlacerLauncher::supported() && JPlacerSettings::launcher()) JPlacerLauncher::install();
 }
 
 JPlacerApp::~JPlacerApp() {

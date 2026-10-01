@@ -10,6 +10,7 @@ inline namespace jf {
 struct JPlacerLog {
     static constexpr const char* kApp      = "app";
     static constexpr const char* kSettings = "settings";
+    static constexpr const char* kDesktop  = "desktop";
 };
 
 } // inline namespace jf

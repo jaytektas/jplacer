@@ -21,6 +21,13 @@ public:
     // Help > Check for Updates still does.
     static constexpr const char* kUpdatesAtStartup = "updates.checkAtStartup";
 
+    // Turned on: a menu can be dragged off into a window of its own. Off by
+    // default.
+    static constexpr const char* kTearOffMenus     = "ui.tearOffMenus";
+    // Turned on (and running as an AppImage): jplacer keeps its entry in the
+    // desktop's applications menu. See JPlacerLauncher.
+    static constexpr const char* kLauncher         = "desktop.launcher";
+
     // ~/.config/jplacer/jplacer.json, or %APPDATA%\jplacer\jplacer.json.
     static std::string defaultPath();
 
@@ -33,6 +40,8 @@ public:
 
     static bool updatesBeta();
     static bool updatesAtStartup();
+    static bool tearOffMenus();
+    static bool launcher();
 };
 
 } // inline namespace jf
