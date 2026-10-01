@@ -13,7 +13,8 @@ notes.
 - A new icon. Run as an AppImage, jplacer adds itself to your applications menu with it.
 - Preferences has a General section: tear-off menus (off by default) and whether jplacer appears in
   the applications menu.
-- Help has topics: Getting Started, Updates and Betas, Preferences, and this list of what's new.
+- A user manual: Help > User Manual opens it in your browser, and Help > What's New shows what changed
+  in each version.
 
 ## 0.1.0
 
