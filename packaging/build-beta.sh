@@ -41,7 +41,7 @@ say "jplacer $JPLACER_VERSION"
 # 3. build as the beta, package, gather -- and put the build back to the plain version however this ends
 restore() { cmake -S . -B build -DJPLACER_VERSION_OVERRIDE= >/dev/null 2>&1 || true; }
 trap restore EXIT
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DJPLACER_VERSION_OVERRIDE="$JPLACER_VERSION" >/dev/null
+cmake -S . -B build -G Ninja -DCMAKE_PREFIX_PATH="${JFRAMEWORK_SDK:-$HOME/jframework-sdk}" -DCMAKE_BUILD_TYPE=Release -DJPLACER_VERSION_OVERRIDE="$JPLACER_VERSION" >/dev/null
 cmake --build build --target jplacer --parallel
 manual/tools/build.sh
 packaging/build-appimage.sh

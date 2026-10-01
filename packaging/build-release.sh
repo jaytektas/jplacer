@@ -52,7 +52,7 @@ TAG="v$VERSION"
 say "jplacer $VERSION"
 
 # 3. build, package, gather -- always as the plain version
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DJPLACER_VERSION_OVERRIDE= >/dev/null
+cmake -S . -B build -G Ninja -DCMAKE_PREFIX_PATH="${JFRAMEWORK_SDK:-$HOME/jframework-sdk}" -DCMAKE_BUILD_TYPE=Release -DJPLACER_VERSION_OVERRIDE= >/dev/null
 cmake --build build --target jplacer --parallel
 manual/tools/build.sh
 packaging/build-appimage.sh
