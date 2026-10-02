@@ -76,6 +76,7 @@ public:
     // A new squareness correction (JPSquarenessConfig). Every coordinate means
     // something else after it, so the machine is no longer homed.
     void setSquareness(const JPSquarenessConfig& squareness);
+    JPSquarenessConfig squareness() const;
 
     // The corrections made since the last home, summed, by axis id: where
     // the switches put the machine is (coordinates + this).
@@ -109,6 +110,7 @@ public:
     JSignal<std::string>                         onAlarm;        // in words, with the controller's name
     JSignal<bool, std::string>                   onMotion;       // a move or home ended: ok, why not
     JSignal<bool>                                onHomed;
+    JSignal<>                                    onCalibration;  // a camera's calibration or the squareness changed
     JSignal<std::string, std::string>            onState;        // controller id, its new state
 
 private:

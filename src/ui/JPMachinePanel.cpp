@@ -11,6 +11,8 @@
 #include <j/core/JComboBox.h>
 #include <j/core/Log.h>
 
+#include <cstdio>
+
 inline namespace jf {
 
 JPMachinePanel::JPMachinePanel(JSceneGraph& graph, JPCell& cell)
@@ -57,11 +59,50 @@ JPMachinePanel::JPMachinePanel(JSceneGraph& graph, JPCell& cell)
         add(std::move(portRow));
     }
 
+    add(std::make_unique<JLabel>(graph, "Calibration"));
+    for (const JPCameraConfig& c : cell.config().cameras) {
+        JLabel* l = add(std::make_unique<JLabel>(graph, ""));
+        l->setWordWrap(true);
+        m_cameras.push_back({ c.id, l });
+    }
+    m_squareness = add(std::make_unique<JLabel>(graph, ""));
+    m_squareness->setWordWrap(true);
+    m_homing = add(std::make_unique<JLabel>(graph, ""));
+    m_homing->setWordWrap(true);
+
+    m_watch.on(cell.onCalibration, [this] { refreshCalibration(); });
     m_watch.on(cell.onConnection, [this](bool, std::string why) { refresh(why); });
     m_watch.on(cell.onHomed,      [this](bool) { refresh(std::string()); });
     m_watch.on(cell.onState,      [this](std::string, std::string) { refresh(std::string()); });
     m_watch.on(cell.onMotion,     [this](bool ok, std::string why) { refresh(ok ? std::string() : why); });
     refresh(std::string());
+    refreshCalibration();
+}
+
+void JPMachinePanel::refreshCalibration() {
+    auto fixed = [](double v, int decimals) {
+        char buf[32];
+        std::snprintf(buf, sizeof buf, "%.*f", decimals, v);
+        return std::string(buf);
+    };
+    const JPCellConfig& config = m_cell.config();
+    for (const auto& [id, label] : m_cameras) {
+        std::string name = id;
+        for (const JPCameraConfig& c : config.cameras) if (c.id == id) name = c.name;
+        const JPCameraCalibration k = m_cell.cameraCalibration(id);
+        label->setText(!k.valid ? name + ": not calibrated"
+                                : name + ": " + fixed(k.scaleX(), 3) + " x " + fixed(k.scaleY(), 3) + " px/mm, turned "
+                                      + fixed(k.rotationDeg(), 2) + " deg" + (k.mirrored() ? ", mirrored" : "") + ", lens "
+                                      + fixed(k.lensK1, 3) + ", fit to " + fixed(k.rmsPx, 2) + " px (" + k.when + ")");
+    }
+    const JPSquarenessConfig q = m_cell.squareness();
+    m_squareness->setText(q.active() ? "Squareness: corrected for Y leaning " + fixed(q.xPerY * 100, 3)
+                                           + " mm in X per 100 mm"
+                                     : "Squareness: not corrected (a board located by three or more fiducials measures it)");
+    bool visual = false;
+    for (const JPHeadConfig& h : config.heads) visual = visual || h.visualHoming;
+    m_homing->setText(visual ? "Homing: by the switches, then by the homing mark with the head camera"
+                             : "Homing: by the switches");
 }
 
 void JPMachinePanel::refresh(const std::string& why) {

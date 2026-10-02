@@ -369,6 +369,7 @@ void JPCell::setSquareness(const JPSquarenessConfig& squareness) {
         }
         m_homed = false;
         onHomed.emit(false);
+        onCalibration.emit();
         JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_config.name << ": squareness " << squareness.xPerY
                                                   << " mm of X a mm of Y; home again";
     });
@@ -380,9 +381,17 @@ std::map<std::string, double> JPCell::correctionSinceHome() const {
 }
 
 void JPCell::setCameraCalibration(const std::string& cameraId, const JPCameraCalibration& calibration) {
+    {
+        std::lock_guard lk(m_mutex);
+        for (JPCameraConfig& c : m_config.cameras)
+            if (c.id == cameraId) c.calibration = calibration;
+    }
+    onCalibration.emit();
+}
+
+JPSquarenessConfig JPCell::squareness() const {
     std::lock_guard lk(m_mutex);
-    for (JPCameraConfig& c : m_config.cameras)
-        if (c.id == cameraId) c.calibration = calibration;
+    return m_config.squareness;
 }
 
 JPCameraCalibration JPCell::cameraCalibration(const std::string& cameraId) const {

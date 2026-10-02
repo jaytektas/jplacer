@@ -231,7 +231,7 @@ bool JPlacerMachine::openCell(const std::string& path, std::string& error) {
 }
 
 void JPlacerMachine::squareMachine(const JPMountConfig& mount, double xPerY) {
-    JPSquarenessConfig q = m_cell->config().squareness;
+    JPSquarenessConfig q = m_cell->squareness();
     if (q.axisX.empty() || q.axisY.empty()) {
         q.axisX = mount.axisX;
         q.axisY = mount.axisY;

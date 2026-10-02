@@ -123,7 +123,12 @@ The top line names the cell and says whether it is connected and, when it is, th
 controller runs and whether the machine is homed. Below are what each controller says it is doing (Idle, Run, Alarm…) and, for each controller on a
 serial port, the port list (see [Choosing the port](#choosing-the-port)).
 
-<!-- src: src/ui/JPMachinePanel.cpp -->
+Under **Calibration** is what the machine has been measured for: each camera's calibration (its scale in
+X and Y, how far it is turned, its lens, how closely the measurements fitted, and when), the
+[squareness](board.md#squaring-the-machine) correction, and how it homes. It changes as soon as a
+calibration does.
+
+<!-- src: src/ui/JPMachinePanel.cpp (refresh, refreshCalibration) -->
 
 ### Homing
 

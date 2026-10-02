@@ -13,6 +13,8 @@
 
 #include <functional>
 #include <string>
+#include <utility>
+#include <vector>
 
 inline namespace jf {
 
@@ -29,10 +31,16 @@ public:
 
 private:
     void refresh(const std::string& why);
+    // What the machine has been measured for: each camera's calibration, the
+    // squareness, how it homes.
+    void refreshCalibration();
 
     JPCell&     m_cell;
     JLabel*     m_status  = nullptr;
     JLabel*     m_state   = nullptr;
+    std::vector<std::pair<std::string, JLabel*>> m_cameras;   // camera id, its line
+    JLabel*     m_squareness = nullptr;
+    JLabel*     m_homing  = nullptr;
     JPCellWatch m_watch;
 };
 
