@@ -10,6 +10,7 @@
 #include "JPlacerSettings.h"
 
 #include <j/core/Dialog.h>
+#include <j/core/JAiBus.h>
 #include <j/core/Log.h>
 #include <j/core/MenuSystem.h>
 
@@ -49,6 +50,14 @@ JPlacerApp::JPlacerApp(std::string settingsPath) {
     m_machine = std::make_unique<JPlacerMachine>(*m_window, m_app.sceneGraph());
     JMenuManager::instance().setTearOffEnabled(JPlacerSettings::tearOffMenus());
     JPlacerMenuBuilder::build(*m_window, m_app.sceneGraph(), *this);
+    // Automation (JF_AI_BUS, jf-busctl): what a widget click cannot reach.
+    // "dock:<title>" brings a dock's tab to the front, so its widgets can be
+    // driven.
+    JAiBus::instance().onAction = [this](uint32_t, const std::string& action) {
+        constexpr std::string_view kDock = "dock:";
+        if (action.rfind(kDock, 0) != 0) return 0;
+        return m_machine->showDock(action.substr(kDock.size())) ? 1 : -1;
+    };
     m_window->setStatusText("jplacer " JPLACER_VERSION);
 
     // Re-run on every start, so a moved AppImage gets its launcher re-pointed.
@@ -56,6 +65,7 @@ JPlacerApp::JPlacerApp(std::string settingsPath) {
 }
 
 JPlacerApp::~JPlacerApp() {
+    JAiBus::instance().onAction = nullptr;   // it calls into this app
     // The updater records "don't ask about this version again" in JSettings
     // without saving, so the file is written once more on the way out.
     JPlacerSettings::save();

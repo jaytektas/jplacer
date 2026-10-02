@@ -41,6 +41,9 @@ public:
     void connect();
     void disconnect();
     void home();                // Machine > Home All Axes
+    // Bring the dock titled `title` to the front of its tab group. False when
+    // there is no such dock.
+    bool showDock(const std::string& title);
 
     // The directory cell files are kept in.
     static std::string cellsDir();

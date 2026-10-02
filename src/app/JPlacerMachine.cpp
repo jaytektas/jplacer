@@ -90,10 +90,8 @@ void JPlacerMachine::buildPanels() {
     }
     if (first) {
         // Each area opens on its first panel (the last added would be in front).
-        for (size_t i : { size_t(0), size_t(3) }) {
-            JDockHost* host = m_docks[i].dock->placedIn();
-            if (host) host->insertDock(m_docks[i].dock.get(), host->findDock(m_docks[i].dock.get()));
-        }
+        showDock("Machine");
+        showDock("Console");
     }
 }
 
@@ -252,6 +250,16 @@ void JPlacerMachine::disconnect() {
 
 void JPlacerMachine::home() {
     if (m_cell) m_cell->home();
+}
+
+bool JPlacerMachine::showDock(const std::string& title) {
+    for (Dock& d : m_docks) {
+        if (d.dock->title() != title) continue;
+        // Re-inserting a dock where it already is makes it the active tab.
+        if (JDockHost* host = d.dock->placedIn()) host->insertDock(d.dock.get(), host->findDock(d.dock.get()));
+        return true;
+    }
+    return false;
 }
 
 } // inline namespace jf
