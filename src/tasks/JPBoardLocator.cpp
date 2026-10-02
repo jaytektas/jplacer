@@ -35,11 +35,12 @@ JPBoardLocator::Result JPBoardLocator::run(JPCell& cell, JPCameraFeed& feed, con
     Result r;
     r.board = guess;
     const JPMountConfig& mount = feed.config().mount;
-    const JPCameraCalibration cal = cell.cameraCalibration(feed.config().id);
-    if (mount.axisX.empty() || mount.axisY.empty() || !cal.valid) {
-        r.why = feed.config().name + " is not a calibrated camera on the head: calibrate it first";
+    if (mount.axisX.empty() || mount.axisY.empty()) {
+        r.why = feed.config().name + " is not a camera on the head";
         return r;
     }
+    JPCameraCalibration cal;
+    if (!JPCameraLook::calibration(cell, feed, cal, r.why)) return r;
     if (!cell.isHomed()) {
         r.why = "home the machine first";
         return r;
@@ -87,7 +88,7 @@ JPBoardLocator::Result JPBoardLocator::run(JPCell& cell, JPCameraFeed& feed, con
             JPGrayImage img;
             if (!JPCameraLook::settled(feed, img, r.why)) return r;
             if (img.width != cal.width || img.height != cal.height) {
-                r.why = feed.config().name + " was calibrated at another picture size: calibrate it again";
+                r.why = feed.config().name + " changed its picture size while in use";
                 return r;
             }
             JPRoundMarkFinder::Request rq;

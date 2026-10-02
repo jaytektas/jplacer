@@ -127,8 +127,9 @@ The top line names the cell and says whether it is connected and, when it is, th
 controller runs and whether the machine is homed. Below are what each controller says it is doing (Idle, Run, Alarm…) and, for each controller on a
 serial port, the port list (see [Choosing the port](#choosing-the-port)).
 
-Under **Calibration** is what the machine has been measured for: each camera's calibration (its scale in
-X and Y, how far it is turned, its lens, how closely the measurements fitted, and when), the
+Under **Calibration** is what the machine has been measured for: each camera's calibrations, one for each
+picture size it was measured at (the size, its scale in X and Y, how far it is turned, its lens, how
+closely the measurements fitted, and when), the
 [squareness](board.md#squaring-the-machine) correction, and how it homes. It changes as soon as a
 calibration does.
 
@@ -290,7 +291,13 @@ are off (and another camera task will not start), and the line under the buttons
 and the status bar give the result. A calibration is saved in the cell file and used from then on:
 whatever is measured in a picture is straightened through the lens first.
 
-<!-- src: src/tasks/JPCameraCalibrator.cpp; src/vision/JPCalibrationFit.cpp (fitWithLens); src/common/JPLens.h; src/tasks/JPCameraLook.cpp; src/app/JPlacerCameraTasks.cpp (calibrate, notReady, kTaskSpeed); src/ui/JPCameraPanel.cpp (setBusy, the note) -->
+A calibration belongs to the picture size it was measured at: at another size a pixel is another size
+on the machine, and the lens's bending lands elsewhere in the picture. A camera keeps one for each size,
+and calibrating again at a size replaces only that one. A camera taking pictures at a size it has not
+been calibrated at is shown as taken, and a task that measures with it says it is not calibrated for
+that size.
+
+<!-- src: src/tasks/JPCameraCalibrator.cpp; src/vision/JPCalibrationFit.cpp (fitWithLens); src/common/JPLens.h; src/tasks/JPCameraLook.cpp (calibration); src/machine/JPCameraConfig.h (calibrationFor, keepCalibration); src/app/JPlacerCameraTasks.cpp (calibrate, notReady, kTaskSpeed); src/ui/JPCameraPanel.cpp (setBusy, the note, refreshStraightening) -->
 
 #### Calibrating a fixed camera
 

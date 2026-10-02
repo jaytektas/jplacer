@@ -29,8 +29,9 @@ inline namespace jf {
 // costs nothing; the owner switches its light with it (onRunning).
 class JPCameraPanel : public JContainer {
 public:
-    // A camera's calibration (not valid when it has none), for straightening its picture.
-    using CalibrationFor = std::function<JPCameraCalibration(const std::string& cameraId)>;
+    // A camera's calibration for pictures width x height (not valid when it
+    // has none), for straightening its picture.
+    using CalibrationFor = std::function<JPCameraCalibration(const std::string& cameraId, int width, int height)>;
 
     // `capturesDir`: where Save Picture writes. `view`: where the camera is
     // looking, for a simulated camera to draw (null for a real one).
@@ -56,7 +57,8 @@ public:
     // here, reported to onViewChanged.
     void setView(bool straight, double showAll);
     std::function<void(bool straight, double showAll)> onViewChanged;
-    // A calibration changed: straighten by it from now on.
+    // A calibration changed (or the camera opened, at a size): straighten by
+    // it from now on.
     void refreshStraightening();
 
     // While a task drives the camera: its buttons are off, and it runs even

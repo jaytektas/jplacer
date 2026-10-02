@@ -70,6 +70,7 @@ JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCameraCon
             if (const auto a = alive.lock(); !a || !*a) return;
             const auto mode = m_feed.mode();
             m_state->setText(running && mode ? mode->describe() : std::string());
+            if (running) refreshStraightening();   // by the calibration for its picture size
         });
     }));
     m_unwatch.push_back(m_feed.onError.connect([this, alive](std::string why) {
@@ -108,7 +109,6 @@ void JPCameraPanel::start() {
     m_view->setMessage("Starting " + m_feed.config().name + "\xE2\x80\xA6");
     m_state->setText("");
     m_feed.start();
-    refreshStraightening();
     if (onRunning) onRunning(true);
 }
 
@@ -129,13 +129,16 @@ void JPCameraPanel::setView(bool straight, double showAll) {
 
 void JPCameraPanel::refreshStraightening() {
     const JPCameraConfig& cam = m_feed.config();
+    const auto mode = m_feed.mode();
     std::shared_ptr<const JPStraightener> s;
-    if (m_straight && m_calibrationFor)
-        if (auto made = JPStraightener::make(m_calibrationFor(cam.id), cam.looksUp, m_showAll))
+    if (m_straight && m_calibrationFor && mode)
+        if (auto made = JPStraightener::make(m_calibrationFor(cam.id, mode->width, mode->height), cam.looksUp, m_showAll))
             s = std::make_shared<const JPStraightener>(std::move(*made));
     m_view->setStraightener(s);
     m_edges->setEnabled(m_straight);
-    if (m_straight && !s) setNote(cam.name + " is not calibrated: shown as taken");
+    if (m_straight && mode && !s)
+        setNote(cam.name + " is not calibrated for its " + std::to_string(mode->width) + "\xC3\x97"
+                + std::to_string(mode->height) + " pictures: shown as taken");
 }
 
 void JPCameraPanel::setBusy(bool busy) {

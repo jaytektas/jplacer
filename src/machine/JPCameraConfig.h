@@ -7,6 +7,7 @@
 #include "JPMountConfig.h"
 
 #include <string>
+#include <vector>
 
 inline namespace jf {
 
@@ -20,7 +21,25 @@ struct JPCameraConfig {
     JPMountConfig mount;
     double        unitsPerPixelX = 0, unitsPerPixelY = 0;
     JJson         device;
-    JPCameraCalibration calibration;   // jplacer's own, from known moves; .valid false until measured
+    // jplacer's own, from known moves: one for each picture size it was
+    // measured at (another size is another scale, and another lens).
+    std::vector<JPCameraCalibration> calibrations;
+
+    // The calibration for pictures width x height; null when there is none.
+    const JPCameraCalibration* calibrationFor(int width, int height) const {
+        for (const JPCameraCalibration& c : calibrations)
+            if (c.width == width && c.height == height) return &c;
+        return nullptr;
+    }
+    // Keep `c`, in place of one at the same size.
+    void keepCalibration(const JPCameraCalibration& c) {
+        for (JPCameraCalibration& k : calibrations)
+            if (k.width == c.width && k.height == c.height) {
+                k = c;
+                return;
+            }
+        calibrations.push_back(c);
+    }
 
     // The actuator that lights what it looks at; empty when it has none.
     std::string lightActuator() const { return device["light-actuator-id"].str(); }
@@ -34,7 +53,8 @@ struct JPCameraConfig {
         c.unitsPerPixelX = j["unitsPerPixel"]["x"].number();
         c.unitsPerPixelY = j["unitsPerPixel"]["y"].number();
         c.device         = j["device"];
-        c.calibration    = JPCameraCalibration::fromJson(j["calibration"]);
+        for (const JJson& k : j["calibrations"].arr())
+            if (JPCameraCalibration cal = JPCameraCalibration::fromJson(k); cal.valid) c.calibrations.push_back(cal);
         return c;
     }
     JJson toJson() const {
@@ -46,7 +66,11 @@ struct JPCameraConfig {
         j["unitsPerPixel"]["x"] = unitsPerPixelX;
         j["unitsPerPixel"]["y"] = unitsPerPixelY;
         j["device"]             = device;
-        if (calibration.valid) j["calibration"] = calibration.toJson();
+        if (!calibrations.empty()) {
+            JJson list = JJson::array();
+            for (const JPCameraCalibration& k : calibrations) list.push(k.toJson());
+            j["calibrations"] = list;
+        }
         return j;
     }
 };

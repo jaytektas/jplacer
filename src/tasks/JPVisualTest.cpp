@@ -25,15 +25,16 @@ constexpr double kSearchMm = 2.0;
 JPVisualTest::Result JPVisualTest::run(JPCell& cell, JPCameraFeed& feed, const JPHeadConfig& head, double speed) {
     Result r;
     const JPMountConfig& mount = feed.config().mount;
-    const JPCameraCalibration cal = cell.cameraCalibration(feed.config().id);
     if (!head.homingFiducial || head.homingFiducialDiameter <= 0) {
         r.why = "the head has no homing mark set (its place and size)";
         return r;
     }
-    if (mount.axisX.empty() || mount.axisY.empty() || !cal.valid) {
-        r.why = feed.config().name + " is not a calibrated camera on the head: calibrate it first";
+    if (mount.axisX.empty() || mount.axisY.empty()) {
+        r.why = feed.config().name + " is not a camera on the head";
         return r;
     }
+    JPCameraCalibration cal;
+    if (!JPCameraLook::calibration(cell, feed, cal, r.why)) return r;
     // Look where the settings say the mark is (the camera's axes, less its
     // offset on the head).
     const double viewX = head.homingFiducial->x, viewY = head.homingFiducial->y;
@@ -43,7 +44,7 @@ JPVisualTest::Result JPVisualTest::run(JPCell& cell, JPCameraFeed& feed, const J
     JPGrayImage img;
     if (!JPCameraLook::settled(feed, img, r.why)) return r;
     if (img.width != cal.width || img.height != cal.height) {
-        r.why = feed.config().name + " was calibrated at another picture size: calibrate it again";
+        r.why = feed.config().name + " changed its picture size while in use";
         return r;
     }
     const double scale = std::sqrt(cal.scaleX() * cal.scaleY());

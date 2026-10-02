@@ -496,7 +496,7 @@ void JPCell::setCameraCalibration(const std::string& cameraId, const JPCameraCal
     {
         std::lock_guard lk(m_mutex);
         for (JPCameraConfig& c : m_config.cameras)
-            if (c.id == cameraId) c.calibration = calibration;
+            if (c.id == cameraId) c.keepCalibration(calibration);
     }
     onCalibration.emit();
 }
@@ -506,10 +506,18 @@ JPSquarenessConfig JPCell::squareness() const {
     return m_config.squareness;
 }
 
-JPCameraCalibration JPCell::cameraCalibration(const std::string& cameraId) const {
+JPCameraCalibration JPCell::cameraCalibration(const std::string& cameraId, int width, int height) const {
     std::lock_guard lk(m_mutex);
     for (const JPCameraConfig& c : m_config.cameras)
-        if (c.id == cameraId) return c.calibration;
+        if (c.id == cameraId)
+            if (const JPCameraCalibration* k = c.calibrationFor(width, height)) return *k;
+    return {};
+}
+
+std::vector<JPCameraCalibration> JPCell::cameraCalibrations(const std::string& cameraId) const {
+    std::lock_guard lk(m_mutex);
+    for (const JPCameraConfig& c : m_config.cameras)
+        if (c.id == cameraId) return c.calibrations;
     return {};
 }
 

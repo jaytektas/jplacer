@@ -94,11 +94,14 @@ void JPMachinePanel::refreshCalibration() {
                 name = c.name;
                 up = c.looksUp;
             }
-        const JPCameraCalibration k = m_cell.cameraCalibration(id);
-        label->setText(!k.valid ? name + ": not calibrated"
-                                : name + ": " + fixed(k.scaleX(), 3) + " x " + fixed(k.scaleY(), 3) + " px/mm, turned "
-                                      + fixed(k.rotationDeg(up), 2) + " deg" + (k.mirrored(up) ? ", mirrored" : "") + ", lens "
-                                      + fixed(k.lensK1, 3) + ", fit to " + fixed(k.rmsPx, 2) + " px (" + k.when + ")");
+        // A calibration for each picture size it was measured at.
+        std::string text;
+        for (const JPCameraCalibration& k : m_cell.cameraCalibrations(id))
+            text += (text.empty() ? "" : "; ") + std::to_string(k.width) + "\xC3\x97" + std::to_string(k.height) + " "
+                  + fixed(k.scaleX(), 3) + " x " + fixed(k.scaleY(), 3) + " px/mm, turned " + fixed(k.rotationDeg(up), 2)
+                  + " deg" + (k.mirrored(up) ? ", mirrored" : "") + ", lens " + fixed(k.lensK1, 3) + ", fit to "
+                  + fixed(k.rmsPx, 2) + " px (" + k.when + ")";
+        label->setText(name + ": " + (text.empty() ? "not calibrated" : text));
     }
     const JPSquarenessConfig q = m_cell.squareness();
     m_squareness->setText(q.active() ? "Squareness: corrected for Y leaning " + fixed(q.xPerY * 100, 3)

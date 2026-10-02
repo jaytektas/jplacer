@@ -20,6 +20,9 @@ inline namespace jf {
 class JPCameraLook {
 public:
     static bool settled(JPCameraFeed& feed, JPGrayImage& out, std::string& why, int settleMs = kSettleMs);
+    // The camera's calibration for the pictures it is taking (waiting for
+    // one, to know their size). False (and why) when it has none at that size.
+    static bool calibration(JPCell& cell, JPCameraFeed& feed, JPCameraCalibration& out, std::string& why);
     // A settled picture with the room's light taken out: one with the
     // camera's light off and one with it on, the first taken from the
     // second. What is left is what the camera's light lights, whatever the

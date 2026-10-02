@@ -74,7 +74,8 @@ std::string JPlacerCameraTasks::notReady(const JPCameraPanel* camera, bool needs
     if (!h) return cam.name + " is not on a head";
     if (needsHomingMark && (!h->homingFiducial || h->homingFiducialDiameter <= 0))
         return "the head's homing mark (its place and size) is not set";
-    if (needsCalibration && !m_cell.cameraCalibration(cam.id).valid)
+    // At which size is known once it takes pictures; the task checks.
+    if (needsCalibration && m_cell.cameraCalibrations(cam.id).empty())
         return cam.name + " is not calibrated: Calibrate first";
     return {};
 }
@@ -185,7 +186,7 @@ void JPlacerCameraTasks::visualHome() {
     if (!homing) return;
     JPCameraPanel* camera = nullptr;
     for (JPCameraPanel* p : m_cameras)
-        if (!camera && p->camera().mount.headId == homing->id && m_cell.cameraCalibration(p->camera().id).valid) camera = p;
+        if (!camera && p->camera().mount.headId == homing->id && !m_cell.cameraCalibrations(p->camera().id).empty()) camera = p;
     if (!camera) {
         m_window.showStatus("Homed by the switches only: calibrate a camera on " + homing->name
                             + " to finish homing with the homing mark", kResultMs);
@@ -218,7 +219,7 @@ JPCameraPanel* JPlacerCameraTasks::headCamera() const {
     for (JPCameraPanel* p : m_cameras) {
         const JPMountConfig& m = p->camera().mount;
         if (m.axisX.empty() || m.axisY.empty()) continue;
-        if (m_cell.cameraCalibration(p->camera().id).valid) return p;
+        if (!m_cell.cameraCalibrations(p->camera().id).empty()) return p;
         if (!first) first = p;
     }
     return first;
@@ -243,10 +244,11 @@ bool JPlacerCameraTasks::headCameraView(double& x, double& y, std::string& why) 
 bool JPlacerCameraTasks::cameraLook(const std::string& cameraId, JPCameraCalibration& calibration, double& viewX,
                                     double& viewY) const {
     std::string why;
-    for (const JPCameraPanel* p : m_cameras)
+    for (JPCameraPanel* p : m_cameras)
         if (p->camera().id == cameraId) {
-            if (!cameraView(p->camera(), viewX, viewY, why)) return false;
-            calibration = m_cell.cameraCalibration(cameraId);
+            const auto mode = p->feed().mode();
+            if (!mode || !cameraView(p->camera(), viewX, viewY, why)) return false;
+            calibration = m_cell.cameraCalibration(cameraId, mode->width, mode->height);
             return calibration.valid;
         }
     return false;

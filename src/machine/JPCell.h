@@ -92,9 +92,14 @@ public:
     // the switches put the machine is (coordinates + this).
     std::map<std::string, double> correctionSinceHome() const;
 
-    // Keep a camera's calibration (the cell's own copy; the owner saves it).
+    // Keep a camera's calibration, in place of one at the same picture size
+    // (the cell's own copy; the owner saves it).
     void setCameraCalibration(const std::string& cameraId, const JPCameraCalibration& calibration);
-    JPCameraCalibration cameraCalibration(const std::string& cameraId) const;
+    // A camera's calibration for pictures width x height; not valid when it
+    // has none at that size.
+    JPCameraCalibration cameraCalibration(const std::string& cameraId, int width, int height) const;
+    // All of a camera's calibrations, a picture size each.
+    std::vector<JPCameraCalibration> cameraCalibrations(const std::string& cameraId) const;
 
     // Each controller's last reported state (Idle, Run, Alarm…), by controller id.
     std::map<std::string, std::string> states() const;

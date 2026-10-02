@@ -72,6 +72,8 @@ notes.
 - Each camera has a tab of its own in the middle of the window, instead of buttons to choose one: put
   them side by side or tear one out to see two at once. A camera runs, with its light on, while its
   picture is on screen, and keeps its own straightened or as-taken choice.
+- A camera keeps a calibration for each picture size it was calibrated at, and uses the one for the size
+  it is taking.
 - The board is drawn over the live camera picture: each part's designator and each fiducial where the
   board's place puts it.
 - Visual homing: Home finishes by finding the homing mark with the calibrated head camera and

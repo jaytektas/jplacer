@@ -3,7 +3,8 @@
 
 // A cell over a simulated controller: it connects, follows controller axes from
 // status reports and a mapped axis through its map, switches and reads an
-// actuator, and reports a cell whose controller cannot connect.
+// actuator, keeps a camera's calibrations a picture size each, and reports a
+// cell whose controller cannot connect.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
@@ -163,6 +164,33 @@ int main() {
 
         cell.disconnect();
         assert(!connection.take().first && !cell.isHomed());
+    }
+    {
+        // A camera keeps a calibration for each picture size: a new one at a
+        // size replaces the old, and they go through the cell file.
+        JPCellConfig c = cellConfig();
+        JPCameraConfig cam;
+        cam.id = "C";
+        cam.name = "top";
+        c.cameras.push_back(cam);
+        JPCell cell(c, profiles());
+        auto calibrated = [](int width, int height, double rms) {
+            JPCameraCalibration k;
+            k.valid = true;
+            k.width = width;
+            k.height = height;
+            k.rmsPx = rms;
+            return k;
+        };
+        cell.setCameraCalibration("C", calibrated(1280, 720, 0.5));
+        cell.setCameraCalibration("C", calibrated(640, 480, 0.3));
+        cell.setCameraCalibration("C", calibrated(1280, 720, 0.2));
+        assert(cell.cameraCalibrations("C").size() == 2);
+        assert(cell.cameraCalibration("C", 1280, 720).rmsPx == 0.2);
+        assert(cell.cameraCalibration("C", 640, 480).rmsPx == 0.3);
+        assert(!cell.cameraCalibration("C", 800, 600).valid);
+        const JPCameraConfig back = JPCameraConfig::fromJson(cell.config().cameras[0].toJson());
+        assert(back.calibrations.size() == 2 && back.calibrationFor(640, 480) && back.calibrationFor(640, 480)->rmsPx == 0.3);
     }
     {
         // A controller on a link that does not exist: the cell says why.

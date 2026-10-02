@@ -32,6 +32,16 @@ bool JPCameraLook::settled(JPCameraFeed& feed, JPGrayImage& out, std::string& wh
     return false;
 }
 
+bool JPCameraLook::calibration(JPCell& cell, JPCameraFeed& feed, JPCameraCalibration& out, std::string& why) {
+    JPGrayImage picture;
+    if (!settled(feed, picture, why, 0)) return false;
+    out = cell.cameraCalibration(feed.config().id, picture.width, picture.height);
+    if (out.valid) return true;
+    why = feed.config().name + " is not calibrated for its " + std::to_string(picture.width) + "\xC3\x97"
+        + std::to_string(picture.height) + " pictures: calibrate it";
+    return false;
+}
+
 bool JPCameraLook::lightOnly(JPCell& cell, JPCameraFeed& feed, JPGrayImage& out, std::string& why) {
     const std::string light = feed.config().lightActuator();
     if (light.empty()) {

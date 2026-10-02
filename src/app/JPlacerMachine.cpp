@@ -113,7 +113,9 @@ void JPlacerMachine::buildCameras() {
             };
         CameraDock d;
         d.panel = std::make_unique<JPCameraPanel>(m_graph, m_window.hal(), c, captures, std::move(view),
-                                                  [cell = m_cell.get()](const std::string& id) { return cell->cameraCalibration(id); });
+                                                  [cell = m_cell.get()](const std::string& id, int width, int height) {
+                                                      return cell->cameraCalibration(id, width, height);
+                                                  });
         // Straightened or as taken, kept from last time.
         const JSettings& s = JSettings::instance();
         d.panel->setView(s.get<bool>(JPlacerSettings::cameraStraightKey(c.id), false),
@@ -424,7 +426,7 @@ void JPlacerMachine::importFrom(const std::string& path) {
         // camera's calibration, and the squareness it measured.
         for (JPCameraConfig& cam : cell.cameras)
             for (const JPCameraConfig& was : previous.cameras)
-                if (was.id == cam.id && was.calibration.valid) cam.calibration = was.calibration;
+                if (was.id == cam.id) cam.calibrations = was.calibrations;
         if (previous.squareness.active()) cell.squareness = previous.squareness;
     }
     if (!cell.save(target, error) || !openCell(target, error)) {
