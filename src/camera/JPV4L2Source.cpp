@@ -56,7 +56,8 @@ std::string sysName(const std::string& dev) {
 
 } // namespace
 
-JPV4L2Source::JPV4L2Source(std::string name) : m_name(std::move(name)) {}
+JPV4L2Source::JPV4L2Source(std::string name, JJson controls)
+    : m_name(std::move(name)), m_controls(std::move(controls)) {}
 
 JPV4L2Source::~JPV4L2Source() { close(); }
 
@@ -207,7 +208,58 @@ bool JPV4L2Source::start(const JPCaptureMode& mode, std::string& error) {
     m_streaming = true;
     JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << describe() << ": " << fourccName(m_fourcc) << " "
                                                 << m_width << "x" << m_height;
+    applyControls();
     return true;
+}
+
+void JPV4L2Source::applyControls() {
+    // jplacer's name -> the control that turns it automatic (and its on and
+    // off values), and the one that sets it by hand.
+    struct Control { const char* name; uint32_t autoId; int autoOn, autoOff; uint32_t valueId; };
+    static const Control kControls[] = {
+        { "exposure",      V4L2_CID_EXPOSURE_AUTO, V4L2_EXPOSURE_APERTURE_PRIORITY, V4L2_EXPOSURE_MANUAL, V4L2_CID_EXPOSURE_ABSOLUTE },
+        { "white-balance", V4L2_CID_AUTO_WHITE_BALANCE, 1, 0, V4L2_CID_WHITE_BALANCE_TEMPERATURE },
+        { "focus",         V4L2_CID_FOCUS_AUTO, 1, 0, V4L2_CID_FOCUS_ABSOLUTE },
+        { "gain",          V4L2_CID_AUTOGAIN, 1, 0, V4L2_CID_GAIN },
+        { "brightness",    V4L2_CID_AUTOBRIGHTNESS, 1, 0, V4L2_CID_BRIGHTNESS },
+        { "hue",           V4L2_CID_HUE_AUTO, 1, 0, V4L2_CID_HUE },
+        { "contrast",               0, 0, 0, V4L2_CID_CONTRAST },
+        { "saturation",             0, 0, 0, V4L2_CID_SATURATION },
+        { "gamma",                  0, 0, 0, V4L2_CID_GAMMA },
+        { "sharpness",              0, 0, 0, V4L2_CID_SHARPNESS },
+        { "backlight-compensation", 0, 0, 0, V4L2_CID_BACKLIGHT_COMPENSATION },
+        { "power-line-frequency",   0, 0, 0, V4L2_CID_POWER_LINE_FREQUENCY },
+    };
+    auto set = [this](const char* name, uint32_t id, int value) {
+        v4l2_control c{};
+        c.id = id;
+        c.value = value;
+        if (xioctl(m_fd, VIDIOC_S_CTRL, &c) != 0)
+            JLOGC(JPlacerLog::kCamera, JLogLevel::Warn) << describe() << ": " << name << " not set to " << value << " ("
+                                                        << std::strerror(errno) << ")";
+        else
+            JLOGC(JPlacerLog::kCamera, JLogLevel::Debug) << describe() << ": " << name << " set to " << value;
+    };
+    auto has = [this](uint32_t id) {
+        v4l2_queryctrl q{};
+        q.id = id;
+        return xioctl(m_fd, VIDIOC_QUERYCTRL, &q) == 0 && !(q.flags & V4L2_CTRL_FLAG_DISABLED);
+    };
+    // Automatic or not first: a value is refused while its control is
+    // automatic. A camera with no automatic mode for it is set by hand anyway.
+    for (const Control& c : kControls) {
+        const JJson& want = m_controls[c.name];
+        if (!want.isObject() || !want["auto"].isBool()) continue;
+        const bool automatic = want["auto"].boolean();
+        if (c.autoId && has(c.autoId))
+            set(c.name, c.autoId, automatic ? c.autoOn : c.autoOff);
+        else if (automatic)
+            JLOGC(JPlacerLog::kCamera, JLogLevel::Warn) << describe() << ": has no automatic " << c.name;
+    }
+    for (const Control& c : kControls) {
+        const JJson& want = m_controls[c.name];
+        if (want.isObject() && !want["auto"].boolean() && want["value"].isNumber()) set(c.name, c.valueId, int(want["value"].number()));
+    }
 }
 
 bool JPV4L2Source::grab(JPFrame& frame, int timeoutMs, std::string& error) {

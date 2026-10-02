@@ -5,6 +5,8 @@
 
 #include "JPCaptureSource.h"
 
+#include <j/config/Json.h>
+
 #include <cstddef>
 #include <string>
 #include <vector>
@@ -17,7 +19,14 @@ inline namespace jf {
 // through memory-mapped buffers; MJPG and YUYV are turned into RGBA.
 class JPV4L2Source : public JPCaptureSource {
 public:
-    explicit JPV4L2Source(std::string name);
+    // `controls`: the camera's own settings, set each time it starts (a
+    // camera forgets them when it drops off its bus):
+    //   { "exposure": { "auto": false, "value": 1432 }, "white-balance": { ... }, ... }
+    // by jplacer's names: exposure, white-balance, focus, gain, brightness,
+    // contrast, saturation, hue, gamma, sharpness, backlight-compensation,
+    // power-line-frequency. A setting the camera does not have is noted, not
+    // a failure.
+    JPV4L2Source(std::string name, JJson controls);
     ~JPV4L2Source() override;
 
     bool open(std::string& error) override;
@@ -39,6 +48,7 @@ private:
     // The /dev/videoN whose device calls itself `name` and captures pictures.
     static std::string findDevice(const std::string& name);
     void unmap();
+    void applyControls();
 
     std::string         m_name;
     std::string         m_path;
@@ -48,6 +58,7 @@ private:
     int                 m_width = 0, m_height = 0;
     uint64_t            m_sequence = 0;
     bool                m_streaming = false;
+    JJson               m_controls;
 };
 
 } // inline namespace jf

@@ -355,12 +355,19 @@ void JPlacerMachine::importFrom(const std::string& path) {
     JPCellConfig previous;
     std::string ignored;
     std::error_code ec;
-    if (std::filesystem::exists(target, ec) && previous.load(target, ignored))
+    if (std::filesystem::exists(target, ec) && previous.load(target, ignored)) {
         for (JPDriverConfig& d : cell.drivers)
             if (const JPDriverConfig* was = previous.driver(d.id); was && was->link["type"].str() == d.link["type"].str()) {
                 JLOGC(JPlacerLog::kImport, JLogLevel::Info) << "controller " << d.name << " keeps " << was->link["port"].str();
                 d.link = was->link;
             }
+        // What jplacer measured itself is not OpenPnP's to replace: each
+        // camera's calibration, and the squareness it measured.
+        for (JPCameraConfig& cam : cell.cameras)
+            for (const JPCameraConfig& was : previous.cameras)
+                if (was.id == cam.id && was.calibration.valid) cam.calibration = was.calibration;
+        if (previous.squareness.active()) cell.squareness = previous.squareness;
+    }
     if (!cell.save(target, error) || !openCell(target, error)) {
         JDialog::message("The OpenPnP machine could not be imported", error);
         return;

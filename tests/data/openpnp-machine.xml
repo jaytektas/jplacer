@@ -78,6 +78,9 @@
             </actuators>
             <cameras class="java.util.ArrayList">
                <camera class="org.openpnp.machine.reference.camera.OpenPnpCaptureCamera" id="C1" name="TOP_CAMERA" looking="Down" axis-X-id="AX" axis-Z-id="AZT" unique-id="top: usb-1" fps="5.0">
+                  <exposure property="Exposure" value="1432" auto="false"/>
+                  <focus property="Focus"/>
+                  <white-balance property="WhiteBalance" auto="true"/>
                   <units-per-pixel units="Millimeters" x="0.0437" y="0.0470" z="0.0" rotation="0.0"/>
                   <head-offsets units="Millimeters" x="0.0" y="0.0" z="0.0" rotation="0.0"/>
                   <default-z value="-24.0" units="Millimeters"/>

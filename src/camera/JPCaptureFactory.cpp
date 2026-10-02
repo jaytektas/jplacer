@@ -27,7 +27,7 @@ std::unique_ptr<JPCaptureSource> JPCaptureFactory::create(const std::string& cam
             error = cameraName + ": no capture device named in its configuration";
             return nullptr;
         }
-        return std::make_unique<JPV4L2Source>(device["name"].str());
+        return std::make_unique<JPV4L2Source>(device["name"].str(), device["controls"]);
     }
 #endif
     error = cameraName + ": no capture backend '" + backend + "' on this system";

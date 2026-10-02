@@ -343,6 +343,17 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             cam.device["backend"] = "v4l2";
             cam.device["name"]    = usb == std::string::npos ? uid : uid.substr(0, usb);
             if (const double fps = number(x.attr("fps")); fps > 0) cam.device["fps"] = fps;
+            // The camera's own settings, as OpenPnP set them (a value, or
+            // automatic): jplacer sets them again each time it opens the camera.
+            JJson controls = JJson::object();
+            for (const char* name : { "exposure", "white-balance", "focus", "gain", "brightness", "hue", "contrast",
+                                      "saturation", "gamma", "sharpness", "backlight-compensation", "power-line-frequency" }) {
+                const JPXmlElement* p = x.child(name);
+                if (!p || (p->attr("value").empty() && !yes(p->attr("auto")))) continue;
+                controls[name]["auto"] = yes(p->attr("auto"));
+                if (!p->attr("value").empty()) controls[name]["value"] = number(p->attr("value"));
+            }
+            if (!controls.empty()) cam.device["controls"] = controls;
         } else {
             notes.push_back("camera " + cam.name + " (" + shortClass(x) + ") is not a kind jplacer can capture from yet");
         }

@@ -98,6 +98,14 @@ int main() {
 
     JPCellConfig none;
     assert(!JPOpenPnpMachineImporter::import(std::string(JPLACER_TESTDATA_DIR) + "/missing.xml", none, notes, error));
+    // The top camera's own settings as OpenPnP set them; one OpenPnP left alone is left out.
+    {
+        const JJson& controls = cell.cameras.front().device["controls"];
+        assert(!controls["exposure"]["auto"].boolean() && controls["exposure"]["value"].number() == 1432);
+        assert(controls["white-balance"]["auto"].boolean() && !controls["white-balance"]["value"].isNumber());
+        assert(!controls["focus"].isObject());
+    }
+
     // OpenPnP's non-squareness, a linear transform X axis (X + factorY Y +
     // offset) that the top camera rides on: jplacer's squareness, pivoted
     // where the offset makes it zero, and the camera on the input X axis.

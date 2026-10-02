@@ -17,7 +17,8 @@ file is where OpenPnP keeps it (`.openpnp2/machine.xml` in your home folder), jp
 import that one: **Import**, or **Choose Another File…** to pick a different `machine.xml`. In the file
 dialog, tick **Show hidden** (or press Ctrl+H) to see folders whose names start with a dot, such as
 `.openpnp2`. The new cell is saved as `cells/openpnp.json` and opened straight away. Importing again
-replaces that file, except for the port each controller was set to here, which is kept.
+replaces that file, except for what was set or measured here, which is kept: the port each controller
+was set to, each camera's calibration and the squareness correction.
 
 What is brought across:
 
@@ -31,6 +32,9 @@ What is brought across:
 - **The home command**, every line of it, in order: a machine's homing sequence (release Z, home Y and X
   onto their switches, set the coordinates, home Z…) is the controller's own, and Home runs it.
 - **The connect wait**: how long to listen after opening the port before asking anything.
+- **Each camera's settings** (exposure, white balance, gain, focus, brightness, contrast and so on, set or
+  automatic), which jplacer sets again every time it opens the camera: a camera that dropped off its
+  connection comes back as it was, not on its own defaults.
 - **Non-squareness**: a machine squared in OpenPnP (its X axis a linear transform adding a share of Y)
   keeps that correction, as jplacer's [squareness](board.md#squaring-the-machine).
 - **The head's places**: its homing fiducial and whether it homes visually, its park location, the

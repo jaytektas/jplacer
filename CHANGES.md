@@ -54,7 +54,9 @@ notes.
   fiducials. Double-click a part to look at it.
 - Squaring the machine: a located board shows how far the machine's Y axis leans from square, and
   Square the Machine corrects every move for it from then on.
-- Importing an OpenPnP machine brings its non-squareness correction.
+- Importing an OpenPnP machine brings its non-squareness correction, and each camera's settings
+  (exposure, white balance and the rest), which are set again every time the camera is opened.
+- Importing an OpenPnP machine again keeps the camera calibrations and squareness measured in jplacer.
 - The Machine panel lists what the machine has been calibrated for: each camera, the squareness, homing.
 - The Jog panel shows and takes the chosen tool's own coordinates (its offset on the head included).
 - Home waits for the controller to report the home coordinates before calling the machine homed.
