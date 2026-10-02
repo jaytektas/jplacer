@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "JPlacerBoard.h"
 #include "JPlacerCameraTasks.h"
 
 #include "machine/JPCell.h"
@@ -23,8 +24,8 @@
 inline namespace jf {
 
 // The machine jplacer is working with: the open cell (cells/<name>.json),
-// its panels, each in a dock of its own (Machine, Jog, Actuators, Console,
-// Axes), the strip across the window saying what state it is in, and the
+// its panels, each in a dock of its own (Machine, Jog, Actuators, Board,
+// Console, Axes), the strip across the window saying what state it is in, and the
 // Machine menu's actions on it.
 //
 // The cell opened last is opened again at start (JPlacerSettings::kMachineCell).
@@ -83,6 +84,7 @@ private:
     std::vector<Dock>                   m_docks;
     std::unique_ptr<JPCameraPanel>      m_cameras;   // the window's centre
     std::unique_ptr<JPlacerCameraTasks> m_cameraTasks;   // its Calibrate and Visual Test
+    std::unique_ptr<JPlacerBoard>       m_board;         // the board on the machine, and its panel
     std::vector<std::function<void()>>  m_unwatch;   // this class's watches on the cell
     std::shared_ptr<bool>               m_alive = std::make_shared<bool>(true);
     JMenuItem*                          m_connectItem    = nullptr;

@@ -44,7 +44,7 @@ const JPHeadConfig* JPlacerCameraTasks::head(const JPCameraConfig& camera) const
     return nullptr;
 }
 
-std::string JPlacerCameraTasks::notReady(bool needsCalibration) const {
+std::string JPlacerCameraTasks::notReady(bool needsCalibration, bool needsHomingMark) const {
     if (m_busy) return "a camera task is already under way";
     const JPCameraFeed* feed = m_cameras.shownFeed();
     if (!feed) return "there is no camera to use";
@@ -52,7 +52,7 @@ std::string JPlacerCameraTasks::notReady(bool needsCalibration) const {
     if (!m_cell.isHomed()) return "home the machine first";
     const JPHeadConfig* h = head(feed->config());
     if (!h) return feed->config().name + " is not on a head";
-    if (!h->homingFiducial || h->homingFiducialDiameter <= 0)
+    if (needsHomingMark && (!h->homingFiducial || h->homingFiducialDiameter <= 0))
         return "the head's homing mark (its place and size) is not set";
     if (needsCalibration && !m_cell.cameraCalibration(feed->config().id).valid)
         return feed->config().name + " is not calibrated: Calibrate first";
@@ -88,7 +88,7 @@ void JPlacerCameraTasks::run(const std::string& name, Task task, std::function<v
 }
 
 void JPlacerCameraTasks::calibrate() {
-    if (const std::string why = notReady(false); !why.empty()) {
+    if (const std::string why = notReady(false, true); !why.empty()) {
         m_window.showStatus("Calibrate: " + why, kResultMs);
         return;
     }
@@ -128,7 +128,7 @@ void JPlacerCameraTasks::calibrate() {
 }
 
 void JPlacerCameraTasks::visualTest() {
-    if (const std::string why = notReady(true); !why.empty()) {
+    if (const std::string why = notReady(true, true); !why.empty()) {
         m_window.showStatus("Visual Test: " + why, kResultMs);
         return;
     }
@@ -164,7 +164,7 @@ void JPlacerCameraTasks::visualHome() {
     }
     if (m_busy) return;
     m_cameras.showCamera(camera->id);
-    if (const std::string why = notReady(true); !why.empty()) {
+    if (const std::string why = notReady(true, true); !why.empty()) {
         m_window.showStatus("Visual homing: " + why, kResultMs);
         return;
     }
@@ -183,6 +183,60 @@ void JPlacerCameraTasks::visualHome() {
         words = buf;
         return true;
     });
+}
+
+bool JPlacerCameraTasks::shownCameraView(double& x, double& y, std::string& why) const {
+    const JPCameraFeed* feed = m_cameras.shownFeed();
+    if (!feed) { why = "there is no camera to use"; return false; }
+    const JPMountConfig& m = feed->config().mount;
+    if (m.axisX.empty() || m.axisY.empty()) { why = feed->config().name + " does not ride on a head"; return false; }
+    if (!m_cell.isHomed()) { why = "home the machine first"; return false; }
+    const auto at = m_cell.jogBase();
+    x = at.at(m.axisX) + m.offsetX;
+    y = at.at(m.axisY) + m.offsetY;
+    return true;
+}
+
+bool JPlacerCameraTasks::lookAt(double x, double y) {
+    if (m_busy) {
+        m_window.showStatus("A camera task is under way", kResultMs);
+        return false;
+    }
+    double vx, vy;
+    std::string why;
+    if (!shownCameraView(vx, vy, why)) {
+        m_window.showStatus(why, kResultMs);
+        return false;
+    }
+    const JPMountConfig& m = m_cameras.shownFeed()->config().mount;
+    m_cell.moveAxes({ { m.axisX, x - m.offsetX }, { m.axisY, y - m.offsetY } }, kTaskSpeed);
+    return true;
+}
+
+void JPlacerCameraTasks::locateBoard(const JPBoard& board, const JPBoardSide& guess,
+                                     std::function<void(const JPBoardLocator::Result&)> done) {
+    if (const std::string why = notReady(true, false); !why.empty()) {
+        m_window.showStatus("Locate Board: " + why, kResultMs);
+        return;
+    }
+    JPCameraFeed* feed = m_cameras.shownFeed();
+    auto result = std::make_shared<JPBoardLocator::Result>();
+    run("Locating the board", [this, feed, board, guess, result](std::string& words, const auto& progress) {
+        JPBoardLocator::Options o;
+        o.speed = kTaskSpeed;
+        *result = JPBoardLocator::run(m_cell, *feed, board, guess, o, progress);
+        if (!result->ok) {
+            words = result->why;
+            return false;
+        }
+        int found = 0;
+        for (const auto& f : result->fiducials) found += f.found;
+        char buf[200];
+        std::snprintf(buf, sizeof buf, "Board found by %d of %zu fiducials, turned %.3f deg, fit to %.3f mm", found,
+                      result->fiducials.size(), result->board.toMachine.rotationDeg(), result->rmsMm);
+        words = buf;
+        return true;
+    }, [result, done](bool) { done(*result); });
 }
 
 } // inline namespace jf

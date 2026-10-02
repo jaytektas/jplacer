@@ -92,7 +92,7 @@ add_executable(jplacer ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp ${JPLACER_APP_SR
 # restated in a header where the two could drift. The updater compares it with
 # the newest release's tag.
 target_compile_definitions(jplacer PRIVATE JPLACER_VERSION="${JPLACER_FULL_VERSION}")
-target_link_libraries(jplacer PRIVATE jplacer_ui jplacer_tasks jplacer_vision jplacer_camera jplacer_openpnp jplacer_machine jplacer_common JFramework::platform
+target_link_libraries(jplacer PRIVATE jplacer_ui jplacer_tasks jplacer_import jplacer_vision jplacer_camera jplacer_openpnp jplacer_machine jplacer_common JFramework::platform
                                       OpenSSL::SSL OpenSSL::Crypto Threads::Threads)
 target_precompile_headers(jplacer PRIVATE ${JPLACER_PCH})
 

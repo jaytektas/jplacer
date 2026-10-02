@@ -33,6 +33,10 @@ constexpr const char* kImportedCellFile = "openpnp.json";
 constexpr int kStatusMs = 3000;
 constexpr int kErrorMs  = 8000;
 
+// The first so many panels dock on the right (driving the machine), the rest
+// along the bottom (what it says).
+constexpr size_t kRightPanels = 4;
+
 // Where OpenPnP keeps its machine, under the home folder.
 constexpr const char* kOpenPnpDir         = ".openpnp2";
 constexpr const char* kOpenPnpMachineFile = "machine.xml";
@@ -65,6 +69,8 @@ JPlacerMachine::~JPlacerMachine() {
 }
 
 void JPlacerMachine::dropPanels() {
+    if (m_board) m_board->dropPanel();
+    m_board.reset();
     m_cameraTasks.reset();   // a task under way finishes first: it drives the cell and a camera
     for (const auto& u : m_unwatch) u();
     m_unwatch.clear();
@@ -79,35 +85,6 @@ void JPlacerMachine::dropPanels() {
 }
 
 void JPlacerMachine::buildPanels() {
-    auto machine = std::make_unique<JPMachinePanel>(m_graph, *m_cell);
-    machine->onPortChosen = [this](const std::string& driverId, const std::string& port) {
-        // Posted: the choice arrives inside the panel's own event, and
-        // reopening the cell replaces that panel.
-        std::weak_ptr<bool> alive = m_alive;
-        JMainThreadDispatcher::instance().post([this, alive, driverId, port] {
-            if (const auto a = alive.lock(); a && *a) setPort(driverId, port);
-        });
-    };
-    std::vector<std::pair<const char*, std::unique_ptr<JContainer>>> panels;
-    panels.emplace_back("Machine",   std::move(machine));
-    panels.emplace_back("Jog",       std::make_unique<JPJogPanel>(m_graph, *m_cell));
-    panels.emplace_back("Actuators", std::make_unique<JPActuatorPanel>(m_graph, *m_cell));
-    panels.emplace_back("Console",   std::make_unique<JPConsolePanel>(m_graph, *m_cell));
-    panels.emplace_back("Axes",      std::make_unique<JPAxesPanel>(m_graph, *m_cell));
-
-    const bool first = m_docks.empty();
-    for (size_t i = 0; i < panels.size(); ++i) {
-        if (first) {
-            Dock d;
-            d.dock = std::make_unique<JDockWidget>(panels[i].first, 0.f, 0.f, 0.f, 0.f);
-            // Driving the machine on the right; what it says, along the bottom.
-            JDockHost& area = i < 3 ? m_window.dockSpace().right() : m_window.dockSpace().bottom();
-            area.addDock(d.dock.get());
-            m_docks.push_back(std::move(d));
-        }
-        m_docks[i].panel = std::move(panels[i].second);
-        m_docks[i].dock->setContent(m_docks[i].panel.get());
-    }
     // The cameras fill the centre: what the machine sees is what the person
     // works from. A camera's light is on while it is the one shown.
     // A head camera looks where its axes put it, plus its offset on the head;
@@ -134,6 +111,37 @@ void JPlacerMachine::buildPanels() {
     lightCameras(m_cameras->shownId(), std::string());
     m_cameraTasks = std::make_unique<JPlacerCameraTasks>(m_window, *m_cell, *m_cameras, m_cellPath);
 
+    auto machine = std::make_unique<JPMachinePanel>(m_graph, *m_cell);
+    machine->onPortChosen = [this](const std::string& driverId, const std::string& port) {
+        // Posted: the choice arrives inside the panel's own event, and
+        // reopening the cell replaces that panel.
+        std::weak_ptr<bool> alive = m_alive;
+        JMainThreadDispatcher::instance().post([this, alive, driverId, port] {
+            if (const auto a = alive.lock(); a && *a) setPort(driverId, port);
+        });
+    };
+    std::vector<std::pair<const char*, std::unique_ptr<JContainer>>> panels;
+    panels.emplace_back("Machine",   std::move(machine));
+    panels.emplace_back("Jog",       std::make_unique<JPJogPanel>(m_graph, *m_cell));
+    panels.emplace_back("Actuators", std::make_unique<JPActuatorPanel>(m_graph, *m_cell));
+    m_board = std::make_unique<JPlacerBoard>(m_window, *m_cameraTasks);
+    panels.emplace_back("Board",     m_board->makePanel(m_graph));
+    panels.emplace_back("Console",   std::make_unique<JPConsolePanel>(m_graph, *m_cell));
+    panels.emplace_back("Axes",      std::make_unique<JPAxesPanel>(m_graph, *m_cell));
+
+    const bool first = m_docks.empty();
+    for (size_t i = 0; i < panels.size(); ++i) {
+        if (first) {
+            Dock d;
+            d.dock = std::make_unique<JDockWidget>(panels[i].first, 0.f, 0.f, 0.f, 0.f);
+            // Driving the machine on the right; what it says, along the bottom.
+            JDockHost& area = i < kRightPanels ? m_window.dockSpace().right() : m_window.dockSpace().bottom();
+            area.addDock(d.dock.get());
+            m_docks.push_back(std::move(d));
+        }
+        m_docks[i].panel = std::move(panels[i].second);
+        m_docks[i].dock->setContent(m_docks[i].panel.get());
+    }
     if (first) {
         // Each area opens on its first panel (the last added would be in front).
         showDock("Machine");

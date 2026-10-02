@@ -45,6 +45,9 @@ notes.
   best kept, so holes, vias, round letters and reflections are not mistaken for it, and shiny copper is
   found whether it shows bright or with the lens's dark reflection in its middle.
 - Pictures measured after a move are ones taken after the move ended.
+- A Board panel: import a board's pick-and-place file (EasyEDA, JLCPCB, KiCad and other CSV), choose the
+  side that is up, put the camera on one fiducial, and Locate Board finds it exactly by all its
+  fiducials. Double-click a part to look at it.
 - Visual homing: Home finishes by finding the homing mark with the calibrated head camera and
   correcting the position to it, as OpenPnP did for an imported machine.
 - When a move finishes, the positions shown are where the machine stopped, not where it was a moment

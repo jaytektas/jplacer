@@ -4,6 +4,7 @@
 #pragma once
 
 #include "machine/JPCell.h"
+#include "tasks/JPBoardLocator.h"
 #include "ui/JPCameraPanel.h"
 
 #include <j/app/JAppWindow.h>
@@ -38,13 +39,25 @@ public:
     // visually.
     void visualHome();
 
+    // Where the camera shown is looking, when it rides on a head; else why not.
+    bool shownCameraView(double& x, double& y, std::string& why) const;
+    // Move the camera shown to look at (x, y); false (and the status bar says
+    // why) when it cannot.
+    bool lookAt(double x, double y);
+    // Find `board` by its fiducials from `guess` with the camera shown; the
+    // result comes to `done` on the main thread.
+    void locateBoard(const JPBoard& board, const JPBoardSide& guess,
+                     std::function<void(const JPBoardLocator::Result&)> done);
+    // A task is under way.
+    bool busy() const { return m_busy; }
+
 private:
     // Runs `task` on the worker; its answer (ok, words) comes back on the main
     // thread to `done`. `progress` from the task is shown as it goes.
     using Task = std::function<bool(std::string& words, const std::function<void(const std::string&)>& progress)>;
     void run(const std::string& name, Task task, std::function<void(bool)> done = nullptr);
     // What stops a task starting, in words; empty when it can.
-    std::string notReady(bool needsCalibration) const;
+    std::string notReady(bool needsCalibration, bool needsHomingMark) const;
     const JPHeadConfig* head(const JPCameraConfig& camera) const;
 
     JAppWindow&           m_window;
