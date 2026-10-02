@@ -19,12 +19,15 @@ constexpr double kTwoPi = 6.283185307179586;
 constexpr double kRingsTo        = 1.5;
 constexpr double kRingStepPx     = 1.0;
 constexpr int    kMinRingSamples = 16;
+constexpr int    kMaxRingSamples = 64;    // more says no more about how even a ring is
+// The mark's size in the coarse copy the search runs on (pixels across).
+constexpr double kCoarseDiameter = 12;
 
 // Each ring's mean and the spread of its samples about that mean.
 struct Ring { double mean = 0, variance = 0; bool ok = false; };
 
 Ring ring(const JPGrayImage& img, double cx, double cy, double r) {
-    const int n = std::max(kMinRingSamples, int(kTwoPi * r));
+    const int n = std::clamp(int(kTwoPi * r), kMinRingSamples, kMaxRingSamples);
     double sum = 0, sum2 = 0;
     int count = 0;
     for (int i = 0; i < n; ++i) {
@@ -100,21 +103,32 @@ JPRoundMark JPRoundMarkFinder::find(const JPGrayImage& image, const Request& rq)
     }
     const double maxRadius = kRingsTo * rq.diameter / 2;
 
-    // Coarse: every other pixel in the search circle; then every pixel around the best.
-    auto best = [&](double cx0, double cy0, double radius, double step, double& bx, double& by) {
+    // Search where it is cheap, measure where it is exact: the coarse search
+    // runs on the picture halved until the mark is about kCoarseDiameter
+    // across, every pixel of that; the fine search on the full picture, every
+    // pixel within a coarse pixel or two of the best.
+    auto best = [](const JPGrayImage& img, double cx0, double cy0, double radius, double maxR, double& bx, double& by) {
         double bestScore = -1;
-        for (double dy = -radius; dy <= radius; dy += step)
-            for (double dx = -radius; dx <= radius; dx += step) {
+        for (double dy = -radius; dy <= radius; dy += 1.0)
+            for (double dx = -radius; dx <= radius; dx += 1.0) {
                 if (dx * dx + dy * dy > radius * radius) continue;
-                const double s = symmetryAt(image, cx0 + dx, cy0 + dy, maxRadius);
+                const double s = symmetryAt(img, cx0 + dx, cy0 + dy, maxR);
                 if (s > bestScore) { bestScore = s; bx = cx0 + dx; by = cy0 + dy; }
             }
         return bestScore;
     };
-    double bx = rq.expectedX, by = rq.expectedY;
-    double score = best(rq.expectedX, rq.expectedY, rq.searchRadius, 2.0, bx, by);
-    double fx = bx, fy = by;
-    score = best(bx, by, 2.0, 1.0, fx, fy);
+    JPGrayImage coarse;
+    const JPGrayImage* level = &image;
+    double scale = 1;
+    while (rq.diameter / (scale * 2) >= kCoarseDiameter && level->width >= 32 && level->height >= 32) {
+        coarse = level->halved();
+        level = &coarse;
+        scale *= 2;
+    }
+    double bx = rq.expectedX / scale, by = rq.expectedY / scale;
+    best(*level, rq.expectedX / scale, rq.expectedY / scale, rq.searchRadius / scale, maxRadius / scale, bx, by);
+    double fx = bx * scale, fy = by * scale;
+    const double score = best(image, bx * scale, by * scale, scale + 1, maxRadius, fx, fy);
     if (score <= 0) {
         out.why = "nothing round near where the mark should be";
         return out;

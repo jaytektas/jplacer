@@ -29,6 +29,20 @@ struct JPGrayImage {
         return true;
     }
 
+    // Half the size each way, each pixel the mean of the four it covers (a
+    // coarse copy to search before measuring on the full picture).
+    JPGrayImage halved() const {
+        JPGrayImage h;
+        h.width  = width / 2;
+        h.height = height / 2;
+        h.pixels.resize(size_t(h.width) * size_t(h.height));
+        for (int y = 0; y < h.height; ++y)
+            for (int x = 0; x < h.width; ++x)
+                h.pixels[size_t(y) * size_t(h.width) + size_t(x)] =
+                    0.25f * (at(2 * x, 2 * y) + at(2 * x + 1, 2 * y) + at(2 * x, 2 * y + 1) + at(2 * x + 1, 2 * y + 1));
+        return h;
+    }
+
     // From RGBA (what a camera frame is): luminance, BT.601 weights.
     static JPGrayImage fromRgba(const uint8_t* rgba, int width, int height) {
         JPGrayImage g;
