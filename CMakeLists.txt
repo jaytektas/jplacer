@@ -95,4 +95,6 @@ if(JPLACER_TESTS)
     endforeach()
     # The calibration fit's test also checks the machine module's calibration record.
     target_link_libraries(test_calibration_fit PRIVATE jplacer_machine)
+    # The simulated scene's test runs the camera's simulation into the finder.
+    target_link_libraries(test_simulated_scene PRIVATE jplacer_camera)
 endif()

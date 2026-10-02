@@ -13,11 +13,13 @@
 inline namespace jf {
 
 std::unique_ptr<JPCaptureSource> JPCaptureFactory::create(const std::string& cameraName, const JJson& device,
-                                                          std::string& error) {
+                                                          std::string& error,
+                                                          std::function<bool(double&, double&)> view) {
     const std::string& backend = device["backend"].str();
     if (backend == "simulated")
         return std::make_unique<JPSimulatedSource>(cameraName, int(device["width"].number()),
-                                                   int(device["height"].number()), device["fps"].number());
+                                                   int(device["height"].number()), device["fps"].number(),
+                                                   device["scene"], std::move(view));
 #if defined(__linux__)
     if (backend == "v4l2") {
         if (device["name"].str().empty()) {

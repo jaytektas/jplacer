@@ -11,6 +11,7 @@
 #include <j/core/Signal.h>
 
 #include <atomic>
+#include <functional>
 #include <mutex>
 #include <optional>
 #include <string>
@@ -33,6 +34,10 @@ public:
 
     const JPCameraConfig& config() const { return m_config; }
 
+    // Where the camera is looking (machine X, Y), for a simulated camera that
+    // draws the machine. Set before start().
+    void setView(std::function<bool(double&, double&)> view) { m_view = std::move(view); }
+
     void start();
     void stop();
     bool isRunning() const { return m_running; }
@@ -50,6 +55,7 @@ private:
     void run();
 
     JPCameraConfig    m_config;
+    std::function<bool(double&, double&)> m_view;
     std::thread       m_thread;
     std::atomic<bool> m_running{ false };
 

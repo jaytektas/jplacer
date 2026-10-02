@@ -5,16 +5,35 @@
 
 #include "JPCaptureSource.h"
 
+#include <j/config/Json.h>
+
 #include <chrono>
+#include <functional>
+#include <random>
+#include <vector>
 
 inline namespace jf {
 
-// A camera with nothing behind it: a test picture (a grid, a moving bar) at
-// the size and rate asked for, so the camera view and everything downstream
-// run with no hardware.
+// A camera with nothing behind it, at the size and rate asked for, so the
+// camera view and everything downstream run with no hardware.
+//
+// Without a scene it draws a test picture (a grid, a moving bar). With one it
+// draws what a camera at the machine's current viewpoint would see: round
+// marks at their places on the machine, through a camera transform only the
+// configuration knows (pixels per mm, rotation, mirroring), with soft edges,
+// uneven light and noise. Calibration and visual homing are proven on it:
+// they must find what it hides.
+//
+//   "scene": { "pxPerMm": [-25.7, 0, 0, 25.6],          // row-major, as JPCameraCalibration
+//              "marks": [ { "x": 137.137, "y": 179.265, "diameter": 1.85 } ],
+//              "ground": 30, "mark": 190, "noise": 3 }
 class JPSimulatedSource : public JPCaptureSource {
 public:
-    JPSimulatedSource(std::string name, int width, int height, double fps);
+    // Where the camera is looking (machine X, Y); false when unknown.
+    using ViewProvider = std::function<bool(double&, double&)>;
+
+    JPSimulatedSource(std::string name, int width, int height, double fps,
+                      const JJson& scene = JJson(), ViewProvider view = nullptr);
 
     bool open(std::string& error) override;
     void close() override {}
@@ -24,8 +43,18 @@ public:
     std::string describe() const override { return m_name + " (simulated)"; }
 
 private:
+    void drawScene(JPFrame& frame);
+
+    struct Mark { double x, y, diameter; };
+
     std::string m_name;
     JPCaptureMode m_mode;
+    bool m_hasScene = false;
+    double m_pxPerMm[4] = {};
+    std::vector<Mark> m_marks;
+    float m_ground = 0, m_mark = 0, m_noise = 0;
+    ViewProvider m_view;
+    std::mt19937 m_rng{ 1 };
     uint64_t m_sequence = 0;
     std::chrono::steady_clock::time_point m_next;
 };

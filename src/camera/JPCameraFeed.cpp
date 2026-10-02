@@ -62,7 +62,7 @@ void JPCameraFeed::run() {
         onRunning.emit(false);
     };
     std::string error;
-    auto source = JPCaptureFactory::create(m_config.name, m_config.device, error);
+    auto source = JPCaptureFactory::create(m_config.name, m_config.device, error, m_view);
     if (!source) return fail(error);
     if (!source->open(error)) return fail(error);
     const auto mode = JPCaptureFactory::choose(source->modes(), m_config.device);
