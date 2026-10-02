@@ -119,8 +119,9 @@ machine imported from OpenPnP homes the way it did in OpenPnP, with the same com
 have corrected the home position with a fiducial seen by the camera; jplacer does not do that yet, and
 the import says so — the head must then be at its home position when you home.
 
-While connected but not homed, an amber **NOT HOMED** strip runs across the top of the window; a red
-**ALARM** strip shows when a controller has stopped on an alarm.
+While connected but not homed, an amber **NOT HOMED** strip runs across the top of the window, and
+while homing an amber **HOMING** strip says the axes are moving; a red **ALARM** strip shows when a
+controller has stopped on an alarm.
 
 <!-- src: src/machine/JPCell.cpp (doHome); src/app/JPlacerMachine.cpp (showNotice); src/openpnp/JPOpenPnpMachineImporter.cpp (HOME_COMMAND, visual homing note) -->
 

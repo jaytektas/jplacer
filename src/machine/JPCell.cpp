@@ -195,7 +195,9 @@ std::map<std::string, std::string> JPCell::states() const {
 void JPCell::home() {
     m_thread.post([this] {
         std::string why;
+        m_homing = true;
         const bool ok = doHome(why);
+        m_homing = false;
         if (ok) {
             m_homed = true;
             onHomed.emit(true);

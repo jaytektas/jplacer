@@ -52,6 +52,8 @@ public:
     // is, no move is made: positions mean nothing to a soft limit before.
     void home();
     bool isHomed() const { return m_homed; }
+    // A home is under way (from the request until homed or failed).
+    bool isHoming() const { return m_homing; }
 
     // Move a tool — a nozzle, camera or actuator — by the given amounts along
     // its own axes (mm, degrees), at `speed` (0..1) of the slowest axis's
@@ -103,6 +105,7 @@ private:
     std::vector<std::unique_ptr<JPGcodeDriver>> m_drivers;
     std::atomic<bool>                           m_connected{ false };
     std::atomic<bool>                           m_homed{ false };
+    std::atomic<bool>                           m_homing{ false };
     std::atomic<bool>                           m_moving{ false };
 
     mutable std::mutex                 m_mutex;   // guards the members below

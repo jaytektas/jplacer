@@ -135,6 +135,7 @@ bool JPlacerMachine::openCell(const std::string& path, std::string& error) {
     m_unwatch.push_back(m_cell->onConnection.connect([follow](bool, std::string why) { follow(why); }));
     m_unwatch.push_back(m_cell->onHomed.connect([follow](bool) { follow(std::string()); }));
     m_unwatch.push_back(m_cell->onState.connect([follow](std::string, std::string) { follow(std::string()); }));
+    m_unwatch.push_back(m_cell->onMotion.connect([follow](bool, std::string) { follow(std::string()); }));
     buildPanels();
 
     JSettings::instance().set(JPlacerSettings::kMachineCell, path);
@@ -173,6 +174,9 @@ void JPlacerMachine::showNotice(const std::string& why) {
     } else if (m_cell->inAlarm()) {
         m_window.setNotice("ALARM", "A controller has stopped on an alarm (a limit switch, an emergency stop, "
                            "or a failed home). Find the cause; the Console shows what it said.", Colors::Danger);
+    } else if (m_cell->isHoming()) {
+        m_window.setNotice("HOMING", "The axes are moving onto their home switches. Keep clear of the machine.",
+                           Colors::Warning);
     } else if (!m_cell->isHomed()) {
         m_window.setNotice("NOT HOMED", "Positions are not yet known, so the machine will not move. "
                            "Machine \xE2\x96\xB8 Home All Axes.", Colors::Warning);

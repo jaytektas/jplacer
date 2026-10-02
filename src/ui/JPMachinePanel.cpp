@@ -84,7 +84,7 @@ void JPMachinePanel::refresh(const std::string& why) {
     std::string text = m_cell.config().name + (connected ? ": connected" : ": not connected");
     if (connected) {
         for (const auto& [id, fw] : m_cell.firmware()) text += " \xC2\xB7 " + fw;
-        text += m_cell.isHomed() ? " \xC2\xB7 homed" : " \xC2\xB7 not homed";
+        text += m_cell.isHoming() ? " \xC2\xB7 homing" : m_cell.isHomed() ? " \xC2\xB7 homed" : " \xC2\xB7 not homed";
     }
     m_status->setText(text);
     m_connect->setLabel(connected ? "Disconnect" : "Connect");

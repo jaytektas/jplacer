@@ -54,7 +54,7 @@ private:
     void setPort(const std::string& driverId, const std::string& port);
     void updateMenu();
     // The strip in the window's chrome: NOT CONNECTED (with `why`, the last
-    // failure), ALARM, NOT HOMED, or nothing when the machine is ready.
+    // failure), ALARM, HOMING, NOT HOMED, or nothing when the machine is ready.
     void showNotice(const std::string& why);
     // One dock per panel, made the first time a cell opens; a new cell gets
     // new panels in the same docks, so where the person put them is kept.
