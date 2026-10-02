@@ -36,6 +36,7 @@ private:
     };
     struct Coordinate {
         std::string axisId;
+        double      offset;   // the tool's offset on the head along it: tool = axis + offset
         JLineEdit*  field;
     };
 

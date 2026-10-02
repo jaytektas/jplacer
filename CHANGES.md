@@ -53,6 +53,7 @@ notes.
 - Squaring the machine: a located board shows how far the machine's Y axis leans from square, and
   Square the Machine corrects every move for it from then on.
 - Importing an OpenPnP machine brings its non-squareness correction.
+- The Jog panel shows and takes the chosen tool's own coordinates (its offset on the head included).
 - Home waits for the controller to report the home coordinates before calling the machine homed.
 - Visual homing: Home finishes by finding the homing mark with the calibrated head camera and
   correcting the position to it, as OpenPnP did for an imported machine.

@@ -165,7 +165,9 @@ and speed OpenPnP measured, whichever way OpenPnP compensated.
 Moving a tool by hand. Choose the tool along the top — each nozzle, the camera on the head, and anything
 else on the head that moves on axes. Each of the tool's coordinates (X, Y, Z, Rotation) is a row:
 
-- the box shows where the tool is now; type a coordinate in it and press Return to go there;
+- the box shows where the tool is now, in its own coordinates (where its axes are, plus its offset on
+  the head, so a nozzle's X is where the nozzle is, not where the head is); type a coordinate in it and
+  press Return to take the tool there;
 - **-** and **+** move it by one step.
 
 **Step** is in mm (degrees for Rotation); **Speed** is a share of the speed of the slowest axis that

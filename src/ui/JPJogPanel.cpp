@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <tuple>
 
 inline namespace jf {
 
@@ -81,9 +82,11 @@ void JPJogPanel::showTool(size_t index) {
     m_coordinates.clear();
     JSceneGraph& graph = m_graph;
     const JPMountConfig& m = *m_tools[index].mount;
-    const std::pair<const char*, const std::string*> axes[] = {
-        { "X", &m.axisX }, { "Y", &m.axisY }, { "Z", &m.axisZ }, { "Rotation", &m.axisRotation } };
-    for (const auto& [label, axis] : axes) {
+    // The tool's own coordinates: where its axes are, plus its offset on the head.
+    const std::tuple<const char*, const std::string*, double> axes[] = {
+        { "X", &m.axisX, m.offsetX }, { "Y", &m.axisY, m.offsetY }, { "Z", &m.axisZ, m.offsetZ },
+        { "Rotation", &m.axisRotation, 0.0 } };
+    for (const auto& [label, axis, offset] : axes) {
         if (axis->empty()) continue;
         const int i = int(m_coordinates.size());
         auto r = JPUiParts::row(graph);
@@ -98,11 +101,11 @@ void JPJogPanel::showTool(size_t index) {
             if (text.empty() || end == text.c_str()) return;
             JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Jog: " << m_tools[m_tool].name << " " << co.axisId << " to " << target;
             co.field->setText("");
-            m_cell.moveAxes({ { co.axisId, target } }, speed());
+            m_cell.moveAxes({ { co.axisId, target - co.offset } }, speed());
         });
         r->add(JPUiParts::button(graph, "-"))->onClicked.connect([this, i] { step(i, -1); });
         r->add(JPUiParts::button(graph, "+"))->onClicked.connect([this, i] { step(i, +1); });
-        m_coordinates.push_back({ *axis, field });
+        m_coordinates.push_back({ *axis, offset, field });
         m_coords->add(std::move(r));
     }
     showPositions(m_cell.positions());
@@ -112,7 +115,7 @@ void JPJogPanel::showPositions(const std::map<std::string, double>& positions) {
     // The box shows where the coordinate is now until something is typed in it.
     for (const Coordinate& co : m_coordinates)
         if (const auto p = positions.find(co.axisId); p != positions.end())
-            co.field->setPlaceholderText(JPUiParts::coordinate(p->second));
+            co.field->setPlaceholderText(JPUiParts::coordinate(p->second + co.offset));
 }
 
 void JPJogPanel::step(int coordinate, double direction) {
