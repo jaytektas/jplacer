@@ -157,6 +157,15 @@ window when a controller has stopped on an alarm.
 
 <!-- src: src/machine/JPCell.cpp (doHome); src/app/JPlacerMachine.cpp (showState); src/openpnp/JPOpenPnpMachineImporter.cpp (HOME_COMMAND, visual homing note) -->
 
+#### Parking
+
+**Machine ▸ Park Head** (once the machine is homed) takes the head out of the way: every Z axis on the
+head comes up into its safe zone first, then the head goes to its park place (an imported head keeps
+OpenPnP's), placed by its camera. A park place past a soft limit (often one is set right at the end of
+travel) is gone to as near as the limit allows. It moves at half speed.
+
+<!-- src: src/machine/JPCell.cpp (doPark); src/app/JPlacerMachine.cpp (park, kParkSpeed); src/app/JPlacerMenuBuilder.cpp -->
+
 #### Backlash
 
 Every drive has a little play (backlash): an axis stops in a slightly different place depending on

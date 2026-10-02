@@ -57,6 +57,8 @@ notes.
 - Importing an OpenPnP machine brings its non-squareness correction, and each camera's settings
   (exposure, white balance and the rest), which are set again every time the camera is opened.
 - Importing an OpenPnP machine again keeps the camera calibrations and squareness measured in jplacer.
+- Machine > Park Head: Z up into its safe zone, then the head to its park place (as near as the soft
+  limits allow).
 - The Machine panel lists what the machine has been calibrated for: each camera, the squareness, homing.
 - The Jog panel shows and takes the chosen tool's own coordinates (its offset on the head included).
 - Home waits for the controller to report the home coordinates before calling the machine homed.

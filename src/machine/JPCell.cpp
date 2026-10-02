@@ -98,6 +98,69 @@ void JPCell::sendLine(const std::string& driverId, const std::string& line) {
     });
 }
 
+void JPCell::park(const std::string& headId, double speed) {
+    if (m_moving.exchange(true)) return;
+    m_thread.post([this, headId, speed] {
+        std::string why;
+        const bool ok = doPark(headId, speed, why);
+        m_moving = false;
+        onMotion.emit(ok, why);
+    });
+}
+
+bool JPCell::doPark(const std::string& headId, double speed, std::string& why) {
+    const JPHeadConfig* head = nullptr;
+    for (const JPHeadConfig& h : m_config.heads) if (h.id == headId) head = &h;
+    if (!head || !head->park) { why = "the head has no park place set"; return false; }
+    std::vector<const JPMountConfig*> mounts;
+    for (const JPCameraConfig& c : m_config.cameras)     if (c.mount.headId == headId) mounts.push_back(&c.mount);
+    for (const JPNozzleConfig& n : m_config.nozzles)     if (n.mount.headId == headId) mounts.push_back(&n.mount);
+    for (const JPActuatorConfig& a : m_config.actuators) if (a.mount.headId == headId) mounts.push_back(&a.mount);
+
+    // Up out of harm's way first: each Z behind the head's tools into its safe zone.
+    const auto now = jogBase();
+    std::map<std::string, double> safe;
+    for (const JPMountConfig* m : mounts) {
+        const JPAxisConfig* z = m_config.axis(m->axisZ);
+        if (z && z->kind == JPAxisConfig::Kind::Mapped) z = m_config.axis(z->inputAxisId);
+        if (!z || z->kind != JPAxisConfig::Kind::Controller || !now.count(z->id)) continue;
+        double t = now.at(z->id);
+        if (z->safeZoneLowEnabled)  t = std::max(t, z->safeZoneLow);
+        if (z->safeZoneHighEnabled) t = std::min(t, z->safeZoneHigh);
+        if (t != now.at(z->id)) safe[z->id] = t;
+    }
+    if (!safe.empty() && !doMove(safe, speed, why)) return false;
+
+    // Then the head, by the tool that marks its place: its camera, else the first on X and Y.
+    const JPMountConfig* by = nullptr;
+    for (const JPMountConfig* m : mounts)
+        if (!by && !m->axisX.empty() && !m->axisY.empty()) by = m;
+    if (!by) { why = "nothing on the head moves on X and Y"; return false; }
+    JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_config.name << ": parking " << head->name;
+    // A park place is often at the end of travel: out of the way is the
+    // point, so it goes as near as the soft limits allow (in the axes' own
+    // coordinates, where the limits are) rather than not at all.
+    std::map<std::string, double> target = { { by->axisX, head->park->x - by->offsetX },
+                                             { by->axisY, head->park->y - by->offsetY } };
+    std::map<std::string, double> axes = toAxes(target, jogBase());
+    bool clamped = false;
+    for (auto& [id, t] : axes) {
+        const JPAxisConfig* a = m_config.axis(id);
+        if (!a) continue;
+        const double was = t;
+        if (a->softLimitLowEnabled)  t = std::max(t, a->softLimitLow);
+        if (a->softLimitHighEnabled) t = std::min(t, a->softLimitHigh);
+        clamped = clamped || t != was;
+    }
+    if (clamped) {
+        JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_config.name << ": the park place is past a soft limit; parking at the limit";
+        target = axes;
+        if (const JPSquarenessConfig& q = m_config.squareness; q.active() && target.count(q.axisX) && target.count(q.axisY))
+            target[q.axisX] += q.xPerY * (target[q.axisY] - q.atY);   // back to square coordinates for the move
+    }
+    return doMove(target, speed, why);
+}
+
 void JPCell::switchActuator(const std::string& actuatorId, bool on) {
     m_thread.post([this, actuatorId, on] {
         std::string why;

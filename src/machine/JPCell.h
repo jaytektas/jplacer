@@ -54,6 +54,10 @@ public:
     // they now are (their home coordinates) and the cell is homed. Until it
     // is, no move is made: positions mean nothing to a soft limit before.
     void home();
+    // Park the head (its JPHeadConfig::park): every Z on it into its safe
+    // zone first, then the head's camera (else its first tool on X and Y) to
+    // the park place. The outcome arrives as onMotion.
+    void park(const std::string& headId, double speed);
     bool isHomed() const { return m_homed; }
     // A home is under way (from the request until homed or failed).
     bool isHoming() const { return m_homing; }
@@ -124,6 +128,7 @@ private:
     // The cell thread's side of moveAxes: false with `why` when refused or failed.
     bool doMove(std::map<std::string, double> targets, double speed, std::string& why);
     bool doHome(std::string& why);
+    bool doPark(const std::string& headId, double speed, std::string& why);
     bool doSwitch(const std::string& actuatorId, bool on, std::string& why);
     bool doCorrectPosition(const std::map<std::string, double>& by, std::string& why);
     // Square coordinates of controller axes to the axes' own (JPSquarenessConfig):

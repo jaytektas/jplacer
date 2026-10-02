@@ -38,7 +38,7 @@ public:
     JPlacerMachine& operator=(const JPlacerMachine&) = delete;
 
     // The Machine menu's entries this class enables and disables.
-    void setMenuItems(JMenuItem* connect, JMenuItem* disconnect, JMenuItem* home);
+    void setMenuItems(JMenuItem* connect, JMenuItem* disconnect, JMenuItem* home, JMenuItem* park);
 
     void chooseCell();          // Machine > Open Cell…
     // Machine > Import OpenPnP Machine…: offers OpenPnP's usual machine.xml
@@ -47,6 +47,7 @@ public:
     void connect();
     void disconnect();
     void home();                // Machine > Home All Axes
+    void park();                // Machine > Park Head
     // Bring the dock titled `title` to the front of its tab group. False when
     // there is no such dock.
     bool showDock(const std::string& title);
@@ -93,6 +94,7 @@ private:
     JMenuItem*                          m_connectItem    = nullptr;
     JMenuItem*                          m_disconnectItem = nullptr;
     JMenuItem*                          m_homeItem       = nullptr;
+    JMenuItem*                          m_parkItem       = nullptr;
     JPConnectIcon                       m_connectIcon;
     JPHomeIcon                          m_homeIcon;
     bool                                m_connecting  = false;   // asked, not yet answered

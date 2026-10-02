@@ -33,6 +33,9 @@ constexpr const char* kImportedCellFile = "openpnp.json";
 constexpr int kStatusMs = 3000;
 constexpr int kErrorMs  = 8000;
 
+// How fast Park Head moves, as a share of the axes' rates.
+constexpr double kParkSpeed = 0.5;
+
 // The first so many panels dock on the right (driving the machine), the rest
 // along the bottom (what it says).
 constexpr size_t kRightPanels = 4;
@@ -152,14 +155,26 @@ void JPlacerMachine::buildPanels() {
     }
 }
 
+void JPlacerMachine::park() {
+    if (!m_cell) return;
+    for (const JPHeadConfig& h : m_cell->config().heads)
+        if (h.park) {
+            JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Machine: park " << h.name;
+            m_cell->park(h.id, kParkSpeed);
+            return;
+        }
+    m_window.showStatus("No head has a park place set", kErrorMs);
+}
+
 std::string JPlacerMachine::cellsDir() {
     return (std::filesystem::path(JPlacerPaths::configDir()) / "cells").string();
 }
 
-void JPlacerMachine::setMenuItems(JMenuItem* connect, JMenuItem* disconnect, JMenuItem* home) {
+void JPlacerMachine::setMenuItems(JMenuItem* connect, JMenuItem* disconnect, JMenuItem* home, JMenuItem* park) {
     m_connectItem    = connect;
     m_disconnectItem = disconnect;
     m_homeItem       = home;
+    m_parkItem       = park;
     updateMenu();
 }
 
@@ -168,6 +183,7 @@ void JPlacerMachine::updateMenu() {
     if (m_connectItem)    m_connectItem->setEnabled(open && !connected);
     if (m_disconnectItem) m_disconnectItem->setEnabled(connected);
     if (m_homeItem)       m_homeItem->setEnabled(connected);
+    if (m_parkItem)       m_parkItem->setEnabled(connected && m_cell->isHomed());
 }
 
 bool JPlacerMachine::openCell(const std::string& path, std::string& error) {

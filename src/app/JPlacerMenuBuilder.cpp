@@ -65,8 +65,9 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
     machine->addSeparator(graph);
     JMenuItem* home = machine->add(graph, "Home All Axes");
     home->onTriggered.connect([&app] { app.machine().home(); });
-    addPending(machine, graph, { "Park Head" });
-    app.machine().setMenuItems(connect, disconnect, home);
+    JMenuItem* park = machine->add(graph, "Park Head");
+    park->onTriggered.connect([&app] { app.machine().park(); });
+    app.machine().setMenuItems(connect, disconnect, home, park);
     machine->addSeparator(graph);
     addPending(machine, graph, { "Machine Setup\xE2\x80\xA6" });
 
