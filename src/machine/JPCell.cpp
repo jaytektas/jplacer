@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <future>
 #include <regex>
 
 inline namespace jf {
@@ -260,6 +261,38 @@ void JPCell::jog(const std::string& toolId, double dx, double dy, double dz, dou
     add(mount->axisZ, dz);
     add(mount->axisRotation, drot);
     if (!targets.empty()) moveAxes(std::move(targets), speed);
+}
+
+bool JPCell::moveAxesAndWait(std::map<std::string, double> targets, double speed, std::string& why) {
+    if (m_moving.exchange(true)) {
+        why = "another move is under way";
+        return false;
+    }
+    std::promise<std::pair<bool, std::string>> done;
+    auto result = done.get_future();
+    m_thread.post([this, targets = std::move(targets), speed, &done] {
+        std::string w;
+        const bool ok = doMove(targets, speed, w);
+        m_moving = false;
+        onMotion.emit(ok, w);
+        done.set_value({ ok, w });
+    });
+    const auto [ok, w] = result.get();
+    why = w;
+    return ok;
+}
+
+void JPCell::setCameraCalibration(const std::string& cameraId, const JPCameraCalibration& calibration) {
+    std::lock_guard lk(m_mutex);
+    for (JPCameraConfig& c : m_config.cameras)
+        if (c.id == cameraId) c.calibration = calibration;
+}
+
+JPCameraCalibration JPCell::cameraCalibration(const std::string& cameraId) const {
+    std::lock_guard lk(m_mutex);
+    for (const JPCameraConfig& c : m_config.cameras)
+        if (c.id == cameraId) return c.calibration;
+    return {};
 }
 
 void JPCell::moveAxes(std::map<std::string, double> targets, double speed) {

@@ -32,6 +32,7 @@ file(GLOB JPLACER_MACHINE_SRC CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/
 file(GLOB JPLACER_OPENPNP_SRC CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/openpnp/*.cpp)
 file(GLOB JPLACER_CAMERA_SRC  CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/camera/*.cpp)
 file(GLOB JPLACER_VISION_SRC  CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/vision/*.cpp)
+file(GLOB JPLACER_TASKS_SRC   CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/tasks/*.cpp)
 file(GLOB JPLACER_UI_SRC      CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/*.cpp)
 file(GLOB JPLACER_APP_SRC     CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/app/*.cpp)
 
@@ -59,6 +60,11 @@ target_link_libraries(jplacer_camera PUBLIC jplacer_machine PRIVATE JPEG::JPEG P
 add_library(jplacer_vision STATIC ${JPLACER_VISION_SRC})
 target_link_libraries(jplacer_vision PUBLIC jplacer_common)
 
+# Procedures that drive the machine, its cameras and vision together:
+# calibrating a camera, the visual homing test.
+add_library(jplacer_tasks STATIC ${JPLACER_TASKS_SRC})
+target_link_libraries(jplacer_tasks PUBLIC jplacer_machine jplacer_camera jplacer_vision)
+
 # Panels and views over the other modules: the only module with widgets.
 add_library(jplacer_ui STATIC ${JPLACER_UI_SRC})
 target_link_libraries(jplacer_ui PUBLIC jplacer_machine jplacer_camera)
@@ -74,7 +80,7 @@ add_executable(jplacer ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp ${JPLACER_APP_SR
 # restated in a header where the two could drift. The updater compares it with
 # the newest release's tag.
 target_compile_definitions(jplacer PRIVATE JPLACER_VERSION="${JPLACER_FULL_VERSION}")
-target_link_libraries(jplacer PRIVATE jplacer_ui jplacer_camera jplacer_openpnp jplacer_machine jplacer_common JFramework::platform
+target_link_libraries(jplacer PRIVATE jplacer_ui jplacer_tasks jplacer_vision jplacer_camera jplacer_openpnp jplacer_machine jplacer_common JFramework::platform
                                       OpenSSL::SSL OpenSSL::Crypto Threads::Threads)
 target_precompile_headers(jplacer PRIVATE ${JPLACER_PCH})
 
@@ -82,7 +88,7 @@ target_precompile_headers(jplacer PRIVATE ${JPLACER_PCH})
 option(JPLACER_TESTS "Build jplacer's tests" ON)
 if(JPLACER_TESTS)
     enable_testing()
-    foreach(module machine openpnp camera vision)
+    foreach(module machine openpnp camera vision tasks)
       file(GLOB tests CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tests/${module}/*.cpp)
       foreach(src ${tests})
         get_filename_component(name ${src} NAME_WE)

@@ -9,6 +9,7 @@
 
 #include <j/core/Log.h>
 
+#include <cmath>
 #include <cstdlib>
 #include <optional>
 #include <map>
@@ -346,6 +347,12 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             head.rigPrimaryDiameter    = lengthChild(h, "calibration-primary-fiducial-diameter");
             head.rigSecondaryDiameter  = lengthChild(h, "calibration-secondary-fiducial-diameter");
             head.rigTestObjectDiameter = lengthChild(h, "calibration-test-object-diameter");
+            // OpenPnP's homing mark is a part (FIDUCIAL-HOME) in another file;
+            // where the rig's primary fiducial sits on it, that is its size.
+            if (head.homingFiducial && head.rigPrimary
+                && std::abs(head.homingFiducial->x - head.rigPrimary->x) < 0.01
+                && std::abs(head.homingFiducial->y - head.rigPrimary->y) < 0.01)
+                head.homingFiducialDiameter = head.rigPrimaryDiameter;
             head.pumpControl           = h.attr("vacuum-pump-control");
             head.pumpOnWaitMs          = int(number(h.attr("pump-on-wait-milliseconds")));
             if (const JPXmlElement* pump = h.child("pump-actuator-name")) pumpNames[head.id] = pump->text;

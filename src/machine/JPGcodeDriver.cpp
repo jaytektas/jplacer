@@ -201,7 +201,21 @@ JPReply JPGcodeDriver::command(const std::string& name, const std::map<std::stri
 }
 
 JPReply JPGcodeDriver::waitForMotion() {
-    return command("waitMotion", {}, m_config.homeTimeoutMs);
+    JPReply r = command("waitMotion", {}, m_config.homeTimeoutMs);
+    if (!r.ok || !m_profile || m_profile->statusCommand().empty()) return r;
+    // A report read after the answer was made after the motion ended.
+    std::unique_lock lk(m_mutex);
+    const uint64_t after = m_statusCount;
+    m_statusNow = true;
+    if (!m_statusRead.wait_for(lk, std::chrono::milliseconds(m_config.commandTimeoutMs),
+                               [&] { return m_statusCount > after || !m_connected; })) {
+        r.ok    = false;
+        r.error = "no status report within " + std::to_string(m_config.commandTimeoutMs) + " ms of the motion ending";
+    } else if (!m_connected) {
+        r.ok    = false;
+        r.error = "the connection was lost";
+    }
+    return r;
 }
 
 bool JPGcodeDriver::readSettings(std::string& error) {
@@ -282,6 +296,7 @@ void JPGcodeDriver::ioLoop() {
         // Status reports: a real-time query goes at any moment; a command
         // query only between commands.
         const JPFirmwareProfile* profile = m_connected ? m_profile : nullptr;
+        if (m_statusNow.exchange(false)) nextStatus = Clock::now();
         if (profile && !profile->statusCommand().empty() && Clock::now() >= nextStatus) {
             nextStatus = Clock::now() + std::chrono::milliseconds(m_config.statusIntervalMs);
             if (profile->statusIsRealtime()) {
@@ -325,6 +340,13 @@ void JPGcodeDriver::handleLine(const std::string& line) {
             }
             JLOGC(JPlacerLog::kStatus, JLogLevel::Trace) << m_config.name << " < " << line;
             onStatus.emit(*st);
+            // Counted after it has been passed on, so whoever waits for it
+            // sees what the report changed.
+            {
+                std::lock_guard lk(m_mutex);
+                ++m_statusCount;
+            }
+            m_statusRead.notify_all();
             return;
         }
     }
@@ -365,6 +387,7 @@ void JPGcodeDriver::failAll(const std::string& why) {
         std::lock_guard lk(m_mutex);
         queued.swap(m_queue);
     }
+    m_statusRead.notify_all();   // a wait for a report after motion ends here too
     if (m_inFlight) {
         JPReply r;
         r.error = why;

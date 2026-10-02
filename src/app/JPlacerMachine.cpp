@@ -65,6 +65,7 @@ JPlacerMachine::~JPlacerMachine() {
 }
 
 void JPlacerMachine::dropPanels() {
+    m_cameraTasks.reset();   // a task under way finishes first: it drives the cell and a camera
     for (const auto& u : m_unwatch) u();
     m_unwatch.clear();
     for (Dock& d : m_docks) {
@@ -109,11 +110,26 @@ void JPlacerMachine::buildPanels() {
     }
     // The cameras fill the centre: what the machine sees is what the person
     // works from. A camera's light is on while it is the one shown.
+    // A head camera looks where its axes put it, plus its offset on the head;
+    // a fixed one is drawn with nothing under it.
+    auto viewFor = [cell = m_cell.get()](const JPCameraConfig& c) -> std::function<bool(double&, double&)> {
+        if (c.mount.axisX.empty() || c.mount.axisY.empty()) return nullptr;
+        return [cell, m = c.mount](double& x, double& y) {
+            const auto p = cell->positions();
+            const auto px = p.find(m.axisX), py = p.find(m.axisY);
+            if (px == p.end() || py == p.end()) return false;
+            x = px->second + m.offsetX;
+            y = py->second + m.offsetY;
+            return true;
+        };
+    };
     m_cameras = std::make_unique<JPCameraPanel>(m_graph, m_window.hal(), m_cell->config(),
-                                                (std::filesystem::path(JPlacerPaths::configDir()) / "captures").string());
+                                                (std::filesystem::path(JPlacerPaths::configDir()) / "captures").string(),
+                                                viewFor);
     m_cameras->onShown = [this](const std::string& shown, const std::string& before) { lightCameras(shown, before); };
     m_window.setCentralWidget(m_cameras.get());
     lightCameras(m_cameras->shownId(), std::string());
+    m_cameraTasks = std::make_unique<JPlacerCameraTasks>(m_window, *m_cell, *m_cameras, m_cellPath);
 
     if (first) {
         // Each area opens on its first panel (the last added would be in front).

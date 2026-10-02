@@ -20,6 +20,7 @@ struct JPHeadConfig {
     // the homing fiducial, a small round mark at a known place, and the axes
     // are reset so that place is where it really is.
     std::optional<JPLocation> homingFiducial;
+    double                    homingFiducialDiameter = 0;
     bool                      visualHoming = false;
     // Where Park takes the head.
     std::optional<JPLocation> park;

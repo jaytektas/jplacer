@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
+
+#pragma once
+
+#include "camera/JPCameraFeed.h"
+#include "machine/JPCell.h"
+#include "machine/JPHeadConfig.h"
+
+#include <string>
+
+inline namespace jf {
+
+// Where the homing mark really is, seen by a calibrated head camera: the camera
+// is moved to look at the mark's place, the mark is found, and its position
+// worked out from the picture. Nothing is reset: this says what visual homing
+// would correct, and is the check before letting it.
+class JPVisualTest {
+public:
+    struct Result {
+        bool        found = false;
+        double      markX = 0, markY = 0;     // where the mark is, machine coordinates
+        double      offsetX = 0, offsetY = 0; // mark minus where the head's settings say it is
+        double      confidence = 0;
+        std::string why;
+    };
+
+    static Result run(JPCell& cell, JPCameraFeed& feed, const JPHeadConfig& head, double speed);
+
+    // From a mark's pixel in a picture to its machine position, for a camera
+    // looking at (viewX, viewY): P = V - M^-1 (pixel - centre).
+    static bool markPosition(const JPCameraCalibration& c, int width, int height, double px, double py,
+                             double viewX, double viewY, double& x, double& y);
+};
+
+} // inline namespace jf

@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <future>
 #include <vector>
 
 inline namespace jf {
@@ -21,7 +22,7 @@ constexpr double kRingStepPx     = 1.0;
 constexpr int    kMinRingSamples = 16;
 constexpr int    kMaxRingSamples = 64;    // more says no more about how even a ring is
 // The mark's size in the coarse copy the search runs on (pixels across).
-constexpr double kCoarseDiameter = 12;
+constexpr double kCoarseDiameter = 6;
 
 // Each ring's mean and the spread of its samples about that mean.
 struct Ring { double mean = 0, variance = 0; bool ok = false; };
@@ -46,10 +47,110 @@ Ring ring(const JPGrayImage& img, double cx, double cy, double r) {
     return out;
 }
 
-// Refine a peak to a fraction of a step by a parabola through it and its neighbours.
-double parabola(double left, double centre, double right) {
-    const double d = left - 2 * centre + right;
-    return d < 0 ? 0.5 * (left - right) / d : 0;
+// The edge measurement: rays out from the centre found, each finding where it
+// crosses halfway between the inside's brightness and the outside's (its own
+// levels, so light that is brighter on one side moves nothing), to a fraction
+// of a pixel; a circle is fitted through the crossings.
+constexpr int    kEdgeRays       = 72;
+constexpr double kRayStepPx      = 0.25;
+constexpr double kInsideFrom     = 0.3;   // the inside's level: this share of the radius...
+constexpr double kInsideTo       = 0.6;   // ...to this
+constexpr double kOutsideFrom    = 1.3;   // the outside's: this...
+constexpr double kOutsideTo      = 1.5;   // ...to this (kRingsTo)
+// A ray whose inside and outside differ by less than this share of the
+// typical ray's is crossing something else (glare, a trace) and is left out.
+constexpr double kMinRayContrast = 0.5;
+// A crossing further than this many times the fit's spread from the circle is
+// left out and the circle fitted again.
+constexpr double kOutlierSpread  = 3.0;
+constexpr double kMinSpreadPx    = 0.25;
+
+struct Circle { double x = 0, y = 0, r = 0; bool ok = false; };
+
+double meanAlong(const JPGrayImage& img, double cx, double cy, double ux, double uy, double from, double to, bool& ok) {
+    double sum = 0;
+    int n = 0;
+    for (double t = from; t <= to; t += kRayStepPx) {
+        float v;
+        if (!img.sample(float(cx + t * ux), float(cy + t * uy), v)) { ok = false; return 0; }
+        sum += v;
+        ++n;
+    }
+    ok = n > 0;
+    return n ? sum / n : 0;
+}
+
+// Least squares circle through points (x^2 + y^2 + D x + E y + F = 0).
+Circle fitCircle(const std::vector<std::pair<double, double>>& pts) {
+    Circle c;
+    if (pts.size() < 3) return c;
+    double mx = 0, my = 0;
+    for (const auto& [x, y] : pts) { mx += x; my += y; }
+    mx /= double(pts.size());
+    my /= double(pts.size());
+    // About the points' mean, for a well-conditioned solve.
+    double suu = 0, svv = 0, suv = 0, suuu = 0, svvv = 0, suvv = 0, svuu = 0;
+    for (const auto& [x, y] : pts) {
+        const double u = x - mx, v = y - my;
+        suu += u * u; svv += v * v; suv += u * v;
+        suuu += u * u * u; svvv += v * v * v; suvv += u * v * v; svuu += v * u * u;
+    }
+    const double det = suu * svv - suv * suv;
+    if (std::abs(det) < 1e-12) return c;
+    const double bu = 0.5 * (suuu + suvv), bv = 0.5 * (svvv + svuu);
+    const double uc = (bu * svv - bv * suv) / det, vc = (suu * bv - suv * bu) / det;
+    c.x = mx + uc;
+    c.y = my + vc;
+    c.r = std::sqrt(uc * uc + vc * vc + (suu + svv) / double(pts.size()));
+    c.ok = true;
+    return c;
+}
+
+Circle edgeCircle(const JPGrayImage& img, double cx, double cy, double radius) {
+    struct Ray { double x, y, contrast; };
+    std::vector<Ray> rays;
+    for (int i = 0; i < kEdgeRays; ++i) {
+        const double a = kTwoPi * i / kEdgeRays, ux = std::cos(a), uy = std::sin(a);
+        bool okIn, okOut;
+        const double in  = meanAlong(img, cx, cy, ux, uy, kInsideFrom * radius, kInsideTo * radius, okIn);
+        const double out = meanAlong(img, cx, cy, ux, uy, kOutsideFrom * radius, kOutsideTo * radius, okOut);
+        if (!okIn || !okOut || in == out) continue;
+        const double mid = (in + out) / 2;
+        // The crossing nearest the expected edge.
+        double bestT = -1, prevT = kInsideTo * radius;
+        float prev;
+        if (!img.sample(float(cx + prevT * ux), float(cy + prevT * uy), prev)) continue;
+        for (double t = prevT + kRayStepPx; t <= kOutsideFrom * radius; t += kRayStepPx) {
+            float v;
+            if (!img.sample(float(cx + t * ux), float(cy + t * uy), v)) break;
+            if ((prev - mid) * (v - mid) <= 0 && prev != v) {
+                const double at = prevT + kRayStepPx * (prev - mid) / (prev - v);
+                if (bestT < 0 || std::abs(at - radius) < std::abs(bestT - radius)) bestT = at;
+            }
+            prev = v;
+            prevT = t;
+        }
+        if (bestT > 0) rays.push_back({ cx + bestT * ux, cy + bestT * uy, std::abs(in - out) });
+    }
+    if (rays.size() < kEdgeRays / 2) return {};
+    std::vector<double> contrasts;
+    for (const Ray& r : rays) contrasts.push_back(r.contrast);
+    std::nth_element(contrasts.begin(), contrasts.begin() + contrasts.size() / 2, contrasts.end());
+    const double typical = contrasts[contrasts.size() / 2];
+    std::vector<std::pair<double, double>> pts;
+    for (const Ray& r : rays)
+        if (r.contrast >= kMinRayContrast * typical) pts.push_back({ r.x, r.y });
+    if (pts.size() < kEdgeRays / 2) return {};
+    Circle c = fitCircle(pts);
+    if (!c.ok) return c;
+    double spread = 0;
+    for (const auto& [x, y] : pts) spread += std::pow(std::hypot(x - c.x, y - c.y) - c.r, 2);
+    spread = std::max(kMinSpreadPx, std::sqrt(spread / double(pts.size())));
+    std::vector<std::pair<double, double>> kept;
+    for (const auto& p : pts)
+        if (std::abs(std::hypot(p.first - c.x, p.second - c.y) - c.r) <= kOutlierSpread * spread) kept.push_back(p);
+    if (kept.size() < kEdgeRays / 2) return {};
+    return fitCircle(kept);
 }
 
 } // namespace
@@ -73,6 +174,29 @@ double JPRoundMarkFinder::symmetryAt(const JPGrayImage& image, double cx, double
     within /= double(means.size());
     // +1: a perfectly flat patch (no mark) scores nothing, not infinity.
     return between / (within + 1.0);
+}
+
+JPRoundMark JPRoundMarkFinder::findAnySize(const JPGrayImage& image, double expectedX, double expectedY,
+                                           double searchRadius, double minDiameter, double maxDiameter) {
+    constexpr double kSizeStep = 1.2;
+    // Each size is a search of its own: they run side by side.
+    std::vector<std::future<JPRoundMark>> tries;
+    for (double d = minDiameter; d <= maxDiameter; d *= kSizeStep)
+        tries.push_back(std::async(std::launch::async, [&image, expectedX, expectedY, searchRadius, d] {
+            Request rq;
+            rq.expectedX = expectedX;
+            rq.expectedY = expectedY;
+            rq.searchRadius = searchRadius;
+            rq.diameter = d;
+            return find(image, rq);
+        }));
+    JPRoundMark best;
+    best.why = "nothing round of any size near there";
+    for (auto& t : tries) {
+        const JPRoundMark m = t.get();
+        if (m.found && (!best.found || m.confidence > best.confidence)) best = m;
+    }
+    return best;
 }
 
 double JPRoundMarkFinder::shapeAt(const JPGrayImage& image, double cx, double cy, double diameter) {
@@ -127,52 +251,68 @@ JPRoundMark JPRoundMarkFinder::find(const JPGrayImage& image, const Request& rq)
     }
     double bx = rq.expectedX / scale, by = rq.expectedY / scale;
     best(*level, rq.expectedX / scale, rq.expectedY / scale, rq.searchRadius / scale, maxRadius / scale, bx, by);
-    double fx = bx * scale, fy = by * scale;
-    const double score = best(image, bx * scale, by * scale, scale + 1, maxRadius, fx, fy);
+    // On whole pixels: a grid that followed the start point's fraction would
+    // carry that fraction into the answer.
+    double fx = std::round(bx * scale), fy = std::round(by * scale);
+    const double score = best(image, fx, fy, scale + 1, maxRadius, fx, fy);
     if (score <= 0) {
         out.why = "nothing round near where the mark should be";
         return out;
     }
 
-    // A fraction of a pixel: parabolas through the score either side, in X and in Y.
-    const double cx = fx + parabola(symmetryAt(image, fx - 1, fy, maxRadius), score, symmetryAt(image, fx + 1, fy, maxRadius));
-    const double cy = fy + parabola(symmetryAt(image, fx, fy - 1, maxRadius), score, symmetryAt(image, fx, fy + 1, maxRadius));
-
-    // The edge: where ring brightness changes fastest going outward.
-    double edgeR = 0, steepest = 0, prev = 0;
+    // Its size, roughly: where ring brightness changes fastest going outward.
+    double roughR = 0, steepest = 0, prev = 0;
     bool havePrev = false;
     for (double r = kRingStepPx; r <= maxRadius; r += kRingStepPx / 2) {
-        const Ring rg = ring(image, cx, cy, r);
+        const Ring rg = ring(image, fx, fy, r);
         if (!rg.ok) break;
         if (havePrev) {
             const double slope = std::abs(rg.mean - prev);
-            if (slope > steepest) { steepest = slope; edgeR = r - kRingStepPx / 4; }
+            if (slope > steepest) { steepest = slope; roughR = r - kRingStepPx / 4; }
         }
         prev = rg.mean;
         havePrev = true;
     }
-
-    out.x = cx;
-    out.y = cy;
-    out.diameter = 2 * edgeR;
+    out.x = fx;
+    out.y = fy;
+    out.diameter = 2 * roughR;
     out.symmetry = score;
-    out.shape = shapeAt(image, cx, cy, rq.diameter);
-    const double sizeError = out.diameter / rq.diameter - 1;
-    out.confidence = std::max(0.0, 1.0 - std::abs(sizeError) / rq.sizeTolerance);
-    if (std::abs(sizeError) > rq.sizeTolerance) {
+    auto wrongSize = [&] {
+        const double sizeError = out.diameter / rq.diameter - 1;
+        out.confidence = std::max(0.0, 1.0 - std::abs(sizeError) / rq.sizeTolerance);
+        if (std::abs(sizeError) <= rq.sizeTolerance) return false;
         char buf[160];
         std::snprintf(buf, sizeof buf, "the roundest thing near there measures %.1f px across, not the %.1f px expected",
                       out.diameter, rq.diameter);
         out.why = buf;
-        return out;
-    }
-    if (out.shape < rq.minShape) {
+        return true;
+    };
+    // A disc of that size, not the edge of something bigger.
+    auto notWhole = [&] {
+        out.shape = shapeAt(image, out.x, out.y, rq.diameter);
+        if (out.shape >= rq.minShape) return false;
         char buf[160];
         std::snprintf(buf, sizeof buf, "the roundest thing near there is not a whole mark of that size "
                       "(it matches a %.1f px disc by %.0f%%)", rq.diameter, out.shape * 100);
         out.why = buf;
+        return true;
+    };
+    if (wrongSize() || notWhole()) return out;
+
+    // Exactly, to a fraction of a pixel: the edge, measured all round, from
+    // the best whole pixel and then again from where that put the centre.
+    Circle edge = edgeCircle(image, fx, fy, rq.diameter / 2);
+    if (edge.ok) edge = edgeCircle(image, edge.x, edge.y, edge.r);
+    if (!edge.ok) {
+        out.why = "the round thing near there has no clear edge all round";
         return out;
     }
+    const double cx = edge.x, cy = edge.y;
+    out.x = cx;
+    out.y = cy;
+    out.diameter = 2 * edge.r;
+    if (wrongSize()) return out;
+    if (notWhole()) return out;
     out.confidence = std::min(out.confidence, out.shape);
     out.found = true;
     return out;

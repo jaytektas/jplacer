@@ -57,6 +57,7 @@ int main() {
     const JPHeadConfig& head = cell.heads[0];
     assert(head.visualHoming && head.homingFiducial && head.homingFiducial->x == 137.137 && head.homingFiducial->y == 179.265);
     assert(head.park && head.park->x == 390 && head.park->y == 420);
+    assert(head.homingFiducialDiameter == 1.85);   // the rig's primary fiducial is the homing mark
     assert(head.rigPrimary && head.rigPrimary->z == -23.6 && head.rigPrimaryDiameter == 1.85);
     assert(head.rigSecondary && head.rigSecondary->x == 167.193 && head.rigSecondary->z == -12.7);
     assert(head.pumpActuatorId == "ACT1" && head.pumpControl == "KeepRunning" && head.pumpOnWaitMs == 60000);

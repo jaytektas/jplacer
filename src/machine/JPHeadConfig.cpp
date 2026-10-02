@@ -10,6 +10,7 @@ JPHeadConfig JPHeadConfig::fromJson(const JJson& j) {
     h.id                    = j["id"].str();
     h.name                  = j["name"].str();
     h.homingFiducial        = JPLocation::fromJson(j["homingFiducial"]);
+    h.homingFiducialDiameter = j["homingFiducialDiameter"].number();
     h.visualHoming          = j["visualHoming"].boolean();
     h.park                  = JPLocation::fromJson(j["park"]);
     const JJson& rig        = j["calibrationRig"];
@@ -28,7 +29,10 @@ JJson JPHeadConfig::toJson() const {
     JJson j = JJson::object();
     j["id"]   = id;
     j["name"] = name;
-    if (homingFiducial) j["homingFiducial"] = homingFiducial->toJson();
+    if (homingFiducial) {
+        j["homingFiducial"] = homingFiducial->toJson();
+        j["homingFiducialDiameter"] = homingFiducialDiameter;
+    }
     j["visualHoming"] = visualHoming;
     if (park) j["park"] = park->toJson();
     if (rigPrimary || rigSecondary) {

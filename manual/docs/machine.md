@@ -193,13 +193,57 @@ size.
 
 **Save Picture** writes the shown camera's latest picture as a PNG (lossless, so it measures the same as
 the live picture did) to `captures/` in jplacer's configuration folder, named after the camera and the
-moment it was taken; the note beside the buttons names the file.
+moment it was taken; the line under the buttons names the file.
 
 A camera only shows what is in front of it, and in an enclosed machine that is dark until its light is
 on. While the machine is connected, the shown camera's light is switched on (and the previous camera's
-off); while not connected, a note beside the buttons says the light is off.
+off); while not connected, the line under the buttons says the light is off.
 
 <!-- src: src/ui/JPCameraPanel.cpp (savePicture); src/camera/JPImageFile.cpp; src/ui/JPCameraView.cpp; src/camera/JPV4L2Source.cpp (found by name); src/camera/JPCaptureFactory.cpp (choose); src/app/JPlacerMachine.cpp (lightCameras) -->
+
+#### Calibrating the head camera
+
+jplacer measures its cameras itself: nothing is taken from another program. **Calibrate**, with the
+camera on the head shown, works out how big a pixel is on the machine in X and in Y, and which way the
+camera is turned (or mirrored). The machine must be connected and homed, and the head's homing mark (its
+place and diameter, brought across by an OpenPnP import) must be set.
+
+1. The camera moves over the homing mark.
+2. It finds the mark at whatever size it appears (the scale is not known yet), checking that it is a
+   whole round mark and not the edge of something bigger.
+3. Three small moves show which way the mark goes in the picture; then the head steps through a grid
+   that carries the mark across the middle of the picture, finding it after every move.
+4. A fit of all those finds gives the camera's scale and turn. If the finds disagree with each other by
+   more than a pixel, or the mark measures far from its set diameter, nothing is kept and the panel says
+   why.
+5. The head goes back to where it started.
+
+Every move arrives from the same side (see [Backlash](#backlash)), so play in the drives cannot creep
+into the scale. The head moves at a tenth of its speed. While a task runs, its buttons and the choice of
+camera are off, and the line under the buttons says what it is doing; when it ends, that line and the
+status bar give the result. A calibration is saved in the cell file and used from then on.
+
+<!-- src: src/tasks/JPCameraCalibrator.cpp; src/app/JPlacerCameraTasks.cpp (calibrate, notReady, kTaskSpeed); src/ui/JPCameraPanel.cpp (setBusy, the note) -->
+
+#### Visual Test
+
+**Visual Test** moves a calibrated head camera to look where the head's settings say the homing mark is,
+finds the mark, and says how far it really is from there, in mm in X and Y. Nothing is reset: it shows
+what correcting the home position with the camera would change, before jplacer does that.
+
+<!-- src: src/tasks/JPVisualTest.cpp; src/app/JPlacerCameraTasks.cpp (visualTest) -->
+
+#### Finding round marks
+
+A round mark (a fiducial, the homing mark) is found in two steps. A search looks for the most circular
+thing of the expected size near where the mark should be, on a reduced copy of the picture so it is
+quick. Then the mark is measured on the full picture: lines are cast out from its centre all the way
+round, each finds where the brightness passes halfway between the mark's and its surroundings', and a
+circle is fitted through those points. That gives the centre and the diameter to a small fraction of a
+pixel, works whether the mark is bright on dark or dark on bright, and is not pulled by light falling
+more on one side. A line crossing something else (glare, a trace) is left out.
+
+<!-- src: src/vision/JPRoundMarkFinder.cpp (find, edgeCircle, findAnySize) -->
 
 ### Axes
 

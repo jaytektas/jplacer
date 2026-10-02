@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "JPCameraCalibration.h"
 #include "JPMountConfig.h"
 
 #include <string>
@@ -19,6 +20,7 @@ struct JPCameraConfig {
     JPMountConfig mount;
     double        unitsPerPixelX = 0, unitsPerPixelY = 0;
     JJson         device;
+    JPCameraCalibration calibration;   // jplacer's own, from known moves; .valid false until measured
 
     static JPCameraConfig fromJson(const JJson& j) {
         JPCameraConfig c;
@@ -29,6 +31,7 @@ struct JPCameraConfig {
         c.unitsPerPixelX = j["unitsPerPixel"]["x"].number();
         c.unitsPerPixelY = j["unitsPerPixel"]["y"].number();
         c.device         = j["device"];
+        c.calibration    = JPCameraCalibration::fromJson(j["calibration"]);
         return c;
     }
     JJson toJson() const {
@@ -40,6 +43,7 @@ struct JPCameraConfig {
         j["unitsPerPixel"]["x"] = unitsPerPixelX;
         j["unitsPerPixel"]["y"] = unitsPerPixelY;
         j["device"]             = device;
+        if (calibration.valid) j["calibration"] = calibration.toJson();
         return j;
     }
 };

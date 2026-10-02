@@ -12,6 +12,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <deque>
 #include <future>
 #include <map>
@@ -69,7 +70,9 @@ public:
                     int timeoutMs = 0);
 
     // Block until the controller has finished every move it was given (the
-    // profile's waitMotion command, which the controller answers only then).
+    // profile's waitMotion command, which the controller answers only then)
+    // and a status report from after that has been read: when it returns,
+    // status() is where the machine stopped, not where it was a poll ago.
     JPReply waitForMotion();
 
     // Read the controller's stored settings into settings(). Blocking.
@@ -120,6 +123,7 @@ private:
 
     std::thread       m_io;
     std::atomic<bool> m_running{ false };
+    std::atomic<bool> m_statusNow{ false };   // ask for a status report without waiting for the interval
 
     // The I/O thread's own: the command on the wire, when it times out, and
     // the lines it has drawn so far.
@@ -132,6 +136,8 @@ private:
     std::map<std::string, std::string>  m_settings;
     std::map<std::string, double>       m_offsets;   // the work offset, by axis letter, as last reported
     JPFirmwareProfile::Status           m_status;
+    uint64_t                            m_statusCount = 0;   // reports read, for waiting on the next
+    std::condition_variable             m_statusRead;
 };
 
 } // inline namespace jf

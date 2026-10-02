@@ -1,0 +1,151 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
+
+#include "JPlacerCameraTasks.h"
+
+#include "common/JPlacerLog.h"
+#include "tasks/JPCameraCalibrator.h"
+#include "tasks/JPVisualTest.h"
+
+#include <j/core/Log.h>
+#include <j/core/MainThreadDispatcher.h>
+
+#include <cstdio>
+
+inline namespace jf {
+
+namespace {
+
+// How fast the tasks move the head, as a share of the axes' rates: slow
+// enough to watch, and to stop, while these are new.
+constexpr double kTaskSpeed = 0.1;
+// How long a result stays in the status bar.
+constexpr int kResultMs = 8000;
+
+} // namespace
+
+JPlacerCameraTasks::JPlacerCameraTasks(JAppWindow& window, JPCell& cell, JPCameraPanel& cameras, std::string cellPath)
+    : m_window(window), m_cell(cell), m_cameras(cameras), m_cellPath(std::move(cellPath)) {
+    m_cameras.onCalibrate  = [this] { calibrate(); };
+    m_cameras.onVisualTest = [this] { visualTest(); };
+}
+
+JPlacerCameraTasks::~JPlacerCameraTasks() {
+    *m_alive = false;
+    m_cameras.onCalibrate  = nullptr;
+    m_cameras.onVisualTest = nullptr;
+    if (m_worker.joinable()) m_worker.join();
+}
+
+const JPHeadConfig* JPlacerCameraTasks::head(const JPCameraConfig& camera) const {
+    for (const JPHeadConfig& h : m_cell.config().heads)
+        if (h.id == camera.mount.headId) return &h;
+    return nullptr;
+}
+
+std::string JPlacerCameraTasks::notReady(bool needsCalibration) const {
+    if (m_busy) return "a camera task is already under way";
+    const JPCameraFeed* feed = m_cameras.shownFeed();
+    if (!feed) return "there is no camera to use";
+    if (!m_cell.isConnected()) return "connect the machine first";
+    if (!m_cell.isHomed()) return "home the machine first";
+    const JPHeadConfig* h = head(feed->config());
+    if (!h) return feed->config().name + " is not on a head";
+    if (!h->homingFiducial || h->homingFiducialDiameter <= 0)
+        return "the head's homing mark (its place and size) is not set";
+    if (needsCalibration && !m_cell.cameraCalibration(feed->config().id).valid)
+        return feed->config().name + " is not calibrated: Calibrate first";
+    return {};
+}
+
+void JPlacerCameraTasks::run(const std::string& name, Task task, std::function<void(bool)> done) {
+    if (m_worker.joinable()) m_worker.join();   // the last one has finished: m_busy says so
+    m_busy = true;
+    m_cameras.setBusy(true);
+    m_cameras.setNote(name + "\xE2\x80\xA6");
+    std::weak_ptr<bool> alive = m_alive;
+    auto onMain = [alive](std::function<void()> fn) {
+        JMainThreadDispatcher::instance().post([alive, fn] {
+            if (const auto a = alive.lock(); a && *a) fn();
+        });
+    };
+    m_worker = std::thread([this, name, task, done, onMain] {
+        std::string words;
+        const bool ok = task(words, [this, name, onMain](const std::string& step) {
+            onMain([this, name, step] { m_cameras.setNote(name + ": " + step); });
+        });
+        JLOGC(JPlacerLog::kCamera, ok ? JLogLevel::Info : JLogLevel::Warn) << name << ": " << words;
+        onMain([this, name, ok, words, done] {
+            m_busy = false;
+            m_cameras.setBusy(false);
+            const std::string text = ok ? words : name + " failed: " + words;
+            m_cameras.setNote(text);
+            m_window.showStatus(text, kResultMs);
+            if (done) done(ok);
+        });
+    });
+}
+
+void JPlacerCameraTasks::calibrate() {
+    if (const std::string why = notReady(false); !why.empty()) {
+        m_window.showStatus("Calibrate: " + why, kResultMs);
+        return;
+    }
+    JPCameraFeed* feed = m_cameras.shownFeed();
+    const JPHeadConfig h = *head(feed->config());
+    const std::string cameraId = feed->config().id;
+    auto result = std::make_shared<JPCameraCalibration>();
+    run("Calibrating " + feed->config().name, [this, feed, h, result](std::string& words, const auto& progress) {
+        // Over the mark first, as near as the camera's offset on the head says.
+        const JPMountConfig& m = feed->config().mount;
+        progress("moving over the homing mark");
+        if (!m_cell.moveAxesAndWait({ { m.axisX, h.homingFiducial->x - m.offsetX },
+                                      { m.axisY, h.homingFiducial->y - m.offsetY } }, kTaskSpeed, words))
+            return false;
+        JPCameraCalibrator::Options o;
+        o.markDiameterMm = h.homingFiducialDiameter;
+        o.markZ = h.homingFiducial->z;
+        o.speed = kTaskSpeed;
+        const auto c = JPCameraCalibrator::run(m_cell, *feed, o, words, progress);
+        if (!c) return false;
+        *result = *c;
+        char buf[200];
+        std::snprintf(buf, sizeof buf, "%s: %.3f x %.3f px/mm, turned %.2f deg%s, fit to %.2f px",
+                      feed->config().name.c_str(), c->scaleX(), c->scaleY(), c->rotationDeg(),
+                      c->mirrored() ? ", mirrored" : "", c->rmsPx);
+        words = buf;
+        return true;
+    }, [this, cameraId, result](bool ok) {
+        if (!ok) return;
+        m_cell.setCameraCalibration(cameraId, *result);
+        std::string error;
+        if (!m_cell.config().save(m_cellPath, error)) {
+            JLOGC(JPlacerLog::kApp, JLogLevel::Error) << error;
+            m_window.showStatus("The calibration is in use but was not saved: " + error, kResultMs);
+        }
+    });
+}
+
+void JPlacerCameraTasks::visualTest() {
+    if (const std::string why = notReady(true); !why.empty()) {
+        m_window.showStatus("Visual Test: " + why, kResultMs);
+        return;
+    }
+    JPCameraFeed* feed = m_cameras.shownFeed();
+    const JPHeadConfig h = *head(feed->config());
+    run("Visual Test", [this, feed, h](std::string& words, const auto& progress) {
+        progress("looking at the homing mark");
+        const JPVisualTest::Result r = JPVisualTest::run(m_cell, *feed, h, kTaskSpeed);
+        if (!r.found) {
+            words = r.why;
+            return false;
+        }
+        char buf[200];
+        std::snprintf(buf, sizeof buf, "The homing mark is %+.3f mm in X and %+.3f mm in Y from its setting",
+                      r.offsetX, r.offsetY);
+        words = buf;
+        return true;
+    });
+}
+
+} // inline namespace jf

@@ -64,6 +64,13 @@ public:
     // mapped axis moves its input axis. Runs on the cell thread; the outcome
     // arrives as onMotion.
     void moveAxes(std::map<std::string, double> targets, double speed);
+    // The same, waiting for the outcome: for a procedure on a thread of its
+    // own (never the cell's, which runs the move). False with `why`.
+    bool moveAxesAndWait(std::map<std::string, double> targets, double speed, std::string& why);
+
+    // Keep a camera's calibration (the cell's own copy; the owner saves it).
+    void setCameraCalibration(const std::string& cameraId, const JPCameraCalibration& calibration);
+    JPCameraCalibration cameraCalibration(const std::string& cameraId) const;
 
     // Each controller's last reported state (Idle, Run, Alarm…), by controller id.
     std::map<std::string, std::string> states() const;

@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "JPlacerCameraTasks.h"
+
 #include "machine/JPCell.h"
 #include "ui/JPCameraPanel.h"
 #include "ui/JPConnectIcon.h"
@@ -80,6 +82,7 @@ private:
     std::string                         m_cellPath;
     std::vector<Dock>                   m_docks;
     std::unique_ptr<JPCameraPanel>      m_cameras;   // the window's centre
+    std::unique_ptr<JPlacerCameraTasks> m_cameraTasks;   // its Calibrate and Visual Test
     std::vector<std::function<void()>>  m_unwatch;   // this class's watches on the cell
     std::shared_ptr<bool>               m_alive = std::make_shared<bool>(true);
     JMenuItem*                          m_connectItem    = nullptr;

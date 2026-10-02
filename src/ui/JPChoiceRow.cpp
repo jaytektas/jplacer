@@ -31,4 +31,8 @@ void JPChoiceRow::choose(int index) {
     }
 }
 
+void JPChoiceRow::setChoicesEnabled(bool enabled) {
+    for (JToggleButton* b : m_buttons) b->setEnabled(enabled);
+}
+
 } // inline namespace jf

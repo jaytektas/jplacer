@@ -19,12 +19,14 @@
 
 inline namespace jf {
 
-JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCellConfig& cell, std::string capturesDir)
+JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCellConfig& cell, std::string capturesDir,
+                             const ViewFor& viewFor)
     : JContainer(graph), m_capturesDir(std::move(capturesDir)) {
     JPUiParts::asPanel(*this);
     std::vector<std::string> names;
     for (const JPCameraConfig& c : cell.cameras) {
         m_feeds.push_back(std::make_unique<JPCameraFeed>(c));
+        m_feeds.back()->setView(viewFor(c));
         names.push_back(c.name);
     }
     if (m_feeds.empty()) {
@@ -32,12 +34,19 @@ JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCellConfi
         return;
     }
     auto top = JPUiParts::row(graph);
-    JPChoiceRow* choice = top->add(std::make_unique<JPChoiceRow>(graph, names, 0));
+    m_choice = top->add(std::make_unique<JPChoiceRow>(graph, names, 0));
     m_state = top->add(std::make_unique<JLabel>(graph, ""));
-    m_note  = top->add(std::make_unique<JLabel>(graph, ""));
-    m_note->setHSizePolicy(JSizePolicyMode::Expanding, 1);
+    m_state->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     top->add(JPUiParts::button(graph, "Save Picture"))->onClicked.connect([this] { savePicture(); });
+    JButton* calibrate = top->add(JPUiParts::button(graph, "Calibrate"));
+    calibrate->onClicked.connect([this] { if (onCalibrate) onCalibrate(); });
+    JButton* test = top->add(JPUiParts::button(graph, "Visual Test"));
+    test->onClicked.connect([this] { if (onVisualTest) onVisualTest(); });
+    m_taskButtons = { calibrate, test };
     add(std::move(top));
+    // What a camera task is doing, or the last thing done: a line of its own,
+    // so a result reads in full.
+    m_note = add(std::make_unique<JLabel>(graph, ""));
     m_view = add(std::make_unique<JPCameraView>(graph, hal));
     m_view->setVSizePolicy(JSizePolicyMode::Expanding, 1);
 
@@ -59,7 +68,7 @@ JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCellConfi
             });
         }));
     }
-    choice->onChosen.connect([this](int i) { show(size_t(i)); });
+    m_choice->onChosen.connect([this](int i) { show(size_t(i)); });
     show(0);
 }
 
@@ -72,6 +81,15 @@ JPCameraPanel::~JPCameraPanel() {
 
 std::string JPCameraPanel::shownId() const {
     return m_shown < m_feeds.size() ? m_feeds[m_shown]->config().id : std::string();
+}
+
+JPCameraFeed* JPCameraPanel::shownFeed() const {
+    return m_shown < m_feeds.size() ? m_feeds[m_shown].get() : nullptr;
+}
+
+void JPCameraPanel::setBusy(bool busy) {
+    for (JButton* b : m_taskButtons) b->setEnabled(!busy);
+    if (m_choice) m_choice->setChoicesEnabled(!busy);
 }
 
 void JPCameraPanel::setNote(const std::string& text) {

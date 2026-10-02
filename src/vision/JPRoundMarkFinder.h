@@ -32,6 +32,12 @@ public:
 
     static JPRoundMark find(const JPGrayImage& image, const Request& request);
 
+    // Before a camera is calibrated its scale is not known, so neither is a
+    // mark's size in pixels: try sizes from minDiameter to maxDiameter (each
+    // a fifth bigger than the last) and keep the best mark found.
+    static JPRoundMark findAnySize(const JPGrayImage& image, double expectedX, double expectedY,
+                                   double searchRadius, double minDiameter, double maxDiameter);
+
     // How well the picture around (cx, cy) matches a disc of `diameter`,
     // bright or dark alike: |normalised cross-correlation|, 0..1.
     static double shapeAt(const JPGrayImage& image, double cx, double cy, double diameter);

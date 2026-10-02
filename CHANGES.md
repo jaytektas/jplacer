@@ -32,6 +32,15 @@ notes.
 - A controller's port belongs to jplacer while connected: another program (or a second jplacer) trying to
   open it is refused, instead of the two silently sharing and each losing part of what the controller says.
 - Save Picture keeps what a camera is showing as a PNG.
+- Calibrate measures the camera on the head: it goes to the homing mark, moves the head by known amounts
+  and works out how big a pixel is on the machine and which way the camera is turned. The result is
+  saved in the cell.
+- Visual Test looks at the homing mark through a calibrated camera and says how far, in mm, it is from
+  where the head's settings put it. Nothing is changed.
+- Round marks are measured from their edge all the way round, so where a mark is found no longer depends
+  on where the search began, and its size is measured to a fraction of a pixel.
+- When a move finishes, the positions shown are where the machine stopped, not where it was a moment
+  before.
 - The cameras, live, in the middle of the window: choose a camera, see what it sees, with a cross at its
   centre. A camera is found by its own name, whichever USB socket it is in, and its light is switched
   on while it is shown and the machine is connected.

@@ -4,7 +4,8 @@
 // The round-mark finder against drawn pictures whose answers are known: a mark
 // bright on dark and dark on bright, with noise, with light falling off across
 // the picture (sun from one side), and beside a mark of the wrong size. It
-// must land within a tenth of a pixel, and say why when the mark is not there.
+// must land within a twentieth of a pixel wherever its search starts, and say
+// why when the mark is not there.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
@@ -66,8 +67,8 @@ void expectAt(const JPGrayImage& img, double cx, double cy, double d, double sta
     rq.diameter = d;
     const JPRoundMark m = JPRoundMarkFinder::find(img, rq);
     assert(m.found);
-    assert(std::abs(m.x - cx) < 0.1 && std::abs(m.y - cy) < 0.1);
-    assert(std::abs(m.diameter - d) < 2.0 && m.confidence > 0.5 && m.shape > 0.95);
+    assert(std::abs(m.x - cx) < 0.05 && std::abs(m.y - cy) < 0.05);
+    assert(std::abs(m.diameter - d) < 0.5 && m.confidence > 0.5 && m.shape > 0.95);
 }
 
 } // namespace
@@ -78,25 +79,42 @@ int main() {
     // Bright on dark, a little off from where it was expected.
     JPGrayImage a = ground(240, 200, 40);
     disc(a, cx, cy, d / 2, 200);
-    expectAt(a, cx, cy, d, cx + 12, cy - 9);
+    expectAt(a, cx, cy, d, cx + 12.3, cy - 9.6);
 
     // Dark on bright: the same answer, no setting changed.
     JPGrayImage b = ground(240, 200, 210);
     disc(b, cx, cy, d / 2, 30);
-    expectAt(b, cx, cy, d, cx - 15, cy + 10);
+    expectAt(b, cx, cy, d, cx - 15.45, cy + 10.2);
 
     // Noise and sun from one side.
     JPGrayImage c = ground(240, 200, 60);
     disc(c, cx, cy, d / 2, 170);
     sunFromLeft(c, 0.8f);
     noise(c, 12, 7);
-    expectAt(c, cx, cy, d, cx + 8, cy + 8);
+    expectAt(c, cx, cy, d, cx + 8.7, cy + 7.9);
 
     // A bigger round thing nearby is not the mark.
     JPGrayImage e = ground(320, 200, 40);
     disc(e, cx, cy, d / 2, 200);
     disc(e, cx + 120, cy, d, 200);   // twice the size, 120 px away
-    expectAt(e, cx, cy, d, cx + 5, cy);
+    expectAt(e, cx, cy, d, cx + 5.25, cy - 0.4);
+
+    // Where the search starts says nothing about where the mark is: starts
+    // a fraction of a pixel apart give one answer.
+    {
+        JPRoundMarkFinder::Request rq;
+        rq.searchRadius = 30;
+        rq.diameter = d;
+        double firstX = 0, firstY = 0;
+        for (int i = 0; i < 8; ++i) {
+            rq.expectedX = cx + 6 + 0.125 * i;
+            rq.expectedY = cy - 4 - 0.125 * i;
+            const JPRoundMark m = JPRoundMarkFinder::find(c, rq);
+            assert(m.found);
+            if (i == 0) { firstX = m.x; firstY = m.y; }
+            assert(std::abs(m.x - firstX) < 1e-9 && std::abs(m.y - firstY) < 1e-9);
+        }
+    }
 
     // No mark at all: found is false, and it says why.
     JPGrayImage f = ground(240, 200, 80);

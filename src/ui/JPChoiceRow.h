@@ -21,6 +21,9 @@ public:
 
     int chosen() const { return m_chosen; }
     void choose(int index);
+    // Every option on or off at once (a container's own enabled state does
+    // not reach the buttons in it).
+    void setChoicesEnabled(bool enabled);
 
     JSignal<int> onChosen;
 
