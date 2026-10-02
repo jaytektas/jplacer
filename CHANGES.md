@@ -26,6 +26,9 @@ notes.
 - Positions shown are the coordinates moves use, taking the controller's work offset into account.
 - A controller's port belongs to jplacer while connected: another program (or a second jplacer) trying to
   open it is refused, instead of the two silently sharing and each losing part of what the controller says.
+- The cameras, live, in the middle of the window: choose a camera, see what it sees, with a cross at its
+  centre. A camera is found by its own name, whichever USB socket it is in, and its light is switched
+  on while it is shown and the machine is connected.
 - Two toolbar icons show and change the machine's state: a chip for the connection, a house for homing,
   each grey, amber while working, green when done, red when it failed. The red strip across the window
   is kept for what is critical: an alarm, or a connection lost while working. Connecting to a port

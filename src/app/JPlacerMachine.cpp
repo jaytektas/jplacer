@@ -110,17 +110,9 @@ void JPlacerMachine::buildPanels() {
     // The cameras fill the centre: what the machine sees is what the person
     // works from. A camera's light is on while it is the one shown.
     m_cameras = std::make_unique<JPCameraPanel>(m_graph, m_window.hal(), m_cell->config());
-    m_cameras->onShown = [this](const std::string& shown, const std::string& before) {
-        if (!m_cell || !m_cell->isConnected()) return;
-        auto light = [this](const std::string& cameraId) -> std::string {
-            for (const JPCameraConfig& c : m_cell->config().cameras)
-                if (c.id == cameraId) return c.device["light-actuator-id"].str();
-            return {};
-        };
-        if (const std::string off = light(before); !off.empty()) m_cell->switchActuator(off, false);
-        if (const std::string on = light(shown); !on.empty()) m_cell->switchActuator(on, true);
-    };
+    m_cameras->onShown = [this](const std::string& shown, const std::string& before) { lightCameras(shown, before); };
     m_window.setCentralWidget(m_cameras.get());
+    lightCameras(m_cameras->shownId(), std::string());
 
     if (first) {
         // Each area opens on its first panel (the last added would be in front).
@@ -174,6 +166,9 @@ bool JPlacerMachine::openCell(const std::string& path, std::string& error) {
             m_connectFailed = !ok && wasConnecting;
             if (ok) m_lost.clear();
             else if (!wasConnecting && !why.empty()) m_lost = why;   // dropped while working
+            // The camera on show gets its light as soon as there is a machine
+            // to switch it; without one, the panel says why it is dark.
+            if (m_cameras) lightCameras(m_cameras->shownId(), std::string());
             if (!why.empty()) m_window.showStatus(why, kErrorMs);
             else m_window.showStatus(ok ? m_cell->config().name + " connected" : m_cell->config().name + " disconnected", kStatusMs);
         });
@@ -337,6 +332,23 @@ void JPlacerMachine::home() {
     m_homeFailed = false;
     m_cell->home();
     showState();
+}
+
+void JPlacerMachine::lightCameras(const std::string& shown, const std::string& before) {
+    if (!m_cell || !m_cameras) return;
+    auto light = [this](const std::string& cameraId) -> std::string {
+        for (const JPCameraConfig& c : m_cell->config().cameras)
+            if (c.id == cameraId) return c.device["light-actuator-id"].str();
+        return {};
+    };
+    const std::string on = light(shown);
+    if (!m_cell->isConnected()) {
+        m_cameras->setNote(on.empty() ? std::string() : "Light off: connect the machine to light this camera.");
+        return;
+    }
+    m_cameras->setNote("");
+    if (const std::string off = light(before); !off.empty() && off != on) m_cell->switchActuator(off, false);
+    if (!on.empty()) m_cell->switchActuator(on, true);
 }
 
 bool JPlacerMachine::showDock(const std::string& title) {

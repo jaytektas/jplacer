@@ -24,8 +24,9 @@ What is brought across:
 - **Controllers** that OpenPnP talks G-code to, with their serial port, speed and flow control.
 - **Axes**: those driven by a controller, those with no hardware behind them (such as a camera's Z),
   and those that follow another axis (such as two nozzles sharing one Z, one of them reversed).
-- **The head**, its **nozzles** (with the actuator for each nozzle's vacuum), **cameras** and
-  **actuators**, and the cameras and actuators fixed to the machine.
+- **The head**, its **nozzles** (with the actuator for each nozzle's vacuum), **cameras** (each by
+  the name its device gives itself, with its light) and **actuators**, and the cameras and actuators
+  fixed to the machine.
 - **Actuator commands**: how each one is switched on and off, and how a value is read from it.
 - **The home command**, every line of it, in order: a machine's homing sequence (release Z, home Y and X
   onto their switches, set the coordinates, home Z…) is the controller's own, and Home runs it.
@@ -161,6 +162,24 @@ out). Type a line in the box and press **Send** or Return to send it as it is. W
 controller, choose which one from the list beside the box.
 
 <!-- src: src/ui/JPConsolePanel.cpp; src/machine/JPGcodeDriver.cpp (status lines are not passed on as traffic) -->
+
+### Cameras
+
+The cell's cameras fill the middle of the window. Choose a camera from the buttons along the top; its
+live picture shows below, fitted to the space with its shape kept, and a cross through the middle
+marks the point the camera is looking at. Beside the buttons are the picture's format, size and rate.
+Only the camera shown is running: the others are stopped until chosen.
+
+A camera is found by the name the device gives itself (for example `top: top`), not by the USB socket
+it is plugged into, so moving it to another socket or hub does not lose it. jplacer picks the largest
+picture the camera offers in MJPG (or YUYV, if that is all it has), unless the cell names a format and
+size.
+
+A camera only shows what is in front of it, and in an enclosed machine that is dark until its light is
+on. While the machine is connected, the shown camera's light is switched on (and the previous camera's
+off); while not connected, a note beside the buttons says the light is off.
+
+<!-- src: src/ui/JPCameraPanel.cpp; src/ui/JPCameraView.cpp; src/camera/JPV4L2Source.cpp (found by name); src/camera/JPCaptureFactory.cpp (choose); src/app/JPlacerMachine.cpp (lightCameras) -->
 
 ### Axes
 

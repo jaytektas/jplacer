@@ -63,6 +63,9 @@ private:
     // One dock per panel, made the first time a cell opens; a new cell gets
     // new panels in the same docks, so where the person put them is kept.
     void buildPanels();
+    // The shown camera's light on (and the one shown before off) while
+    // connected; while not, the camera panel says why the picture is dark.
+    void lightCameras(const std::string& shown, const std::string& before);
     void dropPanels();
 
     struct Dock {

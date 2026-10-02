@@ -27,7 +27,8 @@ JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCellConfi
     auto top = JPUiParts::row(graph);
     JPChoiceRow* choice = top->add(std::make_unique<JPChoiceRow>(graph, names, 0));
     m_state = top->add(std::make_unique<JLabel>(graph, ""));
-    m_state->setHSizePolicy(JSizePolicyMode::Expanding, 1);
+    m_note  = top->add(std::make_unique<JLabel>(graph, ""));
+    m_note->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     add(std::move(top));
     m_view = add(std::make_unique<JPCameraView>(graph, hal));
     m_view->setVSizePolicy(JSizePolicyMode::Expanding, 1);
@@ -59,6 +60,14 @@ JPCameraPanel::~JPCameraPanel() {
     for (const auto& u : m_unwatch) u();
     if (m_view) m_view->setFeed(nullptr);
     for (auto& f : m_feeds) f->stop();
+}
+
+std::string JPCameraPanel::shownId() const {
+    return m_shown < m_feeds.size() ? m_feeds[m_shown]->config().id : std::string();
+}
+
+void JPCameraPanel::setNote(const std::string& text) {
+    if (m_note) m_note->setText(text);
 }
 
 void JPCameraPanel::show(size_t index) {

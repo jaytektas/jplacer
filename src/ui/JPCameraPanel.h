@@ -30,11 +30,16 @@ public:
     std::function<void(const std::string& shown, const std::string& before)> onShown;
 
     void show(size_t index);
+    // The camera shown (its id), empty when there is none.
+    std::string shownId() const;
+    // A word about the picture beside the mode (e.g. why it is dark).
+    void setNote(const std::string& text);
 
 private:
     std::vector<std::unique_ptr<JPCameraFeed>> m_feeds;
     JPCameraView*                              m_view  = nullptr;
     JLabel*                                    m_state = nullptr;
+    JLabel*                                    m_note  = nullptr;
     size_t                                     m_shown = SIZE_MAX;
     std::vector<std::function<void()>>         m_unwatch;
     std::shared_ptr<bool>                      m_alive = std::make_shared<bool>(true);

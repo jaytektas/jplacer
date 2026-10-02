@@ -13,6 +13,15 @@ inline namespace jf {
 
 namespace {
 
+// A frame's average brightness, from every 97th pixel (enough to tell a dark
+// scene from a broken decode; cheap enough to log every frame when traced).
+int meanBrightness(const JPFrame& f) {
+    constexpr size_t kStride = 97 * 4;
+    uint64_t sum = 0, n = 0;
+    for (size_t i = 0; i + 2 < f.rgba.size(); i += kStride, ++n) sum += (f.rgba[i] + f.rgba[i + 1] + f.rgba[i + 2]) / 3;
+    return n ? int(sum / n) : 0;
+}
+
 // How long one wait for a frame lasts before the thread checks whether it
 // should stop: the time a stop can take, not a frame timeout.
 constexpr int kGrabSliceMs = 100;
@@ -72,7 +81,9 @@ void JPCameraFeed::run() {
             if (!error.empty()) return fail(error);
             continue;
         }
-        JLOGC(JPlacerLog::kFrames, JLogLevel::Trace) << m_config.name << " frame " << frame.sequence;
+        JLOGC(JPlacerLog::kFrames, JLogLevel::Trace) << m_config.name << " frame " << frame.sequence << " "
+                                                     << frame.width << "x" << frame.height << ", brightness "
+                                                     << meanBrightness(frame) << "/255";
         {
             std::lock_guard lk(m_mutex);
             std::swap(m_latest, frame);
