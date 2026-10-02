@@ -28,6 +28,8 @@ struct JPlacerLog {
     static constexpr const char* kFrames   = "camera.frames";      // every frame (many a second)
 
     static constexpr const char* kImport   = "import.openpnp";     // reading OpenPnP's files
+    static constexpr const char* kImportCpl = "import.cpl";        // reading pick-and-place files
+    static constexpr const char* kBoard    = "board";              // finding a board by its fiducials
 
     static constexpr const char* kUi       = "ui";                 // what was clicked, chosen, typed
 };

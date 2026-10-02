@@ -37,6 +37,9 @@ struct JPCameraCalibration {
     // through the lens (straightened first); nothing when the fit is degenerate.
     bool mmForPixels(double dxPx, double dyPx, double& dxMm, double& dyMm) const;
     JPLens lens() const { return JPLens::forPicture(width, height, lensK1, lensCentreX, lensCentreY); }
+    // Where on the machine a thing seen at pixel (px, py) is, for a camera
+    // looking at (viewX, viewY): P = V - M^-1 (pixel - middle), straightened.
+    bool machinePoint(double px, double py, double viewX, double viewY, double& x, double& y) const;
     double scaleX() const;   // pixels per mm along the machine's X
     double scaleY() const;
     double rotationDeg() const;

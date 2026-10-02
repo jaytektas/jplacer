@@ -32,6 +32,8 @@ file(GLOB JPLACER_MACHINE_SRC CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/
 file(GLOB JPLACER_OPENPNP_SRC CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/openpnp/*.cpp)
 file(GLOB JPLACER_CAMERA_SRC  CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/camera/*.cpp)
 file(GLOB JPLACER_VISION_SRC  CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/vision/*.cpp)
+file(GLOB JPLACER_GEOMETRY_SRC CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/geometry/*.cpp)
+file(GLOB JPLACER_IMPORT_SRC  CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/import/*.cpp)
 file(GLOB JPLACER_TASKS_SRC   CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/tasks/*.cpp)
 file(GLOB JPLACER_UI_SRC      CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/*.cpp)
 file(GLOB JPLACER_APP_SRC     CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/app/*.cpp)
@@ -60,10 +62,20 @@ target_link_libraries(jplacer_camera PUBLIC jplacer_machine PRIVATE JPEG::JPEG P
 add_library(jplacer_vision STATIC ${JPLACER_VISION_SRC})
 target_link_libraries(jplacer_vision PUBLIC jplacer_common)
 
+# The board and job model, and the geometry it is placed with: no GUI, no
+# hardware.
+add_library(jplacer_geometry STATIC ${JPLACER_GEOMETRY_SRC})
+target_link_libraries(jplacer_geometry PUBLIC jplacer_common)
+add_library(jplacer_job INTERFACE)
+target_link_libraries(jplacer_job INTERFACE jplacer_geometry)
+# Reading other tools' files into a board (nothing goes into the library).
+add_library(jplacer_import STATIC ${JPLACER_IMPORT_SRC})
+target_link_libraries(jplacer_import PUBLIC jplacer_job)
+
 # Procedures that drive the machine, its cameras and vision together:
-# calibrating a camera, the visual homing test.
+# calibrating a camera, the visual homing test, finding a board.
 add_library(jplacer_tasks STATIC ${JPLACER_TASKS_SRC})
-target_link_libraries(jplacer_tasks PUBLIC jplacer_machine jplacer_camera jplacer_vision)
+target_link_libraries(jplacer_tasks PUBLIC jplacer_machine jplacer_camera jplacer_vision jplacer_job)
 
 # Panels and views over the other modules: the only module with widgets.
 add_library(jplacer_ui STATIC ${JPLACER_UI_SRC})
@@ -88,7 +100,7 @@ target_precompile_headers(jplacer PRIVATE ${JPLACER_PCH})
 option(JPLACER_TESTS "Build jplacer's tests" ON)
 if(JPLACER_TESTS)
     enable_testing()
-    foreach(module machine openpnp camera vision tasks)
+    foreach(module machine openpnp camera vision geometry import tasks)
       file(GLOB tests CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tests/${module}/*.cpp)
       foreach(src ${tests})
         get_filename_component(name ${src} NAME_WE)

@@ -24,7 +24,7 @@ constexpr int    kMaxRingSamples = 64;    // more says no more about how even a 
 // The mark's size in the coarse copy the search runs on (pixels across).
 constexpr double kCoarseDiameter = 6;
 // How many of the roundest places found by the coarse search are measured.
-constexpr size_t kCandidates = 8;
+constexpr size_t kCandidates = 32;
 // Marks whose confidence is within this of the best are as convincing.
 constexpr double kAsConvincing = 0.1;
 // Where a mark's brightness is compared with its ground's, as shares of its

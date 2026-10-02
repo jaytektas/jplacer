@@ -22,15 +22,6 @@ constexpr double kSearchMm = 2.0;
 
 } // namespace
 
-bool JPVisualTest::markPosition(const JPCameraCalibration& c, int width, int height, double px, double py,
-                                double viewX, double viewY, double& x, double& y) {
-    double dx, dy;
-    if (!c.mmForPixels(px - width / 2.0, py - height / 2.0, dx, dy)) return false;
-    x = viewX - dx;
-    y = viewY - dy;
-    return true;
-}
-
 JPVisualTest::Result JPVisualTest::run(JPCell& cell, JPCameraFeed& feed, const JPHeadConfig& head, double speed) {
     Result r;
     const JPMountConfig& mount = feed.config().mount;
@@ -62,7 +53,7 @@ JPVisualTest::Result JPVisualTest::run(JPCell& cell, JPCameraFeed& feed, const J
         r.why = "the homing mark was not found: " + m.why;
         return r;
     }
-    markPosition(cal, img.width, img.height, m.x, m.y, viewX, viewY, r.markX, r.markY);
+    cal.machinePoint(m.x, m.y, viewX, viewY, r.markX, r.markY);
     r.offsetX = r.markX - head.homingFiducial->x;
     r.offsetY = r.markY - head.homingFiducial->y;
     r.confidence = m.confidence;

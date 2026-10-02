@@ -27,9 +27,9 @@ JPSimulatedSource::JPSimulatedSource(std::string name, int width, int height, do
     m_hasScene = true;
     for (size_t i = 0; i < 4; ++i) m_pxPerMm[i] = scene["pxPerMm"][i].number();
     for (const JJson& m : scene["marks"].arr())
-        m_marks.push_back({ m["x"].number(), m["y"].number(), m["diameter"].number() });
+        m_marks.push_back({ m["x"].number(), m["y"].number(), m["diameter"].number(),
+                            float(m["level"].number(scene["mark"].number())) });
     m_ground = float(scene["ground"].number());
-    m_mark   = float(scene["mark"].number());
     m_noise  = float(scene["noise"].number());
     m_lensK1 = scene["lensK1"].number();
     m_lensCentre[0] = scene["lensCentre"][0].number();
@@ -82,7 +82,7 @@ void JPSimulatedSource::drawScene(JPFrame& frame) {
                     }
                 float& v = lum[size_t(y) * size_t(frame.width) + size_t(x)];
                 const float a = float(inside) / (kSub * kSub);
-                v = v * (1 - a) + m_mark * a;
+                v = v * (1 - a) + m.level * a;
             }
     }
     uint8_t* p = frame.rgba.data();

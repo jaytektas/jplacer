@@ -27,10 +27,6 @@ public:
 
     static Result run(JPCell& cell, JPCameraFeed& feed, const JPHeadConfig& head, double speed);
 
-    // From a mark's pixel in a picture to its machine position, for a camera
-    // looking at (viewX, viewY): P = V - M^-1 (pixel - centre).
-    static bool markPosition(const JPCameraCalibration& c, int width, int height, double px, double py,
-                             double viewX, double viewY, double& x, double& y);
 };
 
 } // inline namespace jf

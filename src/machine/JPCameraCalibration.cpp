@@ -43,6 +43,14 @@ bool JPCameraCalibration::mirrored() const {
     return pxPerMm[0] * pxPerMm[3] - pxPerMm[1] * pxPerMm[2] > 0;
 }
 
+bool JPCameraCalibration::machinePoint(double px, double py, double viewX, double viewY, double& x, double& y) const {
+    double dx, dy;
+    if (!mmForPixels(px - width / 2.0, py - height / 2.0, dx, dy)) return false;
+    x = viewX - dx;
+    y = viewY - dy;
+    return true;
+}
+
 JPCameraCalibration JPCameraCalibration::fromJson(const JJson& j) {
     JPCameraCalibration c;
     c.valid = j["valid"].boolean();
