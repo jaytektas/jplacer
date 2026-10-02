@@ -37,7 +37,16 @@ struct JPAxisConfig {
     bool   softLimitLowEnabled = false, softLimitHighEnabled = false;
     double safeZoneLow = 0, safeZoneHigh = 0;
     bool   safeZoneLowEnabled = false, safeZoneHighEnabled = false;
+    // BACKLASH: the play in the drive. With one-sided positioning, every move
+    // ends travelling the same way (opposite to the offset's sign): a move that
+    // would arrive the other way first goes past the target by the offset,
+    // then comes back at backlashSpeedFactor of its speed. The offset need
+    // only be at least the play; the end position is then the same whichever
+    // way the axis came from.
+    enum class Backlash { None, OneSided };
+    Backlash backlash = Backlash::None;
     double backlashOffset = 0;
+    double backlashSpeedFactor = 1;
     double feedratePerSecond = 0, accelerationPerSecond2 = 0, jerkPerSecond3 = 0;
     bool   wrapAroundRotation = false, limitRotation = false;
 

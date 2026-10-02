@@ -138,6 +138,18 @@ window when a controller has stopped on an alarm.
 
 <!-- src: src/machine/JPCell.cpp (doHome); src/app/JPlacerMachine.cpp (showState); src/openpnp/JPOpenPnpMachineImporter.cpp (HOME_COMMAND, visual homing note) -->
 
+#### Backlash
+
+Every drive has a little play (backlash): an axis stops in a slightly different place depending on
+which way it was travelling. An axis with a backlash offset is positioned one-sided: every move ends
+travelling the same way. A move that would arrive the other way first goes past its target by the
+offset, then comes back to it at the axis's backlash speed. The offset only needs to be at least the
+play; the axis then ends in the same place whichever way it came. An imported machine keeps the offset
+and speed OpenPnP measured, whichever way OpenPnP compensated.
+
+<!-- src: src/machine/JPAxisConfig.h (Backlash); src/machine/JPCell.cpp (doMove: overshoot, approach); src/openpnp/JPOpenPnpMachineImporter.cpp (backlash) -->
+
+
 ### Jog
 
 Moving a tool by hand. Choose the tool along the top — each nozzle, the camera on the head, and anything

@@ -75,6 +75,8 @@ std::optional<JPAxisConfig> JPAxisConfig::fromJson(const JJson& j, std::string& 
     a.safeZoneLowEnabled  = safe["lowEnabled"].boolean();
     a.safeZoneHighEnabled = safe["highEnabled"].boolean();
     a.backlashOffset         = j["backlashOffset"].number();
+    a.backlash               = j["backlash"].str() == "oneSided" ? Backlash::OneSided : Backlash::None;
+    a.backlashSpeedFactor    = j["backlashSpeedFactor"].number(1.0);   // 1.0, not 1: JJson::number<int> would truncate
     a.feedratePerSecond      = j["feedratePerSecond"].number();
     a.accelerationPerSecond2 = j["accelerationPerSecond2"].number();
     a.jerkPerSecond3         = j["jerkPerSecond3"].number();
@@ -118,6 +120,8 @@ JJson JPAxisConfig::toJson() const {
         j["safeZone"]["lowEnabled"]    = safeZoneLowEnabled;
         j["safeZone"]["highEnabled"]   = safeZoneHighEnabled;
         j["backlashOffset"]         = backlashOffset;
+        j["backlash"]               = backlash == Backlash::OneSided ? "oneSided" : "none";
+        j["backlashSpeedFactor"]    = backlashSpeedFactor;
         j["feedratePerSecond"]      = feedratePerSecond;
         j["accelerationPerSecond2"] = accelerationPerSecond2;
         j["jerkPerSecond3"]         = jerkPerSecond3;

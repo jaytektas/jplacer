@@ -1,7 +1,8 @@
 <openpnp-machine>
    <machine class="org.openpnp.machine.reference.ReferenceMachine">
       <axes class="java.util.ArrayList">
-         <axis class="org.openpnp.machine.reference.axis.ReferenceControllerAxis" id="AX" name="x" type="X" letter="X" driver-id="DRV1" soft-limit-low-enabled="true" soft-limit-high-enabled="true">
+         <axis class="org.openpnp.machine.reference.axis.ReferenceControllerAxis" id="AX" name="x" type="X" letter="X" driver-id="DRV1" soft-limit-low-enabled="true" soft-limit-high-enabled="true" backlash-compensation-method="DirectionalSneakUp" backlash-speed-factor="0.25">
+            <backlash-offset value="0.024435245646515114" units="Millimeters"/>
             <home-coordinate value="390.0" units="Millimeters"/>
             <soft-limit-low value="0.0" units="Millimeters"/>
             <soft-limit-high value="390.0" units="Millimeters"/>

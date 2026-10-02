@@ -13,6 +13,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <mutex>
+#include <vector>
 #include <string>
 
 using namespace jf;
@@ -38,6 +39,7 @@ JPCellConfig cellConfig() {
       "heads": [ { "id": "H", "name": "Head" } ],
       "axes": [ { "id": "X",  "name": "x",  "kind": "controller", "type": "x", "driver": "D", "letter": "X",
                   "homeCoordinate": 390, "feedratePerSecond": 100,
+                  "backlash": "oneSided", "backlashOffset": 0.1, "backlashSpeedFactor": 0.25,
                   "softLimits": { "low": 0, "high": 400, "lowEnabled": true, "highEnabled": true } },
                 { "id": "Z",  "name": "z",  "kind": "controller", "type": "z", "driver": "D", "letter": "Z",
                   "feedratePerSecond": 50 },
@@ -129,6 +131,31 @@ int main() {
         assert(motion.take().first && settle("X", 390.0));
         cell.jog("N", 5, 0, 0, 0, 0.5);
         assert(motion.take().first && settle("X", 395.0));
+
+        // Backlash, one-sided: X ends travelling -X (opposite to its +0.1
+        // offset). Arriving +X, it goes past by 0.1 first and comes back slowly;
+        // arriving -X, it is one move.
+        std::vector<std::string> sent;
+        std::mutex sentMutex;
+        auto unwatch = cell.onTraffic.connect([&](std::string, bool out, std::string line) {
+            if (!out || line.rfind("G1", 0) != 0) return;
+            std::lock_guard lk(sentMutex);
+            sent.push_back(line);
+        });
+        cell.jog("N", -2, 0, 0, 0, 1.0);                  // 395 -> 393, the right way
+        assert(motion.take().first && settle("X", 393.0));
+        {
+            std::lock_guard lk(sentMutex);
+            assert(sent.size() == 1 && sent[0] == "G1 X393.0000 F6000");
+            sent.clear();
+        }
+        cell.jog("N", 2, 0, 0, 0, 1.0);                   // 393 -> 395, the wrong way
+        assert(motion.take().first && settle("X", 395.0));
+        {
+            std::lock_guard lk(sentMutex);
+            assert(sent.size() == 2 && sent[0] == "G1 X395.1000 F6000" && sent[1] == "G1 X395.0000 F1500");
+        }
+        unwatch();
 
         cell.jog("N", 10, 0, 0, 0, 0.5);                   // 405 is past the soft limit
         const auto [limitOk, limitWhy] = motion.take();

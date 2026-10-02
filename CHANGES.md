@@ -16,6 +16,9 @@ notes.
   and other G-code firmware, and reads the settings the controller stores.
 - A Machine panel shows the live position of every axis, switches and reads the
   actuators (lights, valves, vacuum sensors), and has a console for sending G-code.
+- Backlash is taken out of every move: an axis always arrives travelling the same way, going past and
+  coming back slowly when it would otherwise arrive the other way. An imported machine keeps OpenPnP's
+  measured backlash.
 - Importing an OpenPnP machine brings the head's homing fiducial, park location, calibration rig and
   pump. OpenPnP's camera calibration is not brought across: jplacer will measure its cameras itself.
 - Importing an OpenPnP machine brings its whole home command (every line, in order), and importing

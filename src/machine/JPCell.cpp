@@ -309,29 +309,56 @@ bool JPCell::doMove(std::map<std::string, double> targets, double speed, std::st
         hardware[hw->id] = t;
     }
 
+    // Backlash: an axis that would end travelling the wrong way goes past
+    // its target by the offset first; then everything comes in to the
+    // targets at the slowest backlash speed among those that went past.
+    std::map<std::string, double> overshoot = hardware;
+    double approach = 1;
+    bool needApproach = false;
+    {
+        const auto from = jogBase();
+        for (auto& [id, t] : overshoot) {
+            const JPAxisConfig* a = m_config.axis(id);
+            if (a->backlash != JPAxisConfig::Backlash::OneSided || a->backlashOffset == 0) continue;
+            const auto f = from.find(id);
+            const double travel = t - (f == from.end() ? t : f->second);
+            // Ending travel must be opposite to the offset's sign; a move of
+            // nothing, or the wrong way, goes past first.
+            if (travel != 0 && (travel > 0) == (a->backlashOffset < 0)) continue;
+            t += a->backlashOffset;
+            needApproach = true;
+            approach = std::min(approach, a->backlashSpeedFactor);
+        }
+    }
+
     // One move per controller, at the slowest axis's rate (mm or degrees per
     // minute: the axis's own, else what the controller stores).
     std::map<std::string, std::vector<const JPAxisConfig*>> byDriver;
     for (const auto& [id, t] : hardware) byDriver[m_config.axis(id)->driverId].push_back(m_config.axis(id));
-    std::vector<JPGcodeDriver*> moved;
-    for (const auto& [driverId, axes] : byDriver) {
-        JPGcodeDriver* d = driver(driverId);
-        if (!d) { why = "no controller " + driverId; return false; }
-        std::string words;
-        double feed = 0;
-        for (const JPAxisConfig* a : axes) {
-            words += (words.empty() ? "" : " ") + a->letter + format(hardware[a->id], d->profile()->decimals());
-            double rate = a->feedratePerSecond * 60;
-            if (rate <= 0) rate = d->axisSetting("maxRate", a->letter).value_or(0);
-            if (rate <= 0) { why = "axis " + a->name + " has no speed: neither the cell nor its controller gives one"; return false; }
-            feed = feed <= 0 ? rate : std::min(feed, rate);
+    auto send = [&](const std::map<std::string, double>& to, double factor, std::vector<JPGcodeDriver*>& moved) {
+        for (const auto& [driverId, axes] : byDriver) {
+            JPGcodeDriver* d = driver(driverId);
+            if (!d) { why = "no controller " + driverId; return false; }
+            std::string words;
+            double feed = 0;
+            for (const JPAxisConfig* a : axes) {
+                words += (words.empty() ? "" : " ") + a->letter + format(to.at(a->id), d->profile()->decimals());
+                double rate = a->feedratePerSecond * 60;
+                if (rate <= 0) rate = d->axisSetting("maxRate", a->letter).value_or(0);
+                if (rate <= 0) { why = "axis " + a->name + " has no speed: neither the cell nor its controller gives one"; return false; }
+                feed = feed <= 0 ? rate : std::min(feed, rate);
+            }
+            feed *= std::clamp(speed, 0.0, 1.0) * factor;
+            JLOGC(JPlacerLog::kCell, JLogLevel::Debug) << "move " << d->config().name << ": " << words << " F" << format(feed, 0);
+            const JPReply r = d->command("move", { { "axes", words }, { "feed", format(feed, 0) } });
+            if (!r.ok) { why = d->config().name + ": move refused (" + r.error + ")"; return false; }
+            if (std::find(moved.begin(), moved.end(), d) == moved.end()) moved.push_back(d);
         }
-        feed *= std::clamp(speed, 0.0, 1.0);
-        JLOGC(JPlacerLog::kCell, JLogLevel::Debug) << "move " << d->config().name << ": " << words << " F" << format(feed, 0);
-        const JPReply r = d->command("move", { { "axes", words }, { "feed", format(feed, 0) } });
-        if (!r.ok) { why = d->config().name + ": move refused (" + r.error + ")"; return false; }
-        moved.push_back(d);
-    }
+        return true;
+    };
+    std::vector<JPGcodeDriver*> moved;
+    if (needApproach && !send(overshoot, 1, moved)) return false;
+    if (!send(hardware, needApproach ? approach : 1, moved)) return false;
     for (JPGcodeDriver* d : moved) {
         const JPReply w = d->waitForMotion();
         if (!w.ok) { why = d->config().name + ": move did not finish (" + w.error + ")"; return false; }
