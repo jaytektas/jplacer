@@ -31,6 +31,7 @@ file(GLOB JPLACER_COMMON_SRC  CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/
 file(GLOB JPLACER_MACHINE_SRC CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/machine/*.cpp)
 file(GLOB JPLACER_OPENPNP_SRC CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/openpnp/*.cpp)
 file(GLOB JPLACER_CAMERA_SRC  CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/camera/*.cpp)
+file(GLOB JPLACER_VISION_SRC  CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/vision/*.cpp)
 file(GLOB JPLACER_UI_SRC      CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/*.cpp)
 file(GLOB JPLACER_APP_SRC     CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/app/*.cpp)
 
@@ -52,6 +53,10 @@ target_link_libraries(jplacer_openpnp PUBLIC jplacer_machine PRIVATE EXPAT::EXPA
 find_package(JPEG REQUIRED)
 add_library(jplacer_camera STATIC ${JPLACER_CAMERA_SRC})
 target_link_libraries(jplacer_camera PUBLIC jplacer_machine PRIVATE JPEG::JPEG)
+
+# Measuring pictures: finding marks, to a fraction of a pixel, with nothing to tune.
+add_library(jplacer_vision STATIC ${JPLACER_VISION_SRC})
+target_link_libraries(jplacer_vision PUBLIC jplacer_common)
 
 # Panels and views over the other modules: the only module with widgets.
 add_library(jplacer_ui STATIC ${JPLACER_UI_SRC})
@@ -76,7 +81,7 @@ target_precompile_headers(jplacer PRIVATE ${JPLACER_PCH})
 option(JPLACER_TESTS "Build jplacer's tests" ON)
 if(JPLACER_TESTS)
     enable_testing()
-    foreach(module machine openpnp camera)
+    foreach(module machine openpnp camera vision)
       file(GLOB tests CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tests/${module}/*.cpp)
       foreach(src ${tests})
         get_filename_component(name ${src} NAME_WE)
