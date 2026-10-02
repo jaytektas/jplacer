@@ -16,6 +16,8 @@ notes.
   and other G-code firmware, and reads the settings the controller stores.
 - A Machine panel shows the live position of every axis, switches and reads the
   actuators (lights, valves, vacuum sensors), and has a console for sending G-code.
+- The file dialog can show hidden folders, such as OpenPnP's .openpnp2: tick Show hidden, or press
+  Ctrl+H.
 - A new icon. Run as an AppImage, jplacer adds itself to your applications menu with it.
 - Preferences has a General section: tear-off menus (off by default) and whether jplacer appears in
   the applications menu.

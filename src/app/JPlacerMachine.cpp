@@ -101,7 +101,7 @@ void JPlacerMachine::chooseCell() {
 
 void JPlacerMachine::importOpenPnp() {
     // OpenPnP keeps its configuration in .openpnp2 in the home folder: offer
-    // that file first, since the file dialog does not show dot-folders.
+    // that file first, rather than sending the person to find a hidden folder.
     const char* home = std::getenv(
 #if defined(_WIN32)
         "USERPROFILE"
