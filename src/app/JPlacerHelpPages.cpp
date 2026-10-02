@@ -3,7 +3,8 @@
 
 #include "JPlacerHelpPages.h"
 
-#include "JPlacerLog.h"
+#include "common/JPlacerLog.h"
+#include "common/JPlacerPaths.h"
 
 #include <j/core/Log.h>
 #include <j/io/JLocalWebServer.h>
@@ -12,32 +13,12 @@
 #include <filesystem>
 #include <system_error>
 
-#if defined(_WIN32)
-#include <windows.h>
-#endif
-
 inline namespace jf {
-
-namespace {
 
 namespace fs = std::filesystem;
 
-fs::path exeDir() {
-#if defined(_WIN32)
-    wchar_t buf[MAX_PATH];
-    const DWORD n = GetModuleFileNameW(nullptr, buf, MAX_PATH);
-    return n ? fs::path(std::wstring(buf, n)).parent_path() : fs::path();
-#else
-    std::error_code ec;
-    const fs::path exe = fs::read_symlink("/proc/self/exe", ec);
-    return ec ? fs::path() : exe.parent_path();
-#endif
-}
-
-} // namespace
-
 std::string JPlacerHelpPages::manualDir() {
-    const fs::path exe = exeDir();
+    const fs::path exe = JPlacerPaths::exeDir();
     for (const fs::path& d : { exe / "manual",                        // shipped beside the executable
                                exe / ".." / "manual" / "site" }) {   // build/jplacer -> manual/site
         std::error_code ec;

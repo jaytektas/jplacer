@@ -1,0 +1,47 @@
+{
+  "id": "grblhal",
+  "name": "grblHAL",
+  "priority": 20,
+  "identify": { "command": "$I", "pattern": "^\\[FIRMWARE:grblHAL\\]" },
+  "replies": { "ok": "^ok$", "error": "^error:", "alarm": "^ALARM:" },
+  "status": {
+    "command": "?", "realtime": true,
+    "pattern": "^<([A-Za-z]+)[^|>]*\\|[MW]Pos:([-0-9.,]+)",
+    "stateGroup": 1, "positionGroup": 2, "positions": "list"
+  },
+  "axisLetters": ["X", "Y", "Z", "A", "B", "C"],
+  "decimals": 4,
+  "commands": {
+    "init": "G21 G90",
+    "move": "G1 {axes} F{feed}",
+    "rapid": "G0 {axes}",
+    "home": "$H",
+    "unlock": "$X",
+    "setPosition": "G92 {axes}",
+    "dwell": "G4 P{seconds}",
+    "output": "M64 P{port}",
+    "outputOff": "M65 P{port}"
+  },
+  "settings": {
+    "read": "$$",
+    "pattern": "^\\$(\\d+)=(.*)$",
+    "write": "${id}={value}",
+    "axis": [
+      { "key": "stepsPerMm",   "base": 100, "unit": "steps/mm" },
+      { "key": "maxRate",      "base": 110, "unit": "mm/min" },
+      { "key": "acceleration", "base": 120, "unit": "mm/s²" },
+      { "key": "travel",       "base": 130, "unit": "mm" }
+    ]
+  },
+  "plugins": [
+    {
+      "name": "JayTEK",
+      "detect": "^\\[PLUGIN:JayTEK",
+      "readings": [
+        { "id": "i2cVacuum", "name": "I²C vacuum sensor {sensor}", "command": "M1000 P{sensor}", "pattern": "^(-?[0-9.]+)$", "unit": "Pa" },
+        { "id": "analogInput", "name": "Analog input {input}", "command": "M1001 P{input}", "pattern": "^([0-9]+)$", "unit": "" }
+      ],
+      "passThrough": { "command": "M485 {payload}", "reply": "^rs485-reply: ([0-9A-F]+)$" }
+    }
+  ]
+}

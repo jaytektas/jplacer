@@ -11,6 +11,8 @@ struct JPlacerLog {
     static constexpr const char* kApp      = "app";
     static constexpr const char* kSettings = "settings";
     static constexpr const char* kDesktop  = "desktop";
+    static constexpr const char* kDriver   = "driver";
+    static constexpr const char* kProfiles = "profiles";
 };
 
 } // inline namespace jf

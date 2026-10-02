@@ -4,7 +4,7 @@
 #include "JPlacerApp.h"
 
 #include "JPlacerLauncher.h"
-#include "JPlacerLog.h"
+#include "common/JPlacerLog.h"
 #include "JPlacerMenuBuilder.h"
 #include "JPlacerPreferencesDialog.h"
 #include "JPlacerSettings.h"

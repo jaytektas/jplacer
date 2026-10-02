@@ -16,7 +16,7 @@
 // this program. If not, see <https://www.gnu.org/licenses/>.
 
 #include "app/JPlacerApp.h"
-#include "app/JPlacerLog.h"
+#include "common/JPlacerLog.h"
 #include "app/JPlacerSettings.h"
 
 #include <j/core/Log.h>

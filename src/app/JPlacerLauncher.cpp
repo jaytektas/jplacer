@@ -3,7 +3,7 @@
 
 #include "JPlacerLauncher.h"
 
-#include "JPlacerLog.h"
+#include "common/JPlacerLog.h"
 
 #include <j/core/Log.h>
 

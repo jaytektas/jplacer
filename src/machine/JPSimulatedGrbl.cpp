@@ -1,0 +1,164 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
+
+#include "JPSimulatedGrbl.h"
+
+#include <j/config/Json.h>
+
+#include <algorithm>
+#include <cctype>
+#include <cstdio>
+#include <cstdlib>
+
+inline namespace jf {
+
+namespace {
+
+// Grbl's real-time bytes.
+constexpr char kStatusQuery = '?';
+constexpr char kSoftReset   = 0x18;
+
+// Grbl's error numbers for what the simulator rejects.
+constexpr const char* kErrorUnsupported = "error:20";   // unsupported or invalid g-code command
+constexpr const char* kErrorBadNumber   = "error:2";    // bad number format
+constexpr const char* kErrorNoSetting   = "error:3";    // invalid '$' statement
+
+std::string upper(std::string s) {
+    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return char(std::toupper(c)); });
+    return s;
+}
+
+} // namespace
+
+void JPSimulatedGrbl::configure(const JJson& config) {
+    m_identity.clear();
+    for (const JJson& l : config["identity"].arr()) m_identity.push_back(l.str());
+    m_letters.clear();
+    m_position.clear();
+    for (const JJson& l : config["axisLetters"].arr()) {
+        m_letters.push_back(l.str());
+        m_position[l.str()] = 0.0;
+    }
+    m_settings.clear();
+    for (const auto& [id, value] : config["settings"].obj()) m_settings[std::atoi(id.c_str())] = value.str();
+    m_replies.clear();
+    for (const auto& [cmd, reply] : config["replies"].obj()) m_replies[upper(cmd)] = reply.str();
+}
+
+void JPSimulatedGrbl::receive(const std::string& bytes) {
+    for (char c : bytes) {
+        if (c == kStatusQuery) {
+            m_out.push_back(statusReport());
+        } else if (c == kSoftReset) {
+            m_input.clear();
+            m_relative = false;
+            m_out.push_back("Grbl 1.1f ['$' for help]");
+        } else if (c == '\n' || c == '\r') {
+            if (!m_input.empty()) execute(m_input);
+            m_input.clear();
+        } else {
+            m_input += c;
+        }
+    }
+}
+
+std::string JPSimulatedGrbl::takeLine() {
+    std::string line = std::move(m_out.front());
+    m_out.pop_front();
+    return line;
+}
+
+std::string JPSimulatedGrbl::statusReport() const {
+    std::string pos;
+    char buf[32];
+    for (const std::string& l : m_letters) {
+        std::snprintf(buf, sizeof buf, "%.3f", m_position.at(l));
+        if (!pos.empty()) pos += ',';
+        pos += buf;
+    }
+    return "<Idle|MPos:" + pos + "|FS:0,0>";
+}
+
+void JPSimulatedGrbl::execute(const std::string& raw) {
+    std::string line = upper(raw);
+    line.erase(std::remove(line.begin(), line.end(), ' '), line.end());
+
+    if (const auto it = m_replies.find(upper(raw)); it != m_replies.end()) {
+        m_out.push_back(it->second);
+        m_out.push_back("ok");
+        return;
+    }
+    if (line == "$I") {
+        for (const std::string& l : m_identity) m_out.push_back(l);
+        m_out.push_back("ok");
+    } else if (line == "$$") {
+        for (const auto& [id, value] : m_settings) m_out.push_back("$" + std::to_string(id) + "=" + value);
+        m_out.push_back("ok");
+    } else if (line == "$H") {
+        for (auto& [l, v] : m_position) v = 0.0;
+        m_out.push_back("ok");
+    } else if (line == "$X") {
+        m_out.push_back("ok");
+    } else if (line.size() > 1 && line[0] == '$') {
+        const size_t eq = line.find('=');
+        const int id = std::atoi(line.c_str() + 1);
+        if (eq == std::string::npos || !m_settings.count(id)) {
+            m_out.push_back(kErrorNoSetting);
+            return;
+        }
+        m_settings[id] = line.substr(eq + 1);
+        m_out.push_back("ok");
+    } else {
+        gcode(line);
+    }
+}
+
+void JPSimulatedGrbl::gcode(const std::string& line) {
+    // Words: a letter and a number each.
+    std::vector<std::pair<char, double>> words;
+    for (size_t i = 0; i < line.size();) {
+        const char letter = line[i];
+        if (!std::isalpha(static_cast<unsigned char>(letter))) {
+            m_out.push_back(kErrorBadNumber);
+            return;
+        }
+        char* end = nullptr;
+        const double value = std::strtod(line.c_str() + i + 1, &end);
+        if (end == line.c_str() + i + 1) {
+            m_out.push_back(kErrorBadNumber);
+            return;
+        }
+        words.emplace_back(letter, value);
+        i = size_t(end - line.c_str());
+    }
+
+    bool motion = false, setPosition = false;
+    for (const auto& [letter, value] : words) {
+        if (letter == 'G') {
+            const int g = int(value * 10 + 0.5);   // G92.1 -> 921
+            if (g == 0 || g == 10) motion = true;
+            else if (g == 900) m_relative = false;
+            else if (g == 910) m_relative = true;
+            else if (g == 920) setPosition = true;
+            else if (g != 40 && g != 210) {
+                m_out.push_back(kErrorUnsupported);
+                return;
+            }
+        } else if (letter == 'M') {
+            const int m = int(value + 0.5);
+            if (m != 64 && m != 65) {
+                m_out.push_back(kErrorUnsupported);
+                return;
+            }
+        }
+    }
+    for (const auto& [letter, value] : words) {
+        const auto it = m_position.find(std::string(1, letter));
+        if (it == m_position.end()) continue;
+        if (setPosition || !m_relative) it->second = value;
+        else if (motion) it->second += value;
+    }
+    m_out.push_back("ok");
+}
+
+} // inline namespace jf

@@ -3,28 +3,20 @@
 
 #include "JPlacerSettings.h"
 
-#include "JPlacerLog.h"
+#include "common/JPlacerLog.h"
+#include "common/JPlacerPaths.h"
 
 #include <j/config/Settings.h>
 #include <j/core/Log.h>
 
-#include <cstdlib>
 #include <filesystem>
 
 inline namespace jf {
 
 std::string JPlacerSettings::defaultPath() {
-    namespace fs = std::filesystem;
-#if defined(_WIN32)
-    if (const char* appData = std::getenv("APPDATA"))
-        return (fs::path(appData) / "jplacer" / "jplacer.json").string();
-#else
-    if (const char* xdg = std::getenv("XDG_CONFIG_HOME"); xdg && *xdg)
-        return (fs::path(xdg) / "jplacer" / "jplacer.json").string();
-    if (const char* home = std::getenv("HOME"))
-        return (fs::path(home) / ".config" / "jplacer" / "jplacer.json").string();
-#endif
-    return "jplacer.json";
+    const std::string dir = JPlacerPaths::configDir();
+    return dir.empty() ? std::string("jplacer.json")
+                       : (std::filesystem::path(dir) / "jplacer.json").string();
 }
 
 void JPlacerSettings::load(const std::string& path) {
