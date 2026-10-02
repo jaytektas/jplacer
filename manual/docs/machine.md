@@ -199,6 +199,13 @@ it is plugged into, so moving it to another socket or hub does not lose it. jpla
 picture the camera offers in MJPG (or YUYV, if that is all it has), unless the cell names a format and
 size.
 
+A camera can drop off its USB connection (noise from the stepper motors on its cable) or hang without
+saying so. jplacer notices either (no picture for 3 seconds counts as hung), says so across the top of
+the last picture, which would otherwise pass for a live one, and opens the camera again by its name every
+2 seconds until it is back; the picture then carries on by itself.
+
+<!-- src: src/camera/JPCameraFeed.cpp (run, runSource, kStalledMs, kReconnectMs); src/ui/JPCameraView.cpp (the band over the picture) -->
+
 **Save Picture** writes the shown camera's latest picture as a PNG (lossless, so it measures the same as
 the live picture did) to `captures/` in jplacer's configuration folder, named after the camera and the
 moment it was taken; the line under the buttons names the file.

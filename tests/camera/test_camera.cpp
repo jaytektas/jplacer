@@ -3,7 +3,8 @@
 
 // Cameras without hardware: YUYV turns into the right RGBA, a mode is chosen
 // the way the configuration asks (or the best on offer), and a simulated
-// camera's feed delivers frames of its size and stops when told.
+// camera's feed delivers frames of its size and stops when told; one that
+// hangs is noticed and opened again, its pictures counted on unbroken.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
@@ -15,6 +16,7 @@
 
 #include <j/config/Json.h>
 
+#include <atomic>
 #include <chrono>
 #include <filesystem>
 #include <thread>
@@ -90,5 +92,23 @@ int main() {
     while (!told && std::chrono::steady_clock::now() < until2) std::this_thread::sleep_for(std::chrono::milliseconds(5));
     assert(told && why.find("carrier-pigeon") != std::string::npos);
     broken.stop();
+    // A camera that hangs after a few pictures (as one wedged by noise does):
+    // the feed says so, opens it again, and its pictures carry on, counted on.
+    {
+        JPCameraConfig cam;
+        cam.name = "Wedging";
+        cam.device = JJson::parse(R"({ "backend": "simulated", "width": 64, "height": 48, "fps": 30, "hangAfterFrames": 5 })");
+        JPCameraFeed feed(cam);
+        std::atomic<int> lost{ 0 };
+        std::atomic<uint64_t> newest{ 0 };
+        feed.onError.connect([&](std::string why) { if (why.find("no picture") != std::string::npos) ++lost; });
+        feed.onFrame.connect([&](uint64_t seq) { newest = seq; });
+        feed.start();
+        const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(12);
+        while (newest < 8 && std::chrono::steady_clock::now() < until) std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        assert(lost >= 1 && newest >= 8 && feed.isRunning());
+        feed.stop();
+        assert(!feed.isRunning());
+    }
     return 0;
 }

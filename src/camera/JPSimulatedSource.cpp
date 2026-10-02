@@ -21,8 +21,9 @@ constexpr uint8_t kLight = 90;
 } // namespace
 
 JPSimulatedSource::JPSimulatedSource(std::string name, int width, int height, double fps,
-                                     const JJson& scene, ViewProvider view)
-    : m_name(std::move(name)), m_mode{ "SIM", width, height, fps }, m_view(std::move(view)) {
+                                     const JJson& scene, ViewProvider view, int hangAfterFrames)
+    : m_name(std::move(name)), m_mode{ "SIM", width, height, fps }, m_view(std::move(view)),
+      m_hangAfterFrames(hangAfterFrames) {
     if (!scene.isObject()) return;
     m_hasScene = true;
     for (size_t i = 0; i < 4; ++i) m_pxPerMm[i] = scene["pxPerMm"][i].number();
@@ -108,6 +109,10 @@ bool JPSimulatedSource::start(const JPCaptureMode&, std::string&) {
 }
 
 bool JPSimulatedSource::grab(JPFrame& frame, int timeoutMs, std::string&) {
+    if (m_hangAfterFrames > 0 && m_sequence >= uint64_t(m_hangAfterFrames)) {   // wedged: nothing, no error
+        std::this_thread::sleep_for(std::chrono::milliseconds(timeoutMs));
+        return false;
+    }
     const auto now = std::chrono::steady_clock::now();
     if (m_next > now + std::chrono::milliseconds(timeoutMs)) {
         std::this_thread::sleep_for(std::chrono::milliseconds(timeoutMs));

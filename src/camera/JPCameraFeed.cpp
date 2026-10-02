@@ -9,6 +9,9 @@
 
 #include <j/core/Log.h>
 
+#include <chrono>
+#include <thread>
+
 inline namespace jf {
 
 namespace {
@@ -25,6 +28,10 @@ int meanBrightness(const JPFrame& f) {
 // How long one wait for a frame lasts before the thread checks whether it
 // should stop: the time a stop can take, not a frame timeout.
 constexpr int kGrabSliceMs = 100;
+// A camera that sends nothing this long has hung; one that is lost is
+// looked for again this often.
+constexpr int kStalledMs   = 3000;
+constexpr int kReconnectMs = 2000;
 
 } // namespace
 
@@ -55,19 +62,34 @@ std::optional<JPCaptureMode> JPCameraFeed::mode() const {
 }
 
 void JPCameraFeed::run() {
-    auto fail = [this](const std::string& why) {
-        JLOGC(JPlacerLog::kCamera, JLogLevel::Error) << m_config.name << ": " << why;
-        m_running = false;
+    // A camera can drop off its bus (a stepper's noise on a USB cable) or
+    // hang with no error: either way it is closed and opened again, by its
+    // name, until it is back or the feed is stopped.
+    std::string lastWhy;
+    while (m_running) {
+        std::string why;
+        runSource(why);
+        if (!m_running) break;
+        if (why != lastWhy) {
+            JLOGC(JPlacerLog::kCamera, JLogLevel::Warn) << m_config.name << ": " << why << "; trying again";
+            lastWhy = why;
+        }
         onError.emit(why);
-        onRunning.emit(false);
-    };
-    std::string error;
-    auto source = JPCaptureFactory::create(m_config.name, m_config.device, error, m_view);
-    if (!source) return fail(error);
-    if (!source->open(error)) return fail(error);
+        for (int waited = 0; m_running && waited < kReconnectMs; waited += kGrabSliceMs)
+            std::this_thread::sleep_for(std::chrono::milliseconds(kGrabSliceMs));
+    }
+    onRunning.emit(false);
+}
+
+void JPCameraFeed::runSource(std::string& why) {
+    auto source = JPCaptureFactory::create(m_config.name, m_config.device, why, m_view);
+    if (!source || !source->open(why)) return;
     const auto mode = JPCaptureFactory::choose(source->modes(), m_config.device);
-    if (!mode) return fail(source->describe() + " offers no picture format jplacer can read");
-    if (!source->start(*mode, error)) return fail(error);
+    if (!mode) {
+        why = source->describe() + " offers no picture format jplacer can read";
+        return;
+    }
+    if (!source->start(*mode, why)) return;
     {
         std::lock_guard lk(m_mutex);
         m_mode = *mode;
@@ -76,11 +98,23 @@ void JPCameraFeed::run() {
     onRunning.emit(true);
 
     JPFrame frame;
+    auto lastFrame = std::chrono::steady_clock::now();
     while (m_running) {
+        std::string error;
         if (!source->grab(frame, kGrabSliceMs, error)) {
-            if (!error.empty()) return fail(error);
+            if (!error.empty()) {
+                why = error;
+                break;
+            }
+            if (std::chrono::steady_clock::now() - lastFrame > std::chrono::milliseconds(kStalledMs)) {
+                why = source->describe() + ": no picture for " + std::to_string(kStalledMs / 1000)
+                    + " s (the camera may have hung)";
+                break;
+            }
             continue;
         }
+        lastFrame = std::chrono::steady_clock::now();
+        frame.sequence = ++m_sequence;   // the feed's own count, unbroken when the camera is opened again
         JLOGC(JPlacerLog::kFrames, JLogLevel::Trace) << m_config.name << " frame " << frame.sequence << " "
                                                      << frame.width << "x" << frame.height << ", brightness "
                                                      << meanBrightness(frame) << "/255";
@@ -91,7 +125,6 @@ void JPCameraFeed::run() {
         onFrame.emit(m_latest.sequence);
     }
     source->close();
-    onRunning.emit(false);
 }
 
 } // inline namespace jf

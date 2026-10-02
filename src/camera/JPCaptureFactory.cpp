@@ -19,7 +19,8 @@ std::unique_ptr<JPCaptureSource> JPCaptureFactory::create(const std::string& cam
     if (backend == "simulated")
         return std::make_unique<JPSimulatedSource>(cameraName, int(device["width"].number()),
                                                    int(device["height"].number()), device["fps"].number(),
-                                                   device["scene"], std::move(view));
+                                                   device["scene"], std::move(view),
+                                                   int(device["hangAfterFrames"].number()));
 #if defined(__linux__)
     if (backend == "v4l2") {
         if (device["name"].str().empty()) {
