@@ -9,6 +9,7 @@
 #undef NDEBUG
 #include <cassert>
 
+#include "common/JPLens.h"
 #include "machine/JPCameraCalibration.h"
 #include "vision/JPCalibrationFit.h"
 
@@ -54,6 +55,53 @@ int main() {
     top.pxPerMm = b->pxPerMm;
     assert(std::abs(top.scaleX() - 25.34) < 0.05 && std::abs(top.scaleY() - 24.38) < 0.05);   // least squares over all seven
     assert(!top.mirrored() && std::abs(top.rotationDeg()) < 1);
+
+    // Through a lens: a 5 x 5 grid seen by a 1280 x 720 camera whose lens pulls
+    // the edges in. The fit with the lens finds it and everything else exactly;
+    // the straight fit cannot.
+    {
+        const double L[4] = { -25.6, 0.02, 0.01, 25.55 }, k1 = -0.107, c0x = 639.3, c0y = 360.1;
+        // Bench's lens bends about a point off the picture's middle.
+        const JPLens lens = JPLens::forPicture(1280, 720, k1, 672, 373);
+        std::vector<JPCalibrationFit::Sample> grid;
+        for (int iy = -2; iy <= 2; ++iy)
+            for (int ix = -2; ix <= 2; ++ix) {
+                const double dx = ix * 5.6, dy = iy * 5.6;
+                double sx, sy;
+                lens.distort(c0x + L[0] * dx + L[1] * dy, c0y + L[2] * dx + L[3] * dy, sx, sy);
+                grid.push_back({ dx, dy, sx, sy });
+            }
+        const auto straight = JPCalibrationFit::fit(grid);
+        assert(straight && straight->rmsPx > 1);
+        const auto bent = JPCalibrationFit::fitWithLens(grid, 1280, 720, true);
+        assert(bent && bent->rmsPx < 1e-6 && std::abs(bent->lensK1 - k1) < 1e-6);
+        for (int i = 0; i < 4; ++i) assert(std::abs(bent->pxPerMm[i] - L[i]) < 1e-6);
+        assert(std::abs(bent->centreX - c0x) < 1e-6 && std::abs(bent->centreY - c0y) < 1e-6);
+        assert(std::abs(bent->lensCentreX - 672) < 1e-4 && std::abs(bent->lensCentreY - 373) < 1e-4);
+        // Held at the picture's middle, the lens cannot fit as well.
+        const auto middle = JPCalibrationFit::fitWithLens(grid, 1280, 720, false);
+        assert(middle && middle->rmsPx > 0.1);
+
+        // Back from pixels to millimetres, straightened: the corner's mark is
+        // its offset away from the middle's.
+        JPCameraCalibration withLens;
+        withLens.valid = true;
+        withLens.pxPerMm = bent->pxPerMm;
+        withLens.lensK1 = bent->lensK1;
+        withLens.lensCentreX = bent->lensCentreX;
+        withLens.lensCentreY = bent->lensCentreY;
+        withLens.width = 1280;
+        withLens.height = 720;
+        const JPCalibrationFit::Sample& corner = grid.front();
+        double mx2, my2;
+        assert(withLens.mmForPixels(corner.xPx - 640, corner.yPx - 360, mx2, my2));
+        double ox, oy;   // the same for the mark with no offset (the grid's middle, as seen)
+        const JPCalibrationFit::Sample& middleSample = grid[grid.size() / 2];
+        withLens.mmForPixels(middleSample.xPx - 640, middleSample.yPx - 360, ox, oy);
+        assert(std::abs((mx2 - ox) - corner.dxMm) < 1e-6 && std::abs((my2 - oy) - corner.dyMm) < 1e-6);
+        // Too few for seven parameters.
+        assert(!JPCalibrationFit::fitWithLens({ grid.begin(), grid.begin() + 4 }, 1280, 720, true));
+    }
 
     // Not enough to fit.
     assert(!JPCalibrationFit::fit({ { 0, 0, 1, 1 }, { 1, 0, 2, 1 } }));

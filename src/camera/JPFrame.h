@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <cstdint>
 #include <vector>
 
@@ -16,6 +17,10 @@ struct JPFrame {
     int                  height = 0;
     std::vector<uint8_t> rgba;
     uint64_t             sequence = 0;
+    // When the picture was taken (not when it arrived: a camera and its
+    // driver hold a few pictures, so one read just after a move can be from
+    // before it ended).
+    std::chrono::steady_clock::time_point captured;
 };
 
 } // inline namespace jf

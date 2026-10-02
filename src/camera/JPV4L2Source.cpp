@@ -237,6 +237,13 @@ bool JPV4L2Source::grab(JPFrame& frame, int timeoutMs, std::string& error) {
         if (!ok) error = describe() + ": a frame could not be decoded (" + error + ")";
     }
     frame.sequence = ++m_sequence;
+    // The driver's timestamp is the monotonic clock steady_clock reads on
+    // Linux; a driver without one gets the time it arrived.
+    if ((buf.flags & V4L2_BUF_FLAG_TIMESTAMP_MASK) == V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC)
+        frame.captured = std::chrono::steady_clock::time_point(
+            std::chrono::seconds(buf.timestamp.tv_sec) + std::chrono::microseconds(buf.timestamp.tv_usec));
+    else
+        frame.captured = std::chrono::steady_clock::now();
     xioctl(m_fd, VIDIOC_QBUF, &buf);
     return ok;
 }

@@ -22,12 +22,17 @@ inline namespace jf {
 // answer accepted only when that diameter agrees with the one expected.
 class JPRoundMarkFinder {
 public:
+    // Whether the mark is brighter than what is around it (copper on solder
+    // mask, a white dot), darker (a hole, a via), or either.
+    enum class Polarity { Either, Bright, Dark };
+
     struct Request {
         double expectedX = 0, expectedY = 0;   // where it should be, pixels
         double searchRadius = 0;               // how far from there to look, pixels
         double diameter = 0;                   // its expected diameter, pixels
         double sizeTolerance = 0.25;           // accepted measured/expected - 1, either way
-        double minShape      = 0.8;            // accepted correlation with the expected disc
+        double minShape      = 0.8;            // accepted share of the edge found round (JPRoundMark::shape)
+        Polarity polarity    = Polarity::Either;
     };
 
     static JPRoundMark find(const JPGrayImage& image, const Request& request);
@@ -36,14 +41,15 @@ public:
     // mark's size in pixels: try sizes from minDiameter to maxDiameter (each
     // a fifth bigger than the last) and keep the best mark found.
     static JPRoundMark findAnySize(const JPGrayImage& image, double expectedX, double expectedY,
-                                   double searchRadius, double minDiameter, double maxDiameter);
-
-    // How well the picture around (cx, cy) matches a disc of `diameter`,
-    // bright or dark alike: |normalised cross-correlation|, 0..1.
-    static double shapeAt(const JPGrayImage& image, double cx, double cy, double diameter);
+                                   double searchRadius, double minDiameter, double maxDiameter,
+                                   Polarity polarity = Polarity::Either);
 
     // The symmetry score at one candidate centre (exposed for diagnostics).
     static double symmetryAt(const JPGrayImage& image, double cx, double cy, double maxRadius);
+
+private:
+    // Measure the mark near (x, y), a place the search found at `scale`.
+    static JPRoundMark measureAt(const JPGrayImage& image, const Request& rq, double x, double y, double scale);
 };
 
 } // inline namespace jf

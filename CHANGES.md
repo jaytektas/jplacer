@@ -39,6 +39,12 @@ notes.
   where the head's settings put it. Nothing is changed.
 - Round marks are measured from their edge all the way round, so where a mark is found no longer depends
   on where the search began, and its size is measured to a fraction of a pixel.
+- Calibrate also measures the camera's lens (how it pulls the edges of the picture in, and about which
+  point), and everything measured in a picture is straightened through it.
+- Finding a fiducial on a real board: several round things near where it should be are measured and the
+  best kept, so holes, vias, round letters and reflections are not mistaken for it, and shiny copper is
+  found whether it shows bright or with the lens's dark reflection in its middle.
+- Pictures measured after a move are ones taken after the move ended.
 - When a move finishes, the positions shown are where the machine stopped, not where it was a moment
   before.
 - The cameras, live, in the middle of the window: choose a camera, see what it sees, with a cross at its

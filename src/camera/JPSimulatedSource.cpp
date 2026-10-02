@@ -3,6 +3,8 @@
 
 #include "JPSimulatedSource.h"
 
+#include "common/JPLens.h"
+
 #include <algorithm>
 #include <cmath>
 #include <thread>
@@ -29,10 +31,15 @@ JPSimulatedSource::JPSimulatedSource(std::string name, int width, int height, do
     m_ground = float(scene["ground"].number());
     m_mark   = float(scene["mark"].number());
     m_noise  = float(scene["noise"].number());
+    m_lensK1 = scene["lensK1"].number();
+    m_lensCentre[0] = scene["lensCentre"][0].number();
+    m_lensCentre[1] = scene["lensCentre"][1].number();
+    m_lensCentreSet = scene["lensCentre"].size() == 2;
 }
 
 void JPSimulatedSource::drawScene(JPFrame& frame) {
-    // A mark at P appears at centre + M (V - P), V where the camera looks.
+    // A mark at P appears at centre + M (V - P) through a perfect lens, V
+    // where the camera looks; then the lens bends it.
     double vx = 0, vy = 0;
     const bool known = m_view && m_view(vx, vy);
     const double cx = frame.width / 2.0, cy = frame.height / 2.0;
@@ -44,19 +51,33 @@ void JPSimulatedSource::drawScene(JPFrame& frame) {
             lum[size_t(y) * size_t(frame.width) + size_t(x)] =
                 m_ground * (1.3f - 0.5f * float(x + y) / float(frame.width + frame.height));
     constexpr int kSub = 3;   // supersampling: edges as soft as a lens makes them
+    // The lens bends the picture: each point is drawn where the lens puts it,
+    // so a pixel is tested by straightening it first.
+    const JPLens lens = m_lensCentreSet
+        ? JPLens::forPicture(frame.width, frame.height, m_lensK1, m_lensCentre[0], m_lensCentre[1])
+        : JPLens::forPicture(frame.width, frame.height, m_lensK1);
+    // What is at the viewpoint is seen in the middle of the picture: through
+    // a perfect lens, at the middle straightened.
+    double ox0, oy0;
+    lens.undistort(cx, cy, ox0, oy0);
     for (const Mark& m : m_marks) {
         if (!known) break;
         const double dx = vx - m.x, dy = vy - m.y;
-        const double px = cx + m_pxPerMm[0] * dx + m_pxPerMm[1] * dy;
-        const double py = cy + m_pxPerMm[2] * dx + m_pxPerMm[3] * dy;
+        const double px = ox0 + m_pxPerMm[0] * dx + m_pxPerMm[1] * dy;
+        const double py = oy0 + m_pxPerMm[2] * dx + m_pxPerMm[3] * dy;
         const double r = m.diameter * scale / 2;
-        for (int y = int(py - r - 2); y <= int(py + r + 2); ++y)
-            for (int x = int(px - r - 2); x <= int(px + r + 2); ++x) {
+        double sx0, sy0;   // where the lens shows the mark's middle
+        lens.distort(px, py, sx0, sy0);
+        const double reach = r * (1 + std::abs(m_lensK1)) + 2;
+        for (int y = int(sy0 - reach); y <= int(sy0 + reach); ++y)
+            for (int x = int(sx0 - reach); x <= int(sx0 + reach); ++x) {
                 if (x < 0 || y < 0 || x >= frame.width || y >= frame.height) continue;
                 int inside = 0;
                 for (int sy = 0; sy < kSub; ++sy)
                     for (int sx = 0; sx < kSub; ++sx) {
-                        const double ox = x + (sx + 0.5) / kSub - 0.5 - px, oy = y + (sy + 0.5) / kSub - 0.5 - py;
+                        double ux, uy;
+                        lens.undistort(x + (sx + 0.5) / kSub - 0.5, y + (sy + 0.5) / kSub - 0.5, ux, uy);
+                        const double ox = ux - px, oy = uy - py;
                         inside += ox * ox + oy * oy <= r * r;
                     }
                 float& v = lum[size_t(y) * size_t(frame.width) + size_t(x)];
@@ -99,6 +120,7 @@ bool JPSimulatedSource::grab(JPFrame& frame, int timeoutMs, std::string&) {
     frame.height = m_mode.height;
     frame.rgba.resize(size_t(frame.width) * size_t(frame.height) * 4);
     if (m_hasScene) {
+        frame.captured = std::chrono::steady_clock::now();   // the moment the view is read
         drawScene(frame);
         frame.sequence = ++m_sequence;
         return true;
@@ -115,6 +137,7 @@ bool JPSimulatedSource::grab(JPFrame& frame, int timeoutMs, std::string&) {
             *p++ = 255;
         }
     frame.sequence = ++m_sequence;
+    frame.captured = std::chrono::steady_clock::now();
     return true;
 }
 

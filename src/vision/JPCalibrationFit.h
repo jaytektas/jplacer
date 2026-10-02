@@ -11,7 +11,9 @@ inline namespace jf {
 
 // The least-squares fit behind a camera calibration: where a mark appeared in
 // the picture (pixels) for each known head offset (mm), as
-//   pixel = centre + M * offset.
+//   pixel = centre + M * offset
+// through a perfect lens, and with fitWithLens through one that bends the
+// picture radially (JPLens): the pixel is where that point is then seen.
 class JPCalibrationFit {
 public:
     struct Sample {
@@ -22,11 +24,19 @@ public:
         std::array<double, 4> pxPerMm{};   // M, row-major
         double centreX = 0, centreY = 0;   // where the mark was with no offset
         double rmsPx = 0;                  // residual
+        double lensK1 = 0;                 // JPLens::k1 (zero from fit)
+        double lensCentreX = 0, lensCentreY = 0;   // JPLens's centre (fitWithLens)
     };
 
     // Nothing when the samples do not span two directions (at least three,
     // not in a line).
     static std::optional<Result> fit(const std::vector<Sample>& samples);
+    // The same with the lens fitted too, for a picture width x height: its
+    // bending, and with `lensCentre` where it bends about (else the picture's
+    // middle). Needs more samples than parameters (seven, or nine with the
+    // centre), spread across the picture so the bending shows.
+    static std::optional<Result> fitWithLens(const std::vector<Sample>& samples, int width, int height,
+                                             bool lensCentre);
 };
 
 } // inline namespace jf

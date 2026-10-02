@@ -14,7 +14,7 @@ struct JPRoundMark {
     double      x = 0, y = 0;        // centre, pixels
     double      diameter = 0;        // measured, pixels
     double      symmetry = 0;        // the circular-symmetry score at the centre
-    double      shape = 0;           // correlation with a drawn disc of the expected size, 0..1
+    double      shape = 0;           // the share of its edge found on one circle, 0..1
     double      confidence = 0;      // 0..1: agreement of size and shape with what was expected
     std::string why;                 // when not found
 };

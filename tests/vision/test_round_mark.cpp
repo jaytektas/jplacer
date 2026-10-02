@@ -99,6 +99,32 @@ int main() {
     disc(e, cx + 120, cy, d, 200);   // twice the size, 120 px away
     expectAt(e, cx, cy, d, cx + 5.25, cy - 0.4);
 
+    // A hole beside a pad, both round and the same size: the polarity asked
+    // for picks which (copper is brighter than the mask, a hole darker).
+    {
+        JPGrayImage h = ground(320, 200, 90);
+        disc(h, cx, cy, d / 2, 200);            // the pad
+        disc(h, cx + 60.4, cy + 3.2, d / 2, 10);  // the hole, nearer where the search starts
+        JPRoundMarkFinder::Request rq;
+        rq.expectedX = cx + 45;
+        rq.expectedY = cy;
+        rq.searchRadius = 60;
+        rq.diameter = d;
+        rq.polarity = JPRoundMarkFinder::Polarity::Bright;
+        const JPRoundMark pad = JPRoundMarkFinder::find(h, rq);
+        assert(pad.found && std::abs(pad.x - cx) < 0.05 && std::abs(pad.y - cy) < 0.05);
+        rq.polarity = JPRoundMarkFinder::Polarity::Dark;
+        const JPRoundMark hole = JPRoundMarkFinder::find(h, rq);
+        assert(hole.found && std::abs(hole.x - (cx + 60.4)) < 0.05 && std::abs(hole.y - (cy + 3.2)) < 0.05);
+        // Only a hole there, a pad asked for: none.
+        JPGrayImage onlyHole = ground(320, 200, 90);
+        disc(onlyHole, cx, cy, d / 2, 10);
+        rq.expectedX = cx;
+        rq.searchRadius = 20;
+        rq.polarity = JPRoundMarkFinder::Polarity::Bright;
+        assert(!JPRoundMarkFinder::find(onlyHole, rq).found);
+    }
+
     // Where the search starts says nothing about where the mark is: starts
     // a fraction of a pixel apart give one answer.
     {

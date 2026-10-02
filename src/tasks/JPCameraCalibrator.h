@@ -17,7 +17,8 @@ inline namespace jf {
 // round mark of a known size: find it (at any size: before calibration the
 // scale is unknown), make three small moves to learn which way the mark goes,
 // then move the head through a grid that carries the mark across the middle
-// of the picture, find it after each move, and fit pixel = centre + M offset.
+// of the picture, find it after each move, and fit pixel = centre + M offset
+// through a lens that bends the picture (JPLens), fitted with it.
 // Every move arrives one-sided (the cell takes up backlash), so the play in
 // the drives cannot creep into the scale. The head goes back where it began.
 //

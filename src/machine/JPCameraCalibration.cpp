@@ -15,8 +15,15 @@ bool JPCameraCalibration::mmForPixels(double dxPx, double dyPx, double& dxMm, do
     const double a = pxPerMm[0], b = pxPerMm[1], c = pxPerMm[2], d = pxPerMm[3];
     const double det = a * d - b * c;
     if (!valid || std::abs(det) < 1e-12) return false;
-    dxMm = ( d * dxPx - b * dyPx) / det;
-    dyMm = (-c * dxPx + a * dyPx) / det;
+    // Both the pixel and the middle of the picture straightened: the
+    // displacement a perfect lens would have shown.
+    const JPLens l = lens();
+    const double mx = width / 2.0, my = height / 2.0;
+    double ux, uy, u0x, u0y;
+    l.undistort(mx + dxPx, my + dyPx, ux, uy);
+    l.undistort(mx, my, u0x, u0y);
+    dxMm = ( d * (ux - u0x) - b * (uy - u0y)) / det;
+    dyMm = (-c * (ux - u0x) + a * (uy - u0y)) / det;
     return true;
 }
 
@@ -40,6 +47,11 @@ JPCameraCalibration JPCameraCalibration::fromJson(const JJson& j) {
     JPCameraCalibration c;
     c.valid = j["valid"].boolean();
     for (size_t i = 0; i < 4 && i < j["pxPerMm"].size(); ++i) c.pxPerMm[i] = j["pxPerMm"][i].number();
+    c.lensK1 = j["lens"]["k1"].number();
+    c.lensCentreX = j["lens"]["centreX"].number();
+    c.lensCentreY = j["lens"]["centreY"].number();
+    c.width  = int(j["picture"]["width"].number());
+    c.height = int(j["picture"]["height"].number());
     c.z     = j["z"].number();
     c.rmsPx = j["rmsPx"].number();
     c.when  = j["when"].str();
@@ -51,6 +63,11 @@ JJson JPCameraCalibration::toJson() const {
     j["valid"] = valid;
     j["pxPerMm"] = JJson::array();
     for (double v : pxPerMm) j["pxPerMm"].push(v);
+    j["lens"]["k1"] = lensK1;
+    j["lens"]["centreX"] = lensCentreX;
+    j["lens"]["centreY"] = lensCentreY;
+    j["picture"]["width"]  = width;
+    j["picture"]["height"] = height;
     j["z"]     = z;
     j["rmsPx"] = rmsPx;
     j["when"]  = when;

@@ -3,7 +3,8 @@
 
 // Calibration and the visual test end to end, with no hardware: a cell over a
 // simulated controller, and a simulated head camera that draws the homing mark
-// where the head's position puts it, through a transform only the scene knows.
+// where the head's position puts it, through a transform and lens only the
+// scene knows.
 // The calibrator must recover that transform from its moves, and the visual
 // test must then find the mark where the scene put it, not where the head's
 // settings say it is.
@@ -16,6 +17,7 @@
 
 #include <chrono>
 #include <cmath>
+#include <cstdio>
 #include <condition_variable>
 #include <mutex>
 #include <thread>
@@ -25,8 +27,10 @@ using namespace jf;
 namespace {
 
 // Hidden from everything but the scene: looking down, turned a quarter degree,
-// a little non-square.
+// a little non-square, through a lens that pulls the edges in and is centred
+// off the picture's middle (as bench's is).
 constexpr double kM[4] = { -25.7, -0.11, -0.11, 25.6 };
+constexpr double kLensK1 = -0.1;
 // Where the mark really is, and where the head's settings say it is.
 constexpr double kMarkX = 137.237, kMarkY = 179.165;
 constexpr double kSetX  = 137.137, kSetY  = 179.265;
@@ -48,7 +52,7 @@ JPCellConfig cellConfig() {
                   "backlash": "oneSided", "backlashOffset": 0.1, "backlashSpeedFactor": 0.25 } ],
       "cameras": [ { "id": "C", "name": "Top", "mount": { "head": "H", "axisX": "X", "axisY": "Y" },
                      "device": { "backend": "simulated", "width": 640, "height": 480, "fps": 60,
-                       "scene": { "pxPerMm": [-25.7, -0.11, -0.11, 25.6], "ground": 30, "mark": 190, "noise": 3,
+                       "scene": { "pxPerMm": [-25.7, -0.11, -0.11, 25.6], "lensK1": -0.1, "lensCentre": [336, 252], "ground": 30, "mark": 190, "noise": 3,
                                   "marks": [ { "x": 137.237, "y": 179.165, "diameter": 1.85 } ] } } } ]
     })";
     JPCellConfig c;
@@ -120,9 +124,16 @@ int main() {
     assert(cell.moveAxesAndWait({ { "X", kMarkX + 0.4 }, { "Y", kMarkY - 0.3 } }, 1.0, why));
     o.speed = 1.0;
     const auto cal = JPCameraCalibrator::run(cell, feed, o, why);
+    if (!cal) std::fprintf(stderr, "why: %s\n", why.c_str());
     assert(cal && cal->valid);
-    for (int i = 0; i < 4; ++i) assert(std::abs(cal->pxPerMm[i] - kM[i]) < 0.01);
+    // Within 0.2%: off the middle the lens squashes a round mark more on its
+    // outer side than its inner, so the middle of what is seen sits a little
+    // inward of where the lens puts the mark's middle. A real lens does the
+    // same; what must be exact is measured with the mark in the middle.
+    for (int i = 0; i < 4; ++i) assert(std::abs(cal->pxPerMm[i] - kM[i]) < 0.002 * 25.7);
     assert(cal->rmsPx < 0.05);
+    assert(std::abs(cal->lensK1 - kLensK1) < 0.005 && cal->width == 640 && cal->height == 480);
+    assert(std::abs(cal->lensCentreX - 336) < 3 && std::abs(cal->lensCentreY - 252) < 3);
     // It went back where it began.
     const auto base = cell.jogBase();
     assert(std::abs(base.at("X") - (kMarkX + 0.4)) < 1e-6 && std::abs(base.at("Y") - (kMarkY - 0.3)) < 1e-6);

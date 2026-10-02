@@ -5,6 +5,7 @@
 
 #include "JPCameraLook.h"
 
+#include "common/JPLens.h"
 #include "common/JPlacerLog.h"
 #include "vision/JPCalibrationFit.h"
 #include "vision/JPRoundMarkFinder.h"
@@ -28,7 +29,14 @@ constexpr double kMaxMarkShare = 0.4;
 // The first moves, small enough that the mark stays near where it was, and
 // the grid's reach from the picture's middle: shares of its smaller side.
 constexpr double kNudgeShare = 0.05;
-constexpr double kGridShare  = 0.3;
+constexpr double kGridShare  = 0.4;
+// The grid's points along each side (odd: one through the middle). Enough
+// across the picture for the lens's bending to show and be fitted.
+constexpr int kGridSide = 5;
+// The small moves first made to find which way the mark goes.
+constexpr size_t kDirectionMoves = 3;
+// Samples before the lens is fitted for predicting where the next mark is.
+constexpr size_t kLensPredictFrom = 8;
 // Once three marks are measured, a mark is searched for this far from where
 // the fit so far predicts.
 constexpr double kPredictedSearchPx = 25;
@@ -92,9 +100,13 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
         if (!cell.moveAxesAndWait({ { mount.axisX, x0 + dx }, { mount.axisY, y0 + dy } }, o.speed, why)) return false;
         if (!JPCameraLook::settled(feed, img, why)) return false;
         double ex = first.x, ey = first.y, radius = kFirstSearch * side;
-        if (const auto f = samples.size() >= 3 ? JPCalibrationFit::fit(samples) : std::nullopt) {
-            ex = f->centreX + f->pxPerMm[0] * dx + f->pxPerMm[1] * dy;
-            ey = f->centreY + f->pxPerMm[2] * dx + f->pxPerMm[3] * dy;
+        const auto f = samples.size() >= kLensPredictFrom ? JPCalibrationFit::fitWithLens(samples, img.width, img.height, false)
+                     : samples.size() >= 3                ? JPCalibrationFit::fit(samples)
+                                                          : std::nullopt;
+        if (f) {
+            const JPLens lens = JPLens::forPicture(img.width, img.height, f->lensK1);
+            lens.distort(f->centreX + f->pxPerMm[0] * dx + f->pxPerMm[1] * dy,
+                         f->centreY + f->pxPerMm[2] * dx + f->pxPerMm[3] * dy, ex, ey);
             radius = kPredictedSearchPx;
         }
         JPRoundMarkFinder::Request rq;
@@ -132,16 +144,19 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
     const double wantX = img.width / 2.0 - rough->centreX, wantY = img.height / 2.0 - rough->centreY;
     const double cx = (rough->pxPerMm[3] * wantX - rough->pxPerMm[1] * wantY) / det;
     const double cy = (rough->pxPerMm[0] * wantY - rough->pxPerMm[2] * wantX) / det;
-    const double reach = kGridShare * side / std::sqrt(std::abs(det));
-    for (int iy = -1; iy <= 1; ++iy)
-        for (int ix = -1; ix <= 1; ++ix)
-            if (!measure(cx + ix * reach, cy + iy * reach, "measuring")) {
+    const double spacing = kGridShare * side / std::sqrt(std::abs(det)) / (kGridSide / 2);
+    for (int iy = -(kGridSide / 2); iy <= kGridSide / 2; ++iy)
+        for (int ix = -(kGridSide / 2); ix <= kGridSide / 2; ++ix)
+            if (!measure(cx + ix * spacing, cy + iy * spacing, "measuring")) {
                 back();
                 return std::nullopt;
             }
     back();
 
-    const auto fit = JPCalibrationFit::fit(samples);
+    // The grid alone: the first small moves were for finding the way, and
+    // the grid covers where they were.
+    const std::vector<JPCalibrationFit::Sample> grid(samples.begin() + kDirectionMoves, samples.end());
+    const auto fit = JPCalibrationFit::fitWithLens(grid, img.width, img.height, true);
     if (!fit) {
         why = "the moves did not give a fit";
         return std::nullopt;
@@ -169,11 +184,17 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
     JPCameraCalibration c;
     c.valid   = true;
     c.pxPerMm = fit->pxPerMm;
+    c.lensK1  = fit->lensK1;
+    c.lensCentreX = fit->lensCentreX;
+    c.lensCentreY = fit->lensCentreY;
+    c.width   = img.width;
+    c.height  = img.height;
     c.z       = o.markZ;
     c.rmsPx   = fit->rmsPx;
     c.when    = now();
     JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << feed.config().name << ": " << c.scaleX() << " x " << c.scaleY()
-        << " px/mm, turned " << c.rotationDeg() << " deg" << (c.mirrored() ? ", mirrored" : "") << ", fit " << c.rmsPx << " px";
+        << " px/mm, turned " << c.rotationDeg() << " deg" << (c.mirrored() ? ", mirrored" : "") << ", lens " << c.lensK1
+        << ", fit " << c.rmsPx << " px";
     return c;
 }
 

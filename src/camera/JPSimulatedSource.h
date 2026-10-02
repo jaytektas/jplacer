@@ -25,6 +25,8 @@ inline namespace jf {
 // they must find what it hides.
 //
 //   "scene": { "pxPerMm": [-25.7, 0, 0, 25.6],          // row-major, as JPCameraCalibration
+//              "lensK1": -0.1,                          // the lens's bending (JPLens), none if left out
+//              "lensCentre": [672, 373],                // where it bends about (else the middle)
 //              "marks": [ { "x": 137.137, "y": 179.265, "diameter": 1.85 } ],
 //              "ground": 30, "mark": 190, "noise": 3 }
 class JPSimulatedSource : public JPCaptureSource {
@@ -53,6 +55,9 @@ private:
     double m_pxPerMm[4] = {};
     std::vector<Mark> m_marks;
     float m_ground = 0, m_mark = 0, m_noise = 0;
+    double m_lensK1 = 0;
+    double m_lensCentre[2] = {};
+    bool m_lensCentreSet = false;
     ViewProvider m_view;
     std::mt19937 m_rng{ 1 };
     uint64_t m_sequence = 0;

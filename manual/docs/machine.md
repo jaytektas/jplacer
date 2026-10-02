@@ -204,26 +204,30 @@ off); while not connected, the line under the buttons says the light is off.
 #### Calibrating the head camera
 
 jplacer measures its cameras itself: nothing is taken from another program. **Calibrate**, with the
-camera on the head shown, works out how big a pixel is on the machine in X and in Y, and which way the
-camera is turned (or mirrored). The machine must be connected and homed, and the head's homing mark (its
-place and diameter, brought across by an OpenPnP import) must be set.
+camera on the head shown, works out how big a pixel is on the machine in X and in Y, which way the
+camera is turned (or mirrored), and how its lens bends the picture. The machine must be connected and
+homed, and the head's homing mark (its place and diameter, brought across by an OpenPnP import) must be
+set.
 
 1. The camera moves over the homing mark.
-2. It finds the mark at whatever size it appears (the scale is not known yet), checking that it is a
-   whole round mark and not the edge of something bigger.
-3. Three small moves show which way the mark goes in the picture; then the head steps through a grid
-   that carries the mark across the middle of the picture, finding it after every move.
-4. A fit of all those finds gives the camera's scale and turn. If the finds disagree with each other by
-   more than a pixel, or the mark measures far from its set diameter, nothing is kept and the panel says
-   why.
+2. It finds the mark at whatever size it appears (the scale is not known yet), checking that its edge
+   is round nearly all the way round.
+3. Three small moves show which way the mark goes in the picture; then the head steps through a 5 by 5
+   grid that carries the mark across the middle part of the picture, finding it after every move.
+4. A fit of the grid's finds gives the camera's scale and turn, and the lens: a wide lens pulls the
+   edges of the picture in (barrel), around a centre that on a small camera is rarely the middle of the
+   picture. If the finds disagree with the fit by more than a pixel, or the mark measures far from its
+   set diameter, nothing is kept and the panel says why.
 5. The head goes back to where it started.
 
 Every move arrives from the same side (see [Backlash](#backlash)), so play in the drives cannot creep
-into the scale. The head moves at a tenth of its speed. While a task runs, its buttons and the choice of
-camera are off, and the line under the buttons says what it is doing; when it ends, that line and the
-status bar give the result. A calibration is saved in the cell file and used from then on.
+into the scale, and each picture measured is one taken after the move ended (a camera hands over
+pictures a little late). The head moves at a tenth of its speed. While a task runs, its buttons and the
+choice of camera are off, and the line under the buttons says what it is doing; when it ends, that line
+and the status bar give the result. A calibration is saved in the cell file and used from then on:
+whatever is measured in a picture is straightened through the lens first.
 
-<!-- src: src/tasks/JPCameraCalibrator.cpp; src/app/JPlacerCameraTasks.cpp (calibrate, notReady, kTaskSpeed); src/ui/JPCameraPanel.cpp (setBusy, the note) -->
+<!-- src: src/tasks/JPCameraCalibrator.cpp; src/vision/JPCalibrationFit.cpp (fitWithLens); src/common/JPLens.h; src/tasks/JPCameraLook.cpp; src/app/JPlacerCameraTasks.cpp (calibrate, notReady, kTaskSpeed); src/ui/JPCameraPanel.cpp (setBusy, the note) -->
 
 #### Visual Test
 
@@ -236,19 +240,19 @@ what correcting the home position with the camera would change, before jplacer d
 #### Finding round marks
 
 A round mark (a fiducial, the homing mark) is found in two steps. A search looks for the most circular
-thing of the expected size near where the mark should be, on a reduced copy of the picture so it is
-quick. Then the mark is measured on the full picture: lines are cast out from its centre all the way
-round, each finds where the brightness passes halfway between the mark's and its surroundings', and a
-circle is fitted through those points. That gives the centre and the diameter to a small fraction of a
-pixel, works whether the mark is bright on dark or dark on bright, and is not pulled by light falling
-more on one side. A line crossing something else (glare, a trace) is left out.
+things of the expected size near where the mark should be, on a reduced copy of the picture so it is
+quick, and keeps the best few: a board is full of round things (holes, vias, pads, round letters,
+reflections of the light). Each is then measured on the full picture: lines are cast out from its
+centre all the way round, each finds where the brightness changes fastest, and a circle is fitted
+through those points. A mark is accepted when its size is the size asked for and its edge is round
+nearly all the way round; of those, the one that fits best wins, and between equally good ones the one
+nearest where the mark should be.
 
-<!-- src: src/vision/JPRoundMarkFinder.cpp (find, edgeCircle, findAnySize) -->
+Only the edge is measured, not the inside: shiny copper straight under a camera reflects the camera's
+own dark lens in its middle, and off to the side reflects the light, so the same fiducial looks
+different from place to place. The edge gives the centre and the diameter to a small fraction of a
+pixel, and is not pulled by light falling more on one side. Where it matters which way round the mark
+is, a search can ask for a bright mark (copper on solder mask, a white dot) or a dark one (a hole), so
+that a hole beside a fiducial is not taken for it.
 
-### Axes
-
-Every axis in the cell — those a controller drives, those that follow another, and those with no
-hardware — and where each one is, live. For setting up and checking a machine; moving it is the Jog
-panel's.
-
-<!-- src: src/ui/JPAxesPanel.cpp -->
+<!-- src: src/vision/JPRoundMarkFinder.cpp (find, measureAt, edgeCircle, polarityMatches, findAnySize) -->
