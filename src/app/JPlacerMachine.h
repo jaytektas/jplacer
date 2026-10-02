@@ -25,7 +25,8 @@ inline namespace jf {
 
 // The machine jplacer is working with: the open cell (cells/<name>.json),
 // its panels, each in a dock of its own (a camera each, tabbed together in
-// the window's centre; Machine, Jog, Actuators, Board, Console, Axes), the strip across the window saying what state it is in, and the
+// the window's centre; Machine, Jog, Actuators, Board, Machine Setup,
+// Console, Axes), the strip across the window saying what state it is in, and the
 // Machine menu's actions on it.
 //
 // The cell opened last is opened again at start (JPlacerSettings::kMachineCell).
@@ -59,6 +60,10 @@ private:
     bool openCell(const std::string& path, std::string& error);
     void importFrom(const std::string& machineXml);
     void setPort(const std::string& driverId, const std::string& port);
+    // Machine Setup's Apply: keep `cell` (with the calibrations and
+    // squareness measured meanwhile) in the cell file and open it again;
+    // asked first while connected, as the machine is let go and homed again.
+    void applySetup(JPCellConfig cell);
     // Correct the squareness of the gantry moving `mount` by `xPerY` more (from
     // a board), and keep it in the cell file.
     void squareMachine(const JPMountConfig& mount, double xPerY);
@@ -109,6 +114,7 @@ private:
     bool                                m_connectFailed = false; // the last connect failed
     std::string                         m_lost;                  // why the link dropped, until the next connect
     bool                                m_homeFailed = false;
+    std::string                         m_setupSelected;   // Machine Setup's node, kept while the cell reopens
 };
 
 } // inline namespace jf

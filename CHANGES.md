@@ -72,6 +72,9 @@ notes.
 - Each camera has a tab of its own in the middle of the window, instead of buttons to choose one: put
   them side by side or tear one out to see two at once. A camera runs, with its light on, while its
   picture is on screen, and keeps its own straightened or as-taken choice.
+- Machine Setup (Machine > Machine Setup…): the machine as a tree of its parts (controllers, axes,
+  heads with their nozzles, cameras and actuators), each part's settings to change, parts to add,
+  remove and reorder, and Apply to put the changes to use.
 - A camera keeps a calibration for each picture size it was calibrated at, and uses the one for the size
   it is taking.
 - The board is drawn over the live camera picture: each part's designator and each fiducial where the

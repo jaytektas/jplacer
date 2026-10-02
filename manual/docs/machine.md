@@ -115,8 +115,8 @@ configuration folder, is used as well, and replaces a bundled one with the same 
 
 ## The machine's panels
 
-While a cell is open, its panels sit in docks: **Machine**, **Jog**, **Actuators** and
-[**Board**](board.md) on the right, **Console** and **Axes** along the bottom. Each is a dock like any other — drag its tab to another
+While a cell is open, its panels sit in docks: **Machine**, **Jog**, **Actuators**,
+[**Board**](board.md) and [**Machine Setup**](machine-setup.md) on the right, **Console** and **Axes** along the bottom. Each is a dock like any other — drag its tab to another
 place, tear it out into a window of its own, or stack it with others.
 
 <!-- src: src/app/JPlacerMachine.cpp (buildPanels) -->

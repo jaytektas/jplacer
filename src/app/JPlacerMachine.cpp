@@ -13,6 +13,7 @@
 #include "ui/JPConsolePanel.h"
 #include "ui/JPJogPanel.h"
 #include "ui/JPMachinePanel.h"
+#include "ui/JPMachineSetupPanel.h"
 
 #include <j/config/Settings.h>
 #include <j/core/Dialog.h>
@@ -39,7 +40,7 @@ constexpr double kParkSpeed = 0.5;
 
 // The first so many panels dock on the right (driving the machine), the rest
 // along the bottom (what it says).
-constexpr size_t kRightPanels = 4;
+constexpr size_t kRightPanels = 5;
 
 // Where OpenPnP keeps its machine, under the home folder.
 constexpr const char* kOpenPnpDir         = ".openpnp2";
@@ -172,6 +173,19 @@ void JPlacerMachine::buildPanels() {
     panels.emplace_back("Board",     m_board->makePanel(m_graph));
     for (CameraDock& c : m_cameras)
         c.panel->setMarks([board = m_board.get(), id = c.panel->camera().id] { return board->marks(id); });
+    std::vector<std::string> profiles;
+    for (const JPFirmwareProfile& p : m_profiles) profiles.push_back(p.id());
+    auto setup = std::make_unique<JPMachineSetupPanel>(m_graph, m_cell->config(), profiles, m_setupSelected);
+    setup->onSelected = [this](const std::string& path) { m_setupSelected = path; };
+    setup->onApply = [this](const JPCellConfig& cell) {
+        // Posted: Apply arrives inside the panel's own event, and opening
+        // the cell again replaces that panel.
+        std::weak_ptr<bool> alive = m_alive;
+        JMainThreadDispatcher::instance().post([this, alive, cell] {
+            if (const auto a = alive.lock(); a && *a) applySetup(cell);
+        });
+    };
+    panels.emplace_back("Machine Setup", std::move(setup));
     panels.emplace_back("Console",   std::make_unique<JPConsolePanel>(m_graph, *m_cell));
     panels.emplace_back("Axes",      std::make_unique<JPAxesPanel>(m_graph, *m_cell));
 
@@ -333,6 +347,32 @@ void JPlacerMachine::setPort(const std::string& driverId, const std::string& por
         if (config.save(m_cellPath, error) && openCell(m_cellPath, error)) return;
     }
     JDialog::message("The port could not be changed", error);
+}
+
+void JPlacerMachine::applySetup(JPCellConfig cell) {
+    if (!m_cell) return;
+    // Measured while it was being set up: the cell's, not the copy's.
+    for (JPCameraConfig& c : cell.cameras) c.calibrations = m_cell->cameraCalibrations(c.id);
+    cell.squareness = m_cell->squareness();
+    std::weak_ptr<bool> alive = m_alive;
+    auto apply = [this, alive, cell] {
+        if (const auto a = alive.lock(); !a || !*a) return;
+        std::string error;
+        if (!cell.save(m_cellPath, error) || !openCell(m_cellPath, error)) {
+            JDialog::message("Machine Setup could not be applied", error);
+            return;
+        }
+        JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Machine Setup applied to " << m_cellPath;
+        m_window.showStatus("Machine Setup applied", kStatusMs);
+    };
+    if (!m_cell->isConnected()) {
+        apply();
+        return;
+    }
+    JDialog::confirm("Apply Machine Setup",
+                     "The machine is opened again with the new setup: it disconnects, connects again, and must be "
+                     "homed again before it moves.",
+                     apply);
 }
 
 void JPlacerMachine::showState() {

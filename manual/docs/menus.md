@@ -30,8 +30,7 @@ feature will live.
 | **Disconnect** | Closes the connections. Available while connected. |
 | **Home All Axes** | Homes the machine (see [Homing](machine.md#homing)). Available while connected. |
 | **Park Head** | Takes the head out of the way (see [Parking](machine.md#parking)). Available once homed. |
-
-**Machine Setup…** is not yet available.
+| **Machine Setup…** | Shows [Machine Setup](machine-setup.md), to look at and change what the machine is made of. |
 
 <!-- src: src/app/JPlacerMenuBuilder.cpp (the Machine menu); src/app/JPlacerMachine.cpp (updateMenu) -->
 
