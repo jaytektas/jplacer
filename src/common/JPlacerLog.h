@@ -24,6 +24,9 @@ struct JPlacerLog {
     static constexpr const char* kTraffic  = "machine.traffic";    // every command line sent and line received
     static constexpr const char* kStatus   = "machine.status";     // every status report (many a second)
 
+    static constexpr const char* kCamera   = "camera";             // capture devices: opened, mode, failures
+    static constexpr const char* kFrames   = "camera.frames";      // every frame (many a second)
+
     static constexpr const char* kImport   = "import.openpnp";     // reading OpenPnP's files
 
     static constexpr const char* kUi       = "ui";                 // what was clicked, chosen, typed
