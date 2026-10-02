@@ -16,6 +16,8 @@ notes.
   and other G-code firmware, and reads the settings the controller stores.
 - A Machine panel shows the live position of every axis, switches and reads the
   actuators (lights, valves, vacuum sensors), and has a console for sending G-code.
+- Importing an OpenPnP machine brings the head's homing fiducial, park location, calibration rig and
+  pump. OpenPnP's camera calibration is not brought across: jplacer will measure its cameras itself.
 - Importing an OpenPnP machine brings its whole home command (every line, in order), and importing
   again keeps the port you chose.
 - The machine can be homed (Home, or Machine > Home All Axes) and moved by hand from the Jog panel:

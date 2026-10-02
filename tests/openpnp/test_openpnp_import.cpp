@@ -50,6 +50,12 @@ int main() {
     assert(zr->mapped(-2) == 2.0 && zr->unmapped(3) == -3.0);   // the inverted side of a shared Z
 
     assert(cell.heads.size() == 1 && cell.heads[0].id == "H1");
+    const JPHeadConfig& head = cell.heads[0];
+    assert(head.visualHoming && head.homingFiducial && head.homingFiducial->x == 137.137 && head.homingFiducial->y == 179.265);
+    assert(head.park && head.park->x == 390 && head.park->y == 420);
+    assert(head.rigPrimary && head.rigPrimary->z == -23.6 && head.rigPrimaryDiameter == 1.85);
+    assert(head.rigSecondary && head.rigSecondary->x == 167.193 && head.rigSecondary->z == -12.7);
+    assert(head.pumpActuatorId == "ACT1" && head.pumpControl == "KeepRunning" && head.pumpOnWaitMs == 60000);
     assert(cell.nozzles.size() == 1);
     const JPNozzleConfig& n = cell.nozzles[0];
     assert(n.mount.headId == "H1" && n.mount.axisZ == "AZR" && n.mount.offsetX == 22.458);
@@ -67,7 +73,8 @@ int main() {
     assert(noted(notes, "{Foo}"));
 
     assert(cell.cameras.size() == 2);
-    assert(!cell.cameras[0].looksUp && cell.cameras[0].mount.headId == "H1" && cell.cameras[0].unitsPerPixelX == 0.0437);
+    assert(!cell.cameras[0].looksUp && cell.cameras[0].mount.headId == "H1");
+    assert(noted(notes, "camera TOP_CAMERA: OpenPnP's camera calibration is not imported"));
     assert(cell.cameras[0].device["unique-id"].str() == "top: usb-1");
     assert(cell.cameras[0].device["backend"].str() == "v4l2" && cell.cameras[0].device["name"].str() == "top:");
     assert(cell.cameras[0].device["fps"].number() == 5.0);

@@ -55,7 +55,15 @@
          </driver>
       </drivers>
       <heads class="java.util.ArrayList">
-         <head class="org.openpnp.machine.reference.ReferenceHead" id="H1" name="H1" visual-homing-method="ResetToFiducialLocation">
+         <head class="org.openpnp.machine.reference.ReferenceHead" id="H1" name="H1" visual-homing-method="ResetToFiducialLocation" vacuum-pump-control="KeepRunning" pump-on-wait-milliseconds="60000">
+            <park-location units="Millimeters" x="390.0" y="420.0" z="0.0" rotation="0.0"/>
+            <pump-actuator-name>RIGHT_SOLENOID</pump-actuator-name>
+            <homing-fiducial-location units="Millimeters" x="137.137" y="179.265" z="0.0" rotation="0.0"/>
+            <calibration-primary-fiducial-location units="Millimeters" x="137.137" y="179.265" z="-23.6" rotation="0.0"/>
+            <calibration-secondary-fiducial-location units="Millimeters" x="167.193" y="179.308" z="-12.7" rotation="0.0"/>
+            <calibration-primary-fiducial-diameter value="1.85" units="Millimeters"/>
+            <calibration-secondary-fiducial-diameter value="1.85" units="Millimeters"/>
+            <calibration-test-object-diameter value="7.530648480000001" units="Millimeters"/>
             <nozzles class="java.util.ArrayList">
                <nozzle class="org.openpnp.machine.reference.ReferenceNozzle" id="N1" name="RIGHT" axis-X-id="AX" axis-Z-id="AZR">
                   <head-offsets units="Millimeters" x="22.458" y="-61.815" z="0.5" rotation="0.0"/>
@@ -71,6 +79,14 @@
                <camera class="org.openpnp.machine.reference.camera.OpenPnpCaptureCamera" id="C1" name="TOP_CAMERA" looking="Down" axis-X-id="AX" axis-Z-id="AZT" unique-id="top: usb-1" fps="5.0">
                   <units-per-pixel units="Millimeters" x="0.0437" y="0.0470" z="0.0" rotation="0.0"/>
                   <head-offsets units="Millimeters" x="0.0" y="0.0" z="0.0" rotation="0.0"/>
+                  <default-z value="-24.0" units="Millimeters"/>
+                  <advanced-calibration enabled="true" valid="true" overriding-old-transforms-and-distortion-correction-settings="true" mirrored="1.0" apparent-motion-direction="-1.0" raw-cropped-image-width="1280" raw-cropped-image-height="720">
+                     <camera-matrix length="9">1457.4657284460625, 0.0, 639.5, 0.0, 1453.5504932425379, 359.5, 0.0, 0.0, 1.0</camera-matrix>
+                     <distortion-coefficients length="5">-0.3118065696561588, -0.6344234561062925, 0.0, 0.0, 2.2384162030910515</distortion-coefficients>
+                     <vector-from-mach-to-phy-cam-in-mach-ref-frame length="3">135.5641923782093, 179.69215016165057, 32.372880845043866</vector-from-mach-to-phy-cam-in-mach-ref-frame>
+                     <unit-vector-phy-cam-Z-in-mach-ref-frame length="3">-0.027804186661464027, 0.007142042518049411, -0.999587874292583</unit-vector-phy-cam-Z-in-mach-ref-frame>
+                     <calibrated-offsets units="Millimeters" x="1.5680483346892673" y="-0.4027835092989422" z="0.0" rotation="0.0"/>
+                  </advanced-calibration>
                </camera>
             </cameras>
          </head>

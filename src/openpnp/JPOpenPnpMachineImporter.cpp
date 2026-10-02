@@ -10,6 +10,7 @@
 #include <j/core/Log.h>
 
 #include <cstdlib>
+#include <optional>
 #include <map>
 #include <regex>
 
@@ -41,6 +42,18 @@ double lengthChild(const JPXmlElement& e, const char* child) {
 }
 
 double number(const std::string& s) { return std::strtod(s.c_str(), nullptr); }
+
+// A location element (<park-location x=".." y=".." z=".." rotation=".." units=".."/>), in mm.
+std::optional<JPLocation> location(const JPXmlElement& parent, const char* child) {
+    const JPXmlElement* e = parent.child(child);
+    if (!e) return std::nullopt;
+    const std::string& u = e->attr("units");
+    return JPLocation{ toMm(std::strtod(e->attr("x").c_str(), nullptr), u),
+                       toMm(std::strtod(e->attr("y").c_str(), nullptr), u),
+                       toMm(std::strtod(e->attr("z").c_str(), nullptr), u),
+                       std::strtod(e->attr("rotation").c_str(), nullptr) };
+}
+
 bool   yes(const std::string& s)    { return s == "true"; }
 
 // Strip OpenPnP's "; comment" tails and surrounding blanks.
@@ -246,6 +259,7 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
 
     // Actuators first: nozzles name theirs.
     std::map<std::string, std::string> actuatorIdByName;
+    std::map<std::string, std::string> pumpNames;   // head id -> its pump actuator's name
     auto addActuator = [&](const JPXmlElement& x, const std::string& headId) {
         JPActuatorConfig a;
         a.id       = x.attr("id");
@@ -288,6 +302,11 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             cam.unitsPerPixelX = toMm(number(upp->attr("x")), upp->attr("units"));
             cam.unitsPerPixelY = toMm(number(upp->attr("y")), upp->attr("units"));
         }
+        // OpenPnP's camera calibration is not carried over: jplacer measures
+        // its cameras itself. Say so when a camera had one.
+        if (const JPXmlElement* ac = x.child("advanced-calibration"); ac && ac->attr("enabled") == "true")
+            notes.push_back("camera " + cam.name + ": OpenPnP's camera calibration is not imported; "
+                            "calibrate the camera in jplacer");
         cam.device = JJson::object();
         cam.device["openpnpClass"] = shortClass(x);
         for (const char* key : { "unique-id", "format-id", "fps", "rotation", "flip-x", "flip-y", "light-actuator-id" })
@@ -309,11 +328,29 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
 
     if (const JPXmlElement* heads = machine->child("heads")) {
         for (const JPXmlElement& h : heads->children) {
-            c.heads.push_back({ h.attr("id"), h.attr("name") });
-            if (const std::string& vh = h.attr("visual-homing-method"); !vh.empty() && vh != "None")
-                notes.push_back("head " + h.attr("name") + ": OpenPnP finishes homing by finding a fiducial with the "
-                                "camera, which jplacer does not do yet. After Home, the axes take their home "
-                                "coordinates as they are, so the head must be at its home position first");
+            JPHeadConfig head;
+            head.id                    = h.attr("id");
+            head.name                  = h.attr("name");
+            head.homingFiducial        = location(h, "homing-fiducial-location");
+            head.visualHoming          = h.attr("visual-homing-method") == "ResetToFiducialLocation";
+            head.park                  = location(h, "park-location");
+            head.rigPrimary            = location(h, "calibration-primary-fiducial-location");
+            head.rigSecondary          = location(h, "calibration-secondary-fiducial-location");
+            head.rigPrimaryDiameter    = lengthChild(h, "calibration-primary-fiducial-diameter");
+            head.rigSecondaryDiameter  = lengthChild(h, "calibration-secondary-fiducial-diameter");
+            head.rigTestObjectDiameter = lengthChild(h, "calibration-test-object-diameter");
+            head.pumpControl           = h.attr("vacuum-pump-control");
+            head.pumpOnWaitMs          = int(number(h.attr("pump-on-wait-milliseconds")));
+            if (const JPXmlElement* pump = h.child("pump-actuator-name")) pumpNames[head.id] = pump->text;
+            if (!h.attr("visual-homing-method").empty() && h.attr("visual-homing-method") != "None"
+                && h.attr("visual-homing-method") != "ResetToFiducialLocation")
+                notes.push_back("head " + head.name + ": visual homing method " + h.attr("visual-homing-method")
+                                + " is not one jplacer does; it resets to the fiducial location");
+            if (head.visualHoming)
+                notes.push_back("head " + head.name + ": OpenPnP finishes homing by finding the homing fiducial with "
+                                "the camera, which jplacer does not do yet. After Home, the axes take their home "
+                                "coordinates from the switches alone");
+            c.heads.push_back(std::move(head));
             if (const JPXmlElement* acts = h.child("actuators"))
                 for (const JPXmlElement& x : acts->children) addActuator(x, h.attr("id"));
             if (const JPXmlElement* cams = h.child("cameras"))
@@ -338,6 +375,9 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
     if (const JPXmlElement* cams = machine->child("cameras"))
         for (const JPXmlElement& x : cams->children) addCamera(x, std::string());
 
+    for (JPHeadConfig& h : c.heads)
+        if (const auto p = pumpNames.find(h.id); p != pumpNames.end())
+            if (const auto a = actuatorIdByName.find(p->second); a != actuatorIdByName.end()) h.pumpActuatorId = a->second;
     for (const std::string& p : c.problems()) notes.push_back(p);
     JLOGC(JPlacerLog::kImport, JLogLevel::Info) << machineXml << ": " << c.drivers.size() << " controller(s), "
         << c.axes.size() << " axes, " << c.nozzles.size() << " nozzle(s), " << c.cameras.size() << " camera(s), "
