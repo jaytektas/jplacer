@@ -29,6 +29,19 @@ struct JPGrayImage {
         return true;
     }
 
+    // What `lit` has that `unlit` has not, pixel by pixel (never below 0):
+    // the same view with a light on and off, the room's own light taken out.
+    // Empty when the two are not the same size.
+    static JPGrayImage difference(const JPGrayImage& lit, const JPGrayImage& unlit) {
+        JPGrayImage d;
+        if (lit.width != unlit.width || lit.height != unlit.height) return d;
+        d.width = lit.width;
+        d.height = lit.height;
+        d.pixels.resize(lit.pixels.size());
+        for (size_t i = 0; i < d.pixels.size(); ++i) d.pixels[i] = std::max(0.f, lit.pixels[i] - unlit.pixels[i]);
+        return d;
+    }
+
     // Half the size each way, each pixel the mean of the four it covers (a
     // coarse copy to search before measuring on the full picture).
     JPGrayImage halved() const {

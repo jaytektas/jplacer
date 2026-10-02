@@ -96,7 +96,7 @@ JPBoardLocator::Result JPBoardLocator::run(JPCell& cell, JPCameraFeed& feed, con
             rq.searchRadius = (move > 0 ? kCentringSearchMm : pairs.empty() ? o.firstSearchMm : o.searchMm) * scale;
             rq.diameter = o.fiducialDiameterMm * scale;
             rq.polarity = JPRoundMarkFinder::Polarity::Bright;   // copper on solder mask
-            const JPRoundMark m = JPRoundMarkFinder::find(img, rq);
+            const JPRoundMark m = JPCameraLook::findTryingHarder(cell, feed, img, rq);
             if (!m.found) {
                 f.found = false;
                 f.why = m.why;

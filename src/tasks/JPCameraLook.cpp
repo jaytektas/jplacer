@@ -3,6 +3,10 @@
 
 #include "JPCameraLook.h"
 
+#include "common/JPlacerLog.h"
+
+#include <j/core/Log.h>
+
 #include <chrono>
 #include <thread>
 
@@ -26,6 +30,41 @@ bool JPCameraLook::settled(JPCameraFeed& feed, JPGrayImage& out, std::string& wh
     }
     why = feed.config().name + ": no picture taken within " + std::to_string(settleMs + kTimeoutMs) + " ms";
     return false;
+}
+
+bool JPCameraLook::lightOnly(JPCell& cell, JPCameraFeed& feed, JPGrayImage& out, std::string& why) {
+    const std::string light = feed.config().lightActuator();
+    if (light.empty()) {
+        why = feed.config().name + " has no light to switch";
+        return false;
+    }
+    JPGrayImage unlit, lit;
+    const bool ok = cell.switchActuatorAndWait(light, false, why) && settled(feed, unlit, why)
+                 && cell.switchActuatorAndWait(light, true, why) && settled(feed, lit, why);
+    if (!ok) {
+        std::string ignored;
+        cell.switchActuatorAndWait(light, true, ignored);   // as it was
+        return false;
+    }
+    out = JPGrayImage::difference(lit, unlit);
+    return true;
+}
+
+JPRoundMark JPCameraLook::findTryingHarder(JPCell& cell, JPCameraFeed& feed, const JPGrayImage& picture,
+                                           const JPRoundMarkFinder::Request& request) {
+    const JPRoundMark plain = JPRoundMarkFinder::find(picture, request);
+    if (plain.found || feed.config().lightActuator().empty()) return plain;
+    JPGrayImage lit;
+    std::string why;
+    if (!lightOnly(cell, feed, lit, why)) {
+        JLOGC(JPlacerLog::kCamera, JLogLevel::Warn) << feed.config().name << ": no picture without the room's light: " << why;
+        return plain;
+    }
+    JPRoundMark m = JPRoundMarkFinder::find(lit, request);
+    JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << feed.config().name << ": not found in the picture (" << plain.why
+        << "); with the room's light taken out: " << (m.found ? "found" : m.why);
+    if (!m.found) m.why = plain.why + "; with the room's light taken out, " + m.why;
+    return m;
 }
 
 } // inline namespace jf

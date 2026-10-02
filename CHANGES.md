@@ -45,6 +45,8 @@ notes.
   best kept, so holes, vias, round letters and reflections are not mistaken for it, and shiny copper is
   found whether it shows bright or with the lens's dark reflection in its middle.
 - Pictures measured after a move are ones taken after the move ended.
+- A mark not found in a picture is looked for again with the room's light taken out (the camera's light
+  off and on, one picture taken from the other).
 - A camera that drops off USB or hangs is noticed, shown as lost over its last picture, and opened again
   until it is back.
 - A Board panel: import a board's pick-and-place file (EasyEDA, JLCPCB, KiCad and other CSV), choose the

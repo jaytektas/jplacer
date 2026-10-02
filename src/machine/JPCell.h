@@ -45,6 +45,9 @@ public:
     void sendLine(const std::string& driverId, const std::string& line);
 
     void switchActuator(const std::string& actuatorId, bool on);
+    // The same, waiting for the controller's answer: for a procedure on a
+    // thread of its own. False with `why`.
+    bool switchActuatorAndWait(const std::string& actuatorId, bool on, std::string& why);
     void readActuator(const std::string& actuatorId);
 
     // HOMING: each controller's home command, then the axes are told where
@@ -121,6 +124,7 @@ private:
     // The cell thread's side of moveAxes: false with `why` when refused or failed.
     bool doMove(std::map<std::string, double> targets, double speed, std::string& why);
     bool doHome(std::string& why);
+    bool doSwitch(const std::string& actuatorId, bool on, std::string& why);
     bool doCorrectPosition(const std::map<std::string, double>& by, std::string& why);
     // Square coordinates of controller axes to the axes' own (JPSquarenessConfig):
     // the X axis takes the lean for the Y it will be at, so a target for

@@ -100,21 +100,43 @@ void JPCell::sendLine(const std::string& driverId, const std::string& line) {
 
 void JPCell::switchActuator(const std::string& actuatorId, bool on) {
     m_thread.post([this, actuatorId, on] {
-        for (const JPActuatorConfig& a : m_config.actuators) {
-            if (a.id != actuatorId) continue;
-            JPGcodeDriver* d = driver(a.driverId);
-            const std::string& tmpl = on ? a.onCommand : a.offCommand;
-            if (!d || tmpl.empty()) {
-                onActuator.emit(a.id, false, a.name + " cannot be switched " + (on ? "on" : "off"));
-                return;
-            }
-            const JPReply r = d->send(JPFirmwareProfile::fill(tmpl, { { "index", a.index } })).get();
-            JLOGC(JPlacerLog::kCell, r.ok ? JLogLevel::Info : JLogLevel::Warn)
-                << a.name << " " << (on ? "on" : "off") << (r.ok ? std::string() : ": " + r.error);
-            onActuator.emit(a.id, r.ok, r.ok ? (on ? "on" : "off") : r.error);
-            return;
-        }
+        std::string why;
+        const bool ok = doSwitch(actuatorId, on, why);
+        onActuator.emit(actuatorId, ok, ok ? (on ? "on" : "off") : why);
     });
+}
+
+bool JPCell::switchActuatorAndWait(const std::string& actuatorId, bool on, std::string& why) {
+    std::promise<std::pair<bool, std::string>> done;
+    auto result = done.get_future();
+    m_thread.post([this, actuatorId, on, &done] {
+        std::string w;
+        const bool ok = doSwitch(actuatorId, on, w);
+        onActuator.emit(actuatorId, ok, ok ? (on ? "on" : "off") : w);
+        done.set_value({ ok, w });
+    });
+    const auto [ok, w] = result.get();
+    why = w;
+    return ok;
+}
+
+bool JPCell::doSwitch(const std::string& actuatorId, bool on, std::string& why) {
+    for (const JPActuatorConfig& a : m_config.actuators) {
+        if (a.id != actuatorId) continue;
+        JPGcodeDriver* d = driver(a.driverId);
+        const std::string& tmpl = on ? a.onCommand : a.offCommand;
+        if (!d || tmpl.empty()) {
+            why = a.name + " cannot be switched " + (on ? "on" : "off");
+            return false;
+        }
+        const JPReply r = d->send(JPFirmwareProfile::fill(tmpl, { { "index", a.index } })).get();
+        JLOGC(JPlacerLog::kCell, r.ok ? JLogLevel::Info : JLogLevel::Warn)
+            << a.name << " " << (on ? "on" : "off") << (r.ok ? std::string() : ": " + r.error);
+        why = r.error;
+        return r.ok;
+    }
+    why = "no actuator " + actuatorId;
+    return false;
 }
 
 void JPCell::readActuator(const std::string& actuatorId) {

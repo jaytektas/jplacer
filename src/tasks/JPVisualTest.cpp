@@ -52,7 +52,7 @@ JPVisualTest::Result JPVisualTest::run(JPCell& cell, JPCameraFeed& feed, const J
     rq.expectedY = img.height / 2.0;
     rq.searchRadius = kSearchMm * scale;
     rq.diameter = head.homingFiducialDiameter * scale;
-    const JPRoundMark m = JPRoundMarkFinder::find(img, rq);
+    const JPRoundMark m = JPCameraLook::findTryingHarder(cell, feed, img, rq);
     if (!m.found) {
         r.why = "the homing mark was not found: " + m.why;
         return r;

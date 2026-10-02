@@ -399,7 +399,7 @@ void JPlacerMachine::lightCameras(const std::string& shown, const std::string& b
     if (!m_cell || !m_cameras) return;
     auto light = [this](const std::string& cameraId) -> std::string {
         for (const JPCameraConfig& c : m_cell->config().cameras)
-            if (c.id == cameraId) return c.device["light-actuator-id"].str();
+            if (c.id == cameraId) return c.lightActuator();
         return {};
     };
     const std::string on = light(shown);

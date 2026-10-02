@@ -22,6 +22,9 @@ struct JPCameraConfig {
     JJson         device;
     JPCameraCalibration calibration;   // jplacer's own, from known moves; .valid false until measured
 
+    // The actuator that lights what it looks at; empty when it has none.
+    std::string lightActuator() const { return device["light-actuator-id"].str(); }
+
     static JPCameraConfig fromJson(const JJson& j) {
         JPCameraConfig c;
         c.id             = j["id"].str();

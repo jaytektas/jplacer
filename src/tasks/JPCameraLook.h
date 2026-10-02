@@ -4,7 +4,9 @@
 #pragma once
 
 #include "camera/JPCameraFeed.h"
+#include "machine/JPCell.h"
 #include "vision/JPGrayImage.h"
+#include "vision/JPRoundMarkFinder.h"
 
 #include <string>
 
@@ -18,6 +20,17 @@ inline namespace jf {
 class JPCameraLook {
 public:
     static bool settled(JPCameraFeed& feed, JPGrayImage& out, std::string& why, int settleMs = kSettleMs);
+    // A settled picture with the room's light taken out: one with the
+    // camera's light off and one with it on, the first taken from the
+    // second. What is left is what the camera's light lights, whatever the
+    // sun or the room is doing. The light is left on. False (and why) when
+    // the camera has no light to switch.
+    static bool lightOnly(JPCell& cell, JPCameraFeed& feed, JPGrayImage& out, std::string& why);
+    // Find a round mark in `picture` (a settled one); not found there, look
+    // again with the room's light taken out (lightOnly), where the camera has
+    // a light: trying harder before failing.
+    static JPRoundMark findTryingHarder(JPCell& cell, JPCameraFeed& feed, const JPGrayImage& picture,
+                                        const JPRoundMarkFinder::Request& request);
 
     static constexpr int kSettleMs  = 150;    // until a camera's own settle setting exists
     static constexpr int kTimeoutMs = 3000;

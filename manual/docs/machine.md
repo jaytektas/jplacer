@@ -280,4 +280,10 @@ pixel, and is not pulled by light falling more on one side. Where it matters whi
 is, a search can ask for a bright mark (copper on solder mask, a white dot) or a dark one (a hole), so
 that a hole beside a fiducial is not taken for it.
 
-<!-- src: src/vision/JPRoundMarkFinder.cpp (find, measureAt, edgeCircle, polarityMatches, findAnySize) -->
+When a mark is not found in a picture and the camera has a light, jplacer tries harder before failing:
+it takes one picture with the camera's light off and one with it on, and takes the first from the second.
+What is left is only what the camera's light lights, whatever the sun or the room's lights are doing, and
+the mark is looked for again there. The light is left on. The homing mark (Visual Test, visual homing)
+and fiducials (Locate Board) are looked for this way.
+
+<!-- src: src/vision/JPRoundMarkFinder.cpp (find, measureAt, edgeCircle, polarityMatches, findAnySize); src/tasks/JPCameraLook.cpp (lightOnly, findTryingHarder) -->
