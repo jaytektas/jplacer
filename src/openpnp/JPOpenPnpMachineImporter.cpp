@@ -51,11 +51,11 @@ std::string clean(std::string s) {
     return a == std::string::npos ? std::string() : s.substr(a, b - a + 1);
 }
 
-// OpenPnP's command templates ("{True:M64}{False:M65} P{Index}") in jplacer's
-// form. `on` picks the True or False branch for a switch; Index becomes
-// {index}; Value becomes {value}. Anything else is kept and noted.
-std::string translate(const std::string& tmpl, int on, const std::string& what,
-                      std::vector<std::string>& notes) {
+// One line of an OpenPnP command template ("{True:M64}{False:M65} P{Index}")
+// in jplacer's form. `on` picks the True or False branch for a switch; Index
+// becomes {index}; Value becomes {value}. Anything else is kept and noted.
+std::string translateLine(const std::string& tmpl, int on, const std::string& what,
+                          std::vector<std::string>& notes) {
     std::string out;
     for (size_t i = 0; i < tmpl.size(); ++i) {
         if (tmpl[i] != '{') { out += tmpl[i]; continue; }
@@ -78,6 +78,24 @@ std::string translate(const std::string& tmpl, int on, const std::string& what,
         i = close;
     }
     return clean(out);
+}
+
+// A whole command, line by line: OpenPnP keeps a multi-line command (a
+// homing sequence) as one <text> per line. Lines that were only a comment are
+// dropped; the order is kept, because on a machine it is everything.
+std::string translate(const std::string& tmpl, int on, const std::string& what,
+                      std::vector<std::string>& notes) {
+    std::string out;
+    size_t start = 0;
+    while (start <= tmpl.size()) {
+        const size_t eol = tmpl.find('\n', start);
+        const std::string line = translateLine(
+            tmpl.substr(start, eol == std::string::npos ? std::string::npos : eol - start), on, what, notes);
+        start = eol == std::string::npos ? tmpl.size() + 1 : eol + 1;
+        if (line.empty()) continue;
+        out += (out.empty() ? "" : "\n") + line;
+    }
+    return out;
 }
 
 // OpenPnP regexes use Java's named groups; std::regex does not have them.
@@ -165,10 +183,13 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                 dc.connectWaitMs = int(number(d.attr("connect-wait-time-milliseconds")));
 
             Commands& cmds = commands[dc.id];
-            for (const JPXmlElement& cmd : d.children)
-                if (cmd.name == "command")
-                    if (const JPXmlElement* text = cmd.child("text"))
-                        cmds[{ cmd.attr("type"), cmd.attr("head-mountable-id") }] = text->text;
+            for (const JPXmlElement& cmd : d.children) {
+                if (cmd.name != "command") continue;
+                std::string text;   // one <text> per line
+                for (const JPXmlElement& t : cmd.children)
+                    if (t.name == "text") text += (text.empty() ? "" : "\n") + t.text;
+                cmds[{ cmd.attr("type"), cmd.attr("head-mountable-id") }] = text;
+            }
             // How this machine homes is its own: OpenPnP's home command is
             // this controller's, over its firmware profile's.
             if (const std::string* home = findCommand(cmds, "HOME_COMMAND", ""))

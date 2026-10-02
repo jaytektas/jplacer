@@ -225,6 +225,18 @@ void JPlacerMachine::importFrom(const std::string& path) {
         return;
     }
     const std::string target = (std::filesystem::path(cellsDir()) / kImportedCellFile).string();
+    // Importing again keeps how each controller is reached where it was
+    // already chosen here (the port picked by its permanent name): OpenPnP's
+    // file still names the port it had, which may be a different device now.
+    JPCellConfig previous;
+    std::string ignored;
+    std::error_code ec;
+    if (std::filesystem::exists(target, ec) && previous.load(target, ignored))
+        for (JPDriverConfig& d : cell.drivers)
+            if (const JPDriverConfig* was = previous.driver(d.id); was && was->link["type"].str() == d.link["type"].str()) {
+                JLOGC(JPlacerLog::kImport, JLogLevel::Info) << "controller " << d.name << " keeps " << was->link["port"].str();
+                d.link = was->link;
+            }
     if (!cell.save(target, error) || !openCell(target, error)) {
         JDialog::message("The OpenPnP machine could not be imported", error);
         return;

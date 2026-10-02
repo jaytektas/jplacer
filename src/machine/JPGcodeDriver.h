@@ -59,11 +59,14 @@ public:
     // Queue a command line. `timeoutMs` 0 means the configured command
     // timeout. A command sent while disconnected fails at once.
     std::future<JPReply> send(std::string line, int timeoutMs = 0);
-    // Queue the profile's named command (move, home, ...). Fails at once when
-    // the profile has no such command.
-    std::future<JPReply> sendCommand(const std::string& name,
-                                     const std::map<std::string, std::string>& values = {},
-                                     int timeoutMs = 0);
+    // Run a named command (move, home, ...): this controller's own if it has
+    // one, else its profile's. A command may be several lines (a machine's
+    // whole homing sequence); they are sent in order, each waiting for its
+    // answer, and the first refused stops the rest. BLOCKS, like get() on a
+    // send. The reply's lines are every line's, in order. Fails at once when
+    // there is no such command.
+    JPReply command(const std::string& name, const std::map<std::string, std::string>& values = {},
+                    int timeoutMs = 0);
 
     // Block until the controller has finished every move it was given (the
     // profile's waitMotion command, which the controller answers only then).

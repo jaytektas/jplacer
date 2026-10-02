@@ -27,6 +27,15 @@
             <serial port-name="ttyACM0" baud="115200" flow-control="RtsCts"/>
             <command type="HOME_COMMAND">
                <text><![CDATA[M18 Z		; disable z motor	]]></text>
+               <text><![CDATA[G4 P1		; pause 1 second]]></text>
+               <text><![CDATA[M17 Z		; enable z motor]]></text>
+               <text><![CDATA[; home y]]></text>
+               <text><![CDATA[$HY]]></text>
+               <text><![CDATA[$HX]]></text>
+               <text><![CDATA[G92 X390 Y444 A0 B0 C0	; set WCO]]></text>
+               <text><![CDATA[$HZ]]></text>
+               <text><![CDATA[G92 Z-25.5	; z balance offset]]></text>
+               <text><![CDATA[M400		; execute all commands in buffer]]></text>
             </command>
             <command head-mountable-id="ACT1" type="ACTUATE_BOOLEAN_COMMAND">
                <text><![CDATA[{True:M64}{False:M65} P{Index} ; solenoid]]></text>

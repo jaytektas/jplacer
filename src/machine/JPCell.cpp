@@ -210,7 +210,7 @@ bool JPCell::doHome(std::string& why) {
     m_homed = false;
     onHomed.emit(false);
     for (const auto& d : m_drivers) {
-        const JPReply r = d->sendCommand("home").get();
+        const JPReply r = d->command("home");
         if (!r.ok) { why = d->config().name + ": homing failed (" + r.error + ")"; return false; }
         const JPReply w = d->waitForMotion();
         if (!w.ok) { why = d->config().name + ": homing did not finish (" + w.error + ")"; return false; }
@@ -220,7 +220,7 @@ bool JPCell::doHome(std::string& why) {
             if (a.kind == JPAxisConfig::Kind::Controller && a.driverId == d->config().id)
                 axes += (axes.empty() ? "" : " ") + a.letter + format(a.homeCoordinate, d->profile()->decimals());
         if (!axes.empty()) {
-            const JPReply p = d->sendCommand("setPosition", { { "axes", axes } }).get();
+            const JPReply p = d->command("setPosition", { { "axes", axes } });
             if (!p.ok) { why = d->config().name + ": home coordinates not set (" + p.error + ")"; return false; }
         }
     }
@@ -322,7 +322,7 @@ bool JPCell::doMove(std::map<std::string, double> targets, double speed, std::st
         }
         feed *= std::clamp(speed, 0.0, 1.0);
         JLOGC(JPlacerLog::kCell, JLogLevel::Debug) << "move " << d->config().name << ": " << words << " F" << format(feed, 0);
-        const JPReply r = d->sendCommand("move", { { "axes", words }, { "feed", format(feed, 0) } }).get();
+        const JPReply r = d->command("move", { { "axes", words }, { "feed", format(feed, 0) } });
         if (!r.ok) { why = d->config().name + ": move refused (" + r.error + ")"; return false; }
         moved.push_back(d);
     }

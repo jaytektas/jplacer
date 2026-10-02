@@ -17,7 +17,7 @@ file is where OpenPnP keeps it (`.openpnp2/machine.xml` in your home folder), jp
 import that one: **Import**, or **Choose Another File…** to pick a different `machine.xml`. In the file
 dialog, tick **Show hidden** (or press Ctrl+H) to see folders whose names start with a dot, such as
 `.openpnp2`. The new cell is saved as `cells/openpnp.json` and opened straight away. Importing again
-replaces that file.
+replaces that file, except for the port each controller was set to here, which is kept.
 
 What is brought across:
 
@@ -27,6 +27,9 @@ What is brought across:
 - **The head**, its **nozzles** (with the actuator for each nozzle's vacuum), **cameras** and
   **actuators**, and the cameras and actuators fixed to the machine.
 - **Actuator commands**: how each one is switched on and off, and how a value is read from it.
+- **The home command**, every line of it, in order: a machine's homing sequence (release Z, home Y and X
+  onto their switches, set the coordinates, home Z…) is the controller's own, and Home runs it.
+- **The connect wait**: how long to listen after opening the port before asking anything.
 
 When the import finishes, a message says what was brought in and lists anything to check: a part of
 the OpenPnP set-up jplacer has no equivalent for yet (some axis types, a controller that is not G-code

@@ -70,7 +70,7 @@ int main() {
         int statusSeen = 0;
         driver.onStatus.connect([&](JPFirmwareProfile::Status) { ++statusSeen; });
 
-        const JPReply moved = driver.sendCommand("move", { { "axes", "X10 Y5" }, { "feed", "3000" } }).get();
+        const JPReply moved = driver.command("move", { { "axes", "X10 Y5" }, { "feed", "3000" } });
         assert(moved.ok);
         const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
         while (driver.status().positions["X"] != 10.0 && std::chrono::steady_clock::now() < deadline)
@@ -92,10 +92,26 @@ int main() {
 
         const JPReply refused = driver.send("M9999").get();
         assert(!refused.ok && refused.error == "error:20");
-        assert(!driver.sendCommand("no-such-command").get().ok);
+        assert(!driver.command("no-such-command").ok);
+
 
         driver.disconnect();
         assert(!driver.isConnected() && !driver.send("G0 X0").get().ok);
+    }
+    {
+        // A controller's own command of several lines (a homing sequence) runs
+        // them in order, and the first refused stops the rest.
+        JPDriverConfig c = config("[FIRMWARE:grblHAL]");
+        c.commands["home"] = "G0 X1\nG0 X2\nM9999\nG0 X3";
+        JPGcodeDriver driver(c, profiles());
+        std::string error;
+        assert(driver.connect(error));
+        const JPReply r = driver.command("home");
+        assert(!r.ok && r.error == "error:20");
+        const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+        while (driver.status().positions["X"] != 2.0 && std::chrono::steady_clock::now() < until)
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        assert(driver.status().positions.at("X") == 2.0);   // X3 never sent
     }
     {
         // A port where nothing answers is not a connection.
