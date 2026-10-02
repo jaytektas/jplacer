@@ -20,14 +20,15 @@ inline namespace jf {
 // measures it there (where the lens bends nothing), and each find makes the
 // guess better for the next: the first moves it, the second turns it, three or
 // more fit it fully (affine), which also takes up a machine whose axes are not
-// quite square. The first is looked for widely, the rest close by.
+// quite square. The first two are looked for widely (until two are found the
+// board's turn is only guessed), the rest close by.
 //
 // Runs on a thread of its own: it waits on moves and pictures.
 class JPBoardLocator {
 public:
     struct Options {
         double fiducialDiameterMm = 1.0;   // where the board does not say (JPPlacement::fiducialMm)
-        double firstSearchMm = 10;    // how far from the guess the first fiducial is looked for
+        double firstSearchMm = 10;    // how far from the guess the first two fiducials are looked for
         double searchMm = 2;          // the rest, once the first is found
         double speed = 0.1;           // share of the axes' rates
         double maxRmsMm = 0.1;        // fiducials that disagree more are refused

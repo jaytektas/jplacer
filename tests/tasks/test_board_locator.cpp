@@ -164,8 +164,10 @@ int main() {
 
     JPBoardLocator::Options o;
     o.speed = 1.0;
-    // A guess a couple of millimetres and half a degree out.
-    const JPBoardSide guess = JPBoardSide::placed(JPPlacement::Side::Bottom, 346.2, 70.6, 0);
+    // A guess a few millimetres and two degrees out (a board put down by hand,
+    // the camera put on one fiducial by eye): the furthest fiducial is then
+    // several millimetres from where the guess puts it.
+    const JPBoardSide guess = JPBoardSide::placed(JPPlacement::Side::Bottom, 345.4, 72.3, 1.4);
     const JPBoardLocator::Result r = JPBoardLocator::run(cell, feed, b, guess, o);
     if (!r.ok) std::fprintf(stderr, "why: %s\n", r.why.c_str());
     assert(r.ok && r.affine && r.fiducials.size() == 5 && r.rmsMm < 0.005);

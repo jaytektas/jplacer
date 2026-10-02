@@ -37,7 +37,8 @@ starts the board's position again.
    board unturned (or turned as it was last found), with that fiducial where the camera is looking.
 3. Press **Locate Board**. The camera visits every fiducial on the side that is up: first the one nearest
    it, then the one furthest from that, then each nearest the last. It looks widely (10 mm) for the
-   first, then closely (2 mm) for the rest, centres on each one and measures it in the middle of the
+   first two (until two are found, how far the board is turned is only a guess), then closely (2 mm) for
+   the rest, centres on each one and measures it in the middle of the
    picture, where the lens bends nothing. Each find makes the board's position better for the next.
 
 With two fiducials found, the board is moved and turned to fit them; with three or more it is fitted

@@ -93,7 +93,9 @@ JPBoardLocator::Result JPBoardLocator::run(JPCell& cell, JPCameraFeed& feed, con
             JPRoundMarkFinder::Request rq;
             rq.expectedX = img.width / 2.0;
             rq.expectedY = img.height / 2.0;
-            rq.searchRadius = (move > 0 ? kCentringSearchMm : pairs.empty() ? o.firstSearchMm : o.searchMm) * scale;
+            // Widely until two are found: until then the board's turn is a
+            // guess, and the second is the furthest from the first.
+            rq.searchRadius = (move > 0 ? kCentringSearchMm : pairs.size() < 2 ? o.firstSearchMm : o.searchMm) * scale;
             rq.diameter = (p->fiducialMm > 0 ? p->fiducialMm : o.fiducialDiameterMm) * scale;
             rq.polarity = JPRoundMarkFinder::Polarity::Bright;   // copper on solder mask
             const JPRoundMark m = JPCameraLook::findTryingHarder(cell, feed, img, rq);
