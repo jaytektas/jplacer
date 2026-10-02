@@ -48,6 +48,7 @@ JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCellConfi
     // so a result reads in full.
     m_note = add(std::make_unique<JLabel>(graph, ""));
     m_view = add(std::make_unique<JPCameraView>(graph, hal));
+    m_view->onPictureDoubleClicked = [this](double px, double py) { if (onLookAtPixel) onLookAtPixel(px, py); };
     m_view->setVSizePolicy(JSizePolicyMode::Expanding, 1);
 
     std::weak_ptr<bool> alive = m_alive;

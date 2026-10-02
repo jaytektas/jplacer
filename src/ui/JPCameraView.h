@@ -10,6 +10,7 @@
 #include <j/core/JWidget.h>
 #include <j/graphics/GpuHal.h>
 
+#include <chrono>
 #include <functional>
 #include <memory>
 #include <string>
@@ -35,6 +36,10 @@ public:
     void setMarks(std::function<std::vector<JPViewMark>()> marks) { m_marks = std::move(marks); }
 
     void populateRenderPrimitives(JPrimitiveBuffer& buf) override;
+    void handleMousePress(float x, float y) override;
+
+    // The picture double-clicked, at this pixel of it.
+    std::function<void(double px, double py)> onPictureDoubleClicked;
 
 private:
     void showLatest();
@@ -48,6 +53,11 @@ private:
     JPFrame                            m_frame;
     std::string                        m_message;
     std::function<std::vector<JPViewMark>()> m_marks;
+    // Where the picture was last drawn (widget coordinates) and at what scale,
+    // to turn a click into a pixel of it; and the last press, for a double.
+    float                              m_picX = 0, m_picY = 0, m_picScale = 0;
+    std::chrono::steady_clock::time_point m_lastPress;
+    float                              m_lastPressX = 0, m_lastPressY = 0;
     std::function<void()>              m_unwatch;
     std::shared_ptr<bool>              m_alive = std::make_shared<bool>(true);
 };

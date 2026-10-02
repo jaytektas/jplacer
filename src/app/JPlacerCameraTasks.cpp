@@ -29,12 +29,23 @@ JPlacerCameraTasks::JPlacerCameraTasks(JAppWindow& window, JPCell& cell, JPCamer
     : m_window(window), m_cell(cell), m_cameras(cameras), m_cellPath(std::move(cellPath)) {
     m_cameras.onCalibrate  = [this] { calibrate(); };
     m_cameras.onVisualTest = [this] { visualTest(); };
+    // Double-click the picture: the camera looks there.
+    m_cameras.onLookAtPixel = [this](double px, double py) {
+        JPCameraCalibration cal;
+        double vx, vy, x, y;
+        if (!shownCameraLook(cal, vx, vy)) {
+            m_window.showStatus("To look where the picture is clicked, home the machine and calibrate this camera", kResultMs);
+            return;
+        }
+        if (cal.machinePoint(px, py, vx, vy, x, y)) lookAt(x, y);
+    };
 }
 
 JPlacerCameraTasks::~JPlacerCameraTasks() {
     *m_alive = false;
-    m_cameras.onCalibrate  = nullptr;
-    m_cameras.onVisualTest = nullptr;
+    m_cameras.onCalibrate   = nullptr;
+    m_cameras.onVisualTest  = nullptr;
+    m_cameras.onLookAtPixel = nullptr;
     if (m_worker.joinable()) m_worker.join();
 }
 

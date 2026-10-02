@@ -221,6 +221,11 @@ it is plugged into, so moving it to another socket or hub does not lose it. jpla
 picture the camera offers in MJPG (or YUYV, if that is all it has), unless the cell names a format and
 size.
 
+With a camera on the head calibrated and the machine homed, **double-click** anywhere in its picture and
+the camera moves to look there: the quickest way to put it over a fiducial or a part.
+
+<!-- src: src/ui/JPCameraView.cpp (handleMousePress); src/app/JPlacerCameraTasks.cpp (onLookAtPixel, lookAt) -->
+
 A camera can drop off its USB connection (noise from the stepper motors on its cable) or hang without
 saying so. jplacer notices either (no picture for 3 seconds counts as hung), says so across the top of
 the last picture, which would otherwise pass for a live one, and opens the camera again by its name every

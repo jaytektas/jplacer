@@ -10,6 +10,7 @@
 #include <j/graphics/VectorGraphics.h>
 
 #include <algorithm>
+#include <cmath>
 
 inline namespace jf {
 
@@ -80,6 +81,9 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     const float w = float(m_w) * scale, h = float(m_h) * scale;
     const float x = b.x + (b.width - w) * 0.5f, y = b.y + (b.height - h) * 0.5f;
     buf.pushImage(x, y, w, h, m_tex);
+    m_picX = x;
+    m_picY = y;
+    m_picScale = scale;
 
     // The crosshair: where the camera is looking.
     JVectorCanvas vg;
@@ -113,6 +117,20 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
         buf.pushRectangle(x, y, w, lh + 2 * pad, Colors::OverlayScrim, 0.f);
         JTextHelper::pushText(buf, x + pad, y + pad, m_message, Colors::Warning, w - 2 * pad);
     }
+}
+
+void JPCameraView::handleMousePress(float x, float y) {
+    const JStyle& st = JStyle::current();
+    const auto now = std::chrono::steady_clock::now();
+    const bool twice = now - m_lastPress < std::chrono::milliseconds(int(st.doubleClickMs))
+                    && std::abs(x - m_lastPressX) <= st.doubleClickSlop && std::abs(y - m_lastPressY) <= st.doubleClickSlop;
+    m_lastPress = twice ? std::chrono::steady_clock::time_point() : now;   // a third press starts again
+    m_lastPressX = x;
+    m_lastPressY = y;
+    if (!twice || m_picScale <= 0 || m_w <= 0 || !onPictureDoubleClicked) return;
+    const double px = (x - m_picX) / m_picScale, py = (y - m_picY) / m_picScale;
+    if (px < 0 || py < 0 || px >= m_w || py >= m_h) return;
+    onPictureDoubleClicked(px, py);
 }
 
 } // inline namespace jf

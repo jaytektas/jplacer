@@ -37,6 +37,8 @@ public:
 
     // Calibrate and Visual Test were pressed: the owner runs them on the
     // camera shown.
+    // The live picture double-clicked at this pixel: the owner looks there.
+    std::function<void(double px, double py)> onLookAtPixel;
     std::function<void()> onCalibrate;
     std::function<void()> onVisualTest;
 
