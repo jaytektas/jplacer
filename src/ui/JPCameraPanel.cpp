@@ -5,15 +5,22 @@
 
 #include "JPUiParts.h"
 
+#include "camera/JPImageFile.h"
+
 #include "common/JPlacerLog.h"
 
 #include <j/core/Log.h>
 #include <j/core/MainThreadDispatcher.h>
 
+#include <chrono>
+#include <cstdio>
+#include <ctime>
+#include <filesystem>
+
 inline namespace jf {
 
-JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCellConfig& cell)
-    : JContainer(graph) {
+JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCellConfig& cell, std::string capturesDir)
+    : JContainer(graph), m_capturesDir(std::move(capturesDir)) {
     JPUiParts::asPanel(*this);
     std::vector<std::string> names;
     for (const JPCameraConfig& c : cell.cameras) {
@@ -29,6 +36,7 @@ JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCellConfi
     m_state = top->add(std::make_unique<JLabel>(graph, ""));
     m_note  = top->add(std::make_unique<JLabel>(graph, ""));
     m_note->setHSizePolicy(JSizePolicyMode::Expanding, 1);
+    top->add(JPUiParts::button(graph, "Save Picture"))->onClicked.connect([this] { savePicture(); });
     add(std::move(top));
     m_view = add(std::make_unique<JPCameraView>(graph, hal));
     m_view->setVSizePolicy(JSizePolicyMode::Expanding, 1);
@@ -68,6 +76,37 @@ std::string JPCameraPanel::shownId() const {
 
 void JPCameraPanel::setNote(const std::string& text) {
     if (m_note) m_note->setText(text);
+}
+
+std::string JPCameraPanel::savePicture() {
+    if (m_shown >= m_feeds.size()) return {};
+    JPCameraFeed& feed = *m_feeds[m_shown];
+    JPFrame frame;
+    if (!feed.latest(frame, 0)) {
+        setNote("No picture yet to save.");
+        return {};
+    }
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    fs::create_directories(m_capturesDir, ec);
+    // <camera>-<date>-<time>.<ms>: in taking order, and never one over another.
+    const auto now = std::chrono::system_clock::now();
+    const std::time_t t = std::chrono::system_clock::to_time_t(now);
+    const int ms = int(std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count() % 1000);
+    char stamp[48];
+    std::strftime(stamp, sizeof stamp, "%Y%m%d-%H%M%S", std::localtime(&t));
+    char name[256];
+    std::snprintf(name, sizeof name, "%s-%s.%03d.png", feed.config().name.c_str(), stamp, ms);
+    const std::string path = (fs::path(m_capturesDir) / name).string();
+    std::string error;
+    if (!JPImageFile::writePng(path, frame, error)) {
+        JLOGC(JPlacerLog::kCamera, JLogLevel::Error) << error;
+        setNote("Not saved: " + error);
+        return {};
+    }
+    JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << "saved " << path;
+    setNote(std::string("Saved ") + name);
+    return path;
 }
 
 void JPCameraPanel::show(size_t index) {

@@ -10,11 +10,13 @@
 
 #include "camera/JPCameraFeed.h"
 #include "camera/JPCaptureFactory.h"
+#include "camera/JPImageFile.h"
 #include "camera/JPPixels.h"
 
 #include <j/config/Json.h>
 
 #include <chrono>
+#include <filesystem>
 #include <thread>
 
 using namespace jf;
@@ -65,6 +67,16 @@ int main() {
     assert(feed.mode() && feed.mode()->width == 64);
     feed.stop();
     assert(!feed.isRunning());
+
+    // A saved picture reads back exactly as it was.
+    const std::string png = (std::filesystem::temp_directory_path() / "jplacer_test_frame.png").string();
+    assert(JPImageFile::writePng(png, f, error));
+    JPFrame back;
+    assert(JPImageFile::readPng(png, back, error));
+    assert(back.width == f.width && back.height == f.height && back.rgba == f.rgba);
+    std::filesystem::remove(png);
+    JPFrame empty;
+    assert(!JPImageFile::writePng(png, empty, error) && !error.empty());
 
     // A camera whose backend this system lacks says so.
     JPCameraConfig bad = cam;

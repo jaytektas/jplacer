@@ -109,7 +109,8 @@ void JPlacerMachine::buildPanels() {
     }
     // The cameras fill the centre: what the machine sees is what the person
     // works from. A camera's light is on while it is the one shown.
-    m_cameras = std::make_unique<JPCameraPanel>(m_graph, m_window.hal(), m_cell->config());
+    m_cameras = std::make_unique<JPCameraPanel>(m_graph, m_window.hal(), m_cell->config(),
+                                                (std::filesystem::path(JPlacerPaths::configDir()) / "captures").string());
     m_cameras->onShown = [this](const std::string& shown, const std::string& before) { lightCameras(shown, before); };
     m_window.setCentralWidget(m_cameras.get());
     lightCameras(m_cameras->shownId(), std::string());

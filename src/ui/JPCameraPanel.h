@@ -22,7 +22,8 @@ inline namespace jf {
 // the others are stopped — so a camera nobody is looking at costs nothing.
 class JPCameraPanel : public JContainer {
 public:
-    JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCellConfig& cell);
+    // `capturesDir`: where Save Picture writes.
+    JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCellConfig& cell, std::string capturesDir);
     ~JPCameraPanel() override;
 
     // The camera shown changed (its id), and the one before it (empty at
@@ -34,6 +35,9 @@ public:
     std::string shownId() const;
     // A word about the picture beside the mode (e.g. why it is dark).
     void setNote(const std::string& text);
+    // Write the shown camera's latest picture to capturesDir. The file
+    // written, or empty with the reason in the note.
+    std::string savePicture();
 
 private:
     std::vector<std::unique_ptr<JPCameraFeed>> m_feeds;
@@ -41,6 +45,7 @@ private:
     JLabel*                                    m_state = nullptr;
     JLabel*                                    m_note  = nullptr;
     size_t                                     m_shown = SIZE_MAX;
+    std::string                                m_capturesDir;
     std::vector<std::function<void()>>         m_unwatch;
     std::shared_ptr<bool>                      m_alive = std::make_shared<bool>(true);
 };

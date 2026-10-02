@@ -51,8 +51,9 @@ target_link_libraries(jplacer_openpnp PUBLIC jplacer_machine PRIVATE EXPAT::EXPA
 # Cameras: capture devices (V4L2 on Linux) and simulated ones, a thread
 # each, frames as RGBA. libjpeg(-turbo) decodes MJPG.
 find_package(JPEG REQUIRED)
+find_package(PNG REQUIRED)
 add_library(jplacer_camera STATIC ${JPLACER_CAMERA_SRC})
-target_link_libraries(jplacer_camera PUBLIC jplacer_machine PRIVATE JPEG::JPEG)
+target_link_libraries(jplacer_camera PUBLIC jplacer_machine PRIVATE JPEG::JPEG PNG::PNG)
 
 # Measuring pictures: finding marks, to a fraction of a pixel, with nothing to tune.
 add_library(jplacer_vision STATIC ${JPLACER_VISION_SRC})

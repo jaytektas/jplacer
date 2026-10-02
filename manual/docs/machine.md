@@ -179,11 +179,15 @@ it is plugged into, so moving it to another socket or hub does not lose it. jpla
 picture the camera offers in MJPG (or YUYV, if that is all it has), unless the cell names a format and
 size.
 
+**Save Picture** writes the shown camera's latest picture as a PNG (lossless, so it measures the same as
+the live picture did) to `captures/` in jplacer's configuration folder, named after the camera and the
+moment it was taken; the note beside the buttons names the file.
+
 A camera only shows what is in front of it, and in an enclosed machine that is dark until its light is
 on. While the machine is connected, the shown camera's light is switched on (and the previous camera's
 off); while not connected, a note beside the buttons says the light is off.
 
-<!-- src: src/ui/JPCameraPanel.cpp; src/ui/JPCameraView.cpp; src/camera/JPV4L2Source.cpp (found by name); src/camera/JPCaptureFactory.cpp (choose); src/app/JPlacerMachine.cpp (lightCameras) -->
+<!-- src: src/ui/JPCameraPanel.cpp (savePicture); src/camera/JPImageFile.cpp; src/ui/JPCameraView.cpp; src/camera/JPV4L2Source.cpp (found by name); src/camera/JPCaptureFactory.cpp (choose); src/app/JPlacerMachine.cpp (lightCameras) -->
 
 ### Axes
 
