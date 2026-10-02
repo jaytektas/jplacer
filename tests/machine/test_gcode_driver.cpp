@@ -97,6 +97,23 @@ int main() {
         assert(!driver.isConnected() && !driver.send("G0 X0").get().ok);
     }
     {
+        // A port where nothing answers is not a connection.
+        JPDriverConfig c = config("[FIRMWARE:grblHAL]");
+        c.link["simulator"]["silent"] = true;
+        JPGcodeDriver driver(c, profiles());
+        std::string error;
+        assert(!driver.connect(error) && error.find("nothing answered") != std::string::npos);
+        assert(!driver.isConnected());
+    }
+    {
+        // Bytes left on the line spoil the first command; identification asks again.
+        JPDriverConfig c = config("[FIRMWARE:grblHAL]");
+        c.link["simulator"]["garbleFirstLine"] = true;
+        JPGcodeDriver driver(c, profiles());
+        std::string error;
+        assert(driver.connect(error) && driver.profile()->id() == "grblhal");
+    }
+    {
         // A Grbl that is not grblHAL falls to the Grbl profile.
         JPGcodeDriver driver(config("[OPT:V,15,128]"), profiles());
         std::string error;

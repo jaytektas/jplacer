@@ -44,6 +44,9 @@ public:
 
 private:
     bool openCell(const std::string& path, std::string& error);
+    void setPort(const std::string& driverId, const std::string& port);
+    // The NOT CONNECTED strip in the window's chrome; `why` is the last failure.
+    void showNotice(const std::string& why);
     void importFrom(const std::string& machineXml);
     void updateMenu();
 
@@ -55,6 +58,7 @@ private:
     std::unique_ptr<JPMachinePanel>     m_panel;
     std::function<void()>               m_unwatch;   // the menu's watch on the cell's connection
     std::shared_ptr<bool>               m_alive = std::make_shared<bool>(true);
+    std::string                         m_cellPath;
     JMenuItem*                          m_connectItem    = nullptr;
     JMenuItem*                          m_disconnectItem = nullptr;
 };

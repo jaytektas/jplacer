@@ -16,6 +16,11 @@ notes.
   and other G-code firmware, and reads the settings the controller stores.
 - A Machine panel shows the live position of every axis, switches and reads the
   actuators (lights, valves, vacuum sensors), and has a console for sending G-code.
+- A red NOT CONNECTED strip across the top of the window while the machine is not connected, saying why
+  when a connection failed. Connecting to a port where nothing answers now fails instead of pretending.
+- The Machine panel lists the serial devices plugged in, so you can pick the controller's port; it is
+  saved by the device's permanent name, which does not change when USB devices start in another order.
+- Dialog buttons are always wide enough for their labels.
 - The file dialog can show hidden folders, such as OpenPnP's .openpnp2: tick Show hidden, or press
   Ctrl+H.
 - A new icon. Run as an AppImage, jplacer adds itself to your applications menu with it.

@@ -32,6 +32,10 @@ public:
     JPMachinePanel(JSceneGraph& graph, JPCell& cell);
     ~JPMachinePanel() override;
 
+    // A serial controller's port was chosen (controller id, port path). The
+    // owner stores it in the cell file; the panel only offers the choice.
+    std::function<void(const std::string&, const std::string&)> onPortChosen;
+
 private:
     // Run `fn` on the main thread, unless this panel is gone by then.
     void onMain(std::function<void()> fn);

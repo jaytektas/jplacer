@@ -73,12 +73,24 @@ bool JPlacerMachine::openCell(const std::string& path, std::string& error) {
     m_cell = std::make_unique<JPCell>(std::move(config), m_profiles);
 
     std::weak_ptr<bool> alive = m_alive;
-    m_unwatch = m_cell->onConnection.connect([this, alive](bool, std::string) {
-        JMainThreadDispatcher::instance().post([this, alive] {
-            if (const auto a = alive.lock(); a && *a) updateMenu();
+    m_unwatch = m_cell->onConnection.connect([this, alive](bool, std::string why) {
+        JMainThreadDispatcher::instance().post([this, alive, why] {
+            if (const auto a = alive.lock(); a && *a) {
+                updateMenu();
+                showNotice(why);
+            }
         });
     });
     m_panel = std::make_unique<JPMachinePanel>(m_graph, *m_cell);
+    m_panel->onPortChosen = [this](const std::string& driverId, const std::string& port) {
+        // Posted: the choice arrives inside the panel's own event, and
+        // reopening the cell replaces that panel.
+        std::weak_ptr<bool> alive = m_alive;
+        JMainThreadDispatcher::instance().post([this, alive, driverId, port] {
+            if (const auto a = alive.lock(); a && *a) setPort(driverId, port);
+        });
+    };
+    m_cellPath = path;
     if (!m_dock) {
         m_dock = std::make_unique<JDockWidget>("Machine", 0.f, 0.f, 0.f, 0.f);
         m_window.dockSpace().right().addDock(m_dock.get());
@@ -89,7 +101,35 @@ bool JPlacerMachine::openCell(const std::string& path, std::string& error) {
     JPlacerSettings::save();
     JLOGC(JPlacerLog::kApp, JLogLevel::Info) << "cell " << m_cell->config().name << " from " << path;
     updateMenu();
+    showNotice(std::string());
     return true;
+}
+
+void JPlacerMachine::setPort(const std::string& driverId, const std::string& port) {
+    JPCellConfig config;
+    std::string error;
+    bool changed = false;
+    if (config.load(m_cellPath, error)) {
+        for (JPDriverConfig& d : config.drivers)
+            if (d.id == driverId && d.link["port"].str() != port) {
+                d.link["port"] = port;
+                changed = true;
+            }
+        if (!changed) return;
+        if (config.save(m_cellPath, error) && openCell(m_cellPath, error)) return;
+    }
+    JDialog::message("The port could not be changed", error);
+}
+
+void JPlacerMachine::showNotice(const std::string& why) {
+    if (!m_cell || m_cell->isConnected()) {
+        m_window.setNotice("");
+        return;
+    }
+    std::string detail = m_cell->config().name + " is not connected: positions are the last ones received, "
+                         "not live. Machine \xE2\x96\xB8 Connect.";
+    if (!why.empty()) detail = why;
+    m_window.setNotice("NOT CONNECTED", detail, Colors::Danger);
 }
 
 void JPlacerMachine::chooseCell() {

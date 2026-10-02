@@ -3,6 +3,8 @@
 
 #include "JPMachinePanel.h"
 
+#include "machine/JPSerialPorts.h"
+
 #include <j/core/JStyle.h>
 #include <j/core/MainThreadDispatcher.h>
 
@@ -61,6 +63,37 @@ JPMachinePanel::JPMachinePanel(JSceneGraph& graph, JPCell& cell)
         }
     });
     add(std::move(top));
+
+    // Where each serial controller is plugged in: the ports there are now,
+    // by the stable name a reboot does not change.
+    std::vector<JPSerialPorts::Port> ports;
+    for (const JPDriverConfig& d : cell.config().drivers) {
+        if (d.link["type"].str() != "serial") continue;
+        if (ports.empty()) ports = JPSerialPorts::list();
+        const std::string current = d.link["port"].str();
+        std::vector<std::string> labels, paths;
+        int selected = -1;
+        for (const JPSerialPorts::Port& p : ports) {
+            if (p.path == current || JPSerialPorts::stablePath(current) == p.path) selected = int(labels.size());
+            labels.push_back(p.label);
+            paths.push_back(p.path);
+        }
+        if (selected < 0) {   // configured, but not plugged in now: still shown, so it is not silently lost
+            selected = int(labels.size());
+            labels.push_back(current + " (not found)");
+            paths.push_back(current);
+        }
+        auto portRow = row(graph);
+        portRow->add(std::make_unique<JLabel>(graph, d.name + " port"));
+        JComboBox* combo = portRow->add(std::make_unique<JComboBox>(graph, labels));
+        combo->setHSizePolicy(JSizePolicyMode::Expanding, 1);
+        combo->setCurrentIndex(selected);
+        const std::string id = d.id;
+        combo->onIndexChanged.connect([this, id, paths](int i) {
+            if (i >= 0 && size_t(i) < paths.size() && onPortChosen) onPortChosen(id, paths[size_t(i)]);
+        });
+        add(std::move(portRow));
+    }
 
     // Position.
     add(std::make_unique<JLabel>(graph, "Position"));

@@ -43,9 +43,12 @@ void JPSimulatedGrbl::configure(const JJson& config) {
     for (const auto& [id, value] : config["settings"].obj()) m_settings[std::atoi(id.c_str())] = value.str();
     m_replies.clear();
     for (const auto& [cmd, reply] : config["replies"].obj()) m_replies[upper(cmd)] = reply.str();
+    m_silent = config["silent"].boolean();
+    m_garble = config["garbleFirstLine"].boolean();
 }
 
 void JPSimulatedGrbl::receive(const std::string& bytes) {
+    if (m_silent) return;
     for (char c : bytes) {
         if (c == kStatusQuery) {
             m_out.push_back(statusReport());
@@ -80,6 +83,11 @@ std::string JPSimulatedGrbl::statusReport() const {
 }
 
 void JPSimulatedGrbl::execute(const std::string& raw) {
+    if (m_garble) {
+        m_garble = false;
+        m_out.push_back(kErrorBadNumber);
+        return;
+    }
     std::string line = upper(raw);
     line.erase(std::remove(line.begin(), line.end(), ' '), line.end());
 

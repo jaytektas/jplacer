@@ -75,23 +75,39 @@ bool JPGcodeDriver::identify(std::string& error) {
     }
 
     // Ask each way of identifying once, and offer the answer to every profile
-    // that asks the same way, highest priority first.
+    // that asks the same way, highest priority first. A refusal is asked
+    // again once: bytes left on the line from before the port was opened
+    // (a half command, a reset banner) spoil the first command, not the second.
     std::map<std::string, JPReply> asked;
+    bool answered = false;   // anything at all came back
     for (const JPFirmwareProfile& p : m_profiles) {
         if (p.identifyCommand().empty()) continue;
         auto it = asked.find(p.identifyCommand());
         if (it == asked.end()) {
             m_replyProfile = &p;
-            it = asked.emplace(p.identifyCommand(), send(p.identifyCommand(), m_config.identifyTimeoutMs).get()).first;
+            JPReply r = send(p.identifyCommand(), m_config.identifyTimeoutMs).get();
+            if (!r.ok && !r.error.empty() && p.errorIn(r.error))
+                r = send(p.identifyCommand(), m_config.identifyTimeoutMs).get();
+            it = asked.emplace(p.identifyCommand(), std::move(r)).first;
         }
-        if (it->second.ok && p.identifies(it->second.lines)) {
+        const JPReply& r = it->second;
+        answered |= r.ok || !r.lines.empty() || (!r.error.empty() && p.errorIn(r.error));
+        if (r.ok && p.identifies(r.lines)) {
             m_replyProfile = &p;
             m_profile      = &p;
-            m_plugins      = p.pluginsIn(it->second.lines);
+            m_plugins      = p.pluginsIn(r.lines);
             return true;
         }
     }
-    // Nothing recognised it: the first profile that does not need to.
+    // Silence is not a controller. A port that answers nothing is the wrong
+    // port, or a board that is off: say so rather than call it connected.
+    if (!asked.empty() && !answered) {
+        error = m_config.name + ": nothing answered on " + m_link->describe()
+              + " (the wrong port, or the controller is off)";
+        return false;
+    }
+    // Something answered but no profile recognised it: the first profile
+    // that does not need to.
     for (const JPFirmwareProfile& p : m_profiles) {
         if (!p.identifyCommand().empty()) continue;
         JLOGC(JPlacerLog::kDriver, JLogLevel::Warn) << m_config.name << ": firmware not recognised, using " << p.name();

@@ -55,10 +55,25 @@ For each one jplacer:
 3. sends the profile's start-up command;
 4. reads the settings the controller stores itself, where the profile says how.
 
-If any controller fails, the others are disconnected again and the panel says why. **Disconnect**
-closes every connection.
+If any controller fails, the others are disconnected again and the panel says why. A port where
+nothing answers is a failure, not a connection: it is the wrong port, or the controller is off.
+**Disconnect** closes every connection.
 
-<!-- src: src/machine/JPCell.cpp (connect); src/machine/JPGcodeDriver.cpp (connect, identify, readSettings); profiles/grblhal.json; profiles/grbl.json; profiles/generic.json -->
+While a cell is open and not connected, a red **NOT CONNECTED** strip runs across the top of the
+window, saying why the last connection failed when one did. It goes away as soon as the cell connects.
+
+<!-- src: src/machine/JPGcodeDriver.cpp (identify: nothing answered); src/app/JPlacerMachine.cpp (showNotice) -->
+
+### Choosing the port
+
+USB serial ports are numbered in the order devices happen to start (`ttyACM0`, `ttyACM1`, …), so the
+number a controller had yesterday — or in OpenPnP's configuration — can belong to a different device
+today. For each controller on a serial port, the Machine panel has a **port** list showing the serial
+devices plugged in now, by the name each device gives itself. Choosing one saves it in the cell, using
+the device's permanent name (under `/dev/serial/by-id` on Linux), which stays the same whatever order
+devices start in. A port the cell names but that is not plugged in is listed as "(not found)".
+
+<!-- src: src/machine/JPCell.cpp (connect); src/machine/JPGcodeDriver.cpp (connect, identify, readSettings); profiles/grblhal.json; profiles/grbl.json; profiles/generic.json; src/machine/JPSerialPorts.cpp (stable names); src/ui/JPMachinePanel.cpp (the port list) -->
 
 ### Firmware profiles
 

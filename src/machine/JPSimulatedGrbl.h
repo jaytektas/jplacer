@@ -25,7 +25,9 @@ public:
     //   "identity":    ["[VER:1.1f.20250101:]", "[FIRMWARE:grblHAL]"],
     //   "axisLetters": ["X", "Y", "Z"],
     //   "settings":    { "100": "80", "110": "5000" },
-    //   "replies":     { "M1000 P0": "-12000" }
+    //   "replies":     { "M1000 P0": "-12000" },
+    //   "silent":          false,   // answers nothing: a port with no controller behind it
+    //   "garbleFirstLine": false    // the first line fails (error:2), as after junk on the line
     // }
     void configure(const JJson& config);
 
@@ -49,6 +51,8 @@ private:
 
     std::map<std::string, double> m_position;
     bool                          m_relative = false;
+    bool                          m_silent   = false;
+    bool                          m_garble   = false;
     std::string                   m_input;
     std::deque<std::string>       m_out;
 };
