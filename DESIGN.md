@@ -321,6 +321,16 @@ edit, and a bare "not found" when it fails. jplacer's rule is **no tuning**:
   round marks (bright on dark or dark on bright alike), matching a drawn
   shape of the expected size, edges and fits for refinement to a fraction
   of a pixel. Two methods must agree before an answer is taken.
+- **Measure what does not change.** A real board is full of round things
+  (holes, vias, pads, round letters, reflections), and shiny copper looks
+  different from place to place (straight under the camera it reflects the
+  lens, dark in the middle). So the round-mark finder keeps the roundest few
+  places, measures each by its EDGE alone (the steepest change of the asked
+  polarity along narrow strips, placed at the halfway crossing, a circle
+  fitted), accepts an edge round nearly all the way and standing above the
+  ground's grain, and prefers the most convincing. The first fiducial is
+  looked for widely, the rest close by; each is centred before it is
+  measured, where the lens bends nothing.
 - **Own the picture.** Exposure, gain and white balance are locked per camera
   and per task; a picture is used only once it is still after a move.
 - **Cancel the ambient light.** A frame with the camera's light on, one with
@@ -341,12 +351,25 @@ edit, and a bare "not found" when it fails. jplacer's rule is **no tuning**:
   and calibration stay classical: they need a fraction of a pixel and the
   same answer every time.
 
-Cameras are calibrated by jplacer itself, not imported: scale, rotation and
-mirroring from known moves of the head over a mark; tilt from the
-calibration rig's two fiducials at two heights, so the point a camera looks
-at is computed for the height being looked at. Everything is first proven
-on a simulated camera that draws the machine with a hidden scale, rotation
-and tilt the calibration must recover.
+Cameras are calibrated by jplacer itself, not imported: scale, rotation,
+mirroring and the lens from known moves of the head over a mark (a 5 x 5
+grid across the middle of the picture, every move arriving from the same
+side); tilt from the calibration rig's two fiducials at two heights, so the
+point a camera looks at is computed for the height being looked at. The lens
+is a radial bend about its own centre (a small camera's sensor is rarely on
+the lens's axis: bench's top camera bends about a point 30 px off the
+picture's middle). A picture is used only if it was TAKEN after the move
+ended (its capture time, not its arrival: a driver queues a few).
+Everything is first proven on a simulated camera that draws the machine
+with a hidden scale, rotation, lens and tilt the calibration must recover.
+
+The machine is calibrated by what it can see. Visual homing corrects the
+switches' home by the homing mark. A board is square to far better than a
+gantry, so a board located by three or more fiducials measures how far the
+machine's Y axis leans from square; the cell then works in square
+coordinates and each move tells the axes their own (the correction pivots
+at the homing mark, which keeps its coordinates). A camera that drops off
+or hangs is opened again by its name.
 
 ## GUI
 
