@@ -82,7 +82,8 @@ calibrated head camera shows the board over itself: a small circle and the desig
 the side that is up, and a ring the size of a fiducial at each fiducial. A board in its right place has
 each mark on its part, wherever the camera looks.
 
-Double-click a placement in the list (the parts on the side that is up) and the camera goes to look at
-it, wherever the board is. The status bar names it, its footprint and value, and where it is.
+Double-click a placement in the list (the parts on the side that is up), or a fiducial in the list of
+the last finding (one that was not found, to see why), and the camera goes to look at it, wherever the
+board is. The status bar names it, its footprint and value, and where it is.
 
 <!-- src: src/app/JPlacerBoard.cpp (goTo, marks); src/app/JPlacerCameraTasks.cpp (lookAt, shownCameraLook); src/ui/JPCameraView.cpp (marks); src/machine/JPCameraCalibration.cpp (pixelFor) -->

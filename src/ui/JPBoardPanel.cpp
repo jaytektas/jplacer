@@ -50,6 +50,10 @@ JPBoardPanel::JPBoardPanel(JSceneGraph& graph) : JContainer(graph) {
 
     m_found = add(std::make_unique<JListView>(graph));
     m_found->setVSizePolicy(JSizePolicyMode::Expanding, 1);
+    // A fiducial's line double-clicked: the camera goes to look at it (one not found, to see why).
+    m_found->onItemActivated.connect([this](int i) {
+        if (onGoTo && i >= 0 && size_t(i) < m_foundDesignators.size()) onGoTo(m_foundDesignators[size_t(i)]);
+    });
 
     // A board is square: what its fiducials show of the machine's lean can correct it.
     auto squareRow = JPUiParts::row(graph);
@@ -90,6 +94,8 @@ void JPBoardPanel::showPlace(const std::string& text) {
 
 void JPBoardPanel::showFound(const std::vector<std::string>& lines) {
     m_found->setItems(lines);
+    m_foundDesignators.clear();
+    for (const std::string& l : lines) m_foundDesignators.push_back(l.substr(0, l.find(' ')));
 }
 
 void JPBoardPanel::setBusy(bool busy) {

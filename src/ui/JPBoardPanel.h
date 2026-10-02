@@ -38,7 +38,7 @@ public:
                    const std::vector<std::string>& placements, const std::vector<std::string>& designators);
     // Where it is, in words, and how that was found.
     void showPlace(const std::string& text);
-    // The last finding: one line a fiducial.
+    // The last finding: one line a fiducial, its designator first.
     void showFound(const std::vector<std::string>& lines);
     // A task under way: its buttons off.
     void setBusy(bool busy);
@@ -58,6 +58,7 @@ private:
     std::vector<JButton*>    m_buttons;
     bool                     m_canSquare = false;
     std::vector<std::string> m_designators;
+    std::vector<std::string> m_foundDesignators;
     bool                     m_updating = false;
 };
 
