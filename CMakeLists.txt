@@ -93,4 +93,6 @@ if(JPLACER_TESTS)
         add_test(NAME ${name} COMMAND ${name})
       endforeach()
     endforeach()
+    # The calibration fit's test also checks the machine module's calibration record.
+    target_link_libraries(test_calibration_fit PRIVATE jplacer_machine)
 endif()
