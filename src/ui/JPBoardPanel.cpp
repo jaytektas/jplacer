@@ -56,6 +56,9 @@ JPBoardPanel::JPBoardPanel(JSceneGraph& graph) : JContainer(graph) {
     m_square = squareRow->add(JPUiParts::button(graph, "Square the Machine\xE2\x80\xA6"));
     m_square->onClicked.connect([this] { if (onSquare) onSquare(); });
     m_square->setEnabled(false);
+    m_lean = squareRow->add(std::make_unique<JLabel>(graph, ""));
+    m_lean->setHSizePolicy(JSizePolicyMode::Expanding, 1);
+    m_lean->setWordWrap(true);
     add(std::move(squareRow));
 
     // Any placement: choose it, the camera goes to it.
@@ -95,9 +98,10 @@ void JPBoardPanel::setBusy(bool busy) {
     m_side->setChoicesEnabled(!busy);
 }
 
-void JPBoardPanel::setCanSquare(bool can) {
-    m_canSquare = can;
-    m_square->setEnabled(can);
+void JPBoardPanel::showLean(const std::string& text) {
+    m_lean->setText(text);
+    m_canSquare = !text.empty();
+    m_square->setEnabled(m_canSquare);
 }
 
 } // inline namespace jf

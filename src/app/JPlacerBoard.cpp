@@ -12,6 +12,7 @@
 #include <j/core/Dialog.h>
 #include <j/core/Log.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <sstream>
@@ -81,6 +82,7 @@ void JPlacerBoard::import() {
         // A new board is nowhere yet; the side with the fiducials is a fair first guess.
         m_placed = m_measured = false;
         m_found.clear();
+        m_leans.clear();
         m_place.side = m_board.fiducials(JPPlacement::Side::Top).empty() && !m_board.fiducials(JPPlacement::Side::Bottom).empty()
                            ? JPPlacement::Side::Bottom
                            : JPPlacement::Side::Top;
@@ -98,6 +100,7 @@ void JPlacerBoard::setSide(bool bottom) {
     m_place.side = side;
     m_placed = m_measured = false;
     m_found.clear();
+    m_leans.clear();
     save();
     show();
 }
@@ -138,11 +141,10 @@ void JPlacerBoard::locate() {
         m_found.clear();
         for (const auto& f : r.fiducials)
             m_found.push_back(f.designator + (f.found ? "  found, " + mm(f.residualMm) + " mm from the fit" : "  not found: " + f.why));
-        m_lean.reset();
         if (r.ok) {
             m_place = r.board;
             m_measured = true;
-            if (r.affine) m_lean = r.xPerY;
+            if (r.affine) m_leans.push_back(r.xPerY);
         }
         save();
         show();
@@ -181,29 +183,45 @@ void JPlacerBoard::show() {
         m_panel->showPlace(std::string(m_measured ? "Found by its fiducials" : "Starting point") + ": origin at "
                            + mm(m_place.toMachine.tx) + ", " + mm(m_place.toMachine.ty) + ", turned "
                            + mm(m_place.toMachine.rotationDeg()) + " deg");
-    if (m_lean)
-        m_found.push_back("The machine's axes lean " + mm(*m_lean * 100) + " mm in X per 100 mm of Y ("
-                          + mm(std::atan(*m_lean) * 57.29578) + " deg out of square)");
     m_panel->showFound(m_found);
-    if (m_lean) m_found.pop_back();
-    m_panel->setCanSquare(m_lean.has_value());
+    std::string lean;
+    if (!m_leans.empty()) {
+        const double mean = meanLean();
+        lean = "The machine's axes lean " + mm(mean * 100) + " mm in X per 100 mm of Y ("
+             + mm(std::atan(mean) * 57.29578) + " deg out of square)";
+        if (m_leans.size() > 1) {
+            const auto [lo, hi] = std::minmax_element(m_leans.begin(), m_leans.end());
+            lean += ": the mean of " + std::to_string(m_leans.size()) + " findings, from " + mm(*lo * 100) + " to "
+                  + mm(*hi * 100);
+        } else {
+            lean += "; locating it again measures it better";
+        }
+    }
+    m_panel->showLean(lean);
+}
+
+double JPlacerBoard::meanLean() const {
+    double sum = 0;
+    for (double l : m_leans) sum += l;
+    return m_leans.empty() ? 0 : sum / double(m_leans.size());
 }
 
 void JPlacerBoard::square() {
     const JPMountConfig* mount = m_tasks.shownMount();
-    if (!m_lean || !mount || mount->axisX.empty() || mount->axisY.empty()) return;
-    const double lean = *m_lean;
+    if (m_leans.empty() || !mount || mount->axisX.empty() || mount->axisY.empty()) return;
+    const double lean = meanLean();
     const JPMountConfig gantry = *mount;
     std::weak_ptr<bool> alive = m_alive;
     JDialog::confirm("Square the Machine",
-                     "The board's fiducials show the machine's Y axis leaning " + mm(lean * 100)
-                         + " mm in X per 100 mm. Correct for it from now on?\n\nEvery coordinate changes a little: "
+                     "The board's fiducials show the machine's Y axis leaning " + mm(lean * 100) + " mm in X per 100 mm"
+                         + (m_leans.size() > 1 ? " (the mean of " + std::to_string(m_leans.size()) + " findings)" : "")
+                         + ". Correct for it from now on?\n\nEvery coordinate changes a little: "
                            "home the machine again, then calibrate the camera and locate the board again.",
                      [this, alive, lean, gantry] {
                          if (const auto a = alive.lock(); !a || !*a) return;
                          m_square(gantry, lean);
                          // Measured in the old coordinates: the board is to be found again.
-                         m_lean.reset();
+                         m_leans.clear();
                          m_measured = false;
                          m_found.clear();
                          save();

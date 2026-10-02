@@ -57,8 +57,10 @@ calibrated (see [Calibrating the head camera](machine.md#calibrating-the-head-ca
 
 A gantry's Y axis is rarely exactly square to its X: moving along Y carries the head a little along X
 too. A board is made far squarer than that, so when **Locate Board** finds three or more fiducials, the
-list's last line says how far the machine's axes lean: so many millimetres of X per 100 mm of Y, and
-the angle out of square. **Square the Machine…** corrects for it from then on: jplacer's coordinates
+line beside **Square the Machine…** says how far the machine's axes lean: so many millimetres of X per
+100 mm of Y, and the angle out of square. One finding gives it to some tens of percent; each Locate Board
+after that adds a finding, and the line gives their mean and range. **Square the Machine…** corrects by
+the mean from then on: jplacer's coordinates
 become square, and each move tells the axes what that means for them (a move along Y moves X a
 little too). The correction is kept in the cell file, and is made about the Y of the head's homing mark,
 so the homing mark's coordinates do not change.

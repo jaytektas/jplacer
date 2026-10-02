@@ -13,7 +13,6 @@
 
 #include <functional>
 #include <memory>
-#include <optional>
 #include <string>
 
 inline namespace jf {
@@ -55,7 +54,11 @@ private:
     bool                m_placed = false;     // m_place says something (else only the side does)
     bool                m_measured = false;   // by its fiducials
     std::vector<std::string> m_found;   // the last finding, a line a fiducial
-    std::optional<double> m_lean;       // the machine's lean the last finding measured (JPBoardLocator::Result::xPerY)
+    // The machine's lean as each finding since the board, its side or the
+    // squareness last changed measured it (JPBoardLocator::Result::xPerY):
+    // one is good to some tens of percent, their mean better.
+    std::vector<double> m_leans;
+    double meanLean() const;
     Square              m_square;
     std::shared_ptr<bool> m_alive = std::make_shared<bool>(true);
 };

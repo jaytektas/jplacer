@@ -42,8 +42,9 @@ public:
     void showFound(const std::vector<std::string>& lines);
     // A task under way: its buttons off.
     void setBusy(bool busy);
-    // Whether the board's last finding measured the machine's squareness.
-    void setCanSquare(bool can);
+    // What the findings say of the machine's squareness (empty: nothing yet),
+    // and so whether it can be squared by them.
+    void showLean(const std::string& text);
 
 private:
     JLabel*                  m_summary = nullptr;
@@ -53,6 +54,7 @@ private:
     JListView*               m_found = nullptr;
     JListView*               m_placements = nullptr;
     JButton*                 m_square = nullptr;
+    JLabel*                  m_lean = nullptr;
     std::vector<JButton*>    m_buttons;
     bool                     m_canSquare = false;
     std::vector<std::string> m_designators;
