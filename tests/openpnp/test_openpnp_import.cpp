@@ -69,6 +69,8 @@ int main() {
     assert(cell.cameras.size() == 2);
     assert(!cell.cameras[0].looksUp && cell.cameras[0].mount.headId == "H1" && cell.cameras[0].unitsPerPixelX == 0.0437);
     assert(cell.cameras[0].device["unique-id"].str() == "top: usb-1");
+    assert(cell.cameras[0].device["backend"].str() == "v4l2" && cell.cameras[0].device["name"].str() == "top:");
+    assert(cell.cameras[0].device["fps"].number() == 5.0);
     assert(cell.cameras[1].looksUp && cell.cameras[1].mount.headId.empty() && cell.cameras[1].mount.offsetZ == -24);
 
     // Nothing in the imported cell points at nothing.

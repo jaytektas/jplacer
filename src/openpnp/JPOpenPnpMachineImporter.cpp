@@ -292,6 +292,18 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
         cam.device["openpnpClass"] = shortClass(x);
         for (const char* key : { "unique-id", "format-id", "fps", "rotation", "flip-x", "flip-y", "light-actuator-id" })
             if (!x.attr(key).empty()) cam.device[key] = x.attr(key);
+        // OpenPnpCaptureCamera's unique id is the device's own name and the
+        // USB port it was on ("top: top usb-0000:00:14.0-8.2"). jplacer finds a
+        // camera by its name alone, so a different port or hub does not lose it.
+        if (shortClass(x) == "OpenPnpCaptureCamera") {
+            const std::string& uid = x.attr("unique-id");
+            const size_t usb = uid.rfind(" usb-");
+            cam.device["backend"] = "v4l2";
+            cam.device["name"]    = usb == std::string::npos ? uid : uid.substr(0, usb);
+            if (const double fps = number(x.attr("fps")); fps > 0) cam.device["fps"] = fps;
+        } else {
+            notes.push_back("camera " + cam.name + " (" + shortClass(x) + ") is not a kind jplacer can capture from yet");
+        }
         c.cameras.push_back(std::move(cam));
     };
 

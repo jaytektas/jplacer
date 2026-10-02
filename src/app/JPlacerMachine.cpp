@@ -71,6 +71,10 @@ void JPlacerMachine::dropPanels() {
         d.dock->setContent(nullptr);
         d.panel.reset();
     }
+    if (m_cameras) {
+        m_window.setCentralWidget(nullptr);
+        m_cameras.reset();
+    }
 }
 
 void JPlacerMachine::buildPanels() {
@@ -103,6 +107,21 @@ void JPlacerMachine::buildPanels() {
         m_docks[i].panel = std::move(panels[i].second);
         m_docks[i].dock->setContent(m_docks[i].panel.get());
     }
+    // The cameras fill the centre: what the machine sees is what the person
+    // works from. A camera's light is on while it is the one shown.
+    m_cameras = std::make_unique<JPCameraPanel>(m_graph, m_window.hal(), m_cell->config());
+    m_cameras->onShown = [this](const std::string& shown, const std::string& before) {
+        if (!m_cell || !m_cell->isConnected()) return;
+        auto light = [this](const std::string& cameraId) -> std::string {
+            for (const JPCameraConfig& c : m_cell->config().cameras)
+                if (c.id == cameraId) return c.device["light-actuator-id"].str();
+            return {};
+        };
+        if (const std::string off = light(before); !off.empty()) m_cell->switchActuator(off, false);
+        if (const std::string on = light(shown); !on.empty()) m_cell->switchActuator(on, true);
+    };
+    m_window.setCentralWidget(m_cameras.get());
+
     if (first) {
         // Each area opens on its first panel (the last added would be in front).
         showDock("Machine");

@@ -4,6 +4,7 @@
 #pragma once
 
 #include "machine/JPCell.h"
+#include "ui/JPCameraPanel.h"
 #include "ui/JPConnectIcon.h"
 #include "ui/JPHomeIcon.h"
 
@@ -75,6 +76,7 @@ private:
     std::unique_ptr<JPCell>             m_cell;
     std::string                         m_cellPath;
     std::vector<Dock>                   m_docks;
+    std::unique_ptr<JPCameraPanel>      m_cameras;   // the window's centre
     std::vector<std::function<void()>>  m_unwatch;   // this class's watches on the cell
     std::shared_ptr<bool>               m_alive = std::make_shared<bool>(true);
     JMenuItem*                          m_connectItem    = nullptr;
