@@ -121,6 +121,15 @@ int main() {
         cell.jog("N", 0, 0, 1.5, 0, 1.0);                  // the nozzle's Z is mapped: its input goes the other way
         assert(motion.take().first && settle("ZR", 1.5) && settle("Z", -1.5));
 
+        // A step from where the axis was sent, not from where it reports: back
+        // to 390 exactly, the limit itself, even when the report is 389.999.
+        cell.sendLine("D", "G92 X395.001");                // the report now reads a hair high
+        assert(settle("X", 395.001));
+        cell.jog("N", -5, 0, 0, 0, 0.5);
+        assert(motion.take().first && settle("X", 390.0));
+        cell.jog("N", 5, 0, 0, 0, 0.5);
+        assert(motion.take().first && settle("X", 395.0));
+
         cell.jog("N", 10, 0, 0, 0, 0.5);                   // 405 is past the soft limit
         const auto [limitOk, limitWhy] = motion.take();
         assert(!limitOk && limitWhy.find("soft limits") != std::string::npos && settle("X", 395.0));

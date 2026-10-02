@@ -70,6 +70,13 @@ public:
 
     // The latest coordinate of every axis, by axis id.
     std::map<std::string, double> positions() const;
+
+    // Where each axis was last SENT, where that still agrees with where it
+    // reports being (within kSettledTolerance); otherwise where it reports.
+    // A motor lands on its nearest step, so a reported position is a hair off
+    // the commanded one (389.001 for 389), and stepping from it carries the
+    // error into every next step — until an exact limit refuses a move back.
+    std::map<std::string, double> jogBase() const;
     // The firmware each connected controller identified as, by controller id.
     std::map<std::string, std::string> firmware() const;
 
@@ -100,6 +107,7 @@ private:
 
     mutable std::mutex                 m_mutex;   // guards the members below
     std::map<std::string, double>      m_positions;
+    std::map<std::string, double>      m_sent;       // last commanded coordinate, by axis id
     std::map<std::string, std::string> m_firmware;
     std::map<std::string, std::string> m_states;
 

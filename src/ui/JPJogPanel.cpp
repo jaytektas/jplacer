@@ -117,7 +117,7 @@ void JPJogPanel::showPositions(const std::map<std::string, double>& positions) {
 
 void JPJogPanel::step(int coordinate, double direction) {
     const Coordinate& co = m_coordinates[size_t(coordinate)];
-    const auto now = m_cell.positions();
+    const auto now = m_cell.jogBase();
     const auto p = now.find(co.axisId);
     if (p == now.end()) return;
     JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Jog: " << m_tools[m_tool].name << " " << co.axisId << " by "

@@ -226,8 +226,11 @@ bool JPCell::doHome(std::string& why) {
     }
     {
         std::lock_guard lk(m_mutex);
-        for (const JPAxisConfig& a : m_config.axes)
+        m_sent.clear();
+        for (const JPAxisConfig& a : m_config.axes) {
             if (a.kind == JPAxisConfig::Kind::Virtual) m_positions[a.id] = a.homeCoordinate;
+            if (a.kind != JPAxisConfig::Kind::Mapped) m_sent[a.id] = a.homeCoordinate;
+        }
     }
     JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_config.name << ": homed";
     return true;
@@ -239,7 +242,7 @@ void JPCell::jog(const std::string& toolId, double dx, double dy, double dz, dou
     for (const JPCameraConfig& c : m_config.cameras)     if (c.id == toolId) mount = &c.mount;
     for (const JPActuatorConfig& a : m_config.actuators) if (a.id == toolId) mount = &a.mount;
     if (!mount) return;
-    const auto now = positions();
+    const auto now = jogBase();
     std::map<std::string, double> targets;
     auto add = [&](const std::string& axis, double delta) {
         if (axis.empty() || delta == 0) return;
@@ -329,7 +332,26 @@ bool JPCell::doMove(std::map<std::string, double> targets, double speed, std::st
     }
     std::lock_guard lk(m_mutex);
     for (const auto& [id, t] : virtuals) m_positions[id] = t;
+    for (const auto& [id, t] : targets)  m_sent[id] = t;
+    for (const auto& [id, t] : hardware) m_sent[id] = t;
     return true;
+}
+
+namespace {
+
+// How far a reported position may sit from the commanded one and still be
+// "there": a few motor steps on any machine that places parts.
+constexpr double kSettledTolerance = 0.05;
+
+} // namespace
+
+std::map<std::string, double> JPCell::jogBase() const {
+    std::lock_guard lk(m_mutex);
+    std::map<std::string, double> out = m_positions;
+    for (const auto& [id, sent] : m_sent)
+        if (const auto p = out.find(id); p != out.end() && std::abs(p->second - sent) <= kSettledTolerance)
+            p->second = sent;
+    return out;
 }
 
 std::map<std::string, double> JPCell::positions() const {
