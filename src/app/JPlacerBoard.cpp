@@ -200,6 +200,23 @@ void JPlacerBoard::show() {
     m_panel->showLean(lean);
 }
 
+std::vector<JPViewMark> JPlacerBoard::marks() const {
+    std::vector<JPViewMark> out;
+    JPCameraCalibration cal;
+    double vx, vy;
+    if (!m_placed || !m_tasks.shownCameraLook(cal, vx, vy)) return out;
+    const double scale = std::sqrt(cal.scaleX() * cal.scaleY());
+    const double fiducialPx = JPBoardLocator::Options().fiducialDiameterMm / 2 * scale;   // as the locator looks for them
+    for (const JPPlacement& p : m_board.placements) {
+        if (p.side != m_place.side) continue;
+        double x, y, px, py;
+        m_place.toMachine.apply(p.x, p.y, x, y);
+        if (!cal.pixelFor(x, y, vx, vy, px, py) || px < 0 || py < 0 || px >= cal.width || py >= cal.height) continue;
+        out.push_back({ px, py, p.fiducial ? fiducialPx : 0, p.designator, p.fiducial });
+    }
+    return out;
+}
+
 double JPlacerBoard::meanLean() const {
     double sum = 0;
     for (double l : m_leans) sum += l;

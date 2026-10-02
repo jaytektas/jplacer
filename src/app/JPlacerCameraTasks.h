@@ -45,6 +45,9 @@ public:
     }
     // Where the camera shown is looking, when it rides on a head; else why not.
     bool shownCameraView(double& x, double& y, std::string& why) const;
+    // The camera shown's calibration and where it is looking, when it is a
+    // calibrated camera on a head (for drawing the machine over its picture).
+    bool shownCameraLook(JPCameraCalibration& calibration, double& viewX, double& viewY) const;
     // Move the camera shown to look at (x, y); false (and the status bar says
     // why) when it cannot.
     bool lookAt(double x, double y);

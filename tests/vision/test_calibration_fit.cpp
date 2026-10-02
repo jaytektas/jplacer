@@ -99,6 +99,15 @@ int main() {
         const JPCalibrationFit::Sample& middleSample = grid[grid.size() / 2];
         withLens.mmForPixels(middleSample.xPx - 640, middleSample.yPx - 360, ox, oy);
         assert(std::abs((mx2 - ox) - corner.dxMm) < 1e-6 && std::abs((my2 - oy) - corner.dyMm) < 1e-6);
+        // And back again: a machine point to its pixel and to the point.
+        double bx, by, rx, ry;
+        assert(withLens.pixelFor(103.2, 57.9, 100, 60, bx, by));
+        assert(withLens.machinePoint(bx, by, 100, 60, rx, ry));
+        assert(std::abs(rx - 103.2) < 1e-6 && std::abs(ry - 57.9) < 1e-6);
+        // A point far outside the picture is not in it, though the lens's
+        // bending, carried that far, folds it back in.
+        double fx, fy;
+        assert(!withLens.pixelFor(16.4, 35.2, 100, 60, fx, fy));
         // Too few for seven parameters.
         assert(!JPCalibrationFit::fitWithLens({ grid.begin(), grid.begin() + 4 }, 1280, 720, true));
     }

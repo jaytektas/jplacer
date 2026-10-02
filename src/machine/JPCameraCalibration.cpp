@@ -51,6 +51,30 @@ bool JPCameraCalibration::machinePoint(double px, double py, double viewX, doubl
     return true;
 }
 
+namespace {
+
+// How near a point must straighten back to where it was bent from (pixels).
+constexpr double kRoundTripPx = 0.01;
+
+} // namespace
+
+bool JPCameraCalibration::pixelFor(double x, double y, double viewX, double viewY, double& px, double& py) const {
+    if (!valid || width <= 0 || height <= 0) return false;
+    // Straightened, the middle of the picture plus M (V - P); then bent by the lens.
+    const JPLens l = lens();
+    double u0x, u0y;
+    l.undistort(width / 2.0, height / 2.0, u0x, u0y);
+    const double dx = viewX - x, dy = viewY - y;
+    const double ux = u0x + pxPerMm[0] * dx + pxPerMm[1] * dy, uy = u0y + pxPerMm[2] * dx + pxPerMm[3] * dy;
+    l.distort(ux, uy, px, py);
+    // Far outside the picture the lens's bending folds back on itself and
+    // would put a point the camera cannot see into the picture: only a point
+    // that straightens back to itself is seen there.
+    double bx, by;
+    l.undistort(px, py, bx, by);
+    return std::hypot(bx - ux, by - uy) < kRoundTripPx;
+}
+
 JPCameraCalibration JPCameraCalibration::fromJson(const JJson& j) {
     JPCameraCalibration c;
     c.valid = j["valid"].boolean();

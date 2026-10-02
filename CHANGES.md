@@ -56,6 +56,8 @@ notes.
 - The Machine panel lists what the machine has been calibrated for: each camera, the squareness, homing.
 - The Jog panel shows and takes the chosen tool's own coordinates (its offset on the head included).
 - Home waits for the controller to report the home coordinates before calling the machine homed.
+- The board is drawn over the live camera picture: each part's designator and each fiducial where the
+  board's place puts it.
 - Visual homing: Home finishes by finding the homing mark with the calibrated head camera and
   correcting the position to it, as OpenPnP did for an imported machine.
 - When a move finishes, the positions shown are where the machine stopped, not where it was a moment

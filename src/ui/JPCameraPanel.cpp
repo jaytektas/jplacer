@@ -92,6 +92,10 @@ void JPCameraPanel::setBusy(bool busy) {
     if (m_choice) m_choice->setChoicesEnabled(!busy);
 }
 
+void JPCameraPanel::setMarks(std::function<std::vector<JPViewMark>()> marks) {
+    if (m_view) m_view->setMarks(std::move(marks));
+}
+
 void JPCameraPanel::setNote(const std::string& text) {
     if (m_note) m_note->setText(text);
 }

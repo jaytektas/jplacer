@@ -50,6 +50,8 @@ public:
     // While a task drives the camera: its buttons, and the choice of camera,
     // are off (switching camera would stop the one it is looking through).
     void setBusy(bool busy);
+    // Marks over the live picture (see JPCameraView::setMarks).
+    void setMarks(std::function<std::vector<JPViewMark>()> marks);
     // A word about the picture beside the mode (e.g. why it is dark).
     void setNote(const std::string& text);
     // Write the shown camera's latest picture to capturesDir. The file

@@ -197,6 +197,14 @@ bool JPlacerCameraTasks::shownCameraView(double& x, double& y, std::string& why)
     return true;
 }
 
+bool JPlacerCameraTasks::shownCameraLook(JPCameraCalibration& calibration, double& viewX, double& viewY) const {
+    const JPCameraFeed* feed = m_cameras.shownFeed();
+    std::string why;
+    if (!feed || !shownCameraView(viewX, viewY, why)) return false;
+    calibration = m_cell.cameraCalibration(feed->config().id);
+    return calibration.valid;
+}
+
 bool JPlacerCameraTasks::lookAt(double x, double y) {
     if (m_busy) {
         m_window.showStatus("A camera task is under way", kResultMs);

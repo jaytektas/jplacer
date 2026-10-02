@@ -93,7 +93,24 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     const float cx = x + w * 0.5f, cy = y + h * 0.5f, line = st.borderWidth;
     vg.drawLine(x, cy, x + w, cy, line, JPaint::solid(c));
     vg.drawLine(cx, y, cx, y + h, line, JPaint::solid(c));
+
+    // What is on the machine there (the board's placements and fiducials).
+    std::vector<JPViewMark> marks;
+    if (m_marks) marks = m_marks();
+    const JColor fidColour  = rgb(Colors::Warning[0], Colors::Warning[1], Colors::Warning[2]);
+    const JColor partColour = rgb(Colors::Accent[0], Colors::Accent[1], Colors::Accent[2]);
+    for (const JPViewMark& m : marks) {
+        const float mx = x + float(m.x) * scale, my = y + float(m.y) * scale;
+        const float r = m.radius > 0 ? float(m.radius) * scale : st.spacing;
+        vg.strokeCircle(mx, my, r, line, JPaint::solid(m.fiducial ? fidColour : partColour));
+    }
     vg.flush(buf);
+    for (const JPViewMark& m : marks) {
+        const float mx = x + float(m.x) * scale, my = y + float(m.y) * scale;
+        const float r = m.radius > 0 ? float(m.radius) * scale : st.spacing;
+        JTextHelper::pushText(buf, mx + r, my - r - JTextHelper::lineHeight(), m.label,
+                              m.fiducial ? Colors::Warning : Colors::Accent);
+    }
 
     // A picture left from before the camera was lost: say so over it, or it
     // would pass for a live one.

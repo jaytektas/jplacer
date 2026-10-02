@@ -8,6 +8,7 @@
 #include "job/JPBoard.h"
 #include "job/JPBoardSide.h"
 #include "ui/JPBoardPanel.h"
+#include "ui/JPViewMark.h"
 
 #include <j/app/JAppWindow.h>
 
@@ -33,6 +34,9 @@ public:
     std::unique_ptr<JPBoardPanel> makePanel(JSceneGraph& graph);
     // Before the panel goes.
     void dropPanel() { m_panel = nullptr; }
+    // The board's placements and fiducials on the side up, where the camera
+    // shown sees them, once the board has a place (drawn over its picture).
+    std::vector<JPViewMark> marks() const;
 
 private:
     void import();

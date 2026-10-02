@@ -69,6 +69,7 @@ JPlacerMachine::~JPlacerMachine() {
 }
 
 void JPlacerMachine::dropPanels() {
+    if (m_cameras) m_cameras->setMarks(nullptr);   // they come from the board, which goes first
     if (m_board) m_board->dropPanel();
     m_board.reset();
     m_cameraTasks.reset();   // a task under way finishes first: it drives the cell and a camera
@@ -127,6 +128,7 @@ void JPlacerMachine::buildPanels() {
     m_board = std::make_unique<JPlacerBoard>(m_window, *m_cameraTasks,
         [this](const JPMountConfig& mount, double xPerY) { squareMachine(mount, xPerY); });
     panels.emplace_back("Board",     m_board->makePanel(m_graph));
+    m_cameras->setMarks([board = m_board.get()] { return board->marks(); });
     panels.emplace_back("Console",   std::make_unique<JPConsolePanel>(m_graph, *m_cell));
     panels.emplace_back("Axes",      std::make_unique<JPAxesPanel>(m_graph, *m_cell));
 

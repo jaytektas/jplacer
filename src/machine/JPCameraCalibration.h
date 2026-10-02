@@ -40,6 +40,9 @@ struct JPCameraCalibration {
     // Where on the machine a thing seen at pixel (px, py) is, for a camera
     // looking at (viewX, viewY): P = V - M^-1 (pixel - middle), straightened.
     bool machinePoint(double px, double py, double viewX, double viewY, double& x, double& y) const;
+    // The other way: where in the picture a machine point (x, y) is seen by a
+    // camera looking at (viewX, viewY), through the lens.
+    bool pixelFor(double x, double y, double viewX, double viewY, double& px, double& py) const;
     double scaleX() const;   // pixels per mm along the machine's X
     double scaleY() const;
     double rotationDeg() const;
