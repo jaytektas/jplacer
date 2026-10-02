@@ -12,8 +12,9 @@ Cell files live in `cells/` in jplacer's configuration folder (`~/.config/jplace
 ## Bringing in a machine set up in OpenPnP
 
 If your machine already runs under OpenPnP, **Machine ▸ Import OpenPnP Machine…** reads OpenPnP's
-`machine.xml` (in `~/.openpnp2` on Linux) and makes a cell from it, so you do not set the machine up a
-second time. The new cell is saved as `cells/openpnp.json` and opened straight away. Importing again
+`machine.xml` and makes a cell from it, so you do not set the machine up a second time. When OpenPnP's
+file is where OpenPnP keeps it (`.openpnp2/machine.xml` in your home folder), jplacer asks whether to
+import that one: **Import**, or **Choose Another File…** to pick a different `machine.xml`. The new cell is saved as `cells/openpnp.json` and opened straight away. Importing again
 replaces that file.
 
 What is brought across:
@@ -32,7 +33,7 @@ parts are left out or kept exactly as OpenPnP wrote them.
 
 Feeders, nozzle tips, parts and packages are not imported.
 
-<!-- src: src/openpnp/JPOpenPnpMachineImporter.cpp (what is read, translate, the notes); src/app/JPlacerMachine.cpp (importOpenPnp, kImportedCellFile) -->
+<!-- src: src/openpnp/JPOpenPnpMachineImporter.cpp (what is read, translate, the notes); src/app/JPlacerMachine.cpp (importOpenPnp, importFrom, kOpenPnpDir, kImportedCellFile) -->
 
 ## Opening a cell
 

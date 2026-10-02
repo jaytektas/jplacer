@@ -33,7 +33,9 @@ public:
     void setMenuItems(JMenuItem* connect, JMenuItem* disconnect);
 
     void chooseCell();          // Machine > Open Cell…
-    void importOpenPnp();       // Machine > Import OpenPnP Machine…
+    // Machine > Import OpenPnP Machine…: offers OpenPnP's usual machine.xml
+    // when there is one, else (or on request) a file to choose.
+    void importOpenPnp();
     void connect();
     void disconnect();
 
@@ -42,6 +44,7 @@ public:
 
 private:
     bool openCell(const std::string& path, std::string& error);
+    void importFrom(const std::string& machineXml);
     void updateMenu();
 
     JAppWindow&                         m_window;
