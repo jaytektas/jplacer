@@ -24,8 +24,12 @@ JPCell::JPCell(JPCellConfig config, std::vector<JPFirmwareProfile> profiles)
         driver->onTraffic.connect([this, name](bool sent, std::string line) { onTraffic.emit(name, sent, line); });
         driver->onAlarm.connect([this, name](std::string what) { onAlarm.emit(name + ": " + what); });
         driver->onLost.connect([this, name](std::string why) {
-            onAlarm.emit(name + ": connection lost (" + why + ")");
-            m_thread.post([this] { doDisconnect(); });
+            const std::string what = name + ": connection lost (" + why + ")";
+            onAlarm.emit(what);
+            m_thread.post([this, what] {
+                doDisconnect();
+                onConnection.emit(false, what);
+            });
         });
         m_drivers.push_back(std::move(driver));
     }

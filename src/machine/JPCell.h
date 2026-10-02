@@ -82,7 +82,7 @@ public:
     // The firmware each connected controller identified as, by controller id.
     std::map<std::string, std::string> firmware() const;
 
-    JSignal<bool, std::string>                   onConnection;   // connected, why not
+    JSignal<bool, std::string>                   onConnection;   // connected; why not (a failure or a lost link)
     JSignal<std::map<std::string, double>>       onPositions;
     JSignal<std::string, bool, std::string>      onTraffic;      // controller name, sent, line
     JSignal<std::string, bool, std::string>      onActuator;     // id, done, value or why not

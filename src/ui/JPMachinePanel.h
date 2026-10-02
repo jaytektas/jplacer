@@ -17,7 +17,8 @@
 inline namespace jf {
 
 // The machine as a whole: connected or not, on which port, homed or not,
-// and what each controller says it is doing (Idle, Run, Alarm…).
+// and what each controller says it is doing (Idle, Run, Alarm…). Connecting
+// and homing are the toolbar's (JPConnectIcon, JPHomeIcon).
 class JPMachinePanel : public JContainer {
 public:
     JPMachinePanel(JSceneGraph& graph, JPCell& cell);
@@ -32,8 +33,6 @@ private:
     JPCell&     m_cell;
     JLabel*     m_status  = nullptr;
     JLabel*     m_state   = nullptr;
-    JButton*    m_connect = nullptr;
-    JButton*    m_home    = nullptr;
     JPCellWatch m_watch;
 };
 

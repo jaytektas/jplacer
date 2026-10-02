@@ -28,6 +28,11 @@ namespace {
 
 // The file an imported OpenPnP machine is written to, in cellsDir().
 constexpr const char* kImportedCellFile = "openpnp.json";
+// How long a status-bar message stays: a confirmation briefly, a failure long
+// enough to read the reason.
+constexpr int kStatusMs = 3000;
+constexpr int kErrorMs  = 8000;
+
 // Where OpenPnP keeps its machine, under the home folder.
 constexpr const char* kOpenPnpDir         = ".openpnp2";
 constexpr const char* kOpenPnpMachineFile = "machine.xml";
@@ -35,7 +40,17 @@ constexpr const char* kOpenPnpMachineFile = "machine.xml";
 } // namespace
 
 JPlacerMachine::JPlacerMachine(JAppWindow& window, JSceneGraph& graph)
-    : m_window(window), m_graph(graph), m_profiles(JPFirmwareProfile::loadAll()) {
+    : m_window(window), m_graph(graph), m_profiles(JPFirmwareProfile::loadAll()),
+      m_connectIcon(graph), m_homeIcon(graph) {
+    // The machine's two states, always in view: click the chip to connect or
+    // disconnect, the house to home.
+    JToolBar& tb = window.toolBar();
+    tb.addWidget(&m_connectIcon);
+    tb.addWidget(&m_homeIcon);
+    m_connectIcon.onClicked.connect([this] {
+        if (m_cell && m_cell->isConnected()) disconnect(); else connect();
+    });
+    m_homeIcon.onClicked.connect([this] { home(); });
     JLOGC(JPlacerLog::kProfiles, JLogLevel::Info) << m_profiles.size() << " firmware profile(s)";
     if (const std::string last = JPlacerSettings::machineCell(); !last.empty()) {
         std::string error;
@@ -124,25 +139,46 @@ bool JPlacerMachine::openCell(const std::string& path, std::string& error) {
 
     // The menu and the strip follow the cell.
     std::weak_ptr<bool> alive = m_alive;
-    auto follow = [this, alive](std::string why) {
-        JMainThreadDispatcher::instance().post([this, alive, why] {
+    auto onMain = [this, alive](std::function<void()> fn) {
+        JMainThreadDispatcher::instance().post([this, alive, fn] {
             if (const auto a = alive.lock(); a && *a) {
+                fn();
                 updateMenu();
-                showNotice(why);
+                showState();
             }
         });
     };
-    m_unwatch.push_back(m_cell->onConnection.connect([follow](bool, std::string why) { follow(why); }));
-    m_unwatch.push_back(m_cell->onHomed.connect([follow](bool) { follow(std::string()); }));
-    m_unwatch.push_back(m_cell->onState.connect([follow](std::string, std::string) { follow(std::string()); }));
-    m_unwatch.push_back(m_cell->onMotion.connect([follow](bool, std::string) { follow(std::string()); }));
+    m_unwatch.push_back(m_cell->onConnection.connect([this, onMain](bool ok, std::string why) {
+        onMain([this, ok, why] {
+            const bool wasConnecting = m_connecting;
+            m_connecting = false;
+            m_connectFailed = !ok && wasConnecting;
+            if (ok) m_lost.clear();
+            else if (!wasConnecting && !why.empty()) m_lost = why;   // dropped while working
+            if (!why.empty()) m_window.showStatus(why, kErrorMs);
+            else m_window.showStatus(ok ? m_cell->config().name + " connected" : m_cell->config().name + " disconnected", kStatusMs);
+        });
+    }));
+    m_unwatch.push_back(m_cell->onHomed.connect([onMain](bool) { onMain([] {}); }));
+    m_unwatch.push_back(m_cell->onState.connect([onMain](std::string, std::string) { onMain([] {}); }));
+    m_unwatch.push_back(m_cell->onMotion.connect([this, onMain](bool ok, std::string why) {
+        onMain([this, ok, why] {
+            if (m_cell->isHomed() || ok) m_homeFailed = false;
+            if (!ok && !why.empty()) {
+                if (!m_cell->isHomed()) m_homeFailed = true;
+                m_window.showStatus(why, kErrorMs);
+            }
+        });
+    }));
     buildPanels();
 
     JSettings::instance().set(JPlacerSettings::kMachineCell, path);
     JPlacerSettings::save();
     JLOGC(JPlacerLog::kApp, JLogLevel::Info) << "cell " << m_cell->config().name << " from " << path;
+    m_connecting = m_connectFailed = m_homeFailed = false;
+    m_lost.clear();
     updateMenu();
-    showNotice(std::string());
+    showState();
     return true;
 }
 
@@ -163,26 +199,35 @@ void JPlacerMachine::setPort(const std::string& driverId, const std::string& por
     JDialog::message("The port could not be changed", error);
 }
 
-void JPlacerMachine::showNotice(const std::string& why) {
-    if (!m_cell) {
-        m_window.setNotice("");
-    } else if (!m_cell->isConnected()) {
-        std::string detail = m_cell->config().name + " is not connected: positions are the last ones received, "
-                             "not live. Machine \xE2\x96\xB8 Connect.";
-        if (!why.empty()) detail = why;
-        m_window.setNotice("NOT CONNECTED", detail, Colors::Danger);
-    } else if (m_cell->inAlarm()) {
+void JPlacerMachine::showState() {
+    using S = JPStateIcon::State;
+    const bool open = m_cell != nullptr, connected = open && m_cell->isConnected();
+
+    m_connectIcon.setEnabled(open);
+    m_connectIcon.setState(m_connecting ? S::Busy : connected ? S::Good
+                           : (m_connectFailed || !m_lost.empty()) ? S::Fault : S::Idle);
+    m_connectIcon.setTooltip(!open        ? "No machine open"
+                             : connected  ? m_cell->config().name + ": connected. Click to disconnect."
+                             : m_connecting ? "Connecting\xE2\x80\xA6"
+                                            : m_cell->config().name + ": not connected. Click to connect.");
+
+    const bool homing = connected && m_cell->isHoming();
+    m_homeIcon.setEnabled(connected && !homing);
+    m_homeIcon.setState(homing ? S::Busy : (connected && m_cell->isHomed()) ? S::Good
+                        : (connected && m_homeFailed) ? S::Fault : S::Idle);
+    m_homeIcon.setTooltip(!connected ? "Connect to home the machine"
+                          : homing   ? "Homing\xE2\x80\xA6"
+                          : m_cell->isHomed() ? "Homed. Click to home again."
+                                              : "Not homed: the machine will not move until it is. Click to home.");
+
+    // The strip: only what must not be missed.
+    if (connected && m_cell->inAlarm())
         m_window.setNotice("ALARM", "A controller has stopped on an alarm (a limit switch, an emergency stop, "
                            "or a failed home). Find the cause; the Console shows what it said.", Colors::Danger);
-    } else if (m_cell->isHoming()) {
-        m_window.setNotice("HOMING", "The axes are moving onto their home switches. Keep clear of the machine.",
-                           Colors::Warning);
-    } else if (!m_cell->isHomed()) {
-        m_window.setNotice("NOT HOMED", "Positions are not yet known, so the machine will not move. "
-                           "Machine \xE2\x96\xB8 Home All Axes.", Colors::Warning);
-    } else {
+    else if (!connected && !m_lost.empty())
+        m_window.setNotice("CONNECTION LOST", m_lost, Colors::Danger);
+    else
         m_window.setNotice("");
-    }
 }
 
 void JPlacerMachine::chooseCell() {
@@ -257,7 +302,11 @@ void JPlacerMachine::importFrom(const std::string& path) {
 }
 
 void JPlacerMachine::connect() {
-    if (m_cell) m_cell->connect();
+    if (!m_cell || m_cell->isConnected()) return;
+    m_connecting = true;
+    m_connectFailed = false;
+    showState();
+    m_cell->connect();
 }
 
 void JPlacerMachine::disconnect() {
@@ -265,7 +314,10 @@ void JPlacerMachine::disconnect() {
 }
 
 void JPlacerMachine::home() {
-    if (m_cell) m_cell->home();
+    if (!m_cell || !m_cell->isConnected()) return;
+    m_homeFailed = false;
+    m_cell->home();
+    showState();
 }
 
 bool JPlacerMachine::showDock(const std::string& title) {

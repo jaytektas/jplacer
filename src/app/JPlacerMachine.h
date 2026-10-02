@@ -4,6 +4,8 @@
 #pragma once
 
 #include "machine/JPCell.h"
+#include "ui/JPConnectIcon.h"
+#include "ui/JPHomeIcon.h"
 
 #include <j/app/JAppWindow.h>
 #include <j/core/DockWidget.h>
@@ -53,9 +55,10 @@ private:
     void importFrom(const std::string& machineXml);
     void setPort(const std::string& driverId, const std::string& port);
     void updateMenu();
-    // The strip in the window's chrome: NOT CONNECTED (with `why`, the last
-    // failure), ALARM, HOMING, NOT HOMED, or nothing when the machine is ready.
-    void showNotice(const std::string& why);
+    // The connect and home icons follow the cell; the strip across the window
+    // is kept for what is critical (ALARM, CONNECTION LOST) and a failure goes
+    // to the status bar.
+    void showState();
     // One dock per panel, made the first time a cell opens; a new cell gets
     // new panels in the same docks, so where the person put them is kept.
     void buildPanels();
@@ -77,6 +80,12 @@ private:
     JMenuItem*                          m_connectItem    = nullptr;
     JMenuItem*                          m_disconnectItem = nullptr;
     JMenuItem*                          m_homeItem       = nullptr;
+    JPConnectIcon                       m_connectIcon;
+    JPHomeIcon                          m_homeIcon;
+    bool                                m_connecting  = false;   // asked, not yet answered
+    bool                                m_connectFailed = false; // the last connect failed
+    std::string                         m_lost;                  // why the link dropped, until the next connect
+    bool                                m_homeFailed = false;
 };
 
 } // inline namespace jf

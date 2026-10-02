@@ -20,14 +20,16 @@ notes.
   again keeps the port you chose.
 - The machine can be homed (Home, or Machine > Home All Axes) and moved by hand from the Jog panel:
   choose a nozzle or camera, then step it, or type where it should go. Soft limits are checked, and
-  nothing moves until the machine is homed. An amber NOT HOMED or red ALARM strip says when it cannot.
+  nothing moves until the machine is homed.
 - The machine's panels are docks of their own (Machine, Jog, Actuators, Console, Axes), to arrange,
   stack or tear out as you like.
 - Positions shown are the coordinates moves use, taking the controller's work offset into account.
 - A controller's port belongs to jplacer while connected: another program (or a second jplacer) trying to
   open it is refused, instead of the two silently sharing and each losing part of what the controller says.
-- A red NOT CONNECTED strip across the top of the window while the machine is not connected, saying why
-  when a connection failed. Connecting to a port where nothing answers now fails instead of pretending.
+- Two toolbar icons show and change the machine's state: a chip for the connection, a house for homing,
+  each grey, amber while working, green when done, red when it failed. The red strip across the window
+  is kept for what is critical: an alarm, or a connection lost while working. Connecting to a port
+  where nothing answers now fails instead of pretending.
 - The Machine panel lists the serial devices plugged in, so you can pick the controller's port; it is
   saved by the device's permanent name, which does not change when USB devices start in another order.
 - Dialog buttons are always wide enough for their labels.

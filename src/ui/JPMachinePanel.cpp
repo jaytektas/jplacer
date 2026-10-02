@@ -20,21 +20,6 @@ JPMachinePanel::JPMachinePanel(JSceneGraph& graph, JPCell& cell)
     auto top = JPUiParts::row(graph);
     m_status = top->add(std::make_unique<JLabel>(graph, cell.config().name));
     m_status->setHSizePolicy(JSizePolicyMode::Expanding, 1);
-    m_connect = top->add(JPUiParts::button(graph, "Connect"));
-    m_connect->onClicked.connect([this] {
-        JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Machine: " << (m_cell.isConnected() ? "Disconnect" : "Connect");
-        if (m_cell.isConnected()) m_cell.disconnect();
-        else {
-            m_status->setText("Connecting\xE2\x80\xA6");
-            m_cell.connect();
-        }
-    });
-    m_home = top->add(JPUiParts::button(graph, "Home"));
-    m_home->onClicked.connect([this] {
-        JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Machine: Home";
-        m_status->setText("Homing\xE2\x80\xA6");
-        m_cell.home();
-    });
     add(std::move(top));
 
     m_state = add(std::make_unique<JLabel>(graph, ""));
@@ -87,8 +72,6 @@ void JPMachinePanel::refresh(const std::string& why) {
         text += m_cell.isHoming() ? " \xC2\xB7 homing" : m_cell.isHomed() ? " \xC2\xB7 homed" : " \xC2\xB7 not homed";
     }
     m_status->setText(text);
-    m_connect->setLabel(connected ? "Disconnect" : "Connect");
-    m_home->setEnabled(connected);
 
     std::string state;
     if (connected)

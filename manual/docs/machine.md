@@ -48,7 +48,14 @@ Feeders, nozzle tips, parts and packages are not imported.
 
 ## Connecting
 
-**Machine ▸ Connect**, or **Connect** on the Machine panel, connects to every controller in the cell.
+Two icons at the left of the toolbar show the machine's state at a glance, and are clicked to change
+it: the **chip** for the connection and the **house** for homing. Each sits in a ring: grey when idle,
+an amber arc while it is working, green when done, red with a break when the last attempt failed.
+Hover over one to see what it means now.
+
+<!-- src: src/ui/JPStateIcon.cpp; src/ui/JPConnectIcon.h; src/ui/JPHomeIcon.h; src/app/JPlacerMachine.cpp (showState) -->
+
+Clicking the chip (or **Machine ▸ Connect**) connects to every controller in the cell.
 For each one jplacer:
 
 1. opens its port, and listens for a moment (one second unless the cell says otherwise; an imported
@@ -67,10 +74,12 @@ get part of what the controller says. Close the other program (OpenPnP, another 
 first.
 **Disconnect** closes every connection.
 
-While a cell is open and not connected, a red **NOT CONNECTED** strip runs across the top of the
-window, saying why the last connection failed when one did. It goes away as soon as the cell connects.
+When a connection fails, the chip turns red and the status bar at the bottom of the window says why.
+If a connection is lost while working (a cable pulled, the controller reset), a red **CONNECTION LOST**
+strip runs across the top of the window until you connect again: that strip is kept for what must not
+be missed.
 
-<!-- src: src/machine/JPGcodeDriver.cpp (identify: nothing answered); src/app/JPlacerMachine.cpp (showNotice); JFramework src/io/SerialPort.cpp (one owner) -->
+<!-- src: src/machine/JPGcodeDriver.cpp (identify: nothing answered); src/machine/JPCell.cpp (onLost); src/app/JPlacerMachine.cpp (showState); JFramework src/io/SerialPort.cpp (one owner) -->
 
 ### Choosing the port
 
@@ -104,26 +113,25 @@ place, tear it out into a window of its own, or stack it with others.
 ### Machine
 
 The top line names the cell and says whether it is connected and, when it is, the firmware each
-controller runs and whether the machine is homed. **Connect** / **Disconnect** and **Home** are beside
-it. Below are what each controller says it is doing (Idle, Run, Alarm…) and, for each controller on a
+controller runs and whether the machine is homed. Below are what each controller says it is doing (Idle, Run, Alarm…) and, for each controller on a
 serial port, the port list (see [Choosing the port](#choosing-the-port)).
 
 <!-- src: src/ui/JPMachinePanel.cpp -->
 
 ### Homing
 
-**Home** (or **Machine ▸ Home All Axes**) sends each controller its home command and waits for it to
+Clicking the house (or **Machine ▸ Home All Axes**) sends each controller its home command and waits for it to
 finish, then tells the controller that every axis is at its home coordinate. Until the machine is homed
 it will not move: before that its position means nothing, so its soft limits cannot protect it. A
 machine imported from OpenPnP homes the way it did in OpenPnP, with the same command. OpenPnP may also
 have corrected the home position with a fiducial seen by the camera; jplacer does not do that yet, and
 the import says so — the head must then be at its home position when you home.
 
-While connected but not homed, an amber **NOT HOMED** strip runs across the top of the window, and
-while homing an amber **HOMING** strip says the axes are moving; a red **ALARM** strip shows when a
-controller has stopped on an alarm.
+The house is grey while the machine is not homed, an amber arc while it homes, and green once homed; a
+failed home turns it red and the status bar says why. A red **ALARM** strip runs across the top of the
+window when a controller has stopped on an alarm.
 
-<!-- src: src/machine/JPCell.cpp (doHome); src/app/JPlacerMachine.cpp (showNotice); src/openpnp/JPOpenPnpMachineImporter.cpp (HOME_COMMAND, visual homing note) -->
+<!-- src: src/machine/JPCell.cpp (doHome); src/app/JPlacerMachine.cpp (showState); src/openpnp/JPOpenPnpMachineImporter.cpp (HOME_COMMAND, visual homing note) -->
 
 ### Jog
 
