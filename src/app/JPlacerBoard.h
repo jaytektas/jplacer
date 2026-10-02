@@ -34,9 +34,9 @@ public:
     std::unique_ptr<JPBoardPanel> makePanel(JSceneGraph& graph);
     // Before the panel goes.
     void dropPanel() { m_panel = nullptr; }
-    // The board's placements and fiducials on the side up, where the camera
-    // shown sees them, once the board has a place (drawn over its picture).
-    std::vector<JPViewMark> marks() const;
+    // The board's placements and fiducials on the side up, where camera
+    // `cameraId` sees them, once the board has a place (drawn over its picture).
+    std::vector<JPViewMark> marks(const std::string& cameraId) const;
 
 private:
     void import();

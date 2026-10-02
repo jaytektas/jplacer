@@ -109,7 +109,7 @@ void JPlacerBoard::cameraOn(const std::string& designator) {
     const JPPlacement* fid = m_board.find(designator);
     double x, y;
     std::string why;
-    if (!fid || !m_tasks.shownCameraView(x, y, why)) {
+    if (!fid || !m_tasks.headCameraView(x, y, why)) {
         m_window.showStatus(why.empty() ? "No fiducial " + designator : why, kStatusMs);
         return;
     }
@@ -200,11 +200,11 @@ void JPlacerBoard::show() {
     m_panel->showLean(lean);
 }
 
-std::vector<JPViewMark> JPlacerBoard::marks() const {
+std::vector<JPViewMark> JPlacerBoard::marks(const std::string& cameraId) const {
     std::vector<JPViewMark> out;
     JPCameraCalibration cal;
     double vx, vy;
-    if (!m_placed || !m_tasks.shownCameraLook(cal, vx, vy)) return out;
+    if (!m_placed || !m_tasks.cameraLook(cameraId, cal, vx, vy)) return out;
     const double scale = std::sqrt(cal.scaleX() * cal.scaleY());
     const double defaultMm = JPBoardLocator::Options().fiducialDiameterMm;   // as the locator looks for them
     for (const JPPlacement& p : m_board.placements) {
@@ -224,7 +224,8 @@ double JPlacerBoard::meanLean() const {
 }
 
 void JPlacerBoard::square() {
-    const JPMountConfig* mount = m_tasks.shownMount();
+    const JPCameraPanel* camera = m_tasks.headCamera();
+    const JPMountConfig* mount = camera ? &camera->camera().mount : nullptr;
     if (m_leans.empty() || !mount || mount->axisX.empty() || mount->axisY.empty()) return;
     const double lean = meanLean();
     const JPMountConfig gantry = *mount;

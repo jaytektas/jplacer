@@ -24,8 +24,8 @@
 inline namespace jf {
 
 // The machine jplacer is working with: the open cell (cells/<name>.json),
-// its panels, each in a dock of its own (Machine, Jog, Actuators, Board,
-// Console, Axes), the strip across the window saying what state it is in, and the
+// its panels, each in a dock of its own (a camera each, tabbed together in
+// the window's centre; Machine, Jog, Actuators, Board, Console, Axes), the strip across the window saying what state it is in, and the
 // Machine menu's actions on it.
 //
 // The cell opened last is opened again at start (JPlacerSettings::kMachineCell).
@@ -69,10 +69,14 @@ private:
     void showState();
     // One dock per panel, made the first time a cell opens; a new cell gets
     // new panels in the same docks, so where the person put them is kept.
+    // The cameras' docks are the cell's own, made new with it.
     void buildPanels();
-    // The shown camera's light on (and the one shown before off) while
-    // connected; while not, the camera panel says why the picture is dark.
-    void lightCameras(const std::string& shown, const std::string& before);
+    void buildCameras();
+    // A camera's light is on while its camera runs (on screen) and the
+    // machine is connected; while not connected, a camera with a light says
+    // why its picture is dark.
+    void lightCameras();
+    void bringForward(JPCameraPanel& camera);
     void dropPanels();
 
     struct Dock {
@@ -86,7 +90,11 @@ private:
     std::unique_ptr<JPCell>             m_cell;
     std::string                         m_cellPath;
     std::vector<Dock>                   m_docks;
-    std::unique_ptr<JPCameraPanel>      m_cameras;   // the window's centre
+    struct CameraDock {
+        std::unique_ptr<JDockWidget>   dock;
+        std::unique_ptr<JPCameraPanel> panel;
+    };
+    std::vector<CameraDock>             m_cameras;   // the window's centre
     std::unique_ptr<JPlacerCameraTasks> m_cameraTasks;   // its Calibrate and Visual Test
     std::unique_ptr<JPlacerBoard>       m_board;         // the board on the machine, and its panel
     std::vector<std::function<void()>>  m_unwatch;   // this class's watches on the cell

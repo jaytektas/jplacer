@@ -6,6 +6,7 @@
 #include "JPUiParts.h"
 
 #include "camera/JPImageFile.h"
+#include "camera/JPStraightener.h"
 
 #include "common/JPlacerLog.h"
 
@@ -19,22 +20,13 @@
 
 inline namespace jf {
 
-JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCellConfig& cell, std::string capturesDir,
-                             const ViewFor& viewFor, CalibrationFor calibrationFor)
-    : JContainer(graph), m_capturesDir(std::move(capturesDir)), m_calibrationFor(std::move(calibrationFor)) {
+JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCameraConfig& camera, std::string capturesDir,
+                             std::function<bool(double&, double&)> view, CalibrationFor calibrationFor)
+    : JContainer(graph), m_feed(camera), m_calibrationFor(std::move(calibrationFor)), m_capturesDir(std::move(capturesDir)) {
     JPUiParts::asPanel(*this);
-    std::vector<std::string> names;
-    for (const JPCameraConfig& c : cell.cameras) {
-        m_feeds.push_back(std::make_unique<JPCameraFeed>(c));
-        m_feeds.back()->setView(viewFor(c));
-        names.push_back(c.name);
-    }
-    if (m_feeds.empty()) {
-        add(std::make_unique<JLabel>(graph, "This cell has no cameras."));
-        return;
-    }
+    m_feed.setView(std::move(view));
+
     auto top = JPUiParts::row(graph);
-    m_choice = top->add(std::make_unique<JPChoiceRow>(graph, names, 0));
     m_state = top->add(std::make_unique<JLabel>(graph, ""));
     m_state->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     top->add(JPUiParts::button(graph, "Save Picture"))->onClicked.connect([this] { savePicture(); });
@@ -70,51 +62,61 @@ JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCellConfi
     m_view = add(std::make_unique<JPCameraView>(graph, hal));
     m_view->onPictureDoubleClicked = [this](double px, double py) { if (onLookAtPixel) onLookAtPixel(px, py); };
     m_view->setVSizePolicy(JSizePolicyMode::Expanding, 1);
+    m_view->setFeed(&m_feed);
 
     std::weak_ptr<bool> alive = m_alive;
-    for (size_t i = 0; i < m_feeds.size(); ++i) {
-        JPCameraFeed* feed = m_feeds[i].get();
-        m_unwatch.push_back(feed->onRunning.connect([this, alive, i, feed](bool running) {
-            JMainThreadDispatcher::instance().post([this, alive, i, feed, running] {
-                if (const auto a = alive.lock(); !a || !*a || i != m_shown) return;
-                const auto mode = feed->mode();
-                m_state->setText(running && mode ? mode->describe() : std::string());
-            });
-        }));
-        m_unwatch.push_back(feed->onError.connect([this, alive, i](std::string why) {
-            JMainThreadDispatcher::instance().post([this, alive, i, why] {
-                if (const auto a = alive.lock(); !a || !*a || i != m_shown) return;
-                m_view->setMessage(why);
-                m_state->setText("");
-            });
-        }));
-    }
-    m_choice->onChosen.connect([this](int i) { show(size_t(i)); });
-    show(0);
+    m_unwatch.push_back(m_feed.onRunning.connect([this, alive](bool running) {
+        JMainThreadDispatcher::instance().post([this, alive, running] {
+            if (const auto a = alive.lock(); !a || !*a) return;
+            const auto mode = m_feed.mode();
+            m_state->setText(running && mode ? mode->describe() : std::string());
+        });
+    }));
+    m_unwatch.push_back(m_feed.onError.connect([this, alive](std::string why) {
+        JMainThreadDispatcher::instance().post([this, alive, why] {
+            if (const auto a = alive.lock(); !a || !*a) return;
+            m_view->setMessage(why);
+            m_state->setText("");
+            stopIfHidden();
+        });
+    }));
+    // Each picture (or failed try at one), a check that the panel is still on
+    // screen: a camera behind another tab, or closed, is stopped.
+    m_unwatch.push_back(m_feed.onFrame.connect([this, alive](uint64_t) {
+        JMainThreadDispatcher::instance().post([this, alive] {
+            if (const auto a = alive.lock(); a && *a) stopIfHidden();
+        });
+    }));
 }
 
 JPCameraPanel::~JPCameraPanel() {
     *m_alive = false;
     for (const auto& u : m_unwatch) u();
     if (m_view) m_view->setFeed(nullptr);
-    for (auto& f : m_feeds) f->stop();
+    m_feed.stop();
 }
 
-std::string JPCameraPanel::shownId() const {
-    return m_shown < m_feeds.size() ? m_feeds[m_shown]->config().id : std::string();
+void JPCameraPanel::populateRenderPrimitives(JPrimitiveBuffer& buf) {
+    // Drawn, so on screen: the camera runs.
+    m_drawn = std::chrono::steady_clock::now();
+    if (!m_feed.isRunning()) start();
+    JContainer::populateRenderPrimitives(buf);
 }
 
-JPCameraFeed* JPCameraPanel::shownFeed() const {
-    return m_shown < m_feeds.size() ? m_feeds[m_shown].get() : nullptr;
+void JPCameraPanel::start() {
+    JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Camera: " << m_feed.config().name << " on screen";
+    m_view->setMessage("Starting " + m_feed.config().name + "\xE2\x80\xA6");
+    m_state->setText("");
+    m_feed.start();
+    refreshStraightening();
+    if (onRunning) onRunning(true);
 }
 
-void JPCameraPanel::setBusy(bool busy) {
-    for (JButton* b : m_taskButtons) b->setEnabled(!busy);
-    if (m_choice) m_choice->setChoicesEnabled(!busy);
-}
-
-void JPCameraPanel::setMarks(std::function<std::vector<JPViewMark>()> marks) {
-    if (m_view) m_view->setMarks(std::move(marks));
+void JPCameraPanel::stopIfHidden() {
+    if (m_busy || !m_feed.isRunning() || std::chrono::steady_clock::now() - m_drawn < std::chrono::milliseconds(kHiddenMs)) return;
+    JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Camera: " << m_feed.config().name << " off screen";
+    m_feed.stop();
+    if (onRunning) onRunning(false);
 }
 
 void JPCameraPanel::setView(bool straight, double showAll) {
@@ -126,24 +128,33 @@ void JPCameraPanel::setView(bool straight, double showAll) {
 }
 
 void JPCameraPanel::refreshStraightening() {
-    if (!m_view || m_shown >= m_feeds.size()) return;
-    const JPCameraConfig& cam = m_feeds[m_shown]->config();
+    const JPCameraConfig& cam = m_feed.config();
     std::shared_ptr<const JPStraightener> s;
     if (m_straight && m_calibrationFor)
         if (auto made = JPStraightener::make(m_calibrationFor(cam.id), cam.looksUp, m_showAll))
             s = std::make_shared<const JPStraightener>(std::move(*made));
     m_view->setStraightener(s);
-    if (m_edges) m_edges->setEnabled(m_straight);
+    m_edges->setEnabled(m_straight);
     if (m_straight && !s) setNote(cam.name + " is not calibrated: shown as taken");
 }
 
+void JPCameraPanel::setBusy(bool busy) {
+    for (JButton* b : m_taskButtons) b->setEnabled(!busy);
+    // A task needs pictures whether or not anyone is looking.
+    m_busy = busy;
+    if (busy && !m_feed.isRunning()) start();
+}
+
+void JPCameraPanel::setMarks(std::function<std::vector<JPViewMark>()> marks) {
+    m_view->setMarks(std::move(marks));
+}
+
 void JPCameraPanel::setNote(const std::string& text) {
-    if (m_note) m_note->setText(text);
+    m_note->setText(text);
 }
 
 std::string JPCameraPanel::savePicture() {
-    if (m_shown >= m_feeds.size()) return {};
-    JPCameraFeed& feed = *m_feeds[m_shown];
+    JPCameraFeed& feed = m_feed;
     JPFrame frame;
     if (!feed.latest(frame, 0)) {
         setNote("No picture yet to save.");
@@ -170,30 +181,6 @@ std::string JPCameraPanel::savePicture() {
     JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << "saved " << path;
     setNote(std::string("Saved ") + name);
     return path;
-}
-
-bool JPCameraPanel::showCamera(const std::string& id) {
-    for (size_t i = 0; i < m_feeds.size(); ++i)
-        if (m_feeds[i]->config().id == id) {
-            if (m_choice) m_choice->choose(int(i));   // shows it, through the choice's signal
-            return true;
-        }
-    return false;
-}
-
-void JPCameraPanel::show(size_t index) {
-    if (index >= m_feeds.size() || index == m_shown) return;
-    const std::string before = m_shown < m_feeds.size() ? m_feeds[m_shown]->config().id : std::string();
-    if (m_shown < m_feeds.size()) m_feeds[m_shown]->stop();
-    m_shown = index;
-    JPCameraFeed& feed = *m_feeds[index];
-    JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Camera: " << feed.config().name;
-    m_view->setFeed(&feed);
-    m_view->setMessage("Starting " + feed.config().name + "\xE2\x80\xA6");
-    m_state->setText("");
-    feed.start();
-    refreshStraightening();
-    if (onShown) onShown(feed.config().id, before);
 }
 
 } // inline namespace jf

@@ -21,6 +21,7 @@
 
 #include <cstdlib>
 #include <filesystem>
+#include <map>
 
 inline namespace jf {
 
@@ -58,6 +59,7 @@ JPlacerMachine::JPlacerMachine(JAppWindow& window, JSceneGraph& graph)
         if (m_cell && m_cell->isConnected()) disconnect(); else connect();
     });
     m_homeIcon.onClicked.connect([this] { home(); });
+    window.dockSpace().setCentreDocks(true);   // a tab per camera (buildCameras)
     JLOGC(JPlacerLog::kProfiles, JLogLevel::Info) << m_profiles.size() << " firmware profile(s)";
     if (const std::string last = JPlacerSettings::machineCell(); !last.empty()) {
         std::string error;
@@ -72,7 +74,7 @@ JPlacerMachine::~JPlacerMachine() {
 }
 
 void JPlacerMachine::dropPanels() {
-    if (m_cameras) m_cameras->setMarks(nullptr);   // they come from the board, which goes first
+    for (CameraDock& c : m_cameras) c.panel->setMarks(nullptr);   // they come from the board, which goes first
     if (m_board) m_board->dropPanel();
     m_board.reset();
     m_cameraTasks.reset();   // a task under way finishes first: it drives the cell and a camera
@@ -82,47 +84,73 @@ void JPlacerMachine::dropPanels() {
         d.dock->setContent(nullptr);
         d.panel.reset();
     }
-    if (m_cameras) {
-        m_window.setCentralWidget(nullptr);
-        m_cameras.reset();
-    }
+    for (CameraDock& c : m_cameras)
+        if (JDockHost* host = c.dock->placedIn()) host->removeDock(c.dock.get());
+    m_cameras.clear();
 }
 
-void JPlacerMachine::buildPanels() {
-    // The cameras fill the centre: what the machine sees is what the person
-    // works from. A camera's light is on while it is the one shown.
+void JPlacerMachine::buildCameras() {
+    // The cameras fill the centre, each in a tab: what the machine sees is
+    // what the person works from. A camera runs, and its light is on, while
+    // its tab is in front (or torn out into a window of its own).
     // A head camera looks where its axes put it, plus its offset on the head;
     // a fixed one is drawn with nothing under it. The world it draws stays
     // where the switches put it when visual homing corrects the coordinates.
-    auto viewFor = [cell = m_cell.get()](const JPCameraConfig& c) -> std::function<bool(double&, double&)> {
-        if (c.mount.axisX.empty() || c.mount.axisY.empty()) return nullptr;
-        return [cell, m = c.mount](double& x, double& y) {
-            const auto p = cell->positions();
-            const auto px = p.find(m.axisX), py = p.find(m.axisY);
-            if (px == p.end() || py == p.end()) return false;
-            const auto corrected = cell->correctionSinceHome();
-            const auto cx = corrected.find(m.axisX), cy = corrected.find(m.axisY);
-            x = px->second + m.offsetX + (cx == corrected.end() ? 0 : cx->second);
-            y = py->second + m.offsetY + (cy == corrected.end() ? 0 : cy->second);
-            return true;
+    const std::string captures = (std::filesystem::path(JPlacerPaths::configDir()) / "captures").string();
+    std::vector<JPCameraPanel*> panels;
+    for (const JPCameraConfig& c : m_cell->config().cameras) {
+        std::function<bool(double&, double&)> view;
+        if (!c.mount.axisX.empty() && !c.mount.axisY.empty())
+            view = [cell = m_cell.get(), m = c.mount](double& x, double& y) {
+                const auto p = cell->positions();
+                const auto px = p.find(m.axisX), py = p.find(m.axisY);
+                if (px == p.end() || py == p.end()) return false;
+                const auto corrected = cell->correctionSinceHome();
+                const auto cx = corrected.find(m.axisX), cy = corrected.find(m.axisY);
+                x = px->second + m.offsetX + (cx == corrected.end() ? 0 : cx->second);
+                y = py->second + m.offsetY + (cy == corrected.end() ? 0 : cy->second);
+                return true;
+            };
+        CameraDock d;
+        d.panel = std::make_unique<JPCameraPanel>(m_graph, m_window.hal(), c, captures, std::move(view),
+                                                  [cell = m_cell.get()](const std::string& id) { return cell->cameraCalibration(id); });
+        // Straightened or as taken, kept from last time.
+        const JSettings& s = JSettings::instance();
+        d.panel->setView(s.get<bool>(JPlacerSettings::cameraStraightKey(c.id), false),
+                         s.get<double>(JPlacerSettings::cameraShowAllKey(c.id), 0.0));
+        d.panel->onViewChanged = [id = c.id](bool straight, double showAll) {
+            JSettings::instance().set(JPlacerSettings::cameraStraightKey(id), straight);
+            JSettings::instance().set(JPlacerSettings::cameraShowAllKey(id), showAll);
+            JPlacerSettings::save();
         };
-    };
-    m_cameras = std::make_unique<JPCameraPanel>(m_graph, m_window.hal(), m_cell->config(),
-                                                (std::filesystem::path(JPlacerPaths::configDir()) / "captures").string(),
-                                                viewFor,
-                                                [cell = m_cell.get()](const std::string& id) { return cell->cameraCalibration(id); });
-    // Straightened or as taken, kept from last time.
-    m_cameras->setView(JSettings::instance().get<bool>(JPlacerSettings::kCameraStraight, false),
-                       JSettings::instance().get<double>(JPlacerSettings::kCameraShowAll, 0.0));
-    m_cameras->onViewChanged = [](bool straight, double showAll) {
-        JSettings::instance().set(JPlacerSettings::kCameraStraight, straight);
-        JSettings::instance().set(JPlacerSettings::kCameraShowAll, showAll);
-        JPlacerSettings::save();
-    };
-    m_cameras->onShown = [this](const std::string& shown, const std::string& before) { lightCameras(shown, before); };
-    m_window.setCentralWidget(m_cameras.get());
-    lightCameras(m_cameras->shownId(), std::string());
-    m_cameraTasks = std::make_unique<JPlacerCameraTasks>(m_window, *m_cell, *m_cameras, m_cellPath);
+        d.panel->onRunning = [this](bool) { lightCameras(); };
+        d.dock = std::make_unique<JDockWidget>(c.name, 0.f, 0.f, 0.f, 0.f);
+        d.dock->setCloseable(false);   // nowhere to open it again from
+        d.dock->setContent(d.panel.get());
+        panels.push_back(d.panel.get());
+        m_cameras.push_back(std::move(d));
+    }
+    JDockHost& centre = m_window.dockSpace().host(JDockSpace::Center);
+    // Tabbed together: each joins the first one's group.
+    for (size_t i = 0; i < m_cameras.size(); ++i) {
+        if (i == 0) centre.addDock(m_cameras[i].dock.get());
+        else centre.insertDock(m_cameras[i].dock.get(), centre.findDock(m_cameras[0].dock.get()));
+    }
+    if (!m_cameras.empty()) bringForward(*m_cameras.front().panel);
+    m_cameraTasks = std::make_unique<JPlacerCameraTasks>(m_window, *m_cell, std::move(panels),
+                                                         [this](JPCameraPanel& p) { bringForward(p); }, m_cellPath);
+    lightCameras();
+}
+
+void JPlacerMachine::bringForward(JPCameraPanel& camera) {
+    for (CameraDock& d : m_cameras)
+        if (d.panel.get() == &camera)
+            // Re-inserting a dock where it already is makes it the active tab.
+            if (JDockHost* host = d.dock->placedIn()) host->insertDock(d.dock.get(), host->findDock(d.dock.get()));
+}
+
+void JPlacerMachine::buildPanels() {
+    buildCameras();
 
     auto machine = std::make_unique<JPMachinePanel>(m_graph, *m_cell);
     machine->onPortChosen = [this](const std::string& driverId, const std::string& port) {
@@ -140,7 +168,8 @@ void JPlacerMachine::buildPanels() {
     m_board = std::make_unique<JPlacerBoard>(m_window, *m_cameraTasks,
         [this](const JPMountConfig& mount, double xPerY) { squareMachine(mount, xPerY); });
     panels.emplace_back("Board",     m_board->makePanel(m_graph));
-    m_cameras->setMarks([board = m_board.get()] { return board->marks(); });
+    for (CameraDock& c : m_cameras)
+        c.panel->setMarks([board = m_board.get(), id = c.panel->camera().id] { return board->marks(id); });
     panels.emplace_back("Console",   std::make_unique<JPConsolePanel>(m_graph, *m_cell));
     panels.emplace_back("Axes",      std::make_unique<JPAxesPanel>(m_graph, *m_cell));
 
@@ -222,9 +251,10 @@ bool JPlacerMachine::openCell(const std::string& path, std::string& error) {
             m_connectFailed = !ok && wasConnecting;
             if (ok) m_lost.clear();
             else if (!wasConnecting && !why.empty()) m_lost = why;   // dropped while working
-            // The camera on show gets its light as soon as there is a machine
-            // to switch it; without one, the panel says why it is dark.
-            if (m_cameras) lightCameras(m_cameras->shownId(), std::string());
+            // A camera on screen gets its light as soon as there is a
+            // machine to switch it; without one, its panel says why it is dark.
+            if (ok) for (CameraDock& c : m_cameras) if (!c.panel->camera().lightActuator().empty()) c.panel->setNote("");
+            lightCameras();
             if (!why.empty()) m_window.showStatus(why, kErrorMs);
             else m_window.showStatus(ok ? m_cell->config().name + " connected" : m_cell->config().name + " disconnected", kStatusMs);
         });
@@ -232,7 +262,7 @@ bool JPlacerMachine::openCell(const std::string& path, std::string& error) {
     // A home by the switches is finished with the camera where the head homes visually.
     // A new calibration straightens the picture from then on.
     m_unwatch.push_back(m_cell->onCalibration.connect([this, onMain] {
-        onMain([this] { if (m_cameras) m_cameras->refreshStraightening(); });
+        onMain([this] { for (CameraDock& c : m_cameras) c.panel->refreshStraightening(); });
     }));
     m_unwatch.push_back(m_cell->onHomed.connect([this, onMain](bool homed) {
         onMain([this, homed] {
@@ -431,24 +461,27 @@ void JPlacerMachine::home() {
     showState();
 }
 
-void JPlacerMachine::lightCameras(const std::string& shown, const std::string& before) {
-    if (!m_cell || !m_cameras) return;
-    auto light = [this](const std::string& cameraId) -> std::string {
-        for (const JPCameraConfig& c : m_cell->config().cameras)
-            if (c.id == cameraId) return c.lightActuator();
-        return {};
-    };
-    const std::string on = light(shown);
-    if (!m_cell->isConnected()) {
-        m_cameras->setNote(on.empty() ? std::string() : "Light off: connect the machine to light this camera.");
-        return;
+void JPlacerMachine::lightCameras() {
+    if (!m_cell) return;
+    const bool connected = m_cell->isConnected();
+    // A light is on while any camera it lights runs.
+    std::map<std::string, bool> lights;
+    for (CameraDock& c : m_cameras) {
+        const std::string light = c.panel->camera().lightActuator();
+        if (light.empty()) continue;
+        lights[light] = lights[light] || c.panel->isRunning();
+        if (!connected) c.panel->setNote("Light off: connect the machine to light this camera.");
     }
-    m_cameras->setNote("");
-    if (const std::string off = light(before); !off.empty() && off != on) m_cell->switchActuator(off, false);
-    if (!on.empty()) m_cell->switchActuator(on, true);
+    if (!connected) return;
+    for (const auto& [light, on] : lights) m_cell->switchActuator(light, on);
 }
 
 bool JPlacerMachine::showDock(const std::string& title) {
+    for (CameraDock& c : m_cameras)
+        if (c.dock->title() == title) {
+            bringForward(*c.panel);
+            return true;
+        }
     for (Dock& d : m_docks) {
         if (d.dock->title() != title) continue;
         // Re-inserting a dock where it already is makes it the active tab.

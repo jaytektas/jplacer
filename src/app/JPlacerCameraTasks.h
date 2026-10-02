@@ -13,16 +13,23 @@
 #include <memory>
 #include <string>
 #include <thread>
+#include <vector>
 
 inline namespace jf {
 
-// The camera panel's Calibrate and Visual Test, on the camera shown. Each runs
-// on a thread of its own (it waits on moves and pictures) while the window
-// carries on; what it is doing and how it went show in the panel's note and
-// the status bar. A calibration is kept in the cell and saved to its file.
+// The camera panels' Calibrate and Visual Test, each on its own camera, and
+// the camera work of homing and the board, through the camera on the head.
+// Each runs on a thread of its own (it waits on moves and pictures) while the
+// window carries on; what it is doing and how it went show in its panel's note
+// and the status bar. The panel a task uses is brought to the front, and kept
+// running while the task lasts. A calibration is kept in the cell and saved to
+// its file.
 class JPlacerCameraTasks {
 public:
-    JPlacerCameraTasks(JAppWindow& window, JPCell& cell, JPCameraPanel& cameras, std::string cellPath);
+    // `cameras`: a panel for each of the cell's cameras. `bringForward`: show
+    // a panel (the front tab of its dock group).
+    JPlacerCameraTasks(JAppWindow& window, JPCell& cell, std::vector<JPCameraPanel*> cameras,
+                       std::function<void(JPCameraPanel&)> bringForward, std::string cellPath);
     // Waits for a task under way: the cell and camera it drives go next.
     ~JPlacerCameraTasks();
 
@@ -32,28 +39,26 @@ public:
     // A camera on the head: over the head's homing mark, then measured with
     // known moves. A fixed camera: a nozzle's tip held over it (asked first,
     // as a nozzle goes down to it) and moved about.
-    void calibrate();
+    void calibrate(JPCameraPanel& camera);
     // Look at the homing mark and say how far it is from its setting.
-    void visualTest();
+    void visualTest(JPCameraPanel& camera);
     // Finish a home with the camera (JPVisualHoming), through the first
-    // calibrated camera on a head that homes visually, shown while it works.
-    // Says why not when there is no such camera. Nothing when no head homes
-    // visually.
+    // calibrated camera on a head that homes visually. Says why not when
+    // there is no such camera. Nothing when no head homes visually.
     void visualHome();
 
-    // The camera shown's mount; null when there is none.
-    const JPMountConfig* shownMount() const {
-        return m_cameras.shownFeed() ? &m_cameras.shownFeed()->config().mount : nullptr;
-    }
-    // Where the camera shown is looking, when it rides on a head; else why not.
-    bool shownCameraView(double& x, double& y, std::string& why) const;
-    // The camera shown's calibration and where it is looking, when it is a
-    // calibrated camera on a head (for drawing the machine over its picture).
-    bool shownCameraLook(JPCameraCalibration& calibration, double& viewX, double& viewY) const;
-    // Move the camera shown to look at (x, y); false (and the status bar says
-    // why) when it cannot.
+    // The camera the board is worked with: the first one riding on a head,
+    // a calibrated one first. Null when no camera rides on a head.
+    JPCameraPanel* headCamera() const;
+    // Where the head camera is looking; else why not.
+    bool headCameraView(double& x, double& y, std::string& why) const;
+    // A camera's calibration and where it is looking, when it is a calibrated
+    // camera on a head (for drawing the machine over its picture).
+    bool cameraLook(const std::string& cameraId, JPCameraCalibration& calibration, double& viewX, double& viewY) const;
+    // Move the head camera to look at (x, y), and show it; false (and the
+    // status bar says why) when it cannot.
     bool lookAt(double x, double y);
-    // Find `board` by its fiducials from `guess` with the camera shown; the
+    // Find `board` by its fiducials from `guess` with the head camera; the
     // result comes to `done` on the main thread.
     void locateBoard(const JPBoard& board, const JPBoardSide& guess,
                      std::function<void(const JPBoardLocator::Result&)> done);
@@ -61,24 +66,28 @@ public:
     bool busy() const { return m_busy; }
 
 private:
-    // Runs `task` on the worker; its answer (ok, words) comes back on the main
-    // thread to `done`. `progress` from the task is shown as it goes.
+    // Runs `task` on the worker with `camera` shown and running; its answer
+    // (ok, words) comes back on the main thread to `done`. `progress` from the
+    // task is shown as it goes.
     using Task = std::function<bool(std::string& words, const std::function<void(const std::string&)>& progress)>;
-    void run(const std::string& name, Task task, std::function<void(bool)> done = nullptr);
-    void calibrateFixed();
+    void run(JPCameraPanel& camera, const std::string& name, Task task, std::function<void(bool)> done = nullptr);
+    void calibrateFixed(JPCameraPanel& camera);
+    bool cameraView(const JPCameraConfig& camera, double& x, double& y, std::string& why) const;
+    bool lookAt(JPCameraPanel& camera, double x, double y);
     // A new calibration in use, and saved in the cell file.
     void keepCalibration(const std::string& cameraId, const JPCameraCalibration& calibration);
-    // What stops a task starting, in words; empty when it can.
-    std::string notReady(bool needsCalibration, bool needsHomingMark) const;
+    // What stops a task starting on `camera`, in words; empty when it can.
+    std::string notReady(const JPCameraPanel* camera, bool needsCalibration, bool needsHomingMark) const;
     const JPHeadConfig* head(const JPCameraConfig& camera) const;
 
-    JAppWindow&           m_window;
-    JPCell&               m_cell;
-    JPCameraPanel&        m_cameras;
-    std::string           m_cellPath;
-    std::thread           m_worker;
-    bool                  m_busy = false;   // main thread's
-    std::shared_ptr<bool> m_alive = std::make_shared<bool>(true);
+    JAppWindow&                         m_window;
+    JPCell&                             m_cell;
+    std::vector<JPCameraPanel*>         m_cameras;
+    std::function<void(JPCameraPanel&)> m_bringForward;
+    std::string                         m_cellPath;
+    std::thread                         m_worker;
+    bool                                m_busy = false;   // main thread's
+    std::shared_ptr<bool>               m_alive = std::make_shared<bool>(true);
 };
 
 } // inline namespace jf

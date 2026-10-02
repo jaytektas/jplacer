@@ -27,27 +27,34 @@ constexpr int kResultMs = 8000;
 
 } // namespace
 
-JPlacerCameraTasks::JPlacerCameraTasks(JAppWindow& window, JPCell& cell, JPCameraPanel& cameras, std::string cellPath)
-    : m_window(window), m_cell(cell), m_cameras(cameras), m_cellPath(std::move(cellPath)) {
-    m_cameras.onCalibrate  = [this] { calibrate(); };
-    m_cameras.onVisualTest = [this] { visualTest(); };
-    // Double-click the picture: the camera looks there.
-    m_cameras.onLookAtPixel = [this](double px, double py) {
-        JPCameraCalibration cal;
-        double vx, vy, x, y;
-        if (!shownCameraLook(cal, vx, vy)) {
-            m_window.showStatus("To look where the picture is clicked, home the machine and calibrate this camera", kResultMs);
-            return;
-        }
-        if (cal.machinePoint(px, py, vx, vy, x, y)) lookAt(x, y);
-    };
+JPlacerCameraTasks::JPlacerCameraTasks(JAppWindow& window, JPCell& cell, std::vector<JPCameraPanel*> cameras,
+                                       std::function<void(JPCameraPanel&)> bringForward, std::string cellPath)
+    : m_window(window), m_cell(cell), m_cameras(std::move(cameras)), m_bringForward(std::move(bringForward)),
+      m_cellPath(std::move(cellPath)) {
+    for (JPCameraPanel* panel : m_cameras) {
+        panel->onCalibrate  = [this, panel] { calibrate(*panel); };
+        panel->onVisualTest = [this, panel] { visualTest(*panel); };
+        // Double-click the picture: the camera looks there.
+        panel->onLookAtPixel = [this, panel](double px, double py) {
+            JPCameraCalibration cal;
+            double vx, vy, x, y;
+            if (!cameraLook(panel->camera().id, cal, vx, vy)) {
+                m_window.showStatus("To look where the picture is clicked, home the machine and calibrate a camera on the head",
+                                    kResultMs);
+                return;
+            }
+            if (cal.machinePoint(px, py, vx, vy, x, y)) lookAt(*panel, x, y);
+        };
+    }
 }
 
 JPlacerCameraTasks::~JPlacerCameraTasks() {
     *m_alive = false;
-    m_cameras.onCalibrate   = nullptr;
-    m_cameras.onVisualTest  = nullptr;
-    m_cameras.onLookAtPixel = nullptr;
+    for (JPCameraPanel* panel : m_cameras) {
+        panel->onCalibrate   = nullptr;
+        panel->onVisualTest  = nullptr;
+        panel->onLookAtPixel = nullptr;
+    }
     if (m_worker.joinable()) m_worker.join();
 }
 
@@ -57,64 +64,65 @@ const JPHeadConfig* JPlacerCameraTasks::head(const JPCameraConfig& camera) const
     return nullptr;
 }
 
-std::string JPlacerCameraTasks::notReady(bool needsCalibration, bool needsHomingMark) const {
+std::string JPlacerCameraTasks::notReady(const JPCameraPanel* camera, bool needsCalibration, bool needsHomingMark) const {
     if (m_busy) return "a camera task is already under way";
-    const JPCameraFeed* feed = m_cameras.shownFeed();
-    if (!feed) return "there is no camera to use";
+    if (!camera) return "no camera rides on a head";
+    const JPCameraConfig& cam = camera->camera();
     if (!m_cell.isConnected()) return "connect the machine first";
     if (!m_cell.isHomed()) return "home the machine first";
-    const JPHeadConfig* h = head(feed->config());
-    if (!h) return feed->config().name + " is not on a head";
+    const JPHeadConfig* h = head(cam);
+    if (!h) return cam.name + " is not on a head";
     if (needsHomingMark && (!h->homingFiducial || h->homingFiducialDiameter <= 0))
         return "the head's homing mark (its place and size) is not set";
-    if (needsCalibration && !m_cell.cameraCalibration(feed->config().id).valid)
-        return feed->config().name + " is not calibrated: Calibrate first";
+    if (needsCalibration && !m_cell.cameraCalibration(cam.id).valid)
+        return cam.name + " is not calibrated: Calibrate first";
     return {};
 }
 
-void JPlacerCameraTasks::run(const std::string& name, Task task, std::function<void(bool)> done) {
+void JPlacerCameraTasks::run(JPCameraPanel& camera, const std::string& name, Task task, std::function<void(bool)> done) {
     if (m_worker.joinable()) m_worker.join();   // the last one has finished: m_busy says so
     m_busy = true;
-    m_cameras.setBusy(true);
-    m_cameras.setNote(name + "\xE2\x80\xA6");
+    if (m_bringForward) m_bringForward(camera);
+    JPCameraPanel* panel = &camera;
+    panel->setBusy(true);
+    panel->setNote(name + "\xE2\x80\xA6");
     std::weak_ptr<bool> alive = m_alive;
     auto onMain = [alive](std::function<void()> fn) {
         JMainThreadDispatcher::instance().post([alive, fn] {
             if (const auto a = alive.lock(); a && *a) fn();
         });
     };
-    m_worker = std::thread([this, name, task, done, onMain] {
+    m_worker = std::thread([this, panel, name, task, done, onMain] {
         std::string words;
-        const bool ok = task(words, [this, name, onMain](const std::string& step) {
-            onMain([this, name, step] { m_cameras.setNote(name + ": " + step); });
+        const bool ok = task(words, [panel, name, onMain](const std::string& step) {
+            onMain([panel, name, step] { panel->setNote(name + ": " + step); });
         });
         JLOGC(JPlacerLog::kCamera, ok ? JLogLevel::Info : JLogLevel::Warn) << name << ": " << words;
-        onMain([this, name, ok, words, done] {
+        onMain([this, panel, name, ok, words, done] {
             m_busy = false;
-            m_cameras.setBusy(false);
+            panel->setBusy(false);
             const std::string text = ok ? words : name + " failed: " + words;
-            m_cameras.setNote(text);
+            panel->setNote(text);
             m_window.showStatus(text, kResultMs);
             if (done) done(ok);
         });
     });
 }
 
-void JPlacerCameraTasks::calibrate() {
-    if (const JPCameraFeed* feed = m_cameras.shownFeed();
-        feed && (feed->config().mount.axisX.empty() || feed->config().mount.axisY.empty())) {
-        calibrateFixed();
+void JPlacerCameraTasks::calibrate(JPCameraPanel& camera) {
+    if (camera.camera().mount.axisX.empty() || camera.camera().mount.axisY.empty()) {
+        calibrateFixed(camera);
         return;
     }
-    if (const std::string why = notReady(false, true); !why.empty()) {
+    if (const std::string why = notReady(&camera, false, true); !why.empty()) {
         m_window.showStatus("Calibrate: " + why, kResultMs);
         return;
     }
-    JPCameraFeed* feed = m_cameras.shownFeed();
+    JPCameraFeed* feed = &camera.feed();
     const JPHeadConfig h = *head(feed->config());
     const std::string cameraId = feed->config().id;
     auto result = std::make_shared<JPCameraCalibration>();
-    run("Calibrating " + feed->config().name, [this, feed, h, result](std::string& words, const auto& progress) {
+    run(camera, "Calibrating " + feed->config().name, [this, feed, h, result](std::string& words, const auto& progress) {
         // Over the mark first, as near as the camera's offset on the head says.
         const JPMountConfig& m = feed->config().mount;
         progress("moving over the homing mark");
@@ -148,14 +156,14 @@ void JPlacerCameraTasks::keepCalibration(const std::string& cameraId, const JPCa
     }
 }
 
-void JPlacerCameraTasks::visualTest() {
-    if (const std::string why = notReady(true, true); !why.empty()) {
+void JPlacerCameraTasks::visualTest(JPCameraPanel& camera) {
+    if (const std::string why = notReady(&camera, true, true); !why.empty()) {
         m_window.showStatus("Visual Test: " + why, kResultMs);
         return;
     }
-    JPCameraFeed* feed = m_cameras.shownFeed();
+    JPCameraFeed* feed = &camera.feed();
     const JPHeadConfig h = *head(feed->config());
-    run("Visual Test", [this, feed, h](std::string& words, const auto& progress) {
+    run(camera, "Visual Test", [this, feed, h](std::string& words, const auto& progress) {
         progress("looking at the homing mark");
         const JPVisualTest::Result r = JPVisualTest::run(m_cell, *feed, h, kTaskSpeed);
         if (!r.found) {
@@ -175,23 +183,22 @@ void JPlacerCameraTasks::visualHome() {
     for (const JPHeadConfig& h : m_cell.config().heads)
         if (h.visualHoming) homing = &h;
     if (!homing) return;
-    const JPCameraConfig* camera = nullptr;
-    for (const JPCameraConfig& c : m_cell.config().cameras)
-        if (!camera && c.mount.headId == homing->id && m_cell.cameraCalibration(c.id).valid) camera = &c;
+    JPCameraPanel* camera = nullptr;
+    for (JPCameraPanel* p : m_cameras)
+        if (!camera && p->camera().mount.headId == homing->id && m_cell.cameraCalibration(p->camera().id).valid) camera = p;
     if (!camera) {
         m_window.showStatus("Homed by the switches only: calibrate a camera on " + homing->name
                             + " to finish homing with the homing mark", kResultMs);
         return;
     }
     if (m_busy) return;
-    m_cameras.showCamera(camera->id);
-    if (const std::string why = notReady(true, true); !why.empty()) {
+    if (const std::string why = notReady(camera, true, true); !why.empty()) {
         m_window.showStatus("Visual homing: " + why, kResultMs);
         return;
     }
-    JPCameraFeed* feed = m_cameras.shownFeed();
+    JPCameraFeed* feed = &camera->feed();
     const JPHeadConfig h = *homing;
-    run("Visual homing", [this, feed, h](std::string& words, const auto& progress) {
+    run(*camera, "Visual homing", [this, feed, h](std::string& words, const auto& progress) {
         progress("looking at the homing mark");
         const JPVisualHoming::Result r = JPVisualHoming::run(m_cell, *feed, h, kTaskSpeed);
         if (!r.ok) {
@@ -206,11 +213,20 @@ void JPlacerCameraTasks::visualHome() {
     });
 }
 
-bool JPlacerCameraTasks::shownCameraView(double& x, double& y, std::string& why) const {
-    const JPCameraFeed* feed = m_cameras.shownFeed();
-    if (!feed) { why = "there is no camera to use"; return false; }
-    const JPMountConfig& m = feed->config().mount;
-    if (m.axisX.empty() || m.axisY.empty()) { why = feed->config().name + " does not ride on a head"; return false; }
+JPCameraPanel* JPlacerCameraTasks::headCamera() const {
+    JPCameraPanel* first = nullptr;
+    for (JPCameraPanel* p : m_cameras) {
+        const JPMountConfig& m = p->camera().mount;
+        if (m.axisX.empty() || m.axisY.empty()) continue;
+        if (m_cell.cameraCalibration(p->camera().id).valid) return p;
+        if (!first) first = p;
+    }
+    return first;
+}
+
+bool JPlacerCameraTasks::cameraView(const JPCameraConfig& camera, double& x, double& y, std::string& why) const {
+    const JPMountConfig& m = camera.mount;
+    if (m.axisX.empty() || m.axisY.empty()) { why = camera.name + " does not ride on a head"; return false; }
     if (!m_cell.isHomed()) { why = "home the machine first"; return false; }
     const auto at = m_cell.jogBase();
     x = at.at(m.axisX) + m.offsetX;
@@ -218,39 +234,61 @@ bool JPlacerCameraTasks::shownCameraView(double& x, double& y, std::string& why)
     return true;
 }
 
-bool JPlacerCameraTasks::shownCameraLook(JPCameraCalibration& calibration, double& viewX, double& viewY) const {
-    const JPCameraFeed* feed = m_cameras.shownFeed();
+bool JPlacerCameraTasks::headCameraView(double& x, double& y, std::string& why) const {
+    const JPCameraPanel* camera = headCamera();
+    if (!camera) { why = "no camera rides on a head"; return false; }
+    return cameraView(camera->camera(), x, y, why);
+}
+
+bool JPlacerCameraTasks::cameraLook(const std::string& cameraId, JPCameraCalibration& calibration, double& viewX,
+                                    double& viewY) const {
     std::string why;
-    if (!feed || !shownCameraView(viewX, viewY, why)) return false;
-    calibration = m_cell.cameraCalibration(feed->config().id);
-    return calibration.valid;
+    for (const JPCameraPanel* p : m_cameras)
+        if (p->camera().id == cameraId) {
+            if (!cameraView(p->camera(), viewX, viewY, why)) return false;
+            calibration = m_cell.cameraCalibration(cameraId);
+            return calibration.valid;
+        }
+    return false;
 }
 
 bool JPlacerCameraTasks::lookAt(double x, double y) {
+    JPCameraPanel* camera = headCamera();
+    if (!camera) {
+        m_window.showStatus("No camera rides on a head", kResultMs);
+        return false;
+    }
+    if (!lookAt(*camera, x, y)) return false;
+    if (m_bringForward) m_bringForward(*camera);
+    return true;
+}
+
+bool JPlacerCameraTasks::lookAt(JPCameraPanel& camera, double x, double y) {
     if (m_busy) {
         m_window.showStatus("A camera task is under way", kResultMs);
         return false;
     }
     double vx, vy;
     std::string why;
-    if (!shownCameraView(vx, vy, why)) {
+    if (!cameraView(camera.camera(), vx, vy, why)) {
         m_window.showStatus(why, kResultMs);
         return false;
     }
-    const JPMountConfig& m = m_cameras.shownFeed()->config().mount;
+    const JPMountConfig& m = camera.camera().mount;
     m_cell.moveAxes({ { m.axisX, x - m.offsetX }, { m.axisY, y - m.offsetY } }, kTaskSpeed);
     return true;
 }
 
 void JPlacerCameraTasks::locateBoard(const JPBoard& board, const JPBoardSide& guess,
                                      std::function<void(const JPBoardLocator::Result&)> done) {
-    if (const std::string why = notReady(true, false); !why.empty()) {
+    JPCameraPanel* camera = headCamera();
+    if (const std::string why = notReady(camera, true, false); !why.empty()) {
         m_window.showStatus("Locate Board: " + why, kResultMs);
         return;
     }
-    JPCameraFeed* feed = m_cameras.shownFeed();
+    JPCameraFeed* feed = &camera->feed();
     auto result = std::make_shared<JPBoardLocator::Result>();
-    run("Locating the board", [this, feed, board, guess, result](std::string& words, const auto& progress) {
+    run(*camera, "Locating the board", [this, feed, board, guess, result](std::string& words, const auto& progress) {
         JPBoardLocator::Options o;
         o.speed = kTaskSpeed;
         *result = JPBoardLocator::run(m_cell, *feed, board, guess, o, progress);
@@ -268,8 +306,8 @@ void JPlacerCameraTasks::locateBoard(const JPBoard& board, const JPBoardSide& gu
     }, [result, done](bool) { done(*result); });
 }
 
-void JPlacerCameraTasks::calibrateFixed() {
-    JPCameraFeed* feed = m_cameras.shownFeed();
+void JPlacerCameraTasks::calibrateFixed(JPCameraPanel& camera) {
+    JPCameraFeed* feed = &camera.feed();
     const JPCameraConfig& cam = feed->config();
     // The mark is a nozzle's tip: the first nozzle on a head that moves on X, Y and Z.
     const JPNozzleConfig* nozzle = nullptr;
@@ -296,10 +334,12 @@ void JPlacerCameraTasks::calibrateFixed() {
     const JPMountConfig tool = nozzle->mount;
     const std::string cameraId = cam.id;
     std::weak_ptr<bool> alive = m_alive;
-    JDialog::confirm("Calibrate " + cam.name, body, [this, alive, feed, tool, place, cameraId] {
+    JPCameraPanel* panel = &camera;
+    JDialog::confirm("Calibrate " + cam.name, body, [this, alive, panel, feed, tool, place, cameraId] {
         if (const auto a = alive.lock(); !a || !*a) return;
+        if (m_busy) return;   // another task began while asking
         auto result = std::make_shared<JPCameraCalibration>();
-        run("Calibrating " + feed->config().name, [this, feed, tool, place, result](std::string& words, const auto& progress) {
+        run(*panel, "Calibrating " + feed->config().name, [this, feed, tool, place, result](std::string& words, const auto& progress) {
             progress("the nozzle over the camera");
             const bool over = m_cell.safeZAndWait(tool.headId, kTaskSpeed, words)
                 && m_cell.moveAxesAndWait({ { tool.axisX, place.offsetX - tool.offsetX },

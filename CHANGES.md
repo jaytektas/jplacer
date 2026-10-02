@@ -69,6 +69,9 @@ notes.
 - The camera's picture can be shown straightened: the lens's bending out, square to the machine, with a
   slider for how much of the bent edge to show. Drawn by the graphics card, or the processor without one.
 - Double-click the live picture of a calibrated head camera and it moves to look there.
+- Each camera has a tab of its own in the middle of the window, instead of buttons to choose one: put
+  them side by side or tear one out to see two at once. A camera runs, with its light on, while its
+  picture is on screen, and keeps its own straightened or as-taken choice.
 - The board is drawn over the live camera picture: each part's designator and each fiducial where the
   board's place puts it.
 - Visual homing: Home finishes by finding the homing mark with the calibrated head camera and

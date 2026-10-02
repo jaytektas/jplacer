@@ -50,4 +50,12 @@ std::string JPlacerSettings::machineCell() {
     return JSettings::instance().get<std::string>(kMachineCell, std::string());
 }
 
+std::string JPlacerSettings::cameraStraightKey(const std::string& cameraId) {
+    return "camera." + cameraId + ".straight";
+}
+
+std::string JPlacerSettings::cameraShowAllKey(const std::string& cameraId) {
+    return "camera." + cameraId + ".showAll";
+}
+
 } // inline namespace jf
