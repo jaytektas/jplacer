@@ -54,7 +54,7 @@ JPCellConfig cellConfig() {
                   "backlash": "oneSided", "backlashOffset": 0.1, "backlashSpeedFactor": 0.25 } ],
       "cameras": [ { "id": "C", "name": "Top", "mount": { "head": "H", "axisX": "X", "axisY": "Y" },
                      "device": { "backend": "simulated", "width": 640, "height": 480, "fps": 60,
-                       "scene": { "pxPerMm": [-25.7, -0.11, -0.11, 25.6], "lensK1": -0.1, "lensCentre": [336, 252], "ground": 30, "mark": 190, "noise": 3,
+                       "scene": { "pxPerMm": [-25.7, -0.11, -0.11, 25.6], "lensK1": -0.1, "lensK2": 0.03, "lensCentre": [336, 252], "ground": 30, "mark": 190, "noise": 3,
                                   "marks": [ { "x": 137.237, "y": 179.165, "diameter": 1.85 } ] } } } ]
     })";
     JPCellConfig c;
@@ -138,6 +138,7 @@ int main() {
     for (int i = 0; i < 4; ++i) assert(std::abs(cal->pxPerMm[i] - kM[i]) < 0.002 * 25.7);
     assert(cal->rmsPx < 0.05);
     assert(std::abs(cal->lensK1 - kLensK1) < 0.005 && cal->width == 640 && cal->height == 480);
+    assert(std::abs(cal->lensK2 - 0.03) < 0.01 && cal->leftOut == 0);
     assert(std::abs(cal->lensCentreX - 336) < 3 && std::abs(cal->lensCentreY - 252) < 3);
     // It went back where it began.
     const auto base = cell.jogBase();

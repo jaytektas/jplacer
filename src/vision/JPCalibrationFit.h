@@ -24,7 +24,7 @@ public:
         std::array<double, 4> pxPerMm{};   // M, row-major
         double centreX = 0, centreY = 0;   // where the mark was with no offset
         double rmsPx = 0;                  // residual
-        double lensK1 = 0;                 // JPLens::k1 (zero from fit)
+        double lensK1 = 0, lensK2 = 0;     // JPLens::k1, k2 (zero from fit)
         double lensCentreX = 0, lensCentreY = 0;   // JPLens's centre (fitWithLens)
     };
 
@@ -32,11 +32,14 @@ public:
     // not in a line).
     static std::optional<Result> fit(const std::vector<Sample>& samples);
     // The same with the lens fitted too, for a picture width x height: its
-    // bending, and with `lensCentre` where it bends about (else the picture's
-    // middle). Needs more samples than parameters (seven, or nine with the
-    // centre), spread across the picture so the bending shows.
+    // bending (k1), and with `lensCentre` also where it bends about (else the
+    // picture's middle) and how the bending grows to the corners (k2). Needs
+    // more samples than parameters (seven, or ten), spread across the picture
+    // so the bending shows.
     static std::optional<Result> fitWithLens(const std::vector<Sample>& samples, int width, int height,
                                              bool lensCentre);
+    // How far each sample sits from where a fit with the lens puts it (pixels).
+    static std::vector<double> residualsPx(const std::vector<Sample>& samples, const Result& fit, int width, int height);
 };
 
 } // inline namespace jf

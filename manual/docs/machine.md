@@ -266,12 +266,15 @@ set.
 1. The camera moves over the homing mark.
 2. It finds the mark at whatever size it appears (the scale is not known yet), checking that its edge
    is round nearly all the way round.
-3. Three small moves show which way the mark goes in the picture; then the head steps through a 5 by 5
-   grid that carries the mark across the middle part of the picture, finding it after every move.
-4. A fit of the grid's finds gives the camera's scale and turn, and the lens: a wide lens pulls the
-   edges of the picture in (barrel), around a centre that on a small camera is rarely the middle of the
-   picture. If the finds disagree with the fit by more than a pixel, or the mark measures far from its
-   set diameter, nothing is kept and the panel says why.
+3. Three small moves show which way the mark goes in the picture; then the head carries the mark to
+   7 by 5 places across the whole picture, out to as near its edges as leaves room for the mark, nearest
+   the middle first, finding it at each. Towards the corners the mark can be too dim and bent to measure;
+   such a place is skipped, as long as no more than one in five are.
+4. A fit of the finds gives the camera's scale and turn, and the lens: a wide lens pulls the edges of
+   the picture in (barrel), more so towards the corners, around a centre that on a small camera is rarely
+   the middle of the picture. A find far from the fit (a glint taken for the mark, a missed step) is left
+   out and the rest fitted again. If the finds still disagree with the fit by more than a pixel, or the
+   mark measures far from its set diameter, nothing is kept and the panel says why.
 5. The head goes back to where it started.
 
 Every move arrives from the same side (see [Backlash](#backlash)), so play in the drives cannot creep

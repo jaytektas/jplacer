@@ -25,7 +25,7 @@ inline namespace jf {
 // they must find what it hides.
 //
 //   "scene": { "pxPerMm": [-25.7, 0, 0, 25.6],          // row-major, as JPCameraCalibration
-//              "lensK1": -0.1,                          // the lens's bending (JPLens), none if left out
+//              "lensK1": -0.1, "lensK2": 0.02,          // the lens's bending (JPLens), none if left out
 //              "lensCentre": [672, 373],                // where it bends about (else the middle)
 //              "marks": [ { "x": 137.137, "y": 179.265, "diameter": 1.85 },
 //                         { "x": 150, "y": 179, "diameter": 1, "level": 5 } ],   // its own brightness (a hole)
@@ -59,7 +59,7 @@ private:
     double m_pxPerMm[4] = {};
     std::vector<Mark> m_marks;
     float m_ground = 0, m_noise = 0;
-    double m_lensK1 = 0;
+    double m_lensK1 = 0, m_lensK2 = 0;
     double m_lensCentre[2] = {};
     bool m_lensCentreSet = false;
     ViewProvider m_view;

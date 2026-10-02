@@ -58,8 +58,14 @@ std::optional<JPCalibrationFit::Result> JPCalibrationFit::fit(const std::vector<
 
 namespace {
 
-constexpr int kLensParams = 9;           // centre x, y; M (4); k1; the lens's centre x, y
-constexpr int kLensIterations = 30;
+constexpr int kLensParams = 10;          // centre x, y; M (4); k1; the lens's centre x, y; k2
+constexpr int kLensIterations = 60;
+// Levenberg-Marquardt's damping: where it starts, how much a step that helps
+// or does not changes it, its floor, how many tries a step gets, and the least
+// diagonal it scales (a parameter nothing fixes is still damped).
+constexpr double kStartDamping = 1e-3, kDampingFactor = 10, kMinDamping = 1e-9;
+constexpr int    kDampingTries = 12;
+constexpr double kMinDiagonal = 1e-9;
 constexpr double kLensConverged = 1e-10; // a step this small (relative) ends it
 constexpr double kDerivativeStep = 1e-6;
 
@@ -92,7 +98,7 @@ bool solveLinear(std::vector<double> A, std::vector<double> b, int n, std::vecto
 // Residuals (seen minus modelled), x then y for each sample.
 void lensResiduals(const std::vector<JPCalibrationFit::Sample>& samples, const double p[kLensParams],
                    int width, int height, std::vector<double>& out) {
-    const JPLens lens = JPLens::forPicture(width, height, p[6], p[7], p[8]);
+    const JPLens lens = JPLens::forPicture(width, height, p[6], p[7], p[8], p[9]);
     out.resize(samples.size() * 2);
     for (size_t i = 0; i < samples.size(); ++i) {
         const auto& s = samples[i];
@@ -107,16 +113,17 @@ void lensResiduals(const std::vector<JPCalibrationFit::Sample>& samples, const d
 
 std::optional<JPCalibrationFit::Result> JPCalibrationFit::fitWithLens(const std::vector<Sample>& samples, int width,
                                                                       int height, bool lensCentre) {
-    // The lens's centre held at the picture's middle is two fewer to fit.
-    const int fitted = lensCentre ? kLensParams : kLensParams - 2;
+    // The lens's centre held at the picture's middle, and no k2, is three fewer to fit.
+    const int fitted = lensCentre ? kLensParams : kLensParams - 3;
     if (samples.size() * 2 <= size_t(fitted) || width <= 0 || height <= 0) return std::nullopt;
     // From the straight fit; for the lens's centre, from the fit about the
     // middle (with no bending yet, where it bends about changes nothing).
     const auto start = lensCentre ? fitWithLens(samples, width, height, false) : fit(samples);
     if (!start) return std::nullopt;
     double p[kLensParams] = { start->centreX, start->centreY, start->pxPerMm[0], start->pxPerMm[1],
-                              start->pxPerMm[2], start->pxPerMm[3], start->lensK1, width / 2.0, height / 2.0 };
+                              start->pxPerMm[2], start->pxPerMm[3], start->lensK1, width / 2.0, height / 2.0, 0 };
     std::vector<double> r, rd, J(samples.size() * 2 * size_t(fitted)), step;
+    double lambda = kStartDamping;
     for (int it = 0; it < kLensIterations; ++it) {
         lensResiduals(samples, p, width, height, r);
         // The Jacobian by differences: the model is smooth and small.
@@ -136,10 +143,34 @@ std::optional<JPCalibrationFit::Result> JPCalibrationFit::fitWithLens(const std:
                 b[a] -= J[i * n + a] * r[i];
                 for (size_t c = 0; c < n; ++c) A[a * n + c] += J[i * n + a] * J[i * n + c];
             }
-        if (!solveLinear(A, b, fitted, step)) return std::nullopt;
+        // Levenberg-Marquardt: the step damped by lambda (on the diagonal),
+        // tried, and taken only if the fit gets better; else damped harder
+        // and tried again. A parameter the samples hardly fix (where a lens
+        // that barely bends bends about) then moves little, not wildly.
+        double before = 0;
+        for (double v : r) before += v * v;
+        bool better = false;
+        for (int tries = 0; tries < kDampingTries && !better; ++tries) {
+            std::vector<double> D = A;
+            for (size_t a = 0; a < n; ++a) D[a * n + a] += lambda * std::max(A[a * n + a], kMinDiagonal);
+            if (!solveLinear(D, b, fitted, step)) return std::nullopt;
+            double q[kLensParams];
+            std::copy(p, p + kLensParams, q);
+            for (int k = 0; k < fitted; ++k) q[k] += step[size_t(k)];
+            lensResiduals(samples, q, width, height, rd);
+            double after = 0;
+            for (double v : rd) after += v * v;
+            if (after < before) {
+                std::copy(q, q + kLensParams, p);
+                lambda = std::max(lambda / kDampingFactor, kMinDamping);
+                better = true;
+            } else {
+                lambda *= kDampingFactor;
+            }
+        }
+        if (!better) break;   // no step helps: as good as it gets
         double change = 0, size = 0;
         for (int k = 0; k < fitted; ++k) {
-            p[k] += step[size_t(k)];
             change += step[size_t(k)] * step[size_t(k)];
             size += p[k] * p[k];
         }
@@ -153,9 +184,20 @@ std::optional<JPCalibrationFit::Result> JPCalibrationFit::fitWithLens(const std:
     out.lensK1  = p[6];
     out.lensCentreX = p[7];
     out.lensCentreY = p[8];
+    out.lensK2 = p[9];
     double e2 = 0;
     for (double v : r) e2 += v * v;
     out.rmsPx = std::sqrt(e2 / double(samples.size()));
+    return out;
+}
+
+std::vector<double> JPCalibrationFit::residualsPx(const std::vector<Sample>& samples, const Result& f, int width, int height) {
+    const double p[kLensParams] = { f.centreX, f.centreY, f.pxPerMm[0], f.pxPerMm[1], f.pxPerMm[2], f.pxPerMm[3],
+                                    f.lensK1, f.lensCentreX, f.lensCentreY, f.lensK2 };
+    std::vector<double> r;
+    lensResiduals(samples, p, width, height, r);
+    std::vector<double> out(samples.size());
+    for (size_t i = 0; i < samples.size(); ++i) out[i] = std::hypot(r[2 * i], r[2 * i + 1]);
     return out;
 }
 

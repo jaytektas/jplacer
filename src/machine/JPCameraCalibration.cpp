@@ -83,6 +83,7 @@ JPCameraCalibration JPCameraCalibration::fromJson(const JJson& j) {
     c.valid = j["valid"].boolean();
     for (size_t i = 0; i < 4 && i < j["pxPerMm"].size(); ++i) c.pxPerMm[i] = j["pxPerMm"][i].number();
     c.lensK1 = j["lens"]["k1"].number();
+    c.lensK2 = j["lens"]["k2"].number();
     c.lensCentreX = j["lens"]["centreX"].number();
     c.lensCentreY = j["lens"]["centreY"].number();
     c.width  = int(j["picture"]["width"].number());
@@ -92,6 +93,8 @@ JPCameraCalibration JPCameraCalibration::fromJson(const JJson& j) {
     if (c.width <= 0 || c.height <= 0) c.valid = false;
     c.z     = j["z"].number();
     c.rmsPx = j["rmsPx"].number();
+    c.leftOut = int(j["leftOut"].number());
+    c.unmeasured = int(j["unmeasured"].number());
     c.when  = j["when"].str();
     return c;
 }
@@ -102,12 +105,15 @@ JJson JPCameraCalibration::toJson() const {
     j["pxPerMm"] = JJson::array();
     for (double v : pxPerMm) j["pxPerMm"].push(v);
     j["lens"]["k1"] = lensK1;
+    j["lens"]["k2"] = lensK2;
     j["lens"]["centreX"] = lensCentreX;
     j["lens"]["centreY"] = lensCentreY;
     j["picture"]["width"]  = width;
     j["picture"]["height"] = height;
     j["z"]     = z;
     j["rmsPx"] = rmsPx;
+    j["leftOut"] = leftOut;
+    j["unmeasured"] = unmeasured;
     j["when"]  = when;
     return j;
 }

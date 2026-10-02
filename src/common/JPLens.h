@@ -10,12 +10,13 @@ inline namespace jf {
 // How a camera's lens bends straight lines: radially about the lens's centre
 // (on a small camera rarely the middle of the picture: the sensor sits a
 // little off the lens's axis). A point at distance r from that centre is seen
-// at r (1 + k1 (r/R)^2), R half the picture's diagonal. k1 below zero is
-// barrel (the usual wide lens: the edges pulled in), above zero pincushion.
+// at r (1 + k1 (r/R)^2 + k2 (r/R)^4), R half the picture's diagonal. k1 below
+// zero is barrel (the usual wide lens: the edges pulled in), above zero
+// pincushion; k2 is how that changes towards the corners.
 // Positions are pixels in the picture.
 class JPLens {
 public:
-    double k1 = 0;
+    double k1 = 0, k2 = 0;
     double centreX = 0, centreY = 0;
     double radiusPx = 0;   // R; zero: no lens model (straight)
 
@@ -24,9 +25,10 @@ public:
     static JPLens forPicture(int width, int height, double k1) {
         return forPicture(width, height, k1, width / 2.0, height / 2.0);
     }
-    static JPLens forPicture(int width, int height, double k1, double centreX, double centreY) {
+    static JPLens forPicture(int width, int height, double k1, double centreX, double centreY, double k2 = 0) {
         JPLens l;
         l.k1 = k1;
+        l.k2 = k2;
         l.centreX = centreX;
         l.centreY = centreY;
         l.radiusPx = 0.5 * std::hypot(double(width), double(height));
@@ -60,7 +62,9 @@ private:
     static constexpr int kSteps = 12;
 
     double factor(double r2) const {
-        return radiusPx > 0 ? 1 + k1 * r2 / (radiusPx * radiusPx) : 1;
+        if (radiusPx <= 0) return 1;
+        const double n = r2 / (radiusPx * radiusPx);
+        return 1 + k1 * n + k2 * n * n;
     }
 };
 

@@ -26,13 +26,12 @@ namespace {
 constexpr double kFirstSearch  = 0.3;
 constexpr double kMinMarkShare = 0.02;   // of the picture's smaller side
 constexpr double kMaxMarkShare = 0.4;
-// The first moves, small enough that the mark stays near where it was, and
-// the grid's reach from the picture's middle: shares of its smaller side.
+// The first moves, small enough that the mark stays near where it was: a
+// share of the picture's smaller side.
 constexpr double kNudgeShare = 0.05;
-constexpr double kGridShare  = 0.4;
-// The grid's points along each side (odd: one through the middle). Enough
-// across the picture for the lens's bending to show and be fitted.
-constexpr int kGridSide = 5;
+// The grid's places across and down the picture (odd: one through the
+// middle). Enough for the lens's bending to show and be fitted to the edges.
+constexpr int kGridColumns = 7, kGridRows = 5;
 // The small moves first made to find which way the mark goes.
 constexpr size_t kDirectionMoves = 3;
 // Samples before the lens is fitted for predicting where the next mark is.
@@ -41,6 +40,13 @@ constexpr size_t kLensPredictFrom = 8;
 // the fit so far predicts, and accepted with this much of its edge round.
 constexpr double kPredictedSearchPx = 25;
 constexpr double kPredictedMinShape = 0.5;
+// A find further from the fit than this many times its spread (and at least
+// so many pixels) is left out; at most one in so many.
+constexpr double kOutlierSpread = 3.0;
+constexpr double kOutlierPx = 1.0;
+constexpr size_t kMaxLeftOutShare = 10;
+// At most one grid place in so many may go unmeasured.
+constexpr size_t kMaxUnmeasuredShare = 5;
 // How far the measured mark may be from the size it was said to be.
 constexpr double kMarkSizeTolerance = 0.2;
 
@@ -104,7 +110,8 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
     // Moves the camera by (dx, dy) relative to the mark (the tool carrying
     // the mark the other way), finds the mark near where the samples so far
     // put it (around where it first was before there are three) and records it.
-    auto measure = [&](double dx, double dy, const char* phase) {
+    int unmeasured = 0;   // grid places where the mark could not be measured (skipped)
+    auto measure = [&](double dx, double dy, const char* phase, bool mayMiss) {
         ++step;
         if (progress) progress(std::string(phase) + ", move " + std::to_string(step));
         if (!cell.moveAxesAndWait({ { mount.axisX, x0 + sign * dx }, { mount.axisY, y0 + sign * dy } }, o.speed, why))
@@ -131,6 +138,13 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
         if (radius == kPredictedSearchPx) rq.minShape = kPredictedMinShape;
         const JPRoundMark m = JPRoundMarkFinder::find(img, rq);
         if (!m.found) {
+            // Towards the picture's corners the mark can be too dim and bent
+            // to measure: a grid place may be skipped (a few, below).
+            if (mayMiss) {
+                ++unmeasured;
+                JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << "  offset " << dx << ", " << dy << ": not measured (" << m.why << ")";
+                return true;
+            }
             why = "lost the mark at move " + std::to_string(step) + ": " + m.why;
             return false;
         }
@@ -142,13 +156,11 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
     // A rough fit from small moves, the mark staying near where it was...
     const double nudge = kNudgeShare * side / guessPxPerMm;
     for (const auto [dx, dy] : { std::pair{ 0.0, 0.0 }, { nudge, 0.0 }, { 0.0, nudge } })
-        if (!measure(dx, dy, "finding the direction")) {
+        if (!measure(dx, dy, "finding the direction", false)) {
             back();
             return std::nullopt;
         }
-    // ...says where the mark is in the middle of the picture: the grid is laid
-    // around there, reaching well across the picture so the scale is measured
-    // over many pixels rather than few.
+    // ...says how a move carries the mark across the picture.
     const auto rough = JPCalibrationFit::fit(samples);
     const double det = rough ? rough->pxPerMm[0] * rough->pxPerMm[3] - rough->pxPerMm[1] * rough->pxPerMm[2] : 0;
     if (std::abs(det) < 1e-9) {
@@ -156,25 +168,56 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
         back();
         return std::nullopt;
     }
-    const double wantX = img.width / 2.0 - rough->centreX, wantY = img.height / 2.0 - rough->centreY;
-    const double cx = (rough->pxPerMm[3] * wantX - rough->pxPerMm[1] * wantY) / det;
-    const double cy = (rough->pxPerMm[0] * wantY - rough->pxPerMm[2] * wantX) / det;
-    const double spacing = kGridShare * side / std::sqrt(std::abs(det)) / (kGridSide / 2);
-    for (int iy = -(kGridSide / 2); iy <= kGridSide / 2; ++iy)
-        for (int ix = -(kGridSide / 2); ix <= kGridSide / 2; ++ix)
-            if (!measure(cx + ix * spacing, cy + iy * spacing, "measuring")) {
-                back();
-                return std::nullopt;
-            }
+    // The grid: places across the whole picture, as near its edges as leaves
+    // room for the mark and a search around it (the lens bends most there,
+    // and a straightened picture's edges are only as good as the fit there),
+    // each turned into a move by the rough fit; nearest the middle first, so
+    // the lens is learned before the furthest are predicted.
+    const double reachX = img.width / 2.0 - markPx - kPredictedSearchPx;
+    const double reachY = img.height / 2.0 - markPx - kPredictedSearchPx;
+    struct Target { double dx, dy, r; };
+    std::vector<Target> targets;
+    for (int iy = 0; iy < kGridRows; ++iy)
+        for (int ix = 0; ix < kGridColumns; ++ix) {
+            const double tx = reachX * (2.0 * ix / (kGridColumns - 1) - 1), ty = reachY * (2.0 * iy / (kGridRows - 1) - 1);
+            const double wantX = img.width / 2.0 + tx - rough->centreX, wantY = img.height / 2.0 + ty - rough->centreY;
+            targets.push_back({ (rough->pxPerMm[3] * wantX - rough->pxPerMm[1] * wantY) / det,
+                                (rough->pxPerMm[0] * wantY - rough->pxPerMm[2] * wantX) / det, std::hypot(tx, ty) });
+        }
+    std::stable_sort(targets.begin(), targets.end(), [](const Target& a, const Target& b) { return a.r < b.r; });
+    for (const Target& t : targets)
+        if (!measure(t.dx, t.dy, "measuring", true)) {
+            back();
+            return std::nullopt;
+        }
     back();
+    if (size_t(unmeasured) * kMaxUnmeasuredShare > targets.size()) {
+        why = "the mark could not be measured at " + std::to_string(unmeasured) + " of " + std::to_string(targets.size())
+            + " places: is the light on it, and is it the right mark?";
+        return std::nullopt;
+    }
 
     // The grid alone: the first small moves were for finding the way, and
     // the grid covers where they were.
     const std::vector<JPCalibrationFit::Sample> grid(samples.begin() + kDirectionMoves, samples.end());
-    const auto fit = JPCalibrationFit::fitWithLens(grid, img.width, img.height, true);
+    auto fit = JPCalibrationFit::fitWithLens(grid, img.width, img.height, true);
     if (!fit) {
         why = "the moves did not give a fit";
         return std::nullopt;
+    }
+    // A find far from the fit (a glint taken for the mark, a missed step) is
+    // left out and the rest fitted again; a few at most, or it is not a fit.
+    int leftOut = 0;
+    {
+        const std::vector<double> res = JPCalibrationFit::residualsPx(grid, *fit, img.width, img.height);
+        const double limit = std::max(kOutlierPx, kOutlierSpread * fit->rmsPx);
+        std::vector<JPCalibrationFit::Sample> kept;
+        for (size_t i = 0; i < grid.size(); ++i)
+            if (res[i] <= limit) kept.push_back(grid[i]);
+        leftOut = int(grid.size() - kept.size());
+        if (leftOut > 0 && size_t(leftOut) <= grid.size() / kMaxLeftOutShare)
+            if (const auto again = JPCalibrationFit::fitWithLens(kept, img.width, img.height, true)) fit = again;
+        if (size_t(leftOut) > grid.size() / kMaxLeftOutShare) leftOut = 0;   // too many to leave out: the fit stands as it is, and is judged
     }
     if (fit->rmsPx > o.maxRmsPx) {
         char buf[160];
@@ -200,12 +243,15 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
     c.valid   = true;
     c.pxPerMm = fit->pxPerMm;
     c.lensK1  = fit->lensK1;
+    c.lensK2  = fit->lensK2;
     c.lensCentreX = fit->lensCentreX;
     c.lensCentreY = fit->lensCentreY;
     c.width   = img.width;
     c.height  = img.height;
     c.z       = o.markZ;
     c.rmsPx   = fit->rmsPx;
+    c.leftOut = leftOut;
+    c.unmeasured = unmeasured;
     c.when    = now();
     JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << feed.config().name << ": " << c.scaleX() << " x " << c.scaleY()
         << " px/mm, turned " << c.rotationDeg(cam.looksUp) << " deg" << (c.mirrored(cam.looksUp) ? ", mirrored" : "")

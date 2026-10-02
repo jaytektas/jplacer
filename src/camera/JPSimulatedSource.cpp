@@ -33,6 +33,7 @@ JPSimulatedSource::JPSimulatedSource(std::string name, int width, int height, do
     m_ground = float(scene["ground"].number());
     m_noise  = float(scene["noise"].number());
     m_lensK1 = scene["lensK1"].number();
+    m_lensK2 = scene["lensK2"].number();
     m_lensCentre[0] = scene["lensCentre"][0].number();
     m_lensCentre[1] = scene["lensCentre"][1].number();
     m_lensCentreSet = scene["lensCentre"].size() == 2;
@@ -55,8 +56,8 @@ void JPSimulatedSource::drawScene(JPFrame& frame) {
     // The lens bends the picture: each point is drawn where the lens puts it,
     // so a pixel is tested by straightening it first.
     const JPLens lens = m_lensCentreSet
-        ? JPLens::forPicture(frame.width, frame.height, m_lensK1, m_lensCentre[0], m_lensCentre[1])
-        : JPLens::forPicture(frame.width, frame.height, m_lensK1);
+        ? JPLens::forPicture(frame.width, frame.height, m_lensK1, m_lensCentre[0], m_lensCentre[1], m_lensK2)
+        : JPLens::forPicture(frame.width, frame.height, m_lensK1, frame.width / 2.0, frame.height / 2.0, m_lensK2);
     // What is at the viewpoint is seen in the middle of the picture: through
     // a perfect lens, at the middle straightened.
     double ox0, oy0;

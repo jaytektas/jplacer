@@ -26,17 +26,19 @@ inline namespace jf {
 struct JPCameraCalibration {
     bool                  valid = false;
     std::array<double, 4> pxPerMm{};          // row-major: [dx/dX dx/dY; dy/dX dy/dY]
-    double                lensK1 = 0;         // JPLens::k1
+    double                lensK1 = 0, lensK2 = 0;   // JPLens::k1, k2
     double                lensCentreX = 0, lensCentreY = 0;   // JPLens's centre, pixels
     int                   width = 0, height = 0;   // the picture it was measured on
     double                z = 0;              // height of the surface it was measured on
     double                rmsPx = 0;          // how far the measurements sat from the fit
+    int                   leftOut = 0;        // measurements left out as far from it
+    int                   unmeasured = 0;     // grid places where the mark could not be measured
     std::string           when;               // when it was measured
 
     // Millimetres for a displacement in the picture from its middle, seen
     // through the lens (straightened first); nothing when the fit is degenerate.
     bool mmForPixels(double dxPx, double dyPx, double& dxMm, double& dyMm) const;
-    JPLens lens() const { return JPLens::forPicture(width, height, lensK1, lensCentreX, lensCentreY); }
+    JPLens lens() const { return JPLens::forPicture(width, height, lensK1, lensCentreX, lensCentreY, lensK2); }
     // Where on the machine a thing seen at pixel (px, py) is, for a camera
     // looking at (viewX, viewY): P = V - M^-1 (pixel - middle), straightened.
     bool machinePoint(double px, double py, double viewX, double viewY, double& x, double& y) const;
