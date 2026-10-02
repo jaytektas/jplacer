@@ -30,6 +30,7 @@ public:
     std::function<void(const std::string&)> onCameraOnFiducial;   // the fiducial chosen
     std::function<void()>                   onLocate;
     std::function<void(const std::string&)> onGoTo;               // a designator
+    std::function<void()>                   onSquare;             // correct the machine's squareness by the board
 
     // What the board is (empty name: none); the side up; the up side's
     // fiducials; every placement on the up side, as "R1  0402  10k".
@@ -41,6 +42,8 @@ public:
     void showFound(const std::vector<std::string>& lines);
     // A task under way: its buttons off.
     void setBusy(bool busy);
+    // Whether the board's last finding measured the machine's squareness.
+    void setCanSquare(bool can);
 
 private:
     JLabel*                  m_summary = nullptr;
@@ -49,7 +52,9 @@ private:
     JLabel*                  m_place = nullptr;
     JListView*               m_found = nullptr;
     JListView*               m_placements = nullptr;
+    JButton*                 m_square = nullptr;
     std::vector<JButton*>    m_buttons;
+    bool                     m_canSquare = false;
     std::vector<std::string> m_designators;
     bool                     m_updating = false;
 };

@@ -12,6 +12,7 @@
 
 #include "tasks/JPBoardLocator.h"
 
+#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <condition_variable>
@@ -141,10 +142,14 @@ int main() {
     cell.home();
     assert(moved.take());
 
+    // The scene is drawn in the axes' own coordinates: with a squareness
+    // correction set, the camera is where the axes are, not where the square
+    // coordinates say.
+    std::atomic<double> lean{ 0 };
     JPCameraFeed feed(cell.config().cameras.front());
     feed.setView([&](double& x, double& y) {
         const auto p = cell.positions();
-        x = p.at("X");
+        x = p.at("X") - lean * p.at("Y");
         y = p.at("Y");
         return true;
     });
@@ -175,6 +180,21 @@ int main() {
         assert(std::hypot(gx - ex, gy - ey) < 0.005);
     }
     assert(std::abs(r.board.toMachine.rotationDeg() + 0.6) < 0.01 && r.board.toMachine.mirrored());
+    // The board is square, so the lean it shows is the machine's: square X =
+    // axis X + xPerY axis Y undoes a machine that carries X along with Y.
+    assert(std::abs(r.xPerY + 0.0025) < 1e-4);
+
+    // Squared by what it measured, and homed again: the same board is now found square.
+    JPSquarenessConfig square;
+    square.axisX = "X";
+    square.axisY = "Y";
+    square.xPerY = r.xPerY;
+    cell.setSquareness(square);
+    lean = r.xPerY;
+    cell.home();
+    assert(moved.take());
+    const JPBoardLocator::Result squared = JPBoardLocator::run(cell, feed, b, guess, o);
+    assert(squared.ok && std::abs(squared.xPerY) < 1e-4 && squared.rmsMm < 0.005);
 
     // The top side has one fiducial: not enough.
     const JPBoardLocator::Result top = JPBoardLocator::run(cell, feed, b, JPBoardSide::placed(JPPlacement::Side::Top, 180, 70, 0), o);

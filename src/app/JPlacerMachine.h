@@ -58,6 +58,9 @@ private:
     bool openCell(const std::string& path, std::string& error);
     void importFrom(const std::string& machineXml);
     void setPort(const std::string& driverId, const std::string& port);
+    // Correct the squareness of the gantry moving `mount` by `xPerY` more (from
+    // a board), and keep it in the cell file.
+    void squareMachine(const JPMountConfig& mount, double xPerY);
     void updateMenu();
     // The connect and home icons follow the cell; the strip across the window
     // is kept for what is critical (ALARM, CONNECTION LOST) and a failure goes

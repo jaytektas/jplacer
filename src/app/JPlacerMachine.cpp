@@ -124,7 +124,8 @@ void JPlacerMachine::buildPanels() {
     panels.emplace_back("Machine",   std::move(machine));
     panels.emplace_back("Jog",       std::make_unique<JPJogPanel>(m_graph, *m_cell));
     panels.emplace_back("Actuators", std::make_unique<JPActuatorPanel>(m_graph, *m_cell));
-    m_board = std::make_unique<JPlacerBoard>(m_window, *m_cameraTasks);
+    m_board = std::make_unique<JPlacerBoard>(m_window, *m_cameraTasks,
+        [this](const JPMountConfig& mount, double xPerY) { squareMachine(mount, xPerY); });
     panels.emplace_back("Board",     m_board->makePanel(m_graph));
     panels.emplace_back("Console",   std::make_unique<JPConsolePanel>(m_graph, *m_cell));
     panels.emplace_back("Axes",      std::make_unique<JPAxesPanel>(m_graph, *m_cell));
@@ -227,6 +228,31 @@ bool JPlacerMachine::openCell(const std::string& path, std::string& error) {
     updateMenu();
     showState();
     return true;
+}
+
+void JPlacerMachine::squareMachine(const JPMountConfig& mount, double xPerY) {
+    JPSquarenessConfig q = m_cell->config().squareness;
+    if (q.axisX.empty() || q.axisY.empty()) {
+        q.axisX = mount.axisX;
+        q.axisY = mount.axisY;
+        // Unchanged at the homing mark: its coordinates, and visual homing, stay as they were.
+        for (const JPHeadConfig& h : m_cell->config().heads)
+            if (h.id == mount.headId && h.homingFiducial) q.atY = h.homingFiducial->y;
+    }
+    q.xPerY += xPerY;   // measured in coordinates already corrected by the old
+    m_cell->setSquareness(q);
+    JPCellConfig saved;
+    std::string error;
+    if (saved.load(m_cellPath, error)) {
+        saved.squareness = q;
+        saved.save(m_cellPath, error);
+    }
+    if (!error.empty()) {
+        JLOGC(JPlacerLog::kApp, JLogLevel::Error) << error;
+        m_window.showStatus("The squareness is in use but was not saved: " + error, kErrorMs);
+        return;
+    }
+    m_window.showStatus("Squareness saved: home the machine again, then Calibrate and Locate Board", kErrorMs);
 }
 
 void JPlacerMachine::setPort(const std::string& driverId, const std::string& port) {

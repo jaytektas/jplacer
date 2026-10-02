@@ -39,6 +39,10 @@ public:
     // visually.
     void visualHome();
 
+    // The camera shown's mount; null when there is none.
+    const JPMountConfig* shownMount() const {
+        return m_cameras.shownFeed() ? &m_cameras.shownFeed()->config().mount : nullptr;
+    }
     // Where the camera shown is looking, when it rides on a head; else why not.
     bool shownCameraView(double& x, double& y, std::string& why) const;
     // Move the camera shown to look at (x, y); false (and the status bar says

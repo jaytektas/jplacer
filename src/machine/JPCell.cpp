@@ -165,7 +165,13 @@ void JPCell::updatePositions(const std::string& driverId, const JPFirmwareProfil
         for (const JPAxisConfig& a : m_config.axes) {
             if (a.kind != JPAxisConfig::Kind::Controller || a.driverId != driverId) continue;
             const auto it = status.positions.find(a.letter);
-            if (it != status.positions.end()) m_positions[a.id] = it->second;
+            if (it != status.positions.end()) m_axisPositions[a.id] = m_positions[a.id] = it->second;
+        }
+        // Square coordinates from the axes' own: X takes back the Y axis's lean.
+        if (const JPSquarenessConfig& q = m_config.squareness; q.active()) {
+            const auto x = m_axisPositions.find(q.axisX), y = m_axisPositions.find(q.axisY);
+            if (x != m_axisPositions.end() && y != m_axisPositions.end())
+                m_positions[q.axisX] = x->second + q.xPerY * (y->second - q.atY);
         }
         for (const JPAxisConfig& a : m_config.axes) {
             if (a.kind != JPAxisConfig::Kind::Mapped) continue;
@@ -229,6 +235,9 @@ bool JPCell::doHome(std::string& why) {
         if (!axes.empty()) {
             const JPReply p = d->command("setPosition", { { "axes", axes } });
             if (!p.ok) { why = d->config().name + ": home coordinates not set (" + p.error + ")"; return false; }
+            // Homed means the positions shown are the home coordinates: a report from after.
+            const JPReply r = d->waitForMotion();
+            if (!r.ok) { why = d->config().name + ": " + r.error; return false; }
         }
     }
     {
@@ -239,6 +248,9 @@ bool JPCell::doHome(std::string& why) {
             if (a.kind == JPAxisConfig::Kind::Virtual) m_positions[a.id] = a.homeCoordinate;
             if (a.kind != JPAxisConfig::Kind::Mapped) m_sent[a.id] = a.homeCoordinate;
         }
+        // The home coordinates are the axes' own; squarely, X takes the lean.
+        if (const JPSquarenessConfig& q = m_config.squareness; q.active() && m_sent.count(q.axisX) && m_sent.count(q.axisY))
+            m_sent[q.axisX] += q.xPerY * (m_sent[q.axisY] - q.atY);
     }
     JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_config.name << ": homed";
     return true;
@@ -305,17 +317,22 @@ bool JPCell::doCorrectPosition(const std::map<std::string, double>& by, std::str
     if (!m_connected) { why = "not connected"; return false; }
     if (!m_homed)     { why = "not homed: home the machine first"; return false; }
     const auto base = jogBase();
-    std::map<std::string, std::string> words;   // by controller
+    std::map<std::string, double> renamed;   // where the machine is now, by its new square coordinates
     for (const auto& [id, d] : by) {
         const JPAxisConfig* a = m_config.axis(id);
         if (!a || a->kind != JPAxisConfig::Kind::Controller) {
             why = "axis " + (a ? a->name : id) + " is not a controller's: its position cannot be corrected";
             return false;
         }
+        renamed[id] = base.at(id) - d;
+    }
+    std::map<std::string, std::string> words;   // by controller, in the axes' own coordinates
+    for (const auto& [id, v] : toAxes(renamed, base)) {
+        const JPAxisConfig* a = m_config.axis(id);
         JPGcodeDriver* dr = driver(a->driverId);
         if (!dr) { why = "no controller " + a->driverId; return false; }
         std::string& w = words[a->driverId];
-        w += (w.empty() ? "" : " ") + a->letter + format(base.at(id) - d, dr->profile()->decimals());
+        w += (w.empty() ? "" : " ") + a->letter + format(v, dr->profile()->decimals());
     }
     for (const auto& [driverId, axes] : words) {
         JPGcodeDriver* dr = driver(driverId);
@@ -332,6 +349,29 @@ bool JPCell::doCorrectPosition(const std::map<std::string, double>& by, std::str
     }
     JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_config.name << ": position corrected";
     return true;
+}
+
+std::map<std::string, double> JPCell::toAxes(std::map<std::string, double> square,
+                                             const std::map<std::string, double>& now) const {
+    const JPSquarenessConfig& q = m_config.squareness;
+    if (!q.active() || (!square.count(q.axisX) && !square.count(q.axisY))) return square;
+    const double x = square.count(q.axisX) ? square.at(q.axisX) : now.at(q.axisX);
+    const double y = square.count(q.axisY) ? square.at(q.axisY) : now.at(q.axisY);
+    square[q.axisX] = x - q.xPerY * (y - q.atY);
+    return square;
+}
+
+void JPCell::setSquareness(const JPSquarenessConfig& squareness) {
+    m_thread.post([this, squareness] {
+        {
+            std::lock_guard lk(m_mutex);
+            m_config.squareness = squareness;
+        }
+        m_homed = false;
+        onHomed.emit(false);
+        JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_config.name << ": squareness " << squareness.xPerY
+                                                  << " mm of X a mm of Y; home again";
+    });
 }
 
 std::map<std::string, double> JPCell::correctionSinceHome() const {
@@ -391,12 +431,20 @@ bool JPCell::doMove(std::map<std::string, double> targets, double speed, std::st
             why = "axis " + hw->name + " was asked to be in two places at once";
             return false;
         }
+        hardware[hw->id] = t;
+    }
+    // From here on the axes' own coordinates (leaned, where the gantry is not
+    // square); the soft limits are theirs.
+    const std::map<std::string, double> square = hardware;
+    const auto now = jogBase();
+    hardware = toAxes(hardware, now);
+    for (const auto& [id, t] : hardware) {
+        const JPAxisConfig* hw = m_config.axis(id);
         if ((hw->softLimitLowEnabled && t < hw->softLimitLow) || (hw->softLimitHighEnabled && t > hw->softLimitHigh)) {
             why = "axis " + hw->name + " would go to " + format(t, 3) + ", outside its soft limits ("
                 + format(hw->softLimitLow, 3) + " to " + format(hw->softLimitHigh, 3) + ")";
             return false;
         }
-        hardware[hw->id] = t;
     }
 
     // Backlash: an axis that would end travelling the wrong way goes past
@@ -406,7 +454,7 @@ bool JPCell::doMove(std::map<std::string, double> targets, double speed, std::st
     double approach = 1;
     bool needApproach = false;
     {
-        const auto from = jogBase();
+        const auto from = toAxes(now, now);
         for (auto& [id, t] : overshoot) {
             const JPAxisConfig* a = m_config.axis(id);
             if (a->backlash != JPAxisConfig::Backlash::OneSided || a->backlashOffset == 0) continue;
@@ -455,8 +503,11 @@ bool JPCell::doMove(std::map<std::string, double> targets, double speed, std::st
     }
     std::lock_guard lk(m_mutex);
     for (const auto& [id, t] : virtuals) m_positions[id] = t;
-    for (const auto& [id, t] : targets)  m_sent[id] = t;
-    for (const auto& [id, t] : hardware) m_sent[id] = t;
+    for (const auto& [id, t] : targets) m_sent[id] = t;
+    for (const auto& [id, t] : square)  m_sent[id] = t;
+    // An axis moved only to keep the gantry square is where it was, squarely.
+    for (const auto& [id, t] : hardware)
+        if (!square.count(id)) m_sent[id] = now.at(id);
     return true;
 }
 

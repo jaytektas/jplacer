@@ -53,6 +53,24 @@ calibrated (see [Calibrating the head camera](machine.md#calibrating-the-head-ca
 
 <!-- src: src/tasks/JPBoardLocator.cpp (run, kMaxStretch, Options); src/app/JPlacerBoard.cpp (cameraOn, locate); src/app/JPlacerCameraTasks.cpp (locateBoard) -->
 
+## Squaring the machine
+
+A gantry's Y axis is rarely exactly square to its X: moving along Y carries the head a little along X
+too. A board is made far squarer than that, so when **Locate Board** finds three or more fiducials, the
+list's last line says how far the machine's axes lean: so many millimetres of X per 100 mm of Y, and
+the angle out of square. **Square the Machine…** corrects for it from then on: jplacer's coordinates
+become square, and each move tells the axes what that means for them (a move along Y moves X a
+little too). The correction is kept in the cell file, and is made about the Y of the head's homing mark,
+so the homing mark's coordinates do not change.
+
+Every other coordinate changes a little, so afterwards home the machine again, calibrate the camera
+again and locate the board again. The board should then measure square to within a few hundredths of
+a millimetre per 100 mm; a measurement this small is the fiducials' own scatter, and squaring by it again
+changes nothing worth having. The correction adds to the one already made, so squaring twice from the
+same board is the same as squaring once.
+
+<!-- src: src/tasks/JPBoardLocator.cpp (xPerY); src/app/JPlacerBoard.cpp (square, show); src/app/JPlacerMachine.cpp (squareMachine); src/machine/JPSquarenessConfig.h; src/machine/JPCell.cpp (toAxes, updatePositions, setSquareness) -->
+
 ## Looking at a placement
 
 Double-click a placement in the list (the parts on the side that is up) and the camera goes to look at

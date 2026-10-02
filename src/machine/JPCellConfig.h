@@ -9,6 +9,7 @@
 #include "JPDriverConfig.h"
 #include "JPHeadConfig.h"
 #include "JPNozzleConfig.h"
+#include "JPSquarenessConfig.h"
 
 #include <string>
 #include <vector>
@@ -25,6 +26,7 @@ struct JPCellConfig {
     std::vector<JPNozzleConfig>   nozzles;
     std::vector<JPCameraConfig>   cameras;
     std::vector<JPActuatorConfig> actuators;
+    JPSquarenessConfig            squareness;   // the gantry's Y lean, when measured
 
     // Read / write a cell file. False with `error` naming the file and problem.
     bool load(const std::string& path, std::string& error);

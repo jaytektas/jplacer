@@ -45,6 +45,10 @@ public:
         std::vector<Fiducial> fiducials;    // in the order visited
         bool                  affine = false;   // fitted fully (three or more found), else moved and turned
         double                rmsMm = 0;
+        // With a full fit: how far the board's axes, as measured, lean from
+        // square (radians; mm of X per mm of Y). A board is square: this is
+        // the machine's lean, left over from any squareness correction.
+        double                xPerY = 0;
         std::string           why;
     };
     using Progress = std::function<void(const std::string&)>;

@@ -38,8 +38,9 @@ constexpr size_t kDirectionMoves = 3;
 // Samples before the lens is fitted for predicting where the next mark is.
 constexpr size_t kLensPredictFrom = 8;
 // Once three marks are measured, a mark is searched for this far from where
-// the fit so far predicts.
+// the fit so far predicts, and accepted with this much of its edge round.
 constexpr double kPredictedSearchPx = 25;
+constexpr double kPredictedMinShape = 0.5;
 // How far the measured mark may be from the size it was said to be.
 constexpr double kMarkSizeTolerance = 0.2;
 
@@ -114,6 +115,10 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
         rq.expectedY = ey;
         rq.searchRadius = radius;
         rq.diameter = markPx;
+        // Where the fit says, within a few pixels, nothing else is mistaken
+        // for it: the mark may be dimmer and bent towards the picture's
+        // corners, and still be measured.
+        if (radius == kPredictedSearchPx) rq.minShape = kPredictedMinShape;
         const JPRoundMark m = JPRoundMarkFinder::find(img, rq);
         if (!m.found) {
             why = "lost the mark at move " + std::to_string(step) + ": " + m.why;

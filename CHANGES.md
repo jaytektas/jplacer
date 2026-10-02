@@ -48,6 +48,9 @@ notes.
 - A Board panel: import a board's pick-and-place file (EasyEDA, JLCPCB, KiCad and other CSV), choose the
   side that is up, put the camera on one fiducial, and Locate Board finds it exactly by all its
   fiducials. Double-click a part to look at it.
+- Squaring the machine: a located board shows how far the machine's Y axis leans from square, and
+  Square the Machine corrects every move for it from then on.
+- Home waits for the controller to report the home coordinates before calling the machine homed.
 - Visual homing: Home finishes by finding the homing mark with the calibrated head camera and
   correcting the position to it, as OpenPnP did for an imported machine.
 - When a move finishes, the positions shown are where the machine stopped, not where it was a moment

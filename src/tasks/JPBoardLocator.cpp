@@ -156,6 +156,14 @@ JPBoardLocator::Result JPBoardLocator::run(JPCell& cell, JPCameraFeed& feed, con
     }
     r.board.toMachine = m;
     r.rmsMm = fit->rms;
+    if (r.affine) {
+        // The board's own axes in machine coordinates (its mirror undone):
+        // square on a square machine. Where Y leans, the board's Y axis is
+        // seen tipped the other way: square X = axis X + xPerY axis Y.
+        const JPAffine2D unmirrored = guess.side == JPPlacement::Side::Bottom ? m.after(JPAffine2D::mirrorX()) : m;
+        r.xPerY = -(unmirrored.a * unmirrored.b + unmirrored.c * unmirrored.d)
+                / (std::hypot(unmirrored.a, unmirrored.c) * std::hypot(unmirrored.b, unmirrored.d));
+    }
     size_t k = 0;
     for (Fiducial& f : r.fiducials) {
         if (!f.found) continue;

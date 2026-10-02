@@ -11,7 +11,9 @@
 
 #include <j/app/JAppWindow.h>
 
+#include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 
 inline namespace jf {
@@ -22,7 +24,11 @@ inline namespace jf {
 // settings (JPlacerSettings::kBoard...), so it is there again next time.
 class JPlacerBoard {
 public:
-    JPlacerBoard(JAppWindow& window, JPlacerCameraTasks& tasks);
+    // `square`: correct the machine's squareness by `xPerY` more, for the
+    // gantry that moves the camera on `mount` (JPSquarenessConfig).
+    using Square = std::function<void(const JPMountConfig& mount, double xPerY)>;
+
+    JPlacerBoard(JAppWindow& window, JPlacerCameraTasks& tasks, Square square);
 
     // The panel, for the window's dock (made once; this keeps a pointer).
     std::unique_ptr<JPBoardPanel> makePanel(JSceneGraph& graph);
@@ -36,6 +42,7 @@ private:
     void cameraOn(const std::string& designator);
     void locate();
     void goTo(const std::string& designator);
+    void square();
     void show();
     void save() const;
 
@@ -48,6 +55,8 @@ private:
     bool                m_placed = false;     // m_place says something (else only the side does)
     bool                m_measured = false;   // by its fiducials
     std::vector<std::string> m_found;   // the last finding, a line a fiducial
+    std::optional<double> m_lean;       // the machine's lean the last finding measured (JPBoardLocator::Result::xPerY)
+    Square              m_square;
     std::shared_ptr<bool> m_alive = std::make_shared<bool>(true);
 };
 

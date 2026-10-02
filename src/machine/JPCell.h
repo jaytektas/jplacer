@@ -73,6 +73,10 @@ public:
     // the controllers (their setPosition command); nothing moves. Waits, like
     // moveAxesAndWait. For visual homing, which measures how far off it is.
     bool correctPosition(const std::map<std::string, double>& by, std::string& why);
+    // A new squareness correction (JPSquarenessConfig). Every coordinate means
+    // something else after it, so the machine is no longer homed.
+    void setSquareness(const JPSquarenessConfig& squareness);
+
     // The corrections made since the last home, summed, by axis id: where
     // the switches put the machine is (coordinates + this).
     std::map<std::string, double> correctionSinceHome() const;
@@ -116,6 +120,11 @@ private:
     bool doMove(std::map<std::string, double> targets, double speed, std::string& why);
     bool doHome(std::string& why);
     bool doCorrectPosition(const std::map<std::string, double>& by, std::string& why);
+    // Square coordinates of controller axes to the axes' own (JPSquarenessConfig):
+    // the X axis takes the lean for the Y it will be at, so a target for
+    // either brings in the other (from `now`, square, when not targeted).
+    std::map<std::string, double> toAxes(std::map<std::string, double> square,
+                                         const std::map<std::string, double>& now) const;
 
     JPCellConfig                                m_config;
     std::vector<JPFirmwareProfile>              m_profiles;
@@ -127,6 +136,7 @@ private:
 
     mutable std::mutex                 m_mutex;   // guards the members below
     std::map<std::string, double>      m_positions;
+    std::map<std::string, double>      m_axisPositions;   // controller axes as they report (not squared)
     std::map<std::string, double>      m_sent;       // last commanded coordinate, by axis id
     std::map<std::string, double>      m_corrected;  // correctPosition's since the last home, summed
     std::map<std::string, std::string> m_firmware;

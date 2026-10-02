@@ -12,6 +12,7 @@
 #include <j/core/Dialog.h>
 #include <j/core/Log.h>
 
+#include <cmath>
 #include <cstdio>
 #include <sstream>
 
@@ -29,7 +30,8 @@ std::string mm(double v) {
 
 } // namespace
 
-JPlacerBoard::JPlacerBoard(JAppWindow& window, JPlacerCameraTasks& tasks) : m_window(window), m_tasks(tasks) {
+JPlacerBoard::JPlacerBoard(JAppWindow& window, JPlacerCameraTasks& tasks, Square square)
+    : m_window(window), m_tasks(tasks), m_square(std::move(square)) {
     const JSettings& s = JSettings::instance();
     const std::string file = s.get<std::string>(JPlacerSettings::kBoardFile, "");
     if (file.empty()) return;
@@ -54,6 +56,7 @@ std::unique_ptr<JPBoardPanel> JPlacerBoard::makePanel(JSceneGraph& graph) {
     m_panel->onCameraOnFiducial = [this](const std::string& d) { cameraOn(d); };
     m_panel->onLocate           = [this] { locate(); };
     m_panel->onGoTo             = [this](const std::string& d) { goTo(d); };
+    m_panel->onSquare           = [this] { square(); };
     show();
     return panel;
 }
@@ -135,9 +138,11 @@ void JPlacerBoard::locate() {
         m_found.clear();
         for (const auto& f : r.fiducials)
             m_found.push_back(f.designator + (f.found ? "  found, " + mm(f.residualMm) + " mm from the fit" : "  not found: " + f.why));
+        m_lean.reset();
         if (r.ok) {
             m_place = r.board;
             m_measured = true;
+            if (r.affine) m_lean = r.xPerY;
         }
         save();
         show();
@@ -176,7 +181,34 @@ void JPlacerBoard::show() {
         m_panel->showPlace(std::string(m_measured ? "Found by its fiducials" : "Starting point") + ": origin at "
                            + mm(m_place.toMachine.tx) + ", " + mm(m_place.toMachine.ty) + ", turned "
                            + mm(m_place.toMachine.rotationDeg()) + " deg");
+    if (m_lean)
+        m_found.push_back("The machine's axes lean " + mm(*m_lean * 100) + " mm in X per 100 mm of Y ("
+                          + mm(std::atan(*m_lean) * 57.29578) + " deg out of square)");
     m_panel->showFound(m_found);
+    if (m_lean) m_found.pop_back();
+    m_panel->setCanSquare(m_lean.has_value());
+}
+
+void JPlacerBoard::square() {
+    const JPMountConfig* mount = m_tasks.shownMount();
+    if (!m_lean || !mount || mount->axisX.empty() || mount->axisY.empty()) return;
+    const double lean = *m_lean;
+    const JPMountConfig gantry = *mount;
+    std::weak_ptr<bool> alive = m_alive;
+    JDialog::confirm("Square the Machine",
+                     "The board's fiducials show the machine's Y axis leaning " + mm(lean * 100)
+                         + " mm in X per 100 mm. Correct for it from now on?\n\nEvery coordinate changes a little: "
+                           "home the machine again, then calibrate the camera and locate the board again.",
+                     [this, alive, lean, gantry] {
+                         if (const auto a = alive.lock(); !a || !*a) return;
+                         m_square(gantry, lean);
+                         // Measured in the old coordinates: the board is to be found again.
+                         m_lean.reset();
+                         m_measured = false;
+                         m_found.clear();
+                         save();
+                         show();
+                     });
 }
 
 void JPlacerBoard::save() const {

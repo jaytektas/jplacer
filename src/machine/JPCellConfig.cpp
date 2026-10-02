@@ -28,6 +28,7 @@ JJson JPCellConfig::toJson() const {
     j["nozzles"]   = toArray(nozzles);
     j["cameras"]   = toArray(cameras);
     j["actuators"] = toArray(actuators);
+    if (!squareness.axisX.empty()) j["squareness"] = squareness.toJson();
     return j;
 }
 
@@ -48,6 +49,7 @@ bool JPCellConfig::fromJson(const JJson& j, std::string& error) {
     for (const JJson& n : j["nozzles"].arr())   c.nozzles.push_back(JPNozzleConfig::fromJson(n));
     for (const JJson& m : j["cameras"].arr())   c.cameras.push_back(JPCameraConfig::fromJson(m));
     for (const JJson& a : j["actuators"].arr()) c.actuators.push_back(JPActuatorConfig::fromJson(a));
+    c.squareness = JPSquarenessConfig::fromJson(j["squareness"]);
     *this = std::move(c);
     return true;
 }
@@ -116,6 +118,12 @@ std::vector<std::string> JPCellConfig::problems() const {
             out.push_back("nozzle " + n.name + " names a vacuum actuator that is not in this cell");
     }
     for (const JPCameraConfig& c : cameras) checkMount("camera " + c.name, c.mount);
+    if (!squareness.axisX.empty() || !squareness.axisY.empty())
+        for (const std::string* id : { &squareness.axisX, &squareness.axisY }) {
+            const JPAxisConfig* a = axis(*id);
+            if (!a || a->kind != JPAxisConfig::Kind::Controller)
+                out.push_back("the squareness correction names an axis that is not a controller's in this cell");
+        }
     return out;
 }
 

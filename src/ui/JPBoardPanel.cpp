@@ -51,6 +51,13 @@ JPBoardPanel::JPBoardPanel(JSceneGraph& graph) : JContainer(graph) {
     m_found = add(std::make_unique<JListView>(graph));
     m_found->setVSizePolicy(JSizePolicyMode::Expanding, 1);
 
+    // A board is square: what its fiducials show of the machine's lean can correct it.
+    auto squareRow = JPUiParts::row(graph);
+    m_square = squareRow->add(JPUiParts::button(graph, "Square the Machine\xE2\x80\xA6"));
+    m_square->onClicked.connect([this] { if (onSquare) onSquare(); });
+    m_square->setEnabled(false);
+    add(std::move(squareRow));
+
     // Any placement: choose it, the camera goes to it.
     auto goTo = JPUiParts::row(graph);
     goTo->add(std::make_unique<JLabel>(graph, "Placements: double-click one to look at it"));
@@ -84,7 +91,13 @@ void JPBoardPanel::showFound(const std::vector<std::string>& lines) {
 
 void JPBoardPanel::setBusy(bool busy) {
     for (JButton* b : m_buttons) b->setEnabled(!busy);
+    m_square->setEnabled(!busy && m_canSquare);
     m_side->setChoicesEnabled(!busy);
+}
+
+void JPBoardPanel::setCanSquare(bool can) {
+    m_canSquare = can;
+    m_square->setEnabled(can);
 }
 
 } // inline namespace jf
