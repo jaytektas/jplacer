@@ -20,6 +20,7 @@ struct JPPlacement {
     std::string footprint;
     std::string value;
     bool        fiducial = false;   // a mark to find the board by, not a part to place
+    double      fiducialMm = 0;     // a fiducial's copper diameter, where its footprint says (0: not said)
 };
 
 } // inline namespace jf

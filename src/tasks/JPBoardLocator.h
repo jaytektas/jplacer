@@ -26,7 +26,7 @@ inline namespace jf {
 class JPBoardLocator {
 public:
     struct Options {
-        double fiducialDiameterMm = 1.0;
+        double fiducialDiameterMm = 1.0;   // where the board does not say (JPPlacement::fiducialMm)
         double firstSearchMm = 10;    // how far from the guess the first fiducial is looked for
         double searchMm = 2;          // the rest, once the first is found
         double speed = 0.1;           // share of the axes' rates

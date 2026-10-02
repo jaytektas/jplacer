@@ -48,10 +48,11 @@ says where the board is (its origin and how far it is turned) and that it was fo
 A fit is refused when the fiducials disagree with each other by more than 0.1 mm, or when they would
 stretch the board or skew it by more than 1%: one of them was then something else.
 
-Fiducials are found as bright copper on darker solder mask, 1 mm across. The camera must be
-calibrated (see [Calibrating the head camera](machine.md#calibrating-the-head-camera)).
+Fiducials are found as bright copper on darker solder mask, the size their footprint's name gives (the
+first size in it: `FIDUCIAL_1MM` is 1 mm, `Fiducial_0.75mm_Mask1.5mm` is 0.75 mm), or 1 mm where it gives
+none. The camera must be calibrated (see [Calibrating the head camera](machine.md#calibrating-the-head-camera)).
 
-<!-- src: src/tasks/JPBoardLocator.cpp (run, kMaxStretch, Options); src/app/JPlacerBoard.cpp (cameraOn, locate); src/app/JPlacerCameraTasks.cpp (locateBoard) -->
+<!-- src: src/tasks/JPBoardLocator.cpp (run, kMaxStretch, Options); src/import/JPCplImporter.cpp (sizeInName); src/app/JPlacerBoard.cpp (cameraOn, locate); src/app/JPlacerCameraTasks.cpp (locateBoard) -->
 
 ## Squaring the machine
 

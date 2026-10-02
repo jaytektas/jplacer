@@ -127,6 +127,18 @@ bool sideOf(const std::string& text, JPPlacement::Side& side) {
     return false;
 }
 
+// The first size in mm a footprint's name gives ("FIDUCIAL_1MM",
+// "Fiducial_0.75mm_Mask1.5mm": the copper comes first); 0 when none.
+double sizeInName(const std::string& footprint) {
+    const std::string f = lower(footprint);
+    for (size_t at = f.find("mm"); at != std::string::npos; at = f.find("mm", at + 2)) {
+        size_t b = at;
+        while (b > 0 && (std::isdigit(static_cast<unsigned char>(f[b - 1])) || f[b - 1] == '.')) --b;
+        if (b < at) return std::strtod(f.c_str() + b, nullptr);
+    }
+    return 0;
+}
+
 bool startsWith(const std::string& s, const char* prefix) {
     return lower(s).rfind(prefix, 0) == 0;
 }
@@ -215,6 +227,7 @@ bool JPCplImporter::parse(const std::string& textIn, JPBoard& board, std::vector
         p.footprint = field(rec, Column::Footprint);
         p.value     = field(rec, Column::Value);
         p.fiducial  = startsWith(p.designator, "fid") || lower(p.footprint).find("fiducial") != std::string::npos;
+        if (p.fiducial) p.fiducialMm = sizeInName(p.footprint);
         board.placements.push_back(std::move(p));
     }
     if (skipped) notes.push_back(std::to_string(skipped) + " row(s) without a designator and position were left out");

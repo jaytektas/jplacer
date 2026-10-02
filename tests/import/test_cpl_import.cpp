@@ -30,6 +30,7 @@ int main() {
         assert(b.placements.size() == 3);
         const JPPlacement* fid = b.find("FID1");
         assert(fid && fid->fiducial && fid->side == JPPlacement::Side::Top && std::abs(fid->x - 2.383) < 1e-9);
+        assert(fid->fiducialMm == 1.0 && b.find("R1")->fiducialMm == 0);   // FIDUCIAL_1MM; a part has none
         const JPPlacement* r1 = b.find("R1");
         assert(r1 && !r1->fiducial && r1->side == JPPlacement::Side::Bottom);
         assert(std::abs(r1->x - 40.5) < 1e-9 && std::abs(r1->y - 80.25) < 1e-9);   // Mid, not Ref or Pad
@@ -41,13 +42,14 @@ int main() {
     // KiCad .pos as CSV: Ref, Val, Package, PosX, PosY, Rot, Side (top/bottom).
     {
         const std::string csv = "Ref,Val,Package,PosX,PosY,Rot,Side\n"
-                                "\"FID2\",\"Fiducial\",\"Fiducial_1mm_Mask2mm\",150.0,-80.5,0,bottom\n"
+                                "\"FID2\",\"Fiducial\",\"Fiducial_0.75mm_Mask1.5mm\",150.0,-80.5,0,bottom\n"
                                 "\"U1\",\"STM32\",\"LQFP-64\",120.25,-60.0,90.0,top\n";
         JPBoard b;
         std::vector<std::string> notes;
         std::string error;
         assert(JPCplImporter::parse(csv, b, notes, error) && b.placements.size() == 2);
         assert(b.fiducials(JPPlacement::Side::Bottom).size() == 1);
+        assert(b.fiducials(JPPlacement::Side::Bottom).front()->fiducialMm == 0.75);   // the copper, not the mask
         const JPPlacement* u1 = b.find("U1");
         assert(u1 && u1->value == "STM32" && u1->footprint == "LQFP-64" && std::abs(u1->y + 60) < 1e-9);
     }
