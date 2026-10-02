@@ -63,6 +63,7 @@ Ring ring(const JPGrayImage& img, double cx, double cy, double r) {
 // dark reflection in its middle, off to the side it shows the light.
 constexpr int    kEdgeRays       = 72;
 constexpr double kRayStepPx      = 0.25;
+constexpr double kRayHalfWidthPx = 0.75;  // a ray is three samples across, this far apart
 constexpr double kEdgeFrom       = 0.6;   // the stretch of each ray searched, as shares of the radius
 constexpr double kEdgeTo         = 1.4;
 constexpr double kSlopeSpanPx    = 1.0;   // the brightness change is taken across this
@@ -82,7 +83,7 @@ constexpr double kMinSpreadPx    = 0.25;
 // A ray's edge this near the circle is on it: whichever is more of a pixel
 // distance or a share of the radius.
 constexpr double kOnCirclePx     = 2.0;
-constexpr double kOnCircleShare  = 0.08;
+constexpr double kOnCircleShare  = 0.1;
 
 struct Circle {
     double x = 0, y = 0, r = 0;
@@ -126,10 +127,18 @@ Circle edgeCircle(const JPGrayImage& img, double cx, double cy, double radius, J
         const double a = kTwoPi * i / kEdgeRays, ux = std::cos(a), uy = std::sin(a);
         const double t0 = kEdgeFrom * radius;
         profile.clear();
+        // A narrow strip, not a line: across it the edge is the same and the
+        // noise is not, so a soft edge on a grainy ground still shows.
         for (double t = t0; t <= kEdgeTo * radius; t += kRayStepPx) {
-            float v;
-            if (!img.sample(float(cx + t * ux), float(cy + t * uy), v)) break;
-            profile.push_back(v);
+            float sum = 0;
+            bool inside = true;
+            for (const double w : { -kRayHalfWidthPx, 0.0, kRayHalfWidthPx }) {
+                float v;
+                inside = inside && img.sample(float(cx + t * ux - w * uy), float(cy + t * uy + w * ux), v);
+                sum += v;
+            }
+            if (!inside) break;
+            profile.push_back(sum / 3);
         }
         // The steepest change of the mark's way, and a parabola through it.
         auto slopeAt = [&](size_t k) {

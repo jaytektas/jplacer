@@ -251,9 +251,9 @@ the machine has lost its place.
 A round mark (a fiducial, the homing mark) is found in two steps. A search looks for the most circular
 things of the expected size near where the mark should be, on a reduced copy of the picture so it is
 quick, and keeps the best few: a board is full of round things (holes, vias, pads, round letters,
-reflections of the light). Each is then measured on the full picture: lines are cast out from its
-centre all the way round, each finds where the brightness changes fastest, and a circle is fitted
-through those points. A mark is accepted when its size is the size asked for and its edge is round
+reflections of the light). Each is then measured on the full picture: narrow strips are cast out from
+its centre all the way round, each finds where the brightness changes fastest (a change that stands
+well above the strip's own grain), and a circle is fitted through those points. A mark is accepted when its size is the size asked for and its edge is round
 nearly all the way round; of those, the one that fits best wins, and between equally good ones the one
 nearest where the mark should be.
 
