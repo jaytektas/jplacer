@@ -23,7 +23,7 @@
          <axis class="org.openpnp.machine.reference.axis.ReferenceCamCounterClockwiseAxis" id="ACAM" name="cam" type="Z"/>
       </axes>
       <drivers class="java.util.ArrayList">
-         <driver class="org.openpnp.machine.reference.driver.GcodeAsyncDriver" id="DRV1" name="Jaytek" communications="serial" timeout-milliseconds="30000" infinity-timeout-milliseconds="60000">
+         <driver class="org.openpnp.machine.reference.driver.GcodeAsyncDriver" id="DRV1" name="Jaytek" communications="serial" timeout-milliseconds="30000" infinity-timeout-milliseconds="60000" connect-wait-time-milliseconds="3000">
             <serial port-name="ttyACM0" baud="115200" flow-control="RtsCts"/>
             <command type="HOME_COMMAND">
                <text><![CDATA[M18 Z		; disable z motor	]]></text>

@@ -161,6 +161,8 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             }
             if (const double t = number(d.attr("timeout-milliseconds")); t > 0) dc.commandTimeoutMs = int(t);
             if (const double t = number(d.attr("infinity-timeout-milliseconds")); t > 0) dc.homeTimeoutMs = int(t);
+            if (!d.attr("connect-wait-time-milliseconds").empty())
+                dc.connectWaitMs = int(number(d.attr("connect-wait-time-milliseconds")));
 
             Commands& cmds = commands[dc.id];
             for (const JPXmlElement& cmd : d.children)

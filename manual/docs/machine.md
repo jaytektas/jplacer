@@ -48,7 +48,9 @@ Feeders, nozzle tips, parts and packages are not imported.
 **Machine ▸ Connect**, or **Connect** on the Machine panel, connects to every controller in the cell.
 For each one jplacer:
 
-1. opens its port;
+1. opens its port, and listens for a moment (one second unless the cell says otherwise; an imported
+   machine keeps OpenPnP's connect wait) so a board that greets a new connection has finished before
+   it is asked anything;
 2. asks it what firmware it runs, and picks the matching firmware profile (grblHAL, Grbl, or a
    generic G-code profile when it does not recognise the answer), noting any plugins the firmware
    reports;

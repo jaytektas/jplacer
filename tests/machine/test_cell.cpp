@@ -30,7 +30,7 @@ std::vector<JPFirmwareProfile> profiles() {
 JPCellConfig cellConfig() {
     const std::string json = R"({
       "name": "Test",
-      "drivers": [ { "id": "D", "name": "Gantry", "statusIntervalMs": 10, "commandTimeoutMs": 500,
+      "drivers": [ { "id": "D", "name": "Gantry", "statusIntervalMs": 10, "commandTimeoutMs": 500, "connectWaitMs": 0,
                      "link": { "type": "simulated", "simulator": {
                          "identity": [ "[VER:1.1f.20250101:]", "[FIRMWARE:grblHAL]" ],
                          "axisLetters": [ "X", "Y", "Z" ],

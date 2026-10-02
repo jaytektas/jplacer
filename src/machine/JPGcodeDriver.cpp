@@ -39,6 +39,12 @@ bool JPGcodeDriver::connect(std::string& error) {
     JLOGC(JPlacerLog::kDriver, JLogLevel::Info) << m_config.name << ": opened " << m_link->describe();
     m_running = true;
     m_io = std::thread(&JPGcodeDriver::ioLoop, this);
+    if (m_config.connectWaitMs > 0) {
+        // The I/O thread reads (and logs) whatever the board says meanwhile.
+        JLOGC(JPlacerLog::kDriver, JLogLevel::Debug) << m_config.name << ": listening " << m_config.connectWaitMs
+                                                     << " ms before asking anything";
+        std::this_thread::sleep_for(std::chrono::milliseconds(m_config.connectWaitMs));
+    }
 
     if (!identify(error)) {
         disconnect();
@@ -76,8 +82,9 @@ bool JPGcodeDriver::identify(std::string& error) {
 
     // Ask each way of identifying once, and offer the answer to every profile
     // that asks the same way, highest priority first. A refusal is asked
-    // again once: bytes left on the line from before the port was opened
-    // (a half command, a reset banner) spoil the first command, not the second.
+    // again once, as is one that got no answer: bytes left on the line, or a
+    // greeting arriving in the middle of the answer, spoil one exchange, not
+    // the next.
     std::map<std::string, JPReply> asked;
     bool answered = false;   // anything at all came back
     for (const JPFirmwareProfile& p : m_profiles) {
@@ -88,8 +95,8 @@ bool JPGcodeDriver::identify(std::string& error) {
             JLOGC(JPlacerLog::kDriver, JLogLevel::Debug) << m_config.name << ": identifying with '"
                                                          << p.identifyCommand() << "' (" << p.name() << " asks so)";
             JPReply r = send(p.identifyCommand(), m_config.identifyTimeoutMs).get();
-            if (!r.ok && !r.error.empty() && p.errorIn(r.error)) {
-                JLOGC(JPlacerLog::kDriver, JLogLevel::Debug) << m_config.name << ": refused (" << r.error << "), asking again";
+            if (!r.ok) {
+                JLOGC(JPlacerLog::kDriver, JLogLevel::Debug) << m_config.name << ": " << r.error << ", asking again";
                 r = send(p.identifyCommand(), m_config.identifyTimeoutMs).get();
             }
             if (!r.ok) JLOGC(JPlacerLog::kDriver, JLogLevel::Debug) << m_config.name << ": no identity (" << r.error << ")";

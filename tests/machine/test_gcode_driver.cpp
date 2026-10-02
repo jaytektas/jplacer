@@ -52,6 +52,7 @@ static JPDriverConfig config(const char* identity) {
     c.statusIntervalMs  = 10;
     c.commandTimeoutMs  = 500;
     c.identifyTimeoutMs = 200;
+    c.connectWaitMs     = 0;
     return c;
 }
 

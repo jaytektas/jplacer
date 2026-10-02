@@ -33,7 +33,7 @@ int main() {
     assert(d.name == "Jaytek" && d.link["type"].str() == "serial");
     assert(d.link["port"].str() == "/dev/ttyACM0" && d.link["baud"].number() == 115200);
     assert(d.link["flowControl"].str() == "rtscts");
-    assert(d.commandTimeoutMs == 30000 && d.homeTimeoutMs == 60000);
+    assert(d.commandTimeoutMs == 30000 && d.homeTimeoutMs == 60000 && d.connectWaitMs == 3000);
     assert(d.commands.at("home") == "M18 Z");               // OpenPnP's home command, comment stripped
     assert(noted(notes, "fiducial"));                       // visual homing is not carried over
 
