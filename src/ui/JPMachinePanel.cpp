@@ -7,10 +7,12 @@
 
 #include "common/JPlacerLog.h"
 
+#include <j/core/JScrollArea.h>
 #include <j/core/JStyle.h>
 #include <j/core/Log.h>
 #include <j/core/MainThreadDispatcher.h>
 
+#include <algorithm>
 #include <cstdio>
 
 inline namespace jf {
@@ -27,8 +29,10 @@ std::string formatCoordinate(double v) {
     return buf;
 }
 
+// A row of controls, as tall as its tallest kind of control.
 std::unique_ptr<JContainer> row(JSceneGraph& graph) {
-    auto c = std::make_unique<JContainer>(graph);
+    const JStyle& st = JStyle::current();
+    auto c = std::make_unique<JContainer>(graph, 0.f, std::max(st.buttonHeight, st.controlHeight));
     c->setDirection(JFlexDirection::JRow)->setGap(JStyle::current().spacing)->setAlignItems(JAlignItems::Center);
     return c;
 }
@@ -37,12 +41,6 @@ std::unique_ptr<JContainer> row(JSceneGraph& graph) {
 // zero design width lets the layout settle on it.
 std::unique_ptr<JButton> button(JSceneGraph& graph, const char* label) {
     return std::make_unique<JButton>(graph, label, 0.f);
-}
-
-std::unique_ptr<JContainer> form(JSceneGraph& graph) {
-    auto c = std::make_unique<JContainer>(graph);
-    c->setLayoutMode(JLayoutMode::Form)->setGap(JStyle::current().spacing);
-    return c;
 }
 
 } // namespace
@@ -101,41 +99,46 @@ JPMachinePanel::JPMachinePanel(JSceneGraph& graph, JPCell& cell)
         add(std::move(portRow));
     }
 
-    // Position.
-    add(std::make_unique<JLabel>(graph, "Position"));
-    auto dro = form(graph);
+    // Position and actuators scroll: a machine has as many axes and
+    // actuators as its configuration says, more than a panel's height holds.
+    // Each row is a fixed-height container of its own, stacked by the scroll
+    // area, laid out by itself.
+    auto* scroll = add(std::make_unique<JScrollArea>(graph));
+    scroll->setVSizePolicy(JSizePolicyMode::Expanding, 3);
+    auto addRow = [&](float h) {
+        auto r = std::make_unique<JContainer>(graph, 0.f, h);
+        r->setDirection(JFlexDirection::JRow)->setGap(st.spacing)->setAlignItems(JAlignItems::Center);
+        return scroll->addChildWidget(std::move(r));
+    };
+    scroll->addChildWidget(std::make_unique<JLabel>(graph, "Position", 0.f, st.labelHeight));
     const auto positions = cell.positions();
     for (const JPAxisConfig& a : cell.config().axes) {
-        dro->add(std::make_unique<JLabel>(graph, a.name));
+        JContainer* r = addRow(st.labelHeight);
+        r->add(std::make_unique<JLabel>(graph, a.name))->setHSizePolicy(JSizePolicyMode::Expanding, 1);
         const auto p = positions.find(a.id);
-        m_axisValues[a.id] = dro->add(std::make_unique<JLabel>(graph, p == positions.end() ? "" : formatCoordinate(p->second)));
+        m_axisValues[a.id] = r->add(std::make_unique<JLabel>(graph, p == positions.end() ? "" : formatCoordinate(p->second)));
     }
-    add(std::move(dro));
-
-    // Actuators.
     if (!cell.config().actuators.empty()) {
-        add(std::make_unique<JLabel>(graph, "Actuators"));
-        auto acts = form(graph);
+        scroll->addChildWidget(std::make_unique<JLabel>(graph, "Actuators", 0.f, st.labelHeight));
         for (const JPActuatorConfig& a : cell.config().actuators) {
-            acts->add(std::make_unique<JLabel>(graph, a.name));
-            auto controls = row(graph);
+            JContainer* r = addRow(st.buttonHeight);
+            r->add(std::make_unique<JLabel>(graph, a.name))->setHSizePolicy(JSizePolicyMode::Expanding, 1);
             const std::string id = a.id;
             if (a.canSwitch()) {
-                controls->add(button(graph, "On"))->onClicked.connect([this, id] { m_cell.switchActuator(id, true); });
-                controls->add(button(graph, "Off"))->onClicked.connect([this, id] { m_cell.switchActuator(id, false); });
+                r->add(button(graph, "On"))->onClicked.connect([this, id] { m_cell.switchActuator(id, true); });
+                r->add(button(graph, "Off"))->onClicked.connect([this, id] { m_cell.switchActuator(id, false); });
             }
             if (a.canRead())
-                controls->add(button(graph, "Read"))->onClicked.connect([this, id] { m_cell.readActuator(id); });
-            m_actuatorValues[a.id] = controls->add(std::make_unique<JLabel>(graph, ""));
-            acts->add(std::move(controls));
+                r->add(button(graph, "Read"))->onClicked.connect([this, id] { m_cell.readActuator(id); });
+            m_actuatorValues[a.id] = r->add(std::make_unique<JLabel>(graph, ""));
         }
-        add(std::move(acts));
     }
 
     // Console.
     add(std::make_unique<JLabel>(graph, "Console"));
     m_console = add(std::make_unique<JListView>(graph));
     m_console->setVSizePolicy(JSizePolicyMode::Expanding, 1);
+    m_console->setMinimumSize(0.f, 4 * st.controlHeight);
     auto input = row(graph);
     if (cell.config().drivers.size() > 1) {
         std::vector<std::string> names;
