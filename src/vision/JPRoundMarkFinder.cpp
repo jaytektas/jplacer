@@ -67,6 +67,11 @@ constexpr double kEdgeFrom       = 0.6;   // the stretch of each ray searched, a
 constexpr double kEdgeTo         = 1.4;
 constexpr double kSlopeSpanPx    = 1.0;   // the brightness change is taken across this
 constexpr double kEdgeLevelPx    = 2.0;   // the levels either side of an edge, this far from it
+// A ray's edge counts when its change is this many times the ray's typical
+// change (at least kNoiseFloor grey levels): a real mark's edges stand 3 to 15
+// times above it, a "circle" through noise 2 to 3.
+constexpr double kEdgeOverNoise  = 2.5;
+constexpr double kNoiseFloor     = 0.5;
 // A ray whose edge is softer than this share of the typical ray's is
 // crossing something else (glare, a trace) and is left out.
 constexpr double kMinRayContrast = 0.5;
@@ -116,6 +121,7 @@ Circle edgeCircle(const JPGrayImage& img, double cx, double cy, double radius, J
     std::vector<Ray> rays;
     const int span = std::max(1, int(std::lround(kSlopeSpanPx / kRayStepPx / 2)));
     std::vector<float> profile;
+    std::vector<double> background;
     for (int i = 0; i < kEdgeRays; ++i) {
         const double a = kTwoPi * i / kEdgeRays, ux = std::cos(a), uy = std::sin(a);
         const double t0 = kEdgeFrom * radius;
@@ -138,6 +144,13 @@ Circle edgeCircle(const JPGrayImage& img, double cx, double cy, double radius, J
         for (size_t k = size_t(span) + 1; k + size_t(span) + 1 < profile.size(); ++k)
             if (const double sl = slopeAt(k); sl > best) { best = sl; bestK = k; }
         if (best <= 0) continue;
+        // An edge stands out from the ray's own ups and downs (noise, grain):
+        // without that, a "circle" can be drawn through any noise.
+        background.clear();
+        for (size_t k = size_t(span); k + size_t(span) < profile.size(); ++k)
+            background.push_back(std::abs(double(profile[k + size_t(span)]) - double(profile[k - size_t(span)])));
+        std::nth_element(background.begin(), background.begin() + long(background.size() / 2), background.end());
+        if (best < kEdgeOverNoise * std::max(kNoiseFloor, background[background.size() / 2])) continue;
         // There, exactly: where the brightness passes halfway between its
         // levels just inside and just outside the edge.
         const int levelAt = int(std::lround(kEdgeLevelPx / kRayStepPx));
@@ -229,11 +242,13 @@ JPRoundMark JPRoundMarkFinder::findAnySize(const JPGrayImage& image, double expe
             rq.diameter = d;
             return find(image, rq);
         }));
+    // The roundest whole edge: how near each size's find is to the size tried
+    // says nothing here (the sizes are steps, the mark falls between them).
     JPRoundMark best;
     best.why = "nothing round of any size near there";
     for (auto& t : tries) {
         const JPRoundMark m = t.get();
-        if (m.found && (!best.found || m.confidence > best.confidence)) best = m;
+        if (m.found && (!best.found || m.shape > best.shape)) best = m;
     }
     return best;
 }

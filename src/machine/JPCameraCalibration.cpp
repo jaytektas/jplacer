@@ -60,6 +60,9 @@ JPCameraCalibration JPCameraCalibration::fromJson(const JJson& j) {
     c.lensCentreY = j["lens"]["centreY"].number();
     c.width  = int(j["picture"]["width"].number());
     c.height = int(j["picture"]["height"].number());
+    // Measured before the picture's size was kept: its pixels cannot be
+    // placed, so it is measured again.
+    if (c.width <= 0 || c.height <= 0) c.valid = false;
     c.z     = j["z"].number();
     c.rmsPx = j["rmsPx"].number();
     c.when  = j["when"].str();

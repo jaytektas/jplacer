@@ -234,6 +234,7 @@ bool JPCell::doHome(std::string& why) {
     {
         std::lock_guard lk(m_mutex);
         m_sent.clear();
+        m_corrected.clear();
         for (const JPAxisConfig& a : m_config.axes) {
             if (a.kind == JPAxisConfig::Kind::Virtual) m_positions[a.id] = a.homeCoordinate;
             if (a.kind != JPAxisConfig::Kind::Mapped) m_sent[a.id] = a.homeCoordinate;
@@ -280,6 +281,62 @@ bool JPCell::moveAxesAndWait(std::map<std::string, double> targets, double speed
     const auto [ok, w] = result.get();
     why = w;
     return ok;
+}
+
+bool JPCell::correctPosition(const std::map<std::string, double>& by, std::string& why) {
+    if (m_moving.exchange(true)) {
+        why = "a move is under way";
+        return false;
+    }
+    std::promise<std::pair<bool, std::string>> done;
+    auto result = done.get_future();
+    m_thread.post([this, &by, &done] {
+        std::string w;
+        const bool ok = doCorrectPosition(by, w);
+        m_moving = false;
+        done.set_value({ ok, w });
+    });
+    const auto [ok, w] = result.get();
+    why = w;
+    return ok;
+}
+
+bool JPCell::doCorrectPosition(const std::map<std::string, double>& by, std::string& why) {
+    if (!m_connected) { why = "not connected"; return false; }
+    if (!m_homed)     { why = "not homed: home the machine first"; return false; }
+    const auto base = jogBase();
+    std::map<std::string, std::string> words;   // by controller
+    for (const auto& [id, d] : by) {
+        const JPAxisConfig* a = m_config.axis(id);
+        if (!a || a->kind != JPAxisConfig::Kind::Controller) {
+            why = "axis " + (a ? a->name : id) + " is not a controller's: its position cannot be corrected";
+            return false;
+        }
+        JPGcodeDriver* dr = driver(a->driverId);
+        if (!dr) { why = "no controller " + a->driverId; return false; }
+        std::string& w = words[a->driverId];
+        w += (w.empty() ? "" : " ") + a->letter + format(base.at(id) - d, dr->profile()->decimals());
+    }
+    for (const auto& [driverId, axes] : words) {
+        JPGcodeDriver* dr = driver(driverId);
+        const JPReply p = dr->command("setPosition", { { "axes", axes } });
+        if (!p.ok) { why = dr->config().name + ": position not set (" + p.error + ")"; return false; }
+        // Its next report says the new coordinates.
+        const JPReply w = dr->waitForMotion();
+        if (!w.ok) { why = dr->config().name + ": " + w.error; return false; }
+    }
+    std::lock_guard lk(m_mutex);
+    for (const auto& [id, d] : by) {
+        if (const auto s = m_sent.find(id); s != m_sent.end()) s->second -= d;
+        m_corrected[id] += d;
+    }
+    JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_config.name << ": position corrected";
+    return true;
+}
+
+std::map<std::string, double> JPCell::correctionSinceHome() const {
+    std::lock_guard lk(m_mutex);
+    return m_corrected;
 }
 
 void JPCell::setCameraCalibration(const std::string& cameraId, const JPCameraCalibration& calibration) {

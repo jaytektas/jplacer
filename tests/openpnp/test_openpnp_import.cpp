@@ -37,7 +37,7 @@ int main() {
     assert(d.commandTimeoutMs == 30000 && d.homeTimeoutMs == 60000 && d.connectWaitMs == 3000);
     // OpenPnP's home command, every line in order, comments and comment-only lines gone.
     assert(d.commands.at("home") == "M18 Z\nG4 P1\nM17 Z\n$HY\n$HX\nG92 X390 Y444 A0 B0 C0\n$HZ\nG92 Z-25.5\nM400");
-    assert(noted(notes, "fiducial"));                       // visual homing is not carried over
+    assert(noted(notes, "fiducial"));                       // visual homing waits for a calibrated camera
 
     assert(cell.axes.size() == 4);                         // the cam axis is left out
     assert(noted(notes, "axis cam"));

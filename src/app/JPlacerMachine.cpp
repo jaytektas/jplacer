@@ -111,15 +111,18 @@ void JPlacerMachine::buildPanels() {
     // The cameras fill the centre: what the machine sees is what the person
     // works from. A camera's light is on while it is the one shown.
     // A head camera looks where its axes put it, plus its offset on the head;
-    // a fixed one is drawn with nothing under it.
+    // a fixed one is drawn with nothing under it. The world it draws stays
+    // where the switches put it when visual homing corrects the coordinates.
     auto viewFor = [cell = m_cell.get()](const JPCameraConfig& c) -> std::function<bool(double&, double&)> {
         if (c.mount.axisX.empty() || c.mount.axisY.empty()) return nullptr;
         return [cell, m = c.mount](double& x, double& y) {
             const auto p = cell->positions();
             const auto px = p.find(m.axisX), py = p.find(m.axisY);
             if (px == p.end() || py == p.end()) return false;
-            x = px->second + m.offsetX;
-            y = py->second + m.offsetY;
+            const auto corrected = cell->correctionSinceHome();
+            const auto cx = corrected.find(m.axisX), cy = corrected.find(m.axisY);
+            x = px->second + m.offsetX + (cx == corrected.end() ? 0 : cx->second);
+            y = py->second + m.offsetY + (cy == corrected.end() ? 0 : cy->second);
             return true;
         };
     };
@@ -190,7 +193,12 @@ bool JPlacerMachine::openCell(const std::string& path, std::string& error) {
             else m_window.showStatus(ok ? m_cell->config().name + " connected" : m_cell->config().name + " disconnected", kStatusMs);
         });
     }));
-    m_unwatch.push_back(m_cell->onHomed.connect([onMain](bool) { onMain([] {}); }));
+    // A home by the switches is finished with the camera where the head homes visually.
+    m_unwatch.push_back(m_cell->onHomed.connect([this, onMain](bool homed) {
+        onMain([this, homed] {
+            if (homed && m_cameraTasks) m_cameraTasks->visualHome();
+        });
+    }));
     m_unwatch.push_back(m_cell->onState.connect([onMain](std::string, std::string) { onMain([] {}); }));
     m_unwatch.push_back(m_cell->onMotion.connect([this, onMain](bool ok, std::string why) {
         onMain([this, ok, why] {

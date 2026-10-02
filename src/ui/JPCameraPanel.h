@@ -41,6 +41,8 @@ public:
     std::function<void()> onVisualTest;
 
     void show(size_t index);
+    // Show the camera with this id; false when there is none.
+    bool showCamera(const std::string& id);
     // The camera shown (its id), empty when there is none.
     std::string shownId() const;
     // The camera shown, running; null when there is none.

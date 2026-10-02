@@ -361,9 +361,9 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                 notes.push_back("head " + head.name + ": visual homing method " + h.attr("visual-homing-method")
                                 + " is not one jplacer does; it resets to the fiducial location");
             if (head.visualHoming)
-                notes.push_back("head " + head.name + ": OpenPnP finishes homing by finding the homing fiducial with "
-                                "the camera, which jplacer does not do yet. After Home, the axes take their home "
-                                "coordinates from the switches alone");
+                notes.push_back("head " + head.name + ": homing finishes by finding the homing fiducial with the "
+                                "camera, as in OpenPnP, once the camera on the head is calibrated in jplacer (Calibrate); "
+                                "until then the axes take their home coordinates from the switches alone");
             c.heads.push_back(std::move(head));
             if (const JPXmlElement* acts = h.child("actuators"))
                 for (const JPXmlElement& x : acts->children) addActuator(x, h.attr("id"));

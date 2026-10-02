@@ -32,6 +32,11 @@ public:
     void calibrate();
     // Look at the homing mark and say how far it is from its setting.
     void visualTest();
+    // Finish a home with the camera (JPVisualHoming), through the first
+    // calibrated camera on a head that homes visually, shown while it works.
+    // Says why not when there is no such camera. Nothing when no head homes
+    // visually.
+    void visualHome();
 
 private:
     // Runs `task` on the worker; its answer (ok, words) comes back on the main

@@ -5,6 +5,7 @@
 
 #include "common/JPlacerLog.h"
 #include "tasks/JPCameraCalibrator.h"
+#include "tasks/JPVisualHoming.h"
 #include "tasks/JPVisualTest.h"
 
 #include <j/core/Log.h>
@@ -143,6 +144,42 @@ void JPlacerCameraTasks::visualTest() {
         char buf[200];
         std::snprintf(buf, sizeof buf, "The homing mark is %+.3f mm in X and %+.3f mm in Y from its setting",
                       r.offsetX, r.offsetY);
+        words = buf;
+        return true;
+    });
+}
+
+void JPlacerCameraTasks::visualHome() {
+    const JPHeadConfig* homing = nullptr;
+    for (const JPHeadConfig& h : m_cell.config().heads)
+        if (h.visualHoming) homing = &h;
+    if (!homing) return;
+    const JPCameraConfig* camera = nullptr;
+    for (const JPCameraConfig& c : m_cell.config().cameras)
+        if (!camera && c.mount.headId == homing->id && m_cell.cameraCalibration(c.id).valid) camera = &c;
+    if (!camera) {
+        m_window.showStatus("Homed by the switches only: calibrate a camera on " + homing->name
+                            + " to finish homing with the homing mark", kResultMs);
+        return;
+    }
+    if (m_busy) return;
+    m_cameras.showCamera(camera->id);
+    if (const std::string why = notReady(true); !why.empty()) {
+        m_window.showStatus("Visual homing: " + why, kResultMs);
+        return;
+    }
+    JPCameraFeed* feed = m_cameras.shownFeed();
+    const JPHeadConfig h = *homing;
+    run("Visual homing", [this, feed, h](std::string& words, const auto& progress) {
+        progress("looking at the homing mark");
+        const JPVisualHoming::Result r = JPVisualHoming::run(m_cell, *feed, h, kTaskSpeed);
+        if (!r.ok) {
+            words = r.why;
+            return false;
+        }
+        char buf[200];
+        std::snprintf(buf, sizeof buf, "Homed: the homing mark corrected the position by %+.3f mm in X and %+.3f mm in Y",
+                      r.correctedX, r.correctedY);
         words = buf;
         return true;
     });

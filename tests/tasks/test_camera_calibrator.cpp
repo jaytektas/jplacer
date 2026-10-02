@@ -7,12 +7,14 @@
 // scene knows.
 // The calibrator must recover that transform from its moves, and the visual
 // test must then find the mark where the scene put it, not where the head's
-// settings say it is.
+// settings say it is, and visual homing must correct the coordinates so it
+// measures where they say.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
 
 #include "tasks/JPCameraCalibrator.h"
+#include "tasks/JPVisualHoming.h"
 #include "tasks/JPVisualTest.h"
 
 #include <chrono>
@@ -98,10 +100,13 @@ int main() {
 
     const JPCameraConfig& camConfig = cell.config().cameras.front();
     JPCameraFeed feed(camConfig);
+    // The camera sees the world, which stays put when visual homing corrects
+    // the coordinates.
     feed.setView([&](double& x, double& y) {
         const auto p = cell.positions();
-        x = p.at("X");
-        y = p.at("Y");
+        const auto c = cell.correctionSinceHome();
+        x = p.at("X") + (c.count("X") ? c.at("X") : 0);
+        y = p.at("Y") + (c.count("Y") ? c.at("Y") : 0);
         return true;
     });
     feed.start();
@@ -149,6 +154,15 @@ int main() {
     assert(t.found);
     assert(std::abs(t.markX - kMarkX) < 0.002 && std::abs(t.markY - kMarkY) < 0.002);
     assert(std::abs(t.offsetX - (kMarkX - kSetX)) < 0.002 && std::abs(t.offsetY - (kMarkY - kSetY)) < 0.002);
+
+    // Visual homing corrects the coordinates by that, and then the mark
+    // measures where its setting says.
+    const JPVisualHoming::Result vh = JPVisualHoming::run(cell, feed, head, 1.0);
+    if (!vh.ok) std::fprintf(stderr, "visual homing: %s\n", vh.why.c_str());
+    assert(vh.ok);
+    assert(std::abs(vh.correctedX - (kMarkX - kSetX)) < 0.003 && std::abs(vh.correctedY - (kMarkY - kSetY)) < 0.003);
+    t = JPVisualTest::run(cell, feed, head, 1.0);
+    assert(t.found && std::hypot(t.offsetX, t.offsetY) < 0.005);
 
     feed.stop();
     cell.disconnect();

@@ -128,9 +128,17 @@ serial port, the port list (see [Choosing the port](#choosing-the-port)).
 Clicking the house (or **Machine ▸ Home All Axes**) sends each controller its home command and waits for it to
 finish, then tells the controller that every axis is at its home coordinate. Until the machine is homed
 it will not move: before that its position means nothing, so its soft limits cannot protect it. A
-machine imported from OpenPnP homes the way it did in OpenPnP, with the same command. OpenPnP may also
-have corrected the home position with a fiducial seen by the camera; jplacer does not do that yet, and
-the import says so — the head must then be at its home position when you home.
+machine imported from OpenPnP homes the way it did in OpenPnP, with the same command.
+
+The switches put the head within a fraction of a millimetre. Where the head is set to home visually (an
+imported head that did so in OpenPnP is), Home then finishes with the camera: the calibrated camera on
+the head is shown, looks at the homing mark, and the coordinates are corrected so the mark measures
+exactly where the head's settings say it is. It looks again to check, and corrects again if that left
+more than 0.02 mm (about how closely a machine returns to a place). The line under the camera buttons and
+the status bar say by how much it corrected. Until a camera on the head is calibrated, Home says it homed
+by the switches only.
+
+<!-- src: src/tasks/JPVisualHoming.cpp (kHomedWithinMm, kCorrections); src/app/JPlacerCameraTasks.cpp (visualHome); src/app/JPlacerMachine.cpp (onHomed); src/machine/JPCell.cpp (correctPosition) -->
 
 The house is grey while the machine is not homed, an amber arc while it homes, and green once homed; a
 failed home turns it red and the status bar says why. A red **ALARM** strip runs across the top of the
@@ -232,8 +240,9 @@ whatever is measured in a picture is straightened through the lens first.
 #### Visual Test
 
 **Visual Test** moves a calibrated head camera to look where the head's settings say the homing mark is,
-finds the mark, and says how far it really is from there, in mm in X and Y. Nothing is reset: it shows
-what correcting the home position with the camera would change, before jplacer does that.
+finds the mark, and says how far it really is from there, in mm in X and Y. Nothing is changed: right
+after a visual home it reads within a few hundredths of a millimetre, and any time later it shows whether
+the machine has lost its place.
 
 <!-- src: src/tasks/JPVisualTest.cpp; src/app/JPlacerCameraTasks.cpp (visualTest) -->
 

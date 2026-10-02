@@ -68,6 +68,15 @@ public:
     // own (never the cell's, which runs the move). False with `why`.
     bool moveAxesAndWait(std::map<std::string, double> targets, double speed, std::string& why);
 
+    // The machine is not where its coordinates say: each axis (by id) is off
+    // by `by`, so from now on where it is now is called (now - by). Told to
+    // the controllers (their setPosition command); nothing moves. Waits, like
+    // moveAxesAndWait. For visual homing, which measures how far off it is.
+    bool correctPosition(const std::map<std::string, double>& by, std::string& why);
+    // The corrections made since the last home, summed, by axis id: where
+    // the switches put the machine is (coordinates + this).
+    std::map<std::string, double> correctionSinceHome() const;
+
     // Keep a camera's calibration (the cell's own copy; the owner saves it).
     void setCameraCalibration(const std::string& cameraId, const JPCameraCalibration& calibration);
     JPCameraCalibration cameraCalibration(const std::string& cameraId) const;
@@ -106,6 +115,7 @@ private:
     // The cell thread's side of moveAxes: false with `why` when refused or failed.
     bool doMove(std::map<std::string, double> targets, double speed, std::string& why);
     bool doHome(std::string& why);
+    bool doCorrectPosition(const std::map<std::string, double>& by, std::string& why);
 
     JPCellConfig                                m_config;
     std::vector<JPFirmwareProfile>              m_profiles;
@@ -118,6 +128,7 @@ private:
     mutable std::mutex                 m_mutex;   // guards the members below
     std::map<std::string, double>      m_positions;
     std::map<std::string, double>      m_sent;       // last commanded coordinate, by axis id
+    std::map<std::string, double>      m_corrected;  // correctPosition's since the last home, summed
     std::map<std::string, std::string> m_firmware;
     std::map<std::string, std::string> m_states;
 

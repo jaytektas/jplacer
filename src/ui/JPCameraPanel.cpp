@@ -127,6 +127,15 @@ std::string JPCameraPanel::savePicture() {
     return path;
 }
 
+bool JPCameraPanel::showCamera(const std::string& id) {
+    for (size_t i = 0; i < m_feeds.size(); ++i)
+        if (m_feeds[i]->config().id == id) {
+            if (m_choice) m_choice->choose(int(i));   // shows it, through the choice's signal
+            return true;
+        }
+    return false;
+}
+
 void JPCameraPanel::show(size_t index) {
     if (index >= m_feeds.size() || index == m_shown) return;
     const std::string before = m_shown < m_feeds.size() ? m_feeds[m_shown]->config().id : std::string();

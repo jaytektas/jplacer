@@ -42,6 +42,10 @@ JPVisualTest::Result JPVisualTest::run(JPCell& cell, JPCameraFeed& feed, const J
         return r;
     JPGrayImage img;
     if (!JPCameraLook::settled(feed, img, r.why)) return r;
+    if (img.width != cal.width || img.height != cal.height) {
+        r.why = feed.config().name + " was calibrated at another picture size: calibrate it again";
+        return r;
+    }
     const double scale = std::sqrt(cal.scaleX() * cal.scaleY());
     JPRoundMarkFinder::Request rq;
     rq.expectedX = img.width / 2.0;
