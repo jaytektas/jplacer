@@ -109,7 +109,16 @@ void JPlacerMachine::buildPanels() {
     };
     m_cameras = std::make_unique<JPCameraPanel>(m_graph, m_window.hal(), m_cell->config(),
                                                 (std::filesystem::path(JPlacerPaths::configDir()) / "captures").string(),
-                                                viewFor);
+                                                viewFor,
+                                                [cell = m_cell.get()](const std::string& id) { return cell->cameraCalibration(id); });
+    // Straightened or as taken, kept from last time.
+    m_cameras->setView(JSettings::instance().get<bool>(JPlacerSettings::kCameraStraight, false),
+                       JSettings::instance().get<double>(JPlacerSettings::kCameraShowAll, 0.0));
+    m_cameras->onViewChanged = [](bool straight, double showAll) {
+        JSettings::instance().set(JPlacerSettings::kCameraStraight, straight);
+        JSettings::instance().set(JPlacerSettings::kCameraShowAll, showAll);
+        JPlacerSettings::save();
+    };
     m_cameras->onShown = [this](const std::string& shown, const std::string& before) { lightCameras(shown, before); };
     m_window.setCentralWidget(m_cameras.get());
     lightCameras(m_cameras->shownId(), std::string());
@@ -221,6 +230,10 @@ bool JPlacerMachine::openCell(const std::string& path, std::string& error) {
         });
     }));
     // A home by the switches is finished with the camera where the head homes visually.
+    // A new calibration straightens the picture from then on.
+    m_unwatch.push_back(m_cell->onCalibration.connect([this, onMain] {
+        onMain([this] { if (m_cameras) m_cameras->refreshStraightening(); });
+    }));
     m_unwatch.push_back(m_cell->onHomed.connect([this, onMain](bool homed) {
         onMain([this, homed] {
             if (homed && m_cameraTasks) m_cameraTasks->visualHome();

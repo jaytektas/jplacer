@@ -80,7 +80,32 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     const float scale = std::min(b.width / float(m_w), b.height / float(m_h));
     const float w = float(m_w) * scale, h = float(m_h) * scale;
     const float x = b.x + (b.width - w) * 0.5f, y = b.y + (b.height - h) * 0.5f;
-    buf.pushImage(x, y, w, h, m_tex);
+    // Straightened, the picture is drawn through the straightener's mesh: each
+    // grid cell from where it is in the picture as taken (by the GPU where
+    // there is one); cells the camera does not see are left out, bare.
+    const bool straight = m_straight && m_straight->width() == m_w && m_straight->height() == m_h;
+    if (straight) {
+        const int cols = m_straight->columns(), rows = m_straight->rows();
+        const auto& g = m_straight->grid();
+        std::vector<JPrimitiveBuffer::JImageVertex> tris;
+        tris.reserve(size_t(cols) * size_t(rows) * 6);
+        auto node = [&](int c, int r) {
+            const JPStraightener::Node& n = g[size_t(r) * size_t(cols + 1) + size_t(c)];
+            return std::pair{ n, JPrimitiveBuffer::JImageVertex{ x + w * float(c) / float(cols), y + h * float(r) / float(rows), n.u, n.v } };
+        };
+        for (int r = 0; r < rows; ++r)
+            for (int c = 0; c < cols; ++c) {
+                const auto [n00, v00] = node(c, r);
+                const auto [n10, v10] = node(c + 1, r);
+                const auto [n01, v01] = node(c, r + 1);
+                const auto [n11, v11] = node(c + 1, r + 1);
+                if (!n00.seen || !n10.seen || !n01.seen || !n11.seen) continue;
+                tris.insert(tris.end(), { v00, v10, v01, v10, v11, v01 });
+            }
+        buf.pushImageMesh(m_tex, std::move(tris));
+    } else {
+        buf.pushImage(x, y, w, h, m_tex);
+    }
     m_picX = x;
     m_picY = y;
     m_picScale = scale;
@@ -97,17 +122,23 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     if (m_marks) marks = m_marks();
     const JColor fidColour  = rgb(Colors::Warning[0], Colors::Warning[1], Colors::Warning[2]);
     const JColor partColour = rgb(Colors::Accent[0], Colors::Accent[1], Colors::Accent[2]);
+    // Marks come in the picture-as-taken's pixels: shown where the picture shows them.
+    struct Placed { float x, y; const JPViewMark* mark; };
+    std::vector<Placed> placed;
     for (const JPViewMark& m : marks) {
-        const float mx = x + float(m.x) * scale, my = y + float(m.y) * scale;
-        const float r = m.radius > 0 ? float(m.radius) * scale : st.spacing;
-        vg.strokeCircle(mx, my, r, line, JPaint::solid(m.fiducial ? fidColour : partColour));
+        double sx, sy;
+        if (!shown(m.x, m.y, sx, sy)) continue;
+        placed.push_back({ x + float(sx) * scale, y + float(sy) * scale, &m });
+    }
+    for (const Placed& p : placed) {
+        const float r = p.mark->radius > 0 ? float(p.mark->radius) * scale : st.spacing;
+        vg.strokeCircle(p.x, p.y, r, line, JPaint::solid(p.mark->fiducial ? fidColour : partColour));
     }
     vg.flush(buf);
-    for (const JPViewMark& m : marks) {
-        const float mx = x + float(m.x) * scale, my = y + float(m.y) * scale;
-        const float r = m.radius > 0 ? float(m.radius) * scale : st.spacing;
-        JTextHelper::pushText(buf, mx + r, my - r - JTextHelper::lineHeight(), m.label,
-                              m.fiducial ? Colors::Warning : Colors::Accent);
+    for (const Placed& p : placed) {
+        const float r = p.mark->radius > 0 ? float(p.mark->radius) * scale : st.spacing;
+        JTextHelper::pushText(buf, p.x + r, p.y - r - JTextHelper::lineHeight(), p.mark->label,
+                              p.mark->fiducial ? Colors::Warning : Colors::Accent);
     }
 
     // A picture left from before the camera was lost: say so over it, or it
@@ -128,9 +159,24 @@ void JPCameraView::handleMousePress(float x, float y) {
     m_lastPressX = x;
     m_lastPressY = y;
     if (!twice || m_picScale <= 0 || m_w <= 0 || !onPictureDoubleClicked) return;
-    const double px = (x - m_picX) / m_picScale, py = (y - m_picY) / m_picScale;
+    double px = (x - m_picX) / m_picScale, py = (y - m_picY) / m_picScale;
     if (px < 0 || py < 0 || px >= m_w || py >= m_h) return;
+    // Straightened, the pixel clicked is back to the picture as taken.
+    if (m_straight && m_straight->width() == m_w && m_straight->height() == m_h) {
+        double rx, ry;
+        if (!m_straight->toRaw(px, py, rx, ry)) return;
+        px = rx;
+        py = ry;
+    }
     onPictureDoubleClicked(px, py);
+}
+
+bool JPCameraView::shown(double rawX, double rawY, double& x, double& y) const {
+    if (m_straight && m_straight->width() == m_w && m_straight->height() == m_h)
+        return m_straight->toStraight(rawX, rawY, x, y) && x >= 0 && y >= 0 && x < m_w && y < m_h;
+    x = rawX;
+    y = rawY;
+    return true;
 }
 
 } // inline namespace jf

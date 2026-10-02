@@ -221,6 +221,18 @@ it is plugged into, so moving it to another socket or hub does not lose it. jpla
 picture the camera offers in MJPG (or YUYV, if that is all it has), unless the cell names a format and
 size.
 
+Under the camera buttons, **As Taken** shows the picture as the camera takes it; **Straightened** takes
+the lens's bending out and turns it square to the machine, at one scale both ways and centred on what
+the camera looks at, so straight edges on the board look straight and what is drawn over the picture is
+plain geometry. A camera must be calibrated to be straightened; until then it is shown as taken, and the
+line under the buttons says so. Straightened, a wide lens's picture no longer fills a rectangle: the
+**Edges** slider goes from *cropped* (enlarged until every part of it has picture behind it) to *whole*
+(all the camera sees, with bare edges where the bending was). The choice is kept for next time. The
+straightened picture is drawn by the graphics card where there is one, and by the processor where there
+is not. jplacer measures on the picture as taken, through the lens's calibration, whichever is shown.
+
+<!-- src: src/ui/JPCameraPanel.cpp (setView, refreshStraightening); src/ui/JPCameraView.cpp (the mesh); src/camera/JPStraightener.cpp; src/app/JPlacerMachine.cpp (kCameraStraight, kCameraShowAll) -->
+
 With a camera on the head calibrated and the machine homed, **double-click** anywhere in its picture and
 the camera moves to look there: the quickest way to put it over a fiducial or a part.
 

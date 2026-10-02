@@ -6,6 +6,7 @@
 #include "JPViewMark.h"
 
 #include "camera/JPCameraFeed.h"
+#include "camera/JPStraightener.h"
 
 #include <j/core/JWidget.h>
 #include <j/graphics/GpuHal.h>
@@ -34,6 +35,12 @@ public:
     void setMessage(const std::string& text);
     // Marks drawn over the picture, asked for at each frame drawn.
     void setMarks(std::function<std::vector<JPViewMark>()> marks) { m_marks = std::move(marks); }
+    // Show the picture straightened (JPStraightener, drawn as its mesh), or
+    // as taken (null). Marks and clicks stay in the picture-as-taken's pixels.
+    void setStraightener(std::shared_ptr<const JPStraightener> straightener) {
+        m_straight = std::move(straightener);
+        invalidate();
+    }
 
     void populateRenderPrimitives(JPrimitiveBuffer& buf) override;
     void handleMousePress(float x, float y) override;
@@ -53,6 +60,9 @@ private:
     JPFrame                            m_frame;
     std::string                        m_message;
     std::function<std::vector<JPViewMark>()> m_marks;
+    std::shared_ptr<const JPStraightener>    m_straight;
+    // Where a pixel of the picture as taken is shown: straightened when straightening.
+    bool shown(double rawX, double rawY, double& x, double& y) const;
     // Where the picture was last drawn (widget coordinates) and at what scale,
     // to turn a click into a pixel of it; and the last press, for a double.
     float                              m_picX = 0, m_picY = 0, m_picScale = 0;

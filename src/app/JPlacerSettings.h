@@ -29,6 +29,10 @@ public:
     static constexpr const char* kLauncher         = "desktop.launcher";
     // The cell file (cells/<name>.json) opened last; opened again at start.
     static constexpr const char* kMachineCell      = "machine.cell";
+    // How the cameras' pictures are shown: straightened (true) or as taken,
+    // and how much of the bent edge a straightened one shows (0 cropped .. 1 whole).
+    static constexpr const char* kCameraStraight   = "camera.straight";
+    static constexpr const char* kCameraShowAll    = "camera.showAll";
     // The board on the machine: its pick-and-place file, the side up
     // ("top" or "bottom"), where it is (its map to the machine, six numbers
     // "a b c d tx ty", see JPAffine2D) and whether that was measured by its

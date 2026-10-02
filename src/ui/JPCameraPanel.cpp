@@ -20,8 +20,8 @@
 inline namespace jf {
 
 JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCellConfig& cell, std::string capturesDir,
-                             const ViewFor& viewFor)
-    : JContainer(graph), m_capturesDir(std::move(capturesDir)) {
+                             const ViewFor& viewFor, CalibrationFor calibrationFor)
+    : JContainer(graph), m_capturesDir(std::move(capturesDir)), m_calibrationFor(std::move(calibrationFor)) {
     JPUiParts::asPanel(*this);
     std::vector<std::string> names;
     for (const JPCameraConfig& c : cell.cameras) {
@@ -44,6 +44,26 @@ JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCellConfi
     test->onClicked.connect([this] { if (onVisualTest) onVisualTest(); });
     m_taskButtons = { calibrate, test };
     add(std::move(top));
+    // As taken, or straightened: the lens's bending out and the machine square
+    // to the picture, as much of the bent edge shown as the slider says.
+    auto viewRow = JPUiParts::row(graph);
+    m_viewChoice = viewRow->add(std::make_unique<JPChoiceRow>(graph, std::vector<std::string>{ "As Taken", "Straightened" }, 0));
+    m_viewChoice->onChosen.connect([this](int i) {
+        m_straight = i == 1;
+        refreshStraightening();
+        if (onViewChanged) onViewChanged(m_straight, m_showAll);
+    });
+    viewRow->add(std::make_unique<JLabel>(graph, "Edges: cropped"));
+    m_edges = viewRow->add(std::make_unique<JSlider>(graph, 0.f));
+    m_edges->setHSizePolicy(JSizePolicyMode::Expanding, 1);
+    m_edges->setValue(0);
+    m_edges->onValueChanged.connect([this](float v) {
+        m_showAll = v;
+        refreshStraightening();
+        if (onViewChanged) onViewChanged(m_straight, m_showAll);
+    });
+    viewRow->add(std::make_unique<JLabel>(graph, "whole"));
+    add(std::move(viewRow));
     // What a camera task is doing, or the last thing done: a line of its own,
     // so a result reads in full.
     m_note = add(std::make_unique<JLabel>(graph, ""));
@@ -95,6 +115,26 @@ void JPCameraPanel::setBusy(bool busy) {
 
 void JPCameraPanel::setMarks(std::function<std::vector<JPViewMark>()> marks) {
     if (m_view) m_view->setMarks(std::move(marks));
+}
+
+void JPCameraPanel::setView(bool straight, double showAll) {
+    m_straight = straight;
+    m_showAll = showAll;
+    if (m_viewChoice) m_viewChoice->choose(straight ? 1 : 0);
+    if (m_edges) m_edges->setValue(float(showAll));
+    refreshStraightening();
+}
+
+void JPCameraPanel::refreshStraightening() {
+    if (!m_view || m_shown >= m_feeds.size()) return;
+    const JPCameraConfig& cam = m_feeds[m_shown]->config();
+    std::shared_ptr<const JPStraightener> s;
+    if (m_straight && m_calibrationFor)
+        if (auto made = JPStraightener::make(m_calibrationFor(cam.id), cam.looksUp, m_showAll))
+            s = std::make_shared<const JPStraightener>(std::move(*made));
+    m_view->setStraightener(s);
+    if (m_edges) m_edges->setEnabled(m_straight);
+    if (m_straight && !s) setNote(cam.name + " is not calibrated: shown as taken");
 }
 
 void JPCameraPanel::setNote(const std::string& text) {
@@ -152,6 +192,7 @@ void JPCameraPanel::show(size_t index) {
     m_view->setMessage("Starting " + feed.config().name + "\xE2\x80\xA6");
     m_state->setText("");
     feed.start();
+    refreshStraightening();
     if (onShown) onShown(feed.config().id, before);
 }
 

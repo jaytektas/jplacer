@@ -64,6 +64,8 @@ notes.
 - The Machine panel lists what the machine has been calibrated for: each camera, the squareness, homing.
 - The Jog panel shows and takes the chosen tool's own coordinates (its offset on the head included).
 - Home waits for the controller to report the home coordinates before calling the machine homed.
+- The camera's picture can be shown straightened: the lens's bending out, square to the machine, with a
+  slider for how much of the bent edge to show. Drawn by the graphics card, or the processor without one.
 - Double-click the live picture of a calibrated head camera and it moves to look there.
 - The board is drawn over the live camera picture: each part's designator and each fiducial where the
   board's place puts it.

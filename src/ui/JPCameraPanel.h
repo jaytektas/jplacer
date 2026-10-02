@@ -12,6 +12,7 @@
 #include <j/core/JButton.h>
 #include <j/core/JContainer.h>
 #include <j/core/JLabel.h>
+#include <j/core/JSlider.h>
 
 #include <functional>
 #include <memory>
@@ -26,9 +27,20 @@ public:
     // Where a camera is looking on the machine, for a simulated camera to draw.
     using ViewFor = std::function<std::function<bool(double&, double&)>(const JPCameraConfig&)>;
 
+    // A camera's calibration (not valid when it has none), for straightening its picture.
+    using CalibrationFor = std::function<JPCameraCalibration(const std::string& cameraId)>;
+
     // `capturesDir`: where Save Picture writes. `viewFor`: each camera's view.
     JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCellConfig& cell, std::string capturesDir,
-                  const ViewFor& viewFor);
+                  const ViewFor& viewFor, CalibrationFor calibrationFor);
+
+    // How the picture is shown: straightened or as taken, and how much of a
+    // straightened one (JPStraightener's showAll). Set by the owner; changed
+    // here, reported to onViewChanged.
+    void setView(bool straight, double showAll);
+    std::function<void(bool straight, double showAll)> onViewChanged;
+    // A calibration changed: straighten by it from now on.
+    void refreshStraightening();
     ~JPCameraPanel() override;
 
     // The camera shown changed (its id), and the one before it (empty at
@@ -64,6 +76,11 @@ private:
     std::vector<std::unique_ptr<JPCameraFeed>> m_feeds;
     JPCameraView*                              m_view  = nullptr;
     JPChoiceRow*                               m_choice = nullptr;
+    JPChoiceRow*                               m_viewChoice = nullptr;
+    JSlider*                                   m_edges = nullptr;
+    CalibrationFor                             m_calibrationFor;
+    bool                                       m_straight = false;
+    double                                     m_showAll = 0;
     std::vector<JButton*>                      m_taskButtons;
     JLabel*                                    m_state = nullptr;
     JLabel*                                    m_note  = nullptr;
