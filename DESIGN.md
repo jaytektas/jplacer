@@ -202,13 +202,31 @@ Within a machine, same capability as OpenPnP's `spi` + `machine/reference`:
   tube, auto / slot (banks), loose-part. A feeder holds a component *and the
   packaging it was loaded in*; pick rotation and pitch come from the
   packaging. Strip feeders remember how many parts are left in the strip.
+- **Bus feeders** (e.g. Photon on RS-485) speak their own protocol over a
+  **pass-through channel**. A channel is provided by a driver (a G-code
+  command that carries the packet and returns the reply, such as `M485
+  <hex>` → `rs485-reply: <hex>`, described in the firmware profile) or by a
+  serial port of its own. The feeder protocol does not know which.
 - **Lanes**: hand-loaded positions (e.g. a bank of strip lanes 8 / 12 / 16 mm
   wide) are a pool, not fixed assignments. A lane knows its width and
   geometry; what is in it is decided by the job as it runs (below).
 
-All hardware access runs on one machine thread (`JWorkerThread`). The GUI sends
-commands and receives events (`JSignal` via `JMainThreadDispatcher`); it never
-blocks on motion.
+**Threads.** The GUI never touches hardware and never waits on it.
+
+| Thread | Owns | Does |
+|---|---|---|
+| Main (GUI) | widgets, rendering, input | posts requests to a cell; shows state from events |
+| Cell, one per cell | the cell's sequence | runs jobs, moves, homing, calibration steps in order; waits on drivers without blocking anyone else |
+| Driver I/O, one per controller | the connection (serial port claimed with `JSerialPort::claim()`, socket, simulator) | writes queued commands, reads every line, matches replies to commands, polls and parses status reports, keeps reading while the cell thread waits |
+| Camera, one per camera | the capture device | grabs frames; the latest frame is handed over, never queued |
+
+Requests go down as queued commands that complete later (a callback or a
+future the cell thread waits on). State comes up as events (`JSignal`),
+re-posted to the main thread with `JMainThreadDispatcher` before any widget
+sees them. Position, status and readings are published by the driver
+threads as they arrive, so the DRO and vacuum readouts stay live while a
+long move or a job runs. A slow or stuck controller stalls only the moves
+that need it, and its timeout is reported, not hidden.
 
 **Calibration** (OpenPnP's Issues & Solutions) becomes a checklist in the
 Machine workspace: each item checks the machine, explains, and offers its
