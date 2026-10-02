@@ -106,6 +106,7 @@ bool JPlacerMachine::openCell(const std::string& path, std::string& error) {
 }
 
 void JPlacerMachine::setPort(const std::string& driverId, const std::string& port) {
+    JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_cellPath << ": controller " << driverId << " now on " << port;
     JPCellConfig config;
     std::string error;
     bool changed = false;

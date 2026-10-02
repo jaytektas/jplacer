@@ -85,14 +85,20 @@ bool JPGcodeDriver::identify(std::string& error) {
         auto it = asked.find(p.identifyCommand());
         if (it == asked.end()) {
             m_replyProfile = &p;
+            JLOGC(JPlacerLog::kDriver, JLogLevel::Debug) << m_config.name << ": identifying with '"
+                                                         << p.identifyCommand() << "' (" << p.name() << " asks so)";
             JPReply r = send(p.identifyCommand(), m_config.identifyTimeoutMs).get();
-            if (!r.ok && !r.error.empty() && p.errorIn(r.error))
+            if (!r.ok && !r.error.empty() && p.errorIn(r.error)) {
+                JLOGC(JPlacerLog::kDriver, JLogLevel::Debug) << m_config.name << ": refused (" << r.error << "), asking again";
                 r = send(p.identifyCommand(), m_config.identifyTimeoutMs).get();
+            }
+            if (!r.ok) JLOGC(JPlacerLog::kDriver, JLogLevel::Debug) << m_config.name << ": no identity (" << r.error << ")";
             it = asked.emplace(p.identifyCommand(), std::move(r)).first;
         }
         const JPReply& r = it->second;
         answered |= r.ok || !r.lines.empty() || (!r.error.empty() && p.errorIn(r.error));
         if (r.ok && p.identifies(r.lines)) {
+            JLOGC(JPlacerLog::kDriver, JLogLevel::Info) << m_config.name << ": identified as " << p.name();
             m_replyProfile = &p;
             m_profile      = &p;
             m_plugins      = p.pluginsIn(r.lines);
@@ -104,6 +110,7 @@ bool JPGcodeDriver::identify(std::string& error) {
     if (!asked.empty() && !answered) {
         error = m_config.name + ": nothing answered on " + m_link->describe()
               + " (the wrong port, or the controller is off)";
+        JLOGC(JPlacerLog::kDriver, JLogLevel::Error) << error;
         return false;
     }
     // Something answered but no profile recognised it: the first profile
@@ -120,6 +127,7 @@ bool JPGcodeDriver::identify(std::string& error) {
 }
 
 void JPGcodeDriver::disconnect() {
+    if (m_running) JLOGC(JPlacerLog::kDriver, JLogLevel::Info) << m_config.name << ": disconnecting";
     m_running = false;
     if (m_io.joinable()) m_io.join();
     failAll("disconnected");
@@ -170,11 +178,15 @@ bool JPGcodeDriver::readSettings(std::string& error) {
     const JPReply r = send(m_profile->settingsReadCommand()).get();
     if (!r.ok) {
         error = m_config.name + ": settings not read (" + r.error + ")";
+        JLOGC(JPlacerLog::kDriver, JLogLevel::Warn) << error;
         return false;
     }
     std::map<std::string, std::string> read;
     for (const std::string& l : r.lines)
         if (const auto s = m_profile->parseSetting(l)) read[s->first] = s->second;
+    JLOGC(JPlacerLog::kDriver, JLogLevel::Info) << m_config.name << ": " << read.size() << " stored setting(s) read";
+    for (const auto& [id, value] : read)
+        JLOGC(JPlacerLog::kDriver, JLogLevel::Debug) << m_config.name << ": setting " << id << " = " << value;
     std::lock_guard lk(m_mutex);
     m_settings = std::move(read);
     return true;
@@ -224,6 +236,7 @@ void JPGcodeDriver::ioLoop() {
                 m_inFlight  = std::move(next);
                 m_collected = {};
                 m_deadline  = Clock::now() + std::chrono::milliseconds(m_inFlight->timeoutMs);
+                JLOGC(JPlacerLog::kTraffic, JLogLevel::Trace) << m_config.name << " > " << m_inFlight->line;
                 onTraffic.emit(true, m_inFlight->line);
                 if (!m_link->write(m_inFlight->line + "\n")) {
                     lost("could not write to " + m_link->describe());
@@ -270,10 +283,12 @@ void JPGcodeDriver::handleLine(const std::string& line) {
                 std::lock_guard lk(m_mutex);
                 m_status = *st;
             }
+            JLOGC(JPlacerLog::kStatus, JLogLevel::Trace) << m_config.name << " < " << line;
             onStatus.emit(*st);
             return;
         }
     }
+    JLOGC(JPlacerLog::kTraffic, JLogLevel::Trace) << m_config.name << " < " << line;
     onTraffic.emit(false, line);
     if (!p) return;
 

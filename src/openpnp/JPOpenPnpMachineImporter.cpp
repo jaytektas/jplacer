@@ -5,6 +5,10 @@
 
 #include "JPXmlReader.h"
 
+#include "common/JPlacerLog.h"
+
+#include <j/core/Log.h>
+
 #include <cstdlib>
 #include <map>
 #include <regex>
@@ -116,7 +120,10 @@ const std::string* findCommand(const Commands& cmds, const std::string& type, co
 bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfig& cell,
                                       std::vector<std::string>& notes, std::string& error) {
     JPXmlElement doc;
-    if (!JPXmlReader::read(machineXml, doc, error)) return false;
+    if (!JPXmlReader::read(machineXml, doc, error)) {
+        JLOGC(JPlacerLog::kImport, JLogLevel::Error) << error;
+        return false;
+    }
     const JPXmlElement* machine = doc.child("machine");
     if (doc.name != "openpnp-machine" || !machine) {
         error = machineXml + ": not an OpenPnP machine.xml";
@@ -288,6 +295,10 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
         for (const JPXmlElement& x : cams->children) addCamera(x, std::string());
 
     for (const std::string& p : c.problems()) notes.push_back(p);
+    JLOGC(JPlacerLog::kImport, JLogLevel::Info) << machineXml << ": " << c.drivers.size() << " controller(s), "
+        << c.axes.size() << " axes, " << c.nozzles.size() << " nozzle(s), " << c.cameras.size() << " camera(s), "
+        << c.actuators.size() << " actuator(s)";
+    for (const std::string& n : notes) JLOGC(JPlacerLog::kImport, JLogLevel::Warn) << n;
     cell = std::move(c);
     return true;
 }

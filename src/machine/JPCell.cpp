@@ -41,9 +41,11 @@ JPGcodeDriver* JPCell::driver(const std::string& id) const {
 void JPCell::connect() {
     m_thread.post([this] {
         if (m_connected) return;
+        JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_config.name << ": connecting " << m_drivers.size() << " controller(s)";
         for (const auto& d : m_drivers) {
             std::string error;
             if (!d->connect(error)) {
+                JLOGC(JPlacerLog::kCell, JLogLevel::Error) << m_config.name << ": not connected: " << error;
                 doDisconnect();
                 onConnection.emit(false, error);
                 return;
@@ -54,6 +56,7 @@ void JPCell::connect() {
             m_firmware[d->config().id] = d->profile()->name();
         }
         m_connected = true;
+        JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_config.name << ": connected";
         onConnection.emit(true, std::string());
     });
 }
@@ -67,6 +70,7 @@ void JPCell::disconnect() {
 }
 
 void JPCell::doDisconnect() {
+    if (m_connected) JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_config.name << ": disconnected";
     for (const auto& d : m_drivers) d->disconnect();
     m_connected = false;
     std::lock_guard lk(m_mutex);
@@ -90,6 +94,8 @@ void JPCell::switchActuator(const std::string& actuatorId, bool on) {
                 return;
             }
             const JPReply r = d->send(JPFirmwareProfile::fill(tmpl, { { "index", a.index } })).get();
+            JLOGC(JPlacerLog::kCell, r.ok ? JLogLevel::Info : JLogLevel::Warn)
+                << a.name << " " << (on ? "on" : "off") << (r.ok ? std::string() : ": " + r.error);
             onActuator.emit(a.id, r.ok, r.ok ? (on ? "on" : "off") : r.error);
             return;
         }
@@ -120,10 +126,13 @@ void JPCell::readActuator(const std::string& actuatorId) {
             for (const std::string& line : r.lines) {
                 std::smatch m;
                 if (std::regex_search(line, m, pattern) && m.size() > 1) {
+                    JLOGC(JPlacerLog::kCell, JLogLevel::Info) << a.name << " read " << m[1].str() << (a.unit.empty() ? std::string() : " " + a.unit);
                     onActuator.emit(a.id, true, m[1].str());
                     return;
                 }
             }
+            JLOGC(JPlacerLog::kCell, JLogLevel::Warn) << a.name << ": no value in the reply to '" << a.readCommand
+                                                       << "' (pattern " << a.readPattern << ")";
             onActuator.emit(a.id, false, a.name + ": the reply held no value");
             return;
         }

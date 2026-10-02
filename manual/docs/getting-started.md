@@ -41,7 +41,7 @@ These options are for finding problems:
 |---|---|
 | `--verbose`, `-v` | Log more detail. |
 | `--quiet`, `-q` | Log only warnings and errors. |
-| `--trace <category>` | Log everything in one category, such as `updates` or `desktop`. |
+| `--trace <category>` | Log everything in one category, such as `updates` or `machine.traffic` (every line sent to and received from the controllers). A wildcard takes a whole area: `--trace 'machine.*'`. |
 | `--settings <file>` | Use another settings file, leaving your own untouched. |
 
 <!-- src: src/main.cpp (parseArgs); src/common/JPlacerLog.h (the categories) -->

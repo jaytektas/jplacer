@@ -3,6 +3,10 @@
 
 #include "JPSerialLink.h"
 
+#include "common/JPlacerLog.h"
+
+#include <j/core/Log.h>
+
 #include <chrono>
 
 inline namespace jf {
@@ -31,6 +35,7 @@ bool JPSerialLink::open(std::string& error) {
     const auto baud = toBaud(m_baud);
     if (!baud) {
         error = std::to_string(m_baud) + " is not a supported baud rate";
+        JLOGC(JPlacerLog::kLink, JLogLevel::Error) << m_port << ": " << error;
         return false;
     }
     using F = JSerialPort::JFlowCtrl;
@@ -44,6 +49,7 @@ bool JPSerialLink::open(std::string& error) {
     if (!m_serial.open(m_port, *baud, JSerialPort::JDataBits::Eight, JSerialPort::JStopBits::One,
                        JSerialPort::JParity::None, flow)) {
         error = m_port + ": " + m_serial.lastError();
+        JLOGC(JPlacerLog::kLink, JLogLevel::Error) << "open failed: " << error;
         return false;
     }
     if (!m_serial.claim()) {
@@ -53,10 +59,12 @@ bool JPSerialLink::open(std::string& error) {
     }
     m_partial.clear();
     m_lines.clear();
+    JLOGC(JPlacerLog::kLink, JLogLevel::Info) << "opened " << describe() << ", flow control " << (m_flow.empty() ? "none" : m_flow);
     return true;
 }
 
 void JPSerialLink::close() {
+    if (m_serial.isOpen()) JLOGC(JPlacerLog::kLink, JLogLevel::Info) << "closed " << describe();
     if (m_serial.isClaimed()) m_serial.release();
     if (m_serial.isOpen()) m_serial.close();
 }
@@ -66,7 +74,9 @@ bool JPSerialLink::isOpen() const {
 }
 
 bool JPSerialLink::write(const std::string& bytes) {
-    return m_serial.write(std::vector<uint8_t>(bytes.begin(), bytes.end()));
+    const bool ok = m_serial.write(std::vector<uint8_t>(bytes.begin(), bytes.end()));
+    if (!ok) JLOGC(JPlacerLog::kLink, JLogLevel::Error) << describe() << ": write failed: " << m_serial.lastError();
+    return ok;
 }
 
 void JPSerialLink::split() {

@@ -5,7 +5,10 @@
 
 #include "machine/JPSerialPorts.h"
 
+#include "common/JPlacerLog.h"
+
 #include <j/core/JStyle.h>
+#include <j/core/Log.h>
 #include <j/core/MainThreadDispatcher.h>
 
 #include <cstdio>
@@ -56,6 +59,7 @@ JPMachinePanel::JPMachinePanel(JSceneGraph& graph, JPCell& cell)
     m_status->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     m_connect = top->add(std::make_unique<JButton>(graph, "Connect"));
     m_connect->onClicked.connect([this] {
+        JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Machine panel: " << (m_cell.isConnected() ? "Disconnect" : "Connect");
         if (m_cell.isConnected()) m_cell.disconnect();
         else {
             m_status->setText("Connecting\xE2\x80\xA6");
@@ -90,7 +94,9 @@ JPMachinePanel::JPMachinePanel(JSceneGraph& graph, JPCell& cell)
         combo->setCurrentIndex(selected);
         const std::string id = d.id;
         combo->onIndexChanged.connect([this, id, paths](int i) {
-            if (i >= 0 && size_t(i) < paths.size() && onPortChosen) onPortChosen(id, paths[size_t(i)]);
+            if (i < 0 || size_t(i) >= paths.size()) return;
+            JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Machine panel: port " << paths[size_t(i)] << " for " << id;
+            if (onPortChosen) onPortChosen(id, paths[size_t(i)]);
         });
         add(std::move(portRow));
     }
@@ -203,6 +209,7 @@ void JPMachinePanel::addConsoleLine(const std::string& line) {
 void JPMachinePanel::sendConsoleLine() {
     const std::string line = m_input->text();
     if (line.empty() || m_cell.config().drivers.empty()) return;
+    JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "console: " << line;
     const size_t which = m_controller ? size_t(std::max(0, m_controller->currentIndex())) : 0;
     m_cell.sendLine(m_cell.config().drivers[std::min(which, m_cell.config().drivers.size() - 1)].id, line);
     m_input->setText("");
