@@ -1,0 +1,76 @@
+<openpnp-machine>
+   <machine class="org.openpnp.machine.reference.ReferenceMachine">
+      <axes class="java.util.ArrayList">
+         <axis class="org.openpnp.machine.reference.axis.ReferenceControllerAxis" id="AX" name="x" type="X" letter="X" driver-id="DRV1" soft-limit-low-enabled="true" soft-limit-high-enabled="true">
+            <home-coordinate value="390.0" units="Millimeters"/>
+            <soft-limit-low value="0.0" units="Millimeters"/>
+            <soft-limit-high value="390.0" units="Millimeters"/>
+            <feedrate-per-second value="750.0" units="Millimeters"/>
+            <acceleration-per-second-2 value="4000.0" units="Millimeters"/>
+         </axis>
+         <axis class="org.openpnp.machine.reference.axis.ReferenceControllerAxis" id="AZ" name="Z" type="Z" letter="Z" driver-id="DRV1">
+            <home-coordinate value="0.0" units="Millimeters"/>
+         </axis>
+         <axis class="org.openpnp.machine.reference.axis.ReferenceVirtualAxis" id="AZT" name="zTop" type="Z">
+            <home-coordinate value="0.0" units="Millimeters"/>
+         </axis>
+         <axis class="org.openpnp.machine.reference.axis.ReferenceMappedAxis" id="AZR" name="ZR" type="Z" input-axis-id="AZ">
+            <map-input-0 value="-1.0" units="Millimeters"/>
+            <map-output-0 value="1.0" units="Millimeters"/>
+            <map-input-1 value="0.0" units="Millimeters"/>
+            <map-output-1 value="0.0" units="Millimeters"/>
+         </axis>
+         <axis class="org.openpnp.machine.reference.axis.ReferenceCamCounterClockwiseAxis" id="ACAM" name="cam" type="Z"/>
+      </axes>
+      <drivers class="java.util.ArrayList">
+         <driver class="org.openpnp.machine.reference.driver.GcodeAsyncDriver" id="DRV1" name="Jaytek" communications="serial" timeout-milliseconds="30000" infinity-timeout-milliseconds="60000">
+            <serial port-name="ttyACM0" baud="115200" flow-control="RtsCts"/>
+            <command head-mountable-id="ACT1" type="ACTUATE_BOOLEAN_COMMAND">
+               <text><![CDATA[{True:M64}{False:M65} P{Index} ; solenoid]]></text>
+            </command>
+            <command head-mountable-id="ACT1" type="ACTUATOR_READ_COMMAND">
+               <text><![CDATA[M1000 P0]]></text>
+            </command>
+            <command head-mountable-id="ACT1" type="ACTUATOR_READ_REGEX">
+               <text><![CDATA[-?(?<Value>\d+)]]></text>
+            </command>
+            <command type="ACTUATE_BOOLEAN_COMMAND">
+               <text><![CDATA[{True:M64}{False:M65} P{Index}]]></text>
+            </command>
+            <command head-mountable-id="ACT2" type="ACTUATOR_READ_COMMAND">
+               <text><![CDATA[M485 {Value} {Foo:%d}]]></text>
+            </command>
+         </driver>
+      </drivers>
+      <heads class="java.util.ArrayList">
+         <head class="org.openpnp.machine.reference.ReferenceHead" id="H1" name="H1">
+            <nozzles class="java.util.ArrayList">
+               <nozzle class="org.openpnp.machine.reference.ReferenceNozzle" id="N1" name="RIGHT" axis-X-id="AX" axis-Z-id="AZR">
+                  <head-offsets units="Millimeters" x="22.458" y="-61.815" z="0.5" rotation="0.0"/>
+                  <vacuum-actuator-name>RIGHT_SOLENOID</vacuum-actuator-name>
+               </nozzle>
+            </nozzles>
+            <actuators class="java.util.ArrayList">
+               <actuator class="org.openpnp.machine.reference.ReferenceActuator" id="ACT1" name="RIGHT_SOLENOID" value-type="Boolean" driver-id="DRV1" index="4">
+                  <head-offsets units="Millimeters" x="0.0" y="0.0" z="0.0" rotation="0.0"/>
+               </actuator>
+            </actuators>
+            <cameras class="java.util.ArrayList">
+               <camera class="org.openpnp.machine.reference.camera.OpenPnpCaptureCamera" id="C1" name="TOP_CAMERA" looking="Down" axis-X-id="AX" axis-Z-id="AZT" unique-id="top: usb-1" fps="5.0">
+                  <units-per-pixel units="Millimeters" x="0.0437" y="0.0470" z="0.0" rotation="0.0"/>
+                  <head-offsets units="Millimeters" x="0.0" y="0.0" z="0.0" rotation="0.0"/>
+               </camera>
+            </cameras>
+         </head>
+      </heads>
+      <actuators class="java.util.ArrayList">
+         <actuator class="org.openpnp.machine.reference.ReferenceActuator" id="ACT2" name="PhotonFeederData" value-type="Boolean" index="0"/>
+      </actuators>
+      <cameras class="java.util.ArrayList">
+         <camera class="org.openpnp.machine.reference.camera.OpenPnpCaptureCamera" id="C2" name="BOTTOM_CAMERA" looking="Up" fps="5.0" flip-y="true">
+            <units-per-pixel units="Millimeters" x="0.0329" y="0.0328" z="0.0" rotation="0.0"/>
+            <head-offsets units="Millimeters" x="65.885" y="97.575" z="-24.0" rotation="0.0"/>
+         </camera>
+      </cameras>
+   </machine>
+</openpnp-machine>

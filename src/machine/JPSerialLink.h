@@ -19,7 +19,8 @@ inline namespace jf {
 // the main thread.
 class JPSerialLink : public JPLink {
 public:
-    JPSerialLink(std::string port, int baud);
+    // `flow` is "none", "rtscts" or "xonxoff".
+    JPSerialLink(std::string port, int baud, std::string flow);
     ~JPSerialLink() override;
 
     bool open(std::string& error) override;
@@ -35,6 +36,7 @@ private:
 
     std::string             m_port;
     int                     m_baud;
+    std::string             m_flow;
     JSerialPort             m_serial;
     std::string             m_partial;
     std::deque<std::string> m_lines;

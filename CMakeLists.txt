@@ -29,6 +29,7 @@ find_package(Threads REQUIRED)
 # GUI, the app shell wires modules together.
 file(GLOB JPLACER_COMMON_SRC  CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/common/*.cpp)
 file(GLOB JPLACER_MACHINE_SRC CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/machine/*.cpp)
+file(GLOB JPLACER_OPENPNP_SRC CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/openpnp/*.cpp)
 file(GLOB JPLACER_APP_SRC     CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/app/*.cpp)
 
 add_library(jplacer_common STATIC ${JPLACER_COMMON_SRC})
@@ -38,6 +39,11 @@ target_link_libraries(jplacer_common PUBLIC JFramework::platform)
 # Controllers, links, firmware profiles. No widget header is included here.
 add_library(jplacer_machine STATIC ${JPLACER_MACHINE_SRC})
 target_link_libraries(jplacer_machine PUBLIC jplacer_common Threads::Threads)
+
+# Reading OpenPnP's files (machine.xml) into jplacer's. Expat parses the XML.
+find_package(EXPAT REQUIRED)
+add_library(jplacer_openpnp STATIC ${JPLACER_OPENPNP_SRC})
+target_link_libraries(jplacer_openpnp PUBLIC jplacer_machine PRIVATE EXPAT::EXPAT)
 
 # PRECOMPILED HEADERS. The framework's core header pulls hundreds of files
 # behind it; without this every translation unit pays for them again.
@@ -57,12 +63,15 @@ target_precompile_headers(jplacer PRIVATE ${JPLACER_PCH})
 option(JPLACER_TESTS "Build jplacer's tests" ON)
 if(JPLACER_TESTS)
     enable_testing()
-    file(GLOB JPLACER_MACHINE_TESTS CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tests/machine/*.cpp)
-    foreach(src ${JPLACER_MACHINE_TESTS})
+    foreach(module machine openpnp)
+      file(GLOB tests CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tests/${module}/*.cpp)
+      foreach(src ${tests})
         get_filename_component(name ${src} NAME_WE)
         add_executable(${name} ${src})
-        target_link_libraries(${name} PRIVATE jplacer_machine)
+        target_link_libraries(${name} PRIVATE jplacer_${module})
         target_compile_definitions(${name} PRIVATE JPLACER_PROFILES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/profiles")
+        target_compile_definitions(${name} PRIVATE JPLACER_TESTDATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/data")
         add_test(NAME ${name} COMMAND ${name})
+      endforeach()
     endforeach()
 endif()

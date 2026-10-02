@@ -20,8 +20,8 @@ std::optional<JSerialPort::JBaudRate> toBaud(int baud) {
 
 } // namespace
 
-JPSerialLink::JPSerialLink(std::string port, int baud)
-    : m_port(std::move(port)), m_baud(baud) {}
+JPSerialLink::JPSerialLink(std::string port, int baud, std::string flow)
+    : m_port(std::move(port)), m_baud(baud), m_flow(std::move(flow)) {}
 
 JPSerialLink::~JPSerialLink() {
     close();
@@ -33,7 +33,16 @@ bool JPSerialLink::open(std::string& error) {
         error = std::to_string(m_baud) + " is not a supported baud rate";
         return false;
     }
-    if (!m_serial.open(m_port, *baud)) {
+    using F = JSerialPort::JFlowCtrl;
+    F flow = F::None;
+    if (m_flow == "rtscts")       flow = F::Hardware;
+    else if (m_flow == "xonxoff") flow = F::Software;
+    else if (!m_flow.empty() && m_flow != "none") {
+        error = "'" + m_flow + "' is not a flow control (none, rtscts, xonxoff)";
+        return false;
+    }
+    if (!m_serial.open(m_port, *baud, JSerialPort::JDataBits::Eight, JSerialPort::JStopBits::One,
+                       JSerialPort::JParity::None, flow)) {
         error = m_port + ": " + m_serial.lastError();
         return false;
     }

@@ -19,7 +19,7 @@ std::unique_ptr<JPLink> JPLinkFactory::create(const JJson& link, std::string& er
             error = "a serial link needs a port and a baud rate";
             return nullptr;
         }
-        return std::make_unique<JPSerialLink>(port, baud);
+        return std::make_unique<JPSerialLink>(port, baud, link["flowControl"].str());
     }
     if (type == "simulated") return std::make_unique<JPSimulatedLink>(link["simulator"]);
     error = "unknown link type '" + type + "'";

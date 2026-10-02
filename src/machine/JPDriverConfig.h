@@ -15,7 +15,8 @@ inline namespace jf {
 //   {
 //     "id": "...", "name": "Gantry",
 //     "profile": "auto",                      // or a profile id
-//     "link": { "type": "serial", "port": "/dev/ttyACM0", "baud": 115200 },
+//     "link": { "type": "serial", "port": "/dev/ttyACM0", "baud": 115200,
+//               "flowControl": "none" | "rtscts" | "xonxoff" },
 //          or { "type": "simulated", "simulator": { ... JPSimulatedGrbl ... } },
 //     "statusIntervalMs": 100, "commandTimeoutMs": 5000,
 //     "identifyTimeoutMs": 1000, "homeTimeoutMs": 60000

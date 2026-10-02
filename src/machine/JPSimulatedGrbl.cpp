@@ -122,14 +122,22 @@ void JPSimulatedGrbl::gcode(const std::string& line) {
             m_out.push_back(kErrorBadNumber);
             return;
         }
-        char* end = nullptr;
-        const double value = std::strtod(line.c_str() + i + 1, &end);
-        if (end == line.c_str() + i + 1) {
+        // A G-code number: sign, digits, one point. (strtod would read the
+        // "0X12" of "G0X12" as hexadecimal.)
+        size_t j = i + 1;
+        if (j < line.size() && (line[j] == '-' || line[j] == '+')) ++j;
+        const size_t digits = j;
+        bool point = false;
+        while (j < line.size() && (std::isdigit(static_cast<unsigned char>(line[j])) || (line[j] == '.' && !point))) {
+            point |= line[j] == '.';
+            ++j;
+        }
+        if (j == digits) {
             m_out.push_back(kErrorBadNumber);
             return;
         }
-        words.emplace_back(letter, value);
-        i = size_t(end - line.c_str());
+        words.emplace_back(letter, std::strtod(line.substr(i + 1, j - i - 1).c_str(), nullptr));
+        i = j;
     }
 
     bool motion = false, setPosition = false;

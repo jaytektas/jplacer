@@ -1,0 +1,163 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
+
+#include "JPCell.h"
+
+#include "common/JPlacerLog.h"
+
+#include <j/core/Log.h>
+
+#include <regex>
+
+inline namespace jf {
+
+JPCell::JPCell(JPCellConfig config, std::vector<JPFirmwareProfile> profiles)
+    : m_config(std::move(config)), m_profiles(std::move(profiles)) {
+    for (const JPAxisConfig& a : m_config.axes) m_positions[a.id] = a.homeCoordinate;
+    for (const JPDriverConfig& d : m_config.drivers) {
+        auto driver = std::make_unique<JPGcodeDriver>(d, m_profiles);
+        const std::string id = d.id, name = d.name;
+        driver->onStatus.connect([this, id](JPFirmwareProfile::Status st) { updatePositions(id, st); });
+        driver->onTraffic.connect([this, name](bool sent, std::string line) { onTraffic.emit(name, sent, line); });
+        driver->onAlarm.connect([this, name](std::string what) { onAlarm.emit(name + ": " + what); });
+        driver->onLost.connect([this, name](std::string why) {
+            onAlarm.emit(name + ": connection lost (" + why + ")");
+            m_thread.post([this] { doDisconnect(); });
+        });
+        m_drivers.push_back(std::move(driver));
+    }
+}
+
+JPCell::~JPCell() {
+    m_thread.stop();
+    doDisconnect();
+}
+
+JPGcodeDriver* JPCell::driver(const std::string& id) const {
+    for (const auto& d : m_drivers) if (d->config().id == id) return d.get();
+    return nullptr;
+}
+
+void JPCell::connect() {
+    m_thread.post([this] {
+        if (m_connected) return;
+        for (const auto& d : m_drivers) {
+            std::string error;
+            if (!d->connect(error)) {
+                doDisconnect();
+                onConnection.emit(false, error);
+                return;
+            }
+            if (d->profile()->hasSettings() && !d->readSettings(error))
+                JLOGC(JPlacerLog::kDriver, JLogLevel::Warn) << error;
+            std::lock_guard lk(m_mutex);
+            m_firmware[d->config().id] = d->profile()->name();
+        }
+        m_connected = true;
+        onConnection.emit(true, std::string());
+    });
+}
+
+void JPCell::disconnect() {
+    m_thread.post([this] {
+        const bool was = m_connected;
+        doDisconnect();
+        if (was) onConnection.emit(false, std::string());
+    });
+}
+
+void JPCell::doDisconnect() {
+    for (const auto& d : m_drivers) d->disconnect();
+    m_connected = false;
+    std::lock_guard lk(m_mutex);
+    m_firmware.clear();
+}
+
+void JPCell::sendLine(const std::string& driverId, const std::string& line) {
+    m_thread.post([this, driverId, line] {
+        if (JPGcodeDriver* d = driver(driverId)) d->send(line).wait();
+    });
+}
+
+void JPCell::switchActuator(const std::string& actuatorId, bool on) {
+    m_thread.post([this, actuatorId, on] {
+        for (const JPActuatorConfig& a : m_config.actuators) {
+            if (a.id != actuatorId) continue;
+            JPGcodeDriver* d = driver(a.driverId);
+            const std::string& tmpl = on ? a.onCommand : a.offCommand;
+            if (!d || tmpl.empty()) {
+                onActuator.emit(a.id, false, a.name + " cannot be switched " + (on ? "on" : "off"));
+                return;
+            }
+            const JPReply r = d->send(JPFirmwareProfile::fill(tmpl, { { "index", a.index } })).get();
+            onActuator.emit(a.id, r.ok, r.ok ? (on ? "on" : "off") : r.error);
+            return;
+        }
+    });
+}
+
+void JPCell::readActuator(const std::string& actuatorId) {
+    m_thread.post([this, actuatorId] {
+        for (const JPActuatorConfig& a : m_config.actuators) {
+            if (a.id != actuatorId) continue;
+            JPGcodeDriver* d = driver(a.driverId);
+            if (!d || !a.canRead()) {
+                onActuator.emit(a.id, false, a.name + " cannot be read");
+                return;
+            }
+            std::regex pattern;
+            try {
+                pattern = std::regex(a.readPattern);
+            } catch (const std::regex_error&) {
+                onActuator.emit(a.id, false, a.name + ": its read pattern is not a valid pattern");
+                return;
+            }
+            const JPReply r = d->send(JPFirmwareProfile::fill(a.readCommand, { { "index", a.index } })).get();
+            if (!r.ok) {
+                onActuator.emit(a.id, false, r.error);
+                return;
+            }
+            for (const std::string& line : r.lines) {
+                std::smatch m;
+                if (std::regex_search(line, m, pattern) && m.size() > 1) {
+                    onActuator.emit(a.id, true, m[1].str());
+                    return;
+                }
+            }
+            onActuator.emit(a.id, false, a.name + ": the reply held no value");
+            return;
+        }
+    });
+}
+
+void JPCell::updatePositions(const std::string& driverId, const JPFirmwareProfile::Status& status) {
+    std::map<std::string, double> snapshot;
+    {
+        std::lock_guard lk(m_mutex);
+        for (const JPAxisConfig& a : m_config.axes) {
+            if (a.kind != JPAxisConfig::Kind::Controller || a.driverId != driverId) continue;
+            const auto it = status.positions.find(a.letter);
+            if (it != status.positions.end()) m_positions[a.id] = it->second;
+        }
+        for (const JPAxisConfig& a : m_config.axes) {
+            if (a.kind != JPAxisConfig::Kind::Mapped) continue;
+            const auto in = m_positions.find(a.inputAxisId);
+            if (in == m_positions.end()) continue;
+            if (const auto out = a.mapped(in->second)) m_positions[a.id] = *out;
+        }
+        snapshot = m_positions;
+    }
+    onPositions.emit(snapshot);
+}
+
+std::map<std::string, double> JPCell::positions() const {
+    std::lock_guard lk(m_mutex);
+    return m_positions;
+}
+
+std::map<std::string, std::string> JPCell::firmware() const {
+    std::lock_guard lk(m_mutex);
+    return m_firmware;
+}
+
+} // inline namespace jf
