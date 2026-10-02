@@ -11,8 +11,8 @@
 
 #include <cmath>
 #include <cstdlib>
-#include <optional>
 #include <map>
+#include <optional>
 #include <regex>
 
 inline namespace jf {
@@ -213,6 +213,7 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
         }
     }
 
+    std::optional<std::string> squarenessAxis;   // OpenPnP's non-squareness transform axis, by id
     if (const JPXmlElement* axes = machine->child("axes")) {
         for (const JPXmlElement& x : axes->children) {
             const std::string kind = shortClass(x);
@@ -257,6 +258,20 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                 a.mapOutput0  = lengthChild(x, "map-output-0");
                 a.mapInput1   = lengthChild(x, "map-input-1");
                 a.mapOutput1  = lengthChild(x, "map-output-1");
+            } else if (kind == "ReferenceLinearTransformAxis" && a.type == JPAxisConfig::Type::X
+                       && std::abs(number(x.attr("factor-x")) - 1) < 1e-12 && number(x.attr("factor-z")) == 0
+                       && number(x.attr("factor-rotation")) == 0 && !x.attr("input-axis-x-id").empty()
+                       && !x.attr("input-axis-y-id").empty() && !squarenessAxis) {
+                // OpenPnP's non-squareness: X = X + factorY Y + offset, which is
+                // jplacer's squareness about Y = -offset / factorY. What rides on
+                // this axis rides on its input X (see below).
+                const double f = number(x.attr("factor-y")), offset = lengthChild(x, "offset");
+                c.squareness.axisX = x.attr("input-axis-x-id");
+                c.squareness.axisY = x.attr("input-axis-y-id");
+                c.squareness.xPerY = f;
+                c.squareness.atY   = f != 0 ? -offset / f : 0;
+                squarenessAxis     = a.id;
+                continue;
             } else {
                 notes.push_back("axis " + a.name + " (" + kind + ") has no jplacer equivalent yet and was left out");
                 continue;
@@ -389,6 +404,12 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
     if (const JPXmlElement* cams = machine->child("cameras"))
         for (const JPXmlElement& x : cams->children) addCamera(x, std::string());
 
+    if (squarenessAxis) {
+        auto onInput = [&](JPMountConfig& m) { if (m.axisX == *squarenessAxis) m.axisX = c.squareness.axisX; };
+        for (JPNozzleConfig& n : c.nozzles)     onInput(n.mount);
+        for (JPCameraConfig& m : c.cameras)     onInput(m.mount);
+        for (JPActuatorConfig& a : c.actuators) onInput(a.mount);
+    }
     for (JPHeadConfig& h : c.heads)
         if (const auto p = pumpNames.find(h.id); p != pumpNames.end())
             if (const auto a = actuatorIdByName.find(p->second); a != actuatorIdByName.end()) h.pumpActuatorId = a->second;

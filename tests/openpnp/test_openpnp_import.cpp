@@ -13,6 +13,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
+#include <fstream>
+#include <sstream>
 #include <string>
 
 using namespace jf;
@@ -95,5 +98,35 @@ int main() {
 
     JPCellConfig none;
     assert(!JPOpenPnpMachineImporter::import(std::string(JPLACER_TESTDATA_DIR) + "/missing.xml", none, notes, error));
+    // OpenPnP's non-squareness, a linear transform X axis (X + factorY Y +
+    // offset) that the top camera rides on: jplacer's squareness, pivoted
+    // where the offset makes it zero, and the camera on the input X axis.
+    {
+        std::ifstream in(std::string(JPLACER_TESTDATA_DIR) + "/openpnp-machine.xml");
+        std::stringstream ss;
+        ss << in.rdbuf();
+        std::string xml = ss.str();
+        const size_t at = xml.find('>', xml.find("<axes"));
+        assert(at != std::string::npos);
+        xml.insert(at + 1,
+                   R"(<axis class="org.openpnp.machine.reference.axis.ReferenceControllerAxis" id="AY" name="y" type="Y" letter="Y" driver-id="DRV1"/>)"
+                   R"(<axis class="org.openpnp.machine.reference.axis.ReferenceLinearTransformAxis" id="AXSQ" name="x" type="X" )"
+                   R"(input-axis-x-id="AX" input-axis-y-id="AY" factor-x="1.0" factor-y="-0.0032">)"
+                   R"(<offset value="0.5736" units="Millimeters"/></axis>)");
+        const std::string camAxis = R"(name="TOP_CAMERA" looking="Down" axis-X-id="AX")";
+        const size_t cam = xml.find(camAxis);
+        assert(cam != std::string::npos);
+        xml.replace(cam, camAxis.size(), R"(name="TOP_CAMERA" looking="Down" axis-X-id="AXSQ")");
+        const std::string path = (std::filesystem::temp_directory_path() / "jplacer-test-nonsquare.xml").string();
+        std::ofstream(path) << xml;
+        JPCellConfig sq;
+        std::vector<std::string> sqNotes;
+        assert(JPOpenPnpMachineImporter::import(path, sq, sqNotes, error));
+        std::filesystem::remove(path);
+        assert(sq.squareness.axisX == "AX" && sq.squareness.axisY == "AY");
+        assert(std::abs(sq.squareness.xPerY + 0.0032) < 1e-12 && std::abs(sq.squareness.atY - 179.25) < 1e-9);
+        assert(!sq.axis("AXSQ") && sq.cameras.front().mount.axisX == "AX");
+        assert(sq.problems().empty());
+    }
     return 0;
 }
