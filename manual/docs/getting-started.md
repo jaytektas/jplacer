@@ -44,4 +44,4 @@ These options are for finding problems:
 | `--trace <category>` | Log everything in one category, such as `updates` or `desktop`. |
 | `--settings <file>` | Use another settings file, leaving your own untouched. |
 
-<!-- src: src/main.cpp (parseArgs); src/app/JPlacerLog.h (the categories) -->
+<!-- src: src/main.cpp (parseArgs); src/common/JPlacerLog.h (the categories) -->

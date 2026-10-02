@@ -22,7 +22,16 @@ feature will live.
 
 ## Machine
 
-**Connect**, **Disconnect**, **Home All Axes**, **Park Head** and **Machine Setup…** are not yet available.
+| Entry | |
+|---|---|
+| **Import OpenPnP Machine…** | Makes a cell from an OpenPnP `machine.xml` (see [Machine](machine.md#bringing-in-a-machine-set-up-in-openpnp)). |
+| **Open Cell…** | Opens a cell file. |
+| **Connect** | Connects to the open cell's controllers. Available while a cell is open and not connected. |
+| **Disconnect** | Closes the connections. Available while connected. |
+
+**Home All Axes**, **Park Head** and **Machine Setup…** are not yet available.
+
+<!-- src: src/app/JPlacerMenuBuilder.cpp (the Machine menu); src/app/JPlacerMachine.cpp (updateMenu) -->
 
 ## Job
 

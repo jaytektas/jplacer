@@ -46,4 +46,8 @@ bool JPlacerSettings::launcher() {
     return JSettings::instance().get<bool>(kLauncher, true);
 }
 
+std::string JPlacerSettings::machineCell() {
+    return JSettings::instance().get<std::string>(kMachineCell, std::string());
+}
+
 } // inline namespace jf

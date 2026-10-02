@@ -10,6 +10,12 @@ notes.
 
 ## Unreleased
 
+- jplacer can now talk to a machine. A machine is described by a cell file, and
+  Machine > Import OpenPnP Machine… makes one from an OpenPnP machine.xml.
+- Machine > Connect connects to the machine's controllers, recognises grblHAL, Grbl
+  and other G-code firmware, and reads the settings the controller stores.
+- A Machine panel shows the live position of every axis, switches and reads the
+  actuators (lights, valves, vacuum sensors), and has a console for sending G-code.
 - A new icon. Run as an AppImage, jplacer adds itself to your applications menu with it.
 - Preferences has a General section: tear-off menus (off by default) and whether jplacer appears in
   the applications menu.

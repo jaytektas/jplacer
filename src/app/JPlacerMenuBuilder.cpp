@@ -55,7 +55,14 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
     edit->add(graph, "Preferences\xE2\x80\xA6")->onTriggered.connect([&app] { app.openPreferences(); });
 
     JMenu* machine = newMenu(window, "Machine");
-    addPending(machine, graph, { "Connect", "Disconnect" });
+    machine->add(graph, "Import OpenPnP Machine\xE2\x80\xA6")->onTriggered.connect([&app] { app.machine().importOpenPnp(); });
+    machine->add(graph, "Open Cell\xE2\x80\xA6")->onTriggered.connect([&app] { app.machine().chooseCell(); });
+    machine->addSeparator(graph);
+    JMenuItem* connect    = machine->add(graph, "Connect");
+    JMenuItem* disconnect = machine->add(graph, "Disconnect");
+    connect->onTriggered.connect([&app] { app.machine().connect(); });
+    disconnect->onTriggered.connect([&app] { app.machine().disconnect(); });
+    app.machine().setMenuItems(connect, disconnect);
     machine->addSeparator(graph);
     addPending(machine, graph, { "Home All Axes", "Park Head" });
     machine->addSeparator(graph);

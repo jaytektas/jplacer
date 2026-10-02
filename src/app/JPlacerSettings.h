@@ -27,6 +27,8 @@ public:
     // Turned on (and running as an AppImage): jplacer keeps its entry in the
     // desktop's applications menu. See JPlacerLauncher.
     static constexpr const char* kLauncher         = "desktop.launcher";
+    // The cell file (cells/<name>.json) opened last; opened again at start.
+    static constexpr const char* kMachineCell      = "machine.cell";
 
     // ~/.config/jplacer/jplacer.json, or %APPDATA%\jplacer\jplacer.json.
     static std::string defaultPath();
@@ -42,6 +44,7 @@ public:
     static bool updatesAtStartup();
     static bool tearOffMenus();
     static bool launcher();
+    static std::string machineCell();
 };
 
 } // inline namespace jf

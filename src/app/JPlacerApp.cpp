@@ -19,6 +19,9 @@ namespace {
 constexpr const char* kWindowTitle  = "jplacer";
 constexpr uint32_t    kWindowWidth  = 1280;
 constexpr uint32_t    kWindowHeight = 800;
+// The right dock area (the Machine panel) as a share of the window's width,
+// until the person drags its edge.
+constexpr float       kRightDockShare = 0.4f;
 // Where jplacer's releases are published, and the variable that points it at a
 // pretend one for testing (see JAppUpdater.h).
 constexpr const char* kReleasesApi  = "https://api.github.com/repos/jaytektas/jplacer/releases/latest";
@@ -39,6 +42,8 @@ JPlacerApp::JPlacerApp(std::string settingsPath) {
         *m_window, JAppUpdater::JConfig{ "jplacer", JPLACER_VERSION, kReleasesApi, kUpdateUrlEnv,
                                          JPlacerSettings::kUpdatesBeta });
 
+    m_window->dockSpace().setRightWidth(kWindowWidth * kRightDockShare);
+    m_machine = std::make_unique<JPlacerMachine>(*m_window, m_app.sceneGraph());
     JMenuManager::instance().setTearOffEnabled(JPlacerSettings::tearOffMenus());
     JPlacerMenuBuilder::build(*m_window, m_app.sceneGraph(), *this);
     m_window->setStatusText("jplacer " JPLACER_VERSION);

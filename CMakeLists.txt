@@ -30,6 +30,7 @@ find_package(Threads REQUIRED)
 file(GLOB JPLACER_COMMON_SRC  CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/common/*.cpp)
 file(GLOB JPLACER_MACHINE_SRC CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/machine/*.cpp)
 file(GLOB JPLACER_OPENPNP_SRC CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/openpnp/*.cpp)
+file(GLOB JPLACER_UI_SRC      CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/*.cpp)
 file(GLOB JPLACER_APP_SRC     CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/app/*.cpp)
 
 add_library(jplacer_common STATIC ${JPLACER_COMMON_SRC})
@@ -45,6 +46,11 @@ find_package(EXPAT REQUIRED)
 add_library(jplacer_openpnp STATIC ${JPLACER_OPENPNP_SRC})
 target_link_libraries(jplacer_openpnp PUBLIC jplacer_machine PRIVATE EXPAT::EXPAT)
 
+# Panels and views over the other modules: the only module with widgets.
+add_library(jplacer_ui STATIC ${JPLACER_UI_SRC})
+target_link_libraries(jplacer_ui PUBLIC jplacer_machine)
+target_precompile_headers(jplacer_ui PRIVATE <j/core/JWidget.h> <j/core/JStyle.h> <j/core/JContainer.h>)
+
 # PRECOMPILED HEADERS. The framework's core header pulls hundreds of files
 # behind it; without this every translation unit pays for them again.
 set(JPLACER_PCH <j/core/Log.h> <j/core/Signal.h> <j/core/JWidget.h> <j/core/JStyle.h>
@@ -55,7 +61,7 @@ add_executable(jplacer ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp ${JPLACER_APP_SR
 # restated in a header where the two could drift. The updater compares it with
 # the newest release's tag.
 target_compile_definitions(jplacer PRIVATE JPLACER_VERSION="${JPLACER_FULL_VERSION}")
-target_link_libraries(jplacer PRIVATE jplacer_common JFramework::platform
+target_link_libraries(jplacer PRIVATE jplacer_ui jplacer_openpnp jplacer_machine jplacer_common JFramework::platform
                                       OpenSSL::SSL OpenSSL::Crypto Threads::Threads)
 target_precompile_headers(jplacer PRIVATE ${JPLACER_PCH})
 

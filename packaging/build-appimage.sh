@@ -34,6 +34,8 @@ strip "$APPDIR/usr/bin/jplacer"
 # Not optional -- an AppImage without it has a Help menu that cannot help.
 [ -f "$ROOT/manual/site/index.html" ] || fail "no built manual -- run manual/tools/build.sh first"
 cp -r "$ROOT/manual/site" "$APPDIR/usr/bin/manual"
+# Firmware profiles travel beside the executable too: JPFirmwareProfile reads usr/bin/profiles.
+cp -r "$ROOT/profiles" "$APPDIR/usr/bin/profiles"
 
 # The icon twice: the PNG is what the AppImage itself shows, and both are what jplacer copies into the
 # icon theme when it adds itself to the applications menu (src/app/JPlacerLauncher.cpp).
