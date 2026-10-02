@@ -39,6 +39,8 @@ notes.
   where the head's settings put it. Nothing is changed.
 - Round marks are measured from their edge all the way round, so where a mark is found no longer depends
   on where the search began, and its size is measured to a fraction of a pixel.
+- Calibrate on a fixed camera (one looking up) holds a nozzle's tip over it and moves the nozzle instead of
+  the camera, asking first.
 - Calibrate also measures the camera's lens (how it pulls the edges of the picture in, and about which
   point), and everything measured in a picture is straightened through it.
 - Finding a fiducial on a real board: several round things near where it should be are measured and the

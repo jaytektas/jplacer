@@ -58,6 +58,9 @@ public:
     // zone first, then the head's camera (else its first tool on X and Y) to
     // the park place. The outcome arrives as onMotion.
     void park(const std::string& headId, double speed);
+    // Every Z behind the head's tools into its safe zone, waiting: for a
+    // procedure on a thread of its own. False with `why`.
+    bool safeZAndWait(const std::string& headId, double speed, std::string& why);
     bool isHomed() const { return m_homed; }
     // A home is under way (from the request until homed or failed).
     bool isHoming() const { return m_homing; }
@@ -129,6 +132,7 @@ private:
     bool doMove(std::map<std::string, double> targets, double speed, std::string& why);
     bool doHome(std::string& why);
     bool doPark(const std::string& headId, double speed, std::string& why);
+    bool doSafeZ(const std::string& headId, double speed, std::string& why);
     bool doSwitch(const std::string& actuatorId, bool on, std::string& why);
     bool doCorrectPosition(const std::map<std::string, double>& by, std::string& why);
     // Square coordinates of controller axes to the axes' own (JPSquarenessConfig):

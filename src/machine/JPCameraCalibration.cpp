@@ -32,15 +32,18 @@ double JPCameraCalibration::scaleY() const { return std::hypot(pxPerMm[1], pxPer
 
 // Looking down, unmirrored, with its axes along the machine's, a camera sees
 // the scene move -x when the head moves +X and +y (down the picture) when it
-// moves +Y: pxPerMm = [-s 0; 0 s], determinant negative.
+// moves +Y: pxPerMm = [-s 0; 0 s], determinant negative. Looking up, the
+// same mounting sees the mirror image: [s 0; 0 s], determinant positive.
 
-double JPCameraCalibration::rotationDeg() const {
-    // How far the machine's X direction is turned from -x in the picture.
-    return std::atan2(-pxPerMm[2], -pxPerMm[0]) * kDegPerRad;
+double JPCameraCalibration::rotationDeg(bool lookingUp) const {
+    // How far the machine's X direction is turned from where it is seen straight.
+    return lookingUp ? std::atan2(pxPerMm[2], pxPerMm[0]) * kDegPerRad
+                     : std::atan2(-pxPerMm[2], -pxPerMm[0]) * kDegPerRad;
 }
 
-bool JPCameraCalibration::mirrored() const {
-    return pxPerMm[0] * pxPerMm[3] - pxPerMm[1] * pxPerMm[2] > 0;
+bool JPCameraCalibration::mirrored(bool lookingUp) const {
+    const double det = pxPerMm[0] * pxPerMm[3] - pxPerMm[1] * pxPerMm[2];
+    return lookingUp ? det < 0 : det > 0;
 }
 
 bool JPCameraCalibration::machinePoint(double px, double py, double viewX, double viewY, double& x, double& y) const {

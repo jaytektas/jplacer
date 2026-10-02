@@ -117,19 +117,8 @@ bool JPCell::doPark(const std::string& headId, double speed, std::string& why) {
     for (const JPNozzleConfig& n : m_config.nozzles)     if (n.mount.headId == headId) mounts.push_back(&n.mount);
     for (const JPActuatorConfig& a : m_config.actuators) if (a.mount.headId == headId) mounts.push_back(&a.mount);
 
-    // Up out of harm's way first: each Z behind the head's tools into its safe zone.
-    const auto now = jogBase();
-    std::map<std::string, double> safe;
-    for (const JPMountConfig* m : mounts) {
-        const JPAxisConfig* z = m_config.axis(m->axisZ);
-        if (z && z->kind == JPAxisConfig::Kind::Mapped) z = m_config.axis(z->inputAxisId);
-        if (!z || z->kind != JPAxisConfig::Kind::Controller || !now.count(z->id)) continue;
-        double t = now.at(z->id);
-        if (z->safeZoneLowEnabled)  t = std::max(t, z->safeZoneLow);
-        if (z->safeZoneHighEnabled) t = std::min(t, z->safeZoneHigh);
-        if (t != now.at(z->id)) safe[z->id] = t;
-    }
-    if (!safe.empty() && !doMove(safe, speed, why)) return false;
+    // Up out of harm's way first.
+    if (!doSafeZ(headId, speed, why)) return false;
 
     // Then the head, by the tool that marks its place: its camera, else the first on X and Y.
     const JPMountConfig* by = nullptr;
@@ -159,6 +148,44 @@ bool JPCell::doPark(const std::string& headId, double speed, std::string& why) {
             target[q.axisX] += q.xPerY * (target[q.axisY] - q.atY);   // back to square coordinates for the move
     }
     return doMove(target, speed, why);
+}
+
+bool JPCell::safeZAndWait(const std::string& headId, double speed, std::string& why) {
+    if (m_moving.exchange(true)) {
+        why = "another move is under way";
+        return false;
+    }
+    std::promise<std::pair<bool, std::string>> done;
+    auto result = done.get_future();
+    m_thread.post([this, headId, speed, &done] {
+        std::string w;
+        const bool ok = doSafeZ(headId, speed, w);
+        m_moving = false;
+        onMotion.emit(ok, w);
+        done.set_value({ ok, w });
+    });
+    const auto [ok, w] = result.get();
+    why = w;
+    return ok;
+}
+
+bool JPCell::doSafeZ(const std::string& headId, double speed, std::string& why) {
+    std::vector<const JPMountConfig*> mounts;
+    for (const JPCameraConfig& c : m_config.cameras)     if (c.mount.headId == headId) mounts.push_back(&c.mount);
+    for (const JPNozzleConfig& n : m_config.nozzles)     if (n.mount.headId == headId) mounts.push_back(&n.mount);
+    for (const JPActuatorConfig& a : m_config.actuators) if (a.mount.headId == headId) mounts.push_back(&a.mount);
+    const auto now = jogBase();
+    std::map<std::string, double> safe;
+    for (const JPMountConfig* m : mounts) {
+        const JPAxisConfig* z = m_config.axis(m->axisZ);
+        if (z && z->kind == JPAxisConfig::Kind::Mapped) z = m_config.axis(z->inputAxisId);
+        if (!z || z->kind != JPAxisConfig::Kind::Controller || !now.count(z->id)) continue;
+        double t = now.at(z->id);
+        if (z->safeZoneLowEnabled)  t = std::max(t, z->safeZoneLow);
+        if (z->safeZoneHighEnabled) t = std::min(t, z->safeZoneHigh);
+        if (t != now.at(z->id)) safe[z->id] = t;
+    }
+    return safe.empty() || doMove(safe, speed, why);
 }
 
 void JPCell::switchActuator(const std::string& actuatorId, bool on) {

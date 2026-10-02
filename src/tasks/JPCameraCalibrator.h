@@ -13,8 +13,9 @@
 
 inline namespace jf {
 
-// Measures a head camera with known moves. With the camera roughly over a
-// round mark of a known size: find it (at any size: before calibration the
+// Measures a camera with known moves: a camera on the head moved over a mark,
+// or a mark (a nozzle's tip) moved over a fixed camera. With the two lined up,
+// roughly, and a round mark of a known size (or the camera's rough scale): find it (at any size: before calibration the
 // scale is unknown), make three small moves to learn which way the mark goes,
 // then move the head through a grid that carries the mark across the middle
 // of the picture, find it after each move, and fit pixel = centre + M offset
@@ -26,10 +27,15 @@ inline namespace jf {
 class JPCameraCalibrator {
 public:
     struct Options {
-        double markDiameterMm = 0;     // the mark it looks at
+        double markDiameterMm = 0;     // the mark it looks at; 0: not known (a nozzle's tip)
         double markZ = 0;              // the mark's height (the calibration holds there)
         double speed = 0.1;            // share of the axes' rates
         double maxRmsPx = 1.0;         // a worse fit is refused
+        // What moves. A camera on the head moves itself over a mark that
+        // stays (null). A fixed camera stays, and the mark is carried over it
+        // by a tool on the head (a nozzle's tip), already in view and in
+        // focus: this is that tool.
+        const JPMountConfig* moving = nullptr;
     };
     // Called before each step, in words ("move 3 of 9").
     using Progress = std::function<void(const std::string&)>;

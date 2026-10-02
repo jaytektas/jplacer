@@ -45,8 +45,11 @@ struct JPCameraCalibration {
     bool pixelFor(double x, double y, double viewX, double viewY, double& px, double& py) const;
     double scaleX() const;   // pixels per mm along the machine's X
     double scaleY() const;
-    double rotationDeg() const;
-    bool   mirrored() const;
+    // How far it is turned, and whether it sees the machine mirrored, against
+    // the way a camera looking that way sees it when mounted straight: one
+    // looking up sees the machine as a mirror image of one looking down.
+    double rotationDeg(bool lookingUp = false) const;
+    bool   mirrored(bool lookingUp = false) const;
 
     static JPCameraCalibration fromJson(const JJson& j);
     JJson toJson() const;

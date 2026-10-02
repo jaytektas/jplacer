@@ -29,7 +29,9 @@ public:
     JPlacerCameraTasks(const JPlacerCameraTasks&)            = delete;
     JPlacerCameraTasks& operator=(const JPlacerCameraTasks&) = delete;
 
-    // Move the camera over the head's homing mark, then measure it with known moves.
+    // A camera on the head: over the head's homing mark, then measured with
+    // known moves. A fixed camera: a nozzle's tip held over it (asked first,
+    // as a nozzle goes down to it) and moved about.
     void calibrate();
     // Look at the homing mark and say how far it is from its setting.
     void visualTest();
@@ -63,6 +65,9 @@ private:
     // thread to `done`. `progress` from the task is shown as it goes.
     using Task = std::function<bool(std::string& words, const std::function<void(const std::string&)>& progress)>;
     void run(const std::string& name, Task task, std::function<void(bool)> done = nullptr);
+    void calibrateFixed();
+    // A new calibration in use, and saved in the cell file.
+    void keepCalibration(const std::string& cameraId, const JPCameraCalibration& calibration);
     // What stops a task starting, in words; empty when it can.
     std::string notReady(bool needsCalibration, bool needsHomingMark) const;
     const JPHeadConfig* head(const JPCameraConfig& camera) const;

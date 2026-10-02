@@ -88,11 +88,16 @@ void JPMachinePanel::refreshCalibration() {
     const JPCellConfig& config = m_cell.config();
     for (const auto& [id, label] : m_cameras) {
         std::string name = id;
-        for (const JPCameraConfig& c : config.cameras) if (c.id == id) name = c.name;
+        bool up = false;
+        for (const JPCameraConfig& c : config.cameras)
+            if (c.id == id) {
+                name = c.name;
+                up = c.looksUp;
+            }
         const JPCameraCalibration k = m_cell.cameraCalibration(id);
         label->setText(!k.valid ? name + ": not calibrated"
                                 : name + ": " + fixed(k.scaleX(), 3) + " x " + fixed(k.scaleY(), 3) + " px/mm, turned "
-                                      + fixed(k.rotationDeg(), 2) + " deg" + (k.mirrored() ? ", mirrored" : "") + ", lens "
+                                      + fixed(k.rotationDeg(up), 2) + " deg" + (k.mirrored(up) ? ", mirrored" : "") + ", lens "
                                       + fixed(k.lensK1, 3) + ", fit to " + fixed(k.rmsPx, 2) + " px (" + k.when + ")");
     }
     const JPSquarenessConfig q = m_cell.squareness();

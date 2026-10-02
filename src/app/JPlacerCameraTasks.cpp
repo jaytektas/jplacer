@@ -8,10 +8,12 @@
 #include "tasks/JPVisualHoming.h"
 #include "tasks/JPVisualTest.h"
 
+#include <j/core/Dialog.h>
 #include <j/core/Log.h>
 #include <j/core/MainThreadDispatcher.h>
 
 #include <cstdio>
+#include <optional>
 
 inline namespace jf {
 
@@ -99,6 +101,11 @@ void JPlacerCameraTasks::run(const std::string& name, Task task, std::function<v
 }
 
 void JPlacerCameraTasks::calibrate() {
+    if (const JPCameraFeed* feed = m_cameras.shownFeed();
+        feed && (feed->config().mount.axisX.empty() || feed->config().mount.axisY.empty())) {
+        calibrateFixed();
+        return;
+    }
     if (const std::string why = notReady(false, true); !why.empty()) {
         m_window.showStatus("Calibrate: " + why, kResultMs);
         return;
@@ -123,19 +130,22 @@ void JPlacerCameraTasks::calibrate() {
         *result = *c;
         char buf[200];
         std::snprintf(buf, sizeof buf, "%s: %.3f x %.3f px/mm, turned %.2f deg%s, fit to %.2f px",
-                      feed->config().name.c_str(), c->scaleX(), c->scaleY(), c->rotationDeg(),
-                      c->mirrored() ? ", mirrored" : "", c->rmsPx);
+                      feed->config().name.c_str(), c->scaleX(), c->scaleY(), c->rotationDeg(feed->config().looksUp),
+                      c->mirrored(feed->config().looksUp) ? ", mirrored" : "", c->rmsPx);
         words = buf;
         return true;
     }, [this, cameraId, result](bool ok) {
-        if (!ok) return;
-        m_cell.setCameraCalibration(cameraId, *result);
-        std::string error;
-        if (!m_cell.config().save(m_cellPath, error)) {
-            JLOGC(JPlacerLog::kApp, JLogLevel::Error) << error;
-            m_window.showStatus("The calibration is in use but was not saved: " + error, kResultMs);
-        }
+        if (ok) keepCalibration(cameraId, *result);
     });
+}
+
+void JPlacerCameraTasks::keepCalibration(const std::string& cameraId, const JPCameraCalibration& calibration) {
+    m_cell.setCameraCalibration(cameraId, calibration);
+    std::string error;
+    if (!m_cell.config().save(m_cellPath, error)) {
+        JLOGC(JPlacerLog::kApp, JLogLevel::Error) << error;
+        m_window.showStatus("The calibration is in use but was not saved: " + error, kResultMs);
+    }
 }
 
 void JPlacerCameraTasks::visualTest() {
@@ -256,6 +266,69 @@ void JPlacerCameraTasks::locateBoard(const JPBoard& board, const JPBoardSide& gu
         words = buf;
         return true;
     }, [result, done](bool) { done(*result); });
+}
+
+void JPlacerCameraTasks::calibrateFixed() {
+    JPCameraFeed* feed = m_cameras.shownFeed();
+    const JPCameraConfig& cam = feed->config();
+    // The mark is a nozzle's tip: the first nozzle on a head that moves on X, Y and Z.
+    const JPNozzleConfig* nozzle = nullptr;
+    for (const JPNozzleConfig& n : m_cell.config().nozzles)
+        if (!nozzle && !n.mount.headId.empty() && !n.mount.axisX.empty() && !n.mount.axisY.empty() && !n.mount.axisZ.empty())
+            nozzle = &n;
+    std::string why = m_busy ? "a camera task is already under way"
+                    : !m_cell.isConnected() ? "connect the machine first"
+                    : !m_cell.isHomed() ? "home the machine first"
+                    : !nozzle ? "there is no nozzle on a head to hold over " + cam.name
+                    : std::string();
+    if (!why.empty()) {
+        m_window.showStatus("Calibrate: " + why, kResultMs);
+        return;
+    }
+    // The camera's place is its offset: where it looks, and the height in focus.
+    const JPMountConfig& place = cam.mount;
+    char body[640];
+    std::snprintf(body, sizeof body,
+                  "%s is calibrated with a nozzle's tip held over it: %s goes over the camera (X %.3f, Y %.3f), "
+                  "down to Z %.3f, and moves about in a grid a few millimetres across.\n\nThe nozzle must hold no part, "
+                  "and nothing must be in its way.",
+                  cam.name.c_str(), nozzle->name.c_str(), place.offsetX, place.offsetY, place.offsetZ);
+    const JPMountConfig tool = nozzle->mount;
+    const std::string cameraId = cam.id;
+    std::weak_ptr<bool> alive = m_alive;
+    JDialog::confirm("Calibrate " + cam.name, body, [this, alive, feed, tool, place, cameraId] {
+        if (const auto a = alive.lock(); !a || !*a) return;
+        auto result = std::make_shared<JPCameraCalibration>();
+        run("Calibrating " + feed->config().name, [this, feed, tool, place, result](std::string& words, const auto& progress) {
+            progress("the nozzle over the camera");
+            const bool over = m_cell.safeZAndWait(tool.headId, kTaskSpeed, words)
+                && m_cell.moveAxesAndWait({ { tool.axisX, place.offsetX - tool.offsetX },
+                                            { tool.axisY, place.offsetY - tool.offsetY } }, kTaskSpeed, words)
+                && m_cell.moveAxesAndWait({ { tool.axisZ, place.offsetZ - tool.offsetZ } }, kTaskSpeed, words);
+            std::optional<JPCameraCalibration> c;
+            if (over) {
+                JPCameraCalibrator::Options o;
+                o.markZ = place.offsetZ;
+                o.speed = kTaskSpeed;
+                o.moving = &tool;
+                c = JPCameraCalibrator::run(m_cell, *feed, o, words, progress);
+            }
+            // Up again, whatever happened.
+            std::string up;
+            if (!m_cell.safeZAndWait(tool.headId, kTaskSpeed, up) && words.empty()) words = up;
+            if (!c) return false;
+            *result = *c;
+            const bool lookingUp = feed->config().looksUp;
+            char buf[200];
+            std::snprintf(buf, sizeof buf, "%s: %.3f x %.3f px/mm, turned %.2f deg%s, fit to %.2f px",
+                          feed->config().name.c_str(), c->scaleX(), c->scaleY(), c->rotationDeg(lookingUp),
+                          c->mirrored(lookingUp) ? ", mirrored" : "", c->rmsPx);
+            words = buf;
+            return true;
+        }, [this, cameraId, result](bool ok) {
+            if (ok) keepCalibration(cameraId, *result);
+        });
+    });
 }
 
 } // inline namespace jf

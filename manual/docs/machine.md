@@ -271,6 +271,23 @@ whatever is measured in a picture is straightened through the lens first.
 
 <!-- src: src/tasks/JPCameraCalibrator.cpp; src/vision/JPCalibrationFit.cpp (fitWithLens); src/common/JPLens.h; src/tasks/JPCameraLook.cpp; src/app/JPlacerCameraTasks.cpp (calibrate, notReady, kTaskSpeed); src/ui/JPCameraPanel.cpp (setBusy, the note) -->
 
+#### Calibrating a fixed camera
+
+A camera fixed to the machine (one looking up at the nozzles) cannot be moved over a mark, so the mark
+is moved over it: **Calibrate**, with that camera shown, holds a nozzle's tip over it. jplacer first asks,
+naming the nozzle and the height it goes down to, as a nozzle going down near a camera must hold no part
+and have nothing in its way. Then the head's Z comes up into its safe zone, the nozzle goes over the
+camera's place and down to the camera's height (both from the camera's offset, where it is and the height
+it is focused at), the calibration is made by moving the nozzle instead of the camera, and the nozzle
+comes up again, whether it worked or not. The tip's size need not be known: the camera's rough scale (an
+imported camera keeps OpenPnP's) is enough to start from.
+
+A camera looking up sees the machine as a mirror image of one looking down; its turn and whether it is
+mirrored are given against that, so a straight-mounted camera looking up reads as turned 0 and not
+mirrored.
+
+<!-- src: src/app/JPlacerCameraTasks.cpp (calibrateFixed); src/tasks/JPCameraCalibrator.cpp (Options::moving); src/machine/JPCell.cpp (safeZAndWait); src/machine/JPCameraCalibration.cpp (rotationDeg, mirrored) -->
+
 #### Visual Test
 
 **Visual Test** moves a calibrated head camera to look where the head's settings say the homing mark is,

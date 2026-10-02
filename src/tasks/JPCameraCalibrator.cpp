@@ -55,13 +55,19 @@ std::string now() {
 
 std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCameraFeed& feed, const Options& o,
                                                            std::string& why, const Progress& progress) {
-    const JPMountConfig& mount = feed.config().mount;
+    // The offsets are kept as the camera's move relative to the mark, so a
+    // camera that moves and one the mark moves over give one kind of
+    // calibration: what is at a pixel, for a camera looking at a point.
+    const JPMountConfig& mount = o.moving ? *o.moving : feed.config().mount;
+    const double sign = o.moving ? -1 : 1;
     if (mount.axisX.empty() || mount.axisY.empty()) {
-        why = feed.config().name + " does not move with the head: it is calibrated another way";
+        why = o.moving ? "the tool carrying the mark does not move on X and Y"
+                       : feed.config().name + " does not move with the head: calibrate it with a nozzle over it";
         return std::nullopt;
     }
-    if (o.markDiameterMm <= 0) {
-        why = "the mark's size is needed";
+    const JPCameraConfig& cam = feed.config();
+    if (o.markDiameterMm <= 0 && (cam.unitsPerPixelX <= 0 || cam.unitsPerPixelY <= 0)) {
+        why = "the mark's size, or the camera's rough scale, is needed";
         return std::nullopt;
     }
     if (!cell.isHomed()) {
@@ -84,8 +90,10 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
         return std::nullopt;
     }
     const double markPx = first.diameter;
-    // The scale the mark's size suggests; the moves measure the real one.
-    const double guessPxPerMm = markPx / o.markDiameterMm;
+    // The scale the mark's size suggests (else the camera's own rough one);
+    // the moves measure the real one.
+    const double guessPxPerMm = o.markDiameterMm > 0 ? markPx / o.markDiameterMm
+                                                     : 2 / (cam.unitsPerPixelX + cam.unitsPerPixelY);
 
     std::vector<JPCalibrationFit::Sample> samples;
     auto back = [&] {
@@ -93,12 +101,14 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
         cell.moveAxesAndWait({ { mount.axisX, x0 }, { mount.axisY, y0 } }, o.speed, w);
     };
     int step = 0;
-    // Moves to (x0 + dx, y0 + dy), finds the mark near where the samples so far
+    // Moves the camera by (dx, dy) relative to the mark (the tool carrying
+    // the mark the other way), finds the mark near where the samples so far
     // put it (around where it first was before there are three) and records it.
     auto measure = [&](double dx, double dy, const char* phase) {
         ++step;
         if (progress) progress(std::string(phase) + ", move " + std::to_string(step));
-        if (!cell.moveAxesAndWait({ { mount.axisX, x0 + dx }, { mount.axisY, y0 + dy } }, o.speed, why)) return false;
+        if (!cell.moveAxesAndWait({ { mount.axisX, x0 + sign * dx }, { mount.axisY, y0 + sign * dy } }, o.speed, why))
+            return false;
         if (!JPCameraLook::settled(feed, img, why)) return false;
         double ex = first.x, ey = first.y, radius = kFirstSearch * side;
         const auto f = samples.size() >= kLensPredictFrom ? JPCalibrationFit::fitWithLens(samples, img.width, img.height, false)
@@ -142,7 +152,7 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
     const auto rough = JPCalibrationFit::fit(samples);
     const double det = rough ? rough->pxPerMm[0] * rough->pxPerMm[3] - rough->pxPerMm[1] * rough->pxPerMm[2] : 0;
     if (std::abs(det) < 1e-9) {
-        why = "the mark did not move in the picture when the head moved: is the camera on the head?";
+        why = "the mark did not move in the picture when the head moved: is it the right camera?";
         back();
         return std::nullopt;
     }
@@ -175,7 +185,7 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
     }
     // The mark it measured must be the mark it was given: its size in mm,
     // through the fit, against the size expected.
-    {
+    if (o.markDiameterMm > 0) {
         const double scale = std::sqrt(std::abs(fit->pxPerMm[0] * fit->pxPerMm[3] - fit->pxPerMm[1] * fit->pxPerMm[2]));
         const double measuredMm = markPx / scale;
         if (std::abs(measuredMm / o.markDiameterMm - 1) > kMarkSizeTolerance) {
@@ -198,7 +208,8 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
     c.rmsPx   = fit->rmsPx;
     c.when    = now();
     JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << feed.config().name << ": " << c.scaleX() << " x " << c.scaleY()
-        << " px/mm, turned " << c.rotationDeg() << " deg" << (c.mirrored() ? ", mirrored" : "") << ", lens " << c.lensK1
+        << " px/mm, turned " << c.rotationDeg(cam.looksUp) << " deg" << (c.mirrored(cam.looksUp) ? ", mirrored" : "")
+        << ", lens " << c.lensK1
         << ", fit " << c.rmsPx << " px";
     return c;
 }
