@@ -13,12 +13,6 @@
 
 inline namespace jf {
 
-namespace {
-
-// How solid the band behind a message over a picture is (of 255).
-constexpr uint8_t kBandAlpha = 220;
-
-} // namespace
 
 JPCameraView::JPCameraView(JSceneGraph& graph, JGpuHal& hal)
     : JWidget(graph, "JPCameraView"), m_hal(hal) {}
@@ -116,8 +110,7 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     // would pass for a live one.
     if (!m_message.empty()) {
         const float lh = JTextHelper::lineHeight(), pad = st.spacing;
-        const uint8_t band[4] = { Colors::DockContentBg[0], Colors::DockContentBg[1], Colors::DockContentBg[2], kBandAlpha };
-        buf.pushRectangle(x, y, w, lh + 2 * pad, band, 0.f);
+        buf.pushRectangle(x, y, w, lh + 2 * pad, Colors::OverlayScrim, 0.f);
         JTextHelper::pushText(buf, x + pad, y + pad, m_message, Colors::Warning, w - 2 * pad);
     }
 }
