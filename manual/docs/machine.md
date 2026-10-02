@@ -58,13 +58,16 @@ For each one jplacer:
 4. reads the settings the controller stores itself, where the profile says how.
 
 If any controller fails, the others are disconnected again and the panel says why. A port where
-nothing answers is a failure, not a connection: it is the wrong port, or the controller is off.
+nothing answers is a failure, not a connection: it is the wrong port, or the controller is off. A port
+another program has open is refused ("in use by another program"): two programs on one port would each
+get part of what the controller says. Close the other program (OpenPnP, another jplacer, a terminal)
+first.
 **Disconnect** closes every connection.
 
 While a cell is open and not connected, a red **NOT CONNECTED** strip runs across the top of the
 window, saying why the last connection failed when one did. It goes away as soon as the cell connects.
 
-<!-- src: src/machine/JPGcodeDriver.cpp (identify: nothing answered); src/app/JPlacerMachine.cpp (showNotice) -->
+<!-- src: src/machine/JPGcodeDriver.cpp (identify: nothing answered); src/app/JPlacerMachine.cpp (showNotice); JFramework src/io/SerialPort.cpp (one owner) -->
 
 ### Choosing the port
 

@@ -22,6 +22,8 @@ notes.
 - The machine's panels are docks of their own (Machine, Jog, Actuators, Console, Axes), to arrange,
   stack or tear out as you like.
 - Positions shown are the coordinates moves use, taking the controller's work offset into account.
+- A controller's port belongs to jplacer while connected: another program (or a second jplacer) trying to
+  open it is refused, instead of the two silently sharing and each losing part of what the controller says.
 - A red NOT CONNECTED strip across the top of the window while the machine is not connected, saying why
   when a connection failed. Connecting to a port where nothing answers now fails instead of pretending.
 - The Machine panel lists the serial devices plugged in, so you can pick the controller's port; it is
