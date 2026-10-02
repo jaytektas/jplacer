@@ -310,9 +310,43 @@ repeatedly handling a board with hundreds of 0402s sitting in wet paste.
 
 ## Vision
 
-A pipeline of stages (OpenPnP's `CvPipeline` idea), attached per use: bottom
-alignment (package, overridable per component), fiducials, feeder holes.
-Needs OpenCV; it is a jplacer dependency, not a JFramework one.
+OpenPnP's vision works when tuned and stops working when the light changes:
+hand-set thresholds, cameras left on auto exposure, pipelines per part to
+edit, and a bare "not found" when it fails. jplacer's rule is **no tuning**:
+
+- **The machine says what to look for.** Size from the CAD data or package,
+  approximate place from the board's position or the feeder, millimetres per
+  pixel from the camera's calibration. A detector takes those, not knobs.
+- **Detectors without thresholds** where possible: circular symmetry for
+  round marks (bright on dark or dark on bright alike), matching a drawn
+  shape of the expected size, edges and fits for refinement to a fraction
+  of a pixel. Two methods must agree before an answer is taken.
+- **Own the picture.** Exposure, gain and white balance are locked per camera
+  and per task; a picture is used only once it is still after a move.
+- **Cancel the ambient light.** A frame with the camera's light on, one with
+  it off, subtracted: what is left is what jplacer lit, whatever the sun or
+  the room is doing. Too much light with the camera's light off is reported,
+  not silently failed.
+- **Colour as well as brightness.** Chromaticity (how green, not how bright)
+  separates a green background or nozzle from a part in any light.
+- **Try harder before failing:** another look, another exposure, a wider
+  search. Then, rather than tuning, **teach by clicking**: the picture with
+  its candidates, one click on the right one, and the mark's look is
+  learned for that board or feeder.
+- **Every answer shows its working:** the detection drawn on the live
+  picture, a confidence, and on failure the picture kept with why.
+- **AI where appearance varies** (part present, polarity, empty pockets,
+  odd parts, reading reel labels): a model stage (ONNX) finds and
+  classifies; classical measurement gives the position. Fiducials, homing
+  and calibration stay classical: they need a fraction of a pixel and the
+  same answer every time.
+
+Cameras are calibrated by jplacer itself, not imported: scale, rotation and
+mirroring from known moves of the head over a mark; tilt from the
+calibration rig's two fiducials at two heights, so the point a camera looks
+at is computed for the height being looked at. Everything is first proven
+on a simulated camera that draws the machine with a hidden scale, rotation
+and tilt the calibration must recover.
 
 ## GUI
 
