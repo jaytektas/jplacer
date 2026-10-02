@@ -34,6 +34,8 @@ int main() {
     assert(d.link["port"].str() == "/dev/ttyACM0" && d.link["baud"].number() == 115200);
     assert(d.link["flowControl"].str() == "rtscts");
     assert(d.commandTimeoutMs == 30000 && d.homeTimeoutMs == 60000);
+    assert(d.commands.at("home") == "M18 Z");               // OpenPnP's home command, comment stripped
+    assert(noted(notes, "fiducial"));                       // visual homing is not carried over
 
     assert(cell.axes.size() == 4);                         // the cam axis is left out
     assert(noted(notes, "axis cam"));

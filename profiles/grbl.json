@@ -2,14 +2,33 @@
   "id": "grbl",
   "name": "Grbl 1.1",
   "priority": 10,
-  "identify": { "command": "$I", "pattern": "^\\[VER:1\\.1" },
-  "replies": { "ok": "^ok$", "error": "^error:", "alarm": "^ALARM:" },
-  "status": {
-    "command": "?", "realtime": true,
-    "pattern": "^<([A-Za-z]+)[^|>]*\\|[MW]Pos:([-0-9.,]+)",
-    "stateGroup": 1, "positionGroup": 2, "positions": "list"
+  "identify": {
+    "command": "$I",
+    "pattern": "^\\[VER:1\\.1"
   },
-  "axisLetters": ["X", "Y", "Z"],
+  "replies": {
+    "ok": "^ok$",
+    "error": "^error:",
+    "alarm": "^ALARM:"
+  },
+  "status": {
+    "command": "?",
+    "realtime": true,
+    "pattern": "^<([A-Za-z]+)[^|>]*\\|([MW])Pos:([-0-9.,]+)",
+    "stateGroup": 1,
+    "positionGroup": 3,
+    "positions": "list",
+    "frameGroup": 2,
+    "machineFrame": "M",
+    "offset": "\\|WCO:([-0-9.,]+)",
+    "idleState": "Idle",
+    "alarmState": "Alarm"
+  },
+  "axisLetters": [
+    "X",
+    "Y",
+    "Z"
+  ],
   "decimals": 3,
   "commands": {
     "init": "G21 G90",
@@ -18,17 +37,34 @@
     "home": "$H",
     "unlock": "$X",
     "setPosition": "G92 {axes}",
-    "dwell": "G4 P{seconds}"
+    "dwell": "G4 P{seconds}",
+    "waitMotion": "G4 P0"
   },
   "settings": {
     "read": "$$",
     "pattern": "^\\$(\\d+)=(.*)$",
     "write": "${id}={value}",
     "axis": [
-      { "key": "stepsPerMm",   "base": 100, "unit": "steps/mm" },
-      { "key": "maxRate",      "base": 110, "unit": "mm/min" },
-      { "key": "acceleration", "base": 120, "unit": "mm/s²" },
-      { "key": "travel",       "base": 130, "unit": "mm" }
+      {
+        "key": "stepsPerMm",
+        "base": 100,
+        "unit": "steps/mm"
+      },
+      {
+        "key": "maxRate",
+        "base": 110,
+        "unit": "mm/min"
+      },
+      {
+        "key": "acceleration",
+        "base": 120,
+        "unit": "mm/s²"
+      },
+      {
+        "key": "travel",
+        "base": 130,
+        "unit": "mm"
+      }
     ]
   }
 }

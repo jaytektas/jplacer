@@ -34,10 +34,12 @@ void JPSimulatedGrbl::configure(const JJson& config) {
     m_identity.clear();
     for (const JJson& l : config["identity"].arr()) m_identity.push_back(l.str());
     m_letters.clear();
-    m_position.clear();
+    m_machine.clear();
+    m_offset.clear();
     for (const JJson& l : config["axisLetters"].arr()) {
         m_letters.push_back(l.str());
-        m_position[l.str()] = 0.0;
+        m_machine[l.str()] = 0.0;
+        m_offset[l.str()]  = 0.0;
     }
     m_settings.clear();
     for (const auto& [id, value] : config["settings"].obj()) m_settings[std::atoi(id.c_str())] = value.str();
@@ -72,14 +74,17 @@ std::string JPSimulatedGrbl::takeLine() {
 }
 
 std::string JPSimulatedGrbl::statusReport() const {
-    std::string pos;
-    char buf[32];
-    for (const std::string& l : m_letters) {
-        std::snprintf(buf, sizeof buf, "%.3f", m_position.at(l));
-        if (!pos.empty()) pos += ',';
-        pos += buf;
-    }
-    return "<Idle|MPos:" + pos + "|FS:0,0>";
+    auto list = [this](const std::map<std::string, double>& values) {
+        std::string out;
+        char buf[32];
+        for (const std::string& l : m_letters) {
+            std::snprintf(buf, sizeof buf, "%.3f", values.at(l));
+            if (!out.empty()) out += ',';
+            out += buf;
+        }
+        return out;
+    };
+    return "<Idle|MPos:" + list(m_machine) + "|FS:0,0|WCO:" + list(m_offset) + ">";
 }
 
 void JPSimulatedGrbl::execute(const std::string& raw) {
@@ -103,7 +108,7 @@ void JPSimulatedGrbl::execute(const std::string& raw) {
         for (const auto& [id, value] : m_settings) m_out.push_back("$" + std::to_string(id) + "=" + value);
         m_out.push_back("ok");
     } else if (line == "$H") {
-        for (auto& [l, v] : m_position) v = 0.0;
+        for (auto& [l, v] : m_machine) v = 0.0;
         m_out.push_back("ok");
     } else if (line == "$X") {
         m_out.push_back("ok");
@@ -156,7 +161,7 @@ void JPSimulatedGrbl::gcode(const std::string& line) {
             else if (g == 900) m_relative = false;
             else if (g == 910) m_relative = true;
             else if (g == 920) setPosition = true;
-            else if (g != 40 && g != 210) {
+            else if (g != 40 && g != 210) {   // G4 (dwell; motion is already done) and G21 (mm) need nothing
                 m_out.push_back(kErrorUnsupported);
                 return;
             }
@@ -169,10 +174,13 @@ void JPSimulatedGrbl::gcode(const std::string& line) {
         }
     }
     for (const auto& [letter, value] : words) {
-        const auto it = m_position.find(std::string(1, letter));
-        if (it == m_position.end()) continue;
-        if (setPosition || !m_relative) it->second = value;
-        else if (motion) it->second += value;
+        const std::string l(1, letter);
+        const auto it = m_machine.find(l);
+        if (it == m_machine.end()) continue;
+        if (setPosition)      m_offset[l] = it->second - value;      // G92: here is now `value`
+        else if (!motion)     continue;
+        else if (m_relative)  it->second += value;
+        else                  it->second = value + m_offset[l];
     }
     m_out.push_back("ok");
 }

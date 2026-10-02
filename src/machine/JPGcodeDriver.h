@@ -65,13 +65,19 @@ public:
                                      const std::map<std::string, std::string>& values = {},
                                      int timeoutMs = 0);
 
+    // Block until the controller has finished every move it was given (the
+    // profile's waitMotion command, which the controller answers only then).
+    JPReply waitForMotion();
+
     // Read the controller's stored settings into settings(). Blocking.
     bool readSettings(std::string& error);
     std::map<std::string, std::string> settings() const;
     // A per-axis stored setting (stepsPerMm, maxRate, ...) as a number.
     std::optional<double> axisSetting(const std::string& key, const std::string& letter) const;
 
-    // The latest status report.
+    // The latest status report, positions in WORK coordinates (the ones
+    // G-code moves use): a report in machine coordinates has the controller's
+    // last reported offset taken off.
     JPFirmwareProfile::Status status() const;
 
     JSignal<JPFirmwareProfile::Status> onStatus;
@@ -121,6 +127,7 @@ private:
     mutable std::mutex                  m_mutex;   // guards the members below
     std::deque<Pending>                 m_queue;
     std::map<std::string, std::string>  m_settings;
+    std::map<std::string, double>       m_offsets;   // the work offset, by axis letter, as last reported
     JPFirmwareProfile::Status           m_status;
 };
 

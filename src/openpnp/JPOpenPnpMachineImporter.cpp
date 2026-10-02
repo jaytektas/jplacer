@@ -167,6 +167,11 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                 if (cmd.name == "command")
                     if (const JPXmlElement* text = cmd.child("text"))
                         cmds[{ cmd.attr("type"), cmd.attr("head-mountable-id") }] = text->text;
+            // How this machine homes is its own: OpenPnP's home command is
+            // this controller's, over its firmware profile's.
+            if (const std::string* home = findCommand(cmds, "HOME_COMMAND", ""))
+                if (const std::string t = translate(*home, -1, "controller " + dc.name, notes); !t.empty())
+                    dc.commands["home"] = t;
             c.drivers.push_back(std::move(dc));
         }
     }
@@ -270,6 +275,10 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
     if (const JPXmlElement* heads = machine->child("heads")) {
         for (const JPXmlElement& h : heads->children) {
             c.heads.push_back({ h.attr("id"), h.attr("name") });
+            if (const std::string& vh = h.attr("visual-homing-method"); !vh.empty() && vh != "None")
+                notes.push_back("head " + h.attr("name") + ": OpenPnP finishes homing by finding a fiducial with the "
+                                "camera, which jplacer does not do yet. After Home, the axes take their home "
+                                "coordinates as they are, so the head must be at its home position first");
             if (const JPXmlElement* acts = h.child("actuators"))
                 for (const JPXmlElement& x : acts->children) addActuator(x, h.attr("id"));
             if (const JPXmlElement* cams = h.child("cameras"))

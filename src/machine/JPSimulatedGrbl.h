@@ -18,7 +18,9 @@ class JJson;
 // Everything that would differ between real boards is configuration (see
 // configure()): what it says it is ($I), its axes, its stored settings ($$),
 // and fixed replies to other commands (a plugin's sensor reading). Motion is
-// instantaneous; the position is what was last commanded.
+// instantaneous. Like Grbl it keeps a machine position and a work offset
+// (G92), takes moves in work coordinates, and reports MPos with the offset
+// (WCO) beside it.
 class JPSimulatedGrbl {
 public:
     // {
@@ -49,7 +51,8 @@ private:
     std::map<int, std::string>         m_settings;
     std::map<std::string, std::string> m_replies;
 
-    std::map<std::string, double> m_position;
+    std::map<std::string, double> m_machine;   // machine coordinates, by letter
+    std::map<std::string, double> m_offset;    // work = machine - offset
     bool                          m_relative = false;
     bool                          m_silent   = false;
     bool                          m_garble   = false;

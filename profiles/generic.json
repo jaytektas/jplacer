@@ -2,8 +2,22 @@
   "id": "generic",
   "name": "Generic G-code",
   "priority": 0,
-  "replies": { "ok": "^ok", "error": "^(error|Error|!!)", "alarm": "^ALARM" },
-  "axisLetters": ["X", "Y", "Z", "A", "B", "C", "U", "V", "W"],
+  "replies": {
+    "ok": "^ok",
+    "error": "^(error|Error|!!)",
+    "alarm": "^ALARM"
+  },
+  "axisLetters": [
+    "X",
+    "Y",
+    "Z",
+    "A",
+    "B",
+    "C",
+    "U",
+    "V",
+    "W"
+  ],
   "decimals": 4,
   "commands": {
     "init": "G21 G90",
@@ -11,6 +25,7 @@
     "rapid": "G0 {axes}",
     "home": "G28",
     "setPosition": "G92 {axes}",
-    "dwell": "G4 P{milliseconds}"
+    "dwell": "G4 P{milliseconds}",
+    "waitMotion": "M400"
   }
 }

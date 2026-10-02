@@ -16,6 +16,12 @@ notes.
   and other G-code firmware, and reads the settings the controller stores.
 - A Machine panel shows the live position of every axis, switches and reads the
   actuators (lights, valves, vacuum sensors), and has a console for sending G-code.
+- The machine can be homed (Home, or Machine > Home All Axes) and moved by hand from the Jog panel:
+  choose a nozzle or camera, then step it, or type where it should go. Soft limits are checked, and
+  nothing moves until the machine is homed. An amber NOT HOMED or red ALARM strip says when it cannot.
+- The machine's panels are docks of their own (Machine, Jog, Actuators, Console, Axes), to arrange,
+  stack or tear out as you like.
+- Positions shown are the coordinates moves use, taking the controller's work offset into account.
 - A red NOT CONNECTED strip across the top of the window while the machine is not connected, saying why
   when a connection failed. Connecting to a port where nothing answers now fails instead of pretending.
 - The Machine panel lists the serial devices plugged in, so you can pick the controller's port; it is

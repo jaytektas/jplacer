@@ -136,6 +136,10 @@ void JPGcodeDriver::disconnect() {
         m_link.reset();
     }
     m_connected    = false;
+    {
+        std::lock_guard lk(m_mutex);
+        m_offsets.clear();
+    }
     m_replyProfile = nullptr;
     m_profile      = nullptr;
     m_plugins.clear();
@@ -164,10 +168,17 @@ std::future<JPReply> JPGcodeDriver::sendCommand(const std::string& name,
                                                 const std::map<std::string, std::string>& values,
                                                 int timeoutMs) {
     if (!m_profile) return failed(m_config.name + " is not connected");
-    const auto line = m_profile->command(name, values);
+    const auto own  = m_config.commands.find(name);
+    const auto line = own != m_config.commands.end()
+                    ? std::optional<std::string>(JPFirmwareProfile::fill(own->second, values))
+                    : m_profile->command(name, values);
     if (!line) return failed(m_profile->name() + " has no '" + name + "' command");
     if (timeoutMs <= 0 && name == "home") timeoutMs = m_config.homeTimeoutMs;
     return send(*line, timeoutMs);
+}
+
+JPReply JPGcodeDriver::waitForMotion() {
+    return sendCommand("waitMotion", {}, m_config.homeTimeoutMs).get();
 }
 
 bool JPGcodeDriver::readSettings(std::string& error) {
@@ -278,9 +289,15 @@ void JPGcodeDriver::ioLoop() {
 void JPGcodeDriver::handleLine(const std::string& line) {
     const JPFirmwareProfile* p = m_replyProfile.load();
     if (p) {
-        if (const auto st = p->parseStatus(line)) {
+        if (auto st = p->parseStatus(line)) {
             {
                 std::lock_guard lk(m_mutex);
+                if (!st->offsets.empty()) m_offsets = st->offsets;
+                if (!st->positionsAreWork) {
+                    for (auto& [letter, v] : st->positions)
+                        if (const auto o = m_offsets.find(letter); o != m_offsets.end()) v -= o->second;
+                    st->positionsAreWork = true;
+                }
                 m_status = *st;
             }
             JLOGC(JPlacerLog::kStatus, JLogLevel::Trace) << m_config.name << " < " << line;

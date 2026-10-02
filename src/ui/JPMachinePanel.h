@@ -3,61 +3,38 @@
 
 #pragma once
 
+#include "JPCellWatch.h"
+
 #include "machine/JPCell.h"
 
 #include <j/core/JButton.h>
-#include <j/core/JComboBox.h>
 #include <j/core/JContainer.h>
 #include <j/core/JLabel.h>
-#include <j/core/JLineEdit.h>
-#include <j/core/JListView.h>
 
 #include <functional>
-#include <map>
-#include <memory>
 #include <string>
-#include <vector>
 
 inline namespace jf {
 
-// The running machine at a glance: whether it is connected, where every axis
-// is, its actuators (switch them, read them), and a console to its
-// controllers.
-//
-// Built for one cell; a different cell gets a new panel. Everything the cell
-// reports arrives on its own threads and is re-posted to the main thread
-// before it touches a widget.
+// The machine as a whole: connected or not, on which port, homed or not,
+// and what each controller says it is doing (Idle, Run, Alarm…).
 class JPMachinePanel : public JContainer {
 public:
     JPMachinePanel(JSceneGraph& graph, JPCell& cell);
-    ~JPMachinePanel() override;
 
     // A serial controller's port was chosen (controller id, port path). The
     // owner stores it in the cell file; the panel only offers the choice.
     std::function<void(const std::string&, const std::string&)> onPortChosen;
 
 private:
-    // Run `fn` on the main thread, unless this panel is gone by then.
-    void onMain(std::function<void()> fn);
+    void refresh(const std::string& why);
 
-    void showConnection(bool connected, const std::string& why);
-    void showPositions(const std::map<std::string, double>& positions);
-    void showActuator(const std::string& id, bool ok, const std::string& value);
-    void addConsoleLine(const std::string& line);
-    void sendConsoleLine();
-
-    JPCell&                         m_cell;
-    JLabel*                         m_status  = nullptr;
-    JButton*                        m_connect = nullptr;
-    std::map<std::string, JLabel*>  m_axisValues;
-    std::map<std::string, JLabel*>  m_actuatorValues;
-    JListView*                      m_console    = nullptr;
-    JComboBox*                      m_controller = nullptr;
-    JLineEdit*                      m_input      = nullptr;
-    std::vector<std::string>        m_consoleLines;
-
-    std::vector<std::function<void()>> m_disconnects;   // from the cell's signals
-    std::shared_ptr<bool>              m_alive = std::make_shared<bool>(true);
+    JPCell&     m_cell;
+    JLabel*     m_status  = nullptr;
+    JLabel*     m_state   = nullptr;
+    JButton*    m_connect = nullptr;
+    JButton*    m_home    = nullptr;
+    JPCellWatch m_watch;
 };
 
 } // inline namespace jf

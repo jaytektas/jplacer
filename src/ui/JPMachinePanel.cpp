@@ -3,68 +3,41 @@
 
 #include "JPMachinePanel.h"
 
-#include "machine/JPSerialPorts.h"
+#include "JPUiParts.h"
 
 #include "common/JPlacerLog.h"
+#include "machine/JPSerialPorts.h"
 
-#include <j/core/JScrollArea.h>
-#include <j/core/JStyle.h>
+#include <j/core/JComboBox.h>
 #include <j/core/Log.h>
-#include <j/core/MainThreadDispatcher.h>
-
-#include <algorithm>
-#include <cstdio>
 
 inline namespace jf {
 
-namespace {
-
-// How much console history is kept: enough to scroll back through a homing or
-// a settings dump, bounded so a long session does not grow without end.
-constexpr size_t kConsoleLines = 1000;
-
-std::string formatCoordinate(double v) {
-    char buf[32];
-    std::snprintf(buf, sizeof buf, "%.3f", v);
-    return buf;
-}
-
-// A row of controls, as tall as its tallest kind of control.
-std::unique_ptr<JContainer> row(JSceneGraph& graph) {
-    const JStyle& st = JStyle::current();
-    auto c = std::make_unique<JContainer>(graph, 0.f, std::max(st.buttonHeight, st.controlHeight));
-    c->setDirection(JFlexDirection::JRow)->setGap(JStyle::current().spacing)->setAlignItems(JAlignItems::Center);
-    return c;
-}
-
-// A button as wide as its label: JButton's minimum width fits the text, and a
-// zero design width lets the layout settle on it.
-std::unique_ptr<JButton> button(JSceneGraph& graph, const char* label) {
-    return std::make_unique<JButton>(graph, label, 0.f);
-}
-
-} // namespace
-
 JPMachinePanel::JPMachinePanel(JSceneGraph& graph, JPCell& cell)
     : JContainer(graph), m_cell(cell) {
-    const JStyle& st = JStyle::current();
-    setDirection(JFlexDirection::Column)->setGap(2 * st.spacing)->setPadding(JEdges{ st.fieldPadding })
-        ->setAlignItems(JAlignItems::Stretch);
+    JPUiParts::asPanel(*this);
 
-    // Connection.
-    auto top = row(graph);
+    auto top = JPUiParts::row(graph);
     m_status = top->add(std::make_unique<JLabel>(graph, cell.config().name));
     m_status->setHSizePolicy(JSizePolicyMode::Expanding, 1);
-    m_connect = top->add(std::make_unique<JButton>(graph, "Connect"));
+    m_connect = top->add(JPUiParts::button(graph, "Connect"));
     m_connect->onClicked.connect([this] {
-        JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Machine panel: " << (m_cell.isConnected() ? "Disconnect" : "Connect");
+        JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Machine: " << (m_cell.isConnected() ? "Disconnect" : "Connect");
         if (m_cell.isConnected()) m_cell.disconnect();
         else {
             m_status->setText("Connecting\xE2\x80\xA6");
             m_cell.connect();
         }
     });
+    m_home = top->add(JPUiParts::button(graph, "Home"));
+    m_home->onClicked.connect([this] {
+        JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Machine: Home";
+        m_status->setText("Homing\xE2\x80\xA6");
+        m_cell.home();
+    });
     add(std::move(top));
+
+    m_state = add(std::make_unique<JLabel>(graph, ""));
 
     // Where each serial controller is plugged in: the ports there are now,
     // by the stable name a reboot does not change.
@@ -85,7 +58,7 @@ JPMachinePanel::JPMachinePanel(JSceneGraph& graph, JPCell& cell)
             labels.push_back(current + " (not found)");
             paths.push_back(current);
         }
-        auto portRow = row(graph);
+        auto portRow = JPUiParts::row(graph);
         portRow->add(std::make_unique<JLabel>(graph, d.name + " port"));
         JComboBox* combo = portRow->add(std::make_unique<JComboBox>(graph, labels));
         combo->setHSizePolicy(JSizePolicyMode::Expanding, 1);
@@ -93,129 +66,38 @@ JPMachinePanel::JPMachinePanel(JSceneGraph& graph, JPCell& cell)
         const std::string id = d.id;
         combo->onIndexChanged.connect([this, id, paths](int i) {
             if (i < 0 || size_t(i) >= paths.size()) return;
-            JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Machine panel: port " << paths[size_t(i)] << " for " << id;
+            JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Machine: port " << paths[size_t(i)] << " for " << id;
             if (onPortChosen) onPortChosen(id, paths[size_t(i)]);
         });
         add(std::move(portRow));
     }
 
-    // Position and actuators scroll: a machine has as many axes and
-    // actuators as its configuration says, more than a panel's height holds.
-    // Each row is a fixed-height container of its own, stacked by the scroll
-    // area, laid out by itself.
-    auto* scroll = add(std::make_unique<JScrollArea>(graph));
-    scroll->setVSizePolicy(JSizePolicyMode::Expanding, 3);
-    auto addRow = [&](float h) {
-        auto r = std::make_unique<JContainer>(graph, 0.f, h);
-        r->setDirection(JFlexDirection::JRow)->setGap(st.spacing)->setAlignItems(JAlignItems::Center);
-        return scroll->addChildWidget(std::move(r));
-    };
-    scroll->addChildWidget(std::make_unique<JLabel>(graph, "Position", 0.f, st.labelHeight));
-    const auto positions = cell.positions();
-    for (const JPAxisConfig& a : cell.config().axes) {
-        JContainer* r = addRow(st.labelHeight);
-        r->add(std::make_unique<JLabel>(graph, a.name))->setHSizePolicy(JSizePolicyMode::Expanding, 1);
-        const auto p = positions.find(a.id);
-        m_axisValues[a.id] = r->add(std::make_unique<JLabel>(graph, p == positions.end() ? "" : formatCoordinate(p->second)));
-    }
-    if (!cell.config().actuators.empty()) {
-        scroll->addChildWidget(std::make_unique<JLabel>(graph, "Actuators", 0.f, st.labelHeight));
-        for (const JPActuatorConfig& a : cell.config().actuators) {
-            JContainer* r = addRow(st.buttonHeight);
-            r->add(std::make_unique<JLabel>(graph, a.name))->setHSizePolicy(JSizePolicyMode::Expanding, 1);
-            const std::string id = a.id;
-            if (a.canSwitch()) {
-                r->add(button(graph, "On"))->onClicked.connect([this, id] { m_cell.switchActuator(id, true); });
-                r->add(button(graph, "Off"))->onClicked.connect([this, id] { m_cell.switchActuator(id, false); });
-            }
-            if (a.canRead())
-                r->add(button(graph, "Read"))->onClicked.connect([this, id] { m_cell.readActuator(id); });
-            m_actuatorValues[a.id] = r->add(std::make_unique<JLabel>(graph, ""));
-        }
-    }
-
-    // Console.
-    add(std::make_unique<JLabel>(graph, "Console"));
-    m_console = add(std::make_unique<JListView>(graph));
-    m_console->setVSizePolicy(JSizePolicyMode::Expanding, 1);
-    m_console->setMinimumSize(0.f, 4 * st.controlHeight);
-    auto input = row(graph);
-    if (cell.config().drivers.size() > 1) {
-        std::vector<std::string> names;
-        for (const JPDriverConfig& d : cell.config().drivers) names.push_back(d.name);
-        m_controller = input->add(std::make_unique<JComboBox>(graph, names));
-    }
-    m_input = input->add(std::make_unique<JLineEdit>(graph, "G-code to send"));
-    m_input->setHSizePolicy(JSizePolicyMode::Expanding, 1);
-    m_input->onReturnPressed.connect([this] { sendConsoleLine(); });
-    input->add(std::make_unique<JButton>(graph, "Send"))->onClicked.connect([this] { sendConsoleLine(); });
-    add(std::move(input));
-
-    m_disconnects.push_back(cell.onConnection.connect([this](bool ok, std::string why) {
-        onMain([this, ok, why] { showConnection(ok, why); });
-    }));
-    m_disconnects.push_back(cell.onPositions.connect([this](std::map<std::string, double> p) {
-        onMain([this, p] { showPositions(p); });
-    }));
-    m_disconnects.push_back(cell.onActuator.connect([this](std::string id, bool ok, std::string v) {
-        onMain([this, id, ok, v] { showActuator(id, ok, v); });
-    }));
-    m_disconnects.push_back(cell.onTraffic.connect([this](std::string name, bool sent, std::string line) {
-        onMain([this, name, sent, line] { addConsoleLine(name + (sent ? " \xE2\x86\x92 " : " \xE2\x86\x90 ") + line); });
-    }));
-    m_disconnects.push_back(cell.onAlarm.connect([this](std::string what) {
-        onMain([this, what] { addConsoleLine("\xE2\x9A\xA0 " + what); });
-    }));
-    showConnection(cell.isConnected(), std::string());
+    m_watch.on(cell.onConnection, [this](bool, std::string why) { refresh(why); });
+    m_watch.on(cell.onHomed,      [this](bool) { refresh(std::string()); });
+    m_watch.on(cell.onState,      [this](std::string, std::string) { refresh(std::string()); });
+    m_watch.on(cell.onMotion,     [this](bool ok, std::string why) { refresh(ok ? std::string() : why); });
+    refresh(std::string());
 }
 
-JPMachinePanel::~JPMachinePanel() {
-    for (const auto& d : m_disconnects) d();
-    *m_alive = false;
-}
-
-void JPMachinePanel::onMain(std::function<void()> fn) {
-    std::weak_ptr<bool> alive = m_alive;
-    JMainThreadDispatcher::instance().post([alive, fn = std::move(fn)] {
-        if (const auto a = alive.lock(); a && *a) fn();
-    });
-}
-
-void JPMachinePanel::showConnection(bool connected, const std::string& why) {
+void JPMachinePanel::refresh(const std::string& why) {
+    const bool connected = m_cell.isConnected();
     std::string text = m_cell.config().name + (connected ? ": connected" : ": not connected");
-    if (connected)
+    if (connected) {
         for (const auto& [id, fw] : m_cell.firmware()) text += " \xC2\xB7 " + fw;
-    if (!why.empty()) text += " (" + why + ")";
+        text += m_cell.isHomed() ? " \xC2\xB7 homed" : " \xC2\xB7 not homed";
+    }
     m_status->setText(text);
     m_connect->setLabel(connected ? "Disconnect" : "Connect");
-}
+    m_home->setEnabled(connected);
 
-void JPMachinePanel::showPositions(const std::map<std::string, double>& positions) {
-    for (const auto& [id, value] : positions)
-        if (const auto it = m_axisValues.find(id); it != m_axisValues.end()) it->second->setText(formatCoordinate(value));
-}
-
-void JPMachinePanel::showActuator(const std::string& id, bool ok, const std::string& value) {
-    if (const auto it = m_actuatorValues.find(id); it != m_actuatorValues.end())
-        it->second->setText(ok ? value : "\xE2\x9A\xA0 " + value);
-}
-
-// Newest first: the line just sent or received is always the visible one.
-// (JListView resets its scroll on setItems and has no call to scroll to a
-// row, so oldest-first would leave the newest line out of sight.)
-void JPMachinePanel::addConsoleLine(const std::string& line) {
-    m_consoleLines.insert(m_consoleLines.begin(), line);
-    if (m_consoleLines.size() > kConsoleLines) m_consoleLines.resize(kConsoleLines);
-    m_console->setItems(m_consoleLines);
-}
-
-void JPMachinePanel::sendConsoleLine() {
-    const std::string line = m_input->text();
-    if (line.empty() || m_cell.config().drivers.empty()) return;
-    JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "console: " << line;
-    const size_t which = m_controller ? size_t(std::max(0, m_controller->currentIndex())) : 0;
-    m_cell.sendLine(m_cell.config().drivers[std::min(which, m_cell.config().drivers.size() - 1)].id, line);
-    m_input->setText("");
+    std::string state;
+    if (connected)
+        for (const auto& [id, s] : m_cell.states()) {
+            const JPDriverConfig* d = m_cell.config().driver(id);
+            state += (state.empty() ? "" : ", ") + (d ? d->name : id) + ": " + s;
+        }
+    if (!why.empty()) state = why;
+    m_state->setText(state);
 }
 
 } // inline namespace jf

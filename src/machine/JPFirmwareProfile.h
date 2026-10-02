@@ -84,11 +84,25 @@ public:
     bool statusIsRealtime() const { return m_statusRealtime; }
     // Parse a status line: the controller state and the axis positions it
     // reports, by axis letter. Nothing if `line` is not a status report.
+    //
+    // POSITIONS ARE MACHINE OR WORK COORDINATES. G-code moves are in work
+    // coordinates (the machine's, less an offset the controller holds: G92,
+    // G54…), so a report in machine coordinates is only comparable once the
+    // offset is taken off. Grbl says which it sent (MPos / WPos) and reports
+    // the offset itself (WCO) every few reports; `offsets` is filled only on
+    // a report that carries it.
     struct Status {
         std::string                   state;
         std::map<std::string, double> positions;
+        bool                          positionsAreWork = true;
+        std::map<std::string, double> offsets;
     };
     std::optional<Status> parseStatus(const std::string& line) const;
+
+    // The state names that mean "standing still, ready" and "stopped by an
+    // alarm" (Grbl: Idle, Alarm). Empty when the profile does not say.
+    const std::string& idleState()  const { return m_idleState; }
+    const std::string& alarmState() const { return m_alarmState; }
 
     const std::vector<std::string>& axisLetters() const { return m_axisLetters; }
     int decimals() const { return m_decimals; }
@@ -113,6 +127,8 @@ public:
 
 private:
     static bool readReading(const JJson& j, Reading& out, std::string& error);
+    // A comma list of numbers in axis-letter order ("10.000,-5.000,0.000").
+    std::map<std::string, double> byLetter(const std::string& list) const;
 
     std::string m_id;
     std::string m_name;
@@ -131,6 +147,11 @@ private:
     std::regex  m_status;
     int         m_statusStateGroup = 0;
     int         m_statusPositionGroup = 0;
+    int         m_statusFrameGroup = 0;        // the group saying machine or work, 0 if none
+    std::string m_statusMachineFrame;          // its value for machine coordinates ("M")
+    std::regex  m_statusOffset;                // its first group: the offset list (WCO), if any
+    bool        m_hasStatusOffset = false;
+    std::string m_idleState, m_alarmState;
     // Positions as a comma list in axis-letter order (Grbl), or as
     // letter:value pairs found anywhere in the line (Marlin M114).
     bool        m_positionsAsList = true;

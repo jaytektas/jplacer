@@ -5,6 +5,7 @@
 
 #include <j/config/Json.h>
 
+#include <map>
 #include <optional>
 #include <string>
 
@@ -19,7 +20,8 @@ inline namespace jf {
 //               "flowControl": "none" | "rtscts" | "xonxoff" },
 //          or { "type": "simulated", "simulator": { ... JPSimulatedGrbl ... } },
 //     "statusIntervalMs": 100, "commandTimeoutMs": 5000,
-//     "identifyTimeoutMs": 1000, "homeTimeoutMs": 60000
+//     "identifyTimeoutMs": 1000, "homeTimeoutMs": 60000,
+//     "commands": { "home": "M18 Z" }         // this controller's own, over the profile's
 //   }
 struct JPDriverConfig {
     std::string id;
@@ -30,6 +32,9 @@ struct JPDriverConfig {
     int commandTimeoutMs  = 5000;
     int identifyTimeoutMs = 1000;
     int homeTimeoutMs     = 60000;
+    // Commands this controller is sent instead of its profile's (same names:
+    // home, move, …). A machine wired its own way homes its own way.
+    std::map<std::string, std::string> commands;
 
     // Nothing, with `error`, when a required field is missing.
     static std::optional<JPDriverConfig> fromJson(const JJson& j, std::string& error);

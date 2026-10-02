@@ -25,6 +25,9 @@
       <drivers class="java.util.ArrayList">
          <driver class="org.openpnp.machine.reference.driver.GcodeAsyncDriver" id="DRV1" name="Jaytek" communications="serial" timeout-milliseconds="30000" infinity-timeout-milliseconds="60000">
             <serial port-name="ttyACM0" baud="115200" flow-control="RtsCts"/>
+            <command type="HOME_COMMAND">
+               <text><![CDATA[M18 Z		; disable z motor	]]></text>
+            </command>
             <command head-mountable-id="ACT1" type="ACTUATE_BOOLEAN_COMMAND">
                <text><![CDATA[{True:M64}{False:M65} P{Index} ; solenoid]]></text>
             </command>
@@ -43,7 +46,7 @@
          </driver>
       </drivers>
       <heads class="java.util.ArrayList">
-         <head class="org.openpnp.machine.reference.ReferenceHead" id="H1" name="H1">
+         <head class="org.openpnp.machine.reference.ReferenceHead" id="H1" name="H1" visual-homing-method="ResetToFiducialLocation">
             <nozzles class="java.util.ArrayList">
                <nozzle class="org.openpnp.machine.reference.ReferenceNozzle" id="N1" name="RIGHT" axis-X-id="AX" axis-Z-id="AZR">
                   <head-offsets units="Millimeters" x="22.458" y="-61.815" z="0.5" rotation="0.0"/>

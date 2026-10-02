@@ -23,6 +23,7 @@ std::optional<JPDriverConfig> JPDriverConfig::fromJson(const JJson& j, std::stri
     c.commandTimeoutMs  = int(j["commandTimeoutMs"].number(c.commandTimeoutMs));
     c.identifyTimeoutMs = int(j["identifyTimeoutMs"].number(c.identifyTimeoutMs));
     c.homeTimeoutMs     = int(j["homeTimeoutMs"].number(c.homeTimeoutMs));
+    for (const auto& [name, tmpl] : j["commands"].obj()) c.commands[name] = tmpl.str();
     return c;
 }
 
@@ -36,6 +37,10 @@ JJson JPDriverConfig::toJson() const {
     j["commandTimeoutMs"]  = commandTimeoutMs;
     j["identifyTimeoutMs"] = identifyTimeoutMs;
     j["homeTimeoutMs"]     = homeTimeoutMs;
+    if (!commands.empty()) {
+        j["commands"] = JJson::object();
+        for (const auto& [name, tmpl] : commands) j["commands"][name] = tmpl;
+    }
     return j;
 }
 

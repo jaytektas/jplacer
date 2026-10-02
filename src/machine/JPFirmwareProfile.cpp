@@ -83,6 +83,12 @@ bool JPFirmwareProfile::load(const std::string& path, std::string& error) {
         m_statusPositionGroup = int(status["positionGroup"].number());
         m_positionsAsList     = status["positions"].str() != "pairs";
         if (!m_positionsAsList && !compile(status, "pair", m_positionPair, why)) return fail("status." + why);
+        m_statusFrameGroup   = int(status["frameGroup"].number());
+        m_statusMachineFrame = status["machineFrame"].str();
+        m_hasStatusOffset    = !status["offset"].str().empty();
+        if (m_hasStatusOffset && !compile(status, "offset", m_statusOffset, why)) return fail("status." + why);
+        m_idleState  = status["idleState"].str();
+        m_alarmState = status["alarmState"].str();
     }
 
     m_axisLetters.clear();
@@ -190,18 +196,15 @@ std::optional<JPFirmwareProfile::Status> JPFirmwareProfile::parseStatus(const st
     if (!std::regex_search(line, m, m_status)) return std::nullopt;
     Status st;
     if (m_statusStateGroup > 0 && size_t(m_statusStateGroup) < m.size()) st.state = m[m_statusStateGroup].str();
+    if (m_statusFrameGroup > 0 && size_t(m_statusFrameGroup) < m.size())
+        st.positionsAreWork = m[m_statusFrameGroup].str() != m_statusMachineFrame;
+    if (m_hasStatusOffset) {
+        std::smatch o;
+        if (std::regex_search(line, o, m_statusOffset) && o.size() > 1) st.offsets = byLetter(o[1].str());
+    }
     if (m_positionsAsList) {
         if (m_statusPositionGroup <= 0 || size_t(m_statusPositionGroup) >= m.size()) return st;
-        const std::string list = m[m_statusPositionGroup].str();
-        size_t start = 0;
-        for (size_t i = 0; i < m_axisLetters.size() && start <= list.size(); ++i) {
-            const size_t comma = list.find(',', start);
-            const std::string field = list.substr(start, comma == std::string::npos ? std::string::npos : comma - start);
-            if (field.empty()) break;
-            st.positions[m_axisLetters[i]] = std::strtod(field.c_str(), nullptr);
-            if (comma == std::string::npos) break;
-            start = comma + 1;
-        }
+        st.positions = byLetter(m[m_statusPositionGroup].str());
     } else {
         for (auto it = std::sregex_iterator(line.begin(), line.end(), m_positionPair); it != std::sregex_iterator(); ++it) {
             const std::string letter = (*it)[1].str();
@@ -210,6 +213,20 @@ std::optional<JPFirmwareProfile::Status> JPFirmwareProfile::parseStatus(const st
         }
     }
     return st;
+}
+
+std::map<std::string, double> JPFirmwareProfile::byLetter(const std::string& list) const {
+    std::map<std::string, double> out;
+    size_t start = 0;
+    for (size_t i = 0; i < m_axisLetters.size() && start <= list.size(); ++i) {
+        const size_t comma = list.find(',', start);
+        const std::string field = list.substr(start, comma == std::string::npos ? std::string::npos : comma - start);
+        if (field.empty()) break;
+        out[m_axisLetters[i]] = std::strtod(field.c_str(), nullptr);
+        if (comma == std::string::npos) break;
+        start = comma + 1;
+    }
+    return out;
 }
 
 std::string JPFirmwareProfile::fill(const std::string& tmpl, const std::map<std::string, std::string>& values) {

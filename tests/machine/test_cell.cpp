@@ -36,10 +36,14 @@ JPCellConfig cellConfig() {
                          "axisLetters": [ "X", "Y", "Z" ],
                          "replies": { "M1000 P1": "-31000" } } } } ],
       "heads": [ { "id": "H", "name": "Head" } ],
-      "axes": [ { "id": "X",  "name": "x",  "kind": "controller", "type": "x", "driver": "D", "letter": "X" },
-                { "id": "Z",  "name": "z",  "kind": "controller", "type": "z", "driver": "D", "letter": "Z" },
+      "axes": [ { "id": "X",  "name": "x",  "kind": "controller", "type": "x", "driver": "D", "letter": "X",
+                  "homeCoordinate": 390, "feedratePerSecond": 100,
+                  "softLimits": { "low": 0, "high": 400, "lowEnabled": true, "highEnabled": true } },
+                { "id": "Z",  "name": "z",  "kind": "controller", "type": "z", "driver": "D", "letter": "Z",
+                  "feedratePerSecond": 50 },
                 { "id": "ZR", "name": "zr", "kind": "mapped", "type": "z", "inputAxis": "Z",
                   "map": { "input0": -1, "output0": 1, "input1": 0, "output1": 0 } } ],
+      "nozzles": [ { "id": "N", "name": "Right", "mount": { "head": "H", "axisX": "X", "axisZ": "ZR" } } ],
       "actuators": [ { "id": "V", "name": "Vacuum", "driver": "D", "index": "1",
                        "onCommand": "M64 P{index}", "offCommand": "M65 P{index}",
                        "readCommand": "M1000 P{index}", "readPattern": "^(-?\\d+)$" } ]
@@ -95,8 +99,34 @@ int main() {
         cell.readActuator("V");
         assert(actuator.take() == std::make_pair(true, std::string("-31000")));
 
+        // Motion: refused until homed, then a tool jogs along its own axes.
+        Latch<std::pair<bool, std::string>> motion;
+        cell.onMotion.connect([&](bool ok, std::string why) { motion.set({ ok, why }); });
+        cell.jog("N", 1, 0, 0, 0, 0.5);
+        const auto [unhomedOk, unhomedWhy] = motion.take();
+        assert(!unhomedOk && unhomedWhy.find("not homed") != std::string::npos);
+
+        cell.home();
+        assert(motion.take().first && cell.isHomed());
+        auto settle = [&](const char* axis, double want) {
+            const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+            while (cell.positions()[axis] != want && std::chrono::steady_clock::now() < until)
+                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            return cell.positions()[axis] == want;
+        };
+        assert(settle("X", 390.0));                        // G92 made the home coordinate true
+
+        cell.jog("N", 5, 0, 0, 0, 0.5);
+        assert(motion.take().first && settle("X", 395.0));
+        cell.jog("N", 0, 0, 1.5, 0, 1.0);                  // the nozzle's Z is mapped: its input goes the other way
+        assert(motion.take().first && settle("ZR", 1.5) && settle("Z", -1.5));
+
+        cell.jog("N", 10, 0, 0, 0, 0.5);                   // 405 is past the soft limit
+        const auto [limitOk, limitWhy] = motion.take();
+        assert(!limitOk && limitWhy.find("soft limits") != std::string::npos && settle("X", 395.0));
+
         cell.disconnect();
-        assert(!connection.take().first);
+        assert(!connection.take().first && !cell.isHomed());
     }
     {
         // A controller on a link that does not exist: the cell says why.

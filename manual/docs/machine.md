@@ -85,19 +85,70 @@ configuration folder, is used as well, and replaces a bundled one with the same 
 
 <!-- src: src/machine/JPFirmwareProfile.h; src/machine/JPFirmwareProfile.cpp (profileDirs, loadAll) -->
 
-## The Machine panel
+## The machine's panels
 
-The Machine panel sits on the right of the window while a cell is open.
+While a cell is open, its panels sit in docks: **Machine**, **Jog** and **Actuators** on the right,
+**Console** and **Axes** along the bottom. Each is a dock like any other — drag its tab to another
+place, tear it out into a window of its own, or stack it with others.
 
-- **The top line** names the cell, says whether it is connected and, when it is, the firmware each
-  controller runs. **Connect** / **Disconnect** is beside it.
-- **Position** lists every axis and where it is, updated continuously from the controllers' position
-  reports while connected. An axis that follows another shows the position worked out from it.
-- **Actuators** lists each actuator with **On** and **Off** if it can be switched, and **Read** if a
-  value can be read from it. The result of the last action, or the reason it failed, is shown beside the
-  buttons.
-- **Console** shows everything sent to and received from the controllers, newest at the top (position
-  reports are left out). Type a line in the box below it and press **Send** or Return to send it as it
-  is. With more than one controller, choose which one from the list beside the box.
+<!-- src: src/app/JPlacerMachine.cpp (buildPanels) -->
 
-<!-- src: src/ui/JPMachinePanel.cpp; src/machine/JPGcodeDriver.cpp (status lines are not passed on as traffic) -->
+### Machine
+
+The top line names the cell and says whether it is connected and, when it is, the firmware each
+controller runs and whether the machine is homed. **Connect** / **Disconnect** and **Home** are beside
+it. Below are what each controller says it is doing (Idle, Run, Alarm…) and, for each controller on a
+serial port, the port list (see [Choosing the port](#choosing-the-port)).
+
+<!-- src: src/ui/JPMachinePanel.cpp -->
+
+### Homing
+
+**Home** (or **Machine ▸ Home All Axes**) sends each controller its home command and waits for it to
+finish, then tells the controller that every axis is at its home coordinate. Until the machine is homed
+it will not move: before that its position means nothing, so its soft limits cannot protect it. A
+machine imported from OpenPnP homes the way it did in OpenPnP, with the same command. OpenPnP may also
+have corrected the home position with a fiducial seen by the camera; jplacer does not do that yet, and
+the import says so — the head must then be at its home position when you home.
+
+While connected but not homed, an amber **NOT HOMED** strip runs across the top of the window; a red
+**ALARM** strip shows when a controller has stopped on an alarm.
+
+<!-- src: src/machine/JPCell.cpp (doHome); src/app/JPlacerMachine.cpp (showNotice); src/openpnp/JPOpenPnpMachineImporter.cpp (HOME_COMMAND, visual homing note) -->
+
+### Jog
+
+Moving a tool by hand. Choose the tool along the top — each nozzle, the camera on the head, and anything
+else on the head that moves on axes. Each of the tool's coordinates (X, Y, Z, Rotation) is a row:
+
+- the box shows where the tool is now; type a coordinate in it and press Return to go there;
+- **-** and **+** move it by one step.
+
+**Step** is in mm (degrees for Rotation); **Speed** is a share of the speed of the slowest axis that
+moves. A nozzle's Z is its own even where two nozzles share one motor: jplacer works out which way the
+motor turns. A move that would take an axis outside its soft limits is not made, and the panel says why.
+
+<!-- src: src/ui/JPJogPanel.cpp; src/machine/JPCell.cpp (jog, doMove) -->
+
+### Actuators
+
+Each actuator with **On** and **Off** if it can be switched, and **Read** if a value can be read from
+it. The result of the last action, or the reason it failed, is shown beside the buttons.
+
+<!-- src: src/ui/JPActuatorPanel.cpp -->
+
+### Console
+
+Everything sent to and received from the controllers, newest at the top (position reports are left
+out). Type a line in the box and press **Send** or Return to send it as it is. With more than one
+controller, choose which one from the list beside the box.
+
+<!-- src: src/ui/JPConsolePanel.cpp; src/machine/JPGcodeDriver.cpp (status lines are not passed on as traffic) -->
+
+### Axes
+
+Every axis in the cell — those a controller drives, those that follow another, and those with no
+hardware — and where each one is, live. For setting up and checking a machine; moving it is the Jog
+panel's.
+
+<!-- src: src/ui/JPAxesPanel.cpp -->

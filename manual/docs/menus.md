@@ -28,8 +28,9 @@ feature will live.
 | **Open Cell…** | Opens a cell file. |
 | **Connect** | Connects to the open cell's controllers. Available while a cell is open and not connected. |
 | **Disconnect** | Closes the connections. Available while connected. |
+| **Home All Axes** | Homes the machine (see [Homing](machine.md#homing)). Available while connected. |
 
-**Home All Axes**, **Park Head** and **Machine Setup…** are not yet available.
+**Park Head** and **Machine Setup…** are not yet available.
 
 <!-- src: src/app/JPlacerMenuBuilder.cpp (the Machine menu); src/app/JPlacerMachine.cpp (updateMenu) -->
 
