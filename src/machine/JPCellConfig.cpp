@@ -120,12 +120,17 @@ std::vector<std::string> JPCellConfig::problems() const {
         if ((a.canSwitch() || a.canRead()) && !driver(a.driverId))
             out.push_back("actuator " + a.name + " has commands but no controller to send them to");
     }
+    for (const JPHeadConfig& h : heads)
+        if (!h.pumpActuatorId.empty() && !actuatorIds.count(h.pumpActuatorId))
+            out.push_back("head " + h.name + " names a pump actuator that is not in this cell");
     std::set<std::string> tipIds;
     for (const JPNozzleTipConfig& t : nozzleTips) tipIds.insert(t.id);
     for (const JPNozzleConfig& n : nozzles) {
         checkMount("nozzle " + n.name, n.mount);
-        if (!n.vacuumActuatorId.empty() && !actuatorIds.count(n.vacuumActuatorId))
-            out.push_back("nozzle " + n.name + " names a vacuum actuator that is not in this cell");
+        for (const auto& [id, what] : { std::pair{ &n.vacuumActuatorId, "vacuum" }, std::pair{ &n.blowOffActuatorId, "blow-off" },
+                                        std::pair{ &n.vacuumSenseActuatorId, "vacuum sensing" } })
+            if (!id->empty() && !actuatorIds.count(*id))
+                out.push_back("nozzle " + n.name + " names a " + what + " actuator that is not in this cell");
         for (const std::string& t : n.tipIds)
             if (!tipIds.count(t)) out.push_back("nozzle " + n.name + " fits a nozzle tip that is not in this cell");
         if (!n.tipId.empty() && !n.fits(n.tipId))

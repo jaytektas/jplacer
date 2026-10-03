@@ -38,7 +38,7 @@ JPCellConfig cellConfig() {
                          "identity": [ "[VER:1.1f.20250101:]", "[FIRMWARE:grblHAL]" ],
                          "axisLetters": [ "X", "Y", "Z", "A" ],
                          "replies": { "M1000 P1": "-31000" } } } } ],
-      "heads": [ { "id": "H", "name": "Head" } ],
+      "heads": [ { "id": "H", "name": "Head", "pump": { "actuator": "P", "control": "PartOn", "onWaitMs": 0 } } ],
       "axes": [ { "id": "X",  "name": "x",  "kind": "controller", "type": "x", "driver": "D", "letter": "X",
                   "homeCoordinate": 390, "feedratePerSecond": 100,
                   "backlash": "oneSided", "backlashOffset": 0.1, "backlashSpeedFactor": 0.25,
@@ -49,10 +49,12 @@ JPCellConfig cellConfig() {
                   "feedratePerSecond": 360, "wrapAroundRotation": true, "limitRotation": true },
                 { "id": "ZR", "name": "zr", "kind": "mapped", "type": "z", "inputAxis": "Z",
                   "map": { "input0": -1, "output0": 1, "input1": 0, "output1": 0 } } ],
-      "nozzles": [ { "id": "N", "name": "Right", "mount": { "head": "H", "axisX": "X", "axisZ": "ZR" } } ],
+      "nozzles": [ { "id": "N", "name": "Right", "mount": { "head": "H", "axisX": "X", "axisZ": "ZR" }, "vacuumActuator": "V" } ],
       "actuators": [ { "id": "V", "name": "Vacuum", "driver": "D", "index": "1",
                        "onCommand": "M64 P{index}", "offCommand": "M65 P{index}",
-                       "readCommand": "M1000 P{index}", "readPattern": "^(-?\\d+)$" } ]
+                       "readCommand": "M1000 P{index}", "readPattern": "^(-?\\d+)$" },
+                     { "id": "P", "name": "Pump", "driver": "D", "index": "2",
+                       "onCommand": "M64 P{index}", "offCommand": "M65 P{index}" } ]
     })";
     JPCellConfig c;
     std::string error;
@@ -104,6 +106,26 @@ int main() {
         assert(actuator.take() == std::make_pair(true, std::string("on")));
         cell.readActuator("V");
         assert(actuator.take() == std::make_pair(true, std::string("-31000")));
+
+        // Pick and place: the head's pump comes on with the first part, then
+        // the vacuum; placing, the vacuum goes off, then the pump (PartOn).
+        {
+            std::mutex m;
+            std::vector<std::string> seen;
+            auto watch = cell.onActuator.connect([&](std::string id, bool ok, std::string v) {
+                std::lock_guard lk(m);
+                seen.push_back(id + (ok ? " " : " failed ") + v);
+            });
+            cell.pick("N");
+            cell.place("N");
+            const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+            auto count = [&] { std::lock_guard lk(m); return seen.size(); };
+            while (count() < 4 && std::chrono::steady_clock::now() < until)
+                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            std::lock_guard lk(m);
+            assert((seen == std::vector<std::string>{ "P on", "V on", "V off", "P off" }));
+            watch();
+        }
 
         // Motion: refused until homed, then a tool jogs along its own axes.
         Latch<std::pair<bool, std::string>> motion;

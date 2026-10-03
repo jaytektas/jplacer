@@ -22,7 +22,8 @@ inline namespace jf {
 // Moving a tool by hand. Choose the tool (a nozzle, a camera, anything on
 // the head with axes), and each of its coordinates is a row: where it is
 // now, a box to type where it should go (Return goes there), and − / + to
-// step it. Step and speed are chosen from rows that show their values.
+// step it. A nozzle with a vacuum has Pick and Place (JPCell::pick). Step
+// and speed are chosen from rows that show their values.
 //
 // Moves are in the TOOL's coordinates: a nozzle's Z is its own even where two
 // nozzles share one motor, and the cell works out which axes turn.

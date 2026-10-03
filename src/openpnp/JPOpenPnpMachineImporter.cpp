@@ -397,6 +397,8 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             t.id   = x.attr("id");
             t.name = x.attr("name");
             if (const JPXmlElement* cal = x.child("calibration")) t.diameter = lengthChild(*cal, "calibration-tip-diameter");
+            t.pickDwellMs = int(number(x.attr("pick-dwell-milliseconds")));
+            t.placeDwellMs = int(number(x.attr("place-dwell-milliseconds")));
             const struct { const char* place; const char* speed; const char* actuator; } changer[] = {
                 { "changer-start-location", nullptr, "changer-actuator-post-step-one" },
                 { "changer-mid-location", "changer-start-to-mid-speed", "changer-actuator-post-step-two" },
@@ -469,10 +471,19 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                     n.id    = x.attr("id");
                     n.name  = x.attr("name");
                     n.mount = mount(x, h.attr("id"));
-                    if (const JPXmlElement* v = x.child("vacuum-actuator-name")) {
-                        const auto it = actuatorIdByName.find(v->text);
-                        if (it != actuatorIdByName.end()) n.vacuumActuatorId = it->second;
-                    }
+                    // Its vacuum's actuators, named in OpenPnP; kept by id.
+                    auto actuator = [&](const char* child, std::string& id) {
+                        if (const JPXmlElement* v = x.child(child)) {
+                            const auto it = actuatorIdByName.find(v->text);
+                            if (it != actuatorIdByName.end()) id = it->second;
+                        }
+                    };
+                    actuator("vacuum-actuator-name", n.vacuumActuatorId);
+                    actuator("blow-off-actuator-name", n.blowOffActuatorId);
+                    actuator("vacuum-sense-actuator-name", n.vacuumSenseActuatorId);
+                    n.blowOffClosesVacuum = x.attr("blow-off-closing-valve") == "true";
+                    n.pickDwellMs = int(number(x.attr("pick-dwell-milliseconds")));
+                    n.placeDwellMs = int(number(x.attr("place-dwell-milliseconds")));
                     // OpenPnP keeps the ids of tips since deleted in a
                     // nozzle's list; only tips the machine has are kept.
                     if (const JPXmlElement* fit = x.child("compatible-nozzle-tip-ids"))

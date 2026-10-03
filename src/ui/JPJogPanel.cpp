@@ -108,6 +108,21 @@ void JPJogPanel::showTool(size_t index) {
         m_coordinates.push_back({ *axis, offset, field });
         m_coords->add(std::move(r));
     }
+    // A nozzle with a vacuum picks and places where it is, as in OpenPnP.
+    for (const JPNozzleConfig& n : m_cell.config().nozzles) {
+        if (n.id != m_tools[index].id || n.vacuumActuatorId.empty()) continue;
+        auto r = JPUiParts::row(graph);
+        r->add(std::make_unique<JLabel>(graph, "Vacuum", labelWidth()));
+        r->add(JPUiParts::button(graph, "Pick"))->onClicked.connect([this, id = n.id, name = n.name] {
+            JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Jog: pick with " << name;
+            m_cell.pick(id);
+        });
+        r->add(JPUiParts::button(graph, "Place"))->onClicked.connect([this, id = n.id, name = n.name] {
+            JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Jog: place with " << name;
+            m_cell.place(id);
+        });
+        m_coords->add(std::move(r));
+    }
     showPositions(m_cell.positions());
 }
 

@@ -221,7 +221,15 @@ else on the head that moves on axes. Each of the tool's coordinates (X, Y, Z, Ro
 moves. A nozzle's Z is its own even where two nozzles share one motor: jplacer works out which way the
 motor turns. A move that would take an axis outside its soft limits is not made, and the panel says why.
 
-<!-- src: src/ui/JPJogPanel.cpp; src/machine/JPCell.cpp (jog, doMove) -->
+A nozzle with a vacuum actuator has **Pick** and **Place**, used where the nozzle is (nothing moves):
+
+- **Pick**: the head's vacuum pump on, as its Pump Control says (waiting the pump-on time when it starts),
+  then the nozzle's vacuum on, then the pick dwell (the nozzle's and its tip's together).
+- **Place**: the vacuum off (unless the blow-off closes the valve itself), the blow-off on for the place
+  dwell and off again, and the pump off when its control is PartOn or TaskDuration and no other nozzle on
+  the head holds a part.
+
+<!-- src: src/ui/JPJogPanel.cpp; src/machine/JPCell.cpp (jog, doMove, doPick, doPlace) -->
 
 ### Actuators
 

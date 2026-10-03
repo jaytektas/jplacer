@@ -145,6 +145,9 @@ notes.
 - An axis's Resolution (Steps / mm) rounds every move to a whole step; a rotation axis can be limited to
   -180..180 and turn the short way round; acceleration and jerk can be sent with each move. As in
   OpenPnP, and brought in from it.
+- A nozzle with a vacuum has Pick and Place on the Jog panel, as in OpenPnP: the head's pump as its Pump
+  Control says, the vacuum, the blow-off and the dwell times. Machine Setup has the nozzle's Vacuum tab,
+  its and its tip's dwell times, and the head's Pump; all brought in from OpenPnP.
 
 ## 0.1.0
 

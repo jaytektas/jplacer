@@ -12,6 +12,7 @@
 #include <cstdio>
 #include <future>
 #include <regex>
+#include <thread>
 
 inline namespace jf {
 
@@ -135,6 +136,8 @@ std::string JPCell::format(double v, int decimals) {
 
 void JPCell::doDisconnect() {
     m_homed = false;
+    m_pumpOn.clear();
+    m_holding.clear();
     if (m_connected) JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_config.name << ": disconnected";
     for (const auto& d : m_drivers) d->disconnect();
     m_connected = false;
@@ -258,6 +261,74 @@ bool JPCell::switchActuatorAndWait(const std::string& actuatorId, bool on, std::
     const auto [ok, w] = result.get();
     why = w;
     return ok;
+}
+
+void JPCell::pick(const std::string& nozzleId) {
+    m_thread.post([this, nozzleId] {
+        std::string why;
+        for (const JPNozzleConfig& n : m_config.nozzles)
+            if (n.id == nozzleId && !doPick(n, why)) onAlarm.emit(n.name + ": pick failed (" + why + ")");
+    });
+}
+
+void JPCell::place(const std::string& nozzleId) {
+    m_thread.post([this, nozzleId] {
+        std::string why;
+        for (const JPNozzleConfig& n : m_config.nozzles)
+            if (n.id == nozzleId && !doPlace(n, why)) onAlarm.emit(n.name + ": place failed (" + why + ")");
+    });
+}
+
+bool JPCell::switchTelling(const std::string& actuatorId, bool on, std::string& why) {
+    const bool ok = doSwitch(actuatorId, on, why);
+    onActuator.emit(actuatorId, ok, ok ? (on ? "on" : "off") : why);
+    return ok;
+}
+
+bool JPCell::doPick(const JPNozzleConfig& n, std::string& why) {
+    if (!m_connected) { why = "not connected"; return false; }
+    if (n.vacuumActuatorId.empty()) { why = "it has no vacuum actuator"; return false; }
+    const JPHeadConfig* head = nullptr;
+    for (const JPHeadConfig& h : m_config.heads) if (h.id == n.mount.headId) head = &h;
+    // The pump: with PartOn it runs while any of the head's nozzles holds a
+    // part; with TaskDuration or KeepRunning it is started once and left.
+    if (head && !head->pumpActuatorId.empty() && head->pumpControl != "None" && !m_pumpOn.count(head->id)) {
+        if (!switchTelling(head->pumpActuatorId, true, why)) return false;
+        m_pumpOn.insert(head->id);
+        std::this_thread::sleep_for(std::chrono::milliseconds(head->pumpOnWaitMs));
+    }
+    if (!switchTelling(n.vacuumActuatorId, true, why)) return false;
+    m_holding.insert(n.id);
+    int dwell = n.pickDwellMs;
+    for (const JPNozzleTipConfig& t : m_config.nozzleTips) if (t.id == n.tipId) dwell += t.pickDwellMs;
+    std::this_thread::sleep_for(std::chrono::milliseconds(dwell));
+    return true;
+}
+
+bool JPCell::doPlace(const JPNozzleConfig& n, std::string& why) {
+    if (!m_connected) { why = "not connected"; return false; }
+    if (n.vacuumActuatorId.empty()) { why = "it has no vacuum actuator"; return false; }
+    int dwell = n.placeDwellMs;
+    for (const JPNozzleTipConfig& t : m_config.nozzleTips) if (t.id == n.tipId) dwell += t.placeDwellMs;
+    const bool blow = !n.blowOffActuatorId.empty();
+    if (!(blow && n.blowOffClosesVacuum) && !switchTelling(n.vacuumActuatorId, false, why)) return false;
+    if (blow && !switchTelling(n.blowOffActuatorId, true, why)) return false;
+    std::this_thread::sleep_for(std::chrono::milliseconds(dwell));
+    if (blow && !switchTelling(n.blowOffActuatorId, false, why)) return false;
+    m_holding.erase(n.id);
+    // The pump goes off with the last part on its head, when it runs for parts (or a task).
+    const JPHeadConfig* head = nullptr;
+    for (const JPHeadConfig& h : m_config.heads) if (h.id == n.mount.headId) head = &h;
+    if (head && m_pumpOn.count(head->id) && (head->pumpControl == "PartOn" || head->pumpControl == "TaskDuration")) {
+        bool holding = false;
+        for (const JPNozzleConfig& other : m_config.nozzles)
+            if (other.mount.headId == head->id && m_holding.count(other.id)) holding = true;
+        if (!holding) {
+            if (!switchTelling(head->pumpActuatorId, false, why)) return false;
+            m_pumpOn.erase(head->id);
+        }
+    }
+    return true;
 }
 
 bool JPCell::doSwitch(const std::string& actuatorId, bool on, std::string& why) {

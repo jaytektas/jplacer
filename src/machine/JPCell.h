@@ -16,6 +16,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -61,6 +62,14 @@ public:
     // thread of its own. False with `why`.
     bool switchActuatorAndWait(const std::string& actuatorId, bool on, std::string& why);
     void readActuator(const std::string& actuatorId);
+    // Pick with a nozzle where it is: its head's vacuum pump on as the head's
+    // pump control says (waiting the pump-on time when it starts), its vacuum
+    // on, then the nozzle's and its tip's pick dwell. Place: its vacuum off
+    // (unless its blow-off closes the valve itself), the blow-off pulsed for
+    // the place dwell, and the pump off when its control says so. Each
+    // actuator switched is reported on onActuator; nothing moves.
+    void pick(const std::string& nozzleId);
+    void place(const std::string& nozzleId);
 
     // HOMING: each controller's home command, then the axes are told where
     // they now are (their home coordinates) and the cell is homed. Until it
@@ -159,6 +168,10 @@ private:
     bool doPark(const std::string& headId, double speed, std::string& why);
     bool doSafeZ(const std::string& headId, double speed, std::string& why);
     bool doSwitch(const std::string& actuatorId, bool on, std::string& why);
+    bool doPick(const JPNozzleConfig& nozzle, std::string& why);
+    bool doPlace(const JPNozzleConfig& nozzle, std::string& why);
+    // Switch, and say so on onActuator.
+    bool switchTelling(const std::string& actuatorId, bool on, std::string& why);
     bool doCorrectPosition(const std::map<std::string, double>& by, std::string& why);
     // Square coordinates of controller axes to the axes' own (JPSquarenessConfig):
     // the X axis takes the lean for the Y it will be at, so a target for
@@ -173,6 +186,8 @@ private:
     std::atomic<bool>                           m_homed{ false };
     std::atomic<bool>                           m_homing{ false };
     std::atomic<bool>                           m_moving{ false };
+    // On the cell thread: the heads whose pump is on, the nozzles holding a part.
+    std::set<std::string>                       m_pumpOn, m_holding;
 
     mutable std::mutex                 m_mutex;   // guards the members below
     std::map<std::string, double>      m_positions;

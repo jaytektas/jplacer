@@ -29,6 +29,9 @@ struct JPNozzleTipConfig {
     std::vector<JPChangerStep> loadSteps;
     bool                       unloadReversesLoad = true;
     std::vector<JPChangerStep> unloadSteps;   // when it does not
+    // Waited after a pick or place with this tip, on top of the nozzle's own.
+    int                        pickDwellMs = 0;
+    int                        placeDwellMs = 0;
 
     // The steps that unload it: its own, or loading backwards. Backwards,
     // each move goes to the place the one before it went to, at the speed

@@ -10,9 +10,9 @@
 
 inline namespace jf {
 
-// A nozzle: where it rides, the actuator that switches and senses its vacuum
-// (empty when it has none), the nozzle tips that fit it and the one on it now
-// (empty: none, or not known).
+// A nozzle: where it rides, the actuators of its vacuum (empty when it has
+// none), how long a pick and a place wait, the nozzle tips that fit it and the
+// one on it now (empty: none, or not known).
 struct JPNozzleConfig {
     std::string              id;
     std::string              name;
@@ -20,6 +20,16 @@ struct JPNozzleConfig {
     std::string              vacuumActuatorId;
     std::vector<std::string> tipIds;
     std::string              tipId;
+    // A place blows the part off: this actuator, pulsed for the place dwell;
+    // when it closes the vacuum valve itself, the vacuum is not switched off
+    // first.
+    std::string              blowOffActuatorId;
+    bool                     blowOffClosesVacuum = false;
+    // Reads the vacuum level (to tell a part is on); empty: the vacuum actuator's own read.
+    std::string              vacuumSenseActuatorId;
+    // Waited after the vacuum is on (pick) or off (place), with the tip's own.
+    int                      pickDwellMs = 0;
+    int                      placeDwellMs = 0;
 
     bool fits(const std::string& nozzleTipId) const {
         for (const std::string& t : tipIds) if (t == nozzleTipId) return true;
@@ -30,6 +40,11 @@ struct JPNozzleConfig {
         JPNozzleConfig n{ j["id"].str(), j["name"].str(), JPMountConfig::fromJson(j["mount"]), j["vacuumActuator"].str(), {},
                           j["tip"].str() };
         for (const JJson& t : j["tips"].arr()) n.tipIds.push_back(t.str());
+        n.blowOffActuatorId     = j["blowOffActuator"].str();
+        n.blowOffClosesVacuum   = j["blowOffClosesVacuum"].boolean();
+        n.vacuumSenseActuatorId = j["vacuumSenseActuator"].str();
+        n.pickDwellMs           = int(j["pickDwellMs"].number());
+        n.placeDwellMs          = int(j["placeDwellMs"].number());
         return n;
     }
     JJson toJson() const {
@@ -42,6 +57,11 @@ struct JPNozzleConfig {
         for (const std::string& t : tipIds) tips.push(JJson(t));
         j["tips"]           = tips;
         j["tip"]            = tipId;
+        if (!blowOffActuatorId.empty()) j["blowOffActuator"] = blowOffActuatorId;
+        if (blowOffClosesVacuum) j["blowOffClosesVacuum"] = true;
+        if (!vacuumSenseActuatorId.empty()) j["vacuumSenseActuator"] = vacuumSenseActuatorId;
+        if (pickDwellMs) j["pickDwellMs"] = pickDwellMs;
+        if (placeDwellMs) j["placeDwellMs"] = placeDwellMs;
         return j;
     }
 };

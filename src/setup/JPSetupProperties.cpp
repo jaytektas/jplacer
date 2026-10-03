@@ -516,6 +516,15 @@ void headForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
                  "every place captured since is off by as much.");
     }
     place("park", "Park Location", [h]() -> std::optional<JPLocation>& { return h().park; }, false);
+
+    add.group("Pump");
+    add.byName("pumpActuator", "Vacuum Pump Actuator", named(cell.actuators, "(none)"), [h]() -> std::string& { return h().pumpActuatorId; });
+    add.choice("pumpControl", "Pump Control", { "None", "PartOn", "TaskDuration", "KeepRunning" },
+               [h] { return h().pumpControl.empty() ? std::string("None") : h().pumpControl; },
+               [h](const std::string& v) { h().pumpControl = v; });
+    add.integer("pumpOnWaitMs", "Pump On Wait [ms]", [h]() -> int& { return h().pumpOnWaitMs; }, 0, 600000);
+    add.note("PartOn: on while a nozzle holds a part. TaskDuration: on for the work, off with the last part. "
+             "KeepRunning: once on, left on.");
 }
 
 void nozzleForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f) {
@@ -526,6 +535,10 @@ void nozzleForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     add.group("Properties");
     add.text("name", "Name", [n]() -> std::string& { return n().name; }, "name");
     coordinateSystem<JPNozzleConfig>(add, cell, n, "(none)", false, f);
+    add.group("Settings");
+    add.integer("pickDwellMs", "Pick Dwell Time (ms)", [n]() -> int& { return n().pickDwellMs; }, 0, 60000);
+    add.integer("placeDwellMs", "Place Dwell Time (ms)", [n]() -> int& { return n().placeDwellMs; }, 0, 60000);
+    add.note("The total dwell is the nozzle's and its tip's together.");
 
     // Every tip: whether it fits this nozzle, and which one is on it now.
     add.tab("Nozzle Tips");
@@ -558,6 +571,17 @@ void nozzleForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     }
     if (cell.nozzleTips.empty()) add.note("No nozzle tips yet: add them under Nozzle Tips.");
     add.note("Loaded? says which tip is on the nozzle now; ticking it moves nothing.");
+
+    add.tab("Vacuum");
+    add.group("Vacuum");
+    const Named actuators = named(cell.actuators, "(none)");
+    add.byName("vacuumActuator", "Vacuum Actuator", actuators, [n]() -> std::string& { return n().vacuumActuatorId; });
+    add.row("Blow Off Actuator");
+    add.byName("blowOffActuator", "Blow Off Actuator", actuators, [n]() -> std::string& { return n().blowOffActuatorId; });
+    add.flag("blowOffClosesVacuum", "Closes Vacuum Actuator?", [n]() -> bool& { return n().blowOffClosesVacuum; });
+    add.end();
+    add.byName("vacuumSenseActuator", "Sensing Actuator", actuators, [n]() -> std::string& { return n().vacuumSenseActuatorId; });
+    add.note("Pick switches the vacuum on; Place switches it off, then pulses the blow-off for the place dwell (Jog panel).");
 }
 
 void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f) {
@@ -567,6 +591,10 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
     add.tab("Configuration");
     add.group("Properties");
     add.text("name", "Name", [t]() -> std::string& { return t().name; }, "name");
+    add.group("Pick & Place");
+    add.integer("pickDwellMs", "Pick Dwell Time (ms)", [t]() -> int& { return t().pickDwellMs; }, 0, 60000);
+    add.integer("placeDwellMs", "Place Dwell Time (ms)", [t]() -> int& { return t().placeDwellMs; }, 0, 60000);
+    add.note("Added to the nozzle's own dwell.");
     add.group("Part Dimensions");
     add.number("diameter", "Diameter Seen From Below", [t]() -> double& { return t().diameter; });
     add.group("Nozzles");
