@@ -72,6 +72,13 @@ public:
     // on onAlarm; nothing moves.
     void pick(const std::string& nozzleId);
     void place(const std::string& nozzleId);
+    // Every Z on `headId` into its safe zone (OpenPnP's Head Safe Z). Refused
+    // while a move is under way.
+    void safeZ(const std::string& headId, double speed);
+    // Drop what `nozzleId` holds at the machine's discard location: up to
+    // safe Z, across, down to its Z, then a place. Refused while a move is
+    // under way; nothing happens when no discard location is set.
+    void discard(const std::string& nozzleId, double speed);
 
     // HOMING: each controller's home command, then the axes are told where
     // they now are (their home coordinates) and the cell is homed. Until it

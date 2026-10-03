@@ -32,6 +32,14 @@ public:
     // Go to a place with the camera / the nozzle (an arrow to it).
     static void moveCamera(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
     static void moveNozzle(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
+    // Jogging: an arrow each way; a turn anticlockwise and clockwise; a house (home).
+    static void arrowUp(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
+    static void arrowDown(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
+    static void arrowLeft(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
+    static void arrowRight(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
+    static void rotateAnticlockwise(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
+    static void rotateClockwise(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
+    static void home(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
 };
 
 } // inline namespace jf

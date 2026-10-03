@@ -3,157 +3,320 @@
 
 #include "JPJogPanel.h"
 
+#include "JPIconButton.h"
+#include "JPIcons.h"
 #include "JPUiParts.h"
 
 #include "common/JPlacerLog.h"
 
+#include <j/core/JButton.h>
 #include <j/core/JScrollArea.h>
 #include <j/core/JStyle.h>
 #include <j/core/JTextHelper.h>
 #include <j/core/Log.h>
 
 #include <algorithm>
-#include <cstdlib>
+#include <cmath>
 #include <tuple>
 
 inline namespace jf {
 
 namespace {
 
-// What a step and a speed can be. Steps are mm, or degrees on a rotation;
-// speeds are shares of the slowest moving axis's rate.
-const std::vector<double>      kSteps      = { 0.01, 0.1, 1, 10, 100 };
-const std::vector<std::string> kStepLabels = { "0.01", "0.1", "1", "10", "100" };
-constexpr int                  kStepFirst  = 2;
-const std::vector<double>      kSpeeds      = { 0.1, 0.25, 0.5, 1.0 };
-const std::vector<std::string> kSpeedLabels = { "10%", "25%", "50%", "100%" };
-constexpr int                  kSpeedFirst  = 1;
+// How far a press moves, as OpenPnP offers: mm, or degrees turning.
+const std::vector<double>      kDistances      = { 0.01, 0.1, 1, 10, 25, 50, 100 };
+const std::vector<std::string> kDistanceLabels = { "0.01", "0.1", "1", "10", "25", "50", "100" };
+// The slowest a jog goes: a speed slid to nothing still moves.
+constexpr double kLeastSpeed = 0.01;
+
+std::string percent(double share) {
+    return std::to_string(int(std::lround(share * 100))) + "%";
+}
 
 } // namespace
 
-JPJogPanel::JPJogPanel(JSceneGraph& graph, JPCell& cell)
-    : JContainer(graph), m_cell(cell) {
+JPJogPanel::JPJogPanel(JSceneGraph& graph, JPCell& cell, Choices start) : JContainer(graph), m_cell(cell) {
     JPUiParts::asPanel(*this);
     const JPCellConfig& c = cell.config();
     auto hasAxes = [](const JPMountConfig& m) {
         return !m.axisX.empty() || !m.axisY.empty() || !m.axisZ.empty() || !m.axisRotation.empty();
     };
-    for (const JPNozzleConfig& n : c.nozzles)     if (hasAxes(n.mount)) m_tools.push_back({ n.id, n.name, &n.mount });
-    for (const JPCameraConfig& m : c.cameras)     if (hasAxes(m.mount)) m_tools.push_back({ m.id, m.name, &m.mount });
-    for (const JPActuatorConfig& a : c.actuators) if (hasAxes(a.mount)) m_tools.push_back({ a.id, a.name, &a.mount });
+    auto headName = [&c](const JPMountConfig& m) {
+        for (const JPHeadConfig& h : c.heads) if (h.id == m.headId) return " (Head: " + h.name + ")";
+        return std::string();
+    };
+    // Named as OpenPnP names them: what it is, its name (a nozzle's tip), its head.
+    for (const JPNozzleConfig& n : c.nozzles) {
+        if (!hasAxes(n.mount)) continue;
+        std::string tip;
+        for (const JPNozzleTipConfig& t : c.nozzleTips) if (t.id == n.tipId) tip = " - " + t.name;
+        m_tools.push_back({ n.id, "Nozzle: " + n.name + tip + headName(n.mount), &n.mount, true, false });
+    }
+    for (const JPCameraConfig& m : c.cameras)
+        if (hasAxes(m.mount)) m_tools.push_back({ m.id, "Camera: " + m.name + headName(m.mount), &m.mount, false, true });
+    for (const JPActuatorConfig& a : c.actuators)
+        if (hasAxes(a.mount)) m_tools.push_back({ a.id, "Actuator: " + a.name + headName(a.mount), &a.mount, false, false });
 
     if (m_tools.empty()) {
         add(std::make_unique<JLabel>(graph, "Nothing in this cell moves on axes."));
         return;
     }
+    for (size_t i = 0; i < m_tools.size(); ++i) {
+        if (m_tools[i].id == start.tool) m_tool = i;
+        if (m_tools[i].nozzle && (m_tools[m_lastNozzle].nozzle == false || m_tools[i].id == start.tool)) m_lastNozzle = i;
+    }
 
-    // Its rows in a scroll area, which stacks them: a short dock scrolls
-    // rather than cutting the last rows off.
-    JScrollArea* scroll = add(std::make_unique<JScrollArea>(graph));
-    scroll->setVSizePolicy(JSizePolicyMode::Expanding, 1);
-    std::vector<std::string> names;
-    for (const Tool& t : m_tools) names.push_back(t.name);
-    JPChoiceRow* tools = scroll->addChildWidget(std::make_unique<JPChoiceRow>(graph, names, 0));
-    tools->onChosen.connect([this](int i) { showTool(size_t(i)); });
+    std::vector<std::string> labels;
+    for (const Tool& t : m_tools) labels.push_back(t.label);
+    JComboBox* tools = add(std::make_unique<JComboBox>(graph, labels, 0.f));
+    tools->setCurrentIndex(int(m_tool));
+    tools->onIndexChanged.connect([this](int i) {
+        if (i < 0 || size_t(i) >= m_tools.size()) return;
+        m_tool = size_t(i);
+        if (m_tools[m_tool].nozzle) m_lastNozzle = m_tool;
+        if (onChoicesChanged) onChoicesChanged();
+    });
 
-    m_coords = scroll->addChildWidget(std::make_unique<JContainer>(graph));
-    m_coords->setDirection(JFlexDirection::Column)->setGap(JStyle::current().spacing)->setAlignItems(JAlignItems::Stretch);
-    m_coords->setVSizePolicy(JSizePolicyMode::Fixed);
+    m_tabs = add(std::make_unique<JTabWidget>(graph, 0.f, 0.f));
+    m_tabs->setVSizePolicy(JSizePolicyMode::Expanding, 1);
+    m_pages.push_back(jogPage());
+    m_tabs->addTab("Jog", m_pages.back().get());
+    m_pages.push_back(specialPage());
+    m_tabs->addTab("Special", m_pages.back().get());
 
-    auto stepRow = JPUiParts::row(graph);
-    stepRow->add(std::make_unique<JLabel>(graph, "Step", labelWidth()));
-    m_step = stepRow->add(std::make_unique<JPChoiceRow>(graph, kStepLabels, kStepFirst));
-    scroll->addChildWidget(std::move(stepRow));
-    auto speedRow = JPUiParts::row(graph);
-    speedRow->add(std::make_unique<JLabel>(graph, "Speed", labelWidth()));
-    m_speed = speedRow->add(std::make_unique<JPChoiceRow>(graph, kSpeedLabels, kSpeedFirst));
-    scroll->addChildWidget(std::move(speedRow));
+    m_distance->choose(std::clamp(start.distance, 0, int(kDistances.size()) - 1));
+    m_speed->setValue(float(std::clamp(start.speed, 0.0, 1.0)));
+    m_speedLabel->setText(percent(speed()));
 
-    m_note = scroll->addChildWidget(std::make_unique<JLabel>(graph, ""));
+    m_note = add(std::make_unique<JLabel>(graph, ""));
     m_note->setWordWrap(true);
-    m_note->setVSizePolicy(JSizePolicyMode::Fixed);
-    m_note->setSize(0.f, 2 * JStyle::current().labelHeight);   // a line or two
-
-    m_watch.on(cell.onPositions, [this](std::map<std::string, double> p) { showPositions(p); });
     m_watch.on(cell.onMotion, [this](bool ok, std::string why) { m_note->setText(ok ? std::string() : why); });
     m_watch.on(cell.onHomed, [this](bool homed) {
         m_note->setText(homed ? std::string() : "Home the machine to move it.");
     });
-    showTool(0);
     if (!cell.isHomed()) m_note->setText("Home the machine to move it.");
 }
 
-void JPJogPanel::showTool(size_t index) {
-    if (index >= m_tools.size()) return;
-    m_tool = index;
-    m_coords->clear();
-    m_coordinates.clear();
-    JSceneGraph& graph = m_graph;
-    const JPMountConfig& m = *m_tools[index].mount;
-    // The tool's own coordinates: where its axes are, plus its offset on the head.
-    const std::tuple<const char*, const std::string*, double> axes[] = {
-        { "X", &m.axisX, m.offsetX }, { "Y", &m.axisY, m.offsetY }, { "Z", &m.axisZ, m.offsetZ },
-        { "Rotation", &m.axisRotation, 0.0 } };
-    for (const auto& [label, axis, offset] : axes) {
-        if (axis->empty()) continue;
-        const int i = int(m_coordinates.size());
-        auto r = JPUiParts::row(graph);
-        r->add(std::make_unique<JLabel>(graph, label, labelWidth()));
-        JLineEdit* field = r->add(std::make_unique<JLineEdit>(graph));
-        field->setHSizePolicy(JSizePolicyMode::Expanding, 1);
-        field->onReturnPressed.connect([this, i] {
-            const Coordinate& co = m_coordinates[size_t(i)];
-            const std::string text = co.field->text();
-            char* end = nullptr;
-            const double target = std::strtod(text.c_str(), &end);
-            if (text.empty() || end == text.c_str()) return;
-            JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Jog: " << m_tools[m_tool].name << " " << co.axisId << " to " << target;
-            co.field->setText("");
-            m_cell.moveAxes({ { co.axisId, target - co.offset } }, speed());
-        });
-        r->add(JPUiParts::button(graph, "-"))->onClicked.connect([this, i] { step(i, -1); });
-        r->add(JPUiParts::button(graph, "+"))->onClicked.connect([this, i] { step(i, +1); });
-        m_coordinates.push_back({ *axis, offset, field });
-        m_coords->add(std::move(r));
-    }
-    // A nozzle with a vacuum picks and places where it is, as in OpenPnP.
-    for (const JPNozzleConfig& n : m_cell.config().nozzles) {
-        if (n.id != m_tools[index].id || n.vacuumActuatorId.empty()) continue;
-        auto r = JPUiParts::row(graph);
-        r->add(std::make_unique<JLabel>(graph, "Vacuum", labelWidth()));
-        r->add(JPUiParts::button(graph, "Pick"))->onClicked.connect([this, id = n.id, name = n.name] {
-            JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Jog: pick with " << name;
-            m_cell.pick(id);
-        });
-        r->add(JPUiParts::button(graph, "Place"))->onClicked.connect([this, id = n.id, name = n.name] {
-            JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Jog: place with " << name;
-            m_cell.place(id);
-        });
-        m_coords->add(std::move(r));
-    }
-    // As tall as its rows: the scroll area stacks it by its height.
-    const float rowH = std::max(JStyle::current().buttonHeight, JStyle::current().controlHeight);
-    const size_t rows = m_coords->children().size();
-    m_coords->setSize(m_graph.getLayoutConst(m_coords->getNodeId()).boundingBox.width,
-                      rows == 0 ? 0.f : rows * rowH + (rows - 1) * JStyle::current().spacing);
-    showPositions(m_cell.positions());
+float JPJogPanel::padSize() {
+    return 1.5f * JStyle::current().buttonHeight;
 }
 
-void JPJogPanel::showPositions(const std::map<std::string, double>& positions) {
-    // The box shows where the coordinate is now until something is typed in it.
-    for (const Coordinate& co : m_coordinates)
-        if (const auto p = positions.find(co.axisId); p != positions.end())
-            co.field->setPlaceholderText(JPUiParts::coordinate(p->second + co.offset));
+std::unique_ptr<JWidget> JPJogPanel::pad(const char* name, void (*glyph)(JVectorCanvas&, float, float, float, const JColor&),
+                                         const std::string& tooltip, const std::string& action) {
+    auto b = std::make_unique<JPIconButton>(m_graph, name, glyph, tooltip);
+    b->setFramed(true);
+    b->setFixedSize(padSize(), padSize());
+    b->onClicked.connect([this, action] { act(action); });
+    return b;
 }
 
-void JPJogPanel::step(int coordinate, double direction) {
-    const Coordinate& co = m_coordinates[size_t(coordinate)];
-    const auto now = m_cell.jogBase();
-    const auto p = now.find(co.axisId);
-    if (p == now.end()) return;
-    JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Jog: " << m_tools[m_tool].name << " " << co.axisId << " by "
-                                            << direction * stepSize();
-    m_cell.moveAxes({ { co.axisId, p->second + direction * stepSize() } }, speed());
+std::unique_ptr<JWidget> JPJogPanel::parkButton(const std::string& tooltip, const std::string& action) {
+    auto b = JPUiParts::button(m_graph, "P");
+    b->setFixedSize(padSize(), padSize());
+    b->setTooltip(tooltip);
+    b->onClicked.connect([this, action] { act(action); });
+    return b;
+}
+
+std::unique_ptr<JWidget> JPJogPanel::gap() {
+    auto g = std::make_unique<JContainer>(m_graph, padSize(), padSize());
+    g->setFixedSize(padSize(), padSize());
+    return g;
+}
+
+std::unique_ptr<JWidget> JPJogPanel::jogPage() {
+    const JStyle& st = JStyle::current();
+    JSceneGraph& g = m_graph;
+    // Rows of fixed height, stacked by a scroll area: a short dock scrolls
+    // rather than cutting the last rows off.
+    auto page = std::make_unique<JScrollArea>(g, 0.f, 0.f);
+    auto row = [&](float h) {
+        auto r = std::make_unique<JContainer>(g, 0.f, h);
+        r->setDirection(JFlexDirection::JRow)->setGap(st.spacing)->setAlignItems(JAlignItems::Center);
+        r->setVSizePolicy(JSizePolicyMode::Fixed);
+        r->setFixedSize(0.f, h);
+        r->setHSizePolicy(JSizePolicyMode::Expanding, 1);
+        return r;
+    };
+    auto title = [&](const std::string& text, float h) {
+        auto box = std::make_unique<JContainer>(g, padSize(), h);
+        box->setFixedSize(padSize(), h);
+        box->setDirection(JFlexDirection::JRow)->setAlignItems(JAlignItems::Center);
+        g.getLayout(box->getNodeId()).justifyContent = JJustifyContent::Center;
+        auto l = std::make_unique<JLabel>(g, text, 0.f, st.labelHeight);
+        l->setFixedSize(std::ceil(JTextHelper::measureWidth(text)) + st.spacing, st.labelHeight);
+        box->add(std::move(l));
+        return box;
+    };
+    using I = JPIcons;
+    // OpenPnP's pad, in six columns: Home and C | the X/Y cross | Z | the position buttons.
+    auto heads = row(st.labelHeight);
+    heads->add(title("", st.labelHeight)); heads->add(title("", st.labelHeight)); heads->add(title("X/Y", st.labelHeight));
+    heads->add(title("", st.labelHeight)); heads->add(title("Z", st.labelHeight));
+    page->addChildWidget(std::move(heads));
+    auto top = row(padSize());
+    top->add(pad("Home", &I::home, "Home all axes (Ctrl+H)", "home"));
+    top->add(gap());
+    top->add(pad("Y+", &I::arrowUp, "Y+ (Ctrl+Up)", "y+"));
+    top->add(gap());
+    top->add(pad("Z+", &I::arrowUp, "Z+ (Ctrl+')", "z+"));
+    top->add(pad("Position Nozzle", &I::moveNozzle, "Put the nozzle where the camera is looking", "positionNozzle"));
+    page->addChildWidget(std::move(top));
+    auto middle = row(padSize());
+    middle->add(gap());
+    middle->add(pad("X-", &I::arrowLeft, "X- (Ctrl+Left)", "x-"));
+    middle->add(parkButton("Park the head (Ctrl+Shift+P)", "parkXY"));
+    middle->add(pad("X+", &I::arrowRight, "X+ (Ctrl+Right)", "x+"));
+    middle->add(parkButton("Up to safe Z (Ctrl+Shift+L)", "parkZ"));
+    middle->add(pad("Position Camera", &I::moveCamera, "Put the camera over the nozzle", "positionCamera"));
+    page->addChildWidget(std::move(middle));
+    auto bottom = row(padSize());
+    bottom->add(gap());
+    bottom->add(gap());
+    bottom->add(pad("Y-", &I::arrowDown, "Y- (Ctrl+Down)", "y-"));
+    bottom->add(gap());
+    bottom->add(pad("Z-", &I::arrowDown, "Z- (Ctrl+/)", "z-"));
+    page->addChildWidget(std::move(bottom));
+    auto turn = row(padSize());
+    turn->add(title("C", padSize()));
+    turn->add(pad("C+", &I::rotateAnticlockwise, "Turn anticlockwise (Ctrl+,)", "c+"));
+    turn->add(parkButton("Turn to 0", "parkC"));
+    turn->add(pad("C-", &I::rotateClockwise, "Turn clockwise (Ctrl+.)", "c-"));
+    page->addChildWidget(std::move(turn));
+
+    // Distance and speed, under the pad.
+    const float rowH = std::max(st.buttonHeight, st.controlHeight);
+    page->addChildWidget(std::make_unique<JLabel>(g, "Distance [mm/deg]  (Ctrl+- / Ctrl+=)", 0.f, st.labelHeight));
+    auto distance = row(rowH);
+    m_distance = distance->add(std::make_unique<JPChoiceRow>(g, kDistanceLabels, kDistanceFirst));
+    m_distance->onChosen.connect([this](int) {
+        if (onChoicesChanged) onChoicesChanged();
+    });
+    page->addChildWidget(std::move(distance));
+    auto speedRow = row(rowH);
+    speedRow->add(std::make_unique<JLabel>(g, "Speed [%]"));
+    m_speed = speedRow->add(std::make_unique<JSlider>(g, 0.f, 0.f));
+    m_speed->setFixedSize(4 * padSize(), st.sliderHeight);
+    m_speedLabel = speedRow->add(std::make_unique<JLabel>(g, "100%"));
+    m_speedLabel->setMinWidthFollowsText(true);
+    m_speed->onValueChanged.connect([this](float) {
+        m_speedLabel->setText(percent(speed()));
+        if (onChoicesChanged) onChoicesChanged();
+    });
+    page->addChildWidget(std::move(speedRow));
+    return page;
+}
+
+std::unique_ptr<JWidget> JPJogPanel::specialPage() {
+    const JStyle& st = JStyle::current();
+    auto page = std::make_unique<JContainer>(m_graph, 0.f, 0.f);
+    page->setDirection(JFlexDirection::Column)->setGap(st.spacing)->setAlignItems(JAlignItems::Start)
+        ->setPadding(JEdges(st.spacing));
+    auto buttons = JPUiParts::row(m_graph);
+    struct B { const char* label; const char* action; const char* tip; };
+    for (const B& b : { B{ "Head Safe Z", "safeZ", "Every Z on the head up to safe Z (Ctrl+Shift+Z)" },
+                        B{ "Discard", "discard", "Drop the nozzle's part at the discard location (Ctrl+Shift+D)" },
+                        B{ "Pick", "pick", "Vacuum on where the nozzle is, as a pick does" },
+                        B{ "Place", "place", "Vacuum off and blow off where the nozzle is, as a place does" } }) {
+        JButton* button = buttons->add(JPUiParts::button(m_graph, b.label));
+        button->setTooltip(b.tip);
+        button->onClicked.connect([this, action = std::string(b.action)] { act(action); });
+    }
+    page->add(std::move(buttons));
+    return page;
+}
+
+double JPJogPanel::distance() const { return kDistances[size_t(m_distance->chosen())]; }
+double JPJogPanel::speed() const    { return std::max(kLeastSpeed, double(m_speed->getValue())); }
+
+JPJogPanel::Choices JPJogPanel::choices() const {
+    if (m_tools.empty()) return {};
+    return { m_tools[m_tool].id, m_distance->chosen(), double(m_speed->getValue()) };
+}
+
+const std::string& JPJogPanel::toolId() const {
+    static const std::string none;
+    return m_tools.empty() ? none : m_tools[m_tool].id;
+}
+
+const JPJogPanel::Tool* JPJogPanel::nozzle() const {
+    if (m_tools.empty()) return nullptr;
+    if (m_tools[m_tool].nozzle) return &m_tools[m_tool];
+    return m_tools[m_lastNozzle].nozzle ? &m_tools[m_lastNozzle] : nullptr;
+}
+
+const JPJogPanel::Tool* JPJogPanel::camera() const {
+    for (const Tool& t : m_tools)
+        if (t.camera && t.mount->headId == (nozzle() ? nozzle()->mount->headId : t.mount->headId)) return &t;
+    return nullptr;
+}
+
+void JPJogPanel::jog(double dx, double dy, double dz, double dc) {
+    if (m_tools.empty()) return;
+    const double d = distance();
+    JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Jog: " << m_tools[m_tool].label << " by " << dx * d << ", " << dy * d << ", "
+                                            << dz * d << ", " << dc * d;
+    m_cell.jog(m_tools[m_tool].id, dx * d, dy * d, dz * d, dc * d, speed());
+}
+
+void JPJogPanel::moveTo(const Tool& tool, const Tool& over) {
+    // Where `over` is now (its axes and its offset), for `tool` to go to.
+    const auto p = m_cell.jogBase();
+    const JPMountConfig& m = *over.mount;
+    const auto px = p.find(m.axisX), py = p.find(m.axisY);
+    if (px == p.end() || py == p.end()) {
+        m_note->setText(over.label + " has no X and Y position yet.");
+        return;
+    }
+    JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Jog: " << tool.label << " to where " << over.label << " is";
+    m_cell.moveTool(*tool.mount, { px->second + m.offsetX, py->second + m.offsetY, std::nullopt, std::nullopt }, speed());
+}
+
+bool JPJogPanel::act(const std::string& action) {
+    if (m_tools.empty()) return false;
+    const Tool& t = m_tools[m_tool];
+    const std::string& head = t.mount->headId;
+    if (action == "x+") jog(1, 0, 0, 0);
+    else if (action == "x-") jog(-1, 0, 0, 0);
+    else if (action == "y+") jog(0, 1, 0, 0);
+    else if (action == "y-") jog(0, -1, 0, 0);
+    else if (action == "z+") jog(0, 0, 1, 0);
+    else if (action == "z-") jog(0, 0, -1, 0);
+    else if (action == "c+") jog(0, 0, 0, 1);
+    else if (action == "c-") jog(0, 0, 0, -1);
+    else if (action == "home") m_cell.home();
+    else if (action == "parkXY") m_cell.park(head, speed());
+    else if (action == "parkZ" || action == "safeZ") m_cell.safeZ(head, speed());
+    else if (action == "parkC") {
+        if (!t.mount->axisRotation.empty()) m_cell.moveAxes({ { t.mount->axisRotation, 0.0 } }, speed());
+    } else if (action == "positionNozzle" || action == "positionCamera") {
+        const Tool* n = nozzle();
+        const Tool* c = camera();
+        if (!n || !c) {
+            m_note->setText("There needs to be a nozzle and a camera on its head.");
+            return true;
+        }
+        if (action == "positionNozzle") moveTo(*n, *c);
+        else moveTo(*c, *n);
+    } else if (action == "discard" || action == "pick" || action == "place") {
+        const Tool* n = nozzle();
+        if (!n) {
+            m_note->setText("Choose a nozzle.");
+            return true;
+        }
+        if (action == "discard") m_cell.discard(n->id, speed());
+        else if (action == "pick") m_cell.pick(n->id);
+        else m_cell.place(n->id);
+    } else if (action == "distance+" || action == "distance-") {
+        const int i = m_distance->chosen() + (action == "distance+" ? 1 : -1);
+        if (i >= 0 && i < int(kDistances.size())) {
+            m_distance->choose(i);
+            if (onChoicesChanged) onChoicesChanged();
+        }
+    } else {
+        return false;
+    }
+    return true;
 }
 
 std::vector<std::pair<std::string, double>> JPJogPanel::where() const {
@@ -168,22 +331,6 @@ std::vector<std::pair<std::string, double>> JPJogPanel::where() const {
         if (const auto p = positions.find(*axis); !axis->empty() && p != positions.end())
             out.emplace_back(name, p->second + offset);
     return out;
-}
-
-// One width for every label in the panel, so fields and buttons line up: the
-// widest label's text and a gap.
-float JPJogPanel::labelWidth() {
-    float w = 0;
-    for (const char* l : { "X", "Y", "Z", "Rotation", "Step", "Speed" }) w = std::max(w, JTextHelper::measureWidth(l));
-    return w + 2 * JStyle::current().spacing;
-}
-
-double JPJogPanel::stepSize() const { return kSteps[size_t(m_step->chosen())]; }
-double JPJogPanel::speed() const    { return kSpeeds[size_t(m_speed->chosen())]; }
-
-const std::string& JPJogPanel::toolId() const {
-    static const std::string none;
-    return m_tools.empty() ? none : m_tools[m_tool].id;
 }
 
 } // inline namespace jf

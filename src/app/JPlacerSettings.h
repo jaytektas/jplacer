@@ -34,6 +34,10 @@ public:
     static constexpr const char* kUiScale          = "ui.scale";
     // Machine Setup's divider: the tree's share of the room over the settings.
     static constexpr const char* kSetupTreeShare   = "setup.treeShare";
+    // The Jog panel's choices: the tool, the distance (its index) and the speed (a share).
+    static constexpr const char* kJogTool          = "jog.tool";
+    static constexpr const char* kJogDistance      = "jog.distance";
+    static constexpr const char* kJogSpeed         = "jog.speed";
     // The cell file (cells/<name>.json) opened last; opened again at start.
     static constexpr const char* kMachineCell      = "machine.cell";
     // The board on the machine: its pick-and-place file, the side up

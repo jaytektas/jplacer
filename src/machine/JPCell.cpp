@@ -290,6 +290,45 @@ void JPCell::place(const std::string& nozzleId) {
     });
 }
 
+void JPCell::safeZ(const std::string& headId, double speed) {
+    if (m_moving.exchange(true)) return;
+    m_thread.post([this, headId, speed] {
+        std::string why;
+        bool ok = false;
+        if (!m_connected || !m_homed) why = "not homed: home the machine first";
+        else ok = doSafeZ(headId, speed, why);
+        m_moving = false;
+        onMotion.emit(ok, why);
+    });
+}
+
+void JPCell::discard(const std::string& nozzleId, double speed) {
+    if (m_moving.exchange(true)) return;
+    m_thread.post([this, nozzleId, speed] {
+        std::string why = "no nozzle " + nozzleId;
+        bool ok = false;
+        for (const JPNozzleConfig& n : m_config.nozzles) {
+            if (n.id != nozzleId) continue;
+            if (!m_config.discardLocation) {
+                why = "no discard location is set (Machine Setup, Machine)";
+                break;
+            }
+            // Up, across, down to it, the part let go, and up again.
+            const JPLocation& at = *m_config.discardLocation;
+            const JPMountConfig& m = n.mount;
+            std::map<std::string, double> across;
+            if (!m.axisX.empty()) across[m.axisX] = at.x - m.offsetX;
+            if (!m.axisY.empty()) across[m.axisY] = at.y - m.offsetY;
+            why.clear();
+            ok = doSafeZ(m.headId, speed, why) && doMove(across, speed, why)
+              && (m.axisZ.empty() || doMove({ { m.axisZ, at.z - m.offsetZ } }, speed, why)) && doPlace(n, why)
+              && doSafeZ(m.headId, speed, why);
+        }
+        m_moving = false;
+        onMotion.emit(ok, why);
+    });
+}
+
 bool JPCell::switchTelling(const std::string& actuatorId, bool on, std::string& why) {
     const bool ok = doSwitch(actuatorId, on, why);
     onActuator.emit(actuatorId, ok, ok ? (on ? "on" : "off") : why);

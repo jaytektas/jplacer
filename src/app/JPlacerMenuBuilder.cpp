@@ -37,6 +37,18 @@ JMenu* newMenu(JAppWindow& window, const std::string& title) {
     return m;
 }
 
+// An entry with a key: the menu shows the key, and the key does what the
+// entry does, unless the entry is disabled (a menu's shortcut is only its
+// label until it is registered with the menu manager).
+JMenuItem* withKey(JMenu* menu, JSceneGraph& graph, const std::string& label, JMenuShortcut key, std::function<void()> run) {
+    JMenuItem* item = menu->add(graph, label, key);
+    item->onTriggered.connect(run);
+    JMenuManager::instance().registerShortcut(key, [item] {
+        if (item->isEnabled()) item->onTriggered.emit();
+    });
+    return item;
+}
+
 // Entries for features that are not built yet: shown, so the shape of the
 // application is visible, and disabled (see JPlacerMenuBuilder.h).
 void addPending(JMenu* menu, JSceneGraph& graph, std::initializer_list<const char*> labels) {
@@ -53,10 +65,9 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
 
     JMenu* edit = newMenu(window, "Edit");
     using K = JKeyEvent::JKey;
-    JMenuItem* undo = edit->add(graph, "Undo", JMenuShortcut{ K::Z, true, false, false });
-    JMenuItem* redo = edit->add(graph, "Redo", JMenuShortcut{ K::Z, true, false, true });
-    undo->onTriggered.connect([&app] { app.machine().undo(); });
-    redo->onTriggered.connect([&app] { app.machine().redo(); });
+    // Ctrl+Y redoes: Ctrl+Shift+Z is OpenPnP's Head Safe Z (Machine > Jog).
+    JMenuItem* undo = withKey(edit, graph, "Undo", JMenuShortcut{ K::Z, true, false, false }, [&app] { app.machine().undo(); });
+    JMenuItem* redo = withKey(edit, graph, "Redo", JMenuShortcut{ K::Y, true, false, false }, [&app] { app.machine().redo(); });
     app.machine().setEditItems(undo, redo);
     edit->addSeparator(graph);
     edit->add(graph, "Preferences\xE2\x80\xA6")->onTriggered.connect([&app] { app.openPreferences(); });
@@ -73,11 +84,28 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
     connect->onTriggered.connect([&app] { app.machine().connect(); });
     disconnect->onTriggered.connect([&app] { app.machine().disconnect(); });
     machine->addSeparator(graph);
-    JMenuItem* home = machine->add(graph, "Home All Axes");
-    home->onTriggered.connect([&app] { app.machine().home(); });
+    JMenuItem* home = withKey(machine, graph, "Home All Axes", JMenuShortcut{ JKeyEvent::JKey::H, true, false, false },
+                              [&app] { app.machine().home(); });
     JMenuItem* park = machine->add(graph, "Park Head");
     park->onTriggered.connect([&app] { app.machine().park(); });
     app.machine().setMenuItems(connect, disconnect, home, park);
+    // Jogging from the keyboard, with OpenPnP's keys (the Jog panel's buttons).
+    menuStore().push_back(std::make_unique<JMenu>("Jog"));
+    JMenu* jog = menuStore().back().get();
+    machine->add(graph, "Jog", {}, jog);
+    auto key = [](uint32_t k, bool shift = false) { return JMenuShortcut{ static_cast<K>(k), true, false, shift }; };
+    struct J { const char* label; JMenuShortcut key; const char* action; };
+    const J jogs[] = {
+        { "X+", key(uint32_t(K::Right)), "x+" }, { "X-", key(uint32_t(K::Left)), "x-" },
+        { "Y+", key(uint32_t(K::Up)), "y+" },    { "Y-", key(uint32_t(K::Down)), "y-" },
+        { "Z+", key('\''), "z+" },              { "Z-", key('/'), "z-" },
+        { "Turn Anticlockwise", key(','), "c+" }, { "Turn Clockwise", key('.'), "c-" },
+        { "Larger Distance", key('='), "distance+" }, { "Smaller Distance", key('-'), "distance-" },
+        { "Park Head", key('P', true), "parkXY" }, { "Up to Safe Z", key('L', true), "parkZ" },
+        { "Head Safe Z", key('Z', true), "safeZ" }, { "Discard", key('D', true), "discard" },
+    };
+    for (const J& j : jogs)
+        withKey(jog, graph, j.label, j.key, [&app, action = std::string(j.action)] { app.machine().jogAction(action); });
     machine->addSeparator(graph);
     machine->add(graph, "Machine Setup\xE2\x80\xA6")->onTriggered.connect([&app] { app.machine().showDock("Machine Setup"); });
 

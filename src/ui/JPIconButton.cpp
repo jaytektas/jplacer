@@ -52,8 +52,10 @@ void JPIconButton::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     const uint8_t* fill = m_checked                           ? st.Accent
                         : state == JWidgetState::Pressed      ? st.Surface3
                         : state == JWidgetState::Hovered      ? st.Surface2
-                                                              : nullptr;   // flat at rest
+                                                              : m_framed ? st.Surface1 : nullptr;   // flat at rest
     if (fill) vg.fillRoundedRect(b.x, b.y, b.width, b.height, s * kRoundShare, JPaint::solid(colour(fill)));
+    if (m_framed)
+        vg.strokeRoundedRect(b.x, b.y, b.width, b.height, s * kRoundShare, st.borderWidth, JPaint::solid(colour(st.Border)));
     const JColor ink = !enabled ? colour(st.MutedText) : m_checked ? colour(st.HighlightedText) : colour(st.TextPrimary);
     m_glyph(vg, b.x + b.width * 0.5f, b.y + b.height * 0.5f, s * kGlyphShare, ink);
     vg.flush(buf);

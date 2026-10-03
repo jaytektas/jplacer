@@ -175,6 +175,19 @@ int main() {
         assert(motion.take().first && settle("C", 170.0));
         cell.moveAxes({ { "C", -170 } }, 1.0);
         assert(motion.take().first && settle("C", -170.0));
+        // Discard: up, across to the discard location, down, the part let go
+        // (its check passes: nothing was set for part off), and up again.
+        {
+            JPCellConfig next = cell.config();
+            next.discardLocation = JPLocation{ 20, 0, -1, 0 };
+            std::string why;
+            assert(cell.reconfigure(next, why));
+            cell.discard("N", 1.0);
+            const auto [ok, whyNot] = motion.take();
+            assert(ok && settle("X", 20.0));
+            cell.moveAxes({ { "X", 395.0 } }, 1.0);   // where the tests after expect it
+            assert(motion.take().first && settle("X", 395.0));
+        }
 
         // A step from where the axis was sent, not from where it reports: back
         // to 390 exactly, the limit itself, even when the report is 389.999.

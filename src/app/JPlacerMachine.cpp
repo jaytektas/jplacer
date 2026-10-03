@@ -173,8 +173,22 @@ void JPlacerMachine::buildPanels(Keep keep) {
         std::unique_ptr<JContainer> panel;
     };
     std::vector<Panel> panels;
-    auto jog = std::make_unique<JPJogPanel>(m_graph, *m_cell);
+    // The jog choices of last time.
+    JPJogPanel::Choices choices;
+    JSettings& settings = JSettings::instance();
+    choices.tool = settings.get<std::string>(JPlacerSettings::kJogTool, "");
+    choices.distance = settings.get<int>(JPlacerSettings::kJogDistance, JPJogPanel::kDistanceFirst);
+    choices.speed = settings.get<double>(JPlacerSettings::kJogSpeed, JPJogPanel::kSpeedFirst);
+    auto jog = std::make_unique<JPJogPanel>(m_graph, *m_cell, choices);
     m_jog = jog.get();
+    jog->onChoicesChanged = [this] {
+        if (!m_jog) return;
+        const JPJogPanel::Choices c = m_jog->choices();
+        JSettings::instance().set(JPlacerSettings::kJogTool, c.tool);
+        JSettings::instance().set(JPlacerSettings::kJogDistance, c.distance);
+        JSettings::instance().set(JPlacerSettings::kJogSpeed, c.speed);
+        JPlacerSettings::save();
+    };
     panels.push_back({ "Jog",       Home::Controls, std::move(jog) });
     panels.push_back({ "Actuators", Home::Controls, std::make_unique<JPActuatorPanel>(m_graph, *m_cell) });
     if (cameras) {
@@ -577,6 +591,10 @@ void JPlacerMachine::updateEditItems() {
         m_redoItem->setEnabled(m_setup && m_setup->canRedo());
         m_redoItem->setLabel(m_setup ? m_setup->redoLabel() : "Redo");
     }
+}
+
+void JPlacerMachine::jogAction(const std::string& action) {
+    if (m_jog) m_jog->act(action);
 }
 
 void JPlacerMachine::undo() {

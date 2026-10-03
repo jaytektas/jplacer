@@ -49,6 +49,8 @@ public:
     void setEditItems(JMenuItem* undo, JMenuItem* redo);
     void undo();
     void redo();
+    // A Jog panel action (JPJogPanel::act), from Machine > Jog's keys.
+    void jogAction(const std::string& action);
 
     void chooseCell();          // Machine > Open Cell…
     // Machine > Import OpenPnP Machine…: offers OpenPnP's usual machine.xml

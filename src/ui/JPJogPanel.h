@@ -8,28 +8,52 @@
 
 #include "machine/JPCell.h"
 
+#include <j/core/JComboBox.h>
 #include <j/core/JContainer.h>
 #include <j/core/JLabel.h>
-#include <j/core/JLineEdit.h>
+#include <j/core/JSlider.h>
+#include <j/core/JTabWidget.h>
 
-#include <map>
+#include <functional>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
 inline namespace jf {
 
-// Moving a tool by hand. Choose the tool (a nozzle, a camera, anything on
-// the head with axes), and each of its coordinates is a row: where it is
-// now, a box to type where it should go (Return goes there), and − / + to
-// step it. A nozzle with a vacuum has Pick and Place (JPCell::pick). Step
-// and speed are chosen from rows that show their values.
+// Moving the machine by hand, as OpenPnP's Machine Controls do. The tool is
+// chosen at the top (a nozzle, a camera, anything on the head with axes).
+//
+//  - Jog: Home; an X / Y pad of arrows with Park (the head to its park
+//    place) in its middle; Z up and down with Park (to safe Z) between;
+//    the rotation either way with Park (to 0) between; buttons to put the
+//    nozzle where the camera is looking and the camera over the nozzle; the
+//    distance a press moves (mm, or degrees turning) and the speed (a share
+//    of the slowest moving axis's rate).
+//  - Special: Head Safe Z, Discard (the part to the discard location), and
+//    Pick and Place where the nozzle is.
 //
 // Moves are in the TOOL's coordinates: a nozzle's Z is its own even where two
-// nozzles share one motor, and the cell works out which axes turn.
+// nozzles share one motor, and the cell works out which axes turn. Every
+// button is also an action (act()), which Machine > Jog gives a key.
 class JPJogPanel : public JContainer {
 public:
-    JPJogPanel(JSceneGraph& graph, JPCell& cell);
+    static constexpr int    kDistanceFirst = 2;      // 1 mm
+    static constexpr double kSpeedFirst    = 0.25;
+    // What was chosen: the tool (its id), the distance (its index in the
+    // row of distances) and the speed (a share of top speed).
+    struct Choices {
+        std::string tool;
+        int         distance = kDistanceFirst;
+        double      speed    = kSpeedFirst;
+    };
+
+    JPJogPanel(JSceneGraph& graph, JPCell& cell, Choices start);
+
+    Choices choices() const;
+    // A choice changed (to keep it for next time).
+    std::function<void()> onChoicesChanged;
 
     // The chosen tool's coordinates now, by name (X, Y, Z, C): where its
     // axes are plus its offset on the head.
@@ -38,30 +62,44 @@ public:
     const std::string& toolId() const;
     double speed() const;
 
+    // An action, as its button does: "x+", "x-", "y+", "y-", "z+", "z-",
+    // "c+", "c-", "parkXY", "parkZ", "parkC", "home", "safeZ", "discard",
+    // "pick", "place", "positionNozzle", "positionCamera", "distance+",
+    // "distance-". False when there is no such action.
+    bool act(const std::string& action);
+
 private:
     struct Tool {
-        std::string id, name;
+        std::string id, label;
         const JPMountConfig* mount;
-    };
-    struct Coordinate {
-        std::string axisId;
-        double      offset;   // the tool's offset on the head along it: tool = axis + offset
-        JLineEdit*  field;
+        bool nozzle, camera;
     };
 
-    void showTool(size_t index);
-    void showPositions(const std::map<std::string, double>& positions);
-    void step(int coordinate, double direction);
-    double stepSize() const;
-    static float labelWidth();
+    std::unique_ptr<JWidget> jogPage();
+    std::unique_ptr<JWidget> specialPage();
+    // A square pad button showing `glyph` that does `action`.
+    std::unique_ptr<JWidget> pad(const char* name, void (*glyph)(JVectorCanvas&, float, float, float, const JColor&),
+                                 const std::string& tooltip, const std::string& action);
+    std::unique_ptr<JWidget> parkButton(const std::string& tooltip, const std::string& action);
+    std::unique_ptr<JWidget> gap();
+    static float padSize();
+    void jog(double dx, double dy, double dz, double dc);
+    void moveTo(const Tool& tool, const Tool& over);
+    // The nozzle the position buttons use: the chosen tool when it is one,
+    // else the nozzle chosen last (else the first).
+    const Tool* nozzle() const;
+    const Tool* camera() const;
+    double distance() const;
 
     JPCell&                 m_cell;
     std::vector<Tool>       m_tools;
     size_t                  m_tool = 0;
-    JContainer*             m_coords = nullptr;
-    std::vector<Coordinate> m_coordinates;
-    JPChoiceRow*            m_step  = nullptr;
-    JPChoiceRow*            m_speed = nullptr;
+    size_t                  m_lastNozzle = 0;
+    JTabWidget*             m_tabs = nullptr;
+    std::vector<std::unique_ptr<JWidget>> m_pages;
+    JPChoiceRow*            m_distance = nullptr;
+    JSlider*                m_speed = nullptr;
+    JLabel*                 m_speedLabel = nullptr;
     JLabel*                 m_note  = nullptr;
     JPCellWatch             m_watch;
 };

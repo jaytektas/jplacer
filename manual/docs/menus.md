@@ -19,7 +19,7 @@ feature will live.
 | Entry | |
 |---|---|
 | **Undo** (Ctrl+Z) | Takes back the last change in Machine Setup; it says which ([Undo and Redo](machine-setup.md#undo-and-redo)). |
-| **Redo** (Ctrl+Shift+Z) | Makes the change undone again. |
+| **Redo** (Ctrl+Y) | Makes the change undone again. |
 | **Preferences…** | Opens [Preferences](preferences.md). |
 
 ## View
@@ -38,8 +38,9 @@ A tick for each panel: each camera, **Jog**, **Actuators**, **Board**, **Machine
 | **Open Cell…** | Opens a cell file. |
 | **Connect** | Connects to the open cell's controllers. Available while a cell is open and not connected. |
 | **Disconnect** | Closes the connections. Available while connected. |
-| **Home All Axes** | Homes the machine (see [Homing](machine.md#homing)). Available while connected. |
+| **Home All Axes** (Ctrl+H) | Homes the machine (see [Homing](machine.md#homing)). Available while connected. |
 | **Park Head** | Takes the head out of the way (see [Parking](machine.md#parking)). Available once homed. |
+| **Jog** | The [Jog panel](machine.md#jog)'s moves, with OpenPnP's keys: **X+** / **X-** (Ctrl+Right / Ctrl+Left), **Y+** / **Y-** (Ctrl+Up / Ctrl+Down), **Z+** / **Z-** (Ctrl+' / Ctrl+/), **Turn Anticlockwise** / **Turn Clockwise** (Ctrl+, / Ctrl+.), **Larger** / **Smaller Distance** (Ctrl+= / Ctrl+-), **Park Head** (Ctrl+Shift+P), **Up to Safe Z** (Ctrl+Shift+L), **Head Safe Z** (Ctrl+Shift+Z), **Discard** (Ctrl+Shift+D). A key is not taken from a text field that uses it. |
 | **Machine Setup…** | Shows [Machine Setup](machine-setup.md), to look at and change what the machine is made of. |
 
 <!-- src: src/app/JPlacerMenuBuilder.cpp (the Machine menu); src/app/JPlacerMachine.cpp (updateMenu) -->

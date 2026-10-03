@@ -150,7 +150,6 @@ notes.
   its and its tip's dwell times, and the head's Pump; all brought in from OpenPnP.
 - An actuator can be switched on or off by itself once the machine is connected, once it is homed, and
   before you disconnect (a pump off as the machine is let go), as in OpenPnP and brought in from it.
-- The Jog panel scrolls when its dock is short, instead of cutting off its last rows.
 - A camera's Device Settings show its own properties (exposure, white balance, focus, gain and the rest)
   as OpenPnP does: set to a value or automatic when the camera opens, or left as the camera has them.
   Zoom is now brought in from OpenPnP too.
@@ -168,6 +167,11 @@ notes.
 - Importing an OpenPnP machine again keeps each nozzle tip's loading and unloading steps, which tip is
   on each nozzle, and each camera's straightened-picture setting, as set here, and takes OpenPnP's new serial settings while
   keeping the port chosen here.
+- The Jog panel is laid out as OpenPnP's: Home, an X/Y arrow pad with Park, Z and C with Park, put the
+  nozzle where the camera looks and the camera over the nozzle, Distance and Speed; a Special tab with
+  Head Safe Z, Discard, Pick and Place. Each has OpenPnP's key (Machine ▸ Jog); the choices are kept for
+  next time, and the panel scrolls when its dock is short.
+- Menu keys work: Edit ▸ Undo (Ctrl+Z) and Redo (now Ctrl+Y), Home All Axes (Ctrl+H).
 
 ## 0.1.0
 

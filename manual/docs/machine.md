@@ -212,19 +212,29 @@ and speed OpenPnP measured, whichever way OpenPnP compensated.
 
 ### Jog
 
-Moving a tool by hand. Choose the tool along the top — each nozzle, the camera on the head, and anything
-else on the head that moves on axes. Each of the tool's coordinates (X, Y, Z, Rotation) is a row:
+Moving the machine by hand, laid out as OpenPnP's Machine Controls. Choose the tool at the top: each
+nozzle (with the tip on it), the camera on the head, and anything else on the head that moves on axes.
 
-- the box shows where the tool is now, in its own coordinates (where its axes are, plus its offset on
-  the head, so a nozzle's X is where the nozzle is, not where the head is); type a coordinate in it and
-  press Return to take the tool there;
-- **-** and **+** move it by one step.
+**Jog** tab:
 
-**Step** is in mm (degrees for Rotation); **Speed** is a share of the speed of the slowest axis that
-moves. A nozzle's Z is its own even where two nozzles share one motor: jplacer works out which way the
-motor turns. A move that would take an axis outside its soft limits is not made, and the panel says why.
+- **Home** (the house): homes the machine.
+- **X/Y**: the arrows move the tool by the distance; **P** in the middle parks the head.
+- **Z**: up and down by the distance; **P** between takes the head up to safe Z.
+- **C**: turns the tool either way by the distance (in degrees); **P** between turns it to 0.
+- Beside Z: put the nozzle where the camera is looking, and put the camera over the nozzle (the nozzle
+  chosen, or the one chosen last when the camera is chosen). Both go up to safe Z first.
+- **Distance** [mm, or degrees turning]: 0.01, 0.1, 1, 10, 25, 50 or 100 a press.
+- **Speed**: a share of the speed of the slowest axis that moves.
 
-A nozzle with a vacuum actuator has **Pick** and **Place**, used where the nozzle is (nothing moves):
+**Special** tab: **Head Safe Z** (every Z on the head up to safe Z), **Discard** (the nozzle's part to the
+discard location: up, across, down, let go, up again), and **Pick** and **Place** where the nozzle is.
+
+Every button has a key, the same as OpenPnP's (Machine ▸ Jog lists them). The tool, distance and speed
+are kept for next time. A nozzle's Z is its own even where two nozzles share one motor: jplacer works
+out which way the motor turns. A move that would take an axis outside its soft limits is not made, and
+the panel says why.
+
+A nozzle with a vacuum actuator picks and places where it is (nothing moves):
 
 - **Pick**: the head's vacuum pump on, as its Pump Control says (waiting the pump-on time when it starts),
   then the nozzle's vacuum on, then the pick dwell (the nozzle's and its tip's together).
@@ -236,7 +246,7 @@ With the tip's Part Detection set, Pick checks a part is on (the vacuum read aft
 checks it is off (the valve opened for the probing time, closed for the dwell, then read); a check that
 fails is shown in the strip across the window, with the reading.
 
-<!-- src: src/ui/JPJogPanel.cpp; src/machine/JPCell.cpp (jog, doMove, doPick, doPlace, sensed) -->
+<!-- src: src/ui/JPJogPanel.cpp; src/app/JPlacerMenuBuilder.cpp (Jog); src/app/JPlacerSettings.h (kJogTool); src/machine/JPCell.cpp (jog, doMove, park, safeZ, discard, doPick, doPlace, sensed) -->
 
 ### Actuators
 

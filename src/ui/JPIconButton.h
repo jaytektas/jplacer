@@ -25,6 +25,9 @@ public:
     static float size();
 
     void setCheckable(bool on) { m_checkable = on; }
+    // Drawn as a button at rest too (a surface and an edge), for a pad of
+    // controls rather than a panel's tools.
+    void setFramed(bool on) { m_framed = on; }
     void setChecked(bool on);
     bool isChecked() const { return m_checked; }
     jf::JSignal<bool> onToggled;   // a checkable one clicked: on or off now
@@ -34,6 +37,7 @@ public:
 private:
     Glyph m_glyph;
     bool  m_checkable = false;
+    bool  m_framed    = false;
     bool  m_checked = false;
 };
 
