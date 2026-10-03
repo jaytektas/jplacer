@@ -105,6 +105,8 @@ notes.
 - A nozzle tip's changer is taught as steps (moves, safe Z, actuators, waits, a message to you), edited
   in Machine Setup under the tip; unloading is loading run backwards, or steps of its own. Importing an
   OpenPnP machine brings each tip's tool changer as steps.
+- Preferences has an Appearance section: a dark or light theme (or as the desktop is set) and the
+  interface scale, how big the whole interface is.
 
 ## 0.1.0
 

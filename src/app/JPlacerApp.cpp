@@ -6,6 +6,7 @@
 #include "JPlacerLauncher.h"
 #include "common/JPlacerLog.h"
 #include "JPlacerMenuBuilder.h"
+#include "JPlacerAppearance.h"
 #include "JPlacerPreferencesDialog.h"
 #include "JPlacerSettings.h"
 
@@ -40,6 +41,7 @@ JPlacerApp::JPlacerApp(std::string settingsPath) {
         JLOGC(JPlacerLog::kApp, JLogLevel::Error) << "window / GPU HAL init failed";
         return;
     }
+    JPlacerAppearance::applySaved(*m_window);   // before anything is laid out
 
     m_updater = std::make_unique<JAppUpdater>(
         *m_window, JAppUpdater::JConfig{ "jplacer", JPLACER_VERSION, kReleasesApi, kUpdateUrlEnv,
@@ -85,7 +87,8 @@ int JPlacerApp::run() {
 }
 
 void JPlacerApp::openPreferences() {
-    m_window->openModal<JPlacerPreferencesDialog>([this] { m_updater->check(true); });
+    m_window->openModal<JPlacerPreferencesDialog>([this] { m_updater->check(true); },
+                                                  [this](double scale) { JPlacerAppearance::applyScale(*m_window, scale); });
 }
 
 void JPlacerApp::showAbout() {

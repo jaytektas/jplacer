@@ -5,6 +5,7 @@
 
 #include <j/app/JDialogWindow.h>
 #include <j/core/JCheckBox.h>
+#include <j/core/JComboBox.h>
 #include <j/core/JDialogButtonBox.h>
 #include <j/core/JLabel.h>
 
@@ -28,7 +29,9 @@ public:
 
     // `onCheckNow` runs after the dialog has closed: the answer can take seconds
     // to arrive and is reported in the main window, not in this one.
-    JPlacerPreferencesDialog(std::function<void()> onCheckNow,
+    // `onScale`: an interface scale chosen (JPlacerAppearance::scales), for
+    // the main window to apply.
+    JPlacerPreferencesDialog(std::function<void()> onCheckNow, std::function<void(double)> onScale,
                              JGpuHal& hal, int sx, int sy, NativeWinHandleType parent);
 
 protected:
@@ -38,6 +41,11 @@ private:
     static float pad();
 
     std::function<void()>             m_onCheckNow;
+    std::unique_ptr<JLabel>           m_appearance;
+    std::unique_ptr<JLabel>           m_themeLabel;
+    std::unique_ptr<JComboBox>        m_theme;
+    std::unique_ptr<JLabel>           m_scaleLabel;
+    std::unique_ptr<JComboBox>        m_scale;
     std::unique_ptr<JLabel>           m_general;
     std::unique_ptr<JCheckBox>        m_tearOff;
     std::unique_ptr<JCheckBox>        m_launcher;   // only when running as an AppImage

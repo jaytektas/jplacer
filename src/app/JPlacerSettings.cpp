@@ -42,6 +42,14 @@ bool JPlacerSettings::tearOffMenus() {
     return JSettings::instance().get<bool>(kTearOffMenus, false);
 }
 
+int JPlacerSettings::theme() {
+    return JSettings::instance().get<int>(kTheme, 0);
+}
+
+double JPlacerSettings::uiScale() {
+    return JSettings::instance().get<double>(kUiScale, 0.0);
+}
+
 bool JPlacerSettings::launcher() {
     return JSettings::instance().get<bool>(kLauncher, true);
 }

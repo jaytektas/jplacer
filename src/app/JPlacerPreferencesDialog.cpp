@@ -3,11 +3,13 @@
 
 #include "JPlacerPreferencesDialog.h"
 
+#include "JPlacerAppearance.h"
 #include "JPlacerLauncher.h"
 #include "JPlacerSettings.h"
 
 #include <j/config/Settings.h>
 #include <j/core/JStyle.h>
+#include <j/core/JTextHelper.h>
 #include <j/core/MainThreadDispatcher.h>
 #include <j/core/MenuSystem.h>
 
@@ -25,12 +27,45 @@ void store(const char* key, bool on) {
 
 } // namespace
 
-JPlacerPreferencesDialog::JPlacerPreferencesDialog(std::function<void()> onCheckNow,
+JPlacerPreferencesDialog::JPlacerPreferencesDialog(std::function<void()> onCheckNow, std::function<void(double)> onScale,
                                                    JGpuHal& hal, int sx, int sy,
                                                    NativeWinHandleType parent)
     : JDialogWindow("Preferences", kW, kH, hal, sx, sy, parent)
     , m_onCheckNow(std::move(onCheckNow)) {
     const float cw = kW - 2 * pad();
+
+    m_appearance = std::make_unique<JLabel>(graph(), "Appearance", cw);
+    add(m_appearance.get());
+
+    m_themeLabel = std::make_unique<JLabel>(graph(), "Theme");
+    add(m_themeLabel.get());
+    m_theme = std::make_unique<JComboBox>(graph(), JPlacerAppearance::themes());
+    m_theme->setCurrentIndex(JPlacerSettings::theme());   // before it is watched: opening changes nothing
+    m_theme->onIndexChanged.connect([](int i) {
+        JSettings::instance().set(JPlacerSettings::kTheme, i);
+        JPlacerSettings::save();
+        JPlacerAppearance::applyTheme(i);
+    });
+    add(m_theme.get());
+
+    m_scaleLabel = std::make_unique<JLabel>(graph(), "Interface scale");
+    add(m_scaleLabel.get());
+    std::vector<std::string> scaleNames;
+    int scaleAt = 0;
+    for (const JPlacerAppearance::Scale& s : JPlacerAppearance::scales()) {
+        if (s.scale == JPlacerSettings::uiScale()) scaleAt = int(scaleNames.size());
+        scaleNames.push_back(s.name);
+    }
+    m_scale = std::make_unique<JComboBox>(graph(), scaleNames);
+    m_scale->setCurrentIndex(scaleAt);
+    m_scale->onIndexChanged.connect([onScale = std::move(onScale)](int i) {
+        const auto& scales = JPlacerAppearance::scales();
+        if (i < 0 || i >= int(scales.size())) return;
+        JSettings::instance().set(JPlacerSettings::kUiScale, scales[size_t(i)].scale);
+        JPlacerSettings::save();
+        onScale(scales[size_t(i)].scale);
+    });
+    add(m_scale.get());
 
     m_general = std::make_unique<JLabel>(graph(), "General", cw);
     add(m_general.get());
@@ -95,6 +130,18 @@ void JPlacerPreferencesDialog::layout(float w, float h) {
         wgt->setBounds({ x, y, cw, rowH });
         y += rowH + after;
     };
+    // A label and its choice side by side, the labels as wide as the widest.
+    const float labelW = std::max(JTextHelper::measureWidth("Theme"), JTextHelper::measureWidth("Interface scale"))
+                       + 2 * st.spacing;
+    auto choice = [&](JLabel* label, JComboBox* box, float after) {
+        const float rowH = std::max(st.labelHeight, st.controlHeight);
+        label->setBounds({ x, y + (rowH - st.labelHeight) / 2, labelW, st.labelHeight });
+        box->setBounds({ x + labelW, y, cw - labelW, rowH });
+        y += rowH + after;
+    };
+    row(m_appearance.get(), st.labelHeight, gap);
+    choice(m_themeLabel.get(), m_theme.get(), gap);
+    choice(m_scaleLabel.get(), m_scale.get(), section);
     row(m_general.get(),   st.labelHeight, gap);
     row(m_tearOff.get(),   st.checkHeight, gap);
     if (m_launcher) row(m_launcher.get(), st.checkHeight, gap);

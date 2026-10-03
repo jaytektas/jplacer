@@ -27,6 +27,11 @@ public:
     // Turned on (and running as an AppImage): jplacer keeps its entry in the
     // desktop's applications menu. See JPlacerLauncher.
     static constexpr const char* kLauncher         = "desktop.launcher";
+    // The look: the theme (0 dark, 1 light, 2 as the desktop is set) and the
+    // interface scale (0: as the screen asks, else 1 = 100 %). See
+    // JPlacerAppearance.
+    static constexpr const char* kTheme            = "appearance.theme";
+    static constexpr const char* kUiScale          = "ui.scale";
     // The cell file (cells/<name>.json) opened last; opened again at start.
     static constexpr const char* kMachineCell      = "machine.cell";
     // The board on the machine: its pick-and-place file, the side up
@@ -52,6 +57,8 @@ public:
     static bool updatesAtStartup();
     static bool tearOffMenus();
     static bool launcher();
+    static int theme();
+    static double uiScale();
     static std::string machineCell();
 
     // How a camera's picture is shown, each camera its own: straightened

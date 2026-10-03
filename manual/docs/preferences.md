@@ -5,6 +5,20 @@ so there is no Apply button: close the window with **Close** when you are done.
 
 <!-- src: src/app/JPlacerPreferencesDialog.cpp (each row stores and saves on change) -->
 
+## Appearance
+
+**Theme**
+:   **Dark** (as jplacer is first installed), **Light**, or **As the desktop is set**: dark or light as
+    the desktop's own setting is when jplacer opens or the theme is chosen (GNOME's colour scheme, or
+    Windows' app mode); dark when the desktop does not say.
+
+**Interface scale**
+:   How big the whole interface is: its controls and the text in them grow together, and the panels
+    make room, so nothing is magnified or blurred. **As the screen asks** (as first installed) follows
+    the screen's pixel density; or choose 100 % to 200 %.
+
+<!-- src: src/app/JPlacerAppearance.cpp (themes, scales, applyTheme, applyScale, desktopPrefersDark); src/app/JPlacerSettings.cpp (theme and uiScale default to 0); src/app/JPlacerPreferencesDialog.cpp (the Appearance rows); src/app/JPlacerApp.cpp (applied at start) -->
+
 ## General
 
 **Tear-off menus (drag a menu off into its own window)**
