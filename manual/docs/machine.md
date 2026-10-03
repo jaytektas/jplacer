@@ -234,20 +234,24 @@ the toolbar.
 
 A move can be stopped while it is under way, from the top of the Jog panel or the Machine menu:
 
-- **Stop** (Escape): each controller is told to hold (slow to a stop on its own ramp, so no steps are
-  lost), and once its axes have stopped, what was still queued is thrown away. The position is kept,
-  and the machine stays homed. The move, or the task it was part of, ends as stopped.
+- **Stop** (Escape): each controller is told to hold, and slows to a stop on its own acceleration ramp,
+  so no steps are lost. Only once it reports the hold complete (Grbl and grblHAL: `Hold:0`, at rest) is
+  what was still queued thrown away, with a reset that, the machine at rest, keeps its position. The
+  machine stays homed. The move, or the task it was part of, ends as stopped. Should a controller not come
+  to rest within its command timeout, it is reset anyway; its position may then be lost, so the machine is
+  no longer homed and the strip across the window says to home it again.
 - **E-STOP** (also the red button on the toolbar, and Machine ▸ Emergency Stop; it has no key, so a slip of the finger cannot reset the controllers): every controller is reset at once,
   mid-move. A motor stopped dead can lose its place, so the machine is no longer homed: home it before
   moving it again. Grbl and grblHAL also raise an alarm on a reset during a move.
 
 Neither replaces the machine's own emergency stop switch: they are commands sent to the controller, and
 need it to be listening. How a controller is held and reset comes from its firmware profile (its `stop`
-section: the hold command, the state it reports when held, and the reset); Grbl and grblHAL have one.
+section: the hold command, the state it reports while holding, the pattern of a status report once
+the hold is complete, and the reset); Grbl and grblHAL have one.
 A controller whose profile has no hold is reset for Stop as well; one with no reset cannot be stopped
 from jplacer, and the status bar says so.
 
-<!-- src: src/machine/JPGcodeDriver.cpp (halt, ioLoop); src/machine/JPCell.cpp (stop); src/app/JPlacerMachine.cpp (stop, m_emergencyStop); src/ui/JPJogPanel.cpp (act); src/app/JPlacerMenuBuilder.cpp (Stop, Emergency Stop); src/machine/JPFirmwareProfile.cpp (stop); profiles/grblhal.json; profiles/grbl.json -->
+<!-- src: src/machine/JPGcodeDriver.cpp (halt, ioLoop, onPlaceLost); src/machine/JPCell.cpp (stop, onPlaceLost); src/app/JPlacerMachine.cpp (stop, m_emergencyStop); src/ui/JPJogPanel.cpp (act); src/app/JPlacerMenuBuilder.cpp (Stop, Emergency Stop); src/machine/JPFirmwareProfile.cpp (stop); profiles/grblhal.json; profiles/grbl.json -->
 
 #### Nozzle tips
 

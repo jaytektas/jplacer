@@ -86,12 +86,17 @@ public:
     bool statusIsRealtime() const { return m_statusRealtime; }
     // STOPPING. `feedHold`: bytes that bring motion to a controlled stop
     // (decelerating; the position kept), sent at once whatever is queued;
-    // `holdState`: the state the status reports once held. `reset`: bytes
+    // `holdState`: the state the status reports while holding;
+    // `heldPattern`: matches a status report once the hold has COMPLETED,
+    // motion at rest (Grbl: "<Hold:0"; "<Hold:1" is still slowing). Grbl
+    // treats a reset before then as mid-motion, and its place is lost.
+    // `reset`: bytes
     // that stop at once and throw away everything queued (an emergency stop;
     // after a hold, the queue thrown away with the position kept). Empty
     // when the firmware has none.
     const std::string& feedHold()  const { return m_feedHold; }
     const std::string& holdState() const { return m_holdState; }
+    bool knowsHeld() const { return m_hasHeld; }
     const std::string& reset()     const { return m_reset; }
     // Parse a status line: the controller state and the axis positions it
     // reports, by axis letter. Nothing if `line` is not a status report.
@@ -107,6 +112,7 @@ public:
         std::map<std::string, double> positions;
         bool                          positionsAreWork = true;
         std::map<std::string, double> offsets;
+        bool                          held = false;   // the hold has completed (knowsHeld)
     };
     std::optional<Status> parseStatus(const std::string& line) const;
 
@@ -156,6 +162,8 @@ private:
     std::string m_statusCommand;
     bool        m_statusRealtime = false;
     std::string m_feedHold, m_holdState, m_reset;
+    std::regex  m_held;
+    bool        m_hasHeld = false;
     std::regex  m_status;
     int         m_statusStateGroup = 0;
     int         m_statusPositionGroup = 0;

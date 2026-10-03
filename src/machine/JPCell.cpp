@@ -28,6 +28,10 @@ std::unique_ptr<JPGcodeDriver> JPCell::makeDriver(const JPDriverConfig& config) 
     driver->onStatus.connect([this, d](JPFirmwareProfile::Status st) { updatePositions(d->id(), st); });
     driver->onTraffic.connect([this, d](bool sent, std::string line) { onTraffic.emit(d->config().name, sent, line); });
     driver->onAlarm.connect([this, d](std::string what) { onAlarm.emit(d->config().name + ": " + what); });
+    driver->onPlaceLost.connect([this, d](std::string why) {
+        onAlarm.emit(d->config().name + ": reset mid-move, " + why + "; home the machine again");
+        if (m_homed.exchange(false)) onHomed.emit(false);
+    });
     driver->onLost.connect([this, d](std::string why) {
         const std::string what = d->config().name + ": connection lost (" + why + ")";
         onAlarm.emit(what);

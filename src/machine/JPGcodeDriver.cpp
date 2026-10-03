@@ -317,8 +317,11 @@ void JPGcodeDriver::ioLoop() {
                 m_statusNow = true;
             }
         }
-        // Held: once the reports say held and the axes have stopped moving
-        // (or too long has passed), the queue is thrown away; the position stays.
+        // Held: once the reports say the hold has completed (else, where the
+        // profile cannot tell, held with the axes still from one report to
+        // the next), the queue is thrown away and the position stays. Not
+        // held in time: reset anyway, and the controller may have lost its
+        // place (onPlaceLost).
         if (m_holding) {
             JPFirmwareProfile::Status st;
             {
@@ -326,8 +329,12 @@ void JPGcodeDriver::ioLoop() {
                 st = m_status;
             }
             const bool held = !m_profile->holdState().empty() && st.state == m_profile->holdState();
-            if ((held && !m_holdLast.empty() && st.positions == m_holdLast) || Clock::now() > m_holdUntil) {
+            const bool still = m_profile->knowsHeld() ? st.held : held && !m_holdLast.empty() && st.positions == m_holdLast;
+            if (still) {
                 if (!resetNow("stopped")) return;
+            } else if (Clock::now() > m_holdUntil) {
+                if (!resetNow("stopped before it held still")) return;
+                onPlaceLost.emit("it did not hold still within " + std::to_string(cfg()->commandTimeoutMs) + " ms of the stop");
             } else if (held) {
                 m_holdLast = st.positions;
             }

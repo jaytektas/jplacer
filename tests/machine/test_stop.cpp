@@ -4,7 +4,8 @@
 // Stopping a move under way on a simulated controller whose moves last (its
 // wait for motion is not answered): a stop holds it, throws its queue away
 // and keeps it homed; an emergency stop resets it at once and the machine
-// must be homed again. Either way the move fails with "stopped".
+// must be homed again. Either way the move fails with "stopped". A hold that
+// never comes to rest is reset anyway, and the machine is unhomed.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
@@ -23,18 +24,20 @@ using namespace jf;
 
 namespace {
 
-JPCellConfig cellConfig() {
+JPCellConfig cellConfig(bool holdNeverStill = false) {
     const std::string json = R"({
       "name": "Stop",
-      "drivers": [ { "id": "D", "name": "Gantry", "statusIntervalMs": 10, "commandTimeoutMs": 3000, "connectWaitMs": 0,
+      "drivers": [ { "id": "D", "name": "Gantry", "statusIntervalMs": 10, "commandTimeoutMs": 1000, "connectWaitMs": 0,
                      "link": { "type": "simulated", "simulator": {
                          "identity": [ "[VER:1.1f.20250101:]", "[FIRMWARE:grblHAL]" ],
-                         "axisLetters": [ "X" ], "stallDwell": true } } } ],
+                         "axisLetters": [ "X" ], "stallDwell": true, "holdNeverStill": HOLD } } } ],
       "axes": [ { "id": "X", "name": "x", "kind": "controller", "type": "x", "driver": "D", "letter": "X", "feedratePerSecond": 100 } ]
     })";
+    std::string text = json;
+    text.replace(text.find("HOLD"), 4, holdNeverStill ? "true" : "false");
     JPCellConfig c;
     std::string error;
-    const bool ok = c.fromJson(JJson::parse(json), error);
+    const bool ok = c.fromJson(JJson::parse(text), error);
     assert(ok);
     return c;
 }
@@ -96,6 +99,32 @@ int main() {
     assert(cell.stop(true, why));
     const auto [ok2, why2] = take();
     assert(!ok2 && why2.find("emergency stop") != std::string::npos && !cell.isHomed());
+
+    // A controller that never holds still: reset anyway once the wait is
+    // up, and, its place perhaps lost, the machine is homed no longer.
+    {
+        JPCell slow(cellConfig(true), profiles());
+        slow.onMotion.connect([&](bool ok, std::string why) {
+            std::lock_guard lk(motion.m);
+            motion.last = { ok, why };
+        });
+        std::string alarm;
+        std::mutex am;
+        slow.onAlarm.connect([&](std::string what) { std::lock_guard lk(am); alarm = what; });
+        slow.connect();
+        assert(until([&] { return slow.isConnected(); }));
+        slow.home();
+        assert(until([&] { return slow.isHomed(); }));
+        take();
+        slow.moveAxes({ { "X", 50.0 } }, 1.0);
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        assert(slow.stop(false, why));
+        const auto [ok3, why3] = take();
+        assert(!ok3 && why3.find("stopped") != std::string::npos);
+        assert(until([&] { return !slow.isHomed(); }));
+        std::lock_guard lk(am);
+        assert(alarm.find("home the machine again") != std::string::npos);
+    }
 
     std::puts("test_stop: ok");
     return 0;

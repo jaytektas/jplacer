@@ -182,7 +182,9 @@ notes.
   nozzle's tips. Loading another unloads the one on it first; Step Through asks before each changer step
   (on by default); Manual Change says which tip was put on by hand, moving nothing. Each step's move goes at its speed
   times the machine's.
-- A move can be stopped while it runs: Stop (Escape, or the Jog panel) holds it and keeps the position;
+- A move can be stopped while it runs: Stop (Escape, or the Jog panel) slows it to rest and keeps the
+  position (a controller that does not come to rest in time is reset anyway, and the machine must be
+  homed again);
   E-STOP (the Jog panel, the red toolbar button, or the Machine menu; no key) resets the controllers at once, and the
   machine must be homed again.
 - A nozzle's Z can be homed on its own (Home Z, in the nozzle's tip menu), for when forcing a tip on made

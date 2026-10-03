@@ -49,6 +49,7 @@ void JPSimulatedGrbl::configure(const JJson& config) {
     m_silent = config["silent"].boolean();
     m_garble = config["garbleFirstLine"].boolean();
     m_stallDwell = config["stallDwell"].boolean();
+    m_holdNeverStill = config["holdNeverStill"].boolean();
 }
 
 void JPSimulatedGrbl::receive(const std::string& bytes) {
@@ -90,7 +91,7 @@ std::string JPSimulatedGrbl::statusReport() const {
         }
         return out;
     };
-    return std::string(m_held ? "<Hold:0" : "<Idle") + "|MPos:" + list(m_machine) + "|FS:0,0|WCO:" + list(m_offset) + ">";
+    return std::string(m_held ? (m_holdNeverStill ? "<Hold:1" : "<Hold:0") : "<Idle") + "|MPos:" + list(m_machine) + "|FS:0,0|WCO:" + list(m_offset) + ">";
 }
 
 void JPSimulatedGrbl::execute(const std::string& raw) {

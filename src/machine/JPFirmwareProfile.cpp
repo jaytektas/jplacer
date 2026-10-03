@@ -95,6 +95,8 @@ bool JPFirmwareProfile::load(const std::string& path, std::string& error) {
     m_feedHold  = stop["feedHold"].str();
     m_holdState = stop["holdState"].str();
     m_reset     = stop["reset"].str();
+    m_hasHeld   = !stop["heldPattern"].str().empty();
+    if (m_hasHeld && !compile(stop, "heldPattern", m_held, why)) return fail("stop." + why);
 
     m_axisLetters.clear();
     for (const JJson& l : j["axisLetters"].arr()) m_axisLetters.push_back(l.str());
@@ -201,6 +203,7 @@ std::optional<JPFirmwareProfile::Status> JPFirmwareProfile::parseStatus(const st
     if (!std::regex_search(line, m, m_status)) return std::nullopt;
     Status st;
     if (m_statusStateGroup > 0 && size_t(m_statusStateGroup) < m.size()) st.state = m[m_statusStateGroup].str();
+    st.held = m_hasHeld && std::regex_search(line, m_held);
     if (m_statusFrameGroup > 0 && size_t(m_statusFrameGroup) < m.size())
         st.positionsAreWork = m[m_statusFrameGroup].str() != m_statusMachineFrame;
     if (m_hasStatusOffset) {

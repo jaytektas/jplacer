@@ -110,6 +110,9 @@ public:
     JSignal<std::string>               onAlarm;
     // The link failed; the reason.
     JSignal<std::string>               onLost;
+    // A stop had to reset the controller before it held still: where it is
+    // may no longer be where it says.
+    JSignal<std::string>               onPlaceLost;
 
 private:
     using Clock = std::chrono::steady_clock;
