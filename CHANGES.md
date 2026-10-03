@@ -132,6 +132,11 @@ notes.
   make it, and Undo and Redo (also in the Edit menu, Ctrl+Z and Ctrl+Shift+Z) step back and forward
   through them. A text field's value changes when you press Return or Tab or leave it, and Escape puts
   the old value back. A setup with something wrong in it is kept from the machine until it is put right.
+- Machine Setup is laid out as OpenPnP lays out each part: tabs, titled groups, controls the size of what
+  they hold, and coordinates in X / Y / Z / Rotation columns. A nozzle's tips are a table (Compatible?,
+  Loaded?). Places have buttons to set them from where the camera or nozzle is, or to go there; soft
+  limits and safe zones the same for their axis. A head's homing has Visual Test and Visual Home beside
+  it, and a camera's calibration Start Calibration.
 
 ## 0.1.0
 

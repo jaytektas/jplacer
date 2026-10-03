@@ -217,6 +217,39 @@ std::unique_ptr<JPMachineSetupPanel> JPlacerMachine::makeSetup() {
     m_setup = setup.get();
     setup->onSelected = [this](const std::string& path) { m_setupSelected = path; };
     setup->onApply = [this](const JPCellConfig& cell) { return applySetup(cell); };
+    setup->onAction = [this](const std::string& path, const std::string& action) { setupAction(path, action); };
+    setup->whereIs = [this](JPSetupForm::Tool tool) {
+        JPMachineSetupPanel::Where at;
+        const JPMountConfig* m = toolMount(tool);
+        if (!m || !m_cell->isConnected()) return at;
+        const auto p = m_cell->positions();
+        auto take = [&p](const std::string& axis, double offset) -> std::optional<double> {
+            const auto i = p.find(axis);
+            if (axis.empty() || i == p.end()) return std::nullopt;
+            return i->second + offset;
+        };
+        at = { take(m->axisX, m->offsetX), take(m->axisY, m->offsetY), take(m->axisZ, m->offsetZ), take(m->axisRotation, 0) };
+        return at;
+    };
+    setup->axisAt = [this](const std::string& axisId) -> std::optional<double> {
+        if (!m_cell->isConnected()) return std::nullopt;
+        const auto p = m_cell->positions();
+        const auto i = p.find(axisId);
+        return i == p.end() ? std::nullopt : std::optional<double>(i->second);
+    };
+    setup->moveTo = [this](JPSetupForm::Tool tool, const JPMachineSetupPanel::Where& to) {
+        const JPMountConfig* m = toolMount(tool);
+        if (!m) {
+            m_window.showStatus(tool == JPSetupForm::Tool::Camera ? "No camera on a head to move" : "No nozzle to move", kErrorMs);
+            return;
+        }
+        if (!readyToMove()) return;
+        m_cell->moveTool(*m, to, m_jog ? m_jog->speed() : kParkSpeed);
+    };
+    setup->moveAxis = [this](const std::string& axisId, double to) {
+        if (!readyToMove()) return;
+        m_cell->moveAxes({ { axisId, to } }, m_jog ? m_jog->speed() : kParkSpeed);
+    };
     setup->onHistory = [this] { updateEditItems(); };
     updateEditItems();
     return setup;
@@ -396,6 +429,51 @@ bool JPlacerMachine::applySetup(JPCellConfig cell) {
     }
     JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Machine Setup: in use and saved to " << m_cellPath;
     return true;
+}
+
+const JPMountConfig* JPlacerMachine::toolMount(JPSetupForm::Tool tool) const {
+    if (!m_cell) return nullptr;
+    const JPCellConfig& c = m_cell->config();
+    if (tool == JPSetupForm::Tool::Camera) {
+        // The camera the board is worked with, else any on a head.
+        if (m_cameraTasks)
+            if (const JPCameraPanel* p = m_cameraTasks->headCamera())
+                for (const JPCameraConfig& cam : c.cameras)
+                    if (cam.id == p->camera().id) return &cam.mount;
+        for (const JPCameraConfig& cam : c.cameras)
+            if (!cam.mount.headId.empty()) return &cam.mount;
+        return nullptr;
+    }
+    // The nozzle chosen on the Jog panel, else the first.
+    const std::string chosen = m_jog ? m_jog->toolId() : std::string();
+    for (const JPNozzleConfig& n : c.nozzles)
+        if (n.id == chosen) return &n.mount;
+    return c.nozzles.empty() ? nullptr : &c.nozzles.front().mount;
+}
+
+bool JPlacerMachine::readyToMove() {
+    if (!m_cell || !m_cell->isConnected()) {
+        m_window.showStatus("Connect the machine first", kErrorMs);
+        return false;
+    }
+    if (!m_cell->isHomed()) {
+        m_window.showStatus("Home the machine first", kErrorMs);
+        return false;
+    }
+    return true;
+}
+
+void JPlacerMachine::setupAction(const std::string& path, const std::string& action) {
+    if (!m_cameraTasks) return;
+    if (action == "visualTest") {
+        if (JPCameraPanel* camera = m_cameraTasks->headCamera()) m_cameraTasks->visualTest(*camera);
+        else m_window.showStatus("No camera on a head to test with", kErrorMs);
+    } else if (action == "visualHome") {
+        m_cameraTasks->visualHome();
+    } else if (action == "calibrate" && path.rfind("camera:", 0) == 0) {
+        for (CameraDock& c : m_cameras)
+            if ("camera:" + c.panel->camera().id == path) m_cameraTasks->calibrate(*c.panel);
+    }
 }
 
 void JPlacerMachine::setEditItems(JMenuItem* undo, JMenuItem* redo) {

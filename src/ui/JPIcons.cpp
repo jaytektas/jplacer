@@ -13,6 +13,32 @@ namespace {
 constexpr float kLine = 0.08f;
 constexpr float kPi   = 3.14159265f;
 
+// A camera's viewfinder: four corners of a square `half` from the centre.
+void viewfinder(JVectorCanvas& vg, float cx, float cy, float half, float line, const JColor& ink) {
+    const float arm = half * 0.45f;
+    for (const float sx : { -1.f, 1.f })
+        for (const float sy : { -1.f, 1.f }) {
+            const float x = cx + sx * half, y = cy + sy * half;
+            vg.strokePolyline({ { x - sx * arm, y }, { x, y }, { x, y - sy * arm } }, line, JPaint::solid(ink));
+        }
+}
+
+// A nozzle, tip down, `h` tall: a wide collar, a body narrowing to the tip.
+void nozzle(JVectorCanvas& vg, float cx, float top, float h, const JColor& ink) {
+    const float w = h * 0.9f;
+    vg.fillRect(cx - w * 0.5f, top, w, h * 0.22f, JPaint::solid(ink));
+    vg.fillConvex({ { cx - w * 0.32f, top + h * 0.22f }, { cx + w * 0.32f, top + h * 0.22f },
+                    { cx + w * 0.1f, top + h }, { cx - w * 0.1f, top + h } },
+                  JPaint::solid(ink));
+}
+
+// An arrow pointing right, from `x0` to `x1` at height `y`.
+void arrow(JVectorCanvas& vg, float x0, float x1, float y, float line, const JColor& ink) {
+    const float head = (x1 - x0) * 0.45f;
+    vg.drawLine(x0, y, x1 - line, y, line, JPaint::solid(ink));
+    vg.fillConvex({ { x1, y }, { x1 - head, y - head * 0.7f }, { x1 - head, y + head * 0.7f } }, JPaint::solid(ink));
+}
+
 } // namespace
 
 void JPIcons::eye(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink) {
@@ -85,6 +111,34 @@ void JPIcons::expandAll(JVectorCanvas& vg, float cx, float cy, float size, const
 
 void JPIcons::collapseAll(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink) {
     boxed(vg, cx, cy, size, ink, false);
+}
+
+void JPIcons::captureCamera(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink) {
+    const float line = size * kLine;
+    viewfinder(vg, cx, cy, size * 0.42f, line, ink);
+    vg.strokeCircle(cx, cy, size * 0.17f, line, JPaint::solid(ink));
+}
+
+void JPIcons::captureNozzle(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink) {
+    const float line = size * kLine;
+    nozzle(vg, cx, cy - size * 0.48f, size * 0.52f, ink);
+    vg.strokeCircle(cx, cy + size * 0.24f, size * 0.2f, line, JPaint::solid(ink));
+}
+
+void JPIcons::moveCamera(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink) {
+    // The viewfinder, and an arrow into its centre from the lower left.
+    const float line = size * kLine;
+    viewfinder(vg, cx, cy, size * 0.42f, line, ink);
+    const float tip = size * 0.04f, tail = size * 0.3f, head = size * 0.16f;
+    vg.drawLine(cx - tail, cy + tail, cx - tip, cy + tip, line, JPaint::solid(ink));
+    vg.fillConvex({ { cx, cy }, { cx - head, cy }, { cx, cy + head } }, JPaint::solid(ink));
+}
+
+void JPIcons::moveNozzle(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink) {
+    // The nozzle on the right, an arrow to it from the left.
+    const float line = size * kLine;
+    arrow(vg, cx - size * 0.48f, cx - size * 0.06f, cy, line, ink);
+    nozzle(vg, cx + size * 0.24f, cy - size * 0.42f, size * 0.84f, ink);
 }
 
 } // inline namespace jf

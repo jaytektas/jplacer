@@ -36,24 +36,69 @@ Named named(const std::vector<T>& items, const std::string& none) {
     return n;
 }
 
-// Adds a category's properties to a model. Each reads and writes the cell
-// through closures that find the part afresh each time (the cell's lists can
-// move); the "ref" forms take a reference to a member of it.
+// Adds a part's settings to a form: each to the model, and to the layout
+// at the tab and group being filled, on a row of its own or on the row
+// begun. Each reads and writes the cell through closures that find the part
+// afresh each time (the cell's lists can move); the "ref" forms take a
+// reference to a member of it.
 class Adder {
 public:
-    explicit Adder(JPropertyModel& m) : m_model(m) {}
+    using Form  = JPSetupProperties::Form;
+    using Row   = JPSetupProperties::Row;
+    using Place = JPSetupProperties::Place;
 
-    void category(std::string c) { m_category = std::move(c); }
+    explicit Adder(Form& f) : m_form(f) {}
+
+    void tab(const std::string& title) {
+        m_form.tabs.push_back({ title, {} });
+    }
+    void group(const std::string& title) {
+        if (m_form.tabs.empty()) tab("Configuration");
+        m_form.tabs.back().groups.push_back({ title, {} });
+    }
+    // The settings added until end() go on one row, side by side.
+    void row(const std::string& label, Place place = Place::None, const std::string& axis = "") {
+        Row r;
+        r.label = label;
+        r.place = place;
+        r.axis = axis;
+        rows().push_back(std::move(r));
+        m_open = true;
+    }
+    void end() { m_open = false; }
+    // An empty place on the row begun (a column this row has nothing in).
+    void skip() { rows().back().cells.push_back({ "", "" }); }
+    void header(const Strings& titles) {
+        Row r;
+        r.kind = Row::Kind::Header;
+        for (const std::string& t : titles) r.cells.push_back({ "", t });
+        rows().push_back(std::move(r));
+    }
+    void note(const std::string& text) {
+        Row r;
+        r.kind = Row::Kind::Note;
+        r.text = text;
+        rows().push_back(std::move(r));
+    }
+    // Buttons: (label, action) each; the owner does the action.
+    void actions(const std::vector<std::pair<std::string, std::string>>& buttons) {
+        Row r;
+        r.kind = Row::Kind::Actions;
+        for (const auto& [label, action] : buttons) r.cells.push_back({ action, label });
+        rows().push_back(std::move(r));
+    }
 
     void text(const std::string& name, const std::string& label, std::function<std::string()> get,
-              std::function<void(const std::string&)> set) {
+              std::function<void(const std::string&)> set, const std::string& editor = "") {
         JProperty p = make(name, label);
+        p.meta.editor = editor;
         p.get = [get] { return JVariant(get()); };
         if (set) p.set = [set](const JVariant& v) { set(v.toString()); return true; };   // none: shown, not edited
-        m_model.add(std::move(p));
+        put(std::move(p));
     }
-    void text(const std::string& name, const std::string& label, std::function<std::string&()> ref) {
-        text(name, label, [ref] { return ref(); }, [ref](const std::string& v) { ref() = v; });
+    void text(const std::string& name, const std::string& label, std::function<std::string&()> ref,
+              const std::string& editor = "") {
+        text(name, label, [ref] { return ref(); }, [ref](const std::string& v) { ref() = v; }, editor);
     }
     void number(const std::string& name, const std::string& label, std::function<double()> get,
                 std::function<void(double)> set, int decimals = 3) {
@@ -61,7 +106,7 @@ public:
         p.meta.decimals = decimals;
         p.get = [get] { return JVariant(get()); };
         p.set = [set](const JVariant& v) { set(v.toDouble()); return true; };
-        m_model.add(std::move(p));
+        put(std::move(p));
     }
     void number(const std::string& name, const std::string& label, std::function<double&()> ref, int decimals = 3) {
         number(name, label, [ref] { return ref(); }, [ref](double v) { ref() = v; }, decimals);
@@ -73,7 +118,7 @@ public:
         p.meta.max = JVariant(max);
         p.get = [get] { return JVariant(get()); };
         p.set = [set](const JVariant& v) { set(int(v.toInt())); return true; };
-        m_model.add(std::move(p));
+        put(std::move(p));
     }
     void integer(const std::string& name, const std::string& label, std::function<int&()> ref, int min, int max) {
         integer(name, label, [ref] { return ref(); }, [ref](int v) { ref() = v; }, min, max);
@@ -82,7 +127,7 @@ public:
         JProperty p = make(name, label);
         p.get = [get] { return JVariant(get()); };
         p.set = [set](const JVariant& v) { set(v.toBool()); return true; };
-        m_model.add(std::move(p));
+        put(std::move(p));
     }
     void flag(const std::string& name, const std::string& label, std::function<bool&()> ref) {
         flag(name, label, [ref] { return ref(); }, [ref](bool v) { ref() = v; });
@@ -94,7 +139,7 @@ public:
         for (const std::string& l : labels) p.meta.choices.push_back(JVariant(l));
         p.get = [get] { return JVariant(get()); };
         p.set = [set](const JVariant& v) { set(v.toString()); return true; };
-        m_model.add(std::move(p));
+        put(std::move(p));
     }
     // One of `n`, kept as its id.
     void byName(const std::string& name, const std::string& label, const Named& n, std::function<std::string()> get,
@@ -116,16 +161,33 @@ public:
     }
 
 private:
+    std::vector<Row>& rows() {
+        if (m_form.tabs.empty() || m_form.tabs.back().groups.empty()) group("");
+        return m_form.tabs.back().groups.back().rows;
+    }
     JProperty make(const std::string& name, const std::string& label) const {
         JProperty p;
         p.name = name;
-        p.meta.category = m_category;
+        p.meta.category = m_form.tabs.empty() || m_form.tabs.back().groups.empty() ? "" : m_form.tabs.back().groups.back().title;
         p.meta.label = label;
         return p;
     }
+    void put(JProperty p) {
+        const std::string name = p.name, label = p.meta.label;
+        m_form.model.add(std::move(p));
+        if (m_open) {
+            Row& r = rows().back();
+            r.cells.push_back({ name, r.cells.empty() ? "" : label });
+            return;
+        }
+        Row r;
+        r.label = label;
+        r.cells.push_back({ name, "" });
+        rows().push_back(std::move(r));
+    }
 
-    JPropertyModel& m_model;
-    std::string     m_category;
+    Form& m_form;
+    bool  m_open = false;
 };
 
 template <class T>
@@ -144,13 +206,18 @@ bool has(const std::vector<T>& items, const std::string& id) {
     return false;
 }
 
+using Place = JPSetupProperties::Place;
+const Strings kXYZR{ "X", "Y", "Z", "Rotation" };
+
 // Where a nozzle, camera or actuator is: on which head (or none), moved by
-// which axes, and its offset there. `noHead`: what having none is called.
+// which axes, and its offset there: OpenPnP's Coordinate System group, the
+// axes and offsets as columns. `noHead`: what having none is called; a
+// fixed part with a place (a camera looking up) has a Location instead.
 template <class T>
-void mountProperties(Adder& add, JPCellConfig& cell, std::function<T&()> part, const std::string& noHead,
-                     bool fixedHasPlace, JPSetupProperties::Form& form) {
+void coordinateSystem(Adder& add, JPCellConfig& cell, std::function<T&()> part, const std::string& noHead,
+                      bool fixedHasPlace, JPSetupProperties::Form& form) {
     auto mount = [part]() -> JPMountConfig& { return part().mount; };
-    add.category("Where It Is");
+    add.group(mount().headId.empty() && fixedHasPlace ? "Location" : "Coordinate System");
     add.byName("head", "Head", named(cell.heads, noHead), [mount] { return mount().headId; },
                [&cell, mount](const std::string& headId) {
                    JPMountConfig& m = mount();
@@ -175,68 +242,81 @@ void mountProperties(Adder& add, JPCellConfig& cell, std::function<T&()> part, c
     form.reshaping.push_back("head");
     if (mount().headId.empty()) {
         if (!fixedHasPlace) return;
-        add.number("offsetX", "X (mm)", [mount]() -> double& { return mount().offsetX; });
-        add.number("offsetY", "Y (mm)", [mount]() -> double& { return mount().offsetY; });
-        add.number("offsetZ", "Z in focus (mm)", [mount]() -> double& { return mount().offsetZ; });
+        // Where it is on the machine; Z where a part is in focus over it.
+        add.header({ "X", "Y", "Z" });
+        add.row("Location", Place::Location);
+        add.number("offsetX", "X", [mount]() -> double& { return mount().offsetX; });
+        add.number("offsetY", "Y", [mount]() -> double& { return mount().offsetY; });
+        add.number("offsetZ", "Z", [mount]() -> double& { return mount().offsetZ; });
+        add.end();
         return;
     }
     const Named axes = named(cell.axes, "(none)");
+    add.header(kXYZR);
+    add.row("Axis");
     add.byName("axisX", "X axis", axes, [mount]() -> std::string& { return mount().axisX; });
     add.byName("axisY", "Y axis", axes, [mount]() -> std::string& { return mount().axisY; });
     add.byName("axisZ", "Z axis", axes, [mount]() -> std::string& { return mount().axisZ; });
     add.byName("axisRotation", "Rotation axis", axes, [mount]() -> std::string& { return mount().axisRotation; });
-    add.number("offsetX", "Offset X (mm)", [mount]() -> double& { return mount().offsetX; });
-    add.number("offsetY", "Offset Y (mm)", [mount]() -> double& { return mount().offsetY; });
-    add.number("offsetZ", "Offset Z (mm)", [mount]() -> double& { return mount().offsetZ; });
+    add.end();
+    add.row("Offset");
+    add.number("offsetX", "Offset X", [mount]() -> double& { return mount().offsetX; });
+    add.number("offsetY", "Offset Y", [mount]() -> double& { return mount().offsetY; });
+    add.number("offsetZ", "Offset Z", [mount]() -> double& { return mount().offsetZ; });
+    add.end();
 }
 
 void machineForm(JPCellConfig& cell, JPSetupProperties::Form& f) {
     f.title = "Machine";
-    Adder add(f.model);
-    add.category("Machine");
-    add.text("name", "Name", [&cell]() -> std::string& { return cell.name; });
+    Adder add(f);
+    add.tab("Configuration");
+    add.group("General");
+    add.text("name", "Name", [&cell]() -> std::string& { return cell.name; }, "name");
 }
 
 void driverForm(JPCellConfig& cell, const std::string& id, const Strings& profiles, JPSetupProperties::Form& f) {
     auto d = finder(cell.drivers, id);
     f.title = "Controller " + d().name;
-    Adder add(f.model);
-    add.category("Controller");
-    add.text("name", "Name", [d]() -> std::string& { return d().name; });
+    Adder add(f);
+    add.tab("Configuration");
+    add.group("Properties");
+    add.text("name", "Name", [d]() -> std::string& { return d().name; }, "name");
     Strings choices{ "auto" };
     choices.insert(choices.end(), profiles.begin(), profiles.end());
-    add.choice("profile", "Firmware profile", choices, [d] { return d().profile; },
+    add.choice("profile", "Firmware Profile", choices, [d] { return d().profile; },
                [d](const std::string& v) { d().profile = v; });
-
-    add.category("Connection");
     // A simulated controller is for trying jplacer without a machine; it is
     // set up in the cell file.
     if (std::as_const(d().link)["type"].str() == "simulated") {
+        add.group("Communications");
         add.text("link", "Link", [] { return std::string("simulated (set up in the cell file)"); }, nullptr);
     } else {
-        add.text("port", "Serial port", [d] { return std::as_const(d().link)["port"].str(); },
-                 [d](const std::string& v) { d().link["port"] = v; });
-        add.integer("baud", "Baud rate", [d] { return int(std::as_const(d().link)["baud"].number()); },
+        add.group("Serial Port");
+        add.text("port", "Port", [d] { return std::as_const(d().link)["port"].str(); },
+                 [d](const std::string& v) { d().link["port"] = v; }, "long");
+        add.integer("baud", "Baud", [d] { return int(std::as_const(d().link)["baud"].number()); },
                     [d](int v) { d().link["baud"] = v; }, 0, 4000000);
-        add.choice("flowControl", "Flow control", { "none", "rtscts", "xonxoff" },
+        add.choice("flowControl", "Flow Control", { "none", "rtscts", "xonxoff" },
                    [d] { const std::string f = std::as_const(d().link)["flowControl"].str(); return f.empty() ? std::string("none") : f; },
                    [d](const std::string& v) { d().link["flowControl"] = v == "none" ? std::string() : v; });
+        add.note("Connection settings are used the next time the machine is connected.");
     }
-    add.category("Timing");
-    add.integer("statusIntervalMs", "Ask for status every (ms)", [d]() -> int& { return d().statusIntervalMs; }, 10, 10000);
-    add.integer("commandTimeoutMs", "Command timeout (ms)", [d]() -> int& { return d().commandTimeoutMs; }, 100, 600000);
-    add.integer("identifyTimeoutMs", "Identify timeout (ms)", [d]() -> int& { return d().identifyTimeoutMs; }, 100, 60000);
-    add.integer("homeTimeoutMs", "Home timeout (ms)", [d]() -> int& { return d().homeTimeoutMs; }, 1000, 600000);
-    add.integer("connectWaitMs", "Wait after opening (ms)", [d]() -> int& { return d().connectWaitMs; }, 0, 60000);
+    add.tab("Driver Settings");
+    add.group("Settings");
+    add.integer("commandTimeoutMs", "Command Timeout [ms]", [d]() -> int& { return d().commandTimeoutMs; }, 100, 600000);
+    add.integer("connectWaitMs", "Connect Wait Time [ms]", [d]() -> int& { return d().connectWaitMs; }, 0, 60000);
+    add.integer("identifyTimeoutMs", "Identify Timeout [ms]", [d]() -> int& { return d().identifyTimeoutMs; }, 100, 60000);
+    add.integer("homeTimeoutMs", "Home Timeout [ms]", [d]() -> int& { return d().homeTimeoutMs; }, 1000, 600000);
+    add.integer("statusIntervalMs", "Status Interval [ms]", [d]() -> int& { return d().statusIntervalMs; }, 10, 10000);
 }
 
 void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f) {
     using A = JPAxisConfig;
     auto a = finder(cell.axes, id);
     f.title = "Axis " + a().name;
-    Adder add(f.model);
-    add.category("Axis");
-    add.text("name", "Name", [a]() -> std::string& { return a().name; });
+    Adder add(f);
+    add.tab("Configuration");
+    add.group("Properties");
     // A controller axis is one a controller drives; a mapped one follows
     // another through a straight-line map (a second Z driven the other way);
     // a virtual one is only a number jplacer keeps.
@@ -252,106 +332,160 @@ void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
                    for (A::Type t : { A::Type::X, A::Type::Y, A::Type::Z, A::Type::Rotation })
                        if (v == A::typeName(t)) a().type = t;
                });
+    add.text("name", "Name", [a]() -> std::string& { return a().name; }, "name");
     if (a().kind == A::Kind::Controller) {
-        add.category("Controller");
-        add.byName("driver", "Controller", named(cell.drivers, "(none)"), [a]() -> std::string& { return a().driverId; });
-        add.text("letter", "Axis letter", [a]() -> std::string& { return a().letter; });
+        add.group("Controller Settings");
+        add.byName("driver", "Driver", named(cell.drivers, "(none)"), [a]() -> std::string& { return a().driverId; });
+        add.text("letter", "Axis Letter", [a]() -> std::string& { return a().letter; });
+        add.number("homeCoordinate", "Home Coordinate", [a]() -> double& { return a().homeCoordinate; });
+    }
+    if (a().kind == A::Kind::Virtual) {
+        add.group("Virtual Axis");
+        add.number("homeCoordinate", "Home / Safe Z", [a]() -> double& { return a().homeCoordinate; });
     }
     if (a().kind == A::Kind::Mapped) {
-        add.category("Follows");
-        Named others = named(cell.axes, "(none)");
-        add.byName("inputAxis", "Axis it follows", others, [a]() -> std::string& { return a().inputAxisId; });
-        add.number("mapInput0", "Point A: at", [a]() -> double& { return a().mapInput0; });
-        add.number("mapOutput0", "Point A: this axis at", [a]() -> double& { return a().mapOutput0; });
-        add.number("mapInput1", "Point B: at", [a]() -> double& { return a().mapInput1; });
-        add.number("mapOutput1", "Point B: this axis at", [a]() -> double& { return a().mapOutput1; });
+        add.group("Axis Mapping");
+        add.byName("inputAxis", "Input Axis", named(cell.axes, "(none)"), [a]() -> std::string& { return a().inputAxisId; });
+        add.header({ "Input", "Output" });
+        add.row("Map Point A");
+        add.number("mapInput0", "Point A input", [a]() -> double& { return a().mapInput0; });
+        add.number("mapOutput0", "Point A output", [a]() -> double& { return a().mapOutput0; });
+        add.end();
+        add.row("Map Point B");
+        add.number("mapInput1", "Point B input", [a]() -> double& { return a().mapInput1; });
+        add.number("mapOutput1", "Point B output", [a]() -> double& { return a().mapOutput1; });
+        add.end();
+        add.number("homeCoordinate", "Home Coordinate", [a]() -> double& { return a().homeCoordinate; });
     }
-    add.category("Homing and Limits");
-    add.number("homeCoordinate", "Home coordinate", [a]() -> double& { return a().homeCoordinate; });
-    add.flag("softLimitLowEnabled", "Low soft limit on", [a]() -> bool& { return a().softLimitLowEnabled; });
-    add.number("softLimitLow", "Low soft limit", [a]() -> double& { return a().softLimitLow; });
-    add.flag("softLimitHighEnabled", "High soft limit on", [a]() -> bool& { return a().softLimitHighEnabled; });
-    add.number("softLimitHigh", "High soft limit", [a]() -> double& { return a().softLimitHigh; });
-    add.flag("safeZoneLowEnabled", "Safe zone low end on", [a]() -> bool& { return a().safeZoneLowEnabled; });
-    add.number("safeZoneLow", "Safe zone low end", [a]() -> double& { return a().safeZoneLow; });
-    add.flag("safeZoneHighEnabled", "Safe zone high end on", [a]() -> bool& { return a().safeZoneHighEnabled; });
-    add.number("safeZoneHigh", "Safe zone high end", [a]() -> double& { return a().safeZoneHigh; });
-    add.category("Motion");
-    add.number("feedratePerSecond", "Top speed (per second)", [a]() -> double& { return a().feedratePerSecond; }, 1);
-    add.choice("backlash", "Backlash", { "none", "one-sided" },
-               [a] { return std::string(a().backlash == A::Backlash::OneSided ? "one-sided" : "none"); },
-               [a](const std::string& v) { a().backlash = v == "one-sided" ? A::Backlash::OneSided : A::Backlash::None; });
-    add.number("backlashOffset", "Backlash offset", [a]() -> double& { return a().backlashOffset; });
-    add.number("backlashSpeedFactor", "Backlash final approach (share of speed)",
-               [a]() -> double& { return a().backlashSpeedFactor; }, 2);
+    add.group("Kinematic Settings");
+    // Each limit with its switch, and buttons to take it from where the axis is or go there.
+    auto limit = [&add, a, id](const std::string& key, const std::string& label, double A::*value, bool A::*on) {
+        add.row(label, Place::Axis, id);
+        add.number(key, label, [a, value]() -> double& { return a().*value; });
+        add.flag(key + "Enabled", "Enabled?", [a, on]() -> bool& { return a().*on; });
+        add.end();
+    };
+    limit("softLimitLow", "Soft Limit Low", &A::softLimitLow, &A::softLimitLowEnabled);
+    limit("safeZoneLow", "Safe Zone Low", &A::safeZoneLow, &A::safeZoneLowEnabled);
+    limit("safeZoneHigh", "Safe Zone High", &A::safeZoneHigh, &A::safeZoneHighEnabled);
+    limit("softLimitHigh", "Soft Limit High", &A::softLimitHigh, &A::softLimitHighEnabled);
+    add.row("Feed Rate [/s]");
+    add.number("feedratePerSecond", "Feed Rate [/s]", [a]() -> double& { return a().feedratePerSecond; }, 1);
+    add.number("feedratePerMinute", "Feed Rate [/min]", [a] { return a().feedratePerSecond * 60; },
+               [a](double v) { a().feedratePerSecond = v / 60; }, 1);
+    add.end();
+
+    add.tab("Backlash Compensation");
+    add.group("Backlash Compensation");
+    add.choice("backlash", "Compensation Method", { "None", "OneSidedPositioning" },
+               [a] { return std::string(a().backlash == A::Backlash::OneSided ? "OneSidedPositioning" : "None"); },
+               [a](const std::string& v) { a().backlash = v == "OneSidedPositioning" ? A::Backlash::OneSided : A::Backlash::None; });
+    f.reshaping.push_back("backlash");
+    if (a().backlash == A::Backlash::OneSided) {
+        add.number("backlashOffset", "Backlash Offset", [a]() -> double& { return a().backlashOffset; });
+        add.number("backlashSpeedFactor", "Speed Factor", [a]() -> double& { return a().backlashSpeedFactor; }, 2);
+        add.note("Every move ends coming from the same side: past the place by the offset, then back at the speed factor.");
+    }
 }
 
 void headForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f) {
     auto h = finder(cell.heads, id);
     f.title = "Head " + h().name;
-    Adder add(f.model);
-    add.category("Head");
-    add.text("name", "Name", [h]() -> std::string& { return h().name; });
-    // A place kept as "none" until it is set.
+    Adder add(f);
+    add.tab("Configuration");
+    add.group("Properties");
+    add.text("name", "Name", [h]() -> std::string& { return h().name; }, "name");
+    add.group("Locations");
+    // A place kept as "none" until it is set: a box to set it, then its coordinates.
     auto place = [&add, &f](const std::string& key, const std::string& what, std::function<std::optional<JPLocation>&()> at,
                             bool withZ) {
-        add.flag(key, what + " set", [at] { return at().has_value(); },
+        add.row(what, at() ? Place::Location : Place::None);
+        if (at()) {
+            add.number(key + "X", what + " X", [at]() -> double& { return at()->x; });
+            add.number(key + "Y", what + " Y", [at]() -> double& { return at()->y; });
+            if (withZ) add.number(key + "Z", what + " Z", [at]() -> double& { return at()->z; });
+            else add.skip();
+        } else {
+            add.skip();
+            add.skip();
+            add.skip();
+        }
+        add.flag(key, "Set?", [at] { return at().has_value(); },
                  [at](bool on) {
                      if (!on) at().reset();
                      else if (!at()) at() = JPLocation();
                  });
+        add.end();
         f.reshaping.push_back(key);
-        if (!at()) return;
-        add.number(key + "X", what + " X (mm)", [at]() -> double& { return at()->x; });
-        add.number(key + "Y", what + " Y (mm)", [at]() -> double& { return at()->y; });
-        if (withZ) add.number(key + "Z", what + " Z (mm)", [at]() -> double& { return at()->z; });
     };
-    add.category("Homing Mark");
-    place("homingFiducial", "Homing mark", [h]() -> std::optional<JPLocation>& { return h().homingFiducial; }, true);
+    add.header({ "X", "Y", "Z", "Set?" });
+    place("homingFiducial", "Homing Fiducial", [h]() -> std::optional<JPLocation>& { return h().homingFiducial; }, true);
     if (h().homingFiducial) {
-        add.number("homingFiducialDiameter", "Homing mark diameter (mm)", [h]() -> double& { return h().homingFiducialDiameter; });
-        add.flag("visualHoming", "Home with the camera", [h]() -> bool& { return h().visualHoming; });
+        add.number("homingFiducialDiameter", "Fiducial Diameter", [h]() -> double& { return h().homingFiducialDiameter; });
+        add.row("Homing Method");
+        add.choice("visualHoming", "Homing Method", { "Switches", "ResetToFiducialLocation" },
+                   [h] { return std::string(h().visualHoming ? "ResetToFiducialLocation" : "Switches"); },
+                   [h](const std::string& v) { h().visualHoming = v == "ResetToFiducialLocation"; });
+        add.end();
+        add.actions({ { "Visual Test", "visualTest" }, { "Visual Home", "visualHome" } });
+        add.note("Set the homing fiducial up early, before capturing many places: each time it changes or moves, "
+                 "every place captured since is off by as much.");
     }
-    add.category("Park");
-    place("park", "Park place", [h]() -> std::optional<JPLocation>& { return h().park; }, false);
+    place("park", "Park Location", [h]() -> std::optional<JPLocation>& { return h().park; }, false);
 }
 
 void nozzleForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f) {
     auto n = finder(cell.nozzles, id);
     f.title = "Nozzle " + n().name;
-    Adder add(f.model);
-    add.category("Nozzle");
-    add.text("name", "Name", [n]() -> std::string& { return n().name; });
-    mountProperties<JPNozzleConfig>(add, cell, n, "(none)", false, f);
-    // Of the tips that fit it (ticked on each tip's own settings).
-    add.category("Nozzle Tip");
-    Named fitting;
-    fitting.add("(none)", "");
-    for (const JPNozzleTipConfig& t : cell.nozzleTips)
-        if (n().fits(t.id)) fitting.add(t.name.empty() ? t.id : t.name, t.id);
-    add.byName("tip", "Tip on it", fitting, [n]() -> std::string& { return n().tipId; });
+    Adder add(f);
+    add.tab("Configuration");
+    add.group("Properties");
+    add.text("name", "Name", [n]() -> std::string& { return n().name; }, "name");
+    coordinateSystem<JPNozzleConfig>(add, cell, n, "(none)", false, f);
+
+    // Every tip: whether it fits this nozzle, and which one is on it now.
+    add.tab("Nozzle Tips");
+    add.group("Nozzle Tips");
+    add.header({ "Compatible?", "Loaded?" });
+    for (const JPNozzleTipConfig& t : cell.nozzleTips) {
+        const std::string tid = t.id;
+        add.row(t.name.empty() ? t.id : t.name);
+        add.flag("fits:" + tid, "Compatible?", [n, tid] { return n().fits(tid); },
+                 [n, tid](bool on) {
+                     JPNozzleConfig& z = n();
+                     std::erase(z.tipIds, tid);
+                     if (on) z.tipIds.push_back(tid);
+                     else if (z.tipId == tid) z.tipId.clear();   // a tip that does not fit is not on it
+                 });
+        add.flag("loaded:" + tid, "Loaded?", [n, tid] { return n().tipId == tid; },
+                 [&cell, n, tid](bool on) {
+                     JPNozzleConfig& z = n();
+                     if (!on) {
+                         if (z.tipId == tid) z.tipId.clear();
+                         return;
+                     }
+                     // On this nozzle: it fits it, and it is on no other.
+                     if (!z.fits(tid)) z.tipIds.push_back(tid);
+                     for (JPNozzleConfig& other : cell.nozzles)
+                         if (other.tipId == tid) other.tipId.clear();
+                     z.tipId = tid;
+                 });
+        add.end();
+    }
+    if (cell.nozzleTips.empty()) add.note("No nozzle tips yet: add them under Nozzle Tips.");
+    add.note("Loaded? says which tip is on the nozzle now; ticking it moves nothing.");
 }
 
 void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f) {
     auto t = finder(cell.nozzleTips, id);
     f.title = "Nozzle tip " + t().name;
-    Adder add(f.model);
-    add.category("Nozzle Tip");
-    add.text("name", "Name", [t]() -> std::string& { return t().name; });
-    add.number("diameter", "Diameter seen from below (mm)", [t]() -> double& { return t().diameter; });
-    // Its steps are in the tree under it.
-    add.category("Changer");
-    add.choice("unloading", "Unloading", { "loading backwards", "steps of its own" },
-               [t] { return std::string(t().unloadReversesLoad ? "loading backwards" : "steps of its own"); },
-               [t](const std::string& v) {
-                   JPNozzleTipConfig& tip = t();
-                   const bool backwards = v == "loading backwards";
-                   // Its own start as loading backwards, to change from there.
-                   if (!backwards && tip.unloadReversesLoad && tip.unloadSteps.empty())
-                       tip.unloadSteps = tip.unloadingSteps();
-                   tip.unloadReversesLoad = backwards;
-               });
-    add.category("Fits");
+    Adder add(f);
+    add.tab("Configuration");
+    add.group("Properties");
+    add.text("name", "Name", [t]() -> std::string& { return t().name; }, "name");
+    add.group("Part Dimensions");
+    add.number("diameter", "Diameter Seen From Below", [t]() -> double& { return t().diameter; });
+    add.group("Nozzles");
     for (const JPNozzleConfig& n : cell.nozzles) {
         auto nozzle = finder(cell.nozzles, n.id);
         add.flag("fits:" + n.id, n.name.empty() ? n.id : n.name, [nozzle, id] { return nozzle().fits(id); },
@@ -362,6 +496,22 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
                      else if (z.tipId == id) z.tipId.clear();   // a tip that does not fit is not on it
                  });
     }
+    add.note("The nozzles this tip fits.");
+
+    add.tab("Tool Changer");
+    add.group("Nozzle Tip Changer");
+    add.choice("unloading", "Unloading", { "loading backwards", "steps of its own" },
+               [t] { return std::string(t().unloadReversesLoad ? "loading backwards" : "steps of its own"); },
+               [t](const std::string& v) {
+                   JPNozzleTipConfig& tip = t();
+                   const bool backwards = v == "loading backwards";
+                   // Its own start as loading backwards, to change from there.
+                   if (!backwards && tip.unloadReversesLoad && tip.unloadSteps.empty())
+                       tip.unloadSteps = tip.unloadingSteps();
+                   tip.unloadReversesLoad = backwards;
+               });
+    add.note("The steps of loading and unloading are in the tree under the tip: select one to change it, "
+             "Add to add one after it.");
 }
 
 // An optional coordinate as text: empty when left out (the nozzle stays as it
@@ -378,7 +528,7 @@ void coordinate(Adder& add, const std::string& name, const std::string& label,
                  const double d = std::strtod(v.c_str(), &end);
                  if (end && end != v.c_str() && v.find_first_not_of(" \t", size_t(end - v.c_str())) == std::string::npos)
                      ref() = d;
-             });
+             }, "number");
 }
 
 void stepForm(JPCellConfig& cell, const JPSetupTree::Path& p, JPSetupProperties::Form& f) {
@@ -387,14 +537,15 @@ void stepForm(JPCellConfig& cell, const JPSetupTree::Path& p, JPSetupProperties:
     const size_t index = size_t(std::strtoul(p.id.c_str(), nullptr, 10));
     const bool load = p.list == "load";
     f.title = "Nozzle tip " + tip().name + ": " + (load ? "load" : "unload") + " step " + std::to_string(index + 1);
-    Adder add(f.model);
-    add.category("Step");
+    Adder add(f);
+    add.tab("Step");
+    add.group("Step");
     if (!load && tip().unloadReversesLoad) {
         // Worked out from loading; changed by changing loading.
         const std::vector<S> steps = tip().unloadingSteps();
         if (index >= steps.size()) return;
         const std::string what = JPSetupTree::stepLabel(cell, steps[index], index);
-        add.text("what", "Loading backwards", [what] { return what.substr(what.find(' ') + 1); }, nullptr);
+        add.text("what", "Loading Backwards", [what] { return what.substr(what.find(' ') + 1); }, nullptr);
         return;
     }
     auto step = [tip, load, index]() -> S& {
@@ -411,17 +562,21 @@ void stepForm(JPCellConfig& cell, const JPSetupTree::Path& p, JPSetupProperties:
                });
     f.reshaping.push_back("kind");
     auto speed = [&add, step] {
-        add.integer("speed", "Speed (% of top speed)", [step] { return int(std::lround(step().speed * 100)); },
+        add.integer("speed", "Speed [%]", [step] { return int(std::lround(step().speed * 100)); },
                     [step](int v) { step().speed = std::clamp(v, 1, 100) / 100.0; }, 1, 100);
     };
     switch (step().kind) {
         case S::Kind::Move:
             // Where the nozzle doing the change goes, as the axes have it.
-            add.category("Where the Nozzle Goes (the axes' own coordinates; empty: stays)");
-            coordinate(add, "x", "X (mm)", [step]() -> std::optional<double>& { return step().x; });
-            coordinate(add, "y", "Y (mm)", [step]() -> std::optional<double>& { return step().y; });
-            coordinate(add, "z", "Z (mm)", [step]() -> std::optional<double>& { return step().z; });
-            coordinate(add, "rotation", "Rotation (degrees)", [step]() -> std::optional<double>& { return step().rotation; });
+            add.group("Location");
+            add.header(kXYZR);
+            add.row("Location", Place::Location);
+            coordinate(add, "x", "X", [step]() -> std::optional<double>& { return step().x; });
+            coordinate(add, "y", "Y", [step]() -> std::optional<double>& { return step().y; });
+            coordinate(add, "z", "Z", [step]() -> std::optional<double>& { return step().z; });
+            coordinate(add, "rotation", "Rotation", [step]() -> std::optional<double>& { return step().rotation; });
+            add.end();
+            add.note("Where the nozzle goes, in the axes' own coordinates. A coordinate left empty stays as it is.");
             speed();
             break;
         case S::Kind::SafeZ:
@@ -429,14 +584,14 @@ void stepForm(JPCellConfig& cell, const JPSetupTree::Path& p, JPSetupProperties:
             break;
         case S::Kind::Actuator:
             add.byName("actuator", "Actuator", named(cell.actuators, "(none)"), [step]() -> std::string& { return step().actuatorId; });
-            add.choice("on", "Switch it", { "on", "off" }, [step] { return std::string(step().on ? "on" : "off"); },
+            add.choice("on", "Switch It", { "on", "off" }, [step] { return std::string(step().on ? "on" : "off"); },
                        [step](const std::string& v) { step().on = v == "on"; });
             break;
         case S::Kind::Wait:
-            add.integer("waitMs", "Wait (ms)", [step]() -> int& { return step().waitMs; }, 0, 600000);
+            add.integer("waitMs", "Wait [ms]", [step]() -> int& { return step().waitMs; }, 0, 600000);
             break;
         case S::Kind::Ask:
-            add.text("message", "Message", [step]() -> std::string& { return step().message; });
+            add.text("message", "Message", [step]() -> std::string& { return step().message; }, "long");
             break;
     }
 }
@@ -444,59 +599,82 @@ void stepForm(JPCellConfig& cell, const JPSetupTree::Path& p, JPSetupProperties:
 void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f) {
     auto c = finder(cell.cameras, id);
     f.title = "Camera " + c().name;
-    Adder add(f.model);
-    add.category("Camera");
-    add.text("name", "Name", [c]() -> std::string& { return c().name; });
-    add.choice("looking", "Looking", { "down", "up" }, [c] { return std::string(c().looksUp ? "up" : "down"); },
-               [c](const std::string& v) { c().looksUp = v == "up"; });
-    mountProperties<JPCameraConfig>(add, cell, c, "(fixed to the machine)", true, f);
-
-    add.category("Picture");
+    Adder add(f);
+    add.tab("General Configuration");
+    add.group("Properties");
+    add.text("name", "Name", [c]() -> std::string& { return c().name; }, "name");
+    add.choice("looking", "Looking", { "Down", "Up" }, [c] { return std::string(c().looksUp ? "Up" : "Down"); },
+               [c](const std::string& v) { c().looksUp = v == "Up"; });
     auto device = [c]() -> JJson& { return c().device; };
+    add.group("Light");
+    add.byName("light", "Light Actuator", named(cell.actuators, "(none)"), [device] { return std::as_const(device())["light-actuator-id"].str(); },
+               [device](const std::string& v) { device()["light-actuator-id"] = v; });
+    add.group("Units Per Pixel");
+    // A start for calibrating with a nozzle's tip, whose size is not known.
+    add.header({ "X", "Y" });
+    add.row("Units per Pixel");
+    add.number("unitsPerPixelX", "Units per Pixel X", [c]() -> double& { return c().unitsPerPixelX; }, 5);
+    add.number("unitsPerPixelY", "Units per Pixel Y", [c]() -> double& { return c().unitsPerPixelY; }, 5);
+    add.end();
+    add.note("A rough start: calibrating measures them.");
+
+    add.tab("Device Settings");
+    add.group("Device");
     if (std::as_const(device())["backend"].str() == "simulated") {
-        add.text("backend", "Camera", [] { return std::string("simulated (set up in the cell file)"); }, nullptr);
+        add.text("backend", "Device", [] { return std::string("simulated (set up in the cell file)"); }, nullptr);
     } else {
         // Found by the name the device gives itself, whichever socket it is in.
-        add.text("device", "Device name", [device] { return std::as_const(device())["name"].str(); },
-                 [device](const std::string& v) { device()["name"] = v; });
+        add.text("device", "Device", [device] { return std::as_const(device())["name"].str(); },
+                 [device](const std::string& v) { device()["name"] = v; }, "long");
     }
-    // Width and height 0: the largest picture the camera offers.
     add.choice("format", "Format", { "any", "MJPG", "YUYV" },
                [device] { const std::string v = std::as_const(device())["format"].str(); return v.empty() ? std::string("any") : v; },
                [device](const std::string& v) { device()["format"] = v == "any" ? std::string() : v; });
-    add.integer("width", "Width (0: the largest)", [device] { return int(std::as_const(device())["width"].number()); },
+    add.header({ "Width", "Height" });
+    add.row("Size");
+    add.integer("width", "Width", [device] { return int(std::as_const(device())["width"].number()); },
                 [device](int v) { device()["width"] = v; }, 0, 10000);
-    add.integer("height", "Height (0: the largest)", [device] { return int(std::as_const(device())["height"].number()); },
+    add.integer("height", "Height", [device] { return int(std::as_const(device())["height"].number()); },
                 [device](int v) { device()["height"] = v; }, 0, 10000);
-    add.byName("light", "Light", named(cell.actuators, "(none)"), [device] { return std::as_const(device())["light-actuator-id"].str(); },
-               [device](const std::string& v) { device()["light-actuator-id"] = v; });
+    add.end();
+    add.note("0: the largest picture the camera offers.");
+
+    add.tab("Position");
+    coordinateSystem<JPCameraConfig>(add, cell, c, "(fixed to the machine)", true, f);
+
+    add.tab("Advanced Calibration");
+    add.group("Camera Calibration");
+    add.actions({ { "Start Calibration", "calibrate" } });
     // Straightened, a wide lens's picture no longer fills a rectangle.
-    add.integer("showAll", "Straightened: edge shown (0 cropped, 100 whole)",
-                [c] { return int(std::lround(c().showAll * 100)); },
+    add.row("Crop All Invalid Pixels");
+    add.integer("showAll", "Crop All Invalid Pixels", [c] { return int(std::lround(c().showAll * 100)); },
                 [c](int v) { c().showAll = std::clamp(v, 0, 100) / 100.0; }, 0, 100);
-    add.category("Scale");
-    // A start for calibrating with a nozzle's tip, whose size is not known.
-    add.number("unitsPerPixelX", "Rough mm per pixel X", [c]() -> double& { return c().unitsPerPixelX; }, 5);
-    add.number("unitsPerPixelY", "Rough mm per pixel Y", [c]() -> double& { return c().unitsPerPixelY; }, 5);
+    add.end();
+    add.note("0 crops every pixel the straightening leaves without picture; 100 shows all of the picture, "
+             "dark corners and all.");
 }
 
 void actuatorForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f) {
     auto a = finder(cell.actuators, id);
     f.title = "Actuator " + a().name;
-    Adder add(f.model);
-    add.category("Actuator");
-    add.text("name", "Name", [a]() -> std::string& { return a().name; });
+    Adder add(f);
+    add.tab("Configuration");
+    add.group("Properties");
+    add.byName("driver", "Driver", named(cell.drivers, "(none)"), [a]() -> std::string& { return a().driverId; });
+    add.text("name", "Name", [a]() -> std::string& { return a().name; }, "name");
+    add.group("Coordinate System");
     add.byName("head", "Head", named(cell.heads, "(on the machine)"), [a]() -> std::string& { return a().mount.headId; });
     f.reshaping.push_back("head");
-    add.category("Commands");
-    add.byName("driver", "Controller", named(cell.drivers, "(none)"), [a]() -> std::string& { return a().driverId; });
+    add.group("General");
     // {index} in a command is replaced by the index.
     add.text("index", "Index", [a]() -> std::string& { return a().index; });
-    add.text("onCommand", "On command", [a]() -> std::string& { return a().onCommand; });
-    add.text("offCommand", "Off command", [a]() -> std::string& { return a().offCommand; });
-    add.text("readCommand", "Read command", [a]() -> std::string& { return a().readCommand; });
-    add.text("readPattern", "Reply pattern", [a]() -> std::string& { return a().readPattern; });
-    add.text("unit", "Unit of what is read", [a]() -> std::string& { return a().unit; });
+    add.text("unit", "Unit Read", [a]() -> std::string& { return a().unit; });
+    add.group("Commands");
+    add.text("onCommand", "On", [a]() -> std::string& { return a().onCommand; }, "long");
+    add.text("offCommand", "Off", [a]() -> std::string& { return a().offCommand; }, "long");
+    add.text("readCommand", "Read", [a]() -> std::string& { return a().readCommand; }, "long");
+    add.text("readPattern", "Read Reply Pattern", [a]() -> std::string& { return a().readPattern; }, "long");
+    add.note("{index} in a command is replaced by the index.");
 }
 
 } // namespace

@@ -10,9 +10,12 @@
 #include <j/concurrent/WorkerThread.h>
 #include <j/core/Signal.h>
 
+#include <array>
+#include <atomic>
 #include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -81,6 +84,11 @@ public:
     // rate. Refused while a move is under way, so held jogging cannot pile up.
     void jog(const std::string& toolId, double dx, double dy, double dz, double drot, double speed);
 
+    // Take a tool (what `mount` describes: a nozzle, a camera on the head) to
+    // a place in its own coordinates: up to safe Z, across to X, Y and the
+    // rotation given, then down to Z when one is given. A coordinate not
+    // given stays as it is. Refused while a move is under way.
+    void moveTool(const JPMountConfig& mount, std::array<std::optional<double>, 4> to, double speed);
     // Move axes to coordinates, by axis id. Checked against soft limits; a
     // mapped axis moves its input axis. Runs on the cell thread; the outcome
     // arrives as onMotion.

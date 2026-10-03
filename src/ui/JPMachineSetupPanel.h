@@ -4,7 +4,7 @@
 #pragma once
 
 #include "JPIconButton.h"
-#include "JPPropertyForm.h"
+#include "JPSetupForm.h"
 
 #include "machine/JPCellConfig.h"
 #include "setup/JPSetupHistory.h"
@@ -19,9 +19,11 @@
 #include <j/core/JScrollArea.h>
 #include <j/core/JTreeView.h>
 
+#include <array>
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -58,6 +60,18 @@ public:
     std::function<bool(const JPCellConfig& cell)> onApply;
     // Undo or Redo became possible or not, or what they would do changed.
     std::function<void()> onHistory;
+    // A button on a part's settings (Visual Test, Start Calibration): the
+    // part's path and the action's name.
+    std::function<void(const std::string& path, const std::string& action)> onAction;
+    // Where a camera or nozzle is now (X, Y, Z, rotation; a coordinate not
+    // known is empty), and where an axis is.
+    using Where = std::array<std::optional<double>, 4>;
+    std::function<Where(JPSetupForm::Tool tool)> whereIs;
+    std::function<std::optional<double>(const std::string& axisId)> axisAt;
+    // Take the camera or nozzle to a place (a coordinate left empty stays),
+    // or an axis to a position.
+    std::function<void(JPSetupForm::Tool tool, const Where& to)> moveTo;
+    std::function<void(const std::string& axisId, double to)> moveAxis;
     // The node selected changed (its path).
     std::function<void(const std::string& path)> onSelected;
 
@@ -92,6 +106,9 @@ private:
     void select(const std::string& path);
     void show(const std::string& path);
     void changed(const std::string& property);
+    // A place row's buttons: take it from the machine (one step to undo), or go there.
+    void capture(const JPSetupProperties::Row& row, JPSetupForm::Tool tool);
+    void goTo(const JPSetupProperties::Row& row, JPSetupForm::Tool tool);
     // A change was made to m_draft: a step to undo, handed over.
     // `from`: the node selected when it was made, to go back to on Undo.
     void record(const std::string& what, const std::string& key, const std::string& from);
@@ -125,8 +142,7 @@ private:
     JButton*                 m_up       = nullptr;
     JButton*                 m_down     = nullptr;
     JLabel*                  m_title    = nullptr;
-    JScrollArea*             m_scroll   = nullptr;
-    JPPropertyForm*          m_form     = nullptr;
+    JPSetupForm*             m_form     = nullptr;
     JLabel*                  m_problems = nullptr;
     JLabel*                  m_note     = nullptr;
     JButton*                 m_undo     = nullptr;

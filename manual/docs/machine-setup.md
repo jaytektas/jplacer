@@ -44,20 +44,37 @@ are shown in elsewhere (the cameras' tabs, the Axes panel).
 
 ## Settings
 
-Each part's settings are in groups, with a control for each: a box to tick, a number, a choice, a line
-of text. Choices of another part (the controller an axis is on, a nozzle's axes, a camera's light) are
-made by name.
+A part's settings are laid out as OpenPnP lays out the same part: in **tabs**, and in each tab in titled
+**groups**. Each setting has a control the size of what it holds: a box to tick, a number, a choice, a
+line of text. Choices of another part (the controller an axis is on, a nozzle's axes, a camera's light) are
+made by name. Coordinates are in columns under **X**, **Y**, **Z** and **Rotation**.
 
-| Part | Settings |
+| Part | Tabs and groups |
 |---|---|
-| Machine | its name |
-| Controller | name, firmware profile (or `auto`, to recognise it), its serial port, baud rate and flow control, and how long it waits for things |
-| Axis | name, kind (driven by a **controller**, **mapped** to follow another axis through two points, or **virtual**), type, its controller and axis letter, home coordinate, soft limits, safe zone, top speed and backlash |
-| Head | name, its homing mark (where, its size, and whether Home finishes with the camera), its park place |
-| Nozzle | name, the head it is on, the axes that move it, its offset, and the nozzle tip on it (one of those that fit it) |
-| Nozzle tip | name, the diameter of its end as the camera looking up sees it, how it is unloaded (see below), and the nozzles it fits (a box for each) |
-| Camera | name, looking down or up, the head it is on (or fixed to the machine, and where), the device's name, the picture's format and size, its light, how much of a straightened picture's bent edge shows, and a rough scale to start calibrating from |
-| Actuator | name, the head it is on (or the machine), its controller, index and commands |
+| Machine | **Configuration**: General (name) |
+| Controller | **Configuration**: Properties (name, firmware profile, or `auto` to recognise it), Serial Port (port, baud, flow control). **Driver Settings**: the timeouts and the status interval |
+| Axis | **Configuration**: Properties (kind: driven by a **controller**, **mapped** to follow another axis through two points, or **virtual**; type; name), Controller Settings (driver, axis letter, home coordinate), Axis Mapping (input axis, map points A and B), Kinematic Settings (soft limits and safe zone, each with Enabled?; feed rate per second and per minute). **Backlash Compensation** |
+| Head | **Configuration**: Properties (name), Locations (homing fiducial, its diameter and homing method, with **Visual Test** and **Visual Home**; park location) |
+| Nozzle | **Configuration**: Properties (name), Coordinate System (head; axes and offsets). **Nozzle Tips**: every tip, whether it is **Compatible?** and whether it is **Loaded?** |
+| Nozzle tip | **Configuration**: Properties (name), Part Dimensions (diameter seen from below), Nozzles (the nozzles it fits). **Tool Changer**: how it is unloaded (see below) |
+| Camera | **General Configuration**: Properties (name, looking down or up), Light (light actuator), Units Per Pixel (a rough scale to start calibrating from). **Device Settings**: device, format, size. **Position**: the head it is on and its axes and offset, or where a fixed camera is. **Advanced Calibration**: **Start Calibration**, and how much of a straightened picture's bent edge shows |
+| Actuator | **Configuration**: Properties (driver, name), Coordinate System (head), General (index, unit read), Commands (on, off, read, reply pattern) |
+
+**Loaded?** on a nozzle's Nozzle Tips tab says which tip is on it now: ticking one moves nothing, and a tip
+is on one nozzle at a time.
+
+### Places
+
+A place (a homing fiducial, a park location, a fixed camera's location, where a changer step goes) is one
+row of coordinates ending in four buttons:
+
+- **Capture Camera** and **Capture Nozzle** set it from where the camera on the head, or the nozzle chosen on
+  the Jog panel, is now: one step to undo.
+- **Move Camera** and **Move Nozzle** go there: up to safe Z, across, and, for the nozzle, down to the Z
+  given. The machine must be connected and homed; the speed is the Jog panel's.
+
+A soft limit or safe zone end has the same two kinds of button for its axis: set it from where the axis is,
+or move the axis there.
 
 Only what jplacer acts on is shown. Whatever else a cell carries (brought from OpenPnP for features not
 built yet) is kept as it is. A camera's calibrations and the machine's squareness are measured, not set
@@ -66,7 +83,7 @@ here (see [Cameras](machine.md#cameras) and [Squaring the machine](board.md#squa
 Putting a part on a head gives it the head's X and Y axes, as its other parts have; taking it off one
 clears its axes.
 
-<!-- src: src/setup/JPSetupProperties.cpp; src/ui/JPPropertyForm.cpp -->
+<!-- src: src/setup/JPSetupProperties.cpp; src/ui/JPSetupForm.cpp; src/ui/JPGroupFrame.cpp; src/ui/JPMachineSetupPanel.cpp (capture, goTo); src/app/JPlacerMachine.cpp (toolMount, readyToMove, setupAction); src/machine/JPCell.cpp (moveTool) -->
 
 ## A nozzle tip's changer
 
@@ -128,4 +145,4 @@ undo or redo ("Undo Add Camera"), and takes you to where the change was made. Ch
 the same setting (a number stepped up several times) are one step. A port chosen on the Machine panel
 is a step too. The steps are kept until another cell is opened.
 
-<!-- src: src/ui/JPMachineSetupPanel.cpp (record, handOver, undo, the buttons); src/ui/JPTextField.cpp; src/ui/JPPropertyForm.cpp; src/setup/JPSetupHistory.h; src/app/JPlacerMachine.cpp (applySetup, setPort, undo); src/app/JPlacerMenuBuilder.cpp; src/machine/JPCell.cpp (reconfigure); src/machine/JPGcodeDriver.cpp (setConfig); src/machine/JPCellConfig.cpp (problems) -->
+<!-- src: src/ui/JPMachineSetupPanel.cpp (record, handOver, undo, the buttons); src/ui/JPTextField.cpp; src/ui/JPSetupForm.cpp; src/setup/JPSetupHistory.h; src/app/JPlacerMachine.cpp (applySetup, setPort, undo); src/app/JPlacerMenuBuilder.cpp; src/machine/JPCell.cpp (reconfigure); src/machine/JPGcodeDriver.cpp (setConfig); src/machine/JPCellConfig.cpp (problems) -->

@@ -150,11 +150,22 @@ int main() {
     // A tip fits the nozzles ticked on it; the nozzle has one of those on it.
     const std::string tip = JPSetupEdits::add(c, "group:nozzletips");
     JPSetupProperties::Form nozzle = JPSetupProperties::forNode(c, "nozzle:N", {});
-    assert(nozzle.model.get("tip").toString() == "503" && nozzle.model.find("tip")->meta.choices.size() == 2);
+    const std::string tipId = tip.substr(10);
+    assert(nozzle.model.get("loaded:T").toBool() && nozzle.model.get("fits:T").toBool());
+    assert(!nozzle.model.get("fits:" + tipId).toBool());
+    // Laid out as OpenPnP lays out a nozzle: its tips on a tab of their own,
+    // the axes and offsets as columns under X / Y / Z / Rotation.
+    assert(nozzle.tabs.size() == 2 && nozzle.tabs[0].title == "Configuration" && nozzle.tabs[1].title == "Nozzle Tips");
+    {
+        const JPSetupProperties::Group& cs = nozzle.tabs[0].groups[1];
+        assert(cs.title == "Coordinate System" && cs.rows[1].kind == JPSetupProperties::Row::Kind::Header);
+        assert(cs.rows[3].label == "Offset" && cs.rows[3].cells.size() == 3 && cs.rows[3].cells[0].property == "offsetX");
+    }
     JPSetupProperties::Form newTip = JPSetupProperties::forNode(c, tip, {});
     assert(newTip.model.set("fits:N", JVariant(true)) && c.nozzles[0].tipIds.size() == 2);
     nozzle = JPSetupProperties::forNode(c, "nozzle:N", {});
-    assert(nozzle.model.set("tip", JVariant(std::string("New nozzle tip"))) && c.nozzles[0].tipId == tip.substr(10));
+    assert(nozzle.model.set("loaded:" + tipId, JVariant(true)) && c.nozzles[0].tipId == tipId);
+    assert(!nozzle.model.get("loaded:T").toBool());   // one tip on a nozzle
     newTip.model.set("fits:N", JVariant(false));
     assert(c.nozzles[0].tipIds.size() == 1 && c.nozzles[0].tipId.empty());
     assert(c.problems().empty());

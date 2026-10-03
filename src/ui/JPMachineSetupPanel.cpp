@@ -15,6 +15,7 @@
 #include <j/core/Log.h>
 
 #include <algorithm>
+#include <cstdlib>
 #include <functional>
 
 inline namespace jf {
@@ -114,10 +115,14 @@ JPMachineSetupPanel::JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, 
     m_tree->setRightClickSelects(true);
 
     m_title = m_formPane->add(std::make_unique<JLabel>(graph, ""));
-    m_scroll = m_formPane->add(std::make_unique<JScrollArea>(graph, 0.f, 0.f));
-    m_scroll->setVSizePolicy(JSizePolicyMode::Expanding, 1);
-    m_form = m_scroll->addChildWidget(std::make_unique<JPPropertyForm>(graph));
+    m_form = m_formPane->add(std::make_unique<JPSetupForm>(graph));
+    m_form->setVSizePolicy(JSizePolicyMode::Expanding, 1);
     m_form->onChanged = [this](const std::string& property) { changed(property); };
+    m_form->onAction = [this](const std::string& action) {
+        if (onAction) onAction(m_selected, action);
+    };
+    m_form->onCapture = [this](const JPSetupProperties::Row& row, JPSetupForm::Tool tool) { capture(row, tool); };
+    m_form->onMoveTo = [this](const JPSetupProperties::Row& row, JPSetupForm::Tool tool) { goTo(row, tool); };
 
     m_problems = add(std::make_unique<JLabel>(graph, ""));
     m_problems->setWordWrap(true);
@@ -299,7 +304,7 @@ void JPMachineSetupPanel::show(const std::string& path) {
     m_title->setText(f.title);
     m_labels.clear();
     for (const JProperty& p : f.model.all()) m_labels[p.name] = p.meta.label.empty() ? p.name : p.meta.label;
-    m_form->setModel(std::move(f.model));
+    m_form->setForm(std::move(f));
     if (onSelected) onSelected(path);
     update();
 }
@@ -314,11 +319,57 @@ void JPMachineSetupPanel::changed(const std::string& property) {
         JPSetupProperties::Form f = JPSetupProperties::forNode(m_draft, m_selected, m_profiles);
         m_reshaping = f.reshaping;
         m_title->setText(f.title);
-        m_form->setModel(std::move(f.model));
+        m_labels.clear();
+        for (const JProperty& p : f.model.all()) m_labels[p.name] = p.meta.label.empty() ? p.name : p.meta.label;
+        m_form->setForm(std::move(f));
         select(m_selected);   // where it is in the tree now
     }
     // Typing on in the same field is the same step.
     record(what, at + "|" + property, at);
+}
+
+void JPMachineSetupPanel::capture(const JPSetupProperties::Row& row, JPSetupForm::Tool tool) {
+    const std::string at = m_selected;
+    bool any = false;
+    if (row.place == JPSetupProperties::Place::Axis) {
+        const std::optional<double> v = axisAt ? axisAt(row.axis) : std::nullopt;
+        if (v && !row.cells.empty()) any = m_form->set(row.cells.front().property, JVariant(*v));
+    } else {
+        const Where now = whereIs ? whereIs(tool) : Where{};
+        // The row's cells are X, Y, Z and rotation, in that order; an empty one is skipped.
+        for (size_t i = 0; i < row.cells.size() && i < now.size(); ++i)
+            if (!row.cells[i].property.empty() && now[i]) any = m_form->set(row.cells[i].property, JVariant(*now[i])) || any;
+    }
+    if (!any) {
+        m_note->setText("Nothing captured: the machine is not connected, or nothing is chosen to capture from.");
+        return;
+    }
+    m_note->setText("");
+    rebuildTree();
+    record("Capture " + nameOf(m_draft, at) + ": " + row.label, "", at);
+}
+
+void JPMachineSetupPanel::goTo(const JPSetupProperties::Row& row, JPSetupForm::Tool tool) {
+    // A coordinate as a number, or empty (a step's coordinate left out).
+    auto value = [this](const std::string& property) -> std::optional<double> {
+        if (property.empty()) return std::nullopt;
+        const JVariant v = m_form->get(property);
+        if (v.isDouble() || v.isInt()) return v.toDouble();
+        const std::string t = v.toString();
+        char* end = nullptr;
+        const double d = std::strtod(t.c_str(), &end);
+        if (t.empty() || end == t.c_str()) return std::nullopt;
+        return d;
+    };
+    if (row.place == JPSetupProperties::Place::Axis) {
+        if (const auto v = row.cells.empty() ? std::nullopt : value(row.cells.front().property); v && moveAxis)
+            moveAxis(row.axis, *v);
+        return;
+    }
+    Where to;
+    for (size_t i = 0; i < row.cells.size() && i < to.size(); ++i) to[i] = value(row.cells[i].property);
+    if (tool == JPSetupForm::Tool::Camera) to[2].reset();   // a camera stays at safe Z
+    if (moveTo) moveTo(tool, to);
 }
 
 void JPMachineSetupPanel::update() {

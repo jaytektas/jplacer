@@ -25,6 +25,13 @@ public:
     static void collapseAll(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
     // A gear: settings.
     static void gear(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
+    // Take a place from where the camera is (a viewfinder round a ring), or
+    // from where the nozzle is (a nozzle over a ring).
+    static void captureCamera(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
+    static void captureNozzle(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
+    // Go to a place with the camera / the nozzle (an arrow to it).
+    static void moveCamera(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
+    static void moveNozzle(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
 };
 
 } // inline namespace jf

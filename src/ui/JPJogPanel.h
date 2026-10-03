@@ -33,6 +33,9 @@ public:
     // The chosen tool's coordinates now, by name (X, Y, Z, C): where its
     // axes are plus its offset on the head.
     std::vector<std::pair<std::string, double>> where() const;
+    // The chosen tool (its id), and the speed chosen, as a share of top speed.
+    const std::string& toolId() const;
+    double speed() const;
 
 private:
     struct Tool {
@@ -50,7 +53,6 @@ private:
     void step(int coordinate, double direction);
     double stepSize() const;
     static float labelWidth();
-    double speed() const;
 
     JPCell&                 m_cell;
     std::vector<Tool>       m_tools;

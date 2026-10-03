@@ -153,4 +153,9 @@ float JPJogPanel::labelWidth() {
 double JPJogPanel::stepSize() const { return kSteps[size_t(m_step->chosen())]; }
 double JPJogPanel::speed() const    { return kSpeeds[size_t(m_speed->chosen())]; }
 
+const std::string& JPJogPanel::toolId() const {
+    static const std::string none;
+    return m_tools.empty() ? none : m_tools[m_tool].id;
+}
+
 } // inline namespace jf

@@ -105,6 +105,13 @@ private:
     void bringForward(JPCameraPanel& camera);
     void dropPanels(Keep keep = Keep::Nothing);
     void updateEditItems();
+    // Machine Setup's buttons: Visual Test, Visual Home, a camera's Start Calibration.
+    void setupAction(const std::string& path, const std::string& action);
+    // What Machine Setup's place buttons use: the camera on the head, or the
+    // nozzle chosen on the Jog panel (else the first). Null when there is none.
+    const JPMountConfig* toolMount(JPSetupForm::Tool tool) const;
+    // Connected and homed; else the status bar says what is needed first.
+    bool readyToMove();
 
     struct Dock {
         std::unique_ptr<JDockWidget> dock;

@@ -571,6 +571,27 @@ std::vector<JPCameraCalibration> JPCell::cameraCalibrations(const std::string& c
     return {};
 }
 
+void JPCell::moveTool(const JPMountConfig& mount, std::array<std::optional<double>, 4> to, double speed) {
+    if (m_moving.exchange(true)) {
+        JLOGC(JPlacerLog::kCell, JLogLevel::Debug) << "move refused: one is under way";
+        return;
+    }
+    m_thread.post([this, mount, to, speed] {
+        std::string why;
+        bool ok = mount.headId.empty() || doSafeZ(mount.headId, speed, why);
+        // Tool = axis + its offset on the head.
+        std::map<std::string, double> across;
+        if (to[0] && !mount.axisX.empty()) across[mount.axisX] = *to[0] - mount.offsetX;
+        if (to[1] && !mount.axisY.empty()) across[mount.axisY] = *to[1] - mount.offsetY;
+        if (to[3] && !mount.axisRotation.empty()) across[mount.axisRotation] = *to[3];
+        if (ok && !across.empty()) ok = doMove(across, speed, why);
+        if (ok && to[2] && !mount.axisZ.empty()) ok = doMove({ { mount.axisZ, *to[2] - mount.offsetZ } }, speed, why);
+        m_moving = false;
+        if (!ok) JLOGC(JPlacerLog::kCell, JLogLevel::Warn) << "move refused: " << why;
+        onMotion.emit(ok, why);
+    });
+}
+
 void JPCell::moveAxes(std::map<std::string, double> targets, double speed) {
     if (m_moving.exchange(true)) {
         JLOGC(JPlacerLog::kCell, JLogLevel::Debug) << "move refused: one is under way";
