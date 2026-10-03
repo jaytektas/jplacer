@@ -128,6 +128,20 @@ void JPJogPanel::step(int coordinate, double direction) {
     m_cell.moveAxes({ { co.axisId, p->second + direction * stepSize() } }, speed());
 }
 
+std::vector<std::pair<std::string, double>> JPJogPanel::where() const {
+    std::vector<std::pair<std::string, double>> out;
+    if (m_tool >= m_tools.size()) return out;
+    const JPMountConfig& m = *m_tools[m_tool].mount;
+    const auto positions = m_cell.positions();
+    const std::tuple<const char*, const std::string*, double> axes[] = {
+        { "X", &m.axisX, m.offsetX }, { "Y", &m.axisY, m.offsetY }, { "Z", &m.axisZ, m.offsetZ },
+        { "C", &m.axisRotation, 0.0 } };
+    for (const auto& [name, axis, offset] : axes)
+        if (const auto p = positions.find(*axis); !axis->empty() && p != positions.end())
+            out.emplace_back(name, p->second + offset);
+    return out;
+}
+
 // One width for every label in the panel, so fields and buttons line up: the
 // widest label's text and a gap.
 float JPJogPanel::labelWidth() {

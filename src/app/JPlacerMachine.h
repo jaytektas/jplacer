@@ -5,11 +5,14 @@
 
 #include "JPlacerBoard.h"
 #include "JPlacerCameraTasks.h"
+#include "JPlacerLayout.h"
 
 #include "machine/JPCell.h"
 #include "ui/JPCameraPanel.h"
 #include "ui/JPConnectIcon.h"
 #include "ui/JPHomeIcon.h"
+#include "ui/JPJogPanel.h"
+#include "ui/JPPositionReadout.h"
 
 #include <j/app/JAppWindow.h>
 #include <j/core/DockWidget.h>
@@ -24,10 +27,10 @@
 inline namespace jf {
 
 // The machine jplacer is working with: the open cell (cells/<name>.json),
-// its panels, each in a dock of its own (a camera each, tabbed together in
-// the window's centre; Machine, Jog, Actuators, Board, Machine Setup,
-// Console, Axes), the strip across the window saying what state it is in, and the
-// Machine menu's actions on it.
+// its panels, each in a dock of its own where JPlacerLayout puts it (a
+// camera each; Jog, Actuators; Board, Machine Setup, Machine; Console), the
+// chosen tool's position in the status bar, the strip across the window
+// saying what state it is in, and the Machine menu's actions on it.
 //
 // The cell opened last is opened again at start (JPlacerSettings::kMachineCell).
 class JPlacerMachine {
@@ -49,9 +52,11 @@ public:
     void disconnect();
     void home();                // Machine > Home All Axes
     void park();                // Machine > Park Head
-    // Bring the dock titled `title` to the front of its tab group. False when
-    // there is no such dock.
+    // Bring the dock titled `title` to the front of its tab group (shown
+    // again if it was closed). False when there is no such dock.
     bool showDock(const std::string& title);
+    // Where the docks live, and View's entries for them.
+    JPlacerLayout& layout() { return m_layout; }
 
     // The directory cell files are kept in.
     static std::string cellsDir();
@@ -91,6 +96,7 @@ private:
 
     JAppWindow&                         m_window;
     JSceneGraph&                        m_graph;
+    JPlacerLayout                       m_layout;
     std::vector<JPFirmwareProfile>      m_profiles;
     std::unique_ptr<JPCell>             m_cell;
     std::string                         m_cellPath;
@@ -102,6 +108,7 @@ private:
     std::vector<CameraDock>             m_cameras;   // the window's centre
     std::unique_ptr<JPlacerCameraTasks> m_cameraTasks;   // its Calibrate and Visual Test
     std::unique_ptr<JPlacerBoard>       m_board;         // the board on the machine, and its panel
+    JPJogPanel*                         m_jog = nullptr; // its chosen tool, for the status bar
     std::vector<std::function<void()>>  m_unwatch;   // this class's watches on the cell
     std::shared_ptr<bool>               m_alive = std::make_shared<bool>(true);
     JMenuItem*                          m_connectItem    = nullptr;
@@ -110,6 +117,7 @@ private:
     JMenuItem*                          m_parkItem       = nullptr;
     JPConnectIcon                       m_connectIcon;
     JPHomeIcon                          m_homeIcon;
+    JPPositionReadout                   m_position;   // the chosen tool's, in the status bar
     bool                                m_connecting  = false;   // asked, not yet answered
     bool                                m_connectFailed = false; // the last connect failed
     std::string                         m_lost;                  // why the link dropped, until the next connect

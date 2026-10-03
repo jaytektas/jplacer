@@ -121,11 +121,31 @@ configuration folder, is used as well, and replaces a bundled one with the same 
 
 ## The machine's panels
 
-While a cell is open, its panels sit in docks: **Machine**, **Jog**, **Actuators**,
-[**Board**](board.md) and [**Machine Setup**](machine-setup.md) on the right, **Console** and **Axes** along the bottom. Each is a dock like any other — drag its tab to another
-place, tear it out into a window of its own, or stack it with others.
+While a cell is open, its panels sit in docks:
 
-<!-- src: src/app/JPlacerMachine.cpp (buildPanels) -->
+- the **cameras** top left, tabbed together;
+- under them the machine controls, **Jog** and **Actuators**;
+- the rest of the window, tabbed: [**Board**](board.md), [**Machine Setup**](machine-setup.md) and
+  **Machine**;
+- the **Console** across the bottom.
+
+Every split between them can be dragged, as far as leaves the panels in the middle room for themselves.
+Each is a dock like any other: drag its tab to another place, tear it out into a window of its own, or
+stack it with others.
+
+**View** has a tick for each panel. Untick one to close it (or close it with its tab's **×**); tick it
+to bring it back, where it lives above, in front of the others there.
+
+<!-- src: src/app/JPlacerLayout.cpp (place, show, rebuildMenu, kLeftShare, kBottomShare); src/app/JPlacerMachine.cpp (buildPanels, buildCameras); src/app/JPlacerMenuBuilder.cpp (View); JFramework include/j/core/DockSpace.h (sideCap) -->
+
+### Where the tool is
+
+The right of the status bar says where the tool chosen in **Jog** is: X, Y, Z and C (its rotation), as
+Jog's boxes have them, in green. Click it to measure: it reads **Relative**, in blue, counting from where
+the tool was at that moment, so jogging to a second place reads the distance between the two. Click it
+again to go back to where the tool is.
+
+<!-- src: src/ui/JPPositionReadout.cpp; src/ui/JPJogPanel.cpp (where); src/app/JPlacerMachine.cpp (the status bar) -->
 
 ### Machine
 
@@ -218,7 +238,7 @@ controller, choose which one from the list beside the box.
 
 ### Cameras
 
-The cell's cameras fill the middle of the window, each in a dock of its own, named after the camera and
+The cell's cameras sit top left in the window, each in a dock of its own, named after the camera and
 tabbed together to start with. Click a camera's tab to see it, or arrange them like any other dock: side
 by side, or torn out into a window of its own. A camera's live picture is fitted to its dock with its
 shape kept, and a cross through the middle marks the point the camera is looking at; along the top are

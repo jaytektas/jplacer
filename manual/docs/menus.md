@@ -20,6 +20,14 @@ feature will live.
 |---|---|
 | **Preferences…** | Opens [Preferences](preferences.md). |
 
+## View
+
+A tick for each panel: each camera, **Jog**, **Actuators**, **Board**, **Machine Setup**, **Machine** and
+**Console**. Untick one to close it; tick it to show it again where it lives (see
+[The machine's panels](machine.md#the-machines-panels)).
+
+<!-- src: src/app/JPlacerMenuBuilder.cpp (View); src/app/JPlacerLayout.cpp (rebuildMenu) -->
+
 ## Machine
 
 | Entry | |

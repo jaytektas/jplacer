@@ -9,7 +9,6 @@
 #include "common/JPlacerPaths.h"
 #include "openpnp/JPOpenPnpMachineImporter.h"
 #include "ui/JPActuatorPanel.h"
-#include "ui/JPAxesPanel.h"
 #include "ui/JPConsolePanel.h"
 #include "ui/JPJogPanel.h"
 #include "ui/JPMachinePanel.h"
@@ -38,10 +37,6 @@ constexpr int kErrorMs  = 8000;
 // How fast Park Head moves, as a share of the axes' rates.
 constexpr double kParkSpeed = 0.5;
 
-// The first so many panels dock on the right (driving the machine), the rest
-// along the bottom (what it says).
-constexpr size_t kRightPanels = 5;
-
 // Where OpenPnP keeps its machine, under the home folder.
 constexpr const char* kOpenPnpDir         = ".openpnp2";
 constexpr const char* kOpenPnpMachineFile = "machine.xml";
@@ -49,8 +44,9 @@ constexpr const char* kOpenPnpMachineFile = "machine.xml";
 } // namespace
 
 JPlacerMachine::JPlacerMachine(JAppWindow& window, JSceneGraph& graph)
-    : m_window(window), m_graph(graph), m_profiles(JPFirmwareProfile::loadAll()),
-      m_connectIcon(graph), m_homeIcon(graph) {
+    : m_window(window), m_graph(graph), m_layout(window), m_profiles(JPFirmwareProfile::loadAll()),
+      m_connectIcon(graph), m_homeIcon(graph),
+      m_position(graph, [this] { return m_jog ? m_jog->where() : std::vector<std::pair<std::string, double>>(); }) {
     // The machine's two states, always in view: click the chip to connect or
     // disconnect, the house to home.
     JToolBar& tb = window.toolBar();
@@ -60,7 +56,8 @@ JPlacerMachine::JPlacerMachine(JAppWindow& window, JSceneGraph& graph)
         if (m_cell && m_cell->isConnected()) disconnect(); else connect();
     });
     m_homeIcon.onClicked.connect([this] { home(); });
-    window.dockSpace().setCentreDocks(true);   // a tab per camera (buildCameras)
+    // Where the chosen tool is (Jog), at the right of the status bar.
+    window.statusBar().addWidget(&m_position, JPPositionReadout::widthNeeded());
     JLOGC(JPlacerLog::kProfiles, JLogLevel::Info) << m_profiles.size() << " firmware profile(s)";
     if (const std::string last = JPlacerSettings::machineCell(); !last.empty()) {
         std::string error;
@@ -81,19 +78,19 @@ void JPlacerMachine::dropPanels() {
     m_cameraTasks.reset();   // a task under way finishes first: it drives the cell and a camera
     for (const auto& u : m_unwatch) u();
     m_unwatch.clear();
+    m_jog = nullptr;
     for (Dock& d : m_docks) {
         d.dock->setContent(nullptr);
         d.panel.reset();
     }
-    for (CameraDock& c : m_cameras)
-        if (JDockHost* host = c.dock->placedIn()) host->removeDock(c.dock.get());
+    for (CameraDock& c : m_cameras) m_layout.remove(c.dock.get());
     m_cameras.clear();
 }
 
 void JPlacerMachine::buildCameras() {
-    // The cameras fill the centre, each in a tab: what the machine sees is
-    // what the person works from. A camera runs, and its light is on, while
-    // its tab is in front (or torn out into a window of its own).
+    // The cameras top left, each in a tab: what the machine sees is what the
+    // person works from. A camera runs, and its light is on, while its tab is
+    // in front (or torn out into a window of its own).
     // A head camera looks where its axes put it, plus its offset on the head;
     // a fixed one is drawn with nothing under it. The world it draws stays
     // where the switches put it when visual homing corrects the coordinates.
@@ -128,17 +125,11 @@ void JPlacerMachine::buildCameras() {
         };
         d.panel->onRunning = [this](bool) { lightCameras(); };
         d.dock = std::make_unique<JDockWidget>(c.name, 0.f, 0.f, 0.f, 0.f);
-        d.dock->setCloseable(false);   // nowhere to open it again from
         d.dock->setContent(d.panel.get());
         panels.push_back(d.panel.get());
         m_cameras.push_back(std::move(d));
     }
-    JDockHost& centre = m_window.dockSpace().host(JDockSpace::Center);
-    // Tabbed together: each joins the first one's group.
-    for (size_t i = 0; i < m_cameras.size(); ++i) {
-        if (i == 0) centre.addDock(m_cameras[i].dock.get());
-        else centre.insertDock(m_cameras[i].dock.get(), centre.findDock(m_cameras[0].dock.get()));
-    }
+    for (CameraDock& d : m_cameras) m_layout.add(d.dock.get(), JPlacerLayout::Home::Cameras);
     if (!m_cameras.empty()) bringForward(*m_cameras.front().panel);
     m_cameraTasks = std::make_unique<JPlacerCameraTasks>(m_window, *m_cell, std::move(panels),
                                                          [this](JPCameraPanel& p) { bringForward(p); }, m_cellPath);
@@ -147,9 +138,7 @@ void JPlacerMachine::buildCameras() {
 
 void JPlacerMachine::bringForward(JPCameraPanel& camera) {
     for (CameraDock& d : m_cameras)
-        if (d.panel.get() == &camera)
-            // Re-inserting a dock where it already is makes it the active tab.
-            if (JDockHost* host = d.dock->placedIn()) host->insertDock(d.dock.get(), host->findDock(d.dock.get()));
+        if (d.panel.get() == &camera) m_layout.show(d.dock.get());
 }
 
 void JPlacerMachine::buildPanels() {
@@ -164,13 +153,20 @@ void JPlacerMachine::buildPanels() {
             if (const auto a = alive.lock(); a && *a) setPort(driverId, port);
         });
     };
-    std::vector<std::pair<const char*, std::unique_ptr<JContainer>>> panels;
-    panels.emplace_back("Machine",   std::move(machine));
-    panels.emplace_back("Jog",       std::make_unique<JPJogPanel>(m_graph, *m_cell));
-    panels.emplace_back("Actuators", std::make_unique<JPActuatorPanel>(m_graph, *m_cell));
+    using Home = JPlacerLayout::Home;
+    struct Panel {
+        const char*                 title;
+        Home                        home;
+        std::unique_ptr<JContainer> panel;
+    };
+    std::vector<Panel> panels;
+    auto jog = std::make_unique<JPJogPanel>(m_graph, *m_cell);
+    m_jog = jog.get();
+    panels.push_back({ "Jog",       Home::Controls, std::move(jog) });
+    panels.push_back({ "Actuators", Home::Controls, std::make_unique<JPActuatorPanel>(m_graph, *m_cell) });
     m_board = std::make_unique<JPlacerBoard>(m_window, *m_cameraTasks,
         [this](const JPMountConfig& mount, double xPerY) { squareMachine(mount, xPerY); });
-    panels.emplace_back("Board",     m_board->makePanel(m_graph));
+    panels.push_back({ "Board",     Home::Work, m_board->makePanel(m_graph) });
     for (CameraDock& c : m_cameras)
         c.panel->setMarks([board = m_board.get(), id = c.panel->camera().id] { return board->marks(id); });
     std::vector<std::string> profiles;
@@ -185,27 +181,25 @@ void JPlacerMachine::buildPanels() {
             if (const auto a = alive.lock(); a && *a) applySetup(cell);
         });
     };
-    panels.emplace_back("Machine Setup", std::move(setup));
-    panels.emplace_back("Console",   std::make_unique<JPConsolePanel>(m_graph, *m_cell));
-    panels.emplace_back("Axes",      std::make_unique<JPAxesPanel>(m_graph, *m_cell));
+    panels.push_back({ "Machine Setup", Home::Work, std::move(setup) });
+    panels.push_back({ "Machine",   Home::Work, std::move(machine) });
+    panels.push_back({ "Console",   Home::Console, std::make_unique<JPConsolePanel>(m_graph, *m_cell) });
 
     const bool first = m_docks.empty();
     for (size_t i = 0; i < panels.size(); ++i) {
         if (first) {
             Dock d;
-            d.dock = std::make_unique<JDockWidget>(panels[i].first, 0.f, 0.f, 0.f, 0.f);
-            // Driving the machine on the right; what it says, along the bottom.
-            JDockHost& area = i < kRightPanels ? m_window.dockSpace().right() : m_window.dockSpace().bottom();
-            area.addDock(d.dock.get());
+            d.dock = std::make_unique<JDockWidget>(panels[i].title, 0.f, 0.f, 0.f, 0.f);
+            m_layout.add(d.dock.get(), panels[i].home);
             m_docks.push_back(std::move(d));
         }
-        m_docks[i].panel = std::move(panels[i].second);
+        m_docks[i].panel = std::move(panels[i].panel);
         m_docks[i].dock->setContent(m_docks[i].panel.get());
     }
     if (first) {
-        // Each area opens on its first panel (the last added would be in front).
-        showDock("Machine");
-        showDock("Console");
+        // Each place opens on its first panel (the last added would be in front).
+        showDock("Jog");
+        showDock("Board");
     }
 }
 
@@ -527,8 +521,7 @@ bool JPlacerMachine::showDock(const std::string& title) {
         }
     for (Dock& d : m_docks) {
         if (d.dock->title() != title) continue;
-        // Re-inserting a dock where it already is makes it the active tab.
-        if (JDockHost* host = d.dock->placedIn()) host->insertDock(d.dock.get(), host->findDock(d.dock.get()));
+        m_layout.show(d.dock.get());
         return true;
     }
     return false;

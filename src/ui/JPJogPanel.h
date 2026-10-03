@@ -14,6 +14,7 @@
 
 #include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 inline namespace jf {
@@ -28,6 +29,10 @@ inline namespace jf {
 class JPJogPanel : public JContainer {
 public:
     JPJogPanel(JSceneGraph& graph, JPCell& cell);
+
+    // The chosen tool's coordinates now, by name (X, Y, Z, C): where its
+    // axes are plus its offset on the head.
+    std::vector<std::pair<std::string, double>> where() const;
 
 private:
     struct Tool {

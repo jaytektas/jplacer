@@ -1,0 +1,70 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
+
+#pragma once
+
+#include <j/app/JAppWindow.h>
+#include <j/core/DockWidget.h>
+#include <j/core/MenuSystem.h>
+
+#include <vector>
+
+inline namespace jf {
+
+// Where jplacer's docks live, and the View menu that shows and hides them.
+//
+//   +-----------+---------------------------------+
+//   | cameras   |                                 |
+//   | (tabbed)  |   work: Board, Machine Setup,   |
+//   +-----------+   Machine… (tabbed)             |
+//   | machine   |                                 |
+//   | controls  |                                 |
+//   +-----------+---------------------------------+
+//   | console                                     |
+//   +---------------------------------------------+
+//
+// Each dock has a home it is put in when it is first added and whenever it
+// is shown again after being closed: beside the docks already there
+// (tabbed), the cameras above the machine controls. Where the person moves
+// one, it stays; every split can be dragged.
+class JPlacerLayout {
+public:
+    enum class Home { Cameras, Controls, Work, Console };
+
+    explicit JPlacerLayout(JAppWindow& window);
+    ~JPlacerLayout();
+
+    JPlacerLayout(const JPlacerLayout&)            = delete;
+    JPlacerLayout& operator=(const JPlacerLayout&) = delete;
+
+    // View's entries, a tick for each dock that is showing, in step with the
+    // docks from now on.
+    void setViewMenu(JMenu* view, JSceneGraph& graph);
+
+    // A dock to lay out: shown at its home now, and listed in View.
+    void add(JDockWidget* dock, Home home);
+    // Before a dock goes: taken out of wherever it is, and off View.
+    void remove(JDockWidget* dock);
+    // Shown (at its home, if it was closed) and brought to the front of its tabs.
+    void show(JDockWidget* dock);
+
+private:
+    struct Entry {
+        JDockWidget* dock;
+        Home         home;
+        JMenuItem*   item = nullptr;
+    };
+
+    JDockHost& hostOf(Home home);
+    void place(const Entry& e);
+    void hide(const Entry& e);
+    void rebuildMenu();
+    Entry* find(const JDockWidget* dock);
+
+    JAppWindow&        m_window;
+    std::vector<Entry> m_entries;   // in the order View lists them
+    JMenu*             m_view = nullptr;
+    JSceneGraph*       m_graph = nullptr;
+};
+
+} // inline namespace jf

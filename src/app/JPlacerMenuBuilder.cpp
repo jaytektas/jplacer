@@ -54,6 +54,9 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
     JMenu* edit = newMenu(window, "Edit");
     edit->add(graph, "Preferences\xE2\x80\xA6")->onTriggered.connect([&app] { app.openPreferences(); });
 
+    // A tick for each panel: untick to close it, tick to bring it back where it lives.
+    app.machine().layout().setViewMenu(newMenu(window, "View"), graph);
+
     JMenu* machine = newMenu(window, "Machine");
     machine->add(graph, "Import OpenPnP Machine\xE2\x80\xA6")->onTriggered.connect([&app] { app.machine().importOpenPnp(); });
     machine->add(graph, "Open Cell\xE2\x80\xA6")->onTriggered.connect([&app] { app.machine().chooseCell(); });

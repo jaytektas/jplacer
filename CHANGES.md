@@ -107,6 +107,12 @@ notes.
   OpenPnP machine brings each tip's tool changer as steps.
 - Preferences has an Appearance section: a dark or light theme (or as the desktop is set) and the
   interface scale, how big the whole interface is.
+- The window is laid out as in OpenPnP: the cameras top left, the machine controls (Jog, Actuators)
+  under them, Board, Machine Setup and Machine tabbed across the rest, and the Console along the
+  bottom. Splits can be dragged past half way. View has a tick for every panel, to close it or bring it
+  back.
+- The status bar shows where the tool chosen in Jog is; click it to measure from where it is now, click
+  again to go back. It takes the place of the Axes panel.
 
 ## 0.1.0
 
