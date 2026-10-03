@@ -6,6 +6,7 @@
 #include "JPGroupFrame.h"
 #include "JPIconButton.h"
 #include "JPIcons.h"
+#include "JPTextBox.h"
 #include "JPTextField.h"
 #include "JPUiParts.h"
 
@@ -34,6 +35,14 @@ float numberWidth() {
 float rowHeight() {
     const JStyle& st = JStyle::current();
     return std::max({ st.buttonHeight, st.controlHeight, JPIconButton::size() });
+}
+
+// How tall a box of lines is for `p`: as many lines as its value, at least one.
+float linesHeight(const JProperty& p) {
+    const std::string v = p.get().toString();
+    int lines = 1;
+    for (char c : v) lines += c == '\n';
+    return JPTextBox::heightFor(lines);
 }
 
 // A row in the columns under a header: a place, or several settings side by
@@ -171,11 +180,29 @@ std::unique_ptr<JWidget> JPSetupForm::editor(const JProperty& p, float width) {
         return ok;
     };
     JPropertyEditor e;
+    if (isText(p) && p.meta.editor == "lines") {
+        // Lines of text: as tall as they are, committed on leaving.
+        auto box = std::make_unique<JPTextBox>(m_graph, p.meta.def);
+        JPTextBox* b = box.get();
+        b->onCommitted.connect([set = bound.set](const std::string& t) { set(JVariant(t)); });
+        e.pull = [b, get = p.get] { b->setValue(get().toString()); };
+        e.widget = std::move(box);
+        e.widget->setHSizePolicy(JSizePolicyMode::Expanding, 1);
+        e.widget->setVSizePolicy(JSizePolicyMode::Fixed);
+        e.widget->setSize(m_graph.getLayoutConst(e.widget->getNodeId()).boundingBox.width, linesHeight(p));
+        m_pulling = true;
+        e.pull();
+        m_pulling = false;
+        m_pulls.push_back(e.pull);
+        return std::move(e.widget);
+    }
     if (isText(p)) {
         // A line of text changes when it is committed (Return, Tab, leaving
         // it), as a number does; the framework's editor for it changes on each key.
         auto field = std::make_unique<JPTextField>(m_graph);
         JPTextField* f = field.get();
+        // What an empty field stands for, greyed in it.
+        if (!p.meta.def.empty()) f->setPlaceholderText(p.meta.def);
         f->onCommitted.connect([set = bound.set](const std::string& t) { set(JVariant(t)); });
         e.pull = [f, get = p.get] { f->setValue(get().toString()); };
         e.widget = std::move(field);
@@ -268,8 +295,12 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
                 break;
             }
             case Row::Kind::Fields: {
+                // A row as tall as its tallest: a box of lines can be taller than a row.
+                float h = rowH;
+                for (const JPSetupProperties::Cell& c : r.cells)
+                    if (const JProperty* p = find(c.property); p && p->meta.editor == "lines") h = std::max(h, linesHeight(*p));
                 auto row = JPUiParts::row(m_graph);
-                auto name = box(m_graph, labels, rowH, JJustifyContent::FlexEnd);
+                auto name = box(m_graph, labels, h, JJustifyContent::FlexEnd);
                 name->add(label(m_graph, r.label));
                 row->add(std::move(name));
                 for (size_t i = 0; i < r.cells.size(); ++i) {
@@ -279,7 +310,7 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
                         // In its column: the column's width, the control at its start
                         // (a box to tick under the middle of its title).
                         const bool tick = p && p->get().isBool();
-                        auto cell = box(m_graph, columns[i], rowH, tick ? JJustifyContent::Center : JJustifyContent::FlexStart);
+                        auto cell = box(m_graph, columns[i], h, tick ? JJustifyContent::Center : JJustifyContent::FlexStart);
                         if (p) cell->add(editor(*p, widthOf(*p)));
                         row->add(std::move(cell));
                         continue;
@@ -316,9 +347,9 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
                         if (onMoveTo) onMoveTo(r, Tool::Camera);
                     });
                 }
-                row->setFixedSize(0.f, rowH);
+                row->setFixedSize(0.f, h);
                 row->setHSizePolicy(JSizePolicyMode::Expanding, 1);
-                place(std::move(row), rowH);
+                place(std::move(row), h);
                 break;
             }
         }

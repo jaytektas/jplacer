@@ -52,7 +52,7 @@ made by name. Coordinates are in columns under **X**, **Y**, **Z** and **Rotatio
 | Part | Tabs and groups |
 |---|---|
 | Machine | **Configuration**: General (name) |
-| Controller | **Configuration**: Properties (name, firmware profile, or `auto` to recognise it), Serial Port (port, baud, flow control). **Driver Settings**: the timeouts and the status interval |
+| Controller | **Configuration**: Properties (name, firmware profile, or `auto` to recognise it), Communications (line endings: LF, CR or CRLF), Serial Port (port, baud, parity, data bits, stop bits, flow control, and **Set DTR** / **Set RTS** to raise those lines once the port is open). **Driver Settings**: Max. Feed Rate (the fastest any move is sent; 0 for no cap), **Log G-code?** (every line sent and received goes to the log), the timeouts and the status interval. **Gcode**: each of the firmware's commands; empty, the profile's is used (shown greyed), else what is written here, several lines if need be |
 | Axis | **Configuration**: Properties (kind: driven by a **controller**, **mapped** to follow another axis through two points, or **virtual**; type; name), Controller Settings (driver, axis letter, home coordinate), Axis Mapping (input axis, map points A and B), Kinematic Settings (soft limits and safe zone, each with Enabled?; feed rate per second and per minute). **Backlash Compensation** |
 | Head | **Configuration**: Properties (name), Locations (homing fiducial, its diameter and homing method, with **Visual Test** and **Visual Home**; park location) |
 | Nozzle | **Configuration**: Properties (name), Coordinate System (head; axes and offsets). **Nozzle Tips**: every tip, whether it is **Compatible?** and whether it is **Loaded?** |
@@ -83,7 +83,7 @@ here (see [Cameras](machine.md#cameras) and [Squaring the machine](board.md#squa
 Putting a part on a head gives it the head's X and Y axes, as its other parts have; taking it off one
 clears its axes.
 
-<!-- src: src/setup/JPSetupProperties.cpp; src/ui/JPSetupForm.cpp; src/ui/JPGroupFrame.cpp; src/ui/JPMachineSetupPanel.cpp (capture, goTo); src/app/JPlacerMachine.cpp (toolMount, readyToMove, setupAction); src/machine/JPCell.cpp (moveTool) -->
+<!-- src: src/setup/JPSetupProperties.cpp; src/ui/JPSetupForm.cpp; src/ui/JPTextBox.cpp; src/machine/JPSerialLink.cpp; src/machine/JPLinkFactory.cpp; src/machine/JPGcodeDriver.cpp (lineEnding); src/machine/JPCell.cpp (doMove); src/ui/JPGroupFrame.cpp; src/ui/JPMachineSetupPanel.cpp (capture, goTo); src/app/JPlacerMachine.cpp (toolMount, readyToMove, setupAction); src/machine/JPCell.cpp (moveTool) -->
 
 ## A nozzle tip's changer
 

@@ -49,7 +49,7 @@ public:
     // controller can name. `selected`: the node to start on (a path, see
     // JPSetupTree), as it was before the panel was made again. `treeShare`:
     // the tree's share of the room over the settings (the divider between).
-    JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, std::vector<std::string> profiles, std::string selected,
+    JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, std::vector<JPFirmwareProfile> profiles, std::string selected,
                         double treeShare = kTreeShare);
 
     // Where the divider between the tree and the settings is now: the tree's share.
@@ -124,7 +124,7 @@ private:
     JPSetupHistory           m_history;
     JFrameTimer              m_retry;
     std::map<std::string, std::string> m_labels;   // the shown form's property names: their labels
-    std::vector<std::string> m_profiles;
+    std::vector<JPFirmwareProfile> m_profiles;
     std::string              m_selected;
     std::vector<std::string> m_reshaping;   // the shown form's properties that change the form
     std::set<std::string>    m_expanded;    // paths of the tree's open nodes

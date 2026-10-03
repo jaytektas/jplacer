@@ -4,6 +4,7 @@
 #pragma once
 
 #include "machine/JPCellConfig.h"
+#include "machine/JPFirmwareProfile.h"
 
 #include <j/core/JPropertyModel.h>
 
@@ -67,8 +68,8 @@ public:
 
     // The form for the node at `path` (JPSetupTree); an empty model for a
     // group, or a part not in `cell`. `profiles`: the firmware profiles a
-    // controller can name. The model refers to `cell`, which must outlive it.
-    static Form forNode(JPCellConfig& cell, const std::string& path, const std::vector<std::string>& profiles);
+    // controller can name (and whose commands it can replace). The model refers to `cell`, which must outlive it.
+    static Form forNode(JPCellConfig& cell, const std::string& path, const std::vector<JPFirmwareProfile>& profiles);
 };
 
 } // inline namespace jf

@@ -47,7 +47,7 @@ std::string joined(const std::vector<std::string>& parts) {
 
 } // namespace
 
-JPMachineSetupPanel::JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, std::vector<std::string> profiles,
+JPMachineSetupPanel::JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, std::vector<JPFirmwareProfile> profiles,
                                          std::string selected, double treeShare)
     : JContainer(graph), m_inUse(cell), m_draft(cell), m_recorded(std::move(cell)),
       m_history([this](const JPSetupHistory::State& state) { restore(state); }), m_profiles(std::move(profiles)) {

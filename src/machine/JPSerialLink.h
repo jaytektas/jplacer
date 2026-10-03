@@ -19,8 +19,19 @@ inline namespace jf {
 // the main thread.
 class JPSerialLink : public JPLink {
 public:
-    // `flow` is "none", "rtscts" or "xonxoff".
-    JPSerialLink(std::string port, int baud, std::string flow);
+    // How the port is set up, as OpenPnP's serial settings are.
+    struct Settings {
+        std::string port;
+        int         baud = 115200;
+        std::string flow;            // "none" (or empty), "rtscts", "xonxoff"
+        int         dataBits = 8;    // 5 to 8
+        int         stopBits = 1;    // 1 or 2
+        std::string parity;          // "none" (or empty), "even", "odd"
+        bool        setDtr = false;  // raise DTR once open (else left as the system has it)
+        bool        setRts = false;  // raise RTS once open
+    };
+
+    explicit JPSerialLink(Settings settings);
     ~JPSerialLink() override;
 
     bool open(std::string& error) override;
@@ -34,9 +45,7 @@ private:
     // Move complete lines out of m_partial into m_lines.
     void split();
 
-    std::string             m_port;
-    int                     m_baud;
-    std::string             m_flow;
+    Settings                m_settings;
     JSerialPort             m_serial;
     std::string             m_partial;
     std::deque<std::string> m_lines;

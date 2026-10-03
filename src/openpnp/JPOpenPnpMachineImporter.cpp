@@ -191,11 +191,24 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                 dc.link["baud"] = serial ? number(serial->attr("baud")) : 0.0;
                 const std::string flow = serial ? serial->attr("flow-control") : std::string();
                 dc.link["flowControl"] = flow == "RtsCts" ? "rtscts" : flow == "XonXoff" ? "xonxoff" : "none";
+                if (serial) {
+                    // OpenPnP spells the settings out ("Eight", "One", "None").
+                    const std::string bits = serial->attr("data-bits"), stop = serial->attr("stop-bits"), parity = serial->attr("parity");
+                    dc.link["dataBits"] = bits == "Five" ? 5 : bits == "Six" ? 6 : bits == "Seven" ? 7 : 8;
+                    dc.link["stopBits"] = stop == "Two" ? 2 : 1;
+                    dc.link["parity"] = parity == "Even" ? "even" : parity == "Odd" ? "odd" : "none";
+                    dc.link["setDtr"] = serial->attr("set-dtr") == "true";
+                    dc.link["setRts"] = serial->attr("set-rts") == "true";
+                    const std::string ending = serial->attr("line-ending-type");
+                    dc.link["lineEnding"] = ending == "CR" ? "CR" : ending == "CRLF" ? "CRLF" : "LF";
+                }
             }
             if (const double t = number(d.attr("timeout-milliseconds")); t > 0) dc.commandTimeoutMs = int(t);
             if (const double t = number(d.attr("infinity-timeout-milliseconds")); t > 0) dc.homeTimeoutMs = int(t);
             if (!d.attr("connect-wait-time-milliseconds").empty())
                 dc.connectWaitMs = int(number(d.attr("connect-wait-time-milliseconds")));
+            dc.maxFeedRate = number(d.attr("max-feed-rate"));
+            dc.logGcode = d.attr("logging-gcode") == "true";
 
             Commands& cmds = commands[dc.id];
             for (const JPXmlElement& cmd : d.children) {

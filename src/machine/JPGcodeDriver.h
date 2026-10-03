@@ -121,6 +121,8 @@ private:
     // The settings as they are now: swapped whole by setConfig, read whole
     // (cfg) by the I/O thread and the cell's, so neither sees half of a change.
     std::shared_ptr<const JPDriverConfig> cfg() const { return m_config.load(); }
+    // What ends a line sent: the link's "lineEnding" (LF, CR or CRLF; LF when not given).
+    std::string lineEnding() const;
     const std::string                                 m_id;
     std::atomic<std::shared_ptr<const JPDriverConfig>> m_config;
     std::vector<JPFirmwareProfile> m_profiles;

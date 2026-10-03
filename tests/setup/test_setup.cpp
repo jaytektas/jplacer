@@ -72,6 +72,15 @@ const JPSetupTree::Node* find(const JPSetupTree::Node& n, const std::string& pat
 
 } // namespace
 
+// The bundled grblHAL profile, as a controller can name it.
+std::vector<JPFirmwareProfile> grblhal() {
+    JPFirmwareProfile p;
+    std::string error;
+    const bool ok = p.load(std::string(JPLACER_PROFILES_DIR) + "/grblhal.json", error);
+    assert(ok);
+    return { p };
+}
+
 int main() {
     JPCellConfig c = cell();
 
@@ -115,14 +124,28 @@ int main() {
         };
         walk(JPSetupTree::build(c));
         for (const std::string& path : paths) {
-            const JPSetupProperties::Form f = JPSetupProperties::forNode(c, path, { "grblhal" });
+            const JPSetupProperties::Form f = JPSetupProperties::forNode(c, path, grblhal());
             for (const JProperty& p : f.model.all()) p.get();
         }
         assert(c.toJson().dump() == before);
     }
 
+    // A controller's commands: the profile's unless replaced; emptied, the profile's again.
+    {
+        JPSetupProperties::Form d = JPSetupProperties::forNode(c, "driver:D", grblhal());
+        const JProperty* home = d.model.find("command:home");
+        assert(home && home->get().toString().empty() && home->meta.def.find("grblhal: ") == 0);
+        assert(d.model.set("command:home", JVariant(std::string("G28"))) && c.drivers[0].commands.at("home") == "G28");
+        assert(d.model.set("command:home", JVariant(std::string())) && c.drivers[0].commands.empty());
+        // The serial settings, as OpenPnP has them.
+        assert(d.model.set("parity", JVariant(std::string("even"))) && c.drivers[0].link["parity"].str() == "even");
+        assert(d.model.set("dataBits", JVariant(std::string("7"))) && c.drivers[0].link["dataBits"].number() == 7);
+        c.drivers[0].link["parity"] = "none";
+        c.drivers[0].link["dataBits"] = 8;
+    }
+
     // Settings: by name, written into the cell; a reshaping change.
-    JPSetupProperties::Form ax = JPSetupProperties::forNode(c, "axis:Z", { "grblhal" });
+    JPSetupProperties::Form ax = JPSetupProperties::forNode(c, "axis:Z", grblhal());
     assert(ax.title == "Axis Z" && ax.model.find("driver") && !ax.model.find("inputAxis"));
     assert(ax.model.get("driver").toString() == "Jaytek");
     assert(ax.model.set("kind", JVariant(std::string("mapped"))) && c.axes[2].kind == JPAxisConfig::Kind::Mapped);

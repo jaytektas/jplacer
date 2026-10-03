@@ -88,10 +88,13 @@ public:
         rows().push_back(std::move(r));
     }
 
+    // `placeholder`: what an empty value stands for, shown greyed.
     void text(const std::string& name, const std::string& label, std::function<std::string()> get,
-              std::function<void(const std::string&)> set, const std::string& editor = "") {
+              std::function<void(const std::string&)> set, const std::string& editor = "",
+              const std::string& placeholder = "") {
         JProperty p = make(name, label);
         p.meta.editor = editor;
+        p.meta.def = placeholder;
         p.get = [get] { return JVariant(get()); };
         if (set) p.set = [set](const JVariant& v) { set(v.toString()); return true; };   // none: shown, not edited
         put(std::move(p));
@@ -274,7 +277,7 @@ void machineForm(JPCellConfig& cell, JPSetupProperties::Form& f) {
     add.text("name", "Name", [&cell]() -> std::string& { return cell.name; }, "name");
 }
 
-void driverForm(JPCellConfig& cell, const std::string& id, const Strings& profiles, JPSetupProperties::Form& f) {
+void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPFirmwareProfile>& profiles, JPSetupProperties::Form& f) {
     auto d = finder(cell.drivers, id);
     f.title = "Controller " + d().name;
     Adder add(f);
@@ -282,7 +285,7 @@ void driverForm(JPCellConfig& cell, const std::string& id, const Strings& profil
     add.group("Properties");
     add.text("name", "Name", [d]() -> std::string& { return d().name; }, "name");
     Strings choices{ "auto" };
-    choices.insert(choices.end(), profiles.begin(), profiles.end());
+    for (const JPFirmwareProfile& p : profiles) choices.push_back(p.id());
     add.choice("profile", "Firmware Profile", choices, [d] { return d().profile; },
                [d](const std::string& v) { d().profile = v; });
     // A simulated controller is for trying jplacer without a machine; it is
@@ -291,23 +294,66 @@ void driverForm(JPCellConfig& cell, const std::string& id, const Strings& profil
         add.group("Communications");
         add.text("link", "Link", [] { return std::string("simulated (set up in the cell file)"); }, nullptr);
     } else {
+        add.group("Communications");
+        auto linkText = [d](const char* key, const std::string& none) {
+            return [d, key, none] { const std::string v = std::as_const(d().link)[key].str(); return v.empty() ? none : v; };
+        };
+        add.choice("lineEnding", "Line-Endings", { "LF", "CR", "CRLF" }, linkText("lineEnding", "LF"),
+                   [d](const std::string& v) { d().link["lineEnding"] = v; });
         add.group("Serial Port");
         add.text("port", "Port", [d] { return std::as_const(d().link)["port"].str(); },
                  [d](const std::string& v) { d().link["port"] = v; }, "long");
-        add.integer("baud", "Baud", [d] { return int(std::as_const(d().link)["baud"].number()); },
-                    [d](int v) { d().link["baud"] = v; }, 0, 4000000);
-        add.choice("flowControl", "Flow Control", { "none", "rtscts", "xonxoff" },
-                   [d] { const std::string f = std::as_const(d().link)["flowControl"].str(); return f.empty() ? std::string("none") : f; },
+        // The rates a serial port takes.
+        Strings rates;
+        for (int r : { 1200, 4800, 9600, 19200, 38400, 57600, 115200, 230400, 921600 }) rates.push_back(std::to_string(r));
+        add.choice("baud", "Baud", rates, [d] { return std::to_string(int(std::as_const(d().link)["baud"].number())); },
+                   [d](const std::string& v) { d().link["baud"] = std::atoi(v.c_str()); });
+        add.choice("parity", "Parity", { "none", "even", "odd" }, linkText("parity", "none"),
+                   [d](const std::string& v) { d().link["parity"] = v; });
+        add.choice("dataBits", "Data Bits", { "5", "6", "7", "8" },
+                   [d] { return std::to_string(int(std::as_const(d().link)["dataBits"].number(8))); },
+                   [d](const std::string& v) { d().link["dataBits"] = std::atoi(v.c_str()); });
+        add.choice("stopBits", "Stop Bits", { "1", "2" },
+                   [d] { return std::to_string(int(std::as_const(d().link)["stopBits"].number(1))); },
+                   [d](const std::string& v) { d().link["stopBits"] = std::atoi(v.c_str()); });
+        add.choice("flowControl", "Flow Control", { "none", "rtscts", "xonxoff" }, linkText("flowControl", "none"),
                    [d](const std::string& v) { d().link["flowControl"] = v == "none" ? std::string() : v; });
+        add.flag("setDtr", "Set DTR", [d] { return std::as_const(d().link)["setDtr"].boolean(); },
+                 [d](bool v) { d().link["setDtr"] = v; });
+        add.flag("setRts", "Set RTS", [d] { return std::as_const(d().link)["setRts"].boolean(); },
+                 [d](bool v) { d().link["setRts"] = v; });
         add.note("Connection settings are used the next time the machine is connected.");
     }
     add.tab("Driver Settings");
     add.group("Settings");
+    add.number("maxFeedRate", "Max. Feed Rate [/min]", [d]() -> double& { return d().maxFeedRate; }, 0);
+    add.flag("logGcode", "Log G-code?", [d]() -> bool& { return d().logGcode; });
     add.integer("commandTimeoutMs", "Command Timeout [ms]", [d]() -> int& { return d().commandTimeoutMs; }, 100, 600000);
     add.integer("connectWaitMs", "Connect Wait Time [ms]", [d]() -> int& { return d().connectWaitMs; }, 0, 60000);
     add.integer("identifyTimeoutMs", "Identify Timeout [ms]", [d]() -> int& { return d().identifyTimeoutMs; }, 100, 60000);
     add.integer("homeTimeoutMs", "Home Timeout [ms]", [d]() -> int& { return d().homeTimeoutMs; }, 1000, 600000);
     add.integer("statusIntervalMs", "Status Interval [ms]", [d]() -> int& { return d().statusIntervalMs; }, 10, 10000);
+    add.note("Max. Feed Rate 0: moves are as fast as their axes allow.");
+
+    // The firmware's commands, each replaceable for this controller (a
+    // machine wired its own way homes its own way). Empty: the profile's.
+    add.tab("Gcode");
+    add.group("Gcode");
+    std::map<std::string, Strings> templates;   // command: the profiles' templates for it
+    for (const JPFirmwareProfile& p : profiles)
+        if (d().profile == "auto" || d().profile == p.id())
+            for (const auto& [name, text] : p.commands()) templates[name].push_back(p.id() + ": " + text);
+    for (const auto& [name, _] : d().commands) templates[name];
+    for (const auto& [name, those] : templates) {
+        std::string def;
+        for (const std::string& t : those) def += (def.empty() ? "" : "   ") + t;
+        add.text("command:" + name, name, [d, name] { const auto i = d().commands.find(name); return i == d().commands.end() ? std::string() : i->second; },
+                 [d, name](const std::string& v) {
+                     if (v.empty()) d().commands.erase(name);
+                     else d().commands[name] = v;
+                 }, "lines", def);
+    }
+    add.note("Empty: the firmware profile's command, shown greyed. A command can be several lines; {placeholders} are filled in.");
 }
 
 void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f) {
@@ -679,7 +725,7 @@ void actuatorForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::
 
 } // namespace
 
-JPSetupProperties::Form JPSetupProperties::forNode(JPCellConfig& cell, const std::string& path, const Strings& profiles) {
+JPSetupProperties::Form JPSetupProperties::forNode(JPCellConfig& cell, const std::string& path, const std::vector<JPFirmwareProfile>& profiles) {
     Form f;
     const JPSetupTree::Path p = JPSetupTree::parse(path);
     if (p.kind == "machine") machineForm(cell, f);

@@ -37,6 +37,10 @@ struct JPDriverConfig {
     // host): a question asked before the greeting has arrived gets its answer
     // cut in two by it.
     int connectWaitMs     = 1000;
+    // The fastest any move is sent, per minute (0: no cap beyond the axes' own).
+    double maxFeedRate    = 0;
+    // Every line sent and received goes to the log (else only when tracing).
+    bool   logGcode       = false;
     // Commands this controller is sent instead of its profile's (same names:
     // home, move, …). A machine wired its own way homes its own way.
     std::map<std::string, std::string> commands;

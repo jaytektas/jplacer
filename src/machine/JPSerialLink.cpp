@@ -24,42 +24,51 @@ std::optional<JSerialPort::JBaudRate> toBaud(int baud) {
 
 } // namespace
 
-JPSerialLink::JPSerialLink(std::string port, int baud, std::string flow)
-    : m_port(std::move(port)), m_baud(baud), m_flow(std::move(flow)) {}
+JPSerialLink::JPSerialLink(Settings settings) : m_settings(std::move(settings)) {}
 
 JPSerialLink::~JPSerialLink() {
     close();
 }
 
 bool JPSerialLink::open(std::string& error) {
-    const auto baud = toBaud(m_baud);
-    if (!baud) {
-        error = std::to_string(m_baud) + " is not a supported baud rate";
-        JLOGC(JPlacerLog::kLink, JLogLevel::Error) << m_port << ": " << error;
+    const Settings& st = m_settings;
+    auto fail = [&](const std::string& why) {
+        error = why;
+        JLOGC(JPlacerLog::kLink, JLogLevel::Error) << st.port << ": " << error;
         return false;
-    }
+    };
+    const auto baud = toBaud(st.baud);
+    if (!baud) return fail(std::to_string(st.baud) + " is not a supported baud rate");
     using F = JSerialPort::JFlowCtrl;
     F flow = F::None;
-    if (m_flow == "rtscts")       flow = F::Hardware;
-    else if (m_flow == "xonxoff") flow = F::Software;
-    else if (!m_flow.empty() && m_flow != "none") {
-        error = "'" + m_flow + "' is not a flow control (none, rtscts, xonxoff)";
-        return false;
-    }
-    if (!m_serial.open(m_port, *baud, JSerialPort::JDataBits::Eight, JSerialPort::JStopBits::One,
-                       JSerialPort::JParity::None, flow)) {
-        error = m_port + ": " + m_serial.lastError();
+    if (st.flow == "rtscts")       flow = F::Hardware;
+    else if (st.flow == "xonxoff") flow = F::Software;
+    else if (!st.flow.empty() && st.flow != "none") return fail("'" + st.flow + "' is not a flow control (none, rtscts, xonxoff)");
+    using P = JSerialPort::JParity;
+    P parity = P::None;
+    if (st.parity == "even")      parity = P::Even;
+    else if (st.parity == "odd")  parity = P::Odd;
+    else if (!st.parity.empty() && st.parity != "none") return fail("'" + st.parity + "' is not a parity (none, even, odd)");
+    if (st.dataBits < 5 || st.dataBits > 8) return fail(std::to_string(st.dataBits) + " is not a number of data bits (5 to 8)");
+    if (st.stopBits != 1 && st.stopBits != 2) return fail(std::to_string(st.stopBits) + " is not a number of stop bits (1 or 2)");
+    if (!m_serial.open(st.port, *baud, JSerialPort::JDataBits(st.dataBits),
+                       st.stopBits == 2 ? JSerialPort::JStopBits::Two : JSerialPort::JStopBits::One, parity, flow)) {
+        error = st.port + ": " + m_serial.lastError();
         JLOGC(JPlacerLog::kLink, JLogLevel::Error) << "open failed: " << error;
         return false;
     }
+    // Lines raised as the board wants them (some reset on DTR, some need RTS held).
+    if (st.setDtr && !m_serial.setDtr(true)) JLOGC(JPlacerLog::kLink, JLogLevel::Warn) << st.port << ": could not raise DTR";
+    if (st.setRts && !m_serial.setRts(true)) JLOGC(JPlacerLog::kLink, JLogLevel::Warn) << st.port << ": could not raise RTS";
     if (!m_serial.claim()) {
-        error = m_port + ": could not take the port for this connection";
+        error = st.port + ": could not take the port for this connection";
         m_serial.close();
         return false;
     }
     m_partial.clear();
     m_lines.clear();
-    JLOGC(JPlacerLog::kLink, JLogLevel::Info) << "opened " << describe() << ", flow control " << (m_flow.empty() ? "none" : m_flow);
+    JLOGC(JPlacerLog::kLink, JLogLevel::Info) << "opened " << describe() << ", flow control "
+        << (st.flow.empty() ? "none" : st.flow);
     return true;
 }
 
@@ -104,7 +113,9 @@ std::optional<std::string> JPSerialLink::readLine(int timeoutMs) {
 }
 
 std::string JPSerialLink::describe() const {
-    return m_port + " @ " + std::to_string(m_baud);
+    const Settings& st = m_settings;
+    const std::string parity = st.parity == "even" ? "E" : st.parity == "odd" ? "O" : "N";
+    return st.port + " @ " + std::to_string(st.baud) + " " + std::to_string(st.dataBits) + parity + std::to_string(st.stopBits);
 }
 
 } // inline namespace jf

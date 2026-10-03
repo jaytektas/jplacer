@@ -137,6 +137,9 @@ notes.
   Loaded?). Places have buttons to set them from where the camera or nozzle is, or to go there; soft
   limits and safe zones the same for their axis. A head's homing has Visual Test and Visual Home beside
   it, and a camera's calibration Start Calibration.
+- A controller's settings gain what OpenPnP has: parity, data bits, stop bits, Set DTR / Set RTS, line
+  endings, a maximum feed rate, Log G-code, and a Gcode tab to replace any of the firmware's commands
+  (several lines if need be). Brought in from OpenPnP with the rest of the machine.
 
 ## 0.1.0
 

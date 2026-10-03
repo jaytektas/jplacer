@@ -686,6 +686,7 @@ bool JPCell::doMove(std::map<std::string, double> targets, double speed, std::st
                 if (rate <= 0) { why = "axis " + a->name + " has no speed: neither the cell nor its controller gives one"; return false; }
                 feed = feed <= 0 ? rate : std::min(feed, rate);
             }
+            if (const double cap = d->config().maxFeedRate; cap > 0) feed = std::min(feed, cap);
             feed *= std::clamp(speed, 0.0, 1.0) * factor;
             JLOGC(JPlacerLog::kCell, JLogLevel::Debug) << "move " << d->config().name << ": " << words << " F" << format(feed, 0);
             const JPReply r = d->command("move", { { "axes", words }, { "feed", format(feed, 0) } });

@@ -37,6 +37,9 @@ int main() {
     assert(d.name == "Jaytek" && d.link["type"].str() == "serial");
     assert(d.link["port"].str() == "/dev/ttyACM0" && d.link["baud"].number() == 115200);
     assert(d.link["flowControl"].str() == "rtscts");
+    // The rest of OpenPnP's serial settings, in jplacer's words.
+    assert(d.link["dataBits"].number() == 8 && d.link["stopBits"].number() == 1 && d.link["parity"].str() == "none");
+    assert(!d.link["setDtr"].boolean() && !d.link["setRts"].boolean() && d.link["lineEnding"].str() == "LF");
     assert(d.commandTimeoutMs == 30000 && d.homeTimeoutMs == 60000 && d.connectWaitMs == 3000);
     // OpenPnP's home command, every line in order, comments and comment-only lines gone.
     assert(d.commands.at("home") == "M18 Z\nG4 P1\nM17 Z\n$HY\n$HX\nG92 X390 Y444 A0 B0 C0\n$HZ\nG92 Z-25.5\nM400");

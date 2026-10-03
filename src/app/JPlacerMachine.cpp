@@ -209,10 +209,8 @@ void JPlacerMachine::buildPanels(Keep keep) {
 }
 
 std::unique_ptr<JPMachineSetupPanel> JPlacerMachine::makeSetup() {
-    std::vector<std::string> profiles;
-    for (const JPFirmwareProfile& p : m_profiles) profiles.push_back(p.id());
     auto setup = std::make_unique<JPMachineSetupPanel>(
-        m_graph, m_cell->config(), profiles, m_setupSelected,
+        m_graph, m_cell->config(), m_profiles, m_setupSelected,
         JSettings::instance().get<double>(JPlacerSettings::kSetupTreeShare, JPMachineSetupPanel::kTreeShare));
     m_setup = setup.get();
     setup->onSelected = [this](const std::string& path) { m_setupSelected = path; };

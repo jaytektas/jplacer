@@ -289,9 +289,9 @@ void JPGcodeDriver::ioLoop() {
                 m_inFlight  = std::move(next);
                 m_collected = {};
                 m_deadline  = Clock::now() + std::chrono::milliseconds(m_inFlight->timeoutMs);
-                JLOGC(JPlacerLog::kTraffic, JLogLevel::Trace) << cfg()->name << " > " << m_inFlight->line;
+                JLOGC(JPlacerLog::kTraffic, cfg()->logGcode ? JLogLevel::Info : JLogLevel::Trace) << cfg()->name << " > " << m_inFlight->line;
                 onTraffic.emit(true, m_inFlight->line);
-                if (!m_link->write(m_inFlight->line + "\n")) {
+                if (!m_link->write(m_inFlight->line + lineEnding())) {
                     lost("could not write to " + m_link->describe());
                     return;
                 }
@@ -355,7 +355,7 @@ void JPGcodeDriver::handleLine(const std::string& line) {
             return;
         }
     }
-    JLOGC(JPlacerLog::kTraffic, JLogLevel::Trace) << cfg()->name << " < " << line;
+    JLOGC(JPlacerLog::kTraffic, cfg()->logGcode ? JLogLevel::Info : JLogLevel::Trace) << cfg()->name << " < " << line;
     onTraffic.emit(false, line);
     if (!p) return;
 
@@ -403,6 +403,12 @@ void JPGcodeDriver::failAll(const std::string& why) {
         r.error = why;
         p.promise.set_value(std::move(r));
     }
+}
+
+
+std::string JPGcodeDriver::lineEnding() const {
+    const std::string& e = std::as_const(cfg()->link)["lineEnding"].str();
+    return e == "CR" ? "\r" : e == "CRLF" ? "\r\n" : "\n";
 }
 
 } // inline namespace jf

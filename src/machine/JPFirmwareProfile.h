@@ -81,6 +81,8 @@ public:
 
     // Status reports.
     const std::string& statusCommand() const { return m_statusCommand; }
+    // Every named command, as its template (with its {placeholders}).
+    const std::map<std::string, std::string>& commands() const { return m_commands; }
     bool statusIsRealtime() const { return m_statusRealtime; }
     // Parse a status line: the controller state and the axis positions it
     // reports, by axis letter. Nothing if `line` is not a status report.
