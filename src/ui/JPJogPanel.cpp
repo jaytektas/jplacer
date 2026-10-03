@@ -7,6 +7,7 @@
 
 #include "common/JPlacerLog.h"
 
+#include <j/core/JScrollArea.h>
 #include <j/core/JStyle.h>
 #include <j/core/JTextHelper.h>
 #include <j/core/Log.h>
@@ -46,25 +47,32 @@ JPJogPanel::JPJogPanel(JSceneGraph& graph, JPCell& cell)
         return;
     }
 
+    // Its rows in a scroll area, which stacks them: a short dock scrolls
+    // rather than cutting the last rows off.
+    JScrollArea* scroll = add(std::make_unique<JScrollArea>(graph));
+    scroll->setVSizePolicy(JSizePolicyMode::Expanding, 1);
     std::vector<std::string> names;
     for (const Tool& t : m_tools) names.push_back(t.name);
-    JPChoiceRow* tools = add(std::make_unique<JPChoiceRow>(graph, names, 0));
+    JPChoiceRow* tools = scroll->addChildWidget(std::make_unique<JPChoiceRow>(graph, names, 0));
     tools->onChosen.connect([this](int i) { showTool(size_t(i)); });
 
-    m_coords = add(std::make_unique<JContainer>(graph));
+    m_coords = scroll->addChildWidget(std::make_unique<JContainer>(graph));
     m_coords->setDirection(JFlexDirection::Column)->setGap(JStyle::current().spacing)->setAlignItems(JAlignItems::Stretch);
+    m_coords->setVSizePolicy(JSizePolicyMode::Fixed);
 
     auto stepRow = JPUiParts::row(graph);
     stepRow->add(std::make_unique<JLabel>(graph, "Step", labelWidth()));
     m_step = stepRow->add(std::make_unique<JPChoiceRow>(graph, kStepLabels, kStepFirst));
-    add(std::move(stepRow));
+    scroll->addChildWidget(std::move(stepRow));
     auto speedRow = JPUiParts::row(graph);
     speedRow->add(std::make_unique<JLabel>(graph, "Speed", labelWidth()));
     m_speed = speedRow->add(std::make_unique<JPChoiceRow>(graph, kSpeedLabels, kSpeedFirst));
-    add(std::move(speedRow));
+    scroll->addChildWidget(std::move(speedRow));
 
-    m_note = add(std::make_unique<JLabel>(graph, ""));
+    m_note = scroll->addChildWidget(std::make_unique<JLabel>(graph, ""));
     m_note->setWordWrap(true);
+    m_note->setVSizePolicy(JSizePolicyMode::Fixed);
+    m_note->setSize(0.f, 2 * JStyle::current().labelHeight);   // a line or two
 
     m_watch.on(cell.onPositions, [this](std::map<std::string, double> p) { showPositions(p); });
     m_watch.on(cell.onMotion, [this](bool ok, std::string why) { m_note->setText(ok ? std::string() : why); });
@@ -123,6 +131,11 @@ void JPJogPanel::showTool(size_t index) {
         });
         m_coords->add(std::move(r));
     }
+    // As tall as its rows: the scroll area stacks it by its height.
+    const float rowH = std::max(JStyle::current().buttonHeight, JStyle::current().controlHeight);
+    const size_t rows = m_coords->children().size();
+    m_coords->setSize(m_graph.getLayoutConst(m_coords->getNodeId()).boundingBox.width,
+                      rows == 0 ? 0.f : rows * rowH + (rows - 1) * JStyle::current().spacing);
     showPositions(m_cell.positions());
 }
 

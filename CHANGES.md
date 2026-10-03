@@ -150,6 +150,7 @@ notes.
   its and its tip's dwell times, and the head's Pump; all brought in from OpenPnP.
 - An actuator can be switched on or off by itself once the machine is connected, once it is homed, and
   before you disconnect (a pump off as the machine is let go), as in OpenPnP and brought in from it.
+- The Jog panel scrolls when its dock is short, instead of cutting off its last rows.
 
 ## 0.1.0
 
