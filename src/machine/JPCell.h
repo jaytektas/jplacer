@@ -158,7 +158,7 @@ public:
     // An axis's backlash compensation, in use from the next move (the cell's
     // own copy; the owner keeps it): what calibrating it found, to test.
     void setBacklash(const std::string& axisId, JPAxisConfig::Backlash method, double offset, double sneakUpMm,
-                     double speedFactor);
+                     double speedFactor, std::vector<std::pair<double, double>> table = {}, double approachMm = 0);
     // Backlash compensation on (as each axis says) or off (every move goes
     // straight to its target): off while the backlash is being measured.
     void setBacklashCompensation(bool on) { m_backlashOn = on; }
@@ -271,6 +271,8 @@ private:
     // A directional backlash offset in effect, by axis id: the controller's
     // coordinate is the axis's plus this (JPAxisConfig::Backlash).
     std::map<std::string, double>      m_backlashApplied;
+    // Each axis's last way (+1 / -1) and how far it has gone since it turned.
+    std::map<std::string, std::pair<int, double>> m_backlashTurn;
     std::map<std::string, double>      m_reported;   // controller axes, as reported
     std::atomic<bool>                  m_backlashOn{ true };
     std::map<std::string, double>      m_corrected;  // correctPosition's since the last home, summed

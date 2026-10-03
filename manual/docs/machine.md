@@ -217,6 +217,7 @@ Machine Setup):
 | OneSidedOptimizedPositioning | As OneSidedPositioning, but a move already arriving the right way goes straight in: fewer moves, its last stretch as long as the move. |
 | DirectionalCompensation | A move travelling the way the offset points goes the offset further, taking up the play; the other way, it goes to the target. The offset must be the play itself. |
 | DirectionalSneakUp | As DirectionalCompensation, the last **Sneak-up Distance** of each move made at the speed factor, so it cannot overshoot. |
+| DistanceAware | jplacer's own, for a drive whose play keeps growing the further it goes (a gap taken up first, then a belt winding up). The lag behind where the drive is sent, measured by Calibrate for each distance travelled since the axis last turned, is sent with each move, for the distance it will have travelled; a move that would come in less than the **Least Approach** (where the gap is taken up) first backs off that far, then comes in at the speed factor. |
 
 With a directional offset taken up, the position shown is the axis's own, without the offset. An imported
 machine keeps OpenPnP's method, offset, sneak-up distance and speed factor. Changing an axis's backlash,
@@ -235,12 +236,14 @@ measures:
 2. The play against how far the axis comes in from the other side, at a quarter speed: a short way in
    takes up only part of it; where it levels off is how far a move must sneak up.
 3. The play against speed (25, 33, 50, 75 and 100%), coming in from 10 mm.
-4. The method: None when the play is within the tolerance; OneSidedPositioning when the play does not
-   level off within 0.8 mm (it keeps growing with how far the axis came in, as a stretching belt does: only
-   ending every move the same way makes that the same every time), its offset as far as the play takes to
-   level off, at most 2 mm, and at least twice the play; else DirectionalCompensation when the play is the
+4. The method: None when the play is within the tolerance. When the play does not level off within 0.8 mm
+   (it keeps growing with how far the axis came in, as a stretching belt does), two are tried on the same
+   moves and the one that lands them closer together kept: OneSidedPositioning, its offset as far as the
+   play takes to level off, at most 2 mm, and at least twice the play; and DistanceAware, its lag half the
+   play measured for each distance (made never to fall as the distance grows), its least approach the
+   first distance whose lag is no longer behind. Otherwise DirectionalCompensation when the play is the
    same at every speed, DirectionalSneakUp, sneaking up the distance found, when it is not.
-5. The method tried: moves in to the mark from random places either side, and from 10 mm on each side,
+5. Each method tried: moves in to the mark from random places either side, and from 10 mm on each side,
    each measured against the mean of them all: how well moves agree with each other, whatever the machine
    slowly drifts by over the run.
 

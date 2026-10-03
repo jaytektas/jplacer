@@ -3,6 +3,8 @@
 
 #include "JPAxisConfig.h"
 
+#include <cmath>
+
 inline namespace jf {
 
 namespace {
@@ -77,6 +79,8 @@ std::optional<JPAxisConfig> JPAxisConfig::fromJson(const JJson& j, std::string& 
     a.backlashOffset         = j["backlashOffset"].number();
     a.backlash               = backlashFromWord(j["backlash"].str());
     a.sneakUpMm              = j["sneakUp"].number(0.0);
+    for (const JJson& p : j["backlashTable"].arr()) a.backlashTable.push_back({ p[0].number(), p[1].number() });
+    a.approachMm             = j["approachMm"].number(0.0);
     if (j["backlashCalibration"].isObject()) a.backlashCalibration = JPBacklashCalibration::fromJson(j["backlashCalibration"]);
     a.backlashSpeedFactor    = j["backlashSpeedFactor"].number(1.0);   // 1.0, not 1: JJson::number<int> would truncate
     a.feedratePerSecond      = j["feedratePerSecond"].number();
@@ -125,6 +129,16 @@ JJson JPAxisConfig::toJson() const {
         j["backlashOffset"]         = backlashOffset;
         j["backlash"]               = backlashWord(backlash);
         if (sneakUpMm != 0) j["sneakUp"] = sneakUpMm;
+        if (!backlashTable.empty()) {
+            j["backlashTable"] = JJson::array();
+            for (const auto& [t, l] : backlashTable) {
+                JJson p = JJson::array();
+                p.push(JJson(t));
+                p.push(JJson(l));
+                j["backlashTable"].push(p);
+            }
+            j["approachMm"] = approachMm;
+        }
         if (backlashCalibration) j["backlashCalibration"] = backlashCalibration->toJson();
         j["backlashSpeedFactor"]    = backlashSpeedFactor;
         j["feedratePerSecond"]      = feedratePerSecond;
@@ -151,14 +165,30 @@ const char* JPAxisConfig::backlashWord(Backlash b) {
         case Backlash::OneSidedOptimized:  return "oneSidedOptimized";
         case Backlash::Directional:        return "directional";
         case Backlash::DirectionalSneakUp: return "directionalSneakUp";
+        case Backlash::DistanceAware:      return "distanceAware";
     }
     return "none";
 }
 
 JPAxisConfig::Backlash JPAxisConfig::backlashFromWord(const std::string& w) {
-    for (Backlash b : { Backlash::OneSided, Backlash::OneSidedOptimized, Backlash::Directional, Backlash::DirectionalSneakUp })
+    for (Backlash b : { Backlash::OneSided, Backlash::OneSidedOptimized, Backlash::Directional, Backlash::DirectionalSneakUp,
+                        Backlash::DistanceAware })
         if (w == backlashWord(b)) return b;
     return Backlash::None;
+}
+
+double JPAxisConfig::lagAfter(double travel) const {
+    const auto& t = backlashTable;
+    if (t.empty()) return 0;
+    if (travel <= t.front().first) return t.front().second;
+    if (travel >= t.back().first) return t.back().second;
+    for (size_t i = 1; i < t.size(); ++i)
+        if (travel <= t[i].first) {
+            const double a = std::log(t[i - 1].first), b = std::log(t[i].first);
+            const double f = b > a ? (std::log(travel) - a) / (b - a) : 1;
+            return t[i - 1].second + f * (t[i].second - t[i - 1].second);
+        }
+    return t.back().second;
 }
 
 } // inline namespace jf

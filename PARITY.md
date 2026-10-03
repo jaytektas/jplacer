@@ -51,11 +51,12 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Feed rate, acceleration, jerk | done | |
 | Capture / move buttons on limits | done | |
 | Backlash: methods (one-sided, directional, directional sneak-up) with offset, sneak-up and speed factor | done | |
-| Backlash calibration ("Calibrate now", with graphs of backlash against speed and sneak-up distance) | done | tolerance from the measuring's own noise; graphs of play by distance, by speed, and errors after |
+| Backlash calibration ("Calibrate now", with graphs of backlash against speed and sneak-up distance) | done | tolerance from the measuring's own noise (8 pictures a measurement); graphs of play by distance, by speed, and errors after; plus jplacer's DistanceAware method for stretching drives |
 | Virtual axis | done | |
 | Mapped axis (two map points) | done | |
 | Linear transform axis (non-squareness) | own way | squareness measured from board fiducials; Square the Machine |
 | Cam axes (clockwise / counter-clockwise, shared Z) | missing | |
+| Vibration / chassis resonance | missing | the settle graph shows ringing below 15 Hz (30 fps); frame rates above that, or an accelerometer, needed for chassis modes |
 | Switch linear / rotational | missing | |
 
 ## Head

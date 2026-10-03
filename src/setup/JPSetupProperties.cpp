@@ -524,7 +524,8 @@ void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
     static const std::pair<A::Backlash, const char*> methods[] = {
         { A::Backlash::None, "None" }, { A::Backlash::OneSided, "OneSidedPositioning" },
         { A::Backlash::OneSidedOptimized, "OneSidedOptimizedPositioning" },
-        { A::Backlash::Directional, "DirectionalCompensation" }, { A::Backlash::DirectionalSneakUp, "DirectionalSneakUp" } };
+        { A::Backlash::Directional, "DirectionalCompensation" }, { A::Backlash::DirectionalSneakUp, "DirectionalSneakUp" },
+        { A::Backlash::DistanceAware, "DistanceAware" } };
     Strings names;
     for (const auto& [m, n] : methods) names.push_back(n);
     add.choice("backlash", "Compensation Method", names,
@@ -539,7 +540,11 @@ void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
                });
     f.reshaping.push_back("backlash");
     const A::Backlash method = a().backlash;
-    if (method != A::Backlash::None) {
+    if (method == A::Backlash::DistanceAware) {
+        add.number("approachMm", "Least Approach", [a] { return a().approachMm; },
+                   [a](double v) { if (v >= 0) a().approachMm = v; });
+        add.number("backlashSpeedFactor", "Speed Factor", [a]() -> double& { return a().backlashSpeedFactor; }, 2);
+    } else if (method != A::Backlash::None) {
         add.number("backlashOffset", "Backlash Offset", [a]() -> double& { return a().backlashOffset; });
         if (method == A::Backlash::DirectionalSneakUp)
             add.number("sneakUp", "Sneak-up Distance", [a] { return a().sneakUpMm; },
@@ -567,6 +572,14 @@ void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
         case A::Backlash::DirectionalSneakUp:
             add.note("As DirectionalCompensation, the last Sneak-up Distance of each move made at the speed factor, "
                      "so it cannot overshoot.");
+            break;
+        case A::Backlash::DistanceAware:
+            add.note(a().backlashTable.empty()
+                         ? "jplacer's own: the lag measured for each distance travelled since the axis last turned, "
+                           "sent each move. Calibrate measures it; until then nothing is compensated."
+                         : "jplacer's own: each move is sent the lag measured for how far the axis will have "
+                           "travelled since it last turned (the graph below, half the play); one that would come in "
+                           "less than the Least Approach first backs off that far, then comes in at the speed factor.");
             break;
     }
     if (a().kind == A::Kind::Controller && (a().type == A::Type::X || a().type == A::Type::Y)) {

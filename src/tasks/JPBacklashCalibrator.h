@@ -24,12 +24,13 @@ inline namespace jf {
 //  3. The play against speed, coming in from far at each speed: a drive that
 //     overshoots at speed shows less play there.
 //  4. A method chosen as OpenPnP chooses it: none when the play is within
-//     the tolerance; OneSided when it does not level off within a short
-//     sneak-up (it keeps growing with how far the axis came in: only ending
-//     every move the same way makes that the same every time); else
-//     Directional when it is the same at every speed, DirectionalSneakUp,
-//     sneaking up the distance found, when it is not.
-//  5. The method tried: moves in from random distances either way (and from
+//     the tolerance; when it does not level off within a short sneak-up (it
+//     keeps growing with how far the axis came in), OneSided and
+//     DistanceAware (the lag measured for each distance, sent each move) are
+//     both tried and the one that lands closer kept; else Directional when it
+//     is the same at every speed, DirectionalSneakUp, sneaking up the distance
+//     found, when it is not.
+//  5. Each method tried: moves in from random distances either way (and from
 //     afar on each side), each measured against the mean of them all.
 //
 // Runs on a thread of its own: it waits on moves and pictures. The axis's
@@ -53,6 +54,8 @@ public:
         std::string            why;
         JPAxisConfig::Backlash method = JPAxisConfig::Backlash::None;
         double                 offset = 0, sneakUpMm = 0, speedFactor = 1;
+        std::vector<std::pair<double, double>> table;   // DistanceAware
+        double                 approachMm = 0;          // DistanceAware
         double                 worstAfterMm = 0;   // the furthest a tried move landed from their mean
         JPBacklashCalibration  data;
     };

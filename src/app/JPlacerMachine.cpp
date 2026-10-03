@@ -628,6 +628,8 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
                         a.backlashOffset = r.offset;
                         a.sneakUpMm = r.sneakUpMm;
                         a.backlashSpeedFactor = r.speedFactor;
+                        a.backlashTable = r.table;
+                        a.approachMm = r.approachMm;
                         a.backlashCalibration = r.data;
                     }
             });

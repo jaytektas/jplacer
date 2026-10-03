@@ -9,6 +9,8 @@
 
 #include <optional>
 #include <string>
+#include <utility>
+#include <vector>
 
 inline namespace jf {
 
@@ -52,11 +54,23 @@ struct JPAxisConfig {
     //    offset further, taking up the play; the offset must be the play.
     //  - DirectionalSneakUp: the same, the last sneakUpMm of the move made at
     //    backlashSpeedFactor of its speed, so it cannot overshoot.
-    enum class Backlash { None, OneSided, OneSidedOptimized, Directional, DirectionalSneakUp };
+    //  - DistanceAware (jplacer's own): the drive lags the place it is sent
+    //    to by an amount that depends on how far it has travelled since it last
+    //    changed direction (a gap taken up first, then a belt winding up):
+    //    `backlashTable`, (travel, lag) measured by Calibrate. Each move is
+    //    sent the lag further, for the travel it will have made; one that
+    //    would arrive having travelled less than `approachMm` since turning
+    //    first backs off, so it comes in at least that far.
+    enum class Backlash { None, OneSided, OneSidedOptimized, Directional, DirectionalSneakUp, DistanceAware };
     Backlash backlash = Backlash::None;
     double backlashOffset = 0;
     double backlashSpeedFactor = 1;
     double sneakUpMm = 0;
+    std::vector<std::pair<double, double>> backlashTable;   // DistanceAware: (travel, lag), travel rising
+    double approachMm = 0;                                  // DistanceAware: the least travel coming in
+    // DistanceAware: the lag after travelling `travel` since turning (the
+    // table, between its points on a log scale of travel, its ends beyond).
+    double lagAfter(double travel) const;
     // The last time the backlash was measured (Calibrate on its Backlash tab).
     std::optional<JPBacklashCalibration> backlashCalibration;
     // Backlash's names, as kept and as OpenPnP calls them.

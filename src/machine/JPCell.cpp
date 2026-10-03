@@ -294,6 +294,7 @@ bool JPCell::doHomeNozzle(const std::string& nozzleId, double speed, std::string
         m_sent[motor->id] = motor->homeCoordinate;
         m_corrected.erase(motor->id);
         m_backlashApplied.erase(motor->id);
+        m_backlashTurn.erase(motor->id);
     }
     JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_config.name << ": " << nozzle->name << "'s Z homed";
     return true;
@@ -726,6 +727,7 @@ bool JPCell::doHome(std::string& why) {
         m_sent.clear();
         m_corrected.clear();
         m_backlashApplied.clear();
+        m_backlashTurn.clear();
         for (const JPAxisConfig& a : m_config.axes) {
             if (a.kind == JPAxisConfig::Kind::Virtual) m_positions[a.id] = a.homeCoordinate;
             if (a.kind != JPAxisConfig::Kind::Mapped) m_sent[a.id] = a.homeCoordinate;
@@ -1043,6 +1045,7 @@ bool JPCell::doMove(std::map<std::string, double> targets, double speed, std::st
     // among those that went past or sneak up.
     std::map<std::string, double> overshoot = hardware;
     std::map<std::string, double> applied;   // directional offsets in effect after this move
+    std::map<std::string, std::pair<int, double>> turned;   // each moved axis's way and travel since turning
     double approach = 1;
     bool needApproach = false;
     {
@@ -1053,8 +1056,38 @@ bool JPCell::doMove(std::map<std::string, double> targets, double speed, std::st
             const double travel = t - (f == from.end() ? t : f->second);
             const double before = backlashApplied(id);
             const double offset = a->backlashOffset;
-            if (!m_backlashOn || a->backlash == JPAxisConfig::Backlash::None || offset == 0) {
+            // Which way it last went, and how far since it turned (DistanceAware).
+            const int dir = travel > 0 ? 1 : -1;
+            double sinceTurn = 0;
+            if (travel != 0) {
+                const auto was = m_backlashTurn.find(id);
+                const bool same = was != m_backlashTurn.end() && was->second.first == dir;
+                sinceTurn = (same ? was->second.second : 0) + std::abs(travel);
+                turned[id] = { dir, sinceTurn };
+            }
+            const bool aware = a->backlash == JPAxisConfig::Backlash::DistanceAware;
+            if (!m_backlashOn || a->backlash == JPAxisConfig::Backlash::None || (aware ? a->backlashTable.empty() : offset == 0)) {
                 if (before != 0) applied[id] = 0;
+                continue;
+            }
+            if (aware) {
+                // Sent the lag further for the travel it will have made since
+                // turning; one that would come in less than the least approach
+                // first backs off that far (a waypoint, the axis's own place),
+                // then comes in.
+                if (travel == 0) continue;   // staying put keeps what is in effect
+                const bool backOff = sinceTurn < a->approachMm;
+                if (backOff) {
+                    overshoot[id] = t - dir * a->approachMm;
+                    needApproach = true;
+                    approach = std::min(approach, a->backlashSpeedFactor);
+                    sinceTurn = a->approachMm;
+                    turned[id] = { dir, sinceTurn };
+                }
+                const double lag = dir * a->lagAfter(sinceTurn);
+                applied[id] = lag;
+                t += lag;
+                if (!backOff) overshoot[id] = t;
                 continue;
             }
             if (a->backlash == JPAxisConfig::Backlash::OneSided || a->backlash == JPAxisConfig::Backlash::OneSidedOptimized) {
@@ -1156,6 +1189,7 @@ bool JPCell::doMove(std::map<std::string, double> targets, double speed, std::st
         if (b == 0) m_backlashApplied.erase(id);
         else m_backlashApplied[id] = b;
     }
+    for (const auto& [id, w] : turned) m_backlashTurn[id] = w;
     for (const auto& [id, t] : rewrapped) {
         hardware[id] = t;
         m_positions[id] = t;
@@ -1188,8 +1222,8 @@ std::map<std::string, double> JPCell::jogBase() const {
 }
 
 void JPCell::setBacklash(const std::string& axisId, JPAxisConfig::Backlash method, double offset, double sneakUpMm,
-                         double speedFactor) {
-    m_thread.post([this, axisId, method, offset, sneakUpMm, speedFactor] {
+                         double speedFactor, std::vector<std::pair<double, double>> table, double approachMm) {
+    m_thread.post([this, axisId, method, offset, sneakUpMm, speedFactor, table = std::move(table), approachMm] {
         std::lock_guard lk(m_mutex);
         for (JPAxisConfig& a : m_config.axes)
             if (a.id == axisId) {
@@ -1197,6 +1231,8 @@ void JPCell::setBacklash(const std::string& axisId, JPAxisConfig::Backlash metho
                 a.backlashOffset = offset;
                 a.sneakUpMm = sneakUpMm;
                 a.backlashSpeedFactor = speedFactor;
+                a.backlashTable = table;
+                a.approachMm = approachMm;
             }
     });
 }

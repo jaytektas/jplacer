@@ -37,6 +37,30 @@ std::string now() {
     return buf;
 }
 
+// The lag after travelling each distance since turning: half the play
+// measured coming in that far (the play is the lag one way and the other),
+// made never to fall as the distance grows (pooling neighbours that do: the
+// measuring's own wobble), as JPAxisConfig::backlashTable keeps it.
+std::vector<std::pair<double, double>> lagTable(const std::vector<std::pair<double, double>>& byDistance) {
+    struct Pool { double sum; int n; double first, last; };
+    std::vector<Pool> pools;
+    for (const auto& [d, play] : byDistance) {
+        pools.push_back({ play / 2, 1, d, d });
+        while (pools.size() > 1 && pools[pools.size() - 2].sum / pools[pools.size() - 2].n > pools.back().sum / pools.back().n) {
+            Pool p = pools.back();
+            pools.pop_back();
+            pools.back().sum += p.sum;
+            pools.back().n += p.n;
+            pools.back().last = p.last;
+        }
+    }
+    std::vector<std::pair<double, double>> out;
+    for (const auto& [d, play] : byDistance)
+        for (const Pool& p : pools)
+            if (d >= p.first && d <= p.last) out.push_back({ d, p.sum / p.n });
+    return out;
+}
+
 // Puts the compensation back on, whatever happens.
 struct CompensationOff {
     JPCell& cell;
@@ -69,6 +93,16 @@ JPBacklashCalibrator::Result JPBacklashCalibrator::run(JPCell& cell, JPCameraFee
     const double scale = cal.scale();
     const JPAxisConfig::Backlash wasMethod = axis->backlash;
     const double wasOffset = axis->backlashOffset, wasSneak = axis->sneakUpMm, wasSpeed = axis->backlashSpeedFactor;
+    const auto wasTable = axis->backlashTable;
+    const double wasApproach = axis->approachMm;
+    // A way to compensate, to try.
+    struct Candidate {
+        JPAxisConfig::Backlash method = JPAxisConfig::Backlash::None;
+        double offset = 0, sneakUpMm = 0, speedFactor = 1;
+        std::vector<std::pair<double, double>> table;
+        double approachMm = 0;
+    };
+    std::vector<Candidate> candidates;
 
     // The axis's place with the camera over the mark, and the other axis's.
     const double target = alongX ? o.markX - mount.offsetX : o.markY - mount.offsetY;
@@ -176,57 +210,90 @@ JPBacklashCalibrator::Result JPBacklashCalibrator::run(JPCell& cell, JPCameraFee
         for (const auto& [s, p] : r.data.bySpeed)
             if (std::abs(p - full) > tol) consistent = false;
         // The play must level off within a short sneak-up for a directional
-        // method to be right: one that keeps growing with how far the axis
-        // came in (a belt stretching) is only made the same every time by
-        // ending every move the same way (one-sided).
+        // method to be right. One that keeps growing with how far the axis
+        // came in (a belt stretching) is made the same every time either by
+        // ending every move the same way (one-sided), or by sending each move
+        // the lag measured for how far it came (distance-aware): both are
+        // tried, and the one that lands closer kept.
+        candidates.clear();
         if (full < tol) {
-            r.method = JPAxisConfig::Backlash::None;
+            candidates.push_back({ JPAxisConfig::Backlash::None });
         } else if (std::max(sneak, full) > o.mostSneakUpMm) {
-            r.method = JPAxisConfig::Backlash::OneSided;
+            Candidate one{ JPAxisConfig::Backlash::OneSided };
             // The same last stretch every move, from as far as the play takes
             // to level off, so what came before is taken up the same way.
-            r.offset = std::max(std::min(sneak, o.longestLastMm), std::max(2 * full, full + 2 * tol));
-            r.speedFactor = slowest;
+            one.offset = std::max(std::min(sneak, o.longestLastMm), std::max(2 * full, full + 2 * tol));
+            one.speedFactor = slowest;
+            candidates.push_back(one);
+            Candidate aware{ JPAxisConfig::Backlash::DistanceAware };
+            aware.table = lagTable(r.data.byDistance);
+            // The least approach: past the gap, the first distance whose lag is
+            // no longer behind (the table never falls), else the furthest.
+            aware.approachMm = aware.table.back().first;
+            for (auto it = aware.table.rbegin(); it != aware.table.rend() && it->second >= 0; ++it)
+                aware.approachMm = it->first;
+            aware.speedFactor = slowest;
+            candidates.push_back(aware);
         } else if (consistent) {
-            r.method = JPAxisConfig::Backlash::Directional;
-            r.offset = full;
+            Candidate c{ JPAxisConfig::Backlash::Directional };
+            c.offset = full;
+            candidates.push_back(c);
         } else {
-            r.method = JPAxisConfig::Backlash::DirectionalSneakUp;
-            r.offset = full;
-            r.sneakUpMm = std::max(sneak, full);
-            r.speedFactor = slowest;
+            Candidate c{ JPAxisConfig::Backlash::DirectionalSneakUp };
+            c.offset = full;
+            c.sneakUpMm = std::max(sneak, full);
+            c.speedFactor = slowest;
+            candidates.push_back(c);
         }
     }
 
     // 5. Tried: in from random distances either way (and from each side from
     // afar), each against the mean of them all: how well moves agree with each
-    // other, whatever the machine slowly drifts by over the run.
-    cell.setBacklash(axisId, r.method, r.offset, r.sneakUpMm, r.speedFactor);
-    if (progress) progress("trying it");
+    // other, whatever the machine slowly drifts by over the run. The same
+    // distances for each candidate.
     std::mt19937 rng(std::random_device{}());
     std::uniform_real_distribution<double> logDistance(std::log(std::max(2 * r.data.toleranceMm, 0.01)), std::log(o.reachMm));
     std::bernoulli_distribution side(0.5);
-    std::vector<std::pair<double, double>> tried;
-    for (int i = 0; i < o.tries + 2; ++i) {
-        const double d = i == 0 ? -o.reachMm : i == 1 ? o.reachMm : std::exp(logDistance(rng)) * (side(rng) ? 1 : -1);
-        double a;
-        if (!go(target + d, o.speed) || !go(target, o.speed) || !measure(target, a)) {
-            cell.setBacklash(axisId, wasMethod, wasOffset, wasSneak, wasSpeed);
-            return r;
+    std::vector<double> distances = { -o.reachMm, o.reachMm };
+    for (int i = 0; i < o.tries; ++i) distances.push_back(std::exp(logDistance(rng)) * (side(rng) ? 1 : -1));
+    double best = -1;
+    for (const Candidate& c : candidates) {
+        cell.setBacklash(axisId, c.method, c.offset, c.sneakUpMm, c.speedFactor, c.table, c.approachMm);
+        if (progress) progress(std::string("trying ") + JPAxisConfig::backlashWord(c.method));
+        std::vector<std::pair<double, double>> tried;
+        for (double d : distances) {
+            double a;
+            if (!go(target + d, o.speed) || !go(target, o.speed) || !measure(target, a)) {
+                cell.setBacklash(axisId, wasMethod, wasOffset, wasSneak, wasSpeed, wasTable, wasApproach);
+                return r;
+            }
+            tried.push_back({ d, a });
         }
-        tried.push_back({ d, a });
+        double mean = 0;
+        for (const auto& [d, a] : tried) mean += a;
+        mean /= double(tried.size());
+        double worst = 0;
+        for (const auto& [d, a] : tried) worst = std::max(worst, std::abs(a - mean));
+        JLOGC(JPlacerLog::kCell, JLogLevel::Info) << axis->name << " backlash " << JPAxisConfig::backlashWord(c.method)
+                                                  << ": worst " << worst;
+        if (best >= 0 && worst >= best) continue;
+        best = worst;
+        r.method = c.method;
+        r.offset = c.offset;
+        r.sneakUpMm = c.sneakUpMm;
+        r.speedFactor = c.speedFactor;
+        r.table = c.table;
+        r.approachMm = c.approachMm;
+        r.worstAfterMm = worst;
+        r.data.after.clear();
+        for (const auto& [d, a] : tried) r.data.after.push_back({ d, a - mean });
     }
-    double mean = 0;
-    for (const auto& [d, a] : tried) mean += a;
-    mean /= double(tried.size());
-    for (const auto& [d, a] : tried) {
-        r.data.after.push_back({ d, a - mean });
-        r.worstAfterMm = std::max(r.worstAfterMm, std::abs(a - mean));
-    }
+    // In use: the one kept.
+    cell.setBacklash(axisId, r.method, r.offset, r.sneakUpMm, r.speedFactor, r.table, r.approachMm);
     r.data.when = now();
     r.ok = true;
     JLOGC(JPlacerLog::kCell, JLogLevel::Info) << axis->name << " backlash: " << JPAxisConfig::backlashWord(r.method)
-        << " offset " << r.offset << " sneak-up " << r.sneakUpMm << " speed " << r.speedFactor
+        << " offset " << r.offset << " sneak-up " << r.sneakUpMm << " approach " << r.approachMm << " speed " << r.speedFactor
         << ", tolerance " << r.data.toleranceMm << ", worst after " << r.worstAfterMm;
     return r;
 }
