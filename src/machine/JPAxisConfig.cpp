@@ -148,6 +148,7 @@ const char* JPAxisConfig::backlashWord(Backlash b) {
     switch (b) {
         case Backlash::None:               return "none";
         case Backlash::OneSided:           return "oneSided";
+        case Backlash::OneSidedOptimized:  return "oneSidedOptimized";
         case Backlash::Directional:        return "directional";
         case Backlash::DirectionalSneakUp: return "directionalSneakUp";
     }
@@ -155,7 +156,7 @@ const char* JPAxisConfig::backlashWord(Backlash b) {
 }
 
 JPAxisConfig::Backlash JPAxisConfig::backlashFromWord(const std::string& w) {
-    for (Backlash b : { Backlash::OneSided, Backlash::Directional, Backlash::DirectionalSneakUp })
+    for (Backlash b : { Backlash::OneSided, Backlash::OneSidedOptimized, Backlash::Directional, Backlash::DirectionalSneakUp })
         if (w == backlashWord(b)) return b;
     return Backlash::None;
 }

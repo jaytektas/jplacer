@@ -24,11 +24,13 @@ inline namespace jf {
 //  3. The play against speed, coming in from far at each speed: a drive that
 //     overshoots at speed shows less play there.
 //  4. A method chosen as OpenPnP chooses it: none when the play is within
-//     the tolerance; Directional when it is the same at every speed;
-//     DirectionalSneakUp when it is not, sneaking up the distance found at
-//     the slowest speed; OneSided when that distance is too long to sneak up.
-//  5. The method tried: moves in from random distances either way, each
-//     measured against where the mark should be.
+//     the tolerance; OneSided when it does not level off within a short
+//     sneak-up (it keeps growing with how far the axis came in: only ending
+//     every move the same way makes that the same every time); else
+//     Directional when it is the same at every speed, DirectionalSneakUp,
+//     sneaking up the distance found, when it is not.
+//  5. The method tried: moves in from random distances either way (and from
+//     afar on each side), each measured against the mean of them all.
 //
 // Runs on a thread of its own: it waits on moves and pictures. The axis's
 // compensation is left as found (the owner keeps the result).
@@ -40,7 +42,10 @@ public:
         double speed = 1.0;              // share of the axes' rates for moves between measurements
         double reachMm = 10;             // the furthest a move comes in from in the tests
         double mostSneakUpMm = 0.8;      // longer than this, sneaking up costs too much: one-sided
+        double longestLastMm = 2.0;      // one-sided's last stretch at most this long (each move makes it slowly)
         int    still = 6;                // measurements without moving, for the tolerance
+        int    frames = 8;               // pictures averaged for each measurement: a single one wanders
+                                         // (on bench, 6 µm; 8 together, 2 µm)
         int    tries = 8;                // random moves to try the result
     };
     struct Result {
@@ -48,7 +53,7 @@ public:
         std::string            why;
         JPAxisConfig::Backlash method = JPAxisConfig::Backlash::None;
         double                 offset = 0, sneakUpMm = 0, speedFactor = 1;
-        double                 worstAfterMm = 0;   // the largest error once compensated
+        double                 worstAfterMm = 0;   // the furthest a tried move landed from their mean
         JPBacklashCalibration  data;
     };
     using Progress = std::function<void(const std::string&)>;

@@ -42,7 +42,7 @@ JPCellConfig cellConfig() {
       "heads": [ { "id": "H", "name": "Head", "pump": { "actuator": "P", "control": "PartOn", "onWaitMs": 0 } } ],
       "axes": [ { "id": "X",  "name": "x",  "kind": "controller", "type": "x", "driver": "D", "letter": "X",
                   "homeCoordinate": 390, "feedratePerSecond": 100,
-                  "backlash": "oneSided", "backlashOffset": 0.1, "backlashSpeedFactor": 0.25,
+                  "backlash": "oneSidedOptimized", "backlashOffset": 0.1, "backlashSpeedFactor": 0.25,
                   "softLimits": { "low": 0, "high": 400, "lowEnabled": true, "highEnabled": true } },
                 { "id": "Z",  "name": "z",  "kind": "controller", "type": "z", "driver": "D", "letter": "Z",
                   "feedratePerSecond": 50, "resolution": 0.25 },
@@ -261,9 +261,9 @@ int main() {
         cell.jog("N", 5, 0, 0, 0, 0.5);
         assert(motion.take().first && settle("X", 395.0));
 
-        // Backlash, one-sided: X ends travelling -X (opposite to its +0.1
-        // offset). Arriving +X, it goes past by 0.1 first and comes back slowly;
-        // arriving -X, it is one move.
+        // Backlash, one-sided optimized: X ends travelling -X (opposite to its
+        // +0.1 offset). Arriving +X, it goes past by 0.1 first and comes back
+        // slowly; arriving -X, it is one move.
         std::vector<std::string> sent;
         std::mutex sentMutex;
         auto unwatch = cell.onTraffic.connect([&](std::string, bool out, std::string line) {
@@ -283,6 +283,21 @@ int main() {
         {
             std::lock_guard lk(sentMutex);
             assert(sent.size() == 2 && sent[0] == "G1 X395.1000 F6000" && sent[1] == "G1 X395.0000 F1500");
+            sent.clear();
+        }
+        // One-sided: arriving -X too, by way of the place plus the offset, so
+        // the last stretch is always the same.
+        {
+            JPCellConfig next = cell.config();
+            next.axes[0].backlash = JPAxisConfig::Backlash::OneSided;
+            std::string why;
+            assert(cell.reconfigure(next, why));
+            cell.jog("N", -2, 0, 0, 0, 1.0);              // 395 -> 393, the right way
+            assert(motion.take().first && settle("X", 393.0));
+            cell.jog("N", 2, 0, 0, 0, 1.0);               // and back
+            assert(motion.take().first && settle("X", 395.0));
+            std::lock_guard lk(sentMutex);
+            assert(sent.size() == 4 && sent[0] == "G1 X393.1000 F6000" && sent[1] == "G1 X393.0000 F1500");
             sent.clear();
         }
         // Directional: travelling the way the +0.05 offset points, X goes 0.05
@@ -317,7 +332,7 @@ int main() {
             // Back as the tests after expect it: one-sided, at 395.
             cell.jog("N", -2, 0, 0, 0, 1.0);
             assert(motion.take().first && settle("X", 395.0));
-            next.axes[0].backlash = JPAxisConfig::Backlash::OneSided;
+            next.axes[0].backlash = JPAxisConfig::Backlash::OneSidedOptimized;
             next.axes[0].backlashOffset = 0.1;
             assert(cell.reconfigure(next, why));
         }

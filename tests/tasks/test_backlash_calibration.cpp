@@ -133,8 +133,9 @@ int main() {
     assert(!r.data.byDistance.empty() && r.data.bySpeed.size() == std::size(JPBacklashCalibrator::kSpeeds));
     // A short way in from the other side takes up only that much of the play.
     assert(r.data.byDistance.front().second < kPlay / 2);
-    // Compensated, every move comes in to the same place.
-    assert(r.data.after.size() == 4 && r.worstAfterMm <= 2 * r.data.toleranceMm);
+    // Compensated, every move comes in to the same place: the 4 tried, and one
+    // from afar on each side.
+    assert(r.data.after.size() == 6 && r.worstAfterMm <= 2 * r.data.toleranceMm);
     // The axis it was measured on: not one the camera rides.
     const JPBacklashCalibrator::Result wrong = JPBacklashCalibrator::run(cell, feed, "Z", o);
     assert(!wrong.ok && !wrong.why.empty());

@@ -433,8 +433,8 @@ void backlashResults(Adder& add, const JPBacklashCalibration& k) {
     after->series.push_back({ "error", JPPlot::Tone::Second, {} });
     for (const auto& [d, e] : k.after) after->series[0].points.push_back({ d, e });
     add.plot("Errors Once Compensated", after);
-    add.note("Moves in to the mark from random places either side, compensated: each should land within the "
-             "tolerance of the others.");
+    add.note("Moves in to the mark from random places either side (and from afar on each side), compensated, each "
+             "against the mean of them all: each should land within the tolerance of the others.");
 }
 
 void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f) {
@@ -523,6 +523,7 @@ void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
     // OpenPnP's names for the methods.
     static const std::pair<A::Backlash, const char*> methods[] = {
         { A::Backlash::None, "None" }, { A::Backlash::OneSided, "OneSidedPositioning" },
+        { A::Backlash::OneSidedOptimized, "OneSidedOptimizedPositioning" },
         { A::Backlash::Directional, "DirectionalCompensation" }, { A::Backlash::DirectionalSneakUp, "DirectionalSneakUp" } };
     Strings names;
     for (const auto& [m, n] : methods) names.push_back(n);
@@ -551,9 +552,13 @@ void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
             add.note("No compensation: where the drive's play leaves it.");
             break;
         case A::Backlash::OneSided:
-            add.note("Every move ends coming from the same side: one arriving the other way goes past the place by "
-                     "the offset (its sign says which side), then comes back at the speed factor. The offset need only "
-                     "be at least the play.");
+            add.note("Every move ends the same way: to the place plus the offset first (its sign says which side), "
+                     "then in to the place at the speed factor, so the last stretch is always the same. The offset "
+                     "need only be at least the play.");
+            break;
+        case A::Backlash::OneSidedOptimized:
+            add.note("As OneSidedPositioning, but a move already arriving the right way goes straight in: fewer "
+                     "moves, the last stretch as long as the move.");
             break;
         case A::Backlash::Directional:
             add.note("A move travelling the way the offset points goes the offset further, taking up the play; the "

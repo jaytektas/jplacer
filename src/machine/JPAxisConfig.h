@@ -40,17 +40,19 @@ struct JPAxisConfig {
     double safeZoneLow = 0, safeZoneHigh = 0;
     bool   safeZoneLowEnabled = false, safeZoneHighEnabled = false;
     // BACKLASH: the play in the drive.
-    //  - OneSided: every move ends travelling the same way (opposite to the
-    //    offset's sign): a move that would arrive the other way first goes
-    //    past the target by the offset, then comes back at
-    //    backlashSpeedFactor of its speed. The offset need only be at least
-    //    the play; the end position is then the same whichever way the axis
-    //    came from.
+    //  - OneSided: every move ends the same way: to the target plus the
+    //    offset first, then in to the target at backlashSpeedFactor of its
+    //    speed, so the last stretch is always the offset long and travels
+    //    against its sign. The offset need only be at least the play; the end
+    //    position is then the same whichever way, and however far, the axis
+    //    came.
+    //  - OneSidedOptimized: the same, but a move already arriving the right
+    //    way goes straight in (its last stretch as long as the move).
     //  - Directional: a move travelling the way the offset points goes the
     //    offset further, taking up the play; the offset must be the play.
     //  - DirectionalSneakUp: the same, the last sneakUpMm of the move made at
     //    backlashSpeedFactor of its speed, so it cannot overshoot.
-    enum class Backlash { None, OneSided, Directional, DirectionalSneakUp };
+    enum class Backlash { None, OneSided, OneSidedOptimized, Directional, DirectionalSneakUp };
     Backlash backlash = Backlash::None;
     double backlashOffset = 0;
     double backlashSpeedFactor = 1;

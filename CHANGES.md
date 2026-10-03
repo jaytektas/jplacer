@@ -214,6 +214,7 @@ notes.
 - Calibrate measures a camera at a second height too (a head camera over the calibration rig's secondary mark, a fixed one with the nozzle raised), giving where the camera is, its focal length and field of view in degrees; the rig's marks are on the head in Machine Setup.
 - Backlash: DirectionalCompensation and DirectionalSneakUp as well as one-sided, imported from OpenPnP as they are; Calibrate on an axis's Backlash tab measures the play with the head camera, chooses the method and shows graphs of what it measured.
 - Changing an axis's speed, limits or backlash no longer needs the machine homed again.
+- OneSidedPositioning now ends every move the same way, as OpenPnP's does; OneSidedOptimizedPositioning keeps the fewer moves. Backlash calibration averages 8 pictures a measurement and chooses one-sided for play that keeps growing with the move (a stretching belt).
 - A camera's Camera Settling tab can test the settling (one jog step out and back, or standing still) and graphs how the camera came to rest against the threshold.
 - Nozzle tip runout: Calibrate on a tip's Calibration tab measures how its end swings as the nozzle turns, with the camera looking up; compensated, the tip's centre lands where it is sent at any angle.
 - Actuators that take a value (Double or String): set from the Actuators panel, their value type and commands in Machine Setup, imported from OpenPnP.

@@ -80,23 +80,30 @@ JPBacklashCalibrator::Result JPBacklashCalibrator::run(JPCell& cell, JPCameraFee
     // Where the mark seems to be along the axis, the camera sent to `at`: the
     // camera's own error from where it was sent, the other way round.
     auto measure = [&](double at, double& along) {
-        JPGrayImage img;
-        if (!JPCameraLook::settled(feed, img, r.why)) return false;
         const double viewX = alongX ? at + mount.offsetX : o.markX, viewY = alongX ? o.markY : at + mount.offsetY;
-        JPRoundMarkFinder::Request rq;
-        if (!cal.pixelFor(o.markX, o.markY, viewX, viewY, rq.expectedX, rq.expectedY)) {
-            rq.expectedX = img.width / 2.0;
-            rq.expectedY = img.height / 2.0;
-        }
-        rq.searchRadius = kSearchMm * scale;
-        rq.diameter = o.markDiameterMm * scale;
-        const JPRoundMark m = JPCameraLook::findTryingHarder(cell, feed, img, rq);
-        if (!m.found) {
-            r.why = "the mark was not found: " + m.why;
-            return false;
+        // The mark in several pictures, once settled, its place the mean.
+        double sumX = 0, sumY = 0;
+        const int frames = std::max(1, o.frames);
+        for (int f = 0; f < frames; ++f) {
+            JPGrayImage img;
+            if (!(f == 0 ? JPCameraLook::settled(feed, img, r.why) : JPCameraLook::taken(feed, img, r.why, 1))) return false;
+            JPRoundMarkFinder::Request rq;
+            if (!cal.pixelFor(o.markX, o.markY, viewX, viewY, rq.expectedX, rq.expectedY)) {
+                rq.expectedX = img.width / 2.0;
+                rq.expectedY = img.height / 2.0;
+            }
+            rq.searchRadius = kSearchMm * scale;
+            rq.diameter = o.markDiameterMm * scale;
+            const JPRoundMark m = JPCameraLook::findTryingHarder(cell, feed, img, rq);
+            if (!m.found) {
+                r.why = "the mark was not found: " + m.why;
+                return false;
+            }
+            sumX += m.x;
+            sumY += m.y;
         }
         double mx, my;
-        if (!cal.machinePoint(m.x, m.y, viewX, viewY, mx, my)) {
+        if (!cal.machinePoint(sumX / frames, sumY / frames, viewX, viewY, mx, my)) {
             r.why = "the mark was seen where the calibration cannot place it";
             return false;
         }
@@ -168,46 +175,53 @@ JPBacklashCalibrator::Result JPBacklashCalibrator::run(JPCell& cell, JPCameraFee
         bool consistent = true;
         for (const auto& [s, p] : r.data.bySpeed)
             if (std::abs(p - full) > tol) consistent = false;
+        // The play must level off within a short sneak-up for a directional
+        // method to be right: one that keeps growing with how far the axis
+        // came in (a belt stretching) is only made the same every time by
+        // ending every move the same way (one-sided).
         if (full < tol) {
             r.method = JPAxisConfig::Backlash::None;
+        } else if (std::max(sneak, full) > o.mostSneakUpMm) {
+            r.method = JPAxisConfig::Backlash::OneSided;
+            // The same last stretch every move, from as far as the play takes
+            // to level off, so what came before is taken up the same way.
+            r.offset = std::max(std::min(sneak, o.longestLastMm), std::max(2 * full, full + 2 * tol));
+            r.speedFactor = slowest;
         } else if (consistent) {
             r.method = JPAxisConfig::Backlash::Directional;
             r.offset = full;
-        } else if (std::max(sneak, full) <= o.mostSneakUpMm) {
+        } else {
             r.method = JPAxisConfig::Backlash::DirectionalSneakUp;
             r.offset = full;
             r.sneakUpMm = std::max(sneak, full);
             r.speedFactor = slowest;
-        } else {
-            r.method = JPAxisConfig::Backlash::OneSided;
-            r.offset = full + 2 * tol;   // at least the play
-            r.speedFactor = slowest;
         }
     }
 
-    // 5. Tried: in from random distances either way, against the mark's
-    // place as the compensated axis finds it coming in from each side.
+    // 5. Tried: in from random distances either way (and from each side from
+    // afar), each against the mean of them all: how well moves agree with each
+    // other, whatever the machine slowly drifts by over the run.
     cell.setBacklash(axisId, r.method, r.offset, r.sneakUpMm, r.speedFactor);
     if (progress) progress("trying it");
-    double fromBelow, fromAbove;
-    if (!go(target - o.reachMm, o.speed) || !go(target, o.speed) || !measure(target, fromBelow)
-        || !go(target + o.reachMm, o.speed) || !go(target, o.speed) || !measure(target, fromAbove)) {
-        cell.setBacklash(axisId, wasMethod, wasOffset, wasSneak, wasSpeed);
-        return r;
-    }
-    const double reference = (fromBelow + fromAbove) / 2;
     std::mt19937 rng(std::random_device{}());
     std::uniform_real_distribution<double> logDistance(std::log(std::max(2 * r.data.toleranceMm, 0.01)), std::log(o.reachMm));
     std::bernoulli_distribution side(0.5);
-    for (int i = 0; i < o.tries; ++i) {
-        const double d = std::exp(logDistance(rng)) * (side(rng) ? 1 : -1);
+    std::vector<std::pair<double, double>> tried;
+    for (int i = 0; i < o.tries + 2; ++i) {
+        const double d = i == 0 ? -o.reachMm : i == 1 ? o.reachMm : std::exp(logDistance(rng)) * (side(rng) ? 1 : -1);
         double a;
         if (!go(target + d, o.speed) || !go(target, o.speed) || !measure(target, a)) {
             cell.setBacklash(axisId, wasMethod, wasOffset, wasSneak, wasSpeed);
             return r;
         }
-        r.data.after.push_back({ d, a - reference });
-        r.worstAfterMm = std::max(r.worstAfterMm, std::abs(a - reference));
+        tried.push_back({ d, a });
+    }
+    double mean = 0;
+    for (const auto& [d, a] : tried) mean += a;
+    mean /= double(tried.size());
+    for (const auto& [d, a] : tried) {
+        r.data.after.push_back({ d, a - mean });
+        r.worstAfterMm = std::max(r.worstAfterMm, std::abs(a - mean));
     }
     r.data.when = now();
     r.ok = true;

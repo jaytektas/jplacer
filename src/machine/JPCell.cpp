@@ -1057,11 +1057,14 @@ bool JPCell::doMove(std::map<std::string, double> targets, double speed, std::st
                 if (before != 0) applied[id] = 0;
                 continue;
             }
-            if (a->backlash == JPAxisConfig::Backlash::OneSided) {
+            if (a->backlash == JPAxisConfig::Backlash::OneSided || a->backlash == JPAxisConfig::Backlash::OneSidedOptimized) {
                 if (before != 0) applied[id] = 0;
-                // Ending travel must be opposite to the offset's sign; a move of
-                // nothing, or the wrong way, goes past first.
-                if (travel != 0 && (travel > 0) == (offset < 0)) continue;
+                // Ending travel must be opposite to the offset's sign. One-sided:
+                // always by way of the target plus the offset (unless it does not
+                // move). Optimized: only a move of nothing, or the wrong way.
+                if (a->backlash == JPAxisConfig::Backlash::OneSided ? travel == 0
+                                                                     : travel != 0 && (travel > 0) == (offset < 0))
+                    continue;
                 overshoot[id] = t + offset;
                 needApproach = true;
                 approach = std::min(approach, a->backlashSpeedFactor);

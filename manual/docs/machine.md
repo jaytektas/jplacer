@@ -213,13 +213,13 @@ Machine Setup):
 | Method | |
 |---|---|
 | None | Where the play leaves it. |
-| OneSidedPositioning | Every move ends travelling the same way: one that would arrive the other way first goes past its target by the offset (its sign says which side), then comes back at the speed factor. The offset need only be at least the play. |
+| OneSidedPositioning | Every move ends the same way: to its target plus the offset first (its sign says which side), then in to the target at the speed factor, so the last stretch is always the same. The offset need only be at least the play. |
+| OneSidedOptimizedPositioning | As OneSidedPositioning, but a move already arriving the right way goes straight in: fewer moves, its last stretch as long as the move. |
 | DirectionalCompensation | A move travelling the way the offset points goes the offset further, taking up the play; the other way, it goes to the target. The offset must be the play itself. |
 | DirectionalSneakUp | As DirectionalCompensation, the last **Sneak-up Distance** of each move made at the speed factor, so it cannot overshoot. |
 
 With a directional offset taken up, the position shown is the axis's own, without the offset. An imported
-machine keeps OpenPnP's method, offset, sneak-up distance and speed factor (its two one-sided methods are
-jplacer's one, which goes past only when a move would arrive the wrong way). Changing an axis's backlash,
+machine keeps OpenPnP's method, offset, sneak-up distance and speed factor. Changing an axis's backlash,
 speed or limits leaves the machine homed: only a change to where an axis is (its kind, controller, letter,
 home coordinate or mapping) needs it homed again.
 
@@ -230,14 +230,19 @@ it, over the head's homing fiducial (the machine homed, the camera calibrated), 
 measures:
 
 1. The mark measured several times standing still: three times how far those measurements wander (and at
-   least 2 µm) is the **tolerance**.
+   least 2 µm) is the **tolerance**. Each measurement, here and after, is the mean of 8 pictures: one
+   picture alone wanders three times as much.
 2. The play against how far the axis comes in from the other side, at a quarter speed: a short way in
    takes up only part of it; where it levels off is how far a move must sneak up.
 3. The play against speed (25, 33, 50, 75 and 100%), coming in from 10 mm.
-4. The method: None when the play is within the tolerance; DirectionalCompensation when it is the same at
-   every speed; DirectionalSneakUp when it is not, sneaking up the distance found at a quarter speed; and
-   OneSidedPositioning when that distance is more than 0.8 mm.
-5. The method tried: moves in to the mark from random places either side, each measured.
+4. The method: None when the play is within the tolerance; OneSidedPositioning when the play does not
+   level off within 0.8 mm (it keeps growing with how far the axis came in, as a stretching belt does: only
+   ending every move the same way makes that the same every time), its offset as far as the play takes to
+   level off, at most 2 mm, and at least twice the play; else DirectionalCompensation when the play is the
+   same at every speed, DirectionalSneakUp, sneaking up the distance found, when it is not.
+5. The method tried: moves in to the mark from random places either side, and from 10 mm on each side,
+   each measured against the mean of them all: how well moves agree with each other, whatever the machine
+   slowly drifts by over the run.
 
 What it found is in use at once, kept through Machine Setup (a step to undo), and shown on the tab with
 three graphs: the play against how far it came in, against speed, and the errors once compensated.
