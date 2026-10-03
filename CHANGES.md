@@ -203,6 +203,8 @@ notes.
   1 mm, say). Faster and Slower step the speed; Pick, Place, Turn to 0 and the nozzle and camera
   positioning can be given keys too.
 - Preferences is on tabs (General, Keys, Jog) and can be made bigger.
+- Opening jplacer from the applications menu no longer leaves a busy cursor spinning for half a minute
+  after its window is up.
 - The Jog pad's park buttons show a parking sign that grows with the pad.
 - Buttons and other controls are no longer clipped by a pixel along an edge, and the Jog panel's tip, Stop
   and E-STOP buttons stay whole in a narrow dock (a long tool name is cut short instead).
