@@ -51,6 +51,7 @@ JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCameraCon
 
     // The picture's format.
     m_state = add(std::make_unique<JLabel>(graph, ""));
+    m_state->setMinWidthFollowsText(true);   // made empty, filled in once the camera runs
     // What a camera task is doing, or the last thing done: a line of its own,
     // so a result reads in full.
     m_note = add(std::make_unique<JLabel>(graph, ""));

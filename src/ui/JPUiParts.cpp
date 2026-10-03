@@ -21,6 +21,8 @@ void JPUiParts::asPanel(JContainer& c) {
     const JStyle& st = JStyle::current();
     c.setDirection(JFlexDirection::Column)->setGap(2 * st.spacing)->setPadding(JEdges{ st.fieldPadding })
         ->setAlignItems(JAlignItems::Stretch);
+    // Short of room, lists and pictures give before rows of buttons and input lines.
+    c.setShrinkStretchyFirst(true);
 }
 
 std::unique_ptr<JButton> JPUiParts::button(JSceneGraph& graph, const std::string& label) {

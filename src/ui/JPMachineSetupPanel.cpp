@@ -60,8 +60,10 @@ JPMachineSetupPanel::JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, 
     m_treePane = std::make_unique<JContainer>(graph, 0.f, 0.f);
     m_formPane = std::make_unique<JContainer>(graph, 0.f, 0.f);
     for (JContainer* pane : { m_treePane.get(), m_formPane.get() })
-        pane->setDirection(JFlexDirection::Column)->setGap(2 * JStyle::current().spacing)->setAlignItems(JAlignItems::Stretch);
+        pane->setDirection(JFlexDirection::Column)->setGap(2 * JStyle::current().spacing)->setAlignItems(JAlignItems::Stretch)
+            ->setShrinkStretchyFirst(true);
     m_split = add(std::make_unique<JSplitter>(graph, JSplitter::JOrientation::Vertical, 0.f, 0.f));
+    m_split->setHostsPanes(true);
     m_split->setVSizePolicy(JSizePolicyMode::Expanding, 1);
     m_split->addPane(m_treePane.get(), float(treeShare));
     m_split->addPane(m_formPane.get(), float(1 - treeShare));
@@ -96,6 +98,7 @@ JPMachineSetupPanel::JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, 
     m_menuRemove = m_treeMenu->add(graph, "Remove");
     m_menuRemove->onTriggered.connect([this] { removePart(); });
     m_tree->setContextMenu(m_treeMenu.get());
+    m_tree->setRightClickSelects(true);
 
     m_title = m_formPane->add(std::make_unique<JLabel>(graph, ""));
     m_scroll = m_formPane->add(std::make_unique<JScrollArea>(graph, 0.f, 0.f));
