@@ -23,6 +23,7 @@ constexpr const char* kWidest = "Relative  X -0000.000   Y -0000.000   Z -0000.0
 JPPositionReadout::JPPositionReadout(JSceneGraph& graph, Source source)
     : JControl(graph, "Position"), m_source(std::move(source)) {
     onClicked.connect([this] { toggle(); });
+    setTooltip("Where the tool chosen in Jog is. Click to measure from here; click again to go back.");
 }
 
 float JPPositionReadout::widthNeeded() {
