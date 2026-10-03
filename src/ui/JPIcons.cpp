@@ -201,4 +201,21 @@ void JPIcons::nozzleTip(JVectorCanvas& vg, float cx, float cy, float size, const
                   JPaint::solid(ink));
 }
 
+void JPIcons::park(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink) {
+    // The sign's edge, and a P drawn as a stem and a bowl: lines, so it scales.
+    const float half = size * 0.4f, line = size * kLine;
+    vg.strokeRoundedRect(cx - half, cy - half, 2 * half, 2 * half, size * 0.1f, line, JPaint::solid(ink));
+    const float stroke = size * 0.11f, left = cx - size * 0.14f, top = cy - size * 0.24f, bottom = cy + size * 0.25f;
+    const float bowlR = size * 0.12f, bowlMid = top + bowlR;
+    vg.drawLine(left, top, left, bottom, stroke, JPaint::solid(ink));
+    std::vector<JVectorCanvas::JVec2> bowl{ { left, top } };
+    constexpr int kSegments = 12;
+    for (int i = 0; i <= kSegments; ++i) {
+        const float a = -kPi / 2 + kPi * float(i) / kSegments;
+        bowl.push_back({ left + size * 0.1f + bowlR * std::cos(a), bowlMid + bowlR * std::sin(a) });
+    }
+    bowl.push_back({ left, top + 2 * bowlR });
+    vg.strokePolyline(bowl, stroke, JPaint::solid(ink));
+}
+
 } // inline namespace jf

@@ -117,11 +117,7 @@ std::unique_ptr<JWidget> JPJogPanel::pad(float size, const char* name,
 }
 
 std::unique_ptr<JWidget> JPJogPanel::parkButton(float size, const std::string& tooltip, const std::string& action) {
-    auto b = JPUiParts::button(m_graph, "P");
-    b->setFixedSize(size, size);
-    b->setTooltip(tooltip);
-    b->onClicked.connect([this, action] { act(action); });
-    return b;
+    return pad(size, "Park", &JPIcons::park, tooltip, action);
 }
 
 std::unique_ptr<JWidget> JPJogPanel::gap(float size) {
