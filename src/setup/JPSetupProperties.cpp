@@ -778,6 +778,16 @@ void actuatorForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::
     add.byName("head", "Head", named(cell.heads, "(on the machine)"), [a]() -> std::string& { return a().mount.headId; });
     f.reshaping.push_back("head");
     add.group("General");
+    // As the machine's state changes: once connected, once homed, before it is let go.
+    add.header({ "Enabled", "Homed", "Disabled" });
+    add.row("Actuation");
+    add.choice("enabledActuation", "Enabled", { "AssumeUnknown", "ActuateOn", "ActuateOff" },
+               [a] { return a().enabledActuation; }, [a](const std::string& v) { a().enabledActuation = v; });
+    add.choice("homedActuation", "Homed", { "LeaveAsIs", "ActuateOn", "ActuateOff" },
+               [a] { return a().homedActuation; }, [a](const std::string& v) { a().homedActuation = v; });
+    add.choice("disabledActuation", "Disabled", { "LeaveAsIs", "ActuateOn", "ActuateOff" },
+               [a] { return a().disabledActuation; }, [a](const std::string& v) { a().disabledActuation = v; });
+    add.end();
     // {index} in a command is replaced by the index.
     add.text("index", "Index", [a]() -> std::string& { return a().index; });
     add.text("unit", "Unit Read", [a]() -> std::string& { return a().unit; });

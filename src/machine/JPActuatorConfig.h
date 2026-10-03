@@ -25,6 +25,12 @@ struct JPActuatorConfig {
     std::string   onCommand, offCommand;
     std::string   readCommand, readPattern;
     std::string   unit;
+    // What it is switched to as the machine's state changes, as in OpenPnP:
+    // "ActuateOn", "ActuateOff", or left as it is ("LeaveAsIs"; on connect,
+    // "AssumeUnknown" too): once connected, once homed, before disconnecting.
+    std::string   enabledActuation = "AssumeUnknown";
+    std::string   homedActuation   = "LeaveAsIs";
+    std::string   disabledActuation = "LeaveAsIs";
 
     bool canSwitch() const { return !onCommand.empty() || !offCommand.empty(); }
     bool canRead()   const { return !readCommand.empty() && !readPattern.empty(); }

@@ -19,6 +19,10 @@ JPActuatorConfig JPActuatorConfig::fromJson(const JJson& j) {
     a.readCommand = j["readCommand"].str();
     a.readPattern = j["readPattern"].str();
     a.unit        = j["unit"].str();
+    // Left out: as an actuator OpenPnP makes is set.
+    if (const std::string& v = j["enabledActuation"].str(); !v.empty()) a.enabledActuation = v;
+    if (const std::string& v = j["homedActuation"].str(); !v.empty()) a.homedActuation = v;
+    if (const std::string& v = j["disabledActuation"].str(); !v.empty()) a.disabledActuation = v;
     return a;
 }
 
@@ -35,6 +39,9 @@ JJson JPActuatorConfig::toJson() const {
     j["readCommand"] = readCommand;
     j["readPattern"] = readPattern;
     j["unit"]        = unit;
+    j["enabledActuation"]  = enabledActuation;
+    j["homedActuation"]    = homedActuation;
+    j["disabledActuation"] = disabledActuation;
     return j;
 }
 

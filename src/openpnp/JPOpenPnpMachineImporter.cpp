@@ -316,6 +316,11 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
         const std::string& vt = x.attr("value-type");
         a.valueType = vt == "Double" ? JPActuatorConfig::ValueType::Number
                     : vt == "String" ? JPActuatorConfig::ValueType::Text : JPActuatorConfig::ValueType::Boolean;
+        // What it is switched to as the machine connects, homes and is let go.
+        for (const auto& [attr, field] : { std::pair{ "enabled-actuation", &JPActuatorConfig::enabledActuation },
+                                           std::pair{ "homed-actuation", &JPActuatorConfig::homedActuation },
+                                           std::pair{ "disabled-actuation", &JPActuatorConfig::disabledActuation } })
+            if (!x.attr(attr).empty()) a.*field = x.attr(attr);
         // No controller named: OpenPnP still files its commands under its id
         // on the controller that sends them.
         if (a.driverId.empty())

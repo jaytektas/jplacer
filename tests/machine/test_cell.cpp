@@ -12,6 +12,7 @@
 
 #include "machine/JPCell.h"
 
+#include <atomic>
 #include <chrono>
 #include <condition_variable>
 #include <mutex>
@@ -54,7 +55,7 @@ JPCellConfig cellConfig() {
                        "onCommand": "M64 P{index}", "offCommand": "M65 P{index}",
                        "readCommand": "M1000 P{index}", "readPattern": "^(-?\\d+)$" },
                      { "id": "P", "name": "Pump", "driver": "D", "index": "2",
-                       "onCommand": "M64 P{index}", "offCommand": "M65 P{index}" } ]
+                       "onCommand": "M64 P{index}", "offCommand": "M65 P{index}", "disabledActuation": "ActuateOff" } ]
     })";
     JPCellConfig c;
     std::string error;
@@ -226,8 +227,14 @@ int main() {
             assert(cell.reconfigure(next, why) && cell.isConnected() && !cell.isHomed());
         }
 
+        // Let go, the pump is switched off first, as its Disabled actuation says.
+        std::atomic<bool> pumpOff{ false };
+        auto watchPump = cell.onActuator.connect([&](std::string id, bool ok, std::string v) {
+            if (id == "P" && ok && v == "off") pumpOff = true;
+        });
         cell.disconnect();
-        assert(!connection.take().first && !cell.isHomed());
+        assert(!connection.take().first && !cell.isHomed() && pumpOff);
+        watchPump();
     }
     {
         // A camera keeps a calibration for each picture size: a new one at a

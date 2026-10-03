@@ -172,6 +172,9 @@ private:
     bool doPlace(const JPNozzleConfig& nozzle, std::string& why);
     // Switch, and say so on onActuator.
     bool switchTelling(const std::string& actuatorId, bool on, std::string& why);
+    // Switch every actuator as its setting for this machine state says
+    // (JPActuatorConfig::enabledActuation, homedActuation, disabledActuation).
+    void actuateFor(const std::string JPActuatorConfig::*state);
     bool doCorrectPosition(const std::map<std::string, double>& by, std::string& why);
     // Square coordinates of controller axes to the axes' own (JPSquarenessConfig):
     // the X axis takes the lean for the Y it will be at, so a target for

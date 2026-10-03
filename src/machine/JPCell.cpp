@@ -116,13 +116,24 @@ void JPCell::connect() {
         }
         m_connected = true;
         JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_config.name << ": connected";
+        actuateFor(&JPActuatorConfig::enabledActuation);
         onConnection.emit(true, std::string());
     });
+}
+
+void JPCell::actuateFor(const std::string JPActuatorConfig::*state) {
+    for (const JPActuatorConfig& a : m_config.actuators) {
+        const std::string& what = a.*state;
+        if (what != "ActuateOn" && what != "ActuateOff") continue;
+        std::string why;
+        switchTelling(a.id, what == "ActuateOn", why);
+    }
 }
 
 void JPCell::disconnect() {
     m_thread.post([this] {
         const bool was = m_connected;
+        if (was) actuateFor(&JPActuatorConfig::disabledActuation);   // as the machine is let go
         doDisconnect();
         if (was) onConnection.emit(false, std::string());
     });
@@ -444,6 +455,7 @@ void JPCell::home() {
         m_homing = false;
         if (ok) {
             m_homed = true;
+            actuateFor(&JPActuatorConfig::homedActuation);
             onHomed.emit(true);
         }
         onMotion.emit(ok, why);

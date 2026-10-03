@@ -148,6 +148,8 @@ notes.
 - A nozzle with a vacuum has Pick and Place on the Jog panel, as in OpenPnP: the head's pump as its Pump
   Control says, the vacuum, the blow-off and the dwell times. Machine Setup has the nozzle's Vacuum tab,
   its and its tip's dwell times, and the head's Pump; all brought in from OpenPnP.
+- An actuator can be switched on or off by itself once the machine is connected, once it is homed, and
+  before you disconnect (a pump off as the machine is let go), as in OpenPnP and brought in from it.
 
 ## 0.1.0
 
