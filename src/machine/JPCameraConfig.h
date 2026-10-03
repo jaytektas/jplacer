@@ -72,6 +72,11 @@ struct JPCameraConfig {
         double reach         = 1.0;
         double outlierSpread = 3.0;
         double maxRmsPx      = 1.0;
+        // Measured at a second height too: a camera on a head over the
+        // head's secondary calibration mark, a fixed one with the nozzle's tip
+        // raised `raiseMm` from the first.
+        bool   twoHeights    = true;
+        double raiseMm       = 2.0;
         static constexpr int kMostPlaces = 25;   // across or down
     };
     Calibrating   calibrating;
@@ -132,6 +137,8 @@ struct JPCameraConfig {
             c.calibrating.reach         = k["reach"].number(c.calibrating.reach);
             c.calibrating.outlierSpread = k["outlierSpread"].number(c.calibrating.outlierSpread);
             c.calibrating.maxRmsPx      = k["maxRmsPx"].number(c.calibrating.maxRmsPx);
+            c.calibrating.twoHeights    = k["twoHeights"].boolean(c.calibrating.twoHeights);
+            c.calibrating.raiseMm       = k["raiseMm"].number(c.calibrating.raiseMm);
         }
         for (const JJson& k : j["calibrations"].arr())
             if (JPCameraCalibration cal = JPCameraCalibration::fromJson(k); cal.valid) c.calibrations.push_back(cal);
@@ -171,6 +178,8 @@ struct JPCameraConfig {
         j["calibrating"]["reach"]         = calibrating.reach;
         j["calibrating"]["outlierSpread"] = calibrating.outlierSpread;
         j["calibrating"]["maxRmsPx"]      = calibrating.maxRmsPx;
+        j["calibrating"]["twoHeights"]    = calibrating.twoHeights;
+        j["calibrating"]["raiseMm"]       = calibrating.raiseMm;
         if (!calibrations.empty()) {
             JJson list = JJson::array();
             for (const JPCameraCalibration& k : calibrations) list.push(k.toJson());

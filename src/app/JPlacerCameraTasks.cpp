@@ -25,6 +25,8 @@ namespace {
 constexpr double kTaskSpeed = 1.0;
 // How long a result stays in the status bar.
 constexpr int kResultMs = 8000;
+// Two heights closer than this measure the camera's distance too poorly.
+constexpr double kLeastHeightGapMm = 1.0;
 
 } // namespace
 
@@ -151,15 +153,43 @@ void JPlacerCameraTasks::calibrate(JPCameraPanel& camera) {
         const auto c = JPCameraCalibrator::run(m_cell, *feed, o, words, progress);
         if (!c) return false;
         *result = *c;
-        char buf[200];
-        std::snprintf(buf, sizeof buf, "%s: %.3f x %.3f px/mm, turned %.2f deg%s, fit to %.2f px",
-                      feed->config().name.c_str(), c->scaleX(), c->scaleY(), c->rotationDeg(feed->config().looksUp),
-                      c->mirrored(feed->config().looksUp) ? ", mirrored" : "", c->rmsPx);
-        words = buf;
+        // Again over the secondary mark, at another height.
+        std::string second;
+        if (o.calibrating.twoHeights && h.rigSecondary
+            && std::abs(h.rigSecondary->z - h.homingFiducial->z) >= kLeastHeightGapMm) {
+            progress("moving over the secondary mark");
+            JPCameraCalibrator::Options o2 = o;
+            o2.markDiameterMm = h.rigSecondaryDiameter;
+            o2.markZ = h.rigSecondary->z;
+            std::string why;
+            std::optional<JPCameraCalibration> c2;
+            if (m_cell.moveAxesAndWait({ { m.axisX, h.rigSecondary->x - m.offsetX },
+                                         { m.axisY, h.rigSecondary->y - m.offsetY } }, kTaskSpeed, why))
+                c2 = JPCameraCalibrator::run(m_cell, *feed, o2, why, progress);
+            if (c2) secondHeight(*result, *c2);
+            else second = "; at the secondary mark: " + why;
+        }
+        words = calibrated(feed->config(), *result) + second;
         return true;
     }, [this, cameraId, result](bool ok) {
         if (ok) keepCalibration(cameraId, *result);
     });
+}
+
+void JPlacerCameraTasks::secondHeight(JPCameraCalibration& first, const JPCameraCalibration& second) {
+    first.secondZ = second.z;
+    first.secondScale = second.scale();
+    first.secondRmsPx = second.rmsPx;
+}
+
+std::string JPlacerCameraTasks::calibrated(const JPCameraConfig& cam, const JPCameraCalibration& c) {
+    char buf[240];
+    const int n = std::snprintf(buf, sizeof buf, "%s: %.3f x %.3f px/mm, turned %.2f deg%s, fit to %.2f px", cam.name.c_str(),
+                                c.scaleX(), c.scaleY(), c.rotationDeg(cam.looksUp), c.mirrored(cam.looksUp) ? ", mirrored" : "",
+                                c.rmsPx);
+    if (c.twoHeights() && n > 0 && size_t(n) < sizeof buf)
+        std::snprintf(buf + n, sizeof buf - size_t(n), "; at two heights, the camera at Z %.1f", c.cameraZ());
+    return buf;
 }
 
 void JPlacerCameraTasks::keepCalibration(const std::string& cameraId, const JPCameraCalibration& calibration) {
@@ -373,6 +403,7 @@ void JPlacerCameraTasks::calibrateFixed(JPCameraPanel& camera) {
                                             { tool.axisY, place.offsetY - tool.offsetY } }, kTaskSpeed, words)
                 && m_cell.moveAxesAndWait({ { tool.axisZ, place.offsetZ - tool.offsetZ } }, kTaskSpeed, words);
             std::optional<JPCameraCalibration> c;
+            std::string secondWhy;
             if (over) {
                 JPCameraCalibrator::Options o;
                 o.markZ = place.offsetZ;
@@ -380,18 +411,28 @@ void JPlacerCameraTasks::calibrateFixed(JPCameraPanel& camera) {
                 o.calibrating = feed->config().calibrating;
                 o.moving = &tool;
                 c = JPCameraCalibrator::run(m_cell, *feed, o, words, progress);
+                // Again with the tip raised (away from a camera looking up).
+                const double raise = o.calibrating.raiseMm;
+                if (c && o.calibrating.twoHeights && raise >= kLeastHeightGapMm) {
+                    char said[64];
+                    std::snprintf(said, sizeof said, "the nozzle raised %.1f mm", raise);
+                    progress(said);
+                    JPCameraCalibrator::Options o2 = o;
+                    o2.markZ = place.offsetZ + raise;
+                    std::string why;
+                    std::optional<JPCameraCalibration> c2;
+                    if (m_cell.moveAxesAndWait({ { tool.axisZ, place.offsetZ + raise - tool.offsetZ } }, kTaskSpeed, why))
+                        c2 = JPCameraCalibrator::run(m_cell, *feed, o2, why, progress);
+                    if (c2) secondHeight(*c, *c2);
+                    else secondWhy = "; raised: " + why;
+                }
             }
             // Up again, whatever happened.
             std::string up;
             if (!m_cell.safeZAndWait(tool.headId, kTaskSpeed, up) && words.empty()) words = up;
             if (!c) return false;
             *result = *c;
-            const bool lookingUp = feed->config().looksUp;
-            char buf[200];
-            std::snprintf(buf, sizeof buf, "%s: %.3f x %.3f px/mm, turned %.2f deg%s, fit to %.2f px",
-                          feed->config().name.c_str(), c->scaleX(), c->scaleY(), c->rotationDeg(lookingUp),
-                          c->mirrored(lookingUp) ? ", mirrored" : "", c->rmsPx);
-            words = buf;
+            words = calibrated(feed->config(), *c) + secondWhy;
             return true;
         }, [this, cameraId, result](bool ok) {
             if (ok) keepCalibration(cameraId, *result);

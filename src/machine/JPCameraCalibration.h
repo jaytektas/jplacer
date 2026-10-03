@@ -8,6 +8,7 @@
 #include <j/config/Json.h>
 
 #include <array>
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -45,6 +46,24 @@ struct JPCameraCalibration {
     };
     std::vector<Point>    points;
     double                outlierPx = 0;
+    // Measured again at a second height (`secondZ`, the scale there
+    // `secondScale` px/mm, its fit `secondRmsPx`): a camera's scale goes as
+    // one over the distance from its centre of projection, so the two give
+    // where that is (cameraZ), its focal length, and the scale at any height.
+    // 0 when measured at one height only.
+    double                secondZ = 0, secondScale = 0, secondRmsPx = 0;
+
+    // The scale at the height measured (px/mm, both ways together).
+    double scale() const;
+    // Two heights that tell the distance: scales at least kLeastScaleChange
+    // apart (the camera then comes out beyond both heights).
+    bool   twoHeights() const;
+    static constexpr double kLeastScaleChange = 1e-3;
+    // With two heights: the camera's centre of projection's Z, its focal
+    // length (px), and the scale at height `atZ` (else the one measured).
+    double cameraZ() const;
+    double focalPx() const;
+    double scaleAt(double atZ) const;
 
     // Millimetres for a displacement in the picture from its middle, seen
     // through the lens (straightened first); nothing when the fit is degenerate.

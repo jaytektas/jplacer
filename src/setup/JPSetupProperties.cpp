@@ -540,6 +540,17 @@ void headForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
     }
     place("park", "Park Location", [h]() -> std::optional<JPLocation>& { return h().park; }, false);
 
+    add.group("Calibration Rig");
+    add.header({ "X", "Y", "Z", "Set?" });
+    place("rigPrimary", "Primary Mark", [h]() -> std::optional<JPLocation>& { return h().rigPrimary; }, true);
+    place("rigSecondary", "Secondary Mark", [h]() -> std::optional<JPLocation>& { return h().rigSecondary; }, true);
+    add.row("Mark Diameters");
+    add.number("rigPrimaryDiameter", "Primary Diameter", [h]() -> double& { return h().rigPrimaryDiameter; });
+    add.number("rigSecondaryDiameter", "Secondary Diameter", [h]() -> double& { return h().rigSecondaryDiameter; });
+    add.end();
+    add.note("Two round marks at two heights. A head camera is calibrated over the homing fiducial and, with Two "
+             "Heights? on (its Advanced Calibration), again over the secondary mark, at least 1 mm higher or lower.");
+
     add.group("Pump");
     add.byName("pumpActuator", "Vacuum Pump Actuator", named(cell.actuators, "(none)"), [h]() -> std::string& { return h().pumpActuatorId; });
     add.choice("pumpControl", "Pump Control", { "None", "PartOn", "TaskDuration", "KeepRunning" },
@@ -813,6 +824,20 @@ void calibrationResults(Adder& add, const JPCameraCalibration& cal, bool looksUp
     shown("lens", "Lens", b);
     std::snprintf(b, sizeof b, "%zu measured, %d left out, %d places not measured", cal.points.size(), cal.leftOut, cal.unmeasured);
     shown("points", "Measurements", b);
+    if (cal.twoHeights()) {
+        std::snprintf(b, sizeof b, "Z %.3f: %.3f px/mm, fit to %.3f px", cal.secondZ, cal.secondScale, cal.secondRmsPx);
+        shown("second", "Second Height", b);
+        std::snprintf(b, sizeof b, "Z %.2f (%.2f mm from the first height)", cal.cameraZ(), std::abs(cal.z - cal.cameraZ()));
+        shown("cameraZ", "Camera (centre of projection)", b);
+        const double f = cal.focalPx();
+        std::snprintf(b, sizeof b, "%.1f px", f);
+        shown("focal", "Focal Length", b);
+        std::snprintf(b, sizeof b, "%.2f \xC3\x97 %.2f deg", 2 * std::atan(cal.width / (2 * f)) * 180 / M_PI,
+                      2 * std::atan(cal.height / (2 * f)) * 180 / M_PI);
+        shown("fovDeg", "Field of View (angle)", b);
+        std::snprintf(b, sizeof b, "%.3f%% per mm nearer", 100 * (cal.scaleAt(cal.z + (cal.cameraZ() > cal.z ? 1 : -1)) / cal.scale() - 1));
+        shown("perMm", "Scale Change", b);
+    }
     if (cal.points.empty()) {
         add.note("Calibrate again to see its measurements as graphs.");
         return;
@@ -1014,10 +1039,17 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
                [k](double v) { k().outlierSpread = std::max(1.0, v); }, 1);
     add.number("calMaxRms", "Worst Fit Taken (px)", [k] { return k().maxRmsPx; },
                [k](double v) { if (v > 0) k().maxRmsPx = v; }, 2);
+    add.flag("calTwoHeights", "Two Heights?", [k]() -> bool& { return k().twoHeights; });
+    if (c().mount.headId.empty())
+        add.number("calRaise", "Raise For The Second (mm)", [k] { return k().raiseMm; },
+                   [k](double v) { if (v > 0) k().raiseMm = v; }, 2);
     add.note("Calibrating moves the mark through a grid of places across the picture, Reach of the way from the "
              "middle to as near the edge as leaves room for the mark (1: all the way). More places measure the "
              "lens better and take longer. A measurement further from the fit than Outlier Limit times the fit's "
-             "spread is left out, one in ten at most; a fit whose spread is worse than Worst Fit Taken is refused.");
+             "spread is left out, one in ten at most; a fit whose spread is worse than Worst Fit Taken is refused. "
+             "Two Heights? measures it again at another height: a camera on a head over the head's secondary "
+             "calibration mark (Machine Setup, the head), a fixed one with the nozzle's tip raised by Raise For The "
+             "Second. How the scale changes with height gives where the camera is and its field of view.");
     // Straightened, a wide lens's picture no longer fills a rectangle.
     add.row("Crop All Invalid Pixels");
     add.integer("showAll", "Crop All Invalid Pixels", [c] { return int(std::lround(c().showAll * 100)); },

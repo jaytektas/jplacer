@@ -80,6 +80,10 @@ private:
     bool cameraView(const JPCameraConfig& camera, double& x, double& y, std::string& why) const;
     bool lookAt(JPCameraPanel& camera, double x, double y);
     // A new calibration in use, and saved in the cell file.
+    // The scale at a second height into the first calibration.
+    static void secondHeight(JPCameraCalibration& first, const JPCameraCalibration& second);
+    // What a calibration found, in words.
+    static std::string calibrated(const JPCameraConfig& cam, const JPCameraCalibration& c);
     void keepCalibration(const std::string& cameraId, const JPCameraCalibration& calibration);
     // What stops a task starting on `camera`, in words; empty when it can.
     std::string notReady(const JPCameraPanel* camera, bool needsCalibration, bool needsHomingMark) const;

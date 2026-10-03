@@ -211,6 +211,7 @@ notes.
 - Buttons and labels no longer go missing after the window is made small and then big again.
 - Locate Board can look at each fiducial from both sides (parallax) for shiny fiducials; the passes, how centred, and the parallax are in Machine Setup on the Machine's Fiducials tab, and come across from OpenPnP.
 - A camera's Advanced Calibration tab has options for how it is calibrated (the grid's size and reach, the outlier limit, the worst fit taken), and shows the results with graphs of the measurements: in the order made, X against Y, and as a map over the picture.
+- Calibrate measures a camera at a second height too (a head camera over the calibration rig's secondary mark, a fixed one with the nozzle raised), giving where the camera is, its focal length and field of view in degrees; the rig's marks are on the head in Machine Setup.
 - The Jog pad's park buttons show a parking sign that grows with the pad.
 - Buttons and other controls are no longer clipped by a pixel along an edge, and the Jog panel's tip, Stop
   and E-STOP buttons stay whole in a narrow dock (a long tool name is cut short instead).

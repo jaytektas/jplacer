@@ -115,5 +115,32 @@ int main() {
     // Not enough to fit.
     assert(!JPCalibrationFit::fit({ { 0, 0, 1, 1 }, { 1, 0, 2, 1 } }));
     assert(!JPCalibrationFit::fit({ { 0, 0, 1, 1 }, { 1, 0, 2, 1 }, { 2, 0, 3, 1 } }));   // all along X
+    // Two heights: a camera 60 mm above the mark with a 1500 px focal
+    // length sees 25 px/mm there and 30 px/mm 10 mm nearer; from the two,
+    // where it is, its focal length and the scale anywhere.
+    {
+        JPCameraCalibration two;
+        two.valid = true;
+        two.pxPerMm = { -25, 0, 0, 25 };
+        two.z = -24;
+        two.secondZ = -14;
+        two.secondScale = 30;
+        assert(two.twoHeights());
+        assert(std::abs(two.cameraZ() - 36) < 1e-9 && std::abs(two.focalPx() - 1500) < 1e-9);
+        assert(std::abs(two.scaleAt(6) - 50) < 1e-9);
+        // Kept and read back.
+        const JPCameraCalibration back = JPCameraCalibration::fromJson(two.toJson());
+        assert(back.twoHeights() && std::abs(back.cameraZ() - 36) < 1e-9);
+        // Looking up (the camera below): nearer is lower.
+        JPCameraCalibration up = two;
+        up.z = 10;
+        up.secondZ = 12;   // raised 2 mm: further away, smaller
+        up.secondScale = 25 * 60.0 / 62.0;
+        assert(up.twoHeights() && std::abs(up.cameraZ() + 50) < 1e-9);
+        // A scale that does not change tells nothing: the scale stays the one measured.
+        JPCameraCalibration flat = two;
+        flat.secondScale = 25.001;
+        assert(!flat.twoHeights() && flat.scaleAt(0) == 25);
+    }
     return 0;
 }

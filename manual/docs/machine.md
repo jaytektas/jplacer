@@ -477,6 +477,16 @@ that size.
 
 <!-- src: src/tasks/JPCameraCalibrator.cpp; src/vision/JPCalibrationFit.cpp (fitWithLens); src/common/JPLens.h; src/tasks/JPCameraLook.cpp (calibration); src/machine/JPCameraConfig.h (calibrationFor, keepCalibration); src/app/JPlacerCameraTasks.cpp (calibrate, notReady, kTaskSpeed); src/ui/JPCameraPanel.cpp (setBusy, the note, refreshStraightening) -->
 
+When the head has a **secondary calibration mark** (Machine Setup, the head's Calibration Rig, brought
+across from OpenPnP's calibration rig) at least 1 mm higher or lower than the homing mark, the camera is
+measured again over it. A camera's scale goes as one over its distance from what it looks at, so the two
+scales give where the camera's centre of projection is, its focal length, its field of view in degrees, and
+the scale at any height; the camera's Advanced Calibration tab shows them. Two scales less than 0.1% apart
+tell nothing, and are not used. Should the second measuring fail, the first is kept and the result says why.
+How the camera is measured, and whether at two heights, is set on that tab.
+
+<!-- src: src/app/JPlacerCameraTasks.cpp (calibrate, secondHeight, kLeastHeightGapMm); src/machine/JPCameraCalibration.cpp (twoHeights, cameraZ, focalPx, scaleAt); src/machine/JPCameraCalibration.h (kLeastScaleChange) -->
+
 #### Calibrating a fixed camera
 
 A camera fixed to the machine (one looking up at the nozzles) cannot be moved over a mark, so the mark

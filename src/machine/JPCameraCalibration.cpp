@@ -27,6 +27,35 @@ bool JPCameraCalibration::mmForPixels(double dxPx, double dyPx, double& dxMm, do
     return true;
 }
 
+double JPCameraCalibration::scale() const {
+    return std::sqrt(std::abs(pxPerMm[0] * pxPerMm[3] - pxPerMm[1] * pxPerMm[2]));
+}
+
+// s1 (z1 - C) = s2 (z2 - C) = +-f: the same focal length seen from both heights.
+static double centreZ(double s1, double z1, double s2, double z2) { return (s1 * z1 - s2 * z2) / (s1 - s2); }
+
+bool JPCameraCalibration::twoHeights() const {
+    const double s1 = scale();
+    if (secondScale <= 0 || s1 <= 0 || std::abs(secondZ - z) < 1e-6 || std::abs(secondScale / s1 - 1) < kLeastScaleChange)
+        return false;
+    const double c = centreZ(s1, z, secondScale, secondZ);
+    return (c - z) * (c - secondZ) > 0;
+}
+
+double JPCameraCalibration::cameraZ() const {
+    return twoHeights() ? centreZ(scale(), z, secondScale, secondZ) : 0;
+}
+
+double JPCameraCalibration::focalPx() const {
+    return twoHeights() ? scale() * std::abs(z - cameraZ()) : 0;
+}
+
+double JPCameraCalibration::scaleAt(double atZ) const {
+    if (!twoHeights()) return scale();
+    const double d = std::abs(atZ - cameraZ());
+    return d > 1e-9 ? focalPx() / d : scale();
+}
+
 double JPCameraCalibration::scaleX() const { return std::hypot(pxPerMm[0], pxPerMm[2]); }
 double JPCameraCalibration::scaleY() const { return std::hypot(pxPerMm[1], pxPerMm[3]); }
 
@@ -106,6 +135,9 @@ JPCameraCalibration JPCameraCalibration::fromJson(const JJson& j) {
         c.points.push_back(q);
     }
     c.outlierPx = j["outlierPx"].number();
+    c.secondZ = j["second"]["z"].number();
+    c.secondScale = j["second"]["scale"].number();
+    c.secondRmsPx = j["second"]["rmsPx"].number();
     return c;
 }
 
@@ -137,6 +169,11 @@ JJson JPCameraCalibration::toJson() const {
             j["points"].push(q);
         }
         j["outlierPx"] = outlierPx;
+    }
+    if (secondScale > 0) {
+        j["second"]["z"] = secondZ;
+        j["second"]["scale"] = secondScale;
+        j["second"]["rmsPx"] = secondRmsPx;
     }
     return j;
 }
