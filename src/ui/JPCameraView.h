@@ -22,6 +22,10 @@ inline namespace jf {
 // A camera's live picture, fitted to the widget with its shape kept, and a
 // crosshair through the centre: the point the camera is looking at.
 //
+// The mouse wheel zooms in and out about the centre, so the crosshair stays
+// on the point the camera is looking at; zoomed, the zoom is shown in a
+// corner. Fitted (1x) is as far out as it goes.
+//
 // Each new frame becomes a GPU texture on the main thread (the feed's signal
 // is re-posted there); the previous texture is released.
 class JPCameraView : public JWidget {
@@ -44,6 +48,11 @@ public:
 
     void populateRenderPrimitives(JPrimitiveBuffer& buf) override;
     void handleMousePress(float x, float y) override;
+    bool handleScroll(float mx, float my, float wheel) override;
+
+    // How far zoomed in: 1 is the picture fitted to the view.
+    double zoom() const { return m_zoom; }
+    static constexpr double kMostZoom = 64.0;
 
     // The picture double-clicked, at this pixel of it.
     std::function<void(double px, double py)> onPictureDoubleClicked;
@@ -66,6 +75,7 @@ private:
     // Where the picture was last drawn (widget coordinates) and at what scale,
     // to turn a click into a pixel of it; and the last press, for a double.
     float                              m_picX = 0, m_picY = 0, m_picScale = 0;
+    double                             m_zoom = 1.0;
     std::chrono::steady_clock::time_point m_lastPress;
     float                              m_lastPressX = 0, m_lastPressY = 0;
     std::function<void()>              m_unwatch;

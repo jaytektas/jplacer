@@ -392,6 +392,13 @@ the camera moves to look there: the quickest way to put it over a fiducial or a 
 
 <!-- src: src/ui/JPCameraView.cpp (handleMousePress); src/app/JPlacerCameraTasks.cpp (onLookAtPixel, lookAt) -->
 
+Turn the **mouse wheel** over a camera's picture to zoom in or out, up to 64 times, about the middle, so
+the cross stays on the point the camera is looking at. Two notches double the zoom; it shows in the bottom corner while it is more than fitted, and
+turning back down stops at fitted. Double-clicking a zoomed picture moves to the point clicked as it does
+fitted.
+
+<!-- src: src/ui/JPCameraView.cpp (handleScroll, kZoomPerNotch, kMostZoom) -->
+
 A camera can drop off its USB connection (noise from the stepper motors on its cable) or hang without
 saying so. jplacer notices either (no picture for 3 seconds counts as hung), says so across the top of
 the last picture, which would otherwise pass for a live one, and opens the camera again by its name every

@@ -11,9 +11,14 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 
 inline namespace jf {
 
+namespace {
+// Each notch of the wheel zooms by this much: two notches double it.
+const double kZoomPerNotch = std::sqrt(2.0);
+} // namespace
 
 JPCameraView::JPCameraView(JSceneGraph& graph, JGpuHal& hal)
     : JWidget(graph, "JPCameraView"), m_hal(hal) {}
@@ -76,10 +81,12 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
         }
         return;
     }
-    // Fit the picture, shape kept, centred.
-    const float scale = std::min(b.width / float(m_w), b.height / float(m_h));
+    // Fit the picture, shape kept, centred; zoomed about the centre, so the
+    // crosshair stays where the camera is looking, and cut to the view.
+    const float scale = std::min(b.width / float(m_w), b.height / float(m_h)) * float(m_zoom);
     const float w = float(m_w) * scale, h = float(m_h) * scale;
     const float x = b.x + (b.width - w) * 0.5f, y = b.y + (b.height - h) * 0.5f;
+    buf.pushClip(b.x, b.y, b.width, b.height);
     // Straightened, the picture is drawn through the straightener's mesh: each
     // grid cell from where it is in the picture as taken (by the GPU where
     // there is one); cells the camera does not see are left out, bare.
@@ -110,12 +117,16 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     m_picY = y;
     m_picScale = scale;
 
+    // What of the picture is on screen.
+    const float vx0 = std::max(x, b.x), vy0 = std::max(y, b.y);
+    const float vx1 = std::min(x + w, b.x + b.width), vy1 = std::min(y + h, b.y + b.height);
+
     // The crosshair: where the camera is looking.
     JVectorCanvas vg;
     const JColor c = rgb(Colors::Accent[0], Colors::Accent[1], Colors::Accent[2]);
     const float cx = x + w * 0.5f, cy = y + h * 0.5f, line = st.borderWidth;
-    vg.drawLine(x, cy, x + w, cy, line, JPaint::solid(c));
-    vg.drawLine(cx, y, cx, y + h, line, JPaint::solid(c));
+    vg.drawLine(vx0, cy, vx1, cy, line, JPaint::solid(c));
+    vg.drawLine(cx, vy0, cx, vy1, line, JPaint::solid(c));
 
     // What is on the machine there (the board's placements and fiducials).
     std::vector<JPViewMark> marks;
@@ -143,11 +154,30 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
 
     // A picture left from before the camera was lost: say so over it, or it
     // would pass for a live one.
+    const float lh = JTextHelper::lineHeight(), pad = st.spacing;
     if (!m_message.empty()) {
-        const float lh = JTextHelper::lineHeight(), pad = st.spacing;
-        buf.pushRectangle(x, y, w, lh + 2 * pad, Colors::OverlayScrim, 0.f);
-        JTextHelper::pushText(buf, x + pad, y + pad, m_message, Colors::Warning, w - 2 * pad);
+        buf.pushRectangle(vx0, vy0, vx1 - vx0, lh + 2 * pad, Colors::OverlayScrim, 0.f);
+        JTextHelper::pushText(buf, vx0 + pad, vy0 + pad, m_message, Colors::Warning, vx1 - vx0 - 2 * pad);
     }
+    // Zoomed: by how much, in the bottom corner.
+    if (m_zoom > 1.0) {
+        char text[32];
+        std::snprintf(text, sizeof text, "%.0f%%", m_zoom * 100.0);
+        const float tw = JTextHelper::measureWidth(text);
+        const float zx = vx0, zy = vy1 - lh - 2 * pad;
+        buf.pushRectangle(zx, zy, tw + 2 * pad, lh + 2 * pad, Colors::OverlayScrim, 0.f);
+        JTextHelper::pushText(buf, zx + pad, zy + pad, text, Colors::ControlText);
+    }
+    buf.popClip();
+}
+
+bool JPCameraView::handleScroll(float, float, float wheel) {
+    if (wheel == 0.f) return false;
+    const double z = std::clamp(m_zoom * std::pow(kZoomPerNotch, double(wheel)), 1.0, kMostZoom);
+    // Back near fitted is fitted, not 99.99% of it.
+    m_zoom = z < 1.0 + 1e-6 ? 1.0 : z;
+    invalidate();
+    return true;
 }
 
 void JPCameraView::handleMousePress(float x, float y) {
