@@ -5,6 +5,7 @@
 
 #include "JPCaptureMode.h"
 #include "JPFrame.h"
+#include "JPWhiteBalance.h"
 
 #include "machine/JPCameraConfig.h"
 
@@ -45,6 +46,9 @@ public:
 
     // The newest frame, into `out`, if it is newer than sequence `have`.
     bool latest(JPFrame& out, uint64_t have) const;
+    // The latest picture as the camera took it, before white balance (for
+    // working a white balance out). False when there is none yet.
+    bool latestUnbalanced(JPFrame& out) const;
     // The mode it is capturing in, once started.
     std::optional<JPCaptureMode> mode() const;
 
@@ -65,6 +69,8 @@ private:
 
     mutable std::mutex           m_mutex;   // guards the members below
     JPFrame                      m_latest;
+    JPFrame                      m_unbalanced;   // m_latest before white balance (kept while there is one)
+    JPWhiteBalance               m_balance;
     std::optional<JPCaptureMode> m_mode;
 };
 

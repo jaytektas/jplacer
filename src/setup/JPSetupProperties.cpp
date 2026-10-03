@@ -817,6 +817,24 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     }
     add.note("Set? unticked: the camera keeps its own setting. The values are the camera's own units.");
 
+    add.tab("White Balance");
+    add.group("White Balance");
+    add.header({ "Red", "Green", "Blue" });
+    auto wb = [c]() -> JPCameraConfig::WhiteBalance& { return c().whiteBalance; };
+    const char* channel[] = { "Red", "Green", "Blue" };
+    for (const char* row : { "Balance", "Gamma" }) {
+        const bool gamma = std::string(row) == "Gamma";
+        add.row(row);
+        for (size_t ch = 0; ch < 3; ++ch)
+            add.number(std::string(gamma ? "gamma" : "balance") + channel[ch], std::string(channel[ch]) + " " + row,
+                       [wb, ch, gamma]() -> double& { return gamma ? wb().gamma[ch] : wb().balance[ch]; }, 3);
+        add.end();
+    }
+    add.actions({ { "Overall", "whiteBalanceOverall" }, { "Brightest", "whiteBalanceBrightest" }, { "Reset", "whiteBalanceReset" } });
+    add.note("Each channel is scaled by its balance, then given its gamma. Overall and Brightest work them out "
+             "from what the camera sees now (something white or grey in view): the other channels brought up to "
+             "the strongest, measured over the brighter fifth of the picture, or at its edge.");
+
     add.tab("Position");
     coordinateSystem<JPCameraConfig>(add, cell, c, "(fixed to the machine)", true, f);
 

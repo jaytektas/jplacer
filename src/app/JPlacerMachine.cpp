@@ -5,6 +5,7 @@
 
 #include "JPlacerSettings.h"
 
+#include "camera/JPWhiteBalance.h"
 #include "common/JPlacerLog.h"
 #include "common/JPlacerPaths.h"
 #include "openpnp/JPOpenPnpMachineImporter.h"
@@ -478,6 +479,31 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
     } else if (action == "calibrate" && path.rfind("camera:", 0) == 0) {
         for (CameraDock& c : m_cameras)
             if ("camera:" + c.panel->camera().id == path) m_cameraTasks->calibrate(*c.panel);
+    } else if (action.rfind("whiteBalance", 0) == 0 && path.rfind("camera:", 0) == 0) {
+        // Worked out from what the camera sees now, as it took it; a step to undo.
+        const std::string id = path.substr(7);
+        JPCameraConfig::WhiteBalance wb;
+        if (action != "whiteBalanceReset") {
+            JPFrame frame;
+            bool got = false;
+            for (CameraDock& c : m_cameras)
+                if (c.panel->camera().id == id) got = c.panel->feed().latestUnbalanced(frame);
+            if (!got) {
+                m_window.showStatus("White balance: the camera has no picture; show it first", kErrorMs);
+                return;
+            }
+            std::string why;
+            const auto v = JPWhiteBalance::automatic(frame, action == "whiteBalanceOverall", why);
+            if (!v) {
+                m_window.showStatus("White balance: " + why, kErrorMs);
+                return;
+            }
+            wb = *v;
+        }
+        m_setup->change(action == "whiteBalanceReset" ? "White balance reset" : "White balance", [&](JPCellConfig& cell) {
+            for (JPCameraConfig& cam : cell.cameras)
+                if (cam.id == id) cam.whiteBalance = wb;
+        });
     }
 }
 

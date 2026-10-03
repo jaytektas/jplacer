@@ -6,6 +6,7 @@
 #include "JPCameraCalibration.h"
 #include "JPMountConfig.h"
 
+#include <array>
 #include <string>
 #include <vector>
 
@@ -41,6 +42,14 @@ struct JPCameraConfig {
         double      maskCircle = 0;
     };
     Settle        settle;
+    // WHITE BALANCE, as OpenPnP's: each channel (red, green, blue) scaled by
+    // its balance, then given its own gamma (JPWhiteBalance).
+    struct WhiteBalance {
+        std::array<double, 3> balance{ 1, 1, 1 };
+        std::array<double, 3> gamma{ 1, 1, 1 };
+        bool neutral() const { return balance == std::array<double, 3>{ 1, 1, 1 } && gamma == std::array<double, 3>{ 1, 1, 1 }; }
+    };
+    WhiteBalance  whiteBalance;
     // jplacer's own, from known moves: one for each picture size it was
     // measured at (another size is another scale, and another lens).
     std::vector<JPCameraCalibration> calibrations;
@@ -74,6 +83,10 @@ struct JPCameraConfig {
         c.unitsPerPixelY = j["unitsPerPixel"]["y"].number();
         c.device         = j["device"];
         c.showAll        = j["showAll"].number(0.0);
+        for (size_t ch = 0; ch < 3; ++ch) {
+            c.whiteBalance.balance[ch] = j["whiteBalance"]["balance"][ch].number(1);
+            c.whiteBalance.gamma[ch]   = j["whiteBalance"]["gamma"][ch].number(1);
+        }
         if (const JJson& st = j["settle"]; st.isObject()) {
             if (const std::string& m = st["method"].str(); !m.empty()) c.settle.method = m;
             c.settle.timeMs     = int(st["timeMs"].number(c.settle.timeMs));
@@ -96,6 +109,15 @@ struct JPCameraConfig {
         j["unitsPerPixel"]["y"] = unitsPerPixelY;
         j["device"]             = device;
         j["showAll"]            = showAll;
+        if (!whiteBalance.neutral()) {
+            JJson balance = JJson::array(), gamma = JJson::array();
+            for (size_t ch = 0; ch < 3; ++ch) {
+                balance.push(JJson(whiteBalance.balance[ch]));
+                gamma.push(JJson(whiteBalance.gamma[ch]));
+            }
+            j["whiteBalance"]["balance"] = balance;
+            j["whiteBalance"]["gamma"]   = gamma;
+        }
         j["settle"]["method"]     = settle.method;
         j["settle"]["timeMs"]     = settle.timeMs;
         j["settle"]["timeoutMs"]  = settle.timeoutMs;

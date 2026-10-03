@@ -157,6 +157,8 @@ notes.
 - Camera Settling as in OpenPnP: a picture for vision waits a fixed time after a move, or until the
   picture stops changing (Maximum, Mean, Euclidean or Square difference, threshold, debounce, timeout,
   centre mask). Brought in from OpenPnP.
+- A camera's white balance as in OpenPnP: each colour's balance and gamma on every picture, worked out
+  with Overall or Brightest, and brought in from OpenPnP (the bench's top camera has one).
 
 ## 0.1.0
 

@@ -35,7 +35,7 @@ constexpr int kReconnectMs = 2000;
 
 } // namespace
 
-JPCameraFeed::JPCameraFeed(JPCameraConfig config) : m_config(std::move(config)) {}
+JPCameraFeed::JPCameraFeed(JPCameraConfig config) : m_config(std::move(config)), m_balance(m_config.whiteBalance) {}
 
 JPCameraFeed::~JPCameraFeed() { stop(); }
 
@@ -47,6 +47,14 @@ void JPCameraFeed::start() {
 void JPCameraFeed::stop() {
     m_running = false;
     if (m_thread.joinable()) m_thread.join();
+}
+
+bool JPCameraFeed::latestUnbalanced(JPFrame& out) const {
+    std::lock_guard lk(m_mutex);
+    const JPFrame& f = m_config.whiteBalance.neutral() ? m_latest : m_unbalanced;
+    if (f.sequence == 0) return false;
+    out = f;
+    return true;
 }
 
 bool JPCameraFeed::latest(JPFrame& out, uint64_t have) const {
@@ -118,9 +126,16 @@ void JPCameraFeed::runSource(std::string& why) {
         JLOGC(JPlacerLog::kFrames, JLogLevel::Trace) << m_config.name << " frame " << frame.sequence << " "
                                                      << frame.width << "x" << frame.height << ", brightness "
                                                      << meanBrightness(frame) << "/255";
+        // White balanced as the camera is set; the picture as taken kept beside it.
+        JPFrame unbalanced;
+        if (!m_config.whiteBalance.neutral()) {
+            unbalanced = frame;
+            m_balance.apply(frame);
+        }
         {
             std::lock_guard lk(m_mutex);
             std::swap(m_latest, frame);
+            if (!m_config.whiteBalance.neutral()) std::swap(m_unbalanced, unbalanced);
         }
         onFrame.emit(m_latest.sequence);
     }

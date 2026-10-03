@@ -278,8 +278,16 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
                 break;
             }
             case Row::Kind::Note: {
-                auto note = std::make_unique<JLabel>(m_graph, r.text, 0.f, st.labelHeight);
-                place(std::move(note), st.labelHeight);
+                // Folded to the width the group has (the form's, less the frame and scroll bar).
+                const float formWidth = m_graph.getLayoutConst(getNodeId()).boundingBox.width;
+                const float width = std::max(numberWidth() * 4, formWidth - JPGroupFrame::extraWidth()
+                                                                     - 2 * (st.scrollBarWidth + st.itemPadding));
+                auto note = std::make_unique<JLabel>(m_graph, r.text, width, st.labelHeight);
+                note->setWordWrap(true);
+                const float h = std::max(st.labelHeight, note->heightFor(width));
+                note->setVSizePolicy(JSizePolicyMode::Fixed);
+                note->setSize(width, h);
+                place(std::move(note), h);
                 break;
             }
             case Row::Kind::Actions: {

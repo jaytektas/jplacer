@@ -371,6 +371,16 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             cam.device["backend"] = "v4l2";
             cam.device["name"]    = usb == std::string::npos ? uid : uid.substr(0, usb);
             if (const double fps = number(x.attr("fps")); fps > 0) cam.device["fps"] = fps;
+            // White balance: each channel's balance and gamma.
+            const char* channels[] = { "red", "green", "blue" };
+            for (size_t ch = 0; ch < 3; ++ch) {
+                const std::string c = channels[ch];
+                if (!x.attr(c + "-balance").empty()) cam.whiteBalance.balance[ch] = number(x.attr(c + "-balance"));
+                if (!x.attr(c + "-gamma").empty()) cam.whiteBalance.gamma[ch] = number(x.attr(c + "-gamma"));
+            }
+            if (x.child("red-color-map"))
+                notes.push_back("camera " + cam.name + ": its mapped white balance is not brought in; balance it again "
+                                "(Machine Setup, White Balance)");
             // Settling: how a picture for vision waits for the camera to stop.
             if (!x.attr("settle-method").empty()) {
                 cam.settle.method = x.attr("settle-method") == "Motion" ? "Euclidean" : x.attr("settle-method");
