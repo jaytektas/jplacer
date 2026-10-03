@@ -41,6 +41,18 @@ starts the board's position again.
    the rest, centres on each one and measures it in the middle of the
    picture, where the lens bends nothing. Each find makes the board's position better for the next.
 
+How each fiducial is measured is set on the Machine's **Fiducials** tab in
+[Machine Setup](machine-setup.md#settings). Each **vision pass** finds the fiducial and moves the camera
+over where it was found; the passes stop once one moves the camera less than **Centred To** (0.01 mm to
+begin with), or after **Vision Passes** of them (4 to begin with). With a **Parallax Diameter**, each pass
+looks at the fiducial from two places that far apart, either side of it along the **Parallax Angle** (0
+along X, 90 along Y), the nearer first, and takes the midpoint of the two. A shiny (HASL) fiducial seen
+straight on can mirror the camera peeking through its light and look dark or misshapen; seen from the
+side it mirrors the bright light, and what looking from one side puts out, looking from the other takes
+back. 0 (as to begin with) looks straight down. An OpenPnP import brings these across from the fiducial
+locator's vision settings (`vision-settings.xml` beside `machine.xml`), Max. Linear Offset becoming
+Centred To.
+
 With two fiducials found, the board is moved and turned to fit them; with three or more it is fitted
 fully, which also takes up a machine whose axes are not quite square or not quite to scale. The list
 shows each fiducial: found, and how far it sits from the fit, or why it was not found. The panel then
@@ -53,7 +65,7 @@ Fiducials are found as bright copper on darker solder mask, the size their footp
 first size in it: `FIDUCIAL_1MM` is 1 mm, `Fiducial_0.75mm_Mask1.5mm` is 0.75 mm), or 1 mm where it gives
 none. The camera must be calibrated (see [Calibrating the head camera](machine.md#calibrating-the-head-camera)).
 
-<!-- src: src/tasks/JPBoardLocator.cpp (run, kMaxStretch, Options); src/import/JPCplImporter.cpp (sizeInName); src/app/JPlacerBoard.cpp (cameraOn, locate); src/app/JPlacerCameraTasks.cpp (locateBoard) -->
+<!-- src: src/tasks/JPBoardLocator.cpp (run, kMaxStretch, Options); src/machine/JPFiducialConfig.h; src/openpnp/JPOpenPnpMachineImporter.cpp (fiducial-locator); src/import/JPCplImporter.cpp (sizeInName); src/app/JPlacerBoard.cpp (cameraOn, locate); src/app/JPlacerCameraTasks.cpp (locateBoard) -->
 
 ## Squaring the machine
 

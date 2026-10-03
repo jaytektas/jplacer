@@ -198,6 +198,23 @@ int main() {
     const JPBoardLocator::Result squared = JPBoardLocator::run(cell, feed, b, guess, o);
     assert(squared.ok && std::abs(squared.xPerY) < 1e-4 && squared.rmsMm < 0.005);
 
+    // Looked at from either side (parallax), off the middle of the picture:
+    // the same board, as closely.
+    JPBoardLocator::Options sides = o;
+    sides.fiducials.parallaxDiameterMm = 2;
+    sides.fiducials.parallaxAngleDeg = 30;
+    sides.fiducials.passes = 3;
+    const JPBoardLocator::Result parallax = JPBoardLocator::run(cell, feed, b, guess, sides);
+    if (!parallax.ok) std::fprintf(stderr, "why: %s\n", parallax.why.c_str());
+    assert(parallax.ok && parallax.rmsMm < 0.005);
+    for (const JPPlacement& p : b.placements) {
+        if (p.side != JPPlacement::Side::Bottom) continue;
+        double ax, ay, bx, by;
+        squared.board.toMachine.apply(p.x, p.y, ax, ay);
+        parallax.board.toMachine.apply(p.x, p.y, bx, by);
+        assert(std::hypot(ax - bx, ay - by) < 0.005);
+    }
+
     // The top side has one fiducial: not enough.
     const JPBoardLocator::Result top = JPBoardLocator::run(cell, feed, b, JPBoardSide::placed(JPPlacement::Side::Top, 180, 70, 0), o);
     assert(!top.ok && top.why.find("two are needed") != std::string::npos);

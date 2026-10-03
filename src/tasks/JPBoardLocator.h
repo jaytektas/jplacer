@@ -7,6 +7,7 @@
 #include "job/JPBoard.h"
 #include "job/JPBoardSide.h"
 #include "machine/JPCell.h"
+#include "machine/JPFiducialConfig.h"
 
 #include <functional>
 #include <string>
@@ -17,7 +18,8 @@ inline namespace jf {
 // Where a board really is, from its fiducials. Given roughly where it is (a
 // guess good to a few millimetres and a degree or two), the head camera goes
 // to each fiducial on the side that is up, finds it, centres on it and
-// measures it there (where the lens bends nothing), and each find makes the
+// measures it there (where the lens bends nothing), or from either side of it
+// with a parallax diameter (JPFiducialConfig), and each find makes the
 // guess better for the next: the first moves it, the second turns it, three or
 // more fit it fully (affine), which also takes up a machine whose axes are not
 // quite square. The first two are looked for widely (until two are found the
@@ -32,6 +34,7 @@ public:
         double searchMm = 2;          // the rest, once the first is found
         double speed = 1.0;           // share of the axes' rates (the machine's speed scales it)
         double maxRmsMm = 0.1;        // fiducials that disagree more are refused
+        JPFiducialConfig fiducials;   // passes, how centred, parallax
     };
     struct Fiducial {
         std::string designator;

@@ -9,7 +9,9 @@
 
 #include <j/core/Log.h>
 
+#include <algorithm>
 #include <cmath>
+#include <filesystem>
 #include <cstdlib>
 #include <map>
 #include <optional>
@@ -173,6 +175,29 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
     c.homeAfterConnect = setting("home-after-enabled");
     c.parkAfterHome = setting("park-after-homed");
     c.discardLocation = location(*machine, "discard-location");
+    // How fiducials are measured: the fiducial locator's vision settings, in
+    // vision-settings.xml beside machine.xml.
+    if (const JPXmlElement* locator = machine->child("fiducial-locator")) {
+        const std::string id = locator->attr("fiducial-vision-id");
+        const std::string path = (std::filesystem::path(machineXml).parent_path() / "vision-settings.xml").string();
+        JPXmlElement settings;
+        std::string why;
+        const JPXmlElement* fvs = nullptr;
+        if (!id.empty() && std::filesystem::exists(path) && JPXmlReader::read(path, settings, why))
+            for (const JPXmlElement& v : settings.children)
+                if (v.name == "vision-settings" && v.attr("id") == id) fvs = &v;
+        if (fvs) {
+            c.fiducials.parallaxDiameterMm = std::max(0.0, lengthChild(*fvs, "parallax-diameter"));
+            c.fiducials.parallaxAngleDeg   = number(fvs->attr("parallax-angle"));
+            if (const int passes = int(number(fvs->attr("max-vision-passes"))); passes > 0)
+                c.fiducials.passes = std::min(passes, JPFiducialConfig::kMostPasses);
+            if (const double offset = lengthChild(*fvs, "max-linear-offset"); offset > 0)
+                c.fiducials.centredMm = offset;
+        } else if (!id.empty()) {
+            notes.push_back("the fiducial locator's vision settings (" + id + ") were not found in " + path
+                            + ": fiducials are measured as jplacer does by default");
+        }
+    }
     std::map<std::string, Commands> commands;   // by driver id
 
     if (const JPXmlElement* drivers = machine->child("drivers")) {

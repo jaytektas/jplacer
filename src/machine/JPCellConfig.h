@@ -7,6 +7,7 @@
 #include "JPAxisConfig.h"
 #include "JPCameraConfig.h"
 #include "JPDriverConfig.h"
+#include "JPFiducialConfig.h"
 #include "JPHeadConfig.h"
 #include "JPLocation.h"
 #include "JPNozzleConfig.h"
@@ -31,6 +32,7 @@ struct JPCellConfig {
     std::vector<JPCameraConfig>   cameras;
     std::vector<JPActuatorConfig> actuators;
     JPSquarenessConfig            squareness;   // the gantry's Y lean, when measured
+    JPFiducialConfig              fiducials;    // how a board's fiducials are measured
     bool                          homeAfterConnect = false;   // home as soon as connected
     bool                          parkAfterHome    = false;   // park once homed (after visual homing)
     std::optional<JPLocation>     discardLocation;            // where a part not wanted is dropped

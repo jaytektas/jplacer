@@ -30,6 +30,7 @@ JJson JPCellConfig::toJson() const {
     j["cameras"]   = toArray(cameras);
     j["actuators"] = toArray(actuators);
     if (!squareness.axisX.empty()) j["squareness"] = squareness.toJson();
+    j["fiducials"] = fiducials.toJson();
     if (homeAfterConnect) j["homeAfterConnect"] = true;
     if (parkAfterHome) j["parkAfterHome"] = true;
     if (discardLocation) j["discardLocation"] = discardLocation->toJson();
@@ -55,6 +56,7 @@ bool JPCellConfig::fromJson(const JJson& j, std::string& error) {
     for (const JJson& m : j["cameras"].arr())   c.cameras.push_back(JPCameraConfig::fromJson(m));
     for (const JJson& a : j["actuators"].arr()) c.actuators.push_back(JPActuatorConfig::fromJson(a));
     c.squareness = JPSquarenessConfig::fromJson(j["squareness"]);
+    c.fiducials = JPFiducialConfig::fromJson(j["fiducials"]);
     c.homeAfterConnect = j["homeAfterConnect"].boolean();
     c.parkAfterHome = j["parkAfterHome"].boolean();
     c.discardLocation = JPLocation::fromJson(j["discardLocation"]);

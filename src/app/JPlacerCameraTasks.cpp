@@ -311,9 +311,11 @@ void JPlacerCameraTasks::locateBoard(const JPBoard& board, const JPBoardSide& gu
     }
     JPCameraFeed* feed = &camera->feed();
     auto result = std::make_shared<JPBoardLocator::Result>();
-    run(*camera, "Locating the board", [this, feed, board, guess, result](std::string& words, const auto& progress) {
+    run(*camera, "Locating the board", [this, feed, board, guess, result, fiducials = m_cell.config().fiducials](
+                                            std::string& words, const auto& progress) {
         JPBoardLocator::Options o;
         o.speed = kTaskSpeed;
+        o.fiducials = fiducials;
         *result = JPBoardLocator::run(m_cell, *feed, board, guess, o, progress);
         if (!result->ok) {
             words = result->why;

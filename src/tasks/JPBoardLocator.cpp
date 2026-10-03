@@ -18,11 +18,8 @@ inline namespace jf {
 
 namespace {
 
-// A fiducial is measured once it is this near the middle of the picture
-// (mm), after at most so many moves to centre it.
-constexpr double kCentredMm = 0.01;
-constexpr int    kCentringMoves = 4;
-// Once the camera is over it, how far it may still be from the middle (mm).
+// Once the camera is over it, how far it may still be from where it is
+// expected (mm).
 constexpr double kCentringSearchMm = 0.5;
 // A full fit may stretch or shear the board this much at most (a share):
 // more means a fiducial was mistaken, not that the machine is out.
@@ -75,6 +72,12 @@ JPBoardLocator::Result JPBoardLocator::run(JPCell& cell, JPCameraFeed& feed, con
     while (!left.empty()) { double x, y; machineOf(order.back(), x, y); takeNearest(x, y, false); }
 
     const double scale = std::sqrt(cal.scaleX() * cal.scaleY());
+    // Parallax: the two places looked from, either side of the fiducial.
+    const JPFiducialConfig& fc = o.fiducials;
+    const double half = fc.parallaxDiameterMm / 2, turn = fc.parallaxAngleDeg * M_PI / 180;
+    const double px = half * std::cos(turn), py = half * std::sin(turn);
+    // Where the camera looks now: the nearer parallax place is looked from first.
+    double cx = hx, cy = hy;
     std::vector<JPPointFit::Pair> pairs;
     for (const JPPlacement* p : order) {
         Fiducial f;
@@ -82,38 +85,66 @@ JPBoardLocator::Result JPBoardLocator::run(JPCell& cell, JPCameraFeed& feed, con
         if (progress) progress(p->designator + " (" + std::to_string(r.fiducials.size() + 1) + " of " + std::to_string(order.size()) + ")");
         double vx, vy;
         machineOf(p, vx, vy);
-        for (int move = 0; move < kCentringMoves; ++move) {
-            if (!cell.moveAxesAndWait({ { mount.axisX, vx - mount.offsetX }, { mount.axisY, vy - mount.offsetY } }, o.speed, r.why))
-                return r;
+        // Find it from the camera looking at (lx, ly), expecting it at (vx, vy):
+        // where it is, machine.
+        auto findFrom = [&](double lx, double ly, double searchMm, double& mx, double& my) {
+            if (!cell.moveAxesAndWait({ { mount.axisX, lx - mount.offsetX }, { mount.axisY, ly - mount.offsetY } }, o.speed, r.why))
+                return false;
+            cx = lx;
+            cy = ly;
             JPGrayImage img;
-            if (!JPCameraLook::settled(feed, img, r.why)) return r;
+            if (!JPCameraLook::settled(feed, img, r.why)) return false;
             if (img.width != cal.width || img.height != cal.height) {
                 r.why = feed.config().name + " changed its picture size while in use";
-                return r;
+                return false;
             }
             JPRoundMarkFinder::Request rq;
-            rq.expectedX = img.width / 2.0;
-            rq.expectedY = img.height / 2.0;
-            // Widely until two are found: until then the board's turn is a
-            // guess, and the second is the furthest from the first.
-            rq.searchRadius = (move > 0 ? kCentringSearchMm : pairs.size() < 2 ? o.firstSearchMm : o.searchMm) * scale;
+            if (!cal.pixelFor(vx, vy, lx, ly, rq.expectedX, rq.expectedY)) {
+                rq.expectedX = img.width / 2.0;
+                rq.expectedY = img.height / 2.0;
+            }
+            rq.searchRadius = searchMm * scale;
             rq.diameter = (p->fiducialMm > 0 ? p->fiducialMm : o.fiducialDiameterMm) * scale;
             rq.polarity = JPRoundMarkFinder::Polarity::Bright;   // copper on solder mask
             const JPRoundMark m = JPCameraLook::findTryingHarder(cell, feed, img, rq);
             if (!m.found) {
-                f.found = false;
                 f.why = m.why;
+                return false;
+            }
+            if (cal.machinePoint(m.x, m.y, lx, ly, mx, my)) return true;
+            f.why = "seen where the calibration cannot place it";
+            return false;
+        };
+        for (int pass = 0; pass < std::max(1, fc.passes); ++pass) {
+            // Widely until two are found: until then the board's turn is a
+            // guess, and the second is the furthest from the first.
+            const double searchMm = pass > 0 ? kCentringSearchMm : pairs.size() < 2 ? o.firstSearchMm : o.searchMm;
+            double mx = 0, my = 0;
+            bool found;
+            if (half > 0) {
+                // From both sides, the nearer first; the midpoint cancels
+                // what looking from the side puts out.
+                const double s = std::hypot(vx + px - cx, vy + py - cy) <= std::hypot(vx - px - cx, vy - py - cy) ? 1 : -1;
+                double ax, ay, bx, by;
+                found = findFrom(vx + s * px, vy + s * py, searchMm, ax, ay)
+                     && findFrom(vx - s * px, vy - s * py, searchMm, bx, by);
+                mx = (ax + bx) / 2;
+                my = (ay + by) / 2;
+            } else {
+                found = findFrom(vx, vy, searchMm, mx, my);
+            }
+            if (!found) {
+                if (!r.why.empty()) return r;   // the machine or camera failed, not the finding
+                f.found = false;
                 break;
             }
-            double mx, my;
-            cal.machinePoint(m.x, m.y, vx, vy, mx, my);
             const double off = std::hypot(mx - vx, my - vy);
             f.found = true;
             f.x = mx;
             f.y = my;
             vx = mx;
             vy = my;
-            if (off < kCentredMm) break;
+            if (off < fc.centredMm) break;
         }
         if (f.found) {
             pairs.push_back({ p->x, p->y, f.x, f.y });

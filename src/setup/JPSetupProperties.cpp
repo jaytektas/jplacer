@@ -297,6 +297,21 @@ void machineForm(JPCellConfig& cell, JPSetupProperties::Form& f) {
     add.end();
     f.reshaping.push_back("discard");
     add.note("Where a nozzle drops a part that is not wanted.");
+
+    add.tab("Fiducials");
+    add.group("Measuring a Fiducial");
+    add.integer("fiducialPasses", "Vision Passes", [&cell]() -> int& { return cell.fiducials.passes; }, 1, JPFiducialConfig::kMostPasses);
+    add.number("fiducialCentredTo", "Centred To (mm)", [&cell] { return cell.fiducials.centredMm; },
+               [&cell](double v) { if (v > 0) cell.fiducials.centredMm = v; }, 4);
+    add.note("Each pass finds the fiducial and moves the camera over where it was found, until a pass moves it "
+             "less than Centred To, or the passes are used up.");
+    add.group("Parallax");
+    add.number("parallaxDiameter", "Parallax Diameter (mm)", [&cell] { return cell.fiducials.parallaxDiameterMm; },
+               [&cell](double v) { if (v >= 0) cell.fiducials.parallaxDiameterMm = v; });
+    add.number("parallaxAngle", "Parallax Angle (deg)", [&cell]() -> double& { return cell.fiducials.parallaxAngleDeg; }, 1);
+    add.note("With a diameter, each pass looks at the fiducial from two places that far apart, either side of it "
+             "along the angle (0 along X, 90 along Y), and takes the midpoint. Shiny (HASL) fiducials seen straight "
+             "on can mirror the camera and look dark; from the side they mirror the light. 0 looks straight down.");
 }
 
 void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPFirmwareProfile>& profiles, JPSetupProperties::Form& f) {
