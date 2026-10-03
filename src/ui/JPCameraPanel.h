@@ -11,7 +11,6 @@
 
 #include <j/core/JContainer.h>
 #include <j/core/JLabel.h>
-#include <j/core/JSlider.h>
 
 #include <chrono>
 #include <functional>
@@ -23,8 +22,8 @@ inline namespace jf {
 
 // One camera, live, in a dock of its own: its picture (as taken or
 // straightened), and a line saying what it is doing; its tools (As Taken,
-// Save Picture, Calibrate, Visual Test) are icons for the dock's tab
-// (tabTools). The camera runs while its panel is on screen (the front tab, or
+// Save Picture, Calibrate, Visual Test, its settings) are icons for the
+// dock's tab (tabTools). The camera runs while its panel is on screen (the front tab, or
 // torn out into a window) and stops when it is not, so a camera nobody can see
 // costs nothing; the owner switches its light with it (onRunning).
 class JPCameraPanel : public JContainer {
@@ -49,14 +48,16 @@ public:
     // Calibrate and Visual Test pressed: the owner runs them on this camera.
     std::function<void()> onCalibrate;
     std::function<void()> onVisualTest;
+    // Its settings asked for: the owner shows the camera in Machine Setup.
+    std::function<void()> onSettings;
     // The live picture double-clicked at this pixel (of the picture as taken).
     std::function<void(double px, double py)> onLookAtPixel;
 
-    // How the picture is shown: straightened or as taken, and how much of a
-    // straightened one (JPStraightener's showAll). Set by the owner; changed
-    // here, reported to onViewChanged.
-    void setView(bool straight, double showAll);
-    std::function<void(bool straight, double showAll)> onViewChanged;
+    // How the picture is shown: straightened or as taken (how much of a
+    // straightened one's edge shows is the camera's setting, showAll). Set
+    // by the owner; changed here, reported to onViewChanged.
+    void setView(bool straight);
+    std::function<void(bool straight)> onViewChanged;
     // A calibration changed (or the camera opened, at a size): straighten by
     // it from now on.
     void refreshStraightening();
@@ -86,14 +87,12 @@ private:
 
     JPCameraFeed                          m_feed;
     JPCameraView*                         m_view = nullptr;
-    std::unique_ptr<JPIconButton>         m_asTaken, m_save, m_calibrate, m_visualTest;
-    JSlider*                              m_edges = nullptr;
+    std::unique_ptr<JPIconButton>         m_asTaken, m_save, m_calibrate, m_visualTest, m_settings;
     JLabel*                               m_state = nullptr;
     JLabel*                               m_note  = nullptr;
     CalibrationFor                        m_calibrationFor;
     bool                                  m_busy = false;
     bool                                  m_straight = false;
-    double                                m_showAll = 0;
     std::string                           m_capturesDir;
     std::chrono::steady_clock::time_point m_drawn;   // last drawn: on screen until shortly after
     std::vector<std::function<void()>>    m_unwatch;

@@ -115,6 +115,10 @@ notes.
   again to go back. It takes the place of the Axes panel.
 - A camera's tools are icons in its tab: an eye to see the picture as taken (lit) or straightened, save
   the picture, calibrate, and the visual test. The picture gets the room the buttons took.
+- A camera's gear icon opens its settings in Machine Setup. How much of a straightened picture's edge
+  shows is now one of those settings, no longer a slider over the picture.
+- Machine Setup's tree has buttons to open and close every branch, a search box with a clear button,
+  and a right-click menu: open or close a branch, open or close all, add, remove.
 
 ## 0.1.0
 

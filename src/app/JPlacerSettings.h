@@ -62,10 +62,8 @@ public:
     static std::string machineCell();
 
     // How a camera's picture is shown, each camera its own: straightened
-    // (true) or as taken, and how much of the bent edge a straightened one
-    // shows (0 cropped .. 1 whole). "camera.<id>.straight", "camera.<id>.showAll".
+    // (true) or as taken. "camera.<id>.straight".
     static std::string cameraStraightKey(const std::string& cameraId);
-    static std::string cameraShowAllKey(const std::string& cameraId);
 };
 
 } // inline namespace jf

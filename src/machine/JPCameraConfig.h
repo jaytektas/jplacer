@@ -21,6 +21,10 @@ struct JPCameraConfig {
     JPMountConfig mount;
     double        unitsPerPixelX = 0, unitsPerPixelY = 0;
     JJson         device;
+    // How much of a straightened picture's bent edge is shown: 0 cropped
+    // (enlarged until every part has picture behind it) .. 1 whole (all the
+    // camera sees). See JPStraightener.
+    double        showAll = 0;
     // jplacer's own, from known moves: one for each picture size it was
     // measured at (another size is another scale, and another lens).
     std::vector<JPCameraCalibration> calibrations;
@@ -53,6 +57,7 @@ struct JPCameraConfig {
         c.unitsPerPixelX = j["unitsPerPixel"]["x"].number();
         c.unitsPerPixelY = j["unitsPerPixel"]["y"].number();
         c.device         = j["device"];
+        c.showAll        = j["showAll"].number(0.0);
         for (const JJson& k : j["calibrations"].arr())
             if (JPCameraCalibration cal = JPCameraCalibration::fromJson(k); cal.valid) c.calibrations.push_back(cal);
         return c;
@@ -66,6 +71,7 @@ struct JPCameraConfig {
         j["unitsPerPixel"]["x"] = unitsPerPixelX;
         j["unitsPerPixel"]["y"] = unitsPerPixelY;
         j["device"]             = device;
+        j["showAll"]            = showAll;
         if (!calibrations.empty()) {
             JJson list = JJson::array();
             for (const JPCameraCalibration& k : calibrations) list.push(k.toJson());

@@ -17,10 +17,13 @@ The machine is shown as a tree of its parts:
 - **Cameras**: the cameras fixed to the machine (looking up at the nozzles).
 - **Actuators**: the actuators on the machine rather than a head.
 
-Choose a part to see its settings below the tree. **Search** keeps to the rows whose name contains what
-is typed (and the groups they are in).
+Choose a part to see its settings below the tree. Over the tree, **+** opens every branch, **−** closes
+them down to the machine's groups, and **Search** keeps to the rows whose name contains what is typed
+(and the groups they are in); its **×** clears it. Right-click a row for the same and more: **Open This
+Branch** and **Close This Branch** (the row and everything under it), **Open All**, **Close All**, and
+Add and Remove as the buttons above. A camera's gear icon (in its tab) opens Machine Setup on that camera.
 
-<!-- src: src/setup/JPSetupTree.cpp (build); src/ui/JPMachineSetupPanel.cpp (the search) -->
+<!-- src: src/setup/JPSetupTree.cpp (build); src/ui/JPMachineSetupPanel.cpp (the search, showNode, setBranch, collapseAll, the tree's menu); src/app/JPlacerMachine.cpp (showSetup) -->
 
 ## Adding, removing and ordering parts
 
@@ -52,7 +55,7 @@ made by name.
 | Head | name, its homing mark (where, its size, and whether Home finishes with the camera), its park place |
 | Nozzle | name, the head it is on, the axes that move it, its offset, and the nozzle tip on it (one of those that fit it) |
 | Nozzle tip | name, the diameter of its end as the camera looking up sees it, how it is unloaded (see below), and the nozzles it fits (a box for each) |
-| Camera | name, looking down or up, the head it is on (or fixed to the machine, and where), the device's name, the picture's format and size, its light, and a rough scale to start calibrating from |
+| Camera | name, looking down or up, the head it is on (or fixed to the machine, and where), the device's name, the picture's format and size, its light, how much of a straightened picture's bent edge shows, and a rough scale to start calibrating from |
 | Actuator | name, the head it is on (or the machine), its controller, index and commands |
 
 Only what jplacer acts on is shown. Whatever else a cell carries (brought from OpenPnP for features not

@@ -79,6 +79,7 @@ void JPlacerMachine::dropPanels() {
     for (const auto& u : m_unwatch) u();
     m_unwatch.clear();
     m_jog = nullptr;
+    m_setup = nullptr;
     for (Dock& d : m_docks) {
         d.dock->setContent(nullptr);
         d.panel.reset();
@@ -115,14 +116,12 @@ void JPlacerMachine::buildCameras() {
                                                       return cell->cameraCalibration(id, width, height);
                                                   });
         // Straightened or as taken, kept from last time.
-        const JSettings& s = JSettings::instance();
-        d.panel->setView(s.get<bool>(JPlacerSettings::cameraStraightKey(c.id), false),
-                         s.get<double>(JPlacerSettings::cameraShowAllKey(c.id), 0.0));
-        d.panel->onViewChanged = [id = c.id](bool straight, double showAll) {
+        d.panel->setView(JSettings::instance().get<bool>(JPlacerSettings::cameraStraightKey(c.id), false));
+        d.panel->onViewChanged = [id = c.id](bool straight) {
             JSettings::instance().set(JPlacerSettings::cameraStraightKey(id), straight);
-            JSettings::instance().set(JPlacerSettings::cameraShowAllKey(id), showAll);
             JPlacerSettings::save();
         };
+        d.panel->onSettings = [this, id = c.id] { showSetup("camera:" + id); };
         d.panel->onRunning = [this](bool) { lightCameras(); };
         d.dock = std::make_unique<JDockWidget>(c.name, 0.f, 0.f, 0.f, 0.f);
         d.dock->setContent(d.panel.get());
@@ -173,6 +172,7 @@ void JPlacerMachine::buildPanels() {
     std::vector<std::string> profiles;
     for (const JPFirmwareProfile& p : m_profiles) profiles.push_back(p.id());
     auto setup = std::make_unique<JPMachineSetupPanel>(m_graph, m_cell->config(), profiles, m_setupSelected);
+    m_setup = setup.get();
     setup->onSelected = [this](const std::string& path) { m_setupSelected = path; };
     setup->onApply = [this](const JPCellConfig& cell) {
         // Posted: Apply arrives inside the panel's own event, and opening
@@ -512,6 +512,12 @@ void JPlacerMachine::lightCameras() {
     }
     if (!connected) return;
     for (const auto& [light, on] : lights) m_cell->switchActuator(light, on);
+}
+
+void JPlacerMachine::showSetup(const std::string& path) {
+    if (!m_setup) return;
+    showDock("Machine Setup");
+    m_setup->showNode(path);
 }
 
 bool JPlacerMachine::showDock(const std::string& title) {

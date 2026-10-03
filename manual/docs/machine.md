@@ -253,6 +253,7 @@ one to see what it does):
 | disk | **Save the picture** (below). |
 | target | **Calibrate** the camera (below). |
 | tick in a ring | **Visual test** of the calibration (below). |
+| gear | **The camera's settings**: Machine Setup, with the camera chosen in its tree. |
 
 <!-- src: src/ui/JPCameraPanel.cpp (tabTools); src/ui/JPIcons.cpp; src/ui/JPIconButton.cpp; src/app/JPlacerMachine.cpp (buildCameras); JFramework include/j/core/DockWidget.h (addTitleWidget) -->
 
@@ -271,13 +272,14 @@ With the eye lit (**as taken**), the picture is shown as the camera takes it; wi
 **straightened**: the lens's bending is taken out and turns it square to the machine, at one scale both ways and centred on what
 the camera looks at, so straight edges on the board look straight and what is drawn over the picture is
 plain geometry. A camera must be calibrated to be straightened; until then it is shown as taken, and the
-line over the picture says so. Straightened, a wide lens's picture no longer fills a rectangle: the
-**Edges** slider goes from *cropped* (enlarged until every part of it has picture behind it) to *whole*
-(all the camera sees, with bare edges where the bending was). Each camera keeps its own choice for next time. The
+line over the picture says so. Straightened, a wide lens's picture no longer fills a rectangle: how much
+of its bent edge shows is one of the camera's settings in [Machine Setup](machine-setup.md#settings),
+from 0 *cropped* (enlarged until every part of it has picture behind it) to 100 *whole* (all the camera
+sees, with bare edges where the bending was). Each camera keeps the eye's choice for next time. The
 straightened picture is drawn by the graphics card where there is one, and by the processor where there
 is not. jplacer measures on the picture as taken, through the lens's calibration, whichever is shown.
 
-<!-- src: src/ui/JPCameraPanel.cpp (setView, refreshStraightening); src/ui/JPCameraView.cpp (the mesh); src/camera/JPStraightener.cpp; src/app/JPlacerSettings.cpp (cameraStraightKey, cameraShowAllKey) -->
+<!-- src: src/ui/JPCameraPanel.cpp (setView, refreshStraightening); src/ui/JPCameraView.cpp (the mesh); src/camera/JPStraightener.cpp; src/app/JPlacerSettings.cpp (cameraStraightKey); src/machine/JPCameraConfig.h (showAll) -->
 
 With a camera on the head calibrated and the machine homed, **double-click** anywhere in its picture and
 the camera moves to look there: the quickest way to put it over a fiducial or a part.

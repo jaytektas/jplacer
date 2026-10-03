@@ -137,6 +137,9 @@ int main() {
     assert(c.cameras[0].mount.headId == "H" && c.cameras[0].mount.axisX == "X" && c.cameras[0].mount.axisY == "Y");
     cam.model.set("width", JVariant(1280));
     assert(c.cameras[0].device["width"].number() == 1280);
+    // How much of a straightened picture's edge shows: a percentage here, a share in the cell.
+    cam.model.set("showAll", JVariant(40));
+    assert(c.cameras[0].showAll == 0.4 && JPCameraConfig::fromJson(c.cameras[0].toJson()).showAll == 0.4);
 
     JPSetupProperties::Form head = JPSetupProperties::forNode(c, "head:H", {});
     assert(!head.model.find("homingFiducialX"));

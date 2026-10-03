@@ -470,6 +470,10 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
                 [device](int v) { device()["height"] = v; }, 0, 10000);
     add.byName("light", "Light", named(cell.actuators, "(none)"), [device] { return std::as_const(device())["light-actuator-id"].str(); },
                [device](const std::string& v) { device()["light-actuator-id"] = v; });
+    // Straightened, a wide lens's picture no longer fills a rectangle.
+    add.integer("showAll", "Straightened: edge shown (0 cropped, 100 whole)",
+                [c] { return int(std::lround(c().showAll * 100)); },
+                [c](int v) { c().showAll = std::clamp(v, 0, 100) / 100.0; }, 0, 100);
     add.category("Scale");
     // A start for calibrating with a nozzle's tip, whose size is not known.
     add.number("unitsPerPixelX", "Rough mm per pixel X", [c]() -> double& { return c().unitsPerPixelX; }, 5);

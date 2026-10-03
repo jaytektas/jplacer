@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "JPIconButton.h"
 #include "JPPropertyForm.h"
 
 #include "machine/JPCellConfig.h"
@@ -11,10 +12,12 @@
 #include <j/core/JContainer.h>
 #include <j/core/JLabel.h>
 #include <j/core/JLineEdit.h>
+#include <j/core/MenuSystem.h>
 #include <j/core/JScrollArea.h>
 #include <j/core/JTreeView.h>
 
 #include <functional>
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
@@ -22,8 +25,8 @@
 inline namespace jf {
 
 // Machine Setup: the machine's parts as a tree (JPSetupTree), the selected
-// part's settings under it, Add, Remove and Up / Down for the parts, and a
-// search over the tree. Edits are made to a copy of the cell; Apply hands
+// part's settings under it, Add, Remove and Up / Down for the parts, and
+// over the tree: open all, close all, and a search filter. Edits are made to a copy of the cell; Apply hands
 // the copy to the owner (who saves it and opens the cell again), Reset goes
 // back to the cell as it is. What is wrong with the copy (a part naming one
 // that is not there) is listed, and Apply waits until it is put right.
@@ -39,8 +42,20 @@ public:
     // The node selected changed (its path).
     std::function<void(const std::string& path)> onSelected;
 
+    // Show the node at `path` (a camera's, "camera:<id>"): the search cleared
+    // so it is in the tree, opened down to it and selected, its settings
+    // shown.
+    void showNode(const std::string& path);
+
 private:
     void rebuildTree();
+    // The tree's rows again, open where m_expanded says.
+    void setRows(bool firstTime);
+    void addPart();
+    void removePart();
+    // Open (or close) the selected node and everything under it.
+    void setBranch(bool open);
+    void collapseAll();
     // Up (-1) or Down (+1), keeping the part selected.
     void moveSelected(int by);
     void select(const std::string& path);
@@ -56,6 +71,12 @@ private:
     std::vector<std::string> m_reshaping;   // the shown form's properties that change the form
     std::set<std::string>    m_expanded;    // paths of the tree's open nodes
     JTreeView*               m_tree     = nullptr;
+    JLineEdit*               m_search   = nullptr;
+    std::unique_ptr<JMenu>   m_treeMenu;   // a right-click on the tree
+    JMenuItem*               m_menuAdd    = nullptr;
+    JMenuItem*               m_menuRemove = nullptr;
+    JPIconButton*            m_expandAll   = nullptr;
+    JPIconButton*            m_collapseAll = nullptr;
     JButton*                 m_add      = nullptr;
     JButton*                 m_remove   = nullptr;
     JButton*                 m_up       = nullptr;

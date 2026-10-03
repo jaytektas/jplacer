@@ -62,8 +62,4 @@ std::string JPlacerSettings::cameraStraightKey(const std::string& cameraId) {
     return "camera." + cameraId + ".straight";
 }
 
-std::string JPlacerSettings::cameraShowAllKey(const std::string& cameraId) {
-    return "camera." + cameraId + ".showAll";
-}
-
 } // inline namespace jf

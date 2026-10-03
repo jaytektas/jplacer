@@ -3,6 +3,7 @@
 
 #include "JPMachineSetupPanel.h"
 
+#include "JPIcons.h"
 #include "JPUiParts.h"
 
 #include "common/JPlacerLog.h"
@@ -13,6 +14,7 @@
 #include <j/core/Log.h>
 
 #include <algorithm>
+#include <functional>
 
 inline namespace jf {
 
@@ -44,34 +46,25 @@ JPMachineSetupPanel::JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, 
 
     auto tools = JPUiParts::row(graph);
     m_add = tools->add(JPUiParts::button(graph, "Add"));
-    m_add->onClicked.connect([this] {
-        const std::string added = JPSetupEdits::add(m_draft, m_selected);
-        if (added.empty()) return;
-        JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Machine Setup: added " << added;
-        m_note->setText("");
-        rebuildTree();
-        select(added);
-    });
+    m_add->onClicked.connect([this] { addPart(); });
     m_remove = tools->add(JPUiParts::button(graph, "Remove"));
-    m_remove->onClicked.connect([this] {
-        const std::string group = JPSetupTree::groupOf(m_draft, m_selected);
-        std::string why;
-        if (!JPSetupEdits::remove(m_draft, m_selected, why)) {
-            m_note->setText("Not removed: " + why + ".");
-            return;
-        }
-        JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Machine Setup: removed " << m_selected;
-        m_note->setText("");
-        rebuildTree();
-        select(group);
-    });
+    m_remove->onClicked.connect([this] { removePart(); });
     m_up = tools->add(JPUiParts::button(graph, "Up"));
     m_up->onClicked.connect([this] { moveSelected(-1); });
     m_down = tools->add(JPUiParts::button(graph, "Down"));
     m_down->onClicked.connect([this] { moveSelected(+1); });
-    JLineEdit* search = tools->add(std::make_unique<JLineEdit>(graph, "Search"));
-    search->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     add(std::move(tools));
+
+    // Over the tree: open every branch, close them all, and a filter (its ✕ clears it).
+    auto find = JPUiParts::row(graph);
+    m_expandAll = find->add(std::make_unique<JPIconButton>(graph, "Open All", &JPIcons::expandAll, "Open every branch"));
+    m_collapseAll = find->add(std::make_unique<JPIconButton>(graph, "Close All", &JPIcons::collapseAll, "Close every branch"));
+    m_expandAll->onClicked.connect([this] { m_tree->expandAll(); });
+    m_collapseAll->onClicked.connect([this] { collapseAll(); });
+    JLineEdit* search = m_search = find->add(std::make_unique<JLineEdit>(graph, "Search"));
+    search->setHSizePolicy(JSizePolicyMode::Expanding, 1);
+    search->setClearButtonEnabled(true);
+    add(std::move(find));
 
     m_tree = add(std::make_unique<JTreeView>(graph, 0.f, 0.f));   // sized by its share (below)
     m_tree->setVSizePolicy(JSizePolicyMode::Expanding, 1);
@@ -79,6 +72,19 @@ JPMachineSetupPanel::JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, 
     m_tree->onSelectionChanged.connect([this](JTreeViewNode* n) {
         if (n && n->userData != m_selected) show(n->userData);
     });
+    // Right-click a row (it is selected first): its branch, the whole tree, and Add / Remove.
+    m_treeMenu = std::make_unique<JMenu>("Machine Setup");
+    m_treeMenu->add(graph, "Open This Branch")->onTriggered.connect([this] { setBranch(true); });
+    m_treeMenu->add(graph, "Close This Branch")->onTriggered.connect([this] { setBranch(false); });
+    m_treeMenu->addSeparator(graph);
+    m_treeMenu->add(graph, "Open All")->onTriggered.connect([this] { m_tree->expandAll(); });
+    m_treeMenu->add(graph, "Close All")->onTriggered.connect([this] { collapseAll(); });
+    m_treeMenu->addSeparator(graph);
+    m_menuAdd = m_treeMenu->add(graph, "Add");
+    m_menuAdd->onTriggered.connect([this] { addPart(); });
+    m_menuRemove = m_treeMenu->add(graph, "Remove");
+    m_menuRemove->onTriggered.connect([this] { removePart(); });
+    m_tree->setContextMenu(m_treeMenu.get());
 
     m_title = add(std::make_unique<JLabel>(graph, ""));
     m_scroll = add(std::make_unique<JScrollArea>(graph, 0.f, 0.f));
@@ -120,6 +126,14 @@ void JPMachineSetupPanel::moveSelected(int by) {
     update();
 }
 
+void JPMachineSetupPanel::showNode(const std::string& path) {
+    if (!m_search->text().empty()) {
+        m_search->setText("");
+        m_tree->setFilter("");
+    }
+    select(path);
+}
+
 void JPMachineSetupPanel::collectExpanded(const JTreeViewNode& n) {
     if (n.expanded && !n.userData.empty()) m_expanded.insert(n.userData);
     for (const JTreeViewNode& c : n.children) collectExpanded(c);
@@ -129,10 +143,65 @@ void JPMachineSetupPanel::rebuildTree() {
     const bool firstTime = m_tree->root().children.empty();
     m_expanded.clear();
     collectExpanded(m_tree->root());
+    setRows(firstTime);
+}
+
+void JPMachineSetupPanel::setRows(bool firstTime) {
     JTreeViewNode top;
     top.expanded = true;
     top.children.push_back(rows(JPSetupTree::build(m_draft), m_expanded, firstTime));
     m_tree->setRootNode(std::move(top));
+}
+
+void JPMachineSetupPanel::addPart() {
+    const std::string added = JPSetupEdits::add(m_draft, m_selected);
+    if (added.empty()) return;
+    JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Machine Setup: added " << added;
+    m_note->setText("");
+    rebuildTree();
+    select(added);
+}
+
+void JPMachineSetupPanel::removePart() {
+    const std::string group = JPSetupTree::groupOf(m_draft, m_selected);
+    std::string why;
+    if (!JPSetupEdits::remove(m_draft, m_selected, why)) {
+        m_note->setText("Not removed: " + why + ".");
+        return;
+    }
+    JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Machine Setup: removed " << m_selected;
+    m_note->setText("");
+    rebuildTree();
+    select(group);
+}
+
+void JPMachineSetupPanel::setBranch(bool open) {
+    m_expanded.clear();
+    collectExpanded(m_tree->root());
+    // The selected node and everything under it.
+    std::function<bool(const JPSetupTree::Node&, bool)> walk = [&](const JPSetupTree::Node& n, bool inside) {
+        inside = inside || n.path == m_selected;
+        if (inside) {
+            if (open) m_expanded.insert(n.path);
+            else m_expanded.erase(n.path);
+        }
+        bool found = inside;
+        for (const JPSetupTree::Node& c : n.children) found = walk(c, inside) || found;
+        return found;
+    };
+    walk(JPSetupTree::build(m_draft), false);
+    setRows(false);
+    const std::string keep = m_selected;
+    m_selected.clear();
+    select(keep);
+}
+
+void JPMachineSetupPanel::collapseAll() {
+    // Down to the machine's groups: closing the machine too would leave one row.
+    m_expanded = { "machine" };
+    setRows(false);
+    m_selected.clear();
+    select("machine");
 }
 
 void JPMachineSetupPanel::select(const std::string& path) {
@@ -174,10 +243,13 @@ void JPMachineSetupPanel::update() {
     const std::string what = JPSetupEdits::addable(m_draft, m_selected);
     m_add->setLabel(what.empty() ? "Add" : "Add " + what);
     m_add->setEnabled(!what.empty());
+    m_menuAdd->setLabel(m_add->label());
+    m_menuAdd->setEnabled(!what.empty());
     const std::string kind = JPSetupTree::parse(m_selected).kind;
     // A step of unloading that is loading backwards is shown, not changed.
     const bool part = kind == "step" ? !what.empty() : kind != "machine" && kind != "group";
     m_remove->setEnabled(part);
+    m_menuRemove->setEnabled(part);
     m_up->setEnabled(part);
     m_down->setEnabled(part);
 

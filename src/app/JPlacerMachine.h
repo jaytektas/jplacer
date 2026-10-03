@@ -12,6 +12,7 @@
 #include "ui/JPConnectIcon.h"
 #include "ui/JPHomeIcon.h"
 #include "ui/JPJogPanel.h"
+#include "ui/JPMachineSetupPanel.h"
 #include "ui/JPPositionReadout.h"
 
 #include <j/app/JAppWindow.h>
@@ -55,6 +56,8 @@ public:
     // Bring the dock titled `title` to the front of its tab group (shown
     // again if it was closed). False when there is no such dock.
     bool showDock(const std::string& title);
+    // Machine Setup in front, showing the node at `path` (JPSetupTree).
+    void showSetup(const std::string& path);
     // Where the docks live, and View's entries for them.
     JPlacerLayout& layout() { return m_layout; }
 
@@ -109,6 +112,7 @@ private:
     std::unique_ptr<JPlacerCameraTasks> m_cameraTasks;   // its Calibrate and Visual Test
     std::unique_ptr<JPlacerBoard>       m_board;         // the board on the machine, and its panel
     JPJogPanel*                         m_jog = nullptr; // its chosen tool, for the status bar
+    JPMachineSetupPanel*                m_setup = nullptr;
     std::vector<std::function<void()>>  m_unwatch;   // this class's watches on the cell
     std::shared_ptr<bool>               m_alive = std::make_shared<bool>(true);
     JMenuItem*                          m_connectItem    = nullptr;
