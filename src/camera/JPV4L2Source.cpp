@@ -229,6 +229,7 @@ void JPV4L2Source::applyControls() {
         { "sharpness",              0, 0, 0, V4L2_CID_SHARPNESS },
         { "backlight-compensation", 0, 0, 0, V4L2_CID_BACKLIGHT_COMPENSATION },
         { "power-line-frequency",   0, 0, 0, V4L2_CID_POWER_LINE_FREQUENCY },
+        { "zoom",                   0, 0, 0, V4L2_CID_ZOOM_ABSOLUTE },
     };
     auto set = [this](const char* name, uint32_t id, int value) {
         v4l2_control c{};

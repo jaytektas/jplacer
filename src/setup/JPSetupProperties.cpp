@@ -751,6 +751,49 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     add.end();
     add.note("0: the largest picture the camera offers.");
 
+    // The camera's own settings: each one jplacer sets when it opens the
+    // camera (by hand, or automatic where the camera can), or leaves as the
+    // camera has it.
+    add.group("Properties");
+    add.header({ "Set?", "Auto", "Value" });
+    struct Control { const char* key; const char* label; bool canAuto; };
+    static const Control kControls[] = {
+        { "brightness", "Brightness", true }, { "backlight-compensation", "Backlight Compensation", false },
+        { "contrast", "Contrast", false }, { "exposure", "Exposure", true }, { "focus", "Focus", true },
+        { "gain", "Gain", true }, { "gamma", "Gamma", false }, { "hue", "Hue", true },
+        { "power-line-frequency", "Power Line Freq.", false }, { "saturation", "Saturation", false },
+        { "sharpness", "Sharpness", false }, { "white-balance", "White Balance", true }, { "zoom", "Zoom", false } };
+    for (const Control& k : kControls) {
+        auto control = [device, key = std::string(k.key)]() -> JJson& { return device()["controls"][key]; };
+        const bool set = std::as_const(device())["controls"][k.key].isObject();
+        const std::string name = std::string("control:") + k.key;
+        add.row(k.label);
+        add.flag(name, std::string(k.label) + " set", [device, key = std::string(k.key)] { return std::as_const(device())["controls"][key].isObject(); },
+                 [device, control, key = std::string(k.key)](bool on) {
+                     if (!on) {
+                         JJson rest = JJson::object();
+                         for (const auto& [n, v] : std::as_const(device())["controls"].obj()) if (n != key) rest[n] = v;
+                         device()["controls"] = rest;
+                     } else if (!std::as_const(device())["controls"][key].isObject()) {
+                         control()["auto"] = false;
+                         control()["value"] = 0;
+                     }
+                 });
+        f.reshaping.push_back(name);
+        if (set && k.canAuto)
+            add.flag(name + ":auto", std::string(k.label) + " auto", [control] { return std::as_const(control())["auto"].boolean(); },
+                     [control](bool on) { control()["auto"] = on; });
+        else
+            add.skip();
+        if (set)
+            add.integer(name + ":value", k.label, [control] { return int(std::as_const(control())["value"].number()); },
+                        [control](int v) { control()["value"] = v; }, -1000000, 1000000);
+        else
+            add.skip();
+        add.end();
+    }
+    add.note("Set? unticked: the camera keeps its own setting. The values are the camera's own units.");
+
     add.tab("Position");
     coordinateSystem<JPCameraConfig>(add, cell, c, "(fixed to the machine)", true, f);
 

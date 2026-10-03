@@ -151,6 +151,9 @@ notes.
 - An actuator can be switched on or off by itself once the machine is connected, once it is homed, and
   before you disconnect (a pump off as the machine is let go), as in OpenPnP and brought in from it.
 - The Jog panel scrolls when its dock is short, instead of cutting off its last rows.
+- A camera's Device Settings show its own properties (exposure, white balance, focus, gain and the rest)
+  as OpenPnP does: set to a value or automatic when the camera opens, or left as the camera has them.
+  Zoom is now brought in from OpenPnP too.
 
 ## 0.1.0
 

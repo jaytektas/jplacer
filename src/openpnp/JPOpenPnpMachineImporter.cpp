@@ -375,7 +375,7 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             // automatic): jplacer sets them again each time it opens the camera.
             JJson controls = JJson::object();
             for (const char* name : { "exposure", "white-balance", "focus", "gain", "brightness", "hue", "contrast",
-                                      "saturation", "gamma", "sharpness", "backlight-compensation", "power-line-frequency" }) {
+                                      "saturation", "gamma", "sharpness", "backlight-compensation", "power-line-frequency", "zoom" }) {
                 const JPXmlElement* p = x.child(name);
                 if (!p || (p->attr("value").empty() && !yes(p->attr("auto")))) continue;
                 controls[name]["auto"] = yes(p->attr("auto"));
