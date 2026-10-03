@@ -590,6 +590,30 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
                             if (cam.id == id) cam.settleTrace = trace;
                     });
                 });
+    } else if ((action == "calibrateRunout" || action == "resetRunout") && path.rfind("nozzletip:", 0) == 0) {
+        // On the nozzle the tip is on; kept through Machine Setup, a step to undo.
+        const std::string tipId = path.substr(10);
+        const JPNozzleConfig* on = nullptr;
+        for (const JPNozzleConfig& n : m_cell->config().nozzles)
+            if (n.tipId == tipId) on = &n;
+        if (!on) {
+            m_window.showStatus("Load the tip on a nozzle first: its runout is measured on that nozzle", kErrorMs);
+            return;
+        }
+        const std::string nozzleId = on->id, nozzleName = on->name;
+        auto keep = [this, tipId, nozzleId, nozzleName](const std::optional<JPRunout>& r) {
+            if (!m_setup) return;
+            m_setup->change((r ? "Runout on " : "Runout reset on ") + nozzleName, [&](JPCellConfig& cell) {
+                for (JPNozzleTipConfig& t : cell.nozzleTips)
+                    if (t.id == tipId) {
+                        if (r) t.runout[nozzleId] = *r;
+                        else t.runout.erase(nozzleId);
+                    }
+            });
+            m_setup->remakeForm();
+        };
+        if (action == "resetRunout") keep(std::nullopt);
+        else m_cameraTasks->calibrateRunout(nozzleId, [keep](const JPRunout& r) { keep(r); });
     } else if (action == "calibrateBacklash" && path.rfind("axis:", 0) == 0) {
         // What it found is in use already; kept through Machine Setup, a step to undo.
         const std::string id = path.substr(5);

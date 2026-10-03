@@ -93,7 +93,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Part on / part off vacuum sensing (methods, ranges, probing) | done | |
 | Tool changer locations, speeds, post actuators | own way | changer steps, a list per tip |
 | Template / clones | missing | |
-| Runout calibration (circle divisions, misdetects, offset threshold, Z offset, auto recalibration, fail homing) | missing | next with the user at the bench |
+| Runout calibration (circle divisions, misdetects, Z offset, vision diameter, compensation) | partial | measured and compensated; auto recalibration (on tip change, on home) and fail homing missing; to be tried on the bench with the user there |
 | Background calibration (HSV, detail size) | missing | |
 
 ## Cameras
@@ -159,7 +159,7 @@ All in DESIGN.md's build order 3 to 6, none started:
 
 Breadth first, with jplacer's own methods where they are better:
 
-1. Nozzle tips: runout calibration (with the user at the bench); part dimensions, push and drag.
+1. Nozzle tips: runout recalibration triggers; part dimensions and push and drag with the job that uses them.
 2. Cameras: remaining calibration settings and results (head offsets, tilt); image transforms; preview FPS cap.
 3. Actuators: value types and profiles, machine coordination, interlocks.
 4. Machine: motion planner settings (continuous motion), Unsafe Z roaming, Default Board Location.

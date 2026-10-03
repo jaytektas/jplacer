@@ -4,9 +4,11 @@
 #pragma once
 
 #include "JPChangerStep.h"
+#include "JPRunout.h"
 
 #include <j/config/Json.h>
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -45,6 +47,28 @@ struct JPNozzleTipConfig {
     Sensing                    partOn, partOff;
     int                        partOffProbingMs = 0;
     int                        partOffDwellMs = 0;
+    // RUNOUT: how its end swings as the nozzle turns, measured with the camera
+    // looking up (JPRunout), one measuring for each nozzle it was on (by
+    // nozzle id). Compensated in moves while `enabled`. Measured at
+    // `divisions` angles round the circle, up to `misdetects` of them allowed
+    // to fail, `zOffset` above the camera's focus, finding a round end
+    // `visionDiameter` across (0: the tip's diameter).
+    struct RunoutCalibration {
+        bool   enabled = false;
+        int    divisions = 6;
+        int    misdetects = 0;
+        double zOffset = 0;
+        double visionDiameter = 0;
+        static constexpr int kLeastDivisions = 3, kMostDivisions = 72;
+    };
+    RunoutCalibration                runoutCalibration;
+    std::map<std::string, JPRunout>  runout;
+    // The runout to compensate on nozzle `nozzleId`; null when none (or off).
+    const JPRunout* runoutOn(const std::string& nozzleId) const {
+        if (!runoutCalibration.enabled) return nullptr;
+        const auto r = runout.find(nozzleId);
+        return r == runout.end() ? nullptr : &r->second;
+    }
 
     // The steps that unload it: its own, or loading backwards. Backwards,
     // each move goes to the place the one before it went to, at the speed

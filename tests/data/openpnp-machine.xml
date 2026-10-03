@@ -121,7 +121,8 @@
             <changer-mid-2-to-end-speed>1.0</changer-mid-2-to-end-speed>
             <changer-end-location units="Millimeters" x="0.0" y="0.0" z="0.0" rotation="0.0"/>
             <changer-actuator-post-step-two>RIGHT_SOLENOID</changer-actuator-post-step-two>
-            <calibration enabled="true">
+            <calibration enabled="true" angle-subdivisions="8" allow-misdetections="1">
+               <calibration-Z-offset value="0.5" units="Millimeters"/>
                <calibration-tip-diameter value="0.75" units="Millimeters"/>
             </calibration>
          </nozzle-tip>

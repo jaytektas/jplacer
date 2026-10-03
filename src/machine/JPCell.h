@@ -239,6 +239,14 @@ private:
     // either brings in the other (from `now`, square, when not targeted).
     // The directional backlash offset in effect on an axis (0: none).
     double backlashApplied(const std::string& axisId) const;
+    // The runout to compensate for the nozzle on `mount` (its tip's, on it,
+    // when compensated); null for any other tool.
+    const JPRunout* runoutFor(const JPMountConfig& mount) const;
+    // `targets` for a tool's axes (X, Y, rotation) made to carry its runout:
+    // an X or Y target is where the tip's centre is to be (`stepped`: the
+    // axis's own position now plus a step, the centre moved by that step);
+    // a turn alone moves X and Y so the centre stays put.
+    void compensateRunout(const JPMountConfig& mount, std::map<std::string, double>& targets, bool stepped) const;
     std::map<std::string, double> toAxes(std::map<std::string, double> square,
                                          const std::map<std::string, double>& now) const;
 

@@ -457,7 +457,16 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             JPNozzleTipConfig t;
             t.id   = x.attr("id");
             t.name = x.attr("name");
-            if (const JPXmlElement* cal = x.child("calibration")) t.diameter = lengthChild(*cal, "calibration-tip-diameter");
+            if (const JPXmlElement* cal = x.child("calibration")) {
+                t.diameter = lengthChild(*cal, "calibration-tip-diameter");
+                // Runout: how it is measured (the measurements are jplacer's own).
+                t.runoutCalibration.enabled = yes(cal->attr("enabled"));
+                if (const int n = int(number(cal->attr("angle-subdivisions"))); n > 0)
+                    t.runoutCalibration.divisions = std::clamp(n, JPNozzleTipConfig::RunoutCalibration::kLeastDivisions,
+                                                               JPNozzleTipConfig::RunoutCalibration::kMostDivisions);
+                t.runoutCalibration.misdetects = int(number(cal->attr("allow-misdetections")));
+                t.runoutCalibration.zOffset = lengthChild(*cal, "calibration-Z-offset");
+            }
             t.pickDwellMs = int(number(x.attr("pick-dwell-milliseconds")));
             t.placeDwellMs = int(number(x.attr("place-dwell-milliseconds")));
             // Part detection by the vacuum.
@@ -643,6 +652,7 @@ void JPOpenPnpMachineImporter::keepFrom(const JPCellConfig& previous, JPCellConf
                 tip.loadSteps = was.loadSteps;
                 tip.unloadReversesLoad = was.unloadReversesLoad;
                 tip.unloadSteps = was.unloadSteps;
+                tip.runout = was.runout;   // measured here, not in OpenPnP
             }
 }
 

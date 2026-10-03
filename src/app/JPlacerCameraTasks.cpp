@@ -248,6 +248,59 @@ void JPlacerCameraTasks::calibrateBacklash(const std::string& axisId,
     });
 }
 
+void JPlacerCameraTasks::calibrateRunout(const std::string& nozzleId, std::function<void(const JPRunout&)> done) {
+    const JPNozzleConfig* nozzle = nullptr;
+    for (const JPNozzleConfig& n : m_cell.config().nozzles)
+        if (n.id == nozzleId) nozzle = &n;
+    const JPNozzleTipConfig* tip = nullptr;
+    if (nozzle)
+        for (const JPNozzleTipConfig& t : m_cell.config().nozzleTips)
+            if (t.id == nozzle->tipId) tip = &t;
+    JPCameraPanel* camera = nullptr;
+    for (JPCameraPanel* p : m_cameras)
+        if (!camera && p->camera().mount.headId.empty() && p->camera().looksUp) camera = p;
+    std::string why = m_busy ? "a camera task is already under way"
+                    : !m_cell.isConnected() ? "connect the machine first"
+                    : !m_cell.isHomed() ? "home the machine first"
+                    : !nozzle ? "no such nozzle"
+                    : !tip ? nozzle->name + " has no tip on it"
+                    : !camera ? "there is no fixed camera looking up"
+                    : std::string();
+    if (!why.empty()) {
+        m_window.showStatus("Calibrate runout: " + why, kResultMs);
+        return;
+    }
+    const JPCameraConfig& cam = camera->camera();
+    char body[640];
+    std::snprintf(body, sizeof body,
+                  "%s's tip %s is measured over %s: the nozzle goes over the camera (X %.3f, Y %.3f), down to Z %.3f, "
+                  "and turns round a full circle.\n\nThe nozzle must hold no part, and nothing must be in its way.",
+                  nozzle->name.c_str(), tip->name.c_str(), cam.name.c_str(), cam.mount.offsetX, cam.mount.offsetY,
+                  cam.mount.offsetZ + tip->runoutCalibration.zOffset);
+    const JPNozzleConfig n = *nozzle;
+    const JPNozzleTipConfig t = *tip;
+    std::weak_ptr<bool> alive = m_alive;
+    JDialog::confirm("Calibrate " + tip->name + " on " + nozzle->name, body, [this, alive, camera, n, t, done] {
+        if (const auto a = alive.lock(); !a || !*a) return;
+        if (m_busy) return;   // another task began while asking
+        auto result = std::make_shared<JPRunout>();
+        run(*camera, "Measuring " + t.name + "'s runout", [this, camera, n, t, result](std::string& words, const auto& progress) {
+            JPRunoutCalibrator::Options o;
+            o.speed = kTaskSpeed;
+            const auto r = JPRunoutCalibrator::run(m_cell, camera->feed(), n, t, o, words, progress);
+            if (!r) return false;
+            *result = *r;
+            char buf[200];
+            std::snprintf(buf, sizeof buf, "%s on %s: runout %.3f mm at %.1f deg; its axis %+.3f, %+.3f mm off; fit %.4f mm",
+                          t.name.c_str(), n.name.c_str(), r->radius, r->phaseDeg, r->centreX, r->centreY, r->rmsMm);
+            words = buf;
+            return true;
+        }, [result, done](bool ok) {
+            if (ok && done) done(*result);
+        });
+    });
+}
+
 void JPlacerCameraTasks::settleTest(JPCameraPanel& camera, double dx, double dy,
                                     std::function<void(const JPSettleTrace&)> done) {
     const JPMountConfig& m = camera.camera().mount;

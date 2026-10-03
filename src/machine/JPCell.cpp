@@ -731,6 +731,7 @@ void JPCell::jog(const std::string& toolId, double dx, double dy, double dz, dou
     add(mount->axisY, dy);
     add(mount->axisZ, dz);
     add(mount->axisRotation, drot);
+    compensateRunout(*mount, targets, true);
     if (!targets.empty()) moveAxes(std::move(targets), speed);
 }
 
@@ -809,6 +810,42 @@ bool JPCell::doCorrectPosition(const std::map<std::string, double>& by, std::str
     return true;
 }
 
+void JPCell::compensateRunout(const JPMountConfig& mount, std::map<std::string, double>& targets, bool stepped) const {
+    const JPRunout* r = runoutFor(mount);
+    if (!r || mount.axisRotation.empty() || mount.axisX.empty() || mount.axisY.empty()) return;
+    const auto now = jogBase();
+    const auto rot = targets.find(mount.axisRotation);
+    const auto at = now.find(mount.axisRotation);
+    if (at == now.end()) return;
+    const double from = at->second, to = rot == targets.end() ? from : rot->second;
+    if (rot == targets.end() && !targets.count(mount.axisX) && !targets.count(mount.axisY)) return;
+    // The axes now carry the swing at the angle they are at; sent where the
+    // tip's centre is to be, they carry the swing at the new angle instead.
+    double fx, fy, tx, ty;
+    r->runoutAt(from, fx, fy);
+    r->runoutAt(to, tx, ty);
+    auto axis = [&](const std::string& id, double was, double swing) {
+        const auto t = targets.find(id);
+        const auto n = now.find(id);
+        if (t != targets.end()) t->second += (stepped ? was : 0) - swing;   // the tip's centre (stepped: from where it is)
+        else if (n != now.end()) targets[id] = n->second + was - swing;     // stays where the centre is
+    };
+    axis(mount.axisX, fx, tx);
+    axis(mount.axisY, fy, ty);
+}
+
+const JPRunout* JPCell::runoutFor(const JPMountConfig& m) const {
+    for (const JPNozzleConfig& n : m_config.nozzles) {
+        const JPMountConfig& k = n.mount;
+        if (k.headId != m.headId || k.axisX != m.axisX || k.axisY != m.axisY || k.axisZ != m.axisZ
+            || k.axisRotation != m.axisRotation || n.tipId.empty())
+            continue;
+        for (const JPNozzleTipConfig& t : m_config.nozzleTips)
+            if (t.id == n.tipId) return t.runoutOn(n.id);
+    }
+    return nullptr;
+}
+
 double JPCell::backlashApplied(const std::string& axisId) const {
     const auto b = m_backlashApplied.find(axisId);
     return b == m_backlashApplied.end() ? 0 : b->second;
@@ -880,11 +917,12 @@ void JPCell::moveTool(const JPMountConfig& mount, std::array<std::optional<doubl
     m_thread.post([this, mount, to, speed] {
         std::string why;
         bool ok = mount.headId.empty() || doSafeZ(mount.headId, speed, why);
-        // Tool = axis + its offset on the head.
+        // Tool = axis + its offset on the head (+ its tip's runout at its angle).
         std::map<std::string, double> across;
         if (to[0] && !mount.axisX.empty()) across[mount.axisX] = *to[0] - mount.offsetX;
         if (to[1] && !mount.axisY.empty()) across[mount.axisY] = *to[1] - mount.offsetY;
         if (to[3] && !mount.axisRotation.empty()) across[mount.axisRotation] = *to[3];
+        compensateRunout(mount, across, false);
         if (ok && !across.empty()) ok = doMove(across, speed, why);
         if (ok && to[2] && !mount.axisZ.empty()) ok = doMove({ { mount.axisZ, *to[2] - mount.offsetZ } }, speed, why);
         m_moving = false;

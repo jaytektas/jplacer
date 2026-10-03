@@ -790,6 +790,53 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
                });
     add.note("The steps of loading and unloading are in the tree under the tip: select one to change it, "
              "Add to add one after it.");
+
+    add.tab("Calibration");
+    add.group("Runout");
+    auto rc = [t]() -> JPNozzleTipConfig::RunoutCalibration& { return t().runoutCalibration; };
+    using RC = JPNozzleTipConfig::RunoutCalibration;
+    add.flag("runoutEnabled", "Compensate?", [rc]() -> bool& { return rc().enabled; });
+    add.integer("runoutDivisions", "Circle Divisions", [rc]() -> int& { return rc().divisions; }, RC::kLeastDivisions,
+                RC::kMostDivisions);
+    add.integer("runoutMisdetects", "Allowed Misdetects", [rc]() -> int& { return rc().misdetects; }, 0, RC::kMostDivisions);
+    add.number("runoutZOffset", "Calibration Z Offset", [rc]() -> double& { return rc().zOffset; });
+    add.number("runoutVisionDiameter", "Vision Diameter", [rc] { return rc().visionDiameter; },
+               [rc](double v) { if (v >= 0) rc().visionDiameter = v; });
+    add.actions({ { "Calibrate", "calibrateRunout" }, { "Reset", "resetRunout" } });
+    add.note("Calibrate measures the tip on the nozzle it is on, over the fixed camera looking up: down to the "
+             "camera's focus (plus the Z offset), turned to each of Circle Divisions angles round the circle, its "
+             "end found at each (Vision Diameter across; 0: the tip's diameter), and a circle fitted. With Compensate? "
+             "on, every move of that nozzle is sent the swing the other way, so the tip's centre lands where it is "
+             "sent at any angle. Reset forgets it for that nozzle.");
+    for (const auto& [nozzleId, r] : t().runout) {
+        std::string nozzleName = nozzleId;
+        for (const JPNozzleConfig& n : cell.nozzles)
+            if (n.id == nozzleId) nozzleName = n.name;
+        add.group("On " + nozzleName + ", " + r.when);
+        const std::string key = "runout." + nozzleId + ".";
+        auto shown = [&add, &key](const std::string& name, const std::string& label, const std::string& value) {
+            add.text(key + name, label, [value] { return value; }, nullptr);
+        };
+        char b[120];
+        std::snprintf(b, sizeof b, "%.4f mm at %.1f deg", r.radius, r.phaseDeg);
+        shown("runout", "Runout", b);
+        std::snprintf(b, sizeof b, "%+.4f, %+.4f mm (the camera's position or the nozzle's offset is off by this)",
+                      r.centreX, r.centreY);
+        shown("axis", "Axis Off By", b);
+        std::snprintf(b, sizeof b, "%.4f mm (worst %.4f), %zu angles", r.rmsMm, r.peakMm, r.points.size());
+        shown("fit", "Fit", b);
+        auto plot = std::make_shared<JPPlot>();
+        plot->kind = JPPlot::Kind::Scatter;
+        plot->xTitle = "X mm";
+        plot->yTitle = "Y mm";
+        plot->circle = r.radius;
+        JPPlot::Series seen{ "measured", JPPlot::Tone::First, {} };
+        for (const JPRunout::Point& p : r.points) seen.points.push_back({ p.dx - r.centreX, p.dy - r.centreY });
+        plot->series.push_back(seen);
+        add.plot("Where Its End Was, About Its Axis", plot);
+        add.note("Each angle's measurement about the fitted axis, on the fitted circle: points well off it mean the "
+                 "end was found badly, or the nozzle wobbles.");
+    }
 }
 
 // An optional coordinate as text: empty when left out (the nozzle stays as it

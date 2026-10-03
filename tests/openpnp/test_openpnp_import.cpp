@@ -76,6 +76,10 @@ int main() {
     // The nozzle tips, and which fit the nozzle (a tip OpenPnP no longer has left out).
     assert(cell.nozzleTips.size() == 2 && cell.nozzleTips[0].name == "503R - 0805 / 0603");
     assert(cell.nozzleTips[0].diameter == 0.75 && std::abs(cell.nozzleTips[1].diameter - 3.5) < 1e-6);
+    // How its runout is measured comes across (what was measured does not).
+    const auto& rc = cell.nozzleTips[0].runoutCalibration;
+    assert(rc.enabled && rc.divisions == 8 && rc.misdetects == 1 && std::abs(rc.zOffset - 0.5) < 1e-9);
+    assert(cell.nozzleTips[0].runout.empty());
     assert((n.tipIds == std::vector<std::string>{ "TIP1", "TIP2" }) && n.tipId == "TIP2");
     // OpenPnP's changer places become load steps (an unset one left out), its actuator by id;
     // unloading is loading backwards.

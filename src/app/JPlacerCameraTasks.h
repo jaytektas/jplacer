@@ -6,6 +6,7 @@
 #include "machine/JPCell.h"
 #include "tasks/JPBacklashCalibrator.h"
 #include "tasks/JPBoardLocator.h"
+#include "tasks/JPRunoutCalibrator.h"
 #include "ui/JPCameraPanel.h"
 
 #include <j/app/JAppWindow.h>
@@ -46,6 +47,10 @@ public:
     void calibrate(JPCameraPanel& camera);
     // Look at the homing mark and say how far it is from its setting.
     void visualTest(JPCameraPanel& camera);
+    // Measure the runout of the tip on nozzle `nozzleId` with the fixed
+    // camera looking up (JPRunoutCalibrator), asked first (the nozzle goes
+    // down to the camera). `done` (main thread): the runout, for the owner to keep.
+    void calibrateRunout(const std::string& nozzleId, std::function<void(const JPRunout&)> done);
     // The settling test: a camera on a head moved (dx, dy) and back, then
     // let settle, how it settled kept (JPSettleTrace); a fixed camera only
     // let settle. `done` (main thread): the trace.

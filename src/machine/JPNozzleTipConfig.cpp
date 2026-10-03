@@ -133,6 +133,15 @@ JPNozzleTipConfig JPNozzleTipConfig::fromJson(const JJson& j) {
     }
     t.partOffProbingMs = int(j["partOff"]["probingMs"].number());
     t.partOffDwellMs   = int(j["partOff"]["dwellMs"].number());
+    if (const JJson& k = j["runoutCalibration"]; k.isObject()) {
+        t.runoutCalibration.enabled        = k["enabled"].boolean();
+        t.runoutCalibration.divisions      = int(k["divisions"].number(t.runoutCalibration.divisions));
+        t.runoutCalibration.misdetects     = int(k["misdetects"].number(0));
+        t.runoutCalibration.zOffset        = k["zOffset"].number(0.0);
+        t.runoutCalibration.visionDiameter = k["visionDiameter"].number(0.0);
+    }
+    if (const JJson& r = j["runout"]; r.isObject())
+        for (const auto& [nozzle, v] : r.obj()) t.runout[nozzle] = JPRunout::fromJson(v);
     return t;
 }
 
@@ -155,6 +164,13 @@ JJson JPNozzleTipConfig::toJson() const {
     }
     j["partOff"]["probingMs"] = partOffProbingMs;
     j["partOff"]["dwellMs"]   = partOffDwellMs;
+    j["runoutCalibration"]["enabled"]        = runoutCalibration.enabled;
+    j["runoutCalibration"]["divisions"]      = runoutCalibration.divisions;
+    j["runoutCalibration"]["misdetects"]     = runoutCalibration.misdetects;
+    j["runoutCalibration"]["zOffset"]        = runoutCalibration.zOffset;
+    j["runoutCalibration"]["visionDiameter"] = runoutCalibration.visionDiameter;
+    if (!runout.empty())
+        for (const auto& [nozzle, r] : runout) j["runout"][nozzle] = r.toJson();
     return j;
 }
 
