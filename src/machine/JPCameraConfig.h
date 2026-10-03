@@ -25,6 +25,22 @@ struct JPCameraConfig {
     // (enlarged until every part has picture behind it) .. 1 whole (all the
     // camera sees). See JPStraightener.
     double        showAll = 0;
+    // SETTLING, as OpenPnP does it: a picture for vision is one taken once
+    // the camera has stopped moving. FixedTime waits `timeMs` after the move.
+    // The others compare each picture with the one before (Maximum, Mean,
+    // Euclidean or Square of the difference, as a percentage of full scale,
+    // in a circle of `maskCircle` of the picture's height, 0 the whole
+    // picture) until the difference has stayed under `threshold` for
+    // `debounce` pictures more, or `timeoutMs` has passed.
+    struct Settle {
+        std::string method = "FixedTime";
+        int         timeMs = 150;
+        int         timeoutMs = 500;
+        double      threshold = 0.5;
+        int         debounce = 0;
+        double      maskCircle = 0;
+    };
+    Settle        settle;
     // jplacer's own, from known moves: one for each picture size it was
     // measured at (another size is another scale, and another lens).
     std::vector<JPCameraCalibration> calibrations;
@@ -58,6 +74,14 @@ struct JPCameraConfig {
         c.unitsPerPixelY = j["unitsPerPixel"]["y"].number();
         c.device         = j["device"];
         c.showAll        = j["showAll"].number(0.0);
+        if (const JJson& st = j["settle"]; st.isObject()) {
+            if (const std::string& m = st["method"].str(); !m.empty()) c.settle.method = m;
+            c.settle.timeMs     = int(st["timeMs"].number(c.settle.timeMs));
+            c.settle.timeoutMs  = int(st["timeoutMs"].number(c.settle.timeoutMs));
+            c.settle.threshold  = st["threshold"].number(c.settle.threshold);
+            c.settle.debounce   = int(st["debounce"].number(c.settle.debounce));
+            c.settle.maskCircle = st["maskCircle"].number(c.settle.maskCircle);
+        }
         for (const JJson& k : j["calibrations"].arr())
             if (JPCameraCalibration cal = JPCameraCalibration::fromJson(k); cal.valid) c.calibrations.push_back(cal);
         return c;
@@ -72,6 +96,12 @@ struct JPCameraConfig {
         j["unitsPerPixel"]["y"] = unitsPerPixelY;
         j["device"]             = device;
         j["showAll"]            = showAll;
+        j["settle"]["method"]     = settle.method;
+        j["settle"]["timeMs"]     = settle.timeMs;
+        j["settle"]["timeoutMs"]  = settle.timeoutMs;
+        j["settle"]["threshold"]  = settle.threshold;
+        j["settle"]["debounce"]   = settle.debounce;
+        j["settle"]["maskCircle"] = settle.maskCircle;
         if (!calibrations.empty()) {
             JJson list = JJson::array();
             for (const JPCameraCalibration& k : calibrations) list.push(k.toJson());

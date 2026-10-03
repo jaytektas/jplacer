@@ -730,6 +730,29 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     add.end();
     add.note("A rough start: calibrating measures them.");
 
+    add.tab("Camera Settling");
+    add.group("Camera Settling");
+    auto settle = [c]() -> JPCameraConfig::Settle& { return c().settle; };
+    add.choice("settleMethod", "Settle Method", { "FixedTime", "Maximum", "Mean", "Euclidean", "Square" },
+               [settle] { return settle().method; }, [settle](const std::string& v) { settle().method = v; });
+    f.reshaping.push_back("settleMethod");
+    if (settle().method == "FixedTime") {
+        add.integer("settleTimeMs", "Settle Time (ms)", [settle]() -> int& { return settle().timeMs; }, 0, 10000);
+        add.note("A picture for vision is one taken this long after the move ended.");
+    } else {
+        add.row("Settle Threshold");
+        add.number("settleThreshold", "Settle Threshold", [settle]() -> double& { return settle().threshold; }, 3);
+        add.integer("settleTimeoutMs", "Settle Timeout (ms)", [settle]() -> int& { return settle().timeoutMs; }, 0, 60000);
+        add.end();
+        add.row("Debounce Frames");
+        add.integer("settleDebounce", "Debounce Frames", [settle]() -> int& { return settle().debounce; }, 0, 100);
+        add.number("settleMaskCircle", "Center Mask", [settle]() -> double& { return settle().maskCircle; }, 3);
+        add.end();
+        add.note("Each picture is compared with the one before (as a percentage of full scale), in a centred "
+                 "circle of Center Mask of the picture (0: all of it), until the difference stays under the "
+                 "threshold for Debounce Frames more pictures, or the timeout passes.");
+    }
+
     add.tab("Device Settings");
     add.group("Device");
     if (std::as_const(device())["backend"].str() == "simulated") {

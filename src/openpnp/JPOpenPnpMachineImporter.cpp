@@ -371,6 +371,17 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             cam.device["backend"] = "v4l2";
             cam.device["name"]    = usb == std::string::npos ? uid : uid.substr(0, usb);
             if (const double fps = number(x.attr("fps")); fps > 0) cam.device["fps"] = fps;
+            // Settling: how a picture for vision waits for the camera to stop.
+            if (!x.attr("settle-method").empty()) {
+                cam.settle.method = x.attr("settle-method") == "Motion" ? "Euclidean" : x.attr("settle-method");
+                if (x.attr("settle-method") == "Motion")
+                    notes.push_back("camera " + cam.name + ": settles by Euclidean difference; jplacer has no Motion settling");
+            }
+            if (!x.attr("settle-time-ms").empty()) cam.settle.timeMs = int(number(x.attr("settle-time-ms")));
+            if (!x.attr("settle-timeout-ms").empty()) cam.settle.timeoutMs = int(number(x.attr("settle-timeout-ms")));
+            if (!x.attr("settle-threshold").empty()) cam.settle.threshold = number(x.attr("settle-threshold"));
+            if (!x.attr("settle-debounce").empty()) cam.settle.debounce = int(number(x.attr("settle-debounce")));
+            if (!x.attr("settle-mask-circle").empty()) cam.settle.maskCircle = number(x.attr("settle-mask-circle"));
             // The camera's own settings, as OpenPnP set them (a value, or
             // automatic): jplacer sets them again each time it opens the camera.
             JJson controls = JJson::object();

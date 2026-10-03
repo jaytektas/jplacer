@@ -154,6 +154,9 @@ notes.
 - A camera's Device Settings show its own properties (exposure, white balance, focus, gain and the rest)
   as OpenPnP does: set to a value or automatic when the camera opens, or left as the camera has them.
   Zoom is now brought in from OpenPnP too.
+- Camera Settling as in OpenPnP: a picture for vision waits a fixed time after a move, or until the
+  picture stops changing (Maximum, Mean, Euclidean or Square difference, threshold, debounce, timeout,
+  centre mask). Brought in from OpenPnP.
 
 ## 0.1.0
 

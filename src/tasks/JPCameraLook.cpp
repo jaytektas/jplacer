@@ -7,19 +7,21 @@
 
 #include <j/core/Log.h>
 
+#include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <thread>
 
 inline namespace jf {
 
-bool JPCameraLook::settled(JPCameraFeed& feed, JPGrayImage& out, std::string& why, int settleMs) {
+bool JPCameraLook::taken(JPCameraFeed& feed, JPGrayImage& out, std::string& why, int afterMs) {
     if (!feed.isRunning()) {
         why = feed.config().name + " is not running";
         return false;
     }
     const auto now = std::chrono::steady_clock::now();
-    const auto takenFrom = now + std::chrono::milliseconds(settleMs);
-    const auto until = now + std::chrono::milliseconds(settleMs + kTimeoutMs);
+    const auto takenFrom = now + std::chrono::milliseconds(afterMs);
+    const auto until = now + std::chrono::milliseconds(afterMs + kTimeoutMs);
     JPFrame frame;
     while (std::chrono::steady_clock::now() < until) {
         if (feed.latest(frame, 0) && frame.captured >= takenFrom) {
@@ -28,13 +30,72 @@ bool JPCameraLook::settled(JPCameraFeed& feed, JPGrayImage& out, std::string& wh
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
-    why = feed.config().name + ": no picture taken within " + std::to_string(settleMs + kTimeoutMs) + " ms";
+    why = feed.config().name + ": no picture taken within " + std::to_string(afterMs + kTimeoutMs) + " ms";
     return false;
+}
+
+double JPCameraLook::difference(const JPGrayImage& a, const JPGrayImage& b, const std::string& method, double maskCircle) {
+    if (a.width != b.width || a.height != b.height || a.pixels.empty()) return 100;
+    const double r = maskCircle > 0 ? maskCircle * std::min(a.width, a.height) * 0.5 : 0;
+    const double cx = (a.width - 1) * 0.5, cy = (a.height - 1) * 0.5;
+    double sum = 0, sumSq = 0, most = 0;
+    size_t n = 0;
+    for (int y = 0; y < a.height; ++y)
+        for (int x = 0; x < a.width; ++x) {
+            if (r > 0 && (x - cx) * (x - cx) + (y - cy) * (y - cy) > r * r) continue;
+            const size_t i = size_t(y) * size_t(a.width) + size_t(x);
+            const double d = std::abs(double(a.pixels[i]) - double(b.pixels[i]));
+            sum += d;
+            sumSq += d * d;
+            most = std::max(most, d);
+            ++n;
+        }
+    if (n == 0) return 0;
+    // OpenPnP's norms, each over its full scale.
+    double v = 0;
+    if (method == "Maximum")     v = most / 255.0;
+    else if (method == "Mean")   v = sum / (255.0 * double(n));
+    else if (method == "Square") v = sumSq / (255.0 * 255.0 * double(n));
+    else                         v = std::sqrt(sumSq) / (255.0 * std::sqrt(double(n)));   // Euclidean
+    return v * 100;
+}
+
+bool JPCameraLook::settled(JPCameraFeed& feed, JPGrayImage& out, std::string& why) {
+    const JPCameraConfig::Settle& st = feed.config().settle;
+    if (st.method == "FixedTime" || st.method.empty()) return taken(feed, out, why, st.timeMs);
+    // Each picture taken since the call against the one before, until still.
+    JPGrayImage last;
+    if (!taken(feed, last, why, 0)) return false;
+    const auto until = std::chrono::steady_clock::now() + std::chrono::milliseconds(st.timeoutMs);
+    int still = 0;
+    JPFrame frame;
+    uint64_t have = 0;
+    while (true) {
+        if (!feed.latest(frame, have)) {
+            if (std::chrono::steady_clock::now() > until) break;
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));
+            continue;
+        }
+        have = frame.sequence;
+        JPGrayImage next = JPGrayImage::fromRgba(frame.rgba.data(), frame.width, frame.height);
+        const double d = difference(last, next, st.method, st.maskCircle);
+        last = std::move(next);
+        still = d <= st.threshold ? still + 1 : 0;
+        if (still > st.debounce) {
+            out = std::move(last);
+            return true;
+        }
+        if (std::chrono::steady_clock::now() > until) break;
+    }
+    JLOGC(JPlacerLog::kCamera, JLogLevel::Warn) << feed.config().name << ": not settled within " << st.timeoutMs
+                                                << " ms; the last picture is used";
+    out = std::move(last);
+    return true;
 }
 
 bool JPCameraLook::calibration(JPCell& cell, JPCameraFeed& feed, JPCameraCalibration& out, std::string& why) {
     JPGrayImage picture;
-    if (!settled(feed, picture, why, 0)) return false;
+    if (!taken(feed, picture, why, 0)) return false;
     out = cell.cameraCalibration(feed.config().id, picture.width, picture.height);
     if (out.valid) return true;
     why = feed.config().name + " is not calibrated for its " + std::to_string(picture.width) + "\xC3\x97"
