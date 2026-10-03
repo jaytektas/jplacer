@@ -56,7 +56,7 @@ void JPPositionReadout::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     // To the right, where the status bar ends.
     const float x = std::max(b.x + st.spacing, b.x + b.width - st.spacing - JTextHelper::measureWidth(t));
     JTextHelper::pushText(buf, x, b.y + (b.height - JTextHelper::lineHeight()) * 0.5f, t, ink,
-                          b.x + b.width - st.spacing - x);
+                          b.width - 2 * st.spacing);
 }
 
 } // inline namespace jf
