@@ -53,9 +53,9 @@ int main() {
     assert(x && x->kind == JPAxisConfig::Kind::Controller && x->letter == "X" && x->driverId == "DRV1");
     assert(x->homeCoordinate == 390 && x->softLimitHigh == 390 && x->softLimitHighEnabled);
     assert(x->feedratePerSecond == 750 && x->accelerationPerSecond2 == 4000);
-    // OpenPnP's backlash (sneak-up here) becomes one-sided positioning, measured offset and speed kept.
-    assert(x->backlash == JPAxisConfig::Backlash::OneSided && std::abs(x->backlashOffset - 0.024435) < 1e-6);
-    assert(x->backlashSpeedFactor == 0.25);
+    // OpenPnP's backlash as it is (sneak-up here), its measured offset, sneak-up and speed kept.
+    assert(x->backlash == JPAxisConfig::Backlash::DirectionalSneakUp && std::abs(x->backlashOffset - 0.024435) < 1e-6);
+    assert(x->backlashSpeedFactor == 0.25 && std::abs(x->sneakUpMm - 0.056256) < 1e-6);
     assert(cell.axis("AZT")->kind == JPAxisConfig::Kind::Virtual);
     const JPAxisConfig* zr = cell.axis("AZR");
     assert(zr->kind == JPAxisConfig::Kind::Mapped && zr->inputAxisId == "AZ");

@@ -154,11 +154,13 @@ int main() {
 
         cell.home();
         assert(motion.take().first && cell.isHomed());
+        // There, to a hair (a backlash offset taken off leaves rounding dust).
         auto settle = [&](const char* axis, double want) {
             const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(2);
-            while (cell.positions()[axis] != want && std::chrono::steady_clock::now() < until)
+            auto at = [&] { return std::abs(cell.positions()[axis] - want) < 1e-9; };
+            while (!at() && std::chrono::steady_clock::now() < until)
                 std::this_thread::sleep_for(std::chrono::milliseconds(5));
-            return cell.positions()[axis] == want;
+            return at();
         };
         assert(settle("X", 390.0));                        // G92 made the home coordinate true
 
@@ -261,6 +263,43 @@ int main() {
         {
             std::lock_guard lk(sentMutex);
             assert(sent.size() == 2 && sent[0] == "G1 X395.1000 F6000" && sent[1] == "G1 X395.0000 F1500");
+            sent.clear();
+        }
+        // Directional: travelling the way the +0.05 offset points, X goes 0.05
+        // further; the other way, to the place itself. Its position is told
+        // without the offset.
+        {
+            JPCellConfig next = cell.config();
+            next.axes[0].backlash = JPAxisConfig::Backlash::Directional;
+            next.axes[0].backlashOffset = 0.05;
+            std::string why;
+            assert(cell.reconfigure(next, why) && cell.isHomed());
+            cell.jog("N", 2, 0, 0, 0, 1.0);               // 395 -> 397
+            assert(motion.take().first && settle("X", 397.0));
+            cell.jog("N", -2, 0, 0, 0, 1.0);              // 397 -> 395
+            assert(motion.take().first && settle("X", 395.0));
+            {
+                std::lock_guard lk(sentMutex);
+                assert(sent.size() == 2 && sent[0] == "G1 X397.0500 F6000" && sent[1] == "G1 X395.0000 F6000");
+                sent.clear();
+            }
+            // Sneaking up: the last 0.5 mm at a quarter of the speed.
+            next.axes[0].backlash = JPAxisConfig::Backlash::DirectionalSneakUp;
+            next.axes[0].sneakUpMm = 0.5;
+            assert(cell.reconfigure(next, why));
+            cell.jog("N", 2, 0, 0, 0, 1.0);               // 395 -> 397
+            assert(motion.take().first && settle("X", 397.0));
+            {
+                std::lock_guard lk(sentMutex);
+                assert(sent.size() == 2 && sent[0] == "G1 X396.5500 F6000" && sent[1] == "G1 X397.0500 F1500");
+                sent.clear();
+            }
+            // Back as the tests after expect it: one-sided, at 395.
+            cell.jog("N", -2, 0, 0, 0, 1.0);
+            assert(motion.take().first && settle("X", 395.0));
+            next.axes[0].backlash = JPAxisConfig::Backlash::OneSided;
+            next.axes[0].backlashOffset = 0.1;
+            assert(cell.reconfigure(next, why));
         }
         unwatch();
 
@@ -292,9 +331,13 @@ int main() {
             assert(cell.reconfigure(next, why) && cell.isConnected() && cell.isHomed());
             assert(cell.config().drivers[0].link.dump() == next.drivers[0].link.dump());
 
-            // The axes changed: still connected, homed no longer.
+            // An axis's limits (or speed, or backlash) changed: its coordinates
+            // mean what they did, so still homed.
             next = cell.config();
             next.axes[0].softLimitHigh = 380;
+            assert(cell.reconfigure(next, why) && cell.isConnected() && cell.isHomed());
+            // Where it is changed (its home coordinate): still connected, homed no longer.
+            next.axes[0].homeCoordinate = 385;
             assert(cell.reconfigure(next, why) && cell.isConnected() && !cell.isHomed());
         }
 

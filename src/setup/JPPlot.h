@@ -12,13 +12,14 @@ inline namespace jf {
 // drawn and how, the drawing being the form's (JPPlotView).
 //
 //  - Lines: each series as a line through its points, x along, y up.
+//  - Points: each series as dots, each axis scaled to its own range.
 //  - Scatter: each series as dots, the same scale both ways, and a circle
 //    of `circle` about the origin when it is more than 0.
 //  - Map: `spots` over an area `width` x `height` (y down, as a picture),
 //    the area coloured by their values from the least (cool) to the most
 //    (hot), each point by the spots nearest it.
 struct JPPlot {
-    enum class Kind { Lines, Scatter, Map };
+    enum class Kind { Lines, Points, Scatter, Map };
     // A series' colour, as a role the form's style gives.
     enum class Tone { First, Second, Muted };
     struct Point { double x = 0, y = 0; };
@@ -31,6 +32,7 @@ struct JPPlot {
 
     Kind                kind = Kind::Lines;
     std::string         xTitle, yTitle;
+    bool                logX = false;   // x on a log scale (Lines, Points)
     std::vector<Series> series;
     double              circle = 0;
     std::vector<Spot>   spots;

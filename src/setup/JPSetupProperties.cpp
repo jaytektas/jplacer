@@ -401,6 +401,42 @@ void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPF
     add.note("Empty: the firmware profile's command, shown greyed. A command can be several lines; {placeholders} are filled in.");
 }
 
+// What measuring an axis's backlash found, as graphs.
+void backlashResults(Adder& add, const JPBacklashCalibration& k) {
+    add.group("Calibrated " + k.when);
+    char b[96];
+    std::snprintf(b, sizeof b, "%.4f mm (three times the measuring's own spread)", k.toleranceMm);
+    add.text("backlashTolerance", "Tolerance", [v = std::string(b)] { return v; }, nullptr);
+    auto distance = std::make_shared<JPPlot>();
+    distance->kind = JPPlot::Kind::Lines;
+    distance->logX = true;
+    distance->xTitle = "mm come in";
+    distance->yTitle = "play mm";
+    distance->series.push_back({ "play", JPPlot::Tone::First, {} });
+    for (const auto& [d, p] : k.byDistance) distance->series[0].points.push_back({ d, p });
+    add.plot("Play Against How Far It Came In", distance);
+    add.note("A short way in from the other side takes up only part of the play; from far enough, all of it. "
+             "Where the line levels off is how far a move must sneak up.");
+    auto speed = std::make_shared<JPPlot>();
+    speed->kind = JPPlot::Kind::Lines;
+    speed->xTitle = "speed factor";
+    speed->yTitle = "play mm";
+    speed->series.push_back({ "play", JPPlot::Tone::First, {} });
+    for (const auto& [v, p] : k.bySpeed) speed->series[0].points.push_back({ v, p });
+    add.plot("Play Against Speed", speed);
+    add.note("Level: the play is the same at any speed, and Directional compensation is enough. Falling at speed: "
+             "the drive overshoots, and the last of a move must sneak up slowly.");
+    auto after = std::make_shared<JPPlot>();
+    after->kind = JPPlot::Kind::Points;
+    after->xTitle = "mm come in from";
+    after->yTitle = "error mm";
+    after->series.push_back({ "error", JPPlot::Tone::Second, {} });
+    for (const auto& [d, e] : k.after) after->series[0].points.push_back({ d, e });
+    add.plot("Errors Once Compensated", after);
+    add.note("Moves in to the mark from random places either side, compensated: each should land within the "
+             "tolerance of the others.");
+}
+
 void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f) {
     using A = JPAxisConfig;
     auto a = finder(cell.axes, id);
@@ -484,15 +520,57 @@ void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
 
     add.tab("Backlash Compensation");
     add.group("Backlash Compensation");
-    add.choice("backlash", "Compensation Method", { "None", "OneSidedPositioning" },
-               [a] { return std::string(a().backlash == A::Backlash::OneSided ? "OneSidedPositioning" : "None"); },
-               [a](const std::string& v) { a().backlash = v == "OneSidedPositioning" ? A::Backlash::OneSided : A::Backlash::None; });
+    // OpenPnP's names for the methods.
+    static const std::pair<A::Backlash, const char*> methods[] = {
+        { A::Backlash::None, "None" }, { A::Backlash::OneSided, "OneSidedPositioning" },
+        { A::Backlash::Directional, "DirectionalCompensation" }, { A::Backlash::DirectionalSneakUp, "DirectionalSneakUp" } };
+    Strings names;
+    for (const auto& [m, n] : methods) names.push_back(n);
+    add.choice("backlash", "Compensation Method", names,
+               [a] {
+                   for (const auto& [m, n] : methods)
+                       if (m == a().backlash) return std::string(n);
+                   return std::string("None");
+               },
+               [a](const std::string& v) {
+                   for (const auto& [m, n] : methods)
+                       if (v == n) a().backlash = m;
+               });
     f.reshaping.push_back("backlash");
-    if (a().backlash == A::Backlash::OneSided) {
+    const A::Backlash method = a().backlash;
+    if (method != A::Backlash::None) {
         add.number("backlashOffset", "Backlash Offset", [a]() -> double& { return a().backlashOffset; });
-        add.number("backlashSpeedFactor", "Speed Factor", [a]() -> double& { return a().backlashSpeedFactor; }, 2);
-        add.note("Every move ends coming from the same side: past the place by the offset, then back at the speed factor.");
+        if (method == A::Backlash::DirectionalSneakUp)
+            add.number("sneakUp", "Sneak-up Distance", [a] { return a().sneakUpMm; },
+                       [a](double v) { if (v >= 0) a().sneakUpMm = v; });
+        if (method != A::Backlash::Directional)
+            add.number("backlashSpeedFactor", "Speed Factor", [a]() -> double& { return a().backlashSpeedFactor; }, 2);
     }
+    switch (method) {
+        case A::Backlash::None:
+            add.note("No compensation: where the drive's play leaves it.");
+            break;
+        case A::Backlash::OneSided:
+            add.note("Every move ends coming from the same side: one arriving the other way goes past the place by "
+                     "the offset (its sign says which side), then comes back at the speed factor. The offset need only "
+                     "be at least the play.");
+            break;
+        case A::Backlash::Directional:
+            add.note("A move travelling the way the offset points goes the offset further, taking up the play; the "
+                     "other way, it goes to the place. The offset must be the play itself.");
+            break;
+        case A::Backlash::DirectionalSneakUp:
+            add.note("As DirectionalCompensation, the last Sneak-up Distance of each move made at the speed factor, "
+                     "so it cannot overshoot.");
+            break;
+    }
+    if (a().kind == A::Kind::Controller && (a().type == A::Type::X || a().type == A::Type::Y)) {
+        add.actions({ { "Calibrate", "calibrateBacklash" } });
+        add.note("Calibrate measures the play with the head camera over the homing fiducial (the machine homed, the "
+                 "camera calibrated): standing still for the tolerance, then coming in from either side over "
+                 "distances and at speeds, then chooses the method and tries it with moves from random places.");
+    }
+    if (const auto& k = a().backlashCalibration) backlashResults(add, *k);
 }
 
 void headForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f) {

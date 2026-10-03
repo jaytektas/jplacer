@@ -152,6 +152,18 @@ public:
     void setSquareness(const JPSquarenessConfig& squareness);
     JPSquarenessConfig squareness() const;
 
+    // An axis's backlash compensation, in use from the next move (the cell's
+    // own copy; the owner keeps it): what calibrating it found, to test.
+    void setBacklash(const std::string& axisId, JPAxisConfig::Backlash method, double offset, double sneakUpMm,
+                     double speedFactor);
+    // Backlash compensation on (as each axis says) or off (every move goes
+    // straight to its target): off while the backlash is being measured.
+    void setBacklashCompensation(bool on) { m_backlashOn = on; }
+    // The controller axes' positions as their controllers report them: with
+    // a directional backlash offset in effect, the axis's plus it (where the
+    // drive was sent). positions() gives the axes' own.
+    std::map<std::string, double> reportedPositions() const;
+
     // The corrections made since the last home, summed, by axis id: where
     // the switches put the machine is (coordinates + this).
     std::map<std::string, double> correctionSinceHome() const;
@@ -225,6 +237,8 @@ private:
     // Square coordinates of controller axes to the axes' own (JPSquarenessConfig):
     // the X axis takes the lean for the Y it will be at, so a target for
     // either brings in the other (from `now`, square, when not targeted).
+    // The directional backlash offset in effect on an axis (0: none).
+    double backlashApplied(const std::string& axisId) const;
     std::map<std::string, double> toAxes(std::map<std::string, double> square,
                                          const std::map<std::string, double>& now) const;
 
@@ -243,6 +257,11 @@ private:
     std::map<std::string, double>      m_positions;
     std::map<std::string, double>      m_axisPositions;   // controller axes as they report (not squared)
     std::map<std::string, double>      m_sent;       // last commanded coordinate, by axis id
+    // A directional backlash offset in effect, by axis id: the controller's
+    // coordinate is the axis's plus this (JPAxisConfig::Backlash).
+    std::map<std::string, double>      m_backlashApplied;
+    std::map<std::string, double>      m_reported;   // controller axes, as reported
+    std::atomic<bool>                  m_backlashOn{ true };
     std::map<std::string, double>      m_corrected;  // correctPosition's since the last home, summed
     std::map<std::string, std::string> m_firmware;
     std::map<std::string, std::string> m_states;

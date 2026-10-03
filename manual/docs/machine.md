@@ -207,13 +207,42 @@ travel) is gone to as near as the limit allows. It moves at half speed.
 #### Backlash
 
 Every drive has a little play (backlash): an axis stops in a slightly different place depending on
-which way it was travelling. An axis with a backlash offset is positioned one-sided: every move ends
-travelling the same way. A move that would arrive the other way first goes past its target by the
-offset, then comes back to it at the axis's backlash speed. The offset only needs to be at least the
-play; the axis then ends in the same place whichever way it came. An imported machine keeps the offset
-and speed OpenPnP measured, whichever way OpenPnP compensated.
+which way it was travelling. Each axis has a **compensation method** (its Backlash Compensation tab in
+Machine Setup):
 
-<!-- src: src/machine/JPAxisConfig.h (Backlash); src/machine/JPCell.cpp (doMove: overshoot, approach); src/openpnp/JPOpenPnpMachineImporter.cpp (backlash) -->
+| Method | |
+|---|---|
+| None | Where the play leaves it. |
+| OneSidedPositioning | Every move ends travelling the same way: one that would arrive the other way first goes past its target by the offset (its sign says which side), then comes back at the speed factor. The offset need only be at least the play. |
+| DirectionalCompensation | A move travelling the way the offset points goes the offset further, taking up the play; the other way, it goes to the target. The offset must be the play itself. |
+| DirectionalSneakUp | As DirectionalCompensation, the last **Sneak-up Distance** of each move made at the speed factor, so it cannot overshoot. |
+
+With a directional offset taken up, the position shown is the axis's own, without the offset. An imported
+machine keeps OpenPnP's method, offset, sneak-up distance and speed factor (its two one-sided methods are
+jplacer's one, which goes past only when a move would arrive the wrong way). Changing an axis's backlash,
+speed or limits leaves the machine homed: only a change to where an axis is (its kind, controller, letter,
+home coordinate or mapping) needs it homed again.
+
+<!-- src: src/machine/JPAxisConfig.h (Backlash); src/machine/JPCell.cpp (doMove: overshoot, approach, applied; updatePositions; reconfigure); src/openpnp/JPOpenPnpMachineImporter.cpp (backlash) -->
+
+**Calibrate** on an X or Y axis's Backlash Compensation tab measures its play with the camera that rides on
+it, over the head's homing fiducial (the machine homed, the camera calibrated), compensation off while it
+measures:
+
+1. The mark measured several times standing still: three times how far those measurements wander (and at
+   least 2 µm) is the **tolerance**.
+2. The play against how far the axis comes in from the other side, at a quarter speed: a short way in
+   takes up only part of it; where it levels off is how far a move must sneak up.
+3. The play against speed (25, 33, 50, 75 and 100%), coming in from 10 mm.
+4. The method: None when the play is within the tolerance; DirectionalCompensation when it is the same at
+   every speed; DirectionalSneakUp when it is not, sneaking up the distance found at a quarter speed; and
+   OneSidedPositioning when that distance is more than 0.8 mm.
+5. The method tried: moves in to the mark from random places either side, each measured.
+
+What it found is in use at once, kept through Machine Setup (a step to undo), and shown on the tab with
+three graphs: the play against how far it came in, against speed, and the errors once compensated.
+
+<!-- src: src/tasks/JPBacklashCalibrator.cpp (run, kLeastToleranceMm, kToleranceSpreads); src/tasks/JPBacklashCalibrator.h (Options, kSpeeds); src/app/JPlacerCameraTasks.cpp (calibrateBacklash); src/app/JPlacerMachine.cpp (setupAction); src/setup/JPSetupProperties.cpp (backlashResults) -->
 
 
 ### Jog

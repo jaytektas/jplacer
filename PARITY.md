@@ -50,8 +50,8 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Soft limits, safe zone (each with Enabled?) | done | |
 | Feed rate, acceleration, jerk | done | |
 | Capture / move buttons on limits | done | |
-| Backlash: method (one-sided) with offset and speed factor | partial | one-sided only; DirectionalCompensation, DirectionalSneakUp missing |
-| Backlash calibration ("Calibrate now", with graphs of backlash against speed and sneak-up distance) | missing | |
+| Backlash: methods (one-sided, directional, directional sneak-up) with offset, sneak-up and speed factor | done | |
+| Backlash calibration ("Calibrate now", with graphs of backlash against speed and sneak-up distance) | done | tolerance from the measuring's own noise; graphs of play by distance, by speed, and errors after |
 | Virtual axis | done | |
 | Mapped axis (two map points) | done | |
 | Linear transform axis (non-squareness) | own way | squareness measured from board fiducials; Square the Machine |
@@ -159,9 +159,8 @@ All in DESIGN.md's build order 3 to 6, none started:
 
 Breadth first, with jplacer's own methods where they are better:
 
-1. Axes: backlash calibration with graphs; directional backlash methods.
-2. Nozzle tips: runout calibration (with the user at the bench); part dimensions, push and drag.
-3. Cameras: remaining calibration settings and results (head offsets, tilt); settling diagnostics graph; image transforms; preview FPS cap.
-4. Actuators: value types and profiles, machine coordination, interlocks.
-5. Machine: motion planner settings (continuous motion), Unsafe Z roaming, Default Board Location.
-6. Then DESIGN.md's build order 3 onward: library and job model, feeders and running, vision.
+1. Nozzle tips: runout calibration (with the user at the bench); part dimensions, push and drag.
+2. Cameras: remaining calibration settings and results (head offsets, tilt); settling diagnostics graph; image transforms; preview FPS cap.
+3. Actuators: value types and profiles, machine coordination, interlocks.
+4. Machine: motion planner settings (continuous motion), Unsafe Z roaming, Default Board Location.
+5. Then DESIGN.md's build order 3 onward: library and job model, feeders and running, vision.

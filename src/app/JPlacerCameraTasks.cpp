@@ -202,6 +202,51 @@ void JPlacerCameraTasks::keepCalibration(const std::string& cameraId, const JPCa
     if (onCalibrated) onCalibrated(cameraId, calibration);
 }
 
+void JPlacerCameraTasks::calibrateBacklash(const std::string& axisId,
+                                           std::function<void(const JPBacklashCalibrator::Result&)> done) {
+    // The head camera that rides on the axis, over its head's homing mark.
+    JPCameraPanel* camera = nullptr;
+    for (JPCameraPanel* p : m_cameras) {
+        const JPMountConfig& m = p->camera().mount;
+        if (!camera && (m.axisX == axisId || m.axisY == axisId)) camera = p;
+    }
+    if (!camera) {
+        m_window.showStatus("Calibrate backlash: no camera on a head rides on this axis", kResultMs);
+        return;
+    }
+    if (const std::string why = notReady(camera, true, true); !why.empty()) {
+        m_window.showStatus("Calibrate backlash: " + why, kResultMs);
+        return;
+    }
+    JPCameraFeed* feed = &camera->feed();
+    const JPHeadConfig h = *head(feed->config());
+    std::string name = axisId;
+    if (const JPAxisConfig* a = m_cell.config().axis(axisId)) name = a->name;
+    auto result = std::make_shared<JPBacklashCalibrator::Result>();
+    run(*camera, "Calibrating " + name + "'s backlash", [this, feed, h, axisId, name, result](std::string& words, const auto& progress) {
+        JPBacklashCalibrator::Options o;
+        o.markX = h.homingFiducial->x;
+        o.markY = h.homingFiducial->y;
+        o.markDiameterMm = h.homingFiducialDiameter;
+        o.speed = kTaskSpeed;
+        *result = JPBacklashCalibrator::run(m_cell, *feed, axisId, o, progress);
+        if (!result->ok) {
+            words = result->why;
+            return false;
+        }
+        char buf[240];
+        std::snprintf(buf, sizeof buf, "%s: %s, offset %.4f mm%s; within %.4f mm after", name.c_str(),
+                      JPAxisConfig::backlashWord(result->method), result->offset,
+                      result->method == JPAxisConfig::Backlash::DirectionalSneakUp
+                          ? (", sneaking up " + std::to_string(result->sneakUpMm).substr(0, 5) + " mm").c_str() : "",
+                      result->worstAfterMm);
+        words = buf;
+        return true;
+    }, [result, done](bool ok) {
+        if (ok && done) done(*result);
+    });
+}
+
 void JPlacerCameraTasks::visualTest(JPCameraPanel& camera) {
     if (const std::string why = notReady(&camera, true, true); !why.empty()) {
         m_window.showStatus("Visual Test: " + why, kResultMs);

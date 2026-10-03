@@ -75,7 +75,9 @@ std::optional<JPAxisConfig> JPAxisConfig::fromJson(const JJson& j, std::string& 
     a.safeZoneLowEnabled  = safe["lowEnabled"].boolean();
     a.safeZoneHighEnabled = safe["highEnabled"].boolean();
     a.backlashOffset         = j["backlashOffset"].number();
-    a.backlash               = j["backlash"].str() == "oneSided" ? Backlash::OneSided : Backlash::None;
+    a.backlash               = backlashFromWord(j["backlash"].str());
+    a.sneakUpMm              = j["sneakUp"].number(0.0);
+    if (j["backlashCalibration"].isObject()) a.backlashCalibration = JPBacklashCalibration::fromJson(j["backlashCalibration"]);
     a.backlashSpeedFactor    = j["backlashSpeedFactor"].number(1.0);   // 1.0, not 1: JJson::number<int> would truncate
     a.feedratePerSecond      = j["feedratePerSecond"].number();
     a.accelerationPerSecond2 = j["accelerationPerSecond2"].number();
@@ -121,7 +123,9 @@ JJson JPAxisConfig::toJson() const {
         j["safeZone"]["lowEnabled"]    = safeZoneLowEnabled;
         j["safeZone"]["highEnabled"]   = safeZoneHighEnabled;
         j["backlashOffset"]         = backlashOffset;
-        j["backlash"]               = backlash == Backlash::OneSided ? "oneSided" : "none";
+        j["backlash"]               = backlashWord(backlash);
+        if (sneakUpMm != 0) j["sneakUp"] = sneakUpMm;
+        if (backlashCalibration) j["backlashCalibration"] = backlashCalibration->toJson();
         j["backlashSpeedFactor"]    = backlashSpeedFactor;
         j["feedratePerSecond"]      = feedratePerSecond;
         j["accelerationPerSecond2"] = accelerationPerSecond2;
@@ -138,6 +142,22 @@ JJson JPAxisConfig::toJson() const {
         j["map"]["output1"] = mapOutput1;
     }
     return j;
+}
+
+const char* JPAxisConfig::backlashWord(Backlash b) {
+    switch (b) {
+        case Backlash::None:               return "none";
+        case Backlash::OneSided:           return "oneSided";
+        case Backlash::Directional:        return "directional";
+        case Backlash::DirectionalSneakUp: return "directionalSneakUp";
+    }
+    return "none";
+}
+
+JPAxisConfig::Backlash JPAxisConfig::backlashFromWord(const std::string& w) {
+    for (Backlash b : { Backlash::OneSided, Backlash::Directional, Backlash::DirectionalSneakUp })
+        if (w == backlashWord(b)) return b;
+    return Backlash::None;
 }
 
 } // inline namespace jf

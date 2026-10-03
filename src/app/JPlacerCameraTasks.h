@@ -4,6 +4,7 @@
 #pragma once
 
 #include "machine/JPCell.h"
+#include "tasks/JPBacklashCalibrator.h"
 #include "tasks/JPBoardLocator.h"
 #include "ui/JPCameraPanel.h"
 
@@ -45,6 +46,10 @@ public:
     void calibrate(JPCameraPanel& camera);
     // Look at the homing mark and say how far it is from its setting.
     void visualTest(JPCameraPanel& camera);
+    // Measure an X or Y axis's backlash with the head camera over the head's
+    // homing mark (JPBacklashCalibrator). `done` (main thread): what it found,
+    // in use already, for the owner to keep.
+    void calibrateBacklash(const std::string& axisId, std::function<void(const JPBacklashCalibrator::Result&)> done);
     // Finish a home with the camera (JPVisualHoming), through the first
     // calibrated camera on a head that homes visually. Says why not when
     // there is no such camera. Nothing when no head homes visually. `done`

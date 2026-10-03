@@ -284,12 +284,16 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                 a.safeZoneLowEnabled  = yes(x.attr("safe-zone-low-enabled"));
                 a.safeZoneHighEnabled = yes(x.attr("safe-zone-high-enabled"));
                 a.backlashOffset         = lengthChild(x, "backlash-offset");
-                // Whichever way OpenPnP compensated, jplacer positions one-sided:
-                // right with any offset at least the play, and the same every time.
+                // OpenPnP's method as it is, with the values it calibrated for it
+                // (its two one-sided methods are jplacer's one: a move already
+                // arriving the right way needs nothing more).
                 const std::string& method = x.attr("backlash-compensation-method");
                 if (!method.empty() && method != "None" && a.backlashOffset != 0) {
-                    a.backlash = JPAxisConfig::Backlash::OneSided;
+                    a.backlash = method == "DirectionalCompensation" ? JPAxisConfig::Backlash::Directional
+                               : method == "DirectionalSneakUp"      ? JPAxisConfig::Backlash::DirectionalSneakUp
+                                                                     : JPAxisConfig::Backlash::OneSided;
                     a.backlashSpeedFactor = x.attr("backlash-speed-factor").empty() ? 1 : number(x.attr("backlash-speed-factor"));
+                    a.sneakUpMm = lengthChild(x, "sneak-up-offset");
                 }
                 a.feedratePerSecond      = lengthChild(x, "feedrate-per-second");
                 a.accelerationPerSecond2 = lengthChild(x, "acceleration-per-second-2");

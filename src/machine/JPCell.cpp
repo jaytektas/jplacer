@@ -69,9 +69,26 @@ bool JPCell::reconfigure(JPCellConfig config, std::string& why) {
         m_drivers = std::move(drivers);
 
         // The axes as they were: the coordinates still mean what they did.
+        // Only what says where an axis is counts: its speed, limits and
+        // backlash do not change what its coordinates mean.
+        auto where = [](const JPAxisConfig& a) {
+            JJson j = JJson::object();
+            j["id"] = a.id;
+            j["kind"] = JPAxisConfig::kindName(a.kind);
+            j["type"] = JPAxisConfig::typeName(a.type);
+            j["home"] = a.homeCoordinate;
+            j["driver"] = a.driverId;
+            j["letter"] = a.letter;
+            j["wrap"] = a.wrapAroundRotation;
+            j["limit"] = a.limitRotation;
+            j["input"] = a.inputAxisId;
+            j["map"] = JJson::array();
+            for (double v : { a.mapInput0, a.mapOutput0, a.mapInput1, a.mapOutput1 }) j["map"].push(v);
+            return j;
+        };
         JJson axesBefore = JJson::array(), axesAfter = JJson::array();
-        for (const JPAxisConfig& a : m_config.axes) axesBefore.push(a.toJson());
-        for (const JPAxisConfig& a : config.axes) axesAfter.push(a.toJson());
+        for (const JPAxisConfig& a : m_config.axes) axesBefore.push(where(a));
+        for (const JPAxisConfig& a : config.axes) axesAfter.push(where(a));
         const bool axesChanged = axesBefore.dump() != axesAfter.dump();
         {
             std::lock_guard lk(m_mutex);
@@ -276,6 +293,7 @@ bool JPCell::doHomeNozzle(const std::string& nozzleId, double speed, std::string
         std::lock_guard lk(m_mutex);
         m_sent[motor->id] = motor->homeCoordinate;
         m_corrected.erase(motor->id);
+        m_backlashApplied.erase(motor->id);
     }
     JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_config.name << ": " << nozzle->name << "'s Z homed";
     return true;
@@ -595,7 +613,11 @@ void JPCell::updatePositions(const std::string& driverId, const JPFirmwareProfil
         for (const JPAxisConfig& a : m_config.axes) {
             if (a.kind != JPAxisConfig::Kind::Controller || a.driverId != driverId) continue;
             const auto it = status.positions.find(a.letter);
-            if (it != status.positions.end()) m_axisPositions[a.id] = m_positions[a.id] = it->second;
+            if (it == status.positions.end()) continue;
+            m_reported[a.id] = it->second;
+            // Less a directional backlash offset in effect: where the axis is.
+            const auto applied = m_backlashApplied.find(a.id);
+            m_axisPositions[a.id] = m_positions[a.id] = it->second - (applied == m_backlashApplied.end() ? 0 : applied->second);
         }
         // Square coordinates from the axes' own: X takes back the Y axis's lean.
         if (const JPSquarenessConfig& q = m_config.squareness; q.active()) {
@@ -679,6 +701,7 @@ bool JPCell::doHome(std::string& why) {
         std::lock_guard lk(m_mutex);
         m_sent.clear();
         m_corrected.clear();
+        m_backlashApplied.clear();
         for (const JPAxisConfig& a : m_config.axes) {
             if (a.kind == JPAxisConfig::Kind::Virtual) m_positions[a.id] = a.homeCoordinate;
             if (a.kind != JPAxisConfig::Kind::Mapped) m_sent[a.id] = a.homeCoordinate;
@@ -767,7 +790,7 @@ bool JPCell::doCorrectPosition(const std::map<std::string, double>& by, std::str
         JPGcodeDriver* dr = driver(a->driverId);
         if (!dr) { why = "no controller " + a->driverId; return false; }
         std::string& w = words[a->driverId];
-        w += (w.empty() ? "" : " ") + a->letter + format(v, dr->profile()->decimals());
+        w += (w.empty() ? "" : " ") + a->letter + format(v + backlashApplied(id), dr->profile()->decimals());
     }
     for (const auto& [driverId, axes] : words) {
         JPGcodeDriver* dr = driver(driverId);
@@ -784,6 +807,11 @@ bool JPCell::doCorrectPosition(const std::map<std::string, double>& by, std::str
     }
     JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_config.name << ": position corrected";
     return true;
+}
+
+double JPCell::backlashApplied(const std::string& axisId) const {
+    const auto b = m_backlashApplied.find(axisId);
+    return b == m_backlashApplied.end() ? 0 : b->second;
 }
 
 std::map<std::string, double> JPCell::toAxes(std::map<std::string, double> square,
@@ -944,25 +972,56 @@ bool JPCell::doMove(std::map<std::string, double> targets, double speed, std::st
         }
     }
 
-    // Backlash: an axis that would end travelling the wrong way goes past
-    // its target by the offset first; then everything comes in to the
-    // targets at the slowest backlash speed among those that went past.
+    // Backlash (JPAxisConfig::Backlash), in the controllers' coordinates (an
+    // axis's plus a directional offset in effect). One-sided: an axis that
+    // would end travelling the wrong way goes past its target by the offset
+    // first. Directional: one travelling the offset's way goes the offset
+    // further; sneaking up, it first stops short by the sneak-up distance.
+    // Then everything comes in to the targets at the slowest backlash speed
+    // among those that went past or sneak up.
     std::map<std::string, double> overshoot = hardware;
+    std::map<std::string, double> applied;   // directional offsets in effect after this move
     double approach = 1;
     bool needApproach = false;
     {
         const auto from = toAxes(now, now);
-        for (auto& [id, t] : overshoot) {
+        for (auto& [id, t] : hardware) {
             const JPAxisConfig* a = m_config.axis(id);
-            if (a->backlash != JPAxisConfig::Backlash::OneSided || a->backlashOffset == 0) continue;
             const auto f = from.find(id);
             const double travel = t - (f == from.end() ? t : f->second);
-            // Ending travel must be opposite to the offset's sign; a move of
-            // nothing, or the wrong way, goes past first.
-            if (travel != 0 && (travel > 0) == (a->backlashOffset < 0)) continue;
-            t += a->backlashOffset;
-            needApproach = true;
-            approach = std::min(approach, a->backlashSpeedFactor);
+            const double before = backlashApplied(id);
+            const double offset = a->backlashOffset;
+            if (!m_backlashOn || a->backlash == JPAxisConfig::Backlash::None || offset == 0) {
+                if (before != 0) applied[id] = 0;
+                continue;
+            }
+            if (a->backlash == JPAxisConfig::Backlash::OneSided) {
+                if (before != 0) applied[id] = 0;
+                // Ending travel must be opposite to the offset's sign; a move of
+                // nothing, or the wrong way, goes past first.
+                if (travel != 0 && (travel > 0) == (offset < 0)) continue;
+                overshoot[id] = t + offset;
+                needApproach = true;
+                approach = std::min(approach, a->backlashSpeedFactor);
+                continue;
+            }
+            // Directional: the offset where the move travels its way; none the
+            // other way; staying put keeps what is in effect.
+            const double effective = travel == 0 ? before : (travel > 0) == (offset > 0) ? offset : 0;
+            const double end = t + effective;
+            applied[id] = effective;
+            t = end;
+            overshoot[id] = end;
+            if (a->backlash == JPAxisConfig::Backlash::DirectionalSneakUp && travel != 0 && a->sneakUpMm > 0) {
+                const double here = (f == from.end() ? end : f->second) + before;
+                const double dir = travel > 0 ? 1 : -1;
+                double shortOf = end - dir * a->sneakUpMm;
+                // A move shorter than the sneak-up is all sneaking up.
+                if ((shortOf - here) * dir < 0) shortOf = here;
+                overshoot[id] = shortOf;
+                needApproach = true;
+                approach = std::min(approach, a->backlashSpeedFactor);
+            }
         }
     }
 
@@ -1014,16 +1073,24 @@ bool JPCell::doMove(std::map<std::string, double> targets, double speed, std::st
     // A rotation that both wraps and is limited, gone past +-180 the short
     // way: its controller is told it is at the same angle within the range.
     std::map<std::string, double> rewrapped;
-    for (const auto& [id, t] : hardware) {
+    for (const auto& [id, sent] : hardware) {
         const JPAxisConfig* a = m_config.axis(id);
+        // The axis's own angle: the controller's less a directional offset now in effect.
+        const auto b = applied.find(id);
+        const double offset = b != applied.end() ? b->second : backlashApplied(id);
+        const double t = sent - offset;
         if (a->type != JPAxisConfig::Type::Rotation || !a->wrapAroundRotation || !a->limitRotation || std::abs(t) <= 180) continue;
         JPGcodeDriver* d = driver(a->driverId);
         const double in = std::remainder(t, 360.0);
-        const JPReply r = d->command("setPosition", { { "axes", a->letter + format(in, d->profile()->decimals()) } });
+        const JPReply r = d->command("setPosition", { { "axes", a->letter + format(in + offset, d->profile()->decimals()) } });
         if (!r.ok) JLOGC(JPlacerLog::kCell, JLogLevel::Warn) << a->name << ": could not bring the rotation back into range (" << r.error << ")";
         else rewrapped[id] = in;
     }
     std::lock_guard lk(m_mutex);
+    for (const auto& [id, b] : applied) {
+        if (b == 0) m_backlashApplied.erase(id);
+        else m_backlashApplied[id] = b;
+    }
     for (const auto& [id, t] : rewrapped) {
         hardware[id] = t;
         m_positions[id] = t;
@@ -1053,6 +1120,25 @@ std::map<std::string, double> JPCell::jogBase() const {
         if (const auto p = out.find(id); p != out.end() && std::abs(p->second - sent) <= kSettledTolerance)
             p->second = sent;
     return out;
+}
+
+void JPCell::setBacklash(const std::string& axisId, JPAxisConfig::Backlash method, double offset, double sneakUpMm,
+                         double speedFactor) {
+    m_thread.post([this, axisId, method, offset, sneakUpMm, speedFactor] {
+        std::lock_guard lk(m_mutex);
+        for (JPAxisConfig& a : m_config.axes)
+            if (a.id == axisId) {
+                a.backlash = method;
+                a.backlashOffset = offset;
+                a.sneakUpMm = sneakUpMm;
+                a.backlashSpeedFactor = speedFactor;
+            }
+    });
+}
+
+std::map<std::string, double> JPCell::reportedPositions() const {
+    std::lock_guard lk(m_mutex);
+    return m_reported;
 }
 
 std::map<std::string, double> JPCell::positions() const {

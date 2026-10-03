@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "JPBacklashCalibration.h"
+
 #include <j/config/Json.h>
 
 #include <optional>
@@ -37,16 +39,27 @@ struct JPAxisConfig {
     bool   softLimitLowEnabled = false, softLimitHighEnabled = false;
     double safeZoneLow = 0, safeZoneHigh = 0;
     bool   safeZoneLowEnabled = false, safeZoneHighEnabled = false;
-    // BACKLASH: the play in the drive. With one-sided positioning, every move
-    // ends travelling the same way (opposite to the offset's sign): a move that
-    // would arrive the other way first goes past the target by the offset,
-    // then comes back at backlashSpeedFactor of its speed. The offset need
-    // only be at least the play; the end position is then the same whichever
-    // way the axis came from.
-    enum class Backlash { None, OneSided };
+    // BACKLASH: the play in the drive.
+    //  - OneSided: every move ends travelling the same way (opposite to the
+    //    offset's sign): a move that would arrive the other way first goes
+    //    past the target by the offset, then comes back at
+    //    backlashSpeedFactor of its speed. The offset need only be at least
+    //    the play; the end position is then the same whichever way the axis
+    //    came from.
+    //  - Directional: a move travelling the way the offset points goes the
+    //    offset further, taking up the play; the offset must be the play.
+    //  - DirectionalSneakUp: the same, the last sneakUpMm of the move made at
+    //    backlashSpeedFactor of its speed, so it cannot overshoot.
+    enum class Backlash { None, OneSided, Directional, DirectionalSneakUp };
     Backlash backlash = Backlash::None;
     double backlashOffset = 0;
     double backlashSpeedFactor = 1;
+    double sneakUpMm = 0;
+    // The last time the backlash was measured (Calibrate on its Backlash tab).
+    std::optional<JPBacklashCalibration> backlashCalibration;
+    // Backlash's names, as kept and as OpenPnP calls them.
+    static const char* backlashWord(Backlash b);
+    static Backlash backlashFromWord(const std::string& w);
     double feedratePerSecond = 0, accelerationPerSecond2 = 0, jerkPerSecond3 = 0;
     bool   wrapAroundRotation = false, limitRotation = false;
     // What one motor step moves the axis (mm or degrees; 0: not known): a

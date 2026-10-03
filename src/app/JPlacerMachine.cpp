@@ -575,6 +575,25 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
             if ("camera:" + c.panel->camera().id == path) m_cameraTasks->calibrate(*c.panel);
     } else if ((action == "storeNozzleMark" || action == "calculateNozzleOffset") && path.rfind("nozzle:", 0) == 0) {
         nozzleOffsetWizard(path.substr(7), action == "storeNozzleMark");
+    } else if (action == "calibrateBacklash" && path.rfind("axis:", 0) == 0) {
+        // What it found is in use already; kept through Machine Setup, a step to undo.
+        const std::string id = path.substr(5);
+        m_cameraTasks->calibrateBacklash(id, [this, id](const JPBacklashCalibrator::Result& r) {
+            if (!m_setup) return;
+            std::string name = id;
+            if (const JPAxisConfig* a = m_cell->config().axis(id)) name = a->name;
+            m_setup->change("Backlash of " + name, [&](JPCellConfig& cell) {
+                for (JPAxisConfig& a : cell.axes)
+                    if (a.id == id) {
+                        a.backlash = r.method;
+                        a.backlashOffset = r.offset;
+                        a.sneakUpMm = r.sneakUpMm;
+                        a.backlashSpeedFactor = r.speedFactor;
+                        a.backlashCalibration = r.data;
+                    }
+            });
+            m_setup->remakeForm();
+        });
     } else if (action == "homeNozzleZ" && path.rfind("nozzle:", 0) == 0) {
         homeNozzle(path.substr(7));
     } else if (action.rfind("whiteBalance", 0) == 0 && path.rfind("camera:", 0) == 0) {
