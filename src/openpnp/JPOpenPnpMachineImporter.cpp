@@ -578,4 +578,40 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
     return true;
 }
 
+void JPOpenPnpMachineImporter::keepFrom(const JPCellConfig& previous, JPCellConfig& cell) {
+    // The port chosen here, by its permanent name: OpenPnP's file still names
+    // the port it had, which may be a different device now.
+    for (JPDriverConfig& d : cell.drivers)
+        if (const JPDriverConfig* was = previous.driver(d.id); was && was->link["type"].str() == d.link["type"].str()
+            && !was->link["port"].str().empty()) {
+            JLOGC(JPlacerLog::kImport, JLogLevel::Info) << "controller " << d.name << " keeps " << was->link["port"].str();
+            d.link["port"] = was->link["port"].str();
+        }
+    // What jplacer measured or was taught itself is not OpenPnP's to
+    // replace: each camera's calibrations and how much of a straightened
+    // picture it shows, the squareness, and the nozzle tips' changer steps.
+    for (JPCameraConfig& cam : cell.cameras)
+        for (const JPCameraConfig& was : previous.cameras)
+            if (was.id == cam.id) {
+                cam.calibrations = was.calibrations;
+                cam.showAll = was.showAll;
+            }
+    if (previous.squareness.active()) cell.squareness = previous.squareness;
+    // Which tip is on each nozzle is known here (set by hand, or by
+    // loading): OpenPnP's file says what it last believed, which a hand
+    // since may have changed. A wrong tip is a crash; it is never taken.
+    for (JPNozzleConfig& n : cell.nozzles) {
+        n.tipId.clear();
+        for (const JPNozzleConfig& was : previous.nozzles)
+            if (was.id == n.id && n.fits(was.tipId)) n.tipId = was.tipId;
+    }
+    for (JPNozzleTipConfig& tip : cell.nozzleTips)
+        for (const JPNozzleTipConfig& was : previous.nozzleTips)
+            if (was.id == tip.id) {
+                tip.loadSteps = was.loadSteps;
+                tip.unloadReversesLoad = was.unloadReversesLoad;
+                tip.unloadSteps = was.unloadSteps;
+            }
+}
+
 } // inline namespace jf

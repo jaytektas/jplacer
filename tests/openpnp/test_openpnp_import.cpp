@@ -117,6 +117,23 @@ int main() {
     assert(again.fromJson(cell.toJson(), error));
     assert(again.toJson().dump() == cell.toJson().dump());
 
+    // Imported again over a cell used here: what was set here is kept.
+    {
+        JPCellConfig used = cell;
+        used.drivers[0].link["port"] = "/dev/serial/by-id/the-controller";
+        for (JPNozzleConfig& n : used.nozzles) n.tipId.clear();   // taken off by hand
+        used.cameras[0].showAll = 0.7;
+        used.nozzleTips[0].loadSteps.clear();
+        used.nozzleTips[0].unloadReversesLoad = false;
+        JPCellConfig fresh = cell;
+        assert(!fresh.nozzles[0].tipId.empty() || !fresh.nozzles.back().tipId.empty());   // OpenPnP believes one is on
+        JPOpenPnpMachineImporter::keepFrom(used, fresh);
+        assert(fresh.drivers[0].link["port"].str() == "/dev/serial/by-id/the-controller");
+        assert(fresh.drivers[0].link["flowControl"].str() == "rtscts");   // OpenPnP's other settings come through
+        for (const JPNozzleConfig& n : fresh.nozzles) assert(n.tipId.empty());
+        assert(fresh.cameras[0].showAll == 0.7 && fresh.nozzleTips[0].loadSteps.empty() && !fresh.nozzleTips[0].unloadReversesLoad);
+    }
+
     JPCellConfig none;
     assert(!JPOpenPnpMachineImporter::import(std::string(JPLACER_TESTDATA_DIR) + "/missing.xml", none, notes, error));
     // The top camera's own settings as OpenPnP set them; one OpenPnP left alone is left out.
