@@ -14,6 +14,7 @@
 #include "ui/JPJogPanel.h"
 #include "ui/JPMachinePanel.h"
 #include "ui/JPMachineSetupPanel.h"
+#include "ui/JPUiParts.h"
 
 #include <j/config/Settings.h>
 #include <j/core/Dialog.h>
@@ -479,6 +480,8 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
     } else if (action == "calibrate" && path.rfind("camera:", 0) == 0) {
         for (CameraDock& c : m_cameras)
             if ("camera:" + c.panel->camera().id == path) m_cameraTasks->calibrate(*c.panel);
+    } else if ((action == "storeNozzleMark" || action == "calculateNozzleOffset") && path.rfind("nozzle:", 0) == 0) {
+        nozzleOffsetWizard(path.substr(7), action == "storeNozzleMark");
     } else if (action.rfind("whiteBalance", 0) == 0 && path.rfind("camera:", 0) == 0) {
         // Worked out from what the camera sees now, as it took it; a step to undo.
         const std::string id = path.substr(7);
@@ -505,6 +508,58 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
                 if (cam.id == id) cam.whiteBalance = wb;
         });
     }
+}
+
+void JPlacerMachine::nozzleOffsetWizard(const std::string& nozzleId, bool storeMark) {
+    if (!m_cell || !m_cell->isConnected()) {
+        m_window.showStatus("Offset Wizard: connect the machine first", kErrorMs);
+        return;
+    }
+    const auto p = m_cell->positions();
+    // Where a tool is now: its axes plus its offset on the head.
+    auto where = [&p](const JPMountConfig& m, double& x, double& y) {
+        const auto px = p.find(m.axisX), py = p.find(m.axisY);
+        if (px == p.end() || py == p.end()) return false;
+        x = px->second + m.offsetX;
+        y = py->second + m.offsetY;
+        return true;
+    };
+    const JPNozzleConfig* nozzle = nullptr;
+    for (const JPNozzleConfig& n : m_cell->config().nozzles) if (n.id == nozzleId) nozzle = &n;
+    if (!nozzle) return;
+    if (storeMark) {
+        double x = 0, y = 0;
+        if (!where(nozzle->mount, x, y)) {
+            m_window.showStatus("Offset Wizard: " + nozzle->name + " has no X and Y position", kErrorMs);
+            return;
+        }
+        m_nozzleMark = { nozzleId, x, y };
+        m_window.showStatus("Offset Wizard: " + nozzle->name + " mark stored at X " + JPUiParts::coordinate(x) + ", Y "
+                            + JPUiParts::coordinate(y) + "; now move the camera over the mark", kErrorMs);
+        return;
+    }
+    if (!m_nozzleMark || m_nozzleMark->nozzleId != nozzleId) {
+        m_window.showStatus("Offset Wizard: store the nozzle mark position first", kErrorMs);
+        return;
+    }
+    const JPMountConfig* camera = toolMount(JPSetupForm::Tool::Camera);
+    double cx = 0, cy = 0;
+    if (!camera || !where(*camera, cx, cy)) {
+        m_window.showStatus("Offset Wizard: no camera on a head to look at the mark with", kErrorMs);
+        return;
+    }
+    // The mark is where the camera is; the nozzle thought it was at the stored place.
+    const double dx = cx - m_nozzleMark->x, dy = cy - m_nozzleMark->y;
+    m_setup->change("Offset of " + nozzle->name, [&](JPCellConfig& cell) {
+        for (JPNozzleConfig& n : cell.nozzles)
+            if (n.id == nozzleId) {
+                n.mount.offsetX += dx;
+                n.mount.offsetY += dy;
+            }
+    });
+    m_window.showStatus("Offset Wizard: " + nozzle->name + "'s offset moved by X " + JPUiParts::coordinate(dx) + ", Y "
+                        + JPUiParts::coordinate(dy), kErrorMs);
+    m_nozzleMark.reset();
 }
 
 void JPlacerMachine::setEditItems(JMenuItem* undo, JMenuItem* redo) {

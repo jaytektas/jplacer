@@ -163,6 +163,8 @@ notes.
   off after the picture and/or while another camera takes one. Brought in from OpenPnP.
 - Part detection by the vacuum, as in OpenPnP: Pick checks a part is on and Place that it is off, by the
   vacuum level (Absolute) or its change (Difference), as each nozzle tip is set; brought in from OpenPnP.
+- A nozzle's Offset Wizard, as in OpenPnP: a mark left by the nozzle, the camera over it, and the
+  nozzle's offset corrected (one step to undo).
 
 ## 0.1.0
 

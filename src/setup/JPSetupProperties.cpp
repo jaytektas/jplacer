@@ -582,6 +582,19 @@ void nozzleForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     add.end();
     add.byName("vacuumSenseActuator", "Sensing Actuator", actuators, [n]() -> std::string& { return n().vacuumSenseActuatorId; });
     add.note("Pick switches the vacuum on; Place switches it off, then pulses the blow-off for the place dwell (Jog panel).");
+
+    // OpenPnP's Offset Wizard: where the nozzle is on the head, from a mark it leaves.
+    add.tab("Offset Wizard");
+    add.group("Nozzle Offset Wizard Steps");
+    add.note("1. Put something on the table the nozzle can leave a mark in (putty, flour, carbon paper).");
+    add.note("2. Choose this nozzle on the Jog panel, move it over the object and lower it until it leaves a mark; "
+             "turning it a full turn there keeps the tip's runout out of the measurement.");
+    add.note("3. Store the nozzle mark position (where the nozzle is now):");
+    add.actions({ { "Store Nozzle Mark Position", "storeNozzleMark" } });
+    add.note("4. Raise the nozzle, choose the camera on the Jog panel and move it over the centre of the mark, then:");
+    add.actions({ { "Calculate Nozzle Offset", "calculateNozzleOffset" } });
+    add.note("The offsets on the Configuration tab change by how far the camera is from where the nozzle thought it "
+             "was; Undo takes them back.");
 }
 
 void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f) {

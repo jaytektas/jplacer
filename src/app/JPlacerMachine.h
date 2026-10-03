@@ -22,6 +22,7 @@
 
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -112,6 +113,10 @@ private:
     const JPMountConfig* toolMount(JPSetupForm::Tool tool) const;
     // Connected and homed; else the status bar says what is needed first.
     bool readyToMove();
+    // The nozzle Offset Wizard's two steps: store where the nozzle left its
+    // mark; then, the camera over the mark, move the nozzle's offset by the
+    // difference (a step in Machine Setup, to undo).
+    void nozzleOffsetWizard(const std::string& nozzleId, bool storeMark);
 
     struct Dock {
         std::unique_ptr<JDockWidget> dock;
@@ -150,6 +155,11 @@ private:
     std::string                         m_lost;                  // why the link dropped, until the next connect
     bool                                m_homeFailed = false;
     std::string                         m_setupSelected;   // Machine Setup's node, kept while the cell reopens
+    struct NozzleMark {
+        std::string nozzleId;
+        double      x, y;
+    };
+    std::optional<NozzleMark>           m_nozzleMark;      // the Offset Wizard's stored mark
 };
 
 } // inline namespace jf
