@@ -169,8 +169,8 @@ void JPIcons::moveCamera(JVectorCanvas& vg, float cx, float cy, float size, cons
 void JPIcons::moveNozzle(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink) {
     // The nozzle on the right, an arrow to it from the left.
     const float line = size * kLine;
-    arrow(vg, cx - size * 0.48f, cx - size * 0.06f, cy, line, ink);
-    nozzle(vg, cx + size * 0.24f, cy - size * 0.42f, size * 0.84f, ink);
+    arrow(vg, cx - size * 0.48f, cx - size * 0.1f, cy, line, ink);
+    nozzle(vg, cx + size * 0.2f, cy - size * 0.36f, size * 0.66f, ink);   // all of it within the icon
 }
 
 void JPIcons::arrowUp(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink) { pointing(vg, cx, cy, size, 0, -1, ink); }
