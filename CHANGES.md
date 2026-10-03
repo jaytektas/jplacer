@@ -180,7 +180,7 @@ notes.
   camera tasks, nozzle tip changer steps), not only jogs.
 - Nozzle tips are loaded and unloaded from the Jog panel: a tip button beside the tool opens the chosen
   nozzle's tips. Loading another unloads the one on it first; Step Through asks before each changer step
-  (on by default); Tip On It says which tip is on it without moving. Each step's move goes at its speed
+  (on by default); Manual Change says which tip was put on by hand, moving nothing. Each step's move goes at its speed
   times the machine's.
 
 ## 0.1.0

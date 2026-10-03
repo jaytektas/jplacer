@@ -26,7 +26,8 @@ inline namespace jf {
 // chosen at the top (a nozzle, a camera, anything on the head with axes);
 // beside it, for a nozzle, the tip menu: the tips that fit it to load (the
 // one on it unloaded first), Unload, Step Through (each changer step asked
-// before it runs), and Tip On It (say which tip is on it; nothing moves).
+// before it runs), and Manual Change (say which tip was put on by hand;
+// nothing moves).
 //
 //  - Jog: an X / Y pad of arrows with Park (the head to its park place) in
 //    its middle; Z up and down with Park (to safe Z) between; the rotation

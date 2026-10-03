@@ -308,7 +308,7 @@ void JPJogPanel::showTipMenu() {
     for (const JPNozzleTipConfig& t : c.nozzleTips) if (t.id == nozzle->tipId) onIt = name(t);
     // Made afresh: the tips, and where each is, change.
     m_tipMenu = std::make_unique<JMenu>("Nozzle Tip");
-    m_tipOnIt = std::make_unique<JMenu>("Tip On It");
+    m_tipOnIt = std::make_unique<JMenu>("Manual Change");
     JSceneGraph& g = m_graph;
     m_tipMenu->add(g, nozzle->name + ": " + (onIt.empty() ? std::string("no tip on it") : onIt + " on it"))->setEnabled(false);
     m_tipMenu->addSeparator(g);
@@ -359,7 +359,7 @@ void JPJogPanel::showTipMenu() {
             if (onTipOnIt) onTipOnIt(nozzleId, id);
         });
     }
-    m_tipMenu->add(g, "Tip On It (moves nothing)", {}, m_tipOnIt.get());
+    m_tipMenu->add(g, "Manual Change", {}, m_tipOnIt.get());
     const JRect b = m_graph.getLayoutConst(m_tipButton->getNodeId()).boundingBox;
     openMenu(m_tipMenu.get(), b.x, b.y + b.height);
 }

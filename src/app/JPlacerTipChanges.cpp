@@ -132,7 +132,7 @@ void JPlacerTipChanges::change(const std::string& nozzleId, const std::string& t
                 JLOGC(JPlacerLog::kCell, JLogLevel::Warn) << h.what << ": " << why;
                 const std::string text = h.what + ": " + why
                     + ".\n\nLook at " + nozzle.name + " and say which tip is on it (the Jog panel's tip menu, "
-                      "Tip On It): that moves nothing.";
+                      "Manual Change): that moves nothing.";
                 onMain([text] { JDialog::message("Nozzle tip change stopped", text); });
                 m_busy = false;
                 return;
