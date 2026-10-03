@@ -3,15 +3,16 @@
 
 #pragma once
 
+#include "JPReticle.h"
 #include "JPViewMark.h"
 
 #include "camera/JPCameraFeed.h"
 #include "camera/JPStraightener.h"
 
 #include <j/core/JWidget.h>
+#include <j/core/MenuSystem.h>
 #include <j/graphics/GpuHal.h>
 
-#include <chrono>
 #include <functional>
 #include <memory>
 #include <string>
@@ -25,6 +26,11 @@ inline namespace jf {
 // The mouse wheel zooms in and out about the centre, so the crosshair stays
 // on the point the camera is looking at; zoomed, the zoom is shown in a
 // corner. Fitted (1x) is as far out as it goes.
+//
+// Right-click it for the reticle (JPReticle) and to fit the picture again.
+// To move the camera to a point in the picture: double-click it, Shift+click
+// it, or drag from anywhere to it (a line shows the move until the button is
+// let go; let go outside the picture and nothing moves).
 //
 // Each new frame becomes a GPU texture on the main thread (the feed's signal
 // is re-posted there); the previous texture is released.
@@ -48,14 +54,26 @@ public:
 
     void populateRenderPrimitives(JPrimitiveBuffer& buf) override;
     void handleMousePress(float x, float y) override;
+    void handleMouseMove(float x, float y) override;
+    void handleMouseRelease(float x, float y) override;
     bool handleScroll(float mx, float my, float wheel) override;
+    void prepareContextMenu(float mx, float my) override;
+
+    // The camera's calibration for its pictures, for the reticles drawn in
+    // millimetres (not valid: none).
+    void setCalibration(const JPCameraCalibration& calibration);
+    void setReticle(const JPReticle& reticle);
+    const JPReticle& reticle() const { return m_reticle; }
+    // The reticle chosen from the menu.
+    std::function<void(const JPReticle&)> onReticleChanged;
 
     // How far zoomed in: 1 is the picture fitted to the view.
     double zoom() const { return m_zoom; }
     static constexpr double kMostZoom = 64.0;
 
-    // The picture double-clicked, at this pixel of it.
-    std::function<void(double px, double py)> onPictureDoubleClicked;
+    // A point in the picture asked to be looked at (double-click, Shift+click,
+    // drag), at this pixel of the picture as taken.
+    std::function<void(double px, double py)> onLookAt;
 
 private:
     void showLatest();
@@ -72,10 +90,28 @@ private:
     std::shared_ptr<const JPStraightener>    m_straight;
     // Where a pixel of the picture as taken is shown: straightened when straightening.
     bool shown(double rawX, double rawY, double& x, double& y) const;
+    // The pixel of the picture as taken at a point on screen; false off the picture.
+    bool pixelAt(float x, float y, double& px, double& py) const;
+    void lookAt(float x, float y);
+    void buildMenu();
+    void choose(const JPReticle& reticle);
     // Where the picture was last drawn (widget coordinates) and at what scale,
     // to turn a click into a pixel of it; and the last press, for a double.
     float                              m_picX = 0, m_picY = 0, m_picScale = 0;
     double                             m_zoom = 1.0;
+    JPCameraCalibration                m_cal;
+    double                             m_reachMm = 0;   // how far the picture reaches from its middle
+    JPReticle                          m_reticle;
+    std::unique_ptr<JMenu>             m_menu, m_spacingMenu, m_sizeMenu;
+    std::vector<std::pair<JMenuItem*, JPReticle::Kind>> m_kindItems;
+    std::vector<std::pair<JMenuItem*, double>> m_spacingItems, m_sizeItems;
+    JMenuItem*                         m_spacingItem = nullptr;
+    JMenuItem*                         m_sizeItem    = nullptr;
+    JMenuItem*                         m_fitItem     = nullptr;
+    JMenuItem*                         m_uncalibrated = nullptr;
+    // A drag to look somewhere: where it started, and where it is now.
+    bool                               m_pressed = false, m_dragging = false;
+    float                              m_dragX = 0, m_dragY = 0;
     std::chrono::steady_clock::time_point m_lastPress;
     float                              m_lastPressX = 0, m_lastPressY = 0;
     std::function<void()>              m_unwatch;

@@ -18,10 +18,111 @@ inline namespace jf {
 namespace {
 // Each notch of the wheel zooms by this much: two notches double it.
 const double kZoomPerNotch = std::sqrt(2.0);
+// A grid's lines and a ruler's marks are no closer on screen than this many
+// spacings (JStyle::spacing); closer ones are left out.
+constexpr float kLeastGap = 3.f;
 } // namespace
 
 JPCameraView::JPCameraView(JSceneGraph& graph, JGpuHal& hal)
-    : JWidget(graph, "JPCameraView"), m_hal(hal) {}
+    : JWidget(graph, "JPCameraView"), m_hal(hal) {
+    buildMenu();
+}
+
+void JPCameraView::buildMenu() {
+    JSceneGraph& g = m_graph;
+    m_menu        = std::make_unique<JMenu>("Camera");
+    m_spacingMenu = std::make_unique<JMenu>("Spacing");
+    m_sizeMenu    = std::make_unique<JMenu>("Size");
+    for (JPReticle::Kind k : JPReticle::kinds()) {
+        JMenuItem* item = m_menu->add(g, JPReticle::name(k));
+        item->setCheckable(true);
+        item->onTriggered.connect([this, k] {
+            JPReticle r = m_reticle;
+            r.kind = k;
+            choose(r);
+        });
+        m_kindItems.emplace_back(item, k);
+    }
+    m_uncalibrated = m_menu->add(g, "Calibrate the camera to draw to scale");
+    m_uncalibrated->setEnabled(false);
+    m_menu->addSeparator(g);
+    auto mm = [](double v) {
+        char text[32];
+        std::snprintf(text, sizeof text, "%g mm", v);
+        return std::string(text);
+    };
+    for (double v : JPReticle::spacings()) {
+        JMenuItem* item = m_spacingMenu->add(g, mm(v));
+        item->setCheckable(true);
+        item->onTriggered.connect([this, v] {
+            JPReticle r = m_reticle;
+            r.spacingMm = v;
+            choose(r);
+        });
+        m_spacingItems.emplace_back(item, v);
+    }
+    for (double v : JPReticle::sizes()) {
+        JMenuItem* item = m_sizeMenu->add(g, mm(v));
+        item->setCheckable(true);
+        item->onTriggered.connect([this, v] {
+            JPReticle r = m_reticle;
+            r.sizeMm = v;
+            choose(r);
+        });
+        m_sizeItems.emplace_back(item, v);
+    }
+    m_spacingItem = m_menu->add(g, "Spacing", {}, m_spacingMenu.get());
+    m_sizeItem    = m_menu->add(g, "Size", {}, m_sizeMenu.get());
+    m_menu->addSeparator(g);
+    m_fitItem = m_menu->add(g, "Fit the Picture");
+    m_fitItem->onTriggered.connect([this] {
+        m_zoom = 1.0;
+        invalidate();
+    });
+    setContextMenu(m_menu.get());
+}
+
+void JPCameraView::prepareContextMenu(float, float) {
+    const bool calibrated = m_cal.valid;
+    for (auto& [item, k] : m_kindItems) {
+        item->setChecked(k == m_reticle.kind);
+        JPReticle r;
+        r.kind = k;
+        item->setEnabled(calibrated || !r.toScale());
+    }
+    m_uncalibrated->setVisible(!calibrated);
+    for (auto& [item, v] : m_spacingItems) item->setChecked(v == m_reticle.spacingMm);
+    for (auto& [item, v] : m_sizeItems) item->setChecked(v == m_reticle.sizeMm);
+    const bool lined = m_reticle.kind == JPReticle::Kind::Grid || m_reticle.kind == JPReticle::Kind::Ruler;
+    const bool shaped = m_reticle.kind == JPReticle::Kind::Circle || m_reticle.kind == JPReticle::Kind::Square;
+    m_spacingItem->setEnabled(calibrated && lined);
+    m_sizeItem->setEnabled(calibrated && shaped);
+    m_fitItem->setEnabled(m_zoom > 1.0);
+}
+
+void JPCameraView::choose(const JPReticle& reticle) {
+    m_reticle = reticle;
+    invalidate();
+    if (onReticleChanged) onReticleChanged(m_reticle);
+}
+
+void JPCameraView::setReticle(const JPReticle& reticle) {
+    m_reticle = reticle;
+    invalidate();
+}
+
+void JPCameraView::setCalibration(const JPCameraCalibration& calibration) {
+    m_cal = calibration;
+    // How far the picture reaches from its middle: its farthest corner.
+    m_reachMm = 0;
+    if (m_cal.valid)
+        for (const auto& [cx, cy] : { std::pair{ 0, 0 }, { 1, 0 }, { 0, 1 }, { 1, 1 } }) {
+            double dx, dy;
+            if (m_cal.mmForPixels((cx - 0.5) * m_cal.width, (cy - 0.5) * m_cal.height, dx, dy))
+                m_reachMm = std::max(m_reachMm, std::hypot(dx, dy));
+        }
+    invalidate();
+}
 
 JPCameraView::~JPCameraView() {
     *m_alive = false;
@@ -117,16 +218,38 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     m_picY = y;
     m_picScale = scale;
 
-    // What of the picture is on screen.
+    // What of the picture is on screen: what is drawn over it stays on it.
     const float vx0 = std::max(x, b.x), vy0 = std::max(y, b.y);
     const float vx1 = std::min(x + w, b.x + b.width), vy1 = std::min(y + h, b.y + b.height);
+    buf.popClip();
+    buf.pushClip(vx0, vy0, vx1 - vx0, vy1 - vy0);
 
-    // The crosshair: where the camera is looking.
+    // The reticle, the cross through the point the camera is looking at
+    // first; in millimetres through the calibration for this picture size.
     JVectorCanvas vg;
     const JColor c = rgb(Colors::Accent[0], Colors::Accent[1], Colors::Accent[2]);
     const float cx = x + w * 0.5f, cy = y + h * 0.5f, line = st.borderWidth;
-    vg.drawLine(vx0, cy, vx1, cy, line, JPaint::solid(c));
-    vg.drawLine(cx, vy0, cx, vy1, line, JPaint::solid(c));
+    const bool calibrated = m_cal.valid && m_cal.width == m_w && m_cal.height == m_h;
+    JPReticle::Place place;
+    if (calibrated)
+        place = [&](double xMm, double yMm, float& sx, float& sy) {
+            double rx, ry, px, py;
+            if (!m_cal.pixelFor(xMm, yMm, 0, 0, rx, ry) || !shown(rx, ry, px, py)) return false;
+            sx = x + float(px) * scale;
+            sy = y + float(py) * scale;
+            return true;
+        };
+    const double pxPerMm = calibrated ? (m_cal.scaleX() + m_cal.scaleY()) / 2 * scale : 0;
+    m_reticle.draw(vg, JRect{ vx0, vy0, vx1 - vx0, vy1 - vy0 }, cx, cy, place, pxPerMm, m_reachMm, line,
+                   st.spacing, kLeastGap * st.spacing, JPaint::solid(c));
+
+    // A drag to look somewhere: from the cross to where the camera will look.
+    if (m_dragging) {
+        const float half = JTextHelper::lineHeight() * 0.5f;
+        const JColor d = rgb(Colors::Warning[0], Colors::Warning[1], Colors::Warning[2]);
+        vg.drawLine(cx, cy, m_dragX, m_dragY, line, JPaint::solid(d));
+        vg.strokeRect(m_dragX - half, m_dragY - half, 2 * half, 2 * half, line, JPaint::solid(d));
+    }
 
     // What is on the machine there (the board's placements and fiducials).
     std::vector<JPViewMark> marks;
@@ -181,24 +304,59 @@ bool JPCameraView::handleScroll(float, float, float wheel) {
 }
 
 void JPCameraView::handleMousePress(float x, float y) {
-    const JStyle& st = JStyle::current();
-    const auto now = std::chrono::steady_clock::now();
-    const bool twice = now - m_lastPress < std::chrono::milliseconds(int(st.doubleClickMs))
-                    && std::abs(x - m_lastPressX) <= st.doubleClickSlop && std::abs(y - m_lastPressY) <= st.doubleClickSlop;
-    m_lastPress = twice ? std::chrono::steady_clock::time_point() : now;   // a third press starts again
-    m_lastPressX = x;
-    m_lastPressY = y;
-    if (!twice || m_picScale <= 0 || m_w <= 0 || !onPictureDoubleClicked) return;
-    double px = (x - m_picX) / m_picScale, py = (y - m_picY) / m_picScale;
-    if (px < 0 || py < 0 || px >= m_w || py >= m_h) return;
+    m_pressed  = true;
+    m_dragging = false;
+    m_dragX = x;
+    m_dragY = y;
+    if (JWidget::s_shiftDown || JWidget::s_doubleClick) {
+        m_pressed = false;
+        lookAt(x, y);
+    }
+}
+
+void JPCameraView::handleMouseMove(float x, float y) {
+    if (!m_pressed) return;
+    // The button let go where this view did not hear it: no move.
+    if (!JWidget::s_leftDown) {
+        m_pressed = m_dragging = false;
+        invalidate();
+        return;
+    }
+    const float slop = JStyle::current().doubleClickSlop;
+    if (!m_dragging && std::abs(x - m_dragX) <= slop && std::abs(y - m_dragY) <= slop) return;
+    m_dragging = true;
+    m_dragX = x;
+    m_dragY = y;
+    invalidate();
+}
+
+void JPCameraView::handleMouseRelease(float x, float y) {
+    const bool dragged = m_pressed && m_dragging;
+    m_pressed = m_dragging = false;
+    if (!dragged) return;
+    invalidate();
+    const JRect b = bounds();
+    if (x >= b.x && y >= b.y && x < b.x + b.width && y < b.y + b.height) lookAt(x, y);
+}
+
+bool JPCameraView::pixelAt(float x, float y, double& px, double& py) const {
+    if (m_picScale <= 0 || m_w <= 0) return false;
+    px = (x - m_picX) / m_picScale;
+    py = (y - m_picY) / m_picScale;
+    if (px < 0 || py < 0 || px >= m_w || py >= m_h) return false;
     // Straightened, the pixel clicked is back to the picture as taken.
     if (m_straight && m_straight->width() == m_w && m_straight->height() == m_h) {
         double rx, ry;
-        if (!m_straight->toRaw(px, py, rx, ry)) return;
+        if (!m_straight->toRaw(px, py, rx, ry)) return false;
         px = rx;
         py = ry;
     }
-    onPictureDoubleClicked(px, py);
+    return true;
+}
+
+void JPCameraView::lookAt(float x, float y) {
+    double px, py;
+    if (onLookAt && pixelAt(x, y, px, py)) onLookAt(px, py);
 }
 
 bool JPCameraView::shown(double rawX, double rawY, double& x, double& y) const {

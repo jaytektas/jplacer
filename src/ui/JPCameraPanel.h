@@ -58,8 +58,13 @@ public:
     // by the owner; changed here, reported to onViewChanged.
     void setView(bool straight);
     std::function<void(bool straight)> onViewChanged;
-    // A calibration changed (or the camera opened, at a size): straighten by
-    // it from now on.
+    // The reticle over the picture (JPReticle): set by the owner, kept from
+    // last time; chosen from the picture's right-click menu, reported to
+    // onReticleChanged.
+    void setReticle(const JPReticle& reticle);
+    std::function<void(const JPReticle&)> onReticleChanged;
+    // A calibration changed (or the camera opened, at a size): straighten and
+    // draw reticles by it from now on.
     void refreshStraightening();
 
     // While a task drives the camera: its buttons are off, and it runs even

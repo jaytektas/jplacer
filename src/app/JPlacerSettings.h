@@ -75,6 +75,8 @@ public:
     // How a camera's picture is shown, each camera its own: straightened
     // (true) or as taken. "camera.<id>.straight".
     static std::string cameraStraightKey(const std::string& cameraId);
+    // The reticle over a camera's picture (JPReticle::toText).
+    static std::string cameraReticleKey(const std::string& cameraId);
     // The key given to a function (JPKeyMap): "keys.<id>", absent for its
     // default, "none" for no key.
     static std::string keyFor(const std::string& functionId);

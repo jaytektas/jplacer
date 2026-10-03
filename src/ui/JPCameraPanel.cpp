@@ -56,7 +56,8 @@ JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCameraCon
     // so a result reads in full.
     m_note = add(std::make_unique<JLabel>(graph, ""));
     m_view = add(std::make_unique<JPCameraView>(graph, hal));
-    m_view->onPictureDoubleClicked = [this](double px, double py) { if (onLookAtPixel) onLookAtPixel(px, py); };
+    m_view->onLookAt = [this](double px, double py) { if (onLookAtPixel) onLookAtPixel(px, py); };
+    m_view->onReticleChanged = [this](const JPReticle& r) { if (onReticleChanged) onReticleChanged(r); };
     m_view->setVSizePolicy(JSizePolicyMode::Expanding, 1);
     m_view->setFeed(&m_feed);
 
@@ -121,12 +122,19 @@ void JPCameraPanel::setView(bool straight) {
     refreshStraightening();
 }
 
+void JPCameraPanel::setReticle(const JPReticle& reticle) {
+    m_view->setReticle(reticle);
+}
+
 void JPCameraPanel::refreshStraightening() {
     const JPCameraConfig& cam = m_feed.config();
     const auto mode = m_feed.mode();
+    const JPCameraCalibration cal = m_calibrationFor && mode ? m_calibrationFor(cam.id, mode->width, mode->height)
+                                                             : JPCameraCalibration{};
+    m_view->setCalibration(cal);
     std::shared_ptr<const JPStraightener> s;
-    if (m_straight && m_calibrationFor && mode)
-        if (auto made = JPStraightener::make(m_calibrationFor(cam.id, mode->width, mode->height), cam.looksUp, cam.showAll))
+    if (m_straight && mode)
+        if (auto made = JPStraightener::make(cal, cam.looksUp, cam.showAll))
             s = std::make_shared<const JPStraightener>(std::move(*made));
     m_view->setStraightener(s);
     if (m_straight && mode && !s)

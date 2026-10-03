@@ -142,6 +142,12 @@ void JPlacerMachine::buildCameras() {
             JSettings::instance().set(JPlacerSettings::cameraStraightKey(id), straight);
             JPlacerSettings::save();
         };
+        d.panel->setReticle(JPReticle::fromText(
+            JSettings::instance().get<std::string>(JPlacerSettings::cameraReticleKey(c.id), "")));
+        d.panel->onReticleChanged = [id = c.id](const JPReticle& r) {
+            JSettings::instance().set(JPlacerSettings::cameraReticleKey(id), r.toText());
+            JPlacerSettings::save();
+        };
         d.panel->onSettings = [this, id = c.id] { showSetup("camera:" + id); };
         d.panel->onRunning = [this](bool) { lightCameras(); };
         d.dock = std::make_unique<JDockWidget>(c.name, 0.f, 0.f, 0.f, 0.f);

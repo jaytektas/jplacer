@@ -387,17 +387,40 @@ is not. jplacer measures on the picture as taken, through the lens's calibration
 
 <!-- src: src/ui/JPCameraPanel.cpp (setView, refreshStraightening); src/ui/JPCameraView.cpp (the mesh); src/camera/JPStraightener.cpp; src/app/JPlacerSettings.cpp (cameraStraightKey); src/machine/JPCameraConfig.h (showAll) -->
 
-With a camera on the head calibrated and the machine homed, **double-click** anywhere in its picture and
-the camera moves to look there: the quickest way to put it over a fiducial or a part.
+With a camera on the head calibrated and the machine homed, **double-click** anywhere in its picture, or
+**Shift+click** it, and the camera moves to look there: the quickest way to put it over a fiducial or a
+part. Or **drag** in the picture: a line from the cross to the pointer shows the move, which is made when
+the button is let go; let go outside the picture and nothing moves.
 
-<!-- src: src/ui/JPCameraView.cpp (handleMousePress); src/app/JPlacerCameraTasks.cpp (onLookAtPixel, lookAt) -->
+<!-- src: src/ui/JPCameraView.cpp (handleMousePress, handleMouseRelease, lookAt); src/app/JPlacerCameraTasks.cpp (onLookAtPixel, lookAt) -->
 
 Turn the **mouse wheel** over a camera's picture to zoom in or out, up to 64 times, about the middle, so
-the cross stays on the point the camera is looking at. Two notches double the zoom; it shows in the bottom corner while it is more than fitted, and
-turning back down stops at fitted. Double-clicking a zoomed picture moves to the point clicked as it does
-fitted.
+the cross stays on the point the camera is looking at. Two notches double the zoom; it shows in the bottom
+corner while it is more than fitted, and turning back down stops at fitted. Moving to a point in a zoomed
+picture works as it does fitted.
 
 <!-- src: src/ui/JPCameraView.cpp (handleScroll, kZoomPerNotch, kMostZoom) -->
+
+**Right-click** a camera's picture to choose its **reticle**, what is drawn over the picture to measure by:
+
+| Reticle | |
+|---|---|
+| None | Nothing at all, not even the cross. |
+| Cross | The cross through the middle, as to begin with. |
+| Grid | The cross, and lines every **Spacing** apart. |
+| Ruler | The cross, and along the machine's X and Y a mark every **Spacing**, longer at every fifth and every tenth. |
+| Circle | The cross, and a circle **Size** across: a fiducial's size, say. |
+| Square | The cross, and a square **Size** along each side. |
+
+The grid, ruler, circle and square are in millimetres on the machine, drawn through the camera's
+calibration: along the machine's axes however the camera is turned, and bent as the lens bends the
+picture when it is shown as taken. A camera not calibrated for its picture size draws only the cross,
+and the menu says to calibrate it. Lines that would be closer together on screen than three spacings of
+the interface are left out (every second, fifth, tenth and so on is drawn), so a fine grid shows in
+full once zoomed in. Each camera keeps its reticle for next time. **Fit the Picture** in the same menu
+undoes the zoom.
+
+<!-- src: src/ui/JPReticle.cpp (spacings, sizes, draw, thinned); src/ui/JPCameraView.cpp (buildMenu, prepareContextMenu, kLeastGap); src/app/JPlacerSettings.cpp (cameraReticleKey) -->
 
 A camera can drop off its USB connection (noise from the stepper motors on its cable) or hang without
 saying so. jplacer notices either (no picture for 3 seconds counts as hung), says so across the top of
