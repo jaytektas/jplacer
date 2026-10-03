@@ -178,6 +178,10 @@ notes.
   whole motor step lies a hair past it: it goes to the step on this side.
 - The Jog panel's Speed is the machine's speed, as in OpenPnP: every move is scaled by it (jogs, parks,
   camera tasks, nozzle tip changer steps), not only jogs.
+- Nozzle tips are loaded and unloaded from the Jog panel: a tip button beside the tool opens the chosen
+  nozzle's tips. Loading another unloads the one on it first; Step Through asks before each changer step
+  (on by default); Tip On It says which tip is on it without moving. Each step's move goes at its speed
+  times the machine's.
 
 ## 0.1.0
 

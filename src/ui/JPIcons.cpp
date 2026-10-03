@@ -193,4 +193,12 @@ void JPIcons::home(JVectorCanvas& vg, float cx, float cy, float size, const JCol
     vg.fillRect(cx - w * 0.8f, cy - size * 0.02f, w * 1.6f, body, JPaint::solid(ink));
 }
 
+void JPIcons::nozzleTip(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink) {
+    // The nozzle, then a gap, then its tip: a narrow tube ending in a point.
+    nozzle(vg, cx, cy - size * 0.46f, size * 0.5f, ink);
+    const float w = size * 0.12f, top = cy + size * 0.1f, bottom = cy + size * 0.46f;
+    vg.fillConvex({ { cx - w, top }, { cx + w, top }, { cx + w * 0.45f, bottom }, { cx - w * 0.45f, bottom } },
+                  JPaint::solid(ink));
+}
+
 } // inline namespace jf

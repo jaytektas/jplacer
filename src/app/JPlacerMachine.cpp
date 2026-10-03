@@ -69,6 +69,7 @@ JPlacerMachine::JPlacerMachine(JAppWindow& window, JSceneGraph& graph)
 JPlacerMachine::~JPlacerMachine() {
     *m_alive = false;
     dropPanels();         // they stop listening to the cell before the cell goes
+    m_tipChanges.reset();
     m_cell.reset();
 }
 
@@ -178,6 +179,7 @@ void JPlacerMachine::buildPanels(Keep keep) {
     choices.tool = settings.get<std::string>(JPlacerSettings::kJogTool, "");
     choices.distance = settings.get<int>(JPlacerSettings::kJogDistance, JPJogPanel::kDistanceFirst);
     choices.speed = settings.get<double>(JPlacerSettings::kJogSpeed, JPJogPanel::kSpeedFirst);
+    choices.stepThrough = settings.get<bool>(JPlacerSettings::kJogStepThrough, true);
     auto jog = std::make_unique<JPJogPanel>(m_graph, *m_cell, choices);
     m_jog = jog.get();
     jog->onChoicesChanged = [this] {
@@ -186,7 +188,22 @@ void JPlacerMachine::buildPanels(Keep keep) {
         JSettings::instance().set(JPlacerSettings::kJogTool, c.tool);
         JSettings::instance().set(JPlacerSettings::kJogDistance, c.distance);
         JSettings::instance().set(JPlacerSettings::kJogSpeed, c.speed);
+        JSettings::instance().set(JPlacerSettings::kJogStepThrough, c.stepThrough);
         JPlacerSettings::save();
+    };
+    jog->onChangeTip = [this](const std::string& nozzleId, const std::string& tipId, bool everyStep) {
+        if (m_tipChanges) m_tipChanges->change(nozzleId, tipId, everyStep);
+    };
+    jog->onTipOnIt = [this](const std::string& nozzleId, const std::string& tipId) {
+        if (m_tipChanges && m_tipChanges->busy()) {
+            m_window.showStatus("Wait for the tip change under way to finish or stop", kErrorMs);
+            return;
+        }
+        setTipOn(nozzleId, tipId);
+    };
+    jog->openMenu = [this](JMenu* menu, float x, float y) {
+        if (JMenuManager::instance().onOpenMenu)
+            JMenuManager::instance().onOpenMenu(menu, m_window.windowX() + int(x), m_window.windowY() + int(y), false, false);
     };
     panels.push_back({ "Jog",       Home::Controls, std::move(jog) });
     panels.push_back({ "Actuators", Home::Controls, std::make_unique<JPActuatorPanel>(m_graph, *m_cell) });
@@ -305,8 +322,12 @@ bool JPlacerMachine::openCell(const std::string& path, std::string& error) {
     for (const std::string& p : config.problems()) JLOGC(JPlacerLog::kApp, JLogLevel::Warn) << path << ": " << p;
 
     dropPanels();
+    m_tipChanges.reset();   // a change under way stops before its cell goes
     m_cell = std::make_unique<JPCell>(std::move(config), m_profiles);
     m_cellPath = path;
+    m_tipChanges = std::make_unique<JPlacerTipChanges>(m_window, *m_cell, [this](const std::string& nozzleId, const std::string& tipId) {
+        setTipOn(nozzleId, tipId);
+    });
     watchCell();
     buildPanels();
 
@@ -573,6 +594,25 @@ void JPlacerMachine::nozzleOffsetWizard(const std::string& nozzleId, bool storeM
     m_window.showStatus("Offset Wizard: " + nozzle->name + "'s offset moved by X " + JPUiParts::coordinate(dx) + ", Y "
                         + JPUiParts::coordinate(dy), kErrorMs);
     m_nozzleMark.reset();
+}
+
+void JPlacerMachine::setTipOn(const std::string& nozzleId, const std::string& tipId) {
+    if (!m_setup || !m_cell) return;
+    std::string nozzle = nozzleId, tip = "no tip";
+    for (const JPNozzleConfig& n : m_cell->config().nozzles) if (n.id == nozzleId) nozzle = n.name;
+    for (const JPNozzleTipConfig& t : m_cell->config().nozzleTips) if (t.id == tipId) tip = t.name;
+    JLOGC(JPlacerLog::kCell, JLogLevel::Info) << nozzle << ": " << tip << " on it";
+    m_setup->change("Tip on " + nozzle + ": " + tip, [&](JPCellConfig& cell) {
+        for (JPNozzleConfig& n : cell.nozzles)
+            if (n.id == nozzleId) {
+                if (!tipId.empty() && !n.fits(tipId)) n.tipIds.push_back(tipId);
+                n.tipId = tipId;
+            }
+        // A tip is on one nozzle at a time.
+        if (!tipId.empty())
+            for (JPNozzleConfig& n : cell.nozzles)
+                if (n.id != nozzleId && n.tipId == tipId) n.tipId.clear();
+    });
 }
 
 void JPlacerMachine::setEditItems(JMenuItem* undo, JMenuItem* redo) {

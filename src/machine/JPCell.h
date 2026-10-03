@@ -118,7 +118,10 @@ public:
     void moveAxes(std::map<std::string, double> targets, double speed);
     // The same, waiting for the outcome: for a procedure on a thread of its
     // own (never the cell's, which runs the move). False with `why`.
-    bool moveAxesAndWait(std::map<std::string, double> targets, double speed, std::string& why);
+    // `squared` false: the targets are in the axes' own coordinates, as
+    // reported and as taught (a nozzle tip changer's places), not corrected
+    // for the gantry's squareness.
+    bool moveAxesAndWait(std::map<std::string, double> targets, double speed, std::string& why, bool squared = true);
 
     // The machine is not where its coordinates say: each axis (by id) is off
     // by `by`, so from now on where it is now is called (now - by). Told to
@@ -177,7 +180,7 @@ private:
     void updatePositions(const std::string& driverId, const JPFirmwareProfile::Status& status);
     void doDisconnect();
     // The cell thread's side of moveAxes: false with `why` when refused or failed.
-    bool doMove(std::map<std::string, double> targets, double speed, std::string& why);
+    bool doMove(std::map<std::string, double> targets, double speed, std::string& why, bool squared = true);
     bool doHome(std::string& why);
     bool doPark(const std::string& headId, double speed, std::string& why);
     bool doSafeZ(const std::string& headId, double speed, std::string& why);

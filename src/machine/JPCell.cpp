@@ -625,16 +625,16 @@ void JPCell::jog(const std::string& toolId, double dx, double dy, double dz, dou
     if (!targets.empty()) moveAxes(std::move(targets), speed);
 }
 
-bool JPCell::moveAxesAndWait(std::map<std::string, double> targets, double speed, std::string& why) {
+bool JPCell::moveAxesAndWait(std::map<std::string, double> targets, double speed, std::string& why, bool squared) {
     if (m_moving.exchange(true)) {
         why = "another move is under way";
         return false;
     }
     std::promise<std::pair<bool, std::string>> done;
     auto result = done.get_future();
-    m_thread.post([this, targets = std::move(targets), speed, &done] {
+    m_thread.post([this, targets = std::move(targets), speed, squared, &done] {
         std::string w;
-        const bool ok = doMove(targets, speed, w);
+        const bool ok = doMove(targets, speed, w, squared);
         m_moving = false;
         onMotion.emit(ok, w);
         done.set_value({ ok, w });
@@ -793,7 +793,7 @@ void JPCell::moveAxes(std::map<std::string, double> targets, double speed) {
     });
 }
 
-bool JPCell::doMove(std::map<std::string, double> targets, double speed, std::string& why) {
+bool JPCell::doMove(std::map<std::string, double> targets, double speed, std::string& why, bool squared) {
     if (!m_connected) { why = "not connected"; return false; }
     if (!m_homed)     { why = "not homed: home the machine first"; return false; }
 
@@ -836,7 +836,7 @@ bool JPCell::doMove(std::map<std::string, double> targets, double speed, std::st
     // square); the soft limits are theirs.
     const std::map<std::string, double> square = hardware;
     const auto now = jogBase();
-    hardware = toAxes(hardware, now);
+    if (squared) hardware = toAxes(hardware, now);
     // Whole steps of an axis with a resolution: where it can actually stop;
     // the nearest, unless that is past a soft limit (a place at the limit
     // itself), then the nearest on this side of it.

@@ -3,9 +3,9 @@
 
 // A cell over a simulated controller: it connects, follows controller axes from
 // status reports and a mapped axis through its map, switches and reads an
-// actuator, takes new settings while it runs (connected again only where a
-// controller's connection changed), keeps a camera's calibrations a picture size each, and reports a
-// cell whose controller cannot connect.
+// actuator, takes new settings while it runs (never letting its controllers
+// go), keeps a camera's calibrations a picture size each, and reports a cell
+// whose controller cannot connect.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>

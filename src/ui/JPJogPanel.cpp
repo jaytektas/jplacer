@@ -67,16 +67,28 @@ JPJogPanel::JPJogPanel(JSceneGraph& graph, JPCell& cell, Choices start) : JConta
         if (m_tools[i].nozzle && (m_tools[m_lastNozzle].nozzle == false || m_tools[i].id == start.tool)) m_lastNozzle = i;
     }
 
+    m_stepThrough = start.stepThrough;
+    // The tool, and beside it the chosen nozzle's tip menu.
+    auto top = JPUiParts::row(graph);
     std::vector<std::string> labels;
     for (const Tool& t : m_tools) labels.push_back(t.label);
-    JComboBox* tools = add(std::make_unique<JComboBox>(graph, labels, 0.f));
+    JComboBox* tools = top->add(std::make_unique<JComboBox>(graph, labels, 0.f));
+    tools->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     tools->setCurrentIndex(int(m_tool));
+    auto tip = std::make_unique<JPIconButton>(graph, "Nozzle Tip", &JPIcons::nozzleTip,
+                                              "The nozzle's tip: load one, unload it, or say which is on it");
+    tip->setFramed(true);
+    tip->onClicked.connect([this] { showTipMenu(); });
+    m_tipButton = top->add(std::move(tip));
+    m_tipButton->setEnabled(m_tools[m_tool].nozzle);
     tools->onIndexChanged.connect([this](int i) {
         if (i < 0 || size_t(i) >= m_tools.size()) return;
         m_tool = size_t(i);
         if (m_tools[m_tool].nozzle) m_lastNozzle = m_tool;
+        m_tipButton->setEnabled(m_tools[m_tool].nozzle);
         if (onChoicesChanged) onChoicesChanged();
     });
+    add(std::move(top));
 
     m_distanceIndex = std::clamp(start.distance, 0, int(kDistances.size()) - 1);
     m_speedShare = std::clamp(start.speed, 0.0, 1.0);
@@ -289,12 +301,79 @@ std::unique_ptr<JWidget> JPJogPanel::specialPage() {
     return page;
 }
 
+void JPJogPanel::showTipMenu() {
+    if (m_tools.empty() || !m_tools[m_tool].nozzle || !openMenu) return;
+    const JPCellConfig& c = m_cell.config();
+    const JPNozzleConfig* nozzle = nullptr;
+    for (const JPNozzleConfig& n : c.nozzles) if (n.id == m_tools[m_tool].id) nozzle = &n;
+    if (!nozzle) return;
+    auto name = [](const JPNozzleTipConfig& t) { return t.name.empty() ? t.id : t.name; };
+    std::string onIt;
+    for (const JPNozzleTipConfig& t : c.nozzleTips) if (t.id == nozzle->tipId) onIt = name(t);
+    // Made afresh: the tips, and where each is, change.
+    m_tipMenu = std::make_unique<JMenu>("Nozzle Tip");
+    m_tipOnIt = std::make_unique<JMenu>("Tip On It");
+    JSceneGraph& g = m_graph;
+    m_tipMenu->add(g, nozzle->name + ": " + (onIt.empty() ? std::string("no tip on it") : onIt + " on it"))->setEnabled(false);
+    m_tipMenu->addSeparator(g);
+    const std::string nozzleId = nozzle->id;
+    bool any = false;
+    for (const JPNozzleTipConfig& t : c.nozzleTips) {
+        if (!nozzle->fits(t.id)) continue;
+        any = true;
+        // Where it is now, when not free to load.
+        std::string where;
+        for (const JPNozzleConfig& n : c.nozzles) if (n.tipId == t.id) where = n.id == nozzleId ? "on it" : "on " + n.name;
+        if (where.empty() && t.loadSteps.empty()) where = "no load steps";
+        const std::string label = "Load " + name(t) + (where.empty() ? std::string() : " (" + where + ")");
+        JMenuItem* item = m_tipMenu->add(g, label);
+        item->setEnabled(where.empty());
+        item->onTriggered.connect([this, nozzleId, id = t.id] {
+            if (onChangeTip) onChangeTip(nozzleId, id, m_stepThrough);
+        });
+    }
+    if (!any) m_tipMenu->add(g, "No tips fit " + nozzle->name + " (Machine Setup)")->setEnabled(false);
+    m_tipMenu->addSeparator(g);
+    JMenuItem* unload = m_tipMenu->add(g, onIt.empty() ? std::string("Unload") : "Unload " + onIt);
+    unload->setEnabled(!onIt.empty());
+    unload->onTriggered.connect([this, nozzleId] {
+        if (onChangeTip) onChangeTip(nozzleId, "", m_stepThrough);
+    });
+    m_tipMenu->addSeparator(g);
+    JMenuItem* step = m_tipMenu->add(g, "Step Through");
+    step->setCheckable(true);
+    step->setChecked(m_stepThrough);
+    step->onTriggered.connect([this] {
+        m_stepThrough = !m_stepThrough;
+        if (onChoicesChanged) onChoicesChanged();
+    });
+    // Saying which tip is on it: nothing moves.
+    JMenuItem* none = m_tipOnIt->add(g, "None");
+    none->setCheckable(true);
+    none->setChecked(onIt.empty());
+    none->onTriggered.connect([this, nozzleId] {
+        if (onTipOnIt) onTipOnIt(nozzleId, "");
+    });
+    for (const JPNozzleTipConfig& t : c.nozzleTips) {
+        if (!nozzle->fits(t.id)) continue;
+        JMenuItem* item = m_tipOnIt->add(g, name(t));
+        item->setCheckable(true);
+        item->setChecked(t.id == nozzle->tipId);
+        item->onTriggered.connect([this, nozzleId, id = t.id] {
+            if (onTipOnIt) onTipOnIt(nozzleId, id);
+        });
+    }
+    m_tipMenu->add(g, "Tip On It (moves nothing)", {}, m_tipOnIt.get());
+    const JRect b = m_graph.getLayoutConst(m_tipButton->getNodeId()).boundingBox;
+    openMenu(m_tipMenu.get(), b.x, b.y + b.height);
+}
+
 double JPJogPanel::distance() const { return kDistances[size_t(m_distanceIndex)]; }
 double JPJogPanel::speed() const    { return std::max(kLeastSpeed, m_speedShare); }
 
 JPJogPanel::Choices JPJogPanel::choices() const {
     if (m_tools.empty()) return {};
-    return { m_tools[m_tool].id, m_distanceIndex, m_speedShare };
+    return { m_tools[m_tool].id, m_distanceIndex, m_speedShare, m_stepThrough };
 }
 
 const std::string& JPJogPanel::toolId() const {

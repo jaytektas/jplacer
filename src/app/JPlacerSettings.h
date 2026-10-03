@@ -38,6 +38,7 @@ public:
     static constexpr const char* kJogTool          = "jog.tool";
     static constexpr const char* kJogDistance      = "jog.distance";
     static constexpr const char* kJogSpeed         = "jog.speed";
+    static constexpr const char* kJogStepThrough   = "jog.stepThrough";   // tip changes asked step by step
     // The cell file (cells/<name>.json) opened last; opened again at start.
     static constexpr const char* kMachineCell      = "machine.cell";
     // The board on the machine: its pick-and-place file, the side up

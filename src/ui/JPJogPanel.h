@@ -12,6 +12,7 @@
 #include <j/core/JContainer.h>
 #include <j/core/JLabel.h>
 #include <j/core/JTabWidget.h>
+#include <j/core/MenuSystem.h>
 
 #include <functional>
 #include <memory>
@@ -22,7 +23,10 @@
 inline namespace jf {
 
 // Moving the machine by hand, as OpenPnP's Machine Controls do. The tool is
-// chosen at the top (a nozzle, a camera, anything on the head with axes).
+// chosen at the top (a nozzle, a camera, anything on the head with axes);
+// beside it, for a nozzle, the tip menu: the tips that fit it to load (the
+// one on it unloaded first), Unload, Step Through (each changer step asked
+// before it runs), and Tip On It (say which tip is on it; nothing moves).
 //
 //  - Jog: an X / Y pad of arrows with Park (the head to its park place) in
 //    its middle; Z up and down with Park (to safe Z) between; the rotation
@@ -48,6 +52,7 @@ public:
         std::string tool;
         int         distance = kDistanceFirst;
         double      speed    = kSpeedFirst;
+        bool        stepThrough = true;   // tip changes asked about step by step
     };
 
     JPJogPanel(JSceneGraph& graph, JPCell& cell, Choices start);
@@ -55,6 +60,12 @@ public:
     Choices choices() const;
     // A choice changed (to keep it for next time).
     std::function<void()> onChoicesChanged;
+    // The tip menu: put `tipId` on the nozzle by its changer steps ("" to
+    // unload), asking before each step when `everyStep`; say which tip is on
+    // it, moving nothing; show `menu` at the panel's (x, y).
+    std::function<void(const std::string& nozzleId, const std::string& tipId, bool everyStep)> onChangeTip;
+    std::function<void(const std::string& nozzleId, const std::string& tipId)> onTipOnIt;
+    std::function<void(JMenu* menu, float x, float y)> openMenu;
 
     // The chosen tool's coordinates now, by name (X, Y, Z, C): where its
     // axes are plus its offset on the head.
@@ -86,6 +97,8 @@ private:
     // The pad buttons' size for a page `width` x `height`.
     float padSizeFor(float width, float height) const;
     std::unique_ptr<JWidget> specialPage();
+    // The tip menu for the chosen nozzle, made afresh each time it opens.
+    void showTipMenu();
     // A square pad button showing `glyph` that does `action`.
     std::unique_ptr<JWidget> pad(float size, const char* name,
                                  void (*glyph)(JVectorCanvas&, float, float, float, const JColor&),
@@ -105,6 +118,9 @@ private:
     size_t                  m_tool = 0;
     size_t                  m_lastNozzle = 0;
     JTabWidget*             m_tabs = nullptr;
+    JWidget*                m_tipButton = nullptr;
+    std::unique_ptr<JMenu>  m_tipMenu, m_tipOnIt;
+    bool                    m_stepThrough = true;
     std::vector<std::unique_ptr<JWidget>> m_pages;
     JPVerticalSlider*       m_distance = nullptr;
     JPVerticalSlider*       m_speed = nullptr;

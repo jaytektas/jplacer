@@ -40,6 +40,8 @@ public:
     static void rotateAnticlockwise(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
     static void rotateClockwise(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
     static void home(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
+    // A nozzle with its tip below it: the nozzle tips (load, unload).
+    static void nozzleTip(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
 };
 
 } // inline namespace jf

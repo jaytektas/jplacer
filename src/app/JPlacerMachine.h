@@ -6,6 +6,7 @@
 #include "JPlacerBoard.h"
 #include "JPlacerCameraTasks.h"
 #include "JPlacerLayout.h"
+#include "JPlacerTipChanges.h"
 
 #include "machine/JPCell.h"
 #include "ui/JPCameraPanel.h"
@@ -119,6 +120,8 @@ private:
     // mark; then, the camera over the mark, move the nozzle's offset by the
     // difference (a step in Machine Setup, to undo).
     void nozzleOffsetWizard(const std::string& nozzleId, bool storeMark);
+    // The tip now on a nozzle, kept (a step in Machine Setup; nothing moves).
+    void setTipOn(const std::string& nozzleId, const std::string& tipId);
 
     struct Dock {
         std::unique_ptr<JDockWidget> dock;
@@ -139,6 +142,7 @@ private:
     std::vector<CameraDock>             m_cameras;   // the window's centre
     std::unique_ptr<JPlacerCameraTasks> m_cameraTasks;   // its Calibrate and Visual Test
     std::unique_ptr<JPlacerBoard>       m_board;         // the board on the machine, and its panel
+    std::unique_ptr<JPlacerTipChanges>  m_tipChanges;    // the nozzles' tips loaded and unloaded
     JPJogPanel*                         m_jog = nullptr; // its chosen tool, for the status bar
     JPMachineSetupPanel*                m_setup = nullptr;
     std::vector<std::function<void()>>  m_unwatch;   // this class's watches on the cell

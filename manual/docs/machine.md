@@ -230,6 +230,26 @@ nozzle (with the tip on it), the camera on the head, and anything else on the he
 The pad's buttons are as big as the dock lets them be, and follow it when it is resized. Homing is on
 the toolbar.
 
+#### Nozzle tips
+
+Beside the tool, for a nozzle, the **nozzle tip** button opens its tip menu:
+
+- what is on the nozzle now;
+- **Load** each tip that fits it (one on another nozzle, or with no load steps, is shown but cannot be
+  chosen). The tip on the nozzle is unloaded first, by its own unload steps, then the new one loaded by
+  its load steps;
+- **Unload** the tip on it;
+- **Step Through**: each changer step is shown, with its place and speed, and runs only once you say
+  so; stop at any step. On by default, and kept for next time;
+- **Tip On It (moves nothing)**: say which tip is on the nozzle, or none, when it was changed by hand
+  or a change was stopped.
+
+The machine must be connected and homed. Each step's place is where the nozzle goes, in the axes' own
+coordinates: the first move of a list comes in from safe Z (up, across, then down), the others go
+straight, and the head ends at safe Z. Each move goes at its step's speed times the machine's speed (the
+Speed slider). Once a tip is off (or on), the nozzle is recorded as having it (a step to undo in Machine
+Setup); stopped or failed partway, nothing is assumed: look at the nozzle and say which tip is on it.
+
 **Special** tab: **Head Safe Z** (every Z on the head up to safe Z), **Discard** (the nozzle's part to the
 discard location: up, across, down, let go, up again), and **Pick** and **Place** where the nozzle is.
 
@@ -250,7 +270,7 @@ With the tip's Part Detection set, Pick checks a part is on (the vacuum read aft
 checks it is off (the valve opened for the probing time, closed for the dwell, then read); a check that
 fails is shown in the strip across the window, with the reading.
 
-<!-- src: src/ui/JPJogPanel.cpp; src/ui/JPVerticalSlider.cpp; src/app/JPlacerMenuBuilder.cpp (Jog); src/app/JPlacerSettings.h (kJogTool); src/machine/JPCell.cpp (jog, doMove, park, safeZ, discard, doPick, doPlace, sensed) -->
+<!-- src: src/ui/JPJogPanel.cpp (showTipMenu); src/ui/JPVerticalSlider.cpp; src/app/JPlacerTipChanges.cpp; src/tasks/JPTipChanger.cpp; src/app/JPlacerMenuBuilder.cpp (Jog); src/app/JPlacerSettings.h (kJogTool); src/machine/JPCell.cpp (jog, doMove, park, safeZ, discard, doPick, doPlace, sensed) -->
 
 ### Actuators
 
