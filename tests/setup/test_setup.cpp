@@ -187,7 +187,7 @@ int main() {
     assert(!nozzle.model.get("fits:" + tipId).toBool());
     // Laid out as OpenPnP lays out a nozzle: its tips on a tab of their own,
     // the axes and offsets as columns under X / Y / Z / Rotation.
-    assert(nozzle.tabs.size() == 2 && nozzle.tabs[0].title == "Configuration" && nozzle.tabs[1].title == "Nozzle Tips");
+    assert(nozzle.tabs.size() == 3 && nozzle.tabs[0].title == "Configuration" && nozzle.tabs[1].title == "Nozzle Tips" && nozzle.tabs[2].title == "Vacuum");
     {
         const JPSetupProperties::Group& cs = nozzle.tabs[0].groups[1];
         assert(cs.title == "Coordinate System" && cs.rows[1].kind == JPSetupProperties::Row::Kind::Header);
