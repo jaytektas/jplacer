@@ -183,7 +183,7 @@ notes.
   (on by default); Manual Change says which tip was put on by hand, moving nothing. Each step's move goes at its speed
   times the machine's.
 - A move can be stopped while it runs: Stop (Escape, or the Jog panel) holds it and keeps the position;
-  E-STOP (Shift+Escape, the Jog panel, or the red toolbar button) resets the controllers at once, and the
+  E-STOP (the Jog panel, the red toolbar button, or the Machine menu; no key) resets the controllers at once, and the
   machine must be homed again.
 - The Jog pad's park buttons show a parking sign that grows with the pad.
 - Buttons and other controls are no longer clipped by a pixel along an edge.

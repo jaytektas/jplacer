@@ -90,11 +90,11 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
     park->onTriggered.connect([&app] { app.machine().park(); });
     app.machine().setMenuItems(connect, disconnect, home, park);
     // Stopping: the move held and dropped (the position kept), or every
-    // controller reset at once (home again after).
+    // controller reset at once (home again after), which has no key: a
+    // slip of the finger must not reset the controllers.
     withKey(machine, graph, "Stop", JMenuShortcut{ K::Escape, false, false, false },
             [&app] { app.machine().jogAction("stop"); });
-    withKey(machine, graph, "Emergency Stop", JMenuShortcut{ K::Escape, false, false, true },
-            [&app] { app.machine().jogAction("emergencyStop"); });
+    machine->add(graph, "Emergency Stop")->onTriggered.connect([&app] { app.machine().jogAction("emergencyStop"); });
     machine->addSeparator(graph);
     // Jogging from the keyboard, with OpenPnP's keys (the Jog panel's buttons).
     menuStore().push_back(std::make_unique<JMenu>("Jog"));

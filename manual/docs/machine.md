@@ -237,7 +237,7 @@ A move can be stopped while it is under way, from the top of the Jog panel or th
 - **Stop** (Escape): each controller is told to hold (slow to a stop on its own ramp, so no steps are
   lost), and once its axes have stopped, what was still queued is thrown away. The position is kept,
   and the machine stays homed. The move, or the task it was part of, ends as stopped.
-- **E-STOP** (Shift+Escape; also the red button on the toolbar): every controller is reset at once,
+- **E-STOP** (also the red button on the toolbar, and Machine ▸ Emergency Stop; it has no key, so a slip of the finger cannot reset the controllers): every controller is reset at once,
   mid-move. A motor stopped dead can lose its place, so the machine is no longer homed: home it before
   moving it again. Grbl and grblHAL also raise an alarm on a reset during a move.
 
