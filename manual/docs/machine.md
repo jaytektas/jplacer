@@ -38,9 +38,11 @@ What is brought across:
   connection comes back as it was, not on its own defaults.
 - **Non-squareness**: a machine squared in OpenPnP (its X axis a linear transform adding a share of Y)
   keeps that correction, as jplacer's [squareness](board.md#squaring-the-machine).
-- **Nozzle tips**: each one's name, and the diameter OpenPnP's nozzle tip calibration finds it by, as
-  the diameter the camera looking up sees. A tip a nozzle's list still names after it was deleted in
-  OpenPnP is left out.
+- **Nozzle tips**: each one's name, the diameter OpenPnP's nozzle tip calibration finds it by, as the
+  diameter the camera looking up sees, and its tool changer: its places (start, middle, second middle,
+  end, those set) and speeds, and the actuators switched between them, become the tip's
+  [load steps](machine-setup.md#a-nozzle-tips-changer), unloading being loading backwards as in OpenPnP.
+  A tip a nozzle's list still names after it was deleted in OpenPnP is left out.
 - **The head's places**: its homing fiducial and whether it homes visually, its park location, the
   calibration rig's two fiducials (their places, heights and diameters) and test object, and its pump
   (which actuator, when it runs, how long it takes to come up).
@@ -50,7 +52,7 @@ the OpenPnP set-up jplacer has no equivalent for yet (some axis types, a control
 or is reached over the network), or a command that uses something jplacer cannot fill in yet. Those
 parts are left out or kept exactly as OpenPnP wrote them.
 
-Feeders, the nozzle tip changer, parts and packages are not imported, and neither is OpenPnP's camera calibration:
+Feeders, parts and packages are not imported, and neither is OpenPnP's camera calibration:
 jplacer measures its cameras itself, and the import notes each camera that had one.
 
 <!-- src: src/openpnp/JPOpenPnpMachineImporter.cpp (what is read, translate, the notes, ReferenceLinearTransformAxis); src/app/JPlacerMachine.cpp (importOpenPnp, importFrom, kOpenPnpDir, kImportedCellFile); JFramework include/j/platforms/FileDialogWindow.h (Show hidden, Ctrl+H) -->

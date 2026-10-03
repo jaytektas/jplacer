@@ -102,6 +102,9 @@ notes.
   in each version.
 - Nozzle tips: Machine Setup lists them, each with its diameter seen from below and the nozzles it
   fits, and each nozzle says which tip is on it. Importing an OpenPnP machine brings its nozzle tips.
+- A nozzle tip's changer is taught as steps (moves, safe Z, actuators, waits, a message to you), edited
+  in Machine Setup under the tip; unloading is loading run backwards, or steps of its own. Importing an
+  OpenPnP machine brings each tip's tool changer as steps.
 
 ## 0.1.0
 

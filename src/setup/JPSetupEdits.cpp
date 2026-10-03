@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
 #include <random>
 
 inline namespace jf {
@@ -49,6 +50,29 @@ bool moveIn(std::vector<T>& items, const std::string& id, int by, Same same) {
     return false;
 }
 
+// A tip's list of steps a step path names, when it can be changed (not
+// unloading that is loading backwards); null otherwise.
+template <class Cell>
+auto stepList(Cell& cell, const JPSetupTree::Path& p) -> decltype(&cell.nozzleTips.front().loadSteps) {
+    for (auto& t : cell.nozzleTips) {
+        if (t.id != p.owner) continue;
+        if (p.list == "load") return &t.loadSteps;
+        if (p.list == "unload" && !t.unloadReversesLoad) return &t.unloadSteps;
+    }
+    return nullptr;
+}
+
+// A step's index, or -1.
+long stepIndex(const JPSetupTree::Path& p, const std::vector<JPChangerStep>& steps) {
+    char* end = nullptr;
+    const long i = std::strtol(p.id.c_str(), &end, 10);
+    return end && *end == '\0' && !p.id.empty() && i >= 0 && i < long(steps.size()) ? i : -1;
+}
+
+std::string stepPath(const JPSetupTree::Path& p, long index) {
+    return "step:" + p.owner + ":" + p.list + ":" + std::to_string(index);
+}
+
 // "a, b and c"
 std::string listed(const std::vector<std::string>& names) {
     std::string out;
@@ -62,6 +86,10 @@ std::string listed(const std::vector<std::string>& names) {
 std::string JPSetupEdits::addable(const JPCellConfig& cell, const std::string& path) {
     const JPSetupTree::Path g = JPSetupTree::parse(JPSetupTree::groupOf(cell, path));
     if (g.kind != "group") return {};
+    if (g.id == "load" || g.id == "unload") {
+        JPSetupTree::Path list{ "step", "", g.owner, g.id };
+        return stepList(cell, list) ? "Step" : "";
+    }
     if (g.id == "drivers")   return "Controller";
     if (g.id == "axes")      return "Axis";
     if (g.id == "heads")     return "Head";
@@ -75,6 +103,16 @@ std::string JPSetupEdits::addable(const JPCellConfig& cell, const std::string& p
 std::string JPSetupEdits::add(JPCellConfig& cell, const std::string& path) {
     const JPSetupTree::Path g = JPSetupTree::parse(JPSetupTree::groupOf(cell, path));
     if (g.kind != "group") return {};
+    if (g.id == "load" || g.id == "unload") {
+        const JPSetupTree::Path list{ "step", "", g.owner, g.id };
+        std::vector<JPChangerStep>* steps = stepList(cell, list);
+        if (!steps) return {};
+        const JPSetupTree::Path p = JPSetupTree::parse(path);
+        const long after = p.kind == "step" ? stepIndex(p, *steps) : -1;
+        const long at = after >= 0 ? after + 1 : long(steps->size());
+        steps->insert(steps->begin() + at, JPChangerStep{});
+        return stepPath(list, at);
+    }
     if (g.id == "drivers") {
         JPDriverConfig d;
         d.id = newId(cell, "DRV");
@@ -103,7 +141,7 @@ std::string JPSetupEdits::add(JPCellConfig& cell, const std::string& path) {
         JPNozzleConfig n;
         n.id = newId(cell, "NOZ");
         n.name = "New nozzle";
-        n.mount.headId = g.headId;
+        n.mount.headId = g.owner;
         cell.nozzles.push_back(n);
         return "nozzle:" + n.id;
     }
@@ -118,8 +156,8 @@ std::string JPSetupEdits::add(JPCellConfig& cell, const std::string& path) {
         JPCameraConfig c;
         c.id = newId(cell, "CAM");
         c.name = "New camera";
-        c.looksUp = g.headId.empty();   // a camera fixed to the machine looks up at the nozzles
-        c.mount.headId = g.headId;
+        c.looksUp = g.owner.empty();   // a camera fixed to the machine looks up at the nozzles
+        c.mount.headId = g.owner;
         c.device = JJson::object();
         c.device["backend"] = "v4l2";
         cell.cameras.push_back(c);
@@ -129,7 +167,7 @@ std::string JPSetupEdits::add(JPCellConfig& cell, const std::string& path) {
         JPActuatorConfig a;
         a.id = newId(cell, "ACT");
         a.name = "New actuator";
-        a.mount.headId = g.headId;
+        a.mount.headId = g.owner;
         if (!cell.drivers.empty()) a.driverId = cell.drivers.front().id;
         cell.actuators.push_back(a);
         return "actuator:" + a.id;
@@ -169,6 +207,15 @@ bool JPSetupEdits::remove(JPCellConfig& cell, const std::string& path, std::stri
             if (n.vacuumActuatorId == p.id) users.push_back("nozzle " + n.name + " (its vacuum)");
         for (const JPHeadConfig& h : cell.heads)
             if (h.pumpActuatorId == p.id) users.push_back("head " + h.name + " (its pump)");
+    } else if (p.kind == "step") {
+        std::vector<JPChangerStep>* steps = stepList(cell, p);
+        const long i = steps ? stepIndex(p, *steps) : -1;
+        if (i < 0) {
+            why = steps ? "it is not in this cell" : "unloading is loading backwards: change loading, or give it steps of its own";
+            return false;
+        }
+        steps->erase(steps->begin() + i);
+        return true;
     } else if (p.kind == "nozzletip") {
         for (const JPNozzleConfig& n : cell.nozzles)
             if (n.tipId == p.id) users.push_back("nozzle " + n.name + " (it is on it)");
@@ -196,18 +243,26 @@ bool JPSetupEdits::remove(JPCellConfig& cell, const std::string& path, std::stri
     return true;
 }
 
-bool JPSetupEdits::move(JPCellConfig& cell, const std::string& path, int by) {
+std::string JPSetupEdits::move(JPCellConfig& cell, const std::string& path, int by) {
     const JPSetupTree::Path p = JPSetupTree::parse(path);
+    if (p.kind == "step") {
+        std::vector<JPChangerStep>* steps = stepList(cell, p);
+        const long i = steps ? stepIndex(p, *steps) : -1, j = i + by;
+        if (i < 0 || j < 0 || j >= long(steps->size())) return {};
+        std::swap((*steps)[size_t(i)], (*steps)[size_t(j)]);
+        return stepPath(p, j);
+    }
     auto any = [](const auto&, const auto&) { return true; };
     auto sameHead = [](const auto& a, const auto& b) { return a.mount.headId == b.mount.headId; };
-    if (p.kind == "driver")   return moveIn(cell.drivers, p.id, by, any);
-    if (p.kind == "axis")     return moveIn(cell.axes, p.id, by, any);
-    if (p.kind == "head")     return moveIn(cell.heads, p.id, by, any);
-    if (p.kind == "nozzle")   return moveIn(cell.nozzles, p.id, by, sameHead);
-    if (p.kind == "nozzletip") return moveIn(cell.nozzleTips, p.id, by, any);
-    if (p.kind == "camera")   return moveIn(cell.cameras, p.id, by, sameHead);
-    if (p.kind == "actuator") return moveIn(cell.actuators, p.id, by, sameHead);
-    return false;
+    const bool moved = p.kind == "driver"    ? moveIn(cell.drivers, p.id, by, any)
+                     : p.kind == "axis"      ? moveIn(cell.axes, p.id, by, any)
+                     : p.kind == "head"      ? moveIn(cell.heads, p.id, by, any)
+                     : p.kind == "nozzle"    ? moveIn(cell.nozzles, p.id, by, sameHead)
+                     : p.kind == "nozzletip" ? moveIn(cell.nozzleTips, p.id, by, any)
+                     : p.kind == "camera"    ? moveIn(cell.cameras, p.id, by, sameHead)
+                     : p.kind == "actuator"  ? moveIn(cell.actuators, p.id, by, sameHead)
+                                             : false;
+    return moved ? path : std::string();
 }
 
 std::string JPSetupEdits::newId(const JPCellConfig& cell, const std::string& prefix) {

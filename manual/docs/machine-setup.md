@@ -13,7 +13,7 @@ The machine is shown as a tree of its parts:
 - **Controllers**: the boards the machine is wired to.
 - **Axes**: every axis, whichever controller drives it.
 - **Heads**: each head, and on it its **Nozzles**, **Cameras** and **Actuators**.
-- **Nozzle Tips**: the tips the nozzles take.
+- **Nozzle Tips**: the tips the nozzles take, each with its **Load** and **Unload** steps under it.
 - **Cameras**: the cameras fixed to the machine (looking up at the nozzles).
 - **Actuators**: the actuators on the machine rather than a head.
 
@@ -51,7 +51,7 @@ made by name.
 | Axis | name, kind (driven by a **controller**, **mapped** to follow another axis through two points, or **virtual**), type, its controller and axis letter, home coordinate, soft limits, safe zone, top speed and backlash |
 | Head | name, its homing mark (where, its size, and whether Home finishes with the camera), its park place |
 | Nozzle | name, the head it is on, the axes that move it, its offset, and the nozzle tip on it (one of those that fit it) |
-| Nozzle tip | name, the diameter of its end as the camera looking up sees it, and the nozzles it fits (a box for each) |
+| Nozzle tip | name, the diameter of its end as the camera looking up sees it, how it is unloaded (see below), and the nozzles it fits (a box for each) |
 | Camera | name, looking down or up, the head it is on (or fixed to the machine, and where), the device's name, the picture's format and size, its light, and a rough scale to start calibrating from |
 | Actuator | name, the head it is on (or the machine), its controller, index and commands |
 
@@ -63,6 +63,38 @@ Putting a part on a head gives it the head's X and Y axes, as its other parts ha
 clears its axes.
 
 <!-- src: src/setup/JPSetupProperties.cpp; src/ui/JPPropertyForm.cpp -->
+
+## A nozzle tip's changer
+
+No two machines change tips the same way: from trays at the side, from the back, through a door that
+opens, with a lock to release, or by hand. So a tip's changer is not described, it is taught: a list of
+steps under the tip's **Load**, run in order, built from
+
+- **move**: the nozzle doing the change goes to X, Y, Z and a rotation, at a speed (a share of top
+  speed). One left empty stays as it is (a move giving only Z goes straight up or down).
+- **safe Z**: the nozzle up to safe Z.
+- **actuator**: switch one on or off (a door, a lock, a valve).
+- **wait**: a number of milliseconds.
+- **ask**: a message for you, to carry on or cancel (a tip put on by hand, a door to open).
+
+The first step is a move giving X, Y and Z: the nozzle comes to it from safe Z (up, across, then down to
+it), and loading ends at safe Z. A tip with no steps is put on by hand.
+
+A move's place is where **the nozzle** goes, not the camera: the nozzle's offset on the head is taken
+care of. It is in the axes' own coordinates, before the machine's
+[squareness](board.md#squaring-the-machine) correction, so measuring the squareness again never moves
+it: up to a few tenths of a millimetre at the far end of the machine, enough to miss a slot.
+
+Choose **Load** (or a step) and **Add Step** to add one after the step chosen; **Up** and **Down**
+reorder them.
+
+**Unloading** is loading run backwards unless the tip is set to **steps of its own**: each move goes back
+to where the move before it went, at the speed of the move it undoes, starting from where loading ended;
+an actuator is switched the other way; a move that came down from safe Z is undone by going up, then
+across. The steps it works out are shown under **Unload (loading backwards)**, to check; to change them,
+change loading, or choose steps of its own, which start as those.
+
+<!-- src: src/machine/JPChangerStep.h; src/machine/JPNozzleTipConfig.cpp (reversed, problems); src/setup/JPSetupTree.cpp (build, stepLabel); src/setup/JPSetupEdits.cpp (add, remove, move); src/setup/JPSetupProperties.cpp (stepForm, nozzleTipForm) -->
 
 ## Applying
 

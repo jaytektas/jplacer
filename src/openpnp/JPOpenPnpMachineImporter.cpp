@@ -362,7 +362,12 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
     };
 
     // Nozzle tips before the nozzles, which name them. A tip's diameter is
-    // the one OpenPnP's nozzle tip calibration finds it by.
+    // the one OpenPnP's nozzle tip calibration finds it by. OpenPnP's tool
+    // changer is four places, each optional, with a speed into each after
+    // the first and an actuator switched on after each of the first three;
+    // they become load steps, unloading being loading backwards, as in
+    // OpenPnP. Its places are the nozzle's, in the axes' own coordinates,
+    // as jplacer's steps are.
     std::set<std::string> tipIds;
     if (const JPXmlElement* tips = machine->child("nozzle-tips")) {
         for (const JPXmlElement& x : tips->children) {
@@ -370,6 +375,32 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             t.id   = x.attr("id");
             t.name = x.attr("name");
             if (const JPXmlElement* cal = x.child("calibration")) t.diameter = lengthChild(*cal, "calibration-tip-diameter");
+            const struct { const char* place; const char* speed; const char* actuator; } changer[] = {
+                { "changer-start-location", nullptr, "changer-actuator-post-step-one" },
+                { "changer-mid-location", "changer-start-to-mid-speed", "changer-actuator-post-step-two" },
+                { "changer-mid-location-2", "changer-mid-to-mid-2-speed", "changer-actuator-post-step-three" },
+                { "changer-end-location", "changer-mid-2-to-end-speed", nullptr },
+            };
+            for (const auto& step : changer) {
+                const std::optional<JPLocation> at = location(x, step.place);
+                if (at && (at->x != 0 || at->y != 0 || at->z != 0 || at->rotation != 0)) {   // all 0: not set
+                    JPChangerStep m;
+                    m.x = at->x;
+                    m.y = at->y;
+                    m.z = at->z;
+                    m.rotation = at->rotation;
+                    if (step.speed)
+                        if (const JPXmlElement* sp = x.child(step.speed)) m.speed = number(sp->text);
+                    t.loadSteps.push_back(m);
+                }
+                if (step.actuator)
+                    if (const JPXmlElement* a = x.child(step.actuator); a && !a->text.empty()) {
+                        JPChangerStep s;
+                        s.kind = JPChangerStep::Kind::Actuator;
+                        s.actuatorId = a->text;   // a name until the actuators are read
+                        t.loadSteps.push_back(s);
+                    }
+            }
             tipIds.insert(t.id);
             c.nozzleTips.push_back(std::move(t));
         }
@@ -426,6 +457,9 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                         for (const JPXmlElement& t : fit->children)
                             if (tipIds.count(t.text)) n.tipIds.push_back(t.text);
                     if (n.fits(x.attr("current-nozzle-tip-id"))) n.tipId = x.attr("current-nozzle-tip-id");
+                    if (x.attr("changer-enabled") != "true" && !n.tipIds.empty())
+                        notes.push_back("nozzle " + n.name + ": OpenPnP changes its tips by hand; in jplacer a tip "
+                                        "is changed by its own load and unload steps, by hand when it has none");
                     c.nozzles.push_back(std::move(n));
                 }
             }
@@ -442,6 +476,17 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
         for (JPCameraConfig& m : c.cameras)     onInput(m.mount);
         for (JPActuatorConfig& a : c.actuators) onInput(a.mount);
     }
+    for (JPNozzleTipConfig& t : c.nozzleTips)
+        for (JPChangerStep& s : t.loadSteps) {
+            if (s.kind != JPChangerStep::Kind::Actuator) continue;
+            const auto a = actuatorIdByName.find(s.actuatorId);
+            if (a != actuatorIdByName.end()) {
+                s.actuatorId = a->second;
+            } else {
+                notes.push_back("nozzle tip " + t.name + ": its changer switches " + s.actuatorId + ", not an actuator here");
+                s.actuatorId.clear();
+            }
+        }
     for (JPHeadConfig& h : c.heads)
         if (const auto p = pumpNames.find(h.id); p != pumpNames.end())
             if (const auto a = actuatorIdByName.find(p->second); a != actuatorIdByName.end()) h.pumpActuatorId = a->second;

@@ -66,15 +66,9 @@ JPMachineSetupPanel::JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, 
         select(group);
     });
     m_up = tools->add(JPUiParts::button(graph, "Up"));
-    m_up->onClicked.connect([this] {
-        if (JPSetupEdits::move(m_draft, m_selected, -1)) rebuildTree();
-        update();
-    });
+    m_up->onClicked.connect([this] { moveSelected(-1); });
     m_down = tools->add(JPUiParts::button(graph, "Down"));
-    m_down->onClicked.connect([this] {
-        if (JPSetupEdits::move(m_draft, m_selected, +1)) rebuildTree();
-        update();
-    });
+    m_down->onClicked.connect([this] { moveSelected(+1); });
     JLineEdit* search = tools->add(std::make_unique<JLineEdit>(graph, "Search"));
     search->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     add(std::move(tools));
@@ -114,6 +108,16 @@ JPMachineSetupPanel::JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, 
 
     rebuildTree();
     select(selected.empty() ? "machine" : selected);
+}
+
+void JPMachineSetupPanel::moveSelected(int by) {
+    const std::string moved = JPSetupEdits::move(m_draft, m_selected, by);
+    if (!moved.empty()) {
+        rebuildTree();
+        m_selected.clear();
+        select(moved);   // a step's path is its place
+    }
+    update();
 }
 
 void JPMachineSetupPanel::collectExpanded(const JTreeViewNode& n) {
@@ -171,7 +175,8 @@ void JPMachineSetupPanel::update() {
     m_add->setLabel(what.empty() ? "Add" : "Add " + what);
     m_add->setEnabled(!what.empty());
     const std::string kind = JPSetupTree::parse(m_selected).kind;
-    const bool part = kind != "machine" && kind != "group";
+    // A step of unloading that is loading backwards is shown, not changed.
+    const bool part = kind == "step" ? !what.empty() : kind != "machine" && kind != "group";
     m_remove->setEnabled(part);
     m_up->setEnabled(part);
     m_down->setEnabled(part);

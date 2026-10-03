@@ -41,6 +41,8 @@ public:
 
 private:
     void rebuildTree();
+    // Up (-1) or Down (+1), keeping the part selected.
+    void moveSelected(int by);
     void select(const std::string& path);
     void show(const std::string& path);
     void changed(const std::string& property);

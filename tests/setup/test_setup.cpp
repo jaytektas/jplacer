@@ -101,8 +101,8 @@ int main() {
     c.nozzles[0].tipIds.push_back("T2");
     assert(JPSetupEdits::remove(c, "nozzletip:T2", why) && c.nozzles[0].tipIds.size() == 1);
     assert(c.problems().empty());
-    assert(JPSetupEdits::move(c, "axis:Y", -1) && c.axes[0].id == "Y");
-    assert(!JPSetupEdits::move(c, "axis:Y", -1));
+    assert(JPSetupEdits::move(c, "axis:Y", -1) == "axis:Y" && c.axes[0].id == "Y");
+    assert(JPSetupEdits::move(c, "axis:Y", -1).empty());
     std::printf("  [OK] add, remove, move\n");
 
     // Reading every setting of every part changes nothing.
@@ -156,6 +156,38 @@ int main() {
     assert(c.nozzles[0].tipIds.size() == 1 && c.nozzles[0].tipId.empty());
     assert(c.problems().empty());
     std::printf("  [OK] settings\n");
+
+    // A tip's changer: steps added after the one selected, moved, set; unloading backwards shown, not changed.
+    {
+        const JPSetupTree::Node tree = JPSetupTree::build(c);
+        assert(find(tree, "group:load:T") && find(tree, "group:unload:T")->label == "Unload (loading backwards)");
+        assert(JPSetupEdits::addable(c, "group:load:T") == "Step" && JPSetupEdits::addable(c, "group:unload:T").empty());
+        assert(JPSetupEdits::add(c, "group:load:T") == "step:T:load:0");
+        assert(c.problems().size() == 1);   // a first move must say where
+        JPSetupProperties::Form s = JPSetupProperties::forNode(c, "step:T:load:0", {});
+        assert(s.model.set("x", JVariant(std::string("-16"))) && s.model.set("y", JVariant(std::string("130"))));
+        assert(s.model.set("z", JVariant(std::string("0"))) && c.problems().empty());
+        s.model.set("z", JVariant(std::string("nonsense")));
+        assert(c.nozzleTips[0].loadSteps[0].z == 0.0);   // not a number: not taken
+        assert(JPSetupEdits::add(c, "step:T:load:0") == "step:T:load:1");
+        s = JPSetupProperties::forNode(c, "step:T:load:1", {});
+        s.model.set("z", JVariant(std::string("-27")));
+        s.model.set("speed", JVariant(50));
+        assert(JPSetupTree::stepLabel(c, c.nozzleTips[0].loadSteps[1], 1) == "2. Move to Z -27 at 50%");
+        assert(JPSetupEdits::add(c, "step:T:load:0") == "step:T:load:1");   // between the two
+        s = JPSetupProperties::forNode(c, "step:T:load:1", {});
+        s.model.set("kind", JVariant(std::string("wait")));
+        assert(JPSetupEdits::move(c, "step:T:load:1", +1) == "step:T:load:2");
+        assert(c.nozzleTips[0].loadSteps[2].kind == JPChangerStep::Kind::Wait);
+        std::string why;
+        assert(!JPSetupEdits::remove(c, "step:T:unload:0", why));
+        assert(JPSetupProperties::forNode(c, "step:T:unload:0", {}).model.get("what").toString() == "Move to X -16, Y 130, Z -27 at 50%");
+        JPSetupProperties::Form tipForm = JPSetupProperties::forNode(c, "nozzletip:T", {});
+        tipForm.model.set("unloading", JVariant(std::string("steps of its own")));
+        assert(c.nozzleTips[0].unloadSteps.size() == 3 && JPSetupEdits::addable(c, "group:unload:T") == "Step");
+        assert(JPSetupEdits::remove(c, "step:T:unload:2", why) && c.nozzleTips[0].unloadSteps.size() == 2);
+    }
+    std::printf("  [OK] a tip's changer steps\n");
     std::printf("All setup tests passed.\n");
     return 0;
 }

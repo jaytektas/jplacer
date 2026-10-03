@@ -5,6 +5,9 @@
 
 #include "JPSetupTree.h"
 
+#include <algorithm>
+#include <cmath>
+#include <cstdlib>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -336,6 +339,18 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
     add.category("Nozzle Tip");
     add.text("name", "Name", [t]() -> std::string& { return t().name; });
     add.number("diameter", "Diameter seen from below (mm)", [t]() -> double& { return t().diameter; });
+    // Its steps are in the tree under it.
+    add.category("Changer");
+    add.choice("unloading", "Unloading", { "loading backwards", "steps of its own" },
+               [t] { return std::string(t().unloadReversesLoad ? "loading backwards" : "steps of its own"); },
+               [t](const std::string& v) {
+                   JPNozzleTipConfig& tip = t();
+                   const bool backwards = v == "loading backwards";
+                   // Its own start as loading backwards, to change from there.
+                   if (!backwards && tip.unloadReversesLoad && tip.unloadSteps.empty())
+                       tip.unloadSteps = tip.unloadingSteps();
+                   tip.unloadReversesLoad = backwards;
+               });
     add.category("Fits");
     for (const JPNozzleConfig& n : cell.nozzles) {
         auto nozzle = finder(cell.nozzles, n.id);
@@ -346,6 +361,83 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
                      if (on) z.tipIds.push_back(id);
                      else if (z.tipId == id) z.tipId.clear();   // a tip that does not fit is not on it
                  });
+    }
+}
+
+// An optional coordinate as text: empty when left out (the nozzle stays as it
+// is on that axis). What is not a number is not taken.
+void coordinate(Adder& add, const std::string& name, const std::string& label,
+                std::function<std::optional<double>&()> ref) {
+    add.text(name, label, [ref] { return ref() ? JPSetupTree::shortNumber(*ref()) : std::string(); },
+             [ref](const std::string& v) {
+                 if (v.find_first_not_of(" \t") == std::string::npos) {
+                     ref().reset();
+                     return;
+                 }
+                 char* end = nullptr;
+                 const double d = std::strtod(v.c_str(), &end);
+                 if (end && end != v.c_str() && v.find_first_not_of(" \t", size_t(end - v.c_str())) == std::string::npos)
+                     ref() = d;
+             });
+}
+
+void stepForm(JPCellConfig& cell, const JPSetupTree::Path& p, JPSetupProperties::Form& f) {
+    using S = JPChangerStep;
+    auto tip = finder(cell.nozzleTips, p.owner);
+    const size_t index = size_t(std::strtoul(p.id.c_str(), nullptr, 10));
+    const bool load = p.list == "load";
+    f.title = "Nozzle tip " + tip().name + ": " + (load ? "load" : "unload") + " step " + std::to_string(index + 1);
+    Adder add(f.model);
+    add.category("Step");
+    if (!load && tip().unloadReversesLoad) {
+        // Worked out from loading; changed by changing loading.
+        const std::vector<S> steps = tip().unloadingSteps();
+        if (index >= steps.size()) return;
+        const std::string what = JPSetupTree::stepLabel(cell, steps[index], index);
+        add.text("what", "Loading backwards", [what] { return what.substr(what.find(' ') + 1); }, nullptr);
+        return;
+    }
+    auto step = [tip, load, index]() -> S& {
+        std::vector<S>& steps = load ? tip().loadSteps : tip().unloadSteps;
+        return steps[index];
+    };
+    if (index >= (load ? tip().loadSteps : tip().unloadSteps).size()) return;
+    const Strings kinds{ S::kindName(S::Kind::Move), S::kindName(S::Kind::SafeZ), S::kindName(S::Kind::Actuator),
+                         S::kindName(S::Kind::Wait), S::kindName(S::Kind::Ask) };
+    add.choice("kind", "Kind", kinds, [step] { return std::string(S::kindName(step().kind)); },
+               [step](const std::string& v) {
+                   for (S::Kind k : { S::Kind::Move, S::Kind::SafeZ, S::Kind::Actuator, S::Kind::Wait, S::Kind::Ask })
+                       if (v == S::kindName(k)) step().kind = k;
+               });
+    f.reshaping.push_back("kind");
+    auto speed = [&add, step] {
+        add.integer("speed", "Speed (% of top speed)", [step] { return int(std::lround(step().speed * 100)); },
+                    [step](int v) { step().speed = std::clamp(v, 1, 100) / 100.0; }, 1, 100);
+    };
+    switch (step().kind) {
+        case S::Kind::Move:
+            // Where the nozzle doing the change goes, as the axes have it.
+            add.category("Where the Nozzle Goes (the axes' own coordinates; empty: stays)");
+            coordinate(add, "x", "X (mm)", [step]() -> std::optional<double>& { return step().x; });
+            coordinate(add, "y", "Y (mm)", [step]() -> std::optional<double>& { return step().y; });
+            coordinate(add, "z", "Z (mm)", [step]() -> std::optional<double>& { return step().z; });
+            coordinate(add, "rotation", "Rotation (degrees)", [step]() -> std::optional<double>& { return step().rotation; });
+            speed();
+            break;
+        case S::Kind::SafeZ:
+            speed();
+            break;
+        case S::Kind::Actuator:
+            add.byName("actuator", "Actuator", named(cell.actuators, "(none)"), [step]() -> std::string& { return step().actuatorId; });
+            add.choice("on", "Switch it", { "on", "off" }, [step] { return std::string(step().on ? "on" : "off"); },
+                       [step](const std::string& v) { step().on = v == "on"; });
+            break;
+        case S::Kind::Wait:
+            add.integer("waitMs", "Wait (ms)", [step]() -> int& { return step().waitMs; }, 0, 600000);
+            break;
+        case S::Kind::Ask:
+            add.text("message", "Message", [step]() -> std::string& { return step().message; });
+            break;
     }
 }
 
@@ -414,6 +506,7 @@ JPSetupProperties::Form JPSetupProperties::forNode(JPCellConfig& cell, const std
     else if (p.kind == "head" && has(cell.heads, p.id)) headForm(cell, p.id, f);
     else if (p.kind == "nozzle" && has(cell.nozzles, p.id)) nozzleForm(cell, p.id, f);
     else if (p.kind == "nozzletip" && has(cell.nozzleTips, p.id)) nozzleTipForm(cell, p.id, f);
+    else if (p.kind == "step" && has(cell.nozzleTips, p.owner)) stepForm(cell, p, f);
     else if (p.kind == "camera" && has(cell.cameras, p.id)) cameraForm(cell, p.id, f);
     else if (p.kind == "actuator" && has(cell.actuators, p.id)) actuatorForm(cell, p.id, f);
     return f;

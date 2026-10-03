@@ -125,6 +125,13 @@ std::vector<std::string> JPCellConfig::problems() const {
         if (!n.tipId.empty() && !n.fits(n.tipId))
             out.push_back("nozzle " + n.name + " has a nozzle tip on it that does not fit it");
     }
+    for (const JPNozzleTipConfig& t : nozzleTips) {
+        for (const std::string& p : t.problems()) out.push_back(p);
+        for (const auto* steps : { &t.loadSteps, &t.unloadSteps })
+            for (const JPChangerStep& s : *steps)
+                if (s.kind == JPChangerStep::Kind::Actuator && !s.actuatorId.empty() && !actuatorIds.count(s.actuatorId))
+                    out.push_back("nozzle tip " + t.name + " switches an actuator that is not in this cell");
+    }
     for (const JPCameraConfig& c : cameras) checkMount("camera " + c.name, c.mount);
     if (!squareness.axisX.empty() || !squareness.axisY.empty())
         for (const std::string* id : { &squareness.axisX, &squareness.axisY }) {

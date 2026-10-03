@@ -3,6 +3,7 @@
 
 #include "JPSetupTree.h"
 
+#include <cstdio>
 #include <functional>
 
 inline namespace jf {
@@ -20,6 +21,27 @@ JPSetupTree::Node group(const std::string& label, const std::string& path, const
     JPSetupTree::Node g{ label, path, {} };
     for (const T& i : items)
         if (in(i)) g.children.push_back({ labelOf(i.name, i.id), itemKind + ":" + i.id, {} });
+    return g;
+}
+
+} // namespace
+
+std::string JPSetupTree::shortNumber(double v) {
+    char buf[32];
+    std::snprintf(buf, sizeof buf, "%.4f", v);
+    std::string s = buf;
+    while (s.back() == '0') s.pop_back();
+    if (s.back() == '.') s.pop_back();
+    return s == "-0" ? "0" : s;
+}
+
+namespace {
+
+JPSetupTree::Node steps(const JPCellConfig& cell, const std::string& label, const std::string& tipId,
+                        const std::string& list, const std::vector<JPChangerStep>& items) {
+    JPSetupTree::Node g{ label, "group:" + list + ":" + tipId, {} };
+    for (size_t i = 0; i < items.size(); ++i)
+        g.children.push_back({ JPSetupTree::stepLabel(cell, items[i], i), "step:" + tipId + ":" + list + ":" + std::to_string(i), {} });
     return g;
 }
 
@@ -53,7 +75,15 @@ JPSetupTree::Node JPSetupTree::build(const JPCellConfig& cell) {
     // A nozzle rides on a head; one that names none is shown so it can be put on one.
     Node loose = group<JPNozzleConfig>("Nozzles", "group:nozzles:", cell.nozzles, "nozzle", fixed);
     if (!loose.children.empty()) root.children.push_back(std::move(loose));
-    root.children.push_back(group<JPNozzleTipConfig>("Nozzle Tips", "group:nozzletips", cell.nozzleTips, "nozzletip", all));
+    Node tips{ "Nozzle Tips", "group:nozzletips", {} };
+    for (const JPNozzleTipConfig& t : cell.nozzleTips) {
+        Node tip{ labelOf(t.name, t.id), "nozzletip:" + t.id, {} };
+        tip.children.push_back(steps(cell, "Load", t.id, "load", t.loadSteps));
+        tip.children.push_back(t.unloadReversesLoad ? steps(cell, "Unload (loading backwards)", t.id, "unload", t.unloadingSteps())
+                                                    : steps(cell, "Unload", t.id, "unload", t.unloadSteps));
+        tips.children.push_back(std::move(tip));
+    }
+    root.children.push_back(std::move(tips));
     root.children.push_back(group<JPCameraConfig>("Cameras", "group:cameras:", cell.cameras, "camera", fixed));
     root.children.push_back(group<JPActuatorConfig>("Actuators", "group:actuators:", cell.actuators, "actuator", fixed));
     return root;
@@ -65,13 +95,22 @@ JPSetupTree::Path JPSetupTree::parse(const std::string& path) {
     p.kind = path.substr(0, a);
     if (a == std::string::npos) return p;
     const std::string rest = path.substr(a + 1);
+    if (p.kind == "step") {
+        // step:<tipId>:<list>:<index>
+        const size_t b = rest.find(':'), c = rest.find(':', b == std::string::npos ? b : b + 1);
+        if (c == std::string::npos) return p;
+        p.owner = rest.substr(0, b);
+        p.list  = rest.substr(b + 1, c - b - 1);
+        p.id    = rest.substr(c + 1);
+        return p;
+    }
     if (p.kind != "group") {
         p.id = rest;
         return p;
     }
     const size_t b = rest.find(':');
     p.id = rest.substr(0, b);
-    if (b != std::string::npos) p.headId = rest.substr(b + 1);
+    if (b != std::string::npos) p.owner = rest.substr(b + 1);
     return p;
 }
 
@@ -87,6 +126,7 @@ std::string JPSetupTree::groupOf(const JPCellConfig& cell, const std::string& pa
     if (p.kind == "axis")     return "group:axes";
     if (p.kind == "head")     return "group:heads";
     if (p.kind == "nozzletip") return "group:nozzletips";
+    if (p.kind == "step")     return "group:" + p.list + ":" + p.owner;
     if (p.kind == "nozzle")   return mounted(cell.nozzles, "nozzles");
     if (p.kind == "camera")   return mounted(cell.cameras, "cameras");
     if (p.kind == "actuator") return mounted(cell.actuators, "actuators");
@@ -97,6 +137,32 @@ std::vector<std::string> JPSetupTree::labelsTo(const Node& root, const std::stri
     std::vector<std::string> labels;
     if (!contains(root, path, labels)) labels.clear();
     return labels;
+}
+
+std::string JPSetupTree::stepLabel(const JPCellConfig& cell, const JPChangerStep& step, size_t index) {
+    using Kind = JPChangerStep::Kind;
+    std::string s = std::to_string(index + 1) + ". ";
+    const std::string speed = " at " + shortNumber(step.speed * 100) + "%";
+    switch (step.kind) {
+        case Kind::Move: {
+            std::string to;
+            const std::pair<const char*, const std::optional<double>*> parts[] = {
+                { "X", &step.x }, { "Y", &step.y }, { "Z", &step.z }, { "rotation", &step.rotation } };
+            for (const auto& [name, v] : parts)
+                if (*v) to += (to.empty() ? " " : ", ") + std::string(name) + " " + shortNumber(**v);
+            return s + (to.empty() ? "Move (nowhere)" : "Move to" + to) + speed;
+        }
+        case Kind::SafeZ: return s + "Up to safe Z" + speed;
+        case Kind::Actuator: {
+            std::string name = step.actuatorId;
+            for (const JPActuatorConfig& a : cell.actuators)
+                if (a.id == step.actuatorId) name = a.name.empty() ? a.id : a.name;
+            return s + "Switch " + (name.empty() ? "(no actuator)" : name) + (step.on ? " on" : " off");
+        }
+        case Kind::Wait: return s + "Wait " + std::to_string(step.waitMs) + " ms";
+        case Kind::Ask:  return s + "Ask: " + (step.message.empty() ? "(no message)" : step.message);
+    }
+    return s;
 }
 
 } // inline namespace jf

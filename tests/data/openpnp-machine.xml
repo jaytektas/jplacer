@@ -111,6 +111,14 @@
       </cameras>
       <nozzle-tips class="java.util.ArrayList">
          <nozzle-tip class="org.openpnp.machine.reference.ReferenceNozzleTip" id="TIP1" name="503R - 0805 / 0603">
+            <changer-start-location units="Millimeters" x="410.278" y="190.0" z="0.0" rotation="0.0"/>
+            <changer-start-to-mid-speed>0.5</changer-start-to-mid-speed>
+            <changer-mid-location units="Millimeters" x="410.278" y="190.0" z="-27.0" rotation="0.0"/>
+            <changer-mid-to-mid-2-speed>0.25</changer-mid-to-mid-2-speed>
+            <changer-mid-location-2 units="Millimeters" x="390.278" y="190.0" z="-27.0" rotation="0.0"/>
+            <changer-mid-2-to-end-speed>1.0</changer-mid-2-to-end-speed>
+            <changer-end-location units="Millimeters" x="0.0" y="0.0" z="0.0" rotation="0.0"/>
+            <changer-actuator-post-step-two>RIGHT_SOLENOID</changer-actuator-post-step-two>
             <calibration enabled="true">
                <calibration-tip-diameter value="0.75" units="Millimeters"/>
             </calibration>

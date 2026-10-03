@@ -72,6 +72,14 @@ int main() {
     assert(cell.nozzleTips.size() == 2 && cell.nozzleTips[0].name == "503R - 0805 / 0603");
     assert(cell.nozzleTips[0].diameter == 0.75 && std::abs(cell.nozzleTips[1].diameter - 3.5) < 1e-6);
     assert((n.tipIds == std::vector<std::string>{ "TIP1", "TIP2" }) && n.tipId == "TIP2");
+    // OpenPnP's changer places become load steps (an unset one left out), its actuator by id;
+    // unloading is loading backwards.
+    const std::vector<JPChangerStep>& load = cell.nozzleTips[0].loadSteps;
+    assert(load.size() == 4 && load[0].x == 410.278 && load[0].z == 0.0 && load[0].speed == 1);
+    assert(load[1].z == -27.0 && load[1].speed == 0.5);
+    assert(load[2].kind == JPChangerStep::Kind::Actuator && load[2].actuatorId == "ACT1" && load[2].on);
+    assert(load[3].x == 390.278 && load[3].speed == 0.25);
+    assert(cell.nozzleTips[0].unloadReversesLoad && cell.nozzleTips[1].loadSteps.empty());
 
     assert(cell.actuators.size() == 2);
     const JPActuatorConfig& sol = cell.actuators[0];
