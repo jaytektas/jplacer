@@ -3,6 +3,7 @@
 
 #include "JPlacerMenuBuilder.h"
 
+#include "JPKeyMap.h"
 #include "JPlacerApp.h"
 #include "JPlacerHelpPages.h"
 
@@ -37,15 +38,14 @@ JMenu* newMenu(JAppWindow& window, const std::string& title) {
     return m;
 }
 
-// An entry with a key: the menu shows the key, and the key does what the
-// entry does, unless the entry is disabled (a menu's shortcut is only its
-// label until it is registered with the menu manager).
-JMenuItem* withKey(JMenu* menu, JSceneGraph& graph, const std::string& label, JMenuShortcut key, std::function<void()> run) {
-    JMenuItem* item = menu->add(graph, label, key);
+// An entry a key can be given (Preferences > Keys): `id` names it there,
+// under `group`, starting with the key `byDefault` (none: Unknown). The menu
+// shows the key it has, which does nothing while the entry is disabled.
+JMenuItem* entry(JPKeyMap& keys, JMenu* menu, JSceneGraph& graph, const std::string& id, const std::string& group,
+                 const std::string& label, JMenuShortcut byDefault, std::function<void()> run) {
+    JMenuItem* item = menu->add(graph, label);
     item->onTriggered.connect(run);
-    JMenuManager::instance().registerShortcut(key, [item] {
-        if (item->isEnabled()) item->onTriggered.emit();
-    });
+    keys.add(id, group, label, byDefault, [item] { item->onTriggered.emit(); }, item);
     return item;
 }
 
@@ -58,63 +58,71 @@ void addPending(JMenu* menu, JSceneGraph& graph, std::initializer_list<const cha
 } // namespace
 
 void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerApp& app) {
+    JPKeyMap& keys = app.keys();
+    using K = JKeyEvent::JKey;
+    const JMenuShortcut none{};
+    auto ctrl = [](uint32_t k, bool shift = false) { return JMenuShortcut{ static_cast<K>(k), true, false, shift }; };
+
     JMenu* file = newMenu(window, "File");
     addPending(file, graph, { "New Job", "Open Job\xE2\x80\xA6", "Save Job", "Save Job As\xE2\x80\xA6" });
     file->addSeparator(graph);
-    file->add(graph, "Quit")->onTriggered.connect([&window] { window.requestClose(); });
+    entry(keys, file, graph, "file.quit", "File", "Quit", none, [&window] { window.requestClose(); });
 
     JMenu* edit = newMenu(window, "Edit");
-    using K = JKeyEvent::JKey;
     // Ctrl+Y redoes: Ctrl+Shift+Z is OpenPnP's Head Safe Z (Machine > Jog).
-    JMenuItem* undo = withKey(edit, graph, "Undo", JMenuShortcut{ K::Z, true, false, false }, [&app] { app.machine().undo(); });
-    JMenuItem* redo = withKey(edit, graph, "Redo", JMenuShortcut{ K::Y, true, false, false }, [&app] { app.machine().redo(); });
+    JMenuItem* undo = entry(keys, edit, graph, "edit.undo", "Edit", "Undo", ctrl('Z'), [&app] { app.machine().undo(); });
+    JMenuItem* redo = entry(keys, edit, graph, "edit.redo", "Edit", "Redo", ctrl('Y'), [&app] { app.machine().redo(); });
     app.machine().setEditItems(undo, redo);
     edit->addSeparator(graph);
-    edit->add(graph, "Preferences\xE2\x80\xA6")->onTriggered.connect([&app] { app.openPreferences(); });
+    entry(keys, edit, graph, "edit.preferences", "Edit", "Preferences\xE2\x80\xA6", none, [&app] { app.openPreferences(); });
 
     // A tick for each panel: untick to close it, tick to bring it back where it lives.
     app.machine().layout().setViewMenu(newMenu(window, "View"), graph);
 
     JMenu* machine = newMenu(window, "Machine");
-    machine->add(graph, "Import OpenPnP Machine\xE2\x80\xA6")->onTriggered.connect([&app] { app.machine().importOpenPnp(); });
-    machine->add(graph, "Open Cell\xE2\x80\xA6")->onTriggered.connect([&app] { app.machine().chooseCell(); });
+    entry(keys, machine, graph, "machine.import", "Machine", "Import OpenPnP Machine\xE2\x80\xA6", none,
+          [&app] { app.machine().importOpenPnp(); });
+    entry(keys, machine, graph, "machine.openCell", "Machine", "Open Cell\xE2\x80\xA6", none, [&app] { app.machine().chooseCell(); });
     machine->addSeparator(graph);
-    JMenuItem* connect    = machine->add(graph, "Connect");
-    JMenuItem* disconnect = machine->add(graph, "Disconnect");
-    connect->onTriggered.connect([&app] { app.machine().connect(); });
-    disconnect->onTriggered.connect([&app] { app.machine().disconnect(); });
+    JMenuItem* connect    = entry(keys, machine, graph, "machine.connect", "Machine", "Connect", none, [&app] { app.machine().connect(); });
+    JMenuItem* disconnect = entry(keys, machine, graph, "machine.disconnect", "Machine", "Disconnect", none,
+                                  [&app] { app.machine().disconnect(); });
     machine->addSeparator(graph);
-    JMenuItem* home = withKey(machine, graph, "Home All Axes", JMenuShortcut{ JKeyEvent::JKey::H, true, false, false },
-                              [&app] { app.machine().home(); });
-    JMenuItem* park = machine->add(graph, "Park Head");
-    park->onTriggered.connect([&app] { app.machine().park(); });
+    JMenuItem* home = entry(keys, machine, graph, "machine.home", "Machine", "Home All Axes", ctrl('H'), [&app] { app.machine().home(); });
+    JMenuItem* park = entry(keys, machine, graph, "machine.park", "Machine", "Park Head", none, [&app] { app.machine().park(); });
     app.machine().setMenuItems(connect, disconnect, home, park);
     // Stopping: the move held and dropped (the position kept), or every
-    // controller reset at once (home again after), which has no key: a
-    // slip of the finger must not reset the controllers.
-    withKey(machine, graph, "Stop", JMenuShortcut{ K::Escape, false, false, false },
-            [&app] { app.machine().jogAction("stop"); });
-    machine->add(graph, "Emergency Stop")->onTriggered.connect([&app] { app.machine().jogAction("emergencyStop"); });
+    // controller reset at once (home again after), which has no key unless
+    // one is given it: a slip of the finger must not reset the controllers.
+    entry(keys, machine, graph, "machine.stop", "Machine", "Stop", JMenuShortcut{ K::Escape, false, false, false },
+          [&app] { app.machine().jogAction("stop"); });
+    entry(keys, machine, graph, "machine.emergencyStop", "Machine", "Emergency Stop", none,
+          [&app] { app.machine().jogAction("emergencyStop"); });
     machine->addSeparator(graph);
     // Jogging from the keyboard, with OpenPnP's keys (the Jog panel's buttons).
     menuStore().push_back(std::make_unique<JMenu>("Jog"));
     JMenu* jog = menuStore().back().get();
     machine->add(graph, "Jog", {}, jog);
-    auto key = [](uint32_t k, bool shift = false) { return JMenuShortcut{ static_cast<K>(k), true, false, shift }; };
     struct J { const char* label; JMenuShortcut key; const char* action; };
     const J jogs[] = {
-        { "X+", key(uint32_t(K::Right)), "x+" }, { "X-", key(uint32_t(K::Left)), "x-" },
-        { "Y+", key(uint32_t(K::Up)), "y+" },    { "Y-", key(uint32_t(K::Down)), "y-" },
-        { "Z+", key('\''), "z+" },              { "Z-", key('/'), "z-" },
-        { "Turn Anticlockwise", key(','), "c+" }, { "Turn Clockwise", key('.'), "c-" },
-        { "Larger Distance", key('='), "distance+" }, { "Smaller Distance", key('-'), "distance-" },
-        { "Park Head", key('P', true), "parkXY" }, { "Up to Safe Z", key('L', true), "parkZ" },
-        { "Head Safe Z", key('Z', true), "safeZ" }, { "Discard", key('D', true), "discard" },
+        { "X+", ctrl(uint32_t(K::Right)), "x+" }, { "X-", ctrl(uint32_t(K::Left)), "x-" },
+        { "Y+", ctrl(uint32_t(K::Up)), "y+" },    { "Y-", ctrl(uint32_t(K::Down)), "y-" },
+        { "Z+", ctrl('\''), "z+" },              { "Z-", ctrl('/'), "z-" },
+        { "Turn Anticlockwise", ctrl(','), "c+" }, { "Turn Clockwise", ctrl('.'), "c-" },
+        { "Turn to 0", none, "parkC" },
+        { "Larger Distance", ctrl('='), "distance+" }, { "Smaller Distance", ctrl('-'), "distance-" },
+        { "Faster", none, "speed+" },              { "Slower", none, "speed-" },
+        { "Park Head", ctrl('P', true), "parkXY" }, { "Up to Safe Z", ctrl('L', true), "parkZ" },
+        { "Head Safe Z", ctrl('Z', true), "safeZ" }, { "Discard", ctrl('D', true), "discard" },
+        { "Pick", none, "pick" },                  { "Place", none, "place" },
+        { "Nozzle to the Camera", none, "positionNozzle" }, { "Camera to the Nozzle", none, "positionCamera" },
     };
     for (const J& j : jogs)
-        withKey(jog, graph, j.label, j.key, [&app, action = std::string(j.action)] { app.machine().jogAction(action); });
+        entry(keys, jog, graph, std::string("jog.") + j.action, "Jog", j.label, j.key,
+              [&app, action = std::string(j.action)] { app.machine().jogAction(action); });
     machine->addSeparator(graph);
-    machine->add(graph, "Machine Setup\xE2\x80\xA6")->onTriggered.connect([&app] { app.machine().showDock("Machine Setup"); });
+    entry(keys, machine, graph, "machine.setup", "Machine", "Machine Setup\xE2\x80\xA6", none,
+          [&app] { app.machine().showDock("Machine Setup"); });
 
     JMenu* job = newMenu(window, "Job");
     addPending(job, graph, { "Start", "Pause", "Stop" });
@@ -128,16 +136,16 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
         if (page(why)) window.showStatus(opened, kStatusMs);
         else           window.showStatus(why, kErrorMs);
     };
-    help->add(graph, "User Manual")->onTriggered.connect([open] {
+    entry(keys, help, graph, "help.manual", "Help", "User Manual", none, [open] {
         open(&JPlacerHelpPages::openManual, "User manual opened in your browser");
     });
-    help->add(graph, "What's New")->onTriggered.connect([open] {
+    entry(keys, help, graph, "help.whatsNew", "Help", "What's New", none, [open] {
         open(&JPlacerHelpPages::openWhatsNew, "What's New opened in your browser");
     });
     help->addSeparator(graph);
-    help->add(graph, "Check for Updates")->onTriggered.connect([&app] { app.updater().check(true); });
+    entry(keys, help, graph, "help.checkUpdates", "Help", "Check for Updates", none, [&app] { app.updater().check(true); });
     help->addSeparator(graph);
-    help->add(graph, "About jplacer")->onTriggered.connect([&app] { app.showAbout(); });
+    entry(keys, help, graph, "help.about", "Help", "About jplacer", none, [&app] { app.showAbout(); });
 }
 
 } // inline namespace jf

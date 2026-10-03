@@ -30,7 +30,7 @@ public:
         double fiducialDiameterMm = 1.0;   // where the board does not say (JPPlacement::fiducialMm)
         double firstSearchMm = 10;    // how far from the guess the first two fiducials are looked for
         double searchMm = 2;          // the rest, once the first is found
-        double speed = 0.1;           // share of the axes' rates
+        double speed = 1.0;           // share of the axes' rates (the machine's speed scales it)
         double maxRmsMm = 0.1;        // fiducials that disagree more are refused
     };
     struct Fiducial {

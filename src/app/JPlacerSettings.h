@@ -39,6 +39,10 @@ public:
     static constexpr const char* kJogDistance      = "jog.distance";
     static constexpr const char* kJogSpeed         = "jog.speed";
     static constexpr const char* kJogStepThrough   = "jog.stepThrough";   // tip changes asked step by step
+    // The Jog panel's steps, numbers apart: the distances a press moves (mm
+    // or degrees) and the speeds (%) a key or Faster / Slower picks.
+    static constexpr const char* kJogDistances     = "jog.distances";
+    static constexpr const char* kJogSpeeds        = "jog.speeds";
     // The cell file (cells/<name>.json) opened last; opened again at start.
     static constexpr const char* kMachineCell      = "machine.cell";
     // The board on the machine: its pick-and-place file, the side up
@@ -71,6 +75,9 @@ public:
     // How a camera's picture is shown, each camera its own: straightened
     // (true) or as taken. "camera.<id>.straight".
     static std::string cameraStraightKey(const std::string& cameraId);
+    // The key given to a function (JPKeyMap): "keys.<id>", absent for its
+    // default, "none" for no key.
+    static std::string keyFor(const std::string& functionId);
 };
 
 } // inline namespace jf

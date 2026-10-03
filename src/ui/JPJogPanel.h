@@ -35,8 +35,10 @@ inline namespace jf {
 //    either way with Park (to 0) between; buttons to put the nozzle where
 //    the camera is looking and the camera over the nozzle; sliders for the
 //    distance a press moves (mm, or degrees turning) and the machine's speed
-//    (JPCell::setSpeed: a share every move is scaled by, as in OpenPnP). The pad's buttons are as big as the
-//    dock lets them be, and are made again when it is resized.
+//    (JPCell::setSpeed: a share every move is scaled by, as in OpenPnP),
+//    each marked with its steps (the person's own, Preferences > Jog). The
+//    pad's buttons are as big as the dock lets them be, and are made again
+//    when it is resized.
 //  - Special: Head Safe Z, Discard (the part to the discard location), and
 //    Pick and Place where the nozzle is.
 //
@@ -48,13 +50,27 @@ class JPJogPanel : public JContainer {
 public:
     static constexpr int    kDistanceFirst = 2;      // 1 mm
     static constexpr double kSpeedFirst    = 0.25;
+    // The steps until the person sets their own: distances (mm or degrees),
+    // and speeds (shares of full speed).
+    static const std::vector<double>& defaultDistances();
+    static const std::vector<double>& defaultSpeeds();
+    // Steps as a person types and reads them ("0.01 0.1 1 10"), each within
+    // [least, most], in rising order. Empty with `why` when they are not.
+    static std::vector<double> parseSteps(const std::string& text, double least, double most, std::string& why);
+    static std::string formatSteps(const std::vector<double>& steps);
+    // One step as shown ("0.01", "25"): no trailing zeros.
+    static std::string stepText(double v);
+
     // What was chosen: the tool (its id), the distance (its index in the
-    // row of distances) and the speed (a share of top speed).
+    // row of distances) and the speed (a share of top speed); and the steps
+    // to choose from.
     struct Choices {
         std::string tool;
         int         distance = kDistanceFirst;
         double      speed    = kSpeedFirst;
         bool        stepThrough = true;   // tip changes asked about step by step
+        std::vector<double> distances = defaultDistances();
+        std::vector<double> speeds    = defaultSpeeds();
     };
 
     JPJogPanel(JSceneGraph& graph, JPCell& cell, Choices start);
@@ -72,6 +88,14 @@ public:
     std::function<void(const std::string& nozzleId)> onHomeZ;
     // Stop (the move held and dropped) or, `emergency`, reset every controller.
     std::function<void(bool emergency)> onStop;
+    // The key an action has now (Preferences > Keys), for the tooltips; "" none.
+    std::function<std::string(const std::string& action)> keyFor;
+
+    // New steps (Preferences > Jog): the sliders marked with them, the
+    // distance chosen kept to one of them.
+    void setSteps(std::vector<double> distances, std::vector<double> speeds);
+    // The keys changed: the tooltips say the new ones.
+    void refreshKeys();
 
     // The chosen tool's coordinates now, by name (X, Y, Z, C): where its
     // axes are plus its offset on the head.
@@ -85,7 +109,9 @@ public:
     // "x+", "x-", "y+", "y-", "z+", "z-",
     // "c+", "c-", "parkXY", "parkZ", "parkC", "safeZ", "discard",
     // "pick", "place", "positionNozzle", "positionCamera", "distance+",
-    // "distance-". False when there is no such action.
+    // "distance-", "distance:<n>" (the n-th step, from 0), "speed+",
+    // "speed-" (the next step up or down from the speed now), "speed:<n>".
+    // False when there is no such action.
     bool act(const std::string& action);
 
     void populateRenderPrimitives(JPrimitiveBuffer& buf) override;
@@ -111,6 +137,11 @@ private:
                                  void (*glyph)(JVectorCanvas&, float, float, float, const JColor&),
                                  const std::string& tooltip, const std::string& action);
     std::unique_ptr<JWidget> parkButton(float size, const std::string& tooltip, const std::string& action);
+    // `text`, with the key `action` has now after it, when it has one.
+    std::string tip(const std::string& text, const std::string& action) const;
+    std::vector<std::pair<double, std::string>> distanceMarks() const;
+    std::vector<std::pair<double, std::string>> speedMarks() const;
+    void setSpeedShare(double share);
     std::unique_ptr<JWidget> gap(float size);
     void jog(double dx, double dy, double dz, double dc);
     void moveTo(const Tool& tool, const Tool& over);
@@ -126,6 +157,9 @@ private:
     size_t                  m_lastNozzle = 0;
     JTabWidget*             m_tabs = nullptr;
     JWidget*                m_tipButton = nullptr;
+    JWidget*                m_stopButton = nullptr;
+    JWidget*                m_estopButton = nullptr;
+    std::vector<double>     m_distances, m_speeds;
     std::unique_ptr<JMenu>  m_tipMenu, m_tipOnIt;
     bool                    m_stepThrough = true;
     std::vector<std::unique_ptr<JWidget>> m_pages;

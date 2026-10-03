@@ -189,6 +189,8 @@ void JPlacerMachine::buildPanels(Keep keep) {
     choices.distance = settings.get<int>(JPlacerSettings::kJogDistance, JPJogPanel::kDistanceFirst);
     choices.speed = settings.get<double>(JPlacerSettings::kJogSpeed, JPJogPanel::kSpeedFirst);
     choices.stepThrough = settings.get<bool>(JPlacerSettings::kJogStepThrough, true);
+    choices.distances = jogDistances();
+    choices.speeds = jogSpeeds();
     auto jog = std::make_unique<JPJogPanel>(m_graph, *m_cell, choices);
     m_jog = jog.get();
     jog->onChoicesChanged = [this] {
@@ -211,6 +213,7 @@ void JPlacerMachine::buildPanels(Keep keep) {
         setTipOn(nozzleId, tipId);
     };
     jog->onStop = [this](bool emergency) { stop(emergency); };
+    jog->keyFor = [this](const std::string& action) { return keyFor ? keyFor(action) : std::string(); };
     jog->onHomeZ = [this](const std::string& nozzleId) { homeNozzle(nozzleId); };
     jog->openMenu = [this](JMenu* menu, float x, float y) {
         if (JMenuManager::instance().onOpenMenu)
@@ -679,6 +682,30 @@ void JPlacerMachine::jogAction(const std::string& action) {
     // Stopping works with the Jog panel closed too.
     if (action == "stop" || action == "emergencyStop") stop(action == "emergencyStop");
     else if (m_jog) m_jog->act(action);
+}
+
+std::vector<double> JPlacerMachine::jogDistances() {
+    std::string why;
+    const std::string kept = JSettings::instance().get<std::string>(JPlacerSettings::kJogDistances, "");
+    std::vector<double> steps = JPJogPanel::parseSteps(kept, kLeastJogDistance, kMostJogDistance, why);
+    return steps.empty() ? JPJogPanel::defaultDistances() : steps;
+}
+
+std::vector<double> JPlacerMachine::jogSpeeds() {
+    std::string why;
+    const std::string kept = JSettings::instance().get<std::string>(JPlacerSettings::kJogSpeeds, "");
+    std::vector<double> steps = JPJogPanel::parseSteps(kept, 1, 100, why);   // kept in %
+    if (steps.empty()) return JPJogPanel::defaultSpeeds();
+    for (double& v : steps) v /= 100;
+    return steps;
+}
+
+void JPlacerMachine::jogStepsChanged() {
+    if (m_jog) m_jog->setSteps(jogDistances(), jogSpeeds());
+}
+
+void JPlacerMachine::keysChanged() {
+    if (m_jog) m_jog->refreshKeys();
 }
 
 void JPlacerMachine::undo() {

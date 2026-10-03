@@ -228,9 +228,10 @@ nozzle (with the tip on it), the camera on the head, and anything else on the he
 - **C**: turns the tool either way by the distance (in degrees); the park sign between turns it to 0.
 - Beside Z: put the nozzle where the camera is looking, and put the camera over the nozzle (the nozzle
   chosen, or the one chosen last when the camera is chosen). Both go up to safe Z first.
-- **Distance** [mm, or degrees turning]: a slider of steps, 0.01 to 100 a press.
+- **Distance** [mm, or degrees turning]: a slider of steps (0.01 to 100 a press, unless set otherwise in
+  [Preferences, Jog](preferences.md#jog)).
 - **Speed**: the machine's speed, as in OpenPnP: every move goes at this share of its own speed (a jog,
-  a park, a camera task, a nozzle tip changer step). A changer step set to 1% with Speed at 5% goes at
+  a park, a camera task such as visual homing, a nozzle tip changer step). A changer step set to 1% with Speed at 5% goes at
   0.05% of the axes' speed.
 
 The pad's buttons are as big as the dock lets them be, and follow it when it is resized. Homing is on
@@ -305,7 +306,9 @@ nozzle has its own command, so a machine with a motor per nozzle homes each on i
 **Special** tab: **Head Safe Z** (every Z on the head up to safe Z), **Discard** (the nozzle's part to the
 discard location: up, across, down, let go, up again), and **Pick** and **Place** where the nozzle is.
 
-Every button has a key, the same as OpenPnP's (Machine ▸ Jog lists them). The tool, distance and speed
+Every button has a key, the same as OpenPnP's to start with (Machine ▸ Jog lists them, and a button's
+tooltip says its key); [Preferences, Keys](preferences.md#keys) changes them, and gives keys to the
+distance and speed steps, which [Preferences, Jog](preferences.md#jog) sets. The tool, distance and speed
 are kept for next time. A nozzle's Z is its own even where two nozzles share one motor: jplacer works
 out which way the motor turns. A move that would take an axis outside its soft limits is not made, and
 the panel says why.
@@ -322,7 +325,7 @@ With the tip's Part Detection set, Pick checks a part is on (the vacuum read aft
 checks it is off (the valve opened for the probing time, closed for the dwell, then read); a check that
 fails is shown in the strip across the window, with the reading.
 
-<!-- src: src/ui/JPJogPanel.cpp (showTipMenu); src/ui/JPVerticalSlider.cpp; src/app/JPlacerTipChanges.cpp; src/tasks/JPTipChanger.cpp; src/app/JPlacerMenuBuilder.cpp (Jog); src/app/JPlacerSettings.h (kJogTool); src/machine/JPCell.cpp (jog, doMove, park, safeZ, discard, doPick, doPlace, sensed) -->
+<!-- src: src/ui/JPJogPanel.cpp (showTipMenu); src/ui/JPVerticalSlider.cpp; src/app/JPlacerTipChanges.cpp; src/tasks/JPTipChanger.cpp; src/app/JPlacerMenuBuilder.cpp (Jog); src/app/JPlacerSettings.h (kJogTool); src/app/JPKeyMap.cpp; src/machine/JPCell.cpp (jog, doMove, park, safeZ, discard, doPick, doPlace, sensed) -->
 
 ### Actuators
 
@@ -431,7 +434,7 @@ set.
 
 Every move arrives from the same side (see [Backlash](#backlash)), so play in the drives cannot creep
 into the scale, and each picture measured is one taken after the move ended (a camera hands over
-pictures a little late). The head moves at a tenth of its speed. While a task runs, its camera's buttons
+pictures a little late). The head moves at the machine's speed (the Jog panel's **Speed**), as jogs and parks do. While a task runs, its camera's buttons
 are off (and another camera task will not start), and the line over the picture says what it is doing; when it ends, that line
 and the status bar give the result. A calibration is saved in the cell file and used from then on:
 whatever is measured in a picture is straightened through the lens first.

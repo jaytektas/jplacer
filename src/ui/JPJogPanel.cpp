@@ -18,15 +18,15 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <sstream>
 #include <tuple>
 
 inline namespace jf {
 
 namespace {
 
-// How far a press moves, as OpenPnP offers: mm, or degrees turning.
-const std::vector<double>      kDistances      = { 0.01, 0.1, 1, 10, 25, 50, 100 };
-const std::vector<std::string> kDistanceLabels = { "0.01", "0.1", "1", "10", "25", "50", "100" };
 // The slowest a jog goes: a speed slid to nothing still moves.
 constexpr double kLeastSpeed = 0.01;
 
@@ -36,8 +36,60 @@ std::string percent(double share) {
 
 } // namespace
 
+const std::vector<double>& JPJogPanel::defaultDistances() {
+    static const std::vector<double> steps = { 0.01, 0.1, 1, 10, 25, 50, 100 };   // as OpenPnP offers
+    return steps;
+}
+
+const std::vector<double>& JPJogPanel::defaultSpeeds() {
+    static const std::vector<double> steps = { 0.1, 0.25, 0.5, 0.75, 1 };
+    return steps;
+}
+
+std::vector<double> JPJogPanel::parseSteps(const std::string& text, double least, double most, std::string& why) {
+    std::vector<double> steps;
+    std::istringstream in(text);
+    std::string word;
+    while (in >> word) {
+        char* end = nullptr;
+        const double v = std::strtod(word.c_str(), &end);
+        if (end == word.c_str() || *end != '\0') {
+            why = "'" + word + "' is not a number";
+            return {};
+        }
+        if (v < least || v > most) {
+            why = stepText(v) + " is outside " + stepText(least) + " to " + stepText(most);
+            return {};
+        }
+        if (!steps.empty() && v <= steps.back()) {
+            why = "the steps go smallest first, each larger than the one before";
+            return {};
+        }
+        steps.push_back(v);
+    }
+    if (steps.empty()) why = "there must be at least one step";
+    return steps;
+}
+
+std::string JPJogPanel::formatSteps(const std::vector<double>& steps) {
+    std::string text;
+    for (double v : steps) text += (text.empty() ? "" : " ") + stepText(v);
+    return text;
+}
+
+std::string JPJogPanel::stepText(double v) {
+    char buf[32];
+    std::snprintf(buf, sizeof buf, "%.4f", v);
+    std::string s = buf;
+    s.erase(s.find_last_not_of('0') + 1);
+    if (!s.empty() && s.back() == '.') s.pop_back();
+    return s;
+}
+
 JPJogPanel::JPJogPanel(JSceneGraph& graph, JPCell& cell, Choices start) : JContainer(graph), m_cell(cell) {
     JPUiParts::asPanel(*this);
+    m_distances = start.distances.empty() ? defaultDistances() : start.distances;
+    m_speeds    = start.speeds.empty() ? defaultSpeeds() : start.speeds;
     const JPCellConfig& c = cell.config();
     auto hasAxes = [](const JPMountConfig& m) {
         return !m.axisX.empty() || !m.axisY.empty() || !m.axisZ.empty() || !m.axisRotation.empty();
@@ -88,17 +140,17 @@ JPJogPanel::JPJogPanel(JSceneGraph& graph, JPCell& cell, Choices start) : JConta
     // Stopping, always in view: the move held and dropped (the position
     // kept), or every controller reset at once.
     auto stopButton = std::make_unique<JPIconButton>(graph, "Stop", &JPIcons::stopMove,
-                                                     "Stop the move: held, the rest thrown away, the position kept (Esc)");
+                                                     "Stop the move: held, the rest thrown away, the position kept");
     stopButton->setFramed(true);
     stopButton->setFixedSize(side, side);
     stopButton->onClicked.connect([this] { act("stop"); });
-    top->add(std::move(stopButton));
+    m_stopButton = top->add(std::move(stopButton));
     auto estop = std::make_unique<JPIconButton>(graph, "Emergency Stop", &JPIcons::emergencyStop,
                                                 "EMERGENCY STOP: every controller reset at once; home again after");
     estop->setDanger(true);
     estop->setFixedSize(side, side);
     estop->onClicked.connect([this] { act("emergencyStop"); });
-    top->add(std::move(estop));
+    m_estopButton = top->add(std::move(estop));
     tools->onIndexChanged.connect([this](int i) {
         if (i < 0 || size_t(i) >= m_tools.size()) return;
         m_tool = size_t(i);
@@ -108,12 +160,11 @@ JPJogPanel::JPJogPanel(JSceneGraph& graph, JPCell& cell, Choices start) : JConta
     });
     add(std::move(top));
 
-    m_distanceIndex = std::clamp(start.distance, 0, int(kDistances.size()) - 1);
+    m_distanceIndex = std::clamp(start.distance, 0, int(m_distances.size()) - 1);
     m_speedShare = std::clamp(start.speed, 0.0, 1.0);
     m_cell.setSpeed(speed());
     m_tabs = add(std::make_unique<JTabWidget>(graph, 0.f, 0.f));
     m_tabs->setVSizePolicy(JSizePolicyMode::Expanding, 1);
-    makePages();
 
     m_note = add(std::make_unique<JLabel>(graph, ""));
     m_note->setWordWrap(true);
@@ -122,6 +173,36 @@ JPJogPanel::JPJogPanel(JSceneGraph& graph, JPCell& cell, Choices start) : JConta
         m_note->setText(homed ? std::string() : "Home the machine to move it.");
     });
     if (!cell.isHomed()) m_note->setText("Home the machine to move it.");
+    refreshKeys();
+}
+
+std::string JPJogPanel::tip(const std::string& text, const std::string& action) const {
+    const std::string key = keyFor ? keyFor(action) : std::string();
+    return key.empty() ? text : text + " (" + key + ")";
+}
+
+void JPJogPanel::refreshKeys() {
+    m_stopButton->setTooltip(tip("Stop the move: held, the rest thrown away, the position kept", "stop"));
+    m_estopButton->setTooltip(tip("EMERGENCY STOP: every controller reset at once; home again after", "emergencyStop"));
+    makePages();
+}
+
+void JPJogPanel::setSteps(std::vector<double> distances, std::vector<double> speeds) {
+    if (distances.empty() || speeds.empty()) return;
+    // The distance kept as near as the new steps allow to the one chosen.
+    const double was = distance();
+    m_distances = std::move(distances);
+    m_speeds    = std::move(speeds);
+    size_t nearest = 0;
+    for (size_t i = 0; i < m_distances.size(); ++i)
+        if (std::abs(m_distances[i] - was) < std::abs(m_distances[nearest] - was)) nearest = i;
+    m_distanceIndex = int(nearest);
+    makePages();
+    if (onChoicesChanged) onChoicesChanged();
+}
+
+void JPJogPanel::setSpeedShare(double share) {
+    if (m_speed) m_speed->setValue(std::clamp(share, 0.0, 1.0));   // its change says so
 }
 
 std::unique_ptr<JWidget> JPJogPanel::pad(float size, const char* name,
@@ -144,21 +225,21 @@ std::unique_ptr<JWidget> JPJogPanel::gap(float size) {
     return g;
 }
 
-namespace {
-
-// The sliders' marks, bottom first: the distances evenly up the track; the
-// speed every quarter.
-std::vector<std::pair<double, std::string>> distanceMarks() {
+std::vector<std::pair<double, std::string>> JPJogPanel::distanceMarks() const {
+    // The distances evenly up the track, bottom first.
     std::vector<std::pair<double, std::string>> m;
-    for (size_t i = 0; i < kDistanceLabels.size(); ++i)
-        m.emplace_back(double(i) / double(kDistanceLabels.size() - 1), kDistanceLabels[i]);
+    const double n = double(std::max<size_t>(m_distances.size(), 2) - 1);
+    for (size_t i = 0; i < m_distances.size(); ++i) m.emplace_back(double(i) / n, stepText(m_distances[i]));
     return m;
 }
-std::vector<std::pair<double, std::string>> speedMarks() {
-    return { { 0, "0" }, { 0.25, "25" }, { 0.5, "50" }, { 0.75, "75" }, { 1, "100" } };
+
+std::vector<std::pair<double, std::string>> JPJogPanel::speedMarks() const {
+    // Each speed step where it is on the track (a share of full speed), in %.
+    std::vector<std::pair<double, std::string>> m;
+    for (double v : m_speeds) m.emplace_back(v, stepText(v * 100));
+    return m;
 }
 
-} // namespace
 
 float JPJogPanel::padSizeFor(float width, float height) const {
     const JStyle& st = JStyle::current();
@@ -243,28 +324,28 @@ std::unique_ptr<JWidget> JPJogPanel::jogPage(float size) {
     padColumn->add(std::move(heads));
     auto top = row(size);
     top->add(gap(size));
-    top->add(pad(size, "Y+", &I::arrowUp, "Y+ (Ctrl+Up)", "y+"));
+    top->add(pad(size, "Y+", &I::arrowUp, tip("Y+", "y+"), "y+"));
     top->add(gap(size));
-    top->add(pad(size, "Z+", &I::arrowUp, "Z+ (Ctrl+')", "z+"));
+    top->add(pad(size, "Z+", &I::arrowUp, tip("Z+", "z+"), "z+"));
     top->add(pad(size, "Position Nozzle", &I::moveNozzle, "Put the nozzle where the camera is looking", "positionNozzle"));
     padColumn->add(std::move(top));
     auto middle = row(size);
-    middle->add(pad(size, "X-", &I::arrowLeft, "X- (Ctrl+Left)", "x-"));
-    middle->add(parkButton(size, "Park the head (Ctrl+Shift+P)", "parkXY"));
-    middle->add(pad(size, "X+", &I::arrowRight, "X+ (Ctrl+Right)", "x+"));
-    middle->add(parkButton(size, "Up to safe Z (Ctrl+Shift+L)", "parkZ"));
+    middle->add(pad(size, "X-", &I::arrowLeft, tip("X-", "x-"), "x-"));
+    middle->add(parkButton(size, tip("Park the head", "parkXY"), "parkXY"));
+    middle->add(pad(size, "X+", &I::arrowRight, tip("X+", "x+"), "x+"));
+    middle->add(parkButton(size, tip("Up to safe Z", "parkZ"), "parkZ"));
     middle->add(pad(size, "Position Camera", &I::moveCamera, "Put the camera over the nozzle", "positionCamera"));
     padColumn->add(std::move(middle));
     auto bottom = row(size);
     bottom->add(gap(size));
-    bottom->add(pad(size, "Y-", &I::arrowDown, "Y- (Ctrl+Down)", "y-"));
+    bottom->add(pad(size, "Y-", &I::arrowDown, tip("Y-", "y-"), "y-"));
     bottom->add(gap(size));
-    bottom->add(pad(size, "Z-", &I::arrowDown, "Z- (Ctrl+/)", "z-"));
+    bottom->add(pad(size, "Z-", &I::arrowDown, tip("Z-", "z-"), "z-"));
     padColumn->add(std::move(bottom));
     auto turn = row(size);
-    turn->add(pad(size, "C+", &I::rotateAnticlockwise, "Turn anticlockwise (Ctrl+,)", "c+"));
+    turn->add(pad(size, "C+", &I::rotateAnticlockwise, tip("Turn anticlockwise", "c+"), "c+"));
     turn->add(parkButton(size, "Turn to 0", "parkC"));
-    turn->add(pad(size, "C-", &I::rotateClockwise, "Turn clockwise (Ctrl+.)", "c-"));
+    turn->add(pad(size, "C-", &I::rotateClockwise, tip("Turn clockwise", "c-"), "c-"));
     turn->add(title("C", size, size));
     padColumn->add(std::move(turn));
     block->add(std::move(padColumn));
@@ -273,10 +354,11 @@ std::unique_ptr<JWidget> JPJogPanel::jogPage(float size) {
     m_distance = block->add(std::make_unique<JPVerticalSlider>(g, distanceMarks(), true));
     m_distance->setCaption("Distance");
     m_distance->setFixedSize(m_distance->naturalWidth(), padH);
-    m_distance->setTooltip("How far a press moves: mm, or degrees turning (Ctrl+- / Ctrl+=)");
-    m_distance->setValue(double(m_distanceIndex) / double(kDistances.size() - 1));
-    m_distance->onValueChanged.connect([this](double v) {
-        m_distanceIndex = int(std::lround(v * double(kDistances.size() - 1)));
+    m_distance->setTooltip(tip(tip("How far a press moves: mm, or degrees turning", "distance-"), "distance+"));
+    const double steps = double(std::max<size_t>(m_distances.size(), 2) - 1);
+    m_distance->setValue(double(m_distanceIndex) / steps);
+    m_distance->onValueChanged.connect([this, steps](double v) {
+        m_distanceIndex = std::clamp(int(std::lround(v * steps)), 0, int(m_distances.size()) - 1);
         if (onChoicesChanged) onChoicesChanged();
     });
     m_speed = block->add(std::make_unique<JPVerticalSlider>(g, speedMarks(), false));
@@ -303,12 +385,12 @@ std::unique_ptr<JWidget> JPJogPanel::specialPage() {
         ->setPadding(JEdges(st.spacing));
     auto buttons = JPUiParts::row(m_graph);
     struct B { const char* label; const char* action; const char* tip; };
-    for (const B& b : { B{ "Head Safe Z", "safeZ", "Every Z on the head up to safe Z (Ctrl+Shift+Z)" },
-                        B{ "Discard", "discard", "Drop the nozzle's part at the discard location (Ctrl+Shift+D)" },
+    for (const B& b : { B{ "Head Safe Z", "safeZ", "Every Z on the head up to safe Z" },
+                        B{ "Discard", "discard", "Drop the nozzle's part at the discard location" },
                         B{ "Pick", "pick", "Vacuum on where the nozzle is, as a pick does" },
                         B{ "Place", "place", "Vacuum off and blow off where the nozzle is, as a place does" } }) {
         JButton* button = buttons->add(JPUiParts::button(m_graph, b.label));
-        button->setTooltip(b.tip);
+        button->setTooltip(tip(b.tip, b.action));
         button->onClicked.connect([this, action = std::string(b.action)] { act(action); });
     }
     page->add(std::move(buttons));
@@ -398,12 +480,12 @@ void JPJogPanel::showTipMenu() {
     openMenu(m_tipMenu.get(), b.x, b.y + b.height);
 }
 
-double JPJogPanel::distance() const { return kDistances[size_t(m_distanceIndex)]; }
+double JPJogPanel::distance() const { return m_distances[size_t(m_distanceIndex)]; }
 double JPJogPanel::speed() const    { return std::max(kLeastSpeed, m_speedShare); }
 
 JPJogPanel::Choices JPJogPanel::choices() const {
     if (m_tools.empty()) return {};
-    return { m_tools[m_tool].id, m_distanceIndex, m_speedShare, m_stepThrough };
+    return { m_tools[m_tool].id, m_distanceIndex, m_speedShare, m_stepThrough, m_distances, m_speeds };
 }
 
 const std::string& JPJogPanel::toolId() const {
@@ -482,10 +564,23 @@ bool JPJogPanel::act(const std::string& action) {
         if (action == "discard") m_cell.discard(n->id, 1.0);
         else if (action == "pick") m_cell.pick(n->id);
         else m_cell.place(n->id);
-    } else if (action == "distance+" || action == "distance-") {
-        const int i = m_distanceIndex + (action == "distance+" ? 1 : -1);
-        if (i >= 0 && i < int(kDistances.size()) && m_distance)
-            m_distance->setValue(double(i) / double(kDistances.size() - 1));   // its change says so
+    } else if (action == "distance+" || action == "distance-" || action.rfind("distance:", 0) == 0) {
+        const int i = action == "distance+" ? m_distanceIndex + 1
+                    : action == "distance-" ? m_distanceIndex - 1
+                    : std::atoi(action.c_str() + 9);
+        const double steps = double(std::max<size_t>(m_distances.size(), 2) - 1);
+        if (i >= 0 && i < int(m_distances.size()) && m_distance)
+            m_distance->setValue(double(i) / steps);   // its change says so
+    } else if (action == "speed+") {
+        // The next step up from the speed now.
+        for (double v : m_speeds)
+            if (v > m_speedShare + 1e-9) { setSpeedShare(v); break; }
+    } else if (action == "speed-") {
+        for (auto it = m_speeds.rbegin(); it != m_speeds.rend(); ++it)
+            if (*it < m_speedShare - 1e-9) { setSpeedShare(*it); break; }
+    } else if (action.rfind("speed:", 0) == 0) {
+        const int i = std::atoi(action.c_str() + 6);
+        if (i >= 0 && i < int(m_speeds.size())) setSpeedShare(m_speeds[size_t(i)]);
     } else {
         return false;
     }

@@ -51,6 +51,17 @@ public:
     void setEditItems(JMenuItem* undo, JMenuItem* redo);
     void undo();
     void redo();
+    // The Jog panel's steps, as Preferences > Jog keeps them (the defaults
+    // until set): distances in mm or degrees, speeds as shares of full speed.
+    static std::vector<double> jogDistances();
+    static std::vector<double> jogSpeeds();
+    // Preferences changed the steps, or a key: the Jog panel follows.
+    void jogStepsChanged();
+    void keysChanged();
+    // The key an action has now ("" none), for tooltips (JPKeyMap::keyText).
+    std::function<std::string(const std::string& action)> keyFor;
+    // What a jog distance step may be, mm or degrees.
+    static constexpr double kLeastJogDistance = 0.001, kMostJogDistance = 1000;
     // A Jog panel action (JPJogPanel::act), from Machine > Jog's keys.
     void jogAction(const std::string& action);
 

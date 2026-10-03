@@ -194,6 +194,15 @@ notes.
   the panel's full height.
 - A controller left in alarm (after an emergency stop, say) connects instead of refusing with error 9; Home
   unlocks it and homes.
+- Visual homing, Visual Test, camera calibration, locating the board and the nozzle offset wizard move at
+  the machine's speed (the Jog panel's Speed) instead of always a tenth of it.
+- Keys can be chosen for every menu entry and Jog panel button in Preferences > Keys: click a function's
+  box and press the key (plain keys such as arrows and digits included). A key given to one function is
+  taken from the one that had it; Reset All puts back the keys jplacer starts with (OpenPnP's).
+- Preferences > Jog sets the Jog panel's distance and speed steps, and each step can be given a key (1 for
+  1 mm, say). Faster and Slower step the speed; Pick, Place, Turn to 0 and the nozzle and camera
+  positioning can be given keys too.
+- Preferences is on tabs (General, Keys, Jog) and can be made bigger.
 - The Jog pad's park buttons show a parking sign that grows with the pad.
 - Buttons and other controls are no longer clipped by a pixel along an edge, and the Jog panel's tip, Stop
   and E-STOP buttons stay whole in a narrow dock (a long tool name is cut short instead).

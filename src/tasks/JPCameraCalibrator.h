@@ -29,7 +29,7 @@ public:
     struct Options {
         double markDiameterMm = 0;     // the mark it looks at; 0: not known (a nozzle's tip)
         double markZ = 0;              // the mark's height (the calibration holds there)
-        double speed = 0.1;            // share of the axes' rates
+        double speed = 1.0;            // share of the axes' rates (the machine's speed scales it)
         double maxRmsPx = 1.0;         // a worse fit is refused
         // What moves. A camera on the head moves itself over a mark that
         // stays (null). A fixed camera stays, and the mark is carried over it

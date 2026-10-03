@@ -19,9 +19,10 @@ inline namespace jf {
 
 namespace {
 
-// How fast the tasks move the head, as a share of the axes' rates: slow
-// enough to watch, and to stop, while these are new.
-constexpr double kTaskSpeed = 0.1;
+// How fast the tasks move the head, as a share of the axes' rates: full,
+// so they go at the machine's speed (the Jog panel's Speed, which scales
+// every move), as jogs and parks do.
+constexpr double kTaskSpeed = 1.0;
 // How long a result stays in the status bar.
 constexpr int kResultMs = 8000;
 

@@ -44,7 +44,16 @@ JPlacerApp::JPlacerApp(std::string settingsPath) {
 
     m_machine = std::make_unique<JPlacerMachine>(*m_window, m_app.sceneGraph());
     JMenuManager::instance().setTearOffEnabled(JPlacerSettings::tearOffMenus());
+    m_keys = std::make_unique<JPKeyMap>();
     JPlacerMenuBuilder::build(*m_window, m_app.sceneGraph(), *this);
+    addJogStepKeys();
+    // The Jog panel's tooltips say each button's key, as it is now.
+    m_machine->keyFor = [this](const std::string& action) {
+        const std::string jog = m_keys->keyText("jog." + action);
+        return jog.empty() ? m_keys->keyText("machine." + action) : jog;
+    };
+    m_keys->onChanged = [this] { m_machine->keysChanged(); };
+    m_machine->keysChanged();
     // Automation (JF_AI_BUS, jf-busctl): what a widget click cannot reach.
     // "dock:<title>" brings a dock's tab to the front, so its widgets can be
     // driven.
@@ -81,7 +90,32 @@ int JPlacerApp::run() {
 
 void JPlacerApp::openPreferences() {
     m_window->openModal<JPlacerPreferencesDialog>([this] { m_updater->check(true); },
-                                                  [this](double scale) { JPlacerAppearance::applyScale(*m_window, scale); });
+                                                  [this](double scale) { JPlacerAppearance::applyScale(*m_window, scale); },
+                                                  *m_keys,
+                                                  [this] {
+                                                      addJogStepKeys();
+                                                      m_machine->jogStepsChanged();
+                                                  });
+}
+
+void JPlacerApp::addJogStepKeys() {
+    // Named by the step, not its place in the row: "1 = 1 mm" stays so when
+    // steps are added before it.
+    m_keys->removeAll("jog.distance.");
+    m_keys->removeAll("jog.speed.");
+    const std::vector<double> distances = JPlacerMachine::jogDistances();
+    for (size_t i = 0; i < distances.size(); ++i) {
+        const std::string step = JPJogPanel::stepText(distances[i]);
+        m_keys->add("jog.distance." + step, "Jog Distance", "Distance " + step, {},
+                    [this, i] { m_machine->jogAction("distance:" + std::to_string(i)); });
+    }
+    const std::vector<double> speeds = JPlacerMachine::jogSpeeds();
+    for (size_t i = 0; i < speeds.size(); ++i) {
+        const std::string step = JPJogPanel::stepText(speeds[i] * 100);
+        m_keys->add("jog.speed." + step, "Jog Speed", "Speed " + step + "%", {},
+                    [this, i] { m_machine->jogAction("speed:" + std::to_string(i)); });
+    }
+    m_machine->keysChanged();
 }
 
 void JPlacerApp::showAbout() {
