@@ -7,8 +7,10 @@
 #include "JPPropertyForm.h"
 
 #include "machine/JPCellConfig.h"
+#include "setup/JPSetupHistory.h"
 
 #include <j/core/JButton.h>
+#include <j/core/FrameTimer.h>
 #include <j/core/JContainer.h>
 #include <j/core/JLabel.h>
 #include <j/core/JLineEdit.h>
@@ -18,6 +20,7 @@
 #include <j/core/JTreeView.h>
 
 #include <functional>
+#include <map>
 #include <memory>
 #include <set>
 #include <string>
@@ -27,14 +30,18 @@ inline namespace jf {
 
 // Machine Setup: the machine's parts as a tree (JPSetupTree), the selected
 // part's settings under it, Add, Remove and Up / Down for the parts, and
-// over the tree: open all, close all, and a search filter. Edits are made to a copy of the cell; Apply hands
-// the copy to the owner (who saves it and opens the cell again), Reset goes
-// back to the cell as it is. What is wrong with the copy (a part naming one
-// that is not there) is listed, and Apply waits until it is put right.
+// over the tree: open all, close all, and a search filter. Each change is
+// handed to the owner (who gives it to the running machine and saves it)
+// once the person stops changing it for a moment, so typing a number hands
+// over the number, not each digit. Undo and Redo step through the changes
+// (JPSetupHistory). What is wrong with the setup (a part naming one that is
+// not there) is listed, and nothing is handed over until it is put right.
 class JPMachineSetupPanel : public JContainer {
 public:
     // How much of the room the tree takes over the settings, to start with.
     static constexpr double kTreeShare = 0.4;
+    // How long changes must stop before they are handed over, in ms.
+    static constexpr float kSettleMs = 700.f;
 
     // `cell`: the cell as it is. `profiles`: the firmware profiles a
     // controller can name. `selected`: the node to start on (a path, see
@@ -46,8 +53,11 @@ public:
     // Where the divider between the tree and the settings is now: the tree's share.
     double treeShare() const;
 
-    // Apply pressed: the cell as set up.
-    std::function<void(const JPCellConfig& cell)> onApply;
+    // The cell as set up, to be put in use: false when it was not taken
+    // (it is handed over again with the next change).
+    std::function<bool(const JPCellConfig& cell)> onApply;
+    // Undo or Redo became possible or not, or what they would do changed.
+    std::function<void()> onHistory;
     // The node selected changed (its path).
     std::function<void(const std::string& path)> onSelected;
 
@@ -56,6 +66,18 @@ public:
     // shown.
     void showNode(const std::string& path);
 
+    // A change made elsewhere (a port chosen on the Machine panel): `edit`
+    // changes the setup, it is a step to undo like any other, and it is
+    // handed over at once.
+    void change(const std::string& what, const std::function<void(JPCellConfig&)>& edit);
+
+    bool canUndo() const { return m_history.canUndo(); }
+    bool canRedo() const { return m_history.canRedo(); }
+    // "Undo Add Camera" / "Redo Add Camera", or plain "Undo" / "Redo".
+    std::string undoLabel() const;
+    std::string redoLabel() const;
+    void undo();
+    void redo();
 private:
     void rebuildTree();
     // The tree's rows again, open where m_expanded says.
@@ -70,11 +92,21 @@ private:
     void select(const std::string& path);
     void show(const std::string& path);
     void changed(const std::string& property);
+    // A change was made to m_draft: a step to undo, handed over once things settle.
+    // `from`: the node selected when it was made, to go back to on Undo.
+    void record(const std::string& what, const std::string& key, const std::string& from);
+    void restore(const JPSetupHistory::State& state);
+    // Hand m_draft over when it differs from what is in use and nothing is wrong with it.
+    void settle();
     void update();
     void collectExpanded(const JTreeViewNode& n);
 
-    JPCellConfig             m_original;
-    JPCellConfig             m_draft;
+    JPCellConfig             m_inUse;      // what the machine has (handed over last)
+    JPCellConfig             m_draft;      // as set up
+    JPCellConfig             m_recorded;   // m_draft as the last step left it
+    JPSetupHistory           m_history;
+    JFrameTimer              m_settle;
+    std::map<std::string, std::string> m_labels;   // the shown form's property names: their labels
     std::vector<std::string> m_profiles;
     std::string              m_selected;
     std::vector<std::string> m_reshaping;   // the shown form's properties that change the form
@@ -97,8 +129,8 @@ private:
     JPPropertyForm*          m_form     = nullptr;
     JLabel*                  m_problems = nullptr;
     JLabel*                  m_note     = nullptr;
-    JButton*                 m_reset    = nullptr;
-    JButton*                 m_apply    = nullptr;
+    JButton*                 m_undo     = nullptr;
+    JButton*                 m_redo     = nullptr;
 };
 
 } // inline namespace jf

@@ -106,7 +106,7 @@ today. For each controller on a serial port, the Machine panel has a **port** li
 devices plugged in now, by the name each device gives itself. Choosing one saves it in the cell, using
 the device's permanent name (under `/dev/serial/by-id` on Linux), which stays the same whatever order
 devices start in. While connected, the connection stays as it is: the port chosen is used the next
-time you connect (see [Applying](machine-setup.md#applying)). A port the cell names but that is not plugged in
+time you connect (see [Changes are used as you make them](machine-setup.md#changes-are-used-as-you-make-them)); Undo takes the choice back. A port the cell names but that is not plugged in
 is listed as "(not found)".
 
 <!-- src: src/app/JPlacerMachine.cpp (setPort, applySetup); src/machine/JPCell.cpp (connect); src/machine/JPGcodeDriver.cpp (connect, identify, readSettings); profiles/grblhal.json; profiles/grbl.json; profiles/generic.json; src/machine/JPSerialPorts.cpp (stable names); src/ui/JPMachinePanel.cpp (the port list) -->

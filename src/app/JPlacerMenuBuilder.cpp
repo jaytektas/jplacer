@@ -52,6 +52,13 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
     file->add(graph, "Quit")->onTriggered.connect([&window] { window.requestClose(); });
 
     JMenu* edit = newMenu(window, "Edit");
+    using K = JKeyEvent::JKey;
+    JMenuItem* undo = edit->add(graph, "Undo", JMenuShortcut{ K::Z, true, false, false });
+    JMenuItem* redo = edit->add(graph, "Redo", JMenuShortcut{ K::Z, true, false, true });
+    undo->onTriggered.connect([&app] { app.machine().undo(); });
+    redo->onTriggered.connect([&app] { app.machine().redo(); });
+    app.machine().setEditItems(undo, redo);
+    edit->addSeparator(graph);
     edit->add(graph, "Preferences\xE2\x80\xA6")->onTriggered.connect([&app] { app.openPreferences(); });
 
     // A tick for each panel: untick to close it, tick to bring it back where it lives.

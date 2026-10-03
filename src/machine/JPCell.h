@@ -73,6 +73,8 @@ public:
     bool isHomed() const { return m_homed; }
     // A home is under way (from the request until homed or failed).
     bool isHoming() const { return m_homing; }
+    // A move is under way.
+    bool isMoving() const { return m_moving; }
 
     // Move a tool — a nozzle, camera or actuator — by the given amounts along
     // its own axes (mm, degrees), at `speed` (0..1) of the slowest axis's

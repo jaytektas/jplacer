@@ -18,6 +18,8 @@ feature will live.
 
 | Entry | |
 |---|---|
+| **Undo** (Ctrl+Z) | Takes back the last change in Machine Setup; it says which ([Undo and Redo](machine-setup.md#undo-and-redo)). |
+| **Redo** (Ctrl+Shift+Z) | Makes the change undone again. |
 | **Preferences…** | Opens [Preferences](preferences.md). |
 
 ## View

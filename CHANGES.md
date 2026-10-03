@@ -128,6 +128,9 @@ notes.
 - Clicking, dragging and scrolling work in the panels to the right of the cameras (Board, Machine Setup,
   Machine): tree branches open, scroll bars drag. Tooltips show on the camera icons, the toolbar's icons
   and the position readout.
+- Machine Setup has no Apply or Reset any more: each change goes to the machine (and is saved) as you
+  make it, and Undo and Redo (also in the Edit menu, Ctrl+Z and Ctrl+Shift+Z) step back and forward
+  through them. A setup with something wrong in it is kept from the machine until it is put right.
 
 ## 0.1.0
 

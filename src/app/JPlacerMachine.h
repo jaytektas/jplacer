@@ -44,6 +44,10 @@ public:
 
     // The Machine menu's entries this class enables and disables.
     void setMenuItems(JMenuItem* connect, JMenuItem* disconnect, JMenuItem* home, JMenuItem* park);
+    // Edit's Undo and Redo, which step through Machine Setup's changes.
+    void setEditItems(JMenuItem* undo, JMenuItem* redo);
+    void undo();
+    void redo();
 
     void chooseCell();          // Machine > Open Cell…
     // Machine > Import OpenPnP Machine…: offers OpenPnP's usual machine.xml
@@ -68,11 +72,12 @@ private:
     bool openCell(const std::string& path, std::string& error);
     void importFrom(const std::string& machineXml);
     void setPort(const std::string& driverId, const std::string& port);
-    // Machine Setup's Apply (and a port chosen): the running machine takes
-    // `cell` (with the calibrations and squareness measured meanwhile, see
-    // JPCell::reconfigure), its panels are made again, and it is kept in the
-    // cell file. The machine stays connected.
-    void applySetup(JPCellConfig cell);
+    // A change in Machine Setup (and a port chosen): the running machine
+    // takes `cell` (with the calibrations and squareness measured meanwhile,
+    // see JPCell::reconfigure), the panels it changes are made again, and it
+    // is kept in the cell file. False when the machine is moving (it is
+    // tried again shortly).
+    bool applySetup(JPCellConfig cell);
     // Follow the open cell's signals (the menu, the strip, the status bar).
     void watchCell();
     // Correct the squareness of the gantry moving `mount` by `xPerY` more (from
@@ -83,17 +88,23 @@ private:
     // is kept for what is critical (ALARM, CONNECTION LOST) and a failure goes
     // to the status bar.
     void showState();
+    // What stays when the panels are made again: nothing (another cell),
+    // Machine Setup (its changes are what is being taken), or the cameras too
+    // (and the Board, which works from them) when their settings did not change.
+    enum class Keep { Nothing, Setup, SetupAndCameras };
     // One dock per panel, made the first time a cell opens; a new cell gets
     // new panels in the same docks, so where the person put them is kept.
     // The cameras' docks are the cell's own, made new with it.
-    void buildPanels();
+    void buildPanels(Keep keep = Keep::Nothing);
     void buildCameras();
+    std::unique_ptr<JPMachineSetupPanel> makeSetup();
     // A camera's light is on while its camera runs (on screen) and the
     // machine is connected; while not connected, a camera with a light says
     // why its picture is dark.
     void lightCameras();
     void bringForward(JPCameraPanel& camera);
-    void dropPanels();
+    void dropPanels(Keep keep = Keep::Nothing);
+    void updateEditItems();
 
     struct Dock {
         std::unique_ptr<JDockWidget> dock;
@@ -122,6 +133,8 @@ private:
     JMenuItem*                          m_disconnectItem = nullptr;
     JMenuItem*                          m_homeItem       = nullptr;
     JMenuItem*                          m_parkItem       = nullptr;
+    JMenuItem*                          m_undoItem       = nullptr;
+    JMenuItem*                          m_redoItem       = nullptr;
     JPConnectIcon                       m_connectIcon;
     JPHomeIcon                          m_homeIcon;
     JPPositionReadout                   m_position;   // the chosen tool's, in the status bar

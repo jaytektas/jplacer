@@ -100,20 +100,29 @@ change loading, or choose steps of its own, which start as those.
 
 <!-- src: src/machine/JPChangerStep.h; src/machine/JPNozzleTipConfig.cpp (reversed, problems); src/setup/JPSetupTree.cpp (build, stepLabel); src/setup/JPSetupEdits.cpp (add, remove, move); src/setup/JPSetupProperties.cpp (stepForm, nozzleTipForm) -->
 
-## Applying
+## Changes are used as you make them
 
-Changes are made to a copy of the machine: nothing happens to the machine until **Apply**. **Reset**
-goes back to the machine as it is. Both are available once something has changed.
+There is no Apply: each change goes to the running machine and is saved in the cell file as soon as you
+stop changing it for a moment, so typing a number hands over the number, not each digit as it is typed.
+Nothing is disconnected: the controllers take their new settings as they run, and the machine stays
+homed. A controller's **connection** settings (its port, speed or flow control, its firmware profile,
+how long it waits while connecting) are used the next time you connect; a controller added is connected
+then too. After a change to the **axes** the machine must be homed again, as its coordinates then mean
+something else.
 
-What is wrong with the copy (a part naming one that is not there) is listed above the buttons, and
-Apply waits until it is put right. Apply then hands the new setup to the running machine and saves the
-cell file. Nothing is disconnected: the controllers take their new settings as they run, and the
-machine stays homed. A controller's **connection** settings (its port, speed or flow control, its
-firmware profile, how long it waits while connecting) are used the next time you connect; a controller
-added is connected then too. After a change to the **axes** the machine must be homed again, as its
-coordinates then mean something else.
+What is wrong with the setup (a part naming one that is not there) is listed under the settings, and
+nothing is handed to the machine until it is put right: the machine keeps the setup it had.
 
-While the machine is moving, Apply waits for it to stop. Calibrations and squareness measured while the
-setup was being changed are kept.
+While the machine is moving, changes wait for it to stop. Calibrations and squareness measured while the
+setup was being changed are kept. The camera panels are made again only when a camera, a head or an
+axis changed.
 
-<!-- src: src/ui/JPMachineSetupPanel.cpp (update, the buttons); src/app/JPlacerMachine.cpp (applySetup); src/machine/JPCell.cpp (reconfigure); src/machine/JPGcodeDriver.cpp (setConfig); src/machine/JPCellConfig.cpp (problems) -->
+## Undo and Redo
+
+**Undo** and **Redo** at the bottom of Machine Setup (and **Edit ▸ Undo**, Ctrl+Z, and **Edit ▸ Redo**,
+Ctrl+Shift+Z) step back and forward through the changes, the machine following; each says what it would
+undo or redo ("Undo Add Camera"), and takes you to where the change was made. Typing on in one field is
+one step. A port chosen on the Machine panel is a step too. The steps are kept until another cell is
+opened.
+
+<!-- src: src/ui/JPMachineSetupPanel.cpp (record, settle, undo, the buttons); src/setup/JPSetupHistory.h; src/app/JPlacerMachine.cpp (applySetup, setPort, undo); src/app/JPlacerMenuBuilder.cpp; src/machine/JPCell.cpp (reconfigure); src/machine/JPGcodeDriver.cpp (setConfig); src/machine/JPCellConfig.cpp (problems) -->

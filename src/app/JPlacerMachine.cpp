@@ -71,23 +71,29 @@ JPlacerMachine::~JPlacerMachine() {
     m_cell.reset();
 }
 
-void JPlacerMachine::dropPanels() {
-    for (CameraDock& c : m_cameras) c.panel->setMarks(nullptr);   // they come from the board, which goes first
-    if (m_board) m_board->dropPanel();
-    m_board.reset();
-    m_cameraTasks.reset();   // a task under way finishes first: it drives the cell and a camera
+void JPlacerMachine::dropPanels(Keep keep) {
+    const bool cameras = keep != Keep::SetupAndCameras;
+    if (cameras) {
+        for (CameraDock& c : m_cameras) c.panel->setMarks(nullptr);   // they come from the board, which goes first
+        if (m_board) m_board->dropPanel();
+        m_board.reset();
+        m_cameraTasks.reset();   // a task under way finishes first: it drives the cell and a camera
+    }
     for (const auto& u : m_unwatch) u();
     m_unwatch.clear();
     m_jog = nullptr;
-    if (m_setup) {   // where its divider was, for the next one
+    const JContainer* setup = keep == Keep::Nothing ? nullptr : m_setup;
+    if (m_setup && !setup) {   // where its divider was, for the next one
         JSettings::instance().set(JPlacerSettings::kSetupTreeShare, m_setup->treeShare());
         JPlacerSettings::save();
+        m_setup = nullptr;
     }
-    m_setup = nullptr;
     for (Dock& d : m_docks) {
+        if (d.panel.get() == setup || (!cameras && d.dock->title() == "Board")) continue;
         d.dock->setContent(nullptr);
         d.panel.reset();
     }
+    if (!cameras) return;
     for (CameraDock& c : m_cameras) m_layout.remove(c.dock.get());
     m_cameras.clear();
 }
@@ -145,13 +151,14 @@ void JPlacerMachine::bringForward(JPCameraPanel& camera) {
         if (d.panel.get() == &camera) m_layout.show(d.dock.get());
 }
 
-void JPlacerMachine::buildPanels() {
-    buildCameras();
+void JPlacerMachine::buildPanels(Keep keep) {
+    const bool cameras = keep != Keep::SetupAndCameras;
+    if (cameras) buildCameras();
 
     auto machine = std::make_unique<JPMachinePanel>(m_graph, *m_cell);
     machine->onPortChosen = [this](const std::string& driverId, const std::string& port) {
         // Posted: the choice arrives inside the panel's own event, and
-        // reopening the cell replaces that panel.
+        // applying it makes that panel again.
         std::weak_ptr<bool> alive = m_alive;
         JMainThreadDispatcher::instance().post([this, alive, driverId, port] {
             if (const auto a = alive.lock(); a && *a) setPort(driverId, port);
@@ -168,27 +175,17 @@ void JPlacerMachine::buildPanels() {
     m_jog = jog.get();
     panels.push_back({ "Jog",       Home::Controls, std::move(jog) });
     panels.push_back({ "Actuators", Home::Controls, std::make_unique<JPActuatorPanel>(m_graph, *m_cell) });
-    m_board = std::make_unique<JPlacerBoard>(m_window, *m_cameraTasks,
-        [this](const JPMountConfig& mount, double xPerY) { squareMachine(mount, xPerY); });
-    panels.push_back({ "Board",     Home::Work, m_board->makePanel(m_graph) });
-    for (CameraDock& c : m_cameras)
-        c.panel->setMarks([board = m_board.get(), id = c.panel->camera().id] { return board->marks(id); });
-    std::vector<std::string> profiles;
-    for (const JPFirmwareProfile& p : m_profiles) profiles.push_back(p.id());
-    auto setup = std::make_unique<JPMachineSetupPanel>(
-        m_graph, m_cell->config(), profiles, m_setupSelected,
-        JSettings::instance().get<double>(JPlacerSettings::kSetupTreeShare, JPMachineSetupPanel::kTreeShare));
-    m_setup = setup.get();
-    setup->onSelected = [this](const std::string& path) { m_setupSelected = path; };
-    setup->onApply = [this](const JPCellConfig& cell) {
-        // Posted: Apply arrives inside the panel's own event, and opening
-        // the cell again replaces that panel.
-        std::weak_ptr<bool> alive = m_alive;
-        JMainThreadDispatcher::instance().post([this, alive, cell] {
-            if (const auto a = alive.lock(); a && *a) applySetup(cell);
-        });
-    };
-    panels.push_back({ "Machine Setup", Home::Work, std::move(setup) });
+    if (cameras) {
+        m_board = std::make_unique<JPlacerBoard>(m_window, *m_cameraTasks,
+            [this](const JPMountConfig& mount, double xPerY) { squareMachine(mount, xPerY); });
+        panels.push_back({ "Board", Home::Work, m_board->makePanel(m_graph) });
+        for (CameraDock& c : m_cameras)
+            c.panel->setMarks([board = m_board.get(), id = c.panel->camera().id] { return board->marks(id); });
+    } else {
+        panels.push_back({ "Board", Home::Work, nullptr });   // kept
+    }
+    if (keep != Keep::Nothing) panels.push_back({ "Machine Setup", Home::Work, nullptr });   // kept
+    else panels.push_back({ "Machine Setup", Home::Work, makeSetup() });
     panels.push_back({ "Machine",   Home::Work, std::move(machine) });
     panels.push_back({ "Console",   Home::Console, std::make_unique<JPConsolePanel>(m_graph, *m_cell) });
 
@@ -200,6 +197,7 @@ void JPlacerMachine::buildPanels() {
             m_layout.add(d.dock.get(), panels[i].home);
             m_docks.push_back(std::move(d));
         }
+        if (!panels[i].panel) continue;
         m_docks[i].panel = std::move(panels[i].panel);
         m_docks[i].dock->setContent(m_docks[i].panel.get());
     }
@@ -208,6 +206,20 @@ void JPlacerMachine::buildPanels() {
         showDock("Jog");
         showDock("Board");
     }
+}
+
+std::unique_ptr<JPMachineSetupPanel> JPlacerMachine::makeSetup() {
+    std::vector<std::string> profiles;
+    for (const JPFirmwareProfile& p : m_profiles) profiles.push_back(p.id());
+    auto setup = std::make_unique<JPMachineSetupPanel>(
+        m_graph, m_cell->config(), profiles, m_setupSelected,
+        JSettings::instance().get<double>(JPlacerSettings::kSetupTreeShare, JPMachineSetupPanel::kTreeShare));
+    m_setup = setup.get();
+    setup->onSelected = [this](const std::string& path) { m_setupSelected = path; };
+    setup->onApply = [this](const JPCellConfig& cell) { return applySetup(cell); };
+    setup->onHistory = [this] { updateEditItems(); };
+    updateEditItems();
+    return setup;
 }
 
 void JPlacerMachine::park() {
@@ -337,41 +349,78 @@ void JPlacerMachine::squareMachine(const JPMountConfig& mount, double xPerY) {
 }
 
 void JPlacerMachine::setPort(const std::string& driverId, const std::string& port) {
+    const JPDriverConfig* d = m_cell->config().driver(driverId);
+    if (!m_setup || !d || d->link["port"].str() == port) return;
     JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_cellPath << ": controller " << driverId << " now on " << port;
-    JPCellConfig config = m_cell->config();
-    bool changed = false;
-    for (JPDriverConfig& d : config.drivers)
-        if (d.id == driverId && d.link["port"].str() != port) {
-            d.link["port"] = port;
-            changed = true;
-        }
-    if (changed) applySetup(std::move(config));
+    // A step in Machine Setup like any other, so Undo takes it back.
+    m_setup->change("Port of " + d->name, [&](JPCellConfig& cell) {
+        for (JPDriverConfig& c : cell.drivers)
+            if (c.id == driverId) c.link["port"] = port;
+    });
 }
 
-void JPlacerMachine::applySetup(JPCellConfig cell) {
-    if (!m_cell) return;
+bool JPlacerMachine::applySetup(JPCellConfig cell) {
+    if (!m_cell) return false;
     // Measured while it was being set up: the cell's, not the copy's.
     for (JPCameraConfig& c : cell.cameras) c.calibrations = m_cell->cameraCalibrations(c.id);
     cell.squareness = m_cell->squareness();
-    // The running machine takes the new settings; its panels are made again
-    // from them. Nothing is let go (JPCell::reconfigure).
+    // The cameras (and the Board, which works from them) are made again only
+    // when what they show changed: where they are, and how they are set up.
+    auto seen = [](const JPCellConfig& c) {
+        JJson j = JJson::array();
+        for (const JPCameraConfig& x : c.cameras) j.push(x.toJson());
+        for (const JPHeadConfig& x : c.heads) j.push(x.toJson());
+        for (const JPAxisConfig& x : c.axes) j.push(x.toJson());
+        return j.dump();
+    };
+    const Keep keep = seen(cell) == seen(m_cell->config()) ? Keep::SetupAndCameras : Keep::Setup;
+    // The running machine takes the new settings (JPCell::reconfigure).
     std::string error;
-    dropPanels();
+    if (m_cell->isMoving() || m_cell->isHoming()) {
+        m_window.showStatus("Machine Setup's changes are taken once the machine stops", kStatusMs);
+        return false;
+    }
+    dropPanels(keep);
     const bool taken = m_cell->reconfigure(cell, error);
     watchCell();
-    buildPanels();
+    buildPanels(keep);
     updateMenu();
     showState();
     if (!taken) {
-        JDialog::message("Machine Setup could not be applied", error);
-        return;
+        m_window.showStatus("Machine Setup's changes are not in use: " + error, kErrorMs);
+        return false;
     }
     if (!cell.save(m_cellPath, error)) {
-        JDialog::message("Machine Setup is in use but was not saved", error);
-        return;
+        m_window.showStatus("Machine Setup's changes are in use but not saved: " + error, kErrorMs);
+        return true;
     }
-    JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Machine Setup applied to " << m_cellPath;
-    m_window.showStatus("Machine Setup applied", kStatusMs);
+    JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Machine Setup: in use and saved to " << m_cellPath;
+    return true;
+}
+
+void JPlacerMachine::setEditItems(JMenuItem* undo, JMenuItem* redo) {
+    m_undoItem = undo;
+    m_redoItem = redo;
+    updateEditItems();
+}
+
+void JPlacerMachine::updateEditItems() {
+    if (m_undoItem) {
+        m_undoItem->setEnabled(m_setup && m_setup->canUndo());
+        m_undoItem->setLabel(m_setup ? m_setup->undoLabel() : "Undo");
+    }
+    if (m_redoItem) {
+        m_redoItem->setEnabled(m_setup && m_setup->canRedo());
+        m_redoItem->setLabel(m_setup ? m_setup->redoLabel() : "Redo");
+    }
+}
+
+void JPlacerMachine::undo() {
+    if (m_setup) m_setup->undo();
+}
+
+void JPlacerMachine::redo() {
+    if (m_setup) m_setup->redo();
 }
 
 void JPlacerMachine::showState() {

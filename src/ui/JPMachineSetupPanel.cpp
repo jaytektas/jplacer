@@ -32,6 +32,12 @@ JTreeViewNode rows(const JPSetupTree::Node& n, const std::set<std::string>& expa
     return r;
 }
 
+// What the node at `path` is called in the tree.
+std::string nameOf(const JPCellConfig& cell, const std::string& path) {
+    const std::vector<std::string> labels = JPSetupTree::labelsTo(JPSetupTree::build(cell), path);
+    return labels.empty() ? path : labels.back();
+}
+
 std::string joined(const std::vector<std::string>& parts) {
     std::string out;
     for (const std::string& p : parts) out += (out.empty() ? "" : "/") + p;
@@ -42,8 +48,15 @@ std::string joined(const std::vector<std::string>& parts) {
 
 JPMachineSetupPanel::JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, std::vector<std::string> profiles,
                                          std::string selected, double treeShare)
-    : JContainer(graph), m_original(cell), m_draft(std::move(cell)), m_profiles(std::move(profiles)) {
+    : JContainer(graph), m_inUse(cell), m_draft(cell), m_recorded(std::move(cell)),
+      m_history([this](const JPSetupHistory::State& state) { restore(state); }), m_profiles(std::move(profiles)) {
     JPUiParts::asPanel(*this);
+    m_history.onChanged = [this] {
+        update();
+        if (onHistory) onHistory();
+    };
+    m_settle.setInterval(kSettleMs).setSingleShot(true);
+    m_settle.timeout.connect([this] { settle(); });
 
     auto tools = JPUiParts::row(graph);
     m_add = tools->add(JPUiParts::button(graph, "Add"));
@@ -111,19 +124,10 @@ JPMachineSetupPanel::JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, 
     auto bottom = JPUiParts::row(graph);
     m_note = bottom->add(std::make_unique<JLabel>(graph, ""));
     m_note->setHSizePolicy(JSizePolicyMode::Expanding, 1);
-    m_reset = bottom->add(JPUiParts::button(graph, "Reset"));
-    m_reset->onClicked.connect([this] {
-        m_draft = m_original;
-        m_note->setText("");
-        rebuildTree();
-        const std::string keep = m_selected;
-        m_selected.clear();
-        select(keep);
-    });
-    m_apply = bottom->add(JPUiParts::button(graph, "Apply"));
-    m_apply->onClicked.connect([this] {
-        if (onApply) onApply(m_draft);
-    });
+    m_undo = bottom->add(JPUiParts::button(graph, "Undo"));
+    m_undo->onClicked.connect([this] { undo(); });
+    m_redo = bottom->add(JPUiParts::button(graph, "Redo"));
+    m_redo->onClicked.connect([this] { redo(); });
     add(std::move(bottom));
 
     rebuildTree();
@@ -136,13 +140,63 @@ double JPMachineSetupPanel::treeShare() const {
 }
 
 void JPMachineSetupPanel::moveSelected(int by) {
+    const std::string from = m_selected, name = nameOf(m_draft, from);
     const std::string moved = JPSetupEdits::move(m_draft, m_selected, by);
-    if (!moved.empty()) {
-        rebuildTree();
-        m_selected.clear();
-        select(moved);   // a step's path is its place
-    }
-    update();
+    if (moved.empty()) return;
+    rebuildTree();
+    m_selected.clear();
+    select(moved);   // a step's path is its place
+    record((by < 0 ? "Move Up " : "Move Down ") + name, "", from);
+}
+
+void JPMachineSetupPanel::change(const std::string& what, const std::function<void(JPCellConfig&)>& edit) {
+    const std::string from = m_selected;
+    edit(m_draft);
+    rebuildTree();
+    m_form->refresh();
+    record(what, "", from);
+    m_settle.stop();
+    settle();
+}
+
+void JPMachineSetupPanel::record(const std::string& what, const std::string& key, const std::string& from) {
+    JPSetupHistory::State after{ m_draft, m_selected };
+    m_history.record(what, key, { std::move(m_recorded), from }, after);
+    m_recorded = std::move(after.cell);
+    m_settle.start();
+}
+
+void JPMachineSetupPanel::restore(const JPSetupHistory::State& state) {
+    m_draft = state.cell;
+    m_recorded = state.cell;
+    m_note->setText("");
+    rebuildTree();
+    m_selected.clear();
+    select(state.selected);
+    m_settle.start();
+}
+
+void JPMachineSetupPanel::settle() {
+    if (!m_draft.problems().empty() || m_draft.toJson().dump() == m_inUse.toJson().dump()) return;
+    if (!onApply) return;
+    if (onApply(m_draft)) m_inUse = m_draft;
+    else m_settle.start();   // not taken now (the machine is moving): again shortly
+}
+
+std::string JPMachineSetupPanel::undoLabel() const {
+    return canUndo() ? "Undo " + m_history.undoText() : "Undo";
+}
+
+std::string JPMachineSetupPanel::redoLabel() const {
+    return canRedo() ? "Redo " + m_history.redoText() : "Redo";
+}
+
+void JPMachineSetupPanel::undo() {
+    m_history.undo();
+}
+
+void JPMachineSetupPanel::redo() {
+    m_history.redo();
 }
 
 void JPMachineSetupPanel::showNode(const std::string& path) {
@@ -173,16 +227,19 @@ void JPMachineSetupPanel::setRows(bool firstTime) {
 }
 
 void JPMachineSetupPanel::addPart() {
+    const std::string from = m_selected, what = JPSetupEdits::addable(m_draft, m_selected);
     const std::string added = JPSetupEdits::add(m_draft, m_selected);
     if (added.empty()) return;
     JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Machine Setup: added " << added;
     m_note->setText("");
     rebuildTree();
     select(added);
+    record("Add " + what, "", from);
 }
 
 void JPMachineSetupPanel::removePart() {
     const std::string group = JPSetupTree::groupOf(m_draft, m_selected);
+    const std::string from = m_selected, name = nameOf(m_draft, from);
     std::string why;
     if (!JPSetupEdits::remove(m_draft, m_selected, why)) {
         m_note->setText("Not removed: " + why + ".");
@@ -192,6 +249,7 @@ void JPMachineSetupPanel::removePart() {
     m_note->setText("");
     rebuildTree();
     select(group);
+    record("Remove " + name, "", from);
 }
 
 void JPMachineSetupPanel::setBranch(bool open) {
@@ -240,12 +298,17 @@ void JPMachineSetupPanel::show(const std::string& path) {
     JPSetupProperties::Form f = JPSetupProperties::forNode(m_draft, path, m_profiles);
     m_reshaping = f.reshaping;
     m_title->setText(f.title);
+    m_labels.clear();
+    for (const JProperty& p : f.model.all()) m_labels[p.name] = p.meta.label.empty() ? p.name : p.meta.label;
     m_form->setModel(std::move(f.model));
     if (onSelected) onSelected(path);
     update();
 }
 
 void JPMachineSetupPanel::changed(const std::string& property) {
+    const auto label = m_labels.find(property);
+    const std::string what = nameOf(m_draft, m_selected) + ": " + (label == m_labels.end() ? property : label->second);
+    const std::string at = m_selected;
     // A name shows in the tree; a head moves a part in it.
     rebuildTree();
     if (std::find(m_reshaping.begin(), m_reshaping.end(), property) != m_reshaping.end()) {
@@ -255,7 +318,8 @@ void JPMachineSetupPanel::changed(const std::string& property) {
         m_form->setModel(std::move(f.model));
         select(m_selected);   // where it is in the tree now
     }
-    update();
+    // Typing on in the same field is the same step.
+    record(what, at + "|" + property, at);
 }
 
 void JPMachineSetupPanel::update() {
@@ -274,10 +338,11 @@ void JPMachineSetupPanel::update() {
 
     std::string problems;
     for (const std::string& p : m_draft.problems()) problems += (problems.empty() ? "" : "\n") + p;
-    m_problems->setText(problems.empty() ? "" : "To put right before applying:\n" + problems);
-    const bool edited = m_draft.toJson().dump() != m_original.toJson().dump();
-    m_reset->setEnabled(edited);
-    m_apply->setEnabled(edited && problems.empty());
+    m_problems->setText(problems.empty() ? "" : "Not in use until put right:\n" + problems);
+    m_undo->setEnabled(canUndo());
+    m_undo->setTooltip(undoLabel());
+    m_redo->setEnabled(canRedo());
+    m_redo->setTooltip(redoLabel());
 }
 
 } // inline namespace jf
