@@ -100,7 +100,12 @@ void JPSimulatedGrbl::execute(const std::string& raw) {
         return;
     }
     std::string line = upper(raw);
-    line.erase(std::remove(line.begin(), line.end(), ' '), line.end());
+    if (const size_t semi = line.find(';'); semi != std::string::npos) line.erase(semi);   // a comment
+    line.erase(std::remove_if(line.begin(), line.end(), [](char c) { return c == ' ' || c == '\t'; }), line.end());
+    if (line.empty()) {
+        m_out.push_back("ok");
+        return;
+    }
 
     if (const auto it = m_replies.find(upper(raw)); it != m_replies.end()) {
         m_out.push_back(it->second);
@@ -115,6 +120,11 @@ void JPSimulatedGrbl::execute(const std::string& raw) {
         m_out.push_back("ok");
     } else if (line == "$H") {
         for (auto& [l, v] : m_machine) v = 0.0;
+        m_out.push_back("ok");
+    } else if (line.size() > 2 && line.rfind("$H", 0) == 0 && std::isalpha(static_cast<unsigned char>(line[2]))) {
+        // grblHAL's homing of single axes: $HZ, $HXY.
+        for (size_t i = 2; i < line.size(); ++i)
+            if (const auto it = m_machine.find(std::string(1, line[i])); it != m_machine.end()) it->second = 0.0;
         m_out.push_back("ok");
     } else if (line == "$X") {
         m_out.push_back("ok");
@@ -133,6 +143,11 @@ void JPSimulatedGrbl::execute(const std::string& raw) {
 }
 
 void JPSimulatedGrbl::gcode(const std::string& line) {
+    // Motors on or off (M17 / M18, axis letters bare): nothing to simulate.
+    if (line.rfind("M17", 0) == 0 || line.rfind("M18", 0) == 0) {
+        m_out.push_back("ok");
+        return;
+    }
     // Words: a letter and a number each.
     std::vector<std::pair<char, double>> words;
     for (size_t i = 0; i < line.size();) {

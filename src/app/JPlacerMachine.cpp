@@ -211,6 +211,7 @@ void JPlacerMachine::buildPanels(Keep keep) {
         setTipOn(nozzleId, tipId);
     };
     jog->onStop = [this](bool emergency) { stop(emergency); };
+    jog->onHomeZ = [this](const std::string& nozzleId) { homeNozzle(nozzleId); };
     jog->openMenu = [this](JMenu* menu, float x, float y) {
         if (JMenuManager::instance().onOpenMenu)
             JMenuManager::instance().onOpenMenu(menu, m_window.windowX() + int(x), m_window.windowY() + int(y), false, false);
@@ -315,6 +316,25 @@ void JPlacerMachine::park() {
             return;
         }
     m_window.showStatus("No head has a park place set", kErrorMs);
+}
+
+void JPlacerMachine::homeNozzle(const std::string& nozzleId) {
+    if (!m_cell) return;
+    if (m_tipChanges && m_tipChanges->busy()) {
+        m_window.showStatus("Wait for the tip change under way to finish or stop", kErrorMs);
+        return;
+    }
+    if (m_cell->isMoving()) {
+        m_window.showStatus("Wait for the move under way to finish or stop", kErrorMs);
+        return;
+    }
+    std::string names;
+    for (const std::string& id : m_cell->nozzlesHomedWith(nozzleId))
+        for (const JPNozzleConfig& n : m_cell->config().nozzles)
+            if (n.id == id) names += (names.empty() ? "" : " and ") + n.name;
+    JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Machine: home Z of " << names;
+    m_window.showStatus("Homing the Z of " + names + ", from the park place", kStatusMs);
+    m_cell->homeNozzle(nozzleId, 1.0);   // at the machine's speed
 }
 
 std::string JPlacerMachine::cellsDir() {
@@ -537,6 +557,8 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
             if ("camera:" + c.panel->camera().id == path) m_cameraTasks->calibrate(*c.panel);
     } else if ((action == "storeNozzleMark" || action == "calculateNozzleOffset") && path.rfind("nozzle:", 0) == 0) {
         nozzleOffsetWizard(path.substr(7), action == "storeNozzleMark");
+    } else if (action == "homeNozzleZ" && path.rfind("nozzle:", 0) == 0) {
+        homeNozzle(path.substr(7));
     } else if (action.rfind("whiteBalance", 0) == 0 && path.rfind("camera:", 0) == 0) {
         // Worked out from what the camera sees now, as it took it; a step to undo.
         const std::string id = path.substr(7);

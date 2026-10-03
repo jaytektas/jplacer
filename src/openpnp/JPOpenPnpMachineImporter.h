@@ -26,7 +26,7 @@ public:
     // Importing again over `previous` (the cell imported before): what was
     // set, taught or measured in jplacer is not OpenPnP's to replace, and is
     // carried into `cell`: each controller's chosen port, which tip is on
-    // each nozzle (a wrong one is a crash), the tips' changer steps, each
+    // each nozzle (a wrong one is a crash), each nozzle's Z home command, the tips' changer steps, each
     // camera's calibrations and show-all, and the squareness.
     static void keepFrom(const JPCellConfig& previous, JPCellConfig& cell);
 };

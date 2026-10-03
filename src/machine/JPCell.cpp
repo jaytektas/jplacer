@@ -214,6 +214,69 @@ bool JPCell::doPark(const std::string& headId, double speed, std::string& why) {
     return doMove(target, speed, why);
 }
 
+const JPAxisConfig* JPCell::zMotor(const JPMountConfig& mount) const {
+    const JPAxisConfig* z = m_config.axis(mount.axisZ);
+    if (z && z->kind == JPAxisConfig::Kind::Mapped) z = m_config.axis(z->inputAxisId);
+    return z && z->kind == JPAxisConfig::Kind::Controller ? z : nullptr;
+}
+
+std::vector<std::string> JPCell::nozzlesHomedWith(const std::string& nozzleId) const {
+    const JPNozzleConfig* nozzle = nullptr;
+    for (const JPNozzleConfig& n : m_config.nozzles) if (n.id == nozzleId) nozzle = &n;
+    if (!nozzle) return {};
+    std::vector<std::string> ids{ nozzleId };
+    const JPAxisConfig* motor = zMotor(nozzle->mount);
+    if (!motor) return ids;
+    for (const JPNozzleConfig& n : m_config.nozzles)
+        if (n.id != nozzleId && zMotor(n.mount) == motor) ids.push_back(n.id);
+    return ids;
+}
+
+void JPCell::homeNozzle(const std::string& nozzleId, double speed) {
+    if (m_moving.exchange(true)) return;
+    m_thread.post([this, nozzleId, speed] {
+        std::string why;
+        bool ok = false;
+        if (!m_connected || !m_homed) why = "not homed: home the machine first";
+        else ok = doHomeNozzle(nozzleId, speed, why);
+        m_moving = false;
+        onMotion.emit(ok, why);
+    });
+}
+
+bool JPCell::doHomeNozzle(const std::string& nozzleId, double speed, std::string& why) {
+    const JPNozzleConfig* nozzle = nullptr;
+    for (const JPNozzleConfig& n : m_config.nozzles) if (n.id == nozzleId) nozzle = &n;
+    if (!nozzle) { why = "there is no such nozzle"; return false; }
+    if (nozzle->homeCommand.find_first_not_of(" \t\r\n") == std::string::npos) {
+        why = nozzle->name + " has no Z home command (Machine Setup, the nozzle's Homing tab)";
+        return false;
+    }
+    const JPAxisConfig* motor = zMotor(nozzle->mount);
+    JPGcodeDriver* d = motor ? driver(motor->driverId) : nullptr;
+    if (!d) { why = nozzle->name + "'s Z is not on a controller's axis"; return false; }
+
+    // Somewhere nothing is below before a Z goes anywhere unexpected.
+    if (!doPark(nozzle->mount.headId, speed, why)) return false;
+
+    JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_config.name << ": homing " << nozzle->name << "'s Z (" << motor->name << ")";
+    const JPReply r = d->sendLines(nozzle->homeCommand, d->config().homeTimeoutMs);
+    if (!r.ok) { why = nozzle->name + ": Z homing failed (" + r.error + ")"; return false; }
+    const JPReply w = d->waitForMotion();
+    if (!w.ok) { why = nozzle->name + ": Z homing did not finish (" + w.error + ")"; return false; }
+    const JPReply p = d->command("setPosition", { { "axes", motor->letter + format(motor->homeCoordinate, d->profile()->decimals()) } });
+    if (!p.ok) { why = nozzle->name + ": Z home coordinate not set (" + p.error + ")"; return false; }
+    const JPReply after = d->waitForMotion();
+    if (!after.ok) { why = d->config().name + ": " + after.error; return false; }
+    {
+        std::lock_guard lk(m_mutex);
+        m_sent[motor->id] = motor->homeCoordinate;
+        m_corrected.erase(motor->id);
+    }
+    JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_config.name << ": " << nozzle->name << "'s Z homed";
+    return true;
+}
+
 bool JPCell::safeZAndWait(const std::string& headId, double speed, std::string& why) {
     if (m_moving.exchange(true)) {
         why = "another move is under way";

@@ -76,6 +76,9 @@ public:
     // there is no such command.
     JPReply command(const std::string& name, const std::map<std::string, std::string>& values = {},
                     int timeoutMs = 0);
+    // Lines of G-code given whole (a nozzle's Z home), sent as a command's
+    // are: in order, each waiting for its answer. BLOCKS.
+    JPReply sendLines(const std::string& text, int timeoutMs = 0);
 
     // Block until the controller has finished every move it was given (the
     // profile's waitMotion command, which the controller answers only then)

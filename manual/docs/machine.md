@@ -261,7 +261,8 @@ Beside the tool, for a nozzle, the **nozzle tip** button opens its tip menu:
 - **Step Through**: each changer step is shown, with its place and speed, and runs only once you say
   so; stop at any step. On by default, and kept for next time;
 - **Manual Change**: say which tip is on the nozzle, or none, when it was changed by hand (nothing moves)
-  or a change was stopped.
+  or a change was stopped;
+- **Home Z**: the nozzle's Z homed alone (see [Homing a nozzle's Z](#homing-a-nozzles-z)).
 
 The machine must be connected and homed. Each step's place is where the nozzle goes, in the axes' own
 coordinates: the first move of a list comes in from safe Z (up, across, then down), the others go
@@ -269,6 +270,27 @@ straight, and the head ends at safe Z. Each move goes at its step's speed times 
 Speed slider). Once a tip is off (or on), the nozzle is recorded as having it (a step to undo in Machine
 Setup); stopped or failed partway, nothing is assumed: look at the nozzle and say which tip is on it
 (Manual Change).
+
+#### Homing a nozzle's Z
+
+A tip forced onto a nozzle can make its Z motor slip a step, leaving the nozzle at the wrong height. **Home
+Z**, at the bottom of the nozzle's tip menu (or on the nozzle's Homing tab in Machine Setup), homes that Z
+alone, without homing the whole machine:
+
+1. every Z on the head goes up to safe Z, and the head goes to its [park place](#parking). The park place
+   must be somewhere nothing is below the nozzles, as near the home switches as suits (within a
+   centimetre or so is usual), because a Z that has slipped is not where its coordinates say;
+2. the nozzle's **Home Command** is sent, line by line, to the controller of the motor behind its Z. It is
+   G-code of your own (Machine Setup, the nozzle's Homing tab): typically the Z motor switched off and on
+   again (as a full home starts), that axis homed on its switch, and its balance or offset set. On a
+   grblHAL machine, for example: `M18 Z`, `G4 P1`, `M17 Z`, `$HZ`, `G92 Z-25.5`, `G0 Z0`;
+3. once it has finished, the motor's axis is at its home coordinate, as after a full home.
+
+Where nozzles share one Z motor (a see-saw head), homing either homes both, and the menu says so (**Home Z
+(with RIGHT)**). It is shown greyed while the nozzle has no home command or the machine is not homed. Each
+nozzle has its own command, so a machine with a motor per nozzle homes each on its own.
+
+<!-- src: src/machine/JPCell.cpp (homeNozzle, doHomeNozzle, nozzlesHomedWith); src/machine/JPNozzleConfig.h (homeCommand); src/ui/JPJogPanel.cpp (showTipMenu); src/app/JPlacerMachine.cpp (homeNozzle); src/setup/JPSetupProperties.cpp (nozzleForm) -->
 
 **Special** tab: **Head Safe Z** (every Z on the head up to safe Z), **Discard** (the nozzle's part to the
 discard location: up, across, down, let go, up again), and **Pick** and **Place** where the nozzle is.

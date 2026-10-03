@@ -88,6 +88,18 @@ public:
     // zone first, then the head's camera (else its first tool on X and Y) to
     // the park place. The outcome arrives as onMotion.
     void park(const std::string& headId, double speed);
+    // HOME ONE NOZZLE'S Z (a motor that slipped a step forcing a tip on
+    // leaves it at the wrong height): the head parked first (up to safe Z,
+    // across to its park place, which must be clear of anything below), then
+    // the nozzle's home command (JPNozzleConfig::homeCommand) sent to the
+    // controller of the motor behind its Z, and that axis then at its home
+    // coordinate, as after a full home. Every nozzle sharing the motor is
+    // homed with it (nozzlesHomedWith). Needs the machine homed; the outcome
+    // arrives as onMotion.
+    void homeNozzle(const std::string& nozzleId, double speed);
+    // The nozzles one Z home of `nozzleId` homes (those on the same motor),
+    // itself first.
+    std::vector<std::string> nozzlesHomedWith(const std::string& nozzleId) const;
     // Every Z behind the head's tools into its safe zone, waiting: for a
     // procedure on a thread of its own. False with `why`.
     bool safeZAndWait(const std::string& headId, double speed, std::string& why);
@@ -190,6 +202,9 @@ private:
     bool doMove(std::map<std::string, double> targets, double speed, std::string& why, bool squared = true);
     bool doHome(std::string& why);
     bool doPark(const std::string& headId, double speed, std::string& why);
+    bool doHomeNozzle(const std::string& nozzleId, double speed, std::string& why);
+    // The controller axis behind a mount's Z (through a mapped axis); null when none.
+    const JPAxisConfig* zMotor(const JPMountConfig& mount) const;
     bool doSafeZ(const std::string& headId, double speed, std::string& why);
     bool doSwitch(const std::string& actuatorId, bool on, std::string& why);
     bool doPick(const JPNozzleConfig& nozzle, std::string& why);

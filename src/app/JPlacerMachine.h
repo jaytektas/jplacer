@@ -62,6 +62,8 @@ public:
     void disconnect();
     void home();                // Machine > Home All Axes
     void park();                // Machine > Park Head
+    // A nozzle's Z homed alone, from the park place (JPCell::homeNozzle).
+    void homeNozzle(const std::string& nozzleId);
     // Machine > Stop (the move held and dropped, the position kept) and
     // Emergency Stop (every controller reset at once; home again after).
     void stop(bool emergency);

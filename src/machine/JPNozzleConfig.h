@@ -30,6 +30,10 @@ struct JPNozzleConfig {
     // Waited after the vacuum is on (pick) or off (place), with the tip's own.
     int                      pickDwellMs = 0;
     int                      placeDwellMs = 0;
+    // Homing this nozzle's Z alone (Z only, from the park place): G-code
+    // lines sent to the controller of the motor behind its Z, which ends
+    // at the axis's home coordinate as a full home does. Empty: none.
+    std::string              homeCommand;
 
     bool fits(const std::string& nozzleTipId) const {
         for (const std::string& t : tipIds) if (t == nozzleTipId) return true;
@@ -45,6 +49,7 @@ struct JPNozzleConfig {
         n.vacuumSenseActuatorId = j["vacuumSenseActuator"].str();
         n.pickDwellMs           = int(j["pickDwellMs"].number());
         n.placeDwellMs          = int(j["placeDwellMs"].number());
+        n.homeCommand           = j["homeCommand"].str();
         return n;
     }
     JJson toJson() const {
@@ -62,6 +67,7 @@ struct JPNozzleConfig {
         if (!vacuumSenseActuatorId.empty()) j["vacuumSenseActuator"] = vacuumSenseActuatorId;
         if (pickDwellMs) j["pickDwellMs"] = pickDwellMs;
         if (placeDwellMs) j["placeDwellMs"] = placeDwellMs;
+        if (!homeCommand.empty()) j["homeCommand"] = homeCommand;
         return j;
     }
 };

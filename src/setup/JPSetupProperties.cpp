@@ -583,6 +583,15 @@ void nozzleForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     add.byName("vacuumSenseActuator", "Sensing Actuator", actuators, [n]() -> std::string& { return n().vacuumSenseActuatorId; });
     add.note("Pick switches the vacuum on; Place switches it off, then pulses the blow-off for the place dwell (Jog panel).");
 
+    // Homing Z alone: after a tip forced on made the motor slip a step.
+    add.tab("Homing");
+    add.group("Z Home");
+    add.text("homeCommand", "Home Command", [n]() -> std::string& { return n().homeCommand; }, "lines");
+    add.note("G-code that homes this nozzle's Z alone, sent to the controller of its Z motor once the head is at "
+             "its park place (which must be clear of anything below). After it, the Z is at its home coordinate, "
+             "as after Home. A nozzle sharing the motor is homed with it. Empty: no Z home.");
+    add.actions({ { "Home Z", "homeNozzleZ" } });
+
     // OpenPnP's Offset Wizard: where the nozzle is on the head, from a mark it leaves.
     add.tab("Offset Wizard");
     add.group("Nozzle Offset Wizard Steps");

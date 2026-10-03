@@ -185,6 +185,9 @@ notes.
 - A move can be stopped while it runs: Stop (Escape, or the Jog panel) holds it and keeps the position;
   E-STOP (the Jog panel, the red toolbar button, or the Machine menu; no key) resets the controllers at once, and the
   machine must be homed again.
+- A nozzle's Z can be homed on its own (Home Z, in the nozzle's tip menu), for when forcing a tip on made
+  its motor slip: the head parks, then the nozzle's own home G-code runs (set on its Homing tab in Machine
+  Setup). Nozzles sharing a Z motor are homed together. Importing an OpenPnP machine again keeps it.
 - The Jog pad's park buttons show a parking sign that grows with the pad.
 - Buttons and other controls are no longer clipped by a pixel along an edge.
 

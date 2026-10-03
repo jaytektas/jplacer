@@ -372,6 +372,22 @@ void JPJogPanel::showTipMenu() {
         });
     }
     m_tipMenu->add(g, "Manual Change", {}, m_tipOnIt.get());
+    // Z homed alone, with every nozzle on the same motor.
+    m_tipMenu->addSeparator(g);
+    std::string with;
+    for (const std::string& id : m_cell.nozzlesHomedWith(nozzleId))
+        for (const JPNozzleConfig& n : c.nozzles)
+            if (n.id == id && id != nozzleId) with += (with.empty() ? "" : ", ") + n.name;
+    const bool hasCommand = nozzle->homeCommand.find_first_not_of(" \t\r\n") != std::string::npos;
+    std::string homeLabel = "Home Z";
+    if (!hasCommand)               homeLabel += " (no home command: Machine Setup)";
+    else if (!m_cell.isHomed())    homeLabel += " (home the machine first)";
+    else if (!with.empty())        homeLabel += " (with " + with + ")";
+    JMenuItem* homeZ = m_tipMenu->add(g, homeLabel);
+    homeZ->setEnabled(hasCommand && m_cell.isHomed());
+    homeZ->onTriggered.connect([this, nozzleId] {
+        if (onHomeZ) onHomeZ(nozzleId);
+    });
     const JRect b = m_graph.getLayoutConst(m_tipButton->getNodeId()).boundingBox;
     openMenu(m_tipMenu.get(), b.x, b.y + b.height);
 }

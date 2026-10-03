@@ -26,8 +26,9 @@ inline namespace jf {
 // chosen at the top (a nozzle, a camera, anything on the head with axes);
 // beside it, for a nozzle, the tip menu: the tips that fit it to load (the
 // one on it unloaded first), Unload, Step Through (each changer step asked
-// before it runs), and Manual Change (say which tip was put on by hand;
-// nothing moves).
+// before it runs), Manual Change (say which tip was put on by hand;
+// nothing moves), and Home Z (the nozzle's Z homed alone, with any nozzle
+// sharing its motor).
 //
 //  - Jog: an X / Y pad of arrows with Park (the head to its park place) in
 //    its middle; Z up and down with Park (to safe Z) between; the rotation
@@ -67,6 +68,8 @@ public:
     std::function<void(const std::string& nozzleId, const std::string& tipId, bool everyStep)> onChangeTip;
     std::function<void(const std::string& nozzleId, const std::string& tipId)> onTipOnIt;
     std::function<void(JMenu* menu, float x, float y)> openMenu;
+    // Home the nozzle's Z alone (JPCell::homeNozzle).
+    std::function<void(const std::string& nozzleId)> onHomeZ;
     // Stop (the move held and dropped) or, `emergency`, reset every controller.
     std::function<void(bool emergency)> onStop;
 

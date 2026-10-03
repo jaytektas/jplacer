@@ -603,7 +603,10 @@ void JPOpenPnpMachineImporter::keepFrom(const JPCellConfig& previous, JPCellConf
     for (JPNozzleConfig& n : cell.nozzles) {
         n.tipId.clear();
         for (const JPNozzleConfig& was : previous.nozzles)
-            if (was.id == n.id && n.fits(was.tipId)) n.tipId = was.tipId;
+            if (was.id == n.id) {
+                if (n.fits(was.tipId)) n.tipId = was.tipId;
+                n.homeCommand = was.homeCommand;   // OpenPnP has no Z-only home
+            }
     }
     for (JPNozzleTipConfig& tip : cell.nozzleTips)
         for (const JPNozzleTipConfig& was : previous.nozzleTips)

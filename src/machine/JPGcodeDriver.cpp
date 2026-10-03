@@ -185,14 +185,17 @@ JPReply JPGcodeDriver::command(const std::string& name, const std::map<std::stri
                     : m_profile->command(name, values);
     if (!text) return failed(m_profile->name() + " has no '" + name + "' command").get();
     if (timeoutMs <= 0 && name == "home") timeoutMs = c->homeTimeoutMs;
+    return sendLines(*text, timeoutMs);
+}
 
+JPReply JPGcodeDriver::sendLines(const std::string& text, int timeoutMs) {
     JPReply all;
     all.ok = true;
     size_t start = 0;
-    while (start <= text->size()) {
-        const size_t eol = text->find('\n', start);
-        std::string line = text->substr(start, eol == std::string::npos ? std::string::npos : eol - start);
-        start = eol == std::string::npos ? text->size() + 1 : eol + 1;
+    while (start <= text.size()) {
+        const size_t eol = text.find('\n', start);
+        std::string line = text.substr(start, eol == std::string::npos ? std::string::npos : eol - start);
+        start = eol == std::string::npos ? text.size() + 1 : eol + 1;
         if (line.find_first_not_of(" \t\r") == std::string::npos) continue;
         JPReply r = send(std::move(line), timeoutMs).get();
         all.lines.insert(all.lines.end(), r.lines.begin(), r.lines.end());
