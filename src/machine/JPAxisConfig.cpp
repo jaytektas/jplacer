@@ -82,6 +82,7 @@ std::optional<JPAxisConfig> JPAxisConfig::fromJson(const JJson& j, std::string& 
     a.jerkPerSecond3         = j["jerkPerSecond3"].number();
     a.wrapAroundRotation     = j["wrapAroundRotation"].boolean();
     a.limitRotation          = j["limitRotation"].boolean();
+    a.resolution             = j["resolution"].number();
 
     a.inputAxisId = j["inputAxis"].str();
     const JJson& map = j["map"];
@@ -127,6 +128,7 @@ JJson JPAxisConfig::toJson() const {
         j["jerkPerSecond3"]         = jerkPerSecond3;
         j["wrapAroundRotation"]     = wrapAroundRotation;
         j["limitRotation"]          = limitRotation;
+        if (resolution > 0) j["resolution"] = resolution;
     }
     if (kind == Kind::Mapped) {
         j["inputAxis"]      = inputAxisId;

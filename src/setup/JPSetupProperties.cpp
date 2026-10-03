@@ -406,6 +406,18 @@ void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
         add.byName("driver", "Driver", named(cell.drivers, "(none)"), [a]() -> std::string& { return a().driverId; });
         add.text("letter", "Axis Letter", [a]() -> std::string& { return a().letter; });
         add.number("homeCoordinate", "Home Coordinate", [a]() -> double& { return a().homeCoordinate; });
+        // One motor step, and its other side: steps per unit.
+        const std::string unit = a().type == A::Type::Rotation ? "Degree" : "Millimeter";
+        add.row(a().type == A::Type::Rotation ? "Resolution [Degrees]" : "Resolution [Millimeters]");
+        add.number("resolution", "Resolution", [a]() -> double& { return a().resolution; }, 6);
+        add.number("stepsPerUnit", "Steps / " + unit, [a] { return a().resolution > 0 ? 1 / a().resolution : 0.0; },
+                   [a](double v) { a().resolution = v > 0 ? 1 / v : 0; }, 6);
+        add.end();
+        if (a().type == A::Type::Rotation) {
+            add.flag("limitRotation", "Limit to Range", [a]() -> bool& { return a().limitRotation; });
+            add.flag("wrapAroundRotation", "Wrap Around", [a]() -> bool& { return a().wrapAroundRotation; });
+            add.note("Limit to Range keeps the angle within -180..180; Wrap Around turns the short way round.");
+        }
     }
     if (a().kind == A::Kind::Virtual) {
         add.group("Virtual Axis");
@@ -442,6 +454,10 @@ void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
     add.number("feedratePerMinute", "Feed Rate [/min]", [a] { return a().feedratePerSecond * 60; },
                [a](double v) { a().feedratePerSecond = v / 60; }, 1);
     add.end();
+    add.number("accelerationPerSecond2", "Acceleration [/s\u00B2]", [a]() -> double& { return a().accelerationPerSecond2; }, 1);
+    add.number("jerkPerSecond3", "Jerk [/s\u00B3]", [a]() -> double& { return a().jerkPerSecond3; }, 1);
+    add.note("0: the controller's own. Acceleration and jerk reach a controller whose move command takes "
+             "{acceleration} or {jerk} (its Gcode tab).");
 
     add.tab("Backlash Compensation");
     add.group("Backlash Compensation");

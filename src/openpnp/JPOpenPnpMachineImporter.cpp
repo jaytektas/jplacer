@@ -271,6 +271,7 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                 a.jerkPerSecond3         = lengthChild(x, "jerk-per-second-3");
                 a.wrapAroundRotation     = yes(x.attr("wrap-around-rotation"));
                 a.limitRotation          = yes(x.attr("limit-rotation"));
+                if (const JPXmlElement* r = x.child("resolution")) a.resolution = number(r->text);
             } else if (kind == "ReferenceVirtualAxis") {
                 a.kind = JPAxisConfig::Kind::Virtual;
             } else if (kind == "ReferenceMappedAxis") {

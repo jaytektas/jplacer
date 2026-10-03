@@ -36,7 +36,7 @@ JPCellConfig cellConfig() {
       "drivers": [ { "id": "D", "name": "Gantry", "statusIntervalMs": 10, "commandTimeoutMs": 500, "connectWaitMs": 0,
                      "link": { "type": "simulated", "simulator": {
                          "identity": [ "[VER:1.1f.20250101:]", "[FIRMWARE:grblHAL]" ],
-                         "axisLetters": [ "X", "Y", "Z" ],
+                         "axisLetters": [ "X", "Y", "Z", "A" ],
                          "replies": { "M1000 P1": "-31000" } } } } ],
       "heads": [ { "id": "H", "name": "Head" } ],
       "axes": [ { "id": "X",  "name": "x",  "kind": "controller", "type": "x", "driver": "D", "letter": "X",
@@ -44,7 +44,9 @@ JPCellConfig cellConfig() {
                   "backlash": "oneSided", "backlashOffset": 0.1, "backlashSpeedFactor": 0.25,
                   "softLimits": { "low": 0, "high": 400, "lowEnabled": true, "highEnabled": true } },
                 { "id": "Z",  "name": "z",  "kind": "controller", "type": "z", "driver": "D", "letter": "Z",
-                  "feedratePerSecond": 50 },
+                  "feedratePerSecond": 50, "resolution": 0.25 },
+                { "id": "C",  "name": "c",  "kind": "controller", "type": "rotation", "driver": "D", "letter": "A",
+                  "feedratePerSecond": 360, "wrapAroundRotation": true, "limitRotation": true },
                 { "id": "ZR", "name": "zr", "kind": "mapped", "type": "z", "inputAxis": "Z",
                   "map": { "input0": -1, "output0": 1, "input1": 0, "output1": 0 } } ],
       "nozzles": [ { "id": "N", "name": "Right", "mount": { "head": "H", "axisX": "X", "axisZ": "ZR" } } ],
@@ -124,6 +126,15 @@ int main() {
         assert(motion.take().first && settle("X", 395.0));
         cell.jog("N", 0, 0, 1.5, 0, 1.0);                  // the nozzle's Z is mapped: its input goes the other way
         assert(motion.take().first && settle("ZR", 1.5) && settle("Z", -1.5));
+        // Whole steps: Z moves in quarters.
+        cell.moveAxes({ { "Z", -1.6 } }, 1.0);
+        assert(motion.take().first && settle("Z", -1.5));
+        // A rotation that wraps and is limited goes the short way, past 180,
+        // and is then told where it is within -180..180.
+        cell.moveAxes({ { "C", 170 } }, 1.0);
+        assert(motion.take().first && settle("C", 170.0));
+        cell.moveAxes({ { "C", -170 } }, 1.0);
+        assert(motion.take().first && settle("C", -170.0));
 
         // A step from where the axis was sent, not from where it reports: back
         // to 390 exactly, the limit itself, even when the report is 389.999.

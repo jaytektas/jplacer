@@ -142,6 +142,9 @@ notes.
   (several lines if need be). Brought in from OpenPnP with the rest of the machine.
 - The machine's own settings, as in OpenPnP: Home after connected, Park after homed (after visual
   homing), and a Discard Location. Brought in from OpenPnP.
+- An axis's Resolution (Steps / mm) rounds every move to a whole step; a rotation axis can be limited to
+  -180..180 and turn the short way round; acceleration and jerk can be sent with each move. As in
+  OpenPnP, and brought in from it.
 
 ## 0.1.0
 

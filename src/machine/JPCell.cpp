@@ -610,6 +610,18 @@ bool JPCell::doMove(std::map<std::string, double> targets, double speed, std::st
     if (!m_connected) { why = "not connected"; return false; }
     if (!m_homed)     { why = "not homed: home the machine first"; return false; }
 
+    // A rotation goes the short way round (wrap around), or is kept to
+    // -180..180 (limit to range), as its axis is set.
+    const auto start = jogBase();
+    for (auto& [id, t] : targets) {
+        const JPAxisConfig* a = m_config.axis(id);
+        if (!a || a->type != JPAxisConfig::Type::Rotation || a->kind != JPAxisConfig::Kind::Controller) continue;
+        if (const auto cur = start.find(id); a->wrapAroundRotation && cur != start.end())
+            t = cur->second + std::remainder(t - cur->second, 360.0);
+        else if (a->limitRotation)
+            t = std::remainder(t, 360.0);
+    }
+
     // Down to controller axes: a mapped axis becomes its input axis's target,
     // a virtual axis just takes its coordinate.
     std::map<std::string, double> hardware;   // controller axis id -> target
@@ -638,6 +650,9 @@ bool JPCell::doMove(std::map<std::string, double> targets, double speed, std::st
     const std::map<std::string, double> square = hardware;
     const auto now = jogBase();
     hardware = toAxes(hardware, now);
+    // Whole steps of an axis with a resolution: where it can actually stop.
+    for (auto& [id, t] : hardware)
+        if (const double r = m_config.axis(id)->resolution; r > 0) t = std::round(t / r) * r;
     for (const auto& [id, t] : hardware) {
         const JPAxisConfig* hw = m_config.axis(id);
         if ((hw->softLimitLowEnabled && t < hw->softLimitLow) || (hw->softLimitHighEnabled && t > hw->softLimitHigh)) {
@@ -687,9 +702,21 @@ bool JPCell::doMove(std::map<std::string, double> targets, double speed, std::st
                 feed = feed <= 0 ? rate : std::min(feed, rate);
             }
             if (const double cap = d->config().maxFeedRate; cap > 0) feed = std::min(feed, cap);
-            feed *= std::clamp(speed, 0.0, 1.0) * factor;
+            const double k = std::clamp(speed, 0.0, 1.0) * factor;
+            feed *= k;
+            std::map<std::string, std::string> values{ { "axes", words }, { "feed", format(feed, 0) } };
+            // The slowest acceleration and jerk among the axes, for a command
+            // that sets them ({acceleration}, {jerk}): scaled as the speed is,
+            // so a slower move is the same move stretched in time.
+            double accel = 0, jerk = 0;
+            for (const JPAxisConfig* a : axes) {
+                if (a->accelerationPerSecond2 > 0) accel = accel > 0 ? std::min(accel, a->accelerationPerSecond2) : a->accelerationPerSecond2;
+                if (a->jerkPerSecond3 > 0) jerk = jerk > 0 ? std::min(jerk, a->jerkPerSecond3) : a->jerkPerSecond3;
+            }
+            if (accel > 0) values["acceleration"] = format(accel * k * k, 0);
+            if (jerk > 0) values["jerk"] = format(jerk * k * k * k, 0);
             JLOGC(JPlacerLog::kCell, JLogLevel::Debug) << "move " << d->config().name << ": " << words << " F" << format(feed, 0);
-            const JPReply r = d->command("move", { { "axes", words }, { "feed", format(feed, 0) } });
+            const JPReply r = d->command("move", values);
             if (!r.ok) { why = d->config().name + ": move refused (" + r.error + ")"; return false; }
             if (std::find(moved.begin(), moved.end(), d) == moved.end()) moved.push_back(d);
         }
@@ -702,7 +729,24 @@ bool JPCell::doMove(std::map<std::string, double> targets, double speed, std::st
         const JPReply w = d->waitForMotion();
         if (!w.ok) { why = d->config().name + ": move did not finish (" + w.error + ")"; return false; }
     }
+    // A rotation that both wraps and is limited, gone past +-180 the short
+    // way: its controller is told it is at the same angle within the range.
+    std::map<std::string, double> rewrapped;
+    for (const auto& [id, t] : hardware) {
+        const JPAxisConfig* a = m_config.axis(id);
+        if (a->type != JPAxisConfig::Type::Rotation || !a->wrapAroundRotation || !a->limitRotation || std::abs(t) <= 180) continue;
+        JPGcodeDriver* d = driver(a->driverId);
+        const double in = std::remainder(t, 360.0);
+        const JPReply r = d->command("setPosition", { { "axes", a->letter + format(in, d->profile()->decimals()) } });
+        if (!r.ok) JLOGC(JPlacerLog::kCell, JLogLevel::Warn) << a->name << ": could not bring the rotation back into range (" << r.error << ")";
+        else rewrapped[id] = in;
+    }
     std::lock_guard lk(m_mutex);
+    for (const auto& [id, t] : rewrapped) {
+        hardware[id] = t;
+        m_positions[id] = t;
+        if (targets.count(id)) targets[id] = t;
+    }
     for (const auto& [id, t] : virtuals) m_positions[id] = t;
     for (const auto& [id, t] : targets) m_sent[id] = t;
     for (const auto& [id, t] : square)  m_sent[id] = t;

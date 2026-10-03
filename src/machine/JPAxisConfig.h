@@ -49,6 +49,9 @@ struct JPAxisConfig {
     double backlashSpeedFactor = 1;
     double feedratePerSecond = 0, accelerationPerSecond2 = 0, jerkPerSecond3 = 0;
     bool   wrapAroundRotation = false, limitRotation = false;
+    // What one motor step moves the axis (mm or degrees; 0: not known): a
+    // move goes to the nearest whole step.
+    double resolution = 0;
 
     std::string inputAxisId;
     double mapInput0 = 0, mapOutput0 = 0, mapInput1 = 1, mapOutput1 = 1;
