@@ -113,6 +113,8 @@ notes.
   back.
 - The status bar shows where the tool chosen in Jog is; click it to measure from where it is now, click
   again to go back. It takes the place of the Axes panel.
+- A camera's tools are icons in its tab: an eye to see the picture as taken (lit) or straightened, save
+  the picture, calibrate, and the visual test. The picture gets the room the buttons took.
 
 ## 0.1.0
 

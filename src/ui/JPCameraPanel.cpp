@@ -3,6 +3,7 @@
 
 #include "JPCameraPanel.h"
 
+#include "JPIcons.h"
 #include "JPUiParts.h"
 
 #include "camera/JPImageFile.h"
@@ -26,27 +27,30 @@ JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCameraCon
     JPUiParts::asPanel(*this);
     m_feed.setView(std::move(view));
 
-    auto top = JPUiParts::row(graph);
-    m_state = top->add(std::make_unique<JLabel>(graph, ""));
-    m_state->setHSizePolicy(JSizePolicyMode::Expanding, 1);
-    top->add(JPUiParts::button(graph, "Save Picture"))->onClicked.connect([this] { savePicture(); });
-    JButton* calibrate = top->add(JPUiParts::button(graph, "Calibrate"));
-    calibrate->onClicked.connect([this] { if (onCalibrate) onCalibrate(); });
-    JButton* test = top->add(JPUiParts::button(graph, "Visual Test"));
-    test->onClicked.connect([this] { if (onVisualTest) onVisualTest(); });
-    m_taskButtons = { calibrate, test };
-    add(std::move(top));
-    // As taken, or straightened: the lens's bending out and the machine square
-    // to the picture, as much of the bent edge shown as the slider says.
-    auto viewRow = JPUiParts::row(graph);
-    m_viewChoice = viewRow->add(std::make_unique<JPChoiceRow>(graph, std::vector<std::string>{ "As Taken", "Straightened" }, 0));
-    m_viewChoice->onChosen.connect([this](int i) {
-        m_straight = i == 1;
+    // The tools, for the tab (tabTools). As taken (the eye on), or
+    // straightened: the lens's bending out and the machine square to the
+    // picture.
+    m_asTaken = std::make_unique<JPIconButton>(graph, "As Taken", &JPIcons::eye,
+                                               "As taken: the picture as the camera gives it, not straightened");
+    m_asTaken->setCheckable(true);
+    m_asTaken->setChecked(true);
+    m_asTaken->onToggled.connect([this](bool asTaken) {
+        m_straight = !asTaken;
         refreshStraightening();
         if (onViewChanged) onViewChanged(m_straight, m_showAll);
     });
-    viewRow->add(std::make_unique<JLabel>(graph, "Edges: cropped"));
-    m_edges = viewRow->add(std::make_unique<JSlider>(graph, 0.f));
+    m_save = std::make_unique<JPIconButton>(graph, "Save Picture", &JPIcons::save, "Save the picture");
+    m_save->onClicked.connect([this] { savePicture(); });
+    m_calibrate = std::make_unique<JPIconButton>(graph, "Calibrate", &JPIcons::target, "Calibrate the camera");
+    m_calibrate->onClicked.connect([this] { if (onCalibrate) onCalibrate(); });
+    m_visualTest = std::make_unique<JPIconButton>(graph, "Visual Test", &JPIcons::check, "Visual test of the calibration");
+    m_visualTest->onClicked.connect([this] { if (onVisualTest) onVisualTest(); });
+
+    // The picture's format, and how much of a straightened one's bent edge shows.
+    auto top = JPUiParts::row(graph);
+    m_state = top->add(std::make_unique<JLabel>(graph, ""));   // as wide as it says
+    top->add(std::make_unique<JLabel>(graph, "Edges: cropped"));
+    m_edges = top->add(std::make_unique<JSlider>(graph, 0.f));
     m_edges->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     m_edges->setValue(0);
     m_edges->onValueChanged.connect([this](float v) {
@@ -54,8 +58,8 @@ JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCameraCon
         refreshStraightening();
         if (onViewChanged) onViewChanged(m_straight, m_showAll);
     });
-    viewRow->add(std::make_unique<JLabel>(graph, "whole"));
-    add(std::move(viewRow));
+    top->add(std::make_unique<JLabel>(graph, "whole"));
+    add(std::move(top));
     // What a camera task is doing, or the last thing done: a line of its own,
     // so a result reads in full.
     m_note = add(std::make_unique<JLabel>(graph, ""));
@@ -122,7 +126,7 @@ void JPCameraPanel::stopIfHidden() {
 void JPCameraPanel::setView(bool straight, double showAll) {
     m_straight = straight;
     m_showAll = showAll;
-    if (m_viewChoice) m_viewChoice->choose(straight ? 1 : 0);
+    m_asTaken->setChecked(!straight);
     if (m_edges) m_edges->setValue(float(showAll));
     refreshStraightening();
 }
@@ -142,10 +146,15 @@ void JPCameraPanel::refreshStraightening() {
 }
 
 void JPCameraPanel::setBusy(bool busy) {
-    for (JButton* b : m_taskButtons) b->setEnabled(!busy);
+    m_calibrate->setEnabled(!busy);
+    m_visualTest->setEnabled(!busy);
     // A task needs pictures whether or not anyone is looking.
     m_busy = busy;
     if (busy && !m_feed.isRunning()) start();
+}
+
+std::vector<JWidget*> JPCameraPanel::tabTools() const {
+    return { m_asTaken.get(), m_save.get(), m_calibrate.get(), m_visualTest.get() };
 }
 
 void JPCameraPanel::setMarks(std::function<std::vector<JPViewMark>()> marks) {

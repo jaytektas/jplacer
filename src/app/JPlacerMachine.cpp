@@ -126,6 +126,7 @@ void JPlacerMachine::buildCameras() {
         d.panel->onRunning = [this](bool) { lightCameras(); };
         d.dock = std::make_unique<JDockWidget>(c.name, 0.f, 0.f, 0.f, 0.f);
         d.dock->setContent(d.panel.get());
+        for (JWidget* tool : d.panel->tabTools()) d.dock->addTitleWidget(tool, JPIconButton::size());
         panels.push_back(d.panel.get());
         m_cameras.push_back(std::move(d));
     }

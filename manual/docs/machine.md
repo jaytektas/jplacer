@@ -242,7 +242,21 @@ The cell's cameras sit top left in the window, each in a dock of its own, named 
 tabbed together to start with. Click a camera's tab to see it, or arrange them like any other dock: side
 by side, or torn out into a window of its own. A camera's live picture is fitted to its dock with its
 shape kept, and a cross through the middle marks the point the camera is looking at; along the top are
-the picture's format, size and rate. A camera runs while its picture is on screen and stops half a
+the picture's format, size and rate.
+
+A camera's tools are icons in its tab, beside the close button, while it is the front tab (hover over
+one to see what it does):
+
+| Icon | |
+|---|---|
+| eye | **As taken**: lit, the picture is shown as the camera gives it; off, it is straightened (below). |
+| disk | **Save the picture** (below). |
+| target | **Calibrate** the camera (below). |
+| tick in a ring | **Visual test** of the calibration (below). |
+
+<!-- src: src/ui/JPCameraPanel.cpp (tabTools); src/ui/JPIcons.cpp; src/ui/JPIconButton.cpp; src/app/JPlacerMachine.cpp (buildCameras); JFramework include/j/core/DockWidget.h (addTitleWidget) -->
+
+A camera runs while its picture is on screen and stops half a
 second after it is not (another tab in front, the window minimised), so a camera nobody sees costs
 nothing. A task using a camera brings its tab to the front, and keeps the camera running until it ends.
 
@@ -253,11 +267,11 @@ it is plugged into, so moving it to another socket or hub does not lose it. jpla
 picture the camera offers in MJPG (or YUYV, if that is all it has), unless the cell names a format and
 size.
 
-Under a camera's buttons, **As Taken** shows the picture as the camera takes it; **Straightened** takes
-the lens's bending out and turns it square to the machine, at one scale both ways and centred on what
+With the eye lit (**as taken**), the picture is shown as the camera takes it; with it off, it is
+**straightened**: the lens's bending is taken out and turns it square to the machine, at one scale both ways and centred on what
 the camera looks at, so straight edges on the board look straight and what is drawn over the picture is
 plain geometry. A camera must be calibrated to be straightened; until then it is shown as taken, and the
-line under the buttons says so. Straightened, a wide lens's picture no longer fills a rectangle: the
+line over the picture says so. Straightened, a wide lens's picture no longer fills a rectangle: the
 **Edges** slider goes from *cropped* (enlarged until every part of it has picture behind it) to *whole*
 (all the camera sees, with bare edges where the bending was). Each camera keeps its own choice for next time. The
 straightened picture is drawn by the graphics card where there is one, and by the processor where there
@@ -277,21 +291,21 @@ the last picture, which would otherwise pass for a live one, and opens the camer
 
 <!-- src: src/camera/JPCameraFeed.cpp (run, runSource, kStalledMs, kReconnectMs); src/ui/JPCameraView.cpp (the band over the picture) -->
 
-**Save Picture** writes the camera's latest picture as a PNG (lossless, so it measures the same as
+**Save the picture** (the disk) writes the camera's latest picture as a PNG (lossless, so it measures the same as
 the live picture did) to `captures/` in jplacer's configuration folder, named after the camera and the
-moment it was taken; the line under the buttons names the file.
+moment it was taken; the line over the picture names the file.
 
 A camera only shows what is in front of it, and in an enclosed machine that is dark until its light is
 on. While the machine is connected, a camera's light is on while the camera runs (its picture is on
-screen) and off once none of the cameras it lights is running; while not connected, the line under the
-buttons says the light is off.
+screen) and off once none of the cameras it lights is running; while not connected, the line over the
+picture says the light is off.
 
 <!-- src: src/ui/JPCameraPanel.cpp (savePicture); src/camera/JPImageFile.cpp; src/ui/JPCameraView.cpp; src/camera/JPV4L2Source.cpp (found by name); src/camera/JPCaptureFactory.cpp (choose); src/app/JPlacerMachine.cpp (lightCameras) -->
 
 #### Calibrating the head camera
 
-jplacer measures its cameras itself: nothing is taken from another program. **Calibrate**, in the
-camera on the head's dock, works out how big a pixel is on the machine in X and in Y, which way the
+jplacer measures its cameras itself: nothing is taken from another program. **Calibrate** (the target),
+in the tab of the camera on the head, works out how big a pixel is on the machine in X and in Y, which way the
 camera is turned (or mirrored), and how its lens bends the picture. The machine must be connected and
 homed, and the head's homing mark (its place and diameter, brought across by an OpenPnP import) must be
 set.
@@ -313,7 +327,7 @@ set.
 Every move arrives from the same side (see [Backlash](#backlash)), so play in the drives cannot creep
 into the scale, and each picture measured is one taken after the move ended (a camera hands over
 pictures a little late). The head moves at a tenth of its speed. While a task runs, its camera's buttons
-are off (and another camera task will not start), and the line under the buttons says what it is doing; when it ends, that line
+are off (and another camera task will not start), and the line over the picture says what it is doing; when it ends, that line
 and the status bar give the result. A calibration is saved in the cell file and used from then on:
 whatever is measured in a picture is straightened through the lens first.
 
@@ -328,7 +342,7 @@ that size.
 #### Calibrating a fixed camera
 
 A camera fixed to the machine (one looking up at the nozzles) cannot be moved over a mark, so the mark
-is moved over it: **Calibrate**, in that camera's dock, holds a nozzle's tip over it. jplacer first asks,
+is moved over it: **Calibrate** (the target), in that camera's tab, holds a nozzle's tip over it. jplacer first asks,
 naming the nozzle and the height it goes down to, as a nozzle going down near a camera must hold no part
 and have nothing in its way. Then the head's Z comes up into its safe zone, the nozzle goes over the
 camera's place and down to the camera's height (both from the camera's offset, where it is and the height
@@ -344,7 +358,7 @@ mirrored.
 
 #### Visual Test
 
-**Visual Test** moves a calibrated head camera to look where the head's settings say the homing mark is,
+**Visual Test** (the tick in a ring) moves a calibrated head camera to look where the head's settings say the homing mark is,
 finds the mark, and says how far it really is from there, in mm in X and Y. Nothing is changed: right
 after a visual home it reads within a few hundredths of a millimetre, and any time later it shows whether
 the machine has lost its place.
