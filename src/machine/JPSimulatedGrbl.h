@@ -20,7 +20,7 @@ class JJson;
 // and fixed replies to other commands (a plugin's sensor reading). Motion is
 // instantaneous. Like Grbl it keeps a machine position and a work offset
 // (G92), takes moves in work coordinates, and reports MPos with the offset
-// (WCO) beside it.
+// (WCO) beside it; a feed hold ('!') reports Hold until a reset (Ctrl-X).
 class JPSimulatedGrbl {
 public:
     // {
@@ -29,7 +29,8 @@ public:
     //   "settings":    { "100": "80", "110": "5000" },
     //   "replies":     { "M1000 P0": "-12000" },
     //   "silent":          false,   // answers nothing: a port with no controller behind it
-    //   "garbleFirstLine": false    // the first line fails (error:2), as after junk on the line
+    //   "garbleFirstLine": false,   // the first line fails (error:2), as after junk on the line
+    //   "stallDwell":      false    // G4 after a move (the wait for it) never answers: a move that lasts
     // }
     void configure(const JJson& config);
 
@@ -56,6 +57,9 @@ private:
     bool                          m_relative = false;
     bool                          m_silent   = false;
     bool                          m_garble   = false;
+    bool                          m_held     = false;   // feed hold ('!') until a reset
+    bool                          m_stallDwell = false; // the dwell after a move (the wait for it) never answers
+    bool                          m_moved      = false; // a move since the last reset
     std::string                   m_input;
     std::deque<std::string>       m_out;
 };

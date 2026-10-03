@@ -67,6 +67,8 @@ public:
     std::function<void(const std::string& nozzleId, const std::string& tipId, bool everyStep)> onChangeTip;
     std::function<void(const std::string& nozzleId, const std::string& tipId)> onTipOnIt;
     std::function<void(JMenu* menu, float x, float y)> openMenu;
+    // Stop (the move held and dropped) or, `emergency`, reset every controller.
+    std::function<void(bool emergency)> onStop;
 
     // The chosen tool's coordinates now, by name (X, Y, Z, C): where its
     // axes are plus its offset on the head.
@@ -76,7 +78,8 @@ public:
     const std::string& toolId() const;
     double speed() const;
 
-    // An action, as its button does: "x+", "x-", "y+", "y-", "z+", "z-",
+    // An action, as its button does: "stop", "emergencyStop" (onStop),
+    // "x+", "x-", "y+", "y-", "z+", "z-",
     // "c+", "c-", "parkXY", "parkZ", "parkC", "safeZ", "discard",
     // "pick", "place", "positionNozzle", "positionCamera", "distance+",
     // "distance-". False when there is no such action.

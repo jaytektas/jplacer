@@ -223,6 +223,13 @@ JPReply JPGcodeDriver::waitForMotion() {
     return r;
 }
 
+bool JPGcodeDriver::halt(bool emergency) {
+    const JPFirmwareProfile* p = m_profile;
+    if (!m_connected || !p || p->reset().empty()) return false;
+    m_halt = emergency ? 2 : 1;
+    return true;
+}
+
 bool JPGcodeDriver::readSettings(std::string& error) {
     if (!m_profile || !m_profile->hasSettings()) {
         error = cfg()->name + ": its firmware profile does not describe stored settings";
@@ -275,8 +282,54 @@ void JPGcodeDriver::ioLoop() {
         onLost.emit(why);
     };
 
+    // Throws the controller's queue away (the firmware's reset) and fails
+    // what waits on it.
+    auto resetNow = [&](const std::string& why) {
+        const JPFirmwareProfile* p = m_profile;
+        if (!m_link->write(p->reset())) {
+            lost("could not write to " + m_link->describe());
+            return false;
+        }
+        JLOGC(JPlacerLog::kDriver, JLogLevel::Warn) << cfg()->name << ": " << why;
+        m_holding = false;
+        failAll(why);
+        return true;
+    };
+
     while (m_running) {
-        if (!m_inFlight) {
+        // A stop asked for: before anything else is sent.
+        if (const int h = m_halt.exchange(0); h != 0 && m_profile) {
+            const JPFirmwareProfile* p = m_profile;
+            if (h == 2 || p->feedHold().empty()) {
+                if (!resetNow(h == 2 ? "emergency stop" : "stopped")) return;
+            } else {
+                if (!m_link->write(p->feedHold())) {
+                    lost("could not write to " + m_link->describe());
+                    return;
+                }
+                JLOGC(JPlacerLog::kDriver, JLogLevel::Info) << cfg()->name << ": feed hold";
+                m_holding = true;
+                m_holdLast.clear();
+                m_holdUntil = Clock::now() + std::chrono::milliseconds(cfg()->commandTimeoutMs);
+                m_statusNow = true;
+            }
+        }
+        // Held: once the reports say held and the axes have stopped moving
+        // (or too long has passed), the queue is thrown away; the position stays.
+        if (m_holding) {
+            JPFirmwareProfile::Status st;
+            {
+                std::lock_guard lk(m_mutex);
+                st = m_status;
+            }
+            const bool held = !m_profile->holdState().empty() && st.state == m_profile->holdState();
+            if ((held && !m_holdLast.empty() && st.positions == m_holdLast) || Clock::now() > m_holdUntil) {
+                if (!resetNow("stopped")) return;
+            } else if (held) {
+                m_holdLast = st.positions;
+            }
+        }
+        if (!m_inFlight && !m_holding) {
             std::optional<Pending> next;
             {
                 std::lock_guard lk(m_mutex);

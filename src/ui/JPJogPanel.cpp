@@ -81,6 +81,18 @@ JPJogPanel::JPJogPanel(JSceneGraph& graph, JPCell& cell, Choices start) : JConta
     tip->onClicked.connect([this] { showTipMenu(); });
     m_tipButton = top->add(std::move(tip));
     m_tipButton->setEnabled(m_tools[m_tool].nozzle);
+    // Stopping, always in view: the move held and dropped (the position
+    // kept), or every controller reset at once.
+    auto stopButton = std::make_unique<JPIconButton>(graph, "Stop", &JPIcons::stopMove,
+                                                     "Stop the move: held, the rest thrown away, the position kept (Esc)");
+    stopButton->setFramed(true);
+    stopButton->onClicked.connect([this] { act("stop"); });
+    top->add(std::move(stopButton));
+    auto estop = std::make_unique<JPIconButton>(graph, "Emergency Stop", &JPIcons::emergencyStop,
+                                                "EMERGENCY STOP: every controller reset at once; home again after (Shift+Esc)");
+    estop->setDanger(true);
+    estop->onClicked.connect([this] { act("emergencyStop"); });
+    top->add(std::move(estop));
     tools->onIndexChanged.connect([this](int i) {
         if (i < 0 || size_t(i) >= m_tools.size()) return;
         m_tool = size_t(i);
@@ -414,6 +426,10 @@ bool JPJogPanel::act(const std::string& action) {
     if (m_tools.empty()) return false;
     const Tool& t = m_tools[m_tool];
     const std::string& head = t.mount->headId;
+    if (action == "stop" || action == "emergencyStop") {
+        if (onStop) onStop(action == "emergencyStop");
+        return true;
+    }
     if (action == "x+") jog(1, 0, 0, 0);
     else if (action == "x-") jog(-1, 0, 0, 0);
     else if (action == "y+") jog(0, 1, 0, 0);

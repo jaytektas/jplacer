@@ -91,6 +91,11 @@ bool JPFirmwareProfile::load(const std::string& path, std::string& error) {
         m_alarmState = status["alarmState"].str();
     }
 
+    const JJson& stop = j["stop"];
+    m_feedHold  = stop["feedHold"].str();
+    m_holdState = stop["holdState"].str();
+    m_reset     = stop["reset"].str();
+
     m_axisLetters.clear();
     for (const JJson& l : j["axisLetters"].arr()) m_axisLetters.push_back(l.str());
     if (m_axisLetters.empty()) return fail("axisLetters is empty");

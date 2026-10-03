@@ -12,6 +12,7 @@
 #include "ui/JPCameraPanel.h"
 #include "ui/JPConnectIcon.h"
 #include "ui/JPHomeIcon.h"
+#include "ui/JPIconButton.h"
 #include "ui/JPJogPanel.h"
 #include "ui/JPMachineSetupPanel.h"
 #include "ui/JPPositionReadout.h"
@@ -61,6 +62,9 @@ public:
     void disconnect();
     void home();                // Machine > Home All Axes
     void park();                // Machine > Park Head
+    // Machine > Stop (the move held and dropped, the position kept) and
+    // Emergency Stop (every controller reset at once; home again after).
+    void stop(bool emergency);
     // Bring the dock titled `title` to the front of its tab group (shown
     // again if it was closed). False when there is no such dock.
     bool showDock(const std::string& title);
@@ -155,6 +159,7 @@ private:
     JMenuItem*                          m_redoItem       = nullptr;
     JPConnectIcon                       m_connectIcon;
     JPHomeIcon                          m_homeIcon;
+    JPIconButton                        m_emergencyStop;   // on the toolbar, always in view
     JPPositionReadout                   m_position;   // the chosen tool's, in the status bar
     bool                                m_connecting  = false;   // asked, not yet answered
     bool                                m_connectFailed = false; // the last connect failed

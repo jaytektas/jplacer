@@ -11,6 +11,7 @@
 #include "openpnp/JPOpenPnpMachineImporter.h"
 #include "ui/JPActuatorPanel.h"
 #include "ui/JPConsolePanel.h"
+#include "ui/JPIcons.h"
 #include "ui/JPJogPanel.h"
 #include "ui/JPMachinePanel.h"
 #include "ui/JPMachineSetupPanel.h"
@@ -18,6 +19,7 @@
 
 #include <j/config/Settings.h>
 #include <j/core/Dialog.h>
+#include <j/core/JStyle.h>
 #include <j/core/Log.h>
 #include <j/core/MainThreadDispatcher.h>
 
@@ -47,6 +49,8 @@ constexpr const char* kOpenPnpMachineFile = "machine.xml";
 JPlacerMachine::JPlacerMachine(JAppWindow& window, JSceneGraph& graph)
     : m_window(window), m_graph(graph), m_layout(window), m_profiles(JPFirmwareProfile::loadAll()),
       m_connectIcon(graph), m_homeIcon(graph),
+      m_emergencyStop(graph, "Emergency Stop", &JPIcons::emergencyStop,
+                      "EMERGENCY STOP: every controller reset at once; home again after (Shift+Esc)"),
       m_position(graph, [this] { return m_jog ? m_jog->where() : std::vector<std::pair<std::string, double>>(); }) {
     // The machine's two states, always in view: click the chip to connect or
     // disconnect, the house to home.
@@ -57,6 +61,11 @@ JPlacerMachine::JPlacerMachine(JAppWindow& window, JSceneGraph& graph)
         if (m_cell && m_cell->isConnected()) disconnect(); else connect();
     });
     m_homeIcon.onClicked.connect([this] { home(); });
+    // And the emergency stop, red, at their size.
+    m_emergencyStop.setDanger(true);
+    m_emergencyStop.setFixedSize(JStyle::current().buttonHeight, JStyle::current().buttonHeight);
+    tb.addWidget(&m_emergencyStop);
+    m_emergencyStop.onClicked.connect([this] { stop(true); });
     // Where the chosen tool is (Jog), at the right of the status bar.
     window.statusBar().addWidget(&m_position, JPPositionReadout::widthNeeded());
     JLOGC(JPlacerLog::kProfiles, JLogLevel::Info) << m_profiles.size() << " firmware profile(s)";
@@ -201,6 +210,7 @@ void JPlacerMachine::buildPanels(Keep keep) {
         }
         setTipOn(nozzleId, tipId);
     };
+    jog->onStop = [this](bool emergency) { stop(emergency); };
     jog->openMenu = [this](JMenu* menu, float x, float y) {
         if (JMenuManager::instance().onOpenMenu)
             JMenuManager::instance().onOpenMenu(menu, m_window.windowX() + int(x), m_window.windowY() + int(y), false, false);
@@ -283,6 +293,17 @@ std::unique_ptr<JPMachineSetupPanel> JPlacerMachine::makeSetup() {
     setup->onHistory = [this] { updateEditItems(); };
     updateEditItems();
     return setup;
+}
+
+void JPlacerMachine::stop(bool emergency) {
+    if (!m_cell) return;
+    std::string why;
+    if (!m_cell->stop(emergency, why)) {
+        m_window.showStatus("Not stopped: " + why, kErrorMs);
+        return;
+    }
+    m_window.showStatus(emergency ? "EMERGENCY STOP: every controller reset; home the machine before moving it"
+                                  : "Stopped: the move held and dropped, the position kept", kErrorMs);
 }
 
 void JPlacerMachine::park() {
@@ -633,7 +654,9 @@ void JPlacerMachine::updateEditItems() {
 }
 
 void JPlacerMachine::jogAction(const std::string& action) {
-    if (m_jog) m_jog->act(action);
+    // Stopping works with the Jog panel closed too.
+    if (action == "stop" || action == "emergencyStop") stop(action == "emergencyStop");
+    else if (m_jog) m_jog->act(action);
 }
 
 void JPlacerMachine::undo() {

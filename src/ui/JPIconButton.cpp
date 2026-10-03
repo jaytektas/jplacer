@@ -49,17 +49,19 @@ void JPIconButton::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     const JWidgetState state = getState();
     const bool enabled = state != JWidgetState::Disabled;
     JVectorCanvas vg;
-    const uint8_t* fill = m_checked                           ? st.Accent
+    const uint8_t* fill = m_danger                            ? st.Danger   // red, whatever the pointer does
+                        : m_checked                           ? st.Accent
                         : state == JWidgetState::Pressed      ? st.Surface3
                         : state == JWidgetState::Hovered      ? st.Surface2
-                                                              : m_framed ? st.Surface1 : nullptr;   // flat at rest
+                        : m_framed                            ? st.Surface1 : nullptr;   // flat at rest
     if (fill) vg.fillRoundedRect(b.x, b.y, b.width, b.height, s * kRoundShare, JPaint::solid(colour(fill)));
     if (m_framed) {
         // The edge inside the button's box, not centred on it (half of it would be outside, and cut off).
         const float w = st.borderWidth, h = w * 0.5f;
         vg.strokeRoundedRect(b.x + h, b.y + h, b.width - w, b.height - w, s * kRoundShare, w, JPaint::solid(colour(st.Border)));
     }
-    const JColor ink = !enabled ? colour(st.MutedText) : m_checked ? colour(st.HighlightedText) : colour(st.TextPrimary);
+    const JColor ink = !enabled ? colour(st.MutedText)
+                     : (m_checked || m_danger) ? colour(st.HighlightedText) : colour(st.TextPrimary);
     m_glyph(vg, b.x + b.width * 0.5f, b.y + b.height * 0.5f, s * kGlyphShare, ink);
     vg.flush(buf);
 }

@@ -24,6 +24,7 @@
     "idleState": "Idle",
     "alarmState": "Alarm"
   },
+  "stop": { "feedHold": "!", "holdState": "Hold", "reset": "\u0018" },
   "axisLetters": [
     "X",
     "Y",

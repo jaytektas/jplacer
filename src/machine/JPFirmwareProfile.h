@@ -84,6 +84,15 @@ public:
     // Every named command, as its template (with its {placeholders}).
     const std::map<std::string, std::string>& commands() const { return m_commands; }
     bool statusIsRealtime() const { return m_statusRealtime; }
+    // STOPPING. `feedHold`: bytes that bring motion to a controlled stop
+    // (decelerating; the position kept), sent at once whatever is queued;
+    // `holdState`: the state the status reports once held. `reset`: bytes
+    // that stop at once and throw away everything queued (an emergency stop;
+    // after a hold, the queue thrown away with the position kept). Empty
+    // when the firmware has none.
+    const std::string& feedHold()  const { return m_feedHold; }
+    const std::string& holdState() const { return m_holdState; }
+    const std::string& reset()     const { return m_reset; }
     // Parse a status line: the controller state and the axis positions it
     // reports, by axis letter. Nothing if `line` is not a status report.
     //
@@ -146,6 +155,7 @@ private:
 
     std::string m_statusCommand;
     bool        m_statusRealtime = false;
+    std::string m_feedHold, m_holdState, m_reset;
     std::regex  m_status;
     int         m_statusStateGroup = 0;
     int         m_statusPositionGroup = 0;

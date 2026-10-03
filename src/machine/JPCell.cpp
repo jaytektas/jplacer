@@ -290,6 +290,21 @@ void JPCell::place(const std::string& nozzleId) {
     });
 }
 
+bool JPCell::stop(bool emergency, std::string& why) {
+    bool any = false;
+    for (const auto& d : m_drivers) any = d->halt(emergency) || any;
+    if (!any) {
+        why = m_connected ? "no controller's firmware profile says how to stop it" : "not connected";
+        return false;
+    }
+    JLOGC(JPlacerLog::kCell, JLogLevel::Warn) << m_config.name << (emergency ? ": EMERGENCY STOP" : ": stop");
+    if (emergency && m_homed) {
+        m_homed = false;   // a controller reset mid-move may have lost its place
+        onHomed.emit(false);
+    }
+    return true;
+}
+
 void JPCell::setSpeed(double share) {
     m_speed = std::clamp(share, 0.0, 1.0);
 }

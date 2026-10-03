@@ -17,6 +17,7 @@ namespace {
 // Grbl's real-time bytes.
 constexpr char kStatusQuery = '?';
 constexpr char kSoftReset   = 0x18;
+constexpr char kFeedHold    = '!';
 
 // Grbl's error numbers for what the simulator rejects.
 constexpr const char* kErrorUnsupported = "error:20";   // unsupported or invalid g-code command
@@ -47,6 +48,7 @@ void JPSimulatedGrbl::configure(const JJson& config) {
     for (const auto& [cmd, reply] : config["replies"].obj()) m_replies[upper(cmd)] = reply.str();
     m_silent = config["silent"].boolean();
     m_garble = config["garbleFirstLine"].boolean();
+    m_stallDwell = config["stallDwell"].boolean();
 }
 
 void JPSimulatedGrbl::receive(const std::string& bytes) {
@@ -54,9 +56,13 @@ void JPSimulatedGrbl::receive(const std::string& bytes) {
     for (char c : bytes) {
         if (c == kStatusQuery) {
             m_out.push_back(statusReport());
+        } else if (c == kFeedHold) {
+            m_held = true;
         } else if (c == kSoftReset) {
             m_input.clear();
             m_relative = false;
+            m_held = false;
+            m_moved = false;
             m_out.push_back("Grbl 1.1f ['$' for help]");
         } else if (c == '\n' || c == '\r') {
             if (!m_input.empty()) execute(m_input);
@@ -84,7 +90,7 @@ std::string JPSimulatedGrbl::statusReport() const {
         }
         return out;
     };
-    return "<Idle|MPos:" + list(m_machine) + "|FS:0,0|WCO:" + list(m_offset) + ">";
+    return std::string(m_held ? "<Hold:0" : "<Idle") + "|MPos:" + list(m_machine) + "|FS:0,0|WCO:" + list(m_offset) + ">";
 }
 
 void JPSimulatedGrbl::execute(const std::string& raw) {
@@ -154,10 +160,15 @@ void JPSimulatedGrbl::gcode(const std::string& line) {
     }
 
     bool motion = false, setPosition = false;
+    // A long move: the wait for motion to end after one is not answered
+    // (until a reset).
+    if (m_stallDwell && m_moved)
+        for (const auto& [letter, value] : words)
+            if (letter == 'G' && int(value * 10 + 0.5) == 40) return;
     for (const auto& [letter, value] : words) {
         if (letter == 'G') {
             const int g = int(value * 10 + 0.5);   // G92.1 -> 921
-            if (g == 0 || g == 10) motion = true;
+            if (g == 0 || g == 10) motion = m_moved = true;
             else if (g == 900) m_relative = false;
             else if (g == 910) m_relative = true;
             else if (g == 920) setPosition = true;

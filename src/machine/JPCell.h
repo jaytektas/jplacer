@@ -92,6 +92,13 @@ public:
     // procedure on a thread of its own. False with `why`.
     bool safeZAndWait(const std::string& headId, double speed, std::string& why);
     bool isHomed() const { return m_homed; }
+    // STOP, from any thread (it does not wait behind the move it stops):
+    // every controller held, then its queue thrown away, the position kept;
+    // or, `emergency`, every controller reset at once, after which the
+    // machine must be homed again (a controller stopped mid-move may lose its
+    // place). What was moving fails with "stopped". False with `why` when no
+    // controller's firmware has a way to stop.
+    bool stop(bool emergency, std::string& why);
     // A home is under way (from the request until homed or failed).
     bool isHoming() const { return m_homing; }
     // THE MACHINE'S SPEED, as OpenPnP's: a share of full speed (0..1) every

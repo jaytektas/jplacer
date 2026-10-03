@@ -82,6 +82,12 @@ public:
     // and a status report from after that has been read: when it returns,
     // status() is where the machine stopped, not where it was a poll ago.
     JPReply waitForMotion();
+    // STOP, from any thread, sent at once whatever is queued: `emergency`,
+    // the firmware's reset (everything stops now; the position may be lost);
+    // else a feed hold, then, once held still, the reset that throws the
+    // queue away (the position kept). Commands waiting fail with "stopped".
+    // False when the firmware has no way to (its profile names none).
+    bool halt(bool emergency);
 
     // Read the controller's stored settings into settings(). Blocking.
     bool readSettings(std::string& error);
@@ -138,6 +144,11 @@ private:
     std::thread       m_io;
     std::atomic<bool> m_running{ false };
     std::atomic<bool> m_statusNow{ false };   // ask for a status report without waiting for the interval
+    std::atomic<int>  m_halt{ 0 };            // asked for: 1 a stop, 2 an emergency stop
+    // A stop under way: held, waiting for the motion to come to rest.
+    bool              m_holding = false;
+    std::chrono::steady_clock::time_point m_holdUntil;
+    std::map<std::string, double> m_holdLast;   // the positions in the last report while held
 
     // The I/O thread's own: the command on the wire, when it times out, and
     // the lines it has drawn so far.

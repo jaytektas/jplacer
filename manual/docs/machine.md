@@ -217,9 +217,9 @@ nozzle (with the tip on it), the camera on the head, and anything else on the he
 
 **Jog** tab:
 
-- **X/Y**: the arrows move the tool by the distance; **P** in the middle parks the head.
-- **Z**: up and down by the distance; **P** between takes the head up to safe Z.
-- **C**: turns the tool either way by the distance (in degrees); **P** between turns it to 0.
+- **X/Y**: the arrows move the tool by the distance; the park sign in the middle parks the head.
+- **Z**: up and down by the distance; the park sign between takes the head up to safe Z.
+- **C**: turns the tool either way by the distance (in degrees); the park sign between turns it to 0.
 - Beside Z: put the nozzle where the camera is looking, and put the camera over the nozzle (the nozzle
   chosen, or the one chosen last when the camera is chosen). Both go up to safe Z first.
 - **Distance** [mm, or degrees turning]: a slider of steps, 0.01 to 100 a press.
@@ -229,6 +229,25 @@ nozzle (with the tip on it), the camera on the head, and anything else on the he
 
 The pad's buttons are as big as the dock lets them be, and follow it when it is resized. Homing is on
 the toolbar.
+
+#### Stopping a move
+
+A move can be stopped while it is under way, from the top of the Jog panel or the Machine menu:
+
+- **Stop** (Escape): each controller is told to hold (slow to a stop on its own ramp, so no steps are
+  lost), and once its axes have stopped, what was still queued is thrown away. The position is kept,
+  and the machine stays homed. The move, or the task it was part of, ends as stopped.
+- **E-STOP** (Shift+Escape; also the red button on the toolbar): every controller is reset at once,
+  mid-move. A motor stopped dead can lose its place, so the machine is no longer homed: home it before
+  moving it again. Grbl and grblHAL also raise an alarm on a reset during a move.
+
+Neither replaces the machine's own emergency stop switch: they are commands sent to the controller, and
+need it to be listening. How a controller is held and reset comes from its firmware profile (its `stop`
+section: the hold command, the state it reports when held, and the reset); Grbl and grblHAL have one.
+A controller whose profile has no hold is reset for Stop as well; one with no reset cannot be stopped
+from jplacer, and the status bar says so.
+
+<!-- src: src/machine/JPGcodeDriver.cpp (halt, ioLoop); src/machine/JPCell.cpp (stop); src/app/JPlacerMachine.cpp (stop, m_emergencyStop); src/ui/JPJogPanel.cpp (act); src/app/JPlacerMenuBuilder.cpp (Stop, Emergency Stop); src/machine/JPFirmwareProfile.cpp (stop); profiles/grblhal.json; profiles/grbl.json -->
 
 #### Nozzle tips
 

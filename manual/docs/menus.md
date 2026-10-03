@@ -39,6 +39,8 @@ A tick for each panel: each camera, **Jog**, **Actuators**, **Board**, **Machine
 | **Connect** | Connects to the open cell's controllers. Available while a cell is open and not connected. |
 | **Disconnect** | Closes the connections. Available while connected. |
 | **Home All Axes** (Ctrl+H) | Homes the machine (see [Homing](machine.md#homing)). Available while connected. |
+| **Stop** (Escape) | Holds the move under way and drops what is queued; the position is kept (see [Stopping a move](machine.md#stopping-a-move)). |
+| **Emergency Stop** (Shift+Escape) | Resets every controller at once; home again before moving. |
 | **Park Head** | Takes the head out of the way (see [Parking](machine.md#parking)). Available once homed. |
 | **Jog** | The [Jog panel](machine.md#jog)'s moves, with OpenPnP's keys: **X+** / **X-** (Ctrl+Right / Ctrl+Left), **Y+** / **Y-** (Ctrl+Up / Ctrl+Down), **Z+** / **Z-** (Ctrl+' / Ctrl+/), **Turn Anticlockwise** / **Turn Clockwise** (Ctrl+, / Ctrl+.), **Larger** / **Smaller Distance** (Ctrl+= / Ctrl+-), **Park Head** (Ctrl+Shift+P), **Up to Safe Z** (Ctrl+Shift+L), **Head Safe Z** (Ctrl+Shift+Z), **Discard** (Ctrl+Shift+D). A key is not taken from a text field that uses it. |
 | **Machine Setup…** | Shows [Machine Setup](machine-setup.md), to look at and change what the machine is made of. |
