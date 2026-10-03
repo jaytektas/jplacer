@@ -17,13 +17,14 @@ The machine is shown as a tree of its parts:
 - **Cameras**: the cameras fixed to the machine (looking up at the nozzles).
 - **Actuators**: the actuators on the machine rather than a head.
 
-Choose a part to see its settings below the tree. Over the tree, **+** opens every branch, **−** closes
+Choose a part to see its settings below the tree; drag the divider between them to give either more
+room (where it is is kept for next time). Over the tree, **+** opens every branch, **−** closes
 them down to the machine's groups, and **Search** keeps to the rows whose name contains what is typed
 (and the groups they are in); its **×** clears it. Right-click a row for the same and more: **Open This
 Branch** and **Close This Branch** (the row and everything under it), **Open All**, **Close All**, and
 Add and Remove as the buttons above. A camera's gear icon (in its tab) opens Machine Setup on that camera.
 
-<!-- src: src/setup/JPSetupTree.cpp (build); src/ui/JPMachineSetupPanel.cpp (the search, showNode, setBranch, collapseAll, the tree's menu); src/app/JPlacerMachine.cpp (showSetup) -->
+<!-- src: src/setup/JPSetupTree.cpp (build); src/ui/JPMachineSetupPanel.cpp (the search, showNode, setBranch, collapseAll, the tree's menu, the divider, kTreeShare); src/app/JPlacerMachine.cpp (showSetup); src/app/JPlacerSettings.h (kSetupTreeShare) -->
 
 ## Adding, removing and ordering parts
 

@@ -79,6 +79,10 @@ void JPlacerMachine::dropPanels() {
     for (const auto& u : m_unwatch) u();
     m_unwatch.clear();
     m_jog = nullptr;
+    if (m_setup) {   // where its divider was, for the next one
+        JSettings::instance().set(JPlacerSettings::kSetupTreeShare, m_setup->treeShare());
+        JPlacerSettings::save();
+    }
     m_setup = nullptr;
     for (Dock& d : m_docks) {
         d.dock->setContent(nullptr);
@@ -171,7 +175,9 @@ void JPlacerMachine::buildPanels() {
         c.panel->setMarks([board = m_board.get(), id = c.panel->camera().id] { return board->marks(id); });
     std::vector<std::string> profiles;
     for (const JPFirmwareProfile& p : m_profiles) profiles.push_back(p.id());
-    auto setup = std::make_unique<JPMachineSetupPanel>(m_graph, m_cell->config(), profiles, m_setupSelected);
+    auto setup = std::make_unique<JPMachineSetupPanel>(
+        m_graph, m_cell->config(), profiles, m_setupSelected,
+        JSettings::instance().get<double>(JPlacerSettings::kSetupTreeShare, JPMachineSetupPanel::kTreeShare));
     m_setup = setup.get();
     setup->onSelected = [this](const std::string& path) { m_setupSelected = path; };
     setup->onApply = [this](const JPCellConfig& cell) {

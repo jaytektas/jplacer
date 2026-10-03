@@ -13,6 +13,7 @@
 #include <j/core/JLabel.h>
 #include <j/core/JLineEdit.h>
 #include <j/core/MenuSystem.h>
+#include <j/core/Splitter.h>
 #include <j/core/JScrollArea.h>
 #include <j/core/JTreeView.h>
 
@@ -32,10 +33,18 @@ inline namespace jf {
 // that is not there) is listed, and Apply waits until it is put right.
 class JPMachineSetupPanel : public JContainer {
 public:
+    // How much of the room the tree takes over the settings, to start with.
+    static constexpr double kTreeShare = 0.4;
+
     // `cell`: the cell as it is. `profiles`: the firmware profiles a
     // controller can name. `selected`: the node to start on (a path, see
-    // JPSetupTree), as it was before the cell was opened again.
-    JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, std::vector<std::string> profiles, std::string selected);
+    // JPSetupTree), as it was before the panel was made again. `treeShare`:
+    // the tree's share of the room over the settings (the divider between).
+    JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, std::vector<std::string> profiles, std::string selected,
+                        double treeShare = kTreeShare);
+
+    // Where the divider between the tree and the settings is now: the tree's share.
+    double treeShare() const;
 
     // Apply pressed: the cell as set up.
     std::function<void(const JPCellConfig& cell)> onApply;
@@ -70,6 +79,8 @@ private:
     std::string              m_selected;
     std::vector<std::string> m_reshaping;   // the shown form's properties that change the form
     std::set<std::string>    m_expanded;    // paths of the tree's open nodes
+    std::unique_ptr<JContainer> m_treePane, m_formPane;   // the splitter's panes
+    JSplitter*               m_split    = nullptr;
     JTreeView*               m_tree     = nullptr;
     JLineEdit*               m_search   = nullptr;
     std::unique_ptr<JMenu>   m_treeMenu;   // a right-click on the tree

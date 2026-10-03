@@ -11,6 +11,7 @@
 #include "setup/JPSetupProperties.h"
 #include "setup/JPSetupTree.h"
 
+#include <j/core/JStyle.h>
 #include <j/core/Log.h>
 
 #include <algorithm>
@@ -40,7 +41,7 @@ std::string joined(const std::vector<std::string>& parts) {
 } // namespace
 
 JPMachineSetupPanel::JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, std::vector<std::string> profiles,
-                                         std::string selected)
+                                         std::string selected, double treeShare)
     : JContainer(graph), m_original(cell), m_draft(std::move(cell)), m_profiles(std::move(profiles)) {
     JPUiParts::asPanel(*this);
 
@@ -55,6 +56,16 @@ JPMachineSetupPanel::JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, 
     m_down->onClicked.connect([this] { moveSelected(+1); });
     add(std::move(tools));
 
+    // The tree over the selected part's settings, a divider between them to drag.
+    m_treePane = std::make_unique<JContainer>(graph, 0.f, 0.f);
+    m_formPane = std::make_unique<JContainer>(graph, 0.f, 0.f);
+    for (JContainer* pane : { m_treePane.get(), m_formPane.get() })
+        pane->setDirection(JFlexDirection::Column)->setGap(2 * JStyle::current().spacing)->setAlignItems(JAlignItems::Stretch);
+    m_split = add(std::make_unique<JSplitter>(graph, JSplitter::JOrientation::Vertical, 0.f, 0.f));
+    m_split->setVSizePolicy(JSizePolicyMode::Expanding, 1);
+    m_split->addPane(m_treePane.get(), float(treeShare));
+    m_split->addPane(m_formPane.get(), float(1 - treeShare));
+
     // Over the tree: open every branch, close them all, and a filter (its ✕ clears it).
     auto find = JPUiParts::row(graph);
     m_expandAll = find->add(std::make_unique<JPIconButton>(graph, "Open All", &JPIcons::expandAll, "Open every branch"));
@@ -64,9 +75,9 @@ JPMachineSetupPanel::JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, 
     JLineEdit* search = m_search = find->add(std::make_unique<JLineEdit>(graph, "Search"));
     search->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     search->setClearButtonEnabled(true);
-    add(std::move(find));
+    m_treePane->add(std::move(find));
 
-    m_tree = add(std::make_unique<JTreeView>(graph, 0.f, 0.f));   // sized by its share (below)
+    m_tree = m_treePane->add(std::make_unique<JTreeView>(graph, 0.f, 0.f));   // the rest of its pane
     m_tree->setVSizePolicy(JSizePolicyMode::Expanding, 1);
     search->onTextChanged.connect([this](const std::string& text) { m_tree->setFilter(text); });
     m_tree->onSelectionChanged.connect([this](JTreeViewNode* n) {
@@ -86,9 +97,9 @@ JPMachineSetupPanel::JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, 
     m_menuRemove->onTriggered.connect([this] { removePart(); });
     m_tree->setContextMenu(m_treeMenu.get());
 
-    m_title = add(std::make_unique<JLabel>(graph, ""));
-    m_scroll = add(std::make_unique<JScrollArea>(graph, 0.f, 0.f));
-    m_scroll->setVSizePolicy(JSizePolicyMode::Expanding, 2);
+    m_title = m_formPane->add(std::make_unique<JLabel>(graph, ""));
+    m_scroll = m_formPane->add(std::make_unique<JScrollArea>(graph, 0.f, 0.f));
+    m_scroll->setVSizePolicy(JSizePolicyMode::Expanding, 1);
     m_form = m_scroll->addChildWidget(std::make_unique<JPPropertyForm>(graph));
     m_form->onChanged = [this](const std::string& property) { changed(property); };
 
@@ -114,6 +125,11 @@ JPMachineSetupPanel::JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, 
 
     rebuildTree();
     select(selected.empty() ? "machine" : selected);
+}
+
+double JPMachineSetupPanel::treeShare() const {
+    const std::vector<float> f = m_split->fractions();
+    return f.empty() ? kTreeShare : f.front();
 }
 
 void JPMachineSetupPanel::moveSelected(int by) {

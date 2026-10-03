@@ -122,6 +122,12 @@ notes.
 - Applying Machine Setup no longer disconnects the machine: it takes the new settings as it runs and
   stays homed. Only a controller whose connection settings changed is connected again (you are asked
   first), and a change to the axes needs a home.
+- Machine Setup has a divider between the tree and the settings, to drag; where it is is kept.
+- Panels short of room shrink their lists and boxes first, so buttons and input lines (the console's,
+  the Board panel's rows) are no longer squeezed or lost.
+- Clicking, dragging and scrolling work in the panels to the right of the cameras (Board, Machine Setup,
+  Machine): tree branches open, scroll bars drag. Tooltips show on the camera icons, the toolbar's icons
+  and the position readout.
 
 ## 0.1.0
 

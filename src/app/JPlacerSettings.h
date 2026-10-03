@@ -32,6 +32,8 @@ public:
     // JPlacerAppearance.
     static constexpr const char* kTheme            = "appearance.theme";
     static constexpr const char* kUiScale          = "ui.scale";
+    // Machine Setup's divider: the tree's share of the room over the settings.
+    static constexpr const char* kSetupTreeShare   = "setup.treeShare";
     // The cell file (cells/<name>.json) opened last; opened again at start.
     static constexpr const char* kMachineCell      = "machine.cell";
     // The board on the machine: its pick-and-place file, the side up
