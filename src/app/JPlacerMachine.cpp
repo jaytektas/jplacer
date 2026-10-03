@@ -243,7 +243,20 @@ bool JPlacerMachine::openCell(const std::string& path, std::string& error) {
     dropPanels();
     m_cell = std::make_unique<JPCell>(std::move(config), m_profiles);
     m_cellPath = path;
+    watchCell();
+    buildPanels();
 
+    JSettings::instance().set(JPlacerSettings::kMachineCell, path);
+    JPlacerSettings::save();
+    JLOGC(JPlacerLog::kApp, JLogLevel::Info) << "cell " << m_cell->config().name << " from " << path;
+    m_connecting = m_connectFailed = m_homeFailed = false;
+    m_lost.clear();
+    updateMenu();
+    showState();
+    return true;
+}
+
+void JPlacerMachine::watchCell() {
     // The menu and the strip follow the cell.
     std::weak_ptr<bool> alive = m_alive;
     auto onMain = [this, alive](std::function<void()> fn) {
@@ -290,16 +303,6 @@ bool JPlacerMachine::openCell(const std::string& path, std::string& error) {
             }
         });
     }));
-    buildPanels();
-
-    JSettings::instance().set(JPlacerSettings::kMachineCell, path);
-    JPlacerSettings::save();
-    JLOGC(JPlacerLog::kApp, JLogLevel::Info) << "cell " << m_cell->config().name << " from " << path;
-    m_connecting = m_connectFailed = m_homeFailed = false;
-    m_lost.clear();
-    updateMenu();
-    showState();
-    return true;
 }
 
 void JPlacerMachine::squareMachine(const JPMountConfig& mount, double xPerY) {
@@ -329,19 +332,14 @@ void JPlacerMachine::squareMachine(const JPMountConfig& mount, double xPerY) {
 
 void JPlacerMachine::setPort(const std::string& driverId, const std::string& port) {
     JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_cellPath << ": controller " << driverId << " now on " << port;
-    JPCellConfig config;
-    std::string error;
+    JPCellConfig config = m_cell->config();
     bool changed = false;
-    if (config.load(m_cellPath, error)) {
-        for (JPDriverConfig& d : config.drivers)
-            if (d.id == driverId && d.link["port"].str() != port) {
-                d.link["port"] = port;
-                changed = true;
-            }
-        if (!changed) return;
-        if (config.save(m_cellPath, error) && openCell(m_cellPath, error)) return;
-    }
-    JDialog::message("The port could not be changed", error);
+    for (JPDriverConfig& d : config.drivers)
+        if (d.id == driverId && d.link["port"].str() != port) {
+            d.link["port"] = port;
+            changed = true;
+        }
+    if (changed) applySetup(std::move(config));
 }
 
 void JPlacerMachine::applySetup(JPCellConfig cell) {
@@ -352,21 +350,37 @@ void JPlacerMachine::applySetup(JPCellConfig cell) {
     std::weak_ptr<bool> alive = m_alive;
     auto apply = [this, alive, cell] {
         if (const auto a = alive.lock(); !a || !*a) return;
+        // The running machine takes the new settings; its panels are made
+        // again from them. Nothing is let go (JPCell::reconfigure).
         std::string error;
-        if (!cell.save(m_cellPath, error) || !openCell(m_cellPath, error)) {
+        dropPanels();
+        const bool taken = m_cell->reconfigure(cell, error);
+        watchCell();
+        buildPanels();
+        updateMenu();
+        showState();
+        if (!taken) {
             JDialog::message("Machine Setup could not be applied", error);
+            return;
+        }
+        if (!cell.save(m_cellPath, error)) {
+            JDialog::message("Machine Setup is in use but was not saved", error);
             return;
         }
         JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Machine Setup applied to " << m_cellPath;
         m_window.showStatus("Machine Setup applied", kStatusMs);
     };
-    if (!m_cell->isConnected()) {
+    // Only a controller whose connection changed is connected again: say so first.
+    const std::vector<std::string> again = m_cell->reconnects(cell);
+    if (again.empty()) {
         apply();
         return;
     }
+    std::string names;
+    for (const std::string& n : again) names += (names.empty() ? "" : ", ") + n;
     JDialog::confirm("Apply Machine Setup",
-                     "The machine is opened again with the new setup: it disconnects, connects again, and must be "
-                     "homed again before it moves.",
+                     "How " + names + " is connected has changed: " + (again.size() == 1 ? "it is" : "they are")
+                         + " connected again with the new settings, and the machine must be homed again before it moves.",
                      apply);
 }
 

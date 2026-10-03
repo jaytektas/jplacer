@@ -68,10 +68,14 @@ private:
     bool openCell(const std::string& path, std::string& error);
     void importFrom(const std::string& machineXml);
     void setPort(const std::string& driverId, const std::string& port);
-    // Machine Setup's Apply: keep `cell` (with the calibrations and
-    // squareness measured meanwhile) in the cell file and open it again;
-    // asked first while connected, as the machine is let go and homed again.
+    // Machine Setup's Apply (and a port chosen): the running machine takes
+    // `cell` (with the calibrations and squareness measured meanwhile, see
+    // JPCell::reconfigure), its panels are made again, and it is kept in the
+    // cell file. Asked first only when a controller's connection changed, as
+    // that one is connected again.
     void applySetup(JPCellConfig cell);
+    // Follow the open cell's signals (the menu, the strip, the status bar).
+    void watchCell();
     // Correct the squareness of the gantry moving `mount` by `xPerY` more (from
     // a board), and keep it in the cell file.
     void squareMachine(const JPMountConfig& mount, double xPerY);

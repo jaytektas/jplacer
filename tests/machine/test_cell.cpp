@@ -3,7 +3,8 @@
 
 // A cell over a simulated controller: it connects, follows controller axes from
 // status reports and a mapped axis through its map, switches and reads an
-// actuator, keeps a camera's calibrations a picture size each, and reports a
+// actuator, takes new settings while it runs (connected again only where a
+// controller's connection changed), keeps a camera's calibrations a picture size each, and reports a
 // cell whose controller cannot connect.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
@@ -161,6 +162,41 @@ int main() {
         cell.jog("N", 10, 0, 0, 0, 0.5);                   // 405 is past the soft limit
         const auto [limitOk, limitWhy] = motion.take();
         assert(!limitOk && limitWhy.find("soft limits") != std::string::npos && settle("X", 395.0));
+
+        // New settings while it runs: nothing lets go. A nozzle renamed and a
+        // timeout changed are taken as they are; the machine stays connected
+        // and homed, and the controller's next line goes under its new name.
+        {
+            JPCellConfig next = cell.config();
+            next.nozzles[0].name = "Left";
+            next.drivers[0].name = "Main";
+            next.drivers[0].commandTimeoutMs = 700;
+            assert(cell.reconnects(next).empty());
+            std::string why;
+            assert(cell.reconfigure(next, why) && cell.isConnected() && cell.isHomed());
+            assert(cell.config().nozzles[0].name == "Left");
+            Latch<std::string> name;
+            auto watch = cell.onTraffic.connect([&](std::string who, bool, std::string) { name.set(who); });
+            cell.sendLine("D", "G4 P0");
+            assert(name.take() == "Main");
+            watch();
+
+            // Its connection changed: that controller alone is connected again,
+            // and the machine must be homed again.
+            next = cell.config();
+            next.drivers[0].link["simulator"]["replies"]["M1000 P2"] = "7";
+            assert(cell.reconnects(next) == std::vector<std::string>{ "Main" });
+            assert(cell.reconfigure(next, why) && cell.isConnected() && !cell.isHomed());
+            cell.readActuator("V");
+            assert(actuator.take().first);   // the new connection answers
+
+            // The axes changed: still connected, homed no longer.
+            cell.home();
+            assert(motion.take().first && cell.isHomed());
+            next = cell.config();
+            next.axes[0].softLimitHigh = 380;
+            assert(cell.reconfigure(next, why) && cell.isConnected() && !cell.isHomed());
+        }
 
         cell.disconnect();
         assert(!connection.take().first && !cell.isHomed());

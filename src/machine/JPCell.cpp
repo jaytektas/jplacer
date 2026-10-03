@@ -18,22 +18,106 @@ inline namespace jf {
 JPCell::JPCell(JPCellConfig config, std::vector<JPFirmwareProfile> profiles)
     : m_config(std::move(config)), m_profiles(std::move(profiles)) {
     for (const JPAxisConfig& a : m_config.axes) m_positions[a.id] = a.homeCoordinate;
-    for (const JPDriverConfig& d : m_config.drivers) {
-        auto driver = std::make_unique<JPGcodeDriver>(d, m_profiles);
-        const std::string id = d.id, name = d.name;
-        driver->onStatus.connect([this, id](JPFirmwareProfile::Status st) { updatePositions(id, st); });
-        driver->onTraffic.connect([this, name](bool sent, std::string line) { onTraffic.emit(name, sent, line); });
-        driver->onAlarm.connect([this, name](std::string what) { onAlarm.emit(name + ": " + what); });
-        driver->onLost.connect([this, name](std::string why) {
-            const std::string what = name + ": connection lost (" + why + ")";
-            onAlarm.emit(what);
-            m_thread.post([this, what] {
-                doDisconnect();
-                onConnection.emit(false, what);
-            });
+    for (const JPDriverConfig& d : m_config.drivers) m_drivers.push_back(makeDriver(d));
+}
+
+std::unique_ptr<JPGcodeDriver> JPCell::makeDriver(const JPDriverConfig& config) {
+    auto driver = std::make_unique<JPGcodeDriver>(config, m_profiles);
+    JPGcodeDriver* d = driver.get();   // its name as it is when it speaks: it can be renamed while it runs
+    driver->onStatus.connect([this, d](JPFirmwareProfile::Status st) { updatePositions(d->id(), st); });
+    driver->onTraffic.connect([this, d](bool sent, std::string line) { onTraffic.emit(d->config().name, sent, line); });
+    driver->onAlarm.connect([this, d](std::string what) { onAlarm.emit(d->config().name + ": " + what); });
+    driver->onLost.connect([this, d](std::string why) {
+        const std::string what = d->config().name + ": connection lost (" + why + ")";
+        onAlarm.emit(what);
+        m_thread.post([this, what] {
+            doDisconnect();
+            onConnection.emit(false, what);
         });
-        m_drivers.push_back(std::move(driver));
+    });
+    return driver;
+}
+
+bool JPCell::sameConnection(const JPDriverConfig& a, const JPDriverConfig& b) {
+    return a.link.dump() == b.link.dump() && a.profile == b.profile && a.connectWaitMs == b.connectWaitMs
+        && a.identifyTimeoutMs == b.identifyTimeoutMs;
+}
+
+std::vector<std::string> JPCell::reconnects(const JPCellConfig& next) const {
+    std::vector<std::string> out;
+    if (!m_connected) return out;
+    for (const JPDriverConfig& d : next.drivers)
+        if (const JPGcodeDriver* old = driver(d.id); !old || !sameConnection(old->config(), d))
+            out.push_back(d.name);
+    return out;
+}
+
+bool JPCell::reconfigure(JPCellConfig config, std::string& why) {
+    if (m_moving || m_homing) {
+        why = "the machine is moving: try again once it has stopped";
+        return false;
     }
+    std::promise<std::pair<bool, std::string>> done;
+    auto result = done.get_future();
+    m_thread.post([this, &config, &done] {
+        std::string failed;
+        bool reopened = false;
+        std::vector<std::unique_ptr<JPGcodeDriver>> drivers;
+        for (const JPDriverConfig& d : config.drivers) {
+            auto old = std::find_if(m_drivers.begin(), m_drivers.end(), [&d](const auto& o) { return o && o->id() == d.id; });
+            // The same connection: the controller takes its new settings as it runs.
+            if (old != m_drivers.end() && (!m_connected || sameConnection((*old)->config(), d))) {
+                (*old)->setConfig(d);
+                drivers.push_back(std::move(*old));
+                continue;
+            }
+            // A new connection (another port, speed, profile), or a new controller.
+            if (old != m_drivers.end()) {
+                (*old)->disconnect();
+                reopened = true;
+            }
+            auto fresh = makeDriver(d);
+            if (m_connected && failed.empty()) {
+                JLOGC(JPlacerLog::kCell, JLogLevel::Info) << config.name << ": connecting " << d.name << " again, as set up";
+                std::string error;
+                if (!fresh->connect(error)) failed = error;
+                else if (fresh->profile()->hasSettings() && !fresh->readSettings(error))
+                    JLOGC(JPlacerLog::kDriver, JLogLevel::Warn) << error;
+                if (failed.empty()) {
+                    std::lock_guard lk(m_mutex);
+                    m_firmware[d.id] = fresh->profile()->name();
+                }
+            }
+            drivers.push_back(std::move(fresh));
+        }
+        for (auto& gone : m_drivers)
+            if (gone) gone->disconnect();   // taken out of the cell
+        m_drivers = std::move(drivers);
+
+        // The axes as they were: the coordinates still mean what they did.
+        JJson axesBefore = JJson::array(), axesAfter = JJson::array();
+        for (const JPAxisConfig& a : m_config.axes) axesBefore.push(a.toJson());
+        for (const JPAxisConfig& a : config.axes) axesAfter.push(a.toJson());
+        const bool axesChanged = axesBefore.dump() != axesAfter.dump();
+        {
+            std::lock_guard lk(m_mutex);
+            m_config = std::move(config);
+            for (const JPAxisConfig& a : m_config.axes) m_positions.try_emplace(a.id, a.homeCoordinate);
+        }
+        JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_config.name << ": set up anew"
+            << (axesChanged ? "; the axes changed" : "") << (reopened ? "; a controller connected again" : "");
+        if (!failed.empty()) {
+            doDisconnect();
+            onConnection.emit(false, failed);
+        } else if ((axesChanged || reopened) && m_homed) {
+            m_homed = false;
+            onHomed.emit(false);
+        }
+        done.set_value({ failed.empty(), failed });
+    });
+    const auto [ok, w] = result.get();
+    why = w;
+    return ok;
 }
 
 JPCell::~JPCell() {
@@ -42,7 +126,7 @@ JPCell::~JPCell() {
 }
 
 JPGcodeDriver* JPCell::driver(const std::string& id) const {
-    for (const auto& d : m_drivers) if (d->config().id == id) return d.get();
+    for (const auto& d : m_drivers) if (d->id() == id) return d.get();
     return nullptr;
 }
 
@@ -61,7 +145,7 @@ void JPCell::connect() {
             if (d->profile()->hasSettings() && !d->readSettings(error))
                 JLOGC(JPlacerLog::kDriver, JLogLevel::Warn) << error;
             std::lock_guard lk(m_mutex);
-            m_firmware[d->config().id] = d->profile()->name();
+            m_firmware[d->id()] = d->profile()->name();
         }
         m_connected = true;
         JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_config.name << ": connected";
@@ -304,7 +388,7 @@ bool JPCell::inAlarm() const {
     std::lock_guard lk(m_mutex);
     for (const auto& d : m_drivers) {
         const JPFirmwareProfile* p = d->profile();
-        const auto s = m_states.find(d->config().id);
+        const auto s = m_states.find(d->id());
         if (p && !p->alarmState().empty() && s != m_states.end() && s->second == p->alarmState()) return true;
     }
     return false;
@@ -342,7 +426,7 @@ bool JPCell::doHome(std::string& why) {
         // Where the axes are now: their home coordinates.
         std::string axes;
         for (const JPAxisConfig& a : m_config.axes)
-            if (a.kind == JPAxisConfig::Kind::Controller && a.driverId == d->config().id)
+            if (a.kind == JPAxisConfig::Kind::Controller && a.driverId == d->id())
                 axes += (axes.empty() ? "" : " ") + a.letter + format(a.homeCoordinate, d->profile()->decimals());
         if (!axes.empty()) {
             const JPReply p = d->command("setPosition", { { "axes", axes } });

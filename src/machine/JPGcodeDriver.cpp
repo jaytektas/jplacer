@@ -22,7 +22,11 @@ constexpr int kReadSliceMs = 2;
 } // namespace
 
 JPGcodeDriver::JPGcodeDriver(JPDriverConfig config, std::vector<JPFirmwareProfile> profiles)
-    : m_config(std::move(config)), m_profiles(std::move(profiles)) {}
+    : m_id(config.id), m_config(std::make_shared<const JPDriverConfig>(std::move(config))), m_profiles(std::move(profiles)) {}
+
+void JPGcodeDriver::setConfig(JPDriverConfig config) {
+    m_config.store(std::make_shared<const JPDriverConfig>(std::move(config)));
+}
 
 JPGcodeDriver::~JPGcodeDriver() {
     disconnect();
@@ -30,20 +34,20 @@ JPGcodeDriver::~JPGcodeDriver() {
 
 bool JPGcodeDriver::connect(std::string& error) {
     if (m_connected) return true;
-    m_link = JPLinkFactory::create(m_config.link, error);
+    m_link = JPLinkFactory::create(cfg()->link, error);
     if (!m_link) return false;
     if (!m_link->open(error)) {
         m_link.reset();
         return false;
     }
-    JLOGC(JPlacerLog::kDriver, JLogLevel::Info) << m_config.name << ": opened " << m_link->describe();
+    JLOGC(JPlacerLog::kDriver, JLogLevel::Info) << cfg()->name << ": opened " << m_link->describe();
     m_running = true;
     m_io = std::thread(&JPGcodeDriver::ioLoop, this);
-    if (m_config.connectWaitMs > 0) {
+    if (cfg()->connectWaitMs > 0) {
         // The I/O thread reads (and logs) whatever the board says meanwhile.
-        JLOGC(JPlacerLog::kDriver, JLogLevel::Debug) << m_config.name << ": listening " << m_config.connectWaitMs
+        JLOGC(JPlacerLog::kDriver, JLogLevel::Debug) << cfg()->name << ": listening " << cfg()->connectWaitMs
                                                      << " ms before asking anything";
-        std::this_thread::sleep_for(std::chrono::milliseconds(m_config.connectWaitMs));
+        std::this_thread::sleep_for(std::chrono::milliseconds(cfg()->connectWaitMs));
     }
 
     if (!identify(error)) {
@@ -54,29 +58,29 @@ bool JPGcodeDriver::connect(std::string& error) {
     if (const auto init = m_profile->command("init")) {
         const JPReply r = send(*init).get();
         if (!r.ok) {
-            error = m_config.name + ": the start-up command was refused (" + r.error + ")";
+            error = cfg()->name + ": the start-up command was refused (" + r.error + ")";
             disconnect();
             return false;
         }
     }
-    JLOGC(JPlacerLog::kDriver, JLogLevel::Info) << m_config.name << ": " << m_profile->name()
+    JLOGC(JPlacerLog::kDriver, JLogLevel::Info) << cfg()->name << ": " << m_profile->name()
                                                 << ", " << m_plugins.size() << " plugin(s)";
     return true;
 }
 
 bool JPGcodeDriver::identify(std::string& error) {
-    if (m_config.profile != "auto") {
+    if (cfg()->profile != "auto") {
         for (const JPFirmwareProfile& p : m_profiles) {
-            if (p.id() != m_config.profile) continue;
+            if (p.id() != cfg()->profile) continue;
             m_replyProfile = &p;
             if (!p.identifyCommand().empty()) {
-                const JPReply r = send(p.identifyCommand(), m_config.identifyTimeoutMs).get();
+                const JPReply r = send(p.identifyCommand(), cfg()->identifyTimeoutMs).get();
                 if (r.ok) m_plugins = p.pluginsIn(r.lines);
             }
             m_profile = &p;
             return true;
         }
-        error = m_config.name + ": no firmware profile '" + m_config.profile + "'";
+        error = cfg()->name + ": no firmware profile '" + cfg()->profile + "'";
         return false;
     }
 
@@ -92,20 +96,20 @@ bool JPGcodeDriver::identify(std::string& error) {
         auto it = asked.find(p.identifyCommand());
         if (it == asked.end()) {
             m_replyProfile = &p;
-            JLOGC(JPlacerLog::kDriver, JLogLevel::Debug) << m_config.name << ": identifying with '"
+            JLOGC(JPlacerLog::kDriver, JLogLevel::Debug) << cfg()->name << ": identifying with '"
                                                          << p.identifyCommand() << "' (" << p.name() << " asks so)";
-            JPReply r = send(p.identifyCommand(), m_config.identifyTimeoutMs).get();
+            JPReply r = send(p.identifyCommand(), cfg()->identifyTimeoutMs).get();
             if (!r.ok) {
-                JLOGC(JPlacerLog::kDriver, JLogLevel::Debug) << m_config.name << ": " << r.error << ", asking again";
-                r = send(p.identifyCommand(), m_config.identifyTimeoutMs).get();
+                JLOGC(JPlacerLog::kDriver, JLogLevel::Debug) << cfg()->name << ": " << r.error << ", asking again";
+                r = send(p.identifyCommand(), cfg()->identifyTimeoutMs).get();
             }
-            if (!r.ok) JLOGC(JPlacerLog::kDriver, JLogLevel::Debug) << m_config.name << ": no identity (" << r.error << ")";
+            if (!r.ok) JLOGC(JPlacerLog::kDriver, JLogLevel::Debug) << cfg()->name << ": no identity (" << r.error << ")";
             it = asked.emplace(p.identifyCommand(), std::move(r)).first;
         }
         const JPReply& r = it->second;
         answered |= r.ok || !r.lines.empty() || (!r.error.empty() && p.errorIn(r.error));
         if (r.ok && p.identifies(r.lines)) {
-            JLOGC(JPlacerLog::kDriver, JLogLevel::Info) << m_config.name << ": identified as " << p.name();
+            JLOGC(JPlacerLog::kDriver, JLogLevel::Info) << cfg()->name << ": identified as " << p.name();
             m_replyProfile = &p;
             m_profile      = &p;
             m_plugins      = p.pluginsIn(r.lines);
@@ -115,7 +119,7 @@ bool JPGcodeDriver::identify(std::string& error) {
     // Silence is not a controller. A port that answers nothing is the wrong
     // port, or a board that is off: say so rather than call it connected.
     if (!asked.empty() && !answered) {
-        error = m_config.name + ": nothing answered on " + m_link->describe()
+        error = cfg()->name + ": nothing answered on " + m_link->describe()
               + " (the wrong port, or the controller is off)";
         JLOGC(JPlacerLog::kDriver, JLogLevel::Error) << error;
         return false;
@@ -124,17 +128,17 @@ bool JPGcodeDriver::identify(std::string& error) {
     // that does not need to.
     for (const JPFirmwareProfile& p : m_profiles) {
         if (!p.identifyCommand().empty()) continue;
-        JLOGC(JPlacerLog::kDriver, JLogLevel::Warn) << m_config.name << ": firmware not recognised, using " << p.name();
+        JLOGC(JPlacerLog::kDriver, JLogLevel::Warn) << cfg()->name << ": firmware not recognised, using " << p.name();
         m_replyProfile = &p;
         m_profile      = &p;
         return true;
     }
-    error = m_config.name + ": the controller did not identify itself as any known firmware";
+    error = cfg()->name + ": the controller did not identify itself as any known firmware";
     return false;
 }
 
 void JPGcodeDriver::disconnect() {
-    if (m_running) JLOGC(JPlacerLog::kDriver, JLogLevel::Info) << m_config.name << ": disconnecting";
+    if (m_running) JLOGC(JPlacerLog::kDriver, JLogLevel::Info) << cfg()->name << ": disconnecting";
     m_running = false;
     if (m_io.joinable()) m_io.join();
     failAll("disconnected");
@@ -161,10 +165,10 @@ std::future<JPReply> JPGcodeDriver::failed(const std::string& why) {
 }
 
 std::future<JPReply> JPGcodeDriver::send(std::string line, int timeoutMs) {
-    if (!m_running) return failed(m_config.name + " is not connected");
+    if (!m_running) return failed(cfg()->name + " is not connected");
     Pending p;
     p.line      = std::move(line);
-    p.timeoutMs = timeoutMs > 0 ? timeoutMs : m_config.commandTimeoutMs;
+    p.timeoutMs = timeoutMs > 0 ? timeoutMs : cfg()->commandTimeoutMs;
     std::future<JPReply> f = p.promise.get_future();
     std::lock_guard lk(m_mutex);
     m_queue.push_back(std::move(p));
@@ -173,13 +177,14 @@ std::future<JPReply> JPGcodeDriver::send(std::string line, int timeoutMs) {
 
 JPReply JPGcodeDriver::command(const std::string& name, const std::map<std::string, std::string>& values,
                                int timeoutMs) {
-    if (!m_profile) return failed(m_config.name + " is not connected").get();
-    const auto own  = m_config.commands.find(name);
-    const auto text = own != m_config.commands.end()
+    const auto c = cfg();   // one set of settings for the whole command
+    if (!m_profile) return failed(c->name + " is not connected").get();
+    const auto own  = c->commands.find(name);
+    const auto text = own != c->commands.end()
                     ? std::optional<std::string>(JPFirmwareProfile::fill(own->second, values))
                     : m_profile->command(name, values);
     if (!text) return failed(m_profile->name() + " has no '" + name + "' command").get();
-    if (timeoutMs <= 0 && name == "home") timeoutMs = m_config.homeTimeoutMs;
+    if (timeoutMs <= 0 && name == "home") timeoutMs = c->homeTimeoutMs;
 
     JPReply all;
     all.ok = true;
@@ -201,16 +206,16 @@ JPReply JPGcodeDriver::command(const std::string& name, const std::map<std::stri
 }
 
 JPReply JPGcodeDriver::waitForMotion() {
-    JPReply r = command("waitMotion", {}, m_config.homeTimeoutMs);
+    JPReply r = command("waitMotion", {}, cfg()->homeTimeoutMs);
     if (!r.ok || !m_profile || m_profile->statusCommand().empty()) return r;
     // A report read after the answer was made after the motion ended.
     std::unique_lock lk(m_mutex);
     const uint64_t after = m_statusCount;
     m_statusNow = true;
-    if (!m_statusRead.wait_for(lk, std::chrono::milliseconds(m_config.commandTimeoutMs),
+    if (!m_statusRead.wait_for(lk, std::chrono::milliseconds(cfg()->commandTimeoutMs),
                                [&] { return m_statusCount > after || !m_connected; })) {
         r.ok    = false;
-        r.error = "no status report within " + std::to_string(m_config.commandTimeoutMs) + " ms of the motion ending";
+        r.error = "no status report within " + std::to_string(cfg()->commandTimeoutMs) + " ms of the motion ending";
     } else if (!m_connected) {
         r.ok    = false;
         r.error = "the connection was lost";
@@ -220,21 +225,21 @@ JPReply JPGcodeDriver::waitForMotion() {
 
 bool JPGcodeDriver::readSettings(std::string& error) {
     if (!m_profile || !m_profile->hasSettings()) {
-        error = m_config.name + ": its firmware profile does not describe stored settings";
+        error = cfg()->name + ": its firmware profile does not describe stored settings";
         return false;
     }
     const JPReply r = send(m_profile->settingsReadCommand()).get();
     if (!r.ok) {
-        error = m_config.name + ": settings not read (" + r.error + ")";
+        error = cfg()->name + ": settings not read (" + r.error + ")";
         JLOGC(JPlacerLog::kDriver, JLogLevel::Warn) << error;
         return false;
     }
     std::map<std::string, std::string> read;
     for (const std::string& l : r.lines)
         if (const auto s = m_profile->parseSetting(l)) read[s->first] = s->second;
-    JLOGC(JPlacerLog::kDriver, JLogLevel::Info) << m_config.name << ": " << read.size() << " stored setting(s) read";
+    JLOGC(JPlacerLog::kDriver, JLogLevel::Info) << cfg()->name << ": " << read.size() << " stored setting(s) read";
     for (const auto& [id, value] : read)
-        JLOGC(JPlacerLog::kDriver, JLogLevel::Debug) << m_config.name << ": setting " << id << " = " << value;
+        JLOGC(JPlacerLog::kDriver, JLogLevel::Debug) << cfg()->name << ": setting " << id << " = " << value;
     std::lock_guard lk(m_mutex);
     m_settings = std::move(read);
     return true;
@@ -263,7 +268,7 @@ JPFirmwareProfile::Status JPGcodeDriver::status() const {
 void JPGcodeDriver::ioLoop() {
     Clock::time_point nextStatus = Clock::now();
     auto lost = [this](const std::string& why) {
-        JLOGC(JPlacerLog::kDriver, JLogLevel::Error) << m_config.name << ": " << why;
+        JLOGC(JPlacerLog::kDriver, JLogLevel::Error) << cfg()->name << ": " << why;
         m_running   = false;
         m_connected = false;
         failAll(why);
@@ -284,7 +289,7 @@ void JPGcodeDriver::ioLoop() {
                 m_inFlight  = std::move(next);
                 m_collected = {};
                 m_deadline  = Clock::now() + std::chrono::milliseconds(m_inFlight->timeoutMs);
-                JLOGC(JPlacerLog::kTraffic, JLogLevel::Trace) << m_config.name << " > " << m_inFlight->line;
+                JLOGC(JPlacerLog::kTraffic, JLogLevel::Trace) << cfg()->name << " > " << m_inFlight->line;
                 onTraffic.emit(true, m_inFlight->line);
                 if (!m_link->write(m_inFlight->line + "\n")) {
                     lost("could not write to " + m_link->describe());
@@ -298,7 +303,7 @@ void JPGcodeDriver::ioLoop() {
         const JPFirmwareProfile* profile = m_connected ? m_profile : nullptr;
         if (m_statusNow.exchange(false)) nextStatus = Clock::now();
         if (profile && !profile->statusCommand().empty() && Clock::now() >= nextStatus) {
-            nextStatus = Clock::now() + std::chrono::milliseconds(m_config.statusIntervalMs);
+            nextStatus = Clock::now() + std::chrono::milliseconds(cfg()->statusIntervalMs);
             if (profile->statusIsRealtime()) {
                 if (!m_link->write(profile->statusCommand())) {
                     lost("could not write to " + m_link->describe());
@@ -307,7 +312,7 @@ void JPGcodeDriver::ioLoop() {
             } else if (!m_inFlight) {
                 Pending p;
                 p.line      = profile->statusCommand();
-                p.timeoutMs = m_config.commandTimeoutMs;
+                p.timeoutMs = cfg()->commandTimeoutMs;
                 std::lock_guard lk(m_mutex);
                 if (m_queue.empty()) m_queue.push_back(std::move(p));
             }
@@ -338,7 +343,7 @@ void JPGcodeDriver::handleLine(const std::string& line) {
                 }
                 m_status = *st;
             }
-            JLOGC(JPlacerLog::kStatus, JLogLevel::Trace) << m_config.name << " < " << line;
+            JLOGC(JPlacerLog::kStatus, JLogLevel::Trace) << cfg()->name << " < " << line;
             onStatus.emit(*st);
             // Counted after it has been passed on, so whoever waits for it
             // sees what the report changed.
@@ -350,7 +355,7 @@ void JPGcodeDriver::handleLine(const std::string& line) {
             return;
         }
     }
-    JLOGC(JPlacerLog::kTraffic, JLogLevel::Trace) << m_config.name << " < " << line;
+    JLOGC(JPlacerLog::kTraffic, JLogLevel::Trace) << cfg()->name << " < " << line;
     onTraffic.emit(false, line);
     if (!p) return;
 
@@ -369,14 +374,14 @@ void JPGcodeDriver::handleLine(const std::string& line) {
             m_collected.lines.push_back(line);
         }
     } else if (const auto e = p->errorIn(line)) {
-        JLOGC(JPlacerLog::kDriver, JLogLevel::Warn) << m_config.name << ": " << *e;
+        JLOGC(JPlacerLog::kDriver, JLogLevel::Warn) << cfg()->name << ": " << *e;
         onAlarm.emit(*e);
     }
 }
 
 void JPGcodeDriver::finish(JPReply reply) {
     if (!reply.ok)
-        JLOGC(JPlacerLog::kDriver, JLogLevel::Debug) << m_config.name << ": '" << m_inFlight->line << "' failed: " << reply.error;
+        JLOGC(JPlacerLog::kDriver, JLogLevel::Debug) << cfg()->name << ": '" << m_inFlight->line << "' failed: " << reply.error;
     m_inFlight->promise.set_value(std::move(reply));
     m_inFlight.reset();
 }

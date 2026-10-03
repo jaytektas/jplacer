@@ -119,6 +119,9 @@ notes.
   shows is now one of those settings, no longer a slider over the picture.
 - Machine Setup's tree has buttons to open and close every branch, a search box with a clear button,
   and a right-click menu: open or close a branch, open or close all, add, remove.
+- Applying Machine Setup no longer disconnects the machine: it takes the new settings as it runs and
+  stays homed. Only a controller whose connection settings changed is connected again (you are asked
+  first), and a change to the axes needs a home.
 
 ## 0.1.0
 

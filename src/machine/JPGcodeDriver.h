@@ -51,7 +51,15 @@ public:
     void disconnect();
     bool isConnected() const { return m_connected; }
 
-    const JPDriverConfig& config() const { return m_config; }
+    // Its settings, as they are now (a copy: they can change while it runs).
+    JPDriverConfig config() const { return *cfg(); }
+    // Which controller it is; never changes.
+    const std::string& id() const { return m_id; }
+    // New settings, taken while it runs: its name, timeouts, status interval
+    // and commands are used from the next line on. How it connects (the
+    // link, the profile, the waits while connecting) is read when it
+    // connects: a change to those needs a new connection (JPCell::reconfigure).
+    void setConfig(JPDriverConfig config);
     // The profile in use; null until connected.
     const JPFirmwareProfile* profile() const { return m_profile; }
     // Plugins the controller reported when it was identified.
@@ -110,7 +118,11 @@ private:
     std::future<JPReply> failed(const std::string& why);
     bool identify(std::string& error);
 
-    JPDriverConfig                 m_config;
+    // The settings as they are now: swapped whole by setConfig, read whole
+    // (cfg) by the I/O thread and the cell's, so neither sees half of a change.
+    std::shared_ptr<const JPDriverConfig> cfg() const { return m_config.load(); }
+    const std::string                                 m_id;
+    std::atomic<std::shared_ptr<const JPDriverConfig>> m_config;
     std::vector<JPFirmwareProfile> m_profiles;
     std::unique_ptr<JPLink>        m_link;
 

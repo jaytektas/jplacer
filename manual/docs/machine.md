@@ -105,9 +105,11 @@ number a controller had yesterday — or in OpenPnP's configuration — can belo
 today. For each controller on a serial port, the Machine panel has a **port** list showing the serial
 devices plugged in now, by the name each device gives itself. Choosing one saves it in the cell, using
 the device's permanent name (under `/dev/serial/by-id` on Linux), which stays the same whatever order
-devices start in. A port the cell names but that is not plugged in is listed as "(not found)".
+devices start in. While connected, choosing another port asks first, then connects that controller
+again on it (see [Applying](machine-setup.md#applying)). A port the cell names but that is not plugged in
+is listed as "(not found)".
 
-<!-- src: src/machine/JPCell.cpp (connect); src/machine/JPGcodeDriver.cpp (connect, identify, readSettings); profiles/grblhal.json; profiles/grbl.json; profiles/generic.json; src/machine/JPSerialPorts.cpp (stable names); src/ui/JPMachinePanel.cpp (the port list) -->
+<!-- src: src/app/JPlacerMachine.cpp (setPort, applySetup); src/machine/JPCell.cpp (connect); src/machine/JPGcodeDriver.cpp (connect, identify, readSettings); profiles/grblhal.json; profiles/grbl.json; profiles/generic.json; src/machine/JPSerialPorts.cpp (stable names); src/ui/JPMachinePanel.cpp (the port list) -->
 
 ### Firmware profiles
 
