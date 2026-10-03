@@ -17,12 +17,14 @@ file is where OpenPnP keeps it (`.openpnp2/machine.xml` in your home folder), jp
 import that one: **Import**, or **Choose Another File…** to pick a different `machine.xml`. In the file
 dialog, tick **Show hidden** (or press Ctrl+H) to see folders whose names start with a dot, such as
 `.openpnp2`. The new cell is saved as `cells/openpnp.json` and opened straight away. Importing again
-replaces that file, except for what was set or measured here, which is kept: the port each controller
-was set to, each camera's calibration and the squareness correction.
+replaces that file, except for what was set, taught or measured here, which is kept: the port each
+controller was set to, each camera's calibrations and how much of a straightened picture it shows, the
+squareness correction, and each nozzle tip's loading and unloading steps.
 
 What is brought across:
 
-- **Controllers** that OpenPnP talks G-code to, with their serial port, speed and flow control.
+- **Controllers** that OpenPnP talks G-code to, with their serial port settings (port, speed, flow
+  control, parity, data and stop bits, DTR / RTS, line endings), their maximum feed rate and G-code logging.
 - **Axes**: those driven by a controller, those with no hardware behind them (such as a camera's Z),
   and those that follow another axis (such as two nozzles sharing one Z, one of them reversed).
 - **The head**, its **nozzles** (with the actuator for each nozzle's vacuum, the nozzle tips that fit

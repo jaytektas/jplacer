@@ -670,16 +670,28 @@ void JPlacerMachine::importFrom(const std::string& path) {
     std::error_code ec;
     if (std::filesystem::exists(target, ec) && previous.load(target, ignored)) {
         for (JPDriverConfig& d : cell.drivers)
-            if (const JPDriverConfig* was = previous.driver(d.id); was && was->link["type"].str() == d.link["type"].str()) {
+            if (const JPDriverConfig* was = previous.driver(d.id); was && was->link["type"].str() == d.link["type"].str()
+                && !was->link["port"].str().empty()) {
                 JLOGC(JPlacerLog::kImport, JLogLevel::Info) << "controller " << d.name << " keeps " << was->link["port"].str();
-                d.link = was->link;
+                d.link["port"] = was->link["port"].str();
             }
-        // What jplacer measured itself is not OpenPnP's to replace: each
-        // camera's calibration, and the squareness it measured.
+        // What jplacer measured or was taught itself is not OpenPnP's to
+        // replace: each camera's calibrations and how much of a straightened
+        // picture it shows, the squareness, and the nozzle tips' changer steps.
         for (JPCameraConfig& cam : cell.cameras)
             for (const JPCameraConfig& was : previous.cameras)
-                if (was.id == cam.id) cam.calibrations = was.calibrations;
+                if (was.id == cam.id) {
+                    cam.calibrations = was.calibrations;
+                    cam.showAll = was.showAll;
+                }
         if (previous.squareness.active()) cell.squareness = previous.squareness;
+        for (JPNozzleTipConfig& tip : cell.nozzleTips)
+            for (const JPNozzleTipConfig& was : previous.nozzleTips)
+                if (was.id == tip.id) {
+                    tip.loadSteps = was.loadSteps;
+                    tip.unloadReversesLoad = was.unloadReversesLoad;
+                    tip.unloadSteps = was.unloadSteps;
+                }
     }
     if (!cell.save(target, error) || !openCell(target, error)) {
         JDialog::message("The OpenPnP machine could not be imported", error);
