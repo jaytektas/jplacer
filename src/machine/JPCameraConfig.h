@@ -61,6 +61,20 @@ struct JPCameraConfig {
         bool antiGlare     = false;
     };
     Light         light;
+    // How Calibrate measures it (JPCameraCalibrator): a grid of `columns` x
+    // `rows` places across the picture, reaching `reach` of the way from the
+    // middle to where the edge leaves room for the mark; a measurement further
+    // from the fit than `outlierSpread` times the fit's spread (and a pixel)
+    // is left out; a fit worse than `maxRmsPx` is refused.
+    struct Calibrating {
+        int    columns       = 7;
+        int    rows          = 5;
+        double reach         = 1.0;
+        double outlierSpread = 3.0;
+        double maxRmsPx      = 1.0;
+        static constexpr int kMostPlaces = 25;   // across or down
+    };
+    Calibrating   calibrating;
     // jplacer's own, from known moves: one for each picture size it was
     // measured at (another size is another scale, and another lens).
     std::vector<JPCameraCalibration> calibrations;
@@ -112,6 +126,13 @@ struct JPCameraConfig {
             c.settle.debounce   = int(st["debounce"].number(c.settle.debounce));
             c.settle.maskCircle = st["maskCircle"].number(c.settle.maskCircle);
         }
+        if (const JJson& k = j["calibrating"]; k.isObject()) {
+            c.calibrating.columns       = int(k["columns"].number(c.calibrating.columns));
+            c.calibrating.rows          = int(k["rows"].number(c.calibrating.rows));
+            c.calibrating.reach         = k["reach"].number(c.calibrating.reach);
+            c.calibrating.outlierSpread = k["outlierSpread"].number(c.calibrating.outlierSpread);
+            c.calibrating.maxRmsPx      = k["maxRmsPx"].number(c.calibrating.maxRmsPx);
+        }
         for (const JJson& k : j["calibrations"].arr())
             if (JPCameraCalibration cal = JPCameraCalibration::fromJson(k); cal.valid) c.calibrations.push_back(cal);
         return c;
@@ -145,6 +166,11 @@ struct JPCameraConfig {
         j["settle"]["threshold"]  = settle.threshold;
         j["settle"]["debounce"]   = settle.debounce;
         j["settle"]["maskCircle"] = settle.maskCircle;
+        j["calibrating"]["columns"]       = calibrating.columns;
+        j["calibrating"]["rows"]          = calibrating.rows;
+        j["calibrating"]["reach"]         = calibrating.reach;
+        j["calibrating"]["outlierSpread"] = calibrating.outlierSpread;
+        j["calibrating"]["maxRmsPx"]      = calibrating.maxRmsPx;
         if (!calibrations.empty()) {
             JJson list = JJson::array();
             for (const JPCameraCalibration& k : calibrations) list.push(k.toJson());

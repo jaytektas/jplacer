@@ -84,6 +84,10 @@ public:
     // changes the setup, it is a step to undo like any other, and it is
     // handed over at once.
     void change(const std::string& what, const std::function<void(JPCellConfig&)>& edit);
+    // Something measured (a camera's calibration, the squareness), already
+    // in use and saved by the cell: shown here too (not handed back as a
+    // change, and kept through undo and redo), the form made again.
+    void measured(const std::function<void(JPCellConfig&)>& edit);
 
     bool canUndo() const { return m_history.canUndo(); }
     bool canRedo() const { return m_history.canRedo(); }
@@ -94,6 +98,8 @@ public:
     void redo();
 private:
     void rebuildTree();
+    // The shown part's form made again on the next frame.
+    void remakeForm();
     // The tree's rows again, open where m_expanded says.
     void setRows(bool firstTime);
     void addPart();

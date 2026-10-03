@@ -96,6 +96,16 @@ JPCameraCalibration JPCameraCalibration::fromJson(const JJson& j) {
     c.leftOut = int(j["leftOut"].number());
     c.unmeasured = int(j["unmeasured"].number());
     c.when  = j["when"].str();
+    for (const JJson& p : j["points"].arr()) {
+        Point q;
+        q.xPx = p["x"].number();
+        q.yPx = p["y"].number();
+        q.dxPx = p["dx"].number();
+        q.dyPx = p["dy"].number();
+        q.leftOut = p["leftOut"].boolean();
+        c.points.push_back(q);
+    }
+    c.outlierPx = j["outlierPx"].number();
     return c;
 }
 
@@ -115,6 +125,19 @@ JJson JPCameraCalibration::toJson() const {
     j["leftOut"] = leftOut;
     j["unmeasured"] = unmeasured;
     j["when"]  = when;
+    if (!points.empty()) {
+        j["points"] = JJson::array();
+        for (const Point& p : points) {
+            JJson q = JJson::object();
+            q["x"] = p.xPx;
+            q["y"] = p.yPx;
+            q["dx"] = p.dxPx;
+            q["dy"] = p.dyPx;
+            if (p.leftOut) q["leftOut"] = true;
+            j["points"].push(q);
+        }
+        j["outlierPx"] = outlierPx;
+    }
     return j;
 }
 

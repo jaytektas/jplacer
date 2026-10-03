@@ -80,6 +80,14 @@ public:
         r.text = text;
         rows().push_back(std::move(r));
     }
+    // A graph under the title `label`.
+    void plot(const std::string& label, std::shared_ptr<const JPPlot> plot) {
+        Row r;
+        r.kind = Row::Kind::Plot;
+        r.label = label;
+        r.plot = std::move(plot);
+        rows().push_back(std::move(r));
+    }
     // Buttons: (label, action) each; the owner does the action.
     void actions(const std::vector<std::pair<std::string, std::string>>& buttons) {
         Row r;
@@ -777,6 +785,78 @@ void stepForm(JPCellConfig& cell, const JPSetupTree::Path& p, JPSetupProperties:
     }
 }
 
+// A calibration's results, and its measurements as graphs: each against the
+// fit in the order measured, all of them about the fit (the outlier limit as a
+// circle), and how far off each is across the picture.
+void calibrationResults(Adder& add, const JPCameraCalibration& cal, bool looksUp) {
+    const std::string size = std::to_string(cal.width) + "\xC3\x97" + std::to_string(cal.height);
+    const std::string key = "cal" + std::to_string(cal.width) + "x" + std::to_string(cal.height) + ".";
+    auto shown = [&add, &key](const std::string& name, const std::string& label, const std::string& value) {
+        add.text(key + name, label, [value] { return value; }, nullptr);
+    };
+    char b[160];
+    add.group("Results at " + size);
+    shown("when", "Measured", cal.when);
+    std::snprintf(b, sizeof b, "%.3f", cal.z);
+    shown("z", "At Z", b);
+    const double umX = 1000 / cal.scaleX(), umY = 1000 / cal.scaleY();
+    std::snprintf(b, sizeof b, "%.2f \xC2\xB5m across, %.2f \xC2\xB5m down (%.3f, %.3f px/mm)", umX, umY, cal.scaleX(), cal.scaleY());
+    shown("upp", "Units Per Pixel", b);
+    std::snprintf(b, sizeof b, "%.2f \xC2\xB5m (%.3f px)", cal.rmsPx * (umX + umY) / 2, cal.rmsPx);
+    shown("accuracy", "Estimated Locating Accuracy", b);
+    std::snprintf(b, sizeof b, "%.2f \xC3\x97 %.2f mm", cal.width / cal.scaleX(), cal.height / cal.scaleY());
+    shown("fov", "Field of View", b);
+    std::snprintf(b, sizeof b, "%.3f deg%s", cal.rotationDeg(looksUp), cal.mirrored(looksUp) ? ", mirrored" : "");
+    shown("turn", "Mounting Error (turned)", b);
+    std::snprintf(b, sizeof b, "k1 %.4g, k2 %.4g; centre %+.1f, %+.1f px from the middle", cal.lensK1, cal.lensK2,
+                  cal.lensCentreX - cal.width / 2.0, cal.lensCentreY - cal.height / 2.0);
+    shown("lens", "Lens", b);
+    std::snprintf(b, sizeof b, "%zu measured, %d left out, %d places not measured", cal.points.size(), cal.leftOut, cal.unmeasured);
+    shown("points", "Measurements", b);
+    if (cal.points.empty()) {
+        add.note("Calibrate again to see its measurements as graphs.");
+        return;
+    }
+    auto order = std::make_shared<JPPlot>();
+    order->kind = JPPlot::Kind::Lines;
+    order->xTitle = "measurement";
+    order->yTitle = "px";
+    JPPlot::Series sx{ "X", JPPlot::Tone::First, {} }, sy{ "Y", JPPlot::Tone::Second, {} };
+    auto scatter = std::make_shared<JPPlot>();
+    scatter->kind = JPPlot::Kind::Scatter;
+    scatter->xTitle = "X px";
+    scatter->yTitle = "Y px";
+    scatter->circle = cal.outlierPx;
+    JPPlot::Series kept{ "measured", JPPlot::Tone::First, {} }, out{ "left out", JPPlot::Tone::Muted, {} };
+    auto map = std::make_shared<JPPlot>();
+    map->kind = JPPlot::Kind::Map;
+    map->yTitle = "px";
+    map->width = cal.width;
+    map->height = cal.height;
+    for (size_t i = 0; i < cal.points.size(); ++i) {
+        const JPCameraCalibration::Point& p = cal.points[i];
+        sx.points.push_back({ double(i + 1), p.dxPx });
+        sy.points.push_back({ double(i + 1), p.dyPx });
+        (p.leftOut ? out : kept).points.push_back({ p.dxPx, -p.dyPx });
+        if (!p.leftOut) map->spots.push_back({ p.xPx, p.yPx, std::hypot(p.dxPx, p.dyPx) });
+    }
+    order->series = { sx, sy };
+    scatter->series = { kept };
+    if (!out.points.empty()) scatter->series.push_back(out);
+    add.plot("Residual Errors in the Order Measured", order);
+    add.note("How far each measurement is from where the fit puts it, along X and Y. They should look like noise about "
+             "zero: a step or a drift says something moved while measuring (the mark, the camera in its mount, a "
+             "missed step, a slipping belt, warming up).");
+    add.plot("Residual Errors, X against Y", scatter);
+    add.note("All of them together: one round cluster about the middle. The circle is the outlier limit; outside "
+             "it, a measurement was left out. Two clusters or a stretched one: the mark was found badly, or the "
+             "backlash or a drive is out.");
+    add.plot("Residual Error Map", map);
+    add.note("How far off the measurements are across the picture, coolest to hottest (the colours only show "
+             "where, not how much). It should look patchy at random; rings or stripes mean the lens fits the "
+             "picture badly there.");
+}
+
 void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f) {
     auto c = finder(cell.cameras, id);
     f.title = "Camera " + c().name;
@@ -922,6 +1002,22 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     add.tab("Advanced Calibration");
     add.group("Camera Calibration");
     add.actions({ { "Start Calibration", "calibrate" } });
+    auto k = [c]() -> JPCameraConfig::Calibrating& { return c().calibrating; };
+    const int most = JPCameraConfig::Calibrating::kMostPlaces;
+    add.row("Places Across");
+    add.integer("calColumns", "Places Across", [k]() -> int& { return k().columns; }, 3, most);
+    add.integer("calRows", "Places Down", [k]() -> int& { return k().rows; }, 3, most);
+    add.end();
+    add.number("calReach", "Reach (share)", [k] { return k().reach; },
+               [k](double v) { k().reach = std::clamp(v, 0.1, 1.0); }, 2);
+    add.number("calOutlier", "Outlier Limit (x spread)", [k] { return k().outlierSpread; },
+               [k](double v) { k().outlierSpread = std::max(1.0, v); }, 1);
+    add.number("calMaxRms", "Worst Fit Taken (px)", [k] { return k().maxRmsPx; },
+               [k](double v) { if (v > 0) k().maxRmsPx = v; }, 2);
+    add.note("Calibrating moves the mark through a grid of places across the picture, Reach of the way from the "
+             "middle to as near the edge as leaves room for the mark (1: all the way). More places measure the "
+             "lens better and take longer. A measurement further from the fit than Outlier Limit times the fit's "
+             "spread is left out, one in ten at most; a fit whose spread is worse than Worst Fit Taken is refused.");
     // Straightened, a wide lens's picture no longer fills a rectangle.
     add.row("Crop All Invalid Pixels");
     add.integer("showAll", "Crop All Invalid Pixels", [c] { return int(std::lround(c().showAll * 100)); },
@@ -929,6 +1025,7 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     add.end();
     add.note("0 crops every pixel the straightening leaves without picture; 100 shows all of the picture, "
              "dark corners and all.");
+    for (const JPCameraCalibration& cal : c().calibrations) calibrationResults(add, cal, c().looksUp);
 }
 
 void actuatorForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f) {

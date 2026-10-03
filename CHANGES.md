@@ -210,6 +210,7 @@ notes.
 - Shift+click a camera's picture, or drag in it, to move the camera to look there.
 - Buttons and labels no longer go missing after the window is made small and then big again.
 - Locate Board can look at each fiducial from both sides (parallax) for shiny fiducials; the passes, how centred, and the parallax are in Machine Setup on the Machine's Fiducials tab, and come across from OpenPnP.
+- A camera's Advanced Calibration tab has options for how it is calibrated (the grid's size and reach, the outlier limit, the worst fit taken), and shows the results with graphs of the measurements: in the order made, X against Y, and as a map over the picture.
 - The Jog pad's park buttons show a parking sign that grows with the pad.
 - Buttons and other controls are no longer clipped by a pixel along an edge, and the Jog panel's tip, Stop
   and E-STOP buttons stay whole in a narrow dock (a long tool name is cut short instead).

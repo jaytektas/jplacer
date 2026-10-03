@@ -40,6 +40,9 @@ public:
                                              bool lensCentre);
     // How far each sample sits from where a fit with the lens puts it (pixels).
     static std::vector<double> residualsPx(const std::vector<Sample>& samples, const Result& fit, int width, int height);
+    // The same along x and y: where each sample was seen less where the fit puts it.
+    static std::vector<std::array<double, 2>> residualVectorsPx(const std::vector<Sample>& samples, const Result& fit,
+                                                                int width, int height);
 };
 
 } // inline namespace jf

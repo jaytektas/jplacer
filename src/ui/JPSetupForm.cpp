@@ -6,6 +6,7 @@
 #include "JPGroupFrame.h"
 #include "JPIconButton.h"
 #include "JPIcons.h"
+#include "JPPlotView.h"
 #include "JPTextBox.h"
 #include "JPTextField.h"
 #include "JPUiParts.h"
@@ -23,6 +24,9 @@
 inline namespace jf {
 
 namespace {
+
+// A graph is this many lines tall.
+constexpr float kPlotLines = 14;
 
 using Row = JPSetupProperties::Row;
 
@@ -288,6 +292,18 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
                 note->setVSizePolicy(JSizePolicyMode::Fixed);
                 note->setSize(width, h);
                 place(std::move(note), h);
+                break;
+            }
+            case Row::Kind::Plot: {
+                // Its title, then the graph across the group's width.
+                const float formWidth = m_graph.getLayoutConst(getNodeId()).boundingBox.width;
+                const float width = std::max(numberWidth() * 4, formWidth - JPGroupFrame::extraWidth()
+                                                                     - 2 * (st.scrollBarWidth + st.itemPadding));
+                if (!r.label.empty()) place(label(m_graph, r.label), st.labelHeight);
+                const float h = kPlotLines * st.labelHeight;
+                auto view = std::make_unique<JPPlotView>(m_graph, r.plot);
+                view->setFixedSize(width, h);
+                place(std::move(view), h);
                 break;
             }
             case Row::Kind::Actions: {

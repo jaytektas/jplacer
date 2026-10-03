@@ -160,6 +160,14 @@ void JPlacerMachine::buildCameras() {
     if (!m_cameras.empty()) bringForward(*m_cameras.front().panel);
     m_cameraTasks = std::make_unique<JPlacerCameraTasks>(m_window, *m_cell, std::move(panels),
                                                          [this](JPCameraPanel& p) { bringForward(p); }, m_cellPath);
+    // Machine Setup shows it (the cell keeps it: JPlacerMachine::applySetup).
+    m_cameraTasks->onCalibrated = [this](const std::string& cameraId, const JPCameraCalibration& calibration) {
+        if (!m_setup) return;
+        m_setup->measured([&](JPCellConfig& cell) {
+            for (JPCameraConfig& c : cell.cameras)
+                if (c.id == cameraId) c.keepCalibration(calibration);
+        });
+    };
     lightCameras();
 }
 
@@ -458,6 +466,7 @@ void JPlacerMachine::squareMachine(const JPMountConfig& mount, double xPerY) {
     }
     q.xPerY += xPerY;   // measured in coordinates already corrected by the old
     m_cell->setSquareness(q);
+    if (m_setup) m_setup->measured([&q](JPCellConfig& cell) { cell.squareness = q; });
     JPCellConfig saved;
     std::string error;
     if (saved.load(m_cellPath, error)) {

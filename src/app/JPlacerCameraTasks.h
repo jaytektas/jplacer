@@ -36,6 +36,9 @@ public:
     JPlacerCameraTasks(const JPlacerCameraTasks&)            = delete;
     JPlacerCameraTasks& operator=(const JPlacerCameraTasks&) = delete;
 
+    // A calibration was made, kept in the cell and saved (for what shows it).
+    std::function<void(const std::string& cameraId, const JPCameraCalibration&)> onCalibrated;
+
     // A camera on the head: over the head's homing mark, then measured with
     // known moves. A fixed camera: a nozzle's tip held over it (asked first,
     // as a nozzle goes down to it) and moved about.

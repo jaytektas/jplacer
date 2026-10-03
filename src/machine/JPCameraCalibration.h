@@ -9,6 +9,7 @@
 
 #include <array>
 #include <string>
+#include <vector>
 
 inline namespace jf {
 
@@ -34,6 +35,16 @@ struct JPCameraCalibration {
     int                   leftOut = 0;        // measurements left out as far from it
     int                   unmeasured = 0;     // grid places where the mark could not be measured
     std::string           when;               // when it was measured
+    // Each measurement, in the order made: where the mark was seen, and how
+    // far that is from where the fit puts it (seen less fitted, pixels); one
+    // further than `outlierPx` was left out of the fit.
+    struct Point {
+        double xPx = 0, yPx = 0;
+        double dxPx = 0, dyPx = 0;
+        bool   leftOut = false;
+    };
+    std::vector<Point>    points;
+    double                outlierPx = 0;
 
     // Millimetres for a displacement in the picture from its middle, seen
     // through the lens (straightened first); nothing when the fit is degenerate.

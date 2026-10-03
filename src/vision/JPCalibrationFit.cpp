@@ -201,4 +201,15 @@ std::vector<double> JPCalibrationFit::residualsPx(const std::vector<Sample>& sam
     return out;
 }
 
+std::vector<std::array<double, 2>> JPCalibrationFit::residualVectorsPx(const std::vector<Sample>& samples, const Result& f,
+                                                                       int width, int height) {
+    const double p[kLensParams] = { f.centreX, f.centreY, f.pxPerMm[0], f.pxPerMm[1], f.pxPerMm[2], f.pxPerMm[3],
+                                    f.lensK1, f.lensCentreX, f.lensCentreY, f.lensK2 };
+    std::vector<double> r;
+    lensResiduals(samples, p, width, height, r);
+    std::vector<std::array<double, 2>> out(samples.size());
+    for (size_t i = 0; i < samples.size(); ++i) out[i] = { r[2 * i], r[2 * i + 1] };
+    return out;
+}
+
 } // inline namespace jf

@@ -3,11 +3,14 @@
 
 #pragma once
 
+#include "JPPlot.h"
+
 #include "machine/JPCellConfig.h"
 #include "machine/JPFirmwareProfile.h"
 
 #include <j/core/JPropertyModel.h>
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -40,6 +43,7 @@ public:
             Header,    // the column titles over the rows after it (cells' labels)
             Note,      // a line of text
             Actions,   // buttons (cells' labels; property: the action's name)
+            Plot,      // a graph (plot), titled by its label
         };
         Kind        kind = Kind::Fields;
         std::string label;
@@ -47,6 +51,7 @@ public:
         std::string text;                // a note
         Place       place = Place::None; // its cells are X, Y, Z, rotation (Location) or one axis (Axis)
         std::string axis;                // Place::Axis: which axis
+        std::shared_ptr<const JPPlot> plot;   // Kind::Plot
     };
     struct Group {
         std::string      title;

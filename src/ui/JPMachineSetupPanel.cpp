@@ -172,7 +172,12 @@ void JPMachineSetupPanel::record(const std::string& what, const std::string& key
 
 void JPMachineSetupPanel::restore(const JPSetupHistory::State& state) {
     m_draft = state.cell;
-    m_recorded = state.cell;
+    // What was measured is not undone: the calibrations and squareness in use.
+    for (JPCameraConfig& c : m_draft.cameras)
+        for (const JPCameraConfig& u : m_inUse.cameras)
+            if (u.id == c.id) c.calibrations = u.calibrations;
+    m_draft.squareness = m_inUse.squareness;
+    m_recorded = m_draft;
     m_note->setText("");
     rebuildTree();
     m_selected.clear();
@@ -319,20 +324,31 @@ void JPMachineSetupPanel::changed(const std::string& property) {
     if (std::find(m_reshaping.begin(), m_reshaping.end(), property) != m_reshaping.end()) {
         // The form is made again on the next frame: the change arrives inside
         // one of its controls' own events, and that control goes with it.
-        std::weak_ptr<bool> alive = m_alive;
-        jPostToNextFrame([this, alive] {
-            if (!alive.lock()) return;
-            JPSetupProperties::Form f = JPSetupProperties::forNode(m_draft, m_selected, m_profiles);
-            m_reshaping = f.reshaping;
-            m_title->setText(f.title);
-            m_labels.clear();
-            for (const JProperty& p : f.model.all()) m_labels[p.name] = p.meta.label.empty() ? p.name : p.meta.label;
-            m_form->setForm(std::move(f));
-            select(m_selected);   // where it is in the tree now
-        });
+        remakeForm();
     }
     // Typing on in the same field is the same step.
     record(what, at + "|" + property, at);
+}
+
+void JPMachineSetupPanel::measured(const std::function<void(JPCellConfig&)>& edit) {
+    edit(m_draft);
+    edit(m_recorded);
+    edit(m_inUse);
+    remakeForm();
+}
+
+void JPMachineSetupPanel::remakeForm() {
+    std::weak_ptr<bool> alive = m_alive;
+    jPostToNextFrame([this, alive] {
+        if (!alive.lock()) return;
+        JPSetupProperties::Form f = JPSetupProperties::forNode(m_draft, m_selected, m_profiles);
+        m_reshaping = f.reshaping;
+        m_title->setText(f.title);
+        m_labels.clear();
+        for (const JProperty& p : f.model.all()) m_labels[p.name] = p.meta.label.empty() ? p.name : p.meta.label;
+        m_form->setForm(std::move(f));
+        select(m_selected);   // where it is in the tree now
+    });
 }
 
 void JPMachineSetupPanel::capture(const JPSetupProperties::Row& row, JPSetupForm::Tool tool) {

@@ -147,6 +147,7 @@ void JPlacerCameraTasks::calibrate(JPCameraPanel& camera) {
         o.markDiameterMm = h.homingFiducialDiameter;
         o.markZ = h.homingFiducial->z;
         o.speed = kTaskSpeed;
+        o.calibrating = feed->config().calibrating;
         const auto c = JPCameraCalibrator::run(m_cell, *feed, o, words, progress);
         if (!c) return false;
         *result = *c;
@@ -168,6 +169,7 @@ void JPlacerCameraTasks::keepCalibration(const std::string& cameraId, const JPCa
         JLOGC(JPlacerLog::kApp, JLogLevel::Error) << error;
         m_window.showStatus("The calibration is in use but was not saved: " + error, kResultMs);
     }
+    if (onCalibrated) onCalibrated(cameraId, calibration);
 }
 
 void JPlacerCameraTasks::visualTest(JPCameraPanel& camera) {
@@ -375,6 +377,7 @@ void JPlacerCameraTasks::calibrateFixed(JPCameraPanel& camera) {
                 JPCameraCalibrator::Options o;
                 o.markZ = place.offsetZ;
                 o.speed = kTaskSpeed;
+                o.calibrating = feed->config().calibrating;
                 o.moving = &tool;
                 c = JPCameraCalibrator::run(m_cell, *feed, o, words, progress);
             }
