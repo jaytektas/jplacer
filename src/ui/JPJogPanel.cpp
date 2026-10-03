@@ -98,7 +98,7 @@ JPJogPanel::JPJogPanel(JSceneGraph& graph, JPCell& cell, Choices start) : JConta
 }
 
 float JPJogPanel::padSize() {
-    return 1.5f * JStyle::current().buttonHeight;
+    return 1.05f * JStyle::current().buttonHeight;
 }
 
 std::unique_ptr<JWidget> JPJogPanel::pad(const char* name, void (*glyph)(JVectorCanvas&, float, float, float, const JColor&),
@@ -149,11 +149,18 @@ std::unique_ptr<JWidget> JPJogPanel::jogPage() {
         return box;
     };
     using I = JPIcons;
-    // OpenPnP's pad, in six columns: Home and C | the X/Y cross | Z | the position buttons.
+    // OpenPnP's pad, in six columns: Home and C | the X/Y cross | Z | the
+    // position buttons; Distance in a column beside it.
+    const float padH = st.labelHeight + 4 * padSize() + 4 * st.spacing;
+    auto block = row(padH);
+    block->setAlignItems(JAlignItems::Start);
+    auto padColumn = std::make_unique<JContainer>(g, 0.f, padH);
+    padColumn->setDirection(JFlexDirection::Column)->setGap(st.spacing)->setAlignItems(JAlignItems::Start);
+    padColumn->setFixedSize(6 * padSize() + 5 * st.spacing, padH);
     auto heads = row(st.labelHeight);
     heads->add(title("", st.labelHeight)); heads->add(title("", st.labelHeight)); heads->add(title("X/Y", st.labelHeight));
     heads->add(title("", st.labelHeight)); heads->add(title("Z", st.labelHeight));
-    page->addChildWidget(std::move(heads));
+    padColumn->add(std::move(heads));
     auto top = row(padSize());
     top->add(pad("Home", &I::home, "Home all axes (Ctrl+H)", "home"));
     top->add(gap());
@@ -161,7 +168,7 @@ std::unique_ptr<JWidget> JPJogPanel::jogPage() {
     top->add(gap());
     top->add(pad("Z+", &I::arrowUp, "Z+ (Ctrl+')", "z+"));
     top->add(pad("Position Nozzle", &I::moveNozzle, "Put the nozzle where the camera is looking", "positionNozzle"));
-    page->addChildWidget(std::move(top));
+    padColumn->add(std::move(top));
     auto middle = row(padSize());
     middle->add(gap());
     middle->add(pad("X-", &I::arrowLeft, "X- (Ctrl+Left)", "x-"));
@@ -169,30 +176,36 @@ std::unique_ptr<JWidget> JPJogPanel::jogPage() {
     middle->add(pad("X+", &I::arrowRight, "X+ (Ctrl+Right)", "x+"));
     middle->add(parkButton("Up to safe Z (Ctrl+Shift+L)", "parkZ"));
     middle->add(pad("Position Camera", &I::moveCamera, "Put the camera over the nozzle", "positionCamera"));
-    page->addChildWidget(std::move(middle));
+    padColumn->add(std::move(middle));
     auto bottom = row(padSize());
     bottom->add(gap());
     bottom->add(gap());
     bottom->add(pad("Y-", &I::arrowDown, "Y- (Ctrl+Down)", "y-"));
     bottom->add(gap());
     bottom->add(pad("Z-", &I::arrowDown, "Z- (Ctrl+/)", "z-"));
-    page->addChildWidget(std::move(bottom));
+    padColumn->add(std::move(bottom));
     auto turn = row(padSize());
     turn->add(title("C", padSize()));
     turn->add(pad("C+", &I::rotateAnticlockwise, "Turn anticlockwise (Ctrl+,)", "c+"));
     turn->add(parkButton("Turn to 0", "parkC"));
     turn->add(pad("C-", &I::rotateClockwise, "Turn clockwise (Ctrl+.)", "c-"));
-    page->addChildWidget(std::move(turn));
+    padColumn->add(std::move(turn));
+    block->add(std::move(padColumn));
 
-    // Distance and speed, under the pad.
-    const float rowH = std::max(st.buttonHeight, st.controlHeight);
-    page->addChildWidget(std::make_unique<JLabel>(g, "Distance [mm/deg]  (Ctrl+- / Ctrl+=)", 0.f, st.labelHeight));
-    auto distance = row(rowH);
-    m_distance = distance->add(std::make_unique<JPChoiceRow>(g, kDistanceLabels, kDistanceFirst));
+    // Distance [mm/deg]: its title, and the steps two to a row.
+    auto distanceColumn = std::make_unique<JContainer>(g, 0.f, padH);
+    distanceColumn->setDirection(JFlexDirection::Column)->setGap(st.spacing)->setAlignItems(JAlignItems::Start);
+    distanceColumn->add(std::make_unique<JLabel>(g, "Distance", 0.f, st.labelHeight));
+    m_distance = distanceColumn->add(std::make_unique<JPChoiceRow>(g, kDistanceLabels, kDistanceFirst, 2));
+    distanceColumn->setFixedSize(m_graph.getLayoutConst(m_distance->getNodeId()).boundingBox.width, padH);
+    m_distance->setTooltip("How far a press moves: mm, or degrees turning (Ctrl+- / Ctrl+=)");
     m_distance->onChosen.connect([this](int) {
         if (onChoicesChanged) onChoicesChanged();
     });
-    page->addChildWidget(std::move(distance));
+    block->add(std::move(distanceColumn));
+    page->addChildWidget(std::move(block));
+
+    const float rowH = std::max(st.buttonHeight, st.controlHeight);
     auto speedRow = row(rowH);
     speedRow->add(std::make_unique<JLabel>(g, "Speed [%]"));
     m_speed = speedRow->add(std::make_unique<JSlider>(g, 0.f, 0.f));
