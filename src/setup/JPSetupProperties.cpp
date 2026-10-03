@@ -1016,6 +1016,42 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
                  "circle of Center Mask of the picture (0: all of it), until the difference stays under the "
                  "threshold for Debounce Frames more pictures, or the timeout passes.");
     }
+    add.group("Test");
+    if (!c().mount.headId.empty())
+        add.actions({ { "Left", "settleTestLeft" }, { "Right", "settleTestRight" }, { "Back", "settleTestBack" },
+                      { "Front", "settleTestFront" }, { "Here", "settleTestHere" } });
+    else
+        add.actions({ { "Settle", "settleTestHere" } });
+    add.note(c().mount.headId.empty()
+                 ? "Let the camera settle as a picture for vision would, and graph how it came to rest."
+                 : "Move the camera one jog step (the Jog pad's distance) that way and back, or not at all (Here), "
+                   "let it settle as a picture for vision would, and graph how it came to rest.");
+    if (const auto& t = c().settleTrace) {
+        auto g = std::make_shared<JPPlot>();
+        g->kind = JPPlot::Kind::Lines;
+        g->xTitle = "ms";
+        g->yTitle = "difference %";
+        JPPlot::Series d{ "difference", JPPlot::Tone::First, {} };
+        for (const auto& [ms, v] : t->points) d.points.push_back({ ms, v });
+        g->series.push_back(d);
+        if (t->threshold > 0 && !t->points.empty())
+            g->series.push_back({ "threshold", JPPlot::Tone::Second,
+                                  { { t->points.front().first, t->threshold }, { t->points.back().first, t->threshold } } });
+        if (t->settledMs >= 0) {
+            double top = t->threshold;
+            for (const auto& [ms, v] : t->points) top = std::max(top, v);
+            g->series.push_back({ "settled", JPPlot::Tone::Muted, { { t->settledMs, 0 }, { t->settledMs, top } } });
+        }
+        char title[120];
+        if (t->settledMs >= 0) std::snprintf(title, sizeof title, "Settled after %.0f ms (%s)", t->settledMs, t->method.c_str());
+        else std::snprintf(title, sizeof title, "Not settled within the timeout (%s)", t->method.c_str());
+        add.plot(title, g);
+        add.note(t->method == "FixedTime"
+                     ? "With FixedTime, the pictures' Euclidean difference over the fixed wait: where it falls flat "
+                       "is how long the camera takes to come to rest."
+                     : "Each picture's difference from the one before; the camera is still once it stays under the "
+                       "threshold. A threshold just above the flat part, with a little room, settles soonest.");
+    }
 
     add.tab("Device Settings");
     add.group("Device");

@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "machine/JPSettleTrace.h"
+
 #include "camera/JPCameraFeed.h"
 #include "machine/JPCell.h"
 #include "vision/JPGrayImage.h"
@@ -21,7 +23,10 @@ public:
     // A picture taken once the camera settled, as the camera's settling says
     // (JPCameraConfig::Settle). Watching for motion, a timeout still gives
     // the last picture (as OpenPnP does), and the log says so.
-    static bool settled(JPCameraFeed& feed, JPGrayImage& out, std::string& why);
+    // With `trace`, how it settled is kept there (each picture's difference
+    // from the last, by the settle method, against time; with FixedTime too,
+    // by the Euclidean difference, for the settling graph).
+    static bool settled(JPCameraFeed& feed, JPGrayImage& out, std::string& why, JPSettleTrace* trace = nullptr);
     // A picture taken at least `afterMs` after the call.
     static bool taken(JPCameraFeed& feed, JPGrayImage& out, std::string& why, int afterMs);
     // How much `b` differs from `a` by `method` (Maximum, Mean, Euclidean,

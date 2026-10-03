@@ -46,6 +46,10 @@ public:
     void calibrate(JPCameraPanel& camera);
     // Look at the homing mark and say how far it is from its setting.
     void visualTest(JPCameraPanel& camera);
+    // The settling test: a camera on a head moved (dx, dy) and back, then
+    // let settle, how it settled kept (JPSettleTrace); a fixed camera only
+    // let settle. `done` (main thread): the trace.
+    void settleTest(JPCameraPanel& camera, double dx, double dy, std::function<void(const JPSettleTrace&)> done);
     // Measure an X or Y axis's backlash with the head camera over the head's
     // homing mark (JPBacklashCalibrator). `done` (main thread): what it found,
     // in use already, for the owner to keep.

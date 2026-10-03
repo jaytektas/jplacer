@@ -4,9 +4,11 @@
 #pragma once
 
 #include "JPCameraCalibration.h"
+#include "JPSettleTrace.h"
 #include "JPMountConfig.h"
 
 #include <array>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -42,6 +44,9 @@ struct JPCameraConfig {
         double      maskCircle = 0;
     };
     Settle        settle;
+    // The last settling test (Camera Settling's test buttons), for its graph;
+    // not kept in the file.
+    std::optional<JPSettleTrace> settleTrace;
     // WHITE BALANCE, as OpenPnP's: each channel (red, green, blue) scaled by
     // its balance, then given its own gamma (JPWhiteBalance).
     struct WhiteBalance {

@@ -103,7 +103,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Name, looking, preview FPS, suspend during tasks, auto camera view, multi-camera view | partial | runs while on screen (own way); FPS cap and auto view missing |
 | Light actuator and when it is on | done | |
 | Units per pixel (measure) | own way | from Calibrate |
-| Settling (methods, threshold, timeout, debounce, mask) | partial | diagnostics graph and test moves missing |
+| Settling (methods, threshold, timeout, debounce, mask, test moves, diagnostics graph) | done | |
 | Device settings and properties table | done | |
 | White balance (balance, gamma, Overall, Brightest) | partial | Mapped Roughly / Finely and the curve plot missing |
 | Position (head offsets, fixed location, safe Z, roaming radius) | partial | roaming radius missing |
@@ -160,7 +160,7 @@ All in DESIGN.md's build order 3 to 6, none started:
 Breadth first, with jplacer's own methods where they are better:
 
 1. Nozzle tips: runout calibration (with the user at the bench); part dimensions, push and drag.
-2. Cameras: remaining calibration settings and results (head offsets, tilt); settling diagnostics graph; image transforms; preview FPS cap.
+2. Cameras: remaining calibration settings and results (head offsets, tilt); image transforms; preview FPS cap.
 3. Actuators: value types and profiles, machine coordination, interlocks.
 4. Machine: motion planner settings (continuous motion), Unsafe Z roaming, Default Board Location.
 5. Then DESIGN.md's build order 3 onward: library and job model, feeders and running, vision.

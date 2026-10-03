@@ -5,6 +5,7 @@
 
 #include "common/JPlacerLog.h"
 #include "tasks/JPCameraCalibrator.h"
+#include "tasks/JPCameraLook.h"
 #include "tasks/JPVisualHoming.h"
 #include "tasks/JPVisualTest.h"
 
@@ -244,6 +245,42 @@ void JPlacerCameraTasks::calibrateBacklash(const std::string& axisId,
         return true;
     }, [result, done](bool ok) {
         if (ok && done) done(*result);
+    });
+}
+
+void JPlacerCameraTasks::settleTest(JPCameraPanel& camera, double dx, double dy,
+                                    std::function<void(const JPSettleTrace&)> done) {
+    const JPMountConfig& m = camera.camera().mount;
+    const bool moves = (dx != 0 || dy != 0) && !m.axisX.empty() && !m.axisY.empty();
+    if (const std::string why = notReady(&camera, moves, false); !why.empty()) {
+        m_window.showStatus("Settling test: " + why, kResultMs);
+        return;
+    }
+    JPCameraFeed* feed = &camera.feed();
+    auto trace = std::make_shared<JPSettleTrace>();
+    run(camera, "Settling test", [this, feed, moves, dx, dy, trace](std::string& words, const auto& progress) {
+        const JPMountConfig& mount = feed->config().mount;
+        if (moves) {
+            progress("moving and back");
+            const auto at = m_cell.jogBase();
+            const double x = at.at(mount.axisX), y = at.at(mount.axisY);
+            if (!m_cell.moveAxesAndWait({ { mount.axisX, x + dx }, { mount.axisY, y + dy } }, kTaskSpeed, words)
+                || !m_cell.moveAxesAndWait({ { mount.axisX, x }, { mount.axisY, y } }, kTaskSpeed, words))
+                return false;
+        }
+        progress("letting it settle");
+        JPGrayImage picture;
+        if (!JPCameraLook::settled(*feed, picture, words, trace.get())) return false;
+        char buf[160];
+        if (trace->settledMs >= 0)
+            std::snprintf(buf, sizeof buf, "%s settled after %.0f ms (%zu pictures)", feed->config().name.c_str(),
+                          trace->settledMs, trace->points.size());
+        else
+            std::snprintf(buf, sizeof buf, "%s did not settle within its timeout", feed->config().name.c_str());
+        words = buf;
+        return true;
+    }, [trace, done](bool ok) {
+        if (ok && done) done(*trace);
     });
 }
 

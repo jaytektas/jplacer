@@ -575,6 +575,21 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
             if ("camera:" + c.panel->camera().id == path) m_cameraTasks->calibrate(*c.panel);
     } else if ((action == "storeNozzleMark" || action == "calculateNozzleOffset") && path.rfind("nozzle:", 0) == 0) {
         nozzleOffsetWizard(path.substr(7), action == "storeNozzleMark");
+    } else if (action.rfind("settleTest", 0) == 0 && path.rfind("camera:", 0) == 0) {
+        // One jog step (the Jog pad's distance) out and back, or none.
+        const std::string id = path.substr(7);
+        const double step = m_jog ? m_jog->distance() : 0;
+        const double dx = action == "settleTestLeft" ? -step : action == "settleTestRight" ? step : 0;
+        const double dy = action == "settleTestFront" ? -step : action == "settleTestBack" ? step : 0;
+        for (CameraDock& c : m_cameras)
+            if (c.panel->camera().id == id)
+                m_cameraTasks->settleTest(*c.panel, dx, dy, [this, id](const JPSettleTrace& trace) {
+                    if (!m_setup) return;
+                    m_setup->measured([&](JPCellConfig& cell) {
+                        for (JPCameraConfig& cam : cell.cameras)
+                            if (cam.id == id) cam.settleTrace = trace;
+                    });
+                });
     } else if (action == "calibrateBacklash" && path.rfind("axis:", 0) == 0) {
         // What it found is in use already; kept through Machine Setup, a step to undo.
         const std::string id = path.substr(5);

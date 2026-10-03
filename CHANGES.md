@@ -214,6 +214,7 @@ notes.
 - Calibrate measures a camera at a second height too (a head camera over the calibration rig's secondary mark, a fixed one with the nozzle raised), giving where the camera is, its focal length and field of view in degrees; the rig's marks are on the head in Machine Setup.
 - Backlash: DirectionalCompensation and DirectionalSneakUp as well as one-sided, imported from OpenPnP as they are; Calibrate on an axis's Backlash tab measures the play with the head camera, chooses the method and shows graphs of what it measured.
 - Changing an axis's speed, limits or backlash no longer needs the machine homed again.
+- A camera's Camera Settling tab can test the settling (one jog step out and back, or standing still) and graphs how the camera came to rest against the threshold.
 - The Jog pad's park buttons show a parking sign that grows with the pad.
 - Buttons and other controls are no longer clipped by a pixel along an edge, and the Jog panel's tip, Stop
   and E-STOP buttons stay whole in a narrow dock (a long tool name is cut short instead).

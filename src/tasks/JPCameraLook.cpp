@@ -60,13 +60,22 @@ double JPCameraLook::difference(const JPGrayImage& a, const JPGrayImage& b, cons
     return v * 100;
 }
 
-bool JPCameraLook::settled(JPCameraFeed& feed, JPGrayImage& out, std::string& why) {
+bool JPCameraLook::settled(JPCameraFeed& feed, JPGrayImage& out, std::string& why, JPSettleTrace* trace) {
     const JPCameraConfig::Settle& st = feed.config().settle;
-    if (st.method == "FixedTime" || st.method.empty()) return taken(feed, out, why, st.timeMs);
-    // Each picture taken since the call against the one before, until still.
+    const bool fixed = st.method == "FixedTime" || st.method.empty();
+    if (fixed && !trace) return taken(feed, out, why, st.timeMs);
+    // Each picture taken since the call against the one before, until still
+    // (or, timed, until the time is up).
+    const auto start = std::chrono::steady_clock::now();
+    const std::string method = fixed ? std::string("Euclidean") : st.method;
+    if (trace) {
+        *trace = JPSettleTrace();
+        trace->method = fixed ? std::string("FixedTime") : st.method;
+        trace->threshold = fixed ? 0 : st.threshold;
+    }
     JPGrayImage last;
     if (!taken(feed, last, why, 0)) return false;
-    const auto until = std::chrono::steady_clock::now() + std::chrono::milliseconds(st.timeoutMs);
+    const auto until = start + std::chrono::milliseconds(fixed ? st.timeMs : st.timeoutMs);
     int still = 0;
     JPFrame frame;
     uint64_t have = 0;
@@ -78,17 +87,32 @@ bool JPCameraLook::settled(JPCameraFeed& feed, JPGrayImage& out, std::string& wh
         }
         have = frame.sequence;
         JPGrayImage next = JPGrayImage::fromRgba(frame.rgba.data(), frame.width, frame.height);
-        const double d = difference(last, next, st.method, st.maskCircle);
+        const double d = difference(last, next, method, st.maskCircle);
         last = std::move(next);
+        const double ms = std::chrono::duration<double, std::milli>(frame.captured - start).count();
+        if (trace) trace->points.push_back({ ms, d });
+        if (fixed) {
+            if (frame.captured >= until) {
+                if (trace) trace->settledMs = ms;
+                out = std::move(last);
+                return true;
+            }
+            continue;
+        }
         still = d <= st.threshold ? still + 1 : 0;
         if (still > st.debounce) {
+            if (trace) trace->settledMs = ms;
             out = std::move(last);
             return true;
         }
         if (std::chrono::steady_clock::now() > until) break;
     }
-    JLOGC(JPlacerLog::kCamera, JLogLevel::Warn) << feed.config().name << ": not settled within " << st.timeoutMs
-                                                << " ms; the last picture is used";
+    if (fixed) {
+        if (trace) trace->settledMs = st.timeMs;
+    } else {
+        JLOGC(JPlacerLog::kCamera, JLogLevel::Warn) << feed.config().name << ": not settled within " << st.timeoutMs
+                                                    << " ms; the last picture is used";
+    }
     out = std::move(last);
     return true;
 }

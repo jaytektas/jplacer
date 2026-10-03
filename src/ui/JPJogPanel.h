@@ -116,6 +116,9 @@ public:
 
     void populateRenderPrimitives(JPrimitiveBuffer& buf) override;
 
+    // The distance chosen for a jog step (mm).
+    double distance() const;
+
 private:
     struct Tool {
         std::string id, label;
@@ -149,7 +152,6 @@ private:
     // else the nozzle chosen last (else the first).
     const Tool* nozzle() const;
     const Tool* camera() const;
-    double distance() const;
 
     JPCell&                 m_cell;
     std::vector<Tool>       m_tools;
