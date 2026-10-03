@@ -9,6 +9,7 @@
 
 #include "common/JPlacerLog.h"
 
+#include <j/core/FrameTimer.h>
 #include <j/core/JButton.h>
 #include <j/core/JScrollArea.h>
 #include <j/core/JStyle.h>
@@ -77,16 +78,11 @@ JPJogPanel::JPJogPanel(JSceneGraph& graph, JPCell& cell, Choices start) : JConta
         if (onChoicesChanged) onChoicesChanged();
     });
 
+    m_distanceIndex = std::clamp(start.distance, 0, int(kDistances.size()) - 1);
+    m_speedShare = std::clamp(start.speed, 0.0, 1.0);
     m_tabs = add(std::make_unique<JTabWidget>(graph, 0.f, 0.f));
     m_tabs->setVSizePolicy(JSizePolicyMode::Expanding, 1);
-    m_pages.push_back(jogPage());
-    m_tabs->addTab("Jog", m_pages.back().get());
-    m_pages.push_back(specialPage());
-    m_tabs->addTab("Special", m_pages.back().get());
-
-    m_distance->choose(std::clamp(start.distance, 0, int(kDistances.size()) - 1));
-    m_speed->setValue(float(std::clamp(start.speed, 0.0, 1.0)));
-    m_speedLabel->setText(percent(speed()));
+    makePages();
 
     m_note = add(std::make_unique<JLabel>(graph, ""));
     m_note->setWordWrap(true);
@@ -97,50 +93,104 @@ JPJogPanel::JPJogPanel(JSceneGraph& graph, JPCell& cell, Choices start) : JConta
     if (!cell.isHomed()) m_note->setText("Home the machine to move it.");
 }
 
-float JPJogPanel::padSize() {
-    return 1.05f * JStyle::current().buttonHeight;
-}
-
-std::unique_ptr<JWidget> JPJogPanel::pad(const char* name, void (*glyph)(JVectorCanvas&, float, float, float, const JColor&),
+std::unique_ptr<JWidget> JPJogPanel::pad(float size, const char* name,
+                                         void (*glyph)(JVectorCanvas&, float, float, float, const JColor&),
                                          const std::string& tooltip, const std::string& action) {
     auto b = std::make_unique<JPIconButton>(m_graph, name, glyph, tooltip);
     b->setFramed(true);
-    b->setFixedSize(padSize(), padSize());
+    b->setFixedSize(size, size);
     b->onClicked.connect([this, action] { act(action); });
     return b;
 }
 
-std::unique_ptr<JWidget> JPJogPanel::parkButton(const std::string& tooltip, const std::string& action) {
+std::unique_ptr<JWidget> JPJogPanel::parkButton(float size, const std::string& tooltip, const std::string& action) {
     auto b = JPUiParts::button(m_graph, "P");
-    b->setFixedSize(padSize(), padSize());
+    b->setFixedSize(size, size);
     b->setTooltip(tooltip);
     b->onClicked.connect([this, action] { act(action); });
     return b;
 }
 
-std::unique_ptr<JWidget> JPJogPanel::gap() {
-    auto g = std::make_unique<JContainer>(m_graph, padSize(), padSize());
-    g->setFixedSize(padSize(), padSize());
+std::unique_ptr<JWidget> JPJogPanel::gap(float size) {
+    auto g = std::make_unique<JContainer>(m_graph, size, size);
+    g->setFixedSize(size, size);
     return g;
 }
 
-std::unique_ptr<JWidget> JPJogPanel::jogPage() {
+namespace {
+
+// The sliders' marks, bottom first: the distances evenly up the track; the
+// speed every quarter.
+std::vector<std::pair<double, std::string>> distanceMarks() {
+    std::vector<std::pair<double, std::string>> m;
+    for (size_t i = 0; i < kDistanceLabels.size(); ++i)
+        m.emplace_back(double(i) / double(kDistanceLabels.size() - 1), kDistanceLabels[i]);
+    return m;
+}
+std::vector<std::pair<double, std::string>> speedMarks() {
+    return { { 0, "0" }, { 0.25, "25" }, { 0.5, "50" }, { 0.75, "75" }, { 1, "100" } };
+}
+
+} // namespace
+
+float JPJogPanel::padSizeFor(float width, float height) const {
+    const JStyle& st = JStyle::current();
+    // Five columns of pad (X/Y, Z, the position buttons) beside the two
+    // sliders; a row of titles over four rows of pad.
+    JPVerticalSlider d(m_graph, distanceMarks(), true), v(m_graph, speedMarks(), false);
+    d.setCaption("Distance");
+    v.setCaption("Speed 100%");   // its widest
+    const float sliders = d.naturalWidth() + v.naturalWidth();
+    const float across = (width - sliders - 8 * st.spacing - st.scrollBarWidth) / 5;
+    const float down = (height - st.labelHeight - 6 * st.spacing) / 4;
+    return std::clamp(std::min(across, down), 0.9f * st.buttonHeight, 2.5f * st.buttonHeight);
+}
+
+void JPJogPanel::makePages() {
+    const int was = m_tabs->activeTab();
+    while (m_tabs->tabCount() > 0) m_tabs->removeTab(m_tabs->tabCount() - 1);
+    m_pages.clear();
+    const JRect room = m_tabs->contentRect();
+    m_builtW = room.width;
+    m_builtH = room.height;
+    m_pages.push_back(jogPage(padSizeFor(room.width, room.height)));
+    m_tabs->addTab("Jog", m_pages.back().get());
+    m_pages.push_back(specialPage());
+    m_tabs->addTab("Special", m_pages.back().get());
+    m_tabs->setActiveTab(std::max(0, was));
+}
+
+void JPJogPanel::populateRenderPrimitives(JPrimitiveBuffer& buf) {
+    JContainer::populateRenderPrimitives(buf);
+    if (!m_tabs) return;
+    // Resized: the pad made again for the new room, on the next frame (not
+    // while this one is being drawn).
+    const JRect room = m_tabs->contentRect();
+    const float least = JStyle::current().spacing;
+    if (std::abs(room.width - m_builtW) < least && std::abs(room.height - m_builtH) < least) return;
+    m_builtW = room.width;
+    m_builtH = room.height;
+    std::weak_ptr<bool> alive = m_alive;
+    jPostToNextFrame([this, alive] {
+        if (alive.lock()) makePages();
+    });
+}
+
+std::unique_ptr<JWidget> JPJogPanel::jogPage(float size) {
     const JStyle& st = JStyle::current();
     JSceneGraph& g = m_graph;
-    // Rows of fixed height, stacked by a scroll area: a short dock scrolls
-    // rather than cutting the last rows off.
+    // One block, stacked by a scroll area: a dock too short even for the
+    // smallest pad scrolls rather than cutting it off.
     auto page = std::make_unique<JScrollArea>(g, 0.f, 0.f);
     auto row = [&](float h) {
         auto r = std::make_unique<JContainer>(g, 0.f, h);
         r->setDirection(JFlexDirection::JRow)->setGap(st.spacing)->setAlignItems(JAlignItems::Center);
-        r->setVSizePolicy(JSizePolicyMode::Fixed);
-        r->setFixedSize(0.f, h);
-        r->setHSizePolicy(JSizePolicyMode::Expanding, 1);
+        r->setFixedSize(5 * size + 4 * st.spacing, h);
         return r;
     };
-    auto title = [&](const std::string& text, float h) {
-        auto box = std::make_unique<JContainer>(g, padSize(), h);
-        box->setFixedSize(padSize(), h);
+    auto title = [&](const std::string& text, float w, float h) {
+        auto box = std::make_unique<JContainer>(g, w, h);
+        box->setFixedSize(w, h);
         box->setDirection(JFlexDirection::JRow)->setAlignItems(JAlignItems::Center);
         g.getLayout(box->getNodeId()).justifyContent = JJustifyContent::Center;
         auto l = std::make_unique<JLabel>(g, text, 0.f, st.labelHeight);
@@ -149,74 +199,71 @@ std::unique_ptr<JWidget> JPJogPanel::jogPage() {
         return box;
     };
     using I = JPIcons;
-    // OpenPnP's pad, in six columns: Home and C | the X/Y cross | Z | the
-    // position buttons; Distance in a column beside it.
-    const float padH = st.labelHeight + 4 * padSize() + 4 * st.spacing;
-    auto block = row(padH);
-    block->setAlignItems(JAlignItems::Start);
+    const float padH = st.labelHeight + 4 * size + 4 * st.spacing;
+    auto block = std::make_unique<JContainer>(g, 0.f, padH);
+    block->setDirection(JFlexDirection::JRow)->setGap(2 * st.spacing)->setAlignItems(JAlignItems::Start);
+    block->setVSizePolicy(JSizePolicyMode::Fixed);
+    block->setFixedSize(0.f, padH);
+    block->setHSizePolicy(JSizePolicyMode::Expanding, 1);
+
+    // OpenPnP's pad: the X/Y cross, Z, then the position buttons; C under X/Y.
     auto padColumn = std::make_unique<JContainer>(g, 0.f, padH);
     padColumn->setDirection(JFlexDirection::Column)->setGap(st.spacing)->setAlignItems(JAlignItems::Start);
-    padColumn->setFixedSize(6 * padSize() + 5 * st.spacing, padH);
+    padColumn->setFixedSize(5 * size + 4 * st.spacing, padH);
     auto heads = row(st.labelHeight);
-    heads->add(title("", st.labelHeight)); heads->add(title("", st.labelHeight)); heads->add(title("X/Y", st.labelHeight));
-    heads->add(title("", st.labelHeight)); heads->add(title("Z", st.labelHeight));
+    heads->add(title("X/Y", 3 * size + 2 * st.spacing, st.labelHeight));
+    heads->add(title("Z", size, st.labelHeight));
     padColumn->add(std::move(heads));
-    auto top = row(padSize());
-    top->add(pad("Home", &I::home, "Home all axes (Ctrl+H)", "home"));
-    top->add(gap());
-    top->add(pad("Y+", &I::arrowUp, "Y+ (Ctrl+Up)", "y+"));
-    top->add(gap());
-    top->add(pad("Z+", &I::arrowUp, "Z+ (Ctrl+')", "z+"));
-    top->add(pad("Position Nozzle", &I::moveNozzle, "Put the nozzle where the camera is looking", "positionNozzle"));
+    auto top = row(size);
+    top->add(gap(size));
+    top->add(pad(size, "Y+", &I::arrowUp, "Y+ (Ctrl+Up)", "y+"));
+    top->add(gap(size));
+    top->add(pad(size, "Z+", &I::arrowUp, "Z+ (Ctrl+')", "z+"));
+    top->add(pad(size, "Position Nozzle", &I::moveNozzle, "Put the nozzle where the camera is looking", "positionNozzle"));
     padColumn->add(std::move(top));
-    auto middle = row(padSize());
-    middle->add(gap());
-    middle->add(pad("X-", &I::arrowLeft, "X- (Ctrl+Left)", "x-"));
-    middle->add(parkButton("Park the head (Ctrl+Shift+P)", "parkXY"));
-    middle->add(pad("X+", &I::arrowRight, "X+ (Ctrl+Right)", "x+"));
-    middle->add(parkButton("Up to safe Z (Ctrl+Shift+L)", "parkZ"));
-    middle->add(pad("Position Camera", &I::moveCamera, "Put the camera over the nozzle", "positionCamera"));
+    auto middle = row(size);
+    middle->add(pad(size, "X-", &I::arrowLeft, "X- (Ctrl+Left)", "x-"));
+    middle->add(parkButton(size, "Park the head (Ctrl+Shift+P)", "parkXY"));
+    middle->add(pad(size, "X+", &I::arrowRight, "X+ (Ctrl+Right)", "x+"));
+    middle->add(parkButton(size, "Up to safe Z (Ctrl+Shift+L)", "parkZ"));
+    middle->add(pad(size, "Position Camera", &I::moveCamera, "Put the camera over the nozzle", "positionCamera"));
     padColumn->add(std::move(middle));
-    auto bottom = row(padSize());
-    bottom->add(gap());
-    bottom->add(gap());
-    bottom->add(pad("Y-", &I::arrowDown, "Y- (Ctrl+Down)", "y-"));
-    bottom->add(gap());
-    bottom->add(pad("Z-", &I::arrowDown, "Z- (Ctrl+/)", "z-"));
+    auto bottom = row(size);
+    bottom->add(gap(size));
+    bottom->add(pad(size, "Y-", &I::arrowDown, "Y- (Ctrl+Down)", "y-"));
+    bottom->add(gap(size));
+    bottom->add(pad(size, "Z-", &I::arrowDown, "Z- (Ctrl+/)", "z-"));
     padColumn->add(std::move(bottom));
-    auto turn = row(padSize());
-    turn->add(title("C", padSize()));
-    turn->add(pad("C+", &I::rotateAnticlockwise, "Turn anticlockwise (Ctrl+,)", "c+"));
-    turn->add(parkButton("Turn to 0", "parkC"));
-    turn->add(pad("C-", &I::rotateClockwise, "Turn clockwise (Ctrl+.)", "c-"));
+    auto turn = row(size);
+    turn->add(pad(size, "C+", &I::rotateAnticlockwise, "Turn anticlockwise (Ctrl+,)", "c+"));
+    turn->add(parkButton(size, "Turn to 0", "parkC"));
+    turn->add(pad(size, "C-", &I::rotateClockwise, "Turn clockwise (Ctrl+.)", "c-"));
+    turn->add(title("C", size, size));
     padColumn->add(std::move(turn));
     block->add(std::move(padColumn));
 
-    // Distance [mm/deg]: its title, and the steps two to a row.
-    auto distanceColumn = std::make_unique<JContainer>(g, 0.f, padH);
-    distanceColumn->setDirection(JFlexDirection::Column)->setGap(st.spacing)->setAlignItems(JAlignItems::Start);
-    distanceColumn->add(std::make_unique<JLabel>(g, "Distance", 0.f, st.labelHeight));
-    m_distance = distanceColumn->add(std::make_unique<JPChoiceRow>(g, kDistanceLabels, kDistanceFirst, 2));
-    distanceColumn->setFixedSize(m_graph.getLayoutConst(m_distance->getNodeId()).boundingBox.width, padH);
+    // Distance [mm/deg] and Speed [%], standing beside the pad, as tall as it.
+    m_distance = block->add(std::make_unique<JPVerticalSlider>(g, distanceMarks(), true));
+    m_distance->setCaption("Distance");
+    m_distance->setFixedSize(m_distance->naturalWidth(), padH);
     m_distance->setTooltip("How far a press moves: mm, or degrees turning (Ctrl+- / Ctrl+=)");
-    m_distance->onChosen.connect([this](int) {
+    m_distance->setValue(double(m_distanceIndex) / double(kDistances.size() - 1));
+    m_distance->onValueChanged.connect([this](double v) {
+        m_distanceIndex = int(std::lround(v * double(kDistances.size() - 1)));
         if (onChoicesChanged) onChoicesChanged();
     });
-    block->add(std::move(distanceColumn));
+    m_speed = block->add(std::make_unique<JPVerticalSlider>(g, speedMarks(), false));
+    m_speed->setCaption("Speed 100%");   // as wide as it gets
+    m_speed->setFixedSize(m_speed->naturalWidth(), padH);
+    m_speed->setTooltip("How fast: a share of the speed of the slowest axis that moves");
+    m_speed->setValue(m_speedShare);
+    m_speed->setCaption("Speed " + percent(speed()));
+    m_speed->onValueChanged.connect([this](double v) {
+        m_speedShare = v;
+        m_speed->setCaption("Speed " + percent(speed()));
+        if (onChoicesChanged) onChoicesChanged();
+    });
     page->addChildWidget(std::move(block));
-
-    const float rowH = std::max(st.buttonHeight, st.controlHeight);
-    auto speedRow = row(rowH);
-    speedRow->add(std::make_unique<JLabel>(g, "Speed [%]"));
-    m_speed = speedRow->add(std::make_unique<JSlider>(g, 0.f, 0.f));
-    m_speed->setFixedSize(4 * padSize(), st.sliderHeight);
-    m_speedLabel = speedRow->add(std::make_unique<JLabel>(g, "100%"));
-    m_speedLabel->setMinWidthFollowsText(true);
-    m_speed->onValueChanged.connect([this](float) {
-        m_speedLabel->setText(percent(speed()));
-        if (onChoicesChanged) onChoicesChanged();
-    });
-    page->addChildWidget(std::move(speedRow));
     return page;
 }
 
@@ -239,12 +286,12 @@ std::unique_ptr<JWidget> JPJogPanel::specialPage() {
     return page;
 }
 
-double JPJogPanel::distance() const { return kDistances[size_t(m_distance->chosen())]; }
-double JPJogPanel::speed() const    { return std::max(kLeastSpeed, double(m_speed->getValue())); }
+double JPJogPanel::distance() const { return kDistances[size_t(m_distanceIndex)]; }
+double JPJogPanel::speed() const    { return std::max(kLeastSpeed, m_speedShare); }
 
 JPJogPanel::Choices JPJogPanel::choices() const {
     if (m_tools.empty()) return {};
-    return { m_tools[m_tool].id, m_distance->chosen(), double(m_speed->getValue()) };
+    return { m_tools[m_tool].id, m_distanceIndex, m_speedShare };
 }
 
 const std::string& JPJogPanel::toolId() const {
@@ -297,7 +344,6 @@ bool JPJogPanel::act(const std::string& action) {
     else if (action == "z-") jog(0, 0, -1, 0);
     else if (action == "c+") jog(0, 0, 0, 1);
     else if (action == "c-") jog(0, 0, 0, -1);
-    else if (action == "home") m_cell.home();
     else if (action == "parkXY") m_cell.park(head, speed());
     else if (action == "parkZ" || action == "safeZ") m_cell.safeZ(head, speed());
     else if (action == "parkC") {
@@ -321,11 +367,9 @@ bool JPJogPanel::act(const std::string& action) {
         else if (action == "pick") m_cell.pick(n->id);
         else m_cell.place(n->id);
     } else if (action == "distance+" || action == "distance-") {
-        const int i = m_distance->chosen() + (action == "distance+" ? 1 : -1);
-        if (i >= 0 && i < int(kDistances.size())) {
-            m_distance->choose(i);
-            if (onChoicesChanged) onChoicesChanged();
-        }
+        const int i = m_distanceIndex + (action == "distance+" ? 1 : -1);
+        if (i >= 0 && i < int(kDistances.size()) && m_distance)
+            m_distance->setValue(double(i) / double(kDistances.size() - 1));   // its change says so
     } else {
         return false;
     }

@@ -217,14 +217,16 @@ nozzle (with the tip on it), the camera on the head, and anything else on the he
 
 **Jog** tab:
 
-- **Home** (the house): homes the machine.
 - **X/Y**: the arrows move the tool by the distance; **P** in the middle parks the head.
 - **Z**: up and down by the distance; **P** between takes the head up to safe Z.
 - **C**: turns the tool either way by the distance (in degrees); **P** between turns it to 0.
 - Beside Z: put the nozzle where the camera is looking, and put the camera over the nozzle (the nozzle
   chosen, or the one chosen last when the camera is chosen). Both go up to safe Z first.
-- **Distance** [mm, or degrees turning]: 0.01, 0.1, 1, 10, 25, 50 or 100 a press.
-- **Speed**: a share of the speed of the slowest axis that moves.
+- **Distance** [mm, or degrees turning]: a slider of steps, 0.01 to 100 a press.
+- **Speed**: a slider, a share of the speed of the slowest axis that moves.
+
+The pad's buttons are as big as the dock lets them be, and follow it when it is resized. Homing is on
+the toolbar.
 
 **Special** tab: **Head Safe Z** (every Z on the head up to safe Z), **Discard** (the nozzle's part to the
 discard location: up, across, down, let go, up again), and **Pick** and **Place** where the nozzle is.
@@ -246,7 +248,7 @@ With the tip's Part Detection set, Pick checks a part is on (the vacuum read aft
 checks it is off (the valve opened for the probing time, closed for the dwell, then read); a check that
 fails is shown in the strip across the window, with the reading.
 
-<!-- src: src/ui/JPJogPanel.cpp; src/app/JPlacerMenuBuilder.cpp (Jog); src/app/JPlacerSettings.h (kJogTool); src/machine/JPCell.cpp (jog, doMove, park, safeZ, discard, doPick, doPlace, sensed) -->
+<!-- src: src/ui/JPJogPanel.cpp; src/ui/JPVerticalSlider.cpp; src/app/JPlacerMenuBuilder.cpp (Jog); src/app/JPlacerSettings.h (kJogTool); src/machine/JPCell.cpp (jog, doMove, park, safeZ, discard, doPick, doPlace, sensed) -->
 
 ### Actuators
 
