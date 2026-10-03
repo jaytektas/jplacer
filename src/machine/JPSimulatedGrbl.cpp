@@ -23,6 +23,7 @@ constexpr char kFeedHold    = '!';
 constexpr const char* kErrorUnsupported = "error:20";   // unsupported or invalid g-code command
 constexpr const char* kErrorBadNumber   = "error:2";    // bad number format
 constexpr const char* kErrorNoSetting   = "error:3";    // invalid '$' statement
+constexpr const char* kErrorAlarmLock   = "error:9";    // G-code locked out during alarm
 
 std::string upper(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return char(std::toupper(c)); });
@@ -50,6 +51,7 @@ void JPSimulatedGrbl::configure(const JJson& config) {
     m_garble = config["garbleFirstLine"].boolean();
     m_stallDwell = config["stallDwell"].boolean();
     m_holdNeverStill = config["holdNeverStill"].boolean();
+    m_alarm          = config["alarm"].boolean();
 }
 
 void JPSimulatedGrbl::receive(const std::string& bytes) {
@@ -60,11 +62,19 @@ void JPSimulatedGrbl::receive(const std::string& bytes) {
         } else if (c == kFeedHold) {
             m_held = true;
         } else if (c == kSoftReset) {
+            // A reset with a move under way (one that lasts, not held to
+            // rest) loses the place: an alarm until unlocked or homed.
+            const bool midMove = m_stallDwell && m_moved && !(m_held && !m_holdNeverStill);
             m_input.clear();
             m_relative = false;
             m_held = false;
             m_moved = false;
+            if (midMove) {
+                m_alarm = true;
+                m_out.push_back("ALARM:3");
+            }
             m_out.push_back("Grbl 1.1f ['$' for help]");
+            if (m_alarm) m_out.push_back("[MSG:'$H'|'$X' to unlock]");
         } else if (c == '\n' || c == '\r') {
             if (!m_input.empty()) execute(m_input);
             m_input.clear();
@@ -91,7 +101,7 @@ std::string JPSimulatedGrbl::statusReport() const {
         }
         return out;
     };
-    return std::string(m_held ? (m_holdNeverStill ? "<Hold:1" : "<Hold:0") : "<Idle") + "|MPos:" + list(m_machine) + "|FS:0,0|WCO:" + list(m_offset) + ">";
+    return std::string(m_alarm ? "<Alarm" : m_held ? (m_holdNeverStill ? "<Hold:1" : "<Hold:0") : "<Idle") + "|MPos:" + list(m_machine) + "|FS:0,0|WCO:" + list(m_offset) + ">";
 }
 
 void JPSimulatedGrbl::execute(const std::string& raw) {
@@ -120,6 +130,7 @@ void JPSimulatedGrbl::execute(const std::string& raw) {
         for (const auto& [id, value] : m_settings) m_out.push_back("$" + std::to_string(id) + "=" + value);
         m_out.push_back("ok");
     } else if (line == "$H") {
+        m_alarm = false;
         for (auto& [l, v] : m_machine) v = 0.0;
         m_out.push_back("ok");
     } else if (line.size() > 2 && line.rfind("$H", 0) == 0 && std::isalpha(static_cast<unsigned char>(line[2]))) {
@@ -128,6 +139,7 @@ void JPSimulatedGrbl::execute(const std::string& raw) {
             if (const auto it = m_machine.find(std::string(1, line[i])); it != m_machine.end()) it->second = 0.0;
         m_out.push_back("ok");
     } else if (line == "$X") {
+        m_alarm = false;
         m_out.push_back("ok");
     } else if (line.size() > 1 && line[0] == '$') {
         const size_t eq = line.find('=');
@@ -138,6 +150,8 @@ void JPSimulatedGrbl::execute(const std::string& raw) {
         }
         m_settings[id] = line.substr(eq + 1);
         m_out.push_back("ok");
+    } else if (m_alarm) {
+        m_out.push_back(kErrorAlarmLock);   // G-code is refused until unlocked
     } else {
         gcode(line);
     }

@@ -654,6 +654,10 @@ bool JPCell::doHome(std::string& why) {
     m_homed = false;
     onHomed.emit(false);
     for (const auto& d : m_drivers) {
+        // A controller left in alarm (reset mid-move) is unlocked to home:
+        // homing is what makes its position known again.
+        const JPReply u = d->unlockForHoming();
+        if (!u.ok) { why = d->config().name + ": not unlocked to home (" + u.error + ")"; return false; }
         const JPReply r = d->command("home");
         if (!r.ok) { why = d->config().name + ": homing failed (" + r.error + ")"; return false; }
         const JPReply w = d->waitForMotion();

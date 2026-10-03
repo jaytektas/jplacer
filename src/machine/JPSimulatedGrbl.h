@@ -32,6 +32,7 @@ public:
     //   "garbleFirstLine": false,   // the first line fails (error:2), as after junk on the line
     //   "stallDwell":      false    // G4 after a move (the wait for it) never answers: a move that lasts
     //   "holdNeverStill":  false    // a feed hold never completes ("Hold:1", still slowing)
+    //   "alarm":           false    // in alarm from the start (left so by a reset mid-move)
     // }
     void configure(const JJson& config);
 
@@ -61,6 +62,7 @@ private:
     bool                          m_held     = false;   // feed hold ('!') until a reset
     bool                          m_stallDwell = false; // the dwell after a move (the wait for it) never answers
     bool                          m_holdNeverStill = false;   // a hold reports Hold:1 until a reset
+    bool                          m_alarm = false;   // reset mid-move: G-code refused until $X or $H
     bool                          m_moved      = false; // a move since the last reset
     std::string                   m_input;
     std::deque<std::string>       m_out;

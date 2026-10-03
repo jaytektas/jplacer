@@ -192,6 +192,8 @@ notes.
   Setup). Nozzles sharing a Z motor are homed together. Importing an OpenPnP machine again keeps it.
 - Machine Setup shows its tree beside the chosen part's settings rather than over them, so both have
   the panel's full height.
+- A controller left in alarm (after an emergency stop, say) connects instead of refusing with error 9; Home
+  unlocks it and homes.
 - The Jog pad's park buttons show a parking sign that grows with the pad.
 - Buttons and other controls are no longer clipped by a pixel along an edge, and the Jog panel's tip, Stop
   and E-STOP buttons stay whole in a narrow dock (a long tool name is cut short instead).

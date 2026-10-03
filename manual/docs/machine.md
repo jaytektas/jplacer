@@ -84,7 +84,10 @@ For each one jplacer:
 2. asks it what firmware it runs, and picks the matching firmware profile (grblHAL, Grbl, or a
    generic G-code profile when it does not recognise the answer), noting any plugins the firmware
    reports;
-3. sends the profile's start-up command;
+3. sends the profile's start-up command, unless the controller reports it is in alarm (Grbl after a
+   reset mid-move, an emergency stop, or a limit switch hit). A controller in alarm refuses G-code until
+   it is unlocked, so it is connected all the same, the red **ALARM** strip shows, and the start-up
+   command waits for **Home**;
 4. reads the settings the controller stores itself, where the profile says how.
 
 If any controller fails, the others are disconnected again and the panel says why. A port where
@@ -169,7 +172,8 @@ calibration does.
 ### Homing
 
 Clicking the house (or **Machine ▸ Home All Axes**) sends each controller its home command and waits for it to
-finish, then tells the controller that every axis is at its home coordinate. Until the machine is homed
+finish (a controller in alarm is first sent the profile's unlock, `$X` on Grbl, and the start-up command it
+missed: homing is what makes its position known again), then tells the controller that every axis is at its home coordinate. Until the machine is homed
 it will not move: before that its position means nothing, so its soft limits cannot protect it. A
 machine imported from OpenPnP homes the way it did in OpenPnP, with the same command.
 
@@ -180,6 +184,8 @@ exactly where the head's settings say it is. It looks again to check, and correc
 more than 0.02 mm (about how closely a machine returns to a place). The line under the camera buttons and
 the status bar say by how much it corrected. Until a camera on the head is calibrated, Home says it homed
 by the switches only.
+
+<!-- src: src/machine/JPGcodeDriver.cpp (connect, unlockForHoming); src/machine/JPCell.cpp (doHome) -->
 
 <!-- src: src/tasks/JPVisualHoming.cpp (kHomedWithinMm, kCorrections); src/app/JPlacerCameraTasks.cpp (visualHome); src/app/JPlacerMachine.cpp (onHomed); src/machine/JPCell.cpp (correctPosition) -->
 

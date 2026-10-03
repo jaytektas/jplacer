@@ -85,6 +85,11 @@ public:
     // and a status report from after that has been read: when it returns,
     // status() is where the machine stopped, not where it was a poll ago.
     JPReply waitForMotion();
+    // Before homing: a controller standing in its alarm state (it refuses
+    // G-code until unlocked, as Grbl does after a reset mid-move) is sent
+    // its profile's unlock, then the start-up command it could not take
+    // when it connected. Nothing is sent when it is not in alarm. BLOCKS.
+    JPReply unlockForHoming();
     // STOP, from any thread, sent at once whatever is queued: `emergency`,
     // the firmware's reset (everything stops now; the position may be lost);
     // else a feed hold, then, once held still, the reset that throws the
@@ -129,6 +134,10 @@ private:
     void failAll(const std::string& why);
     std::future<JPReply> failed(const std::string& why);
     bool identify(std::string& error);
+    // A status report asked for now and waited for (within the command
+    // timeout): status() is then the controller as it is.
+    bool readStatusNow(std::string& error);
+    bool inAlarm() const;
 
     // The settings as they are now: swapped whole by setConfig, read whole
     // (cfg) by the I/O thread and the cell's, so neither sees half of a change.
@@ -146,6 +155,7 @@ private:
     const JPFirmwareProfile*                     m_profile = nullptr;
     std::vector<const JPFirmwareProfile::Plugin*> m_plugins;
     std::atomic<bool>                            m_connected{ false };
+    std::atomic<bool>                            m_initPending{ false };   // the start-up command waits for an unlock
 
     std::thread       m_io;
     std::atomic<bool> m_running{ false };

@@ -55,7 +55,19 @@ bool JPGcodeDriver::connect(std::string& error) {
         return false;
     }
     m_connected = true;
+    m_initPending = false;
     if (const auto init = m_profile->command("init")) {
+        // A controller in alarm (reset mid-move, a limit hit) refuses G-code
+        // until it is unlocked: it is connected all the same, to be seen and
+        // homed, and the start-up command waits for the unlock homing makes.
+        std::string why;
+        if (readStatusNow(why) && inAlarm()) {
+            JLOGC(JPlacerLog::kDriver, JLogLevel::Warn) << cfg()->name << ": in alarm ("
+                << m_profile->alarmState() << "); its start-up command waits until homing unlocks it";
+            m_initPending = true;
+        }
+    }
+    if (const auto init = m_profile->command("init"); init && !m_initPending) {
         const JPReply r = send(*init).get();
         if (!r.ok) {
             error = cfg()->name + ": the start-up command was refused (" + r.error + ")";
@@ -212,18 +224,59 @@ JPReply JPGcodeDriver::waitForMotion() {
     JPReply r = command("waitMotion", {}, cfg()->homeTimeoutMs);
     if (!r.ok || !m_profile || m_profile->statusCommand().empty()) return r;
     // A report read after the answer was made after the motion ended.
+    std::string why;
+    if (!readStatusNow(why)) {
+        r.ok    = false;
+        r.error = why + " of the motion ending";
+    }
+    return r;
+}
+
+bool JPGcodeDriver::readStatusNow(std::string& error) {
+    if (!m_profile || m_profile->statusCommand().empty()) {
+        error = "the firmware profile has no status report";
+        return false;
+    }
     std::unique_lock lk(m_mutex);
     const uint64_t after = m_statusCount;
     m_statusNow = true;
     if (!m_statusRead.wait_for(lk, std::chrono::milliseconds(cfg()->commandTimeoutMs),
                                [&] { return m_statusCount > after || !m_connected; })) {
-        r.ok    = false;
-        r.error = "no status report within " + std::to_string(cfg()->commandTimeoutMs) + " ms of the motion ending";
-    } else if (!m_connected) {
-        r.ok    = false;
-        r.error = "the connection was lost";
+        error = "no status report within " + std::to_string(cfg()->commandTimeoutMs) + " ms";
+        return false;
     }
-    return r;
+    if (!m_connected) {
+        error = "the connection was lost";
+        return false;
+    }
+    return true;
+}
+
+bool JPGcodeDriver::inAlarm() const {
+    const JPFirmwareProfile* p = m_profile;
+    if (!p || p->alarmState().empty()) return false;
+    std::lock_guard lk(m_mutex);
+    return m_status.state == p->alarmState();
+}
+
+JPReply JPGcodeDriver::unlockForHoming() {
+    JPReply ok;
+    ok.ok = true;
+    std::string why;
+    if (!m_initPending && !(readStatusNow(why) && inAlarm())) return ok;
+    if (inAlarm()) {
+        JLOGC(JPlacerLog::kDriver, JLogLevel::Info) << cfg()->name << ": unlocking the alarm to home";
+        const JPReply r = command("unlock");
+        if (!r.ok) return r;
+    }
+    if (m_initPending) {
+        if (const auto init = m_profile->command("init")) {
+            const JPReply r = send(*init).get();
+            if (!r.ok) return r;
+        }
+        m_initPending = false;
+    }
+    return ok;
 }
 
 bool JPGcodeDriver::halt(bool emergency) {
