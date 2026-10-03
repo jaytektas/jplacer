@@ -165,8 +165,8 @@ notes.
   vacuum level (Absolute) or its change (Difference), as each nozzle tip is set; brought in from OpenPnP.
 - A nozzle's Offset Wizard, as in OpenPnP: a mark left by the nozzle, the camera over it, and the
   nozzle's offset corrected (one step to undo).
-- Importing an OpenPnP machine again keeps each nozzle tip's loading and unloading steps and each
-  camera's straightened-picture setting, as taught here, and takes OpenPnP's new serial settings while
+- Importing an OpenPnP machine again keeps each nozzle tip's loading and unloading steps, which tip is
+  on each nozzle, and each camera's straightened-picture setting, as set here, and takes OpenPnP's new serial settings while
   keeping the port chosen here.
 
 ## 0.1.0

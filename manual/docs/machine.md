@@ -19,7 +19,8 @@ dialog, tick **Show hidden** (or press Ctrl+H) to see folders whose names start 
 `.openpnp2`. The new cell is saved as `cells/openpnp.json` and opened straight away. Importing again
 replaces that file, except for what was set, taught or measured here, which is kept: the port each
 controller was set to, each camera's calibrations and how much of a straightened picture it shows, the
-squareness correction, and each nozzle tip's loading and unloading steps.
+squareness correction, each nozzle tip's loading and unloading steps, and which tip is on each nozzle
+(OpenPnP's file says what it last believed; a hand may have changed it since).
 
 What is brought across:
 

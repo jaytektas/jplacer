@@ -685,6 +685,14 @@ void JPlacerMachine::importFrom(const std::string& path) {
                     cam.showAll = was.showAll;
                 }
         if (previous.squareness.active()) cell.squareness = previous.squareness;
+        // Which tip is on each nozzle is known here (set by hand, or by
+        // loading): OpenPnP's file says what it last believed, which a hand
+        // since may have changed. A wrong tip is a crash; it is never taken.
+        for (JPNozzleConfig& n : cell.nozzles) {
+            n.tipId.clear();
+            for (const JPNozzleConfig& was : previous.nozzles)
+                if (was.id == n.id && n.fits(was.tipId)) n.tipId = was.tipId;
+        }
         for (JPNozzleTipConfig& tip : cell.nozzleTips)
             for (const JPNozzleTipConfig& was : previous.nozzleTips)
                 if (was.id == tip.id) {
