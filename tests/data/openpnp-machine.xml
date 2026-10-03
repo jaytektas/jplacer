@@ -66,7 +66,12 @@
             <calibration-secondary-fiducial-diameter value="1.85" units="Millimeters"/>
             <calibration-test-object-diameter value="7.530648480000001" units="Millimeters"/>
             <nozzles class="java.util.ArrayList">
-               <nozzle class="org.openpnp.machine.reference.ReferenceNozzle" id="N1" name="RIGHT" axis-X-id="AX" axis-Z-id="AZR">
+               <nozzle class="org.openpnp.machine.reference.ReferenceNozzle" id="N1" name="RIGHT" axis-X-id="AX" axis-Z-id="AZR" current-nozzle-tip-id="TIP2">
+                  <compatible-nozzle-tip-ids class="java.util.ArrayList">
+                     <string>TIP1</string>
+                     <string>TIPGONE</string>
+                     <string>TIP2</string>
+                  </compatible-nozzle-tip-ids>
                   <head-offsets units="Millimeters" x="22.458" y="-61.815" z="0.5" rotation="0.0"/>
                   <vacuum-actuator-name>RIGHT_SOLENOID</vacuum-actuator-name>
                </nozzle>
@@ -104,5 +109,17 @@
             <head-offsets units="Millimeters" x="65.885" y="97.575" z="-24.0" rotation="0.0"/>
          </camera>
       </cameras>
+      <nozzle-tips class="java.util.ArrayList">
+         <nozzle-tip class="org.openpnp.machine.reference.ReferenceNozzleTip" id="TIP1" name="503R - 0805 / 0603">
+            <calibration enabled="true">
+               <calibration-tip-diameter value="0.75" units="Millimeters"/>
+            </calibration>
+         </nozzle-tip>
+         <nozzle-tip class="org.openpnp.machine.reference.ReferenceNozzleTip" id="TIP2" name="505R">
+            <calibration enabled="true">
+               <calibration-tip-diameter value="0.1377952756" units="Inches"/>
+            </calibration>
+         </nozzle-tip>
+      </nozzle-tips>
    </machine>
 </openpnp-machine>

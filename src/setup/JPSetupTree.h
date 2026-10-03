@@ -17,12 +17,14 @@ inline namespace jf {
 //     Axes                an axis each
 //     Heads               a head each, and on it
 //       Nozzles, Cameras, Actuators
+//     Nozzle Tips         a nozzle tip each
 //     Cameras             fixed to the machine (looking up at the nozzles)
 //     Actuators           on the machine, not a head
 //
 // Each node has a path naming it: "machine", "driver:<id>", "axis:<id>",
-// "head:<id>", "nozzle:<id>", "camera:<id>", "actuator:<id>", and for a group
-// "group:<what>" ("group:drivers", "group:axes", "group:heads") or, for a
+// "head:<id>", "nozzle:<id>", "nozzletip:<id>", "camera:<id>",
+// "actuator:<id>", and for a group "group:<what>" ("group:drivers",
+// "group:axes", "group:heads", "group:nozzletips") or, for a
 // group that belongs to a head (or to the machine, an empty head),
 // "group:<what>:<headId>" ("group:nozzles:H1", "group:cameras:").
 class JPSetupTree {

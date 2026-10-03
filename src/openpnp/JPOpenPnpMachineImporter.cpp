@@ -14,6 +14,7 @@
 #include <map>
 #include <optional>
 #include <regex>
+#include <set>
 
 inline namespace jf {
 
@@ -360,6 +361,20 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
         c.cameras.push_back(std::move(cam));
     };
 
+    // Nozzle tips before the nozzles, which name them. A tip's diameter is
+    // the one OpenPnP's nozzle tip calibration finds it by.
+    std::set<std::string> tipIds;
+    if (const JPXmlElement* tips = machine->child("nozzle-tips")) {
+        for (const JPXmlElement& x : tips->children) {
+            JPNozzleTipConfig t;
+            t.id   = x.attr("id");
+            t.name = x.attr("name");
+            if (const JPXmlElement* cal = x.child("calibration")) t.diameter = lengthChild(*cal, "calibration-tip-diameter");
+            tipIds.insert(t.id);
+            c.nozzleTips.push_back(std::move(t));
+        }
+    }
+
     if (const JPXmlElement* heads = machine->child("heads")) {
         for (const JPXmlElement& h : heads->children) {
             JPHeadConfig head;
@@ -405,6 +420,12 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                         const auto it = actuatorIdByName.find(v->text);
                         if (it != actuatorIdByName.end()) n.vacuumActuatorId = it->second;
                     }
+                    // OpenPnP keeps the ids of tips since deleted in a
+                    // nozzle's list; only tips the machine has are kept.
+                    if (const JPXmlElement* fit = x.child("compatible-nozzle-tip-ids"))
+                        for (const JPXmlElement& t : fit->children)
+                            if (tipIds.count(t.text)) n.tipIds.push_back(t.text);
+                    if (n.fits(x.attr("current-nozzle-tip-id"))) n.tipId = x.attr("current-nozzle-tip-id");
                     c.nozzles.push_back(std::move(n));
                 }
             }
@@ -426,7 +447,8 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             if (const auto a = actuatorIdByName.find(p->second); a != actuatorIdByName.end()) h.pumpActuatorId = a->second;
     for (const std::string& p : c.problems()) notes.push_back(p);
     JLOGC(JPlacerLog::kImport, JLogLevel::Info) << machineXml << ": " << c.drivers.size() << " controller(s), "
-        << c.axes.size() << " axes, " << c.nozzles.size() << " nozzle(s), " << c.cameras.size() << " camera(s), "
+        << c.axes.size() << " axes, " << c.nozzles.size() << " nozzle(s), " << c.nozzleTips.size() << " nozzle tip(s), "
+        << c.cameras.size() << " camera(s), "
         << c.actuators.size() << " actuator(s)";
     for (const std::string& n : notes) JLOGC(JPlacerLog::kImport, JLogLevel::Warn) << n;
     cell = std::move(c);

@@ -475,6 +475,7 @@ void JPlacerMachine::importFrom(const std::string& path) {
     }
     std::string body = std::to_string(cell.drivers.size()) + " controller(s), " + std::to_string(cell.axes.size())
                      + " axes, " + std::to_string(cell.nozzles.size()) + " nozzle(s), "
+                     + std::to_string(cell.nozzleTips.size()) + " nozzle tip(s), "
                      + std::to_string(cell.cameras.size()) + " camera(s) and "
                      + std::to_string(cell.actuators.size()) + " actuator(s), saved as " + target + ".";
     if (!notes.empty()) {

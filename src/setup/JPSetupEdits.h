@@ -21,7 +21,8 @@ public:
     static std::string add(JPCellConfig& cell, const std::string& path);
     // Remove the part at `path`. Refused (false, and why) while anything else
     // names it: an axis a nozzle moves on, a controller an axis is on, the
-    // light a camera switches, a head with parts on it.
+    // light a camera switches, a head with parts on it, a nozzle tip on a
+    // nozzle. A nozzle tip goes from the lists of the nozzles it fits.
     static bool remove(JPCellConfig& cell, const std::string& path, std::string& why);
     // Move the part at `path` up (-1) or down (+1) among the others in its
     // group. False when it is already at that end.

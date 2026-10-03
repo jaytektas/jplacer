@@ -9,6 +9,7 @@
 #include "JPDriverConfig.h"
 #include "JPHeadConfig.h"
 #include "JPNozzleConfig.h"
+#include "JPNozzleTipConfig.h"
 #include "JPSquarenessConfig.h"
 
 #include <string>
@@ -24,6 +25,7 @@ struct JPCellConfig {
     std::vector<JPHeadConfig>     heads;
     std::vector<JPAxisConfig>     axes;
     std::vector<JPNozzleConfig>   nozzles;
+    std::vector<JPNozzleTipConfig> nozzleTips;
     std::vector<JPCameraConfig>   cameras;
     std::vector<JPActuatorConfig> actuators;
     JPSquarenessConfig            squareness;   // the gantry's Y lean, when measured

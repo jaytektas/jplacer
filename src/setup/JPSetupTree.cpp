@@ -53,6 +53,7 @@ JPSetupTree::Node JPSetupTree::build(const JPCellConfig& cell) {
     // A nozzle rides on a head; one that names none is shown so it can be put on one.
     Node loose = group<JPNozzleConfig>("Nozzles", "group:nozzles:", cell.nozzles, "nozzle", fixed);
     if (!loose.children.empty()) root.children.push_back(std::move(loose));
+    root.children.push_back(group<JPNozzleTipConfig>("Nozzle Tips", "group:nozzletips", cell.nozzleTips, "nozzletip", all));
     root.children.push_back(group<JPCameraConfig>("Cameras", "group:cameras:", cell.cameras, "camera", fixed));
     root.children.push_back(group<JPActuatorConfig>("Actuators", "group:actuators:", cell.actuators, "actuator", fixed));
     return root;
@@ -85,6 +86,7 @@ std::string JPSetupTree::groupOf(const JPCellConfig& cell, const std::string& pa
     if (p.kind == "driver")   return "group:drivers";
     if (p.kind == "axis")     return "group:axes";
     if (p.kind == "head")     return "group:heads";
+    if (p.kind == "nozzletip") return "group:nozzletips";
     if (p.kind == "nozzle")   return mounted(cell.nozzles, "nozzles");
     if (p.kind == "camera")   return mounted(cell.cameras, "cameras");
     if (p.kind == "actuator") return mounted(cell.actuators, "actuators");

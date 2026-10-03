@@ -13,6 +13,7 @@ The machine is shown as a tree of its parts:
 - **Controllers**: the boards the machine is wired to.
 - **Axes**: every axis, whichever controller drives it.
 - **Heads**: each head, and on it its **Nozzles**, **Cameras** and **Actuators**.
+- **Nozzle Tips**: the tips the nozzles take.
 - **Cameras**: the cameras fixed to the machine (looking up at the nozzles).
 - **Actuators**: the actuators on the machine rather than a head.
 
@@ -28,8 +29,9 @@ head's **Nozzles** chosen **Add Nozzle**, which goes on that head. A new part ha
 to change, and an id of its own that stays the same whatever it is renamed to.
 
 **Remove** removes the chosen part, unless something else uses it: an axis a nozzle or camera moves on,
-a controller an axis is on, an actuator that is a camera's light, a head with parts on it. Then nothing
-is removed, and the line at the bottom says what uses it.
+a controller an axis is on, an actuator that is a camera's light, a head with parts on it, a nozzle tip
+on a nozzle. Then nothing is removed, and the line at the bottom says what uses it. A nozzle tip that
+only fits nozzles is taken off their lists with it.
 
 **Up** and **Down** move the chosen part among the others in its group. The order is the order they
 are shown in elsewhere (the cameras' tabs, the Axes panel).
@@ -48,7 +50,8 @@ made by name.
 | Controller | name, firmware profile (or `auto`, to recognise it), its serial port, baud rate and flow control, and how long it waits for things |
 | Axis | name, kind (driven by a **controller**, **mapped** to follow another axis through two points, or **virtual**), type, its controller and axis letter, home coordinate, soft limits, safe zone, top speed and backlash |
 | Head | name, its homing mark (where, its size, and whether Home finishes with the camera), its park place |
-| Nozzle | name, the head it is on, the axes that move it, and its offset |
+| Nozzle | name, the head it is on, the axes that move it, its offset, and the nozzle tip on it (one of those that fit it) |
+| Nozzle tip | name, the diameter of its end as the camera looking up sees it, and the nozzles it fits (a box for each) |
 | Camera | name, looking down or up, the head it is on (or fixed to the machine, and where), the device's name, the picture's format and size, its light, and a rough scale to start calibrating from |
 | Actuator | name, the head it is on (or the machine), its controller, index and commands |
 

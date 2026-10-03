@@ -44,7 +44,11 @@ JPCellConfig cell() {
     n.mount.headId = "H";
     n.mount.axisX = "X";
     n.mount.axisY = "Y";
+    n.tipIds = { "T" };
+    n.tipId = "T";
     c.nozzles.push_back(n);
+    c.nozzleTips.push_back({ "T", "503", 0.75 });
+    c.nozzleTips.push_back({ "T2", "504", 1.1 });
     JPActuatorConfig light;
     light.id = "L";
     light.name = "LIGHT_UP";
@@ -91,6 +95,12 @@ int main() {
     assert(!JPSetupEdits::remove(c, "actuator:L", why) && why.find("its light") != std::string::npos);
     assert(!JPSetupEdits::remove(c, "head:H", why) && why.find(" and ") != std::string::npos);
     assert(JPSetupEdits::remove(c, added, why) && c.nozzles.size() == 1);
+    // A nozzle tip on a nozzle stays; one only fitting it goes from its list.
+    assert(JPSetupEdits::addable(c, "nozzletip:T") == "Nozzle Tip");
+    assert(!JPSetupEdits::remove(c, "nozzletip:T", why) && why == "nozzle LEFT (it is on it) uses it");
+    c.nozzles[0].tipIds.push_back("T2");
+    assert(JPSetupEdits::remove(c, "nozzletip:T2", why) && c.nozzles[0].tipIds.size() == 1);
+    assert(c.problems().empty());
     assert(JPSetupEdits::move(c, "axis:Y", -1) && c.axes[0].id == "Y");
     assert(!JPSetupEdits::move(c, "axis:Y", -1));
     std::printf("  [OK] add, remove, move\n");
@@ -133,6 +143,18 @@ int main() {
     head.model.set("homingFiducial", JVariant(true));
     assert(c.heads[0].homingFiducial.has_value());
     assert(JPSetupProperties::forNode(c, "group:axes", {}).model.empty());
+
+    // A tip fits the nozzles ticked on it; the nozzle has one of those on it.
+    const std::string tip = JPSetupEdits::add(c, "group:nozzletips");
+    JPSetupProperties::Form nozzle = JPSetupProperties::forNode(c, "nozzle:N", {});
+    assert(nozzle.model.get("tip").toString() == "503" && nozzle.model.find("tip")->meta.choices.size() == 2);
+    JPSetupProperties::Form newTip = JPSetupProperties::forNode(c, tip, {});
+    assert(newTip.model.set("fits:N", JVariant(true)) && c.nozzles[0].tipIds.size() == 2);
+    nozzle = JPSetupProperties::forNode(c, "nozzle:N", {});
+    assert(nozzle.model.set("tip", JVariant(std::string("New nozzle tip"))) && c.nozzles[0].tipId == tip.substr(10));
+    newTip.model.set("fits:N", JVariant(false));
+    assert(c.nozzles[0].tipIds.size() == 1 && c.nozzles[0].tipId.empty());
+    assert(c.problems().empty());
     std::printf("  [OK] settings\n");
     std::printf("All setup tests passed.\n");
     return 0;

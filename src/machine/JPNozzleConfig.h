@@ -6,19 +6,31 @@
 #include "JPMountConfig.h"
 
 #include <string>
+#include <vector>
 
 inline namespace jf {
 
-// A nozzle: where it rides, and the actuator that switches and senses its
-// vacuum (empty when it has none).
+// A nozzle: where it rides, the actuator that switches and senses its vacuum
+// (empty when it has none), the nozzle tips that fit it and the one on it now
+// (empty: none, or not known).
 struct JPNozzleConfig {
-    std::string   id;
-    std::string   name;
-    JPMountConfig mount;
-    std::string   vacuumActuatorId;
+    std::string              id;
+    std::string              name;
+    JPMountConfig            mount;
+    std::string              vacuumActuatorId;
+    std::vector<std::string> tipIds;
+    std::string              tipId;
+
+    bool fits(const std::string& nozzleTipId) const {
+        for (const std::string& t : tipIds) if (t == nozzleTipId) return true;
+        return false;
+    }
 
     static JPNozzleConfig fromJson(const JJson& j) {
-        return { j["id"].str(), j["name"].str(), JPMountConfig::fromJson(j["mount"]), j["vacuumActuator"].str() };
+        JPNozzleConfig n{ j["id"].str(), j["name"].str(), JPMountConfig::fromJson(j["mount"]), j["vacuumActuator"].str(), {},
+                          j["tip"].str() };
+        for (const JJson& t : j["tips"].arr()) n.tipIds.push_back(t.str());
+        return n;
     }
     JJson toJson() const {
         JJson j = JJson::object();
@@ -26,6 +38,10 @@ struct JPNozzleConfig {
         j["name"]           = name;
         j["mount"]          = mount.toJson();
         j["vacuumActuator"] = vacuumActuatorId;
+        JJson tips = JJson::array();
+        for (const std::string& t : tipIds) tips.push(JJson(t));
+        j["tips"]           = tips;
+        j["tip"]            = tipId;
         return j;
     }
 };

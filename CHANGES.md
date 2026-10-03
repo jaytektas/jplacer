@@ -100,6 +100,8 @@ notes.
   the applications menu.
 - A user manual: Help > User Manual opens it in your browser, and Help > What's New shows what changed
   in each version.
+- Nozzle tips: Machine Setup lists them, each with its diameter seen from below and the nozzles it
+  fits, and each nozzle says which tip is on it. Importing an OpenPnP machine brings its nozzle tips.
 
 ## 0.1.0
 

@@ -26,6 +26,7 @@ JJson JPCellConfig::toJson() const {
     j["heads"]     = toArray(heads);
     j["axes"]      = toArray(axes);
     j["nozzles"]   = toArray(nozzles);
+    j["nozzleTips"] = toArray(nozzleTips);
     j["cameras"]   = toArray(cameras);
     j["actuators"] = toArray(actuators);
     if (!squareness.axisX.empty()) j["squareness"] = squareness.toJson();
@@ -47,6 +48,7 @@ bool JPCellConfig::fromJson(const JJson& j, std::string& error) {
     }
     for (const JJson& h : j["heads"].arr())     c.heads.push_back(JPHeadConfig::fromJson(h));
     for (const JJson& n : j["nozzles"].arr())   c.nozzles.push_back(JPNozzleConfig::fromJson(n));
+    for (const JJson& t : j["nozzleTips"].arr()) c.nozzleTips.push_back(JPNozzleTipConfig::fromJson(t));
     for (const JJson& m : j["cameras"].arr())   c.cameras.push_back(JPCameraConfig::fromJson(m));
     for (const JJson& a : j["actuators"].arr()) c.actuators.push_back(JPActuatorConfig::fromJson(a));
     c.squareness = JPSquarenessConfig::fromJson(j["squareness"]);
@@ -112,10 +114,16 @@ std::vector<std::string> JPCellConfig::problems() const {
         if ((a.canSwitch() || a.canRead()) && !driver(a.driverId))
             out.push_back("actuator " + a.name + " has commands but no controller to send them to");
     }
+    std::set<std::string> tipIds;
+    for (const JPNozzleTipConfig& t : nozzleTips) tipIds.insert(t.id);
     for (const JPNozzleConfig& n : nozzles) {
         checkMount("nozzle " + n.name, n.mount);
         if (!n.vacuumActuatorId.empty() && !actuatorIds.count(n.vacuumActuatorId))
             out.push_back("nozzle " + n.name + " names a vacuum actuator that is not in this cell");
+        for (const std::string& t : n.tipIds)
+            if (!tipIds.count(t)) out.push_back("nozzle " + n.name + " fits a nozzle tip that is not in this cell");
+        if (!n.tipId.empty() && !n.fits(n.tipId))
+            out.push_back("nozzle " + n.name + " has a nozzle tip on it that does not fit it");
     }
     for (const JPCameraConfig& c : cameras) checkMount("camera " + c.name, c.mount);
     if (!squareness.axisX.empty() || !squareness.axisY.empty())

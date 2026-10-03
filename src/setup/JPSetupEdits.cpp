@@ -18,8 +18,8 @@ bool idTaken(const JPCellConfig& cell, const std::string& id) {
     auto in = [&id](const auto& items) {
         return std::any_of(items.begin(), items.end(), [&id](const auto& i) { return i.id == id; });
     };
-    return in(cell.drivers) || in(cell.axes) || in(cell.heads) || in(cell.nozzles) || in(cell.cameras)
-        || in(cell.actuators);
+    return in(cell.drivers) || in(cell.axes) || in(cell.heads) || in(cell.nozzles) || in(cell.nozzleTips)
+        || in(cell.cameras) || in(cell.actuators);
 }
 
 // Whether a mount moves on `axisId`.
@@ -66,6 +66,7 @@ std::string JPSetupEdits::addable(const JPCellConfig& cell, const std::string& p
     if (g.id == "axes")      return "Axis";
     if (g.id == "heads")     return "Head";
     if (g.id == "nozzles")   return "Nozzle";
+    if (g.id == "nozzletips") return "Nozzle Tip";
     if (g.id == "cameras")   return "Camera";
     if (g.id == "actuators") return "Actuator";
     return {};
@@ -105,6 +106,13 @@ std::string JPSetupEdits::add(JPCellConfig& cell, const std::string& path) {
         n.mount.headId = g.headId;
         cell.nozzles.push_back(n);
         return "nozzle:" + n.id;
+    }
+    if (g.id == "nozzletips") {
+        JPNozzleTipConfig t;
+        t.id = newId(cell, "TIP");
+        t.name = "New nozzle tip";
+        cell.nozzleTips.push_back(t);
+        return "nozzletip:" + t.id;
     }
     if (g.id == "cameras") {
         JPCameraConfig c;
@@ -161,6 +169,9 @@ bool JPSetupEdits::remove(JPCellConfig& cell, const std::string& path, std::stri
             if (n.vacuumActuatorId == p.id) users.push_back("nozzle " + n.name + " (its vacuum)");
         for (const JPHeadConfig& h : cell.heads)
             if (h.pumpActuatorId == p.id) users.push_back("head " + h.name + " (its pump)");
+    } else if (p.kind == "nozzletip") {
+        for (const JPNozzleConfig& n : cell.nozzles)
+            if (n.tipId == p.id) users.push_back("nozzle " + n.name + " (it is on it)");
     } else if (p.kind != "nozzle" && p.kind != "camera") {
         why = "only a part can be removed";
         return false;
@@ -169,14 +180,20 @@ bool JPSetupEdits::remove(JPCellConfig& cell, const std::string& path, std::stri
         why = listed(users) + (users.size() == 1 ? " uses it" : " use it");
         return false;
     }
-    const bool removed = p.kind == "driver" ? erase(cell.drivers, p.id)
-                       : p.kind == "axis"   ? erase(cell.axes, p.id)
-                       : p.kind == "head"   ? erase(cell.heads, p.id)
-                       : p.kind == "nozzle" ? erase(cell.nozzles, p.id)
-                       : p.kind == "camera" ? erase(cell.cameras, p.id)
-                                            : erase(cell.actuators, p.id);
-    if (!removed) why = "it is not in this cell";
-    return removed;
+    const bool removed = p.kind == "driver"    ? erase(cell.drivers, p.id)
+                       : p.kind == "axis"      ? erase(cell.axes, p.id)
+                       : p.kind == "head"      ? erase(cell.heads, p.id)
+                       : p.kind == "nozzle"    ? erase(cell.nozzles, p.id)
+                       : p.kind == "nozzletip" ? erase(cell.nozzleTips, p.id)
+                       : p.kind == "camera"    ? erase(cell.cameras, p.id)
+                                               : erase(cell.actuators, p.id);
+    if (!removed) {
+        why = "it is not in this cell";
+        return false;
+    }
+    if (p.kind == "nozzletip")
+        for (JPNozzleConfig& n : cell.nozzles) std::erase(n.tipIds, p.id);
+    return true;
 }
 
 bool JPSetupEdits::move(JPCellConfig& cell, const std::string& path, int by) {
@@ -187,6 +204,7 @@ bool JPSetupEdits::move(JPCellConfig& cell, const std::string& path, int by) {
     if (p.kind == "axis")     return moveIn(cell.axes, p.id, by, any);
     if (p.kind == "head")     return moveIn(cell.heads, p.id, by, any);
     if (p.kind == "nozzle")   return moveIn(cell.nozzles, p.id, by, sameHead);
+    if (p.kind == "nozzletip") return moveIn(cell.nozzleTips, p.id, by, any);
     if (p.kind == "camera")   return moveIn(cell.cameras, p.id, by, sameHead);
     if (p.kind == "actuator") return moveIn(cell.actuators, p.id, by, sameHead);
     return false;

@@ -320,6 +320,33 @@ void nozzleForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     add.category("Nozzle");
     add.text("name", "Name", [n]() -> std::string& { return n().name; });
     mountProperties<JPNozzleConfig>(add, cell, n, "(none)", false, f);
+    // Of the tips that fit it (ticked on each tip's own settings).
+    add.category("Nozzle Tip");
+    Named fitting;
+    fitting.add("(none)", "");
+    for (const JPNozzleTipConfig& t : cell.nozzleTips)
+        if (n().fits(t.id)) fitting.add(t.name.empty() ? t.id : t.name, t.id);
+    add.byName("tip", "Tip on it", fitting, [n]() -> std::string& { return n().tipId; });
+}
+
+void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f) {
+    auto t = finder(cell.nozzleTips, id);
+    f.title = "Nozzle tip " + t().name;
+    Adder add(f.model);
+    add.category("Nozzle Tip");
+    add.text("name", "Name", [t]() -> std::string& { return t().name; });
+    add.number("diameter", "Diameter seen from below (mm)", [t]() -> double& { return t().diameter; });
+    add.category("Fits");
+    for (const JPNozzleConfig& n : cell.nozzles) {
+        auto nozzle = finder(cell.nozzles, n.id);
+        add.flag("fits:" + n.id, n.name.empty() ? n.id : n.name, [nozzle, id] { return nozzle().fits(id); },
+                 [nozzle, id](bool on) {
+                     JPNozzleConfig& z = nozzle();
+                     std::erase(z.tipIds, id);
+                     if (on) z.tipIds.push_back(id);
+                     else if (z.tipId == id) z.tipId.clear();   // a tip that does not fit is not on it
+                 });
+    }
 }
 
 void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f) {
@@ -386,6 +413,7 @@ JPSetupProperties::Form JPSetupProperties::forNode(JPCellConfig& cell, const std
     else if (p.kind == "axis" && has(cell.axes, p.id)) axisForm(cell, p.id, f);
     else if (p.kind == "head" && has(cell.heads, p.id)) headForm(cell, p.id, f);
     else if (p.kind == "nozzle" && has(cell.nozzles, p.id)) nozzleForm(cell, p.id, f);
+    else if (p.kind == "nozzletip" && has(cell.nozzleTips, p.id)) nozzleTipForm(cell, p.id, f);
     else if (p.kind == "camera" && has(cell.cameras, p.id)) cameraForm(cell, p.id, f);
     else if (p.kind == "actuator" && has(cell.actuators, p.id)) actuatorForm(cell, p.id, f);
     return f;

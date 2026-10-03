@@ -12,8 +12,8 @@ inline namespace jf {
 
 // Turns an OpenPnP machine.xml into a jplacer cell configuration: its
 // G-code controllers and their links, axes (controller, virtual, mapped),
-// heads, nozzles, cameras and actuators, with OpenPnP's command templates
-// rewritten into jplacer's.
+// heads, nozzles and the nozzle tips they take, cameras and actuators, with
+// OpenPnP's command templates rewritten into jplacer's.
 //
 // What has no jplacer equivalent yet (an axis kind, a driver type, a
 // template variable) is left out or kept as it was, and said in `notes`, so

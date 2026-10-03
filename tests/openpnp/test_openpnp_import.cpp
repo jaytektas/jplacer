@@ -2,8 +2,8 @@
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
 // An OpenPnP machine.xml becomes a cell: the serial controller with its flow
-// control, controller / virtual / mapped axes, the nozzle and its vacuum
-// actuator, cameras on the head and the machine, OpenPnP command templates
+// control, controller / virtual / mapped axes, the nozzle, its vacuum
+// actuator and nozzle tips, cameras on the head and the machine, OpenPnP command templates
 // rewritten, and what could not be carried over said in the notes.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
@@ -68,6 +68,10 @@ int main() {
     const JPNozzleConfig& n = cell.nozzles[0];
     assert(n.mount.headId == "H1" && n.mount.axisZ == "AZR" && n.mount.offsetX == 22.458);
     assert(n.vacuumActuatorId == "ACT1");
+    // The nozzle tips, and which fit the nozzle (a tip OpenPnP no longer has left out).
+    assert(cell.nozzleTips.size() == 2 && cell.nozzleTips[0].name == "503R - 0805 / 0603");
+    assert(cell.nozzleTips[0].diameter == 0.75 && std::abs(cell.nozzleTips[1].diameter - 3.5) < 1e-6);
+    assert((n.tipIds == std::vector<std::string>{ "TIP1", "TIP2" }) && n.tipId == "TIP2");
 
     assert(cell.actuators.size() == 2);
     const JPActuatorConfig& sol = cell.actuators[0];
