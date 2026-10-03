@@ -80,6 +80,7 @@ JPJogPanel::JPJogPanel(JSceneGraph& graph, JPCell& cell, Choices start) : JConta
 
     m_distanceIndex = std::clamp(start.distance, 0, int(kDistances.size()) - 1);
     m_speedShare = std::clamp(start.speed, 0.0, 1.0);
+    m_cell.setSpeed(speed());
     m_tabs = add(std::make_unique<JTabWidget>(graph, 0.f, 0.f));
     m_tabs->setVSizePolicy(JSizePolicyMode::Expanding, 1);
     makePages();
@@ -255,11 +256,13 @@ std::unique_ptr<JWidget> JPJogPanel::jogPage(float size) {
     m_speed = block->add(std::make_unique<JPVerticalSlider>(g, speedMarks(), false));
     m_speed->setCaption("Speed 100%");   // as wide as it gets
     m_speed->setFixedSize(m_speed->naturalWidth(), padH);
-    m_speed->setTooltip("How fast: a share of the speed of the slowest axis that moves");
+    m_speed->setTooltip("The machine's speed: every move (a jog, a park, a task, a changer step) goes at this "
+                        "share of its own speed");
     m_speed->setValue(m_speedShare);
     m_speed->setCaption("Speed " + percent(speed()));
     m_speed->onValueChanged.connect([this](double v) {
         m_speedShare = v;
+        m_cell.setSpeed(speed());   // the machine's speed, for every move
         m_speed->setCaption("Speed " + percent(speed()));
         if (onChoicesChanged) onChoicesChanged();
     });
@@ -316,7 +319,7 @@ void JPJogPanel::jog(double dx, double dy, double dz, double dc) {
     const double d = distance();
     JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Jog: " << m_tools[m_tool].label << " by " << dx * d << ", " << dy * d << ", "
                                             << dz * d << ", " << dc * d;
-    m_cell.jog(m_tools[m_tool].id, dx * d, dy * d, dz * d, dc * d, speed());
+    m_cell.jog(m_tools[m_tool].id, dx * d, dy * d, dz * d, dc * d, 1.0);
 }
 
 void JPJogPanel::moveTo(const Tool& tool, const Tool& over) {
@@ -329,7 +332,7 @@ void JPJogPanel::moveTo(const Tool& tool, const Tool& over) {
         return;
     }
     JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Jog: " << tool.label << " to where " << over.label << " is";
-    m_cell.moveTool(*tool.mount, { px->second + m.offsetX, py->second + m.offsetY, std::nullopt, std::nullopt }, speed());
+    m_cell.moveTool(*tool.mount, { px->second + m.offsetX, py->second + m.offsetY, std::nullopt, std::nullopt }, 1.0);
 }
 
 bool JPJogPanel::act(const std::string& action) {
@@ -344,10 +347,10 @@ bool JPJogPanel::act(const std::string& action) {
     else if (action == "z-") jog(0, 0, -1, 0);
     else if (action == "c+") jog(0, 0, 0, 1);
     else if (action == "c-") jog(0, 0, 0, -1);
-    else if (action == "parkXY") m_cell.park(head, speed());
-    else if (action == "parkZ" || action == "safeZ") m_cell.safeZ(head, speed());
+    else if (action == "parkXY") m_cell.park(head, 1.0);
+    else if (action == "parkZ" || action == "safeZ") m_cell.safeZ(head, 1.0);
     else if (action == "parkC") {
-        if (!t.mount->axisRotation.empty()) m_cell.moveAxes({ { t.mount->axisRotation, 0.0 } }, speed());
+        if (!t.mount->axisRotation.empty()) m_cell.moveAxes({ { t.mount->axisRotation, 0.0 } }, 1.0);
     } else if (action == "positionNozzle" || action == "positionCamera") {
         const Tool* n = nozzle();
         const Tool* c = camera();
@@ -363,7 +366,7 @@ bool JPJogPanel::act(const std::string& action) {
             m_note->setText("Choose a nozzle.");
             return true;
         }
-        if (action == "discard") m_cell.discard(n->id, speed());
+        if (action == "discard") m_cell.discard(n->id, 1.0);
         else if (action == "pick") m_cell.pick(n->id);
         else m_cell.place(n->id);
     } else if (action == "distance+" || action == "distance-") {

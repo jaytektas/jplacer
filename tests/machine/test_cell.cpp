@@ -208,6 +208,28 @@ int main() {
             assert(motion.take().first && settle("X", 395.0));
         }
 
+        // The machine's speed scales every move: X's 100 mm/s (6000 a minute)
+        // at half its own speed with the machine at half goes at F1500.
+        {
+            std::mutex m;
+            std::string sent;
+            auto watch = cell.onTraffic.connect([&](std::string, bool out, std::string line) {
+                std::lock_guard lk(m);
+                if (out && line.rfind("G1 ", 0) == 0) sent = line;
+            });
+            cell.setSpeed(0.5);
+            cell.moveAxes({ { "X", 394.0 } }, 0.5);   // travelling -X: no backlash approach
+            assert(motion.take().first && settle("X", 394.0));
+            cell.setSpeed(1.0);
+            {
+                std::lock_guard lk(m);
+                assert(sent.find("F1500") != std::string::npos);
+            }
+            watch();
+            cell.moveAxes({ { "X", 395.0 } }, 1.0);
+            assert(motion.take().first && settle("X", 395.0));
+        }
+
         // A step from where the axis was sent, not from where it reports: back
         // to 390 exactly, the limit itself, even when the report is 389.999.
         cell.sendLine("D", "G92 X395.001");                // the report now reads a hair high

@@ -94,6 +94,11 @@ public:
     bool isHomed() const { return m_homed; }
     // A home is under way (from the request until homed or failed).
     bool isHoming() const { return m_homing; }
+    // THE MACHINE'S SPEED, as OpenPnP's: a share of full speed (0..1) every
+    // move is scaled by, on top of its own (a jog's, a park's, a task's, a
+    // changer step's): a step at 1% with the machine at 5% goes at 0.05%.
+    void setSpeed(double share);
+    double speed() const { return m_speed; }
     // A move is under way.
     bool isMoving() const { return m_moving; }
 
@@ -205,6 +210,7 @@ private:
     std::atomic<bool>                           m_homed{ false };
     std::atomic<bool>                           m_homing{ false };
     std::atomic<bool>                           m_moving{ false };
+    std::atomic<double>                         m_speed{ 1.0 };
     // On the cell thread: the heads whose pump is on, the nozzles holding a part.
     std::set<std::string>                       m_pumpOn, m_holding;
 

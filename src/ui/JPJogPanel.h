@@ -28,8 +28,8 @@ inline namespace jf {
 //    its middle; Z up and down with Park (to safe Z) between; the rotation
 //    either way with Park (to 0) between; buttons to put the nozzle where
 //    the camera is looking and the camera over the nozzle; sliders for the
-//    distance a press moves (mm, or degrees turning) and the speed (a share
-//    of the slowest moving axis's rate). The pad's buttons are as big as the
+//    distance a press moves (mm, or degrees turning) and the machine's speed
+//    (JPCell::setSpeed: a share every move is scaled by, as in OpenPnP). The pad's buttons are as big as the
 //    dock lets them be, and are made again when it is resized.
 //  - Special: Head Safe Z, Discard (the part to the discard location), and
 //    Pick and Place where the nozzle is.
@@ -59,7 +59,8 @@ public:
     // The chosen tool's coordinates now, by name (X, Y, Z, C): where its
     // axes are plus its offset on the head.
     std::vector<std::pair<std::string, double>> where() const;
-    // The chosen tool (its id), and the speed chosen, as a share of top speed.
+    // The chosen tool (its id), and the machine's speed, as a share of full
+    // speed (it sets JPCell::setSpeed).
     const std::string& toolId() const;
     double speed() const;
 

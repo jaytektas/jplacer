@@ -176,6 +176,8 @@ notes.
 - Menu keys work: Edit ▸ Undo (Ctrl+Z) and Redo (now Ctrl+Y), Home All Axes (Ctrl+H).
 - A move to a soft limit itself (the park place at X 390, say) is no longer refused because the nearest
   whole motor step lies a hair past it: it goes to the step on this side.
+- The Jog panel's Speed is the machine's speed, as in OpenPnP: every move is scaled by it (jogs, parks,
+  camera tasks, nozzle tip changer steps), not only jogs.
 
 ## 0.1.0
 

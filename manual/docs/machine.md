@@ -223,7 +223,9 @@ nozzle (with the tip on it), the camera on the head, and anything else on the he
 - Beside Z: put the nozzle where the camera is looking, and put the camera over the nozzle (the nozzle
   chosen, or the one chosen last when the camera is chosen). Both go up to safe Z first.
 - **Distance** [mm, or degrees turning]: a slider of steps, 0.01 to 100 a press.
-- **Speed**: a slider, a share of the speed of the slowest axis that moves.
+- **Speed**: the machine's speed, as in OpenPnP: every move goes at this share of its own speed (a jog,
+  a park, a camera task, a nozzle tip changer step). A changer step set to 1% with Speed at 5% goes at
+  0.05% of the axes' speed.
 
 The pad's buttons are as big as the dock lets them be, and follow it when it is resized. Homing is on
 the toolbar.

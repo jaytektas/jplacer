@@ -37,7 +37,6 @@ constexpr int kStatusMs = 3000;
 constexpr int kErrorMs  = 8000;
 
 // How fast Park Head moves, as a share of the axes' rates.
-constexpr double kParkSpeed = 0.5;
 
 // Where OpenPnP keeps its machine, under the home folder.
 constexpr const char* kOpenPnpDir         = ".openpnp2";
@@ -258,11 +257,11 @@ std::unique_ptr<JPMachineSetupPanel> JPlacerMachine::makeSetup() {
             return;
         }
         if (!readyToMove()) return;
-        m_cell->moveTool(*m, to, m_jog ? m_jog->speed() : kParkSpeed);
+        m_cell->moveTool(*m, to, 1.0);   // at the machine's speed
     };
     setup->moveAxis = [this](const std::string& axisId, double to) {
         if (!readyToMove()) return;
-        m_cell->moveAxes({ { axisId, to } }, m_jog ? m_jog->speed() : kParkSpeed);
+        m_cell->moveAxes({ { axisId, to } }, 1.0);
     };
     setup->onHistory = [this] { updateEditItems(); };
     updateEditItems();
@@ -274,7 +273,7 @@ void JPlacerMachine::park() {
     for (const JPHeadConfig& h : m_cell->config().heads)
         if (h.park) {
             JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Machine: park " << h.name;
-            m_cell->park(h.id, kParkSpeed);
+            m_cell->park(h.id, 1.0);   // at the machine's speed
             return;
         }
     m_window.showStatus("No head has a park place set", kErrorMs);

@@ -290,6 +290,10 @@ void JPCell::place(const std::string& nozzleId) {
     });
 }
 
+void JPCell::setSpeed(double share) {
+    m_speed = std::clamp(share, 0.0, 1.0);
+}
+
 void JPCell::safeZ(const std::string& headId, double speed) {
     if (m_moving.exchange(true)) return;
     m_thread.post([this, headId, speed] {
@@ -894,7 +898,7 @@ bool JPCell::doMove(std::map<std::string, double> targets, double speed, std::st
                 feed = feed <= 0 ? rate : std::min(feed, rate);
             }
             if (const double cap = d->config().maxFeedRate; cap > 0) feed = std::min(feed, cap);
-            const double k = std::clamp(speed, 0.0, 1.0) * factor;
+            const double k = std::clamp(speed, 0.0, 1.0) * m_speed * factor;
             feed *= k;
             std::map<std::string, std::string> values{ { "axes", words }, { "feed", format(feed, 0) } };
             // The slowest acceleration and jerk among the axes, for a command
