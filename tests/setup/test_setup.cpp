@@ -130,6 +130,15 @@ int main() {
         assert(c.toJson().dump() == before);
     }
 
+    // The machine's discard location: set, it has coordinates to fill in.
+    {
+        JPSetupProperties::Form m = JPSetupProperties::forNode(c, "machine", {});
+        assert(!m.model.find("discardX") && m.model.set("discard", JVariant(true)) && c.discardLocation);
+        m = JPSetupProperties::forNode(c, "machine", {});
+        assert(m.model.set("discardX", JVariant(40.0)) && c.discardLocation->x == 40.0);
+        c.discardLocation.reset();
+    }
+
     // A controller's commands: the profile's unless replaced; emptied, the profile's again.
     {
         JPSetupProperties::Form d = JPSetupProperties::forNode(c, "driver:D", grblhal());

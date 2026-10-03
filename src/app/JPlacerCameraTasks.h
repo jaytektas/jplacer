@@ -44,8 +44,10 @@ public:
     void visualTest(JPCameraPanel& camera);
     // Finish a home with the camera (JPVisualHoming), through the first
     // calibrated camera on a head that homes visually. Says why not when
-    // there is no such camera. Nothing when no head homes visually.
-    void visualHome();
+    // there is no such camera. Nothing when no head homes visually. `done`
+    // (on the main thread): homing is finished, true when it went well (or
+    // there was nothing more to do).
+    void visualHome(std::function<void(bool)> done = nullptr);
 
     // The camera the board is worked with: the first one riding on a head,
     // a calibrated one first. Null when no camera rides on a head.

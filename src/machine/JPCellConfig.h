@@ -8,10 +8,12 @@
 #include "JPCameraConfig.h"
 #include "JPDriverConfig.h"
 #include "JPHeadConfig.h"
+#include "JPLocation.h"
 #include "JPNozzleConfig.h"
 #include "JPNozzleTipConfig.h"
 #include "JPSquarenessConfig.h"
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -29,6 +31,9 @@ struct JPCellConfig {
     std::vector<JPCameraConfig>   cameras;
     std::vector<JPActuatorConfig> actuators;
     JPSquarenessConfig            squareness;   // the gantry's Y lean, when measured
+    bool                          homeAfterConnect = false;   // home as soon as connected
+    bool                          parkAfterHome    = false;   // park once homed (after visual homing)
+    std::optional<JPLocation>     discardLocation;            // where a part not wanted is dropped
 
     // Read / write a cell file. False with `error` naming the file and problem.
     bool load(const std::string& path, std::string& error);

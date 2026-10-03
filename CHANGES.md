@@ -140,6 +140,8 @@ notes.
 - A controller's settings gain what OpenPnP has: parity, data bits, stop bits, Set DTR / Set RTS, line
   endings, a maximum feed rate, Log G-code, and a Gcode tab to replace any of the firmware's commands
   (several lines if need be). Brought in from OpenPnP with the rest of the machine.
+- The machine's own settings, as in OpenPnP: Home after connected, Park after homed (after visual
+  homing), and a Discard Location. Brought in from OpenPnP.
 
 ## 0.1.0
 

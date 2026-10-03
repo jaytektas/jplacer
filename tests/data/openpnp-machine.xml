@@ -55,6 +55,7 @@
             </command>
          </driver>
       </drivers>
+      <discard-location units="Millimeters" x="40.935" y="0.3" z="0.0" rotation="0.0"/>
       <heads class="java.util.ArrayList">
          <head class="org.openpnp.machine.reference.ReferenceHead" id="H1" name="H1" visual-homing-method="ResetToFiducialLocation" vacuum-pump-control="KeepRunning" pump-on-wait-milliseconds="60000">
             <park-location units="Millimeters" x="390.0" y="420.0" z="0.0" rotation="0.0"/>
@@ -129,5 +130,7 @@
             </calibration>
          </nozzle-tip>
       </nozzle-tips>
+      <home-after-enabled>false</home-after-enabled>
+      <park-after-homed>true</park-after-homed>
    </machine>
 </openpnp-machine>

@@ -37,6 +37,8 @@ int main() {
     assert(d.name == "Jaytek" && d.link["type"].str() == "serial");
     assert(d.link["port"].str() == "/dev/ttyACM0" && d.link["baud"].number() == 115200);
     assert(d.link["flowControl"].str() == "rtscts");
+    // The machine's own settings.
+    assert(!cell.homeAfterConnect && cell.parkAfterHome && cell.discardLocation && cell.discardLocation->x == 40.935);
     // The rest of OpenPnP's serial settings, in jplacer's words.
     assert(d.link["dataBits"].number() == 8 && d.link["stopBits"].number() == 1 && d.link["parity"].str() == "none");
     assert(!d.link["setDtr"].boolean() && !d.link["setRts"].boolean() && d.link["lineEnding"].str() == "LF");

@@ -275,6 +275,28 @@ void machineForm(JPCellConfig& cell, JPSetupProperties::Form& f) {
     add.tab("Configuration");
     add.group("General");
     add.text("name", "Name", [&cell]() -> std::string& { return cell.name; }, "name");
+    add.flag("homeAfterConnect", "Home after connected?", [&cell]() -> bool& { return cell.homeAfterConnect; });
+    add.flag("parkAfterHome", "Park after homed?", [&cell]() -> bool& { return cell.parkAfterHome; });
+    add.group("Locations");
+    add.header({ "X", "Y", "Z", "Rotation", "Set?" });
+    auto at = [&cell]() -> std::optional<JPLocation>& { return cell.discardLocation; };
+    add.row("Discard Location", at() ? Place::Location : Place::None);
+    if (at()) {
+        add.number("discardX", "Discard X", [at]() -> double& { return at()->x; });
+        add.number("discardY", "Discard Y", [at]() -> double& { return at()->y; });
+        add.number("discardZ", "Discard Z", [at]() -> double& { return at()->z; });
+        add.number("discardRotation", "Discard Rotation", [at]() -> double& { return at()->rotation; });
+    } else {
+        for (int i = 0; i < 4; ++i) add.skip();
+    }
+    add.flag("discard", "Set?", [at] { return at().has_value(); },
+             [at](bool on) {
+                 if (!on) at().reset();
+                 else if (!at()) at() = JPLocation();
+             });
+    add.end();
+    f.reshaping.push_back("discard");
+    add.note("Where a nozzle drops a part that is not wanted.");
 }
 
 void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPFirmwareProfile>& profiles, JPSetupProperties::Form& f) {

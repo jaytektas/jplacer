@@ -143,6 +143,7 @@ private:
     JButton*                 m_down     = nullptr;
     JLabel*                  m_title    = nullptr;
     JPSetupForm*             m_form     = nullptr;
+    std::shared_ptr<bool>    m_alive = std::make_shared<bool>(true);   // for work posted to a later frame
     JLabel*                  m_problems = nullptr;
     JLabel*                  m_note     = nullptr;
     JButton*                 m_undo     = nullptr;

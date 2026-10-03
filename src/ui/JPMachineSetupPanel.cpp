@@ -316,13 +316,19 @@ void JPMachineSetupPanel::changed(const std::string& property) {
     // A name shows in the tree; a head moves a part in it.
     rebuildTree();
     if (std::find(m_reshaping.begin(), m_reshaping.end(), property) != m_reshaping.end()) {
-        JPSetupProperties::Form f = JPSetupProperties::forNode(m_draft, m_selected, m_profiles);
-        m_reshaping = f.reshaping;
-        m_title->setText(f.title);
-        m_labels.clear();
-        for (const JProperty& p : f.model.all()) m_labels[p.name] = p.meta.label.empty() ? p.name : p.meta.label;
-        m_form->setForm(std::move(f));
-        select(m_selected);   // where it is in the tree now
+        // The form is made again on the next frame: the change arrives inside
+        // one of its controls' own events, and that control goes with it.
+        std::weak_ptr<bool> alive = m_alive;
+        jPostToNextFrame([this, alive] {
+            if (!alive.lock()) return;
+            JPSetupProperties::Form f = JPSetupProperties::forNode(m_draft, m_selected, m_profiles);
+            m_reshaping = f.reshaping;
+            m_title->setText(f.title);
+            m_labels.clear();
+            for (const JProperty& p : f.model.all()) m_labels[p.name] = p.meta.label.empty() ? p.name : p.meta.label;
+            m_form->setForm(std::move(f));
+            select(m_selected);   // where it is in the tree now
+        });
     }
     // Typing on in the same field is the same step.
     record(what, at + "|" + property, at);

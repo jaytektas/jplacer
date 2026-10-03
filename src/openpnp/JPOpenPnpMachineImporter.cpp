@@ -165,6 +165,14 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
 
     JPCellConfig c;
     c.name = "Imported from OpenPnP";
+    // The machine's own settings.
+    auto setting = [machine](const char* name) {
+        const JPXmlElement* e = machine->child(name);
+        return e && e->text.find("true") != std::string::npos;
+    };
+    c.homeAfterConnect = setting("home-after-enabled");
+    c.parkAfterHome = setting("park-after-homed");
+    c.discardLocation = location(*machine, "discard-location");
     std::map<std::string, Commands> commands;   // by driver id
 
     if (const JPXmlElement* drivers = machine->child("drivers")) {

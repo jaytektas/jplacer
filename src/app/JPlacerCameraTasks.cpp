@@ -179,22 +179,30 @@ void JPlacerCameraTasks::visualTest(JPCameraPanel& camera) {
     });
 }
 
-void JPlacerCameraTasks::visualHome() {
+void JPlacerCameraTasks::visualHome(std::function<void(bool)> done) {
     const JPHeadConfig* homing = nullptr;
     for (const JPHeadConfig& h : m_cell.config().heads)
         if (h.visualHoming) homing = &h;
-    if (!homing) return;
+    if (!homing) {
+        if (done) done(true);
+        return;
+    }
     JPCameraPanel* camera = nullptr;
     for (JPCameraPanel* p : m_cameras)
         if (!camera && p->camera().mount.headId == homing->id && !m_cell.cameraCalibrations(p->camera().id).empty()) camera = p;
     if (!camera) {
         m_window.showStatus("Homed by the switches only: calibrate a camera on " + homing->name
                             + " to finish homing with the homing mark", kResultMs);
+        if (done) done(true);
         return;
     }
-    if (m_busy) return;
+    if (m_busy) {
+        if (done) done(false);
+        return;
+    }
     if (const std::string why = notReady(camera, true, true); !why.empty()) {
         m_window.showStatus("Visual homing: " + why, kResultMs);
+        if (done) done(false);
         return;
     }
     JPCameraFeed* feed = &camera->feed();
@@ -211,7 +219,7 @@ void JPlacerCameraTasks::visualHome() {
                       r.correctedX, r.correctedY);
         words = buf;
         return true;
-    });
+    }, std::move(done));
 }
 
 JPCameraPanel* JPlacerCameraTasks::headCamera() const {

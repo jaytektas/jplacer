@@ -250,7 +250,7 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
         // The header names the columns: their own labels are not shown.
         for (size_t i = 0; i < r.cells.size(); ++i) {
             const JProperty* p = find(r.cells[i].property);
-            widen(i, p ? widthOf(*p) : 0.f);
+            widen(i, p ? widthOf(*p) : numberWidth());   // an empty place keeps a number's room
         }
     }
 

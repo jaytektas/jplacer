@@ -323,6 +323,8 @@ void JPlacerMachine::watchCell() {
             m_connecting = false;
             m_connectFailed = !ok && wasConnecting;
             if (ok) m_lost.clear();
+            // Homed straight away, when the machine is set to (after a connect asked for here).
+            if (ok && wasConnecting && m_cell->config().homeAfterConnect) home();
             else if (!wasConnecting && !why.empty()) m_lost = why;   // dropped while working
             // A camera on screen gets its light as soon as there is a
             // machine to switch it; without one, its panel says why it is dark.
@@ -339,7 +341,12 @@ void JPlacerMachine::watchCell() {
     }));
     m_unwatch.push_back(m_cell->onHomed.connect([this, onMain](bool homed) {
         onMain([this, homed] {
-            if (homed && m_cameraTasks) m_cameraTasks->visualHome();
+            // Once homed, by the camera too where a head homes visually; then
+            // parked, when the machine is set to.
+            if (homed && m_cameraTasks)
+                m_cameraTasks->visualHome([this](bool ok) {
+                    if (ok && m_cell && m_cell->config().parkAfterHome) park();
+                });
         });
     }));
     m_unwatch.push_back(m_cell->onState.connect([onMain](std::string, std::string) { onMain([] {}); }));
