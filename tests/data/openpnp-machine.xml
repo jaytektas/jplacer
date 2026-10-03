@@ -83,7 +83,7 @@
                </actuator>
             </actuators>
             <cameras class="java.util.ArrayList">
-               <camera class="org.openpnp.machine.reference.camera.OpenPnpCaptureCamera" id="C1" name="TOP_CAMERA" looking="Down" axis-X-id="AX" axis-Z-id="AZT" unique-id="top: usb-1" fps="5.0">
+               <camera class="org.openpnp.machine.reference.camera.OpenPnpCaptureCamera" id="C1" name="TOP_CAMERA" looking="Down" axis-X-id="AX" axis-Z-id="AZT" unique-id="top: usb-1" fps="5.0" after-capture-light-off="false" anti-glare-light-off="true" settle-method="Euclidean" settle-threshold="0.45" settle-debounce="5" blue-balance="1.375" blue-gamma="1.09">
                   <exposure property="Exposure" value="1432" auto="false"/>
                   <focus property="Focus"/>
                   <white-balance property="WhiteBalance" auto="true"/>

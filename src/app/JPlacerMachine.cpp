@@ -664,12 +664,13 @@ void JPlacerMachine::home() {
 void JPlacerMachine::lightCameras() {
     if (!m_cell) return;
     const bool connected = m_cell->isConnected();
-    // A light is on while any camera it lights runs.
+    // A light is on while any camera it lights runs and is set to light it
+    // for you to look at (User Camera Action).
     std::map<std::string, bool> lights;
     for (CameraDock& c : m_cameras) {
         const std::string light = c.panel->camera().lightActuator();
         if (light.empty()) continue;
-        lights[light] = lights[light] || c.panel->isRunning();
+        lights[light] = lights[light] || (c.panel->isRunning() && c.panel->camera().light.userAction);
         if (!connected) c.panel->setNote("Light off: connect the machine to light this camera.");
     }
     if (!connected) return;

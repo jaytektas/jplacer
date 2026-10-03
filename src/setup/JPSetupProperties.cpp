@@ -721,6 +721,18 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     add.group("Light");
     add.byName("light", "Light Actuator", named(cell.actuators, "(none)"), [device] { return std::as_const(device())["light-actuator-id"].str(); },
                [device](const std::string& v) { device()["light-actuator-id"] = v; });
+    auto light = [c]() -> JPCameraConfig::Light& { return c().light; };
+    add.header({ "ON", "OFF" });
+    add.row("Before Capture?");
+    add.flag("lightBeforeCapture", "Before Capture?", [light]() -> bool& { return light().beforeCapture; });
+    add.flag("lightAfterCapture", "After Capture?", [light]() -> bool& { return light().afterCapture; });
+    add.end();
+    add.row("User Camera Action?");
+    add.flag("lightUserAction", "User Camera Action?", [light]() -> bool& { return light().userAction; });
+    add.flag("lightAntiGlare", "Anti-Glare?", [light]() -> bool& { return light().antiGlare; });
+    add.end();
+    add.note("ON: before a picture is taken for vision; while you are looking at the camera. OFF: after the "
+             "picture for vision; while another camera takes one (anti-glare).");
     add.group("Units Per Pixel");
     // A start for calibrating with a nozzle's tip, whose size is not known.
     add.header({ "X", "Y" });

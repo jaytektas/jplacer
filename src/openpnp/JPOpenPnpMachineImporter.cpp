@@ -371,6 +371,12 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             cam.device["backend"] = "v4l2";
             cam.device["name"]    = usb == std::string::npos ? uid : uid.substr(0, usb);
             if (const double fps = number(x.attr("fps")); fps > 0) cam.device["fps"] = fps;
+            // When its light is switched.
+            auto flag = [&x](const char* a, bool def) { return x.attr(a).empty() ? def : x.attr(a) == "true"; };
+            cam.light.beforeCapture = flag("before-capture-light-on", cam.light.beforeCapture);
+            cam.light.userAction    = flag("user-action-light-on", cam.light.userAction);
+            cam.light.afterCapture  = flag("after-capture-light-off", cam.light.afterCapture);
+            cam.light.antiGlare     = flag("anti-glare-light-off", cam.light.antiGlare);
             // White balance: each channel's balance and gamma.
             const char* channels[] = { "red", "green", "blue" };
             for (size_t ch = 0; ch < 3; ++ch) {

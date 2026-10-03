@@ -94,10 +94,22 @@ void JPlacerCameraTasks::run(JPCameraPanel& camera, const std::string& name, Tas
         });
     };
     m_worker = std::thread([this, panel, name, task, done, onMain] {
+        // The lights, as the cameras' Light settings say: this camera's on
+        // before its pictures, other cameras' off against glare.
+        const JPCameraConfig& cam = panel->camera();
+        const std::string light = cam.lightActuator();
+        std::string lightWhy;
+        for (JPCameraPanel* other : m_cameras) {
+            const std::string theirs = other->camera().lightActuator();
+            if (other != panel && other->camera().light.antiGlare && !theirs.empty() && theirs != light)
+                m_cell.switchActuatorAndWait(theirs, false, lightWhy);
+        }
+        if (!light.empty() && cam.light.beforeCapture) m_cell.switchActuatorAndWait(light, true, lightWhy);
         std::string words;
         const bool ok = task(words, [panel, name, onMain](const std::string& step) {
             onMain([panel, name, step] { panel->setNote(name + ": " + step); });
         });
+        if (!light.empty() && cam.light.afterCapture) m_cell.switchActuatorAndWait(light, false, lightWhy);
         JLOGC(JPlacerLog::kCamera, ok ? JLogLevel::Info : JLogLevel::Warn) << name << ": " << words;
         onMain([this, panel, name, ok, words, done] {
             m_busy = false;

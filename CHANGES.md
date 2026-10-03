@@ -159,6 +159,8 @@ notes.
   centre mask). Brought in from OpenPnP.
 - A camera's white balance as in OpenPnP: each colour's balance and gamma on every picture, worked out
   with Overall or Brightest, and brought in from OpenPnP (the bench's top camera has one).
+- A camera's light as in OpenPnP: on before a picture for vision and/or while you look at the camera,
+  off after the picture and/or while another camera takes one. Brought in from OpenPnP.
 
 ## 0.1.0
 

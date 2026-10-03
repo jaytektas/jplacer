@@ -50,6 +50,17 @@ struct JPCameraConfig {
         bool neutral() const { return balance == std::array<double, 3>{ 1, 1, 1 } && gamma == std::array<double, 3>{ 1, 1, 1 }; }
     };
     WhiteBalance  whiteBalance;
+    // When its light (device "light-actuator-id") is switched, as in OpenPnP:
+    // on before a picture is taken for vision, on while you are looking at
+    // the camera; off after the picture for vision, and off while another
+    // camera takes one (anti-glare).
+    struct Light {
+        bool beforeCapture = true;
+        bool userAction    = true;
+        bool afterCapture  = false;
+        bool antiGlare     = false;
+    };
+    Light         light;
     // jplacer's own, from known moves: one for each picture size it was
     // measured at (another size is another scale, and another lens).
     std::vector<JPCameraCalibration> calibrations;
@@ -84,8 +95,14 @@ struct JPCameraConfig {
         c.device         = j["device"];
         c.showAll        = j["showAll"].number(0.0);
         for (size_t ch = 0; ch < 3; ++ch) {
-            c.whiteBalance.balance[ch] = j["whiteBalance"]["balance"][ch].number(1);
-            c.whiteBalance.gamma[ch]   = j["whiteBalance"]["gamma"][ch].number(1);
+            c.whiteBalance.balance[ch] = j["whiteBalance"]["balance"][ch].number(1.0);
+            c.whiteBalance.gamma[ch]   = j["whiteBalance"]["gamma"][ch].number(1.0);
+        }
+        if (const JJson& l = j["light"]; l.isObject()) {
+            c.light.beforeCapture = l["beforeCapture"].boolean(c.light.beforeCapture);
+            c.light.userAction    = l["userAction"].boolean(c.light.userAction);
+            c.light.afterCapture  = l["afterCapture"].boolean(c.light.afterCapture);
+            c.light.antiGlare     = l["antiGlare"].boolean(c.light.antiGlare);
         }
         if (const JJson& st = j["settle"]; st.isObject()) {
             if (const std::string& m = st["method"].str(); !m.empty()) c.settle.method = m;
@@ -118,6 +135,10 @@ struct JPCameraConfig {
             j["whiteBalance"]["balance"] = balance;
             j["whiteBalance"]["gamma"]   = gamma;
         }
+        j["light"]["beforeCapture"] = light.beforeCapture;
+        j["light"]["userAction"]    = light.userAction;
+        j["light"]["afterCapture"]  = light.afterCapture;
+        j["light"]["antiGlare"]     = light.antiGlare;
         j["settle"]["method"]     = settle.method;
         j["settle"]["timeMs"]     = settle.timeMs;
         j["settle"]["timeoutMs"]  = settle.timeoutMs;
