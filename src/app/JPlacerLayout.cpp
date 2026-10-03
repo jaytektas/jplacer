@@ -12,7 +12,10 @@ namespace {
 // The window's first shape, as shares of its size: the left column (cameras
 // over the machine controls) and the console along the bottom.
 constexpr float kLeftShare   = 0.3f;
-constexpr float kBottomShare = 0.2f;
+constexpr float kBottomShare = 0.15f;
+// Of the left column, the cameras' share over the machine controls (the
+// Jog panel needs most of its height for its pad).
+constexpr float kCameraShare = 0.38f;
 
 } // namespace
 
@@ -86,7 +89,13 @@ void JPlacerLayout::place(const Entry& e) {
         if (o.dock != e.dock && o.dock->placedIn() == &host) {
             const JDockNodeId leaf = host.splitLeaf(host.findDock(o.dock),
                                                     e.home == Home::Cameras ? JDropPos::Top : JDropPos::Bottom);
-            if (leaf.valid() && host.insertDock(e.dock, leaf)) return;
+            if (leaf.valid() && host.insertDock(e.dock, leaf)) {
+                // The cameras above (the split's first), the controls below.
+                if (JDockNode* n = host.node(leaf); n && n->parent.valid())
+                    if (JDockNode* split = host.node(n->parent); split && split->weights.size() == 2)
+                        split->weights = { kCameraShare, 1 - kCameraShare };
+                return;
+            }
         }
     host.addDock(e.dock);
 }
