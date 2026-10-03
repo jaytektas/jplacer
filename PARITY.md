@@ -122,9 +122,9 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | OpenPnP | Status | jplacer |
 |---|---|---|
 | Driver, name, head, offsets | done | |
-| Value type (boolean, double, string, profile), actuator profiles | partial | boolean and read; double, string, profiles missing |
+| Value type (boolean, double, string, profile), actuator profiles | partial | boolean, double and string, set and read; profiles missing |
 | Actuation per machine state (enabled, homed, disabled) | done | |
-| Machine coordination (before / after actuation, before read) | missing | |
+| Machine coordination (before / after actuation, before read) | own way | every actuation and read waits for moves before it to end, and moves wait for it |
 | Axis interlock | missing | |
 | HTTP, script actuators | missing | |
 | Actuators panel (switch, read) | done | |
@@ -161,6 +161,6 @@ Breadth first, with jplacer's own methods where they are better:
 
 1. Nozzle tips: runout recalibration triggers; part dimensions and push and drag with the job that uses them.
 2. Cameras: remaining calibration settings and results (head offsets, tilt); image transforms; preview FPS cap.
-3. Actuators: value types and profiles, machine coordination, interlocks.
+3. Actuators: profiles, interlocks.
 4. Machine: motion planner settings (continuous motion), Unsafe Z roaming, Default Board Location.
 5. Then DESIGN.md's build order 3 onward: library and job model, feeders and running, vision.

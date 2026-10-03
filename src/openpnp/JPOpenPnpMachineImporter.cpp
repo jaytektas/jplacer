@@ -86,7 +86,7 @@ std::string translateLine(const std::string& tmpl, int on, const std::string& wh
             if ((name == "True") == (on == 1)) out += fmt;
         } else if (name == "Index") {
             out += "{index}";
-        } else if (name == "Value" || name == "DoubleValue" || name == "IntegerValue") {
+        } else if (name == "Value" || name == "DoubleValue" || name == "IntegerValue" || name == "StringValue") {
             out += "{value}";
         } else {
             out += "{" + token + "}";
@@ -345,6 +345,14 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
         const std::string& vt = x.attr("value-type");
         a.valueType = vt == "Double" ? JPActuatorConfig::ValueType::Number
                     : vt == "String" ? JPActuatorConfig::ValueType::Text : JPActuatorConfig::ValueType::Boolean;
+        // What on and off set it to, as OpenPnP's defaults.
+        if (a.valueType == JPActuatorConfig::ValueType::Number) {
+            a.onValue = x.attr("default-on-double");
+            a.offValue = x.attr("default-off-double");
+        } else if (a.valueType == JPActuatorConfig::ValueType::Text) {
+            a.onValue = x.attr("default-on-string");
+            a.offValue = x.attr("default-off-string");
+        }
         // What it is switched to as the machine connects, homes and is let go.
         for (const auto& [attr, field] : { std::pair{ "enabled-actuation", &JPActuatorConfig::enabledActuation },
                                            std::pair{ "homed-actuation", &JPActuatorConfig::homedActuation },
@@ -364,6 +372,10 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                 a.onCommand  = translate(*t, 1, "actuator " + a.name, notes);
                 a.offCommand = translate(*t, 0, "actuator " + a.name, notes);
             }
+            // A value to set it to: OpenPnP's double or string command.
+            for (const char* kind : { "ACTUATE_DOUBLE_COMMAND", "ACTUATE_STRING_COMMAND" })
+                if (const std::string* t = findCommand(cmds->second, kind, a.id); t && a.valueCommand.empty())
+                    a.valueCommand = translate(*t, -1, "actuator " + a.name, notes);
             if (const std::string* t = findCommand(cmds->second, "ACTUATOR_READ_COMMAND", a.id))
                 a.readCommand = translate(*t, -1, "actuator " + a.name, notes);
             if (const std::string* t = findCommand(cmds->second, "ACTUATOR_READ_REGEX", a.id))

@@ -207,8 +207,10 @@ void JPSimulatedGrbl::gcode(const std::string& line) {
                 return;
             }
         } else if (letter == 'M') {
+            // Outputs: digital (M64 / M65), the spindle's PWM (M3 / M4 / M5),
+            // analog (M67 / M68): nothing to simulate but the answer.
             const int m = int(value + 0.5);
-            if (m != 64 && m != 65) {
+            if (m != 64 && m != 65 && m != 3 && m != 4 && m != 5 && m != 67 && m != 68) {
                 m_out.push_back(kErrorUnsupported);
                 return;
             }

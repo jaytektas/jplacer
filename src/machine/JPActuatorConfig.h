@@ -23,6 +23,11 @@ struct JPActuatorConfig {
     ValueType     valueType = ValueType::Boolean;
     std::string   index;
     std::string   onCommand, offCommand;
+    // A Number or Text actuator is set to a value by `valueCommand` ({value}
+    // replaced by it); switched on or off, without commands of its own for
+    // that, it is set to `onValue` or `offValue`.
+    std::string   valueCommand;
+    std::string   onValue, offValue;
     std::string   readCommand, readPattern;
     std::string   unit;
     // What it is switched to as the machine's state changes, as in OpenPnP:
@@ -32,7 +37,10 @@ struct JPActuatorConfig {
     std::string   homedActuation   = "LeaveAsIs";
     std::string   disabledActuation = "LeaveAsIs";
 
-    bool canSwitch() const { return !onCommand.empty() || !offCommand.empty(); }
+    bool canSwitch() const {
+        return !onCommand.empty() || !offCommand.empty() || (!valueCommand.empty() && (!onValue.empty() || !offValue.empty()));
+    }
+    bool canSet()    const { return valueType != ValueType::Boolean && !valueCommand.empty(); }
     bool canRead()   const { return !readCommand.empty() && !readPattern.empty(); }
 
     static JPActuatorConfig fromJson(const JJson& j);

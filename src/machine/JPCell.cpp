@@ -337,6 +337,27 @@ bool JPCell::doSafeZ(const std::string& headId, double speed, std::string& why) 
     return safe.empty() || doMove(safe, speed, why);
 }
 
+void JPCell::setActuator(const std::string& actuatorId, const std::string& value) {
+    m_thread.post([this, actuatorId, value] {
+        std::string why = "no actuator " + actuatorId;
+        bool ok = false;
+        for (const JPActuatorConfig& a : m_config.actuators) {
+            if (a.id != actuatorId) continue;
+            JPGcodeDriver* d = driver(a.driverId);
+            if (!d || !a.canSet()) {
+                why = a.name + " cannot be set to a value";
+                break;
+            }
+            const JPReply r = d->send(JPFirmwareProfile::fill(a.valueCommand, { { "index", a.index }, { "value", value } })).get();
+            JLOGC(JPlacerLog::kCell, r.ok ? JLogLevel::Info : JLogLevel::Warn)
+                << a.name << " set to " << value << (r.ok ? std::string() : ": " + r.error);
+            ok = r.ok;
+            why = r.error;
+        }
+        onActuator.emit(actuatorId, ok, ok ? value : why);
+    });
+}
+
 void JPCell::switchActuator(const std::string& actuatorId, bool on) {
     m_thread.post([this, actuatorId, on] {
         std::string why;
@@ -542,12 +563,15 @@ bool JPCell::doSwitch(const std::string& actuatorId, bool on, std::string& why) 
     for (const JPActuatorConfig& a : m_config.actuators) {
         if (a.id != actuatorId) continue;
         JPGcodeDriver* d = driver(a.driverId);
-        const std::string& tmpl = on ? a.onCommand : a.offCommand;
+        // Its own command for it, else its value command with its on or off value.
+        const std::string& own = on ? a.onCommand : a.offCommand;
+        const std::string& value = on ? a.onValue : a.offValue;
+        const std::string& tmpl = !own.empty() || value.empty() ? own : a.valueCommand;
         if (!d || tmpl.empty()) {
             why = a.name + " cannot be switched " + (on ? "on" : "off");
             return false;
         }
-        const JPReply r = d->send(JPFirmwareProfile::fill(tmpl, { { "index", a.index } })).get();
+        const JPReply r = d->send(JPFirmwareProfile::fill(tmpl, { { "index", a.index }, { "value", value } })).get();
         JLOGC(JPlacerLog::kCell, r.ok ? JLogLevel::Info : JLogLevel::Warn)
             << a.name << " " << (on ? "on" : "off") << (r.ok ? std::string() : ": " + r.error);
         why = r.error;

@@ -57,7 +57,9 @@ JPCellConfig cellConfig() {
                        "onCommand": "M64 P{index}", "offCommand": "M65 P{index}",
                        "readCommand": "M1000 P{index}", "readPattern": "^(-?\\d+)$" },
                      { "id": "P", "name": "Pump", "driver": "D", "index": "2",
-                       "onCommand": "M64 P{index}", "offCommand": "M65 P{index}", "disabledActuation": "ActuateOff" } ]
+                       "onCommand": "M64 P{index}", "offCommand": "M65 P{index}", "disabledActuation": "ActuateOff" },
+                     { "id": "L", "name": "Light", "driver": "D", "valueType": "number", "valueCommand": "M3 S{value}",
+                       "onValue": "255", "offValue": "0" } ]
     })";
     JPCellConfig c;
     std::string error;
@@ -109,6 +111,24 @@ int main() {
         assert(actuator.take() == std::make_pair(true, std::string("on")));
         cell.readActuator("V");
         assert(actuator.take() == std::make_pair(true, std::string("-31000")));
+
+        // A Number actuator: set to a value by its value command; on and off,
+        // with no commands of their own, set it to its on and off values.
+        {
+            std::mutex m;
+            std::vector<std::string> lines;
+            auto watch = cell.onTraffic.connect([&](std::string, bool out, std::string line) {
+                std::lock_guard lk(m);
+                if (out && line.rfind("M3", 0) == 0) lines.push_back(line);
+            });
+            cell.setActuator("L", "128");
+            assert(actuator.take() == std::make_pair(true, std::string("128")));
+            cell.switchActuator("L", true);
+            assert(actuator.take() == std::make_pair(true, std::string("on")));
+            watch();
+            std::lock_guard lk(m);
+            assert(lines.size() == 2 && lines[0] == "M3 S128" && lines[1] == "M3 S255");
+        }
 
         // Pick and place: the head's pump comes on with the first part, then
         // the vacuum; placing, the vacuum goes off, then the pump (PartOn).

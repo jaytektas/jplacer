@@ -16,6 +16,9 @@ JPActuatorConfig JPActuatorConfig::fromJson(const JJson& j) {
     a.index       = j["index"].str();
     a.onCommand   = j["onCommand"].str();
     a.offCommand  = j["offCommand"].str();
+    a.valueCommand = j["valueCommand"].str();
+    a.onValue     = j["onValue"].str();
+    a.offValue    = j["offValue"].str();
     a.readCommand = j["readCommand"].str();
     a.readPattern = j["readPattern"].str();
     a.unit        = j["unit"].str();
@@ -36,6 +39,9 @@ JJson JPActuatorConfig::toJson() const {
     j["index"]       = index;
     j["onCommand"]   = onCommand;
     j["offCommand"]  = offCommand;
+    if (!valueCommand.empty()) j["valueCommand"] = valueCommand;
+    if (!onValue.empty()) j["onValue"] = onValue;
+    if (!offValue.empty()) j["offValue"] = offValue;
     j["readCommand"] = readCommand;
     j["readPattern"] = readPattern;
     j["unit"]        = unit;

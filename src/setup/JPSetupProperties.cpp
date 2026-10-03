@@ -1246,12 +1246,29 @@ void actuatorForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::
     // {index} in a command is replaced by the index.
     add.text("index", "Index", [a]() -> std::string& { return a().index; });
     add.text("unit", "Unit Read", [a]() -> std::string& { return a().unit; });
+    // OpenPnP's names for the value types.
+    using VT = JPActuatorConfig::ValueType;
+    add.choice("valueType", "Value Type", { "Boolean", "Double", "String" },
+               [a] { return std::string(a().valueType == VT::Number ? "Double" : a().valueType == VT::Text ? "String" : "Boolean"); },
+               [a](const std::string& v) { a().valueType = v == "Double" ? VT::Number : v == "String" ? VT::Text : VT::Boolean; });
+    f.reshaping.push_back("valueType");
     add.group("Commands");
     add.text("onCommand", "On", [a]() -> std::string& { return a().onCommand; }, "long");
     add.text("offCommand", "Off", [a]() -> std::string& { return a().offCommand; }, "long");
+    if (a().valueType != VT::Boolean) {
+        add.text("valueCommand", "Set Value", [a]() -> std::string& { return a().valueCommand; }, "long");
+        add.row("On / Off Values");
+        add.text("onValue", "On Value", [a]() -> std::string& { return a().onValue; });
+        add.text("offValue", "Off Value", [a]() -> std::string& { return a().offValue; });
+        add.end();
+    }
     add.text("readCommand", "Read", [a]() -> std::string& { return a().readCommand; }, "long");
     add.text("readPattern", "Read Reply Pattern", [a]() -> std::string& { return a().readPattern; }, "long");
-    add.note("{index} in a command is replaced by the index.");
+    add.note(a().valueType == VT::Boolean
+                 ? "{index} in a command is replaced by the index."
+                 : "{index} in a command is replaced by the index, {value} in Set Value by the value it is set to "
+                   "(the Actuators panel's box). Without commands of their own, On and Off set it to the On and "
+                   "Off Values.");
 }
 
 } // namespace

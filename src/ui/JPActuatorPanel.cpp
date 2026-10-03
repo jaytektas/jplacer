@@ -3,6 +3,7 @@
 
 #include "JPActuatorPanel.h"
 
+#include "JPTextField.h"
 #include "JPUiParts.h"
 
 #include <j/core/JScrollArea.h>
@@ -27,6 +28,13 @@ JPActuatorPanel::JPActuatorPanel(JSceneGraph& graph, JPCell& cell)
         if (a.canSwitch()) {
             r->add(JPUiParts::button(graph, "On"))->onClicked.connect([this, id] { m_cell.switchActuator(id, true); });
             r->add(JPUiParts::button(graph, "Off"))->onClicked.connect([this, id] { m_cell.switchActuator(id, false); });
+        }
+        if (a.canSet()) {
+            // A value typed (Return, Tab or leaving it) or Set: sent.
+            JPTextField* value = r->add(std::make_unique<JPTextField>(graph));
+            value->setText(a.onValue);
+            value->onCommitted.connect([this, id](std::string v) { m_cell.setActuator(id, v); });
+            r->add(JPUiParts::button(graph, "Set"))->onClicked.connect([this, id, value] { m_cell.setActuator(id, value->text()); });
         }
         if (a.canRead())
             r->add(JPUiParts::button(graph, "Read"))->onClicked.connect([this, id] { m_cell.readActuator(id); });

@@ -216,6 +216,7 @@ notes.
 - Changing an axis's speed, limits or backlash no longer needs the machine homed again.
 - A camera's Camera Settling tab can test the settling (one jog step out and back, or standing still) and graphs how the camera came to rest against the threshold.
 - Nozzle tip runout: Calibrate on a tip's Calibration tab measures how its end swings as the nozzle turns, with the camera looking up; compensated, the tip's centre lands where it is sent at any angle.
+- Actuators that take a value (Double or String): set from the Actuators panel, their value type and commands in Machine Setup, imported from OpenPnP.
 - The Jog pad's park buttons show a parking sign that grows with the pad.
 - Buttons and other controls are no longer clipped by a pixel along an edge, and the Jog panel's tip, Stop
   and E-STOP buttons stay whole in a narrow dock (a long tool name is cut short instead).

@@ -358,10 +358,13 @@ fails is shown in the strip across the window, with the reading.
 
 ### Actuators
 
-Each actuator with **On** and **Off** if it can be switched, and **Read** if a value can be read from
-it. The result of the last action, or the reason it failed, is shown beside the buttons.
+Each actuator with **On** and **Off** if it can be switched, a box and **Set** if it takes a value (a
+Double or String actuator with a Set Value command: type the value, then Return, Tab, leaving the box or
+Set sends it), and **Read** if a value can be read from it. The result of the last action, or the reason it
+failed, is shown beside the buttons. An imported Double or String actuator keeps OpenPnP's command for
+setting it and its default on and off values.
 
-<!-- src: src/ui/JPActuatorPanel.cpp -->
+<!-- src: src/ui/JPActuatorPanel.cpp; src/machine/JPCell.cpp (setActuator, doSwitch); src/openpnp/JPOpenPnpMachineImporter.cpp (ACTUATE_DOUBLE_COMMAND) -->
 
 ### Console
 

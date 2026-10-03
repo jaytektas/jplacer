@@ -58,6 +58,9 @@ public:
     void sendLine(const std::string& driverId, const std::string& line);
 
     void switchActuator(const std::string& actuatorId, bool on);
+    // A Number or Text actuator set to `value` (its value command); reported
+    // by onActuator as a switch is.
+    void setActuator(const std::string& actuatorId, const std::string& value);
     // The same, waiting for the controller's answer: for a procedure on a
     // thread of its own. False with `why`.
     bool switchActuatorAndWait(const std::string& actuatorId, bool on, std::string& why);
