@@ -161,6 +161,8 @@ notes.
   with Overall or Brightest, and brought in from OpenPnP (the bench's top camera has one).
 - A camera's light as in OpenPnP: on before a picture for vision and/or while you look at the camera,
   off after the picture and/or while another camera takes one. Brought in from OpenPnP.
+- Part detection by the vacuum, as in OpenPnP: Pick checks a part is on and Place that it is off, by the
+  vacuum level (Absolute) or its change (Difference), as each nozzle tip is set; brought in from OpenPnP.
 
 ## 0.1.0
 

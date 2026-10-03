@@ -431,6 +431,19 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             if (const JPXmlElement* cal = x.child("calibration")) t.diameter = lengthChild(*cal, "calibration-tip-diameter");
             t.pickDwellMs = int(number(x.attr("pick-dwell-milliseconds")));
             t.placeDwellMs = int(number(x.attr("place-dwell-milliseconds")));
+            // Part detection by the vacuum.
+            auto text = [&x](const char* child) { const JPXmlElement* e = x.child(child); return e ? e->text : std::string(); };
+            auto sensing = [&](JPNozzleTipConfig::Sensing& s, const std::string& on) {
+                if (const std::string m = text(("method-part-" + on).c_str()); !m.empty()) s.method = m;
+                s.low      = number(text(("vacuum-level-part-" + on + "-low").c_str()));
+                s.high     = number(text(("vacuum-level-part-" + on + "-high").c_str()));
+                s.diffLow  = number(text(("vacuum-difference-part-" + on + "-low").c_str()));
+                s.diffHigh = number(text(("vacuum-difference-part-" + on + "-high").c_str()));
+            };
+            sensing(t.partOn, "on");
+            sensing(t.partOff, "off");
+            t.partOffProbingMs = int(number(x.attr("part-off-probing-milliseconds")));
+            t.partOffDwellMs = int(number(x.attr("part-off-dwell-milliseconds")));
             const struct { const char* place; const char* speed; const char* actuator; } changer[] = {
                 { "changer-start-location", nullptr, "changer-actuator-post-step-one" },
                 { "changer-mid-location", "changer-start-to-mid-speed", "changer-actuator-post-step-two" },

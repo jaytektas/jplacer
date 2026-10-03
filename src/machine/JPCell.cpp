@@ -308,11 +308,51 @@ bool JPCell::doPick(const JPNozzleConfig& n, std::string& why) {
         m_pumpOn.insert(head->id);
         std::this_thread::sleep_for(std::chrono::milliseconds(head->pumpOnWaitMs));
     }
+    const JPNozzleTipConfig* tip = nullptr;
+    for (const JPNozzleTipConfig& t : m_config.nozzleTips) if (t.id == n.tipId) tip = &t;
+    // Part on, by a difference: the level before the vacuum comes on.
+    double before = 0;
+    if (tip && tip->partOn.method == "Difference" && !readVacuum(n, before, why)) return false;
     if (!switchTelling(n.vacuumActuatorId, true, why)) return false;
     m_holding.insert(n.id);
-    int dwell = n.pickDwellMs;
-    for (const JPNozzleTipConfig& t : m_config.nozzleTips) if (t.id == n.tipId) dwell += t.pickDwellMs;
-    std::this_thread::sleep_for(std::chrono::milliseconds(dwell));
+    std::this_thread::sleep_for(std::chrono::milliseconds(n.pickDwellMs + (tip ? tip->pickDwellMs : 0)));
+    if (tip && tip->partOn.method != "None" && !sensed(n, tip->partOn, before, "on", why)) return false;
+    return true;
+}
+
+bool JPCell::readVacuum(const JPNozzleConfig& n, double& level, std::string& why) {
+    const std::string& sensor = n.vacuumSenseActuatorId.empty() ? n.vacuumActuatorId : n.vacuumSenseActuatorId;
+    std::string value;
+    if (!doRead(sensor, value, why)) return false;
+    char* end = nullptr;
+    level = std::strtod(value.c_str(), &end);
+    if (end == value.c_str()) {
+        why = "the vacuum reading '" + value + "' is not a number";
+        return false;
+    }
+    return true;
+}
+
+bool JPCell::sensed(const JPNozzleConfig& n, const JPNozzleTipConfig::Sensing& s, double before, const char* onOff,
+                    std::string& why) {
+    double level = 0;
+    if (!readVacuum(n, level, why)) return false;
+    auto outside = [](double v, double lo, double hi) { return v < lo || v > hi; };
+    const std::string part = std::string("part ") + onOff;
+    if (s.method == "Difference") {
+        if (outside(before, s.low, s.high)) {
+            why = part + ": the vacuum before, " + format(before, 1) + ", is outside " + format(s.low, 1) + " .. " + format(s.high, 1);
+            return false;
+        }
+        if (const double d = level - before; outside(d, s.diffLow, s.diffHigh)) {
+            why = part + ": the vacuum changed by " + format(d, 1) + ", outside " + format(s.diffLow, 1) + " .. " + format(s.diffHigh, 1);
+            return false;
+        }
+    } else if (outside(level, s.low, s.high)) {
+        why = part + ": the vacuum, " + format(level, 1) + ", is outside " + format(s.low, 1) + " .. " + format(s.high, 1);
+        return false;
+    }
+    JLOGC(JPlacerLog::kCell, JLogLevel::Info) << n.name << ": " << part << " (vacuum " << format(level, 1) << ")";
     return true;
 }
 
@@ -327,6 +367,19 @@ bool JPCell::doPlace(const JPNozzleConfig& n, std::string& why) {
     std::this_thread::sleep_for(std::chrono::milliseconds(dwell));
     if (blow && !switchTelling(n.blowOffActuatorId, false, why)) return false;
     m_holding.erase(n.id);
+    // Part off: the valve opened for the probing time and closed for the
+    // dwell, then the vacuum read (a part still on holds it).
+    const JPNozzleTipConfig* tip = nullptr;
+    for (const JPNozzleTipConfig& t : m_config.nozzleTips) if (t.id == n.tipId) tip = &t;
+    if (tip && tip->partOff.method != "None") {
+        double before = 0;
+        if (tip->partOff.method == "Difference" && !readVacuum(n, before, why)) return false;
+        if (!switchTelling(n.vacuumActuatorId, true, why)) return false;
+        std::this_thread::sleep_for(std::chrono::milliseconds(tip->partOffProbingMs));
+        if (!switchTelling(n.vacuumActuatorId, false, why)) return false;
+        std::this_thread::sleep_for(std::chrono::milliseconds(tip->partOffDwellMs));
+        if (!sensed(n, tip->partOff, before, "off", why)) return false;
+    }
     // The pump goes off with the last part on its head, when it runs for parts (or a task).
     const JPHeadConfig* head = nullptr;
     for (const JPHeadConfig& h : m_config.heads) if (h.id == n.mount.headId) head = &h;
@@ -363,39 +416,47 @@ bool JPCell::doSwitch(const std::string& actuatorId, bool on, std::string& why) 
 
 void JPCell::readActuator(const std::string& actuatorId) {
     m_thread.post([this, actuatorId] {
-        for (const JPActuatorConfig& a : m_config.actuators) {
-            if (a.id != actuatorId) continue;
-            JPGcodeDriver* d = driver(a.driverId);
-            if (!d || !a.canRead()) {
-                onActuator.emit(a.id, false, a.name + " cannot be read");
-                return;
-            }
-            std::regex pattern;
-            try {
-                pattern = std::regex(a.readPattern);
-            } catch (const std::regex_error&) {
-                onActuator.emit(a.id, false, a.name + ": its read pattern is not a valid pattern");
-                return;
-            }
-            const JPReply r = d->send(JPFirmwareProfile::fill(a.readCommand, { { "index", a.index } })).get();
-            if (!r.ok) {
-                onActuator.emit(a.id, false, r.error);
-                return;
-            }
-            for (const std::string& line : r.lines) {
-                std::smatch m;
-                if (std::regex_search(line, m, pattern) && m.size() > 1) {
-                    JLOGC(JPlacerLog::kCell, JLogLevel::Info) << a.name << " read " << m[1].str() << (a.unit.empty() ? std::string() : " " + a.unit);
-                    onActuator.emit(a.id, true, m[1].str());
-                    return;
-                }
-            }
-            JLOGC(JPlacerLog::kCell, JLogLevel::Warn) << a.name << ": no value in the reply to '" << a.readCommand
-                                                       << "' (pattern " << a.readPattern << ")";
-            onActuator.emit(a.id, false, a.name + ": the reply held no value");
-            return;
-        }
+        std::string value, why;
+        const bool ok = doRead(actuatorId, value, why);
+        onActuator.emit(actuatorId, ok, ok ? value : why);
     });
+}
+
+bool JPCell::doRead(const std::string& actuatorId, std::string& value, std::string& why) {
+    for (const JPActuatorConfig& a : m_config.actuators) {
+        if (a.id != actuatorId) continue;
+        JPGcodeDriver* d = driver(a.driverId);
+        if (!d || !a.canRead()) {
+            why = a.name + " cannot be read";
+            return false;
+        }
+        std::regex pattern;
+        try {
+            pattern = std::regex(a.readPattern);
+        } catch (const std::regex_error&) {
+            why = a.name + ": its read pattern is not a valid pattern";
+            return false;
+        }
+        const JPReply r = d->send(JPFirmwareProfile::fill(a.readCommand, { { "index", a.index } })).get();
+        if (!r.ok) {
+            why = r.error;
+            return false;
+        }
+        for (const std::string& line : r.lines) {
+            std::smatch m;
+            if (std::regex_search(line, m, pattern) && m.size() > 1) {
+                JLOGC(JPlacerLog::kCell, JLogLevel::Info) << a.name << " read " << m[1].str() << (a.unit.empty() ? std::string() : " " + a.unit);
+                value = m[1].str();
+                return true;
+            }
+        }
+        JLOGC(JPlacerLog::kCell, JLogLevel::Warn) << a.name << ": no value in the reply to '" << a.readCommand
+                                                   << "' (pattern " << a.readPattern << ")";
+        why = a.name + ": no value in its reply";
+        return false;
+    }
+    why = "no actuator " + actuatorId;
+    return false;
 }
 
 void JPCell::updatePositions(const std::string& driverId, const JPFirmwareProfile::Status& status) {

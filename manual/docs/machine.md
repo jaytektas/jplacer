@@ -229,7 +229,11 @@ A nozzle with a vacuum actuator has **Pick** and **Place**, used where the nozzl
   dwell and off again, and the pump off when its control is PartOn or TaskDuration and no other nozzle on
   the head holds a part.
 
-<!-- src: src/ui/JPJogPanel.cpp; src/machine/JPCell.cpp (jog, doMove, doPick, doPlace) -->
+With the tip's Part Detection set, Pick checks a part is on (the vacuum read after the dwell) and Place
+checks it is off (the valve opened for the probing time, closed for the dwell, then read); a check that
+fails is shown in the strip across the window, with the reading.
+
+<!-- src: src/ui/JPJogPanel.cpp; src/machine/JPCell.cpp (jog, doMove, doPick, doPlace, sensed) -->
 
 ### Actuators
 

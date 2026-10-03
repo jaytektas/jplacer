@@ -50,7 +50,9 @@ JPCellConfig cellConfig() {
                   "feedratePerSecond": 360, "wrapAroundRotation": true, "limitRotation": true },
                 { "id": "ZR", "name": "zr", "kind": "mapped", "type": "z", "inputAxis": "Z",
                   "map": { "input0": -1, "output0": 1, "input1": 0, "output1": 0 } } ],
-      "nozzles": [ { "id": "N", "name": "Right", "mount": { "head": "H", "axisX": "X", "axisZ": "ZR" }, "vacuumActuator": "V" } ],
+      "nozzles": [ { "id": "N", "name": "Right", "mount": { "head": "H", "axisX": "X", "axisZ": "ZR" }, "vacuumActuator": "V",
+                     "tips": [ "T" ], "tip": "T" } ],
+      "nozzleTips": [ { "id": "T", "name": "503", "partOn": { "method": "Absolute", "low": -32000, "high": -30000 } } ],
       "actuators": [ { "id": "V", "name": "Vacuum", "driver": "D", "index": "1",
                        "onCommand": "M64 P{index}", "offCommand": "M65 P{index}",
                        "readCommand": "M1000 P{index}", "readPattern": "^(-?\\d+)$" },
@@ -125,6 +127,21 @@ int main() {
                 std::this_thread::sleep_for(std::chrono::milliseconds(5));
             std::lock_guard lk(m);
             assert((seen == std::vector<std::string>{ "P on", "V on", "V off", "P off" }));
+            watch();
+        }
+        // Part detection: the vacuum read after the pick (-31000) must be in
+        // the tip's range; out of it, the pick fails, and says so.
+        {
+            Latch<std::string> alarm;
+            auto watch = cell.onAlarm.connect([&](std::string what) { alarm.set(what); });
+            JPCellConfig next = cell.config();
+            next.nozzleTips[0].partOn.high = -31500;
+            std::string why;
+            assert(cell.reconfigure(next, why));
+            cell.pick("N");
+            const std::string what = alarm.take();
+            assert(what.find("pick failed") != std::string::npos && what.find("-31000.0") != std::string::npos);
+            cell.place("N");
             watch();
         }
 

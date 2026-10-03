@@ -32,6 +32,19 @@ struct JPNozzleTipConfig {
     // Waited after a pick or place with this tip, on top of the nozzle's own.
     int                        pickDwellMs = 0;
     int                        placeDwellMs = 0;
+    // PART DETECTION by the vacuum, as in OpenPnP. After a pick (part on) and
+    // after a place (part off), the vacuum level read is checked: by itself
+    // ("Absolute": within low..high), or as its change from the level read
+    // just before ("Difference": that level within low..high, its change
+    // within diffLow..diffHigh). "None": not checked. Part off is read once
+    // the valve has been opened for `probingMs` and closed for `dwellMs`.
+    struct Sensing {
+        std::string method = "None";
+        double low = 0, high = 0, diffLow = 0, diffHigh = 0;
+    };
+    Sensing                    partOn, partOff;
+    int                        partOffProbingMs = 0;
+    int                        partOffDwellMs = 0;
 
     // The steps that unload it: its own, or loading backwards. Backwards,
     // each move goes to the place the one before it went to, at the speed

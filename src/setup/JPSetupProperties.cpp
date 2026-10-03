@@ -610,6 +610,38 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
     }
     add.note("The nozzles this tip fits.");
 
+    add.tab("Part Detection");
+    for (const auto& [title, on] : { std::pair{ "Part On Vacuum Sensing", true }, std::pair{ "Part Off Vacuum Sensing", false } }) {
+        add.group(title);
+        auto sensing = [t, on = on]() -> JPNozzleTipConfig::Sensing& { return on ? t().partOn : t().partOff; };
+        const std::string key = on ? "partOn" : "partOff";
+        add.choice(key + "Method", "Measurement Method", { "None", "Absolute", "Difference" },
+                   [sensing] { return sensing().method; }, [sensing](const std::string& v) { sensing().method = v; });
+        f.reshaping.push_back(key + "Method");
+        if (sensing().method == "None") continue;
+        if (!on) {
+            add.row("Probing Time (ms)");
+            add.integer("partOffProbingMs", "Probing Time (ms)", [t]() -> int& { return t().partOffProbingMs; }, 0, 60000);
+            add.integer("partOffDwellMs", "Dwell Time (ms)", [t]() -> int& { return t().partOffDwellMs; }, 0, 60000);
+            add.end();
+        }
+        add.header({ "Low", "High" });
+        add.row(sensing().method == "Difference" ? "Vacuum Level Before" : "Vacuum Level");
+        add.number(key + "Low", "Vacuum Low", [sensing]() -> double& { return sensing().low; }, 1);
+        add.number(key + "High", "Vacuum High", [sensing]() -> double& { return sensing().high; }, 1);
+        add.end();
+        if (sensing().method == "Difference") {
+            add.row("Vacuum Difference");
+            add.number(key + "DiffLow", "Difference Low", [sensing]() -> double& { return sensing().diffLow; }, 1);
+            add.number(key + "DiffHigh", "Difference High", [sensing]() -> double& { return sensing().diffHigh; }, 1);
+            add.end();
+        }
+    }
+    add.note("Read from the nozzle's sensing actuator (else its vacuum actuator) after a pick and after a place "
+             "(the place's probe: the valve open for the probing time, then closed for the dwell). Absolute: the "
+             "level within Low..High. Difference: the level just before within Low..High, and its change within "
+             "the difference's.");
+
     add.tab("Tool Changer");
     add.group("Nozzle Tip Changer");
     add.choice("unloading", "Unloading", { "loading backwards", "steps of its own" },

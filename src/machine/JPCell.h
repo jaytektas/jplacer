@@ -64,10 +64,12 @@ public:
     void readActuator(const std::string& actuatorId);
     // Pick with a nozzle where it is: its head's vacuum pump on as the head's
     // pump control says (waiting the pump-on time when it starts), its vacuum
-    // on, then the nozzle's and its tip's pick dwell. Place: its vacuum off
-    // (unless its blow-off closes the valve itself), the blow-off pulsed for
-    // the place dwell, and the pump off when its control says so. Each
-    // actuator switched is reported on onActuator; nothing moves.
+    // on, then the nozzle's and its tip's pick dwell, and the part checked as
+    // the tip's part detection says. Place: its vacuum off (unless its
+    // blow-off closes the valve itself), the blow-off pulsed for the place
+    // dwell, the pump off when its control says so, and the part checked
+    // gone. Each actuator switched is reported on onActuator, a failed check
+    // on onAlarm; nothing moves.
     void pick(const std::string& nozzleId);
     void place(const std::string& nozzleId);
 
@@ -170,6 +172,13 @@ private:
     bool doSwitch(const std::string& actuatorId, bool on, std::string& why);
     bool doPick(const JPNozzleConfig& nozzle, std::string& why);
     bool doPlace(const JPNozzleConfig& nozzle, std::string& why);
+    bool doRead(const std::string& actuatorId, std::string& value, std::string& why);
+    // The nozzle's vacuum level, from its sensing actuator (else its vacuum actuator).
+    bool readVacuum(const JPNozzleConfig& nozzle, double& level, std::string& why);
+    // A part on (or off) as `sensing` says, from the level now (and `before`
+    // for a difference); false with why not.
+    bool sensed(const JPNozzleConfig& nozzle, const JPNozzleTipConfig::Sensing& sensing, double before, const char* onOff,
+                std::string& why);
     // Switch, and say so on onActuator.
     bool switchTelling(const std::string& actuatorId, bool on, std::string& why);
     // Switch every actuator as its setting for this machine state says

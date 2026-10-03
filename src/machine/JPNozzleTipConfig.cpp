@@ -122,6 +122,17 @@ JPNozzleTipConfig JPNozzleTipConfig::fromJson(const JJson& j) {
     for (const JJson& s : j["unload"].arr()) t.unloadSteps.push_back(JPChangerStep::fromJson(s));
     t.pickDwellMs  = int(j["pickDwellMs"].number());
     t.placeDwellMs = int(j["placeDwellMs"].number());
+    for (const auto& [key, sensing] : { std::pair{ "partOn", &t.partOn }, std::pair{ "partOff", &t.partOff } }) {
+        const JJson& d = j[key];
+        if (!d.isObject()) continue;
+        if (const std::string& m = d["method"].str(); !m.empty()) sensing->method = m;
+        sensing->low      = d["low"].number(0.0);
+        sensing->high     = d["high"].number(0.0);
+        sensing->diffLow  = d["diffLow"].number(0.0);
+        sensing->diffHigh = d["diffHigh"].number(0.0);
+    }
+    t.partOffProbingMs = int(j["partOff"]["probingMs"].number());
+    t.partOffDwellMs   = int(j["partOff"]["dwellMs"].number());
     return t;
 }
 
@@ -135,6 +146,15 @@ JJson JPNozzleTipConfig::toJson() const {
     j["unload"]   = toArray(unloadSteps);
     if (pickDwellMs) j["pickDwellMs"] = pickDwellMs;
     if (placeDwellMs) j["placeDwellMs"] = placeDwellMs;
+    for (const auto& [key, sensing] : { std::pair{ "partOn", &partOn }, std::pair{ "partOff", &partOff } }) {
+        j[key]["method"]   = sensing->method;
+        j[key]["low"]      = sensing->low;
+        j[key]["high"]     = sensing->high;
+        j[key]["diffLow"]  = sensing->diffLow;
+        j[key]["diffHigh"] = sensing->diffHigh;
+    }
+    j["partOff"]["probingMs"] = partOffProbingMs;
+    j["partOff"]["dwellMs"]   = partOffDwellMs;
     return j;
 }
 
