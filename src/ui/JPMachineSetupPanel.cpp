@@ -55,8 +55,8 @@ JPMachineSetupPanel::JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, 
         update();
         if (onHistory) onHistory();
     };
-    m_settle.setInterval(kSettleMs).setSingleShot(true);
-    m_settle.timeout.connect([this] { settle(); });
+    m_retry.setInterval(kRetryMs).setSingleShot(true);
+    m_retry.timeout.connect([this] { handOver(); });
 
     auto tools = JPUiParts::row(graph);
     m_add = tools->add(JPUiParts::button(graph, "Add"));
@@ -155,15 +155,13 @@ void JPMachineSetupPanel::change(const std::string& what, const std::function<vo
     rebuildTree();
     m_form->refresh();
     record(what, "", from);
-    m_settle.stop();
-    settle();
 }
 
 void JPMachineSetupPanel::record(const std::string& what, const std::string& key, const std::string& from) {
     JPSetupHistory::State after{ m_draft, m_selected };
     m_history.record(what, key, { std::move(m_recorded), from }, after);
     m_recorded = std::move(after.cell);
-    m_settle.start();
+    handOver();
 }
 
 void JPMachineSetupPanel::restore(const JPSetupHistory::State& state) {
@@ -173,14 +171,15 @@ void JPMachineSetupPanel::restore(const JPSetupHistory::State& state) {
     rebuildTree();
     m_selected.clear();
     select(state.selected);
-    m_settle.start();
+    handOver();
 }
 
-void JPMachineSetupPanel::settle() {
+void JPMachineSetupPanel::handOver() {
+    m_retry.stop();
     if (!m_draft.problems().empty() || m_draft.toJson().dump() == m_inUse.toJson().dump()) return;
     if (!onApply) return;
     if (onApply(m_draft)) m_inUse = m_draft;
-    else m_settle.start();   // not taken now (the machine is moving): again shortly
+    else m_retry.start();   // not taken now (the machine is moving): again shortly
 }
 
 std::string JPMachineSetupPanel::undoLabel() const {

@@ -30,18 +30,18 @@ inline namespace jf {
 
 // Machine Setup: the machine's parts as a tree (JPSetupTree), the selected
 // part's settings under it, Add, Remove and Up / Down for the parts, and
-// over the tree: open all, close all, and a search filter. Each change is
-// handed to the owner (who gives it to the running machine and saves it)
-// once the person stops changing it for a moment, so typing a number hands
-// over the number, not each digit. Undo and Redo step through the changes
+// over the tree: open all, close all, and a search filter. Each change, as
+// it is committed (Return, Tab or leaving a field, a step of a number, a
+// box ticked, a choice made), is handed to the owner, who gives it to the
+// running machine and saves it. Undo and Redo step through the changes
 // (JPSetupHistory). What is wrong with the setup (a part naming one that is
 // not there) is listed, and nothing is handed over until it is put right.
 class JPMachineSetupPanel : public JContainer {
 public:
     // How much of the room the tree takes over the settings, to start with.
     static constexpr double kTreeShare = 0.4;
-    // How long changes must stop before they are handed over, in ms.
-    static constexpr float kSettleMs = 700.f;
+    // How long before a change not taken (the machine was moving) is handed over again, in ms.
+    static constexpr float kRetryMs = 500.f;
 
     // `cell`: the cell as it is. `profiles`: the firmware profiles a
     // controller can name. `selected`: the node to start on (a path, see
@@ -92,12 +92,12 @@ private:
     void select(const std::string& path);
     void show(const std::string& path);
     void changed(const std::string& property);
-    // A change was made to m_draft: a step to undo, handed over once things settle.
+    // A change was made to m_draft: a step to undo, handed over.
     // `from`: the node selected when it was made, to go back to on Undo.
     void record(const std::string& what, const std::string& key, const std::string& from);
     void restore(const JPSetupHistory::State& state);
     // Hand m_draft over when it differs from what is in use and nothing is wrong with it.
-    void settle();
+    void handOver();
     void update();
     void collectExpanded(const JTreeViewNode& n);
 
@@ -105,7 +105,7 @@ private:
     JPCellConfig             m_draft;      // as set up
     JPCellConfig             m_recorded;   // m_draft as the last step left it
     JPSetupHistory           m_history;
-    JFrameTimer              m_settle;
+    JFrameTimer              m_retry;
     std::map<std::string, std::string> m_labels;   // the shown form's property names: their labels
     std::vector<std::string> m_profiles;
     std::string              m_selected;

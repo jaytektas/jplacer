@@ -130,7 +130,8 @@ notes.
   and the position readout.
 - Machine Setup has no Apply or Reset any more: each change goes to the machine (and is saved) as you
   make it, and Undo and Redo (also in the Edit menu, Ctrl+Z and Ctrl+Shift+Z) step back and forward
-  through them. A setup with something wrong in it is kept from the machine until it is put right.
+  through them. A text field's value changes when you press Return or Tab or leave it, and Escape puts
+  the old value back. A setup with something wrong in it is kept from the machine until it is put right.
 
 ## 0.1.0
 

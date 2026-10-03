@@ -3,6 +3,7 @@
 
 #include "JPPropertyForm.h"
 
+#include "JPTextField.h"
 #include "JPUiParts.h"
 
 
@@ -66,7 +67,20 @@ void JPPropertyForm::setModel(JPropertyModel model) {
             if (ok && onChanged) onChanged(name);
             return ok;
         };
-        JPropertyEditor e = jMakePropertyEditor(m_graph, bound);
+        // A line of text changes when it is committed (Return, Tab, leaving
+        // it), as a number does; the framework's editor for it changes on each key.
+        const JVariant now = p.get();
+        const bool text = p.meta.choices.empty() && !now.isBool() && !now.isInt() && !now.isDouble();
+        JPropertyEditor e;
+        if (text) {
+            auto field = std::make_unique<JPTextField>(m_graph);
+            JPTextField* f = field.get();
+            f->onCommitted.connect([set = bound.set](const std::string& t) { set(JVariant(t)); });
+            e.pull = [f, get = p.get] { f->setValue(get().toString()); };
+            e.widget = std::move(field);
+        } else {
+            e = jMakePropertyEditor(m_graph, bound);
+        }
         m_pulling = true;
         e.pull();
         m_pulling = false;

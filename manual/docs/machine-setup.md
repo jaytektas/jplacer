@@ -102,8 +102,11 @@ change loading, or choose steps of its own, which start as those.
 
 ## Changes are used as you make them
 
-There is no Apply: each change goes to the running machine and is saved in the cell file as soon as you
-stop changing it for a moment, so typing a number hands over the number, not each digit as it is typed.
+There is no Apply: each change goes to the running machine, and is saved in the cell file, as you make it.
+A value in a field is changed when you press Return or Tab or leave the field, or step a number up or
+down; until then only the field has changed, and **Escape** puts back the value it had. A box ticked or a
+choice made is changed at once.
+
 Nothing is disconnected: the controllers take their new settings as they run, and the machine stays
 homed. A controller's **connection** settings (its port, speed or flow control, its firmware profile,
 how long it waits while connecting) are used the next time you connect; a controller added is connected
@@ -121,8 +124,8 @@ axis changed.
 
 **Undo** and **Redo** at the bottom of Machine Setup (and **Edit ▸ Undo**, Ctrl+Z, and **Edit ▸ Redo**,
 Ctrl+Shift+Z) step back and forward through the changes, the machine following; each says what it would
-undo or redo ("Undo Add Camera"), and takes you to where the change was made. Typing on in one field is
-one step. A port chosen on the Machine panel is a step too. The steps are kept until another cell is
-opened.
+undo or redo ("Undo Add Camera"), and takes you to where the change was made. Changes one after another to
+the same setting (a number stepped up several times) are one step. A port chosen on the Machine panel
+is a step too. The steps are kept until another cell is opened.
 
-<!-- src: src/ui/JPMachineSetupPanel.cpp (record, settle, undo, the buttons); src/setup/JPSetupHistory.h; src/app/JPlacerMachine.cpp (applySetup, setPort, undo); src/app/JPlacerMenuBuilder.cpp; src/machine/JPCell.cpp (reconfigure); src/machine/JPGcodeDriver.cpp (setConfig); src/machine/JPCellConfig.cpp (problems) -->
+<!-- src: src/ui/JPMachineSetupPanel.cpp (record, handOver, undo, the buttons); src/ui/JPTextField.cpp; src/ui/JPPropertyForm.cpp; src/setup/JPSetupHistory.h; src/app/JPlacerMachine.cpp (applySetup, setPort, undo); src/app/JPlacerMenuBuilder.cpp; src/machine/JPCell.cpp (reconfigure); src/machine/JPGcodeDriver.cpp (setConfig); src/machine/JPCellConfig.cpp (problems) -->
