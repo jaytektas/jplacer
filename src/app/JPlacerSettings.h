@@ -33,7 +33,7 @@ public:
     static constexpr const char* kTheme            = "appearance.theme";
     static constexpr const char* kUiScale          = "ui.scale";
     // Machine Setup's divider: the tree's share of the room over the settings.
-    static constexpr const char* kSetupTreeShare   = "setup.treeShare";
+    static constexpr const char* kSetupTreeShare   = "setup.treeWidthShare";
     // The Jog panel's choices: the tool, the distance (its index) and the speed (a share).
     static constexpr const char* kJogTool          = "jog.tool";
     static constexpr const char* kJogDistance      = "jog.distance";

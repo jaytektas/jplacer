@@ -17,7 +17,7 @@ The machine is shown as a tree of its parts:
 - **Cameras**: the cameras fixed to the machine (looking up at the nozzles).
 - **Actuators**: the actuators on the machine rather than a head.
 
-Choose a part to see its settings below the tree; drag the divider between them to give either more
+Choose a part to see its settings beside the tree, each the full height of the panel; drag the divider between them to give either more
 room (where it is is kept for next time). Over the tree, **+** opens every branch, **−** closes
 them down to the machine's groups, and **Search** keeps to the rows whose name contains what is typed
 (and the groups they are in); its **×** clears it. Right-click a row for the same and more: **Open This

@@ -70,13 +70,14 @@ JPMachineSetupPanel::JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, 
     m_down->onClicked.connect([this] { moveSelected(+1); });
     add(std::move(tools));
 
-    // The tree over the selected part's settings, a divider between them to drag.
+    // The tree beside the selected part's settings, each the full height, a
+    // divider between them to drag.
     m_treePane = std::make_unique<JContainer>(graph, 0.f, 0.f);
     m_formPane = std::make_unique<JContainer>(graph, 0.f, 0.f);
     for (JContainer* pane : { m_treePane.get(), m_formPane.get() })
         pane->setDirection(JFlexDirection::Column)->setGap(2 * JStyle::current().spacing)->setAlignItems(JAlignItems::Stretch)
             ->setShrinkStretchyFirst(true);
-    m_split = add(std::make_unique<JSplitter>(graph, JSplitter::JOrientation::Vertical, 0.f, 0.f));
+    m_split = add(std::make_unique<JSplitter>(graph, JSplitter::JOrientation::Horizontal, 0.f, 0.f));
     m_split->setHostsPanes(true);
     m_split->setVSizePolicy(JSizePolicyMode::Expanding, 1);
     m_split->addPane(m_treePane.get(), float(treeShare));

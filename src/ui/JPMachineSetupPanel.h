@@ -40,15 +40,15 @@ inline namespace jf {
 // not there) is listed, and nothing is handed over until it is put right.
 class JPMachineSetupPanel : public JContainer {
 public:
-    // How much of the room the tree takes over the settings, to start with.
-    static constexpr double kTreeShare = 0.4;
+    // How much of the width the tree takes beside the settings, to start with.
+    static constexpr double kTreeShare = 0.3;
     // How long before a change not taken (the machine was moving) is handed over again, in ms.
     static constexpr float kRetryMs = 500.f;
 
     // `cell`: the cell as it is. `profiles`: the firmware profiles a
     // controller can name. `selected`: the node to start on (a path, see
     // JPSetupTree), as it was before the panel was made again. `treeShare`:
-    // the tree's share of the room over the settings (the divider between).
+    // the tree's share of the width beside the settings (the divider between).
     JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, std::vector<JPFirmwareProfile> profiles, std::string selected,
                         double treeShare = kTreeShare);
 

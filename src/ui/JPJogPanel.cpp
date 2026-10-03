@@ -68,16 +68,20 @@ JPJogPanel::JPJogPanel(JSceneGraph& graph, JPCell& cell, Choices start) : JConta
     }
 
     m_stepThrough = start.stepThrough;
-    // The tool, and beside it the chosen nozzle's tip menu.
+    // The tool, and beside it the chosen nozzle's tip menu. The buttons keep
+    // their size; the tool's box takes what room is left.
     auto top = JPUiParts::row(graph);
+    const float side = JStyle::current().buttonHeight;
     std::vector<std::string> labels;
     for (const Tool& t : m_tools) labels.push_back(t.label);
     JComboBox* tools = top->add(std::make_unique<JComboBox>(graph, labels, 0.f));
     tools->setHSizePolicy(JSizePolicyMode::Expanding, 1);
+    tools->setMinimumSize(3 * side, JStyle::current().controlHeight);   // a long name is cut short, not the buttons
     tools->setCurrentIndex(int(m_tool));
     auto tip = std::make_unique<JPIconButton>(graph, "Nozzle Tip", &JPIcons::nozzleTip,
                                               "The nozzle's tip: load one, unload it, or say which is on it");
     tip->setFramed(true);
+    tip->setFixedSize(side, side);
     tip->onClicked.connect([this] { showTipMenu(); });
     m_tipButton = top->add(std::move(tip));
     m_tipButton->setEnabled(m_tools[m_tool].nozzle);
@@ -86,11 +90,13 @@ JPJogPanel::JPJogPanel(JSceneGraph& graph, JPCell& cell, Choices start) : JConta
     auto stopButton = std::make_unique<JPIconButton>(graph, "Stop", &JPIcons::stopMove,
                                                      "Stop the move: held, the rest thrown away, the position kept (Esc)");
     stopButton->setFramed(true);
+    stopButton->setFixedSize(side, side);
     stopButton->onClicked.connect([this] { act("stop"); });
     top->add(std::move(stopButton));
     auto estop = std::make_unique<JPIconButton>(graph, "Emergency Stop", &JPIcons::emergencyStop,
-                                                "EMERGENCY STOP: every controller reset at once; home again after (Shift+Esc)");
+                                                "EMERGENCY STOP: every controller reset at once; home again after");
     estop->setDanger(true);
+    estop->setFixedSize(side, side);
     estop->onClicked.connect([this] { act("emergencyStop"); });
     top->add(std::move(estop));
     tools->onIndexChanged.connect([this](int i) {

@@ -188,8 +188,11 @@ notes.
 - A nozzle's Z can be homed on its own (Home Z, in the nozzle's tip menu), for when forcing a tip on made
   its motor slip: the head parks, then the nozzle's own home G-code runs (set on its Homing tab in Machine
   Setup). Nozzles sharing a Z motor are homed together. Importing an OpenPnP machine again keeps it.
+- Machine Setup shows its tree beside the chosen part's settings rather than over them, so both have
+  the panel's full height.
 - The Jog pad's park buttons show a parking sign that grows with the pad.
-- Buttons and other controls are no longer clipped by a pixel along an edge.
+- Buttons and other controls are no longer clipped by a pixel along an edge, and the Jog panel's tip, Stop
+  and E-STOP buttons stay whole in a narrow dock (a long tool name is cut short instead).
 
 ## 0.1.0
 
