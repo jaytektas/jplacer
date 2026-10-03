@@ -108,14 +108,12 @@ goes back to the machine as it is. Both are available once something has changed
 What is wrong with the copy (a part naming one that is not there) is listed above the buttons, and
 Apply waits until it is put right. Apply then hands the new setup to the running machine and saves the
 cell file. Nothing is disconnected: the controllers take their new settings as they run, and the
-machine stays homed. The exceptions:
-
-- a controller whose **connection** changed (its port, speed or flow control, its firmware profile, or
-  how long it waits while connecting) is connected again, that one alone; Apply asks first, naming it;
-- the machine must be homed again after that, or after a change to the **axes**, as its coordinates
-  then mean something else.
+machine stays homed. A controller's **connection** settings (its port, speed or flow control, its
+firmware profile, how long it waits while connecting) are used the next time you connect; a controller
+added is connected then too. After a change to the **axes** the machine must be homed again, as its
+coordinates then mean something else.
 
 While the machine is moving, Apply waits for it to stop. Calibrations and squareness measured while the
 setup was being changed are kept.
 
-<!-- src: src/ui/JPMachineSetupPanel.cpp (update, the buttons); src/app/JPlacerMachine.cpp (applySetup); src/machine/JPCell.cpp (reconfigure, reconnects, sameConnection); src/machine/JPGcodeDriver.cpp (setConfig); src/machine/JPCellConfig.cpp (problems) -->
+<!-- src: src/ui/JPMachineSetupPanel.cpp (update, the buttons); src/app/JPlacerMachine.cpp (applySetup); src/machine/JPCell.cpp (reconfigure); src/machine/JPGcodeDriver.cpp (setConfig); src/machine/JPCellConfig.cpp (problems) -->

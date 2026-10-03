@@ -120,8 +120,8 @@ notes.
 - Machine Setup's tree has buttons to open and close every branch, a search box with a clear button,
   and a right-click menu: open or close a branch, open or close all, add, remove.
 - Applying Machine Setup no longer disconnects the machine: it takes the new settings as it runs and
-  stays homed. Only a controller whose connection settings changed is connected again (you are asked
-  first), and a change to the axes needs a home.
+  stays homed. A controller's connection settings (port, profile) are used the next time you connect,
+  and a change to the axes needs a home.
 - Machine Setup has a divider between the tree and the settings, to drag; where it is is kept.
 - Panels short of room shrink their lists and boxes first, so buttons and input lines (the console's,
   the Board panel's rows) are no longer squeezed or lost.

@@ -353,41 +353,25 @@ void JPlacerMachine::applySetup(JPCellConfig cell) {
     // Measured while it was being set up: the cell's, not the copy's.
     for (JPCameraConfig& c : cell.cameras) c.calibrations = m_cell->cameraCalibrations(c.id);
     cell.squareness = m_cell->squareness();
-    std::weak_ptr<bool> alive = m_alive;
-    auto apply = [this, alive, cell] {
-        if (const auto a = alive.lock(); !a || !*a) return;
-        // The running machine takes the new settings; its panels are made
-        // again from them. Nothing is let go (JPCell::reconfigure).
-        std::string error;
-        dropPanels();
-        const bool taken = m_cell->reconfigure(cell, error);
-        watchCell();
-        buildPanels();
-        updateMenu();
-        showState();
-        if (!taken) {
-            JDialog::message("Machine Setup could not be applied", error);
-            return;
-        }
-        if (!cell.save(m_cellPath, error)) {
-            JDialog::message("Machine Setup is in use but was not saved", error);
-            return;
-        }
-        JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Machine Setup applied to " << m_cellPath;
-        m_window.showStatus("Machine Setup applied", kStatusMs);
-    };
-    // Only a controller whose connection changed is connected again: say so first.
-    const std::vector<std::string> again = m_cell->reconnects(cell);
-    if (again.empty()) {
-        apply();
+    // The running machine takes the new settings; its panels are made again
+    // from them. Nothing is let go (JPCell::reconfigure).
+    std::string error;
+    dropPanels();
+    const bool taken = m_cell->reconfigure(cell, error);
+    watchCell();
+    buildPanels();
+    updateMenu();
+    showState();
+    if (!taken) {
+        JDialog::message("Machine Setup could not be applied", error);
         return;
     }
-    std::string names;
-    for (const std::string& n : again) names += (names.empty() ? "" : ", ") + n;
-    JDialog::confirm("Apply Machine Setup",
-                     "How " + names + " is connected has changed: " + (again.size() == 1 ? "it is" : "they are")
-                         + " connected again with the new settings, and the machine must be homed again before it moves.",
-                     apply);
+    if (!cell.save(m_cellPath, error)) {
+        JDialog::message("Machine Setup is in use but was not saved", error);
+        return;
+    }
+    JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Machine Setup applied to " << m_cellPath;
+    m_window.showStatus("Machine Setup applied", kStatusMs);
 }
 
 void JPlacerMachine::showState() {

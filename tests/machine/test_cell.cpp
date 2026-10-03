@@ -171,7 +171,6 @@ int main() {
             next.nozzles[0].name = "Left";
             next.drivers[0].name = "Main";
             next.drivers[0].commandTimeoutMs = 700;
-            assert(cell.reconnects(next).empty());
             std::string why;
             assert(cell.reconfigure(next, why) && cell.isConnected() && cell.isHomed());
             assert(cell.config().nozzles[0].name == "Left");
@@ -181,18 +180,14 @@ int main() {
             assert(name.take() == "Main");
             watch();
 
-            // Its connection changed: that controller alone is connected again,
-            // and the machine must be homed again.
+            // How it connects changed: the open link stays open, still homed;
+            // the new settings are for the next connect.
             next = cell.config();
             next.drivers[0].link["simulator"]["replies"]["M1000 P2"] = "7";
-            assert(cell.reconnects(next) == std::vector<std::string>{ "Main" });
-            assert(cell.reconfigure(next, why) && cell.isConnected() && !cell.isHomed());
-            cell.readActuator("V");
-            assert(actuator.take().first);   // the new connection answers
+            assert(cell.reconfigure(next, why) && cell.isConnected() && cell.isHomed());
+            assert(cell.config().drivers[0].link.dump() == next.drivers[0].link.dump());
 
             // The axes changed: still connected, homed no longer.
-            cell.home();
-            assert(motion.take().first && cell.isHomed());
             next = cell.config();
             next.axes[0].softLimitHigh = 380;
             assert(cell.reconfigure(next, why) && cell.isConnected() && !cell.isHomed());

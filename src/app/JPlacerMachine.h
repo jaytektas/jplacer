@@ -71,8 +71,7 @@ private:
     // Machine Setup's Apply (and a port chosen): the running machine takes
     // `cell` (with the calibrations and squareness measured meanwhile, see
     // JPCell::reconfigure), its panels are made again, and it is kept in the
-    // cell file. Asked first only when a controller's connection changed, as
-    // that one is connected again.
+    // cell file. The machine stays connected.
     void applySetup(JPCellConfig cell);
     // Follow the open cell's signals (the menu, the strip, the status bar).
     void watchCell();

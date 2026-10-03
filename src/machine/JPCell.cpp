@@ -38,20 +38,6 @@ std::unique_ptr<JPGcodeDriver> JPCell::makeDriver(const JPDriverConfig& config) 
     return driver;
 }
 
-bool JPCell::sameConnection(const JPDriverConfig& a, const JPDriverConfig& b) {
-    return a.link.dump() == b.link.dump() && a.profile == b.profile && a.connectWaitMs == b.connectWaitMs
-        && a.identifyTimeoutMs == b.identifyTimeoutMs;
-}
-
-std::vector<std::string> JPCell::reconnects(const JPCellConfig& next) const {
-    std::vector<std::string> out;
-    if (!m_connected) return out;
-    for (const JPDriverConfig& d : next.drivers)
-        if (const JPGcodeDriver* old = driver(d.id); !old || !sameConnection(old->config(), d))
-            out.push_back(d.name);
-    return out;
-}
-
 bool JPCell::reconfigure(JPCellConfig config, std::string& why) {
     if (m_moving || m_homing) {
         why = "the machine is moving: try again once it has stopped";
@@ -60,35 +46,18 @@ bool JPCell::reconfigure(JPCellConfig config, std::string& why) {
     std::promise<std::pair<bool, std::string>> done;
     auto result = done.get_future();
     m_thread.post([this, &config, &done] {
-        std::string failed;
-        bool reopened = false;
+        // Every controller takes its new settings as it runs: the link that is
+        // open stays open, and settings of how to connect are used the next time.
+        // A controller new to the cell is connected the next time too.
         std::vector<std::unique_ptr<JPGcodeDriver>> drivers;
         for (const JPDriverConfig& d : config.drivers) {
             auto old = std::find_if(m_drivers.begin(), m_drivers.end(), [&d](const auto& o) { return o && o->id() == d.id; });
-            // The same connection: the controller takes its new settings as it runs.
-            if (old != m_drivers.end() && (!m_connected || sameConnection((*old)->config(), d))) {
-                (*old)->setConfig(d);
-                drivers.push_back(std::move(*old));
+            if (old == m_drivers.end()) {
+                drivers.push_back(makeDriver(d));
                 continue;
             }
-            // A new connection (another port, speed, profile), or a new controller.
-            if (old != m_drivers.end()) {
-                (*old)->disconnect();
-                reopened = true;
-            }
-            auto fresh = makeDriver(d);
-            if (m_connected && failed.empty()) {
-                JLOGC(JPlacerLog::kCell, JLogLevel::Info) << config.name << ": connecting " << d.name << " again, as set up";
-                std::string error;
-                if (!fresh->connect(error)) failed = error;
-                else if (fresh->profile()->hasSettings() && !fresh->readSettings(error))
-                    JLOGC(JPlacerLog::kDriver, JLogLevel::Warn) << error;
-                if (failed.empty()) {
-                    std::lock_guard lk(m_mutex);
-                    m_firmware[d.id] = fresh->profile()->name();
-                }
-            }
-            drivers.push_back(std::move(fresh));
+            (*old)->setConfig(d);
+            drivers.push_back(std::move(*old));
         }
         for (auto& gone : m_drivers)
             if (gone) gone->disconnect();   // taken out of the cell
@@ -105,15 +74,12 @@ bool JPCell::reconfigure(JPCellConfig config, std::string& why) {
             for (const JPAxisConfig& a : m_config.axes) m_positions.try_emplace(a.id, a.homeCoordinate);
         }
         JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_config.name << ": set up anew"
-            << (axesChanged ? "; the axes changed" : "") << (reopened ? "; a controller connected again" : "");
-        if (!failed.empty()) {
-            doDisconnect();
-            onConnection.emit(false, failed);
-        } else if ((axesChanged || reopened) && m_homed) {
+            << (axesChanged ? "; the axes changed" : "");
+        if (axesChanged && m_homed) {
             m_homed = false;
             onHomed.emit(false);
         }
-        done.set_value({ failed.empty(), failed });
+        done.set_value({ true, "" });
     });
     const auto [ok, w] = result.get();
     why = w;

@@ -36,19 +36,14 @@ public:
     const JPCellConfig& config() const { return m_config; }
     bool isConnected() const { return m_connected; }
 
-    // NEW SETTINGS FOR THE RUNNING MACHINE (Machine Setup's Apply). Nothing is
-    // let go: each controller takes its new settings as it runs, and only one
-    // whose connection changed (link, firmware profile, the waits while
-    // connecting) is connected again, alone; one added is connected, one
-    // removed let go. The machine stays homed unless its axes changed or a
-    // controller was connected again (then its coordinates mean something
-    // else). Waits for the cell thread, so no move runs meanwhile; refused
-    // while one is under way. False with `why` (refused, or a controller
-    // that would not connect again: the cell is then disconnected).
+    // NEW SETTINGS FOR THE RUNNING MACHINE (Machine Setup). Nothing is let
+    // go: each controller takes its new settings as it runs, its open link
+    // staying open (settings of how to connect are used at the next
+    // connect); one added is connected at the next connect, one removed let
+    // go. The machine stays homed unless its axes changed (then its
+    // coordinates mean something else). Waits for the cell thread, so no move
+    // runs meanwhile; refused (false, with `why`) while one is under way.
     bool reconfigure(JPCellConfig config, std::string& why);
-    // The controllers reconfigure would connect again, by name (none while
-    // not connected).
-    std::vector<std::string> reconnects(const JPCellConfig& next) const;
 
     // Connect every controller, identify it and read its stored settings.
     // All or nothing: if one fails, the others are disconnected again.
@@ -145,8 +140,6 @@ public:
 private:
     JPGcodeDriver* driver(const std::string& id) const;
     std::unique_ptr<JPGcodeDriver> makeDriver(const JPDriverConfig& config);
-    // Whether two settings of a controller connect it the same way.
-    static bool sameConnection(const JPDriverConfig& a, const JPDriverConfig& b);
     static std::string format(double v, int decimals);
     void updatePositions(const std::string& driverId, const JPFirmwareProfile::Status& status);
     void doDisconnect();
