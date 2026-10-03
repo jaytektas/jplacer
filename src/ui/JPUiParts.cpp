@@ -12,7 +12,12 @@ inline namespace jf {
 
 std::unique_ptr<JContainer> JPUiParts::row(JSceneGraph& graph) {
     const JStyle& st = JStyle::current();
-    auto c = std::make_unique<JContainer>(graph, 0.f, std::max(st.buttonHeight, st.controlHeight));
+    const float h = std::max(st.buttonHeight, st.controlHeight);
+    auto c = std::make_unique<JContainer>(graph, 0.f, h);
+    // Never shorter: a column short of room squeezed its rows flat, and the
+    // buttons in them kept the height they were squeezed to, so a window made
+    // small and then big again had lost them.
+    c->setMinimumSize(0.f, h);
     c->setDirection(JFlexDirection::JRow)->setGap(st.spacing)->setAlignItems(JAlignItems::Center);
     return c;
 }

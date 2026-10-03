@@ -14,7 +14,8 @@ inline namespace jf {
 // The small pieces every panel is built from, made one way.
 class JPUiParts {
 public:
-    // A row of controls, as tall as its tallest kind of control.
+    // A row of controls, as tall as its tallest kind of control, and never
+    // squeezed shorter.
     static std::unique_ptr<JContainer> row(JSceneGraph& graph);
     // Make `c` a panel's column: padded, spaced, children stretched to its width.
     static void asPanel(JContainer& c);
