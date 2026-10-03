@@ -169,6 +169,25 @@ int main() {
         // Whole steps: Z moves in quarters.
         cell.moveAxes({ { "Z", -1.6 } }, 1.0);
         assert(motion.take().first && settle("Z", -1.5));
+        // A whole step never takes an axis past a soft limit: to the limit
+        // itself, the step on this side of it (X 400 in steps of 0.3 is 399.9).
+        {
+            JPCellConfig next = cell.config();
+            next.axes[0].resolution = 0.3;
+            std::string why;
+            assert(cell.reconfigure(next, why));
+            cell.home();                                   // the axes changed: homed again
+            assert(motion.take().first);
+            cell.moveAxes({ { "X", 400.0 } }, 1.0);
+            const auto [ok, whyNot] = motion.take();
+            assert(ok && std::abs(cell.jogBase().at("X") - 399.9) < 1e-6);
+            next.axes[0].resolution = 0;
+            assert(cell.reconfigure(next, why));
+            cell.home();
+            assert(motion.take().first);
+            cell.moveAxes({ { "X", 395.0 } }, 1.0);
+            assert(motion.take().first && settle("X", 395.0));
+        }
         // A rotation that wraps and is limited goes the short way, past 180,
         // and is then told where it is within -180..180.
         cell.moveAxes({ { "C", 170 } }, 1.0);

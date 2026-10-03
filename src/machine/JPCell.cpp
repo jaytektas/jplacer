@@ -833,9 +833,18 @@ bool JPCell::doMove(std::map<std::string, double> targets, double speed, std::st
     const std::map<std::string, double> square = hardware;
     const auto now = jogBase();
     hardware = toAxes(hardware, now);
-    // Whole steps of an axis with a resolution: where it can actually stop.
-    for (auto& [id, t] : hardware)
-        if (const double r = m_config.axis(id)->resolution; r > 0) t = std::round(t / r) * r;
+    // Whole steps of an axis with a resolution: where it can actually stop;
+    // the nearest, unless that is past a soft limit (a place at the limit
+    // itself), then the nearest on this side of it.
+    for (auto& [id, t] : hardware) {
+        const JPAxisConfig* a = m_config.axis(id);
+        const double r = a->resolution;
+        if (r <= 0) continue;
+        double stepped = std::round(t / r) * r;
+        if (a->softLimitHighEnabled && stepped > a->softLimitHigh && t <= a->softLimitHigh) stepped = std::floor(t / r) * r;
+        if (a->softLimitLowEnabled && stepped < a->softLimitLow && t >= a->softLimitLow) stepped = std::ceil(t / r) * r;
+        t = stepped;
+    }
     for (const auto& [id, t] : hardware) {
         const JPAxisConfig* hw = m_config.axis(id);
         if ((hw->softLimitLowEnabled && t < hw->softLimitLow) || (hw->softLimitHighEnabled && t > hw->softLimitHigh)) {

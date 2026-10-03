@@ -173,6 +173,8 @@ notes.
   next time, and the panel scrolls when its dock is short. The left column gives the machine controls
   more of its height, and the console a little less of the window's, so the pad shows whole.
 - Menu keys work: Edit ▸ Undo (Ctrl+Z) and Redo (now Ctrl+Y), Home All Axes (Ctrl+H).
+- A move to a soft limit itself (the park place at X 390, say) is no longer refused because the nearest
+  whole motor step lies a hair past it: it goes to the step on this side.
 
 ## 0.1.0
 
