@@ -21,6 +21,7 @@
 #include <cmath>
 #include <cstdio>
 #include <filesystem>
+#include <map>
 
 using namespace jf;
 namespace fs = std::filesystem;
@@ -75,6 +76,22 @@ public:
         return true;
     }
     std::vector<std::string> actuated;
+    // What a read gives: by actuator name.
+    std::map<std::string, std::string> readings;
+    bool readActuator(const std::string& name, double parameter, std::string& value, std::string& why) override {
+        actuated.push_back("read " + name + "(" + std::to_string(int(parameter)) + ")");
+        const auto r = readings.find(name);
+        if (r == readings.end()) {
+            why = "Unable to find an actuator named " + name;
+            return false;
+        }
+        value = r->second;
+        return true;
+    }
+    bool actuateText(const std::string& name, const std::string& value, std::string&) override {
+        actuated.push_back(name + "=" + value);
+        return true;
+    }
     bool moveActuator(const std::string& name, const JPLocation& at, bool withZ, double speed, std::string&) override {
         char text[160];
         std::snprintf(text, sizeof text, "%s to %.2f,%.2f%s at %.2f", name.c_str(), at.x(), at.y(),

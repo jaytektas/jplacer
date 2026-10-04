@@ -65,6 +65,11 @@ public:
     // thread of its own. False with `why`.
     bool switchActuatorAndWait(const std::string& actuatorId, bool on, std::string& why);
     void readActuator(const std::string& actuatorId);
+    // Read an actuator, waiting for its value: for a procedure on a thread of
+    // its own. With `parameter`, its read command's {value} is it (OpenPnP's
+    // actuator.read(parameter): a feeder's number). False with `why`.
+    bool readActuatorAndWait(const std::string& actuatorId, const std::optional<std::string>& parameter, std::string& value,
+                             std::string& why);
     // A Number or Text actuator set to `value`, waiting for the controller's
     // answer: for a procedure on a thread of its own. False with `why`.
     bool setActuatorAndWait(const std::string& actuatorId, const std::string& value, std::string& why);
@@ -249,7 +254,8 @@ private:
     // `work` on the cell thread as a move (refused while one is under way), waited for.
     bool waitFor(std::function<bool(std::string&)> work, std::string& why);
     bool doPlace(const JPNozzleConfig& nozzle, std::string& why);
-    bool doRead(const std::string& actuatorId, std::string& value, std::string& why);
+    bool doRead(const std::string& actuatorId, std::string& value, std::string& why,
+                const std::optional<std::string>& parameter = std::nullopt);
     // The nozzle's vacuum level, from its sensing actuator (else its vacuum actuator).
     bool readVacuum(const JPNozzleConfig& nozzle, double& level, std::string& why);
     // A part on (or off) as `sensing` says, from the level now (and `before`

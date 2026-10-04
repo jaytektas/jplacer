@@ -27,7 +27,7 @@ ReferenceRotatedTrayFeeder, ReferenceDragFeeder, ReferenceLeverFeeder, Reference
 ReferenceTubeFeeder, ReferenceAutoFeeder, ReferenceSlotAutoFeeder, ReferenceLoosePartFeeder,
 AdvancedLoosePartFeeder, ReferenceHeapFeeder, BlindsFeeder, SchultzFeeder, SlotSchultzFeeder, RapidFeeder,
 Neoden4Feeder, PhotonFeeder and BambooFeederAutoVision. Click one and **Accept**, or double-click it.
-jplacer works out where strip, tray, rotated tray, auto, tube, drag and lever feeders pick, and feeds them. The other kinds are kept and
+jplacer works out where strip, tray, rotated tray, auto, tube, drag, lever, Schultz and Rapid feeders pick, and feeds them. The other kinds are kept and
 set up, but feeding them is not yet available (**Pick...** and **Feed...** say so), and **Move Camera...**
 and **Move Tool...** say jplacer does not work out where they pick yet.
 
@@ -165,6 +165,30 @@ each push only (not before the first), and the 2 mm step to the first of two par
 vision on, as OpenPnP does.
 
 <!-- src: src/setup/JPFeederForms.cpp (pinForm); src/tasks/JPFeederFeed.cpp (pinFeed); src/model/JPFeeder.cpp (pickLocation) -->
+
+### Schultz feeder
+
+An electric feeder driven through actuators, as OpenPnP's Schultz feeder. Besides the **General Settings**
+and **Pick Location**, its **Actuators**: the **Feeder Number** (the value each actuator is actuated or
+read with), then a row for each actuator, chosen from the machine's, with its button: **Get ID**, **Pre
+Pick** (*Test pre pick*), **Post Pick** (*Test post pick*, the feed count read after), **Get Feed Count**,
+**Clear Feed Count**, **Get Pitch**, **Toggle Pitch** (between 2 mm and 4 mm, the pitch read after) and
+**Get Status**. What the Get buttons read is shown beside them; with the machine connected, the ID, feed
+count, pitch and status are read when the feeder is chosen. A feed takes the nozzle over the pick location
+at safe Z and actuates the pre pick actuator; after the pick, the post pick actuator. Without a pre pick
+actuator a feed does nothing, as OpenPnP's.
+
+<!-- src: src/setup/JPFeederForms.cpp (schultzForm, readsOnShow); src/tasks/JPFeederActions.cpp; src/tasks/JPFeederFeed.cpp (feed, postPick); src/machine/JPCell.cpp (readActuatorAndWait); src/ui/JPFeedersPanel.cpp (showReading) -->
+
+### Rapid feeder
+
+A feeder told what to do by its address, as OpenPnP's Rapid feeder: **Rapid Feeder Config** has its
+**Address** and **Pitch**, and a feed sends "address pitch" to the machine's actuator named
+**RAPIDFEEDER**. **Rapid Feeder Scanning** keeps the **Scan Start** and **End Location** and the **Scan
+Increment**; its **Scan** (finding the feeders by their QR codes) needs a QR code reader, not in jplacer
+yet.
+
+<!-- src: src/setup/JPFeederForms.cpp (rapidForm); src/tasks/JPFeederFeed.cpp (feed, kRapidActuator) -->
 
 ### The other kinds
 

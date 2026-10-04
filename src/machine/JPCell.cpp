@@ -706,7 +706,23 @@ void JPCell::readActuator(const std::string& actuatorId) {
     });
 }
 
-bool JPCell::doRead(const std::string& actuatorId, std::string& value, std::string& why) {
+bool JPCell::readActuatorAndWait(const std::string& actuatorId, const std::optional<std::string>& parameter, std::string& value,
+                                 std::string& why) {
+    std::promise<std::pair<bool, std::string>> done;
+    auto result = done.get_future();
+    m_thread.post([this, actuatorId, parameter, &done] {
+        std::string v, w;
+        const bool ok = doRead(actuatorId, v, w, parameter);
+        onActuator.emit(actuatorId, ok, ok ? v : w);
+        done.set_value({ ok, ok ? v : w });
+    });
+    const auto [ok, out] = result.get();
+    (ok ? value : why) = out;
+    return ok;
+}
+
+bool JPCell::doRead(const std::string& actuatorId, std::string& value, std::string& why,
+                    const std::optional<std::string>& parameter) {
     for (const JPActuatorConfig& a : m_config.actuators) {
         if (a.id != actuatorId) continue;
         JPGcodeDriver* d = driver(a.driverId);
@@ -721,7 +737,9 @@ bool JPCell::doRead(const std::string& actuatorId, std::string& value, std::stri
             why = a.name + ": its read pattern is not a valid pattern";
             return false;
         }
-        const JPReply r = d->send(JPFirmwareProfile::fill(a.readCommand, { { "index", a.index } })).get();
+        std::map<std::string, std::string> vars { { "index", a.index } };
+        if (parameter) vars["value"] = *parameter;
+        const JPReply r = d->send(JPFirmwareProfile::fill(a.readCommand, vars)).get();
         if (!r.ok) {
             why = r.error;
             return false;

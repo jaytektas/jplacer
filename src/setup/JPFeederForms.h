@@ -37,11 +37,20 @@ public:
         Selecting selecting = Selecting::None;
         // A drag feeder's template image (null: none).
         std::function<std::shared_ptr<const JPFrame>()> templateImage;
+        // What a button last read from the machine (a Schultz feeder's ID,
+        // feed count, pitch, status), by its action; empty: nothing.
+        std::function<std::string(const std::string& action)> reading;
     };
     // `warn`: a value kept, but which will not work (a tray's offset of 0
     // with more than one part that way), to be said.
     static JPSetupProperties::Form forFeeder(JPConfiguration& config, const std::string& feederId,
                                              std::function<void(const std::string&)> warn, const Options& options);
+    // Whether a button of the form is done on the machine (JPFeederActions),
+    // not on the feeder.
+    static bool isMachineAction(const std::string& action);
+    // The buttons of a feeder's page that read from the machine, to be read
+    // when it is shown with the machine on (as OpenPnP's Schultz wizard does).
+    static std::vector<std::string> readsOnShow(const JPFeeder& feeder);
     // A button of the form (its action's name) on the feeder; true when it
     // changed it; false with `why` when it could not (empty: nothing to do).
     static bool act(JPConfiguration& config, const std::string& feederId, const std::string& action, std::string& why);

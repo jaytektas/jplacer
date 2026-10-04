@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Schultz and Rapid feeders work as OpenPnP's: a Schultz feeder's actuators with its feeder number, its Get ID,
+  feed count, pitch and status read and shown, its test buttons; a Rapid feeder's address and pitch sent to RAPIDFEEDER.
 - Lever feeders work as OpenPnP's: the lever pushed once for every 4 mm of the pitch, the take up run while it
   comes back, and the same template image vision as a drag feeder.
 - Drag feeders work as OpenPnP's: the pin dragging the tape (with peel off and back off), two parts a drag at a

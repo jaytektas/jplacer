@@ -11,11 +11,13 @@
 
 #include "model/JPConfiguration.h"
 #include "openpnp/JPXmlReader.h"
+#include "tasks/JPFeederActions.h"
 #include "tasks/JPFeederFeed.h"
 
 #include <cmath>
 #include <cstdio>
 #include <filesystem>
+#include <map>
 
 using namespace jf;
 namespace fs = std::filesystem;
@@ -45,6 +47,22 @@ public:
         return true;
     }
     std::vector<std::string> actuated;
+    // What a read gives: by actuator name.
+    std::map<std::string, std::string> readings;
+    bool readActuator(const std::string& name, double parameter, std::string& value, std::string& why) override {
+        actuated.push_back("read " + name + "(" + std::to_string(int(parameter)) + ")");
+        const auto r = readings.find(name);
+        if (r == readings.end()) {
+            why = "Unable to find an actuator named " + name;
+            return false;
+        }
+        value = r->second;
+        return true;
+    }
+    bool actuateText(const std::string& name, const std::string& value, std::string&) override {
+        actuated.push_back(name + "=" + value);
+        return true;
+    }
     bool moveActuator(const std::string& name, const JPLocation& at, bool withZ, double speed, std::string&) override {
         char text[160];
         std::snprintf(text, sizeof text, "%s to %.2f,%.2f%s at %.2f", name.c_str(), at.x(), at.y(),
@@ -241,6 +259,57 @@ int main() {
         assert(std::abs(config.feeder("L")->pickLocation()->x() - 67.5) < 1e-9);
         assert(JPFeederFeed::feed(config, "L", "N1", machine, nullptr, why, empty) && machine.actuated.size() == 7);
         assert(std::abs(config.feeder("L")->pickLocation()->x() - 69.5) < 1e-9);
+    }
+
+    // A Rapid feeder: its address and pitch to the RAPIDFEEDER actuator.
+    {
+        JPXmlElement re;
+        std::string error;
+        assert(JPXmlReader::parse(R"(<feeder class="org.openpnp.machine.rapidplacer.RapidFeeder" id="R" name="R" enabled="true" part-id="R1" address="FDR07" pitch="8"><location units="Millimeters" x="5.0" y="6.0" z="-1.0" rotation="0.0"/></feeder>)", re, error));
+        config.addFeeder(JPFeeder::fromXml(re));
+        machine.actuated.clear();
+        assert(JPFeederFeed::feed(config, "R", "N1", machine, nullptr, why, empty));
+        assert(machine.actuated.size() == 1 && machine.actuated[0] == "RAPIDFEEDER=FDR07 8");
+        assert(config.feeder("R")->pickLocation()->x() == 5);
+    }
+
+    // A Schultz feeder: the nozzle over the pick place, its pre pick actuated
+    // with its feeder number; post pick too; its buttons read and actuate
+    // with it, what they read given back.
+    {
+        JPXmlElement se;
+        std::string error;
+        assert(JPXmlReader::parse(R"(<feeder class="org.openpnp.machine.reference.feeder.SchultzFeeder" id="Z" name="Z" enabled="true" part-id="R1" actuator-name="Pre" actuator-value="3.0" post-pick-actuator-name="Post" feed-count-actuator-name="Count" clear-count-actuator-name="Clear" pitch-actuator-name="Pitch" toggle-pitch-actuator-name="Toggle" status-actuator-name="Status" id-actuator-name="Id"><location units="Millimeters" x="9.0" y="8.0" z="-1.0" rotation="90.0"/></feeder>)", se, error));
+        config.addFeeder(JPFeeder::fromXml(se));
+        machine.actuated.clear();
+        assert(JPFeederFeed::feed(config, "Z", "N1", machine, nullptr, why, empty));
+        assert(machine.actuated.size() == 1 && machine.actuated[0] == "Pre=3");
+        assert(JPFeederFeed::postPick(config, "Z", machine, nullptr, why) && machine.actuated.back() == "Post=3");
+
+        machine.readings = { { "Id", "ID42" }, { "Count", "17" }, { "Pitch", "4" }, { "Status", "OK" } };
+        JPFeederActions::Readings readings;
+        assert(JPFeederActions::run(config, "Z", "getId", machine, nullptr, readings, why));
+        assert(readings.size() == 1 && readings[0].first == "getId" && readings[0].second == "ID42");
+        assert(machine.actuated.back() == "read Id(3)");
+        readings.clear();
+        // Test post pick: the count read after.
+        assert(JPFeederActions::run(config, "Z", "testPostPick", machine, nullptr, readings, why));
+        assert(readings.size() == 1 && readings[0].first == "getFeedCount" && readings[0].second == "17");
+        readings.clear();
+        // Clear: the count shown empty; toggle: the pitch read after.
+        assert(JPFeederActions::run(config, "Z", "clearFeedCount", machine, nullptr, readings, why));
+        assert(readings.size() == 1 && readings[0].second.empty() && machine.actuated.back() == "Clear=3");
+        readings.clear();
+        assert(JPFeederActions::run(config, "Z", "togglePitch", machine, nullptr, readings, why));
+        assert(readings.size() == 1 && readings[0].first == "getPitch" && readings[0].second == "4");
+        // An actuator not there: OpenPnP's words.
+        config.feeder("Z")->setText("status-actuator-name", "Gone");
+        assert(!JPFeederActions::run(config, "Z", "getStatus", machine, nullptr, readings, why));
+        assert(why == "Failed, unable to find an actuator named Gone");
+        // None set: nothing done.
+        config.feeder("Z")->setText("actuator-name", "");
+        machine.actuated.clear();
+        assert(JPFeederFeed::feed(config, "Z", "N1", machine, nullptr, why, empty) && machine.actuated.empty());
     }
 
     // No hole: the strip's end.

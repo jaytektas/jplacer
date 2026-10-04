@@ -53,6 +53,12 @@ public:
     // machine), actuated with `value`: a switch on when it is not 0, a
     // number or text set to it.
     virtual bool actuate(const std::string& actuatorName, double value, std::string& why) = 0;
+    // The same with a text value (OpenPnP's actuate(String): a Rapid
+    // feeder's "address pitch").
+    virtual bool actuateText(const std::string& actuatorName, const std::string& value, std::string& why) = 0;
+    // An actuator (named as for actuate) read, with `parameter` as its read
+    // command's value (OpenPnP's actuator.read(parameter)): `value`.
+    virtual bool readActuator(const std::string& actuatorName, double parameter, std::string& value, std::string& why) = 0;
     // An actuator on the head (named as for actuate) straight to `at` from
     // where it is, not up to safe Z first (OpenPnP's actuator.moveTo); its Z
     // too when `withZ`; at `speed` (of the machine's).

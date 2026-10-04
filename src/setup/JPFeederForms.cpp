@@ -298,6 +298,62 @@ void pinForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder
     add.button("resetVisionOffsets", "Reset vision offsets");
 }
 
+// OpenPnP's SchultzFeederConfigurationWizard: what every feeder has, its
+// feeder number, and its actuators, each with its button and what it read.
+void schultzForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f, const JPFeederForms::Options& options) {
+    general(add, config, f, false);
+    pickLocation(add, f);
+    add.group("Actuators");
+    add.number("actuator-value", "Feeder Number:", [f] { return f().real("actuator-value", 0); },
+               [f](double v) { f().setReal("actuator-value", v); });
+    add.header({ "Actuator" });
+    JPFormBuilder::Strings names { "" };
+    names.insert(names.end(), options.actuators.begin(), options.actuators.end());
+    const auto reading = options.reading;
+    struct Row { const char* label; const char* attribute; const char* action; const char* button; bool shows; const char* note; };
+    for (const Row& r : { Row { "Get ID", "id-actuator-name", "getId", "Get ID", true, nullptr },
+                          Row { "Pre Pick", "actuator-name", "testFeed", "Test pre pick", false, nullptr },
+                          Row { "Post Pick", "post-pick-actuator-name", "testPostPick", "Test post pick", false, nullptr },
+                          Row { "Get Feed Count", "feed-count-actuator-name", "getFeedCount", "Get feed count", true, nullptr },
+                          Row { "Clear Feed Count", "clear-count-actuator-name", "clearFeedCount", "Clear feed count", false, nullptr },
+                          Row { "Get Pitch", "pitch-actuator-name", "getPitch", "Get pitch", true, nullptr },
+                          Row { "Toggle Pitch", "toggle-pitch-actuator-name", "togglePitch", "Toggle pitch", false,
+                                "Toggle between 2 MM and 4 MM" },
+                          Row { "Get Status", "status-actuator-name", "getStatus", "Get status", true, nullptr } }) {
+        const std::string attribute = r.attribute, action = r.action;
+        add.row(r.label);
+        add.choice(attribute, r.label, names, [f, attribute] { return f().text(attribute); },
+                   [f, attribute](const std::string& n) { f().setText(attribute, n); });
+        add.button(action, r.button);
+        if (r.shows)
+            add.text(action + ".value", "", [reading, action] { return reading ? reading(action) : std::string(); }, nullptr);
+        if (r.note) add.text(action + ".note", "", [note = std::string(r.note)] { return note; }, nullptr);
+        add.end();
+    }
+}
+
+// OpenPnP's RapidFeederConfigurationWizard: what every feeder has, the
+// feeder's address and pitch, and the scan for its QR codes.
+void rapidForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f) {
+    general(add, config, f, false);
+    pickLocation(add, f);
+    add.group("Rapid Feeder Config");
+    add.text("address", "Address", [f] { return f().text("address"); }, [f](const std::string& v) { f().setText("address", v); },
+             "long");
+    add.integer("pitch", "Pitch", [f] { return f().number("pitch", 4); }, [f](int v) { f().setNumber("pitch", v); }, 0, kMostCount);
+    add.group("Rapid Feeder Scanning");
+    add.header({ "X", "Y" });
+    for (const auto& [label, element] : { std::pair { "Scan Start Location", "scan-start-location" },
+                                          std::pair { "Scan End Location", "scan-end-location" } }) {
+        add.row(label, Place::Location);
+        coordinate(add, f, element, Axis::X, "X");
+        coordinate(add, f, element, Axis::Y, "Y");
+        add.end();
+    }
+    length(add, f, "scan-increment", "Scan Increment", 4);
+    add.button("scan", "Scan", "Find the feeders' QR codes along the scan: needs a QR code reader, not in jplacer yet.", false);
+}
+
 // OpenPnP's ReferenceRotatedTrayFeederConfigurationWizard: the three corner
 // parts (A, B, C), the tray's counts, steps and turn.
 void rotatedTrayForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f) {
@@ -368,6 +424,10 @@ JPSetupProperties::Form JPFeederForms::forFeeder(JPConfiguration& config, const 
         autoForm(add, config, f, options.actuators);
     } else if (kind == "ReferenceRotatedTrayFeeder") {
         rotatedTrayForm(add, config, f);
+    } else if (kind == "SchultzFeeder") {
+        schultzForm(add, config, f, options);
+    } else if (kind == "RapidFeeder") {
+        rapidForm(add, config, f);
     } else if (kind == "ReferenceDragFeeder" || kind == "ReferenceLeverFeeder") {
         pinForm(add, config, f, options, kind == "ReferenceLeverFeeder");
     } else {
@@ -375,6 +435,18 @@ JPSetupProperties::Form JPFeederForms::forFeeder(JPConfiguration& config, const 
         pickLocation(add, f);
     }
     return form;
+}
+
+bool JPFeederForms::isMachineAction(const std::string& action) {
+    for (const char* a : { "testFeed", "testPostPick", "getId", "getFeedCount", "clearFeedCount", "getPitch", "togglePitch",
+                           "getStatus" })
+        if (action == a) return true;
+    return false;
+}
+
+std::vector<std::string> JPFeederForms::readsOnShow(const JPFeeder& feeder) {
+    if (feeder.typeName() == "SchultzFeeder") return { "getId", "getFeedCount", "getPitch", "getStatus" };
+    return {};
 }
 
 bool JPFeederForms::act(JPConfiguration& config, const std::string& feederId, const std::string& action, std::string& why) {

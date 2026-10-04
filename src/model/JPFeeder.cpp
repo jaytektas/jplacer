@@ -178,7 +178,8 @@ std::optional<JPLocation> JPFeeder::pickLocation() const {
                           l.z(), l.rotation() + real("component-rotation-in-tray", 0));
     }
     // Picked where they are set.
-    if (kind == "ReferenceTubeFeeder" || kind == "ReferenceAutoFeeder") return location();
+    if (kind == "ReferenceTubeFeeder" || kind == "ReferenceAutoFeeder" || kind == "RapidFeeder" || kind == "SchultzFeeder")
+        return location();
     if (kind == "ReferenceLeverFeeder") {
         // As OpenPnP's: the second part's step only with vision.
         JPLocation at = location();
@@ -242,8 +243,10 @@ bool JPFeeder::feed(std::string& why, bool* empty) {
         setNumber("feed-count", number("feed-count") + 1);
         return true;
     }
-    // A tube: nothing to do; a drag or lever feeder's feed is the machine's (JPFeederFeed). An auto feeder: its actuator, on a normal feed (JPFeederFeed).
-    if (kind == "ReferenceTubeFeeder" || kind == "ReferenceDragFeeder" || kind == "ReferenceLeverFeeder") return true;
+    // A tube: nothing to do; a drag, lever, Rapid or Schultz feeder's feed is the machine's (JPFeederFeed). An auto feeder: its actuator, on a normal feed (JPFeederFeed).
+    if (kind == "ReferenceTubeFeeder" || kind == "ReferenceDragFeeder" || kind == "ReferenceLeverFeeder" || kind == "RapidFeeder"
+        || kind == "SchultzFeeder")
+        return true;
     if (kind == "ReferenceAutoFeeder") {
         m_actuate = feedOptions() == FeedOptions::Normal;
         if (feedOptions() == FeedOptions::SkipNext) setFeedOptions(FeedOptions::Normal);

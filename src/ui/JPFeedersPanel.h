@@ -21,6 +21,7 @@
 #include <array>
 #include <filesystem>
 #include <functional>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -63,8 +64,11 @@ public:
     // OpenPnP's feedFeeder (and with `pick`, pickFeeder): a feed, and the
     // chosen nozzle's pick, on the machine's thread; its outcome said there.
     std::function<void(const std::string& feederId, bool pick)> machineFeed;
-    // A test of the machine from a feeder's page (an auto feeder's Test feed, Test post pick).
+    // A button of a feeder's page done on the machine (JPFeederForms::isMachineAction),
+    // on its thread; what it reads comes back to showReading.
     std::function<void(const std::string& feederId, const std::string& action)> machineAction;
+    // Whether the machine is on (connected), for a page to read from it when shown.
+    std::function<bool()> machineReady;
     // The machine's actuators by name.
     std::function<std::vector<std::string>()> actuatorNames;
     // Whether the job uses a part (an enabled placement on an enabled board).
@@ -72,6 +76,8 @@ public:
 
     // What uploads the pictures its pages show (a drag feeder's template image).
     void setHal(JGpuHal* hal) { m_form->setHal(hal); }
+    // What a page's button read from the machine (by its action), shown on the feeder's page.
+    void showReading(const std::string& feederId, const std::string& action, const std::string& value);
     // The feeders changed elsewhere (imported, a job's part): shown again.
     void refresh();
     // OpenPnP's showFeederForPart: the search cleared and the part's feeder
@@ -131,6 +137,8 @@ private:
     std::string                         m_templatePath;   // whose picture m_template is
     std::filesystem::file_time_type     m_templateTime;
     std::shared_ptr<const JPFrame>      m_template;
+    // What the machine was last read as on each feeder's page: by feeder, then action.
+    std::map<std::string, std::map<std::string, std::string>> m_readings;
     std::shared_ptr<bool>               m_alive = std::make_shared<bool>(true);
 };
 

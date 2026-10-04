@@ -21,6 +21,8 @@ constexpr const char* kEndOfStrip = "Unable to locate reference hole. End of str
 constexpr JPLengthUnit kMm = JPLengthUnit::Millimeters;
 // The step back along the tape to each of the parts one feed brings (OpenPnP's partsPitchX, for 0402).
 constexpr double kPartsPitchXMm = -2;
+// What a Rapid feeder's feed is sent to (OpenPnP's RapidFeeder.actuatorName).
+constexpr const char* kRapidActuator = "RAPIDFEEDER";
 // A lever's push moves the tape this far: a longer pitch takes more pushes.
 constexpr double kLeverStrokeMm = 4;
 
@@ -182,6 +184,42 @@ bool JPFeederFeed::feed(JPConfiguration& config, const std::string& feederId, co
             pinned = f->typeName() == "ReferenceDragFeeder" || f->typeName() == "ReferenceLeverFeeder";
     });
     if (pinned) return pinFeed(config, feederId, machine, onMain, why);
+    // A Schultz feeder: the nozzle over its pick place (at safe Z), its pre
+    // pick actuator actuated with its feeder number.
+    std::string schultz, schultzName;
+    double feederNumber = 0;
+    std::optional<JPLocation> schultzAt;
+    bool isSchultz = false;
+    main([&] {
+        if (const JPFeeder* f = config.feeder(feederId); f && f->typeName() == "SchultzFeeder") {
+            isSchultz = true;
+            schultz = f->text("actuator-name");
+            schultzName = f->name();
+            feederNumber = f->real("actuator-value", 0);
+            schultzAt = f->pickLocation();
+        }
+    });
+    if (isSchultz) {
+        if (schultz.empty()) {
+            JLOGC(JPlacerLog::kJob, JLogLevel::Warn) << "No actuatorName specified for feeder " << schultzName << ".";
+            return true;
+        }
+        if (schultzAt && !nozzleId.empty() && !machine.positionNozzle(nozzleId, *schultzAt, why)) return false;
+        if (machine.actuate(schultz, feederNumber, why)) return true;
+        why = "Feed failed. " + why;
+        return false;
+    }
+    // A Rapid feeder: its address and pitch to the RAPIDFEEDER actuator.
+    std::string rapid;
+    main([&] {
+        if (const JPFeeder* f = config.feeder(feederId); f && f->typeName() == "RapidFeeder")
+            rapid = f->text("address") + " " + std::to_string(f->number("pitch", 4));
+    });
+    if (!rapid.empty()) {
+        if (machine.actuateText(kRapidActuator, rapid, why)) return true;
+        why = "Feed failed. " + why;
+        return false;
+    }
     if (actuate) {
         if (actuatorName.empty()) {
             JLOGC(JPlacerLog::kJob, JLogLevel::Warn) << "No actuatorName specified for feeder " << feederId << ".";
@@ -239,6 +277,10 @@ bool JPFeederFeed::postPick(JPConfiguration& config, const std::string& feederId
         if (const JPFeeder* f = config.feeder(feederId); f && f->typeName() == "ReferenceAutoFeeder") {
             name = f->text("post-pick-actuator-name");
             value = f->real("post-pick-actuator-value", 0);
+        } else if (f && f->typeName() == "SchultzFeeder") {
+            // With its feeder number.
+            name = f->text("post-pick-actuator-name");
+            value = f->real("actuator-value", 0);
         }
     });
     if (name.empty()) return true;

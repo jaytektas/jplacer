@@ -12,6 +12,7 @@
 #include "JPlacerSettings.h"
 
 #include "model/JPDefinitionChanges.h"
+#include "tasks/JPFeederActions.h"
 #include "tasks/JPFeederFeed.h"
 
 #include "ui/JPFootprintOverlay.h"
@@ -288,22 +289,15 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         m_jobRun->machineTask([this, feederId, action](JPJobMachine& machine,
                                                        const std::function<void(const std::function<void()>&)>& onMain,
                                                        std::string& why) {
-            std::string name;
-            double value = 0;
-            const std::string key = action == "testFeed" ? "actuator" : "post-pick-actuator";
+            JPFeederActions::Readings readings;
+            const bool ok = JPFeederActions::run(m_job.configuration(), feederId, action, machine, onMain, readings, why);
             onMain([&] {
-                if (const JPFeeder* f = m_job.configuration().feeder(feederId)) {
-                    name = f->text(key + "-name");
-                    value = f->real(key + "-value", 0);
-                }
+                for (const auto& [key, value] : readings) m_feeders->showReading(feederId, key, value);
             });
-            if (name.empty()) {
-                why = "No actuator is set for it.";
-                return false;
-            }
-            return machine.actuate(name, value, why);
+            return ok;
         });
     };
+    m_feeders->machineReady = [this] { return m_machine.cell() && m_machine.cell()->isConnected(); };
     m_feeders->partUsed = [this](const std::string& partId) {
         for (const JPBoardLocation* l : m_job.job().boardLocations()) {
             if (!l->isEnabled() || !l->holder) continue;

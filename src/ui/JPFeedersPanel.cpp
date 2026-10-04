@@ -107,8 +107,8 @@ JPFeedersPanel::JPFeedersPanel(JSceneGraph& graph, JPConfiguration& config, doub
             cancelSelection();
             return;
         }
-        // A test of the machine: on its thread.
-        if (action == "testFeed" || action == "testPostPick") {
+        // Done on the machine: on its thread.
+        if (JPFeederForms::isMachineAction(action)) {
             if (machineAction) machineAction(m_shown, action);
             return;
         }
@@ -216,8 +216,19 @@ void JPFeedersPanel::showForm() {
     }
     if (m_selecting != JPFeederForms::Options::Selecting::None) cancelSelection();
     m_shown = id;
-    if (id.empty()) m_form->setForm(JPSetupProperties::Form {});
-    else m_form->setForm(formFor());
+    if (id.empty()) {
+        m_form->setForm(JPSetupProperties::Form {});
+        return;
+    }
+    m_form->setForm(formFor());
+    // What its page shows from the machine, read afresh when it can be.
+    if (machineAction && machineReady && machineReady())
+        for (const std::string& action : JPFeederForms::readsOnShow(*f)) machineAction(id, action);
+}
+
+void JPFeedersPanel::showReading(const std::string& feederId, const std::string& action, const std::string& value) {
+    m_readings[feederId][action] = value;
+    if (feederId == m_shown) m_form->refresh();
 }
 
 void JPFeedersPanel::rebuildForm() {
@@ -229,6 +240,12 @@ JPSetupProperties::Form JPFeedersPanel::formFor() {
     if (actuatorNames) options.actuators = actuatorNames();
     options.selecting = m_selecting;
     options.templateImage = [this] { return templateImage(); };
+    options.reading = [this](const std::string& action) {
+        const auto f = m_readings.find(m_shown);
+        if (f == m_readings.end()) return std::string();
+        const auto r = f->second.find(action);
+        return r == f->second.end() ? std::string() : r->second;
+    };
     return JPFeederForms::forFeeder(m_config, m_shown, [](const std::string& why) { JDialog::message("Error", why); },
                                     options);
 }
