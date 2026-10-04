@@ -218,7 +218,19 @@ JRect JPTable::bounds() const {
     return m_graph.getLayoutConst(m_nodeId).boundingBox;
 }
 
-float JPTable::headerHeight() const { return JStyle::current().gridHeaderHeight; }
+float JPTable::headerHeight() const { return m_headerShown ? JStyle::current().gridHeaderHeight : 0.f; }
+
+void JPTable::scrollToEnd() {
+    m_scrollY = float(m_view.size()) * rowHeight();
+    clampScroll();
+    invalidate();
+}
+
+bool JPTable::atEnd() const {
+    const JRect b = bounds();
+    const float maxY = std::max(0.f, float(m_view.size()) * rowHeight() - (b.height - headerHeight()));
+    return m_scrollY >= maxY - rowHeight() * 0.5f;
+}
 float JPTable::rowHeight() const { return JStyle::current().gridRowHeight; }
 
 void JPTable::materialiseWidths() const {
@@ -364,7 +376,7 @@ void JPTable::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     // The headings, each with its sort marks.
     buf.pushClip(b.x, b.y, innerW, innerH);
     buf.pushRectangle(b.x, b.y, innerW, hh, Colors::Surface3);
-    for (int c = 0; c < columns; ++c) {
+    for (int c = 0; c < (m_headerShown ? columns : 0); ++c) {
         const float x = b.x + columnX(c) - m_scrollX, w = columnWidth(c);
         float fade = 1.f;
         int keyIndex = -1;
@@ -431,6 +443,7 @@ void JPTable::populateRenderPrimitives(JPrimitiveBuffer& buf) {
                 buf.pushRectangle(cell.x + st.borderWidth, y, cell.width - st.borderWidth, rh - st.borderWidth, tint.data());
                 ink = Colors::TextPrimary;
             }
+            if (const uint8_t* own = m_model->cellInk(r, c)) ink = own;
             float tx = cell.x + pad;
             // An icon before the text, as tall as a line.
             if (const std::string icon = m_model->cellIcon(r, c); !icon.empty())

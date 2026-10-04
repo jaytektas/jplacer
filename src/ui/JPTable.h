@@ -71,6 +71,11 @@ public:
     }
     int viewRowCount() const { return int(m_view.size()); }
 
+    // Without the headings (a list, as OpenPnP's log): not sorted by a click then.
+    void setHeaderShown(bool on) { m_headerShown = on; }
+    // The last row brought into view; whether it is in view now.
+    void scrollToEnd();
+    bool atEnd() const;
     jf::JSignal<>    onSelectionChanged;
     jf::JSignal<int> onRowActivated;   // a double-click on a cell that is not edited
     // An edit refused (the model's reason).
@@ -129,6 +134,7 @@ private:
     void copySelection() const;
 
     JPTableModel*                  m_model = nullptr;
+    bool                           m_headerShown = true;
     std::vector<int>               m_view;            // view index -> model row
     std::vector<std::string>       m_keys;            // model row -> its key, as last built
     std::vector<SortKey>           m_sortKeys;        // first is the primary

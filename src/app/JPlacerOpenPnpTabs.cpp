@@ -334,6 +334,15 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_feedersDock = std::make_unique<JDockWidget>("Feeders", 0.f, 0.f, 0.f, 0.f);
     m_feedersDock->setContent(m_feeders.get());
     m_layout.add(m_feedersDock.get(), JPlacerLayout::Home::Work);
+    // Log: the log's entries, as OpenPnP's Log tab; its level kept as the Console's is.
+    m_log = std::make_unique<JPLogPanel>(graph);
+    m_log->onLogLevels = [](const JPLogLevels& levels) {
+        JSettings::instance().set(JPlacerSettings::kLogLevels, levels.toText());
+        JPlacerSettings::save();
+    };
+    m_logDock = std::make_unique<JDockWidget>("Log", 0.f, 0.f, 0.f, 0.f);
+    m_logDock->setContent(m_log.get());
+    m_layout.add(m_logDock.get(), JPlacerLayout::Home::Work);
     m_jobPanel->placements().onEditFeeder = [this](const std::string& partId) {
         m_layout.show(m_feedersDock.get());
         m_feeders->showFeederForPart(partId);
@@ -407,6 +416,8 @@ JPlacerOpenPnpTabs::~JPlacerOpenPnpTabs() {
     m_machine.onImported = nullptr;
     m_layout.remove(m_feedersDock.get());
     m_feedersDock->setContent(nullptr);
+    m_layout.remove(m_logDock.get());
+    m_logDock->setContent(nullptr);
     m_layout.remove(m_visionDock.get());
     m_visionDock->setContent(nullptr);
     m_layout.remove(m_boardsDock.get());

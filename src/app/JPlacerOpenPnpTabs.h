@@ -11,6 +11,7 @@
 
 #include "ui/JPBoardsPanel.h"
 #include "ui/JPFeedersPanel.h"
+#include "ui/JPLogPanel.h"
 #include "ui/JPVisionSettingsPanel.h"
 #include "ui/JPJobPanel.h"
 #include "ui/JPPanelsPanel.h"
@@ -78,6 +79,8 @@ private:
     std::unique_ptr<JDockWidget>     m_packagesDock;
     std::unique_ptr<JPVisionSettingsPanel> m_vision;
     std::unique_ptr<JDockWidget>     m_visionDock;
+    std::unique_ptr<JPLogPanel>      m_log;
+    std::unique_ptr<JDockWidget>     m_logDock;
     std::unique_ptr<JPFeedersPanel>  m_feeders;
     std::unique_ptr<JDockWidget>     m_feedersDock;
     std::unique_ptr<JPBoardsPanel>   m_boards;

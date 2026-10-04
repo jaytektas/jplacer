@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- A Log tab as OpenPnP's: the log's entries coloured by level, its global level, and search, level and system
+  output filters, clear, copy and scroll down.
 - Photon feeders work as OpenPnP's: found and set up on their bus, fed by their pitch, their slots' locations,
   Global Config's Search and the Program Feeder Slot Wizard; the PhotonFeederData actuator made when missing.
 - Neoden 4 feeders work as OpenPnP's: actuated with their pitch, turned by their rotation in the tape, Actuate
