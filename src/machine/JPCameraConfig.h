@@ -44,6 +44,18 @@ struct JPCameraConfig {
         double      maskCircle = 0;
     };
     Settle        settle;
+    // When it counts as LOST (JPCameraFeed): no picture for `noPictureS`, or
+    // the very same picture for `samePictureS` (0: never, for a camera that
+    // can show a still scene exactly alike). It is then opened again until
+    // it is back; work looking through it waits `waitS` for that (a USB
+    // drop-out, opened again in a couple of seconds) before failing, saying
+    // the camera was lost (0: fails at once).
+    struct Lost {
+        int noPictureS   = 3;
+        int samePictureS = 3;
+        int waitS        = 10;
+    };
+    Lost          lost;
     // The last settling test (Camera Settling's test buttons), for its graph;
     // not kept in the file.
     std::optional<JPSettleTrace> settleTrace;
@@ -142,6 +154,11 @@ struct JPCameraConfig {
             c.settle.debounce   = int(st["debounce"].number(c.settle.debounce));
             c.settle.maskCircle = st["maskCircle"].number(c.settle.maskCircle);
         }
+        if (const JJson& l = j["lost"]; l.isObject()) {
+            c.lost.noPictureS   = int(l["noPictureS"].number(c.lost.noPictureS));
+            c.lost.samePictureS = int(l["samePictureS"].number(c.lost.samePictureS));
+            c.lost.waitS        = int(l["waitS"].number(c.lost.waitS));
+        }
         if (const JJson& k = j["calibrating"]; k.isObject()) {
             c.calibrating.columns       = int(k["columns"].number(c.calibrating.columns));
             c.calibrating.rows          = int(k["rows"].number(c.calibrating.rows));
@@ -186,6 +203,9 @@ struct JPCameraConfig {
         j["settle"]["threshold"]  = settle.threshold;
         j["settle"]["debounce"]   = settle.debounce;
         j["settle"]["maskCircle"] = settle.maskCircle;
+        j["lost"]["noPictureS"]   = lost.noPictureS;
+        j["lost"]["samePictureS"] = lost.samePictureS;
+        j["lost"]["waitS"]        = lost.waitS;
         j["calibrating"]["columns"]       = calibrating.columns;
         j["calibrating"]["rows"]          = calibrating.rows;
         j["calibrating"]["reach"]         = calibrating.reach;

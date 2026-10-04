@@ -3,7 +3,8 @@
 
 // A camera lost in the middle of a task (unplugged, hung, frozen on one
 // picture): the feed says so and opens it again, and a task waiting for a
-// picture waits for it to come back rather than failing, then carries on.
+// picture waits for it to come back rather than failing, then carries on;
+// each as the camera's settings say.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
@@ -64,6 +65,31 @@ int main() {
         JPGrayImage img;
         std::string why;
         assert(JPCameraLook::taken(feed, img, why, 0));
+        feed.stop();
+    }
+    // As the camera is set: hung after 1 s with no picture; not waited for at
+    // all, so a picture asked for fails at once, saying the camera was lost.
+    {
+        JPCameraConfig c = camera("Impatient", "hangAfterFrames", 5);
+        c.lost.noPictureS = 1;
+        c.lost.waitS = 0;
+        JPCameraFeed feed(c);
+        feed.start();
+        const auto started = std::chrono::steady_clock::now();
+        assert(waitFor([&] { return feed.isLost(); }, 8));
+        assert(std::chrono::steady_clock::now() - started < std::chrono::milliseconds(2500));
+        JPGrayImage img;
+        std::string why;
+        assert(!JPCameraLook::taken(feed, img, why, 0) && why.find("was lost") != std::string::npos);
+        feed.stop();
+    }
+    // The same picture not counted: a camera frozen on one is not lost.
+    {
+        JPCameraConfig c = camera("Still", "freezeAfterFrames", 5);
+        c.lost.samePictureS = 0;
+        JPCameraFeed feed(c);
+        feed.start();
+        assert(!waitFor([&] { return feed.isLost(); }, 5));
         feed.stop();
     }
     std::printf("=== lost cameras are waited for ===\n");

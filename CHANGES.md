@@ -227,8 +227,9 @@ notes.
 - Actuators that take a value (Double or String): set from the Actuators panel, their value type and commands in Machine Setup, imported from OpenPnP.
 - A camera that hangs showing the same picture over and over is noticed as
   hung, like one that stops sending pictures. Work looking through a lost
-  camera (calibrations, tests) waits up to 2 minutes for it to be plugged in
-  again and carries on where it was, instead of failing.
+  camera (calibrations, tests) waits a little for it to come back and carries
+  on where it was; if it does not, it says the camera was lost. How long
+  each takes is set per camera in Machine Setup (When the Camera Is Lost).
 - The Jog pad's park buttons show a parking sign that grows with the pad.
 - Buttons and other controls are no longer clipped by a pixel along an edge, and the Jog panel's tip, Stop
   and E-STOP buttons stay whole in a narrow dock (a long tool name is cut short instead).

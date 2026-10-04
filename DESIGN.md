@@ -256,12 +256,15 @@ guided fix.
 - **Every step can be retried.** A step (pick, align, place, a fiducial)
   starts from what the machine and the run record say, never from state
   left half-done by the step before, so repeating it is always safe. When
-  a step fails the job pauses on that step with Retry, Skip and Stop;
-  Retry runs the same step again, and the run carries on from there. The
-  failure says what actually went wrong: a lost or hung camera ("Bottom
-  camera lost: plug it in again, then Retry") is reported as itself, never
-  as "part not found". Tasks already wait up to 2 minutes for a lost
-  camera to come back before they fail (`JPCameraLook`).
+  a step fails the job pauses on that step and puts up a requester (as
+  OpenPnP's does: its job pauses on an error and Start runs the failed step
+  again) with Retry, Skip and Stop; Retry runs the same step again, and the
+  run carries on from there. The failure says what actually went wrong: a
+  lost or hung camera ("Bottom camera lost: plug it in again, then Retry")
+  is reported as itself, never as "part not found", and does not use up the
+  step's vision retries (each would fail the same way). A brief drop-out
+  never reaches the requester: a task waits the camera's own Lost time for
+  it first (`JPCameraConfig::Lost`, `JPCameraLook`).
 - Board transform: placement → board instance (position, rotation, bottom-side
   mirror) → panel → fiducial affine correction. One `PlacementTransform` does
   this maths.

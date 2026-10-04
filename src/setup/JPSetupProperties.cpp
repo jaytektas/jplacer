@@ -1120,6 +1120,15 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     add.number("unitsPerPixelY", "Units per Pixel Y", [c]() -> double& { return c().unitsPerPixelY; }, 5);
     add.end();
     add.note("A rough start: calibrating measures them.");
+    add.group("When the Camera Is Lost");
+    auto lost = [c]() -> JPCameraConfig::Lost& { return c().lost; };
+    add.integer("lostNoPicture", "No Picture For (s)", [lost]() -> int& { return lost().noPictureS; }, 1, 60);
+    add.integer("lostSamePicture", "Same Picture For (s)", [lost]() -> int& { return lost().samePictureS; }, 0, 60);
+    add.integer("lostWait", "Work Waits For It (s)", [lost]() -> int& { return lost().waitS; }, 0, 600);
+    add.note("A camera that sends no picture, or the very same picture over and over, has hung or dropped off: "
+             "it is opened again until it is back. 0 for the same picture: never counted, for a camera that can "
+             "show a still scene exactly alike. Work looking through it waits for it, then stops saying the "
+             "camera was lost (0: at once).");
 
     add.tab("Camera Settling");
     add.group("Camera Settling");

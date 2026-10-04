@@ -28,12 +28,9 @@ int meanBrightness(const JPFrame& f) {
 // How long one wait for a frame lasts before the thread checks whether it
 // should stop: the time a stop can take, not a frame timeout.
 constexpr int kGrabSliceMs = 100;
-// A camera that sends nothing this long has hung; one that is lost is
-// looked for again this often.
-constexpr int kStalledMs   = 3000;
+// A camera that is lost is looked for again this often (when it counts as
+// lost is the camera's own: JPCameraConfig::Lost).
 constexpr int kReconnectMs = 2000;
-// The very same picture this long: hung (a real camera's noise makes no two alike).
-constexpr int kFrozenMs    = 3000;
 
 // A quick fingerprint of a picture: enough of its bytes to tell any two real
 // ones apart.
@@ -125,7 +122,11 @@ void JPCameraFeed::runSource(std::string& why) {
     auto lastFrame = std::chrono::steady_clock::now();
     // A simulated camera can show a still scene exactly: only a real one can
     // freeze (and a simulated one told to).
-    const bool canFreeze = m_config.device["backend"].str() != "simulated" || m_config.device["freezeAfterFrames"].number() > 0;
+    // The very same picture over and over: hung (a real camera's noise makes no two alike).
+    const bool canFreeze = m_config.lost.samePictureS > 0
+                        && (m_config.device["backend"].str() != "simulated" || m_config.device["freezeAfterFrames"].number() > 0);
+    const auto noPicture = std::chrono::seconds(std::max(1, m_config.lost.noPictureS));
+    const auto samePicture = std::chrono::seconds(m_config.lost.samePictureS);
     uint64_t lastPrint = 0;
     auto changed = std::chrono::steady_clock::now();
     while (m_running) {
@@ -135,8 +136,8 @@ void JPCameraFeed::runSource(std::string& why) {
                 why = error;
                 break;
             }
-            if (std::chrono::steady_clock::now() - lastFrame > std::chrono::milliseconds(kStalledMs)) {
-                why = source->describe() + ": no picture for " + std::to_string(kStalledMs / 1000)
+            if (std::chrono::steady_clock::now() - lastFrame > noPicture) {
+                why = source->describe() + ": no picture for " + std::to_string(noPicture.count())
                     + " s (the camera may have hung)";
                 break;
             }
@@ -148,8 +149,8 @@ void JPCameraFeed::runSource(std::string& why) {
             if (print != lastPrint) {
                 lastPrint = print;
                 changed = lastFrame;
-            } else if (lastFrame - changed > std::chrono::milliseconds(kFrozenMs)) {
-                why = source->describe() + ": the very same picture for " + std::to_string(kFrozenMs / 1000)
+            } else if (lastFrame - changed > samePicture) {
+                why = source->describe() + ": the very same picture for " + std::to_string(samePicture.count())
                     + " s (the camera has hung)";
                 break;
             }

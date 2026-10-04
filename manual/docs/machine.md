@@ -480,17 +480,26 @@ undoes the zoom.
 <!-- src: src/ui/JPReticle.cpp (spacings, sizes, draw, thinned); src/ui/JPCameraView.cpp (buildMenu, prepareContextMenu, kLeastGap); src/app/JPlacerSettings.cpp (cameraReticleKey) -->
 
 A camera can drop off its USB connection (noise from the stepper motors on its cable) or hang without
-saying so. jplacer notices either (no picture for 3 seconds counts as hung, and so does the very same
-picture for 3 seconds, which is how some cameras hang), says so across the top of the last picture, which
+saying so. jplacer notices either (no picture for a while counts as hung, and so does the very same
+picture over and over, which is how some cameras hang), says so across the top of the last picture, which
 would otherwise pass for a live one, and opens the camera again by its name every 2 seconds until it is
 back; the picture then carries on by itself. Unplugging the camera and plugging it in again is enough.
 
 Anything that is looking through a camera when it is lost (a calibration, a settle test, finding a
-fiducial) waits for it rather than failing: the log says the camera is lost and why, and the work carries
-on from the same step once the camera is back. If it is not back within 2 minutes the work stops and says
-the camera was lost, not that nothing was found.
+fiducial) waits a little for it rather than failing at once: the log says the camera is lost and why, and
+the work carries on from the same step if it comes back in time. If it does not, the work stops and says
+the camera was lost (and to plug it in again), not that nothing was found.
 
-<!-- src: src/camera/JPCameraFeed.cpp (run, runSource, kStalledMs, kFrozenMs, kReconnectMs); src/ui/JPCameraView.cpp (the band over the picture); src/tasks/JPCameraLook.cpp (taken, kLostWaitMs) -->
+How long each of these is, is the camera's own, in Machine Setup on its General Configuration tab under
+**When the Camera Is Lost**:
+
+| Setting | Default | What it does |
+|---|---|---|
+| No Picture For (s) | 3 | No picture this long: the camera has hung or dropped off. |
+| Same Picture For (s) | 3 | The very same picture this long: hung. 0 never counts it, for a camera that can show a still scene exactly alike. |
+| Work Waits For It (s) | 10 | How long work looking through a lost camera waits for it to be back, long enough for a USB drop-out. 0 stops at once. |
+
+<!-- src: src/camera/JPCameraFeed.cpp (run, runSource, kReconnectMs); src/ui/JPCameraView.cpp (the band over the picture); src/tasks/JPCameraLook.cpp (taken); src/machine/JPCameraConfig.h (Lost); src/setup/JPSetupProperties.cpp (cameraForm) -->
 
 **Save the picture** (the disk) writes the camera's latest picture as a PNG (lossless, so it measures the same as
 the live picture did) to `captures/` in jplacer's configuration folder, named after the camera and the

@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <optional>
 #include <thread>
 
 inline namespace jf {
@@ -23,29 +24,33 @@ bool JPCameraLook::taken(JPCameraFeed& feed, JPGrayImage& out, std::string& why,
     const auto takenFrom = now + std::chrono::milliseconds(afterMs);
     auto until = now + std::chrono::milliseconds(afterMs + kTimeoutMs);
     // A camera lost (unplugged, hung) is waited for while it is opened again,
-    // up to kLostWaitMs: plugged back in, the task carries on where it was.
-    const auto longest = now + std::chrono::milliseconds(afterMs + kLostWaitMs);
-    bool said = false;
+    // as long as the camera says (JPCameraConfig::Lost), from when it was
+    // seen lost: plugged back in, the task carries on where it was.
+    const auto wait = std::chrono::seconds(std::max(0, feed.config().lost.waitS));
+    std::optional<std::chrono::steady_clock::time_point> lostAt;
     JPFrame frame;
-    while (std::chrono::steady_clock::now() < until) {
+    for (auto at = now; at < until; at = std::chrono::steady_clock::now()) {
         if (feed.latest(frame, 0) && frame.captured >= takenFrom) {
-            if (said) JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << feed.config().name << " is back";
+            if (lostAt) JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << feed.config().name << " is back";
             out = JPGrayImage::fromRgba(frame.rgba.data(), frame.width, frame.height);
             return true;
         }
         if (feed.isLost()) {
-            if (!said) {
-                JLOGC(JPlacerLog::kCamera, JLogLevel::Warn) << feed.config().name << " lost (" << feed.lostWhy()
-                                                            << "): waiting for it to come back";
-                said = true;
+            if (!lostAt) {
+                lostAt = at;
+                if (wait.count() > 0)
+                    JLOGC(JPlacerLog::kCamera, JLogLevel::Warn) << feed.config().name << " lost (" << feed.lostWhy()
+                                                                << "): waiting for it to come back";
             }
-            until = std::min(longest, std::chrono::steady_clock::now() + std::chrono::milliseconds(kTimeoutMs));
+            if (at >= *lostAt + wait) break;
+            until = std::max(until, at + std::chrono::milliseconds(kTimeoutMs));   // time for a picture once back
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
     if (feed.isLost())
-        why = feed.config().name + " was lost (" + feed.lostWhy() + ") and not back within "
-            + std::to_string(kLostWaitMs / 1000) + " s: plug it in again, then try again";
+        why = feed.config().name + " was lost (" + feed.lostWhy() + ")"
+            + (wait.count() > 0 ? " and not back within " + std::to_string(wait.count()) + " s" : std::string())
+            + ": plug it in again, then try again";
     else
         why = feed.config().name + ": no picture taken within " + std::to_string(afterMs + kTimeoutMs) + " ms";
     return false;
