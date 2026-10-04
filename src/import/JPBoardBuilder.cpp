@@ -106,8 +106,9 @@ bool JPBoardBuilder::build(const std::vector<JPSource>& sources, const JPBoardFr
         return false;
     }
 
-    // Into the one frame.
+    // Into the one frame. Fiducials start as references.
     for (JPPlacement& p : out.board.placements) {
+        p.reference = p.fiducial;
         if (cpl->tool == JPCadTool::Kind::KiCadNegativeX && p.side == JPPlacement::Side::Bottom) {
             p.x = -p.x;
             p.pin1X = -p.pin1X;

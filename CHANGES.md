@@ -10,6 +10,15 @@ notes.
 
 ## Unreleased
 
+- Boards without fiducials can be located: any placement can be marked as a reference (Parts panel), and
+  the camera finds a part by its pads, drawn from its package, or by its look learned when it was
+  recorded.
+- References can be recorded by hand instead (go to each, jog onto it, Record) and the board fitted to
+  them; for a fixture, a new board can reuse the recorded positions.
+- A board's first guess can come from a fixture anchor or a search of a region, set in Machine Setup's
+  Board Location tab, as well as from the camera put on a reference by hand.
+- Homing again, calibrating a camera again or squaring the machine marks the board as needing to be
+  located again.
 - Boards are read in through the Import panel and reviewed before they reach the job: a drawing of the
   board, a report of what was read and what changes, Accept and Discard. File > New Job from CAD…
   starts a job that way.

@@ -14,9 +14,12 @@ inline namespace jf {
 // designator), and the new board with what the person set on the old one
 // kept where it still holds:
 //
-//  - moved or turned: kept (its part, a rotation set by hand);
+//  - moved or turned: kept (its part, a rotation set by hand, whether it is a
+//    reference), except a reference's recorded position and look: it is
+//    somewhere else now;
 //  - a different part (value, MPN, supplier numbers or footprint changed):
-//    its part is cleared, to be found again; a rotation set by hand stays;
+//    its part is cleared, to be found again; a rotation set by hand and
+//    whether it is a reference stay;
 //  - removed: everything about it goes; new: nothing set.
 class JPBoardChanges {
 public:

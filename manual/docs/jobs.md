@@ -167,8 +167,8 @@ is put right.
 
 The **Parts** panel (**Job ▸ Parts**, a dock beside Board) lists every placement in the job with its
 part: **Designator**, **State**, **Part** (its MPN, or its value when it has none), **Value**,
-**Package**, **Footprint**, **Side**, **Rotation**, **Rotation From**, **Supplier No.** and
-**Manufacturer**.
+**Package**, **Footprint**, **Side**, **Rotation**, **Rotation From**, **Reference** (whether the board is
+[located](board.md#references) by it), **Supplier No.** and **Manufacturer**.
 
 - **List** shows them as a table. Click a column's heading to sort by it, and again to reverse it.
   Drag a heading's edge to widen a column.
@@ -205,7 +205,8 @@ Return or Tab or leave the field; Escape puts back what it was. Each change mark
   or filter the list to bring them together, choose them, and type the angle. **Use Part's Rotation**
   takes that back. **Part** gives the chosen placements another of the job's parts. **Confirm Part**
   accepts a guess. **New Part from File** makes a part from what the file said about the first
-  placement chosen, and gives it to them all.
+  placement chosen, and gives it to them all. **Use as Reference** and **Don't Use as Reference** mark the
+  chosen placements as [references](board.md#references) the board is located by, or not.
 - **Part**, **Package**, **Footprint**: the fields of the first chosen placement's part, its package
   and its footprint. A part's **Package** and a package's **Footprint** are chosen from the list: the
   job's own, or one from the library (*Library: …*), which is then brought into the job. A package's

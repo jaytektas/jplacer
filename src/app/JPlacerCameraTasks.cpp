@@ -474,7 +474,7 @@ bool JPlacerCameraTasks::lookAt(JPCameraPanel& camera, double x, double y) {
     return true;
 }
 
-void JPlacerCameraTasks::locateBoard(const JPBoard& board, const JPBoardSide& guess,
+void JPlacerCameraTasks::locateBoard(const JPBoard& board, const JPBoardSide& guess, Footprints footprints,
                                      std::function<void(const JPBoardLocator::Result&)> done) {
     JPCameraPanel* camera = headCamera();
     if (const std::string why = notReady(camera, true, false); !why.empty()) {
@@ -483,24 +483,65 @@ void JPlacerCameraTasks::locateBoard(const JPBoard& board, const JPBoardSide& gu
     }
     JPCameraFeed* feed = &camera->feed();
     auto result = std::make_shared<JPBoardLocator::Result>();
-    run(*camera, "Locating the board", [this, feed, board, guess, result, fiducials = m_cell.config().fiducials](
-                                            std::string& words, const auto& progress) {
+    run(*camera, "Locating the board", [this, feed, board, guess, result, fiducials = m_cell.config().fiducials,
+                                        footprints = std::move(footprints)](std::string& words, const auto& progress) {
         JPBoardLocator::Options o;
         o.speed = kTaskSpeed;
         o.fiducials = fiducials;
+        o.footprintOf = [&footprints](const JPPlacement& p, JPFootprint& f, double& degrees) {
+            const auto it = footprints.find(p.designator);
+            if (it == footprints.end()) return false;
+            f = it->second.first;
+            degrees = it->second.second;
+            return true;
+        };
         *result = JPBoardLocator::run(m_cell, *feed, board, guess, o, progress);
         if (!result->ok) {
             words = result->why;
             return false;
         }
         int found = 0;
-        for (const auto& f : result->fiducials) found += f.found;
+        for (const auto& f : result->references) found += f.found;
         char buf[200];
-        std::snprintf(buf, sizeof buf, "Board found by %d of %zu fiducials, turned %.3f deg, fit to %.3f mm", found,
-                      result->fiducials.size(), result->board.toMachine.rotationDeg(), result->rmsMm);
+        std::snprintf(buf, sizeof buf, "Board found by %d of %zu references, turned %.3f deg, fit to %.3f mm", found,
+                      result->references.size(), result->board.toMachine.rotationDeg(), result->rmsMm);
         words = buf;
         return true;
     }, [result, done](bool) { done(*result); });
+}
+
+void JPlacerCameraTasks::searchBoardStart(const JPBoard& board, const JPBoardSide& guess, double x0, double y0, double x1,
+                                          double y1, std::function<void(const JPBoardLocator::Result&)> done) {
+    JPCameraPanel* camera = headCamera();
+    if (const std::string why = notReady(camera, true, false); !why.empty()) {
+        m_window.showStatus("Search for the board: " + why, kResultMs);
+        return;
+    }
+    JPCameraFeed* feed = &camera->feed();
+    auto result = std::make_shared<JPBoardLocator::Result>();
+    run(*camera, "Searching for the board", [this, feed, board, guess, result, x0, y0, x1, y1](std::string& words, const auto& progress) {
+        JPBoardLocator::Options o;
+        o.speed = kTaskSpeed;
+        *result = JPBoardLocator::searchStart(m_cell, *feed, board, guess, x0, y0, x1, y1, o, progress);
+        words = result->ok ? "Found " + result->references.front().designator : result->why;
+        return result->ok;
+    }, [result, done](bool) { done(*result); });
+}
+
+bool JPlacerCameraTasks::headPicture(JPGrayImage& picture, JPCameraCalibration& calibration, double& x, double& y,
+                                     std::string& why) const {
+    JPCameraPanel* camera = headCamera();
+    if (!camera || !cameraLook(camera->camera().id, calibration, x, y)) {
+        why = "the camera on the head is not calibrated, or the machine is not homed";
+        return false;
+    }
+    JPFrame frame;
+    if (!camera->feed().latest(frame, 0) || frame.width != calibration.width || frame.height != calibration.height) {
+        why = "the camera on the head has no picture";
+        return false;
+    }
+    picture = JPGrayImage::fromRgba(frame.rgba.data(), frame.width, frame.height);
+    return true;
 }
 
 void JPlacerCameraTasks::calibrateFixed(JPCameraPanel& camera) {

@@ -5,6 +5,7 @@
 
 #include "JPBoard.h"
 #include "JPBoardFrame.h"
+#include "JPLocateSettings.h"
 #include "JPSource.h"
 
 #include "library/JPPartsStore.h"
@@ -30,6 +31,7 @@ struct JPJob {
     // Where the pick-and-place file and the BOM disagree, those settled the
     // BOM's way ("designator|field", JPBoardBuilder::Disagreement::key).
     std::vector<std::string> bomChoices;
+    JPLocateSettings      location;
 
     // A save writes a new file and puts it in place only once it is whole.
     bool save(const std::string& path, std::string& error) const;

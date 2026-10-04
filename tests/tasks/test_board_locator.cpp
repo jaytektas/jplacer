@@ -11,6 +11,7 @@
 #include <cassert>
 
 #include "tasks/JPBoardLocator.h"
+#include "library/JPFootprintMaker.h"
 
 #include <atomic>
 #include <chrono>
@@ -35,6 +36,7 @@ JPBoard board() {
         p.y = y;
         p.side = s;
         p.fiducial = true;
+        p.reference = true;
         p.footprint = "FIDUCIAL_1MM";
         b.placements.push_back(p);
     };
@@ -45,6 +47,14 @@ JPBoard board() {
     fid("FID7", 161.738, 101.969, S::Bottom);
     fid("FID8", 109.329, 78.052, S::Bottom);
     fid("FID12", 2.791, 18.734, S::Bottom);
+    JPPlacement u;
+    u.designator = "U5";
+    u.x = 60;
+    u.y = 30;
+    u.rotationDeg = 90;
+    u.side = S::Bottom;
+    u.footprint = "SOIC-8";
+    b.placements.push_back(u);
     JPPlacement r;
     r.designator = "R1";
     r.x = 40.5;
@@ -83,7 +93,35 @@ std::string scene(const JPBoard& b) {
     return marks;
 }
 
-JPCellConfig cellConfig(const std::string& marks) {
+// U5's SOIC-8 pads where the hidden board puts them: each corner from the
+// footprint's own mm, mirrored (bottom side), turned, onto the board, onto the machine.
+JPFootprint soic8() {
+    JPFootprintMaker::Dual d;
+    return JPFootprintMaker::dual("SOIC-8", d);
+}
+
+std::string pads(const JPBoard& b) {
+    const JPAffine2D h = hidden();
+    const JPPlacement& u = *b.find("U5");
+    const double a = u.rotationDeg * M_PI / 180;
+    std::string out;
+    for (const JPPad& p : soic8().pads) {
+        std::string pts;
+        for (const auto& [cx, cy] : { std::pair{ -1, -1 }, std::pair{ 1, -1 }, std::pair{ 1, 1 }, std::pair{ -1, 1 } }) {
+            const double lx = -(p.x + cx * p.width / 2), ly = p.y + cy * p.height / 2;   // mirrored
+            const double bx = u.x + lx * std::cos(a) - ly * std::sin(a), by = u.y + lx * std::sin(a) + ly * std::cos(a);
+            double mx, my;
+            h.apply(bx, by, mx, my);
+            char buf[64];
+            std::snprintf(buf, sizeof buf, "%s[%.6f, %.6f]", pts.empty() ? "" : ", ", mx, my);
+            pts += buf;
+        }
+        out += (out.empty() ? "" : ", ") + std::string("{ \"points\": [") + pts + "] }";
+    }
+    return out;
+}
+
+JPCellConfig cellConfig(const std::string& marks, const std::string& shapes) {
     const std::string json = R"({
       "name": "Test",
       "drivers": [ { "id": "D", "name": "Gantry", "statusIntervalMs": 10, "commandTimeoutMs": 500, "connectWaitMs": 0,
@@ -97,7 +135,7 @@ JPCellConfig cellConfig(const std::string& marks) {
       "cameras": [ { "id": "C", "name": "Top", "mount": { "head": "H", "axisX": "X", "axisY": "Y" },
                      "device": { "backend": "simulated", "width": 640, "height": 480, "fps": 60,
                        "scene": { "pxPerMm": [-25.97, 0.035, 0.007, 25.96], "ground": 60, "mark": 200, "noise": 3,
-                                  "marks": [ )" + marks + R"( ] } } } ]
+                                  "marks": [ )" + marks + R"( ], "shapes": [ )" + shapes + R"( ] } } } ]
     })";
     JPCellConfig c;
     std::string error;
@@ -133,7 +171,7 @@ struct Latch {
 
 int main() {
     const JPBoard b = board();
-    JPCell cell(cellConfig(scene(b)), profiles());
+    JPCell cell(cellConfig(scene(b), pads(b)), profiles());
     Latch connected, moved;
     cell.onConnection.connect([&](bool ok, std::string) { connected.set(ok); });
     cell.onMotion.connect([&](bool ok, std::string) { moved.set(ok); });
@@ -170,8 +208,8 @@ int main() {
     const JPBoardSide guess = JPBoardSide::placed(JPPlacement::Side::Bottom, 345.4, 72.3, 1.4);
     const JPBoardLocator::Result r = JPBoardLocator::run(cell, feed, b, guess, o);
     if (!r.ok) std::fprintf(stderr, "why: %s\n", r.why.c_str());
-    assert(r.ok && r.affine && r.fiducials.size() == 5 && r.rmsMm < 0.005);
-    for (const auto& f : r.fiducials) assert(f.found && f.residualMm < 0.01);
+    assert(r.ok && r.affine && r.references.size() == 5 && r.rmsMm < 0.005);
+    for (const auto& f : r.references) assert(f.found && f.residualMm < 0.01);
     // Every placement where the board really puts it, the part as well as the fiducials.
     const JPAffine2D h = hidden();
     for (const JPPlacement& p : b.placements) {
@@ -221,6 +259,59 @@ int main() {
     // A guess far out: the fiducials are not where it says.
     const JPBoardLocator::Result lost = JPBoardLocator::run(cell, feed, b, JPBoardSide::placed(JPPlacement::Side::Bottom, 320, 40, 0), o);
     assert(!lost.ok && !lost.why.empty());
+
+    // A part as a reference, found by its pads drawn from its footprint.
+    {
+        JPBoard withPart = b;
+        withPart.find("U5")->reference = true;
+        JPBoardLocator::Options byPads = o;
+        byPads.footprintOf = [](const JPPlacement& p, JPFootprint& f, double& degrees) {
+            if (p.footprint != "SOIC-8") return false;
+            f = soic8();
+            degrees = p.rotationDeg;
+            return true;
+        };
+        const JPBoardLocator::Result part = JPBoardLocator::run(cell, feed, withPart, guess, byPads);
+        if (!part.ok) std::fprintf(stderr, "why: %s\n", part.why.c_str());
+        assert(part.ok && part.references.size() == 6);
+        for (const auto& f : part.references) {
+            if (f.designator != "U5") continue;
+            if (!f.found) std::fprintf(stderr, "U5: %s\n", f.why.c_str());
+            assert(f.found && f.residualMm < 0.02);
+        }
+    }
+
+    // A part marked as a reference that the camera has no way to find: left out, and said why.
+    {
+        JPBoard withPart = b;
+        withPart.find("R1")->reference = true;
+        const JPBoardLocator::Result part = JPBoardLocator::run(cell, feed, withPart, guess, o);
+        assert(part.ok && part.references.size() == 6);
+        for (const auto& f : part.references)
+            if (f.designator == "R1") assert(!f.found && f.why.find("record it by hand") != std::string::npos);
+    }
+
+    // Recorded by hand: the board fitted to the positions recorded, no camera.
+    {
+        JPBoard recorded = b;
+        for (JPPlacement& p : recorded.placements) {
+            if (!p.reference || p.side != JPPlacement::Side::Bottom) continue;
+            p.recorded = true;
+            h.apply(p.x, p.y, p.recordedX, p.recordedY);
+        }
+        recorded.find("FID12")->recorded = false;
+        const JPBoardLocator::Result byHand = JPBoardLocator::fitRecorded(recorded, guess, o);
+        assert(byHand.ok && byHand.affine && byHand.rmsMm < 1e-6 && byHand.references.size() == 5);
+        for (const auto& f : byHand.references)
+            if (f.designator == "FID12") assert(!f.found && f.why == "not recorded yet");
+        double ex, ey, gx, gy;
+        h.apply(40.5, 80.25, ex, ey);
+        byHand.board.toMachine.apply(40.5, 80.25, gx, gy);
+        assert(std::hypot(gx - ex, gy - ey) < 1e-6);
+        // One recorded: not enough.
+        for (JPPlacement& p : recorded.placements) p.recorded = p.designator == "FID3";
+        assert(!JPBoardLocator::fitRecorded(recorded, guess, o).ok);
+    }
 
     feed.stop();
     cell.disconnect();

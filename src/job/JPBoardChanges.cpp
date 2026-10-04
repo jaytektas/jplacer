@@ -80,6 +80,16 @@ JPBoard JPBoardChanges::merge(const JPBoard& before, JPBoard after) {
         const JPPlacement& o = *it->second;
         p.rotationSet = o.rotationSet;
         p.rotationSetDeg = o.rotationSetDeg;
+        p.reference = o.reference;
+        const bool moved = std::hypot(p.x - o.x, p.y - o.y) > kMovedMm || p.side != o.side;
+        if (!moved) {
+            p.recorded = o.recorded;
+            p.recordedX = o.recordedX;
+            p.recordedY = o.recordedY;
+            p.lookWidth = o.lookWidth;
+            p.lookPxPerMm = o.lookPxPerMm;
+            p.look = o.look;
+        }
         if (identity(o) == identity(p)) {
             p.partId = o.partId;
             p.partGuessed = o.partGuessed;

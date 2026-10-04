@@ -236,7 +236,7 @@ void JPlacerMachine::buildPanels(Keep keep) {
     panels.push_back({ "Jog",       Home::Controls, std::move(jog) });
     panels.push_back({ "Actuators", Home::Controls, std::make_unique<JPActuatorPanel>(m_graph, *m_cell) });
     if (cameras) {
-        m_board = std::make_unique<JPlacerBoard>(m_window, m_job, *m_cameraTasks,
+        m_board = std::make_unique<JPlacerBoard>(m_window, m_job, *m_cameraTasks, m_cell->config(),
             [this](const JPMountConfig& mount, double xPerY) { squareMachine(mount, xPerY); });
         panels.push_back({ "Board", Home::Work, m_board->makePanel(m_graph) });
         for (CameraDock& c : m_cameras)
@@ -445,12 +445,16 @@ void JPlacerMachine::watchCell() {
     // A home by the switches is finished with the camera where the head homes visually.
     // A new calibration straightens the picture from then on.
     m_unwatch.push_back(m_cell->onCalibration.connect([this, onMain] {
-        onMain([this] { for (CameraDock& c : m_cameras) c.panel->refreshStraightening(); });
+        onMain([this] {
+            for (CameraDock& c : m_cameras) c.panel->refreshStraightening();
+            if (m_board) m_board->machineChanged("a camera was calibrated again");
+        });
     }));
     m_unwatch.push_back(m_cell->onHomed.connect([this, onMain](bool homed) {
         onMain([this, homed] {
             // Once homed, by the camera too where a head homes visually; then
             // parked, when the machine is set to.
+            if (homed && m_board) m_board->machineChanged("the machine was homed again");
             if (homed && m_cameraTasks)
                 m_cameraTasks->visualHome([this](bool ok) {
                     if (ok && m_cell && m_cell->config().parkAfterHome) park();

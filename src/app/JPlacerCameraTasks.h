@@ -8,10 +8,12 @@
 #include "tasks/JPBoardLocator.h"
 #include "tasks/JPRunoutCalibrator.h"
 #include "ui/JPCameraPanel.h"
+#include "vision/JPGrayImage.h"
 
 #include <j/app/JAppWindow.h>
 
 #include <functional>
+#include <map>
 #include <memory>
 #include <string>
 #include <thread>
@@ -78,10 +80,21 @@ public:
     // Move the head camera to look at (x, y), and show it; false (and the
     // status bar says why) when it cannot.
     bool lookAt(double x, double y);
-    // Find `board` by its fiducials from `guess` with the head camera; the
+    // Each part reference's footprint and the angle it is placed at, by
+    // designator (worked out before a task starts: the job is not read while
+    // it runs).
+    using Footprints = std::map<std::string, std::pair<JPFootprint, double>>;
+    // Find `board` by its references from `guess` with the head camera; the
     // result comes to `done` on the main thread.
-    void locateBoard(const JPBoard& board, const JPBoardSide& guess,
+    void locateBoard(const JPBoard& board, const JPBoardSide& guess, Footprints footprints,
                      std::function<void(const JPBoardLocator::Result&)> done);
+    // A first guess by scanning a region for the board's first round-mark
+    // reference (JPBoardLocator::searchStart); to `done` on the main thread.
+    void searchBoardStart(const JPBoard& board, const JPBoardSide& guess, double x0, double y0, double x1, double y1,
+                          std::function<void(const JPBoardLocator::Result&)> done);
+    // The head camera's latest picture, its calibration and where it was
+    // looking; false (and why) without one.
+    bool headPicture(JPGrayImage& picture, JPCameraCalibration& calibration, double& x, double& y, std::string& why) const;
     // A task is under way.
     bool busy() const { return m_busy; }
 

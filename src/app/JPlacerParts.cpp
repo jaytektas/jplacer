@@ -30,7 +30,7 @@ constexpr const char* kLibraryPrefix = "lib:";
 
 const std::vector<std::string>& columns() {
     static const std::vector<std::string> c = { "Designator", "State", "Part", "Value", "Package", "Footprint", "Side",
-                                                "Rotation", "Rotation From", "Supplier No.", "Manufacturer" };
+                                                "Rotation", "Rotation From", "Reference", "Supplier No.", "Manufacturer" };
     return c;
 }
 
@@ -65,7 +65,8 @@ std::vector<JPPartsPanel::Page> makePages(JSceneGraph& graph, JPFootprintView*& 
         std::vector<JPFormPage::Field>{ { "designator", "Placement" }, { "rotation", "Rotation (\xC2\xB0)" },
                                         { "from", "Rotation from" }, { "part", "Part", true } },
         std::vector<JPFormPage::Action>{ { "partRotation", "Use Part's Rotation" }, { "confirm", "Confirm Part" },
-                                         { "newPart", "New Part from File" } }) });
+                                         { "newPart", "New Part from File" }, { "reference", "Use as Reference" },
+                                         { "notReference", "Don't Use as Reference" } }) });
     pages.push_back({ "Part", std::make_unique<JPFormPage>(graph, JPlacerEntryForm::fields(K::Part), entryActions(K::Part)) });
     pages.push_back({ "Package", std::make_unique<JPFormPage>(graph, JPlacerEntryForm::fields(K::Package), entryActions(K::Package)) });
     auto picture = std::make_unique<JPFootprintView>(graph);
@@ -148,6 +149,7 @@ void JPlacerParts::show() {
                            footprint ? footprint->name : p.footprint,
                            p.side == JPPlacement::Side::Bottom ? "Bottom" : "Top", plain(rot.degrees),
                            p.fiducial ? std::string() : JPPlacementRotation::name(rot.source),
+                           p.reference ? "Reference" : "",
                            numbers(part ? part->supplierNumbers : p.supplierNumbers),
                            part ? part->manufacturer : p.manufacturer } });
     }
@@ -184,7 +186,7 @@ void JPlacerParts::placementPage() {
     const std::vector<JPPlacement*> ps = chosen();
     const JPPartsStore& s = m_job.job().parts;
     page.setEditable(!ps.empty());
-    for (const char* a : { "partRotation", "confirm", "newPart" }) page.setActionEnabled(a, !ps.empty());
+    for (const char* a : { "partRotation", "confirm", "newPart", "reference", "notReference" }) page.setActionEnabled(a, !ps.empty());
     page.setFieldEditable("designator", false);
     page.setFieldEditable("from", false);
     m_partChoices = { std::string() };
@@ -308,6 +310,9 @@ void JPlacerParts::onPlacementAction(const std::string& key) {
         for (JPPlacement* p : ps) p->rotationSet = false;
     } else if (key == "confirm") {
         for (JPPlacement* p : ps) p->partGuessed = false;
+    } else if (key == "reference" || key == "notReference") {
+        // What the board is located by: any placement the camera can find, fiducials or parts.
+        for (JPPlacement* p : ps) p->reference = key == "reference";
     } else if (key == "newPart") {
         const std::string id = JPPartMatcher::newPart(*ps.front(), m_job.library().store(), m_job.job().parts);
         for (JPPlacement* p : chosen()) {

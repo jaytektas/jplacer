@@ -51,6 +51,14 @@ int main() {
     u1.other = { { "3D Model", "SOIC-8" } };
     u1.partId = pid;
     u1.partGuessed = true;
+    u1.reference = true;
+    u1.recorded = true;
+    u1.recordedX = 150.25;
+    u1.recordedY = 80.5;
+    u1.lookWidth = 2;
+    u1.lookPxPerMm = 31.5;
+    u1.look = { 0, 255, 17, 200, 3 };
+    job.location.capture = JPLocateSettings::Capture::Manual;
     job.board.placements.push_back(u1);
     JPPlacement fid;
     fid.designator = "FID1";
@@ -74,6 +82,9 @@ int main() {
     assert(b->supplierNumbers == u1.supplierNumbers && b->mpn == "LM358DT" && b->voltage == "30V");
     assert(b->mounting == JPPlacement::Mounting::Smd && b->footprint == u1.footprint && b->pins == 8);
     assert(b->other == u1.other && b->partId == pid && b->partGuessed);
+    assert(b->reference && b->recorded && b->recordedX == 150.25 && b->recordedY == 80.5);
+    assert(b->lookWidth == 2 && b->lookPxPerMm == 31.5 && b->look == u1.look);
+    assert(back.location.capture == JPLocateSettings::Capture::Manual && back.location.newBoard == JPLocateSettings::NewBoard::ReRecord);
     const JPPlacement* f = back.board.find("FID1");
     assert(f && f->fiducial && f->fiducialMm == 1 && f->doNotPlace && !f->hasPin1 && f->partId.empty());
     assert(back.parts.part(pid)->packageId == kid && back.parts.packageNamed("SOIC-8_3.9x4.9mm_P1.27mm")->turnDeg == 180);

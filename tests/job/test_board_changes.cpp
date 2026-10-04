@@ -39,6 +39,11 @@ int main() {
     before.placements = { at("C1", 1, 1, 0, "100nF"), at("C2", 2, 2, 0, "100nF"), at("C3", 3, 3, 0, "100nF"),
                           at("C4", 4, 4, 0, "100nF"), at("C77", 7, 7, 0, "1uF") };
     for (JPPlacement& p : before.placements) p.partId = "part-" + p.designator;
+    before.placements[0].reference = true;     // C1 a reference, recorded
+    before.placements[0].recorded = true;
+    before.placements[0].recordedX = 101;
+    before.placements[1].reference = true;     // C2 too, but it moves
+    before.placements[1].recorded = true;
     before.placements[1].rotationSet = true;   // C2 turned by hand
     before.placements[1].rotationSetDeg = 45;
 
@@ -57,6 +62,8 @@ int main() {
 
     const JPBoard merged = JPBoardChanges::merge(before, after);
     assert(merged.find("C1")->partId == "part-C1");
+    assert(merged.find("C1")->reference && merged.find("C1")->recorded && merged.find("C1")->recordedX == 101);
+    assert(merged.find("C2")->reference && !merged.find("C2")->recorded);   // moved: recorded again
     assert(merged.find("C2")->partId == "part-C2" && merged.find("C2")->rotationSet && merged.find("C2")->rotationSetDeg == 45);
     assert(merged.find("C3")->partId == "part-C3");
     assert(merged.find("C4")->partId.empty());          // a different part: to be found again

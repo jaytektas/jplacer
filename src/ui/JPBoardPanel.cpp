@@ -5,10 +5,6 @@
 
 #include "JPUiParts.h"
 
-#include "common/JPlacerLog.h"
-
-#include <j/core/Log.h>
-
 inline namespace jf {
 
 JPBoardPanel::JPBoardPanel(JSceneGraph& graph) : JContainer(graph) {
@@ -30,15 +26,45 @@ JPBoardPanel::JPBoardPanel(JSceneGraph& graph) : JContainer(graph) {
     });
     add(std::move(side));
 
-    // The starting point: put the camera on one fiducial, say which.
-    auto start = JPUiParts::row(graph);
-    m_fiducial = start->add(std::make_unique<JComboBox>(graph, std::vector<std::string>{}));
-    m_fiducial->setHSizePolicy(JSizePolicyMode::Expanding, 1);
-    JButton* here = start->add(JPUiParts::button(graph, "Camera Is on It"));
-    here->onClicked.connect([this] {
-        if (onCameraOnFiducial && !m_fiducial->currentText().empty()) onCameraOnFiducial(m_fiducial->currentText());
+    // How the references are captured: found by the camera, or recorded by hand.
+    auto capture = JPUiParts::row(graph);
+    capture->add(std::make_unique<JLabel>(graph, "References"));
+    m_capture = capture->add(std::make_unique<JPChoiceRow>(graph, std::vector<std::string>{ "Found by Camera", "Recorded by Hand" }, 0));
+    m_capture->onChosen.connect([this](int i) {
+        if (!m_updating && onCapture) onCapture(i == 1);
     });
-    add(std::move(start));
+    add(std::move(capture));
+    auto newBoard = JPUiParts::row(graph);
+    m_newBoardLabel = newBoard->add(std::make_unique<JLabel>(graph, "A new board"));
+    m_newBoard = newBoard->add(std::make_unique<JPChoiceRow>(graph, std::vector<std::string>{ "Record Again", "Reuse Them" }, 0));
+    m_newBoard->onChosen.connect([this](int i) {
+        if (!m_updating && onNewBoard) onNewBoard(i == 1);
+    });
+    JButton* onBed = newBoard->add(JPUiParts::button(graph, "New Board on the Bed"));
+    onBed->onClicked.connect([this] { if (onNewBoardOnBed) onNewBoardOnBed(); });
+    add(std::move(newBoard));
+
+    // The references, each with what was last captured of it.
+    add(std::make_unique<JLabel>(graph, "References on this side: choose one; double-click to look at it"));
+    m_references = add(std::make_unique<JListView>(graph));
+    m_references->setVSizePolicy(JSizePolicyMode::Expanding, 1);
+    m_references->onItemActivated.connect([this](int i) {
+        if (onGoTo && i >= 0 && size_t(i) < m_referenceKeys.size()) onGoTo(m_referenceKeys[size_t(i)]);
+    });
+    auto refButtons = JPUiParts::row(graph);
+    auto withChosen = [this](std::function<void(const std::string&)>& f) {
+        return [this, &f] {
+            const std::string d = chosenReference();
+            if (f && !d.empty()) f(d);
+        };
+    };
+    JButton* goTo = refButtons->add(JPUiParts::button(graph, "Go To"));
+    goTo->onClicked.connect(withChosen(onGoTo));
+    JButton* record = refButtons->add(JPUiParts::button(graph, "Record"));
+    record->onClicked.connect(withChosen(onRecord));
+    JButton* here = refButtons->add(JPUiParts::button(graph, "Camera Is on It"));
+    here->onClicked.connect(withChosen(onCameraOnReference));
+    add(std::move(refButtons));
 
     auto locate = JPUiParts::row(graph);
     JButton* find = locate->add(JPUiParts::button(graph, "Locate Board"));
@@ -48,14 +74,7 @@ JPBoardPanel::JPBoardPanel(JSceneGraph& graph) : JContainer(graph) {
     m_place->setWordWrap(true);
     add(std::move(locate));
 
-    m_found = add(std::make_unique<JListView>(graph));
-    m_found->setVSizePolicy(JSizePolicyMode::Expanding, 1);
-    // A fiducial's line double-clicked: the camera goes to look at it (one not found, to see why).
-    m_found->onItemActivated.connect([this](int i) {
-        if (onGoTo && i >= 0 && size_t(i) < m_foundDesignators.size()) onGoTo(m_foundDesignators[size_t(i)]);
-    });
-
-    // A board is square: what its fiducials show of the machine's lean can correct it.
+    // A board is square: what its references show of the machine's lean can correct it.
     auto squareRow = JPUiParts::row(graph);
     m_square = squareRow->add(JPUiParts::button(graph, "Square the Machine\xE2\x80\xA6"));
     m_square->onClicked.connect([this] { if (onSquare) onSquare(); });
@@ -66,42 +85,61 @@ JPBoardPanel::JPBoardPanel(JSceneGraph& graph) : JContainer(graph) {
     add(std::move(squareRow));
 
     // Any placement: choose it, the camera goes to it.
-    auto goTo = JPUiParts::row(graph);
-    goTo->add(std::make_unique<JLabel>(graph, "Placements: double-click one to look at it"));
-    add(std::move(goTo));
+    auto goToAny = JPUiParts::row(graph);
+    goToAny->add(std::make_unique<JLabel>(graph, "Placements: double-click one to look at it"));
+    add(std::move(goToAny));
     m_placements = add(std::make_unique<JListView>(graph));
     m_placements->setVSizePolicy(JSizePolicyMode::Expanding, 2);
     m_placements->onItemActivated.connect([this](int i) {
         if (onGoTo && i >= 0 && size_t(i) < m_designators.size()) onGoTo(m_designators[size_t(i)]);
     });
-    m_buttons = { import, here, find };
+    m_buttons = { import, goTo, record, here, find, onBed };
 }
 
-void JPBoardPanel::showBoard(const std::string& summary, bool bottom, const std::vector<std::string>& fiducials,
-                             const std::vector<std::string>& placements, const std::vector<std::string>& designators) {
+void JPBoardPanel::showBoard(const std::string& summary, bool bottom, const std::vector<std::string>& references,
+                             const std::vector<std::string>& referenceKeys, const std::vector<std::string>& placements,
+                             const std::vector<std::string>& designators) {
     m_updating = true;
+    const std::string chosen = chosenReference();
     m_summary->setText(summary.empty() ? "No board" : summary);
     m_side->choose(bottom ? 1 : 0);
-    m_fiducial->setItems(fiducials);
+    m_references->setItems(references);
+    m_referenceKeys = referenceKeys;
+    for (size_t i = 0; i < referenceKeys.size(); ++i)
+        if (referenceKeys[i] == chosen) m_references->setSelectedIndex(int(i));
     m_placements->setItems(placements);
     m_designators = designators;
     m_updating = false;
+}
+
+void JPBoardPanel::showCapture(bool byHand, bool reuse) {
+    m_updating = true;
+    m_capture->choose(byHand ? 1 : 0);
+    m_newBoard->choose(reuse ? 1 : 0);
+    m_newBoard->setChoicesEnabled(byHand);
+    m_newBoardLabel->setEnabled(byHand);
+    m_updating = false;
+}
+
+std::string JPBoardPanel::chosenReference() const {
+    const int i = m_references->selectedIndex();
+    return i >= 0 && size_t(i) < m_referenceKeys.size() ? m_referenceKeys[size_t(i)] : std::string();
+}
+
+void JPBoardPanel::chooseReference(const std::string& designator) {
+    for (size_t i = 0; i < m_referenceKeys.size(); ++i)
+        if (m_referenceKeys[i] == designator) m_references->setSelectedIndex(int(i));
 }
 
 void JPBoardPanel::showPlace(const std::string& text) {
     m_place->setText(text);
 }
 
-void JPBoardPanel::showFound(const std::vector<std::string>& lines) {
-    m_found->setItems(lines);
-    m_foundDesignators.clear();
-    for (const std::string& l : lines) m_foundDesignators.push_back(l.substr(0, l.find(' ')));
-}
-
 void JPBoardPanel::setBusy(bool busy) {
     for (JButton* b : m_buttons) b->setEnabled(!busy);
     m_square->setEnabled(!busy && m_canSquare);
     m_side->setChoicesEnabled(!busy);
+    m_capture->setChoicesEnabled(!busy);
 }
 
 void JPBoardPanel::showLean(const std::string& text) {

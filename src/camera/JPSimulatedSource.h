@@ -19,7 +19,8 @@ inline namespace jf {
 //
 // Without a scene it draws a test picture (a grid, a moving bar). With one it
 // draws what a camera at the machine's current viewpoint would see: round
-// marks at their places on the machine, through a camera transform only the
+// marks (and convex shapes: pads) at their places on the machine, through a
+// camera transform only the
 // configuration knows (pixels per mm, rotation, mirroring), with soft edges,
 // uneven light and noise. Calibration and visual homing are proven on it:
 // they must find what it hides.
@@ -29,6 +30,7 @@ inline namespace jf {
 //              "lensCentre": [672, 373],                // where it bends about (else the middle)
 //              "marks": [ { "x": 137.137, "y": 179.265, "diameter": 1.85 },
 //                         { "x": 150, "y": 179, "diameter": 1, "level": 5 } ],   // its own brightness (a hole)
+//              "shapes": [ { "points": [[10, 10], [11, 10], [11, 11], [10, 11]] } ],   // convex, machine mm (pads)
 //              "ground": 30, "mark": 190, "noise": 3 }
 class JPSimulatedSource : public JPCaptureSource {
 public:
@@ -55,12 +57,14 @@ private:
     void drawScene(JPFrame& frame);
 
     struct Mark { double x, y, diameter; float level; };
+    struct Shape { std::vector<std::pair<double, double>> points; float level; };
 
     std::string m_name;
     JPCaptureMode m_mode;
     bool m_hasScene = false;
     double m_pxPerMm[4] = {};
     std::vector<Mark> m_marks;
+    std::vector<Shape> m_shapes;
     float m_ground = 0, m_noise = 0;
     double m_lensK1 = 0, m_lensK2 = 0;
     double m_lensCentre[2] = {};

@@ -6,6 +6,7 @@
 #include "common/JPWholeFile.h"
 
 #include <array>
+#include <cstring>
 
 inline namespace jf {
 
@@ -42,6 +43,38 @@ auto textFields(P& p) {
     } };
 }
 
+constexpr const char* kBase64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+std::string base64(const std::vector<unsigned char>& in) {
+    std::string out;
+    for (size_t i = 0; i < in.size(); i += 3) {
+        const unsigned v = unsigned(in[i]) << 16 | (i + 1 < in.size() ? unsigned(in[i + 1]) << 8 : 0u)
+                         | (i + 2 < in.size() ? unsigned(in[i + 2]) : 0u);
+        out += kBase64[(v >> 18) & 63];
+        out += kBase64[(v >> 12) & 63];
+        out += i + 1 < in.size() ? kBase64[(v >> 6) & 63] : '=';
+        out += i + 2 < in.size() ? kBase64[v & 63] : '=';
+    }
+    return out;
+}
+
+std::vector<unsigned char> unbase64(const std::string& in) {
+    std::vector<unsigned char> out;
+    unsigned v = 0;
+    int bits = 0;
+    for (const char c : in) {
+        const char* at = std::strchr(kBase64, c);
+        if (!at || c == '\0') continue;
+        v = v << 6 | unsigned(at - kBase64);
+        bits += 6;
+        if (bits >= 8) {
+            bits -= 8;
+            out.push_back(static_cast<unsigned char>((v >> bits) & 0xFF));
+        }
+    }
+    return out;
+}
+
 JJson placementJson(const JPPlacement& p) {
     JJson j = JJson::object();
     for (const auto& [key, field] : textFields(p))
@@ -73,6 +106,18 @@ JJson placementJson(const JPPlacement& p) {
     if (p.pins > 0) j["pins"] = p.pins;
     if (p.partGuessed) j["partGuessed"] = true;
     if (p.rotationSet) j["rotationSet"] = p.rotationSetDeg;
+    if (p.reference) j["reference"] = true;
+    if (p.recorded) {
+        j["recordedX"] = p.recordedX;
+        j["recordedY"] = p.recordedY;
+    }
+    if (!p.look.empty()) {
+        JJson l = JJson::object();
+        l["width"] = p.lookWidth;
+        l["pxPerMm"] = p.lookPxPerMm;
+        l["grey"] = base64(p.look);
+        j["look"] = std::move(l);
+    }
     if (!p.other.empty()) {
         JJson o = JJson::object();
         for (const auto& [heading, text] : p.other) o[heading] = text;
@@ -98,6 +143,15 @@ JPPlacement placementOf(const JJson& j) {
     p.doNotPlace  = j["doNotPlace"].boolean();
     p.pins        = int(j["pins"].number());
     p.partGuessed = j["partGuessed"].boolean();
+    p.reference = j["reference"].boolean();
+    p.recorded = j.contains("recordedX");
+    p.recordedX = j["recordedX"].number();
+    p.recordedY = j["recordedY"].number();
+    if (j.contains("look")) {
+        p.lookWidth = int(j["look"]["width"].number());
+        p.lookPxPerMm = j["look"]["pxPerMm"].number();
+        p.look = unbase64(j["look"]["grey"].str());
+    }
     p.rotationSet = j.contains("rotationSet");
     p.rotationSetDeg = j["rotationSet"].number();
     for (const auto& [heading, text] : j["other"].obj()) p.other.emplace_back(heading, text.str());
@@ -129,6 +183,10 @@ JJson JPJob::toJson() const {
     JJson bc = JJson::array();
     for (const std::string& c : bomChoices) bc.push(c);
     j["bomChoices"] = std::move(bc);
+    JJson loc = JJson::object();
+    loc["capture"]  = location.capture == JPLocateSettings::Capture::Manual ? "manual" : "automatic";
+    loc["newBoard"] = location.newBoard == JPLocateSettings::NewBoard::Reuse ? "reuse" : "rerecord";
+    j["location"] = std::move(loc);
     JJson ps = JJson::array();
     for (const JPPlacement& p : board.placements) ps.push(placementJson(p));
     j["placements"] = std::move(ps);
@@ -155,6 +213,10 @@ bool JPJob::fromJson(const JJson& j, JPJob& out, std::string& error) {
     job.frame.width   = j["frame"]["width"].number();
     job.frame.height  = j["frame"]["height"].number();
     for (const JJson& c : j["bomChoices"].arr()) job.bomChoices.push_back(c.str());
+    job.location.capture = j["location"]["capture"].str() == "manual" ? JPLocateSettings::Capture::Manual
+                                                                     : JPLocateSettings::Capture::Automatic;
+    job.location.newBoard = j["location"]["newBoard"].str() == "reuse" ? JPLocateSettings::NewBoard::Reuse
+                                                                      : JPLocateSettings::NewBoard::ReRecord;
     for (const JJson& p : j["placements"].arr()) job.board.placements.push_back(placementOf(p));
     if (!JPPartsStore::fromJson(j["parts"], job.parts, error)) {
         error = "its parts: " + error;

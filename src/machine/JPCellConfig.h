@@ -7,6 +7,7 @@
 #include "JPAxisConfig.h"
 #include "JPCameraConfig.h"
 #include "JPDriverConfig.h"
+#include "JPBoardStartConfig.h"
 #include "JPFiducialConfig.h"
 #include "JPHeadConfig.h"
 #include "JPLocation.h"
@@ -33,6 +34,7 @@ struct JPCellConfig {
     std::vector<JPActuatorConfig> actuators;
     JPSquarenessConfig            squareness;   // the gantry's Y lean, when measured
     JPFiducialConfig              fiducials;    // how a board's fiducials are measured
+    JPBoardStartConfig            boardStart;   // how a board's first guess is got
     // Home as soon as connected: any controller saying so (JPDriverConfig).
     bool homeAfterConnect() const {
         for (const JPDriverConfig& d : drivers)

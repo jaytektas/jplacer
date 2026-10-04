@@ -31,6 +31,11 @@ JPSimulatedSource::JPSimulatedSource(std::string name, int width, int height, do
     for (const JJson& m : scene["marks"].arr())
         m_marks.push_back({ m["x"].number(), m["y"].number(), m["diameter"].number(),
                             float(m["level"].number(scene["mark"].number())) });
+    for (const JJson& sh : scene["shapes"].arr()) {
+        Shape shape { {}, float(sh["level"].number(scene["mark"].number())) };
+        for (const JJson& pt : sh["points"].arr()) shape.points.push_back({ pt[size_t(0)].number(), pt[size_t(1)].number() });
+        if (shape.points.size() >= 3) m_shapes.push_back(std::move(shape));
+    }
     m_ground = float(scene["ground"].number());
     m_noise  = float(scene["noise"].number());
     m_lensK1 = scene["lensK1"].number();
@@ -86,6 +91,50 @@ void JPSimulatedSource::drawScene(JPFrame& frame) {
                 float& v = lum[size_t(y) * size_t(frame.width) + size_t(x)];
                 const float a = float(inside) / (kSub * kSub);
                 v = v * (1 - a) + m.level * a;
+            }
+    }
+    // The shapes: each pixel straightened and taken back to the machine, and
+    // lit where it falls inside one.
+    const double det = m_pxPerMm[0] * m_pxPerMm[3] - m_pxPerMm[1] * m_pxPerMm[2];
+    for (const Shape& sh : m_shapes) {
+        if (!known || std::abs(det) < 1e-12) break;
+        // Where its corners are seen, for the pixels to test.
+        double x0 = 1e300, y0 = 1e300, x1 = -1e300, y1 = -1e300;
+        for (const auto& [mx, my] : sh.points) {
+            const double dx = vx - mx, dy = vy - my;
+            double sx, sy;
+            lens.distort(ox0 + m_pxPerMm[0] * dx + m_pxPerMm[1] * dy, oy0 + m_pxPerMm[2] * dx + m_pxPerMm[3] * dy, sx, sy);
+            x0 = std::min(x0, sx); x1 = std::max(x1, sx);
+            y0 = std::min(y0, sy); y1 = std::max(y1, sy);
+        }
+        auto inside = [&sh](double mx, double my) {
+            int sign = 0;
+            for (size_t i = 0; i < sh.points.size(); ++i) {
+                const auto& [ax, ay] = sh.points[i];
+                const auto& [bx, by] = sh.points[(i + 1) % sh.points.size()];
+                const double cross = (bx - ax) * (my - ay) - (by - ay) * (mx - ax);
+                const int s = cross > 0 ? 1 : cross < 0 ? -1 : 0;
+                if (s != 0 && sign != 0 && s != sign) return false;
+                if (s != 0) sign = s;
+            }
+            return true;
+        };
+        for (int y = std::max(0, int(y0) - 2); y <= std::min(frame.height - 1, int(y1) + 2); ++y)
+            for (int x = std::max(0, int(x0) - 2); x <= std::min(frame.width - 1, int(x1) + 2); ++x) {
+                int in = 0;
+                for (int sy = 0; sy < kSub; ++sy)
+                    for (int sx = 0; sx < kSub; ++sx) {
+                        double ux, uy;
+                        lens.undistort(x + (sx + 0.5) / kSub - 0.5, y + (sy + 0.5) / kSub - 0.5, ux, uy);
+                        // u = o + M (V - P): P = V - M^-1 (u - o).
+                        const double ex = ux - ox0, ey = uy - oy0;
+                        const double dx = (m_pxPerMm[3] * ex - m_pxPerMm[1] * ey) / det;
+                        const double dy = (-m_pxPerMm[2] * ex + m_pxPerMm[0] * ey) / det;
+                        in += inside(vx - dx, vy - dy);
+                    }
+                float& v = lum[size_t(y) * size_t(frame.width) + size_t(x)];
+                const float a = float(in) / (kSub * kSub);
+                v = v * (1 - a) + sh.level * a;
             }
     }
     uint8_t* p = frame.rgba.data();

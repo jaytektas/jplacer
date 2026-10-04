@@ -319,6 +319,47 @@ void machineForm(JPCellConfig& cell, JPSetupProperties::Form& f) {
     add.note("With a diameter, each pass looks at the fiducial from two places that far apart, either side of it "
              "along the angle (0 along X, 90 along Y), and takes the midpoint. Shiny (HASL) fiducials seen straight "
              "on can mirror the camera and look dark; from the side they mirror the light. 0 looks straight down.");
+
+    add.tab("Board Location");
+    using Start = JPBoardStartConfig;
+    const Strings kinds = { "By hand", "Fixture anchor", "Search a region" };
+    add.group("Starting Point");
+    add.choice("boardStartKind", "Starting Point", kinds,
+               [&cell, kinds] { return kinds[size_t(cell.boardStart.kind)]; },
+               [&cell, kinds](const std::string& v) {
+                   for (size_t i = 0; i < kinds.size(); ++i)
+                       if (kinds[i] == v) cell.boardStart.kind = Start::Kind(i);
+               });
+    add.note("How the camera knows roughly where a board is before it looks for its references. By hand: jog the "
+             "camera onto one reference and say which. Fixture anchor: boards are mounted at one place, a corner "
+             "of each at the anchor. Search a region: the camera scans for the first reference.");
+    add.group("Fixture Anchor");
+    add.number("anchorX", "Anchor X", [&cell]() -> double& { return cell.boardStart.anchorX; });
+    add.number("anchorY", "Anchor Y", [&cell]() -> double& { return cell.boardStart.anchorY; });
+    const Strings corners = { Start::cornerName(Start::Corner::BottomLeft), Start::cornerName(Start::Corner::BottomRight),
+                              Start::cornerName(Start::Corner::TopLeft), Start::cornerName(Start::Corner::TopRight) };
+    const Strings turns = { "0", "90", "180", "270" };
+    for (const auto& [key, label, side] : { std::tuple{ "top", "Top Up", &cell.boardStart.top },
+                                            std::tuple{ "bottom", "Bottom Up", &cell.boardStart.bottom } }) {
+        Start::Side* sd = side;
+        add.choice(std::string(key) + "AnchorCorner", std::string(label) + ": Corner at the Anchor", corners,
+                   [sd, corners] { return corners[size_t(sd->corner)]; },
+                   [sd, corners](const std::string& v) {
+                       for (size_t i = 0; i < corners.size(); ++i)
+                           if (corners[i] == v) sd->corner = Start::Corner(i);
+                   });
+        add.choice(std::string(key) + "AnchorTurn", std::string(label) + ": Board Turned (deg)", turns,
+                   [sd] { return std::to_string(int(sd->turnDeg)); },
+                   [sd](const std::string& v) { sd->turnDeg = std::stod(v); });
+    }
+    add.note("Which corner of the board (its outline, or with none its placements' extent) sits at the anchor, and "
+             "how far the board is turned on the machine, for each side up: the board need not lie as the CAD draws it.");
+    add.group("Search Region");
+    add.number("regionX0", "From X", [&cell]() -> double& { return cell.boardStart.regionX0; });
+    add.number("regionY0", "From Y", [&cell]() -> double& { return cell.boardStart.regionY0; });
+    add.number("regionX1", "To X", [&cell]() -> double& { return cell.boardStart.regionX1; });
+    add.number("regionY1", "To Y", [&cell]() -> double& { return cell.boardStart.regionY1; });
+    add.note("Where the camera scans for the first reference. All 0: the head's whole travel within its soft limits.");
 }
 
 void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPFirmwareProfile>& profiles, JPSetupProperties::Form& f) {
