@@ -10,6 +10,7 @@
 #include "JPPanel.h"
 #include "JPPanelLocation.h"
 #include "JPPart.h"
+#include "JPVisionSettings.h"
 
 #include <memory>
 #include <string>
@@ -29,6 +30,7 @@ public:
     static constexpr const char* kPackagesFile = "packages.xml";
     static constexpr const char* kBoardsFile   = "boards.xml";
     static constexpr const char* kPanelsFile   = "panels.xml";
+    static constexpr const char* kVisionFile   = "vision-settings.xml";
 
     explicit JPConfiguration(std::string directory);
 
@@ -49,6 +51,12 @@ public:
     JPPackage* package(const std::string& id) const;
     void addPackage(std::shared_ptr<JPPackage> package);
     void removePackage(const std::string& id);
+
+    // Vision settings, as named by parts and packages (read; the Vision tab writes them).
+    const std::vector<JPVisionSettings>& visionSettings() const { return m_vision; }
+    const JPVisionSettings* visionSettings(const std::string& id) const;
+    // Placements on the known boards that use the part (OpenPnP's Placements column).
+    int placementCount(const std::string& partId) const;
 
     const std::vector<std::shared_ptr<JPBoard>>& boards() const { return m_boards; }
     const std::vector<std::shared_ptr<JPPanel>>& panels() const { return m_panels; }
@@ -88,6 +96,7 @@ private:
     std::unordered_map<std::string, std::shared_ptr<JPPart>>    m_partsById;
     std::vector<std::shared_ptr<JPPackage>>              m_packages;
     std::unordered_map<std::string, std::shared_ptr<JPPackage>> m_packagesById;
+    std::vector<JPVisionSettings>                        m_vision;
     std::vector<std::shared_ptr<JPBoard>>                m_boards;
     std::vector<std::shared_ptr<JPPanel>>                m_panels;
 };

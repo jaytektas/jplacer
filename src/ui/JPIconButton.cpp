@@ -3,6 +3,8 @@
 
 #include "JPIconButton.h"
 
+#include "JPOpenPnpIcons.h"
+
 #include <j/core/JStyle.h>
 
 #include <algorithm>
@@ -17,6 +19,8 @@ constexpr float kGlyphShare  = 0.8f;
 // dots so big (shares of the button's side).
 constexpr float kHintInset = 0.07f, kHintSize = 0.24f, kHintDot = 0.045f;
 constexpr float kRoundShare  = 0.2f;
+// An OpenPnP icon is drawn at this many times its size on screen.
+constexpr float kIconOversample = 2.f;
 
 JColor colour(const uint8_t* c) { return rgb(c[0], c[1], c[2]); }
 
@@ -34,6 +38,12 @@ JPIconButton::JPIconButton(JSceneGraph& graph, const std::string& name, Glyph gl
         setChecked(!m_checked);
         onToggled.emit(m_checked);
     });
+}
+
+JPIconButton::JPIconButton(JSceneGraph& graph, const std::string& name, const std::string& openPnpIcon,
+                           const std::string& tooltip)
+    : JPIconButton(graph, name, Glyph(), tooltip) {
+    m_icon = openPnpIcon;
 }
 
 float JPIconButton::size() { return JStyle::current().tabBarSize; }
@@ -64,7 +74,17 @@ void JPIconButton::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     }
     const JColor ink = !enabled ? colour(st.MutedText)
                      : m_checked ? colour(st.HighlightedText) : colour(st.TextPrimary);
-    m_glyph(vg, b.x + b.width * 0.5f, b.y + b.height * 0.5f, s * kGlyphShare, ink);
+    if (m_glyph) m_glyph(vg, b.x + b.width * 0.5f, b.y + b.height * 0.5f, s * kGlyphShare, ink);
+    if (!m_icon.empty())
+        if (JPOpenPnpIcons* icons = JPOpenPnpIcons::instance()) {
+            // Drawn at twice its size and shown smaller, so it stays sharp on a scaled screen.
+            const float side = s * kGlyphShare;
+            const TextureHandle tex = icons->texture(m_icon, int(side * kIconOversample), !enabled);
+            if (tex != kNullTexture) {
+                vg.flush(buf);   // the button's face first, the icon over it
+                buf.pushImage(b.x + (b.width - side) * 0.5f, b.y + (b.height - side) * 0.5f, side, side, tex);
+            }
+        }
     // Where a click leads, in the bottom-right corner.
     const float edge = s * kHintInset, right = b.x + b.width - edge, bottom = b.y + b.height - edge;
     if (m_leads == Leads::Menu) {

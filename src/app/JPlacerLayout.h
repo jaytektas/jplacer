@@ -7,6 +7,7 @@
 #include <j/core/DockWidget.h>
 #include <j/core/MenuSystem.h>
 
+#include <string>
 #include <vector>
 
 inline namespace jf {
@@ -56,6 +57,9 @@ private:
     };
 
     JDockHost& hostOf(Home home);
+    // Where a tab goes among those of its home: OpenPnP's tabs in its order,
+    // the rest after them.
+    static int tabRank(const std::string& title);
     void place(const Entry& e);
     void hide(const Entry& e);
     void rebuildMenu();

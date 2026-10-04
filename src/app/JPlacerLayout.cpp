@@ -75,12 +75,26 @@ JDockHost& JPlacerLayout::hostOf(Home home) {
     return space.host(JDockSpace::Center);
 }
 
+int JPlacerLayout::tabRank(const std::string& title) {
+    // The work area's tabs in OpenPnP's order; jplacer's own after them.
+    static const char* const kOrder[] = { "Job", "Panels", "Boards", "Parts", "Packages", "Vision", "Feeders",
+                                          "Machine Setup", "Issues & Solutions", "Log" };
+    for (size_t i = 0; i < std::size(kOrder); ++i)
+        if (title == kOrder[i]) return int(i);
+    return int(std::size(kOrder));
+}
+
 void JPlacerLayout::place(const Entry& e) {
     JDockHost& host = hostOf(e.home);
-    // Tabbed with one from the same home already there.
+    // Tabbed with one from the same home already there, in OpenPnP's order of tabs.
     for (const Entry& o : m_entries)
         if (o.dock != e.dock && o.home == e.home && o.dock->placedIn() == &host) {
-            host.insertDock(e.dock, host.findDock(o.dock));
+            const JDockNodeId leaf = host.findDock(o.dock);
+            int at = 0;
+            if (const JDockNode* n = host.node(leaf))
+                for (const JDockWidget* t : n->tabs)
+                    if (tabRank(t->title()) <= tabRank(e.dock->title())) ++at;
+            host.insertDock(e.dock, leaf, at);
             return;
         }
     // The host shared with another home (the cameras, the controls): above

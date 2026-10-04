@@ -10,6 +10,9 @@
 #include "JPKeyMap.h"
 #include "JPlacerJob.h"
 #include "JPlacerMachine.h"
+#include "JPlacerOpenPnpTabs.h"
+
+#include "ui/JPOpenPnpIcons.h"
 
 #include <memory>
 #include <string>
@@ -52,8 +55,12 @@ private:
     // The open job and the parts library; outlives the machine, whose Board
     // panel shows the job's board.
     std::unique_ptr<JPlacerJob> m_job;
+    // OpenPnP's icons, drawn for the window's graphics; gone before the window.
+    std::unique_ptr<JPOpenPnpIcons> m_icons;
     // The open cell and its panel; before the window in destruction order.
     std::unique_ptr<JPlacerMachine> m_machine;
+    // OpenPnP's tabs (Parts…), in the machine's layout: gone before the machine.
+    std::unique_ptr<JPlacerOpenPnpTabs> m_tabs;
     // Every function a key can be given; after the machine, so gone first.
     std::unique_ptr<JPKeyMap> m_keys;
 

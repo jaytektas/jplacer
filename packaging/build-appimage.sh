@@ -36,6 +36,8 @@ strip "$APPDIR/usr/bin/jplacer"
 cp -r "$ROOT/manual/site" "$APPDIR/usr/bin/manual"
 # Firmware profiles travel beside the executable too: JPFirmwareProfile reads usr/bin/profiles.
 cp -r "$ROOT/profiles" "$APPDIR/usr/bin/profiles"
+# OpenPnP's icons too: JPOpenPnpIcons reads usr/bin/icons.
+cp -r "$ROOT/icons" "$APPDIR/usr/bin/icons"
 
 # The icon twice: the PNG is what the AppImage itself shows, and both are what jplacer copies into the
 # icon theme when it adds itself to the applications menu (src/app/JPlacerLauncher.cpp).

@@ -60,10 +60,12 @@ bool JPConfiguration::load(std::vector<std::string>& problems, std::string& erro
     auto read = [&error](const fs::path& p, JPXmlElement& root) {
         return !exists(p.string()) || JPXmlReader::read(p.string(), root, error);
     };
-    JPXmlElement packages, parts, boards, panels;
+    JPXmlElement packages, parts, boards, panels, vision;
     if (!read(dir / kPackagesFile, packages) || !read(dir / kPartsFile, parts) || !read(dir / kBoardsFile, boards)
-        || !read(dir / kPanelsFile, panels))
+        || !read(dir / kPanelsFile, panels) || !read(dir / kVisionFile, vision))
         return false;
+    for (const JPXmlElement& e : vision.children)
+        if (e.name == "vision-settings") m_vision.push_back(JPVisionSettings::fromXml(e));
     for (const JPXmlElement& e : packages.children)
         if (e.name == "package") addPackage(std::make_shared<JPPackage>(JPPackage::fromXml(e)));
     for (const JPXmlElement& e : parts.children)
@@ -97,6 +99,22 @@ bool JPConfiguration::save(std::string& error) const {
         && JPXmlWriter::write((dir / kPartsFile).string(), parts, error)
         && JPXmlWriter::write((dir / kBoardsFile).string(), boards, error)
         && JPXmlWriter::write((dir / kPanelsFile).string(), panels, error);
+}
+
+const JPVisionSettings* JPConfiguration::visionSettings(const std::string& id) const {
+    const std::string k = upper(id);
+    for (const JPVisionSettings& v : m_vision)
+        if (upper(v.id) == k) return &v;
+    return nullptr;
+}
+
+int JPConfiguration::placementCount(const std::string& partId) const {
+    const std::string k = upper(partId);
+    int n = 0;
+    for (const auto& b : m_boards)
+        for (const JPPlacement& p : b->placements)
+            if (upper(p.partId) == k) ++n;
+    return n;
 }
 
 JPPart* JPConfiguration::part(const std::string& id) const {

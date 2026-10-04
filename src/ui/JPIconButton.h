@@ -25,6 +25,9 @@ public:
     using Glyph = std::function<void(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink)>;
 
     JPIconButton(JSceneGraph& graph, const std::string& name, Glyph glyph, const std::string& tooltip);
+    // One showing an OpenPnP icon by its name (JPOpenPnpIcons), as OpenPnP's
+    // buttons do.
+    JPIconButton(JSceneGraph& graph, const std::string& name, const std::string& openPnpIcon, const std::string& tooltip);
 
     // How big one is: as tall as a tab bar, and as wide.
     static float size();
@@ -42,7 +45,8 @@ public:
     void populateRenderPrimitives(JPrimitiveBuffer& buf) override;
 
 private:
-    Glyph m_glyph;
+    Glyph       m_glyph;
+    std::string m_icon;   // an OpenPnP icon's name, instead of a glyph
     bool  m_checkable = false;
     bool  m_framed    = false;
     bool  m_checked = false;

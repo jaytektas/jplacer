@@ -31,7 +31,7 @@ key taken off, in [Preferences, Keys](preferences.md#keys); the menu then shows 
 
 ## View
 
-A tick for each panel: each camera, **Jog**, **Actuators**, **Parts**,
+A tick for each panel: each camera, **Jog**, **Actuators**, **[Parts](parts.md)**,
 **Machine Setup**, **Machine** and **Console**. Untick one to close it; tick it to show it again where it lives (see
 [The machine's panels](machine.md#the-machines-panels)).
 

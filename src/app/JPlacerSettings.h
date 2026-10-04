@@ -52,6 +52,9 @@ public:
     // The job (.jpjob) open last; opened again at start.
     static constexpr const char* kJobFile          = "job.file";
 
+    // The Parts tab: the table's share of its height (OpenPnP's PartsPanel.dividerPosition).
+    static constexpr const char* kPartsSplit       = "parts.split";
+
     // ~/.config/jplacer/jplacer.json, or %APPDATA%\jplacer\jplacer.json.
     static std::string defaultPath();
 

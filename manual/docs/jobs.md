@@ -21,7 +21,7 @@ OpenPnP.
   description, a tape specification, vacuum levels, a footprint (its pads and body), the nozzle tips
   that can pick it, and its vision settings. Parts and packages are found by id whatever its case.
 
-Panels and parts are edited on tabs of their own, as in OpenPnP; those tabs are being built.
+Parts are edited on the [Parts](parts.md) tab, as in OpenPnP; the other tabs are being built.
 
 <!-- src: src/model/JPJob.h; src/model/JPBoard.h; src/model/JPPanel.h; src/model/JPPart.h; src/model/JPPackage.h; src/model/JPConfiguration.h -->
 

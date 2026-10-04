@@ -49,16 +49,21 @@ bool JPXmlReader::read(const std::string& path, JPXmlElement& root, std::string&
         return false;
     }
     const std::string src((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    if (!parse(src, root, error)) {
+        error = path + ":" + error;
+        return false;
+    }
+    return true;
+}
 
+bool JPXmlReader::parse(const std::string& src, JPXmlElement& root, std::string& error) {
     Builder b;
     XML_Parser p = XML_ParserCreate(nullptr);
     XML_SetUserData(p, &b);
     XML_SetElementHandler(p, onStart, onEnd);
     XML_SetCharacterDataHandler(p, onText);
     const bool ok = XML_Parse(p, src.data(), int(src.size()), XML_TRUE) == XML_STATUS_OK;
-    if (!ok)
-        error = path + ":" + std::to_string(XML_GetCurrentLineNumber(p)) + ": "
-              + XML_ErrorString(XML_GetErrorCode(p));
+    if (!ok) error = std::to_string(XML_GetCurrentLineNumber(p)) + ": " + XML_ErrorString(XML_GetErrorCode(p));
     XML_ParserFree(p);
     if (ok) root = std::move(b.root);
     return ok;
