@@ -40,4 +40,18 @@ std::string JPlacerPaths::configDir() {
     return {};
 }
 
+std::string JPlacerPaths::dataDir() {
+    namespace fs = std::filesystem;
+#if defined(_WIN32)
+    if (const char* local = std::getenv("LOCALAPPDATA"))
+        return (fs::path(local) / "jplacer").string();
+#else
+    if (const char* xdg = std::getenv("XDG_DATA_HOME"); xdg && *xdg)
+        return (fs::path(xdg) / "jplacer").string();
+    if (const char* home = std::getenv("HOME"))
+        return (fs::path(home) / ".local" / "share" / "jplacer").string();
+#endif
+    return {};
+}
+
 } // inline namespace jf

@@ -17,7 +17,12 @@ inline namespace jf {
 // units in the numbers ("12.5mm", "500mil") or the heading ("PosX(mm)").
 // Fiducials are told by designator (FID...) or footprint (FIDUCIAL...), and
 // their size by the footprint's name where it gives one ("FIDUCIAL_1MM").
-// Nothing goes into the library: the board is the file's.
+// Whatever else a column says about the part is kept on its placement (see
+// JPPlacement): supplier numbers (several suppliers' columns, or one with a
+// Supplier column beside it), MPN and manufacturer, ratings, mounting and
+// do-not-place, the supplier's package name and pin count, pad 1's position,
+// and every column it does not know, as text. Nothing goes into the library:
+// the board is the file's.
 class JPCplImporter {
 public:
     static bool read(const std::string& path, JPBoard& board, std::vector<std::string>& notes, std::string& error);

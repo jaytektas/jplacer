@@ -19,6 +19,11 @@ public:
     // ~/.config/jplacer (or $XDG_CONFIG_HOME/jplacer, %APPDATA%\jplacer).
     // Empty when no home directory is known.
     static std::string configDir();
+
+    // ~/.local/share/jplacer (or $XDG_DATA_HOME/jplacer, %LOCALAPPDATA%\jplacer):
+    // what jplacer keeps that is not a preference (the parts library).
+    // Empty when no home directory is known.
+    static std::string dataDir();
 };
 
 } // inline namespace jf

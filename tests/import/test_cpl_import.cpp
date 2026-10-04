@@ -72,5 +72,35 @@ int main() {
         std::string error;
         assert(!JPCplImporter::parse("Name,Quantity\nR1,3\n", b, notes, error) && !error.empty());
     }
+    // What identifies a part, kept: supplier numbers (a Supplier column beside
+    // a generic one, and a supplier's own), MPN, ratings, mounting, do-not-place,
+    // the supplier's package and pin count, pad 1, and columns not known.
+    {
+        const std::string csv = "Designator,Footprint,Mid X,Mid Y,Pad X,Pad Y,Pins,Layer,Rotation,SMD,Add into BOM,"
+                                "Supplier Part,Supplier,LCSC Part #,Manufacturer,Manufacturer Part,Supplier Footprint,"
+                                "Value,Tolerance,Voltage,Description,3D Model\n"
+                                "R1,R0805,40.5mm,80mm,39.5mm,80mm,2,T,0,Yes,yes,C17408,LCSC,,UNI-ROYAL,0805W8F1000T5E,"
+                                "0805,100R,1%,,thick film,R0805_L2.0\n"
+                                "U1,SOIC-8,10mm,10mm,8mm,9mm,8,T,90,Yes,no,X99,Acme,C123,ST,LM358DT,SOIC-8,,,30V,,\n"
+                                "J1,HDR,5mm,5mm,4mm,5mm,4,T,0,No,yes,,,,,,,,,,,\n";
+        JPBoard b;
+        std::vector<std::string> notes;
+        std::string error;
+        assert(JPCplImporter::parse(csv, b, notes, error) && b.placements.size() == 3);
+        const JPPlacement* r1 = b.find("R1");
+        assert(std::abs(r1->x - 40.5) < 1e-9);                      // Mid, not Pad
+        assert(r1->hasPin1 && std::abs(r1->pin1X - 39.5) < 1e-9 && std::abs(r1->pin1Y - 80) < 1e-9);
+        assert(r1->supplierNumbers.size() == 1 && r1->supplierNumbers[0] == (JPSupplierNumber { "LCSC", "C17408" }));
+        assert(r1->mpn == "0805W8F1000T5E" && r1->manufacturer == "UNI-ROYAL" && r1->value == "100R");
+        assert(r1->tolerance == "1%" && r1->supplierPackage == "0805" && r1->pins == 2 && r1->footprint == "R0805");
+        assert(r1->mounting == JPPlacement::Mounting::Smd && !r1->doNotPlace && r1->description == "thick film");
+        assert(r1->other.size() == 1 && r1->other[0].first == "3D Model" && r1->other[0].second == "R0805_L2.0");
+        const JPPlacement* u1 = b.find("U1");
+        assert(u1->supplierNumbers.size() == 2);                    // Acme's own, and the LCSC column's
+        assert(u1->supplierNumbers[0] == (JPSupplierNumber { "Acme", "X99" }) || u1->supplierNumbers[1] == (JPSupplierNumber { "Acme", "X99" }));
+        assert(u1->supplierNumbers[0] == (JPSupplierNumber { "LCSC", "C123" }) || u1->supplierNumbers[1] == (JPSupplierNumber { "LCSC", "C123" }));
+        assert(u1->doNotPlace && u1->voltage == "30V" && u1->pins == 8);
+        assert(b.find("J1")->mounting == JPPlacement::Mounting::ThroughHole);
+    }
     return 0;
 }
