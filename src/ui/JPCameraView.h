@@ -13,6 +13,7 @@
 #include <j/graphics/GpuHal.h>
 
 #include <functional>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -63,6 +64,12 @@ public:
     const JPReticle& reticle() const { return m_reticle; }
     // The reticle chosen from the menu.
     std::function<void(const JPReticle&)> onReticleChanged;
+    // Something else drawn over the picture in millimetres, as OpenPnP's
+    // named reticles (a package's footprint): drawn through `place` while
+    // the camera is calibrated. Set again by the same key to replace it,
+    // null to take it away.
+    using Overlay = std::function<void(JVectorCanvas& vg, const JPReticle::Place& place, float line)>;
+    void setOverlay(const std::string& key, Overlay overlay);
 
     // How far zoomed in: 1 is the picture fitted to the view.
     double zoom() const { return m_zoom; }
@@ -97,6 +104,7 @@ private:
     double                             m_zoom = 1.0;
     JPCameraCalibration                m_cal;
     double                             m_reachMm = 0;   // how far the picture reaches from its middle
+    std::map<std::string, Overlay>     m_overlays;
     JPReticle                          m_reticle;
     std::unique_ptr<JMenu>             m_menu, m_spacingMenu, m_sizeMenu;
     std::vector<std::pair<JMenuItem*, JPReticle::Kind>> m_kindItems;

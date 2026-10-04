@@ -138,6 +138,7 @@ void JPlacerMachine::buildCameras() {
             JSettings::instance().set(JPlacerSettings::cameraReticleKey(id), r.toText());
             JPlacerSettings::save();
         };
+        for (const auto& [key, overlay] : m_overlays) d.panel->setOverlay(key, overlay);
         d.panel->onSettings = [this, id = c.id] { showSetup("camera:" + id); };
         d.panel->onRunning = [this](bool) { lightCameras(); };
         d.dock = std::make_unique<JDockWidget>(c.name, 0.f, 0.f, 0.f, 0.f);
@@ -347,6 +348,19 @@ void JPlacerMachine::homeNozzle(const std::string& nozzleId) {
     JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Machine: home Z of " << names;
     m_window.showStatus("Homing the Z of " + names + ", from the park place", kStatusMs);
     m_cell->homeNozzle(nozzleId, 1.0);   // at the machine's speed
+}
+
+void JPlacerMachine::setCameraOverlay(const std::string& key, JPCameraView::Overlay overlay) {
+    if (overlay) m_overlays[key] = overlay;
+    else m_overlays.erase(key);
+    for (CameraDock& c : m_cameras) c.panel->setOverlay(key, overlay);
+}
+
+std::vector<std::pair<std::string, std::string>> JPlacerMachine::nozzleTips() const {
+    std::vector<std::pair<std::string, std::string>> out;
+    if (m_cell)
+        for (const JPNozzleTipConfig& t : m_cell->config().nozzleTips) out.emplace_back(t.id, t.name.empty() ? t.id : t.name);
+    return out;
 }
 
 std::string JPlacerMachine::cellsDir() {

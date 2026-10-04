@@ -22,6 +22,7 @@
 #include <j/core/MenuSystem.h>
 
 #include <functional>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -82,6 +83,11 @@ public:
     bool showDock(const std::string& title);
     // Machine Setup in front, showing the node at `path` (JPSetupTree).
     void showSetup(const std::string& path);
+    // Drawn over every camera's picture (and the cameras made later) until
+    // set again by the same key; null takes it away.
+    void setCameraOverlay(const std::string& key, JPCameraView::Overlay overlay);
+    // The open cell's nozzle tips, id and name; none without a cell.
+    std::vector<std::pair<std::string, std::string>> nozzleTips() const;
     // Where the docks live, and View's entries for them.
     JPlacerLayout& layout() { return m_layout; }
 
@@ -152,6 +158,7 @@ private:
         std::unique_ptr<JDockWidget>   dock;
         std::unique_ptr<JPCameraPanel> panel;
     };
+    std::map<std::string, JPCameraView::Overlay> m_overlays;   // drawn on every camera (setCameraOverlay)
     std::vector<CameraDock>             m_cameras;   // the window's centre
     std::unique_ptr<JPlacerCameraTasks> m_cameraTasks;   // its Calibrate and Visual Test
     std::unique_ptr<JPlacerTipChanges>  m_tipChanges;    // the nozzles' tips loaded and unloaded

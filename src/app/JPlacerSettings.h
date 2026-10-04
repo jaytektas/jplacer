@@ -54,6 +54,8 @@ public:
 
     // The Parts tab: the table's share of its height (OpenPnP's PartsPanel.dividerPosition).
     static constexpr const char* kPartsSplit       = "parts.split";
+    // The Packages tab's, likewise (PackagesPanel.dividerPosition).
+    static constexpr const char* kPackagesSplit    = "packages.split";
 
     // ~/.config/jplacer/jplacer.json, or %APPDATA%\jplacer\jplacer.json.
     static std::string defaultPath();

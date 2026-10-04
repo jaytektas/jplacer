@@ -49,7 +49,7 @@ JPlacerApp::JPlacerApp(std::string settingsPath) {
     m_window->onCloseRequest = [this] { return m_job->mayClose(); };
     m_icons = std::make_unique<JPOpenPnpIcons>(m_window->hal());
     m_machine = std::make_unique<JPlacerMachine>(*m_window, m_app.sceneGraph());
-    m_tabs = std::make_unique<JPlacerOpenPnpTabs>(*m_window, m_app.sceneGraph(), *m_job, m_machine->layout());
+    m_tabs = std::make_unique<JPlacerOpenPnpTabs>(*m_window, m_app.sceneGraph(), *m_job, *m_machine);
     JMenuManager::instance().setTearOffEnabled(JPlacerSettings::tearOffMenus());
     m_keys = std::make_unique<JPKeyMap>();
     JPlacerMenuBuilder::build(*m_window, m_app.sceneGraph(), *this);

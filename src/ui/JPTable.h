@@ -115,7 +115,9 @@ private:
     void selectionChanged();
 
     void startEditing(int modelRow, int c, const std::string* typed);
-    void stopEditing(bool keep);
+    // `keep`: the value taken; `stayIfRefused`: a value refused keeps the
+    // cell open (Return, Tab), else it is put back. False while still open.
+    bool stopEditing(bool keep, bool stayIfRefused = false);
     void openChoices(int modelRow, int c);
     void copySelection() const;
 

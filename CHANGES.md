@@ -14,6 +14,9 @@ notes.
   Speed %, BottomVision, FiducialVision, Placements, Feeders), changed in place, sorted by up to three
   columns, searched as you type; New Part, Delete Part, Pick Part, copy and paste a part; each part's pick
   retries on its Settings tab. Buttons show OpenPnP's own icons.
+- A Packages tab, as OpenPnP's: the packages table, New/Delete/copy/paste, and each package's Nozzle Tips,
+  Settings (vacuum and blow off), Footprint (Dual, Quad and BGA generators, KiCad footprint import, the
+  pads table) and Vision Compositing settings. The chosen package's footprint is drawn over the cameras.
 - Jobs, boards, panels, parts and packages are kept as OpenPnP keeps them, in its own files (.job.xml,
   .board.xml, .panel.xml, parts.xml, packages.xml): open an OpenPnP job and it is the same job, with its
   boards and panels, what was placed and what was enabled. A job from an older OpenPnP is converted as

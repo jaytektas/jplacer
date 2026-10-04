@@ -123,6 +123,10 @@ void JPCameraPanel::setView(bool straight) {
     refreshStraightening();
 }
 
+void JPCameraPanel::setOverlay(const std::string& key, JPCameraView::Overlay overlay) {
+    m_view->setOverlay(key, std::move(overlay));
+}
+
 void JPCameraPanel::setReticle(const JPReticle& reticle) {
     m_view->setReticle(reticle);
 }

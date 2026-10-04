@@ -623,14 +623,14 @@ bool JPTable::handleKeyEvent(const JKeyEvent& ke) {
         }
         if (ke.key == K::Tab || ke.key == K::BackTab) {
             const bool back = ke.key == K::BackTab || ke.shift;
-            stopEditing(true);
+            if (!stopEditing(true, true)) return true;
             m_leadColumn = std::clamp(m_leadColumn + (back ? -1 : 1), 0, m_model->columnCount() - 1);
             m_graph.invalidateNode(m_nodeId, DirtySelf);
             return true;
         }
         const JTextEditCore::KeyResult res = m_edit.handleKey(ke);
         if (res.returnPressed) {
-            stopEditing(true);
+            stopEditing(true, true);
             return true;
         }
         if (res.consumed) m_graph.invalidateNode(m_nodeId, DirtySelf);
@@ -716,17 +716,28 @@ void JPTable::startEditing(int r, int c, const std::string* typed) {
     m_graph.invalidateNode(m_nodeId, DirtySelf);
 }
 
-void JPTable::stopEditing(bool keep) {
-    if (!m_editing) return;
-    m_editing = false;
+bool JPTable::stopEditing(bool keep, bool stayIfRefused) {
+    if (!m_editing) return true;
     const int r = m_editRow, c = m_editColumn;
-    m_editRow = m_editColumn = -1;
     if (keep && m_model && r < m_model->rowCount() && m_edit.text() != m_model->text(r, c)) {
         std::string error;
-        if (!m_model->setText(r, c, m_edit.text(), error) && onEditRefused && !error.empty()) onEditRefused(error);
+        if (!m_model->setText(r, c, m_edit.text(), error)) {
+            if (onEditRefused && !error.empty()) onEditRefused(error);
+            // As a Swing table: a value it cannot take keeps the cell open.
+            if (stayIfRefused) {
+                m_graph.invalidateNode(m_nodeId, DirtySelf);
+                return false;
+            }
+        }
+        m_editing = false;
+        m_editRow = m_editColumn = -1;
         refresh();
+        return true;
     }
+    m_editing = false;
+    m_editRow = m_editColumn = -1;
     m_graph.invalidateNode(m_nodeId, DirtySelf);
+    return true;
 }
 
 void JPTable::openChoices(int r, int c) {

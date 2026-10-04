@@ -106,6 +106,12 @@ void JPCameraView::choose(const JPReticle& reticle) {
     if (onReticleChanged) onReticleChanged(m_reticle);
 }
 
+void JPCameraView::setOverlay(const std::string& key, Overlay overlay) {
+    if (overlay) m_overlays[key] = std::move(overlay);
+    else m_overlays.erase(key);
+    invalidate();
+}
+
 void JPCameraView::setReticle(const JPReticle& reticle) {
     m_reticle = reticle;
     invalidate();
@@ -242,6 +248,8 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     const double pxPerMm = calibrated ? (m_cal.scaleX() + m_cal.scaleY()) / 2 * scale : 0;
     m_reticle.draw(vg, JRect{ vx0, vy0, vx1 - vx0, vy1 - vy0 }, cx, cy, place, pxPerMm, m_reachMm, line,
                    st.spacing, kLeastGap * st.spacing, JPaint::solid(c));
+    if (place)
+        for (const auto& [key, overlay] : m_overlays) overlay(vg, place, line);
 
     // A drag to look somewhere: from the cross to where the camera will look.
     if (m_dragging) {

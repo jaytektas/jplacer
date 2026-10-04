@@ -81,8 +81,10 @@ void JPIconButton::populateRenderPrimitives(JPrimitiveBuffer& buf) {
             const float side = s * kGlyphShare;
             const TextureHandle tex = icons->texture(m_icon, int(side * kIconOversample), !enabled);
             if (tex != kNullTexture) {
-                vg.flush(buf);   // the button's face first, the icon over it
+                // The button's face first, the icon over it, the marks below over both.
+                vg.flush(buf);
                 buf.pushImage(b.x + (b.width - side) * 0.5f, b.y + (b.height - side) * 0.5f, side, side, tex);
+                vg = JVectorCanvas();
             }
         }
     // Where a click leads, in the bottom-right corner.

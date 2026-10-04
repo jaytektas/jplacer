@@ -3,8 +3,7 @@
 
 #include "JPPartsPanel.h"
 
-#include "JPGroupFrame.h"
-#include "JPTextField.h"
+#include "JPFieldGrid.h"
 #include "JPUiParts.h"
 
 #include "openpnp/JPXmlReader.h"
@@ -140,33 +139,22 @@ void JPPartsPanel::updateWizards() {
     JSceneGraph& g = m_graph;
     m_settings = std::make_unique<JContainer>(g, 0.f, 0.f);
     JPUiParts::asPanel(*m_settings);
-    auto frame = std::make_unique<JPGroupFrame>(g, "Pick Conditions");
-    frame->setAlignItems(JAlignItems::Stretch);
-    auto row = JPUiParts::row(g);
-    auto label = std::make_unique<JLabel>(g, "Feed & Pick Retry Count");
-    label->setTooltip("The number of retries for the feed and pick process for each placement. The nozzle is cleared "
-                      "(and part is discarded) after a failed attempt. Each retry is consecutive.");
-    row->add(std::move(label));
-    JPTextField* retries = row->add(std::make_unique<JPTextField>(g));
-    retries->setValue(std::to_string(p->pickRetryCount));
+    auto grid = std::make_unique<JPFieldGrid>(g, 1);
     const std::string partId = p->id;
-    retries->onCommitted.connect([this, retries, partId](std::string text) {
-        JPPart* part = m_config.part(partId);
-        if (!part) return;
-        char* end = nullptr;
-        const long v = std::strtol(trimmed(text).c_str(), &end, 10);
-        if (end == trimmed(text).c_str() || v < 0) {
-            retries->setValue(std::to_string(part->pickRetryCount));
-            return;
-        }
-        part->pickRetryCount = int(v);
-        changed();
-    });
-    const float inner = JStyle::current().controlHeight;
-    frame->add(std::move(row));
-    frame->setVSizePolicy(JSizePolicyMode::Fixed);
-    frame->setSize(0.f, inner + JPGroupFrame::extraHeight());
-    m_settings->add(std::move(frame));
+    grid->text("Feed & Pick Retry Count",
+               "The number of retries for the feed and pick process for each placement. The nozzle is cleared (and "
+               "part is discarded) after a failed attempt. Each retry is consecutive.",
+               std::to_string(p->pickRetryCount), [this, partId](const std::string& text) {
+                   JPPart* part = m_config.part(partId);
+                   const std::string t = trimmed(text);
+                   char* end = nullptr;
+                   const long v = std::strtol(t.c_str(), &end, 10);
+                   if (!part || t.empty() || end != t.c_str() + t.size() || v < 0) return false;
+                   part->pickRetryCount = int(v);
+                   changed();
+                   return true;
+               });
+    m_settings->add(JPFieldGrid::grouped(g, "Pick Conditions", std::move(grid)));
     m_tabs->addTab("Settings", m_settings.get());
     if (m_lastTab >= 0 && m_lastTab < m_tabs->tabCount()) m_tabs->setActiveTab(m_lastTab);
 }

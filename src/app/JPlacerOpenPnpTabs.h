@@ -5,14 +5,19 @@
 
 #include "JPlacerJob.h"
 #include "JPlacerLayout.h"
+#include "JPlacerMachine.h"
 
+#include "ui/JPPackagesPanel.h"
 #include "ui/JPPartsPanel.h"
 
 #include <j/app/JAppWindow.h>
 #include <j/core/DockWidget.h>
 
+#include <functional>
 #include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 inline namespace jf {
 
@@ -21,7 +26,7 @@ inline namespace jf {
 // others shown again.
 class JPlacerOpenPnpTabs {
 public:
-    JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, JPlacerJob& job, JPlacerLayout& layout);
+    JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, JPlacerJob& job, JPlacerMachine& machine);
     ~JPlacerOpenPnpTabs();
 
     // Brings a tab forward by its title; false when there is none.
@@ -30,10 +35,13 @@ public:
 private:
     JAppWindow&                   m_window;
     JPlacerJob&                   m_job;
+    JPlacerMachine&               m_machine;
     JPlacerLayout&                m_layout;
     int                           m_watch = 0;
-    std::unique_ptr<JPPartsPanel> m_parts;
-    std::unique_ptr<JDockWidget>  m_partsDock;
+    std::unique_ptr<JPPartsPanel>    m_parts;
+    std::unique_ptr<JDockWidget>     m_partsDock;
+    std::unique_ptr<JPPackagesPanel> m_packages;
+    std::unique_ptr<JDockWidget>     m_packagesDock;
 };
 
 } // inline namespace jf

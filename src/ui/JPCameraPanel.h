@@ -62,6 +62,7 @@ public:
     // last time; chosen from the picture's right-click menu, reported to
     // onReticleChanged.
     void setReticle(const JPReticle& reticle);
+    void setOverlay(const std::string& key, JPCameraView::Overlay overlay);
     std::function<void(const JPReticle&)> onReticleChanged;
     // A calibration changed (or the camera opened, at a size): straighten and
     // draw reticles by it from now on.
