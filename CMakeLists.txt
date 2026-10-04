@@ -91,7 +91,7 @@ add_library(jplacer_setup STATIC ${JPLACER_SETUP_SRC})
 target_link_libraries(jplacer_setup PUBLIC jplacer_machine)
 
 add_library(jplacer_ui STATIC ${JPLACER_UI_SRC})
-target_link_libraries(jplacer_ui PUBLIC jplacer_machine jplacer_camera jplacer_setup)
+target_link_libraries(jplacer_ui PUBLIC jplacer_machine jplacer_camera jplacer_setup jplacer_library)
 target_precompile_headers(jplacer_ui PRIVATE <j/core/JWidget.h> <j/core/JStyle.h> <j/core/JContainer.h>)
 
 # PRECOMPILED HEADERS. The framework's core header pulls hundreds of files

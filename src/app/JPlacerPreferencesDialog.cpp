@@ -12,7 +12,10 @@
 #include "ui/JPTextField.h"
 #include "ui/JPUiParts.h"
 
+#include "library/JPLibrary.h"
+
 #include <j/config/Settings.h>
+#include <j/core/Dialog.h>
 #include <j/core/JStyle.h>
 #include <j/core/JTextHelper.h>
 #include <j/core/MainThreadDispatcher.h>
@@ -53,6 +56,7 @@ std::unique_ptr<JContainer> labelled(JSceneGraph& graph, const std::string& text
 
 JPlacerPreferencesDialog::JPlacerPreferencesDialog(std::function<void()> onCheckNow, std::function<void(double)> onScale,
                                                    JPKeyMap& keys, std::function<void()> onJogSteps,
+                                                   std::function<void(std::string)> onLibraryFolder,
                                                    JGpuHal& hal, int sx, int sy, NativeWinHandleType parent)
     : JDialogWindow("Preferences", kW, kH, hal, sx, sy, parent)
     , m_onCheckNow(std::move(onCheckNow))
@@ -60,7 +64,7 @@ JPlacerPreferencesDialog::JPlacerPreferencesDialog(std::function<void()> onCheck
     , m_onJogSteps(std::move(onJogSteps)) {
     setResizable(true, kW / 2, kH / 2);
     m_tabs    = std::make_unique<JTabWidget>(graph(), 0.f, 0.f);
-    m_general = generalPage(std::move(onScale));
+    m_general = generalPage(std::move(onScale), std::move(onLibraryFolder));
     m_keysTab = keysPage();
     m_jog     = jogPage();
     m_tabs->addTab("General", m_general.get());
@@ -87,7 +91,8 @@ std::unique_ptr<JLabel> JPlacerPreferencesDialog::note(const std::string& text) 
     return l;
 }
 
-std::unique_ptr<JContainer> JPlacerPreferencesDialog::generalPage(std::function<void(double)> onScale) {
+std::unique_ptr<JContainer> JPlacerPreferencesDialog::generalPage(std::function<void(double)> onScale,
+                                                                  std::function<void(std::string)> onLibraryFolder) {
     JSceneGraph& g = graph();
     auto page = std::make_unique<JContainer>(g, 0.f, 0.f);
     JPUiParts::asPanel(*page);
@@ -137,6 +142,26 @@ std::unique_ptr<JContainer> JPlacerPreferencesDialog::generalPage(std::function<
         });
         page->add(std::move(launcher));
     }
+
+    page->add(heading(g, "Parts library"));
+    auto folderRow = JPUiParts::row(g);
+    JPTextField* folder = folderRow->add(std::make_unique<JPTextField>(g));
+    folder->setHSizePolicy(JSizePolicyMode::Expanding, 1);
+    folder->setValue(JSettings::instance().get<std::string>(JPlacerSettings::kLibraryFolder, ""));
+    folder->setPlaceholderText(JPLibrary::defaultFolder());
+    auto choose = std::make_shared<std::function<void(std::string)>>(std::move(onLibraryFolder));
+    folder->onCommitted.connect([choose](std::string text) { (*choose)(text); });
+    JButton* browse = folderRow->add(JPUiParts::button(g, "Choose\xE2\x80\xA6"));
+    browse->onClicked.connect([choose, folder] {
+        JDialog::openFolder("Parts Library Folder", [choose, folder](std::string path) {
+            folder->setValue(path);
+            (*choose)(path);
+        });
+    });
+    page->add(std::move(folderRow));
+    page->add(note("Where the parts library is kept; empty for jplacer's own data folder. A git repository or a "
+                   "shared drive works. Choosing another opens the library there: nothing is copied or moved, and "
+                   "jobs keep their own parts."));
 
     page->add(heading(g, "Updates"));
     auto atStartup = std::make_unique<JCheckBox>(g, "Check for updates when jplacer opens", 0.f);

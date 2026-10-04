@@ -72,6 +72,7 @@ JJson placementJson(const JPPlacement& p) {
     if (p.doNotPlace) j["doNotPlace"] = true;
     if (p.pins > 0) j["pins"] = p.pins;
     if (p.partGuessed) j["partGuessed"] = true;
+    if (p.rotationSet) j["rotationSet"] = p.rotationSetDeg;
     if (!p.other.empty()) {
         JJson o = JJson::object();
         for (const auto& [heading, text] : p.other) o[heading] = text;
@@ -97,6 +98,8 @@ JPPlacement placementOf(const JJson& j) {
     p.doNotPlace  = j["doNotPlace"].boolean();
     p.pins        = int(j["pins"].number());
     p.partGuessed = j["partGuessed"].boolean();
+    p.rotationSet = j.contains("rotationSet");
+    p.rotationSetDeg = j["rotationSet"].number();
     for (const auto& [heading, text] : j["other"].obj()) p.other.emplace_back(heading, text.str());
     return p;
 }

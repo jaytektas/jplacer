@@ -96,6 +96,21 @@ std::string JPPartsStore::add(JPFootprint f) { return addTo(footprints, std::mov
 std::string JPPartsStore::add(JPPackage p)   { return addTo(packages, std::move(p)); }
 std::string JPPartsStore::add(JPPart p)      { return addTo(parts, std::move(p)); }
 
+bool JPPartsStore::remove(const JPEntry& e) {
+    auto drop = [&e](auto& v) {
+        const auto it = std::find_if(v.begin(), v.end(), [&e](const auto& x) { return x.id == e.id; });
+        if (it == v.end()) return false;
+        v.erase(it);
+        return true;
+    };
+    switch (e.kind) {
+        case JPEntry::Kind::Part:      return drop(parts);
+        case JPEntry::Kind::Package:   return drop(packages);
+        case JPEntry::Kind::Footprint: return drop(footprints);
+    }
+    return false;
+}
+
 bool JPPartsStore::addName(const std::string& packageId, const std::string& name) {
     JPPackage* p = package(packageId);
     if (!p || name.empty()) return false;
@@ -112,22 +127,22 @@ std::string JPPartsStore::copyPackage(const JPPartsStore& from, const std::strin
     p.id.clear();
     p.revision = 1;
     p.origin = originOf(*src);
-    p.footprintId.clear();
-    if (const JPFootprint* f = from.footprint(src->footprintId)) {
-        if (const JPFootprint* have = footprintFrom(f->id)) {
-            p.footprintId = have->id;
-        } else {
-            JPFootprint copy = *f;
-            copy.id.clear();
-            copy.revision = 1;
-            copy.origin = originOf(*f);
-            p.footprintId = add(std::move(copy));
-        }
-    }
+    p.footprintId = copyFootprint(from, src->footprintId);
     // A name already given to another package here stays with that one.
     p.names.erase(std::remove_if(p.names.begin(), p.names.end(), [this](const std::string& n) { return packageNamed(n) != nullptr; }),
                   p.names.end());
     return add(std::move(p));
+}
+
+std::string JPPartsStore::copyFootprint(const JPPartsStore& from, const std::string& id) {
+    const JPFootprint* f = from.footprint(id);
+    if (!f) return {};
+    if (const JPFootprint* have = footprintFrom(f->id)) return have->id;
+    JPFootprint copy = *f;
+    copy.id.clear();
+    copy.revision = 1;
+    copy.origin = originOf(*f);
+    return add(std::move(copy));
 }
 
 std::string JPPartsStore::copyPart(const JPPartsStore& from, const std::string& id) {

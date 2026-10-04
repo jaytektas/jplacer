@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "JPEntry.h"
 #include "JPFootprint.h"
 #include "JPPackage.h"
 #include "JPPart.h"
@@ -49,6 +50,11 @@ public:
     std::string add(JPFootprint f);
     std::string add(JPPackage p);
     std::string add(JPPart p);
+    // Taken out. What pointed at it (placements at a part, parts at a
+    // package, packages at a footprint) is left pointing at nothing, and so
+    // shows what it lacks until it is linked again.
+    bool remove(const JPEntry& e);
+
     // A name given to a package; false (and nothing changed) when another
     // package has it: a name belongs to one package only.
     bool addName(const std::string& packageId, const std::string& name);
@@ -59,6 +65,7 @@ public:
     // copy's id; empty when `from` has no such part.
     std::string copyPart(const JPPartsStore& from, const std::string& id);
     std::string copyPackage(const JPPartsStore& from, const std::string& id);
+    std::string copyFootprint(const JPPartsStore& from, const std::string& id);
 
     JJson toJson() const;
     static bool fromJson(const JJson& j, JPPartsStore& out, std::string& error);

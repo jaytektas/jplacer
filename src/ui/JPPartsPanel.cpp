@@ -39,8 +39,8 @@ void selectedKeys(const JTreeViewNode& n, std::vector<std::string>& out) {
 
 } // namespace
 
-JPPartsPanel::JPPartsPanel(JSceneGraph& graph, std::vector<std::string> columns)
-    : JContainer(graph), m_columns(std::move(columns)) {
+JPPartsPanel::JPPartsPanel(JSceneGraph& graph, std::vector<std::string> columns, std::string noun, std::vector<Page> pages)
+    : JContainer(graph), m_columns(std::move(columns)), m_noun(std::move(noun)), m_pages(std::move(pages)) {
     JPUiParts::asPanel(*this);
 
     auto top = JPUiParts::row(graph);
@@ -68,7 +68,7 @@ JPPartsPanel::JPPartsPanel(JSceneGraph& graph, std::vector<std::string> columns)
     add(std::move(top));
 
     m_stack = add(std::make_unique<JStackedWidget>(graph));
-    m_stack->setVSizePolicy(JSizePolicyMode::Expanding, 3);
+    m_stack->setVSizePolicy(JSizePolicyMode::Expanding, 2);
     m_stack->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     m_listOwned = std::make_unique<JDataGrid>(graph, m_columns);
     m_list = m_listOwned.get();
@@ -102,15 +102,20 @@ JPPartsPanel::JPPartsPanel(JSceneGraph& graph, std::vector<std::string> columns)
     });
 
     m_count = add(std::make_unique<JLabel>(graph, ""));
-    m_detail = add(std::make_unique<JLabel>(graph, ""));
-    m_detail->setWordWrap(true);
-    m_detail->setVSizePolicy(JSizePolicyMode::Expanding, 1);
+    if (!m_pages.empty()) {
+        m_tabs = add(std::make_unique<JTabWidget>(graph, 0.f, 0.f));
+        m_tabs->setVSizePolicy(JSizePolicyMode::Expanding, 3);
+        for (Page& p : m_pages) m_tabs->addTab(p.title, p.page.get());
+    }
     setView(View::List, 1);
 }
 
 JPPartsPanel::~JPPartsPanel() {
+    // The stack and the tabs hold what this owns: they let go of it first.
     m_stack->removeWidget(m_list);
     m_stack->removeWidget(m_tree);
+    if (m_tabs)
+        for (size_t i = 0; i < m_pages.size(); ++i) m_tabs->removeTab(0);
 }
 
 void JPPartsPanel::setView(View view, int groupColumn) {
@@ -128,8 +133,12 @@ void JPPartsPanel::showRows(std::vector<Row> rows) {
     refill();
 }
 
-void JPPartsPanel::showDetail(const std::string& text) {
-    m_detail->setText(text);
+void JPPartsPanel::showPage(size_t i) {
+    if (m_tabs && i < m_pages.size()) m_tabs->setActiveTab(int(i));
+}
+
+std::vector<std::string> JPPartsPanel::chosenKeys() const {
+    return m_chosen;
 }
 
 bool JPPartsPanel::matches(const Row& row) const {
@@ -151,8 +160,8 @@ void JPPartsPanel::refill() {
     m_updating = false;
     size_t shown = 0;
     for (const Row& r : m_rows) shown += matches(r) ? 1 : 0;
-    m_count->setText(shown == m_rows.size() ? std::to_string(m_rows.size()) + " placements"
-                                            : std::to_string(shown) + " of " + std::to_string(m_rows.size()) + " placements");
+    m_count->setText(shown == m_rows.size() ? std::to_string(m_rows.size()) + " " + m_noun
+                                            : std::to_string(shown) + " of " + std::to_string(m_rows.size()) + " " + m_noun);
 }
 
 void JPPartsPanel::fillList() {
@@ -203,6 +212,7 @@ void JPPartsPanel::fillTree() {
 }
 
 void JPPartsPanel::chosen(std::vector<std::string> keys) {
+    m_chosen = keys;
     if (onChosen) onChosen(keys);
 }
 

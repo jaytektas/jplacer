@@ -62,6 +62,11 @@ struct JPPlacement {
     // person to confirm.
     std::string partId;
     bool        partGuessed = false;
+
+    // A rotation set on this placement by hand, in place of the imported one
+    // turned by its package's turn (JPPlacementRotation).
+    bool        rotationSet = false;
+    double      rotationSetDeg = 0;
 };
 
 } // inline namespace jf

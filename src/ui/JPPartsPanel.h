@@ -4,12 +4,14 @@
 #pragma once
 
 #include "JPChoiceRow.h"
+#include "JPFormPage.h"
 
 #include <j/core/JComboBox.h>
 #include <j/core/JContainer.h>
 #include <j/core/JDataGrid.h>
 #include <j/core/JLabel.h>
 #include <j/core/JLineEdit.h>
+#include <j/core/JTabWidget.h>
 #include <j/core/JTreeView.h>
 #include <j/core/StackedWidget.h>
 
@@ -20,12 +22,12 @@
 
 inline namespace jf {
 
-// The job's placements with their parts: a list sorted by any column (one
-// click on its heading, again to reverse), or a tree grouped by any column,
-// switched with one click; a filter that keeps, as you type, only the rows
-// with that text in a column shown; several rows chosen at once (Shift,
-// Ctrl). What the chosen row has and lacks shows below. A view: its rows
-// come from the owner, what is chosen goes to the owner.
+// Rows (the job's placements, or the library's entries): a list sorted by
+// any column (one click on its heading, again to reverse), or a tree grouped
+// by any column, switched with one click; a filter that keeps, as you type,
+// only the rows with that text in a column shown; several rows chosen at
+// once (Shift, Ctrl). Below, tabbed pages of what is chosen (JPFormPage). A
+// view: its rows come from the owner, what is chosen goes to the owner.
 class JPPartsPanel : public JContainer {
 public:
     // One placement: its cells, in the columns' order; its key (designator).
@@ -35,11 +37,19 @@ public:
     };
     enum class View { List, Tree };
 
-    JPPartsPanel(JSceneGraph& graph, std::vector<std::string> columns);
+    struct Page {
+        std::string                 title;
+        std::unique_ptr<JPFormPage> page;
+    };
+    // `noun`: what a row is, for the count ("placements").
+    JPPartsPanel(JSceneGraph& graph, std::vector<std::string> columns, std::string noun, std::vector<Page> pages);
     ~JPPartsPanel() override;
 
     void showRows(std::vector<Row> rows);
-    void showDetail(const std::string& text);
+    JPFormPage& page(size_t i) { return *m_pages[i].page; }
+    void showPage(size_t i);
+    // The rows chosen now, by key.
+    std::vector<std::string> chosenKeys() const;
     // As last chosen (kept by the owner): the view, and the column the tree
     // groups by.
     void setView(View view, int groupColumn);
@@ -72,7 +82,10 @@ private:
     JDataGrid*               m_list = nullptr;
     JTreeView*               m_tree = nullptr;
     JLabel*                  m_count = nullptr;
-    JLabel*                  m_detail = nullptr;
+    std::string              m_noun;
+    JTabWidget*              m_tabs = nullptr;
+    std::vector<Page>        m_pages;
+    std::vector<std::string> m_chosen;
     bool                     m_updating = false;
 };
 

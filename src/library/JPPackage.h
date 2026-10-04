@@ -26,7 +26,7 @@ struct JPPackage {
     std::string              name;
     std::string              footprintId;   // empty: none yet (not placeable)
     double                   length = 0, width = 0, height = 0;
-    std::vector<std::string> tipIds;        // compatible nozzle tips, preferred first
+    std::vector<std::string> tips;          // compatible nozzle tips by name, preferred first
     double                   speed = 0;     // 0..1 of the machine's
     int                      pickRetries = -1;   // -1: the machine's
     std::vector<std::string> names;

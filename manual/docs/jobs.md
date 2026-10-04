@@ -93,7 +93,8 @@ is put right.
 
 The **Parts** panel (**Job ▸ Parts**, a dock beside Board) lists every placement in the job with its
 part: **Designator**, **State**, **Part** (its MPN, or its value when it has none), **Value**,
-**Package**, **Footprint**, **Side**, **Rotation**, **Supplier No.** and **Manufacturer**.
+**Package**, **Footprint**, **Side**, **Rotation**, **Rotation From**, **Supplier No.** and
+**Manufacturer**.
 
 - **List** shows them as a table. Click a column's heading to sort by it, and again to reverse it.
   Drag a heading's edge to widen a column.
@@ -118,16 +119,67 @@ Whether you last used the list or the tree, and the tree's grouping, are kept fo
 | **Fiducial** | A mark to find the board by; nothing is placed. |
 | **Do not place** | The files say it is not fitted. |
 
-Below the list, the placement you choose shows what it has and lacks: its state in words, its part (MPN,
-manufacturer, value, supplier numbers, and whether it came from the library or is new in this job), its
-package and footprint, and what the file said its footprint was.
+<!-- src: src/ui/JPPartsPanel.cpp; src/app/JPlacerParts.cpp (show, columns); src/library/JPPlacementState.cpp (of, name) -->
 
-<!-- src: src/ui/JPPartsPanel.cpp; src/app/JPlacerParts.cpp (show, detail, columns); src/library/JPPlacementState.cpp (of, name) -->
+### Editing
+
+Below the list are four pages for what you have chosen. A field's change is kept when you press
+Return or Tab or leave the field; Escape puts back what it was. Each change marks the job as changed.
+
+- **Placement**: what the placement's state is and what the file said about it. **Rotation** sets the
+  angle of every chosen placement at once, so a whole footprint's worth is put right in one go: sort
+  or filter the list to bring them together, choose them, and type the angle. **Use Part's Rotation**
+  takes that back. **Part** gives the chosen placements another of the job's parts. **Confirm Part**
+  accepts a guess. **New Part from File** makes a part from what the file said about the first
+  placement chosen, and gives it to them all.
+- **Part**, **Package**, **Footprint**: the fields of the first chosen placement's part, its package
+  and its footprint. A part's **Package** and a package's **Footprint** are chosen from the list: the
+  job's own, or one from the library (*Library: …*), which is then brought into the job. A package's
+  footprint can also be read from a KiCad footprint file (**Import KiCad Footprint…**) or made from its
+  numbers (**Make Dual Footprint…**: pins, pitch, pad centres across, pad length, pad width; **Make Quad
+  Footprint…**: pins on each side, pitch, pad centres across, pad length, pad width, exposed pad).
+  **Remove…** takes one out of the job, after asking; what used it then shows what it lacks.
+
+A package's **Names** are the CAD footprint names and supplier package names that find it when a board
+is read in; a name belongs to one package only. Its **Turn** is added to the imported rotation of every
+placement using it, for a package whose zero is not the CAD's.
+
+<!-- src: src/app/JPlacerParts.cpp (placementPage, entryPage, onPlacementField, onPlacementAction, onEntryChoice, onEntryAction); src/app/JPlacerEntryForm.cpp (make); src/library/JPEntryFields.cpp -->
+
+### Rotation
+
+A placement's rotation is the one the file gave, plus its package's **Turn**, unless you set one on the
+placement. **Rotation From** says which:
+
+| Rotation From | |
+|---|---|
+| **as imported** | What the file said. |
+| **as its part** | What the file said, plus its package's turn. |
+| **unique** | Set on this placement alone, agreeing with neither. |
+
+<!-- src: src/library/JPPlacementRotation.cpp (of, name) -->
+
+### The job's parts and the library
+
+Each part, package and footprint page says whether it came from the library, was made in this job, or
+has been changed in this job.
+
+- **Copy to Library** puts it into the library. One the library does not have is copied at once. One
+  the library already has (it came from there, or the library has one of that MPN or name) is copied
+  only after you have seen what would change in the library's version, field by field, and pressed
+  **Replace**. A part brings its package, and a package its footprint, where the library lacks them.
+- When the library's version has changed since it was copied into the job, the page says so: **Update
+  from Library** takes the library's version; **Keep This Version** keeps the job's, and stops saying so
+  until the library changes again.
+
+Nothing in the job changes the library unless you copy it there.
+
+<!-- src: src/library/JPLibrarySync.cpp (copyToLibrary, wouldChange, update, keep, libraryNewer); src/app/JPlacerParts.cpp (copyToLibrary) -->
 
 ## The parts library
 
 The library holds the parts, packages and footprints you keep from job to job. Jobs take copies from it;
-nothing in a job changes it.
+nothing in a job changes it unless you copy it there.
 
 A new library starts with the common packages and their footprints, made from their standards
 (IPC-7351 land patterns, at IPC-7351's zero: pin 1 upper left, a two-terminal part lying along X with
@@ -139,9 +191,27 @@ package), so most boards find their packages without drawing any. It has no part
 jobs.
 
 <!-- src: src/library/JPStarterLibrary.cpp (fill); src/library/JPFootprintMaker.cpp -->
- It is kept in `library.json` in jplacer's data folder
-(`~/.local/share/jplacer/library`). A library file that cannot be read, because it is damaged or was
-written by a newer jplacer, is never overwritten: the library is used empty and read-only, and the status
-bar says why.
 
-<!-- src: src/library/JPLibrary.cpp (open, save, defaultFolder); src/app/JPlacerJob.cpp (the constructor) -->
+It is kept in `library.json`, in jplacer's data folder (`~/.local/share/jplacer/library`) unless you
+choose another in [Preferences](preferences.md#parts-library). A library file that cannot be read,
+because it is damaged or was written by a newer jplacer, is never overwritten: the library is used
+empty and read-only, and the status bar says why. Every save writes the file whole or not at all.
+
+<!-- src: src/library/JPLibrary.cpp (open, save, defaultFolder); src/app/JPlacerJob.cpp (the constructor, setLibraryFolder) -->
+
+### The Library panel
+
+The **Library** panel (**Job ▸ Library**, beside Parts) lists the library's parts, packages and
+footprints with the same list, tree and filter, and the same pages to edit them. Each change is saved
+to the library as you make it; jobs that copied the entry are told the library's has changed. Choosing
+an entry brings its page forward.
+
+- **Bring into Job** copies the chosen entry into the open job; choose it there from a part's
+  **Package** or a package's **Footprint** list.
+- **New Part** and **New Package** start one in the library.
+- A package's footprint is chosen, imported from KiCad, or made from its numbers, as on the Parts panel.
+- **Remove…** takes one out of the library, after asking. Jobs keep their own copies.
+
+While the library is read-only, its pages cannot be changed and say why.
+
+<!-- src: src/app/JPlacerLibraryDock.cpp (show, pages, onAction) -->

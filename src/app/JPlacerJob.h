@@ -26,6 +26,7 @@ public:
     enum class Change {
         Board,   // a new board: another job, or a file read in
         Parts,   // its parts, or which part a placement has
+        Library, // the main library
     };
     using Watcher = std::function<void(Change)>;
 
@@ -35,7 +36,9 @@ public:
     const JPJob&     job() const { return m_job; }
     JPJob&           job() { return m_job; }
     const JPLibrary& library() const { return m_library; }
+    JPLibrary&       library() { return m_library; }
     const std::string& path() const { return m_path; }
+    JAppWindow&      window() { return m_window; }
     bool             modified() const { return m_modified; }
 
     void newJob();
@@ -46,6 +49,13 @@ public:
     // After an edit to the job (its parts, a placement's part): marked
     // changed, and the views told.
     void changed(Change what);
+
+    // After an edit to the library: saved (false, and said, when it cannot
+    // be), and the views told.
+    bool libraryChanged();
+    // The library kept in another folder from now on (JPlacerSettings::kLibraryFolder;
+    // empty: the default), and opened from there.
+    void setLibraryFolder(const std::string& folder);
 
     // For the window's close: false (and a question asked) while there are
     // changes not saved; the window is closed again once answered.

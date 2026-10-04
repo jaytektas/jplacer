@@ -35,7 +35,7 @@ JPPackage JPPackage::fromJson(const JJson& j) {
     p.length      = j["length"].number();
     p.width       = j["width"].number();
     p.height      = j["height"].number();
-    p.tipIds      = strings(j["tipIds"]);
+    p.tips        = strings(j["tips"]);
     p.speed       = j["speed"].number();
     p.pickRetries = int(j["pickRetries"].number(-1.0));
     p.names       = strings(j["names"]);
@@ -53,7 +53,7 @@ JJson JPPackage::toJson() const {
     j["length"]      = length;
     j["width"]       = width;
     j["height"]      = height;
-    j["tipIds"]      = array(tipIds);
+    j["tips"]        = array(tips);
     j["speed"]       = speed;
     j["pickRetries"] = pickRetries;
     j["names"]       = array(names);

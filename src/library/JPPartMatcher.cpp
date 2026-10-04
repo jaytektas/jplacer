@@ -127,6 +127,12 @@ void learnNames(const JPPlacement& p, const std::string& partId, const JPPartsSt
 
 } // namespace
 
+std::string JPPartMatcher::newPart(const JPPlacement& p, const JPPartsStore& library, JPPartsStore& job) {
+    JPPart part = partFrom(p);
+    part.packageId = packageFor(p, library, job);
+    return job.add(std::move(part));
+}
+
 JPPartMatcher::Result JPPartMatcher::match(std::vector<JPPlacement>& placements, const JPPartsStore& library,
                                            JPPartsStore& job) {
     Result r;
@@ -148,9 +154,7 @@ JPPartMatcher::Result JPPartMatcher::match(std::vector<JPPlacement>& placements,
             guessed = true;
             r.guessed += int(members.size());
         } else {
-            JPPart part = partFrom(first);
-            part.packageId = packageFor(first, library, job);
-            partId = job.add(std::move(part));
+            partId = newPart(first, library, job);
             ++r.created;
         }
         learnNames(first, partId, library, job);

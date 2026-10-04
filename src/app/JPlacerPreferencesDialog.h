@@ -27,7 +27,7 @@ class JPTextField;
 // Edit > Preferences, on three tabs:
 //
 //  - General: the look (theme, interface scale), tear-off menus, the
-//    applications-menu entry, and updates.
+//    applications-menu entry, the parts library's folder, and updates.
 //  - Keys: every function a key can be given (JPKeyMap), by group: click its
 //    box and press the key (Escape leaves it as it was); Clear takes it off;
 //    Reset All puts back every default.
@@ -51,8 +51,11 @@ public:
     // `onScale`: an interface scale chosen (JPlacerAppearance::scales), for
     // the main window to apply. `keys`: what the Keys tab shows and changes.
     // `onJogSteps`: the jog steps changed (kept in the settings already).
+    // `onLibraryFolder`: another folder for the parts library (empty: the
+    // default), to open the library from.
     JPlacerPreferencesDialog(std::function<void()> onCheckNow, std::function<void(double)> onScale, JPKeyMap& keys,
-                             std::function<void()> onJogSteps, JGpuHal& hal, int sx, int sy, NativeWinHandleType parent);
+                             std::function<void()> onJogSteps, std::function<void(std::string)> onLibraryFolder,
+                             JGpuHal& hal, int sx, int sy, NativeWinHandleType parent);
 
 protected:
     void layout(float w, float h) override;
@@ -62,7 +65,7 @@ private:
     // A note under a section's rows, wrapping to the page's width (layout
     // makes it as tall as its lines).
     std::unique_ptr<JLabel> note(const std::string& text);
-    std::unique_ptr<JContainer> generalPage(std::function<void(double)> onScale);
+    std::unique_ptr<JContainer> generalPage(std::function<void(double)> onScale, std::function<void(std::string)> onLibraryFolder);
     std::unique_ptr<JContainer> keysPage();
     std::unique_ptr<JContainer> jogPage();
     // The Keys tab's rows made again (the functions changed: new jog steps).

@@ -135,6 +135,7 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
     job->addSeparator(graph);
     addPending(job, graph, { "Board Setup\xE2\x80\xA6", "Feeders\xE2\x80\xA6" });
     entry(keys, job, graph, "job.parts", "Job", "Parts", none, [&app] { app.parts().showDock(); });
+    entry(keys, job, graph, "job.library", "Job", "Library", none, [&app] { app.library().showDock(); });
 
     JMenu* help = newMenu(window, "Help");
     // The manual opens in the browser; whatever went wrong is said in the status bar.

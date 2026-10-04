@@ -69,6 +69,22 @@ void JPlacerJob::changed(Change what) {
     notify(what);
 }
 
+bool JPlacerJob::libraryChanged() {
+    std::string error;
+    const bool ok = m_library.save(error);
+    if (!ok) m_window.showStatus("The library was not saved: " + error, kStatusMs);
+    notify(Change::Library);
+    return ok;
+}
+
+void JPlacerJob::setLibraryFolder(const std::string& folder) {
+    JSettings::instance().set(JPlacerSettings::kLibraryFolder, folder);
+    JPlacerSettings::save();
+    if (!m_library.open(folder.empty() ? JPLibrary::defaultFolder() : folder)) m_window.showStatus(m_library.problem(), kStatusMs);
+    else m_window.showStatus("Parts library: " + m_library.folder(), kStatusMs);
+    notify(Change::Library);
+}
+
 void JPlacerJob::title() {
     std::string name;
     if (!m_path.empty()) name = std::filesystem::path(m_path).stem().string();

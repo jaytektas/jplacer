@@ -39,6 +39,9 @@ public:
     };
 
     static Result match(std::vector<JPPlacement>& placements, const JPPartsStore& library, JPPartsStore& job);
+    // A new part in the job made from what the files said about `p`, in the
+    // package its names find (as step 4 above). Its id.
+    static std::string newPart(const JPPlacement& p, const JPPartsStore& library, JPPartsStore& job);
 };
 
 } // inline namespace jf

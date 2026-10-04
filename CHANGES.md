@@ -19,6 +19,12 @@ notes.
 - A parts library, kept from job to job: jobs take copies from it and never change it. A new library
   starts with the common packages (chip sizes, SOT, SOD, SMA/B/C, SOIC, TSSOP, QFN, LQFP) and their
   footprints, known by their KiCad, EasyEDA and supplier names.
+- Parts, packages and footprints can be edited on the Parts panel: a placement's rotation (typed once for
+  every placement chosen), its part, a part's package, a package's footprint (chosen, read from a KiCad
+  footprint file, or made from its numbers). Copy to Library puts one into the library, showing first
+  what it would change; Update from Library and Keep This Version answer a library that has moved on.
+- A Library panel (Job > Library) lists and edits the parts library, and brings its entries into the job.
+- The parts library's folder can be chosen in Preferences (a git repository or shared drive works).
 - A Parts panel (Job > Parts) lists the job's placements with their parts and whether each can be
   placed: as a table sorted by any column, or as a tree grouped by any column, with a filter that
   narrows it as you type.
