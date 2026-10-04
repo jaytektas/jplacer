@@ -31,8 +31,8 @@ key taken off, in [Preferences, Keys](preferences.md#keys); the menu then shows 
 
 ## View
 
-A tick for each panel: each camera, **Jog**, **Actuators**, **Board**, **Machine Setup**, **Machine** and
-**Console**. Untick one to close it; tick it to show it again where it lives (see
+A tick for each panel: each camera, **Jog**, **Actuators**, **Board**, **Parts**, **Machine Setup**,
+**Machine** and **Console**. Untick one to close it; tick it to show it again where it lives (see
 [The machine's panels](machine.md#the-machines-panels)).
 
 <!-- src: src/app/JPlacerMenuBuilder.cpp (View); src/app/JPlacerLayout.cpp (rebuildMenu) -->
@@ -56,8 +56,13 @@ A tick for each panel: each camera, **Jog**, **Actuators**, **Board**, **Machine
 
 ## Job
 
-**Start**, **Pause**, **Stop**, **Board Setup…**, **Feeders…** and **Parts and Packages…** are not yet
-available.
+| Entry | |
+|---|---|
+| **Parts** | Shows the [Parts](jobs.md#the-parts-panel) panel: the job's placements and their parts. |
+
+**Start**, **Pause**, **Stop**, **Board Setup…** and **Feeders…** are not yet available.
+
+<!-- src: src/app/JPlacerMenuBuilder.cpp (the Job menu) -->
 
 ## Help
 

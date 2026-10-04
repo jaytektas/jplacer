@@ -89,6 +89,41 @@ is put right.
 
 <!-- src: src/library/JPPlacementState.cpp (of); src/library/JPPart.h; src/library/JPPackage.h; src/library/JPFootprint.h -->
 
+## The Parts panel
+
+The **Parts** panel (**Job ▸ Parts**, a dock beside Board) lists every placement in the job with its
+part: **Designator**, **State**, **Part** (its MPN, or its value when it has none), **Value**,
+**Package**, **Footprint**, **Side**, **Rotation**, **Supplier No.** and **Manufacturer**.
+
+- **List** shows them as a table. Click a column's heading to sort by it, and again to reverse it.
+  Drag a heading's edge to widen a column.
+- **Tree** groups them by the column chosen in **Group by** (Package to begin with): each group shows
+  how many placements are in it, and opens to list them.
+- **Filter**: type, and only placements with that text in one of their columns stay. In the tree, the
+  groups open to show what matched.
+- Choose several at once with Shift-click and Ctrl-click.
+
+Whether you last used the list or the tree, and the tree's grouping, are kept for next time.
+
+**State** says whether the placement can be placed, as far as its parts go:
+
+| State | |
+|---|---|
+| **Ready** | It has a part, in a package, with a footprint. |
+| **No part** | The files said nothing that identifies it. |
+| **No package** | Its part is in no package. |
+| **No footprint** | Its package has no footprint yet. |
+| **Conflict** | Its part's package is not the one its footprint name belongs to, or its footprint's pads do not match the pins the file counts. |
+| **Guess** | Matched by its value and package only: confirm it. |
+| **Fiducial** | A mark to find the board by; nothing is placed. |
+| **Do not place** | The files say it is not fitted. |
+
+Below the list, the placement you choose shows what it has and lacks: its state in words, its part (MPN,
+manufacturer, value, supplier numbers, and whether it came from the library or is new in this job), its
+package and footprint, and what the file said its footprint was.
+
+<!-- src: src/ui/JPPartsPanel.cpp; src/app/JPlacerParts.cpp (show, detail, columns); src/library/JPPlacementState.cpp (of, name) -->
+
 ## The parts library
 
 The library holds the parts, packages and footprints you keep from job to job. Jobs take copies from it;

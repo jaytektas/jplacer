@@ -10,6 +10,7 @@
 #include "JPKeyMap.h"
 #include "JPlacerJob.h"
 #include "JPlacerMachine.h"
+#include "JPlacerParts.h"
 
 #include <memory>
 #include <string>
@@ -40,6 +41,7 @@ public:
     JAppUpdater& updater() { return *m_updater; }
     JPlacerMachine& machine() { return *m_machine; }
     JPlacerJob& job() { return *m_job; }
+    JPlacerParts& parts() { return *m_parts; }
     JPKeyMap& keys() { return *m_keys; }
 
 private:
@@ -54,6 +56,8 @@ private:
     std::unique_ptr<JPlacerJob> m_job;
     // The open cell and its panel; before the window in destruction order.
     std::unique_ptr<JPlacerMachine> m_machine;
+    // The job's Parts dock, in the machine's layout: gone before the machine.
+    std::unique_ptr<JPlacerParts> m_parts;
     // Every function a key can be given; after the machine, so gone first.
     std::unique_ptr<JPKeyMap> m_keys;
 

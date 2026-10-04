@@ -48,6 +48,7 @@ JPlacerApp::JPlacerApp(std::string settingsPath) {
     m_job = std::make_unique<JPlacerJob>(*m_window);
     m_window->onCloseRequest = [this] { return m_job->mayClose(); };
     m_machine = std::make_unique<JPlacerMachine>(*m_window, m_app.sceneGraph(), *m_job);
+    m_parts = std::make_unique<JPlacerParts>(*m_job, m_app.sceneGraph(), m_machine->layout());
     JMenuManager::instance().setTearOffEnabled(JPlacerSettings::tearOffMenus());
     m_keys = std::make_unique<JPKeyMap>();
     JPlacerMenuBuilder::build(*m_window, m_app.sceneGraph(), *this);
@@ -65,7 +66,12 @@ JPlacerApp::JPlacerApp(std::string settingsPath) {
     JAiBus::instance().onAction = [this](uint32_t, const std::string& action) {
         constexpr std::string_view kDock = "dock:";
         if (action.rfind(kDock, 0) != 0) return 0;
-        return m_machine->showDock(action.substr(kDock.size())) ? 1 : -1;
+        const std::string title = action.substr(kDock.size());
+        if (title == JPlacerParts::kTitle) {
+            m_parts->showDock();
+            return 1;
+        }
+        return m_machine->showDock(title) ? 1 : -1;
     };
     m_window->setStatusText("jplacer " JPLACER_VERSION);
 

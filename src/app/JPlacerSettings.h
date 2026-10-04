@@ -54,6 +54,9 @@ public:
     // The folder the main parts library is kept in (JPLibrary); empty: the
     // default, in jplacer's data folder.
     static constexpr const char* kLibraryFolder    = "library.folder";
+    // The Parts panel: "list" or "tree", and the column the tree groups by.
+    static constexpr const char* kPartsView        = "parts.view";
+    static constexpr const char* kPartsGroup       = "parts.group";
     // The job's board on the machine: the side up ("top" or "bottom"), where
     // it is (its map to the machine, six numbers "a b c d tx ty", see
     // JPAffine2D) and whether that was measured by its fiducials (true) or is

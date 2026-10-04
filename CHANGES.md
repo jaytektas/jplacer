@@ -17,6 +17,9 @@ notes.
   MPN, ratings, package, pin count, pad 1) and gives each placement its part: by part number or MPN
   where the parts library knows it, as a guess to confirm from its value and package, or as a new part.
 - A parts library, kept from job to job: jobs take copies from it and never change it.
+- A Parts panel (Job > Parts) lists the job's placements with their parts and whether each can be
+  placed: as a table sorted by any column, or as a tree grouped by any column, with a filter that
+  narrows it as you type.
 - jplacer can now talk to a machine. A machine is described by a cell file, and
   Machine > Import OpenPnP Machine… makes one from an OpenPnP machine.xml.
 - Machine > Connect connects to the machine's controllers, recognises grblHAL, Grbl
