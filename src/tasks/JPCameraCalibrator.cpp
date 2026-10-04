@@ -114,6 +114,11 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
     auto measure = [&](double dx, double dy, const char* phase, bool mayMiss) {
         ++step;
         if (progress) progress(std::string(phase) + ", move " + std::to_string(step));
+        // In from the lead-in, the same way every time.
+        const double lead = std::max(0.0, o.calibrating.leadInMm);
+        if (lead > 0 && !cell.moveAxesAndWait({ { mount.axisX, x0 + sign * dx - lead }, { mount.axisY, y0 + sign * dy - lead } },
+                                              o.speed, why))
+            return false;
         if (!cell.moveAxesAndWait({ { mount.axisX, x0 + sign * dx }, { mount.axisY, y0 + sign * dy } }, o.speed, why))
             return false;
         if (!JPCameraLook::settled(feed, img, why)) return false;
@@ -136,7 +141,24 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
         // for it: the mark may be dimmer and bent towards the picture's
         // corners, and still be measured.
         if (radius == kPredictedSearchPx) rq.minShape = kPredictedMinShape;
-        const JPRoundMark m = JPRoundMarkFinder::find(img, rq);
+        JPRoundMark m = JPRoundMarkFinder::find(img, rq);
+        // More pictures, the mark's place their mean: one picture alone wanders.
+        if (m.found) {
+            const int frames = std::clamp(o.calibrating.frames, 1, JPCameraConfig::Calibrating::kMostFrames);
+            double sx = m.x, sy = m.y;
+            int got = 1;
+            for (int f = 1; f < frames; ++f) {
+                JPGrayImage more;
+                if (!JPCameraLook::taken(feed, more, why, 1)) return false;
+                const JPRoundMark again = JPRoundMarkFinder::find(more, rq);
+                if (!again.found) continue;
+                sx += again.x;
+                sy += again.y;
+                ++got;
+            }
+            m.x = sx / got;
+            m.y = sy / got;
+        }
         if (!m.found) {
             // Towards the picture's corners the mark can be too dim and bent
             // to measure: a grid place may be skipped (a few, below).

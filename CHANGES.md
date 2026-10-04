@@ -210,6 +210,7 @@ notes.
 - Shift+click a camera's picture, or drag in it, to move the camera to look there.
 - Buttons and labels no longer go missing after the window is made small and then big again.
 - Locate Board can look at each fiducial from both sides (parallax) for shiny fiducials; the passes, how centred, and the parallax are in Machine Setup on the Machine's Fiducials tab, and come across from OpenPnP.
+- Camera calibration comes to each place the same way (a lead-in), so the drives' play no longer spreads the fit, and finds each in several pictures.
 - A camera's Advanced Calibration tab has options for how it is calibrated (the grid's size and reach, the outlier limit, the worst fit taken), and shows the results with graphs of the measurements: in the order made, X against Y, and as a map over the picture.
 - Calibrate measures a camera at a second height too (a head camera over the calibration rig's secondary mark, a fixed one with the nozzle raised), giving where the camera is, its focal length and field of view in degrees; the rig's marks are on the head in Machine Setup.
 - Backlash: DirectionalCompensation and DirectionalSneakUp as well as one-sided, imported from OpenPnP as they are; Calibrate on an axis's Backlash tab measures the play with the head camera, chooses the method and shows graphs of what it measured.

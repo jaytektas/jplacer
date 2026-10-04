@@ -82,6 +82,12 @@ struct JPCameraConfig {
         // raised `raiseMm` from the first.
         bool   twoHeights    = true;
         double raiseMm       = 2.0;
+        // Each place come to the same way: from `leadInMm` back along both
+        // axes (so the drives' play is taken up alike every time, whatever
+        // their compensation); and found in `frames` pictures, their mean.
+        double leadInMm      = 1.0;
+        int    frames        = 4;
+        static constexpr int kMostFrames = 16;
         static constexpr int kMostPlaces = 25;   // across or down
     };
     Calibrating   calibrating;
@@ -144,6 +150,8 @@ struct JPCameraConfig {
             c.calibrating.maxRmsPx      = k["maxRmsPx"].number(c.calibrating.maxRmsPx);
             c.calibrating.twoHeights    = k["twoHeights"].boolean(c.calibrating.twoHeights);
             c.calibrating.raiseMm       = k["raiseMm"].number(c.calibrating.raiseMm);
+            c.calibrating.leadInMm      = k["leadInMm"].number(c.calibrating.leadInMm);
+            c.calibrating.frames        = int(k["frames"].number(c.calibrating.frames));
         }
         for (const JJson& k : j["calibrations"].arr())
             if (JPCameraCalibration cal = JPCameraCalibration::fromJson(k); cal.valid) c.calibrations.push_back(cal);
@@ -185,6 +193,8 @@ struct JPCameraConfig {
         j["calibrating"]["maxRmsPx"]      = calibrating.maxRmsPx;
         j["calibrating"]["twoHeights"]    = calibrating.twoHeights;
         j["calibrating"]["raiseMm"]       = calibrating.raiseMm;
+        j["calibrating"]["leadInMm"]      = calibrating.leadInMm;
+        j["calibrating"]["frames"]        = calibrating.frames;
         if (!calibrations.empty()) {
             JJson list = JJson::array();
             for (const JPCameraCalibration& k : calibrations) list.push(k.toJson());

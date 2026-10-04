@@ -1280,6 +1280,10 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
                [k](double v) { k().outlierSpread = std::max(1.0, v); }, 1);
     add.number("calMaxRms", "Worst Fit Taken (px)", [k] { return k().maxRmsPx; },
                [k](double v) { if (v > 0) k().maxRmsPx = v; }, 2);
+    add.row("Lead-in (mm)");
+    add.number("calLeadIn", "Lead-in (mm)", [k] { return k().leadInMm; }, [k](double v) { if (v >= 0) k().leadInMm = v; }, 2);
+    add.integer("calFrames", "Pictures Each", [k]() -> int& { return k().frames; }, 1, JPCameraConfig::Calibrating::kMostFrames);
+    add.end();
     add.flag("calTwoHeights", "Two Heights?", [k]() -> bool& { return k().twoHeights; });
     if (c().mount.headId.empty())
         add.number("calRaise", "Raise For The Second (mm)", [k] { return k().raiseMm; },
@@ -1288,6 +1292,8 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
              "middle to as near the edge as leaves room for the mark (1: all the way). More places measure the "
              "lens better and take longer. A measurement further from the fit than Outlier Limit times the fit's "
              "spread is left out, one in ten at most; a fit whose spread is worse than Worst Fit Taken is refused. "
+             "Each place is come to the same way, from Lead-in back along both axes, so the drives' play is taken "
+             "up alike every time, and found in Pictures Each pictures, their mean. "
              "Two Heights? measures it again at another height: a camera on a head over the head's secondary "
              "calibration mark (Machine Setup, the head), a fixed one with the nozzle's tip raised by Raise For The "
              "Second. How the scale changes with height gives where the camera is and its field of view.");
