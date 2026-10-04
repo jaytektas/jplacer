@@ -103,6 +103,9 @@ private:
     void rebuildTree();
     // The note line: shown with `text`, gone when it is empty.
     void setNote(const std::string& text);
+    // A line under the settings shown with `text`, taking no room without.
+    void showLine(JLabel* line, const std::string& text);
+    static constexpr float kNoLimit = 100000.f;
     // The tree's rows again, open where m_expanded says.
     void setRows(bool firstTime);
     void addPart();
@@ -144,8 +147,6 @@ private:
     std::unique_ptr<JMenu>   m_treeMenu;   // a right-click on the tree
     JMenuItem*               m_menuAdd    = nullptr;
     JMenuItem*               m_menuRemove = nullptr;
-    JPIconButton*            m_expandAll   = nullptr;
-    JPIconButton*            m_collapseAll = nullptr;
     JButton*                 m_add      = nullptr;
     JButton*                 m_remove   = nullptr;
     JButton*                 m_up       = nullptr;

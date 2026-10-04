@@ -172,7 +172,7 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
         const JPXmlElement* e = machine->child(name);
         return e && e->text.find("true") != std::string::npos;
     };
-    c.homeAfterConnect = setting("home-after-enabled");
+    const bool homeAfterEnabled = setting("home-after-enabled");   // every controller's
     c.parkAfterHome = setting("park-after-homed");
     c.discardLocation = location(*machine, "discard-location");
     // How fiducials are measured: the fiducial locator's vision settings, in
@@ -256,6 +256,7 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             if (const std::string* home = findCommand(cmds, "HOME_COMMAND", ""))
                 if (const std::string t = translate(*home, -1, "controller " + dc.name, notes); !t.empty())
                     dc.commands["home"] = t;
+            dc.homeAfterConnect = homeAfterEnabled;
             c.drivers.push_back(std::move(dc));
         }
     }

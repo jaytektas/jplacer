@@ -418,7 +418,7 @@ void JPlacerMachine::watchCell() {
             m_connectFailed = !ok && wasConnecting;
             if (ok) m_lost.clear();
             // Homed straight away, when the machine is set to (after a connect asked for here).
-            if (ok && wasConnecting && m_cell->config().homeAfterConnect) home();
+            if (ok && wasConnecting && m_cell->config().homeAfterConnect()) home();
             else if (!wasConnecting && !why.empty()) m_lost = why;   // dropped while working
             // A camera on screen gets its light as soon as there is a
             // machine to switch it; without one, its panel says why it is dark.

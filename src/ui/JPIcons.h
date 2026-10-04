@@ -20,9 +20,6 @@ public:
     static void target(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
     // A tick in a ring: check that something is right (a test).
     static void check(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
-    // A plus / a minus in a box: open everything / close everything (a tree).
-    static void expandAll(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
-    static void collapseAll(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
     // A gear: settings.
     static void gear(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
     // Take a place from where the camera is (a viewfinder round a ring), or

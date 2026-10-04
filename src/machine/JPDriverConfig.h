@@ -27,6 +27,7 @@ struct JPDriverConfig {
     std::string id;
     std::string name;
     std::string profile = "auto";
+    bool        homeAfterConnect = false;   // the machine homes once this controller connects
     JJson       link;
     int statusIntervalMs  = 100;
     int commandTimeoutMs  = 5000;

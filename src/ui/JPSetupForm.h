@@ -55,17 +55,21 @@ public:
 
 private:
     std::unique_ptr<JWidget> page(const JPSetupProperties::Tab& tab);
-    std::unique_ptr<JWidget> group(const JPSetupProperties::Group& group, float& height);
+    // A group, its labels in a column `labels` wide (the page's widest).
+    std::unique_ptr<JWidget> group(const JPSetupProperties::Group& group, float& height, float labels);
     std::unique_ptr<JWidget> editor(const JProperty& p, float width);
     // How wide a control for `p` is, as it is laid out.
     float widthOf(const JProperty& p) const;
     const JProperty* find(const std::string& name) const;
     // The pages made again from the form shown (to a new width).
     void rebuild();
+    // Each page made as tall as its groups came out (see page()).
+    void fitPages();
 
     JPSetupProperties::Form                m_form;
     JTabWidget*                            m_tabs = nullptr;
     std::vector<std::unique_ptr<JWidget>>  m_pages;
+    std::vector<JContainer*>               m_contents;   // each page's column of groups
     std::vector<std::function<void()>>     m_pulls;
     bool                                   m_pulling = false;   // refresh() setting controls: not an edit
     float                                  m_builtWidth = 0;    // the form's width when its pages were made

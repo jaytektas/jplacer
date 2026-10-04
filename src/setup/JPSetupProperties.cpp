@@ -283,7 +283,6 @@ void machineForm(JPCellConfig& cell, JPSetupProperties::Form& f) {
     add.tab("Configuration");
     add.group("General");
     add.text("name", "Name", [&cell]() -> std::string& { return cell.name; }, "name");
-    add.flag("homeAfterConnect", "Home after connected?", [&cell]() -> bool& { return cell.homeAfterConnect; });
     add.flag("parkAfterHome", "Park after homed?", [&cell]() -> bool& { return cell.parkAfterHome; });
     add.group("Locations");
     add.header({ "X", "Y", "Z", "Rotation", "Set?" });
@@ -333,6 +332,7 @@ void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPF
     for (const JPFirmwareProfile& p : profiles) choices.push_back(p.id());
     add.choice("profile", "Firmware Profile", choices, [d] { return d().profile; },
                [d](const std::string& v) { d().profile = v; });
+    add.flag("homeAfterConnect", "Home after connected?", [d]() -> bool& { return d().homeAfterConnect; });
     // A simulated controller is for trying jplacer without a machine; it is
     // set up in the cell file.
     if (std::as_const(d().link)["type"].str() == "simulated") {
@@ -383,22 +383,78 @@ void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPF
     // The firmware's commands, each replaceable for this controller (a
     // machine wired its own way homes its own way). Empty: the profile's.
     add.tab("Gcode");
-    add.group("Gcode");
-    std::map<std::string, Strings> templates;   // command: the profiles' templates for it
+    // The profiles' templates for each command (the profile chosen, or every
+    // one when it is found by itself), and the commands this controller has.
+    std::map<std::string, std::vector<std::pair<std::string, std::string>>> templates;   // command: (profile, text)
     for (const JPFirmwareProfile& p : profiles)
         if (d().profile == "auto" || d().profile == p.id())
-            for (const auto& [name, text] : p.commands()) templates[name].push_back(p.id() + ": " + text);
+            for (const auto& [name, text] : p.commands()) templates[name].push_back({ p.id(), text });
     for (const auto& [name, _] : d().commands) templates[name];
-    for (const auto& [name, those] : templates) {
+    // What each is for, by what it does.
+    struct Command { const char* name; const char* group; const char* label; };
+    static const Command known[] = {
+        { "init", "Connecting", "Start-up" },          { "unlock", "Connecting", "Unlock" },
+        { "home", "Homing", "Home" },                  { "setPosition", "Homing", "Set Position" },
+        { "move", "Moving", "Move" },                  { "rapid", "Moving", "Rapid Move" },
+        { "waitMotion", "Moving", "Wait for Moves" },  { "dwell", "Moving", "Dwell" },
+        { "output", "Outputs", "Output On" },          { "outputOff", "Outputs", "Output Off" },
+    };
+    static const std::pair<const char*, const char*> groups[] = {
+        { "Connecting", "Start-up is sent once connected (and again after an alarm is unlocked); Unlock clears an "
+                        "alarm before homing." },
+        { "Homing", "Set Position tells the controller where the axes are, after homing or a correction: {axes} is "
+                    "each axis's letter and coordinate." },
+        { "Moving", "{axes}: each moving axis's letter and target. {feed}: the speed (per minute). {acceleration} "
+                    "and {jerk}: the slowest of the axes', scaled with the speed. Wait for Moves is answered once "
+                    "every move before it has ended. Dwell: {seconds} or {milliseconds}." },
+        { "Outputs", "{port}: the output's number." },
+        { "Other", "" },
+    };
+    // An empty box shows the profile's command; found by itself (auto), each
+    // profile's, named, those that agree named together.
+    const bool named = d().profile == "auto";
+    auto placeholder = [named](const std::vector<std::pair<std::string, std::string>>& those) {
+        std::vector<std::pair<std::string, std::string>> merged;   // (profiles, text)
+        for (const auto& [profile, text] : those) {
+            auto same = std::find_if(merged.begin(), merged.end(), [&](const auto& m) { return m.second == text; });
+            if (same == merged.end()) merged.push_back({ profile, text });
+            else same->first += ", " + profile;
+        }
         std::string def;
-        for (const std::string& t : those) def += (def.empty() ? "" : "   ") + t;
-        add.text("command:" + name, name, [d, name] { const auto i = d().commands.find(name); return i == d().commands.end() ? std::string() : i->second; },
-                 [d, name](const std::string& v) {
-                     if (v.empty()) d().commands.erase(name);
-                     else d().commands[name] = v;
-                 }, "lines", def);
+        for (const auto& [profiles, text] : merged) {
+            std::string oneLine = text;
+            std::replace(oneLine.begin(), oneLine.end(), '\n', ' ');
+            def += (def.empty() ? "" : " \xC2\xB7 ") + (named ? profiles + ": " : std::string()) + oneLine;
+        }
+        return def;
+    };
+    for (const auto& [group, about] : groups) {
+        std::vector<std::pair<std::string, std::string>> rows;   // (command, label)
+        for (const auto& [name, _] : templates) {
+            const Command* k = nullptr;
+            for (const Command& c : known)
+                if (name == c.name) k = &c;
+            if ((k ? std::string(k->group) : std::string("Other")) == group) rows.push_back({ name, k ? k->label : name });
+        }
+        if (rows.empty()) continue;
+        // In the order listed above, the others by name.
+        auto order = [&](const std::string& n) {
+            for (size_t i = 0; i < std::size(known); ++i)
+                if (n == known[i].name) return int(i);
+            return int(std::size(known));
+        };
+        std::stable_sort(rows.begin(), rows.end(), [&](const auto& a, const auto& b) { return order(a.first) < order(b.first); });
+        add.group(group);
+        for (const auto& [name, label] : rows)
+            add.text("command:" + name, label,
+                     [d, name = name] { const auto i = d().commands.find(name); return i == d().commands.end() ? std::string() : i->second; },
+                     [d, name = name](const std::string& v) {
+                         if (v.empty()) d().commands.erase(name);
+                         else d().commands[name] = v;
+                     }, "lines", placeholder(templates[name]));
+        if (*about) add.note(about);
     }
-    add.note("Empty: the firmware profile's command, shown greyed. A command can be several lines; {placeholders} are filled in.");
+    add.note("Empty: the firmware profile's command, shown greyed. A command can be several lines.");
 }
 
 // What measuring an axis's backlash found, as graphs.

@@ -38,7 +38,18 @@ int main() {
     assert(d.link["port"].str() == "/dev/ttyACM0" && d.link["baud"].number() == 115200);
     assert(d.link["flowControl"].str() == "rtscts");
     // The machine's own settings.
-    assert(!cell.homeAfterConnect && cell.parkAfterHome && cell.discardLocation && cell.discardLocation->x == 40.935);
+    // Home after connected: a controller's. A cell kept with it on the machine
+    // (before) gives it to every controller, and keeps it there from then on.
+    {
+        JJson j = cell.toJson();
+        j["homeAfterConnect"] = true;
+        JPCellConfig was;
+        std::string e;
+        assert(was.fromJson(j, e) && was.homeAfterConnect());
+        for (const JPDriverConfig& dc : was.drivers) assert(dc.homeAfterConnect);
+        assert(!was.toJson()["homeAfterConnect"].boolean() && was.toJson()["drivers"][0]["homeAfterConnect"].boolean());
+    }
+    assert(!cell.homeAfterConnect() && cell.parkAfterHome && cell.discardLocation && cell.discardLocation->x == 40.935);
     // The rest of OpenPnP's serial settings, in jplacer's words.
     assert(d.link["dataBits"].number() == 8 && d.link["stopBits"].number() == 1 && d.link["parity"].str() == "none");
     assert(!d.link["setDtr"].boolean() && !d.link["setRts"].boolean() && d.link["lineEnding"].str() == "LF");

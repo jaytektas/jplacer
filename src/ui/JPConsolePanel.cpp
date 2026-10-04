@@ -44,13 +44,21 @@ JPConsolePanel::JPConsolePanel(JSceneGraph& graph, JPCell& cell)
     m_watch.on(cell.onAlarm, [this](std::string what) { addLine("\xE2\x9A\xA0 " + what); });
 }
 
-// Newest first: the line just sent or received is always the visible one.
-// (JListView resets its scroll on setItems and has no call to scroll to a
-// row, so oldest-first would leave the newest line out of sight.)
+// Newest last, as a terminal: the view follows each new line while it is at
+// the end, and stays where it is while the reader has scrolled back (the
+// oldest lines going as the history fills, the view kept on the same ones).
 void JPConsolePanel::addLine(const std::string& line) {
-    m_lines.insert(m_lines.begin(), line);
-    if (m_lines.size() > kLines) m_lines.resize(kLines);
+    const bool following = m_list->isAtEnd();
+    const float at = m_list->scrollY();
+    m_lines.push_back(line);
+    size_t dropped = 0;
+    if (m_lines.size() > kLines) {
+        dropped = m_lines.size() - kLines;
+        m_lines.erase(m_lines.begin(), m_lines.begin() + long(dropped));
+    }
     m_list->setItems(m_lines);
+    if (following) m_list->scrollToEnd();
+    else m_list->setScrollY(at - float(dropped) * m_list->rowHeight());
 }
 
 void JPConsolePanel::send() {

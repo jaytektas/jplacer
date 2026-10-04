@@ -94,6 +94,7 @@ void JPSetupForm::setForm(JPSetupProperties::Form form) {
     const int was = m_tabs->activeTab();
     const std::string wasTitle = was >= 0 && was < int(m_form.tabs.size()) ? m_form.tabs[size_t(was)].title : "";
     while (m_tabs->tabCount() > 0) m_tabs->removeTab(m_tabs->tabCount() - 1);
+    m_contents.clear();
     m_pages.clear();
     m_pulls.clear();
     m_form = std::move(form);
@@ -108,7 +109,28 @@ void JPSetupForm::setForm(JPSetupProperties::Form form) {
     invalidate();
 }
 
+void JPSetupForm::fitPages() {
+    // A page is as tall as its groups reach, as they were laid out: a note
+    // wrapped to more lines than foreseen must not be cut off, nor what is
+    // under it.
+    const JStyle& st = JStyle::current();
+    for (JContainer* c : m_contents) {
+        const JRect cb = m_graph.getLayoutConst(c->getNodeId()).boundingBox;
+        float bottom = cb.y;
+        for (NodeId k : m_graph.getChildren(c->getNodeId())) {
+            const JRect kb = m_graph.getLayoutConst(k).boundingBox;
+            bottom = std::max(bottom, kb.y + kb.height);
+        }
+        const float need = bottom - cb.y + st.spacing;
+        if (need > cb.height + 0.5f) {
+            c->setSize(cb.width, need);
+            invalidate();
+        }
+    }
+}
+
 void JPSetupForm::populateRenderPrimitives(JPrimitiveBuffer& buf) {
+    fitPages();
     // A new width: the pages made again to it, on the next frame (not while drawing).
     const float w = m_graph.getLayoutConst(getNodeId()).boundingBox.width;
     if (!m_pages.empty() && !m_rebuilding && std::abs(w - m_builtWidth) > 1.f) {
@@ -131,6 +153,7 @@ void JPSetupForm::rebuild() {
     while (m_tabs->tabCount() > 0) m_tabs->removeTab(m_tabs->tabCount() - 1);
     m_pages.clear();
     m_pulls.clear();
+    m_contents.clear();
     m_builtWidth = m_graph.getLayoutConst(getNodeId()).boundingBox.width;
     for (size_t i = 0; i < m_form.tabs.size(); ++i) {
         m_pages.push_back(page(m_form.tabs[i]));
@@ -173,15 +196,22 @@ std::unique_ptr<JWidget> JPSetupForm::page(const JPSetupProperties::Tab& tab) {
     content->setDirection(JFlexDirection::Column)->setGap(2 * st.spacing)->setAlignItems(JAlignItems::Stretch);
     // Clear of the scroll bar and the page's foot, so the groups' frames show whole.
     content->setPadding(JEdges(0.f, 0.f, st.scrollBarWidth + st.spacing, st.spacing));
+    // One column of labels for the whole page, so every group's controls line up.
+    float labels = 0;
+    for (const JPSetupProperties::Group& g : tab.groups)
+        for (const Row& r : g.rows)
+            if (r.kind == Row::Kind::Fields) labels = std::max(labels, std::ceil(JTextHelper::measureWidth(r.label)) + st.spacing);
     float height = 0;
     for (const JPSetupProperties::Group& g : tab.groups) {
         float h = 0;
-        content->add(group(g, h));
+        content->add(group(g, h, labels));
         height += (height > 0 ? 2 * st.spacing : 0) + h;
     }
     // As tall as its groups: it sits in a scroll area, which goes by its children's heights.
+    // (Made taller still if they come out taller once laid out: fitPages.)
     content->setVSizePolicy(JSizePolicyMode::Fixed);
     content->setSize(m_graph.getLayoutConst(content->getNodeId()).boundingBox.width, height + st.spacing);
+    m_contents.push_back(content.get());
     scroll->addChildWidget(std::move(content));
     return scroll;
 }
@@ -265,16 +295,13 @@ std::unique_ptr<JWidget> JPSetupForm::editor(const JProperty& p, float width) {
     return std::move(e.widget);
 }
 
-std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, float& height) {
+std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, float& height, float labels) {
     const JStyle& st = JStyle::current();
     auto frame = std::make_unique<JPGroupFrame>(m_graph, g.title);
     frame->setAlignItems(JAlignItems::Stretch);
 
-    // The labels' column, as wide as the widest; and the width of each column
-    // under a header, as wide as the widest thing in it.
-    float labels = 0;
-    for (const Row& r : g.rows)
-        if (r.kind == Row::Kind::Fields) labels = std::max(labels, std::ceil(JTextHelper::measureWidth(r.label)) + st.spacing);
+    // The labels' column is the page's (`labels`); each column under a header
+    // is as wide as the widest thing in it.
     std::vector<float> columns;
     auto widen = [&columns](size_t i, float w) {
         if (columns.size() <= i) columns.resize(i + 1, 0.f);

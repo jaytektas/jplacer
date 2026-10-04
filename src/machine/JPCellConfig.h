@@ -33,7 +33,12 @@ struct JPCellConfig {
     std::vector<JPActuatorConfig> actuators;
     JPSquarenessConfig            squareness;   // the gantry's Y lean, when measured
     JPFiducialConfig              fiducials;    // how a board's fiducials are measured
-    bool                          homeAfterConnect = false;   // home as soon as connected
+    // Home as soon as connected: any controller saying so (JPDriverConfig).
+    bool homeAfterConnect() const {
+        for (const JPDriverConfig& d : drivers)
+            if (d.homeAfterConnect) return true;
+        return false;
+    }
     bool                          parkAfterHome    = false;   // park once homed (after visual homing)
     std::optional<JPLocation>     discardLocation;            // where a part not wanted is dropped
 

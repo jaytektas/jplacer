@@ -126,25 +126,6 @@ void JPIcons::gear(JVectorCanvas& vg, float cx, float cy, float size, const JCol
     }
 }
 
-namespace {
-
-void boxed(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink, bool plus) {
-    const float half = size * 0.36f, arm = size * 0.2f, line = size * kLine;
-    vg.strokeRoundedRect(cx - half, cy - half, 2 * half, 2 * half, size * 0.06f, line, JPaint::solid(ink));
-    vg.drawLine(cx - arm, cy, cx + arm, cy, line, JPaint::solid(ink));
-    if (plus) vg.drawLine(cx, cy - arm, cx, cy + arm, line, JPaint::solid(ink));
-}
-
-} // namespace
-
-void JPIcons::expandAll(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink) {
-    boxed(vg, cx, cy, size, ink, true);
-}
-
-void JPIcons::collapseAll(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink) {
-    boxed(vg, cx, cy, size, ink, false);
-}
-
 void JPIcons::captureCamera(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink) {
     const float line = size * kLine;
     viewfinder(vg, cx, cy, size * 0.42f, line, ink);

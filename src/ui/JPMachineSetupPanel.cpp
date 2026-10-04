@@ -83,12 +83,9 @@ JPMachineSetupPanel::JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, 
     m_split->addPane(m_treePane.get(), float(treeShare));
     m_split->addPane(m_formPane.get(), float(1 - treeShare));
 
-    // Over the tree: open every branch, close them all, and a filter (its ✕ clears it).
+    // Over the tree: a filter, its ✕ on the right clearing it. (Opening and
+    // closing every branch is the tree's right-click menu.)
     auto find = JPUiParts::row(graph);
-    m_expandAll = find->add(std::make_unique<JPIconButton>(graph, "Open All", &JPIcons::expandAll, "Open every branch"));
-    m_collapseAll = find->add(std::make_unique<JPIconButton>(graph, "Close All", &JPIcons::collapseAll, "Close every branch"));
-    m_expandAll->onClicked.connect([this] { m_tree->expandAll(); });
-    m_collapseAll->onClicked.connect([this] { collapseAll(); });
     JLineEdit* search = m_search = find->add(std::make_unique<JLineEdit>(graph, "Search"));
     search->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     search->setClearButtonEnabled(true);
@@ -127,11 +124,12 @@ JPMachineSetupPanel::JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, 
 
     m_problems = add(std::make_unique<JLabel>(graph, ""));
     m_problems->setWordWrap(true);
+    showLine(m_problems, "");
     // What the last action could not do: a line only while there is one.
     // (Undo and Redo are Edit's, with their keys.)
     m_note = add(std::make_unique<JLabel>(graph, ""));
     m_note->setWordWrap(true);
-    m_note->setVisible(false);
+    showLine(m_note, "");
 
     rebuildTree();
     select(selected.empty() ? "machine" : selected);
@@ -408,13 +406,26 @@ void JPMachineSetupPanel::update() {
 
     std::string problems;
     for (const std::string& p : m_draft.problems()) problems += (problems.empty() ? "" : "\n") + p;
-    m_problems->setText(problems.empty() ? "" : "Not in use until put right:\n" + problems);
-    m_problems->setVisible(!problems.empty());
+    showLine(m_problems, problems.empty() ? "" : "Not in use until put right:\n" + problems);
 }
 
 void JPMachineSetupPanel::setNote(const std::string& text) {
-    m_note->setText(text);
-    m_note->setVisible(!text.empty());
+    showLine(m_note, text);
+}
+
+void JPMachineSetupPanel::showLine(JLabel* line, const std::string& text) {
+    // Hidden, it takes no room (the tree and the settings have it); shown, as
+    // tall as its text folded to the panel's width.
+    line->setText(text);
+    line->setVisible(!text.empty());
+    if (text.empty()) {
+        line->setMinimumSize(0.f, 0.f);
+        line->setMaximumSize(kNoLimit, 0.f);
+    } else {
+        const float width = m_graph.getLayoutConst(getNodeId()).boundingBox.width;
+        line->setMaximumSize(kNoLimit, kNoLimit);
+        line->setMinimumSize(0.f, line->heightFor(std::max(width, 1.f)));
+    }
 }
 
 } // inline namespace jf

@@ -376,8 +376,9 @@ setting it and its default on and off values.
 
 ### Console
 
-Everything sent to and received from the controllers, newest at the top (position reports are left
-out). Type a line in the box and press **Send** or Return to send it as it is. With more than one
+Everything sent to and received from the controllers, newest at the bottom (position reports are left
+out). It follows each new line while it is scrolled to the end; scroll back and it stays where you put it,
+until you scroll to the end again. Type a line in the box and press **Send** or Return to send it as it is. With more than one
 controller, choose which one from the list beside the box.
 
 <!-- src: src/ui/JPConsolePanel.cpp; src/machine/JPGcodeDriver.cpp (status lines are not passed on as traffic) -->
