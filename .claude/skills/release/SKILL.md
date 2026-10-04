@@ -46,8 +46,8 @@ It does, in order:
    `jplacer x.y.z`. A version already raised past the last release (a hand-raised minor/major, or a
    re-run after a failure) is kept, so re-running is safe.
 2. Builds jplacer, the manual, the AppImage (manual inside), and `dist/release-<version>/` + SHA256SUMS.
-3. Pushes `main` to origin and backup, creates the release with the version's CHANGES.md section as its
-   notes, mirrors the tag to backup, and publishes the manual to GitHub Pages.
+3. Pushes `main` to origin, creates the release with the version's CHANGES.md section as its
+   notes, and publishes the manual to GitHub Pages.
 
 ## 4. Verify
 

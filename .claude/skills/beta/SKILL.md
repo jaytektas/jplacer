@@ -29,8 +29,8 @@ It does, in order:
 2. Builds jplacer AS that version (`JPLACER_VERSION_OVERRIDE`), the manual, the AppImage, and
    `dist/release-<beta>/` + SHA256SUMS, then puts the build back to the plain version. **Nothing is
    committed**: CMakeLists.txt keeps the last release's version.
-3. Pushes the commit to the **`beta`** branch on origin and backup (never `main`'s history is changed),
-   creates the pre-release with the Unreleased notes, and mirrors the tag to backup.
+3. Pushes the commit to the **`beta`** branch on origin (never `main`'s history is changed), and
+   creates the pre-release with the Unreleased notes.
 
 ## 2. Verify
 

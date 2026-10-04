@@ -52,9 +52,7 @@ packaging/gather-release.sh
 # 4. publish. --prerelease is the whole point: without it the beta becomes Latest and reaches everyone.
 COMMIT=$(git rev-parse HEAD)
 git push -q --force origin "$COMMIT:refs/heads/beta"
-git push -q --force backup "$COMMIT:refs/heads/beta"
 gh release create "$TAG" --prerelease --target "$COMMIT" --title "jplacer $JPLACER_VERSION (beta)" \
     --notes "$(packaging/changes.py unreleased; printf '\nBeta \xE2\x80\x94 for testing.\n')" "dist/release-$JPLACER_VERSION"/*
 git fetch -q origin tag "$TAG"
-git push -q backup "$TAG"
 say "published: $(gh release view "$TAG" --json url --jq .url)"

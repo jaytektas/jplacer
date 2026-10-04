@@ -62,10 +62,8 @@ packaging/gather-release.sh
 
 # 4. publish: the commit first, so the tag GitHub makes points at something it has
 git push -q origin main
-git push -q backup main
 gh release create "$TAG" --target "$(git rev-parse HEAD)" --title "jplacer $VERSION" \
     --notes "$(packaging/changes.py notes "$VERSION")" "dist/release-$VERSION"/*
 git fetch -q origin tag "$TAG"
-git push -q backup "$TAG"
 manual/tools/publish.sh
 say "published: $(gh release view "$TAG" --json url --jq .url)"
