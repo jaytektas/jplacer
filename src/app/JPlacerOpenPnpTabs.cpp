@@ -11,6 +11,11 @@
 #include "JPlacerPhotonSlotsDialog.h"
 #include "JPlacerImportDialog.h"
 #include "JPlacerSettings.h"
+#include <sstream>
+#include <set>
+#include <j/core/FrameTimer.h>
+#include <j/platform/JDesktop.h>
+#include "setup/JPIssueChecks.h"
 
 #include "model/JPDefinitionChanges.h"
 #include "tasks/JPFeederActions.h"
@@ -334,6 +339,70 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_feedersDock = std::make_unique<JDockWidget>("Feeders", 0.f, 0.f, 0.f, 0.f);
     m_feedersDock->setContent(m_feeders.get());
     m_layout.add(m_feedersDock.get(), JPlacerLayout::Home::Work);
+    // Issues & Solutions: the checks over the machine and the configuration,
+    // the milestone and what was solved or dismissed kept between sessions.
+    {
+        JSettings& set = JSettings::instance();
+        const std::string target = set.get<std::string>(JPlacerSettings::kIssuesMilestone, "Welcome");
+        for (int m = 0; m <= int(JPSolutions::Milestone::Advanced); ++m)
+            if (target == JPSolutions::name(JPSolutions::Milestone(m))) m_solutions.setTargetMilestone(JPSolutions::Milestone(m));
+        auto words = [](const std::string& text) {
+            std::set<std::string> out;
+            std::istringstream in(text);
+            for (std::string w; in >> w;) out.insert(w);
+            return out;
+        };
+        m_solutions.setFingerprints(words(set.get<std::string>(JPlacerSettings::kIssuesSolved, "")),
+                                    words(set.get<std::string>(JPlacerSettings::kIssuesDismissed, "")));
+        m_solutions.setShowSolved(set.get<bool>(JPlacerSettings::kIssuesShowSolved, false));
+        m_solutions.setShowDismissed(set.get<bool>(JPlacerSettings::kIssuesShowDismissed, false));
+    }
+    m_solutions.onChanged = [this] {
+        auto joined = [](const std::set<std::string>& words) {
+            std::string out;
+            for (const std::string& w : words) out += (out.empty() ? "" : " ") + w;
+            return out;
+        };
+        JSettings& set = JSettings::instance();
+        set.set(JPlacerSettings::kIssuesMilestone, std::string(JPSolutions::name(m_solutions.targetMilestone())));
+        set.set(JPlacerSettings::kIssuesSolved, joined(m_solutions.solvedFingerprints()));
+        set.set(JPlacerSettings::kIssuesDismissed, joined(m_solutions.dismissedFingerprints()));
+        set.set(JPlacerSettings::kIssuesShowSolved, m_solutions.showSolved());
+        set.set(JPlacerSettings::kIssuesShowDismissed, m_solutions.showDismissed());
+        JPlacerSettings::save();
+    };
+    m_solutions.confirm = [](const std::string& message, std::function<void()> yes) {
+        JDialog::confirm("Warning", message, std::move(yes));
+    };
+    {
+        JPIssueChecks::Context context;
+        context.config = &m_job.configuration();
+        context.cell = [this]() -> const JPCellConfig* { return m_machine.cell() ? &m_machine.cell()->config() : nullptr; };
+        context.calibrated = [this](const std::string& id) { return m_machine.cameraCalibrated(id); };
+        context.showSetup = [this](const std::string& path) { m_machine.showSetupNode(path); };
+        context.changeCell = [this](const std::string& what, const std::function<void(JPCellConfig&)>& edit) {
+            m_machine.changeSetup(what, edit);
+        };
+        m_solutions.setChecks(JPIssueChecks::all(context));
+    }
+    m_issues = std::make_unique<JPIssuesPanel>(graph, m_solutions,
+                                               JSettings::instance().get<double>(JPlacerSettings::kIssuesSplit, kSplit));
+    m_issues->openUri = [](const std::string& uri) { JDesktop::openUrl(uri); };
+    m_issues->showError = [](const std::string& why) { JDialog::message("Error", why); };
+    m_issuesDock = std::make_unique<JDockWidget>("Issues & Solutions", 0.f, 0.f, 0.f, 0.f);
+    // A milestone completed: searched again (not while its own Accept is at work).
+    m_solutions.onMilestoneChanged = [this, alive = std::weak_ptr<bool>(m_alive)] {
+        jPostToNextFrame([this, alive] {
+            if (const auto a = alive.lock(); a && *a) m_issues->findIssuesAndSolutions();
+        });
+    };
+    m_issuesDock->setContent(m_issues.get());
+    m_layout.add(m_issuesDock.get(), JPlacerLayout::Home::Work);
+    // The first search once everything is up (OpenPnP's waits for its cameras too).
+    jPostToNextFrame([this, alive = std::weak_ptr<bool>(m_alive)] {
+        if (const auto a = alive.lock(); a && *a) m_issues->findIssuesAndSolutions();
+    });
+
     // Log: the log's entries, as OpenPnP's Log tab; its level kept as the Console's is.
     m_log = std::make_unique<JPLogPanel>(graph);
     m_log->onLogLevels = [](const JPLogLevels& levels) {
@@ -398,6 +467,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
 }
 
 JPlacerOpenPnpTabs::~JPlacerOpenPnpTabs() {
+    *m_alive = false;
     m_jobRun.reset();   // a run under way stops before what it works on goes
     JSettings::instance().set(JPlacerSettings::kPartsSplit, m_parts->split());
     JSettings::instance().set(JPlacerSettings::kPackagesSplit, m_packages->split());
@@ -418,6 +488,9 @@ JPlacerOpenPnpTabs::~JPlacerOpenPnpTabs() {
     m_feedersDock->setContent(nullptr);
     m_layout.remove(m_logDock.get());
     m_logDock->setContent(nullptr);
+    JSettings::instance().set(JPlacerSettings::kIssuesSplit, m_issues->split());
+    m_layout.remove(m_issuesDock.get());
+    m_issuesDock->setContent(nullptr);
     m_layout.remove(m_visionDock.get());
     m_visionDock->setContent(nullptr);
     m_layout.remove(m_boardsDock.get());

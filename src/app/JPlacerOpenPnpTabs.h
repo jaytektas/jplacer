@@ -10,7 +10,9 @@
 #include "JPlacerViewerDock.h"
 
 #include "ui/JPBoardsPanel.h"
+#include "setup/JPSolutions.h"
 #include "ui/JPFeedersPanel.h"
+#include "ui/JPIssuesPanel.h"
 #include "ui/JPLogPanel.h"
 #include "ui/JPVisionSettingsPanel.h"
 #include "ui/JPJobPanel.h"
@@ -79,6 +81,11 @@ private:
     std::unique_ptr<JDockWidget>     m_packagesDock;
     std::unique_ptr<JPVisionSettingsPanel> m_vision;
     std::unique_ptr<JDockWidget>     m_visionDock;
+    JPSolutions                      m_solutions;
+    // Gone with the tabs: what was posted for later does nothing then.
+    std::shared_ptr<bool>            m_alive = std::make_shared<bool>(true);
+    std::unique_ptr<JPIssuesPanel>   m_issues;
+    std::unique_ptr<JDockWidget>     m_issuesDock;
     std::unique_ptr<JPLogPanel>      m_log;
     std::unique_ptr<JDockWidget>     m_logDock;
     std::unique_ptr<JPFeedersPanel>  m_feeders;

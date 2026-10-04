@@ -139,6 +139,12 @@ public:
     // controller, reading with "M485 {value}" and "rs485-reply: (.*)" (a
     // Machine Setup step like any other).
     void          ensurePhotonActuator();
+    // For Issues & Solutions: Machine Setup's part selected ("camera:<id>",
+    // empty: none), ready there when its tab is opened; a change to the setup made as a Machine Setup step;
+    // whether a camera has a calibration.
+    void          showSetupNode(const std::string& path);
+    void          changeSetup(const std::string& what, const std::function<void(JPCellConfig&)>& edit);
+    bool          cameraCalibrated(const std::string& cameraId) const;
     // Where the docks live, and View's entries for them.
     JPlacerLayout& layout() { return m_layout; }
 

@@ -157,6 +157,8 @@ public:
     void        setReal(const std::string& attribute, double value);
     bool        flag(const std::string& attribute, bool def = false) const;
     void        setFlag(const std::string& attribute, bool on);
+    // Whether it has the child element at all (a location never set has none).
+    bool        has(const std::string& element) const { return m_node.child(element) != nullptr; }
     JPLocation  locationOf(const std::string& element) const;
     void        setLocationOf(const std::string& element, const JPLocation& l);
     // A child element's text (OpenPnP's <parallax-angle>0.0</parallax-angle>).

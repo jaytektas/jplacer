@@ -805,6 +805,18 @@ void JPlacerMachine::setTipOn(const std::string& nozzleId, const std::string& ti
     });
 }
 
+void JPlacerMachine::showSetupNode(const std::string& path) {
+    if (m_setup && !path.empty()) m_setup->showNode(path);
+}
+
+void JPlacerMachine::changeSetup(const std::string& what, const std::function<void(JPCellConfig&)>& edit) {
+    if (m_setup) m_setup->change(what, edit);
+}
+
+bool JPlacerMachine::cameraCalibrated(const std::string& cameraId) const {
+    return m_cell && !m_cell->cameraCalibrations(cameraId).empty();
+}
+
 void JPlacerMachine::ensurePhotonActuator() {
     if (!m_setup || !m_cell || m_cell->config().actuatorNamed(JPPhotonBus::kDataActuator)) return;
     JLOGC(JPlacerLog::kCell, JLogLevel::Info) << "Photon feeders: actuator " << JPPhotonBus::kDataActuator << " made";

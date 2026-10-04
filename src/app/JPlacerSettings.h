@@ -63,6 +63,14 @@ public:
     static constexpr const char* kVisionSplit      = "vision.split";
     // The Feeders tab's, likewise (FeedersPanel.dividerPosition).
     static constexpr const char* kFeedersSplit     = "feeders.split";
+    // Issues & Solutions: the target milestone, the issues solved and
+    // dismissed (their fingerprints, space between), what is shown, the divider.
+    static constexpr const char* kIssuesMilestone     = "issues.milestone";
+    static constexpr const char* kIssuesSolved        = "issues.solved";
+    static constexpr const char* kIssuesDismissed     = "issues.dismissed";
+    static constexpr const char* kIssuesShowSolved    = "issues.showSolved";
+    static constexpr const char* kIssuesShowDismissed = "issues.showDismissed";
+    static constexpr const char* kIssuesSplit         = "issues.split";
     // The Boards tab's boards over its placements (BoardsPanel.dividerPosition).
     static constexpr const char* kBoardsSplit      = "boards.split";
     // The Panels tab's panels over its definition (PanelsPanel.dividerPosition).
