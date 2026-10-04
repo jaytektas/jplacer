@@ -251,45 +251,7 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
         vg.strokeRect(m_dragX - half, m_dragY - half, 2 * half, 2 * half, line, JPaint::solid(d));
     }
 
-    // What is on the machine there (the board's placements and fiducials).
-    std::vector<JPViewMark> marks;
-    if (m_marks) marks = m_marks();
-    const JColor fidColour  = rgb(Colors::Warning[0], Colors::Warning[1], Colors::Warning[2]);
-    const JColor partColour = rgb(Colors::Accent[0], Colors::Accent[1], Colors::Accent[2]);
-    // Marks come in the picture-as-taken's pixels: shown where the picture shows them.
-    struct Placed { float x, y; const JPViewMark* mark; };
-    std::vector<Placed> placed;
-    for (const JPViewMark& m : marks) {
-        double sx, sy;
-        if (!shown(m.x, m.y, sx, sy)) continue;
-        placed.push_back({ x + float(sx) * scale, y + float(sy) * scale, &m });
-    }
-    for (const Placed& p : placed) {
-        const float r = p.mark->radius > 0 ? float(p.mark->radius) * scale : st.spacing;
-        if (p.mark->outlines.empty()) vg.strokeCircle(p.x, p.y, r, line, JPaint::solid(p.mark->fiducial ? fidColour : partColour));
-        // A footprint: each pad outlined where the picture shows it, pin 1's dot filled.
-        for (const auto& outline : p.mark->outlines) {
-            std::vector<JVectorCanvas::JVec2> pts;
-            for (const auto& [ox, oy] : outline) {
-                double sx, sy;
-                if (shown(ox, oy, sx, sy)) pts.push_back({ x + float(sx) * scale, y + float(sy) * scale });
-            }
-            if (pts.size() == outline.size() && !pts.empty()) {
-                pts.push_back(pts.front());
-                vg.strokePolyline(pts, line, JPaint::solid(partColour));
-            }
-        }
-        double dx, dy;
-        if (p.mark->hasPin1 && shown(p.mark->pin1X, p.mark->pin1Y, dx, dy))
-            vg.fillCircle(x + float(dx) * scale, y + float(dy) * scale, std::max(line, float(p.mark->pin1Radius) * scale),
-                          JPaint::solid(fidColour));
-    }
     vg.flush(buf);
-    for (const Placed& p : placed) {
-        const float r = p.mark->radius > 0 ? float(p.mark->radius) * scale : st.spacing;
-        JTextHelper::pushText(buf, p.x + r, p.y - r - JTextHelper::lineHeight(), p.mark->label,
-                              p.mark->fiducial ? Colors::Warning : Colors::Accent);
-    }
 
     // A picture left from before the camera was lost: say so over it, or it
     // would pass for a live one.

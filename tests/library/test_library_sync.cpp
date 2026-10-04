@@ -11,7 +11,6 @@
 
 #include "library/JPEntryFields.h"
 #include "library/JPLibrarySync.h"
-#include "library/JPPlacementRotation.h"
 
 #include <cmath>
 
@@ -58,7 +57,6 @@ int main() {
         assert(JPEntryFields::set(s, pkg, "height", "1.5", error) && s.packages[0].height == 1.5);
         assert(JPEntryFields::set(s, pkg, "speed", "50", error) && s.packages[0].speed == 0.5);
         assert(JPEntryFields::set(s, pkg, "tips", "N08, N14", error) && s.packages[0].tips.size() == 2);
-        assert(JPEntryFields::set(s, pkg, "turn", "180", error) && s.packages[0].turnDeg == 180);
         JPPackage other;
         other.name = "SOIC-14";
         const std::string oid = s.add(std::move(other));
@@ -67,26 +65,6 @@ int main() {
         assert(JPEntryFields::set(s, pkg, "names", "SOIC-8, SO-8", error) && s.packageNamed("SO-8") == &s.packages[0]);
         assert(!JPEntryFields::set(s, fp, "pin1", "9", error) && JPEntryFields::set(s, fp, "pin1", "2", error));
         assert(!JPEntryFields::set(s, part, "package", "SOIC-14", error));   // linked by choosing, not by typing
-    }
-    // Rotation: imported, plus the package's turn, unless set by hand.
-    {
-        JPPartsStore s = library();
-        JPPlacement p;
-        p.partId = s.parts[0].id;
-        p.rotationDeg = 90;
-        JPPlacementRotation r = JPPlacementRotation::of(p, s);
-        assert(r.degrees == 90 && r.source == JPPlacementRotation::Source::AsImported);
-        s.packages[0].turnDeg = 180;
-        r = JPPlacementRotation::of(p, s);
-        assert(r.degrees == 270 && r.source == JPPlacementRotation::Source::AsPart);
-        p.rotationSet = true;
-        p.rotationSetDeg = 0;
-        r = JPPlacementRotation::of(p, s);
-        assert(r.degrees == 0 && r.source == JPPlacementRotation::Source::Unique);
-        p.rotationSetDeg = -90;   // the same as the part's 270
-        r = JPPlacementRotation::of(p, s);
-        assert(r.degrees == 270 && r.source == JPPlacementRotation::Source::AsPart);
-        assert(JPPlacementRotation::normal(-90) == 270 && JPPlacementRotation::normal(720) == 0);
     }
     // A job's copies and the library.
     {
@@ -112,12 +90,12 @@ int main() {
         assert(job.part(pid)->packageId == pkg.id);   // its id, and what links to it, stay
 
         // Changed in the job, then put into the library: the differences first.
-        assert(JPEntryFields::set(job, pkg, "turn", "90", error) && JPLibrarySync::changedInJob(job, pkg));
+        assert(JPEntryFields::set(job, pkg, "height", "1.8", error) && JPLibrarySync::changedInJob(job, pkg));
         const std::vector<std::string> d = JPLibrarySync::wouldChange(job, pkg, lib);
-        assert(d.size() == 1 && d[0].find("Turn") == 0);
+        assert(d.size() == 1 && d[0].find("Height") == 0);
         const int before = lib.packages[0].revision;
         JPLibrarySync::copyToLibrary(job, pkg, lib);
-        assert(lib.packages.size() == 1 && lib.packages[0].turnDeg == 90 && lib.packages[0].revision == before + 1);
+        assert(lib.packages.size() == 1 && lib.packages[0].height == 1.8 && lib.packages[0].revision == before + 1);
         assert(!JPLibrarySync::libraryNewer(job, pkg, lib) && !JPLibrarySync::changedInJob(job, pkg));
 
         // A part new in the job, in a package new in the job: both added at once.

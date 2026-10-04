@@ -86,7 +86,7 @@ const std::vector<JPEntryFields::Field>& JPEntryFields::of(JPEntry::Kind kind) {
     static const std::vector<Field> package = {
         { "name", "Name" }, { "length", "Length (mm)" }, { "width", "Width (mm)" }, { "height", "Height (mm)" },
         { "tips", "Nozzle tips" }, { "speed", "Speed (%)" }, { "pickRetries", "Pick retries" },
-        { "turn", "Turn (\xC2\xB0)" }, { "names", "Names" }, { "footprint", "Footprint" },
+        { "names", "Names" }, { "footprint", "Footprint" },
     };
     static const std::vector<Field> footprint = {
         { "name", "Name" }, { "bodyWidth", "Body X (mm)" }, { "bodyLength", "Body Y (mm)" }, { "pin1", "Pin 1" },
@@ -122,7 +122,6 @@ std::string JPEntryFields::get(const JPPartsStore& s, const JPEntry& e, const st
         if (key == "tips") return join(k->tips, ", ");
         if (key == "speed") return k->speed > 0 ? number(k->speed * 100) : std::string();
         if (key == "pickRetries") return k->pickRetries >= 0 ? std::to_string(k->pickRetries) : std::string();
-        if (key == "turn") return number(k->turnDeg);
         if (key == "names") return join(k->names, ", ");
         if (key == "footprint") return s.footprint(k->footprintId) ? s.footprint(k->footprintId)->name : std::string();
         return {};
@@ -205,13 +204,6 @@ bool JPEntryFields::set(JPPartsStore& s, const JPEntry& e, const std::string& ke
                 return false;
             }
             k->pickRetries = text.empty() ? -1 : int(v);
-        } else if (key == "turn") {
-            double v;
-            if (!toNumber(text, v)) {
-                error = "'" + text + "' is not an angle in degrees";
-                return false;
-            }
-            k->turnDeg = v;
         } else if (key == "names") {
             const std::vector<std::string> wanted = split(text, ',');
             for (const std::string& n : wanted)

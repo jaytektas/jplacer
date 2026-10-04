@@ -138,20 +138,6 @@ JPJogPanel::JPJogPanel(JSceneGraph& graph, JPCell& cell, Choices start) : JConta
     tip->onClicked.connect([this] { showTipMenu(); });
     m_tipButton = top->add(std::move(tip));
     m_tipButton->setEnabled(m_tools[m_tool].nozzle);
-    // Stopping, always in view: the move held and dropped (the position
-    // kept), or every controller reset at once.
-    auto stopButton = std::make_unique<JPIconButton>(graph, "Stop", &JPIcons::stopMove,
-                                                     "Stop the move: held, the rest thrown away, the position kept");
-    stopButton->setFramed(true);
-    stopButton->setFixedSize(side, side);
-    stopButton->onClicked.connect([this] { act("stop"); });
-    m_stopButton = top->add(std::move(stopButton));
-    auto estop = std::make_unique<JPIconButton>(graph, "Emergency Stop", &JPIcons::emergencyStop,
-                                                "EMERGENCY STOP: every controller reset at once; home again after");
-    estop->setDanger(true);
-    estop->setFixedSize(side, side);
-    estop->onClicked.connect([this] { act("emergencyStop"); });
-    m_estopButton = top->add(std::move(estop));
     tools->onIndexChanged.connect([this](int i) {
         if (i < 0 || size_t(i) >= m_tools.size()) return;
         m_tool = size_t(i);
@@ -183,8 +169,6 @@ std::string JPJogPanel::tip(const std::string& text, const std::string& action) 
 }
 
 void JPJogPanel::refreshKeys() {
-    m_stopButton->setTooltip(tip("Stop the move: held, the rest thrown away, the position kept", "stop"));
-    m_estopButton->setTooltip(tip("EMERGENCY STOP: every controller reset at once; home again after", "emergencyStop"));
     makePages();
 }
 

@@ -70,8 +70,6 @@ public:
     // While a task drives the camera: its buttons are off, and it runs even
     // off screen.
     void setBusy(bool busy);
-    // Marks over the live picture (see JPCameraView::setMarks).
-    void setMarks(std::function<std::vector<JPViewMark>()> marks);
     // A word about the picture (what a task is doing, why it is dark).
     void setNote(const std::string& text);
     // Write the latest picture to capturesDir. The file written, or empty

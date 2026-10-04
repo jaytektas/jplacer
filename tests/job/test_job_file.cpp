@@ -20,12 +20,8 @@ namespace fs = std::filesystem;
 int main() {
     JPJob job;
     job.board.name = "controller";
-    job.sources = { { JPSource::Kind::Placements, "/boards/controller-cpl.csv", JPCadTool::Kind::KiCad, "0123" },
-                    { JPSource::Kind::Bom, "/boards/controller-bom.csv", JPCadTool::Kind::Other, "4567" } };
-    job.frame = { 1.5, -2, 100, 80 };
     JPPackage k;
     k.name = "SOIC-8";
-    k.turnDeg = 180;
     const std::string kid = job.parts.add(std::move(k));
     job.parts.addName(kid, "SOIC-8_3.9x4.9mm_P1.27mm");
     JPPart part;
@@ -39,9 +35,6 @@ int main() {
     u1.y = -3.25;
     u1.rotationDeg = 90;
     u1.side = JPPlacement::Side::Bottom;
-    u1.hasPin1 = true;
-    u1.pin1X = 8;
-    u1.pin1Y = -2;
     u1.supplierNumbers = { { "LCSC", "C7950" } };
     u1.mpn = "LM358DT";
     u1.voltage = "30V";
@@ -51,19 +44,10 @@ int main() {
     u1.other = { { "3D Model", "SOIC-8" } };
     u1.partId = pid;
     u1.partGuessed = true;
-    u1.reference = true;
-    u1.recorded = true;
-    u1.recordedX = 150.25;
-    u1.recordedY = 80.5;
-    u1.lookWidth = 2;
-    u1.lookPxPerMm = 31.5;
-    u1.look = { 0, 255, 17, 200, 3 };
-    job.location.capture = JPLocateSettings::Capture::Manual;
     job.board.placements.push_back(u1);
     JPPlacement fid;
     fid.designator = "FID1";
     fid.fiducial = true;
-    fid.fiducialMm = 1;
     fid.doNotPlace = true;
     job.board.placements.push_back(fid);
 
@@ -72,22 +56,16 @@ int main() {
     assert(job.save(path.string(), error));
     JPJob back;
     assert(JPJob::load(path.string(), back, error));
-    assert(back.board.name == "controller" && back.sources.size() == 2 && back.sources[0].tool == JPCadTool::Kind::KiCad);
-    assert(back.sources[1].kind == JPSource::Kind::Bom && back.sources[1].fingerprint == "4567");
-    assert(back.frame.originX == 1.5 && back.frame.originY == -2 && back.frame.hasOutline() && back.frame.height == 80);
+    assert(back.board.name == "controller");
     assert(back.board.placements.size() == 2);
     const JPPlacement* b = back.board.find("U1");
     assert(b && b->x == 10.5 && b->y == -3.25 && b->rotationDeg == 90 && b->side == JPPlacement::Side::Bottom);
-    assert(b->hasPin1 && b->pin1X == 8 && b->pin1Y == -2);
     assert(b->supplierNumbers == u1.supplierNumbers && b->mpn == "LM358DT" && b->voltage == "30V");
     assert(b->mounting == JPPlacement::Mounting::Smd && b->footprint == u1.footprint && b->pins == 8);
     assert(b->other == u1.other && b->partId == pid && b->partGuessed);
-    assert(b->reference && b->recorded && b->recordedX == 150.25 && b->recordedY == 80.5);
-    assert(b->lookWidth == 2 && b->lookPxPerMm == 31.5 && b->look == u1.look);
-    assert(back.location.capture == JPLocateSettings::Capture::Manual && back.location.newBoard == JPLocateSettings::NewBoard::ReRecord);
     const JPPlacement* f = back.board.find("FID1");
-    assert(f && f->fiducial && f->fiducialMm == 1 && f->doNotPlace && !f->hasPin1 && f->partId.empty());
-    assert(back.parts.part(pid)->packageId == kid && back.parts.packageNamed("SOIC-8_3.9x4.9mm_P1.27mm")->turnDeg == 180);
+    assert(f && f->fiducial && f->doNotPlace && f->partId.empty());
+    assert(back.parts.part(pid)->packageId == kid && back.parts.packageNamed("SOIC-8_3.9x4.9mm_P1.27mm"));
 
     { std::ofstream(path, std::ios::trunc) << "{ \"version\": 9 }"; }
     assert(!JPJob::load(path.string(), back, error) && error.find("another version") != std::string::npos);

@@ -106,7 +106,7 @@ void JPMachinePanel::refreshCalibration() {
     const JPSquarenessConfig q = m_cell.squareness();
     m_squareness->setText(q.active() ? "Squareness: corrected for Y leaning " + fixed(q.xPerY * 100, 3)
                                            + " mm in X per 100 mm"
-                                     : "Squareness: not corrected (a board located by three or more fiducials measures it)");
+                                     : "Squareness: not corrected");
     bool visual = false;
     for (const JPHeadConfig& h : config.heads) visual = visual || h.visualHoming;
     m_homing->setText(visual ? "Homing: by the switches, then by the homing mark with the head camera"

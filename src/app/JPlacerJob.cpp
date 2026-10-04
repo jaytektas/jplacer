@@ -33,7 +33,6 @@ JPlacerJob::JPlacerJob(JAppWindow& window) : m_window(window) {
     std::string folder = s.get<std::string>(JPlacerSettings::kLibraryFolder, "");
     if (folder.empty()) folder = JPLibrary::defaultFolder();
     if (!m_library.open(folder)) m_window.showStatus(m_library.problem(), kStatusMs);
-    m_job = fresh();
 
     if (const std::string last = s.get<std::string>(JPlacerSettings::kJobFile, ""); !last.empty()) {
         std::string error;
@@ -130,29 +129,15 @@ bool JPlacerJob::mayClose() {
     return false;
 }
 
-JPJob JPlacerJob::fresh() {
-    JPJob job;
-    // A new job's checklist starts as Preferences say.
-    const JSettings& st = JSettings::instance();
-    JPRotationRules& r = job.rotationRules;
-    r.check            = st.get<bool>(JPlacerSettings::kRotationCheck, r.check);
-    r.skipCannotMatter = st.get<bool>(JPlacerSettings::kRotationSkipCannotMatter, r.skipCannotMatter);
-    r.byFile           = st.get<bool>(JPlacerSettings::kRotationByFile, r.byFile);
-    r.byVision         = st.get<bool>(JPlacerSettings::kRotationByVision, r.byVision);
-    r.byPerson         = st.get<bool>(JPlacerSettings::kRotationByPerson, r.byPerson);
-    return job;
-}
-
-void JPlacerJob::newJob(std::function<void()> then) {
-    settle([this, then] {
-        m_job = fresh();
+void JPlacerJob::newJob() {
+    settle([this] {
+        m_job = JPJob();
         m_path.clear();
         m_modified = false;
         JSettings::instance().set(JPlacerSettings::kJobFile, std::string());
         JPlacerSettings::save();
         title();
         notify(Change::Board);
-        if (then) then();
     });
 }
 

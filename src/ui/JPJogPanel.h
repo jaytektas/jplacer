@@ -159,8 +159,6 @@ private:
     size_t                  m_lastNozzle = 0;
     JTabWidget*             m_tabs = nullptr;
     JWidget*                m_tipButton = nullptr;
-    JWidget*                m_stopButton = nullptr;
-    JWidget*                m_estopButton = nullptr;
     std::vector<double>     m_distances, m_speeds;
     std::unique_ptr<JMenu>  m_tipMenu, m_tipOnIt;
     bool                    m_stepThrough = true;

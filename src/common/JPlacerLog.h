@@ -31,8 +31,6 @@ struct JPlacerLog {
     static constexpr const char* kFrames   = "camera.frames";      // every frame (many a second)
 
     static constexpr const char* kImport   = "import.openpnp";     // reading OpenPnP's files
-    static constexpr const char* kImportCpl = "import.cpl";        // reading pick-and-place files
-    static constexpr const char* kBoard    = "board";              // finding a board by its fiducials
     static constexpr const char* kLibrary  = "library";            // the parts library read and saved, parts matched
 
     static constexpr const char* kUi       = "ui";                 // what was clicked, chosen, typed
@@ -41,8 +39,8 @@ struct JPlacerLog {
     // any has been used).
     static const std::vector<std::string>& all() {
         static const std::vector<std::string> list = { kApp, kSettings, kDesktop, kProfiles, kCell, kDriver, kLink,
-                                                       kTraffic, kStatus, kCamera, kFrames, kImport, kImportCpl,
-                                                       kBoard, kLibrary, kUi };
+                                                       kTraffic, kStatus, kCamera, kFrames, kImport,
+                                                       kLibrary, kUi };
         return list;
     }
 };

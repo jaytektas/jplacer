@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include "JPlacerBoard.h"
 #include "JPlacerCameraTasks.h"
 #include "JPlacerLayout.h"
 #include "JPlacerTipChanges.h"
@@ -39,7 +38,7 @@ inline namespace jf {
 // The cell opened last is opened again at start (JPlacerSettings::kMachineCell).
 class JPlacerMachine {
 public:
-    JPlacerMachine(JAppWindow& window, JSceneGraph& graph, JPlacerJob& job);
+    JPlacerMachine(JAppWindow& window, JSceneGraph& graph);
     ~JPlacerMachine();
 
     JPlacerMachine(const JPlacerMachine&)            = delete;
@@ -85,10 +84,6 @@ public:
     void showSetup(const std::string& path);
     // Where the docks live, and View's entries for them.
     JPlacerLayout& layout() { return m_layout; }
-    // The board on the machine and the camera tasks: null while no cell with
-    // a camera is open.
-    JPlacerBoard* board() { return m_board.get(); }
-    JPlacerCameraTasks* cameraTasks() { return m_cameraTasks.get(); }
 
     // The directory cell files are kept in.
     static std::string cellsDir();
@@ -105,9 +100,6 @@ private:
     bool applySetup(JPCellConfig cell);
     // Follow the open cell's signals (the menu, the strip, the status bar).
     void watchCell();
-    // Correct the squareness of the gantry moving `mount` by `xPerY` more (from
-    // a board), and keep it in the cell file.
-    void squareMachine(const JPMountConfig& mount, double xPerY);
     void updateMenu();
     // The connect and home icons follow the cell; the strip across the window
     // is kept for what is critical (ALARM, CONNECTION LOST) and a failure goes
@@ -150,7 +142,6 @@ private:
     };
 
     JAppWindow&                         m_window;
-    JPlacerJob&                         m_job;      // the open job, whose board the Board panel shows
     JSceneGraph&                        m_graph;
     JPlacerLayout                       m_layout;
     std::vector<JPFirmwareProfile>      m_profiles;
@@ -163,7 +154,6 @@ private:
     };
     std::vector<CameraDock>             m_cameras;   // the window's centre
     std::unique_ptr<JPlacerCameraTasks> m_cameraTasks;   // its Calibrate and Visual Test
-    std::unique_ptr<JPlacerBoard>       m_board;         // the board on the machine, and its panel
     std::unique_ptr<JPlacerTipChanges>  m_tipChanges;    // the nozzles' tips loaded and unloaded
     JPJogPanel*                         m_jog = nullptr; // its chosen tool, for the status bar
     JPMachineSetupPanel*                m_setup = nullptr;
@@ -177,7 +167,6 @@ private:
     JMenuItem*                          m_redoItem       = nullptr;
     JPConnectIcon                       m_connectIcon;
     JPHomeIcon                          m_homeIcon;
-    JPIconButton                        m_emergencyStop;   // on the toolbar, always in view
     JPPositionReadout                   m_position;   // the chosen tool's, in the status bar
     bool                                m_connecting  = false;   // asked, not yet answered
     bool                                m_connectFailed = false; // the last connect failed

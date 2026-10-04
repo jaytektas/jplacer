@@ -155,10 +155,6 @@ std::vector<JWidget*> JPCameraPanel::tabTools() const {
     return { m_asTaken.get(), m_save.get(), m_calibrate.get(), m_visualTest.get(), m_settings.get() };
 }
 
-void JPCameraPanel::setMarks(std::function<std::vector<JPViewMark>()> marks) {
-    m_view->setMarks(std::move(marks));
-}
-
 void JPCameraPanel::setNote(const std::string& text) {
     m_note->setText(text);
 }

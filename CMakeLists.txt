@@ -32,8 +32,6 @@ file(GLOB JPLACER_MACHINE_SRC CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/
 file(GLOB JPLACER_OPENPNP_SRC CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/openpnp/*.cpp)
 file(GLOB JPLACER_CAMERA_SRC  CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/camera/*.cpp)
 file(GLOB JPLACER_VISION_SRC  CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/vision/*.cpp)
-file(GLOB JPLACER_GEOMETRY_SRC CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/geometry/*.cpp)
-file(GLOB JPLACER_IMPORT_SRC  CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/import/*.cpp)
 file(GLOB JPLACER_LIBRARY_SRC CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/library/*.cpp)
 file(GLOB JPLACER_JOB_SRC     CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/job/*.cpp)
 file(GLOB JPLACER_TASKS_SRC   CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/tasks/*.cpp)
@@ -65,20 +63,12 @@ target_link_libraries(jplacer_camera PUBLIC jplacer_machine PRIVATE JPEG::JPEG P
 add_library(jplacer_vision STATIC ${JPLACER_VISION_SRC})
 target_link_libraries(jplacer_vision PUBLIC jplacer_common)
 
-# The board and job model, and the geometry it is placed with: no GUI, no
-# hardware.
-add_library(jplacer_geometry STATIC ${JPLACER_GEOMETRY_SRC})
-target_link_libraries(jplacer_geometry PUBLIC jplacer_common)
 # Parts, packages and footprints: the main library on disk, a job's own, and
 # matching a board's placements to them. No GUI, no hardware.
 add_library(jplacer_library STATIC ${JPLACER_LIBRARY_SRC})
 target_link_libraries(jplacer_library PUBLIC jplacer_common)
 add_library(jplacer_job STATIC ${JPLACER_JOB_SRC})
-target_link_libraries(jplacer_job PUBLIC jplacer_geometry jplacer_library)
-# Reading other tools' files into a board (nothing goes into the library).
-add_library(jplacer_import STATIC ${JPLACER_IMPORT_SRC})
-target_link_libraries(jplacer_import PUBLIC jplacer_job)
-
+target_link_libraries(jplacer_job PUBLIC jplacer_library)
 # Procedures that drive the machine, its cameras and vision together:
 # calibrating a camera, the visual homing test, finding a board.
 add_library(jplacer_tasks STATIC ${JPLACER_TASKS_SRC})
@@ -104,7 +94,7 @@ add_executable(jplacer ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp ${JPLACER_APP_SR
 # restated in a header where the two could drift. The updater compares it with
 # the newest release's tag.
 target_compile_definitions(jplacer PRIVATE JPLACER_VERSION="${JPLACER_FULL_VERSION}")
-target_link_libraries(jplacer PRIVATE jplacer_ui jplacer_setup jplacer_tasks jplacer_import jplacer_library jplacer_vision jplacer_camera jplacer_openpnp jplacer_machine jplacer_common JFramework::platform
+target_link_libraries(jplacer PRIVATE jplacer_ui jplacer_setup jplacer_tasks jplacer_library jplacer_vision jplacer_camera jplacer_openpnp jplacer_machine jplacer_common JFramework::platform
                                       OpenSSL::SSL OpenSSL::Crypto Threads::Threads)
 target_precompile_headers(jplacer PRIVATE ${JPLACER_PCH})
 
@@ -112,7 +102,7 @@ target_precompile_headers(jplacer PRIVATE ${JPLACER_PCH})
 option(JPLACER_TESTS "Build jplacer's tests" ON)
 if(JPLACER_TESTS)
     enable_testing()
-    foreach(module machine openpnp camera vision geometry import library job tasks setup)
+    foreach(module machine openpnp camera vision library job tasks setup)
       file(GLOB tests CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tests/${module}/*.cpp)
       foreach(src ${tests})
         get_filename_component(name ${src} NAME_WE)

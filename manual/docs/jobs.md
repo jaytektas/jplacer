@@ -31,117 +31,9 @@ written by another version of jplacer is refused with a message, not half read.
 
 ## Reading a board into the job
 
-A board is read from its **sources**: the pick-and-place file your PCB tool writes (also called a
-centroid, CPL or position file), and its BOM if you have one. Nothing reaches the job until you have
-seen it and pressed **Accept**.
+Not available yet: **File ▸ Import Pick-and-Place File…** is shown, but disabled.
 
-- **File ▸ New Job from CAD…** starts a new job and asks for the pick-and-place file.
-- **File ▸ Import Pick-and-Place File…** (also **Import Pick-and-Place…** on the
-  [Board](board.md#reading-the-board) panel) asks for a pick-and-place file for the open job.
-- **File ▸ Board Sources** shows the **Import** panel, where the job's sources are kept.
-
-<!-- src: src/app/JPlacerMenuBuilder.cpp (the File menu); src/app/JPlacerImport.cpp (choosePlacements) -->
-
-### The Import panel
-
-On the left are the board's sources, its origin and its outline; in the middle, a drawing of the board as
-it would be; on the right, the report. Across the top, a line says what is waiting to be accepted, with
-**Accept** and **Discard** (which goes back to the job's board as it was).
-
-- **Pick-and-place file**: **Choose…** another, or **Read Again** the same one. **Written by** says
-  which CAD tool wrote it, and is asked again each time a file is chosen: nothing is read until you say.
-  The tool decides how the bottom side is read: **EasyEDA**, **KiCad** and **Other (CSV)** are read
-  with bottom parts as seen from the top already; **KiCad, bottom X negated** turns back the negative X
-  KiCad writes for the bottom side when *Use negative X coordinates for footprints on bottom layer* is
-  ticked in its placement-file dialog (as KiCad 5 did). Rotations are kept as the file gives them.
-- **BOM**: **Choose…**, **Read Again** or **Remove** it. Its lines are joined to the placements by
-  designator (a line can list several: `C4,C5,C6`).
-- **Origin**: where the board's bottom-left corner is, in the file's own millimetres; every placement is
-  measured from it. **At the Parts' Bottom-Left** puts it at the lowest, leftmost placement.
-- **Outline**: the board's width and height from the origin. **Around the Parts** makes it reach the
-  furthest placement; **None** takes it away. Without one, the placements' extent is drawn dashed in its
-  place.
-
-A source changed on disk since it was read says so beside it, and is read again only when you press
-**Read Again**.
-
-<!-- src: src/ui/JPImportPanel.cpp; src/app/JPlacerImport.cpp (show, rebuild); src/job/JPCadTool.h; src/import/JPBoardBuilder.cpp (build) -->
-
-### The drawing and the report
-
-The drawing shows every placement where the board's data puts it: a filled dot on the top side, a
-hollow one on the bottom, a ring for each fiducial, a red cross at the origin, and the outline. What is
-wrong with an import shows here first: a part off the board, an origin in the middle, a side mirrored the
-wrong way.
-
-The report counts the placements (top and bottom), fiducials, through-hole parts and parts not to be
-placed; points out placements left of or below the origin; and lists every note the importer made (a
-side it did not understand, rows left out). Then:
-
-- **Changes from the job's board**, when there is one: `+` new, `−` removed, `~` moved (by how much),
-  turned, or a different part (its value, MPN, supplier numbers or footprint changed).
-- **Where the file and the BOM disagree** about a designator's value, MPN, manufacturer, supplier
-  numbers, footprint, or whether it is placed. The file's stands; double-click a line to take the BOM's
-  instead, and again to go back. Where only one of them says something, it is used.
-- Designators the BOM lists that the file does not (nowhere to place them), and parts in the file the
-  BOM does not list.
-
-A file with the same designator twice is refused, and the designators are named: placements are told
-apart by designator.
-
-<!-- src: src/ui/JPBoardView.cpp; src/app/JPlacerImport.cpp (show); src/job/JPBoardChanges.cpp (compare); src/import/JPBoardBuilder.cpp (join, build) -->
-
-### Accepting
-
-**Accept** makes the board the job's. What you set on a placement is kept where it still holds:
-
-- **moved or turned**: its part, and a rotation set by hand, are kept;
-- **a different part**: its part is cleared and found again; a rotation set by hand is kept;
-- **removed**: everything about it goes; **new**: it starts with nothing set.
-
-Placements without a part are then given one (see [How each placement gets its part](#how-each-placement-gets-its-part)).
-A job's first board is a new board on the machine (its place on the Board panel starts again); a board
-read again is the same board, so its place is kept.
-
-The sources, origin, outline and your choices between the file and the BOM are kept with the job.
-
-<!-- src: src/app/JPlacerImport.cpp (accept); src/job/JPBoardChanges.cpp (merge); src/job/JPJob.cpp (sources, frame, bomChoices) -->
-
-### What is kept from each placement
-
-Only the designator, its position, rotation and side are sure to be in a pick-and-place file, and only
-designators in a BOM. Everything else a column says about a part is kept with its placement, whatever the
-tool calls the column:
-
-- **what orders it**: supplier part numbers (several suppliers' columns, or one with a Supplier column
-  beside it), the manufacturer and the manufacturer's part number (MPN);
-- **what it is**: the value, and ratings (tolerance, voltage, power, dielectric, temperature), whether it
-  is surface mount or through-hole, and whether it is not to be placed;
-- **what it fits**: the CAD footprint name, the supplier's name for the package, and the number of pins;
-- **pad 1's position**, where the file gives it;
-- every other column, as text.
-
-<!-- src: src/import/JPCsvTable.cpp (classify, partFields, mountingOf); src/job/JPPlacement.h -->
-
-## How each placement gets its part
-
-Each placement is then given its part, using the strongest thing the file says about it:
-
-1. **A supplier part number** the job or the library already knows: that part, for certain.
-2. **Else the MPN**, compared without regard to case, spaces, dashes or dots: also certain. The
-   manufacturer is not compared, since one maker's name is written many ways.
-3. **Else the value, ratings and package**: a library part with the same value (100R is 100Ω, 0.1uF is
-   100nF), no rating that disagrees, in the package the footprint name belongs to. This is only a
-   **guess**, marked for you to confirm.
-4. **Else a new part** in the job, made from what the file says, in the package its footprint name
-   belongs to, or a new package of that name with no footprint yet.
-
-Placements that are the same thing share one part. A part found in the library is copied into the job;
-the library itself is not changed. Fiducials have no part, and a placement the file says nothing about
-(no number, MPN, value or footprint) is left without one. The status bar says how many were matched,
-guessed and made new.
-
-<!-- src: src/library/JPPartMatcher.cpp (match, certainPart, guessedPart, packageFor); src/library/JPValue.cpp; src/library/JPPartsStore.cpp (mpnKey, partByNumber) -->
+<!-- src: src/app/JPlacerMenuBuilder.cpp (the File menu) -->
 
 ## Part, package, footprint
 
@@ -167,9 +59,7 @@ is put right.
 
 The **Parts** panel (**Job ▸ Parts**, a dock beside Board) lists every placement in the job with its
 part: **Designator**, **State**, **Part** (its MPN, or its value when it has none), **Value**,
-**Package**, **Footprint**, **Side**, **Rotation**, **Rotation From**, **Turn Checked** (its package's
-[rotation check](rotations.md)), **Reference** (whether the board is
-[located](board.md#references) by it), **Supplier No.** and **Manufacturer**.
+**Package**, **Footprint**, **Side**, **Rotation**, **Supplier No.** and **Manufacturer**.
 
 - **List** shows them as a table. Click a column's heading to sort by it, and again to reverse it.
   Drag a heading's edge to widen a column.
@@ -203,11 +93,9 @@ Return or Tab or leave the field; Escape puts back what it was. Each change mark
 
 - **Placement**: what the placement's state is and what the file said about it. **Rotation** sets the
   angle of every chosen placement at once, so a whole footprint's worth is put right in one go: sort
-  or filter the list to bring them together, choose them, and type the angle. **Use Part's Rotation**
-  takes that back. **Part** gives the chosen placements another of the job's parts. **Confirm Part**
+  or filter the list to bring them together, choose them, and type the angle. **Part** gives the chosen placements another of the job's parts. **Confirm Part**
   accepts a guess. **New Part from File** makes a part from what the file said about the first
-  placement chosen, and gives it to them all. **Use as Reference** and **Don't Use as Reference** mark the
-  chosen placements as [references](board.md#references) the board is located by, or not.
+  placement chosen, and gives it to them all.
 - **Part**, **Package**, **Footprint**: the fields of the first chosen placement's part, its package
   and its footprint. A part's **Package** and a package's **Footprint** are chosen from the list: the
   job's own, or one from the library (*Library: …*), which is then brought into the job. A package's
@@ -217,23 +105,9 @@ Return or Tab or leave the field; Escape puts back what it was. Each change mark
   **Remove…** takes one out of the job, after asking; what used it then shows what it lacks.
 
 A package's **Names** are the CAD footprint names and supplier package names that find it when a board
-is read in; a name belongs to one package only. Its **Turn** is added to the imported rotation of every
-placement using it, for a package whose zero is not the CAD's.
+is read in; a name belongs to one package only.
 
 <!-- src: src/app/JPlacerParts.cpp (placementPage, entryPage, onPlacementField, onPlacementAction, onEntryChoice, onEntryAction); src/app/JPlacerEntryForm.cpp (make); src/library/JPEntryFields.cpp -->
-
-### Rotation
-
-A placement's rotation is the one the file gave, plus its package's **Turn**, unless you set one on the
-placement. **Rotation From** says which:
-
-| Rotation From | |
-|---|---|
-| **as imported** | What the file said. |
-| **as its part** | What the file said, plus its package's turn. |
-| **unique** | Set on this placement alone, agreeing with neither. |
-
-<!-- src: src/library/JPPlacementRotation.cpp (of, name) -->
 
 ### The job's parts and the library
 
@@ -274,20 +148,3 @@ because it is damaged or was written by a newer jplacer, is never overwritten: t
 empty and read-only, and the status bar says why. Every save writes the file whole or not at all.
 
 <!-- src: src/library/JPLibrary.cpp (open, save, defaultFolder); src/app/JPlacerJob.cpp (the constructor, setLibraryFolder) -->
-
-### The Library panel
-
-The **Library** panel (**Job ▸ Library**, beside Parts) lists the library's parts, packages and
-footprints with the same list, tree and filter, and the same pages to edit them. Each change is saved
-to the library as you make it; jobs that copied the entry are told the library's has changed. Choosing
-an entry brings its page forward.
-
-- **Bring into Job** copies the chosen entry into the open job; choose it there from a part's
-  **Package** or a package's **Footprint** list.
-- **New Part** and **New Package** start one in the library.
-- A package's footprint is chosen, imported from KiCad, or made from its numbers, as on the Parts panel.
-- **Remove…** takes one out of the library, after asking. Jobs keep their own copies.
-
-While the library is read-only, its pages cannot be changed and say why.
-
-<!-- src: src/app/JPlacerLibraryDock.cpp (show, pages, onAction) -->

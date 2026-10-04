@@ -4,7 +4,6 @@
 #pragma once
 
 #include "JPReticle.h"
-#include "JPViewMark.h"
 
 #include "camera/JPCameraFeed.h"
 #include "camera/JPStraightener.h"
@@ -43,10 +42,8 @@ public:
     void setFeed(JPCameraFeed* feed);
     // What to say in place of a picture (no camera, why it stopped).
     void setMessage(const std::string& text);
-    // Marks drawn over the picture, asked for at each frame drawn.
-    void setMarks(std::function<std::vector<JPViewMark>()> marks) { m_marks = std::move(marks); }
     // Show the picture straightened (JPStraightener, drawn as its mesh), or
-    // as taken (null). Marks and clicks stay in the picture-as-taken's pixels.
+    // as taken (null). Clicks stay in the picture-as-taken's pixels.
     void setStraightener(std::shared_ptr<const JPStraightener> straightener) {
         m_straight = std::move(straightener);
         invalidate();
@@ -86,7 +83,6 @@ private:
     uint64_t                           m_have = 0;
     JPFrame                            m_frame;
     std::string                        m_message;
-    std::function<std::vector<JPViewMark>()> m_marks;
     std::shared_ptr<const JPStraightener>    m_straight;
     // Where a pixel of the picture as taken is shown: straightened when straightening.
     bool shown(double rawX, double rawY, double& x, double& y) const;

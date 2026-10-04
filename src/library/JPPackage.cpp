@@ -39,10 +39,6 @@ JPPackage JPPackage::fromJson(const JJson& j) {
     p.speed       = j["speed"].number();
     p.pickRetries = int(j["pickRetries"].number(-1.0));
     p.names       = strings(j["names"]);
-    p.turnDeg     = j["turn"].number();
-    p.checkedBy          = j["checked"]["by"].str();
-    p.checkedFootprintId = j["checked"]["footprintId"].str();
-    p.checkedTurnDeg     = j["checked"]["turn"].number();
     p.revision    = int(j["revision"].number(1.0));
     if (j.contains("origin")) p.origin = JPOrigin::fromJson(j["origin"]);
     return p;
@@ -60,14 +56,6 @@ JJson JPPackage::toJson() const {
     j["speed"]       = speed;
     j["pickRetries"] = pickRetries;
     j["names"]       = array(names);
-    j["turn"]        = turnDeg;
-    if (!checkedBy.empty()) {
-        JJson c = JJson::object();
-        c["by"] = checkedBy;
-        c["footprintId"] = checkedFootprintId;
-        c["turn"] = checkedTurnDeg;
-        j["checked"] = std::move(c);
-    }
     j["revision"]    = revision;
     if (origin.fromLibrary()) j["origin"] = origin.toJson();
     return j;

@@ -30,8 +30,6 @@ JJson JPCellConfig::toJson() const {
     j["cameras"]   = toArray(cameras);
     j["actuators"] = toArray(actuators);
     if (!squareness.axisX.empty()) j["squareness"] = squareness.toJson();
-    j["fiducials"] = fiducials.toJson();
-    j["boardStart"] = boardStart.toJson();
     if (parkAfterHome) j["parkAfterHome"] = true;
     if (discardLocation) j["discardLocation"] = discardLocation->toJson();
     return j;
@@ -56,8 +54,6 @@ bool JPCellConfig::fromJson(const JJson& j, std::string& error) {
     for (const JJson& m : j["cameras"].arr())   c.cameras.push_back(JPCameraConfig::fromJson(m));
     for (const JJson& a : j["actuators"].arr()) c.actuators.push_back(JPActuatorConfig::fromJson(a));
     c.squareness = JPSquarenessConfig::fromJson(j["squareness"]);
-    c.fiducials = JPFiducialConfig::fromJson(j["fiducials"]);
-    c.boardStart = JPBoardStartConfig::fromJson(j["boardStart"]);
     // Kept on the machine before it was a controller's: every controller's now.
     if (j["homeAfterConnect"].boolean())
         for (JPDriverConfig& d : c.drivers) d.homeAfterConnect = true;

@@ -40,7 +40,7 @@ What is brought across:
   automatic), which jplacer sets again every time it opens the camera: a camera that dropped off its
   connection comes back as it was, not on its own defaults.
 - **Non-squareness**: a machine squared in OpenPnP (its X axis a linear transform adding a share of Y)
-  keeps that correction, as jplacer's [squareness](board.md#squaring-the-machine).
+  keeps that correction, as jplacer's squareness.
 - **Nozzle tips**: each one's name, the diameter OpenPnP's nozzle tip calibration finds it by, as the
   diameter the camera looking up sees, and its tool changer: its places (start, middle, second middle,
   end, those set) and speeds, and the actuators switched between them, become the tip's
@@ -133,8 +133,7 @@ While a cell is open, its panels sit in docks:
 
 - the **cameras** top left, tabbed together;
 - under them the machine controls, **Jog** and **Actuators**;
-- the rest of the window, tabbed: [**Board**](board.md), [**Machine Setup**](machine-setup.md) and
-  **Machine**;
+- the rest of the window, tabbed: [**Machine Setup**](machine-setup.md) and **Machine**;
 - the **Console** across the bottom.
 
 Every split between them can be dragged, as far as leaves the panels in the middle room for themselves.
@@ -164,7 +163,7 @@ serial port, the port list (see [Choosing the port](#choosing-the-port)).
 Under **Calibration** is what the machine has been measured for: each camera's calibrations, one for each
 picture size it was measured at (the size, its scale in X and Y, how far it is turned, its lens, how
 closely the measurements fitted, and when), the
-[squareness](board.md#squaring-the-machine) correction, and how it homes. It changes as soon as a
+squareness correction, and how it homes. It changes as soon as a
 calibration does.
 
 <!-- src: src/ui/JPMachinePanel.cpp (refresh, refreshCalibration) -->
@@ -276,7 +275,7 @@ the toolbar.
 
 #### Stopping a move
 
-A move can be stopped while it is under way, from the top of the Jog panel or the Machine menu:
+A move can be stopped while it is under way, from the Machine menu:
 
 - **Stop** (Escape): each controller is told to hold, and slows to a stop on its own acceleration ramp,
   so no steps are lost. Only once it reports the hold complete (Grbl and grblHAL: `Hold:0`, at rest) is
@@ -284,7 +283,7 @@ A move can be stopped while it is under way, from the top of the Jog panel or th
   machine stays homed. The move, or the task it was part of, ends as stopped. Should a controller not come
   to rest within its command timeout, it is reset anyway; its position may then be lost, so the machine is
   no longer homed and the strip across the window says to home it again.
-- **E-STOP** (also the red button on the toolbar, and Machine ▸ Emergency Stop; it has no key, so a slip of the finger cannot reset the controllers): every controller is reset at once,
+- **Emergency Stop** (Machine ▸ Emergency Stop; it has no key until you give it one, so a slip of the finger cannot reset the controllers): every controller is reset at once,
   mid-move. A motor stopped dead can lose its place, so the machine is no longer homed: home it before
   moving it again. Grbl and grblHAL also raise an alarm on a reset during a move.
 
@@ -295,7 +294,7 @@ the hold is complete, and the reset); Grbl and grblHAL have one.
 A controller whose profile has no hold is reset for Stop as well; one with no reset cannot be stopped
 from jplacer, and the status bar says so.
 
-<!-- src: src/machine/JPGcodeDriver.cpp (halt, ioLoop, onPlaceLost); src/machine/JPCell.cpp (stop, onPlaceLost); src/app/JPlacerMachine.cpp (stop, m_emergencyStop); src/ui/JPJogPanel.cpp (act); src/app/JPlacerMenuBuilder.cpp (Stop, Emergency Stop); src/machine/JPFirmwareProfile.cpp (stop); profiles/grblhal.json; profiles/grbl.json -->
+<!-- src: src/machine/JPGcodeDriver.cpp (halt, ioLoop, onPlaceLost); src/machine/JPCell.cpp (stop, onPlaceLost); src/app/JPlacerMachine.cpp (stop); src/ui/JPJogPanel.cpp (act); src/app/JPlacerMenuBuilder.cpp (Stop, Emergency Stop); src/machine/JPFirmwareProfile.cpp (stop); profiles/grblhal.json; profiles/grbl.json -->
 
 #### Nozzle tips
 
@@ -606,7 +605,7 @@ that a hole beside a fiducial is not taken for it.
 When a mark is not found in a picture and the camera has a light, jplacer tries harder before failing:
 it takes one picture with the camera's light off and one with it on, and takes the first from the second.
 What is left is only what the camera's light lights, whatever the sun or the room's lights are doing, and
-the mark is looked for again there. The light is left on. The homing mark (Visual Test, visual homing)
-and fiducials (Locate Board) are looked for this way.
+the mark is looked for again there. The light is left on. The homing mark (Visual Test, visual homing) is
+looked for this way.
 
 <!-- src: src/vision/JPRoundMarkFinder.cpp (find, measureAt, edgeCircle, polarityMatches, findAnySize); src/tasks/JPCameraLook.cpp (lightOnly, findTryingHarder) -->

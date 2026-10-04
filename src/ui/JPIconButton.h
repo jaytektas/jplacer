@@ -33,8 +33,6 @@ public:
     // Drawn as a button at rest too (a surface and an edge), for a pad of
     // controls rather than a panel's tools.
     void setFramed(bool on) { m_framed = on; }
-    // Drawn on the theme's danger colour (an emergency stop), its glyph light on it.
-    void setDanger(bool on) { m_danger = on; }
     enum class Leads { Nowhere, Menu, Elsewhere };
     void setLeads(Leads leads) { m_leads = leads; }
     void setChecked(bool on);
@@ -47,7 +45,6 @@ private:
     Glyph m_glyph;
     bool  m_checkable = false;
     bool  m_framed    = false;
-    bool  m_danger    = false;
     bool  m_checked = false;
     Leads m_leads   = Leads::Nowhere;
 };

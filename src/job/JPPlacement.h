@@ -25,12 +25,6 @@ struct JPPlacement {
     double      rotationDeg = 0;
     Side        side = Side::Top;
     bool        fiducial = false;   // a mark to find the board by, not a part to place
-    double      fiducialMm = 0;     // a fiducial's copper diameter, where its footprint says (0: not said)
-
-    // Pad 1's position, as the CPL gives it (EasyEDA's Pad X/Y): for
-    // checking the rotation, not for matching.
-    bool        hasPin1 = false;
-    double      pin1X = 0, pin1Y = 0;
 
     // What identifies the part exactly.
     std::vector<JPSupplierNumber> supplierNumbers;
@@ -62,23 +56,6 @@ struct JPPlacement {
     // person to confirm.
     std::string partId;
     bool        partGuessed = false;
-
-    // A reference: one of the placements the board is located by (a
-    // fiducial, or any part the camera can find). Where it was recorded by
-    // hand (machine millimetres, the camera on it), and the picture there
-    // then: its learned look, to find it by on later boards (`look` rows of
-    // `lookWidth` grey bytes, `lookPxPerMm` pixels a millimetre, centred on it).
-    bool        reference = false;
-    bool        recorded = false;
-    double      recordedX = 0, recordedY = 0;
-    int         lookWidth = 0;
-    double      lookPxPerMm = 0;
-    std::vector<unsigned char> look;
-
-    // A rotation set on this placement by hand, in place of the imported one
-    // turned by its package's turn (JPPlacementRotation).
-    bool        rotationSet = false;
-    double      rotationSetDeg = 0;
 };
 
 } // inline namespace jf

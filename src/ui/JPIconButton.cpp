@@ -52,8 +52,7 @@ void JPIconButton::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     const JWidgetState state = getState();
     const bool enabled = state != JWidgetState::Disabled;
     JVectorCanvas vg;
-    const uint8_t* fill = m_danger                            ? st.Danger   // red, whatever the pointer does
-                        : m_checked                           ? st.Accent
+    const uint8_t* fill = m_checked                           ? st.Accent
                         : state == JWidgetState::Pressed      ? st.Surface3
                         : state == JWidgetState::Hovered      ? st.Surface2
                         : m_framed                            ? st.Surface1 : nullptr;   // flat at rest
@@ -64,7 +63,7 @@ void JPIconButton::populateRenderPrimitives(JPrimitiveBuffer& buf) {
         vg.strokeRoundedRect(b.x + h, b.y + h, b.width - w, b.height - w, s * kRoundShare, w, JPaint::solid(colour(st.Border)));
     }
     const JColor ink = !enabled ? colour(st.MutedText)
-                     : (m_checked || m_danger) ? colour(st.HighlightedText) : colour(st.TextPrimary);
+                     : m_checked ? colour(st.HighlightedText) : colour(st.TextPrimary);
     m_glyph(vg, b.x + b.width * 0.5f, b.y + b.height * 0.5f, s * kGlyphShare, ink);
     // Where a click leads, in the bottom-right corner.
     const float edge = s * kHintInset, right = b.x + b.width - edge, bottom = b.y + b.height - edge;

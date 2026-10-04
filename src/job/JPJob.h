@@ -4,10 +4,6 @@
 #pragma once
 
 #include "JPBoard.h"
-#include "JPBoardFrame.h"
-#include "JPLocateSettings.h"
-#include "JPRotationRules.h"
-#include "JPSource.h"
 
 #include "library/JPPartsStore.h"
 
@@ -25,15 +21,8 @@ inline namespace jf {
 struct JPJob {
     static constexpr const char* kExtension = "jpjob";
 
-    JPBoard               board;
-    JPPartsStore          parts;
-    std::vector<JPSource> sources;   // the files the board was read from
-    JPBoardFrame          frame;     // its origin and outline
-    // Where the pick-and-place file and the BOM disagree, those settled the
-    // BOM's way ("designator|field", JPBoardBuilder::Disagreement::key).
-    std::vector<std::string> bomChoices;
-    JPLocateSettings      location;
-    JPRotationRules       rotationRules;
+    JPBoard          board;
+    JPPartsStore     parts;
 
     // A save writes a new file and puts it in place only once it is whole.
     bool save(const std::string& path, std::string& error) const;

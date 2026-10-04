@@ -13,12 +13,10 @@ key taken off, in [Preferences, Keys](preferences.md#keys); the menu then shows 
 | Entry | |
 |---|---|
 | **New Job** (Ctrl+N) | Starts an empty job (see [Jobs](jobs.md#new-open-and-save)). |
-| **New Job from CAD…** | Starts an empty job and asks for its pick-and-place file ([Reading a board into the job](jobs.md#reading-a-board-into-the-job)). |
 | **Open Job…** (Ctrl+O) | Opens a `.jpjob` file. |
 | **Save Job** (Ctrl+S) | Saves the open job. |
 | **Save Job As…** (Ctrl+Shift+S) | Saves the open job to a file you choose. |
-| **Import Pick-and-Place File…** | Asks for a pick-and-place file for the open job, reviewed on the Import panel before it is accepted ([Reading a board into the job](jobs.md#reading-a-board-into-the-job)). |
-| **Board Sources** | Shows the [Import](jobs.md#the-import-panel) panel: the job's sources, origin and outline. |
+| **Import Pick-and-Place File…** | Not available yet. |
 | **Quit** | Closes jplacer. If an update has been downloaded, it is installed now. |
 
 <!-- src: src/app/JPlacerMenuBuilder.cpp (the File menu); src/app/JPlacerJob.cpp; src/app/JPlacerApp.cpp (run, installStaged) -->
@@ -33,8 +31,8 @@ key taken off, in [Preferences, Keys](preferences.md#keys); the menu then shows 
 
 ## View
 
-A tick for each panel: each camera, **Jog**, **Actuators**, **Board**, **Parts**, **Library**,
-**Import**, **Rotations**, **Machine Setup**, **Machine** and **Console**. Untick one to close it; tick it to show it again where it lives (see
+A tick for each panel: each camera, **Jog**, **Actuators**, **Parts**,
+**Machine Setup**, **Machine** and **Console**. Untick one to close it; tick it to show it again where it lives (see
 [The machine's panels](machine.md#the-machines-panels)).
 
 <!-- src: src/app/JPlacerMenuBuilder.cpp (View); src/app/JPlacerLayout.cpp (rebuildMenu) -->
@@ -61,8 +59,6 @@ A tick for each panel: each camera, **Jog**, **Actuators**, **Board**, **Parts**
 | Entry | |
 |---|---|
 | **Parts** | Shows the [Parts](jobs.md#the-parts-panel) panel: the job's placements and their parts. |
-| **Library** | Shows the [Library](jobs.md#the-library-panel) panel: the parts library's parts, packages and footprints. |
-| **Rotations** | Shows the [Rotations](rotations.md#the-rotations-panel) panel: each package's rotation check. |
 
 **Start**, **Pause**, **Stop**, **Board Setup…** and **Feeders…** are not yet available.
 

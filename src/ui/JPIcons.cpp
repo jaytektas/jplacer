@@ -199,21 +199,4 @@ void JPIcons::park(JVectorCanvas& vg, float cx, float cy, float size, const JCol
     vg.strokePolyline(bowl, stroke, JPaint::solid(ink));
 }
 
-void JPIcons::stopMove(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink) {
-    const float half = size * 0.26f;
-    vg.fillRoundedRect(cx - half, cy - half, 2 * half, 2 * half, size * 0.05f, JPaint::solid(ink));
-}
-
-void JPIcons::emergencyStop(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink) {
-    // A stop sign's octagon, its edge, and a bar across.
-    const float r = size * 0.44f, line = size * kLine;
-    std::vector<JVectorCanvas::JVec2> octagon;
-    for (int i = 0; i < 8; ++i) {
-        const float a = kPi / 8 + kPi / 4 * float(i);
-        octagon.push_back({ cx + r * std::cos(a), cy + r * std::sin(a) });
-    }
-    vg.strokePolyline(octagon, line, JPaint::solid(ink), true);
-    vg.fillRect(cx - r * 0.6f, cy - size * 0.07f, r * 1.2f, size * 0.14f, JPaint::solid(ink));
-}
-
 } // inline namespace jf

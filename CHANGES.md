@@ -10,36 +10,9 @@ notes.
 
 ## Unreleased
 
-- Rotations are checked before a job (Job > Rotations): each package once, the cheapest way that
-  settles it: no check where it cannot matter, the file's pad 1 where it gives one, the camera trying
-  the four angles against the bare board, or you turning the footprint drawn over the camera's picture
-  until pad 1 is on the board's pin-1 mark. Each job says which ways it uses; Preferences sets what a new
-  job starts with.
-- Boards without fiducials can be located: any placement can be marked as a reference (Parts panel), and
-  the camera finds a part by its pads, drawn from its package, or by its look learned when it was
-  recorded.
-- References can be recorded by hand instead (go to each, jog onto it, Record) and the board fitted to
-  them; for a fixture, a new board can reuse the recorded positions.
-- A board's first guess can come from a fixture anchor or a search of a region, set in Machine Setup's
-  Board Location tab, as well as from the camera put on a reference by hand.
-- Homing again, calibrating a camera again or squaring the machine marks the board as needing to be
-  located again.
-- Boards are read in through the Import panel and reviewed before they reach the job: a drawing of the
-  board, a report of what was read and what changes, Accept and Discard. File > New Job from CAD…
-  starts a job that way.
-- You say which CAD tool wrote a pick-and-place file each time (EasyEDA, KiCad, KiCad with negative X on
-  the bottom, or other), so its bottom side is read the right way.
-- A BOM can be read with the pick-and-place file: its lines fill in what the file leaves out, and where
-  the two disagree you choose which to take.
-- A board's origin and outline are set on the Import panel.
-- A board's files are kept with the job: read them again after they change (rev B, a corrected BOM) and
-  see what changes before accepting; what you set on placements that still hold is kept.
 - Jobs: File > New Job, Open Job…, Save Job and Save Job As… keep a board and the parts it needs in a
   .jpjob file. The job open last is opened again at start, and you are asked to save changes before
   they would be lost.
-- Reading a pick-and-place file now keeps everything it says about each part (supplier part numbers,
-  MPN, ratings, package, pin count, pad 1) and gives each placement its part: by part number or MPN
-  where the parts library knows it, as a guess to confirm from its value and package, or as a new part.
 - A parts library, kept from job to job: jobs take copies from it and never change it. A new library
   starts with the common packages (chip sizes, SOT, SOD, SMA/B/C, SOIC, TSSOP, QFN, LQFP) and their
   footprints, known by their KiCad, EasyEDA and supplier names.
@@ -47,7 +20,6 @@ notes.
   every placement chosen), its part, a part's package, a package's footprint (chosen, read from a KiCad
   footprint file, or made from its numbers). Copy to Library puts one into the library, showing first
   what it would change; Update from Library and Keep This Version answer a library that has moved on.
-- A Library panel (Job > Library) lists and edits the parts library, and brings its entries into the job.
 - The parts library's folder can be chosen in Preferences (a git repository or shared drive works).
 - A Parts panel (Job > Parts) lists the job's placements with their parts and whether each can be
   placed: as a table sorted by any column, or as a tree grouped by any column, with a filter that
@@ -87,22 +59,14 @@ notes.
   corners as well, and leaves out a measurement far from the rest.
 - Calibrate also measures the camera's lens (how it pulls the edges of the picture in, and about which
   point), and everything measured in a picture is straightened through it.
-- Finding a fiducial on a real board: several round things near where it should be are measured and the
-  best kept, so holes, vias, round letters and reflections are not mistaken for it, and shiny copper is
-  found whether it shows bright or with the lens's dark reflection in its middle.
 - Pictures measured after a move are ones taken after the move ended.
 - A mark not found in a picture is looked for again with the room's light taken out (the camera's light
   off and on, one picture taken from the other).
 - A camera that drops off USB or hangs is noticed, shown as lost over its last picture, and opened again
   until it is back.
-- A Board panel: import a board's pick-and-place file (EasyEDA, JLCPCB, KiCad and other CSV), choose the
-  side that is up, put the camera on one fiducial, and Locate Board finds it exactly by all its
-  fiducials. Double-click a part to look at it.
-- Squaring the machine: a located board shows how far the machine's Y axis leans from square, and
-  Square the Machine corrects every move for it from then on.
 - Importing an OpenPnP machine brings its non-squareness correction, and each camera's settings
   (exposure, white balance and the rest), which are set again every time the camera is opened.
-- Importing an OpenPnP machine again keeps the camera calibrations and squareness measured in jplacer.
+- Importing an OpenPnP machine again keeps the camera calibrations measured in jplacer.
 - Machine > Park Head: Z up into its safe zone, then the head to its park place (as near as the soft
   limits allow).
 - The Machine panel lists what the machine has been calibrated for: each camera, the squareness, homing.
@@ -119,8 +83,6 @@ notes.
   remove and reorder, and Apply to put the changes to use.
 - A camera keeps a calibration for each picture size it was calibrated at, and uses the one for the size
   it is taking.
-- The board is drawn over the live camera picture: each part's designator and each fiducial where the
-  board's place puts it.
 - Visual homing: Home finishes by finding the homing mark with the calibrated head camera and
   correcting the position to it, as OpenPnP did for an imported machine.
 - When a move finishes, the positions shown are where the machine stopped, not where it was a moment
@@ -150,7 +112,7 @@ notes.
 - Preferences has an Appearance section: a dark or light theme (or as the desktop is set) and the
   interface scale, how big the whole interface is.
 - The window is laid out as in OpenPnP: the cameras top left, the machine controls (Jog, Actuators)
-  under them, Board, Machine Setup and Machine tabbed across the rest, and the Console along the
+  under them, Machine Setup and Machine tabbed across the rest, and the Console along the
   bottom. Splits can be dragged past half way. View has a tick for every panel, to close it or bring it
   back.
 - The status bar shows where the tool chosen in Jog is; click it to measure from where it is now, click
@@ -165,9 +127,8 @@ notes.
   stays homed. A controller's connection settings (port, profile) are used the next time you connect,
   and a change to the axes needs a home.
 - Machine Setup has a divider between the tree and the settings, to drag; where it is is kept.
-- Panels short of room shrink their lists and boxes first, so buttons and input lines (the console's,
-  the Board panel's rows) are no longer squeezed or lost.
-- Clicking, dragging and scrolling work in the panels to the right of the cameras (Board, Machine Setup,
+- Panels short of room shrink their lists and boxes first, so buttons and input lines (the console's) are no longer squeezed or lost.
+- Clicking, dragging and scrolling work in the panels to the right of the cameras (Machine Setup,
   Machine): tree branches open, scroll bars drag. Tooltips show on the camera icons, the toolbar's icons
   and the position readout.
 - Machine Setup has no Apply or Reset any more: each change goes to the machine (and is saved) as you
@@ -224,10 +185,10 @@ notes.
   nozzle's tips. Loading another unloads the one on it first; Step Through asks before each changer step
   (on by default); Manual Change says which tip was put on by hand, moving nothing. Each step's move goes at its speed
   times the machine's.
-- A move can be stopped while it runs: Stop (Escape, or the Jog panel) slows it to rest and keeps the
+- A move can be stopped while it runs: Stop (Escape, or the Machine menu) slows it to rest and keeps the
   position (a controller that does not come to rest in time is reset anyway, and the machine must be
   homed again);
-  E-STOP (the Jog panel, the red toolbar button, or the Machine menu; no key) resets the controllers at once, and the
+  Emergency Stop (the Machine menu; no key unless you give it one) resets the controllers at once, and the
   machine must be homed again.
 - A nozzle's Z can be homed on its own (Home Z, in the nozzle's tip menu), for when forcing a tip on made
   its motor slip: the head parks, then the nozzle's own home G-code runs (set on its Homing tab in Machine
@@ -236,7 +197,7 @@ notes.
   the panel's full height.
 - A controller left in alarm (after an emergency stop, say) connects instead of refusing with error 9; Home
   unlocks it and homes.
-- Visual homing, Visual Test, camera calibration, locating the board and the nozzle offset wizard move at
+- Visual homing, Visual Test, camera calibration and the nozzle offset wizard move at
   the machine's speed (the Jog panel's Speed) instead of always a tenth of it.
 - Keys can be chosen for every menu entry and Jog panel button in Preferences > Keys: click a function's
   box and press the key (plain keys such as arrows and digits included). A key given to one function is
@@ -251,7 +212,6 @@ notes.
 - Right-click a camera's picture for a reticle: a grid, a ruler, or a circle or square of a size, in millimetres through the camera's calibration.
 - Shift+click a camera's picture, or drag in it, to move the camera to look there.
 - Buttons and labels no longer go missing after the window is made small and then big again.
-- Locate Board can look at each fiducial from both sides (parallax) for shiny fiducials; the passes, how centred, and the parallax are in Machine Setup on the Machine's Fiducials tab, and come across from OpenPnP.
 - Camera calibration comes to each place the same way (a lead-in), so the drives' play no longer spreads the fit, and finds each in several pictures.
 - A camera's Advanced Calibration tab has options for how it is calibrated (the grid's size and reach, the outlier limit, the worst fit taken), and shows the results with graphs of the measurements: in the order made, X against Y, and as a map over the picture.
 - Calibrate measures a camera at a second height too (a head camera over the calibration rig's secondary mark, a fixed one with the nozzle raised), giving where the camera is, its focal length and field of view in degrees; the rig's marks are on the head in Machine Setup.
@@ -273,8 +233,8 @@ notes.
   on where it was; if it does not, it says the camera was lost. How long
   each takes is set per camera in Machine Setup (When the Camera Is Lost).
 - The Jog pad's park buttons show a parking sign that grows with the pad.
-- Buttons and other controls are no longer clipped by a pixel along an edge, and the Jog panel's tip, Stop
-  and E-STOP buttons stay whole in a narrow dock (a long tool name is cut short instead).
+- Buttons and other controls are no longer clipped by a pixel along an edge, and the Jog panel's tip
+  button stays whole in a narrow dock (a long tool name is cut short instead).
 
 ## 0.1.0
 

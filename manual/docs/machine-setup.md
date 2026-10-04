@@ -52,7 +52,7 @@ made by name. Coordinates are in columns under **X**, **Y**, **Z** and **Rotatio
 
 | Part | Tabs and groups |
 |---|---|
-| Machine | **Configuration**: General (name; **Park after homed?**, parking the head once homing, visual homing included, is done), Locations (**Discard Location**, where a nozzle drops a part that is not wanted). **Fiducials**: Measuring a Fiducial (**Vision Passes**, **Centred To**), Parallax (**Parallax Diameter**, **Parallax Angle**): how Locate Board measures each reference (see [Finding each reference](board.md#finding-each-reference)). **Board Location**: Starting Point (**By hand**, **Fixture anchor** or **Search a region**), Fixture Anchor (**Anchor X**, **Anchor Y**, and for each side up the corner at the anchor and how far the board is turned), Search Region (**From X**, **From Y**, **To X**, **To Y**; all 0, the head's whole travel within its soft limits): how Locate Board gets its first guess (see [The starting point](board.md#the-starting-point)) |
+| Machine | **Configuration**: General (name; **Park after homed?**, parking the head once homing, visual homing included, is done), Locations (**Discard Location**, where a nozzle drops a part that is not wanted). |
 | Controller | **Configuration**: Properties (name, firmware profile, or `auto` to recognise it; **Home after connected?**, the machine homing as soon as a connect you asked for succeeds, when any controller has it ticked; a cell kept with it on the machine gives it to every controller), Communications (line endings: LF, CR or CRLF), Serial Port (port, baud, parity, data bits, stop bits, flow control, and **Set DTR** / **Set RTS** to raise those lines once the port is open). **Driver Settings**: Max. Feed Rate (the fastest any move is sent; 0 for no cap), **Log G-code?** (every line sent and received goes to the log), the timeouts and the status interval. **Gcode**: the firmware's commands by what they are for (Connecting: Start-up, Unlock; Homing: Home, Set Position; Moving: Move, Rapid Move, Wait for Moves, Dwell; Outputs: Output On, Output Off; anything else under Other), each group saying what its `{placeholders}` are; empty, the profile's is used, shown greyed (with `auto`, each profile's, those that agree named together), else what is written here, several lines if need be |
 | Axis | **Configuration**: Properties (kind: driven by a **controller**, **mapped** to follow another axis through two points, or **virtual**; type; name), Controller Settings (driver, axis letter, home coordinate; Resolution, what one motor step moves it, and its other side Steps / mm, every move going to the nearest whole step (at a soft limit, the step on this side of it); a rotation axis's **Limit to Range**, keeping it within -180..180, and **Wrap Around**, turning the short way round: with both, it turns the short way and its controller is then told the same angle within the range), Axis Mapping (input axis, map points A and B), Kinematic Settings (soft limits and safe zone, each with Enabled?; feed rate per second and per minute; acceleration and jerk, which reach a controller whose move command takes `{acceleration}` or `{jerk}`, scaled with the move's speed). **Backlash Compensation**: the method (None, OneSidedPositioning, DirectionalCompensation, DirectionalSneakUp), its offset, sneak-up distance and speed factor, **Calibrate** (an X or Y axis), and the last calibration's tolerance and graphs (see [Backlash](machine.md#backlash)) |
 | Head | **Configuration**: Properties (name), Locations (homing fiducial, its diameter and homing method, with **Visual Test** and **Visual Home**; park location), **Calibration Rig** (the primary and secondary marks, round marks at two heights, and their diameters: a head camera is calibrated again over the secondary mark to measure it at a second height), Pump (the vacuum pump's actuator; Pump Control: None, PartOn, TaskDuration or KeepRunning; how long it takes to come up) |
@@ -107,8 +107,9 @@ A soft limit or safe zone end has the same two kinds of button for its axis: set
 or move the axis there.
 
 Only what jplacer acts on is shown. Whatever else a cell carries (brought from OpenPnP for features not
-built yet) is kept as it is. A camera's calibrations and the machine's squareness are measured, not set
-here (see [Cameras](machine.md#cameras) and [Squaring the machine](board.md#squaring-the-machine)).
+built yet) is kept as it is. A camera's calibrations are measured, not set here (see
+[Cameras](machine.md#cameras)); the machine's squareness comes from OpenPnP (see
+[Importing from OpenPnP](machine.md#bringing-in-a-machine-set-up-in-openpnp)).
 
 Putting a part on a head gives it the head's X and Y axes, as its other parts have; taking it off one
 clears its axes.
@@ -133,7 +134,7 @@ it), and loading ends at safe Z. A tip with no steps is put on by hand.
 
 A move's place is where **the nozzle** goes, not the camera: the nozzle's offset on the head is taken
 care of. It is in the axes' own coordinates, before the machine's
-[squareness](board.md#squaring-the-machine) correction, so measuring the squareness again never moves
+squareness correction, so changing the squareness never moves
 it: up to a few tenths of a millimetre at the far end of the machine, enough to miss a slot.
 
 Choose **Load** (or a step) and **Add Step** to add one after the step chosen; **Up** and **Down**

@@ -12,7 +12,7 @@
 
 inline namespace jf {
 
-// What the Parts and Library docks share about showing a part, a package or
+// What the Parts dock needs for showing a part, a package or
 // a footprint on a form page (JPEntryFields): its fields (a part's package
 // and a package's footprint are chosen, not typed), filling them, and making
 // a footprint from numbers typed in one line.

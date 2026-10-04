@@ -30,15 +30,6 @@ struct JPPackage {
     double                   speed = 0;     // 0..1 of the machine's
     int                      pickRetries = -1;   // -1: the machine's
     std::vector<std::string> names;
-    // What is added to a placement's imported rotation: the turn from the
-    // CAD footprint's 0° to this package's.
-    double                   turnDeg = 0;
-    // Its turn checked (JPRotationCheck): how ("file", "vision", "person",
-    // "cannot matter"; empty: not), and the footprint and turn it held for:
-    // changing either unchecks it.
-    std::string              checkedBy;
-    std::string              checkedFootprintId;
-    double                   checkedTurnDeg = 0;
     int                      revision = 1;
     JPOrigin                 origin;
 

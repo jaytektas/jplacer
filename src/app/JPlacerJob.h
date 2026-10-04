@@ -16,8 +16,7 @@
 inline namespace jf {
 
 // The open job and the main library: File > New Job, Open Job, Save Job and
-// Save Job As, reading a pick-and-place file into the job (its parts matched
-// against the library, which is only read), and the window's title (the
+// Save Job As, and the window's title (the
 // job's name, a * while it has changes not saved). The job open last is
 // opened again at start (JPlacerSettings::kJobFile). Views watch it and are
 // told what changed.
@@ -41,16 +40,11 @@ public:
     JAppWindow&      window() { return m_window; }
     bool             modified() const { return m_modified; }
 
-    // A new, empty job (once the open one's changes are saved or let go),
-    // then `then`.
-    void newJob(std::function<void()> then = nullptr);
+    // A new, empty job (once the open one's changes are saved or let go).
+    void newJob();
     void open();
     void save();
     void saveAs();
-    // A pick-and-place file read into the job: asked of `onImport` (the
-    // Import dock, which reviews it before it reaches the job).
-    void importCpl() { if (onImport) onImport(); }
-    std::function<void()> onImport;
     // After an edit to the job (its parts, a placement's part): marked
     // changed, and the views told.
     void changed(Change what);
@@ -71,8 +65,6 @@ public:
     void unwatch(int id);
 
 private:
-    // An empty job, its checklist as Preferences say.
-    static JPJob fresh();
     // Runs `then` once the job's changes are saved or let go (asked first).
     void settle(std::function<void()> then);
     bool openPath(const std::string& path, std::string& error);

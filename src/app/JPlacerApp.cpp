@@ -47,12 +47,8 @@ JPlacerApp::JPlacerApp(std::string settingsPath) {
 
     m_job = std::make_unique<JPlacerJob>(*m_window);
     m_window->onCloseRequest = [this] { return m_job->mayClose(); };
-    m_machine = std::make_unique<JPlacerMachine>(*m_window, m_app.sceneGraph(), *m_job);
+    m_machine = std::make_unique<JPlacerMachine>(*m_window, m_app.sceneGraph());
     m_parts = std::make_unique<JPlacerParts>(*m_job, m_app.sceneGraph(), m_machine->layout());
-    m_library = std::make_unique<JPlacerLibraryDock>(*m_job, m_app.sceneGraph(), m_machine->layout());
-    m_import = std::make_unique<JPlacerImport>(*m_job, m_app.sceneGraph(), m_machine->layout());
-    m_job->onImport = [this] { m_import->choosePlacements(); };
-    m_rotations = std::make_unique<JPlacerRotations>(*m_job, *m_machine, m_app.sceneGraph(), m_machine->layout());
     JMenuManager::instance().setTearOffEnabled(JPlacerSettings::tearOffMenus());
     m_keys = std::make_unique<JPKeyMap>();
     JPlacerMenuBuilder::build(*m_window, m_app.sceneGraph(), *this);
@@ -75,18 +71,6 @@ JPlacerApp::JPlacerApp(std::string settingsPath) {
             m_parts->showDock();
             return 1;
         }
-        if (title == JPlacerRotations::kTitle) {
-            m_rotations->showDock();
-            return 1;
-        }
-        if (title == JPlacerImport::kTitle) {
-            m_import->showDock();
-            return 1;
-        }
-        if (title == JPlacerLibraryDock::kTitle) {
-            m_library->showDock();
-            return 1;
-        }
         return m_machine->showDock(title) ? 1 : -1;
     };
     m_window->setStatusText("jplacer " JPLACER_VERSION);
@@ -97,7 +81,6 @@ JPlacerApp::JPlacerApp(std::string settingsPath) {
 
 JPlacerApp::~JPlacerApp() {
     JAiBus::instance().onAction = nullptr;   // it calls into this app
-    if (m_job) m_job->onImport = nullptr;
     if (m_window) m_window->onCloseRequest = nullptr;
     // The updater records "don't ask about this version again" in JSettings
     // without saving, so the file is written once more on the way out.

@@ -12,7 +12,6 @@
 #include "ui/JPTextField.h"
 #include "ui/JPUiParts.h"
 
-#include "job/JPRotationRules.h"
 #include "library/JPLibrary.h"
 
 #include <j/config/Settings.h>
@@ -163,22 +162,6 @@ std::unique_ptr<JContainer> JPlacerPreferencesDialog::generalPage(std::function<
     page->add(note("Where the parts library is kept; empty for jplacer's own data folder. A git repository or a "
                    "shared drive works. Choosing another opens the library there: nothing is copied or moved, and "
                    "jobs keep their own parts."));
-
-    page->add(heading(g, "New jobs"));
-    struct Rule { const char* key; const char* label; bool initial; };
-    const JPRotationRules start;
-    for (const Rule& r : { Rule{ JPlacerSettings::kRotationCheck, "Check rotations before a job", start.check },
-                           Rule{ JPlacerSettings::kRotationSkipCannotMatter, "Skip packages where rotation cannot matter", start.skipCannotMatter },
-                           Rule{ JPlacerSettings::kRotationByFile, "Check against the file's pad 1", start.byFile },
-                           Rule{ JPlacerSettings::kRotationByVision, "Let vision settle what it can", start.byVision },
-                           Rule{ JPlacerSettings::kRotationByPerson, "Ask me for the rest, on the board", start.byPerson } }) {
-        auto box = std::make_unique<JCheckBox>(g, r.label, 0.f);
-        box->setChecked(JSettings::instance().get<bool>(r.key, r.initial));
-        const char* key = r.key;
-        box->onStateChanged.connect([key](bool on) { store(key, on); });
-        page->add(std::move(box));
-    }
-    page->add(note("What a new job's rotation check starts as; each job then keeps its own (Job > Rotations)."));
 
     page->add(heading(g, "Updates"));
     auto atStartup = std::make_unique<JCheckBox>(g, "Check for updates when jplacer opens", 0.f);

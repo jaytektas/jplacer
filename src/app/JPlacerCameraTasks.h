@@ -5,8 +5,6 @@
 
 #include "machine/JPCell.h"
 #include "tasks/JPBacklashCalibrator.h"
-#include "tasks/JPBoardLocator.h"
-#include "tasks/JPRotationLook.h"
 #include "tasks/JPRunoutCalibrator.h"
 #include "ui/JPCameraPanel.h"
 #include "vision/JPGrayImage.h"
@@ -73,33 +71,9 @@ public:
     // The camera the board is worked with: the first one riding on a head,
     // a calibrated one first. Null when no camera rides on a head.
     JPCameraPanel* headCamera() const;
-    // Where the head camera is looking; else why not.
-    bool headCameraView(double& x, double& y, std::string& why) const;
     // A camera's calibration and where it is looking, when it is a calibrated
     // camera on a head (for drawing the machine over its picture).
     bool cameraLook(const std::string& cameraId, JPCameraCalibration& calibration, double& viewX, double& viewY) const;
-    // Move the head camera to look at (x, y), and show it; false (and the
-    // status bar says why) when it cannot.
-    bool lookAt(double x, double y);
-    // Each part reference's footprint and the angle it is placed at, by
-    // designator (worked out before a task starts: the job is not read while
-    // it runs).
-    using Footprints = std::map<std::string, std::pair<JPFootprint, double>>;
-    // Find `board` by its references from `guess` with the head camera; the
-    // result comes to `done` on the main thread.
-    void locateBoard(const JPBoard& board, const JPBoardSide& guess, Footprints footprints,
-                     std::function<void(const JPBoardLocator::Result&)> done);
-    // A first guess by scanning a region for the board's first round-mark
-    // reference (JPBoardLocator::searchStart); to `done` on the main thread.
-    void searchBoardStart(const JPBoard& board, const JPBoardSide& guess, double x0, double y0, double x1, double y1,
-                          std::function<void(const JPBoardLocator::Result&)> done);
-    // Which way round a footprint sits on the bare board at placement `p`
-    // (JPRotationLook); to `done` on the main thread.
-    void checkRotation(const JPBoardSide& board, const JPPlacement& p, const JPFootprint& f, double degrees,
-                       std::function<void(const JPRotationLook::Result&)> done);
-    // The head camera's latest picture, its calibration and where it was
-    // looking; false (and why) without one.
-    bool headPicture(JPGrayImage& picture, JPCameraCalibration& calibration, double& x, double& y, std::string& why) const;
     // A task is under way.
     bool busy() const { return m_busy; }
 

@@ -190,43 +190,5 @@ int main() {
         assert(sq.problems().empty());
     }
 
-    // The fiducial locator's vision settings, from vision-settings.xml beside
-    // machine.xml: passes, how centred, and parallax.
-    {
-        std::ifstream in(std::string(JPLACER_TESTDATA_DIR) + "/openpnp-machine.xml");
-        std::stringstream ss;
-        ss << in.rdbuf();
-        std::string xml = ss.str();
-        const size_t at = xml.find('>', xml.find("<machine "));
-        assert(at != std::string::npos);
-        xml.insert(at + 1, R"(<fiducial-locator class="org.openpnp.machine.reference.vision.ReferenceFiducialLocator" )"
-                           R"(fiducial-vision-id="FVS_Default"/>)");
-        const std::filesystem::path dir = std::filesystem::temp_directory_path() / "jplacer-test-fiducials";
-        std::filesystem::create_directories(dir);
-        std::ofstream(dir / "machine.xml") << xml;
-        std::ofstream(dir / "vision-settings.xml")
-            << R"(<openpnp-vision-settings><vision-settings class="org.openpnp.model.FiducialVisionSettings" id="FVS_Default" )"
-               R"(parallax-angle="90.0" max-vision-passes="5"><parallax-diameter value="0.05" units="Inches"/>)"
-               R"(<max-linear-offset value="0.002" units="Millimeters"/></vision-settings></openpnp-vision-settings>)";
-        JPCellConfig fc;
-        std::vector<std::string> fcNotes;
-        assert(JPOpenPnpMachineImporter::import((dir / "machine.xml").string(), fc, fcNotes, error));
-        assert(std::abs(fc.fiducials.parallaxDiameterMm - 1.27) < 1e-9 && fc.fiducials.parallaxAngleDeg == 90);
-        assert(fc.fiducials.passes == 5 && std::abs(fc.fiducials.centredMm - 0.002) < 1e-12);
-        // Kept in the cell file and read back.
-        std::string ferr;
-        JPCellConfig back;
-        assert(back.fromJson(fc.toJson(), ferr) && back.fiducials.passes == 5 && back.fiducials.parallaxAngleDeg == 90);
-        // Without the file: the defaults, and a note saying so.
-        std::filesystem::remove(dir / "vision-settings.xml");
-        JPCellConfig none;
-        fcNotes.clear();
-        assert(JPOpenPnpMachineImporter::import((dir / "machine.xml").string(), none, fcNotes, error));
-        assert(none.fiducials.parallaxDiameterMm == 0 && none.fiducials.passes == JPFiducialConfig().passes);
-        bool said = false;
-        for (const std::string& n : fcNotes) said |= n.find("FVS_Default") != std::string::npos;
-        assert(said);
-        std::filesystem::remove_all(dir);
-    }
     return 0;
 }

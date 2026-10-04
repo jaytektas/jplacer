@@ -46,11 +46,9 @@ constexpr const char* kOpenPnpMachineFile = "machine.xml";
 
 } // namespace
 
-JPlacerMachine::JPlacerMachine(JAppWindow& window, JSceneGraph& graph, JPlacerJob& job)
-    : m_window(window), m_job(job), m_graph(graph), m_layout(window), m_profiles(JPFirmwareProfile::loadAll()),
+JPlacerMachine::JPlacerMachine(JAppWindow& window, JSceneGraph& graph)
+    : m_window(window), m_graph(graph), m_layout(window), m_profiles(JPFirmwareProfile::loadAll()),
       m_connectIcon(graph), m_homeIcon(graph),
-      m_emergencyStop(graph, "Emergency Stop", &JPIcons::emergencyStop,
-                      "EMERGENCY STOP: every controller reset at once; home again after (Shift+Esc)"),
       m_position(graph, [this] { return m_jog ? m_jog->where() : std::vector<std::pair<std::string, double>>(); }) {
     // The machine's two states, always in view: click the chip to connect or
     // disconnect, the house to home.
@@ -61,11 +59,6 @@ JPlacerMachine::JPlacerMachine(JAppWindow& window, JSceneGraph& graph, JPlacerJo
         if (m_cell && m_cell->isConnected()) disconnect(); else connect();
     });
     m_homeIcon.onClicked.connect([this] { home(); });
-    // And the emergency stop, red, at their size.
-    m_emergencyStop.setDanger(true);
-    m_emergencyStop.setFixedSize(JStyle::current().buttonHeight, JStyle::current().buttonHeight);
-    tb.addWidget(&m_emergencyStop);
-    m_emergencyStop.onClicked.connect([this] { stop(true); });
     // Where the chosen tool is (Jog), at the right of the status bar.
     window.statusBar().addWidget(&m_position, JPPositionReadout::widthNeeded());
     JLOGC(JPlacerLog::kProfiles, JLogLevel::Info) << m_profiles.size() << " firmware profile(s)";
@@ -85,9 +78,6 @@ JPlacerMachine::~JPlacerMachine() {
 void JPlacerMachine::dropPanels(Keep keep) {
     const bool cameras = keep != Keep::SetupAndCameras;
     if (cameras) {
-        for (CameraDock& c : m_cameras) c.panel->setMarks(nullptr);   // they come from the board, which goes first
-        if (m_board) m_board->dropPanel();
-        m_board.reset();
         m_cameraTasks.reset();   // a task under way finishes first: it drives the cell and a camera
     }
     for (const auto& u : m_unwatch) u();
@@ -100,7 +90,7 @@ void JPlacerMachine::dropPanels(Keep keep) {
         m_setup = nullptr;
     }
     for (Dock& d : m_docks) {
-        if (d.panel.get() == setup || (!cameras && d.dock->title() == "Board")) continue;
+        if (d.panel.get() == setup) continue;
         d.dock->setContent(nullptr);
         d.panel.reset();
     }
@@ -235,15 +225,6 @@ void JPlacerMachine::buildPanels(Keep keep) {
     };
     panels.push_back({ "Jog",       Home::Controls, std::move(jog) });
     panels.push_back({ "Actuators", Home::Controls, std::make_unique<JPActuatorPanel>(m_graph, *m_cell) });
-    if (cameras) {
-        m_board = std::make_unique<JPlacerBoard>(m_window, m_job, *m_cameraTasks, m_cell->config(),
-            [this](const JPMountConfig& mount, double xPerY) { squareMachine(mount, xPerY); });
-        panels.push_back({ "Board", Home::Work, m_board->makePanel(m_graph) });
-        for (CameraDock& c : m_cameras)
-            c.panel->setMarks([board = m_board.get(), id = c.panel->camera().id] { return board->marks(id); });
-    } else {
-        panels.push_back({ "Board", Home::Work, nullptr });   // kept
-    }
     if (keep != Keep::Nothing) panels.push_back({ "Machine Setup", Home::Work, nullptr });   // kept
     else panels.push_back({ "Machine Setup", Home::Work, makeSetup() });
     panels.push_back({ "Machine",   Home::Work, std::move(machine) });
@@ -278,7 +259,7 @@ void JPlacerMachine::buildPanels(Keep keep) {
     if (first) {
         // Each place opens on its first panel (the last added would be in front).
         showDock("Jog");
-        showDock("Board");
+        showDock("Machine Setup");
     }
 }
 
@@ -447,14 +428,12 @@ void JPlacerMachine::watchCell() {
     m_unwatch.push_back(m_cell->onCalibration.connect([this, onMain] {
         onMain([this] {
             for (CameraDock& c : m_cameras) c.panel->refreshStraightening();
-            if (m_board) m_board->machineChanged("a camera was calibrated again");
         });
     }));
     m_unwatch.push_back(m_cell->onHomed.connect([this, onMain](bool homed) {
         onMain([this, homed] {
             // Once homed, by the camera too where a head homes visually; then
             // parked, when the machine is set to.
-            if (homed && m_board) m_board->machineChanged("the machine was homed again");
             if (homed && m_cameraTasks)
                 m_cameraTasks->visualHome([this](bool ok) {
                     if (ok && m_cell && m_cell->config().parkAfterHome) park();
@@ -473,32 +452,6 @@ void JPlacerMachine::watchCell() {
     }));
 }
 
-void JPlacerMachine::squareMachine(const JPMountConfig& mount, double xPerY) {
-    JPSquarenessConfig q = m_cell->squareness();
-    if (q.axisX.empty() || q.axisY.empty()) {
-        q.axisX = mount.axisX;
-        q.axisY = mount.axisY;
-        // Unchanged at the homing mark: its coordinates, and visual homing, stay as they were.
-        for (const JPHeadConfig& h : m_cell->config().heads)
-            if (h.id == mount.headId && h.homingFiducial) q.atY = h.homingFiducial->y;
-    }
-    q.xPerY += xPerY;   // measured in coordinates already corrected by the old
-    m_cell->setSquareness(q);
-    if (m_setup) m_setup->measured([&q](JPCellConfig& cell) { cell.squareness = q; });
-    JPCellConfig saved;
-    std::string error;
-    if (saved.load(m_cellPath, error)) {
-        saved.squareness = q;
-        saved.save(m_cellPath, error);
-    }
-    if (!error.empty()) {
-        JLOGC(JPlacerLog::kApp, JLogLevel::Error) << error;
-        m_window.showStatus("The squareness is in use but was not saved: " + error, kErrorMs);
-        return;
-    }
-    m_window.showStatus("Squareness saved: home the machine again, then Calibrate and Locate Board", kErrorMs);
-}
-
 void JPlacerMachine::setPort(const std::string& driverId, const std::string& port) {
     const JPDriverConfig* d = m_cell->config().driver(driverId);
     if (!m_setup || !d || d->link["port"].str() == port) return;
@@ -515,7 +468,7 @@ bool JPlacerMachine::applySetup(JPCellConfig cell) {
     // Measured while it was being set up: the cell's, not the copy's.
     for (JPCameraConfig& c : cell.cameras) c.calibrations = m_cell->cameraCalibrations(c.id);
     cell.squareness = m_cell->squareness();
-    // The cameras (and the Board, which works from them) are made again only
+    // The cameras are made again only
     // when what they show changed: where they are, and how they are set up.
     auto seen = [](const JPCellConfig& c) {
         JJson j = JJson::array();
