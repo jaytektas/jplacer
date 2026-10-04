@@ -3,7 +3,9 @@
 
 #pragma once
 
+#include "JPBoardLocationProcess.h"
 #include "JPGroupFrame.h"
+#include "JPInstructions.h"
 #include "JPIconButton.h"
 #include "JPJobPlacementsPanel.h"
 #include "JPLocationsTableModel.h"
@@ -72,8 +74,15 @@ public:
     void refresh();
     double split() const;
 
-private:
+    // The boards and panels chosen.
     std::vector<JPPlacementsHolderLocation*> selections() const;
+    // OpenPnP's instructions panel across the top of the tab: shown with a
+    // step of a process, gone with none.
+    void showInstructions(const std::string& title, const std::string& text, const std::string& proceedLabel,
+                          std::function<void()> onCancel, std::function<void()> onProceed);
+    void hideInstructions();
+
+private:
     void selectionChanged();
     void updateJobActions();
     void buildMenu();
@@ -112,6 +121,10 @@ private:
     JPIconButton*                       m_twoPoint = nullptr;
     JPIconButton*                       m_fiducialCheck = nullptr;
     std::unique_ptr<JMenu>              m_addMenu, m_menu;
+    JContainer*                         m_instructionsHolder = nullptr;
+    std::unique_ptr<JPInstructions>     m_instructions;
+    bool                                m_instructionsShown = false;
+    std::unique_ptr<JPBoardLocationProcess> m_locating;   // Multiple Point Board Location under way
     std::vector<std::unique_ptr<JMenu>> m_subMenus;
 };
 

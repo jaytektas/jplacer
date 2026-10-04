@@ -3,6 +3,8 @@
 
 #include "JPJobPanel.h"
 
+#include <j/core/FrameTimer.h>
+
 #include "JPUiParts.h"
 
 #include "model/JPBoardLocation.h"
@@ -104,10 +106,37 @@ JPJobPanel::JPJobPanel(JSceneGraph& graph, JPConfiguration& config, std::functio
     m_captureTool = tool("Capture Tool Location", "capture-nozzle", "Set the board's Z to the tool's current Z.");
     m_captureTool->onClicked.connect([this] { captureTool(); });
     bar->add(toolSeparator(graph));
-    // Locating a board by its placements is still to come.
     m_twoPoint = tool("Multiple Point Board Location", "board-two-placement-locate",
                       "Set the board's location and rotation using multiple placements.");
     m_twoPoint->setLeads(JPIconButton::Leads::Elsewhere);
+    m_twoPoint->onClicked.connect([this] {
+        const auto s = selections();
+        if (s.size() != 1 || m_locating) return;
+        JPBoardLocationProcess::Hooks h;
+        auto tool = [](JPBoardLocationProcess::Tool t) {
+            return t == JPBoardLocationProcess::Tool::Camera ? Tool::Camera : Tool::Nozzle;
+        };
+        h.toolLocation = [this, tool](JPBoardLocationProcess::Tool t) {
+            return toolLocation ? toolLocation(tool(t)) : std::nullopt;
+        };
+        h.moveTool = [this, tool](JPBoardLocationProcess::Tool t, const JPLocation& at) {
+            if (moveTool) moveTool(tool(t), at);
+        };
+        h.chosenPlacements = [this] { return m_placements->selections(); };
+        h.selectPlacement = [this](const std::string& id) { m_placements->select(id); };
+        h.show = [this](const std::string& title, const std::string& text, const std::string& proceed,
+                        std::function<void()> cancel, std::function<void()> next) {
+            showInstructions(title, text, proceed, std::move(cancel), std::move(next));
+        };
+        h.finished = [this] {
+            hideInstructions();
+            m_table->refresh();
+            changed();
+            // Not here: the process is the caller.
+            jPostToNextFrame([this] { m_locating.reset(); });
+        };
+        m_locating = std::make_unique<JPBoardLocationProcess>(*s.front(), m_job() && s.front()->parent == &m_job()->root(), h);
+    });
     m_fiducialCheck = tool("Fiducial Check", "board-fiducial-locate",
                            "Perform a fiducial check for the board and update it's location and rotation.");
     m_fiducialCheck->onClicked.connect([this] {
@@ -144,6 +173,13 @@ JPJobPanel::JPJobPanel(JSceneGraph& graph, JPConfiguration& config, std::functio
         changed();
     };
 
+    // The instructions of a process under way, across the top; nothing while none is.
+    m_instructionsHolder = add(std::make_unique<JContainer>(graph, 0.f, 0.f));
+    m_instructionsHolder->setDirection(JFlexDirection::Column)->setAlignItems(JAlignItems::Stretch);
+    m_instructionsHolder->setVSizePolicy(JSizePolicyMode::Fixed);
+    m_instructionsHolder->setFixedSize(0.f, 0.f);
+    m_instructionsHolder->setHSizePolicy(JSizePolicyMode::Expanding, 1);
+    m_instructions = std::make_unique<JPInstructions>(graph);
     m_split = add(std::make_unique<JSplitter>(graph, JSplitter::JOrientation::Vertical, 0.f, 0.f));
     m_split->setHostsPanes(true);
     m_split->setVSizePolicy(JSizePolicyMode::Expanding, 1);
@@ -243,7 +279,8 @@ void JPJobPanel::selectionChanged() {
     m_captureTool->setEnabled(any);
     m_remove->setEnabled(singleTop || multiTop);
     m_captureCamera->setEnabled(singleTop);
-    for (JPIconButton* b : { m_cameraTo, m_cameraNext, m_toolTo, m_fiducialCheck }) b->setEnabled(single || singleTop);
+    for (JPIconButton* b : { m_cameraTo, m_cameraNext, m_toolTo, m_fiducialCheck, m_twoPoint })
+        b->setEnabled(single || singleTop);
     for (const auto& item : m_menu->items()) item->setEnabled(any);
     m_placements->setLocation(s.size() == 1 ? s.front() : nullptr);
     if (onSelectionChanged) {
@@ -259,6 +296,22 @@ void JPJobPanel::select(const std::string& uniqueId, const std::string& placemen
             if (!placementId.empty()) m_placements->select(placementId);
             return;
         }
+}
+
+void JPJobPanel::showInstructions(const std::string& title, const std::string& text, const std::string& proceedLabel,
+                                  std::function<void()> onCancel, std::function<void()> onProceed) {
+    m_instructions->set(title, text, proceedLabel, std::move(onCancel), std::move(onProceed));
+    if (!m_instructionsShown) m_instructionsHolder->add(m_instructions.get());
+    m_instructionsShown = true;
+    m_instructionsHolder->setFixedSize(0.f, JPInstructions::height());
+    invalidate();
+}
+
+void JPJobPanel::hideInstructions() {
+    m_instructionsHolder->clear();
+    m_instructionsShown = false;
+    m_instructionsHolder->setFixedSize(0.f, 0.f);
+    invalidate();
 }
 
 void JPJobPanel::setRunState(RunState s) {
@@ -304,7 +357,6 @@ void JPJobPanel::updateJobActions() {
     }
     if (m_stepItem) m_stepItem->setEnabled(m_step->isEnabled());
     if (m_stopItem) m_stopItem->setEnabled(m_stop->isEnabled());
-    m_twoPoint->setEnabled(false);   // Multiple Point Board Location is still to come
     const JPJob* j = m_job();
     const bool defer = j && j->errorHandling == JPJob::ErrorHandling::Defer;
     m_errors->setIcon(defer ? "error-defer" : "error-alert");

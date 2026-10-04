@@ -57,8 +57,10 @@ public:
     void updateActivePlacements();
     JPPlacementsTableModel& model() { return m_model; }
 
-private:
+    // The placements chosen, in the order shown.
     std::vector<JPPlacement*> selections() const;
+
+private:
     void updateActions();
     void buildMenu();
     void newPlacement();

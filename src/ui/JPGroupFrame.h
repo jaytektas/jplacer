@@ -20,6 +20,8 @@ public:
     static float extraHeight();
     static float extraWidth();
 
+    void setTitle(std::string title) { m_title = std::move(title); invalidate(); }
+
     void populateRenderPrimitives(JPrimitiveBuffer& buf) override;
 
 private:

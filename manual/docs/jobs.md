@@ -81,7 +81,7 @@ Right-click for **Set Side**, **Set Enabled** and **Set Check Fids**.
 | **Capture Camera Location** | Sets where the chosen board lies to where the camera is (its X, Y and rotation; its Z kept). |
 | **Capture Tool Location** | Sets the chosen boards' Z to the nozzle's. |
 | **Fiducial Check** | Looks at the chosen board's (or panel's) fiducials with the camera and sets where it lies from them, as the job does; one straight in the job has its X, Y and rotation set too. The camera is then taken to it. |
-| **Multiple Point Board Location** | Not available yet. |
+| **Multiple Point Board Location** | Sets where the chosen board lies from placements you jog the camera over (below). |
 | **View Job** | Opens the job viewer (see [Panels](panels.md#the-viewer)), following the boards chosen. |
 
 <!-- src: src/ui/JPJobPanel.cpp; src/ui/JPLocationsTableModel.cpp; src/app/JPlacerOpenPnpTabs.cpp; src/app/JPlacerMachine.cpp (toolLocation, moveToolTo); src/app/JPlacerJobRun.cpp (fiducialCheck) -->
@@ -99,6 +99,15 @@ a new feeder is made for it. Right-click for **Set Type**,
 placement on or off.
 
 The status line shows the placements placed: of the whole job, and of the board chosen.
+
+**Multiple Point Board Location** shows its steps across the top of the Job tab, with **Cancel** and
+**Next**: choose two or more placements of the board (four, near its corners, is better) and click Next;
+the camera goes near the first; jog its crosshairs over the placement's centre and click Next, and so on
+for each (the shortest way round). The board is then fitted to them as a fiducial check fits it, and
+refused if it scales or shears more than 5 % or moves more than 5 mm. **Finish** takes the camera to the
+board's origin; **Cancel** puts the board back where it was.
+
+<!-- src: src/ui/JPBoardLocationProcess.cpp; src/ui/JPInstructions.cpp; src/ui/JPJobPanel.cpp (showInstructions) -->
 
 <!-- src: src/ui/JPJobPlacementsPanel.cpp (onEditFeeder, updateActions); src/ui/JPFeedersPanel.cpp (showFeederForPart); src/ui/JPPlacementsTableModel.cpp (status, setLocation) -->
 

@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- The Job tab's Multiple Point Board Location: a board located by jogging the camera over two or more of
+  its placements, step by step as in OpenPnP.
 - Jobs run, as OpenPnP runs them: Start (Pause, Resume), Step and Stop on the Job tab and in the Job menu.
   The setup is checked, boards are located by their fiducials, placements are planned by nozzle tip,
   feeder and place, tips are changed, parts fed, picked and placed, and the head parked at the end;
