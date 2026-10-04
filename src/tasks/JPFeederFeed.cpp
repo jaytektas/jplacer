@@ -19,13 +19,15 @@ namespace {
 constexpr double kMostOffMm = 2.0;
 constexpr const char* kEndOfStrip = "Unable to locate reference hole. End of strip?";
 constexpr JPLengthUnit kMm = JPLengthUnit::Millimeters;
-// The step back along the tape to each of the parts one drag brings (OpenPnP's partsPitchX, for 0402).
+// The step back along the tape to each of the parts one feed brings (OpenPnP's partsPitchX, for 0402).
 constexpr double kPartsPitchXMm = -2;
+// A lever's push moves the tape this far: a longer pitch takes more pushes.
+constexpr double kLeverStrokeMm = 4;
 
 } // namespace
 
-bool JPFeederFeed::drag(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine, const OnMain& onMain,
-                        std::string& why) {
+bool JPFeederFeed::pinFeed(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine, const OnMain& onMain,
+                           std::string& why) {
     auto main = [&onMain](const std::function<void()>& fn) {
         if (onMain) onMain(fn);
         else fn();
@@ -34,12 +36,13 @@ bool JPFeederFeed::drag(JPConfiguration& config, const std::string& feederId, JP
     JPLocation start(kMm), end(kMm), location(kMm);
     std::optional<JPLocation> visionOffset;
     double pitch = 0, speed = 1, backoff = 0;
-    bool vision = false, part0402 = false;
+    bool vision = false, part0402 = false, lever = false;
     JPTemplateFinder::Area aoi;
     int fed = 0;
     main([&] {
         const JPFeeder* f = config.feeder(feederId);
         if (!f) return;
+        lever = f->typeName() == "ReferenceLeverFeeder";
         actuator = f->text("actuator-name");
         peelOff = f->text("peel-off-actuator-name");
         start = f->locationOf("feed-start-location").convertToUnits(kMm);
@@ -49,13 +52,13 @@ bool JPFeederFeed::drag(JPConfiguration& config, const std::string& feederId, JP
         speed = std::strtod(f->childText("feed-speed", "1.0").c_str(), nullptr);
         backoff = f->lengthOf("backoff-distance", JPLength(0, kMm)).convertToUnits(kMm).value();
         vision = f->attributeAt("vision", "enabled") == "true";
-        templatePath = f->dragTemplatePath(config.directory());
+        templatePath = f->templatePath(config.directory());
         aoi = { std::atoi(f->attributeAt("vision/area-of-interest", "x", "0").c_str()),
                 std::atoi(f->attributeAt("vision/area-of-interest", "y", "0").c_str()),
                 std::atoi(f->attributeAt("vision/area-of-interest", "width", "0").c_str()),
                 std::atoi(f->attributeAt("vision/area-of-interest", "height", "0").c_str()) };
-        visionOffset = f->dragVisionOffset;
-        fed = f->dragFeededCount;
+        visionOffset = f->templateOffset;
+        fed = f->partsFed;
         // OpenPnP's isPart0402: its package's id says C0402 or R0402.
         if (const JPPart* p = config.part(f->partId()))
             part0402 = p->packageId.find("C0402") != std::string::npos || p->packageId.find("R0402") != std::string::npos;
@@ -76,7 +79,7 @@ bool JPFeederFeed::drag(JPConfiguration& config, const std::string& feederId, JP
         return machine.matchTemplate(location, templatePath, aoi, offset, why);
     };
     if (!machine.safeZ(why)) return false;
-    if (vision && !visionOffset) {
+    if (!lever && vision && !visionOffset) {
         // The first feed with vision (or its offset reset): looked at before the drag.
         JLOGC(JPlacerLog::kJob, JLogLevel::Debug) << "First feed, running vision pre-flight.";
         JPLocation offset(kMm);
@@ -84,7 +87,20 @@ bool JPFeederFeed::drag(JPConfiguration& config, const std::string& feederId, JP
         visionOffset = offset;
         fed = 0;
     }
-    if (fed == 0) {
+    if (fed == 0 && lever) {
+        // The lever pushed from the start to the end and let back, once per
+        // 4 mm of the pitch, the take up running while it comes back.
+        for (double left = pitch; left > 0; left -= kLeverStrokeMm) {
+            if (!machine.moveActuator(actuator, start, false, 1.0, why) || !machine.actuate(actuator, 1, why) ||
+                !machine.moveActuator(actuator, end, true, speed, why))
+                return false;
+            if (!peelOff.empty() && !machine.actuate(peelOff, 1, why)) return false;
+            if (!machine.moveActuator(actuator, start, false, 1.0, why)) return false;
+            if (!peelOff.empty() && !machine.actuate(peelOff, 0, why)) return false;
+            if (!machine.actuate(actuator, 0, why)) return false;
+        }
+        if (pitch == 2) fed = 2;
+    } else if (fed == 0) {
         JPLocation from = start;
         if (vision && visionOffset) from = from.subtract(*visionOffset);
         // Over the start, the pin out and down into the tape, dragged to the end.
@@ -108,7 +124,8 @@ bool JPFeederFeed::drag(JPConfiguration& config, const std::string& feederId, JP
         }
         if (pitch == 2) fed = 2;
     } else {
-        JLOGC(JPlacerLog::kJob, JLogLevel::Debug) << "Multi parts drag feeder: skipping drag " << fed;
+        JLOGC(JPlacerLog::kJob, JLogLevel::Debug) << (lever ? "Multi parts Lever feeder: skipping feed " : "Multi parts drag feeder: skipping drag ")
+                                                  << fed;
     }
     if (!machine.safeZ(why)) return false;
     std::optional<JPLocation> partPick;
@@ -123,9 +140,9 @@ bool JPFeederFeed::drag(JPConfiguration& config, const std::string& feederId, JP
     }
     main([&] {
         if (JPFeeder* f = config.feeder(feederId)) {
-            f->dragFeededCount = fed;
-            f->dragPartPick = partPick;
-            f->dragVisionOffset = visionOffset;
+            f->partsFed = fed;
+            f->nextPartPick = partPick;
+            f->templateOffset = visionOffset;
         }
     });
     return true;
@@ -159,11 +176,12 @@ bool JPFeederFeed::feed(JPConfiguration& config, const std::string& feederId, co
         pickAt = f->pickLocation();
     });
     if (!fed) return false;
-    bool dragged = false;
+    bool pinned = false;
     main([&] {
-        if (const JPFeeder* f = config.feeder(feederId)) dragged = f->typeName() == "ReferenceDragFeeder";
+        if (const JPFeeder* f = config.feeder(feederId))
+            pinned = f->typeName() == "ReferenceDragFeeder" || f->typeName() == "ReferenceLeverFeeder";
     });
-    if (dragged) return drag(config, feederId, machine, onMain, why);
+    if (pinned) return pinFeed(config, feederId, machine, onMain, why);
     if (actuate) {
         if (actuatorName.empty()) {
             JLOGC(JPlacerLog::kJob, JLogLevel::Warn) << "No actuatorName specified for feeder " << feederId << ".";

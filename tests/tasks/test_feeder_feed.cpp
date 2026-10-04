@@ -184,8 +184,8 @@ int main() {
         d.setAttributeAt("vision/area-of-interest", "width", "100");
         d.setAttributeAt("vision/area-of-interest", "height", "100");
         d.setLengthOf("part-pitch", JPLength(4, JPLengthUnit::Millimeters));
-        d.resetDragVisionOffsets();
-        d.dragFeededCount = 0;
+        d.resetVisionOffsets();
+        d.partsFed = 0;
         machine.templateOffset = JPLocation(JPLengthUnit::Millimeters, 0.5, -0.25, 0, 0);
         machine.actuated.clear();
         assert(JPFeederFeed::feed(config, "D", "N1", machine, nullptr, why, empty) && machine.templateLooks == 2);
@@ -194,12 +194,53 @@ int main() {
         assert(std::abs(at->x() - 49.5) < 1e-9 && std::abs(at->y() - 10.25) < 1e-9);
         // No area of interest: said.
         config.feeder("D")->setAttributeAt("vision/area-of-interest", "width", "0");
-        config.feeder("D")->resetDragVisionOffsets();
+        config.feeder("D")->resetVisionOffsets();
         assert(!JPFeederFeed::feed(config, "D", "N1", machine, nullptr, why, empty));
         assert(why == "Area of Interest is required when vision is enabled.");
         // No actuator: said.
         config.feeder("D")->setText("actuator-name", "");
         assert(!JPFeederFeed::feed(config, "D", "N1", machine, nullptr, why, empty) && why == "No actuator name set.");
+    }
+
+    // A lever feeder: pushed from the start to the end at the feed speed and
+    // let back, the take up on meanwhile; once per 4 mm of pitch; at 2 mm,
+    // two parts a push, the second's step only with vision.
+    {
+        JPXmlElement le;
+        std::string error;
+        const bool ok = JPXmlReader::parse(R"(<feeder class="org.openpnp.machine.reference.feeder.ReferenceLeverFeeder" id="L" name="L" enabled="true" part-id="R1" actuator-name="Lever" peel-off-actuator-name="TakeUp"><location units="Millimeters" x="70.0" y="20.0" z="-2.0" rotation="0.0"/><feed-start-location units="Millimeters" x="60.0" y="20.0" z="-1.0" rotation="0.0"/><feed-end-location units="Millimeters" x="60.0" y="24.0" z="-4.0" rotation="0.0"/><part-pitch value="4.0" units="Millimeters"/><feed-speed>0.25</feed-speed><vision enabled="false"/></feeder>)", le, error);
+        assert(ok);
+        config.addFeeder(JPFeeder::fromXml(le));
+        machine.actuated.clear();
+        assert(JPFeederFeed::feed(config, "L", "N1", machine, nullptr, why, empty));
+        const std::vector<std::string> push = { "Lever to 60.00,20.00 at 1.00", "Lever=1", "Lever to 60.00,24.00 z -4 at 0.25",
+                                                "TakeUp=1", "Lever to 60.00,20.00 at 1.00", "TakeUp=0", "Lever=0" };
+        assert(machine.actuated == push);
+        assert(config.feeder("L")->pickLocation()->x() == 70);
+        // 8 mm: two pushes.
+        config.feeder("L")->setLengthOf("part-pitch", JPLength(8, JPLengthUnit::Millimeters));
+        machine.actuated.clear();
+        assert(JPFeederFeed::feed(config, "L", "N1", machine, nullptr, why, empty) && machine.actuated.size() == 14);
+        // 2 mm: one push for two parts; the first's step back only with vision.
+        config.feeder("L")->setLengthOf("part-pitch", JPLength(2, JPLengthUnit::Millimeters));
+        machine.actuated.clear();
+        assert(JPFeederFeed::feed(config, "L", "N1", machine, nullptr, why, empty) && machine.actuated.size() == 7);
+        assert(config.feeder("L")->pickLocation()->x() == 70);
+        JPFeeder& l = *config.feeder("L");
+        l.setAttributeAt("vision", "enabled", "true");
+        l.setAttributeAt("vision", "template-image-name", "tmpl_2.png");
+        l.setAttributeAt("vision/area-of-interest", "width", "50");
+        l.setAttributeAt("vision/area-of-interest", "height", "50");
+        l.partsFed = 0;
+        machine.templateLooks = 0;
+        machine.templateOffset = JPLocation(JPLengthUnit::Millimeters, 0.5, 0, 0, 0);
+        machine.actuated.clear();
+        // No look before the push (unlike a drag feeder): one, after it.
+        assert(JPFeederFeed::feed(config, "L", "N1", machine, nullptr, why, empty) && machine.templateLooks == 1);
+        assert(machine.actuated.front() == "Lever to 60.00,20.00 at 1.00");
+        assert(std::abs(config.feeder("L")->pickLocation()->x() - 67.5) < 1e-9);
+        assert(JPFeederFeed::feed(config, "L", "N1", machine, nullptr, why, empty) && machine.actuated.size() == 7);
+        assert(std::abs(config.feeder("L")->pickLocation()->x() - 69.5) < 1e-9);
     }
 
     // No hole: the strip's end.

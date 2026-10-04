@@ -7,8 +7,8 @@
 
 #include <j/core/JButton.h>
 #include <j/core/JContainer.h>
-#include <j/graphics/GpuHal.h>
 #include <j/core/JTabWidget.h>
+#include <j/graphics/GpuHal.h>
 
 #include <functional>
 #include <memory>

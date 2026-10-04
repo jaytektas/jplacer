@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Lever feeders work as OpenPnP's: the lever pushed once for every 4 mm of the pitch, the take up run while it
+  comes back, and the same template image vision as a drag feeder.
 - Drag feeders work as OpenPnP's: the pin dragging the tape (with peel off and back off), two parts a drag at a
   2 mm pitch, and the template image vision, with its template and area of interest selected on the camera.
 - Rotated tray, auto and tube feeders work as OpenPnP's: their setup pages, feeds (an auto feeder's feed and

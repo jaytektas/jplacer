@@ -228,10 +228,12 @@ void autoForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeede
     add.tip("Support part recycle from part back to feeder");
 }
 
-// OpenPnP's ReferenceDragFeederConfigurationWizard: what every feeder has,
-// then the drag's settings, where the pin goes in and is dragged to, and
-// the template its vision looks for.
-void dragForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f, const JPFeederForms::Options& options) {
+// OpenPnP's ReferenceDragFeederConfigurationWizard (and its
+// ReferenceLeverFeederConfigurationWizard, the same but for the 0402 note
+// and the backoff): what every feeder has, then the pin's settings, where
+// it starts and ends, and the template its vision looks for.
+void pinForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f, const JPFeederForms::Options& options,
+             bool lever) {
     using Selecting = JPFeederForms::Options::Selecting;
     general(add, config, f, false);
     pickLocation(add, f);
@@ -239,7 +241,7 @@ void dragForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeede
     add.group("General Settings");
     // OpenPnP's isPart0402: said beside the pitch.
     const JPPart* part = config.part(f().partId());
-    const bool part0402 = part && (part->packageId.find("C0402") != std::string::npos
+    const bool part0402 = !lever && part && (part->packageId.find("C0402") != std::string::npos
                                    || part->packageId.find("R0402") != std::string::npos);
     add.row("Part Pitch");
     length(add, f, "part-pitch", "Part Pitch", 4);
@@ -270,7 +272,7 @@ void dragForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeede
         add.actuator([f] { return f().text("actuator-name"); });
         add.end();
     }
-    length(add, f, "backoff-distance", "Backoff Distance", 0);
+    if (!lever) length(add, f, "backoff-distance", "Backoff Distance", 0);
 
     add.group("Vision");
     add.flag("vision.enabled", "Vision Enabled?", [f] { return f().attributeAt("vision", "enabled") == "true"; },
@@ -366,8 +368,8 @@ JPSetupProperties::Form JPFeederForms::forFeeder(JPConfiguration& config, const 
         autoForm(add, config, f, options.actuators);
     } else if (kind == "ReferenceRotatedTrayFeeder") {
         rotatedTrayForm(add, config, f);
-    } else if (kind == "ReferenceDragFeeder") {
-        dragForm(add, config, f, options);
+    } else if (kind == "ReferenceDragFeeder" || kind == "ReferenceLeverFeeder") {
+        pinForm(add, config, f, options, kind == "ReferenceLeverFeeder");
     } else {
         general(add, config, f, false);
         pickLocation(add, f);
@@ -380,7 +382,7 @@ bool JPFeederForms::act(JPConfiguration& config, const std::string& feederId, co
     JPFeeder* f = config.feeder(feederId);
     if (!f) return false;
     if (action == "resetVisionOffsets") {
-        f->resetDragVisionOffsets();
+        f->resetVisionOffsets();
         return true;
     }
     if (action == "calculateOffsets") {

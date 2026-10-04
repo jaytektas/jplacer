@@ -235,7 +235,7 @@ JPSetupProperties::Form JPFeedersPanel::formFor() {
 
 std::shared_ptr<const JPFrame> JPFeedersPanel::templateImage() {
     const JPFeeder* f = m_config.feeder(m_shown);
-    const std::string path = f ? f->dragTemplatePath(m_config.directory()) : std::string();
+    const std::string path = f ? f->templatePath(m_config.directory()) : std::string();
     std::error_code ec;
     const auto when = path.empty() ? std::filesystem::file_time_type {} : std::filesystem::last_write_time(path, ec);
     if (path == m_templatePath && when == m_templateTime) return m_template;
@@ -304,7 +304,7 @@ bool JPFeedersPanel::confirmTemplate(JPFeeder& f, JPCameraView& view) {
     if (name.empty())
         name = "tmpl_" + std::to_string(std::chrono::duration_cast<std::chrono::nanoseconds>(
                                             std::chrono::system_clock::now().time_since_epoch()).count()) + ".png";
-    const std::string dir = JPFeeder::dragTemplateDirectory(m_config.directory());
+    const std::string dir = JPFeeder::templateDirectory(m_config.directory(), f.className());
     std::error_code ec;
     std::filesystem::create_directories(dir, ec);
     std::string error;

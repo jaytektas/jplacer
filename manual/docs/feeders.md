@@ -27,7 +27,7 @@ ReferenceRotatedTrayFeeder, ReferenceDragFeeder, ReferenceLeverFeeder, Reference
 ReferenceTubeFeeder, ReferenceAutoFeeder, ReferenceSlotAutoFeeder, ReferenceLoosePartFeeder,
 AdvancedLoosePartFeeder, ReferenceHeapFeeder, BlindsFeeder, SchultzFeeder, SlotSchultzFeeder, RapidFeeder,
 Neoden4Feeder, PhotonFeeder and BambooFeederAutoVision. Click one and **Accept**, or double-click it.
-jplacer works out where strip, tray, rotated tray, auto, tube and drag feeders pick, and feeds them. The other kinds are kept and
+jplacer works out where strip, tray, rotated tray, auto, tube, drag and lever feeders pick, and feeds them. The other kinds are kept and
 set up, but feeding them is not yet available (**Pick...** and **Feed...** say so), and **Move Camera...**
 and **Move Tool...** say jplacer does not work out where they pick yet.
 
@@ -151,7 +151,20 @@ interest, puts a selection on the head camera's picture (see [Machine](machine.m
 away. **Reset vision offsets** forgets where the template was last found, so the next feed looks again
 first. Without a template image or an area of interest the feed says it is required.
 
-<!-- src: src/setup/JPFeederForms.cpp (dragForm); src/tasks/JPFeederFeed.cpp (drag); src/model/JPFeeder.cpp (pickLocation, dragTemplatePath); src/ui/JPFeedersPanel.cpp (selectOnCamera, confirmTemplate); src/app/JPlacerJobMachine.cpp (moveActuator, matchTemplate); src/vision/JPTemplateFinder.cpp; src/ui/JPSetupForm.cpp (locationButtons) -->
+<!-- src: src/setup/JPFeederForms.cpp (pinForm); src/tasks/JPFeederFeed.cpp (pinFeed); src/model/JPFeeder.cpp (pickLocation, templatePath); src/ui/JPFeedersPanel.cpp (selectOnCamera, confirmTemplate); src/app/JPlacerJobMachine.cpp (moveActuator, matchTemplate); src/vision/JPTemplateFinder.cpp; src/ui/JPSetupForm.cpp (locationButtons) -->
+
+### Lever feeder
+
+A feeder whose lever the head pushes to move the tape on, as OpenPnP's lever feeder. Its page is the drag
+feeder's without the Backoff Distance or the 0402 note: the **Feed Start Location** is where the pin meets
+the lever, the **Feed End Location** where it pushes it to. A feed puts the pin over the start (at the
+height it is), actuates it, pushes to the end at the feed speed, turns the take up (peel off) actuator on,
+lets the lever back to the start, and turns both off: once for every 4 mm of the part pitch, so an 8 mm
+pitch is two pushes. At a 2 mm pitch one push brings two parts. Its vision looks for the template after
+each push only (not before the first), and the 2 mm step to the first of two parts is taken only with
+vision on, as OpenPnP does.
+
+<!-- src: src/setup/JPFeederForms.cpp (pinForm); src/tasks/JPFeederFeed.cpp (pinFeed); src/model/JPFeeder.cpp (pickLocation) -->
 
 ### The other kinds
 

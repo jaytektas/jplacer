@@ -93,20 +93,22 @@ public:
     std::optional<JPLocation> visionLocation, visionLocationReference;
     std::pair<JPLocation, JPLocation> idealLineLocations() const;
 
-    // A drag feeder (OpenPnP's ReferenceDragFeeder), while jplacer runs: how
-    // far the location is from where its vision last found the template
-    // (none: to be looked at before the next drag), the pick's step along
-    // the tape for the next of the parts one drag brings (2 mm pitch), and
-    // how many of those are left.
-    std::optional<JPLocation> dragVisionOffset, dragPartPick;
-    int                       dragFeededCount = 0;
+    // A drag or lever feeder (OpenPnP's ReferenceDragFeeder and
+    // ReferenceLeverFeeder), while jplacer runs: how far the location is
+    // from where its vision last found the template (a drag feeder with
+    // none looks before its next drag), the pick's step along the tape for
+    // the next of the parts one feed brings (2 mm pitch), and how many of
+    // those are left.
+    std::optional<JPLocation> templateOffset, nextPartPick;
+    int                       partsFed = 0;
     // OpenPnP's resetVisionOffsets.
-    void resetDragVisionOffsets();
+    void resetVisionOffsets();
     // Its template image's file (OpenPnP's resource file of the vision's
     // template-image-name in `configDirectory`); empty when it has none.
-    std::string dragTemplatePath(const std::string& configDirectory) const;
-    // Where OpenPnP keeps a drag feeder's template images in its configuration directory.
-    static std::string dragTemplateDirectory(const std::string& configDirectory);
+    std::string templatePath(const std::string& configDirectory) const;
+    // Where OpenPnP keeps the template images of a feeder class (its
+    // Vision's resource directory) in its configuration directory.
+    static std::string templateDirectory(const std::string& configDirectory, const std::string& className);
 
     static const char* priorityName(Priority p);
     // As OpenPnP shows them: "Normal feed", "Skip next feed", "Disable feed".

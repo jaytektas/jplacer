@@ -179,11 +179,21 @@ std::optional<JPLocation> JPFeeder::pickLocation() const {
     }
     // Picked where they are set.
     if (kind == "ReferenceTubeFeeder" || kind == "ReferenceAutoFeeder") return location();
+    if (kind == "ReferenceLeverFeeder") {
+        // As OpenPnP's: the second part's step only with vision.
+        JPLocation at = location();
+        const double pitch = lengthOf("part-pitch", JPLength(4, JPLengthUnit::Millimeters)).convertToUnits(JPLengthUnit::Millimeters).value();
+        if (attributeAt("vision", "enabled") == "true" && templateOffset) {
+            at = at.subtract(*templateOffset);
+            if (pitch == 2 && nextPartPick) at = at.add(*nextPartPick);
+        }
+        return at;
+    }
     if (kind == "ReferenceDragFeeder") {
         JPLocation at = location();
         const double pitch = lengthOf("part-pitch", JPLength(4, JPLengthUnit::Millimeters)).convertToUnits(JPLengthUnit::Millimeters).value();
-        if (pitch == 2 && dragPartPick) at = at.add(*dragPartPick);
-        if (attributeAt("vision", "enabled") == "true" && dragVisionOffset) at = at.subtract(*dragVisionOffset);
+        if (pitch == 2 && nextPartPick) at = at.add(*nextPartPick);
+        if (attributeAt("vision", "enabled") == "true" && templateOffset) at = at.subtract(*templateOffset);
         return at;
     }
     if (kind == "ReferenceStripFeeder") {
@@ -232,8 +242,8 @@ bool JPFeeder::feed(std::string& why, bool* empty) {
         setNumber("feed-count", number("feed-count") + 1);
         return true;
     }
-    // A tube: nothing to do; a drag feeder's drag is the machine's (JPFeederFeed). An auto feeder: its actuator, on a normal feed (JPFeederFeed).
-    if (kind == "ReferenceTubeFeeder" || kind == "ReferenceDragFeeder") return true;
+    // A tube: nothing to do; a drag or lever feeder's feed is the machine's (JPFeederFeed). An auto feeder: its actuator, on a normal feed (JPFeederFeed).
+    if (kind == "ReferenceTubeFeeder" || kind == "ReferenceDragFeeder" || kind == "ReferenceLeverFeeder") return true;
     if (kind == "ReferenceAutoFeeder") {
         m_actuate = feedOptions() == FeedOptions::Normal;
         if (feedOptions() == FeedOptions::SkipNext) setFeedOptions(FeedOptions::Normal);
@@ -370,18 +380,18 @@ void JPFeeder::setLocationOf(const std::string& element, const JPLocation& l) {
     else m_node.add(fresh);
 }
 
-void JPFeeder::resetDragVisionOffsets() {
-    dragVisionOffset.reset();
-    dragPartPick.reset();
+void JPFeeder::resetVisionOffsets() {
+    templateOffset.reset();
+    nextPartPick.reset();
 }
 
-std::string JPFeeder::dragTemplateDirectory(const std::string& configDirectory) {
-    return configDirectory + "/org.openpnp.machine.reference.feeder.ReferenceDragFeeder.Vision";
+std::string JPFeeder::templateDirectory(const std::string& configDirectory, const std::string& className) {
+    return configDirectory + "/" + className + ".Vision";
 }
 
-std::string JPFeeder::dragTemplatePath(const std::string& configDirectory) const {
+std::string JPFeeder::templatePath(const std::string& configDirectory) const {
     const std::string name = attributeAt("vision", "template-image-name");
-    return name.empty() ? std::string() : dragTemplateDirectory(configDirectory) + "/" + name;
+    return name.empty() ? std::string() : templateDirectory(configDirectory, className()) + "/" + name;
 }
 
 std::string JPFeeder::attributeAt(const std::string& path, const std::string& attribute, const std::string& def) const {
