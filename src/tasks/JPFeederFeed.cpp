@@ -3,6 +3,8 @@
 
 #include "JPFeederFeed.h"
 
+#include "JPPhotonFeeders.h"
+
 #include "common/JPlacerLog.h"
 
 #include <j/core/Log.h>
@@ -255,6 +257,22 @@ bool JPFeederFeed::feed(JPConfiguration& config, const std::string& feederId, co
         });
         return true;
     }
+    // A Photon feeder: fed forward by its part pitch as its feed option says.
+    bool photon = false;
+    int photonPitch = 0;
+    main([&] {
+        JPFeeder* f = config.feeder(feederId);
+        if (!f || !f->isPhoton()) return;
+        photon = true;
+        photonPitch = f->number("part-pitch", 4);
+        if (f->feedOptions() == JPFeeder::FeedOptions::SkipNext) {
+            f->setFeedOptions(JPFeeder::FeedOptions::Normal);
+            photonPitch = 0;
+        } else if (f->feedOptions() == JPFeeder::FeedOptions::Disable) {
+            photonPitch = 0;
+        }
+    });
+    if (photon) return photonPitch == 0 || JPPhotonFeeders::feed(config, feederId, nozzleId, photonPitch, machine, onMain, why);
     // A Rapid feeder: its address and pitch to the RAPIDFEEDER actuator.
     std::string rapid;
     main([&] {

@@ -37,6 +37,8 @@ public:
         Selecting selecting = Selecting::None;
         // A drag feeder's template image (null: none).
         std::function<std::shared_ptr<const JPFrame>()> templateImage;
+        // A Photon search's progress: each address's state (JPSearchStrip's); empty: not searching.
+        std::function<std::vector<int>()> searchStates;
         // What a button last read from the machine (a Schultz feeder's ID,
         // feed count, pitch, status), by its action; empty: nothing.
         std::function<std::string(const std::string& action)> reading;

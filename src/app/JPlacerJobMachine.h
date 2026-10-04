@@ -30,6 +30,7 @@ public:
     std::vector<Nozzle> nozzles() const override;
     std::vector<std::pair<std::string, std::string>> tips() const override;
     std::optional<JPLocation> cameraLocation() const override;
+    bool isHomed() const override;
     bool safeZ(std::string& why) override;
     bool changeTip(const std::string& nozzleId, const std::string& tipId, std::string& why) override;
     bool rotate(const std::string& nozzleId, double angle, std::string& why) override;
@@ -39,7 +40,8 @@ public:
     bool positionNozzle(const std::string& nozzleId, const JPLocation& at, std::string& why) override;
     bool actuate(const std::string& actuatorName, double value, std::string& why) override;
     bool actuateText(const std::string& actuatorName, const std::string& value, std::string& why) override;
-    bool readActuator(const std::string& actuatorName, double parameter, std::string& value, std::string& why) override;
+    bool readActuator(const std::string& actuatorName, const std::string& parameter, std::string& value,
+                      std::string& why) override;
     bool moveActuator(const std::string& actuatorName, const JPLocation& at, bool withZ, double speed,
                       std::string& why) override;
     bool matchTemplate(const JPLocation& at, const std::string& templatePath, const JPTemplateFinder::Area& area,

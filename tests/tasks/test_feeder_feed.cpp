@@ -13,10 +13,13 @@
 #include "openpnp/JPXmlReader.h"
 #include "tasks/JPFeederActions.h"
 #include "tasks/JPFeederFeed.h"
+#include "tasks/JPPhotonFeeders.h"
+#include "tasks/JPPhotonPacket.h"
 
 #include <cmath>
 #include <cstdio>
 #include <filesystem>
+#include <functional>
 #include <map>
 
 using namespace jf;
@@ -41,16 +44,28 @@ public:
     bool pick(const std::string&, const JPLocation&, std::string&) override { return true; }
     bool place(const std::string&, const JPLocation&, std::string&) override { return true; }
     bool discard(const std::string&, std::string&) override { return true; }
-    bool positionNozzle(const std::string&, const JPLocation&, std::string&) override { return true; }
+    std::vector<JPLocation> positioned;
+    bool positionNozzle(const std::string&, const JPLocation& at, std::string&) override {
+        positioned.push_back(at);
+        return true;
+    }
     bool actuate(const std::string& name, double value, std::string&) override {
         actuated.push_back(name + "=" + std::to_string(int(value)));
         return true;
     }
     std::vector<std::string> actuated;
+    bool homed = true;
+    bool isHomed() const override { return homed; }
     // What a read gives: by actuator name.
     std::map<std::string, std::string> readings;
-    bool readActuator(const std::string& name, double parameter, std::string& value, std::string& why) override {
-        actuated.push_back("read " + name + "(" + std::to_string(int(parameter)) + ")");
+    // The Photon bus: what the feeders on it answer a packet (TIMEOUT: none).
+    std::function<std::string(const std::string&)> photonBus;
+    bool readActuator(const std::string& name, const std::string& parameter, std::string& value, std::string& why) override {
+        if (name == "PhotonFeederData" && photonBus) {
+            value = photonBus(parameter);
+            return true;
+        }
+        actuated.push_back("read " + name + "(" + parameter + ")");
         const auto r = readings.find(name);
         if (r == readings.end()) {
             why = "Unable to find an actuator named " + name;
@@ -336,6 +351,121 @@ int main() {
         JPFeederActions::Outcome actuated;
         assert(JPFeederActions::run(config, "N4", "actuate", machine, nullptr, "", actuated, why));
         assert(machine.actuated.back() == "F1=2");
+    }
+
+    // Photon: OpenPnP's packet; then feeders on a simulated bus, found, set
+    // up, fed (the nozzle over the pick meanwhile), searched for.
+    {
+        JPPhotonPacket p;
+        p.toAddress = 0x2B;
+        p.fromAddress = 0x13;
+        p.packetId = 0x47;
+        p.payload = { 0x03 };
+        assert(p.toByteString() == "2B1347010A03");
+        const auto d = JPPhotonPacket::decode("2B1347010A03");
+        assert(d && d->toAddress == 0x2B && d->payload.size() == 1 && d->payload[0] == 3);
+        assert(!JPPhotonPacket::decode("2B1347010B03") && !JPPhotonPacket::decode("TIMEOUT") && !JPPhotonPacket::decode("01234"));
+
+        // Two feeders: A at address 5, B at 6.
+        const std::string idA = "00112233445566778899AABB", idB = "445566778899AABBCCDDEEFF";
+        std::map<int, std::string> onBus { { 5, idA }, { 6, idB } };
+        std::vector<int> fed;
+        bool forgetful = false;   // A answers its next feed as not set up
+        machine.photonBus = [&](const std::string& sent) -> std::string {
+            const auto in = JPPhotonPacket::decode(sent);
+            if (!in || in->payload.empty()) return "TIMEOUT";
+            JPPhotonPacket out;
+            out.toAddress = 0;
+            out.packetId = in->packetId;
+            const std::string uuid = in->payload.size() >= 13 ? in->uuid(1) : std::string();
+            auto add = [&out](const std::string& id) {
+                for (size_t i = 0; i < 12; ++i) out.payload.push_back(uint8_t(std::stoi(id.substr(2 * i, 2), nullptr, 16)));
+            };
+            switch (in->payload[0]) {
+                case 0xC0:   // GetFeederAddress: the feeder of that id answers
+                    for (const auto& [address, id] : onBus)
+                        if (id == uuid) {
+                            out.fromAddress = address;
+                            out.payload = { 0 };
+                            return out.toByteString();
+                        }
+                    return "TIMEOUT";
+                case 0x01:   // GetFeederId
+                case 0x02:   // InitializeFeeder
+                {
+                    const auto f = onBus.find(in->toAddress);
+                    if (f == onBus.end()) return "TIMEOUT";
+                    out.fromAddress = f->first;
+                    out.payload = { uint8_t(in->payload[0] == 0x02 && uuid != f->second ? 0x01 : 0x00) };
+                    add(f->second);
+                    return out.toByteString();
+                }
+                case 0x04:   // MoveFeedForward: 20 ms
+                    out.fromAddress = in->toAddress;
+                    if (forgetful) {
+                        forgetful = false;
+                        out.payload = { 0x03 };
+                        return out.toByteString();
+                    }
+                    fed.push_back(in->payload[1]);
+                    out.payload = { 0x00, 0x00, 20 };
+                    return out.toByteString();
+                case 0x06:   // MoveFeedStatus: done
+                    out.fromAddress = in->toAddress;
+                    out.payload = { 0x00 };
+                    return out.toByteString();
+                default:
+                    return "TIMEOUT";
+            }
+        };
+
+        JPFeeder made = JPFeeder::create("org.openpnp.machine.photon.PhotonFeeder", "R1");
+        assert(made.name() == "Unconfigured PhotonFeeder");
+        made.setText("hardware-id", idA);
+        made.setText("name", "Reel A");
+        made.setLocationOf("offset", JPLocation(JPLengthUnit::Millimeters, 0, 10, 0, 0));
+        const std::string a = made.id();
+        config.addFeeder(std::move(made));
+        config.photon().setSlotLocation(5, JPLocation(JPLengthUnit::Millimeters, 100, 50, -1, 90));
+        assert(config.feeder(a)->name() == "Reel A (Slot: None)");
+        // Not found yet: not enabled, and no pick.
+        assert(!config.feeder(a)->pickLocation());
+
+        machine.positioned.clear();
+        assert(JPFeederFeed::feed(config, a, "N1", machine, nullptr, why, empty));
+        JPFeeder* fa = config.feeder(a);
+        assert(fa->photonSlot == 5 && fa->photonInitialized && fa->name() == "Reel A (Slot: 5)");
+        assert(fed.size() == 1 && fed[0] == 40);   // 4 mm, in tenths
+        // Its pick: the offset turned with the slot, from it; the nozzle went there.
+        const auto at = fa->pickLocation();
+        assert(at && std::abs(at->x() - 90) < 1e-9 && std::abs(at->y() - 50) < 1e-9);
+        assert(machine.positioned.size() == 1);
+        // A name set as shown has its slot taken off.
+        fa->setName("Reel A (Slot: 5)");
+        assert(fa->text("name") == "Reel A");
+
+        // Forgot it was set up: set up again, fed.
+        forgetful = true;
+        assert(JPFeederFeed::feed(config, a, "N1", machine, nullptr, why, empty) && fed.size() == 2);
+
+        // A search: B found at 6, a new feeder named by its id.
+        std::vector<int> found;
+        assert(JPPhotonFeeders::findAll(config, machine, nullptr,
+                                        [&found](int address, JPPhotonFeeders::SearchState s) {
+                                            if (s == JPPhotonFeeders::SearchState::Found) found.push_back(address);
+                                        },
+                                        why));
+        assert((found == std::vector<int> { 5, 6 }));
+        const JPFeeder* fb = config.photonFeeder(idB);
+        assert(fb && fb->photonSlot == 6 && fb->text("name") == idB);
+        // A gone from the bus: the search takes its address away.
+        onBus.erase(5);
+        assert(JPPhotonFeeders::findAll(config, machine, nullptr, nullptr, why));
+        assert(!config.feeder(a)->photonSlot);
+        // Not answering: not fed, and said.
+        assert(!JPFeederFeed::feed(config, a, "N1", machine, nullptr, why, empty));
+        assert(why == "Failed to feed for an unknown reason. Is the feeder inserted?");
+        machine.photonBus = nullptr;
     }
 
     // No hole: the strip's end.

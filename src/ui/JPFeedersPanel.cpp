@@ -109,6 +109,13 @@ JPFeedersPanel::JPFeedersPanel(JSceneGraph& graph, JPConfiguration& config, doub
             cancelSelection();
             return;
         }
+        // A search shows its strip from the start, every address not yet asked.
+        if (action == "photonSearch") {
+            m_searchStates.assign(size_t(std::max(1, m_config.photon().maxFeederAddress())), 0);
+            jPostToNextFrame([this, alive = std::weak_ptr<bool>(m_alive)] {
+                if (const auto a = alive.lock(); a && *a) rebuildForm();
+            });
+        }
         // Done on the machine: on its thread.
         if (JPFeederForms::isMachineAction(action)) {
             if (machineAction) machineAction(m_shown, action);
@@ -231,6 +238,19 @@ void JPFeedersPanel::showForm() {
         for (const std::string& action : JPFeederForms::readsOnShow(*f)) machineAction(id, action);
 }
 
+void JPFeedersPanel::showSearchState(int address, int state) {
+    if (address < 1 || m_searchStates.empty()) return;
+    if (size_t(address) > m_searchStates.size()) m_searchStates.resize(size_t(address), 0);
+    m_searchStates[size_t(address - 1)] = state;
+    m_form->refresh();
+}
+
+void JPFeedersPanel::searchEnded() {
+    m_searchStates.clear();
+    m_table->refresh();
+    rebuildForm();
+}
+
 std::string JPFeedersPanel::reading(const std::string& action) const {
     const auto f = m_readings.find(m_shown);
     if (f == m_readings.end()) return {};
@@ -253,6 +273,7 @@ JPSetupProperties::Form JPFeedersPanel::formFor() {
     options.selecting = m_selecting;
     options.templateImage = [this] { return templateImage(); };
     options.reading = [this](const std::string& action) { return reading(action); };
+    options.searchStates = [this] { return m_searchStates; };
     return JPFeederForms::forFeeder(m_config, m_shown, [](const std::string& why) { JDialog::message("Error", why); },
                                     options);
 }

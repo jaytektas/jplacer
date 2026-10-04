@@ -76,10 +76,12 @@ public:
         return true;
     }
     std::vector<std::string> actuated;
+    bool homed = true;
+    bool isHomed() const override { return homed; }
     // What a read gives: by actuator name.
     std::map<std::string, std::string> readings;
-    bool readActuator(const std::string& name, double parameter, std::string& value, std::string& why) override {
-        actuated.push_back("read " + name + "(" + std::to_string(int(parameter)) + ")");
+    bool readActuator(const std::string& name, const std::string& parameter, std::string& value, std::string& why) override {
+        actuated.push_back("read " + name + "(" + parameter + ")");
         const auto r = readings.find(name);
         if (r == readings.end()) {
             why = "Unable to find an actuator named " + name;

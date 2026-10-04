@@ -4,12 +4,14 @@
 #include "JPFeederActions.h"
 
 #include "JPFiducialLocator.h"
+#include "JPPhotonFeeders.h"
 
 #include "common/JPlacerLog.h"
 
 #include <j/core/Log.h>
 
 #include <cctype>
+#include <cstdio>
 
 inline namespace jf {
 
@@ -46,7 +48,7 @@ std::string failed(const std::string& prefix, std::string why) {
 
 bool JPFeederActions::run(JPConfiguration& config, const std::string& feederId, const std::string& action,
                           JPJobMachine& machine, const OnMain& onMain, const std::string& fiducialVisionId, Outcome& outcome,
-                          std::string& why) {
+                          std::string& why, const std::function<void(int address, int state)>& progress) {
     auto main = [&onMain](const std::function<void()>& fn) {
         if (onMain) onMain(fn);
         else fn();
@@ -75,6 +77,27 @@ bool JPFeederActions::run(JPConfiguration& config, const std::string& feederId, 
             return false;
         }
         return machine.actuate(actuator, value, why);
+    }
+    if (action == "photonSearch") {
+        outcome.changed = true;
+        return JPPhotonFeeders::findAll(config, machine, onMain,
+                                        [&progress](int address, JPPhotonFeeders::SearchState state) {
+                                            if (progress) progress(address, int(state));
+                                        },
+                                        why);
+    }
+    if (kind == "PhotonFeeder" && action == "photonFind") {
+        outcome.changed = true;
+        return JPPhotonFeeders::findSlotAddress(config, feederId, machine, onMain, why);
+    }
+    if (kind == "PhotonFeeder" && (action == "photonFeed" || action == "photonFeed1mm")) {
+        int pitch = 1;
+        if (action == "photonFeed")
+            main([&] {
+                if (const JPFeeder* f = config.feeder(feederId)) pitch = f->number("part-pitch", 4);
+            });
+        outcome.changed = true;
+        return JPPhotonFeeders::feed(config, feederId, "", pitch, machine, onMain, why);
     }
     if (kind == "Neoden4Feeder" && action == "actuate") {
         // Its actuator actuated with its pitch.
@@ -151,7 +174,9 @@ bool JPFeederActions::run(JPConfiguration& config, const std::string& feederId, 
         }
         if (b.read) {
             std::string value;
-            if (!machine.readActuator(actuator, feederNumber, value, why)) {
+            char number[32];
+            std::snprintf(number, sizeof number, "%g", feederNumber);
+            if (!machine.readActuator(actuator, number, value, why)) {
                 why = failed("Failed, ", why);
                 return false;
             }

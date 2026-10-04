@@ -8,6 +8,7 @@
 #include "JPIcons.h"
 #include "JPImageBox.h"
 #include "JPPlotView.h"
+#include "JPSearchStrip.h"
 #include "JPTextBox.h"
 #include "JPTextField.h"
 #include "JPUiParts.h"
@@ -408,6 +409,21 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
                 auto view = std::make_unique<JPPlotView>(m_graph, r.plot);
                 view->setFixedSize(width, h);
                 place(std::move(view), h);
+                break;
+            }
+            case Row::Kind::Strip: {
+                // Across the group, a line high; nothing while it has no cells.
+                const float formWidth = m_graph.getLayoutConst(getNodeId()).boundingBox.width;
+                const float width = std::max(numberWidth() * 4, formWidth - JPGroupFrame::extraWidth()
+                                                                     - 2 * (st.scrollBarWidth + st.itemPadding));
+                const std::vector<int> now = r.strip ? r.strip() : std::vector<int> {};
+                if (now.empty()) break;   // shown when the form is made again with cells
+                auto strip = std::make_unique<JPSearchStrip>(m_graph);
+                JPSearchStrip* shown = strip.get();
+                shown->setStates(now);
+                m_pulls.push_back([shown, get = r.strip] { shown->setStates(get ? get() : std::vector<int> {}); });
+                strip->setFixedSize(width, st.labelHeight);
+                place(std::move(strip), st.labelHeight);
                 break;
             }
             case Row::Kind::Image: {

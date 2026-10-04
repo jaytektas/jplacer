@@ -27,7 +27,7 @@ ReferenceRotatedTrayFeeder, ReferenceDragFeeder, ReferenceLeverFeeder, Reference
 ReferenceTubeFeeder, ReferenceAutoFeeder, ReferenceSlotAutoFeeder, ReferenceLoosePartFeeder,
 AdvancedLoosePartFeeder, ReferenceHeapFeeder, BlindsFeeder, SchultzFeeder, SlotSchultzFeeder, RapidFeeder,
 Neoden4Feeder, PhotonFeeder and BambooFeederAutoVision. Click one and **Accept**, or double-click it.
-jplacer works out where strip, tray, rotated tray, auto, tube, drag, lever, Schultz, slot, Neoden 4 and Rapid feeders pick, and feeds them. The other kinds are kept and
+jplacer works out where strip, tray, rotated tray, auto, tube, drag, lever, Schultz, slot, Neoden 4, Photon and Rapid feeders pick, and feeds them. The other kinds are kept and
 set up, but feeding them is not yet available (**Pick...** and **Feed...** say so), and **Move Camera...**
 and **Move Tool...** say jplacer does not work out where they pick yet.
 
@@ -215,6 +215,23 @@ is a drag feeder's (see above), but its **Area of Interest**'s X and Y are from 
 picture, each kept within 512 pixels, as OpenPnP's; a template not found leaves the pick where it was.
 
 <!-- src: src/setup/JPFeederForms.cpp (neoden4Form, templateVision); src/tasks/JPFeederFeed.cpp (feed); src/tasks/JPFeederActions.cpp (actuate); src/vision/JPTemplateFinder.cpp (placed); src/model/JPFeeder.cpp (pickLocation); src/ui/JPFeedersPanel.cpp (selectOnCamera) -->
+
+### Photon feeder
+
+An Opulo Photon feeder on its bus, as OpenPnP's PhotonFeeder: commands go as packets through the machine's
+**PhotonFeederData** actuator (its controller's `M485`). Until it has a hardware id it is "Unconfigured
+PhotonFeeder" and shows only **Global Config**; then its name shows its slot ("Reel 1 (Slot: 5)", or
+"(Slot: None)") and its **Feeder** page has **Info** (Hardware ID, Slot Address and **Find**), **Part**
+(the part, **Part Pitch** with **Feed** and **Feed 1mm**, the retries) and **Location** (the **Slot
+Location**, kept for the slot address, and the **Part Offset** from it, whose location buttons work from
+the slot; **Move While Feeding?**). **Global Config**'s **Search** asks every address up to **Maximum
+Feeder Address To Scan**, a strip showing each as it is asked, found or missing, and adds the feeders it
+finds. A feed finds the feeder's address and sets it up when needed, moves it on by its pitch with the
+nozzle taken over its pick meanwhile, and waits until it says it is done, trying again as OpenPnP does; a
+job finds and sets up the Photon feeders it uses first. The **Program Feeder Slots** wizard is not in
+jplacer yet.
+
+<!-- src: src/tasks/JPPhotonFeeders.cpp; src/tasks/JPPhotonCommands.cpp; src/tasks/JPPhotonPacket.cpp; src/tasks/JPPhotonBus.cpp; src/model/JPPhotonProperties.cpp; src/model/JPFeeder.cpp (name, photonUnconfigured, pickLocation); src/setup/JPFeederForms.cpp (photonForm); src/ui/JPSearchStrip.cpp; src/tasks/JPJobProcessor.cpp (preFlight) -->
 
 ### Rapid feeder
 

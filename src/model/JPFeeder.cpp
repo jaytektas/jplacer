@@ -14,6 +14,7 @@
 #include <chrono>
 #include <cstdio>
 #include <cmath>
+#include <regex>
 #include <cstdlib>
 
 inline namespace jf {
@@ -85,12 +86,23 @@ std::string JPFeeder::feedsAs() const {
 }
 
 std::string JPFeeder::name() const {
+    if (isPhoton()) {
+        // As OpenPnP: "Unconfigured PhotonFeeder" until it has a hardware id; then its slot.
+        if (text("hardware-id").empty()) return "Unconfigured " + typeName();
+        return text("name") + " (Slot: " + (photonSlot ? std::to_string(*photonSlot) : std::string("None")) + ")";
+    }
     if (!isSlot()) return text("name");
     return text("name") + " (" + (slotLoad ? slotLoad->feederName : std::string("None")) + ")";
 }
 
 void JPFeeder::setName(const std::string& n) {
     std::string plain = n;
+    if (isPhoton()) {
+        // OpenPnP's: every "(Slot: …)" taken off.
+        plain = std::regex_replace(plain, std::regex(R"(\(Slot: [\w+]+\))"), "");
+        while (!plain.empty() && plain.back() == ' ') plain.pop_back();
+        while (!plain.empty() && plain.front() == ' ') plain.erase(0, 1);
+    }
     if (isSlot()) {
         // OpenPnP's: what it shows of the loaded feeder taken off.
         const std::string shown = "(" + (slotLoad ? slotLoad->feederName : std::string("None")) + ")";
@@ -103,7 +115,16 @@ void JPFeeder::setName(const std::string& n) {
 
 bool JPFeeder::enabled() const {
     const bool on = flag("enabled", false);
+    if (isPhoton()) return on && !text("hardware-id").empty() && !text("part-id").empty() && photonUnconfigured().empty();
     return isSlot() ? on && slotLoad && !slotLoad->partId.empty() : on;
+}
+
+std::string JPFeeder::photonUnconfigured() const {
+    const std::string id = text("hardware-id");
+    if (!photonSlot) return "Photon Feeder with address " + id + " has no address. Is it inserted?";
+    if (!photonSlotLocation) return "The slot at address " + std::to_string(*photonSlot) + " has no location configured.";
+    if (!m_node.child("offset")) return "Photon Feeder with address " + id + " has no location offset.";
+    return {};
 }
 
 std::string JPFeeder::partId() const {
@@ -223,6 +244,10 @@ std::optional<JPLocation> JPFeeder::pickLocation() const {
     }
     // Picked where they are set.
     if (isSlot()) return slotLoad ? slotLoad->offsets.offsetWithRotationFrom(location()) : location();
+    if (isPhoton()) {
+        if (!photonUnconfigured().empty()) return std::nullopt;
+        return locationOf("offset").offsetWithRotationFrom(*photonSlotLocation);
+    }
     if (kind == "ReferenceTubeFeeder" || kind == "ReferenceAutoFeeder" || kind == "RapidFeeder" || kind == "SchultzFeeder")
         return location();
     if (kind == "Neoden4Feeder") {
@@ -306,9 +331,9 @@ bool JPFeeder::feed(std::string& why, bool* empty) {
         if (feedOptions() == FeedOptions::SkipNext) setFeedOptions(FeedOptions::Normal);
         return true;
     }
-    // A tube: nothing to do; a drag, lever, Rapid, Schultz or Neoden 4 feeder's feed is the machine's (JPFeederFeed). An auto feeder: its actuator, on a normal feed (JPFeederFeed).
+    // A tube: nothing to do; a drag, lever, Rapid, Schultz, Neoden 4 or Photon feeder's feed is the machine's (JPFeederFeed). An auto feeder: its actuator, on a normal feed (JPFeederFeed).
     if (kind == "ReferenceTubeFeeder" || kind == "ReferenceDragFeeder" || kind == "ReferenceLeverFeeder" || kind == "RapidFeeder"
-        || kind == "SchultzFeeder" || kind == "Neoden4Feeder")
+        || kind == "SchultzFeeder" || kind == "Neoden4Feeder" || kind == "PhotonFeeder")
         return true;
     if (kind == "ReferenceAutoFeeder") {
         m_actuate = feedOptions() == FeedOptions::Normal;

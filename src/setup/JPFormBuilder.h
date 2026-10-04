@@ -85,6 +85,13 @@ public:
         r.image = std::move(image);
         rows().push_back(std::move(r));
     }
+    // A search's progress across the form, `states` read again on each refresh.
+    void strip(std::function<std::vector<int>()> states) {
+        Row r;
+        r.kind = Row::Kind::Strip;
+        r.strip = std::move(states);
+        rows().push_back(std::move(r));
+    }
     // The place row begun moves and captures with the actuator `name` names
     // (when not empty) in place of the nozzle.
     void actuator(std::function<std::string()> name) { rows().back().actuator = std::move(name); }

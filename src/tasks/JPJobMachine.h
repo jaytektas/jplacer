@@ -34,6 +34,8 @@ public:
     // Where the head's camera is now; none when it cannot be told.
     virtual std::optional<JPLocation> cameraLocation() const = 0;
 
+    // Whether the machine has been homed (until then nothing moves).
+    virtual bool isHomed() const = 0;
     // Every nozzle up into its safe zone.
     virtual bool safeZ(std::string& why) = 0;
     // The tip on `nozzleId` changed for `tipId`: the one on it unloaded, then `tipId` loaded.
@@ -57,8 +59,10 @@ public:
     // feeder's "address pitch").
     virtual bool actuateText(const std::string& actuatorName, const std::string& value, std::string& why) = 0;
     // An actuator (named as for actuate) read, with `parameter` as its read
-    // command's value (OpenPnP's actuator.read(parameter)): `value`.
-    virtual bool readActuator(const std::string& actuatorName, double parameter, std::string& value, std::string& why) = 0;
+    // command's value (OpenPnP's actuator.read(parameter): a Schultz feeder's
+    // number, a Photon packet): `value`.
+    virtual bool readActuator(const std::string& actuatorName, const std::string& parameter, std::string& value,
+                              std::string& why) = 0;
     // An actuator on the head (named as for actuate) straight to `at` from
     // where it is, not up to safe Z first (OpenPnP's actuator.moveTo); its Z
     // too when `withZ`; at `speed` (of the machine's).

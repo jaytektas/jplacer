@@ -55,6 +55,7 @@ public:
             Actions,   // buttons (cells' labels; property: the action's name)
             Plot,      // a graph (plot), titled by its label
             Image,     // a picture (image), by its label
+            Strip,     // a search's progress (strip), shown while it has cells
         };
         Kind        kind = Kind::Fields;
         std::string label;
@@ -64,6 +65,8 @@ public:
         Place       place = Place::None; // its cells are X, Y, Z, rotation (Location) or one axis (Axis)
         std::string axis;                // Place::Axis: which axis
         std::shared_ptr<const JPPlot> plot;   // Kind::Plot
+        // Kind::Strip: each cell's state (JPSearchStrip's), read again on a refresh.
+        std::function<std::vector<int>()> strip;
         // Kind::Image: the picture now (null: none), read again on a refresh.
         std::function<std::shared_ptr<const JPFrame>()> image;
         // Place::Location: the actuator its tool buttons use (OpenPnP's

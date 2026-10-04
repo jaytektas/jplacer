@@ -4,6 +4,7 @@
 #include "JPJobProcessor.h"
 
 #include "JPFeederFeed.h"
+#include "JPPhotonFeeders.h"
 #include "JPFiducialLocator.h"
 
 #include "common/JPlacerLog.h"
@@ -252,8 +253,21 @@ JPJobProcessor::Step JPJobProcessor::preFlight() {
     std::string why;
     if (!m_machine.safeZ(why)) fail(Source::Machine, "", why);
     discardAll();
-    // A strip or tray feeder needs nothing before a job.
+    // A Photon feeder the job uses is found and set up on the bus; the others need nothing.
     status("Preparing feeders.");
+    std::vector<std::string> photon;
+    main([&] {
+        for (const JPFeeder& f : m_config.feeders())
+            if (f.isPhoton() && f.enabled())
+                for (const JobPlacement& j : m_jobPlacements)
+                    if (j.partId == f.partId()) {
+                        photon.push_back(f.id());
+                        break;
+                    }
+    });
+    for (const std::string& id : photon)
+        if (!JPPhotonFeeders::prepareForJob(m_config, id, m_machine, [this](const std::function<void()>& fn) { main(fn); }, why))
+            fail(Source::Feeder, id, why);
     m_restart = true;
     return Step::FiducialCheck;
 }

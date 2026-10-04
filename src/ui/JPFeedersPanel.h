@@ -76,6 +76,10 @@ public:
 
     // What uploads the pictures its pages show (a drag feeder's template image).
     void setHal(JGpuHal* hal) { m_form->setHal(hal); }
+    // A Photon search going on: an address asked (its JPSearchStrip state),
+    // shown on the page's strip; and the search ended.
+    void showSearchState(int address, int state);
+    void searchEnded();
     // What a page's button read from the machine (by its action), shown on the feeder's page.
     void showReading(const std::string& feederId, const std::string& action, const std::string& value);
     // The feeders changed elsewhere (imported, a job's part): shown again.
@@ -141,6 +145,7 @@ private:
     std::shared_ptr<const JPFrame>      m_template;
     // What the machine was last read as on each feeder's page: by feeder, then action.
     std::map<std::string, std::map<std::string, std::string>> m_readings;
+    std::vector<int>                    m_searchStates;   // a Photon search's, by address less one
     std::shared_ptr<bool>               m_alive = std::make_shared<bool>(true);
 };
 

@@ -66,13 +66,16 @@ bool JPConfiguration::load(std::vector<std::string>& problems, std::string& erro
     JPXmlElement packages, parts, boards, panels, vision, feeders, banks;
     if (!read(dir / kPackagesFile, packages) || !read(dir / kPartsFile, parts) || !read(dir / kBoardsFile, boards)
         || !read(dir / kPanelsFile, panels) || !read(dir / kVisionFile, vision) || !read(dir / kFeedersFile, feeders)
-        || !read(dir / kSlotBanksFile, banks))
+        || !read(dir / kMachinePropertiesFile, banks))
         return false;
     for (const JPXmlElement& e : feeders.children)
         if (e.name == "feeder") m_feeders.push_back(JPFeeder::fromXml(e));
-    for (const JPXmlElement& e : banks.children)
+    for (const JPXmlElement& e : banks.children) {
         if (auto b = JPSlotBanks::fromXml(e)) m_slotBanks.push_back(std::move(*b));
+        else m_photon.take(e);
+    }
     resolveSlots();
+    resolvePhoton();
     for (const JPXmlElement& e : vision.children)
         if (e.name == "vision-settings") m_vision.push_back(JPVisionSettings::fromXml(e));
     for (const JPXmlElement& e : packages.children)
@@ -107,9 +110,10 @@ bool JPConfiguration::save(std::string& error) const {
     JPXmlNode feeders("feeders");
     for (const JPFeeder& f : m_feeders) feeders.add(f.toXml());
     if (!JPXmlWriter::write((dir / kFeedersFile).string(), feeders, error)) return false;
-    JPXmlNode banks("properties");
-    for (const JPSlotBanks& b : m_slotBanks) banks.add(b.toXml());
-    if (!JPXmlWriter::write((dir / kSlotBanksFile).string(), banks, error)) return false;
+    JPXmlNode properties("properties");
+    for (const JPSlotBanks& b : m_slotBanks) properties.add(b.toXml());
+    for (JPXmlNode& e : m_photon.toXml()) properties.add(std::move(e));
+    if (!JPXmlWriter::write((dir / kMachinePropertiesFile).string(), properties, error)) return false;
     JPXmlNode vision("openpnp-vision-settings");
     for (const JPVisionSettings& v : m_vision) vision.add(v.toXml());
     if (!JPXmlWriter::write((dir / kVisionFile).string(), vision, error)) return false;
@@ -128,13 +132,17 @@ int JPConfiguration::importFeeders(const std::string& machineXml, std::string& e
     if (feeders)
         for (const JPXmlElement& e : feeders->children)
             if (e.name == "feeder") m_feeders.push_back(JPFeeder::fromXml(e));
-    // The slot feeders' banks, from the machine's properties.
+    // The slot feeders' banks and the Photon feeders' slots, from the machine's properties.
     m_slotBanks.clear();
+    m_photon = JPPhotonProperties();
     if (const JPXmlElement* properties = machine ? machine->child("properties") : nullptr)
-        for (const JPXmlElement& e : properties->children)
-            if (e.name == "entry")
-                if (auto b = JPSlotBanks::fromXml(e)) m_slotBanks.push_back(std::move(*b));
+        for (const JPXmlElement& e : properties->children) {
+            if (e.name != "entry") continue;
+            if (auto b = JPSlotBanks::fromXml(e)) m_slotBanks.push_back(std::move(*b));
+            else m_photon.take(e);
+        }
     resolveSlots();
+    resolvePhoton();
     return int(m_feeders.size());
 }
 
@@ -171,6 +179,28 @@ void JPConfiguration::resolveSlots() {
         holder = &f;
         f.slotLoad = JPFeeder::SlotLoad { feeder->name, feeder->partId, feeder->offsets };
     }
+}
+
+void JPConfiguration::resolvePhoton() {
+    for (JPFeeder& f : m_feeders)
+        if (f.isPhoton()) f.photonSlotLocation = f.photonSlot ? m_photon.slotLocation(*f.photonSlot) : std::nullopt;
+}
+
+void JPConfiguration::setPhotonSlot(const std::string& feederId, std::optional<int> address) {
+    if (address)
+        for (JPFeeder& other : m_feeders)
+            if (other.isPhoton() && other.id() != feederId && other.photonSlot == address) {
+                other.photonSlot.reset();
+                other.photonInitialized = false;
+            }
+    if (JPFeeder* f = feeder(feederId)) f->photonSlot = address;
+    resolvePhoton();
+}
+
+JPFeeder* JPConfiguration::photonFeeder(const std::string& hardwareId) {
+    for (JPFeeder& f : m_feeders)
+        if (f.isPhoton() && f.text("hardware-id") == hardwareId) return &f;
+    return nullptr;
 }
 
 void JPConfiguration::loadSlot(const std::string& slotId, const std::string& bankFeederId) {

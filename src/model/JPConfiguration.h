@@ -7,6 +7,7 @@
 #include "JPBoardLocation.h"
 #include "JPJob.h"
 #include "JPFeeder.h"
+#include "JPPhotonProperties.h"
 #include "JPSlotBanks.h"
 #include "JPPackage.h"
 #include "JPPanel.h"
@@ -35,8 +36,9 @@ public:
     // The machine's feeders, as OpenPnP's machine.xml has them (<feeders>).
     static constexpr const char* kFeedersFile  = "feeders.xml";
     static constexpr const char* kVisionFile   = "vision-settings.xml";
-    // The slot feeders' banks, as machine.xml's <properties> entries for them.
-    static constexpr const char* kSlotBanksFile = "slot-banks.xml";
+    // What feeders keep on the machine (slot feeders' banks, Photon feeders'
+    // slots), as machine.xml's <properties> entries for them.
+    static constexpr const char* kMachinePropertiesFile = "machine-properties.xml";
 
     explicit JPConfiguration(std::string directory);
 
@@ -99,6 +101,15 @@ public:
     void setSlotBank(const std::string& slotId, const std::string& bankId);
     // A slot's bank: its own, else the last.
     std::string slotBankId(const JPFeeder& slot);
+    // What the Photon feeders keep on the machine.
+    JPPhotonProperties&       photon() { return m_photon; }
+    // Each Photon feeder's slot location found again (JPFeeder::photonSlotLocation).
+    void resolvePhoton();
+    // A Photon feeder's slot address (none: not found); another feeder at
+    // that address loses it (and is to be initialized again).
+    void setPhotonSlot(const std::string& feederId, std::optional<int> address);
+    // The Photon feeder of a hardware id (empty: one not yet given one).
+    JPFeeder* photonFeeder(const std::string& hardwareId);
     // The feeders of an OpenPnP machine.xml, in place of these (Machine >
     // Import OpenPnP Machine); how many, or -1 (and why) when it cannot be read.
     int importFeeders(const std::string& machineXml, std::string& error);
@@ -160,6 +171,7 @@ private:
     std::vector<JPVisionSettings>                        m_vision;
     std::vector<JPFeeder>                                m_feeders;
     std::vector<JPSlotBanks>                             m_slotBanks;
+    JPPhotonProperties                                   m_photon;
     std::vector<std::shared_ptr<JPBoard>>                m_boards;
     std::vector<std::shared_ptr<JPPanel>>                m_panels;
 };

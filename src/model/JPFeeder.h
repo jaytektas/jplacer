@@ -69,6 +69,17 @@ public:
         JPLocation  offsets { JPLengthUnit::Millimeters };
     };
     std::optional<SlotLoad> slotLoad;
+
+    // A PHOTON FEEDER (OpenPnP's PhotonFeeder): known by its hardware-id, at
+    // the slot address the bus last found it at (none: not found), set up on
+    // the bus or not; the slot's location as the machine keeps it
+    // (JPConfiguration::resolvePhoton). Its pick is its offset from that.
+    bool isPhoton() const { return typeName() == "PhotonFeeder"; }
+    std::optional<int>        photonSlot;
+    bool                      photonInitialized = false;
+    std::optional<JPLocation> photonSlotLocation;
+    // Why it cannot be picked from yet, as OpenPnP says it; empty: it can.
+    std::string photonUnconfigured() const;
     int         feedRetryCount() const { return number("feed-retry-count", 3); }
     void        setFeedRetryCount(int n) { setNumber("feed-retry-count", n); }
     int         pickRetryCount() const { return number("pick-retry-count", 3); }

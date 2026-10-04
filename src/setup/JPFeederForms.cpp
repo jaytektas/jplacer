@@ -21,6 +21,8 @@ namespace {
 using Place = JPSetupProperties::Place;
 constexpr JPLengthUnit kMm = JPLengthUnit::Millimeters;
 constexpr int kMostCount = 1000000;
+// The highest address a Photon feeder can have (OpenPnP's search's).
+constexpr int kMostPhotonAddress = 254;
 // Where a slot Schultz feeder loaded for the first time is from its slot (OpenPnP's).
 constexpr double kNewSlotFeederOffsetXMm = -5, kNewSlotFeederOffsetYMm = -30;
 
@@ -515,6 +517,90 @@ void slotForm(JPFormBuilder& add, JPConfiguration& config, const std::string& sl
     add.tip("Move nozzle to pick location before actuating feed actuator");
 }
 
+// OpenPnP's Photon feeder property sheets: Feeder (its hardware id and slot
+// address with Find; its part, part pitch with Feed and Feed 1mm, retries;
+// its slot's location and its part's offset from it, Move While Feeding?),
+// shown once it has a hardware id; and Global Config (the search, and the
+// slot programming wizard).
+void photonForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f, const JPFeederForms::Options& options) {
+    if (!f().text("hardware-id").empty()) {
+        add.tab("Feeder");
+        add.group("Info");
+        add.text("hardware-id", "Hardware ID: ", [f] { return f().text("hardware-id"); }, nullptr);
+        add.row("Slot Address:");
+        add.text("photon.slot", "Slot Address:",
+                 [f] { return f().photonSlot ? std::to_string(*f().photonSlot) : std::string(); }, nullptr);
+        add.button("photonFind", "Find");
+        add.end();
+
+        const bool slotted = f().photonSlot.has_value();
+        add.group("Part");
+        JPFormBuilder::Strings parts { "" };
+        for (const auto& p : config.parts()) parts.push_back(p->id);
+        add.choice("part", "Part", parts, [f] { return f().text("part-id"); }, [f](const std::string& id) { f().setPartId(id); });
+        add.row("Part Pitch");
+        count(add, f, "part-pitch", "Part Pitch", 4);
+        add.button("photonFeed", "Feed", "", slotted);
+        add.button("photonFeed1mm", "Feed 1mm", "", slotted);
+        add.end();
+        add.integer("feed-retry-count", "Feed Retry Count", [f] { return f().feedRetryCount(); },
+                    [f](int v) { f().setFeedRetryCount(v); }, 0, kMostCount);
+        add.integer("pick-retry-count", "Pick Retry Count", [f] { return f().pickRetryCount(); },
+                    [f](int v) { f().setPickRetryCount(v); }, 0, kMostCount);
+
+        add.group("Location");
+        add.header({ "X", "Y", "Z", "Rotation" });
+        // The slot's location: the machine's, for whichever feeder is in it.
+        auto slotAt = [&config, f]() -> std::optional<JPLocation> {
+            return f().photonSlot ? config.photon().slotLocation(*f().photonSlot) : std::nullopt;
+        };
+        add.row("Slot Location", Place::Location);
+        for (const auto& [axis, label] : { std::pair { Axis::X, "X" }, std::pair { Axis::Y, "Y" }, std::pair { Axis::Z, "Z" },
+                                           std::pair { Axis::Rotation, "Rotation" } }) {
+            const Axis a = axis;
+            add.number(std::string("photon.slot.") + label, label,
+                       [slotAt, a] {
+                           const JPLocation l = slotAt().value_or(JPLocation(kMm)).convertToUnits(kMm);
+                           return a == Axis::X ? l.x() : a == Axis::Y ? l.y() : a == Axis::Z ? l.z() : l.rotation();
+                       },
+                       [&config, f, slotAt, a](double v) {
+                           if (!f().photonSlot) return;
+                           const JPLocation l = slotAt().value_or(JPLocation(kMm)).convertToUnits(kMm);
+                           config.photon().setSlotLocation(*f().photonSlot,
+                                                           l.derive(a == Axis::X ? std::optional(v) : std::nullopt,
+                                                                    a == Axis::Y ? std::optional(v) : std::nullopt,
+                                                                    a == Axis::Z ? std::optional(v) : std::nullopt,
+                                                                    a == Axis::Rotation ? std::optional(v) : std::nullopt));
+                           config.resolvePhoton();
+                       });
+        }
+        add.end();
+        add.row("Part Offset", Place::Location);
+        coordinate(add, f, "offset", Axis::X, "X");
+        coordinate(add, f, "offset", Axis::Y, "Y");
+        coordinate(add, f, "offset", Axis::Z, "Z");
+        coordinate(add, f, "offset", Axis::Rotation, "Rotation");
+        add.base(slotAt);
+        add.end();
+        add.flag("move-while-feeding", "Move While Feeding?", [f] { return f().flag("move-while-feeding", true); },
+                 [f](bool on) { f().setFlag("move-while-feeding", on); });
+        add.tip("move the nozzle above the pick location while feeding the part.");
+    }
+
+    add.tab("Global Config");
+    add.group("Search");
+    const bool searching = options.searchStates && !options.searchStates().empty();
+    add.row("Maximum Feeder Address To Scan");
+    add.integer("photon.maxFeederAddress", "Maximum Feeder Address To Scan", [&config] { return config.photon().maxFeederAddress(); },
+                [&config](int v) { config.photon().setMaxFeederAddress(v); }, 1, kMostPhotonAddress);
+    add.button("photonSearch", "Search", "", !searching);
+    add.end();
+    add.strip(options.searchStates);
+    add.group("Program Feeder Slots");
+    add.note("If you've built your own slots and need to program them, use this wizard.");
+    add.button("photonProgram", "Start Wizard", "The Program Feeder Slot Wizard: not in jplacer yet.", false);
+}
+
 // OpenPnP's RapidFeederConfigurationWizard: what every feeder has, the
 // feeder's address and pitch, and the scan for its QR codes.
 void rapidForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f) {
@@ -596,9 +682,10 @@ JPSetupProperties::Form JPFeederForms::forFeeder(JPConfiguration& config, const 
     if (!feeder) return form;
     form.title = feeder->name();
     JPFormBuilder add(form);
-    add.tab("Configuration");
     const auto f = finder(config, feederId);
     const std::string kind = feeder->typeName();
+    // A Photon feeder's pages are its property sheets' (photonForm); the others' one page.
+    if (kind != "PhotonFeeder") add.tab("Configuration");
     if (kind == "ReferenceStripFeeder") {
         stripForm(add, config, f);
     } else if (kind == "ReferenceTrayFeeder") {
@@ -613,6 +700,8 @@ JPSetupProperties::Form JPFeederForms::forFeeder(JPConfiguration& config, const 
         schultzForm(add, config, f, options);
     } else if (kind == "Neoden4Feeder") {
         neoden4Form(add, config, f, options);
+    } else if (kind == "PhotonFeeder") {
+        photonForm(add, config, f, options);
     } else if (kind == "RapidFeeder") {
         rapidForm(add, config, f);
     } else if (kind == "ReferenceDragFeeder" || kind == "ReferenceLeverFeeder") {
@@ -670,7 +759,8 @@ bool slotAct(JPConfiguration& config, JPFeeder& slot, const std::string& action,
 
 bool JPFeederForms::isMachineAction(const std::string& action) {
     for (const char* a : { "testFeed", "testPostPick", "getId", "getFeedCount", "clearFeedCount", "getPitch", "togglePitch",
-                           "getStatus", "updateLocation", "actuate" })
+                           "getStatus", "updateLocation", "actuate", "photonFind", "photonFeed", "photonFeed1mm",
+                           "photonSearch" })
         if (action == a) return true;
     return false;
 }

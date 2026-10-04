@@ -24,7 +24,9 @@ inline namespace jf {
 // and Toggle pitch (actuated with it; the count cleared, the pitch read
 // after); a slot Schultz feeder's Update location (its location's X and Y
 // set from where its fiducial part is found near it, as OpenPnP's
-// getHomeFiducialLocation). An action whose actuator (or fiducial part) is
+// getHomeFiducialLocation); a Photon feeder's Find (its slot address asked),
+// Feed and Feed 1mm (on the bus, the nozzle left where it is) and Search
+// (every address asked, JPPhotonFeeders::findAll). An action whose actuator (or fiducial part) is
 // not set does nothing (the log says so).
 class JPFeederActions {
 public:
@@ -37,8 +39,10 @@ public:
     };
 
     // `fiducialVisionId`: the machine's fiducial vision settings, for a fiducial part that names none.
+    // `progress`: a Photon search's, each address as it is asked and answered (JPPhotonFeeders::SearchState).
     static bool run(JPConfiguration& config, const std::string& feederId, const std::string& action, JPJobMachine& machine,
-                    const OnMain& onMain, const std::string& fiducialVisionId, Outcome& outcome, std::string& why);
+                    const OnMain& onMain, const std::string& fiducialVisionId, Outcome& outcome, std::string& why,
+                    const std::function<void(int address, int state)>& progress = {});
 };
 
 } // inline namespace jf

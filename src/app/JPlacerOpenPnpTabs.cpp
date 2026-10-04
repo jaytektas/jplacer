@@ -293,13 +293,16 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
             std::string fiducialVision;
             onMain([&] { fiducialVision = machineVisionDefaults().second; });
             const bool ok = JPFeederActions::run(m_job.configuration(), feederId, action, machine, onMain, fiducialVision,
-                                                 outcome, why);
+                                                 outcome, why, [this, &onMain](int address, int state) {
+                                                     onMain([&] { m_feeders->showSearchState(address, state); });
+                                                 });
             onMain([&] {
                 for (const auto& [key, value] : outcome.readings) m_feeders->showReading(feederId, key, value);
                 if (outcome.changed) {
                     m_feeders->refresh();
                     m_job.configurationChanged();
                 }
+                if (action == "photonSearch") m_feeders->searchEnded();
             });
             return ok;
         });

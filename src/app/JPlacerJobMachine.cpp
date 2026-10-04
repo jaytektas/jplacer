@@ -186,6 +186,12 @@ bool JPlacerJobMachine::actuate(const std::string& actuatorName, double value, s
     return c->setActuatorAndWait(actuator->id, buf, why);
 }
 
+bool JPlacerJobMachine::isHomed() const {
+    bool homed = false;
+    m_onMain([&] { homed = m_machine.cell() && m_machine.cell()->isHomed(); });
+    return homed;
+}
+
 bool JPlacerJobMachine::actuateText(const std::string& actuatorName, const std::string& value, std::string& why) {
     JPCell* c = cell(why);
     if (!c) return false;
@@ -198,7 +204,8 @@ bool JPlacerJobMachine::actuateText(const std::string& actuatorName, const std::
     return c->setActuatorAndWait(actuator->id, value, why);
 }
 
-bool JPlacerJobMachine::readActuator(const std::string& actuatorName, double parameter, std::string& value, std::string& why) {
+bool JPlacerJobMachine::readActuator(const std::string& actuatorName, const std::string& parameter, std::string& value,
+                                     std::string& why) {
     JPCell* c = cell(why);
     if (!c) return false;
     const JPCellConfig cfg = config();
@@ -207,9 +214,7 @@ bool JPlacerJobMachine::readActuator(const std::string& actuatorName, double par
         why = "Unable to find an actuator named " + actuatorName;
         return false;
     }
-    char buf[32];
-    std::snprintf(buf, sizeof buf, "%g", parameter);
-    return c->readActuatorAndWait(actuator->id, std::string(buf), value, why);
+    return c->readActuatorAndWait(actuator->id, parameter, value, why);
 }
 
 bool JPlacerJobMachine::moveActuator(const std::string& actuatorName, const JPLocation& at, bool withZ, double speed,
