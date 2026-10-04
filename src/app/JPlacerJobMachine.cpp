@@ -85,6 +85,7 @@ bool JPlacerJobMachine::safeZ(std::string& why) {
 }
 
 bool JPlacerJobMachine::changeTip(const std::string& nozzleId, const std::string& tipId, std::string& why) {
+    ++m_motions;
     std::string refused;
     m_onMain([&] { refused = m_machine.tipChangeRefusal(nozzleId, tipId); });
     if (!refused.empty()) {
@@ -128,6 +129,7 @@ bool JPlacerJobMachine::changeTip(const std::string& nozzleId, const std::string
 }
 
 bool JPlacerJobMachine::rotate(const std::string& nozzleId, double angle, std::string& why) {
+    ++m_motions;
     JPCell* c = cell(why);
     if (!c) return false;
     for (const JPNozzleConfig& n : config().nozzles)
@@ -140,26 +142,31 @@ bool JPlacerJobMachine::rotate(const std::string& nozzleId, double angle, std::s
 }
 
 bool JPlacerJobMachine::pick(const std::string& nozzleId, const JPLocation& at, std::string& why) {
+    ++m_motions;
     JPCell* c = cell(why);
     return c && c->pickAtAndWait(nozzleId, where(at), 1.0, why);
 }
 
 bool JPlacerJobMachine::place(const std::string& nozzleId, const JPLocation& at, std::string& why) {
+    ++m_motions;
     JPCell* c = cell(why);
     return c && c->placeAtAndWait(nozzleId, where(at), 1.0, why);
 }
 
 bool JPlacerJobMachine::discard(const std::string& nozzleId, std::string& why) {
+    ++m_motions;
     JPCell* c = cell(why);
     return c && c->discardAndWait(nozzleId, 1.0, why);
 }
 
 bool JPlacerJobMachine::park(std::string& why) {
+    ++m_motions;
     JPCell* c = cell(why);
     return c && c->parkAndWait(headId(config()), 1.0, why);
 }
 
 bool JPlacerJobMachine::locateFiducial(const JPLocation& nominal, double diameterMm, JPLocation& found, std::string& why) {
+    ++m_motions;
     JPCell* c = cell(why);
     if (!c) return false;
     JPCameraFeed* feed = nullptr;

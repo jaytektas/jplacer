@@ -1178,12 +1178,55 @@ void actuatorForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::
                    "Off Values.");
 }
 
+// OpenPnP's ReferencePnpJobProcessorConfigurationWizard: its General group.
+void jobProcessorForm(JPCellConfig& cell, JPSetupProperties::Form& f) {
+    f.title = "ReferencePnpJobProcessor";
+    JPFormBuilder add(f);
+    add.tab("Configuration");
+    add.group("General");
+    JPJobProcessorConfig& j = cell.jobProcessor;
+    add.integer("maxPlacementRetries", "Max Placement Attempts", [&j]() -> int& { return j.maxPlacementRetries; }, 0, 1000);
+    add.tip("The number of attempts at the whole feed/pick/align/place process for each placement. The part is discarded "
+            "after a failed attempt. Retries may not be consecutive because each attempt is independent");
+    auto byIndex = [](const std::vector<std::string>& names, auto& field) {
+        return std::pair { [&names, &field] { return names[size_t(field)]; },
+                           [&names, &field](const std::string& v) {
+                               for (size_t i = 0; i < names.size(); ++i)
+                                   if (names[i] == v) field = std::remove_reference_t<decltype(field)>(i);
+                           } };
+    };
+    auto [orderGet, orderSet] = byIndex(JPJobProcessorConfig::jobOrderNames(), j.jobOrder);
+    add.choice("jobOrder", "Job order", JPJobProcessorConfig::jobOrderNames(), orderGet, orderSet);
+    add.tip("All placements of a job will be sorted using this order. However, the actual order may differ because parts "
+            "that can be placed using the currently loaded nozzle tip(s) will take precedence.");
+    auto [strategyGet, strategySet] = byIndex(JPJobProcessorConfig::strategyNames(), j.strategy);
+    add.choice("strategy", "Nozzle tip loading strategy", JPJobProcessorConfig::strategyNames(), strategyGet, strategySet);
+    add.tip("JobPlanner strategy to trade nozzle tip changes vs requested placement ordering.");
+    add.integer("maxVisionRetries", "Max Vision Attempts", [&j]() -> int& { return j.maxVisionRetries; }, 0, 1000);
+    add.tip("The number of attempts at vision alignment, in cases where the first attempt raises an error.");
+    add.flag("steppingToNextMotion", "Step Next Motion", [&j]() -> bool& { return j.steppingToNextMotion; });
+    add.tip("Stepping will only stop at the next step with motion");
+    add.flag("optimizeMultipleNozzles", "Optimize Multiple Nozzles", [&j]() -> bool& { return j.optimizeMultipleNozzles; });
+    add.tip("Optimize the path of Pick, Align and Place steps for multi nozzle machines by changing the order nozzles are "
+            "handled.");
+    add.flag("preRotateAllNozzles", "Pre-Rotate All Nozzles", [&j]() -> bool& { return j.preRotateAllNozzles; });
+    add.tip("Pre-rotate all nozzles on the move to the first feed or pick location, the bottom camera and the first place "
+            "location.");
+    add.integer("feederFaultLimit", "Feeder fault limit", [&j]() -> int& { return j.feederFaultLimit; }, 0, 1000);
+    add.tip("When using deferred errors, a feeder can be automatically disabled if the parts obtained from that feeder "
+            "cause problems. This is the number of errors when a feeder is disabled");
+    add.integer("feederFaultWindowSize", "Feeder fault window size", [&j]() -> int& { return j.feederFaultWindowSize; }, 1, 1000);
+    add.tip("When using deferred errors, a feeder can be automatically disabled if the parts obtained from that feeder "
+            "cause problems. This is the number of recent placements over which it will count the error");
+}
+
 } // namespace
 
 JPSetupProperties::Form JPSetupProperties::forNode(JPCellConfig& cell, const std::string& path, const std::vector<JPFirmwareProfile>& profiles) {
     Form f;
     const JPSetupTree::Path p = JPSetupTree::parse(path);
     if (p.kind == "machine") machineForm(cell, f);
+    else if (p.kind == "jobprocessor") jobProcessorForm(cell, f);
     else if (p.kind == "driver" && has(cell.drivers, p.id)) driverForm(cell, p.id, profiles, f);
     else if (p.kind == "axis" && has(cell.axes, p.id)) axisForm(cell, p.id, f);
     else if (p.kind == "head" && has(cell.heads, p.id)) headForm(cell, p.id, f);

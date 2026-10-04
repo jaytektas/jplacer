@@ -7,6 +7,7 @@
 
 #include "tasks/JPJobMachine.h"
 
+#include <atomic>
 #include <functional>
 #include <string>
 
@@ -38,6 +39,10 @@ public:
     bool park(std::string& why) override;
     bool locateFiducial(const JPLocation& nominal, double diameterMm, JPLocation& found, std::string& why) override;
 
+    // How many times the machine has been moved for the job (OpenPnP's motion
+    // history, for Step Next Motion).
+    int motions() const { return m_motions; }
+
 private:
     // The cell's settings as they are now, and its head (the camera's).
     JPCellConfig config() const;
@@ -48,6 +53,7 @@ private:
     OnMain                                   m_onMain;
     std::function<bool(const std::string&)>  m_ask;
     std::function<void(const std::string&)>  m_progress;
+    std::atomic<int>                         m_motions { 0 };
 };
 
 } // inline namespace jf

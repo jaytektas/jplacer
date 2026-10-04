@@ -181,8 +181,11 @@ void JPlacerJobRun::start(RunState as) {
         hooks.feedersChanged = [this] {
             post([this] { m_job.configurationChanged(); });
         };
-        m_processor = std::make_unique<JPJobProcessor>(m_job.configuration(), m_job.job(), *m_jobMachine,
-                                                       JPJobProcessor::Settings {}, hooks);
+        // As the cell's Machine Setup says (Job Processor).
+        JPJobProcessorConfig settings;
+        if (const JPCell* c = m_machine.cell()) settings = c->config().jobProcessor;
+        m_stepToMotion = settings.steppingToNextMotion;
+        m_processor = std::make_unique<JPJobProcessor>(m_job.configuration(), m_job.job(), *m_jobMachine, settings, hooks);
         setState(as);
         run();
     };
@@ -220,6 +223,7 @@ void JPlacerJobRun::run() {
             }
             if (s != RunState::Running && s != RunState::Pausing) return;
             JPJobProcessor::Failure f;
+            const int motionsBefore = m_jobMachine->motions();
             const JPJobProcessor::Result r = m_processor->next(f);
             if (r == JPJobProcessor::Result::Finished) {
                 post([this] { setState(RunState::Stopped); });
@@ -234,7 +238,8 @@ void JPlacerJobRun::run() {
                 });
                 return;
             }
-            if (m_state == RunState::Pausing) {
+            // Pausing (a Step), at a step that moved the machine when Step Next Motion says so.
+            if (m_state == RunState::Pausing && !(m_stepToMotion && m_jobMachine->motions() == motionsBefore)) {
                 post([this] { setState(RunState::Paused); });
                 return;
             }
@@ -253,12 +258,16 @@ void JPlacerJobRun::fiducialCheck(JPPlacementsHolderLocation* location) {
         return;
     }
     join();
+    JPFiducialLocator::Tolerances tolerances;
+    tolerances.scaling = cell->config().jobProcessor.scalingTolerance;
+    tolerances.shearing = cell->config().jobProcessor.shearingTolerance;
+    tolerances.boardLocationMm = cell->config().jobProcessor.boardLocationToleranceMm;
     // The board or panel set by its fiducials (its own location too, straight
     // in the job), then the camera taken to it.
-    m_worker = std::thread([this, location] {
+    m_worker = std::thread([this, location, tolerances] {
         const JPFiducialLocator::Result r = JPFiducialLocator::locate(
             m_job.configuration(), *m_jobMachine, [this](const std::function<void()>& fn) { onMain(fn); }, { location },
-            JPFiducialLocator::Tolerances {});
+            tolerances);
         if (m_quitting) return;
         post([this, location, r] {
             if (!r.ok) {

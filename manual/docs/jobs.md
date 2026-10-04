@@ -114,8 +114,8 @@ board's origin; **Cancel** puts the board back where it was.
 ## Running the job
 
 **Start** runs the job, a step after another, until every placement is placed; while it runs the button
-is **Pause**, which stops it after the step under way, and then **Resume**. **Step** does one step and
-pauses. **Stop** stops it: the nozzles are emptied at the discard location and the head is parked. The
+is **Pause**, which stops it after the step under way, and then **Resume**. **Step** does one step (on to the next that moves the
+machine, with Machine Setup's Step Next Motion) and pauses. **Stop** stops it: the nozzles are emptied at the discard location and the head is parked. The
 machine must be connected (the buttons are greyed until it is) and homed. If every placement is placed
 already, Start asks whether to mark them all not placed first. The status line says what the job is
 doing ("Feed …", "Pick … using nozzle N1.", "Placing …"), and at the end how many parts were placed and
@@ -135,8 +135,8 @@ A job goes as OpenPnP's does:
    moved, turned and scaled; with three or more, fully. A fit that scales or shears more than 5 %, or moves
    the board more than 5 mm, is refused.
 3. **Planning.** The placements still to do, lowest rank first (a rank ten or more above the lowest
-   waits for it), are ordered by nozzle tip (the tip that can pick most first), then by feeder and by
-   place, the shortest way; each nozzle is given one, with the tip on it if one fits, else a tip that
+   waits for it), are ordered as Machine Setup's **Job order** says (by nozzle tip unless set otherwise,
+   see [Job Processors](machine-setup.md#job-processors)); each nozzle is given one, with the tip on it if one fits, else a tip that
    does.
 4. **Each cycle**: the nozzle tips changed where needed (by their changer steps), the nozzles turned for
    the pick, each part fed (retried as the feeder's Feed Retry Count says; an empty feeder is turned off
@@ -147,13 +147,13 @@ A job goes as OpenPnP's does:
 jplacer has no bottom vision yet: a part is placed as it was picked, as OpenPnP places one with no part
 aligner enabled.
 
-<!-- src: src/tasks/JPJobProcessor.cpp (preFlight, plan, ordered, planner, pick, place, cleanup); src/tasks/JPFiducialLocator.cpp; src/model/JPFiducialFit.cpp; src/app/JPlacerJobMachine.cpp (locateFiducial, changeTip) -->
+<!-- src: src/machine/JPJobProcessorConfig.h; src/tasks/JPJobProcessor.cpp (preFlight, plan, ordered, planner, pick, place, cleanup); src/tasks/JPFiducialLocator.cpp; src/model/JPFiducialFit.cpp; src/app/JPlacerJobMachine.cpp (locateFiducial, changeTip) -->
 
 When something fails, the job pauses and says why (**Job Error**); the board, placement, part or feeder
 it is about is chosen on its tab. **Resume** goes on from there. With **Defer Errors** (or a placement's
 own error handling set to Defer), a placement that fails is put off instead: its feeder's fault is
-counted (shown in the Feeders tab's **Faults**; three in its last six feeds turn the feeder off), and it
-is tried again later, up to five times, or left in error; the job goes on, and says at its end how many
+counted (shown in the Feeders tab's **Faults**; by default three in its last six feeds turn the feeder off), and it
+is tried again later, up to Machine Setup's Max Placement Attempts, or left in error; the job goes on, and says at its end how many
 errors there were.
 
 <!-- src: src/tasks/JPJobProcessor.cpp (plannedStep, finish); src/app/JPlacerJobRun.cpp (run); src/app/JPlacerOpenPnpTabs.cpp (showSource); src/model/JPFeeder.cpp (recordJobFault) -->

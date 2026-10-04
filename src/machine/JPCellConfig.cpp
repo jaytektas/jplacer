@@ -32,6 +32,7 @@ JJson JPCellConfig::toJson() const {
     if (!squareness.axisX.empty()) j["squareness"] = squareness.toJson();
     if (parkAfterHome) j["parkAfterHome"] = true;
     if (discardLocation) j["discardLocation"] = discardLocation->toJson();
+    j["jobProcessor"] = jobProcessor.toJson();
     return j;
 }
 
@@ -59,6 +60,7 @@ bool JPCellConfig::fromJson(const JJson& j, std::string& error) {
         for (JPDriverConfig& d : c.drivers) d.homeAfterConnect = true;
     c.parkAfterHome = j["parkAfterHome"].boolean();
     c.discardLocation = JPMachineLocation::fromJson(j["discardLocation"]);
+    c.jobProcessor = JPJobProcessorConfig::fromJson(j["jobProcessor"]);
     *this = std::move(c);
     return true;
 }

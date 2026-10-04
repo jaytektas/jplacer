@@ -5,6 +5,8 @@
 
 #include "JPJobMachine.h"
 
+#include "machine/JPJobProcessorConfig.h"
+
 #include "model/JPConfiguration.h"
 #include "model/JPJob.h"
 
@@ -38,27 +40,9 @@ inline namespace jf {
 // Hooks::onMain, so a job run on its own thread never races the screen.
 class JPJobProcessor {
 public:
-    // OpenPnP's JobOrderHint and PnpJobPlanner.Strategy, in their order.
-    enum class JobOrder { Part, PartHeight, PartBoard, HeightPartBoard, BoardPart, PickLocation, PickPlaceLocation,
-                          NozzleTips, NozzleTipsByFlexibility, Unsorted };
-    enum class Strategy { Minimize, StartAsPlanned, FullyAsPlanned };
-
-    // OpenPnP's ReferencePnpJobProcessor settings, with its defaults.
-    struct Settings {
-        JobOrder jobOrder               = JobOrder::NozzleTips;
-        int      maxVisionRetries       = 3;
-        int      maxPlacementRetries    = 5;
-        int      feederFaultLimit       = 3;
-        int      feederFaultWindowSize  = 6;
-        bool     optimizeMultipleNozzles = true;
-        int      fiducialLevel          = 1;
-        bool     preRotateAllNozzles    = true;
-        Strategy strategy               = Strategy::Minimize;
-        // OpenPnP's FiducialLocatorTolerances.
-        double   scalingTolerance       = 0.05;
-        double   shearingTolerance      = 0.05;
-        double   boardLocationToleranceMm = 5.0;
-    };
+    using Settings = JPJobProcessorConfig;
+    using JobOrder = JPJobProcessorConfig::JobOrder;
+    using Strategy = JPJobProcessorConfig::Strategy;
 
     struct Hooks {
         // Runs `fn` where the model lives (the screen's thread), waiting for it; none: here.
@@ -111,8 +95,6 @@ public:
     const std::vector<JobPlacement>& jobPlacements() const { return m_jobPlacements; }
     int totalPartsPlaced() const { return m_totalPartsPlaced; }
 
-    static const char* jobOrderName(JobOrder o);
-    static const char* strategyName(Strategy s);
 
 private:
     struct Planned {

@@ -175,6 +175,45 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
     const bool homeAfterEnabled = setting("home-after-enabled");   // every controller's
     c.parkAfterHome = setting("park-after-homed");
     c.discardLocation = location(*machine, "discard-location");
+    // How a job is run, and the fiducial locator's tolerances.
+    if (const JPXmlElement* jp = machine->child("pnp-job-processor")) {
+        JPJobProcessorConfig& j = c.jobProcessor;
+        auto number = [jp](const char* name, double def) {
+            const std::string v = jp->attr(name);
+            return v.empty() ? def : std::strtod(v.c_str(), nullptr);
+        };
+        auto flag = [jp](const char* name, bool def) {
+            const std::string v = jp->attr(name);
+            return v.empty() ? def : v == "true";
+        };
+        const auto& orders = JPJobProcessorConfig::jobOrderKeys();
+        if (const auto it = std::find(orders.begin(), orders.end(), jp->attr("job-order")); it != orders.end())
+            j.jobOrder = JPJobProcessorConfig::JobOrder(it - orders.begin());
+        if (const JPXmlElement* planner = jp->child("planner")) {
+            const auto& strategies = JPJobProcessorConfig::strategyKeys();
+            if (const auto it = std::find(strategies.begin(), strategies.end(), planner->attr("strategy"));
+                it != strategies.end())
+                j.strategy = JPJobProcessorConfig::Strategy(it - strategies.begin());
+        }
+        j.maxVisionRetries = int(number("max-vision-retries", j.maxVisionRetries));
+        j.maxPlacementRetries = int(number("max-placement-retries", j.maxPlacementRetries));
+        j.feederFaultLimit = int(number("feeder-fault-limit", j.feederFaultLimit));
+        j.feederFaultWindowSize = int(number("feeder-fault-window-size", j.feederFaultWindowSize));
+        j.steppingToNextMotion = flag("stepping-to-next-motion", j.steppingToNextMotion);
+        j.optimizeMultipleNozzles = flag("optimize-multiple-nozzles", j.optimizeMultipleNozzles);
+        j.preRotateAllNozzles = flag("pre-rotate-all-nozzles", j.preRotateAllNozzles);
+        j.fiducialLevel = int(number("fiducial-level", j.fiducialLevel));
+    }
+    if (const JPXmlElement* fl = machine->child("fiducial-locator"))
+        if (const JPXmlElement* t = fl->child("tolerances")) {
+            JPJobProcessorConfig& j = c.jobProcessor;
+            if (const JPXmlElement* e = t->child("scaling-tolerance")) j.scalingTolerance = std::strtod(e->text.c_str(), nullptr);
+            if (const JPXmlElement* e = t->child("shearing-tolerance")) j.shearingTolerance = std::strtod(e->text.c_str(), nullptr);
+            if (const JPXmlElement* e = t->child("board-location-tolerance")) {
+                const double v = std::strtod(e->attr("value").c_str(), nullptr);
+                j.boardLocationToleranceMm = e->attr("units") == "Inches" ? v * 25.4 : v;
+            }
+        }
     std::map<std::string, Commands> commands;   // by driver id
 
     if (const JPXmlElement* drivers = machine->child("drivers")) {

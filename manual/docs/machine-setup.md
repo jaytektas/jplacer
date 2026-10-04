@@ -16,6 +16,7 @@ The machine is shown as a tree of its parts:
 - **Nozzle Tips**: the tips the nozzles take, each with its **Load** and **Unload** steps under it.
 - **Cameras**: the cameras fixed to the machine (looking up at the nozzles).
 - **Actuators**: the actuators on the machine rather than a head.
+- **Job Processors**: **ReferencePnpJobProcessor**, how a job is run (below).
 
 Choose a part to see its settings beside the tree, each the full height of the panel; drag the divider between them to give either more
 room (where it is is kept for next time). Over the tree, **Search** keeps to the rows whose name contains
@@ -26,6 +27,27 @@ what the last change could not do, or what is not in use until put right, only w
 to say. A camera's gear icon (in its tab) opens Machine Setup on that camera.
 
 <!-- src: src/setup/JPSetupTree.cpp (build); src/ui/JPMachineSetupPanel.cpp (the search, showNode, setBranch, collapseAll, the tree's menu, the divider, kTreeShare); src/app/JPlacerMachine.cpp (showSetup); src/app/JPlacerSettings.h (kSetupTreeShare) -->
+
+### Job Processors
+
+**ReferencePnpJobProcessor** holds OpenPnP's settings for running a job (imported from an OpenPnP
+machine):
+
+| Setting | |
+|---|---|
+| **Max Placement Attempts** | How many times a placement is tried, when its errors are deferred, before it is left in error. |
+| **Job order** | How the placements are ordered: **Part**, **Height:Part**, **Part:Board**, **Height:Part:Board**, **Board:Part**, **Pick Locations**, **Pick and Place Locations** (the shortest way between feeders, then between places), **Nozzle Tips** (the default: by the tip that picks them, the busiest first), **Nozzle Tips (Inflexible Tips First)** or **Unsorted**. A placement the tips already on the nozzles can pick still goes first. |
+| **Nozzle tip loading strategy** | **Minimize** tip changes; **Start As Planned**, the first cycle of a job as the order says, then as Minimize; **Fully As Planned**, always as the order says. |
+| **Max Vision Attempts** | How many times a part's vision alignment is tried. |
+| **Step Next Motion** | **Step** runs on to the next step that moves the machine. |
+| **Optimize Multiple Nozzles** | With several nozzles, picks and places in the shortest way rather than in nozzle order. |
+| **Pre-Rotate All Nozzles** | Turns every nozzle for its pick (and its place) on the way. |
+| **Feeder fault limit**, **Feeder fault window size** | With deferred errors, a feeder is turned off when this many of its last so many feeds and picks failed. |
+
+The fiducial check's tolerances (5 % scale, 5 % shear, 5 mm of movement) and how many levels of panels
+are checked first are taken from an imported OpenPnP machine too.
+
+<!-- src: src/setup/JPSetupProperties.cpp (jobProcessorForm); src/machine/JPJobProcessorConfig.cpp; src/openpnp/JPOpenPnpMachineImporter.cpp (pnp-job-processor, fiducial-locator); src/app/JPlacerJobRun.cpp (run) -->
 
 ## Adding, removing and ordering parts
 

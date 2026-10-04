@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- Machine Setup > Job Processors > ReferencePnpJobProcessor: the job order, tip loading strategy, attempts,
+  Step Next Motion, nozzle optimizing and pre-rotation, and feeder fault limits, as OpenPnP has them
+  (imported with an OpenPnP machine).
 - The Job tab's Multiple Point Board Location: a board located by jogging the camera over two or more of
   its placements, step by step as in OpenPnP.
 - Jobs run, as OpenPnP runs them: Start (Pause, Resume), Step and Stop on the Job tab and in the Job menu.

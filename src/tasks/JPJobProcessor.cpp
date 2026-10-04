@@ -124,31 +124,6 @@ std::optional<JPLocation> centre(const std::vector<JPLocation>& places) {
 JPJobProcessor::JPJobProcessor(JPConfiguration& config, JPJob& job, JPJobMachine& machine, Settings settings, Hooks hooks)
     : m_config(config), m_job(job), m_machine(machine), m_settings(settings), m_hooks(std::move(hooks)) {}
 
-const char* JPJobProcessor::jobOrderName(JobOrder o) {
-    switch (o) {
-        case JobOrder::Part:                    return "Part";
-        case JobOrder::PartHeight:              return "Part Height";
-        case JobOrder::PartBoard:               return "Part then Board";
-        case JobOrder::HeightPartBoard:         return "Height, Part then Board";
-        case JobOrder::BoardPart:               return "Board then Part";
-        case JobOrder::PickLocation:            return "Pick Location";
-        case JobOrder::PickPlaceLocation:       return "Pick and Place Location";
-        case JobOrder::NozzleTips:              return "Nozzle Tips";
-        case JobOrder::NozzleTipsByFlexibility: return "Nozzle Tips by Flexibility";
-        case JobOrder::Unsorted:                return "Unsorted";
-    }
-    return "";
-}
-
-const char* JPJobProcessor::strategyName(Strategy s) {
-    switch (s) {
-        case Strategy::Minimize:       return "Minimize";
-        case Strategy::StartAsPlanned: return "StartAsPlanned";
-        case Strategy::FullyAsPlanned: return "FullyAsPlanned";
-    }
-    return "";
-}
-
 void JPJobProcessor::main(const std::function<void()>& fn) {
     // A failure inside is carried back to this thread, not thrown on the other.
     std::exception_ptr failed;

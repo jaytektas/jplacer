@@ -73,6 +73,7 @@ private:
     std::thread                          m_worker;
     std::atomic<JPJobPanel::RunState>    m_state { JPJobPanel::RunState::Stopped };
     std::atomic<bool>                    m_quitting { false };
+    bool                                 m_stepToMotion = true;   // Step Next Motion
     std::shared_ptr<bool>                m_alive = std::make_shared<bool>(true);
 };
 
