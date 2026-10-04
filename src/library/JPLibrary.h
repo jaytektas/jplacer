@@ -25,7 +25,8 @@ public:
     // jplacer's data folder's "library".
     static std::string defaultFolder();
 
-    // The library in `folder`: read if there is one, else a new, empty one.
+    // The library in `folder`: read if there is one, else a new one holding
+    // the standard packages (JPStarterLibrary), saved at the first save.
     // False when there is one that cannot be read (then read-only, `problem`).
     bool open(const std::string& folder);
     bool save(std::string& error) const;

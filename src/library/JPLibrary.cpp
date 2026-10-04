@@ -3,6 +3,8 @@
 
 #include "JPLibrary.h"
 
+#include "JPStarterLibrary.h"
+
 #include "common/JPlacerLog.h"
 #include "common/JPlacerPaths.h"
 #include "common/JPWholeFile.h"
@@ -31,7 +33,9 @@ bool JPLibrary::open(const std::string& folder) {
     m_store = JPPartsStore();
     std::error_code ec;
     if (!fs::exists(path(), ec)) {
-        JLOGC(JPlacerLog::kLibrary, JLogLevel::Info) << "no library in " << folder << " yet: starting an empty one";
+        JPStarterLibrary::fill(m_store);
+        JLOGC(JPlacerLog::kLibrary, JLogLevel::Info) << "no library in " << folder << " yet: starting one with "
+                                                     << m_store.packages.size() << " standard package(s)";
         return true;
     }
     const std::optional<JJson> doc = JJson::tryParseFile(path());

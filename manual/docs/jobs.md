@@ -127,7 +127,19 @@ package and footprint, and what the file said its footprint was.
 ## The parts library
 
 The library holds the parts, packages and footprints you keep from job to job. Jobs take copies from it;
-nothing in a job changes it. It is kept in `library.json` in jplacer's data folder
+nothing in a job changes it.
+
+A new library starts with the common packages and their footprints, made from their standards
+(IPC-7351 land patterns, at IPC-7351's zero: pin 1 upper left, a two-terminal part lying along X with
+pin 1 on the left): chip sizes 01005 to 2512, SOT-23, SOT-23-5, SOT-23-6, SOT-223, SOD-123, SOD-323,
+SMA, SMB, SMC, SOIC (narrow, and wide as SOIC-16W to SOIC-28W), TSSOP-8 to TSSOP-28, QFN (3×3 to 7×7,
+0.5 mm pitch, with the exposed pad) and LQFP-32 to LQFP-144. Each is known by the names KiCad, EasyEDA
+and suppliers usually give it (`R_0603_1608Metric`, `R0603`, `C0603` and `0603` are all the 0603
+package), so most boards find their packages without drawing any. It has no parts: those come from
+jobs.
+
+<!-- src: src/library/JPStarterLibrary.cpp (fill); src/library/JPFootprintMaker.cpp -->
+ It is kept in `library.json` in jplacer's data folder
 (`~/.local/share/jplacer/library`). A library file that cannot be read, because it is damaged or was
 written by a newer jplacer, is never overwritten: the library is used empty and read-only, and the status
 bar says why.

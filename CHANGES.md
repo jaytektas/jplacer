@@ -16,7 +16,9 @@ notes.
 - Reading a pick-and-place file now keeps everything it says about each part (supplier part numbers,
   MPN, ratings, package, pin count, pad 1) and gives each placement its part: by part number or MPN
   where the parts library knows it, as a guess to confirm from its value and package, or as a new part.
-- A parts library, kept from job to job: jobs take copies from it and never change it.
+- A parts library, kept from job to job: jobs take copies from it and never change it. A new library
+  starts with the common packages (chip sizes, SOT, SOD, SMA/B/C, SOIC, TSSOP, QFN, LQFP) and their
+  footprints, known by their KiCad, EasyEDA and supplier names.
 - A Parts panel (Job > Parts) lists the job's placements with their parts and whether each can be
   placed: as a table sorted by any column, or as a tree grouped by any column, with a filter that
   narrows it as you type.
