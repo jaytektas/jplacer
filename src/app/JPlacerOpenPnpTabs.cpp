@@ -8,6 +8,7 @@
 #include "JPlacerChoiceDialog.h"
 #include "JPlacerExistingHolderDialog.h"
 #include "JPlacerPanelArrayDialog.h"
+#include "JPlacerPhotonSlotsDialog.h"
 #include "JPlacerImportDialog.h"
 #include "JPlacerSettings.h"
 
@@ -238,6 +239,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_feeders->openMenu = openMenu;
     m_feeders->onChanged = [this] {
         m_job.configurationChanged();
+        ensurePhotonActuator();
     };
     m_feeders->chooseClass = [this](const std::string& title, const std::string& description,
                                     const std::vector<std::string>& classes, std::function<void(std::string)> chosen) {
@@ -286,7 +288,8 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         return out;
     };
     m_feeders->machineAction = [this](const std::string& feederId, const std::string& action) {
-        m_jobRun->machineTask([this, feederId, action](JPJobMachine& machine,
+        if (action.rfind("photon", 0) == 0) ensurePhotonActuator();
+        const bool started = m_jobRun->machineTask([this, feederId, action](JPJobMachine& machine,
                                                        const std::function<void(const std::function<void()>&)>& onMain,
                                                        std::string& why) {
             JPFeederActions::Outcome outcome;
@@ -306,8 +309,20 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
             });
             return ok;
         });
+        // Refused: a search never began.
+        if (!started && action == "photonSearch") m_feeders->searchEnded();
     };
     m_feeders->machineReady = [this] { return m_machine.cell() && m_machine.cell()->isConnected(); };
+    m_feeders->programPhotonSlots = [this] {
+        if (!m_machine.cell() || !m_machine.cell()->isConnected()) {
+            JDialog::message("Error", "Please connect to the machine before running this wizard.");
+            return;
+        }
+        ensurePhotonActuator();
+        m_window.openModal<JPlacerPhotonSlotsDialog>(m_job.configuration(), [this](JPlacerPhotonSlotsDialog::Work work) {
+            return m_jobRun->machineTask(std::move(work));
+        });
+    };
     m_feeders->partUsed = [this](const std::string& partId) {
         for (const JPBoardLocation* l : m_job.job().boardLocations()) {
             if (!l->isEnabled() || !l->holder) continue;
@@ -331,6 +346,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
             return;
         }
         m_job.configurationChanged();
+        ensurePhotonActuator();
     };
 
     // Running the job: a failure's source chosen where it is shown, as OpenPnP does.
@@ -368,6 +384,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         m_packages->refresh();
         m_feeders->refresh();
         m_vision->refresh();
+        ensurePhotonActuator();
     });
 }
 
@@ -493,6 +510,18 @@ bool JPlacerOpenPnpTabs::showDock(const std::string& title) {
             return true;
         }
     return false;
+}
+
+} // inline namespace jf
+
+inline namespace jf {
+
+void JPlacerOpenPnpTabs::ensurePhotonActuator() {
+    for (const JPFeeder& f : m_job.configuration().feeders())
+        if (f.isPhoton()) {
+            m_machine.ensurePhotonActuator();
+            return;
+        }
 }
 
 } // inline namespace jf

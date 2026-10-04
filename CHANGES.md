@@ -11,7 +11,7 @@ notes.
 ## Unreleased
 
 - Photon feeders work as OpenPnP's: found and set up on their bus, fed by their pitch, their slots' locations,
-  and Global Config's Search.
+  Global Config's Search and the Program Feeder Slot Wizard; the PhotonFeederData actuator made when missing.
 - Neoden 4 feeders work as OpenPnP's: actuated with their pitch, turned by their rotation in the tape, Actuate
   and Reset, and their template vision.
 - Slot feeders work as OpenPnP's: banks of feeders loaded into slot auto and slot Schultz feeders, taken from

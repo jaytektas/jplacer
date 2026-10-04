@@ -134,6 +134,11 @@ public:
     std::string   chosenNozzleId() const;
     std::string   tipChangeRefusal(const std::string& nozzleId, const std::string& tipId) const;
     void          setTipOn(const std::string& nozzleId, const std::string& tipId);
+    // OpenPnP's Photon feeders talk through a machine actuator named
+    // PhotonFeederData: made, when the machine has none, on its first
+    // controller, reading with "M485 {value}" and "rs485-reply: (.*)" (a
+    // Machine Setup step like any other).
+    void          ensurePhotonActuator();
     // Where the docks live, and View's entries for them.
     JPlacerLayout& layout() { return m_layout; }
 

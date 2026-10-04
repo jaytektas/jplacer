@@ -43,7 +43,8 @@ public:
     // OpenPnP's submitUiMachineTask: `work` with the machine, on the job's
     // thread while no job step runs; its failure (false, why) shown as an
     // Error. Refused while the job runs.
-    void machineTask(std::function<bool(JPJobMachine&, const std::function<void(const std::function<void()>&)>& onMain,
+    // False when it is refused (a job running, the machine not connected or homed; the status line says so).
+    bool machineTask(std::function<bool(JPJobMachine&, const std::function<void(const std::function<void()>&)>& onMain,
                                         std::string& why)>
                          work);
 

@@ -248,16 +248,16 @@ void JPlacerJobRun::run() {
     });
 }
 
-void JPlacerJobRun::machineTask(
+bool JPlacerJobRun::machineTask(
     std::function<bool(JPJobMachine&, const std::function<void(const std::function<void()>&)>&, std::string&)> work) {
     if (m_state == RunState::Running || m_state == RunState::Pausing || m_state == RunState::Stopping) {
         m_window.showStatus("The job is running: pause it first", kStatusMs);
-        return;
+        return false;
     }
     JPCell* cell = m_machine.cell();
     if (!cell || !cell->isConnected() || !cell->isHomed()) {
         m_window.showStatus(!cell || !cell->isConnected() ? "Connect the machine first" : "Home the machine first", kStatusMs);
-        return;
+        return false;
     }
     join();
     m_worker = std::thread([this, work = std::move(work)] {
@@ -269,6 +269,7 @@ void JPlacerJobRun::machineTask(
             if (!ok) JDialog::message("Error", why);
         });
     });
+    return true;
 }
 
 void JPlacerJobRun::fiducialCheck(JPPlacementsHolderLocation* location) {

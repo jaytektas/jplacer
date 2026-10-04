@@ -598,7 +598,7 @@ void photonForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFee
     add.strip(options.searchStates);
     add.group("Program Feeder Slots");
     add.note("If you've built your own slots and need to program them, use this wizard.");
-    add.button("photonProgram", "Start Wizard", "The Program Feeder Slot Wizard: not in jplacer yet.", false);
+    add.button("photonProgram", "Start Wizard");
 }
 
 // OpenPnP's RapidFeederConfigurationWizard: what every feeder has, the

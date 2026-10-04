@@ -30,8 +30,7 @@ public:
     // group. Its path after (a step's changes with its place), or empty when
     // it is already at that end.
     static std::string move(JPCellConfig& cell, const std::string& path, int by);
-
-private:
+    // An id for a new part, `prefix` and a number no part of the cell has.
     static std::string newId(const JPCellConfig& cell, const std::string& prefix);
 };
 

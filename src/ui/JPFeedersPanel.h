@@ -80,6 +80,8 @@ public:
     // shown on the page's strip; and the search ended.
     void showSearchState(int address, int state);
     void searchEnded();
+    // OpenPnP's Program Feeder Slot Wizard asked for (Global Config's Start Wizard).
+    std::function<void()> programPhotonSlots;
     // What a page's button read from the machine (by its action), shown on the feeder's page.
     void showReading(const std::string& feederId, const std::string& action, const std::string& value);
     // The feeders changed elsewhere (imported, a job's part): shown again.

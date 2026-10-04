@@ -109,6 +109,10 @@ JPFeedersPanel::JPFeedersPanel(JSceneGraph& graph, JPConfiguration& config, doub
             cancelSelection();
             return;
         }
+        if (action == "photonProgram") {
+            if (programPhotonSlots) programPhotonSlots();
+            return;
+        }
         // A search shows its strip from the start, every address not yet asked.
         if (action == "photonSearch") {
             m_searchStates.assign(size_t(std::max(1, m_config.photon().maxFeederAddress())), 0);

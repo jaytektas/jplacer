@@ -62,6 +62,8 @@ private:
     void changed();
     // The machine's default vision settings (bottom vision's, the fiducial locator's).
     std::pair<std::string, std::string> machineVisionDefaults() const;
+    // The machine's PhotonFeederData actuator made when a Photon feeder needs it.
+    void ensurePhotonActuator();
     // The known board (its shared definition) a pointer names.
     std::shared_ptr<JPBoard> boardOf(const JPBoard* board) const;
 
