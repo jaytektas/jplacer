@@ -1,24 +1,26 @@
 # Board
 
-The **Board** panel (a dock on the right, with Machine, Jog and Actuators) holds the board on the
-machine: what is on it, which side is up, and exactly where it is.
+The **Board** panel (a dock on the right, with Machine, Jog and Actuators) holds the open
+[job](jobs.md)'s board on the machine: what is on it, which side is up, and exactly where it is.
 
 <!-- src: src/ui/JPBoardPanel.cpp; src/app/JPlacerBoard.cpp; src/app/JPlacerMachine.cpp (buildPanels) -->
 
 ## Reading the board
 
-**Import Pick-and-Place…** reads the board's pick-and-place file (also called a centroid, CPL or
-position file) as your PCB tool writes it, as CSV: EasyEDA and JLCPCB's, KiCad's, and others. jplacer
-finds the columns by their headings (designator, X and Y, side, rotation, footprint, value), whatever
-the tool calls them, and reads positions in mm, mil or inches, with the unit in the number or in the
-heading. Where a tool gives several positions for a part, the part's centre is used. Fiducials are told
-by their designator (FID…) or footprint (…FIDUCIAL…). Nothing is added to a library: the board is the
-file's.
+**Import Pick-and-Place…** (or **File ▸ Import Pick-and-Place File…**) reads the board's
+pick-and-place file (also called a centroid, CPL or position file) into the open job, as your PCB tool
+writes it, as CSV: EasyEDA and JLCPCB's, KiCad's, and others. jplacer finds the columns by their headings
+(designator, X and Y, side, rotation, footprint, value, and what else the file says about each part; see
+[Reading a board into the job](jobs.md#reading-a-board-into-the-job)), whatever the tool calls them, and
+reads positions in mm, mil or inches, with the unit in the number or in the heading. Where a tool gives
+several positions for a part, the part's centre is used. Fiducials are told by their designator (FID…) or
+footprint (…FIDUCIAL…). Nothing is added to the parts library.
 
-The panel then names the board and counts the parts and fiducials on the side that is up. The board,
-its side and where it was found are kept, and are there again the next time jplacer opens.
+The panel then names the board and counts the parts and fiducials on the side that is up. The board is
+kept in the job; its side and where it was found are kept too, and are there again the next time jplacer
+opens. Opening another job, or reading another board in, starts its position again.
 
-<!-- src: src/import/JPCplImporter.cpp (classify, length, sideOf); src/app/JPlacerBoard.cpp (import, save) -->
+<!-- src: src/import/JPCplImporter.cpp (classify, length, sideOf); src/app/JPlacerJob.cpp (importCpl); src/app/JPlacerBoard.cpp (newBoard, save) -->
 
 ## Which side is up
 
@@ -27,7 +29,7 @@ axis; jplacer works that out from the file, so the positions are the file's as t
 importing, the side with the fiducials is chosen for you if only one side has them. Changing the side
 starts the board's position again.
 
-<!-- src: src/job/JPBoardSide.h; src/app/JPlacerBoard.cpp (import, setSide) -->
+<!-- src: src/job/JPBoardSide.h; src/app/JPlacerBoard.cpp (newBoard, setSide) -->
 
 ## Finding the board
 

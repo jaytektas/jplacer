@@ -10,6 +10,13 @@ notes.
 
 ## Unreleased
 
+- Jobs: File > New Job, Open Job…, Save Job and Save Job As… keep a board and the parts it needs in a
+  .jpjob file. The job open last is opened again at start, and you are asked to save changes before
+  they would be lost.
+- Reading a pick-and-place file now keeps everything it says about each part (supplier part numbers,
+  MPN, ratings, package, pin count, pad 1) and gives each placement its part: by part number or MPN
+  where the parts library knows it, as a guess to confirm from its value and package, or as a new part.
+- A parts library, kept from job to job: jobs take copies from it and never change it.
 - jplacer can now talk to a machine. A machine is described by a cell file, and
   Machine > Import OpenPnP Machine… makes one from an OpenPnP machine.xml.
 - Machine > Connect connects to the machine's controllers, recognises grblHAL, Grbl

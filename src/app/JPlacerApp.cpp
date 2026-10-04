@@ -45,7 +45,9 @@ JPlacerApp::JPlacerApp(std::string settingsPath) {
         *m_window, JAppUpdater::JConfig{ "jplacer", JPLACER_VERSION, kReleasesApi, kUpdateUrlEnv,
                                          JPlacerSettings::kUpdatesBeta });
 
-    m_machine = std::make_unique<JPlacerMachine>(*m_window, m_app.sceneGraph());
+    m_job = std::make_unique<JPlacerJob>(*m_window);
+    m_window->onCloseRequest = [this] { return m_job->mayClose(); };
+    m_machine = std::make_unique<JPlacerMachine>(*m_window, m_app.sceneGraph(), *m_job);
     JMenuManager::instance().setTearOffEnabled(JPlacerSettings::tearOffMenus());
     m_keys = std::make_unique<JPKeyMap>();
     JPlacerMenuBuilder::build(*m_window, m_app.sceneGraph(), *this);
@@ -73,6 +75,7 @@ JPlacerApp::JPlacerApp(std::string settingsPath) {
 
 JPlacerApp::~JPlacerApp() {
     JAiBus::instance().onAction = nullptr;   // it calls into this app
+    if (m_window) m_window->onCloseRequest = nullptr;
     // The updater records "don't ask about this version again" in JSettings
     // without saving, so the file is written once more on the way out.
     JPlacerSettings::save();

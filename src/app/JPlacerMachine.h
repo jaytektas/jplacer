@@ -39,7 +39,7 @@ inline namespace jf {
 // The cell opened last is opened again at start (JPlacerSettings::kMachineCell).
 class JPlacerMachine {
 public:
-    JPlacerMachine(JAppWindow& window, JSceneGraph& graph);
+    JPlacerMachine(JAppWindow& window, JSceneGraph& graph, JPlacerJob& job);
     ~JPlacerMachine();
 
     JPlacerMachine(const JPlacerMachine&)            = delete;
@@ -146,6 +146,7 @@ private:
     };
 
     JAppWindow&                         m_window;
+    JPlacerJob&                         m_job;      // the open job, whose board the Board panel shows
     JSceneGraph&                        m_graph;
     JPlacerLayout                       m_layout;
     std::vector<JPFirmwareProfile>      m_profiles;

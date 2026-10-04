@@ -49,11 +49,15 @@ public:
     static constexpr const char* kJogSpeeds        = "jog.speeds";
     // The cell file (cells/<name>.json) opened last; opened again at start.
     static constexpr const char* kMachineCell      = "machine.cell";
-    // The board on the machine: its pick-and-place file, the side up
-    // ("top" or "bottom"), where it is (its map to the machine, six numbers
-    // "a b c d tx ty", see JPAffine2D) and whether that was measured by its
-    // fiducials (true) or is a starting guess.
-    static constexpr const char* kBoardFile        = "board.file";
+    // The job (.jpjob) open last; opened again at start.
+    static constexpr const char* kJobFile          = "job.file";
+    // The folder the main parts library is kept in (JPLibrary); empty: the
+    // default, in jplacer's data folder.
+    static constexpr const char* kLibraryFolder    = "library.folder";
+    // The job's board on the machine: the side up ("top" or "bottom"), where
+    // it is (its map to the machine, six numbers "a b c d tx ty", see
+    // JPAffine2D) and whether that was measured by its fiducials (true) or is
+    // a starting guess.
     static constexpr const char* kBoardSide        = "board.side";
     static constexpr const char* kBoardPlace       = "board.place";
     static constexpr const char* kBoardMeasured    = "board.measured";

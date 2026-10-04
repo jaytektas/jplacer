@@ -5,11 +5,11 @@
 
 #include "common/JPlacerLog.h"
 #include "common/JPlacerPaths.h"
+#include "common/JPWholeFile.h"
 
 #include <j/core/Log.h>
 
 #include <filesystem>
-#include <fstream>
 #include <system_error>
 
 inline namespace jf {
@@ -54,26 +54,7 @@ bool JPLibrary::save(std::string& error) const {
         error = m_problem;
         return false;
     }
-    std::error_code ec;
-    fs::create_directories(m_folder, ec);
-    const std::string tmp = path() + ".new";
-    {
-        std::ofstream out(tmp, std::ios::binary | std::ios::trunc);
-        out << m_store.toJson().dump(2) << "\n";
-        out.flush();
-        if (!out) {
-            error = tmp + ": could not be written";
-            fs::remove(tmp, ec);
-            return false;
-        }
-    }
-    fs::rename(tmp, path(), ec);
-    if (ec) {
-        error = path() + ": could not be replaced (" + ec.message() + ")";
-        fs::remove(tmp, ec);
-        return false;
-    }
-    return true;
+    return JPWholeFile::write(path(), m_store.toJson().dump(2) + "\n", error);
 }
 
 } // inline namespace jf

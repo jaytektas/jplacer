@@ -6,7 +6,6 @@
 #include "JPlacerSettings.h"
 
 #include "common/JPlacerLog.h"
-#include "import/JPCplImporter.h"
 
 #include <j/config/Settings.h>
 #include <j/core/Dialog.h>
@@ -31,28 +30,29 @@ std::string mm(double v) {
 
 } // namespace
 
-JPlacerBoard::JPlacerBoard(JAppWindow& window, JPlacerCameraTasks& tasks, Square square)
-    : m_window(window), m_tasks(tasks), m_square(std::move(square)) {
+JPlacerBoard::JPlacerBoard(JAppWindow& window, JPlacerJob& job, JPlacerCameraTasks& tasks, Square square)
+    : m_window(window), m_job(job), m_tasks(tasks), m_square(std::move(square)) {
     const JSettings& s = JSettings::instance();
-    const std::string file = s.get<std::string>(JPlacerSettings::kBoardFile, "");
-    if (file.empty()) return;
-    std::string error;
-    if (!read(file, error)) {
-        JLOGC(JPlacerLog::kBoard, JLogLevel::Warn) << error;
-        return;
-    }
     m_place.side = s.get<std::string>(JPlacerSettings::kBoardSide, "top") == "bottom" ? JPPlacement::Side::Bottom
                                                                                      : JPPlacement::Side::Top;
     std::istringstream place(s.get<std::string>(JPlacerSettings::kBoardPlace, ""));
     JPAffine2D& m = m_place.toMachine;
-    m_placed = bool(place >> m.a >> m.b >> m.c >> m.d >> m.tx >> m.ty);
+    m_placed = !board().placements.empty() && bool(place >> m.a >> m.b >> m.c >> m.d >> m.tx >> m.ty);
     m_measured = m_placed && s.get<bool>(JPlacerSettings::kBoardMeasured, false);
+    m_watch = m_job.watch([this](JPlacerJob::Change what) {
+        if (what == JPlacerJob::Change::Board) newBoard();
+        else show();
+    });
+}
+
+JPlacerBoard::~JPlacerBoard() {
+    m_job.unwatch(m_watch);
 }
 
 std::unique_ptr<JPBoardPanel> JPlacerBoard::makePanel(JSceneGraph& graph) {
     auto panel = std::make_unique<JPBoardPanel>(graph);
     m_panel = panel.get();
-    m_panel->onImport           = [this] { import(); };
+    m_panel->onImport           = [this] { m_job.importCpl(); };
     m_panel->onSide             = [this](bool bottom) { setSide(bottom); };
     m_panel->onCameraOnFiducial = [this](const std::string& d) { cameraOn(d); };
     m_panel->onLocate           = [this] { locate(); };
@@ -62,34 +62,17 @@ std::unique_ptr<JPBoardPanel> JPlacerBoard::makePanel(JSceneGraph& graph) {
     return panel;
 }
 
-bool JPlacerBoard::read(const std::string& path, std::string& error) {
-    JPBoard board;
-    std::vector<std::string> notes;
-    if (!JPCplImporter::read(path, board, notes, error)) return false;
-    for (const std::string& n : notes) JLOGC(JPlacerLog::kImportCpl, JLogLevel::Info) << path << ": " << n;
-    m_board = std::move(board);
-    m_file = path;
-    return true;
-}
-
-void JPlacerBoard::import() {
-    JDialog::openFile("Import Pick-and-Place File", { "csv", "txt", "pos" }, [this](std::string path) {
-        std::string error;
-        if (!read(path, error)) {
-            JDialog::message("The pick-and-place file could not be read", error);
-            return;
-        }
-        // A new board is nowhere yet; the side with the fiducials is a fair first guess.
-        m_placed = m_measured = false;
-        m_found.clear();
-        m_leans.clear();
-        m_place.side = m_board.fiducials(JPPlacement::Side::Top).empty() && !m_board.fiducials(JPPlacement::Side::Bottom).empty()
-                           ? JPPlacement::Side::Bottom
-                           : JPPlacement::Side::Top;
-        m_window.showStatus(m_board.name + ": " + std::to_string(m_board.placements.size()) + " placements read", kStatusMs);
-        save();
-        show();
-    });
+void JPlacerBoard::newBoard() {
+    // A new board is nowhere yet; the side with the fiducials is a fair first guess.
+    m_placed = m_measured = false;
+    m_found.clear();
+    m_leans.clear();
+    m_place = JPBoardSide();
+    m_place.side = board().fiducials(JPPlacement::Side::Top).empty() && !board().fiducials(JPPlacement::Side::Bottom).empty()
+                       ? JPPlacement::Side::Bottom
+                       : JPPlacement::Side::Top;
+    save();
+    show();
 }
 
 void JPlacerBoard::setSide(bool bottom) {
@@ -106,7 +89,7 @@ void JPlacerBoard::setSide(bool bottom) {
 }
 
 void JPlacerBoard::cameraOn(const std::string& designator) {
-    const JPPlacement* fid = m_board.find(designator);
+    const JPPlacement* fid = board().find(designator);
     double x, y;
     std::string why;
     if (!fid || !m_tasks.headCameraView(x, y, why)) {
@@ -135,7 +118,7 @@ void JPlacerBoard::locate() {
     }
     if (m_panel) m_panel->setBusy(true);
     std::weak_ptr<bool> alive = m_alive;
-    m_tasks.locateBoard(m_board, m_place, [this, alive](const JPBoardLocator::Result& r) {
+    m_tasks.locateBoard(board(), m_place, [this, alive](const JPBoardLocator::Result& r) {
         if (const auto a = alive.lock(); !a || !*a) return;
         if (m_panel) m_panel->setBusy(false);
         m_found.clear();
@@ -153,7 +136,7 @@ void JPlacerBoard::locate() {
 }
 
 void JPlacerBoard::goTo(const std::string& designator) {
-    const JPPlacement* p = m_board.find(designator);
+    const JPPlacement* p = board().find(designator);
     if (!p || !m_placed) return;
     double x, y;
     m_place.toMachine.apply(p->x, p->y, x, y);
@@ -166,19 +149,19 @@ void JPlacerBoard::show() {
     if (!m_panel) return;
     const bool bottom = m_place.side == JPPlacement::Side::Bottom;
     std::vector<std::string> fiducials, rows, designators;
-    for (const JPPlacement* f : m_board.fiducials(m_place.side)) fiducials.push_back(f->designator);
-    for (const JPPlacement& p : m_board.placements) {
+    for (const JPPlacement* f : board().fiducials(m_place.side)) fiducials.push_back(f->designator);
+    for (const JPPlacement& p : board().placements) {
         if (p.side != m_place.side || p.fiducial) continue;
         rows.push_back(p.designator + "   " + p.footprint + (p.value.empty() ? "" : "   " + p.value));
         designators.push_back(p.designator);
     }
     std::string summary;
-    if (!m_board.placements.empty())
-        summary = m_board.name + ": " + std::to_string(rows.size()) + " parts and " + std::to_string(fiducials.size())
+    if (!board().placements.empty())
+        summary = board().name + ": " + std::to_string(rows.size()) + " parts and " + std::to_string(fiducials.size())
                 + " fiducials on this side";
     m_panel->showBoard(summary, bottom, fiducials, rows, designators);
     if (!m_placed)
-        m_panel->showPlace(m_board.placements.empty() ? "" : "Put the camera on a fiducial, choose it, press Camera Is on It.");
+        m_panel->showPlace(board().placements.empty() ? "" : "Put the camera on a fiducial, choose it, press Camera Is on It.");
     else
         m_panel->showPlace(std::string(m_measured ? "Found by its fiducials" : "Starting point") + ": origin at "
                            + mm(m_place.toMachine.tx) + ", " + mm(m_place.toMachine.ty) + ", turned "
@@ -207,7 +190,7 @@ std::vector<JPViewMark> JPlacerBoard::marks(const std::string& cameraId) const {
     if (!m_placed || !m_tasks.cameraLook(cameraId, cal, vx, vy)) return out;
     const double scale = std::sqrt(cal.scaleX() * cal.scaleY());
     const double defaultMm = JPBoardLocator::Options().fiducialDiameterMm;   // as the locator looks for them
-    for (const JPPlacement& p : m_board.placements) {
+    for (const JPPlacement& p : board().placements) {
         if (p.side != m_place.side) continue;
         double x, y, px, py;
         m_place.toMachine.apply(p.x, p.y, x, y);
@@ -249,7 +232,6 @@ void JPlacerBoard::square() {
 
 void JPlacerBoard::save() const {
     JSettings& s = JSettings::instance();
-    s.set(JPlacerSettings::kBoardFile, m_file);
     s.set(JPlacerSettings::kBoardSide, std::string(m_place.side == JPPlacement::Side::Bottom ? "bottom" : "top"));
     std::string place;
     if (m_placed) {

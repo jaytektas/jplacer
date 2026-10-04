@@ -35,6 +35,7 @@ file(GLOB JPLACER_VISION_SRC  CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/
 file(GLOB JPLACER_GEOMETRY_SRC CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/geometry/*.cpp)
 file(GLOB JPLACER_IMPORT_SRC  CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/import/*.cpp)
 file(GLOB JPLACER_LIBRARY_SRC CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/library/*.cpp)
+file(GLOB JPLACER_JOB_SRC     CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/job/*.cpp)
 file(GLOB JPLACER_TASKS_SRC   CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/tasks/*.cpp)
 file(GLOB JPLACER_SETUP_SRC   CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/setup/*.cpp)
 file(GLOB JPLACER_UI_SRC      CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/*.cpp)
@@ -68,16 +69,15 @@ target_link_libraries(jplacer_vision PUBLIC jplacer_common)
 # hardware.
 add_library(jplacer_geometry STATIC ${JPLACER_GEOMETRY_SRC})
 target_link_libraries(jplacer_geometry PUBLIC jplacer_common)
-add_library(jplacer_job INTERFACE)
-target_link_libraries(jplacer_job INTERFACE jplacer_geometry)
-# Reading other tools' files into a board (nothing goes into the library).
-add_library(jplacer_import STATIC ${JPLACER_IMPORT_SRC})
-target_link_libraries(jplacer_import PUBLIC jplacer_job)
-
 # Parts, packages and footprints: the main library on disk, a job's own, and
 # matching a board's placements to them. No GUI, no hardware.
 add_library(jplacer_library STATIC ${JPLACER_LIBRARY_SRC})
-target_link_libraries(jplacer_library PUBLIC jplacer_job)
+target_link_libraries(jplacer_library PUBLIC jplacer_common)
+add_library(jplacer_job STATIC ${JPLACER_JOB_SRC})
+target_link_libraries(jplacer_job PUBLIC jplacer_geometry jplacer_library)
+# Reading other tools' files into a board (nothing goes into the library).
+add_library(jplacer_import STATIC ${JPLACER_IMPORT_SRC})
+target_link_libraries(jplacer_import PUBLIC jplacer_job)
 
 # Procedures that drive the machine, its cameras and vision together:
 # calibrating a camera, the visual homing test, finding a board.
@@ -112,7 +112,7 @@ target_precompile_headers(jplacer PRIVATE ${JPLACER_PCH})
 option(JPLACER_TESTS "Build jplacer's tests" ON)
 if(JPLACER_TESTS)
     enable_testing()
-    foreach(module machine openpnp camera vision geometry import library tasks setup)
+    foreach(module machine openpnp camera vision geometry import library job tasks setup)
       file(GLOB tests CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tests/${module}/*.cpp)
       foreach(src ${tests})
         get_filename_component(name ${src} NAME_WE)

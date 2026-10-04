@@ -64,7 +64,13 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
     auto ctrl = [](uint32_t k, bool shift = false) { return JMenuShortcut{ static_cast<K>(k), true, false, shift }; };
 
     JMenu* file = newMenu(window, "File");
-    addPending(file, graph, { "New Job", "Open Job\xE2\x80\xA6", "Save Job", "Save Job As\xE2\x80\xA6" });
+    entry(keys, file, graph, "file.newJob", "File", "New Job", ctrl('N'), [&app] { app.job().newJob(); });
+    entry(keys, file, graph, "file.openJob", "File", "Open Job\xE2\x80\xA6", ctrl('O'), [&app] { app.job().open(); });
+    entry(keys, file, graph, "file.saveJob", "File", "Save Job", ctrl('S'), [&app] { app.job().save(); });
+    entry(keys, file, graph, "file.saveJobAs", "File", "Save Job As\xE2\x80\xA6", ctrl('S', true), [&app] { app.job().saveAs(); });
+    file->addSeparator(graph);
+    entry(keys, file, graph, "file.importCpl", "File", "Import Pick-and-Place File\xE2\x80\xA6", none,
+          [&app] { app.job().importCpl(); });
     file->addSeparator(graph);
     entry(keys, file, graph, "file.quit", "File", "Quit", none, [&window] { window.requestClose(); });
 

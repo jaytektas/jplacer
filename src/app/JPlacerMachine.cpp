@@ -46,8 +46,8 @@ constexpr const char* kOpenPnpMachineFile = "machine.xml";
 
 } // namespace
 
-JPlacerMachine::JPlacerMachine(JAppWindow& window, JSceneGraph& graph)
-    : m_window(window), m_graph(graph), m_layout(window), m_profiles(JPFirmwareProfile::loadAll()),
+JPlacerMachine::JPlacerMachine(JAppWindow& window, JSceneGraph& graph, JPlacerJob& job)
+    : m_window(window), m_job(job), m_graph(graph), m_layout(window), m_profiles(JPFirmwareProfile::loadAll()),
       m_connectIcon(graph), m_homeIcon(graph),
       m_emergencyStop(graph, "Emergency Stop", &JPIcons::emergencyStop,
                       "EMERGENCY STOP: every controller reset at once; home again after (Shift+Esc)"),
@@ -236,7 +236,7 @@ void JPlacerMachine::buildPanels(Keep keep) {
     panels.push_back({ "Jog",       Home::Controls, std::move(jog) });
     panels.push_back({ "Actuators", Home::Controls, std::make_unique<JPActuatorPanel>(m_graph, *m_cell) });
     if (cameras) {
-        m_board = std::make_unique<JPlacerBoard>(m_window, *m_cameraTasks,
+        m_board = std::make_unique<JPlacerBoard>(m_window, m_job, *m_cameraTasks,
             [this](const JPMountConfig& mount, double xPerY) { squareMachine(mount, xPerY); });
         panels.push_back({ "Board", Home::Work, m_board->makePanel(m_graph) });
         for (CameraDock& c : m_cameras)

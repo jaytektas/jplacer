@@ -8,6 +8,7 @@
 #include <j/core/GenesisComponents.h>
 
 #include "JPKeyMap.h"
+#include "JPlacerJob.h"
 #include "JPlacerMachine.h"
 
 #include <memory>
@@ -38,6 +39,7 @@ public:
     JAppWindow&  window()  { return *m_window; }
     JAppUpdater& updater() { return *m_updater; }
     JPlacerMachine& machine() { return *m_machine; }
+    JPlacerJob& job() { return *m_job; }
     JPKeyMap& keys() { return *m_keys; }
 
 private:
@@ -47,6 +49,9 @@ private:
     // turned off in Preferences), on Help > Check for Updates, and installed as
     // the window closes.
     std::unique_ptr<JAppUpdater> m_updater;
+    // The open job and the parts library; outlives the machine, whose Board
+    // panel shows the job's board.
+    std::unique_ptr<JPlacerJob> m_job;
     // The open cell and its panel; before the window in destruction order.
     std::unique_ptr<JPlacerMachine> m_machine;
     // Every function a key can be given; after the machine, so gone first.

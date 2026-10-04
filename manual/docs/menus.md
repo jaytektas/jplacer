@@ -12,10 +12,14 @@ key taken off, in [Preferences, Keys](preferences.md#keys); the menu then shows 
 
 | Entry | |
 |---|---|
-| **New Job**, **Open Job…**, **Save Job**, **Save Job As…** | Not yet available. |
+| **New Job** (Ctrl+N) | Starts an empty job (see [Jobs](jobs.md#new-open-and-save)). |
+| **Open Job…** (Ctrl+O) | Opens a `.jpjob` file. |
+| **Save Job** (Ctrl+S) | Saves the open job. |
+| **Save Job As…** (Ctrl+Shift+S) | Saves the open job to a file you choose. |
+| **Import Pick-and-Place File…** | Reads a board into the open job and gives its placements their parts ([Reading a board into the job](jobs.md#reading-a-board-into-the-job)). |
 | **Quit** | Closes jplacer. If an update has been downloaded, it is installed now. |
 
-<!-- src: src/app/JPlacerMenuBuilder.cpp (the File menu); src/app/JPlacerApp.cpp (run, installStaged) -->
+<!-- src: src/app/JPlacerMenuBuilder.cpp (the File menu); src/app/JPlacerJob.cpp; src/app/JPlacerApp.cpp (run, installStaged) -->
 
 ## Edit
 
