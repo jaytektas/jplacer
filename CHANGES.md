@@ -10,6 +10,13 @@ notes.
 
 ## Unreleased
 
+- A Panels tab, as OpenPnP's: add, create, copy, remove and clean up panels; each panel's children
+  (boards and panels, where they lie, side, enabled, fiducial check) with Add Child, Remove, Replace and
+  the right-click menu; its alignment fiducials and pseudo-placements, chosen from its boards' with Use
+  Children Fiducials (hull, Auto Select); and arrays of a child, rectangular or circular, previewed as
+  they are set.
+- The board and panel viewer (View Board, View Panel): outlines by side, placements, fiducials, origins,
+  locations and a reticle, viewed from the top or bottom, zoomed and panned, with a right-click menu.
 - A Boards tab, as OpenPnP's: add, create, copy, remove and clean up boards; each board's placements
   (Enabled, ID, Part, Side, X, Y, Rot., Type, Error Handling, Rank, Comments) changed in place, with
   OpenPnP's right-click menu and Space to turn one on or off. Placements are imported with OpenPnP's

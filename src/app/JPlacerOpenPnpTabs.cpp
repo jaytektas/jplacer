@@ -3,9 +3,14 @@
 
 #include "JPlacerOpenPnpTabs.h"
 
+#include "JPlacerChildFiducialsDialog.h"
 #include "JPlacerChoiceDialog.h"
+#include "JPlacerExistingHolderDialog.h"
+#include "JPlacerPanelArrayDialog.h"
 #include "JPlacerImportDialog.h"
 #include "JPlacerSettings.h"
+
+#include "model/JPDefinitionChanges.h"
 
 #include "ui/JPFootprintOverlay.h"
 
@@ -34,7 +39,10 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_boards = std::make_unique<JPBoardsPanel>(graph, job.configuration(), currentJob,
                                                JSettings::instance().get<double>(JPlacerSettings::kBoardsSplit, kSplit));
     m_boards->openMenu = openMenu;
-    m_boards->onChanged = [this] { changed(); };
+    m_boards->onChanged = [this] {
+        if (m_boardViewer) m_boardViewer->regenerate();
+        changed();
+    };
     m_boards->confirmSave = [this](JPPlacementsHolder& h, std::function<void()> then) { confirmSave(h, std::move(then)); };
     JPBoardPlacementsPanel& placements = m_boards->placements();
     placements.openImporter = [this](const JPBoardImporter& importer, std::function<void(JPBoard&)> imported) {
@@ -44,9 +52,101 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
                                   int cancelIndex, std::function<void(int)> chosen) {
         m_window.openModal<JPlacerChoiceDialog>(title, question, std::move(options), cancelIndex, std::move(chosen));
     };
+    // The board viewer: a placement turned on or off there is turned so on the board.
+    m_boardViewer = std::make_unique<JPlacerViewerDock>(graph, m_layout, "Board");
+    m_boardViewer->canvas().onPlacementEnabled = [this, currentJob](JPPlacementsHolderLocation* where,
+                                                                    const std::string& id, bool on) {
+        if (!where || !where->holder) return;
+        JPDefinitionChanges(m_job.configuration(), currentJob()).placement(*where->holder, id, [on](JPPlacement& p) {
+            p.enabled = on;
+        });
+        m_boards->refresh();
+        m_boardViewer->regenerate();
+        changed();
+    };
+    placements.onViewBoard = [this] { m_boardViewer->open(boardOf(m_boards->placements().board())); };
+    m_boards->onBoardShown = [this](JPBoard* b) { m_boardViewer->follow(boardOf(b)); };
     m_boardsDock = std::make_unique<JDockWidget>("Boards", 0.f, 0.f, 0.f, 0.f);
     m_boardsDock->setContent(m_boards.get());
     m_layout.add(m_boardsDock.get(), JPlacerLayout::Home::Work);
+
+    // Panels: its definition's dialogs, and the panel viewer.
+    m_panels = std::make_unique<JPPanelsPanel>(graph, job.configuration(), currentJob,
+                                               JSettings::instance().get<double>(JPlacerSettings::kPanelsSplit, kSplit));
+    m_panels->openMenu = openMenu;
+    m_panels->confirmSave = [this](JPPlacementsHolder& h, std::function<void()> then) { confirmSave(h, std::move(then)); };
+    m_panels->onChanged = [this] {
+        if (m_panelViewer) m_panelViewer->regenerate();
+        m_boards->refresh();
+        changed();
+    };
+    JPPanelDefinitionPanel& definition = m_panels->definition();
+    definition.chooseExisting = [this](const std::string& title, const std::string& what,
+                                       std::function<void(std::string)> chosen) {
+        std::vector<std::string> files;
+        if (what == "board")
+            for (const auto& b : m_job.configuration().boards()) files.push_back(b->file);
+        else
+            for (const auto& p : m_job.configuration().panels()) files.push_back(p->file);
+        m_window.openModal<JPlacerExistingHolderDialog>(title, what, files, std::move(chosen));
+    };
+    definition.openArray = [this, currentJob](JPPanelLocation& panel, JPPlacementsHolderLocation& child,
+                                              std::function<void()> done) {
+        m_window.openModal<JPlacerPanelArrayDialog>(m_job.configuration(), currentJob(), panel, child, std::move(done));
+    };
+    definition.chooseChildFiducials = [this](JPPanelLocation& panel, std::function<void(std::vector<std::string>)> chosen) {
+        m_window.openModal<JPlacerChildFiducialsDialog>(m_job.configuration(), panel, std::move(chosen));
+    };
+    m_panelViewer = std::make_unique<JPlacerViewerDock>(graph, m_layout, "Panel");
+    auto panelOf = [this](const JPPanel* panel) {
+        std::shared_ptr<JPPlacementsHolder> found;
+        for (const auto& p : m_job.configuration().panels())
+            if (p.get() == panel) found = p;
+        return found;
+    };
+    definition.onViewPanel = [this, panelOf] { m_panelViewer->open(panelOf(m_panels->definition().panel())); };
+    m_panels->onPanelShown = [this, panelOf](JPPanel* p) { m_panelViewer->follow(panelOf(p)); };
+    // The panel viewer's menu: the panel's direct children on or off, their fiducials checked or not.
+    m_panelViewer->canvas().onLocationEnabled = [this, currentJob](JPPlacementsHolderLocation* where, bool on) {
+        auto* def = m_panels->definition().panel();
+        if (!where || !def) return;
+        JPDefinitionChanges(m_job.configuration(), currentJob()).child(*def, where->id, [on](JPPlacementsHolderLocation& c) {
+            c.locallyEnabled = on;
+        });
+        m_panels->refresh();
+        m_panelViewer->regenerate();
+        changed();
+    };
+    m_panelViewer->canvas().onCheckFiducials = [this, currentJob](JPPlacementsHolderLocation* where, bool check) {
+        auto* def = m_panels->definition().panel();
+        if (!where || !def) return;
+        JPDefinitionChanges(m_job.configuration(), currentJob()).child(*def, where->id, [check](JPPlacementsHolderLocation& c) {
+            c.checkFiducials = check;
+        });
+        m_panels->refresh();
+        m_panelViewer->regenerate();
+        changed();
+    };
+    m_panelViewer->canvas().onPlacementEnabled = [this, currentJob](JPPlacementsHolderLocation* where,
+                                                                    const std::string& id, bool on) {
+        auto* def = m_panels->definition().panel();
+        if (!where || !def) return;
+        if (def->find(id)) {
+            JPDefinitionChanges(m_job.configuration(), currentJob()).placement(*def, id, [on](JPPlacement& p) {
+                p.enabled = on;
+            });
+        } else if (on) {
+            def->disabledPseudoPlacements.erase(id);
+        } else {
+            def->disabledPseudoPlacements.insert(id);
+        }
+        m_panels->refresh();
+        m_panelViewer->regenerate();
+        changed();
+    };
+    m_panelsDock = std::make_unique<JDockWidget>("Panels", 0.f, 0.f, 0.f, 0.f);
+    m_panelsDock->setContent(m_panels.get());
+    m_layout.add(m_panelsDock.get(), JPlacerLayout::Home::Work);
 
     m_parts = std::make_unique<JPPartsPanel>(graph, job.configuration(),
                                              JSettings::instance().get<double>(JPlacerSettings::kPartsSplit, kSplit));
@@ -73,6 +173,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_layout.add(m_packagesDock.get(), JPlacerLayout::Home::Work);
 
     m_watch = m_job.watch([this](JPlacerJob::Change) {
+        m_panels->refresh();
         m_boards->refresh();
         m_parts->refresh();
         m_packages->refresh();
@@ -83,6 +184,7 @@ JPlacerOpenPnpTabs::~JPlacerOpenPnpTabs() {
     JSettings::instance().set(JPlacerSettings::kPartsSplit, m_parts->split());
     JSettings::instance().set(JPlacerSettings::kPackagesSplit, m_packages->split());
     JSettings::instance().set(JPlacerSettings::kBoardsSplit, m_boards->split());
+    JSettings::instance().set(JPlacerSettings::kPanelsSplit, m_panels->split());
     JPlacerSettings::save();
     m_job.unwatch(m_watch);
     m_machine.setCameraOverlay(kFootprintOverlay, nullptr);
@@ -92,10 +194,20 @@ JPlacerOpenPnpTabs::~JPlacerOpenPnpTabs() {
     m_packagesDock->setContent(nullptr);
     m_layout.remove(m_boardsDock.get());
     m_boardsDock->setContent(nullptr);
+    m_boardViewer.reset();
+    m_layout.remove(m_panelsDock.get());
+    m_panelsDock->setContent(nullptr);
+    m_panelViewer.reset();
 }
 
 void JPlacerOpenPnpTabs::changed() {
     m_job.configurationChanged();
+}
+
+std::shared_ptr<JPBoard> JPlacerOpenPnpTabs::boardOf(const JPBoard* board) const {
+    for (const auto& b : m_job.configuration().boards())
+        if (b.get() == board) return b;
+    return nullptr;
 }
 
 const std::vector<std::unique_ptr<JPBoardImporter>>& JPlacerOpenPnpTabs::importers() const {
@@ -165,7 +277,7 @@ bool JPlacerOpenPnpTabs::mayClose() {
 }
 
 bool JPlacerOpenPnpTabs::showDock(const std::string& title) {
-    for (JDockWidget* d : { m_boardsDock.get(), m_partsDock.get(), m_packagesDock.get() })
+    for (JDockWidget* d : { m_panelsDock.get(), m_boardsDock.get(), m_partsDock.get(), m_packagesDock.get() })
         if (title == d->title()) {
             m_layout.show(d);
             return true;

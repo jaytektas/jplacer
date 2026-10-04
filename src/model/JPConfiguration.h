@@ -82,6 +82,10 @@ public:
     // Every instance of the definition `def`: its uses in the job and on
     // the known panels, at any depth.
     std::vector<JPPlacementsHolder*> instancesOf(const JPPlacementsHolder& def, const JPJob* job) const;
+    // The same, as the places they lie (each a board or panel location).
+    std::vector<JPPlacementsHolderLocation*> instanceLocationsOf(const JPPlacementsHolder& def, const JPJob* job) const;
+    // The known board or panel (to change) that `h` is, or is an instance of.
+    JPPlacementsHolder* definitionOf(const JPPlacementsHolder& h) const;
     // Whether `h` is used in the job, or on any panel but itself.
     bool isInUse(const JPPlacementsHolder& h, const JPJob* job) const;
 

@@ -64,6 +64,26 @@ void JPPanel::removeChild(const JPPlacementsHolderLocation* c) {
     children.erase(it);
 }
 
+JPPlacementsHolderLocation* JPPanel::replaceChild(const JPPlacementsHolderLocation* original,
+                                                  std::unique_ptr<JPPlacementsHolderLocation> replacement) {
+    const auto it = std::find_if(children.begin(), children.end(), [original](const auto& p) { return p.get() == original; });
+    if (it == children.end()) return nullptr;
+    replacement->id = original->id;
+    replacement->checkFiducials = original->checkFiducials;
+    replacement->setLocation(original->location());
+    replacement->locallyEnabled = original->locallyEnabled;
+    replacement->side = original->side;
+    replacement->parent = original->parent;
+    *it = std::move(replacement);
+    // Pseudo-placements from it that the new board or panel does not have go.
+    const std::string prefix = (*it)->id + kDelimiter;
+    std::erase_if(pseudoPlacementIds, [this, &prefix](const std::string& id) {
+        JPPlacement p;
+        return id.rfind(prefix, 0) == 0 && !pseudoPlacementLocation(id, p);
+    });
+    return it->get();
+}
+
 std::vector<JPPlacementsHolderLocation*> JPPanel::descendants() const {
     std::vector<JPPlacementsHolderLocation*> out;
     for (const auto& c : children) {
@@ -176,7 +196,10 @@ std::vector<JPPlacement> JPPanel::pseudoPlacements() const {
     std::vector<JPPlacement> out;
     for (const std::string& id : pseudoPlacementIds) {
         JPPlacement p;
-        if (pseudoPlacementLocation(id, p)) out.push_back(std::move(p));
+        if (pseudoPlacementLocation(id, p)) {
+            p.enabled = !disabledPseudoPlacements.count(id);
+            out.push_back(std::move(p));
+        }
     }
     return out;
 }

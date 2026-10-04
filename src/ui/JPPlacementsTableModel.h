@@ -28,8 +28,18 @@ public:
 
     std::function<void()> onChanged;
 
-    // The holder whose placements are shown (a definition); null: none.
-    void setHolder(JPPlacementsHolder* holder) { m_holder = holder; }
+    // The holder whose placements are shown (a definition); null: none. A
+    // panel's pseudo-placements follow its own placements, turned on and
+    // off but not otherwise changed.
+    void setHolder(JPPlacementsHolder* holder) {
+        m_holder = holder;
+        reload();
+    }
+    // The pseudo-placements worked out again (before the table is shown again).
+    void reload();
+    bool isPseudo(int row) const;
+    // Only Enabled changed in the table (a list to choose from).
+    void setOnlyEnabledEditable(bool on) { m_onlyEnabled = on; }
     JPPlacementsHolder* holder() const { return m_holder; }
     JPPlacement* placement(int row) const;
     int          rowOf(const std::string& id) const;
@@ -66,6 +76,8 @@ private:
     std::function<const JPJob*()> m_job;
     std::vector<Col>              m_shown;
     JPPlacementsHolder*           m_holder = nullptr;
+    std::vector<JPPlacement>      m_pseudo;
+    bool                          m_onlyEnabled = false;
 };
 
 } // inline namespace jf

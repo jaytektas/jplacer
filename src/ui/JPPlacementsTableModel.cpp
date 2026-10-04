@@ -6,6 +6,7 @@
 #include "JPLengthCell.h"
 
 #include "model/JPDefinitionChanges.h"
+#include "model/JPPanel.h"
 #include "model/JPSides.h"
 
 #include <algorithm>
@@ -92,11 +93,26 @@ JPTableModel::Column JPPlacementsTableModel::column(int c) const {
     return col;
 }
 
-int JPPlacementsTableModel::rowCount() const { return m_holder ? int(m_holder->placements.size()) : 0; }
+int JPPlacementsTableModel::rowCount() const {
+    return m_holder ? int(m_holder->placements.size() + m_pseudo.size()) : 0;
+}
+
+void JPPlacementsTableModel::reload() {
+    m_pseudo.clear();
+    if (m_holder && m_holder->kind() == JPPlacementsHolder::Kind::Panel)
+        m_pseudo = static_cast<JPPanel*>(m_holder)->pseudoPlacements();
+}
+
+bool JPPlacementsTableModel::isPseudo(int row) const {
+    return m_holder && row >= int(m_holder->placements.size()) && row < rowCount();
+}
 
 JPPlacement* JPPlacementsTableModel::placement(int row) const {
-    return m_holder && row >= 0 && size_t(row) < m_holder->placements.size() ? &m_holder->placements[size_t(row)]
-                                                                            : nullptr;
+    if (!m_holder || row < 0) return nullptr;
+    const size_t own = m_holder->placements.size();
+    if (size_t(row) < own) return &m_holder->placements[size_t(row)];
+    if (size_t(row) - own < m_pseudo.size()) return const_cast<JPPlacement*>(&m_pseudo[size_t(row) - own]);
+    return nullptr;
 }
 
 int JPPlacementsTableModel::rowOf(const std::string& id) const {
@@ -175,8 +191,9 @@ bool JPPlacementsTableModel::highlighted(int row, int c) const {
     return p && m_shown[size_t(c)] == kType && p->type == JPPlacement::Type::Fiducial;
 }
 
-bool JPPlacementsTableModel::editable(int, int c) const {
+bool JPPlacementsTableModel::editable(int row, int c) const {
     const Col col = m_shown[size_t(c)];
+    if (isPseudo(row) || m_onlyEnabled) return col == kEnabled;
     return col != kId && col != kStatus;
 }
 
@@ -283,6 +300,14 @@ void JPPlacementsTableModel::setChoice(int row, int c, int index) {
 
 void JPPlacementsTableModel::setChecked(int row, int c, bool on) {
     const JPPlacement* p = placement(row);
+    if (p && isPseudo(row) && m_shown[size_t(c)] == kEnabled) {
+        auto* panel = static_cast<JPPanel*>(m_holder);
+        if (on) panel->disabledPseudoPlacements.erase(p->id);
+        else panel->disabledPseudoPlacements.insert(p->id);
+        reload();
+        if (onChanged) onChanged();
+        return;
+    }
     if (p && m_shown[size_t(c)] == kEnabled) edit(p->id, [on](JPPlacement& q) { q.enabled = on; });
 }
 

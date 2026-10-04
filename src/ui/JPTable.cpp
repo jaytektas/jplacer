@@ -434,10 +434,16 @@ void JPTable::populateRenderPrimitives(JPrimitiveBuffer& buf) {
                 const std::string whole = full.substr(0, dot);
                 const float wholeW = JTextHelper::measureWidth(kAlignedWhole);
                 const float boxW = wholeW + JTextHelper::measureWidth(kAlignedRest);
-                const float dotX = cell.x + std::max(pad, (cell.width - boxW) * 0.5f) + wholeW;
-                tx = std::max(tx, dotX - JTextHelper::measureWidth(whole));
-                JTextHelper::pushText(buf, tx, y + (rh - lh) * 0.5f, elided(full, cell.x + cell.width - pad - tx), ink,
-                                      std::max(1.f, cell.x + cell.width - pad - tx));
+                if (boxW <= cell.width - 2 * pad) {
+                    const float dotX = cell.x + (cell.width - boxW) * 0.5f + wholeW;
+                    tx = std::max(tx, dotX - JTextHelper::measureWidth(whole));
+                } else {
+                    // Too narrow to line up: against the right, as a number.
+                    tx = std::max(tx, cell.x + cell.width - pad - JTextHelper::measureWidth(full));
+                }
+                // A hair of slack: the room is worked out from the same text's width.
+                const float fit = cell.x + cell.width - pad - tx + 1.f;
+                JTextHelper::pushText(buf, tx, y + (rh - lh) * 0.5f, elided(full, fit), ink, std::max(1.f, fit));
                 continue;
             }
             const std::string t = elided(full, room);

@@ -4,9 +4,7 @@
 #pragma once
 
 #include "JPBoardPlacementsPanel.h"
-#include "JPIconButton.h"
-#include "JPPlacementsHolderTableModel.h"
-#include "JPTable.h"
+#include "JPPlacementsHoldersGroup.h"
 
 #include "model/JPConfiguration.h"
 #include "model/JPJob.h"
@@ -17,8 +15,6 @@
 
 #include <functional>
 #include <memory>
-#include <string>
-#include <vector>
 
 inline namespace jf {
 
@@ -34,37 +30,22 @@ public:
     // A board added, changed or taken away (to be saved, other views told).
     std::function<void()> onChanged;
     std::function<void(JMenu*, float x, float y)> openMenu;
-    // Asks whether to save a changed board before it is taken away: Yes,
-    // No or Cancel (OpenPnP's confirmSaveOfModified); `then` runs after.
+    // Asks whether to save a changed board before it is taken away.
     std::function<void(JPPlacementsHolder&, std::function<void()> then)> confirmSave;
+    // The board whose placements are shown changed (the viewer follows it).
+    std::function<void(JPBoard*)> onBoardShown;
 
     JPBoardPlacementsPanel& placements() { return *m_placements; }
     // The boards changed elsewhere: shown again, the selection kept.
     void refresh();
-    void selectBoard(const JPBoard* board);
-    JPBoard* selection() const;
+    void selectBoard(const JPBoard* board) { m_boards->select(board); }
     double split() const;
 
 private:
-    std::vector<JPBoard*> selections() const;
-    void selectionChanged();
-    void showAddMenu();
-    void addBoard(const std::string& path, const char* errorTitle);
-    void removeBoards(std::vector<JPBoard*> boards, bool reportInUse);
-    void copyBoard();
-    void changed();
-
-    JPConfiguration&                        m_config;
-    std::function<const JPJob*()>           m_job;
-    JPPlacementsHolderTableModel            m_model;
-    JPTable*                                m_table = nullptr;
-    JSplitter*                              m_split = nullptr;
-    std::unique_ptr<JContainer>             m_boardsPane, m_placementsPane;
-    JPBoardPlacementsPanel*                 m_placements = nullptr;
-    JPIconButton*                           m_add = nullptr;
-    JPIconButton*                           m_remove = nullptr;
-    JPIconButton*                           m_copy = nullptr;
-    std::unique_ptr<JMenu>                  m_addMenu;
+    std::unique_ptr<JContainer> m_boardsPane, m_placementsPane;
+    JPPlacementsHoldersGroup*   m_boards = nullptr;
+    JPBoardPlacementsPanel*     m_placements = nullptr;
+    JSplitter*                  m_split = nullptr;
 };
 
 } // inline namespace jf

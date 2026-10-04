@@ -12,6 +12,7 @@
 
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -48,6 +49,9 @@ public:
 
     std::vector<std::unique_ptr<JPPlacementsHolderLocation>> children;
     std::vector<std::string>                                 pseudoPlacementIds;
+    // Pseudo-placements turned off while the panel is open (not kept in
+    // its file, as OpenPnP keeps them only in a job).
+    std::set<std::string>                                    disabledPseudoPlacements;
     std::optional<Legacy>                                    legacy;
 
     // Adds a child, giving it a new id ("Brd1", "Pnl1") when it has none or
@@ -55,6 +59,11 @@ public:
     JPPlacementsHolderLocation* addChild(std::unique_ptr<JPPlacementsHolderLocation> child);
     // Takes a child away, with the pseudo-placements that came from it.
     void removeChild(const JPPlacementsHolderLocation* child);
+    // Puts `replacement` where `original` is, with its id, location, side,
+    // enabled and fiducial check (OpenPnP's replaceChild); the
+    // pseudo-placements from it stay while the new one still has them.
+    JPPlacementsHolderLocation* replaceChild(const JPPlacementsHolderLocation* original,
+                                             std::unique_ptr<JPPlacementsHolderLocation> replacement);
     JPPlacementsHolderLocation* child(const std::string& id);
 
     // Every board and panel under this one, depth first.

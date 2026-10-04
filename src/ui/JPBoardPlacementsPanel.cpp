@@ -66,10 +66,11 @@ JPBoardPlacementsPanel::JPBoardPlacementsPanel(JSceneGraph& graph, JPConfigurati
     m_import->setLeads(JPIconButton::Leads::Menu);
     m_import->onClicked.connect([this] { showImportMenu(); });
     bar->add(toolSeparator(graph));
-    // The board viewer is still to come: its button is there, not yet working.
-    JPIconButton* view = tool("View Board", "color-true", "View a graphical representation of the selected board.");
-    view->setLeads(JPIconButton::Leads::Elsewhere);
-    view->setEnabled(false);
+    m_view = tool("View Board", "color-true", "View a graphical representation of the selected board.");
+    m_view->setLeads(JPIconButton::Leads::Elsewhere);
+    m_view->onClicked.connect([this] {
+        if (m_board && onViewBoard) onViewBoard();
+    });
     bar->add(std::make_unique<JContainer>(graph, 0.f, 0.f))->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     JLabel* searchLabel = bar->add(std::make_unique<JLabel>(graph, "Search"));
     searchLabel->setFixedSize(JTextHelper::measureWidth("Search") + st.spacing, st.controlHeight);
@@ -152,6 +153,7 @@ void JPBoardPlacementsPanel::updateActions() {
     const bool any = !selections().empty();
     m_new->setEnabled(m_board != nullptr);
     m_import->setEnabled(m_board != nullptr);
+    m_view->setEnabled(m_board != nullptr);
     // As OpenPnP's action groups: removing and the right-click menu's entries want a placement chosen.
     m_remove->setEnabled(any);
     for (size_t i = 0; i < m_contextMenu->items().size(); ++i) m_contextMenu->items()[i]->setEnabled(any);

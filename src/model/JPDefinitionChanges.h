@@ -5,6 +5,7 @@
 
 #include "JPConfiguration.h"
 #include "JPJob.h"
+#include "JPPanel.h"
 
 #include <string>
 
@@ -41,6 +42,27 @@ public:
     void added(JPPlacementsHolder& def, const JPPlacement& p);
     // A placement taken from the definition and from each instance.
     void removed(JPPlacementsHolder& def, const std::string& id);
+
+    // `set` applied to a panel's child `id` (where it lies, its side…) and
+    // the same child of each use of the panel.
+    template <class F>
+    void child(JPPanel& def, const std::string& id, F set) {
+        JPPlacementsHolderLocation* c = def.child(id);
+        if (!c) return;
+        set(*c);
+        for (JPPlacementsHolder* h : m_config.instancesOf(def, m_job))
+            if (JPPlacementsHolderLocation* d = static_cast<JPPanel*>(h)->child(id)) set(*d);
+        def.dirty = true;
+    }
+    // A child added to the panel (an id given it), and a use of it to each
+    // use of the panel. The child it now is.
+    JPPlacementsHolderLocation* childAdded(JPPanel& def, std::unique_ptr<JPPlacementsHolderLocation> c);
+    // A child taken away, from the panel and each use of it.
+    void childRemoved(JPPanel& def, const std::string& id);
+    // A child replaced by another board or panel, in the panel and each use of it.
+    void childReplaced(JPPanel& def, const std::string& id, const JPPlacementsHolderLocation& replacement);
+    // The panel's pseudo-placements (its alignment ones) given to each use of it.
+    void pseudoPlacementsChanged(JPPanel& def);
 
 private:
     JPConfiguration& m_config;

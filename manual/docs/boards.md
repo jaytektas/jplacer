@@ -24,7 +24,7 @@ table. A length may be typed with units (`1.5in`); without, millimetres are take
 shows its file. Sorting, choosing rows and widening columns work as on the [Parts](parts.md#the-table)
 tab.
 
-<!-- src: src/ui/JPBoardsPanel.cpp (showAddMenu, addBoard, removeBoards, copyBoard); src/ui/JPPlacementsHolderTableModel.cpp -->
+<!-- src: src/ui/JPPlacementsHoldersGroup.cpp; src/ui/JPPlacementsHolderTableModel.cpp -->
 
 ## Placements
 
@@ -39,7 +39,7 @@ reference designators do: R2 before R10.
 | **New Placement** (plus) | Asks for the new placement's ID and adds it: the first part, at 0, 0 on the top. There must be a part first; an ID already on the board is refused. |
 | **Remove Placement(s)** (cross) | Takes the chosen placements off the board. |
 | **Import Placements** (with a menu) | Reads placements from a CAD tool's file into the board (see below). |
-| **View Board** | Not available yet. |
+| **View Board** | Opens the board viewer (see [Panels](panels.md#the-viewer)). |
 
 **Search**, at the right, works as on the Parts tab. Right-click for **Set Type**, **Set Side**, **Set
 Enabled** and **Set Error Handling**, each for all the chosen placements. **Space** turns the chosen

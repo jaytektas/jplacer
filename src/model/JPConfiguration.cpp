@@ -295,15 +295,31 @@ bool JPConfiguration::resolvePanel(JPJob* job, JPPanelLocation& l, std::string& 
     return true;
 }
 
-std::vector<JPPlacementsHolder*> JPConfiguration::instancesOf(const JPPlacementsHolder& def, const JPJob* job) const {
-    std::vector<JPPlacementsHolder*> out;
+std::vector<JPPlacementsHolderLocation*> JPConfiguration::instanceLocationsOf(const JPPlacementsHolder& def,
+                                                                              const JPJob* job) const {
+    std::vector<JPPlacementsHolderLocation*> out;
     auto take = [&](const std::vector<JPPlacementsHolderLocation*>& ls) {
         for (JPPlacementsHolderLocation* l : ls)
-            if (l->holder && l->holder.get() != &def && l->holder->definition() == &def) out.push_back(l->holder.get());
+            if (l->holder && l->holder.get() != &def && l->holder->definition() == &def) out.push_back(l);
     };
     if (job) take(job->boardAndPanelLocations());
     for (const auto& p : m_panels) take(p->descendants());
     return out;
+}
+
+std::vector<JPPlacementsHolder*> JPConfiguration::instancesOf(const JPPlacementsHolder& def, const JPJob* job) const {
+    std::vector<JPPlacementsHolder*> out;
+    for (JPPlacementsHolderLocation* l : instanceLocationsOf(def, job)) out.push_back(l->holder.get());
+    return out;
+}
+
+JPPlacementsHolder* JPConfiguration::definitionOf(const JPPlacementsHolder& h) const {
+    const JPPlacementsHolder* def = h.definition();
+    for (const auto& b : m_boards)
+        if (b.get() == def) return b.get();
+    for (const auto& p : m_panels)
+        if (p.get() == def) return p.get();
+    return nullptr;
 }
 
 bool JPConfiguration::isInUse(const JPPlacementsHolder& h, const JPJob* job) const {

@@ -6,8 +6,10 @@
 #include "JPlacerJob.h"
 #include "JPlacerLayout.h"
 #include "JPlacerMachine.h"
+#include "JPlacerViewerDock.h"
 
 #include "ui/JPBoardsPanel.h"
+#include "ui/JPPanelsPanel.h"
 #include "ui/JPPackagesPanel.h"
 #include "ui/JPPartsPanel.h"
 
@@ -22,7 +24,7 @@
 
 inline namespace jf {
 
-// OpenPnP's tabs in the work area (Boards, Parts, Packages so far), each a
+// OpenPnP's tabs in the work area (Panels, Boards, Parts, Packages so far), each a
 // dock, kept in step with the job and its configuration: an edit on one is
 // saved and the others shown again. A board's own file is saved as
 // OpenPnP saves it: on File > Save Configuration, on quitting and on its
@@ -51,6 +53,8 @@ private:
     void confirmSave(JPPlacementsHolder& holder, std::function<void()> then);
     void confirmSaveAll(std::vector<std::string> files, std::function<void()> then);
     void changed();
+    // The known board (its shared definition) a pointer names.
+    std::shared_ptr<JPBoard> boardOf(const JPBoard* board) const;
 
     JAppWindow&                   m_window;
     JPlacerJob&                   m_job;
@@ -63,6 +67,10 @@ private:
     std::unique_ptr<JDockWidget>     m_packagesDock;
     std::unique_ptr<JPBoardsPanel>   m_boards;
     std::unique_ptr<JDockWidget>     m_boardsDock;
+    std::unique_ptr<JPlacerViewerDock> m_boardViewer;
+    std::unique_ptr<JPPanelsPanel>   m_panels;
+    std::unique_ptr<JDockWidget>     m_panelsDock;
+    std::unique_ptr<JPlacerViewerDock> m_panelViewer;
     bool                             m_closing = false;
 };
 
