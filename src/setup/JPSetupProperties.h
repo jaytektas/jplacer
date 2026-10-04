@@ -33,6 +33,10 @@ public:
     struct Cell {
         std::string property;   // empty: an empty place, keeping the columns
         std::string label;
+        // A button (labelled `label`) whose action is `property`, the owner's to do.
+        bool        button = false;
+        bool        enabled = true;
+        std::string tooltip;
     };
     // What a place row's buttons use: the camera on the head, or the tool
     // chosen (a nozzle); and what an axis row takes, an axis's position.
@@ -49,6 +53,7 @@ public:
         std::string label;
         std::vector<Cell> cells;
         std::string text;                // a note
+        std::string tooltip;             // what its label says when pointed at
         Place       place = Place::None; // its cells are X, Y, Z, rotation (Location) or one axis (Axis)
         std::string axis;                // Place::Axis: which axis
         std::shared_ptr<const JPPlot> plot;   // Kind::Plot

@@ -49,6 +49,8 @@ public:
     void setLocation(JPPlacementsHolderLocation* location);
     JPPlacementsHolderLocation* location() const { return m_location; }
     void refresh();
+    // Edit Placement Feeder: the Feeders tab showing the part's feeder.
+    std::function<void(const std::string& partId)> onEditFeeder;
     // The placed counts given again (OpenPnP's updateActivePlacements).
     void updateActivePlacements();
     JPPlacementsTableModel& model() { return m_model; }

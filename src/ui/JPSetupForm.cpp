@@ -16,6 +16,7 @@
 #include <j/core/JLabel.h>
 #include <j/core/JPropertyBinding.h>
 #include <j/core/JScrollArea.h>
+#include <j/core/JSeparator.h>
 #include <j/core/JStyle.h>
 #include <j/core/JTextHelper.h>
 
@@ -316,6 +317,7 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
         if (r.kind != Row::Kind::Fields || !underHeader || !inGrid(r)) continue;
         // The header names the columns: their own labels are not shown.
         for (size_t i = 0; i < r.cells.size(); ++i) {
+            if (r.cells[i].button) continue;
             const JProperty* p = find(r.cells[i].property);
             widen(i, p ? widthOf(*p) : numberWidth());   // an empty place keeps a number's room
         }
@@ -372,12 +374,7 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
             case Row::Kind::Actions: {
                 auto row = JPUiParts::row(m_graph);
                 row->add(box(m_graph, labels, rowH, JJustifyContent::FlexEnd));
-                for (const JPSetupProperties::Cell& c : r.cells) {
-                    JButton* b = row->add(JPUiParts::button(m_graph, c.label));
-                    b->onClicked.connect([this, action = c.property] {
-                        if (onAction) onAction(action);
-                    });
-                }
+                for (const JPSetupProperties::Cell& c : r.cells) row->add(button(c));
                 place(std::move(row), rowH);
                 break;
             }
@@ -388,10 +385,15 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
                     if (const JProperty* p = find(c.property); p && p->meta.editor == "lines") h = std::max(h, linesHeight(*p));
                 auto row = JPUiParts::row(m_graph);
                 auto name = box(m_graph, labels, h, JJustifyContent::FlexEnd);
-                name->add(label(m_graph, r.label));
+                JLabel* named = name->add(label(m_graph, r.label));
+                if (!r.tooltip.empty()) named->setTooltip(r.tooltip);
                 row->add(std::move(name));
                 for (size_t i = 0; i < r.cells.size(); ++i) {
                     const JPSetupProperties::Cell& c = r.cells[i];
+                    if (c.button) {
+                        row->add(button(c));
+                        continue;
+                    }
                     const JProperty* p = find(c.property);
                     if (underHeader && inGrid(r) && i < columns.size()) {
                         // In its column: the column's width, the control at its start
@@ -406,7 +408,9 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
                     if (p) row->add(editor(*p, widthOf(*p)));
                 }
                 // A place: take it from where the camera or nozzle is, or go there.
-                if (r.place == JPSetupProperties::Place::Location) {
+                if (r.place == JPSetupProperties::Place::Location && m_openPnpPlaceButtons) {
+                    locationButtons(*row, r);
+                } else if (r.place == JPSetupProperties::Place::Location) {
                     struct B { const char* name; JPIconButton::Glyph glyph; const char* tip; Tool tool; bool capture; };
                     const B buttons[] = {
                         { "Capture Camera", &JPIcons::captureCamera, "Set from where the camera is", Tool::Camera, true },
@@ -445,6 +449,37 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
     frame->setVSizePolicy(JSizePolicyMode::Fixed);
     frame->setSize(0.f, height);
     return frame;
+}
+
+std::unique_ptr<JButton> JPSetupForm::button(const JPSetupProperties::Cell& c) {
+    auto b = JPUiParts::button(m_graph, c.label);
+    b->setEnabled(c.enabled);
+    if (!c.tooltip.empty()) b->setTooltip(c.tooltip);
+    b->onClicked.connect([this, action = c.property] {
+        if (onAction) onAction(action);
+    });
+    return b;
+}
+
+void JPSetupForm::locationButtons(JContainer& row, const Row& r) {
+    // As OpenPnP's LocationButtonsPanel: go there with the camera or the
+    // tool, then take it from where the camera or the tool is.
+    struct B { const char* name; const char* icon; const char* tip; Tool tool; bool capture; };
+    const B buttons[] = {
+        { "Position Camera", "position-camera", "Position the camera over the center of the location.", Tool::Camera, false },
+        { "Position Tool", "position-nozzle", "Position the tool over the center of the location.", Tool::Nozzle, false },
+        { "Get Camera Coordinates", "capture-camera", "Capture the location that the camera is centered on.", Tool::Camera, true },
+        { "Get Tool Coordinates", "capture-nozzle", "Capture the location that the tool is centered on.", Tool::Nozzle, true },
+    };
+    for (const B& b : buttons) {
+        if (b.capture && b.tool == Tool::Camera)
+            row.add(std::make_unique<JSeparator>(m_graph, JSeparator::JOrientation::Vertical, JPIconButton::size()));
+        JPIconButton* button = row.add(std::make_unique<JPIconButton>(m_graph, b.name, b.icon, b.tip));
+        button->onClicked.connect([this, r, b] {
+            auto& handler = b.capture ? onCapture : onMoveTo;
+            if (handler) handler(r, b.tool);
+        });
+    }
 }
 
 } // inline namespace jf

@@ -91,10 +91,12 @@ Right-click for **Set Side**, **Set Enabled** and **Set Check Fids**.
 Remove Placement(s) work); otherwise only Enabled, Placed and Error Handling are changed, for this use of
 it alone. **Move Camera To Placement Location** (and **To Next**), **Move Tool To Placement Location**,
 **Capture Camera Placement Location** and **Capture Tool Placement Location** work as the board ones,
-for the chosen placement. **Edit Placement Feeder** is not available yet. Right-click for **Set Type**,
+for the chosen placement. **Edit Placement Feeder** (one placement of a board) opens the
+[Feeders](feeders.md) tab on the feeder holding its part: an enabled one first, else a disabled one, else
+a new feeder is made for it. Right-click for **Set Type**,
 **Set Side**, **Set Placed**, **Set Enabled** and **Set Error Handling**; **Space** turns the chosen
 placement on or off.
 
 The status line shows the placements placed: of the whole job, and of the board chosen.
 
-<!-- src: src/ui/JPJobPlacementsPanel.cpp; src/ui/JPPlacementsTableModel.cpp (status, setLocation) -->
+<!-- src: src/ui/JPJobPlacementsPanel.cpp (onEditFeeder, updateActions); src/ui/JPFeedersPanel.cpp (showFeederForPart); src/ui/JPPlacementsTableModel.cpp (status, setLocation) -->

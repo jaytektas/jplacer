@@ -10,6 +10,14 @@ notes.
 
 ## Unreleased
 
+- A Feeders tab, as OpenPnP's: the feeders table (Name, Part, Type, Priority, Faults, Enabled, Feed),
+  changed in place, with Set Enabled and Set Feed option on the right-click menu; New Feeder (OpenPnP's
+  nineteen kinds), Delete Feeder, Pick, Feed, Move Camera and Move Tool; each feeder's setup, with
+  OpenPnP's location buttons. Strip and tray feeders are fed and picked from. Importing an OpenPnP
+  machine brings its feeders in. Parts > Pick Part picks from a feeder, and the Job tab's Edit Placement
+  Feeder opens the placement's feeder.
+- A double-click in the Add existing board or panel list takes the one clicked; a single click only
+  chooses it.
 - File > Open Recent Job (the last ten jobs); the save question on leaving a changed job now has Cancel;
   saving over a file that is there asks first.
 - A Job tab, as OpenPnP's: the job's boards and panels, nested, where each lies, side, enabled and

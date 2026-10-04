@@ -64,6 +64,9 @@ public:
     // as OpenPnP colours a fiducial's type or a placement's status); none:
     // the row's.
     virtual const uint8_t* cellTint(int, int) const { return nullptr; }
+    // A cell drawn greyed while its row is not chosen (as a Swing renderer
+    // set disabled: the Feeders tab's Enabled for a part the job does not use).
+    virtual bool cellDimmed(int, int) const { return false; }
 
     virtual bool editable(int, int) const { return false; }
     virtual std::vector<std::string> choices(int, int) const { return {}; }

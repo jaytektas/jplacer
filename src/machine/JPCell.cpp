@@ -455,6 +455,29 @@ void JPCell::discard(const std::string& nozzleId, double speed) {
     });
 }
 
+void JPCell::pickAt(const std::string& nozzleId, std::array<std::optional<double>, 4> to, double speed) {
+    if (m_moving.exchange(true)) return;
+    m_thread.post([this, nozzleId, to, speed] {
+        std::string why = "no nozzle " + nozzleId;
+        bool ok = false;
+        for (const JPNozzleConfig& n : m_config.nozzles) {
+            if (n.id != nozzleId) continue;
+            const JPMountConfig& m = n.mount;
+            std::map<std::string, double> across;
+            if (to[0] && !m.axisX.empty()) across[m.axisX] = *to[0] - m.offsetX;
+            if (to[1] && !m.axisY.empty()) across[m.axisY] = *to[1] - m.offsetY;
+            if (to[3] && !m.axisRotation.empty()) across[m.axisRotation] = *to[3];
+            compensateRunout(m, across, false);
+            why.clear();
+            ok = doSafeZ(m.headId, speed, why) && (across.empty() || doMove(across, speed, why))
+              && (!to[2] || m.axisZ.empty() || doMove({ { m.axisZ, *to[2] - m.offsetZ } }, speed, why)) && doPick(n, why)
+              && doSafeZ(m.headId, speed, why);
+        }
+        m_moving = false;
+        onMotion.emit(ok, why);
+    });
+}
+
 bool JPCell::switchTelling(const std::string& actuatorId, bool on, std::string& why) {
     const bool ok = doSwitch(actuatorId, on, why);
     onActuator.emit(actuatorId, ok, ok ? (on ? "on" : "off") : why);

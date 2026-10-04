@@ -9,6 +9,7 @@
 #include "JPlacerViewerDock.h"
 
 #include "ui/JPBoardsPanel.h"
+#include "ui/JPFeedersPanel.h"
 #include "ui/JPJobPanel.h"
 #include "ui/JPPanelsPanel.h"
 #include "ui/JPPackagesPanel.h"
@@ -27,7 +28,7 @@
 
 inline namespace jf {
 
-// OpenPnP's tabs in the work area (Job, Panels, Boards, Parts, Packages so far), each a
+// OpenPnP's tabs in the work area (Job, Panels, Boards, Parts, Packages, Feeders so far), each a
 // dock, kept in step with the job and its configuration: an edit on one is
 // saved and the others shown again. A board's own file is saved as
 // OpenPnP saves it: on File > Save Configuration, on quitting and on its
@@ -68,6 +69,8 @@ private:
     std::unique_ptr<JDockWidget>     m_partsDock;
     std::unique_ptr<JPPackagesPanel> m_packages;
     std::unique_ptr<JDockWidget>     m_packagesDock;
+    std::unique_ptr<JPFeedersPanel>  m_feeders;
+    std::unique_ptr<JDockWidget>     m_feedersDock;
     std::unique_ptr<JPBoardsPanel>   m_boards;
     std::unique_ptr<JDockWidget>     m_boardsDock;
     std::unique_ptr<JPlacerViewerDock> m_boardViewer;

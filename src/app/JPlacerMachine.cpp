@@ -272,34 +272,14 @@ std::unique_ptr<JPMachineSetupPanel> JPlacerMachine::makeSetup() {
     setup->onSelected = [this](const std::string& path) { m_setupSelected = path; };
     setup->onApply = [this](const JPCellConfig& cell) { return applySetup(cell); };
     setup->onAction = [this](const std::string& path, const std::string& action) { setupAction(path, action); };
-    setup->whereIs = [this](JPSetupForm::Tool tool) {
-        JPMachineSetupPanel::Where at;
-        const JPMountConfig* m = toolMount(tool);
-        if (!m || !m_cell->isConnected()) return at;
-        const auto p = m_cell->positions();
-        auto take = [&p](const std::string& axis, double offset) -> std::optional<double> {
-            const auto i = p.find(axis);
-            if (axis.empty() || i == p.end()) return std::nullopt;
-            return i->second + offset;
-        };
-        at = { take(m->axisX, m->offsetX), take(m->axisY, m->offsetY), take(m->axisZ, m->offsetZ), take(m->axisRotation, 0) };
-        return at;
-    };
+    setup->whereIs = [this](JPSetupForm::Tool tool) { return whereIs(tool); };
     setup->axisAt = [this](const std::string& axisId) -> std::optional<double> {
         if (!m_cell->isConnected()) return std::nullopt;
         const auto p = m_cell->positions();
         const auto i = p.find(axisId);
         return i == p.end() ? std::nullopt : std::optional<double>(i->second);
     };
-    setup->moveTo = [this](JPSetupForm::Tool tool, const JPMachineSetupPanel::Where& to) {
-        const JPMountConfig* m = toolMount(tool);
-        if (!m) {
-            m_window.showStatus(tool == JPSetupForm::Tool::Camera ? "No camera on a head to move" : "No nozzle to move", kErrorMs);
-            return;
-        }
-        if (!readyToMove()) return;
-        m_cell->moveTool(*m, to, 1.0);   // at the machine's speed
-    };
+    setup->moveTo = [this](JPSetupForm::Tool tool, const JPMachineSetupPanel::Where& to) { moveToolTo(tool, to); };
     setup->moveAxis = [this](const std::string& axisId, double to) {
         if (!readyToMove()) return;
         m_cell->moveAxes({ { axisId, to } }, 1.0);
@@ -536,31 +516,53 @@ const JPMountConfig* JPlacerMachine::toolMount(JPSetupForm::Tool tool) const {
     return c.nozzles.empty() ? nullptr : &c.nozzles.front().mount;
 }
 
-std::optional<JPLocation> JPlacerMachine::toolLocation(JPSetupForm::Tool tool) const {
+JPlacerMachine::Where JPlacerMachine::whereIs(JPSetupForm::Tool tool) const {
+    Where at;
     const JPMountConfig* m = toolMount(tool);
-    if (!m || !m_cell || !m_cell->isConnected()) return std::nullopt;
+    if (!m || !m_cell || !m_cell->isConnected()) return at;
     const auto p = m_cell->positions();
-    auto at = [&p](const std::string& axis, double offset) {
+    auto take = [&p](const std::string& axis, double offset) -> std::optional<double> {
         const auto i = p.find(axis);
-        return axis.empty() || i == p.end() ? 0.0 : i->second + offset;
+        if (axis.empty() || i == p.end()) return std::nullopt;
+        return i->second + offset;
     };
-    if (p.find(m->axisX) == p.end() || p.find(m->axisY) == p.end()) return std::nullopt;
-    return JPLocation(JPLengthUnit::Millimeters, at(m->axisX, m->offsetX), at(m->axisY, m->offsetY),
-                      at(m->axisZ, m->offsetZ), at(m->axisRotation, 0));
+    return { take(m->axisX, m->offsetX), take(m->axisY, m->offsetY), take(m->axisZ, m->offsetZ), take(m->axisRotation, 0) };
 }
 
-bool JPlacerMachine::moveToolTo(JPSetupForm::Tool tool, const JPLocation& to) {
+std::optional<JPLocation> JPlacerMachine::toolLocation(JPSetupForm::Tool tool) const {
+    const Where at = whereIs(tool);
+    if (!at[0] || !at[1]) return std::nullopt;
+    return JPLocation(JPLengthUnit::Millimeters, *at[0], *at[1], at[2].value_or(0), at[3].value_or(0));
+}
+
+bool JPlacerMachine::moveToolTo(JPSetupForm::Tool tool, const Where& to) {
     const JPMountConfig* m = toolMount(tool);
     if (!m) {
         m_window.showStatus(tool == JPSetupForm::Tool::Camera ? "No camera on a head to move" : "No nozzle to move", kErrorMs);
         return false;
     }
     if (!readyToMove()) return false;
+    m_cell->moveTool(*m, to, 1.0);   // at the machine's speed
+    return true;
+}
+
+bool JPlacerMachine::moveToolTo(JPSetupForm::Tool tool, const JPLocation& to) {
     const JPLocation at = to.convertToUnits(JPLengthUnit::Millimeters);
-    std::array<std::optional<double>, 4> where { at.x(), at.y(), std::nullopt, std::nullopt };
-    if (!m->axisZ.empty()) where[2] = at.z();
-    if (!m->axisRotation.empty()) where[3] = at.rotation();
-    m_cell->moveTool(*m, where, 1.0);   // at the machine's speed
+    return moveToolTo(tool, Where { at.x(), at.y(), at.z(), at.rotation() });
+}
+
+bool JPlacerMachine::pickAt(const JPLocation& to) {
+    const JPMountConfig* m = toolMount(JPSetupForm::Tool::Nozzle);
+    if (!m || !m_cell) {
+        m_window.showStatus("No nozzle to pick with", kErrorMs);
+        return false;
+    }
+    if (!readyToMove()) return false;
+    std::string nozzleId;
+    for (const JPNozzleConfig& n : m_cell->config().nozzles)
+        if (&n.mount == m) nozzleId = n.id;
+    const JPLocation at = to.convertToUnits(JPLengthUnit::Millimeters);
+    m_cell->pickAt(nozzleId, { at.x(), at.y(), at.z(), at.rotation() }, 1.0);
     return true;
 }
 
@@ -898,6 +900,7 @@ void JPlacerMachine::importFrom(const std::string& path) {
         body += "\n\nTo check:";
         for (const std::string& n : notes) body += "\n\xE2\x80\xA2 " + n;
     }
+    if (onImported) onImported(path);
     JDialog::message("OpenPnP machine imported", body);
 }
 

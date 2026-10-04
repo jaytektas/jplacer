@@ -17,15 +17,14 @@
 
 inline namespace jf {
 
-// OpenPnP's ExistingBoardOrPanelDialog: the boards (or panels) known, one
-// to choose (OK), or Browse for a file of them (".board.xml" or
-// ".panel.xml"), or Cancel. `onChosen` has the file.
-class JPlacerExistingHolderDialog : public JDialogWindow {
+// OpenPnP's ClassSelectionDialog: a description over the classes (their
+// simple names), one to Accept (or double-click), or Cancel. `onChosen`
+// has the class's full name.
+class JPlacerClassSelectionDialog : public JDialogWindow {
 public:
-    static constexpr uint32_t kW = 600, kH = 400;
+    static constexpr uint32_t kW = 400, kH = 400;
 
-    // `what`: "board" or "panel".
-    JPlacerExistingHolderDialog(const std::string& title, const std::string& what, std::vector<std::string> files,
+    JPlacerClassSelectionDialog(const std::string& title, const std::string& description, std::vector<std::string> classes,
                                 std::function<void(std::string)> onChosen, JGpuHal& hal, int sx, int sy,
                                 NativeWinHandleType parent);
 
@@ -33,13 +32,15 @@ protected:
     void layout(float w, float h) override;
 
 private:
-    std::vector<std::string>          m_files;
+    void accept(int index);
+
+    std::vector<std::string>          m_classes;
     std::function<void(std::string)>  m_onChosen;
-    std::unique_ptr<JLabel>           m_prompt;
+    std::unique_ptr<JLabel>           m_description;
     std::unique_ptr<JListView>        m_list;
     JPDoubleClick                     m_clicks;
     std::unique_ptr<JDialogButtonBox> m_buttons;
-    JButton*                          m_ok = nullptr;
+    JButton*                          m_accept = nullptr;
 };
 
 } // inline namespace jf

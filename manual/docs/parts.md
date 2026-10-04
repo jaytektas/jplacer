@@ -12,7 +12,7 @@ own `parts.xml` can be copied there as it is.
 |---|---|
 | **New Part...** (plus) | Asks for the new part's ID and makes it, in the first package. There must be a package first. An ID already used is refused, and asked for again. |
 | **Delete Part** (cross) | Deletes the chosen parts, after asking. |
-| **Pick Part** | Feeds and picks the chosen part from the first feeder that has it. jplacer has no feeders yet, so it says none was found. |
+| **Pick Part** | Feeds and picks the chosen part, as the Feeders tab's **Pick...** does, from the feeder OpenPnP would take it from: of the enabled feeders holding it, those of the highest priority, and of those the one closest to the camera. With none, it says no valid feeder was found. |
 | **Copy Part to Clipboard** | Puts the chosen part on the clipboard as text (the part's line from `parts.xml`). |
 | **Create Part from Clipboard** | Asks for an ID and makes a part from what the clipboard holds. |
 
@@ -21,7 +21,7 @@ Delete Part works on one part or several; Pick Part and Copy Part on one.
 **Search**, at the right, shows only the parts with the text typed anywhere in a row, whatever its case.
 The text is a regular expression: `^C0402` finds parts whose ID starts with C0402.
 
-<!-- src: src/ui/JPPartsPanel.cpp (newPart, deleteParts, copyPart, pastePart, updateWizards); src/ui/JPTable.cpp (setFilter) -->
+<!-- src: src/ui/JPPartsPanel.cpp (newPart, deleteParts, copyPart, pastePart, updateWizards); src/app/JPlacerOpenPnpTabs.cpp (onPickPart); src/model/JPConfiguration.cpp (findFeeder); src/ui/JPTable.cpp (setFilter) -->
 
 ## The table
 

@@ -5,6 +5,7 @@
 
 #include "setup/JPSetupProperties.h"
 
+#include <j/core/JButton.h>
 #include <j/core/JContainer.h>
 #include <j/core/JTabWidget.h>
 
@@ -44,6 +45,12 @@ public:
     // A property's value now.
     JVariant get(const std::string& property) const;
 
+    // A place row's buttons as OpenPnP's LocationButtonsPanel has them (its
+    // icons and order: Position Camera, Position Tool, then Get Camera and
+    // Get Tool Coordinates), for the forms of OpenPnP's tabs; else Machine
+    // Setup's own.
+    void setOpenPnpPlaceButtons(bool on) { m_openPnpPlaceButtons = on; }
+
     void populateRenderPrimitives(JPrimitiveBuffer& buf) override;
 
     std::function<void(const std::string& property)> onChanged;
@@ -58,6 +65,8 @@ private:
     // A group, its labels in a column `labels` wide (the page's widest).
     std::unique_ptr<JWidget> group(const JPSetupProperties::Group& group, float& height, float labels);
     std::unique_ptr<JWidget> editor(const JProperty& p, float width);
+    std::unique_ptr<JButton> button(const JPSetupProperties::Cell& c);
+    void locationButtons(JContainer& row, const JPSetupProperties::Row& r);
     // How wide a control for `p` is, as it is laid out.
     float widthOf(const JProperty& p) const;
     const JProperty* find(const std::string& name) const;
@@ -74,6 +83,7 @@ private:
     bool                                   m_pulling = false;   // refresh() setting controls: not an edit
     float                                  m_builtWidth = 0;    // the form's width when its pages were made
     bool                                   m_rebuilding = false;
+    bool                                   m_openPnpPlaceButtons = false;
     std::shared_ptr<bool>                  m_alive = std::make_shared<bool>(true);
 };
 

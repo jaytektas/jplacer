@@ -23,8 +23,9 @@ JPlacerExistingHolderDialog::JPlacerExistingHolderDialog(const std::string& titl
     add(m_prompt.get());
     m_list = std::make_unique<JListView>(graph(), m_files);
     m_list->onSelectionChanged.connect([this](int i) { m_ok->setEnabled(i >= 0); });
+    // A single click chooses; a double-click takes it, as OpenPnP's list does.
     m_list->onItemActivated.connect([this](int i) {
-        if (i < 0 || size_t(i) >= m_files.size()) return;
+        if (!m_clicks.click(i) || i < 0 || size_t(i) >= m_files.size()) return;
         close();
         if (m_onChosen) m_onChosen(m_files[size_t(i)]);
     });

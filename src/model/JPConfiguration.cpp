@@ -9,6 +9,7 @@
 #include "openpnp/JPXmlWriter.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cctype>
 #include <cstdio>
 #include <filesystem>
@@ -60,10 +61,12 @@ bool JPConfiguration::load(std::vector<std::string>& problems, std::string& erro
     auto read = [&error](const fs::path& p, JPXmlElement& root) {
         return !exists(p.string()) || JPXmlReader::read(p.string(), root, error);
     };
-    JPXmlElement packages, parts, boards, panels, vision;
+    JPXmlElement packages, parts, boards, panels, vision, feeders;
     if (!read(dir / kPackagesFile, packages) || !read(dir / kPartsFile, parts) || !read(dir / kBoardsFile, boards)
-        || !read(dir / kPanelsFile, panels) || !read(dir / kVisionFile, vision))
+        || !read(dir / kPanelsFile, panels) || !read(dir / kVisionFile, vision) || !read(dir / kFeedersFile, feeders))
         return false;
+    for (const JPXmlElement& e : feeders.children)
+        if (e.name == "feeder") m_feeders.push_back(JPFeeder::fromXml(e));
     for (const JPXmlElement& e : vision.children)
         if (e.name == "vision-settings") m_vision.push_back(JPVisionSettings::fromXml(e));
     for (const JPXmlElement& e : packages.children)
@@ -95,10 +98,81 @@ bool JPConfiguration::save(std::string& error) const {
     for (const auto& b : m_boards) boards.add(JPXmlNode("board")).text = b->file;
     JPXmlNode panels("openpnp-panels");
     for (const auto& p : m_panels) panels.add(JPXmlNode("panel")).text = p->file;
+    JPXmlNode feeders("feeders");
+    for (const JPFeeder& f : m_feeders) feeders.add(f.toXml());
+    if (!JPXmlWriter::write((dir / kFeedersFile).string(), feeders, error)) return false;
     return JPXmlWriter::write((dir / kPackagesFile).string(), packages, error)
         && JPXmlWriter::write((dir / kPartsFile).string(), parts, error)
         && JPXmlWriter::write((dir / kBoardsFile).string(), boards, error)
         && JPXmlWriter::write((dir / kPanelsFile).string(), panels, error);
+}
+
+int JPConfiguration::importFeeders(const std::string& machineXml, std::string& error) {
+    JPXmlElement root;
+    if (!JPXmlReader::read(machineXml, root, error)) return -1;
+    const JPXmlElement* machine = root.child("machine");
+    const JPXmlElement* feeders = machine ? machine->child("feeders") : nullptr;
+    m_feeders.clear();
+    if (feeders)
+        for (const JPXmlElement& e : feeders->children)
+            if (e.name == "feeder") m_feeders.push_back(JPFeeder::fromXml(e));
+    return int(m_feeders.size());
+}
+
+JPFeeder& JPConfiguration::addFeeder(JPFeeder f) {
+    m_feeders.push_back(std::move(f));
+    return m_feeders.back();
+}
+
+void JPConfiguration::removeFeeder(const std::string& id) {
+    std::erase_if(m_feeders, [&id](const JPFeeder& f) { return f.id() == id; });
+}
+
+JPFeeder* JPConfiguration::feeder(const std::string& id) {
+    for (JPFeeder& f : m_feeders)
+        if (f.id() == id) return &f;
+    return nullptr;
+}
+
+JPFeeder* JPConfiguration::findFeeder(const std::string& partId, const std::optional<JPLocation>& datum) {
+    std::vector<JPFeeder*> found;
+    JPFeeder::Priority highest = JPFeeder::Priority::Low;
+    for (JPFeeder& f : m_feeders)
+        if (f.enabled() && f.partId() == partId) {
+            found.push_back(&f);
+            if (int(f.priority()) < int(highest)) highest = f.priority();
+        }
+    std::erase_if(found, [highest](const JPFeeder* f) { return f->priority() != highest; });
+    JPFeeder* closest = nullptr;
+    double closestCost = 0;
+    for (JPFeeder* f : found) {
+        double cost = 0;
+        if (datum) {
+            const JPLocation at = f->pickLocation().value_or(f->location()).convertToUnits(JPLengthUnit::Millimeters);
+            const JPLocation d = datum->convertToUnits(JPLengthUnit::Millimeters);
+            cost = std::hypot(at.x() - d.x(), at.y() - d.y(), at.z() - d.z());
+        }
+        if (!closest || cost < closestCost) {
+            closest = f;
+            closestCost = cost;
+        }
+    }
+    return closest;
+}
+
+bool JPConfiguration::hasFeeder(const std::string& partId) const {
+    const std::string k = upper(partId);
+    for (const JPFeeder& f : m_feeders)
+        if (f.enabled() && upper(f.partId()) == k) return true;
+    return false;
+}
+
+int JPConfiguration::feederCount(const std::string& partId) const {
+    const std::string k = upper(partId);
+    int n = 0;
+    for (const JPFeeder& f : m_feeders)
+        if (upper(f.partId()) == k) ++n;
+    return n;
 }
 
 const JPVisionSettings* JPConfiguration::visionSettings(const std::string& id) const {

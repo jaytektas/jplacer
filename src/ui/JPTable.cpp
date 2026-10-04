@@ -413,9 +413,11 @@ void JPTable::populateRenderPrimitives(JPrimitiveBuffer& buf) {
             if (kind == JPTableModel::Kind::Boolean) {
                 const float s = rh * kTickShare;
                 const float bx = cell.x + (cell.width - s) * 0.5f, by = y + (rh - s) * 0.5f;
-                vg.strokeRoundedRect(bx, by, s, s, st.borderWidth * 2, st.borderWidth, JPaint::solid(colour(Colors::Border)));
+                const bool dimmed = !chosen && m_model->cellDimmed(r, c);
+                vg.strokeRoundedRect(bx, by, s, s, st.borderWidth * 2, st.borderWidth,
+                                     JPaint::solid(colour(dimmed ? Colors::MutedText : Colors::Border)));
                 if (m_model->checked(r, c)) {
-                    vg.fillRoundedRect(bx, by, s, s, st.borderWidth * 2, JPaint::solid(colour(Colors::Accent)));
+                    vg.fillRoundedRect(bx, by, s, s, st.borderWidth * 2, JPaint::solid(colour(dimmed ? Colors::MutedText : Colors::Accent)));
                     std::vector<JVectorCanvas::JVec2> tick { { bx + s * 0.22f, by + s * 0.52f }, { bx + s * 0.42f, by + s * 0.72f },
                                                              { bx + s * 0.78f, by + s * 0.3f } };
                     vg.strokePolyline(tick, st.borderWidth * 2, JPaint::solid(colour(Colors::HighlightedText)));

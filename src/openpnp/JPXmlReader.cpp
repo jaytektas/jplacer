@@ -27,7 +27,10 @@ void XMLCALL onStart(void* data, const XML_Char* name, const XML_Char** attrs) {
         e = &b->open.back()->children.back();
     }
     e->name = name;
-    for (int i = 0; attrs[i]; i += 2) e->attributes[attrs[i]] = attrs[i + 1];
+    for (int i = 0; attrs[i]; i += 2) {
+        e->attributes[attrs[i]] = attrs[i + 1];
+        e->attributeOrder.push_back(attrs[i]);
+    }
     b->open.push_back(e);
 }
 

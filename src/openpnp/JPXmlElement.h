@@ -14,6 +14,8 @@ inline namespace jf {
 struct JPXmlElement {
     std::string                        name;
     std::map<std::string, std::string> attributes;
+    // The attributes' names in the order the file has them.
+    std::vector<std::string>           attributeOrder;
     std::string                        text;
     std::vector<JPXmlElement>          children;
 

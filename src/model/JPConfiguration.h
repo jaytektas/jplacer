@@ -6,6 +6,7 @@
 #include "JPBoard.h"
 #include "JPBoardLocation.h"
 #include "JPJob.h"
+#include "JPFeeder.h"
 #include "JPPackage.h"
 #include "JPPanel.h"
 #include "JPPanelLocation.h"
@@ -30,6 +31,8 @@ public:
     static constexpr const char* kPackagesFile = "packages.xml";
     static constexpr const char* kBoardsFile   = "boards.xml";
     static constexpr const char* kPanelsFile   = "panels.xml";
+    // The machine's feeders, as OpenPnP's machine.xml has them (<feeders>).
+    static constexpr const char* kFeedersFile  = "feeders.xml";
     static constexpr const char* kVisionFile   = "vision-settings.xml";
 
     explicit JPConfiguration(std::string directory);
@@ -57,6 +60,26 @@ public:
     const JPVisionSettings* visionSettings(const std::string& id) const;
     // Placements on the known boards that use the part (OpenPnP's Placements column).
     int placementCount(const std::string& partId) const;
+
+    // The feeders, in order.
+    std::vector<JPFeeder>&       feeders() { return m_feeders; }
+    const std::vector<JPFeeder>& feeders() const { return m_feeders; }
+    JPFeeder* feeder(const std::string& id);
+    // A feeder added after the others; one taken away.
+    JPFeeder& addFeeder(JPFeeder f);
+    void      removeFeeder(const std::string& id);
+    // The feeders of an OpenPnP machine.xml, in place of these (Machine >
+    // Import OpenPnP Machine); how many, or -1 (and why) when it cannot be read.
+    int importFeeders(const std::string& machineXml, std::string& error);
+    // The feeder to take a part from, as OpenPnP's FeederUtils.findFeeder:
+    // of the enabled feeders holding it, those of the highest priority, and
+    // of those the one whose pick location is closest to `datum` (the
+    // head's camera; none: the first). None when no enabled feeder has it.
+    JPFeeder* findFeeder(const std::string& partId, const std::optional<JPLocation>& datum);
+    // Whether an enabled feeder holds the part (a placement's Missing Feeder).
+    bool hasFeeder(const std::string& partId) const;
+    // How many feeders hold the part (the Parts tab's Feeders column).
+    int feederCount(const std::string& partId) const;
 
     const std::vector<std::shared_ptr<JPBoard>>& boards() const { return m_boards; }
     const std::vector<std::shared_ptr<JPPanel>>& panels() const { return m_panels; }
@@ -104,6 +127,7 @@ private:
     std::vector<std::shared_ptr<JPPackage>>              m_packages;
     std::unordered_map<std::string, std::shared_ptr<JPPackage>> m_packagesById;
     std::vector<JPVisionSettings>                        m_vision;
+    std::vector<JPFeeder>                                m_feeders;
     std::vector<std::shared_ptr<JPBoard>>                m_boards;
     std::vector<std::shared_ptr<JPPanel>>                m_panels;
 };

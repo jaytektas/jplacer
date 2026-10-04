@@ -3,6 +3,7 @@
 
 #include "JPSetupProperties.h"
 
+#include "JPFormBuilder.h"
 #include "JPSetupTree.h"
 
 #include <algorithm>
@@ -19,187 +20,14 @@ namespace {
 
 using Strings = std::vector<std::string>;
 
-// Choices shown by name and kept by id: labels[i] names ids[i].
-struct Named {
-    Strings labels, ids;
-    void add(std::string label, std::string id) {
-        labels.push_back(std::move(label));
-        ids.push_back(std::move(id));
-    }
-};
-
 template <class T>
-Named named(const std::vector<T>& items, const std::string& none) {
-    Named n;
+JPFormBuilder::Named named(const std::vector<T>& items, const std::string& none) {
+    JPFormBuilder::Named n;
     if (!none.empty()) n.add(none, "");
     for (const T& i : items) n.add(i.name.empty() ? i.id : i.name, i.id);
     return n;
 }
 
-// Adds a part's settings to a form: each to the model, and to the layout
-// at the tab and group being filled, on a row of its own or on the row
-// begun. Each reads and writes the cell through closures that find the part
-// afresh each time (the cell's lists can move); the "ref" forms take a
-// reference to a member of it.
-class Adder {
-public:
-    using Form  = JPSetupProperties::Form;
-    using Row   = JPSetupProperties::Row;
-    using Place = JPSetupProperties::Place;
-
-    explicit Adder(Form& f) : m_form(f) {}
-
-    void tab(const std::string& title) {
-        m_form.tabs.push_back({ title, {} });
-    }
-    void group(const std::string& title) {
-        if (m_form.tabs.empty()) tab("Configuration");
-        m_form.tabs.back().groups.push_back({ title, {} });
-    }
-    // The settings added until end() go on one row, side by side.
-    void row(const std::string& label, Place place = Place::None, const std::string& axis = "") {
-        Row r;
-        r.label = label;
-        r.place = place;
-        r.axis = axis;
-        rows().push_back(std::move(r));
-        m_open = true;
-    }
-    void end() { m_open = false; }
-    // An empty place on the row begun (a column this row has nothing in).
-    void skip() { rows().back().cells.push_back({ "", "" }); }
-    void header(const Strings& titles) {
-        Row r;
-        r.kind = Row::Kind::Header;
-        for (const std::string& t : titles) r.cells.push_back({ "", t });
-        rows().push_back(std::move(r));
-    }
-    void note(const std::string& text) {
-        Row r;
-        r.kind = Row::Kind::Note;
-        r.text = text;
-        rows().push_back(std::move(r));
-    }
-    // A graph under the title `label`.
-    void plot(const std::string& label, std::shared_ptr<const JPPlot> plot) {
-        Row r;
-        r.kind = Row::Kind::Plot;
-        r.label = label;
-        r.plot = std::move(plot);
-        rows().push_back(std::move(r));
-    }
-    // Buttons: (label, action) each; the owner does the action.
-    void actions(const std::vector<std::pair<std::string, std::string>>& buttons) {
-        Row r;
-        r.kind = Row::Kind::Actions;
-        for (const auto& [label, action] : buttons) r.cells.push_back({ action, label });
-        rows().push_back(std::move(r));
-    }
-
-    // `placeholder`: what an empty value stands for, shown greyed.
-    void text(const std::string& name, const std::string& label, std::function<std::string()> get,
-              std::function<void(const std::string&)> set, const std::string& editor = "",
-              const std::string& placeholder = "") {
-        JProperty p = make(name, label);
-        p.meta.editor = editor;
-        p.meta.def = placeholder;
-        p.get = [get] { return JVariant(get()); };
-        if (set) p.set = [set](const JVariant& v) { set(v.toString()); return true; };   // none: shown, not edited
-        put(std::move(p));
-    }
-    void text(const std::string& name, const std::string& label, std::function<std::string&()> ref,
-              const std::string& editor = "") {
-        text(name, label, [ref] { return ref(); }, [ref](const std::string& v) { ref() = v; }, editor);
-    }
-    void number(const std::string& name, const std::string& label, std::function<double()> get,
-                std::function<void(double)> set, int decimals = 3) {
-        JProperty p = make(name, label);
-        p.meta.decimals = decimals;
-        p.get = [get] { return JVariant(get()); };
-        p.set = [set](const JVariant& v) { set(v.toDouble()); return true; };
-        put(std::move(p));
-    }
-    void number(const std::string& name, const std::string& label, std::function<double&()> ref, int decimals = 3) {
-        number(name, label, [ref] { return ref(); }, [ref](double v) { ref() = v; }, decimals);
-    }
-    void integer(const std::string& name, const std::string& label, std::function<int()> get,
-                 std::function<void(int)> set, int min, int max) {
-        JProperty p = make(name, label);
-        p.meta.min = JVariant(min);
-        p.meta.max = JVariant(max);
-        p.get = [get] { return JVariant(get()); };
-        p.set = [set](const JVariant& v) { set(int(v.toInt())); return true; };
-        put(std::move(p));
-    }
-    void integer(const std::string& name, const std::string& label, std::function<int&()> ref, int min, int max) {
-        integer(name, label, [ref] { return ref(); }, [ref](int v) { ref() = v; }, min, max);
-    }
-    void flag(const std::string& name, const std::string& label, std::function<bool()> get, std::function<void(bool)> set) {
-        JProperty p = make(name, label);
-        p.get = [get] { return JVariant(get()); };
-        p.set = [set](const JVariant& v) { set(v.toBool()); return true; };
-        put(std::move(p));
-    }
-    void flag(const std::string& name, const std::string& label, std::function<bool&()> ref) {
-        flag(name, label, [ref] { return ref(); }, [ref](bool v) { ref() = v; });
-    }
-    // One of `labels`, read and written as the label.
-    void choice(const std::string& name, const std::string& label, const Strings& labels,
-                std::function<std::string()> get, std::function<void(const std::string&)> set) {
-        JProperty p = make(name, label);
-        for (const std::string& l : labels) p.meta.choices.push_back(JVariant(l));
-        p.get = [get] { return JVariant(get()); };
-        p.set = [set](const JVariant& v) { set(v.toString()); return true; };
-        put(std::move(p));
-    }
-    // One of `n`, kept as its id.
-    void byName(const std::string& name, const std::string& label, const Named& n, std::function<std::string()> get,
-                std::function<void(const std::string&)> set) {
-        choice(name, label, n.labels,
-               [n, get] {
-                   const std::string id = get();
-                   for (size_t i = 0; i < n.ids.size(); ++i)
-                       if (n.ids[i] == id) return n.labels[i];
-                   return id;   // names something not in the cell: shown as it is
-               },
-               [n, set](const std::string& l) {
-                   for (size_t i = 0; i < n.labels.size(); ++i)
-                       if (n.labels[i] == l) set(n.ids[i]);
-               });
-    }
-    void byName(const std::string& name, const std::string& label, const Named& n, std::function<std::string&()> ref) {
-        byName(name, label, n, [ref] { return ref(); }, [ref](const std::string& id) { ref() = id; });
-    }
-
-private:
-    std::vector<Row>& rows() {
-        if (m_form.tabs.empty() || m_form.tabs.back().groups.empty()) group("");
-        return m_form.tabs.back().groups.back().rows;
-    }
-    JProperty make(const std::string& name, const std::string& label) const {
-        JProperty p;
-        p.name = name;
-        p.meta.category = m_form.tabs.empty() || m_form.tabs.back().groups.empty() ? "" : m_form.tabs.back().groups.back().title;
-        p.meta.label = label;
-        return p;
-    }
-    void put(JProperty p) {
-        const std::string name = p.name, label = p.meta.label;
-        m_form.model.add(std::move(p));
-        if (m_open) {
-            Row& r = rows().back();
-            r.cells.push_back({ name, r.cells.empty() ? "" : label });
-            return;
-        }
-        Row r;
-        r.label = label;
-        r.cells.push_back({ name, "" });
-        rows().push_back(std::move(r));
-    }
-
-    Form& m_form;
-    bool  m_open = false;
-};
 
 template <class T>
 std::function<T&()> finder(std::vector<T>& items, const std::string& id) {
@@ -225,7 +53,7 @@ const Strings kXYZR{ "X", "Y", "Z", "Rotation" };
 // axes and offsets as columns. `noHead`: what having none is called; a
 // fixed part with a place (a camera looking up) has a Location instead.
 template <class T>
-void coordinateSystem(Adder& add, JPCellConfig& cell, std::function<T&()> part, const std::string& noHead,
+void coordinateSystem(JPFormBuilder& add, JPCellConfig& cell, std::function<T&()> part, const std::string& noHead,
                       bool fixedHasPlace, JPSetupProperties::Form& form) {
     auto mount = [part]() -> JPMountConfig& { return part().mount; };
     add.group(mount().headId.empty() && fixedHasPlace ? "Location" : "Coordinate System");
@@ -262,7 +90,7 @@ void coordinateSystem(Adder& add, JPCellConfig& cell, std::function<T&()> part, 
         add.end();
         return;
     }
-    const Named axes = named(cell.axes, "(none)");
+    const JPFormBuilder::Named axes = named(cell.axes, "(none)");
     add.header(kXYZR);
     add.row("Axis");
     add.byName("axisX", "X axis", axes, [mount]() -> std::string& { return mount().axisX; });
@@ -279,7 +107,7 @@ void coordinateSystem(Adder& add, JPCellConfig& cell, std::function<T&()> part, 
 
 void machineForm(JPCellConfig& cell, JPSetupProperties::Form& f) {
     f.title = "Machine";
-    Adder add(f);
+    JPFormBuilder add(f);
     add.tab("Configuration");
     add.group("General");
     add.text("name", "Name", [&cell]() -> std::string& { return cell.name; }, "name");
@@ -309,7 +137,7 @@ void machineForm(JPCellConfig& cell, JPSetupProperties::Form& f) {
 void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPFirmwareProfile>& profiles, JPSetupProperties::Form& f) {
     auto d = finder(cell.drivers, id);
     f.title = "Controller " + d().name;
-    Adder add(f);
+    JPFormBuilder add(f);
     add.tab("Configuration");
     add.group("Properties");
     add.text("name", "Name", [d]() -> std::string& { return d().name; }, "name");
@@ -443,7 +271,7 @@ void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPF
 }
 
 // What measuring an axis's backlash found, as graphs.
-void backlashResults(Adder& add, const JPBacklashCalibration& k) {
+void backlashResults(JPFormBuilder& add, const JPBacklashCalibration& k) {
     add.group("Calibrated " + k.when);
     char b[96];
     std::snprintf(b, sizeof b, "%.4f mm", k.toleranceMm);
@@ -483,7 +311,7 @@ void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
     using A = JPAxisConfig;
     auto a = finder(cell.axes, id);
     f.title = "Axis " + a().name;
-    Adder add(f);
+    JPFormBuilder add(f);
     add.tab("Configuration");
     add.group("Properties");
     // A controller axis is one a controller drives; a mapped one follows
@@ -636,7 +464,7 @@ void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
 void headForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f) {
     auto h = finder(cell.heads, id);
     f.title = "Head " + h().name;
-    Adder add(f);
+    JPFormBuilder add(f);
     add.tab("Configuration");
     add.group("Properties");
     add.text("name", "Name", [h]() -> std::string& { return h().name; }, "name");
@@ -702,7 +530,7 @@ void headForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
 void nozzleForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f) {
     auto n = finder(cell.nozzles, id);
     f.title = "Nozzle " + n().name;
-    Adder add(f);
+    JPFormBuilder add(f);
     add.tab("Configuration");
     add.group("Properties");
     add.text("name", "Name", [n]() -> std::string& { return n().name; }, "name");
@@ -746,7 +574,7 @@ void nozzleForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
 
     add.tab("Vacuum");
     add.group("Vacuum");
-    const Named actuators = named(cell.actuators, "(none)");
+    const JPFormBuilder::Named actuators = named(cell.actuators, "(none)");
     add.byName("vacuumActuator", "Vacuum Actuator", actuators, [n]() -> std::string& { return n().vacuumActuatorId; });
     add.row("Blow Off Actuator");
     add.byName("blowOffActuator", "Blow Off Actuator", actuators, [n]() -> std::string& { return n().blowOffActuatorId; });
@@ -781,7 +609,7 @@ void nozzleForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
 void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f) {
     auto t = finder(cell.nozzleTips, id);
     f.title = "Nozzle tip " + t().name;
-    Adder add(f);
+    JPFormBuilder add(f);
     add.tab("Configuration");
     add.group("Properties");
     add.text("name", "Name", [t]() -> std::string& { return t().name; }, "name");
@@ -902,7 +730,7 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
 
 // An optional coordinate as text: empty when left out (the nozzle stays as it
 // is on that axis). What is not a number is not taken.
-void coordinate(Adder& add, const std::string& name, const std::string& label,
+void coordinate(JPFormBuilder& add, const std::string& name, const std::string& label,
                 std::function<std::optional<double>&()> ref) {
     add.text(name, label, [ref] { return ref() ? JPSetupTree::shortNumber(*ref()) : std::string(); },
              [ref](const std::string& v) {
@@ -923,7 +751,7 @@ void stepForm(JPCellConfig& cell, const JPSetupTree::Path& p, JPSetupProperties:
     const size_t index = size_t(std::strtoul(p.id.c_str(), nullptr, 10));
     const bool load = p.list == "load";
     f.title = "Nozzle tip " + tip().name + ": " + (load ? "load" : "unload") + " step " + std::to_string(index + 1);
-    Adder add(f);
+    JPFormBuilder add(f);
     add.tab("Step");
     add.group("Step");
     if (!load && tip().unloadReversesLoad) {
@@ -985,7 +813,7 @@ void stepForm(JPCellConfig& cell, const JPSetupTree::Path& p, JPSetupProperties:
 // A calibration's results, and its measurements as graphs: each against the
 // fit in the order measured, all of them about the fit (the outlier limit as a
 // circle), and how far off each is across the picture.
-void calibrationResults(Adder& add, const JPCameraCalibration& cal, bool looksUp) {
+void calibrationResults(JPFormBuilder& add, const JPCameraCalibration& cal, bool looksUp) {
     const std::string size = std::to_string(cal.width) + "\xC3\x97" + std::to_string(cal.height);
     const std::string key = "cal" + std::to_string(cal.width) + "x" + std::to_string(cal.height) + ".";
     auto shown = [&add, &key](const std::string& name, const std::string& label, const std::string& value) {
@@ -1075,7 +903,7 @@ void calibrationResults(Adder& add, const JPCameraCalibration& cal, bool looksUp
 void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f) {
     auto c = finder(cell.cameras, id);
     f.title = "Camera " + c().name;
-    Adder add(f);
+    JPFormBuilder add(f);
     add.tab("General Configuration");
     add.group("Properties");
     add.text("name", "Name", [c]() -> std::string& { return c().name; }, "name");
@@ -1303,7 +1131,7 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
 void actuatorForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f) {
     auto a = finder(cell.actuators, id);
     f.title = "Actuator " + a().name;
-    Adder add(f);
+    JPFormBuilder add(f);
     add.tab("Configuration");
     add.group("Properties");
     add.byName("driver", "Driver", named(cell.drivers, "(none)"), [a]() -> std::string& { return a().driverId; });

@@ -4,6 +4,7 @@
 #include "JPlacerOpenPnpTabs.h"
 
 #include "JPlacerChildFiducialsDialog.h"
+#include "JPlacerClassSelectionDialog.h"
 #include "JPlacerChoiceDialog.h"
 #include "JPlacerExistingHolderDialog.h"
 #include "JPlacerPanelArrayDialog.h"
@@ -194,9 +195,13 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
                                              JSettings::instance().get<double>(JPlacerSettings::kPartsSplit, kSplit));
     m_parts->openMenu = openMenu;
     m_parts->onChanged = [this] { m_job.configurationChanged(); };
-    m_parts->onPickPart = [](const JPPart& part) {
-        // As OpenPnP: the first feeder that holds the part; there are none yet.
-        JDialog::message("Error", "No valid feeder found for " + part.id);
+    m_parts->onPickPart = [this](const JPPart& part) {
+        JPFeeder* f = m_job.configuration().findFeeder(part.id, m_machine.toolLocation(JPSetupForm::Tool::Camera));
+        if (!f) {
+            JDialog::message("Error", "No valid feeder found for " + part.id);
+            return;
+        }
+        m_feeders->pickFrom(*f);
     };
     m_partsDock = std::make_unique<JDockWidget>("Parts", 0.f, 0.f, 0.f, 0.f);
     m_partsDock->setContent(m_parts.get());
@@ -214,6 +219,45 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_packagesDock->setContent(m_packages.get());
     m_layout.add(m_packagesDock.get(), JPlacerLayout::Home::Work);
 
+    // Feeders: the machine's moves and picks, and OpenPnP's machine's feeders taken on its import.
+    m_feeders = std::make_unique<JPFeedersPanel>(graph, job.configuration(),
+                                                 JSettings::instance().get<double>(JPlacerSettings::kFeedersSplit, kSplit));
+    m_feeders->openMenu = openMenu;
+    m_feeders->onChanged = [this] {
+        m_job.configurationChanged();
+    };
+    m_feeders->chooseClass = [this](const std::string& title, const std::string& description,
+                                    const std::vector<std::string>& classes, std::function<void(std::string)> chosen) {
+        m_window.openModal<JPlacerClassSelectionDialog>(title, description, classes, std::move(chosen));
+    };
+    m_feeders->whereIs = [this](JPFeedersPanel::Tool t) { return m_machine.whereIs(t); };
+    m_feeders->moveTo = [this](JPFeedersPanel::Tool t, const JPFeedersPanel::Where& to) { m_machine.moveToolTo(t, to); };
+    m_feeders->pickAt = [this](const JPLocation& at) { m_machine.pickAt(at); };
+    m_feeders->partUsed = [this](const std::string& partId) {
+        for (const JPBoardLocation* l : m_job.job().boardLocations()) {
+            if (!l->isEnabled() || !l->holder) continue;
+            for (const JPPlacement& p : l->holder->placements)
+                if (p.type == JPPlacement::Type::Placement && p.enabled && p.partId == partId) return true;
+        }
+        return false;
+    };
+    m_feedersDock = std::make_unique<JDockWidget>("Feeders", 0.f, 0.f, 0.f, 0.f);
+    m_feedersDock->setContent(m_feeders.get());
+    m_layout.add(m_feedersDock.get(), JPlacerLayout::Home::Work);
+    m_jobPanel->placements().onEditFeeder = [this](const std::string& partId) {
+        m_layout.show(m_feedersDock.get());
+        m_feeders->showFeederForPart(partId);
+    };
+    m_machine.onImported = [this](const std::string& machineXml) {
+        std::string error;
+        const int n = m_job.configuration().importFeeders(machineXml, error);
+        if (n < 0) {
+            JDialog::message("Feeders not imported", error);
+            return;
+        }
+        m_job.configurationChanged();
+    };
+
     m_watch = m_job.watch([this, jobName](JPlacerJob::Change) {
         m_jobPanel->refresh();
         m_jobViewer->followJob(&m_job.job().root(), jobName(), {});
@@ -221,12 +265,14 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         m_boards->refresh();
         m_parts->refresh();
         m_packages->refresh();
+        m_feeders->refresh();
     });
 }
 
 JPlacerOpenPnpTabs::~JPlacerOpenPnpTabs() {
     JSettings::instance().set(JPlacerSettings::kPartsSplit, m_parts->split());
     JSettings::instance().set(JPlacerSettings::kPackagesSplit, m_packages->split());
+    JSettings::instance().set(JPlacerSettings::kFeedersSplit, m_feeders->split());
     JSettings::instance().set(JPlacerSettings::kBoardsSplit, m_boards->split());
     JSettings::instance().set(JPlacerSettings::kPanelsSplit, m_panels->split());
     JSettings::instance().set(JPlacerSettings::kJobSplit, m_jobPanel->split());
@@ -237,6 +283,9 @@ JPlacerOpenPnpTabs::~JPlacerOpenPnpTabs() {
     m_partsDock->setContent(nullptr);
     m_layout.remove(m_packagesDock.get());
     m_packagesDock->setContent(nullptr);
+    m_machine.onImported = nullptr;
+    m_layout.remove(m_feedersDock.get());
+    m_feedersDock->setContent(nullptr);
     m_layout.remove(m_boardsDock.get());
     m_boardsDock->setContent(nullptr);
     m_boardViewer.reset();
@@ -325,7 +374,8 @@ bool JPlacerOpenPnpTabs::mayClose() {
 }
 
 bool JPlacerOpenPnpTabs::showDock(const std::string& title) {
-    for (JDockWidget* d : { m_jobDock.get(), m_panelsDock.get(), m_boardsDock.get(), m_partsDock.get(), m_packagesDock.get() })
+    for (JDockWidget* d : { m_jobDock.get(), m_panelsDock.get(), m_boardsDock.get(), m_partsDock.get(), m_packagesDock.get(),
+                             m_feedersDock.get() })
         if (title == d->title()) {
             m_layout.show(d);
             return true;

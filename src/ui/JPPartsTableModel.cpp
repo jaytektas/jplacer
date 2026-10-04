@@ -86,7 +86,7 @@ std::string JPPartsTableModel::text(int row, int c) const {
             return v ? v->name : std::string();
         }
         case kPlacements: return std::to_string(m_config.placementCount(p->id));
-        case kFeeders:    return "0";   // the machine has no feeders yet
+        case kFeeders:    return std::to_string(m_config.feederCount(p->id));
     }
     return {};
 }
@@ -95,6 +95,10 @@ double JPPartsTableModel::number(int row, int c) const {
     if (c == kPlacements) {
         const JPPart* p = part(row);
         return p ? m_config.placementCount(p->id) : 0;
+    }
+    if (c == kFeeders) {
+        const JPPart* p = part(row);
+        return p ? m_config.feederCount(p->id) : 0;
     }
     return 0;
 }

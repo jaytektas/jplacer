@@ -51,6 +51,7 @@ JPJobPlacementsPanel::JPJobPlacementsPanel(JSceneGraph& graph, JPConfiguration& 
         updateActivePlacements();
         changed();
     };
+    m_model.hasFeeder = [&config](const std::string& partId) { return config.hasFeeder(partId); };
 
     auto bar = JPUiParts::row(graph);
     auto tool = [&](const char* name, const char* icon, const char* tip) {
@@ -77,10 +78,11 @@ JPJobPlacementsPanel::JPJobPlacementsPanel(JSceneGraph& graph, JPConfiguration& 
                          "Set the placement's location to the tool's current position.");
     m_captureTool->onClicked.connect([this] { capture(Tool::Nozzle); });
     bar->add(toolSeparator(graph));
-    // The Feeders tab is still to come: its button is there, not yet working.
     m_editFeeder = tool("Edit Placement Feeder", "feeder-edit", "Edit the placement's associated feeder definition.");
     m_editFeeder->setLeads(JPIconButton::Leads::Elsewhere);
-    m_editFeeder->setEnabled(false);
+    m_editFeeder->onClicked.connect([this] {
+        if (const auto chosen = selections(); chosen.size() == 1 && onEditFeeder) onEditFeeder(chosen.front()->partId);
+    });
     bar->add(std::make_unique<JContainer>(graph, 0.f, 0.f))->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     JLabel* searchLabel = bar->add(std::make_unique<JLabel>(graph, "Search"));
     searchLabel->setFixedSize(JTextHelper::measureWidth("Search") + st.spacing, st.controlHeight);
@@ -203,6 +205,8 @@ void JPJobPlacementsPanel::updateActions() {
     m_toolTo->setEnabled(facingUp);
     m_captureCamera->setEnabled(editDefinition && facingUp);
     m_captureTool->setEnabled(editDefinition && facingUp);
+    m_editFeeder->setEnabled(one && chosen.front()->type == JPPlacement::Type::Placement && m_location
+                             && m_location->kind() == JPPlacementsHolderLocation::Kind::Board);
     for (size_t i = 2; i < m_menu->items().size(); ++i) m_menu->items()[i]->setEnabled(!chosen.empty());
 }
 

@@ -23,6 +23,7 @@
 
 #include "model/JPLocation.h"
 
+#include <array>
 #include <functional>
 #include <map>
 #include <memory>
@@ -91,14 +92,26 @@ public:
     // The open cell's nozzle tips, id and name; none without a cell.
     std::vector<std::pair<std::string, std::string>> nozzleTips() const;
 
+    // An OpenPnP machine.xml imported (its feeders are the configuration's, and taken from it there).
+    std::function<void(const std::string& machineXml)> onImported;
     // Where the head's camera, or the Jog panel's chosen nozzle, is now, in
-    // the machine's millimetres (Z and rotation where it has those axes);
-    // none when the machine is not connected.
+    // the machine's millimetres: X, Y, Z, rotation, each where it has that
+    // axis; none when the machine is not connected.
+    using Where = std::array<std::optional<double>, 4>;
+    Where whereIs(JPSetupForm::Tool tool) const;
+    // The same as a location (Z and rotation 0 where it has no such axis);
+    // none without X and Y.
     std::optional<JPLocation> toolLocation(JPSetupForm::Tool tool) const;
     // Takes it to `at` as OpenPnP's moveToLocationAtSafeZ: up to safe Z,
-    // across (and turned) to X, Y and the rotation, then down to `at`'s Z.
-    // False, the reason shown, when the machine cannot move.
+    // across (and turned) to X, Y and the rotation, then down to `at`'s Z (a
+    // coordinate not given stays as it is). False, the reason shown, when
+    // the machine cannot move.
+    bool moveToolTo(JPSetupForm::Tool tool, const Where& at);
     bool moveToolTo(JPSetupForm::Tool tool, const JPLocation& at);
+    // The chosen nozzle picks a part at `at`: there at safe Z, down, the
+    // vacuum on (JPCell::pickAt), and up again. False, the reason shown,
+    // when the machine cannot move.
+    bool pickAt(const JPLocation& at);
     // Where the docks live, and View's entries for them.
     JPlacerLayout& layout() { return m_layout; }
 
