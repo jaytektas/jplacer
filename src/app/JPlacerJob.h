@@ -71,6 +71,8 @@ public:
     void unwatch(int id);
 
 private:
+    // An empty job, its checklist as Preferences say.
+    static JPJob fresh();
     // Runs `then` once the job's changes are saved or let go (asked first).
     void settle(std::function<void()> then);
     bool openPath(const std::string& path, std::string& error);

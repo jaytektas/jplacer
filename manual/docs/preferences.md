@@ -49,6 +49,15 @@ done. The window can be made bigger by dragging its edge.
 
 <!-- src: src/app/JPlacerPreferencesDialog.cpp (generalPage, Parts library); src/app/JPlacerJob.cpp (setLibraryFolder); src/library/JPLibrary.cpp (open) -->
 
+### New jobs
+
+**Check rotations before a job**, **Skip packages where rotation cannot matter**, **Check against the file's
+pad 1**, **Let vision settle what it can**, **Ask me for the rest, on the board**
+:   What a new job's [rotation check](rotations.md#the-rotations-panel) starts as. All on when jplacer is
+    first installed. Each job then keeps its own, changed on its Rotations panel.
+
+<!-- src: src/app/JPlacerPreferencesDialog.cpp (New jobs); src/app/JPlacerJob.cpp (fresh); src/job/JPRotationRules.h -->
+
 ### Updates
 
 **Check for updates when jplacer opens**

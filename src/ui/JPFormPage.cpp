@@ -59,18 +59,20 @@ JPFormPage::JPFormPage(JSceneGraph& graph, const std::vector<Field>& fields, con
     }
     add(std::move(body));
 
-    if (!actions.empty()) {
-        auto buttons = JPUiParts::row(graph);
-        for (const Action& a : actions) {
-            JButton* b = buttons->add(JPUiParts::button(graph, a.label));
-            const std::string key = a.key;
-            b->onClicked.connect([this, key] {
-                if (onAction) onAction(key);
-            });
-            m_buttons[key] = b;
+    std::unique_ptr<JContainer> buttons;
+    for (const Action& a : actions) {
+        if (!buttons || a.newRow) {
+            if (buttons) add(std::move(buttons));
+            buttons = JPUiParts::row(graph);
         }
-        add(std::move(buttons));
+        JButton* b = buttons->add(JPUiParts::button(graph, a.label));
+        const std::string key = a.key;
+        b->onClicked.connect([this, key] {
+            if (onAction) onAction(key);
+        });
+        m_buttons[key] = b;
     }
+    if (buttons) add(std::move(buttons));
 }
 
 void JPFormPage::setNote(const std::string& text) {

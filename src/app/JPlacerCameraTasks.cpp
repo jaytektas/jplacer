@@ -528,6 +528,22 @@ void JPlacerCameraTasks::searchBoardStart(const JPBoard& board, const JPBoardSid
     }, [result, done](bool) { done(*result); });
 }
 
+void JPlacerCameraTasks::checkRotation(const JPBoardSide& board, const JPPlacement& p, const JPFootprint& f, double degrees,
+                                       std::function<void(const JPRotationLook::Result&)> done) {
+    JPCameraPanel* camera = headCamera();
+    if (const std::string why = notReady(camera, true, false); !why.empty()) {
+        m_window.showStatus("Check the rotation: " + why, kResultMs);
+        return;
+    }
+    JPCameraFeed* feed = &camera->feed();
+    auto result = std::make_shared<JPRotationLook::Result>();
+    run(*camera, "Checking " + p.designator + "'s rotation", [this, feed, board, p, f, degrees, result](std::string& words, const auto&) {
+        *result = JPRotationLook::run(m_cell, *feed, board, p, f, degrees, kTaskSpeed);
+        words = result->ok ? p.designator + ": " + std::to_string(result->quarters * 90) + " deg from its rotation" : result->why;
+        return result->ok;
+    }, [result, done](bool) { done(*result); });
+}
+
 bool JPlacerCameraTasks::headPicture(JPGrayImage& picture, JPCameraCalibration& calibration, double& x, double& y,
                                      std::string& why) const {
     JPCameraPanel* camera = headCamera();

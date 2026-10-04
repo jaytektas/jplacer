@@ -12,6 +12,8 @@
 
 #include "tasks/JPBoardLocator.h"
 #include "library/JPFootprintMaker.h"
+#include "library/JPStarterLibrary.h"
+#include "tasks/JPRotationLook.h"
 
 #include <atomic>
 #include <chrono>
@@ -55,6 +57,14 @@ JPBoard board() {
     u.side = S::Bottom;
     u.footprint = "SOIC-8";
     b.placements.push_back(u);
+    JPPlacement q;
+    q.designator = "Q7";
+    q.x = 100;
+    q.y = 40;
+    q.rotationDeg = 0;   // drawn a quarter turn round from this: its package's 0° is out
+    q.side = S::Bottom;
+    q.footprint = "SOT-23";
+    b.placements.push_back(q);
     JPPlacement r;
     r.designator = "R1";
     r.x = 40.5;
@@ -100,12 +110,19 @@ JPFootprint soic8() {
     return JPFootprintMaker::dual("SOIC-8", d);
 }
 
-std::string pads(const JPBoard& b) {
+JPFootprint sot23() {
+    JPPartsStore s;
+    JPStarterLibrary::fill(s);
+    return *s.footprint(s.packageNamed("SOT-23")->footprintId);
+}
+
+// A placement's pads, as JSON shapes on the machine: mirrored (bottom side),
+// turned by its rotation and `extra` degrees, onto the board and the machine.
+std::string padsOf(const JPPlacement& u, const JPFootprint& f, double extra) {
     const JPAffine2D h = hidden();
-    const JPPlacement& u = *b.find("U5");
-    const double a = u.rotationDeg * M_PI / 180;
+    const double a = (u.rotationDeg + extra) * M_PI / 180;
     std::string out;
-    for (const JPPad& p : soic8().pads) {
+    for (const JPPad& p : f.pads) {
         std::string pts;
         for (const auto& [cx, cy] : { std::pair{ -1, -1 }, std::pair{ 1, -1 }, std::pair{ 1, 1 }, std::pair{ -1, 1 } }) {
             const double lx = -(p.x + cx * p.width / 2), ly = p.y + cy * p.height / 2;   // mirrored
@@ -119,6 +136,10 @@ std::string pads(const JPBoard& b) {
         out += (out.empty() ? "" : ", ") + std::string("{ \"points\": [") + pts + "] }";
     }
     return out;
+}
+
+std::string pads(const JPBoard& b) {
+    return padsOf(*b.find("U5"), soic8(), 0) + ", " + padsOf(*b.find("Q7"), sot23(), 90);
 }
 
 JPCellConfig cellConfig(const std::string& marks, const std::string& shapes) {
@@ -279,6 +300,16 @@ int main() {
             if (!f.found) std::fprintf(stderr, "U5: %s\n", f.why.c_str());
             assert(f.found && f.residualMm < 0.02);
         }
+    }
+
+    // Which way round: Q7's SOT-23 is a quarter turn round from its rotation;
+    // U5's SOIC looks the same turned half round, so no angle wins.
+    {
+        const JPRotationLook::Result q7 = JPRotationLook::run(cell, feed, r.board, *b.find("Q7"), sot23(), 0, 1.0);
+        if (!q7.ok) std::fprintf(stderr, "Q7: %s\n", q7.why.c_str());
+        assert(q7.ok && q7.quarters == 1);
+        const JPRotationLook::Result u5 = JPRotationLook::run(cell, feed, r.board, *b.find("U5"), soic8(), 90, 1.0);
+        assert(!u5.ok && u5.why.find("no angle") != std::string::npos);
     }
 
     // A part marked as a reference that the camera has no way to find: left out, and said why.

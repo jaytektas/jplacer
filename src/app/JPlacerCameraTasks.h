@@ -6,6 +6,7 @@
 #include "machine/JPCell.h"
 #include "tasks/JPBacklashCalibrator.h"
 #include "tasks/JPBoardLocator.h"
+#include "tasks/JPRotationLook.h"
 #include "tasks/JPRunoutCalibrator.h"
 #include "ui/JPCameraPanel.h"
 #include "vision/JPGrayImage.h"
@@ -92,6 +93,10 @@ public:
     // reference (JPBoardLocator::searchStart); to `done` on the main thread.
     void searchBoardStart(const JPBoard& board, const JPBoardSide& guess, double x0, double y0, double x1, double y1,
                           std::function<void(const JPBoardLocator::Result&)> done);
+    // Which way round a footprint sits on the bare board at placement `p`
+    // (JPRotationLook); to `done` on the main thread.
+    void checkRotation(const JPBoardSide& board, const JPPlacement& p, const JPFootprint& f, double degrees,
+                       std::function<void(const JPRotationLook::Result&)> done);
     // The head camera's latest picture, its calibration and where it was
     // looking; false (and why) without one.
     bool headPicture(JPGrayImage& picture, JPCameraCalibration& calibration, double& x, double& y, std::string& why) const;

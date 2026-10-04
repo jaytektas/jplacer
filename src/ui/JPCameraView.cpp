@@ -266,7 +266,23 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     }
     for (const Placed& p : placed) {
         const float r = p.mark->radius > 0 ? float(p.mark->radius) * scale : st.spacing;
-        vg.strokeCircle(p.x, p.y, r, line, JPaint::solid(p.mark->fiducial ? fidColour : partColour));
+        if (p.mark->outlines.empty()) vg.strokeCircle(p.x, p.y, r, line, JPaint::solid(p.mark->fiducial ? fidColour : partColour));
+        // A footprint: each pad outlined where the picture shows it, pin 1's dot filled.
+        for (const auto& outline : p.mark->outlines) {
+            std::vector<JVectorCanvas::JVec2> pts;
+            for (const auto& [ox, oy] : outline) {
+                double sx, sy;
+                if (shown(ox, oy, sx, sy)) pts.push_back({ x + float(sx) * scale, y + float(sy) * scale });
+            }
+            if (pts.size() == outline.size() && !pts.empty()) {
+                pts.push_back(pts.front());
+                vg.strokePolyline(pts, line, JPaint::solid(partColour));
+            }
+        }
+        double dx, dy;
+        if (p.mark->hasPin1 && shown(p.mark->pin1X, p.mark->pin1Y, dx, dy))
+            vg.fillCircle(x + float(dx) * scale, y + float(dy) * scale, std::max(line, float(p.mark->pin1Radius) * scale),
+                          JPaint::solid(fidColour));
     }
     vg.flush(buf);
     for (const Placed& p : placed) {

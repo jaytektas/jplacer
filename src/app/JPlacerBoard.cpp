@@ -420,9 +420,54 @@ std::vector<JPViewMark> JPlacerBoard::marks(const std::string& cameraId) const {
         double x, y, px, py;
         m_place.toMachine.apply(p.x, p.y, x, y);
         if (!cal.pixelFor(x, y, vx, vy, px, py) || px < 0 || py < 0 || px >= cal.width || py >= cal.height) continue;
-        out.push_back({ px, py, p.fiducial ? (p.fiducialMm > 0 ? p.fiducialMm : defaultMm) / 2 * scale : 0, p.designator, p.fiducial });
+        JPViewMark mark { px, py, p.fiducial ? (p.fiducialMm > 0 ? p.fiducialMm : defaultMm) / 2 * scale : 0, p.designator, p.fiducial };
+        if (p.designator == m_shownDesignator) {
+            // Its footprint's pads: from its own mm, mirrored for the bottom side,
+            // turned, onto the board, the machine and the picture.
+            const double a = m_shownDegrees * M_PI / 180, c = std::cos(a), sn = std::sin(a);
+            const bool bottom = p.side == JPPlacement::Side::Bottom;
+            auto toPicture = [&](double lx, double ly, double& ox, double& oy) {
+                if (bottom) lx = -lx;
+                double mx, my;
+                m_place.toMachine.apply(p.x + lx * c - ly * sn, p.y + lx * sn + ly * c, mx, my);
+                return cal.pixelFor(mx, my, vx, vy, ox, oy);
+            };
+            for (const JPPad& pad : m_shownFootprint.pads) {
+                const double pa = pad.rotationDeg * M_PI / 180, pc = std::cos(pa), ps = std::sin(pa);
+                std::vector<std::pair<double, double>> outline;
+                for (const auto& [cx, cy] : { std::pair{ -1, -1 }, std::pair{ 1, -1 }, std::pair{ 1, 1 }, std::pair{ -1, 1 } }) {
+                    const double hx = cx * pad.width / 2, hy = cy * pad.height / 2;
+                    double ox, oy;
+                    if (toPicture(pad.x + hx * pc - hy * ps, pad.y + hx * ps + hy * pc, ox, oy)) outline.emplace_back(ox, oy);
+                }
+                if (outline.size() == 4) mark.outlines.push_back(std::move(outline));
+            }
+            if (const JPPad* p1 = m_shownFootprint.pin1Pad())
+                if (toPicture(p1->x, p1->y, mark.pin1X, mark.pin1Y)) {
+                    mark.hasPin1 = true;
+                    mark.pin1Radius = std::min(p1->width, p1->height) / 4 * scale;
+                }
+        }
+        out.push_back(std::move(mark));
     }
     return out;
+}
+
+bool JPlacerBoard::located(JPBoardSide& out) const {
+    if (!m_placed || !m_measured) return false;
+    out = m_place;
+    return true;
+}
+
+void JPlacerBoard::showFootprint(const std::string& designator, const JPFootprint& footprint, double degrees) {
+    m_shownDesignator = designator;
+    m_shownFootprint = footprint;
+    m_shownDegrees = degrees;
+    goTo(designator);
+}
+
+void JPlacerBoard::clearFootprint() {
+    m_shownDesignator.clear();
 }
 
 double JPlacerBoard::meanLean() const {

@@ -187,6 +187,13 @@ JJson JPJob::toJson() const {
     loc["capture"]  = location.capture == JPLocateSettings::Capture::Manual ? "manual" : "automatic";
     loc["newBoard"] = location.newBoard == JPLocateSettings::NewBoard::Reuse ? "reuse" : "rerecord";
     j["location"] = std::move(loc);
+    JJson rr = JJson::object();
+    rr["check"]            = rotationRules.check;
+    rr["skipCannotMatter"] = rotationRules.skipCannotMatter;
+    rr["byFile"]           = rotationRules.byFile;
+    rr["byVision"]         = rotationRules.byVision;
+    rr["byPerson"]         = rotationRules.byPerson;
+    j["rotationRules"] = std::move(rr);
     JJson ps = JJson::array();
     for (const JPPlacement& p : board.placements) ps.push(placementJson(p));
     j["placements"] = std::move(ps);
@@ -217,6 +224,12 @@ bool JPJob::fromJson(const JJson& j, JPJob& out, std::string& error) {
                                                                      : JPLocateSettings::Capture::Automatic;
     job.location.newBoard = j["location"]["newBoard"].str() == "reuse" ? JPLocateSettings::NewBoard::Reuse
                                                                       : JPLocateSettings::NewBoard::ReRecord;
+    const JJson& rr = j["rotationRules"];
+    job.rotationRules.check            = rr["check"].boolean(true);
+    job.rotationRules.skipCannotMatter = rr["skipCannotMatter"].boolean(true);
+    job.rotationRules.byFile           = rr["byFile"].boolean(true);
+    job.rotationRules.byVision         = rr["byVision"].boolean(true);
+    job.rotationRules.byPerson         = rr["byPerson"].boolean(true);
     for (const JJson& p : j["placements"].arr()) job.board.placements.push_back(placementOf(p));
     if (!JPPartsStore::fromJson(j["parts"], job.parts, error)) {
         error = "its parts: " + error;

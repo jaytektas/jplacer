@@ -12,6 +12,7 @@
 #include "library/JPPartMatcher.h"
 #include "library/JPPlacementRotation.h"
 #include "library/JPPlacementState.h"
+#include "library/JPRotationCheck.h"
 
 #include <j/config/Settings.h>
 #include <j/core/Dialog.h>
@@ -30,7 +31,7 @@ constexpr const char* kLibraryPrefix = "lib:";
 
 const std::vector<std::string>& columns() {
     static const std::vector<std::string> c = { "Designator", "State", "Part", "Value", "Package", "Footprint", "Side",
-                                                "Rotation", "Rotation From", "Reference", "Supplier No.", "Manufacturer" };
+                                                "Rotation", "Rotation From", "Turn Checked", "Reference", "Supplier No.", "Manufacturer" };
     return c;
 }
 
@@ -54,7 +55,7 @@ std::vector<JPFormPage::Action> entryActions(K kind) {
     if (kind == K::Package)
         a = { { "importKicad", "Import KiCad Footprint\xE2\x80\xA6" }, { "makeDual", "Make Dual Footprint\xE2\x80\xA6" },
               { "makeQuad", "Make Quad Footprint\xE2\x80\xA6" } };
-    a.insert(a.end(), { { "copy", "Copy to Library" }, { "update", "Update from Library" },
+    a.insert(a.end(), { { "copy", "Copy to Library", kind == K::Package }, { "update", "Update from Library" },
                         { "keep", "Keep This Version" }, { "remove", "Remove\xE2\x80\xA6" } });
     return a;
 }
@@ -65,7 +66,7 @@ std::vector<JPPartsPanel::Page> makePages(JSceneGraph& graph, JPFootprintView*& 
         std::vector<JPFormPage::Field>{ { "designator", "Placement" }, { "rotation", "Rotation (\xC2\xB0)" },
                                         { "from", "Rotation from" }, { "part", "Part", true } },
         std::vector<JPFormPage::Action>{ { "partRotation", "Use Part's Rotation" }, { "confirm", "Confirm Part" },
-                                         { "newPart", "New Part from File" }, { "reference", "Use as Reference" },
+                                         { "newPart", "New Part from File" }, { "reference", "Use as Reference", true },
                                          { "notReference", "Don't Use as Reference" } }) });
     pages.push_back({ "Part", std::make_unique<JPFormPage>(graph, JPlacerEntryForm::fields(K::Part), entryActions(K::Part)) });
     pages.push_back({ "Package", std::make_unique<JPFormPage>(graph, JPlacerEntryForm::fields(K::Package), entryActions(K::Package)) });
@@ -149,6 +150,9 @@ void JPlacerParts::show() {
                            footprint ? footprint->name : p.footprint,
                            p.side == JPPlacement::Side::Bottom ? "Bottom" : "Top", plain(rot.degrees),
                            p.fiducial ? std::string() : JPPlacementRotation::name(rot.source),
+                           !package || p.fiducial ? std::string()
+                               : JPRotationCheck::checked(*package) ? (package->checkedBy == "person" ? std::string("by you") : package->checkedBy)
+                                                                    : std::string("not yet"),
                            p.reference ? "Reference" : "",
                            numbers(part ? part->supplierNumbers : p.supplierNumbers),
                            part ? part->manufacturer : p.manufacturer } });

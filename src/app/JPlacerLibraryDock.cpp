@@ -41,7 +41,7 @@ std::vector<JPFormPage::Action> actions(K kind) {
     std::vector<JPFormPage::Action> a = { { "bring", "Bring into Job" } };
     if (kind == K::Part) a.push_back({ "newPart", "New Part" });
     if (kind == K::Package)
-        a.insert(a.end(), { { "newPackage", "New Package" }, { "importKicad", "Import KiCad Footprint\xE2\x80\xA6" },
+        a.insert(a.end(), { { "newPackage", "New Package" }, { "importKicad", "Import KiCad Footprint\xE2\x80\xA6", true },
                             { "makeDual", "Make Dual Footprint\xE2\x80\xA6" }, { "makeQuad", "Make Quad Footprint\xE2\x80\xA6" } });
     a.push_back({ "remove", "Remove\xE2\x80\xA6" });
     return a;

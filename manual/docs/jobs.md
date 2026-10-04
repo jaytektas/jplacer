@@ -167,7 +167,8 @@ is put right.
 
 The **Parts** panel (**Job ▸ Parts**, a dock beside Board) lists every placement in the job with its
 part: **Designator**, **State**, **Part** (its MPN, or its value when it has none), **Value**,
-**Package**, **Footprint**, **Side**, **Rotation**, **Rotation From**, **Reference** (whether the board is
+**Package**, **Footprint**, **Side**, **Rotation**, **Rotation From**, **Turn Checked** (its package's
+[rotation check](rotations.md)), **Reference** (whether the board is
 [located](board.md#references) by it), **Supplier No.** and **Manufacturer**.
 
 - **List** shows them as a table. Click a column's heading to sort by it, and again to reverse it.

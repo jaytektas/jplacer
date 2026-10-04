@@ -52,6 +52,13 @@ public:
     // The machine moved under the board's place (homed again, a camera
     // calibrated again): to be located again before it is trusted.
     void machineChanged(const std::string& why);
+    // Where the board is, when it has been located and is still trusted.
+    bool located(JPBoardSide& out) const;
+    // A footprint drawn over the camera's picture at a placement, turned to
+    // `degrees` (its pads outlined, pin 1's dot), until cleared; the camera
+    // goes to look at it.
+    void showFootprint(const std::string& designator, const JPFootprint& footprint, double degrees);
+    void clearFootprint();
 
 private:
     const JPBoard& board() const { return m_job.job().board; }
@@ -86,6 +93,10 @@ private:
     // squareness last changed measured it (JPBoardLocator::Result::xPerY):
     // one is good to some tens of percent, their mean better.
     std::vector<double> m_leans;
+    // The footprint drawn over the picture (empty designator: none).
+    std::string         m_shownDesignator;
+    JPFootprint         m_shownFootprint;
+    double              m_shownDegrees = 0;
     double meanLean() const;
     Square              m_square;
     std::shared_ptr<bool> m_alive = std::make_shared<bool>(true);

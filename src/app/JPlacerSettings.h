@@ -54,6 +54,12 @@ public:
     // The folder the main parts library is kept in (JPLibrary); empty: the
     // default, in jplacer's data folder.
     static constexpr const char* kLibraryFolder    = "library.folder";
+    // What a new job's rotation check rule starts as (JPRotationRules).
+    static constexpr const char* kRotationCheck            = "rotation.check";
+    static constexpr const char* kRotationSkipCannotMatter = "rotation.skipCannotMatter";
+    static constexpr const char* kRotationByFile           = "rotation.byFile";
+    static constexpr const char* kRotationByVision         = "rotation.byVision";
+    static constexpr const char* kRotationByPerson         = "rotation.byPerson";
     // The Parts panel: "list" or "tree", and the column the tree groups by.
     static constexpr const char* kPartsView        = "parts.view";
     static constexpr const char* kPartsGroup       = "parts.group";

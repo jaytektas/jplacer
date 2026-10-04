@@ -33,6 +33,7 @@ public:
     struct Action {
         std::string key;
         std::string label;
+        bool        newRow = false;   // starts a row of buttons below the last
     };
 
     JPFormPage(JSceneGraph& graph, const std::vector<Field>& fields, const std::vector<Action>& actions,

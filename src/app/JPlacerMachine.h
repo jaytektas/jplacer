@@ -85,6 +85,10 @@ public:
     void showSetup(const std::string& path);
     // Where the docks live, and View's entries for them.
     JPlacerLayout& layout() { return m_layout; }
+    // The board on the machine and the camera tasks: null while no cell with
+    // a camera is open.
+    JPlacerBoard* board() { return m_board.get(); }
+    JPlacerCameraTasks* cameraTasks() { return m_cameraTasks.get(); }
 
     // The directory cell files are kept in.
     static std::string cellsDir();

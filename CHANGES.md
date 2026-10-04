@@ -10,6 +10,11 @@ notes.
 
 ## Unreleased
 
+- Rotations are checked before a job (Job > Rotations): each package once, the cheapest way that
+  settles it: no check where it cannot matter, the file's pad 1 where it gives one, the camera trying
+  the four angles against the bare board, or you turning the footprint drawn over the camera's picture
+  until pad 1 is on the board's pin-1 mark. Each job says which ways it uses; Preferences sets what a new
+  job starts with.
 - Boards without fiducials can be located: any placement can be marked as a reference (Parts panel), and
   the camera finds a part by its pads, drawn from its package, or by its look learned when it was
   recorded.
