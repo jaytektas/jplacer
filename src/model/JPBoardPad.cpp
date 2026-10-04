@@ -3,6 +3,7 @@
 
 #include "JPBoardPad.h"
 
+#include "JPLengthUnits.h"
 #include "JPLocationXml.h"
 #include "JPSides.h"
 #include "JPXmlValues.h"
@@ -11,6 +12,13 @@ inline namespace jf {
 
 using V = JPXmlValues;
 
+namespace {
+// The class names OpenPnP's files give a pad's shape.
+constexpr const char* kRoundRectangle = "org.openpnp.model.Pad$RoundRectangle";
+constexpr const char* kCircle         = "org.openpnp.model.Pad$Circle";
+constexpr const char* kEllipse        = "org.openpnp.model.Pad$Ellipse";
+}
+
 JPBoardPad JPBoardPad::fromXml(const JPXmlElement& e) {
     JPBoardPad b;
     b.type = e.attr("type") == "Ignore" ? Type::Ignore : Type::Paste;
@@ -18,14 +26,13 @@ JPBoardPad JPBoardPad::fromXml(const JPXmlElement& e) {
     if (V::has(e, "name")) b.name = e.attr("name");
     if (const JPXmlElement* l = e.child("location")) b.location = JPLocationXml::from(*l);
     if (const JPXmlElement* p = e.child("pad")) {
-        b.pad.name = p->attr("name");
-        b.pad.x = V::number(*p, "x");
-        b.pad.y = V::number(*p, "y");
+        const std::string cls = p->attr("class");
+        b.pad.kind = cls == kCircle ? Shape::Kind::Circle : cls == kEllipse ? Shape::Kind::Ellipse : Shape::Kind::RoundRectangle;
+        JPLengthUnits::fromName(p->attr("units"), b.pad.units);
         b.pad.width = V::number(*p, "width");
         b.pad.height = V::number(*p, "height");
-        b.pad.rotation = V::number(*p, "rotation");
-        b.pad.mark = V::boolean(*p, "mark");
         b.pad.roundness = V::number(*p, "roundness");
+        b.pad.radius = V::number(*p, "radius");
     }
     return b;
 }
@@ -35,15 +42,17 @@ JPXmlNode JPBoardPad::toXml() const {
     n.attr("type", type == Type::Ignore ? "Ignore" : "Paste").attr("side", JPSides::name(side));
     if (name) n.attr("name", *name);
     n.add(JPLocationXml::to("location", location));
-    n.add(JPXmlNode("pad"))
-        .attr("name", pad.name)
-        .attr("x", V::number(pad.x))
-        .attr("y", V::number(pad.y))
-        .attr("width", V::number(pad.width))
-        .attr("height", V::number(pad.height))
-        .attr("rotation", V::number(pad.rotation))
-        .attr("mark", V::boolean(pad.mark))
-        .attr("roundness", V::number(pad.roundness));
+    JPXmlNode& p = n.add(JPXmlNode("pad"));
+    p.attr("class", pad.kind == Shape::Kind::Circle    ? kCircle
+                    : pad.kind == Shape::Kind::Ellipse ? kEllipse
+                                                       : kRoundRectangle)
+        .attr("units", JPLengthUnits::name(pad.units));
+    if (pad.kind == Shape::Kind::Circle) {
+        p.attr("radius", V::number(pad.radius));
+    } else {
+        p.attr("width", V::number(pad.width)).attr("height", V::number(pad.height));
+        if (pad.kind == Shape::Kind::RoundRectangle) p.attr("roundness", V::number(pad.roundness));
+    }
     return n;
 }
 

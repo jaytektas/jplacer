@@ -78,6 +78,19 @@ JPLocation JPLocation::derive(const JPLocation& l, bool x, bool y, bool z, bool 
     return JPLocation(m_units, x ? o.m_x : m_x, y ? o.m_y : m_y, z ? o.m_z : m_z, rotation ? o.m_rotation : m_rotation);
 }
 
+JPLocation JPLocation::withField(Field f, JPLength length, bool defaultToOldUnits) const {
+    const JPLength old = f == Field::X ? lengthX() : f == Field::Y ? lengthY() : lengthZ();
+    if (defaultToOldUnits) length = length.changeUnitsIfUnspecified(old.units());
+    length = length.changeUnitsIfUnspecified(JPLengthUnit::Millimeters);
+    const JPLocation l = convertToUnits(length.units());
+    switch (f) {
+        case Field::X: return l.derive(length.value(), std::nullopt, std::nullopt, std::nullopt);
+        case Field::Y: return l.derive(std::nullopt, length.value(), std::nullopt, std::nullopt);
+        case Field::Z: return l.derive(std::nullopt, std::nullopt, length.value(), std::nullopt);
+    }
+    return l;
+}
+
 JPLocation JPLocation::rotateXy(double angle) const {
     if (angle == 0.0) return *this;
     while (angle < 180.) angle += 360;

@@ -51,6 +51,11 @@ public:
                              std::optional<double> rotation) const;
     // Those chosen taken from `l`.
     JPLocation derive(const JPLocation& l, bool x, bool y, bool z, bool rotation) const;
+    // One of X, Y or Z set to a length, as OpenPnP's Length.setLocationField:
+    // a length with no units takes the old value's (`defaultToOldUnits`) or
+    // millimetres, and the location is given in the length's units.
+    enum class Field { X, Y, Z };
+    JPLocation withField(Field f, JPLength length, bool defaultToOldUnits) const;
     // X and Y turned about the origin by `angle` degrees.
     JPLocation rotateXy(double angle) const;
     JPLocation rotateXyCenterPoint(const JPLocation& center, double angle) const;

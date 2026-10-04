@@ -209,6 +209,9 @@ int main() {
         assert(text.rfind("<openpnp-board version=\"1.1\" name=\"pnp-test.board.xml\">", 0) == 0);
         assert(text.find("<placement version=\"1.4\" side=\"Top\" id=\"R7\" part-id=\"R0201-1K\" type=\"Placement\" enabled=\"false\">") != std::string::npos);
         assert(text.find("<error-handling>Default</error-handling>") != std::string::npos);
+        assert(text.find("<board-pad type=\"Paste\" side=\"Top\" name=\"R1-1\">") != std::string::npos);
+        assert(text.find("<pad class=\"org.openpnp.model.Pad$RoundRectangle\" units=\"Millimeters\" width=\"1.5\" "
+                         "height=\"1.3\" roundness=\"0.0\"/>") != std::string::npos);
     }
 
     fs::remove_all(dir);
