@@ -247,7 +247,21 @@ void JPlacerMachine::buildPanels(Keep keep) {
     if (keep != Keep::Nothing) panels.push_back({ "Machine Setup", Home::Work, nullptr });   // kept
     else panels.push_back({ "Machine Setup", Home::Work, makeSetup() });
     panels.push_back({ "Machine",   Home::Work, std::move(machine) });
-    panels.push_back({ "Console",   Home::Console, std::make_unique<JPConsolePanel>(m_graph, *m_cell) });
+    auto console = std::make_unique<JPConsolePanel>(m_graph, *m_cell,
+                                                    JSettings::instance().get<bool>(JPlacerSettings::kConsoleTraffic, true));
+    console->onShowTraffic = [](bool on) {
+        JSettings::instance().set(JPlacerSettings::kConsoleTraffic, on);
+        JPlacerSettings::save();
+    };
+    console->onLogLevels = [](const JPLogLevels& levels) {
+        JSettings::instance().set(JPlacerSettings::kLogLevels, levels.toText());
+        JPlacerSettings::save();
+    };
+    console->openMenu = [this](JMenu* menu, float x, float y) {
+        if (JMenuManager::instance().onOpenMenu)
+            JMenuManager::instance().onOpenMenu(menu, m_window.windowX() + int(x), m_window.windowY() + int(y), false, false);
+    };
+    panels.push_back({ "Console",   Home::Console, std::move(console) });
 
     const bool first = m_docks.empty();
     for (size_t i = 0; i < panels.size(); ++i) {

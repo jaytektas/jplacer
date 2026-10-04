@@ -376,12 +376,26 @@ setting it and its default on and off values.
 
 ### Console
 
-Everything sent to and received from the controllers, newest at the bottom (position reports are left
-out). It follows each new line while it is scrolled to the end; scroll back and it stays where you put it,
-until you scroll to the end again. Type a line in the box and press **Send** or Return to send it as it is. With more than one
-controller, choose which one from the list beside the box.
+What is sent to and received from the controllers (position reports are left out), and what jplacer's log
+says, newest at the bottom. It follows each new line while it is scrolled to the end; scroll back and it
+stays where you put it, until you scroll to the end again. Type a line in the box and press **Send** or
+Return to send it as it is. With more than one controller, choose which one from the list beside the box.
 
-<!-- src: src/ui/JPConsolePanel.cpp; src/machine/JPGcodeDriver.cpp (status lines are not passed on as traffic) -->
+Over the lines, what is shown:
+
+- **G-code**: the controllers' traffic, on or off.
+- **Log**: how much the log says, every category: Off, Errors, Warnings, Info (what was done and what came
+  of it, to begin with), Debug (the steps in between) or Trace (every event, many a second). A warning or
+  error line starts with ⚠; a Debug or Trace one with its level.
+- **Categories**: a menu of the log's categories (`machine.cell`, `camera`, and so on), each **As Log** or
+  at a level of its own: turn one part up (the controllers, `machine.driver`) without the rest, or one
+  that is too busy down. **All as Log** puts them all back.
+- **Clear** empties the console.
+
+The levels are the log's own, so they set what goes into the log file as well. They are kept for next
+time; `--verbose`, `--quiet` or `--trace <category>` on the command line go over them for that run.
+
+<!-- src: src/ui/JPConsolePanel.cpp; src/ui/JPMenuButton.cpp; src/common/JPLogLevels.cpp; src/common/JPlacerLog.h (all); src/app/JPlacerMachine.cpp (the console's settings); src/app/JPlacerApp.cpp (applied at start); src/main.cpp (parseArgs); src/machine/JPGcodeDriver.cpp (status lines are not passed on as traffic) -->
 
 ### Cameras
 

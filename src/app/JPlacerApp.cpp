@@ -4,6 +4,7 @@
 #include "JPlacerApp.h"
 
 #include "JPlacerLauncher.h"
+#include "common/JPLogLevels.h"
 #include "common/JPlacerLog.h"
 #include "JPlacerMenuBuilder.h"
 #include "JPlacerAppearance.h"
@@ -29,6 +30,8 @@ constexpr const char* kUpdateUrlEnv = "JPLACER_UPDATE_URL";
 
 JPlacerApp::JPlacerApp(std::string settingsPath) {
     JPlacerSettings::load(settingsPath);
+    // How much the log says, as last chosen (the console's controls).
+    JPLogLevels::fromText(JSettings::instance().get<std::string>(JPlacerSettings::kLogLevels, "info")).apply();
     JLOGC(JPlacerLog::kApp, JLogLevel::Info) << "starting jplacer " << JPLACER_VERSION;
 
     m_window = std::make_unique<JAppWindow>(kWindowTitle, kWindowWidth, kWindowHeight);

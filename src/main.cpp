@@ -21,28 +21,34 @@
 
 #include <j/core/Log.h>
 
+#include <optional>
 #include <string>
+#include <vector>
 
 using namespace jf;
 
 namespace {
 
 // --verbose / --trace <category> / --quiet turn the log thresholds up or down
-// from the command line, without an edit-rebuild cycle. --settings <file> runs
-// against another settings file, so a test never disturbs the real one.
-struct JOptions { std::string settingsPath = JPlacerSettings::defaultPath(); };
+// from the command line, without an edit-rebuild cycle: for this run, over
+// what the console last chose. --settings <file> runs against another
+// settings file, so a test never disturbs the real one.
+struct JOptions {
+    std::string               settingsPath = JPlacerSettings::defaultPath();
+    std::optional<JLogLevel>  level;
+    std::vector<std::string>  traced;
+};
 
 JOptions parseArgs(int argc, char** argv) {
     JOptions o;
-    JLog::instance().setGlobalLevel(JLogLevel::Info);
     for (int i = 1; i < argc; ++i) {
         const std::string arg = argv[i];
         if (arg == "--verbose" || arg == "-v") {
-            JLog::instance().setGlobalLevel(JLogLevel::Debug);
+            o.level = JLogLevel::Debug;
         } else if (arg == "--quiet" || arg == "-q") {
-            JLog::instance().setGlobalLevel(JLogLevel::Warn);
+            o.level = JLogLevel::Warn;
         } else if (arg == "--trace" && i + 1 < argc) {
-            JLog::instance().setLevel(argv[++i], JLogLevel::Trace);
+            o.traced.push_back(argv[++i]);
         } else if (arg == "--settings" && i + 1 < argc) {
             o.settingsPath = argv[++i];
         }
@@ -55,7 +61,9 @@ JOptions parseArgs(int argc, char** argv) {
 int main(int argc, char** argv) {
     const JOptions opts = parseArgs(argc, argv);
 
-    JPlacerApp app(opts.settingsPath);
+    JPlacerApp app(opts.settingsPath);   // the log as last chosen
+    if (opts.level) JLog::instance().setGlobalLevel(*opts.level);
+    for (const std::string& c : opts.traced) JLog::instance().setLevel(c, JLogLevel::Trace);
     if (!app.valid()) {
         JLOGC(JPlacerLog::kApp, JLogLevel::Error) << "application failed to initialise";
         return 1;

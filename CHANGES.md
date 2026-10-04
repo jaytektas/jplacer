@@ -215,7 +215,7 @@ notes.
 - Backlash: DirectionalCompensation and DirectionalSneakUp as well as one-sided, imported from OpenPnP as they are; Calibrate on an axis's Backlash tab measures the play with the head camera, chooses the method and shows graphs of what it measured.
 - Changing an axis's speed, limits or backlash no longer needs the machine homed again.
 - Machine Setup: the controller's Gcode tab is grouped by what each command is for, with what its placeholders mean, the profile's commands shown once, and scrolls to the end; Home after connected is a controller's setting; the tree's search has its × on the right, Open All and Close All on its right-click menu; a page's groups line up.
-- The console shows the newest line at the bottom and follows it, unless you have scrolled back.
+- The console shows the newest line at the bottom and follows it, unless you have scrolled back. It shows jplacer's log as well as the G-code, with how much of each: G-code on or off, the log's level, and each category's own level; kept for next time.
 - Icon buttons show where a click leads: a small down-triangle for a menu (the nozzle tip button), "…" for another place (a camera's settings).
 - DistanceAware backlash keeps each drive's lag as it goes, so a move after a short one the other way (the drive only partly wound) is sent the right amount too.
 - Machine Setup: Undo and Redo are on the Edit menu (Ctrl+Z, Ctrl+Y) only, the space given to the settings; its tabs wrap onto more rows when narrow, and its notes and graphs follow its width.

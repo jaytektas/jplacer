@@ -3,6 +3,9 @@
 
 #pragma once
 
+#include <string>
+#include <vector>
+
 inline namespace jf {
 
 // jplacer's log categories. Every JLOGC call names one of these, so a category
@@ -32,6 +35,15 @@ struct JPlacerLog {
     static constexpr const char* kBoard    = "board";              // finding a board by its fiducials
 
     static constexpr const char* kUi       = "ui";                 // what was clicked, chosen, typed
+
+    // Every category above, in order (for a control that lists them before
+    // any has been used).
+    static const std::vector<std::string>& all() {
+        static const std::vector<std::string> list = { kApp, kSettings, kDesktop, kProfiles, kCell, kDriver, kLink,
+                                                       kTraffic, kStatus, kCamera, kFrames, kImport, kImportCpl,
+                                                       kBoard, kUi };
+        return list;
+    }
 };
 
 } // inline namespace jf
