@@ -50,6 +50,12 @@ public:
     // The camera over `nominal` (at safe Z), a round mark of `diameterMm`
     // found near there, and where it is: `found`.
     virtual bool locateFiducial(const JPLocation& nominal, double diameterMm, JPLocation& found, std::string& why) = 0;
+    // A strip's sprocket hole: the camera over `nominal` (with a parallax
+    // diameter, from either side of it, `parallaxAngle` turned, the two
+    // finds averaged), a round mark of `diameterMm` found within `searchMm`
+    // of it, nearest first: `found`. One look from each place.
+    virtual bool locateHole(const JPLocation& nominal, double diameterMm, double searchMm, double parallaxDiameterMm,
+                            double parallaxAngle, JPLocation& found, std::string& why) = 0;
 };
 
 } // inline namespace jf

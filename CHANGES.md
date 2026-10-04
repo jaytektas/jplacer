@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Strip feeders with Use Vision? find their sprocket holes with the camera at each feed (extrapolation
+  distance and parallax as OpenPnP has them) and pick where the holes are; a missing hole ends the strip.
 - Machine Setup > Job Processors > ReferencePnpJobProcessor: the job order, tip loading strategy, attempts,
   Step Next Motion, nozzle optimizing and pre-rotation, and feeder fault limits, as OpenPnP has them
   (imported with an OpenPnP machine).

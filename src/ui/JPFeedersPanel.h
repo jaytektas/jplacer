@@ -48,7 +48,9 @@ public:
     // at safe Z, and the chosen nozzle's pick at a place.
     std::function<Where(Tool)> whereIs;
     std::function<void(Tool, const Where&)> moveTo;
-    std::function<void(const JPLocation&)> pickAt;
+    // OpenPnP's feedFeeder (and with `pick`, pickFeeder): a feed, and the
+    // chosen nozzle's pick, on the machine's thread; its outcome said there.
+    std::function<void(const std::string& feederId, bool pick)> machineFeed;
     // Whether the job uses a part (an enabled placement on an enabled board).
     std::function<bool(const std::string& partId)> partUsed;
 
@@ -71,8 +73,7 @@ private:
     void buildMenu();
     void newFeeder(const std::string& partId);
     void deleteFeeders();
-    // OpenPnP's feedFeeder: the feed, false (and why shown) when it fails.
-    bool feed(JPFeeder& f);
+    void feedOrPick(JPFeeder& f, bool pick);
     void pick();
     void moveToPick(Tool tool);
     void capture(const JPSetupProperties::Row& row, Tool tool);

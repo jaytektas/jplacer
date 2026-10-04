@@ -78,6 +78,11 @@ public:
         log.push_back("fiducial");
         return true;
     }
+    bool locateHole(const JPLocation& nominal, double, double, double, double, JPLocation& found, std::string&) override {
+        found = nominal;
+        log.push_back("hole");
+        return true;
+    }
 };
 
 JPFeeder tray(const std::string& id, const std::string& part, double x, double y) {

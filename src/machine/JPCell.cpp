@@ -459,16 +459,6 @@ bool JPCell::doDiscard(const std::string& nozzleId, double speed, std::string& w
     return false;
 }
 
-void JPCell::pickAt(const std::string& nozzleId, std::array<std::optional<double>, 4> to, double speed) {
-    if (m_moving.exchange(true)) return;
-    m_thread.post([this, nozzleId, to, speed] {
-        std::string why;
-        const bool ok = doAt(nozzleId, to, speed, true, why);
-        m_moving = false;
-        onMotion.emit(ok, why);
-    });
-}
-
 bool JPCell::doAt(const std::string& nozzleId, const std::array<std::optional<double>, 4>& to, double speed, bool pick,
                   std::string& why) {
     for (const JPNozzleConfig& n : m_config.nozzles) {

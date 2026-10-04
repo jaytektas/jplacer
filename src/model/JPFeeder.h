@@ -73,6 +73,18 @@ public:
     // fed; `empty` says when that is because it is empty (OpenPnP's
     // FeederEmptyException).
     bool feed(std::string& why, bool* empty = nullptr);
+    // A strip's vision (OpenPnP's updateVisionOffsets): the holes the last
+    // feed wants looked at (by feed count: the first hole, when picking
+    // starts mid-strip; the one fed), each taken once.
+    std::vector<int> takeVisionChecks();
+    // Where the hole for feed count `n` is expected; none when vision need not
+    // look (vision off, or near enough to the last found within the
+    // extrapolation distance).
+    std::optional<JPLocation> visionExpected(int n) const;
+    // Where it was found: the line its parts lie on follows it.
+    void setVisionFound(int n, const JPLocation& found);
+    JPLength holeDiameter() const { return lengthOf("hole-diameter", JPLength(1.5, JPLengthUnit::Millimeters)); }
+    JPLength holePitch() const { return lengthOf("hole-pitch", JPLength(4, JPLengthUnit::Millimeters)); }
     // A strip's holes as its vision last found them (none: as set), and the
     // line its parts lie on.
     std::optional<JPLocation> visionLocation, visionLocationReference;
@@ -109,6 +121,7 @@ private:
     void addJobFault(bool fault, int windowSize);
 
     JPXmlNode        m_node;
+    std::vector<int> m_visionChecks;
     std::deque<bool> m_jobFaults;
 };
 

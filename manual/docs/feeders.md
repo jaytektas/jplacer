@@ -14,7 +14,7 @@ an OpenPnP machine's feeders in (see [Machine](machine.md#bringing-in-a-machine-
 | **New Feeder...** (plus) | Asks which kind of feeder to make (below), then makes it, holding the first part, turned off and named after its kind. There must be a part first. |
 | **Delete Feeder...** (cross) | Deletes the chosen feeders, after asking. |
 | **Pick...** | Feeds the chosen feeder, then the nozzle chosen on the Jog panel picks its part: up to safe Z, across and turned to the pick location, down, the vacuum on, and up again. |
-| **Feed...** | Feeds the chosen feeder: its count moves on to the next part. |
+| **Feed...** | Feeds the chosen feeder: its count moves on to the next part (a strip with vision on has its hole looked at). |
 | **Move Camera...** | Moves the camera over the chosen feeder's pick location, at safe Z. |
 | **Move Tool...** | Moves the chosen nozzle to the chosen feeder's pick location: up to safe Z, across, and down to the pick height. |
 
@@ -75,10 +75,16 @@ A strip of cut tape lying on the machine, its parts picked one after the other a
   Count**, the parts taken so far (**Reset** sets it to 0); **Max Feed Count**, the parts on the strip
   (0: no limit), which **Auto Set MaxFeedCount** works out from the hole locations and the part pitch.
   **Auto Setup** is not yet available.
-- **Vision**: **Use Vision?**, **Extrapolation Distance**, **Parallax Diameter** and **Parallax Angle** are
-  kept, and **Reset Vision** forgets the holes vision found; jplacer does not yet check the holes with
-  the camera, so the parts are picked where the hole locations put them. **Edit Pipeline** and **Reset
-  Pipeline** are not yet available.
+- **Vision**: with **Use Vision?** ticked, each feed has the camera look at the hole it feeds from (and at
+  the first hole too when picking starts mid-strip), and the parts are picked where the holes were found
+  rather than where the hole locations put them. A hole is looked for within half a hole pitch of where it
+  should be, as a round mark 1.5 mm across, light or dark; not found, or found more than 2 mm off, the
+  strip is taken as finished ("Unable to locate reference hole. End of strip?"). **Extrapolation Distance**:
+  how far along the strip to go before looking again (0: every hole; near the strip's start it looks more
+  often). **Parallax Diameter** and **Parallax Angle**: look at the hole from either side of it, that far
+  apart and turned that way, and take the middle (for clear tape that reflects the camera's light).
+  **Reset Vision** forgets the holes found. **Edit Pipeline** and **Reset Pipeline** are not yet available:
+  jplacer finds the holes without a pipeline to tune.
 - **Locations**: the **Reference Hole Location**, the hole nearest the first part's centre, in the
   direction the parts continue, with the pick height as its Z; and the **Next Hole Location**, any hole
   further along.
@@ -86,7 +92,7 @@ A strip of cut tape lying on the machine, its parts picked one after the other a
 The part is picked across the tape from its hole, as EIA-481 tape lays it out: half the tape width less
 0.5 mm across, 2 mm along, then one part pitch further for each part taken.
 
-<!-- src: src/setup/JPFeederForms.cpp (stripForm, act); src/model/JPFeeder.cpp (pickLocation, idealLineLocations, feed) -->
+<!-- src: src/setup/JPFeederForms.cpp (stripForm, act); src/model/JPFeeder.cpp (pickLocation, idealLineLocations, feed, visionExpected, setVisionFound); src/tasks/JPFeederFeed.cpp; src/app/JPlacerJobMachine.cpp (locateHole) -->
 
 ### Tray feeder
 

@@ -40,6 +40,12 @@ public:
     JPlacerJobRun& operator=(const JPlacerJobRun&) = delete;
 
     bool running() const { return m_state != JPJobPanel::RunState::Stopped; }
+    // OpenPnP's submitUiMachineTask: `work` with the machine, on the job's
+    // thread while no job step runs; its failure (false, why) shown as an
+    // Error. Refused while the job runs.
+    void machineTask(std::function<bool(JPJobMachine&, const std::function<void(const std::function<void()>&)>& onMain,
+                                        std::string& why)>
+                         work);
 
     // A failure's source, to be chosen where it is shown (the Feeders tab's
     // feeder, the Parts tab's part; a board and placement are chosen here).

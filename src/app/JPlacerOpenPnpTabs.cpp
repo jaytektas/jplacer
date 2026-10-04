@@ -12,6 +12,7 @@
 #include "JPlacerSettings.h"
 
 #include "model/JPDefinitionChanges.h"
+#include "tasks/JPFeederFeed.h"
 
 #include "ui/JPFootprintOverlay.h"
 
@@ -232,7 +233,33 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     };
     m_feeders->whereIs = [this](JPFeedersPanel::Tool t) { return m_machine.whereIs(t); };
     m_feeders->moveTo = [this](JPFeedersPanel::Tool t, const JPFeedersPanel::Where& to) { m_machine.moveToolTo(t, to); };
-    m_feeders->pickAt = [this](const JPLocation& at) { m_machine.pickAt(at); };
+    m_feeders->machineFeed = [this](const std::string& feederId, bool pick) {
+        const std::string nozzle = m_machine.chosenNozzleId();
+        m_jobRun->machineTask([this, feederId, pick, nozzle](JPJobMachine& machine,
+                                                              const std::function<void(const std::function<void()>&)>& onMain,
+                                                              std::string& why) {
+            bool empty = false;
+            if (!JPFeederFeed::feed(m_job.configuration(), feederId, machine, onMain, why, empty)) return false;
+            if (!pick) return true;
+            std::optional<JPLocation> at;
+            std::string kind;
+            onMain([&] {
+                if (const JPFeeder* f = m_job.configuration().feeder(feederId)) {
+                    at = f->pickLocation();
+                    kind = f->typeName();
+                }
+            });
+            if (!at) {
+                why = "jplacer does not work out where a " + kind + " picks yet.";
+                return false;
+            }
+            if (nozzle.empty()) {
+                why = "No nozzle to pick with";
+                return false;
+            }
+            return machine.safeZ(why) && machine.pick(nozzle, *at, why) && machine.safeZ(why);
+        });
+    };
     m_feeders->partUsed = [this](const std::string& partId) {
         for (const JPBoardLocation* l : m_job.job().boardLocations()) {
             if (!l->isEnabled() || !l->holder) continue;

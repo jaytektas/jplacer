@@ -557,21 +557,6 @@ bool JPlacerMachine::moveToolTo(JPSetupForm::Tool tool, const JPLocation& to) {
     return moveToolTo(tool, Where { at.x(), at.y(), at.z(), at.rotation() });
 }
 
-bool JPlacerMachine::pickAt(const JPLocation& to) {
-    const JPMountConfig* m = toolMount(JPSetupForm::Tool::Nozzle);
-    if (!m || !m_cell) {
-        m_window.showStatus("No nozzle to pick with", kErrorMs);
-        return false;
-    }
-    if (!readyToMove()) return false;
-    std::string nozzleId;
-    for (const JPNozzleConfig& n : m_cell->config().nozzles)
-        if (&n.mount == m) nozzleId = n.id;
-    const JPLocation at = to.convertToUnits(JPLengthUnit::Millimeters);
-    m_cell->pickAt(nozzleId, { at.x(), at.y(), at.z(), at.rotation() }, 1.0);
-    return true;
-}
-
 bool JPlacerMachine::readyToMove() {
     if (!m_cell || !m_cell->isConnected()) {
         m_window.showStatus("Connect the machine first", kErrorMs);
@@ -741,6 +726,14 @@ void JPlacerMachine::nozzleOffsetWizard(const std::string& nozzleId, bool storeM
 JPCameraFeed* JPlacerMachine::headCameraFeed() const {
     JPCameraPanel* p = m_cameraTasks ? m_cameraTasks->headCamera() : nullptr;
     return p ? &p->feed() : nullptr;
+}
+
+std::string JPlacerMachine::chosenNozzleId() const {
+    const JPMountConfig* m = toolMount(JPSetupForm::Tool::Nozzle);
+    if (!m || !m_cell) return {};
+    for (const JPNozzleConfig& n : m_cell->config().nozzles)
+        if (&n.mount == m) return n.id;
+    return {};
 }
 
 std::string JPlacerMachine::tipChangeRefusal(const std::string& nozzleId, const std::string& tipId) const {

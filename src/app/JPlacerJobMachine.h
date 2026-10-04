@@ -38,6 +38,8 @@ public:
     bool discard(const std::string& nozzleId, std::string& why) override;
     bool park(std::string& why) override;
     bool locateFiducial(const JPLocation& nominal, double diameterMm, JPLocation& found, std::string& why) override;
+    bool locateHole(const JPLocation& nominal, double diameterMm, double searchMm, double parallaxDiameterMm,
+                    double parallaxAngle, JPLocation& found, std::string& why) override;
 
     // How many times the machine has been moved for the job (OpenPnP's motion
     // history, for Step Next Motion).
@@ -48,6 +50,10 @@ private:
     JPCellConfig config() const;
     std::string  headId(const JPCellConfig& c) const;
     JPCell*      cell(std::string& why) const;
+    // The camera to (viewX, viewY), one settled look for a round mark of
+    // `diameterMm` expected at (x, y) within `searchMm`: where it is.
+    bool look(double viewX, double viewY, double x, double y, double diameterMm, double searchMm, double& foundX,
+              double& foundY, std::string& why);
 
     JPlacerMachine&                          m_machine;
     OnMain                                   m_onMain;

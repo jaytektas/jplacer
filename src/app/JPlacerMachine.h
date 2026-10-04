@@ -113,15 +113,13 @@ public:
     // the machine cannot move.
     bool moveToolTo(JPSetupForm::Tool tool, const Where& at);
     bool moveToolTo(JPSetupForm::Tool tool, const JPLocation& at);
-    // The chosen nozzle picks a part at `at`: there at safe Z, down, the
-    // vacuum on (JPCell::pickAt), and up again. False, the reason shown,
-    // when the machine cannot move.
-    bool pickAt(const JPLocation& at);
     // For a job (JPlacerJobMachine): the open cell, the head camera's
     // pictures, why a tip change cannot be made (empty: it can), and the tip
     // now on a nozzle kept (a step in Machine Setup; nothing moves).
     JPCell*       cell() const { return m_cell.get(); }
     JPCameraFeed* headCameraFeed() const;
+    // The nozzle chosen on the Jog panel (else the first); empty: none.
+    std::string   chosenNozzleId() const;
     std::string   tipChangeRefusal(const std::string& nozzleId, const std::string& tipId) const;
     void          setTipOn(const std::string& nozzleId, const std::string& tipId);
     // Where the docks live, and View's entries for them.

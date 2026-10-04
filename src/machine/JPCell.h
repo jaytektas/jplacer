@@ -82,13 +82,10 @@ public:
     // safe Z, across, down to its Z, then a place. Refused while a move is
     // under way; nothing happens when no discard location is set.
     void discard(const std::string& nozzleId, double speed);
-    // Pick a part with `nozzleId` at `to` (X, Y, Z, rotation in its own
-    // coordinates; one not given stays as it is): up to safe Z, across and
-    // turned, down to Z, the pick (as pick()), and up to safe Z again.
-    // Refused while a move is under way; the outcome arrives as onMotion.
-    void pickAt(const std::string& nozzleId, std::array<std::optional<double>, 4> to, double speed);
-    // The same, waiting, for a procedure on a thread of its own (a job):
-    // a pick at `to`, a place there (the part let go, as place()), a
+    // For a procedure on a thread of its own (a job), waiting: a pick with
+    // `nozzleId` at `to` (X, Y, Z, rotation in its own coordinates; one not
+    // given stays as it is: up to safe Z, across and turned, down to Z, the
+    // pick as pick(), up to safe Z again), a place there (the part let go, as place()), a
     // discard, the head parked, a tool taken to `to` (as moveTool). False
     // with `why`.
     bool pickAtAndWait(const std::string& nozzleId, std::array<std::optional<double>, 4> to, double speed, std::string& why);

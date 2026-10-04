@@ -53,7 +53,7 @@ JPFeedersPanel::JPFeedersPanel(JSceneGraph& graph, JPConfiguration& config, doub
     m_pick->onClicked.connect([this] { pick(); });
     m_feed = tool("Feed...", "feeder-feed", "Command the selected feeder to perform a feed operation.");
     m_feed->onClicked.connect([this] {
-        if (JPFeeder* f = selection(); f && feed(*f)) changed();
+        if (JPFeeder* f = selection()) feedOrPick(*f, false);
     });
     m_moveCamera = tool("Move Camera...", "position-camera-on-feeder",
                         "Move the camera to the selected feeder's current pick location.");
@@ -251,21 +251,13 @@ void JPFeedersPanel::deleteFeeders() {
         nullptr, opts);
 }
 
-bool JPFeedersPanel::feed(JPFeeder& f) {
+void JPFeedersPanel::feedOrPick(JPFeeder& f, bool pick) {
     if (f.partId().empty()) {
         JDialog::message("Error", "Feeder " + f.name() + " has no part.");
-        return false;
+        return;
     }
-    std::string why;
-    if (!f.feed(why)) {
-        m_table->refresh();
-        m_form->refresh();
-        JDialog::message("Error", why);
-        return false;
-    }
-    m_table->refresh();
-    m_form->refresh();
-    return true;
+    // The feed (a strip's vision too) and the pick move the machine: done on its thread.
+    if (machineFeed) machineFeed(f.id(), pick);
 }
 
 void JPFeedersPanel::pick() {
@@ -273,14 +265,7 @@ void JPFeedersPanel::pick() {
 }
 
 void JPFeedersPanel::pickFrom(JPFeeder& f) {
-    if (!feed(f)) return;
-    changed();
-    const auto at = f.pickLocation();
-    if (!at) {
-        JDialog::message("Error", "jplacer does not work out where a " + f.typeName() + " picks yet.");
-        return;
-    }
-    if (pickAt) pickAt(*at);
+    feedOrPick(f, true);
 }
 
 void JPFeedersPanel::moveToPick(Tool tool) {

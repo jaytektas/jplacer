@@ -3,6 +3,7 @@
 
 #include "JPJobProcessor.h"
 
+#include "JPFeederFeed.h"
 #include "JPFiducialLocator.h"
 
 #include "common/JPlacerLog.h"
@@ -816,9 +817,8 @@ JPJobProcessor::Step JPJobProcessor::pick(Planned& p) {
         }
         for (int i = 0; i < 1 + feedRetries && !fed && !empty; ++i) {
             status(format("Feed %s on %s.", feederName.c_str(), j.partId.c_str()));
-            main([&] {
-                if (JPFeeder* f = m_config.feeder(feederId)) fed = f->feed(why, &empty);
-            });
+            fed = JPFeederFeed::feed(m_config, feederId, m_machine, [this](const std::function<void()>& fn) { main(fn); },
+                                     why, empty);
         }
         if (!fed) {
             main([&] {

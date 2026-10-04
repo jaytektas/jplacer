@@ -209,4 +209,63 @@ bool JPlacerJobMachine::locateFiducial(const JPLocation& nominal, double diamete
     return true;
 }
 
+bool JPlacerJobMachine::look(double viewX, double viewY, double x, double y, double diameterMm, double searchMm,
+                             double& foundX, double& foundY, std::string& why) {
+    JPCell* c = cell(why);
+    if (!c) return false;
+    JPCameraFeed* feed = nullptr;
+    m_onMain([&] { feed = m_machine.headCameraFeed(); });
+    if (!feed) {
+        why = "no camera on the head";
+        return false;
+    }
+    JPCameraCalibration cal;
+    if (!JPCameraLook::calibration(*c, *feed, cal, why)) return false;
+    if (!c->moveToolAndWait(feed->config().mount, { viewX, viewY, std::nullopt, std::nullopt }, 1.0, why)) return false;
+    JPGrayImage img;
+    if (!JPCameraLook::settled(*feed, img, why)) return false;
+    JPRoundMarkFinder::Request rq;
+    if (!cal.pixelFor(x, y, viewX, viewY, rq.expectedX, rq.expectedY)) {
+        why = "the camera's calibration cannot place it in the picture";
+        return false;
+    }
+    const double scale = std::sqrt(cal.scaleX() * cal.scaleY());
+    rq.searchRadius = searchMm * scale;
+    rq.diameter = diameterMm * scale;
+    const JPRoundMark m = JPCameraLook::findTryingHarder(*c, *feed, img, rq);
+    if (!m.found) {
+        why = m.why;
+        return false;
+    }
+    return cal.machinePoint(m.x, m.y, viewX, viewY, foundX, foundY);
+}
+
+bool JPlacerJobMachine::locateHole(const JPLocation& nominal, double diameterMm, double searchMm, double parallaxDiameterMm,
+                                   double parallaxAngle, JPLocation& found, std::string& why) {
+    ++m_motions;
+    const JPLocation n = nominal.convertToUnits(JPLengthUnit::Millimeters);
+    double x = 0, y = 0;
+    if (parallaxDiameterMm == 0) {
+        if (!look(n.x(), n.y(), n.x(), n.y(), diameterMm, searchMm, x, y, why)) return false;
+    } else {
+        // From either side, the nearer first; the two finds averaged.
+        const double r = parallaxDiameterMm / 2, a = parallaxAngle * M_PI / 180;
+        double dx = r * std::cos(a), dy = r * std::sin(a);
+        if (const auto cam = cameraLocation()) {
+            const JPLocation m = cam->convertToUnits(JPLengthUnit::Millimeters);
+            if (std::hypot(n.x() + dx - m.x(), n.y() + dy - m.y()) > std::hypot(n.x() - dx - m.x(), n.y() - dy - m.y())) {
+                dx = -dx;
+                dy = -dy;
+            }
+        }
+        double ax = 0, ay = 0, bx = 0, by = 0;
+        if (!look(n.x() + dx, n.y() + dy, n.x(), n.y(), diameterMm, searchMm, ax, ay, why)) return false;
+        if (!look(n.x() - dx, n.y() - dy, n.x(), n.y(), diameterMm, searchMm, bx, by, why)) return false;
+        x = (ax + bx) / 2;
+        y = (ay + by) / 2;
+    }
+    found = JPLocation(JPLengthUnit::Millimeters, x, y, n.z(), n.rotation());
+    return true;
+}
+
 } // inline namespace jf

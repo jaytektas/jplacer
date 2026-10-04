@@ -116,6 +116,8 @@ JPLocation pointAlongLine(const JPLocation& a, const JPLocation& bIn, double dis
     return a.add(JPLocation(a.units(), dx / l * distance, dy / l * distance, 0, 0));
 }
 
+double mm(const JPLength& l) { return l.convertToUnits(JPLengthUnit::Millimeters).value(); }
+
 double angleFromPoint(const JPLocation& first, const JPLocation& secondIn) {
     const JPLocation second = secondIn.convertToUnits(first.units());
     return std::atan2(second.y() - first.y(), second.x() - first.x()) * 180 / M_PI;
@@ -207,8 +209,49 @@ bool JPFeeder::feed(std::string& why, bool* empty) {
             return false;
         }
     }
+    // A strip's vision, as OpenPnP's: the first hole when the first pick is
+    // mid-strip, then the hole fed (not when its pick is repeated).
+    if (kind == "ReferenceStripFeeder" && flag("vision-enabled", false)) {
+        const int count = number("feed-count");
+        if (count != 1 && !visionLocationReference) m_visionChecks.push_back(1);
+        if (feedOptions() == FeedOptions::Normal) m_visionChecks.push_back(count);
+    }
     if (feedOptions() == FeedOptions::SkipNext) setFeedOptions(FeedOptions::Normal);
     return true;
+}
+
+std::vector<int> JPFeeder::takeVisionChecks() {
+    std::vector<int> out;
+    out.swap(m_visionChecks);
+    return out;
+}
+
+std::optional<JPLocation> JPFeeder::visionExpected(int n) const {
+    if (!flag("vision-enabled", false)) return std::nullopt;
+    const auto [a, b] = idealLineLocations();
+    const double pitch = mm(lengthOf("part-pitch", JPLength(4, JPLengthUnit::Millimeters)));
+    const double holePitchMm = mm(holePitch());
+    // Under 4 mm a hole serves two parts: each looked at twice.
+    const double along = pitch < 4 ? holePitchMm * double((n - 1) / 2) : pitch * double(n - 1);
+    const JPLocation expected = pointAlongLine(a, b, JPLength(along, JPLengthUnit::Millimeters).convertToUnits(a.units()).value());
+    if (!visionLocation) return expected;
+    const JPLocation e = expected.convertToUnits(JPLengthUnit::Millimeters), v = visionLocation->convertToUnits(JPLengthUnit::Millimeters);
+    const double toVision = std::hypot(e.x() - v.x(), e.y() - v.y());
+    // The same hole (within half a pitch): not again.
+    if (toVision < holePitchMm * 0.5) return std::nullopt;
+    // Far enough from the last found: looked at. Near the strip's start the
+    // distance grows with the span measured (OpenPnP's geometric progression).
+    const JPLocation aa = a.convertToUnits(JPLengthUnit::Millimeters), bb = b.convertToUnits(JPLengthUnit::Millimeters);
+    const double span = std::hypot(bb.x() - aa.x(), bb.y() - aa.y());
+    const double extrapolation = std::min(mm(lengthOf("extrapolation-distance", JPLength(0, JPLengthUnit::Millimeters))) * 1.01,
+                                          span * 0.7);
+    if (toVision >= extrapolation) return expected;
+    return std::nullopt;
+}
+
+void JPFeeder::setVisionFound(int n, const JPLocation& found) {
+    if (n == 1) visionLocationReference = found;
+    visionLocation = found;
 }
 
 std::string JPFeeder::summariseJobFaults() const {
