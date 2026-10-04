@@ -35,18 +35,13 @@ JPlacerPhotonSlotsDialog::JPlacerPhotonSlotsDialog(JPConfiguration& config, std:
                                          "Then, click Next.", 0.f);
     m_text->setWordWrap(true);
     add(m_text.get());
+    // The second step's, added to it at Next.
     m_addressLabel = std::make_unique<JLabel>(g, "Current Slot Address", 0.f);
-    add(m_addressLabel.get());
     m_address = std::make_unique<JSpinBox>(g, 1, kMostAddress, 0.f);
     m_address->setValue(1);
     m_address->onValueChanged.connect([this](int v) { setStatus(said("Please insert a feeder into slot %d.", v)); });
-    add(m_address.get());
     m_status = std::make_unique<JLabel>(g, said("Please insert a feeder into slot %d.", 1), 0.f);
     m_status->setWordWrap(true);
-    add(m_status.get());
-    m_addressLabel->setVisible(false);
-    m_address->setVisible(false);
-    m_status->setVisible(false);
     m_buttons = std::make_unique<JDialogButtonBox>(g);
     m_next = m_buttons->addButton("Next", JDialogButtonBox::Role::Action);
     m_next->onClicked.connect([this] { next(); });
@@ -70,9 +65,9 @@ void JPlacerPhotonSlotsDialog::next() {
                     "number as needed if you want to program a different address. This number will automatically "
                     "increment after the feeder slot is programmed. You can then move the current feeder or insert a "
                     "new feeder into the next slot.");
-    m_addressLabel->setVisible(true);
-    m_address->setVisible(true);
-    m_status->setVisible(true);
+    add(m_addressLabel.get());
+    add(m_address.get());
+    add(m_status.get());
     m_next->setLabel("Finish");
     start();
 }
