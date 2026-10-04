@@ -301,18 +301,23 @@ void JPlacerCameraTasks::calibrateRunout(const std::string& nozzleId, std::funct
     });
 }
 
-void JPlacerCameraTasks::settleTest(JPCameraPanel& camera, double dx, double dy,
+void JPlacerCameraTasks::settleTest(JPCameraPanel& camera, const JPMountConfig* tool, double dx, double dy,
                                     std::function<void(const JPSettleTrace&)> done) {
-    const JPMountConfig& m = camera.camera().mount;
-    const bool moves = (dx != 0 || dy != 0) && !m.axisX.empty() && !m.axisY.empty();
-    if (const std::string why = notReady(&camera, moves, false); !why.empty()) {
+    // What moves: the camera, on a head; else the tool held over it.
+    const bool fixed = camera.camera().mount.headId.empty();
+    const JPMountConfig* moving = fixed ? tool : &camera.camera().mount;
+    const bool moves = (dx != 0 || dy != 0) && moving && !moving->axisX.empty() && !moving->axisY.empty();
+    std::string why = m_busy ? "a camera task is already under way" : std::string();
+    if (why.empty() && moves && !m_cell.isHomed()) why = "home the machine first";
+    if (why.empty() && (dx != 0 || dy != 0) && !moves) why = fixed ? "no nozzle to move over it" : "it does not move on X and Y";
+    if (!why.empty()) {
         m_window.showStatus("Settling test: " + why, kResultMs);
         return;
     }
     JPCameraFeed* feed = &camera.feed();
     auto trace = std::make_shared<JPSettleTrace>();
-    run(camera, "Settling test", [this, feed, moves, dx, dy, trace](std::string& words, const auto& progress) {
-        const JPMountConfig& mount = feed->config().mount;
+    const JPMountConfig mount = moves ? *moving : JPMountConfig{};
+    run(camera, "Settling test", [this, feed, moves, mount, dx, dy, trace](std::string& words, const auto& progress) {
         if (moves) {
             progress("moving and back");
             const auto at = m_cell.jogBase();

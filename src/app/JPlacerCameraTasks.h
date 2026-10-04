@@ -51,10 +51,11 @@ public:
     // camera looking up (JPRunoutCalibrator), asked first (the nozzle goes
     // down to the camera). `done` (main thread): the runout, for the owner to keep.
     void calibrateRunout(const std::string& nozzleId, std::function<void(const JPRunout&)> done);
-    // The settling test: a camera on a head moved (dx, dy) and back, then
-    // let settle, how it settled kept (JPSettleTrace); a fixed camera only
-    // let settle. `done` (main thread): the trace.
-    void settleTest(JPCameraPanel& camera, double dx, double dy, std::function<void(const JPSettleTrace&)> done);
+    // The settling test: a camera on a head moved (dx, dy) and back, or for a
+    // fixed camera `tool` (a nozzle held over it, by hand) moved so, then let
+    // settle, how it settled kept (JPSettleTrace). `done` (main thread): the trace.
+    void settleTest(JPCameraPanel& camera, const JPMountConfig* tool, double dx, double dy,
+                    std::function<void(const JPSettleTrace&)> done);
     // Measure an X or Y axis's backlash with the head camera over the head's
     // homing mark (JPBacklashCalibrator). `done` (main thread): what it found,
     // in use already, for the owner to keep.

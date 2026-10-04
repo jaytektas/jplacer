@@ -222,7 +222,7 @@ notes.
 - Machine Setup: Undo and Redo are on the Edit menu (Ctrl+Z, Ctrl+Y) only, the space given to the settings; its tabs wrap onto more rows when narrow, and its notes and graphs follow its width.
 - Backlash: DistanceAware, jplacer's own method for a drive whose play keeps growing with the move: each move is sent the lag measured for how far it travelled since the axis last turned. Calibrate tries it against one-sided and keeps the better.
 - OneSidedPositioning now ends every move the same way, as OpenPnP's does; OneSidedOptimizedPositioning keeps the fewer moves. Backlash calibration averages 8 pictures a measurement and chooses one-sided for play that keeps growing with the move (a stretching belt).
-- A camera's Camera Settling tab can test the settling (one jog step out and back, or standing still) and graphs how the camera came to rest against the threshold.
+- A camera's Camera Settling tab can test the settling (one jog step out and back, or standing still) and graphs how the camera came to rest against the threshold; for the camera looking up, the head moves over it with the nozzle held there.
 - Nozzle tip runout: Calibrate on a tip's Calibration tab measures how its end swings as the nozzle turns, with the camera looking up; compensated, the tip's centre lands where it is sent at any angle.
 - Actuators that take a value (Double or String): set from the Actuators panel, their value type and commands in Machine Setup, imported from OpenPnP.
 - The Jog pad's park buttons show a parking sign that grows with the pad.

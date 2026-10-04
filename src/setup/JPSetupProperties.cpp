@@ -1144,13 +1144,12 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
                  "threshold for Debounce Frames more pictures, or the timeout passes.");
     }
     add.group("Test");
-    if (!c().mount.headId.empty())
-        add.actions({ { "Left", "settleTestLeft" }, { "Right", "settleTestRight" }, { "Back", "settleTestBack" },
-                      { "Front", "settleTestFront" }, { "Here", "settleTestHere" } });
-    else
-        add.actions({ { "Settle", "settleTestHere" } });
+    add.actions({ { "Left", "settleTestLeft" }, { "Right", "settleTestRight" }, { "Back", "settleTestBack" },
+                  { "Front", "settleTestFront" }, { "Here", "settleTestHere" } });
     add.note(c().mount.headId.empty()
-                 ? "Let the camera settle as a picture for vision would, and graph how it came to rest."
+                 ? "Move the nozzle chosen on the Jog pad one jog step (the Jog pad's distance) that way and back, "
+                   "or not at all (Here), let the camera settle as a picture for vision would, and graph how it came "
+                   "to rest. Put the nozzle over the camera, at its focus, first: only X and Y move."
                  : "Move the camera one jog step (the Jog pad's distance) that way and back, or not at all (Here), "
                    "let it settle as a picture for vision would, and graph how it came to rest.");
     if (const auto& t = c().settleTrace) {

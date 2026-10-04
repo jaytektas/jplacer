@@ -597,7 +597,7 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
         const double dy = action == "settleTestFront" ? -step : action == "settleTestBack" ? step : 0;
         for (CameraDock& c : m_cameras)
             if (c.panel->camera().id == id)
-                m_cameraTasks->settleTest(*c.panel, dx, dy, [this, id](const JPSettleTrace& trace) {
+                m_cameraTasks->settleTest(*c.panel, toolMount(JPSetupForm::Tool::Nozzle), dx, dy, [this, id](const JPSettleTrace& trace) {
                     if (!m_setup) return;
                     m_setup->measured([&](JPCellConfig& cell) {
                         for (JPCameraConfig& cam : cell.cameras)
