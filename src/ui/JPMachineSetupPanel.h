@@ -101,6 +101,8 @@ public:
     void redo();
 private:
     void rebuildTree();
+    // The note line: shown with `text`, gone when it is empty.
+    void setNote(const std::string& text);
     // The tree's rows again, open where m_expanded says.
     void setRows(bool firstTime);
     void addPart();
@@ -153,8 +155,6 @@ private:
     std::shared_ptr<bool>    m_alive = std::make_shared<bool>(true);   // for work posted to a later frame
     JLabel*                  m_problems = nullptr;
     JLabel*                  m_note     = nullptr;
-    JButton*                 m_undo     = nullptr;
-    JButton*                 m_redo     = nullptr;
 };
 
 } // inline namespace jf

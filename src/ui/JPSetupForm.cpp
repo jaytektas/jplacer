@@ -11,6 +11,7 @@
 #include "JPTextField.h"
 #include "JPUiParts.h"
 
+#include <j/core/FrameTimer.h>
 #include <j/core/JButton.h>
 #include <j/core/JLabel.h>
 #include <j/core/JPropertyBinding.h>
@@ -84,6 +85,7 @@ std::unique_ptr<JLabel> label(JSceneGraph& graph, const std::string& text) {
 JPSetupForm::JPSetupForm(JSceneGraph& graph) : JContainer(graph, 0.f, 0.f) {
     setDirection(JFlexDirection::Column)->setAlignItems(JAlignItems::Stretch);
     m_tabs = add(std::make_unique<JTabWidget>(graph, 0.f, 0.f));
+    m_tabs->setTabWrap(true);   // narrow, the tabs go onto more rows, none out of sight
     m_tabs->setVSizePolicy(JSizePolicyMode::Expanding, 1);
 }
 
@@ -95,6 +97,7 @@ void JPSetupForm::setForm(JPSetupProperties::Form form) {
     m_pages.clear();
     m_pulls.clear();
     m_form = std::move(form);
+    m_builtWidth = m_graph.getLayoutConst(getNodeId()).boundingBox.width;
     int active = 0;
     for (size_t i = 0; i < m_form.tabs.size(); ++i) {
         m_pages.push_back(page(m_form.tabs[i]));
@@ -102,6 +105,39 @@ void JPSetupForm::setForm(JPSetupProperties::Form form) {
         if (m_form.tabs[i].title == wasTitle) active = int(i);
     }
     if (!m_pages.empty()) m_tabs->setActiveTab(active);
+    invalidate();
+}
+
+void JPSetupForm::populateRenderPrimitives(JPrimitiveBuffer& buf) {
+    // A new width: the pages made again to it, on the next frame (not while drawing).
+    const float w = m_graph.getLayoutConst(getNodeId()).boundingBox.width;
+    if (!m_pages.empty() && !m_rebuilding && std::abs(w - m_builtWidth) > 1.f) {
+        m_rebuilding = true;
+        std::weak_ptr<bool> alive = m_alive;
+        jPostToNextFrame([this, alive] {
+            if (!alive.lock()) return;
+            m_rebuilding = false;
+            rebuild();
+        });
+    }
+    JContainer::populateRenderPrimitives(buf);
+}
+
+void JPSetupForm::rebuild() {
+    const int active = m_tabs->activeTab();
+    std::vector<float> scrolled;
+    for (const auto& p : m_pages)
+        if (const auto* s = dynamic_cast<const JScrollArea*>(p.get())) scrolled.push_back(s->scrollY());
+    while (m_tabs->tabCount() > 0) m_tabs->removeTab(m_tabs->tabCount() - 1);
+    m_pages.clear();
+    m_pulls.clear();
+    m_builtWidth = m_graph.getLayoutConst(getNodeId()).boundingBox.width;
+    for (size_t i = 0; i < m_form.tabs.size(); ++i) {
+        m_pages.push_back(page(m_form.tabs[i]));
+        if (auto* s = dynamic_cast<JScrollArea*>(m_pages.back().get()); s && i < scrolled.size()) s->setScrollY(scrolled[i]);
+        m_tabs->addTab(m_form.tabs[i].title, m_pages.back().get());
+    }
+    if (!m_pages.empty()) m_tabs->setActiveTab(std::clamp(active, 0, int(m_pages.size()) - 1));
     invalidate();
 }
 

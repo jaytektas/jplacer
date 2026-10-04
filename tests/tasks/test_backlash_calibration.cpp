@@ -13,6 +13,7 @@
 
 #include "tasks/JPBacklashCalibrator.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <condition_variable>
@@ -25,9 +26,10 @@ using namespace jf;
 namespace {
 
 constexpr double kPlay = 0.08;
-// A stretching drive: the camera lags where the drive is by L(s), s the
-// travel since the drive last turned, from -kWound (still lagging the other
-// way) to +kWound as it winds up over kWindMm.
+// A stretching drive: the camera lags where the drive is, along the way it
+// goes, by L(s) = -kWound + 2 kWound (1 - e^(-3s/kWindMm)), winding up over
+// about kWindMm. A short move leaves it partly wound: turning then, it starts
+// from there on the curve, not from fully wound the other way.
 constexpr double kWound = 0.03, kWindMm = 2.0;
 constexpr double kM[4] = { -25.97, 0.035, 0.007, 25.96 };
 
@@ -97,8 +99,7 @@ int main() {
     std::mutex playMutex;
     double camera = 120, cameraY = 120;
     bool stretching = false;              // the second drive
-    double drive = 120, sinceTurn = 10;   // where the drive was, its travel since it turned
-    int way = 1;
+    double drive = 120, lag = 0;   // where the drive was sent, how far the camera lags it
     auto follow = cell.onTraffic.connect([&](std::string, bool out, std::string line) {
         if (!out || line.rfind("G1 ", 0) != 0) return;
         auto word = [&line](char letter, double& v) {
@@ -119,11 +120,12 @@ int main() {
         const double step = x - drive;
         if (step == 0) return;
         const int dir = step > 0 ? 1 : -1;
-        sinceTurn = dir == way ? sinceTurn + std::abs(step) : std::abs(step);
-        way = dir;
+        // Where it is on the curve, the way it now goes; on along it by the step.
+        const double along = std::clamp(dir * lag, -kWound * 0.999999, kWound * 0.999999);
+        const double s0 = -(kWindMm / 3) * std::log(1 - (along + kWound) / (2 * kWound));
+        lag = dir * (-kWound + 2 * kWound * (1 - std::exp(-(s0 + std::abs(step)) / (kWindMm / 3))));
         drive = x;
-        const double lag = -kWound + 2 * kWound * (1 - std::exp(-sinceTurn / (kWindMm / 3)));
-        camera = drive - way * lag;
+        camera = drive - lag;
     });
     JPCameraFeed feed(cell.config().cameras.front());
     feed.setView([&](double& x, double& y) {

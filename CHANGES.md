@@ -214,6 +214,8 @@ notes.
 - Calibrate measures a camera at a second height too (a head camera over the calibration rig's secondary mark, a fixed one with the nozzle raised), giving where the camera is, its focal length and field of view in degrees; the rig's marks are on the head in Machine Setup.
 - Backlash: DirectionalCompensation and DirectionalSneakUp as well as one-sided, imported from OpenPnP as they are; Calibrate on an axis's Backlash tab measures the play with the head camera, chooses the method and shows graphs of what it measured.
 - Changing an axis's speed, limits or backlash no longer needs the machine homed again.
+- DistanceAware backlash keeps each drive's lag as it goes, so a move after a short one the other way (the drive only partly wound) is sent the right amount too.
+- Machine Setup: Undo and Redo are on the Edit menu (Ctrl+Z, Ctrl+Y) only, the space given to the settings; its tabs wrap onto more rows when narrow, and its notes and graphs follow its width.
 - Backlash: DistanceAware, jplacer's own method for a drive whose play keeps growing with the move: each move is sent the lag measured for how far it travelled since the axis last turned. Calibrate tries it against one-sided and keeps the better.
 - OneSidedPositioning now ends every move the same way, as OpenPnP's does; OneSidedOptimizedPositioning keeps the fewer moves. Backlash calibration averages 8 pictures a measurement and chooses one-sided for play that keeps growing with the move (a stretching belt).
 - A camera's Camera Settling tab can test the settling (one jog step out and back, or standing still) and graphs how the camera came to rest against the threshold.

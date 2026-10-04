@@ -271,8 +271,8 @@ private:
     // A directional backlash offset in effect, by axis id: the controller's
     // coordinate is the axis's plus this (JPAxisConfig::Backlash).
     std::map<std::string, double>      m_backlashApplied;
-    // Each axis's last way (+1 / -1) and how far it has gone since it turned.
-    std::map<std::string, std::pair<int, double>> m_backlashTurn;
+    // DistanceAware: how far each axis's drive lags where it was sent (signed).
+    std::map<std::string, double>      m_backlashLag;
     std::map<std::string, double>      m_reported;   // controller axes, as reported
     std::atomic<bool>                  m_backlashOn{ true };
     std::map<std::string, double>      m_corrected;  // correctPosition's since the last home, summed

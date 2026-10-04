@@ -405,8 +405,9 @@ void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPF
 void backlashResults(Adder& add, const JPBacklashCalibration& k) {
     add.group("Calibrated " + k.when);
     char b[96];
-    std::snprintf(b, sizeof b, "%.4f mm (three times the measuring's own spread)", k.toleranceMm);
+    std::snprintf(b, sizeof b, "%.4f mm", k.toleranceMm);
     add.text("backlashTolerance", "Tolerance", [v = std::string(b)] { return v; }, nullptr);
+    add.note("Three times how far the measuring wanders standing still.");
     auto distance = std::make_shared<JPPlot>();
     distance->kind = JPPlot::Kind::Lines;
     distance->logX = true;
@@ -838,11 +839,12 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
         char b[120];
         std::snprintf(b, sizeof b, "%.4f mm at %.1f deg", r.radius, r.phaseDeg);
         shown("runout", "Runout", b);
-        std::snprintf(b, sizeof b, "%+.4f, %+.4f mm (the camera's position or the nozzle's offset is off by this)",
-                      r.centreX, r.centreY);
+        std::snprintf(b, sizeof b, "%+.4f, %+.4f mm", r.centreX, r.centreY);
         shown("axis", "Axis Off By", b);
-        std::snprintf(b, sizeof b, "%.4f mm (worst %.4f), %zu angles", r.rmsMm, r.peakMm, r.points.size());
+        std::snprintf(b, sizeof b, "%.4f mm, worst %.4f", r.rmsMm, r.peakMm);
         shown("fit", "Fit", b);
+        add.note("Axis Off By: how far the nozzle's axis is from where the camera's position and the nozzle's offset "
+                 "say; one of them is off by that much.");
         auto plot = std::make_shared<JPPlot>();
         plot->kind = JPPlot::Kind::Scatter;
         plot->xTitle = "X mm";
@@ -954,32 +956,36 @@ void calibrationResults(Adder& add, const JPCameraCalibration& cal, bool looksUp
     std::snprintf(b, sizeof b, "%.3f", cal.z);
     shown("z", "At Z", b);
     const double umX = 1000 / cal.scaleX(), umY = 1000 / cal.scaleY();
-    std::snprintf(b, sizeof b, "%.2f \xC2\xB5m across, %.2f \xC2\xB5m down (%.3f, %.3f px/mm)", umX, umY, cal.scaleX(), cal.scaleY());
+    std::snprintf(b, sizeof b, "%.2f \xC3\x97 %.2f \xC2\xB5m", umX, umY);
     shown("upp", "Units Per Pixel", b);
+    std::snprintf(b, sizeof b, "%.3f \xC3\x97 %.3f px/mm", cal.scaleX(), cal.scaleY());
+    shown("scale", "Scale", b);
     std::snprintf(b, sizeof b, "%.2f \xC2\xB5m (%.3f px)", cal.rmsPx * (umX + umY) / 2, cal.rmsPx);
     shown("accuracy", "Estimated Locating Accuracy", b);
     std::snprintf(b, sizeof b, "%.2f \xC3\x97 %.2f mm", cal.width / cal.scaleX(), cal.height / cal.scaleY());
     shown("fov", "Field of View", b);
     std::snprintf(b, sizeof b, "%.3f deg%s", cal.rotationDeg(looksUp), cal.mirrored(looksUp) ? ", mirrored" : "");
     shown("turn", "Mounting Error (turned)", b);
-    std::snprintf(b, sizeof b, "k1 %.4g, k2 %.4g; centre %+.1f, %+.1f px from the middle", cal.lensK1, cal.lensK2,
-                  cal.lensCentreX - cal.width / 2.0, cal.lensCentreY - cal.height / 2.0);
+    std::snprintf(b, sizeof b, "k1 %.4g, k2 %.4g", cal.lensK1, cal.lensK2);
     shown("lens", "Lens", b);
-    std::snprintf(b, sizeof b, "%zu measured, %d left out, %d places not measured", cal.points.size(), cal.leftOut, cal.unmeasured);
+    std::snprintf(b, sizeof b, "%+.1f, %+.1f px", cal.lensCentreX - cal.width / 2.0, cal.lensCentreY - cal.height / 2.0);
+    shown("lensCentre", "Lens Centre (from middle)", b);
+    std::snprintf(b, sizeof b, "%zu, %d left out, %d missed", cal.points.size(), cal.leftOut, cal.unmeasured);
     shown("points", "Measurements", b);
     if (cal.twoHeights()) {
-        std::snprintf(b, sizeof b, "Z %.3f: %.3f px/mm, fit to %.3f px", cal.secondZ, cal.secondScale, cal.secondRmsPx);
+        std::snprintf(b, sizeof b, "Z %.3f: %.3f px/mm", cal.secondZ, cal.secondScale);
         shown("second", "Second Height", b);
-        std::snprintf(b, sizeof b, "Z %.2f (%.2f mm from the first height)", cal.cameraZ(), std::abs(cal.z - cal.cameraZ()));
-        shown("cameraZ", "Camera (centre of projection)", b);
+        std::snprintf(b, sizeof b, "Z %.2f", cal.cameraZ());
+        shown("cameraZ", "Camera At", b);
         const double f = cal.focalPx();
         std::snprintf(b, sizeof b, "%.1f px", f);
         shown("focal", "Focal Length", b);
         std::snprintf(b, sizeof b, "%.2f \xC3\x97 %.2f deg", 2 * std::atan(cal.width / (2 * f)) * 180 / M_PI,
                       2 * std::atan(cal.height / (2 * f)) * 180 / M_PI);
         shown("fovDeg", "Field of View (angle)", b);
-        std::snprintf(b, sizeof b, "%.3f%% per mm nearer", 100 * (cal.scaleAt(cal.z + (cal.cameraZ() > cal.z ? 1 : -1)) / cal.scale() - 1));
+        std::snprintf(b, sizeof b, "%.3f%% a mm nearer", 100 * (cal.scaleAt(cal.z + (cal.cameraZ() > cal.z ? 1 : -1)) / cal.scale() - 1));
         shown("perMm", "Scale Change", b);
+        add.note("Camera At: its centre of projection, from how the scale changes between the two heights.");
     }
     if (cal.points.empty()) {
         add.note("Calibrate again to see its measurements as graphs.");

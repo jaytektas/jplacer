@@ -23,6 +23,10 @@ inline namespace jf {
 // from where the machine is, or go there; an axis row the same for one axis.
 // A setting that cannot be changed is shown as text. An edit goes through
 // the property's setter and is reported to onChanged.
+//
+// Notes and graphs are as wide as the form when it is made: when the form's
+// width changes (the window or the divider moved), its pages are made again
+// to the new width, the same tab open and each page scrolled as it was.
 class JPSetupForm : public JContainer {
 public:
     // What a place row's buttons use.
@@ -40,6 +44,8 @@ public:
     // A property's value now.
     JVariant get(const std::string& property) const;
 
+    void populateRenderPrimitives(JPrimitiveBuffer& buf) override;
+
     std::function<void(const std::string& property)> onChanged;
     // A button of an Actions row: its action's name.
     std::function<void(const std::string& action)> onAction;
@@ -54,12 +60,17 @@ private:
     // How wide a control for `p` is, as it is laid out.
     float widthOf(const JProperty& p) const;
     const JProperty* find(const std::string& name) const;
+    // The pages made again from the form shown (to a new width).
+    void rebuild();
 
     JPSetupProperties::Form                m_form;
     JTabWidget*                            m_tabs = nullptr;
     std::vector<std::unique_ptr<JWidget>>  m_pages;
     std::vector<std::function<void()>>     m_pulls;
     bool                                   m_pulling = false;   // refresh() setting controls: not an edit
+    float                                  m_builtWidth = 0;    // the form's width when its pages were made
+    bool                                   m_rebuilding = false;
+    std::shared_ptr<bool>                  m_alive = std::make_shared<bool>(true);
 };
 
 } // inline namespace jf

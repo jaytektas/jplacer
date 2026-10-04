@@ -294,7 +294,7 @@ bool JPCell::doHomeNozzle(const std::string& nozzleId, double speed, std::string
         m_sent[motor->id] = motor->homeCoordinate;
         m_corrected.erase(motor->id);
         m_backlashApplied.erase(motor->id);
-        m_backlashTurn.erase(motor->id);
+        m_backlashLag.erase(motor->id);
     }
     JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_config.name << ": " << nozzle->name << "'s Z homed";
     return true;
@@ -727,7 +727,7 @@ bool JPCell::doHome(std::string& why) {
         m_sent.clear();
         m_corrected.clear();
         m_backlashApplied.clear();
-        m_backlashTurn.clear();
+        m_backlashLag.clear();
         for (const JPAxisConfig& a : m_config.axes) {
             if (a.kind == JPAxisConfig::Kind::Virtual) m_positions[a.id] = a.homeCoordinate;
             if (a.kind != JPAxisConfig::Kind::Mapped) m_sent[a.id] = a.homeCoordinate;
@@ -1045,7 +1045,7 @@ bool JPCell::doMove(std::map<std::string, double> targets, double speed, std::st
     // among those that went past or sneak up.
     std::map<std::string, double> overshoot = hardware;
     std::map<std::string, double> applied;   // directional offsets in effect after this move
-    std::map<std::string, std::pair<int, double>> turned;   // each moved axis's way and travel since turning
+    std::map<std::string, double> lagged;    // DistanceAware: each moved axis's lag after the move
     double approach = 1;
     bool needApproach = false;
     {
@@ -1056,37 +1056,38 @@ bool JPCell::doMove(std::map<std::string, double> targets, double speed, std::st
             const double travel = t - (f == from.end() ? t : f->second);
             const double before = backlashApplied(id);
             const double offset = a->backlashOffset;
-            // Which way it last went, and how far since it turned (DistanceAware).
-            const int dir = travel > 0 ? 1 : -1;
-            double sinceTurn = 0;
-            if (travel != 0) {
-                const auto was = m_backlashTurn.find(id);
-                const bool same = was != m_backlashTurn.end() && was->second.first == dir;
-                sinceTurn = (same ? was->second.second : 0) + std::abs(travel);
-                turned[id] = { dir, sinceTurn };
-            }
             const bool aware = a->backlash == JPAxisConfig::Backlash::DistanceAware;
             if (!m_backlashOn || a->backlash == JPAxisConfig::Backlash::None || (aware ? a->backlashTable.empty() : offset == 0)) {
                 if (before != 0) applied[id] = 0;
                 continue;
             }
             if (aware) {
-                // Sent the lag further for the travel it will have made since
-                // turning; one that would come in less than the least approach
-                // first backs off that far (a waypoint, the axis's own place),
-                // then comes in.
                 if (travel == 0) continue;   // staying put keeps what is in effect
-                const bool backOff = sinceTurn < a->approachMm;
+                // Where the drive is sent from, and how far it lags now (as
+                // kept, else as last sent: the offset in effect).
+                const double sentFrom = (f == from.end() ? t : f->second) + before;
+                const auto kept = m_backlashLag.find(id);
+                double lag = kept != m_backlashLag.end() ? kept->second : before;
+                const int dir = travel > 0 ? 1 : -1;
+                double driveFrom = sentFrom;
+                // Coming in less than the least approach along the curve: back
+                // off that far first (a waypoint, sent as it is).
+                const bool backOff = a->travelFor(dir * lag) + std::abs(t - driveFrom) < a->approachMm;
                 if (backOff) {
-                    overshoot[id] = t - dir * a->approachMm;
+                    const double w = t - dir * a->approachMm;
+                    lag = a->lagMoved(lag, driveFrom, w);
+                    driveFrom = w;
+                    overshoot[id] = w;
                     needApproach = true;
                     approach = std::min(approach, a->backlashSpeedFactor);
-                    sinceTurn = a->approachMm;
-                    turned[id] = { dir, sinceTurn };
                 }
-                const double lag = dir * a->lagAfter(sinceTurn);
-                applied[id] = lag;
-                t += lag;
+                // Sent where it lands on the place: the lag on arriving depends
+                // on how far it goes, which depends on the lag; a few rounds settle it.
+                double end = lag;
+                for (int round = 0; round < 4; ++round) end = a->lagMoved(lag, driveFrom, t + end);
+                applied[id] = end;
+                lagged[id] = end;
+                t += end;
                 if (!backOff) overshoot[id] = t;
                 continue;
             }
@@ -1189,7 +1190,7 @@ bool JPCell::doMove(std::map<std::string, double> targets, double speed, std::st
         if (b == 0) m_backlashApplied.erase(id);
         else m_backlashApplied[id] = b;
     }
-    for (const auto& [id, w] : turned) m_backlashTurn[id] = w;
+    for (const auto& [id, l] : lagged) m_backlashLag[id] = l;
     for (const auto& [id, t] : rewrapped) {
         hardware[id] = t;
         m_positions[id] = t;

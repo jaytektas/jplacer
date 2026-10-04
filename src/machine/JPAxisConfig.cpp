@@ -191,4 +191,26 @@ double JPAxisConfig::lagAfter(double travel) const {
     return t.back().second;
 }
 
+double JPAxisConfig::travelFor(double lag) const {
+    const auto& t = backlashTable;
+    if (t.empty() || lag <= t.front().second) return 0;
+    if (lag >= t.back().second) return t.back().first;
+    for (size_t i = 1; i < t.size(); ++i)
+        if (lag <= t[i].second) {
+            const double l0 = t[i - 1].second, l1 = t[i].second;
+            const double a = std::log(t[i - 1].first), b = std::log(t[i].first);
+            const double f = l1 > l0 ? (lag - l0) / (l1 - l0) : 0;
+            return std::exp(a + f * (b - a));
+        }
+    return t.back().first;
+}
+
+double JPAxisConfig::lagMoved(double lag, double from, double to) const {
+    const double d = to - from;
+    if (d == 0) return lag;
+    const double dir = d > 0 ? 1 : -1;
+    // Along the way it goes, the lag is so far along the curve; it goes on by the travel.
+    return dir * lagAfter(travelFor(dir * lag) + std::abs(d));
+}
+
 } // inline namespace jf

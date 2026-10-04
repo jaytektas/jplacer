@@ -127,14 +127,11 @@ JPMachineSetupPanel::JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, 
 
     m_problems = add(std::make_unique<JLabel>(graph, ""));
     m_problems->setWordWrap(true);
-    auto bottom = JPUiParts::row(graph);
-    m_note = bottom->add(std::make_unique<JLabel>(graph, ""));
-    m_note->setHSizePolicy(JSizePolicyMode::Expanding, 1);
-    m_undo = bottom->add(JPUiParts::button(graph, "Undo"));
-    m_undo->onClicked.connect([this] { undo(); });
-    m_redo = bottom->add(JPUiParts::button(graph, "Redo"));
-    m_redo->onClicked.connect([this] { redo(); });
-    add(std::move(bottom));
+    // What the last action could not do: a line only while there is one.
+    // (Undo and Redo are Edit's, with their keys.)
+    m_note = add(std::make_unique<JLabel>(graph, ""));
+    m_note->setWordWrap(true);
+    m_note->setVisible(false);
 
     rebuildTree();
     select(selected.empty() ? "machine" : selected);
@@ -178,7 +175,7 @@ void JPMachineSetupPanel::restore(const JPSetupHistory::State& state) {
             if (u.id == c.id) c.calibrations = u.calibrations;
     m_draft.squareness = m_inUse.squareness;
     m_recorded = m_draft;
-    m_note->setText("");
+    setNote("");
     rebuildTree();
     m_selected.clear();
     select(state.selected);
@@ -241,7 +238,7 @@ void JPMachineSetupPanel::addPart() {
     const std::string added = JPSetupEdits::add(m_draft, m_selected);
     if (added.empty()) return;
     JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Machine Setup: added " << added;
-    m_note->setText("");
+    setNote("");
     rebuildTree();
     select(added);
     record("Add " + what, "", from);
@@ -252,11 +249,11 @@ void JPMachineSetupPanel::removePart() {
     const std::string from = m_selected, name = nameOf(m_draft, from);
     std::string why;
     if (!JPSetupEdits::remove(m_draft, m_selected, why)) {
-        m_note->setText("Not removed: " + why + ".");
+        setNote("Not removed: " + why + ".");
         return;
     }
     JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Machine Setup: removed " << m_selected;
-    m_note->setText("");
+    setNote("");
     rebuildTree();
     select(group);
     record("Remove " + name, "", from);
@@ -364,10 +361,10 @@ void JPMachineSetupPanel::capture(const JPSetupProperties::Row& row, JPSetupForm
             if (!row.cells[i].property.empty() && now[i]) any = m_form->set(row.cells[i].property, JVariant(*now[i])) || any;
     }
     if (!any) {
-        m_note->setText("Nothing captured: the machine is not connected, or nothing is chosen to capture from.");
+        setNote("Nothing captured: the machine is not connected, or nothing is chosen to capture from.");
         return;
     }
-    m_note->setText("");
+    setNote("");
     rebuildTree();
     record("Capture " + nameOf(m_draft, at) + ": " + row.label, "", at);
 }
@@ -412,10 +409,12 @@ void JPMachineSetupPanel::update() {
     std::string problems;
     for (const std::string& p : m_draft.problems()) problems += (problems.empty() ? "" : "\n") + p;
     m_problems->setText(problems.empty() ? "" : "Not in use until put right:\n" + problems);
-    m_undo->setEnabled(canUndo());
-    m_undo->setTooltip(undoLabel());
-    m_redo->setEnabled(canRedo());
-    m_redo->setTooltip(redoLabel());
+    m_problems->setVisible(!problems.empty());
+}
+
+void JPMachineSetupPanel::setNote(const std::string& text) {
+    m_note->setText(text);
+    m_note->setVisible(!text.empty());
 }
 
 } // inline namespace jf

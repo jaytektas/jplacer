@@ -57,10 +57,14 @@ struct JPAxisConfig {
     //  - DistanceAware (jplacer's own): the drive lags the place it is sent
     //    to by an amount that depends on how far it has travelled since it last
     //    changed direction (a gap taken up first, then a belt winding up):
-    //    `backlashTable`, (travel, lag) measured by Calibrate. Each move is
-    //    sent the lag further, for the travel it will have made; one that
-    //    would arrive having travelled less than `approachMm` since turning
-    //    first backs off, so it comes in at least that far.
+    //    `backlashTable`, (travel, lag) measured by Calibrate: the lag after
+    //    travelling that far from fully wound the other way. The drive's lag
+    //    is kept as it goes: a move starts from wherever the lag is on that
+    //    curve (partly wound, after a short move the other way, starts part
+    //    of the way along it) and goes on along it by how far the drive
+    //    travels. Each move is sent the lag it will have on arriving; one that
+    //    would arrive having come less than `approachMm` along the curve first
+    //    backs off, so it comes in at least that far.
     enum class Backlash { None, OneSided, OneSidedOptimized, Directional, DirectionalSneakUp, DistanceAware };
     Backlash backlash = Backlash::None;
     double backlashOffset = 0;
@@ -71,6 +75,12 @@ struct JPAxisConfig {
     // DistanceAware: the lag after travelling `travel` since turning (the
     // table, between its points on a log scale of travel, its ends beyond).
     double lagAfter(double travel) const;
+    // The other way: how far along the curve a lag is (the least travel
+    // giving it; 0 below the curve, its last travel above).
+    double travelFor(double lag) const;
+    // DistanceAware: a drive lagging `lag` (signed, along the axis) moved
+    // from `from` to `to` (where it is sent): its lag after.
+    double lagMoved(double lag, double from, double to) const;
     // The last time the backlash was measured (Calibrate on its Backlash tab).
     std::optional<JPBacklashCalibration> backlashCalibration;
     // Backlash's names, as kept and as OpenPnP calls them.
