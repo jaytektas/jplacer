@@ -9,12 +9,15 @@
 #include "JPlacerViewerDock.h"
 
 #include "ui/JPBoardsPanel.h"
+#include "ui/JPJobPanel.h"
 #include "ui/JPPanelsPanel.h"
 #include "ui/JPPackagesPanel.h"
 #include "ui/JPPartsPanel.h"
 
 #include <j/app/JAppWindow.h>
 #include <j/core/DockWidget.h>
+#include <j/core/JLabel.h>
+#include <j/core/JProgressBar.h>
 
 #include <functional>
 #include <memory>
@@ -24,7 +27,7 @@
 
 inline namespace jf {
 
-// OpenPnP's tabs in the work area (Panels, Boards, Parts, Packages so far), each a
+// OpenPnP's tabs in the work area (Job, Panels, Boards, Parts, Packages so far), each a
 // dock, kept in step with the job and its configuration: an edit on one is
 // saved and the others shown again. A board's own file is saved as
 // OpenPnP saves it: on File > Save Configuration, on quitting and on its
@@ -68,6 +71,12 @@ private:
     std::unique_ptr<JPBoardsPanel>   m_boards;
     std::unique_ptr<JDockWidget>     m_boardsDock;
     std::unique_ptr<JPlacerViewerDock> m_boardViewer;
+    std::unique_ptr<JPJobPanel>      m_jobPanel;
+    std::unique_ptr<JDockWidget>     m_jobDock;
+    std::unique_ptr<JPlacerViewerDock> m_jobViewer;
+    // The status line's placements done ("Placements: 3 / 10 Total | …") and its bar.
+    std::unique_ptr<JLabel>          m_placedLabel;
+    std::unique_ptr<JProgressBar>    m_placedBar;
     std::unique_ptr<JPPanelsPanel>   m_panels;
     std::unique_ptr<JDockWidget>     m_panelsDock;
     std::unique_ptr<JPlacerViewerDock> m_panelViewer;

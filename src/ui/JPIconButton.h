@@ -32,6 +32,12 @@ public:
     // How big one is: as tall as a tab bar, and as wide.
     static float size();
 
+    // Another OpenPnP icon (a button that changes with what it does: Start
+    // and Pause, Defer and Alert Errors).
+    void setIcon(const std::string& openPnpIcon) {
+        m_icon = openPnpIcon;
+        m_graph.invalidateNode(m_nodeId, DirtySelf);
+    }
     void setCheckable(bool on) { m_checkable = on; }
     // Drawn as a button at rest too (a surface and an edge), for a pad of
     // controls rather than a panel's tools.

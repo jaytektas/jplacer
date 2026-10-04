@@ -9,6 +9,8 @@
 #include "model/JPPanel.h"
 #include "model/JPSides.h"
 
+#include <j/core/JStyle.h>
+
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
@@ -97,6 +99,42 @@ int JPPlacementsTableModel::rowCount() const {
     return m_holder ? int(m_holder->placements.size() + m_pseudo.size()) : 0;
 }
 
+void JPPlacementsTableModel::setLocation(JPPlacementsHolderLocation* location, bool editDefinition, JPJob* job) {
+    m_location = location;
+    m_editDefinition = editDefinition;
+    m_placedJob = job;
+    m_holder = location ? location->holder.get() : nullptr;
+    reload();
+}
+
+bool JPPlacementsTableModel::rowShown(int row) const {
+    if (!m_location) return true;
+    const JPPlacement* p = placement(row);
+    return p && p->side == m_location->globalSide();
+}
+
+JPPlacementsTableModel::Status JPPlacementsTableModel::status(const JPPlacement& p) const {
+    const JPPart* part = m_config.part(p.partId);
+    if (!part) return Status::MissingPart;
+    if (!p.enabled) return Status::Disabled;
+    if (p.type == JPPlacement::Type::Placement) {
+        if (!hasFeeder || !hasFeeder(part->id)) return Status::MissingFeeder;
+        if (part->isPartHeightUnknown()) return Status::ZeroPartHeight;
+    }
+    return Status::Ready;
+}
+
+const char* JPPlacementsTableModel::statusName(Status s) {
+    switch (s) {
+        case Status::Ready:          return "Ready";
+        case Status::MissingPart:    return "Missing Part";
+        case Status::MissingFeeder:  return "Missing Feeder";
+        case Status::ZeroPartHeight: return "Part Height";
+        case Status::Disabled:       return "Disabled";
+    }
+    return "";
+}
+
 void JPPlacementsTableModel::reload() {
     m_pseudo.clear();
     if (m_holder && m_holder->kind() == JPPlacementsHolder::Kind::Panel)
@@ -140,13 +178,16 @@ std::string JPPlacementsTableModel::text(int row, int c) const {
         case kErrorHandling: return JPPlacement::errorHandlingName(p->errorHandling);
         case kRank: return std::to_string(p->rank);
         case kComments: return p->comments.value_or("");
+        case kStatus: return statusName(status(*p));
         default: return {};
     }
 }
 
 bool JPPlacementsTableModel::checked(int row, int c) const {
     const JPPlacement* p = placement(row);
-    return p && m_shown[size_t(c)] == kEnabled && p->enabled;
+    if (!p) return false;
+    if (m_shown[size_t(c)] == kPlaced) return m_placedJob && m_location && m_placedJob->retrievePlacedStatus(*m_location, p->id);
+    return m_shown[size_t(c)] == kEnabled && p->enabled;
 }
 
 double JPPlacementsTableModel::number(int row, int c) const {
@@ -178,6 +219,7 @@ std::optional<int> JPPlacementsTableModel::compare(int a, int b, int c) const {
         case kRotation: return cmp(x->location.rotation(), y->location.rotation());
         case kType:     return cmp(int(x->type), int(y->type));
         case kErrorHandling: return cmp(int(x->errorHandling), int(y->errorHandling));
+        case kStatus:   return cmp(int(status(*x)), int(status(*y)));
         default:        return std::nullopt;
     }
 }
@@ -186,14 +228,25 @@ std::string JPPlacementsTableModel::cellTooltip(int, int c) const {
     return m_shown[size_t(c)] == kRank ? kRankTooltip : std::string();
 }
 
-bool JPPlacementsTableModel::highlighted(int row, int c) const {
+const uint8_t* JPPlacementsTableModel::cellTint(int row, int c) const {
     const JPPlacement* p = placement(row);
-    return p && m_shown[size_t(c)] == kType && p->type == JPPlacement::Type::Fiducial;
+    if (p && m_shown[size_t(c)] == kType && p->type == JPPlacement::Type::Fiducial) return Colors::Accent;
+    if (p && m_shown[size_t(c)] == kStatus) {
+        switch (status(*p)) {
+            case Status::Ready:          return Colors::Success;
+            case Status::ZeroPartHeight: return Colors::Warning;
+            case Status::Disabled:       return Colors::MutedText;
+            default:                     return Colors::Danger;
+        }
+    }
+    return nullptr;
 }
 
 bool JPPlacementsTableModel::editable(int row, int c) const {
     const Col col = m_shown[size_t(c)];
     if (isPseudo(row) || m_onlyEnabled) return col == kEnabled;
+    // A job's: everything for a board used once straight in it, else its own on/off, placed and error handling.
+    if (m_location && !m_editDefinition) return col == kEnabled || col == kPlaced || col == kErrorHandling;
     return col != kId && col != kStatus;
 }
 
@@ -226,7 +279,25 @@ std::vector<std::string> JPPlacementsTableModel::choices(int, int c) const {
 
 void JPPlacementsTableModel::edit(const std::string& id, const std::function<void(JPPlacement&)>& set) {
     if (!m_holder) return;
-    JPDefinitionChanges(m_config, m_job()).placement(*m_holder, id, set);
+    if (m_location) {
+        // A job's: the board itself when it may be, else this use of it alone.
+        JPPlacementsHolder* def = m_editDefinition ? m_config.definitionOf(*m_holder) : nullptr;
+        if (def) {
+            JPDefinitionChanges(m_config, m_job()).placement(*def, id, set);
+        } else if (JPPlacement* p = m_holder->find(id)) {
+            set(*p);
+        }
+        if (m_placedJob) m_placedJob->dirty = true;
+    } else {
+        JPDefinitionChanges(m_config, m_job()).placement(*m_holder, id, set);
+    }
+    if (onChanged) onChanged();
+}
+
+void JPPlacementsTableModel::setPlaced(int row, bool placed) {
+    const JPPlacement* p = placement(row);
+    if (!p || !m_placedJob || !m_location) return;
+    m_placedJob->storePlacedStatus(*m_location, p->id, placed);
     if (onChanged) onChanged();
 }
 
@@ -300,6 +371,10 @@ void JPPlacementsTableModel::setChoice(int row, int c, int index) {
 
 void JPPlacementsTableModel::setChecked(int row, int c, bool on) {
     const JPPlacement* p = placement(row);
+    if (p && m_shown[size_t(c)] == kPlaced) {
+        setPlaced(row, on);
+        return;
+    }
     if (p && isPseudo(row) && m_shown[size_t(c)] == kEnabled) {
         auto* panel = static_cast<JPPanel*>(m_holder);
         if (on) panel->disabledPseudoPlacements.erase(p->id);

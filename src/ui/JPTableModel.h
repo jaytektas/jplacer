@@ -47,14 +47,23 @@ public:
     // Something that names a row whatever its place, so the selection
     // survives the rows being made again.
     virtual std::string rowKey(int row) const { return std::to_string(row); }
+    // Whether a row is shown at all (before any search): false hides it.
+    virtual bool rowShown(int) const { return true; }
 
     // How two rows order by a column, when not as its kind orders them
     // (<0, 0, >0); none: by its kind.
     virtual std::optional<int> compare(int /*rowA*/, int /*rowB*/, int /*c*/) const { return std::nullopt; }
     // A cell's tooltip (none: none).
     virtual std::string cellTooltip(int, int) const { return {}; }
-    // A cell drawn on the accent, to stand out (as OpenPnP shows a fiducial's type).
-    virtual bool highlighted(int, int) const { return false; }
+    // What a cell shows, when not its text (which is what is sorted,
+    // searched and copied): the job table's ids, indented by their depth.
+    virtual std::string displayText(int row, int c) const { return text(row, c); }
+    // An OpenPnP icon (its name) before a cell's text, or none.
+    virtual std::string cellIcon(int, int) const { return {}; }
+    // A cell's fill, to stand out from its row (one of the style's colours,
+    // as OpenPnP colours a fiducial's type or a placement's status); none:
+    // the row's.
+    virtual const uint8_t* cellTint(int, int) const { return nullptr; }
 
     virtual bool editable(int, int) const { return false; }
     virtual std::vector<std::string> choices(int, int) const { return {}; }

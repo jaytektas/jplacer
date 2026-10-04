@@ -21,6 +21,8 @@
 #include <j/core/JContainer.h>
 #include <j/core/MenuSystem.h>
 
+#include "model/JPLocation.h"
+
 #include <functional>
 #include <map>
 #include <memory>
@@ -88,6 +90,15 @@ public:
     void setCameraOverlay(const std::string& key, JPCameraView::Overlay overlay);
     // The open cell's nozzle tips, id and name; none without a cell.
     std::vector<std::pair<std::string, std::string>> nozzleTips() const;
+
+    // Where the head's camera, or the Jog panel's chosen nozzle, is now, in
+    // the machine's millimetres (Z and rotation where it has those axes);
+    // none when the machine is not connected.
+    std::optional<JPLocation> toolLocation(JPSetupForm::Tool tool) const;
+    // Takes it to `at` as OpenPnP's moveToLocationAtSafeZ: up to safe Z,
+    // across (and turned) to X, Y and the rotation, then down to `at`'s Z.
+    // False, the reason shown, when the machine cannot move.
+    bool moveToolTo(JPSetupForm::Tool tool, const JPLocation& at);
     // Where the docks live, and View's entries for them.
     JPlacerLayout& layout() { return m_layout; }
 

@@ -43,6 +43,10 @@ public:
     bool   checked(int row, int c) const override;
     std::string rowKey(int row) const override;
     std::optional<int> compare(int a, int b, int c) const override;
+    std::string displayText(int row, int c) const override;
+    std::string cellIcon(int row, int c) const override;
+    const uint8_t* cellTint(int row, int c) const override;
+    std::string cellTooltip(int row, int c) const override;
     bool   editable(int row, int c) const override;
     std::vector<std::string> choices(int row, int c) const override;
     bool   setText(int row, int c, const std::string& text, std::string& error) override;

@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- A Job tab, as OpenPnP's: the job's boards and panels, nested, where each lies, side, enabled and
+  fiducial check; add and remove boards and panels; move the camera or nozzle to a board or placement and
+  capture where they are; Alert or Defer errors; each board's placements with Placed and Status; the job
+  viewer; and the placements done in the status line.
 - A Panels tab, as OpenPnP's: add, create, copy, remove and clean up panels; each panel's children
   (boards and panels, where they lie, side, enabled, fiducial check) with Add Child, Remove, Replace and
   the right-click menu; its alignment fiducials and pseudo-placements, chosen from its boards' with Use

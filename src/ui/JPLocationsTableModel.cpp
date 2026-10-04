@@ -8,6 +8,8 @@
 #include "model/JPDefinitionChanges.h"
 #include "model/JPSides.h"
 
+#include <j/core/JStyle.h>
+
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
@@ -93,6 +95,45 @@ std::string JPLocationsTableModel::text(int row, int c) const {
         case kRotation: return rotationText(g.rotation());
         default:        return {};
     }
+}
+
+std::string JPLocationsTableModel::displayText(int row, int c) const {
+    const JPPlacementsHolderLocation* l = location(row);
+    if (!l || m_mode != Mode::Job || m_shown[size_t(c)] != kId) return text(row, c);
+    // The job's: its own id, four spaces in for each panel it is on.
+    const std::string uid = l->uniqueId();
+    const std::string delim = JPPlacementsHolderLocation::kIdDelimiter;
+    size_t depth = 0;
+    for (size_t at = uid.find(delim); at != std::string::npos; at = uid.find(delim, at + delim.size())) depth += 4;
+    const size_t last = uid.rfind(delim);
+    return std::string(depth, ' ') + (last == std::string::npos ? uid : uid.substr(last + delim.size()));
+}
+
+std::string JPLocationsTableModel::cellIcon(int row, int c) const {
+    const JPPlacementsHolderLocation* l = location(row);
+    if (!l || m_mode != Mode::Job || m_shown[size_t(c)] != kId) return {};
+    return l->kind() == JPPlacementsHolderLocation::Kind::Board ? "board" : "panel";
+}
+
+const uint8_t* JPLocationsTableModel::cellTint(int row, int c) const {
+    const JPPlacementsHolderLocation* l = location(row);
+    if (!l || m_mode != Mode::Job) return nullptr;
+    // Where it lies set by a fiducial check: on the job (green) or on its panel (blue).
+    const Col col = m_shown[size_t(c)];
+    if (col != kX && col != kY && col != kZ && col != kRotation) return nullptr;
+    switch (l->transformStatus()) {
+        case JPPlacementsHolderLocation::TransformStatus::GloballySet: return Colors::Success;
+        case JPPlacementsHolderLocation::TransformStatus::LocallySet:  return Colors::Accent;
+        default:                                                       return nullptr;
+    }
+}
+
+std::string JPLocationsTableModel::cellTooltip(int row, int c) const {
+    const JPPlacementsHolderLocation* l = location(row);
+    if (!l || m_mode != Mode::Job) return {};
+    if (m_shown[size_t(c)] == kId) return l->uniqueId();
+    if (m_shown[size_t(c)] == kName && l->holder) return l->holder->file;
+    return {};
 }
 
 bool JPLocationsTableModel::checked(int row, int c) const {

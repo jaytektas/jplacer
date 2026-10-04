@@ -3,6 +3,8 @@
 
 #include "JPTable.h"
 
+#include "JPOpenPnpIcons.h"
+
 #include <j/core/JArrow.h>
 #include <j/core/JStyle.h>
 #include <j/core/JTextHelper.h>
@@ -24,7 +26,9 @@ constexpr size_t kMostSortKeys = 3;
 constexpr float kSortKeyFade = 0.5f;
 // A row's tick box, as a share of the row.
 constexpr float kTickShare = 0.6f;
-// A highlighted cell's fill: the accent, this opaque over the row.
+// Icons are drawn at twice their size and shown smaller, to stay sharp.
+constexpr float kIconOversample = 2.0f;
+// A tinted cell's fill: its colour, this opaque over the row.
 constexpr float kHighlightAlpha = 0.5f;
 // The widest number a decimal-aligned column lines up (OpenPnP's "%9.3f"
 // and two places for units), split at its point.
@@ -103,6 +107,7 @@ void JPTable::refresh() {
 }
 
 bool JPTable::rowPasses(int row) const {
+    if (!m_model->rowShown(row)) return false;
     if (!m_filter) return true;
     for (int c = 0; c < m_model->columnCount(); ++c)
         if (std::regex_search(m_model->text(row, c), *m_filter)) return true;
@@ -419,15 +424,29 @@ void JPTable::populateRenderPrimitives(JPrimitiveBuffer& buf) {
             }
             const JPTableModel::Column col = m_model->column(c);
             const uint8_t* ink = Colors::LabelText;
-            if (m_model->highlighted(r, c)) {
-                const JColor tint = rgba(Colors::Accent[0], Colors::Accent[1], Colors::Accent[2],
-                                         uint8_t(float(Colors::Accent[3]) * kHighlightAlpha));
+            if (const uint8_t* fill = m_model->cellTint(r, c)) {
+                const JColor tint = rgba(fill[0], fill[1], fill[2], uint8_t(float(fill[3]) * kHighlightAlpha));
                 buf.pushRectangle(cell.x + st.borderWidth, y, cell.width - st.borderWidth, rh - st.borderWidth, tint.data());
                 ink = Colors::TextPrimary;
             }
-            const float room = std::max(1.f, cell.width - 2 * pad);
-            const std::string full = m_model->text(r, c);
             float tx = cell.x + pad;
+            // An icon before the text, as tall as a line.
+            if (const std::string icon = m_model->cellIcon(r, c); !icon.empty())
+                if (JPOpenPnpIcons* icons = JPOpenPnpIcons::instance()) {
+                    const std::string shown = m_model->displayText(r, c);
+                    // Its leading spaces (an indent) before the icon.
+                    const size_t lead = shown.find_first_not_of(' ');
+                    tx += JTextHelper::measureWidth(shown.substr(0, lead == std::string::npos ? shown.size() : lead));
+                    const TextureHandle tex = icons->texture(icon, int(lh * kIconOversample), false);
+                    if (tex != kNullTexture) buf.pushImage(tx, y + (rh - lh) * 0.5f, lh, lh, tex);
+                    tx += lh + st.spacing * 0.5f;
+                }
+            const float room = std::max(1.f, cell.x + cell.width - pad - tx);
+            std::string full = m_model->displayText(r, c);
+            if (!m_model->cellIcon(r, c).empty()) {
+                const size_t lead = full.find_first_not_of(' ');
+                full = lead == std::string::npos ? std::string() : full.substr(lead);
+            }
             if (col.decimalAligned) {
                 // The point at the same place in every row, the widest number centred.
                 const size_t dot = full.find('.');

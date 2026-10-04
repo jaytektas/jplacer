@@ -35,6 +35,15 @@ public:
         m_holder = holder;
         reload();
     }
+    // A job's board or panel's placements (the Job tab): Placed kept by the
+    // job; `editDefinition` (a board used once, straight in the job): every
+    // column changes the board itself, else only Enabled and Error
+    // Handling, on this use of it. Only the placements on its side facing up
+    // are shown.
+    void setLocation(JPPlacementsHolderLocation* location, bool editDefinition, JPJob* job);
+    JPPlacementsHolderLocation* location() const { return m_location; }
+    // Whether a feeder holds a part (Status's Missing Feeder).
+    std::function<bool(const std::string& partId)> hasFeeder;
     // The pseudo-placements worked out again (before the table is shown again).
     void reload();
     bool isPseudo(int row) const;
@@ -55,19 +64,27 @@ public:
     std::string rowKey(int row) const override;
     std::optional<int> compare(int a, int b, int c) const override;
     std::string cellTooltip(int row, int c) const override;
-    bool   highlighted(int row, int c) const override;
+    const uint8_t* cellTint(int row, int c) const override;
+    bool   rowShown(int row) const override;
     bool   editable(int, int c) const override;
     std::vector<std::string> choices(int row, int c) const override;
     bool   setText(int row, int c, const std::string& text, std::string& error) override;
     void   setChoice(int row, int c, int index) override;
     void   setChecked(int row, int c, bool on) override;
 
+    // A job's placement marked placed or not.
+    void setPlaced(int row, bool placed);
     // `set` applied to the placement `id`, on the definition and its uses.
     void edit(const std::string& id, const std::function<void(JPPlacement&)>& set);
 
     // OpenPnP's order for reference designators: those with no digit first,
     // then by the letters before the digits, then by the number.
     static int compareReferences(const std::string& a, const std::string& b);
+
+    // OpenPnP's placement status, in its order.
+    enum class Status { Ready, MissingPart, MissingFeeder, ZeroPartHeight, Disabled };
+    Status status(const JPPlacement& p) const;
+    static const char* statusName(Status s);
 
 private:
     std::vector<const JPPart*> partChoices() const;
@@ -77,6 +94,9 @@ private:
     std::vector<Col>              m_shown;
     JPPlacementsHolder*           m_holder = nullptr;
     std::vector<JPPlacement>      m_pseudo;
+    JPPlacementsHolderLocation*   m_location = nullptr;   // the job's, in the Job tab
+    JPJob*                        m_placedJob = nullptr;
+    bool                          m_editDefinition = true;
     bool                          m_onlyEnabled = false;
 };
 
