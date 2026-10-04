@@ -11,6 +11,7 @@ using Milestone = JPSolutions::Milestone;
 using Severity = JPSolutions::Severity;
 using State = JPSolutions::State;
 using Issue = JPSolutions::Issue;
+using S = JPSolutions;
 
 constexpr const char* kWiki = "https://github.com/openpnp/openpnp/wiki/";
 
@@ -35,6 +36,301 @@ void setupProblems(JPSolutions& s, const JPIssueChecks::Context& c) {
             if (c.showSetup) c.showSetup("");
         };
         s.add(std::move(i));
+    }
+}
+
+// A Machine Setup change made by an issue: `edit` as it is solved, `undo` as it is not.
+std::function<bool(State, std::string&)> changing(const JPIssueChecks::Context& c, std::string what,
+                                                  std::function<void(JPCellConfig&, bool solved)> edit) {
+    return [c, what = std::move(what), edit = std::move(edit)](State to, std::string&) {
+        if (c.changeCell) c.changeCell(what, [&edit, to](JPCellConfig& cell) { edit(cell, to == State::Solved); });
+        return true;
+    };
+}
+
+JPAxisConfig* axisIn(JPCellConfig& cell, const std::string& id) {
+    for (JPAxisConfig& a : cell.axes)
+        if (a.id == id) return &a;
+    return nullptr;
+}
+
+void welcome(JPSolutions& s, const JPIssueChecks::Context& c) {
+    const JPCellConfig* cell = c.cell ? c.cell() : nullptr;
+    if (!cell) return;
+    for (const JPHeadConfig& h : cell->heads) {
+        bool any = false;
+        for (const JPNozzleConfig& n : cell->nozzles) any = any || n.mount.headId == h.id;
+        if (any) continue;
+        Issue i = plain("ReferenceHead " + h.name, "Create nozzles for this head.",
+                        "Choose the number and type of your nozzles: add them in Machine Setup.", Severity::Fundamental,
+                        std::string(kWiki) + "Issues-and-Solutions#welcome-milestone");
+        const std::string id = h.id;
+        i.activate = [c, id] {
+            if (c.showSetup) c.showSetup("head:" + id);
+        };
+        s.add(std::move(i));
+    }
+}
+
+void basics(JPSolutions& s, const JPIssueChecks::Context& c) {
+    const JPCellConfig* cell = c.cell ? c.cell() : nullptr;
+    if (!cell || !s.isTargeting(Milestone::Basics)) return;
+    const std::string axesWiki = std::string(kWiki) + "Machine-Axes#controller-settings";
+    for (const JPAxisConfig& a : cell->axes) {
+        if (a.kind != JPAxisConfig::Kind::Controller) continue;
+        const std::string subject = "ReferenceControllerAxis " + a.name, id = a.id;
+        auto show = [c, id] {
+            if (c.showSetup) c.showSetup("axis:" + id);
+        };
+        if (a.driverId.empty()) {
+            Issue i = plain(subject, "Axis is not assigned to a driver.", "Assign a driver.", Severity::Fundamental, axesWiki);
+            i.activate = show;
+            s.add(std::move(i));
+            continue;
+        }
+        // The letter, set right here (OpenPnP's AxisLetterIssue).
+        auto letterIssue = [&](std::string issue, std::string solution, Severity severity) {
+            Issue i;
+            i.subject = subject;
+            i.issue = std::move(issue);
+            i.solution = std::move(solution);
+            i.severity = severity;
+            i.uri = axesWiki;
+            i.activate = show;
+            S::Property letter;
+            letter.kind = S::Property::Kind::Text;
+            letter.label = "Axis Letter";
+            letter.tooltip = "The axis letter as the controller knows it.";
+            letter.getText = [c, id] {
+                const JPCellConfig* now = c.cell ? c.cell() : nullptr;
+                if (now)
+                    for (const JPAxisConfig& x : now->axes)
+                        if (x.id == id) return x.letter;
+                return std::string();
+            };
+            letter.setText = [c, id](const std::string& v) {
+                if (c.changeCell)
+                    c.changeCell("Axis letter", [id, v](JPCellConfig& cell) {
+                        if (JPAxisConfig* x = axisIn(cell, id)) x->letter = v;
+                    });
+            };
+            i.properties.push_back(std::move(letter));
+            s.add(std::move(i));
+        };
+        if (a.letter.empty()) {
+            letterIssue("Axis letter is missing. Assign the letter to continue.",
+                        "Assign the axis letter (below), then press Accept.", Severity::Fundamental);
+            continue;
+        }
+        if (a.letter == "E")
+            letterIssue("Avoid axis letter E, if possible. Use proper rotation axes instead.",
+                        "Assign a proper rotation axis letter (below), then press Accept.", Severity::Warning);
+        std::vector<std::string> duplicates;
+        for (const JPAxisConfig& b : cell->axes)
+            if (b.kind == JPAxisConfig::Kind::Controller && b.driverId == a.driverId && b.letter == a.letter)
+                duplicates.push_back(b.name);
+        if (duplicates.size() > 1) {
+            std::string names;
+            for (const std::string& n : duplicates) names += (names.empty() ? "" : ", ") + n;
+            letterIssue("Duplicate axis letter " + a.letter + " on axes " + names + ".",
+                        "Assign the unique axis letter where wrong, press Accept, then press Find Issues & Solutions again to "
+                        "clear the correct one.",
+                        Severity::Error);
+        }
+    }
+    // Each nozzle its own Z and a rotation axis.
+    const std::string nozzleWiki = std::string(kWiki) + "Mapping-Axes";
+    for (const JPNozzleConfig& n : cell->nozzles) {
+        const std::string subject = "ReferenceNozzle " + n.name;
+        if (n.mount.axisZ.empty())
+            s.add(plain(subject, "Nozzle " + n.name + " does not have a Z axis assigned.",
+                        "Please assign a proper Z axis. You might need to create one first.", Severity::Error, nozzleWiki));
+        if (n.mount.axisRotation.empty())
+            s.add(plain(subject, "Nozzle " + n.name + " does not have a Rotation axis assigned.",
+                        "Please assign a proper Rotation axis. You might need to create one first.", Severity::Error,
+                        nozzleWiki));
+        for (const JPNozzleConfig& n2 : cell->nozzles) {
+            if (&n2 == &n) break;   // each pair once
+            if (n2.mount.headId != n.mount.headId) continue;
+            const JPAxisConfig* z1 = nullptr;
+            const JPAxisConfig* z2 = nullptr;
+            for (const JPAxisConfig& a : cell->axes) {
+                if (a.id == n.mount.axisZ) z1 = &a;
+                if (a.id == n2.mount.axisZ) z2 = &a;
+            }
+            // A shared Z is fine through a negating or cam axis of its own.
+            if (!n.mount.axisZ.empty() && n.mount.axisZ == n2.mount.axisZ && z1 && z2)
+                s.add(plain(subject, "Nozzles " + n2.name + " and " + n.name + " have the same Z axis assigned.",
+                            "Please assign a different Z axis.", Severity::Error, nozzleWiki));
+            if (!n.mount.axisRotation.empty() && n.mount.axisRotation == n2.mount.axisRotation)
+                s.add(plain(subject, "Nozzles " + n2.name + " and " + n.name + " have the same Rotation axis assigned.",
+                            "It is OK to share rotation axes. If intentional, just dismiss this issue. Otherwise assign a "
+                            "different Rotation axis.",
+                            Severity::Information, nozzleWiki));
+        }
+    }
+}
+
+void kinematics(JPSolutions& s, const JPIssueChecks::Context& c) {
+    const JPCellConfig* cell = c.cell ? c.cell() : nullptr;
+    if (!cell || !s.isTargeting(Milestone::Kinematics)) return;
+    if (c.homed && !c.homed()) {
+        Issue i;
+        i.subject = "ReferenceMachine";
+        i.issue = "To continue, the machine must be enabled and homed.";
+        i.solution = "Home the machine now.";
+        i.severity = Severity::Fundamental;
+        i.uri = std::string(kWiki) + "User-Manual#machine-controls";
+        i.extendedDescription = "Connect the machine first, then press Accept to home it.";
+        i.canBeUndone = false;
+        i.apply = [c](State to, std::string&) {
+            if (to == State::Solved && c.home) c.home();
+            return true;
+        };
+        s.add(std::move(i));
+    }
+    auto where = [&c](const std::string& axisId) { return c.axisPosition ? c.axisPosition(axisId) : std::nullopt; };
+    // Safe Z of each nozzle's Z axis.
+    const std::string safeZWiki = std::string(kWiki) + "Kinematic-Solutions#capture-safe-z";
+    for (const JPNozzleConfig& n : cell->nozzles) {
+        const JPAxisConfig* z = nullptr;
+        for (const JPAxisConfig& a : cell->axes)
+            if (a.id == n.mount.axisZ) z = &a;
+        if (!z) continue;
+        const std::string zId = z->id, zName = z->name, name = n.name;
+        if (z->safeZoneLowEnabled && z->safeZoneHighEnabled && z->safeZoneLow > z->safeZoneHigh) {
+            Issue i;
+            i.subject = "ReferenceControllerAxis " + zName;
+            i.issue = "Invalid Safe Z Zone on " + zName + ".";
+            i.solution = "The Safe Z Zone of " + zName + " is invalid (lower limit > higher limit). Start fresh configuration.";
+            i.severity = Severity::Error;
+            i.uri = safeZWiki;
+            const JPAxisConfig old = *z;
+            i.apply = changing(c, "Safe Z zone", [zId, old](JPCellConfig& cell, bool solved) {
+                if (JPAxisConfig* x = axisIn(cell, zId)) {
+                    x->safeZoneLowEnabled = solved ? false : old.safeZoneLowEnabled;
+                    x->safeZoneHighEnabled = solved ? false : old.safeZoneHighEnabled;
+                }
+            });
+            s.add(std::move(i));
+            continue;
+        }
+        if (z->safeZoneLowEnabled || z->safeZoneHighEnabled) continue;
+        Issue i;
+        i.subject = "ReferenceNozzle " + name;
+        i.issue = "Set Safe Z of " + name + ".";
+        i.solution = "Jog " + name + " over the tallest obstacle and capture.";
+        i.severity = Severity::Fundamental;
+        i.uri = safeZWiki;
+        i.forcedUnsolved = true;
+        i.extendedDescription = "Jog " + name + " over the tallest obstacle on your machine, including the the tallest parts "
+                                "that may be placed on the PCB.\n\nThen lower it down so it still has sufficient clearance.\n\n"
+                                "Then press Accept to capture the Safe Z.";
+        const JPAxisConfig old = *z;
+        i.apply = [c, zId, old, where](State to, std::string& why) {
+            const auto at = where(zId);
+            if (to == State::Solved && !at) {
+                why = "Where the Z axis is cannot be told: connect and home the machine first.";
+                return false;
+            }
+            if (c.changeCell)
+                c.changeCell("Safe Z", [&](JPCellConfig& cell) {
+                    if (JPAxisConfig* x = axisIn(cell, zId)) {
+                        x->safeZoneLow = to == State::Solved ? *at : old.safeZoneLow;
+                        x->safeZoneLowEnabled = to == State::Solved ? true : old.safeZoneLowEnabled;
+                        x->safeZoneHighEnabled = to == State::Solved ? false : old.safeZoneHighEnabled;
+                    }
+                });
+            return true;
+        };
+        s.add(std::move(i));
+    }
+    // Soft limits, feed rates and accelerations, rotation.
+    for (const JPAxisConfig& a : cell->axes) {
+        if (a.kind != JPAxisConfig::Kind::Controller) continue;
+        const std::string id = a.id, subject = "ReferenceControllerAxis " + a.name;
+        auto show = [c, id] {
+            if (c.showSetup) c.showSetup("axis:" + id);
+        };
+        if (a.type == JPAxisConfig::Type::X || a.type == JPAxisConfig::Type::Y) {
+            for (const bool low : { true, false }) {
+                if (low ? a.softLimitLowEnabled : a.softLimitHighEnabled) continue;
+                const std::string side = low ? "low side" : "high side";
+                Issue i;
+                i.subject = subject;
+                i.issue = "Set the " + side + " soft limit of " + a.name + ".";
+                i.solution = "Move axis " + a.name + " to the " + side + " soft limit and capture.";
+                i.severity = Severity::Suggestion;
+                i.uri = std::string(kWiki) + "Kinematic-Solutions#capture-soft-limits";
+                i.activate = show;
+                i.extendedDescription = "Move axis " + a.name + " to the " + side + " soft limit.\n\nIf the axis has a limit "
+                                        "switch, use a position close to it but still safe to not trigger the switch by "
+                                        "accident.\n\nThen press Accept to capture the soft limit.";
+                const JPAxisConfig old = a;
+                i.apply = [c, id, old, low, where](State to, std::string& why) {
+                    const auto at = where(id);
+                    if (to == State::Solved && !at) {
+                        why = "Where the axis is cannot be told: connect and home the machine first.";
+                        return false;
+                    }
+                    if (c.changeCell)
+                        c.changeCell("Soft limit", [&](JPCellConfig& cell) {
+                            JPAxisConfig* x = axisIn(cell, id);
+                            if (!x) return;
+                            const bool solved = to == State::Solved;
+                            (low ? x->softLimitLow : x->softLimitHigh) = solved ? *at : (low ? old.softLimitLow : old.softLimitHigh);
+                            (low ? x->softLimitLowEnabled : x->softLimitHighEnabled) =
+                                solved || (low ? old.softLimitLowEnabled : old.softLimitHighEnabled);
+                        });
+                    return true;
+                };
+                s.add(std::move(i));
+            }
+        }
+        const std::string motionWiki = std::string(kWiki) + "Machine-Axes#kinematic-settings--axis-limits";
+        if (a.feedratePerSecond <= 0) {
+            Issue i = plain(subject, "A feed-rate must be set on axis " + a.name + ".",
+                            "Go to Machine Setup / Axes / ReferenceControllerAxis " + a.name + " and set the Feed Rate.",
+                            Severity::Error, motionWiki);
+            i.activate = show;
+            s.add(std::move(i));
+        }
+        if (a.accelerationPerSecond2 <= 0) {
+            Issue i = plain(subject, "An acceleration limit must be set on axis " + a.name + ".",
+                            "Go to Machine Setup / Axes / ReferenceControllerAxis " + a.name + " and set the Acceleration.",
+                            Severity::Error, motionWiki);
+            i.activate = show;
+            s.add(std::move(i));
+        }
+        if (a.type != JPAxisConfig::Type::Rotation) continue;
+        bool onNozzle = false;
+        for (const JPNozzleConfig& n : cell->nozzles) onNozzle = onNozzle || n.mount.axisRotation == a.id;
+        if (!onNozzle) continue;
+        const std::string rotationWiki = std::string(kWiki) + "Machine-Axes#controller-settings-rotational-axis";
+        if (!a.wrapAroundRotation) {
+            Issue i;
+            i.subject = subject;
+            i.issue = "Rotation can be optimized by wrapping-around the shorter way. Best combined with Limit ±180°.";
+            i.solution = "Enable Wrap Around.";
+            i.severity = Severity::Suggestion;
+            i.uri = rotationWiki;
+            i.apply = changing(c, "Wrap Around", [id](JPCellConfig& cell, bool solved) {
+                if (JPAxisConfig* x = axisIn(cell, id)) x->wrapAroundRotation = solved;
+            });
+            s.add(std::move(i));
+        }
+        if (!a.limitRotation) {
+            Issue i;
+            i.subject = subject;
+            i.issue = "Rotation can be optimized by limiting angles to ±180°. Best combined with Wrap Around.";
+            i.solution = "Enable Limit to Range.";
+            i.severity = Severity::Suggestion;
+            i.uri = rotationWiki;
+            i.apply = changing(c, "Limit to Range", [id](JPCellConfig& cell, bool solved) {
+                if (JPAxisConfig* x = axisIn(cell, id)) x->limitRotation = solved;
+            });
+            s.add(std::move(i));
+        }
     }
 }
 
@@ -154,7 +450,10 @@ void production(JPSolutions& s, const JPIssueChecks::Context& c) {
 std::vector<JPSolutions::Check> JPIssueChecks::all(const Context& c) {
     return {
         [c](JPSolutions& s) { setupProblems(s, c); },
+        [c](JPSolutions& s) { welcome(s, c); },
         [c](JPSolutions& s) { connect(s, c); },
+        [c](JPSolutions& s) { basics(s, c); },
+        [c](JPSolutions& s) { kinematics(s, c); },
         [c](JPSolutions& s) { vision(s, c); },
         [c](JPSolutions& s) { calibration(s, c); },
         [c](JPSolutions& s) { production(s, c); },

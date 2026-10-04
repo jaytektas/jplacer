@@ -380,6 +380,15 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         context.cell = [this]() -> const JPCellConfig* { return m_machine.cell() ? &m_machine.cell()->config() : nullptr; };
         context.calibrated = [this](const std::string& id) { return m_machine.cameraCalibrated(id); };
         context.showSetup = [this](const std::string& path) { m_machine.showSetupNode(path); };
+        context.homed = [this] { return m_machine.cell() && m_machine.cell()->isHomed(); };
+        context.home = [this] { m_machine.home(); };
+        context.axisPosition = [this](const std::string& axisId) -> std::optional<double> {
+            const JPCell* c = m_machine.cell();
+            if (!c || !c->isConnected()) return std::nullopt;
+            const auto p = c->positions();
+            const auto i = p.find(axisId);
+            return i == p.end() ? std::nullopt : std::optional(i->second);
+        };
         context.changeCell = [this](const std::string& what, const std::function<void(JPCellConfig&)>& edit) {
             m_machine.changeSetup(what, edit);
         };

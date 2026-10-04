@@ -37,7 +37,10 @@ jplacer checks its own Machine Setup where OpenPnP checks its drivers' settings:
 | Milestone | Checked |
 |---|---|
 | any | Machine Setup's own problems: a part naming another that is not there. |
+| Welcome | A head without nozzles. |
 | Connect | A controller or a camera still simulated. |
+| Basics | An axis without a controller or a letter (set right in the issue), the letter E, two axes of one controller with the same letter; a nozzle without a Z or a rotation axis; nozzles sharing one. |
+| Kinematics | The machine not homed (Accept homes it); a Z axis's Safe Z zone invalid, or not set (Accept takes where the nozzle is as its Safe Z); an X or Y axis without soft limits (Accept takes where it is); an axis without a feed rate or acceleration; a nozzle's rotation not wrapping around, or not limited to ±180° (Accept sets it). |
 | Vision | A camera settling by a fixed time (Accept sets the adaptive Euclidean method), one not calibrated, one without a white balance. |
 | Calibration | A nozzle tip that no nozzle takes. |
 | any | A Photon feeder's slot without a location, or without an offset from it. |
