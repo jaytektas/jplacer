@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- The Parts and Packages tabs show each one's Bottom and Fiducial Vision Settings, with Specialize and
+  Generalize as OpenPnP has them.
 - Bottom vision: a job aligns each part over the camera looking up, found by its footprint's pads (no
   pipeline to tune), pre-rotated and checked again as the vision settings say, and places it corrected.
 - A Vision tab, as OpenPnP's: bottom and fiducial vision settings, with Assigned To, New, Delete, copy and

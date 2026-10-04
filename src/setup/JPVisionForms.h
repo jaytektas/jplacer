@@ -9,6 +9,7 @@
 
 #include <functional>
 #include <string>
+#include <vector>
 
 inline namespace jf {
 
@@ -19,12 +20,31 @@ inline namespace jf {
 // for bottom vision Pre-rotate, Rotation, Part size check, Size tolerance),
 // then Test Alignment and Vision Offsets, or Fiducial Locator. Edits are
 // made at once.
+class JPFormBuilder;
+
 class JPVisionForms {
 public:
+    // What the page is shown for: the Vision tab (none), a part or a package
+    // (Specialize and Generalize act for it).
+    struct Holder {
+        enum class Kind { None, Part, Package } kind = Kind::None;
+        std::string id;
+    };
+
     // `usedIn`: what uses it, as Assigned To lists it.
     static JPSetupProperties::Form forSettings(JPConfiguration& config, const std::string& id, const std::string& usedIn);
-    // A button of the form on the settings; true when it changed them.
-    static bool act(JPConfiguration& config, const std::string& id, const std::string& action);
+    // The settings' page added to a form being built (a part's or package's
+    // tabs), its buttons' actions prefixed "bottom:" or "fiducial:".
+    static void addPage(JPFormBuilder& add, JPConfiguration& config, const std::string& id, const std::string& usedIn,
+                        const Holder& holder);
+    // A button of a page: "reset", "specialize" (a copy of `id`'s settings
+    // for the holder, named after it), "generalize" (a package's parts' own
+    // settings taken off). False, and why (empty when nothing was done),
+    // when it did nothing.
+    static bool act(JPConfiguration& config, const std::string& id, const std::string& action, const Holder& holder,
+                    std::string& why);
+    // What Generalize takes away: the package's parts with settings of their own of the kind.
+    static std::vector<std::string> specializedIn(const JPConfiguration& config, const Holder& holder, JPVisionSettings::Kind kind);
 };
 
 } // inline namespace jf

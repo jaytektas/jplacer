@@ -60,3 +60,10 @@ camera's picture, centred where the camera looks, so a part can be held up to it
 and shows the result; it comes with bottom vision.
 
 <!-- src: src/ui/JPPackagesPanel.cpp (nozzleTipsTab, settingsTab, footprintTab, generatePads, compositingTab, showFootprint); src/ui/JPFootprintTableModel.cpp; src/model/JPFootprint.cpp (generate); src/model/JPKicadModImporter.cpp; src/ui/JPFootprintOverlay.cpp -->
+
+**Bottom Vision Settings** and **Fiducial Vision Settings** show the vision settings the package uses (its
+own, else the machine's), as on the [Vision](vision.md#the-settings) tab. **Specialize for** the package
+makes a copy for it alone; **Generalize for** the package takes off the settings of its own of each part
+of the package (after saying which), so they use the package's.
+
+<!-- src: src/ui/JPPackagesPanel.cpp (visionTab, visionAct); src/setup/JPVisionForms.cpp (act, specializedIn) -->

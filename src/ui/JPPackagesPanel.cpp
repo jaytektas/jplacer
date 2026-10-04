@@ -2,6 +2,9 @@
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
 #include "JPPackagesPanel.h"
+#include "setup/JPVisionForms.h"
+#include "setup/JPFormBuilder.h"
+#include "JPSetupForm.h"
 
 #include "JPFieldGrid.h"
 #include "JPGroupFrame.h"
@@ -13,6 +16,7 @@
 #include "openpnp/JPXmlWriter.h"
 
 #include <j/core/Dialog.h>
+#include <j/core/FrameTimer.h>
 #include <j/core/JButton.h>
 #include <j/core/JLabel.h>
 #include <j/core/JSeparator.h>
@@ -182,7 +186,95 @@ void JPPackagesPanel::updateWizards(bool force) {
     m_tabs->addTab("Footprint", m_pages.back().get());
     m_pages.push_back(compositingTab(*p));
     m_tabs->addTab("Vision Compositing", m_pages.back().get());
+    // As OpenPnP's: the bottom vision's and the fiducial locator's pages for the package.
+    if (auto page = visionTab(*p, JPVisionSettings::Kind::Bottom)) {
+        m_pages.push_back(std::move(page));
+        m_tabs->addTab("Bottom Vision Settings", m_pages.back().get());
+    }
+    if (auto page = visionTab(*p, JPVisionSettings::Kind::Fiducial)) {
+        m_pages.push_back(std::move(page));
+        m_tabs->addTab("Fiducial Vision Settings", m_pages.back().get());
+    }
     if (m_lastTab >= 0 && m_lastTab < m_tabs->tabCount()) m_tabs->setActiveTab(m_lastTab);
+}
+
+std::unique_ptr<JContainer> JPPackagesPanel::visionTab(JPPackage& p, JPVisionSettings::Kind kind) {
+    const bool bottom = kind == JPVisionSettings::Kind::Bottom;
+    const auto defaults = machineDefaults ? machineDefaults() : std::pair<std::string, std::string> {};
+    const std::string machineId = bottom ? defaults.first : defaults.second;
+    const JPVisionSettings* v = m_config.visionSettings(bottom ? p.bottomVisionId : p.fiducialVisionId);
+    if (!v) v = m_config.visionSettings(machineId);
+    if (!v) return nullptr;
+    std::string used;
+    for (const std::string& u : m_config.visionUsedIn(*v, machineId, bottom ? "Bottom Vision" : "Fiducal Locator"))
+        used += (used.empty() ? "" : ", ") + u;
+    JPSetupProperties::Form form;
+    JPFormBuilder add(form);
+    JPVisionForms::addPage(add, m_config, v->id, used, { JPVisionForms::Holder::Kind::Package, p.id });
+    auto page = std::make_unique<JContainer>(m_graph, 0.f, 0.f);
+    page->setDirection(JFlexDirection::Column)->setAlignItems(JAlignItems::Stretch);
+    page->setVSizePolicy(JSizePolicyMode::Expanding, 1);
+    JPSetupForm* f = page->add(std::make_unique<JPSetupForm>(m_graph));
+    f->setVSizePolicy(JSizePolicyMode::Expanding, 1);
+    f->setSingleTabBar(false);
+    f->setForm(std::move(form));
+    f->onChanged = [this](const std::string&) {
+        m_table->refresh();
+        changed();
+    };
+    f->onAction = [this](const std::string& action) { visionAct(action); };
+    return page;
+}
+
+void JPPackagesPanel::visionAct(const std::string& action) {
+    const auto chosen = selections();
+    if (chosen.size() != 1) return;
+    JPPackage* p = chosen.front();
+    const size_t colon = action.find(':');
+    if (colon == std::string::npos) return;
+    const bool bottom = action.substr(0, colon) == "bottom";
+    const std::string what = action.substr(colon + 1);
+    const auto defaults = machineDefaults ? machineDefaults() : std::pair<std::string, std::string> {};
+    const JPVisionSettings* v = m_config.visionSettings(bottom ? p->bottomVisionId : p->fiducialVisionId);
+    if (!v) v = m_config.visionSettings(bottom ? defaults.first : defaults.second);
+    if (!v) return;
+    const std::string id = v->id;
+    const JPVisionForms::Holder holder { JPVisionForms::Holder::Kind::Package, p->id };
+    auto run = [this, id, what, holder] {
+        std::string why;
+        if (JPVisionForms::act(m_config, id, what, holder, why)) {
+            updateWizards(true);
+            m_table->refresh();
+            changed();
+        } else if (!why.empty()) {
+            JDialog::message("Error", why);
+        }
+    };
+    JDialogOptions opts;
+    opts.okLabel = "Yes";
+    opts.cancelLabel = "No";
+    if (what == "reset") {
+        JDialog::confirm("Reset to Default", std::string("This will reset the ") + (bottom ? "bottom" : "fiducial") +
+                                                 " vision settings with to the default settings. Are you sure??",
+                         run, nullptr, opts);
+        return;
+    }
+    if (what == "generalize") {
+        // As OpenPnP: what goes, said first; nothing to take away, said so.
+        const auto list = JPVisionForms::specializedIn(m_config, holder,
+                                                       bottom ? JPVisionSettings::Kind::Bottom : JPVisionSettings::Kind::Fiducial);
+        if (list.empty()) {
+            JDialog::message("Error", "There are no specializations on Parts with the Package " + p->id + ".");
+            return;
+        }
+        std::string names;
+        for (const std::string& n : list) names += (names.empty() ? "" : ", ") + n;
+        JDialog::confirm("Generalize", "This will remove the specialized vision settings in:\n\n" + names + "\n\nAre you sure?",
+                         run, nullptr, opts);
+        return;
+    }
+    // Not while the button clicked is still in its page: the page is made again.
+    jPostToNextFrame(run);
 }
 
 std::unique_ptr<JContainer> JPPackagesPanel::nozzleTipsTab(JPPackage& p) {

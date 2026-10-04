@@ -27,6 +27,8 @@ inline namespace jf {
 
 namespace {
 
+// No limit on a size (the framework's own ceiling).
+constexpr float kUnbounded = 1.0e6f;
 // A graph is this many lines tall.
 constexpr float kPlotLines = 14;
 
@@ -88,6 +90,35 @@ JPSetupForm::JPSetupForm(JSceneGraph& graph) : JContainer(graph, 0.f, 0.f) {
     m_tabs = add(std::make_unique<JTabWidget>(graph, 0.f, 0.f));
     m_tabs->setTabWrap(true);   // narrow, the tabs go onto more rows, none out of sight
     m_tabs->setVSizePolicy(JSizePolicyMode::Expanding, 1);
+    m_single = add(std::make_unique<JContainer>(graph, 0.f, 0.f));
+    m_single->setDirection(JFlexDirection::Column)->setAlignItems(JAlignItems::Stretch);
+    m_single->setVSizePolicy(JSizePolicyMode::Fixed);
+    m_single->setFixedSize(0.f, 0.f);
+}
+
+void JPSetupForm::attachPages(int active) {
+    while (m_tabs->tabCount() > 0) m_tabs->removeTab(m_tabs->tabCount() - 1);
+    m_single->clear();
+    // One page, shown where its tab bar would only repeat its title: on its own.
+    const bool alone = !m_singleTabBar && m_pages.size() == 1;
+    // The one shown takes the room; the other none.
+    JWidget* shown = alone ? static_cast<JWidget*>(m_single) : m_tabs;
+    JWidget* hidden = alone ? static_cast<JWidget*>(m_tabs) : m_single;
+    hidden->setFixedSize(0.f, 0.f);
+    shown->setMinimumSize(0.f, 0.f);
+    shown->setMaximumSize(kUnbounded, kUnbounded);
+    shown->setHSizePolicy(JSizePolicyMode::Expanding, 1);
+    shown->setVSizePolicy(JSizePolicyMode::Expanding, 1);
+    if (alone) {
+        // Laid out as a child here, not placed by a tab widget: it must ask for the room.
+        m_pages.front()->setHSizePolicy(JSizePolicyMode::Expanding, 1);
+        m_pages.front()->setVSizePolicy(JSizePolicyMode::Expanding, 1);
+        m_single->add(m_pages.front().get());
+    } else {
+        for (size_t i = 0; i < m_pages.size(); ++i) m_tabs->addTab(m_form.tabs[i].title, m_pages[i].get());
+        if (!m_pages.empty()) m_tabs->setActiveTab(std::clamp(active, 0, int(m_pages.size()) - 1));
+    }
+    invalidate();
 }
 
 void JPSetupForm::setForm(JPSetupProperties::Form form) {
@@ -95,6 +126,7 @@ void JPSetupForm::setForm(JPSetupProperties::Form form) {
     const int was = m_tabs->activeTab();
     const std::string wasTitle = was >= 0 && was < int(m_form.tabs.size()) ? m_form.tabs[size_t(was)].title : "";
     while (m_tabs->tabCount() > 0) m_tabs->removeTab(m_tabs->tabCount() - 1);
+    m_single->clear();
     m_contents.clear();
     m_pages.clear();
     m_pulls.clear();
@@ -103,11 +135,9 @@ void JPSetupForm::setForm(JPSetupProperties::Form form) {
     int active = 0;
     for (size_t i = 0; i < m_form.tabs.size(); ++i) {
         m_pages.push_back(page(m_form.tabs[i]));
-        m_tabs->addTab(m_form.tabs[i].title, m_pages.back().get());
         if (m_form.tabs[i].title == wasTitle) active = int(i);
     }
-    if (!m_pages.empty()) m_tabs->setActiveTab(active);
-    invalidate();
+    attachPages(active);
 }
 
 void JPSetupForm::fitPages() {
@@ -152,6 +182,7 @@ void JPSetupForm::rebuild() {
     for (const auto& p : m_pages)
         if (const auto* s = dynamic_cast<const JScrollArea*>(p.get())) scrolled.push_back(s->scrollY());
     while (m_tabs->tabCount() > 0) m_tabs->removeTab(m_tabs->tabCount() - 1);
+    m_single->clear();
     m_pages.clear();
     m_pulls.clear();
     m_contents.clear();
@@ -159,10 +190,8 @@ void JPSetupForm::rebuild() {
     for (size_t i = 0; i < m_form.tabs.size(); ++i) {
         m_pages.push_back(page(m_form.tabs[i]));
         if (auto* s = dynamic_cast<JScrollArea*>(m_pages.back().get()); s && i < scrolled.size()) s->setScrollY(scrolled[i]);
-        m_tabs->addTab(m_form.tabs[i].title, m_pages.back().get());
     }
-    if (!m_pages.empty()) m_tabs->setActiveTab(std::clamp(active, 0, int(m_pages.size()) - 1));
-    invalidate();
+    attachPages(active);
 }
 
 void JPSetupForm::refresh() {

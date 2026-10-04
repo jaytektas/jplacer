@@ -40,6 +40,8 @@ public:
     std::function<void(const JPFootprint*)> onShowFootprint;
     // The machine's nozzle tips (id, name), for the Nozzle Tips tab.
     std::function<std::vector<std::pair<std::string, std::string>>()> nozzleTips;
+    // The machine's default vision settings ids (bottom, fiducial).
+    std::function<std::pair<std::string, std::string>()> machineDefaults;
 
     void refresh();
     void selectPackage(const JPPackage* package);
@@ -60,6 +62,9 @@ private:
     std::unique_ptr<JContainer> settingsTab(JPPackage& p);
     std::unique_ptr<JContainer> footprintTab(JPPackage& p);
     std::unique_ptr<JContainer> compositingTab(JPPackage& p);
+    // Its Bottom or Fiducial Vision Settings (its own, else the machine's), to specialize for it.
+    std::unique_ptr<JContainer> visionTab(JPPackage& p, JPVisionSettings::Kind kind);
+    void visionAct(const std::string& action);
     void generatePads(JPFootprint::Generator type);
 
     JPConfiguration&                          m_config;

@@ -91,14 +91,15 @@ JPVisionSettingsPanel::JPVisionSettingsPanel(JSceneGraph& graph, JPConfiguration
         changed();
     };
     m_form->onAction = [this](const std::string& action) {
-        if (action != "reset") return;
+        if (action.rfind(":reset") == std::string::npos) return;
         JDialogOptions opts;
         opts.okLabel = "Yes";
         opts.cancelLabel = "No";
         const std::string id = m_shown;
         JDialog::confirm("Reset to Default", "This will reset the vision settings to the default settings. Are you sure?",
                          [this, id] {
-                             if (!JPVisionForms::act(m_config, id, "reset")) return;
+                             std::string why;
+                             if (!JPVisionForms::act(m_config, id, "reset", JPVisionForms::Holder {}, why)) return;
                              m_shown.clear();
                              showForm();
                              m_table->refresh();

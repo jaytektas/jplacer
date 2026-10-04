@@ -55,4 +55,9 @@ Under the table, the chosen part's tabs. **Settings** holds its **Pick Condition
 Count**, how many times the feed and pick is tried again for each placement (the nozzle is cleared, and
 the part discarded, after each failed try).
 
-<!-- src: src/ui/JPPartsPanel.cpp (updateWizards) -->
+**Bottom Vision Settings** and **Fiducial Vision Settings** show the vision settings the part uses (its
+own, else its package's, else the machine's), as on the [Vision](vision.md#the-settings) tab: a change is a
+change to those settings, for everything that uses them. **Specialize for** the part makes a copy of them,
+named after the part, for this part alone; it says so when the part has its own already.
+
+<!-- src: src/ui/JPPartsPanel.cpp (updateWizards, act); src/setup/JPVisionForms.cpp (addPage, act) -->

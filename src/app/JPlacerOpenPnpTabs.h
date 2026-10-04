@@ -60,6 +60,8 @@ private:
     void confirmSave(JPPlacementsHolder& holder, std::function<void()> then);
     void confirmSaveAll(std::vector<std::string> files, std::function<void()> then);
     void changed();
+    // The machine's default vision settings (bottom vision's, the fiducial locator's).
+    std::pair<std::string, std::string> machineVisionDefaults() const;
     // The known board (its shared definition) a pointer names.
     std::shared_ptr<JPBoard> boardOf(const JPBoard* board) const;
 

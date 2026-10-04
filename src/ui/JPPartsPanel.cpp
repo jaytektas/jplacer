@@ -4,12 +4,15 @@
 #include "JPPartsPanel.h"
 
 #include "JPFieldGrid.h"
+#include "setup/JPFormBuilder.h"
+#include "setup/JPVisionForms.h"
 #include "JPUiParts.h"
 
 #include "openpnp/JPXmlReader.h"
 #include "openpnp/JPXmlWriter.h"
 
 #include <j/core/Dialog.h>
+#include <j/core/FrameTimer.h>
 #include <j/core/JLabel.h>
 #include <j/core/JSeparator.h>
 #include <j/core/JStyle.h>
@@ -81,8 +84,13 @@ JPPartsPanel::JPPartsPanel(JSceneGraph& graph, JPConfiguration& config, double s
     m_table->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
     m_table->onSelectionChanged.connect([this] { updateWizards(); });
     m_table->onEditRefused = [](const std::string&) {};
-    m_tabs = m_tabsPane->add(std::make_unique<JTabWidget>(graph, 0.f, 0.f));
-    m_tabs->setVSizePolicy(JSizePolicyMode::Expanding, 1);
+    m_form = m_tabsPane->add(std::make_unique<JPSetupForm>(graph));
+    m_form->setVSizePolicy(JSizePolicyMode::Expanding, 1);
+    m_form->onChanged = [this](const std::string&) {
+        m_table->refresh();
+        changed();
+    };
+    m_form->onAction = [this](const std::string& action) { act(action); };
     m_split = add(std::make_unique<JSplitter>(graph, JSplitter::JOrientation::Vertical, 0.f, 0.f));
     m_split->setHostsPanes(true);
     m_split->setVSizePolicy(JSizePolicyMode::Expanding, 1);
@@ -130,35 +138,81 @@ void JPPartsPanel::updateWizards() {
 
     const JPPart* p = selectedPart();
     const std::string id = p ? p->id : std::string();
-    if (id == m_shownPart && (p != nullptr) == (m_settings != nullptr)) return;
-    if (m_tabs->tabCount() > 0) m_lastTab = m_tabs->activeTab();
-    while (m_tabs->tabCount() > 0) m_tabs->removeTab(0);
-    m_settings.reset();
+    if (id == m_shownPart) {
+        m_form->refresh();
+        return;
+    }
     m_shownPart = id;
-    if (!p) return;
+    JPSetupProperties::Form form;
+    if (p) {
+        JPFormBuilder add(form);
+        // Settings: the pick conditions.
+        add.tab("Settings");
+        add.group("Pick Conditions");
+        const std::string partId = p->id;
+        add.integer("pickRetryCount", "Feed & Pick Retry Count",
+                    [this, partId] {
+                        const JPPart* part = m_config.part(partId);
+                        return part ? part->pickRetryCount : 0;
+                    },
+                    [this, partId](int v) {
+                        if (JPPart* part = m_config.part(partId)) part->pickRetryCount = v;
+                    },
+                    0, 1000);
+        add.tip("The number of retries for the feed and pick process for each placement. The nozzle is cleared (and "
+                "part is discarded) after a failed attempt. Each retry is consecutive.");
+        // The vision settings it uses (its own, its package's, the machine's).
+        const auto defaults = machineDefaults ? machineDefaults() : std::pair<std::string, std::string> {};
+        const JPVisionForms::Holder holder { JPVisionForms::Holder::Kind::Part, partId };
+        for (const auto kind : { JPVisionSettings::Kind::Bottom, JPVisionSettings::Kind::Fiducial }) {
+            const bool bottom = kind == JPVisionSettings::Kind::Bottom;
+            if (const JPVisionSettings* v = m_config.inheritedVision(*p, kind, bottom ? defaults.first : defaults.second)) {
+                std::string used;
+                for (const std::string& u :
+                     m_config.visionUsedIn(*v, bottom ? defaults.first : defaults.second, bottom ? "Bottom Vision" : "Fiducal Locator"))
+                    used += (used.empty() ? "" : ", ") + u;
+                JPVisionForms::addPage(add, m_config, v->id, used, holder);
+            }
+        }
+    }
+    m_form->setForm(std::move(form));
+}
 
-    // Settings: the pick conditions.
-    JSceneGraph& g = m_graph;
-    m_settings = std::make_unique<JContainer>(g, 0.f, 0.f);
-    JPUiParts::asPanel(*m_settings);
-    auto grid = std::make_unique<JPFieldGrid>(g, 1);
-    const std::string partId = p->id;
-    grid->text("Feed & Pick Retry Count",
-               "The number of retries for the feed and pick process for each placement. The nozzle is cleared (and "
-               "part is discarded) after a failed attempt. Each retry is consecutive.",
-               std::to_string(p->pickRetryCount), [this, partId](const std::string& text) {
-                   JPPart* part = m_config.part(partId);
-                   const std::string t = trimmed(text);
-                   char* end = nullptr;
-                   const long v = std::strtol(t.c_str(), &end, 10);
-                   if (!part || t.empty() || end != t.c_str() + t.size() || v < 0) return false;
-                   part->pickRetryCount = int(v);
-                   changed();
-                   return true;
-               });
-    m_settings->add(JPFieldGrid::grouped(g, "Pick Conditions", std::move(grid)));
-    m_tabs->addTab("Settings", m_settings.get());
-    if (m_lastTab >= 0 && m_lastTab < m_tabs->tabCount()) m_tabs->setActiveTab(m_lastTab);
+void JPPartsPanel::act(const std::string& action) {
+    const JPPart* p = selectedPart();
+    if (!p) return;
+    const size_t colon = action.find(':');
+    if (colon == std::string::npos) return;
+    const bool bottom = action.substr(0, colon) == "bottom";
+    const std::string what = action.substr(colon + 1);
+    const auto defaults = machineDefaults ? machineDefaults() : std::pair<std::string, std::string> {};
+    const JPVisionSettings* v = m_config.inheritedVision(*p, bottom ? JPVisionSettings::Kind::Bottom : JPVisionSettings::Kind::Fiducial,
+                                                         bottom ? defaults.first : defaults.second);
+    if (!v) return;
+    const std::string id = v->id;
+    const JPVisionForms::Holder holder { JPVisionForms::Holder::Kind::Part, p->id };
+    auto run = [this, id, what, holder] {
+        std::string why;
+        if (JPVisionForms::act(m_config, id, what, holder, why)) {
+            m_shownPart.clear();
+            updateWizards();
+            m_table->refresh();
+            changed();
+        } else if (!why.empty()) {
+            JDialog::message("Error", why);
+        }
+    };
+    if (what == "reset") {
+        JDialogOptions opts;
+        opts.okLabel = "Yes";
+        opts.cancelLabel = "No";
+        JDialog::confirm("Reset to Default", std::string("This will reset the ") + (bottom ? "bottom" : "fiducial") +
+                                                 " vision settings with to the default settings. Are you sure??",
+                         run, nullptr, opts);
+        return;
+    }
+    // Not while the button clicked is still in its page: the page is made again.
+    jPostToNextFrame(run);
 }
 
 void JPPartsPanel::newPart() {

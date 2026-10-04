@@ -50,6 +50,8 @@ public:
     // Get Tool Coordinates), for the forms of OpenPnP's tabs; else Machine
     // Setup's own.
     void setOpenPnpPlaceButtons(bool on) { m_openPnpPlaceButtons = on; }
+    // A form of one tab shown without its tab bar (a page inside another tab of that name).
+    void setSingleTabBar(bool on) { m_singleTabBar = on; }
 
     void populateRenderPrimitives(JPrimitiveBuffer& buf) override;
 
@@ -66,6 +68,7 @@ private:
     std::unique_ptr<JWidget> group(const JPSetupProperties::Group& group, float& height, float labels);
     std::unique_ptr<JWidget> editor(const JProperty& p, float width);
     std::unique_ptr<JButton> button(const JPSetupProperties::Cell& c);
+    void attachPages(int active);
     void locationButtons(JContainer& row, const JPSetupProperties::Row& r);
     // How wide a control for `p` is, as it is laid out.
     float widthOf(const JProperty& p) const;
@@ -84,6 +87,8 @@ private:
     float                                  m_builtWidth = 0;    // the form's width when its pages were made
     bool                                   m_rebuilding = false;
     bool                                   m_openPnpPlaceButtons = false;
+    bool                                   m_singleTabBar = true;
+    JContainer*                            m_single = nullptr;   // the one page, without a tab bar
     std::shared_ptr<bool>                  m_alive = std::make_shared<bool>(true);
 };
 

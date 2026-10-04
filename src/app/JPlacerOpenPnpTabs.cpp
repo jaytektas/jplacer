@@ -196,6 +196,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
                                              JSettings::instance().get<double>(JPlacerSettings::kPartsSplit, kSplit));
     m_parts->openMenu = openMenu;
     m_parts->onChanged = [this] { m_job.configurationChanged(); };
+    m_parts->machineDefaults = [this] { return machineVisionDefaults(); };
     m_parts->onPickPart = [this](const JPPart& part) {
         JPFeeder* f = m_job.configuration().findFeeder(part.id, m_machine.toolLocation(JPSetupForm::Tool::Camera));
         if (!f) {
@@ -216,6 +217,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         m_machine.setCameraOverlay(kFootprintOverlay, f ? JPFootprintOverlay::of(*f) : nullptr);
     };
     m_packages->onChanged = [this] { m_job.configurationChanged(); };
+    m_packages->machineDefaults = [this] { return machineVisionDefaults(); };
     m_packagesDock = std::make_unique<JDockWidget>("Packages", 0.f, 0.f, 0.f, 0.f);
     m_packagesDock->setContent(m_packages.get());
     m_layout.add(m_packagesDock.get(), JPlacerLayout::Home::Work);
@@ -224,11 +226,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_vision = std::make_unique<JPVisionSettingsPanel>(graph, job.configuration(),
                                                        JSettings::instance().get<double>(JPlacerSettings::kVisionSplit, kSplit));
     m_vision->onChanged = [this] { m_job.configurationChanged(); };
-    m_vision->machineDefaults = [this] {
-        JPVisionConfig v;
-        if (const JPCell* c = m_machine.cell()) v = c->config().vision;
-        return std::pair { v.bottomVisionId, v.fiducialVisionId };
-    };
+    m_vision->machineDefaults = [this] { return machineVisionDefaults(); };
     m_visionDock = std::make_unique<JDockWidget>("Vision", 0.f, 0.f, 0.f, 0.f);
     m_visionDock->setContent(m_vision.get());
     m_layout.add(m_visionDock.get(), JPlacerLayout::Home::Work);
@@ -366,6 +364,12 @@ JPlacerOpenPnpTabs::~JPlacerOpenPnpTabs() {
     m_layout.remove(m_jobDock.get());
     m_jobDock->setContent(nullptr);
     m_jobViewer.reset();
+}
+
+std::pair<std::string, std::string> JPlacerOpenPnpTabs::machineVisionDefaults() const {
+    JPVisionConfig v;
+    if (const JPCell* c = m_machine.cell()) v = c->config().vision;
+    return { v.bottomVisionId, v.fiducialVisionId };
 }
 
 void JPlacerOpenPnpTabs::changed() {
