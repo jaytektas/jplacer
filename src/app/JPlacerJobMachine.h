@@ -39,6 +39,7 @@ public:
     bool park(std::string& why) override;
     bool locateFiducial(const JPLocation& nominal, double diameterMm, const FiducialLook& look, JPLocation& found,
                         std::string& why) override;
+    bool alignPart(const std::string& nozzleId, const AlignRequest& request, AlignResult& result, std::string& why) override;
     bool locateHole(const JPLocation& nominal, double diameterMm, double searchMm, double parallaxDiameterMm,
                     double parallaxAngle, JPLocation& found, std::string& why) override;
 
@@ -51,6 +52,8 @@ private:
     JPCellConfig config() const;
     std::string  headId(const JPCellConfig& c) const;
     JPCell*      cell(std::string& why) const;
+    // A camera made ready to look: its picture in front, its light on as its settings say.
+    void prepare(JPCell& cell, JPCameraFeed& feed);
     // The camera to (viewX, viewY), one settled look for a round mark of
     // `diameterMm` expected at (x, y) within `searchMm`: where it is.
     bool look(double viewX, double viewY, double x, double y, double diameterMm, double searchMm, double& foundX,

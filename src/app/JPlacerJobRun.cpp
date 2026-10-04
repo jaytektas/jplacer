@@ -186,7 +186,7 @@ void JPlacerJobRun::start(RunState as) {
         if (const JPCell* c = m_machine.cell()) settings = c->config().jobProcessor;
         m_stepToMotion = settings.steppingToNextMotion;
         m_processor = std::make_unique<JPJobProcessor>(m_job.configuration(), m_job.job(), *m_jobMachine, settings, hooks);
-        if (const JPCell* c = m_machine.cell()) m_processor->setFiducialVisionId(c->config().vision.fiducialVisionId);
+        if (const JPCell* c = m_machine.cell()) m_processor->setVision(c->config().vision);
         setState(as);
         run();
     };

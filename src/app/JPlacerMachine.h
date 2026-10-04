@@ -118,6 +118,11 @@ public:
     // now on a nozzle kept (a step in Machine Setup; nothing moves).
     JPCell*       cell() const { return m_cell.get(); }
     JPCameraFeed* headCameraFeed() const;
+    // The first camera fixed to the machine (looking up at the nozzles), a
+    // calibrated one first; none when there is none.
+    JPCameraFeed* upCameraFeed() const;
+    // A camera's picture in front (where its dock is), for a look at it.
+    void showCamera(const std::string& cameraId);
     // The nozzle chosen on the Jog panel (else the first); empty: none.
     std::string   chosenNozzleId() const;
     std::string   tipChangeRefusal(const std::string& nozzleId, const std::string& tipId) const;

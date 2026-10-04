@@ -728,6 +728,22 @@ JPCameraFeed* JPlacerMachine::headCameraFeed() const {
     return p ? &p->feed() : nullptr;
 }
 
+JPCameraFeed* JPlacerMachine::upCameraFeed() const {
+    JPCameraFeed* first = nullptr;
+    for (const CameraDock& d : m_cameras) {
+        const JPCameraConfig& c = d.panel->camera();
+        if (!c.mount.headId.empty()) continue;
+        if (m_cell && !m_cell->cameraCalibrations(c.id).empty()) return &d.panel->feed();
+        if (!first) first = &d.panel->feed();
+    }
+    return first;
+}
+
+void JPlacerMachine::showCamera(const std::string& cameraId) {
+    for (CameraDock& d : m_cameras)
+        if (d.panel->camera().id == cameraId) bringForward(*d.panel);
+}
+
 std::string JPlacerMachine::chosenNozzleId() const {
     const JPMountConfig* m = toolMount(JPSetupForm::Tool::Nozzle);
     if (!m || !m_cell) return {};

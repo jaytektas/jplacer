@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <filesystem>
 
 using namespace jf;
@@ -79,6 +80,16 @@ public:
         log.push_back("fiducial");
         return true;
     }
+    bool alignPart(const std::string&, const AlignRequest& rq, AlignResult& r, std::string&) override {
+        r.nozzleAngle = rq.imageAngle;
+        r.dx = alignDx;
+        r.dy = 0;
+        r.partAngle = rq.imageAngle + alignDa;
+        ++aligns;
+        return true;
+    }
+    double alignDx = 0, alignDa = 0;
+    int    aligns = 0;
     bool locateHole(const JPLocation& nominal, double, double, double, double, JPLocation& found, std::string&) override {
         found = nominal;
         log.push_back("hole");
@@ -235,7 +246,34 @@ int main() {
         assert(f.message.find("the board origin moved 9.0001mm") != std::string::npos);
     }
 
+    // Bottom vision: the part found 0.2 mm off the nozzle and turned a degree
+    // too far; placed with both taken off.
+    machine.shiftX = 0.1;
+    job.removeAllPlacedStatus();
+    config.addVisionSettings(JPVisionSettings::create(JPVisionSettings::Kind::Bottom, "BVS_Default"));
+    for (const char* pkg : { "P1", "P2" }) config.package(pkg)->footprint.pads.push_back({ "1", 0, 0, 1.0, 1.0 });
+    machine.alignDx = 0.2;
+    machine.alignDa = 1;
+    machine.places.clear();
+    {
+        JPJobProcessor run(config, job, machine, settings, hooks);
+        run.setVision(JPVisionConfig {});
+        JPJobProcessor::Failure f;
+        JPJobProcessor::Result r;
+        while ((r = run.next(f)) == JPJobProcessor::Result::More) {}
+        assert(r == JPJobProcessor::Result::Finished && machine.aligns == 3);
+    }
+    bool sawAligned = false;
+    for (const auto& p : machine.places)
+        if (std::abs(p.where.y() - (54.95 - 0.2 * std::sin(-M_PI / 180))) < 1e-6 && p.nozzle == "N2") {
+            // C1a at 115.1, 54.95, turned to 90: the nozzle at 89 and 0.2 mm (turned by -1 deg) back.
+            assert(std::abs(p.where.x() - (115.1 - 0.2 * std::cos(-M_PI / 180))) < 1e-6 && std::abs(p.where.rotation() - 89) < 1e-9);
+            sawAligned = true;
+        }
+    assert(sawAligned);
+
     // A part with no feeder: the setup check says so before anything moves.
+    job.removeAllPlacedStatus();
     machine.shiftX = 0.1;
     config.removeFeeder("FC");
     machine.log.clear();

@@ -35,8 +35,11 @@ greyed here.
 **Bottom Vision Settings** add **Pre-rotate** (Default, AlwaysOn, AlwaysOff), **Rotation** (Adjust, Full),
 **Part size check** (Disabled, BodySize, PadExtents) with its **Size tolerance (%)**, and **Vision Offsets**:
 **Asymmetric?** (the contacts are off the part's centre by design) and the **Vision Center Offsets**.
-jplacer has no bottom vision yet, so these are kept for when it does; **Edit Pipeline**, **Test
-Alignment** and **Detect Offsets** are not yet available.
+A job uses **Enabled?**, **Pre-rotate** (Default: as the machine's bottom vision says) and **Rotation**
+(**Adjust**: within the machine's max angular offset; **Full**: all the way round). jplacer finds the part
+by its footprint, so the size check and the vision offsets are kept as OpenPnP wrote them but not needed
+(see [Running the job](jobs.md#running-the-job)). **Edit Pipeline**, **Test Alignment** and **Detect
+Offsets** are not yet available.
 
 **Fiducial Vision Settings** add the **Fiducial Locator**: **Max. Vision Passes**, **Max. Linear Offset**,
 **Parallax Diameter** and **Parallax Angle**. A fiducial check uses them (see [Jobs](jobs.md#running-the-job)):
@@ -48,4 +51,4 @@ is not yet available.
 A part uses its own settings, else its package's, else the machine's (OpenPnP's part alignment and
 fiducial locator, brought in with an OpenPnP machine).
 
-<!-- src: src/setup/JPVisionForms.cpp; src/tasks/JPFiducialLocator.cpp (FiducialLook); src/app/JPlacerJobMachine.cpp (locateFiducial); src/model/JPConfiguration.cpp (inheritedVision); src/machine/JPVisionConfig.h -->
+<!-- src: src/setup/JPVisionForms.cpp; src/tasks/JPJobProcessor.cpp (align); src/tasks/JPFiducialLocator.cpp (FiducialLook); src/app/JPlacerJobMachine.cpp (locateFiducial); src/model/JPConfiguration.cpp (inheritedVision); src/machine/JPVisionConfig.h -->

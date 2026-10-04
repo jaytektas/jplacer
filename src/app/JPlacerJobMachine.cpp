@@ -201,6 +201,14 @@ bool JPlacerJobMachine::locateFiducial(const JPLocation& nominal, double diamete
     return true;
 }
 
+void JPlacerJobMachine::prepare(JPCell& cell, JPCameraFeed& feed) {
+    const std::string id = feed.config().id;
+    m_onMain([&] { m_machine.showCamera(id); });
+    const std::string light = feed.config().lightActuator();
+    std::string why;
+    if (!light.empty() && feed.config().light.beforeCapture) cell.switchActuatorAndWait(light, true, why);
+}
+
 bool JPlacerJobMachine::look(double viewX, double viewY, double x, double y, double diameterMm, double searchMm,
                              double& foundX, double& foundY, std::string& why) {
     JPCell* c = cell(why);
@@ -211,6 +219,7 @@ bool JPlacerJobMachine::look(double viewX, double viewY, double x, double y, dou
         why = "no camera on the head";
         return false;
     }
+    prepare(*c, *feed);
     JPCameraCalibration cal;
     if (!JPCameraLook::calibration(*c, *feed, cal, why)) return false;
     if (!c->moveToolAndWait(feed->config().mount, { viewX, viewY, std::nullopt, std::nullopt }, 1.0, why)) return false;
@@ -257,6 +266,75 @@ bool JPlacerJobMachine::locateHole(const JPLocation& nominal, double diameterMm,
         y = (ay + by) / 2;
     }
     found = JPLocation(JPLengthUnit::Millimeters, x, y, n.z(), n.rotation());
+    return true;
+}
+
+bool JPlacerJobMachine::alignPart(const std::string& nozzleId, const AlignRequest& rq, AlignResult& result,
+                                  std::string& why) {
+    ++m_motions;
+    JPCell* c = cell(why);
+    if (!c) return false;
+    JPCameraFeed* feed = nullptr;
+    JPNozzleConfig nozzle;
+    m_onMain([&] {
+        feed = m_machine.upCameraFeed();
+        if (const JPCell* cc = m_machine.cell())
+            for (const JPNozzleConfig& n : cc->config().nozzles)
+                if (n.id == nozzleId) nozzle = n;
+    });
+    if (!feed) {
+        why = "no camera looking up to align parts with";
+        return false;
+    }
+    if (nozzle.id.empty()) {
+        why = "no nozzle " + nozzleId;
+        return false;
+    }
+    prepare(*c, *feed);
+    JPCameraCalibration cal;
+    if (!JPCameraLook::calibration(*c, *feed, cal, why)) return false;
+    // Where the camera looks; the part's bottom at its focus.
+    const JPMountConfig& cm = feed->config().mount;
+    const double camX = cm.offsetX, camY = cm.offsetY, camZ = cm.offsetZ;
+    double nx = camX, ny = camY, nr = rq.imageAngle;
+    for (int pass = 0; pass < std::max(1, rq.passes); ++pass) {
+        if (!c->moveToolAndWait(nozzle.mount, { nx, ny, camZ + rq.partHeightMm, nr }, 1.0, why)) return false;
+        JPGrayImage img;
+        if (!JPCameraLook::settled(*feed, img, why)) return false;
+        JPPartFinder::Request fr;
+        if (!cal.pixelFor(nx, ny, camX, camY, fr.expectedX, fr.expectedY)) {
+            why = "the camera's calibration cannot place the nozzle in its picture";
+            return false;
+        }
+        // The part's angle as it sits: the nozzle's turn, less what is already known to be off.
+        fr.angle = nr + (pass == 0 ? 0 : result.partAngle - result.nozzleAngle);
+        fr.angleRange = pass == 0 ? rq.angleRange : std::min(rq.angleRange, 3.0);
+        fr.toMachine = [&cal, camX, camY](double px, double py, double& mx, double& my) {
+            return cal.machinePoint(px, py, camX, camY, mx, my);
+        };
+        const JPPartFinder::Result found = JPPartFinder::find(img, rq.shape, fr);
+        if (!found.found) {
+            why = "the part was not found: " + found.why;
+            return false;
+        }
+        double px = 0, py = 0;
+        if (!cal.machinePoint(found.x, found.y, camX, camY, px, py)) {
+            why = "the camera's calibration cannot place the part";
+            return false;
+        }
+        result.nozzleAngle = nr;
+        result.dx = px - nx;
+        result.dy = py - ny;
+        result.partAngle = found.angle;
+        JLOGC(JPlacerLog::kJob, JLogLevel::Info) << "aligned on " << nozzle.name << ": " << result.dx << ", " << result.dy
+                                                 << " mm, " << (found.angle - nr) << " deg (score " << found.score << ")";
+        // Centred and square on the camera: done; else the nozzle moved to put it there and looked at again.
+        const double off = std::hypot(px - camX, py - camY), turn = std::abs(found.angle - rq.imageAngle);
+        if (pass + 1 >= rq.passes || (off < rq.maxLinearOffsetMm && turn < 0.1)) break;
+        nx = camX - result.dx;
+        ny = camY - result.dy;
+        nr = nr - (found.angle - rq.imageAngle);
+    }
     return true;
 }
 

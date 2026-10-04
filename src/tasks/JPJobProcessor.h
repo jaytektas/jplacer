@@ -6,6 +6,7 @@
 #include "JPJobMachine.h"
 
 #include "machine/JPJobProcessorConfig.h"
+#include "machine/JPVisionConfig.h"
 
 #include "model/JPConfiguration.h"
 #include "model/JPJob.h"
@@ -93,8 +94,9 @@ public:
     void abort();
 
     const std::vector<JobPlacement>& jobPlacements() const { return m_jobPlacements; }
-    // The machine's fiducial vision settings (JPVisionConfig::fiducialVisionId).
-    void setFiducialVisionId(const std::string& id) { m_fiducialVisionId = id; }
+    // The machine's vision: bottom vision (on or off, its default settings,
+    // passes, pre-rotation, angular offset) and the fiducial locator's settings.
+    void setVision(const JPVisionConfig& v) { m_vision = v; }
     int totalPartsPlaced() const { return m_totalPartsPlaced; }
 
 
@@ -103,6 +105,7 @@ private:
         std::string           nozzleId, tipId;
         size_t                job = 0;   // into m_jobPlacements
         std::optional<double> cost;
+        std::optional<JPJobMachine::AlignResult> alignment;   // what bottom vision found
     };
     enum class Step {
         PreFlight, FiducialCheck, Plan, ChangeNozzleTips, CalibrateNozzleTips, OptimizeForPick, PrerotateForPick,
@@ -121,6 +124,7 @@ private:
     Step plan();
     Step changeNozzleTip(Planned& p);
     Step pick(Planned& p);
+    Step align(Planned& p);
     Step place(Planned& p);
     void optimize(bool byPick);
     void prerotate(bool forPick);
@@ -153,7 +157,7 @@ private:
     int                                m_fiducialLevel = 0;
     bool                               m_restart = true;
     bool                               m_finished = false;
-    std::string                        m_fiducialVisionId = "FVS_Default";   // the planner's: the first plan of a run
+    JPVisionConfig                     m_vision;   // the planner's: the first plan of a run
     std::map<std::string, std::string> m_partOn;           // nozzle: the part it holds
     std::map<std::string, std::string> m_partsFeeder;      // nozzle: the feeder its part came from
     std::optional<JPLocation>          m_previousPickStart, m_previousPlaceStart;

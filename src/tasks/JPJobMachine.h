@@ -4,6 +4,7 @@
 #pragma once
 
 #include "model/JPLocation.h"
+#include "vision/JPPartFinder.h"
 
 #include <optional>
 #include <string>
@@ -65,6 +66,30 @@ public:
     // diameter, from either side of it, `parallaxAngle` turned, the two
     // finds averaged), a round mark of `diameterMm` found within `searchMm`
     // of it, nearest first: `found`. One look from each place.
+    // Bottom vision (OpenPnP's part alignment): the part on the nozzle over
+    // the camera looking up, as high as the part (its bottom where the
+    // camera is focused), turned to `imageAngle`; found by its shape (its
+    // pads, else its body) within `angleRange` either way of the angle it
+    // should have there; with more passes, the nozzle moved and turned to
+    // put it where it should be and looked at again, until it moves less
+    // than `maxLinearOffsetMm` and turns less than a tenth of a degree.
+    struct AlignRequest {
+        std::vector<JPPartFinder::Rect> shape;   // the part's own mm
+        double partHeightMm = 0;
+        double imageAngle = 0;    // the nozzle's turn for the first look
+        double angleRange = 10;
+        int    passes = 3;
+        double maxLinearOffsetMm = 1;
+    };
+    // Where the part is on the nozzle as last looked at: the nozzle's turn
+    // then, the part's centre less the nozzle's axis (mm), and the part's angle.
+    struct AlignResult {
+        double nozzleAngle = 0;
+        double dx = 0, dy = 0;
+        double partAngle = 0;
+    };
+    virtual bool alignPart(const std::string& nozzleId, const AlignRequest& request, AlignResult& result,
+                           std::string& why) = 0;
     virtual bool locateHole(const JPLocation& nominal, double diameterMm, double searchMm, double parallaxDiameterMm,
                             double parallaxAngle, JPLocation& found, std::string& why) = 0;
 };

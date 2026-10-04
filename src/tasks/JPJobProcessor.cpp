@@ -296,7 +296,7 @@ JPJobProcessor::Step JPJobProcessor::fiducialCheck() {
     tolerances.scaling = m_settings.scalingTolerance;
     tolerances.shearing = m_settings.shearingTolerance;
     tolerances.boardLocationMm = m_settings.boardLocationToleranceMm;
-    tolerances.fiducialVisionId = m_fiducialVisionId;
+    tolerances.fiducialVisionId = m_vision.fiducialVisionId;
     const JPFiducialLocator::Result found =
         JPFiducialLocator::locate(m_config, m_machine, [this](const std::function<void()>& fn) { main(fn); }, those, tolerances);
     if (!found.ok) {
@@ -684,12 +684,7 @@ JPJobProcessor::Step JPJobProcessor::plannedStep(Step step, Step after) {
             case Step::ChangeNozzleTips: changeNozzleTip(p); break;
             case Step::Pick:             pick(p); break;
             case Step::Place:            place(p); break;
-            // No part aligner yet: a part is placed as it was picked, as
-            // OpenPnP does when no enabled aligner is defined.
-            case Step::Align:
-                JLOGC(JPlacerLog::kJob, JLogLevel::Debug) << "not aligning " << m_jobPlacements[p.job].partId
-                                                          << ": no part aligner";
-                break;
+            case Step::Align:            align(p); break;
             default: break;
         }
         m_completed.insert(index);
@@ -875,6 +870,56 @@ JPJobProcessor::Step JPJobProcessor::pick(Planned& p) {
     return Step::Pick;
 }
 
+JPJobProcessor::Step JPJobProcessor::align(Planned& p) {
+    JobPlacement& j = m_jobPlacements[p.job];
+    p.alignment.reset();
+    // OpenPnP's getPartAlignment: bottom vision on, and the part's settings (its own, its package's, the machine's) too.
+    JPJobMachine::AlignRequest rq;
+    bool aligned = false;
+    std::string name;
+    main([&] {
+        const JPPart* part = m_config.part(j.partId);
+        if (!part || !m_vision.bottomVisionEnabled) return;
+        const JPVisionSettings* v = m_config.inheritedVision(*part, JPVisionSettings::Kind::Bottom, m_vision.bottomVisionId);
+        if (!v || !v->enabled) return;
+        const JPPackage* pkg = m_config.package(part->packageId);
+        if (!pkg) return;
+        // Its shape: the footprint's pads, else its body.
+        const JPFootprint& f = pkg->footprint;
+        auto mmOf = [&f](double v) { return JPLength(v, f.units).convertToUnits(JPLengthUnit::Millimeters).value(); };
+        for (const JPFootprint::Pad& pad : f.pads)
+            rq.shape.push_back({ mmOf(pad.x), mmOf(pad.y), mmOf(pad.width), mmOf(pad.height), pad.rotation });
+        if (rq.shape.empty() && f.bodyWidth > 0 && f.bodyHeight > 0)
+            rq.shape.push_back({ 0, 0, mmOf(f.bodyWidth), mmOf(f.bodyHeight), 0 });
+        rq.partHeightMm = j.partHeightMm;
+        const std::string preRotate = v->text("pre-rotate-usage", "Default");
+        const bool pre = preRotate == "AlwaysOn" || (preRotate == "Default" && m_vision.preRotate);
+        rq.imageAngle = pre ? placeLocation(p.job).rotation() : (j.plannedPickLocation ? j.plannedPickLocation->rotation() : 0);
+        rq.angleRange = v->text("max-rotation", "Adjust") == "Full" ? 180 : m_vision.maxAngularOffset;
+        rq.passes = pre ? m_vision.maxVisionPasses : 1;
+        name = part->id;
+        aligned = true;
+    });
+    if (!aligned) {
+        JLOGC(JPlacerLog::kJob, JLogLevel::Debug) << "not aligning " << j.partId << ": no enabled bottom vision for it";
+        return Step::Align;
+    }
+    if (rq.shape.empty()) fail(Source::Part, j.partId, "Part " + j.partId + "'s package has no footprint to align it by.");
+    std::string nozzleName = p.nozzleId;
+    for (const auto& n : m_machine.nozzles())
+        if (n.id == p.nozzleId) nozzleName = n.name;
+    std::string why;
+    for (int i = 0; i < std::max(1, m_settings.maxVisionRetries); ++i) {
+        status(format("Aligning %s for %s using nozzle %s.", j.partId.c_str(), j.placementId.c_str(), nozzleName.c_str()));
+        JPJobMachine::AlignResult r;
+        if (m_machine.alignPart(p.nozzleId, rq, r, why)) {
+            p.alignment = r;
+            return Step::Align;
+        }
+    }
+    fail(Source::Nozzle, p.nozzleId, why);
+}
+
 JPJobProcessor::Step JPJobProcessor::place(Planned& p) {
     JobPlacement& j = m_jobPlacements[p.job];
     const auto on = m_partOn.find(p.nozzleId);
@@ -884,6 +929,13 @@ JPJobProcessor::Step JPJobProcessor::place(Planned& p) {
     JPLocation at(JPLengthUnit::Millimeters);
     main([&] { at = mm(placeLocation(p.job)); });
     at = at.add(JPLocation(JPLengthUnit::Millimeters, 0, 0, j.partHeightMm, 0));
+    // As bottom vision found it: the part turned from its angle then to the
+    // placement's, its offset on the nozzle turned with it, and taken off.
+    if (const auto& a = p.alignment) {
+        const double turn = at.rotation() - a->partAngle, t = turn * M_PI / 180;
+        const double ox = a->dx * std::cos(t) - a->dy * std::sin(t), oy = a->dx * std::sin(t) + a->dy * std::cos(t);
+        at = JPLocation(JPLengthUnit::Millimeters, at.x() - ox, at.y() - oy, at.z(), a->nozzleAngle + turn);
+    }
     std::string nozzleName = p.nozzleId;
     for (const auto& n : m_machine.nozzles())
         if (n.id == p.nozzleId) nozzleName = n.name;

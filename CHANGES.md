@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Bottom vision: a job aligns each part over the camera looking up, found by its footprint's pads (no
+  pipeline to tune), pre-rotated and checked again as the vision settings say, and places it corrected.
 - A Vision tab, as OpenPnP's: bottom and fiducial vision settings, with Assigned To, New, Delete, copy and
   paste, and their settings pages. Vision settings are now saved, pipelines and all. A fiducial check
   looks as its fiducial vision settings say (passes, max linear offset, parallax). Importing an OpenPnP
