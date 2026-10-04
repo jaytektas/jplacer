@@ -3,6 +3,7 @@
 
 #include "JPlacerJob.h"
 
+#include "JPlacerChoiceDialog.h"
 #include "JPlacerSettings.h"
 
 #include "common/JPlacerLog.h"
@@ -17,6 +18,8 @@
 inline namespace jf {
 
 namespace {
+// OpenPnP's recent jobs: ten.
+constexpr int kRecentMost = 10;
 
 constexpr int kStatusMs = 8000;
 // The file dialog filters by the last extension; ".job.xml" is added on save.
@@ -88,24 +91,54 @@ void JPlacerJob::settle(std::function<void()> then) {
         then();
         return;
     }
-    JDialogOptions opts;
-    opts.okLabel = "Yes";
-    opts.cancelLabel = "No";
-    opts.closeOnEscape = false;
-    opts.showCloseButton = false;
+    // Yes saves first, No lets the changes go, Cancel (or closing) stays.
     const std::string name = m_job->file.empty() ? kUntitled : std::filesystem::path(m_job->file).filename().string();
     std::weak_ptr<bool> alive = m_alive;
-    JDialog::confirm("Save job? - " + name, "Do you want to save your changes?\nIf you don't save, your changes will be lost.",
-        [this, alive, then] {
+    m_window.openModal<JPlacerChoiceDialog>(
+        "Save job? - " + name, "Do you want to save your changes?\nIf you don't save, your changes will be lost.",
+        std::vector<std::string> { "Yes", "No", "Cancel" }, 2, [this, alive, then](int choice) {
             if (const auto a = alive.lock(); !a || !*a) return;
-            if (m_job->file.empty()) saveAsThen(then);
-            else if (writeTo(m_job->file)) then();
-        },
-        [alive, then] {
-            if (const auto a = alive.lock(); !a || !*a) return;
-            then();
-        },
-        opts);
+            if (choice == 0) {
+                if (m_job->file.empty()) saveAsThen(then);
+                else if (writeTo(m_job->file)) then();
+            } else if (choice == 1) {
+                then();
+            }
+        });
+}
+
+std::vector<std::string> JPlacerJob::recentJobs() const {
+    std::vector<std::string> out;
+    for (int i = 0; i < kRecentMost; ++i) {
+        const std::string path = JSettings::instance().get<std::string>(JPlacerSettings::kJobRecent + std::to_string(i), "");
+        std::error_code ec;
+        if (!path.empty() && std::filesystem::exists(path, ec)) out.push_back(path);
+    }
+    return out;
+}
+
+void JPlacerJob::addRecent(const std::string& path) {
+    std::vector<std::string> recent = recentJobs();
+    std::erase(recent, path);
+    recent.insert(recent.begin(), path);
+    if (recent.size() > size_t(kRecentMost)) recent.resize(size_t(kRecentMost));
+    for (int i = 0; i < kRecentMost; ++i)
+        JSettings::instance().set(JPlacerSettings::kJobRecent + std::to_string(i),
+                                  size_t(i) < recent.size() ? recent[size_t(i)] : std::string());
+    JPlacerSettings::save();
+    if (onRecentChanged) onRecentChanged();
+}
+
+void JPlacerJob::openRecent(const std::string& path) {
+    settle([this, path] {
+        std::string error;
+        if (!openPath(path, error)) {
+            JDialog::message("Job Load Error", error);
+            return;
+        }
+        title();
+        notify(Change::Job);
+    });
 }
 
 bool JPlacerJob::mayClose() {
@@ -133,6 +166,7 @@ bool JPlacerJob::openPath(const std::string& path, std::string& error) {
     m_job = std::move(job);
     JSettings::instance().set(JPlacerSettings::kJobFile, m_job->file);
     JPlacerSettings::save();
+    addRecent(m_job->file);
     JLOGC(JPlacerLog::kApp, JLogLevel::Info) << "job " << m_job->file << ": " << m_job->boardLocations().size()
                                              << " board(s)";
     return true;
@@ -162,6 +196,7 @@ bool JPlacerJob::writeTo(const std::string& path) {
     }
     JSettings::instance().set(JPlacerSettings::kJobFile, m_job->file);
     JPlacerSettings::save();
+    addRecent(m_job->file);
     title();
     return true;
 }
@@ -173,9 +208,24 @@ void JPlacerJob::save() {
 
 void JPlacerJob::saveAsThen(std::function<void()> then) {
     std::weak_ptr<bool> alive = m_alive;
-    JDialog::saveFile("Save Job As...", { kFilter }, [this, alive, then](std::string path) {
+    JDialog::saveFile("Save Job As...", { kFilter }, [this, alive, then](std::string chosen) {
         if (const auto a = alive.lock(); !a || !*a) return;
-        if (writeTo(withExtension(path)) && then) then();
+        const std::string path = withExtension(chosen);
+        auto write = [this, path, then] {
+            if (writeTo(path) && then) then();
+        };
+        // A file already there is replaced only when asked.
+        std::error_code ec;
+        if (!std::filesystem::exists(path, ec)) {
+            write();
+            return;
+        }
+        JDialogOptions opts;
+        opts.okLabel = "Yes";
+        opts.cancelLabel = "No";
+        JDialog::confirm("Replace file?",
+                         std::filesystem::path(path).filename().string() + " already exists. Do you want to replace it?",
+                         write, {}, opts);
     });
 }
 

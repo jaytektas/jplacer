@@ -14,6 +14,7 @@ key taken off, in [Preferences, Keys](preferences.md#keys); the menu then shows 
 |---|---|
 | **New Job** (Ctrl+N) | Starts an empty job (see [Jobs](jobs.md#new-open-and-save)). |
 | **Open Job…** (Ctrl+O) | Opens a `.job.xml` file. |
+| **Open Recent Job...** | The ten jobs opened or saved last, newest first. |
 | **Save Job** (Ctrl+S) | Saves the open job. |
 | **Save Job As…** (Ctrl+Shift+S) | Saves the open job to a file you choose. |
 | **Save Configuration** | Saves the parts, packages and the lists of boards and panels, and asks about each board with changes (see [Boards](boards.md#saving-boards)). |

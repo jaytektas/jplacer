@@ -7,6 +7,8 @@
 #include "JPlacerApp.h"
 #include "JPlacerHelpPages.h"
 
+#include <filesystem>
+
 #include <j/core/MenuSystem.h>
 
 #include <initializer_list>
@@ -66,6 +68,20 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
     JMenu* file = newMenu(window, "File");
     entry(keys, file, graph, "file.newJob", "File", "New Job", ctrl('N'), [&app] { app.job().newJob(); });
     entry(keys, file, graph, "file.openJob", "File", "Open Job\xE2\x80\xA6", ctrl('O'), [&app] { app.job().open(); });
+    // Open Recent Job: the jobs opened or saved last, by file name, made again as they change.
+    menuStore().push_back(std::make_unique<JMenu>("Open Recent Job..."));
+    JMenu* recent = menuStore().back().get();
+    auto fillRecent = [&app, &graph, recent] {
+        recent->clear();
+        for (const std::string& path : app.job().recentJobs())
+            recent->add(graph, std::filesystem::path(path).filename().string())->onTriggered.connect([&app, path] {
+                app.job().openRecent(path);
+            });
+    };
+    fillRecent();
+    app.job().onRecentChanged = fillRecent;
+    file->add(graph, "Open Recent Job...", {}, recent);
+    file->addSeparator(graph);
     entry(keys, file, graph, "file.saveJob", "File", "Save Job", ctrl('S'), [&app] { app.job().save(); });
     entry(keys, file, graph, "file.saveJobAs", "File", "Save Job As\xE2\x80\xA6", ctrl('S', true), [&app] { app.job().saveAs(); });
     file->addSeparator(graph);

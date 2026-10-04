@@ -41,12 +41,13 @@ again the next time jplacer starts.
 
 If the job has unsaved changes when you start another job, open one, or close jplacer, you are asked
 *Do you want to save your changes?* **Yes** saves them first (asking where, for a job never saved),
-**No** lets them go.
+**No** lets them go, **Cancel** leaves things as they were. **File ▸ Open Recent Job...** offers the
+ten jobs opened or saved last. Saving over a file that is there asks first whether to replace it.
 
 A job's boards and panels are found by their file names: as written in the job, else beside the panel
 that holds them, else beside the job.
 
-<!-- src: src/app/JPlacerJob.cpp (newJob, open, save, saveAs, settle, title, mayClose); src/model/JPConfiguration.cpp (resolveBoard, resolvePanel); src/app/JPlacerMenuBuilder.cpp (the File menu) -->
+<!-- src: src/app/JPlacerJob.cpp (newJob, open, save, saveAs, settle, title, mayClose, recentJobs); src/model/JPConfiguration.cpp (resolveBoard, resolvePanel); src/app/JPlacerMenuBuilder.cpp (the File menu) -->
 
 ## Older OpenPnP jobs
 

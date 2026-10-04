@@ -42,6 +42,12 @@ public:
 
     void newJob();
     void open();
+    // File > Open Recent Job: the jobs opened or saved last (ten at most,
+    // newest first, those still there), and opening one.
+    std::vector<std::string> recentJobs() const;
+    void openRecent(const std::string& path);
+    // The recent jobs changed (the menu made again).
+    std::function<void()> onRecentChanged;
     void save();
     void saveAs();
     // After an edit to the job: marked changed, and the views told.
@@ -64,6 +70,7 @@ private:
     void saveAsThen(std::function<void()> then);
     void title();
     void notify(Change what);
+    void addRecent(const std::string& path);
 
     JAppWindow&             m_window;
     JPConfiguration         m_config;

@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- File > Open Recent Job (the last ten jobs); the save question on leaving a changed job now has Cancel;
+  saving over a file that is there asks first.
 - A Job tab, as OpenPnP's: the job's boards and panels, nested, where each lies, side, enabled and
   fiducial check; add and remove boards and panels; move the camera or nozzle to a board or placement and
   capture where they are; Alert or Defer errors; each board's placements with Placed and Status; the job

@@ -51,6 +51,9 @@ public:
     static constexpr const char* kMachineCell      = "machine.cell";
     // The job (.jpjob) open last; opened again at start.
     static constexpr const char* kJobFile          = "job.file";
+    // File > Open Recent Job: the jobs opened or saved last, newest first,
+    // as "job.recent.0" to "job.recent.9" (OpenPnP's JobPanel.recentFiles).
+    static constexpr const char* kJobRecent       = "job.recent.";
 
     // The Parts tab: the table's share of its height (OpenPnP's PartsPanel.dividerPosition).
     static constexpr const char* kPartsSplit       = "parts.split";
