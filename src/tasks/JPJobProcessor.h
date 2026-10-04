@@ -93,6 +93,8 @@ public:
     void abort();
 
     const std::vector<JobPlacement>& jobPlacements() const { return m_jobPlacements; }
+    // The machine's fiducial vision settings (JPVisionConfig::fiducialVisionId).
+    void setFiducialVisionId(const std::string& id) { m_fiducialVisionId = id; }
     int totalPartsPlaced() const { return m_totalPartsPlaced; }
 
 
@@ -150,7 +152,8 @@ private:
     std::set<const JPPlacementsHolderLocation*> m_fiducialsDone;
     int                                m_fiducialLevel = 0;
     bool                               m_restart = true;
-    bool                               m_finished = false;   // the planner's: the first plan of a run
+    bool                               m_finished = false;
+    std::string                        m_fiducialVisionId = "FVS_Default";   // the planner's: the first plan of a run
     std::map<std::string, std::string> m_partOn;           // nozzle: the part it holds
     std::map<std::string, std::string> m_partsFeeder;      // nozzle: the feeder its part came from
     std::optional<JPLocation>          m_previousPickStart, m_previousPlaceStart;

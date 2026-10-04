@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- A Vision tab, as OpenPnP's: bottom and fiducial vision settings, with Assigned To, New, Delete, copy and
+  paste, and their settings pages. Vision settings are now saved, pipelines and all. A fiducial check
+  looks as its fiducial vision settings say (passes, max linear offset, parallax). Importing an OpenPnP
+  machine brings its bottom vision and fiducial locator settings.
 - Strip feeders with Use Vision? find their sprocket holes with the camera at each feed (extrapolation
   distance and parallax as OpenPnP has them) and pick where the holes are; a missing hole ends the strip.
 - Machine Setup > Job Processors > ReferencePnpJobProcessor: the job order, tip loading strategy, attempts,

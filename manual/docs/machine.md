@@ -46,6 +46,9 @@ What is brought across:
   end, those set) and speeds, and the actuators switched between them, become the tip's
   [load steps](machine-setup.md#a-nozzle-tips-changer), unloading being loading backwards as in OpenPnP.
   A tip a nozzle's list still names after it was deleted in OpenPnP is left out.
+- **Vision**: the bottom vision's settings (on or off, the vision settings parts use by default, passes)
+  and the fiducial locator's (its vision settings, its tolerances), and the job processor's settings
+  (see [Job Processors](machine-setup.md#job-processors)).
 - **The head's places**: its homing fiducial and whether it homes visually, its park location, the
   calibration rig's two fiducials (their places, heights and diameters) and test object, and its pump
   (which actuator, when it runs, how long it takes to come up).
@@ -61,7 +64,7 @@ OpenPnP wrote it; they take the place of the feeders jplacer had. Parts and pack
 OpenPnP's camera calibration: jplacer measures its cameras itself, and the import notes each camera that
 had one.
 
-<!-- src: src/openpnp/JPOpenPnpMachineImporter.cpp (what is read, translate, the notes, ReferenceLinearTransformAxis); src/app/JPlacerMachine.cpp (importOpenPnp, importFrom, kOpenPnpDir, kImportedCellFile, onImported); src/app/JPlacerOpenPnpTabs.cpp (onImported); src/model/JPConfiguration.cpp (importFeeders); JFramework include/j/platforms/FileDialogWindow.h (Show hidden, Ctrl+H) -->
+<!-- src: src/openpnp/JPOpenPnpMachineImporter.cpp (what is read, translate, the notes, ReferenceLinearTransformAxis); src/app/JPlacerMachine.cpp (importOpenPnp, importFrom, kOpenPnpDir, kImportedCellFile, onImported); src/app/JPlacerOpenPnpTabs.cpp (onImported); src/model/JPConfiguration.cpp (importFeeders); src/machine/JPVisionConfig.h; JFramework include/j/platforms/FileDialogWindow.h (Show hidden, Ctrl+H) -->
 
 ## Opening a cell
 

@@ -69,7 +69,8 @@ public:
     }
     bool discard(const std::string& n, std::string&) override { log.push_back("discard " + n); return true; }
     bool park(std::string&) override { log.push_back("park"); return true; }
-    bool locateFiducial(const JPLocation& nominal, double diameterMm, JPLocation& found, std::string& why) override {
+    bool locateFiducial(const JPLocation& nominal, double diameterMm, const FiducialLook&, JPLocation& found,
+                        std::string& why) override {
         if (!near(diameterMm, 1.0)) {
             why = "wrong size";
             return false;

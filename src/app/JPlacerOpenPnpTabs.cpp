@@ -220,6 +220,19 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_packagesDock->setContent(m_packages.get());
     m_layout.add(m_packagesDock.get(), JPlacerLayout::Home::Work);
 
+    // Vision: the vision settings; the machine's defaults from the cell.
+    m_vision = std::make_unique<JPVisionSettingsPanel>(graph, job.configuration(),
+                                                       JSettings::instance().get<double>(JPlacerSettings::kVisionSplit, kSplit));
+    m_vision->onChanged = [this] { m_job.configurationChanged(); };
+    m_vision->machineDefaults = [this] {
+        JPVisionConfig v;
+        if (const JPCell* c = m_machine.cell()) v = c->config().vision;
+        return std::pair { v.bottomVisionId, v.fiducialVisionId };
+    };
+    m_visionDock = std::make_unique<JDockWidget>("Vision", 0.f, 0.f, 0.f, 0.f);
+    m_visionDock->setContent(m_vision.get());
+    m_layout.add(m_visionDock.get(), JPlacerLayout::Home::Work);
+
     // Feeders: the machine's moves and picks, and OpenPnP's machine's feeders taken on its import.
     m_feeders = std::make_unique<JPFeedersPanel>(graph, job.configuration(),
                                                  JSettings::instance().get<double>(JPlacerSettings::kFeedersSplit, kSplit));
@@ -319,6 +332,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         m_parts->refresh();
         m_packages->refresh();
         m_feeders->refresh();
+        m_vision->refresh();
     });
 }
 
@@ -327,6 +341,7 @@ JPlacerOpenPnpTabs::~JPlacerOpenPnpTabs() {
     JSettings::instance().set(JPlacerSettings::kPartsSplit, m_parts->split());
     JSettings::instance().set(JPlacerSettings::kPackagesSplit, m_packages->split());
     JSettings::instance().set(JPlacerSettings::kFeedersSplit, m_feeders->split());
+    JSettings::instance().set(JPlacerSettings::kVisionSplit, m_vision->split());
     JSettings::instance().set(JPlacerSettings::kBoardsSplit, m_boards->split());
     JSettings::instance().set(JPlacerSettings::kPanelsSplit, m_panels->split());
     JSettings::instance().set(JPlacerSettings::kJobSplit, m_jobPanel->split());
@@ -340,6 +355,8 @@ JPlacerOpenPnpTabs::~JPlacerOpenPnpTabs() {
     m_machine.onImported = nullptr;
     m_layout.remove(m_feedersDock.get());
     m_feedersDock->setContent(nullptr);
+    m_layout.remove(m_visionDock.get());
+    m_visionDock->setContent(nullptr);
     m_layout.remove(m_boardsDock.get());
     m_boardsDock->setContent(nullptr);
     m_boardViewer.reset();
@@ -429,7 +446,7 @@ bool JPlacerOpenPnpTabs::mayClose() {
 
 bool JPlacerOpenPnpTabs::showDock(const std::string& title) {
     for (JDockWidget* d : { m_jobDock.get(), m_panelsDock.get(), m_boardsDock.get(), m_partsDock.get(), m_packagesDock.get(),
-                             m_feedersDock.get() })
+                             m_visionDock.get(), m_feedersDock.get() })
         if (title == d->title()) {
             m_layout.show(d);
             return true;

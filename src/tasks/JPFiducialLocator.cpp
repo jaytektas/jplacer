@@ -48,6 +48,7 @@ JPFiducialLocator::Result JPFiducialLocator::locate(JPConfiguration& config, JPJ
         JPLocation                  nominal { JPLengthUnit::Millimeters };
         double                      diameterMm = 0;
         JPLocation                  measured { JPLengthUnit::Millimeters };
+        JPJobMachine::FiducialLook  look;
     };
     std::vector<Fiducial> fiducials;
     bool ok = true;
@@ -96,7 +97,23 @@ JPFiducialLocator::Result JPFiducialLocator::locate(JPConfiguration& config, JPJ
                     ok = false;
                     return;
                 }
-                fiducials.push_back({ &l, p, l.placementLocation(p.location), diameter });
+                // Looked at as its fiducial vision settings say (the part's, its package's, the machine's).
+                JPJobMachine::FiducialLook look;
+                if (const JPVisionSettings* v =
+                        config.inheritedVision(*part, JPVisionSettings::Kind::Fiducial, tolerances.fiducialVisionId)) {
+                    if (!v->enabled) {
+                        r.about = Result::About::Part;
+                        r.id = part->id;
+                        r.message = "Part " + part->id + " fiducial vision settings " + v->name + " are disabled.";
+                        ok = false;
+                        return;
+                    }
+                    look.passes = v->number("max-vision-passes", 3);
+                    look.maxLinearOffsetMm = v->lengthMm("max-linear-offset", 0.2);
+                    look.parallaxDiameterMm = v->lengthMm("parallax-diameter", 0);
+                    look.parallaxAngle = v->real("parallax-angle", 0);
+                }
+                fiducials.push_back({ &l, p, l.placementLocation(p.location), diameter, JPLocation(JPLengthUnit::Millimeters), look });
             }
         }
     });
@@ -119,7 +136,7 @@ JPFiducialLocator::Result JPFiducialLocator::locate(JPConfiguration& config, JPJ
         done[best] = true;
         Fiducial& f = fiducials[best];
         std::string why;
-        if (!machine.locateFiducial(f.nominal, f.diameterMm, f.measured, why)) {
+        if (!machine.locateFiducial(f.nominal, f.diameterMm, f.look, f.measured, why)) {
             r.id = f.location->uniqueId();
             r.message = "Unable to locate " + f.placement.id + " on " + f.location->uniqueId() + ": " + why;
             return r;

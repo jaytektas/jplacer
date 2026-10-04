@@ -57,7 +57,21 @@ public:
 
     // Vision settings, as named by parts and packages (read; the Vision tab writes them).
     const std::vector<JPVisionSettings>& visionSettings() const { return m_vision; }
+    std::vector<JPVisionSettings>&       visionSettings() { return m_vision; }
     const JPVisionSettings* visionSettings(const std::string& id) const;
+    JPVisionSettings*       visionSettings(const std::string& id);
+    void addVisionSettings(JPVisionSettings v) { m_vision.push_back(std::move(v)); }
+    void removeVisionSettings(const std::string& id);
+    // What uses a vision settings, as OpenPnP's Assigned To lists it: the
+    // stock settings themselves, the machine's (named `machineName` when its
+    // id is `machineDefaultId`), then packages, then parts, by id.
+    std::vector<std::string> visionUsedIn(const JPVisionSettings& v, const std::string& machineDefaultId,
+                                          const std::string& machineName) const;
+    // The settings a part's bottom vision or fiducials use (OpenPnP's
+    // getInheritedVisionSettings): the part's, else its package's, else the
+    // machine's default; none when that names nothing.
+    const JPVisionSettings* inheritedVision(const JPPart& part, JPVisionSettings::Kind kind,
+                                            const std::string& machineDefaultId) const;
     // Placements on the known boards that use the part (OpenPnP's Placements column).
     int placementCount(const std::string& partId) const;
 

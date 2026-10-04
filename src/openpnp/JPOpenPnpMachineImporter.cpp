@@ -204,6 +204,24 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
         j.preRotateAllNozzles = flag("pre-rotate-all-nozzles", j.preRotateAllNozzles);
         j.fiducialLevel = int(number("fiducial-level", j.fiducialLevel));
     }
+    // The machine's vision: its bottom vision (the first part alignment) and fiducial locator.
+    if (const JPXmlElement* aligns = machine->child("part-alignments"))
+        for (const JPXmlElement& a : aligns->children) {
+            if (shortClass(a) != "ReferenceBottomVision") continue;
+            JPVisionConfig& v = c.vision;
+            v.bottomVisionEnabled = a.attr("enabled") != "false";
+            if (!a.attr("bottom-vision-id").empty()) v.bottomVisionId = a.attr("bottom-vision-id");
+            v.preRotate = a.attr("pre-rotate") != "false";
+            if (!a.attr("max-vision-passes").empty()) v.maxVisionPasses = std::atoi(a.attr("max-vision-passes").c_str());
+            if (!a.attr("max-angular-offset").empty()) v.maxAngularOffset = std::strtod(a.attr("max-angular-offset").c_str(), nullptr);
+            if (!a.attr("test-alignment-angle").empty())
+                v.testAlignmentAngle = std::strtod(a.attr("test-alignment-angle").c_str(), nullptr);
+            break;
+        }
+    if (const JPXmlElement* fl = machine->child("fiducial-locator")) {
+        if (!fl->attr("fiducial-vision-id").empty()) c.vision.fiducialVisionId = fl->attr("fiducial-vision-id");
+        c.vision.enabledAveraging = fl->attr("enabled-averaging") == "true";
+    }
     if (const JPXmlElement* fl = machine->child("fiducial-locator"))
         if (const JPXmlElement* t = fl->child("tolerances")) {
             JPJobProcessorConfig& j = c.jobProcessor;

@@ -131,7 +131,8 @@ A job goes as OpenPnP's does:
    to safe Z and anything left on a nozzle is discarded.
 2. **Fiducials.** Each board and panel with **Check Fids?** has its fiducials found by the camera (a
    panel's outermost first), each as a round mark the size of its package's footprint pad, looked at
-   again once centred until it moves less than 0.2 mm. Where the board lies is fitted to them: with two,
+   again once centred as its [Fiducial Vision Settings](vision.md#the-settings) say (by default up to
+   three times, until a look moves it less than 0.2 mm; from either side with a parallax diameter). Where the board lies is fitted to them: with two,
    moved, turned and scaled; with three or more, fully. A fit that scales or shears more than 5 %, or moves
    the board more than 5 mm, is refused.
 3. **Planning.** The placements still to do, lowest rank first (a rank ten or more above the lowest

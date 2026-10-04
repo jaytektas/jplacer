@@ -10,6 +10,7 @@
 #include "JPHeadConfig.h"
 #include "JPJobProcessorConfig.h"
 #include "JPMachineLocation.h"
+#include "JPVisionConfig.h"
 #include "JPNozzleConfig.h"
 #include "JPNozzleTipConfig.h"
 #include "JPSquarenessConfig.h"
@@ -41,6 +42,7 @@ struct JPCellConfig {
     bool                          parkAfterHome    = false;   // park once homed (after visual homing)
     std::optional<JPMachineLocation>     discardLocation;            // where a part not wanted is dropped
     JPJobProcessorConfig          jobProcessor;                 // how a job is run
+    JPVisionConfig                vision;                       // bottom vision and the fiducial locator
 
     // Read / write a cell file. False with `error` naming the file and problem.
     bool load(const std::string& path, std::string& error);

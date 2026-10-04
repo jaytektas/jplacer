@@ -47,9 +47,20 @@ public:
     virtual bool discard(const std::string& nozzleId, std::string& why) = 0;
     // The head to its park place.
     virtual bool park(std::string& why) = 0;
+    // How a fiducial is looked at (its Fiducial Vision Settings): up to so
+    // many passes, done when one moves it less than the max linear offset;
+    // with a parallax diameter, from either side of it.
+    struct FiducialLook {
+        int    passes = 3;
+        double maxLinearOffsetMm = 0.2;
+        double parallaxDiameterMm = 0;
+        double parallaxAngle = 0;
+    };
     // The camera over `nominal` (at safe Z), a round mark of `diameterMm`
-    // found near there, and where it is: `found`.
-    virtual bool locateFiducial(const JPLocation& nominal, double diameterMm, JPLocation& found, std::string& why) = 0;
+    // found near there (looked at again, centred, as `look` says), and where
+    // it is: `found`.
+    virtual bool locateFiducial(const JPLocation& nominal, double diameterMm, const FiducialLook& look, JPLocation& found,
+                                std::string& why) = 0;
     // A strip's sprocket hole: the camera over `nominal` (with a parallax
     // diameter, from either side of it, `parallaxAngle` turned, the two
     // finds averaged), a round mark of `diameterMm` found within `searchMm`

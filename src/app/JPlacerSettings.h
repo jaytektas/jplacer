@@ -59,6 +59,8 @@ public:
     static constexpr const char* kPartsSplit       = "parts.split";
     // The Packages tab's, likewise (PackagesPanel.dividerPosition).
     static constexpr const char* kPackagesSplit    = "packages.split";
+    // The Vision tab's, likewise (VisionSettingsPanel.dividerPosition).
+    static constexpr const char* kVisionSplit      = "vision.split";
     // The Feeders tab's, likewise (FeedersPanel.dividerPosition).
     static constexpr const char* kFeedersSplit     = "feeders.split";
     // The Boards tab's boards over its placements (BoardsPanel.dividerPosition).

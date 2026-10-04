@@ -101,6 +101,9 @@ bool JPConfiguration::save(std::string& error) const {
     JPXmlNode feeders("feeders");
     for (const JPFeeder& f : m_feeders) feeders.add(f.toXml());
     if (!JPXmlWriter::write((dir / kFeedersFile).string(), feeders, error)) return false;
+    JPXmlNode vision("openpnp-vision-settings");
+    for (const JPVisionSettings& v : m_vision) vision.add(v.toXml());
+    if (!JPXmlWriter::write((dir / kVisionFile).string(), vision, error)) return false;
     return JPXmlWriter::write((dir / kPackagesFile).string(), packages, error)
         && JPXmlWriter::write((dir / kPartsFile).string(), parts, error)
         && JPXmlWriter::write((dir / kBoardsFile).string(), boards, error)
@@ -173,6 +176,43 @@ int JPConfiguration::feederCount(const std::string& partId) const {
     for (const JPFeeder& f : m_feeders)
         if (upper(f.partId()) == k) ++n;
     return n;
+}
+
+JPVisionSettings* JPConfiguration::visionSettings(const std::string& id) {
+    for (JPVisionSettings& v : m_vision)
+        if (v.id == id) return &v;
+    return nullptr;
+}
+
+void JPConfiguration::removeVisionSettings(const std::string& id) {
+    std::erase_if(m_vision, [&id](const JPVisionSettings& v) { return v.id == id; });
+}
+
+std::vector<std::string> JPConfiguration::visionUsedIn(const JPVisionSettings& v, const std::string& machineDefaultId,
+                                                       const std::string& machineName) const {
+    std::vector<std::string> out;
+    if (v.isStock()) out.push_back(v.name);
+    if (v.id == machineDefaultId) out.push_back(machineName);
+    const bool bottom = v.kind == JPVisionSettings::Kind::Bottom;
+    std::vector<std::string> packages, parts;
+    for (const auto& p : m_packages)
+        if ((bottom ? p->bottomVisionId : p->fiducialVisionId) == v.id) packages.push_back(p->id);
+    for (const auto& p : m_parts)
+        if ((bottom ? p->bottomVisionId : p->fiducialVisionId) == v.id) parts.push_back(p->id);
+    std::sort(packages.begin(), packages.end());
+    std::sort(parts.begin(), parts.end());
+    out.insert(out.end(), packages.begin(), packages.end());
+    out.insert(out.end(), parts.begin(), parts.end());
+    return out;
+}
+
+const JPVisionSettings* JPConfiguration::inheritedVision(const JPPart& part, JPVisionSettings::Kind kind,
+                                                         const std::string& machineDefaultId) const {
+    const bool bottom = kind == JPVisionSettings::Kind::Bottom;
+    if (const JPVisionSettings* v = visionSettings(bottom ? part.bottomVisionId : part.fiducialVisionId)) return v;
+    if (const JPPackage* pkg = package(part.packageId))
+        if (const JPVisionSettings* v = visionSettings(bottom ? pkg->bottomVisionId : pkg->fiducialVisionId)) return v;
+    return visionSettings(machineDefaultId);
 }
 
 const JPVisionSettings* JPConfiguration::visionSettings(const std::string& id) const {

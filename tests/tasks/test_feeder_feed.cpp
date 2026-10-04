@@ -39,7 +39,7 @@ public:
     bool place(const std::string&, const JPLocation&, std::string&) override { return true; }
     bool discard(const std::string&, std::string&) override { return true; }
     bool park(std::string&) override { return true; }
-    bool locateFiducial(const JPLocation&, double, JPLocation&, std::string&) override { return false; }
+    bool locateFiducial(const JPLocation&, double, const FiducialLook&, JPLocation&, std::string&) override { return false; }
     bool locateHole(const JPLocation& nominal, double diameterMm, double searchMm, double, double, JPLocation& found,
                     std::string& why) override {
         assert(near(diameterMm, 1.5) && near(searchMm, 2));

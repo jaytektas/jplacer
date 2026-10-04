@@ -296,6 +296,7 @@ JPJobProcessor::Step JPJobProcessor::fiducialCheck() {
     tolerances.scaling = m_settings.scalingTolerance;
     tolerances.shearing = m_settings.shearingTolerance;
     tolerances.boardLocationMm = m_settings.boardLocationToleranceMm;
+    tolerances.fiducialVisionId = m_fiducialVisionId;
     const JPFiducialLocator::Result found =
         JPFiducialLocator::locate(m_config, m_machine, [this](const std::function<void()>& fn) { main(fn); }, those, tolerances);
     if (!found.ok) {

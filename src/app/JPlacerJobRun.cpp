@@ -186,6 +186,7 @@ void JPlacerJobRun::start(RunState as) {
         if (const JPCell* c = m_machine.cell()) settings = c->config().jobProcessor;
         m_stepToMotion = settings.steppingToNextMotion;
         m_processor = std::make_unique<JPJobProcessor>(m_job.configuration(), m_job.job(), *m_jobMachine, settings, hooks);
+        if (const JPCell* c = m_machine.cell()) m_processor->setFiducialVisionId(c->config().vision.fiducialVisionId);
         setState(as);
         run();
     };
@@ -285,6 +286,7 @@ void JPlacerJobRun::fiducialCheck(JPPlacementsHolderLocation* location) {
     tolerances.scaling = cell->config().jobProcessor.scalingTolerance;
     tolerances.shearing = cell->config().jobProcessor.shearingTolerance;
     tolerances.boardLocationMm = cell->config().jobProcessor.boardLocationToleranceMm;
+    tolerances.fiducialVisionId = cell->config().vision.fiducialVisionId;
     // The board or panel set by its fiducials (its own location too, straight
     // in the job), then the camera taken to it.
     m_worker = std::thread([this, location, tolerances] {

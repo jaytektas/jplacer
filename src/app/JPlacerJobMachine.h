@@ -37,7 +37,8 @@ public:
     bool place(const std::string& nozzleId, const JPLocation& at, std::string& why) override;
     bool discard(const std::string& nozzleId, std::string& why) override;
     bool park(std::string& why) override;
-    bool locateFiducial(const JPLocation& nominal, double diameterMm, JPLocation& found, std::string& why) override;
+    bool locateFiducial(const JPLocation& nominal, double diameterMm, const FiducialLook& look, JPLocation& found,
+                        std::string& why) override;
     bool locateHole(const JPLocation& nominal, double diameterMm, double searchMm, double parallaxDiameterMm,
                     double parallaxAngle, JPLocation& found, std::string& why) override;
 

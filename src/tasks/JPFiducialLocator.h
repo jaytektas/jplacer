@@ -28,6 +28,8 @@ public:
     // OpenPnP's FiducialLocatorTolerances, with its defaults.
     struct Tolerances {
         double scaling = 0.05, shearing = 0.05, boardLocationMm = 5.0;
+        // The machine's fiducial vision settings: what a fiducial's part and package do not name.
+        std::string fiducialVisionId = "FVS_Default";
     };
     struct Result {
         bool        ok = false;

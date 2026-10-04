@@ -33,6 +33,7 @@ JJson JPCellConfig::toJson() const {
     if (parkAfterHome) j["parkAfterHome"] = true;
     if (discardLocation) j["discardLocation"] = discardLocation->toJson();
     j["jobProcessor"] = jobProcessor.toJson();
+    j["vision"] = vision.toJson();
     return j;
 }
 
@@ -61,6 +62,7 @@ bool JPCellConfig::fromJson(const JJson& j, std::string& error) {
     c.parkAfterHome = j["parkAfterHome"].boolean();
     c.discardLocation = JPMachineLocation::fromJson(j["discardLocation"]);
     c.jobProcessor = JPJobProcessorConfig::fromJson(j["jobProcessor"]);
+    c.vision = JPVisionConfig::fromJson(j["vision"]);
     *this = std::move(c);
     return true;
 }

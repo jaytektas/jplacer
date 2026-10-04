@@ -5,6 +5,7 @@
 
 #include "JPLengthUnits.h"
 #include "JPLocationXml.h"
+#include "JPOpenPnpIds.h"
 #include "JPXmlValues.h"
 
 #include "openpnp/JPXmlWriter.h"
@@ -24,15 +25,8 @@ const char* const kFeedOptionsKinds[] = { "ReferenceStripFeeder", "ReferenceTray
 }
 
 JPFeeder JPFeeder::create(const std::string& className, const std::string& partId) {
-    const auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch());
-    static long long last = 0;   // as OpenPnP's NanosecondTime: never the same twice
-    long long now = ns.count();
-    if (now <= last) now = last + 1;
-    last = now;
-    char hex[32];
-    std::snprintf(hex, sizeof hex, "%llx", now);
     JPXmlNode n("feeder");
-    n.attr("class", className).attr("version", "1.1").attr("id", std::string("FDR") + hex)
+    n.attr("class", className).attr("version", "1.1").attr("id", JPOpenPnpIds::create("FDR"))
         .attr("name", simpleName(className)).attr("enabled", "false").attr("part-id", partId)
         .attr("feed-retry-count", "3").attr("pick-retry-count", "3").attr("priority", "Normal");
     n.add(JPLocationXml::to("location", JPLocation(JPLengthUnit::Millimeters)));

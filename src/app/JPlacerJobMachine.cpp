@@ -17,12 +17,9 @@ inline namespace jf {
 namespace {
 
 // How far from where it should be a fiducial is looked for at first, then
-// once centred on (mm); and done when a look moves it less than this (mm),
-// after at most so many (OpenPnP's maxVisionPasses and maxLinearOffset).
+// once centred on (mm).
 constexpr double kFirstSearchMm = 4.0;
 constexpr double kSearchMm      = 1.0;
-constexpr double kSettledMm     = 0.2;
-constexpr int    kPasses        = 3;
 
 using Where = std::array<std::optional<double>, 4>;
 
@@ -165,45 +162,40 @@ bool JPlacerJobMachine::park(std::string& why) {
     return c && c->parkAndWait(headId(config()), 1.0, why);
 }
 
-bool JPlacerJobMachine::locateFiducial(const JPLocation& nominal, double diameterMm, JPLocation& found, std::string& why) {
+bool JPlacerJobMachine::locateFiducial(const JPLocation& nominal, double diameterMm, const FiducialLook& lookAt,
+                                       JPLocation& found, std::string& why) {
     ++m_motions;
-    JPCell* c = cell(why);
-    if (!c) return false;
-    JPCameraFeed* feed = nullptr;
-    m_onMain([&] { feed = m_machine.headCameraFeed(); });
-    if (!feed) {
-        why = "no camera on the head";
-        return false;
-    }
-    JPCameraCalibration cal;
-    if (!JPCameraLook::calibration(*c, *feed, cal, why)) return false;
-    const JPMountConfig mount = feed->config().mount;
-    const double scale = std::sqrt(cal.scaleX() * cal.scaleY());
     const JPLocation start = nominal.convertToUnits(JPLengthUnit::Millimeters);
     double x = start.x(), y = start.y();
-    for (int pass = 0; pass < kPasses; ++pass) {
-        // The camera over where it is thought to be; then the mark there.
-        if (!c->moveToolAndWait(mount, { x, y, std::nullopt, std::nullopt }, 1.0, why)) return false;
-        JPGrayImage img;
-        if (!JPCameraLook::settled(*feed, img, why)) return false;
-        JPRoundMarkFinder::Request rq;
-        rq.expectedX = img.width / 2.0;
-        rq.expectedY = img.height / 2.0;
-        rq.searchRadius = (pass == 0 ? kFirstSearchMm : kSearchMm) * scale;
-        rq.diameter = diameterMm * scale;
-        const JPRoundMark m = JPCameraLook::findTryingHarder(*c, *feed, img, rq);
-        if (!m.found) {
-            why = "not found: " + m.why;
-            return false;
+    // From either side with a parallax diameter, the nearer first; the two averaged.
+    const double r = lookAt.parallaxDiameterMm / 2, a = lookAt.parallaxAngle * M_PI / 180;
+    double dx = r * std::cos(a), dy = r * std::sin(a);
+    if (r > 0)
+        if (const auto cam = cameraLocation()) {
+            const JPLocation m = cam->convertToUnits(JPLengthUnit::Millimeters);
+            if (std::hypot(x + dx - m.x(), y + dy - m.y()) > std::hypot(x - dx - m.x(), y - dy - m.y())) {
+                dx = -dx;
+                dy = -dy;
+            }
         }
+    for (int pass = 0; pass < std::max(1, lookAt.passes); ++pass) {
+        const double search = pass == 0 ? kFirstSearchMm : kSearchMm;
         double fx = 0, fy = 0;
-        cal.machinePoint(m.x, m.y, x, y, fx, fy);
+        if (r == 0) {
+            if (!look(x, y, x, y, diameterMm, search, fx, fy, why)) return false;
+        } else {
+            double ax = 0, ay = 0, bx = 0, by = 0;
+            if (!look(x + dx, y + dy, x, y, diameterMm, search, ax, ay, why)) return false;
+            if (!look(x - dx, y - dy, x, y, diameterMm, search, bx, by, why)) return false;
+            fx = (ax + bx) / 2;
+            fy = (ay + by) / 2;
+        }
         const double moved = std::hypot(fx - x, fy - y);
         x = fx;
         y = fy;
         JLOGC(JPlacerLog::kJob, JLogLevel::Debug) << "fiducial pass " << pass + 1 << ": " << fx << ", " << fy << " (moved "
                                                   << moved << " mm)";
-        if (moved < kSettledMm) break;
+        if (moved < lookAt.maxLinearOffsetMm) break;
     }
     found = JPLocation(JPLengthUnit::Millimeters, x, y, start.z(), start.rotation());
     return true;
