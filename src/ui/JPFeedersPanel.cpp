@@ -289,7 +289,12 @@ void JPFeedersPanel::selectOnCamera(JPFeederForms::Options::Selecting what) {
         if (what == Selecting::Template) {
             if (!confirmTemplate(*f, *view)) return;
         } else {
-            const JPCameraView::Selection r = view->selection();
+            JPCameraView::Selection r = view->selection();
+            // A Neoden 4 feeder's is from the picture's middle.
+            if (f->typeName() == "Neoden4Feeder") {
+                r.x -= view->pictureWidth() / 2;
+                r.y -= view->pictureHeight() / 2;
+            }
             f->setAttributeAt("vision/area-of-interest", "x", std::to_string(r.x));
             f->setAttributeAt("vision/area-of-interest", "y", std::to_string(r.y));
             f->setAttributeAt("vision/area-of-interest", "width", std::to_string(r.width));
@@ -307,6 +312,10 @@ void JPFeedersPanel::selectOnCamera(JPFeederForms::Options::Selecting what) {
                                                 std::atoi(f->attributeAt("vision/area-of-interest", "width", "0").c_str()),
                                                 std::atoi(f->attributeAt("vision/area-of-interest", "height", "0").c_str()) };
             if (aoi.width > 0 && aoi.height > 0) r = aoi;
+            if (aoi.width > 0 && aoi.height > 0 && f->typeName() == "Neoden4Feeder") {
+                r.x += view->pictureWidth() / 2;
+                r.y += view->pictureHeight() / 2;
+            }
         }
         view->setSelection(r);
         view->setSelectionEnabled(true);

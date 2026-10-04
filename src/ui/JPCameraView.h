@@ -94,6 +94,9 @@ public:
     // The latest picture cut to the selection; null when there is none (no
     // picture, or an empty selection).
     std::shared_ptr<JPFrame> captureSelection() const;
+    // The size of the picture shown (0 before the first).
+    int pictureWidth() const { return m_w; }
+    int pictureHeight() const { return m_h; }
 
 private:
     void showLatest();

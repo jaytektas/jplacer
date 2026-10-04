@@ -27,7 +27,7 @@ ReferenceRotatedTrayFeeder, ReferenceDragFeeder, ReferenceLeverFeeder, Reference
 ReferenceTubeFeeder, ReferenceAutoFeeder, ReferenceSlotAutoFeeder, ReferenceLoosePartFeeder,
 AdvancedLoosePartFeeder, ReferenceHeapFeeder, BlindsFeeder, SchultzFeeder, SlotSchultzFeeder, RapidFeeder,
 Neoden4Feeder, PhotonFeeder and BambooFeederAutoVision. Click one and **Accept**, or double-click it.
-jplacer works out where strip, tray, rotated tray, auto, tube, drag, lever, Schultz, slot and Rapid feeders pick, and feeds them. The other kinds are kept and
+jplacer works out where strip, tray, rotated tray, auto, tube, drag, lever, Schultz, slot, Neoden 4 and Rapid feeders pick, and feeds them. The other kinds are kept and
 set up, but feeding them is not yet available (**Pick...** and **Feed...** say so), and **Move Camera...**
 and **Move Tool...** say jplacer does not work out where they pick yet.
 
@@ -204,6 +204,17 @@ offsets from the slot's location (turned with it), and its **Part**. Then the **
 says "No feeder loaded in slot." when fed.
 
 <!-- src: src/model/JPSlotBanks.cpp; src/model/JPConfiguration.cpp (importFeeders, resolveSlots, loadSlot, setSlotBank); src/model/JPFeeder.cpp (name, enabled, partId, pickLocation, feed); src/setup/JPFeederForms.cpp (slotForm, slotAct); src/tasks/JPFeederActions.cpp (updateLocation); src/ui/JPFeedersPanel.cpp (capture, goTo) -->
+
+### Neoden 4 feeder
+
+A Neoden 4 machine's own feeder, as OpenPnP's Neoden4Feeder. Besides the **General Settings** and **Pick
+Location**, **Other**: the **Pitch In Tape [mm]** and **Rotation In Tape [deg]** (added to the pick
+location's rotation), the **Actuator Name** with **Actuate** (the actuator actuated with the pitch), and
+the **Feed Count** with **Reset**. A feed actuates the actuator with the pitch and counts. Its **Vision**
+is a drag feeder's (see above), but its **Area of Interest**'s X and Y are from the middle of the camera's
+picture, each kept within 512 pixels, as OpenPnP's; a template not found leaves the pick where it was.
+
+<!-- src: src/setup/JPFeederForms.cpp (neoden4Form, templateVision); src/tasks/JPFeederFeed.cpp (feed); src/tasks/JPFeederActions.cpp (actuate); src/vision/JPTemplateFinder.cpp (placed); src/model/JPFeeder.cpp (pickLocation); src/ui/JPFeedersPanel.cpp (selectOnCamera) -->
 
 ### Rapid feeder
 

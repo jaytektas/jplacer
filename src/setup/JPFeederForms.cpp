@@ -234,6 +234,8 @@ void autoForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeede
     add.tip("Support part recycle from part back to feeder");
 }
 
+void templateVision(JPFormBuilder& add, std::function<JPFeeder&()> f, const JPFeederForms::Options& options, bool fromMiddle);
+
 // OpenPnP's ReferenceDragFeederConfigurationWizard (and its
 // ReferenceLeverFeederConfigurationWizard, the same but for the 0402 note
 // and the backoff): what every feeder has, then the pin's settings, where
@@ -280,6 +282,16 @@ void pinForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder
     }
     if (!lever) length(add, f, "backoff-distance", "Backoff Distance", 0);
 
+    templateVision(add, f, options, false);
+}
+
+// The Vision group of a feeder that finds a template image near its pick
+// place (OpenPnP's drag, lever and Neoden 4 feeders): Vision Enabled?, the
+// template image with its Select and Cancel, the area of interest (for a
+// Neoden 4 feeder from the picture's middle, so its X and Y can be less than
+// 0) with its own, and Reset vision offsets.
+void templateVision(JPFormBuilder& add, std::function<JPFeeder&()> f, const JPFeederForms::Options& options, bool fromMiddle) {
+    using Selecting = JPFeederForms::Options::Selecting;
     add.group("Vision");
     add.flag("vision.enabled", "Vision Enabled?", [f] { return f().attributeAt("vision", "enabled") == "true"; },
              [f](bool on) { f().setAttributeAt("vision", "enabled", on ? "true" : "false"); });
@@ -293,15 +305,42 @@ void pinForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder
     add.row("Area of Interest");
     for (const char* a : { "x", "y", "width", "height" }) {
         const std::string attr = a;
+        const bool signedPlace = fromMiddle && (attr == "x" || attr == "y");
         add.integer("vision.area-of-interest." + attr, attr,
                     [f, attr] { return std::atoi(f().attributeAt("vision/area-of-interest", attr, "0").c_str()); },
-                    [f, attr](int v) { f().setAttributeAt("vision/area-of-interest", attr, std::to_string(v)); }, 0, kMostCount);
+                    [f, attr](int v) { f().setAttributeAt("vision/area-of-interest", attr, std::to_string(v)); },
+                    signedPlace ? -kMostCount : 0, kMostCount);
     }
     add.button("selectAoi", options.selecting == Selecting::AreaOfInterest ? "Confirm" : "Select", "",
                options.selecting != Selecting::Template);
     add.button("cancelAoi", "Cancel", "", options.selecting == Selecting::AreaOfInterest);
     add.end();
     add.button("resetVisionOffsets", "Reset vision offsets");
+}
+
+// OpenPnP's Neoden4FeederConfigurationWizard: what every feeder has, its
+// pitch and rotation in the tape, its actuator (Actuate), its feed count
+// (Reset), and its template vision.
+void neoden4Form(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f, const JPFeederForms::Options& options) {
+    general(add, config, f, false);
+    pickLocation(add, f);
+    add.group("Other");
+    add.row("Pitch In Tape [mm]");
+    length(add, f, "part-pitch-in-tape", "Pitch In Tape [mm]", 4);
+    add.integer("part-rotation-in-tape", "Rotation In Tape [deg]",
+                [f] { return std::atoi(f().childText("part-rotation-in-tape", "0").c_str()); },
+                [f](int v) { f().setChildText("part-rotation-in-tape", std::to_string(v)); }, -kMostCount, kMostCount);
+    add.end();
+    add.row("Actuator Name");
+    add.text("actuator-name", "Actuator Name", [f] { return f().text("actuator-name"); },
+             [f](const std::string& v) { f().setText("actuator-name", v); });
+    add.button("actuate", "Actuate");
+    add.end();
+    add.row("Feed Count");
+    count(add, f, "feed-count", "Feed Count", 0);
+    add.button("resetFeedCount", "Reset");
+    add.end();
+    templateVision(add, f, options, true);
 }
 
 // OpenPnP's SchultzFeederConfigurationWizard: what every feeder has, its
@@ -572,6 +611,8 @@ JPSetupProperties::Form JPFeederForms::forFeeder(JPConfiguration& config, const 
         slotForm(add, config, feederId, f, options);
     } else if (kind == "SchultzFeeder") {
         schultzForm(add, config, f, options);
+    } else if (kind == "Neoden4Feeder") {
+        neoden4Form(add, config, f, options);
     } else if (kind == "RapidFeeder") {
         rapidForm(add, config, f);
     } else if (kind == "ReferenceDragFeeder" || kind == "ReferenceLeverFeeder") {
@@ -629,7 +670,7 @@ bool slotAct(JPConfiguration& config, JPFeeder& slot, const std::string& action,
 
 bool JPFeederForms::isMachineAction(const std::string& action) {
     for (const char* a : { "testFeed", "testPostPick", "getId", "getFeedCount", "clearFeedCount", "getPitch", "togglePitch",
-                           "getStatus", "updateLocation" })
+                           "getStatus", "updateLocation", "actuate" })
         if (action == a) return true;
     return false;
 }

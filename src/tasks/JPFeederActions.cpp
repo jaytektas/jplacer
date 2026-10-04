@@ -76,6 +76,20 @@ bool JPFeederActions::run(JPConfiguration& config, const std::string& feederId, 
         }
         return machine.actuate(actuator, value, why);
     }
+    if (kind == "Neoden4Feeder" && action == "actuate") {
+        // Its actuator actuated with its pitch.
+        std::string actuator;
+        double pitch = 0;
+        main([&] {
+            if (const JPFeeder* f = config.feeder(feederId)) {
+                actuator = f->text("actuator-name");
+                pitch = f->lengthOf("part-pitch-in-tape", JPLength(4, JPLengthUnit::Millimeters)).value();
+            }
+        });
+        if (machine.actuate(actuator, pitch, why)) return true;
+        if (why.rfind("Unable to find", 0) == 0) why = "Can't find actuator '" + actuator + "'";
+        return false;
+    }
     if (action == "updateLocation") {
         std::string fiducial;
         JPLocation at(JPLengthUnit::Millimeters);

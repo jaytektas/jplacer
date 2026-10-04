@@ -225,6 +225,14 @@ std::optional<JPLocation> JPFeeder::pickLocation() const {
     if (isSlot()) return slotLoad ? slotLoad->offsets.offsetWithRotationFrom(location()) : location();
     if (kind == "ReferenceTubeFeeder" || kind == "ReferenceAutoFeeder" || kind == "RapidFeeder" || kind == "SchultzFeeder")
         return location();
+    if (kind == "Neoden4Feeder") {
+        // Turned by its rotation in the tape; moved by where its vision last found the template.
+        JPLocation at = location();
+        at = at.derive(std::nullopt, std::nullopt, std::nullopt,
+                       at.rotation() + std::atoi(childText("part-rotation-in-tape", "0").c_str()));
+        if (attributeAt("vision", "enabled") == "true" && templateOffset) at = at.subtract(*templateOffset);
+        return at;
+    }
     if (kind == "ReferenceLeverFeeder") {
         // As OpenPnP's: the second part's step only with vision.
         JPLocation at = location();
@@ -298,9 +306,9 @@ bool JPFeeder::feed(std::string& why, bool* empty) {
         if (feedOptions() == FeedOptions::SkipNext) setFeedOptions(FeedOptions::Normal);
         return true;
     }
-    // A tube: nothing to do; a drag, lever, Rapid or Schultz feeder's feed is the machine's (JPFeederFeed). An auto feeder: its actuator, on a normal feed (JPFeederFeed).
+    // A tube: nothing to do; a drag, lever, Rapid, Schultz or Neoden 4 feeder's feed is the machine's (JPFeederFeed). An auto feeder: its actuator, on a normal feed (JPFeederFeed).
     if (kind == "ReferenceTubeFeeder" || kind == "ReferenceDragFeeder" || kind == "ReferenceLeverFeeder" || kind == "RapidFeeder"
-        || kind == "SchultzFeeder")
+        || kind == "SchultzFeeder" || kind == "Neoden4Feeder")
         return true;
     if (kind == "ReferenceAutoFeeder") {
         m_actuate = feedOptions() == FeedOptions::Normal;

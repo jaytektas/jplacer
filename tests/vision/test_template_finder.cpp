@@ -3,7 +3,8 @@
 
 // A template cut from one picture found in another where the scene moved,
 // brighter and with noise, to a fraction of a pixel; kept to the area of
-// interest; and not found where it is not.
+// interest; and not found where it is not. A Neoden 4 feeder's area placed from
+// the middle.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
@@ -71,5 +72,10 @@ int main() {
 
     // A template larger than the area.
     assert(!JPTemplateFinder::find(after, templ, { 0, 0, 40, 40 }).found);
+    // A Neoden 4 feeder's area: from the middle, each kept within 0..512.
+    const JPTemplateFinder::Area n = JPTemplateFinder::Area { -50, -40, 100, 600, true }.placed(640, 480);
+    assert(n.x == 270 && n.y == 200 && n.width == 100 && n.height == 512 && !n.fromMiddle);
+    const JPTemplateFinder::Area far = JPTemplateFinder::Area { 300, -400, 10, 10, true }.placed(640, 480);
+    assert(far.x == 512 && far.y == 0);
     return 0;
 }

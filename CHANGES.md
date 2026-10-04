@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Neoden 4 feeders work as OpenPnP's: actuated with their pitch, turned by their rotation in the tape, Actuate
+  and Reset, and their template vision.
 - Slot feeders work as OpenPnP's: banks of feeders loaded into slot auto and slot Schultz feeders, taken from
   OpenPnP's machine, with their offsets from the slot, parts, banks, and a slot Schultz feeder's fiducial check.
 - Schultz and Rapid feeders work as OpenPnP's: a Schultz feeder's actuators with its feeder number, its Get ID,

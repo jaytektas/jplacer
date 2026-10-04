@@ -20,6 +20,11 @@ public:
     // The area to look in, in the picture's pixels (none wide or high: all of it).
     struct Area {
         int x = 0, y = 0, width = 0, height = 0;
+        // X and Y from the picture's middle, and X, Y, width and height each
+        // kept within 0..512 (OpenPnP's Neoden 4 feeder, for its camera);
+        // placed by placed().
+        bool fromMiddle = false;
+        Area placed(int pictureWidth, int pictureHeight) const;
     };
     struct Result {
         bool        found = false;

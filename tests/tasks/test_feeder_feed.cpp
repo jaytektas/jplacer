@@ -313,6 +313,31 @@ int main() {
         assert(JPFeederFeed::feed(config, "Z", "N1", machine, nullptr, why, empty) && machine.actuated.empty());
     }
 
+    // A Neoden 4 feeder: its actuator with its pitch, the count on; turned by
+    // its rotation in the tape; with vision, moved by where the template is,
+    // a failure to look only logged.
+    {
+        JPXmlElement ne;
+        std::string error;
+        assert(JPXmlReader::parse(R"(<feeder class="org.openpnp.machine.neoden4.Neoden4Feeder" id="N4" name="N4" enabled="true" part-id="R1" actuator-name="F1" feed-count="0"><location units="Millimeters" x="30.0" y="40.0" z="-1.0" rotation="0.0"/><part-pitch-in-tape value="2.0" units="Millimeters"/><part-rotation-in-tape>90</part-rotation-in-tape><vision enabled="true" template-image-name="tmpl_3.png"><area-of-interest x="-50" y="-50" width="100" height="100"/></vision></feeder>)", ne, error));
+        config.addFeeder(JPFeeder::fromXml(ne));
+        machine.actuated.clear();
+        machine.templateLooks = 0;
+        machine.templateOffset = JPLocation(JPLengthUnit::Millimeters, 0.25, 0.5, 0, 0);
+        assert(JPFeederFeed::feed(config, "N4", "N1", machine, nullptr, why, empty));
+        assert(machine.actuated.size() == 1 && machine.actuated[0] == "F1=2" && machine.templateLooks == 1);
+        auto at = config.feeder("N4")->pickLocation();
+        assert(std::abs(at->x() - 29.75) < 1e-9 && std::abs(at->y() - 39.5) < 1e-9 && at->rotation() == 90);
+        assert(config.feeder("N4")->number("feed-count") == 1);
+        // No area of interest: fed all the same.
+        config.feeder("N4")->setAttributeAt("vision/area-of-interest", "width", "0");
+        assert(JPFeederFeed::feed(config, "N4", "N1", machine, nullptr, why, empty) && machine.templateLooks == 1);
+        // Actuate: its actuator with its pitch.
+        JPFeederActions::Outcome actuated;
+        assert(JPFeederActions::run(config, "N4", "actuate", machine, nullptr, "", actuated, why));
+        assert(machine.actuated.back() == "F1=2");
+    }
+
     // No hole: the strip's end.
     machine.holes = false;
     config.feeder("S")->visionLocation.reset();   // looked up again: the list moved when "A" was added

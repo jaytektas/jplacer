@@ -209,6 +209,52 @@ bool JPFeederFeed::feed(JPConfiguration& config, const std::string& feederId, co
         why = "Feed failed. " + why;
         return false;
     }
+    // A Neoden 4 feeder: its actuator actuated with its pitch; then, with
+    // vision, the template looked for (a failure only logged), and the count on.
+    bool neoden = false;
+    std::string neodenActuator, neodenTemplate;
+    double neodenPitch = 0;
+    bool neodenVision = false;
+    JPLocation neodenAt(kMm);
+    JPTemplateFinder::Area neodenArea;
+    main([&] {
+        const JPFeeder* f = config.feeder(feederId);
+        if (!f || f->typeName() != "Neoden4Feeder") return;
+        neoden = true;
+        neodenActuator = f->text("actuator-name");
+        neodenPitch = f->lengthOf("part-pitch-in-tape", JPLength(4, kMm)).value();
+        neodenVision = f->attributeAt("vision", "enabled") == "true";
+        neodenTemplate = f->templatePath(config.directory());
+        neodenAt = f->location();
+        neodenArea = { std::atoi(f->attributeAt("vision/area-of-interest", "x", "0").c_str()),
+                       std::atoi(f->attributeAt("vision/area-of-interest", "y", "0").c_str()),
+                       std::atoi(f->attributeAt("vision/area-of-interest", "width", "0").c_str()),
+                       std::atoi(f->attributeAt("vision/area-of-interest", "height", "0").c_str()), true };
+    });
+    if (neoden) {
+        if (neodenActuator.empty()) {
+            why = "No actuator name set.";
+            return false;
+        }
+        if (!machine.actuate(neodenActuator, neodenPitch, why)) return false;
+        if (neodenVision) {
+            std::string seen;
+            JPLocation offset(kMm);
+            if (neodenTemplate.empty()) seen = "Template image is required when vision is enabled.";
+            else if (neodenArea.width == 0 || neodenArea.height == 0) seen = "Area of Interest is required when vision is enabled.";
+            if (seen.empty() && machine.matchTemplate(neodenAt, neodenTemplate, neodenArea, offset, seen)) {
+                main([&] {
+                    if (JPFeeder* f = config.feeder(feederId)) f->templateOffset = offset;
+                });
+            } else {
+                JLOGC(JPlacerLog::kJob, JLogLevel::Debug) << "Neoden 4 feeder vision: " << seen;
+            }
+        }
+        main([&] {
+            if (JPFeeder* f = config.feeder(feederId)) f->setNumber("feed-count", f->number("feed-count") + 1);
+        });
+        return true;
+    }
     // A Rapid feeder: its address and pitch to the RAPIDFEEDER actuator.
     std::string rapid;
     main([&] {

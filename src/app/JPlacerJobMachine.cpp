@@ -249,7 +249,7 @@ bool JPlacerJobMachine::matchTemplate(const JPLocation& at, const std::string& t
     if (!c->moveToolAndWait(feed->config().mount, { m.x(), m.y(), std::nullopt, std::nullopt }, 1.0, why)) return false;
     JPGrayImage img;
     if (!JPCameraLook::settled(*feed, img, why)) return false;
-    const JPTemplateFinder::Result r = JPTemplateFinder::find(img, templ, area);
+    const JPTemplateFinder::Result r = JPTemplateFinder::find(img, templ, area.placed(img.width, img.height));
     if (!r.found) {
         why = r.why;
         return false;

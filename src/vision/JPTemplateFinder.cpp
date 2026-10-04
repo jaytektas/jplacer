@@ -16,6 +16,8 @@ namespace {
 constexpr int kCoarseSide = 24;
 // A template with less spread than this has nothing to find.
 constexpr double kFlat = 1e-6;
+// What a Neoden 4 feeder's area of interest is kept within (OpenPnP's).
+constexpr int kNeodenMost = 512;
 // Around the coarse best, this many full pixels each way are tried.
 constexpr int kRefine = 3;
 
@@ -83,6 +85,12 @@ double peak(double a, double b, double c) {
 }
 
 } // namespace
+
+JPTemplateFinder::Area JPTemplateFinder::Area::placed(int pictureWidth, int pictureHeight) const {
+    if (!fromMiddle) return *this;
+    auto kept = [](int v) { return std::clamp(v, 0, kNeodenMost); };
+    return { kept(x + pictureWidth / 2), kept(y + pictureHeight / 2), kept(width), kept(height), false };
+}
 
 JPTemplateFinder::Result JPTemplateFinder::find(const JPGrayImage& image, const JPGrayImage& templ, const Area& area,
                                                 double minScore) {
