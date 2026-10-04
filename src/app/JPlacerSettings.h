@@ -51,12 +51,6 @@ public:
     static constexpr const char* kMachineCell      = "machine.cell";
     // The job (.jpjob) open last; opened again at start.
     static constexpr const char* kJobFile          = "job.file";
-    // The folder the main parts library is kept in (JPLibrary); empty: the
-    // default, in jplacer's data folder.
-    static constexpr const char* kLibraryFolder    = "library.folder";
-    // The Parts panel: "list" or "tree", and the column the tree groups by.
-    static constexpr const char* kPartsView        = "parts.view";
-    static constexpr const char* kPartsGroup       = "parts.group";
 
     // ~/.config/jplacer/jplacer.json, or %APPDATA%\jplacer\jplacer.json.
     static std::string defaultPath();

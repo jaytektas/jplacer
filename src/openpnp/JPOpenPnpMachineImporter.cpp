@@ -48,11 +48,11 @@ double lengthChild(const JPXmlElement& e, const char* child) {
 double number(const std::string& s) { return std::strtod(s.c_str(), nullptr); }
 
 // A location element (<park-location x=".." y=".." z=".." rotation=".." units=".."/>), in mm.
-std::optional<JPLocation> location(const JPXmlElement& parent, const char* child) {
+std::optional<JPMachineLocation> location(const JPXmlElement& parent, const char* child) {
     const JPXmlElement* e = parent.child(child);
     if (!e) return std::nullopt;
     const std::string& u = e->attr("units");
-    return JPLocation{ toMm(std::strtod(e->attr("x").c_str(), nullptr), u),
+    return JPMachineLocation{ toMm(std::strtod(e->attr("x").c_str(), nullptr), u),
                        toMm(std::strtod(e->attr("y").c_str(), nullptr), u),
                        toMm(std::strtod(e->attr("z").c_str(), nullptr), u),
                        std::strtod(e->attr("rotation").c_str(), nullptr) };
@@ -478,7 +478,7 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                 { "changer-end-location", "changer-mid-2-to-end-speed", nullptr },
             };
             for (const auto& step : changer) {
-                const std::optional<JPLocation> at = location(x, step.place);
+                const std::optional<JPMachineLocation> at = location(x, step.place);
                 if (at && (at->x != 0 || at->y != 0 || at->z != 0 || at->rotation != 0)) {   // all 0: not set
                     JPChangerStep m;
                     m.x = at->x;

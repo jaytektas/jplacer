@@ -220,7 +220,7 @@ int main() {
         // (its check passes: nothing was set for part off), and up again.
         {
             JPCellConfig next = cell.config();
-            next.discardLocation = JPLocation{ 20, 0, -1, 0 };
+            next.discardLocation = JPMachineLocation{ 20, 0, -1, 0 };
             std::string why;
             assert(cell.reconfigure(next, why));
             cell.discard("N", 1.0);

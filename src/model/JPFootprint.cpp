@@ -1,0 +1,156 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
+
+#include "JPFootprint.h"
+
+#include "JPXmlValues.h"
+
+#include <cmath>
+
+inline namespace jf {
+
+using V = JPXmlValues;
+
+void JPFootprint::toggleMark(size_t index) {
+    if (index >= pads.size()) return;
+    if (pads[index].mark) {
+        pads[index].mark = false;
+        return;
+    }
+    for (Pad& p : pads) p.mark = false;
+    pads[index].mark = true;
+}
+
+bool JPFootprint::generate(Generator type, std::string& error) {
+    auto add = [this](const std::string& name, double w, double h, double rot, double x, double y) {
+        Pad p;
+        p.name = name;
+        p.width = w;
+        p.height = h;
+        p.rotation = rot;
+        p.x = x;
+        p.y = y;
+        p.roundness = padRoundness;
+        pads.push_back(p);
+    };
+    switch (type) {
+        case Generator::Dual: {
+            if (padCount % 2 != 0 || padCount <= 0) {
+                error = "For Dual form factor, the pad count must be positive multiples of 2.";
+                return false;
+            }
+            const double padLength = (outerDimension - innerDimension) / 2;
+            const double x = (outerDimension + innerDimension) / 4;
+            int n = 0;
+            for (; n < padCount / 2; ++n)
+                add(std::to_string(n + 1), padLength, padAcross, 180, -x, (padCount / 4.0 - n - 0.5) * padPitch);
+            for (; n < padCount; ++n)
+                add(std::to_string(n + 1), padLength, padAcross, 0, x, (n - padCount * 3 / 4.0 + 0.5) * padPitch);
+            if (bodyWidth == 0 && bodyHeight == 0) {
+                bodyWidth = innerDimension;
+                bodyHeight = padCount / 2 * padPitch;
+            }
+            return true;
+        }
+        case Generator::Quad: {
+            if (padCount % 4 != 0 || padCount <= 0) {
+                error = "For Quad form factor, the pad count must be positive multiples of 4.";
+                return false;
+            }
+            const double padLength = (outerDimension - innerDimension) / 2;
+            const double d = (outerDimension + innerDimension) / 4;
+            int n = 0;
+            for (; n < padCount * 1 / 4; ++n)
+                add(std::to_string(n + 1), padLength, padAcross, 180, -d, (padCount / 8.0 - n - 0.5) * padPitch);
+            for (; n < padCount * 2 / 4; ++n)
+                add(std::to_string(n + 1), padLength, padAcross, -90, (n - padCount * 3 / 8.0 + 0.5) * padPitch, -d);
+            for (; n < padCount * 3 / 4; ++n)
+                add(std::to_string(n + 1), padLength, padAcross, 0, d, (n - padCount * 5 / 8.0 + 0.5) * padPitch);
+            for (; n < padCount * 4 / 4; ++n)
+                add(std::to_string(n + 1), padLength, padAcross, 90, (padCount * 7 / 8.0 - n - 0.5) * padPitch, d);
+            if (bodyWidth == 0 && bodyHeight == 0) {
+                bodyWidth = innerDimension;
+                bodyHeight = innerDimension;
+            }
+            return true;
+        }
+        case Generator::Bga: {
+            const int cols = int(std::sqrt(double(padCount)));
+            const int rows = cols;
+            if (std::pow(rows, 2) != padCount) {
+                error = "For PGA, the pad count must be a square number.";
+                return false;
+            }
+            for (int row = 0; row < rows; ++row)
+                for (int col = 0; col < cols; ++col) {
+                    const double x = (col - cols / 2.0 + 0.5) * padPitch;
+                    const double y = (rows / 2.0 - row - 0.5) * padPitch;
+                    if (std::fabs(x) > innerDimension / 2 || std::fabs(y) > innerDimension / 2)
+                        add(std::string(1, char('A' + row)) + std::to_string(col), padAcross, padAcross, 0, x, y);
+                }
+            outerDimension = (rows - 1) * padPitch + padAcross;
+            if (bodyWidth == 0 && bodyHeight == 0) {
+                bodyWidth = outerDimension + padPitch;
+                bodyHeight = outerDimension + padPitch;
+            }
+            return true;
+        }
+        case Generator::Kicad:
+            error = "KiCad pads are read from a .kicad_mod file";
+            return false;
+    }
+    return false;
+}
+
+JPFootprint JPFootprint::fromXml(const JPXmlElement& e) {
+    JPFootprint f;
+    f.units = V::units(e, "units");
+    f.bodyWidth = V::number(e, "body-width");
+    f.bodyHeight = V::number(e, "body-height");
+    f.outerDimension = V::number(e, "outer-dimension");
+    f.innerDimension = V::number(e, "inner-dimension");
+    f.padCount = V::integer(e, "pad-count");
+    f.padPitch = V::number(e, "pad-pitch");
+    f.padAcross = V::number(e, "pad-across");
+    f.padRoundness = V::number(e, "pad-roundness");
+    for (const JPXmlElement& c : e.children) {
+        if (c.name != "pad") continue;
+        Pad p;
+        p.name = c.attr("name");
+        p.x = V::number(c, "x");
+        p.y = V::number(c, "y");
+        p.width = V::number(c, "width");
+        p.height = V::number(c, "height");
+        p.rotation = V::number(c, "rotation");
+        p.mark = V::boolean(c, "mark");
+        p.roundness = V::number(c, "roundness");
+        f.pads.push_back(p);
+    }
+    return f;
+}
+
+JPXmlNode JPFootprint::toXml() const {
+    JPXmlNode n("footprint");
+    n.attr("units", V::units(units))
+        .attr("body-width", V::number(bodyWidth))
+        .attr("body-height", V::number(bodyHeight))
+        .attr("outer-dimension", V::number(outerDimension))
+        .attr("inner-dimension", V::number(innerDimension))
+        .attr("pad-count", std::to_string(padCount))
+        .attr("pad-pitch", V::number(padPitch))
+        .attr("pad-across", V::number(padAcross))
+        .attr("pad-roundness", V::number(padRoundness));
+    for (const Pad& p : pads)
+        n.add(JPXmlNode("pad"))
+            .attr("name", p.name)
+            .attr("x", V::number(p.x))
+            .attr("y", V::number(p.y))
+            .attr("width", V::number(p.width))
+            .attr("height", V::number(p.height))
+            .attr("rotation", V::number(p.rotation))
+            .attr("mark", V::boolean(p.mark))
+            .attr("roundness", V::number(p.roundness));
+    return n;
+}
+
+} // inline namespace jf

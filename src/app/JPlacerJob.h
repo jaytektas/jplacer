@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "job/JPJob.h"
-#include "library/JPLibrary.h"
+#include "model/JPConfiguration.h"
+#include "model/JPJob.h"
 
 #include <j/app/JAppWindow.h>
 
@@ -15,57 +15,49 @@
 
 inline namespace jf {
 
-// The open job and the main library: File > New Job, Open Job, Save Job and
-// Save Job As, and the window's title (the
-// job's name, a * while it has changes not saved). The job open last is
-// opened again at start (JPlacerSettings::kJobFile). Views watch it and are
-// told what changed.
+// The open job and the configuration it draws on (OpenPnP's Configuration:
+// parts, packages, boards and panels, kept in jplacer's configuration
+// folder): File > New Job, Open Job…, Save Job and Save Job As…, and the
+// window's title as OpenPnP's ("jplacer - *Untitled.job.xml"). The job open
+// last is opened again at start (JPlacerSettings::kJobFile). Views watch it
+// and are told what changed.
 class JPlacerJob {
 public:
+    static constexpr const char* kUntitled = "Untitled.job.xml";
+
     enum class Change {
-        Board,   // a new board: another job, or a file read in
-        Parts,   // its parts, or which part a placement has
-        Library, // the main library
+        Job,             // another job, or the job's boards and panels
+        Configuration,   // parts, packages, boards or panels
     };
     using Watcher = std::function<void(Change)>;
 
     explicit JPlacerJob(JAppWindow& window);
     ~JPlacerJob();
 
-    const JPJob&     job() const { return m_job; }
-    JPJob&           job() { return m_job; }
-    const JPLibrary& library() const { return m_library; }
-    JPLibrary&       library() { return m_library; }
-    const std::string& path() const { return m_path; }
-    JAppWindow&      window() { return m_window; }
-    bool             modified() const { return m_modified; }
+    JPJob&                 job() { return *m_job; }
+    const JPJob&           job() const { return *m_job; }
+    JPConfiguration&       configuration() { return m_config; }
+    const JPConfiguration& configuration() const { return m_config; }
+    JAppWindow&            window() { return m_window; }
 
-    // A new, empty job (once the open one's changes are saved or let go).
     void newJob();
     void open();
     void save();
     void saveAs();
-    // After an edit to the job (its parts, a placement's part): marked
-    // changed, and the views told.
-    void changed(Change what);
+    // After an edit to the job: marked changed, and the views told.
+    void changed();
+    // After an edit to parts, packages, boards or panels: the configuration
+    // saved (said in the status bar when it cannot be), and the views told.
+    void configurationChanged();
 
-    // After an edit to the library: saved (false, and said, when it cannot
-    // be), and the views told.
-    bool libraryChanged();
-    // The library kept in another folder from now on (JPlacerSettings::kLibraryFolder;
-    // empty: the default), and opened from there.
-    void setLibraryFolder(const std::string& folder);
-
-    // For the window's close: false (and a question asked) while there are
-    // changes not saved; the window is closed again once answered.
+    // For the window's close: false (and a question asked) while the job
+    // has changes not saved; the window is closed again once answered.
     bool mayClose();
 
-    // A view's watcher, until the id is given back.
     int  watch(Watcher w);
     void unwatch(int id);
 
 private:
-    // Runs `then` once the job's changes are saved or let go (asked first).
     void settle(std::function<void()> then);
     bool openPath(const std::string& path, std::string& error);
     bool writeTo(const std::string& path);
@@ -73,15 +65,13 @@ private:
     void title();
     void notify(Change what);
 
-    JAppWindow&              m_window;
-    JPJob                    m_job;
-    JPLibrary                m_library;
-    std::string              m_path;      // empty: never saved
-    bool                     m_modified = false;
-    bool                     m_closing = false;   // the question was answered: close
-    std::map<int, Watcher>   m_watchers;
-    int                      m_nextWatcher = 1;
-    std::shared_ptr<bool>    m_alive = std::make_shared<bool>(true);
+    JAppWindow&             m_window;
+    JPConfiguration         m_config;
+    std::unique_ptr<JPJob>  m_job = std::make_unique<JPJob>();
+    bool                    m_closing = false;
+    std::map<int, Watcher>  m_watchers;
+    int                     m_nextWatcher = 1;
+    std::shared_ptr<bool>   m_alive = std::make_shared<bool>(true);
 };
 
 } // inline namespace jf

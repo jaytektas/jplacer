@@ -440,7 +440,7 @@ void JPCell::discard(const std::string& nozzleId, double speed) {
                 break;
             }
             // Up, across, down to it, the part let go, and up again.
-            const JPLocation& at = *m_config.discardLocation;
+            const JPMachineLocation& at = *m_config.discardLocation;
             const JPMountConfig& m = n.mount;
             std::map<std::string, double> across;
             if (!m.axisX.empty()) across[m.axisX] = at.x - m.offsetX;

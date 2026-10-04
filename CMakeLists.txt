@@ -32,8 +32,7 @@ file(GLOB JPLACER_MACHINE_SRC CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/
 file(GLOB JPLACER_OPENPNP_SRC CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/openpnp/*.cpp)
 file(GLOB JPLACER_CAMERA_SRC  CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/camera/*.cpp)
 file(GLOB JPLACER_VISION_SRC  CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/vision/*.cpp)
-file(GLOB JPLACER_LIBRARY_SRC CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/library/*.cpp)
-file(GLOB JPLACER_JOB_SRC     CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/job/*.cpp)
+file(GLOB JPLACER_MODEL_SRC   CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/model/*.cpp)
 file(GLOB JPLACER_TASKS_SRC   CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/tasks/*.cpp)
 file(GLOB JPLACER_SETUP_SRC   CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/setup/*.cpp)
 file(GLOB JPLACER_UI_SRC      CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/*.cpp)
@@ -63,16 +62,14 @@ target_link_libraries(jplacer_camera PUBLIC jplacer_machine PRIVATE JPEG::JPEG P
 add_library(jplacer_vision STATIC ${JPLACER_VISION_SRC})
 target_link_libraries(jplacer_vision PUBLIC jplacer_common)
 
-# Parts, packages and footprints: the main library on disk, a job's own, and
-# matching a board's placements to them. No GUI, no hardware.
-add_library(jplacer_library STATIC ${JPLACER_LIBRARY_SRC})
-target_link_libraries(jplacer_library PUBLIC jplacer_common)
-add_library(jplacer_job STATIC ${JPLACER_JOB_SRC})
-target_link_libraries(jplacer_job PUBLIC jplacer_library)
+# OpenPnP's model: parts, packages and footprints, boards, panels and jobs,
+# kept in OpenPnP's own files. No GUI, no hardware.
+add_library(jplacer_model STATIC ${JPLACER_MODEL_SRC})
+target_link_libraries(jplacer_model PUBLIC jplacer_openpnp)
 # Procedures that drive the machine, its cameras and vision together:
 # calibrating a camera, the visual homing test, finding a board.
 add_library(jplacer_tasks STATIC ${JPLACER_TASKS_SRC})
-target_link_libraries(jplacer_tasks PUBLIC jplacer_machine jplacer_camera jplacer_vision jplacer_job)
+target_link_libraries(jplacer_tasks PUBLIC jplacer_machine jplacer_camera jplacer_vision)
 
 # Panels and views over the other modules: the only module with widgets.
 # Machine Setup's model of a cell: its tree, what each part edits, adding
@@ -81,7 +78,7 @@ add_library(jplacer_setup STATIC ${JPLACER_SETUP_SRC})
 target_link_libraries(jplacer_setup PUBLIC jplacer_machine)
 
 add_library(jplacer_ui STATIC ${JPLACER_UI_SRC})
-target_link_libraries(jplacer_ui PUBLIC jplacer_machine jplacer_camera jplacer_setup jplacer_library)
+target_link_libraries(jplacer_ui PUBLIC jplacer_machine jplacer_camera jplacer_setup jplacer_model)
 target_precompile_headers(jplacer_ui PRIVATE <j/core/JWidget.h> <j/core/JStyle.h> <j/core/JContainer.h>)
 
 # PRECOMPILED HEADERS. The framework's core header pulls hundreds of files
@@ -94,7 +91,7 @@ add_executable(jplacer ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp ${JPLACER_APP_SR
 # restated in a header where the two could drift. The updater compares it with
 # the newest release's tag.
 target_compile_definitions(jplacer PRIVATE JPLACER_VERSION="${JPLACER_FULL_VERSION}")
-target_link_libraries(jplacer PRIVATE jplacer_ui jplacer_setup jplacer_tasks jplacer_library jplacer_vision jplacer_camera jplacer_openpnp jplacer_machine jplacer_common JFramework::platform
+target_link_libraries(jplacer PRIVATE jplacer_ui jplacer_setup jplacer_tasks jplacer_model jplacer_vision jplacer_camera jplacer_openpnp jplacer_machine jplacer_common JFramework::platform
                                       OpenSSL::SSL OpenSSL::Crypto Threads::Threads)
 target_precompile_headers(jplacer PRIVATE ${JPLACER_PCH})
 
@@ -102,7 +99,7 @@ target_precompile_headers(jplacer PRIVATE ${JPLACER_PCH})
 option(JPLACER_TESTS "Build jplacer's tests" ON)
 if(JPLACER_TESTS)
     enable_testing()
-    foreach(module machine openpnp camera vision library job tasks setup)
+    foreach(module machine openpnp camera vision model tasks setup)
       file(GLOB tests CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tests/${module}/*.cpp)
       foreach(src ${tests})
         get_filename_component(name ${src} NAME_WE)

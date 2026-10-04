@@ -38,17 +38,6 @@ done. The window can be made bigger by dragging its edge.
 
 <!-- src: src/app/JPlacerSettings.cpp (tearOffMenus defaults to false, launcher to true); src/app/JPlacerPreferencesDialog.cpp (the General rows); src/app/JPlacerLauncher.cpp (supported) -->
 
-### Parts library
-
-**Parts library**
-:   The folder the [parts library](jobs.md#the-parts-library) is kept in: type it, or **Choose…** it.
-    Empty (as it starts) is jplacer's own data folder, `~/.local/share/jplacer/library`. A git
-    repository or a shared drive works, to keep it safe or share it between machines. Choosing another
-    folder opens the library there: nothing is copied or moved, and jobs keep their own parts. A folder
-    with no library in it starts one with the standard packages.
-
-<!-- src: src/app/JPlacerPreferencesDialog.cpp (generalPage, Parts library); src/app/JPlacerJob.cpp (setLibraryFolder); src/library/JPLibrary.cpp (open) -->
-
 ### Updates
 
 **Check for updates when jplacer opens**

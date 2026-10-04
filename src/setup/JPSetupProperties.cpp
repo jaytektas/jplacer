@@ -286,7 +286,7 @@ void machineForm(JPCellConfig& cell, JPSetupProperties::Form& f) {
     add.flag("parkAfterHome", "Park after homed?", [&cell]() -> bool& { return cell.parkAfterHome; });
     add.group("Locations");
     add.header({ "X", "Y", "Z", "Rotation", "Set?" });
-    auto at = [&cell]() -> std::optional<JPLocation>& { return cell.discardLocation; };
+    auto at = [&cell]() -> std::optional<JPMachineLocation>& { return cell.discardLocation; };
     add.row("Discard Location", at() ? Place::Location : Place::None);
     if (at()) {
         add.number("discardX", "Discard X", [at]() -> double& { return at()->x; });
@@ -299,7 +299,7 @@ void machineForm(JPCellConfig& cell, JPSetupProperties::Form& f) {
     add.flag("discard", "Set?", [at] { return at().has_value(); },
              [at](bool on) {
                  if (!on) at().reset();
-                 else if (!at()) at() = JPLocation();
+                 else if (!at()) at() = JPMachineLocation();
              });
     add.end();
     f.reshaping.push_back("discard");
@@ -642,7 +642,7 @@ void headForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
     add.text("name", "Name", [h]() -> std::string& { return h().name; }, "name");
     add.group("Locations");
     // A place kept as "none" until it is set: a box to set it, then its coordinates.
-    auto place = [&add, &f](const std::string& key, const std::string& what, std::function<std::optional<JPLocation>&()> at,
+    auto place = [&add, &f](const std::string& key, const std::string& what, std::function<std::optional<JPMachineLocation>&()> at,
                             bool withZ) {
         add.row(what, at() ? Place::Location : Place::None);
         if (at()) {
@@ -658,13 +658,13 @@ void headForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
         add.flag(key, "Set?", [at] { return at().has_value(); },
                  [at](bool on) {
                      if (!on) at().reset();
-                     else if (!at()) at() = JPLocation();
+                     else if (!at()) at() = JPMachineLocation();
                  });
         add.end();
         f.reshaping.push_back(key);
     };
     add.header({ "X", "Y", "Z", "Set?" });
-    place("homingFiducial", "Homing Fiducial", [h]() -> std::optional<JPLocation>& { return h().homingFiducial; }, true);
+    place("homingFiducial", "Homing Fiducial", [h]() -> std::optional<JPMachineLocation>& { return h().homingFiducial; }, true);
     if (h().homingFiducial) {
         add.number("homingFiducialDiameter", "Fiducial Diameter", [h]() -> double& { return h().homingFiducialDiameter; });
         add.row("Homing Method");
@@ -676,12 +676,12 @@ void headForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
         add.note("Set the homing fiducial up early, before capturing many places: each time it changes or moves, "
                  "every place captured since is off by as much.");
     }
-    place("park", "Park Location", [h]() -> std::optional<JPLocation>& { return h().park; }, false);
+    place("park", "Park Location", [h]() -> std::optional<JPMachineLocation>& { return h().park; }, false);
 
     add.group("Calibration Rig");
     add.header({ "X", "Y", "Z", "Set?" });
-    place("rigPrimary", "Primary Mark", [h]() -> std::optional<JPLocation>& { return h().rigPrimary; }, true);
-    place("rigSecondary", "Secondary Mark", [h]() -> std::optional<JPLocation>& { return h().rigSecondary; }, true);
+    place("rigPrimary", "Primary Mark", [h]() -> std::optional<JPMachineLocation>& { return h().rigPrimary; }, true);
+    place("rigSecondary", "Secondary Mark", [h]() -> std::optional<JPMachineLocation>& { return h().rigSecondary; }, true);
     add.row("Mark Diameters");
     add.number("rigPrimaryDiameter", "Primary Diameter", [h]() -> double& { return h().rigPrimaryDiameter; });
     add.number("rigSecondaryDiameter", "Secondary Diameter", [h]() -> double& { return h().rigSecondaryDiameter; });

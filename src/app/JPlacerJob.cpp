@@ -6,6 +6,7 @@
 #include "JPlacerSettings.h"
 
 #include "common/JPlacerLog.h"
+#include "common/JPlacerPaths.h"
 
 #include <j/config/Settings.h>
 #include <j/core/Dialog.h>
@@ -17,27 +18,32 @@ inline namespace jf {
 
 namespace {
 
-constexpr int         kStatusMs = 8000;
-constexpr const char* kAppName  = "jplacer";
+constexpr int kStatusMs = 8000;
+// The file dialog filters by the last extension; ".job.xml" is added on save.
+constexpr const char* kFilter = "xml";
 
 std::string withExtension(std::string path) {
-    if (std::filesystem::path(path).extension() != std::string(".") + JPJob::kExtension)
-        path += std::string(".") + JPJob::kExtension;
+    std::string lower;
+    for (const char c : path) lower += char(std::tolower(static_cast<unsigned char>(c)));
+    if (!lower.ends_with(JPJob::kExtension)) path += JPJob::kExtension;
     return path;
 }
 
 } // namespace
 
-JPlacerJob::JPlacerJob(JAppWindow& window) : m_window(window) {
-    JSettings& s = JSettings::instance();
-    std::string folder = s.get<std::string>(JPlacerSettings::kLibraryFolder, "");
-    if (folder.empty()) folder = JPLibrary::defaultFolder();
-    if (!m_library.open(folder)) m_window.showStatus(m_library.problem(), kStatusMs);
-
-    if (const std::string last = s.get<std::string>(JPlacerSettings::kJobFile, ""); !last.empty()) {
-        std::string error;
-        if (!openPath(last, error)) JLOGC(JPlacerLog::kApp, JLogLevel::Warn) << "the last job: " << error;
+JPlacerJob::JPlacerJob(JAppWindow& window) : m_window(window), m_config(JPlacerPaths::configDir()) {
+    std::vector<std::string> problems;
+    std::string error;
+    if (!m_config.load(problems, error)) {
+        JLOGC(JPlacerLog::kApp, JLogLevel::Error) << "configuration: " << error;
+        m_window.showStatus("The parts and packages could not be read: " + error, kStatusMs);
     }
+    for (const std::string& p : problems) JLOGC(JPlacerLog::kApp, JLogLevel::Warn) << p;
+    JLOGC(JPlacerLog::kApp, JLogLevel::Info) << m_config.parts().size() << " part(s), " << m_config.packages().size()
+                                             << " package(s), " << m_config.boards().size() << " board(s), "
+                                             << m_config.panels().size() << " panel(s)";
+    if (const std::string last = JSettings::instance().get<std::string>(JPlacerSettings::kJobFile, ""); !last.empty())
+        if (!openPath(last, error)) JLOGC(JPlacerLog::kApp, JLogLevel::Warn) << "the last job: " << error;
     title();
 }
 
@@ -55,63 +61,45 @@ void JPlacerJob::unwatch(int id) {
 }
 
 void JPlacerJob::notify(Change what) {
-    // A watcher may unwatch (or another watch) while told.
     const std::map<int, Watcher> now = m_watchers;
     for (const auto& [id, w] : now)
         if (m_watchers.count(id)) w(what);
 }
 
-void JPlacerJob::changed(Change what) {
-    m_modified = true;
+void JPlacerJob::changed() {
+    m_job->dirty = true;
     title();
-    notify(what);
+    notify(Change::Job);
 }
 
-bool JPlacerJob::libraryChanged() {
+void JPlacerJob::configurationChanged() {
     std::string error;
-    const bool ok = m_library.save(error);
-    if (!ok) m_window.showStatus("The library was not saved: " + error, kStatusMs);
-    notify(Change::Library);
-    return ok;
-}
-
-void JPlacerJob::setLibraryFolder(const std::string& folder) {
-    JSettings::instance().set(JPlacerSettings::kLibraryFolder, folder);
-    JPlacerSettings::save();
-    if (!m_library.open(folder.empty() ? JPLibrary::defaultFolder() : folder)) m_window.showStatus(m_library.problem(), kStatusMs);
-    else m_window.showStatus("Parts library: " + m_library.folder(), kStatusMs);
-    notify(Change::Library);
+    if (!m_config.save(error)) m_window.showStatus("The configuration was not saved: " + error, kStatusMs);
+    notify(Change::Configuration);
 }
 
 void JPlacerJob::title() {
-    std::string name;
-    if (!m_path.empty()) name = std::filesystem::path(m_path).stem().string();
-    else if (!m_job.board.name.empty()) name = m_job.board.name;
-    if (name.empty() && !m_modified) {
-        m_window.setTitle(kAppName);
-        return;
-    }
-    m_window.setTitle((name.empty() ? std::string("Untitled job") : name) + (m_modified ? "*" : "") + " \xE2\x80\x94 " + kAppName);
+    const std::string name = m_job->file.empty() ? kUntitled : std::filesystem::path(m_job->file).filename().string();
+    m_window.setTitle(std::string("jplacer - ") + (m_job->dirty ? "*" : "") + name);
 }
 
 void JPlacerJob::settle(std::function<void()> then) {
-    if (!m_modified) {
+    if (!m_job->dirty) {
         then();
         return;
     }
     JDialogOptions opts;
-    opts.okLabel = "Save";
-    opts.cancelLabel = "Don't Save";
-    // Only a button answers: closing the question must not throw the changes away.
+    opts.okLabel = "Yes";
+    opts.cancelLabel = "No";
     opts.closeOnEscape = false;
     opts.showCloseButton = false;
-    const std::string name = m_path.empty() ? std::string("This job") : std::filesystem::path(m_path).filename().string();
+    const std::string name = m_job->file.empty() ? kUntitled : std::filesystem::path(m_job->file).filename().string();
     std::weak_ptr<bool> alive = m_alive;
-    JDialog::confirm("Unsaved Changes", name + " has changes that are not saved. Save them?",
+    JDialog::confirm("Save job? - " + name, "Do you want to save your changes?\nIf you don't save, your changes will be lost.",
         [this, alive, then] {
             if (const auto a = alive.lock(); !a || !*a) return;
-            if (m_path.empty()) saveAsThen(then);
-            else if (writeTo(m_path)) then();
+            if (m_job->file.empty()) saveAsThen(then);
+            else if (writeTo(m_job->file)) then();
         },
         [alive, then] {
             if (const auto a = alive.lock(); !a || !*a) return;
@@ -121,7 +109,7 @@ void JPlacerJob::settle(std::function<void()> then) {
 }
 
 bool JPlacerJob::mayClose() {
-    if (!m_modified || m_closing) return true;
+    if (!m_job->dirty || m_closing) return true;
     settle([this] {
         m_closing = true;
         m_window.requestClose();
@@ -131,68 +119,61 @@ bool JPlacerJob::mayClose() {
 
 void JPlacerJob::newJob() {
     settle([this] {
-        m_job = JPJob();
-        m_path.clear();
-        m_modified = false;
+        m_job = std::make_unique<JPJob>();
         JSettings::instance().set(JPlacerSettings::kJobFile, std::string());
         JPlacerSettings::save();
         title();
-        notify(Change::Board);
+        notify(Change::Job);
     });
 }
 
 bool JPlacerJob::openPath(const std::string& path, std::string& error) {
-    JPJob job;
-    if (!JPJob::load(path, job, error)) return false;
+    auto job = m_config.loadJob(path, error);
+    if (!job) return false;
     m_job = std::move(job);
-    m_path = path;
-    m_modified = false;
-    JSettings::instance().set(JPlacerSettings::kJobFile, path);
+    JSettings::instance().set(JPlacerSettings::kJobFile, m_job->file);
     JPlacerSettings::save();
-    JLOGC(JPlacerLog::kApp, JLogLevel::Info) << "job " << path << ": " << m_job.board.placements.size()
-                                             << " placement(s), " << m_job.parts.parts.size() << " part(s)";
+    JLOGC(JPlacerLog::kApp, JLogLevel::Info) << "job " << m_job->file << ": " << m_job->boardLocations().size()
+                                             << " board(s)";
     return true;
 }
 
 void JPlacerJob::open() {
     settle([this] {
         std::weak_ptr<bool> alive = m_alive;
-        JDialog::openFile("Open Job", { JPJob::kExtension }, [this, alive](std::string path) {
+        JDialog::openFile("Open Job", { kFilter }, [this, alive](std::string path) {
             if (const auto a = alive.lock(); !a || !*a) return;
             std::string error;
             if (!openPath(path, error)) {
-                JDialog::message("The job could not be opened", error);
+                JDialog::message("Job Load Error", error);
                 return;
             }
             title();
-            notify(Change::Board);
+            notify(Change::Job);
         });
     });
 }
 
 bool JPlacerJob::writeTo(const std::string& path) {
     std::string error;
-    if (!m_job.save(path, error)) {
-        JDialog::message("The job could not be saved", error);
+    if (!m_config.saveJob(*m_job, path, error)) {
+        JDialog::message("Job Save Error", error);
         return false;
     }
-    m_path = path;
-    m_modified = false;
-    JSettings::instance().set(JPlacerSettings::kJobFile, path);
+    JSettings::instance().set(JPlacerSettings::kJobFile, m_job->file);
     JPlacerSettings::save();
     title();
-    m_window.showStatus("Saved " + path, kStatusMs);
     return true;
 }
 
 void JPlacerJob::save() {
-    if (m_path.empty()) saveAs();
-    else writeTo(m_path);
+    if (m_job->file.empty()) saveAs();
+    else writeTo(m_job->file);
 }
 
 void JPlacerJob::saveAsThen(std::function<void()> then) {
     std::weak_ptr<bool> alive = m_alive;
-    JDialog::saveFile("Save Job As", { JPJob::kExtension }, [this, alive, then](std::string path) {
+    JDialog::saveFile("Save Job As...", { kFilter }, [this, alive, then](std::string path) {
         if (const auto a = alive.lock(); !a || !*a) return;
         if (writeTo(withExtension(path)) && then) then();
     });

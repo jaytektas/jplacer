@@ -58,7 +58,7 @@ bool JPCellConfig::fromJson(const JJson& j, std::string& error) {
     if (j["homeAfterConnect"].boolean())
         for (JPDriverConfig& d : c.drivers) d.homeAfterConnect = true;
     c.parkAfterHome = j["parkAfterHome"].boolean();
-    c.discardLocation = JPLocation::fromJson(j["discardLocation"]);
+    c.discardLocation = JPMachineLocation::fromJson(j["discardLocation"]);
     *this = std::move(c);
     return true;
 }

@@ -8,7 +8,7 @@
 #include "JPCameraConfig.h"
 #include "JPDriverConfig.h"
 #include "JPHeadConfig.h"
-#include "JPLocation.h"
+#include "JPMachineLocation.h"
 #include "JPNozzleConfig.h"
 #include "JPNozzleTipConfig.h"
 #include "JPSquarenessConfig.h"
@@ -38,7 +38,7 @@ struct JPCellConfig {
         return false;
     }
     bool                          parkAfterHome    = false;   // park once homed (after visual homing)
-    std::optional<JPLocation>     discardLocation;            // where a part not wanted is dropped
+    std::optional<JPMachineLocation>     discardLocation;            // where a part not wanted is dropped
 
     // Read / write a cell file. False with `error` naming the file and problem.
     bool load(const std::string& path, std::string& error);

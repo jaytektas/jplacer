@@ -13,7 +13,7 @@ key taken off, in [Preferences, Keys](preferences.md#keys); the menu then shows 
 | Entry | |
 |---|---|
 | **New Job** (Ctrl+N) | Starts an empty job (see [Jobs](jobs.md#new-open-and-save)). |
-| **Open Job…** (Ctrl+O) | Opens a `.jpjob` file. |
+| **Open Job…** (Ctrl+O) | Opens a `.job.xml` file. |
 | **Save Job** (Ctrl+S) | Saves the open job. |
 | **Save Job As…** (Ctrl+Shift+S) | Saves the open job to a file you choose. |
 | **Import Pick-and-Place File…** | Not available yet. |
@@ -55,10 +55,6 @@ A tick for each panel: each camera, **Jog**, **Actuators**, **Parts**,
 <!-- src: src/app/JPlacerMenuBuilder.cpp (the Machine menu); src/app/JPlacerMachine.cpp (updateMenu) -->
 
 ## Job
-
-| Entry | |
-|---|---|
-| **Parts** | Shows the [Parts](jobs.md#the-parts-panel) panel: the job's placements and their parts. |
 
 **Start**, **Pause**, **Stop**, **Board Setup…** and **Feeders…** are not yet available.
 

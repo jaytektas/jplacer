@@ -10,7 +10,8 @@ inline namespace jf {
 // Where jplacer's files are: the directory the executable runs from (bundled
 // data such as the manual and firmware profiles sits beside it in the
 // AppImage, or in the repository when run from build/), and the per-user
-// configuration directory.
+// configuration directory (preferences, cells, and OpenPnP's configuration
+// files: parts, packages, boards and panels).
 class JPlacerPaths {
 public:
     // The executable's directory; empty if the system will not say.
@@ -19,11 +20,6 @@ public:
     // ~/.config/jplacer (or $XDG_CONFIG_HOME/jplacer, %APPDATA%\jplacer).
     // Empty when no home directory is known.
     static std::string configDir();
-
-    // ~/.local/share/jplacer (or $XDG_DATA_HOME/jplacer, %LOCALAPPDATA%\jplacer):
-    // what jplacer keeps that is not a preference (the parts library).
-    // Empty when no home directory is known.
-    static std::string dataDir();
 };
 
 } // inline namespace jf

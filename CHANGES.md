@@ -10,20 +10,11 @@ notes.
 
 ## Unreleased
 
-- Jobs: File > New Job, Open Job…, Save Job and Save Job As… keep a board and the parts it needs in a
-  .jpjob file. The job open last is opened again at start, and you are asked to save changes before
-  they would be lost.
-- A parts library, kept from job to job: jobs take copies from it and never change it. A new library
-  starts with the common packages (chip sizes, SOT, SOD, SMA/B/C, SOIC, TSSOP, QFN, LQFP) and their
-  footprints, known by their KiCad, EasyEDA and supplier names.
-- Parts, packages and footprints can be edited on the Parts panel: a placement's rotation (typed once for
-  every placement chosen), its part, a part's package, a package's footprint (chosen, read from a KiCad
-  footprint file, or made from its numbers). Copy to Library puts one into the library, showing first
-  what it would change; Update from Library and Keep This Version answer a library that has moved on.
-- The parts library's folder can be chosen in Preferences (a git repository or shared drive works).
-- A Parts panel (Job > Parts) lists the job's placements with their parts and whether each can be
-  placed: as a table sorted by any column, or as a tree grouped by any column, with a filter that
-  narrows it as you type.
+- Jobs, boards, panels, parts and packages are kept as OpenPnP keeps them, in its own files (.job.xml,
+  .board.xml, .panel.xml, parts.xml, packages.xml): open an OpenPnP job and it is the same job, with its
+  boards and panels, what was placed and what was enabled. A job from an older OpenPnP is converted as
+  OpenPnP converts it, a copy of the old file kept beside it. File > New Job, Open Job…, Save Job and
+  Save Job As… work on these; the job open last is opened again at start.
 - jplacer can now talk to a machine. A machine is described by a cell file, and
   Machine > Import OpenPnP Machine… makes one from an OpenPnP machine.xml.
 - Machine > Connect connects to the machine's controllers, recognises grblHAL, Grbl

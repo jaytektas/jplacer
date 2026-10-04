@@ -9,13 +9,13 @@ JPHeadConfig JPHeadConfig::fromJson(const JJson& j) {
     JPHeadConfig h;
     h.id                    = j["id"].str();
     h.name                  = j["name"].str();
-    h.homingFiducial        = JPLocation::fromJson(j["homingFiducial"]);
+    h.homingFiducial        = JPMachineLocation::fromJson(j["homingFiducial"]);
     h.homingFiducialDiameter = j["homingFiducialDiameter"].number();
     h.visualHoming          = j["visualHoming"].boolean();
-    h.park                  = JPLocation::fromJson(j["park"]);
+    h.park                  = JPMachineLocation::fromJson(j["park"]);
     const JJson& rig        = j["calibrationRig"];
-    h.rigPrimary            = JPLocation::fromJson(rig["primary"]);
-    h.rigSecondary          = JPLocation::fromJson(rig["secondary"]);
+    h.rigPrimary            = JPMachineLocation::fromJson(rig["primary"]);
+    h.rigSecondary          = JPMachineLocation::fromJson(rig["secondary"]);
     h.rigPrimaryDiameter    = rig["primaryDiameter"].number();
     h.rigSecondaryDiameter  = rig["secondaryDiameter"].number();
     h.rigTestObjectDiameter = rig["testObjectDiameter"].number();
