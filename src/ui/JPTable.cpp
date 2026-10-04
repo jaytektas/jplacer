@@ -24,6 +24,12 @@ constexpr size_t kMostSortKeys = 3;
 constexpr float kSortKeyFade = 0.5f;
 // A row's tick box, as a share of the row.
 constexpr float kTickShare = 0.6f;
+// A highlighted cell's fill: the accent, this opaque over the row.
+constexpr float kHighlightAlpha = 0.5f;
+// The widest number a decimal-aligned column lines up (OpenPnP's "%9.3f"
+// and two places for units), split at its point.
+constexpr const char* kAlignedWhole = "-00000";
+constexpr const char* kAlignedRest  = ".000mm";
 
 JColor colour(const uint8_t* c) { return rgb(c[0], c[1], c[2]); }
 
@@ -104,6 +110,7 @@ bool JPTable::rowPasses(int row) const {
 }
 
 int JPTable::compareRows(int a, int b, int c) const {
+    if (const std::optional<int> o = m_model->compare(a, b, c)) return *o;
     switch (m_model->column(c).kind) {
         case JPTableModel::Kind::Number: {
             const double x = m_model->number(a, c), y = m_model->number(b, c);
@@ -410,10 +417,37 @@ void JPTable::populateRenderPrimitives(JPrimitiveBuffer& buf) {
                 }
                 continue;
             }
-            const std::string t = elided(m_model->text(r, c), std::max(1.f, cell.width - 2 * pad));
+            const JPTableModel::Column col = m_model->column(c);
+            const uint8_t* ink = Colors::LabelText;
+            if (m_model->highlighted(r, c)) {
+                const JColor tint = rgba(Colors::Accent[0], Colors::Accent[1], Colors::Accent[2],
+                                         uint8_t(float(Colors::Accent[3]) * kHighlightAlpha));
+                buf.pushRectangle(cell.x + st.borderWidth, y, cell.width - st.borderWidth, rh - st.borderWidth, tint.data());
+                ink = Colors::TextPrimary;
+            }
+            const float room = std::max(1.f, cell.width - 2 * pad);
+            const std::string full = m_model->text(r, c);
             float tx = cell.x + pad;
-            if (kind == JPTableModel::Kind::Number) tx = std::max(tx, cell.x + cell.width - pad - JTextHelper::measureWidth(t));
-            JTextHelper::pushText(buf, tx, y + (rh - lh) * 0.5f, t, Colors::LabelText, std::max(1.f, cell.width - 2 * pad));
+            if (col.decimalAligned) {
+                // The point at the same place in every row, the widest number centred.
+                const size_t dot = full.find('.');
+                const std::string whole = full.substr(0, dot);
+                const float wholeW = JTextHelper::measureWidth(kAlignedWhole);
+                const float boxW = wholeW + JTextHelper::measureWidth(kAlignedRest);
+                const float dotX = cell.x + std::max(pad, (cell.width - boxW) * 0.5f) + wholeW;
+                tx = std::max(tx, dotX - JTextHelper::measureWidth(whole));
+                JTextHelper::pushText(buf, tx, y + (rh - lh) * 0.5f, elided(full, cell.x + cell.width - pad - tx), ink,
+                                      std::max(1.f, cell.x + cell.width - pad - tx));
+                continue;
+            }
+            const std::string t = elided(full, room);
+            const float tw = JTextHelper::measureWidth(t);
+            JPTableModel::Align align = col.align;
+            if (align == JPTableModel::Align::Auto)
+                align = kind == JPTableModel::Kind::Number ? JPTableModel::Align::Right : JPTableModel::Align::Left;
+            if (align == JPTableModel::Align::Right) tx = std::max(tx, cell.x + cell.width - pad - tw);
+            else if (align == JPTableModel::Align::Center) tx = std::max(tx, cell.x + (cell.width - tw) * 0.5f);
+            JTextHelper::pushText(buf, tx, y + (rh - lh) * 0.5f, t, ink, room);
         }
         buf.pushRectangle(b.x, y + rh - st.borderWidth, innerW, st.borderWidth, Colors::GridLine);
     }
@@ -578,11 +612,15 @@ void JPTable::handleMouseMove(float mx, float my) {
         return;
     }
     if (dividerAt(mx, my) >= 0) JWidget::s_hoverCursor = JPlatformCursor::ResizeLeftRight;
-    // A heading's tooltip over its heading; none over the rows.
+    // A heading's tooltip over its heading; a cell's (if it has one) over the rows.
     const JRect b = bounds();
     std::string tip;
-    if (m_model && my >= b.y && my < b.y + headerHeight())
+    if (m_model && my >= b.y && my < b.y + headerHeight()) {
         if (const int c = columnAt(mx); c >= 0) tip = m_model->column(c).tooltip;
+    } else if (m_model) {
+        const int r = rowAt(my), c = columnAt(mx);
+        if (r >= 0 && c >= 0) tip = m_model->cellTooltip(r, c);
+    }
     setTooltip(tip);
     JControl::handleMouseMove(mx, my);
 }
@@ -636,6 +674,7 @@ bool JPTable::handleKeyEvent(const JKeyEvent& ke) {
         if (res.consumed) m_graph.invalidateNode(m_nodeId, DirtySelf);
         return res.consumed;
     }
+    if (onKey && onKey(ke)) return true;
     const int lead = viewIndexOf(m_lead);
     const int page = std::max(1, int((bounds().height - headerHeight()) / rowHeight()) - 1);
     switch (ke.key) {

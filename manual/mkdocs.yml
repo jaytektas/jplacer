@@ -15,6 +15,7 @@ nav:
   - machine.md
   - machine-setup.md
   - jobs.md
+  - boards.md
   - parts.md
   - packages.md
   - preferences.md

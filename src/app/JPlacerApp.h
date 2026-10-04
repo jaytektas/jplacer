@@ -44,6 +44,7 @@ public:
     JPlacerMachine& machine() { return *m_machine; }
     JPlacerJob& job() { return *m_job; }
     JPKeyMap& keys() { return *m_keys; }
+    JPlacerOpenPnpTabs& tabs() { return *m_tabs; }
 
 private:
     JGuiApplication              m_app;

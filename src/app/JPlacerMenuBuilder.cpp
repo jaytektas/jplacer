@@ -69,7 +69,20 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
     entry(keys, file, graph, "file.saveJob", "File", "Save Job", ctrl('S'), [&app] { app.job().save(); });
     entry(keys, file, graph, "file.saveJobAs", "File", "Save Job As\xE2\x80\xA6", ctrl('S', true), [&app] { app.job().saveAs(); });
     file->addSeparator(graph);
-    addPending(file, graph, { "Import Pick-and-Place File\xE2\x80\xA6" });
+    entry(keys, file, graph, "file.saveConfiguration", "File", "Save Configuration", none,
+          [&app] { app.tabs().saveConfiguration(); });
+    file->addSeparator(graph);
+    // Import Placements: OpenPnP's importers, into the Boards tab's chosen board.
+    menuStore().push_back(std::make_unique<JMenu>("Import Placements"));
+    JMenu* import = menuStore().back().get();
+    for (const auto& importer : app.tabs().importers()) {
+        const JPBoardImporter* i = importer.get();
+        import->add(graph, i->name())->onTriggered.connect([&app, i] {
+            app.tabs().showDock("Boards");
+            app.tabs().importBoard(*i);
+        });
+    }
+    file->add(graph, "Import Placements", {}, import);
     file->addSeparator(graph);
     entry(keys, file, graph, "file.quit", "File", "Quit", none, [&window] { window.requestClose(); });
 

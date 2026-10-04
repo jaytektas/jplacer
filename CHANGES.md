@@ -10,6 +10,12 @@ notes.
 
 ## Unreleased
 
+- A Boards tab, as OpenPnP's: add, create, copy, remove and clean up boards; each board's placements
+  (Enabled, ID, Part, Side, X, Y, Rot., Type, Error Handling, Rank, Comments) changed in place, with
+  OpenPnP's right-click menu and Space to turn one on or off. Placements are imported with OpenPnP's
+  importers: Altium, DipTrace, EAGLE board and mountsmd, KiCad .pos, Proteus and named-column CSV, merged
+  into a board or replacing what it had. File > Save Configuration and quitting ask about each changed
+  board, as OpenPnP does.
 - A Parts tab, as OpenPnP's: the parts table (ID, Description, Height, Through-Board Depth, Package,
   Speed %, BottomVision, FiducialVision, Placements, Feeders), changed in place, sorted by up to three
   columns, searched as you type; New Part, Delete Part, Pick Part, copy and paste a part; each part's pick

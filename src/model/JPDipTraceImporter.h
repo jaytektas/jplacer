@@ -16,6 +16,11 @@ public:
     std::string description() const override { return "Import Diptrace .csv Files."; }
     std::vector<File>   files() const override { return { { "Export File (.csv)", { "csv" } } }; }
     std::vector<Option> options() const override { return { { "Create Missing Parts", "", true } }; }
+    std::string failureText(const std::string&) const override {
+        return "The expected file format is the default file export in DipTrace PCB: File -> Export -> Pick and Place. "
+               "The first line indicates RefDes, Name, X (mm), Y (mm), Side, Rotate, Value.The lines that follow are "
+               "data.";
+    }
 
 protected:
     void parse(const std::vector<std::string>& files, const std::vector<bool>& options, JPConfiguration& config,

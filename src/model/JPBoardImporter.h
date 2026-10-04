@@ -43,6 +43,10 @@ public:
     bool read(const std::vector<std::string>& files, const std::vector<bool>& options, JPConfiguration& config,
               JPBoard& out, std::string& error) const;
 
+    // What its dialog shows (titled "Import Error") when a reading fails:
+    // the reason, or some importers' own explanation of their format.
+    virtual std::string failureText(const std::string& error) const { return error; }
+
     // OpenPnP's importers, in its menus' order.
     static std::vector<std::unique_ptr<JPBoardImporter>> all();
 

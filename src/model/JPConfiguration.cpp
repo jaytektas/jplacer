@@ -295,6 +295,17 @@ bool JPConfiguration::resolvePanel(JPJob* job, JPPanelLocation& l, std::string& 
     return true;
 }
 
+std::vector<JPPlacementsHolder*> JPConfiguration::instancesOf(const JPPlacementsHolder& def, const JPJob* job) const {
+    std::vector<JPPlacementsHolder*> out;
+    auto take = [&](const std::vector<JPPlacementsHolderLocation*>& ls) {
+        for (JPPlacementsHolderLocation* l : ls)
+            if (l->holder && l->holder.get() != &def && l->holder->definition() == &def) out.push_back(l->holder.get());
+    };
+    if (job) take(job->boardAndPanelLocations());
+    for (const auto& p : m_panels) take(p->descendants());
+    return out;
+}
+
 bool JPConfiguration::isInUse(const JPPlacementsHolder& h, const JPJob* job) const {
     if (job && job->instanceCount(h) > 0) return true;
     for (const auto& p : m_panels)

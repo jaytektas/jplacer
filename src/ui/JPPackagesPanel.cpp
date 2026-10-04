@@ -83,7 +83,9 @@ JPPackagesPanel::JPPackagesPanel(JSceneGraph& graph, JPConfiguration& config, do
     auto tool = [&](const char* name, const char* icon, const char* tip) {
         return bar->add(std::make_unique<JPIconButton>(graph, name, icon, tip));
     };
-    tool("New Package...", "general-add", "Create a new package, specifying it's ID.")->onClicked.connect([this] { newPackage(); });
+    JPIconButton* newOne = tool("New Package...", "general-add", "Create a new package, specifying it's ID.");
+    newOne->setLeads(JPIconButton::Leads::Elsewhere);
+    newOne->onClicked.connect([this] { newPackage(); });
     m_delete = tool("Delete Package", "general-remove", "Delete the currently selected package.");
     m_delete->onClicked.connect([this] { deletePackages(); });
     bar->add(toolSeparator(graph));
@@ -262,6 +264,8 @@ std::unique_ptr<JContainer> JPPackagesPanel::footprintTab(JPPackage& p) {
            std::tuple { "kicad-logo", "Import a footprint from KiCad module.", JPFootprint::Generator::Kicad } }) {
         auto b = std::make_unique<JPIconButton>(g, tip, icon, tip);
         b->setFramed(true);
+        // The KiCad one asks for a file; the others make the pads at once.
+        if (type == JPFootprint::Generator::Kicad) b->setLeads(JPIconButton::Leads::Elsewhere);
         const JPFootprint::Generator t = type;
         b->onClicked.connect([this, t] { generatePads(t); });
         gens->add(std::move(b));
@@ -308,8 +312,10 @@ std::unique_ptr<JContainer> JPPackagesPanel::footprintTab(JPPackage& p) {
     padsFrame->setAlignItems(JAlignItems::Stretch);
     padsFrame->setVSizePolicy(JSizePolicyMode::Expanding, 1);
     auto bar = JPUiParts::row(g);
-    bar->add(std::make_unique<JPIconButton>(g, "New Pad...", "general-add", "Create a new pad, specifying it's ID."))
-        ->onClicked.connect([this, id] {
+    JPIconButton* newPad =
+        bar->add(std::make_unique<JPIconButton>(g, "New Pad...", "general-add", "Create a new pad, specifying it's ID."));
+    newPad->setLeads(JPIconButton::Leads::Elsewhere);
+    newPad->onClicked.connect([this, id] {
             JDialog::input("New Pad", "Please enter a name for the new pad.", [this, id](std::string text) {
                 const std::string name = trimmed(text);
                 JPPackage* k = m_config.package(id);

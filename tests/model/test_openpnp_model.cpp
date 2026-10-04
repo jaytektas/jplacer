@@ -11,6 +11,7 @@
 #include <cassert>
 
 #include "model/JPConfiguration.h"
+#include "model/JPDefinitionChanges.h"
 #include "model/JPLengthUnits.h"
 #include "openpnp/JPXmlWriter.h"
 
@@ -158,6 +159,22 @@ int main() {
         assert(!rb[1]->board()->find("R1")->enabled && rb[0]->board()->find("R1")->enabled && !rb[2]->locallyEnabled);
         // The definition is untouched by what the job set.
         assert(board->find("R1")->enabled);
+
+        // An edit to the board reaches each of its eight uses; what a use set
+        // for itself stays unless the same thing is edited.
+        JPDefinitionChanges changes(jobs, job.get());
+        assert(jobs.instancesOf(*board, job.get()).size() == 8);
+        changes.placement(*board, "R1", [](JPPlacement& q) { q.comments = "moved"; });
+        assert(*bls[0]->board()->find("R1")->comments == "moved" && *bls[7]->board()->find("R1")->comments == "moved");
+        assert(!bls[1]->board()->find("R1")->enabled && bls[0]->board()->find("R1")->enabled && board->dirty);
+        JPPlacement extra;
+        extra.id = "C1";
+        changes.added(*board, extra);
+        assert(bls[3]->board()->find("C1") && board->placements.size() == 31);
+        changes.removed(*board, "C1");
+        assert(!bls[3]->board()->find("C1") && board->placements.size() == 30);
+        changes.placement(*board, "R1", [](JPPlacement& q) { q.comments.reset(); });
+        board->dirty = false;
     }
 
     // A panelised job: two boards and two panels of three boards each.

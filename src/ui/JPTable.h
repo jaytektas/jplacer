@@ -65,6 +65,10 @@ public:
 
     // A model row's index in the view (after sort and filter), or -1.
     int viewIndexOf(int modelRow) const;
+    // The model row shown at a view index, or -1.
+    int modelRowAt(int viewIndex) const {
+        return viewIndex >= 0 && size_t(viewIndex) < m_view.size() ? m_view[size_t(viewIndex)] : -1;
+    }
     int viewRowCount() const { return int(m_view.size()); }
 
     jf::JSignal<>    onSelectionChanged;
@@ -75,6 +79,9 @@ public:
     std::function<void(JMenu*, float x, float y)> openMenu;
     // Before the right-click menu opens: the model row under the pointer (-1: none).
     std::function<void(int row)> onContextMenu;
+    // A key pressed while no cell is edited, before the table's own keys:
+    // true when taken (OpenPnP's placements tables take Space).
+    std::function<bool(const JKeyEvent&)> onKey;
 
     void populateRenderPrimitives(JPrimitiveBuffer& buf) override;
     void handleMousePress(float mx, float my) override;

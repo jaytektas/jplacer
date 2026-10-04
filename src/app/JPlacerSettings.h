@@ -56,6 +56,8 @@ public:
     static constexpr const char* kPartsSplit       = "parts.split";
     // The Packages tab's, likewise (PackagesPanel.dividerPosition).
     static constexpr const char* kPackagesSplit    = "packages.split";
+    // The Boards tab's boards over its placements (BoardsPanel.dividerPosition).
+    static constexpr const char* kBoardsSplit      = "boards.split";
 
     // ~/.config/jplacer/jplacer.json, or %APPDATA%\jplacer\jplacer.json.
     static std::string defaultPath();

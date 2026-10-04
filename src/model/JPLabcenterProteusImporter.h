@@ -20,6 +20,12 @@ public:
     std::vector<Option> options() const override {
         return { { "Create Missing Parts", "", true }, { "Stock Codes Included", "", false } };
     }
+    std::string failureText(const std::string&) const override {
+        return "The expected file format is the default file export in Labcenter Proteus Data after header information "
+               "should be :\nPart ID, Value, Package,[Stock Code,] Layer, Rotation, X, Y\nLikely cause: the number of "
+               "data fields does not match expected input\nie: Include stock codes check box is not checked but file "
+               "has stock codes";
+    }
 
 protected:
     void parse(const std::vector<std::string>& files, const std::vector<bool>& options, JPConfiguration& config,

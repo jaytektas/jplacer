@@ -79,6 +79,9 @@ public:
     // parent's file, beside the job's) and given an instance of it.
     bool resolveBoard(JPJob* job, JPBoardLocation& l, std::string& error);
     bool resolvePanel(JPJob* job, JPPanelLocation& l, std::string& error);
+    // Every instance of the definition `def`: its uses in the job and on
+    // the known panels, at any depth.
+    std::vector<JPPlacementsHolder*> instancesOf(const JPPlacementsHolder& def, const JPJob* job) const;
     // Whether `h` is used in the job, or on any panel but itself.
     bool isInUse(const JPPlacementsHolder& h, const JPJob* job) const;
 

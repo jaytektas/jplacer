@@ -16,10 +16,11 @@ key taken off, in [Preferences, Keys](preferences.md#keys); the menu then shows 
 | **Open Job…** (Ctrl+O) | Opens a `.job.xml` file. |
 | **Save Job** (Ctrl+S) | Saves the open job. |
 | **Save Job As…** (Ctrl+Shift+S) | Saves the open job to a file you choose. |
-| **Import Pick-and-Place File…** | Not available yet. |
-| **Quit** | Closes jplacer. If an update has been downloaded, it is installed now. |
+| **Save Configuration** | Saves the parts, packages and the lists of boards and panels, and asks about each board with changes (see [Boards](boards.md#saving-boards)). |
+| **Import Placements** | OpenPnP's importers, reading placements into the board chosen on the Boards tab (see [Boards](boards.md#importing-placements)). |
+| **Quit** | Closes jplacer, after asking about a job with changes and about each board with changes. If an update has been downloaded, it is installed now. |
 
-<!-- src: src/app/JPlacerMenuBuilder.cpp (the File menu); src/app/JPlacerJob.cpp; src/app/JPlacerApp.cpp (run, installStaged) -->
+<!-- src: src/app/JPlacerMenuBuilder.cpp (the File menu); src/app/JPlacerJob.cpp; src/app/JPlacerOpenPnpTabs.cpp; src/app/JPlacerApp.cpp (run, installStaged) -->
 
 ## Edit
 

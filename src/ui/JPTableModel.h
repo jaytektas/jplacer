@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -20,11 +21,17 @@ public:
         Boolean,   // a tick box; compared false before true
         Choice,    // one of choices(), picked from a menu; compared as text
     };
+    // Where a cell's text sits; Auto: numbers right, the rest left.
+    enum class Align { Auto, Left, Center, Right };
     struct Column {
         std::string name;
         std::string tooltip;
         Kind        kind = Kind::Text;
         float       width = 0;   // as wide as wanted, in the style's units; 0: shared out
+        Align       align = Align::Auto;
+        // Numbers lined up on their decimal points, the column centred (as
+        // OpenPnP's lengths and rotations in its aligned format).
+        bool        decimalAligned = false;
     };
 
     virtual ~JPTableModel() = default;
@@ -40,6 +47,14 @@ public:
     // Something that names a row whatever its place, so the selection
     // survives the rows being made again.
     virtual std::string rowKey(int row) const { return std::to_string(row); }
+
+    // How two rows order by a column, when not as its kind orders them
+    // (<0, 0, >0); none: by its kind.
+    virtual std::optional<int> compare(int /*rowA*/, int /*rowB*/, int /*c*/) const { return std::nullopt; }
+    // A cell's tooltip (none: none).
+    virtual std::string cellTooltip(int, int) const { return {}; }
+    // A cell drawn on the accent, to stand out (as OpenPnP shows a fiducial's type).
+    virtual bool highlighted(int, int) const { return false; }
 
     virtual bool editable(int, int) const { return false; }
     virtual std::vector<std::string> choices(int, int) const { return {}; }

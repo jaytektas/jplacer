@@ -48,7 +48,9 @@ JPPartsPanel::JPPartsPanel(JSceneGraph& graph, JPConfiguration& config, double s
     auto tool = [&](const char* name, const char* icon, const char* tip) {
         return bar->add(std::make_unique<JPIconButton>(graph, name, icon, tip));
     };
-    tool("New Part...", "general-add", "Create a new part, specifying it's ID.")->onClicked.connect([this] { newPart(); });
+    JPIconButton* newOne = tool("New Part...", "general-add", "Create a new part, specifying it's ID.");
+    newOne->setLeads(JPIconButton::Leads::Elsewhere);
+    newOne->onClicked.connect([this] { newPart(); });
     m_delete = tool("Delete Part", "general-remove", "Delete the currently selected part.");
     m_delete->onClicked.connect([this] { deleteParts(); });
     bar->add(toolSeparator(graph));

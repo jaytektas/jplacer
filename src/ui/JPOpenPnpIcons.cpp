@@ -9,9 +9,11 @@
 #include <j/core/JStyle.h>
 #include <j/core/Log.h>
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <string_view>
 #include <vector>
 
 #define NANOSVG_IMPLEMENTATION
@@ -24,6 +26,9 @@ inline namespace jf {
 namespace fs = std::filesystem;
 
 namespace {
+// Below this in each channel, a pixel is black ink (recoloured on a dark theme).
+constexpr unsigned char kBlackInk = 64;
+constexpr std::string_view kDarkSuffix = "_dark.svg";
 
 JPOpenPnpIcons* s_instance = nullptr;
 // SVG lengths are read at this many dots an inch, as the files are drawn for.
@@ -85,6 +90,16 @@ TextureHandle JPOpenPnpIcons::texture(const std::string& name, int pixels, bool 
             const float tx = (float(pixels) - image->width * scale) * 0.5f;
             const float ty = (float(pixels) - image->height * scale) * 0.5f;
             nsvgRasterize(r, image, tx, ty, scale, rgba.data(), pixels, pixels, pixels * 4);
+            // On a dark theme an icon OpenPnP gives no dark version of draws
+            // its black (an SVG's default ink) in the text's colour, to be seen.
+            if (dark && path.size() > kDarkSuffix.size() &&
+                path.compare(path.size() - kDarkSuffix.size(), kDarkSuffix.size(), kDarkSuffix) != 0)
+                for (size_t i = 0; i < rgba.size(); i += 4)
+                    if (std::max({ rgba[i], rgba[i + 1], rgba[i + 2] }) < kBlackInk) {
+                        rgba[i] = Colors::TextPrimary[0];
+                        rgba[i + 1] = Colors::TextPrimary[1];
+                        rgba[i + 2] = Colors::TextPrimary[2];
+                    }
             if (disabled)
                 for (size_t i = 0; i < rgba.size(); i += 4) {
                     // Swing's GrayFilter: grey, brightened halfway, half seen.

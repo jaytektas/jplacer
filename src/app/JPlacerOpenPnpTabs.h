@@ -7,6 +7,7 @@
 #include "JPlacerLayout.h"
 #include "JPlacerMachine.h"
 
+#include "ui/JPBoardsPanel.h"
 #include "ui/JPPackagesPanel.h"
 #include "ui/JPPartsPanel.h"
 
@@ -21,9 +22,12 @@
 
 inline namespace jf {
 
-// OpenPnP's tabs in the work area (Parts so far), each a dock, kept in step
-// with the job and its configuration: an edit on one is saved and the
-// others shown again.
+// OpenPnP's tabs in the work area (Boards, Parts, Packages so far), each a
+// dock, kept in step with the job and its configuration: an edit on one is
+// saved and the others shown again. A board's own file is saved as
+// OpenPnP saves it: on File > Save Configuration, on quitting and on its
+// removal, each changed one asked about.
+
 class JPlacerOpenPnpTabs {
 public:
     JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, JPlacerJob& job, JPlacerMachine& machine);
@@ -32,7 +36,22 @@ public:
     // Brings a tab forward by its title; false when there is none.
     bool showDock(const std::string& title);
 
+    // File > Save Configuration: the configuration, and each changed board
+    // asked about ("Save <file>?" Yes, No, Cancel); `then` runs after.
+    void saveConfiguration(std::function<void()> then = {});
+    // The window may close: false while changed boards are asked about
+    // (the window is asked to close again after).
+    bool mayClose();
+    // File > Import Board: an importer's dialog for the Boards tab's chosen board.
+    const std::vector<std::unique_ptr<JPBoardImporter>>& importers() const;
+    void importBoard(const JPBoardImporter& importer);
+
 private:
+    // Asks about one changed board or panel, saving it on Yes; `then` after any answer.
+    void confirmSave(JPPlacementsHolder& holder, std::function<void()> then);
+    void confirmSaveAll(std::vector<std::string> files, std::function<void()> then);
+    void changed();
+
     JAppWindow&                   m_window;
     JPlacerJob&                   m_job;
     JPlacerMachine&               m_machine;
@@ -42,6 +61,9 @@ private:
     std::unique_ptr<JDockWidget>     m_partsDock;
     std::unique_ptr<JPPackagesPanel> m_packages;
     std::unique_ptr<JDockWidget>     m_packagesDock;
+    std::unique_ptr<JPBoardsPanel>   m_boards;
+    std::unique_ptr<JDockWidget>     m_boardsDock;
+    bool                             m_closing = false;
 };
 
 } // inline namespace jf
