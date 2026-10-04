@@ -53,7 +53,9 @@ public:
     static std::vector<std::string> readsOnShow(const JPFeeder& feeder);
     // A button of the form (its action's name) on the feeder; true when it
     // changed it; false with `why` when it could not (empty: nothing to do).
-    static bool act(JPConfiguration& config, const std::string& feederId, const std::string& action, std::string& why);
+    // `reading`: what the page's buttons last read (a slot Schultz feeder's Load takes its Get ID).
+    static bool act(JPConfiguration& config, const std::string& feederId, const std::string& action, std::string& why,
+                    const std::function<std::string(const std::string&)>& reading = {});
 };
 
 } // inline namespace jf

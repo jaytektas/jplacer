@@ -113,6 +113,8 @@ private:
     void selectOnCamera(JPFeederForms::Options::Selecting what);
     void cancelSelection();
     bool confirmTemplate(JPFeeder& f, JPCameraView& view);
+    // What the shown feeder's page last read from the machine, by its action.
+    std::string reading(const std::string& action) const;
     // The shown drag feeder's template image, read from its file again when the file changed.
     std::shared_ptr<const JPFrame> templateImage();
 

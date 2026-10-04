@@ -22,15 +22,23 @@ inline namespace jf {
 // number, the feed count read after), Get ID, Get feed count, Get pitch and
 // Get status (its actuators read with its feeder number), Clear feed count
 // and Toggle pitch (actuated with it; the count cleared, the pitch read
-// after). An action whose actuator is not set does nothing (the log says so).
+// after); a slot Schultz feeder's Update location (its location's X and Y
+// set from where its fiducial part is found near it, as OpenPnP's
+// getHomeFiducialLocation). An action whose actuator (or fiducial part) is
+// not set does nothing (the log says so).
 class JPFeederActions {
 public:
     using OnMain = std::function<void(const std::function<void()>&)>;
-    // What was read, for the page to show: (the reading's key, its value).
-    using Readings = std::vector<std::pair<std::string, std::string>>;
+    struct Outcome {
+        // What was read, for the page to show: (the reading's key, its value).
+        std::vector<std::pair<std::string, std::string>> readings;
+        // The feeder was changed (a slot Schultz feeder's location found by its fiducial).
+        bool changed = false;
+    };
 
+    // `fiducialVisionId`: the machine's fiducial vision settings, for a fiducial part that names none.
     static bool run(JPConfiguration& config, const std::string& feederId, const std::string& action, JPJobMachine& machine,
-                    const OnMain& onMain, Readings& readings, std::string& why);
+                    const OnMain& onMain, const std::string& fiducialVisionId, Outcome& outcome, std::string& why);
 };
 
 } // inline namespace jf

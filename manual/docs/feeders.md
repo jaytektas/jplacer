@@ -27,7 +27,7 @@ ReferenceRotatedTrayFeeder, ReferenceDragFeeder, ReferenceLeverFeeder, Reference
 ReferenceTubeFeeder, ReferenceAutoFeeder, ReferenceSlotAutoFeeder, ReferenceLoosePartFeeder,
 AdvancedLoosePartFeeder, ReferenceHeapFeeder, BlindsFeeder, SchultzFeeder, SlotSchultzFeeder, RapidFeeder,
 Neoden4Feeder, PhotonFeeder and BambooFeederAutoVision. Click one and **Accept**, or double-click it.
-jplacer works out where strip, tray, rotated tray, auto, tube, drag, lever, Schultz and Rapid feeders pick, and feeds them. The other kinds are kept and
+jplacer works out where strip, tray, rotated tray, auto, tube, drag, lever, Schultz, slot and Rapid feeders pick, and feeds them. The other kinds are kept and
 set up, but feeding them is not yet available (**Pick...** and **Feed...** say so), and **Move Camera...**
 and **Move Tool...** say jplacer does not work out where they pick yet.
 
@@ -179,6 +179,31 @@ at safe Z and actuates the pre pick actuator; after the pick, the post pick actu
 actuator a feed does nothing, as OpenPnP's.
 
 <!-- src: src/setup/JPFeederForms.cpp (schultzForm, readsOnShow); src/tasks/JPFeederActions.cpp; src/tasks/JPFeederFeed.cpp (feed, postPick); src/machine/JPCell.cpp (readActuatorAndWait); src/ui/JPFeedersPanel.cpp (showReading) -->
+
+### Slot feeders
+
+A **slot auto feeder** and a **slot Schultz feeder** are places on the machine that feeders are put into,
+as OpenPnP's ReferenceSlotAutoFeeder and SlotSchultzFeeder. The feeders belong to **banks**: each a name
+and its feeders, each feeder a name, the **Part** it holds and its **Offsets** from the slot. Imported
+from OpenPnP, the banks come with the machine. A slot's name in the table has what is loaded in it after
+it ("Slot 1 (Feeder 7)", or "(None)"); its part is the loaded feeder's, and it is enabled only with a
+feeder holding a part loaded. A feeder can be in one slot at a time: loading it into another takes it out
+of the first.
+
+Its page: **Slot**, the **Feeder** loaded (chosen from the slot's bank, its name editable beside it), with
+**New** (a new feeder in the bank, loaded) and **Delete** (the loaded feeder taken out of the bank), or for
+a slot Schultz feeder **Load** (the feeder its **Get ID** last read: the bank's of that name, else a new one
+of it, 5 mm left of and 30 mm below the slot) and Delete; its **Location**, with the location buttons (and
+for a slot Schultz feeder, **Update feeder location based on fiducial**: its **Fiducial Part** found near the
+location by the head's camera, as a board's fiducial is, and the location's X and Y set to where it is);
+the **Feed** and **Pick Retry Count**; the **Bank** (choosing another empties the slot), named beside it,
+with **New** and **Delete** (not the only bank: "Can't delete the only bank. There must always be one bank
+defined."). **Feeder**: the loaded feeder's **Offsets**, whose location buttons go to and take places as
+offsets from the slot's location (turned with it), and its **Part**. Then the **Actuators** of an auto feeder
+(each value noted "For Boolean: 1 = True, 0 = False") or of a Schultz feeder. A slot with nothing loaded
+says "No feeder loaded in slot." when fed.
+
+<!-- src: src/model/JPSlotBanks.cpp; src/model/JPConfiguration.cpp (importFeeders, resolveSlots, loadSlot, setSlotBank); src/model/JPFeeder.cpp (name, enabled, partId, pickLocation, feed); src/setup/JPFeederForms.cpp (slotForm, slotAct); src/tasks/JPFeederActions.cpp (updateLocation); src/ui/JPFeedersPanel.cpp (capture, goTo) -->
 
 ### Rapid feeder
 

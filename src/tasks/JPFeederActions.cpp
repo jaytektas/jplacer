@@ -3,6 +3,8 @@
 
 #include "JPFeederActions.h"
 
+#include "JPFiducialLocator.h"
+
 #include "common/JPlacerLog.h"
 
 #include <j/core/Log.h>
@@ -43,7 +45,8 @@ std::string failed(const std::string& prefix, std::string why) {
 } // namespace
 
 bool JPFeederActions::run(JPConfiguration& config, const std::string& feederId, const std::string& action,
-                          JPJobMachine& machine, const OnMain& onMain, Readings& readings, std::string& why) {
+                          JPJobMachine& machine, const OnMain& onMain, const std::string& fiducialVisionId, Outcome& outcome,
+                          std::string& why) {
     auto main = [&onMain](const std::function<void()>& fn) {
         if (onMain) onMain(fn);
         else fn();
@@ -52,7 +55,7 @@ bool JPFeederActions::run(JPConfiguration& config, const std::string& feederId, 
     double feederNumber = 0;
     main([&] {
         if (const JPFeeder* f = config.feeder(feederId)) {
-            kind = f->typeName();
+            kind = f->feedsAs();
             name = f->name();
             feederNumber = f->real("actuator-value", 0);
         }
@@ -72,6 +75,51 @@ bool JPFeederActions::run(JPConfiguration& config, const std::string& feederId, 
             return false;
         }
         return machine.actuate(actuator, value, why);
+    }
+    if (action == "updateLocation") {
+        std::string fiducial;
+        JPLocation at(JPLengthUnit::Millimeters);
+        double diameter = 0;
+        JPJobMachine::FiducialLook look;
+        std::string settings;
+        JPFiducialLocator::PartProblem problem = JPFiducialLocator::PartProblem::None;
+        bool known = false;
+        main([&] {
+            const JPFeeder* f = config.feeder(feederId);
+            if (!f) return;
+            fiducial = f->text("fiducial-part");
+            at = f->location();
+            if (const JPPart* part = config.part(fiducial)) {
+                known = true;
+                problem = JPFiducialLocator::partLook(config, *part, fiducialVisionId, diameter, look, settings);
+            }
+        });
+        if (fiducial.empty()) {
+            JLOGC(JPlacerLog::kJob, JLogLevel::Warn) << "No fiducial defined for feeder " << name << ".";
+            return true;
+        }
+        if (!known || problem != JPFiducialLocator::PartProblem::None) {
+            why = !known ? "No part " + fiducial
+                         : problem == JPFiducialLocator::PartProblem::NoSize
+                               ? "Fiducial part " + fiducial + " has no footprint pad to give its size."
+                               : "Part " + fiducial + " fiducial vision settings " + settings + " are disabled.";
+            return false;
+        }
+        JPLocation found(JPLengthUnit::Millimeters);
+        std::string seen;
+        if (!machine.locateFiducial(at, diameter, look, found, seen)) {
+            why = "Unable to locate fiducial";
+            return false;
+        }
+        main([&] {
+            if (JPFeeder* f = config.feeder(feederId)) {
+                const JPLocation l = f->location().convertToUnits(JPLengthUnit::Millimeters);
+                const JPLocation m = found.convertToUnits(JPLengthUnit::Millimeters);
+                f->setLocation(l.derive(m.x(), m.y(), std::nullopt, std::nullopt));
+            }
+        });
+        outcome.changed = true;
+        return true;
     }
     if (kind != "SchultzFeeder") {
         why = action + " is not a " + kind + "'s";
@@ -93,15 +141,15 @@ bool JPFeederActions::run(JPConfiguration& config, const std::string& feederId, 
                 why = failed("Failed, ", why);
                 return false;
             }
-            readings.emplace_back(b.action, value);
+            outcome.readings.emplace_back(b.action, value);
             return true;
         }
         if (!machine.actuate(actuator, feederNumber, why)) {
             why = action == "testFeed" || action == "testPostPick" ? "Feed failed. " + why : failed("Failed, ", why);
             return false;
         }
-        if (action == "clearFeedCount") readings.emplace_back("getFeedCount", "");
-        return !b.then || run(config, feederId, b.then, machine, onMain, readings, why);
+        if (action == "clearFeedCount") outcome.readings.emplace_back("getFeedCount", "");
+        return !b.then || run(config, feederId, b.then, machine, onMain, fiducialVisionId, outcome, why);
     }
     why = "no such action: " + action;
     return false;

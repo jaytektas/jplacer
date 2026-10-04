@@ -287,24 +287,25 @@ int main() {
         assert(JPFeederFeed::postPick(config, "Z", machine, nullptr, why) && machine.actuated.back() == "Post=3");
 
         machine.readings = { { "Id", "ID42" }, { "Count", "17" }, { "Pitch", "4" }, { "Status", "OK" } };
-        JPFeederActions::Readings readings;
-        assert(JPFeederActions::run(config, "Z", "getId", machine, nullptr, readings, why));
+        JPFeederActions::Outcome outcome;
+        auto& readings = outcome.readings;
+        assert(JPFeederActions::run(config, "Z", "getId", machine, nullptr, "", outcome, why));
         assert(readings.size() == 1 && readings[0].first == "getId" && readings[0].second == "ID42");
         assert(machine.actuated.back() == "read Id(3)");
         readings.clear();
         // Test post pick: the count read after.
-        assert(JPFeederActions::run(config, "Z", "testPostPick", machine, nullptr, readings, why));
+        assert(JPFeederActions::run(config, "Z", "testPostPick", machine, nullptr, "", outcome, why));
         assert(readings.size() == 1 && readings[0].first == "getFeedCount" && readings[0].second == "17");
         readings.clear();
         // Clear: the count shown empty; toggle: the pitch read after.
-        assert(JPFeederActions::run(config, "Z", "clearFeedCount", machine, nullptr, readings, why));
+        assert(JPFeederActions::run(config, "Z", "clearFeedCount", machine, nullptr, "", outcome, why));
         assert(readings.size() == 1 && readings[0].second.empty() && machine.actuated.back() == "Clear=3");
         readings.clear();
-        assert(JPFeederActions::run(config, "Z", "togglePitch", machine, nullptr, readings, why));
+        assert(JPFeederActions::run(config, "Z", "togglePitch", machine, nullptr, "", outcome, why));
         assert(readings.size() == 1 && readings[0].first == "getPitch" && readings[0].second == "4");
         // An actuator not there: OpenPnP's words.
         config.feeder("Z")->setText("status-actuator-name", "Gone");
-        assert(!JPFeederActions::run(config, "Z", "getStatus", machine, nullptr, readings, why));
+        assert(!JPFeederActions::run(config, "Z", "getStatus", machine, nullptr, "", outcome, why));
         assert(why == "Failed, unable to find an actuator named Gone");
         // None set: nothing done.
         config.feeder("Z")->setText("actuator-name", "");

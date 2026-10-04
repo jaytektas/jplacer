@@ -46,12 +46,29 @@ public:
     std::string typeName() const;
 
     std::string id() const { return text("id"); }
-    std::string name() const { return text("name"); }
-    void        setName(const std::string& n) { setText("name", n); }
-    bool        enabled() const { return flag("enabled", false); }
+    // A slot feeder's name has what is loaded in it after it, as OpenPnP
+    // shows it ("SLOT-1 (Feeder 7)", "(None)"); set, that is taken off again.
+    std::string name() const;
+    void        setName(const std::string& n);
+    // A slot feeder is enabled only with a feeder holding a part loaded in it.
+    bool        enabled() const;
     void        setEnabled(bool on);
-    std::string partId() const { return text("part-id"); }
+    // A slot feeder's part is the one its loaded feeder holds (none without one).
+    std::string partId() const;
     void        setPartId(const std::string& id) { setText("part-id", id); }
+
+    // A SLOT FEEDER (OpenPnP's ReferenceSlotAutoFeeder, SlotSchultzFeeder):
+    // a place feeders of a bank (JPSlotBanks) are loaded into, its bank and
+    // the feeder loaded named by its bank-id and feeder-id. What is loaded,
+    // as the configuration last found it (JPConfiguration::resolveSlots).
+    bool isSlot() const;
+    // The kind a slot feeder feeds as (ReferenceAutoFeeder, SchultzFeeder); else its own.
+    std::string feedsAs() const;
+    struct SlotLoad {
+        std::string feederName, partId;
+        JPLocation  offsets { JPLengthUnit::Millimeters };
+    };
+    std::optional<SlotLoad> slotLoad;
     int         feedRetryCount() const { return number("feed-retry-count", 3); }
     void        setFeedRetryCount(int n) { setNumber("feed-retry-count", n); }
     int         pickRetryCount() const { return number("pick-retry-count", 3); }

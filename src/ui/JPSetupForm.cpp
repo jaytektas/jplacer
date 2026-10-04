@@ -348,7 +348,8 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
     bool underHeader = false;
     for (const Row& r : g.rows) {
         if (r.kind == Row::Kind::Header) {
-            underHeader = true;
+            // One without titles ends the columns.
+            underHeader = !r.cells.empty();
             for (size_t i = 0; i < r.cells.size(); ++i) widen(i, JTextHelper::measureWidth(r.cells[i].label));
         }
         if (r.kind != Row::Kind::Fields || !underHeader || !inGrid(r)) continue;
@@ -370,7 +371,8 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
     for (const Row& r : g.rows) {
         switch (r.kind) {
             case Row::Kind::Header: {
-                underHeader = true;
+                underHeader = !r.cells.empty();
+                if (!underHeader) break;
                 auto row = JPUiParts::row(m_graph);
                 row->add(box(m_graph, labels, st.labelHeight, JJustifyContent::FlexEnd));
                 for (size_t i = 0; i < r.cells.size(); ++i) {
@@ -444,6 +446,7 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
                 row->add(std::move(name));
                 for (size_t i = 0; i < r.cells.size(); ++i) {
                     const JPSetupProperties::Cell& c = r.cells[i];
+                    if (c.button && !c.icon.empty()) continue;   // after the place's buttons
                     if (c.button) {
                         row->add(button(c));
                         continue;
@@ -479,6 +482,15 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
                             if (handler) handler(r, b.tool);
                         });
                     }
+                }
+                // Icon buttons last, as OpenPnP puts its own beside a place's.
+                for (const JPSetupProperties::Cell& c : r.cells) {
+                    if (!c.button || c.icon.empty()) continue;
+                    JPIconButton* b = row->add(std::make_unique<JPIconButton>(m_graph, c.label, c.icon, c.tooltip));
+                    b->setEnabled(c.enabled);
+                    b->onClicked.connect([this, action = c.property] {
+                        if (onAction) onAction(action);
+                    });
                 }
                 if (r.place == JPSetupProperties::Place::Axis) {
                     JPIconButton* capture = row->add(std::make_unique<JPIconButton>(

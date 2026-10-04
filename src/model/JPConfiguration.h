@@ -7,6 +7,7 @@
 #include "JPBoardLocation.h"
 #include "JPJob.h"
 #include "JPFeeder.h"
+#include "JPSlotBanks.h"
 #include "JPPackage.h"
 #include "JPPanel.h"
 #include "JPPanelLocation.h"
@@ -34,6 +35,8 @@ public:
     // The machine's feeders, as OpenPnP's machine.xml has them (<feeders>).
     static constexpr const char* kFeedersFile  = "feeders.xml";
     static constexpr const char* kVisionFile   = "vision-settings.xml";
+    // The slot feeders' banks, as machine.xml's <properties> entries for them.
+    static constexpr const char* kSlotBanksFile = "slot-banks.xml";
 
     explicit JPConfiguration(std::string directory);
 
@@ -82,6 +85,20 @@ public:
     // A feeder added after the others; one taken away.
     JPFeeder& addFeeder(JPFeeder f);
     void      removeFeeder(const std::string& id);
+    // The banks a slot feeder kind's slots are loaded from (made with one
+    // bank, "Default", when there are none).
+    JPSlotBanks& slotBanks(const std::string& typeName);
+    // Each slot feeder's load found again from its bank-id and feeder-id
+    // (JPFeeder::slotLoad), after its banks or its attributes changed: one
+    // without a bank, or naming one not there, is in the last bank; a feeder
+    // loaded in two slots stays in the later one (as OpenPnP's).
+    void resolveSlots();
+    // Load the bank's feeder into a slot (none: empty it), taking it out of
+    // any other slot; a slot's bank chosen (what was loaded taken out).
+    void loadSlot(const std::string& slotId, const std::string& bankFeederId);
+    void setSlotBank(const std::string& slotId, const std::string& bankId);
+    // A slot's bank: its own, else the last.
+    std::string slotBankId(const JPFeeder& slot);
     // The feeders of an OpenPnP machine.xml, in place of these (Machine >
     // Import OpenPnP Machine); how many, or -1 (and why) when it cannot be read.
     int importFeeders(const std::string& machineXml, std::string& error);
@@ -142,6 +159,7 @@ private:
     std::unordered_map<std::string, std::shared_ptr<JPPackage>> m_packagesById;
     std::vector<JPVisionSettings>                        m_vision;
     std::vector<JPFeeder>                                m_feeders;
+    std::vector<JPSlotBanks>                             m_slotBanks;
     std::vector<std::shared_ptr<JPBoard>>                m_boards;
     std::vector<std::shared_ptr<JPPanel>>                m_panels;
 };

@@ -44,6 +44,12 @@ public:
 
     static Result locate(JPConfiguration& config, JPJobMachine& machine, const OnMain& onMain,
                          const std::vector<JPPlacementsHolderLocation*>& locations, const Tolerances& tolerances);
+    // How a fiducial part is looked at: its size (its package's footprint's
+    // first pad) and its fiducial vision settings (the part's, its
+    // package's, else `fiducialVisionId`). What is wrong, if anything.
+    enum class PartProblem { None, NoSize, Disabled };
+    static PartProblem partLook(JPConfiguration& config, const JPPart& part, const std::string& fiducialVisionId,
+                                double& diameterMm, JPJobMachine::FiducialLook& look, std::string& settingsName);
 };
 
 } // inline namespace jf

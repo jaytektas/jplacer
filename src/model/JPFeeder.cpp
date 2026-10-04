@@ -21,13 +21,18 @@ inline namespace jf {
 namespace {
 // The kinds that offer the feed options.
 const char* const kFeedOptionsKinds[] = { "ReferenceStripFeeder", "ReferenceTrayFeeder", "ReferencePushPullFeeder",
-                                          "ReferenceAutoFeeder", "PhotonFeeder", "BambooFeederAutoVision" };
+                                          "ReferenceAutoFeeder", "ReferenceSlotAutoFeeder", "PhotonFeeder",
+                                          "BambooFeederAutoVision" };
 }
 
 JPFeeder JPFeeder::create(const std::string& className, const std::string& partId) {
     JPXmlNode n("feeder");
-    n.attr("class", className).attr("version", "1.1").attr("id", JPOpenPnpIds::create("FDR"))
-        .attr("name", simpleName(className)).attr("enabled", "false").attr("part-id", partId)
+    // A slot feeder: a "SLOT-" id and named by it, holding no part of its own (OpenPnP's).
+    const std::string simple = simpleName(className);
+    const bool slot = simple == "ReferenceSlotAutoFeeder" || simple == "SlotSchultzFeeder";
+    const std::string id = JPOpenPnpIds::create(slot ? "SLOT-" : "FDR");
+    n.attr("class", className).attr("version", "1.1").attr("id", id)
+        .attr("name", slot ? id : simple).attr("enabled", "false").attr("part-id", slot ? std::string() : partId)
         .attr("feed-retry-count", "3").attr("pick-retry-count", "3").attr("priority", "Normal");
     n.add(JPLocationXml::to("location", JPLocation(JPLengthUnit::Millimeters)));
     return JPFeeder(std::move(n));
@@ -66,6 +71,45 @@ std::string JPFeeder::simpleName(const std::string& className) {
 std::string JPFeeder::className() const { return text("class"); }
 
 std::string JPFeeder::typeName() const { return simpleName(className()); }
+
+bool JPFeeder::isSlot() const {
+    const std::string t = typeName();
+    return t == "ReferenceSlotAutoFeeder" || t == "SlotSchultzFeeder";
+}
+
+std::string JPFeeder::feedsAs() const {
+    const std::string t = typeName();
+    if (t == "ReferenceSlotAutoFeeder") return "ReferenceAutoFeeder";
+    if (t == "SlotSchultzFeeder") return "SchultzFeeder";
+    return t;
+}
+
+std::string JPFeeder::name() const {
+    if (!isSlot()) return text("name");
+    return text("name") + " (" + (slotLoad ? slotLoad->feederName : std::string("None")) + ")";
+}
+
+void JPFeeder::setName(const std::string& n) {
+    std::string plain = n;
+    if (isSlot()) {
+        // OpenPnP's: what it shows of the loaded feeder taken off.
+        const std::string shown = "(" + (slotLoad ? slotLoad->feederName : std::string("None")) + ")";
+        if (const size_t at = plain.find(shown); at != std::string::npos) plain.erase(at, shown.size());
+        while (!plain.empty() && plain.back() == ' ') plain.pop_back();
+        while (!plain.empty() && plain.front() == ' ') plain.erase(0, 1);
+    }
+    setText("name", plain);
+}
+
+bool JPFeeder::enabled() const {
+    const bool on = flag("enabled", false);
+    return isSlot() ? on && slotLoad && !slotLoad->partId.empty() : on;
+}
+
+std::string JPFeeder::partId() const {
+    if (!isSlot()) return text("part-id");
+    return slotLoad ? slotLoad->partId : std::string();
+}
 
 void JPFeeder::setEnabled(bool on) {
     setFlag("enabled", on);
@@ -178,6 +222,7 @@ std::optional<JPLocation> JPFeeder::pickLocation() const {
                           l.z(), l.rotation() + real("component-rotation-in-tray", 0));
     }
     // Picked where they are set.
+    if (isSlot()) return slotLoad ? slotLoad->offsets.offsetWithRotationFrom(location()) : location();
     if (kind == "ReferenceTubeFeeder" || kind == "ReferenceAutoFeeder" || kind == "RapidFeeder" || kind == "SchultzFeeder")
         return location();
     if (kind == "ReferenceLeverFeeder") {
@@ -241,6 +286,16 @@ bool JPFeeder::feed(std::string& why, bool* empty) {
             return false;
         }
         setNumber("feed-count", number("feed-count") + 1);
+        return true;
+    }
+    if (isSlot() && !slotLoad) {
+        why = "No feeder loaded in slot.";
+        return false;
+    }
+    if (kind == "SlotSchultzFeeder") return true;
+    if (kind == "ReferenceSlotAutoFeeder") {
+        m_actuate = feedOptions() == FeedOptions::Normal;
+        if (feedOptions() == FeedOptions::SkipNext) setFeedOptions(FeedOptions::Normal);
         return true;
     }
     // A tube: nothing to do; a drag, lever, Rapid or Schultz feeder's feed is the machine's (JPFeederFeed). An auto feeder: its actuator, on a normal feed (JPFeederFeed).

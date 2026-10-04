@@ -191,7 +191,7 @@ bool JPFeederFeed::feed(JPConfiguration& config, const std::string& feederId, co
     std::optional<JPLocation> schultzAt;
     bool isSchultz = false;
     main([&] {
-        if (const JPFeeder* f = config.feeder(feederId); f && f->typeName() == "SchultzFeeder") {
+        if (const JPFeeder* f = config.feeder(feederId); f && f->feedsAs() == "SchultzFeeder") {
             isSchultz = true;
             schultz = f->text("actuator-name");
             schultzName = f->name();
@@ -273,16 +273,24 @@ bool JPFeederFeed::postPick(JPConfiguration& config, const std::string& feederId
         if (onMain) onMain(fn);
         else fn();
     };
+    bool emptySlot = false;
     main([&] {
-        if (const JPFeeder* f = config.feeder(feederId); f && f->typeName() == "ReferenceAutoFeeder") {
+        const JPFeeder* f = config.feeder(feederId);
+        if (!f) return;
+        emptySlot = f->isSlot() && !f->slotLoad;
+        if (f->feedsAs() == "ReferenceAutoFeeder") {
             name = f->text("post-pick-actuator-name");
             value = f->real("post-pick-actuator-value", 0);
-        } else if (f && f->typeName() == "SchultzFeeder") {
+        } else if (f->feedsAs() == "SchultzFeeder") {
             // With its feeder number.
             name = f->text("post-pick-actuator-name");
             value = f->real("actuator-value", 0);
         }
     });
+    if (emptySlot) {
+        why = "No feeder loaded in slot.";
+        return false;
+    }
     if (name.empty()) return true;
     if (!machine.actuate(name, value, why)) {
         why = "Post pick failed. " + why;

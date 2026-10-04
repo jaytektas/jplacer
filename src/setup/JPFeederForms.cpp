@@ -5,6 +5,10 @@
 
 #include "JPFormBuilder.h"
 
+#include "common/JPlacerLog.h"
+
+#include <j/core/Log.h>
+
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -17,6 +21,8 @@ namespace {
 using Place = JPSetupProperties::Place;
 constexpr JPLengthUnit kMm = JPLengthUnit::Millimeters;
 constexpr int kMostCount = 1000000;
+// Where a slot Schultz feeder loaded for the first time is from its slot (OpenPnP's).
+constexpr double kNewSlotFeederOffsetXMm = -5, kNewSlotFeederOffsetYMm = -30;
 
 // A length shown and set in millimetres.
 double mm(const JPLength& l) { return l.convertToUnits(kMm).value(); }
@@ -300,9 +306,16 @@ void pinForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder
 
 // OpenPnP's SchultzFeederConfigurationWizard: what every feeder has, its
 // feeder number, and its actuators, each with its button and what it read.
+void schultzActuators(JPFormBuilder& add, std::function<JPFeeder&()> f, const JPFeederForms::Options& options);
+
 void schultzForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f, const JPFeederForms::Options& options) {
     general(add, config, f, false);
     pickLocation(add, f);
+    schultzActuators(add, f, options);
+}
+
+// A Schultz feeder's Actuators group: its feeder number, and its actuators with their buttons.
+void schultzActuators(JPFormBuilder& add, std::function<JPFeeder&()> f, const JPFeederForms::Options& options) {
     add.group("Actuators");
     add.number("actuator-value", "Feeder Number:", [f] { return f().real("actuator-value", 0); },
                [f](double v) { f().setReal("actuator-value", v); });
@@ -330,6 +343,137 @@ void schultzForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFe
         if (r.note) add.text(action + ".note", "", [note = std::string(r.note)] { return note; }, nullptr);
         add.end();
     }
+}
+
+// OpenPnP's ReferenceSlotAutoFeederConfigurationWizard and
+// SlotSchultzFeederConfigurationWizard: the slot (the bank's feeder loaded in
+// it, named; its location; its retries; its bank, named), the loaded
+// feeder's offsets from the slot and its part, and the actuators.
+void slotForm(JPFormBuilder& add, JPConfiguration& config, const std::string& slotId, std::function<JPFeeder&()> f,
+              const JPFeederForms::Options& options) {
+    const bool schultz = f().feedsAs() == "SchultzFeeder";
+    const std::string kind = f().typeName();
+    // The bank and the loaded feeder, found afresh each time.
+    auto bank = [&config, f] { return config.slotBankId(f()); };
+    auto loaded = [f] { return f().slotLoad ? f().text("feeder-id") : std::string(); };
+    auto banks = [&config, kind]() -> JPSlotBanks& { return config.slotBanks(kind); };
+
+    add.group("Slot");
+    JPFormBuilder::Named feeders;
+    feeders.add("", "");
+    for (const JPSlotBanks::Feeder& bf : banks().feeders(bank())) feeders.add(bf.name, bf.id);
+    add.row("Feeder");
+    add.byName("slot.feeder", "Feeder", feeders, loaded, [&config, slotId](const std::string& id) { config.loadSlot(slotId, id); });
+    add.text("slot.feeder.name", "", [banks, bank, loaded] {
+                 const auto bf = banks().feeder(bank(), loaded());
+                 return bf ? bf->name : std::string();
+             },
+             [&config, banks, bank, loaded](const std::string& v) {
+                 if (loaded().empty()) return;
+                 banks().setFeederName(bank(), loaded(), v);
+                 config.resolveSlots();
+             });
+    if (schultz) {
+        add.button("loadSlotFeeder", "Load", "Load installed feeder to slot.");
+        add.button("deleteSlotFeeder", "Delete", "Remove selected feeder from database.", !loaded().empty());
+    } else {
+        add.button("newSlotFeeder", "New");
+        add.button("deleteSlotFeeder", "Delete", "", !loaded().empty());
+    }
+    add.end();
+    add.header({ "X", "Y", "Z", "Rotation" });
+    add.row("Location", Place::Location);
+    coordinate(add, f, "location", Axis::X, "X");
+    coordinate(add, f, "location", Axis::Y, "Y");
+    coordinate(add, f, "location", Axis::Z, "Z");
+    coordinate(add, f, "location", Axis::Rotation, "Rotation");
+    if (schultz) add.iconButton("updateLocation", "board-fiducial-locate", "Update feeder location based on fiducial");
+    add.end();
+    if (schultz)
+        add.text("fiducial-part", "Fiducial Part", [f] { return f().text("fiducial-part"); },
+                 [f](const std::string& v) { f().setText("fiducial-part", v); });
+    add.integer("feed-retry-count", "Feed Retry Count", [f] { return f().feedRetryCount(); },
+                [f](int v) { f().setFeedRetryCount(v); }, 0, kMostCount);
+    add.integer("pick-retry-count", "Pick Retry Count", [f] { return f().pickRetryCount(); },
+                [f](int v) { f().setPickRetryCount(v); }, 0, kMostCount);
+    add.endColumns();
+    JPFormBuilder::Named bankNames;
+    for (const JPSlotBanks::Bank& b : banks().banks()) bankNames.add(b.name, b.id);
+    add.row("Bank");
+    add.byName("slot.bank", "Bank", bankNames, bank, [&config, slotId](const std::string& id) { config.setSlotBank(slotId, id); });
+    add.text("slot.bank.name", "", [banks, bank] {
+                 for (const JPSlotBanks::Bank& b : banks().banks())
+                     if (b.id == bank()) return b.name;
+                 return std::string();
+             },
+             [banks, bank](const std::string& v) { banks().setBankName(bank(), v); });
+    add.button("newBank", "New");
+    add.button("deleteBank", "Delete");
+    add.end();
+
+    add.group("Feeder");
+    add.header({ "X", "Y", "Z", "Rotation" });
+    add.row("Offsets", Place::Location);
+    for (const auto& [axis, label] : { std::pair { Axis::X, "X" }, std::pair { Axis::Y, "Y" }, std::pair { Axis::Z, "Z" },
+                                       std::pair { Axis::Rotation, "Rotation" } }) {
+        const Axis a = axis;
+        add.number(std::string("slot.offsets.") + label, label,
+                   [banks, bank, loaded, a] {
+                       const auto bf = banks().feeder(bank(), loaded());
+                       if (!bf) return 0.0;
+                       const JPLocation o = bf->offsets.convertToUnits(kMm);
+                       return a == Axis::X ? o.x() : a == Axis::Y ? o.y() : a == Axis::Z ? o.z() : o.rotation();
+                   },
+                   [&config, banks, bank, loaded, a](double v) {
+                       const auto bf = banks().feeder(bank(), loaded());
+                       if (!bf) return;
+                       const JPLocation o = bf->offsets.convertToUnits(kMm);
+                       banks().setFeederOffsets(bank(), bf->id,
+                                              o.derive(a == Axis::X ? std::optional(v) : std::nullopt,
+                                                       a == Axis::Y ? std::optional(v) : std::nullopt,
+                                                       a == Axis::Z ? std::optional(v) : std::nullopt,
+                                                       a == Axis::Rotation ? std::optional(v) : std::nullopt));
+                       config.resolveSlots();
+                   });
+    }
+    add.base([f] { return std::optional(f().location()); });
+    add.end();
+    JPFormBuilder::Strings parts { "" };
+    for (const auto& p : config.parts()) parts.push_back(p->id);
+    add.choice("slot.part", "Part", parts, [banks, bank, loaded] {
+                   const auto bf = banks().feeder(bank(), loaded());
+                   return bf ? bf->partId : std::string();
+               },
+               [&config, banks, bank, loaded](const std::string& id) {
+                   if (loaded().empty()) return;
+                   banks().setFeederPart(bank(), loaded(), id);
+                   config.resolveSlots();
+               });
+
+    if (schultz) {
+        schultzActuators(add, f, options);
+        return;
+    }
+    add.group("Actuators");
+    add.header({ "Actuator", "Actuator Value" });
+    JPFormBuilder::Strings names { "" };
+    names.insert(names.end(), options.actuators.begin(), options.actuators.end());
+    for (const auto& [row, key, test, testLabel] :
+         { std::tuple { "Feed", "actuator", "testFeed", "Test feed" },
+           std::tuple { "Post Pick", "post-pick-actuator", "testPostPick", "Test post pick" } }) {
+        const std::string nameAttr = std::string(key) + "-name", valueAttr = std::string(key) + "-value";
+        add.row(row);
+        add.choice(nameAttr, std::string(row) + " actuator", names, [f, nameAttr] { return f().text(nameAttr); },
+                   [f, nameAttr](const std::string& n) { f().setText(nameAttr, n); });
+        add.number(valueAttr, std::string(row) + " value", [f, valueAttr] { return f().real(valueAttr, 0); },
+                   [f, valueAttr](double v) { f().setReal(valueAttr, v); });
+        add.text(valueAttr + ".note", "", [] { return std::string("For Boolean: 1 = True, 0 = False"); }, nullptr);
+        add.button(test, testLabel);
+        add.end();
+    }
+    add.flag("move-before-feed", "Move before feed", [f] { return f().flag("move-before-feed", false); },
+             [f](bool on) { f().setFlag("move-before-feed", on); });
+    add.tip("Move nozzle to pick location before actuating feed actuator");
 }
 
 // OpenPnP's RapidFeederConfigurationWizard: what every feeder has, the
@@ -424,6 +568,8 @@ JPSetupProperties::Form JPFeederForms::forFeeder(JPConfiguration& config, const 
         autoForm(add, config, f, options.actuators);
     } else if (kind == "ReferenceRotatedTrayFeeder") {
         rotatedTrayForm(add, config, f);
+    } else if (feeder->isSlot()) {
+        slotForm(add, config, feederId, f, options);
     } else if (kind == "SchultzFeeder") {
         schultzForm(add, config, f, options);
     } else if (kind == "RapidFeeder") {
@@ -437,22 +583,70 @@ JPSetupProperties::Form JPFeederForms::forFeeder(JPConfiguration& config, const 
     return form;
 }
 
+namespace {
+
+// A slot feeder's New, Delete and Load (its bank's feeders) and its bank's New and Delete.
+bool slotAct(JPConfiguration& config, JPFeeder& slot, const std::string& action,
+             const std::function<std::string(const std::string&)>& reading, std::string& why) {
+    JPSlotBanks& banks = config.slotBanks(slot.typeName());
+    const std::string slotId = slot.id(), bank = config.slotBankId(slot);
+    const std::string loaded = slot.slotLoad ? slot.text("feeder-id") : std::string();
+    if (action == "newSlotFeeder") {
+        config.loadSlot(slotId, banks.addFeeder(bank));
+        return true;
+    }
+    if (action == "deleteSlotFeeder") {
+        if (loaded.empty()) return false;
+        banks.removeFeeder(bank, loaded);
+        config.loadSlot(slotId, "");
+        return true;
+    }
+    if (action == "loadSlotFeeder") {
+        // The feeder its Get ID read: the bank's of that name, else a new one
+        // of it at OpenPnP's offsets for a new feeder.
+        const std::string name = reading ? reading("getId") : std::string();
+        for (const JPSlotBanks::Feeder& bf : banks.feeders(bank))
+            if (bf.name == name) {
+                config.loadSlot(slotId, bf.id);
+                return true;
+            }
+        JLOGC(JPlacerLog::kUi, JLogLevel::Warn) << "No feeder " << name << " exists in bank, so creating new.";
+        const std::string id = banks.addFeeder(bank, name);
+        banks.setFeederOffsets(bank, id, JPLocation(kMm, kNewSlotFeederOffsetXMm, kNewSlotFeederOffsetYMm, 0, 0));
+        config.loadSlot(slotId, id);
+        return true;
+    }
+    if (action == "newBank") {
+        config.setSlotBank(slotId, banks.addBank());
+        return true;
+    }
+    if (!banks.removeBank(bank, why)) return false;
+    config.resolveSlots();
+    return true;
+}
+
+} // namespace
+
 bool JPFeederForms::isMachineAction(const std::string& action) {
     for (const char* a : { "testFeed", "testPostPick", "getId", "getFeedCount", "clearFeedCount", "getPitch", "togglePitch",
-                           "getStatus" })
+                           "getStatus", "updateLocation" })
         if (action == a) return true;
     return false;
 }
 
 std::vector<std::string> JPFeederForms::readsOnShow(const JPFeeder& feeder) {
-    if (feeder.typeName() == "SchultzFeeder") return { "getId", "getFeedCount", "getPitch", "getStatus" };
+    if (feeder.feedsAs() == "SchultzFeeder") return { "getId", "getFeedCount", "getPitch", "getStatus" };
     return {};
 }
 
-bool JPFeederForms::act(JPConfiguration& config, const std::string& feederId, const std::string& action, std::string& why) {
+bool JPFeederForms::act(JPConfiguration& config, const std::string& feederId, const std::string& action, std::string& why,
+                        const std::function<std::string(const std::string&)>& reading) {
     why.clear();
     JPFeeder* f = config.feeder(feederId);
     if (!f) return false;
+    if (f->isSlot() && (action == "newSlotFeeder" || action == "deleteSlotFeeder" || action == "loadSlotFeeder"
+                        || action == "newBank" || action == "deleteBank"))
+        return slotAct(config, *f, action, reading, why);
     if (action == "resetVisionOffsets") {
         f->resetVisionOffsets();
         return true;

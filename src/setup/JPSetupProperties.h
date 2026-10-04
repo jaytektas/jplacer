@@ -7,12 +7,14 @@
 
 #include "camera/JPFrame.h"
 #include "machine/JPCellConfig.h"
+#include "model/JPLocation.h"
 #include "machine/JPFirmwareProfile.h"
 
 #include <j/core/JPropertyModel.h>
 
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -39,6 +41,8 @@ public:
         bool        button = false;
         bool        enabled = true;
         std::string tooltip;
+        // A button shown as this icon (OpenPnP's icon's name), its label then its name.
+        std::string icon;
     };
     // What a place row's buttons use: the camera on the head, or the tool
     // chosen (a nozzle); and what an axis row takes, an axis's position.
@@ -66,6 +70,11 @@ public:
         // LocationButtonsPanel actuatorName), read when it is shown; none
         // or empty: the nozzle chosen.
         std::function<std::string()> actuator;
+        // Place::Location: what its X, Y, Z and rotation are offsets from
+        // (OpenPnP's LocationButtonsPanel baseLocation): taken from where the
+        // tool is less it, turned back by its rotation; gone to as it, plus
+        // them turned by its rotation. None: they are the machine's own.
+        std::function<std::optional<JPLocation>()> base;
     };
     struct Group {
         std::string      title;

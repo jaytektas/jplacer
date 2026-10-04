@@ -13,6 +13,8 @@
 #include <cctype>
 #include <cstdio>
 #include <filesystem>
+#include <map>
+#include <tuple>
 
 inline namespace jf {
 
@@ -61,12 +63,16 @@ bool JPConfiguration::load(std::vector<std::string>& problems, std::string& erro
     auto read = [&error](const fs::path& p, JPXmlElement& root) {
         return !exists(p.string()) || JPXmlReader::read(p.string(), root, error);
     };
-    JPXmlElement packages, parts, boards, panels, vision, feeders;
+    JPXmlElement packages, parts, boards, panels, vision, feeders, banks;
     if (!read(dir / kPackagesFile, packages) || !read(dir / kPartsFile, parts) || !read(dir / kBoardsFile, boards)
-        || !read(dir / kPanelsFile, panels) || !read(dir / kVisionFile, vision) || !read(dir / kFeedersFile, feeders))
+        || !read(dir / kPanelsFile, panels) || !read(dir / kVisionFile, vision) || !read(dir / kFeedersFile, feeders)
+        || !read(dir / kSlotBanksFile, banks))
         return false;
     for (const JPXmlElement& e : feeders.children)
         if (e.name == "feeder") m_feeders.push_back(JPFeeder::fromXml(e));
+    for (const JPXmlElement& e : banks.children)
+        if (auto b = JPSlotBanks::fromXml(e)) m_slotBanks.push_back(std::move(*b));
+    resolveSlots();
     for (const JPXmlElement& e : vision.children)
         if (e.name == "vision-settings") m_vision.push_back(JPVisionSettings::fromXml(e));
     for (const JPXmlElement& e : packages.children)
@@ -101,6 +107,9 @@ bool JPConfiguration::save(std::string& error) const {
     JPXmlNode feeders("feeders");
     for (const JPFeeder& f : m_feeders) feeders.add(f.toXml());
     if (!JPXmlWriter::write((dir / kFeedersFile).string(), feeders, error)) return false;
+    JPXmlNode banks("properties");
+    for (const JPSlotBanks& b : m_slotBanks) banks.add(b.toXml());
+    if (!JPXmlWriter::write((dir / kSlotBanksFile).string(), banks, error)) return false;
     JPXmlNode vision("openpnp-vision-settings");
     for (const JPVisionSettings& v : m_vision) vision.add(v.toXml());
     if (!JPXmlWriter::write((dir / kVisionFile).string(), vision, error)) return false;
@@ -119,7 +128,71 @@ int JPConfiguration::importFeeders(const std::string& machineXml, std::string& e
     if (feeders)
         for (const JPXmlElement& e : feeders->children)
             if (e.name == "feeder") m_feeders.push_back(JPFeeder::fromXml(e));
+    // The slot feeders' banks, from the machine's properties.
+    m_slotBanks.clear();
+    if (const JPXmlElement* properties = machine ? machine->child("properties") : nullptr)
+        for (const JPXmlElement& e : properties->children)
+            if (e.name == "entry")
+                if (auto b = JPSlotBanks::fromXml(e)) m_slotBanks.push_back(std::move(*b));
+    resolveSlots();
     return int(m_feeders.size());
+}
+
+JPSlotBanks& JPConfiguration::slotBanks(const std::string& typeName) {
+    const std::string key = JPSlotBanks::keyFor(typeName);
+    for (JPSlotBanks& b : m_slotBanks)
+        if (b.key() == key) return b;
+    m_slotBanks.emplace_back(key);
+    return m_slotBanks.back();
+}
+
+std::string JPConfiguration::slotBankId(const JPFeeder& slot) {
+    const std::vector<JPSlotBanks::Bank> banks = slotBanks(slot.typeName()).banks();
+    const std::string own = slot.text("bank-id");
+    for (const auto& b : banks)
+        if (b.id == own) return own;
+    return banks.empty() ? std::string() : banks.back().id;
+}
+
+void JPConfiguration::resolveSlots() {
+    // (kind, bank, feeder) of each load, the later slot keeping it.
+    std::map<std::tuple<std::string, std::string, std::string>, JPFeeder*> loaded;
+    for (JPFeeder& f : m_feeders) {
+        if (!f.isSlot()) continue;
+        f.slotLoad.reset();
+        const std::string bank = slotBankId(f), feederId = f.text("feeder-id");
+        const auto feeder = feederId.empty() ? std::nullopt : slotBanks(f.typeName()).feeder(bank, feederId);
+        if (!feeder) continue;
+        auto& holder = loaded[{ f.typeName(), bank, feederId }];
+        if (holder) {
+            holder->slotLoad.reset();
+            holder->setText("feeder-id", "");
+        }
+        holder = &f;
+        f.slotLoad = JPFeeder::SlotLoad { feeder->name, feeder->partId, feeder->offsets };
+    }
+}
+
+void JPConfiguration::loadSlot(const std::string& slotId, const std::string& bankFeederId) {
+    JPFeeder* slot = feeder(slotId);
+    if (!slot) return;
+    const std::string bank = slotBankId(*slot);
+    if (!bankFeederId.empty())
+        for (JPFeeder& other : m_feeders)
+            if (&other != slot && other.typeName() == slot->typeName() && other.text("feeder-id") == bankFeederId
+                && slotBankId(other) == bank)
+                other.setText("feeder-id", "");
+    slot->setText("bank-id", bank);
+    slot->setText("feeder-id", bankFeederId);
+    resolveSlots();
+}
+
+void JPConfiguration::setSlotBank(const std::string& slotId, const std::string& bankId) {
+    JPFeeder* slot = feeder(slotId);
+    if (!slot) return;
+    slot->setText("bank-id", bankId);
+    slot->setText("feeder-id", "");
+    resolveSlots();
 }
 
 JPFeeder& JPConfiguration::addFeeder(JPFeeder f) {

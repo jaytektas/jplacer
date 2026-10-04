@@ -61,6 +61,8 @@ public:
         for (const std::string& t : titles) r.cells.push_back({ "", t });
         rows().push_back(std::move(r));
     }
+    // The rows after this are not in the columns of the header before it.
+    void endColumns() { header({}); }
     void note(const std::string& text) {
         Row r;
         r.kind = Row::Kind::Note;
@@ -86,6 +88,13 @@ public:
     // The place row begun moves and captures with the actuator `name` names
     // (when not empty) in place of the nozzle.
     void actuator(std::function<std::string()> name) { rows().back().actuator = std::move(name); }
+    // The place row begun is offsets from `base` (Row::base).
+    void base(std::function<std::optional<JPLocation>()> base) { rows().back().base = std::move(base); }
+    // An icon button on the row begun (OpenPnP's icon `icon`): the owner does `action`.
+    void iconButton(const std::string& action, const std::string& icon, const std::string& tooltip) {
+        button(action, action, tooltip);
+        rows().back().cells.back().icon = icon;
+    }
     // Buttons: (label, action) each; the owner does the action.
     void actions(const std::vector<std::pair<std::string, std::string>>& buttons) {
         Row r;

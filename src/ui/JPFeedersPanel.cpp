@@ -92,10 +92,12 @@ JPFeedersPanel::JPFeedersPanel(JSceneGraph& graph, JPConfiguration& config, doub
     m_form->onChanged = [this](const std::string& property) {
         m_table->refresh();
         changed();
-        // The pin's name decides what its place rows' buttons move.
-        if (property == "actuator-name") jPostToNextFrame([this, alive = std::weak_ptr<bool>(m_alive)] {
-            if (const auto a = alive.lock(); a && *a) rebuildForm();
-        });
+        // The pin's name decides what its place rows' buttons move; a slot's
+        // bank and feeder (and their names) what its choices list.
+        if (property == "actuator-name" || property.rfind("slot.", 0) == 0)
+            jPostToNextFrame([this, alive = std::weak_ptr<bool>(m_alive)] {
+                if (const auto a = alive.lock(); a && *a) rebuildForm();
+            });
     };
     m_form->onAction = [this](const std::string& action) {
         using Selecting = JPFeederForms::Options::Selecting;
@@ -113,11 +115,14 @@ JPFeedersPanel::JPFeedersPanel(JSceneGraph& graph, JPConfiguration& config, doub
             return;
         }
         std::string why;
-        if (!JPFeederForms::act(m_config, m_shown, action, why)) {
+        if (!JPFeederForms::act(m_config, m_shown, action, why, [this](const std::string& key) { return reading(key); })) {
             if (!why.empty()) JDialog::message("Error", why);
             return;
         }
-        m_form->refresh();
+        // Not while the button clicked is still in its page: the page is made again.
+        jPostToNextFrame([this, alive = std::weak_ptr<bool>(m_alive)] {
+            if (const auto a = alive.lock(); a && *a) rebuildForm();
+        });
         m_table->refresh();
         changed();
     };
@@ -226,6 +231,13 @@ void JPFeedersPanel::showForm() {
         for (const std::string& action : JPFeederForms::readsOnShow(*f)) machineAction(id, action);
 }
 
+std::string JPFeedersPanel::reading(const std::string& action) const {
+    const auto f = m_readings.find(m_shown);
+    if (f == m_readings.end()) return {};
+    const auto r = f->second.find(action);
+    return r == f->second.end() ? std::string() : r->second;
+}
+
 void JPFeedersPanel::showReading(const std::string& feederId, const std::string& action, const std::string& value) {
     m_readings[feederId][action] = value;
     if (feederId == m_shown) m_form->refresh();
@@ -240,12 +252,7 @@ JPSetupProperties::Form JPFeedersPanel::formFor() {
     if (actuatorNames) options.actuators = actuatorNames();
     options.selecting = m_selecting;
     options.templateImage = [this] { return templateImage(); };
-    options.reading = [this](const std::string& action) {
-        const auto f = m_readings.find(m_shown);
-        if (f == m_readings.end()) return std::string();
-        const auto r = f->second.find(action);
-        return r == f->second.end() ? std::string() : r->second;
-    };
+    options.reading = [this](const std::string& action) { return reading(action); };
     return JPFeederForms::forFeeder(m_config, m_shown, [](const std::string& why) { JDialog::message("Error", why); },
                                     options);
 }
@@ -444,6 +451,13 @@ void JPFeedersPanel::capture(const JPSetupProperties::Row& row, Tool tool) {
     }
     // As OpenPnP: the camera's coordinates are X, Y and rotation (its Z is what a Z probe finds).
     if (tool == Tool::Camera) now[2].reset();
+    // Offsets from a base: less it, turned back by its rotation.
+    if (const auto base = row.base ? row.base() : std::nullopt; base && now[0] && now[1]) {
+        const JPLocation at(JPLengthUnit::Millimeters, *now[0], *now[1], now[2].value_or(0), now[3].value_or(0));
+        const JPLocation b = base->convertToUnits(JPLengthUnit::Millimeters);
+        const JPLocation off = at.subtractWithRotation(b).rotateXy(-b.rotation());
+        now = { off.x(), off.y(), now[2] ? std::optional(off.z()) : std::nullopt, now[3] ? std::optional(off.rotation()) : std::nullopt };
+    }
     bool any = false;
     for (size_t i = 0; i < row.cells.size() && i < now.size(); ++i)
         if (!row.cells[i].property.empty() && now[i]) any = m_form->set(row.cells[i].property, JVariant(*now[i])) || any;
@@ -462,12 +476,17 @@ void JPFeedersPanel::goTo(const JPSetupProperties::Row& row, Tool tool) {
         const JVariant v = m_form->get(row.cells[i].property);
         if (v.isDouble() || v.isInt()) to[i] = v.toDouble();
     }
+    // Offsets from a base: turned by its rotation, added to it (OpenPnP's
+    // positioning leaves the offsets' own rotation out).
+    if (const auto base = row.base ? row.base() : std::nullopt) {
+        const JPLocation b = base->convertToUnits(JPLengthUnit::Millimeters);
+        const JPLocation at = JPLocation(JPLengthUnit::Millimeters, to[0].value_or(0), to[1].value_or(0), to[2].value_or(0), 0)
+                                  .rotateXy(b.rotation())
+                                  .addWithRotation(b);
+        to = { at.x(), at.y(), to[2] ? std::optional(at.z()) : std::nullopt, at.rotation() };
+    }
     // A camera stays at safe Z; a place without Z leaves the tool there too.
     if (tool == Tool::Camera) to[2].reset();
-    if (tool == Tool::Actuator) {
-        if (moveActuatorTo && row.actuator) moveActuatorTo(row.actuator(), to);
-        return;
-    }
     if (tool == Tool::Actuator) {
         if (moveActuatorTo && row.actuator) moveActuatorTo(row.actuator(), to);
         return;

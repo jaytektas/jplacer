@@ -289,10 +289,17 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         m_jobRun->machineTask([this, feederId, action](JPJobMachine& machine,
                                                        const std::function<void(const std::function<void()>&)>& onMain,
                                                        std::string& why) {
-            JPFeederActions::Readings readings;
-            const bool ok = JPFeederActions::run(m_job.configuration(), feederId, action, machine, onMain, readings, why);
+            JPFeederActions::Outcome outcome;
+            std::string fiducialVision;
+            onMain([&] { fiducialVision = machineVisionDefaults().second; });
+            const bool ok = JPFeederActions::run(m_job.configuration(), feederId, action, machine, onMain, fiducialVision,
+                                                 outcome, why);
             onMain([&] {
-                for (const auto& [key, value] : readings) m_feeders->showReading(feederId, key, value);
+                for (const auto& [key, value] : outcome.readings) m_feeders->showReading(feederId, key, value);
+                if (outcome.changed) {
+                    m_feeders->refresh();
+                    m_job.configurationChanged();
+                }
             });
             return ok;
         });

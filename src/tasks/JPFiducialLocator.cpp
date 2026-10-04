@@ -34,6 +34,30 @@ std::string format(const char* fmt, double a, double b, double c) {
 
 } // namespace
 
+JPFiducialLocator::PartProblem JPFiducialLocator::partLook(JPConfiguration& config, const JPPart& part,
+                                                           const std::string& fiducialVisionId, double& diameterMm,
+                                                           JPJobMachine::FiducialLook& look, std::string& settingsName) {
+    // Its size: the fiducial's pad, as its package's footprint draws it.
+    const JPPackage* package = config.package(part.packageId);
+    diameterMm = 0;
+    if (package && !package->footprint.pads.empty()) {
+        const JPFootprint::Pad& pad = package->footprint.pads.front();
+        diameterMm = JPLength(std::max(pad.width, pad.height), package->footprint.units).convertToUnits(JPLengthUnit::Millimeters).value();
+    }
+    if (diameterMm <= 0) return PartProblem::NoSize;
+    // Looked at as its fiducial vision settings say (the part's, its package's, the machine's).
+    look = {};
+    if (const JPVisionSettings* v = config.inheritedVision(part, JPVisionSettings::Kind::Fiducial, fiducialVisionId)) {
+        settingsName = v->name;
+        if (!v->enabled) return PartProblem::Disabled;
+        look.passes = v->number("max-vision-passes", 3);
+        look.maxLinearOffsetMm = v->lengthMm("max-linear-offset", 0.2);
+        look.parallaxDiameterMm = v->lengthMm("parallax-diameter", 0);
+        look.parallaxAngle = v->real("parallax-angle", 0);
+    }
+    return PartProblem::None;
+}
+
 JPFiducialLocator::Result JPFiducialLocator::locate(JPConfiguration& config, JPJobMachine& machine, const OnMain& onMain,
                                                     const std::vector<JPPlacementsHolderLocation*>& locations,
                                                     const Tolerances& tolerances) {
@@ -81,37 +105,18 @@ JPFiducialLocator::Result JPFiducialLocator::locate(JPConfiguration& config, JPJ
                     ok = false;
                     return;
                 }
-                // Its size: the fiducial's pad, as its package's footprint draws it.
-                const JPPackage* package = config.package(part->packageId);
                 double diameter = 0;
-                if (package && !package->footprint.pads.empty()) {
-                    const JPFootprint::Pad& pad = package->footprint.pads.front();
-                    diameter = JPLength(std::max(pad.width, pad.height), package->footprint.units)
-                                   .convertToUnits(JPLengthUnit::Millimeters)
-                                   .value();
-                }
-                if (diameter <= 0) {
+                JPJobMachine::FiducialLook look;
+                std::string settings;
+                const PartProblem problem = partLook(config, *part, tolerances.fiducialVisionId, diameter, look, settings);
+                if (problem != PartProblem::None) {
                     r.about = Result::About::Part;
                     r.id = part->id;
-                    r.message = "Fiducial " + p.id + "'s part " + part->id + " has no footprint pad to give its size.";
+                    r.message = problem == PartProblem::NoSize
+                                    ? "Fiducial " + p.id + "'s part " + part->id + " has no footprint pad to give its size."
+                                    : "Part " + part->id + " fiducial vision settings " + settings + " are disabled.";
                     ok = false;
                     return;
-                }
-                // Looked at as its fiducial vision settings say (the part's, its package's, the machine's).
-                JPJobMachine::FiducialLook look;
-                if (const JPVisionSettings* v =
-                        config.inheritedVision(*part, JPVisionSettings::Kind::Fiducial, tolerances.fiducialVisionId)) {
-                    if (!v->enabled) {
-                        r.about = Result::About::Part;
-                        r.id = part->id;
-                        r.message = "Part " + part->id + " fiducial vision settings " + v->name + " are disabled.";
-                        ok = false;
-                        return;
-                    }
-                    look.passes = v->number("max-vision-passes", 3);
-                    look.maxLinearOffsetMm = v->lengthMm("max-linear-offset", 0.2);
-                    look.parallaxDiameterMm = v->lengthMm("parallax-diameter", 0);
-                    look.parallaxAngle = v->real("parallax-angle", 0);
                 }
                 fiducials.push_back({ &l, p, l.placementLocation(p.location), diameter, JPLocation(JPLengthUnit::Millimeters), look });
             }
