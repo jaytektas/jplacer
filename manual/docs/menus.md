@@ -13,10 +13,12 @@ key taken off, in [Preferences, Keys](preferences.md#keys); the menu then shows 
 | Entry | |
 |---|---|
 | **New Job** (Ctrl+N) | Starts an empty job (see [Jobs](jobs.md#new-open-and-save)). |
+| **New Job from CAD…** | Starts an empty job and asks for its pick-and-place file ([Reading a board into the job](jobs.md#reading-a-board-into-the-job)). |
 | **Open Job…** (Ctrl+O) | Opens a `.jpjob` file. |
 | **Save Job** (Ctrl+S) | Saves the open job. |
 | **Save Job As…** (Ctrl+Shift+S) | Saves the open job to a file you choose. |
-| **Import Pick-and-Place File…** | Reads a board into the open job and gives its placements their parts ([Reading a board into the job](jobs.md#reading-a-board-into-the-job)). |
+| **Import Pick-and-Place File…** | Asks for a pick-and-place file for the open job, reviewed on the Import panel before it is accepted ([Reading a board into the job](jobs.md#reading-a-board-into-the-job)). |
+| **Board Sources** | Shows the [Import](jobs.md#the-import-panel) panel: the job's sources, origin and outline. |
 | **Quit** | Closes jplacer. If an update has been downloaded, it is installed now. |
 
 <!-- src: src/app/JPlacerMenuBuilder.cpp (the File menu); src/app/JPlacerJob.cpp; src/app/JPlacerApp.cpp (run, installStaged) -->
@@ -32,7 +34,7 @@ key taken off, in [Preferences, Keys](preferences.md#keys); the menu then shows 
 ## View
 
 A tick for each panel: each camera, **Jog**, **Actuators**, **Board**, **Parts**, **Library**,
-**Machine Setup**, **Machine** and **Console**. Untick one to close it; tick it to show it again where it lives (see
+**Import**, **Machine Setup**, **Machine** and **Console**. Untick one to close it; tick it to show it again where it lives (see
 [The machine's panels](machine.md#the-machines-panels)).
 
 <!-- src: src/app/JPlacerMenuBuilder.cpp (View); src/app/JPlacerLayout.cpp (rebuildMenu) -->

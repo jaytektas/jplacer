@@ -31,13 +31,87 @@ written by another version of jplacer is refused with a message, not half read.
 
 ## Reading a board into the job
 
-**File ▸ Import Pick-and-Place File…** (also **Import Pick-and-Place…** on the
-[Board](board.md#reading-the-board) panel) reads your PCB tool's pick-and-place file into the open job.
-It replaces the job's board; the parts the job already has stay, so placements that are the same as before
-find them again.
+A board is read from its **sources**: the pick-and-place file your PCB tool writes (also called a
+centroid, CPL or position file), and its BOM if you have one. Nothing reaches the job until you have
+seen it and pressed **Accept**.
 
-Only the designator, its position, rotation and side are sure to be in such a file. Everything else a
-column says about a part is kept with its placement, whatever the tool calls the column:
+- **File ▸ New Job from CAD…** starts a new job and asks for the pick-and-place file.
+- **File ▸ Import Pick-and-Place File…** (also **Import Pick-and-Place…** on the
+  [Board](board.md#reading-the-board) panel) asks for a pick-and-place file for the open job.
+- **File ▸ Board Sources** shows the **Import** panel, where the job's sources are kept.
+
+<!-- src: src/app/JPlacerMenuBuilder.cpp (the File menu); src/app/JPlacerImport.cpp (choosePlacements) -->
+
+### The Import panel
+
+On the left are the board's sources, its origin and its outline; in the middle, a drawing of the board as
+it would be; on the right, the report. Across the top, a line says what is waiting to be accepted, with
+**Accept** and **Discard** (which goes back to the job's board as it was).
+
+- **Pick-and-place file**: **Choose…** another, or **Read Again** the same one. **Written by** says
+  which CAD tool wrote it, and is asked again each time a file is chosen: nothing is read until you say.
+  The tool decides how the bottom side is read: **EasyEDA**, **KiCad** and **Other (CSV)** are read
+  with bottom parts as seen from the top already; **KiCad, bottom X negated** turns back the negative X
+  KiCad writes for the bottom side when *Use negative X coordinates for footprints on bottom layer* is
+  ticked in its placement-file dialog (as KiCad 5 did). Rotations are kept as the file gives them.
+- **BOM**: **Choose…**, **Read Again** or **Remove** it. Its lines are joined to the placements by
+  designator (a line can list several: `C4,C5,C6`).
+- **Origin**: where the board's bottom-left corner is, in the file's own millimetres; every placement is
+  measured from it. **At the Parts' Bottom-Left** puts it at the lowest, leftmost placement.
+- **Outline**: the board's width and height from the origin. **Around the Parts** makes it reach the
+  furthest placement; **None** takes it away. Without one, the placements' extent is drawn dashed in its
+  place.
+
+A source changed on disk since it was read says so beside it, and is read again only when you press
+**Read Again**.
+
+<!-- src: src/ui/JPImportPanel.cpp; src/app/JPlacerImport.cpp (show, rebuild); src/job/JPCadTool.h; src/import/JPBoardBuilder.cpp (build) -->
+
+### The drawing and the report
+
+The drawing shows every placement where the board's data puts it: a filled dot on the top side, a
+hollow one on the bottom, a ring for each fiducial, a red cross at the origin, and the outline. What is
+wrong with an import shows here first: a part off the board, an origin in the middle, a side mirrored the
+wrong way.
+
+The report counts the placements (top and bottom), fiducials, through-hole parts and parts not to be
+placed; points out placements left of or below the origin; and lists every note the importer made (a
+side it did not understand, rows left out). Then:
+
+- **Changes from the job's board**, when there is one: `+` new, `−` removed, `~` moved (by how much),
+  turned, or a different part (its value, MPN, supplier numbers or footprint changed).
+- **Where the file and the BOM disagree** about a designator's value, MPN, manufacturer, supplier
+  numbers, footprint, or whether it is placed. The file's stands; double-click a line to take the BOM's
+  instead, and again to go back. Where only one of them says something, it is used.
+- Designators the BOM lists that the file does not (nowhere to place them), and parts in the file the
+  BOM does not list.
+
+A file with the same designator twice is refused, and the designators are named: placements are told
+apart by designator.
+
+<!-- src: src/ui/JPBoardView.cpp; src/app/JPlacerImport.cpp (show); src/job/JPBoardChanges.cpp (compare); src/import/JPBoardBuilder.cpp (join, build) -->
+
+### Accepting
+
+**Accept** makes the board the job's. What you set on a placement is kept where it still holds:
+
+- **moved or turned**: its part, and a rotation set by hand, are kept;
+- **a different part**: its part is cleared and found again; a rotation set by hand is kept;
+- **removed**: everything about it goes; **new**: it starts with nothing set.
+
+Placements without a part are then given one (see [How each placement gets its part](#how-each-placement-gets-its-part)).
+A job's first board is a new board on the machine (its place on the Board panel starts again); a board
+read again is the same board, so its place is kept.
+
+The sources, origin, outline and your choices between the file and the BOM are kept with the job.
+
+<!-- src: src/app/JPlacerImport.cpp (accept); src/job/JPBoardChanges.cpp (merge); src/job/JPJob.cpp (sources, frame, bomChoices) -->
+
+### What is kept from each placement
+
+Only the designator, its position, rotation and side are sure to be in a pick-and-place file, and only
+designators in a BOM. Everything else a column says about a part is kept with its placement, whatever the
+tool calls the column:
 
 - **what orders it**: supplier part numbers (several suppliers' columns, or one with a Supplier column
   beside it), the manufacturer and the manufacturer's part number (MPN);
@@ -47,7 +121,7 @@ column says about a part is kept with its placement, whatever the tool calls the
 - **pad 1's position**, where the file gives it;
 - every other column, as text.
 
-<!-- src: src/app/JPlacerJob.cpp (importCpl); src/import/JPCplImporter.cpp (classify, mountingOf); src/job/JPPlacement.h -->
+<!-- src: src/import/JPCsvTable.cpp (classify, partFields, mountingOf); src/job/JPPlacement.h -->
 
 ## How each placement gets its part
 

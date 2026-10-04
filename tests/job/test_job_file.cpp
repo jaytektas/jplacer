@@ -20,7 +20,9 @@ namespace fs = std::filesystem;
 int main() {
     JPJob job;
     job.board.name = "controller";
-    job.sourceFile = "/boards/controller-cpl.csv";
+    job.sources = { { JPSource::Kind::Placements, "/boards/controller-cpl.csv", JPCadTool::Kind::KiCad, "0123" },
+                    { JPSource::Kind::Bom, "/boards/controller-bom.csv", JPCadTool::Kind::Other, "4567" } };
+    job.frame = { 1.5, -2, 100, 80 };
     JPPackage k;
     k.name = "SOIC-8";
     k.turnDeg = 180;
@@ -62,7 +64,9 @@ int main() {
     assert(job.save(path.string(), error));
     JPJob back;
     assert(JPJob::load(path.string(), back, error));
-    assert(back.board.name == "controller" && back.sourceFile == job.sourceFile);
+    assert(back.board.name == "controller" && back.sources.size() == 2 && back.sources[0].tool == JPCadTool::Kind::KiCad);
+    assert(back.sources[1].kind == JPSource::Kind::Bom && back.sources[1].fingerprint == "4567");
+    assert(back.frame.originX == 1.5 && back.frame.originY == -2 && back.frame.hasOutline() && back.frame.height == 80);
     assert(back.board.placements.size() == 2);
     const JPPlacement* b = back.board.find("U1");
     assert(b && b->x == 10.5 && b->y == -3.25 && b->rotationDeg == 90 && b->side == JPPlacement::Side::Bottom);

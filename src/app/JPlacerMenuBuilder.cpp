@@ -65,12 +65,15 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
 
     JMenu* file = newMenu(window, "File");
     entry(keys, file, graph, "file.newJob", "File", "New Job", ctrl('N'), [&app] { app.job().newJob(); });
+    entry(keys, file, graph, "file.newJobFromCad", "File", "New Job from CAD\xE2\x80\xA6", none,
+          [&app] { app.job().newJob([&app] { app.import().choosePlacements(); }); });
     entry(keys, file, graph, "file.openJob", "File", "Open Job\xE2\x80\xA6", ctrl('O'), [&app] { app.job().open(); });
     entry(keys, file, graph, "file.saveJob", "File", "Save Job", ctrl('S'), [&app] { app.job().save(); });
     entry(keys, file, graph, "file.saveJobAs", "File", "Save Job As\xE2\x80\xA6", ctrl('S', true), [&app] { app.job().saveAs(); });
     file->addSeparator(graph);
     entry(keys, file, graph, "file.importCpl", "File", "Import Pick-and-Place File\xE2\x80\xA6", none,
           [&app] { app.job().importCpl(); });
+    entry(keys, file, graph, "file.sources", "File", "Board Sources", none, [&app] { app.import().showDock(); });
     file->addSeparator(graph);
     entry(keys, file, graph, "file.quit", "File", "Quit", none, [&window] { window.requestClose(); });
 

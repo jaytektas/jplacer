@@ -4,12 +4,15 @@
 #pragma once
 
 #include "JPBoard.h"
+#include "JPBoardFrame.h"
+#include "JPSource.h"
 
 #include "library/JPPartsStore.h"
 
 #include <j/config/Json.h>
 
 #include <string>
+#include <vector>
 
 inline namespace jf {
 
@@ -20,9 +23,13 @@ inline namespace jf {
 struct JPJob {
     static constexpr const char* kExtension = "jpjob";
 
-    JPBoard      board;
-    JPPartsStore parts;
-    std::string  sourceFile;   // the pick-and-place file the board was read from
+    JPBoard               board;
+    JPPartsStore          parts;
+    std::vector<JPSource> sources;   // the files the board was read from
+    JPBoardFrame          frame;     // its origin and outline
+    // Where the pick-and-place file and the BOM disagree, those settled the
+    // BOM's way ("designator|field", JPBoardBuilder::Disagreement::key).
+    std::vector<std::string> bomChoices;
 
     // A save writes a new file and puts it in place only once it is whole.
     bool save(const std::string& path, std::string& error) const;

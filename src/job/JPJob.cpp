@@ -110,7 +110,25 @@ JJson JPJob::toJson() const {
     JJson j = JJson::object();
     j["version"]    = kVersion;
     j["name"]       = board.name;
-    j["sourceFile"] = sourceFile;
+    JJson ss = JJson::array();
+    for (const JPSource& src : sources) {
+        JJson o = JJson::object();
+        o["kind"]        = src.kind == JPSource::Kind::Bom ? "bom" : "placements";
+        o["path"]        = src.path;
+        o["tool"]        = JPCadTool::key(src.tool);
+        o["fingerprint"] = src.fingerprint;
+        ss.push(std::move(o));
+    }
+    j["sources"] = std::move(ss);
+    JJson f = JJson::object();
+    f["originX"] = frame.originX;
+    f["originY"] = frame.originY;
+    f["width"]   = frame.width;
+    f["height"]  = frame.height;
+    j["frame"] = std::move(f);
+    JJson bc = JJson::array();
+    for (const std::string& c : bomChoices) bc.push(c);
+    j["bomChoices"] = std::move(bc);
     JJson ps = JJson::array();
     for (const JPPlacement& p : board.placements) ps.push(placementJson(p));
     j["placements"] = std::move(ps);
@@ -129,7 +147,14 @@ bool JPJob::fromJson(const JJson& j, JPJob& out, std::string& error) {
     }
     JPJob job;
     job.board.name = j["name"].str();
-    job.sourceFile = j["sourceFile"].str();
+    for (const JJson& o : j["sources"].arr())
+        job.sources.push_back({ o["kind"].str() == "bom" ? JPSource::Kind::Bom : JPSource::Kind::Placements, o["path"].str(),
+                                JPCadTool::fromKey(o["tool"].str()), o["fingerprint"].str() });
+    job.frame.originX = j["frame"]["originX"].number();
+    job.frame.originY = j["frame"]["originY"].number();
+    job.frame.width   = j["frame"]["width"].number();
+    job.frame.height  = j["frame"]["height"].number();
+    for (const JJson& c : j["bomChoices"].arr()) job.bomChoices.push_back(c.str());
     for (const JJson& p : j["placements"].arr()) job.board.placements.push_back(placementOf(p));
     if (!JPPartsStore::fromJson(j["parts"], job.parts, error)) {
         error = "its parts: " + error;

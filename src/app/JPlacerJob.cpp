@@ -6,8 +6,6 @@
 #include "JPlacerSettings.h"
 
 #include "common/JPlacerLog.h"
-#include "import/JPCplImporter.h"
-#include "library/JPPartMatcher.h"
 
 #include <j/config/Settings.h>
 #include <j/core/Dialog.h>
@@ -131,8 +129,8 @@ bool JPlacerJob::mayClose() {
     return false;
 }
 
-void JPlacerJob::newJob() {
-    settle([this] {
+void JPlacerJob::newJob(std::function<void()> then) {
+    settle([this, then] {
         m_job = JPJob();
         m_path.clear();
         m_modified = false;
@@ -140,6 +138,7 @@ void JPlacerJob::newJob() {
         JPlacerSettings::save();
         title();
         notify(Change::Board);
+        if (then) then();
     });
 }
 
@@ -202,30 +201,6 @@ void JPlacerJob::saveAsThen(std::function<void()> then) {
 
 void JPlacerJob::saveAs() {
     saveAsThen(nullptr);
-}
-
-void JPlacerJob::importCpl() {
-    std::weak_ptr<bool> alive = m_alive;
-    JDialog::openFile("Import Pick-and-Place File", { "csv", "txt", "pos" }, [this, alive](std::string path) {
-        if (const auto a = alive.lock(); !a || !*a) return;
-        JPBoard board;
-        std::vector<std::string> notes;
-        std::string error;
-        if (!JPCplImporter::read(path, board, notes, error)) {
-            JDialog::message("The pick-and-place file could not be read", error);
-            return;
-        }
-        for (const std::string& n : notes) JLOGC(JPlacerLog::kImportCpl, JLogLevel::Info) << path << ": " << n;
-        // The job's own parts stay: placements the same as before find them again.
-        m_job.board = std::move(board);
-        m_job.sourceFile = path;
-        const JPPartMatcher::Result r = JPPartMatcher::match(m_job.board.placements, m_library.store(), m_job.parts);
-        m_window.showStatus(m_job.board.name + ": " + std::to_string(m_job.board.placements.size()) + " placements read; "
-                                + std::to_string(r.certain) + " matched, " + std::to_string(r.guessed) + " guessed, "
-                                + std::to_string(r.created) + " new part(s)",
-                            kStatusMs);
-        changed(Change::Board);
-    });
 }
 
 } // inline namespace jf

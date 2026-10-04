@@ -41,11 +41,16 @@ public:
     JAppWindow&      window() { return m_window; }
     bool             modified() const { return m_modified; }
 
-    void newJob();
+    // A new, empty job (once the open one's changes are saved or let go),
+    // then `then`.
+    void newJob(std::function<void()> then = nullptr);
     void open();
     void save();
     void saveAs();
-    void importCpl();
+    // A pick-and-place file read into the job: asked of `onImport` (the
+    // Import dock, which reviews it before it reaches the job).
+    void importCpl() { if (onImport) onImport(); }
+    std::function<void()> onImport;
     // After an edit to the job (its parts, a placement's part): marked
     // changed, and the views told.
     void changed(Change what);

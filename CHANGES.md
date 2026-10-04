@@ -10,6 +10,16 @@ notes.
 
 ## Unreleased
 
+- Boards are read in through the Import panel and reviewed before they reach the job: a drawing of the
+  board, a report of what was read and what changes, Accept and Discard. File > New Job from CAD…
+  starts a job that way.
+- You say which CAD tool wrote a pick-and-place file each time (EasyEDA, KiCad, KiCad with negative X on
+  the bottom, or other), so its bottom side is read the right way.
+- A BOM can be read with the pick-and-place file: its lines fill in what the file leaves out, and where
+  the two disagree you choose which to take.
+- A board's origin and outline are set on the Import panel.
+- A board's files are kept with the job: read them again after they change (rev B, a corrected BOM) and
+  see what changes before accepting; what you set on placements that still hold is kept.
 - Jobs: File > New Job, Open Job…, Save Job and Save Job As… keep a board and the parts it needs in a
   .jpjob file. The job open last is opened again at start, and you are asked to save changes before
   they would be lost.

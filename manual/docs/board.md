@@ -9,7 +9,8 @@ The **Board** panel (a dock on the right, with Machine, Jog and Actuators) holds
 
 **Import Pick-and-Place…** (or **File ▸ Import Pick-and-Place File…**) reads the board's
 pick-and-place file (also called a centroid, CPL or position file) into the open job, as your PCB tool
-writes it, as CSV: EasyEDA and JLCPCB's, KiCad's, and others. jplacer finds the columns by their headings
+writes it, as CSV: EasyEDA and JLCPCB's, KiCad's, and others. It is reviewed on the Import panel and
+reaches the job when you accept it (see [Reading a board into the job](jobs.md#reading-a-board-into-the-job)). jplacer finds the columns by their headings
 (designator, X and Y, side, rotation, footprint, value, and what else the file says about each part; see
 [Reading a board into the job](jobs.md#reading-a-board-into-the-job)), whatever the tool calls them, and
 reads positions in mm, mil or inches, with the unit in the number or in the heading. Where a tool gives
@@ -20,7 +21,7 @@ The panel then names the board and counts the parts and fiducials on the side th
 kept in the job; its side and where it was found are kept too, and are there again the next time jplacer
 opens. Opening another job, or reading another board in, starts its position again.
 
-<!-- src: src/import/JPCplImporter.cpp (classify, length, sideOf); src/app/JPlacerJob.cpp (importCpl); src/app/JPlacerBoard.cpp (newBoard, save) -->
+<!-- src: src/import/JPCsvTable.cpp (classify, length, sideOf); src/app/JPlacerImport.cpp (choosePlacements, accept); src/app/JPlacerBoard.cpp (newBoard, save) -->
 
 ## Which side is up
 
