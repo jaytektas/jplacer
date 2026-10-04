@@ -96,6 +96,11 @@ public:
     bool discardAndWait(const std::string& nozzleId, double speed, std::string& why);
     bool parkAndWait(const std::string& headId, double speed, std::string& why);
     bool moveToolAndWait(const JPMountConfig& mount, std::array<std::optional<double>, 4> to, double speed, std::string& why);
+    // A tool straight to `to` from where it is, every axis given at once,
+    // not up to safe Z first (OpenPnP's moveTo of a head mountable: a drag
+    // pin put down and pulled along). Waiting; false with `why`.
+    bool moveToolStraightAndWait(const JPMountConfig& mount, std::array<std::optional<double>, 4> to, double speed,
+                                 std::string& why);
 
     // HOMING: each controller's home command, then the axes are told where
     // they now are (their home coordinates) and the cell is homed. Until it

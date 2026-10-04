@@ -57,6 +57,9 @@ struct JPCellConfig {
 
     const JPAxisConfig*   axis(const std::string& id) const;
     const JPDriverConfig* driver(const std::string& id) const;
+    // An actuator as OpenPnP finds one by name: on a head first, then on the
+    // machine; else by id. None when there is no such actuator.
+    const JPActuatorConfig* actuatorNamed(const std::string& name) const;
 };
 
 } // inline namespace jf

@@ -38,6 +38,10 @@ public:
     bool discard(const std::string& nozzleId, std::string& why) override;
     bool positionNozzle(const std::string& nozzleId, const JPLocation& at, std::string& why) override;
     bool actuate(const std::string& actuatorName, double value, std::string& why) override;
+    bool moveActuator(const std::string& actuatorName, const JPLocation& at, bool withZ, double speed,
+                      std::string& why) override;
+    bool matchTemplate(const JPLocation& at, const std::string& templatePath, const JPTemplateFinder::Area& area,
+                       JPLocation& offset, std::string& why) override;
     bool park(std::string& why) override;
     bool locateFiducial(const JPLocation& nominal, double diameterMm, const FiducialLook& look, JPLocation& found,
                         std::string& why) override;

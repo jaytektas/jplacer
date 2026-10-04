@@ -6,6 +6,7 @@
 #include "JPGroupFrame.h"
 #include "JPIconButton.h"
 #include "JPIcons.h"
+#include "JPImageBox.h"
 #include "JPPlotView.h"
 #include "JPTextBox.h"
 #include "JPTextField.h"
@@ -31,6 +32,8 @@ namespace {
 constexpr float kUnbounded = 1.0e6f;
 // A graph is this many lines tall.
 constexpr float kPlotLines = 14;
+// A picture's box is this many label lines square.
+constexpr float kImageLines = 8;
 
 using Row = JPSetupProperties::Row;
 
@@ -192,6 +195,11 @@ void JPSetupForm::rebuild() {
         if (auto* s = dynamic_cast<JScrollArea*>(m_pages.back().get()); s && i < scrolled.size()) s->setScrollY(scrolled[i]);
     }
     attachPages(active);
+}
+
+void JPSetupForm::remake(JPSetupProperties::Form form) {
+    m_form = std::move(form);
+    rebuild();
 }
 
 void JPSetupForm::refresh() {
@@ -400,6 +408,23 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
                 place(std::move(view), h);
                 break;
             }
+            case Row::Kind::Image: {
+                // Its label in the labels' column, the picture beside it.
+                const float side = kImageLines * st.labelHeight;
+                auto row = JPUiParts::row(m_graph);
+                auto name = box(m_graph, labels, side, JJustifyContent::FlexEnd);
+                name->add(label(m_graph, r.label));
+                row->add(std::move(name));
+                JPImageBox* image = row->add(std::make_unique<JPImageBox>(m_graph, m_hal));
+                image->setFixedSize(side, side);
+                auto pull = [image, get = r.image] { image->setImage(get ? get() : nullptr); };
+                pull();
+                m_pulls.push_back(pull);
+                row->setFixedSize(0.f, side);
+                row->setHSizePolicy(JSizePolicyMode::Expanding, 1);
+                place(std::move(row), side);
+                break;
+            }
             case Row::Kind::Actions: {
                 auto row = JPUiParts::row(m_graph);
                 row->add(box(m_graph, labels, rowH, JJustifyContent::FlexEnd));
@@ -493,12 +518,18 @@ std::unique_ptr<JButton> JPSetupForm::button(const JPSetupProperties::Cell& c) {
 void JPSetupForm::locationButtons(JContainer& row, const Row& r) {
     // As OpenPnP's LocationButtonsPanel: go there with the camera or the
     // tool, then take it from where the camera or the tool is.
+    // A row naming an actuator: its tool buttons are the actuator's.
     struct B { const char* name; const char* icon; const char* tip; Tool tool; bool capture; };
+    const bool actuator = r.actuator && !r.actuator().empty();
     const B buttons[] = {
         { "Position Camera", "position-camera", "Position the camera over the center of the location.", Tool::Camera, false },
-        { "Position Tool", "position-nozzle", "Position the tool over the center of the location.", Tool::Nozzle, false },
+        actuator ? B { "Position Actuator", "position-actuator", "Position the actuator over the center of the location.",
+                       Tool::Actuator, false }
+                 : B { "Position Tool", "position-nozzle", "Position the tool over the center of the location.", Tool::Nozzle, false },
         { "Get Camera Coordinates", "capture-camera", "Capture the location that the camera is centered on.", Tool::Camera, true },
-        { "Get Tool Coordinates", "capture-nozzle", "Capture the location that the tool is centered on.", Tool::Nozzle, true },
+        actuator ? B { "Get Actuator Coordinates", "capture-actuator", "Capture the location that the actuator is centered on.",
+                       Tool::Actuator, true }
+                 : B { "Get Tool Coordinates", "capture-nozzle", "Capture the location that the tool is centered on.", Tool::Nozzle, true },
     };
     for (const B& b : buttons) {
         if (b.capture && b.tool == Tool::Camera)

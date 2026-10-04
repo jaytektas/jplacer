@@ -79,8 +79,27 @@ public:
     // drag), at this pixel of the picture as taken.
     std::function<void(double px, double py)> onLookAt;
 
+    // A SELECTION (OpenPnP's CameraView selection, for a template image or an
+    // area of interest): while on, a rectangle in the picture as taken's
+    // pixels, drawn with a handle at each corner; dragged inside it moves,
+    // by a corner it is resized, from anywhere else a new one is drawn.
+    // Nothing is looked at meanwhile.
+    struct Selection {
+        int x = 0, y = 0, width = 0, height = 0;
+    };
+    void setSelectionEnabled(bool on);
+    bool selectionEnabled() const { return m_selecting; }
+    void setSelection(const Selection& s);
+    Selection selection() const { return m_selection; }
+    // The latest picture cut to the selection; null when there is none (no
+    // picture, or an empty selection).
+    std::shared_ptr<JPFrame> captureSelection() const;
+
 private:
     void showLatest();
+    // Where a corner of the selection is on screen; false when it is not shown.
+    bool selectionCorner(double rawX, double rawY, float& sx, float& sy) const;
+    void dragSelection(double px, double py);
     void dropTexture();
 
     JGpuHal&                           m_hal;
@@ -116,6 +135,15 @@ private:
     // A drag to look somewhere: where it started, and where it is now.
     bool                               m_pressed = false, m_dragging = false;
     float                              m_dragX = 0, m_dragY = 0;
+    // The selection, and what a drag does to it: from where (pixels) and
+    // the selection then; the corner held (0..3: top left, top right,
+    // bottom right, bottom left), -1 moving it, -2 drawing a new one.
+    bool                               m_selecting = false;
+    Selection                          m_selection;
+    bool                               m_selDragging = false;
+    int                                m_selCorner = -1;
+    double                             m_selFromX = 0, m_selFromY = 0;
+    Selection                          m_selFrom;
     std::chrono::steady_clock::time_point m_lastPress;
     float                              m_lastPressX = 0, m_lastPressY = 0;
     std::function<void()>              m_unwatch;

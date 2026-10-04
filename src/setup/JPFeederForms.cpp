@@ -228,6 +228,74 @@ void autoForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeede
     add.tip("Support part recycle from part back to feeder");
 }
 
+// OpenPnP's ReferenceDragFeederConfigurationWizard: what every feeder has,
+// then the drag's settings, where the pin goes in and is dragged to, and
+// the template its vision looks for.
+void dragForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f, const JPFeederForms::Options& options) {
+    using Selecting = JPFeederForms::Options::Selecting;
+    general(add, config, f, false);
+    pickLocation(add, f);
+
+    add.group("General Settings");
+    // OpenPnP's isPart0402: said beside the pitch.
+    const JPPart* part = config.part(f().partId());
+    const bool part0402 = part && (part->packageId.find("C0402") != std::string::npos
+                                   || part->packageId.find("R0402") != std::string::npos);
+    add.row("Part Pitch");
+    length(add, f, "part-pitch", "Part Pitch", 4);
+    if (part0402) add.text("part0402", "", [] { return std::string("0402 Part DETECTED"); }, nullptr);
+    add.end();
+    add.number("feed-speed", "Feed Speed %",
+               [f] { return std::strtod(f().childText("feed-speed", "1.0").c_str(), nullptr) * 100; },
+               [f](double v) {
+                   char buf[32];
+                   std::snprintf(buf, sizeof buf, "%g", v / 100);
+                   f().setChildText("feed-speed", buf);
+               }, 1);
+    add.row("Actuator Name");
+    add.text("actuator-name", "Actuator Name", [f] { return f().text("actuator-name"); },
+             [f](const std::string& v) { f().setText("actuator-name", v); });
+    add.text("peel-off-actuator-name", "Peel Off Actuator Name", [f] { return f().text("peel-off-actuator-name"); },
+             [f](const std::string& v) { f().setText("peel-off-actuator-name", v); });
+    add.end();
+
+    add.group("Locations");
+    add.header({ "X", "Y", "Z" });
+    for (const auto& [label, element] : { std::pair { "Feed Start Location", "feed-start-location" },
+                                          std::pair { "Feed End Location", "feed-end-location" } }) {
+        add.row(label, Place::Location);
+        coordinate(add, f, element, Axis::X, "X");
+        coordinate(add, f, element, Axis::Y, "Y");
+        coordinate(add, f, element, Axis::Z, "Z");
+        add.actuator([f] { return f().text("actuator-name"); });
+        add.end();
+    }
+    length(add, f, "backoff-distance", "Backoff Distance", 0);
+
+    add.group("Vision");
+    add.flag("vision.enabled", "Vision Enabled?", [f] { return f().attributeAt("vision", "enabled") == "true"; },
+             [f](bool on) { f().setAttributeAt("vision", "enabled", on ? "true" : "false"); });
+    add.image("Template Image", options.templateImage);
+    add.row("");
+    add.button("selectTemplate", options.selecting == Selecting::Template ? "Confirm" : "Select", "",
+               options.selecting != Selecting::AreaOfInterest);
+    add.button("cancelTemplate", "Cancel", "", options.selecting == Selecting::Template);
+    add.end();
+    add.header({ "X", "Y", "Width", "Height" });
+    add.row("Area of Interest");
+    for (const char* a : { "x", "y", "width", "height" }) {
+        const std::string attr = a;
+        add.integer("vision.area-of-interest." + attr, attr,
+                    [f, attr] { return std::atoi(f().attributeAt("vision/area-of-interest", attr, "0").c_str()); },
+                    [f, attr](int v) { f().setAttributeAt("vision/area-of-interest", attr, std::to_string(v)); }, 0, kMostCount);
+    }
+    add.button("selectAoi", options.selecting == Selecting::AreaOfInterest ? "Confirm" : "Select", "",
+               options.selecting != Selecting::Template);
+    add.button("cancelAoi", "Cancel", "", options.selecting == Selecting::AreaOfInterest);
+    add.end();
+    add.button("resetVisionOffsets", "Reset vision offsets");
+}
+
 // OpenPnP's ReferenceRotatedTrayFeederConfigurationWizard: the three corner
 // parts (A, B, C), the tray's counts, steps and turn.
 void rotatedTrayForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f) {
@@ -281,8 +349,7 @@ void rotatedTrayForm(JPFormBuilder& add, JPConfiguration& config, std::function<
 } // namespace
 
 JPSetupProperties::Form JPFeederForms::forFeeder(JPConfiguration& config, const std::string& feederId,
-                                                 std::function<void(const std::string&)> warn,
-                                                 const std::vector<std::string>& actuators) {
+                                                 std::function<void(const std::string&)> warn, const Options& options) {
     JPSetupProperties::Form form;
     JPFeeder* feeder = config.feeder(feederId);
     if (!feeder) return form;
@@ -296,9 +363,11 @@ JPSetupProperties::Form JPFeederForms::forFeeder(JPConfiguration& config, const 
     } else if (kind == "ReferenceTrayFeeder") {
         trayForm(add, config, f, std::move(warn));
     } else if (kind == "ReferenceAutoFeeder") {
-        autoForm(add, config, f, actuators);
+        autoForm(add, config, f, options.actuators);
     } else if (kind == "ReferenceRotatedTrayFeeder") {
         rotatedTrayForm(add, config, f);
+    } else if (kind == "ReferenceDragFeeder") {
+        dragForm(add, config, f, options);
     } else {
         general(add, config, f, false);
         pickLocation(add, f);
@@ -310,6 +379,10 @@ bool JPFeederForms::act(JPConfiguration& config, const std::string& feederId, co
     why.clear();
     JPFeeder* f = config.feeder(feederId);
     if (!f) return false;
+    if (action == "resetVisionOffsets") {
+        f->resetDragVisionOffsets();
+        return true;
+    }
     if (action == "calculateOffsets") {
         // OpenPnP's calculateOffsetsAndRotation from points A, B and C.
         const int cols = f->number("tray-count-cols", 1), rows = f->number("tray-count-rows", 1);

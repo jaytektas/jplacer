@@ -5,6 +5,8 @@
 
 #include "JPUiParts.h"
 
+#include "camera/JPImageFile.h"
+#include "common/JPlacerLog.h"
 #include "setup/JPFeederForms.h"
 
 #include <j/core/Dialog.h>
@@ -12,7 +14,10 @@
 #include <j/core/JSeparator.h>
 #include <j/core/JStyle.h>
 #include <j/core/JTextHelper.h>
+#include <j/core/Log.h>
+#include <j/core/FrameTimer.h>
 
+#include <chrono>
 #include <cstdlib>
 
 inline namespace jf {
@@ -21,6 +26,8 @@ namespace {
 
 // OpenPnP's search box is fifteen characters wide.
 constexpr int kSearchColumns = 15;
+// A selection begun afresh on the camera is this many pixels square (OpenPnP's).
+constexpr int kFirstSelectionPx = 100;
 
 std::unique_ptr<JSeparator> toolSeparator(JSceneGraph& graph) {
     return std::make_unique<JSeparator>(graph, JSeparator::JOrientation::Vertical, JPIconButton::size());
@@ -82,11 +89,24 @@ JPFeedersPanel::JPFeedersPanel(JSceneGraph& graph, JPConfiguration& config, doub
     m_form = m_formPane->add(std::make_unique<JPSetupForm>(graph));
     m_form->setOpenPnpPlaceButtons(true);
     m_form->setVSizePolicy(JSizePolicyMode::Expanding, 1);
-    m_form->onChanged = [this](const std::string&) {
+    m_form->onChanged = [this](const std::string& property) {
         m_table->refresh();
         changed();
+        // The pin's name decides what its place rows' buttons move.
+        if (property == "actuator-name") jPostToNextFrame([this, alive = std::weak_ptr<bool>(m_alive)] {
+            if (const auto a = alive.lock(); a && *a) rebuildForm();
+        });
     };
     m_form->onAction = [this](const std::string& action) {
+        using Selecting = JPFeederForms::Options::Selecting;
+        if (action == "selectTemplate" || action == "selectAoi") {
+            selectOnCamera(action == "selectTemplate" ? Selecting::Template : Selecting::AreaOfInterest);
+            return;
+        }
+        if (action == "cancelTemplate" || action == "cancelAoi") {
+            cancelSelection();
+            return;
+        }
         // A test of the machine: on its thread.
         if (action == "testFeed" || action == "testPostPick") {
             if (machineAction) machineAction(m_shown, action);
@@ -194,11 +214,115 @@ void JPFeedersPanel::showForm() {
         m_form->refresh();
         return;
     }
+    if (m_selecting != JPFeederForms::Options::Selecting::None) cancelSelection();
     m_shown = id;
-    m_form->setForm(id.empty() ? JPSetupProperties::Form {}
-                               : JPFeederForms::forFeeder(
-                                     m_config, id, [](const std::string& why) { JDialog::message("Error", why); },
-                                     actuatorNames ? actuatorNames() : std::vector<std::string> {}));
+    if (id.empty()) m_form->setForm(JPSetupProperties::Form {});
+    else m_form->setForm(formFor());
+}
+
+void JPFeedersPanel::rebuildForm() {
+    if (m_config.feeder(m_shown)) m_form->remake(formFor());
+}
+
+JPSetupProperties::Form JPFeedersPanel::formFor() {
+    JPFeederForms::Options options;
+    if (actuatorNames) options.actuators = actuatorNames();
+    options.selecting = m_selecting;
+    options.templateImage = [this] { return templateImage(); };
+    return JPFeederForms::forFeeder(m_config, m_shown, [](const std::string& why) { JDialog::message("Error", why); },
+                                    options);
+}
+
+std::shared_ptr<const JPFrame> JPFeedersPanel::templateImage() {
+    const JPFeeder* f = m_config.feeder(m_shown);
+    const std::string path = f ? f->dragTemplatePath(m_config.directory()) : std::string();
+    std::error_code ec;
+    const auto when = path.empty() ? std::filesystem::file_time_type {} : std::filesystem::last_write_time(path, ec);
+    if (path == m_templatePath && when == m_templateTime) return m_template;
+    m_templatePath = path;
+    m_templateTime = when;
+    m_template.reset();
+    if (!path.empty() && !ec) {
+        auto frame = std::make_shared<JPFrame>();
+        std::string error;
+        if (JPImageFile::readPng(path, *frame, error)) m_template = std::move(frame);
+        else JLOGC(JPlacerLog::kUi, JLogLevel::Warn) << error;
+    }
+    return m_template;
+}
+
+void JPFeedersPanel::selectOnCamera(JPFeederForms::Options::Selecting what) {
+    using Selecting = JPFeederForms::Options::Selecting;
+    JPFeeder* f = m_config.feeder(m_shown);
+    JPCameraView* view = cameraView ? cameraView() : nullptr;
+    if (!f) return;
+    if (!view) {
+        JDialog::message("Error", "No camera on the head to select with.");
+        return;
+    }
+    if (m_selecting == what) {
+        // Confirm: the selection taken.
+        if (what == Selecting::Template) {
+            if (!confirmTemplate(*f, *view)) return;
+        } else {
+            const JPCameraView::Selection r = view->selection();
+            f->setAttributeAt("vision/area-of-interest", "x", std::to_string(r.x));
+            f->setAttributeAt("vision/area-of-interest", "y", std::to_string(r.y));
+            f->setAttributeAt("vision/area-of-interest", "width", std::to_string(r.width));
+            f->setAttributeAt("vision/area-of-interest", "height", std::to_string(r.height));
+            changed();
+        }
+        view->setSelectionEnabled(false);
+        m_selecting = Selecting::None;
+    } else {
+        // Select: from the area of interest as it is (else a start), the template afresh.
+        JPCameraView::Selection r { 0, 0, kFirstSelectionPx, kFirstSelectionPx };
+        if (what == Selecting::AreaOfInterest) {
+            const JPCameraView::Selection aoi { std::atoi(f->attributeAt("vision/area-of-interest", "x", "0").c_str()),
+                                                std::atoi(f->attributeAt("vision/area-of-interest", "y", "0").c_str()),
+                                                std::atoi(f->attributeAt("vision/area-of-interest", "width", "0").c_str()),
+                                                std::atoi(f->attributeAt("vision/area-of-interest", "height", "0").c_str()) };
+            if (aoi.width > 0 && aoi.height > 0) r = aoi;
+        }
+        view->setSelection(r);
+        view->setSelectionEnabled(true);
+        m_selecting = what;
+    }
+    jPostToNextFrame([this, alive = std::weak_ptr<bool>(m_alive)] {
+        if (const auto a = alive.lock(); a && *a) rebuildForm();
+    });
+}
+
+bool JPFeedersPanel::confirmTemplate(JPFeeder& f, JPCameraView& view) {
+    const std::shared_ptr<JPFrame> image = view.captureSelection();
+    if (!image) {
+        JDialog::message("No Image Selected", "Please select an area of the camera image using the mouse.");
+        return false;
+    }
+    // Into OpenPnP's resource file for it: the one it has, else a new one.
+    std::string name = f.attributeAt("vision", "template-image-name");
+    if (name.empty())
+        name = "tmpl_" + std::to_string(std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                            std::chrono::system_clock::now().time_since_epoch()).count()) + ".png";
+    const std::string dir = JPFeeder::dragTemplateDirectory(m_config.directory());
+    std::error_code ec;
+    std::filesystem::create_directories(dir, ec);
+    std::string error;
+    if (!JPImageFile::writePng(dir + "/" + name, *image, error)) {
+        JDialog::message("Error", error);
+        return false;
+    }
+    f.setAttributeAt("vision", "template-image-name", name);
+    changed();
+    return true;
+}
+
+void JPFeedersPanel::cancelSelection() {
+    if (JPCameraView* view = cameraView ? cameraView() : nullptr) view->setSelectionEnabled(false);
+    m_selecting = JPFeederForms::Options::Selecting::None;
+    jPostToNextFrame([this, alive = std::weak_ptr<bool>(m_alive)] {
+        if (const auto a = alive.lock(); a && *a) rebuildForm();
+    });
 }
 
 void JPFeedersPanel::changed() {
@@ -293,8 +417,14 @@ void JPFeedersPanel::moveToPick(Tool tool) {
 }
 
 void JPFeedersPanel::capture(const JPSetupProperties::Row& row, Tool tool) {
-    if (!whereIs) return;
-    Where now = whereIs(tool);
+    Where now;
+    if (tool == Tool::Actuator) {
+        if (!whereIsActuator || !row.actuator) return;
+        now = whereIsActuator(row.actuator());
+    } else {
+        if (!whereIs) return;
+        now = whereIs(tool);
+    }
     // As OpenPnP: the camera's coordinates are X, Y and rotation (its Z is what a Z probe finds).
     if (tool == Tool::Camera) now[2].reset();
     bool any = false;
@@ -317,6 +447,14 @@ void JPFeedersPanel::goTo(const JPSetupProperties::Row& row, Tool tool) {
     }
     // A camera stays at safe Z; a place without Z leaves the tool there too.
     if (tool == Tool::Camera) to[2].reset();
+    if (tool == Tool::Actuator) {
+        if (moveActuatorTo && row.actuator) moveActuatorTo(row.actuator(), to);
+        return;
+    }
+    if (tool == Tool::Actuator) {
+        if (moveActuatorTo && row.actuator) moveActuatorTo(row.actuator(), to);
+        return;
+    }
     if (moveTo) moveTo(tool, to);
 }
 

@@ -27,7 +27,7 @@ ReferenceRotatedTrayFeeder, ReferenceDragFeeder, ReferenceLeverFeeder, Reference
 ReferenceTubeFeeder, ReferenceAutoFeeder, ReferenceSlotAutoFeeder, ReferenceLoosePartFeeder,
 AdvancedLoosePartFeeder, ReferenceHeapFeeder, BlindsFeeder, SchultzFeeder, SlotSchultzFeeder, RapidFeeder,
 Neoden4Feeder, PhotonFeeder and BambooFeederAutoVision. Click one and **Accept**, or double-click it.
-jplacer works out where strip, tray, rotated tray, auto and tube feeders pick, and feeds them. The other kinds are kept and
+jplacer works out where strip, tray, rotated tray, auto, tube and drag feeders pick, and feeds them. The other kinds are kept and
 set up, but feeding them is not yet available (**Pick...** and **Feed...** say so), and **Move Camera...**
 and **Move Tool...** say jplacer does not work out where they pick yet.
 
@@ -125,6 +125,33 @@ supported**. **Test feed** and **Test post pick** actuate them. A repeated feed 
 actuate. A **tube feeder** is picked at its pick location with nothing to feed.
 
 <!-- src: src/setup/JPFeederForms.cpp (autoForm); src/tasks/JPFeederFeed.cpp (feed, postPick); src/app/JPlacerJobMachine.cpp (actuate); src/app/JPlacerOpenPnpTabs.cpp (machineAction) -->
+
+### Drag feeder
+
+A tape pulled along by a pin on the head, as OpenPnP's drag feeder. Besides the **General Settings** and
+**Pick Location** every feeder has, a second **General Settings**: the **Part Pitch** (said beside it when
+the part is an 0402: "0402 Part DETECTED"), the **Feed Speed %** the tape is dragged at (of the machine's
+speed), the **Actuator Name** of the pin, and a **Peel Off Actuator Name**. **Locations**: the **Feed
+Start Location** where the pin goes into the tape and the **Feed End Location** it drags it to, X, Y and
+Z; with an actuator named, their tool buttons are **Position Actuator** (a red circle) and **Get Actuator
+Coordinates** (a blue one), which take the pin there at safe Z and take where it is. The **Backoff
+Distance** moves the pin back along the drag before it lets go, to take the tension off it.
+
+A feed goes up to safe Z, puts the pin over the start, actuates it, lowers it into the tape, drags to the
+end at the feed speed, pulses the peel off actuator, backs off, and lets go. At a 2 mm part pitch one drag
+brings two parts: the first is picked 2 mm back along the tape, and the next feed does not drag. Without
+an actuator name it says "No actuator name set."
+
+**Vision**: with **Vision Enabled?** ticked, the head camera looks over the pick location for the
+**Template Image** within the **Area of Interest** (X, Y, Width and Height in the camera's pixels), and
+the pick location, and the next drag's start, move by how far from it the template is found. It looks
+before the first drag and after every one. **Select** under the template image, or beside the area of
+interest, puts a selection on the head camera's picture (see [Machine](machine.md)); **Confirm** takes it
+(the template image is written into OpenPnP's configuration, as OpenPnP keeps it), **Cancel** puts it
+away. **Reset vision offsets** forgets where the template was last found, so the next feed looks again
+first. Without a template image or an area of interest the feed says it is required.
+
+<!-- src: src/setup/JPFeederForms.cpp (dragForm); src/tasks/JPFeederFeed.cpp (drag); src/model/JPFeeder.cpp (pickLocation, dragTemplatePath); src/ui/JPFeedersPanel.cpp (selectOnCamera, confirmTemplate); src/app/JPlacerJobMachine.cpp (moveActuator, matchTemplate); src/vision/JPTemplateFinder.cpp; src/ui/JPSetupForm.cpp (locationButtons) -->
 
 ### The other kinds
 

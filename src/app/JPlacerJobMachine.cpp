@@ -4,6 +4,7 @@
 #include "JPlacerJobMachine.h"
 
 #include "common/JPlacerLog.h"
+#include "camera/JPImageFile.h"
 #include "tasks/JPCameraLook.h"
 #include "tasks/JPTipChanger.h"
 #include "vision/JPRoundMarkFinder.h"
@@ -173,22 +174,68 @@ bool JPlacerJobMachine::positionNozzle(const std::string& nozzleId, const JPLoca
 bool JPlacerJobMachine::actuate(const std::string& actuatorName, double value, std::string& why) {
     JPCell* c = cell(why);
     if (!c) return false;
-    // By name, a head's first (as OpenPnP looks on the head before the machine); else by id.
-    JPActuatorConfig actuator;
     const JPCellConfig cfg = config();
-    for (const bool onHead : { true, false })
-        for (const JPActuatorConfig& a : cfg.actuators)
-            if (actuator.id.empty() && a.name == actuatorName && a.mount.headId.empty() != onHead) actuator = a;
-    for (const JPActuatorConfig& a : cfg.actuators)
-        if (actuator.id.empty() && a.id == actuatorName) actuator = a;
-    if (actuator.id.empty()) {
+    const JPActuatorConfig* actuator = cfg.actuatorNamed(actuatorName);
+    if (!actuator) {
         why = "Unable to find an actuator named " + actuatorName;
         return false;
     }
-    if (actuator.valueType == JPActuatorConfig::ValueType::Boolean) return c->switchActuatorAndWait(actuator.id, value != 0, why);
+    if (actuator->valueType == JPActuatorConfig::ValueType::Boolean) return c->switchActuatorAndWait(actuator->id, value != 0, why);
     char buf[32];
     std::snprintf(buf, sizeof buf, "%g", value);
-    return c->setActuatorAndWait(actuator.id, buf, why);
+    return c->setActuatorAndWait(actuator->id, buf, why);
+}
+
+bool JPlacerJobMachine::moveActuator(const std::string& actuatorName, const JPLocation& at, bool withZ, double speed,
+                                     std::string& why) {
+    ++m_motions;
+    JPCell* c = cell(why);
+    if (!c) return false;
+    const JPCellConfig cfg = config();
+    const JPActuatorConfig* actuator = cfg.actuatorNamed(actuatorName);
+    if (!actuator || actuator->mount.headId.empty()) {
+        why = "No Actuator found with name " + actuatorName + " on the head";
+        return false;
+    }
+    const JPLocation m = at.convertToUnits(JPLengthUnit::Millimeters);
+    return c->moveToolStraightAndWait(actuator->mount, { m.x(), m.y(), withZ ? std::optional(m.z()) : std::nullopt, std::nullopt },
+                                      speed, why);
+}
+
+bool JPlacerJobMachine::matchTemplate(const JPLocation& at, const std::string& templatePath,
+                                      const JPTemplateFinder::Area& area, JPLocation& offset, std::string& why) {
+    ++m_motions;
+    JPFrame frame;
+    if (!JPImageFile::readPng(templatePath, frame, why)) return false;
+    const JPGrayImage templ = JPGrayImage::fromRgba(frame.rgba.data(), frame.width, frame.height);
+    JPCell* c = cell(why);
+    if (!c) return false;
+    JPCameraFeed* feed = nullptr;
+    m_onMain([&] { feed = m_machine.headCameraFeed(); });
+    if (!feed) {
+        why = "No vision capable camera found on head.";
+        return false;
+    }
+    prepare(*c, *feed);
+    JPCameraCalibration cal;
+    if (!JPCameraLook::calibration(*c, *feed, cal, why)) return false;
+    const JPLocation m = at.convertToUnits(JPLengthUnit::Millimeters);
+    if (!c->moveToolAndWait(feed->config().mount, { m.x(), m.y(), std::nullopt, std::nullopt }, 1.0, why)) return false;
+    JPGrayImage img;
+    if (!JPCameraLook::settled(*feed, img, why)) return false;
+    const JPTemplateFinder::Result r = JPTemplateFinder::find(img, templ, area);
+    if (!r.found) {
+        why = r.why;
+        return false;
+    }
+    double fx = 0, fy = 0;
+    if (!cal.machinePoint(r.x + templ.width / 2.0, r.y + templ.height / 2.0, m.x(), m.y(), fx, fy)) {
+        why = "the camera's calibration cannot place the match on the machine";
+        return false;
+    }
+    JLOGC(JPlacerLog::kJob, JLogLevel::Debug) << "template matched at " << fx << ", " << fy << " (score " << r.score << ")";
+    offset = JPLocation(JPLengthUnit::Millimeters, m.x() - fx, m.y() - fy, 0, 0);
+    return true;
 }
 
 bool JPlacerJobMachine::park(std::string& why) {

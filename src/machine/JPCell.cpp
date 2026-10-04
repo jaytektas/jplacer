@@ -556,6 +556,21 @@ bool JPCell::moveToolAndWait(const JPMountConfig& mount, std::array<std::optiona
         why);
 }
 
+bool JPCell::moveToolStraightAndWait(const JPMountConfig& mount, std::array<std::optional<double>, 4> to, double speed,
+                                     std::string& why) {
+    return waitFor(
+        [&](std::string& w) {
+            std::map<std::string, double> axes;
+            if (to[0] && !mount.axisX.empty()) axes[mount.axisX] = *to[0] - mount.offsetX;
+            if (to[1] && !mount.axisY.empty()) axes[mount.axisY] = *to[1] - mount.offsetY;
+            if (to[3] && !mount.axisRotation.empty()) axes[mount.axisRotation] = *to[3];
+            compensateRunout(mount, axes, false);
+            if (to[2] && !mount.axisZ.empty()) axes[mount.axisZ] = *to[2] - mount.offsetZ;
+            return axes.empty() || doMove(axes, speed, w);
+        },
+        why);
+}
+
 bool JPCell::switchTelling(const std::string& actuatorId, bool on, std::string& why) {
     const bool ok = doSwitch(actuatorId, on, why);
     onActuator.emit(actuatorId, ok, ok ? (on ? "on" : "off") : why);

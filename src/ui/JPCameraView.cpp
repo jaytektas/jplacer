@@ -251,6 +251,22 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     if (place)
         for (const auto& [key, overlay] : m_overlays) overlay(vg, place, line);
 
+    // The selection: its outline and a handle at each corner, its size by it.
+    if (m_selecting && m_selection.width > 0 && m_selection.height > 0) {
+        const JColor sc = rgb(Colors::Warning[0], Colors::Warning[1], Colors::Warning[2]);
+        const double xs[] = { double(m_selection.x), double(m_selection.x + m_selection.width) };
+        const double ys[] = { double(m_selection.y), double(m_selection.y + m_selection.height) };
+        float px[4], py[4];
+        bool all = true;
+        const int order[4][2] = { { 0, 0 }, { 1, 0 }, { 1, 1 }, { 0, 1 } };
+        for (int i = 0; i < 4; ++i) all = all && selectionCorner(xs[order[i][0]], ys[order[i][1]], px[i], py[i]);
+        if (all) {
+            for (int i = 0; i < 4; ++i) vg.drawLine(px[i], py[i], px[(i + 1) % 4], py[(i + 1) % 4], line, JPaint::solid(sc));
+            const float half = st.spacing;
+            for (int i = 0; i < 4; ++i) vg.strokeRect(px[i] - half, py[i] - half, 2 * half, 2 * half, line, JPaint::solid(sc));
+        }
+    }
+
     // A drag to look somewhere: from the cross to where the camera will look.
     if (m_dragging) {
         const float half = JTextHelper::lineHeight() * 0.5f;
@@ -267,6 +283,18 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     if (!m_message.empty()) {
         buf.pushRectangle(vx0, vy0, vx1 - vx0, lh + 2 * pad, Colors::OverlayScrim, 0.f);
         JTextHelper::pushText(buf, vx0 + pad, vy0 + pad, m_message, Colors::Warning, vx1 - vx0 - 2 * pad);
+    }
+    // The selection's size, at its top left.
+    if (m_selecting && m_selection.width > 0 && m_selection.height > 0) {
+        float sx, sy;
+        if (selectionCorner(m_selection.x, m_selection.y, sx, sy)) {
+            char text[48];
+            std::snprintf(text, sizeof text, "%d x %d", m_selection.width, m_selection.height);
+            const float tw = JTextHelper::measureWidth(text);
+            const float ty = std::max(vy0, sy - lh - 2 * pad);
+            buf.pushRectangle(sx, ty, tw + 2 * pad, lh + 2 * pad, Colors::OverlayScrim, 0.f);
+            JTextHelper::pushText(buf, sx + pad, ty + pad, text, Colors::Warning);
+        }
     }
     // Zoomed: by how much, in the bottom corner.
     if (m_zoom > 1.0) {
@@ -289,7 +317,83 @@ bool JPCameraView::handleScroll(float, float, float wheel) {
     return true;
 }
 
+void JPCameraView::setSelectionEnabled(bool on) {
+    m_selecting = on;
+    m_selDragging = false;
+    invalidate();
+}
+
+void JPCameraView::setSelection(const Selection& s) {
+    m_selection = s;
+    invalidate();
+}
+
+std::shared_ptr<JPFrame> JPCameraView::captureSelection() const {
+    const Selection s = m_selection;
+    if (s.width <= 0 || s.height <= 0 || m_frame.width <= 0) return nullptr;
+    const int x0 = std::clamp(s.x, 0, m_frame.width), y0 = std::clamp(s.y, 0, m_frame.height);
+    const int x1 = std::clamp(s.x + s.width, 0, m_frame.width), y1 = std::clamp(s.y + s.height, 0, m_frame.height);
+    if (x1 <= x0 || y1 <= y0) return nullptr;
+    auto out = std::make_shared<JPFrame>();
+    out->width = x1 - x0;
+    out->height = y1 - y0;
+    out->captured = m_frame.captured;
+    out->rgba.reserve(size_t(out->width) * size_t(out->height) * 4);
+    for (int y = y0; y < y1; ++y) {
+        const uint8_t* row = &m_frame.rgba[(size_t(y) * size_t(m_frame.width) + size_t(x0)) * 4];
+        out->rgba.insert(out->rgba.end(), row, row + size_t(out->width) * 4);
+    }
+    return out;
+}
+
+bool JPCameraView::selectionCorner(double rawX, double rawY, float& sx, float& sy) const {
+    double x, y;
+    if (m_picScale <= 0 || !shown(rawX, rawY, x, y)) return false;
+    sx = m_picX + float(x) * m_picScale;
+    sy = m_picY + float(y) * m_picScale;
+    return true;
+}
+
+void JPCameraView::dragSelection(double px, double py) {
+    const Selection f = m_selFrom;
+    const int dx = int(std::lround(px - m_selFromX)), dy = int(std::lround(py - m_selFromY));
+    int x0 = f.x, y0 = f.y, x1 = f.x + f.width, y1 = f.y + f.height;
+    switch (m_selCorner) {
+        case -1: x0 += dx; x1 += dx; y0 += dy; y1 += dy; break;
+        case -2: x0 = int(std::lround(m_selFromX)); y0 = int(std::lround(m_selFromY)); x1 = int(std::lround(px)); y1 = int(std::lround(py)); break;
+        case 0: x0 += dx; y0 += dy; break;
+        case 1: x1 += dx; y0 += dy; break;
+        case 2: x1 += dx; y1 += dy; break;
+        case 3: x0 += dx; y1 += dy; break;
+    }
+    m_selection = { std::min(x0, x1), std::min(y0, y1), std::abs(x1 - x0), std::abs(y1 - y0) };
+    invalidate();
+}
+
 void JPCameraView::handleMousePress(float x, float y) {
+    if (m_selecting) {
+        double px, py;
+        if (!pixelAt(x, y, px, py)) return;
+        m_selDragging = true;
+        m_selFromX = px;
+        m_selFromY = py;
+        m_selFrom = m_selection;
+        // A corner within a handle of the press is held; inside, it moves; else a new one.
+        const Selection& s = m_selection;
+        const double cx[] = { double(s.x), double(s.x + s.width), double(s.x + s.width), double(s.x) };
+        const double cy[] = { double(s.y), double(s.y), double(s.y + s.height), double(s.y + s.height) };
+        const float grab = 2 * JStyle::current().spacing;
+        m_selCorner = -2;
+        for (int i = 0; i < 4 && s.width > 0; ++i) {
+            float sx, sy;
+            if (selectionCorner(cx[i], cy[i], sx, sy) && std::abs(sx - x) <= grab && std::abs(sy - y) <= grab) {
+                m_selCorner = i;
+                break;
+            }
+        }
+        if (m_selCorner == -2 && px >= s.x && py >= s.y && px <= s.x + s.width && py <= s.y + s.height) m_selCorner = -1;
+        return;
+    }
     m_pressed  = true;
     m_dragging = false;
     m_dragX = x;
@@ -301,6 +405,18 @@ void JPCameraView::handleMousePress(float x, float y) {
 }
 
 void JPCameraView::handleMouseMove(float x, float y) {
+    if (m_selDragging) {
+        if (!JWidget::s_leftDown) {
+            m_selDragging = false;
+            return;
+        }
+        // Off the picture, it stops at the edge.
+        const float cx = std::clamp(x, m_picX, m_picX + float(m_w) * m_picScale - 1);
+        const float cy = std::clamp(y, m_picY, m_picY + float(m_h) * m_picScale - 1);
+        double px, py;
+        if (pixelAt(cx, cy, px, py)) dragSelection(px, py);
+        return;
+    }
     if (!m_pressed) return;
     // The button let go where this view did not hear it: no move.
     if (!JWidget::s_leftDown) {
@@ -317,6 +433,10 @@ void JPCameraView::handleMouseMove(float x, float y) {
 }
 
 void JPCameraView::handleMouseRelease(float x, float y) {
+    if (m_selDragging) {
+        m_selDragging = false;
+        return;
+    }
     const bool dragged = m_pressed && m_dragging;
     m_pressed = m_dragging = false;
     if (!dragged) return;

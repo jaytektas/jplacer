@@ -7,6 +7,7 @@
 
 #include <j/core/JButton.h>
 #include <j/core/JContainer.h>
+#include <j/graphics/GpuHal.h>
 #include <j/core/JTabWidget.h>
 
 #include <functional>
@@ -30,14 +31,17 @@ inline namespace jf {
 // to the new width, the same tab open and each page scrolled as it was.
 class JPSetupForm : public JContainer {
 public:
-    // What a place row's buttons use.
-    enum class Tool { Camera, Nozzle };
+    // What a place row's buttons use (Actuator: the one its row names).
+    enum class Tool { Camera, Nozzle, Actuator };
 
     explicit JPSetupForm(JSceneGraph& graph);
 
     // Show `form` in place of what was shown, on the tab of the same title
     // as before. The model's closures must stay valid while it is shown.
     void setForm(JPSetupProperties::Form form);
+    // The form shown made again from `form` (the same thing's, its buttons
+    // changed): the tab open and each page's scroll kept.
+    void remake(JPSetupProperties::Form form);
     // Read every value again (something else changed them).
     void refresh();
     // Set `property` as an edit would (a place taken from the machine).
@@ -52,6 +56,8 @@ public:
     void setOpenPnpPlaceButtons(bool on) { m_openPnpPlaceButtons = on; }
     // A form of one tab shown without its tab bar (a page inside another tab of that name).
     void setSingleTabBar(bool on) { m_singleTabBar = on; }
+    // What uploads its pictures (image rows): none, they are left empty.
+    void setHal(JGpuHal* hal) { m_hal = hal; }
 
     void populateRenderPrimitives(JPrimitiveBuffer& buf) override;
 
@@ -89,6 +95,7 @@ private:
     bool                                   m_openPnpPlaceButtons = false;
     bool                                   m_singleTabBar = true;
     JContainer*                            m_single = nullptr;   // the one page, without a tab bar
+    JGpuHal*                               m_hal = nullptr;
     std::shared_ptr<bool>                  m_alive = std::make_shared<bool>(true);
 };
 

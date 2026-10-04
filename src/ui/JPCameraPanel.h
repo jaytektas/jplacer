@@ -40,6 +40,8 @@ public:
 
     const JPCameraConfig& camera() const { return m_feed.config(); }
     JPCameraFeed& feed() { return m_feed; }
+    // Its live picture (a selection is made on it).
+    JPCameraView& view() { return *m_view; }
     // Running: on screen, and the camera giving pictures.
     bool isRunning() const { return m_feed.isRunning(); }
 

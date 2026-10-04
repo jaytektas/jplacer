@@ -8,7 +8,10 @@
 #include "JPSetupForm.h"
 #include "JPTable.h"
 
+#include "JPCameraView.h"
+
 #include "model/JPConfiguration.h"
+#include "setup/JPFeederForms.h"
 
 #include <j/core/JContainer.h>
 #include <j/core/JLineEdit.h>
@@ -16,6 +19,7 @@
 #include <j/core/Splitter.h>
 
 #include <array>
+#include <filesystem>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -36,6 +40,7 @@ public:
     using Where = std::array<std::optional<double>, 4>;
 
     JPFeedersPanel(JSceneGraph& graph, JPConfiguration& config, double split);
+    ~JPFeedersPanel() override { *m_alive = false; }
 
     // A feeder added, changed or deleted (to be saved, other views told).
     std::function<void()> onChanged;
@@ -48,6 +53,13 @@ public:
     // at safe Z, and the chosen nozzle's pick at a place.
     std::function<Where(Tool)> whereIs;
     std::function<void(Tool, const Where&)> moveTo;
+    // The same for an actuator on the head, by its name (a drag feeder's pin).
+    std::function<Where(const std::string& actuator)> whereIsActuator;
+    std::function<void(const std::string& actuator, const Where&)> moveActuatorTo;
+    // The head camera's live picture, brought to the front, for a drag
+    // feeder's template image and area of interest to be selected on; none
+    // without a camera on the head.
+    std::function<JPCameraView*()> cameraView;
     // OpenPnP's feedFeeder (and with `pick`, pickFeeder): a feed, and the
     // chosen nozzle's pick, on the machine's thread; its outcome said there.
     std::function<void(const std::string& feederId, bool pick)> machineFeed;
@@ -58,6 +70,8 @@ public:
     // Whether the job uses a part (an enabled placement on an enabled board).
     std::function<bool(const std::string& partId)> partUsed;
 
+    // What uploads the pictures its pages show (a drag feeder's template image).
+    void setHal(JGpuHal* hal) { m_form->setHal(hal); }
     // The feeders changed elsewhere (imported, a job's part): shown again.
     void refresh();
     // OpenPnP's showFeederForPart: the search cleared and the part's feeder
@@ -83,6 +97,18 @@ private:
     void capture(const JPSetupProperties::Row& row, Tool tool);
     void goTo(const JPSetupProperties::Row& row, Tool tool);
     void changed();
+    // The form made again for the feeder shown (its buttons changed), scrolled as it was.
+    void rebuildForm();
+    // The shown feeder's form, as it is to be shown now.
+    JPSetupProperties::Form formFor();
+    // A drag feeder's Select (Confirm while selecting) and Cancel, for its
+    // template image or its area of interest (OpenPnP's select, confirm and
+    // cancel actions); the camera's selection ended.
+    void selectOnCamera(JPFeederForms::Options::Selecting what);
+    void cancelSelection();
+    bool confirmTemplate(JPFeeder& f, JPCameraView& view);
+    // The shown drag feeder's template image, read from its file again when the file changed.
+    std::shared_ptr<const JPFrame> templateImage();
 
     JPConfiguration&                    m_config;
     JPFeedersTableModel                 m_model;
@@ -101,6 +127,11 @@ private:
     std::vector<std::unique_ptr<JMenu>> m_subMenus;
     JMenuItem*                          m_setEnabled = nullptr;
     JMenuItem*                          m_setFeedOptions = nullptr;
+    JPFeederForms::Options::Selecting   m_selecting = JPFeederForms::Options::Selecting::None;
+    std::string                         m_templatePath;   // whose picture m_template is
+    std::filesystem::file_time_type     m_templateTime;
+    std::shared_ptr<const JPFrame>      m_template;
+    std::shared_ptr<bool>               m_alive = std::make_shared<bool>(true);
 };
 
 } // inline namespace jf

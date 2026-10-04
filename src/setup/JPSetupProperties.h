@@ -5,11 +5,13 @@
 
 #include "JPPlot.h"
 
+#include "camera/JPFrame.h"
 #include "machine/JPCellConfig.h"
 #include "machine/JPFirmwareProfile.h"
 
 #include <j/core/JPropertyModel.h>
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -48,6 +50,7 @@ public:
             Note,      // a line of text
             Actions,   // buttons (cells' labels; property: the action's name)
             Plot,      // a graph (plot), titled by its label
+            Image,     // a picture (image), by its label
         };
         Kind        kind = Kind::Fields;
         std::string label;
@@ -57,6 +60,12 @@ public:
         Place       place = Place::None; // its cells are X, Y, Z, rotation (Location) or one axis (Axis)
         std::string axis;                // Place::Axis: which axis
         std::shared_ptr<const JPPlot> plot;   // Kind::Plot
+        // Kind::Image: the picture now (null: none), read again on a refresh.
+        std::function<std::shared_ptr<const JPFrame>()> image;
+        // Place::Location: the actuator its tool buttons use (OpenPnP's
+        // LocationButtonsPanel actuatorName), read when it is shown; none
+        // or empty: the nozzle chosen.
+        std::function<std::string()> actuator;
     };
     struct Group {
         std::string      title;

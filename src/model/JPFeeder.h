@@ -93,6 +93,21 @@ public:
     std::optional<JPLocation> visionLocation, visionLocationReference;
     std::pair<JPLocation, JPLocation> idealLineLocations() const;
 
+    // A drag feeder (OpenPnP's ReferenceDragFeeder), while jplacer runs: how
+    // far the location is from where its vision last found the template
+    // (none: to be looked at before the next drag), the pick's step along
+    // the tape for the next of the parts one drag brings (2 mm pitch), and
+    // how many of those are left.
+    std::optional<JPLocation> dragVisionOffset, dragPartPick;
+    int                       dragFeededCount = 0;
+    // OpenPnP's resetVisionOffsets.
+    void resetDragVisionOffsets();
+    // Its template image's file (OpenPnP's resource file of the vision's
+    // template-image-name in `configDirectory`); empty when it has none.
+    std::string dragTemplatePath(const std::string& configDirectory) const;
+    // Where OpenPnP keeps a drag feeder's template images in its configuration directory.
+    static std::string dragTemplateDirectory(const std::string& configDirectory);
+
     static const char* priorityName(Priority p);
     // As OpenPnP shows them: "Normal feed", "Skip next feed", "Disable feed".
     static const char* feedOptionsName(FeedOptions o);
@@ -117,6 +132,10 @@ public:
     // A child element's text (OpenPnP's <parallax-angle>0.0</parallax-angle>).
     std::string childText(const std::string& element, const std::string& def = {}) const;
     void        setChildText(const std::string& element, const std::string& value);
+    // An attribute of a child element, by its path ("vision/area-of-interest");
+    // set, the elements are made when missing.
+    std::string attributeAt(const std::string& path, const std::string& attribute, const std::string& def = {}) const;
+    void        setAttributeAt(const std::string& path, const std::string& attribute, const std::string& value);
     JPLength    lengthOf(const std::string& element, const JPLength& def) const;
     void        setLengthOf(const std::string& element, const JPLength& l);
 

@@ -75,6 +75,22 @@ public:
         return true;
     }
     std::vector<std::string> actuated;
+    bool moveActuator(const std::string& name, const JPLocation& at, bool withZ, double speed, std::string&) override {
+        char text[160];
+        std::snprintf(text, sizeof text, "%s to %.2f,%.2f%s at %.2f", name.c_str(), at.x(), at.y(),
+                      withZ ? (" z " + std::to_string(int(at.z()))).c_str() : "", speed);
+        actuated.push_back(text);
+        return true;
+    }
+    // Where the template is found: `at` less this.
+    JPLocation templateOffset { JPLengthUnit::Millimeters };
+    int        templateLooks = 0;
+    bool matchTemplate(const JPLocation&, const std::string&, const JPTemplateFinder::Area&, JPLocation& offset,
+                       std::string&) override {
+        ++templateLooks;
+        offset = templateOffset;
+        return true;
+    }
     bool park(std::string&) override { log.push_back("park"); return true; }
     bool locateFiducial(const JPLocation& nominal, double diameterMm, const FiducialLook&, JPLocation& found,
                         std::string& why) override {

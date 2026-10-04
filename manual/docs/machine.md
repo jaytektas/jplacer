@@ -456,6 +456,13 @@ the button is let go; let go outside the picture and nothing moves.
 
 <!-- src: src/ui/JPCameraView.cpp (handleMousePress, handleMouseRelease, lookAt); src/app/JPlacerCameraTasks.cpp (onLookAtPixel, lookAt) -->
 
+While a page asks for a **selection** on the head camera's picture (a drag feeder's template image or
+area of interest), a rectangle with a handle at each corner is drawn over it, its size in pixels by it.
+Drag inside it to move it, drag a corner to resize it, or drag anywhere else to draw a new one; the camera
+does not move meanwhile. The page's **Confirm** takes it, **Cancel** puts it away.
+
+<!-- src: src/ui/JPCameraView.cpp (setSelectionEnabled, handleMousePress, dragSelection, captureSelection); src/ui/JPFeedersPanel.cpp (selectOnCamera) -->
+
 Turn the **mouse wheel** over a camera's picture to zoom in or out, up to 64 times, about the middle, so
 the cross stays on the point the camera is looking at. Two notches double the zoom; it shows in the bottom
 corner while it is more than fitted, and turning back down stops at fitted. Moving to a point in a zoomed

@@ -75,6 +75,17 @@ public:
         r.plot = std::move(plot);
         rows().push_back(std::move(r));
     }
+    // A picture by `label`, `image` read again on each refresh.
+    void image(const std::string& label, std::function<std::shared_ptr<const JPFrame>()> image) {
+        Row r;
+        r.kind = Row::Kind::Image;
+        r.label = label;
+        r.image = std::move(image);
+        rows().push_back(std::move(r));
+    }
+    // The place row begun moves and captures with the actuator `name` names
+    // (when not empty) in place of the nozzle.
+    void actuator(std::function<std::string()> name) { rows().back().actuator = std::move(name); }
     // Buttons: (label, action) each; the owner does the action.
     void actions(const std::vector<std::pair<std::string, std::string>>& buttons) {
         Row r;

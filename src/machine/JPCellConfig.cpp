@@ -100,6 +100,15 @@ const JPDriverConfig* JPCellConfig::driver(const std::string& id) const {
     return nullptr;
 }
 
+const JPActuatorConfig* JPCellConfig::actuatorNamed(const std::string& name) const {
+    for (const bool onHead : { true, false })
+        for (const JPActuatorConfig& a : actuators)
+            if (a.name == name && a.mount.headId.empty() != onHead) return &a;
+    for (const JPActuatorConfig& a : actuators)
+        if (a.id == name) return &a;
+    return nullptr;
+}
+
 std::vector<std::string> JPCellConfig::problems() const {
     std::vector<std::string> out;
     std::set<std::string> headIds;

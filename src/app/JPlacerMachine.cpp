@@ -522,9 +522,35 @@ const JPMountConfig* JPlacerMachine::toolMount(JPSetupForm::Tool tool) const {
     return c.nozzles.empty() ? nullptr : &c.nozzles.front().mount;
 }
 
+JPlacerMachine::Where JPlacerMachine::whereIsActuator(const std::string& name) const {
+    const JPActuatorConfig* a = m_cell ? m_cell->config().actuatorNamed(name) : nullptr;
+    return a && !a->mount.headId.empty() ? whereIsMount(&a->mount) : Where {};
+}
+
+bool JPlacerMachine::moveActuatorTo(const std::string& name, const Where& to) {
+    const JPActuatorConfig* a = m_cell ? m_cell->config().actuatorNamed(name) : nullptr;
+    if (!a || a->mount.headId.empty()) {
+        m_window.showStatus("No Actuator with name " + name + " on the head", kErrorMs);
+        return false;
+    }
+    if (!readyToMove()) return false;
+    m_cell->moveTool(a->mount, to, 1.0);
+    return true;
+}
+
+JPCameraView* JPlacerMachine::headCameraView() {
+    JPCameraPanel* p = m_cameraTasks ? m_cameraTasks->headCamera() : nullptr;
+    if (!p) return nullptr;
+    showCamera(p->camera().id);
+    return &p->view();
+}
+
 JPlacerMachine::Where JPlacerMachine::whereIs(JPSetupForm::Tool tool) const {
+    return whereIsMount(toolMount(tool));
+}
+
+JPlacerMachine::Where JPlacerMachine::whereIsMount(const JPMountConfig* m) const {
     Where at;
-    const JPMountConfig* m = toolMount(tool);
     if (!m || !m_cell || !m_cell->isConnected()) return at;
     const auto p = m_cell->positions();
     auto take = [&p](const std::string& axis, double offset) -> std::optional<double> {

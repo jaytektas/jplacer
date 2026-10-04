@@ -179,6 +179,13 @@ std::optional<JPLocation> JPFeeder::pickLocation() const {
     }
     // Picked where they are set.
     if (kind == "ReferenceTubeFeeder" || kind == "ReferenceAutoFeeder") return location();
+    if (kind == "ReferenceDragFeeder") {
+        JPLocation at = location();
+        const double pitch = lengthOf("part-pitch", JPLength(4, JPLengthUnit::Millimeters)).convertToUnits(JPLengthUnit::Millimeters).value();
+        if (pitch == 2 && dragPartPick) at = at.add(*dragPartPick);
+        if (attributeAt("vision", "enabled") == "true" && dragVisionOffset) at = at.subtract(*dragVisionOffset);
+        return at;
+    }
     if (kind == "ReferenceStripFeeder") {
         // Before a feed, the first part (not off the strip's end).
         const int count = std::max(1, number("feed-count"));
@@ -225,8 +232,8 @@ bool JPFeeder::feed(std::string& why, bool* empty) {
         setNumber("feed-count", number("feed-count") + 1);
         return true;
     }
-    // A tube: nothing to do. An auto feeder: its actuator, on a normal feed (JPFeederFeed).
-    if (kind == "ReferenceTubeFeeder") return true;
+    // A tube: nothing to do; a drag feeder's drag is the machine's (JPFeederFeed). An auto feeder: its actuator, on a normal feed (JPFeederFeed).
+    if (kind == "ReferenceTubeFeeder" || kind == "ReferenceDragFeeder") return true;
     if (kind == "ReferenceAutoFeeder") {
         m_actuate = feedOptions() == FeedOptions::Normal;
         if (feedOptions() == FeedOptions::SkipNext) setFeedOptions(FeedOptions::Normal);
@@ -361,6 +368,47 @@ void JPFeeder::setLocationOf(const std::string& element, const JPLocation& l) {
     JPXmlNode fresh = JPLocationXml::to(element, l);
     if (JPXmlNode* c = m_node.child(element)) *c = fresh;
     else m_node.add(fresh);
+}
+
+void JPFeeder::resetDragVisionOffsets() {
+    dragVisionOffset.reset();
+    dragPartPick.reset();
+}
+
+std::string JPFeeder::dragTemplateDirectory(const std::string& configDirectory) {
+    return configDirectory + "/org.openpnp.machine.reference.feeder.ReferenceDragFeeder.Vision";
+}
+
+std::string JPFeeder::dragTemplatePath(const std::string& configDirectory) const {
+    const std::string name = attributeAt("vision", "template-image-name");
+    return name.empty() ? std::string() : dragTemplateDirectory(configDirectory) + "/" + name;
+}
+
+std::string JPFeeder::attributeAt(const std::string& path, const std::string& attribute, const std::string& def) const {
+    const JPXmlNode* n = &m_node;
+    size_t from = 0;
+    while (n && from <= path.size()) {
+        const size_t slash = path.find('/', from);
+        n = n->child(path.substr(from, slash == std::string::npos ? std::string::npos : slash - from));
+        if (slash == std::string::npos) break;
+        from = slash + 1;
+    }
+    const std::string* v = n ? n->get(attribute) : nullptr;
+    return v ? *v : def;
+}
+
+void JPFeeder::setAttributeAt(const std::string& path, const std::string& attribute, const std::string& value) {
+    JPXmlNode* n = &m_node;
+    size_t from = 0;
+    for (;;) {
+        const size_t slash = path.find('/', from);
+        const std::string name = path.substr(from, slash == std::string::npos ? std::string::npos : slash - from);
+        JPXmlNode* c = n->child(name);
+        n = c ? c : &n->add(JPXmlNode(name));
+        if (slash == std::string::npos) break;
+        from = slash + 1;
+    }
+    n->set(attribute, value);
 }
 
 std::string JPFeeder::childText(const std::string& element, const std::string& def) const {

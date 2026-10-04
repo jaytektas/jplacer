@@ -113,6 +113,13 @@ public:
     // the machine cannot move.
     bool moveToolTo(JPSetupForm::Tool tool, const Where& at);
     bool moveToolTo(JPSetupForm::Tool tool, const JPLocation& at);
+    // The same for an actuator on the head, by its OpenPnP name (a drag
+    // feeder's pin): where it is, and taken to `at` at safe Z.
+    Where whereIsActuator(const std::string& name) const;
+    bool  moveActuatorTo(const std::string& name, const Where& at);
+    // The head camera's live picture, brought to the front (a selection is
+    // made on it); none when there is no camera on the head.
+    JPCameraView* headCameraView();
     // For a job (JPlacerJobMachine): the open cell, the head camera's
     // pictures, why a tip change cannot be made (empty: it can), and the tip
     // now on a nozzle kept (a step in Machine Setup; nothing moves).
@@ -172,6 +179,7 @@ private:
     // What Machine Setup's place buttons use: the camera on the head, or the
     // nozzle chosen on the Jog panel (else the first). Null when there is none.
     const JPMountConfig* toolMount(JPSetupForm::Tool tool) const;
+    Where whereIsMount(const JPMountConfig* mount) const;
     // Connected and homed; else the status bar says what is needed first.
     bool readyToMove();
     // The nozzle Offset Wizard's two steps: store where the nozzle left its

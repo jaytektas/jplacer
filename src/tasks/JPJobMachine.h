@@ -5,6 +5,7 @@
 
 #include "model/JPLocation.h"
 #include "vision/JPPartFinder.h"
+#include "vision/JPTemplateFinder.h"
 
 #include <optional>
 #include <string>
@@ -52,6 +53,17 @@ public:
     // machine), actuated with `value`: a switch on when it is not 0, a
     // number or text set to it.
     virtual bool actuate(const std::string& actuatorName, double value, std::string& why) = 0;
+    // An actuator on the head (named as for actuate) straight to `at` from
+    // where it is, not up to safe Z first (OpenPnP's actuator.moveTo); its Z
+    // too when `withZ`; at `speed` (of the machine's).
+    virtual bool moveActuator(const std::string& actuatorName, const JPLocation& at, bool withZ, double speed,
+                              std::string& why) = 0;
+    // OpenPnP's drag feeder vision: the head's camera over `at` (at safe Z),
+    // the template image in the PNG file `templatePath` found within `area`
+    // of its picture, and how far `at` is from where the template's middle
+    // is: `offset` (X, Y; at less where it is).
+    virtual bool matchTemplate(const JPLocation& at, const std::string& templatePath, const JPTemplateFinder::Area& area,
+                               JPLocation& offset, std::string& why) = 0;
     // The head to its park place.
     virtual bool park(std::string& why) = 0;
     // How a fiducial is looked at (its Fiducial Vision Settings): up to so

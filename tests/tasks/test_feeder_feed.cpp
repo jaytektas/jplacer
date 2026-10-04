@@ -14,6 +14,7 @@
 #include "tasks/JPFeederFeed.h"
 
 #include <cmath>
+#include <cstdio>
 #include <filesystem>
 
 using namespace jf;
@@ -44,6 +45,22 @@ public:
         return true;
     }
     std::vector<std::string> actuated;
+    bool moveActuator(const std::string& name, const JPLocation& at, bool withZ, double speed, std::string&) override {
+        char text[160];
+        std::snprintf(text, sizeof text, "%s to %.2f,%.2f%s at %.2f", name.c_str(), at.x(), at.y(),
+                      withZ ? (" z " + std::to_string(int(at.z()))).c_str() : "", speed);
+        actuated.push_back(text);
+        return true;
+    }
+    // Where the template is found: `at` less this.
+    JPLocation templateOffset { JPLengthUnit::Millimeters };
+    int        templateLooks = 0;
+    bool matchTemplate(const JPLocation&, const std::string&, const JPTemplateFinder::Area&, JPLocation& offset,
+                       std::string&) override {
+        ++templateLooks;
+        offset = templateOffset;
+        return true;
+    }
     bool park(std::string&) override { return true; }
     bool locateFiducial(const JPLocation&, double, const FiducialLook&, JPLocation&, std::string&) override { return false; }
     bool alignPart(const std::string&, const AlignRequest& rq, AlignResult& r, std::string&) override {
@@ -133,6 +150,56 @@ int main() {
         assert(config.feeder("A")->feedOptions() == JPFeeder::FeedOptions::Normal);
         assert(JPFeederFeed::postPick(config, "A", machine, nullptr, why) && machine.actuated.back() == "Done=0");
         assert(config.feeder("A")->pickLocation()->x() == 1);
+    }
+
+    // A drag feeder: the pin over the start, out, down, dragged at the feed
+    // speed to the end, the peel off pulsed, backed off, in; at a 2 mm pitch
+    // one drag brings two parts, the first picked 2 mm back along the tape.
+    {
+        JPXmlElement de;
+        std::string error;
+        const bool ok = JPXmlReader::parse(R"(<feeder class="org.openpnp.machine.reference.feeder.ReferenceDragFeeder" id="D" name="D" enabled="true" part-id="R1" actuator-name="Pin" peel-off-actuator-name="Peel"><location units="Millimeters" x="50.0" y="10.0" z="-2.0" rotation="0.0"/><feed-start-location units="Millimeters" x="40.0" y="10.0" z="-3.0" rotation="0.0"/><feed-end-location units="Millimeters" x="36.0" y="10.0" z="-3.0" rotation="0.0"/><part-pitch value="2.0" units="Millimeters"/><feed-speed>0.5</feed-speed><vision enabled="false"><area-of-interest x="0" y="0" width="0" height="0"/></vision><backoff-distance value="1.0" units="Millimeters"/></feeder>)", de, error);
+        assert(ok);
+        config.addFeeder(JPFeeder::fromXml(de));
+        machine.actuated.clear();
+        assert(JPFeederFeed::feed(config, "D", "N1", machine, nullptr, why, empty));
+        const std::vector<std::string> drag = { "Pin to 40.00,10.00 at 1.00", "Pin=1", "Pin to 40.00,10.00 z -3 at 1.00",
+                                                "Pin to 36.00,10.00 z -3 at 0.50", "Peel=1", "Peel=0",
+                                                "Pin to 37.00,10.00 z -3 at 0.50", "Pin=0" };
+        assert(machine.actuated == drag);
+        auto at = config.feeder("D")->pickLocation();
+        assert(at && std::abs(at->x() - 48) < 1e-9 && at->y() == 10);
+        // The second part: no drag, picked at the location.
+        machine.actuated.clear();
+        assert(JPFeederFeed::feed(config, "D", "N1", machine, nullptr, why, empty) && machine.actuated.empty());
+        assert(config.feeder("D")->pickLocation()->x() == 50);
+        // Then a drag again.
+        assert(JPFeederFeed::feed(config, "D", "N1", machine, nullptr, why, empty) && machine.actuated.size() == 8);
+
+        // With vision: the template looked at before the first drag (the start
+        // moved by its offset) and after it, the pick moved by the last.
+        JPFeeder& d = *config.feeder("D");
+        d.setAttributeAt("vision", "enabled", "true");
+        d.setAttributeAt("vision", "template-image-name", "tmpl_1.png");
+        d.setAttributeAt("vision/area-of-interest", "width", "100");
+        d.setAttributeAt("vision/area-of-interest", "height", "100");
+        d.setLengthOf("part-pitch", JPLength(4, JPLengthUnit::Millimeters));
+        d.resetDragVisionOffsets();
+        d.dragFeededCount = 0;
+        machine.templateOffset = JPLocation(JPLengthUnit::Millimeters, 0.5, -0.25, 0, 0);
+        machine.actuated.clear();
+        assert(JPFeederFeed::feed(config, "D", "N1", machine, nullptr, why, empty) && machine.templateLooks == 2);
+        assert(machine.actuated.front() == "Pin to 39.50,10.25 at 1.00");
+        at = config.feeder("D")->pickLocation();
+        assert(std::abs(at->x() - 49.5) < 1e-9 && std::abs(at->y() - 10.25) < 1e-9);
+        // No area of interest: said.
+        config.feeder("D")->setAttributeAt("vision/area-of-interest", "width", "0");
+        config.feeder("D")->resetDragVisionOffsets();
+        assert(!JPFeederFeed::feed(config, "D", "N1", machine, nullptr, why, empty));
+        assert(why == "Area of Interest is required when vision is enabled.");
+        // No actuator: said.
+        config.feeder("D")->setText("actuator-name", "");
+        assert(!JPFeederFeed::feed(config, "D", "N1", machine, nullptr, why, empty) && why == "No actuator name set.");
     }
 
     // No hole: the strip's end.
