@@ -87,7 +87,16 @@ JPFeedersPanel::JPFeedersPanel(JSceneGraph& graph, JPConfiguration& config, doub
         changed();
     };
     m_form->onAction = [this](const std::string& action) {
-        if (!JPFeederForms::act(m_config, m_shown, action)) return;
+        // A test of the machine: on its thread.
+        if (action == "testFeed" || action == "testPostPick") {
+            if (machineAction) machineAction(m_shown, action);
+            return;
+        }
+        std::string why;
+        if (!JPFeederForms::act(m_config, m_shown, action, why)) {
+            if (!why.empty()) JDialog::message("Error", why);
+            return;
+        }
         m_form->refresh();
         m_table->refresh();
         changed();
@@ -187,9 +196,9 @@ void JPFeedersPanel::showForm() {
     }
     m_shown = id;
     m_form->setForm(id.empty() ? JPSetupProperties::Form {}
-                               : JPFeederForms::forFeeder(m_config, id, [](const std::string& why) {
-                                     JDialog::message("Error", why);
-                                 }));
+                               : JPFeederForms::forFeeder(
+                                     m_config, id, [](const std::string& why) { JDialog::message("Error", why); },
+                                     actuatorNames ? actuatorNames() : std::vector<std::string> {}));
 }
 
 void JPFeedersPanel::changed() {

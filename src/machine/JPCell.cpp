@@ -367,6 +367,31 @@ void JPCell::switchActuator(const std::string& actuatorId, bool on) {
     });
 }
 
+bool JPCell::setActuatorAndWait(const std::string& actuatorId, const std::string& value, std::string& why) {
+    std::promise<std::pair<bool, std::string>> done;
+    auto result = done.get_future();
+    m_thread.post([this, actuatorId, value, &done] {
+        std::string w = "no actuator " + actuatorId;
+        bool ok = false;
+        for (const JPActuatorConfig& a : m_config.actuators) {
+            if (a.id != actuatorId) continue;
+            JPGcodeDriver* d = driver(a.driverId);
+            if (!d || !a.canSet()) {
+                w = a.name + " cannot be set to a value";
+                break;
+            }
+            const JPReply r = d->send(JPFirmwareProfile::fill(a.valueCommand, { { "index", a.index }, { "value", value } })).get();
+            ok = r.ok;
+            w = r.error;
+        }
+        onActuator.emit(actuatorId, ok, ok ? value : w);
+        done.set_value({ ok, w });
+    });
+    const auto [ok, w] = result.get();
+    why = w;
+    return ok;
+}
+
 bool JPCell::switchActuatorAndWait(const std::string& actuatorId, bool on, std::string& why) {
     std::promise<std::pair<bool, std::string>> done;
     auto result = done.get_future();

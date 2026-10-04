@@ -11,6 +11,7 @@
 #include <j/core/Log.h>
 
 #include <cmath>
+#include <cstdio>
 
 inline namespace jf {
 
@@ -154,6 +155,40 @@ bool JPlacerJobMachine::discard(const std::string& nozzleId, std::string& why) {
     ++m_motions;
     JPCell* c = cell(why);
     return c && c->discardAndWait(nozzleId, 1.0, why);
+}
+
+bool JPlacerJobMachine::positionNozzle(const std::string& nozzleId, const JPLocation& at, std::string& why) {
+    ++m_motions;
+    JPCell* c = cell(why);
+    if (!c) return false;
+    for (const JPNozzleConfig& n : config().nozzles)
+        if (n.id == nozzleId) {
+            const JPLocation m = at.convertToUnits(JPLengthUnit::Millimeters);
+            return c->moveToolAndWait(n.mount, { m.x(), m.y(), std::nullopt, m.rotation() }, 1.0, why);
+        }
+    why = "no nozzle " + nozzleId;
+    return false;
+}
+
+bool JPlacerJobMachine::actuate(const std::string& actuatorName, double value, std::string& why) {
+    JPCell* c = cell(why);
+    if (!c) return false;
+    // By name, a head's first (as OpenPnP looks on the head before the machine); else by id.
+    JPActuatorConfig actuator;
+    const JPCellConfig cfg = config();
+    for (const bool onHead : { true, false })
+        for (const JPActuatorConfig& a : cfg.actuators)
+            if (actuator.id.empty() && a.name == actuatorName && a.mount.headId.empty() != onHead) actuator = a;
+    for (const JPActuatorConfig& a : cfg.actuators)
+        if (actuator.id.empty() && a.id == actuatorName) actuator = a;
+    if (actuator.id.empty()) {
+        why = "Unable to find an actuator named " + actuatorName;
+        return false;
+    }
+    if (actuator.valueType == JPActuatorConfig::ValueType::Boolean) return c->switchActuatorAndWait(actuator.id, value != 0, why);
+    char buf[32];
+    std::snprintf(buf, sizeof buf, "%g", value);
+    return c->setActuatorAndWait(actuator.id, buf, why);
 }
 
 bool JPlacerJobMachine::park(std::string& why) {

@@ -6,7 +6,9 @@
 #include "JPFormBuilder.h"
 
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
+#include <tuple>
 
 inline namespace jf {
 
@@ -198,10 +200,89 @@ void trayForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeede
     add.end();
 }
 
+// OpenPnP's ReferenceAutoFeederConfigurationWizard's Actuators group.
+void autoForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f, const std::vector<std::string>& actuators) {
+    general(add, config, f, false);
+    pickLocation(add, f);
+    add.group("Actuators");
+    add.header({ "Actuator", "Actuator Value" });
+    JPFormBuilder::Strings names { "" };
+    names.insert(names.end(), actuators.begin(), actuators.end());
+    for (const auto& [row, key, test, testLabel] :
+         { std::tuple { "Feed", "actuator", "testFeed", "Test feed" },
+           std::tuple { "Post Pick", "post-pick-actuator", "testPostPick", "Test post pick" } }) {
+        const std::string nameAttr = std::string(key) + "-name", valueAttr = std::string(key) + "-value";
+        add.row(row);
+        add.choice(nameAttr, std::string(row) + " actuator", names, [f, nameAttr] { return f().text(nameAttr); },
+                   [f, nameAttr](const std::string& n) { f().setText(nameAttr, n); });
+        add.number(valueAttr, std::string(row) + " value", [f, valueAttr] { return f().real(valueAttr, 0); },
+                   [f, valueAttr](double v) { f().setReal(valueAttr, v); });
+        add.button(test, testLabel);
+        add.end();
+    }
+    add.flag("move-before-feed", "Move before feed", [f] { return f().flag("move-before-feed", false); },
+             [f](bool on) { f().setFlag("move-before-feed", on); });
+    add.tip("Move nozzle to pick location before actuating feed actuator");
+    add.flag("recycle-support", "Recycle supported", [f] { return f().flag("recycle-support", false); },
+             [f](bool on) { f().setFlag("recycle-support", on); });
+    add.tip("Support part recycle from part back to feeder");
+}
+
+// OpenPnP's ReferenceRotatedTrayFeederConfigurationWizard: the three corner
+// parts (A, B, C), the tray's counts, steps and turn.
+void rotatedTrayForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f) {
+    general(add, config, f, false);
+    add.group("Tray Component Locations");
+    add.header({ "X", "Y" });
+    for (const auto& [label, element] : { std::pair { "Point A: First Row - First Column", "location" },
+                                          std::pair { "Point B: First Row - Last Column", "first-row-last-component-location" },
+                                          std::pair { "Point C: Last Row - Last Column", "last-component-location" } }) {
+        add.row(label, Place::Location);
+        coordinate(add, f, element, Axis::X, "X");
+        coordinate(add, f, element, Axis::Y, "Y");
+        add.end();
+    }
+    add.group("Tray Parameters");
+    add.row("Number of Tray Rows");
+    count(add, f, "tray-count-rows", "Number of Tray Rows", 1);
+    count(add, f, "tray-count-cols", "Number of Tray Columns", 1);
+    add.end();
+    add.row("Feed Count");
+    count(add, f, "feed-count", "Feed Count", 0);
+    add.button("resetFeedCount", "Reset");
+    add.text("remaining", "Components remaining:", [f] {
+        const int total = std::max(f().number("tray-count-rows", 1), 1) * std::max(f().number("tray-count-cols", 1), 1);
+        return std::to_string(std::max(0, total - f().number("feed-count")));
+    }, nullptr);
+    add.end();
+    add.number("component-rotation-in-tray", "Component Rotation in Tray [°]",
+               [f] { return f().real("component-rotation-in-tray", 0); },
+               [f](double v) { f().setReal("component-rotation-in-tray", v); });
+    add.tip("Rotation of the components relative to the tray's A->B (row) axis");
+    coordinate(add, f, "location", Axis::Z, "Z Height");
+    add.button("calculateOffsets", "Calculate Offsets & Tray Rotation");
+    add.row("Column Offset");
+    for (const bool x : { true, false })
+        add.number(x ? "offsets.X" : "offsets.Y", x ? "Column Offset" : "Row Offset",
+                   [f, x] {
+                       const JPLocation l = f().locationOf("offsets").convertToUnits(kMm);
+                       return x ? l.x() : l.y();
+                   },
+                   [f, x](double v) {
+                       const JPLocation l = f().locationOf("offsets").convertToUnits(kMm);
+                       f().setLocationOf("offsets", l.derive(x ? std::optional(v) : std::nullopt, x ? std::nullopt : std::optional(v),
+                                                             std::nullopt, std::nullopt));
+                   });
+    add.end();
+    coordinate(add, f, "location", Axis::Rotation, "Tray Rotation [°]");
+    add.tip("Angle of the tray's A->B (row) axis relative to the machine's positive X-axis");
+}
+
 } // namespace
 
 JPSetupProperties::Form JPFeederForms::forFeeder(JPConfiguration& config, const std::string& feederId,
-                                                 std::function<void(const std::string&)> warn) {
+                                                 std::function<void(const std::string&)> warn,
+                                                 const std::vector<std::string>& actuators) {
     JPSetupProperties::Form form;
     JPFeeder* feeder = config.feeder(feederId);
     if (!feeder) return form;
@@ -214,6 +295,10 @@ JPSetupProperties::Form JPFeederForms::forFeeder(JPConfiguration& config, const 
         stripForm(add, config, f);
     } else if (kind == "ReferenceTrayFeeder") {
         trayForm(add, config, f, std::move(warn));
+    } else if (kind == "ReferenceAutoFeeder") {
+        autoForm(add, config, f, actuators);
+    } else if (kind == "ReferenceRotatedTrayFeeder") {
+        rotatedTrayForm(add, config, f);
     } else {
         general(add, config, f, false);
         pickLocation(add, f);
@@ -221,11 +306,67 @@ JPSetupProperties::Form JPFeederForms::forFeeder(JPConfiguration& config, const 
     return form;
 }
 
-bool JPFeederForms::act(JPConfiguration& config, const std::string& feederId, const std::string& action) {
+bool JPFeederForms::act(JPConfiguration& config, const std::string& feederId, const std::string& action, std::string& why) {
+    why.clear();
     JPFeeder* f = config.feeder(feederId);
     if (!f) return false;
+    if (action == "calculateOffsets") {
+        // OpenPnP's calculateOffsetsAndRotation from points A, B and C.
+        const int cols = f->number("tray-count-cols", 1), rows = f->number("tray-count-rows", 1);
+        if (cols < 1 || rows < 1) {
+            why = "The tray must have at least one row and one column.";
+            return false;
+        }
+        const JPLocation a = f->location().convertToUnits(kMm), b = f->locationOf("first-row-last-component-location").convertToUnits(kMm),
+                         c = f->locationOf("last-component-location").convertToUnits(kMm);
+        const double ab = std::hypot(b.x() - a.x(), b.y() - a.y()), bc = std::hypot(c.x() - b.x(), c.y() - b.y());
+        char buf[300];
+        if (ab > 0 && cols == 1) {
+            why = "Points A and B are different which is inconsistent with a single tray column. Either set points A and B "
+                  "to be the same or increase the number of columns.";
+            return false;
+        }
+        if (ab == 0 && cols > 1) {
+            std::snprintf(buf, sizeof buf, "Points A and B are the same which is inconsistent with %d columns. Either set "
+                                           "points A and B to be different or set the number of columns to 1.", cols);
+            why = buf;
+            return false;
+        }
+        if (bc > 0 && rows == 1) {
+            why = "Points B and C are different which is inconsistent with a single tray row. Either set points B and C to "
+                  "be the same or increase the number of rows.";
+            return false;
+        }
+        if (bc == 0 && rows > 1) {
+            std::snprintf(buf, sizeof buf, "Points B and C are the same which is inconsistent with %d rows. Either set "
+                                           "points B and C to be different or set the number of rows to 1.", rows);
+            why = buf;
+            return false;
+        }
+        double colStep = cols > 1 ? ab / (cols - 1) : 0, rowStep = rows > 1 ? bc / (rows - 1) : 0;
+        const double rowAngle = std::atan2(b.y() - a.y(), b.x() - a.x()) * 180 / M_PI;
+        const double colAngle = std::atan2(c.y() - b.y(), c.x() - b.x()) * 180 / M_PI;
+        if (rows > 1 && cols > 1) {
+            double check = std::remainder(rowAngle - colAngle, 360.0);
+            if (std::abs(check) < 90 - 2.5 || std::abs(check) > 90 + 2.5) {
+                std::snprintf(buf, sizeof buf, "Tray angle ABC should be 90 degrees but is %.3f degrees, double check "
+                                               "coordinates of points A, B and C.", std::abs(check));
+                why = buf;
+                return false;
+            }
+            // Defined the other way round: the rows step the other way.
+            if (check < 0) rowStep = -rowStep;
+        }
+        double rotation = f->location().rotation();
+        if (cols > 1) rotation = rowAngle;
+        else if (rows > 1) rotation = colAngle + 90;
+        f->setLocationOf("offsets", JPLocation(kMm, colStep, rowStep, 0, 0));
+        f->setLocation(f->location().derive(std::nullopt, std::nullopt, std::nullopt, rotation));
+        return true;
+    }
     if (action == "resetFeedCount") {
         f->setNumber("feed-count", 0);
+        if (f->typeName() == "ReferenceRotatedTrayFeeder") f->setFlag("legacy-picking-in-progress", false);
         f->visionLocation.reset();   // and what vision found, as OpenPnP's Reset says
         f->visionLocationReference.reset();
         return true;

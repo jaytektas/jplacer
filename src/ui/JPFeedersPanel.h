@@ -51,6 +51,10 @@ public:
     // OpenPnP's feedFeeder (and with `pick`, pickFeeder): a feed, and the
     // chosen nozzle's pick, on the machine's thread; its outcome said there.
     std::function<void(const std::string& feederId, bool pick)> machineFeed;
+    // A test of the machine from a feeder's page (an auto feeder's Test feed, Test post pick).
+    std::function<void(const std::string& feederId, const std::string& action)> machineAction;
+    // The machine's actuators by name.
+    std::function<std::vector<std::string>()> actuatorNames;
     // Whether the job uses a part (an enabled placement on an enabled board).
     std::function<bool(const std::string& partId)> partUsed;
 

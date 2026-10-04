@@ -69,6 +69,12 @@ public:
         return true;
     }
     bool discard(const std::string& n, std::string&) override { log.push_back("discard " + n); return true; }
+    bool positionNozzle(const std::string&, const JPLocation&, std::string&) override { return true; }
+    bool actuate(const std::string& name, double value, std::string&) override {
+        actuated.push_back(name + "=" + std::to_string(int(value)));
+        return true;
+    }
+    std::vector<std::string> actuated;
     bool park(std::string&) override { log.push_back("park"); return true; }
     bool locateFiducial(const JPLocation& nominal, double diameterMm, const FiducialLook&, JPLocation& found,
                         std::string& why) override {

@@ -154,6 +154,31 @@ std::optional<JPLocation> JPFeeder::pickLocation() const {
         }
         return location().add(locationOf("offsets").multiply(px, py, 0.0, 0.0));
     }
+    if (kind == "ReferenceRotatedTrayFeeder") {
+        const int cols = std::max(number("tray-count-cols", 1), 1), rows = std::max(number("tray-count-rows", 1), 1);
+        const int count = number("feed-count");
+        int base0 = count - 1;
+        if (count == 0) base0 = 0;
+        else if (count > cols * rows) base0 = cols * rows - 1;   // past the end: the last
+        // Along a row, then the next (an older file part way through: along a column).
+        int col, row;
+        if (flag("legacy-picking-in-progress", false) && cols >= rows) {
+            row = base0 % rows;
+            col = base0 / rows;
+        } else {
+            row = base0 / cols;
+            col = base0 % cols;
+        }
+        // Rows go the tray's negative Y; the steps turned with the tray.
+        const JPLocation l = location();
+        const JPLocation step = locationOf("offsets").convertToUnits(l.units());
+        const double a = l.rotation() * M_PI / 180;
+        const double dx = step.x() * col, dy = -step.y() * row;
+        return JPLocation(l.units(), l.x() + dx * std::cos(a) - dy * std::sin(a), l.y() + dx * std::sin(a) + dy * std::cos(a),
+                          l.z(), l.rotation() + real("component-rotation-in-tray", 0));
+    }
+    // Picked where they are set.
+    if (kind == "ReferenceTubeFeeder" || kind == "ReferenceAutoFeeder") return location();
     if (kind == "ReferenceStripFeeder") {
         // Before a feed, the first part (not off the strip's end).
         const int count = std::max(1, number("feed-count"));
@@ -190,6 +215,23 @@ bool JPFeeder::feed(std::string& why, bool* empty) {
             return false;
         }
     }
+    if (kind == "ReferenceRotatedTrayFeeder") {
+        const int cols = std::max(number("tray-count-cols", 1), 1), rows = std::max(number("tray-count-rows", 1), 1);
+        if (number("feed-count") >= cols * rows) {
+            why = name() + " (" + partId() + ") is empty.";
+            if (empty) *empty = true;
+            return false;
+        }
+        setNumber("feed-count", number("feed-count") + 1);
+        return true;
+    }
+    // A tube: nothing to do. An auto feeder: its actuator, on a normal feed (JPFeederFeed).
+    if (kind == "ReferenceTubeFeeder") return true;
+    if (kind == "ReferenceAutoFeeder") {
+        m_actuate = feedOptions() == FeedOptions::Normal;
+        if (feedOptions() == FeedOptions::SkipNext) setFeedOptions(FeedOptions::Normal);
+        return true;
+    }
     if (kind != "ReferenceTrayFeeder" && kind != "ReferenceStripFeeder") {
         why = "Feeding a " + kind + " is not available yet.";
         return false;
@@ -212,6 +254,12 @@ bool JPFeeder::feed(std::string& why, bool* empty) {
     }
     if (feedOptions() == FeedOptions::SkipNext) setFeedOptions(FeedOptions::Normal);
     return true;
+}
+
+bool JPFeeder::takeFeedActuation() {
+    const bool a = m_actuate;
+    m_actuate = false;
+    return a;
 }
 
 std::vector<int> JPFeeder::takeVisionChecks() {

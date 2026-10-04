@@ -38,6 +38,12 @@ public:
     bool pick(const std::string&, const JPLocation&, std::string&) override { return true; }
     bool place(const std::string&, const JPLocation&, std::string&) override { return true; }
     bool discard(const std::string&, std::string&) override { return true; }
+    bool positionNozzle(const std::string&, const JPLocation&, std::string&) override { return true; }
+    bool actuate(const std::string& name, double value, std::string&) override {
+        actuated.push_back(name + "=" + std::to_string(int(value)));
+        return true;
+    }
+    std::vector<std::string> actuated;
     bool park(std::string&) override { return true; }
     bool locateFiducial(const JPLocation&, double, const FiducialLook&, JPLocation&, std::string&) override { return false; }
     bool alignPart(const std::string&, const AlignRequest& rq, AlignResult& r, std::string&) override {
@@ -89,14 +95,14 @@ int main() {
     bool empty = false;
 
     // The first feed: the first hole looked at, found 0.3 mm off; the part follows it.
-    assert(JPFeederFeed::feed(config, "S", machine, nullptr, why, empty) && machine.looks == 1);
+    assert(JPFeederFeed::feed(config, "S", "N1", machine, nullptr, why, empty) && machine.looks == 1);
     auto at = config.feeder("S")->pickLocation();
     assert(at && near(at->x(), 103.8) && near(at->y(), 52));
     // Each feed looks at its hole (no extrapolation distance).
-    assert(JPFeederFeed::feed(config, "S", machine, nullptr, why, empty) && machine.looks == 2);
+    assert(JPFeederFeed::feed(config, "S", "N1", machine, nullptr, why, empty) && machine.looks == 2);
     // Skip next feed: the same part again, no look.
     config.feeder("S")->setFeedOptions(JPFeeder::FeedOptions::SkipNext);
-    assert(JPFeederFeed::feed(config, "S", machine, nullptr, why, empty) && machine.looks == 2);
+    assert(JPFeederFeed::feed(config, "S", "N1", machine, nullptr, why, empty) && machine.looks == 2);
 
     // Picking from mid-strip with nothing seen yet: the first hole, then the one fed.
     JPFeeder& f = *config.feeder("S");
@@ -104,19 +110,35 @@ int main() {
     f.visionLocationReference.reset();
     f.setNumber("feed-count", 3);
     machine.looks = 0;
-    assert(JPFeederFeed::feed(config, "S", machine, nullptr, why, empty) && machine.looks == 2);
+    assert(JPFeederFeed::feed(config, "S", "N1", machine, nullptr, why, empty) && machine.looks == 2);
 
     // An extrapolation distance of 12 mm: holes in between not looked at once under way.
     f.setLengthOf("extrapolation-distance", JPLength(12, JPLengthUnit::Millimeters));
     f.setLocationOf("last-hole-location", JPLocation(JPLengthUnit::Millimeters, 100, 10, 0, 0));
     machine.looks = 0;
-    for (int i = 0; i < 4; ++i) assert(JPFeederFeed::feed(config, "S", machine, nullptr, why, empty));
+    for (int i = 0; i < 4; ++i) assert(JPFeederFeed::feed(config, "S", "N1", machine, nullptr, why, empty));
     assert(machine.looks < 4);
+
+    // An auto feeder: its feed actuator on a normal feed, not on a repeated
+    // one; its post-pick actuator after the pick.
+    {
+        JPXmlElement ae;
+        const bool ok = JPXmlReader::parse(R"(<feeder class="org.openpnp.machine.reference.feeder.ReferenceAutoFeeder" id="A" name="A" enabled="true" part-id="R1" feed-options="Normal" actuator-name="Feed" actuator-value="1.0" post-pick-actuator-name="Done" post-pick-actuator-value="0.0"><location units="Millimeters" x="1.0" y="2.0" z="-1.0" rotation="0.0"/></feeder>)", ae, error);
+        assert(ok);
+        config.addFeeder(JPFeeder::fromXml(ae));
+        assert(JPFeederFeed::feed(config, "A", "N1", machine, nullptr, why, empty));
+        assert((machine.actuated == std::vector<std::string> { "Feed=1" }));
+        config.feeder("A")->setFeedOptions(JPFeeder::FeedOptions::SkipNext);
+        assert(JPFeederFeed::feed(config, "A", "N1", machine, nullptr, why, empty) && machine.actuated.size() == 1);
+        assert(config.feeder("A")->feedOptions() == JPFeeder::FeedOptions::Normal);
+        assert(JPFeederFeed::postPick(config, "A", machine, nullptr, why) && machine.actuated.back() == "Done=0");
+        assert(config.feeder("A")->pickLocation()->x() == 1);
+    }
 
     // No hole: the strip's end.
     machine.holes = false;
-    f.visionLocation.reset();
-    assert(!JPFeederFeed::feed(config, "S", machine, nullptr, why, empty));
+    config.feeder("S")->visionLocation.reset();   // looked up again: the list moved when "A" was added
+    assert(!JPFeederFeed::feed(config, "S", "N1", machine, nullptr, why, empty));
     assert(empty && why == "Unable to locate reference hole. End of strip?");
     return 0;
 }

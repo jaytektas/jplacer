@@ -9,6 +9,7 @@
 
 #include <functional>
 #include <string>
+#include <vector>
 
 inline namespace jf {
 
@@ -25,10 +26,13 @@ class JPFeederForms {
 public:
     // `warn`: a value kept, but which will not work (a tray's offset of 0
     // with more than one part that way), to be said.
+    // `actuators`: the machine's actuators by name (an auto feeder's choices).
     static JPSetupProperties::Form forFeeder(JPConfiguration& config, const std::string& feederId,
-                                             std::function<void(const std::string&)> warn);
-    // A button of the form (its action's name) on the feeder; true when it changed it.
-    static bool act(JPConfiguration& config, const std::string& feederId, const std::string& action);
+                                             std::function<void(const std::string&)> warn,
+                                             const std::vector<std::string>& actuators = {});
+    // A button of the form (its action's name) on the feeder; true when it
+    // changed it; false with `why` when it could not (empty: nothing to do).
+    static bool act(JPConfiguration& config, const std::string& feederId, const std::string& action, std::string& why);
 };
 
 } // inline namespace jf

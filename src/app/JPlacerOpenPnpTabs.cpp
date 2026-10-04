@@ -250,7 +250,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
                                                               const std::function<void(const std::function<void()>&)>& onMain,
                                                               std::string& why) {
             bool empty = false;
-            if (!JPFeederFeed::feed(m_job.configuration(), feederId, machine, onMain, why, empty)) return false;
+            if (!JPFeederFeed::feed(m_job.configuration(), feederId, nozzle, machine, onMain, why, empty)) return false;
             if (!pick) return true;
             std::optional<JPLocation> at;
             std::string kind;
@@ -268,7 +268,34 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
                 why = "No nozzle to pick with";
                 return false;
             }
-            return machine.safeZ(why) && machine.pick(nozzle, *at, why) && machine.safeZ(why);
+            return machine.safeZ(why) && machine.pick(nozzle, *at, why)
+                && JPFeederFeed::postPick(m_job.configuration(), feederId, machine, onMain, why) && machine.safeZ(why);
+        });
+    };
+    m_feeders->actuatorNames = [this] {
+        std::vector<std::string> out;
+        if (const JPCell* c = m_machine.cell())
+            for (const JPActuatorConfig& a : c->config().actuators) out.push_back(a.name.empty() ? a.id : a.name);
+        return out;
+    };
+    m_feeders->machineAction = [this](const std::string& feederId, const std::string& action) {
+        m_jobRun->machineTask([this, feederId, action](JPJobMachine& machine,
+                                                       const std::function<void(const std::function<void()>&)>& onMain,
+                                                       std::string& why) {
+            std::string name;
+            double value = 0;
+            const std::string key = action == "testFeed" ? "actuator" : "post-pick-actuator";
+            onMain([&] {
+                if (const JPFeeder* f = m_job.configuration().feeder(feederId)) {
+                    name = f->text(key + "-name");
+                    value = f->real(key + "-value", 0);
+                }
+            });
+            if (name.empty()) {
+                why = "No actuator is set for it.";
+                return false;
+            }
+            return machine.actuate(name, value, why);
         });
     };
     m_feeders->partUsed = [this](const std::string& partId) {

@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Rotated tray, auto and tube feeders work as OpenPnP's: their setup pages, feeds (an auto feeder's feed and
+  post-pick actuators, Test feed), and picks.
 - The Parts and Packages tabs show each one's Bottom and Fiducial Vision Settings, with Specialize and
   Generalize as OpenPnP has them.
 - Bottom vision: a job aligns each part over the camera looking up, found by its footprint's pads (no

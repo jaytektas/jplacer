@@ -81,6 +81,17 @@ int main() {
     for (int i = 0; i < 3; ++i) assert(tray.feed(why));
     assert(!tray.feed(why) && why == "Feeder: Tray (U1) - tray empty.");
 
+    // A rotated tray: along a row, then the next row (the tray's -Y), turned with the tray.
+    JPFeeder rot = parse(R"(<feeder class="org.openpnp.machine.reference.feeder.ReferenceRotatedTrayFeeder" id="RT" name="RT" enabled="true" part-id="U2" tray-count-cols="3" tray-count-rows="2" feed-count="0" component-rotation-in-tray="90">
+   <location units="Millimeters" x="10.0" y="20.0" z="-3.0" rotation="90.0"/>
+   <offsets units="Millimeters" x="5.0" y="4.0" z="0.0" rotation="0.0"/>
+</feeder>)");
+    assert(rot.feed(why) && rot.feed(why) && rot.feed(why) && rot.feed(why));   // the fourth: row 1, column 0
+    at = rot.pickLocation();
+    // Column 0, row 1: (0, -4) turned 90 degrees is (4, 0).
+    assert(at && near(at->x(), 14) && near(at->y(), 20) && near(at->z(), -3) && near(at->rotation(), 180));
+    assert(rot.feed(why) && rot.feed(why) && !rot.feed(why));
+
     // A new feeder, as OpenPnP makes one.
     const JPFeeder made = JPFeeder::create("org.openpnp.machine.reference.feeder.ReferenceTrayFeeder", "C1");
     assert(made.id().rfind("FDR", 0) == 0 && made.name() == "ReferenceTrayFeeder" && !made.enabled());

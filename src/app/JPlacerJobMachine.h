@@ -36,6 +36,8 @@ public:
     bool pick(const std::string& nozzleId, const JPLocation& at, std::string& why) override;
     bool place(const std::string& nozzleId, const JPLocation& at, std::string& why) override;
     bool discard(const std::string& nozzleId, std::string& why) override;
+    bool positionNozzle(const std::string& nozzleId, const JPLocation& at, std::string& why) override;
+    bool actuate(const std::string& actuatorName, double value, std::string& why) override;
     bool park(std::string& why) override;
     bool locateFiducial(const JPLocation& nominal, double diameterMm, const FiducialLook& look, JPLocation& found,
                         std::string& why) override;

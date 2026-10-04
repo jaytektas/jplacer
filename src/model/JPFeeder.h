@@ -77,6 +77,9 @@ public:
     // feed wants looked at (by feed count: the first hole, when picking
     // starts mid-strip; the one fed), each taken once.
     std::vector<int> takeVisionChecks();
+    // An auto feeder's feed: whether the last feed wants its feed actuator
+    // actuated (a normal feed, not one repeated or disabled), taken once.
+    bool takeFeedActuation();
     // Where the hole for feed count `n` is expected; none when vision need not
     // look (vision off, or near enough to the last found within the
     // extrapolation distance).
@@ -122,6 +125,7 @@ private:
 
     JPXmlNode        m_node;
     std::vector<int> m_visionChecks;
+    bool             m_actuate = false;
     std::deque<bool> m_jobFaults;
 };
 

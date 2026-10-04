@@ -27,7 +27,7 @@ ReferenceRotatedTrayFeeder, ReferenceDragFeeder, ReferenceLeverFeeder, Reference
 ReferenceTubeFeeder, ReferenceAutoFeeder, ReferenceSlotAutoFeeder, ReferenceLoosePartFeeder,
 AdvancedLoosePartFeeder, ReferenceHeapFeeder, BlindsFeeder, SchultzFeeder, SlotSchultzFeeder, RapidFeeder,
 Neoden4Feeder, PhotonFeeder and BambooFeederAutoVision. Click one and **Accept**, or double-click it.
-jplacer works out where a strip and a tray feeder pick, and feeds them. The other kinds are kept and
+jplacer works out where strip, tray, rotated tray, auto and tube feeders pick, and feeds them. The other kinds are kept and
 set up, but feeding them is not yet available (**Pick...** and **Feed...** say so), and **Move Camera...**
 and **Move Tool...** say jplacer does not work out where they pick yet.
 
@@ -102,6 +102,29 @@ offset of 0 with more than one part that way is kept, but jplacer says it will f
 the parts taken so far (**Reset** sets it to 0).
 
 <!-- src: src/setup/JPFeederForms.cpp (trayForm); src/model/JPFeeder.cpp (pickLocation, feed) -->
+
+### Rotated tray feeder
+
+A tray turned on the machine. **Tray Component Locations**: **Point A** (the first row's first part),
+**Point B** (the first row's last) and **Point C** (the last row's last), each with the location
+buttons. **Tray Parameters**: the **Number of Tray Rows** and **Columns**, the **Feed Count** (**Reset**
+sets it to 0) and the components remaining, the **Component Rotation in Tray** (relative to the row,
+A to B), the **Z Height**, and **Calculate Offsets & Tray Rotation**, which works out the **Column
+Offset**, **Row Offset** and **Tray Rotation** from the three points: it says what is wrong when the points
+and counts do not agree, or the corner at B is not square (within 2.5°). Parts are taken along a row,
+then the next.
+
+<!-- src: src/setup/JPFeederForms.cpp (rotatedTrayForm, act); src/model/JPFeeder.cpp (pickLocation, feed) -->
+
+### Auto feeder and tube feeder
+
+An **auto feeder** feeds itself when told to: its **Pick Location**, and **Actuators**: the **Feed**
+actuator and the value it is actuated with (a switch on when not 0), the **Post Pick** actuator and its
+value (after each pick), **Move before feed** (the nozzle over the pick location first) and **Recycle
+supported**. **Test feed** and **Test post pick** actuate them. A repeated feed (Skip next feed) does not
+actuate. A **tube feeder** is picked at its pick location with nothing to feed.
+
+<!-- src: src/setup/JPFeederForms.cpp (autoForm); src/tasks/JPFeederFeed.cpp (feed, postPick); src/app/JPlacerJobMachine.cpp (actuate); src/app/JPlacerOpenPnpTabs.cpp (machineAction) -->
 
 ### The other kinds
 

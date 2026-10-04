@@ -46,6 +46,12 @@ public:
     virtual bool place(const std::string& nozzleId, const JPLocation& at, std::string& why) = 0;
     // What the nozzle holds dropped at the discard location.
     virtual bool discard(const std::string& nozzleId, std::string& why) = 0;
+    // The nozzle over `at` at safe Z, turned to its rotation (not down).
+    virtual bool positionNozzle(const std::string& nozzleId, const JPLocation& at, std::string& why) = 0;
+    // An actuator, named as OpenPnP names it (on the head, else on the
+    // machine), actuated with `value`: a switch on when it is not 0, a
+    // number or text set to it.
+    virtual bool actuate(const std::string& actuatorName, double value, std::string& why) = 0;
     // The head to its park place.
     virtual bool park(std::string& why) = 0;
     // How a fiducial is looked at (its Fiducial Vision Settings): up to so

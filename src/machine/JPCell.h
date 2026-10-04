@@ -65,6 +65,9 @@ public:
     // thread of its own. False with `why`.
     bool switchActuatorAndWait(const std::string& actuatorId, bool on, std::string& why);
     void readActuator(const std::string& actuatorId);
+    // A Number or Text actuator set to `value`, waiting for the controller's
+    // answer: for a procedure on a thread of its own. False with `why`.
+    bool setActuatorAndWait(const std::string& actuatorId, const std::string& value, std::string& why);
     // Pick with a nozzle where it is: its head's vacuum pump on as the head's
     // pump control says (waiting the pump-on time when it starts), its vacuum
     // on, then the nozzle's and its tip's pick dwell, and the part checked as

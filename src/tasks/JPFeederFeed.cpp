@@ -9,6 +9,7 @@
 
 #include <cmath>
 #include <cstdlib>
+#include <optional>
 
 inline namespace jf {
 
@@ -20,15 +21,19 @@ constexpr const char* kEndOfStrip = "Unable to locate reference hole. End of str
 
 } // namespace
 
-bool JPFeederFeed::feed(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine, const OnMain& onMain,
-                        std::string& why, bool& empty) {
+bool JPFeederFeed::feed(JPConfiguration& config, const std::string& feederId, const std::string& nozzleId,
+                        JPJobMachine& machine, const OnMain& onMain, std::string& why, bool& empty) {
     auto main = [&onMain](const std::function<void()>& fn) {
         if (onMain) onMain(fn);
         else fn();
     };
-    bool fed = false;
+    bool fed = false, actuate = false;
     empty = false;
     std::vector<int> checks;
+    std::string actuatorName;
+    double actuatorValue = 0;
+    bool moveFirst = false;
+    std::optional<JPLocation> pickAt;
     main([&] {
         JPFeeder* f = config.feeder(feederId);
         if (!f) {
@@ -37,8 +42,24 @@ bool JPFeederFeed::feed(JPConfiguration& config, const std::string& feederId, JP
         }
         fed = f->feed(why, &empty);
         checks = f->takeVisionChecks();
+        actuate = f->takeFeedActuation();
+        actuatorName = f->text("actuator-name");
+        actuatorValue = f->real("actuator-value", 0);
+        moveFirst = f->flag("move-before-feed", false);
+        pickAt = f->pickLocation();
     });
     if (!fed) return false;
+    if (actuate) {
+        if (actuatorName.empty()) {
+            JLOGC(JPlacerLog::kJob, JLogLevel::Warn) << "No actuatorName specified for feeder " << feederId << ".";
+        } else {
+            if (moveFirst && pickAt && !nozzleId.empty() && !machine.positionNozzle(nozzleId, *pickAt, why)) return false;
+            if (!machine.actuate(actuatorName, actuatorValue, why)) {
+                why = "Feed failed. " + why;
+                return false;
+            }
+        }
+    }
     for (const int n : checks) {
         std::optional<JPLocation> expected;
         double diameter = 0, search = 0, parallaxDiameter = 0, parallaxAngle = 0;
@@ -69,6 +90,28 @@ bool JPFeederFeed::feed(JPConfiguration& config, const std::string& feederId, JP
         main([&] {
             if (JPFeeder* f = config.feeder(feederId)) f->setVisionFound(n, found);
         });
+    }
+    return true;
+}
+
+bool JPFeederFeed::postPick(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine, const OnMain& onMain,
+                            std::string& why) {
+    std::string name;
+    double value = 0;
+    auto main = [&onMain](const std::function<void()>& fn) {
+        if (onMain) onMain(fn);
+        else fn();
+    };
+    main([&] {
+        if (const JPFeeder* f = config.feeder(feederId); f && f->typeName() == "ReferenceAutoFeeder") {
+            name = f->text("post-pick-actuator-name");
+            value = f->real("post-pick-actuator-value", 0);
+        }
+    });
+    if (name.empty()) return true;
+    if (!machine.actuate(name, value, why)) {
+        why = "Post pick failed. " + why;
+        return false;
     }
     return true;
 }

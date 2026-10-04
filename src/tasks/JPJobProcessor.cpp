@@ -813,8 +813,8 @@ JPJobProcessor::Step JPJobProcessor::pick(Planned& p) {
         }
         for (int i = 0; i < 1 + feedRetries && !fed && !empty; ++i) {
             status(format("Feed %s on %s.", feederName.c_str(), j.partId.c_str()));
-            fed = JPFeederFeed::feed(m_config, feederId, m_machine, [this](const std::function<void()>& fn) { main(fn); },
-                                     why, empty);
+            fed = JPFeederFeed::feed(m_config, feederId, p.nozzleId, m_machine,
+                                     [this](const std::function<void()>& fn) { main(fn); }, why, empty);
         }
         if (!fed) {
             main([&] {
@@ -848,7 +848,9 @@ JPJobProcessor::Step JPJobProcessor::pick(Planned& p) {
                 if (n.id == p.nozzleId) nozzleName = n.name;
             status(format("Pick %s from %s for %s using nozzle %s.", j.partId.c_str(), feederName.c_str(),
                           j.placementId.c_str(), nozzleName.c_str()));
-            picked = m_machine.pick(p.nozzleId, *at, pickWhy);
+            picked = m_machine.pick(p.nozzleId, *at, pickWhy)
+                  && JPFeederFeed::postPick(m_config, feederId, m_machine, [this](const std::function<void()>& fn) { main(fn); },
+                                            pickWhy);
         }
         if (!picked) {
             Failure f;
