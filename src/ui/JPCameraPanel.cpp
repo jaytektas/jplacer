@@ -47,6 +47,7 @@ JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCameraCon
     m_visualTest->onClicked.connect([this] { if (onVisualTest) onVisualTest(); });
     m_settings = std::make_unique<JPIconButton>(graph, "Camera Settings", &JPIcons::gear,
                                                 "The camera's settings, in Machine Setup");
+    m_settings->setLeads(JPIconButton::Leads::Elsewhere);   // to Machine Setup
     m_settings->onClicked.connect([this] { if (onSettings) onSettings(); });
 
     // The picture's format.

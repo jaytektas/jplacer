@@ -26,6 +26,12 @@ JFramework through `find_package(JFramework CONFIG)` and never edits it.
 disabled (`JPlacerMenuBuilder`), never wired to a handler that does nothing.
 Enable an entry in the same change that implements it.
 
+**Icon buttons say where a click leads** (JPIconButton::setLeads). One that
+opens a menu shows a small down-triangle in its bottom-right corner; one that
+leads somewhere else (another window, a dialog, Machine Setup) shows "…"
+there, as text buttons and menu entries end in "…"; one without either acts
+at once. Every icon button chooses; none is left ambiguous.
+
 **Settings.** Preferences live in `JSettings::instance()`, backed by the file
 `JPlacerSettings` names. Key names are constants in `JPlacerSettings` only.
 

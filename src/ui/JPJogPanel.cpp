@@ -133,6 +133,7 @@ JPJogPanel::JPJogPanel(JSceneGraph& graph, JPCell& cell, Choices start) : JConta
     auto tip = std::make_unique<JPIconButton>(graph, "Nozzle Tip", &JPIcons::nozzleTip,
                                               "The nozzle's tip: load one, unload it, or say which is on it");
     tip->setFramed(true);
+    tip->setLeads(JPIconButton::Leads::Menu);
     tip->setFixedSize(side, side);
     tip->onClicked.connect([this] { showTipMenu(); });
     m_tipButton = top->add(std::move(tip));

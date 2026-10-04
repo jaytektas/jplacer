@@ -13,6 +13,9 @@ namespace {
 
 // The glyph's share of the button, and the corner rounding's.
 constexpr float kGlyphShare  = 0.8f;
+// The hint of where a click leads: inset from the corner, a triangle so wide,
+// dots so big (shares of the button's side).
+constexpr float kHintInset = 0.07f, kHintSize = 0.24f, kHintDot = 0.045f;
 constexpr float kRoundShare  = 0.2f;
 
 JColor colour(const uint8_t* c) { return rgb(c[0], c[1], c[2]); }
@@ -63,6 +66,19 @@ void JPIconButton::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     const JColor ink = !enabled ? colour(st.MutedText)
                      : (m_checked || m_danger) ? colour(st.HighlightedText) : colour(st.TextPrimary);
     m_glyph(vg, b.x + b.width * 0.5f, b.y + b.height * 0.5f, s * kGlyphShare, ink);
+    // Where a click leads, in the bottom-right corner.
+    const float edge = s * kHintInset, right = b.x + b.width - edge, bottom = b.y + b.height - edge;
+    if (m_leads == Leads::Menu) {
+        const float w = s * kHintSize;
+        vg.beginPath();
+        vg.moveTo(right - w, bottom - w * 0.5f);
+        vg.lineTo(right, bottom - w * 0.5f);
+        vg.lineTo(right - w * 0.5f, bottom);
+        vg.fill(JPaint::solid(ink));
+    } else if (m_leads == Leads::Elsewhere) {
+        const float r = s * kHintDot, gap = r * 3;
+        for (int i = 0; i < 3; ++i) vg.fillCircle(right - r - i * gap, bottom - r, r, JPaint::solid(ink));
+    }
     vg.flush(buf);
 }
 

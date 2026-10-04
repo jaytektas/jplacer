@@ -391,7 +391,9 @@ shape kept, and a cross through the middle marks the point the camera is looking
 the picture's format, size and rate.
 
 A camera's tools are icons in its tab, beside the close button, while it is the front tab (hover over
-one to see what it does):
+one to see what it does). Throughout jplacer, an icon with a small down-triangle in its corner opens a
+menu, and one with "…" there takes you somewhere else (the gear, to Machine Setup); one with neither acts
+at once:
 
 | Icon | |
 |---|---|
@@ -401,7 +403,7 @@ one to see what it does):
 | tick in a ring | **Visual test** of the calibration (below). |
 | gear | **The camera's settings**: Machine Setup, with the camera chosen in its tree. |
 
-<!-- src: src/ui/JPCameraPanel.cpp (tabTools); src/ui/JPIcons.cpp; src/ui/JPIconButton.cpp; src/app/JPlacerMachine.cpp (buildCameras); JFramework include/j/core/DockWidget.h (addTitleWidget) -->
+<!-- src: src/ui/JPCameraPanel.cpp (tabTools); src/ui/JPIcons.cpp; src/ui/JPIconButton.cpp (setLeads); src/app/JPlacerMachine.cpp (buildCameras); JFramework include/j/core/DockWidget.h (addTitleWidget) -->
 
 A camera runs while its picture is on screen and stops half a
 second after it is not (another tab in front, the window minimised), so a camera nobody sees costs

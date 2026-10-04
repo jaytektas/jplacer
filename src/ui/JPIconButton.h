@@ -15,6 +15,11 @@ inline namespace jf {
 // JPIcons) and saying what it does in its tooltip: for a panel's tools in
 // its tab. Flat at rest, lit on hover and press. A checkable one stays on
 // the accent while on (onToggled says which).
+//
+// What a click does is never left to guess: one that opens a menu shows a
+// small down-triangle in its bottom-right corner, one that leads somewhere
+// else (another window, a dialog, Machine Setup) shows "…" there, as a text
+// button or menu entry ends in "…"; one without either acts at once.
 class JPIconButton : public JControl {
 public:
     using Glyph = std::function<void(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink)>;
@@ -30,6 +35,8 @@ public:
     void setFramed(bool on) { m_framed = on; }
     // Drawn on the theme's danger colour (an emergency stop), its glyph light on it.
     void setDanger(bool on) { m_danger = on; }
+    enum class Leads { Nowhere, Menu, Elsewhere };
+    void setLeads(Leads leads) { m_leads = leads; }
     void setChecked(bool on);
     bool isChecked() const { return m_checked; }
     jf::JSignal<bool> onToggled;   // a checkable one clicked: on or off now
@@ -42,6 +49,7 @@ private:
     bool  m_framed    = false;
     bool  m_danger    = false;
     bool  m_checked = false;
+    Leads m_leads   = Leads::Nowhere;
 };
 
 } // inline namespace jf
