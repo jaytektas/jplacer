@@ -49,6 +49,9 @@ public:
                                         const JPRoundMarkFinder::Request& request);
 
     static constexpr int kTimeoutMs = 3000;   // for a picture to arrive at all
+    // A camera lost (unplugged, hung) is waited for this long while it is
+    // opened again; back in time, a task goes on where it was.
+    static constexpr int kLostWaitMs = 120000;
 };
 
 } // inline namespace jf

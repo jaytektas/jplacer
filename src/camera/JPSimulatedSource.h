@@ -37,9 +37,12 @@ public:
 
     // `hangAfterFrames`: after so many pictures it sends no more and says
     // nothing (as a camera wedged by noise on its cable does), until opened
-    // again; 0 never.
+    // again; 0 never. `freezeAfterFrames`: after so many it sends the very
+    // same picture over and over (the other way a camera wedges), until
+    // opened again; 0 never.
     JPSimulatedSource(std::string name, int width, int height, double fps,
-                      const JJson& scene = JJson(), ViewProvider view = nullptr, int hangAfterFrames = 0);
+                      const JJson& scene = JJson(), ViewProvider view = nullptr, int hangAfterFrames = 0,
+                      int freezeAfterFrames = 0);
 
     bool open(std::string& error) override;
     void close() override {}
@@ -66,6 +69,7 @@ private:
     std::mt19937 m_rng{ 1 };
     uint64_t m_sequence = 0;
     int m_hangAfterFrames = 0;
+    int m_freezeAfterFrames = 0;
     std::chrono::steady_clock::time_point m_next;
 };
 

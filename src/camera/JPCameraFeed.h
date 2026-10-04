@@ -23,7 +23,9 @@ inline namespace jf {
 // One camera, running: its capture thread grabs pictures as fast as the
 // camera sends them and keeps only the LATEST (a viewer that falls behind
 // skips frames rather than showing old ones). A camera that is lost or hangs
-// is opened again until it is back.
+// is opened again until it is back: lost when it reports an error, hung when
+// it gives no picture for a while, or the very same picture over and over
+// (a real camera's sensor noise makes no two alike).
 //
 // Signals fire on the capture thread; a widget re-posts to the main thread.
 class JPCameraFeed {
@@ -51,6 +53,10 @@ public:
     bool latestUnbalanced(JPFrame& out) const;
     // The mode it is capturing in, once started.
     std::optional<JPCaptureMode> mode() const;
+    // Lost (or hung) and being opened again, and why: until its first picture
+    // once it is back.
+    bool isLost() const { return m_lost; }
+    std::string lostWhy() const;
 
     JSignal<uint64_t>    onFrame;     // a new frame's sequence
     JSignal<std::string> onError;     // why it was lost (it is opened again until stopped)
@@ -72,6 +78,8 @@ private:
     JPFrame                      m_unbalanced;   // m_latest before white balance (kept while there is one)
     JPWhiteBalance               m_balance;
     std::optional<JPCaptureMode> m_mode;
+    std::atomic<bool>            m_lost{ false };
+    std::string                  m_lostWhy;   // guarded by m_mutex
 };
 
 } // inline namespace jf

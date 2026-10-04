@@ -32,6 +32,17 @@ constexpr int kGrabSliceMs = 100;
 // looked for again this often.
 constexpr int kStalledMs   = 3000;
 constexpr int kReconnectMs = 2000;
+// The very same picture this long: hung (a real camera's noise makes no two alike).
+constexpr int kFrozenMs    = 3000;
+
+// A quick fingerprint of a picture: enough of its bytes to tell any two real
+// ones apart.
+uint64_t fingerprint(const std::vector<uint8_t>& bytes) {
+    uint64_t h = 1469598103934665603ull;
+    const size_t step = std::max<size_t>(1, bytes.size() / 4096);
+    for (size_t i = 0; i < bytes.size(); i += step) h = (h ^ bytes[i]) * 1099511628211ull;
+    return h;
+}
 
 } // namespace
 
@@ -82,6 +93,11 @@ void JPCameraFeed::run() {
             JLOGC(JPlacerLog::kCamera, JLogLevel::Warn) << m_config.name << ": " << why << "; trying again";
             lastWhy = why;
         }
+        {
+            std::lock_guard lk(m_mutex);
+            m_lostWhy = why;
+        }
+        m_lost = true;
         onError.emit(why);
         for (int waited = 0; m_running && waited < kReconnectMs; waited += kGrabSliceMs)
             std::this_thread::sleep_for(std::chrono::milliseconds(kGrabSliceMs));
@@ -107,6 +123,11 @@ void JPCameraFeed::runSource(std::string& why) {
 
     JPFrame frame;
     auto lastFrame = std::chrono::steady_clock::now();
+    // A simulated camera can show a still scene exactly: only a real one can
+    // freeze (and a simulated one told to).
+    const bool canFreeze = m_config.device["backend"].str() != "simulated" || m_config.device["freezeAfterFrames"].number() > 0;
+    uint64_t lastPrint = 0;
+    auto changed = std::chrono::steady_clock::now();
     while (m_running) {
         std::string error;
         if (!source->grab(frame, kGrabSliceMs, error)) {
@@ -122,6 +143,18 @@ void JPCameraFeed::runSource(std::string& why) {
             continue;
         }
         lastFrame = std::chrono::steady_clock::now();
+        if (canFreeze) {
+            const uint64_t print = fingerprint(frame.rgba);
+            if (print != lastPrint) {
+                lastPrint = print;
+                changed = lastFrame;
+            } else if (lastFrame - changed > std::chrono::milliseconds(kFrozenMs)) {
+                why = source->describe() + ": the very same picture for " + std::to_string(kFrozenMs / 1000)
+                    + " s (the camera has hung)";
+                break;
+            }
+        }
+        m_lost = false;   // pictures again
         frame.sequence = ++m_sequence;   // the feed's own count, unbroken when the camera is opened again
         JLOGC(JPlacerLog::kFrames, JLogLevel::Trace) << m_config.name << " frame " << frame.sequence << " "
                                                      << frame.width << "x" << frame.height << ", brightness "
@@ -140,6 +173,11 @@ void JPCameraFeed::runSource(std::string& why) {
         onFrame.emit(m_latest.sequence);
     }
     source->close();
+}
+
+std::string JPCameraFeed::lostWhy() const {
+    std::lock_guard lk(m_mutex);
+    return m_lostWhy;
 }
 
 } // inline namespace jf

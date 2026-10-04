@@ -21,9 +21,10 @@ constexpr uint8_t kLight = 90;
 } // namespace
 
 JPSimulatedSource::JPSimulatedSource(std::string name, int width, int height, double fps,
-                                     const JJson& scene, ViewProvider view, int hangAfterFrames)
+                                     const JJson& scene, ViewProvider view, int hangAfterFrames,
+                                     int freezeAfterFrames)
     : m_name(std::move(name)), m_mode{ "SIM", width, height, fps }, m_view(std::move(view)),
-      m_hangAfterFrames(hangAfterFrames) {
+      m_hangAfterFrames(hangAfterFrames), m_freezeAfterFrames(freezeAfterFrames) {
     if (!scene.isObject()) return;
     m_hasScene = true;
     for (size_t i = 0; i < 4; ++i) m_pxPerMm[i] = scene["pxPerMm"][i].number();
@@ -131,7 +132,9 @@ bool JPSimulatedSource::grab(JPFrame& frame, int timeoutMs, std::string&) {
         frame.sequence = ++m_sequence;
         return true;
     }
-    const int bar = int(m_sequence * 4 % uint64_t(frame.width));
+    // Frozen: the bar stays where it was, the picture the same every time.
+    const uint64_t shown = m_freezeAfterFrames > 0 ? std::min<uint64_t>(m_sequence, uint64_t(m_freezeAfterFrames)) : m_sequence;
+    const int bar = int(shown * 4 % uint64_t(frame.width));
     uint8_t* p = frame.rgba.data();
     for (int y = 0; y < frame.height; ++y)
         for (int x = 0; x < frame.width; ++x) {

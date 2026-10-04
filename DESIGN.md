@@ -253,6 +253,15 @@ guided fix.
 - `JobRunner`: a state machine on the machine thread: PreFlight → Fiducials
   → [Plan → Pick → Align → Place]* → Finish, with Pause, Step, Stop, Abort.
   Per-placement error policy: retry n, skip, defer to end, stop and ask.
+- **Every step can be retried.** A step (pick, align, place, a fiducial)
+  starts from what the machine and the run record say, never from state
+  left half-done by the step before, so repeating it is always safe. When
+  a step fails the job pauses on that step with Retry, Skip and Stop;
+  Retry runs the same step again, and the run carries on from there. The
+  failure says what actually went wrong: a lost or hung camera ("Bottom
+  camera lost: plug it in again, then Retry") is reported as itself, never
+  as "part not found". Tasks already wait up to 2 minutes for a lost
+  camera to come back before they fail (`JPCameraLook`).
 - Board transform: placement → board instance (position, rotation, bottom-side
   mirror) → panel → fiducial affine correction. One `PlacementTransform` does
   this maths.
