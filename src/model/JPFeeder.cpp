@@ -183,12 +183,14 @@ std::optional<JPLocation> JPFeeder::pickLocation() const {
     return std::nullopt;
 }
 
-bool JPFeeder::feed(std::string& why) {
+bool JPFeeder::feed(std::string& why, bool* empty) {
+    if (empty) *empty = false;
     const std::string kind = typeName();
     if (kind == "ReferenceTrayFeeder") {
         const int cx = std::max(number("tray-count-x", 1), 1), cy = std::max(number("tray-count-y", 1), 1);
         if (number("feed-count") >= cx * cy) {
             why = "Feeder: " + name() + " (" + partId() + ") - tray empty.";
+            if (empty) *empty = true;
             return false;
         }
     }
@@ -201,6 +203,7 @@ bool JPFeeder::feed(std::string& why) {
         const int most = number("max-feed-count");
         if (most > 0 && number("feed-count") > most) {
             why = "Tried to feed part: " + partId() + "  Feeder " + name() + " empty.";
+            if (empty) *empty = true;
             return false;
         }
     }

@@ -60,10 +60,18 @@ JPJobPanel::JPJobPanel(JSceneGraph& graph, JPConfiguration& config, std::functio
     auto tool = [&](const char* name, const char* icon, const char* tip) {
         return bar->add(std::make_unique<JPIconButton>(graph, name, icon, tip));
     };
-    // Running the job is still to come: its buttons are there, not yet working.
     m_start = tool("Start", "control-start", "Start processing the job.");
+    m_start->onClicked.connect([this] {
+        if (onStartPauseResume) onStartPauseResume();
+    });
     m_step = tool("Step", "control-next", "Process one step of the job and pause.");
+    m_step->onClicked.connect([this] {
+        if (onStep) onStep();
+    });
     m_stop = tool("Stop", "control-stop", "Stop processing the job.");
+    m_stop->onClicked.connect([this] {
+        if (onStop) onStop();
+    });
     bar->add(toolSeparator(graph));
     m_errors = tool("Alert Errors", "error-alert", "");
     m_errors->onClicked.connect([this] {
@@ -96,12 +104,16 @@ JPJobPanel::JPJobPanel(JSceneGraph& graph, JPConfiguration& config, std::functio
     m_captureTool = tool("Capture Tool Location", "capture-nozzle", "Set the board's Z to the tool's current Z.");
     m_captureTool->onClicked.connect([this] { captureTool(); });
     bar->add(toolSeparator(graph));
-    // Locating a board by its placements, and by its fiducials, are still to come.
+    // Locating a board by its placements is still to come.
     m_twoPoint = tool("Multiple Point Board Location", "board-two-placement-locate",
                       "Set the board's location and rotation using multiple placements.");
     m_twoPoint->setLeads(JPIconButton::Leads::Elsewhere);
     m_fiducialCheck = tool("Fiducial Check", "board-fiducial-locate",
                            "Perform a fiducial check for the board and update it's location and rotation.");
+    m_fiducialCheck->onClicked.connect([this] {
+        const auto s = selections();
+        if (s.size() == 1 && onFiducialCheck) onFiducialCheck(s.front());
+    });
     bar->add(toolSeparator(graph));
     JPIconButton* view = tool("View Job", "color-true", "Display a graphical representation of the job");
     view->setLeads(JPIconButton::Leads::Elsewhere);
@@ -231,7 +243,7 @@ void JPJobPanel::selectionChanged() {
     m_captureTool->setEnabled(any);
     m_remove->setEnabled(singleTop || multiTop);
     m_captureCamera->setEnabled(singleTop);
-    for (JPIconButton* b : { m_cameraTo, m_cameraNext, m_toolTo }) b->setEnabled(single || singleTop);
+    for (JPIconButton* b : { m_cameraTo, m_cameraNext, m_toolTo, m_fiducialCheck }) b->setEnabled(single || singleTop);
     for (const auto& item : m_menu->items()) item->setEnabled(any);
     m_placements->setLocation(s.size() == 1 ? s.front() : nullptr);
     if (onSelectionChanged) {
@@ -240,9 +252,59 @@ void JPJobPanel::selectionChanged() {
     }
 }
 
+void JPJobPanel::select(const std::string& uniqueId, const std::string& placementId) {
+    for (int r = 0; r < m_model.rowCount(); ++r)
+        if (const JPPlacementsHolderLocation* l = m_model.location(r); l && l->uniqueId() == uniqueId) {
+            m_table->selectRow(r);
+            if (!placementId.empty()) m_placements->select(placementId);
+            return;
+        }
+}
+
+void JPJobPanel::setRunState(RunState s) {
+    m_runState = s;
+    updateJobActions();
+}
+
+void JPJobPanel::setMenuItems(JMenuItem* start, JMenuItem* step, JMenuItem* stop) {
+    m_startItem = start;
+    m_stepItem = step;
+    m_stopItem = stop;
+    updateJobActions();
+}
+
+void JPJobPanel::resetAllPlaced() {
+    JPJob* j = m_job();
+    if (!j) return;
+    j->removeAllPlacedStatus();
+    j->dirty = true;
+    m_placements->refresh();
+    changed();
+}
+
+void JPJobPanel::setMachineEnabled(bool on) {
+    m_machineEnabled = on;
+    updateJobActions();
+}
+
 void JPJobPanel::updateJobActions() {
-    // Start, Step and Stop wait for the job processor.
-    for (JPIconButton* b : { m_start, m_step, m_stop, m_twoPoint, m_fiducialCheck }) b->setEnabled(false);
+    // As OpenPnP: Start becomes Pause while running and Resume while paused.
+    const bool running = m_runState == RunState::Running;
+    m_start->setIcon(running ? "control-pause" : "control-start");
+    m_start->setTooltip(running                              ? "Pause processing of the job."
+                        : m_runState == RunState::Paused     ? "Resume processing of the job."
+                                                             : "Start processing the job.");
+    const bool settled = m_runState == RunState::Stopped || m_runState == RunState::Paused || running;
+    m_start->setEnabled(m_machineEnabled && settled);
+    m_step->setEnabled(m_machineEnabled && (m_runState == RunState::Stopped || m_runState == RunState::Paused));
+    m_stop->setEnabled(m_machineEnabled && (running || m_runState == RunState::Paused));
+    if (m_startItem) {
+        m_startItem->setLabel(running ? "Pause" : m_runState == RunState::Paused ? "Resume" : "Start");
+        m_startItem->setEnabled(m_start->isEnabled());
+    }
+    if (m_stepItem) m_stepItem->setEnabled(m_step->isEnabled());
+    if (m_stopItem) m_stopItem->setEnabled(m_stop->isEnabled());
+    m_twoPoint->setEnabled(false);   // Multiple Point Board Location is still to come
     const JPJob* j = m_job();
     const bool defer = j && j->errorHandling == JPJob::ErrorHandling::Defer;
     m_errors->setIcon(defer ? "error-defer" : "error-alert");

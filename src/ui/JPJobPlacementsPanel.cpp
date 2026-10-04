@@ -165,6 +165,12 @@ void JPJobPlacementsPanel::setLocation(JPPlacementsHolderLocation* location) {
     updateActivePlacements();
 }
 
+void JPJobPlacementsPanel::select(const std::string& placementId) {
+    m_search->setText("");
+    m_table->setFilter("");
+    m_table->selectRow(m_model.rowOf(placementId));
+}
+
 void JPJobPlacementsPanel::refresh() {
     m_model.reload();
     m_table->refresh();

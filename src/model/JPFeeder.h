@@ -69,8 +69,10 @@ public:
     // (OpenPnP's getPickLocation); none for the others.
     std::optional<JPLocation> pickLocation() const;
     // A feed (OpenPnP's feed, but for a strip's vision check): the count
-    // moved on as the feed option says. False, and why, when it is empty.
-    bool feed(std::string& why);
+    // moved on as the feed option says. False, and why, when it cannot be
+    // fed; `empty` says when that is because it is empty (OpenPnP's
+    // FeederEmptyException).
+    bool feed(std::string& why, bool* empty = nullptr);
     // A strip's holes as its vision last found them (none: as set), and the
     // line its parts lie on.
     std::optional<JPLocation> visionLocation, visionLocationReference;

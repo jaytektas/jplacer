@@ -1,0 +1,205 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
+
+#include "JPlacerJobMachine.h"
+
+#include "common/JPlacerLog.h"
+#include "tasks/JPCameraLook.h"
+#include "tasks/JPTipChanger.h"
+#include "vision/JPRoundMarkFinder.h"
+
+#include <j/core/Log.h>
+
+#include <cmath>
+
+inline namespace jf {
+
+namespace {
+
+// How far from where it should be a fiducial is looked for at first, then
+// once centred on (mm); and done when a look moves it less than this (mm),
+// after at most so many (OpenPnP's maxVisionPasses and maxLinearOffset).
+constexpr double kFirstSearchMm = 4.0;
+constexpr double kSearchMm      = 1.0;
+constexpr double kSettledMm     = 0.2;
+constexpr int    kPasses        = 3;
+
+using Where = std::array<std::optional<double>, 4>;
+
+Where where(const JPLocation& l) {
+    const JPLocation m = l.convertToUnits(JPLengthUnit::Millimeters);
+    return { m.x(), m.y(), m.z(), m.rotation() };
+}
+
+} // namespace
+
+JPlacerJobMachine::JPlacerJobMachine(JPlacerMachine& machine, OnMain onMain, std::function<bool(const std::string&)> ask,
+                                     std::function<void(const std::string&)> progress)
+    : m_machine(machine), m_onMain(std::move(onMain)), m_ask(std::move(ask)), m_progress(std::move(progress)) {}
+
+JPCellConfig JPlacerJobMachine::config() const {
+    JPCellConfig c;
+    m_onMain([&] {
+        if (const JPCell* cell = m_machine.cell()) c = cell->config();
+    });
+    return c;
+}
+
+JPCell* JPlacerJobMachine::cell(std::string& why) const {
+    JPCell* c = nullptr;
+    m_onMain([&] { c = m_machine.cell(); });
+    if (!c) why = "no machine is open";
+    return c;
+}
+
+std::string JPlacerJobMachine::headId(const JPCellConfig& c) const {
+    for (const JPCameraConfig& cam : c.cameras)
+        if (!cam.mount.headId.empty()) return cam.mount.headId;
+    return c.heads.empty() ? std::string() : c.heads.front().id;
+}
+
+std::vector<JPJobMachine::Nozzle> JPlacerJobMachine::nozzles() const {
+    const JPCellConfig c = config();
+    const std::string head = headId(c);
+    std::vector<Nozzle> out;
+    for (const JPNozzleConfig& n : c.nozzles)
+        if (n.mount.headId == head) out.push_back({ n.id, n.name.empty() ? n.id : n.name, n.tipId, n.tipIds });
+    return out;
+}
+
+std::vector<std::pair<std::string, std::string>> JPlacerJobMachine::tips() const {
+    std::vector<std::pair<std::string, std::string>> out;
+    for (const JPNozzleTipConfig& t : config().nozzleTips) out.emplace_back(t.id, t.name.empty() ? t.id : t.name);
+    return out;
+}
+
+std::optional<JPLocation> JPlacerJobMachine::cameraLocation() const {
+    std::optional<JPLocation> l;
+    m_onMain([&] { l = m_machine.toolLocation(JPSetupForm::Tool::Camera); });
+    return l;
+}
+
+bool JPlacerJobMachine::safeZ(std::string& why) {
+    JPCell* c = cell(why);
+    return c && c->safeZAndWait(headId(config()), 1.0, why);
+}
+
+bool JPlacerJobMachine::changeTip(const std::string& nozzleId, const std::string& tipId, std::string& why) {
+    std::string refused;
+    m_onMain([&] { refused = m_machine.tipChangeRefusal(nozzleId, tipId); });
+    if (!refused.empty()) {
+        why = refused;
+        return false;
+    }
+    JPCell* c = cell(why);
+    if (!c) return false;
+    const JPCellConfig names = config();
+    JPNozzleConfig nozzle;
+    for (const JPNozzleConfig& n : names.nozzles)
+        if (n.id == nozzleId) nozzle = n;
+    auto tipOf = [&names](const std::string& id) -> const JPNozzleTipConfig* {
+        for (const JPNozzleTipConfig& t : names.nozzleTips)
+            if (t.id == id) return &t;
+        return nullptr;
+    };
+    auto nameOf = [](const JPNozzleTipConfig* t) { return t ? (t->name.empty() ? t->id : t->name) : std::string("no tip"); };
+    // The tip on it taken off, then the one wanted put on; each half kept when done.
+    struct Half {
+        std::string                what, after;
+        std::vector<JPChangerStep> steps;
+    };
+    std::vector<Half> halves;
+    if (const JPNozzleTipConfig* on = tipOf(nozzle.tipId))
+        halves.push_back({ "Unloading " + nameOf(on) + " from " + nozzle.name, "", on->unloadingSteps() });
+    if (const JPNozzleTipConfig* wanted = tipOf(tipId))
+        halves.push_back({ "Loading " + nameOf(wanted) + " on " + nozzle.name, tipId, wanted->loadSteps });
+    JPTipChanger::Hooks hooks;
+    hooks.ask = m_ask;
+    hooks.progress = m_progress;
+    for (const Half& h : halves) {
+        if (!JPTipChanger::run(*c, names, nozzle, h.steps, h.what, false, hooks, why)) {
+            why = h.what + ": " + why + ". Look at " + nozzle.name +
+                  " and say which tip is on it (the Jog panel's tip menu, Manual Change): that moves nothing.";
+            return false;
+        }
+        m_onMain([&] { m_machine.setTipOn(nozzle.id, h.after); });
+    }
+    return true;
+}
+
+bool JPlacerJobMachine::rotate(const std::string& nozzleId, double angle, std::string& why) {
+    JPCell* c = cell(why);
+    if (!c) return false;
+    for (const JPNozzleConfig& n : config().nozzles)
+        if (n.id == nozzleId) {
+            if (n.mount.axisRotation.empty()) return true;
+            return c->moveAxesAndWait({ { n.mount.axisRotation, angle } }, 1.0, why);
+        }
+    why = "no nozzle " + nozzleId;
+    return false;
+}
+
+bool JPlacerJobMachine::pick(const std::string& nozzleId, const JPLocation& at, std::string& why) {
+    JPCell* c = cell(why);
+    return c && c->pickAtAndWait(nozzleId, where(at), 1.0, why);
+}
+
+bool JPlacerJobMachine::place(const std::string& nozzleId, const JPLocation& at, std::string& why) {
+    JPCell* c = cell(why);
+    return c && c->placeAtAndWait(nozzleId, where(at), 1.0, why);
+}
+
+bool JPlacerJobMachine::discard(const std::string& nozzleId, std::string& why) {
+    JPCell* c = cell(why);
+    return c && c->discardAndWait(nozzleId, 1.0, why);
+}
+
+bool JPlacerJobMachine::park(std::string& why) {
+    JPCell* c = cell(why);
+    return c && c->parkAndWait(headId(config()), 1.0, why);
+}
+
+bool JPlacerJobMachine::locateFiducial(const JPLocation& nominal, double diameterMm, JPLocation& found, std::string& why) {
+    JPCell* c = cell(why);
+    if (!c) return false;
+    JPCameraFeed* feed = nullptr;
+    m_onMain([&] { feed = m_machine.headCameraFeed(); });
+    if (!feed) {
+        why = "no camera on the head";
+        return false;
+    }
+    JPCameraCalibration cal;
+    if (!JPCameraLook::calibration(*c, *feed, cal, why)) return false;
+    const JPMountConfig mount = feed->config().mount;
+    const double scale = std::sqrt(cal.scaleX() * cal.scaleY());
+    const JPLocation start = nominal.convertToUnits(JPLengthUnit::Millimeters);
+    double x = start.x(), y = start.y();
+    for (int pass = 0; pass < kPasses; ++pass) {
+        // The camera over where it is thought to be; then the mark there.
+        if (!c->moveToolAndWait(mount, { x, y, std::nullopt, std::nullopt }, 1.0, why)) return false;
+        JPGrayImage img;
+        if (!JPCameraLook::settled(*feed, img, why)) return false;
+        JPRoundMarkFinder::Request rq;
+        rq.expectedX = img.width / 2.0;
+        rq.expectedY = img.height / 2.0;
+        rq.searchRadius = (pass == 0 ? kFirstSearchMm : kSearchMm) * scale;
+        rq.diameter = diameterMm * scale;
+        const JPRoundMark m = JPCameraLook::findTryingHarder(*c, *feed, img, rq);
+        if (!m.found) {
+            why = "not found: " + m.why;
+            return false;
+        }
+        double fx = 0, fy = 0;
+        cal.machinePoint(m.x, m.y, x, y, fx, fy);
+        const double moved = std::hypot(fx - x, fy - y);
+        x = fx;
+        y = fy;
+        JLOGC(JPlacerLog::kJob, JLogLevel::Debug) << "fiducial pass " << pass + 1 << ": " << fx << ", " << fy << " (moved "
+                                                  << moved << " mm)";
+        if (moved < kSettledMm) break;
+    }
+    found = JPLocation(JPLengthUnit::Millimeters, x, y, start.z(), start.rotation());
+    return true;
+}
+
+} // inline namespace jf

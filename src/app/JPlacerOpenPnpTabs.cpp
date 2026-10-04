@@ -258,6 +258,32 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         m_job.configurationChanged();
     };
 
+    // Running the job: a failure's source chosen where it is shown, as OpenPnP does.
+    m_jobRun = std::make_unique<JPlacerJobRun>(m_window, job, machine, *m_jobPanel);
+    m_jobRun->onPlaced = [this] {
+        m_jobPanel->placements().refresh();
+        if (m_jobViewer) m_jobViewer->regenerate();
+    };
+    m_jobRun->showSource = [this](const JPJobProcessor::Failure& f) {
+        using Source = JPJobProcessor::Failure::Source;
+        switch (f.source) {
+            case Source::Board:
+            case Source::Placement:
+                m_layout.show(m_jobDock.get());
+                m_jobPanel->select(f.id, f.placementId);
+                break;
+            case Source::Part:
+                m_layout.show(m_partsDock.get());
+                m_parts->selectPart(m_job.configuration().part(f.id));
+                break;
+            case Source::Feeder:
+                m_layout.show(m_feedersDock.get());
+                m_feeders->selectFeeder(f.id);
+                break;
+            default: break;
+        }
+    };
+
     m_watch = m_job.watch([this, jobName](JPlacerJob::Change) {
         m_jobPanel->refresh();
         m_jobViewer->followJob(&m_job.job().root(), jobName(), {});
@@ -270,6 +296,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
 }
 
 JPlacerOpenPnpTabs::~JPlacerOpenPnpTabs() {
+    m_jobRun.reset();   // a run under way stops before what it works on goes
     JSettings::instance().set(JPlacerSettings::kPartsSplit, m_parts->split());
     JSettings::instance().set(JPlacerSettings::kPackagesSplit, m_packages->split());
     JSettings::instance().set(JPlacerSettings::kFeedersSplit, m_feeders->split());

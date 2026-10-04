@@ -58,9 +58,12 @@ A tick for each panel: each camera, **Jog**, **Actuators**, **[Parts](parts.md)*
 
 ## Job
 
-**Start**, **Pause**, **Stop**, **Board Setup…** and **Feeders…** are not yet available.
+| Entry | |
+|---|---|
+| **Start** (**Pause** while the job runs, **Resume** while it is paused), **Step**, **Stop** | As the Job tab's buttons (see [Running the job](jobs.md#running-the-job)). |
+| **Reset All Placed** | Marks every placement of the job not placed, so the job places them all again. |
 
-<!-- src: src/app/JPlacerMenuBuilder.cpp (the Job menu) -->
+<!-- src: src/app/JPlacerMenuBuilder.cpp (the Job menu); src/ui/JPJobPanel.cpp (setMenuItems, resetAllPlaced, updateJobActions) -->
 
 ## Help
 

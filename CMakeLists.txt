@@ -69,13 +69,13 @@ target_link_libraries(jplacer_model PUBLIC jplacer_openpnp)
 # Procedures that drive the machine, its cameras and vision together:
 # calibrating a camera, the visual homing test, finding a board.
 add_library(jplacer_tasks STATIC ${JPLACER_TASKS_SRC})
-target_link_libraries(jplacer_tasks PUBLIC jplacer_machine jplacer_camera jplacer_vision)
+target_link_libraries(jplacer_tasks PUBLIC jplacer_machine jplacer_camera jplacer_vision jplacer_model)
 
 # Panels and views over the other modules: the only module with widgets.
 # Machine Setup's model of a cell: its tree, what each part edits, adding
 # and removing parts. No widget is made here.
 add_library(jplacer_setup STATIC ${JPLACER_SETUP_SRC})
-target_link_libraries(jplacer_setup PUBLIC jplacer_machine)
+target_link_libraries(jplacer_setup PUBLIC jplacer_machine jplacer_model)
 
 add_library(jplacer_ui STATIC ${JPLACER_UI_SRC})
 target_link_libraries(jplacer_ui PUBLIC jplacer_machine jplacer_camera jplacer_setup jplacer_model)

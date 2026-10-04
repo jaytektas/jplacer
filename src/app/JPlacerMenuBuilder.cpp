@@ -51,12 +51,6 @@ JMenuItem* entry(JPKeyMap& keys, JMenu* menu, JSceneGraph& graph, const std::str
     return item;
 }
 
-// Entries for features that are not built yet: shown, so the shape of the
-// application is visible, and disabled (see JPlacerMenuBuilder.h).
-void addPending(JMenu* menu, JSceneGraph& graph, std::initializer_list<const char*> labels) {
-    for (const char* label : labels) menu->add(graph, label)->setEnabled(false);
-}
-
 } // namespace
 
 void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerApp& app) {
@@ -158,10 +152,21 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
     entry(keys, machine, graph, "machine.setup", "Machine", "Machine Setup\xE2\x80\xA6", none,
           [&app] { app.machine().showDock("Machine Setup"); });
 
+    // Job: OpenPnP's, the Job tab's run buttons and Reset All Placed.
     JMenu* job = newMenu(window, "Job");
-    addPending(job, graph, { "Start", "Pause", "Stop" });
+    JPJobPanel& jobPanel = app.tabs().jobPanel();
+    JMenuItem* start = entry(keys, job, graph, "job.start", "Job", "Start", none, [&jobPanel] {
+        if (jobPanel.onStartPauseResume) jobPanel.onStartPauseResume();
+    });
+    JMenuItem* step = entry(keys, job, graph, "job.step", "Job", "Step", none, [&jobPanel] {
+        if (jobPanel.onStep) jobPanel.onStep();
+    });
+    JMenuItem* stop = entry(keys, job, graph, "job.stop", "Job", "Stop", none, [&jobPanel] {
+        if (jobPanel.onStop) jobPanel.onStop();
+    });
     job->addSeparator(graph);
-    addPending(job, graph, { "Board Setup\xE2\x80\xA6", "Feeders\xE2\x80\xA6" });
+    entry(keys, job, graph, "job.resetAllPlaced", "Job", "Reset All Placed", none, [&jobPanel] { jobPanel.resetAllPlaced(); });
+    jobPanel.setMenuItems(start, step, stop);
 
     JMenu* help = newMenu(window, "Help");
     // The manual opens in the browser; whatever went wrong is said in the status bar.

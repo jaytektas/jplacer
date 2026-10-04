@@ -52,6 +52,8 @@ public:
     void saveAs();
     // After an edit to the job: marked changed, and the views told.
     void changed();
+    // A job is running: the job is not left (new, open, recent) until it stops.
+    std::function<bool()> running;
     // After an edit to parts, packages, boards or panels: the configuration
     // saved (said in the status bar when it cannot be), and the views told.
     void configurationChanged();

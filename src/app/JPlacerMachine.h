@@ -92,6 +92,11 @@ public:
     // The open cell's nozzle tips, id and name; none without a cell.
     std::vector<std::pair<std::string, std::string>> nozzleTips() const;
 
+    // Whether a job is running (no other cell is opened meanwhile).
+    std::function<bool()> jobRunning;
+    // The machine connected or not (a job's Start, Step and Stop follow it, as OpenPnP's do).
+    std::function<void(bool connected)> onConnectedChanged;
+    bool isConnected() const { return m_cell && m_cell->isConnected(); }
     // An OpenPnP machine.xml imported (its feeders are the configuration's, and taken from it there).
     std::function<void(const std::string& machineXml)> onImported;
     // Where the head's camera, or the Jog panel's chosen nozzle, is now, in
@@ -112,6 +117,13 @@ public:
     // vacuum on (JPCell::pickAt), and up again. False, the reason shown,
     // when the machine cannot move.
     bool pickAt(const JPLocation& at);
+    // For a job (JPlacerJobMachine): the open cell, the head camera's
+    // pictures, why a tip change cannot be made (empty: it can), and the tip
+    // now on a nozzle kept (a step in Machine Setup; nothing moves).
+    JPCell*       cell() const { return m_cell.get(); }
+    JPCameraFeed* headCameraFeed() const;
+    std::string   tipChangeRefusal(const std::string& nozzleId, const std::string& tipId) const;
+    void          setTipOn(const std::string& nozzleId, const std::string& tipId);
     // Where the docks live, and View's entries for them.
     JPlacerLayout& layout() { return m_layout; }
 
@@ -163,8 +175,6 @@ private:
     // mark; then, the camera over the mark, move the nozzle's offset by the
     // difference (a step in Machine Setup, to undo).
     void nozzleOffsetWizard(const std::string& nozzleId, bool storeMark);
-    // The tip now on a nozzle, kept (a step in Machine Setup; nothing moves).
-    void setTipOn(const std::string& nozzleId, const std::string& tipId);
 
     struct Dock {
         std::unique_ptr<JDockWidget> dock;

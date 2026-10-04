@@ -35,6 +35,8 @@ inline namespace jf {
 class JPJobPanel : public JContainer {
 public:
     using Tool = JPJobPlacementsPanel::Tool;
+    // OpenPnP's JobPanel.State.
+    enum class RunState { Stopped, Paused, Running, Pausing, Stopping };
 
     JPJobPanel(JSceneGraph& graph, JPConfiguration& config, std::function<JPJob*()> job, double split);
 
@@ -50,7 +52,22 @@ public:
     // The chosen boards and panels changed (the job viewer follows them).
     std::function<void(std::vector<const JPPlacementsHolderLocation*> chosen)> onSelectionChanged;
 
+    // Start (Pause, Resume), Step and Stop; Fiducial Check on the chosen board or panel.
+    std::function<void()> onStartPauseResume, onStep, onStop;
+    std::function<void(JPPlacementsHolderLocation*)> onFiducialCheck;
+    // How the job runs now, and whether the machine is connected: the run
+    // buttons follow, as OpenPnP's updateJobActions has them.
+    void setRunState(RunState s);
+    void setMachineEnabled(bool on);
+    // The Job menu's Start, Step and Stop, kept as the buttons are.
+    void setMenuItems(JMenuItem* start, JMenuItem* step, JMenuItem* stop);
+    // Job > Reset All Placed: every placement of the job not placed.
+    void resetAllPlaced();
+    RunState runState() const { return m_runState; }
+
     JPJobPlacementsPanel& placements() { return *m_placements; }
+    // The board or panel of a unique id ("Pnl1⇒Brd2") chosen, and a placement on it.
+    void select(const std::string& uniqueId, const std::string& placementId);
     // Another job, or the job changed elsewhere: shown again.
     void refresh();
     double split() const;
@@ -76,6 +93,11 @@ private:
     JPJobPlacementsPanel*               m_placements = nullptr;
     JSplitter*                          m_split = nullptr;
     std::unique_ptr<JContainer>         m_boardsPane, m_placementsPane;
+    RunState                            m_runState = RunState::Stopped;
+    bool                                m_machineEnabled = false;
+    JMenuItem*                          m_startItem = nullptr;
+    JMenuItem*                          m_stepItem = nullptr;
+    JMenuItem*                          m_stopItem = nullptr;
     JPIconButton*                       m_start = nullptr;
     JPIconButton*                       m_step = nullptr;
     JPIconButton*                       m_stop = nullptr;

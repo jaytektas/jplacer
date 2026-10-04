@@ -87,6 +87,15 @@ public:
     // turned, down to Z, the pick (as pick()), and up to safe Z again.
     // Refused while a move is under way; the outcome arrives as onMotion.
     void pickAt(const std::string& nozzleId, std::array<std::optional<double>, 4> to, double speed);
+    // The same, waiting, for a procedure on a thread of its own (a job):
+    // a pick at `to`, a place there (the part let go, as place()), a
+    // discard, the head parked, a tool taken to `to` (as moveTool). False
+    // with `why`.
+    bool pickAtAndWait(const std::string& nozzleId, std::array<std::optional<double>, 4> to, double speed, std::string& why);
+    bool placeAtAndWait(const std::string& nozzleId, std::array<std::optional<double>, 4> to, double speed, std::string& why);
+    bool discardAndWait(const std::string& nozzleId, double speed, std::string& why);
+    bool parkAndWait(const std::string& headId, double speed, std::string& why);
+    bool moveToolAndWait(const JPMountConfig& mount, std::array<std::optional<double>, 4> to, double speed, std::string& why);
 
     // HOMING: each controller's home command, then the axes are told where
     // they now are (their home coordinates) and the cell is homed. Until it
@@ -228,6 +237,12 @@ private:
     bool doSafeZ(const std::string& headId, double speed, std::string& why);
     bool doSwitch(const std::string& actuatorId, bool on, std::string& why);
     bool doPick(const JPNozzleConfig& nozzle, std::string& why);
+    // A nozzle to `to` at safe Z, the pick or place there, and up again.
+    bool doAt(const std::string& nozzleId, const std::array<std::optional<double>, 4>& to, double speed, bool pick,
+              std::string& why);
+    bool doDiscard(const std::string& nozzleId, double speed, std::string& why);
+    // `work` on the cell thread as a move (refused while one is under way), waited for.
+    bool waitFor(std::function<bool(std::string&)> work, std::string& why);
     bool doPlace(const JPNozzleConfig& nozzle, std::string& why);
     bool doRead(const std::string& actuatorId, std::string& value, std::string& why);
     // The nozzle's vacuum level, from its sensing actuator (else its vacuum actuator).

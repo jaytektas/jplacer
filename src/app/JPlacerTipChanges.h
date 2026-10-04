@@ -38,12 +38,12 @@ public:
     // bar says why) while another change runs, or when it cannot be done.
     void change(const std::string& nozzleId, const std::string& tipId, bool everyStep);
     bool busy() const { return m_busy; }
+    // What stops putting `tipId` on `nozzleId`, in words; empty when it can be done.
+    std::string refusal(const std::string& nozzleId, const std::string& tipId) const;
 
 private:
     // On the main thread: a question for the person; the answer to `answer`.
     void ask(const std::string& question, std::shared_ptr<std::promise<bool>> answer);
-    // What stops this change, in words; empty when it can be done.
-    std::string refusal(const std::string& nozzleId, const std::string& tipId) const;
 
     JAppWindow&                                                  m_window;
     JPCell&                                                      m_cell;

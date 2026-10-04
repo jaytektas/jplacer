@@ -431,51 +431,114 @@ void JPCell::safeZ(const std::string& headId, double speed) {
 void JPCell::discard(const std::string& nozzleId, double speed) {
     if (m_moving.exchange(true)) return;
     m_thread.post([this, nozzleId, speed] {
-        std::string why = "no nozzle " + nozzleId;
-        bool ok = false;
-        for (const JPNozzleConfig& n : m_config.nozzles) {
-            if (n.id != nozzleId) continue;
-            if (!m_config.discardLocation) {
-                why = "no discard location is set (Machine Setup, Machine)";
-                break;
-            }
-            // Up, across, down to it, the part let go, and up again.
-            const JPMachineLocation& at = *m_config.discardLocation;
-            const JPMountConfig& m = n.mount;
-            std::map<std::string, double> across;
-            if (!m.axisX.empty()) across[m.axisX] = at.x - m.offsetX;
-            if (!m.axisY.empty()) across[m.axisY] = at.y - m.offsetY;
-            why.clear();
-            ok = doSafeZ(m.headId, speed, why) && doMove(across, speed, why)
-              && (m.axisZ.empty() || doMove({ { m.axisZ, at.z - m.offsetZ } }, speed, why)) && doPlace(n, why)
-              && doSafeZ(m.headId, speed, why);
-        }
+        std::string why;
+        const bool ok = doDiscard(nozzleId, speed, why);
         m_moving = false;
         onMotion.emit(ok, why);
     });
 }
 
+bool JPCell::doDiscard(const std::string& nozzleId, double speed, std::string& why) {
+    for (const JPNozzleConfig& n : m_config.nozzles) {
+        if (n.id != nozzleId) continue;
+        if (!m_config.discardLocation) {
+            why = "no discard location is set (Machine Setup, Machine)";
+            return false;
+        }
+        // Up, across, down to it, the part let go, and up again.
+        const JPMachineLocation& at = *m_config.discardLocation;
+        const JPMountConfig& m = n.mount;
+        std::map<std::string, double> across;
+        if (!m.axisX.empty()) across[m.axisX] = at.x - m.offsetX;
+        if (!m.axisY.empty()) across[m.axisY] = at.y - m.offsetY;
+        return doSafeZ(m.headId, speed, why) && doMove(across, speed, why)
+            && (m.axisZ.empty() || doMove({ { m.axisZ, at.z - m.offsetZ } }, speed, why)) && doPlace(n, why)
+            && doSafeZ(m.headId, speed, why);
+    }
+    why = "no nozzle " + nozzleId;
+    return false;
+}
+
 void JPCell::pickAt(const std::string& nozzleId, std::array<std::optional<double>, 4> to, double speed) {
     if (m_moving.exchange(true)) return;
     m_thread.post([this, nozzleId, to, speed] {
-        std::string why = "no nozzle " + nozzleId;
-        bool ok = false;
-        for (const JPNozzleConfig& n : m_config.nozzles) {
-            if (n.id != nozzleId) continue;
-            const JPMountConfig& m = n.mount;
-            std::map<std::string, double> across;
-            if (to[0] && !m.axisX.empty()) across[m.axisX] = *to[0] - m.offsetX;
-            if (to[1] && !m.axisY.empty()) across[m.axisY] = *to[1] - m.offsetY;
-            if (to[3] && !m.axisRotation.empty()) across[m.axisRotation] = *to[3];
-            compensateRunout(m, across, false);
-            why.clear();
-            ok = doSafeZ(m.headId, speed, why) && (across.empty() || doMove(across, speed, why))
-              && (!to[2] || m.axisZ.empty() || doMove({ { m.axisZ, *to[2] - m.offsetZ } }, speed, why)) && doPick(n, why)
-              && doSafeZ(m.headId, speed, why);
-        }
+        std::string why;
+        const bool ok = doAt(nozzleId, to, speed, true, why);
         m_moving = false;
         onMotion.emit(ok, why);
     });
+}
+
+bool JPCell::doAt(const std::string& nozzleId, const std::array<std::optional<double>, 4>& to, double speed, bool pick,
+                  std::string& why) {
+    for (const JPNozzleConfig& n : m_config.nozzles) {
+        if (n.id != nozzleId) continue;
+        const JPMountConfig& m = n.mount;
+        std::map<std::string, double> across;
+        if (to[0] && !m.axisX.empty()) across[m.axisX] = *to[0] - m.offsetX;
+        if (to[1] && !m.axisY.empty()) across[m.axisY] = *to[1] - m.offsetY;
+        if (to[3] && !m.axisRotation.empty()) across[m.axisRotation] = *to[3];
+        compensateRunout(m, across, false);
+        return doSafeZ(m.headId, speed, why) && (across.empty() || doMove(across, speed, why))
+            && (!to[2] || m.axisZ.empty() || doMove({ { m.axisZ, *to[2] - m.offsetZ } }, speed, why))
+            && (pick ? doPick(n, why) : doPlace(n, why)) && doSafeZ(m.headId, speed, why);
+    }
+    why = "no nozzle " + nozzleId;
+    return false;
+}
+
+bool JPCell::waitFor(std::function<bool(std::string&)> work, std::string& why) {
+    if (m_moving.exchange(true)) {
+        why = "another move is under way";
+        return false;
+    }
+    std::promise<std::pair<bool, std::string>> done;
+    auto result = done.get_future();
+    m_thread.post([this, &work, &done] {
+        std::string w;
+        const bool ok = work(w);
+        m_moving = false;
+        onMotion.emit(ok, w);
+        done.set_value({ ok, w });
+    });
+    const auto [ok, w] = result.get();
+    why = w;
+    return ok;
+}
+
+bool JPCell::pickAtAndWait(const std::string& nozzleId, std::array<std::optional<double>, 4> to, double speed,
+                           std::string& why) {
+    return waitFor([&](std::string& w) { return doAt(nozzleId, to, speed, true, w); }, why);
+}
+
+bool JPCell::placeAtAndWait(const std::string& nozzleId, std::array<std::optional<double>, 4> to, double speed,
+                            std::string& why) {
+    return waitFor([&](std::string& w) { return doAt(nozzleId, to, speed, false, w); }, why);
+}
+
+bool JPCell::discardAndWait(const std::string& nozzleId, double speed, std::string& why) {
+    return waitFor([&](std::string& w) { return doDiscard(nozzleId, speed, w); }, why);
+}
+
+bool JPCell::parkAndWait(const std::string& headId, double speed, std::string& why) {
+    return waitFor([&](std::string& w) { return doPark(headId, speed, w); }, why);
+}
+
+bool JPCell::moveToolAndWait(const JPMountConfig& mount, std::array<std::optional<double>, 4> to, double speed,
+                             std::string& why) {
+    return waitFor(
+        [&](std::string& w) {
+            bool ok = mount.headId.empty() || doSafeZ(mount.headId, speed, w);
+            std::map<std::string, double> across;
+            if (to[0] && !mount.axisX.empty()) across[mount.axisX] = *to[0] - mount.offsetX;
+            if (to[1] && !mount.axisY.empty()) across[mount.axisY] = *to[1] - mount.offsetY;
+            if (to[3] && !mount.axisRotation.empty()) across[mount.axisRotation] = *to[3];
+            compensateRunout(mount, across, false);
+            if (ok && !across.empty()) ok = doMove(across, speed, w);
+            if (ok && to[2] && !mount.axisZ.empty()) ok = doMove({ { mount.axisZ, *to[2] - mount.offsetZ } }, speed, w);
+            return ok;
+        },
+        why);
 }
 
 bool JPCell::switchTelling(const std::string& actuatorId, bool on, std::string& why) {

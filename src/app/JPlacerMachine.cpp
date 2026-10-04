@@ -361,9 +361,15 @@ void JPlacerMachine::updateMenu() {
     if (m_disconnectItem) m_disconnectItem->setEnabled(connected);
     if (m_homeItem)       m_homeItem->setEnabled(connected);
     if (m_parkItem)       m_parkItem->setEnabled(connected && m_cell->isHomed());
+    if (onConnectedChanged) onConnectedChanged(connected);
 }
 
 bool JPlacerMachine::openCell(const std::string& path, std::string& error) {
+    // A job works on the cell open: another waits until it has stopped.
+    if (jobRunning && jobRunning()) {
+        error = "a job is running: stop it first";
+        return false;
+    }
     JPCellConfig config;
     if (!config.load(path, error)) return false;
     for (const std::string& p : config.problems()) JLOGC(JPlacerLog::kApp, JLogLevel::Warn) << path << ": " << p;
@@ -730,6 +736,17 @@ void JPlacerMachine::nozzleOffsetWizard(const std::string& nozzleId, bool storeM
     m_window.showStatus("Offset Wizard: " + nozzle->name + "'s offset moved by X " + JPUiParts::coordinate(dx) + ", Y "
                         + JPUiParts::coordinate(dy), kErrorMs);
     m_nozzleMark.reset();
+}
+
+JPCameraFeed* JPlacerMachine::headCameraFeed() const {
+    JPCameraPanel* p = m_cameraTasks ? m_cameraTasks->headCamera() : nullptr;
+    return p ? &p->feed() : nullptr;
+}
+
+std::string JPlacerMachine::tipChangeRefusal(const std::string& nozzleId, const std::string& tipId) const {
+    if (!m_tipChanges) return "no machine is open";
+    if (m_tipChanges->busy()) return "a nozzle tip change is under way";
+    return m_tipChanges->refusal(nozzleId, tipId);
 }
 
 void JPlacerMachine::setTipOn(const std::string& nozzleId, const std::string& tipId) {

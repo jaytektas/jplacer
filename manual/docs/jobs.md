@@ -73,17 +73,18 @@ Right-click for **Set Side**, **Set Enabled** and **Set Check Fids**.
 
 | Button | |
 |---|---|
-| **Start**, **Step**, **Stop** | Not available yet. |
+| **Start** (**Pause**, **Resume**), **Step**, **Stop** | Run the job (see [Running the job](#running-the-job)). |
 | **Alert Errors** / **Defer Errors** | Whether a placement's error (one whose error handling is Default) stops the job at once, or is reported at its end. Click to change. |
 | **Add Board/Panel** (plus, with a menu) | **New Board...**, **Existing Board...**, **New Panel...**, **Existing Panel...**: put one in the job, at the machine's origin. |
 | **Remove Board(s)/Panel(s)** (cross) | Takes the chosen ones (straight in the job) out of it. |
 | **Move Camera To Board Location**, **Move Camera to the Next Board**, **Move Tool To Board Location** | Take the camera (or the Jog panel's nozzle) to where the board lies, at safe Z; Next chooses the next row first. |
 | **Capture Camera Location** | Sets where the chosen board lies to where the camera is (its X, Y and rotation; its Z kept). |
 | **Capture Tool Location** | Sets the chosen boards' Z to the nozzle's. |
-| **Multiple Point Board Location**, **Fiducial Check** | Not available yet. |
+| **Fiducial Check** | Looks at the chosen board's (or panel's) fiducials with the camera and sets where it lies from them, as the job does; one straight in the job has its X, Y and rotation set too. The camera is then taken to it. |
+| **Multiple Point Board Location** | Not available yet. |
 | **View Job** | Opens the job viewer (see [Panels](panels.md#the-viewer)), following the boards chosen. |
 
-<!-- src: src/ui/JPJobPanel.cpp; src/ui/JPLocationsTableModel.cpp; src/app/JPlacerOpenPnpTabs.cpp; src/app/JPlacerMachine.cpp (toolLocation, moveToolTo) -->
+<!-- src: src/ui/JPJobPanel.cpp; src/ui/JPLocationsTableModel.cpp; src/app/JPlacerOpenPnpTabs.cpp; src/app/JPlacerMachine.cpp (toolLocation, moveToolTo); src/app/JPlacerJobRun.cpp (fiducialCheck) -->
 
 **Placements**: the chosen board's (or panel's) placements on its side facing up, with **Placed** and
 **Status** (**Ready**, **Missing Part**, **Missing Feeder**, **Part Height**: its height is not known, or
@@ -100,3 +101,50 @@ placement on or off.
 The status line shows the placements placed: of the whole job, and of the board chosen.
 
 <!-- src: src/ui/JPJobPlacementsPanel.cpp (onEditFeeder, updateActions); src/ui/JPFeedersPanel.cpp (showFeederForPart); src/ui/JPPlacementsTableModel.cpp (status, setLocation) -->
+
+## Running the job
+
+**Start** runs the job, a step after another, until every placement is placed; while it runs the button
+is **Pause**, which stops it after the step under way, and then **Resume**. **Step** does one step and
+pauses. **Stop** stops it: the nozzles are emptied at the discard location and the head is parked. The
+machine must be connected (the buttons are greyed until it is) and homed. If every placement is placed
+already, Start asks whether to mark them all not placed first. The status line says what the job is
+doing ("Feed …", "Pick … using nozzle N1.", "Placing …"), and at the end how many parts were placed and
+how fast. While a job runs, another job or another cell is not opened.
+
+<!-- src: src/app/JPlacerJobRun.cpp (startPauseResume, step, stop, start, run); src/ui/JPJobPanel.cpp (updateJobActions); src/app/JPlacerJob.cpp (settle); src/app/JPlacerMachine.cpp (openCell) -->
+
+A job goes as OpenPnP's does:
+
+1. **Checks.** The placements to place are those enabled, not placed, with their side facing up on an
+   enabled board. Each must have a part, the part a package, a nozzle tip that fits the package and a
+   nozzle, and an enabled feeder holding the part; a board with an ID twice is refused. Then the head goes
+   to safe Z and anything left on a nozzle is discarded.
+2. **Fiducials.** Each board and panel with **Check Fids?** has its fiducials found by the camera (a
+   panel's outermost first), each as a round mark the size of its package's footprint pad, looked at
+   again once centred until it moves less than 0.2 mm. Where the board lies is fitted to them: with two,
+   moved, turned and scaled; with three or more, fully. A fit that scales or shears more than 5 %, or moves
+   the board more than 5 mm, is refused.
+3. **Planning.** The placements still to do, lowest rank first (a rank ten or more above the lowest
+   waits for it), are ordered by nozzle tip (the tip that can pick most first), then by feeder and by
+   place, the shortest way; each nozzle is given one, with the tip on it if one fits, else a tip that
+   does.
+4. **Each cycle**: the nozzle tips changed where needed (by their changer steps), the nozzles turned for
+   the pick, each part fed (retried as the feeder's Feed Retry Count says; an empty feeder is turned off
+   and the next one holding the part used) and picked (retried as its Pick Retry Count says, a part that
+   was not picked discarded), then placed where the board lies, as high as the part, turned to the
+   placement's rotation. Then the next cycle, until all are placed; then the head is parked.
+
+jplacer has no bottom vision yet: a part is placed as it was picked, as OpenPnP places one with no part
+aligner enabled.
+
+<!-- src: src/tasks/JPJobProcessor.cpp (preFlight, plan, ordered, planner, pick, place, cleanup); src/tasks/JPFiducialLocator.cpp; src/model/JPFiducialFit.cpp; src/app/JPlacerJobMachine.cpp (locateFiducial, changeTip) -->
+
+When something fails, the job pauses and says why (**Job Error**); the board, placement, part or feeder
+it is about is chosen on its tab. **Resume** goes on from there. With **Defer Errors** (or a placement's
+own error handling set to Defer), a placement that fails is put off instead: its feeder's fault is
+counted (shown in the Feeders tab's **Faults**; three in its last six feeds turn the feeder off), and it
+is tried again later, up to five times, or left in error; the job goes on, and says at its end how many
+errors there were.
+
+<!-- src: src/tasks/JPJobProcessor.cpp (plannedStep, finish); src/app/JPlacerJobRun.cpp (run); src/app/JPlacerOpenPnpTabs.cpp (showSource); src/model/JPFeeder.cpp (recordJobFault) -->

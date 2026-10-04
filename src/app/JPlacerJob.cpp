@@ -87,6 +87,10 @@ void JPlacerJob::title() {
 }
 
 void JPlacerJob::settle(std::function<void()> then) {
+    if (running && running()) {
+        JDialog::message("Job running", "The job is running: stop it first.");
+        return;
+    }
     if (!m_job->dirty) {
         then();
         return;

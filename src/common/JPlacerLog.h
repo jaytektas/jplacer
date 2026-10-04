@@ -32,6 +32,7 @@ struct JPlacerLog {
 
     static constexpr const char* kImport   = "import.openpnp";     // reading OpenPnP's files
     static constexpr const char* kBoardImport = "import.board";    // placements read from CAD files
+    static constexpr const char* kJob      = "job";                // a job run: each step, what failed
 
     static constexpr const char* kUi       = "ui";                 // what was clicked, chosen, typed
 
@@ -39,7 +40,7 @@ struct JPlacerLog {
     // any has been used).
     static const std::vector<std::string>& all() {
         static const std::vector<std::string> list = { kApp, kSettings, kDesktop, kProfiles, kCell, kDriver, kLink,
-                                                       kTraffic, kStatus, kCamera, kFrames, kImport, kBoardImport,
+                                                       kTraffic, kStatus, kCamera, kFrames, kImport, kBoardImport, kJob,
                                                        kUi };
         return list;
     }

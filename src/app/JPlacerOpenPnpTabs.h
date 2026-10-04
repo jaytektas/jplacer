@@ -4,6 +4,7 @@
 #pragma once
 
 #include "JPlacerJob.h"
+#include "JPlacerJobRun.h"
 #include "JPlacerLayout.h"
 #include "JPlacerMachine.h"
 #include "JPlacerViewerDock.h"
@@ -39,6 +40,7 @@ public:
     JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, JPlacerJob& job, JPlacerMachine& machine);
     ~JPlacerOpenPnpTabs();
 
+    JPJobPanel& jobPanel() { return *m_jobPanel; }
     // Brings a tab forward by its title; false when there is none.
     bool showDock(const std::string& title);
 
@@ -77,6 +79,7 @@ private:
     std::unique_ptr<JPJobPanel>      m_jobPanel;
     std::unique_ptr<JDockWidget>     m_jobDock;
     std::unique_ptr<JPlacerViewerDock> m_jobViewer;
+    std::unique_ptr<JPlacerJobRun>   m_jobRun;
     // The status line's placements done ("Placements: 3 / 10 Total | …") and its bar.
     std::unique_ptr<JLabel>          m_placedLabel;
     std::unique_ptr<JProgressBar>    m_placedBar;

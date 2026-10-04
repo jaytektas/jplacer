@@ -58,13 +58,14 @@ public:
     // chosen (an enabled one first), else a new feeder made for it.
     void showFeederForPart(const std::string& partId);
     double split() const;
+    // A feeder chosen (and shown), by id.
+    void selectFeeder(const std::string& id);
     // OpenPnP's pickFeeder: a feed, then the chosen nozzle's pick at its pick location.
     void pickFrom(JPFeeder& f);
 
 private:
     std::vector<JPFeeder*> selections() const;
     JPFeeder* selection() const;
-    void selectFeeder(const std::string& id);
     void selectionChanged();
     void showForm();
     void buildMenu();

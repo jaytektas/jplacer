@@ -10,6 +10,11 @@ notes.
 
 ## Unreleased
 
+- Jobs run, as OpenPnP runs them: Start (Pause, Resume), Step and Stop on the Job tab and in the Job menu.
+  The setup is checked, boards are located by their fiducials, placements are planned by nozzle tip,
+  feeder and place, tips are changed, parts fed, picked and placed, and the head parked at the end;
+  errors pause the job (or are deferred), their board, part or feeder shown. Job > Reset All Placed.
+- The Job tab's Fiducial Check locates the chosen board or panel by its fiducials.
 - A Feeders tab, as OpenPnP's: the feeders table (Name, Part, Type, Priority, Faults, Enabled, Feed),
   changed in place, with Set Enabled and Set Feed option on the right-click menu; New Feeder (OpenPnP's
   nineteen kinds), Delete Feeder, Pick, Feed, Move Camera and Move Tool; each feeder's setup, with

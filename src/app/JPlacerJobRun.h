@@ -1,0 +1,79 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
+
+#pragma once
+
+#include "JPlacerJob.h"
+#include "JPlacerJobMachine.h"
+#include "JPlacerMachine.h"
+
+#include "tasks/JPJobProcessor.h"
+#include "ui/JPJobPanel.h"
+
+#include <j/app/JAppWindow.h>
+
+#include <atomic>
+#include <functional>
+#include <future>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <thread>
+
+inline namespace jf {
+
+// Running the job, as OpenPnP's JobPanel runs it: Start (then Pause while it
+// runs, Resume while paused), Step (one step, then paused) and Stop (the
+// nozzles emptied and the head parked). The job processor works on a
+// thread of its own; what it changes in the job, the boards and the feeders
+// is changed on the screen's thread, which it waits for. A failure pauses
+// the job and is shown ("Job Error"), its board, placement, part or feeder
+// chosen where it is shown; Resume goes on from there. Also the Job tab's
+// Fiducial Check of one board or panel.
+class JPlacerJobRun {
+public:
+    JPlacerJobRun(JAppWindow& window, JPlacerJob& job, JPlacerMachine& machine, JPJobPanel& panel);
+    // A run under way is stopped where it is (it is not parked) and waited for.
+    ~JPlacerJobRun();
+
+    JPlacerJobRun(const JPlacerJobRun&)            = delete;
+    JPlacerJobRun& operator=(const JPlacerJobRun&) = delete;
+
+    bool running() const { return m_state != JPJobPanel::RunState::Stopped; }
+
+    // A failure's source, to be chosen where it is shown (the Feeders tab's
+    // feeder, the Parts tab's part; a board and placement are chosen here).
+    std::function<void(const JPJobProcessor::Failure&)> showSource;
+    // A placement placed: the placed counts and tables shown again.
+    std::function<void()> onPlaced;
+
+private:
+    void startPauseResume();
+    void step();
+    void stop();
+    void fiducialCheck(JPPlacementsHolderLocation* location);
+    // Starts the processor anew (asking to reset a job all placed), then runs it.
+    void start(JPJobPanel::RunState as);
+    // The run on the worker: steps while Running (one while Pausing).
+    void run();
+    void setState(JPJobPanel::RunState s);
+    // `fn` on the screen's thread, waited for (not while quitting).
+    void onMain(const std::function<void()>& fn);
+    void post(std::function<void()> fn);
+    bool ask(const std::string& question);
+    void join();
+
+    JAppWindow&                          m_window;
+    JPlacerJob&                          m_job;
+    JPlacerMachine&                      m_machine;
+    JPJobPanel&                          m_panel;
+    const std::thread::id                m_mainThread;   // the screen's
+    std::unique_ptr<JPlacerJobMachine>   m_jobMachine;
+    std::unique_ptr<JPJobProcessor>      m_processor;
+    std::thread                          m_worker;
+    std::atomic<JPJobPanel::RunState>    m_state { JPJobPanel::RunState::Stopped };
+    std::atomic<bool>                    m_quitting { false };
+    std::shared_ptr<bool>                m_alive = std::make_shared<bool>(true);
+};
+
+} // inline namespace jf
