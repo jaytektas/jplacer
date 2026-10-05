@@ -10,6 +10,11 @@ notes.
 
 ## Unreleased
 
+- As OpenPnP, a first start brings in OpenPnP's own default machine (a simulated controller, a camera over
+  OpenPnP's test picture of the table, its strip feeders) and its default packages, parts and vision settings.
+  OpenPnP's NullDriver comes in as a simulated controller, and an old machine.xml with a single NullDriver is
+  brought up to date as OpenPnP does. A camera showing a still picture (an image camera, a simulated one) is
+  no longer taken to have hung while the machine stands still.
 - Issues & Solutions, as OpenPnP's: a nozzle that can turn less than a full turn must use the LimitedArticulation
   rotation mode, and bottom vision must then pre-rotate parts (Accept sets both). A contact probing nozzle needs its
   probing actuator, on the same controller as its Z, with a probing command (a G38.2 suggested for a Grbl). Auto tool

@@ -23,6 +23,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Motion planner: uncoordinated moves, interpolation retiming, minimum speed | own way | jplacer's movement is kept (as asked): acceleration and jerk are the controller's; OpenPnP's own 3rd-order profiles, sent as interpolated moves, are not used |
 | Motion planner test motion (4 locations) and diagnostics | done | planned time from feed rates and accelerations, actual time, each axis's location and velocity from the controllers' reports |
 | Issues & Solutions (guided setup, milestones, auto-fixes) | partial | the tab, milestones; Actuator, Axis, Calibration (backlash, camera), Camera (preview, device properties), GcodeDriver (generic), Head, Kinematic, NozzleTip and Vision (visual homing, rig, tables) solutions, solved on Accept where OpenPnP's are; firmware-specific driver solutions are jplacer's profiles; VisionSolutions' camera-guided calibration is jplacer's own calibration |
+| First start: OpenPnP's default machine, packages, parts and vision settings | done | shipped in openpnp-defaults with OpenPnP's test picture; missing configuration files taken from them |
 | Log panel (filterable log) | done | Log tab |
 | Signalers (sound, actuator on error / job done) | done | Neoden4Signaler left out (Neoden4 driver) |
 | View: System Units (inches) | done | every length shown and typed in mm or inches (forms, tables, readout, Jog), kept in mm; on restart, as OpenPnP |
@@ -51,6 +52,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Confirmation flow control, location confirmation | own way | the driver waits for each `ok` and reads status reports |
 | Interpolation (max steps, jerk steps, min step time) | own way | as above: the controller plans the motion |
 | Console | done | Console dock |
+| NullDriver (simulated controller), old single-driver machine.xml migration | done | jplacer's simulated controller, axes given letters; an old `<driver>` NullDriver migrated as OpenPnP's load does |
 
 ## Axes
 

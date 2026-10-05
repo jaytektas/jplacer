@@ -44,8 +44,14 @@ public:
     explicit JPConfiguration(std::string directory);
 
     const std::string& directory() const { return m_directory; }
-    // Reads what is there (a missing file is an empty list). Boards and
-    // panels that cannot be read are left out and named in `problems`.
+    // Where OpenPnP's default packages, parts and vision settings are
+    // (empty: none): a file of them not in directory() is read from there,
+    // as OpenPnP's Configuration.load does, and tookDefaults() says so.
+    void setDefaults(std::string directory) { m_defaults = std::move(directory); }
+    bool tookDefaults() const { return m_tookDefaults; }
+    // Reads what is there (a missing file is an empty list, or the
+    // default's). Boards and panels that cannot be read are left out and
+    // named in `problems`.
     bool load(std::vector<std::string>& problems, std::string& error);
     // Writes the parts, packages, and the boards' and panels' lists.
     bool save(std::string& error) const;
@@ -169,6 +175,8 @@ private:
     std::shared_ptr<JPPanel> loadPanel(const std::string& path, std::string& error);
 
     std::string                                          m_directory;
+    std::string                                          m_defaults;
+    bool                                                 m_tookDefaults = false;
     std::vector<std::shared_ptr<JPPart>>                 m_parts;
     std::unordered_map<std::string, std::shared_ptr<JPPart>>    m_partsById;
     std::vector<std::shared_ptr<JPPackage>>              m_packages;

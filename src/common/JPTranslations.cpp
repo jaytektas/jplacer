@@ -121,10 +121,8 @@ std::map<std::string, std::string> JPTranslations::parse(const std::string& text
 }
 
 std::string JPTranslations::directory() {
-    const fs::path exe = JPlacerPaths::exeDir();
-    for (const fs::path& d : { exe / "translations", exe / ".." / "translations" })
-        if (fs::exists(d / "translations.properties")) return d.string();
-    return {};
+    const std::string d = JPlacerPaths::bundled("translations");
+    return !d.empty() && fs::exists(fs::path(d) / "translations.properties") ? d : std::string();
 }
 
 bool JPTranslations::load(const std::string& dir, const std::string& code, std::string& why) {

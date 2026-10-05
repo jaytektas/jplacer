@@ -37,6 +37,7 @@ public:
     std::vector<JPCaptureMode> modes() const override;
     bool start(const JPCaptureMode& mode, std::string& error) override;
     bool grab(JPFrame& frame, int timeoutMs, std::string& error) override;
+    bool canFreeze() const override { return false; }   // a still machine: the same picture
     std::string describe() const override { return m_name + " (image " + m_settings.path + ")"; }
 
     // The view at (x, y): what grab shows, without waiting.

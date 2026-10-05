@@ -6,6 +6,7 @@
 #include "JPXmlReader.h"
 
 #include "common/JPlacerLog.h"
+#include "common/JPlacerPaths.h"
 #include "machine/JPTcpLink.h"
 
 #include <j/core/Log.h>
@@ -66,6 +67,99 @@ std::optional<JPMachineLocation> location(const JPXmlElement& parent, const char
 }
 
 bool   yes(const std::string& s)    { return s == "true"; }
+
+// OpenPnP's NullDriver migration (NullDriver.migrateDriver, AbstractDriver's
+// createAxisMappingDefaults), done on loading a machine.xml whose controller
+// is the old single <driver> one, as OpenPnP's own default machine still is:
+// the driver one of the machine's, an X and a Y axis for all, a Z and a
+// rotation axis of its own for each nozzle (the rotation limited as the
+// nozzle was, Safe Z its old one), virtual ones for each camera, at the old
+// feed rate (rotation 10 times it) reached in half a second, and the lower
+// left PCB fiducial of OpenPnP's test picture as the homing fiducial.
+constexpr double kNullDriverFeedMmPerMin = 5000;   // NullDriver's default
+constexpr double kNullDriverAccelerationS = 0.5;
+constexpr double kNullDriverRotationFactor = 10;
+constexpr double kNullDriverHomingX = 5.736, kNullDriverHomingY = 6.112;
+void migrateNullDriver(JPXmlElement& machine) {
+    auto legacy = std::find_if(machine.children.begin(), machine.children.end(),
+                               [](const JPXmlElement& e) { return e.name == "driver"; });
+    if (legacy == machine.children.end() || shortClass(*legacy) != "NullDriver" || machine.child("axes")) return;
+    const double feed = legacy->attr("feed-rate-mm-per-minute").empty() ? kNullDriverFeedMmPerMin
+                                                                         : number(legacy->attr("feed-rate-mm-per-minute"));
+    auto element = [](std::string name, std::vector<std::pair<std::string, std::string>> attrs) {
+        JPXmlElement e;
+        e.name = std::move(name);
+        for (auto& [k, v] : attrs) {
+            e.attributeOrder.push_back(k);
+            e.attributes[k] = std::move(v);
+        }
+        return e;
+    };
+    auto length = [&element](const char* name, double mm) {
+        return element(name, { { "value", std::to_string(mm) }, { "units", "Millimeters" } });
+    };
+    const std::string driverId = "DRV_NullDriver";
+    JPXmlElement drivers = element("drivers", {});
+    drivers.children.push_back(element("driver", { { "class", "org.openpnp.machine.reference.driver.NullDriver" },
+                                                   { "id", driverId }, { "name", "NullDriver" } }));
+    JPXmlElement axes = element("axes", {});
+    auto axis = [&](const std::string& name, const char* type, bool controller, bool limitRotation = false,
+                    std::optional<double> safeZ = std::nullopt) {
+        const std::string id = "AXS_" + name;
+        JPXmlElement a = element("axis", { { "class", std::string("org.openpnp.machine.reference.axis.") +
+                                                          (controller ? "ReferenceControllerAxis" : "ReferenceVirtualAxis") },
+                                           { "id", id }, { "name", name }, { "type", type } });
+        if (controller) {
+            const double perS = feed / 60 * (std::string(type) == "Rotation" ? kNullDriverRotationFactor : 1);
+            a.attributes["driver-id"] = driverId;
+            a.attributes["limit-rotation"] = limitRotation ? "true" : "false";
+            if (safeZ) {
+                a.attributes["safe-zone-low-enabled"] = a.attributes["safe-zone-high-enabled"] = "true";
+                a.children.push_back(length("safe-zone-low", *safeZ));
+                a.children.push_back(length("safe-zone-high", *safeZ));
+            }
+            a.children.push_back(length("feedrate-per-second", perS));
+            a.children.push_back(length("acceleration-per-second-2", perS / kNullDriverAccelerationS));
+        }
+        axes.children.push_back(std::move(a));
+        return id;
+    };
+    const std::string x = axis("x", "X", true), y = axis("y", "Y", true);
+    auto mount = [](JPXmlElement& hm, const std::string& ax, const std::string& ay, const std::string& az, const std::string& ar) {
+        hm.attributes["axis-X-id"] = ax;
+        hm.attributes["axis-Y-id"] = ay;
+        hm.attributes["axis-Z-id"] = az;
+        hm.attributes["axis-rotation-id"] = ar;
+    };
+    JPXmlElement* heads = nullptr;
+    for (JPXmlElement& e : machine.children)
+        if (e.name == "heads") heads = &e;
+    JPXmlElement* head = nullptr;
+    if (heads)
+        for (JPXmlElement& h : heads->children)
+            if (!head && h.name == "head") head = &h;
+    if (head) {
+        for (JPXmlElement& group : head->children) {
+            if (group.name == "cameras")
+                for (JPXmlElement& cam : group.children)
+                    mount(cam, x, y, axis("z" + cam.attr("name"), "Z", false), axis("rotation" + cam.attr("name"), "Rotation", false));
+            if (group.name == "nozzles")
+                for (JPXmlElement& n : group.children) {
+                    const JPXmlElement* oldSafeZ = n.child("safe-Z") ? n.child("safe-Z") : n.child("safe-z");
+                    const double safeZ = oldSafeZ ? toMm(number(oldSafeZ->attr("value")), oldSafeZ->attr("units")) : 0;
+                    mount(n, x, y, axis("z" + n.attr("name"), "Z", true, false, safeZ),
+                          axis("rotation" + n.attr("name"), "Rotation", true, n.attr("limit-rotation") != "false"));
+                }
+        }
+        if (!head->child("homing-fiducial-location"))
+            head->children.push_back(element("homing-fiducial-location",
+                                              { { "units", "Millimeters" }, { "x", std::to_string(kNullDriverHomingX) },
+                                                { "y", std::to_string(kNullDriverHomingY) }, { "z", "0" }, { "rotation", "0" } }));
+    }
+    machine.children.erase(legacy);
+    machine.children.push_back(std::move(drivers));
+    machine.children.push_back(std::move(axes));
+}
 
 // Strip OpenPnP's "; comment" tails and surrounding blanks.
 std::string clean(std::string s) {
@@ -166,11 +260,13 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
         JLOGC(JPlacerLog::kImport, JLogLevel::Error) << error;
         return false;
     }
-    const JPXmlElement* machine = doc.child("machine");
-    if (doc.name != "openpnp-machine" || !machine) {
+    if (doc.name != "openpnp-machine" || !doc.child("machine")) {
         error = machineXml + ": not an OpenPnP machine.xml";
         return false;
     }
+    for (JPXmlElement& m : doc.children)
+        if (m.name == "machine") migrateNullDriver(m);
+    const JPXmlElement* machine = doc.child("machine");
 
     JPCellConfig c;
     c.name = "Imported from OpenPnP";
@@ -293,10 +389,24 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             }
         }
     std::map<std::string, Commands> commands;   // by driver id
+    std::set<std::string> nullDrivers;          // OpenPnP's NullDriver: simulated here
 
     if (const JPXmlElement* drivers = machine->child("drivers")) {
         for (const JPXmlElement& d : drivers->children) {
             const std::string kind = shortClass(d);
+            if (kind == "NullDriver") {
+                // OpenPnP's simulated controller: jplacer's (a simulated grblHAL),
+                // its axes given letters below.
+                JPDriverConfig dc;
+                dc.id   = d.attr("id");
+                dc.name = d.attr("name").empty() ? kind : d.attr("name");
+                dc.link = JJson::object();
+                dc.link["type"] = std::string("simulated");
+                dc.homeAfterConnect = homeAfterEnabled;
+                nullDrivers.insert(dc.id);
+                c.drivers.push_back(std::move(dc));
+                continue;
+            }
             if (kind != "GcodeDriver" && kind != "GcodeAsyncDriver") {
                 notes.push_back("controller " + d.attr("name") + " (" + kind + ") is not a G-code controller and was left out");
                 continue;
@@ -462,6 +572,38 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                     a.camWheelGap = ccw.camWheelGap;
                 }
         }
+    }
+
+    // A NullDriver's axes have no letters in OpenPnP; jplacer's simulated
+    // controller moves them by letter: X and Y by type, the others the next free.
+    for (JPDriverConfig& d : c.drivers) {
+        if (!nullDrivers.count(d.id)) continue;
+        std::set<std::string> used;
+        for (const JPAxisConfig& a : c.axes)
+            if (a.kind == JPAxisConfig::Kind::Controller && a.driverId == d.id && !a.letter.empty()) used.insert(a.letter);
+        for (JPAxisConfig& a : c.axes) {
+            if (a.kind != JPAxisConfig::Kind::Controller || a.driverId != d.id || !a.letter.empty()) continue;
+            // X and Y by type; a rotation A, B, C; a Z (another linear) Z, U, V, W; then any left.
+            const bool rotation = a.type == JPAxisConfig::Type::Rotation;
+            std::vector<std::string> wanted = a.type == JPAxisConfig::Type::X   ? std::vector<std::string> { "X" }
+                                            : a.type == JPAxisConfig::Type::Y   ? std::vector<std::string> { "Y" }
+                                            : rotation                          ? std::vector<std::string> { "A", "B", "C" }
+                                                                                : std::vector<std::string> { "Z", "U", "V", "W" };
+            for (const char* l : { "Z", "A", "B", "C", "U", "V", "W" }) wanted.push_back(l);
+            for (const std::string& l : wanted)
+                if (!used.count(l)) {
+                    a.letter = l;
+                    break;
+                }
+            if (!a.letter.empty()) used.insert(a.letter);
+        }
+        JJson letters = JJson::array();
+        for (const JPAxisConfig& a : c.axes)
+            if (a.kind == JPAxisConfig::Kind::Controller && a.driverId == d.id && !a.letter.empty()) letters.push(a.letter);
+        d.link["simulator"]["axisLetters"] = letters;
+        d.link["simulator"]["identity"] = JJson::array();
+        d.link["simulator"]["identity"].push(std::string("[VER:1.1f.20250101:]"));
+        d.link["simulator"]["identity"].push(std::string("[FIRMWARE:grblHAL]"));
     }
 
     // Actuators first: nozzles name theirs.
@@ -664,9 +806,17 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             if (const JPXmlElement* src = x.child("source-uri")) {
                 std::string uri = src->text;
                 if (uri.rfind("file:", 0) == 0) uri = uri.substr(uri.rfind("file://", 0) == 0 ? 7 : 5);
+                // One of OpenPnP's own pictures: the copy shipped with jplacer.
+                if (uri.rfind("classpath:", 0) == 0) {
+                    const std::string inside = uri.substr(uri.rfind("classpath://", 0) == 0 ? 12 : 10);
+                    const std::string shipped = JPlacerPaths::bundled(kDefaultsDir);
+                    std::error_code ec;
+                    if (!shipped.empty() && std::filesystem::exists(std::filesystem::path(shipped) / inside, ec))
+                        uri = (std::filesystem::path(shipped) / inside).string();
+                    else
+                        notes.push_back("camera " + cam.name + ": its picture is inside OpenPnP (" + uri + "); choose a picture file for it");
+                }
                 cam.device["source"] = uri;
-                if (uri.rfind("classpath:", 0) == 0)
-                    notes.push_back("camera " + cam.name + ": its picture is inside OpenPnP (" + uri + "); choose a picture file for it");
             }
             if (!x.attr("width").empty()) cam.device["width"] = number(x.attr("width"));
             if (!x.attr("height").empty()) cam.device["height"] = number(x.attr("height"));
@@ -822,7 +972,7 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                 if (!p->attr("value").empty()) controls[name]["value"] = number(p->attr("value"));
             }
             if (!controls.empty()) cam.device["controls"] = controls;
-        } else {
+        } else if (cam.device["backend"].str().empty()) {   // none of the kinds above
             notes.push_back("camera " + cam.name + " (" + shortClass(x) + ") is not a kind jplacer can capture from yet");
         }
         c.cameras.push_back(std::move(cam));

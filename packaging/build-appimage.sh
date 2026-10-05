@@ -38,6 +38,8 @@ cp -r "$ROOT/manual/site" "$APPDIR/usr/bin/manual"
 cp -r "$ROOT/profiles" "$APPDIR/usr/bin/profiles"
 # OpenPnP's translations too: View > Language reads usr/bin/translations (JPTranslations).
 cp -r "$ROOT/translations" "$APPDIR/usr/bin/translations"
+# OpenPnP's defaults: its configuration and test picture, for a first start (JPlacerPaths::bundled).
+cp -r "$ROOT/openpnp-defaults" "$APPDIR/usr/bin/openpnp-defaults"
 # OpenPnP's icons too: JPOpenPnpIcons reads usr/bin/icons.
 cp -r "$ROOT/icons" "$APPDIR/usr/bin/icons"
 # And its BlindsFeeder OpenSCAD models: a blinds feeder's Extract 3D-Printing Files reads usr/bin/openscad.

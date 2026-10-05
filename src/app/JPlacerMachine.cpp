@@ -1700,7 +1700,19 @@ void JPlacerMachine::importOpenPnp() {
                      [this, usual] { importFrom(usual); }, choose, opts);
 }
 
-void JPlacerMachine::importFrom(const std::string& path) {
+void JPlacerMachine::startWithDefault() {
+    if (!JPlacerSettings::machineCell().empty()) return;
+    const std::string shipped = JPlacerPaths::bundled(JPOpenPnpMachineImporter::kDefaultsDir);
+    if (shipped.empty()) return;
+    const std::filesystem::path machine =
+        std::filesystem::path(shipped) / JPOpenPnpMachineImporter::kDefaultsConfig / kOpenPnpMachineFile;
+    std::error_code ec;
+    if (!std::filesystem::exists(machine, ec)) return;
+    JLOGC(JPlacerLog::kApp, JLogLevel::Info) << "no machine yet: OpenPnP's default machine from " << machine.string();
+    importFrom(machine.string(), false);
+}
+
+void JPlacerMachine::importFrom(const std::string& path, bool tell) {
     JPCellConfig cell;
     std::vector<std::string> notes;
     std::string error;
@@ -1729,7 +1741,8 @@ void JPlacerMachine::importFrom(const std::string& path) {
         for (const std::string& n : notes) body += "\n\xE2\x80\xA2 " + n;
     }
     if (onImported) onImported(path);
-    JDialog::message("OpenPnP machine imported", body);
+    if (tell) JDialog::message("OpenPnP machine imported", body);
+    else for (const std::string& n : notes) JLOGC(JPlacerLog::kApp, JLogLevel::Info) << "OpenPnP's default machine: " << n;
 }
 
 void JPlacerMachine::connect() {

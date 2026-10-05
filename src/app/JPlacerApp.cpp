@@ -79,6 +79,7 @@ JPlacerApp::JPlacerApp(std::string settingsPath) {
     m_machine = std::make_unique<JPlacerMachine>(*m_window, m_app.sceneGraph());
     if (!m_machine->cell() || m_machine->cell()->config().autoLoadMostRecentJob) m_job->openLast();
     m_tabs = std::make_unique<JPlacerOpenPnpTabs>(*m_window, m_app.sceneGraph(), *m_job, *m_machine);
+    m_machine->startWithDefault();   // after the tabs: its feeders go to the Feeders tab
     JMenuManager::instance().setTearOffEnabled(JPlacerSettings::tearOffMenus());
     m_keys = std::make_unique<JPKeyMap>();
     JPlacerMenuBuilder::build(*m_window, m_app.sceneGraph(), *this);

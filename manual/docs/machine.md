@@ -9,6 +9,16 @@ Cell files live in `cells/` in jplacer's configuration folder (`~/.config/jplace
 
 <!-- src: src/app/JPlacerMachine.cpp (cellsDir, openCell); src/app/JPlacerSettings.h (kMachineCell); src/machine/JPCellConfig.h (what a cell holds) -->
 
+## The first start
+
+As OpenPnP does, jplacer started with no machine yet brings in OpenPnP's own default machine: a simulated
+controller, one nozzle, a camera looking down at OpenPnP's test picture of the table (`pnp-test.png`) and
+one looking up, and the strip feeders laid out on that picture. Configuration files not there yet
+(packages, parts, vision settings) start as OpenPnP's defaults too. Both travel with jplacer, as does the
+picture: a machine.xml naming one of OpenPnP's own pictures (`classpath://samples/…`) is given that copy.
+
+<!-- src: src/app/JPlacerMachine.cpp (startWithDefault); src/model/JPConfiguration.cpp (load, defaults); src/openpnp/JPOpenPnpMachineImporter.cpp (classpath pictures); openpnp-defaults/README.md -->
+
 ## Bringing in a machine set up in OpenPnP
 
 If your machine already runs under OpenPnP, **Machine ▸ Import OpenPnP Machine…** reads OpenPnP's
@@ -26,6 +36,13 @@ What is brought across:
 
 - **Controllers** that OpenPnP talks G-code to, with their serial port settings (port, speed, flow
   control, parity, data and stop bits, DTR / RTS, line endings), their maximum feed rate and G-code logging.
+  OpenPnP's **NullDriver** (its simulated controller) becomes jplacer's simulated one, its axes given letters
+  (X and Y, then Z, A, B, C, U, V, W). An old `machine.xml` whose one controller is a `<driver>` NullDriver
+  (OpenPnP's own default machine still is) is first brought up to date as OpenPnP does on loading it: an X
+  and a Y axis for all, a Z and a rotation axis of its own for each nozzle (the rotation limited as the
+  nozzle was, its old Safe Z the axis's safe zone), virtual ones for each camera, at the old feed rate
+  (rotation ten times it) reached in half a second, and the head's homing fiducial at 5.736, 6.112 (the
+  lower left fiducial of OpenPnP's test picture).
 - **Axes**: those driven by a controller, those with no hardware behind them (such as a camera's Z),
   and those that follow another axis (such as two nozzles sharing one Z, one of them reversed).
 - **The head**, its **nozzles** (with the actuator for each nozzle's vacuum, the nozzle tips that fit

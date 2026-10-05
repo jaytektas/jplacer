@@ -17,6 +17,11 @@ public:
     // The executable's directory; empty if the system will not say.
     static std::string exeDir();
 
+    // A directory of data shipped with jplacer, `name` beside the executable
+    // (the AppImage's usr/bin) or in the repository (above build/); empty
+    // when neither has it.
+    static std::string bundled(const std::string& name);
+
     // ~/.config/jplacer (or $XDG_CONFIG_HOME/jplacer, %APPDATA%\jplacer).
     // Empty when no home directory is known.
     static std::string configDir();

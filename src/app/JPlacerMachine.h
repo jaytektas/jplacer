@@ -76,6 +76,9 @@ public:
     // Machine > Import OpenPnP Machine…: offers OpenPnP's usual machine.xml
     // when there is one, else (or on request) a file to choose.
     void importOpenPnp();
+    // As OpenPnP's first start: with no machine ever opened, OpenPnP's own
+    // default (simulated) machine brought in, without asking or telling.
+    void startWithDefault();
     void connect();
     void disconnect();
     void home();                // Machine > Home All Axes
@@ -218,7 +221,8 @@ public:
 
 private:
     bool openCell(const std::string& path, std::string& error);
-    void importFrom(const std::string& machineXml);
+    // `tell`: say what was brought in (and what to check) when done.
+    void importFrom(const std::string& machineXml, bool tell = true);
     void setPort(const std::string& driverId, const std::string& port);
     // A change in Machine Setup (and a port chosen): the running machine
     // takes `cell` (with the calibrations and squareness measured meanwhile,

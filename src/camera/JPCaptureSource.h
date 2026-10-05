@@ -40,6 +40,11 @@ public:
     // and not a camera that has hung.
     virtual bool idle() const { return false; }
 
+    // Whether the very same picture over and over means it has hung: a real
+    // camera's noise makes no two alike; a simulated one can show a still
+    // scene exactly.
+    virtual bool canFreeze() const { return true; }
+
     // For logs and the UI: "top: top (/dev/video0)".
     virtual std::string describe() const = 0;
 };

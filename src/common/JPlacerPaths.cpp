@@ -26,6 +26,15 @@ std::string JPlacerPaths::exeDir() {
 #endif
 }
 
+std::string JPlacerPaths::bundled(const std::string& name) {
+    namespace fs = std::filesystem;
+    const fs::path exe = exeDir();
+    std::error_code ec;
+    for (const fs::path& d : { exe / name, exe / ".." / name })
+        if (fs::is_directory(d, ec)) return fs::weakly_canonical(d, ec).string();
+    return {};
+}
+
 std::string JPlacerPaths::configDir() {
     namespace fs = std::filesystem;
 #if defined(_WIN32)

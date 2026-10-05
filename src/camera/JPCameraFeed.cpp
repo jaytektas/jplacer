@@ -135,11 +135,8 @@ void JPCameraFeed::runSource(std::string& why) {
 
     JPFrame frame;
     auto lastFrame = std::chrono::steady_clock::now();
-    // A simulated camera can show a still scene exactly: only a real one can
-    // freeze (and a simulated one told to).
-    // The very same picture over and over: hung (a real camera's noise makes no two alike).
-    const bool canFreeze = m_config.lost.samePictureS > 0
-                        && (m_config.device["backend"].str() != "simulated" || m_config.device["freezeAfterFrames"].number() > 0);
+    // The very same picture over and over: hung, for a camera that can freeze.
+    const bool canFreeze = m_config.lost.samePictureS > 0 && source->canFreeze();
     const auto noPicture = std::chrono::seconds(std::max(1, m_config.lost.noPictureS));
     const auto samePicture = std::chrono::seconds(m_config.lost.samePictureS);
     uint64_t lastPrint = 0;

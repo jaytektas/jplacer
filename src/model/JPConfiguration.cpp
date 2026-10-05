@@ -63,9 +63,16 @@ bool JPConfiguration::load(std::vector<std::string>& problems, std::string& erro
     auto read = [&error](const fs::path& p, JPXmlElement& root) {
         return !exists(p.string()) || JPXmlReader::read(p.string(), root, error);
     };
+    // Not there yet: OpenPnP's default, when there is one.
+    auto orDefault = [this, &dir](const char* file) {
+        if (m_defaults.empty() || exists((dir / file).string()) || !exists((fs::path(m_defaults) / file).string()))
+            return dir / file;
+        m_tookDefaults = true;
+        return fs::path(m_defaults) / file;
+    };
     JPXmlElement packages, parts, boards, panels, vision, feeders, banks;
-    if (!read(dir / kPackagesFile, packages) || !read(dir / kPartsFile, parts) || !read(dir / kBoardsFile, boards)
-        || !read(dir / kPanelsFile, panels) || !read(dir / kVisionFile, vision) || !read(dir / kFeedersFile, feeders)
+    if (!read(orDefault(kPackagesFile), packages) || !read(orDefault(kPartsFile), parts) || !read(dir / kBoardsFile, boards)
+        || !read(dir / kPanelsFile, panels) || !read(orDefault(kVisionFile), vision) || !read(dir / kFeedersFile, feeders)
         || !read(dir / kMachinePropertiesFile, banks))
         return false;
     for (const JPXmlElement& e : feeders.children)

@@ -20,6 +20,12 @@ inline namespace jf {
 // the person importing knows exactly what to check.
 class JPOpenPnpMachineImporter {
 public:
+    // OpenPnP's own defaults shipped with jplacer (JPlacerPaths::bundled):
+    // its configuration files (kDefaultsConfig) and the pictures a
+    // machine.xml names as "classpath://samples/...".
+    static constexpr const char* kDefaultsDir    = "openpnp-defaults";
+    static constexpr const char* kDefaultsConfig = "config";
+
     static bool import(const std::string& machineXml, JPCellConfig& cell,
                        std::vector<std::string>& notes, std::string& error);
 

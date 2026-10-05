@@ -65,6 +65,7 @@ public:
     std::vector<JPCaptureMode> modes() const override;
     bool start(const JPCaptureMode& mode, std::string& error) override;
     bool grab(JPFrame& frame, int timeoutMs, std::string& error) override;
+    bool canFreeze() const override { return m_freezeAfterFrames > 0; }   // only when told to
     std::string describe() const override { return m_name + " (simulated)"; }
 
 private:

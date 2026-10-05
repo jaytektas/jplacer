@@ -323,6 +323,36 @@ int main() {
         assert(std::abs(sim.runoutMm - 0.05) < 1e-12 && sim.homingErrorX == 0.4 && sim.homingErrorY == -0.2);
         assert(!cell.simulation.on());   // a ReferenceMachine is not simulated
     }
+    // OpenPnP's own default machine: its old single NullDriver migrated as
+    // OpenPnP's load does (the driver one of the machine's, X and Y for all, a
+    // Z and rotation of its own for the nozzle, virtual ones for the camera,
+    // at the old feed rate), the NullDriver a simulated controller with
+    // letters, and the ImageCamera's picture (none shipped with the test: a note).
+    {
+        JPCellConfig def;
+        std::vector<std::string> defNotes;
+        assert(JPOpenPnpMachineImporter::import(std::string(JPLACER_TESTDATA_DIR) + "/../../openpnp-defaults/config/machine.xml",
+                                                def, defNotes, error));
+        assert(def.drivers.size() == 1 && def.drivers[0].name == "NullDriver" && def.drivers[0].link["type"].str() == "simulated");
+        assert(def.drivers[0].link["simulator"]["axisLetters"].size() == 4);
+        auto ax = [&def](const std::string& name) -> const JPAxisConfig& {
+            for (const JPAxisConfig& a : def.axes)
+                if (a.name == name) return a;
+            assert(false);
+            return def.axes.front();
+        };
+        assert(ax("x").letter == "X" && ax("y").letter == "Y" && ax("zN1").letter == "Z" && ax("rotationN1").letter == "A");
+        assert(std::abs(ax("x").feedratePerSecond - 20000.0 / 60) < 1e-3 && std::abs(ax("x").accelerationPerSecond2 - 40000.0 / 60) < 1e-3);
+        assert(std::abs(ax("rotationN1").feedratePerSecond - 200000.0 / 60) < 1e-2 && ax("rotationN1").limitRotation);
+        assert(ax("zN1").safeZoneLowEnabled && ax("zN1").safeZoneHighEnabled && ax("zN1").safeZoneLow == 0);
+        assert(ax("zTop").kind == JPAxisConfig::Kind::Virtual && ax("rotationTop").kind == JPAxisConfig::Kind::Virtual);
+        assert(def.nozzles.size() == 1 && def.nozzles[0].mount.axisZ == ax("zN1").id && def.nozzles[0].mount.axisRotation == ax("rotationN1").id);
+        assert(def.heads.size() == 1 && def.heads[0].homingFiducial && def.heads[0].homingFiducial->x == 5.736);
+        bool imageCamera = false;
+        for (const JPCameraConfig& cam : def.cameras) imageCamera = imageCamera || cam.device["backend"].str() == "image";
+        assert(imageCamera);
+        for (const std::string& n : defNotes) assert(n.find("not a kind") == std::string::npos && n.find("left out") == std::string::npos);
+    }
 
     return 0;
 }
