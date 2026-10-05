@@ -51,6 +51,9 @@ struct JPDriverConfig {
     bool        compressGcode  = false;
     std::string compressionExcludes = "[]\"";
     bool        backslashEscapes = false;
+    // OpenPnP's Units: the controller's lengths in "Millimeters" or "Inches"
+    // (coordinates, feed rate, acceleration and jerk; rotations stay degrees).
+    std::string units = "Millimeters";
     // OpenPnP's Send FeedRate / Acceleration / Jerk On Change Only: a move's
     // {feed}, {acceleration}, {jerk} left out (with its letter) when it is
     // within `relativeDeviation` of the one last sent (since connecting or homing).

@@ -15,6 +15,7 @@
 #include <cmath>
 #include <condition_variable>
 #include <mutex>
+#include <thread>
 
 using namespace jf;
 
@@ -192,6 +193,40 @@ int main() {
         assert(motion.take().first && near(cell.jogBase().at("ZN"), -5));
         cell.jog("N", 6, 0, 0, 0, 1.0);
         assert(motion.take().first && near(cell.jogBase().at("ZN"), 0) && near(cell.jogBase().at("X"), 211));
+        cell.disconnect();
+    }
+    {
+        // A controller working in inches (Driver Settings' Units): coordinates
+        // and the feed sent in inches, its reports read back in millimetres.
+        JPCellConfig config = cellConfig(true);
+        config.drivers[0].units = "Inches";
+        JPCell cell(config, profiles());
+        Latch connected, motion;
+        cell.onConnection.connect([&](bool ok, std::string w) { connected.set(ok, w); });
+        cell.onMotion.connect([&](bool ok, std::string w) { motion.set(ok, w); });
+        cell.connect();
+        assert(connected.take().first);
+        cell.home();
+        assert(motion.take().first);
+        std::mutex m;
+        std::string sent;
+        auto watch = cell.onTraffic.connect([&](std::string, bool out, std::string line) {
+            std::lock_guard lk(m);
+            if (out && line.rfind("G1", 0) == 0) sent = line;
+        });
+        std::string why;
+        assert(cell.moveAxesAndWait({ { "X", 254 } }, 1.0, why));
+        motion.take();
+        watch();
+        {
+            std::lock_guard lk(m);
+            assert(sent.find("X10.") != std::string::npos);   // 254 mm is 10 inches
+            assert(sent.find("F236") != std::string::npos);   // 100 mm/s is 236.2 in/min
+        }
+        const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+        while (!near(cell.positions().at("X"), 254) && std::chrono::steady_clock::now() < until)
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        assert(std::abs(cell.positions().at("X") - 254) < 1e-3);
         cell.disconnect();
     }
     return 0;

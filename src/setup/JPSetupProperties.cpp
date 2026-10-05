@@ -221,6 +221,9 @@ void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPF
     add.group("Settings");
     add.number("maxFeedRate", "Max. Feed Rate [/min]", [d]() -> double& { return d().maxFeedRate; }, 0);
     add.flag("logGcode", "Log G-code?", [d]() -> bool& { return d().logGcode; });
+    add.choice("units", "Units", { "Millimeters", "Inches" }, [d] { return d().units; }, [d](const std::string& v) { d().units = v; });
+    add.tip("The units of the controller's G-code: coordinates, feed rate, acceleration and jerk (rotations stay degrees). "
+            "Its connect command must say so to it (G20 for inches, G21 for millimetres).");
     add.flag("backslashEscapes", "Backslash Escaped Characters?", [d]() -> bool& { return d().backslashEscapes; });
     add.tip("Allows insertion of unicode characters into Gcode strings as \\uxxxx where xxxx is four hexidecimal "
             "characters.  Also permits \\t for tab, \\b for backspace, \\n for line feed, \\r for carriage return, "

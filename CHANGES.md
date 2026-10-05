@@ -386,6 +386,8 @@ notes.
   rotation, or limited articulation for a nozzle that only turns so far. It comes in with an OpenPnP machine.
 - A controller's Driver Settings have OpenPnP's Send FeedRate, Acceleration and Jerk On Change Only: a move
   leaves out what the controller already has. They come in with an OpenPnP machine.
+- A controller can work in inches (Driver Settings' Units, as OpenPnP's): what is sent to it and what it reports
+  converted. It comes in with an OpenPnP machine.
 
 ## 0.1.0
 

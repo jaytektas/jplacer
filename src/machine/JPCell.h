@@ -258,6 +258,11 @@ private:
     bool doInterlocks(const std::map<std::string, double>& from, const std::map<std::string, double>& to, bool before,
                       double speed, std::string& why);
     bool inSafeZone(const std::string& axisId, double value) const;
+    // A controller's units (its Driver Settings' Units): a millimetre in them,
+    // an axis's letter and coordinate as sent, and a coordinate it reports in mm.
+    double driverUnits(const JPGcodeDriver& d) const;
+    std::string word(const JPAxisConfig& a, double value, const JPGcodeDriver& d) const;
+    double fromDriver(const JPAxisConfig& a, double value, const std::string& driverId);
     // OpenPnP's Unsafe Z Roaming, for a jog of a tool: its Z to safe Z with the move when too far from where it was left low.
     void roamUnsafeZ(const std::string& toolId, const JPMountConfig& mount, const std::map<std::string, double>& now,
                      std::map<std::string, double>& targets);

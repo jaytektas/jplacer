@@ -287,7 +287,7 @@ bool JPCell::doHomeNozzle(const std::string& nozzleId, double speed, std::string
     if (!r.ok) { why = nozzle->name + ": Z homing failed (" + r.error + ")"; return false; }
     const JPReply w = d->waitForMotion();
     if (!w.ok) { why = nozzle->name + ": Z homing did not finish (" + w.error + ")"; return false; }
-    const JPReply p = d->command("setPosition", { { "axes", motor->letter + format(motor->homeCoordinate, d->profile()->decimals()) } });
+    const JPReply p = d->command("setPosition", { { "axes", word(*motor, motor->homeCoordinate, *d) } });
     if (!p.ok) { why = nozzle->name + ": Z home coordinate not set (" + p.error + ")"; return false; }
     const JPReply after = d->waitForMotion();
     if (!after.ok) { why = d->config().name + ": " + after.error; return false; }
@@ -916,10 +916,11 @@ void JPCell::updatePositions(const std::string& driverId, const JPFirmwareProfil
             if (a.kind != JPAxisConfig::Kind::Controller || a.driverId != driverId) continue;
             const auto it = status.positions.find(a.letter);
             if (it == status.positions.end()) continue;
-            m_reported[a.id] = it->second;
+            const double reported = fromDriver(a, it->second, driverId);   // in the machine's millimetres
+            m_reported[a.id] = reported;
             // Less a directional backlash offset in effect: where the axis is.
             const auto applied = m_backlashApplied.find(a.id);
-            m_axisPositions[a.id] = m_positions[a.id] = it->second - (applied == m_backlashApplied.end() ? 0 : applied->second);
+            m_axisPositions[a.id] = m_positions[a.id] = reported - (applied == m_backlashApplied.end() ? 0 : applied->second);
         }
         // Square coordinates from the axes' own: X takes back the Y axis's lean.
         if (const JPSquarenessConfig& q = m_config.squareness; q.active()) {
@@ -990,7 +991,7 @@ bool JPCell::doHome(std::string& why) {
         std::string axes;
         for (const JPAxisConfig& a : m_config.axes)
             if (a.kind == JPAxisConfig::Kind::Controller && a.driverId == d->id())
-                axes += (axes.empty() ? "" : " ") + a.letter + format(a.homeCoordinate, d->profile()->decimals());
+                axes += (axes.empty() ? "" : " ") + word(a, a.homeCoordinate, *d);
         if (!axes.empty()) {
             const JPReply p = d->command("setPosition", { { "axes", axes } });
             if (!p.ok) { why = d->config().name + ": home coordinates not set (" + p.error + ")"; return false; }
@@ -1139,7 +1140,7 @@ bool JPCell::doCorrectPosition(const std::map<std::string, double>& by, std::str
         JPGcodeDriver* dr = driver(a->driverId);
         if (!dr) { why = "no controller " + a->driverId; return false; }
         std::string& w = words[a->driverId];
-        w += (w.empty() ? "" : " ") + a->letter + format(v + backlashApplied(id), dr->profile()->decimals());
+        w += (w.empty() ? "" : " ") + word(*a, v + backlashApplied(id), *dr);
     }
     for (const auto& [driverId, axes] : words) {
         JPGcodeDriver* dr = driver(driverId);
@@ -1291,6 +1292,22 @@ void JPCell::moveAxes(std::map<std::string, double> targets, double speed) {
         if (!ok) JLOGC(JPlacerLog::kCell, JLogLevel::Warn) << "move refused: " << why;
         onMotion.emit(ok, why);
     });
+}
+
+double JPCell::driverUnits(const JPGcodeDriver& d) const {
+    return d.config().units == "Inches" ? 1.0 / 25.4 : 1.0;
+}
+
+std::string JPCell::word(const JPAxisConfig& a, double value, const JPGcodeDriver& d) const {
+    // A rotation is in degrees whatever the units.
+    const double v = a.type == JPAxisConfig::Type::Rotation ? value : value * driverUnits(d);
+    return a.letter + format(v, d.profile()->decimals());
+}
+
+double JPCell::fromDriver(const JPAxisConfig& a, double value, const std::string& driverId) {
+    const JPGcodeDriver* d = driver(driverId);
+    if (!d || a.type == JPAxisConfig::Type::Rotation) return value;
+    return value / driverUnits(*d);
 }
 
 namespace {
@@ -1601,16 +1618,19 @@ bool JPCell::doMoveNow(std::map<std::string, double> targets, double speed, std:
             std::string words;
             double feed = 0;
             for (const JPAxisConfig* a : axes) {
-                words += (words.empty() ? "" : " ") + a->letter + format(to.at(a->id), d->profile()->decimals());
+                words += (words.empty() ? "" : " ") + word(*a, to.at(a->id), *d);
                 double rate = a->feedratePerSecond * 60;
-                if (rate <= 0) rate = d->axisSetting("maxRate", a->letter).value_or(0);
+                // The controller's own (in its units), in the machine's.
+                if (rate <= 0) rate = d->axisSetting("maxRate", a->letter).value_or(0) / driverUnits(*d);
                 if (rate <= 0) { why = "axis " + a->name + " has no speed: neither the cell nor its controller gives one"; return false; }
                 feed = feed <= 0 ? rate : std::min(feed, rate);
             }
             if (const double cap = d->config().maxFeedRate; cap > 0) feed = std::min(feed, cap);
             const double k = std::clamp(speed, 0.0, 1.0) * m_speed * factor;
             feed *= k;
-            std::map<std::string, std::string> values{ { "axes", words }, { "feed", format(feed, 0) } };
+            // In the controller's units (Driver Settings' Units, as OpenPnP's driverUnitsFactor).
+            const double u = driverUnits(*d);
+            std::map<std::string, std::string> values{ { "axes", words }, { "feed", format(feed * u, 0) } };
             // The slowest acceleration and jerk among the axes, for a command
             // that sets them ({acceleration}, {jerk}): scaled as the speed is,
             // so a slower move is the same move stretched in time.
@@ -1619,8 +1639,8 @@ bool JPCell::doMoveNow(std::map<std::string, double> targets, double speed, std:
                 if (a->accelerationPerSecond2 > 0) accel = accel > 0 ? std::min(accel, a->accelerationPerSecond2) : a->accelerationPerSecond2;
                 if (a->jerkPerSecond3 > 0) jerk = jerk > 0 ? std::min(jerk, a->jerkPerSecond3) : a->jerkPerSecond3;
             }
-            if (accel > 0) values["acceleration"] = format(accel * k * k, 0);
-            if (jerk > 0) values["jerk"] = format(jerk * k * k * k, 0);
+            if (accel > 0) values["acceleration"] = format(accel * k * k * u, 0);
+            if (jerk > 0) values["jerk"] = format(jerk * k * k * k * u, 0);
             JLOGC(JPlacerLog::kCell, JLogLevel::Debug) << "move " << d->config().name << ": " << words << " F" << format(feed, 0);
             const JPReply r = d->command("move", values);
             if (!r.ok) { why = d->config().name + ": move refused (" + r.error + ")"; return false; }
@@ -1647,7 +1667,7 @@ bool JPCell::doMoveNow(std::map<std::string, double> targets, double speed, std:
         if (a->type != JPAxisConfig::Type::Rotation || !a->wrapAroundRotation || !a->limitRotation || std::abs(t) <= 180) continue;
         JPGcodeDriver* d = driver(a->driverId);
         const double in = std::remainder(t, 360.0);
-        const JPReply r = d->command("setPosition", { { "axes", a->letter + format(in + offset, d->profile()->decimals()) } });
+        const JPReply r = d->command("setPosition", { { "axes", word(*a, in + offset, *d) } });
         if (!r.ok) JLOGC(JPlacerLog::kCell, JLogLevel::Warn) << a->name << ": could not bring the rotation back into range (" << r.error << ")";
         else rewrapped[id] = in;
     }
