@@ -253,6 +253,41 @@ int main() {
         assert(!sq.axis("AXSQ") && sq.cameras.front().mount.axisX == "AX");
         assert(sq.problems().empty());
     }
+    // OpenPnP's OpenCvCamera (a device index, OpenCV's properties) and Webcam (by name): capture devices.
+    {
+        std::ifstream in(std::string(JPLACER_TESTDATA_DIR) + "/openpnp-machine.xml");
+        std::stringstream ss;
+        ss << in.rdbuf();
+        std::string xml = ss.str();
+        const size_t at = xml.find('>', xml.find(R"(<cameras class="java.util.ArrayList">)", xml.find("BOTTOM_CAMERA") - 200));
+        assert(at != std::string::npos);
+        xml.insert(at + 1,
+                   R"(<camera class="org.openpnp.machine.reference.camera.OpenCvCamera" id="CV" name="CV_CAMERA" looking="Up" deviceIndex="2" preferred-width="1280" preferred-height="720">)"
+                   R"(<properties><open-cv-capture-property-value property="CAP_PROP_EXPOSURE" value="157.0" set-before-open="false" set-after-open="true"/>)"
+                   R"(<open-cv-capture-property-value property="CAP_PROP_AUTOFOCUS" value="0.0" set-before-open="false" set-after-open="true"/>)"
+                   R"(<open-cv-capture-property-value property="CAP_PROP_GUID" value="1.0" set-before-open="false" set-after-open="true"/></properties></camera>)"
+                   R"(<camera class="org.openpnp.machine.reference.camera.Webcams" id="WC" name="WEB_CAMERA" looking="Up" device-id="HD Webcam C525 /dev/video4" preferred-width="640" preferred-height="480"/>)");
+        const std::string path = (std::filesystem::temp_directory_path() / "jplacer-test-cameras.xml").string();
+        std::ofstream(path) << xml;
+        JPCellConfig cams;
+        std::vector<std::string> camNotes;
+        assert(JPOpenPnpMachineImporter::import(path, cams, camNotes, error));
+        std::filesystem::remove(path);
+        const JPCameraConfig* cv = nullptr;
+        const JPCameraConfig* web = nullptr;
+        for (const JPCameraConfig& c : cams.cameras) {
+            if (c.id == "CV") cv = &c;
+            if (c.id == "WC") web = &c;
+        }
+        assert(cv && web);
+        assert(cv->device["backend"].str() == "v4l2" && cv->device["name"].str() == "/dev/video2" && cv->device["width"].number() == 1280);
+        assert(!cv->device["controls"]["exposure"]["auto"].boolean() && cv->device["controls"]["exposure"]["value"].number() == 157);
+        assert(!cv->device["controls"]["focus"]["auto"].boolean());
+        bool guid = false;
+        for (const std::string& n : camNotes) guid = guid || n.find("CAP_PROP_GUID") != std::string::npos;
+        assert(guid);
+        assert(web->device["name"].str() == "HD Webcam C525" && web->device["height"].number() == 480);
+    }
     // OpenPnP's SimulationModeMachine: its simulated imperfections.
     {
         std::ifstream in(std::string(JPLACER_TESTDATA_DIR) + "/openpnp-machine.xml");

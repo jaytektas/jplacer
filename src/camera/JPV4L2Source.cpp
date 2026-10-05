@@ -88,7 +88,8 @@ std::string JPV4L2Source::findDevice(const std::string& name) {
         if (e.path().filename().string().rfind("video", 0) == 0) devices.push_back(e.path().string());
     std::sort(devices.begin(), devices.end());
     for (const std::string& dev : devices) {
-        if (sysName(dev) != name) continue;
+        // By its name, or by its node itself (an OpenPnP OpenCvCamera's index, /dev/video<index>).
+        if (sysName(dev) != name && dev != name) continue;
         // A UVC camera makes two nodes: pictures, and metadata. Take the one
         // that captures pictures.
         const int fd = ::open(dev.c_str(), O_RDWR | O_NONBLOCK);

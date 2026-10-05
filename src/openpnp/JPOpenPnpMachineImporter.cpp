@@ -702,6 +702,57 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             cam.device["resizeWidth"] = number(x.attr("resize-width"));
             cam.device["resizeHeight"] = number(x.attr("resize-height"));
         }
+        // OpenPnP's OpenCvCamera: a capture device by its index (/dev/video<index> here), its preferred
+        // size, and OpenCV's capture properties as the device's own settings where they are one.
+        if (shortClass(x) == "OpenCvCamera") {
+            cam.device["backend"] = "v4l2";
+            cam.device["name"] = "/dev/video" + std::to_string(int(number(x.attr("deviceIndex"))));
+            if (number(x.attr("preferred-width")) > 0) cam.device["width"] = number(x.attr("preferred-width"));
+            if (number(x.attr("preferred-height")) > 0) cam.device["height"] = number(x.attr("preferred-height"));
+            static const std::pair<const char*, const char*> kProperties[] = {
+                { "CAP_PROP_BRIGHTNESS", "brightness" }, { "CAP_PROP_CONTRAST", "contrast" },
+                { "CAP_PROP_SATURATION", "saturation" }, { "CAP_PROP_HUE", "hue" }, { "CAP_PROP_GAIN", "gain" },
+                { "CAP_PROP_EXPOSURE", "exposure" }, { "CAP_PROP_SHARPNESS", "sharpness" }, { "CAP_PROP_GAMMA", "gamma" },
+                { "CAP_PROP_TEMPERATURE", "white-balance" }, { "CAP_PROP_ZOOM", "zoom" }, { "CAP_PROP_FOCUS", "focus" },
+                { "CAP_PROP_BACKLIGHT", "backlight-compensation" } };
+            if (const JPXmlElement* props = x.child("properties"))
+                for (const JPXmlElement& p : props->children) {
+                    const std::string& name = p.attr("property");
+                    const double value = number(p.attr("value"));
+                    bool taken = false;
+                    for (const auto& [cv, key] : kProperties)
+                        if (name == cv) {
+                            cam.device["controls"][key]["auto"] = false;
+                            cam.device["controls"][key]["value"] = int(std::lround(value));
+                            taken = true;
+                        }
+                    // Automatic or not: OpenCV's V4L2 auto exposure is 0.75 automatic, 0.25 by hand.
+                    if (name == "CAP_PROP_AUTO_EXPOSURE") {
+                        cam.device["controls"]["exposure"]["auto"] = value > 0.5;
+                        taken = true;
+                    }
+                    if (name == "CAP_PROP_AUTOFOCUS") {
+                        cam.device["controls"]["focus"]["auto"] = value != 0;
+                        taken = true;
+                    }
+                    for (const auto& [cv, key] : { std::pair { "CAP_PROP_FRAME_WIDTH", "width" }, std::pair { "CAP_PROP_FRAME_HEIGHT", "height" },
+                                                   std::pair { "CAP_PROP_FPS", "fps" } })
+                        if (name == cv) {
+                            cam.device[key] = value;
+                            taken = true;
+                        }
+                    if (!taken) notes.push_back("camera " + cam.name + ": OpenCV's " + name + " is not a setting jplacer has");
+                }
+        }
+        // OpenPnP's Webcam: a capture device by the name webcam-capture gives it ("HD Webcam /dev/video0").
+        if (shortClass(x) == "Webcams" || shortClass(x) == "Webcam") {
+            std::string id = x.attr("device-id");
+            if (const size_t dev = id.rfind(" /dev/"); dev != std::string::npos) id.erase(dev);
+            cam.device["backend"] = "v4l2";
+            cam.device["name"] = id;
+            if (number(x.attr("preferred-width")) > 0) cam.device["width"] = number(x.attr("preferred-width"));
+            if (number(x.attr("preferred-height")) > 0) cam.device["height"] = number(x.attr("preferred-height"));
+        }
         if (shortClass(x) == "OpenPnpCaptureCamera") {
             const std::string& uid = x.attr("unique-id");
             const size_t usb = uid.rfind(" usb-");

@@ -128,7 +128,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Camera view: footprint reticle, image info and histogram, light toggle, Estimate Z, Move Selected Nozzle to Camera, Zoom Sensitivity | done | reticles: none, cross, grid, ruler, circle, square |
 | Camera view: Rendering Quality | done | Low (sharp pixels), High (smoothed), Highest (best scale: whole-number scale, zoom by 2); per camera |
 | Auto focus (up-looking) | done | Focus Sensing Method, the Auto Focus tab, part height by focus in bottom vision |
-| Capture backends (OpenPnpCapture, Webcam, GStreamer, MJPG, ONVIF, Image, Switcher) | done | V4L2 (OpenPnpCapture, Webcam), MJPG, Image, Switcher, ONVIF, GStreamer (the system's gst-launch-1.0), simulated |
+| Capture backends (OpenPnpCapture, Webcam, OpenCv, GStreamer, MJPG, ONVIF, Image, Switcher) | done | V4L2 (OpenPnpCapture, Webcam, OpenCvCamera by its index and OpenCV properties), MJPG, Image, Switcher, ONVIF, GStreamer (the system's gst-launch-1.0), simulated |
 
 ## Actuators
 
