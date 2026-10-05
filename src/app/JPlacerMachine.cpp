@@ -29,6 +29,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <map>
+#include <thread>
 
 inline namespace jf {
 
@@ -53,6 +54,7 @@ JPlacerMachine::JPlacerMachine(JAppWindow& window, JSceneGraph& graph)
     : m_window(window), m_graph(graph), m_layout(window), m_profiles(JPFirmwareProfile::loadAll()),
       m_connectIcon(graph), m_homeIcon(graph),
       m_position(graph, [this] { return m_jog ? m_jog->where() : std::vector<std::pair<std::string, double>>(); }) {
+    m_scripting = std::make_shared<JPScripting>((std::filesystem::path(JPlacerPaths::configDir()) / "scripts").string());
     // The machine's two states, always in view: click the chip to connect or
     // disconnect, the house to home.
     JToolBar& tb = window.toolBar();
@@ -509,7 +511,10 @@ void JPlacerMachine::watchCell() {
             if (homed && m_cameraTasks)
                 m_cameraTasks->visualHome([this](bool ok) {
                     if (ok && m_cell && m_cell->config().parkAfterHome) park();
+                    if (ok) runEvent("Machine.AfterHoming");
                 });
+            else if (homed)
+                runEvent("Machine.AfterHoming");
         });
     }));
     m_unwatch.push_back(m_cell->onState.connect([onMain](std::string, std::string) { onMain([] {}); }));
@@ -1171,6 +1176,18 @@ void JPlacerMachine::toggleLight(const std::string& light) {
     }
     const auto it = m_lights.find(light);
     m_cell->switchActuator(light, it == m_lights.end() || !it->second);
+}
+
+void JPlacerMachine::runEvent(const std::string& event) {
+    // Off the screen's thread: a script may take its time; what fails is said in the log and the status line.
+    std::thread([this, event, scripting = m_scripting, alive = std::weak_ptr<bool>(m_alive)] {
+        std::string why;
+        if (scripting->on(event, JJson::object(), why)) return;
+        JLOGC(JPlacerLog::kApp, JLogLevel::Warn) << event << ": " << why;
+        JMainThreadDispatcher::instance().post([this, alive, why, event] {
+            if (const auto a = alive.lock(); a && *a) m_window.showStatus(event + ": " + why, kErrorMs);
+        });
+    }).detach();
 }
 
 void JPlacerMachine::lightCameras() {

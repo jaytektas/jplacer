@@ -182,6 +182,10 @@ void JPlacerJobRun::start(RunState as) {
         hooks.feedersChanged = [this] {
             post([this] { m_job.configurationChanged(); });
         };
+        // OpenPnP's scripting events, run on the job's thread.
+        hooks.event = [this](const std::string& event, const JJson& globals, std::string& why) {
+            return m_machine.scripting().on(event, globals, why);
+        };
         // As the cell's Machine Setup says (Job Processor).
         JPJobProcessorConfig settings;
         if (const JPCell* c = m_machine.cell()) settings = c->config().jobProcessor;

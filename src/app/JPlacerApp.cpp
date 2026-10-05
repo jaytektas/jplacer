@@ -56,6 +56,8 @@ JPlacerApp::JPlacerApp(std::string settingsPath) {
     m_keys = std::make_unique<JPKeyMap>();
     JPlacerMenuBuilder::build(*m_window, m_app.sceneGraph(), *this);
     addJogStepKeys();
+    // OpenPnP's Startup event: its scripts run once jplacer is up.
+    m_machine->runEvent("Startup");
     // The Jog panel's tooltips say each button's key, as it is now.
     m_machine->keyFor = [this](const std::string& action) {
         const std::string jog = m_keys->keyText("jog." + action);

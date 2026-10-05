@@ -9,6 +9,7 @@
 #include "JPlacerTipChanges.h"
 
 #include "machine/JPCell.h"
+#include "machine/JPScripting.h"
 #include "ui/JPCameraPanel.h"
 #include "ui/JPConnectIcon.h"
 #include "ui/JPHomeIcon.h"
@@ -169,6 +170,11 @@ public:
     bool          cameraCalibrated(const std::string& cameraId) const;
     // Where the docks live, and View's entries for them.
     JPlacerLayout& layout() { return m_layout; }
+    // OpenPnP's scripting: the scripts folder's scripts, and its events' (JPScripting).
+    JPScripting& scripting() { return *m_scripting; }
+    std::shared_ptr<JPScripting> sharedScripting() const { return m_scripting; }
+    // An event's scripts run off the screen's thread (Startup, Machine.AfterHoming); a failure said.
+    void runEvent(const std::string& event);
 
     // The directory cell files are kept in.
     static std::string cellsDir();
@@ -235,6 +241,7 @@ private:
     JAppWindow&                         m_window;
     JSceneGraph&                        m_graph;
     JPlacerLayout                       m_layout;
+    std::shared_ptr<JPScripting>        m_scripting;   // shared with a script run off the screen's thread
     std::vector<JPFirmwareProfile>      m_profiles;
     std::unique_ptr<JPCell>             m_cell;
     std::string                         m_cellPath;

@@ -116,6 +116,14 @@ JPJobProcessor::Result JPJobProcessor::next(Failure& failure) {
     } catch (const JobError& e) {
         failure = e.failure;
         JLOGC(JPlacerLog::kJob, JLogLevel::Warn) << "job: " << failure.message;
+        // OpenPnP's Job.Error: its scripts told what went wrong.
+        if (m_hooks.event) {
+            JJson g = JJson::object();
+            g["job"] = m_job.file;
+            g["exception"] = failure.message;
+            std::string why;
+            if (!m_hooks.event("Job.Error", g, why)) JLOGC(JPlacerLog::kJob, JLogLevel::Warn) << "Job.Error: " << why;
+        }
         return Result::Failed;
     }
     return m_finished ? Result::Finished : Result::More;
@@ -158,6 +166,11 @@ JPJobProcessor::Step JPJobProcessor::run(Step step) {
 // ---- PreFlight ---------------------------------------------------------------
 
 JPJobProcessor::Step JPJobProcessor::preFlight() {
+    {
+        JJson g = JJson::object();
+        g["job"] = m_job.file;
+        script("Job.Starting", g);
+    }
     m_startSeconds = seconds();
     m_totalPartsPlaced = 0;
     m_jobPlacements.clear();
@@ -800,6 +813,21 @@ double JPJobProcessor::rotationOffset(const std::string& nozzleId, double pickAn
     return 0;   // AbsolutePartAngle
 }
 
+void JPJobProcessor::script(const std::string& event, JJson globals) {
+    if (!m_hooks.event) return;
+    std::string why;
+    if (!m_hooks.event(event, globals, why)) fail(Source::Machine, "", event + ": " + why);
+}
+
+JJson JPJobProcessor::placementGlobals(const JobPlacement& j) const {
+    JJson g = JJson::object();
+    g["job"] = m_job.file;
+    g["board"] = j.board ? j.board->uniqueId() : std::string();
+    g["placement"] = j.placementId;
+    g["part"] = j.partId;
+    return g;
+}
+
 void JPJobProcessor::prerotate(bool forPick) {
     for (Planned& p : m_planned) {
         JobPlacement& j = m_jobPlacements[p.job];
@@ -862,10 +890,16 @@ JPJobProcessor::Step JPJobProcessor::pick(Planned& p) {
             last = e;
             continue;
         }
+        if (attempt == 0) script("Job.Placement.Starting", placementGlobals(j));
+        JJson feedGlobals = placementGlobals(j);
+        feedGlobals["feeder"] = feederId;
+        feedGlobals["nozzle"] = p.nozzleId;
         for (int i = 0; i < 1 + feedRetries && !fed && !empty; ++i) {
             status(format("Feed %s on %s.", feederName.c_str(), j.partId.c_str()));
+            script("Feeder.BeforeFeed", feedGlobals);
             fed = JPFeederFeed::feed(m_config, feederId, p.nozzleId, m_machine,
                                      [this](const std::function<void()>& fn) { main(fn); }, why, empty);
+            if (fed) script("Feeder.AfterFeed", feedGlobals);
         }
         if (!fed) {
             main([&] {
@@ -910,9 +944,13 @@ JPJobProcessor::Step JPJobProcessor::pick(Planned& p) {
                           j.placementId.c_str(), nozzleName.c_str()));
             // The nozzle given the part first, as OpenPnP's setPart: its package's pick vacuum level.
             m_machine.holding(p.nozzleId, j.partId);
+            JJson nozzleGlobals = placementGlobals(j);
+            nozzleGlobals["nozzle"] = p.nozzleId;
+            script("Nozzle.BeforePick", nozzleGlobals);
             picked = m_machine.pick(p.nozzleId, *at, pickWhy)
                   && JPFeederFeed::postPick(m_config, feederId, m_machine, [this](const std::function<void()>& fn) { main(fn); },
                                             pickWhy);
+            if (picked) script("Nozzle.AfterPick", nozzleGlobals);
         }
         if (!picked) {
             m_machine.holding(p.nozzleId, "");
@@ -997,7 +1035,11 @@ JPJobProcessor::Step JPJobProcessor::place(Planned& p) {
         if (n.id == p.nozzleId) nozzleName = n.name;
     status(format("Placing %s for %s using nozzle %s.", j.partId.c_str(), j.placementId.c_str(), nozzleName.c_str()));
     std::string why;
+    JJson nozzleGlobals = placementGlobals(j);
+    nozzleGlobals["nozzle"] = p.nozzleId;
+    script("Nozzle.BeforePlace", nozzleGlobals);
     if (!m_machine.place(p.nozzleId, at, why)) fail(Source::Nozzle, p.nozzleId, why);
+    script("Nozzle.AfterPlace", nozzleGlobals);
     m_partOn.erase(p.nozzleId);
     m_rotationOffset.erase(p.nozzleId);
     m_machine.holding(p.nozzleId, "");
@@ -1010,6 +1052,7 @@ JPJobProcessor::Step JPJobProcessor::place(Planned& p) {
         if (j.board) m_job.storePlacedStatus(*j.board, j.placementId, true);
     });
     if (m_hooks.placed) m_hooks.placed();
+    script("Job.Placement.Complete", placementGlobals(j));
     return Step::Place;
 }
 
@@ -1038,6 +1081,11 @@ void JPJobProcessor::cleanup() {
 
 JPJobProcessor::Step JPJobProcessor::finish() {
     cleanup();
+    {
+        JJson g = JJson::object();
+        g["job"] = m_job.file;
+        script("Job.Finished", g);
+    }
     const double dt = seconds() - m_startSeconds;
     const double cph = dt > 0 ? m_totalPartsPlaced / (dt / 3600.0) : 0;
     int errored = 0;

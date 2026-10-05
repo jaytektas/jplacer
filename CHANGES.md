@@ -408,6 +408,10 @@ notes.
   trying jobs and vision with no camera. It comes in with an OpenPnP machine.
 - A camera can be OpenPnP's MjpgCaptureCamera: a network camera streaming JPEGs over HTTP. It comes in with an
   OpenPnP machine.
+- The Scripts menu works, as OpenPnP's: the scripts folder's Python, JavaScript and shell scripts, run from the
+  menu, and its Events folder's run at OpenPnP's events (Startup, homing, the job starting, finishing and failing,
+  each placement, feed, pick and place). Scripts are told what they run for, but cannot reach into the machine as
+  OpenPnP's can.
 
 ## 0.1.0
 

@@ -6,6 +6,7 @@
 #include "JPKeyMap.h"
 #include "JPlacerApp.h"
 #include "JPlacerHelpPages.h"
+#include "JPlacerScriptsMenu.h"
 #include "JPlacerSettings.h"
 
 #include <filesystem>
@@ -221,10 +222,10 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
     entry(keys, job, graph, "job.resetAllPlaced", "Job", "Reset All Placed", none, [&jobPanel] { jobPanel.resetAllPlaced(); });
     jobPanel.setMenuItems(start, step, stop);
 
-    // OpenPnP's Scripts and Window menus: not built yet, so greyed out.
-    JMenu* scripts = newMenu(window, "Scripts");
-    for (const char* label : { "Refresh Scripts", "Open Scripts Directory", "Clear Scripting Engine Pool" })
-        scripts->add(graph, label)->setEnabled(false);
+    // OpenPnP's Scripts menu: the scripts folder's scripts (JPlacerScriptsMenu), for as long as the window.
+    static std::unique_ptr<JPlacerScriptsMenu> scriptsMenu;
+    scriptsMenu = std::make_unique<JPlacerScriptsMenu>(window, graph, app.machine().sharedScripting(), newMenu(window, "Scripts"));
+    // OpenPnP's Window menu: not built yet, so greyed out.
     JMenu* windows = newMenu(window, "Window");
     for (const char* label : { "Multiple Window Style", "Change Appearance\xE2\x80\xA6" })
         windows->add(graph, label)->setEnabled(false);

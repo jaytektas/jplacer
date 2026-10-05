@@ -6,6 +6,8 @@
 #include "JPJobMachine.h"
 
 #include "machine/JPJobProcessorConfig.h"
+
+#include <j/config/Json.h>
 #include "machine/JPVisionConfig.h"
 
 #include "model/JPConfiguration.h"
@@ -54,6 +56,9 @@ public:
         std::function<void()> placed;
         // A feeder changed (fed, turned off, a fault counted): to be kept and shown.
         std::function<void()> feedersChanged;
+        // OpenPnP's scripting events ("Job.Starting", "Nozzle.BeforePick"), with what they are for; a failing
+        // script stops the job (false, with why).
+        std::function<bool(const std::string& event, const JJson& globals, std::string& why)> event;
     };
 
     // What went wrong, and on what (OpenPnP's JobProcessorException and its source).
@@ -128,6 +133,10 @@ private:
     Step place(Planned& p);
     void optimize(bool byPick);
     void prerotate(bool forPick);
+    // An event's scripts run; one failing fails the job (OpenPnP's Scripting.on).
+    void script(const std::string& event, JJson globals);
+    // What a placement's events are given: the job, its board and placement, its part.
+    JJson placementGlobals(const JobPlacement& j) const;
     // OpenPnP's prepareForPickAndPlaceArticulation: the nozzle's offset for a
     // part picked at `pickAngle` to be placed at `placeAngle`, by its Rotation Mode.
     double rotationOffset(const std::string& nozzleId, double pickAngle, double placeAngle) const;

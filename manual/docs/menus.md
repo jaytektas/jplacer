@@ -95,12 +95,33 @@ What is chosen by a link chooses nothing further. A part with no feeder leaves t
 
 <!-- src: src/app/JPlacerMenuBuilder.cpp (the Job menu); src/ui/JPJobPanel.cpp (setMenuItems, resetAllPlaced, updateJobActions) -->
 
-## Scripts and Window
+## Scripts
 
-OpenPnP's **Scripts** menu (**Refresh Scripts**, **Open Scripts Directory**, **Clear Scripting Engine Pool**) and
-**Window** menu (**Multiple Window Style**, **Change Appearance…**) are there, greyed out: they are not built yet.
+As OpenPnP's: the scripts in jplacer's scripts folder (`~/.config/jplacer/scripts`), by name, each folder a
+submenu of its own (but **Events**, and a folder holding a file named `.ignore`). Choose one to run it; the status
+line says when it is done, or why it failed, and what it prints goes to the log. Then **Refresh Scripts** (the
+folder read again), **Open Scripts Directory**, and **Clear Scripting Engine Pool**, greyed out: each script runs as
+a program of its own, so there is no pool.
 
-<!-- src: src/app/JPlacerMenuBuilder.cpp (the Scripts and Window menus) -->
+A script is a Python (`.py`, run by `python3`), JavaScript (`.js`, run by `node`) or shell (`.sh`) file. Unlike
+OpenPnP's, it cannot reach into the machine: it is told what it runs for, as JSON in the environment variable
+`JPLACER_GLOBALS` (and the event's name in `JPLACER_EVENT`), and works with that and the world outside.
+
+The **Events** folder's scripts run at OpenPnP's events, those named the event, or the event, a dot and more
+(`Job.Starting.2.py`), in name order: **Startup**, **Machine.AfterHoming**, **Job.Starting**, **Job.Finished**,
+**Job.Error** (with the `exception`), **Job.Placement.Starting**, **Job.Placement.Complete**,
+**Feeder.BeforeFeed**, **Feeder.AfterFeed**, **Nozzle.BeforePick**, **Nozzle.AfterPick**, **Nozzle.BeforePlace**
+and **Nozzle.AfterPlace** (each with the `job`, `board`, `placement` and `part`, and the `feeder` or `nozzle`). One
+that fails (exits other than 0, or runs past a minute) stops the job, saying why.
+
+<!-- src: src/app/JPlacerScriptsMenu.cpp; src/machine/JPScripting.cpp; src/tasks/JPJobProcessor.cpp (script, placementGlobals); src/app/JPlacerMachine.cpp (runEvent); src/app/JPlacerApp.cpp -->
+
+## Window
+
+OpenPnP's **Window** menu (**Multiple Window Style**, **Change Appearance…**) is there, greyed out: it is not built
+yet.
+
+<!-- src: src/app/JPlacerMenuBuilder.cpp (the Window menu) -->
 
 ## Help
 
