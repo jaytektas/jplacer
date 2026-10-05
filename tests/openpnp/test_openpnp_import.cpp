@@ -266,7 +266,9 @@ int main() {
                    R"(<properties><open-cv-capture-property-value property="CAP_PROP_EXPOSURE" value="157.0" set-before-open="false" set-after-open="true"/>)"
                    R"(<open-cv-capture-property-value property="CAP_PROP_AUTOFOCUS" value="0.0" set-before-open="false" set-after-open="true"/>)"
                    R"(<open-cv-capture-property-value property="CAP_PROP_GUID" value="1.0" set-before-open="false" set-after-open="true"/></properties></camera>)"
-                   R"(<camera class="org.openpnp.machine.reference.camera.Webcams" id="WC" name="WEB_CAMERA" looking="Up" device-id="HD Webcam C525 /dev/video4" preferred-width="640" preferred-height="480"/>)");
+                   R"(<camera class="org.openpnp.machine.reference.camera.Webcams" id="WC" name="WEB_CAMERA" looking="Up" device-id="HD Webcam C525 /dev/video4" preferred-width="640" preferred-height="480"/>)"
+                   R"(<camera class="org.openpnp.machine.reference.camera.SimulatedUpCamera" id="SU" name="SIM_UP" looking="Up" width="800" height="600" simulated-flipped="true">)"
+                   R"(<simulated-units-per-pixel units="Millimeters" x="0.02" y="0.02" z="0.0" rotation="0.0"/></camera>)");
         const std::string path = (std::filesystem::temp_directory_path() / "jplacer-test-cameras.xml").string();
         std::ofstream(path) << xml;
         JPCellConfig cams;
@@ -287,6 +289,11 @@ int main() {
         for (const std::string& n : camNotes) guid = guid || n.find("CAP_PROP_GUID") != std::string::npos;
         assert(guid);
         assert(web->device["name"].str() == "HD Webcam C525" && web->device["height"].number() == 480);
+        const JPCameraConfig* su = nullptr;
+        for (const JPCameraConfig& c : cams.cameras) if (c.id == "SU") su = &c;
+        assert(su && su->device["backend"].str() == "simulated" && su->device["width"].number() == 800);
+        const JJson& m = su->device["scene"]["pxPerMm"];
+        assert(std::abs(m[size_t(0)].number() + 50) < 1e-9 && std::abs(m[size_t(3)].number() - 50) < 1e-9);   // flipped, 50 px/mm
     }
     // OpenPnP's SimulationModeMachine: its simulated imperfections.
     {

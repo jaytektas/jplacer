@@ -24,6 +24,11 @@ inline namespace jf {
 
 namespace {
 
+// OpenPnP's SimulatedUpCamera's defaults (640 x 480; a scale when it gives none, mm a pixel), and how
+// jplacer's simulated camera draws it: its rate, the dark background, a lit tip, a little noise.
+constexpr double kSimulatedWidth = 640, kSimulatedHeight = 480, kSimulatedFps = 10, kSimulatedUnitsPerPixel = 0.0316;
+constexpr double kSimulatedGround = 25, kSimulatedMark = 200, kSimulatedNoise = 2;
+
 // OpenPnP's class names are Java ones; the last segment says what it is.
 std::string shortClass(const JPXmlElement& e) {
     const std::string& c = e.attr("class");
@@ -701,6 +706,26 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             cam.device["preferredResolution"] = x.attr("preferred-resolution");
             cam.device["resizeWidth"] = number(x.attr("resize-width"));
             cam.device["resizeHeight"] = number(x.attr("resize-height"));
+        }
+        // OpenPnP's SimulatedUpCamera: a simulated camera looking up, its scale the simulated units per
+        // pixel (else the camera's), seen mirrored (flipped back when it says so), on a dark background;
+        // in Simulation Mode it sees the nozzle tips go over it.
+        if (shortClass(x) == "SimulatedUpCamera") {
+            cam.device["backend"] = "simulated";
+            cam.device["width"] = x.attr("width").empty() ? kSimulatedWidth : number(x.attr("width"));
+            cam.device["height"] = x.attr("height").empty() ? kSimulatedHeight : number(x.attr("height"));
+            cam.device["fps"] = kSimulatedFps;
+            double upp = cam.unitsPerPixelX > 0 ? cam.unitsPerPixelX : kSimulatedUnitsPerPixel;
+            if (const auto s = location(x, "simulated-units-per-pixel"); s && s->x > 0) upp = s->x;
+            const double sx = (x.attr("simulated-flipped") == "true" ? -1 : 1) / upp, sy = 1 / upp;
+            JJson scene = JJson::object();
+            scene["pxPerMm"] = JJson::array();
+            for (double v : { sx, 0.0, 0.0, sy }) scene["pxPerMm"].push(v);
+            scene["marks"] = JJson::array();
+            scene["ground"] = kSimulatedGround;
+            scene["mark"] = kSimulatedMark;
+            scene["noise"] = kSimulatedNoise;
+            cam.device["scene"] = scene;
         }
         // OpenPnP's OpenCvCamera: a capture device by its index (/dev/video<index> here), its preferred
         // size, and OpenCV's capture properties as the device's own settings where they are one.

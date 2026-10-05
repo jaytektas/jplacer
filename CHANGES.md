@@ -11,7 +11,8 @@ notes.
 ## Unreleased
 
 - OpenPnP machines with an OpenCvCamera (by its device index and OpenCV properties) or a Webcam bring them in as capture
-  devices; a capture device can be named by its node (/dev/video2).
+  devices; a capture device can be named by its node (/dev/video2). A SimulatedUpCamera comes in as a simulated camera
+  that sees the nozzle tips in Simulation Mode.
 - Help > Submit Diagnostics…, as OpenPnP's: what helps with a problem put in one file to attach to an issue (nothing is
   uploaded). The log is now also kept in a file, log/jplacer.log.
 - The Window menu, as OpenPnP's: Multiple Window Style (the cameras and the machine controls each in a window of their
