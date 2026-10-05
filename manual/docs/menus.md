@@ -136,7 +136,7 @@ Java packages they import are there as far as these go: `org.openpnp.model` (`Lo
 `derive`, `convertToUnits` and OpenPnP's `toString`; `LengthUnit`), `org.openpnp.util.UiUtils`
 (`submitUiMachineTask`: run now, an error shown), `Utils2D.calculateBoardPlacementLocation` (a place on a board in
 the machine's coordinates), `VisionUtils.readQrCode` (what a QR code under the camera says), `org.openpnp.vision.pipeline.CvPipeline` (an OpenPnP pipeline, given as its XML,
-run by jplacer on the head camera where it is: `process`, then `getResult(stage)`'s `model`, OpenPnP's key points,
+run by jplacer on its `camera` property's camera where it is, else the head camera: `process`, then `getResult(stage)`'s `model`, OpenPnP's key points,
 rotated rects, circles, points, numbers or text; `gui.getCameraViews().getCameraView(camera).showFilteredImage` shows
 its working image on the camera), `OpenCvUtils.toBufferedImage`, `javax.swing.JOptionPane` (`showMessageDialog`, in jplacer's
 dialog) and `javax.script` (the languages jplacer runs). As OpenPnP, jplacer puts OpenPnP's Example scripts in the

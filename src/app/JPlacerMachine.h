@@ -41,6 +41,8 @@
 
 inline namespace jf {
 
+class JPlacerJobMachine;
+
 // The machine jplacer is working with: the open cell (cells/<name>.json),
 // its panels, each in a dock of its own where JPlacerLayout puts it (a
 // camera each; Jog, Actuators; Board, Machine Setup, Machine; Console), the
@@ -164,7 +166,7 @@ public:
     // enabling one, a place on one), answered on the screen's thread.
     std::function<JJson(const JJson& request)> onScriptJobRequest;
     // The machine a job runs on, for a script's vision (OpenPnP's VisionUtils.readQrCode).
-    std::function<JPJobMachine*()> scriptJobMachine;
+    std::function<JPlacerJobMachine*()> scriptJobMachine;
     // Calibrate a camera, or an X or Y axis's backlash (as Machine Setup's
     // buttons do); `finished`: whether it was done.
     void calibrateCamera(const std::string& cameraId, std::function<void(bool ok)> finished);
@@ -199,6 +201,8 @@ public:
     // The first camera fixed to the machine (looking up at the nozzles), a
     // calibrated one first; none when there is none.
     JPCameraFeed* upCameraFeed() const;
+    // A camera's feed by its id or name; null when there is none.
+    JPCameraFeed* cameraFeed(const std::string& idOrName) const;
     // A camera's picture in front (where its dock is), for a look at it.
     void showCamera(const std::string& cameraId);
     // The nozzle chosen on the Jog panel (else the first); empty: none.

@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
 #include "JPlacerMachine.h"
+#include "JPlacerJobMachine.h"
 
 #include <opencv2/imgproc.hpp>
 
@@ -1251,6 +1252,12 @@ JPCameraFeed* JPlacerMachine::headCameraFeed() const {
     return p ? &p->feed() : nullptr;
 }
 
+JPCameraFeed* JPlacerMachine::cameraFeed(const std::string& idOrName) const {
+    for (const CameraDock& d : m_cameras)
+        if (d.panel->camera().id == idOrName || d.panel->camera().name == idOrName) return &d.panel->feed();
+    return nullptr;
+}
+
 JPCameraFeed* JPlacerMachine::upCameraFeed() const {
     JPCameraFeed* first = nullptr;
     for (const CameraDock& d : m_cameras) {
@@ -1694,7 +1701,7 @@ JJson JPlacerMachine::scriptRequest(const JJson& request) {
         if (!onMainWait([&] { answer = onScriptJobRequest(request); })) return fail("jplacer is closing");
     } else if (call == "readQrCode") {
         // OpenPnP's VisionUtils.readQrCode: what a QR code under the head camera says, where it is now.
-        JPJobMachine* jm = scriptJobMachine ? scriptJobMachine() : nullptr;
+        JPlacerJobMachine* jm = scriptJobMachine ? scriptJobMachine() : nullptr;
         if (!jm) return fail("no camera to read with");
         const auto at = jm->cameraLocation();
         if (!at) return fail("where the camera is is not known");
@@ -1703,11 +1710,11 @@ JJson JPlacerMachine::scriptRequest(const JJson& request) {
         answer["result"] = codes.empty() ? JJson() : JJson(codes.front().text);
     } else if (call == "pipeline" || call == "showPipelineImage") {
         // OpenPnP's CvPipeline.process and showFilteredImage, on the head camera where it is.
-        JPJobMachine* jm = scriptJobMachine ? scriptJobMachine() : nullptr;
+        JPlacerJobMachine* jm = scriptJobMachine ? scriptJobMachine() : nullptr;
         if (!jm) return fail("no camera to look with");
         JJson result;
         const bool ok = call == "pipeline" ? m_scriptVision.run(*jm, request, result, why)
-                                           : m_scriptVision.show(*jm, int(request["ms"].number(kErrorMs)), why);
+                                           : m_scriptVision.show(*jm, int(request["ms"].number(kErrorMs)), request["text"].str(), why);
         if (!ok) return fail(why);
         answer["result"] = result;
     } else if (call == "dialog") {

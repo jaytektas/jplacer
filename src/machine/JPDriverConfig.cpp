@@ -34,6 +34,7 @@ std::optional<JPDriverConfig> JPDriverConfig::fromJson(const JJson& j, std::stri
     if (j["units"].str() == "Inches") c.units = "Inches";
     c.usingLetterVariables = j["letterVariables"].boolean(true);
     c.supportingPreMove = j["preMove"].boolean(false);
+    c.keepAlive = j["keepAlive"].boolean(false);
     for (auto [key, s] : { std::pair { "sendOnChangeFeed", &c.sendOnChangeFeed }, std::pair { "sendOnChangeAcceleration", &c.sendOnChangeAcceleration },
                            std::pair { "sendOnChangeJerk", &c.sendOnChangeJerk } }) {
         s->on = j[key]["on"].boolean();
@@ -64,6 +65,7 @@ JJson JPDriverConfig::toJson() const {
     if (units != "Millimeters") j["units"] = units;
     if (!usingLetterVariables) j["letterVariables"] = false;
     if (supportingPreMove) j["preMove"] = true;
+    if (keepAlive) j["keepAlive"] = true;
     for (auto [key, s] : { std::pair { "sendOnChangeFeed", &sendOnChangeFeed }, std::pair { "sendOnChangeAcceleration", &sendOnChangeAcceleration },
                            std::pair { "sendOnChangeJerk", &sendOnChangeJerk } })
         if (s->on || s->relativeDeviation != 0.001) {

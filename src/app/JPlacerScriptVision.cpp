@@ -3,6 +3,8 @@
 
 #include "JPlacerScriptVision.h"
 
+#include "JPlacerJobMachine.h"
+
 #include "openpnp/JPXmlReader.h"
 #include "pipeline/JPPipeline.h"
 
@@ -76,7 +78,7 @@ JJson valueOf(const JPPipelineModel& m) {
 
 } // namespace
 
-bool JPlacerScriptVision::run(JPJobMachine& machine, const JJson& request, JJson& result, std::string& why) {
+bool JPlacerScriptVision::run(JPlacerJobMachine& machine, const JJson& request, JJson& result, std::string& why) {
     JPXmlElement root;
     if (!JPXmlReader::parse(request["xml"].str(), root, why)) return false;
     if (root.name != "cv-pipeline") {
@@ -84,13 +86,18 @@ bool JPlacerScriptVision::run(JPJobMachine& machine, const JJson& request, JJson
         return false;
     }
     JPPipeline pipeline = JPPipeline::fromXml(root);
-    const auto at = machine.cameraLocation();
-    if (!at) {
-        why = "where the camera is is not known";
-        return false;
+    const std::string camera = request["camera"].str();
+    if (!camera.empty()) {
+        if (!machine.cameraPipeline(camera, pipeline, why)) return false;
+    } else {
+        const auto at = machine.cameraLocation();
+        if (!at) {
+            why = "where the camera is is not known";
+            return false;
+        }
+        JPJobMachine::Sight sight;
+        if (!machine.lookThrough(*at, pipeline, sight, why)) return false;
     }
-    JPJobMachine::Sight sight;
-    if (!machine.lookThrough(*at, pipeline, sight, why)) return false;
     JJson results = JJson::object();
     for (const JPPipelineStage& stage : pipeline.stages()) {
         const JPPipeline::Result* r = pipeline.result(stage.name());
@@ -108,21 +115,25 @@ bool JPlacerScriptVision::run(JPJobMachine& machine, const JJson& request, JJson
         const cv::Mat& image = pipeline.workingImage();
         if (image.channels() == 1) cv::cvtColor(image, m_last, cv::COLOR_GRAY2BGR);
         else image.copyTo(m_last);
+        m_lastCamera = camera;
     }
     return true;
 }
 
-bool JPlacerScriptVision::show(JPJobMachine& machine, int ms, std::string& why) {
+bool JPlacerScriptVision::show(JPlacerJobMachine& machine, int ms, const std::string& text, std::string& why) {
     cv::Mat image;
+    std::string camera;
     {
         std::lock_guard lk(m_mutex);
         image = m_last.clone();
+        camera = m_lastCamera;
     }
     if (image.empty()) {
         why = "no pipeline has been run to show";
         return false;
     }
-    machine.showOnCamera(image, ms);
+    if (camera.empty()) machine.showOnCamera(image, ms);
+    else machine.showOn(camera, image, text, ms);
     return true;
 }
 

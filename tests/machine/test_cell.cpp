@@ -655,6 +655,38 @@ int main() {
         assert(back.calibrations.size() == 2 && back.calibrationFor(640, 480) && back.calibrationFor(640, 480)->rmsPx == 0.3);
     }
     {
+        // OpenPnP's Keep Alive: disconnected, the controller's connection is left
+        // open, and connecting again takes it up as it is (not identified again).
+        JPCellConfig c = cellConfig();
+        c.drivers[0].keepAlive = true;
+        JPCell cell(c, profiles());
+        Latch<std::pair<bool, std::string>> connection;
+        cell.onConnection.connect([&](bool ok, std::string why) { connection.set({ ok, why }); });
+        std::mutex m;
+        int identified = 0;
+        auto watch = cell.onTraffic.connect([&](std::string, bool out, std::string line) {
+            std::lock_guard lk(m);
+            if (out && line == "$I") ++identified;
+        });
+        cell.connect();
+        assert(connection.take().first && cell.isConnected());
+        int first = 0;
+        {
+            std::lock_guard lk(m);
+            first = identified;
+        }
+        assert(first > 0);
+        cell.disconnect();
+        assert(!connection.take().first && !cell.isConnected());
+        cell.connect();
+        assert(connection.take().first && cell.isConnected());
+        {
+            std::lock_guard lk(m);
+            assert(identified == first);   // taken up as it was
+        }
+        watch();
+    }
+    {
         // A controller on a link that does not exist: the cell says why.
         JPCellConfig c = cellConfig();
         c.drivers[0].link = JJson::object();

@@ -500,7 +500,8 @@ class CvPipeline(Bean):
         return self._properties.get(name)
 
     def process(self):
-        self._results = jplacer.call("pipeline", xml=self._xml)["results"]
+        camera = self._properties.get("camera")   # the camera it looks with (none: the head camera)
+        self._results = jplacer.call("pipeline", xml=self._xml, camera=camera.id if camera is not None else None)["results"]
 
     def getResult(self, name):
         r = self._results.get(str(name))
@@ -780,7 +781,10 @@ class CvPipeline {
     constructor(xml = "<cv-pipeline><stages/></cv-pipeline>") { Object.assign(this, { xml, properties: {}, results: {} }); }
     setProperty(name, value) { this.properties[name] = value; }
     getProperty(name) { return this.properties[name]; }
-    process() { this.results = jplacer.call("pipeline", { xml: this.xml }).results; }
+    process() {
+        const camera = this.properties.camera;   // the camera it looks with (none: the head camera)
+        this.results = jplacer.call("pipeline", { xml: this.xml, camera: camera ? camera.id : null }).results;
+    }
     getResult(name) {
         const r = this.results[String(name)];
         return r ? { model: r.value, getModel: () => r.value, toString: () => r.text } : null;

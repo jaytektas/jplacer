@@ -187,7 +187,10 @@ void JPCell::connect() {
         JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_config.name << ": connecting " << m_drivers.size() << " controller(s)";
         for (const auto& d : m_drivers) {
             std::string error;
-            if (!d->connect(error)) {
+            // Kept alive since the last disconnect: taken up as it is.
+            if (d->isConnected()) {
+                JLOGC(JPlacerLog::kCell, JLogLevel::Info) << d->config().name << ": kept alive, taken up again";
+            } else if (!d->connect(error)) {
                 JLOGC(JPlacerLog::kCell, JLogLevel::Error) << m_config.name << ": not connected: " << error;
                 doDisconnect();
                 onConnection.emit(false, error);
@@ -219,7 +222,7 @@ void JPCell::disconnect() {
     m_thread.post([this] {
         const bool was = m_connected;
         if (was) actuateFor(&JPActuatorConfig::disabledActuation);   // as the machine is let go
-        doDisconnect();
+        doDisconnect(true);
         if (was) onConnection.emit(false, std::string());
     });
 }
@@ -230,14 +233,15 @@ std::string JPCell::format(double v, int decimals) {
     return buf;
 }
 
-void JPCell::doDisconnect() {
+void JPCell::doDisconnect(bool keepingAlive) {
     m_homed = false;
     m_inMotion.clear();
     m_streaming = false;
     m_pumpOn.clear();
     m_holding.clear();
     if (m_connected) JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_config.name << ": disconnected";
-    for (const auto& d : m_drivers) d->disconnect();
+    for (const auto& d : m_drivers)
+        if (!keepingAlive || !d->config().keepAlive) d->disconnect();   // OpenPnP's Keep Alive: left open
     m_connected = false;
     std::lock_guard lk(m_mutex);
     m_firmware.clear();

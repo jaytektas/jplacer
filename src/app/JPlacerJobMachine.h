@@ -27,6 +27,11 @@ inline namespace jf {
 // Whatever is read of the cell's settings is read through `onMain`.
 class JPlacerJobMachine : public JPJobMachine {
 public:
+    // A pipeline (OpenPnP's, for a script's CvPipeline) run on a camera, by its id or
+    // name, where it is (nothing moved); false and why when it fails.
+    bool cameraPipeline(const std::string& camera, JPPipeline& pipeline, std::string& why);
+    // A picture (BGR) on a camera's view, by its id or name, for `ms`, with `text`.
+    void showOn(const std::string& camera, const cv::Mat& bgr, const std::string& text, int ms);
     using OnMain = std::function<void(const std::function<void()>&)>;
     // `ask`: a tip changer's question for the person, waiting for the answer.
     // `config`: the parts and vision settings (read through `onMain`).

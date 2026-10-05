@@ -60,6 +60,10 @@ struct JPDriverConfig {
     // axis's pre-move command sent first).
     bool        usingLetterVariables = true;
     bool        supportingPreMove = false;
+    // OpenPnP's Keep Alive: Disconnect leaves this controller's connection
+    // open (a board that resets as its port is opened is not reset again),
+    // and Connect takes it up as it is.
+    bool        keepAlive = false;
     // OpenPnP's Send FeedRate / Acceleration / Jerk On Change Only: a move's
     // {feed}, {acceleration}, {jerk} left out (with its letter) when it is
     // within `relativeDeviation` of the one last sent (since connecting or homing).

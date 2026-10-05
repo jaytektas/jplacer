@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
 #include "JPlacerOpenPnpTabs.h"
+#include "JPlacerJobMachine.h"
 
 #include "model/JPLengthUnits.h"
 
@@ -760,7 +761,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     // Running the job: a failure's source chosen where it is shown, as OpenPnP does.
     m_jobRun = std::make_unique<JPlacerJobRun>(m_window, job, machine, *m_jobPanel);
     // What scripts ask of the job (OpenPnP's gui.jobTab, Utils2D, VisionUtils.readQrCode).
-    m_machine.scriptJobMachine = [this]() -> JPJobMachine* { return &m_jobRun->jobMachine(); };
+    m_machine.scriptJobMachine = [this]() -> JPlacerJobMachine* { return &m_jobRun->jobMachine(); };
     m_machine.onScriptJobRequest = [this](const JJson& request) { return scriptJobRequest(request); };
     // The vision pages' tests, on the machine as the job runs it.
     m_visionTests = std::make_unique<JPlacerVisionTests>(m_job, m_machine, *m_jobRun);

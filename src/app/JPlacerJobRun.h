@@ -37,7 +37,7 @@ public:
     // A run under way is stopped where it is (it is not parked) and waited for.
     ~JPlacerJobRun();
     // The machine a job runs on (for a script's vision, off the screen's thread).
-    JPJobMachine& jobMachine();
+    JPlacerJobMachine& jobMachine();
 
     JPlacerJobRun(const JPlacerJobRun&)            = delete;
     JPlacerJobRun& operator=(const JPlacerJobRun&) = delete;

@@ -1130,6 +1130,15 @@ void drivers(JPSolutions& s, const JPIssueChecks::Context& c) {
         };
         bool hasAxes = false;
         for (const JPAxisConfig& a : cell->axes) hasAxes = hasAxes || a.driverId == d.id;
+        if (d.keepAlive && s.isTargeting(Milestone::Connect)) {
+            Issue i;
+            i.subject = subject;
+            i.issue = "Use Keep-Alive only when necessary. It may cause hard to diagnose problems.";
+            i.solution = "Disable Connection Keep-Alive.";
+            i.severity = Severity::Warning;
+            i.apply = set("Keep Alive", [](JPDriverConfig& x, bool solved) { x.keepAlive = !solved; });
+            s.add(std::move(i));
+        }
         if (s.isTargeting(Milestone::Connect) && c.firmwareIdentity)
             firmwareIssues(s, subject, c.firmwareProfile ? c.firmwareProfile(d.id) : d.profile, c.firmwareIdentity(d.id));
         // A Grbl takes no serial flow control (OpenPnP's FirmwareType.Grbl).

@@ -403,6 +403,9 @@ void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPF
             "removal (quotes, brackets); with only one of them, the rest of the line.");
     add.integer("commandTimeoutMs", "Command Timeout [ms]", [d]() -> int& { return d().commandTimeoutMs; }, 100, 600000);
     add.integer("connectWaitMs", "Connect Wait Time [ms]", [d]() -> int& { return d().connectWaitMs; }, 0, 60000);
+    add.flag("keepAlive", "Keep Alive", [d]() -> bool& { return d().keepAlive; });
+    add.tip("Keep the connection open when the machine is disconnected, and take it up again as it is on the next "
+            "connect (a controller that resets as its port is opened is not reset again).");
     add.integer("identifyTimeoutMs", "Identify Timeout [ms]", [d]() -> int& { return d().identifyTimeoutMs; }, 100, 60000);
     add.integer("homeTimeoutMs", "Home Timeout [ms]", [d]() -> int& { return d().homeTimeoutMs; }, 1000, 600000);
     add.integer("statusIntervalMs", "Status Interval [ms]", [d]() -> int& { return d().statusIntervalMs; }, 10, 10000);

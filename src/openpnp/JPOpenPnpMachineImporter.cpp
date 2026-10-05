@@ -459,6 +459,7 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             if (d.attr("units") == "Inches") dc.units = "Inches";
             dc.usingLetterVariables = d.attr("using-letter-variables") != "false";
             dc.supportingPreMove = d.attr("supporting-pre-move") == "true";
+            dc.keepAlive = d.attr("connection-keep-alive") == "true";
             for (const auto& [element, s] : { std::pair { "send-on-change-feed-rate", &dc.sendOnChangeFeed },
                                               std::pair { "send-on-change-acceleration", &dc.sendOnChangeAcceleration },
                                               std::pair { "send-on-change-jerk", &dc.sendOnChangeJerk } })

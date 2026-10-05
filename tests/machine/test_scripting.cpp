@@ -89,7 +89,7 @@ int main() {
         int feedCountSet = -1;
         std::string dialog;
         bool boardEnabled = true;
-        std::string pipelineXml;
+        std::string pipelineXml, pipelineCamera;
         int shownMs = 0;
         scripting.api = [&](const JJson& request) {
             JJson answer = JJson::object();
@@ -161,6 +161,7 @@ int main() {
                 boardEnabled = request["enabled"].boolean();
             } else if (call == "pipeline") {
                 pipelineXml = request["xml"].str();
+                pipelineCamera = request["camera"].str();
                 JJson keyPoint = JJson::object();
                 keyPoint["pt"]["x"] = 320.5;
                 keyPoint["pt"]["y"] = 240.0;
@@ -215,7 +216,7 @@ int main() {
         if (!openPnp) std::fprintf(stderr, "why: %s\n", why.c_str());
         assert(openPnp && moved.size() == 2 && std::abs(moved[size_t(0)].number() - 26.4) < 1e-9);
         assert(std::abs(moved[size_t(1)].number() - 13) < 1e-9 && !boardEnabled);
-        assert(pipelineXml == "<cv-pipeline><stages/></cv-pipeline>" && shownMs == 1500);
+        assert(pipelineXml == "<cv-pipeline><stages/></cv-pipeline>" && pipelineCamera == "C1" && shownMs == 1500);
         assert(feedCountSet == 0 && dialog == "Hello!");
         // OpenPnP's JavaScript scripts, as Nashorn runs them: load, Packages, JavaImporter and with,
         // for each, print; the same machine.

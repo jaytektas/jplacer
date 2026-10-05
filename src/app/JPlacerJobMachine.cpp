@@ -618,6 +618,62 @@ bool JPlacerJobMachine::headCameraPipeline(double viewX, double viewY, JPPipelin
     return true;
 }
 
+bool JPlacerJobMachine::cameraPipeline(const std::string& camera, JPPipeline& p, std::string& why) {
+    JPCell* c = cell(why);
+    if (!c) return false;
+    JPCameraFeed* feed = nullptr;
+    m_onMain([&] { feed = m_machine.cameraFeed(camera); });
+    if (!feed) {
+        why = "no camera " + camera;
+        return false;
+    }
+    prepare(*c, *feed);
+    JPCameraCalibration cal;
+    if (!JPCameraLook::calibration(*c, *feed, cal, why)) return false;
+    // Where it looks: a camera on a head where its axes are, a fixed one where it is.
+    const JPMountConfig& m = feed->config().mount;
+    const auto at = c->positions();
+    auto axis = [&at](const std::string& id, double offset) {
+        const auto i = at.find(id);
+        return (i == at.end() ? 0.0 : i->second) + offset;
+    };
+    const double vx = m.headId.empty() ? m.offsetX : axis(m.axisX, m.offsetX);
+    const double vy = m.headId.empty() ? m.offsetY : axis(m.axisY, m.offsetY);
+    JPPipeline::Context& ctx = p.context();
+    ctx.capture = [feed](const std::string& settle, const std::string&, cv::Mat& bgr, std::string& w) {
+        JPGrayImage settled;
+        if (settle != "Skip" && !JPCameraLook::settled(*feed, settled, w)) return false;
+        JPFrame frame;
+        if (!feed->latest(frame, 0) || frame.width <= 0) {
+            w = feed->config().name + " gives no picture";
+            return false;
+        }
+        cv::Mat rgba(frame.height, frame.width, CV_8UC4, frame.rgba.data());
+        cv::cvtColor(rgba, bgr, cv::COLOR_RGBA2BGR);
+        return true;
+    };
+    ctx.pixelsPerMmX = cal.scaleX();
+    ctx.pixelsPerMmY = cal.scaleY();
+    ctx.cameraWidth = cal.width;
+    ctx.cameraHeight = cal.height;
+    ctx.locationToPixel = [cal, vx, vy](double mx, double my, double& px, double& py) {
+        return cal.pixelFor(mx, my, vx, vy, px, py);
+    };
+    return p.process(why);
+}
+
+void JPlacerJobMachine::showOn(const std::string& camera, const cv::Mat& bgr, const std::string& text, int ms) {
+    cv::Mat rgba;
+    cv::cvtColor(bgr, rgba, cv::COLOR_BGR2RGBA);
+    JPFrame shown;
+    shown.width = rgba.cols;
+    shown.height = rgba.rows;
+    shown.rgba.assign(rgba.data, rgba.data + rgba.total() * 4);
+    m_onMain([&] {
+        if (JPCameraView* view = m_machine.cameraViewOf(m_machine.cameraFeed(camera))) view->showPicture(shown, text, ms);
+    });
+}
+
 void JPlacerJobMachine::showWorking(JPPipeline& p, const JPCameraFeed* feed, const std::string& text, int ms) {
     cv::Mat rgba;
     std::string ignored;

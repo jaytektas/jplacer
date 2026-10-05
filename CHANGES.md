@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- A controller's Keep Alive, as OpenPnP's: Disconnect leaves its connection open, so a board that resets when its port
+  opens is not reset by the next Connect.
+- A script's pipeline looks with the camera it is given (OpenPnP's `camera` property), a fixed one included.
 - Scripts can run OpenPnP vision pipelines as OpenPnP's do (CvPipeline): on the head camera, with each stage's
   results, and the working image shown on the camera.
 - Controllers running Smoothieware, Marlin, RepRapFirmware (Duet) or TinyG are recognised and driven as OpenPnP sets them

@@ -320,7 +320,8 @@ private:
     static JPDriverConfig asRun(const JPDriverConfig& driver, const JPCellConfig& cell);
     static std::string format(double v, int decimals);
     void updatePositions(const std::string& driverId, const JPFirmwareProfile::Status& status);
-    void doDisconnect();
+    // `keepingAlive`: a Disconnect asked for, which leaves the Keep Alive controllers open.
+    void doDisconnect(bool keepingAlive = false);
     // The cell thread's side of moveAxes: false with `why` when refused or failed.
     bool doMove(std::map<std::string, double> targets, double speed, std::string& why, bool squared = true);
     bool doMoveNow(std::map<std::string, double> targets, double speed, std::string& why, bool squared);

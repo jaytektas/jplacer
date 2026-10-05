@@ -79,7 +79,7 @@ void JPlacerJobRun::post(std::function<void()> fn) {
     });
 }
 
-JPJobMachine& JPlacerJobRun::jobMachine() { return *m_jobMachine; }
+JPlacerJobMachine& JPlacerJobRun::jobMachine() { return *m_jobMachine; }
 
 void JPlacerJobRun::onMain(const std::function<void()>& fn) {
     // Already there (a hand-off made inside another): done now.
