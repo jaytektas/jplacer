@@ -354,6 +354,80 @@ void JPStageRegistry::addDetectStages(std::vector<JPStageType>& types) {
                           out.model.value = std::move(contours);
                           return out;
                       } });
+    types.push_back({ std::string(kStages) + "DetectRectangleHough", "", "Find expected rectangle centered on nozzle.",
+                      { P { "index", Kind::Integer, "0", "Index of rectangle to return." },
+                        P { "threshold", Kind::Integer, "20", "Minimum accumulator count to be considered a line." },
+                        P { "acc-weight", Kind::Number, "0.1", "Weight of accumulator count that contributes to score" },
+                        P { "delta-theta", Kind::Number, "0.03", "Maximum angle deviation of lines to be considered a pair." },
+                        P { "delta-alpha", Kind::Number, "0.03", "Maximum angle deviation of pairs to be considered a rectangle" },
+                        P { "delta-rho", Kind::Number, "20.0", "Maximum symmetry deviation of lines to be considered a pair" },
+                        P { "min-rho", Kind::Number, "10.0", "Minimum line separation to be considered a pair" },
+                        P { "rho-a", Kind::Number, "15.0", "Estimated pair distance A" },
+                        P { "rho-b", Kind::Number, "15.0", "Estimated pair distance B" },
+                        P { "draw-lines", Kind::Flag, "false", "Draw selected Hough lines to help with parameter tuning." } },
+                      [](JPPipeline& p, JPPipelineStage& s) {
+                          cv::Mat& mat = p.workingImage();
+                          // Strongest first, as OpenCV gives them.
+                          std::vector<cv::Vec2f> found;
+                          cv::HoughLines(mat, found, 1.0, 0.01, s.integer("threshold"));
+                          // Each about the picture's centre (an index the same as OpenCV's).
+                          struct Line {
+                              double rho, theta;
+                          };
+                          std::vector<Line> lines;
+                          for (size_t i = 0; i < found.size() && i < 256; ++i)
+                              lines.push_back({ found[i][0] - (mat.cols / 2.0 * std::cos(found[i][1]) + mat.rows / 2.0 * std::sin(found[i][1])),
+                                                double(found[i][1]) });
+                          // Pairs: parallel, about as far either side of the centre, apart.
+                          struct Pair {
+                              int a, b;
+                              double alpha, xi;
+                          };
+                          std::vector<Pair> pairs;
+                          for (size_t i = 0; i + 1 < lines.size(); ++i)
+                              for (size_t j = i + 1; j < lines.size(); ++j) {
+                                  const Line &a = lines[i], &b = lines[j];
+                                  const double xi = std::abs(a.rho - b.rho);
+                                  if (std::abs(a.theta - b.theta) < s.number("delta-theta") && std::abs(a.rho + b.rho) < s.number("delta-rho")
+                                      && xi > s.number("min-rho"))
+                                      pairs.push_back({ int(i), int(j), (a.theta + b.theta) / 2.0, xi });
+                              }
+                          // Rectangles: two pairs square to each other; the stronger and nearer the sizes expected, the lower the score.
+                          struct Rect {
+                              Pair a, b;
+                              double score;
+                          };
+                          std::vector<Rect> rects;
+                          const double rhoA = s.number("rho-a"), rhoB = s.number("rho-b");
+                          for (size_t i = 0; i + 1 < pairs.size(); ++i)
+                              for (size_t j = i + 1; j < pairs.size(); ++j) {
+                                  const Pair &a = pairs[i], &b = pairs[j];
+                                  if (std::abs(std::abs(a.alpha - b.alpha) - M_PI / 2.0) >= s.number("delta-alpha")) continue;
+                                  double score = (a.a + a.b + b.a + b.b) * s.number("acc-weight");
+                                  score += std::min(std::abs(a.xi - rhoA) + std::abs(b.xi - rhoB), std::abs(a.xi - rhoB) + std::abs(b.xi - rhoA));
+                                  rects.push_back({ a, b, score });
+                              }
+                          const int index = s.integer("index");
+                          if (index < 0 || int(rects.size()) <= index) return Output {};
+                          std::stable_sort(rects.begin(), rects.end(), [](const Rect& x, const Rect& y) { return x.score < y.score; });
+                          const Rect& r = rects[size_t(index)];
+                          if (s.flag("draw-lines"))
+                              for (const int n : { r.a.a, r.a.b, r.b.a, r.b.b }) {
+                                  const double c = std::cos(found[n][1]), sn = std::sin(found[n][1]);
+                                  const double x0 = c * found[n][0], y0 = sn * found[n][0];
+                                  cv::line(mat, cv::Point2d(x0 - 1000.0 * sn, y0 + 1000.0 * c), cv::Point2d(x0 + 1000.0 * sn, y0 - 1000.0 * c),
+                                           cv::Scalar(255, 255, 255, 255), 1);
+                              }
+                          auto corner = [&](int a, int b) {
+                              const double ra = found[a][0], rb = found[b][0], ta = found[a][1], tb = found[b][1];
+                              const double det = std::sin(tb - ta);
+                              return cv::Point2f(float((ra * std::sin(tb) - rb * std::sin(ta)) / det), float((rb * std::cos(ta) - ra * std::cos(tb)) / det));
+                          };
+                          const std::vector<cv::Point2f> corners { corner(r.a.a, r.b.a), corner(r.a.a, r.b.b), corner(r.a.b, r.b.a), corner(r.a.b, r.b.b) };
+                          Output out;
+                          out.model.value = cv::minAreaRect(corners);
+                          return out;
+                      } });
     types.push_back({ std::string(kStages) + "DetectCirclesHough", "", "Finds circles in the working image. Diameter and spacing can be specified.",
                       { P { "min-distance", Kind::Integer, "10", "Minimum distance between circles, in pixels." },
                         P { "min-diameter", Kind::Integer, "10", "Minimum diameter of circles, in pixels." },

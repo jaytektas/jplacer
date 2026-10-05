@@ -23,6 +23,13 @@ std::string rect(const cv::RotatedRect& r) {
     return s.str();
 }
 
+std::string match(const JPPipelineModel::TemplateMatch& m) {
+    std::ostringstream s;
+    s << "TemplateMatch [x=" << m.x << ", y=" << m.y << ", width=" << m.width << ", height=" << m.height << ", score=" << m.score
+      << "]";
+    return s.str();
+}
+
 template <typename T, typename F>
 std::string list(const std::vector<T>& items, F one) {
     std::string out = "[";
@@ -56,13 +63,13 @@ std::string JPPipelineModel::describe() const {
         std::string operator()(const std::vector<Line>& v) const {
             return list(v, [](const Line& l) { return "Line [a=" + point(l.a) + ", b=" + point(l.b) + "]"; });
         }
-        std::string operator()(const std::vector<TemplateMatch>& v) const {
-            return list(v, [](const TemplateMatch& m) {
-                std::ostringstream s;
-                s << "TemplateMatch [x=" << m.x << ", y=" << m.y << ", width=" << m.width << ", height=" << m.height
-                  << ", score=" << m.score << "]";
-                return s.str();
-            });
+        std::string operator()(const std::vector<TemplateMatch>& v) const { return list(v, match); }
+        std::string operator()(const TemplateMatch& m) const { return match(m); }
+        std::string operator()(const cv::Matx23d& t) const {
+            std::ostringstream s;
+            s << "AffineTransform[[" << t(0, 0) << ", " << t(0, 1) << ", " << t(0, 2) << "], [" << t(1, 0) << ", " << t(1, 1)
+              << ", " << t(1, 2) << "]]";
+            return s.str();
         }
         std::string operator()(const std::vector<cv::Point2d>& v) const { return list(v, point); }
         std::string operator()(const cv::Point2d& p) const { return point(p); }
@@ -99,7 +106,9 @@ std::string JPPipelineModel::kind() const {
         case 11: return "String";
         case 12: return "Exception";
         case 13: return "KeyPoint";
-        default: return "Circle";
+        case 14: return "Circle";
+        case 15: return "TemplateMatch";
+        default: return "AffineTransform";
     }
 }
 

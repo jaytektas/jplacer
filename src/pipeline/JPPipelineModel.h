@@ -13,7 +13,8 @@ inline namespace jf {
 
 // What a pipeline stage found (OpenPnP's Result.model): nothing, a rotated
 // rectangle or several, circles, key points, contours, lines, template
-// matches, points, a number, a text, or the reason it failed.
+// matches, points, a number, a text, an AffineWarp's transform (picture to
+// warped picture), or the reason it failed.
 struct JPPipelineModel {
     struct Circle {
         double x = 0, y = 0, diameter = 0;
@@ -31,7 +32,7 @@ struct JPPipelineModel {
 
     std::variant<std::monostate, cv::RotatedRect, std::vector<cv::RotatedRect>, std::vector<Circle>,
                  std::vector<cv::KeyPoint>, Contours, std::vector<Line>, std::vector<TemplateMatch>,
-                 std::vector<cv::Point2d>, cv::Point2d, double, std::string, Failure, cv::KeyPoint, Circle>
+                 std::vector<cv::Point2d>, cv::Point2d, double, std::string, Failure, cv::KeyPoint, Circle, TemplateMatch, cv::Matx23d>
         value;
 
     bool empty() const { return std::holds_alternative<std::monostate>(value); }

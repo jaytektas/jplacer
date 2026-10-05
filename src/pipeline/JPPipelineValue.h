@@ -13,7 +13,8 @@ inline namespace jf {
 // that a stage takes in place of its own setting ("MaskCircle.diameter"): a
 // number, an integer, a flag, a text, or a length, area or machine place,
 // which the stage turns into pixels through the camera; or a shape, a
-// footprint or a part, in millimetres, for the stages that draw templates.
+// footprint or a part, in millimetres, for the stages that draw templates;
+// or a region of interest.
 struct JPPipelineValue {
     struct LengthMm {
         double mm = 0;
@@ -44,7 +45,14 @@ struct JPPipelineValue {
         bool        hasFootprint = false;
         double      bodyWidthMm = 0, bodyHeightMm = 0;
     };
-    std::variant<double, long, bool, std::string, LengthMm, AreaMm2, LocationMm, Pixel, Shape, Footprint, Part> value;
+    // OpenPnP's RegionOfInterest, for AffineWarp: three corners about the
+    // camera's centre, Y up; `rectify`: the lower left only says the height.
+    struct RegionOfInterest {
+        LocationMm upperLeft, upperRight, lowerLeft;
+        bool       rectify = true;
+    };
+    std::variant<double, long, bool, std::string, LengthMm, AreaMm2, LocationMm, Pixel, Shape, Footprint, Part, RegionOfInterest>
+        value;
 };
 
 } // inline namespace jf

@@ -28,6 +28,7 @@ public:
     static void addParameterStages(std::vector<JPStageType>& types);
     static void addMatchStages(std::vector<JPStageType>& types);
     static void addTemplateStages(std::vector<JPStageType>& types);
+    static void addAffineStages(std::vector<JPStageType>& types);
 
 private:
     JPStageRegistry();
