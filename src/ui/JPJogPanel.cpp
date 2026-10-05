@@ -370,28 +370,22 @@ std::unique_ptr<JWidget> JPJogPanel::specialPage() {
     auto page = std::make_unique<JContainer>(m_graph, 0.f, 0.f);
     page->setDirection(JFlexDirection::Column)->setGap(st.spacing)->setAlignItems(JAlignItems::Start)
         ->setPadding(JEdges(st.spacing));
-    // Two to a row, as many rows as they take (OpenPnP's flow of them, in a narrow dock).
+    // As many to a line as the panel's width takes (OpenPnP's flow of them).
+    auto buttons = std::make_unique<JContainer>(m_graph, 0.f, 0.f);
+    buttons->setLayoutMode(JLayoutMode::Flow)->setGap(st.spacing);
+    buttons->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     struct B { const char* label; const char* action; const char* tip; };
-    constexpr size_t kPerRow = 2;
-    std::unique_ptr<JContainer> buttons;
-    size_t inRow = 0;
     for (const B& b : { B{ "Head Safe Z", "safeZ", "Every Z on the head up to safe Z" },
                         B{ "Discard", "discard", "Drop the nozzle's part at the discard location" },
                         B{ "Recycle", "recycle", "Put the nozzle's part back into a feeder that holds it" },
                         B{ "Pick", "pick", "Vacuum on where the nozzle is, as a pick does" },
                         B{ "Place", "place", "Vacuum off and blow off where the nozzle is, as a place does" } }) {
-        if (!buttons || inRow == kPerRow) {
-            if (buttons) page->add(std::move(buttons));
-            buttons = JPUiParts::row(m_graph);
-            inRow = 0;
-        }
         JButton* button = buttons->add(JPUiParts::button(m_graph, b.label));
         button->setTooltip(tip(b.tip, b.action));
         button->onClicked.connect([this, action = std::string(b.action)] { act(action); });
         if (std::string(b.action) == "recycle") m_recycle = button;
-        ++inRow;
     }
-    if (buttons) page->add(std::move(buttons));
+    page->add(std::move(buttons));
     refreshRecycle();
     return page;
 }
