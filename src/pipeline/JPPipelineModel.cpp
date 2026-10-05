@@ -23,6 +23,14 @@ std::string rect(const cv::RotatedRect& r) {
     return s.str();
 }
 
+std::string circle(const JPPipelineModel::Circle& c) {
+    std::ostringstream s;
+    s << "Circle [x=" << c.x << ", y=" << c.y << ", diameter=" << c.diameter;
+    if (std::isfinite(c.score)) s << ", score=" << c.score;
+    s << "]";
+    return s.str();
+}
+
 std::string match(const JPPipelineModel::TemplateMatch& m) {
     std::ostringstream s;
     s << "TemplateMatch [x=" << m.x << ", y=" << m.y << ", width=" << m.width << ", height=" << m.height << ", score=" << m.score
@@ -45,11 +53,7 @@ std::string JPPipelineModel::describe() const {
         std::string operator()(const cv::RotatedRect& r) const { return rect(r); }
         std::string operator()(const std::vector<cv::RotatedRect>& v) const { return list(v, rect); }
         std::string operator()(const std::vector<Circle>& v) const {
-            return list(v, [](const Circle& c) {
-                std::ostringstream s;
-                s << "Circle [x=" << c.x << ", y=" << c.y << ", diameter=" << c.diameter << "]";
-                return s.str();
-            });
+            return list(v, circle);
         }
         std::string operator()(const std::vector<cv::KeyPoint>& v) const {
             return list(v, [](const cv::KeyPoint& k) {
@@ -86,11 +90,7 @@ std::string JPPipelineModel::describe() const {
         std::string operator()(const std::string& t) const { return t; }
         std::string operator()(const Failure& f) const { return f.message; }
         std::string operator()(const cv::KeyPoint& k) const { return (*this)(std::vector<cv::KeyPoint> { k }); }
-        std::string operator()(const Circle& c) const {
-            std::ostringstream s;
-            s << "Circle [x=" << c.x << ", y=" << c.y << ", diameter=" << c.diameter << "]";
-            return s.str();
-        }
+        std::string operator()(const Circle& c) const { return circle(c); }
     };
     return std::visit(Visitor {}, value);
 }

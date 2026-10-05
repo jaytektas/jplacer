@@ -5,6 +5,7 @@
 
 #include <opencv2/core.hpp>
 
+#include <cmath>
 #include <string>
 #include <variant>
 #include <vector>
@@ -16,8 +17,10 @@ inline namespace jf {
 // matches, points, a number, a text, an AffineWarp's transform (picture to
 // warped picture), text read, or the reason it failed.
 struct JPPipelineModel {
+    // A circle; DetectCircularSymmetry's carry their symmetry score (else NaN).
     struct Circle {
         double x = 0, y = 0, diameter = 0;
+        double score = NAN;
     };
     struct TemplateMatch {
         double x = 0, y = 0, width = 0, height = 0, score = 0;

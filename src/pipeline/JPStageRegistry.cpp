@@ -15,6 +15,7 @@ JPStageRegistry::JPStageRegistry() {
     addTemplateStages(m_types);
     addAffineStages(m_types);
     addOcrStages(m_types);
+    addSymmetryStages(m_types);
     addDrawStages(m_types);
 }
 

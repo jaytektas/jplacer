@@ -313,7 +313,7 @@ void JPStageRegistry::addModelStages(std::vector<JPStageType>& types) {
                           Output out;
                           out.image = p.workingImage();
                           if (const auto* r = std::get_if<cv::RotatedRect>(&m.value)) out.model.value = grow(*r);
-                          else if (const auto* c = std::get_if<Model::Circle>(&m.value)) out.model.value = Model::Circle { c->x, c->y, c->diameter + d };
+                          else if (const auto* c = std::get_if<Model::Circle>(&m.value)) out.model.value = Model::Circle { c->x, c->y, c->diameter + d, c->score };
                           else if (const auto* cs = std::get_if<std::vector<Model::Circle>>(&m.value)) {
                               std::vector<Model::Circle> list;
                               for (const auto& c1 : *cs) list.push_back({ c1.x, c1.y, c1.diameter + d });

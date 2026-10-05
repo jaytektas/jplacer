@@ -173,6 +173,16 @@ cv::Point2d JPPipeline::overriddenPoint(const JPPipelineStage& stage, const std:
     return out;
 }
 
+bool JPPipeline::overriddenFlag(const JPPipelineStage& stage, const std::string& attribute, bool value,
+                                const std::string& pipelineProperty) {
+    const JPPipelineValue* v = property(pipelineProperty);
+    if (!v) return value;
+    const bool* b = std::get_if<bool>(&v->value);
+    if (!b) throw std::runtime_error("Pipeline property \"" + pipelineProperty + "\" must be true or false");
+    m_overrides[stage.name()][attribute] = *b ? "true" : "false";
+    return *b;
+}
+
 std::string JPPipeline::overriddenText(const JPPipelineStage& stage, const std::string& attribute, const std::string& value,
                                        const std::string& pipelineProperty) {
     const JPPipelineValue* v = property(pipelineProperty);

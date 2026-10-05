@@ -100,6 +100,8 @@ public:
                           const std::string& pipelineProperty);
     cv::Point2d overriddenPoint(const JPPipelineStage& stage, const std::string& attribute, cv::Point2d value,
                                 const std::string& pipelineProperty);
+    bool        overriddenFlag(const JPPipelineStage& stage, const std::string& attribute, bool value,
+                               const std::string& pipelineProperty);
     std::string overriddenText(const JPPipelineStage& stage, const std::string& attribute, const std::string& value,
                                const std::string& pipelineProperty);
     // A stage's setting noted as set by the caller (a parameter stage's).
