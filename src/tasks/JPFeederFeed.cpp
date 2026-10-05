@@ -3,7 +3,7 @@
 
 #include "JPFeederFeed.h"
 
-#include "JPBambooFeeder.h"
+#include "JPVisionTapeFeeder.h"
 #include "JPHeapFeeder.h"
 
 #include "JPFeederPipelines.h"
@@ -273,11 +273,11 @@ bool JPFeederFeed::feed(JPConfiguration& config, const std::string& feederId, co
             loose = f->typeName() == "ReferenceLoosePartFeeder" || f->typeName() == "AdvancedLoosePartFeeder";
     });
     if (loose) return looseFeed(config, feederId, machine, onMain, why);
-    bool bamboo = false;
+    bool tape = false;
     main([&] {
-        if (const JPFeeder* f = config.feeder(feederId)) bamboo = f->isVisionTape();
+        if (const JPFeeder* f = config.feeder(feederId)) tape = f->isVisionTape();
     });
-    if (bamboo) return JPBambooFeeder::feed(config, feederId, nozzleId, machine, onMain, why);
+    if (tape) return JPVisionTapeFeeder::feed(config, feederId, nozzleId, machine, onMain, why);
     bool heap = false;
     main([&] {
         if (const JPFeeder* f = config.feeder(feederId)) heap = f->typeName() == "ReferenceHeapFeeder";
@@ -445,10 +445,11 @@ bool JPFeederFeed::postPick(JPConfiguration& config, const std::string& feederId
         const JPFeeder* f = config.feeder(feederId);
         if (!f) return;
         emptySlot = f->isSlot() && !f->slotLoad;
-        if (f->feedsAs() == "ReferenceAutoFeeder" || f->isVisionTape()) {
+        const bool bamboo = f->typeName() == "BambooFeederAutoVision";
+        if (f->feedsAs() == "ReferenceAutoFeeder" || bamboo) {
             name = f->text("post-pick-actuator-name");
             value = f->real("post-pick-actuator-value", 0);
-            if (name.empty() && f->isVisionTape())
+            if (name.empty() && bamboo)
                 JLOGC(JPlacerLog::kJob, JLogLevel::Debug) << "Post pick cancelled. Actuator not set for feeder " << f->name();
         } else if (f->feedsAs() == "SchultzFeeder") {
             // With its feeder number.

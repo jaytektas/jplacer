@@ -26,6 +26,10 @@ notes.
   too) edited and reset.
 - A strip feeder's Auto Setup works as OpenPnP's: click two parts on the camera's view, and its sprocket holes, part
   pitch and feed count are set, the holes it sees shown while it waits.
+- Push-pull feeders (ReferencePushPullFeeder) work as OpenPnP's: the lever pushed and pulled through the start, mid and
+  end locations ticked, each at its speed with its delay, the auxiliary (peel) actuator, multiple actuations, additive
+  rotation; their sprocket holes calibrated by vision as Bamboo feeders' are, Auto-Setup (trying the stock pipelines when
+  the feeder's own fails), Preview Vision Features, Discard Parts and the Push-Pull Motion tab.
 - Heap feeders (ReferenceHeapFeeder) work as OpenPnP's: parts fetched from the heap by the nozzle's vacuum (stirred or
   poked), dropped into a drop box, the ones the right way up found by the feeder's pipeline and the others turned by
   dropping them again; drop boxes made, named, deleted and cleaned, their pipelines and dummy part, GetSamples for the

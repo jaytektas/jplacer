@@ -299,6 +299,32 @@ bool JPlacerJobMachine::moveActuator(const std::string& actuatorName, const JPLo
                                       speed, why);
 }
 
+bool JPlacerJobMachine::positionActuator(const std::string& actuatorName, std::array<std::optional<double>, 4> to, double speed,
+                                         bool safeZFirst, std::string& why) {
+    ++m_motions;
+    JPCell* c = cell(why);
+    if (!c) return false;
+    const JPCellConfig cfg = config();
+    const JPActuatorConfig* actuator = cfg.actuatorNamed(actuatorName);
+    if (!actuator || actuator->mount.headId.empty()) {
+        why = "No Actuator found with name " + actuatorName + " on the head";
+        return false;
+    }
+    return safeZFirst ? c->moveToolAndWait(actuator->mount, to, speed, why) : c->moveToolStraightAndWait(actuator->mount, to, speed, why);
+}
+
+bool JPlacerJobMachine::zeroActuatorRotation(const std::string& actuatorName, std::string& why) {
+    JPCell* c = cell(why);
+    if (!c) return false;
+    const JPCellConfig cfg = config();
+    const JPActuatorConfig* actuator = cfg.actuatorNamed(actuatorName);
+    if (!actuator || actuator->mount.axisRotation.empty()) return true;
+    const std::map<std::string, double> now = c->positions();
+    const auto at = now.find(actuator->mount.axisRotation);
+    if (at == now.end() || at->second == 0) return true;
+    return c->correctPosition({ { at->first, at->second } }, why);
+}
+
 bool JPlacerJobMachine::matchTemplate(const JPLocation& at, const std::string& templatePath,
                                       const JPTemplateFinder::Area& area, JPLocation& offset, std::string& why) {
     ++m_motions;

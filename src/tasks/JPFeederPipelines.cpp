@@ -35,9 +35,11 @@ const std::string* defaultOf(const JPFeeder& f, const std::string& element, cons
         if (kind == "ReferenceLoosePartFeeder") return &JPDefaultPipelines::loosePartFeeder();
         if (kind == "AdvancedLoosePartFeeder") return &JPDefaultPipelines::advancedLoosePartFeeder();
         // By its Vision Type.
-        if (kind == "BambooFeederAutoVision")
-            return f.text("pipeline-type", "CircularSymmetry") == "ColorKeyed" ? &JPDefaultPipelines::feederVisionColorKeyed()
-                                                                                : &JPDefaultPipelines::feederVisionCircularSymmetry();
+        if (kind == "BambooFeederAutoVision" || kind == "ReferencePushPullFeeder") {
+            const std::string fallback = kind == "BambooFeederAutoVision" ? "CircularSymmetry" : "ColorKeyed";
+            return f.text("pipeline-type", fallback) == "ColorKeyed" ? &JPDefaultPipelines::feederVisionColorKeyed()
+                                                                     : &JPDefaultPipelines::feederVisionCircularSymmetry();
+        }
     }
     if (element == "training-pipeline" && kind == "AdvancedLoosePartFeeder") return &JPDefaultPipelines::advancedLoosePartFeederTraining();
     return nullptr;
@@ -112,7 +114,7 @@ void JPFeederPipelines::configureForEditing(const JPConfiguration& config, const
         pipeline.setProperty("part", JPPipelineValue { part });
         return;
     }
-    if (kind == "BambooFeederAutoVision") {
+    if (kind == "BambooFeederAutoVision" || kind == "ReferencePushPullFeeder") {
         if (ctx.cameraWidth > 0 && ctx.pixelsPerMmX > 0 && ctx.pixelsPerMmY > 0)
             configureTape(feeder, pipeline, true, ctx.cameraWidth, ctx.cameraHeight, 1 / ctx.pixelsPerMmX, 1 / ctx.pixelsPerMmY);
         return;

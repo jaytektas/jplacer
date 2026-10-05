@@ -787,6 +787,188 @@ void bambooForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFee
     add.tip("Move nozzle to pick location before actuating the feed actuator");
 }
 
+// OpenPnP's ReferencePushPullFeederConfigurationWizard (Locations, Tape
+// Settings, Vision) and ReferencePushPullMotionConfigurationWizard (the
+// Push-Pull Settings: its actuators and the places the lever is pushed and
+// pulled through, with their speeds and delays).
+void pushPullForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f, const std::vector<std::string>& actuators) {
+    general(add, config, f, false);
+
+    add.group("Locations");
+    add.row("");
+    add.button("showVisionFeatures", "Preview Vision Features", "Preview the features recognized by Computer Vision.");
+    add.button("autoSetupTape", "Auto-Setup with Camera at Pick Location",
+               "Center the camera on the pick location and press this button to Auto-Setup\nIf there are multiple picks per "
+               "feed cycle, choose the one closest to the tape reel.");
+    add.end();
+    add.header({ "X", "Y", "Z" });
+    add.row("Pick Location", Place::Location);
+    coordinate(add, f, "location", Axis::X, "X");
+    coordinate(add, f, "location", Axis::Y, "Y");
+    coordinate(add, f, "location", Axis::Z, "Z");
+    add.end();
+    add.tip("Pick Location of the part. If multiple are produced by a feed operation\nthis must be the last one picked i.e. the "
+            "one closest to the the tape reel.");
+    add.flag("normalize-pick-location", "Normalize?", [f] { return f().flag("normalize-pick-location", true); },
+             [f](bool on) { f().setFlag("normalize-pick-location", on); });
+    add.tip("Normalize the pick location relative to the sprocket holes according to the EIA-481 standard.");
+    for (const auto& [label, element, tip] :
+         { std::tuple { "Hole 1 Location", "hole-1-location",
+                        "Choose Hole 1 closer to the tape reel.\nIf possible choose two holes that bracket the part(s) to be picked." },
+           std::tuple { "Hole 2 Location", "hole-2-location",
+                        "Choose Hole 2 further away from the tape reel.\nIf possible choose two holes that bracket the part(s) to be "
+                        "picked." } }) {
+        add.row(label, Place::Location);
+        coordinate(add, f, element, Axis::X, "X");
+        coordinate(add, f, element, Axis::Y, "Y");
+        add.skip();
+        add.end();
+        add.tip(tip);
+    }
+    add.endColumns();
+    add.flag("snap-to-axis", "Snap to Axis?", [f] { return f().flag("snap-to-axis", true); },
+             [f](bool on) { f().setFlag("snap-to-axis", on); });
+    add.tip("Snap rows of sprocket holes to the Axis parallel.");
+
+    add.group("Tape Settings");
+    add.row("Part Pitch");
+    length(add, f, "part-pitch", "Part Pitch", 4);
+    add.number("rotation-in-feeder", "Rotation in Tape", [f] { return f().real("rotation-in-feeder", 0); },
+               [f](double v) { f().setReal("rotation-in-feeder", v); });
+    add.end();
+    add.tip("Pitch of the parts in the tape (2mm, 4mm, 8mm, 12mm, etc.)");
+    add.row("Feed Pitch");
+    length(add, f, "feed-pitch", "Feed Pitch", 4);
+    add.integer("feed-multiplier", "Multiplier", [f] { return f().number("feed-multiplier", 1); },
+                [f](int v) { f().setNumber("feed-multiplier", v); }, 1, kMostCount);
+    add.button("discardParts", "Discard Parts",
+               "Discard parts left over in the (multi-part) feed cycle.\nStarts with a fresh feed cycle including vision "
+               "calibration (if enabled).");
+    add.end();
+    add.tip("How much the tape will be advanced by one lever actuation (usually multiples of 4mm)");
+    add.row("Feed Count");
+    count(add, f, "feed-count", "Feed Count", 0);
+    add.button("resetFeedCount", "Reset Feed Count", "Reset the feed count e.g. when a tape has been changed.");
+    add.end();
+    add.tip("Total feed count of the feeder.");
+
+    add.group("Vision");
+    auto shown = [](const JPLength& l) {
+        char buf[32];
+        std::snprintf(buf, sizeof buf, "%.3f", mm(l));
+        return std::string(buf);
+    };
+    add.row("Calibration Trigger");
+    add.choice("calibration-trigger", "Calibration Trigger", { "None", "OnFirstUse", "UntilConfident", "OnEachTapeFeed" },
+               [f] { return f().text("calibration-trigger", "UntilConfident"); },
+               [f](const std::string& v) { f().setText("calibration-trigger", v); });
+    add.text("precision-average", "Precision Average", [f, shown] { return shown(JPFeederTape::precisionAverage(f())); }, nullptr);
+    add.text("calibration-count", "Calibration Count", [f] { return std::to_string(f().number("calibration-count", 0)); }, nullptr);
+    add.end();
+    add.row("Precision wanted");
+    length(add, f, "precision-wanted", "Precision wanted", 0.1);
+    add.text("precision-confidence-limit", "Precision Confidence Limit",
+             [f, shown] { return shown(JPFeederTape::precisionConfidenceLimit(f())); }, nullptr);
+    add.button("resetStatistics", "Reset Statistics", "Reset the average obtained precision statistics.");
+    add.end();
+    add.tip("Precision wanted i.e. the tolerable pick location offset");
+    add.row("");
+    add.button("editPipeline", "Edit Pipeline", "Edit the Pipeline to be used for all vision operations of this feeder.");
+    add.choice("pipeline-type", "Vision Type", { "ColorKeyed", "CircularSymmetry" },
+               [f] { return f().text("pipeline-type", "ColorKeyed"); }, [f](const std::string& v) { f().setText("pipeline-type", v); });
+    add.button("resetPipeline", "Reset Pipeline", "Reset the Pipeline for this feeder to the selected type default.");
+    add.end();
+    add.tip("Choose the vision type, then press Reset Pipeline to assign the default pipeline of that type. Sprocket holes are "
+            "detected as follows:\n- ColorKeyed: the background under the holes must be of a vivid color (green by default).\n"
+            "- CircularSymmetry: the shape of the holes must be circular, their inside/outside must be plain.\n"
+            "Both types of pipeline will further assess detected holes by size, alignment, pitch and expected distance.");
+
+    add.tab("Push-Pull Motion");
+    add.group("Push-Pull Settings");
+    JPFormBuilder::Strings names { "" };
+    names.insert(names.end(), actuators.begin(), actuators.end());
+    add.choice("actuator-name", "Feed Actuator", names, [f] { return f().text("actuator-name"); },
+               [f](const std::string& n) { f().setText("actuator-name", n); });
+    add.tip("Actuator for feed signal and for motion");
+    add.choice("peel-off-actuator-name", "Auxiliary Actuator", names, [f] { return f().text("peel-off-actuator-name"); },
+               [f](const std::string& n) { f().setText("peel-off-actuator-name", n); });
+    add.tip("Actuator for auxiliary purpose (e.g. peeling).");
+    add.header({ "X", "Y", "Z", "Rotation", "↓", "↑↓", "↑" });
+    auto flag = [&add, f](const std::string& attr, const std::string& label, bool def) {
+        add.flag(attr, label, [f, attr, def] { return f().flag(attr, def); }, [f, attr](bool on) { f().setFlag(attr, on); });
+    };
+    add.row("Vision Calibrate?");
+    for (const char* axis : { "x", "y" }) {
+        const std::string attr = std::string("calibrate-motion-") + axis;
+        add.flag(attr, std::string("Vision Calibrate ") + axis, [f, attr] { return f().text(attr, "true") == "true"; },
+                 [f, attr](bool on) { f().setText(attr, on ? "true" : "false"); });
+    }
+    add.skip();
+    flag("additive-rotation", "Additive", true);
+    add.end();
+    add.tip("Apply the offsets obtained from Vision Calibration");
+    // A place's row: X, Y, Z, rotation, then its push, multi and pull switches (none: not offered).
+    auto place = [&](const char* label, const char* element, const char* push, const char* multi, const char* pull, bool pushDef,
+                     bool multiDef, bool pullDef) {
+        add.row(label, Place::Location);
+        add.actuator([f] { return f().text("actuator-name"); });
+        coordinate(add, f, element, Axis::X, "X");
+        coordinate(add, f, element, Axis::Y, "Y");
+        coordinate(add, f, element, Axis::Z, "Z");
+        coordinate(add, f, element, Axis::Rotation, "Rotation");
+        for (const auto& [attr, def] : { std::pair { push, pushDef }, std::pair { multi, multiDef }, std::pair { pull, pullDef } }) {
+            if (!*attr) {
+                add.skip();
+                continue;
+            }
+            flag(attr, attr, def);
+        }
+        add.end();
+    };
+    // A step's row between two places, in the places' columns: the delay
+    // after the one above (under X), the speeds pushing to the one below
+    // (under ↓) and pulling to the one above (under ↑).
+    auto step = [&](const char* delay, const char* push, const char* pull, bool pushElement) {
+        add.row("Delay");
+        add.integer(delay, "Delay", [f, delay] { return f().number(delay, 0); }, [f, delay](int v) { f().setNumber(delay, v); }, 0,
+                    kMostCount);
+        add.skip();
+        add.skip();
+        add.text(std::string(push) + ".label", "", [] { return std::string("Speed ↑↓"); }, nullptr);
+        if (pushElement)
+            add.number(push, "Speed ↓", [f, push] { return std::strtod(f().childText(push, "1").c_str(), nullptr); },
+                       [f, push](double v) {
+                           char buf[32];
+                           std::snprintf(buf, sizeof buf, "%g", v);
+                           f().setChildText(push, buf);
+                       });
+        else
+            add.number(push, "Speed ↓", [f, push] { return f().real(push, 1); }, [f, push](double v) { f().setReal(push, v); });
+        add.skip();
+        add.number(pull, "Speed ↑", [f, pull] { return f().real(pull, 1); }, [f, pull](double v) { f().setReal(pull, v); });
+        add.end();
+        add.tip("The delay (in milliseconds) after reaching this location");
+    };
+    place("Start Location", "feed-start-location", "", "included-multi-0", "included-pull-0", false, true, true);
+    step("delay-0", "feed-speed-push-1", "feed-speed-pull-0", true);
+    place("Mid 1 Location", "feed-mid-1-location", "included-push-1", "included-multi-1", "included-pull-1", false, false, false);
+    step("delay-1", "feed-speed-push-2", "feed-speed-pull-1", false);
+    place("Mid 2 Location", "feed-mid-2-location", "included-push-2", "included-multi-2", "included-pull-2", false, false, false);
+    step("delay-2", "feed-speed-push-3", "feed-speed-pull-2", false);
+    place("Mid 3 Location", "feed-mid-3-location", "included-push-3", "included-multi-3", "included-pull-3", false, false, false);
+    step("delay-3", "feed-speed-push-end", "feed-speed-pull-3", false);
+    place("End Location", "feed-end-location", "included-push-end", "included-multi-end", "", true, true, false);
+    add.row("Delay");
+    add.integer("delay-4", "Delay", [f] { return f().number("delay-4", 0); }, [f](int v) { f().setNumber("delay-4", v); }, 0, kMostCount);
+    add.skip();
+    add.skip();
+    if (f().flag("additive-rotation", true))
+        add.button("resetRotation", "Reset",
+                   "Reset the current rotation axis to 0° for subsequent\ncapturing/positioning using the location buttons in additive mode.");
+    add.end();
+    add.tip("The delay (in milliseconds) after reaching this location");
+}
+
 // The drop box a heap feeder uses.
 std::string heapBox(JPConfiguration& config, const JPFeeder& f) {
     const std::string id = f.text("drop-box-id");
@@ -977,6 +1159,8 @@ JPSetupProperties::Form JPFeederForms::forFeeder(JPConfiguration& config, const 
         trayForm(add, config, f, std::move(warn));
     } else if (kind == "ReferenceAutoFeeder") {
         autoForm(add, config, f, options.actuators);
+    } else if (kind == "ReferencePushPullFeeder") {
+        pushPullForm(add, config, f, options.actuators);
     } else if (kind == "ReferenceHeapFeeder") {
         heapForm(add, config, f);
     } else if (kind == "BambooFeederAutoVision") {
@@ -1051,7 +1235,7 @@ bool slotAct(JPConfiguration& config, JPFeeder& slot, const std::string& action,
 } // namespace
 
 bool JPFeederForms::isMachineAction(const std::string& action) {
-    for (const char* a : { "testFeed", "testPostPick", "showVisionFeatures", "autoSetupTape", "cleanDropBox", "getSamples", "getId", "getFeedCount", "clearFeedCount", "getPitch", "togglePitch",
+    for (const char* a : { "testFeed", "testPostPick", "showVisionFeatures", "autoSetupTape", "cleanDropBox", "getSamples", "resetRotation", "getId", "getFeedCount", "clearFeedCount", "getPitch", "togglePitch",
                            "getStatus", "updateLocation", "actuate", "photonFind", "photonFeed", "photonFeed1mm",
                            "photonSearch" })
         if (action == a) return true;

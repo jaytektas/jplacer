@@ -59,6 +59,9 @@ public:
                       std::string& why) override;
     bool moveActuator(const std::string& actuatorName, const JPLocation& at, bool withZ, double speed,
                       std::string& why) override;
+    bool positionActuator(const std::string& actuatorName, std::array<std::optional<double>, 4> to, double speed, bool safeZFirst,
+                          std::string& why) override;
+    bool zeroActuatorRotation(const std::string& actuatorName, std::string& why) override;
     bool matchTemplate(const JPLocation& at, const std::string& templatePath, const JPTemplateFinder::Area& area,
                        JPLocation& offset, std::string& why) override;
     bool park(std::string& why) override;

@@ -95,7 +95,12 @@ JPFeedersPanel::JPFeedersPanel(JSceneGraph& graph, JPConfiguration& config, doub
         // The pin's name decides what its place rows' buttons move; a slot's
         // bank and feeder (and their names), or a heap's drop box (and its
         // name), what its choices list.
-        if (property == "actuator-name" || property.rfind("slot.", 0) == 0 || property == "drop-box-id" || property == "drop-box.name")
+        // A push-pull feeder's additive rotation turned on (or its actuator chosen): its rotation counted from where it is, as OpenPnP's.
+        if ((property == "additive-rotation" || property == "actuator-name") && machineAction && machineReady && machineReady())
+            if (const JPFeeder* f = m_config.feeder(m_shown); f && f->typeName() == "ReferencePushPullFeeder" && f->flag("additive-rotation", true))
+                machineAction(m_shown, "resetRotation");
+        if (property == "actuator-name" || property.rfind("slot.", 0) == 0 || property == "drop-box-id" || property == "drop-box.name"
+            || property == "additive-rotation")
             jPostToNextFrame([this, alive = std::weak_ptr<bool>(m_alive)] {
                 if (const auto a = alive.lock(); a && *a) rebuildForm();
             });

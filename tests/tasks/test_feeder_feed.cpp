@@ -86,6 +86,16 @@ public:
         return true;
     }
     bool vacuumOn(const std::string&, std::string&) override { return true; }
+    bool zeroActuatorRotation(const std::string&, std::string&) override { return true; }
+    // An actuator's moves: "name to x,y,z,c at speed" (straight) or "name over …" (from safe Z).
+    bool positionActuator(const std::string& name, std::array<std::optional<double>, 4> to, double speed, bool safeZFirst,
+                          std::string&) override {
+        char text[160];
+        std::snprintf(text, sizeof text, "%s %s %.2f,%.2f,%.2f,%.2f at %.2f", name.c_str(), safeZFirst ? "over" : "to",
+                      to[0].value_or(NAN), to[1].value_or(NAN), to[2].value_or(NAN), to[3].value_or(NAN), speed);
+        actuated.push_back(text);
+        return true;
+    }
     bool pickHere(const std::string&, std::string&) override {
         pickedHere = true;
         return true;
@@ -627,6 +637,36 @@ int main() {
         assert(!JPFeederFeed::feed(config, "HEAP", "N1", emptied, nullptr, why, empty));
         assert(why == "HeapFeeder Heap: Can not grab parts. Heap Empty or VacuumDifference wrong.");
         config.removeFeeder("HEAP");
+    }
+    // A push-pull feeder, no vision: its lever over the start, then for each
+    // of two actuations (multiplier 2) on, pushed to the end, the peel on,
+    // pulled back to the start at its speed, both off; then the count on. A
+    // repeated feed moves nothing.
+    {
+        JPXmlElement pe;
+        assert(JPXmlReader::parse(R"(<feeder class="org.openpnp.machine.reference.feeder.ReferencePushPullFeeder" id="PP" name="PushPull" enabled="true" part-id="R1" actuator-name="Lever" peel-off-actuator-name="Peel" feed-multiplier="2" feed-speed-pull-0="0.5" calibration-trigger="None" additive-rotation="false"><location units="Millimeters" x="10.0" y="10.0" z="-5.0" rotation="0.0"/><hole-1-location units="Millimeters" x="8.0" y="13.5" z="0.0" rotation="0.0"/><hole-2-location units="Millimeters" x="12.0" y="13.5" z="0.0" rotation="0.0"/><feed-start-location units="Millimeters" x="20.0" y="30.0" z="-3.0" rotation="0.0"/><feed-end-location units="Millimeters" x="24.0" y="30.0" z="-3.0" rotation="0.0"/><part-pitch value="4.0" units="Millimeters"/><feed-pitch value="4.0" units="Millimeters"/></feeder>)",
+                                  pe, error));
+        config.addFeeder(JPFeeder::fromXml(pe));
+        HoleMachine m;
+        assert(JPFeederFeed::feed(config, "PP", "N1", m, nullptr, why, empty));
+        const std::vector<std::string> pushPull { "Lever over 20.00,30.00,-3.00,0.00 at 1.00",
+                                                  "Lever=1", "Lever to 24.00,30.00,-3.00,0.00 at 1.00", "Peel=1",
+                                                  "Lever to 20.00,30.00,-3.00,0.00 at 0.50", "Peel=0", "Lever=0",
+                                                  "Lever=1", "Lever to 24.00,30.00,-3.00,0.00 at 1.00", "Peel=1",
+                                                  "Lever to 20.00,30.00,-3.00,0.00 at 0.50", "Peel=0", "Lever=0" };
+        assert(m.actuated == pushPull);
+        assert(config.feeder("PP")->number("feed-count") == 1);
+        // Two parts a feed: the first a pitch on towards hole 2, the second at the pick location, without a feed.
+        const auto first = config.feeder("PP")->pickLocation();
+        m.actuated.clear();
+        assert(JPFeederFeed::feed(config, "PP", "N1", m, nullptr, why, empty) && m.actuated.empty());
+        const auto second = config.feeder("PP")->pickLocation();
+        assert(first && second && near(first->x(), 14) && near(second->x(), 10) && near(second->y(), 10));
+        // Skip next: nothing moves, the same part again.
+        config.feeder("PP")->setFeedOptions(JPFeeder::FeedOptions::SkipNext);
+        assert(JPFeederFeed::feed(config, "PP", "N1", m, nullptr, why, empty) && m.actuated.empty());
+        assert(config.feeder("PP")->number("feed-count") == 2 && config.feeder("PP")->feedOptions() == JPFeeder::FeedOptions::Normal);
+        config.removeFeeder("PP");
     }
     return 0;
 }

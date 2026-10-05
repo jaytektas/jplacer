@@ -3,7 +3,7 @@
 
 #include "JPFeederActions.h"
 
-#include "JPBambooFeeder.h"
+#include "JPVisionTapeFeeder.h"
 #include "JPHeapFeeder.h"
 
 #include "JPFiducialLocator.h"
@@ -76,12 +76,25 @@ bool JPFeederActions::run(JPConfiguration& config, const std::string& feederId, 
         return action == "cleanDropBox" ? JPHeapFeeder::cleanDropBox(config, feederId, nozzles.front().id, machine, onMain, why)
                                         : JPHeapFeeder::getSamples(config, feederId, nozzles.front().id, machine, onMain, why);
     }
+    if ((kind == "BambooFeederAutoVision" || kind == "ReferencePushPullFeeder") && action == "showVisionFeatures")
+        return JPVisionTapeFeeder::showFeatures(config, feederId, machine, onMain, why);
+    if ((kind == "BambooFeederAutoVision" || kind == "ReferencePushPullFeeder") && action == "autoSetupTape") {
+        outcome.changed = true;
+        return JPVisionTapeFeeder::autoSetup(config, feederId, machine, onMain, why);
+    }
+    if (kind == "ReferencePushPullFeeder" && action == "resetRotation") {
+        // Its feed actuator's rotation axis called 0 where it is, in additive mode.
+        std::string actuator;
+        bool additive = false;
+        main([&] {
+            if (const JPFeeder* f = config.feeder(feederId)) {
+                actuator = f->text("actuator-name");
+                additive = f->flag("additive-rotation", true);
+            }
+        });
+        return !additive || actuator.empty() || machine.zeroActuatorRotation(actuator, why);
+    }
     if (kind == "BambooFeederAutoVision") {
-        if (action == "showVisionFeatures") return JPBambooFeeder::showFeatures(config, feederId, machine, onMain, why);
-        if (action == "autoSetupTape") {
-            outcome.changed = true;
-            return JPBambooFeeder::autoSetup(config, feederId, machine, onMain, why);
-        }
         // Test feed and Test post pick: one actuation with its value (not a whole feed).
         const std::string key = action == "testFeed" ? "feed-actuator" : "post-pick-actuator";
         std::string actuator;

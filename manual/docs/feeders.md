@@ -262,6 +262,30 @@ yet.
 
 <!-- src: src/setup/JPFeederForms.cpp (rapidForm); src/tasks/JPFeederFeed.cpp (feed, kRapidActuator) -->
 
+### Push-pull feeder
+
+A tape advanced by a lever on the machine that the head's feed actuator pushes and pulls (OpenPnP's
+ReferencePushPullFeeder). Its **Configuration** tab is the Bamboo feeder's (below) for **Locations**, **Tape Settings**
+(the pitches typed in, and a **Multiplier**: actuations per feed, so more parts a feed) and **Vision** (ColorKeyed by
+default); **Snap to Axis?** is ticked by default. Auto-Setup that fails with the feeder's pipeline is tried again with
+each stock pipeline (ColorKeyed, then CircularSymmetry), and keeps the one that works. With the Calibration Trigger at
+None, the holes are taken as set and never calibrated.
+
+Its **Push-Pull Motion** tab: the **Feed Actuator** (switched on while pushing; its place rows move and capture it) and
+the **Auxiliary Actuator** (on while pulling, as for peeling cover tape); then the **Start**, **Mid 1** to **Mid 3** and
+**End Location** (X, Y, Z and rotation), each with whether it is gone through pushing (↓), when actuating more than once
+(↑↓) and pulling (↑), and between them the **Delay** after reaching each (milliseconds, 5 s at most) and the **Speed**
+pushing down to the next and pulling back up to it. **Vision Calibrate?** moves the places by the vision offset in X and
+Y; **Additive** counts the rotation axis from where it is before each feed (a cover tape spool wound on), and its
+**Reset** calls the rotation 0 now.
+
+A feed (with no part left of the last): the actuator over the start at safe Z, then each actuation: on, pushed through
+the places ticked to the end, the auxiliary actuator on, pulled back through those ticked to the start, both off; the
+first push and the last pull go all the way, those between only through the places ticked ↑↓. Then up to safe Z and
+calibrated as the trigger says. A repeated feed moves nothing.
+
+<!-- src: src/setup/JPFeederForms.cpp (pushPullForm); src/tasks/JPVisionTapeFeeder.cpp (feedPushPull, autoSetup); src/tasks/JPFeederActions.cpp; src/tasks/JPFeederPipelines.cpp -->
+
 ### Heap feeder
 
 Loose parts in a heap (OpenPnP's ReferenceHeapFeeder), taken out by the nozzle and dropped into a drop box to be looked at.
@@ -313,7 +337,7 @@ sprocket holes with the head camera.
   location are set or the machine is unhomed; a job calibrates the feeders it uses first.
 - **Actuators**: the **Feed** and **Post Pick** actuators with their values and test buttons, and **Move before feed**.
 
-<!-- src: src/setup/JPFeederForms.cpp (bambooForm); src/tasks/JPBambooFeeder.cpp; src/tasks/JPFeederVision.cpp; src/model/JPFeederTape.cpp; src/tasks/JPJobProcessor.cpp (preFlight); src/app/JPlacerOpenPnpTabs.cpp (editTapePipeline) -->
+<!-- src: src/setup/JPFeederForms.cpp (bambooForm); src/tasks/JPVisionTapeFeeder.cpp; src/tasks/JPFeederVision.cpp; src/model/JPFeederTape.cpp; src/tasks/JPJobProcessor.cpp (preFlight); src/app/JPlacerOpenPnpTabs.cpp (editTapePipeline) -->
 
 ### Loose part feeders
 

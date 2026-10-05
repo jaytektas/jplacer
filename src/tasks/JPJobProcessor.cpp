@@ -6,7 +6,7 @@
 #include "JPAlignRequests.h"
 
 #include "JPFeederFeed.h"
-#include "JPBambooFeeder.h"
+#include "JPVisionTapeFeeder.h"
 #include "JPPhotonFeeders.h"
 #include "JPFiducialLocator.h"
 
@@ -282,7 +282,7 @@ JPJobProcessor::Step JPJobProcessor::preFlight() {
     main([&] {
         for (const JPFeeder& f : m_config.feeders()) {
             if (!f.enabled() || !f.isVisionTape()) continue;
-            const auto at = JPBambooFeeder::jobPreparationLocation(f);
+            const auto at = JPVisionTapeFeeder::jobPreparationLocation(f);
             if (!at) continue;
             for (const JobPlacement& j : m_jobPlacements)
                 if (j.partId == f.partId()) {
@@ -293,7 +293,7 @@ JPJobProcessor::Step JPJobProcessor::preFlight() {
         }
     });
     for (const size_t i : travel(visitAt, m_machine.cameraLocation(), std::nullopt))
-        if (!JPBambooFeeder::prepareForJob(m_config, visit[i], m_machine, [this](const std::function<void()>& fn) { main(fn); }, why))
+        if (!JPVisionTapeFeeder::prepareForJob(m_config, visit[i], m_machine, [this](const std::function<void()>& fn) { main(fn); }, why))
             fail(Source::Feeder, visit[i], why);
     m_restart = true;
     return Step::FiducialCheck;

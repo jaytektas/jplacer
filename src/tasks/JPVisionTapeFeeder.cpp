@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
-#include "JPBambooFeeder.h"
+#include "JPVisionTapeFeeder.h"
 
 #include "JPFeederPipelines.h"
 #include "JPFeederVision.h"
@@ -13,7 +13,11 @@
 
 #include <opencv2/imgproc.hpp>
 
+#include <cctype>
+#include <chrono>
 #include <cmath>
+#include <cstdlib>
+#include <thread>
 
 inline namespace jf {
 
@@ -28,10 +32,14 @@ constexpr double kHolesLeastApartMm = 3;
 // (size, position), the passes calibrating the holes, how close the camera must come to stop.
 constexpr double kCalibrationToleranceMm = 1.95, kSprocketHoleToleranceMm = 0.6, kCalibrateToleranceMm = 0.3;
 constexpr int    kCalibrateMaxPasses = 3;
+// A push-pull feeder's delay after reaching a place is at most this.
+constexpr int kMostDelayMs = 5000;
+
+double mm(const JPLength& l) { return l.convertToUnits(JPLengthUnit::Millimeters).value(); }
 
 using Main = std::function<void(const std::function<void()>&)>;
 
-Main mainOf(const JPBambooFeeder::OnMain& onMain) {
+Main mainOf(const JPVisionTapeFeeder::OnMain& onMain) {
     return [&onMain](const std::function<void()>& fn) {
         if (onMain) onMain(fn);
         else fn();
@@ -39,13 +47,21 @@ Main mainOf(const JPBambooFeeder::OnMain& onMain) {
 }
 
 std::string trigger(const JPFeeder& f) { return f.text("calibration-trigger", "UntilConfident"); }
+bool        isPushPull(const JPFeeder& f) { return f.typeName() == "ReferencePushPullFeeder"; }
+// A push-pull feeder's Vision Calibrate? for an axis ("x", "y"): OpenPnP's calibrate-motion-x (as its
+// hyphenation may also write it, -X).
+bool calibrateMotion(const JPFeeder& f, const std::string& axis) {
+    std::string upper = axis;
+    upper[0] = char(std::toupper(static_cast<unsigned char>(upper[0])));
+    return f.text("calibrate-motion-" + axis, f.text("calibrate-motion-" + upper, "true")) == "true";
+}
 
 JPFeederVision::Settings settingsOf(const JPFeeder& f) {
     JPFeederVision::Settings s;
     s.tape = JPFeederTape::of(f);
-    s.tape.feedMultiplier = 1;   // fixed for these feeders
+    if (!isPushPull(f)) s.tape.feedMultiplier = 1;   // a Bamboo feeder's is fixed
     s.normalizePickLocation = f.flag("normalize-pick-location", true);
-    s.snapToAxis = f.flag("snap-to-axis", false);
+    s.snapToAxis = f.flag("snap-to-axis", isPushPull(f));
     s.calibrationToleranceMm = f.real("calibration-tolerance-mm", kCalibrationToleranceMm);
     s.sprocketHoleToleranceMm = f.real("sprocket-hole-tolerance-mm", kSprocketHoleToleranceMm);
     return s;
@@ -118,10 +134,13 @@ bool look(JPJobMachine& machine, JPPipeline& pipeline, const JPLocation& at, JPF
 // tolerance; what each pass found kept as asked.
 bool visionOperations(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine, const Main& main,
                       JPPipeline& pipeline, bool storeHoles, bool storePickLocation, bool storeVisionOffset, std::string& why) {
-    JPLocation hole1(kMm), hole2(kMm), pick(kMm), runningOffset(kMm);
+    JPLocation hole1(kMm), hole2(kMm), pick(kMm);
+    std::optional<JPLocation> runningOffset;
     double rotationInFeeder = 0, toleranceMm = kCalibrateToleranceMm;
     int passes = kCalibrateMaxPasses;
     bool found = false;
+    // A push-pull feeder without a trigger takes the holes as set (OpenPnP's OcrOnly), not calibrating.
+    JPFeederVision::Mode mode = JPFeederVision::Mode::CalibrateHoles;
     main([&] {
         const JPFeeder* f = config.feeder(feederId);
         if (!f) return;
@@ -131,6 +150,7 @@ bool visionOperations(JPConfiguration& config, const std::string& feederId, JPJo
         pick = f->location();
         runningOffset = trigger(*f) != "None" && f->visionOffset ? *f->visionOffset : JPLocation::origin();
         rotationInFeeder = f->real("rotation-in-feeder", 0);
+        if (isPushPull(*f) && trigger(*f) == "None") mode = JPFeederVision::Mode::OcrOnly;
         passes = f->number("calibrate-max-passes", kCalibrateMaxPasses);
         toleranceMm = f->real("calibrate-tolerance-mm", kCalibrateToleranceMm);
     });
@@ -148,7 +168,7 @@ bool visionOperations(JPConfiguration& config, const std::string& feederId, JPJo
             if (const JPFeeder* f = config.feeder(feederId)) settings = settingsOf(*f);
         });
         JPFeederVision::Found feature;
-        if (!look(machine, pipeline, mid, JPFeederVision::Mode::CalibrateHoles, settings, feature, why)) return false;
+        if (!look(machine, pipeline, mid, mode, settings, feature, why)) return false;
         hole1 = *feature.hole1;
         hole2 = *feature.hole2;
         pick = *feature.pick;
@@ -156,9 +176,9 @@ bool visionOperations(JPConfiguration& config, const std::string& feederId, JPJo
         const JPLocation uncalibrated = JPFeederTape::partLocation(1, runningOffset, settings.tape, rotationInFeeder);
         const JPLocation calibrated = JPFeederTape::partLocation(1, feature.visionOffset, settings.tape, rotationInFeeder);
         const double errorMm = calibrated.convertToUnits(kMm).linearDistanceTo(uncalibrated);
-        JLOGC(JPlacerLog::kJob, JLogLevel::Trace) << "new vision offset " << feature.visionOffset->text() << " vs. previous vision offset "
-                                                  << runningOffset.text() << " results in error " << errorMm
-                                                  << "mm at the (farthest) pick location";
+        JLOGC(JPlacerLog::kJob, JLogLevel::Trace) << "new vision offset " << (feature.visionOffset ? feature.visionOffset->text() : "none")
+                                                  << " vs. previous vision offset " << (runningOffset ? runningOffset->text() : "none")
+                                                  << " results in error " << errorMm << "mm at the (farthest) pick location";
         main([&] {
             JPFeeder* f = config.feeder(feederId);
             if (!f) return;
@@ -174,7 +194,7 @@ bool visionOperations(JPConfiguration& config, const std::string& feederId, JPJo
             }
         });
         if (errorMm < toleranceMm) break;
-        runningOffset = *feature.visionOffset;
+        runningOffset = feature.visionOffset;
     }
     return true;
 }
@@ -200,7 +220,7 @@ bool feedTape(JPConfiguration& config, const std::string& feederId, JPJobMachine
 
 } // namespace
 
-bool JPBambooFeeder::calibrate(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine, const OnMain& onMain,
+bool JPVisionTapeFeeder::calibrate(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine, const OnMain& onMain,
                                std::string& why) {
     const Main main = mainOf(onMain);
     std::optional<JPPipeline> pipeline;
@@ -208,7 +228,7 @@ bool JPBambooFeeder::calibrate(JPConfiguration& config, const std::string& feede
     return visionOperations(config, feederId, machine, main, *pipeline, false, false, true, why);
 }
 
-bool JPBambooFeeder::assertCalibrated(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine,
+bool JPVisionTapeFeeder::assertCalibrated(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine,
                                       const OnMain& onMain, bool tapeFeed, std::string& why) {
     const Main main = mainOf(onMain);
     bool tooClose = false, needed = false;
@@ -240,9 +260,14 @@ bool JPBambooFeeder::assertCalibrated(JPConfiguration& config, const std::string
     return true;
 }
 
-bool JPBambooFeeder::feed(JPConfiguration& config, const std::string& feederId, const std::string& nozzleId, JPJobMachine& machine,
+bool JPVisionTapeFeeder::feed(JPConfiguration& config, const std::string& feederId, const std::string& nozzleId, JPJobMachine& machine,
                           const OnMain& onMain, std::string& why) {
     const Main main = mainOf(onMain);
+    bool pushPull = false;
+    main([&] {
+        if (const JPFeeder* f = config.feeder(feederId)) pushPull = isPushPull(*f);
+    });
+    if (pushPull) return feedPushPull(config, feederId, machine, onMain, why);
     bool moveFirst = false;
     std::optional<JPLocation> pickAt;
     JPFeeder::FeedOptions options = JPFeeder::FeedOptions::Normal;
@@ -285,14 +310,105 @@ bool JPBambooFeeder::feed(JPConfiguration& config, const std::string& feederId, 
     return true;
 }
 
-bool JPBambooFeeder::autoSetup(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine, const OnMain& onMain,
-                               std::string& why) {
+bool JPVisionTapeFeeder::feedPushPull(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine,
+                                      const OnMain& onMain, std::string& why) {
     const Main main = mainOf(onMain);
+    std::string actuator, peel, name;
+    JPFeeder::FeedOptions options = JPFeeder::FeedOptions::Normal;
+    long count = 0, cycle = 1, actuations = 1;
     main([&] {
-        // Just assume it is wanted now.
-        if (JPFeeder* f = config.feeder(feederId); f && trigger(*f) == "None") f->setText("calibration-trigger", "UntilConfident");
+        JPFeeder* f = config.feeder(feederId);
+        if (!f) return;
+        actuator = f->text("actuator-name");
+        peel = f->text("peel-off-actuator-name");
+        name = f->name();
+        options = f->feedOptions();
+        if (options == JPFeeder::FeedOptions::SkipNext) f->setFeedOptions(JPFeeder::FeedOptions::Normal);
+        count = f->number("feed-count", 0);
+        const JPFeederTape::Params tape = JPFeederTape::of(*f);
+        cycle = JPFeederTape::partsPerFeedCycle(tape);
+        const double part = mm(tape.partPitch), feedPitch = mm(tape.feedPitch);
+        actuations = tape.feedMultiplier * (feedPitch > 0 ? long(std::ceil(part / feedPitch)) : 1);
     });
-    if (!cameraZ(config, feederId, machine, main, why)) return false;
+    if (actuator.empty()) {
+        why = "No feed actuator assigned to feeder " + name;
+        return false;
+    }
+    // A repeated or disabled feed: nothing moves, nothing counted.
+    if (options != JPFeeder::FeedOptions::Normal) return true;
+    if (count % cycle != 0) {
+        JLOGC(JPlacerLog::kJob, JLogLevel::Debug) << "Multi parts feed: skipping tape feed at feed count " << count;
+    } else {
+        if (!assertCalibrated(config, feederId, machine, onMain, false, why)) return false;
+        // Its places, moved by the vision offset (on the axes calibrated, never turned).
+        struct Step {
+            JPLocation at { kMm };
+            double     push = 1, pull = 1;
+            bool       pushed = false, pulled = false, multi = false;
+            int        delayMs = 0;
+        };
+        Step start, mid1, mid2, mid3, end;
+        bool additive = true;
+        main([&] {
+            const JPFeeder* f = config.feeder(feederId);
+            if (!f) return;
+            const JPLocation offset = trigger(*f) != "None" && f->visionOffset ? *f->visionOffset : JPLocation::origin();
+            const JPLocation by = offset.convertToUnits(kMm).multiply(calibrateMotion(*f, "x") ? 1 : 0, calibrateMotion(*f, "y") ? 1 : 0, 1, 0);
+            auto at = [&](const char* element) { return f->locationOf(element).convertToUnits(kMm).subtractWithRotation(by); };
+            // OpenPnP keeps feed-speed-push-1 as an element, the others as attributes.
+            const double push1 = std::strtod(f->childText("feed-speed-push-1", "1").c_str(), nullptr);
+            start = { at("feed-start-location"), 1, f->real("feed-speed-pull-0", 1), false, f->flag("included-pull-0", true),
+                      f->flag("included-multi-0", true), f->number("delay-0", 0) };
+            mid1 = { at("feed-mid-1-location"), push1, f->real("feed-speed-pull-1", 1), f->flag("included-push-1", false),
+                     f->flag("included-pull-1", false), f->flag("included-multi-1", false), f->number("delay-1", 0) };
+            mid2 = { at("feed-mid-2-location"), f->real("feed-speed-push-2", 1), f->real("feed-speed-pull-2", 1),
+                     f->flag("included-push-2", false), f->flag("included-pull-2", false), f->flag("included-multi-2", false),
+                     f->number("delay-2", 0) };
+            mid3 = { at("feed-mid-3-location"), f->real("feed-speed-push-3", 1), f->real("feed-speed-pull-3", 1),
+                     f->flag("included-push-3", false), f->flag("included-pull-3", false), f->flag("included-multi-3", false),
+                     f->number("delay-3", 0) };
+            end = { at("feed-end-location"), f->real("feed-speed-push-end", 1), 1, f->flag("included-push-end", true), false,
+                    f->flag("included-multi-end", true), f->number("delay-4", 0) };
+            additive = f->flag("additive-rotation", true);
+        });
+        auto to = [](const JPLocation& l) { return std::array<std::optional<double>, 4> { l.x(), l.y(), l.z(), l.rotation() }; };
+        auto go = [&](const Step& s, double speed) {
+            if (!machine.positionActuator(actuator, to(s.at), speed, false, why)) return false;
+            // OpenPnP's delay after reaching it, 5 s at most.
+            if (s.delayMs > 0) std::this_thread::sleep_for(std::chrono::milliseconds(std::min(s.delayMs, kMostDelayMs)));
+            return true;
+        };
+        if (additive && !machine.zeroActuatorRotation(actuator, why)) return false;
+        if (!machine.positionActuator(actuator, to(start.at), 1.0, true, why)) return false;
+        for (long i = 0; i < actuations; ++i) {
+            const bool first = i == 0, last = i == actuations - 1;
+            if (!machine.actuate(actuator, 1, why)) return false;
+            for (const Step* s : { &mid1, &mid2, &mid3, &end })
+                if (s->pushed && (first || s->multi) && !go(*s, s->push)) return false;
+            if (!peel.empty() && !machine.actuate(peel, 1, why)) return false;
+            for (const Step* s : { &mid3, &mid2, &mid1, &start })
+                if (s->pulled && (last || s->multi) && !go(*s, s->pull)) return false;
+            if (!peel.empty() && !machine.actuate(peel, 0, why)) return false;
+            if (!machine.actuate(actuator, 0, why)) return false;
+            if (additive && !machine.zeroActuatorRotation(actuator, why)) return false;
+            // Back to the start for the next actuation when the pull did not go there.
+            if (start.multi && !(last || start.pulled) && !machine.positionActuator(actuator, to(start.at), start.pull, false, why))
+                return false;
+        }
+        if (!machine.safeZ(why) || !assertCalibrated(config, feederId, machine, onMain, true, why)) return false;
+    }
+    main([&] {
+        if (JPFeeder* f = config.feeder(feederId)) f->setNumber("feed-count", f->number("feed-count", 0) + 1);
+    });
+    return true;
+}
+
+namespace {
+
+// OpenPnP's autoSetupPipeline: from where the camera is (over the pick
+// location), the pick location and holes found, the statistics reset, the
+// holes calibrated, and the camera back over the pick location after.
+bool autoSetupPipeline(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine, const Main& main, std::string& why) {
     const std::optional<JPLocation> cameraAt = machine.cameraLocation();
     if (!cameraAt) {
         why = "no camera on the head";
@@ -329,7 +445,40 @@ bool JPBambooFeeder::autoSetup(JPConfiguration& config, const std::string& feede
     return ok;
 }
 
-bool JPBambooFeeder::showFeatures(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine,
+} // namespace
+
+bool JPVisionTapeFeeder::autoSetup(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine, const OnMain& onMain,
+                                   std::string& why) {
+    const Main main = mainOf(onMain);
+    bool pushPull = false;
+    main([&] {
+        JPFeeder* f = config.feeder(feederId);
+        if (!f) return;
+        pushPull = isPushPull(*f);
+        // Just assume it is wanted now.
+        if (trigger(*f) == "None") f->setText("calibration-trigger", "UntilConfident");
+    });
+    if (!cameraZ(config, feederId, machine, main, why)) return false;
+    // With its pipeline; a push-pull feeder's failing, with each stock pipeline in turn.
+    const bool ok = autoSetupPipeline(config, feederId, machine, main, why);
+    if (ok || !pushPull) return ok;
+    JLOGC(JPlacerLog::kJob, JLogLevel::Debug) << "Auto-Setup: exception " << why;
+    for (const char* type : { "ColorKeyed", "CircularSymmetry" }) {
+        JLOGC(JPlacerLog::kJob, JLogLevel::Debug) << "Auto-Setup: trying with stock pipeline type " << type;
+        main([&] {
+            if (JPFeeder* f = config.feeder(feederId)) {
+                f->setText("pipeline-type", type);
+                JPFeederPipelines::reset(*f);
+            }
+        });
+        why.clear();
+        if (autoSetupPipeline(config, feederId, machine, main, why)) return true;
+        JLOGC(JPlacerLog::kJob, JLogLevel::Debug) << "Auto-Setup: exception " << why;
+    }
+    return false;
+}
+
+bool JPVisionTapeFeeder::showFeatures(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine,
                                   const OnMain& onMain, std::string& why) {
     const Main main = mainOf(onMain);
     if (!cameraZ(config, feederId, machine, main, why)) return false;
@@ -347,14 +496,14 @@ bool JPBambooFeeder::showFeatures(JPConfiguration& config, const std::string& fe
     return look(machine, *pipeline, at, JPFeederVision::Mode::Preview, settings, feature, why);
 }
 
-std::optional<JPLocation> JPBambooFeeder::jobPreparationLocation(const JPFeeder& feeder) {
+std::optional<JPLocation> JPVisionTapeFeeder::jobPreparationLocation(const JPFeeder& feeder) {
     if (feeder.visionOffset || trigger(feeder) == "None") return std::nullopt;
     JPFeederTape::Params tape = JPFeederTape::of(feeder);
     tape.feedMultiplier = 1;
     return JPFeederTape::partLocation(0, std::nullopt, tape, feeder.real("rotation-in-feeder", 0));
 }
 
-bool JPBambooFeeder::prepareForJob(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine,
+bool JPVisionTapeFeeder::prepareForJob(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine,
                                    const OnMain& onMain, std::string& why) {
     bool calibrated = true, withTrigger = false;
     mainOf(onMain)([&] {

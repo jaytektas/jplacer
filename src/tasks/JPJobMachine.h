@@ -39,6 +39,13 @@ public:
     virtual std::vector<std::pair<std::string, std::string>> tips() const = 0;
     // Where the head's camera is now; none when it cannot be told.
     virtual std::optional<JPLocation> cameraLocation() const = 0;
+    // An actuator on the head to `to` (X, Y, Z, rotation; one not given stays
+    // as it is) at `speed` (0..1) of the machine's: up to safe Z and across
+    // first when `safeZFirst`, else straight there, every axis at once.
+    virtual bool positionActuator(const std::string& actuatorName, std::array<std::optional<double>, 4> to, double speed,
+                                  bool safeZFirst, std::string& why) = 0;
+    // An actuator's rotation axis called 0 where it is now (nothing moves; nothing when it has none).
+    virtual bool zeroActuatorRotation(const std::string& actuatorName, std::string& why) = 0;
 
     // Whether the machine has been homed (until then nothing moves).
     virtual bool isHomed() const = 0;

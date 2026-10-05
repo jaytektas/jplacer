@@ -87,6 +87,8 @@ public:
     void showOnCamera(const cv::Mat&, int) override {}
     bool moveNozzle(const std::string&, std::array<std::optional<double>, 4>, double, bool, std::string&) override { return true; }
     bool vacuumOn(const std::string&, std::string&) override { return true; }
+    bool zeroActuatorRotation(const std::string&, std::string&) override { return true; }
+    bool positionActuator(const std::string&, std::array<std::optional<double>, 4>, double, bool, std::string&) override { return true; }
     bool pickHere(const std::string&, std::string&) override { return true; }
     bool readVacuum(const std::string&, double& level, std::string&) override {
         level = 0;
