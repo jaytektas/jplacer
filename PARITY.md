@@ -148,8 +148,8 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 |---|---|---|
 | Fiducial locator: passes, max linear offset, parallax | done | Machine › Fiducials |
 | Averaging | done | Fiducal Locator › Average Matches? |
-| Tolerances (scaling, shearing, board offset) | own way | stricter fixed limits, plus a fit spread limit |
-| Fiducial vision pipeline | own way | round-mark finder, no pipeline to tune |
+| Tolerances (scaling, shearing, board offset) | done | OpenPnP's fixed 0.05, 0.05 and 5 mm, plus a fit spread limit |
+| Fiducial vision pipeline | done | the fiducial's vision settings' pipeline, as OpenPnP's (fiducial.center, MaskCircle.center, the nearest result) |
 | Multi-placement manual locate | done | Job tab › Multiple Point Board Location |
 | Board location, side, rotation | done | from fiducials |
 | Panels (arrays, nested) | done | Panels tab |
