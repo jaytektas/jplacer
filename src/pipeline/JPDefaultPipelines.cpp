@@ -122,6 +122,53 @@ const std::string& JPDefaultPipelines::advancedLoosePartFeederTraining() {
     return xml;
 }
 
+const std::string& JPDefaultPipelines::feederVisionCircularSymmetry() {
+    static const std::string xml = R"PIPELINE(<cv-pipeline>
+   <stages>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ImageCapture" name="0" enabled="true" default-light="true" settle-first="true" count="1"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ImageWriteDebug" name="deb0" enabled="false" prefix="push_pull_" suffix=".png"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.BlurGaussian" name="1" enabled="true" kernel-size="5"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.AffineWarp" name="2" enabled="true" length-unit="Millimeters" x-0="0.0" y-0="0.0" x-1="0.0" y-1="0.0" x-2="0.0" y-2="0.0" scale="1.0" rectify="true" region-of-interest-property="regionOfInterest"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ConvertColor" name="3" enabled="true" conversion="Bgr2Gray"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.SimpleOcr" name="OCR" enabled="true" alphabet="0123456789.-+_RCLDQYXJIVAFH%GMKkmuµnp" font-name="Liberation Mono" font-size-pt="7.0" font-max-pixel-size="20" auto-detect-size="false" threshold="0.75" draw-style="OverOriginalImage" debug="false"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ImageRecall" name="5" enabled="true" image-stage-name="0"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.DetectCircularSymmetry" name="results" enabled="true" min-diameter="10" max-diameter="100" max-distance="100" max-target-count="10" min-symmetry="1.2" corr-symmetry="0.2" property-name="sprocketHole" outer-margin="0.3" inner-margin="0.1" sub-sampling="8" super-sampling="1" symmetry-score="RingMedianVarianceVsRingVarianceSum" diagnostics="false"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ImageRecall" name="7" enabled="false" image-stage-name="0"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.DrawCircles" name="8" enabled="false" circles-stage-name="results" thickness="1">
+         <color r="255" g="0" b="0" a="255"/>
+      </cv-stage>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ImageWriteDebug" name="deb1" enabled="false" prefix="push_pull_result_" suffix=".png"/>
+   </stages>
+</cv-pipeline>)PIPELINE";
+    return xml;
+}
+
+const std::string& JPDefaultPipelines::feederVisionColorKeyed() {
+    static const std::string xml = R"PIPELINE(<cv-pipeline>
+   <stages>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ImageRead" name="00" enabled="false" file="test.png"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ImageCapture" name="0" enabled="true" settle-first="true" count="1"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.BlurGaussian" name="1" enabled="true" kernel-size="5"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.AffineWarp" name="11" enabled="true" length-unit="Millimeters" x-0="0.0" y-0="0.0" x-1="0.0" y-1="0.0" x-2="0.0" y-2="0.0" scale="1.0" rectify="true" region-of-interest-property="regionOfInterest"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ConvertColor" name="12" enabled="true" conversion="Bgr2Gray"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.HistogramEqualizeAdaptive" name="13" enabled="false" channels-to-equalize="First" clip-limit="2.0" number-of-tile-rows="1" number-of-tile-cols="1"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.SimpleOcr" name="OCR" enabled="true" alphabet="0123456789.-+_RCLDQYXJIVAFH%GMKkmuµnp" font-name="Liberation Mono" font-size-pt="7.0" font-max-pixel-size="20" auto-detect-size="false" threshold="0.75" draw-style="OverOriginalImage" debug="false"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ImageRecall" name="20" enabled="true" image-stage-name="1"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.MaskCircle" name="21" enabled="true" diameter="600"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ConvertColor" name="22" enabled="true" conversion="Bgr2HsvFull"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.Normalize" name="23" enabled="false"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.MaskHsv" name="24" enabled="true" auto="false" fraction-to-mask="0.0" hue-min="240" hue-max="130" saturation-min="110" saturation-max="255" value-min="10" value-max="255" invert="false" binary-mask="true"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.BlurMedian" name="25" enabled="true" kernel-size="13"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.FindContours" name="27" enabled="true" retrieval-mode="List" approximation-method="Simple"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.FilterContours" name="28" enabled="true" contours-stage-name="27" min-area="1000.0" max-area="100000.0"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.FitEllipseContours" name="results" enabled="true" contours-stage-name="28"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ImageRecall" name="30" enabled="true" image-stage-name="0"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.DrawEllipses" name="31" enabled="false" ellipses-stage-name="results" thickness="2"/>
+   </stages>
+</cv-pipeline>)PIPELINE";
+    return xml;
+}
+
 const std::string& JPDefaultPipelines::bottomVision() {
     static const std::string xml = R"PIPELINE(<cv-pipeline>
     <stages>

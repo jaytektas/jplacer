@@ -26,6 +26,9 @@ notes.
   too) edited and reset.
 - A strip feeder's Auto Setup works as OpenPnP's: click two parts on the camera's view, and its sprocket holes, part
   pitch and feed count are set, the holes it sees shown while it waits.
+- Bamboo feeders (BambooFeederAutoVision) work as OpenPnP's: fed by their feed actuator, the parts of a feed picked in turn,
+  their sprocket holes found by vision to keep the pick location true (Calibration Trigger, precision statistics),
+  Auto-Setup with the camera at the pick location, Preview Vision Features, Discard Parts, their pipelines by Vision Type.
 - Nozzle tips have OpenPnP's Max. Part Diameter and Max. Pick Tolerance, imported from OpenPnP and used by bottom vision
   pipelines.
 - An Issues & Solutions tab as OpenPnP's: milestones, Find Issues & Solutions, Accept, Dismiss, Reopen, Include

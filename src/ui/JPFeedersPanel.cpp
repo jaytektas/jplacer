@@ -117,6 +117,27 @@ JPFeedersPanel::JPFeedersPanel(JSceneGraph& graph, JPConfiguration& config, doub
             if (autoSetup) autoSetup(m_shown, action);
             return;
         }
+        // A Bamboo feeder's, as OpenPnP's asks: its count reset, or its settings overwritten by Auto-Setup.
+        if (const JPFeeder* f = m_config.feeder(m_shown); f && f->isVisionTape()) {
+            const std::string id = m_shown;
+            if (action == "resetFeedCount") {
+                JDialog::confirm("Warning", "This will reset the recorded feed count of this feeder. Are you sure?", [this, id] {
+                    std::string why;
+                    if (!JPFeederForms::act(m_config, id, "resetFeedCount", why)) return;
+                    rebuild();
+                    m_table->refresh();
+                    changed();
+                });
+                return;
+            }
+            const JPLocation at = f->location();
+            if (action == "autoSetupTape" && (at.x() != 0 || at.y() != 0)) {
+                JDialog::confirm("Warning", "This may overwrite all your current settings. Are you sure?", [this, id] {
+                    if (machineAction) machineAction(id, "autoSetupTape");
+                });
+                return;
+            }
+        }
         if (action == "editPipeline" || action == "resetPipeline" || action == "editTrainingPipeline"
             || action == "resetTrainingPipeline") {
             if (pipelineAction) pipelineAction(m_shown, action);

@@ -3,6 +3,8 @@
 
 #include "JPFeederFeed.h"
 
+#include "JPBambooFeeder.h"
+
 #include "JPFeederPipelines.h"
 
 #include "JPPhotonFeeders.h"
@@ -270,6 +272,11 @@ bool JPFeederFeed::feed(JPConfiguration& config, const std::string& feederId, co
             loose = f->typeName() == "ReferenceLoosePartFeeder" || f->typeName() == "AdvancedLoosePartFeeder";
     });
     if (loose) return looseFeed(config, feederId, machine, onMain, why);
+    bool bamboo = false;
+    main([&] {
+        if (const JPFeeder* f = config.feeder(feederId)) bamboo = f->isVisionTape();
+    });
+    if (bamboo) return JPBambooFeeder::feed(config, feederId, nozzleId, machine, onMain, why);
     // A Schultz feeder: the nozzle over its pick place (at safe Z), its pre
     // pick actuator actuated with its feeder number.
     std::string schultz, schultzName;
@@ -426,9 +433,11 @@ bool JPFeederFeed::postPick(JPConfiguration& config, const std::string& feederId
         const JPFeeder* f = config.feeder(feederId);
         if (!f) return;
         emptySlot = f->isSlot() && !f->slotLoad;
-        if (f->feedsAs() == "ReferenceAutoFeeder") {
+        if (f->feedsAs() == "ReferenceAutoFeeder" || f->isVisionTape()) {
             name = f->text("post-pick-actuator-name");
             value = f->real("post-pick-actuator-value", 0);
+            if (name.empty() && f->isVisionTape())
+                JLOGC(JPlacerLog::kJob, JLogLevel::Debug) << "Post pick cancelled. Actuator not set for feeder " << f->name();
         } else if (f->feedsAs() == "SchultzFeeder") {
             // With its feeder number.
             name = f->text("post-pick-actuator-name");

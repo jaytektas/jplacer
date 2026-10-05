@@ -45,6 +45,9 @@ public:
     bool positionCamera(const JPLocation& at, std::string& why) override;
     bool seeRects(const JPLocation& at, JPPipeline& pipeline, int showMs, SeenRects& seen, std::string& why) override;
     bool seeCircles(const JPLocation& at, JPPipeline& pipeline, SeenCircles& seen, std::string& why) override;
+    bool lookThrough(const JPLocation& at, JPPipeline& pipeline, Sight& sight, std::string& why) override;
+    bool cameraSight(Sight& sight, std::string& why) override;
+    void showOnCamera(const cv::Mat& bgr, int ms) override;
     bool actuate(const std::string& actuatorName, double value, std::string& why) override;
     bool actuateText(const std::string& actuatorName, const std::string& value, std::string& why) override;
     bool readActuator(const std::string& actuatorName, const std::string& parameter, std::string& value,

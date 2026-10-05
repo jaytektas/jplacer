@@ -14,7 +14,8 @@ inline namespace jf {
 
 // A feed, as OpenPnP's feeder.feed(): the feeder's count moved on (as its
 // feed option says, JPFeeder::feed); a drag or lever feeder's pin moved (pinFeed); for an auto feeder its feed actuator
-// actuated (the nozzle taken over the pick place first when it says so);
+// actuated (the nozzle taken over the pick place first when it says so); a
+// Bamboo feeder's (JPBambooFeeder::feed);
 // then, for a strip with vision on, the
 // holes it wants looked at found with the head's camera (as its parallax
 // says, within half a hole pitch) and where its parts lie set from them. A
@@ -45,7 +46,7 @@ public:
                           std::string& why);
     static bool pinFeed(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine, const OnMain& onMain,
                         std::string& why);
-    // OpenPnP's postPick: an auto feeder's post-pick actuator actuated.
+    // OpenPnP's postPick: an auto or Bamboo feeder's post-pick actuator actuated.
     static bool postPick(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine, const OnMain& onMain,
                          std::string& why);
 };

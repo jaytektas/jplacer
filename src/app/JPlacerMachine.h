@@ -97,6 +97,8 @@ public:
     std::function<bool()> jobRunning;
     // The machine connected or not (a job's Start, Step and Stop follow it, as OpenPnP's do).
     std::function<void(bool connected)> onConnectedChanged;
+    // The machine no longer homed (or homed again: it is unhomed first), on the main thread.
+    std::function<void()> onUnhomed;
     bool isConnected() const { return m_cell && m_cell->isConnected(); }
     // An OpenPnP machine.xml imported (its feeders are the configuration's, and taken from it there).
     std::function<void(const std::string& machineXml)> onImported;

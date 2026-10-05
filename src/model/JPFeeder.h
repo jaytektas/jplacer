@@ -136,6 +136,13 @@ public:
     // A loose part feeder, while jplacer runs: where its pipeline last found
     // the part to pick (none: its location).
     std::optional<JPLocation> foundPick;
+    // A tape feeder calibrated by its sprocket holes (OpenPnP's
+    // BambooFeederAutoVision), while jplacer runs: how far its pick location
+    // is from where vision found it (none: not calibrated); forgotten when its
+    // pick location or holes are set (setLocationOf) or the machine is unhomed.
+    std::optional<JPLocation> visionOffset;
+    // Whether it is one (its pick location from JPFeederTape).
+    bool isVisionTape() const { return typeName() == "BambooFeederAutoVision"; }
     // OpenPnP's resetVisionOffsets.
     void resetVisionOffsets();
     // Its template image's file (OpenPnP's resource file of the vision's

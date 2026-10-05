@@ -37,11 +37,18 @@ namespace {
 constexpr double kSplit = 0.5;   // a table's share before its divider is moved
 // The cameras' overlay for a package's footprint (OpenPnP's reticle key).
 constexpr const char* kFootprintOverlay = "PackageVisionWizard";
+// The camera within this of a place is there (mm).
+constexpr double kAtLocationMm = 0.001;
 }
 
 JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, JPlacerJob& job, JPlacerMachine& machine)
     : m_window(window), m_job(job), m_machine(machine), m_layout(machine.layout()), m_pipelines(window, machine) {
     m_machine.setConfiguration(&job.configuration());
+    // As OpenPnP's vision tape feeders: unhomed, their calibration is no longer true.
+    m_machine.onUnhomed = [this] {
+        for (JPFeeder& f : m_job.configuration().feeders())
+            if (f.isVisionTape()) f.visionOffset.reset();
+    };
     auto openMenu = [this](JMenu* menu, float x, float y) {
         if (JMenuManager::instance().onOpenMenu)
             JMenuManager::instance().onOpenMenu(menu, m_window.windowX() + int(x), m_window.windowY() + int(y), false, false);
@@ -377,28 +384,26 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         const bool training = action.find("Training") != std::string::npos;
         const std::string element = training ? "training-pipeline" : "pipeline";
         if (action.rfind("reset", 0) == 0) {
+            // A Bamboo feeder's to its Vision Type's default, as OpenPnP's asks.
+            if (f->isVisionTape()) {
+                JDialog::confirm("Warning",
+                                 "This will reset the pipeline to the " + f->text("pipeline-type", "CircularSymmetry")
+                                     + " type default. Are you sure?",
+                                 [this, feederId] {
+                                     if (JPFeeder* kept = m_job.configuration().feeder(feederId); kept && JPFeederPipelines::reset(*kept))
+                                         m_job.configurationChanged();
+                                 });
+                return;
+            }
             if (JPFeederPipelines::reset(*f, element)) m_job.configurationChanged();
             return;
         }
-        // A loose part feeder's is titled by its part, which it must have.
-        const std::string kind = f->typeName();
-        const bool loose = kind == "ReferenceLoosePartFeeder" || kind == "AdvancedLoosePartFeeder";
-        if (loose && !m_job.configuration().part(f->partId())) {
-            JDialog::message("Error", "Feeder " + f->name() + " has no part.");
+        // A Bamboo feeder's camera over its holes first, when wanted.
+        if (f->isVisionTape()) {
+            editTapePipeline(feederId);
             return;
         }
-        std::optional<JPPipeline> held = JPFeederPipelines::of(*f, element);
-        if (!held) return;
-        auto pipeline = std::make_shared<JPPipeline>(std::move(*held));
-        m_pipelines.useHeadCamera(*pipeline, m_job.configuration().directory());
-        JPFeederPipelines::configureForEditing(m_job.configuration(), *f, *pipeline);
-        const std::string title = (loose ? f->partId() : f->name()) + (training ? " Training Pipeline" : " Pipeline");
-        m_pipelines.edit(title, pipeline, [this, feederId, element](const JPPipeline& edited) {
-            if (JPFeeder* kept = m_job.configuration().feeder(feederId)) {
-                kept->setPipeline(edited.toXml(), element);
-                m_job.configurationChanged();
-            }
-        });
+        editFeederPipeline(feederId, element);
     };
     m_feeders->partUsed = [this](const std::string& partId) {
         for (const JPBoardLocation* l : m_job.job().boardLocations()) {
@@ -580,6 +585,7 @@ JPlacerOpenPnpTabs::~JPlacerOpenPnpTabs() {
     *m_alive = false;
     m_autoSetup.reset();   // its look at the camera stopped first
     m_machine.setConfiguration(nullptr);
+    m_machine.onUnhomed = nullptr;
     m_jobRun.reset();   // a run under way stops before what it works on goes
     JSettings::instance().set(JPlacerSettings::kPartsSplit, m_parts->split());
     JSettings::instance().set(JPlacerSettings::kPackagesSplit, m_packages->split());
@@ -711,6 +717,69 @@ bool JPlacerOpenPnpTabs::showDock(const std::string& title) {
 } // inline namespace jf
 
 inline namespace jf {
+
+void JPlacerOpenPnpTabs::editFeederPipeline(const std::string& feederId, const std::string& element) {
+    JPFeeder* f = m_job.configuration().feeder(feederId);
+    if (!f) return;
+    const bool training = element == "training-pipeline";
+    // A loose part feeder's is titled by its part, which it must have.
+    const std::string kind = f->typeName();
+    const bool loose = kind == "ReferenceLoosePartFeeder" || kind == "AdvancedLoosePartFeeder";
+    if (loose && !m_job.configuration().part(f->partId())) {
+        JDialog::message("Error", "Feeder " + f->name() + " has no part.");
+        return;
+    }
+    std::optional<JPPipeline> held = JPFeederPipelines::of(*f, element);
+    if (!held) return;
+    auto pipeline = std::make_shared<JPPipeline>(std::move(*held));
+    m_pipelines.useHeadCamera(*pipeline, m_job.configuration().directory());
+    JPFeederPipelines::configureForEditing(m_job.configuration(), *f, *pipeline);
+    const std::string title = (loose ? f->partId() : f->name()) + (training ? " Training Pipeline" : " Pipeline");
+    m_pipelines.edit(title, pipeline, [this, feederId, element](const JPPipeline& edited) {
+        if (JPFeeder* kept = m_job.configuration().feeder(feederId)) {
+            kept->setPipeline(edited.toXml(), element);
+            m_job.configurationChanged();
+        }
+    });
+}
+
+void JPlacerOpenPnpTabs::editTapePipeline(const std::string& feederId) {
+    JPFeeder* f = m_job.configuration().feeder(feederId);
+    if (!f) return;
+    // Its vision location: the middle of its holes (none set: where the camera is).
+    const JPLocation h1 = f->locationOf("hole-1-location"), h2 = f->locationOf("hole-2-location");
+    const std::optional<JPLocation> camera = m_machine.toolLocation(JPSetupForm::Tool::Camera);
+    if (!h1.isInitialized() || !h2.isInitialized() || !camera) {
+        editFeederPipeline(feederId, "pipeline");
+        return;
+    }
+    const JPLocation mid = h1.add(h2).multiply(0.5).convertToUnits(JPLengthUnit::Millimeters);
+    if (std::abs(mid.x() - camera->x()) < kAtLocationMm && std::abs(mid.y() - camera->y()) < kAtLocationMm) {
+        editFeederPipeline(feederId, "pipeline");
+        return;
+    }
+    const std::string move = "move the camera to the proper feeder vision location before editing the pipeline";
+    if (!m_machine.cell() || !m_machine.cell()->isConnected()) {
+        JDialog::confirm("Warning", "Machine not enabled, unable to " + move + ".\nDo you want to proceed anyway?",
+                         [this, feederId] { editFeederPipeline(feederId, "pipeline"); });
+        return;
+    }
+    m_window.openModal<JPlacerChoiceDialog>(
+        "Select an Option", "Do you want to " + move + "?", std::vector<std::string> { "Yes", "No", "Cancel" }, 2,
+        [this, feederId, mid, alive = std::weak_ptr<bool>(m_alive)](int chosen) {
+            if (chosen == 1) editFeederPipeline(feederId, "pipeline");
+            if (chosen != 0) return;
+            m_jobRun->machineTask([this, feederId, mid, alive](JPJobMachine& machine,
+                                                               const std::function<void(const std::function<void()>&)>& onMain,
+                                                               std::string& why) {
+                if (!machine.positionCamera(mid, why)) return false;
+                onMain([&] {
+                    if (const auto a = alive.lock(); a && *a) editFeederPipeline(feederId, "pipeline");
+                });
+                return true;
+            });
+        });
+}
 
 void JPlacerOpenPnpTabs::ensurePhotonActuator() {
     for (const JPFeeder& f : m_job.configuration().feeders())

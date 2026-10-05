@@ -25,6 +25,12 @@ public:
     // What OpenPnP's editor sets on it (a strip feeder's sizes in pixels, a
     // loose part feeder's part), the camera's scale and size in its context.
     static void configureForEditing(const JPConfiguration& config, const JPFeeder& feeder, JPPipeline& pipeline);
+    // OpenPnP's AbstractPandaplacerVisionFeeder.getCvPipeline: the sprocket
+    // holes' size, and how far from the camera's centre they are looked for:
+    // for Auto Setup the whole picture (`width` x `height` pixels at the scale
+    // given), else half the distance between the feeder's holes and a pitch.
+    static void configureTape(const JPFeeder& feeder, JPPipeline& pipeline, bool autoSetup, int width, int height,
+                              double mmPerPixelX, double mmPerPixelY);
 };
 
 } // inline namespace jf

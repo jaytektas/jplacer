@@ -488,6 +488,66 @@ bool JPlacerJobMachine::seeCircles(const JPLocation& at, JPPipeline& p, SeenCirc
     return true;
 }
 
+bool JPlacerJobMachine::lookThrough(const JPLocation& at, JPPipeline& p, Sight& sight, std::string& why) {
+    ++m_motions;
+    const JPLocation m = at.convertToUnits(JPLengthUnit::Millimeters);
+    JPCameraCalibration cal;
+    JPCameraFeed* feed = nullptr;
+    if (!headCameraPipeline(m.x(), m.y(), p, cal, feed, why)) return false;
+    if (!p.process(why)) return false;
+    sight = {};
+    sight.at = JPLocation(JPLengthUnit::Millimeters, m.x(), m.y(), 0, 0);
+    sight.mmPerPixelX = 1 / cal.scaleX();
+    sight.mmPerPixelY = 1 / cal.scaleY();
+    sight.width = cal.width;
+    sight.height = cal.height;
+    sight.twoHeights = cal.twoHeights();
+    const double vx = m.x(), vy = m.y();
+    sight.toMachine = [cal, vx, vy](double px, double py) {
+        double x = 0, y = 0;
+        cal.machinePoint(px, py, vx, vy, x, y);
+        return JPLocation(JPLengthUnit::Millimeters, x, y, 0, 0);
+    };
+    sight.toPixel = [cal, vx, vy](const JPLocation& l, double& px, double& py) {
+        const JPLocation mm = l.convertToUnits(JPLengthUnit::Millimeters);
+        return cal.pixelFor(mm.x(), mm.y(), vx, vy, px, py);
+    };
+    return true;
+}
+
+bool JPlacerJobMachine::cameraSight(Sight& sight, std::string& why) {
+    JPCell* c = cell(why);
+    if (!c) return false;
+    JPCameraFeed* feed = nullptr;
+    m_onMain([&] { feed = m_machine.headCameraFeed(); });
+    if (!feed) {
+        why = "no camera on the head";
+        return false;
+    }
+    JPCameraCalibration cal;
+    if (!JPCameraLook::calibration(*c, *feed, cal, why)) return false;
+    sight = {};
+    sight.mmPerPixelX = 1 / cal.scaleX();
+    sight.mmPerPixelY = 1 / cal.scaleY();
+    sight.width = cal.width;
+    sight.height = cal.height;
+    sight.twoHeights = cal.twoHeights();
+    return true;
+}
+
+void JPlacerJobMachine::showOnCamera(const cv::Mat& bgr, int ms) {
+    cv::Mat rgba;
+    std::string ignored;
+    if (!JPStageUtil::toRgba(bgr, "Bgr", true, rgba, ignored)) return;
+    JPFrame shown;
+    shown.width = rgba.cols;
+    shown.height = rgba.rows;
+    shown.rgba.assign(rgba.data, rgba.data + rgba.total() * 4);
+    m_onMain([&] {
+        if (JPCameraView* view = m_machine.headCameraView()) view->showPicture(shown, "", ms);
+    });
+}
+
 bool JPlacerJobMachine::lookByPipeline(double viewX, double viewY, double x, double y, const FiducialLook& lookAt,
                                        double& foundX, double& foundY, std::string& why) {
     JPPipeline& p = *lookAt.pipeline;

@@ -262,6 +262,31 @@ yet.
 
 <!-- src: src/setup/JPFeederForms.cpp (rapidForm); src/tasks/JPFeederFeed.cpp (feed, kRapidActuator) -->
 
+### Bamboo feeder
+
+A tape advanced by a feed actuator (OpenPnP's BambooFeederAutoVision), its pick location kept true by finding two of its
+sprocket holes with the head camera.
+
+- **Tape Settings**: **Part Pitch** and **Feed Pitch** (2 to 32 mm); a feed actuates the feed actuator once for each feed
+  pitch in a part pitch, and the parts it brings (two for 2 mm parts on a 4 mm feed) are picked in turn, the one nearest
+  the reel last. **Discard Parts** skips the rest of a feed. **Rotation in Tape**, **Feed Count** and **Reset Feed Count**
+  (asked first).
+- **Locations**: the **Pick Location** (the part nearest the reel) and **Hole 1** and **Hole 2 Location**; **Normalize?**
+  puts the pick location on EIA-481's grid from the holes, **Snap to Axis?** takes a tape nearly along X or Y as exactly
+  so. **Auto-Setup with Camera at Pick Location** finds the holes from where the camera is (it asks first unless the
+  pick location is unset), sets all three, and calibrates. **Preview Vision Features** shows on the camera what vision
+  finds from the pick location: holes in green, lines in blue, the parts numbered, crossed out in red when no hole is found.
+- **Vision**: **Vision Type** (CircularSymmetry or ColorKeyed) chooses the default **Reset Pipeline** puts back;
+  **Edit Pipeline** offers to move the camera over the holes first. The **Calibration Trigger** says when the holes are
+  looked at: never (None), the first time (OnFirstUse), after each tape feed until the **Precision Confidence Limit** is
+  within **Precision wanted** (UntilConfident), or after every tape feed (OnEachTapeFeed). Each calibration looks from
+  between the holes up to three times until the farthest pick moves less than 0.3 mm; the **Precision Average** and
+  **Calibration Count** follow, and **Reset Statistics** clears them. The calibration is forgotten when the holes or pick
+  location are set or the machine is unhomed; a job calibrates the feeders it uses first.
+- **Actuators**: the **Feed** and **Post Pick** actuators with their values and test buttons, and **Move before feed**.
+
+<!-- src: src/setup/JPFeederForms.cpp (bambooForm); src/tasks/JPBambooFeeder.cpp; src/tasks/JPFeederVision.cpp; src/model/JPFeederTape.cpp; src/tasks/JPJobProcessor.cpp (preFlight); src/app/JPlacerOpenPnpTabs.cpp (editTapePipeline) -->
+
 ### Loose part feeders
 
 A **ReferenceLoosePartFeeder** and an **AdvancedLoosePartFeeder** hold parts lying loose in a bin. Their

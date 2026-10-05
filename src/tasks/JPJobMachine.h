@@ -159,6 +159,23 @@ public:
         std::function<bool(double px, double py, double& x, double& y)> toMachine;
     };
     virtual bool seeCircles(const JPLocation& at, JPPipeline& pipeline, SeenCircles& seen, std::string& why) = 0;
+    // The head camera over `at`, `pipeline` run on its picture there (each
+    // stage's result left in it): where it looked from, its scale (mm per
+    // pixel) and picture size, a pixel's place on the machine and back, and
+    // whether it was calibrated at two heights (its scale then depends on Z).
+    struct Sight {
+        JPLocation at { JPLengthUnit::Millimeters };
+        double     mmPerPixelX = 0, mmPerPixelY = 0;
+        int        width = 0, height = 0;
+        bool       twoHeights = false;
+        std::function<JPLocation(double px, double py)>                   toMachine;
+        std::function<bool(const JPLocation& l, double& px, double& py)> toPixel;
+    };
+    virtual bool lookThrough(const JPLocation& at, JPPipeline& pipeline, Sight& sight, std::string& why) = 0;
+    // The head camera's scale, picture size and calibration (a Sight but for where it looks), not moving it.
+    virtual bool cameraSight(Sight& sight, std::string& why) = 0;
+    // A picture (BGR, as a pipeline's) on the head camera's view for `ms`.
+    virtual void showOnCamera(const cv::Mat& bgr, int ms) = 0;
     virtual bool alignPart(const std::string& nozzleId, const AlignRequest& request, AlignResult& result,
                            std::string& why) = 0;
     virtual bool locateHole(const JPLocation& nominal, double diameterMm, double searchMm, double parallaxDiameterMm,

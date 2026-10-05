@@ -54,6 +54,15 @@ public:
         why = "no camera";
         return false;
     }
+    bool lookThrough(const JPLocation&, JPPipeline&, Sight&, std::string& why) override {
+        why = "no camera";
+        return false;
+    }
+    bool cameraSight(Sight&, std::string& why) override {
+        why = "no camera";
+        return false;
+    }
+    void showOnCamera(const cv::Mat&, int) override {}
     bool seeRects(const JPLocation& at, JPPipeline&, int, SeenRects& seen, std::string& why) override {
         lookedFrom.push_back(at);
         if (sights.empty()) {

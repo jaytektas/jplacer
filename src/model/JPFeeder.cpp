@@ -3,6 +3,8 @@
 
 #include "JPFeeder.h"
 
+#include "JPFeederTape.h"
+
 #include "JPLengthUnits.h"
 #include "JPLocationXml.h"
 #include "JPOpenPnpIds.h"
@@ -248,6 +250,13 @@ std::optional<JPLocation> JPFeeder::pickLocation() const {
         if (!photonUnconfigured().empty()) return std::nullopt;
         return locationOf("offset").offsetWithRotationFrom(*photonSlotLocation);
     }
+    // Where its tape's frame puts the part in the feed cycle (OpenPnP's 1-based count: at 0, the last).
+    if (isVisionTape()) {
+        const JPFeederTape::Params tape = JPFeederTape::of(*this);
+        const long cycle = JPFeederTape::partsPerFeedCycle(tape);
+        const long partInCycle = ((long(number("feed-count")) + cycle - 1) % cycle) + 1;
+        return JPFeederTape::partLocation(partInCycle, visionOffset, tape, real("rotation-in-feeder", 0));
+    }
     // Where its pipeline found the part, else where it is.
     if (kind == "ReferenceLoosePartFeeder" || kind == "AdvancedLoosePartFeeder") return foundPick ? *foundPick : location();
     if (kind == "ReferenceTubeFeeder" || kind == "ReferenceAutoFeeder" || kind == "RapidFeeder" || kind == "SchultzFeeder")
@@ -338,10 +347,10 @@ bool JPFeeder::feed(std::string& why, bool* empty) {
         if (feedOptions() == FeedOptions::SkipNext) setFeedOptions(FeedOptions::Normal);
         return true;
     }
-    // A tube: nothing to do; a drag, lever, Rapid, Schultz, Neoden 4, Photon or loose part feeder's feed is the machine's (JPFeederFeed). An auto feeder: its actuator, on a normal feed (JPFeederFeed).
+    // A tube: nothing to do; a drag, lever, Rapid, Schultz, Neoden 4, Photon, loose part or Bamboo feeder's feed is the machine's (JPFeederFeed). An auto feeder: its actuator, on a normal feed (JPFeederFeed).
     if (kind == "ReferenceTubeFeeder" || kind == "ReferenceDragFeeder" || kind == "ReferenceLeverFeeder" || kind == "RapidFeeder"
         || kind == "SchultzFeeder" || kind == "Neoden4Feeder" || kind == "PhotonFeeder" || kind == "ReferenceLoosePartFeeder"
-        || kind == "AdvancedLoosePartFeeder")
+        || kind == "AdvancedLoosePartFeeder" || isVisionTape())
         return true;
     if (kind == "ReferenceAutoFeeder") {
         m_actuate = feedOptions() == FeedOptions::Normal;
@@ -477,6 +486,9 @@ void JPFeeder::setLocationOf(const std::string& element, const JPLocation& l) {
     JPXmlNode fresh = JPLocationXml::to(element, l);
     if (JPXmlNode* c = m_node.child(element)) *c = fresh;
     else m_node.add(fresh);
+    // As OpenPnP's setLocation, setHole1Location and setHole2Location: the calibration reset.
+    if (isVisionTape() && (element == "location" || element == "hole-1-location" || element == "hole-2-location"))
+        visionOffset.reset();
 }
 
 void JPFeeder::resetVisionOffsets() {

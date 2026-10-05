@@ -19,6 +19,10 @@ public:
     static const std::string& advancedLoosePartFeeder();
     // AdvancedLoosePartFeeder-DefaultTrainingPipeline.xml.
     static const std::string& advancedLoosePartFeederTraining();
+    // FeederVisionHelper-CircularSymmetry-Pipeline.xml and -ColorKeyed-Pipeline.xml:
+    // a sprocket hole tape feeder's, by its Vision Type.
+    static const std::string& feederVisionCircularSymmetry();
+    static const std::string& feederVisionColorKeyed();
     // ReferenceBottomVision-DefaultPipeline.xml (createStockPipeline("Default")).
     static const std::string& bottomVision();
     // ReferenceFiducialLocator-DefaultPipeline.xml (createStockPipeline("Default")).

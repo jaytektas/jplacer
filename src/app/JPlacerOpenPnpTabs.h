@@ -70,6 +70,11 @@ private:
     std::pair<std::string, std::string> machineVisionDefaults() const;
     // The machine's PhotonFeederData actuator made when a Photon feeder needs it.
     void ensurePhotonActuator();
+    // A feeder's pipeline (`element`) edited on the head camera, kept when saved.
+    void editFeederPipeline(const std::string& feederId, const std::string& element);
+    // A Bamboo feeder's, as OpenPnP's: asked first whether to move the camera
+    // over the middle of its holes (its vision location), when it is not there.
+    void editTapePipeline(const std::string& feederId);
     // The known board (its shared definition) a pointer names.
     std::shared_ptr<JPBoard> boardOf(const JPBoard* board) const;
 

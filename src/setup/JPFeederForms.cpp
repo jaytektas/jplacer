@@ -6,6 +6,7 @@
 #include "JPFormBuilder.h"
 
 #include "common/JPlacerLog.h"
+#include "model/JPFeederTape.h"
 
 #include <j/core/Log.h>
 
@@ -652,6 +653,140 @@ void rapidForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeed
     add.button("scan", "Scan", "Find the feeders' QR codes along the scan: needs a QR code reader, not in jplacer yet.", false);
 }
 
+// A length shown as OpenPnP's "%.0f mm" (a pitch's choices).
+std::string pitchLabel(const JPLength& l) {
+    char buf[32];
+    std::snprintf(buf, sizeof buf, "%.0f mm", mm(l));
+    return buf;
+}
+
+// OpenPnP's BambooFeederAutoVisionConfigurationWizard: Tape Settings,
+// Locations (pick location and two holes), Vision (its pipeline and
+// calibration statistics) and the feed and post pick actuators.
+void bambooForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f, const std::vector<std::string>& actuators) {
+    general(add, config, f, false);
+
+    add.group("Tape Settings");
+    const JPFormBuilder::Strings pitches { "2 mm", "4 mm", "8 mm", "12 mm", "16 mm", "20 mm", "24 mm", "28 mm", "32 mm" };
+    add.row("Part Pitch");
+    for (const auto& [element, label] : { std::pair { "part-pitch", "Part Pitch" }, std::pair { "feed-pitch", "Feed Pitch" } })
+        add.choice(element, label, pitches, [f, element] { return pitchLabel(f().lengthOf(element, JPLength(4, kMm))); },
+                   [f, element](const std::string& v) { f().setLengthOf(element, JPLength(std::strtod(v.c_str(), nullptr), kMm)); });
+    add.button("discardParts", "Discard Parts",
+               "Discard parts left over in the (multi-part) feed cycle.\nStarts with a fresh feed cycle including vision "
+               "calibration (if enabled).");
+    add.end();
+    add.tip("Pitch of the parts in the tape (2mm, 4mm, 8mm, 12mm, etc.)");
+    add.row("Rotation in Tape");
+    add.number("rotation-in-feeder", "Rotation in Tape", [f] { return f().real("rotation-in-feeder", 0); },
+               [f](double v) { f().setReal("rotation-in-feeder", v); });
+    add.integer("feed-count", "Feed Count", [f] { return f().number("feed-count", 0); }, [f](int v) { f().setNumber("feed-count", v); },
+                0, kMostCount);
+    add.button("resetFeedCount", "Reset Feed Count", "Reset the feed count e.g. when a tape has been changed.");
+    add.end();
+    add.tip("The Rotation in Tape setting must be interpreted relative to the tape's orientation, regardless of how the "
+            "feeder/tape is oriented on the machine.\n"
+            "1. Look at the neutral upright orientation of the part package/footprint as drawn inside your E-CAD library.\n"
+            "2. Note how pin 1, polarity, cathode etc. are oriented. This is your 0° for the part.\n"
+            "3. Look at the tape so that the sprocket holes are at the top. This is your 0° tape orientation (per EIA-481 "
+            "industry standard).\n"
+            "4. Determine how the part is rotated inside the tape pocket, relative from its upright orientation in (1). "
+            "Positive rotation goes counter-clockwise. This is your Rotation in Tape.");
+
+    add.group("Locations");
+    add.row("");
+    add.button("showVisionFeatures", "Preview Vision Features", "Preview the features recognized by Computer Vision.");
+    add.button("autoSetupTape", "Auto-Setup with Camera at Pick Location",
+               "Center the camera on the pick location and press this button to Auto-Setup\nIf there are multiple picks per "
+               "feed cycle, choose the one closest to the tape reel.");
+    add.end();
+    add.header({ "X", "Y", "Z" });
+    add.row("Pick Location", Place::Location);
+    coordinate(add, f, "location", Axis::X, "X");
+    coordinate(add, f, "location", Axis::Y, "Y");
+    coordinate(add, f, "location", Axis::Z, "Z");
+    add.end();
+    add.tip("Pick Location of the part. If multiple are produced by a feed operation\nthis must be the last one picked i.e. the "
+            "one closest to the the tape reel.");
+    for (const auto& [label, element, tip] :
+         { std::tuple { "Hole 1 Location", "hole-1-location",
+                        "Choose Hole 1 closer to the tape reel.\nIf possible choose two holes that bracket the part(s) to be picked." },
+           std::tuple { "Hole 2 Location", "hole-2-location",
+                        "Choose Hole 2 further away from the tape reel.\nIf possible choose two holes that bracket the part(s) to be "
+                        "picked." } }) {
+        add.row(label, Place::Location);
+        coordinate(add, f, element, Axis::X, "X");
+        coordinate(add, f, element, Axis::Y, "Y");
+        add.skip();
+        add.end();
+        add.tip(tip);
+    }
+    add.endColumns();
+    add.row("Normalize?");
+    add.flag("normalize-pick-location", "Normalize?", [f] { return f().flag("normalize-pick-location", true); },
+             [f](bool on) { f().setFlag("normalize-pick-location", on); });
+    add.flag("snap-to-axis", "Snap to Axis?", [f] { return f().flag("snap-to-axis", false); },
+             [f](bool on) { f().setFlag("snap-to-axis", on); });
+    add.end();
+    add.tip("Normalize the pick location relative to the sprocket holes according to the EIA-481 standard.");
+
+    add.group("Vision");
+    add.row("Vision Type");
+    add.choice("pipeline-type", "Vision Type", { "ColorKeyed", "CircularSymmetry" },
+               [f] { return f().text("pipeline-type", "CircularSymmetry"); },
+               [f](const std::string& v) { f().setText("pipeline-type", v); });
+    add.button("editPipeline", "Edit Pipeline", "Edit the Pipeline to be used for all vision operations of this feeder.");
+    add.button("resetPipeline", "Reset Pipeline", "Reset the Pipeline for this feeder to the selected type default.");
+    add.end();
+    add.tip("Choose the vision type, then press Reset Pipeline to assign the default pipeline of that type. Sprocket holes are "
+            "detected as follows:\n- ColorKeyed: the background under the holes must be of a vivid color (green by default).\n"
+            "- CircularSymmetry: the shape of the holes must be circular, their inside/outside must be plain.\n"
+            "Both types of pipeline will further assess detected holes by size, alignment, pitch and expected distance.");
+    auto shown = [](const JPLength& l) {
+        char buf[32];
+        std::snprintf(buf, sizeof buf, "%.3f", mm(l));
+        return std::string(buf);
+    };
+    add.row("Calibration Trigger");
+    add.choice("calibration-trigger", "Calibration Trigger", { "None", "OnFirstUse", "UntilConfident", "OnEachTapeFeed" },
+               [f] { return f().text("calibration-trigger", "UntilConfident"); },
+               [f](const std::string& v) { f().setText("calibration-trigger", v); });
+    add.text("precision-average", "Precision Average", [f, shown] { return shown(JPFeederTape::precisionAverage(f())); }, nullptr);
+    add.text("calibration-count", "Calibration Count", [f] { return std::to_string(f().number("calibration-count", 0)); }, nullptr);
+    add.end();
+    add.row("Precision wanted");
+    length(add, f, "precision-wanted", "Precision wanted", 0.1);
+    add.text("precision-confidence-limit", "Precision Confidence Limit",
+             [f, shown] { return shown(JPFeederTape::precisionConfidenceLimit(f())); }, nullptr);
+    add.button("resetStatistics", "Reset Statistics", "Reset the average obtained precision statistics.");
+    add.end();
+    add.tip("Precision wanted i.e. the tolerable pick location offset");
+
+    add.group("Actuators");
+    add.header({ "Actuator", "Actuator Value" });
+    JPFormBuilder::Strings names { "" };
+    names.insert(names.end(), actuators.begin(), actuators.end());
+    for (const auto& [row, key, test, testLabel, tip] :
+         { std::tuple { "Feed", "feed-actuator", "testFeed", "Test feed", "Select the actuator for the feed action" },
+           std::tuple { "Post Pick", "post-pick-actuator", "testPostPick", "Test post pick",
+                        "Select the actuator for the post pick action\nThis is optional: blank selection will skip the post pick "
+                        "operation" } }) {
+        const std::string nameAttr = std::string(key) + "-name", valueAttr = std::string(key) + "-value";
+        add.row(row);
+        add.choice(nameAttr, std::string(row) + " actuator", names, [f, nameAttr] { return f().text(nameAttr); },
+                   [f, nameAttr](const std::string& n) { f().setText(nameAttr, n); });
+        add.number(valueAttr, std::string(row) + " value", [f, valueAttr] { return f().real(valueAttr, 0); },
+                   [f, valueAttr](double v) { f().setReal(valueAttr, v); });
+        add.button(test, testLabel, std::string(test) == "testFeed" ? "Do atomic feed, i.e. not full feed based on Part&Feed pitch." : "");
+        add.end();
+        add.tip(tip);
+    }
+    add.endColumns();
+    add.flag("move-before-feed", "Move before feed", [f] { return f().flag("move-before-feed", false); },
+             [f](bool on) { f().setFlag("move-before-feed", on); });
+    add.tip("Move nozzle to pick location before actuating the feed actuator");
+}
+
 // OpenPnP's ReferenceRotatedTrayFeederConfigurationWizard: the three corner
 // parts (A, B, C), the tray's counts, steps and turn.
 void rotatedTrayForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f) {
@@ -721,6 +856,8 @@ JPSetupProperties::Form JPFeederForms::forFeeder(JPConfiguration& config, const 
         trayForm(add, config, f, std::move(warn));
     } else if (kind == "ReferenceAutoFeeder") {
         autoForm(add, config, f, options.actuators);
+    } else if (kind == "BambooFeederAutoVision") {
+        bambooForm(add, config, f, options.actuators);
     } else if (kind == "ReferenceRotatedTrayFeeder") {
         rotatedTrayForm(add, config, f);
     } else if (feeder->isSlot()) {
@@ -791,7 +928,7 @@ bool slotAct(JPConfiguration& config, JPFeeder& slot, const std::string& action,
 } // namespace
 
 bool JPFeederForms::isMachineAction(const std::string& action) {
-    for (const char* a : { "testFeed", "testPostPick", "getId", "getFeedCount", "clearFeedCount", "getPitch", "togglePitch",
+    for (const char* a : { "testFeed", "testPostPick", "showVisionFeatures", "autoSetupTape", "getId", "getFeedCount", "clearFeedCount", "getPitch", "togglePitch",
                            "getStatus", "updateLocation", "actuate", "photonFind", "photonFeed", "photonFeed1mm",
                            "photonSearch" })
         if (action == a) return true;
@@ -874,6 +1011,14 @@ bool JPFeederForms::act(JPConfiguration& config, const std::string& feederId, co
         if (f->typeName() == "ReferenceRotatedTrayFeeder") f->setFlag("legacy-picking-in-progress", false);
         f->visionLocation.reset();   // and what vision found, as OpenPnP's Reset says
         f->visionLocationReference.reset();
+        return true;
+    }
+    if (action == "discardParts") {
+        JPFeederTape::discardParts(*f);
+        return true;
+    }
+    if (action == "resetStatistics") {
+        JPFeederTape::resetCalibrationStatistics(*f);
         return true;
     }
     if (action == "resetVision") {

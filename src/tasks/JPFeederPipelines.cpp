@@ -26,6 +26,10 @@ const std::string* defaultOf(const JPFeeder& f, const std::string& element) {
         if (kind == "ReferenceStripFeeder") return &JPDefaultPipelines::stripFeeder();
         if (kind == "ReferenceLoosePartFeeder") return &JPDefaultPipelines::loosePartFeeder();
         if (kind == "AdvancedLoosePartFeeder") return &JPDefaultPipelines::advancedLoosePartFeeder();
+        // By its Vision Type.
+        if (kind == "BambooFeederAutoVision")
+            return f.text("pipeline-type", "CircularSymmetry") == "ColorKeyed" ? &JPDefaultPipelines::feederVisionColorKeyed()
+                                                                                : &JPDefaultPipelines::feederVisionCircularSymmetry();
     }
     if (element == "training-pipeline" && kind == "AdvancedLoosePartFeeder") return &JPDefaultPipelines::advancedLoosePartFeederTraining();
     return nullptr;
@@ -75,6 +79,11 @@ void JPFeederPipelines::configureForEditing(const JPConfiguration& config, const
         pipeline.setProperty("part", JPPipelineValue { part });
         return;
     }
+    if (kind == "BambooFeederAutoVision") {
+        if (ctx.cameraWidth > 0 && ctx.pixelsPerMmX > 0 && ctx.pixelsPerMmY > 0)
+            configureTape(feeder, pipeline, true, ctx.cameraWidth, ctx.cameraHeight, 1 / ctx.pixelsPerMmX, 1 / ctx.pixelsPerMmY);
+        return;
+    }
     if (kind != "ReferenceStripFeeder") return;
     const double px = (ctx.pixelsPerMmX + ctx.pixelsPerMmY) / 2;
     if (px > 0) {
@@ -89,6 +98,21 @@ void JPFeederPipelines::configureForEditing(const JPConfiguration& config, const
                                                                 : ctx.cameraWidth / 2.0 / ctx.pixelsPerMmX;
         pipeline.setProperty("sprocketHole.maxDistance", JPPipelineValue { JPPipelineValue::LengthMm { range } });
     }
+}
+
+void JPFeederPipelines::configureTape(const JPFeeder& feeder, JPPipeline& pipeline, bool autoSetup, int width, int height,
+                                      double mmPerPixelX, double mmPerPixelY) {
+    pipeline.setProperty("sprocketHole.diameter", JPPipelineValue { JPPipelineValue::LengthMm { kHoleDiameterMm } });
+    double range = 0;
+    if (autoSetup) {
+        // The whole picture (its larger size as the radius about its middle), to find holes at its edge.
+        range = width > height ? mmPerPixelX * height : mmPerPixelY * width;
+    } else {
+        // Half the distance between the holes, and a pitch.
+        const JPLocation h1 = feeder.locationOf("hole-1-location").convertToUnits(JPLengthUnit::Millimeters);
+        range = h1.linearDistanceTo(feeder.locationOf("hole-2-location")) * 0.5 + kHolePitchMm;
+    }
+    pipeline.setProperty("sprocketHole.maxDistance", JPPipelineValue { JPPipelineValue::LengthMm { range } });
 }
 
 } // inline namespace jf

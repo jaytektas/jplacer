@@ -6,6 +6,7 @@
 #include "JPAlignRequests.h"
 
 #include "JPFeederFeed.h"
+#include "JPBambooFeeder.h"
 #include "JPPhotonFeeders.h"
 #include "JPFiducialLocator.h"
 
@@ -274,6 +275,26 @@ JPJobProcessor::Step JPJobProcessor::preFlight() {
     for (const std::string& id : photon)
         if (!JPPhotonFeeders::prepareForJob(m_config, id, m_machine, [this](const std::function<void()>& fn) { main(fn); }, why))
             fail(Source::Feeder, id, why);
+    // A Bamboo feeder the job uses, not yet calibrated: visited along the
+    // shortest path from the camera, and calibrated.
+    std::vector<std::string> visit;
+    std::vector<JPLocation> visitAt;
+    main([&] {
+        for (const JPFeeder& f : m_config.feeders()) {
+            if (!f.enabled() || !f.isVisionTape()) continue;
+            const auto at = JPBambooFeeder::jobPreparationLocation(f);
+            if (!at) continue;
+            for (const JobPlacement& j : m_jobPlacements)
+                if (j.partId == f.partId()) {
+                    visit.push_back(f.id());
+                    visitAt.push_back(*at);
+                    break;
+                }
+        }
+    });
+    for (const size_t i : travel(visitAt, m_machine.cameraLocation(), std::nullopt))
+        if (!JPBambooFeeder::prepareForJob(m_config, visit[i], m_machine, [this](const std::function<void()>& fn) { main(fn); }, why))
+            fail(Source::Feeder, visit[i], why);
     m_restart = true;
     return Step::FiducialCheck;
 }

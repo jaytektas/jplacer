@@ -3,6 +3,8 @@
 
 #include "JPFeederActions.h"
 
+#include "JPBambooFeeder.h"
+
 #include "JPFiducialLocator.h"
 #include "JPPhotonFeeders.h"
 
@@ -62,6 +64,31 @@ bool JPFeederActions::run(JPConfiguration& config, const std::string& feederId, 
             feederNumber = f->real("actuator-value", 0);
         }
     });
+    if (kind == "BambooFeederAutoVision") {
+        if (action == "showVisionFeatures") return JPBambooFeeder::showFeatures(config, feederId, machine, onMain, why);
+        if (action == "autoSetupTape") {
+            outcome.changed = true;
+            return JPBambooFeeder::autoSetup(config, feederId, machine, onMain, why);
+        }
+        // Test feed and Test post pick: one actuation with its value (not a whole feed).
+        const std::string key = action == "testFeed" ? "feed-actuator" : "post-pick-actuator";
+        std::string actuator;
+        double value = 0;
+        main([&] {
+            if (const JPFeeder* f = config.feeder(feederId)) {
+                actuator = f->text(key + "-name");
+                value = f->real(key + "-value", 0);
+            }
+        });
+        if (actuator.empty()) {
+            why = std::string("No ") + (action == "testFeed" ? "feedActuatorName" : "postPickActuatorName") + " specified for feeder "
+                  + name + ".";
+            return false;
+        }
+        if (machine.actuate(actuator, value, why)) return true;
+        why = "Feed failed. " + why;
+        return false;
+    }
     if (kind == "ReferenceAutoFeeder") {
         std::string actuator;
         double value = 0;

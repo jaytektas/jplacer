@@ -436,6 +436,7 @@ void JPlacerMachine::watchCell() {
     }));
     m_unwatch.push_back(m_cell->onHomed.connect([this, onMain](bool homed) {
         onMain([this, homed] {
+            if (!homed && onUnhomed) onUnhomed();
             // Once homed, by the camera too where a head homes visually; then
             // parked, when the machine is set to.
             if (homed && m_cameraTasks)
