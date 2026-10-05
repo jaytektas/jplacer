@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- A nozzle's Offset Wizard has OpenPnP's precise offsets calibration: a test object picked, turned and placed
+  at six angles, the camera finding where it went.
 - A contact probing nozzle can probe the discard place too (Discard Probing), brushing the part off there.
 - Nozzle tips have OpenPnP's Auto Recalibration and Fail Homing: their runout is measured again on a tip
   change, before a job's picks, or once the machine is homed, as each tip is set.

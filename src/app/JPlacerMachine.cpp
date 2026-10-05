@@ -851,6 +851,30 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
             return;
         }
         calibrateTipRunout(on->id, true, nullptr);
+    } else if (action == "calibrateNozzleOffsets" && path.rfind("nozzle:", 0) == 0) {
+        const std::string nozzleId = path.substr(7);
+        JPCameraPanel* camera = m_cameraTasks->headCamera();
+        const JPNozzleConfig* nozzle = nullptr;
+        for (const JPNozzleConfig& n : m_cell->config().nozzles)
+            if (n.id == nozzleId) nozzle = &n;
+        if (!camera || !nozzle) {
+            m_window.showStatus("Nozzle offsets: a camera on the head and the nozzle are needed", kErrorMs);
+            return;
+        }
+        m_cameraTasks->calibrateNozzleOffsets(*camera, *nozzle, [this, nozzleId](double dx, double dy) {
+            if (!m_setup) return;
+            m_setup->change("Precise nozzle offsets", [&](JPCellConfig& cell) {
+                for (JPNozzleConfig& n : cell.nozzles)
+                    if (n.id == nozzleId) {
+                        JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << "Set nozzle " << n.name << " head offsets to "
+                            << n.mount.offsetX + dx << ", " << n.mount.offsetY + dy << " (previously " << n.mount.offsetX
+                            << ", " << n.mount.offsetY << ")";
+                        n.mount.offsetX += dx;
+                        n.mount.offsetY += dy;
+                    }
+            });
+            m_setup->remakeForm();
+        });
     } else if ((action == "autoFocusTest" || action == "adjustCameraZ") && path.rfind("camera:", 0) == 0) {
         const std::string cameraId = path.substr(7);
         const JPMountConfig* nozzleMount = toolMount(JPSetupForm::Tool::Nozzle);

@@ -53,6 +53,14 @@ public:
     // Measure the runout of the tip on nozzle `nozzleId` with the fixed
     // camera looking up (JPRunoutCalibrator), asked first (the nozzle goes
     // down to the camera). `done` (main thread): the runout, for the owner to keep.
+    // OpenPnP's precise camera <-> nozzle offsets calibration (its Calibration
+    // Solutions): a test object (the head's Calibration Rig Test Object, this
+    // wide) on the primary fiducial, the camera centred on it; the nozzle
+    // picks it at 6 angles round the circle and places it turned 180 degrees,
+    // the camera finding it after each. `done` (main thread): how far the
+    // nozzle's X and Y offsets are off (the average of where it moved, half
+    // its turns' displacement each).
+    void calibrateNozzleOffsets(JPCameraPanel& camera, const JPNozzleConfig& nozzle, std::function<void(double, double)> done);
     // OpenPnP's Auto Focus Test: the nozzle (with its tip) over the fixed
     // camera, from its tip's largest part height above the camera's Z down
     // to it, found in focus (JPAutoFocus). `done` (main thread): how far above

@@ -26,6 +26,13 @@ namespace {
 // so they go at the machine's speed (the Jog panel's Speed, which scales
 // every move), as jogs and parks do.
 constexpr double kTaskSpeed = 1.0;
+// OpenPnP's precise nozzle offsets calibration: the angles round the circle, the extra wait after each
+// pick and place, the test object's height (a pseudo part's), and centring on it (passes, near enough).
+constexpr int    kNozzleOffsetAngles = 6;
+constexpr int    kExtraVacuumDwellMs = 300;
+constexpr double kTestObjectHeightMm = 0.01;
+constexpr int    kCentrePasses = 3;
+constexpr double kCentredMm = 0.01;
 // How long each of auto focus's pictures is shown (OpenPnP's 1 s).
 constexpr int kAutoFocusShownMs = 1000;
 // How long a result stays in the status bar.
@@ -336,6 +343,92 @@ void JPlacerCameraTasks::calibrateRunout(const std::string& nozzleId, bool ask, 
                   nozzle->name.c_str(), tip->name.c_str(), cam.name.c_str(), cam.mount.offsetX, cam.mount.offsetY,
                   cam.mount.offsetZ + tip->runoutCalibration.zOffset);
     JDialog::confirm("Calibrate " + tip->name + " on " + nozzle->name, body, start);
+}
+
+void JPlacerCameraTasks::calibrateNozzleOffsets(JPCameraPanel& camera, const JPNozzleConfig& nozzle,
+                                                std::function<void(double, double)> done) {
+    if (const std::string why = notReady(&camera, true, false); !why.empty()) {
+        m_window.showStatus("Nozzle offsets: " + why, kResultMs);
+        return;
+    }
+    const JPHeadConfig* h = head(camera.camera());
+    if (!h || !h->rigPrimary || h->rigTestObjectDiameter <= 0) {
+        m_window.showStatus("Nozzle offsets: the head's calibration rig needs its primary fiducial and the test object's diameter",
+                            kResultMs);
+        return;
+    }
+    const JPHeadConfig rig = *h;
+    const JPNozzleConfig n = nozzle;
+    JPCameraFeed* feed = &camera.feed();
+    auto offsets = std::make_shared<std::pair<double, double>>(0, 0);
+    run(camera, "Calibrating " + nozzle.name + "'s offsets", [this, feed, rig, n, offsets](std::string& words, const auto& progress) {
+        const JPMountConfig& cm = feed->config().mount;
+        JPCameraCalibration cal;
+        if (!JPCameraLook::calibration(m_cell, *feed, cal, words)) return false;
+        const double scale = cal.scale();
+        const double z = rig.rigPrimary->z;
+        // OpenPnP's centerInOnSubjectLocation: the camera over the test object, until it is centred.
+        auto centreOn = [&](double& x, double& y) {
+            for (int pass = 0; pass < kCentrePasses; ++pass) {
+                if (!m_cell.moveToolAndWait(cm, { x, y, std::nullopt, std::nullopt }, kTaskSpeed, words)) return false;
+                JPGrayImage img;
+                if (!JPCameraLook::settled(*feed, img, words)) return false;
+                double ex = 0, ey = 0;
+                if (!cal.pixelFor(x, y, x, y, ex, ey)) { ex = img.width / 2.0; ey = img.height / 2.0; }
+                JPRoundMarkFinder::Request rq;
+                rq.expectedX = ex;
+                rq.expectedY = ey;
+                rq.searchRadius = rig.rigTestObjectDiameter * scale;
+                rq.diameter = rig.rigTestObjectDiameter * scale;
+                const JPRoundMark found = JPCameraLook::findTryingHarder(m_cell, *feed, img, rq);
+                double fx = 0, fy = 0;
+                if (!found.found || !cal.machinePoint(found.x, found.y, x, y, fx, fy)) {
+                    words = "the test object was not found: " + found.why;
+                    return false;
+                }
+                const double moved = std::hypot(fx - x, fy - y);
+                x = fx;
+                y = fy;
+                if (moved < kCentredMm) return true;
+            }
+            return true;
+        };
+        double x = rig.rigPrimary->x, y = rig.rigPrimary->y;
+        progress("finding the test object");
+        if (!centreOn(x, y)) return false;
+        double sumX = 0, sumY = 0;
+        int accumulated = 0;
+        const double da = 360.0 / kNozzleOffsetAngles;
+        bool ok = true;
+        for (double angle = -180 + da / 2; angle < 180 && ok; angle += da) {
+            char step[64];
+            std::snprintf(step, sizeof step, "pick and place at %.0f deg", angle);
+            progress(step);
+            sumX -= x;
+            sumY -= y;
+            // Picked at the angle, placed turned 180: the true axis is midway between the two places.
+            ok = m_cell.pickAtAndWait(n.id, { x, y, z, angle }, kTaskSpeed, words);
+            if (ok) std::this_thread::sleep_for(std::chrono::milliseconds(kExtraVacuumDwellMs));
+            ok = ok && m_cell.placeAtAndWait(n.id, { x, y, z + kTestObjectHeightMm, angle + 180 }, kTaskSpeed, words);
+            if (ok) std::this_thread::sleep_for(std::chrono::milliseconds(kExtraVacuumDwellMs));
+            ok = ok && centreOn(x, y);
+            sumX += x;
+            sumY += y;
+            accumulated += 2;
+        }
+        // Up, unturned, whatever happened.
+        std::string up;
+        m_cell.moveToolAndWait(n.mount, { std::nullopt, std::nullopt, std::nullopt, 0.0 }, kTaskSpeed, up);
+        if (!ok) return false;
+        offsets->first = sumX / accumulated;
+        offsets->second = sumY / accumulated;
+        char buf[160];
+        std::snprintf(buf, sizeof buf, "%s's offsets %+.4f, %+.4f mm off", n.name.c_str(), offsets->first, offsets->second);
+        words = buf;
+        return true;
+    }, [offsets, done](bool ok) {
+        if (ok && done) done(offsets->first, offsets->second);
+    });
 }
 
 void JPlacerCameraTasks::autoFocusTest(JPCameraPanel& camera, const JPNozzleConfig& nozzle, std::function<void(double)> done) {

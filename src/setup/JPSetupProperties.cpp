@@ -696,6 +696,8 @@ void headForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
     add.row("Mark Diameters");
     add.number("rigPrimaryDiameter", "Primary Diameter", [h]() -> double& { return h().rigPrimaryDiameter; });
     add.number("rigSecondaryDiameter", "Secondary Diameter", [h]() -> double& { return h().rigSecondaryDiameter; });
+    add.number("rigTestObjectDiameter", "Test Object", [h]() -> double& { return h().rigTestObjectDiameter; });
+    add.tip("The diameter of the test object the nozzles' precise offsets are calibrated with (a nozzle's Offset Wizard).");
     add.end();
     add.note("Two round marks at two heights. A head camera is calibrated over the homing fiducial and, with Two "
              "Heights? on (its Advanced Calibration), again over the secondary mark, at least 1 mm higher or lower.");
@@ -835,6 +837,14 @@ void nozzleForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     add.actions({ { "Calculate Nozzle Offset", "calculateNozzleOffset" } });
     add.note("The offsets on the Configuration tab change by how far the camera is from where the nozzle thought it "
              "was; Undo takes them back.");
+    // OpenPnP's precise camera <-> nozzle offsets calibration with a test object.
+    add.group("Precise Offsets with a Test Object");
+    add.note("Place the calibration test object (its diameter: the head's Calibration Rig Test Object) onto the head's "
+             "primary calibration fiducial, load the right nozzle tip and ready the vacuum. The camera finds the "
+             "object; the nozzle picks it at six angles round the circle and places it turned 180 degrees, the camera "
+             "finding it after each; the true nozzle axis is midway, so its X and Y offsets change by the average of "
+             "where it moved (runout cancels out). CAUTION: the nozzle moves to the test object.");
+    add.actions({ { "Calibrate Precise Offsets", "calibrateNozzleOffsets" } });
 
     // OpenPnP's ContactProbeNozzle wizard.
     add.tab("Contact Probe");
