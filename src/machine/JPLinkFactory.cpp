@@ -5,6 +5,7 @@
 
 #include "JPSerialLink.h"
 #include "JPSimulatedLink.h"
+#include "JPTcpLink.h"
 
 #include <j/config/Json.h>
 
@@ -30,6 +31,15 @@ std::unique_ptr<JPLink> JPLinkFactory::create(const JJson& link, std::string& er
         return std::make_unique<JPSerialLink>(std::move(st));
     }
     if (type == "simulated") return std::make_unique<JPSimulatedLink>(link["simulator"]);
+    if (type == "tcp") {
+        const std::string& host = link["host"].str();
+        const int port = int(link["port"].number(JPTcpLink::kDefaultPort));
+        if (host.empty() || port <= 0) {
+            error = "a TCP link needs an IP address (or host name) and a port";
+            return nullptr;
+        }
+        return std::make_unique<JPTcpLink>(host, port);
+    }
     error = "unknown link type '" + type + "'";
     return nullptr;
 }

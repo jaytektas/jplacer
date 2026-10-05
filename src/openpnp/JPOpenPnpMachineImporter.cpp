@@ -6,6 +6,7 @@
 #include "JPXmlReader.h"
 
 #include "common/JPlacerLog.h"
+#include "machine/JPTcpLink.h"
 
 #include <j/core/Log.h>
 
@@ -255,8 +256,9 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                 const JPXmlElement* tcp = d.child("tcp");
                 dc.link["type"] = "tcp";
                 dc.link["host"] = tcp ? tcp->attr("ip-address") : std::string();
-                dc.link["port"] = tcp ? number(tcp->attr("port")) : 0.0;
-                notes.push_back("controller " + dc.name + " is reached over TCP, which jplacer does not connect to yet");
+                dc.link["port"] = tcp && !tcp->attr("port").empty() ? number(tcp->attr("port")) : double(JPTcpLink::kDefaultPort);
+                const std::string ending = tcp ? tcp->attr("line-ending-type") : std::string();
+                dc.link["lineEnding"] = ending == "CR" ? "CR" : ending == "CRLF" ? "CRLF" : "LF";
             } else {
                 const JPXmlElement* serial = d.child("serial");
                 dc.link["type"] = "serial";

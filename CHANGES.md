@@ -367,6 +367,8 @@ notes.
 - Actuators can be OpenPnP's Profile actuators: named profiles that set up to six other actuators at once
   (lights, valves), with Default ON and Default OFF profiles, chosen on the Actuators panel. They come in with
   an OpenPnP machine.
+- A controller can be reached over TCP (an IP address or host name and a port), as OpenPnP's can: a grblHAL
+  board on Ethernet, for one. An OpenPnP machine with a TCP controller now comes in connected that way.
 
 ## 0.1.0
 

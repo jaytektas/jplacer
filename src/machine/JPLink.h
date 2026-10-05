@@ -11,7 +11,7 @@ inline namespace jf {
 // The connection to one controller: bytes out, lines in.
 //
 // Used only from the owning driver's I/O thread. Implementations: a serial
-// port (JPSerialLink), a simulated controller (JPSimulatedLink).
+// port (JPSerialLink), TCP (JPTcpLink), a simulated controller (JPSimulatedLink).
 class JPLink {
 public:
     virtual ~JPLink() = default;

@@ -8,6 +8,8 @@
 #include "JPFormBuilder.h"
 #include "JPSetupTree.h"
 
+#include "machine/JPTcpLink.h"
+
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
@@ -172,30 +174,43 @@ void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPF
         auto linkText = [d](const char* key, const std::string& none) {
             return [d, key, none] { const std::string v = std::as_const(d().link)[key].str(); return v.empty() ? none : v; };
         };
+        // OpenPnP's Communications Type: a serial port, or TCP.
+        add.choice("communicationsType", "Communications Type", { "serial", "tcp" }, linkText("type", "serial"),
+                   [d](const std::string& v) { d().link["type"] = v; });
+        f.reshaping.push_back("communicationsType");
         add.choice("lineEnding", "Line-Endings", { "LF", "CR", "CRLF" }, linkText("lineEnding", "LF"),
                    [d](const std::string& v) { d().link["lineEnding"] = v; });
-        add.group("Serial Port");
-        add.text("port", "Port", [d] { return std::as_const(d().link)["port"].str(); },
-                 [d](const std::string& v) { d().link["port"] = v; }, "long");
-        // The rates a serial port takes.
-        Strings rates;
-        for (int r : { 1200, 4800, 9600, 19200, 38400, 57600, 115200, 230400, 921600 }) rates.push_back(std::to_string(r));
-        add.choice("baud", "Baud", rates, [d] { return std::to_string(int(std::as_const(d().link)["baud"].number())); },
-                   [d](const std::string& v) { d().link["baud"] = std::atoi(v.c_str()); });
-        add.choice("parity", "Parity", { "none", "even", "odd" }, linkText("parity", "none"),
-                   [d](const std::string& v) { d().link["parity"] = v; });
-        add.choice("dataBits", "Data Bits", { "5", "6", "7", "8" },
-                   [d] { return std::to_string(int(std::as_const(d().link)["dataBits"].number(8))); },
-                   [d](const std::string& v) { d().link["dataBits"] = std::atoi(v.c_str()); });
-        add.choice("stopBits", "Stop Bits", { "1", "2" },
-                   [d] { return std::to_string(int(std::as_const(d().link)["stopBits"].number(1))); },
-                   [d](const std::string& v) { d().link["stopBits"] = std::atoi(v.c_str()); });
-        add.choice("flowControl", "Flow Control", { "none", "rtscts", "xonxoff" }, linkText("flowControl", "none"),
-                   [d](const std::string& v) { d().link["flowControl"] = v == "none" ? std::string() : v; });
-        add.flag("setDtr", "Set DTR", [d] { return std::as_const(d().link)["setDtr"].boolean(); },
-                 [d](bool v) { d().link["setDtr"] = v; });
-        add.flag("setRts", "Set RTS", [d] { return std::as_const(d().link)["setRts"].boolean(); },
-                 [d](bool v) { d().link["setRts"] = v; });
+        if (std::as_const(d().link)["type"].str() == "tcp") {
+            add.group("TCP");
+            add.text("host", "IP Address", [d] { return std::as_const(d().link)["host"].str(); },
+                     [d](const std::string& v) { d().link["host"] = v; }, "long");
+            add.tip("IP address or host-name.");
+            add.integer("tcpPort", "Port", [d] { return int(std::as_const(d().link)["port"].number(JPTcpLink::kDefaultPort)); },
+                        [d](int v) { d().link["port"] = v; }, 1, 65535);
+        } else {
+            add.group("Serial Port");
+            add.text("port", "Port", [d] { return std::as_const(d().link)["port"].str(); },
+                     [d](const std::string& v) { d().link["port"] = v; }, "long");
+            // The rates a serial port takes.
+            Strings rates;
+            for (int r : { 1200, 4800, 9600, 19200, 38400, 57600, 115200, 230400, 921600 }) rates.push_back(std::to_string(r));
+            add.choice("baud", "Baud", rates, [d] { return std::to_string(int(std::as_const(d().link)["baud"].number())); },
+                       [d](const std::string& v) { d().link["baud"] = std::atoi(v.c_str()); });
+            add.choice("parity", "Parity", { "none", "even", "odd" }, linkText("parity", "none"),
+                       [d](const std::string& v) { d().link["parity"] = v; });
+            add.choice("dataBits", "Data Bits", { "5", "6", "7", "8" },
+                       [d] { return std::to_string(int(std::as_const(d().link)["dataBits"].number(8))); },
+                       [d](const std::string& v) { d().link["dataBits"] = std::atoi(v.c_str()); });
+            add.choice("stopBits", "Stop Bits", { "1", "2" },
+                       [d] { return std::to_string(int(std::as_const(d().link)["stopBits"].number(1))); },
+                       [d](const std::string& v) { d().link["stopBits"] = std::atoi(v.c_str()); });
+            add.choice("flowControl", "Flow Control", { "none", "rtscts", "xonxoff" }, linkText("flowControl", "none"),
+                       [d](const std::string& v) { d().link["flowControl"] = v == "none" ? std::string() : v; });
+            add.flag("setDtr", "Set DTR", [d] { return std::as_const(d().link)["setDtr"].boolean(); },
+                     [d](bool v) { d().link["setDtr"] = v; });
+            add.flag("setRts", "Set RTS", [d] { return std::as_const(d().link)["setRts"].boolean(); },
+                     [d](bool v) { d().link["setRts"] = v; });
+        }
         add.note("Connection settings are used the next time the machine is connected.");
     }
     add.tab("Driver Settings");

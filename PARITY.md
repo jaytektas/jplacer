@@ -33,7 +33,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | OpenPnP | Status | jplacer |
 |---|---|---|
 | Serial port settings, DTR / RTS, line endings | done | |
-| TCP communications | missing | serial and simulated links only |
+| TCP communications | done | |
 | Keep Alive | missing | |
 | Firmware detection, generic G-code proposal | own way | firmware profiles (Grbl, grblHAL, Generic) with `auto` detection |
 | Command timeout, connect wait, max feed rate, log G-code | done | |
