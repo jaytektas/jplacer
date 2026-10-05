@@ -99,6 +99,9 @@ public:
     std::function<void(bool emergency)> onStop;
     // The key an action has now (Preferences > Keys), for the tooltips; "" none.
     std::function<std::string(const std::string& action)> keyFor;
+    // OpenPnP's Board Protection (the Safety tab): a jog that would take a
+    // tool on the head too near a board of the job is refused.
+    bool boardProtection() const { return m_boardProtection; }
 
     // New steps (Preferences > Jog): the sliders marked with them, the
     // distance chosen kept to one of them.
@@ -145,6 +148,7 @@ private:
     // The pad buttons' size for a page `width` x `height`.
     float padSizeFor(float width, float height) const;
     std::unique_ptr<JWidget> specialPage();
+    std::unique_ptr<JWidget> safetyPage();
     // The tip menu for the chosen nozzle, made afresh each time it opens.
     void showTipMenu();
     // A square pad button showing `glyph` that does `action`.
@@ -185,6 +189,7 @@ private:
     std::shared_ptr<bool>   m_alive = std::make_shared<bool>(true);   // for a remake posted to the next frame
     JLabel*                 m_note  = nullptr;
     JPCellWatch             m_watch;
+    bool                    m_boardProtection = true;
 };
 
 } // inline namespace jf

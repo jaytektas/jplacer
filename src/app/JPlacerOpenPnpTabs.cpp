@@ -765,6 +765,11 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     // What scripts ask of the job (OpenPnP's gui.jobTab, Utils2D, VisionUtils.readQrCode).
     m_machine.scriptJobMachine = [this]() -> JPlacerJobMachine* { return &m_jobRun->jobMachine(); };
     m_machine.onScriptJobRequest = [this](const JJson& request) { return scriptJobRequest(request); };
+    m_machine.jobBoards = [this] {
+        std::vector<const JPBoardLocation*> boards;
+        for (const JPBoardLocation* b : m_job.job().boardLocations()) boards.push_back(b);
+        return boards;
+    };
     // The vision pages' tests, on the machine as the job runs it.
     m_visionTests = std::make_unique<JPlacerVisionTests>(m_job, m_machine, *m_jobRun);
     auto visionTest = [this](const std::string& id, const JPVisionForms::Holder& holder, const std::string& test) {
@@ -891,6 +896,7 @@ JPlacerOpenPnpTabs::~JPlacerOpenPnpTabs() {
     m_packagesDock->setContent(nullptr);
     m_machine.onImported = nullptr;
     m_machine.onScriptJobRequest = nullptr;
+    m_machine.jobBoards = nullptr;
     m_machine.scriptJobMachine = nullptr;
     m_layout.remove(m_feedersDock.get());
     m_feedersDock->setContent(nullptr);

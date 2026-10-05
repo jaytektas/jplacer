@@ -387,6 +387,14 @@ scripting events run round it.
 
 <!-- src: src/ui/JPJogPanel.cpp (specialPage, refreshRecycle); src/model/JPFeeder.cpp (canTakeBackPart, partTakenBack); src/tasks/JPFeederTakeBack.cpp; src/tasks/JPHeapFeeder.cpp (takeBack); src/app/JPlacerOpenPnpTabs.cpp (recycle) -->
 
+**Safety** tab: **Board Protection**, as OpenPnP's, ticked each time jplacer starts. While it is, a jog is
+refused (and the status line says which nozzle and which board) when it would leave a nozzle or an actuator
+on the head below its safe Z within 1 mm of an enabled board of the job, seen from above, and not above the
+board's surface: for a nozzle, 1 mm and half its tip's outside diameter, or, holding a part and with a Max.
+Part Diameter larger than the tip, half that; a part held counts down from the nozzle by its height.
+
+<!-- src: src/ui/JPJogPanel.cpp (safetyPage); src/app/JPlacerMachine.cpp (jogSafe); src/machine/JPCell.cpp (jog, inSafeZone) -->
+
 Every button has a key, the same as OpenPnP's to start with (Machine ▸ Jog lists them, and a button's
 tooltip says its key); [Preferences, Keys](preferences.md#keys) changes them, and gives keys to the
 distance and speed steps, which [Preferences, Jog](preferences.md#jog) sets. The tool, distance and speed

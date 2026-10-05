@@ -35,6 +35,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Scripting (events, Python/JS scripts) | done | the Scripts menu and every OpenPnP event; scripts run as programs of their own; OpenPnP's object model (machine, config, scripting, gui.jobTab; Location, LengthUnit, UiUtils, Utils2D, VisionUtils.readQrCode, JOptionPane, javax.script) for Python and for JavaScript run as Nashorn runs it (print, load, Packages, JavaImporter, with, for each), CvPipeline run on the head camera with its results and showFilteredImage, so OpenPnP's scripts and its Examples run as they are |
 | ContactProbeNozzle (probing pick and place heights, nozzle tip Z calibration) | done | contact sense actuator and vacuum sniffle probing, feeder and placement heights with their triggers, part height probing, Z calibration by touch; discard probing; probed heights kept while jplacer runs (OpenPnP keeps them in its file) |
 | Jog panel: feeder take back (Recycle) | done | |
+| Jog panel: Safety tab, Board Protection | done | jogs checked against the job's enabled boards, every nozzle and Z actuator on the head |
 
 ## Controllers (GcodeDriver / GcodeAsyncDriver)
 

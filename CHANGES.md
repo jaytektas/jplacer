@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- The Jog panel's Safety tab, with OpenPnP's Board Protection: a jog that would take a nozzle below safe Z into one
+  of the job's boards is refused.
 - OpenPnP's Vision Calibration of a nozzle tip's changer slot: two template pictures of the slot, empty and
   occupied; before each tip change the slot is found by them, checked empty or occupied as it should be, and the change
   moved by how far off it was. Cloning can take it too, and OpenPnP machines bring it with their template pictures.

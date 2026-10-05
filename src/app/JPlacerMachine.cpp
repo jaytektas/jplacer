@@ -4,6 +4,8 @@
 #include "JPlacerMachine.h"
 #include "JPlacerJobMachine.h"
 #include "JPlacerSlotVision.h"
+#include "model/JPBoardLocation.h"
+#include "model/JPBoard.h"
 #include "camera/JPImageFile.h"
 
 #include <opencv2/imgproc.hpp>
@@ -420,6 +422,7 @@ void JPlacerMachine::buildPanels(Keep keep) {
     choices.speeds = jogSpeeds();
     auto jog = std::make_unique<JPJogPanel>(m_graph, *m_cell, choices);
     m_jog = jog.get();
+    m_cell->setJogGuard([this](const JPMountConfig& tool, const std::map<std::string, double>& axes) { return jogSafe(tool, axes); });
     jog->onPartGone = [this](const std::string& nozzleId) { setNozzlePart(nozzleId, ""); };
     jog->onRecycle = [this](const std::string& nozzleId) {
         if (recycle) recycle(nozzleId);
@@ -942,6 +945,62 @@ bool JPlacerMachine::moveToolTo(JPSetupForm::Tool tool, const Where& to, bool st
         if (&cam.mount == m && cam.autoCameraView)
             for (CameraDock& c : m_cameras)
                 if (c.panel->camera().id == cam.id) bringForward(*c.panel);
+    return true;
+}
+
+bool JPlacerMachine::jogSafe(const JPMountConfig& tool, const std::map<std::string, double>& axes) {
+    if (!m_jog || !m_jog->boardProtection() || !m_cell || !jobBoards) return true;
+    const JPCellConfig& c = m_cell->config();
+    struct Mountable {
+        std::string          subject;
+        const JPMountConfig* mount;
+        double               safeDistance = 1;   // mm
+        double               partHeight = 0;
+    };
+    std::vector<Mountable> on;
+    for (const JPNozzleConfig& n : c.nozzles) {
+        if (n.mount.headId != tool.headId) continue;
+        Mountable m { "ReferenceNozzle " + n.name, &n.mount };
+        const std::string partId = nozzlePart(n.id);
+        for (const JPNozzleTipConfig& t : c.nozzleTips) {
+            if (t.id != n.tipId) continue;
+            // Half the largest part it may hold when it holds one wider than the tip, else half the tip.
+            m.safeDistance += (!partId.empty() && t.maxPartDiameterMm > t.diameterLowMm ? t.maxPartDiameterMm : t.diameterLowMm) / 2;
+            m.subject += " with " + (t.name.empty() ? t.id : t.name);
+        }
+        if (!partId.empty()) {
+            if (const JPPart* part = m_configuration ? m_configuration->part(partId) : nullptr)
+                m.partHeight = part->heightForSafeZ().convertToUnits(JPLengthUnit::Millimeters).value();
+            m.subject += " holding " + partId;
+        }
+        on.push_back(m);
+    }
+    for (const JPActuatorConfig& a : c.actuators)
+        if (a.mount.headId == tool.headId && !a.mount.axisZ.empty()) on.push_back({ "ReferenceActuator " + a.name, &a.mount });
+    for (const Mountable& m : on) {
+        const auto x = axes.find(m.mount->axisX), y = axes.find(m.mount->axisY), z = axes.find(m.mount->axisZ);
+        if (x == axes.end() || y == axes.end() || z == axes.end()) continue;
+        // Only below safe Z (a board above it is taken as not set up yet).
+        const JPAxisConfig* zAxis = c.axis(m.mount->axisZ);
+        if (!zAxis || zAxis->kind == JPAxisConfig::Kind::Virtual || m_cell->inSafeZone(m.mount->axisZ, z->second)) continue;
+        const double px = x->second + m.mount->offsetX, py = y->second + m.mount->offsetY;
+        const double pz = z->second + m.mount->offsetZ - m.partHeight;
+        for (const JPBoardLocation* b : jobBoards()) {
+            if (!b || !b->isEnabled() || !b->board()) continue;
+            const JPLocation origin = b->globalLocation().convertToUnits(JPLengthUnit::Millimeters);
+            const JPLocation size = b->board()->dimensions.convertToUnits(JPLengthUnit::Millimeters);
+            // In the board's own coordinates: outside its box by the safe distance, or above it.
+            const JPLocation local = JPLocation(JPLengthUnit::Millimeters, px - origin.x(), py - origin.y(), pz - origin.z(), 0)
+                                         .rotateXy(-origin.rotation());
+            const double d = m.safeDistance;
+            if (local.x() <= -d || local.y() <= -d || local.x() >= size.x() + d || local.y() >= size.y() + d || local.z() > 0)
+                continue;
+            m_window.showStatus(m.subject + " would potentially crash into board " + b->id + ". "
+                                    + "To disable the board protection go to the \"Safety\" tab in the \"Machine Controls\" panel.",
+                                kErrorMs);
+            return false;
+        }
+    }
     return true;
 }
 

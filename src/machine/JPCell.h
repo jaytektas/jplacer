@@ -232,9 +232,16 @@ public:
     // Where script actuators' scripts are found and run (none: they cannot be actuated).
     void setScripting(std::shared_ptr<JPScripting> scripting) { m_scripting = std::move(scripting); }
 
+    // Whether `value` of the axis is within its safe zone (OpenPnP's isInSafeZZone; no safe zone: anywhere).
+    bool inSafeZone(const std::string& axisId, double value) const;
+    // Asked before each jog, on the jogging thread, with the tool jogged and
+    // where every axis would then be: false refuses it (the owner says why).
+    using JogGuard = std::function<bool(const JPMountConfig& tool, const std::map<std::string, double>& axes)>;
+    void setJogGuard(JogGuard guard) { m_jogGuard = std::move(guard); }
     // Move a tool — a nozzle, camera or actuator — by the given amounts along
     // its own axes (mm, degrees), at `speed` (0..1) of the slowest axis's
-    // rate. Refused while a move is under way, so held jogging cannot pile up.
+    // rate. Refused while a move is under way, so held jogging cannot pile up,
+    // and when the jog guard refuses it.
     void jog(const std::string& toolId, double dx, double dy, double dz, double drot, double speed);
 
     // Take a tool (what `mount` describes: a nozzle, a camera on the head) to
@@ -346,7 +353,6 @@ private:
     // OpenPnP's axis interlocks (JPActuatorConfig::Interlock) for a move from `from` to `to`, before or after it.
     bool doInterlocks(const std::map<std::string, double>& from, const std::map<std::string, double>& to, bool before,
                       double speed, std::string& why);
-    bool inSafeZone(const std::string& axisId, double value) const;
     // A controller's units (its Driver Settings' Units): a millimetre in them,
     // an axis's letter and coordinate as sent, and a coordinate it reports in mm.
     double driverUnits(const JPGcodeDriver& d) const;
@@ -485,6 +491,7 @@ private:
         std::string tipId;
         double      offsetMm = 0;
     };
+    JogGuard                                      m_jogGuard;
     std::map<std::string, std::array<double, 2>> m_slotOffsets;   // tip: slotOffset
     std::map<std::string, ZCalibration> m_zCalibration;    // Test Motion: the moves' planned seconds, summed while set
     // A directional backlash offset in effect, by axis id: the controller's

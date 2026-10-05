@@ -42,6 +42,7 @@
 inline namespace jf {
 
 class JPlacerJobMachine;
+class JPBoardLocation;
 
 // The machine jplacer is working with: the open cell (cells/<name>.json),
 // its panels, each in a dock of its own where JPlacerLayout puts it (a
@@ -176,6 +177,8 @@ public:
     // A script's request of the job (OpenPnP's gui.jobTab: the board locations,
     // enabling one, a place on one), answered on the screen's thread.
     std::function<JJson(const JJson& request)> onScriptJobRequest;
+    // The job's boards (each board in panels too), for the Jog panel's Board Protection.
+    std::function<std::vector<const JPBoardLocation*>()> jobBoards;
     // The machine a job runs on, for a script's vision (OpenPnP's VisionUtils.readQrCode).
     std::function<JPlacerJobMachine*()> scriptJobMachine;
     // Calibrate a camera, or an X or Y axis's backlash (as Machine Setup's
@@ -246,6 +249,11 @@ public:
 private:
     // OpenPnP's Vision Calibration buttons (Capture, Reset, Test) for a tip.
     void slotVisionAction(const std::string& tipId, const std::string& action);
+    // OpenPnP's checkJogMotionSafety (the Jog panel's Board Protection): with
+    // the axes at `axes`, each nozzle and actuator on `tool`'s head below its
+    // safe Z must be clear of every enabled board of the job by 1 mm (and half
+    // its tip, or half the largest part it may hold); false, and said, when not.
+    bool jogSafe(const JPMountConfig& tool, const std::map<std::string, double>& axes);
     // OpenPnP's ContactProbeNozzle.getDefaultNozzle (none: no nozzle probes by contact).
     const JPNozzleConfig* probingNozzle() const;
     bool openCell(const std::string& path, std::string& error);

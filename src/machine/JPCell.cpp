@@ -1633,6 +1633,12 @@ void JPCell::jog(const std::string& toolId, double dx, double dy, double dz, dou
     add(mount->axisZ, dz);
     add(mount->axisRotation, drot);
     roamUnsafeZ(toolId, *mount, now, targets);
+    // Where every axis would be: the owner may refuse it (OpenPnP's Board Protection).
+    if (m_jogGuard) {
+        std::map<std::string, double> after = now;
+        for (const auto& [axis, to] : targets) after[axis] = to;
+        if (!m_jogGuard(*mount, after)) return;
+    }
     compensateRunout(*mount, targets, true);
     if (!targets.empty()) moveAxes(std::move(targets), speed);
 }

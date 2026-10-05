@@ -13,6 +13,7 @@
 
 #include <j/core/FrameTimer.h>
 #include <j/core/JButton.h>
+#include <j/core/JCheckBox.h>
 #include <j/core/JScrollArea.h>
 #include <j/core/JStyle.h>
 #include <j/core/JTextHelper.h>
@@ -256,6 +257,8 @@ void JPJogPanel::makePages() {
     m_tabs->addTab("Jog", m_pages.back().get());
     m_pages.push_back(specialPage());
     m_tabs->addTab("Special", m_pages.back().get());
+    m_pages.push_back(safetyPage());
+    m_tabs->addTab("Safety", m_pages.back().get());
     m_tabs->setActiveTab(std::max(0, was));
 }
 
@@ -391,6 +394,21 @@ std::unique_ptr<JWidget> JPJogPanel::specialPage() {
     }
     page->add(std::move(buttons));
     refreshRecycle();
+    return page;
+}
+
+std::unique_ptr<JWidget> JPJogPanel::safetyPage() {
+    const JStyle& st = JStyle::current();
+    auto page = std::make_unique<JContainer>(m_graph, 0.f, 0.f);
+    page->setDirection(JFlexDirection::Column)->setGap(st.spacing)->setAlignItems(JAlignItems::Start)
+        ->setPadding(JEdges(st.spacing));
+    // OpenPnP's Board Protection: on for each session, as OpenPnP's opens.
+    const std::string text = "Board Protection";
+    JCheckBox* check = page->add(std::make_unique<JCheckBox>(
+        m_graph, text, st.checkHeight + 2 * st.spacing + std::ceil(JTextHelper::measureWidth(text))));
+    check->setChecked(m_boardProtection);
+    check->setTooltip("Enable protection of the nozzle jogging closer than 1mm to any loaded board.");
+    check->onStateChanged.connect([this](bool on) { m_boardProtection = on; });
     return page;
 }
 
