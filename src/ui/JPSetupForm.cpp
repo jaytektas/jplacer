@@ -15,6 +15,7 @@
 
 #include <j/core/FrameTimer.h>
 #include <j/core/JButton.h>
+#include <j/core/JColorButton.h>
 #include <j/core/JLabel.h>
 #include <j/core/JPropertyBinding.h>
 #include <j/core/JScrollArea.h>
@@ -305,7 +306,14 @@ std::unique_ptr<JWidget> JPSetupForm::editor(const JProperty& p, float width) {
         m_pulls.push_back(e.pull);
         return std::move(e.widget);
     }
-    if (isText(p)) {
+    if (p.meta.editor == "color") {
+        // The swatch; a click opens the colour chooser.
+        auto button = std::make_unique<JColorButton>(m_graph, 2 * numberWidth(), st.controlHeight);
+        JColorButton* b = button.get();
+        b->onColorChanged.connect([set = bound.set](const std::string& hex) { set(JVariant(hex)); });
+        e.pull = [b, get = p.get] { b->setColorHex(get().toString()); };
+        e.widget = std::move(button);
+    } else if (isText(p)) {
         // A line of text changes when it is committed (Return, Tab, leaving
         // it), as a number does; the framework's editor for it changes on each key.
         auto field = std::make_unique<JPTextField>(m_graph);

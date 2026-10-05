@@ -8,6 +8,7 @@
 
 #include <opencv2/core.hpp>
 
+#include <algorithm>
 #include <string>
 
 inline namespace jf {
@@ -38,6 +39,11 @@ public:
     int         integer(const std::string& attribute) const;
     bool        flag(const std::string& attribute) const;
     void        set(const std::string& attribute, const std::string& value) { m_node.set(attribute, value); }
+    // A setting no longer written.
+    void        unset(const std::string& attribute) {
+        auto& a = m_node.attributes;
+        a.erase(std::remove_if(a.begin(), a.end(), [&](const auto& kv) { return kv.first == attribute; }), a.end());
+    }
     // A colour child element (<color r g b a/>), as BGR(A) for OpenCV; its default when not written.
     cv::Scalar  color(const std::string& element) const;
     bool        hasColor(const std::string& element) const { return m_node.child(element) != nullptr; }

@@ -116,6 +116,8 @@ private:
     int   columnAt(float mx) const;
     int   dividerAt(float mx, float my) const;
     int   viewRowAt(float my) const;
+    // Rows can be dragged: the model says so, the view in its order, every row shown.
+    bool  canDragRows() const;
     void  materialiseWidths() const;
     void  clampScroll();
     void  ensureVisible(int viewRow);
@@ -150,6 +152,11 @@ private:
     float                          m_resizeFromX = 0, m_resizeFromW = 0;
     bool                           m_draggingV = false;
     float                          m_dragFromY = 0, m_dragFromScroll = 0;
+    // A row dragged to another place: the model row, where the press was,
+    // and (once moved far enough) the row it goes before.
+    int                            m_rowDrag = -1;
+    float                          m_rowDragFromY = 0;
+    int                            m_dropBefore = -1;
     // Editing a text cell in place.
     bool                           m_editing = false;
     int                            m_editRow = -1, m_editColumn = -1;

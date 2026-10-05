@@ -163,6 +163,10 @@ public:
     void        setLocationOf(const std::string& element, const JPLocation& l);
     // A child element's text (OpenPnP's <parallax-angle>0.0</parallax-angle>).
     std::string childText(const std::string& element, const std::string& def = {}) const;
+    // Its vision pipeline as OpenPnP wrote it (<pipeline><stages>…), or null;
+    // and one put in its place (named "pipeline", where it was).
+    const JPXmlNode* pipeline() const { return m_node.child("pipeline"); }
+    void             setPipeline(JPXmlNode pipeline);
     void        setChildText(const std::string& element, const std::string& value);
     // An attribute of a child element, by its path ("vision/area-of-interest");
     // set, the elements are made when missing.

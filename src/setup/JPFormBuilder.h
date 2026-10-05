@@ -125,6 +125,11 @@ public:
               const std::string& editor = "") {
         text(name, label, [ref] { return ref(); }, [ref](const std::string& v) { ref() = v; }, editor);
     }
+    // A colour, as "#rrggbb", picked from the colour chooser.
+    void color(const std::string& name, const std::string& label, std::function<std::string()> get,
+               std::function<void(const std::string&)> set) {
+        text(name, label, std::move(get), std::move(set), "color");
+    }
     void number(const std::string& name, const std::string& label, std::function<double()> get,
                 std::function<void(double)> set, int decimals = 3) {
         JProperty p = make(name, label);

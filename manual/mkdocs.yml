@@ -20,6 +20,7 @@ nav:
   - parts.md
   - packages.md
   - vision.md
+  - pipeline-editor.md
   - feeders.md
   - issues.md
   - log.md

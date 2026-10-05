@@ -83,8 +83,9 @@ A strip of cut tape lying on the machine, its parts picked one after the other a
   how far along the strip to go before looking again (0: every hole; near the strip's start it looks more
   often). **Parallax Diameter** and **Parallax Angle**: look at the hole from either side of it, that far
   apart and turned that way, and take the middle (for clear tape that reflects the camera's light).
-  **Reset Vision** forgets the holes found. **Edit Pipeline** and **Reset Pipeline** are not yet available:
-  jplacer finds the holes without a pipeline to tune.
+  **Reset Vision** forgets the holes found. **Edit Pipeline...** opens the strip's OpenPnP pipeline in the
+  [Pipeline Editor](pipeline-editor.md), and **Reset Pipeline** puts OpenPnP's default back; jplacer's own
+  hole finder, described here, does not use it.
 - **Locations**: the **Reference Hole Location**, the hole nearest the first part's centre, in the
   direction the parts continue, with the pick height as its Z; and the **Next Hole Location**, any hole
   further along.
@@ -92,7 +93,7 @@ A strip of cut tape lying on the machine, its parts picked one after the other a
 The part is picked across the tape from its hole, as EIA-481 tape lays it out: half the tape width less
 0.5 mm across, 2 mm along, then one part pitch further for each part taken.
 
-<!-- src: src/setup/JPFeederForms.cpp (stripForm, act); src/model/JPFeeder.cpp (pickLocation, idealLineLocations, feed, visionExpected, setVisionFound); src/tasks/JPFeederFeed.cpp; src/app/JPlacerJobMachine.cpp (locateHole) -->
+<!-- src: src/setup/JPFeederForms.cpp (stripForm, act); src/model/JPFeeder.cpp (pickLocation, idealLineLocations, feed, visionExpected, setVisionFound); src/tasks/JPFeederFeed.cpp; src/app/JPlacerJobMachine.cpp (locateHole); src/tasks/JPFeederPipelines.cpp -->
 
 ### Tray feeder
 

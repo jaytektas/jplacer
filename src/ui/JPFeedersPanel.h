@@ -82,6 +82,8 @@ public:
     void searchEnded();
     // OpenPnP's Program Feeder Slot Wizard asked for (Global Config's Start Wizard).
     std::function<void()> programPhotonSlots;
+    // A feeder's pipeline: "editPipeline" (the pipeline editor) or "resetPipeline" (its default back).
+    std::function<void(const std::string& feederId, const std::string& action)> pipelineAction;
     // What a page's button read from the machine (by its action), shown on the feeder's page.
     void showReading(const std::string& feederId, const std::string& action, const std::string& value);
     // The feeders changed elsewhere (imported, a job's part): shown again.

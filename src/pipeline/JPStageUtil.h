@@ -82,6 +82,34 @@ public:
         const float sat = hi == lo ? 0 : l <= 0.5f ? (hi - lo) / (hi + lo) : (hi - lo) / (2 - hi - lo);
         return hsl(std::fmod(h + 180.0f, 360.0f), sat * 100, l * 100);
     }
+    // A stage's picture as the pipeline editor shows it, RGBA: in true
+    // colours from its colour space (OpenCvUtils.toRGB), or as if BGR; 8-bit
+    // grey or BGR, or floats 0..1 (OpenCvUtils.toBufferedImage). False and
+    // why for one it cannot show.
+    static bool toRgba(const cv::Mat& image, const std::string& colorSpace, bool trueColors, cv::Mat& rgba, std::string& why) {
+        cv::Mat m = image;
+        if (trueColors && !colorSpace.empty()) {
+            if (m.channels() != 3 && colorSpace != "Gray") {
+                why = "Expecting image to be in the " + colorSpace + " color space but it has only one channel.";
+                return false;
+            }
+            static const std::pair<const char*, int> codes[] = { { "Rgb", cv::COLOR_RGB2BGR },         { "Hls", cv::COLOR_HLS2BGR },
+                                                                 { "HlsFull", cv::COLOR_HLS2BGR_FULL }, { "Hsv", cv::COLOR_HSV2BGR },
+                                                                 { "HsvFull", cv::COLOR_HSV2BGR_FULL } };
+            for (const auto& [name, code] : codes)
+                if (colorSpace == name) cv::cvtColor(m, m, code);
+        }
+        if (m.type() == CV_32F) m.convertTo(m, CV_8UC1, 255);
+        else if (m.type() == CV_32FC3) m.convertTo(m, CV_8UC3, 255);
+        if (m.type() == CV_8UC1) cv::cvtColor(m, rgba, cv::COLOR_GRAY2RGBA);
+        else if (m.type() == CV_8UC3) cv::cvtColor(m, rgba, cv::COLOR_BGR2RGBA);
+        else {
+            why = "Unsupported Mat: type " + std::to_string(m.type()) + ", channels " + std::to_string(m.channels()) + ", depth "
+                  + std::to_string(m.depth());
+            return false;
+        }
+        return true;
+    }
     // OpenCvUtils.matMaxima: the local maxima of a one-channel float picture
     // within [rangeMin, rangeMax], row by row, each the top of its 3 x 3.
     static std::vector<cv::Point> matMaxima(const cv::Mat& mat, double rangeMin, double rangeMax) {

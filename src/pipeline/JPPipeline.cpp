@@ -32,6 +32,12 @@ JPPipeline JPPipeline::fromXml(const JPXmlElement& cvPipeline) {
     if (stages)
         for (const JPXmlElement& e : stages->children)
             if (e.name == "cv-stage") p.m_stages.push_back(JPPipelineStage::fromXml(e));
+    // As OpenPnP reads an older ImageCapture: settle-first (either way) is now to settle.
+    for (JPPipelineStage& s : p.m_stages)
+        if (s.typeName() == "ImageCapture" && s.toXml().get("settle-first")) {
+            s.set("settle-option", "Settle");
+            s.unset("settle-first");
+        }
     return p;
 }
 

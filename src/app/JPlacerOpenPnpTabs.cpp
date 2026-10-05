@@ -20,6 +20,7 @@
 #include "model/JPDefinitionChanges.h"
 #include "tasks/JPFeederActions.h"
 #include "tasks/JPFeederFeed.h"
+#include "tasks/JPFeederPipelines.h"
 
 #include "ui/JPFootprintOverlay.h"
 
@@ -39,7 +40,7 @@ constexpr const char* kFootprintOverlay = "PackageVisionWizard";
 }
 
 JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, JPlacerJob& job, JPlacerMachine& machine)
-    : m_window(window), m_job(job), m_machine(machine), m_layout(machine.layout()) {
+    : m_window(window), m_job(job), m_machine(machine), m_layout(machine.layout()), m_pipelines(window, machine) {
     auto openMenu = [this](JMenu* menu, float x, float y) {
         if (JMenuManager::instance().onOpenMenu)
             JMenuManager::instance().onOpenMenu(menu, m_window.windowX() + int(x), m_window.windowY() + int(y), false, false);
@@ -326,6 +327,26 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         ensurePhotonActuator();
         m_window.openModal<JPlacerPhotonSlotsDialog>(m_job.configuration(), [this](JPlacerPhotonSlotsDialog::Work work) {
             return m_jobRun->machineTask(std::move(work));
+        });
+    };
+    // A strip feeder's pipeline: edited on the head camera, or its default back.
+    m_feeders->pipelineAction = [this](const std::string& feederId, const std::string& action) {
+        JPFeeder* f = m_job.configuration().feeder(feederId);
+        if (!f) return;
+        if (action == "resetPipeline") {
+            if (JPFeederPipelines::reset(*f)) m_job.configurationChanged();
+            return;
+        }
+        std::optional<JPPipeline> held = JPFeederPipelines::of(*f);
+        if (!held) return;
+        auto pipeline = std::make_shared<JPPipeline>(std::move(*held));
+        m_pipelines.useHeadCamera(*pipeline, m_job.configuration().directory());
+        JPFeederPipelines::configureForEditing(*f, *pipeline);
+        m_pipelines.edit(f->name() + " Pipeline", pipeline, [this, feederId](const JPPipeline& edited) {
+            if (JPFeeder* kept = m_job.configuration().feeder(feederId)) {
+                kept->setPipeline(edited.toXml());
+                m_job.configurationChanged();
+            }
         });
     };
     m_feeders->partUsed = [this](const std::string& partId) {

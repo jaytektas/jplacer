@@ -7,6 +7,7 @@
 #include "JPlacerJobRun.h"
 #include "JPlacerLayout.h"
 #include "JPlacerMachine.h"
+#include "JPlacerPipelines.h"
 #include "JPlacerViewerDock.h"
 
 #include "ui/JPBoardsPanel.h"
@@ -89,6 +90,7 @@ private:
     std::unique_ptr<JPLogPanel>      m_log;
     std::unique_ptr<JDockWidget>     m_logDock;
     std::unique_ptr<JPFeedersPanel>  m_feeders;
+    JPlacerPipelines                 m_pipelines;
     std::unique_ptr<JDockWidget>     m_feedersDock;
     std::unique_ptr<JPBoardsPanel>   m_boards;
     std::unique_ptr<JDockWidget>     m_boardsDock;

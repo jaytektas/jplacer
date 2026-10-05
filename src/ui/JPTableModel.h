@@ -72,6 +72,10 @@ public:
     virtual bool cellDimmed(int, int) const { return false; }
 
     virtual bool editable(int, int) const { return false; }
+    // Rows that can be dragged to another place (OpenPnP's Reorderable):
+    // `from` moved to before row `to` (the row count: to the end).
+    virtual bool reorderable() const { return false; }
+    virtual void reorder(int /*from*/, int /*to*/) {}
     virtual std::vector<std::string> choices(int, int) const { return {}; }
     // An edit: false (and why, to be shown) when the value is refused.
     virtual bool setText(int, int, const std::string&, std::string& /*error*/) { return false; }

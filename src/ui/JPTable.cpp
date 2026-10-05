@@ -512,6 +512,11 @@ void JPTable::populateRenderPrimitives(JPrimitiveBuffer& buf) {
             buf.pushRectangle(cx, ty, st.borderWidth, lh, Colors::ControlText);
         }
     }
+    // Where a dragged row goes.
+    if (m_dropBefore >= 0) {
+        const float y = b.y + hh + float(m_dropBefore) * rh - m_scrollY;
+        buf.pushRectangle(b.x, y - st.borderWidth, innerW, st.borderWidth * 2, Colors::Accent);
+    }
     buf.popClip();
 
     // Scroll bars.
@@ -614,6 +619,10 @@ void JPTable::handleMousePress(float mx, float my) {
     }
     if (c >= 0) m_leadColumn = c;
     selectView(v, JWidget::s_shiftDown, JWidget::s_ctrlDown);
+    if (canDragRows() && !JWidget::s_shiftDown && !JWidget::s_ctrlDown) {
+        m_rowDrag = r;
+        m_rowDragFromY = my;
+    }
     if (c < 0 || JWidget::s_shiftDown || JWidget::s_ctrlDown) return;
     const JPTableModel::Kind kind = m_model->column(c).kind;
     const bool editable = m_model->editable(r, c);
@@ -628,9 +637,23 @@ void JPTable::handleMousePress(float mx, float my) {
     }
 }
 
+bool JPTable::canDragRows() const {
+    return m_model && m_model->reorderable() && m_sortKeys.empty() && !m_filter && int(m_view.size()) == m_model->rowCount();
+}
+
 void JPTable::handleMouseRelease(float mx, float my) {
     m_resizing = -1;
     m_draggingV = false;
+    const int from = m_rowDrag, before = m_dropBefore;
+    m_rowDrag = m_dropBefore = -1;
+    if (from >= 0 && before >= 0) {
+        m_graph.invalidateNode(m_nodeId, DirtySelf);
+        if (before != from && before != from + 1) {
+            m_model->reorder(from, before);
+            refresh();
+            selectRow(before > from ? before - 1 : before);
+        }
+    }
     JControl::handleMouseRelease(mx, my);
 }
 
@@ -638,6 +661,16 @@ void JPTable::handleMouseMove(float mx, float my) {
     if (m_resizing >= 0) {
         JWidget::s_hoverCursor = JPlatformCursor::ResizeLeftRight;
         setColumnWidth(m_resizing, m_resizeFromW + (mx - m_resizeFromX));
+        return;
+    }
+    if (m_rowDrag >= 0) {
+        // Moved half a row: the drag is on, the line where it goes shown.
+        if (m_dropBefore >= 0 || std::fabs(my - m_rowDragFromY) > rowHeight() * 0.5f) {
+            const JRect b = bounds();
+            const float at = (my - (b.y + headerHeight()) + m_scrollY) / rowHeight();
+            m_dropBefore = std::clamp(int(std::floor(at + 0.5f)), 0, int(m_view.size()));
+            m_graph.invalidateNode(m_nodeId, DirtySelf);
+        }
         return;
     }
     if (m_draggingV) {

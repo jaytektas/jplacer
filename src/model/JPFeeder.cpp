@@ -512,6 +512,15 @@ void JPFeeder::setAttributeAt(const std::string& path, const std::string& attrib
     n->set(attribute, value);
 }
 
+void JPFeeder::setPipeline(JPXmlNode pipeline) {
+    pipeline.name = "pipeline";
+    if (JPXmlNode* c = m_node.child("pipeline")) {
+        *c = std::move(pipeline);
+        return;
+    }
+    m_node.add(std::move(pipeline));
+}
+
 std::string JPFeeder::childText(const std::string& element, const std::string& def) const {
     const JPXmlNode* c = m_node.child(element);
     return c ? c->text : def;

@@ -123,8 +123,8 @@ void stripForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeed
     add.flag("vision-enabled", "Use Vision?", [f] { return f().flag("vision-enabled", false); },
              [f](bool on) { f().setFlag("vision-enabled", on); });
     add.row("");
-    add.button("editPipeline", "Edit Pipeline", "The pipeline editor: not in jplacer yet.", false);
-    add.button("resetPipeline", "Reset Pipeline", "The default pipeline: not in jplacer yet.", false);
+    add.button("editPipeline", "Edit Pipeline...");
+    add.button("resetPipeline", "Reset Pipeline");
     add.button("resetVision", "Reset Vision", "Reset all cached hole positions found by vision.");
     add.end();
     length(add, f, "extrapolation-distance", "Extrapolation Distance", 0);

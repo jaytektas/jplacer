@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- OpenPnP's vision pipelines run in jplacer, every stage of OpenPnP's editor included, and a Pipeline Editor as
+  OpenPnP's: stages added, removed, renamed, dragged and switched off, their settings, each stage's picture and
+  what it found, the pixel under the mouse, pin, true colours, copy and paste. A strip feeder's Edit Pipeline
+  and Reset Pipeline work.
 - An Issues & Solutions tab as OpenPnP's: milestones, Find Issues & Solutions, Accept, Dismiss, Reopen, Include
   Solved and Dismissed, with checks of jplacer's Machine Setup (axes, letters, nozzles' axes, homing, Safe Z, soft limits, feed rates,
   rotation), cameras, nozzle tips and Photon feeders.
