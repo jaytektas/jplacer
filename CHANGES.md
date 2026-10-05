@@ -390,6 +390,8 @@ notes.
   converted. It comes in with an OpenPnP machine.
 - Actuators can be OpenPnP's HttpActuator: switched, set and read through web addresses (a smart plug, a relay
   board on the network). They come in with an OpenPnP machine.
+- A controller can work with OpenPnP's Letter Variables off and Pre-Move Commands: several axes sharing one
+  output, each switched to by its pre-move command. They come in with an OpenPnP machine.
 
 ## 0.1.0
 

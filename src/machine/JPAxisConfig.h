@@ -91,6 +91,10 @@ struct JPAxisConfig {
     // What one motor step moves the axis (mm or degrees; 0: not known): a
     // move goes to the nearest whole step.
     double resolution = 0;
+    // OpenPnP's Pre-Move Command: sent before a move of this axis when its
+    // controller allows pre-move commands; {Coordinate} where it was (a shared
+    // output switched to this axis, its place set back).
+    std::string preMoveCommand;
 
     std::string inputAxisId;
     double mapInput0 = 0, mapOutput0 = 0, mapInput1 = 1, mapOutput1 = 1;

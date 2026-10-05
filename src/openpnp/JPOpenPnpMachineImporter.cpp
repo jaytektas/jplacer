@@ -291,6 +291,8 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             if (!d.attr("compression-excludes").empty()) dc.compressionExcludes = d.attr("compression-excludes");
             dc.backslashEscapes = d.attr("backslash-escaped-characters-enabled") == "true";
             if (d.attr("units") == "Inches") dc.units = "Inches";
+            dc.usingLetterVariables = d.attr("using-letter-variables") != "false";
+            dc.supportingPreMove = d.attr("supporting-pre-move") == "true";
             for (const auto& [element, s] : { std::pair { "send-on-change-feed-rate", &dc.sendOnChangeFeed },
                                               std::pair { "send-on-change-acceleration", &dc.sendOnChangeAcceleration },
                                               std::pair { "send-on-change-jerk", &dc.sendOnChangeJerk } })
@@ -357,6 +359,7 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                 a.wrapAroundRotation     = yes(x.attr("wrap-around-rotation"));
                 a.limitRotation          = yes(x.attr("limit-rotation"));
                 if (const JPXmlElement* r = x.child("resolution")) a.resolution = number(r->text);
+                if (const JPXmlElement* pm = x.child("pre-move-command")) a.preMoveCommand = pm->text;
             } else if (kind == "ReferenceVirtualAxis") {
                 a.kind = JPAxisConfig::Kind::Virtual;
             } else if (kind == "ReferenceMappedAxis") {

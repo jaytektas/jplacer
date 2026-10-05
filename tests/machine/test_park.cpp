@@ -15,6 +15,7 @@
 #include <cmath>
 #include <condition_variable>
 #include <mutex>
+#include <vector>
 #include <thread>
 
 using namespace jf;
@@ -227,6 +228,61 @@ int main() {
         while (!near(cell.positions().at("X"), 254) && std::chrono::steady_clock::now() < until)
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         assert(std::abs(cell.positions().at("X") - 254) < 1e-3);
+        cell.disconnect();
+    }
+    {
+        // Letter Variables off, with Pre-Move Commands: two nozzles' rotations
+        // on one output (A), each switched to by its pre-move command, which
+        // sets back where it was ({Coordinate}); a move of both goes as two,
+        // one rotation each, and each keeps where it was sent.
+        JPCellConfig config = cellConfig(true);
+        config.drivers[0].usingLetterVariables = false;
+        config.drivers[0].supportingPreMove = true;
+        config.drivers[0].link["simulator"]["axisLetters"].push(JJson("A"));
+        for (const char* id : { "R1", "R2" }) {
+            JPAxisConfig r;
+            r.id = id;
+            r.name = id;
+            r.kind = JPAxisConfig::Kind::Controller;
+            r.type = JPAxisConfig::Type::Rotation;
+            r.driverId = "D";
+            r.letter = "A";
+            r.feedratePerSecond = 100;
+            r.preMoveCommand = std::string("G92 A{Coordinate}");
+            config.axes.push_back(r);
+        }
+        assert(config.problems().empty());
+        JPCell cell(config, profiles());
+        Latch connected, motion;
+        cell.onConnection.connect([&](bool ok, std::string w) { connected.set(ok, w); });
+        cell.onMotion.connect([&](bool ok, std::string w) { motion.set(ok, w); });
+        cell.connect();
+        assert(connected.take().first);
+        cell.home();
+        assert(motion.take().first);
+        std::mutex m;
+        std::vector<std::string> sent;
+        auto watch = cell.onTraffic.connect([&](std::string, bool out, std::string line) {
+            std::lock_guard lk(m);
+            if (out && (line.rfind("G1", 0) == 0 || line.rfind("G92 A", 0) == 0)) sent.push_back(line);
+        });
+        std::string why;
+        assert(cell.moveAxesAndWait({ { "R1", 30 }, { "R2", -45 } }, 1.0, why));
+        motion.take();
+        assert(cell.moveAxesAndWait({ { "R1", 10 } }, 1.0, why));
+        motion.take();
+        watch();
+        {
+            std::lock_guard lk(m);
+            assert(sent.size() == 6);
+            assert(sent[0].rfind("G92 A0", 0) == 0 && sent[1].find("A30") != std::string::npos);
+            assert(sent[2].rfind("G92 A0", 0) == 0 && sent[3].find("A-45") != std::string::npos);
+            assert(sent[4].rfind("G92 A30", 0) == 0 && sent[5].find("A10") != std::string::npos);
+        }
+        assert(near(cell.jogBase().at("R1"), 10) && near(cell.jogBase().at("R2"), -45));
+        // Both on with letter variables: OpenPnP refuses; so does this setup.
+        config.drivers[0].usingLetterVariables = true;
+        assert(!config.problems().empty());
         cell.disconnect();
     }
     return 0;

@@ -224,6 +224,12 @@ void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPF
     add.choice("units", "Units", { "Millimeters", "Inches" }, [d] { return d().units; }, [d](const std::string& v) { d().units = v; });
     add.tip("The units of the controller's G-code: coordinates, feed rate, acceleration and jerk (rotations stay degrees). "
             "Its connect command must say so to it (G20 for inches, G21 for millimetres).");
+    add.flag("letterVariables", "Letter Variables?", [d]() -> bool& { return d().usingLetterVariables; });
+    add.tip("Axis variables in Gcode are named using the Axis Letters rather than the Axis Type. Off: a move command names "
+            "them {X} {Y} {Z} {Rotation}, one axis of each a command.");
+    add.flag("preMove", "Allow Pre-Move Commands?", [d]() -> bool& { return d().supportingPreMove; });
+    add.tip("Each moving axis's Pre-Move Command is sent before the move, {Coordinate} where the axis was. Only with "
+            "Letter Variables off.");
     add.flag("backslashEscapes", "Backslash Escaped Characters?", [d]() -> bool& { return d().backslashEscapes; });
     add.tip("Allows insertion of unicode characters into Gcode strings as \\uxxxx where xxxx is four hexidecimal "
             "characters.  Also permits \\t for tab, \\b for backspace, \\n for line feed, \\r for carriage return, "
@@ -392,6 +398,9 @@ void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
         add.group("Controller Settings");
         add.byName("driver", "Driver", named(cell.drivers, "(none)"), [a]() -> std::string& { return a().driverId; });
         add.text("letter", "Axis Letter", [a]() -> std::string& { return a().letter; });
+        add.text("preMoveCommand", "Pre-Move Command", [a]() -> std::string& { return a().preMoveCommand; }, "long");
+        add.tip("Sent before a move of this axis when its controller allows pre-move commands (and Letter Variables is "
+                "off), {Coordinate} where the axis was: to switch an output shared by several axes to this one.");
         add.number("homeCoordinate", "Home Coordinate", [a]() -> double& { return a().homeCoordinate; });
         // One motor step, and its other side: steps per unit.
         const std::string unit = a().type == A::Type::Rotation ? "Degree" : "Millimeter";

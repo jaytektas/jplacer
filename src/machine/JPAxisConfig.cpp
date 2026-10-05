@@ -127,6 +127,7 @@ std::optional<JPAxisConfig> JPAxisConfig::fromJson(const JJson& j, std::string& 
     a.mapOutput0 = map["output0"].number(a.mapOutput0);
     a.mapInput1  = map["input1"].number(a.mapInput1);
     a.mapOutput1 = map["output1"].number(a.mapOutput1);
+    a.preMoveCommand = j["preMoveCommand"].str();
     const JJson& cam = j["cam"];
     a.camRadius      = cam["radius"].number(a.camRadius);
     a.camArmsAngle   = cam["armsAngle"].number(a.camArmsAngle);
@@ -184,6 +185,7 @@ JJson JPAxisConfig::toJson() const {
         j["wrapAroundRotation"]     = wrapAroundRotation;
         j["limitRotation"]          = limitRotation;
         if (resolution > 0) j["resolution"] = resolution;
+        if (!preMoveCommand.empty()) j["preMoveCommand"] = preMoveCommand;
     }
     if (kind == Kind::Cam) {
         j["inputAxis"] = inputAxisId;

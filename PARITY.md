@@ -40,7 +40,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Compress G-code, remove comments, backslash escapes | done | Driver Settings |
 | Send feed rate, acceleration, jerk on change only | done | Driver Settings |
 | Units (millimetres or inches) | done | Driver Settings |
-| Letter variables off, pre-move commands | missing | moves always name each axis by its letter (OpenPnP's Letter Variables, its default); a machine sharing one controller output between axes (Letter Variables off, a pre-move command per axis switching it, {Coordinate} the axis's last place) cannot be driven yet |
+| Letter variables off, pre-move commands | done | Driver Settings; a Pre-Move Command per axis |
 | Gcode tab: every command, per head-mountable | done | per controller; empty uses the profile's |
 | Confirmation flow control, location confirmation | own way | the driver waits for each `ok` and reads status reports |
 | Interpolation (max steps, jerk steps, min step time) | missing | |

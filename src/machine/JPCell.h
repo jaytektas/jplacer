@@ -261,6 +261,8 @@ private:
     // A controller's units (its Driver Settings' Units): a millimetre in them,
     // an axis's letter and coordinate as sent, and a coordinate it reports in mm.
     double driverUnits(const JPGcodeDriver& d) const;
+    // Whether another axis of its controller has its letter (a shared output, OpenPnP's pre-move commands).
+    bool sharesLetter(const JPAxisConfig& a) const;
     // OpenPnP's HttpActuator: a GET of `url` (not again when it was the last one), and its read.
     static constexpr int kHttpTimeoutMs = 5000;
     bool httpGet(const JPActuatorConfig& a, const std::string& url, std::string& why);

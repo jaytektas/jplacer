@@ -73,6 +73,8 @@ int main() {
     // OpenPnP's cam axes: the counter-clockwise one on its rotation axis, the
     // clockwise one its partner's cam turned the other way.
     {
+        assert(cell.axis("ACR")->preMoveCommand == "T1 ; B {Coordinate}");
+        assert(cell.drivers[0].usingLetterVariables && !cell.drivers[0].supportingPreMove);
         const JPAxisConfig* ccw = cell.axis("ACAM");
         const JPAxisConfig* cw = cell.axis("ACAMCW");
         assert(ccw && ccw->kind == JPAxisConfig::Kind::Cam && ccw->inputAxisId == "ACR" && !ccw->camClockwise);

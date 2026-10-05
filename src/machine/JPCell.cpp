@@ -933,6 +933,9 @@ void JPCell::updatePositions(const std::string& driverId, const JPFirmwareProfil
         state = status.state;
         for (const JPAxisConfig& a : m_config.axes) {
             if (a.kind != JPAxisConfig::Kind::Controller || a.driverId != driverId) continue;
+            // A letter shared by several axes (switched between by pre-move commands): its report
+            // cannot tell which; each keeps where it was last sent.
+            if (sharesLetter(a)) continue;
             const auto it = status.positions.find(a.letter);
             if (it == status.positions.end()) continue;
             const double reported = fromDriver(a, it->second, driverId);   // in the machine's millimetres
@@ -1365,6 +1368,13 @@ bool JPCell::httpRead(const JPActuatorConfig& a, std::string& value, std::string
     return true;
 }
 
+bool JPCell::sharesLetter(const JPAxisConfig& a) const {
+    for (const JPAxisConfig& b : m_config.axes)
+        if (&b != &a && b.id != a.id && b.kind == JPAxisConfig::Kind::Controller && b.driverId == a.driverId && b.letter == a.letter)
+            return true;
+    return false;
+}
+
 double JPCell::driverUnits(const JPGcodeDriver& d) const {
     return d.config().units == "Inches" ? 1.0 / 25.4 : 1.0;
 }
@@ -1683,9 +1693,33 @@ bool JPCell::doMoveNow(std::map<std::string, double> targets, double speed, std:
     std::map<std::string, std::vector<const JPAxisConfig*>> byDriver;
     for (const auto& [id, t] : hardware) byDriver[m_config.axis(id)->driverId].push_back(m_config.axis(id));
     auto send = [&](const std::map<std::string, double>& to, double factor, std::vector<JPGcodeDriver*>& moved) {
-        for (const auto& [driverId, axes] : byDriver) {
+        for (const auto& [driverId, all] : byDriver) {
             JPGcodeDriver* d = driver(driverId);
             if (!d) { why = "no controller " + driverId; return false; }
+            // OpenPnP's Letter Variables off: the axes named by type ({X} {Y} {Z} {Rotation}),
+            // so a move has one of each; several of a type (two nozzles' Zs) go one after another.
+            std::vector<std::vector<const JPAxisConfig*>> commands;
+            if (d->config().usingLetterVariables) {
+                commands.push_back(all);
+            } else {
+                for (const JPAxisConfig* a : all) {
+                    auto c = std::find_if(commands.begin(), commands.end(), [a](const auto& cmd) {
+                        return std::none_of(cmd.begin(), cmd.end(), [a](const JPAxisConfig* b) { return b->type == a->type; });
+                    });
+                    if (c == commands.end()) commands.push_back({ a });
+                    else c->push_back(a);
+                }
+            }
+            for (const auto& axes : commands) {
+            // OpenPnP's Pre-Move Commands: each moving axis's, {Coordinate} where it was.
+            if (d->config().supportingPreMove && !d->config().usingLetterVariables)
+                for (const JPAxisConfig* a : axes) {
+                    if (a->preMoveCommand.empty()) continue;
+                    const auto was = now.find(a->id);
+                    const double v = was == now.end() ? 0 : (a->type == JPAxisConfig::Type::Rotation ? was->second : was->second * driverUnits(*d));
+                    const JPReply pre = d->sendLines(JPFirmwareProfile::fill(a->preMoveCommand, { { "Coordinate", format(v, d->profile()->decimals()) } }));
+                    if (!pre.ok) { why = a->name + ": its pre-move command was refused (" + pre.error + ")"; return false; }
+                }
             std::string words;
             double feed = 0;
             for (const JPAxisConfig* a : axes) {
@@ -1702,6 +1736,16 @@ bool JPCell::doMoveNow(std::map<std::string, double> targets, double speed, std:
             // In the controller's units (Driver Settings' Units, as OpenPnP's driverUnitsFactor).
             const double u = driverUnits(*d);
             std::map<std::string, std::string> values{ { "axes", words }, { "feed", format(feed * u, 0) } };
+            // By type, for Letter Variables off ({X} 12.5); one not in this move left out with its letter.
+            for (const auto& [type, name] : { std::pair { JPAxisConfig::Type::X, "X" }, std::pair { JPAxisConfig::Type::Y, "Y" },
+                                              std::pair { JPAxisConfig::Type::Z, "Z" }, std::pair { JPAxisConfig::Type::Rotation, "Rotation" } }) {
+                values[name] = JPFirmwareProfile::kLeaveOut;
+                for (const JPAxisConfig* a : axes)
+                    if (a->type == type) {
+                        const std::string w = word(*a, to.at(a->id), *d);
+                        values[name] = w.substr(a->letter.size());
+                    }
+            }
             // The slowest acceleration and jerk among the axes, for a command
             // that sets them ({acceleration}, {jerk}): scaled as the speed is,
             // so a slower move is the same move stretched in time.
@@ -1716,6 +1760,7 @@ bool JPCell::doMoveNow(std::map<std::string, double> targets, double speed, std:
             const JPReply r = d->command("move", values);
             if (!r.ok) { why = d->config().name + ": move refused (" + r.error + ")"; return false; }
             if (std::find(moved.begin(), moved.end(), d) == moved.end()) moved.push_back(d);
+            }
         }
         return true;
     };
@@ -1754,6 +1799,8 @@ bool JPCell::doMoveNow(std::map<std::string, double> targets, double speed, std:
         if (targets.count(id)) targets[id] = t;
     }
     for (const auto& [id, t] : virtuals) m_positions[id] = t;
+    for (const auto& [id, t] : hardware)
+        if (const JPAxisConfig* a = m_config.axis(id); a && sharesLetter(*a)) m_positions[id] = targets.count(id) ? targets.at(id) : t;
     for (const auto& [id, t] : targets) m_sent[id] = t;
     for (const auto& [id, t] : square)  m_sent[id] = t;
     // An axis moved only to keep the gantry square is where it was, squarely.

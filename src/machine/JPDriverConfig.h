@@ -54,6 +54,12 @@ struct JPDriverConfig {
     // OpenPnP's Units: the controller's lengths in "Millimeters" or "Inches"
     // (coordinates, feed rate, acceleration and jerk; rotations stay degrees).
     std::string units = "Millimeters";
+    // OpenPnP's Letter Variables? (on: a move names each axis by its letter,
+    // {axes}; off: by its type, {X} {Y} {Z} {Rotation}, one of each a command)
+    // and Allow Pre-Move Commands? (off letter variables only: each moving
+    // axis's pre-move command sent first).
+    bool        usingLetterVariables = true;
+    bool        supportingPreMove = false;
     // OpenPnP's Send FeedRate / Acceleration / Jerk On Change Only: a move's
     // {feed}, {acceleration}, {jerk} left out (with its letter) when it is
     // within `relativeDeviation` of the one last sent (since connecting or homing).

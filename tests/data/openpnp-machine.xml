@@ -23,6 +23,7 @@
             <map-output-1 value="0.0" units="Millimeters"/>
          </axis>
          <axis class="org.openpnp.machine.reference.axis.ReferenceControllerAxis" id="ACR" name="camRotation" type="Rotation" letter="B" driver-id="DRV1">
+            <pre-move-command><![CDATA[T1 ; B {Coordinate}]]></pre-move-command>
             <home-coordinate value="0.0" units="Millimeters"/>
          </axis>
          <axis class="org.openpnp.machine.reference.axis.ReferenceCamCounterClockwiseAxis" id="ACAM" name="cam" type="Z" input-axis-id="ACR">

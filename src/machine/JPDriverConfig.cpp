@@ -32,6 +32,8 @@ std::optional<JPDriverConfig> JPDriverConfig::fromJson(const JJson& j, std::stri
     if (j["compressionExcludes"].isString()) c.compressionExcludes = j["compressionExcludes"].str();
     c.backslashEscapes  = j["backslashEscapes"].boolean(c.backslashEscapes);
     if (j["units"].str() == "Inches") c.units = "Inches";
+    c.usingLetterVariables = j["letterVariables"].boolean(true);
+    c.supportingPreMove = j["preMove"].boolean(false);
     for (auto [key, s] : { std::pair { "sendOnChangeFeed", &c.sendOnChangeFeed }, std::pair { "sendOnChangeAcceleration", &c.sendOnChangeAcceleration },
                            std::pair { "sendOnChangeJerk", &c.sendOnChangeJerk } }) {
         s->on = j[key]["on"].boolean();
@@ -60,6 +62,8 @@ JJson JPDriverConfig::toJson() const {
     if (compressionExcludes != JPDriverConfig().compressionExcludes) j["compressionExcludes"] = compressionExcludes;
     if (backslashEscapes) j["backslashEscapes"] = true;
     if (units != "Millimeters") j["units"] = units;
+    if (!usingLetterVariables) j["letterVariables"] = false;
+    if (supportingPreMove) j["preMove"] = true;
     for (auto [key, s] : { std::pair { "sendOnChangeFeed", &sendOnChangeFeed }, std::pair { "sendOnChangeAcceleration", &sendOnChangeAcceleration },
                            std::pair { "sendOnChangeJerk", &sendOnChangeJerk } })
         if (s->on || s->relativeDeviation != 0.001) {

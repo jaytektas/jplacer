@@ -126,6 +126,9 @@ std::vector<std::string> JPCellConfig::problems() const {
     std::set<std::string> headIds;
     for (const JPHeadConfig& h : heads) headIds.insert(h.id);
 
+    for (const JPDriverConfig& d : drivers)
+        if (d.supportingPreMove && d.usingLetterVariables)
+            out.push_back("controller " + d.name + " allows pre-move commands with letter variables on: turn one off");
     for (const JPAxisConfig& a : axes) {
         if (a.kind == JPAxisConfig::Kind::Controller && !driver(a.driverId))
             out.push_back("axis " + a.name + " names a controller that is not in this cell");
