@@ -91,6 +91,19 @@ int main() {
         const JPMountConfig& mount = cell.config().nozzles[0].mount;
         assert(cell.moveToolAndWait(mount, { 10.0, 10.0, -6.0, std::nullopt }, 1.0, why));
         assert(near(cell.jogBase().at("Z"), -6.7));
+        // Discard probing: the probe sent on the way down to the discard place, the part let go there.
+        {
+            JPCellConfig config = cell.config();
+            config.discardLocation = JPMachineLocation { 20, 20, -5, 0 };
+            config.nozzles[0].contactProbe.discardProbing = true;
+            config.nozzles[0].vacuumActuatorId = "P";   // something to switch for the let-go
+            assert(cell.reconfigure(config, why));
+            bool probed = false;
+            cell.onTraffic.connect([&probed](const std::string&, bool out, const std::string& line) {
+                if (out && line.rfind("G38.2", 0) == 0) probed = true;
+            });
+            assert(cell.discardAndWait("N", 1.0, why) && probed);
+        }
         // Reset: as it was.
         cell.calibrateZ("N", true);
         waitFor([&] { return !cell.zCalibration("N").has_value(); });

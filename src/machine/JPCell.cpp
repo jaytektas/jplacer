@@ -685,6 +685,24 @@ bool JPCell::doDiscard(const std::string& nozzleId, double speed, std::string& w
         std::map<std::string, double> across;
         if (!m.axisX.empty()) across[m.axisX] = at.x - m.offsetX;
         if (!m.axisY.empty()) across[m.axisY] = at.y - m.offsetY;
+        // OpenPnP's discard probing (a contact probing nozzle's Discard Probing): from the tip's tallest
+        // part above the place, probed down into it (something soft or slanted to brush the part off),
+        // retracted, and the part let go there.
+        const JPNozzleConfig::ContactProbe& p = n.contactProbe;
+        if (p.method == "ContactSenseActuator" && p.partHeightProbing != "Off" && p.discardProbing && !m.axisZ.empty()) {
+            double tall = 0;
+            for (const JPNozzleTipConfig& t : m_config.nozzleTips)
+                if (t.id == n.tipId) tall = t.maxPartHeightMm;
+            JJson g = JJson::object();
+            g["nozzle"] = n.name;
+            double probed = 0, back = 0;
+            const bool ok = doSafeZ(m.headId, speed, why) && doMove(across, speed, why)
+                         && doMove({ { m.axisZ, at.z + tall + p.startOffsetMm - zOffsetOf(m) } }, speed, why)
+                         && (!m_scripting || m_scripting->on("Nozzle.BeforePlaceProbe", g, why))
+                         && doContactProbe(n, true, tall + p.depthMm, probed, why) && doContactProbe(n, false, p.depthMm, back, why)
+                         && (!m_scripting || m_scripting->on("Nozzle.AfterPlaceProbe", g, why));
+            return ok && doPlace(n, why) && doSafeZ(m.headId, speed, why);
+        }
         return doSafeZ(m.headId, speed, why) && doMove(across, speed, why)
             && (m.axisZ.empty() || doMove({ { m.axisZ, at.z - zOffsetOf(m) } }, speed, why)) && doPlace(n, why)
             && doSafeZ(m.headId, speed, why);

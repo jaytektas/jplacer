@@ -868,6 +868,9 @@ void nozzleForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     add.choice("partHeightProbing", "Placement Height Probing", triggers, [cp] { return cp().partHeightProbing; },
                [cp](const std::string& v) { cp().partHeightProbing = v; });
     add.tip("Probe for placement heights. Includes probing for Part Height, when it is unknown.");
+    add.flag("discardProbing", "Discard Probing", [cp]() -> bool& { return cp().discardProbing; });
+    add.tip("Enable contact probing for discard. There must be a surface that the nozzle can probe into that is likely "
+            "to brush/tilt off a part from the nozzle, like a (ESD safe) soft material or a slanted surface.");
     add.note("ContactSenseActuator: the actuator switched on is the controller's probing move down until contact (e.g. "
              "G38.2), switched off its retract; the nozzle's Z is then where the controller says it stopped. "
              "VacuumSense: the nozzle stepped down a Sniffle Increment at a time until its tip's part-off check finds "

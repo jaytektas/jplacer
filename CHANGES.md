@@ -10,6 +10,7 @@ notes.
 
 ## Unreleased
 
+- A contact probing nozzle can probe the discard place too (Discard Probing), brushing the part off there.
 - Nozzle tips have OpenPnP's Auto Recalibration and Fail Homing: their runout is measured again on a tip
   change, before a job's picks, or once the machine is homed, as each tip is set.
 - The camera looking up can auto focus, as OpenPnP's: a part whose height is not known is measured by bringing
