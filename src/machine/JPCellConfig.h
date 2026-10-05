@@ -43,6 +43,11 @@ struct JPCellConfig {
     }
     bool                          parkAfterHome    = false;   // park once homed (after visual homing)
     std::optional<JPMachineLocation>     discardLocation;            // where a part not wanted is dropped
+    JPMachineLocation             defaultBoardLocation;         // where a board or panel added to a job starts
+    // A tool a panel moves (a camera taken to a feeder) is chosen on the Jog panel.
+    bool                          autoToolSelect = true;
+    // The job open last is opened again at start.
+    bool                          autoLoadMostRecentJob = true;
     JPJobProcessorConfig          jobProcessor;                 // how a job is run
     JPVisionConfig                vision;                       // bottom vision and the fiducial locator
 

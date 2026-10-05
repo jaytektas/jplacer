@@ -46,6 +46,8 @@ public:
     std::function<void()> onChanged;
     std::function<void(JMenu*, float x, float y)> openMenu;
     std::function<std::optional<JPLocation>(Tool)> toolLocation;
+    // Where a board or panel added starts (the machine's Default Board Location).
+    std::function<JPLocation()> defaultLocation;
     std::function<void(Tool, const JPLocation&)> moveTool;
     std::function<void(const std::string& title, const std::string& what, std::function<void(std::string)> chosen)>
         chooseExisting;

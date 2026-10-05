@@ -45,6 +45,11 @@ JPlacerJob::JPlacerJob(JAppWindow& window) : m_window(window), m_config(JPlacerP
     JLOGC(JPlacerLog::kApp, JLogLevel::Info) << m_config.parts().size() << " part(s), " << m_config.packages().size()
                                              << " package(s), " << m_config.boards().size() << " board(s), "
                                              << m_config.panels().size() << " panel(s)";
+    title();
+}
+
+void JPlacerJob::openLast() {
+    std::string error;
     if (const std::string last = JSettings::instance().get<std::string>(JPlacerSettings::kJobFile, ""); !last.empty())
         if (!openPath(last, error)) JLOGC(JPlacerLog::kApp, JLogLevel::Warn) << "the last job: " << error;
     title();

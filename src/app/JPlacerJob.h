@@ -33,6 +33,8 @@ public:
 
     explicit JPlacerJob(JAppWindow& window);
     ~JPlacerJob();
+    // The job open last opened again (the machine's Auto-load most recent job).
+    void openLast();
 
     JPJob&                 job() { return *m_job; }
     const JPJob&           job() const { return *m_job; }

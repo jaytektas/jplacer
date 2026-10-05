@@ -50,6 +50,17 @@ int main() {
         assert(!was.toJson()["homeAfterConnect"].boolean() && was.toJson()["drivers"][0]["homeAfterConnect"].boolean());
     }
     assert(!cell.homeAfterConnect() && cell.parkAfterHome && cell.discardLocation && cell.discardLocation->x == 40.935);
+    // Auto tool select (on unless said off), auto-load most recent job, the default board location.
+    assert(cell.autoToolSelect && cell.autoLoadMostRecentJob);
+    assert(cell.defaultBoardLocation.x == 120.0 && cell.defaultBoardLocation.y == 80.5 && cell.defaultBoardLocation.rotation == 90.0);
+    {
+        std::string e;
+        JPCellConfig back;
+        JPCellConfig off = cell;
+        off.autoToolSelect = false;
+        assert(back.fromJson(off.toJson(), e) && !back.autoToolSelect && back.autoLoadMostRecentJob);
+        assert(back.defaultBoardLocation.z == -2.0);
+    }
     // The rest of OpenPnP's serial settings, in jplacer's words.
     assert(d.link["dataBits"].number() == 8 && d.link["stopBits"].number() == 1 && d.link["parity"].str() == "none");
     assert(!d.link["setDtr"].boolean() && !d.link["setRts"].boolean() && d.link["lineEnding"].str() == "LF");

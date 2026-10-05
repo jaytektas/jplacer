@@ -33,6 +33,9 @@ JJson JPCellConfig::toJson() const {
     if (!squareness.axisX.empty()) j["squareness"] = squareness.toJson();
     if (parkAfterHome) j["parkAfterHome"] = true;
     if (discardLocation) j["discardLocation"] = discardLocation->toJson();
+    j["defaultBoardLocation"] = defaultBoardLocation.toJson();
+    j["autoToolSelect"] = autoToolSelect;
+    j["autoLoadMostRecentJob"] = autoLoadMostRecentJob;
     j["jobProcessor"] = jobProcessor.toJson();
     j["vision"] = vision.toJson();
     return j;
@@ -63,6 +66,9 @@ bool JPCellConfig::fromJson(const JJson& j, std::string& error) {
         for (JPDriverConfig& d : c.drivers) d.homeAfterConnect = true;
     c.parkAfterHome = j["parkAfterHome"].boolean();
     c.discardLocation = JPMachineLocation::fromJson(j["discardLocation"]);
+    c.defaultBoardLocation = JPMachineLocation::fromJson(j["defaultBoardLocation"]).value_or(JPMachineLocation {});
+    if (j["autoToolSelect"].isBool()) c.autoToolSelect = j["autoToolSelect"].boolean();
+    if (j["autoLoadMostRecentJob"].isBool()) c.autoLoadMostRecentJob = j["autoLoadMostRecentJob"].boolean();
     c.jobProcessor = JPJobProcessorConfig::fromJson(j["jobProcessor"]);
     c.vision = JPVisionConfig::fromJson(j["vision"]);
     *this = std::move(c);

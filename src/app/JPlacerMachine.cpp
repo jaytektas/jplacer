@@ -552,6 +552,7 @@ bool JPlacerMachine::moveActuatorTo(const std::string& name, const Where& to) {
     }
     if (!readyToMove()) return false;
     m_cell->moveTool(a->mount, to, 1.0);
+    selectMoved(a->mount);
     return true;
 }
 
@@ -625,12 +626,25 @@ bool JPlacerMachine::moveToolTo(JPSetupForm::Tool tool, const Where& to) {
     }
     if (!readyToMove()) return false;
     m_cell->moveTool(*m, to, 1.0);   // at the machine's speed
+    selectMoved(*m);
     return true;
 }
 
 bool JPlacerMachine::moveToolTo(JPSetupForm::Tool tool, const JPLocation& to) {
     const JPLocation at = to.convertToUnits(JPLengthUnit::Millimeters);
     return moveToolTo(tool, Where { at.x(), at.y(), at.z(), at.rotation() });
+}
+
+void JPlacerMachine::selectMoved(const JPMountConfig& mount) {
+    if (!m_jog || !m_cell || !m_cell->config().autoToolSelect) return;
+    const JPCellConfig& c = m_cell->config();
+    auto idOf = [&mount](const auto& tools) -> std::string {
+        for (const auto& t : tools)
+            if (&t.mount == &mount) return t.id;
+        return {};
+    };
+    for (const std::string& id : { idOf(c.nozzles), idOf(c.cameras), idOf(c.actuators) })
+        if (!id.empty()) m_jog->selectTool(id);
 }
 
 bool JPlacerMachine::readyToMove() {

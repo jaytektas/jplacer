@@ -211,6 +211,8 @@ private:
     const JPMountConfig* toolMount(JPSetupForm::Tool tool) const;
     Where whereIsMount(const JPMountConfig* mount) const;
     // Connected and homed; else the status bar says what is needed first.
+    // OpenPnP's auto tool select: the tool a panel moved chosen on the Jog panel.
+    void selectMoved(const JPMountConfig& mount);
     bool readyToMove();
     // The nozzle Offset Wizard's two steps: store where the nozzle left its
     // mark; then, the camera over the mark, move the nozzle's offset by the

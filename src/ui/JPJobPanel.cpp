@@ -437,6 +437,7 @@ void JPJobPanel::addBoard(const std::string& path, const char* errorTitle) {
     l->holder = board->instance();
     l->fileName = board->file;
     l->parent = &j->root();
+    if (defaultLocation) l->setLocation(defaultLocation());
     JPPlacementsHolderLocation* added = j->addBoardOrPanelLocation(std::move(l));
     refresh();
     m_table->selectRow(m_model.rowOf(added));
@@ -456,6 +457,7 @@ void JPJobPanel::addPanel(const std::string& path, const char* errorTitle) {
     l->holder = panel->instance();
     l->fileName = panel->file;
     l->parent = &j->root();
+    if (defaultLocation) l->setLocation(defaultLocation());
     JPPlacementsHolderLocation* added = j->addBoardOrPanelLocation(std::move(l));
     j->root().setParentsOfAllDescendants();
     refresh();

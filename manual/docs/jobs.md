@@ -75,7 +75,7 @@ Right-click for **Set Side**, **Set Enabled** and **Set Check Fids**.
 |---|---|
 | **Start** (**Pause**, **Resume**), **Step**, **Stop** | Run the job (see [Running the job](#running-the-job)). |
 | **Alert Errors** / **Defer Errors** | Whether a placement's error (one whose error handling is Default) stops the job at once, or is reported at its end. Click to change. |
-| **Add Board/Panel** (plus, with a menu) | **New Board...**, **Existing Board...**, **New Panel...**, **Existing Panel...**: put one in the job, at the machine's origin. |
+| **Add Board/Panel** (plus, with a menu) | **New Board...**, **Existing Board...**, **New Panel...**, **Existing Panel...**: put one in the job, at the machine's **Default Board Location** ([Machine Setup](machine-setup.md#settings)). |
 | **Remove Board(s)/Panel(s)** (cross) | Takes the chosen ones (straight in the job) out of it. |
 | **Move Camera To Board Location**, **Move Camera to the Next Board**, **Move Tool To Board Location** | Take the camera (or the Jog panel's nozzle) to where the board lies, at safe Z; Next chooses the next row first. |
 | **Capture Camera Location** | Sets where the chosen board lies to where the camera is (its X, Y and rotation; its Z kept). |
@@ -84,7 +84,7 @@ Right-click for **Set Side**, **Set Enabled** and **Set Check Fids**.
 | **Multiple Point Board Location** | Sets where the chosen board lies from placements you jog the camera over (below). |
 | **View Job** | Opens the job viewer (see [Panels](panels.md#the-viewer)), following the boards chosen. |
 
-<!-- src: src/ui/JPJobPanel.cpp; src/ui/JPLocationsTableModel.cpp; src/app/JPlacerOpenPnpTabs.cpp; src/app/JPlacerMachine.cpp (toolLocation, moveToolTo); src/app/JPlacerJobRun.cpp (fiducialCheck) -->
+<!-- src: src/ui/JPJobPanel.cpp (addBoard, addPanel); src/ui/JPLocationsTableModel.cpp; src/app/JPlacerOpenPnpTabs.cpp; src/app/JPlacerMachine.cpp (toolLocation, moveToolTo); src/app/JPlacerJobRun.cpp (fiducialCheck) -->
 
 **Placements**: the chosen board's (or panel's) placements on its side facing up, with **Placed** and
 **Status** (**Ready**, **Missing Part**, **Missing Feeder**, **Part Height**: its height is not known, or

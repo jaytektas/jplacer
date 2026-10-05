@@ -114,6 +114,9 @@ void machineForm(JPCellConfig& cell, JPSetupProperties::Form& f) {
     add.group("General");
     add.text("name", "Name", [&cell]() -> std::string& { return cell.name; }, "name");
     add.flag("parkAfterHome", "Park after homed?", [&cell]() -> bool& { return cell.parkAfterHome; });
+    add.flag("autoToolSelect", "Auto tool select?", [&cell]() -> bool& { return cell.autoToolSelect; });
+    add.tip("Whenever an explicit user action is performed on a tool, automatically select it in Machine Controls.");
+    add.flag("autoLoadMostRecentJob", "Auto-load most recent job?", [&cell]() -> bool& { return cell.autoLoadMostRecentJob; });
     add.group("Locations");
     add.header({ "X", "Y", "Z", "Rotation", "Set?" });
     auto at = [&cell]() -> std::optional<JPMachineLocation>& { return cell.discardLocation; };
@@ -133,7 +136,16 @@ void machineForm(JPCellConfig& cell, JPSetupProperties::Form& f) {
              });
     add.end();
     f.reshaping.push_back("discard");
-    add.note("Where a nozzle drops a part that is not wanted.");
+    auto board = [&cell]() -> JPMachineLocation& { return cell.defaultBoardLocation; };
+    add.row("Default Board Location", Place::Location);
+    add.number("defaultBoardX", "Default Board X", [board]() -> double& { return board().x; });
+    add.number("defaultBoardY", "Default Board Y", [board]() -> double& { return board().y; });
+    add.number("defaultBoardZ", "Default Board Z", [board]() -> double& { return board().z; });
+    add.number("defaultBoardRotation", "Default Board Rotation", [board]() -> double& { return board().rotation; });
+    add.skip();   // always set: nothing under Set?
+    add.end();
+    add.note("Discard Location: where a nozzle drops a part that is not wanted. Default Board Location: where a "
+             "board or panel added to a job starts.");
 }
 
 void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPFirmwareProfile>& profiles, JPSetupProperties::Form& f) {

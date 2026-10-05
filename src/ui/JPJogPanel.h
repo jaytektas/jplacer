@@ -105,6 +105,8 @@ public:
     // The chosen tool (its id), and the machine's speed, as a share of full
     // speed (it sets JPCell::setSpeed).
     const std::string& toolId() const;
+    // The tool of `id` chosen (OpenPnP's auto tool select); one not listed is not.
+    void selectTool(const std::string& id);
     double speed() const;
 
     // An action, as its button does: "stop", "emergencyStop" (onStop),
@@ -158,6 +160,7 @@ private:
     JPCell&                 m_cell;
     std::vector<Tool>       m_tools;
     size_t                  m_tool = 0;
+    JComboBox*              m_toolBox = nullptr;
     size_t                  m_lastNozzle = 0;
     JTabWidget*             m_tabs = nullptr;
     JWidget*                m_tipButton = nullptr;

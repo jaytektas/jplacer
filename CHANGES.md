@@ -352,6 +352,9 @@ notes.
 - Machine Setup has OpenPnP's Signalers: a SoundSignaler plays a sound when a job meets an error or is finished,
   and an ActuatorSignaler switches an actuator (a beacon, a buzzer) while a job is in a state you choose.
   Signalers come in with an OpenPnP machine.
+- Machine Setup's machine page has OpenPnP's Auto tool select (the camera or tool another panel moves is chosen
+  on the Jog panel), Auto-load most recent job and Default Board Location (where a board added to a job
+  starts). They come in with an OpenPnP machine.
 
 ## 0.1.0
 

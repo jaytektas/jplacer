@@ -175,6 +175,9 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
     const bool homeAfterEnabled = setting("home-after-enabled");   // every controller's
     c.parkAfterHome = setting("park-after-homed");
     c.discardLocation = location(*machine, "discard-location");
+    c.defaultBoardLocation = location(*machine, "default-board-location").value_or(JPMachineLocation {});
+    c.autoToolSelect = machine->attr("auto-tool-select") != "false";   // OpenPnP's default: on
+    c.autoLoadMostRecentJob = setting("auto-load-most-recent-job");     // OpenPnP's default: off
     // How a job is run, and the fiducial locator's tolerances.
     if (const JPXmlElement* jp = machine->child("pnp-job-processor")) {
         JPJobProcessorConfig& j = c.jobProcessor;

@@ -127,6 +127,7 @@ JPJogPanel::JPJogPanel(JSceneGraph& graph, JPCell& cell, Choices start) : JConta
     std::vector<std::string> labels;
     for (const Tool& t : m_tools) labels.push_back(t.label);
     JComboBox* tools = top->add(std::make_unique<JComboBox>(graph, labels, 0.f));
+    m_toolBox = tools;
     tools->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     tools->setMinimumSize(3 * side, JStyle::current().controlHeight);   // a long name is cut short, not the buttons
     tools->setCurrentIndex(int(m_tool));
@@ -509,6 +510,11 @@ void JPJogPanel::moveTo(const Tool& tool, const Tool& over) {
     }
     JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Jog: " << tool.label << " to where " << over.label << " is";
     m_cell.moveTool(*tool.mount, { px->second + m.offsetX, py->second + m.offsetY, std::nullopt, std::nullopt }, 1.0);
+}
+
+void JPJogPanel::selectTool(const std::string& id) {
+    for (size_t i = 0; i < m_tools.size(); ++i)
+        if (m_tools[i].id == id && i != m_tool && m_toolBox) m_toolBox->setCurrentIndex(int(i));   // its change says so
 }
 
 bool JPJogPanel::act(const std::string& action) {

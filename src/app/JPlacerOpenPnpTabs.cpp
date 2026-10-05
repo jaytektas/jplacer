@@ -620,6 +620,11 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         }
     };
 
+    m_jobPanel->defaultLocation = [this] {
+        JPMachineLocation l;
+        if (const JPCell* c = m_machine.cell()) l = c->config().defaultBoardLocation;
+        return JPLocation(JPLengthUnit::Millimeters, l.x, l.y, l.z, l.rotation);
+    };
     m_links = std::make_unique<JPlacerTableLinks>(
         JPlacerTableLinks::Tabs { *m_jobPanel, *m_boards, *m_panels, *m_parts, *m_packages, *m_feeders, *m_vision,
                                   *m_jobDock, *m_boardsDock, *m_panelsDock, *m_partsDock, *m_feedersDock },
