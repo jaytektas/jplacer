@@ -37,6 +37,11 @@ struct JPCameraConfig {
     // (only what vision shows then); and brought to the front when vision
     // shows a result on it or it is moved to look somewhere.
     double        previewFps = 0;
+    // OpenPnP's Roaming Radius (a fixed camera's): how far from the camera's
+    // centre a nozzle may carry a part at camera Z (mm), which also bounds
+    // the largest part bottom vision can see in several shots
+    // (JPVisionComposite); 0: not set, one shot only.
+    double        roamingRadiusMm = 0;
     bool          suspendDuringTasks = false;
     bool          autoCameraView = false;
     int           cropWidth = 0, cropHeight = 0;
@@ -150,6 +155,7 @@ struct JPCameraConfig {
         c.showAll        = j["showAll"].number(0.0);
         c.deinterlace    = j["deinterlace"].boolean();
         c.previewFps     = j["previewFps"].number(0.0);
+        c.roamingRadiusMm = j["roamingRadius"].number(0.0);
         c.suspendDuringTasks = j["suspendDuringTasks"].boolean();
         c.autoCameraView = j["autoCameraView"].boolean();
         c.cropWidth      = int(j["crop"]["width"].number(0.0));
@@ -204,6 +210,7 @@ struct JPCameraConfig {
         j["showAll"]            = showAll;
         if (deinterlace) j["deinterlace"] = true;
         if (previewFps > 0) j["previewFps"] = previewFps;
+        if (roamingRadiusMm > 0) j["roamingRadius"] = roamingRadiusMm;
         if (suspendDuringTasks) j["suspendDuringTasks"] = true;
         if (autoCameraView) j["autoCameraView"] = true;
         if (cropWidth || cropHeight) {

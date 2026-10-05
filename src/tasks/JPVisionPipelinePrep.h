@@ -3,10 +3,14 @@
 
 #pragma once
 
+#include "JPVisionComposite.h"
+
+#include "machine/JPCameraConfig.h"
 #include "machine/JPNozzleTipConfig.h"
 #include "model/JPConfiguration.h"
 #include "pipeline/JPPipeline.h"
 
+#include <memory>
 #include <string>
 
 inline namespace jf {
@@ -22,13 +26,28 @@ public:
     // rotation; `maxDistanceMm` for pipelines without a maxDistance stage.
     static void fiducial(JPPipeline& pipeline, const JPConfiguration& config, const JPVisionSettings& settings,
                          const std::string& partId, const std::string& packageId, double rotation, double maxDistanceMm);
-    // ReferenceBottomVision for the part over the camera's centre, turned
-    // `rotation`, in one shot, on a nozzle with `tip` (its largest part and
-    // pick tolerance; none: OpenPnP's defaults): false (and why) without a
-    // package to go by.
+    // OpenPnP's VisionCompositing.Composite for a package: its shots, for
+    // the camera looking up (`camera`: its roaming radius and name; none:
+    // no roaming, so one shot) seeing `cameraWidthMm` x `cameraHeightMm`,
+    // on a nozzle with `tip` (its largest part and pick tolerance; none:
+    // OpenPnP's defaults); `settings` with Vision Offsets allow one shot only.
+    static std::shared_ptr<JPVisionComposite> composite(const JPPackage& pkg, const JPVisionSettings& settings,
+                                                        const JPCameraConfig* camera, double cameraWidthMm,
+                                                        double cameraHeightMm, const JPNozzleTipConfig* tip);
+    // ReferenceBottomVision's preparePipeline for the part over the
+    // camera's centre, turned `rotation`, on a nozzle with `tip`: what the
+    // whole run shares, then the first shot of its composite (`made`, when
+    // given, the composite). False (and why) without a package to go by,
+    // or when the package's compositing is enforced and finds no solution.
     static bool bottom(JPPipeline& pipeline, const JPConfiguration& config, const JPVisionSettings& settings,
                        const std::string& partId, const std::string& packageId, double rotation, const JPNozzleTipConfig* tip,
-                       std::string& why);
+                       const JPCameraConfig* camera, std::string& why, std::shared_ptr<JPVisionComposite>* made = nullptr);
+    // What preparePipeline sets for one shot of `composite`: the footprint
+    // moved to the shot, the masks and sizes it allows, and for a composite
+    // of corners the part's mask (round the part's centre, at `partX`,
+    // `partY` in the picture) and which of the part's edges it sees.
+    static void shot(JPPipeline& pipeline, const JPVisionComposite& composite, const JPVisionComposite::Shot& shot,
+                     const JPNozzleTipConfig* tip, double partX, double partY);
 };
 
 } // inline namespace jf

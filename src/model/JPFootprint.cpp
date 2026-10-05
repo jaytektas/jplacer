@@ -3,6 +3,7 @@
 
 #include "JPFootprint.h"
 
+#include "JPLength.h"
 #include "JPXmlValues.h"
 
 #include <algorithm>
@@ -72,6 +73,20 @@ std::vector<JPFootprint::Outline> JPFootprint::padsOutlines() const {
     for (const Pad& p : pads)
         for (Outline& o : padOutlines(p)) out.push_back(std::move(o));
     return out;
+}
+
+JPFootprint JPFootprint::inMillimeters() const {
+    JPFootprint f = *this;
+    const double mm = JPLength(1, units).convertToUnits(JPLengthUnit::Millimeters).value();
+    f.units = JPLengthUnit::Millimeters;
+    for (double* v : { &f.bodyWidth, &f.bodyHeight, &f.outerDimension, &f.innerDimension, &f.padPitch, &f.padAcross }) *v *= mm;
+    for (Pad& p : f.pads) {
+        p.x *= mm;
+        p.y *= mm;
+        p.width *= mm;
+        p.height *= mm;
+    }
+    return f;
 }
 
 JPFootprint::Outline JPFootprint::bodyOutline() const {

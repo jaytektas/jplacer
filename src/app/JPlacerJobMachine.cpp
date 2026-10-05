@@ -864,6 +864,8 @@ bool JPlacerJobMachine::alignPart(const std::string& nozzleId, const AlignReques
     // The nozzle turned so the part is at the look's angle (its Rotation Mode offset taken off).
     double nx = camX, ny = camY, nr = rq.imageAngle - rq.partOffset;
     // By its pipeline: given the camera looking up, prepared for the part (as OpenPnP's preparePipeline).
+    std::optional<JPNozzleTipConfig> tip;
+    std::shared_ptr<JPVisionComposite> composite;
     if (rq.pipeline) {
         JPPipeline::Context& ctx = rq.pipeline->context();
         ctx.capture = [feed](const std::string& settle, const std::string&, cv::Mat& bgr, std::string& w) {
@@ -888,17 +890,40 @@ bool JPlacerJobMachine::alignPart(const std::string& nozzleId, const AlignReques
         bool prepared = false;
         m_onMain([&] {
             const JPVisionSettings* v = m_config.visionSettings(rq.settingsId);
-            const JPNozzleTipConfig* tip = nullptr;
             JPCellConfig cellConfig;
             if (const JPCell* cc = m_machine.cell()) cellConfig = cc->config();
             for (const JPNozzleTipConfig& t : cellConfig.nozzleTips)
-                if (t.id == nozzle.tipId) tip = &t;
-            prepared = v && JPVisionPipelinePrep::bottom(*rq.pipeline, m_config, *v, rq.partId, "", rq.imageAngle, tip, why);
+                if (t.id == nozzle.tipId) tip = t;
+            prepared = v && JPVisionPipelinePrep::bottom(*rq.pipeline, m_config, *v, rq.partId, "", rq.imageAngle, tip ? &*tip : nullptr,
+                                                         &feed->config(), why, &composite);
             if (!v) why = "no bottom vision settings " + rq.settingsId;
         });
         if (!prepared) return false;
     }
     for (int pass = 0; pass < std::max(1, rq.passes); ++pass) {
+        // A part seen in several shots (OpenPnP's vision compositing).
+        if (composite && JPVisionComposite::isAdvanced(composite->solution())) {
+            const double angle = nr + (pass == 0 ? rq.partOffset : result.partAngle - result.nozzleAngle);
+            double px = 0, py = 0, found = 0;
+            if (!alignComposite(*c, nozzle.mount, *rq.pipeline, *composite, tip ? &*tip : nullptr, feed->config().roamingRadiusMm,
+                                cal, camX, camY, camZ + rq.partHeightMm, nx, ny, nr, angle, rq.partId, px, py, found, why))
+                return false;
+            result.nozzleAngle = nr;
+            result.cameraX = camX;
+            result.cameraY = camY;
+            result.dx = px - nx;
+            result.dy = py - ny;
+            result.partAngle = found;
+            JLOGC(JPlacerLog::kJob, JLogLevel::Info) << "aligned on " << nozzle.name << " in " << composite->shots().size()
+                                                     << " shots (" << JPVisionComposite::solutionName(composite->solution())
+                                                     << "): " << result.dx << ", " << result.dy << " mm, " << (found - nr) << " deg";
+            const double off = std::hypot(px - camX, py - camY), turn = std::abs(found - rq.imageAngle);
+            if (pass + 1 >= rq.passes || (off < rq.maxLinearOffsetMm && turn < 0.1)) break;
+            nx = camX - result.dx;
+            ny = camY - result.dy;
+            nr = nr - (found - rq.imageAngle);
+            continue;
+        }
         if (!c->moveToolAndWait(nozzle.mount, { nx, ny, camZ + rq.partHeightMm, nr }, 1.0, why)) return false;
         JPGrayImage img;
         if (!JPCameraLook::settled(*feed, img, why)) return false;
@@ -959,6 +984,107 @@ bool JPlacerJobMachine::findByPipeline(JPPipeline& p, const std::string& partId,
     p.setProperty("DetectRectlinearSymmetry.center", centre);
     p.setProperty("MinAreaRect.expectedAngle", JPPipelineValue { angle });
     p.setProperty("DetectRectlinearSymmetry.expectedAngle", JPPipelineValue { angle });
+    cv::RotatedRect rect;
+    if (!pipelineRect(p, partId, rect, why)) return false;
+    x = rect.center.x;
+    y = rect.center.y;
+    // Its angle on the machine: a step along its angle in the picture, through
+    // the camera's calibration (which knows how the camera looking up is turned and mirrored).
+    const double a = rect.angle * M_PI / 180;
+    double ax = 0, ay = 0, bx = 0, by = 0;
+    if (!cal.machinePoint(x, y, camX, camY, ax, ay)
+        || !cal.machinePoint(x + kAngleStepPx * std::cos(a), y + kAngleStepPx * std::sin(a), camX, camY, bx, by)) {
+        why = "the camera's calibration cannot place the part";
+        return false;
+    }
+    // The rectangle knows no side from another: the turn taken nearest the one wanted.
+    const double seen = std::atan2(by - ay, bx - ax) * 180 / M_PI;
+    foundAngle = angle + JPStageUtil::angleNorm(seen - angle, range);
+    return true;
+}
+
+bool JPlacerJobMachine::alignComposite(JPCell& cell, const JPMountConfig& nozzle, JPPipeline& pipeline, JPVisionComposite& composite,
+                                       const JPNozzleTipConfig* tip, double roamingRadiusMm, const JPCameraCalibration& cal,
+                                       double camX, double camY, double z, double nx, double ny, double nr, double angle,
+                                       const std::string& partId, double& px, double& py, double& foundAngle, std::string& why) {
+    const double c = std::cos(angle * M_PI / 180), s = std::sin(angle * M_PI / 180);
+    auto turned = [c, s](double x, double y) { return std::pair { c * x - s * y, s * x + c * y }; };
+    // Where the nozzle is, as the part's frame sees it (from the part's centre over the camera).
+    const auto at = cell.jogBase();
+    auto where = [&at](const std::string& axis, double offset) {
+        const auto p = at.find(axis);
+        return p == at.end() ? 0.0 : p->second + offset;
+    };
+    const double hereX = where(nozzle.axisX, nozzle.offsetX), hereY = where(nozzle.axisY, nozzle.offsetY);
+    const double fromX = c * (hereX - nx) + s * (hereY - ny), fromY = -s * (hereX - nx) + c * (hereY - ny);
+    const JPNozzleTipConfig defaults;
+    const double tipTolerance = (tip ? *tip : defaults).maxPickToleranceMm;
+    composite.restart();
+    for (const JPVisionComposite::Shot* shot : composite.travel(fromX, fromY)) {
+        // The nozzle so the shot's middle is over the camera: at camera Z within the roaming radius, else by way of safe Z.
+        const auto [sx, sy] = turned(shot->x, shot->y);
+        const auto nowAt = cell.jogBase();
+        auto now = [&nowAt](const std::string& axis, double offset) {
+            const auto p = nowAt.find(axis);
+            return p == nowAt.end() ? 0.0 : p->second + offset;
+        };
+        const double off = std::hypot(now(nozzle.axisX, nozzle.offsetX) - camX, now(nozzle.axisY, nozzle.offsetY) - camY);
+        const std::array<std::optional<double>, 4> to { nx - sx, ny - sy, z, nr };
+        const bool moved = off > roamingRadiusMm + tipTolerance ? cell.moveToolAndWait(nozzle, to, 1.0, why)
+                                                                  : cell.moveToolStraightAndWait(nozzle, to, 1.0, why);
+        if (!moved) return false;
+        // Where the part's centre is in the picture: the shot's middle away from the camera's centre.
+        double partX = 0, partY = 0;
+        if (!cal.pixelFor(camX - sx, camY - sy, camX, camY, partX, partY)) {
+            why = "the camera's calibration cannot place the part";
+            return false;
+        }
+        JPVisionPipelinePrep::shot(pipeline, composite, *shot, tip, partX, partY);
+        cv::RotatedRect rect;
+        if (!pipelineRect(pipeline, partId, rect, why)) return false;
+        // Its corners on the machine, from where the part's centre should be; each told apart
+        // (left or right, upper or lower) in the part's own frame.
+        cv::Point2f corners[4];
+        rect.points(corners);
+        std::array<JPVisionComposite::Point, 4> rel {};
+        double mx = 0, my = 0;
+        for (int i = 0; i < 4; ++i) {
+            double x = 0, y = 0;
+            if (!cal.machinePoint(corners[i].x, corners[i].y, camX, camY, x, y)) {
+                why = "the camera's calibration cannot place the part";
+                return false;
+            }
+            rel[size_t(i)] = { x - (camX - sx), y - (camY - sy) };
+            mx += rel[size_t(i)].x / 4;
+            my += rel[size_t(i)].y / 4;
+        }
+        std::array<JPVisionComposite::Point, 4> points {};
+        std::array<bool, 4> taken {};
+        for (const auto& p : rel) {
+            const double qx = c * (p.x - mx) + s * (p.y - my), qy = -s * (p.x - mx) + c * (p.y - my);
+            const size_t idx = size_t((qx < 0 ? 0 : 1) + (qy > 0 ? 0 : 2));
+            if (taken[idx]) {
+                why = "ReferenceBottomVision (" + partId + "): the shot's rectangle is turned too far to tell its corners apart";
+                return false;
+            }
+            taken[idx] = true;
+            points[idx] = p;
+        }
+        composite.accumulate(*shot, points);
+    }
+    JPVisionComposite::Detected d;
+    if (!composite.interpret(angle, d, why)) {
+        why += " for part " + partId;
+        return false;
+    }
+    // The part's centre with the nozzle where it is meant to be.
+    px = camX + d.center.x;
+    py = camY + d.center.y;
+    foundAngle = d.angle;
+    return true;
+}
+
+bool JPlacerJobMachine::pipelineRect(JPPipeline& p, const std::string& partId, cv::RotatedRect& rect, std::string& why) {
     if (!p.process(why)) return false;
     // Its results ("result" in older pipelines): one rectangle.
     const JPPipeline::Result* r = p.result("results");
@@ -979,27 +1105,14 @@ bool JPlacerJobMachine::findByPipeline(JPPipeline& p, const std::string& partId,
         why = buf;
         return false;
     }
-    const auto* rect = std::get_if<cv::RotatedRect>(&r->model.value);
-    if (!rect) {
+    const auto* found = std::get_if<cv::RotatedRect>(&r->model.value);
+    if (!found) {
         std::snprintf(buf, sizeof buf, "ReferenceBottomVision (%s): Incorrect pipeline result type (%s). Expected RotatedRect.",
                       partId.c_str(), r->model.kind().c_str());
         why = buf;
         return false;
     }
-    x = rect->center.x;
-    y = rect->center.y;
-    // Its angle on the machine: a step along its angle in the picture, through
-    // the camera's calibration (which knows how the camera looking up is turned and mirrored).
-    const double a = rect->angle * M_PI / 180;
-    double ax = 0, ay = 0, bx = 0, by = 0;
-    if (!cal.machinePoint(x, y, camX, camY, ax, ay)
-        || !cal.machinePoint(x + kAngleStepPx * std::cos(a), y + kAngleStepPx * std::sin(a), camX, camY, bx, by)) {
-        why = "the camera's calibration cannot place the part";
-        return false;
-    }
-    // The rectangle knows no side from another: the turn taken nearest the one wanted.
-    const double seen = std::atan2(by - ay, bx - ax) * 180 / M_PI;
-    foundAngle = angle + JPStageUtil::angleNorm(seen - angle, range);
+    rect = *found;
     // What it saw, on the camera's view.
     cv::Mat rgba;
     std::string ignored;

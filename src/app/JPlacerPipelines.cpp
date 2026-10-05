@@ -131,7 +131,8 @@ std::shared_ptr<JPPipeline> JPlacerPipelines::prepared(JPConfiguration& config, 
             if (n.id == m_machine.chosenNozzleId())
                 for (const JPNozzleTipConfig& t : c->config().nozzleTips)
                     if (t.id == n.tipId) tip = &t;
-    if (!JPVisionPipelinePrep::bottom(*p, config, settings, part, pkg, angle, tip, why)) return nullptr;
+    if (!JPVisionPipelinePrep::bottom(*p, config, settings, part, pkg, angle, tip, feed ? &feed->config() : nullptr, why))
+        return nullptr;
     return p;
 }
 

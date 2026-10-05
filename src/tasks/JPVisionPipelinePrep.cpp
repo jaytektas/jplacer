@@ -97,9 +97,30 @@ void JPVisionPipelinePrep::fiducial(JPPipeline& pipeline, const JPConfiguration&
     assignParameters(pipeline, settings);
 }
 
+std::shared_ptr<JPVisionComposite> JPVisionPipelinePrep::composite(const JPPackage& pkg, const JPVisionSettings& settings,
+                                                                   const JPCameraConfig* camera, double cameraWidthMm,
+                                                                   double cameraHeightMm, const JPNozzleTipConfig* tip) {
+    const JPNozzleTipConfig defaults;
+    JPVisionComposite::Input in;
+    in.packageId = pkg.id;
+    in.footprint = pkg.footprint.inMillimeters();
+    in.compositing = pkg.visionCompositing.value_or(JPVisionCompositing {});
+    in.toleranceMm = (tip ? *tip : defaults).maxPickToleranceMm;
+    in.maxPartDiameterMm = (tip ? *tip : defaults).maxPartDiameterMm;
+    in.cameraWidthMm = cameraWidthMm;
+    in.cameraHeightMm = cameraHeightMm;
+    in.roamingRadiusMm = camera ? camera->roamingRadiusMm : 0;
+    in.cameraName = camera ? camera->name : std::string();
+    const JPLocation offset = settings.locationOf("vision-offset");
+    in.visionOffsets = offset.x() != 0 || offset.y() != 0 || offset.z() != 0 || offset.rotation() != 0;
+    in.settingsName = settings.name;
+    return std::make_shared<JPVisionComposite>(in);
+}
+
 bool JPVisionPipelinePrep::bottom(JPPipeline& pipeline, const JPConfiguration& config, const JPVisionSettings& settings,
                                   const std::string& partId, const std::string& packageId, double rotation,
-                                  const JPNozzleTipConfig* tip, std::string& why) {
+                                  const JPNozzleTipConfig* tip, const JPCameraConfig* camera, std::string& why,
+                                  std::shared_ptr<JPVisionComposite>* made) {
     const JPPackage* pkg = packageFor(config, partId, packageId);
     if (!pkg) {
         why = "A package must be designated to configure the pipeline. Please select a single part or package on the "
@@ -107,17 +128,20 @@ bool JPVisionPipelinePrep::bottom(JPPipeline& pipeline, const JPConfiguration& c
         return false;
     }
     const auto& ctx = pipeline.context();
-    const double pxPerMm = (ctx.pixelsPerMmX + ctx.pixelsPerMmY) / 2;
-    // The tip's largest part, and how far off a part may be (the package's own, when it says).
+    const double cameraWidthMm = ctx.pixelsPerMmX > 0 ? ctx.cameraWidth / ctx.pixelsPerMmX : 0;
+    const double cameraHeightMm = ctx.pixelsPerMmY > 0 ? ctx.cameraHeight / ctx.pixelsPerMmY : 0;
+    auto c = composite(*pkg, settings, camera, cameraWidthMm, cameraHeightMm, tip);
+    if (JPVisionCompositing::isEnforced(pkg->visionCompositing.value_or(JPVisionCompositing {}).compositingMethod)
+        && JPVisionComposite::isInvalid(c->solution())) {
+        why = "Vision Compositing has not found a valid solution for package " + pkg->id + ". Status: "
+            + JPVisionComposite::solutionName(c->solution()) + ", " + c->diagnostics()
+            + ". For more diagnostic information go to the Vision Compositing tab on package " + pkg->id + ". ";
+        return false;
+    }
     const JPNozzleTipConfig defaults;
-    const double maxPartDiameterMm = (tip ? *tip : defaults).maxPartDiameterMm;
-    double tolerance = (tip ? *tip : defaults).maxPickToleranceMm;
-    if (pkg->visionCompositing)
-        if (const double own = pkg->visionCompositing->maxPickTolerance.convertToUnits(JPLengthUnit::Millimeters).value(); own > 0)
-            tolerance = own;
-    const JPPipelineValue::Footprint footprint = footprintOf(pkg->footprint);
+    const double tipTolerance = (tip ? *tip : defaults).maxPickToleranceMm;
     pipeline.setProperty("part", JPPipelineValue { partOf(partId, pkg) });
-    pipeline.setProperty("footprint", JPPipelineValue { footprint });
+    pipeline.setProperty("footprint", JPPipelineValue { footprintOf(pkg->footprint) });
     pipeline.setProperty("footprint.rotation", JPPipelineValue { rotation });
     // The part where it should be: over the camera's centre.
     const JPPipelineValue centre { JPPipelineValue::Pixel { ctx.cameraWidth / 2.0, ctx.cameraHeight / 2.0 } };
@@ -125,29 +149,49 @@ bool JPVisionPipelinePrep::bottom(JPPipeline& pipeline, const JPConfiguration& c
     pipeline.setProperty("MinAreaRect.expectedAngle", JPPipelineValue { rotation });
     pipeline.setProperty("DetectRectlinearSymmetry.center", centre);
     pipeline.setProperty("DetectRectlinearSymmetry.expectedAngle", JPPipelineValue { rotation });
-    pipeline.setProperty("DetectRectlinearSymmetry.searchDistance", JPPipelineValue { JPPipelineValue::LengthMm { tolerance * kSearchMargin } });
-    // One shot, the whole part: the mask as wide as the camera sees, up to the largest part.
-    double viewMm = maxPartDiameterMm;
-    if (pxPerMm > 0 && ctx.cameraWidth > 0)
-        viewMm = std::min(maxPartDiameterMm, std::min(ctx.cameraWidth / ctx.pixelsPerMmX, ctx.cameraHeight / ctx.pixelsPerMmY));
-    pipeline.setProperty("MaskCircle.diameter", JPPipelineValue { JPPipelineValue::LengthMm { viewMm } });
-    const double maxDim = std::sqrt(2.0) * viewMm / 2 - tolerance * kSearchMargin;
-    pipeline.setProperty("footprint.maxWidth", JPPipelineValue { JPPipelineValue::LengthMm { maxDim } });
-    pipeline.setProperty("footprint.maxHeight", JPPipelineValue { JPPipelineValue::LengthMm { maxDim } });
+    pipeline.setProperty("DetectRectlinearSymmetry.searchDistance",
+                         JPPipelineValue { JPPipelineValue::LengthMm { tipTolerance * kSearchMargin } });
+    const std::vector<const JPVisionComposite::Shot*> travel = c->travel(0, 0);
+    shot(pipeline, *c, *travel.front(), tip, ctx.cameraWidth / 2.0, ctx.cameraHeight / 2.0);
+    assignParameters(pipeline, settings);
+    if (made) *made = c;
+    return true;
+}
+
+void JPVisionPipelinePrep::shot(JPPipeline& pipeline, const JPVisionComposite& composite, const JPVisionComposite::Shot& shot,
+                                const JPNozzleTipConfig* tip, double partX, double partY) {
+    const auto& ctx = pipeline.context();
+    const double pxPerMm = (ctx.pixelsPerMmX + ctx.pixelsPerMmY) / 2;
+    const JPNozzleTipConfig defaults;
+    const double tipTolerance = (tip ? *tip : defaults).maxPickToleranceMm;
+    auto length = [](double mm) { return JPPipelineValue { JPPipelineValue::LengthMm { mm } }; };
+    // The footprint moved to the shot, cropped to fit in its mask.
+    pipeline.setProperty("footprint.xOffset", length(shot.x));
+    pipeline.setProperty("footprint.yOffset", length(shot.y));
+    const double maxDim = std::sqrt(2.0) * shot.maxMaskRadius - tipTolerance * kSearchMargin;
+    pipeline.setProperty("footprint.maxWidth", length(maxDim));
+    pipeline.setProperty("footprint.maxHeight", length(maxDim));
+    // The corner masked.
+    pipeline.setProperty("MaskCircle.diameter", length(shot.maxMaskRadius * 2));
+    // At least two pixels a sample, or sub-sampling costs too much.
     double sampling = kSamplingMm;
     if (pxPerMm > 0) sampling = std::max(sampling, kLeastSamplingPx / pxPerMm);
-    pipeline.setProperty("BlurGaussian.kernelSize", JPPipelineValue { JPPipelineValue::LengthMm { sampling } });
-    pipeline.setProperty("DetectRectlinearSymmetry.subSampling", JPPipelineValue { JPPipelineValue::LengthMm { sampling } });
-    // The shot's size, the pick's tolerance round it, a margin for the edges.
-    double w = 0, h = 0;
-    padBounds(footprint, w, h);
-    const double mm = JPLength(1, pkg->footprint.units).convertToUnits(JPLengthUnit::Millimeters).value();
-    w = std::max(w, pkg->footprint.bodyWidth * mm) + 2 * tolerance;
-    h = std::max(h, pkg->footprint.bodyHeight * mm) + 2 * tolerance;
-    pipeline.setProperty("DetectRectlinearSymmetry.maxWidth", JPPipelineValue { JPPipelineValue::LengthMm { w + 2 * sampling } });
-    pipeline.setProperty("DetectRectlinearSymmetry.maxHeight", JPPipelineValue { JPPipelineValue::LengthMm { h + 2 * sampling } });
-    assignParameters(pipeline, settings);
-    return true;
+    pipeline.setProperty("BlurGaussian.kernelSize", length(sampling));
+    pipeline.setProperty("DetectRectlinearSymmetry.subSampling", length(sampling));
+    // A margin for finding the edges.
+    pipeline.setProperty("DetectRectlinearSymmetry.maxWidth", length(shot.width + 2 * sampling));
+    pipeline.setProperty("DetectRectlinearSymmetry.maxHeight", length(shot.height + 2 * sampling));
+    if (JPVisionComposite::isAdvanced(composite.solution())) {
+        // The whole part masked, and the edges this shot sees.
+        pipeline.setProperty("partmask.diameter", length((composite.maxPadRadius() + tipTolerance) * 2));
+        pipeline.setProperty("partmask.center", JPPipelineValue { JPPipelineValue::Pixel { partX, partY } });
+        pipeline.setProperty("MinAreaRect.leftEdge", JPPipelineValue { shot.hasLeftEdge() });
+        pipeline.setProperty("MinAreaRect.rightEdge", JPPipelineValue { shot.hasRightEdge() });
+        pipeline.setProperty("MinAreaRect.topEdge", JPPipelineValue { shot.hasTopEdge() });
+        pipeline.setProperty("MinAreaRect.bottomEdge", JPPipelineValue { shot.hasBottomEdge() });
+        pipeline.setProperty("MinAreaRect.searchAngle",
+                             JPPipelineValue { std::atan2(composite.tolerance(), composite.maxCornerRadius()) * 180 / M_PI });
+    }
 }
 
 } // inline namespace jf

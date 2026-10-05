@@ -113,7 +113,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Settling (methods, threshold, timeout, debounce, mask, test moves, diagnostics graph) | done | |
 | Device settings and properties table | done | |
 | White balance (balance, gamma, Overall, Brightest) | partial | Mapped Roughly / Finely and the curve plot missing |
-| Position (head offsets, fixed location, safe Z, roaming radius) | partial | roaming radius missing |
+| Position (head offsets, fixed location, safe Z, roaming radius) | done | |
 | Lens calibration | own way | fitted by Calibrate |
 | Image transforms (rotate, offset, flip, crop, scale, de-interlace) | done | crop and de-interlace, as under OpenPnP's advanced calibration; straightening covers the rest |
 | Advanced calibration: settings | partial | grid, reach, outliers, worst fit, two heights; crop size, default working plane Z, detection diameter missing |
@@ -159,6 +159,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Packages (footprint, body, compatible tips, vision) | done |
 | Vision settings, pipelines and the pipeline editor | done |
 | Bottom vision (pipeline, pre-rotate, size check, max rotation) | done |
+| Vision compositing (multi-shot bottom vision, the package's preview) | done |
 | Feeders: strip, tray, rotated tray, push-pull, drag, auto, slot auto, lever, heap, loose part, blinds, Schultz, Photon, Rapid, Bamboo | done |
 | Job: placements table, start / pause / step / stop, job order, nozzle tip strategy, retries, optimisation | done |
 | Importers: KiCad, Eagle (board and mountsmd), Diptrace, Altium, Proteus, named CSV | done (OpenPnP's solder paste Gerber importer is skipped by OpenPnP itself) |

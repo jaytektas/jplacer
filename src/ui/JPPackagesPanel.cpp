@@ -160,6 +160,7 @@ void JPPackagesPanel::selectPackage(const JPPackage* p) {
 
 void JPPackagesPanel::changed() {
     showFootprint();
+    if (m_computeComposite) m_computeComposite();
     if (onChanged) onChanged();
 }
 
@@ -173,6 +174,7 @@ void JPPackagesPanel::updateWizards(bool force) {
     if (!force && id == m_shown && (p != nullptr) == !m_pages.empty()) return;
     if (m_tabs->tabCount() > 0) m_lastTab = m_tabs->activeTab();
     while (m_tabs->tabCount() > 0) m_tabs->removeTab(0);
+    m_computeComposite = nullptr;   // its tab goes with the pages
     m_pages.clear();
     m_pads = nullptr;
     m_padDelete = m_padMark = nullptr;
@@ -612,15 +614,44 @@ std::unique_ptr<JContainer> JPPackagesPanel::compositingTab(JPPackage& p) {
                        changed();
                    }
                });
-    // Compute and its result: worked out by vision compositing, which comes with the vision.
+    // Compute and its result, and the preview under them.
     auto compute = std::make_unique<JButton>(g, "Compute", 0.f);
     compute->setTooltip("Compute the vision compositing, and preview the result.");
-    compute->setEnabled(false);
-    grid->widget("", std::move(compute));
+    JButton* computeButton = grid->widget("", std::move(compute));
     auto solution = std::make_unique<JPTextField>(g);
     solution->setEnabled(false);
-    grid->widget("", std::move(solution));
+    JPTextField* status = grid->widget("", std::move(solution));
     page->add(JPFieldGrid::grouped(g, "Compositing", std::move(grid)));
+    auto preview = std::make_unique<JPCompositingPreview>(g);
+    preview->setVSizePolicy(JSizePolicyMode::Expanding, 1);
+    JPCompositingPreview* shown = page->add(std::move(preview));
+    // As OpenPnP's PackageCompositingWizard: computed when shown, and on Compute.
+    auto run = [this, id, status, shown] {
+        const JPPackage* k = m_config.package(id);
+        CompositePreview made;
+        std::string why;
+        if (!k || !computeComposite || !computeComposite(*k, made, why)) {
+            shown->clear();
+            status->setText("Error: " + (why.empty() ? std::string("no machine to compute it with") : why));
+            return;
+        }
+        shown->setComposite(made.composite, made.footprintMm, made.cameraWidthMm, made.cameraHeightMm, made.roamingRadiusMm);
+        const JPVisionComposite& c = *made.composite;
+        if (JPVisionComposite::isInvalid(c.solution())) {
+            status->setText(std::string("Error: ") + JPVisionComposite::solutionName(c.solution()) + " | " + c.diagnostics());
+            return;
+        }
+        size_t minShots = 0;
+        for (const auto& s : c.shots())
+            if (!s.optional) ++minShots;
+        char text[160];
+        std::snprintf(text, sizeof text, "Solution: %s | Min. shots: %zu | Max. shots: %zu | Computation: %.2fms",
+                      JPVisionComposite::solutionName(c.solution()), minShots, c.shots().size(), c.computeSeconds() * 1000);
+        status->setText(text);
+    };
+    computeButton->onClicked.connect(run);
+    m_computeComposite = run;
+    run();
     return page;
 }
 

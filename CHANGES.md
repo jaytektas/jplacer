@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- Bottom vision sees a part too big for one picture in several shots, as OpenPnP's Vision Compositing:
+  the Packages tab's Vision Compositing works out the shots and draws them, and a camera fixed to the
+  machine has OpenPnP's Roaming Radius.
 - The Machine has OpenPnP's Motion Planner tabs: Allow continuous motion, so the moves of one operation go to the
   controller back to back, and Test Motion through up to four places with how long it was planned to take and
   took. Actuators have OpenPnP's Machine Coordination: whether to wait for the machine before and after actuating

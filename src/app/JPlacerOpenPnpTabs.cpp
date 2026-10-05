@@ -23,6 +23,7 @@
 #include "tasks/JPFeederActions.h"
 #include "tasks/JPFeederFeed.h"
 #include "tasks/JPFeederPipelines.h"
+#include "tasks/JPVisionPipelinePrep.h"
 
 #include "ui/JPFootprintOverlay.h"
 
@@ -255,6 +256,56 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_packages->onParameterChanged = [this] { m_job.configurationKept(); };
     m_packages->previewParameter = [this](const std::string& id, const JPVisionForms::Holder& h, const std::string& parameter) {
         m_pipelines.previewVision(m_job.configuration(), id, "", h.id, parameter);
+    };
+    // As OpenPnP's PackageCompositingWizard: the camera looking up, the first nozzle tip that can take the package.
+    m_packages->computeComposite = [this](const JPPackage& pkg, JPPackagesPanel::CompositePreview& out, std::string& why) {
+        const JPCell* cell = m_machine.cell();
+        if (!cell) {
+            why = "no machine is open";
+            return false;
+        }
+        // The camera bottom vision uses (JPlacerMachine::upCameraFeed), as the machine has it now.
+        const JPCameraConfig* camera = nullptr;
+        if (const JPCameraFeed* up = m_machine.upCameraFeed())
+            for (const JPCameraConfig& c : cell->config().cameras)
+                if (c.id == up->config().id) camera = &c;
+        if (!camera) {
+            why = "no camera looks up";
+            return false;
+        }
+        const JPNozzleTipConfig* tip = nullptr;
+        for (const JPNozzleTipConfig& t : cell->config().nozzleTips)
+            if (!tip && std::find(pkg.compatibleNozzleTipIds.begin(), pkg.compatibleNozzleTipIds.end(), t.id) != pkg.compatibleNozzleTipIds.end())
+                tip = &t;
+        if (!tip) {
+            why = "No compatible nozzle tip found for " + pkg.id + ".";
+            return false;
+        }
+        // What the camera sees: by its calibration, else its pixel size and picture size.
+        const auto calibrations = cell->cameraCalibrations(camera->id);
+        if (!calibrations.empty() && calibrations.front().scaleX() > 0 && calibrations.front().scaleY() > 0) {
+            const JPCameraCalibration& cal = calibrations.front();
+            out.cameraWidthMm = cal.width / cal.scaleX();
+            out.cameraHeightMm = cal.height / cal.scaleY();
+        } else {
+            out.cameraWidthMm = camera->device["width"].number(0.0) * camera->unitsPerPixelX;
+            out.cameraHeightMm = camera->device["height"].number(0.0) * camera->unitsPerPixelY;
+        }
+        if (out.cameraWidthMm <= 0 || out.cameraHeightMm <= 0) {
+            why = camera->name + " is not calibrated: what it sees is not known";
+            return false;
+        }
+        const JPVisionSettings* settings = m_job.configuration().visionSettings(pkg.bottomVisionId);
+        if (!settings) settings = m_job.configuration().visionSettings(machineVisionDefaults().first);
+        if (!settings) {
+            why = "no bottom vision settings for " + pkg.id;
+            return false;
+        }
+        auto composite = JPVisionPipelinePrep::composite(pkg, *settings, camera, out.cameraWidthMm, out.cameraHeightMm, tip);
+        out.composite = composite;
+        out.roamingRadiusMm = camera->roamingRadiusMm;
+        out.footprintMm = pkg.footprint.inMillimeters();
+        return true;
     };
     m_packagesDock = std::make_unique<JDockWidget>("Packages", 0.f, 0.f, 0.f, 0.f);
     m_packagesDock->setContent(m_packages.get());

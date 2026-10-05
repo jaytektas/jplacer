@@ -4,6 +4,7 @@
 #pragma once
 
 #include "JPFootprintTableModel.h"
+#include "JPCompositingPreview.h"
 #include "JPIconButton.h"
 #include "JPNozzleTipsTableModel.h"
 #include "JPPackagesTableModel.h"
@@ -53,6 +54,15 @@ public:
     // A test on the machine (Test Alignment, Detect Offsets, Test Fiducial
     // Locator), and what the tests work with (without it, they are not offered).
     std::function<void(const std::string& settingsId, const JPVisionForms::Holder& holder, const std::string& test)> visionTest;
+    // OpenPnP's Vision Compositing preview: the composite worked out for a
+    // package with the machine's camera looking up and the first nozzle tip
+    // that can take the package; false with why when there is none.
+    struct CompositePreview {
+        std::shared_ptr<const JPVisionComposite> composite;
+        JPFootprint                              footprintMm;
+        double cameraWidthMm = 0, cameraHeightMm = 0, roamingRadiusMm = 0;
+    };
+    std::function<bool(const JPPackage&, CompositePreview&, std::string& why)> computeComposite;
     void setTests(JPVisionForms::Tests tests) { m_tests = std::move(tests); }
 
     void refresh();
@@ -62,6 +72,8 @@ public:
 
 private:
     JPVisionForms::Tests m_tests;
+    // The shown Vision Compositing tab computed again (its settings or the footprint changed); none when not shown.
+    std::function<void()> m_computeComposite;
     const JPVisionForms::Tests* tests() const { return m_tests.angle ? &m_tests : nullptr; }
     // One of the pipeline's buttons or sliders: done (true), else not one of them.
     bool pipelineAct(const std::string& settingsId, const JPVisionForms::Holder& holder, const std::string& what);

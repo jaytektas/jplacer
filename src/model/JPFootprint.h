@@ -46,6 +46,8 @@ public:
     // Every pad's outlines (getPadsShape), and the body's (getBodyShape).
     std::vector<Outline> padsOutlines() const;
     Outline              bodyOutline() const;
+    // The same footprint in millimetres (its pads, body and dimensions).
+    JPFootprint inMillimeters() const;
     // Pads made from the generator's numbers and added; false (and why)
     // when the numbers do not suit it. Kicad pads come from a .kicad_mod file
     // (JPKicadModImporter), not from here.

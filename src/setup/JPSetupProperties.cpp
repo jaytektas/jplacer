@@ -1387,6 +1387,18 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
 
     add.tab("Position");
     coordinateSystem<JPCameraConfig>(add, cell, c, "(fixed to the machine)", true, f);
+    if (c().mount.headId.empty()) {
+        add.number("roamingRadius", "Roaming Radius", [c] { return c().roamingRadiusMm; },
+                   [c](double v) { c().roamingRadiusMm = std::max(0.0, v); });
+        add.tip("The maximum nominal roaming radius over the camera, which also indicates the largest part diagonal "
+                "that can be supported. If set to zero, this switches off multi-shot vision (see package Vision "
+                "Compositing). During bottom vision, the nozzle movement will be restricted, taking into consideration "
+                "the distance of the nozzle from the camera center, and how much the part footprint is protruding from "
+                "there (approximated by octogonal hull). Inside the roaming radius, the nozzle will also be freely moved "
+                "at camera Z, i.e. without going to Safe Z. Note, this is the nominal radius, i.e. there must be extra "
+                "space available for pick offsets and other deviations. Caution: the roaming radius is not enforced "
+                "when jogging.");
+    }
 
     add.tab("Advanced Calibration");
     add.group("Camera Calibration");

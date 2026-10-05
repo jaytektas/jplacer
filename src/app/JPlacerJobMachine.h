@@ -8,6 +8,9 @@
 #include "model/JPConfiguration.h"
 
 #include "tasks/JPJobMachine.h"
+#include "tasks/JPVisionComposite.h"
+
+#include <opencv2/core.hpp>
 
 #include <atomic>
 #include <functional>
@@ -107,6 +110,18 @@ private:
     bool findByPipeline(JPPipeline& pipeline, const std::string& partId, const JPCameraCalibration& cal, double camX, double camY,
                         double expectedX, double expectedY, double angle, double range, double& x, double& y,
                         double& foundAngle, std::string& why);
+    // The bottom vision pipeline run on the up camera's picture: the one
+    // rectangle its results give (pixels), what it saw shown on the camera.
+    bool pipelineRect(JPPipeline& pipeline, const std::string& partId, cv::RotatedRect& rect, std::string& why);
+    // A part bigger than one look, seen in the shots of `composite` (OpenPnP's
+    // vision compositing): the nozzle to each shot, its corners found, then
+    // put together. `nx`, `ny`, `nr`: where the nozzle is meant to be over
+    // the camera (`camX`, `camY`, at `z`) and its turn; `angle` the part's.
+    // Where the part's centre is (mm) with the nozzle there, and its angle.
+    bool alignComposite(JPCell& cell, const JPMountConfig& nozzle, JPPipeline& pipeline, JPVisionComposite& composite,
+                        const JPNozzleTipConfig* tip, double roamingRadiusMm, const JPCameraCalibration& cal, double camX,
+                        double camY, double z, double nx, double ny, double nr, double angle, const std::string& partId,
+                        double& px, double& py, double& foundAngle, std::string& why);
 
     JPlacerMachine&                          m_machine;
     JPConfiguration&                         m_config;

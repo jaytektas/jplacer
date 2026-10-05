@@ -54,12 +54,30 @@ Level** for placing.
 While the Packages tab shows and a package is chosen, its footprint is drawn over every calibrated
 camera's picture, centred where the camera looks, so a part can be held up to it.
 
-**Vision Compositing** holds how bottom vision puts several pictures of a big part together:
-**Method** (None, Restricted, Body, Automatic, SingleCorners), **Extra Shots**, **Max. Pick Tolerance**
-(zero: the nozzle tip's), **Min. Angle Leverage**, and **Allow inside corner?**. **Compute** works it out
-and shows the result; it comes with bottom vision.
+**Vision Compositing** is how bottom vision sees a part too big for one picture, as OpenPnP's: in
+several shots, each of a few of the part's corners, put together into its centre, angle and size.
+**Method**: None (always one shot), Restricted (several only when the part is too big for the camera
+or not symmetric), Body (the body's corners, not the pads'), Automatic (always several) or
+SingleCorners (each corner a shot of its own). **Extra Shots**: how many of the optional shots are
+taken too. **Max. Pick Tolerance**: how far off the part may be picked (zero: the nozzle tip's).
+**Min. Angle Leverage**: how far apart, as a share of the part's size, corners must be to give its
+angle. **Allow inside corner?**: corners facing the part's centre may be used too. The camera's
+Roaming Radius (Machine Setup) limits how far the part may be carried over it; without one, there is
+one shot.
 
-<!-- src: src/ui/JPPackagesPanel.cpp (nozzleTipsTab, settingsTab, footprintTab, generatePads, compositingTab, showFootprint); src/ui/JPFootprintTableModel.cpp; src/model/JPFootprint.cpp (generate); src/model/JPKicadModImporter.cpp; src/ui/JPFootprintOverlay.cpp -->
+The tab works it out when shown, when its settings or the footprint change, and on **Compute**, with
+the camera looking up and the first nozzle tip that can take the package; the line beside Compute
+says the solution (Square, Box, Z, Arrow, Figure7, Angle, Trapezoid, or Small for one shot) and the
+fewest and most shots, or why there is none. The picture under it shows the footprint and each shot:
+needed shots in red, optional ones in blue, each with its two mask circles and its corners' edges.
+With the mouse over a shot, it alone in yellow, what the camera sees there and the roaming radius
+round it; pressed, the pads as compositing joins them. A solution that cannot work is crossed out.
+
+In a job, a part whose solution is one of corners is aligned shot by shot: the nozzle takes each
+shot's corners over the camera (without going up to safe Z within the roaming radius), the pipeline
+finds the corners there, and what the shots found is put together.
+
+<!-- src: src/ui/JPPackagesPanel.cpp (nozzleTipsTab, settingsTab, footprintTab, generatePads, compositingTab, showFootprint); src/ui/JPFootprintTableModel.cpp; src/model/JPFootprint.cpp (generate); src/model/JPKicadModImporter.cpp; src/ui/JPFootprintOverlay.cpp; src/ui/JPCompositingPreview.cpp; src/tasks/JPVisionComposite.cpp (compute, composeShots, travel, interpret); src/tasks/JPVisionPipelinePrep.cpp (composite, bottom, shot); src/app/JPlacerJobMachine.cpp (alignPart, alignComposite); src/app/JPlacerOpenPnpTabs.cpp (computeComposite) -->
 
 **Bottom Vision Settings** and **Fiducial Vision Settings** show the vision settings the package uses (its
 own, else the machine's), as on the [Vision](vision.md#the-settings) tab. **Specialize for** the package
