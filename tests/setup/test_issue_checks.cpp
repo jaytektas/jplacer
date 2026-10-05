@@ -168,6 +168,27 @@ int main() {
         cell.drivers.pop_back();
         cell.actuators.pop_back();
     }
+    // Auto tool select, and an HTTP actuator's read pattern, as OpenPnP's.
+    {
+        cell.autoToolSelect = false;
+        JPActuatorConfig web;
+        web.id = "W";
+        web.name = "Web";
+        web.http.on = true;
+        web.http.readUrl = "http://feeder/read";
+        cell.actuators.push_back(web);
+        s.find();
+        s.publish();
+        std::string why;
+        S::Issue* tool = const_cast<S::Issue*>(find(s, "jplacer can often automatically select the right tool for you in "
+                                                       "Machine Controls."));
+        assert(tool && s.setState(*tool, S::State::Solved, why) && cell.autoToolSelect);
+        S::Issue* re = const_cast<S::Issue*>(find(s, "A HTTPActuator with Read URL likely needs a regular Expression to "
+                                                     "parse the value."));
+        assert(re && s.setState(*re, S::State::Solved, why) && cell.actuators.back().http.regex == "read:(?<Value>-?\\d+)");
+        assert(s.setState(*re, S::State::Open, why) && cell.actuators.back().http.regex.empty());
+        cell.actuators.pop_back();
+    }
     // The letter set from the issue itself.
     S::Issue* letter = const_cast<S::Issue*>(find(s, "Axis letter is missing. Assign the letter to continue."));
     letter->properties.front().setText("Z");

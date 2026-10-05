@@ -29,6 +29,8 @@ constexpr double kRotationEpsilon = 1e-5;
 // OpenPnP's contact probe command without a Z soft limit or feed rate to go by.
 constexpr double kProbeDefaultTarget = -42;
 constexpr double kProbeDefaultFeed = 800;
+// OpenPnP's example pattern for a value read from a page.
+constexpr const char* kHttpReadExample = "read:(?<Value>-?\\d+)";
 
 // What OpenPnP's PlainIssue is: only to be dismissed (or looked up).
 Issue plain(std::string subject, std::string issue, std::string solution, Severity severity, std::string uri) {
@@ -216,6 +218,33 @@ void basics(JPSolutions& s, const JPIssueChecks::Context& c) {
                             "different Rotation axis.",
                             Severity::Information, nozzleWiki));
         }
+    }
+    // OpenPnP's ReferenceMachine: the tool a panel moves chosen for you on the Jog panel.
+    if (!cell->autoToolSelect) {
+        Issue i;
+        i.subject = "ReferenceMachine";
+        i.issue = "jplacer can often automatically select the right tool for you in Machine Controls.";
+        i.solution = "Enable Auto tool select.";
+        i.severity = Severity::Suggestion;
+        i.uri = std::string(kWiki) + "Setup-and-Calibration_Machine-Setup#configuration";
+        i.apply = changing(c, "Auto tool select", [](JPCellConfig& cell, bool solved) { cell.autoToolSelect = solved; });
+        s.add(std::move(i));
+    }
+    // OpenPnP's HttpActuator: a value read from a page needs a pattern to find it by.
+    for (const JPActuatorConfig& a : cell->actuators) {
+        if (!a.http.on || a.http.readUrl.empty() || !a.http.regex.empty()) continue;
+        Issue i;
+        i.subject = "HttpActuator " + a.name;
+        i.issue = "A HTTPActuator with Read URL likely needs a regular Expression to parse the value.";
+        i.solution = "Set an example expression";
+        i.severity = Severity::Warning;
+        i.uri = std::string(kWiki) + "HttpActuatorRead";
+        const std::string id = a.id;
+        i.apply = changing(c, "Read pattern", [id](JPCellConfig& cell, bool solved) {
+            for (JPActuatorConfig& x : cell.actuators)
+                if (x.id == id) x.http.regex = solved ? kHttpReadExample : "";
+        });
+        s.add(std::move(i));
     }
 }
 
