@@ -28,7 +28,8 @@ inline namespace jf {
 //    zone invalid or not set (captured on Accept), an X or Y axis without
 //    soft limits (captured on Accept), an axis without a feed rate or
 //    acceleration, a nozzle's rotation not wrapping around or not limited
-//    (set on Accept);
+//    (set on Accept), a nozzle turned through less than 360° not placing
+//    by Limited Articulation, or bottom vision not pre-rotating for it;
 //  - Vision: a camera settling by a fixed time (an adaptive method set on
 //    Accept), one not calibrated, one without a white balance;
 //  - Calibration: a nozzle tip no nozzle takes;
@@ -64,6 +65,8 @@ public:
         // View > Selections in Tables: Linked or not, and set so.
         std::function<bool()> tablesLinked;
         std::function<void(bool linked)> setTablesLinked;
+        // `config` changed (saved, and the tabs showing it told).
+        std::function<void()> configurationChanged;
         // A change to the cell's settings, a Machine Setup step (undone as one).
         std::function<void(const std::string& what, const std::function<void(JPCellConfig&)>& edit)> changeCell;
     };

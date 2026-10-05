@@ -21,6 +21,8 @@ constexpr double kSuggestedPreviewFps = 5;
 constexpr double kConventionalSafeZMm = 2;
 // OpenPnP's: the calibration rig's two fiducials at least this far apart in Z (mm).
 constexpr double kLeastRigZGapMm = 2;
+// OpenPnP's: a rotation range this close to 360° is not limited.
+constexpr double kRotationEpsilon = 1e-5;
 
 // What OpenPnP's PlainIssue is: only to be dismissed (or looked up).
 Issue plain(std::string subject, std::string issue, std::string solution, Severity severity, std::string uri) {
@@ -211,6 +213,48 @@ void basics(JPSolutions& s, const JPIssueChecks::Context& c) {
     }
 }
 
+// OpenPnP's: a limited articulation nozzle needs bottom vision to pre-rotate
+// the part, by the machine's setting and on every part's vision settings.
+void preRotateIssues(JPSolutions& s, const JPIssueChecks::Context& c, const JPCellConfig& cell) {
+    const std::string uri = std::string(kWiki) + "Bottom-Vision#";
+    if (!cell.vision.preRotate) {
+        Issue i;
+        i.subject = "ReferenceBottomVision";
+        i.issue = "Pre-rotate bottom vision must be enabled, because the machine has a limited articulation nozzle.";
+        i.solution = "Enable Pre-Rotate.";
+        i.severity = Severity::Error;
+        i.uri = uri + "global-configuration";
+        i.apply = changing(c, "Pre-Rotate", [](JPCellConfig& cell, bool solved) { cell.vision.preRotate = solved; });
+        s.add(std::move(i));
+    }
+    if (!c.config) return;
+    std::vector<std::string> ids, names;
+    for (const JPVisionSettings& v : c.config->visionSettings())
+        if (v.kind == JPVisionSettings::Kind::Bottom && v.text("pre-rotate-usage", "Default") == "AlwaysOff") {
+            ids.push_back(v.id);
+            names.push_back(v.name);
+        }
+    if (ids.empty()) return;
+    std::sort(names.begin(), names.end());
+    Issue i;
+    i.subject = "ReferenceBottomVision";
+    i.issue = "Pre-rotate bottom vision must be allowed on all vision settings, because the machine has a limited "
+              "articulation nozzle.";
+    i.solution = "Switch from AlwaysOff to Default";
+    i.severity = Severity::Error;
+    i.uri = uri + "part-configuration";
+    i.extendedDescription = "Switch vision settings pre-rotate usage from AlwaysOff to Default on these parts:";
+    for (size_t k = 0; k < names.size(); ++k) i.extendedDescription += "\n" + std::to_string(k + 1) + ". " + names[k];
+    i.apply = [c, ids](State to, std::string&) {
+        for (const std::string& id : ids)
+            if (JPVisionSettings* v = c.config->visionSettings(id))
+                v->setText("pre-rotate-usage", to == State::Solved ? "Default" : "AlwaysOff");
+        if (c.configurationChanged) c.configurationChanged();
+        return true;
+    };
+    s.add(std::move(i));
+}
+
 void kinematics(JPSolutions& s, const JPIssueChecks::Context& c) {
     const JPCellConfig* cell = c.cell ? c.cell() : nullptr;
     if (!cell || !s.isTargeting(Milestone::Kinematics)) return;
@@ -367,6 +411,7 @@ void kinematics(JPSolutions& s, const JPIssueChecks::Context& c) {
         s.add(std::move(i));
     }
     // Soft limits, feed rates and accelerations, rotation.
+    bool limitedNozzle = false;   // a nozzle limited to less than a turn
     for (const JPAxisConfig& a : cell->axes) {
         if (a.kind != JPAxisConfig::Kind::Controller) continue;
         const std::string id = a.id, subject = "ReferenceControllerAxis " + a.name;
@@ -452,7 +497,35 @@ void kinematics(JPSolutions& s, const JPIssueChecks::Context& c) {
             });
             s.add(std::move(i));
         }
+        // OpenPnP's: a nozzle this axis turns through less than 360° (its soft
+        // limits, limited to range) must place by Limited Articulation, and
+        // bottom vision then pre-rotate the part.
+        for (const JPNozzleConfig& n : cell->nozzles) {
+            if (n.mount.axisRotation != a.id) continue;
+            const double low = a.limitRotation && a.softLimitLowEnabled ? a.softLimitLow : -180;
+            const double high = a.limitRotation && a.softLimitHighEnabled ? a.softLimitHigh : 180;
+            if (n.rotationMode == "LimitedArticulation") {
+                limitedNozzle = true;
+                continue;
+            }
+            if (std::abs(high - low) >= 360 - kRotationEpsilon) continue;
+            limitedNozzle = true;
+            Issue i;
+            i.subject = "ReferenceNozzle " + n.name;
+            i.issue = "Rotation axis " + a.name + " is limiting Nozzle " + n.name +
+                      " to less than 360°. Must use the LimitedArticulation rotation mode.";
+            i.solution = "Set the LimitedArticulation rotation mode.";
+            i.severity = Severity::Error;
+            i.uri = std::string(kWiki) + "Nozzle-Rotation-Mode";
+            const std::string nid = n.id, oldMode = n.rotationMode;
+            i.apply = changing(c, "Rotation Mode", [nid, oldMode](JPCellConfig& cell, bool solved) {
+                for (JPNozzleConfig& x : cell.nozzles)
+                    if (x.id == nid) x.rotationMode = solved ? "LimitedArticulation" : oldMode;
+            });
+            s.add(std::move(i));
+        }
     }
+    if (limitedNozzle) preRotateIssues(s, c, *cell);
 }
 
 void connect(JPSolutions& s, const JPIssueChecks::Context& c) {

@@ -153,6 +153,60 @@ int main() {
     S::Issue* wrap = const_cast<S::Issue*>(
         find(s, "Rotation can be optimized by wrapping-around the shorter way. Best combined with Limit ±180°."));
     assert(s.setState(*wrap, S::State::Solved, why) && cell.axes[3].wrapAroundRotation);
+    // A rotation axis limited to less than a turn: Limited Articulation set on
+    // Accept, and bottom vision made to pre-rotate (the machine's setting,
+    // and a part's vision settings that never would).
+    {
+        const std::string limitedText = "Rotation axis c is limiting Nozzle N1 to less than 360°. Must use the "
+                                        "LimitedArticulation rotation mode.";
+        const std::string preRotateText = "Pre-rotate bottom vision must be enabled, because the machine has a "
+                                          "limited articulation nozzle.";
+        const std::string usageText = "Pre-rotate bottom vision must be allowed on all vision settings, because the "
+                                      "machine has a limited articulation nozzle.";
+        JPConfiguration config("");   // not read or saved here
+        JPVisionSettings off = JPVisionSettings::create(JPVisionSettings::Kind::Bottom, "BVS1");
+        off.name = "Tall";
+        off.setText("pre-rotate-usage", "AlwaysOff");
+        config.addVisionSettings(off);
+        int configChanges = 0;
+        JPIssueChecks::Context lc = c;
+        lc.config = &config;
+        lc.configurationChanged = [&configChanges] { ++configChanges; };
+        S ls;
+        ls.setChecks(JPIssueChecks::all(lc));
+        ls.setTargetMilestone(S::Milestone::Kinematics);
+        ls.find();
+        ls.publish();
+        assert(!find(ls, limitedText) && !find(ls, preRotateText));   // ±180°: a whole turn
+        cell.axes[3].limitRotation = true;
+        cell.axes[3].softLimitLowEnabled = cell.axes[3].softLimitHighEnabled = true;
+        cell.axes[3].softLimitLow = -90;
+        cell.axes[3].softLimitHigh = 90;
+        cell.vision.preRotate = false;
+        ls.find();
+        ls.publish();
+        S::Issue* limited = const_cast<S::Issue*>(find(ls, limitedText));
+        assert(limited && limited->severity == S::Severity::Error);
+        assert(ls.setState(*limited, S::State::Solved, why) && cell.nozzles[0].rotationMode == "LimitedArticulation");
+        S::Issue* pre = const_cast<S::Issue*>(find(ls, preRotateText));
+        assert(pre && ls.setState(*pre, S::State::Solved, why) && cell.vision.preRotate);
+        S::Issue* usage = const_cast<S::Issue*>(find(ls, usageText));
+        assert(usage && usage->extendedDescription.find("1. Tall") != std::string::npos);
+        assert(ls.setState(*usage, S::State::Solved, why) && configChanges == 1);
+        assert(config.visionSettings("BVS1")->text("pre-rotate-usage") == "Default");
+        assert(ls.setState(*usage, S::State::Open, why));
+        assert(config.visionSettings("BVS1")->text("pre-rotate-usage") == "AlwaysOff");
+        assert(ls.setState(*limited, S::State::Open, why) && cell.nozzles[0].rotationMode == "AbsolutePartAngle");
+        assert(ls.setState(*pre, S::State::Open, why) && !cell.vision.preRotate);
+        cell.nozzles[0].rotationMode = "LimitedArticulation";   // chosen: no longer an issue, pre-rotate still is
+        ls.find();
+        ls.publish();
+        assert(!find(ls, limitedText) && find(ls, preRotateText));
+        cell.nozzles[0].rotationMode = "AbsolutePartAngle";
+        cell.vision.preRotate = true;
+        cell.axes[3].limitRotation = false;
+        cell.axes[3].softLimitLowEnabled = cell.axes[3].softLimitHighEnabled = false;
+    }
     // Calibration: a nozzle tip's part diameters and pick tolerance, as OpenPnP's NozzleTipSolutions.
     {
         JPNozzleTipConfig t;

@@ -682,6 +682,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
             const auto i = p.find(axisId);
             return i == p.end() ? std::nullopt : std::optional(i->second);
         };
+        context.configurationChanged = [this] { m_job.configurationChanged(); };
         context.changeCell = [this](const std::string& what, const std::function<void(JPCellConfig&)>& edit) {
             m_machine.changeSetup(what, edit);
         };
