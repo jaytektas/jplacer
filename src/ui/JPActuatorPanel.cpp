@@ -6,6 +6,7 @@
 #include "JPTextField.h"
 #include "JPUiParts.h"
 
+#include <j/core/JComboBox.h>
 #include <j/core/JScrollArea.h>
 #include <j/core/JStyle.h>
 
@@ -29,7 +30,17 @@ JPActuatorPanel::JPActuatorPanel(JSceneGraph& graph, JPCell& cell)
             r->add(JPUiParts::button(graph, "On"))->onClicked.connect([this, id] { m_cell.switchActuator(id, true); });
             r->add(JPUiParts::button(graph, "Off"))->onClicked.connect([this, id] { m_cell.switchActuator(id, false); });
         }
-        if (a.canSet()) {
+        if (a.canSet() && a.valueType == JPActuatorConfig::ValueType::Profile) {
+            // A profile chosen: the actuator set to it.
+            std::vector<std::string> names;
+            for (const JPActuatorConfig::Profile& p : a.profiles)
+                if (!p.name.empty()) names.push_back(p.name);
+            JComboBox* profile = r->add(std::make_unique<JComboBox>(graph, names, 0.f));
+            profile->setCurrentIndex(-1);
+            profile->onIndexChanged.connect([this, id, names](int i) {
+                if (i >= 0 && size_t(i) < names.size()) m_cell.setActuator(id, names[size_t(i)]);
+            });
+        } else if (a.canSet()) {
             // A value typed (Return, Tab or leaving it) or Set: sent.
             JPTextField* value = r->add(std::make_unique<JPTextField>(graph));
             value->setText(a.onValue);

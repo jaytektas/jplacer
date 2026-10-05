@@ -12,7 +12,8 @@ JPActuatorConfig JPActuatorConfig::fromJson(const JJson& j) {
     a.driverId    = j["driver"].str();
     a.mount       = JPMountConfig::fromJson(j["mount"]);
     const std::string& type = j["valueType"].str();
-    a.valueType   = type == "number" ? ValueType::Number : type == "text" ? ValueType::Text : ValueType::Boolean;
+    a.valueType   = type == "number" ? ValueType::Number : type == "text" ? ValueType::Text
+                  : type == "profile" ? ValueType::Profile : ValueType::Boolean;
     a.index       = j["index"].str();
     a.onCommand   = j["onCommand"].str();
     a.offCommand  = j["offCommand"].str();
@@ -26,6 +27,15 @@ JPActuatorConfig JPActuatorConfig::fromJson(const JJson& j) {
     if (const std::string& v = j["enabledActuation"].str(); !v.empty()) a.enabledActuation = v;
     if (const std::string& v = j["homedActuation"].str(); !v.empty()) a.homedActuation = v;
     if (const std::string& v = j["disabledActuation"].str(); !v.empty()) a.disabledActuation = v;
+    for (size_t k = 0; k < kProfileActuators; ++k) a.profileActuators[k] = j["profileActuators"][k].str();
+    for (const JJson& p : j["profiles"].arr()) {
+        Profile q;
+        q.name = p["name"].str();
+        q.defaultOn = p["defaultOn"].boolean();
+        q.defaultOff = p["defaultOff"].boolean();
+        for (size_t k = 0; k < kProfileActuators; ++k) q.values[k] = p["values"][k].str();
+        a.profiles.push_back(std::move(q));
+    }
     return a;
 }
 
@@ -35,7 +45,8 @@ JJson JPActuatorConfig::toJson() const {
     j["name"]        = name;
     j["driver"]      = driverId;
     j["mount"]       = mount.toJson();
-    j["valueType"]   = valueType == ValueType::Number ? "number" : valueType == ValueType::Text ? "text" : "boolean";
+    j["valueType"]   = valueType == ValueType::Number ? "number" : valueType == ValueType::Text ? "text"
+                     : valueType == ValueType::Profile ? "profile" : "boolean";
     j["index"]       = index;
     j["onCommand"]   = onCommand;
     j["offCommand"]  = offCommand;
@@ -48,7 +59,33 @@ JJson JPActuatorConfig::toJson() const {
     j["enabledActuation"]  = enabledActuation;
     j["homedActuation"]    = homedActuation;
     j["disabledActuation"] = disabledActuation;
+    if (valueType == ValueType::Profile) {
+        j["profileActuators"] = JJson::array();
+        for (const std::string& id : profileActuators) j["profileActuators"].push(JJson(id));
+        j["profiles"] = JJson::array();
+        for (const Profile& p : profiles) {
+            JJson q = JJson::object();
+            q["name"] = p.name;
+            if (p.defaultOn) q["defaultOn"] = true;
+            if (p.defaultOff) q["defaultOff"] = true;
+            q["values"] = JJson::array();
+            for (const std::string& v : p.values) q["values"].push(JJson(v));
+            j["profiles"].push(q);
+        }
+    }
     return j;
+}
+
+const JPActuatorConfig::Profile* JPActuatorConfig::profileNamed(const std::string& profileName) const {
+    for (const Profile& p : profiles)
+        if (p.name == profileName) return &p;
+    return nullptr;
+}
+
+const JPActuatorConfig::Profile* JPActuatorConfig::defaultProfile(bool on) const {
+    for (const Profile& p : profiles)
+        if (on ? p.defaultOn : p.defaultOff) return &p;
+    return nullptr;
 }
 
 } // inline namespace jf

@@ -117,6 +117,16 @@ JPMachineSetupPanel::JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, 
     m_form->setVSizePolicy(JSizePolicyMode::Expanding, 1);
     m_form->onChanged = [this](const std::string& property) { changed(property); };
     m_form->onAction = [this](const std::string& action) {
+        // A change the button makes itself (a profile added): a step to undo, the form made again.
+        if (const auto e = m_edits.find(action); e != m_edits.end()) {
+            const std::string at = m_selected, what = nameOf(m_draft, at) + ": " + e->second.what;
+            const auto apply = e->second.apply;
+            apply();
+            rebuildTree();
+            remakeForm();
+            record(what, "", at);
+            return;
+        }
         // The default vision settings' page's: as the Vision tab does them.
         if ((action.rfind("bottom:", 0) == 0 || action.rfind("fiducial:", 0) == 0) && !shownVisionSettings().empty()) {
             if (visionAction) visionAction(shownVisionSettings(), action);
@@ -345,6 +355,7 @@ void JPMachineSetupPanel::show(const std::string& path) {
     m_selected = path;
     JPSetupProperties::Form f = formFor(path);
     m_reshaping = f.reshaping;
+    m_edits = f.edits;
     m_title->setText(f.title);
     m_labels.clear();
     for (const JProperty& p : f.model.all()) m_labels[p.name] = p.meta.label.empty() ? p.name : p.meta.label;
@@ -387,6 +398,7 @@ void JPMachineSetupPanel::remakeForm() {
         if (!alive.lock()) return;
         JPSetupProperties::Form f = formFor(m_selected);
         m_reshaping = f.reshaping;
+        m_edits = f.edits;
         m_title->setText(f.title);
         m_labels.clear();
         for (const JProperty& p : f.model.all()) m_labels[p.name] = p.meta.label.empty() ? p.name : p.meta.label;

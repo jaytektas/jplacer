@@ -1171,6 +1171,88 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     for (const JPCameraCalibration& cal : c().calibrations) calibrationResults(add, cal, c().looksUp);
 }
 
+// OpenPnP's ReferenceActuatorProfilesWizard: the actuators a profile sets, and
+// the profiles (a name, Default ON, Default OFF, and a value for each).
+void actuatorProfilesTab(JPFormBuilder& add, JPCellConfig& cell, std::function<JPActuatorConfig&()> a, JPSetupProperties::Form& f) {
+    using VT = JPActuatorConfig::ValueType;
+    constexpr size_t kN = JPActuatorConfig::kProfileActuators;
+    add.tab("Profiles");
+    add.group("Actuators");
+    JPFormBuilder::Named others;
+    others.add("(none)", "");
+    for (const JPActuatorConfig& o : cell.actuators)
+        if (o.id != a().id) others.add(o.name.empty() ? o.id : o.name, o.id);
+    for (size_t k = 0; k < kN; ++k) {
+        const std::string name = "profileActuator" + std::to_string(k + 1);
+        add.byName(name, "Actuator " + std::to_string(k + 1), others, [a, k]() -> std::string& { return a().profileActuators[k]; });
+        f.reshaping.push_back(name);
+    }
+    add.group("Profiles");
+    // The columns: the actuators set, by name.
+    std::vector<size_t> used;
+    JPFormBuilder::Strings titles { "Name", "Default ON", "Default OFF" };
+    auto member = [&cell](const std::string& id) -> const JPActuatorConfig* {
+        for (const JPActuatorConfig& o : cell.actuators)
+            if (o.id == id) return &o;
+        return nullptr;
+    };
+    for (size_t k = 0; k < kN; ++k)
+        if (const JPActuatorConfig* m = member(a().profileActuators[k])) {
+            used.push_back(k);
+            titles.push_back(m->name);
+        }
+    titles.push_back("");
+    add.header(titles);
+    for (size_t i = 0; i < a().profiles.size(); ++i) {
+        const std::string at = "profile:" + std::to_string(i) + ":";
+        auto p = [a, i]() -> JPActuatorConfig::Profile& { return a().profiles[i]; };
+        add.row("");
+        add.text(at + "name", "Name", [p] { return p().name; }, [p](const std::string& v) {
+            // Kept trimmed, as OpenPnP's.
+            const size_t b = v.find_first_not_of(" \t"), e = v.find_last_not_of(" \t");
+            p().name = b == std::string::npos ? std::string() : v.substr(b, e - b + 1);
+        });
+        // Each default for one profile only, and a profile not both.
+        add.flag(at + "defaultOn", "Default ON", [p] { return p().defaultOn; }, [a, p](bool on) {
+            if (on) for (auto& q : a().profiles) q.defaultOn = false;
+            p().defaultOn = on;
+            if (on) p().defaultOff = false;
+        });
+        add.flag(at + "defaultOff", "Default OFF", [p] { return p().defaultOff; }, [a, p](bool on) {
+            if (on) for (auto& q : a().profiles) q.defaultOff = false;
+            p().defaultOff = on;
+            if (on) p().defaultOn = false;
+        });
+        f.reshaping.push_back(at + "defaultOn");
+        f.reshaping.push_back(at + "defaultOff");
+        for (size_t k : used) {
+            const JPActuatorConfig* m = member(a().profileActuators[k]);
+            const std::string name = at + "value" + std::to_string(k + 1);
+            auto get = [p, k] { return p().values[k]; };
+            auto set = [p, k](const std::string& v) { p().values[k] = v; };
+            // A switch's value true or false, a profile actuator's one of its profiles, else as typed; empty leaves it.
+            if (m->valueType == VT::Boolean) {
+                add.choice(name, m->name, { "", "true", "false" }, get, set);
+            } else if (m->valueType == VT::Profile) {
+                JPFormBuilder::Strings names { "" };
+                for (const JPActuatorConfig::Profile& q : m->profiles)
+                    if (!q.name.empty()) names.push_back(q.name);
+                add.choice(name, m->name, names, get, set);
+            } else {
+                add.text(name, m->name, get, set);
+            }
+        }
+        add.editButton(at + "delete", "Delete", "Delete Profile", [a, i] {
+            if (i < a().profiles.size()) a().profiles.erase(a().profiles.begin() + long(i));
+        });
+        add.end();
+    }
+    add.endColumns();
+    add.editButton("profile:add", "Add Profile", "Add Profile", [a] { a().profiles.push_back({}); });
+    add.note("Set to a profile (the Actuators panel), each actuator is set to its value in it; one left empty is "
+             "left as it is. Switched on or off, the actuator takes its Default ON or Default OFF profile.");
+}
+
 void actuatorForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f) {
     auto a = finder(cell.actuators, id);
     f.title = "Actuator " + a().name;
@@ -1198,14 +1280,19 @@ void actuatorForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::
     add.text("unit", "Unit Read", [a]() -> std::string& { return a().unit; });
     // OpenPnP's names for the value types.
     using VT = JPActuatorConfig::ValueType;
-    add.choice("valueType", "Value Type", { "Boolean", "Double", "String" },
-               [a] { return std::string(a().valueType == VT::Number ? "Double" : a().valueType == VT::Text ? "String" : "Boolean"); },
-               [a](const std::string& v) { a().valueType = v == "Double" ? VT::Number : v == "String" ? VT::Text : VT::Boolean; });
+    add.choice("valueType", "Value Type", { "Boolean", "Double", "String", "Profile" },
+               [a] {
+                   return std::string(a().valueType == VT::Number ? "Double" : a().valueType == VT::Text ? "String"
+                                    : a().valueType == VT::Profile ? "Profile" : "Boolean");
+               },
+               [a](const std::string& v) {
+                   a().valueType = v == "Double" ? VT::Number : v == "String" ? VT::Text : v == "Profile" ? VT::Profile : VT::Boolean;
+               });
     f.reshaping.push_back("valueType");
     add.group("Commands");
     add.text("onCommand", "On", [a]() -> std::string& { return a().onCommand; }, "long");
     add.text("offCommand", "Off", [a]() -> std::string& { return a().offCommand; }, "long");
-    if (a().valueType != VT::Boolean) {
+    if (a().valueType != VT::Boolean && a().valueType != VT::Profile) {
         add.text("valueCommand", "Set Value", [a]() -> std::string& { return a().valueCommand; }, "long");
         add.row("On / Off Values");
         add.text("onValue", "On Value", [a]() -> std::string& { return a().onValue; });
@@ -1219,6 +1306,7 @@ void actuatorForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::
                  : "{index} in a command is replaced by the index, {value} in Set Value by the value it is set to "
                    "(the Actuators panel's box). Without commands of their own, On and Off set it to the On and "
                    "Off Values.");
+    if (a().valueType == VT::Profile) actuatorProfilesTab(add, cell, a, f);
 }
 
 // OpenPnP's SoundSignalerConfigurationWizard and ActuatorSignalerConfigurationWizard.

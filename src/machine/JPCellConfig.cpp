@@ -141,9 +141,15 @@ std::vector<std::string> JPCellConfig::problems() const {
     for (const JPActuatorConfig& a : actuators) {
         actuatorIds.insert(a.id);
         checkMount("actuator " + a.name, a.mount);
-        if ((a.canSwitch() || a.canRead()) && !driver(a.driverId))
+        // A profile actuator sends nothing of its own: its actuators do.
+        const bool sends = (a.valueType != JPActuatorConfig::ValueType::Profile && a.canSwitch()) || a.canRead();
+        if (sends && !driver(a.driverId))
             out.push_back("actuator " + a.name + " has commands but no controller to send them to");
     }
+    for (const JPActuatorConfig& a : actuators)
+        for (const std::string& id : a.profileActuators)
+            if (!id.empty() && !actuatorIds.count(id))
+                out.push_back("actuator " + a.name + " has a profile actuator that is not in this cell");
     for (const JPHeadConfig& h : heads)
         if (!h.pumpActuatorId.empty() && !actuatorIds.count(h.pumpActuatorId))
             out.push_back("head " + h.name + " names a pump actuator that is not in this cell");

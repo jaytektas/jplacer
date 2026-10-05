@@ -227,6 +227,9 @@ bool JPSetupEdits::remove(JPCellConfig& cell, const std::string& path, std::stri
             if (h.pumpActuatorId == p.id) users.push_back("head " + h.name + " (its pump)");
         for (const JPSignalerConfig& s : cell.signalers)
             if (s.kind == JPSignalerConfig::Kind::Actuator && s.actuatorId == p.id) users.push_back("signaler " + s.name);
+        for (const JPActuatorConfig& a : cell.actuators)
+            if (std::find(a.profileActuators.begin(), a.profileActuators.end(), p.id) != a.profileActuators.end())
+                users.push_back("actuator " + a.name + " (its profiles)");
     } else if (p.kind == "step") {
         std::vector<JPChangerStep>* steps = stepList(cell, p);
         const long i = steps ? stepIndex(p, *steps) : -1;

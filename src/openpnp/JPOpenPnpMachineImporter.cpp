@@ -384,7 +384,33 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
         a.index    = x.attr("index");
         const std::string& vt = x.attr("value-type");
         a.valueType = vt == "Double" ? JPActuatorConfig::ValueType::Number
-                    : vt == "String" ? JPActuatorConfig::ValueType::Text : JPActuatorConfig::ValueType::Boolean;
+                    : vt == "String" ? JPActuatorConfig::ValueType::Text
+                    : vt == "Profile" ? JPActuatorConfig::ValueType::Profile : JPActuatorConfig::ValueType::Boolean;
+        // A profile actuator's actuators and profiles (OpenPnP's ReferenceActuatorProfiles).
+        if (const JPXmlElement* ap = x.child("actuator-profiles")) {
+            // Its names have the number set apart ("actuator-1-id", "value-1"), or not.
+            auto either = [](const JPXmlElement& e, const std::string& split, const std::string& joined) {
+                return e.attr(split).empty() ? e.attr(joined) : e.attr(split);
+            };
+            for (size_t k = 0; k < JPActuatorConfig::kProfileActuators; ++k) {
+                const std::string n = std::to_string(k + 1);
+                a.profileActuators[k] = either(*ap, "actuator-" + n + "-id", "actuator" + n + "-id");
+            }
+            if (const JPXmlElement* list = ap->child("profiles"))
+                for (const JPXmlElement& p : list->children) {
+                    JPActuatorConfig::Profile q;
+                    q.name = p.attr("name");
+                    q.defaultOn = p.attr("default-on") == "true";
+                    q.defaultOff = p.attr("default-off") == "true";
+                    for (size_t k = 0; k < JPActuatorConfig::kProfileActuators; ++k) {
+                        const std::string n = std::to_string(k + 1);
+                        const JPXmlElement* v = p.child("value-" + n);
+                        if (!v) v = p.child("value" + n);
+                        if (v) q.values[k] = v->text;
+                    }
+                    a.profiles.push_back(std::move(q));
+                }
+        }
         // What on and off set it to, as OpenPnP's defaults.
         if (a.valueType == JPActuatorConfig::ValueType::Number) {
             a.onValue = x.attr("default-on-double");

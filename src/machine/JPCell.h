@@ -258,7 +258,10 @@ private:
     const JPAxisConfig* zMotor(const JPMountConfig& mount) const;
     bool doSafeZ(const std::string& headId, double speed, std::string& why);
     bool doParkZ(const JPMountConfig& mount, double speed, std::string& why);
-    bool doSwitch(const std::string& actuatorId, bool on, std::string& why);
+    // `depth`: how deep in profiles naming profiles (JPActuatorConfig::Profile) this is.
+    bool doSwitch(const std::string& actuatorId, bool on, std::string& why, int depth = 0);
+    bool doSet(const std::string& actuatorId, const std::string& value, std::string& why, int depth = 0);
+    bool doProfile(const JPActuatorConfig& actuator, const JPActuatorConfig::Profile& profile, std::string& why, int depth);
     bool doPick(const JPNozzleConfig& nozzle, std::string& why);
     // A nozzle to `to` at safe Z, the pick or place there, and up again.
     bool doAt(const std::string& nozzleId, const std::array<std::optional<double>, 4>& to, double speed, bool pick,

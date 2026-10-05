@@ -17,6 +17,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -97,6 +98,14 @@ public:
         // Properties whose change changes which others there are (an axis's
         // kind, a camera's head): the form is made again after one changes.
         std::vector<std::string> reshaping;
+        // Buttons that change the part themselves (a row added to a table, or
+        // taken away), by their action: what it is called as a step to undo,
+        // and the change. The form is made again after one.
+        struct Edit {
+            std::string           what;
+            std::function<void()> apply;
+        };
+        std::map<std::string, Edit> edits;
     };
 
     // The form for the node at `path` (JPSetupTree); an empty model for a

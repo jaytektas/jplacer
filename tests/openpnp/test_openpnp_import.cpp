@@ -112,7 +112,18 @@ int main() {
     assert(load[3].x == 390.278 && load[3].speed == 0.25);
     assert(cell.nozzleTips[0].unloadReversesLoad && cell.nozzleTips[1].loadSteps.empty());
 
-    assert(cell.actuators.size() == 2);
+    assert(cell.actuators.size() == 3);
+    // A profile actuator: its actuators, and its profiles' defaults and values.
+    {
+        const JPActuatorConfig& lights = cell.actuators[2];
+        assert(lights.valueType == JPActuatorConfig::ValueType::Profile && lights.profiles.size() == 2);
+        assert(lights.profileActuators[0] == "ACT1" && lights.profileActuators[1] == "ACT2" && lights.profileActuators[2].empty());
+        assert(lights.defaultProfile(false)->name == "Off" && lights.defaultProfile(true)->name == "All");
+        assert(lights.profiles[1].values[1] == "true" && lights.profiles[0].values[1].empty());
+        assert(lights.canSwitch() && lights.canSet());
+        const JPActuatorConfig back = JPActuatorConfig::fromJson(lights.toJson());
+        assert(back.valueType == JPActuatorConfig::ValueType::Profile && back.profileNamed("All")->values[0] == "true");
+    }
     // Signalers: OpenPnP's sound and actuator ones; any other is left out and said.
     assert(cell.signalers.size() == 2);
     assert(cell.signalers[0].kind == JPSignalerConfig::Kind::Sound && cell.signalers[0].id == "SIG1");

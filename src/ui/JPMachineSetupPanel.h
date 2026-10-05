@@ -161,6 +161,7 @@ private:
     std::string                    shownVisionSettings() const;
     std::string              m_selected;
     std::vector<std::string> m_reshaping;   // the shown form's properties that change the form
+    std::map<std::string, JPSetupProperties::Form::Edit> m_edits;   // the shown form's buttons that change the part
     std::set<std::string>    m_expanded;    // paths of the tree's open nodes
     std::unique_ptr<JContainer> m_treePane, m_formPane;   // the splitter's panes
     JSplitter*               m_split    = nullptr;

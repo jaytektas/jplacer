@@ -104,6 +104,19 @@
       </heads>
       <actuators class="java.util.ArrayList">
          <actuator class="org.openpnp.machine.reference.ReferenceActuator" id="ACT2" name="PhotonFeederData" value-type="Boolean" index="0"/>
+         <actuator class="org.openpnp.machine.reference.ReferenceActuator" id="ACT3" name="Lights" value-type="Profile" index="0">
+            <actuator-profiles actuator-1-id="ACT1" actuator-2-id="ACT2">
+               <profiles class="java.util.ArrayList">
+                  <profile name="Off" default-off="true">
+                     <value-1 class="java.lang.Boolean">false</value-1>
+                  </profile>
+                  <profile name="All" default-on="true">
+                     <value-1 class="java.lang.Boolean">true</value-1>
+                     <value-2 class="java.lang.Boolean">true</value-2>
+                  </profile>
+               </profiles>
+            </actuator-profiles>
+         </actuator>
       </actuators>
       <signalers class="java.util.ArrayList">
          <signaler class="org.openpnp.machine.reference.signaler.SoundSignaler" id="SIG1" name="SoundSignaler" enable-error-sound="true" enable-finished-sound="false"/>

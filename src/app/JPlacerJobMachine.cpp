@@ -278,7 +278,9 @@ bool JPlacerJobMachine::actuate(const std::string& actuatorName, double value, s
         why = "Unable to find an actuator named " + actuatorName;
         return false;
     }
-    if (actuator->valueType == JPActuatorConfig::ValueType::Boolean) return c->switchActuatorAndWait(actuator->id, value != 0, why);
+    // A switch, or a profile actuator (its Default ON or OFF profile), switched by whether it is 0.
+    if (actuator->valueType == JPActuatorConfig::ValueType::Boolean || actuator->valueType == JPActuatorConfig::ValueType::Profile)
+        return c->switchActuatorAndWait(actuator->id, value != 0, why);
     char buf[32];
     std::snprintf(buf, sizeof buf, "%g", value);
     return c->setActuatorAndWait(actuator->id, buf, why);

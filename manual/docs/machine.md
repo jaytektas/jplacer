@@ -379,7 +379,11 @@ Set sends it), and **Read** if a value can be read from it. The result of the la
 failed, is shown beside the buttons. An imported Double or String actuator keeps OpenPnP's command for
 setting it and its default on and off values.
 
-<!-- src: src/ui/JPActuatorPanel.cpp; src/machine/JPCell.cpp (setActuator, doSwitch); src/openpnp/JPOpenPnpMachineImporter.cpp (ACTUATE_DOUBLE_COMMAND) -->
+A **Profile** actuator (OpenPnP's actuator profiles, set up on its **Profiles** tab in Machine Setup) has a
+list of its profiles: choose one and each of the actuators it sets is set to its value in that profile.
+**On** and **Off** take its Default ON and Default OFF profiles.
+
+<!-- src: src/ui/JPActuatorPanel.cpp; src/machine/JPCell.cpp (setActuator, doSwitch, doSet, doProfile); src/openpnp/JPOpenPnpMachineImporter.cpp (ACTUATE_DOUBLE_COMMAND) -->
 
 ### Console
 

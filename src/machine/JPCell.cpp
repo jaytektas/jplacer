@@ -340,23 +340,60 @@ bool JPCell::doSafeZ(const std::string& headId, double speed, std::string& why) 
 
 void JPCell::setActuator(const std::string& actuatorId, const std::string& value) {
     m_thread.post([this, actuatorId, value] {
-        std::string why = "no actuator " + actuatorId;
-        bool ok = false;
-        for (const JPActuatorConfig& a : m_config.actuators) {
-            if (a.id != actuatorId) continue;
-            JPGcodeDriver* d = driver(a.driverId);
-            if (!d || !a.canSet()) {
-                why = a.name + " cannot be set to a value";
-                break;
-            }
-            const JPReply r = d->send(JPFirmwareProfile::fill(a.valueCommand, { { "index", a.index }, { "value", value } })).get();
-            JLOGC(JPlacerLog::kCell, r.ok ? JLogLevel::Info : JLogLevel::Warn)
-                << a.name << " set to " << value << (r.ok ? std::string() : ": " + r.error);
-            ok = r.ok;
-            why = r.error;
-        }
+        std::string why;
+        const bool ok = doSet(actuatorId, value, why);
         onActuator.emit(actuatorId, ok, ok ? value : why);
     });
+}
+
+bool JPCell::doSet(const std::string& actuatorId, const std::string& value, std::string& why, int depth) {
+    for (const JPActuatorConfig& a : m_config.actuators) {
+        if (a.id != actuatorId) continue;
+        // A profile actuator: set to the profile of that name.
+        if (a.valueType == JPActuatorConfig::ValueType::Profile) {
+            const JPActuatorConfig::Profile* p = a.profileNamed(value);
+            if (!p) {
+                why = "Actuator " + a.name + " profile " + value + " not found.";
+                return false;
+            }
+            return doProfile(a, *p, why, depth);
+        }
+        JPGcodeDriver* d = driver(a.driverId);
+        if (!d || !a.canSet()) {
+            why = a.name + " cannot be set to a value";
+            return false;
+        }
+        const JPReply r = d->send(JPFirmwareProfile::fill(a.valueCommand, { { "index", a.index }, { "value", value } })).get();
+        JLOGC(JPlacerLog::kCell, r.ok ? JLogLevel::Info : JLogLevel::Warn)
+            << a.name << " set to " << value << (r.ok ? std::string() : ": " + r.error);
+        why = r.error;
+        return r.ok;
+    }
+    why = "no actuator " + actuatorId;
+    return false;
+}
+
+bool JPCell::doProfile(const JPActuatorConfig& a, const JPActuatorConfig::Profile& p, std::string& why, int depth) {
+    // A profile naming a profile actuator that names this one again goes no deeper than this.
+    if (depth > int(JPActuatorConfig::kProfileActuators)) {
+        why = "Actuator " + a.name + ": its profiles name each other";
+        return false;
+    }
+    JLOGC(JPlacerLog::kCell, JLogLevel::Info) << a.name << " profile " << p.name;
+    for (size_t k = 0; k < JPActuatorConfig::kProfileActuators; ++k) {
+        const std::string& id = a.profileActuators[k];
+        const std::string& value = p.values[k];
+        if (id.empty() || value.empty()) continue;
+        const JPActuatorConfig* member = nullptr;
+        for (const JPActuatorConfig& m : m_config.actuators)
+            if (m.id == id) member = &m;
+        if (!member) continue;
+        // A switch by true or false; a number, text or profile by its value (as OpenPnP: a nested profile by name).
+        const bool ok = member->valueType == JPActuatorConfig::ValueType::Boolean ? doSwitch(id, value == "true", why, depth + 1)
+                                                                                  : doSet(id, value, why, depth + 1);
+        if (!ok) return false;
+    }
+    return true;
 }
 
 void JPCell::switchActuator(const std::string& actuatorId, bool on) {
@@ -371,19 +408,8 @@ bool JPCell::setActuatorAndWait(const std::string& actuatorId, const std::string
     std::promise<std::pair<bool, std::string>> done;
     auto result = done.get_future();
     m_thread.post([this, actuatorId, value, &done] {
-        std::string w = "no actuator " + actuatorId;
-        bool ok = false;
-        for (const JPActuatorConfig& a : m_config.actuators) {
-            if (a.id != actuatorId) continue;
-            JPGcodeDriver* d = driver(a.driverId);
-            if (!d || !a.canSet()) {
-                w = a.name + " cannot be set to a value";
-                break;
-            }
-            const JPReply r = d->send(JPFirmwareProfile::fill(a.valueCommand, { { "index", a.index }, { "value", value } })).get();
-            ok = r.ok;
-            w = r.error;
-        }
+        std::string w;
+        const bool ok = doSet(actuatorId, value, w);
         onActuator.emit(actuatorId, ok, ok ? value : w);
         done.set_value({ ok, w });
     });
@@ -756,9 +782,18 @@ bool JPCell::doPlace(const JPNozzleConfig& n, std::string& why) {
     return true;
 }
 
-bool JPCell::doSwitch(const std::string& actuatorId, bool on, std::string& why) {
+bool JPCell::doSwitch(const std::string& actuatorId, bool on, std::string& why, int depth) {
     for (const JPActuatorConfig& a : m_config.actuators) {
         if (a.id != actuatorId) continue;
+        // A profile actuator: its Default ON or Default OFF profile.
+        if (a.valueType == JPActuatorConfig::ValueType::Profile) {
+            const JPActuatorConfig::Profile* p = a.defaultProfile(on);
+            if (!p) {
+                why = "Actuator " + a.name + " " + (on ? "Default ON" : "Default OFF") + " profile not found.";
+                return false;
+            }
+            return doProfile(a, *p, why, depth);
+        }
         JPGcodeDriver* d = driver(a.driverId);
         // Its own command for it, else its value command with its on or off value.
         const std::string& own = on ? a.onCommand : a.offCommand;

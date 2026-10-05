@@ -5,7 +5,9 @@
 
 #include "JPMountConfig.h"
 
+#include <array>
 #include <string>
+#include <vector>
 
 inline namespace jf {
 
@@ -14,7 +16,7 @@ inline namespace jf {
 // actuator's controller; {index} is replaced by `index`. The first group of
 // `readPattern` is the value in the reply to `readCommand`.
 struct JPActuatorConfig {
-    enum class ValueType { Boolean, Number, Text };
+    enum class ValueType { Boolean, Number, Text, Profile };
 
     std::string   id;
     std::string   name;
@@ -37,10 +39,29 @@ struct JPActuatorConfig {
     std::string   homedActuation   = "LeaveAsIs";
     std::string   disabledActuation = "LeaveAsIs";
 
+    // OpenPnP's actuator profiles (a Profile actuator's): up to kProfileActuators
+    // other actuators, and named profiles of a value for each (empty: that one
+    // is left as it is). Set to a profile's name, each actuator is set to its
+    // value; switched on or off, the profile that is Default ON or Default OFF.
+    static constexpr size_t kProfileActuators = 6;
+    struct Profile {
+        std::string name;
+        bool        defaultOn = false, defaultOff = false;
+        std::array<std::string, kProfileActuators> values {};
+    };
+    std::array<std::string, kProfileActuators> profileActuators {};
+    std::vector<Profile> profiles;
+    const Profile* profileNamed(const std::string& profileName) const;
+    const Profile* defaultProfile(bool on) const;
+
     bool canSwitch() const {
+        if (valueType == ValueType::Profile) return defaultProfile(true) || defaultProfile(false);
         return !onCommand.empty() || !offCommand.empty() || (!valueCommand.empty() && (!onValue.empty() || !offValue.empty()));
     }
-    bool canSet()    const { return valueType != ValueType::Boolean && !valueCommand.empty(); }
+    bool canSet() const {
+        if (valueType == ValueType::Profile) return !profiles.empty();
+        return valueType != ValueType::Boolean && !valueCommand.empty();
+    }
     bool canRead()   const { return !readCommand.empty() && !readPattern.empty(); }
 
     static JPActuatorConfig fromJson(const JJson& j);

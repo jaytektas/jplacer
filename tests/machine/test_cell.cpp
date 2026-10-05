@@ -129,6 +129,42 @@ int main() {
             std::lock_guard lk(m);
             assert(lines.size() == 2 && lines[0] == "M3 S128" && lines[1] == "M3 S255");
         }
+        // A Profile actuator (OpenPnP's actuator profiles): set to a profile,
+        // each of its actuators to its value there (one left empty, left);
+        // switched on or off, its Default ON or Default OFF profile.
+        {
+            JPCellConfig next = cell.config();
+            JPActuatorConfig pr;
+            pr.id = "PR";
+            pr.name = "Lights";
+            pr.valueType = JPActuatorConfig::ValueType::Profile;
+            pr.profileActuators[0] = "L";
+            pr.profileActuators[1] = "V";
+            JPActuatorConfig::Profile dim, bright;
+            dim.name = "Dim";
+            dim.defaultOff = true;
+            dim.values[0] = "10";
+            bright.name = "Bright";
+            bright.defaultOn = true;
+            bright.values[0] = "200";
+            bright.values[1] = "false";
+            pr.profiles = { dim, bright };
+            next.actuators.push_back(pr);
+            std::string why;
+            assert(cell.reconfigure(next, why));
+            std::mutex m;
+            std::vector<std::string> lines;
+            auto watch = cell.onTraffic.connect([&](std::string, bool out, std::string line) {
+                std::lock_guard lk(m);
+                if (out && (line.rfind("M3", 0) == 0 || line.rfind("M6", 0) == 0 || line.rfind("M7", 0) == 0)) lines.push_back(line);
+            });
+            assert(cell.setActuatorAndWait("PR", "Dim", why));
+            assert(cell.switchActuatorAndWait("PR", true, why));
+            assert(!cell.setActuatorAndWait("PR", "Nowhere", why) && why.find("not found") != std::string::npos);
+            watch();
+            std::lock_guard lk(m);
+            assert(lines.size() >= 2 && lines[0] == "M3 S10" && lines[1] == "M3 S200");
+        }
 
         // Pick and place: the head's pump comes on with the first part, then
         // the vacuum; placing, the vacuum goes off, then the pump (PartOn).
