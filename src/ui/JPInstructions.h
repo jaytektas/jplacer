@@ -23,8 +23,12 @@ public:
 
     void set(const std::string& title, const std::string& text, const std::string& proceedLabel,
              std::function<void()> onCancel, std::function<void()> onProceed);
-    // How tall it is shown.
+    // The button that goes on, offered or not (OpenPnP's proceed enabled).
+    void setProceedEnabled(bool on) { m_proceed->setEnabled(on); }
+    // How tall it is shown; and, at `width`, with room for all its text
+    // folded (for a narrow place: a camera's panel), and its text that tall.
     static float height();
+    float heightFor(float width);
 
 private:
     JLabel*               m_text = nullptr;

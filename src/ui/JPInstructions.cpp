@@ -7,6 +7,8 @@
 
 #include <j/core/JStyle.h>
 
+#include <algorithm>
+
 inline namespace jf {
 
 namespace {
@@ -37,6 +39,13 @@ JPInstructions::JPInstructions(JSceneGraph& graph) : JPGroupFrame(graph, "") {
 float JPInstructions::height() {
     const JStyle& st = JStyle::current();
     return st.labelHeight * kLines + st.buttonHeight + st.spacing * 2 + JPGroupFrame::extraHeight();
+}
+
+float JPInstructions::heightFor(float width) {
+    const JStyle& st = JStyle::current();
+    const float text = std::max(st.labelHeight * kLines, m_text->heightFor(std::max(0.f, width - JPGroupFrame::extraWidth())));
+    m_text->setSize(0.f, text);
+    return text + st.buttonHeight + st.spacing * 2 + JPGroupFrame::extraHeight();
 }
 
 void JPInstructions::set(const std::string& title, const std::string& text, const std::string& proceedLabel,

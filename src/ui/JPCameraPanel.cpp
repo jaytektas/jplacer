@@ -56,6 +56,12 @@ JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCameraCon
     // What a camera task is doing, or the last thing done: a line of its own,
     // so a result reads in full.
     m_note = add(std::make_unique<JLabel>(graph, ""));
+    m_instructionsHolder = add(std::make_unique<JContainer>(graph, 0.f, 0.f));
+    m_instructionsHolder->setDirection(JFlexDirection::Column)->setAlignItems(JAlignItems::Stretch);
+    m_instructionsHolder->setVSizePolicy(JSizePolicyMode::Fixed);
+    m_instructionsHolder->setFixedSize(0.f, 0.f);
+    m_instructionsHolder->setHSizePolicy(JSizePolicyMode::Expanding, 1);
+    m_instructions = std::make_unique<JPInstructions>(graph);
     m_view = add(std::make_unique<JPCameraView>(graph, hal));
     m_view->onLookAt = [this](double px, double py) { if (onLookAtPixel) onLookAtPixel(px, py); };
     m_view->onReticleChanged = [this](const JPReticle& r) { if (onReticleChanged) onReticleChanged(r); };
@@ -99,6 +105,12 @@ void JPCameraPanel::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     // Drawn, so on screen: the camera runs.
     m_drawn = std::chrono::steady_clock::now();
     if (!m_feed.isRunning()) start();
+    // The instructions as tall as their text folds to at this width.
+    if (const float w = m_instructionsHolder->bounds().width; m_instructionsShown && w > 0 && w != m_instructionsWidth) {
+        m_instructionsWidth = w;
+        m_instructionsHolder->setFixedSize(0.f, m_instructions->heightFor(m_instructionsWidth));
+        invalidate();
+    }
     JContainer::populateRenderPrimitives(buf);
 }
 
@@ -191,6 +203,23 @@ std::string JPCameraPanel::savePicture() {
     JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << "saved " << path;
     setNote(std::string("Saved ") + name);
     return path;
+}
+
+void JPCameraPanel::showInstructions(const std::string& title, const std::string& text, const std::string& proceedLabel,
+                                     std::function<void()> onCancel, std::function<void()> onProceed) {
+    m_instructions->set(title, text, proceedLabel, std::move(onCancel), std::move(onProceed));
+    if (!m_instructionsShown) m_instructionsHolder->add(m_instructions.get());
+    m_instructionsShown = true;
+    m_instructionsWidth = -1;   // sized to its text on the next frame
+    m_instructionsHolder->setFixedSize(0.f, JPInstructions::height());
+    invalidate();
+}
+
+void JPCameraPanel::hideInstructions() {
+    m_instructionsHolder->clear();
+    m_instructionsShown = false;
+    m_instructionsHolder->setFixedSize(0.f, 0.f);
+    invalidate();
 }
 
 } // inline namespace jf

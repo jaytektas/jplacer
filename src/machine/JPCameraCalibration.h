@@ -64,6 +64,16 @@ struct JPCameraCalibration {
     double cameraZ() const;
     double focalPx() const;
     double scaleAt(double atZ) const;
+    // OpenPnP's estimateZCoordinateOfObject: the Z of a feature seen at pixel
+    // (px1, py1), then at (px2, py2) after the camera (or, under a fixed
+    // camera, the nozzle holding it) moved by (movedX, movedY) mm. How far it
+    // seemed to move, against how far it did, is its scale, and so its
+    // distance from the camera. False, with why, without two heights or with
+    // too small a move.
+    bool estimateObjectZ(double px1, double py1, double px2, double py2, double movedX, double movedY, double& objectZ,
+                         std::string& why) const;
+    // A move (or an apparent one) shorter than this tells nothing (mm).
+    static constexpr double kLeastMoveMm = 0.01;
 
     // Millimetres for a displacement in the picture from its middle, seen
     // through the lens (straightened first); nothing when the fit is degenerate.

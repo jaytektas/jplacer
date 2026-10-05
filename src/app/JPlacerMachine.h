@@ -4,6 +4,7 @@
 #pragma once
 
 #include "JPlacerCameraTasks.h"
+#include "JPlacerEstimateZ.h"
 #include "JPlacerLayout.h"
 #include "JPlacerTipChanges.h"
 
@@ -242,6 +243,7 @@ private:
     };
     std::map<std::string, JPCameraView::Overlay> m_overlays;   // drawn on every camera (setCameraOverlay)
     std::vector<CameraDock>             m_cameras;   // the window's centre
+    JPlacerEstimateZ                    m_estimateZ;   // on one of them, while under way
     std::unique_ptr<JPlacerCameraTasks> m_cameraTasks;   // its Calibrate and Visual Test
     std::unique_ptr<JPlacerTipChanges>  m_tipChanges;    // the nozzles' tips loaded and unloaded
     std::map<std::string, bool>         m_lights;   // by actuator id: on or off as last switched

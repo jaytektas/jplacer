@@ -99,6 +99,7 @@ void JPlacerMachine::dropPanels(Keep keep) {
     }
     if (!cameras) return;
     for (CameraDock& c : m_cameras) m_layout.remove(c.dock.get());
+    m_estimateZ.cancel();
     m_cameras.clear();
 }
 
@@ -145,6 +146,27 @@ void JPlacerMachine::buildCameras() {
         d.panel->onSettings = [this, id = c.id] { showSetup("camera:" + id); };
         d.panel->onRunning = [this](bool) { lightCameras(); };
         if (c.mount.headId.empty()) d.panel->view().onMoveNozzleHere = [this, id = c.id] { moveNozzleToCamera(id); };
+        // OpenPnP's Estimate Z Coordinate of Object, on a camera calibrated at two heights.
+        JPCameraPanel* panel = d.panel.get();
+        d.panel->view().canEstimateZ = [this, panel, id = c.id] {
+            return m_cell && m_cell->cameraCalibration(id, panel->view().pictureWidth(), panel->view().pictureHeight()).twoHeights();
+        };
+        d.panel->view().onEstimateZ = [this, panel, id = c.id, fixed = c.mount.headId.empty()] {
+            const JPMountConfig* camera = nullptr;
+            if (m_cell)
+                for (const JPCameraConfig& cam : m_cell->config().cameras)
+                    if (cam.id == id) camera = &cam.mount;
+            if (!camera) return;
+            const JPMountConfig mount = *camera;
+            JPlacerEstimateZ::Where where = [this, fixed, mount]() -> std::optional<std::pair<double, double>> {
+                const Where at = fixed ? whereIs(JPSetupForm::Tool::Nozzle) : whereIsMount(&mount);
+                if (!at[0] || !at[1]) return std::nullopt;
+                return std::pair { *at[0], *at[1] };
+            };
+            m_estimateZ.start(*panel, fixed, std::move(where), [this, id](int width, int height) {
+                return m_cell ? m_cell->cameraCalibration(id, width, height) : JPCameraCalibration {};
+            });
+        };
         // OpenPnP's light toggle on the picture, while the camera has a light.
         if (const std::string light = c.lightActuator(); !light.empty()) {
             const auto known = m_lights.find(light);

@@ -5,6 +5,7 @@
 
 #include "JPCameraView.h"
 #include "JPIconButton.h"
+#include "JPInstructions.h"
 
 #include "camera/JPCameraFeed.h"
 #include "machine/JPCameraConfig.h"
@@ -73,6 +74,12 @@ public:
     // While a task drives the camera: its buttons are off, and it runs even
     // off screen.
     void setBusy(bool busy);
+    // OpenPnP's instructions panel over the picture, for a process worked on
+    // this camera (Estimate Z Coordinate of Object); gone with hideInstructions.
+    void showInstructions(const std::string& title, const std::string& text, const std::string& proceedLabel,
+                          std::function<void()> onCancel, std::function<void()> onProceed);
+    void hideInstructions();
+    void setProceedEnabled(bool on) { m_instructions->setProceedEnabled(on); }
     // A word about the picture (what a task is doing, why it is dark).
     void setNote(const std::string& text);
     // Write the latest picture to capturesDir. The file written, or empty
@@ -100,6 +107,10 @@ private:
     bool                                  m_busy = false;
     bool                                  m_straight = false;
     std::string                           m_capturesDir;
+    JContainer*                           m_instructionsHolder = nullptr;
+    std::unique_ptr<JPInstructions>       m_instructions;
+    bool                                  m_instructionsShown = false;
+    float                                 m_instructionsWidth = -1;   // the width they were sized for
     std::chrono::steady_clock::time_point m_drawn;   // last drawn: on screen until shortly after
     std::vector<std::function<void()>>    m_unwatch;
     std::shared_ptr<bool>                 m_alive = std::make_shared<bool>(true);

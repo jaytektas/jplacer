@@ -85,6 +85,10 @@ public:
     // A camera fixed to the machine: OpenPnP's Move Selected Nozzle to Camera,
     // first in its menu while set.
     std::function<void()> onMoveNozzleHere;
+    // OpenPnP's Estimate Z Coordinate of Object, first in the menu while
+    // `canEstimateZ` says (the camera calibrated at two heights).
+    std::function<void()> onEstimateZ;
+    std::function<bool()> canEstimateZ;
     // OpenPnP's Show Image Info (the menu's): the picture's size, the zoom,
     // the pictures a second and a histogram of its colours, at the top left.
     bool showImageInfo() const { return m_showInfo; }
@@ -171,6 +175,7 @@ private:
     JMenuItem*                         m_uncalibrated = nullptr;
     JMenuItem*                         m_infoItem = nullptr;
     JMenuItem*                         m_nozzleHereItem = nullptr;
+    JMenuItem*                         m_estimateZItem = nullptr;
     bool                               m_showInfo = false;
     JRect                              m_shown {};   // the picture as last drawn, cut to the view
     bool                               m_hasLight = false, m_lightPressed = false;

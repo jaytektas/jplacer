@@ -502,11 +502,18 @@ A camera with a light (Machine Setup, its Light actuator) has OpenPnP's light to
 top right: bright while the light is on, dim while it is off (or not known: not connected). Click it to
 switch the light the other way.
 
+A camera calibrated at two heights has **Estimate Z Coordinate of Object** first in its menu, as OpenPnP's:
+instructions over its picture say what to do. Jog the camera (for a fixed camera, the nozzle holding the
+object) so a sharp feature of the object is in view, towards the edge, and click it; jog again so the same
+feature is elsewhere in view, the farther the better, and click it again. How far it seemed to move
+against how far the camera did is how big it looks, and so how far it is from the camera: its Z is said.
+**Again** measures another; **Cancel** ends it.
+
 A camera fixed to the machine (looking up) has **Move Selected Nozzle to Camera** first in its menu: the
 nozzle chosen on the Jog panel goes, by way of safe Z, over the camera at its focal plane (its place in
 Machine Setup), its rotation kept.
 
-<!-- src: src/ui/JPCameraView.cpp (drawImageInfo, drawLightToggle, setLight, handleMouseRelease, kFpsPictures, onMoveNozzleHere); src/app/JPlacerMachine.cpp (showLight, toggleLight, moveNozzleToCamera) -->
+<!-- src: src/ui/JPCameraView.cpp (drawImageInfo, drawLightToggle, setLight, handleMouseRelease, kFpsPictures, onMoveNozzleHere); src/app/JPlacerMachine.cpp (showLight, toggleLight, moveNozzleToCamera); src/app/JPlacerEstimateZ.cpp; src/machine/JPCameraCalibration.cpp (estimateObjectZ); src/ui/JPCameraPanel.cpp (showInstructions) -->
 
 A camera can drop off its USB connection (noise from the stepper motors on its cable) or hang without
 saying so. jplacer notices either (no picture for a while counts as hung, and so does the very same

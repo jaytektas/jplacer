@@ -359,7 +359,8 @@ notes.
   starts). They come in with an OpenPnP machine.
 - A camera's picture has OpenPnP's light toggle (a sun at its top right, for a camera with a light) and Show
   Image Info in its right-click menu: the picture's size, zoom, pictures a second and a colour histogram. A
-  fixed camera's menu has Move Selected Nozzle to Camera.
+  fixed camera's menu has Move Selected Nozzle to Camera, and one calibrated at two heights Estimate Z
+  Coordinate of Object, which measures how high a feature is from two clicks on it.
 
 ## 0.1.0
 

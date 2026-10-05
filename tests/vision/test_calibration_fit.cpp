@@ -141,6 +141,26 @@ int main() {
         JPCameraCalibration flat = two;
         flat.secondScale = 25.001;
         assert(!flat.twoHeights() && flat.scaleAt(0) == 25);
+        // Estimate Z Coordinate of Object: a feature at Z 6 (50 px/mm there)
+        // seems to move 100 px when the camera moves 2 mm: 4 mm at the height
+        // measured, twice the move, so twice the scale, and so at Z 6.
+        two.width = 640;
+        two.height = 480;
+        double z = 0;
+        std::string why;
+        assert(two.estimateObjectZ(300, 240, 400, 240, 2, 0, z, why) && std::abs(z - 6) < 1e-9);
+        // At the height measured, as far as it moved.
+        assert(two.estimateObjectZ(320, 200, 320, 250, 0, 2, z, why) && std::abs(z + 24) < 1e-9);
+        // Under a fixed camera looking up, the nearer the higher scale is lower down.
+        up.width = 640;
+        up.height = 480;
+        assert(up.estimateObjectZ(320, 240, 345, 240, 1, 0, z, why) && std::abs(z - 10) < 1e-9);
+        // Without two heights, or without a move, nothing.
+        flat.width = 640;
+        flat.height = 480;
+        assert(!flat.estimateObjectZ(300, 240, 400, 240, 2, 0, z, why) && why.find("Secondary") != std::string::npos);
+        assert(!two.estimateObjectZ(300, 240, 400, 240, 0, 0, z, why) && why.find("Actual change") != std::string::npos);
+        assert(!two.estimateObjectZ(300, 240, 300, 240, 2, 0, z, why) && why.find("Apparent change") != std::string::npos);
     }
     return 0;
 }

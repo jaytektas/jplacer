@@ -43,6 +43,10 @@ void JPCameraView::buildMenu() {
     m_menu        = std::make_unique<JMenu>("Camera");
     m_spacingMenu = std::make_unique<JMenu>("Spacing");
     m_sizeMenu    = std::make_unique<JMenu>("Size");
+    m_estimateZItem = m_menu->add(g, "Estimate Z Coordinate of Object");
+    m_estimateZItem->onTriggered.connect([this] {
+        if (onEstimateZ) onEstimateZ();
+    });
     m_nozzleHereItem = m_menu->add(g, "Move Selected Nozzle to Camera");
     m_nozzleHereItem->onTriggered.connect([this] {
         if (onMoveNozzleHere) onMoveNozzleHere();
@@ -121,6 +125,7 @@ void JPCameraView::prepareContextMenu(float, float) {
     m_fitItem->setEnabled(m_zoom > 1.0);
     m_infoItem->setChecked(m_showInfo);
     m_nozzleHereItem->setVisible(bool(onMoveNozzleHere));
+    m_estimateZItem->setVisible(onEstimateZ && canEstimateZ && canEstimateZ());
 }
 
 void JPCameraView::setShowImageInfo(bool on) {

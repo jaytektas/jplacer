@@ -56,6 +56,35 @@ double JPCameraCalibration::scaleAt(double atZ) const {
     return d > 1e-9 ? focalPx() / d : scale();
 }
 
+bool JPCameraCalibration::estimateObjectZ(double px1, double py1, double px2, double py2, double movedX, double movedY,
+                                          double& objectZ, std::string& why) const {
+    if (!twoHeights()) {
+        why = "Secondary Camera Units Per Pixel have not been calibrated.";
+        return false;
+    }
+    const double moved = std::hypot(movedX, movedY);
+    if (moved < kLeastMoveMm) {
+        why = "Actual change in camera position or actual feature size too small to estimate object Z coordinate.";
+        return false;
+    }
+    // How far it seemed to move, in millimetres at the height measured (through the lens).
+    double x1, y1, x2, y2;
+    if (!mmForPixels(px1 - width / 2.0, py1 - height / 2.0, x1, y1) || !mmForPixels(px2 - width / 2.0, py2 - height / 2.0, x2, y2)) {
+        why = "the camera's calibration cannot place those pixels";
+        return false;
+    }
+    const double seen = std::hypot(x2 - x1, y2 - y1);
+    if (seen < kLeastMoveMm) {
+        why = "Apparent change in position or apparent size of object feature is too small to estimate object Z "
+              "coordinate.";
+        return false;
+    }
+    // Its scale (px/mm), and the distance from the camera that gives it, on the side the heights measured are.
+    const double s = scale() * seen / moved;
+    objectZ = cameraZ() + (z >= cameraZ() ? 1.0 : -1.0) * focalPx() / s;
+    return true;
+}
+
 double JPCameraCalibration::scaleX() const { return std::hypot(pxPerMm[0], pxPerMm[2]); }
 double JPCameraCalibration::scaleY() const { return std::hypot(pxPerMm[1], pxPerMm[3]); }
 
