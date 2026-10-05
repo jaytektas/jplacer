@@ -84,7 +84,10 @@ JPPartsPanel::JPPartsPanel(JSceneGraph& graph, JPConfiguration& config, double s
     m_table = m_tablePane->add(std::make_unique<JPTable>(graph));
     m_table->setModel(&m_model);
     m_table->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
-    m_table->onSelectionChanged.connect([this] { updateWizards(); });
+    m_table->onSelectionChanged.connect([this] {
+        updateWizards();
+        if (const JPPart* p = selectedPart(); p && onPartChosen) onPartChosen(*p);
+    });
     m_table->onEditRefused = [](const std::string&) {};
     m_form = m_tabsPane->add(std::make_unique<JPSetupForm>(graph));
     m_form->setVSizePolicy(JSizePolicyMode::Expanding, 1);

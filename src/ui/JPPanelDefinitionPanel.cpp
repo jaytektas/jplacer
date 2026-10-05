@@ -105,7 +105,11 @@ JPPanelDefinitionPanel::JPPanelDefinitionPanel(JSceneGraph& graph, JPConfigurati
     m_childTable = children->add(std::make_unique<JPTable>(graph));
     m_childTable->setModel(&m_children);
     m_childTable->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
-    m_childTable->onSelectionChanged.connect([this] { updateActions(); });
+    m_childTable->onSelectionChanged.connect([this] {
+        updateActions();
+        const auto s = childSelections();
+        if (onChildChosen) onChildChosen(s.size() == 1 ? s.front() : nullptr);
+    });
     m_childTable->onEditRefused = [](const std::string&) {};
     m_childTable->onKey = [this](const JKeyEvent& ke) {
         if (ke.key != JKeyEvent::JKey::Space || ke.ctrl || ke.alt) return false;
@@ -138,7 +142,11 @@ JPPanelDefinitionPanel::JPPanelDefinitionPanel(JSceneGraph& graph, JPConfigurati
     m_fiducialTable = fiducials->add(std::make_unique<JPTable>(graph));
     m_fiducialTable->setModel(&m_fiducials);
     m_fiducialTable->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
-    m_fiducialTable->onSelectionChanged.connect([this] { updateActions(); });
+    m_fiducialTable->onSelectionChanged.connect([this] {
+        updateActions();
+        const auto s = fiducialSelections();
+        if (onFiducialChosen) onFiducialChosen(s.size() == 1 ? s.front() : nullptr);
+    });
     m_fiducialTable->onEditRefused = [](const std::string&) {};
     m_fiducialsPane->add(std::move(fiducials));
 
@@ -221,6 +229,18 @@ void JPPanelDefinitionPanel::refresh() {
     m_childTable->refresh();
     m_fiducialTable->refresh();
     updateActions();
+}
+
+void JPPanelDefinitionPanel::selectChild(const JPPlacementsHolderLocation& child) {
+    for (int r = 0; r < m_children.rowCount(); ++r)
+        if (const JPPlacementsHolderLocation* l = m_children.location(r); l && l->definition() == child.definition()) {
+            m_childTable->selectRow(r);
+            return;
+        }
+}
+
+void JPPanelDefinitionPanel::selectFiducial(const std::string& id) {
+    m_fiducialTable->selectRow(id.empty() ? -1 : m_fiducials.rowOf(id));
 }
 
 std::vector<JPPlacementsHolderLocation*> JPPanelDefinitionPanel::childSelections() const {

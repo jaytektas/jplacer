@@ -620,6 +620,11 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         }
     };
 
+    m_links = std::make_unique<JPlacerTableLinks>(
+        JPlacerTableLinks::Tabs { *m_jobPanel, *m_boards, *m_panels, *m_parts, *m_packages, *m_feeders, *m_vision,
+                                  *m_jobDock, *m_boardsDock, *m_panelsDock, *m_partsDock, *m_feedersDock },
+        m_job.configuration(), [] { return JSettings::instance().get<bool>(JPlacerSettings::kTablesLinked, false); });
+
     // The pages shown again on the next frame, once for all the changes made
     // meanwhile: a change made from a page (a slider dragged) must not take
     // the page away while it is still handling the click.

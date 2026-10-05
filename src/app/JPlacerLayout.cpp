@@ -35,8 +35,9 @@ JPlacerLayout::~JPlacerLayout() {
     m_window.onDockClosed = nullptr;
 }
 
-void JPlacerLayout::setViewMenu(JMenu* view, JSceneGraph& graph) {
+void JPlacerLayout::setViewMenu(JMenu* view, JSceneGraph& graph, std::function<void(JMenu&)> head) {
     m_view = view;
+    m_viewHead = std::move(head);
     m_graph = &graph;
     rebuildMenu();
 }
@@ -121,6 +122,10 @@ void JPlacerLayout::hide(const Entry& e) {
 void JPlacerLayout::rebuildMenu() {
     if (!m_view || !m_graph) return;
     m_view->clear();
+    if (m_viewHead) {
+        m_viewHead(*m_view);
+        m_view->addSeparator(*m_graph);
+    }
     for (size_t i = 0; i < m_entries.size(); ++i) {
         Entry& e = m_entries[i];
         if (i > 0 && m_entries[i - 1].home != e.home) m_view->addSeparator(*m_graph);

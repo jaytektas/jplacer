@@ -87,7 +87,10 @@ JPFeedersPanel::JPFeedersPanel(JSceneGraph& graph, JPConfiguration& config, doub
     m_table = m_tablePane->add(std::make_unique<JPTable>(graph));
     m_table->setModel(&m_model);
     m_table->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
-    m_table->onSelectionChanged.connect([this] { selectionChanged(); });
+    m_table->onSelectionChanged.connect([this] {
+        selectionChanged();
+        if (const JPFeeder* f = selection(); f && onFeederChosen) onFeederChosen(*f);
+    });
     m_table->onEditRefused = [](const std::string&) {};
     m_form = m_formPane->add(std::make_unique<JPSetupForm>(graph));
     m_form->setOpenPnpPlaceButtons(true);
@@ -581,6 +584,16 @@ void JPFeedersPanel::showFeederForPart(const std::string& partId) {
                 return;
             }
     newFeeder(partId);
+}
+
+void JPFeedersPanel::selectFeederForPart(const std::string& partId) {
+    if (const JPFeeder* f = selection(); f && f->partId() == partId) return;
+    for (const bool enabled : { true, false })
+        for (const JPFeeder& f : m_config.feeders())
+            if (f.partId() == partId && f.enabled() == enabled) {
+                selectFeeder(f.id());
+                return;
+            }
 }
 
 void JPFeedersPanel::newFeeder(const std::string& partId) {

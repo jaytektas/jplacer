@@ -345,6 +345,10 @@ notes.
 - The Edit menu has OpenPnP's Add Board/Panel, Remove Board(s)/Panel(s) and Capture Tool Location, and Help
   has Quick Start and Setup and Calibration, in OpenPnP's order. OpenPnP's Scripts and Window menus are there,
   greyed out until they are built.
+- View has OpenPnP's Selections in Tables: set to Linked, choosing a board, placement, part or feeder in one tab
+  chooses what goes with it on the others (its board, its part, the part's package, feeder and vision settings).
+  View also has OpenPnP's System Units and Language, with only millimetres and English for now.
+- A row chosen in a table on a tab not yet shown is scrolled into view when the tab is shown.
 
 ## 0.1.0
 

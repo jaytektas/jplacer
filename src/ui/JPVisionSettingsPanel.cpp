@@ -121,6 +121,17 @@ void JPVisionSettingsPanel::changed() {
     if (onChanged) onChanged();
 }
 
+void JPVisionSettingsPanel::selectFor(const JPPart& part) {
+    const bool bottom = m_type->currentIndex() != 1;
+    const auto defaults = machineDefaults ? machineDefaults() : std::pair<std::string, std::string> {};
+    const JPVisionSettings* v = m_config.inheritedVision(part, bottom ? JPVisionSettings::Kind::Bottom : JPVisionSettings::Kind::Fiducial,
+                                                         bottom ? defaults.first : defaults.second);
+    if (!v) return;
+    const auto chosen = selections();
+    if (chosen.size() == 1 && chosen.front() == v) return;
+    m_table->selectRow(m_model.rowOf(v->id));
+}
+
 std::vector<JPVisionSettings*> JPVisionSettingsPanel::selections() const {
     std::vector<JPVisionSettings*> out;
     for (const int r : m_table->selectedRows())

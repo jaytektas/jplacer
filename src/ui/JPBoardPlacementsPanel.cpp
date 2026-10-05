@@ -82,7 +82,11 @@ JPBoardPlacementsPanel::JPBoardPlacementsPanel(JSceneGraph& graph, JPConfigurati
     m_table = add(std::make_unique<JPTable>(graph));
     m_table->setModel(&m_model);
     m_table->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
-    m_table->onSelectionChanged.connect([this] { updateActions(); });
+    m_table->onSelectionChanged.connect([this] {
+        updateActions();
+        const auto s = selections();
+        if (s.size() <= 1 && onPlacementChosen) onPlacementChosen(s.empty() ? nullptr : s.front());
+    });
     m_table->onEditRefused = [](const std::string&) {};
     // Space turns the (first) chosen placement on or off.
     m_table->onKey = [this](const JKeyEvent& ke) {
@@ -140,6 +144,10 @@ void JPBoardPlacementsPanel::setBoard(JPBoard* board) {
 void JPBoardPlacementsPanel::refresh() {
     m_table->refresh();
     updateActions();
+}
+
+void JPBoardPlacementsPanel::selectPlacement(const std::string& id) {
+    m_table->selectRow(id.empty() ? -1 : m_model.rowOf(id));
 }
 
 std::vector<JPPlacement*> JPBoardPlacementsPanel::selections() const {

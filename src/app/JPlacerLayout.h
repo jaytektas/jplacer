@@ -7,6 +7,7 @@
 #include <j/core/DockWidget.h>
 #include <j/core/MenuSystem.h>
 
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -39,8 +40,8 @@ public:
     JPlacerLayout& operator=(const JPlacerLayout&) = delete;
 
     // View's entries, a tick for each dock that is showing, in step with the
-    // docks from now on.
-    void setViewMenu(JMenu* view, JSceneGraph& graph);
+    // docks from now on; `head` adds the entries over them each time they are made.
+    void setViewMenu(JMenu* view, JSceneGraph& graph, std::function<void(JMenu&)> head);
 
     // A dock to lay out: shown at its home now, and listed in View.
     void add(JDockWidget* dock, Home home);
@@ -68,6 +69,7 @@ private:
     JAppWindow&        m_window;
     std::vector<Entry> m_entries;   // in the order View lists them
     JMenu*             m_view = nullptr;
+    std::function<void(JMenu&)> m_viewHead;
     JSceneGraph*       m_graph = nullptr;
 };
 

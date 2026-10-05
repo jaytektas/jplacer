@@ -6,6 +6,7 @@
 #include "JPKeyMap.h"
 #include "JPlacerApp.h"
 #include "JPlacerHelpPages.h"
+#include "JPlacerSettings.h"
 
 #include <filesystem>
 
@@ -120,8 +121,44 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
     edit->addSeparator(graph);
     entry(keys, edit, graph, "edit.preferences", "Edit", "Preferences\xE2\x80\xA6", none, [&app] { app.openPreferences(); });
 
-    // A tick for each panel: untick to close it, tick to bring it back where it lives.
-    app.machine().layout().setViewMenu(newMenu(window, "View"), graph);
+    // OpenPnP's System Units, Selections in Tables and Language; under them a
+    // tick for each panel: untick to close it, tick to bring it back where it lives.
+    auto subMenu = [](const std::string& title) {
+        menuStore().push_back(std::make_unique<JMenu>(title));
+        return menuStore().back().get();
+    };
+    // A tick to show which is chosen (one not built yet greyed out).
+    auto tick = [&graph](JMenu* m, const std::string& label, bool chosen, bool enabled) {
+        JMenuItem* i = m->add(graph, label);
+        i->setCheckable(true);
+        i->setChecked(chosen);
+        i->setEnabled(enabled);
+        return i;
+    };
+    JMenu* units = subMenu("System Units");
+    tick(units, "Inches", false, false);
+    JMenuItem* mm = tick(units, "Millimeters", true, true);
+    mm->onTriggered.connect([mm] { mm->setChecked(true); });
+    JMenu* tables = subMenu("Selections in Tables");
+    const bool linked = JSettings::instance().get<bool>(JPlacerSettings::kTablesLinked, false);
+    JMenuItem* unlinkedItem = tick(tables, "Unlinked", !linked, true);
+    JMenuItem* linkedItem   = tick(tables, "Linked", linked, true);
+    auto setLinked = [unlinkedItem, linkedItem](bool on) {
+        JSettings::instance().set(JPlacerSettings::kTablesLinked, on);
+        unlinkedItem->setChecked(!on);
+        linkedItem->setChecked(on);
+    };
+    unlinkedItem->onTriggered.connect([setLinked] { setLinked(false); });
+    linkedItem->onTriggered.connect([setLinked] { setLinked(true); });
+    JMenu* language = subMenu("Language");
+    JMenuItem* english = tick(language, "English (United States)", true, true);
+    english->onTriggered.connect([english] { english->setChecked(true); });
+    for (const char* other : { "Russian", "Spanish", "French", "Italian", "German", "Chinese (China)" }) tick(language, other, false, false);
+    app.machine().layout().setViewMenu(newMenu(window, "View"), graph, [&graph, units, tables, language](JMenu& view) {
+        view.add(graph, "System Units", {}, units);
+        view.add(graph, "Selections in Tables", {}, tables);
+        view.add(graph, "Language", {}, language);
+    });
 
     JMenu* machine = newMenu(window, "Machine");
     entry(keys, machine, graph, "machine.import", "Machine", "Import OpenPnP Machine\xE2\x80\xA6", none,

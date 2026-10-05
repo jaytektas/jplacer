@@ -38,11 +38,36 @@ key taken off, in [Preferences, Keys](preferences.md#keys); the menu then shows 
 
 ## View
 
-A tick for each panel: each camera, **Jog**, **Actuators**, **[Parts](parts.md)**, **[Packages](packages.md)**,
+| Entry | |
+|---|---|
+| **System Units** | **Millimeters**, ticked: jplacer works in millimetres. **Inches** is greyed out: not built yet. |
+| **Selections in Tables** | **Unlinked** (to start with) or **Linked**. Linked, what you choose in one tab's table chooses what goes with it on the other tabs, as in OpenPnP (see below). |
+| **Language** | **English (United States)**, ticked. OpenPnP's other languages (Russian, Spanish, French, Italian, German, Chinese) are greyed out: not built yet. |
+
+Under them, a tick for each panel: each camera, **Jog**, **Actuators**, **[Parts](parts.md)**, **[Packages](packages.md)**,
 **Machine Setup**, **Machine** and **Console**. Untick one to close it; tick it to show it again where it lives (see
 [The machine's panels](machine.md#the-machines-panels)).
 
 <!-- src: src/app/JPlacerMenuBuilder.cpp (View); src/app/JPlacerLayout.cpp (rebuildMenu) -->
+
+### Linked tables
+
+With **Selections in Tables** set to **Linked**, a choice made in a table on the tab in front chooses, on the
+other tabs:
+
+| Chosen | Also chosen |
+|---|---|
+| A board or panel on the [Job tab](jobs.md#the-job-tab) | A board: the board on the Boards tab, and in a panel, that panel and the board in it on the Panels tab. A panel: that panel on the Panels tab. |
+| A placement on the Job tab | The same placement on the Boards tab (or the fiducial on the Panels tab), and its part. |
+| A placement on the [Boards](boards.md) tab | The same placement on the Job tab when it shows that board, and its part. |
+| A board or panel in a panel on the [Panels](panels.md) tab | It on the Job tab, and a board on the Boards tab. |
+| A fiducial on the Panels tab | The same fiducial on the Job tab when it shows that panel. |
+| A part on the [Parts](parts.md) tab | Its package on the Packages tab, a feeder that holds it on the Feeders tab (an enabled one first), and the vision settings it uses on the Vision tab (of the type that tab shows). |
+| A feeder on the Feeders tab | Its part, and so what goes with the part. |
+
+What is chosen by a link chooses nothing further. A part with no feeder leaves the Feeders tab as it was.
+
+<!-- src: src/app/JPlacerTableLinks.cpp; src/ui/JPFeedersPanel.cpp (selectFeederForPart); src/ui/JPVisionSettingsPanel.cpp (selectFor) -->
 
 ## Machine
 

@@ -156,7 +156,11 @@ JPJobPanel::JPJobPanel(JSceneGraph& graph, JPConfiguration& config, std::functio
     m_table = boards->add(std::make_unique<JPTable>(graph));
     m_table->setModel(&m_model);
     m_table->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
-    m_table->onSelectionChanged.connect([this] { selectionChanged(); });
+    m_table->onSelectionChanged.connect([this] {
+        selectionChanged();
+        const auto s = selections();
+        if (s.size() == 1 && onLocationChosen) onLocationChosen(*s.front());
+    });
     m_table->onEditRefused = [](const std::string&) {};
     m_boardsPane->add(std::move(boards));
 
@@ -296,6 +300,18 @@ void JPJobPanel::select(const std::string& uniqueId, const std::string& placemen
         if (const JPPlacementsHolderLocation* l = m_model.location(r); l && l->uniqueId() == uniqueId) {
             m_table->selectRow(r);
             if (!placementId.empty()) m_placements->select(placementId);
+            return;
+        }
+}
+
+void JPJobPanel::selectLocation(const JPPlacementsHolderLocation* definition) {
+    if (!definition) {
+        m_table->clearSelection();
+        return;
+    }
+    for (int r = 0; r < m_model.rowCount(); ++r)
+        if (const JPPlacementsHolderLocation* l = m_model.location(r); l && l->definition() == definition->definition()) {
+            m_table->selectRow(r);
             return;
         }
 }

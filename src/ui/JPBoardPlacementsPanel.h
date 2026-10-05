@@ -49,6 +49,10 @@ public:
     JPBoard* board() const { return m_board; }
     // The placements changed elsewhere: shown again.
     void refresh();
+    // The placement of an id chosen; none chosen for an empty id or one not shown.
+    void selectPlacement(const std::string& id);
+    // The one placement chosen (none: nothing or several chosen), as the table's choice changes.
+    std::function<void(const JPPlacement*)> onPlacementChosen;
     // Imports into the board shown with `importer` (Import Placements, File
     // > Import Board): an error when no board is chosen.
     void importBoard(const JPBoardImporter& importer);

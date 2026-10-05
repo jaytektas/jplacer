@@ -350,6 +350,11 @@ void JPTable::ensureVisible(int v) {
     if (v < 0) return;
     const JRect b = bounds();
     const float visible = b.height - headerHeight();
+    // Not laid out yet (its tab behind another): brought into view when it is.
+    if (visible < rowHeight()) {
+        m_reveal = m_view[size_t(v)];
+        return;
+    }
     const float top = float(v) * rowHeight();
     if (top < m_scrollY) m_scrollY = top;
     else if (top + rowHeight() > m_scrollY + visible) m_scrollY = top + rowHeight() - visible;
@@ -366,6 +371,11 @@ void JPTable::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     buf.pushRectangle(b.x, b.y, b.width, b.height, Colors::Surface1, st.cornerRadius, st.borderWidth,
                       focused ? Colors::Accent : Colors::Border);
     if (!m_model || !JTextHelper::hasAtlas()) return;
+    if (m_reveal >= 0) {
+        const int r = m_reveal;
+        m_reveal = -1;
+        ensureVisible(viewIndexOf(r));
+    }
     clampScroll();
     const int columns = m_model->columnCount();
     const float hh = headerHeight(), rh = rowHeight(), pad = st.gridCellPadding;

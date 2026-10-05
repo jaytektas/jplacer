@@ -10,6 +10,7 @@
 #include "JPlacerPipelines.h"
 #include "JPlacerOcrRegionSetup.h"
 #include "JPlacerStripAutoSetup.h"
+#include "JPlacerTableLinks.h"
 #include "JPlacerVisionTests.h"
 #include "JPlacerViewerDock.h"
 
@@ -111,6 +112,7 @@ private:
     std::unique_ptr<JPlacerVisionTests> m_visionTests;
     std::unique_ptr<JPlacerStripAutoSetup> m_autoSetup;
     std::unique_ptr<JPlacerOcrRegionSetup> m_ocrRegion;
+    std::unique_ptr<JPlacerTableLinks> m_links;
     // The status line's placements done ("Placements: 3 / 10 Total | …") and its bar.
     std::unique_ptr<JLabel>          m_placedLabel;
     std::unique_ptr<JProgressBar>    m_placedBar;

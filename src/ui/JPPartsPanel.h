@@ -55,6 +55,8 @@ public:
     // The parts changed elsewhere: shown again, the selection kept.
     void refresh();
     void selectPart(const JPPart* part);
+    // One part chosen in the table (for the tables linked to it, View > Selections in Tables).
+    std::function<void(const JPPart&)> onPartChosen;
     const JPPart* selectedPart() const;
     double split() const;
 

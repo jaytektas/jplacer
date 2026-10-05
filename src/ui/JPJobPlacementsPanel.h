@@ -51,6 +51,10 @@ public:
     void refresh();
     // A placement chosen (and shown), by id.
     void select(const std::string& placementId);
+    // The placement of an id chosen, the search kept (one not shown: none chosen).
+    void selectPlacement(const std::string& placementId);
+    // The one placement chosen, or none (nothing or several), as the table's choice changes.
+    std::function<void(const JPPlacement*)> onPlacementChosen;
     // Edit Placement Feeder: the Feeders tab showing the part's feeder.
     std::function<void(const std::string& partId)> onEditFeeder;
     // The placed counts given again (OpenPnP's updateActivePlacements).

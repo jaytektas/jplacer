@@ -107,6 +107,11 @@ public:
     double split() const;
     // A feeder chosen (and shown), by id.
     void selectFeeder(const std::string& id);
+    // OpenPnP's selectFeederForPart: unless the feeder chosen has the part, its
+    // feeder chosen (an enabled one first); none made when it has none.
+    void selectFeederForPart(const std::string& partId);
+    // One feeder chosen in the table (for the tables linked to it, View > Selections in Tables).
+    std::function<void(const JPFeeder&)> onFeederChosen;
     // OpenPnP's pickFeeder: a feed, then the chosen nozzle's pick at its pick location.
     void pickFrom(JPFeeder& f);
 

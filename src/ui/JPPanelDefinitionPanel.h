@@ -55,6 +55,13 @@ public:
     JPPanelLocation& root() { return m_root; }
     // The panel changed elsewhere: shown again.
     void refresh();
+    // The child that is (an instance of) `child`'s definition chosen; the fiducial of an id
+    // chosen (none: none chosen).
+    void selectChild(const JPPlacementsHolderLocation& child);
+    void selectFiducial(const std::string& id);
+    // The one child, or fiducial, chosen (none: nothing or several), as the table's choice changes.
+    std::function<void(const JPPlacementsHolderLocation*)> onChildChosen;
+    std::function<void(const JPPlacement*)>                onFiducialChosen;
 
 private:
     std::vector<JPPlacementsHolderLocation*> childSelections() const;

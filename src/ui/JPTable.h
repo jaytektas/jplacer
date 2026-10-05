@@ -148,6 +148,8 @@ private:
     int                            m_anchor = -1;     // model row a Shift range runs from
     mutable std::vector<float>     m_widths;
     float                          m_scrollX = 0, m_scrollY = 0;
+    // A model row to bring into view once the table has its height (chosen while hidden).
+    int                            m_reveal = -1;
     int                            m_resizing = -1;
     float                          m_resizeFromX = 0, m_resizeFromW = 0;
     bool                           m_draggingV = false;

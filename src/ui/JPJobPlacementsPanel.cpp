@@ -94,7 +94,11 @@ JPJobPlacementsPanel::JPJobPlacementsPanel(JSceneGraph& graph, JPConfiguration& 
     m_table = add(std::make_unique<JPTable>(graph));
     m_table->setModel(&m_model);
     m_table->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
-    m_table->onSelectionChanged.connect([this] { updateActions(); });
+    m_table->onSelectionChanged.connect([this] {
+        updateActions();
+        const auto s = selections();
+        if (onPlacementChosen) onPlacementChosen(s.size() == 1 ? s.front() : nullptr);
+    });
     m_table->onEditRefused = [](const std::string&) {};
     m_table->onKey = [this](const JKeyEvent& ke) {
         if (ke.key != JKeyEvent::JKey::Space || ke.ctrl || ke.alt) return false;
@@ -168,6 +172,10 @@ void JPJobPlacementsPanel::setLocation(JPPlacementsHolderLocation* location) {
 void JPJobPlacementsPanel::select(const std::string& placementId) {
     m_search->setText("");
     m_table->setFilter("");
+    m_table->selectRow(m_model.rowOf(placementId));
+}
+
+void JPJobPlacementsPanel::selectPlacement(const std::string& placementId) {
     m_table->selectRow(m_model.rowOf(placementId));
 }
 

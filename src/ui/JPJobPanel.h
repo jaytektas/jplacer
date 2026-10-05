@@ -53,6 +53,8 @@ public:
     std::function<void(std::vector<const JPPlacementsHolderLocation*> chosen)> onViewJob;
     // The chosen boards and panels changed (the job viewer follows them).
     std::function<void(std::vector<const JPPlacementsHolderLocation*> chosen)> onSelectionChanged;
+    // One board or panel chosen in the table (for the tables linked to it, View > Selections in Tables).
+    std::function<void(const JPPlacementsHolderLocation&)> onLocationChosen;
 
     // Start (Pause, Resume), Step and Stop; Fiducial Check on the chosen board or panel.
     std::function<void()> onStartPauseResume, onStep, onStop;
@@ -78,6 +80,9 @@ public:
     JPJobPlacementsPanel& placements() { return *m_placements; }
     // The board or panel of a unique id ("Pnl1⇒Brd2") chosen, and a placement on it.
     void select(const std::string& uniqueId, const std::string& placementId);
+    // OpenPnP's selectPlacementsHolderLocation: the board or panel of the job
+    // that is an instance of `definition` chosen (none: none chosen).
+    void selectLocation(const JPPlacementsHolderLocation* definition);
     // Another job, or the job changed elsewhere: shown again.
     void refresh();
     double split() const;

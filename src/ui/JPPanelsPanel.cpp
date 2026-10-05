@@ -46,6 +46,10 @@ JPPanelsPanel::JPPanelsPanel(JSceneGraph& graph, JPConfiguration& config, std::f
     m_split->addPane(m_definitionPane.get(), float(1 - split));
 }
 
+void JPPanelsPanel::selectPanel(const JPPanel* panel) {
+    m_panels->select(panel);
+}
+
 double JPPanelsPanel::split() const {
     const std::vector<float> f = m_split->fractions();
     return f.empty() ? 0.5 : f.front();

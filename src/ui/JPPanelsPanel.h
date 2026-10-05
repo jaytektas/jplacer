@@ -34,6 +34,8 @@ public:
     JPPanelDefinitionPanel& definition() { return *m_definition; }
     void refresh();
     double split() const;
+    // A panel (a definition) chosen; none for none.
+    void selectPanel(const JPPanel* panel);
 
 private:
     std::unique_ptr<JContainer> m_panelsPane, m_definitionPane;

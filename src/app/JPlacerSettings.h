@@ -32,6 +32,8 @@ public:
     // JPlacerAppearance.
     static constexpr const char* kTheme            = "appearance.theme";
     static constexpr const char* kUiScale          = "ui.scale";
+    // View > Selections in Tables: Linked (true) or Unlinked (JPlacerTableLinks).
+    static constexpr const char* kTablesLinked     = "view.tablesLinked";
     // Machine Setup's divider: the tree's share of the room over the settings.
     static constexpr const char* kSetupTreeShare   = "setup.treeWidthShare";
     // How much the log says (JPLogLevels::toText), and whether the console
