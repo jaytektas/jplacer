@@ -212,7 +212,7 @@ std::unique_ptr<JContainer> JPPackagesPanel::visionTab(JPPackage& p, JPVisionSet
         used += (used.empty() ? "" : ", ") + u;
     JPSetupProperties::Form form;
     JPFormBuilder add(form);
-    JPVisionForms::addPage(add, m_config, v->id, used, { JPVisionForms::Holder::Kind::Package, p.id });
+    JPVisionForms::addPage(add, m_config, v->id, used, { JPVisionForms::Holder::Kind::Package, p.id }, tests());
     auto page = std::make_unique<JContainer>(m_graph, 0.f, 0.f);
     page->setDirection(JFlexDirection::Column)->setAlignItems(JAlignItems::Stretch);
     page->setVSizePolicy(JSizePolicyMode::Expanding, 1);
@@ -244,6 +244,9 @@ bool JPPackagesPanel::pipelineAct(const std::string& settingsId, const JPVisionF
     hooks.machineDefault = [this](JPVisionSettings::Kind kind) {
         const auto defaults = machineDefaults ? machineDefaults() : std::pair<std::string, std::string> {};
         return m_config.visionSettings(kind == JPVisionSettings::Kind::Bottom ? defaults.first : defaults.second);
+    };
+    hooks.test = [this, holder](const std::string& id, const std::string& test) {
+        if (visionTest) visionTest(id, holder, test);
     };
     hooks.changed = [this] {
         // Its sliders follow the pipeline.

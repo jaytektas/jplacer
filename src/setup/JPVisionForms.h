@@ -31,12 +31,22 @@ public:
         std::string id;
     };
 
+    // What the test buttons work with, from the machine: the angle a part is
+    // tested at (the machine's test alignment angle), whether it is centred
+    // after the test. Without them the tests are not offered.
+    struct Tests {
+        std::function<double()>     angle;
+        std::function<void(double)> setAngle;
+        std::function<bool()>       center;
+        std::function<void(bool)>   setCenter;
+    };
     // `usedIn`: what uses it, as Assigned To lists it.
-    static JPSetupProperties::Form forSettings(JPConfiguration& config, const std::string& id, const std::string& usedIn);
+    static JPSetupProperties::Form forSettings(JPConfiguration& config, const std::string& id, const std::string& usedIn,
+                                               const Tests* tests = nullptr);
     // The settings' page added to a form being built (a part's or package's
     // tabs), its buttons' actions prefixed "bottom:" or "fiducial:".
     static void addPage(JPFormBuilder& add, JPConfiguration& config, const std::string& id, const std::string& usedIn,
-                        const Holder& holder);
+                        const Holder& holder, const Tests* tests = nullptr);
     // A button of a page: "reset", "specialize" (a copy of `id`'s settings
     // for the holder, named after it), "generalize" (a package's parts' own
     // settings taken off). False, and why (empty when nothing was done),

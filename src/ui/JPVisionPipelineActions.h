@@ -22,10 +22,12 @@ public:
         // The machine's default setting of the same kind (Reset copies its pipeline).
         std::function<const JPVisionSettings*(JPVisionSettings::Kind kind)>         machineDefault;
         std::function<void()>                                                        changed;
+        // A test on the machine: "testAlignment", "detectOffsets", "testFiducial".
+        std::function<void(const std::string& settingsId, const std::string& test)>  test;
     };
 
     // True when `what` ("editPipeline", "resetPipeline", "copyPipeline",
-    // "pastePipeline", "parameter:<name>") is one of these: done, or asked.
+    // "pastePipeline", "parameter:<name>", or a test) is one of these: done, or asked.
     static bool act(JPConfiguration& config, const std::string& settingsId, const std::string& what, const Hooks& hooks);
 };
 

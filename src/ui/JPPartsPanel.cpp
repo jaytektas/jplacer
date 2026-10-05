@@ -178,7 +178,7 @@ void JPPartsPanel::updateWizards() {
                 for (const std::string& u :
                      m_config.visionUsedIn(*v, bottom ? defaults.first : defaults.second, bottom ? "Bottom Vision" : "Fiducal Locator"))
                     used += (used.empty() ? "" : ", ") + u;
-                JPVisionForms::addPage(add, m_config, v->id, used, holder);
+                JPVisionForms::addPage(add, m_config, v->id, used, holder, tests());
             }
         }
     }
@@ -196,6 +196,9 @@ bool JPPartsPanel::pipelineAct(const std::string& settingsId, const JPVisionForm
     hooks.machineDefault = [this](JPVisionSettings::Kind kind) {
         const auto defaults = machineDefaults ? machineDefaults() : std::pair<std::string, std::string> {};
         return m_config.visionSettings(kind == JPVisionSettings::Kind::Bottom ? defaults.first : defaults.second);
+    };
+    hooks.test = [this, holder](const std::string& id, const std::string& test) {
+        if (visionTest) visionTest(id, holder, test);
     };
     hooks.changed = [this] {
         // Its sliders follow the pipeline.

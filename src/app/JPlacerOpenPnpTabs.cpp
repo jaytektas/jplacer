@@ -313,8 +313,13 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
                 why = "No nozzle to pick with";
                 return false;
             }
-            return machine.safeZ(why) && machine.pick(nozzle, *at, why)
-                && JPFeederFeed::postPick(m_job.configuration(), feederId, machine, onMain, why) && machine.safeZ(why);
+            std::string part;
+            onMain([&] {
+                if (const JPFeeder* f = m_job.configuration().feeder(feederId)) part = f->partId();
+            });
+            if (!machine.safeZ(why) || !machine.pick(nozzle, *at, why)) return false;
+            machine.holding(nozzle, part);
+            return JPFeederFeed::postPick(m_job.configuration(), feederId, machine, onMain, why) && machine.safeZ(why);
         });
     };
     m_feeders->actuatorNames = [this] {
@@ -491,6 +496,17 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
 
     // Running the job: a failure's source chosen where it is shown, as OpenPnP does.
     m_jobRun = std::make_unique<JPlacerJobRun>(m_window, job, machine, *m_jobPanel);
+    // The vision pages' tests, on the machine as the job runs it.
+    m_visionTests = std::make_unique<JPlacerVisionTests>(m_job, m_machine, *m_jobRun);
+    auto visionTest = [this](const std::string& id, const JPVisionForms::Holder& holder, const std::string& test) {
+        m_visionTests->run(id, holder, test, [this] { m_job.configurationChanged(); });
+    };
+    m_parts->visionTest = visionTest;
+    m_packages->visionTest = visionTest;
+    m_vision->visionTest = visionTest;
+    m_parts->setTests(m_visionTests->tests());
+    m_packages->setTests(m_visionTests->tests());
+    m_vision->setTests(m_visionTests->tests());
     m_jobRun->onPlaced = [this] {
         m_jobPanel->placements().refresh();
         if (m_jobViewer) m_jobViewer->regenerate();

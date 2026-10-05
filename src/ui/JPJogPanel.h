@@ -86,6 +86,8 @@ public:
     std::function<void(JMenu* menu, float x, float y)> openMenu;
     // Home the nozzle's Z alone (JPCell::homeNozzle).
     std::function<void(const std::string& nozzleId)> onHomeZ;
+    // A nozzle's part put down or dropped (Place, Discard): it holds none.
+    std::function<void(const std::string& nozzleId)> onPartGone;
     // Stop (the move held and dropped) or, `emergency`, reset every controller.
     std::function<void(bool emergency)> onStop;
     // The key an action has now (Preferences > Keys), for the tooltips; "" none.

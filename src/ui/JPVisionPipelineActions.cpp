@@ -20,6 +20,10 @@ bool JPVisionPipelineActions::act(JPConfiguration& config, const std::string& se
         if (hooks.edit) hooks.edit(settingsId);
         return true;
     }
+    if (what == "testAlignment" || what == "detectOffsets" || what == "testFiducial") {
+        if (hooks.test) hooks.test(settingsId, what);
+        return true;
+    }
     if (what.rfind("parameter:", 0) == 0) {
         if (hooks.preview) hooks.preview(settingsId, what.substr(std::string("parameter:").size()));
         return true;

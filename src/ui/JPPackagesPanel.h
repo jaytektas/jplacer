@@ -50,6 +50,10 @@ public:
         previewParameter;
     // A parameter's slider moved: the setting to be saved (the pages not shown again).
     std::function<void()> onParameterChanged;
+    // A test on the machine (Test Alignment, Detect Offsets, Test Fiducial
+    // Locator), and what the tests work with (without it, they are not offered).
+    std::function<void(const std::string& settingsId, const JPVisionForms::Holder& holder, const std::string& test)> visionTest;
+    void setTests(JPVisionForms::Tests tests) { m_tests = std::move(tests); }
 
     void refresh();
     void selectPackage(const JPPackage* package);
@@ -57,6 +61,8 @@ public:
     double split() const;
 
 private:
+    JPVisionForms::Tests m_tests;
+    const JPVisionForms::Tests* tests() const { return m_tests.angle ? &m_tests : nullptr; }
     // One of the pipeline's buttons or sliders: done (true), else not one of them.
     bool pipelineAct(const std::string& settingsId, const JPVisionForms::Holder& holder, const std::string& what);
     std::vector<JPPackage*> selections() const;

@@ -45,6 +45,7 @@ public:
     bool place(const std::string&, const JPLocation&, std::string&) override { return true; }
     bool discard(const std::string&, std::string&) override { return true; }
     std::vector<JPLocation> positioned;
+    bool positionCamera(const JPLocation&, std::string&) override { return true; }
     bool positionNozzle(const std::string&, const JPLocation& at, std::string&) override {
         positioned.push_back(at);
         return true;

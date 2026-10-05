@@ -53,6 +53,11 @@ public:
     // package's, else the machine's), and its prepared pipeline when the machine finds fiducials by pipeline.
     // What is wrong, if anything.
     enum class PartProblem { None, NoSize, Disabled };
+    // OpenPnP's Test Fiducial Locator: as partLook, for a part, a package
+    // (its footprint), or neither (a round 1 mm fiducial, the machine's settings).
+    static PartProblem lookFor(JPConfiguration& config, const std::string& partId, const std::string& packageId,
+                               const JPVisionConfig& vision, double& diameterMm, JPJobMachine::FiducialLook& look,
+                               std::string& settingsName);
     static PartProblem partLook(JPConfiguration& config, const JPPart& part, const JPVisionConfig& vision,
                                 double& diameterMm, JPJobMachine::FiducialLook& look, std::string& settingsName);
 };

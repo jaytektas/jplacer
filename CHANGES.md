@@ -19,6 +19,8 @@ notes.
 - Machine Setup has OpenPnP's Vision nodes: Bottom Vision and Fiducal Locator with their settings, and a choice of
   finding parts and fiducials with jplacer's own finders (the default) or with the vision settings' pipelines.
   Fiducials are averaged when Average Matches? is set.
+- Test Alignment (with Center After Test), Detect Offsets and Test Fiducial Locator work on the vision settings' pages,
+  as OpenPnP's; jplacer remembers which part each nozzle holds after a pick, as OpenPnP does.
 - An Issues & Solutions tab as OpenPnP's: milestones, Find Issues & Solutions, Accept, Dismiss, Reopen, Include
   Solved and Dismissed, with checks of jplacer's Machine Setup (axes, letters, nozzles' axes, homing, Safe Z, soft limits, feed rates,
   rotation), cameras, nozzle tips and Photon feeders.

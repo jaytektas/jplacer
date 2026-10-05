@@ -549,6 +549,7 @@ bool JPJogPanel::act(const std::string& action) {
         if (action == "discard") m_cell.discard(n->id, 1.0);
         else if (action == "pick") m_cell.pick(n->id);
         else m_cell.place(n->id);
+        if (action != "pick" && onPartGone) onPartGone(n->id);
     } else if (action == "distance+" || action == "distance-" || action.rfind("distance:", 0) == 0) {
         const int i = action == "distance+" ? m_distanceIndex + 1
                     : action == "distance-" ? m_distanceIndex - 1

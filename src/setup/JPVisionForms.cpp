@@ -102,12 +102,20 @@ void general(JPFormBuilder& add, std::function<JPVisionSettings&()> v, const std
 }
 
 void bottomForm(JPFormBuilder& add, std::function<JPVisionSettings&()> v, const std::string& usedIn,
-                const JPVisionForms::Holder& holder) {
+                const JPVisionForms::Holder& holder, const JPVisionForms::Tests* tests) {
     add.tab("Bottom Vision Settings");
     general(add, v, usedIn, true, holder);
     add.group("Test Alignment");
     add.row("Placement Angle");
-    add.button("bottom:testAlignment", "Test Alignment", "Needs jplacer's bottom vision: not available yet.", false);
+    if (tests) {
+        const JPVisionForms::Tests t = *tests;
+        add.number("bottom:testAngle", "Placement Angle", [t] { return t.angle(); }, [t](double a) { t.setAngle(a); });
+        add.button("bottom:testAlignment", "Test Alignment");
+        add.flag("bottom:centerAfterTest", "Center After Test", [t] { return t.center(); }, [t](bool on) { t.setCenter(on); });
+        add.tip("Center and rotate the part after the test.");
+    } else {
+        add.button("bottom:testAlignment", "Test Alignment", "", false);
+    }
     add.end();
     add.group("Vision Offsets");
     add.flag("bottom:asymmetric", "Asymmetric?", [v] { return v().flag("asymmetric", false); },
@@ -128,14 +136,15 @@ void bottomForm(JPFormBuilder& add, std::function<JPVisionSettings&()> v, const 
                                                                    x ? std::nullopt : std::optional(d), std::nullopt,
                                                                    std::nullopt));
                    });
-    add.button("bottom:detectOffsets", "Detect Offsets", "Needs jplacer's bottom vision: not available yet.", false);
+    add.button("bottom:detectOffsets", "Detect Offsets",
+               "Center part over bottom vision camera. Button will run bottom vision and calculates the offset.", tests != nullptr);
     add.end();
     add.tip("Offset relative to the pick location/center of the part to the center of the rectangle detected by the "
             "bottom vision");
 }
 
 void fiducialForm(JPFormBuilder& add, std::function<JPVisionSettings&()> v, const std::string& usedIn,
-                  const JPVisionForms::Holder& holder) {
+                  const JPVisionForms::Holder& holder, const JPVisionForms::Tests* tests) {
     add.tab("Fiducial Vision Settings");
     general(add, v, usedIn, false, holder);
     add.group("Fiducial Locator");
@@ -156,29 +165,29 @@ void fiducialForm(JPFormBuilder& add, std::function<JPVisionSettings&()> v, cons
             "middle: for shiny fiducials that reflect the camera.");
     add.group("Test Fiducial Locator");
     add.row("");
-    add.button("fiducial:testFiducial", "Test Fiducial Locator", "Needs a fiducial part to know its size: not available here yet.",
-               false);
+    add.button("fiducial:testFiducial", "Test Fiducial Locator", "", tests != nullptr);
     add.end();
 }
 
 } // namespace
 
-JPSetupProperties::Form JPVisionForms::forSettings(JPConfiguration& config, const std::string& id, const std::string& usedIn) {
+JPSetupProperties::Form JPVisionForms::forSettings(JPConfiguration& config, const std::string& id, const std::string& usedIn,
+                                                   const Tests* tests) {
     JPSetupProperties::Form form;
     const JPVisionSettings* v = config.visionSettings(id);
     if (!v) return form;
     form.title = v->name;
     JPFormBuilder add(form);
-    addPage(add, config, id, usedIn, Holder {});
+    addPage(add, config, id, usedIn, Holder {}, tests);
     return form;
 }
 
 void JPVisionForms::addPage(JPFormBuilder& add, JPConfiguration& config, const std::string& id, const std::string& usedIn,
-                            const Holder& holder) {
+                            const Holder& holder, const Tests* tests) {
     const JPVisionSettings* v = config.visionSettings(id);
     if (!v) return;
-    if (v->kind == JPVisionSettings::Kind::Bottom) bottomForm(add, finder(config, id), usedIn, holder);
-    else fiducialForm(add, finder(config, id), usedIn, holder);
+    if (v->kind == JPVisionSettings::Kind::Bottom) bottomForm(add, finder(config, id), usedIn, holder, tests);
+    else fiducialForm(add, finder(config, id), usedIn, holder, tests);
 }
 
 std::vector<std::string> JPVisionForms::specializedIn(const JPConfiguration& config, const Holder& holder,

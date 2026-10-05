@@ -200,6 +200,7 @@ void JPlacerMachine::buildPanels(Keep keep) {
     choices.speeds = jogSpeeds();
     auto jog = std::make_unique<JPJogPanel>(m_graph, *m_cell, choices);
     m_jog = jog.get();
+    jog->onPartGone = [this](const std::string& nozzleId) { setNozzlePart(nozzleId, ""); };
     jog->onChoicesChanged = [this] {
         if (!m_jog) return;
         const JPJogPanel::Choices c = m_jog->choices();
@@ -546,6 +547,16 @@ JPCameraView* JPlacerMachine::headCameraView() {
     if (!p) return nullptr;
     showCamera(p->camera().id);
     return &p->view();
+}
+
+std::string JPlacerMachine::nozzlePart(const std::string& nozzleId) const {
+    const auto it = m_nozzleParts.find(nozzleId);
+    return it == m_nozzleParts.end() ? std::string() : it->second;
+}
+
+void JPlacerMachine::setNozzlePart(const std::string& nozzleId, const std::string& partId) {
+    if (partId.empty()) m_nozzleParts.erase(nozzleId);
+    else m_nozzleParts[nozzleId] = partId;
 }
 
 void JPlacerMachine::setConfiguration(const JPConfiguration* config) {

@@ -51,8 +51,12 @@ public:
     virtual bool place(const std::string& nozzleId, const JPLocation& at, std::string& why) = 0;
     // What the nozzle holds dropped at the discard location.
     virtual bool discard(const std::string& nozzleId, std::string& why) = 0;
+    // What a nozzle holds now (OpenPnP's Nozzle.getPart): the part picked, or "" once placed or discarded.
+    virtual void holding(const std::string& /*nozzleId*/, const std::string& /*partId*/) {}
     // The nozzle over `at` at safe Z, turned to its rotation (not down).
     virtual bool positionNozzle(const std::string& nozzleId, const JPLocation& at, std::string& why) = 0;
+    // The head camera over `at` (as it is, its height kept).
+    virtual bool positionCamera(const JPLocation& at, std::string& why) = 0;
     // An actuator, named as OpenPnP names it (on the head, else on the
     // machine), actuated with `value`: a switch on when it is not 0, a
     // number or text set to it.
@@ -127,6 +131,7 @@ public:
         double nozzleAngle = 0;
         double dx = 0, dy = 0;
         double partAngle = 0;
+        double cameraX = 0, cameraY = 0;   // where the camera looking up is
     };
     virtual bool alignPart(const std::string& nozzleId, const AlignRequest& request, AlignResult& result,
                            std::string& why) = 0;

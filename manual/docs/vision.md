@@ -38,15 +38,24 @@ greyed here.
 A job uses **Enabled?**, **Pre-rotate** (Default: as the machine's bottom vision says) and **Rotation**
 (**Adjust**: within the machine's max angular offset; **Full**: all the way round). jplacer finds the part
 by its footprint, so the size check and the vision offsets are kept as OpenPnP wrote them but not needed
-(see [Running the job](jobs.md#running-the-job)). **Test Alignment** and **Detect Offsets** are not yet
-available.
+(see [Running the job](jobs.md#running-the-job)).
+
+**Test Alignment** aligns the part on the nozzle chosen on the Jog panel over the camera looking up, as a
+job would at the **Placement Angle** (the machine's test alignment angle), and shows what it found on the
+camera ("R1 | X:0.012 Y:-0.034 C:0.512 Δ:0.036"); with **Center After Test** it then moves the part over
+the camera's centre, turned to the angle. The nozzle must hold a part (picked with **Pick** on the Feeders
+or Parts tab, or by a job), of the part or package the page is for, whose bottom vision these settings
+are; else it says what is wrong ("Nozzle N1 does not have a part loaded"). **Detect Offsets** is for an
+asymmetric part: centre it over the camera by hand first; it aligns and centres the part at 0°, and adds
+the difference to the **Vision Center Offsets**.
 
 **Fiducial Vision Settings** add the **Fiducial Locator**: **Max. Vision Passes**, **Max. Linear Offset**,
 **Parallax Diameter** and **Parallax Angle**. A fiducial check uses them (see [Jobs](jobs.md#running-the-job)):
 the fiducial is looked at again, centred, up to the passes, until a look moves it less than the max
 linear offset; with a parallax diameter, it is looked at from either side of it, that far apart and
 turned by the angle, and the middle taken. Settings not enabled stop the check. **Test Fiducial Locator**
-is not yet available.
+finds the fiducial nearest where the head camera is (the part's or package's footprint; on the Vision
+tab, a round 1 mm fiducial) as a fiducial check would, and moves the camera onto it.
 
 A part uses its own settings, else its package's, else the machine's (OpenPnP's part alignment and
 fiducial locator, brought in with an OpenPnP machine).
@@ -78,4 +87,4 @@ chosen on the Packages tab) turned by the machine's test alignment angle, over t
 
 <!-- src: src/tasks/JPVisionPipelinePrep.cpp; src/app/JPlacerPipelines.cpp (prepared) -->
 
-<!-- src: src/setup/JPVisionForms.cpp; src/tasks/JPJobProcessor.cpp (align); src/tasks/JPFiducialLocator.cpp (FiducialLook); src/app/JPlacerJobMachine.cpp (locateFiducial); src/model/JPConfiguration.cpp (inheritedVision); src/machine/JPVisionConfig.h -->
+<!-- src: src/setup/JPVisionForms.cpp; src/tasks/JPJobProcessor.cpp (align); src/tasks/JPAlignRequests.cpp; src/tasks/JPFiducialLocator.cpp (FiducialLook, lookFor); src/app/JPlacerJobMachine.cpp (locateFiducial); src/app/JPlacerVisionTests.cpp; src/app/JPlacerMachine.cpp (nozzlePart); src/model/JPConfiguration.cpp (inheritedVision); src/machine/JPVisionConfig.h -->

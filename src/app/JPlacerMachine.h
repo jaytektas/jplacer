@@ -121,6 +121,10 @@ public:
     // The head camera's live picture, brought to the front (a selection is
     // made on it); none when there is no camera on the head.
     JPCameraView* headCameraView();
+    // What a nozzle holds (OpenPnP's Nozzle.getPart): the part last picked
+    // with it, "" when none (placed or discarded since).
+    std::string nozzlePart(const std::string& nozzleId) const;
+    void        setNozzlePart(const std::string& nozzleId, const std::string& partId);
     // The parts' and vision settings' configuration (Machine Setup's Vision
     // nodes choose its vision settings).
     void setConfiguration(const JPConfiguration* config);
@@ -227,6 +231,7 @@ private:
     JPJogPanel*                         m_jog = nullptr; // its chosen tool, for the status bar
     JPMachineSetupPanel*                m_setup = nullptr;
     const JPConfiguration*              m_configuration = nullptr;
+    std::map<std::string, std::string>  m_nozzleParts;   // nozzle: the part it holds
     std::vector<std::function<void()>>  m_unwatch;   // this class's watches on the cell
     std::shared_ptr<bool>               m_alive = std::make_shared<bool>(true);
     JMenuItem*                          m_connectItem    = nullptr;

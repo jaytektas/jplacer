@@ -3,7 +3,7 @@
 
 #include "JPJobProcessor.h"
 
-#include "setup/JPVisionPipelines.h"
+#include "JPAlignRequests.h"
 
 #include "JPFeederFeed.h"
 #include "JPPhotonFeeders.h"
@@ -880,6 +880,7 @@ JPJobProcessor::Step JPJobProcessor::pick(Planned& p) {
             continue;
         }
         m_partOn[p.nozzleId] = j.partId;
+        m_machine.holding(p.nozzleId, j.partId);
         m_partsFeeder[p.nozzleId] = feederId;
         if (m_hooks.feedersChanged) m_hooks.feedersChanged();
         return Step::Pick;
@@ -897,34 +898,10 @@ JPJobProcessor::Step JPJobProcessor::align(Planned& p) {
     std::string name;
     main([&] {
         const JPPart* part = m_config.part(j.partId);
-        if (!part || !m_vision.bottomVisionEnabled) return;
-        const JPVisionSettings* v = m_config.inheritedVision(*part, JPVisionSettings::Kind::Bottom, m_vision.bottomVisionId);
-        if (!v || !v->enabled) return;
-        const JPPackage* pkg = m_config.package(part->packageId);
-        if (!pkg) return;
-        // Its shape: the footprint's pads, else its body.
-        const JPFootprint& f = pkg->footprint;
-        auto mmOf = [&f](double v) { return JPLength(v, f.units).convertToUnits(JPLengthUnit::Millimeters).value(); };
-        for (const JPFootprint::Pad& pad : f.pads)
-            rq.shape.push_back({ mmOf(pad.x), mmOf(pad.y), mmOf(pad.width), mmOf(pad.height), pad.rotation });
-        if (rq.shape.empty() && f.bodyWidth > 0 && f.bodyHeight > 0)
-            rq.shape.push_back({ 0, 0, mmOf(f.bodyWidth), mmOf(f.bodyHeight), 0 });
-        rq.partHeightMm = j.partHeightMm;
-        const std::string preRotate = v->text("pre-rotate-usage", "Default");
-        const bool pre = preRotate == "AlwaysOn" || (preRotate == "Default" && m_vision.preRotate);
-        rq.imageAngle = pre ? placeLocation(p.job).rotation() : (j.plannedPickLocation ? j.plannedPickLocation->rotation() : 0);
-        rq.angleRange = v->text("max-rotation", "Adjust") == "Full" ? 180 : m_vision.maxAngularOffset;
-        rq.passes = pre ? m_vision.maxVisionPasses : 1;
-        rq.maxLinearOffsetMm = m_vision.maxLinearOffsetMm;
-        // By its OpenPnP pipeline, when the machine finds parts so.
-        if (m_vision.bottomPipeline) {
-            rq.pipeline = std::make_shared<JPPipeline>(JPVisionPipelines::of(*v));
-            rq.pipeline->context().configurationDirectory = m_config.directory();
-            rq.partId = part->id;
-            rq.settingsId = v->id;
-        }
+        if (!part) return;
+        const double place = placeLocation(p.job).rotation(), pick = j.plannedPickLocation ? j.plannedPickLocation->rotation() : 0;
+        aligned = JPAlignRequests::forPart(m_config, m_vision, *part, j.partHeightMm, place, pick, rq);
         name = part->id;
-        aligned = true;
     });
     if (!aligned) {
         JLOGC(JPlacerLog::kJob, JLogLevel::Debug) << "not aligning " << j.partId << ": no enabled bottom vision for it";
@@ -970,6 +947,7 @@ JPJobProcessor::Step JPJobProcessor::place(Planned& p) {
     std::string why;
     if (!m_machine.place(p.nozzleId, at, why)) fail(Source::Nozzle, p.nozzleId, why);
     m_partOn.erase(p.nozzleId);
+    m_machine.holding(p.nozzleId, "");
     const std::string feederId = m_partsFeeder[p.nozzleId];
     m_partsFeeder.erase(p.nozzleId);
     j.status = Status::Complete;
@@ -989,6 +967,7 @@ void JPJobProcessor::discardAll() {
         std::string why;
         if (!m_machine.discard(it->first, why)) fail(Source::Nozzle, it->first, why);
         m_partsFeeder.erase(it->first);
+        m_machine.holding(it->first, "");
         it = m_partOn.erase(it);
     }
 }

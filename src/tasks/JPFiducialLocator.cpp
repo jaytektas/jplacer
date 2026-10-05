@@ -23,6 +23,10 @@ inline namespace jf {
 
 namespace {
 
+// The fiducial OpenPnP stands in when there is no part or package (VisionUtils.readyHomingFiducialWithDiameter).
+constexpr double kStandInFiducialMm = 1.0;
+
+
 JPLocation mm(const JPLocation& l) { return l.convertToUnits(JPLengthUnit::Millimeters); }
 
 double distance(const JPLocation& a, const JPLocation& b) {
@@ -64,7 +68,38 @@ JPFiducialLocator::PartProblem JPFiducialLocator::partLook(JPConfiguration& conf
             look.partId = part.id;
             look.pipeline = std::make_shared<JPPipeline>(JPVisionPipelines::of(*v));
             look.pipeline->context().configurationDirectory = config.directory();
-            JPVisionPipelinePrep::fiducial(*look.pipeline, config, *v, part.id, "", 0, vision.fiducialMaxDistanceMm);
+            JPVisionPipelinePrep::fiducial(*look.pipeline, config, *v, part.id, part.packageId, 0, vision.fiducialMaxDistanceMm);
+        }
+    }
+    return PartProblem::None;
+}
+
+JPFiducialLocator::PartProblem JPFiducialLocator::lookFor(JPConfiguration& config, const std::string& partId,
+                                                          const std::string& packageId, const JPVisionConfig& vision,
+                                                          double& diameterMm, JPJobMachine::FiducialLook& look,
+                                                          std::string& settingsName) {
+    if (const JPPart* part = config.part(partId)) return partLook(config, *part, vision, diameterMm, look, settingsName);
+    // A package, or neither: a part standing in for it.
+    JPPart stand;
+    stand.packageId = packageId;
+    const PartProblem p = partLook(config, stand, vision, diameterMm, look, settingsName);
+    if (p != PartProblem::NoSize || !packageId.empty()) return p;
+    // Neither: as OpenPnP's FIDUCIAL-HOME stands in, a round 1 mm fiducial,
+    // looked at as the machine's fiducial vision settings say.
+    diameterMm = kStandInFiducialMm;
+    look = {};
+    look.averaging = vision.enabledAveraging;
+    if (const JPVisionSettings* v = config.visionSettings(vision.fiducialVisionId)) {
+        settingsName = v->name;
+        if (!v->enabled) return PartProblem::Disabled;
+        look.passes = v->number("max-vision-passes", 3);
+        look.maxLinearOffsetMm = v->lengthMm("max-linear-offset", 0.2);
+        look.parallaxDiameterMm = v->lengthMm("parallax-diameter", 0);
+        look.parallaxAngle = v->real("parallax-angle", 0);
+        if (vision.fiducialPipeline) {
+            look.pipeline = std::make_shared<JPPipeline>(JPVisionPipelines::of(*v));
+            look.pipeline->context().configurationDirectory = config.directory();
+            JPVisionPipelinePrep::fiducial(*look.pipeline, config, *v, "", "", 0, vision.fiducialMaxDistanceMm);
         }
     }
     return PartProblem::None;

@@ -98,7 +98,8 @@ JPVisionSettingsPanel::JPVisionSettingsPanel(JSceneGraph& graph, JPConfiguration
         changed();
     };
     m_form->onAction = [this](const std::string& action) {
-        if (action.find("Pipeline") != std::string::npos) {
+        if (action.find("Pipeline") != std::string::npos || action.find(":test") != std::string::npos
+            || action.find(":detectOffsets") != std::string::npos) {
             pipelineAct(action);
             return;
         }
@@ -169,6 +170,9 @@ void JPVisionSettingsPanel::pipelineAct(const std::string& action) {
         const auto defaults = machineDefaults ? machineDefaults() : std::pair<std::string, std::string> {};
         return m_config.visionSettings(kind == JPVisionSettings::Kind::Bottom ? defaults.first : defaults.second);
     };
+    hooks.test = [this](const std::string& id, const std::string& test) {
+        if (visionTest) visionTest(id, JPVisionForms::Holder {}, test);
+    };
     hooks.changed = [this] {
         // Its sliders follow the pipeline.
         m_shown.clear();
@@ -190,7 +194,7 @@ void JPVisionSettingsPanel::showForm() {
     }
     m_shown = id;
     m_form->setForm(id.empty() ? JPSetupProperties::Form {}
-                               : JPVisionForms::forSettings(m_config, id, usedIn(*chosen.front())));
+                               : JPVisionForms::forSettings(m_config, id, usedIn(*chosen.front()), tests()));
 }
 
 void JPVisionSettingsPanel::newSettings() {

@@ -165,10 +165,28 @@ bool JPlacerJobMachine::place(const std::string& nozzleId, const JPLocation& at,
     return c && c->placeAtAndWait(nozzleId, where(at), 1.0, why);
 }
 
+void JPlacerJobMachine::holding(const std::string& nozzleId, const std::string& partId) {
+    m_onMain([&] { m_machine.setNozzlePart(nozzleId, partId); });
+}
+
 bool JPlacerJobMachine::discard(const std::string& nozzleId, std::string& why) {
     ++m_motions;
     JPCell* c = cell(why);
     return c && c->discardAndWait(nozzleId, 1.0, why);
+}
+
+bool JPlacerJobMachine::positionCamera(const JPLocation& at, std::string& why) {
+    ++m_motions;
+    JPCell* c = cell(why);
+    if (!c) return false;
+    JPCameraFeed* feed = nullptr;
+    m_onMain([&] { feed = m_machine.headCameraFeed(); });
+    if (!feed) {
+        why = "no camera on the head";
+        return false;
+    }
+    const JPLocation m = at.convertToUnits(JPLengthUnit::Millimeters);
+    return c->moveToolAndWait(feed->config().mount, { m.x(), m.y(), std::nullopt, std::nullopt }, 1.0, why);
 }
 
 bool JPlacerJobMachine::positionNozzle(const std::string& nozzleId, const JPLocation& at, std::string& why) {
@@ -600,6 +618,8 @@ bool JPlacerJobMachine::alignPart(const std::string& nozzleId, const AlignReques
             return false;
         }
         result.nozzleAngle = nr;
+        result.cameraX = camX;
+        result.cameraY = camY;
         result.dx = px - nx;
         result.dy = py - ny;
         result.partAngle = found.angle;
