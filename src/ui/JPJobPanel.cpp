@@ -278,6 +278,8 @@ void JPJobPanel::selectionChanged() {
     const bool any = single || multi || singleTop || multiTop;
     m_captureTool->setEnabled(any);
     m_remove->setEnabled(singleTop || multiTop);
+    if (m_captureToolItem) m_captureToolItem->setEnabled(m_captureTool->isEnabled());
+    if (m_removeItem) m_removeItem->setEnabled(m_remove->isEnabled());
     m_captureCamera->setEnabled(singleTop);
     for (JPIconButton* b : { m_cameraTo, m_cameraNext, m_toolTo, m_fiducialCheck, m_twoPoint })
         b->setEnabled(single || singleTop);
@@ -374,27 +376,36 @@ void JPJobPanel::showAddMenu() {
     if (!openMenu) return;
     JSceneGraph& g = m_graph;
     m_addMenu = std::make_unique<JMenu>("Add Board/Panel");
-    m_addMenu->add(g, "New Board...")->onTriggered.connect([this] {
-        JDialog::saveFile("Save New Board As...", { "xml" }, [this](std::string path) {
-            addBoard(withSuffix(path, ".board.xml"), "Unable to create new board");
-        });
-    });
-    m_addMenu->add(g, "Existing Board...")->onTriggered.connect([this] {
-        if (chooseExisting)
-            chooseExisting("Add existing board to job", "board", [this](std::string path) { addBoard(path, "Board load failed"); });
-    });
+    m_addMenu->add(g, "New Board...")->onTriggered.connect([this] { addNew(false); });
+    m_addMenu->add(g, "Existing Board...")->onTriggered.connect([this] { addExisting(false); });
     m_addMenu->addSeparator(g);
-    m_addMenu->add(g, "New Panel...")->onTriggered.connect([this] {
+    m_addMenu->add(g, "New Panel...")->onTriggered.connect([this] { addNew(true); });
+    m_addMenu->add(g, "Existing Panel...")->onTriggered.connect([this] { addExisting(true); });
+    const JRect b = m_graph.getLayoutConst(m_add->getNodeId()).boundingBox;
+    openMenu(m_addMenu.get(), b.x + b.width, b.y + b.height);
+}
+
+void JPJobPanel::addNew(bool panel) {
+    if (panel)
         JDialog::saveFile("Save New Panel As...", { "xml" }, [this](std::string path) {
             addPanel(withSuffix(path, ".panel.xml"), "Unable to create new panel");
         });
-    });
-    m_addMenu->add(g, "Existing Panel...")->onTriggered.connect([this] {
-        if (chooseExisting)
-            chooseExisting("Add existing panel to job", "panel", [this](std::string path) { addPanel(path, "Panel load failed"); });
-    });
-    const JRect b = m_graph.getLayoutConst(m_add->getNodeId()).boundingBox;
-    openMenu(m_addMenu.get(), b.x + b.width, b.y + b.height);
+    else
+        JDialog::saveFile("Save New Board As...", { "xml" }, [this](std::string path) {
+            addBoard(withSuffix(path, ".board.xml"), "Unable to create new board");
+        });
+}
+
+void JPJobPanel::addExisting(bool panel) {
+    if (!chooseExisting) return;
+    if (panel) chooseExisting("Add existing panel to job", "panel", [this](std::string path) { addPanel(path, "Panel load failed"); });
+    else chooseExisting("Add existing board to job", "board", [this](std::string path) { addBoard(path, "Board load failed"); });
+}
+
+void JPJobPanel::setEditItems(JMenuItem* remove, JMenuItem* captureTool) {
+    m_removeItem = remove;
+    m_captureToolItem = captureTool;
+    selectionChanged();
 }
 
 void JPJobPanel::addBoard(const std::string& path, const char* errorTitle) {

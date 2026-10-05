@@ -102,6 +102,22 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
     JMenuItem* redo = entry(keys, edit, graph, "edit.redo", "Edit", "Redo", ctrl('Y'), [&app] { app.machine().redo(); });
     app.machine().setEditItems(undo, redo);
     edit->addSeparator(graph);
+    // OpenPnP's: the Job tab's Add Board/Panel, Remove and Capture Tool Location.
+    JPJobPanel& jobs = app.tabs().jobPanel();
+    menuStore().push_back(std::make_unique<JMenu>("Add Board/Panel"));
+    JMenu* addBoard = menuStore().back().get();
+    entry(keys, addBoard, graph, "edit.newBoard", "Edit", "New Board\xE2\x80\xA6", none, [&jobs] { jobs.addNew(false); });
+    entry(keys, addBoard, graph, "edit.existingBoard", "Edit", "Existing Board\xE2\x80\xA6", none, [&jobs] { jobs.addExisting(false); });
+    addBoard->addSeparator(graph);
+    entry(keys, addBoard, graph, "edit.newPanel", "Edit", "New Panel\xE2\x80\xA6", none, [&jobs] { jobs.addNew(true); });
+    entry(keys, addBoard, graph, "edit.existingPanel", "Edit", "Existing Panel\xE2\x80\xA6", none, [&jobs] { jobs.addExisting(true); });
+    edit->add(graph, "Add Board/Panel", {}, addBoard);
+    JMenuItem* removeBoard =
+        entry(keys, edit, graph, "edit.removeBoard", "Edit", "Remove Board(s)/Panel(s)", none, [&jobs] { jobs.removeSelected(); });
+    edit->addSeparator(graph);
+    JMenuItem* captureTool = entry(keys, edit, graph, "edit.captureTool", "Edit", "Capture Tool Location", none, [&jobs] { jobs.captureTool(); });
+    jobs.setEditItems(removeBoard, captureTool);
+    edit->addSeparator(graph);
     entry(keys, edit, graph, "edit.preferences", "Edit", "Preferences\xE2\x80\xA6", none, [&app] { app.openPreferences(); });
 
     // A tick for each panel: untick to close it, tick to bring it back where it lives.
@@ -168,6 +184,14 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
     entry(keys, job, graph, "job.resetAllPlaced", "Job", "Reset All Placed", none, [&jobPanel] { jobPanel.resetAllPlaced(); });
     jobPanel.setMenuItems(start, step, stop);
 
+    // OpenPnP's Scripts and Window menus: not built yet, so greyed out.
+    JMenu* scripts = newMenu(window, "Scripts");
+    for (const char* label : { "Refresh Scripts", "Open Scripts Directory", "Clear Scripting Engine Pool" })
+        scripts->add(graph, label)->setEnabled(false);
+    JMenu* windows = newMenu(window, "Window");
+    for (const char* label : { "Multiple Window Style", "Change Appearance\xE2\x80\xA6" })
+        windows->add(graph, label)->setEnabled(false);
+
     JMenu* help = newMenu(window, "Help");
     // The manual opens in the browser; whatever went wrong is said in the status bar.
     auto open = [&window](bool (*page)(std::string&), const char* opened) {
@@ -175,16 +199,23 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
         if (page(why)) window.showStatus(opened, kStatusMs);
         else           window.showStatus(why, kErrorMs);
     };
+    // In OpenPnP's order: About, the guides, the manual; the change log; updates.
+    entry(keys, help, graph, "help.about", "Help", "About jplacer", none, [&app] { app.showAbout(); });
+    entry(keys, help, graph, "help.quickStart", "Help", "Quick Start", none, [open] {
+        open(&JPlacerHelpPages::openQuickStart, "Quick Start opened in your browser");
+    });
+    entry(keys, help, graph, "help.setupAndCalibration", "Help", "Setup and Calibration", none, [open] {
+        open(&JPlacerHelpPages::openSetupAndCalibration, "Setup and Calibration opened in your browser");
+    });
     entry(keys, help, graph, "help.manual", "Help", "User Manual", none, [open] {
         open(&JPlacerHelpPages::openManual, "User manual opened in your browser");
     });
+    help->addSeparator(graph);
     entry(keys, help, graph, "help.whatsNew", "Help", "What's New", none, [open] {
         open(&JPlacerHelpPages::openWhatsNew, "What's New opened in your browser");
     });
     help->addSeparator(graph);
     entry(keys, help, graph, "help.checkUpdates", "Help", "Check for Updates", none, [&app] { app.updater().check(true); });
-    help->addSeparator(graph);
-    entry(keys, help, graph, "help.about", "Help", "About jplacer", none, [&app] { app.showAbout(); });
 }
 
 } // inline namespace jf

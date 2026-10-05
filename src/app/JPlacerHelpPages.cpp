@@ -50,6 +50,10 @@ bool JPlacerHelpPages::openPage(const std::string& page, std::string& error) {
 }
 
 bool JPlacerHelpPages::openManual(std::string& error)   { return openPage("index.html", error); }
+bool JPlacerHelpPages::openQuickStart(std::string& error) { return openPage("getting-started.html", error); }
+
+bool JPlacerHelpPages::openSetupAndCalibration(std::string& error) { return openPage("machine-setup.html", error); }
+
 bool JPlacerHelpPages::openWhatsNew(std::string& error) { return openPage("whats-new.html", error); }
 
 } // inline namespace jf

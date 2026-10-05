@@ -25,6 +25,9 @@ public:
     // saying why when there is no manual or no browser could be asked.
     static bool openManual(std::string& error);
     static bool openWhatsNew(std::string& error);
+    // OpenPnP's Quick Start and Setup and Calibration: the manual's Getting Started and Machine Setup pages.
+    static bool openQuickStart(std::string& error);
+    static bool openSetupAndCalibration(std::string& error);
 
 private:
     static bool openPage(const std::string& page, std::string& error);

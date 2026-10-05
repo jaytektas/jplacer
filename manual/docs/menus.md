@@ -6,7 +6,7 @@ feature will live.
 The keys shown are the ones jplacer starts with. Any entry can be given a key of your choosing, or have its
 key taken off, in [Preferences, Keys](preferences.md#keys); the menu then shows that key.
 
-<!-- src: src/app/JPlacerMenuBuilder.cpp (build, addPending) -->
+<!-- src: src/app/JPlacerMenuBuilder.cpp (build) -->
 
 ## File
 
@@ -29,7 +29,12 @@ key taken off, in [Preferences, Keys](preferences.md#keys); the menu then shows 
 |---|---|
 | **Undo** (Ctrl+Z) | Takes back the last change in Machine Setup; it says which ([Undo and Redo](machine-setup.md#undo-and-redo)). |
 | **Redo** (Ctrl+Y) | Makes the change undone again. |
+| **Add Board/Panel** | **New Board…**, **Existing Board…**, **New Panel…**, **Existing Panel…**: as the Job tab's Add Board/Panel button (see [The Job tab](jobs.md#the-job-tab)). |
+| **Remove Board(s)/Panel(s)** | Takes the boards and panels chosen on the Job tab out of the job. Available while one is chosen. |
+| **Capture Tool Location** | As the Job tab's button: the chosen board or panel is placed where the nozzle is. Available while one is chosen. |
 | **Preferences…** | Opens [Preferences](preferences.md). |
+
+<!-- src: src/app/JPlacerMenuBuilder.cpp (the Edit menu); src/ui/JPJobPanel.cpp (addNew, addExisting, removeSelected, captureTool, setEditItems) -->
 
 ## View
 
@@ -65,13 +70,22 @@ A tick for each panel: each camera, **Jog**, **Actuators**, **[Parts](parts.md)*
 
 <!-- src: src/app/JPlacerMenuBuilder.cpp (the Job menu); src/ui/JPJobPanel.cpp (setMenuItems, resetAllPlaced, updateJobActions) -->
 
+## Scripts and Window
+
+OpenPnP's **Scripts** menu (**Refresh Scripts**, **Open Scripts Directory**, **Clear Scripting Engine Pool**) and
+**Window** menu (**Multiple Window Style**, **Change Appearance…**) are there, greyed out: they are not built yet.
+
+<!-- src: src/app/JPlacerMenuBuilder.cpp (the Scripts and Window menus) -->
+
 ## Help
 
 | Entry | |
 |---|---|
+| **About jplacer** | The version, copyright and licence. |
+| **Quick Start** | Opens [Getting started](getting-started.md) in your web browser. |
+| **Setup and Calibration** | Opens [Machine Setup](machine-setup.md) in your web browser. |
 | **User Manual** | Opens this manual in your web browser. |
 | **What's New** | Opens [What's new](whats-new.md) in your web browser. |
 | **Check for Updates** | Looks for a newer jplacer now, and tells you the answer (see [Updates](updates.md)). |
-| **About jplacer** | The version, copyright and licence. |
 
 <!-- src: src/app/JPlacerMenuBuilder.cpp (the Help menu); src/app/JPlacerHelpPages.cpp (opening the manual) -->

@@ -342,6 +342,9 @@ notes.
 - The Jog pad's park buttons show a parking sign that grows with the pad.
 - Buttons and other controls are no longer clipped by a pixel along an edge, and the Jog panel's tip
   button stays whole in a narrow dock (a long tool name is cut short instead).
+- The Edit menu has OpenPnP's Add Board/Panel, Remove Board(s)/Panel(s) and Capture Tool Location, and Help
+  has Quick Start and Setup and Calibration, in OpenPnP's order. OpenPnP's Scripts and Window menus are there,
+  greyed out until they are built.
 
 ## 0.1.0
 

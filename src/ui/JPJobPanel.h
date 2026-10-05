@@ -65,6 +65,14 @@ public:
     void setMenuItems(JMenuItem* start, JMenuItem* step, JMenuItem* stop);
     // Job > Reset All Placed: every placement of the job not placed.
     void resetAllPlaced();
+    // Edit > Add Board: a new or existing board or panel added to the job;
+    // Edit > Remove Board, Capture Tool Location (as the toolbar's), their
+    // entries enabled as the buttons are.
+    void addNew(bool panel);
+    void addExisting(bool panel);
+    void removeSelected();
+    void captureTool();
+    void setEditItems(JMenuItem* remove, JMenuItem* captureTool);
     RunState runState() const { return m_runState; }
 
     JPJobPlacementsPanel& placements() { return *m_placements; }
@@ -89,10 +97,8 @@ private:
     void showAddMenu();
     void addBoard(const std::string& path, const char* errorTitle);
     void addPanel(const std::string& path, const char* errorTitle);
-    void removeSelected();
     void moveTo(Tool tool, bool next);
     void captureCamera();
-    void captureTool();
     void changed();
 
     JPConfiguration&                    m_config;
@@ -107,6 +113,8 @@ private:
     JMenuItem*                          m_startItem = nullptr;
     JMenuItem*                          m_stepItem = nullptr;
     JMenuItem*                          m_stopItem = nullptr;
+    JMenuItem*                          m_removeItem = nullptr;
+    JMenuItem*                          m_captureToolItem = nullptr;
     JPIconButton*                       m_start = nullptr;
     JPIconButton*                       m_step = nullptr;
     JPIconButton*                       m_stop = nullptr;
