@@ -77,7 +77,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | OpenPnP | Status | jplacer |
 |---|---|---|
 | Name, axes, offsets | done | |
-| Rotation mode (absolute part angle, ...), align with part | missing | |
+| Rotation mode (absolute part angle, ...), align with part | done | the four modes; Align with Part only changes what OpenPnP's DRO shows, and jplacer shows the axes |
 | Safe Z, dynamic safe Z | done | safe Z from the axes' safe zones; dynamic safe Z for a nozzle on a Z of its own |
 | Pick / place dwell | done | |
 | Compatible / loaded tips table | done | |

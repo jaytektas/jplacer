@@ -79,6 +79,15 @@ std::vector<JPJobMachine::Nozzle> JPlacerJobMachine::nozzles() const {
     for (const JPNozzleConfig& n : c.nozzles) {
         if (n.mount.headId != head) continue;
         Nozzle out1 { n.id, n.name.empty() ? n.id : n.name, n.tipId, n.tipIds, n.pickDwellMs, n.placeDwellMs };
+        out1.rotationMode = n.rotationMode;
+        out1.maxPickArticulation = n.maxPickArticulation;
+        out1.maxAlignArticulation = n.maxAlignArticulation;
+        // Its rotation axis's range, as OpenPnP's getRotationModeLimits: its soft limits when limited to range.
+        if (const JPAxisConfig* r = c.axis(n.mount.axisRotation); r && r->limitRotation) {
+            out1.rotationLow = r->softLimitLowEnabled ? r->softLimitLow : -180;
+            out1.rotationHigh = r->softLimitHighEnabled ? r->softLimitHigh : 180;
+            if (out1.rotationLow > out1.rotationHigh) std::swap(out1.rotationLow, out1.rotationHigh);
+        }
         for (const JPNozzleTipConfig& t : c.nozzleTips)
             if (t.id == n.tipId) {
                 out1.pickDwellMs += t.pickDwellMs;
@@ -87,6 +96,22 @@ std::vector<JPJobMachine::Nozzle> JPlacerJobMachine::nozzles() const {
         out.push_back(std::move(out1));
     }
     return out;
+}
+
+std::optional<double> JPlacerJobMachine::nozzleRotation(const std::string& nozzleId) const {
+    const JPCellConfig c = config();
+    for (const JPNozzleConfig& n : c.nozzles)
+        if (n.id == nozzleId && !n.mount.axisRotation.empty()) {
+            std::optional<double> at;
+            m_onMain([&] {
+                if (const JPCell* cell = m_machine.cell()) {
+                    const auto p = cell->positions();
+                    if (const auto i = p.find(n.mount.axisRotation); i != p.end()) at = i->second;
+                }
+            });
+            return at;
+        }
+    return std::nullopt;
 }
 
 std::vector<std::pair<std::string, std::string>> JPlacerJobMachine::tips() const {
@@ -818,7 +843,8 @@ bool JPlacerJobMachine::alignPart(const std::string& nozzleId, const AlignReques
     // Where the camera looks; the part's bottom at its focus.
     const JPMountConfig& cm = feed->config().mount;
     const double camX = cm.offsetX, camY = cm.offsetY, camZ = cm.offsetZ;
-    double nx = camX, ny = camY, nr = rq.imageAngle;
+    // The nozzle turned so the part is at the look's angle (its Rotation Mode offset taken off).
+    double nx = camX, ny = camY, nr = rq.imageAngle - rq.partOffset;
     // By its pipeline: given the camera looking up, prepared for the part (as OpenPnP's preparePipeline).
     if (rq.pipeline) {
         JPPipeline::Context& ctx = rq.pipeline->context();
@@ -864,7 +890,7 @@ bool JPlacerJobMachine::alignPart(const std::string& nozzleId, const AlignReques
             return false;
         }
         // The part's angle as it sits: the nozzle's turn, less what is already known to be off.
-        fr.angle = nr + (pass == 0 ? 0 : result.partAngle - result.nozzleAngle);
+        fr.angle = nr + (pass == 0 ? rq.partOffset : result.partAngle - result.nozzleAngle);
         fr.angleRange = pass == 0 ? rq.angleRange : std::min(rq.angleRange, 3.0);
         fr.toMachine = [&cal, camX, camY](double px, double py, double& mx, double& my) {
             return cal.machinePoint(px, py, camX, camY, mx, my);

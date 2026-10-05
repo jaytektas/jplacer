@@ -128,6 +128,9 @@ private:
     Step place(Planned& p);
     void optimize(bool byPick);
     void prerotate(bool forPick);
+    // OpenPnP's prepareForPickAndPlaceArticulation: the nozzle's offset for a
+    // part picked at `pickAngle` to be placed at `placeAngle`, by its Rotation Mode.
+    double rotationOffset(const std::string& nozzleId, double pickAngle, double placeAngle) const;
     void cleanup();
     Step finish();
     void discardAll();
@@ -160,6 +163,9 @@ private:
     JPVisionConfig                     m_vision;   // the planner's: the first plan of a run
     std::map<std::string, std::string> m_partOn;           // nozzle: the part it holds
     std::map<std::string, std::string> m_partsFeeder;      // nozzle: the feeder its part came from
+    // OpenPnP's Rotation Mode offset, by nozzle, from its pick to its place or
+    // discard: its turn is the part's angle less this.
+    std::map<std::string, double>      m_rotationOffset;
     std::optional<JPLocation>          m_previousPickStart, m_previousPlaceStart;
     int                                m_totalPartsPlaced = 0;
     double                             m_startSeconds = 0;

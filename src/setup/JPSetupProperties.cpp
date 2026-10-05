@@ -607,6 +607,19 @@ void nozzleForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     add.tip("When moving to Safe Z, account for the part height on the nozzle i.e. lift the nozzle higher with a taller "
             "part. This allows you to use a lower Safe Z which might improve the machine speed.");
     add.note("Only for a nozzle on a Z axis of its own: on a shared Z (mapped, a cam) the other nozzle would go down.");
+    add.group("Rotation");
+    add.choice("rotationMode", "Rotation Mode", { "AbsolutePartAngle", "PlacementAngle", "MinimalRotation", "LimitedArticulation" },
+               [n] { return n().rotationMode; }, [n](const std::string& v) { n().rotationMode = v; });
+    f.reshaping.push_back("rotationMode");
+    if (n().rotationMode == "LimitedArticulation") {
+        add.number("maxPickArticulation", "Max. Pick Articulation", [n]() -> double& { return n().maxPickArticulation; }, 1);
+        add.number("maxAlignArticulation", "Max. Alignment Articulation", [n]() -> double& { return n().maxAlignArticulation; }, 1);
+    }
+    add.note("How the nozzle turns for a part, as OpenPnP's: AbsolutePartAngle, to the part's own angle at pick and at "
+             "place; PlacementAngle, picked already turned against its placement so it places at 0; MinimalRotation, "
+             "picked at whatever angle the nozzle has; LimitedArticulation, for a nozzle with a limited turn (its "
+             "rotation axis limited to range, within its soft limits): about the middle of the range, room left "
+             "for the pick and alignment corrections.");
 
     // Every tip: whether it fits this nozzle, and which one is on it now.
     add.tab("Nozzle Tips");

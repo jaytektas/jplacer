@@ -708,6 +708,12 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                     n.blowOffClosesVacuum = x.attr("blow-off-closing-valve") == "true";
                     n.pickDwellMs = int(number(x.attr("pick-dwell-milliseconds")));
                     n.dynamicSafeZ = x.attr("enable-dynamic-safe-z") == "true";
+                    if (const std::string m = x.attr("rotation-mode");
+                        m == "AbsolutePartAngle" || m == "PlacementAngle" || m == "MinimalRotation" || m == "LimitedArticulation")
+                        n.rotationMode = m;
+                    if (!x.attr("max-pick-articulation-angle").empty()) n.maxPickArticulation = number(x.attr("max-pick-articulation-angle"));
+                    if (!x.attr("max-alignment-articulation-angle").empty())
+                        n.maxAlignArticulation = number(x.attr("max-alignment-articulation-angle"));
                     n.placeDwellMs = int(number(x.attr("place-dwell-milliseconds")));
                     // OpenPnP keeps the ids of tips since deleted in a
                     // nozzle's list; only tips the machine has are kept.

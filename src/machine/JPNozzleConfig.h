@@ -33,6 +33,10 @@ struct JPNozzleConfig {
     // OpenPnP's Dynamic Safe Z: carrying a part, its safe Z raised by the
     // part's height, so the part's bottom is at safe Z (within the safe zone).
     bool                     dynamicSafeZ = false;
+    // OpenPnP's Rotation Mode (JPJobMachine::Nozzle::rotationMode), and for
+    // LimitedArticulation how far it may turn about the pick and alignment.
+    std::string              rotationMode = "AbsolutePartAngle";
+    double                   maxPickArticulation = 15, maxAlignArticulation = 30;
     // Homing this nozzle's Z alone (Z only, from the park place): G-code
     // lines sent to the controller of the motor behind its Z, which ends
     // at the axis's home coordinate as a full home does. Empty: none.
@@ -52,6 +56,9 @@ struct JPNozzleConfig {
         n.vacuumSenseActuatorId = j["vacuumSenseActuator"].str();
         n.pickDwellMs           = int(j["pickDwellMs"].number());
         n.dynamicSafeZ          = j["dynamicSafeZ"].boolean();
+        if (!j["rotationMode"].str().empty()) n.rotationMode = j["rotationMode"].str();
+        n.maxPickArticulation   = j["maxPickArticulation"].number(15.0);
+        n.maxAlignArticulation  = j["maxAlignArticulation"].number(30.0);
         n.placeDwellMs          = int(j["placeDwellMs"].number());
         n.homeCommand           = j["homeCommand"].str();
         return n;
@@ -71,6 +78,9 @@ struct JPNozzleConfig {
         if (!vacuumSenseActuatorId.empty()) j["vacuumSenseActuator"] = vacuumSenseActuatorId;
         if (pickDwellMs) j["pickDwellMs"] = pickDwellMs;
         if (dynamicSafeZ) j["dynamicSafeZ"] = true;
+        if (rotationMode != "AbsolutePartAngle") j["rotationMode"] = rotationMode;
+        if (maxPickArticulation != 15) j["maxPickArticulation"] = maxPickArticulation;
+        if (maxAlignArticulation != 30) j["maxAlignArticulation"] = maxAlignArticulation;
         if (placeDwellMs) j["placeDwellMs"] = placeDwellMs;
         if (!homeCommand.empty()) j["homeCommand"] = homeCommand;
         return j;

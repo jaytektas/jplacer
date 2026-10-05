@@ -9,6 +9,7 @@
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
+#include <tuple>
 
 #include "model/JPBoard.h"
 #include "model/JPBoardLocation.h"
@@ -268,6 +269,37 @@ int main() {
     assert(std::find(machine.log.begin(), machine.log.end(), "tip N2 T2") != machine.log.end());
     assert(std::find(machine.log.begin(), machine.log.end(), "tip N1 T1") == machine.log.end());
     assert(std::count(machine.log.begin(), machine.log.end(), "fiducial") == 2);
+    // OpenPnP's Rotation Modes (no bottom vision here): PlacementAngle picks
+    // the part already turned against its placement, so the nozzle places at
+    // 0; LimitedArticulation turns about the middle of its axis's range (here
+    // 90 degrees from pick to place, with 15 + 30 to spare: from -67.5 to 22.5).
+    // (The trays' counts, the log and what was picked and placed kept for the checks after.)
+    const int frCount = config.feeder("FR")->number("feed-count"), fcCount = config.feeder("FC")->number("feed-count");
+    const auto keptLog = machine.log;
+    const auto keptPicks = machine.picks, keptPlaces = machine.places;
+    for (const auto& [mode, pickTurn, placeTurn] : std::vector<std::tuple<std::string, double, double>> {
+             { "PlacementAngle", -90, 0 }, { "LimitedArticulation", -67.5, 22.5 }, { "AbsolutePartAngle", 0, 90 } }) {
+        for (auto& h : machine.heads) h.rotationMode = mode;
+        job.removeAllPlacedStatus();
+        machine.picks.clear();
+        machine.places.clear();
+        JPJobProcessor run(config, job, machine, settings, hooks);
+        JPJobProcessor::Failure f;
+        JPJobProcessor::Result r = JPJobProcessor::Result::More;
+        int steps = 0;
+        while ((r = run.next(f)) == JPJobProcessor::Result::More) assert(++steps < 200);
+        assert(r == JPJobProcessor::Result::Finished && machine.places.size() == 3);
+        for (const auto& p : machine.picks) assert(near(p.where.rotation(), pickTurn, 1e-3));
+        for (const auto& p : machine.places) assert(near(p.where.rotation(), placeTurn, 1e-3));
+    }
+    for (auto& h : machine.heads) h.rotationMode = "AbsolutePartAngle";
+    config.feeder("FR")->setNumber("feed-count", frCount);
+    config.feeder("FC")->setNumber("feed-count", fcCount);
+    machine.log = keptLog;
+    machine.picks = keptPicks;
+    machine.places = keptPlaces;
+    job.removeAllPlacedStatus();
+    for (const char* id : { "R1a", "R1b", "C1a" }) job.storePlacedStatus(*bl, id, true);
     assert(machine.log.back() == "park");
     assert(statuses.back().rfind("Job finished without error, placed 3 parts", 0) == 0);
     // The trays moved on: the second R1 from the second pocket.

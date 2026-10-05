@@ -382,6 +382,8 @@ notes.
   It comes in with an OpenPnP machine.
 - The machine has OpenPnP's Unsafe Z Roaming: a tool left below safe Z goes up to safe Z once it is jogged more
   than that far away.
+- A nozzle has OpenPnP's Rotation Mode: the part's own angle (as before), the placement's angle, minimal
+  rotation, or limited articulation for a nozzle that only turns so far. It comes in with an OpenPnP machine.
 
 ## 0.1.0
 

@@ -30,6 +30,13 @@ public:
         std::vector<std::string> tipIds;   // the tips that fit it
         // Waited after its vacuum is on (pick) or off (place): its own and its tip's.
         int                      pickDwellMs = 0, placeDwellMs = 0;
+        // OpenPnP's Rotation Mode: how its turn relates to the part's angle
+        // ("AbsolutePartAngle", "PlacementAngle", "MinimalRotation",
+        // "LimitedArticulation"); for the last, how far it may turn either way
+        // of the pick and of alignment, and its rotation axis's range.
+        std::string              rotationMode = "AbsolutePartAngle";
+        double                   maxPickArticulation = 15, maxAlignArticulation = 30;
+        double                   rotationLow = -180, rotationHigh = 180;
     };
 
     virtual ~JPJobMachine() = default;
@@ -37,6 +44,11 @@ public:
     // The head's nozzles, in order, and the machine's nozzle tips (id, name).
     virtual std::vector<Nozzle> nozzles() const = 0;
     virtual std::vector<std::pair<std::string, std::string>> tips() const = 0;
+    // How far a nozzle is turned now (its rotation axis); none when it cannot be told.
+    virtual std::optional<double> nozzleRotation(const std::string& nozzleId) const {
+        (void)nozzleId;
+        return std::nullopt;
+    }
     // Where the head's camera is now; none when it cannot be told.
     virtual std::optional<JPLocation> cameraLocation() const = 0;
     // Whether the head camera can be taken to `at` (its axes within their soft limits).
@@ -149,7 +161,9 @@ public:
     struct AlignRequest {
         std::vector<JPPartFinder::Rect> shape;   // the part's own mm
         double partHeightMm = 0;
-        double imageAngle = 0;    // the nozzle's turn for the first look
+        double imageAngle = 0;    // the part's angle for the first look
+        // The nozzle's Rotation Mode offset: its turn is the part's angle less this.
+        double partOffset = 0;
         double angleRange = 10;
         int    passes = 3;
         double maxLinearOffsetMm = 1;

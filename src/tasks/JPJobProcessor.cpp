@@ -767,10 +767,44 @@ void JPJobProcessor::optimize(bool byPick) {
     m_planned = order;
 }
 
+double JPJobProcessor::rotationOffset(const std::string& nozzleId, double pickAngle, double placeAngle) const {
+    // Kept within -lim..lim, as OpenPnP's angleNorm.
+    auto norm = [](double v, double lim) {
+        while (std::abs(v) > lim) v += v < 0 ? 2 * lim : -2 * lim;
+        return v;
+    };
+    JPJobMachine::Nozzle n;
+    for (const auto& m : m_machine.nozzles())
+        if (m.id == nozzleId) n = m;
+    if (n.rotationMode == "PlacementAngle") return placeAngle;
+    if (n.rotationMode == "MinimalRotation") {
+        const auto now = m_machine.nozzleRotation(nozzleId);
+        return now ? norm(pickAngle - *now, 180) : 0;
+    }
+    if (n.rotationMode == "LimitedArticulation") {
+        const double articulation = n.rotationHigh - n.rotationLow;
+        const double pickToPlace = norm(placeAngle - pickAngle, 180);
+        const double tolerance = n.maxPickArticulation + n.maxAlignArticulation;
+        const double maximum = pickToPlace + (pickToPlace > 0 ? 1 : pickToPlace < 0 ? -1 : 0) * tolerance;
+        double start;
+        if (std::abs(maximum) < articulation) {
+            // Room enough: about the middle of the range.
+            start = (n.rotationLow + n.rotationHigh) * 0.5 - maximum * 0.5;
+        } else if (pickToPlace > 0) {
+            start = n.rotationLow + (articulation - pickToPlace) * n.maxPickArticulation / tolerance;
+        } else {
+            start = n.rotationHigh - (articulation + pickToPlace) * n.maxPickArticulation / tolerance;
+        }
+        return norm(pickAngle - start, 180);
+    }
+    return 0;   // AbsolutePartAngle
+}
+
 void JPJobProcessor::prerotate(bool forPick) {
     for (Planned& p : m_planned) {
         JobPlacement& j = m_jobPlacements[p.job];
         std::optional<double> angle;
+        double pickAngle = 0, placeAngle = 0;
         main([&] {
             if (forPick) {
                 const JPFeeder* f = feederFor(j.partId, "");
@@ -778,10 +812,19 @@ void JPJobProcessor::prerotate(bool forPick) {
                 const auto at = f->pickLocation();
                 if (!at) fail(Source::Feeder, f->id(), "Feeder pick location must not be null");
                 angle = at->rotation();
+                pickAngle = at->rotation();
+                placeAngle = placeLocation(p.job).rotation();
             } else {
                 angle = placeLocation(p.job).rotation();
             }
         });
+        // The nozzle's turn: the part's angle less its Rotation Mode offset.
+        if (forPick && angle) {
+            m_rotationOffset[p.nozzleId] = rotationOffset(p.nozzleId, pickAngle, placeAngle);
+            *angle -= m_rotationOffset[p.nozzleId];
+        } else if (angle) {
+            if (const auto o = m_rotationOffset.find(p.nozzleId); o != m_rotationOffset.end()) *angle -= o->second;
+        }
         // As OpenPnP: a nozzle that cannot turn now turns when it gets there.
         std::string why;
         if (m_settings.preRotateAllNozzles && angle) m_machine.rotate(p.nozzleId, *angle, why);
@@ -855,6 +898,11 @@ JPJobProcessor::Step JPJobProcessor::pick(Planned& p) {
                 pickWhy = "Feeder pick location must not be null";
                 continue;
             }
+            // OpenPnP's prepareForPickAndPlaceArticulation: the nozzle picks at the part's angle less its offset.
+            double placeAngle = 0;
+            main([&] { placeAngle = placeLocation(p.job).rotation(); });
+            m_rotationOffset[p.nozzleId] = rotationOffset(p.nozzleId, at->rotation(), placeAngle);
+            at = at->derive(std::nullopt, std::nullopt, std::nullopt, at->rotation() - m_rotationOffset[p.nozzleId]);
             std::string nozzleName = p.nozzleId;
             for (const auto& n : m_machine.nozzles())
                 if (n.id == p.nozzleId) nozzleName = n.name;
@@ -873,6 +921,7 @@ JPJobProcessor::Step JPJobProcessor::pick(Planned& p) {
             // What may be on the nozzle is dropped before trying again.
             std::string why;
             if (!m_machine.discard(p.nozzleId, why)) fail(Source::Nozzle, p.nozzleId, why);
+            m_rotationOffset.erase(p.nozzleId);
             continue;
         }
         m_partOn[p.nozzleId] = j.partId;
@@ -899,6 +948,7 @@ JPJobProcessor::Step JPJobProcessor::align(Planned& p) {
         aligned = JPAlignRequests::forPart(m_config, m_vision, *part, j.partHeightMm, place, pick, rq);
         name = part->id;
     });
+    if (const auto o = m_rotationOffset.find(p.nozzleId); o != m_rotationOffset.end()) rq.partOffset = o->second;
     if (!aligned) {
         JLOGC(JPlacerLog::kJob, JLogLevel::Debug) << "not aligning " << j.partId << ": no enabled bottom vision for it";
         return Step::Align;
@@ -935,6 +985,9 @@ JPJobProcessor::Step JPJobProcessor::place(Planned& p) {
         const double turn = at.rotation() - a->partAngle, t = turn * M_PI / 180;
         const double ox = a->dx * std::cos(t) - a->dy * std::sin(t), oy = a->dx * std::sin(t) + a->dy * std::cos(t);
         at = JPLocation(JPLengthUnit::Millimeters, at.x() - ox, at.y() - oy, at.z(), a->nozzleAngle + turn);
+    } else if (const auto o = m_rotationOffset.find(p.nozzleId); o != m_rotationOffset.end()) {
+        // Not aligned: the nozzle turned to the placement's angle less its Rotation Mode offset.
+        at = at.derive(std::nullopt, std::nullopt, std::nullopt, at.rotation() - o->second);
     }
     std::string nozzleName = p.nozzleId;
     for (const auto& n : m_machine.nozzles())
@@ -943,6 +996,7 @@ JPJobProcessor::Step JPJobProcessor::place(Planned& p) {
     std::string why;
     if (!m_machine.place(p.nozzleId, at, why)) fail(Source::Nozzle, p.nozzleId, why);
     m_partOn.erase(p.nozzleId);
+    m_rotationOffset.erase(p.nozzleId);
     m_machine.holding(p.nozzleId, "");
     const std::string feederId = m_partsFeeder[p.nozzleId];
     m_partsFeeder.erase(p.nozzleId);
@@ -962,6 +1016,7 @@ void JPJobProcessor::discardAll() {
     for (auto it = m_partOn.begin(); it != m_partOn.end();) {
         std::string why;
         if (!m_machine.discard(it->first, why)) fail(Source::Nozzle, it->first, why);
+        m_rotationOffset.erase(it->first);
         m_partsFeeder.erase(it->first);
         m_machine.holding(it->first, "");
         it = m_partOn.erase(it);
