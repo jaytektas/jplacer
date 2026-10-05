@@ -120,6 +120,8 @@ JPNozzleTipConfig JPNozzleTipConfig::fromJson(const JJson& j) {
     for (const JJson& s : j["load"].arr()) t.loadSteps.push_back(JPChangerStep::fromJson(s));
     t.unloadReversesLoad = j["unloadReversesLoad"].boolean(true);
     for (const JJson& s : j["unload"].arr()) t.unloadSteps.push_back(JPChangerStep::fromJson(s));
+    t.maxPartDiameterMm  = j["maxPartDiameterMm"].number(t.maxPartDiameterMm);
+    t.maxPickToleranceMm = j["maxPickToleranceMm"].number(t.maxPickToleranceMm);
     t.pickDwellMs  = int(j["pickDwellMs"].number());
     t.placeDwellMs = int(j["placeDwellMs"].number());
     for (const auto& [key, sensing] : { std::pair{ "partOn", &t.partOn }, std::pair{ "partOff", &t.partOff } }) {
@@ -153,6 +155,8 @@ JJson JPNozzleTipConfig::toJson() const {
     j["load"]     = toArray(loadSteps);
     j["unloadReversesLoad"] = unloadReversesLoad;
     j["unload"]   = toArray(unloadSteps);
+    j["maxPartDiameterMm"]  = maxPartDiameterMm;
+    j["maxPickToleranceMm"] = maxPickToleranceMm;
     if (pickDwellMs) j["pickDwellMs"] = pickDwellMs;
     if (placeDwellMs) j["placeDwellMs"] = placeDwellMs;
     for (const auto& [key, sensing] : { std::pair{ "partOn", &partOn }, std::pair{ "partOff", &partOff } }) {

@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "machine/JPNozzleTipConfig.h"
 #include "model/JPConfiguration.h"
 #include "pipeline/JPPipeline.h"
 
@@ -22,9 +23,12 @@ public:
     static void fiducial(JPPipeline& pipeline, const JPConfiguration& config, const JPVisionSettings& settings,
                          const std::string& partId, const std::string& packageId, double rotation, double maxDistanceMm);
     // ReferenceBottomVision for the part over the camera's centre, turned
-    // `rotation`, in one shot: false (and why) without a package to go by.
+    // `rotation`, in one shot, on a nozzle with `tip` (its largest part and
+    // pick tolerance; none: OpenPnP's defaults): false (and why) without a
+    // package to go by.
     static bool bottom(JPPipeline& pipeline, const JPConfiguration& config, const JPVisionSettings& settings,
-                       const std::string& partId, const std::string& packageId, double rotation, std::string& why);
+                       const std::string& partId, const std::string& packageId, double rotation, const JPNozzleTipConfig* tip,
+                       std::string& why);
 };
 
 } // inline namespace jf

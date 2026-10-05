@@ -31,6 +31,11 @@ struct JPNozzleTipConfig {
     std::vector<JPChangerStep> loadSteps;
     bool                       unloadReversesLoad = true;
     std::vector<JPChangerStep> unloadSteps;   // when it does not
+    // OpenPnP's Part Dimensions: the largest part it picks (diameter or
+    // diagonal, tolerances in), and how far off a part may be picked
+    // (bottom vision accepts a part no further off, and looks no further).
+    double                     maxPartDiameterMm = 20;
+    double                     maxPickToleranceMm = 1;
     // Waited after a pick or place with this tip, on top of the nozzle's own.
     int                        pickDwellMs = 0;
     int                        placeDwellMs = 0;

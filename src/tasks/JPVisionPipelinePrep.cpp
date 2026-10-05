@@ -15,8 +15,6 @@ namespace {
 
 // The stand-in fiducial's diameter (VisionUtils.readyHomingFiducialWithDiameter).
 constexpr double kStandInFiducialMm = 1.0;
-// ReferenceNozzleTip's maxPartDiameter and maxPickTolerance.
-constexpr double kMaxPartDiameterMm = 20.0, kMaxPickToleranceMm = 1.0;
 // The bottom vision's sampling size when the nozzle tip has none, and the
 // least it may be in pixels.
 constexpr double kSamplingMm = 0.1, kLeastSamplingPx = 2.0;
@@ -100,7 +98,8 @@ void JPVisionPipelinePrep::fiducial(JPPipeline& pipeline, const JPConfiguration&
 }
 
 bool JPVisionPipelinePrep::bottom(JPPipeline& pipeline, const JPConfiguration& config, const JPVisionSettings& settings,
-                                  const std::string& partId, const std::string& packageId, double rotation, std::string& why) {
+                                  const std::string& partId, const std::string& packageId, double rotation,
+                                  const JPNozzleTipConfig* tip, std::string& why) {
     const JPPackage* pkg = packageFor(config, partId, packageId);
     if (!pkg) {
         why = "A package must be designated to configure the pipeline. Please select a single part or package on the "
@@ -109,6 +108,13 @@ bool JPVisionPipelinePrep::bottom(JPPipeline& pipeline, const JPConfiguration& c
     }
     const auto& ctx = pipeline.context();
     const double pxPerMm = (ctx.pixelsPerMmX + ctx.pixelsPerMmY) / 2;
+    // The tip's largest part, and how far off a part may be (the package's own, when it says).
+    const JPNozzleTipConfig defaults;
+    const double maxPartDiameterMm = (tip ? *tip : defaults).maxPartDiameterMm;
+    double tolerance = (tip ? *tip : defaults).maxPickToleranceMm;
+    if (pkg->visionCompositing)
+        if (const double own = pkg->visionCompositing->maxPickTolerance.convertToUnits(JPLengthUnit::Millimeters).value(); own > 0)
+            tolerance = own;
     const JPPipelineValue::Footprint footprint = footprintOf(pkg->footprint);
     pipeline.setProperty("part", JPPipelineValue { partOf(partId, pkg) });
     pipeline.setProperty("footprint", JPPipelineValue { footprint });
@@ -119,13 +125,13 @@ bool JPVisionPipelinePrep::bottom(JPPipeline& pipeline, const JPConfiguration& c
     pipeline.setProperty("MinAreaRect.expectedAngle", JPPipelineValue { rotation });
     pipeline.setProperty("DetectRectlinearSymmetry.center", centre);
     pipeline.setProperty("DetectRectlinearSymmetry.expectedAngle", JPPipelineValue { rotation });
-    pipeline.setProperty("DetectRectlinearSymmetry.searchDistance", JPPipelineValue { JPPipelineValue::LengthMm { kMaxPickToleranceMm * kSearchMargin } });
+    pipeline.setProperty("DetectRectlinearSymmetry.searchDistance", JPPipelineValue { JPPipelineValue::LengthMm { tolerance * kSearchMargin } });
     // One shot, the whole part: the mask as wide as the camera sees, up to the largest part.
-    double viewMm = kMaxPartDiameterMm;
+    double viewMm = maxPartDiameterMm;
     if (pxPerMm > 0 && ctx.cameraWidth > 0)
-        viewMm = std::min(kMaxPartDiameterMm, std::min(ctx.cameraWidth / ctx.pixelsPerMmX, ctx.cameraHeight / ctx.pixelsPerMmY));
+        viewMm = std::min(maxPartDiameterMm, std::min(ctx.cameraWidth / ctx.pixelsPerMmX, ctx.cameraHeight / ctx.pixelsPerMmY));
     pipeline.setProperty("MaskCircle.diameter", JPPipelineValue { JPPipelineValue::LengthMm { viewMm } });
-    const double maxDim = std::sqrt(2.0) * viewMm / 2 - kMaxPickToleranceMm * kSearchMargin;
+    const double maxDim = std::sqrt(2.0) * viewMm / 2 - tolerance * kSearchMargin;
     pipeline.setProperty("footprint.maxWidth", JPPipelineValue { JPPipelineValue::LengthMm { maxDim } });
     pipeline.setProperty("footprint.maxHeight", JPPipelineValue { JPPipelineValue::LengthMm { maxDim } });
     double sampling = kSamplingMm;
@@ -136,8 +142,8 @@ bool JPVisionPipelinePrep::bottom(JPPipeline& pipeline, const JPConfiguration& c
     double w = 0, h = 0;
     padBounds(footprint, w, h);
     const double mm = JPLength(1, pkg->footprint.units).convertToUnits(JPLengthUnit::Millimeters).value();
-    w = std::max(w, pkg->footprint.bodyWidth * mm) + 2 * kMaxPickToleranceMm;
-    h = std::max(h, pkg->footprint.bodyHeight * mm) + 2 * kMaxPickToleranceMm;
+    w = std::max(w, pkg->footprint.bodyWidth * mm) + 2 * tolerance;
+    h = std::max(h, pkg->footprint.bodyHeight * mm) + 2 * tolerance;
     pipeline.setProperty("DetectRectlinearSymmetry.maxWidth", JPPipelineValue { JPPipelineValue::LengthMm { w + 2 * sampling } });
     pipeline.setProperty("DetectRectlinearSymmetry.maxHeight", JPPipelineValue { JPPipelineValue::LengthMm { h + 2 * sampling } });
     assignParameters(pipeline, settings);

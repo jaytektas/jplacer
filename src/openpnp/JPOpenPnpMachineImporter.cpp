@@ -517,6 +517,8 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             }
             t.pickDwellMs = int(number(x.attr("pick-dwell-milliseconds")));
             t.placeDwellMs = int(number(x.attr("place-dwell-milliseconds")));
+            if (x.child("max-part-diameter")) t.maxPartDiameterMm = lengthChild(x, "max-part-diameter");
+            if (x.child("max-pick-tolerance")) t.maxPickToleranceMm = lengthChild(x, "max-pick-tolerance");
             // Part detection by the vacuum.
             auto text = [&x](const char* child) { const JPXmlElement* e = x.child(child); return e ? e->text : std::string(); };
             auto sensing = [&](JPNozzleTipConfig::Sensing& s, const std::string& on) {

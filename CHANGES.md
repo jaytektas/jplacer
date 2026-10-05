@@ -21,6 +21,8 @@ notes.
   Fiducials are averaged when Average Matches? is set.
 - Test Alignment (with Center After Test), Detect Offsets and Test Fiducial Locator work on the vision settings' pages,
   as OpenPnP's; jplacer remembers which part each nozzle holds after a pick, as OpenPnP does.
+- Nozzle tips have OpenPnP's Max. Part Diameter and Max. Pick Tolerance, imported from OpenPnP and used by bottom vision
+  pipelines.
 - An Issues & Solutions tab as OpenPnP's: milestones, Find Issues & Solutions, Accept, Dismiss, Reopen, Include
   Solved and Dismissed, with checks of jplacer's Machine Setup (axes, letters, nozzles' axes, homing, Safe Z, soft limits, feed rates,
   rotation), cameras, nozzle tips and Photon feeders.

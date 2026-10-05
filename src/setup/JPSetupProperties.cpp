@@ -619,6 +619,12 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
     add.note("Added to the nozzle's own dwell.");
     add.group("Part Dimensions");
     add.number("diameter", "Diameter Seen From Below", [t]() -> double& { return t().diameter; });
+    add.number("maxPartDiameterMm", "Max. Part Diameter", [t]() -> double& { return t().maxPartDiameterMm; });
+    add.tip("Maximum diameter/diagonal of parts picked with this nozzle tip, including tolerances.");
+    add.number("maxPickToleranceMm", "Max. Pick Tolerance", [t]() -> double& { return t().maxPickToleranceMm; });
+    add.tip("Maximum assumed pick tolerance allowed with this nozzle tip.\nThis determines how far away from the nominal "
+            "location a detected Bottom Vision alignment position is accepted. It also reduces the computation time of some "
+            "vision operations by limiting the search range.");
     add.group("Nozzles");
     for (const JPNozzleConfig& n : cell.nozzles) {
         auto nozzle = finder(cell.nozzles, n.id);

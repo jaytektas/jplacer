@@ -578,7 +578,12 @@ bool JPlacerJobMachine::alignPart(const std::string& nozzleId, const AlignReques
         bool prepared = false;
         m_onMain([&] {
             const JPVisionSettings* v = m_config.visionSettings(rq.settingsId);
-            prepared = v && JPVisionPipelinePrep::bottom(*rq.pipeline, m_config, *v, rq.partId, "", rq.imageAngle, why);
+            const JPNozzleTipConfig* tip = nullptr;
+            JPCellConfig cellConfig;
+            if (const JPCell* cc = m_machine.cell()) cellConfig = cc->config();
+            for (const JPNozzleTipConfig& t : cellConfig.nozzleTips)
+                if (t.id == nozzle.tipId) tip = &t;
+            prepared = v && JPVisionPipelinePrep::bottom(*rq.pipeline, m_config, *v, rq.partId, "", rq.imageAngle, tip, why);
             if (!v) why = "no bottom vision settings " + rq.settingsId;
         });
         if (!prepared) return false;
