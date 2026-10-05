@@ -795,6 +795,54 @@ void actuators(JPSolutions& s, const JPIssueChecks::Context& c) {
     }
 }
 
+// OpenPnP's HeadSolutions: on a head, every nozzle (and actuator or other
+// camera with an X or Y axis) on the X and Y axes of its first camera.
+void headAxes(JPSolutions& s, const JPIssueChecks::Context& c) {
+    const JPCellConfig* cell = c.cell ? c.cell() : nullptr;
+    if (!cell || !s.isTargeting(Milestone::Basics)) return;
+    for (const JPHeadConfig& h : cell->heads) {
+        const JPCameraConfig* camera = nullptr;
+        for (const JPCameraConfig& cam : cell->cameras)
+            if (!camera && cam.mount.headId == h.id && !cam.mount.axisX.empty() && !cam.mount.axisY.empty()) camera = &cam;
+        if (!camera) continue;
+        // `kind`: "nozzle", "actuator" or "camera"; `id` its id.
+        auto check = [&](const std::string& subject, const std::string& kind, const std::string& id, const JPMountConfig& m) {
+            for (const bool x : { true, false }) {
+                const std::string& axis = x ? m.axisX : m.axisY;
+                const std::string& wanted = x ? camera->mount.axisX : camera->mount.axisY;
+                if ((kind != "nozzle" && axis.empty()) || axis == wanted) continue;
+                const JPAxisConfig* had = cell->axis(axis);
+                const JPAxisConfig* want = cell->axis(wanted);
+                const char* type = x ? "X" : "Y";
+                Issue i;
+                i.subject = subject;
+                i.issue = std::string("Inconsistent ") + type + " axis assignment " + (had ? had->name : std::string("null"))
+                        + " (not the same as default camera " + camera->name + ").";
+                i.solution = "Assign " + (want ? want->name : wanted) + " as the " + type + " axis.";
+                i.severity = kind == "nozzle" ? Severity::Error : Severity::Warning;
+                i.uri = std::string(kWiki) + "Mapping-Axes";
+                const std::string old = axis;
+                i.apply = changing(c, "Axis assignment", [kind, id, x, wanted, old](JPCellConfig& cell, bool solved) {
+                    auto fix = [&](JPMountConfig& mount) { (x ? mount.axisX : mount.axisY) = solved ? wanted : old; };
+                    if (kind == "nozzle")
+                        for (JPNozzleConfig& n : cell.nozzles) { if (n.id == id) fix(n.mount); }
+                    else if (kind == "actuator")
+                        for (JPActuatorConfig& a : cell.actuators) { if (a.id == id) fix(a.mount); }
+                    else
+                        for (JPCameraConfig& cam : cell.cameras) { if (cam.id == id) fix(cam.mount); }
+                });
+                s.add(std::move(i));
+            }
+        };
+        for (const JPNozzleConfig& n : cell->nozzles)
+            if (n.mount.headId == h.id) check("ReferenceNozzle " + n.name, "nozzle", n.id, n.mount);
+        for (const JPActuatorConfig& a : cell->actuators)
+            if (a.mount.headId == h.id) check("ReferenceActuator " + a.name, "actuator", a.id, a.mount);
+        for (const JPCameraConfig& cam : cell->cameras)
+            if (cam.mount.headId == h.id && &cam != camera) check("Camera " + cam.name, "camera", cam.id, cam.mount);
+    }
+}
+
 // OpenPnP's GcodeDriverSolutions, as far as they are not about firmwares
 // jplacer meets through its profiles: serial flow control for a Grbl, pre-move
 // commands and letter variables, the driver's maximum feed rate, and G-code
@@ -1034,6 +1082,7 @@ std::vector<JPSolutions::Check> JPIssueChecks::all(const Context& c) {
         [c](JPSolutions& s) { connect(s, c); },
         [c](JPSolutions& s) { basics(s, c); },
         [c](JPSolutions& s) { actuators(s, c); },
+        [c](JPSolutions& s) { headAxes(s, c); },
         [c](JPSolutions& s) { drivers(s, c); },
         [c](JPSolutions& s) { kinematics(s, c); },
         [c](JPSolutions& s) { vision(s, c); },

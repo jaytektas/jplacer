@@ -303,6 +303,29 @@ int main() {
         std::string why;
         assert(bg.setState(*method, S::State::Solved, why) && calibrated == "T8" && b2.nozzleTips.back().background.method == "Brightness");
     }
+    // OpenPnP's HeadSolutions: a nozzle on other X/Y axes than the head's camera, put on the camera's on Accept.
+    {
+        JPCellConfig h2 = cell;
+        JPCameraConfig cam;
+        cam.id = "T";
+        cam.name = "Down";
+        cam.mount = { "H", "x", "y", "", "" };
+        h2.cameras.push_back(cam);
+        h2.nozzles[1].mount.axisY = "z";
+        JPIssueChecks::Context k = c;
+        k.cell = [&h2]() -> const JPCellConfig* { return &h2; };
+        k.changeCell = [&h2](const std::string&, const std::function<void(JPCellConfig&)>& edit) { edit(h2); };
+        S hs;
+        hs.setChecks(JPIssueChecks::all(k));
+        hs.setTargetMilestone(S::Milestone::Basics);
+        hs.find();
+        hs.publish();
+        S::Issue* y = const_cast<S::Issue*>(find(hs, "Inconsistent Y axis assignment z (not the same as default camera Down)."));
+        assert(y && y->severity == S::Severity::Error && y->solution == "Assign y as the Y axis.");
+        assert(!find(hs, "Inconsistent X axis assignment x (not the same as default camera Down)."));
+        std::string why;
+        assert(hs.setState(*y, S::State::Solved, why) && h2.nozzles[1].mount.axisY == "y");
+    }
     // OpenPnP's GcodeDriverSolutions: flow control for a Grbl, pre-move commands, the maximum feed rate, compression.
     {
         JPCellConfig g = cell;

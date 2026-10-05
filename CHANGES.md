@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Issues & Solutions points out a nozzle, actuator or camera on other X or Y axes than its head's camera, and fixes
+  it on Accept.
 - Issues & Solutions: each nozzle's Safe Z dynamic or fixed, an unconventional Safe Z, the tallest part against the
   safe zone, the manual tip change location (captured on Accept) and a tip's background calibration method (calibrated
   on Accept), as OpenPnP's Kinematic and NozzleTip solutions.
