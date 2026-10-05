@@ -96,6 +96,12 @@ public:
     // pick as pick(), up to safe Z again), a place there (the part let go, as place()), a
     // discard, the head parked, a tool taken to `to` (as moveTool). False
     // with `why`.
+    // For a procedure on a thread of its own, waiting, nothing moving: a
+    // nozzle's vacuum on as a pick puts it on (its head's pump started as its
+    // control says); a pick where it is (as pick()); its vacuum level read.
+    bool vacuumOnAndWait(const std::string& nozzleId, std::string& why);
+    bool pickAndWait(const std::string& nozzleId, std::string& why);
+    bool readVacuumAndWait(const std::string& nozzleId, double& level, std::string& why);
     bool pickAtAndWait(const std::string& nozzleId, std::array<std::optional<double>, 4> to, double speed, std::string& why);
     bool placeAtAndWait(const std::string& nozzleId, std::array<std::optional<double>, 4> to, double speed, std::string& why);
     bool discardAndWait(const std::string& nozzleId, double speed, std::string& why);
@@ -258,6 +264,10 @@ private:
                 const std::optional<std::string>& parameter = std::nullopt);
     // The nozzle's vacuum level, from its sensing actuator (else its vacuum actuator).
     bool readVacuum(const JPNozzleConfig& nozzle, double& level, std::string& why);
+    // `work` on the cell's thread, waited for (not a move: no motion is reported).
+    bool onThreadAndWait(const std::function<bool(std::string&)>& work, std::string& why);
+    // The nozzle's vacuum on (the pump first, as its head's control says).
+    bool doVacuumOn(const JPNozzleConfig& nozzle, std::string& why);
     // A part on (or off) as `sensing` says, from the level now (and `before`
     // for a difference); false with why not.
     bool sensed(const JPNozzleConfig& nozzle, const JPNozzleTipConfig::Sensing& sensing, double before, const char* onOff,

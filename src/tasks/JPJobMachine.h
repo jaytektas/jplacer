@@ -8,6 +8,7 @@
 #include "vision/JPPartFinder.h"
 #include "vision/JPTemplateFinder.h"
 
+#include <array>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -27,6 +28,8 @@ public:
         std::string              id, name;
         std::string              tipId;    // on it now; empty: none
         std::vector<std::string> tipIds;   // the tips that fit it
+        // Waited after its vacuum is on (pick) or off (place): its own and its tip's.
+        int                      pickDwellMs = 0, placeDwellMs = 0;
     };
 
     virtual ~JPJobMachine() = default;
@@ -58,6 +61,17 @@ public:
     virtual bool positionNozzle(const std::string& nozzleId, const JPLocation& at, std::string& why) = 0;
     // The head camera over `at` (as it is, its height kept).
     virtual bool positionCamera(const JPLocation& at, std::string& why) = 0;
+    // A nozzle to `to` (X, Y, Z, rotation in mm and degrees; one not given
+    // stays as it is) at `speed` (0..1) of the machine's: up to safe Z and
+    // across first when `safeZFirst`, else straight there, every axis at once.
+    virtual bool moveNozzle(const std::string& nozzleId, std::array<std::optional<double>, 4> to, double speed, bool safeZFirst,
+                            std::string& why) = 0;
+    // A nozzle's vacuum on as a pick puts it on (its head's pump too); a pick
+    // where it is (the part checked as its tip says); its vacuum level read.
+    // Nothing moves.
+    virtual bool vacuumOn(const std::string& nozzleId, std::string& why) = 0;
+    virtual bool pickHere(const std::string& nozzleId, std::string& why) = 0;
+    virtual bool readVacuum(const std::string& nozzleId, double& level, std::string& why) = 0;
     // An actuator, named as OpenPnP names it (on the head, else on the
     // machine), actuated with `value`: a switch on when it is not 0, a
     // number or text set to it.

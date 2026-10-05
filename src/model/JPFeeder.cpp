@@ -258,7 +258,8 @@ std::optional<JPLocation> JPFeeder::pickLocation() const {
         return JPFeederTape::partLocation(partInCycle, visionOffset, tape, real("rotation-in-feeder", 0));
     }
     // Where its pipeline found the part, else where it is.
-    if (kind == "ReferenceLoosePartFeeder" || kind == "AdvancedLoosePartFeeder") return foundPick ? *foundPick : location();
+    if (kind == "ReferenceLoosePartFeeder" || kind == "AdvancedLoosePartFeeder" || kind == "ReferenceHeapFeeder")
+        return foundPick ? *foundPick : location();
     if (kind == "ReferenceTubeFeeder" || kind == "ReferenceAutoFeeder" || kind == "RapidFeeder" || kind == "SchultzFeeder")
         return location();
     if (kind == "Neoden4Feeder") {
@@ -347,10 +348,10 @@ bool JPFeeder::feed(std::string& why, bool* empty) {
         if (feedOptions() == FeedOptions::SkipNext) setFeedOptions(FeedOptions::Normal);
         return true;
     }
-    // A tube: nothing to do; a drag, lever, Rapid, Schultz, Neoden 4, Photon, loose part or Bamboo feeder's feed is the machine's (JPFeederFeed). An auto feeder: its actuator, on a normal feed (JPFeederFeed).
+    // A tube: nothing to do; a drag, lever, Rapid, Schultz, Neoden 4, Photon, loose part, heap or Bamboo feeder's feed is the machine's (JPFeederFeed). An auto feeder: its actuator, on a normal feed (JPFeederFeed).
     if (kind == "ReferenceTubeFeeder" || kind == "ReferenceDragFeeder" || kind == "ReferenceLeverFeeder" || kind == "RapidFeeder"
         || kind == "SchultzFeeder" || kind == "Neoden4Feeder" || kind == "PhotonFeeder" || kind == "ReferenceLoosePartFeeder"
-        || kind == "AdvancedLoosePartFeeder" || isVisionTape())
+        || kind == "AdvancedLoosePartFeeder" || kind == "ReferenceHeapFeeder" || isVisionTape())
         return true;
     if (kind == "ReferenceAutoFeeder") {
         m_actuate = feedOptions() == FeedOptions::Normal;

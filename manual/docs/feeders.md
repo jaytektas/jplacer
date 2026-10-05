@@ -262,6 +262,34 @@ yet.
 
 <!-- src: src/setup/JPFeederForms.cpp (rapidForm); src/tasks/JPFeederFeed.cpp (feed, kRapidActuator) -->
 
+### Heap feeder
+
+Loose parts in a heap (OpenPnP's ReferenceHeapFeeder), taken out by the nozzle and dropped into a drop box to be looked at.
+
+- **Heap**: the **DropBox** it uses (**New**, named "New", and **Delete**, refused for the only box or one another heap
+  uses), its **Name**; the heap's **Center (Top)**, and **Move 1** to **Move 3**, the places the nozzle passes at safe Z
+  between the heap and the drop box so that a part it loses falls nowhere it mixes with others' (towards the heap 3, 2,
+  1; away 1, 2, 3); **Depth** (how far below its top the heap goes); **Last Feed Depth** (where parts were last found,
+  **Reset** to 0 to start at the top); **Max flip attempts**, **Vacuum Difference**, **Part** and **Poke for Parts**;
+  the **Detection Pipeline** (finds parts the right way up) and **Template Pipeline** (makes the part's template image)
+  with **Edit** and **Reset**; **GetSamples** cleans the box and fetches parts into it for the template pipeline.
+- **DropBox**: its **Center Bottom** and **Drop Location**, its **Parts Pipeline** (finds any part in it), the **Dummy
+  Part** whose nozzle tip and height move parts of unknown origin, and **Clean DropBox**.
+
+A feed first empties the box when it holds another heap's parts: each part its pipeline finds is picked and taken back
+to its heap through the moves (a little higher to pick from next time), or, its origin unknown, dropped at the discard
+location. Then it looks for a part the right way up three times, from the box's centre and then from over the part,
+and picks it there at the box's bottom plus the part's height. None: a part in the box is picked and dropped again to
+turn it; the box empty, parts are fetched: the nozzle over the heap with its vacuum on, waits 1.3 times its pick dwell,
+takes the vacuum's level, and goes down into the heap (from a third of a part above the last depth) round the corners
+of a 2.25 mm square at a quarter speed, or with **Poke for Parts** down onto a 5 x 5 grid 0.625 mm apart and lifted
+between, until the vacuum rises by the Vacuum Difference; then out through the moves and into the box. Every **Max
+flip attempts** tries, the box's parts are thrown away; after 12 the feed fails ("No parts found."). Reaching the
+heap's depth: "Heap Empty or VacuumDifference wrong."; three part heights below the last depth with nothing: "No
+parts found on three times part height." The nozzle takes a tip the part's package fits first.
+
+<!-- src: src/setup/JPFeederForms.cpp (heapForm, act); src/tasks/JPHeapFeeder.cpp; src/model/JPDropBoxes.cpp; src/tasks/JPFeederPipelines.cpp (dropBoxOf, ofDropBox); src/tasks/JPFeederActions.cpp -->
+
 ### Bamboo feeder
 
 A tape advanced by a feed actuator (OpenPnP's BambooFeederAutoVision), its pick location kept true by finding two of its

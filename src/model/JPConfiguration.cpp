@@ -72,6 +72,7 @@ bool JPConfiguration::load(std::vector<std::string>& problems, std::string& erro
         if (e.name == "feeder") m_feeders.push_back(JPFeeder::fromXml(e));
     for (const JPXmlElement& e : banks.children) {
         if (auto b = JPSlotBanks::fromXml(e)) m_slotBanks.push_back(std::move(*b));
+        else if (auto d = JPDropBoxes::fromXml(e)) m_dropBoxes = std::move(*d);
         else m_photon.take(e);
     }
     resolveSlots();
@@ -113,6 +114,7 @@ bool JPConfiguration::save(std::string& error) const {
     JPXmlNode properties("properties");
     for (const JPSlotBanks& b : m_slotBanks) properties.add(b.toXml());
     for (JPXmlNode& e : m_photon.toXml()) properties.add(std::move(e));
+    properties.add(m_dropBoxes.toXml());
     if (!JPXmlWriter::write((dir / kMachinePropertiesFile).string(), properties, error)) return false;
     JPXmlNode vision("openpnp-vision-settings");
     for (const JPVisionSettings& v : m_vision) vision.add(v.toXml());
@@ -135,10 +137,12 @@ int JPConfiguration::importFeeders(const std::string& machineXml, std::string& e
     // The slot feeders' banks and the Photon feeders' slots, from the machine's properties.
     m_slotBanks.clear();
     m_photon = JPPhotonProperties();
+    m_dropBoxes = JPDropBoxes();
     if (const JPXmlElement* properties = machine ? machine->child("properties") : nullptr)
         for (const JPXmlElement& e : properties->children) {
             if (e.name != "entry") continue;
             if (auto b = JPSlotBanks::fromXml(e)) m_slotBanks.push_back(std::move(*b));
+            else if (auto d = JPDropBoxes::fromXml(e)) m_dropBoxes = std::move(*d);
             else m_photon.take(e);
         }
     resolveSlots();

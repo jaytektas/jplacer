@@ -382,7 +382,30 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         JPFeeder* f = m_job.configuration().feeder(feederId);
         if (!f) return;
         const bool training = action.find("Training") != std::string::npos;
-        const std::string element = training ? "training-pipeline" : "pipeline";
+        // A heap feeder's detection pipeline is its feeder pipeline; its drop box's, the box's.
+        const bool heap = f->typeName() == "ReferenceHeapFeeder";
+        const std::string element = training ? "training-pipeline" : heap ? "feeder-pipeline" : "pipeline";
+        JPDropBoxes& boxes = m_job.configuration().dropBoxes();
+        if (action.find("DropBox") != std::string::npos) {
+            const std::string box = JPFeederPipelines::dropBoxOf(*f, boxes);
+            if (action.rfind("reset", 0) == 0) {
+                if (JPFeederPipelines::resetDropBox(boxes, box)) m_job.configurationChanged();
+                return;
+            }
+            std::optional<JPPipeline> held = JPFeederPipelines::ofDropBox(boxes, box);
+            if (!held) return;
+            auto pipeline = std::make_shared<JPPipeline>(std::move(*held));
+            m_pipelines.useHeadCamera(*pipeline, m_job.configuration().directory());
+            m_pipelines.edit(box + " Part-Pipeline", pipeline, [this, box](const JPPipeline& edited) {
+                m_job.configuration().dropBoxes().setPartPipeline(box, edited.toXml());
+                m_job.configurationChanged();
+            });
+            return;
+        }
+        if (heap && action.rfind("reset", 0) == 0) {
+            if (JPFeederPipelines::reset(*f, element, &boxes)) m_job.configurationChanged();
+            return;
+        }
         if (action.rfind("reset", 0) == 0) {
             // A Bamboo feeder's to its Vision Type's default, as OpenPnP's asks.
             if (f->isVisionTape()) {
@@ -722,19 +745,21 @@ void JPlacerOpenPnpTabs::editFeederPipeline(const std::string& feederId, const s
     JPFeeder* f = m_job.configuration().feeder(feederId);
     if (!f) return;
     const bool training = element == "training-pipeline";
-    // A loose part feeder's is titled by its part, which it must have.
+    // A loose part or heap feeder's is titled by its part, which it must have.
     const std::string kind = f->typeName();
-    const bool loose = kind == "ReferenceLoosePartFeeder" || kind == "AdvancedLoosePartFeeder";
+    const bool heap = kind == "ReferenceHeapFeeder";
+    const bool loose = kind == "ReferenceLoosePartFeeder" || kind == "AdvancedLoosePartFeeder" || heap;
     if (loose && !m_job.configuration().part(f->partId())) {
         JDialog::message("Error", "Feeder " + f->name() + " has no part.");
         return;
     }
-    std::optional<JPPipeline> held = JPFeederPipelines::of(*f, element);
+    std::optional<JPPipeline> held = JPFeederPipelines::of(*f, element, &m_job.configuration().dropBoxes());
     if (!held) return;
     auto pipeline = std::make_shared<JPPipeline>(std::move(*held));
     m_pipelines.useHeadCamera(*pipeline, m_job.configuration().directory());
     JPFeederPipelines::configureForEditing(m_job.configuration(), *f, *pipeline);
-    const std::string title = (loose ? f->partId() : f->name()) + (training ? " Training Pipeline" : " Pipeline");
+    const std::string title = (loose ? f->partId() : f->name())
+                              + (heap ? (training ? " Training-Pipeline" : " Feeder-Pipeline") : training ? " Training Pipeline" : " Pipeline");
     m_pipelines.edit(title, pipeline, [this, feederId, element](const JPPipeline& edited) {
         if (JPFeeder* kept = m_job.configuration().feeder(feederId)) {
             kept->setPipeline(edited.toXml(), element);

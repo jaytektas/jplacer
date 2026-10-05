@@ -526,6 +526,46 @@ bool JPCell::pickAtAndWait(const std::string& nozzleId, std::array<std::optional
     return waitFor([&](std::string& w) { return doAt(nozzleId, to, speed, true, w); }, why);
 }
 
+bool JPCell::vacuumOnAndWait(const std::string& nozzleId, std::string& why) {
+    return onThreadAndWait([&](std::string& w) {
+        for (const JPNozzleConfig& n : m_config.nozzles)
+            if (n.id == nozzleId) return doVacuumOn(n, w);
+        w = "no nozzle " + nozzleId;
+        return false;
+    }, why);
+}
+
+bool JPCell::pickAndWait(const std::string& nozzleId, std::string& why) {
+    return onThreadAndWait([&](std::string& w) {
+        for (const JPNozzleConfig& n : m_config.nozzles)
+            if (n.id == nozzleId) return doPick(n, w);
+        w = "no nozzle " + nozzleId;
+        return false;
+    }, why);
+}
+
+bool JPCell::readVacuumAndWait(const std::string& nozzleId, double& level, std::string& why) {
+    return onThreadAndWait([&](std::string& w) {
+        for (const JPNozzleConfig& n : m_config.nozzles)
+            if (n.id == nozzleId) return readVacuum(n, level, w);
+        w = "no nozzle " + nozzleId;
+        return false;
+    }, why);
+}
+
+bool JPCell::onThreadAndWait(const std::function<bool(std::string&)>& work, std::string& why) {
+    std::promise<std::pair<bool, std::string>> done;
+    auto result = done.get_future();
+    m_thread.post([&work, &done] {
+        std::string w;
+        const bool ok = work(w);
+        done.set_value({ ok, w });
+    });
+    const auto [ok, w] = result.get();
+    why = w;
+    return ok;
+}
+
 bool JPCell::placeAtAndWait(const std::string& nozzleId, std::array<std::optional<double>, 4> to, double speed,
                             std::string& why) {
     return waitFor([&](std::string& w) { return doAt(nozzleId, to, speed, false, w); }, why);
@@ -577,7 +617,7 @@ bool JPCell::switchTelling(const std::string& actuatorId, bool on, std::string& 
     return ok;
 }
 
-bool JPCell::doPick(const JPNozzleConfig& n, std::string& why) {
+bool JPCell::doVacuumOn(const JPNozzleConfig& n, std::string& why) {
     if (!m_connected) { why = "not connected"; return false; }
     if (n.vacuumActuatorId.empty()) { why = "it has no vacuum actuator"; return false; }
     const JPHeadConfig* head = nullptr;
@@ -589,13 +629,20 @@ bool JPCell::doPick(const JPNozzleConfig& n, std::string& why) {
         m_pumpOn.insert(head->id);
         std::this_thread::sleep_for(std::chrono::milliseconds(head->pumpOnWaitMs));
     }
-    const JPNozzleTipConfig* tip = nullptr;
-    for (const JPNozzleTipConfig& t : m_config.nozzleTips) if (t.id == n.tipId) tip = &t;
-    // Part on, by a difference: the level before the vacuum comes on.
-    double before = 0;
-    if (tip && tip->partOn.method == "Difference" && !readVacuum(n, before, why)) return false;
     if (!switchTelling(n.vacuumActuatorId, true, why)) return false;
     m_holding.insert(n.id);
+    return true;
+}
+
+bool JPCell::doPick(const JPNozzleConfig& n, std::string& why) {
+    if (!m_connected) { why = "not connected"; return false; }
+    if (n.vacuumActuatorId.empty()) { why = "it has no vacuum actuator"; return false; }
+    const JPNozzleTipConfig* tip = nullptr;
+    for (const JPNozzleTipConfig& t : m_config.nozzleTips) if (t.id == n.tipId) tip = &t;
+    // Part on, by a difference: the level before the vacuum comes on (none when it already is).
+    double before = 0;
+    if (tip && tip->partOn.method == "Difference" && !m_holding.count(n.id) && !readVacuum(n, before, why)) return false;
+    if (!doVacuumOn(n, why)) return false;
     std::this_thread::sleep_for(std::chrono::milliseconds(n.pickDwellMs + (tip ? tip->pickDwellMs : 0)));
     if (tip && tip->partOn.method != "None" && !sensed(n, tip->partOn, before, "on", why)) return false;
     return true;

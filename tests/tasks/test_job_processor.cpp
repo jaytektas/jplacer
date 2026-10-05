@@ -85,6 +85,13 @@ public:
         return false;
     }
     void showOnCamera(const cv::Mat&, int) override {}
+    bool moveNozzle(const std::string&, std::array<std::optional<double>, 4>, double, bool, std::string&) override { return true; }
+    bool vacuumOn(const std::string&, std::string&) override { return true; }
+    bool pickHere(const std::string&, std::string&) override { return true; }
+    bool readVacuum(const std::string&, double& level, std::string&) override {
+        level = 0;
+        return true;
+    }
     bool seeRects(const JPLocation&, JPPipeline&, int, SeenRects&, std::string& why) override {
         why = "no camera";
         return false;

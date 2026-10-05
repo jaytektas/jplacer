@@ -15,7 +15,7 @@ inline namespace jf {
 // A feed, as OpenPnP's feeder.feed(): the feeder's count moved on (as its
 // feed option says, JPFeeder::feed); a drag or lever feeder's pin moved (pinFeed); for an auto feeder its feed actuator
 // actuated (the nozzle taken over the pick place first when it says so); a
-// Bamboo feeder's (JPBambooFeeder::feed);
+// Bamboo feeder's (JPBambooFeeder::feed); a heap feeder's (JPHeapFeeder::feed);
 // then, for a strip with vision on, the
 // holes it wants looked at found with the head's camera (as its parallax
 // says, within half a hole pitch) and where its parts lie set from them. A

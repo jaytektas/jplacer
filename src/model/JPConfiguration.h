@@ -8,6 +8,7 @@
 #include "JPJob.h"
 #include "JPFeeder.h"
 #include "JPPhotonProperties.h"
+#include "JPDropBoxes.h"
 #include "JPSlotBanks.h"
 #include "JPPackage.h"
 #include "JPPanel.h"
@@ -102,6 +103,9 @@ public:
     // A slot's bank: its own, else the last.
     std::string slotBankId(const JPFeeder& slot);
     // What the Photon feeders keep on the machine.
+    // The heap feeders' drop boxes (the machine property OpenPnP keeps them in).
+    JPDropBoxes&       dropBoxes() { return m_dropBoxes; }
+    const JPDropBoxes& dropBoxes() const { return m_dropBoxes; }
     JPPhotonProperties&       photon() { return m_photon; }
     // Each Photon feeder's slot location found again (JPFeeder::photonSlotLocation).
     void resolvePhoton();
@@ -172,6 +176,7 @@ private:
     std::vector<JPFeeder>                                m_feeders;
     std::vector<JPSlotBanks>                             m_slotBanks;
     JPPhotonProperties                                   m_photon;
+    JPDropBoxes                                          m_dropBoxes;
     std::vector<std::shared_ptr<JPBoard>>                m_boards;
     std::vector<std::shared_ptr<JPPanel>>                m_panels;
 };

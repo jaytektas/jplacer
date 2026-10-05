@@ -787,6 +787,127 @@ void bambooForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFee
     add.tip("Move nozzle to pick location before actuating the feed actuator");
 }
 
+// The drop box a heap feeder uses.
+std::string heapBox(JPConfiguration& config, const JPFeeder& f) {
+    const std::string id = f.text("drop-box-id");
+    if (config.dropBoxes().box(id)) return id;
+    const std::vector<JPDropBoxes::Box> all = config.dropBoxes().boxes();
+    return all.empty() ? std::string() : all.back().id;
+}
+
+// OpenPnP's ReferenceHeapFeederConfigurationWizard: the Heap (its drop box,
+// centre, three moves, depths, vacuum, part and pipelines) and the DropBox
+// (its centre and bottom, where parts are dropped, its pipeline and dummy part).
+void heapForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f) {
+    auto box = [&config, f] { return heapBox(config, f()); };
+    add.group("Heap");
+    JPFormBuilder::Named boxes;
+    for (const JPDropBoxes::Box& b : config.dropBoxes().boxes()) boxes.add(b.name, b.id);
+    add.row("DropBox");
+    add.byName("drop-box-id", "DropBox", boxes, box, [f](const std::string& id) { f().setText("drop-box-id", id); });
+    add.text("drop-box.name", "Name", [&config, box] {
+                 const auto b = config.dropBoxes().box(box());
+                 return b ? b->name : std::string();
+             },
+             [&config, box](const std::string& v) { config.dropBoxes().setName(box(), v); });
+    add.button("newDropBox", "New");
+    add.button("deleteDropBox", "Delete");
+    add.end();
+    add.header({ "X", "Y", "Z" });
+    add.row("Center (Top)", Place::Location);
+    coordinate(add, f, "location", Axis::X, "X");
+    coordinate(add, f, "location", Axis::Y, "Y");
+    coordinate(add, f, "location", Axis::Z, "Z");
+    add.end();
+    for (const auto& [label, element] : { std::pair { "Move 1", "way-1" }, std::pair { "Move 2", "way-2" }, std::pair { "Move 3", "way-3" } }) {
+        add.row(label, Place::Location);
+        coordinate(add, f, element, Axis::X, "X");
+        coordinate(add, f, element, Axis::Y, "Y");
+        add.skip();
+        add.end();
+    }
+    add.endColumns();
+    add.row("Feed Retry Count");
+    add.integer("feed-retry-count", "Feed Retry Count", [f] { return f().feedRetryCount(); }, [f](int v) { f().setFeedRetryCount(v); }, 0,
+                kMostCount);
+    add.number("box-depth", "Depth", [f] { return f().real("box-depth", -25); }, [f](double v) { f().setReal("box-depth", v); });
+    add.end();
+    add.row("Pick Retry Count");
+    add.integer("pick-retry-count", "Pick Retry Count", [f] { return f().pickRetryCount(); }, [f](int v) { f().setPickRetryCount(v); }, 0,
+                kMostCount);
+    add.number("last-feed-depth", "Last Feed Depth", [f] { return f().real("last-feed-depth", 0); },
+               [f](double v) { f().setReal("last-feed-depth", v); });
+    add.button("resetLastFeedDepth", "Reset");
+    add.end();
+    add.row("Max flip attempts");
+    count(add, f, "throw-away-drop-box-content-after-failed-feeds", "Max flip attempts", 9);
+    add.integer("required-vacuum-difference", "Vacuum Difference", [f] { return f().number("required-vacuum-difference", 150); },
+                [f](int v) { f().setNumber("required-vacuum-difference", v); }, 0, kMostCount);
+    add.end();
+    add.tip("After this numer of feed, mark the parts as disposable. So the next feed is done with new parts.");
+    JPFormBuilder::Strings ids;
+    for (const auto& p : config.parts()) ids.push_back(p->id);
+    add.row("Part");
+    add.choice("part", "Part", ids, [f] { return f().partId(); }, [f](const std::string& id) { f().setPartId(id); });
+    add.flag("poke-for-parts", "Poke for Parts", [f] { return f().childText("poke-for-parts", "false") == "true"; },
+             [f](bool on) { f().setChildText("poke-for-parts", on ? "true" : "false"); });
+    add.end();
+    add.tip("If enabled the nozzle is lifted for each move inside the heap. Reduces the risk to damage (large) parts, but slower.");
+    add.row("Detection Pipeline");
+    add.button("editPipeline", "Edit");
+    add.button("resetPipeline", "Reset");
+    add.end();
+    add.row("Template Pipeline");
+    add.button("editTrainingPipeline", "Edit");
+    add.button("resetTrainingPipeline", "Reset");
+    add.button("getSamples", "GetSamples");
+    add.end();
+
+    add.group("DropBox");
+    auto boxPlace = [&config, box](const std::string& which, Axis axis) -> std::pair<std::function<double()>, std::function<void(double)>> {
+        auto get = [&config, box, which] {
+            const auto b = config.dropBoxes().box(box());
+            const JPLocation l = b ? (which == "center" ? b->centerBottom : b->drop) : JPLocation(kMm);
+            return l.convertToUnits(kMm);
+        };
+        return { [get, axis] {
+                    const JPLocation l = get();
+                    return axis == Axis::X ? l.x() : axis == Axis::Y ? l.y() : l.z();
+                },
+                 [&config, box, which, get, axis](double v) {
+                     const JPLocation l = get().derive(axis == Axis::X ? std::optional(v) : std::nullopt,
+                                                       axis == Axis::Y ? std::optional(v) : std::nullopt,
+                                                       axis == Axis::Z ? std::optional(v) : std::nullopt, std::nullopt);
+                     if (which == "center") config.dropBoxes().setCenterBottom(box(), l);
+                     else config.dropBoxes().setDrop(box(), l);
+                 } };
+    };
+    add.header({ "X", "Y", "Z" });
+    for (const auto& [label, which] : { std::pair { "Center Bottom", "center" }, std::pair { "Drop Location", "drop" } }) {
+        add.row(label, Place::Location);
+        for (const auto& [axis, name] : { std::pair { Axis::X, "X" }, std::pair { Axis::Y, "Y" }, std::pair { Axis::Z, "Z" } }) {
+            auto [get, set] = boxPlace(which, axis);
+            add.number(std::string("drop-box.") + which + "." + name, name, get, set);
+        }
+        add.end();
+    }
+    add.endColumns();
+    add.row("Parts Pipeline");
+    add.button("editDropBoxPipeline", "Edit");
+    add.button("resetDropBoxPipeline", "Reset");
+    add.end();
+    add.row("Dummy Part");
+    add.choice("drop-box.dummy-part", "Dummy Part", ids,
+               [&config, box] {
+                   const auto b = config.dropBoxes().box(box());
+                   return b ? b->dummyPartId : std::string();
+               },
+               [&config, box](const std::string& id) { config.dropBoxes().setDummyPart(box(), id); });
+    add.button("cleanDropBox", "Clean DropBox");
+    add.end();
+    add.tip("Dummy part for moving unknown parts (e.g. to the trash). Is also used to determine the used nozzle.");
+}
+
 // OpenPnP's ReferenceRotatedTrayFeederConfigurationWizard: the three corner
 // parts (A, B, C), the tray's counts, steps and turn.
 void rotatedTrayForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f) {
@@ -856,6 +977,8 @@ JPSetupProperties::Form JPFeederForms::forFeeder(JPConfiguration& config, const 
         trayForm(add, config, f, std::move(warn));
     } else if (kind == "ReferenceAutoFeeder") {
         autoForm(add, config, f, options.actuators);
+    } else if (kind == "ReferenceHeapFeeder") {
+        heapForm(add, config, f);
     } else if (kind == "BambooFeederAutoVision") {
         bambooForm(add, config, f, options.actuators);
     } else if (kind == "ReferenceRotatedTrayFeeder") {
@@ -928,7 +1051,7 @@ bool slotAct(JPConfiguration& config, JPFeeder& slot, const std::string& action,
 } // namespace
 
 bool JPFeederForms::isMachineAction(const std::string& action) {
-    for (const char* a : { "testFeed", "testPostPick", "showVisionFeatures", "autoSetupTape", "getId", "getFeedCount", "clearFeedCount", "getPitch", "togglePitch",
+    for (const char* a : { "testFeed", "testPostPick", "showVisionFeatures", "autoSetupTape", "cleanDropBox", "getSamples", "getId", "getFeedCount", "clearFeedCount", "getPitch", "togglePitch",
                            "getStatus", "updateLocation", "actuate", "photonFind", "photonFeed", "photonFeed1mm",
                            "photonSearch" })
         if (action == a) return true;
@@ -1011,6 +1134,28 @@ bool JPFeederForms::act(JPConfiguration& config, const std::string& feederId, co
         if (f->typeName() == "ReferenceRotatedTrayFeeder") f->setFlag("legacy-picking-in-progress", false);
         f->visionLocation.reset();   // and what vision found, as OpenPnP's Reset says
         f->visionLocationReference.reset();
+        return true;
+    }
+    if (action == "newDropBox") {
+        // As OpenPnP's: a new box, chosen, named "New".
+        const std::string id = config.dropBoxes().add();
+        config.dropBoxes().setName(id, "New");
+        f->setText("drop-box-id", id);
+        return true;
+    }
+    if (action == "deleteDropBox") {
+        const std::string box = heapBox(config, *f);
+        for (const JPFeeder& other : config.feeders())
+            if (other.id() != f->id() && other.typeName() == "ReferenceHeapFeeder" && heapBox(config, other) == box) {
+                why = "Can't delete a DropBox that is in use by other feeder.";
+                return false;
+            }
+        if (!config.dropBoxes().remove(box, why)) return false;
+        f->setText("drop-box-id", heapBox(config, *f));
+        return true;
+    }
+    if (action == "resetLastFeedDepth") {
+        f->setReal("last-feed-depth", 0);
         return true;
     }
     if (action == "discardParts") {

@@ -93,8 +93,9 @@ JPFeedersPanel::JPFeedersPanel(JSceneGraph& graph, JPConfiguration& config, doub
         m_table->refresh();
         changed();
         // The pin's name decides what its place rows' buttons move; a slot's
-        // bank and feeder (and their names) what its choices list.
-        if (property == "actuator-name" || property.rfind("slot.", 0) == 0)
+        // bank and feeder (and their names), or a heap's drop box (and its
+        // name), what its choices list.
+        if (property == "actuator-name" || property.rfind("slot.", 0) == 0 || property == "drop-box-id" || property == "drop-box.name")
             jPostToNextFrame([this, alive = std::weak_ptr<bool>(m_alive)] {
                 if (const auto a = alive.lock(); a && *a) rebuildForm();
             });
@@ -139,7 +140,7 @@ JPFeedersPanel::JPFeedersPanel(JSceneGraph& graph, JPConfiguration& config, doub
             }
         }
         if (action == "editPipeline" || action == "resetPipeline" || action == "editTrainingPipeline"
-            || action == "resetTrainingPipeline") {
+            || action == "resetTrainingPipeline" || action == "editDropBoxPipeline" || action == "resetDropBoxPipeline") {
             if (pipelineAction) pipelineAction(m_shown, action);
             return;
         }

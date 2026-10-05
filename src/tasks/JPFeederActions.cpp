@@ -4,6 +4,7 @@
 #include "JPFeederActions.h"
 
 #include "JPBambooFeeder.h"
+#include "JPHeapFeeder.h"
 
 #include "JPFiducialLocator.h"
 #include "JPPhotonFeeders.h"
@@ -64,6 +65,17 @@ bool JPFeederActions::run(JPConfiguration& config, const std::string& feederId, 
             feederNumber = f->real("actuator-value", 0);
         }
     });
+    if (kind == "ReferenceHeapFeeder" && (action == "cleanDropBox" || action == "getSamples")) {
+        // With the head's first nozzle, as OpenPnP's (its default).
+        const std::vector<JPJobMachine::Nozzle> nozzles = machine.nozzles();
+        if (nozzles.empty()) {
+            why = "no nozzle on the head";
+            return false;
+        }
+        outcome.changed = true;
+        return action == "cleanDropBox" ? JPHeapFeeder::cleanDropBox(config, feederId, nozzles.front().id, machine, onMain, why)
+                                        : JPHeapFeeder::getSamples(config, feederId, nozzles.front().id, machine, onMain, why);
+    }
     if (kind == "BambooFeederAutoVision") {
         if (action == "showVisionFeatures") return JPBambooFeeder::showFeatures(config, feederId, machine, onMain, why);
         if (action == "autoSetupTape") {

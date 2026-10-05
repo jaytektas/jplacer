@@ -74,8 +74,16 @@ std::vector<JPJobMachine::Nozzle> JPlacerJobMachine::nozzles() const {
     const JPCellConfig c = config();
     const std::string head = headId(c);
     std::vector<Nozzle> out;
-    for (const JPNozzleConfig& n : c.nozzles)
-        if (n.mount.headId == head) out.push_back({ n.id, n.name.empty() ? n.id : n.name, n.tipId, n.tipIds });
+    for (const JPNozzleConfig& n : c.nozzles) {
+        if (n.mount.headId != head) continue;
+        Nozzle out1 { n.id, n.name.empty() ? n.id : n.name, n.tipId, n.tipIds, n.pickDwellMs, n.placeDwellMs };
+        for (const JPNozzleTipConfig& t : c.nozzleTips)
+            if (t.id == n.tipId) {
+                out1.pickDwellMs += t.pickDwellMs;
+                out1.placeDwellMs += t.placeDwellMs;
+            }
+        out.push_back(std::move(out1));
+    }
     return out;
 }
 
@@ -187,6 +195,33 @@ bool JPlacerJobMachine::positionCamera(const JPLocation& at, std::string& why) {
     }
     const JPLocation m = at.convertToUnits(JPLengthUnit::Millimeters);
     return c->moveToolAndWait(feed->config().mount, { m.x(), m.y(), std::nullopt, std::nullopt }, 1.0, why);
+}
+
+bool JPlacerJobMachine::moveNozzle(const std::string& nozzleId, std::array<std::optional<double>, 4> to, double speed,
+                                   bool safeZFirst, std::string& why) {
+    ++m_motions;
+    JPCell* c = cell(why);
+    if (!c) return false;
+    for (const JPNozzleConfig& n : config().nozzles)
+        if (n.id == nozzleId)
+            return safeZFirst ? c->moveToolAndWait(n.mount, to, speed, why) : c->moveToolStraightAndWait(n.mount, to, speed, why);
+    why = "no nozzle " + nozzleId;
+    return false;
+}
+
+bool JPlacerJobMachine::vacuumOn(const std::string& nozzleId, std::string& why) {
+    JPCell* c = cell(why);
+    return c && c->vacuumOnAndWait(nozzleId, why);
+}
+
+bool JPlacerJobMachine::pickHere(const std::string& nozzleId, std::string& why) {
+    JPCell* c = cell(why);
+    return c && c->pickAndWait(nozzleId, why);
+}
+
+bool JPlacerJobMachine::readVacuum(const std::string& nozzleId, double& level, std::string& why) {
+    JPCell* c = cell(why);
+    return c && c->readVacuumAndWait(nozzleId, level, why);
 }
 
 bool JPlacerJobMachine::positionNozzle(const std::string& nozzleId, const JPLocation& at, std::string& why) {

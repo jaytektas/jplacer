@@ -23,6 +23,10 @@ public:
     // a sprocket hole tape feeder's, by its Vision Type.
     static const std::string& feederVisionCircularSymmetry();
     static const std::string& feederVisionColorKeyed();
+    // HeapFeeder-<type>-<colour>-Pipeline.xml: a heap feeder's (type "Part",
+    // "Training") or its drop box's ("DropBox"), by the drop box's colour
+    // ("GREEN", "WHITE", "BLACK"); null for another.
+    static const std::string* heapFeeder(const std::string& type, const std::string& colour);
     // ReferenceBottomVision-DefaultPipeline.xml (createStockPipeline("Default")).
     static const std::string& bottomVision();
     // ReferenceFiducialLocator-DefaultPipeline.xml (createStockPipeline("Default")).

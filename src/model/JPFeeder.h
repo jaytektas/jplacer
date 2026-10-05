@@ -133,8 +133,8 @@ public:
     // those are left.
     std::optional<JPLocation> templateOffset, nextPartPick;
     int                       partsFed = 0;
-    // A loose part feeder, while jplacer runs: where its pipeline last found
-    // the part to pick (none: its location).
+    // A loose part or heap feeder, while jplacer runs: where its pipeline
+    // last found the part to pick (none: its location).
     std::optional<JPLocation> foundPick;
     // A tape feeder calibrated by its sprocket holes (OpenPnP's
     // BambooFeederAutoVision), while jplacer runs: how far its pick location

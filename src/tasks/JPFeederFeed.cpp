@@ -4,6 +4,7 @@
 #include "JPFeederFeed.h"
 
 #include "JPBambooFeeder.h"
+#include "JPHeapFeeder.h"
 
 #include "JPFeederPipelines.h"
 
@@ -277,6 +278,17 @@ bool JPFeederFeed::feed(JPConfiguration& config, const std::string& feederId, co
         if (const JPFeeder* f = config.feeder(feederId)) bamboo = f->isVisionTape();
     });
     if (bamboo) return JPBambooFeeder::feed(config, feederId, nozzleId, machine, onMain, why);
+    bool heap = false;
+    main([&] {
+        if (const JPFeeder* f = config.feeder(feederId)) heap = f->typeName() == "ReferenceHeapFeeder";
+    });
+    if (heap) {
+        // With the nozzle that will pick; else the head's first.
+        std::string with = nozzleId;
+        if (with.empty())
+            if (const auto n = machine.nozzles(); !n.empty()) with = n.front().id;
+        return JPHeapFeeder::feed(config, feederId, with, machine, onMain, why);
+    }
     // A Schultz feeder: the nozzle over its pick place (at safe Z), its pre
     // pick actuator actuated with its feeder number.
     std::string schultz, schultzName;

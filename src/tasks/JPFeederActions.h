@@ -29,7 +29,8 @@ inline namespace jf {
 // getHomeFiducialLocation); a Photon feeder's Find (its slot address asked),
 // Feed and Feed 1mm (on the bus, the nozzle left where it is) and Search
 // (every address asked, JPPhotonFeeders::findAll); a Bamboo feeder's Test
-// feed and Test post pick, Preview Vision Features and Auto-Setup (JPBambooFeeder). An action whose actuator (or fiducial part) is
+// feed and Test post pick, Preview Vision Features and Auto-Setup (JPBambooFeeder);
+// a heap feeder's Clean DropBox and GetSamples (JPHeapFeeder, with the head's first nozzle). An action whose actuator (or fiducial part) is
 // not set does nothing (the log says so).
 class JPFeederActions {
 public:

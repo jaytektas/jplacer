@@ -42,8 +42,16 @@ public:
     bool safeZ(std::string&) override { return true; }
     bool changeTip(const std::string&, const std::string&, std::string&) override { return true; }
     bool rotate(const std::string&, double, std::string&) override { return true; }
-    bool pick(const std::string&, const JPLocation&, std::string&) override { return true; }
-    bool place(const std::string&, const JPLocation&, std::string&) override { return true; }
+    // Picks and places: where each was made.
+    std::vector<JPLocation> picked, placed;
+    bool pick(const std::string&, const JPLocation& at, std::string&) override {
+        picked.push_back(at);
+        return true;
+    }
+    bool place(const std::string&, const JPLocation& at, std::string&) override {
+        placed.push_back(at);
+        return true;
+    }
     bool discard(const std::string&, std::string&) override { return true; }
     std::vector<JPLocation> positioned;
     bool positionCamera(const JPLocation&, std::string&) override { return true; }
@@ -63,6 +71,29 @@ public:
         return false;
     }
     void showOnCamera(const cv::Mat&, int) override {}
+    // A nozzle's moves (to, speed, straight); its vacuum read in turn (the last again once used up).
+    struct Move {
+        std::array<std::optional<double>, 4> to;
+        double                               speed = 1;
+        bool                                 straight = false;
+    };
+    std::vector<Move>   moves;
+    std::vector<double> vacuum { 0 };
+    size_t              vacuumReads = 0;
+    bool                pickedHere = false;
+    bool moveNozzle(const std::string&, std::array<std::optional<double>, 4> to, double speed, bool safeZFirst, std::string&) override {
+        moves.push_back({ to, speed, !safeZFirst });
+        return true;
+    }
+    bool vacuumOn(const std::string&, std::string&) override { return true; }
+    bool pickHere(const std::string&, std::string&) override {
+        pickedHere = true;
+        return true;
+    }
+    bool readVacuum(const std::string&, double& level, std::string&) override {
+        level = vacuum[std::min(vacuumReads++, vacuum.size() - 1)];
+        return true;
+    }
     bool seeRects(const JPLocation& at, JPPipeline&, int, SeenRects& seen, std::string& why) override {
         lookedFrom.push_back(at);
         if (sights.empty()) {
@@ -542,6 +573,60 @@ int main() {
             }
             config.removeFeeder("LOOSE");
         }
+    }
+    // A heap feeder: its drop box empty and nothing the right way up in it,
+    // parts fetched (stirred into the heap until the vacuum rises, dropped
+    // into the box), then the part found in three looks and picked there,
+    // at the box's bottom less the part's height.
+    {
+        auto part = std::make_shared<JPPart>();
+        part->id = "HEAPED";
+        part->height = JPLength(1, JPLengthUnit::Millimeters);
+        config.addPart(part);
+        const std::string box = config.dropBoxes().boxes().front().id;
+        config.dropBoxes().setCenterBottom(box, JPLocation(JPLengthUnit::Millimeters, 200, 50, -20, 0));
+        config.dropBoxes().setDrop(box, JPLocation(JPLengthUnit::Millimeters, 200, 50, -15, 0));
+        JPXmlElement he;
+        assert(JPXmlReader::parse(R"(<feeder class="org.openpnp.machine.reference.feeder.ReferenceHeapFeeder" id="HEAP" name="Heap" enabled="true" part-id="HEAPED" required-vacuum-difference="150"><location units="Millimeters" x="100.0" y="50.0" z="-10.0" rotation="0.0"/><way-1 units="Millimeters" x="120.0" y="50.0" z="0.0" rotation="0.0"/></feeder>)",
+                                  he, error));
+        config.addFeeder(JPFeeder::fromXml(he));
+        HoleMachine m;
+        JPJobMachine::SeenRects none, r1, r2, r3;
+        r1.rects = { { 201, 50, 30 } };
+        r2.rects = { { 201.1, 50.1, 31 } };
+        r3.rects = { { 201.2, 50.2, 32 } };
+        // Cleaning: nothing in the box; no part the right way up; nothing to flip; then, fetched, three looks.
+        m.sights = { none, none, none, r1, r2, r3 };
+        // The level before (three reads), then four looks without parts, then parts on.
+        m.vacuum = { 0, 0, 0, 0, 0, 0, 0, 200 };
+        assert(JPFeederFeed::feed(config, "HEAP", "N1", m, nullptr, why, empty));
+        const auto pick = config.feeder("HEAP")->pickLocation();
+        assert(pick && near(pick->x(), 201.2) && near(pick->y(), 50.2) && near(pick->z(), -19) && near(pick->rotation(), 32));
+        // Stirred from a third of a part above the last depth, round the corners a little lower each time, at a quarter speed.
+        assert(m.pickedHere);
+        bool stirred = false;
+        for (const auto& mv : m.moves)
+            if (mv.straight && near(mv.speed, 0.25) && near(*mv.to[0], 101.125) && near(*mv.to[1], 48.875)) stirred = near(*mv.to[2], -10 + 1 / 1.5 - 0.1);
+        assert(stirred);
+        // Out of the heap through its move, and the parts dropped into the box.
+        assert(!m.placed.empty() && near(m.placed.back().x(), 200) && near(m.placed.back().z(), -15));
+        assert(config.feeder("HEAP")->real("last-feed-depth") < 0.6);
+        // The box is the heap's now: its parts are not cleaned out on the next feed.
+        assert(config.dropBoxes().lastHeap[box] == "HEAP");
+        // Nothing found, and nothing grabbed within three part heights of the last depth: none there.
+        HoleMachine bare;
+        bare.sights = { none, none, none, none, none, none, none, none, none, none };
+        bare.vacuum = { 0 };
+        assert(!JPFeederFeed::feed(config, "HEAP", "N1", bare, nullptr, why, empty));
+        assert(why == "HeapFeeder Heap: Can not grab parts. No parts found on three times part height.");
+        // From the top (no last depth), down to the box's depth: the heap is empty.
+        config.feeder("HEAP")->setReal("last-feed-depth", 0);
+        config.feeder("HEAP")->setReal("box-depth", -2);
+        HoleMachine emptied;
+        emptied.sights = bare.sights;
+        assert(!JPFeederFeed::feed(config, "HEAP", "N1", emptied, nullptr, why, empty));
+        assert(why == "HeapFeeder Heap: Can not grab parts. Heap Empty or VacuumDifference wrong.");
+        config.removeFeeder("HEAP");
     }
     return 0;
 }
