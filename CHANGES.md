@@ -11,7 +11,8 @@ notes.
 ## Unreleased
 
 - Issues & Solutions, as OpenPnP's: a nozzle that can turn less than a full turn must use the LimitedArticulation
-  rotation mode, and bottom vision must then pre-rotate parts (Accept sets both).
+  rotation mode, and bottom vision must then pre-rotate parts (Accept sets both). A contact probing nozzle needs its
+  probing actuator, on the same controller as its Z, with a probing command (a G38.2 suggested for a Grbl).
 - OpenPnP machines with an OpenCvCamera (by its device index and OpenCV properties) or a Webcam bring them in as capture
   devices; a capture device can be named by its node (/dev/video2). A SimulatedUpCamera comes in as a simulated camera
   that sees the nozzle tips in Simulation Mode.

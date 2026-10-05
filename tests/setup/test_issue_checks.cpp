@@ -125,6 +125,49 @@ int main() {
         s.publish();
         assert(!find(s, "The vacuum valve actuator Vac has no driver assigned."));
     }
+    // A contact probing nozzle, as OpenPnP's ContactProbeNozzle: its actuator,
+    // on its Z's controller, and its probing command (suggested for a Grbl).
+    {
+        cell.nozzles[1].contactProbe.method = "ContactSenseActuator";
+        s.find();
+        s.publish();
+        assert(find(s, "ContactProbeNozzle N2 has no contact probing actuator."));
+        JPDriverConfig other;
+        other.id = "D2";
+        other.name = "Feeders";
+        cell.drivers.push_back(other);
+        JPActuatorConfig probe;
+        probe.id = "P";
+        probe.name = "Probe";
+        probe.driverId = "D2";
+        cell.actuators.push_back(probe);
+        cell.nozzles[1].contactProbe.actuatorId = "P";
+        s.find();
+        s.publish();
+        S::Issue* drv = const_cast<S::Issue*>(find(s, "Z driver Gantry not same as actuator Probe driver Feeders."));
+        std::string why;
+        assert(drv && s.setState(*drv, S::State::Solved, why) && cell.actuators.back().driverId == "D");
+        s.find();
+        s.publish();
+        assert(find(s, "Missing ACTUATE_BOOLEAN_COMMAND for actuator Probe on driver Gantry (no suggestion available for "
+                       "detected firmware)."));
+        cell.drivers[0].profile = "grbl";
+        cell.axes[2].softLimitLowEnabled = true;
+        cell.axes[2].softLimitLow = -30;   // probed to 1 mm past it (depth 2 less start offset 1), at 5% of 100 mm/s
+        s.find();
+        s.publish();
+        S::Issue* cmd = const_cast<S::Issue*>(find(s, "ACTUATE_BOOLEAN_COMMAND suggested."));
+        assert(cmd && s.setState(*cmd, S::State::Solved, why) && cell.actuators.back().onCommand == "G38.2 Z-31 F300");
+        s.find();
+        s.publish();
+        assert(!find(s, "ACTUATE_BOOLEAN_COMMAND suggested."));
+        cell.drivers[0].profile = "auto";
+        cell.axes[2].softLimitLowEnabled = false;
+        cell.axes[2].softLimitLow = 0;
+        cell.nozzles[1].contactProbe.method = "None";
+        cell.drivers.pop_back();
+        cell.actuators.pop_back();
+    }
     // The letter set from the issue itself.
     S::Issue* letter = const_cast<S::Issue*>(find(s, "Axis letter is missing. Assign the letter to continue."));
     letter->properties.front().setText("Z");

@@ -3,6 +3,9 @@
 
 #include "JPIssueChecks.h"
 
+#include <algorithm>
+#include <cmath>
+
 inline namespace jf {
 
 namespace {
@@ -23,6 +26,9 @@ constexpr double kConventionalSafeZMm = 2;
 constexpr double kLeastRigZGapMm = 2;
 // OpenPnP's: a rotation range this close to 360° is not limited.
 constexpr double kRotationEpsilon = 1e-5;
+// OpenPnP's contact probe command without a Z soft limit or feed rate to go by.
+constexpr double kProbeDefaultTarget = -42;
+constexpr double kProbeDefaultFeed = 800;
 
 // What OpenPnP's PlainIssue is: only to be dismissed (or looked up).
 Issue plain(std::string subject, std::string issue, std::string solution, Severity severity, std::string uri) {
@@ -836,6 +842,90 @@ void actuatorIssues(JPSolutions& s, const JPIssueChecks::Context& c, const JPCel
     }
 }
 
+// OpenPnP's ContactProbeNozzle: probing by an actuator needs one, on the
+// controller of the nozzle's Z (the probing move is that controller's), and
+// its probing command: for a Grbl, a G38.2 down to below the Z's low soft
+// limit by the probe's overshoot, at the probe speed. (Machine coordination
+// after it, and the place it stopped, jplacer takes from the controller
+// itself, whatever the actuator's settings.)
+void contactProbeIssues(JPSolutions& s, const JPIssueChecks::Context& c, const JPCellConfig& cell, const JPNozzleConfig& n) {
+    const JPNozzleConfig::ContactProbe& p = n.contactProbe;
+    const JPActuatorConfig* a = nullptr;
+    for (const JPActuatorConfig& x : cell.actuators)
+        if (x.id == p.actuatorId) a = &x;
+    const std::string subject = "ContactProbeNozzle " + n.name, wiki = std::string(kWiki) + "Contact-Probing-Nozzle#";
+    if (!a) {
+        s.add(plain(subject, "ContactProbeNozzle " + n.name + " has no contact probing actuator.",
+                    "Create a contact probing actuator and assign it to the nozzle " + n.name + ".", Severity::Error,
+                    wiki + "contact-sense-method"));
+        return;
+    }
+    const JPAxisConfig* z = nullptr;
+    for (const JPAxisConfig& x : cell.axes)
+        if (x.id == n.mount.axisZ && x.kind == JPAxisConfig::Kind::Controller) z = &x;
+    auto driverName = [&cell](const std::string& id) {
+        for (const JPDriverConfig& d : cell.drivers)
+            if (d.id == id) return d.name;
+        return std::string("(unassigned)");
+    };
+    const std::string actuatorId = a->id;
+    if (z && !z->driverId.empty() && z->driverId != a->driverId) {
+        Issue i;
+        i.subject = subject;
+        i.issue = "Z driver " + driverName(z->driverId) + " not same as actuator " + a->name + " driver " +
+                  (a->driverId.empty() ? std::string("(unassigned)") : driverName(a->driverId)) + ".";
+        i.solution = "Assign driver " + driverName(z->driverId) + " to actuator " + a->name + ".";
+        i.severity = Severity::Error;
+        i.uri = std::string(kWiki) + "Setup-and-Calibration%3A-Actuators#adding-actuators";
+        const std::string to = z->driverId, from = a->driverId;
+        i.apply = changing(c, "Actuator driver", [actuatorId, to, from](JPCellConfig& cell, bool solved) {
+            for (JPActuatorConfig& x : cell.actuators)
+                if (x.id == actuatorId) x.driverId = solved ? to : from;
+        });
+        s.add(std::move(i));
+    }
+    const JPDriverConfig* d = nullptr;
+    for (const JPDriverConfig& x : cell.drivers)
+        if (x.id == a->driverId) d = &x;
+    if (!d || a->http.on || !a->scriptName.empty()) return;
+    std::string letter = "Z";
+    double absoluteProbe = kProbeDefaultTarget, feed = kProbeDefaultFeed;
+    if (z) {
+        if (!z->letter.empty()) letter = z->letter;
+        if (z->softLimitLowEnabled) absoluteProbe = z->softLimitLow - (p.depthMm - p.startOffsetMm);
+        if (z->feedratePerSecond > 0) feed = std::ceil(z->feedratePerSecond * p.speed) * 60;
+    }
+    auto num = [](double v) {
+        std::string t = std::to_string(v);
+        t.erase(t.find_last_not_of('0') + 1);
+        if (!t.empty() && t.back() == '.') t.pop_back();
+        return t;
+    };
+    if (d->profile == "grbl" || d->profile == "grblhal") {
+        const std::string suggested = "G38.2 " + letter + num(absoluteProbe) + " F" + num(feed);
+        if (a->onCommand == suggested) return;
+        Issue i;
+        i.subject = "ReferenceActuator " + a->name;
+        i.issue = "ACTUATE_BOOLEAN_COMMAND suggested.";
+        i.solution = "Change it.";
+        i.severity = Severity::Suggestion;
+        i.uri = std::string(kWiki) + "Advanced-Motion-Control#migration-from-a-previous-version";
+        i.extendedDescription = "Suggested gcode is:\n" + suggested + " ; probe down in absolute coordinates until the "
+                                "probe is triggered";
+        if (!a->onCommand.empty()) i.extendedDescription += "\nCurrent gcode is:\n" + a->onCommand;
+        const std::string old = a->onCommand;
+        i.apply = changing(c, "Actuator command", [actuatorId, suggested, old](JPCellConfig& cell, bool solved) {
+            for (JPActuatorConfig& x : cell.actuators)
+                if (x.id == actuatorId) x.onCommand = solved ? suggested : old;
+        });
+        s.add(std::move(i));
+    } else if (a->onCommand.empty()) {
+        s.add(plain(subject, "Missing ACTUATE_BOOLEAN_COMMAND for actuator " + a->name + " on driver " + d->name +
+                             " (no suggestion available for detected firmware).",
+                    "Please add the command manually.", Severity::Error, wiki + "setting-up-the-g-code"));
+    }
+}
+
 void actuators(JPSolutions& s, const JPIssueChecks::Context& c) {
     const JPCellConfig* cell = c.cell ? c.cell() : nullptr;
     if (!cell || !s.isTargeting(Milestone::Basics)) return;
@@ -852,6 +942,8 @@ void actuators(JPSolutions& s, const JPIssueChecks::Context& c) {
             actuatorIssues(s, c, *cell, holder, n.vacuumSenseActuatorId, "vacuum sensing", Use::Read,
                            std::string(kWiki) + "Setup-and-Calibration%3A-Vacuum-Sensing#actuator-setup");
     }
+    for (const JPNozzleConfig& n : cell->nozzles)
+        if (n.contactProbe.method == "ContactSenseActuator") contactProbeIssues(s, c, *cell, n);
     for (const JPHeadConfig& h : cell->heads) {
         const std::string holder = "ReferenceHead " + h.name;
         actuatorIssues(s, c, *cell, holder, h.pumpActuatorId, "pump control", Use::Actuate, vacuum + "#pump-control-setup");
