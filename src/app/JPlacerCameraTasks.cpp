@@ -10,6 +10,7 @@
 #include "tasks/JPCameraLook.h"
 #include "tasks/JPVisualHoming.h"
 #include "tasks/JPVisualTest.h"
+#include "vision/JPRoundMarkFinder.h"
 
 #include <j/core/Dialog.h>
 #include <j/core/Log.h>
@@ -37,6 +38,11 @@ constexpr double kCentredMm = 0.01;
 constexpr int kAutoFocusShownMs = 1000;
 // How long a result stays in the status bar.
 constexpr int kResultMs = 8000;
+// Looking for a mark under the camera: how far from the middle, and how small and big, as shares of the
+// picture's smaller side (as the calibration's first look).
+constexpr double kMarkSearchShare = 0.3;
+constexpr double kLeastMarkShare = 0.02;
+constexpr double kMostMarkShare = 0.4;
 // Two heights closer than this measure the camera's distance too poorly.
 constexpr double kLeastHeightGapMm = 1.0;
 
@@ -548,6 +554,51 @@ void JPlacerCameraTasks::visualTest(JPCameraPanel& camera) {
                       r.offsetX, r.offsetY);
         words = buf;
         return true;
+    });
+}
+
+void JPlacerCameraTasks::captureMark(const std::string& headId, std::function<void(std::optional<Mark>)> done) {
+    JPCameraPanel* camera = nullptr;
+    for (JPCameraPanel* p : m_cameras)
+        if (!camera && p->camera().mount.headId == headId && !p->camera().mount.axisX.empty()) camera = p;
+    const std::string why = !camera ? "the head has no camera" : notReady(camera, true, false);
+    if (!why.empty()) {
+        m_window.showStatus("Visual Homing: " + why, kResultMs);
+        if (done) done(std::nullopt);
+        return;
+    }
+    JPCameraFeed* feed = &camera->feed();
+    double vx = 0, vy = 0;
+    std::string where;
+    if (!cameraView(camera->camera(), vx, vy, where)) {
+        m_window.showStatus("Visual Homing: " + where, kResultMs);
+        if (done) done(std::nullopt);
+        return;
+    }
+    auto mark = std::make_shared<Mark>();
+    run(*camera, "Finding the homing mark", [this, feed, vx, vy, mark](std::string& words, const auto& progress) {
+        progress("looking for the mark under the camera");
+        JPGrayImage img;
+        if (!JPCameraLook::settled(*feed, img, words)) return false;
+        const double side = std::min(img.width, img.height);
+        const JPRoundMark m = JPRoundMarkFinder::findAnySize(img, img.width / 2.0, img.height / 2.0, kMarkSearchShare * side,
+                                                            kLeastMarkShare * side, kMostMarkShare * side);
+        if (!m.found) {
+            words = "no round mark near the middle of the picture: put the camera over the mark (" + m.why + ")";
+            return false;
+        }
+        const JPCameraCalibration cal = m_cell.cameraCalibration(feed->config().id, img.width, img.height);
+        if (!cal.valid || !cal.machinePoint(m.x, m.y, vx, vy, mark->x, mark->y)) {
+            words = feed->config().name + " is not calibrated for its pictures";
+            return false;
+        }
+        mark->diameter = m.diameter / cal.scale();
+        char buf[160];
+        std::snprintf(buf, sizeof buf, "The homing mark: %.3f mm across at X %.3f, Y %.3f", mark->diameter, mark->x, mark->y);
+        words = buf;
+        return true;
+    }, [mark, done](bool ok) {
+        if (done) done(ok ? std::optional(*mark) : std::nullopt);
     });
 }
 

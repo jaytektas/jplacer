@@ -51,6 +51,14 @@ public:
     void calibrate(JPCameraPanel& camera, std::function<void(bool ok)> finished = nullptr);
     // Look at the homing mark and say how far it is from its setting.
     void visualTest(JPCameraPanel& camera);
+    // OpenPnP's Enable Visual Homing: the round mark under a head's camera
+    // (any size, nearest the middle) found, and where it is on the machine and
+    // how wide, for `done` (main thread) to make it the homing mark; nothing
+    // when it could not be (the status bar says why).
+    struct Mark {
+        double x = 0, y = 0, diameter = 0;
+    };
+    void captureMark(const std::string& headId, std::function<void(std::optional<Mark>)> done);
     // Measure the runout of the tip on nozzle `nozzleId` with the fixed
     // camera looking up (JPRunoutCalibrator), asked first (the nozzle goes
     // down to the camera). `done` (main thread): the runout, for the owner to keep.

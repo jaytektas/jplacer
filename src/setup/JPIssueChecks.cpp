@@ -17,6 +17,8 @@ constexpr const char* kWiki = "https://github.com/openpnp/openpnp/wiki/";
 // OpenPnP's: a preview faster than this is suggested down to the other.
 constexpr double kMostPreviewFps = 15;
 constexpr double kSuggestedPreviewFps = 5;
+// OpenPnP's: the calibration rig's two fiducials at least this far apart in Z (mm).
+constexpr double kLeastRigZGapMm = 2;
 
 // What OpenPnP's PlainIssue is: only to be dismissed (or looked up).
 Issue plain(std::string subject, std::string issue, std::string solution, Severity severity, std::string uri) {
@@ -523,6 +525,23 @@ void calibration(JPSolutions& s, const JPIssueChecks::Context& c) {
 }
 
 void production(JPSolutions& s, const JPIssueChecks::Context& c) {
+    // OpenPnP's VisionSolutions in production: the tables linked.
+    if (s.isTargeting(Milestone::Production) && c.tablesLinked && c.setTablesLinked && !c.tablesLinked()) {
+        Issue i;
+        i.subject = "ReferenceMachine";
+        i.issue = "Link the Placements/Parts/Packages/Vision Settings/Feeders tables between tabs.";
+        i.solution = "When a table row is selected on one tab, automatically select the corresponding ones on the other tabs. "
+                     "For instance, if a placement is selected, the corresponding part will be selected on the Parts tab, "
+                     "the package on the Packages tab, the vision settings on the Vision tab, and the feeder on the Feeders "
+                     "tab, if one is present for the part.";
+        i.severity = Severity::Suggestion;
+        i.uri = std::string(kWiki) + "User-Manual#the-tabs";
+        i.apply = [c](State to, std::string&) {
+            c.setTablesLinked(to == State::Solved);
+            return true;
+        };
+        s.add(std::move(i));
+    }
     if (!c.config) return;
     for (const JPFeeder& f : c.config->feeders()) {
         if (!f.isPhoton() || f.text("hardware-id").empty()) continue;
@@ -661,6 +680,61 @@ void actuators(JPSolutions& s, const JPIssueChecks::Context& c) {
     }
 }
 
+// OpenPnP's VisionSolutions, as far as they are not jplacer's own
+// calibration: visual homing, and the calibration rig's heights.
+void visionSetup(JPSolutions& s, const JPIssueChecks::Context& c) {
+    const JPCellConfig* cell = c.cell ? c.cell() : nullptr;
+    if (!cell || !s.isTargeting(Milestone::Vision)) return;
+    const std::string nozzleOffsets = std::string(kWiki) + "Vision-Solutions#nozzle-offsets";
+    for (const JPHeadConfig& h : cell->heads) {
+        const JPCameraConfig* camera = nullptr;
+        for (const JPCameraConfig& cam : cell->cameras)
+            if (!camera && cam.mount.headId == h.id && !cam.mount.axisX.empty()) camera = &cam;
+        if (camera && !h.visualHoming && c.enableVisualHoming && (!c.calibrated || c.calibrated(camera->id))) {
+            Issue i;
+            i.subject = "ReferenceHead " + h.name;
+            i.issue = "Enable Visual Homing.";
+            i.solution = "Mount a permanent fiducial to your machine and use it for repeatable precision X/Y homing.";
+            i.severity = Severity::Suggestion;
+            i.uri = std::string(kWiki) + "Visual-Homing";
+            i.extendedDescription =
+                "Mount a permanent fiducial to your machine table. Choose a mounting point that is mechanically coupled to "
+                "the most important parts of your machine table. Make sure it is very unlikely you will ever need to change "
+                "this new frame of reference. The fiducial must be at the same Z level as the PCB surface.\n\nHome the "
+                "machine. Jog camera " + camera->name + " over the fiducial, roughly on the cross-hairs.\n\nThen press "
+                "Accept to detect the precise position of the fiducial and set it up for visual homing.\n\nNote: This will "
+                "not change your present machine coordinate system, but rather pin it down to the fiducial.";
+            const std::string cameraId = camera->id, headId = h.id;
+            i.activate = [c, cameraId] {
+                if (c.showSetup) c.showSetup("camera:" + cameraId);
+            };
+            solvedByWork(s, i, [c, headId](std::function<void(bool)> finished) { c.enableVisualHoming(headId, std::move(finished)); });
+            s.add(std::move(i));
+        }
+        if (h.rigPrimary && h.rigSecondary && std::abs(h.rigPrimary->z - h.rigSecondary->z) < kLeastRigZGapMm) {
+            char gap[32];
+            std::snprintf(gap, sizeof gap, "%g", kLeastRigZGapMm);
+            s.add(plain("ReferenceHead " + h.name, "Primary/secondary calibration fiducial Z too close together.",
+                        "Head " + h.name + " primary and secondary calibration fiducial Z coordinates must be at least "
+                            + gap + "\u00A0mm apart.",
+                        Severity::Error, nozzleOffsets));
+        }
+        // The head's first nozzle comes down to the rig's fiducials from its Safe Z.
+        const JPNozzleConfig* nozzle = nullptr;
+        for (const JPNozzleConfig& n : cell->nozzles)
+            if (!nozzle && n.mount.headId == h.id) nozzle = &n;
+        const JPAxisConfig* z = nozzle ? cell->axis(nozzle->mount.axisZ) : nullptr;
+        if (!z || !z->safeZoneLowEnabled) continue;
+        const double safeZ = z->safeZoneLow + nozzle->mount.offsetZ;
+        for (const auto& [rig, qualifier] : { std::pair { h.rigPrimary, "primary" }, std::pair { h.rigSecondary, "secondary" } })
+            if (rig && rig->z >= safeZ)
+                s.add(plain("ReferenceNozzle " + nozzle->name, "Safe Z of Nozzle " + nozzle->name + " lower than " + qualifier + " fiducial Z.",
+                            "Safe Z of Nozzle " + nozzle->name + " is lower than the calibration " + qualifier + " fiducial Z. "
+                                + "Please change the calibration rig " + qualifier + " height or adjust Safe Z.",
+                            Severity::Error, nozzleOffsets));
+    }
+}
+
 // OpenPnP's CameraSolutions on how the cameras show: the preview's rate,
 // suspended in tasks, brought forward, and drawn smoothed.
 void cameraViews(JPSolutions& s, const JPIssueChecks::Context& c) {
@@ -737,6 +811,7 @@ std::vector<JPSolutions::Check> JPIssueChecks::all(const Context& c) {
         [c](JPSolutions& s) { kinematics(s, c); },
         [c](JPSolutions& s) { vision(s, c); },
         [c](JPSolutions& s) { cameraViews(s, c); },
+        [c](JPSolutions& s) { visionSetup(s, c); },
         [c](JPSolutions& s) { calibration(s, c); },
         [c](JPSolutions& s) { production(s, c); },
     };

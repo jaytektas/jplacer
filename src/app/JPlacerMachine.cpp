@@ -1391,6 +1391,26 @@ void JPlacerMachine::calibrateBacklash(const std::string& axisId, std::function<
     }, std::move(finished));
 }
 
+void JPlacerMachine::enableVisualHoming(const std::string& headId, std::function<void(bool ok)> finished) {
+    if (!m_cameraTasks) {
+        if (finished) finished(false);
+        return;
+    }
+    m_cameraTasks->captureMark(headId, [this, headId, finished](std::optional<JPlacerCameraTasks::Mark> mark) {
+        if (mark)
+            changeSetup("Visual homing", [&](JPCellConfig& cell) {
+                for (JPHeadConfig& h : cell.heads)
+                    if (h.id == headId) {
+                        const double z = h.homingFiducial ? h.homingFiducial->z : 0.0;
+                        h.homingFiducial = JPMachineLocation { mark->x, mark->y, z, 0 };
+                        h.homingFiducialDiameter = mark->diameter;
+                        h.visualHoming = true;
+                    }
+            });
+        if (finished) finished(mark.has_value());
+    });
+}
+
 bool JPlacerMachine::cameraRenderingSmooth(const std::string& cameraId) const {
     for (const CameraDock& d : m_cameras)
         if (d.panel->camera().id == cameraId) return d.panel->view().renderingQuality() != JPCameraView::RenderingQuality::Low;

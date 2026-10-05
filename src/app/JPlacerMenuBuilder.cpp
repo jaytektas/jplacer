@@ -163,6 +163,12 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
     };
     unlinkedItem->onTriggered.connect([setLinked] { setLinked(false); });
     linkedItem->onTriggered.connect([setLinked] { setLinked(true); });
+    // Set elsewhere too (Issues & Solutions): the ticks follow.
+    JSettings::instance().onChange.connect([unlinkedItem, linkedItem](std::string key, JVariant value) {
+        if (key != JPlacerSettings::kTablesLinked) return;
+        unlinkedItem->setChecked(!value.toBool());
+        linkedItem->setChecked(value.toBool());
+    });
     JMenu* language = subMenu("Language");
     JMenuItem* english = tick(language, "English (United States)", true, true);
     english->onTriggered.connect([english] { english->setChecked(true); });

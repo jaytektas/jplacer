@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- Issues & Solutions, as OpenPnP's VisionSolutions: Enable Visual Homing (Accept finds the mark under the head camera
+  and makes it the homing mark), the calibration rig's heights against each other and against Safe Z, and linking the
+  tables in Production.
 - Issues & Solutions calibrates on Accept, as OpenPnP does: a camera not calibrated, and each head's X and Y backlash.
 - Issues & Solutions checks the actuators as OpenPnP does (vacuum, blow off, sensing, pump, Z probe, camera lights and
   switchers: assigned, on a controller, with their commands, typed in the issue) and the cameras' previews (rate,

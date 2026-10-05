@@ -204,6 +204,54 @@ int main() {
         atOnce = true;
         assert(!b.setState(*x, S::State::Solved, why) && x->state == S::State::Open && !why.empty());
     }
+    // OpenPnP's VisionSolutions: Enable Visual Homing (the mark under the camera on Accept), the rig's heights.
+    {
+        JPCameraConfig cam;
+        cam.id = "T";
+        cam.name = "Down";
+        cam.mount = { "H", "x", "y", "", "" };
+        JPCellConfig v = cell;
+        v.cameras.push_back(cam);
+        v.heads.front().rigPrimary = JPMachineLocation { 0, 0, -10, 0 };
+        v.heads.front().rigSecondary = JPMachineLocation { 5, 0, -9, 0 };
+        v.axes[2].safeZoneLowEnabled = true;
+        v.axes[2].safeZoneLow = -9.5;   // the secondary fiducial above it
+        JPIssueChecks::Context k = c;
+        k.cell = [&v]() -> const JPCellConfig* { return &v; };
+        std::string enabled;
+        k.enableVisualHoming = [&enabled](const std::string& head, std::function<void(bool)> finished) {
+            enabled = head;
+            finished(true);
+        };
+        S vs;
+        vs.setChecks(JPIssueChecks::all(k));
+        vs.setTargetMilestone(S::Milestone::Vision);
+        vs.find();
+        vs.publish();
+        S::Issue* home = const_cast<S::Issue*>(find(vs, "Enable Visual Homing."));
+        assert(home && home->severity == S::Severity::Suggestion);
+        std::string why;
+        assert(vs.setState(*home, S::State::Solved, why) && enabled == "H");
+        assert(find(vs, "Primary/secondary calibration fiducial Z too close together."));
+        assert(find(vs, "Safe Z of Nozzle N1 lower than secondary fiducial Z."));
+        assert(!find(vs, "Safe Z of Nozzle N1 lower than primary fiducial Z."));
+    }
+    // Production: the tables linked on Accept, unlinked again on Reopen.
+    {
+        bool linked = false;
+        JPIssueChecks::Context k = c;
+        k.tablesLinked = [&linked] { return linked; };
+        k.setTablesLinked = [&linked](bool on) { linked = on; };
+        S p;
+        p.setChecks(JPIssueChecks::all(k));
+        p.setTargetMilestone(S::Milestone::Production);
+        p.find();
+        p.publish();
+        S::Issue* link = const_cast<S::Issue*>(find(p, "Link the Placements/Parts/Packages/Vision Settings/Feeders tables between tabs."));
+        std::string why;
+        assert(link && p.setState(*link, S::State::Solved, why) && linked);
+        assert(p.setState(*link, S::State::Open, why) && !linked);
+    }
     // The cameras' preview, as OpenPnP's CameraSolutions: its rate, suspended in tasks, brought forward, drawn smoothed.
     {
         JPCameraConfig cam;

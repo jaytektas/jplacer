@@ -660,6 +660,14 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         context.calibrateBacklash = [this](const std::string& id, std::function<void(bool)> finished) {
             m_machine.calibrateBacklash(id, std::move(finished));
         };
+        context.enableVisualHoming = [this](const std::string& id, std::function<void(bool)> finished) {
+            m_machine.enableVisualHoming(id, std::move(finished));
+        };
+        context.tablesLinked = [] { return JSettings::instance().get<bool>(JPlacerSettings::kTablesLinked, false); };
+        context.setTablesLinked = [](bool linked) {
+            JSettings::instance().set(JPlacerSettings::kTablesLinked, linked);
+            JPlacerSettings::save();
+        };
         context.setRenderingSmooth = [this](const std::string& id, bool smooth) { m_machine.setCameraRenderingSmooth(id, smooth); };
         context.homed = [this] { return m_machine.cell() && m_machine.cell()->isHomed(); };
         context.home = [this] { m_machine.home(); };

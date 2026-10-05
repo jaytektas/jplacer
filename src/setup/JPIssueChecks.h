@@ -52,9 +52,14 @@ public:
         // machine, in the background): `finished` says whether it was.
         std::function<void(const std::string& cameraId, std::function<void(bool ok)> finished)> calibrateCamera;
         std::function<void(const std::string& axisId, std::function<void(bool ok)> finished)> calibrateBacklash;
+        // The mark under a head's camera made its homing mark, visual homing on.
+        std::function<void(const std::string& headId, std::function<void(bool ok)> finished)> enableVisualHoming;
         // A camera's picture drawn smoothed (Rendering Quality High or better), and set so or back to Low.
         std::function<bool(const std::string& cameraId)> renderingSmooth;
         std::function<void(const std::string& cameraId, bool smooth)> setRenderingSmooth;
+        // View > Selections in Tables: Linked or not, and set so.
+        std::function<bool()> tablesLinked;
+        std::function<void(bool linked)> setTablesLinked;
         // A change to the cell's settings, a Machine Setup step (undone as one).
         std::function<void(const std::string& what, const std::function<void(JPCellConfig&)>& edit)> changeCell;
     };
