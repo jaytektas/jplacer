@@ -144,6 +144,7 @@ void JPlacerMachine::buildCameras() {
         for (const auto& [key, overlay] : m_overlays) d.panel->setOverlay(key, overlay);
         d.panel->onSettings = [this, id = c.id] { showSetup("camera:" + id); };
         d.panel->onRunning = [this](bool) { lightCameras(); };
+        if (c.mount.headId.empty()) d.panel->view().onMoveNozzleHere = [this, id = c.id] { moveNozzleToCamera(id); };
         // OpenPnP's light toggle on the picture, while the camera has a light.
         if (const std::string light = c.lightActuator(); !light.empty()) {
             const auto known = m_lights.find(light);
@@ -1086,6 +1087,21 @@ void JPlacerMachine::showLight(const std::string& light, std::optional<bool> on)
     else m_lights.erase(light);
     for (CameraDock& c : m_cameras)
         if (c.panel->camera().lightActuator() == light) c.panel->view().setLight(true, on);
+}
+
+void JPlacerMachine::moveNozzleToCamera(const std::string& cameraId) {
+    const JPMountConfig* nozzle = toolMount(JPSetupForm::Tool::Nozzle);
+    if (!nozzle || !m_cell) {
+        m_window.showStatus("No nozzle to move", kErrorMs);
+        return;
+    }
+    if (!readyToMove()) return;
+    for (const JPCameraConfig& cam : m_cell->config().cameras)
+        if (cam.id == cameraId) {
+            // Over the camera at its focal plane, the nozzle's rotation kept; by way of safe Z.
+            m_cell->moveTool(*nozzle, { cam.mount.offsetX, cam.mount.offsetY, cam.mount.offsetZ, std::nullopt }, 1.0);
+            selectMoved(*nozzle);
+        }
 }
 
 void JPlacerMachine::toggleLight(const std::string& light) {

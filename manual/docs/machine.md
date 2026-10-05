@@ -502,7 +502,11 @@ A camera with a light (Machine Setup, its Light actuator) has OpenPnP's light to
 top right: bright while the light is on, dim while it is off (or not known: not connected). Click it to
 switch the light the other way.
 
-<!-- src: src/ui/JPCameraView.cpp (drawImageInfo, drawLightToggle, setLight, handleMouseRelease, kFpsPictures); src/app/JPlacerMachine.cpp (showLight, toggleLight) -->
+A camera fixed to the machine (looking up) has **Move Selected Nozzle to Camera** first in its menu: the
+nozzle chosen on the Jog panel goes, by way of safe Z, over the camera at its focal plane (its place in
+Machine Setup), its rotation kept.
+
+<!-- src: src/ui/JPCameraView.cpp (drawImageInfo, drawLightToggle, setLight, handleMouseRelease, kFpsPictures, onMoveNozzleHere); src/app/JPlacerMachine.cpp (showLight, toggleLight, moveNozzleToCamera) -->
 
 A camera can drop off its USB connection (noise from the stepper motors on its cable) or hang without
 saying so. jplacer notices either (no picture for a while counts as hung, and so does the very same

@@ -43,6 +43,10 @@ void JPCameraView::buildMenu() {
     m_menu        = std::make_unique<JMenu>("Camera");
     m_spacingMenu = std::make_unique<JMenu>("Spacing");
     m_sizeMenu    = std::make_unique<JMenu>("Size");
+    m_nozzleHereItem = m_menu->add(g, "Move Selected Nozzle to Camera");
+    m_nozzleHereItem->onTriggered.connect([this] {
+        if (onMoveNozzleHere) onMoveNozzleHere();
+    });
     for (JPReticle::Kind k : JPReticle::kinds()) {
         JMenuItem* item = m_menu->add(g, JPReticle::name(k));
         item->setCheckable(true);
@@ -116,6 +120,7 @@ void JPCameraView::prepareContextMenu(float, float) {
     m_sizeItem->setEnabled(calibrated && shaped);
     m_fitItem->setEnabled(m_zoom > 1.0);
     m_infoItem->setChecked(m_showInfo);
+    m_nozzleHereItem->setVisible(bool(onMoveNozzleHere));
 }
 
 void JPCameraView::setShowImageInfo(bool on) {

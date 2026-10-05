@@ -203,6 +203,8 @@ private:
     // A light's state as last switched (none: not known), shown on its cameras' toggles; the toggle clicked.
     void showLight(const std::string& light, std::optional<bool> on);
     void toggleLight(const std::string& light);
+    // OpenPnP's Move Selected Nozzle to Camera: the Jog panel's nozzle over a fixed camera.
+    void moveNozzleToCamera(const std::string& cameraId);
     void lightCameras();
     void bringForward(JPCameraPanel& camera);
     void dropPanels(Keep keep = Keep::Nothing);

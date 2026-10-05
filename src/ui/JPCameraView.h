@@ -82,6 +82,9 @@ public:
     // Clicked, onToggleLight.
     void setLight(bool has, std::optional<bool> on);
     std::function<void()> onToggleLight;
+    // A camera fixed to the machine: OpenPnP's Move Selected Nozzle to Camera,
+    // first in its menu while set.
+    std::function<void()> onMoveNozzleHere;
     // OpenPnP's Show Image Info (the menu's): the picture's size, the zoom,
     // the pictures a second and a histogram of its colours, at the top left.
     bool showImageInfo() const { return m_showInfo; }
@@ -167,6 +170,7 @@ private:
     JMenuItem*                         m_fitItem     = nullptr;
     JMenuItem*                         m_uncalibrated = nullptr;
     JMenuItem*                         m_infoItem = nullptr;
+    JMenuItem*                         m_nozzleHereItem = nullptr;
     bool                               m_showInfo = false;
     JRect                              m_shown {};   // the picture as last drawn, cut to the view
     bool                               m_hasLight = false, m_lightPressed = false;

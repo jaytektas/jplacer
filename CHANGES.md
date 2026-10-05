@@ -358,7 +358,8 @@ notes.
   on the Jog panel), Auto-load most recent job and Default Board Location (where a board added to a job
   starts). They come in with an OpenPnP machine.
 - A camera's picture has OpenPnP's light toggle (a sun at its top right, for a camera with a light) and Show
-  Image Info in its right-click menu: the picture's size, zoom, pictures a second and a colour histogram.
+  Image Info in its right-click menu: the picture's size, zoom, pictures a second and a colour histogram. A
+  fixed camera's menu has Move Selected Nozzle to Camera.
 
 ## 0.1.0
 
