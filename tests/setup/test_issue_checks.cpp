@@ -88,6 +88,36 @@ int main() {
     s.find();
     s.publish();
     assert(find(s, "Controller not connected to jplacer"));
+    // The firmware it identified as (OpenPnP's GcodeDriverSolutions): a Smoothieware
+    // without the PnP build, RepRapFirmware before 3.3, Marlin without rotation axes,
+    // and one not known; the PnP Smoothieware built for its axes: nothing.
+    {
+        std::string said;
+        JPIssueChecks::Context fc = c;
+        fc.firmwareIdentity = [&said](const std::string&) { return said; };
+        fc.firmwareProfile = [](const std::string&) { return std::string("Generic G-code"); };
+        S fs;
+        fs.setChecks(JPIssueChecks::all(fc));
+        fs.setTargetMilestone(S::Milestone::Connect);
+        auto issues = [&](const std::string& reply) {
+            said = reply;
+            fs.find();
+            fs.publish();
+        };
+        issues("FIRMWARE_NAME:Smoothieware, FIRMWARE_URL:http%3A//smoothieware.org, X-AXES:6");
+        assert(find(fs, "There is a better Smoothieware firmware available. " + said));
+        issues("FIRMWARE_NAME:Smoothieware, X-SOURCE_CODE_URL:https://github.com/x/best-for-pnp, X-AXES:6, X-PAXES:3");
+        assert(!find(fs, "There is a better Smoothieware firmware available. " + said));
+        assert(find(fs, "Smoothieware firmware should be built with the PAXIS=6 option."));
+        issues("FIRMWARE_NAME: RepRapFirmware for Duet 2 WiFi/Ethernet FIRMWARE_VERSION: 3.2.2 ELECTRONICS: Duet");
+        assert(find(fs, "RepRapFirmware was improved for OpenPnP, please use version 3.3beta or newer. Current version is 3.2.2"));
+        issues("FIRMWARE_NAME:Marlin 2.0.9 SOURCE_CODE_URL:github.com/MarlinFirmware/Marlin AXIS_COUNT:3");
+        assert(find(fs, "Marlin firmware is not reporting support for rotation axes (A B C). " + said));
+        issues("FIRMWARE_NAME:Mystery 1.0");
+        assert(find(fs, "Unknown firmware. " + said));
+        issues("FIRMWARE_NAME:Marlin 2.1 AXIS_COUNT:6");
+        assert(!find(fs, "Unknown firmware. FIRMWARE_NAME:Mystery 1.0") && !find(fs, "Marlin firmware is not reporting support for rotation axes (A B C). " + said));
+    }
 
     // Basics: the letters and the shared axes.
     s.setTargetMilestone(S::Milestone::Basics);

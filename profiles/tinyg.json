@@ -1,0 +1,43 @@
+{
+  "id": "tinyg",
+  "name": "TinyG",
+  "priority": 5,
+  "_comment": "As OpenPnP's GcodeDriverSolutions sets a TinyG controller up: identified by M115's FIRMWARE_NAME, its position read with M114, moves waited for with M400.",
+  "identify": {
+    "command": "M115",
+    "pattern": "FIRMWARE_NAME:\\s*TinyG"
+  },
+  "replies": {
+    "ok": "^tinyg .* ok",
+    "error": "^tinyg .* err:",
+    "alarm": "^ALARM"
+  },
+  "status": {
+    "command": "M114",
+    "realtime": false,
+    "pattern": "X:-?\\d+\\.\\d+",
+    "positions": "pairs",
+    "pair": "\\b([XYZABCUVW]):\\s*(-?\\d+\\.\\d+)"
+  },
+  "axisLetters": [
+    "X",
+    "Y",
+    "Z",
+    "A",
+    "B",
+    "C",
+    "U",
+    "V",
+    "W"
+  ],
+  "decimals": 4,
+  "commands": {
+    "init": "$sv=0\nG21 G90",
+    "move": "G1 {axes} F{feed}",
+    "rapid": "G0 {axes}",
+    "home": "G28.2 X0 Y0 Z0",
+    "setPosition": "G28.3 {axes}",
+    "dwell": "G4 P{milliseconds}",
+    "waitMotion": "M400"
+  }
+}

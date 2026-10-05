@@ -3,8 +3,11 @@
 
 #include "JPIssueChecks.h"
 
+#include "machine/JPFirmwareProfile.h"
+
 #include <algorithm>
 #include <cmath>
+#include <regex>
 
 inline namespace jf {
 
@@ -1068,6 +1071,51 @@ void headAxes(JPSolutions& s, const JPIssueChecks::Context& c) {
 // jplacer meets through its profiles: serial flow control for a Grbl, pre-move
 // commands and letter variables, the driver's maximum feed rate, and G-code
 // compression and comments (the faster at Advanced, the safer before it).
+// OpenPnP's GcodeDriverSolutions on the firmware a controller identified as
+// (its M115 reply): Smoothieware without the PnP build, or built for other
+// axes than it has; RepRapFirmware before 3.3; Marlin without rotation axes;
+// a firmware not known to be well supported. `profile`: the firmware profile it
+// was identified by (its name).
+void firmwareIssues(JPSolutions& s, const std::string& subject, const std::string& profile, const std::string& identity) {
+    if (identity.empty()) return;
+    auto prop = [&identity](const char* name, const char* def = "") { return JPFirmwareProfile::property(identity, name, def); };
+    const std::string firmwares = std::string(kWiki) + "Motion-Controller-Firmwares";
+    const std::string name = prop("FIRMWARE_NAME");
+    if (name.find("Smoothieware") != std::string::npos) {
+        const int axes = std::atoi(prop("X-AXES", "0").c_str());
+        std::optional<int> primary;
+        const bool chmt = prop("FIRMWARE_VERSION").find("chmt-") != std::string::npos || prop("X-HARDWARE").find("CHMT") != std::string::npos;
+        if (chmt) primary = std::atoi(prop("X-PAXES", "5").c_str());
+        else if (prop("X-SOURCE_CODE_URL").find("best-for-pnp") != std::string::npos) primary = std::atoi(prop("X-PAXES", "3").c_str());
+        else
+            s.add(plain(subject, "There is a better Smoothieware firmware available. " + identity,
+                        "Please upgrade to the special PnP version. See info link.", Severity::Error, firmwares + "#smoothieware"));
+        if (primary && *primary != axes)
+            s.add(plain(subject, "Smoothieware firmware should be built with the PAXIS=" + std::to_string(axes) + " option.",
+                        "Download up-to-date firmware optimized for OpenPnP, or if you build the firmware yourself, please use the `make AXIS="
+                            + std::to_string(axes) + " PAXIS=" + std::to_string(axes) + "` command. See info link.",
+                        Severity::Warning, firmwares + "#smoothieware"));
+    } else if (name.find("RepRapFirmware") != std::string::npos) {
+        const std::string version = prop("FIRMWARE_VERSION", "0.0");
+        std::smatch m;
+        const bool parsed = std::regex_match(version, m, std::regex("(\\d+)\\.(\\d+).*"));
+        const int major = parsed ? std::atoi(m[1].str().c_str()) : 0, minor = parsed ? std::atoi(m[2].str().c_str()) : 0;
+        if (!parsed || major < 3 || (major == 3 && minor < 3))
+            s.add(plain(subject, "RepRapFirmware was improved for OpenPnP, please use version 3.3beta or newer. Current version is " + version,
+                        "Get the new version through the linked web page.", Severity::Error, firmwares + "#duet"));
+    } else if (name.find("Marlin") != std::string::npos) {
+        if (std::atoi(prop("AXIS_COUNT", "0").c_str()) <= 3)
+            s.add(plain(subject, "Marlin firmware is not reporting support for rotation axes (A B C). " + identity,
+                        "Please upgrade the firmware and/or axis configuration. See the info link.", Severity::Error,
+                        firmwares + "#marlin-20"));
+    } else if (name.find("TinyG") == std::string::npos && name.find("Grbl") == std::string::npos
+               && name.find("GcodeServer") == std::string::npos && profile.find("Grbl") == std::string::npos
+               && profile.find("grbl") == std::string::npos) {   // a Grbl says what it is to $I, not M115
+        s.add(plain(subject, "Unknown firmware. " + identity, "Check out firmwares known to be well supported. See info link.",
+                    Severity::Warning, firmwares));
+    }
+}
+
 void drivers(JPSolutions& s, const JPIssueChecks::Context& c) {
     const JPCellConfig* cell = c.cell ? c.cell() : nullptr;
     if (!cell) return;
@@ -1082,6 +1130,8 @@ void drivers(JPSolutions& s, const JPIssueChecks::Context& c) {
         };
         bool hasAxes = false;
         for (const JPAxisConfig& a : cell->axes) hasAxes = hasAxes || a.driverId == d.id;
+        if (s.isTargeting(Milestone::Connect) && c.firmwareIdentity)
+            firmwareIssues(s, subject, c.firmwareProfile ? c.firmwareProfile(d.id) : d.profile, c.firmwareIdentity(d.id));
         // A Grbl takes no serial flow control (OpenPnP's FirmwareType.Grbl).
         const bool grbl = d.profile == "grbl" || d.profile == "grblhal";
         const std::string flow = d.link["flowControl"].str();

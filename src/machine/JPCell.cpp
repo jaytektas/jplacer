@@ -197,6 +197,7 @@ void JPCell::connect() {
                 JLOGC(JPlacerLog::kDriver, JLogLevel::Warn) << error;
             std::lock_guard lk(m_mutex);
             m_firmware[d->id()] = d->profile()->name();
+            m_firmwareIdentity[d->id()] = d->identity();
         }
         m_connected = true;
         JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_config.name << ": connected";
@@ -240,6 +241,7 @@ void JPCell::doDisconnect() {
     m_connected = false;
     std::lock_guard lk(m_mutex);
     m_firmware.clear();
+    m_firmwareIdentity.clear();
 }
 
 void JPCell::sendLine(const std::string& driverId, const std::string& line) {
@@ -2459,6 +2461,11 @@ std::map<std::string, double> JPCell::positions() const {
 std::map<std::string, std::string> JPCell::firmware() const {
     std::lock_guard lk(m_mutex);
     return m_firmware;
+}
+
+std::map<std::string, std::string> JPCell::firmwareIdentity() const {
+    std::lock_guard lk(m_mutex);
+    return m_firmwareIdentity;
 }
 
 } // inline namespace jf

@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- Controllers running Smoothieware, Marlin, RepRapFirmware (Duet) or TinyG are recognised and driven as OpenPnP sets them
+  up, and Issues & Solutions checks their firmware as OpenPnP does (Smoothieware's PnP build, RepRapFirmware 3.3,
+  Marlin's rotation axes, an unknown firmware).
 - A nozzle tip's Tool Changer tab has OpenPnP's form: First, Second, Third and Last Location, the speeds between them,
   and the Post 1 to 3 Actuators, over the tip's loading steps.
 - OpenPnP's Python and JavaScript scripts run in jplacer as they are: they find OpenPnP's `machine`, `config`,

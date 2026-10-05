@@ -86,6 +86,12 @@ bool JPGcodeDriver::connect(std::string& error) {
 }
 
 bool JPGcodeDriver::identify(std::string& error) {
+    auto keep = [this](const JPReply& r) {
+        std::string joined;
+        for (const std::string& l : r.lines) joined += (joined.empty() ? "" : " ") + l;
+        std::lock_guard lk(m_identityMutex);
+        m_identity = joined;
+    };
     if (cfg()->profile != "auto") {
         for (const JPFirmwareProfile& p : m_profiles) {
             if (p.id() != cfg()->profile) continue;
@@ -93,6 +99,7 @@ bool JPGcodeDriver::identify(std::string& error) {
             if (!p.identifyCommand().empty()) {
                 const JPReply r = send(p.identifyCommand(), cfg()->identifyTimeoutMs).get();
                 if (r.ok) m_plugins = p.pluginsIn(r.lines);
+                if (r.ok) keep(r);
             }
             m_profile = &p;
             return true;
@@ -130,6 +137,7 @@ bool JPGcodeDriver::identify(std::string& error) {
             m_replyProfile = &p;
             m_profile      = &p;
             m_plugins      = p.pluginsIn(r.lines);
+            keep(r);
             return true;
         }
     }
@@ -146,6 +154,9 @@ bool JPGcodeDriver::identify(std::string& error) {
     for (const JPFirmwareProfile& p : m_profiles) {
         if (!p.identifyCommand().empty()) continue;
         JLOGC(JPlacerLog::kDriver, JLogLevel::Warn) << cfg()->name << ": firmware not recognised, using " << p.name();
+        // What it did say (to M115, when it was asked), for what is known of it.
+        const auto said = asked.count("M115") ? asked.find("M115") : asked.begin();
+        if (said != asked.end() && said->second.ok) keep(said->second);
         m_replyProfile = &p;
         m_profile      = &p;
         return true;

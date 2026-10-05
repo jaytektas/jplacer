@@ -42,7 +42,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Serial port settings, DTR / RTS, line endings | done | |
 | TCP communications | done | |
 | Keep Alive | own way | it keeps a disabled machine's connection; jplacer's Connect and Disconnect open and close it, with no disabled-but-connected state |
-| Firmware detection, generic G-code proposal | own way | firmware profiles (Grbl, grblHAL, Generic) with `auto` detection |
+| Firmware detection, generic G-code proposal | done | firmware profiles with `auto` detection: Grbl, grblHAL, Generic, and OpenPnP's Smoothieware, Marlin, RepRapFirmware (Duet) and TinyG set up as its GcodeDriverSolutions proposes; its firmware issues (Smoothieware PnP build and PAXIS, RepRapFirmware 3.3, Marlin rotation axes, unknown firmware) from the M115 reply |
 | Command timeout, connect wait, max feed rate, log G-code | done | |
 | Compress G-code, remove comments, backslash escapes | done | Driver Settings |
 | Send feed rate, acceleration, jerk on change only | done | Driver Settings |

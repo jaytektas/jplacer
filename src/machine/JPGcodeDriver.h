@@ -62,6 +62,12 @@ public:
     void setConfig(JPDriverConfig config);
     // The profile in use; null until connected.
     const JPFirmwareProfile* profile() const { return m_profile; }
+    // What the controller said when it was identified (M115's reply, Grbl's
+    // $I...; the lines joined), as OpenPnP keeps its detected firmware.
+    std::string identity() const {
+        std::lock_guard lk(m_identityMutex);
+        return m_identity;
+    }
     // Plugins the controller reported when it was identified.
     const std::vector<const JPFirmwareProfile::Plugin*>& plugins() const { return m_plugins; }
 
@@ -152,6 +158,8 @@ private:
     // The profile whose reply patterns the I/O thread reads with: a candidate
     // while identifying, then the chosen one.
     std::atomic<const JPFirmwareProfile*>        m_replyProfile{ nullptr };
+    mutable std::mutex                           m_identityMutex;
+    std::string                                  m_identity;   // identity()
     const JPFirmwareProfile*                     m_profile = nullptr;
     std::vector<const JPFirmwareProfile::Plugin*> m_plugins;
     std::atomic<bool>                            m_connected{ false };

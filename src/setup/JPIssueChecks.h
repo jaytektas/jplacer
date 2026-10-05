@@ -65,6 +65,10 @@ public:
         // View > Selections in Tables: Linked or not, and set so.
         std::function<bool()> tablesLinked;
         std::function<void(bool linked)> setTablesLinked;
+        // What a controller said when it was identified (its M115 reply; empty: not connected).
+        std::function<std::string(const std::string& driverId)> firmwareIdentity;
+        // The firmware profile a controller was identified by (its name; empty: not connected).
+        std::function<std::string(const std::string& driverId)> firmwareProfile;
         // `config` changed (saved, and the tabs showing it told).
         std::function<void()> configurationChanged;
         // A change to the cell's settings, a Machine Setup step (undone as one).

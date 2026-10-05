@@ -299,6 +299,8 @@ public:
     bool reaches(const JPMountConfig& mount, double x, double y) const;
     // The firmware each connected controller identified as, by controller id.
     std::map<std::string, std::string> firmware() const;
+    // By controller id: what it said when it was identified (JPGcodeDriver::identity).
+    std::map<std::string, std::string> firmwareIdentity() const;
 
     JSignal<bool, std::string>                   onConnection;   // connected; why not (a failure or a lost link)
     JSignal<std::map<std::string, double>>       onPositions;
@@ -473,6 +475,7 @@ private:
     std::atomic<bool>                  m_backlashOn{ true };
     std::map<std::string, double>      m_corrected;  // correctPosition's since the last home, summed
     std::map<std::string, std::string> m_firmware;
+    std::map<std::string, std::string> m_firmwareIdentity;
     std::map<std::string, std::string> m_states;
 
     JWorkerThread m_thread;                  // last: stopped first, before what it uses

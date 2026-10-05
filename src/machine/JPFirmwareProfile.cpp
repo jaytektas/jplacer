@@ -280,6 +280,33 @@ std::optional<std::pair<std::string, std::string>> JPFirmwareProfile::parseSetti
     return std::make_pair(m[1].str(), m[2].str());
 }
 
+std::string JPFirmwareProfile::property(const std::string& identity, const std::string& name, const std::string& def) {
+    static const std::regex key("([A-Za-z0-9_\\-]+):");
+    std::vector<std::pair<size_t, size_t>> keys;   // each key's start and the end of its colon
+    std::vector<std::string> names;
+    for (auto it = std::sregex_iterator(identity.begin(), identity.end(), key); it != std::sregex_iterator(); ++it) {
+        keys.emplace_back(size_t(it->position(0)), size_t(it->position(0) + it->length(0)));
+        names.push_back((*it)[1].str());
+    }
+    for (size_t i = 0; i < keys.size(); ++i) {
+        if (names[i] != name) continue;
+        const size_t from = keys[i].second;
+        size_t to = identity.size();
+        if (i + 1 < keys.size()) {
+            // A key right at the value's start is part of it (a URL's "http:"): the one after ends it.
+            size_t next = i + 1;
+            if (keys[next].first <= from) ++next;
+            if (next < keys.size()) to = keys[next].first - 1;
+        }
+        std::string value = to > from ? identity.substr(from, to - from) : std::string();
+        for (size_t at; (at = value.find("%3A")) != std::string::npos;) value.replace(at, 3, ":");
+        if (const size_t comma = value.find(','); comma != std::string::npos) value.erase(comma);
+        const size_t a = value.find_first_not_of(" \t\r\n"), b = value.find_last_not_of(" \t\r\n");
+        return a == std::string::npos ? std::string() : value.substr(a, b - a + 1);
+    }
+    return def;
+}
+
 std::string JPFirmwareProfile::settingWriteCommand(const std::string& id, const std::string& value) const {
     return fill(m_settingWrite, { { "id", id }, { "value", value } });
 }

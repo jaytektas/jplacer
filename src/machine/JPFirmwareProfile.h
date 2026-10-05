@@ -73,6 +73,9 @@ public:
     // and whether `lines` (its reply) are this firmware.
     const std::string& identifyCommand() const { return m_identifyCommand; }
     bool identifies(const std::vector<std::string>& lines) const;
+    // A "NAME:value" property of a controller's identification reply (M115's
+    // FIRMWARE_NAME, AXIS_COUNT...), as OpenPnP's getFirmwareProperty reads it; `def` when it has none.
+    static std::string property(const std::string& identity, const std::string& name, const std::string& def = {});
     std::vector<const Plugin*> pluginsIn(const std::vector<std::string>& lines) const;
 
     bool isOk(const std::string& line) const;

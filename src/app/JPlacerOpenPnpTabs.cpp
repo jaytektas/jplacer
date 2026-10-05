@@ -696,6 +696,20 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
             return i == p.end() ? std::nullopt : std::optional(i->second);
         };
         context.configurationChanged = [this] { m_job.configurationChanged(); };
+        context.firmwareProfile = [this](const std::string& driverId) {
+            const JPCell* c = m_machine.cell();
+            if (!c) return std::string();
+            const auto all = c->firmware();
+            const auto it = all.find(driverId);
+            return it == all.end() ? std::string() : it->second;
+        };
+        context.firmwareIdentity = [this](const std::string& driverId) {
+            const JPCell* c = m_machine.cell();
+            if (!c) return std::string();
+            const auto all = c->firmwareIdentity();
+            const auto it = all.find(driverId);
+            return it == all.end() ? std::string() : it->second;
+        };
         context.changeCell = [this](const std::string& what, const std::function<void(JPCellConfig&)>& edit) {
             m_machine.changeSetup(what, edit);
         };

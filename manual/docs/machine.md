@@ -153,10 +153,13 @@ is listed as "(not found)".
 A firmware profile is a small file describing one kind of controller firmware: how to recognise it,
 the commands it takes, how it replies, how it reports its position, and how its stored settings are
 read. jplacer comes with profiles for grblHAL (including the JayTEK plugin's vacuum and analog
-readings), Grbl 1.1, and generic G-code. A profile of your own, placed in `profiles/` in jplacer's
+readings), Grbl 1.1, and generic G-code; and, as OpenPnP sets them up, for Smoothieware, Marlin,
+RepRapFirmware (Duet) and TinyG: each known by its answer to M115 (its FIRMWARE_NAME), its position read
+with M114, moves waited for with M400 (TinyG: its own `ok` and `err:` replies, G28.2 to home, G28.3 to set
+its place). A profile of your own, placed in `profiles/` in jplacer's
 configuration folder, is used as well, and replaces a bundled one with the same `id`.
 
-<!-- src: src/machine/JPFirmwareProfile.h; src/machine/JPFirmwareProfile.cpp (profileDirs, loadAll) -->
+<!-- src: src/machine/JPFirmwareProfile.h; src/machine/JPFirmwareProfile.cpp (profileDirs, loadAll); profiles/smoothieware.json; profiles/marlin.json; profiles/reprapfirmware.json; profiles/tinyg.json -->
 
 ## The machine's panels
 

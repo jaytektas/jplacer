@@ -62,6 +62,35 @@ int main() {
     assert(set && set->first == "110" && set->second == "5000.000");
     assert(hal.settingWriteCommand("100", "80") == "$100=80");
 
+    // OpenPnP's other firmwares, as its GcodeDriverSolutions sets them up: each
+    // known by its M115 reply, its position read from M114 (an extruder's E, and
+    // Marlin's step counts, left out), moves waited for with M400.
+    {
+        const JPFirmwareProfile smoothie = load("smoothieware.json"), marlin = load("marlin.json");
+        const JPFirmwareProfile duet = load("reprapfirmware.json"), tinyg = load("tinyg.json");
+        assert(smoothie.identifies({ "ok", "FIRMWARE_NAME:Smoothieware, FIRMWARE_URL:http%3A//smoothieware.org, X-SOURCE_CODE_URL:https://github.com/Smoothieware/Smoothieware" }));
+        assert(marlin.identifies({ "FIRMWARE_NAME:Marlin 2.0.9.3 (Nov 10 2021) SOURCE_CODE_URL:github.com/MarlinFirmware/Marlin" }));
+        assert(duet.identifies({ "FIRMWARE_NAME: RepRapFirmware for Duet 3 MB6HC FIRMWARE_VERSION: 3.4.5" }));
+        assert(!marlin.identifies({ "FIRMWARE_NAME:Smoothieware" }) && !smoothie.identifies({ "[VER:1.1f.20250101:]" }));
+        const auto s = smoothie.parseStatus("ok C: X:12.5000 Y:-3.2500 Z:0.0000 A:90.0000");
+        assert(s && s->positions.at("X") == 12.5 && s->positions.at("Y") == -3.25 && s->positions.at("A") == 90);
+        const auto m = marlin.parseStatus("X:10.00 Y:20.00 Z:-1.50 E:0.00 Count X:800 Y:1600 Z:-120");
+        assert(m && m->positions.size() == 3 && m->positions.at("X") == 10 && m->positions.at("Z") == -1.5);
+        const auto d = duet.parseStatus("X:1.000 Y:2.000 Z:3.000 U:4.000 E:0.000 Count 80 160 400 Machine 1.000 2.000 3.000 Bed comp 0.000");
+        assert(d && d->positions.at("U") == 4 && !d->positions.count("E"));
+        assert(tinyg.isOk("tinyg [mm] ok>") && tinyg.errorIn("tinyg [mm] err: Unrecognized command"));
+        // Their properties, as OpenPnP reads them: a URL's colons kept, a comma ending one, %3A a colon.
+        const std::string say = "FIRMWARE_NAME:Smoothieware, FIRMWARE_URL:http%3A//smoothieware.org, "
+                                "X-SOURCE_CODE_URL:https://github.com/openpnp/Smoothieware-best-for-pnp, X-AXES:6, X-PAXES:6";
+        assert(JPFirmwareProfile::property(say, "FIRMWARE_NAME") == "Smoothieware");
+        assert(JPFirmwareProfile::property(say, "FIRMWARE_URL") == "http://smoothieware.org");
+        assert(JPFirmwareProfile::property(say, "X-SOURCE_CODE_URL") == "https://github.com/openpnp/Smoothieware-best-for-pnp");
+        assert(JPFirmwareProfile::property(say, "X-PAXES") == "6" && JPFirmwareProfile::property(say, "NONE", "x") == "x");
+        assert(JPFirmwareProfile::property("FIRMWARE_NAME:Marlin 2.1 SOURCE_CODE_URL:github.com/x AXIS_COUNT:4 UUID:abc", "AXIS_COUNT") == "4");
+        for (const JPFirmwareProfile* p : { &smoothie, &marlin, &duet, &tinyg })
+            assert(p->identifyCommand() == "M115" && p->statusCommand() == "M114" && p->commands().at("waitMotion") == "M400");
+    }
+
     JPFirmwareProfile broken;
     std::string error;
     assert(!broken.load(std::string(JPLACER_PROFILES_DIR) + "/missing.json", error) && !error.empty());
