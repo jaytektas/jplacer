@@ -4,6 +4,7 @@
 #pragma once
 
 #include "JPCaptureSource.h"
+#include "machine/JPCameraConfig.h"
 
 #include <chrono>
 #include <functional>
@@ -23,7 +24,7 @@ public:
         std::string path;
         int         width = 640, height = 480;
         double      fps = 10;
-        double      unitsPerPixelX = 0.04, unitsPerPixelY = 0.04;
+        double      unitsPerPixelX = JPCameraConfig::kDefaultImageUnitsPerPixel, unitsPerPixelY = JPCameraConfig::kDefaultImageUnitsPerPixel;
         double      offsetX = 0, offsetY = 0;
         double      rotation = 0, scale = 1;
         bool        flipped = false;

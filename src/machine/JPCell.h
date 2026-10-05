@@ -189,9 +189,23 @@ public:
     // level and place blow-off level (0: none, the vacuum switched on, the
     // tip's blow-off level used). All 0: no part.
     struct PartOnNozzle {
+        std::string partId;   // empty: no part
         double heightMm = 0, pickVacuumLevel = 0, placeBlowOffLevel = 0;
     };
     void setNozzlePart(const std::string& nozzleId, const PartOnNozzle& part);
+    // Simulation Mode's Pick & Place Checking (OpenPnP's): a nozzle holding
+    // a part switching its vacuum on (a pick) or off (a place), not near the
+    // discard location, with an image camera on its head, is checked by
+    // `checker` where the simulated machine has the nozzle; a pick or place
+    // it does not recognize fails ("pick location not recognized").
+    struct PnpCheck {
+        std::string nozzleId, partId;
+        bool        pick = true;
+        double      x = 0, y = 0, rotation = 0;   // the nozzle, as the simulated machine has it
+        JJson       camera;                        // the head's image camera's device settings
+    };
+    using PnpChecker = std::function<bool(const PnpCheck& check, std::string& detail)>;
+    void setPnpChecker(PnpChecker checker) { m_pnpChecker = std::move(checker); }
     // Where script actuators' scripts are found and run (none: they cannot be actuated).
     void setScripting(std::shared_ptr<JPScripting> scripting) { m_scripting = std::move(scripting); }
 
@@ -410,6 +424,9 @@ private:
     std::map<std::string, bool>                 m_actuated;      // by actuator id: what it was last switched to
     std::map<std::string, std::string>          m_lastHttpUrl;   // by HTTP actuator: the URL asked last
     std::shared_ptr<JPScripting>                m_scripting;
+    PnpChecker                                  m_pnpChecker;
+    // The pick or place of the part on `n` checked (true: no check due, or recognized).
+    bool pnpChecked(const JPNozzleConfig& n, bool pick, std::string& why);
     // A script actuator's script run, told `globals`.
     bool runActuatorScript(const JPActuatorConfig& a, JJson globals, std::string& why);
     std::map<std::string, std::optional<bool>>  m_conditionalLast;   // by interlocked actuator: its condition's last state

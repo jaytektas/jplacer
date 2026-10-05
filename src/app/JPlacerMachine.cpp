@@ -577,6 +577,7 @@ bool JPlacerMachine::openCell(const std::string& path, std::string& error) {
     m_testMotion.reset();
     m_cell = std::make_unique<JPCell>(std::move(config), m_profiles);
     m_cell->setScripting(m_scripting);
+    m_cell->setPnpChecker(m_pnpChecking.checker());
     m_cellPath = path;
     m_testMotion = std::make_unique<JPlacerTestMotion>(m_window, *m_cell);
     m_tipChanges = std::make_unique<JPlacerTipChanges>(m_window, *m_cell, [this](const std::string& nozzleId, const std::string& tipId) {
@@ -794,6 +795,8 @@ void JPlacerMachine::setNozzlePart(const std::string& nozzleId, const std::strin
     else m_nozzleParts[nozzleId] = partId;
     // Its height (the nozzle's Dynamic Safe Z), and its package's pick vacuum and place blow-off levels.
     JPCell::PartOnNozzle on;
+    on.partId = partId;
+    std::shared_ptr<const JPFootprint> footprint;   // for Simulation Mode's Pick & Place Checking
     if (const JPPart* part = m_configuration && !partId.empty() ? m_configuration->part(partId) : nullptr) {
         on.heightMm = part->heightForSafeZ().convertToUnits(JPLengthUnit::Millimeters).value();
         // A height not known: the nozzle's tip's Max. Part Height (OpenPnP's getSafePartHeight).
@@ -805,8 +808,10 @@ void JPlacerMachine::setNozzlePart(const std::string& nozzleId, const std::strin
         if (const JPPackage* pkg = m_configuration->package(part->packageId)) {
             on.pickVacuumLevel = pkg->pickVacuumLevel;
             on.placeBlowOffLevel = pkg->placeBlowOffLevel;
+            footprint = std::make_shared<const JPFootprint>(pkg->footprint);
         }
     }
+    m_pnpChecking.hold(nozzleId, std::move(footprint));
     if (m_cell) m_cell->setNozzlePart(nozzleId, on);
     if (m_jog) m_jog->refreshRecycle();
 }

@@ -349,8 +349,15 @@ int main() {
         assert(def.nozzles.size() == 1 && def.nozzles[0].mount.axisZ == ax("zN1").id && def.nozzles[0].mount.axisRotation == ax("rotationN1").id);
         assert(def.heads.size() == 1 && def.heads[0].homingFiducial && def.heads[0].homingFiducial->x == 5.736);
         bool imageCamera = false;
-        for (const JPCameraConfig& cam : def.cameras) imageCamera = imageCamera || cam.device["backend"].str() == "image";
+        for (const JPCameraConfig& cam : def.cameras)
+            if (cam.device["backend"].str() == "image") {
+                imageCamera = true;
+                // Its picture's scale the camera's own, as OpenPnP's getImageUnitsPerPixel.
+                assert(cam.device["imageUnitsPerPixel"]["x"].number() == 0.04233);
+            }
         assert(imageCamera);
+        // Actuators naming no controller are the first one's, as OpenPnP's getDriver falls back.
+        for (const JPActuatorConfig& a : def.actuators) assert(a.driverId == def.drivers[0].id);
         for (const std::string& n : defNotes) assert(n.find("not a kind") == std::string::npos && n.find("left out") == std::string::npos);
     }
 

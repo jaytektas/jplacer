@@ -69,7 +69,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Mapped axis (two map points) | done | |
 | Linear transform axis (non-squareness) | own way | squareness measured from board fiducials; Square the Machine |
 | Cam axes (clockwise / counter-clockwise, shared Z) | done | a cam axis kind, clockwise or not |
-| Simulation Mode (SimulationModeMachine) | partial | mode, Replace Drivers?, runout and phase, non-squareness, camera lag and noise, vibration, homing error, Set Machine Table Z, Reset Feeders, imported; Pick & Place Checking missing |
+| Simulation Mode (SimulationModeMachine) | done | mode, Replace Drivers?, runout and phase, non-squareness, camera lag and noise, vibration, homing error, Set Machine Table Z, Reset Feeders, Pick & Place Checking (on the image camera's picture, OpenPnP's tolerances), imported |
 | Switch linear / rotational | done | and the feed rate as G-code reads F (linear path, else rotational) |
 
 ## Head

@@ -19,6 +19,12 @@
 
 inline namespace jf {
 
+namespace {
+// OpenPnP's Pick & Place Checking: not for its test object, nor this near the discard location.
+constexpr const char* kTestObjectPartId = "TEST-OBJECT";
+constexpr double kDiscardNearMm = 4.0;
+} // namespace
+
 JPCell::JPCell(JPCellConfig config, std::vector<JPFirmwareProfile> profiles)
     : m_config(std::move(config)), m_profiles(std::move(profiles)) {
     for (const JPAxisConfig& a : m_config.axes) m_positions[a.id] = a.homeCoordinate;
@@ -382,7 +388,8 @@ bool JPCell::safeZAndWait(const std::string& headId, double speed, std::string& 
 
 void JPCell::setNozzlePart(const std::string& nozzleId, const PartOnNozzle& part) {
     m_thread.post([this, nozzleId, part] {
-        if (part.heightMm != 0 || part.pickVacuumLevel != 0 || part.placeBlowOffLevel != 0) m_nozzleParts[nozzleId] = part;
+        if (!part.partId.empty() || part.heightMm != 0 || part.pickVacuumLevel != 0 || part.placeBlowOffLevel != 0)
+            m_nozzleParts[nozzleId] = part;
         else m_nozzleParts.erase(nozzleId);
     });
 }
@@ -984,6 +991,55 @@ bool JPCell::doVacuumOn(const JPNozzleConfig& n, std::string& why) {
     return true;
 }
 
+bool JPCell::pnpChecked(const JPNozzleConfig& n, bool pick, std::string& why) {
+    const JPSimulationConfig& sim = m_config.simulation;
+    if (!sim.on() || !sim.pickAndPlaceChecking || !m_pnpChecker) return true;
+    const auto part = m_nozzleParts.find(n.id);
+    if (part == m_nozzleParts.end() || part->second.partId.empty() || part->second.partId == kTestObjectPartId) return true;
+    // The head's (first) camera, when it shows a picture of the table.
+    const JPCameraConfig* camera = nullptr;
+    for (const JPCameraConfig& c : m_config.cameras)
+        if (!camera && !n.mount.headId.empty() && c.mount.headId == n.mount.headId) camera = &c;
+    if (!camera || camera->device["backend"].str() != "image") return true;
+    // Where the simulated machine has the nozzle: its axes, its offset, visual
+    // homing's correction, then the homing error, the non-squareness and the runout.
+    const auto at = positions();
+    const auto corrected = correctionSinceHome();
+    auto coordinate = [&](const std::string& axis) {
+        const auto p = at.find(axis), c = corrected.find(axis);
+        return (p == at.end() ? 0.0 : p->second) + (c == corrected.end() ? 0.0 : c->second);
+    };
+    PnpCheck check;
+    check.nozzleId = n.id;
+    check.partId = part->second.partId;
+    check.pick = pick;
+    check.x = coordinate(n.mount.axisX) + n.mount.offsetX;
+    check.y = coordinate(n.mount.axisY) + n.mount.offsetY;
+    check.rotation = coordinate(n.mount.axisRotation);
+    if (sim.imperfect()) {
+        check.x -= sim.homingErrorX;
+        check.y -= sim.homingErrorY;
+        check.x += sim.nonSquarenessFactor * check.y;
+    }
+    if (sim.dynamic() && sim.runoutMm != 0) {
+        const double a = (check.rotation - sim.runoutPhaseDeg) * M_PI / 180;
+        check.x += sim.runoutMm * std::cos(a);
+        check.y += sim.runoutMm * std::sin(a);
+    }
+    // Not where parts are discarded.
+    if (m_config.discardLocation
+        && std::hypot(check.x - m_config.discardLocation->x, check.y - m_config.discardLocation->y) <= kDiscardNearMm)
+        return true;
+    check.camera = camera->device;
+    std::string detail;
+    const bool ok = m_pnpChecker(check, detail);
+    JLOGC(JPlacerLog::kCell, ok ? JLogLevel::Debug : JLogLevel::Error)
+        << "pick & place checking: " << n.name << " " << (pick ? "pick" : "place") << " of " << check.partId << " at "
+        << check.x << ", " << check.y << ", " << check.rotation << ": " << detail;
+    if (!ok) why = "Nozzle " + n.name + " part " + check.partId + (pick ? " pick" : " place") + " location not recognized.";
+    return ok;
+}
+
 bool JPCell::doPick(const JPNozzleConfig& n, std::string& why) {
     if (!m_connected) { why = "not connected"; return false; }
     if (n.vacuumActuatorId.empty()) { why = "it has no vacuum actuator"; return false; }
@@ -992,6 +1048,7 @@ bool JPCell::doPick(const JPNozzleConfig& n, std::string& why) {
     // Part on, by a difference: the level before the vacuum comes on (none when it already is).
     double before = 0;
     if (tip && tip->partOn.method == "Difference" && !m_holding.count(n.id) && !readVacuum(n, before, why)) return false;
+    if (!pnpChecked(n, true, why)) return false;
     if (!doVacuumOn(n, why)) return false;
     std::this_thread::sleep_for(std::chrono::milliseconds(n.pickDwellMs + (tip ? tip->pickDwellMs : 0)));
     if (tip && tip->partOn.method != "None" && !sensed(n, tip->partOn, before, "on", why)) return false;
@@ -1144,6 +1201,7 @@ void JPCell::setProbedOffset(const std::string& nozzleId, bool feeder, const std
 bool JPCell::doPlace(const JPNozzleConfig& n, std::string& why) {
     if (!m_connected) { why = "not connected"; return false; }
     if (n.vacuumActuatorId.empty()) { why = "it has no vacuum actuator"; return false; }
+    if (!pnpChecked(n, false, why)) return false;
     int dwell = n.placeDwellMs;
     for (const JPNozzleTipConfig& t : m_config.nozzleTips) if (t.id == n.tipId) dwell += t.placeDwellMs;
     // OpenPnP's place blow-off: the package's level, else the tip's; none, no blow (only the vacuum off).
@@ -1232,6 +1290,13 @@ bool JPCell::doSwitchNow(const JPActuatorConfig& a, bool on, std::string& why, i
     const std::string& own = on ? a.onCommand : a.offCommand;
     const std::string& value = on ? a.onValue : a.offValue;
     const std::string& tmpl = !own.empty() || value.empty() ? own : a.valueCommand;
+    // Nothing to send to a simulated controller (OpenPnP's NullDriver, or
+    // one Simulation Mode replaces): switched, as there.
+    if (d && tmpl.empty() && d->config().link["type"].str() == "simulated") {
+        JLOGC(JPlacerLog::kCell, JLogLevel::Info) << a.name << " " << (on ? "on" : "off") << " (simulated: no command)";
+        m_actuated[actuatorId] = on;
+        return true;
+    }
     if (!d || tmpl.empty()) {
         why = a.name + " cannot be switched " + (on ? "on" : "off");
         return false;
@@ -1683,9 +1748,12 @@ JPSquarenessConfig JPCell::squareness() const {
 JPCameraCalibration JPCell::cameraCalibration(const std::string& cameraId, int width, int height) const {
     std::lock_guard lk(m_mutex);
     for (const JPCameraConfig& c : m_config.cameras)
-        if (c.id == cameraId)
+        if (c.id == cameraId) {
             if (const JPCameraCalibration* k = c.calibrationFor(width, height))
                 return c.mount.headId.empty() || !c.workingPlaneZ ? *k : k->atHeight(*c.workingPlaneZ);
+            // An image camera not calibrated: as its picture is drawn.
+            if (const auto known = c.pictureCalibration(width, height)) return *known;
+        }
     return {};
 }
 

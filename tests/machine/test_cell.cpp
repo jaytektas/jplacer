@@ -210,7 +210,7 @@ int main() {
                 if (id == "V" && ok && v == "off") ++placed;
             });
             for (const double level : { 0.0, 1.0 }) {
-                cell.setNozzlePart("N", { 0, 0, level });
+                cell.setNozzlePart("N", { "", 0, 0, level });
                 assert(cell.pickAndWait("N", why));
                 const int before = placed;
                 cell.place("N");
@@ -226,6 +226,63 @@ int main() {
             assert(lines.size() == 1);
             next.nozzles[0].blowOffActuatorId.clear();
             assert(cell.reconfigure(next, why));
+            cell.setNozzlePart("N", {});
+        }
+        // Simulation Mode's Pick & Place Checking: with an image camera on the
+        // head, a pick and a place of a part are checked where the simulated
+        // machine has the nozzle (here off by the homing error); one not
+        // recognized fails and says so; OpenPnP's test object, and a place
+        // near the discard location, are not checked.
+        {
+            JPCellConfig next = cell.config();
+            JPCameraConfig cam;
+            cam.id = "CAM";
+            cam.name = "Top";
+            cam.mount.headId = "H";
+            cam.device = JJson::object();
+            cam.device["backend"] = std::string("image");
+            cam.device["source"] = std::string("table.png");
+            next.cameras.push_back(cam);
+            next.simulation.mode = JPSimulationConfig::Mode::StaticImperfectionsMachine;
+            next.simulation.replaceDrivers = false;
+            next.simulation.homingErrorX = 0.5;
+            next.simulation.pickAndPlaceChecking = true;
+            std::string why;
+            assert(cell.reconfigure(next, why));
+            std::mutex m;
+            std::vector<JPCell::PnpCheck> checks;
+            bool recognize = true;
+            cell.setPnpChecker([&](const JPCell::PnpCheck& c, std::string& detail) {
+                std::lock_guard lk(m);
+                checks.push_back(c);
+                detail = recognize ? "recognized" : "nothing there";
+                return recognize;
+            });
+            cell.setNozzlePart("N", { "R1", 0, 0, 0 });
+            assert(cell.pickAndWait("N", why));
+            {
+                std::lock_guard lk(m);
+                assert(checks.size() == 1 && checks[0].pick && checks[0].partId == "R1" && checks[0].nozzleId == "N");
+                assert(checks[0].camera["source"].str() == "table.png");
+                assert(std::abs(checks[0].x - (cell.positions().at("X") - 0.5)) < 1e-9);
+                recognize = false;
+            }
+            assert(!cell.placeAtAndWait("N", {}, 1.0, why) && why == "Nozzle Right part R1 place location not recognized.");
+            cell.setNozzlePart("N", { "TEST-OBJECT", 0, 0, 0 });   // not checked
+            assert(cell.placeAtAndWait("N", {}, 1.0, why));
+            next.discardLocation = JPMachineLocation { cell.positions().at("X") - 0.5 + 1, 0, 0, 0 };   // within 4 mm
+            assert(cell.reconfigure(next, why));
+            cell.setNozzlePart("N", { "R1", 0, 0, 0 });
+            assert(cell.pickAndWait("N", why));   // not recognized, but not checked there
+            {
+                std::lock_guard lk(m);
+                assert(checks.size() == 2);   // the pick and the place before the test object
+            }
+            next.cameras.pop_back();
+            next.simulation = {};
+            next.discardLocation.reset();
+            assert(cell.reconfigure(next, why));
+            cell.setPnpChecker(nullptr);
             cell.setNozzlePart("N", {});
         }
         // Part detection: the vacuum read after the pick (-31000) must be in

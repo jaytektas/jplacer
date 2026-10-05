@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "JPPipelineValue.h"
 #include "camera/JPImageFile.h"
 
 #include <opencv2/core.hpp>
@@ -21,6 +22,32 @@ class JPStageUtil {
 public:
     // Java's Math.round: half up, also for negative numbers.
     static long javaRound(double v) { return long(std::floor(v + 0.5)); }
+    // Outlines filled, antialiased, each point through `to` (millimetres to
+    // pixels, Java's: a pixel's centre at +0.5, OpenCV's at 0).
+    template<class To>
+    static void fill(cv::Mat& mat, const std::vector<JPPipelineValue::Outline>& outlines, const cv::Scalar& color, To to) {
+        constexpr int kShift = 8;   // sub-pixel places (OpenCV's shift)
+        for (const JPPipelineValue::Outline& o : outlines) {
+            if (o.size() < 3) continue;
+            std::vector<cv::Point> pts;
+            for (const JPPipelineValue::LocationMm& p : o) {
+                const cv::Point2d px = to(p);
+                pts.emplace_back(int(std::lround((px.x - 0.5) * (1 << kShift))), int(std::lround((px.y - 0.5) * (1 << kShift))));
+            }
+            cv::fillPoly(mat, std::vector<std::vector<cv::Point>> { pts }, color, cv::LINE_AA, kShift);
+        }
+    }
+    // The outlines' bounds, through `to`.
+    template<class To>
+    static cv::Rect2d bounds(const std::vector<JPPipelineValue::Outline>& outlines, To to) {
+        double x0 = INFINITY, y0 = INFINITY, x1 = -INFINITY, y1 = -INFINITY;
+        for (const JPPipelineValue::Outline& o : outlines)
+            for (const JPPipelineValue::LocationMm& p : o) {
+                const cv::Point2d px = to(p);
+                x0 = std::min(x0, px.x), y0 = std::min(y0, px.y), x1 = std::max(x1, px.x), y1 = std::max(y1, px.y);
+            }
+        return x0 <= x1 ? cv::Rect2d(x0, y0, x1 - x0, y1 - y0) : cv::Rect2d();
+    }
     static bool blank(const std::string& s) { return s.find_first_not_of(" \t") == std::string::npos; }
     // A picture file as OpenCV wants it (BGR, as OpenCV's imread), and back.
     static cv::Mat readPicture(const std::string& path) {

@@ -35,6 +35,11 @@ struct JPSimulationConfig {
     double homingErrorX = 0, homingErrorY = 0;
     // The Z Set Machine Table Z gives the feeders, the boards and the cameras.
     double machineTableZ = 0;
+    // OpenPnP's Pick & Place Checking: each pick and place (the vacuum
+    // switched on, off, holding a part) checked against the head's image
+    // camera's picture: a part there to pick, its pads there to place on
+    // (JPSimulatedPnpCheck); not near the discard location.
+    bool   pickAndPlaceChecking = false;
     // The frequency the head rings at (OpenPnP's simulated eigenfrequency).
     static constexpr double kVibrationHz = 13.313;
 
@@ -72,6 +77,7 @@ struct JPSimulationConfig {
         s.homingErrorX = j["homingError"]["x"].number(0.0);
         s.homingErrorY = j["homingError"]["y"].number(0.0);
         s.machineTableZ = j["machineTableZ"].number(0.0);
+        s.pickAndPlaceChecking = j["pickAndPlaceChecking"].boolean(false);
         return s;
     }
     JJson toJson() const {
@@ -88,6 +94,7 @@ struct JPSimulationConfig {
         j["homingError"]["x"] = homingErrorX;
         j["homingError"]["y"] = homingErrorY;
         j["machineTableZ"] = machineTableZ;
+        j["pickAndPlaceChecking"] = pickAndPlaceChecking;
         return j;
     }
 };

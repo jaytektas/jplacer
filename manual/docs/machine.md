@@ -36,6 +36,7 @@ What is brought across:
 
 - **Controllers** that OpenPnP talks G-code to, with their serial port settings (port, speed, flow
   control, parity, data and stop bits, DTR / RTS, line endings), their maximum feed rate and G-code logging.
+  An actuator with no controller of its own is the first controller's, as in OpenPnP.
   OpenPnP's **NullDriver** (its simulated controller) becomes jplacer's simulated one, its axes given letters
   (X and Y, then Z, A, B, C, U, V, W). An old `machine.xml` whose one controller is a `<driver>` NullDriver
   (OpenPnP's own default machine still is) is first brought up to date as OpenPnP does on loading it: an X

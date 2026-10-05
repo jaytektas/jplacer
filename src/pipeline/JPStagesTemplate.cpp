@@ -31,36 +31,6 @@ using Model = JPPipelineModel;
 using Value = JPPipelineValue;
 constexpr const char* kStages = "org.openpnp.vision.pipeline.stages.";
 
-// Sub-pixel places for antialiased filling (OpenCV's shift).
-constexpr int kShift = 8;
-
-// Outlines filled, each through `to` (millimetres to pixels, Java's: a
-// pixel's centre at +0.5, OpenCV's at 0).
-template<class To>
-void fill(cv::Mat& mat, const std::vector<Value::Outline>& outlines, const cv::Scalar& color, To to) {
-    for (const Value::Outline& o : outlines) {
-        if (o.size() < 3) continue;
-        std::vector<cv::Point> pts;
-        for (const Value::LocationMm& p : o) {
-            const cv::Point2d px = to(p);
-            pts.emplace_back(int(std::lround((px.x - 0.5) * (1 << kShift))), int(std::lround((px.y - 0.5) * (1 << kShift))));
-        }
-        cv::fillPoly(mat, std::vector<std::vector<cv::Point>> { pts }, color, cv::LINE_AA, kShift);
-    }
-}
-
-// The outlines' bounds, through `to`.
-template<class To>
-cv::Rect2d bounds(const std::vector<Value::Outline>& outlines, To to) {
-    double x0 = INFINITY, y0 = INFINITY, x1 = -INFINITY, y1 = -INFINITY;
-    for (const Value::Outline& o : outlines)
-        for (const Value::LocationMm& p : o) {
-            const cv::Point2d px = to(p);
-            x0 = std::min(x0, px.x), y0 = std::min(y0, px.y), x1 = std::max(x1, px.x), y1 = std::max(y1, px.y);
-        }
-    return x0 <= x1 ? cv::Rect2d(x0, y0, x1 - x0, y1 - y0) : cv::Rect2d();
-}
-
 const Value::Part* partOf(const JPPipeline& p) {
     const Value* v = p.property("part");
     return v ? std::get_if<Value::Part>(&v->value) : nullptr;
@@ -183,14 +153,14 @@ void JPStageRegistry::addTemplateStages(std::vector<JPStageType>& types) {
                           const auto* shape = v ? std::get_if<Value::Shape>(&v->value) : nullptr;
                           if (!shape) throw std::runtime_error("Property named after templateShapeName is required.");
                           auto scaled = [&](const Value::LocationMm& m) { return cv::Point2d(m.x * ctx.pixelsPerMmX, m.y * ctx.pixelsPerMmY); };
-                          const cv::Rect2d b = bounds(shape->outlines, scaled);
+                          const cv::Rect2d b = JPStageUtil::bounds(shape->outlines, scaled);
                           if (b.width == 0 || b.height == 0)
                               throw std::runtime_error("Invalid shape found, unable to create template for shape match.");
                           const double over = s.number("oversize") <= 0 ? 1.5 : s.number("oversize");
                           const double width = std::ceil(b.width * over), height = std::ceil(b.height * over);
                           Output out;
                           out.image = cv::Mat(int(height), int(width), CV_8UC3, cv::Scalar::all(0));
-                          fill(out.image, shape->outlines, cv::Scalar::all(255),
+                          JPStageUtil::fill(out.image, shape->outlines, cv::Scalar::all(255),
                                [&](const Value::LocationMm& m) { return scaled(m) + cv::Point2d(width / 2, height / 2); });
                           out.colorSpace = "Bgr";
                           return out;
@@ -235,7 +205,7 @@ void JPStageRegistry::addTemplateStages(std::vector<JPStageType>& types) {
                           };
                           std::vector<Value::Outline> all = footprint->pads;
                           all.push_back(footprint->body);
-                          const cv::Rect2d b = bounds(all, px);
+                          const cv::Rect2d b = JPStageUtil::bounds(all, px);
                           if (b.width == 0 || b.height == 0)
                               throw std::runtime_error("Invalid footprint found, unable to create template for part match. Width and height of pads must be greater than 0. See https://github.com/openpnp/openpnp/wiki/Fiducials.");
                           double width = std::max(b.width * marginFactor, b.width + 2 * minimumMargin);
@@ -249,9 +219,9 @@ void JPStageRegistry::addTemplateStages(std::vector<JPStageType>& types) {
                           auto centred = [&](const Value::LocationMm& m) { return px(m) + cv::Point2d(width / 2, height / 2); };
                           const std::string view = s.text("footprint-view");
                           const std::vector<Value::Outline> body { footprint->body };
-                          if (view == "BottomView") fill(out.image, body, s.color("body-color"), centred);
-                          fill(out.image, footprint->pads, s.color("pads-color"), centred);
-                          if (view == "TopView") fill(out.image, body, s.color("body-color"), centred);
+                          if (view == "BottomView") JPStageUtil::fill(out.image, body, s.color("body-color"), centred);
+                          JPStageUtil::fill(out.image, footprint->pads, s.color("pads-color"), centred);
+                          if (view == "TopView") JPStageUtil::fill(out.image, body, s.color("body-color"), centred);
                           out.colorSpace = "Bgr";
                           return out;
                       } });

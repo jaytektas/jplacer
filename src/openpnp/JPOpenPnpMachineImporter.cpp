@@ -297,6 +297,8 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
         sim.cameraLagS = real("simulated-camera-lag", 0);
         sim.vibrationAmplitudeMm = real("simulated-vibration-amplitude", 0);
         sim.vibrationDurationS = real("simulated-vibration-duration", 0.2);
+        if (const JPXmlElement* e = machine->child("pick-and-place-checking"))
+            sim.pickAndPlaceChecking = e->text.find("true") != std::string::npos;
         if (const auto e = location(*machine, "homing-error")) {
             sim.homingErrorX = e->x;
             sim.homingErrorY = e->y;
@@ -615,6 +617,8 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
         a.id       = x.attr("id");
         a.name     = x.attr("name");
         a.driverId = x.attr("driver-id");
+        // None given: the machine's first controller, as OpenPnP's AbstractActuator.getDriver falls back.
+        if (a.driverId.empty() && !c.drivers.empty()) a.driverId = c.drivers.front().id;
         a.mount    = mount(x, headId);
         a.index    = x.attr("index");
         const std::string& vt = x.attr("value-type");
@@ -820,10 +824,19 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             }
             if (!x.attr("width").empty()) cam.device["width"] = number(x.attr("width"));
             if (!x.attr("height").empty()) cam.device["height"] = number(x.attr("height"));
-            if (const auto upp = location(x, "image-units-per-pixel")) {
+            // Its picture's scale: the camera's own when not given, as OpenPnP's getImageUnitsPerPixel.
+            if (const auto upp = location(x, "image-units-per-pixel") ? location(x, "image-units-per-pixel")
+                                                                      : location(x, "units-per-pixel")) {
                 cam.device["imageUnitsPerPixel"]["x"] = upp->x;
                 cam.device["imageUnitsPerPixel"]["y"] = upp->y;
             }
+            // Simulation Mode's Pick & Place Checking against it.
+            for (const auto& [attr, key] : { std::pair { "pick-location-tolerance-mm", "pickLocationToleranceMm" },
+                                             std::pair { "pick-location-minimum-score", "pickLocationMinimumScore" },
+                                             std::pair { "place-location-tolerance-mm", "placeLocationToleranceMm" },
+                                             std::pair { "place-location-minimum-score", "placeLocationMinimumScore" } })
+                if (!x.attr(attr).empty()) cam.device[key] = number(x.attr(attr));
+            if (!x.attr("filter-test-image-vision").empty()) cam.device["filterTestImageVision"] = x.attr("filter-test-image-vision") == "true";
             if (const auto off = location(x, "image-offset")) {
                 cam.device["imageOffset"]["x"] = off->x;
                 cam.device["imageOffset"]["y"] = off->y;

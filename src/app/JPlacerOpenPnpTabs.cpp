@@ -437,8 +437,13 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
             onMain([&] {
                 if (const JPFeeder* f = m_job.configuration().feeder(feederId)) part = f->partId();
             });
-            if (!machine.safeZ(why) || !machine.pick(nozzle, *at, why)) return false;
+            if (!machine.safeZ(why)) return false;
+            // The nozzle given the part first, as OpenPnP's pick(part): its levels, and the pick checked for it.
             machine.holding(nozzle, part);
+            if (!machine.pick(nozzle, *at, why)) {
+                machine.holding(nozzle, "");
+                return false;
+            }
             return JPFeederFeed::postPick(m_job.configuration(), feederId, machine, onMain, why) && machine.safeZ(why);
         });
     };

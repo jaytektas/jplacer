@@ -61,8 +61,8 @@ std::unique_ptr<JPCaptureSource> JPCaptureFactory::create(const std::string& cam
         s.width = int(device["width"].number(640));
         s.height = int(device["height"].number(480));
         s.fps = device["fps"].number(10);
-        s.unitsPerPixelX = device["imageUnitsPerPixel"]["x"].number(0.04);
-        s.unitsPerPixelY = device["imageUnitsPerPixel"]["y"].number(0.04);
+        s.unitsPerPixelX = device["imageUnitsPerPixel"]["x"].number(JPCameraConfig::kDefaultImageUnitsPerPixel);
+        s.unitsPerPixelY = device["imageUnitsPerPixel"]["y"].number(JPCameraConfig::kDefaultImageUnitsPerPixel);
         s.offsetX = device["imageOffset"]["x"].number(0);
         s.offsetY = device["imageOffset"]["y"].number(0);
         s.rotation = device["simulatedRotation"].number(0);

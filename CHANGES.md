@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- Simulation Mode's Pick & Place Checking, as OpenPnP's: with an image camera on the head, each pick must find a part
+  in the picture where the nozzle is, and each place its pads, or it fails. OpenPnP's default machine now feeds and
+  picks out of the box: its camera counts as calibrated by its picture, and its actuators switch on its simulated
+  controller. A pick from the Feeders tab gives the nozzle its part before the vacuum, as OpenPnP does.
 - As OpenPnP, a first start brings in OpenPnP's own default machine (a simulated controller, a camera over
   OpenPnP's test picture of the table, its strip feeders) and its default packages, parts and vision settings.
   OpenPnP's NullDriver comes in as a simulated controller, and an old machine.xml with a single NullDriver is

@@ -8,6 +8,7 @@
 #include "JPMountConfig.h"
 
 #include <array>
+#include <cmath>
 #include <optional>
 #include <string>
 #include <vector>
@@ -152,6 +153,30 @@ struct JPCameraConfig {
     // measured at (another size is another scale, and another lens).
     std::vector<JPCameraCalibration> calibrations;
 
+    // An image camera's (OpenPnP's ImageCamera, device backend "image")
+    // picture scale when it gives none (mm a pixel).
+    static constexpr double kDefaultImageUnitsPerPixel = 0.04;
+    // An image camera's calibration, known from its picture: its scale, and
+    // the simulated turn, scale and mirroring it shows it through (as
+    // JPImageSource draws it); none for another camera.
+    std::optional<JPCameraCalibration> pictureCalibration(int width, int height) const {
+        if (device["backend"].str() != "image") return std::nullopt;
+        const double ux = device["imageUnitsPerPixel"]["x"].number(kDefaultImageUnitsPerPixel);
+        const double uy = device["imageUnitsPerPixel"]["y"].number(kDefaultImageUnitsPerPixel);
+        const double scale = device["simulatedScale"].number(1);
+        if (ux <= 0 || uy <= 0 || scale <= 0) return std::nullopt;
+        const double r = device["simulatedRotation"].number(0) * M_PI / 180, cr = std::cos(r), sr = std::sin(r);
+        const double sx = device["simulatedFlipped"].boolean() ? -scale : scale, sy = scale;
+        JPCameraCalibration c;
+        c.valid = true;
+        c.width = width;
+        c.height = height;
+        // A mark at P is seen at the middle + M (V - P), V where the camera looks.
+        c.pxPerMm = { -sx * cr / ux, sx * sr / uy, sy * sr / ux, sy * cr / uy };
+        c.lensCentreX = width / 2.0;
+        c.lensCentreY = height / 2.0;
+        return c;
+    }
     // The calibration for pictures width x height; null when there is none.
     const JPCameraCalibration* calibrationFor(int width, int height) const {
         for (const JPCameraCalibration& c : calibrations)

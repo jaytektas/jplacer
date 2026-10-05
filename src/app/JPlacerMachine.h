@@ -6,6 +6,7 @@
 #include "JPlacerCameraTasks.h"
 #include "JPlacerEstimateZ.h"
 #include "JPlacerLayout.h"
+#include "JPlacerPnpChecking.h"
 #include "JPlacerTestMotion.h"
 #include "JPlacerTipChanges.h"
 
@@ -311,6 +312,7 @@ private:
     JPMachineSetupPanel*                m_setup = nullptr;
     JPVisionTests                       m_setupVisionTests;
     JPConfiguration*                    m_configuration = nullptr;
+    JPlacerPnpChecking                  m_pnpChecking;   // Simulation Mode's Pick & Place Checking
     std::map<std::string, std::string>  m_nozzleParts;   // nozzle: the part it holds
     std::vector<std::function<void()>>  m_unwatch;   // this class's watches on the cell
     std::shared_ptr<bool>               m_alive = std::make_shared<bool>(true);

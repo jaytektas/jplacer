@@ -231,6 +231,9 @@ void simulationTab(JPCellConfig& cell, JPFormBuilder& add, JPSetupProperties::Fo
              "whenever the Nozzle is positioned. This also happens when watching a Job perform.");
     add.number("simulatedNonSquareness", "Non-Squareness Factor", [sim]() -> double& { return sim().nonSquarenessFactor; }, 6);
     add.tip("Creates simulated Non-Squareness by that factor.");
+    add.flag("pickAndPlaceChecking", "Pick & Place Checking?", [sim]() -> bool& { return sim().pickAndPlaceChecking; });
+    add.note("Pick & Place Checking: with an image camera on the head (OpenPnP's test picture), each pick must find a "
+             "part's body there, and each place its pads, within the camera's tolerances, or the job stops.");
     add.number("simulatedCameraLag", "Camera Lag [s]", [sim]() -> double& { return sim().cameraLagS; });
     add.integer("simulatedCameraNoise", "Camera Noise", [sim]() -> int& { return sim().cameraNoise; }, 0, 100000);
     add.tip("Creates simulated noise in the camera image (number of sparks) to satisfy Camera Settling that the frame "
