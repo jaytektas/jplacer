@@ -1057,6 +1057,13 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
     auto rc = [t]() -> JPNozzleTipConfig::RunoutCalibration& { return t().runoutCalibration; };
     using RC = JPNozzleTipConfig::RunoutCalibration;
     add.flag("runoutEnabled", "Compensate?", [rc]() -> bool& { return rc().enabled; });
+    add.choice("runoutRecalibration", "Auto Recalibration", { "NozzleTipChange", "NozzleTipChangeInJob", "MachineHome", "Manual" },
+               [rc] { return rc().recalibration; }, [rc](const std::string& v) { rc().recalibration = v; });
+    add.tip("Determines when a recalibration is automatically executed: on each nozzle tip change; on each nozzle tip "
+            "change but only in Jobs; on each machine homing (and on nozzle tip change when not yet calibrated); or "
+            "manually only.");
+    add.flag("runoutFailHoming", "Fail Homing?", [rc]() -> bool& { return rc().failHoming; });
+    add.tip("When the calibration fails during homing, also fail the homing cycle.");
     add.integer("runoutDivisions", "Circle Divisions", [rc]() -> int& { return rc().divisions; }, RC::kLeastDivisions,
                 RC::kMostDivisions);
     add.integer("runoutMisdetects", "Allowed Misdetects", [rc]() -> int& { return rc().misdetects; }, 0, RC::kMostDivisions);

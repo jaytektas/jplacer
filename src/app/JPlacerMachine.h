@@ -128,6 +128,10 @@ public:
     // The head camera's live picture, brought to the front (a selection is
     // made on it); none when there is no camera on the head.
     JPCameraView* headCameraView();
+    // A tip's runout on a nozzle kept (none: forgotten), and a background calibration's result, through
+    // Machine Setup (a step to undo each).
+    void keepRunout(const std::string& tipId, const std::string& nozzleId, const std::optional<JPRunout>& r);
+    void keepBackground(const std::string& tipId, const JPBackgroundCalibration::Result& b);
     // What a nozzle holds (OpenPnP's Nozzle.getPart): the part last picked
     // with it, "" when none (placed or discarded since).
     std::string nozzlePart(const std::string& nozzleId) const;
@@ -268,6 +272,12 @@ private:
     std::unique_ptr<JPlacerTipChanges>  m_tipChanges;    // the nozzles' tips loaded and unloaded
     std::unique_ptr<JPlacerTestMotion>  m_testMotion;    // the motion planner's Test Motion
     std::string                         m_positionedCamera;   // a camera moved to look somewhere, by name, until there
+    // A tip's runout measured on the nozzle it is on (asking first, or not: an automatic recalibration),
+    // then kept; `done` whether it was, and why not.
+    void calibrateTipRunout(const std::string& nozzleId, bool ask, std::function<void(bool, const std::string&)> done);
+    // Once homed, each of `nozzles` in turn (JPlacerMachine::recalibrateAfterHoming); `done` false when one
+    // failed with Fail Homing (the machine then unhomed).
+    void recalibrateAfterHoming(std::vector<std::string> nozzles, std::function<void(bool)> done);
     // By nozzle tip: its last background calibration's problem pictures (BGR, as seen and marked, in pairs).
     std::map<std::string, std::vector<cv::Mat>> m_backgroundProblems;
     std::map<std::string, bool>         m_lights;   // by actuator id: on or off as last switched

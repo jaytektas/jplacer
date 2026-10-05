@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Nozzle tips have OpenPnP's Auto Recalibration and Fail Homing: their runout is measured again on a tip
+  change, before a job's picks, or once the machine is homed, as each tip is set.
 - The camera looking up can auto focus, as OpenPnP's: a part whose height is not known is measured by bringing
   it into focus, and its Auto Focus tab tests it and can set the camera's Z.
 - Nozzles can probe by touch, as OpenPnP's ContactProbeNozzle: a job finds feeder and placement heights (and a

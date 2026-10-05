@@ -103,6 +103,11 @@ public:
     virtual std::optional<double> probedOffset(const std::string& /*nozzleId*/, bool /*feeder*/, const std::string& /*key*/) const {
         return std::nullopt;
     }
+    // OpenPnP's nozzle tip calibration in a job: whether the tip on a nozzle
+    // is calibrated as it should be (its runout measured on it, where it is
+    // compensated), and calibrating it.
+    virtual bool tipCalibrated(const std::string& /*nozzleId*/) const { return true; }
+    virtual bool calibrateTip(const std::string& /*nozzleId*/, std::string& /*why*/) { return true; }
     virtual void setProbedOffset(const std::string& /*nozzleId*/, bool /*feeder*/, const std::string& /*key*/, double /*offsetMm*/) {}
     // The nozzle over `at` at safe Z, turned to its rotation (not down).
     virtual bool positionNozzle(const std::string& nozzleId, const JPLocation& at, std::string& why) = 0;

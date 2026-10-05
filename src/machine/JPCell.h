@@ -145,6 +145,8 @@ public:
     // they now are (their home coordinates) and the cell is homed. Until it
     // is, no move is made: positions mean nothing to a soft limit before.
     void home();
+    // No longer homed (a homing that failed after the controllers homed: a calibration with Fail Homing).
+    void unhome();
     // Park the head (its JPHeadConfig::park): every Z on it into its safe
     // zone first, then the head's camera (else its first tool on X and Y) to
     // the park place. The outcome arrives as onMotion.

@@ -52,6 +52,8 @@ public:
     bool positionNozzle(const std::string& nozzleId, const JPLocation& at, std::string& why) override;
     bool positionCamera(const JPLocation& at, std::string& why) override;
     bool contactProbe(const std::string& nozzleId, bool forward, double depthMm, double& probedZ, std::string& why) override;
+    bool tipCalibrated(const std::string& nozzleId) const override;
+    bool calibrateTip(const std::string& nozzleId, std::string& why) override;
     std::optional<double> probedOffset(const std::string& nozzleId, bool feeder, const std::string& key) const override;
     void setProbedOffset(const std::string& nozzleId, bool feeder, const std::string& key, double offsetMm) override;
     bool moveNozzle(const std::string& nozzleId, std::array<std::optional<double>, 4> to, double speed, bool safeZFirst,

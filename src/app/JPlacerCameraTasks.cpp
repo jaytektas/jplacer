@@ -252,8 +252,37 @@ void JPlacerCameraTasks::calibrateBacklash(const std::string& axisId,
     });
 }
 
-void JPlacerCameraTasks::calibrateRunout(const std::string& nozzleId,
-                                         std::function<void(const JPRunout&, const std::optional<JPBackgroundCalibration::Result>&)> done) {
+std::optional<JPRunout> JPlacerCameraTasks::measureRunout(JPCell& cell, JPCameraFeed& feed, const JPNozzleConfig& n,
+                                                         const JPNozzleTipConfig& t, JPScripting* scripting, std::string& words,
+                                                         const std::function<void(const std::string&)>& progress,
+                                                         std::optional<JPBackgroundCalibration::Result>& background) {
+    JPRunoutCalibrator::Options o;
+    o.speed = kTaskSpeed;
+    // The background calibrated along with it, when the tip asks for it.
+    JPBackgroundCalibration pictures(JPBackgroundCalibration::methodFrom(t.background.method));
+    const bool withBackground = t.background.method != "None";
+    // OpenPnP's NozzleCalibration.Starting before it, and .Finished once the tip was found enough.
+    JJson g = JJson::object();
+    g["nozzle"] = n.name;
+    g["camera"] = feed.config().name;
+    if (scripting && !scripting->on("NozzleCalibration.Starting", g, words)) return std::nullopt;
+    const auto r = JPRunoutCalibrator::run(cell, feed, n, t, o, words, progress, withBackground ? &pictures : nullptr);
+    if (!r) return std::nullopt;
+    if (scripting && !scripting->on("NozzleCalibration.Finished", g, words)) return std::nullopt;
+    JPCameraCalibration cal;
+    std::string ignored;
+    JPBackgroundCalibration::Result b;
+    if (withBackground && JPCameraLook::calibration(cell, feed, cal, ignored)
+        && pictures.finish((t.maxPartDiameterMm + 2 * t.maxPickToleranceMm) * cal.scale() * 0.5, b))
+        background = b;
+    char buf[200];
+    std::snprintf(buf, sizeof buf, "%s on %s: runout %.3f mm at %.1f deg; its axis %+.3f, %+.3f mm off; fit %.4f mm",
+                  t.name.c_str(), n.name.c_str(), r->radius, r->phaseDeg, r->centreX, r->centreY, r->rmsMm);
+    words = buf;
+    return r;
+}
+
+void JPlacerCameraTasks::calibrateRunout(const std::string& nozzleId, bool ask, RunoutDone done) {
     const JPNozzleConfig* nozzle = nullptr;
     for (const JPNozzleConfig& n : m_cell.config().nozzles)
         if (n.id == nozzleId) nozzle = &n;
@@ -273,6 +302,30 @@ void JPlacerCameraTasks::calibrateRunout(const std::string& nozzleId,
                     : std::string();
     if (!why.empty()) {
         m_window.showStatus("Calibrate runout: " + why, kResultMs);
+        if (done) done(false, JPRunout {}, std::nullopt, why);
+        return;
+    }
+    const JPNozzleConfig n = *nozzle;
+    const JPNozzleTipConfig t = *tip;
+    std::weak_ptr<bool> alive = m_alive;
+    auto start = [this, alive, camera, n, t, done] {
+        if (const auto a = alive.lock(); !a || !*a) return;
+        if (m_busy) return;   // another task began while asking
+        auto result = std::make_shared<JPRunout>();
+        auto background = std::make_shared<std::optional<JPBackgroundCalibration::Result>>();
+        auto words = std::make_shared<std::string>();
+        run(*camera, "Measuring " + t.name + "'s runout", [this, camera, n, t, result, background, words](std::string& w, const auto& progress) {
+            const auto r = measureRunout(m_cell, camera->feed(), n, t, m_scripting.get(), w, progress, *background);
+            *words = w;
+            if (!r) return false;
+            *result = *r;
+            return true;
+        }, [result, background, words, done](bool ok) {
+            if (done) done(ok, *result, *background, *words);
+        });
+    };
+    if (!ask) {
+        start();
         return;
     }
     const JPCameraConfig& cam = camera->camera();
@@ -282,44 +335,7 @@ void JPlacerCameraTasks::calibrateRunout(const std::string& nozzleId,
                   "and turns round a full circle.\n\nThe nozzle must hold no part, and nothing must be in its way.",
                   nozzle->name.c_str(), tip->name.c_str(), cam.name.c_str(), cam.mount.offsetX, cam.mount.offsetY,
                   cam.mount.offsetZ + tip->runoutCalibration.zOffset);
-    const JPNozzleConfig n = *nozzle;
-    const JPNozzleTipConfig t = *tip;
-    std::weak_ptr<bool> alive = m_alive;
-    JDialog::confirm("Calibrate " + tip->name + " on " + nozzle->name, body, [this, alive, camera, n, t, done] {
-        if (const auto a = alive.lock(); !a || !*a) return;
-        if (m_busy) return;   // another task began while asking
-        auto result = std::make_shared<JPRunout>();
-        auto background = std::make_shared<std::optional<JPBackgroundCalibration::Result>>();
-        run(*camera, "Measuring " + t.name + "'s runout", [this, camera, n, t, result, background](std::string& words, const auto& progress) {
-            JPRunoutCalibrator::Options o;
-            o.speed = kTaskSpeed;
-            // The background calibrated along with it, when the tip asks for it.
-            JPBackgroundCalibration pictures(JPBackgroundCalibration::methodFrom(t.background.method));
-            const bool withBackground = t.background.method != "None";
-            // OpenPnP's NozzleCalibration.Starting before it, and .Finished once the tip was found enough.
-            JJson g = JJson::object();
-            g["nozzle"] = n.name;
-            g["camera"] = camera->camera().name;
-            if (m_scripting && !m_scripting->on("NozzleCalibration.Starting", g, words)) return false;
-            const auto r = JPRunoutCalibrator::run(m_cell, camera->feed(), n, t, o, words, progress, withBackground ? &pictures : nullptr);
-            if (!r) return false;
-            if (m_scripting && !m_scripting->on("NozzleCalibration.Finished", g, words)) return false;
-            *result = *r;
-            JPCameraCalibration cal;
-            std::string ignored;
-            JPBackgroundCalibration::Result b;
-            if (withBackground && JPCameraLook::calibration(m_cell, camera->feed(), cal, ignored)
-                && pictures.finish((t.maxPartDiameterMm + 2 * t.maxPickToleranceMm) * cal.scale() * 0.5, b))
-                *background = b;
-            char buf[200];
-            std::snprintf(buf, sizeof buf, "%s on %s: runout %.3f mm at %.1f deg; its axis %+.3f, %+.3f mm off; fit %.4f mm",
-                          t.name.c_str(), n.name.c_str(), r->radius, r->phaseDeg, r->centreX, r->centreY, r->rmsMm);
-            words = buf;
-            return true;
-        }, [result, background, done](bool ok) {
-            if (ok && done) done(*result, *background);
-        });
-    });
+    JDialog::confirm("Calibrate " + tip->name + " on " + nozzle->name, body, start);
 }
 
 void JPlacerCameraTasks::autoFocusTest(JPCameraPanel& camera, const JPNozzleConfig& nozzle, std::function<void(double)> done) {

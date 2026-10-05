@@ -91,6 +91,13 @@ struct JPNozzleTipConfig {
         int    misdetects = 0;
         double zOffset = 0;
         double visionDiameter = 0;
+        // OpenPnP's Auto Recalibration: "NozzleTipChange" (on each load, and
+        // once homed), "NozzleTipChangeInJob" (forgotten on each load, measured
+        // again when a job needs it), "MachineHome" (once homed, and on a load
+        // when not yet measured) or "Manual"; with Fail Homing, a calibration
+        // failing once homed fails the homing.
+        std::string recalibration = "NozzleTipChangeInJob";
+        bool   failHoming = true;
         static constexpr int kLeastDivisions = 3, kMostDivisions = 72;
     };
     RunoutCalibration                runoutCalibration;

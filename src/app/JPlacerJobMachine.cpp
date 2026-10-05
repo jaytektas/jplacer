@@ -3,6 +3,8 @@
 
 #include "JPlacerJobMachine.h"
 
+#include "JPlacerCameraTasks.h"
+
 #include <opencv2/objdetect.hpp>
 
 #include "pipeline/JPStageUtil.h"
@@ -251,6 +253,49 @@ bool JPlacerJobMachine::place(const std::string& nozzleId, const JPLocation& at,
     ++m_motions;
     JPCell* c = cell(why);
     return c && c->placeAtAndWait(nozzleId, where(at), 1.0, why);
+}
+
+bool JPlacerJobMachine::tipCalibrated(const std::string& nozzleId) const {
+    const JPCellConfig c = config();
+    for (const JPNozzleConfig& n : c.nozzles)
+        if (n.id == nozzleId)
+            for (const JPNozzleTipConfig& t : c.nozzleTips)
+                if (t.id == n.tipId) return !t.runoutCalibration.enabled || t.runout.count(nozzleId) > 0;
+    return true;
+}
+
+bool JPlacerJobMachine::calibrateTip(const std::string& nozzleId, std::string& why) {
+    ++m_motions;
+    JPCell* c = cell(why);
+    if (!c) return false;
+    JPCameraFeed* feed = nullptr;
+    std::optional<JPNozzleConfig> nozzle;
+    std::optional<JPNozzleTipConfig> tip;
+    m_onMain([&] {
+        feed = m_machine.upCameraFeed();
+        for (const JPNozzleConfig& n : c->config().nozzles)
+            if (n.id == nozzleId) nozzle = n;
+        if (nozzle)
+            for (const JPNozzleTipConfig& t : c->config().nozzleTips)
+                if (t.id == nozzle->tipId) tip = t;
+    });
+    if (!feed) {
+        why = "no camera looking up to calibrate the nozzle tip with";
+        return false;
+    }
+    if (!nozzle || !tip) {
+        why = "no tip on nozzle " + nozzleId;
+        return false;
+    }
+    prepare(*c, *feed);
+    std::optional<JPBackgroundCalibration::Result> background;
+    const auto r = JPlacerCameraTasks::measureRunout(*c, *feed, *nozzle, *tip, &m_machine.scripting(), why, nullptr, background);
+    if (!r) return false;
+    m_onMain([&] {
+        m_machine.keepRunout(tip->id, nozzleId, *r);
+        if (background) m_machine.keepBackground(tip->id, *background);
+    });
+    return true;
 }
 
 bool JPlacerJobMachine::contactProbe(const std::string& nozzleId, bool forward, double depthMm, double& probedZ, std::string& why) {

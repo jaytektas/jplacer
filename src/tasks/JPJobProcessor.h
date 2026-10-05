@@ -127,6 +127,7 @@ private:
     Step preFlight();
     Step fiducialCheck();
     Step plan();
+    void calibrateNozzleTip(Planned& p);
     Step changeNozzleTip(Planned& p);
     Step pick(Planned& p);
     Step align(Planned& p);

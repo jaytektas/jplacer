@@ -144,9 +144,7 @@ JPJobProcessor::Step JPJobProcessor::run(Step step) {
         case Step::FiducialCheck:       return fiducialCheck();
         case Step::Plan:                return plan();
         case Step::ChangeNozzleTips:    return plannedStep(step, Step::CalibrateNozzleTips);
-        // A tip's runout, once measured, is kept and applied by the machine on
-        // every move: there is nothing to calibrate before the pick.
-        case Step::CalibrateNozzleTips: return Step::OptimizeForPick;
+        case Step::CalibrateNozzleTips: return plannedStep(step, Step::OptimizeForPick);
         case Step::OptimizeForPick:     optimize(true); return Step::PrerotateForPick;
         case Step::PrerotateForPick:    prerotate(true); return Step::Pick;
         case Step::Pick:                return plannedStep(step, Step::OptimizeForAlign);
@@ -703,6 +701,7 @@ JPJobProcessor::Step JPJobProcessor::plannedStep(Step step, Step after) {
     try {
         switch (step) {
             case Step::ChangeNozzleTips: changeNozzleTip(p); break;
+            case Step::CalibrateNozzleTips: calibrateNozzleTip(p); break;
             case Step::Pick:             pick(p); break;
             case Step::Place:            place(p); break;
             case Step::Align:            align(p); break;
@@ -746,6 +745,23 @@ JPJobProcessor::Step JPJobProcessor::plannedStep(Step step, Step after) {
         }
         return step;
     }
+}
+
+void JPJobProcessor::calibrateNozzleTip(Planned& p) {
+    // OpenPnP's CalibrateNozzleTips: a tip whose runout is to be compensated and is not yet measured
+    // on its nozzle (forgotten on a load, as its Auto Recalibration says) measured now.
+    std::string tipId, nozzleName = p.nozzleId, tipName;
+    for (const auto& n : m_machine.nozzles())
+        if (n.id == p.nozzleId) {
+            tipId = n.tipId;
+            nozzleName = n.name;
+        }
+    if (tipId.empty() || m_machine.tipCalibrated(p.nozzleId)) return;
+    for (const auto& [id, name] : m_machine.tips())
+        if (id == tipId) tipName = name;
+    status(format("Calibrate nozzle tip %s on nozzle %s", tipName.c_str(), nozzleName.c_str()));
+    std::string why;
+    if (!m_machine.calibrateTip(p.nozzleId, why)) fail(Source::NozzleTip, tipId, why);
 }
 
 JPJobProcessor::Step JPJobProcessor::changeNozzleTip(Planned& p) {

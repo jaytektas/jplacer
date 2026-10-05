@@ -706,6 +706,8 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                                                                JPNozzleTipConfig::RunoutCalibration::kMostDivisions);
                 t.runoutCalibration.misdetects = int(number(cal->attr("allow-misdetections")));
                 t.runoutCalibration.zOffset = lengthChild(*cal, "calibration-Z-offset");
+                if (!cal->attr("recalibration-trigger").empty()) t.runoutCalibration.recalibration = cal->attr("recalibration-trigger");
+                t.runoutCalibration.failHoming = cal->attr("fail-homing") != "false";
                 // Background calibration: its method, the smallest detail, and what it found.
                 JPNozzleTipConfig::Background& g = t.background;
                 if (!cal->attr("background-calibration-method").empty()) g.method = cal->attr("background-calibration-method");

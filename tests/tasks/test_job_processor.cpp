@@ -23,6 +23,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <map>
+#include <set>
 
 using namespace jf;
 namespace fs = std::filesystem;
@@ -99,6 +100,14 @@ public:
     }
     bool moveNozzle(const std::string&, std::array<std::optional<double>, 4> to, double, bool, std::string&) override {
         if (to[2]) lastZ = *to[2];
+        return true;
+    }
+    // Nozzle tips not yet calibrated (their runout to measure), by nozzle.
+    std::set<std::string> uncalibrated { "N1" };
+    bool tipCalibrated(const std::string& n) const override { return !uncalibrated.count(n); }
+    bool calibrateTip(const std::string& n, std::string&) override {
+        log.push_back("calibrate " + n);
+        uncalibrated.erase(n);
         return true;
     }
     // Contact probing: met 1.2 below where the nozzle was taken (its start offset, 1, above where it should): 0.2 low.
@@ -289,6 +298,10 @@ int main() {
     assert(std::find(machine.log.begin(), machine.log.end(), "tip N2 T2") != machine.log.end());
     assert(std::find(machine.log.begin(), machine.log.end(), "tip N1 T1") == machine.log.end());
     assert(std::count(machine.log.begin(), machine.log.end(), "fiducial") == 2);
+    // N1's tip not calibrated: calibrated once, before its first pick (OpenPnP's CalibrateNozzleTips).
+    assert(std::count(machine.log.begin(), machine.log.end(), "calibrate N1") == 1);
+    assert(std::find(machine.log.begin(), machine.log.end(), "calibrate N1")
+           < std::find(machine.log.begin(), machine.log.end(), "pick N1"));
     // Contact probing, each feeder and part probed once (OpenPnP's ContactProbeNozzle, "Once"): every pick
     // and place 0.2 lower than it would be; four probes (two feeders, two parts), the rest by the offsets kept.
     {

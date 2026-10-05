@@ -60,9 +60,19 @@ public:
     void autoFocusTest(JPCameraPanel& camera, const JPNozzleConfig& nozzle, std::function<void(double)> done);
     // OpenPnP's scripting, for its NozzleCalibration events (none: not run).
     void setScripting(std::shared_ptr<JPScripting> scripting) { m_scripting = std::move(scripting); }
-    // With the tip's background calibration on, what it found too (none when too few pictures).
-    void calibrateRunout(const std::string& nozzleId,
-                         std::function<void(const JPRunout&, const std::optional<JPBackgroundCalibration::Result>&)> done);
+    // A nozzle's tip's runout measured over the fixed camera, asking first
+    // (`ask`) or not (an automatic recalibration). `done` (main thread): whether
+    // it was measured, the runout, the background calibration's result (with
+    // the tip's on; none when too few pictures) and, failing, why.
+    using RunoutDone = std::function<void(bool ok, const JPRunout&, const std::optional<JPBackgroundCalibration::Result>&,
+                                          const std::string& why)>;
+    void calibrateRunout(const std::string& nozzleId, bool ask, RunoutDone done);
+    // The measuring itself, on the calling thread (a job's): NozzleCalibration's
+    // scripting events round it, the background calibrated along with it.
+    static std::optional<JPRunout> measureRunout(JPCell& cell, JPCameraFeed& feed, const JPNozzleConfig& nozzle,
+                                                 const JPNozzleTipConfig& tip, JPScripting* scripting, std::string& words,
+                                                 const std::function<void(const std::string&)>& progress,
+                                                 std::optional<JPBackgroundCalibration::Result>& background);
     // The settling test: a camera on a head moved (dx, dy) and back, or for a
     // fixed camera `tool` (a nozzle held over it, by hand) moved so, then let
     // settle, how it settled kept (JPSettleTrace). `done` (main thread): the trace.

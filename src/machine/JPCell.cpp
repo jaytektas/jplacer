@@ -1312,6 +1312,14 @@ std::map<std::string, std::string> JPCell::states() const {
     return m_states;
 }
 
+void JPCell::unhome() {
+    m_thread.post([this] {
+        if (!m_homed) return;
+        m_homed = false;
+        onHomed.emit(false);
+    });
+}
+
 void JPCell::home() {
     m_thread.post([this] {
         std::string why;
