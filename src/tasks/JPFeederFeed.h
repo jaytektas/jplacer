@@ -38,6 +38,11 @@ public:
     // pushed to the end at the feed speed, the take up actuator on, back to
     // the start, both off. Then up, and with vision the template looked for
     // again, for the pick.
+    // A loose part feeder's (OpenPnP's ReferenceLoosePartFeeder and
+    // AdvancedLoosePartFeeder): its pipeline run from its location, again
+    // from each part found, the part nearest the camera taken as the pick.
+    static bool looseFeed(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine, const OnMain& onMain,
+                          std::string& why);
     static bool pinFeed(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine, const OnMain& onMain,
                         std::string& why);
     // OpenPnP's postPick: an auto feeder's post-pick actuator actuated.

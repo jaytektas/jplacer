@@ -133,6 +133,20 @@ public:
         double partAngle = 0;
         double cameraX = 0, cameraY = 0;   // where the camera looking up is
     };
+    // The head camera over `at` (its X and Y), `pipeline` run on its picture
+    // and shown on the camera for `showMs`: its "results" stage's
+    // rectangles, each where it is on the machine and its angle as OpenPnP
+    // reads it from the picture (Y down, clockwise positive), and how far
+    // the camera sees either way of its centre. False (and why) when the
+    // pipeline fails or has no rectangles stage; none found is no failure.
+    struct SeenRects {
+        struct Rect {
+            double x = 0, y = 0, pixelAngle = 0;
+        };
+        std::vector<Rect> rects;
+        double            halfWidthMm = 0, halfHeightMm = 0;
+    };
+    virtual bool seeRects(const JPLocation& at, JPPipeline& pipeline, int showMs, SeenRects& seen, std::string& why) = 0;
     virtual bool alignPart(const std::string& nozzleId, const AlignRequest& request, AlignResult& result,
                            std::string& why) = 0;
     virtual bool locateHole(const JPLocation& nominal, double diameterMm, double searchMm, double parallaxDiameterMm,

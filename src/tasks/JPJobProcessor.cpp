@@ -27,6 +27,10 @@ inline namespace jf {
 
 namespace {
 
+// `mm` in `units`.
+double mmIn(JPLengthUnit units, double mm) { return JPLength(mm, JPLengthUnit::Millimeters).convertToUnits(units).value(); }
+
+
 using Failure = JPJobProcessor::Failure;
 using Source  = Failure::Source;
 
@@ -853,7 +857,11 @@ JPJobProcessor::Step JPJobProcessor::pick(Planned& p) {
         for (int i = 0; i < 1 + feederPickRetries && !picked; ++i) {
             std::optional<JPLocation> at;
             main([&] {
-                if (const JPFeeder* f = m_config.feeder(feederId)) at = f->pickLocation();
+                const JPFeeder* f = m_config.feeder(feederId);
+                if (!f) return;
+                at = f->pickLocation();
+                // Picked from on top of the part, as high as it is.
+                if (at && f->partHeightAbovePickLocation()) at = at->add(JPLocation(at->units(), 0, 0, mmIn(at->units(), j.partHeightMm), 0));
             });
             if (!at) {
                 pickWhy = "Feeder pick location must not be null";

@@ -303,6 +303,9 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
                 if (const JPFeeder* f = m_job.configuration().feeder(feederId)) {
                     at = f->pickLocation();
                     kind = f->typeName();
+                    // Picked from on top of the part, as high as it is.
+                    if (const JPPart* p = m_job.configuration().part(f->partId()); at && p && f->partHeightAbovePickLocation())
+                        at = at->add(JPLocation(p->height.units(), 0, 0, p->height.value(), 0));
                 }
             });
             if (!at) {
@@ -366,22 +369,33 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
             return m_jobRun->machineTask(std::move(work));
         });
     };
-    // A strip feeder's pipeline: edited on the head camera, or its default back.
+    // A feeder's pipeline (an advanced loose part feeder's training one too):
+    // edited on the head camera, or its default back.
     m_feeders->pipelineAction = [this](const std::string& feederId, const std::string& action) {
         JPFeeder* f = m_job.configuration().feeder(feederId);
         if (!f) return;
-        if (action == "resetPipeline") {
-            if (JPFeederPipelines::reset(*f)) m_job.configurationChanged();
+        const bool training = action.find("Training") != std::string::npos;
+        const std::string element = training ? "training-pipeline" : "pipeline";
+        if (action.rfind("reset", 0) == 0) {
+            if (JPFeederPipelines::reset(*f, element)) m_job.configurationChanged();
             return;
         }
-        std::optional<JPPipeline> held = JPFeederPipelines::of(*f);
+        // A loose part feeder's is titled by its part, which it must have.
+        const std::string kind = f->typeName();
+        const bool loose = kind == "ReferenceLoosePartFeeder" || kind == "AdvancedLoosePartFeeder";
+        if (loose && !m_job.configuration().part(f->partId())) {
+            JDialog::message("Error", "Feeder " + f->name() + " has no part.");
+            return;
+        }
+        std::optional<JPPipeline> held = JPFeederPipelines::of(*f, element);
         if (!held) return;
         auto pipeline = std::make_shared<JPPipeline>(std::move(*held));
         m_pipelines.useHeadCamera(*pipeline, m_job.configuration().directory());
-        JPFeederPipelines::configureForEditing(*f, *pipeline);
-        m_pipelines.edit(f->name() + " Pipeline", pipeline, [this, feederId](const JPPipeline& edited) {
+        JPFeederPipelines::configureForEditing(m_job.configuration(), *f, *pipeline);
+        const std::string title = (loose ? f->partId() : f->name()) + (training ? " Training Pipeline" : " Pipeline");
+        m_pipelines.edit(title, pipeline, [this, feederId, element](const JPPipeline& edited) {
             if (JPFeeder* kept = m_job.configuration().feeder(feederId)) {
-                kept->setPipeline(edited.toXml());
+                kept->setPipeline(edited.toXml(), element);
                 m_job.configurationChanged();
             }
         });

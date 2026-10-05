@@ -3,6 +3,8 @@
 
 #include "JPFeederFeed.h"
 
+#include "JPFeederPipelines.h"
+
 #include "JPPhotonFeeders.h"
 
 #include "common/JPlacerLog.h"
@@ -16,6 +18,10 @@
 inline namespace jf {
 
 namespace {
+
+// A loose part feeder's looks (OpenPnP's three), and how long its picture is
+// shown: the last look's, or (an advanced feeder) each look's.
+constexpr int kLooseLooks = 3, kLooseShownMs = 1000, kLooseAdvancedShownMs = 250;
 
 // A hole found farther than this from where it should be is not taken (mm).
 constexpr double kMostOffMm = 2.0;
@@ -152,6 +158,78 @@ bool JPFeederFeed::pinFeed(JPConfiguration& config, const std::string& feederId,
     return true;
 }
 
+bool JPFeederFeed::looseFeed(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine, const OnMain& onMain,
+                             std::string& why) {
+    auto main = [&onMain](const std::function<void()>& fn) {
+        if (onMain) onMain(fn);
+        else fn();
+    };
+    std::optional<JPPipeline> held;
+    JPLocation location(kMm);
+    std::string name;
+    bool advanced = false;
+    main([&] {
+        const JPFeeder* f = config.feeder(feederId);
+        if (!f) return;
+        held = JPFeederPipelines::of(*f);
+        if (held) {
+            held->context().configurationDirectory = config.directory();
+            JPFeederPipelines::configureForEditing(config, *f, *held);
+        }
+        location = f->location().convertToUnits(kMm);
+        name = f->name();
+        advanced = f->typeName() == "AdvancedLoosePartFeeder";
+    });
+    if (!held) {
+        why = "no feeder " + feederId;
+        return false;
+    }
+    // The part found nearest the camera, from where the camera is: where it
+    // is, at the feeder's Z, turned as OpenPnP turns it.
+    auto nearest = [&](const JPLocation& from, int showMs, std::optional<JPLocation>& pick) {
+        JPJobMachine::SeenRects seen;
+        if (!machine.seeRects(from, *held, showMs, seen, why)) return false;
+        pick.reset();
+        double best = INFINITY;
+        for (const JPJobMachine::SeenRects::Rect& r : seen.rects)
+            if (const double d = std::hypot(r.x - from.x(), r.y - from.y()); d < best) {
+                best = d;
+                const double angle = advanced ? -(r.pixelAngle + location.rotation()) : r.pixelAngle + location.rotation();
+                pick = JPLocation(kMm, r.x, r.y, location.z(), angle);
+            }
+        // An advanced feeder's pick within the camera's first view, else none (a pipeline drifting off).
+        if (advanced && pick
+            && (std::abs(location.x() - pick->x()) > seen.halfWidthMm || std::abs(location.y() - pick->y()) > seen.halfHeightMm))
+            pick.reset();
+        return true;
+    };
+    std::optional<JPLocation> pick;
+    if (advanced) {
+        // From its location, then from each part found (each look shown a moment).
+        pick = location;
+        for (int i = 0; i < kLooseLooks && pick; ++i)
+            if (!nearest(*pick, kLooseAdvancedShownMs, pick)) return false;
+        if (!pick) {
+            why = "Feeder " + name + ": No parts found.";
+            return false;
+        }
+    } else {
+        JPLocation from = location;
+        for (int i = 0; i < kLooseLooks; ++i) {
+            if (!nearest(from, i == kLooseLooks - 1 ? kLooseShownMs : 0, pick)) return false;
+            if (!pick) {
+                why = "Feeder " + name + ": No parts found.";
+                return false;
+            }
+            from = *pick;
+        }
+    }
+    main([&] {
+        if (JPFeeder* f = config.feeder(feederId)) f->foundPick = pick;
+    });
+    return true;
+}
+
 bool JPFeederFeed::feed(JPConfiguration& config, const std::string& feederId, const std::string& nozzleId,
                         JPJobMachine& machine, const OnMain& onMain, std::string& why, bool& empty) {
     auto main = [&onMain](const std::function<void()>& fn) {
@@ -186,6 +264,12 @@ bool JPFeederFeed::feed(JPConfiguration& config, const std::string& feederId, co
             pinned = f->typeName() == "ReferenceDragFeeder" || f->typeName() == "ReferenceLeverFeeder";
     });
     if (pinned) return pinFeed(config, feederId, machine, onMain, why);
+    bool loose = false;
+    main([&] {
+        if (const JPFeeder* f = config.feeder(feederId))
+            loose = f->typeName() == "ReferenceLoosePartFeeder" || f->typeName() == "AdvancedLoosePartFeeder";
+    });
+    if (loose) return looseFeed(config, feederId, machine, onMain, why);
     // A Schultz feeder: the nozzle over its pick place (at safe Z), its pre
     // pick actuator actuated with its feeder number.
     std::string schultz, schultzName;

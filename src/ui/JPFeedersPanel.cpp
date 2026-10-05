@@ -113,7 +113,8 @@ JPFeedersPanel::JPFeedersPanel(JSceneGraph& graph, JPConfiguration& config, doub
             if (programPhotonSlots) programPhotonSlots();
             return;
         }
-        if (action == "editPipeline" || action == "resetPipeline") {
+        if (action == "editPipeline" || action == "resetPipeline" || action == "editTrainingPipeline"
+            || action == "resetTrainingPipeline") {
             if (pipelineAction) pipelineAction(m_shown, action);
             return;
         }

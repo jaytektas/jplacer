@@ -4,7 +4,8 @@
 // A strip feeder's feed with vision, as OpenPnP's: the hole fed looked at
 // (the first one too, when picking starts mid-strip), the parts following
 // where it was found; with an extrapolation distance, holes in between
-// skipped; a hole not found is the strip's end.
+// skipped; a hole not found is the strip's end. Loose part feeders: the
+// part nearest the camera, looked at three times, picked from on top of it.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
@@ -46,6 +47,19 @@ public:
     bool discard(const std::string&, std::string&) override { return true; }
     std::vector<JPLocation> positioned;
     bool positionCamera(const JPLocation&, std::string&) override { return true; }
+    // A loose part feeder's looks: what each sees, in turn; where each looked from.
+    std::vector<SeenRects> sights;
+    std::vector<JPLocation> lookedFrom;
+    bool seeRects(const JPLocation& at, JPPipeline&, int, SeenRects& seen, std::string& why) override {
+        lookedFrom.push_back(at);
+        if (sights.empty()) {
+            why = "no camera";
+            return false;
+        }
+        seen = sights.front();
+        sights.erase(sights.begin());
+        return true;
+    }
     bool positionNozzle(const std::string&, const JPLocation& at, std::string&) override {
         positioned.push_back(at);
         return true;
@@ -474,5 +488,47 @@ int main() {
     config.feeder("S")->visionLocation.reset();   // looked up again: the list moved when "A" was added
     assert(!JPFeederFeed::feed(config, "S", "N1", machine, nullptr, why, empty));
     assert(empty && why == "Unable to locate reference hole. End of strip?");
+    // Loose part feeders: from the location, then from each part found, the
+    // part nearest the camera picked; an advanced one's angle the other way
+    // round, and a part outside its first view not taken.
+    {
+        for (const char* kind : { "ReferenceLoosePartFeeder", "AdvancedLoosePartFeeder" }) {
+            JPXmlElement le;
+            assert(JPXmlReader::parse(std::string(R"(<feeder class="org.openpnp.machine.reference.feeder.)") + kind
+                                          + R"(" id="LOOSE" name="Bin" enabled="true" part-id="R1"><location units="Millimeters" x="100.0" y="50.0" z="-20.0" rotation="10.0"/></feeder>)",
+                                      le, error));
+            config.addFeeder(JPFeeder::fromXml(le));
+            HoleMachine m;
+            JPJobMachine::SeenRects far, near1, near2;
+            far.halfWidthMm = far.halfHeightMm = near1.halfWidthMm = near1.halfHeightMm = near2.halfWidthMm = near2.halfHeightMm = 8;
+            // Two parts seen first; the one 1 mm off nearer than the one 3 mm off.
+            far.rects = { { 103, 50, 30 }, { 101, 50, 20 } };
+            near1.rects = { { 101.1, 50.1, 21 } };
+            near2.rects = { { 101.2, 50.2, 22 } };
+            m.sights = { far, near1, near2 };
+            bool empty = false;
+            assert(JPFeederFeed::feed(config, "LOOSE", "N1", m, nullptr, why, empty));
+            assert(m.lookedFrom.size() == 3 && near(m.lookedFrom[0].x(), 100) && near(m.lookedFrom[1].x(), 101));
+            const auto pick = config.feeder("LOOSE")->pickLocation();
+            const bool advanced = std::string(kind) == "AdvancedLoosePartFeeder";
+            assert(pick && near(pick->x(), 101.2) && near(pick->y(), 50.2) && near(pick->z(), -20));
+            assert(near(pick->rotation(), advanced ? -(22 + 10) : 22 + 10));
+            assert(config.feeder("LOOSE")->partHeightAbovePickLocation());
+            // Nothing seen: no parts.
+            HoleMachine none;
+            none.sights = { JPJobMachine::SeenRects {} };
+            assert(!JPFeederFeed::feed(config, "LOOSE", "N1", none, nullptr, why, empty) && why == "Feeder Bin: No parts found.");
+            // An advanced feeder's part outside its first view: none.
+            if (advanced) {
+                HoleMachine drift;
+                JPJobMachine::SeenRects off;
+                off.halfWidthMm = off.halfHeightMm = 8;
+                off.rects = { { 120, 50, 0 } };
+                drift.sights = { off };
+                assert(!JPFeederFeed::feed(config, "LOOSE", "N1", drift, nullptr, why, empty) && why == "Feeder Bin: No parts found.");
+            }
+            config.removeFeeder("LOOSE");
+        }
+    }
     return 0;
 }

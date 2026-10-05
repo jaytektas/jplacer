@@ -248,6 +248,8 @@ std::optional<JPLocation> JPFeeder::pickLocation() const {
         if (!photonUnconfigured().empty()) return std::nullopt;
         return locationOf("offset").offsetWithRotationFrom(*photonSlotLocation);
     }
+    // Where its pipeline found the part, else where it is.
+    if (kind == "ReferenceLoosePartFeeder" || kind == "AdvancedLoosePartFeeder") return foundPick ? *foundPick : location();
     if (kind == "ReferenceTubeFeeder" || kind == "ReferenceAutoFeeder" || kind == "RapidFeeder" || kind == "SchultzFeeder")
         return location();
     if (kind == "Neoden4Feeder") {
@@ -300,6 +302,11 @@ std::optional<JPLocation> JPFeeder::pickLocation() const {
     return std::nullopt;
 }
 
+bool JPFeeder::partHeightAbovePickLocation() const {
+    const std::string kind = typeName();
+    return kind == "ReferenceLoosePartFeeder" || kind == "AdvancedLoosePartFeeder";
+}
+
 bool JPFeeder::feed(std::string& why, bool* empty) {
     if (empty) *empty = false;
     const std::string kind = typeName();
@@ -331,9 +338,10 @@ bool JPFeeder::feed(std::string& why, bool* empty) {
         if (feedOptions() == FeedOptions::SkipNext) setFeedOptions(FeedOptions::Normal);
         return true;
     }
-    // A tube: nothing to do; a drag, lever, Rapid, Schultz, Neoden 4 or Photon feeder's feed is the machine's (JPFeederFeed). An auto feeder: its actuator, on a normal feed (JPFeederFeed).
+    // A tube: nothing to do; a drag, lever, Rapid, Schultz, Neoden 4, Photon or loose part feeder's feed is the machine's (JPFeederFeed). An auto feeder: its actuator, on a normal feed (JPFeederFeed).
     if (kind == "ReferenceTubeFeeder" || kind == "ReferenceDragFeeder" || kind == "ReferenceLeverFeeder" || kind == "RapidFeeder"
-        || kind == "SchultzFeeder" || kind == "Neoden4Feeder" || kind == "PhotonFeeder")
+        || kind == "SchultzFeeder" || kind == "Neoden4Feeder" || kind == "PhotonFeeder" || kind == "ReferenceLoosePartFeeder"
+        || kind == "AdvancedLoosePartFeeder")
         return true;
     if (kind == "ReferenceAutoFeeder") {
         m_actuate = feedOptions() == FeedOptions::Normal;
@@ -512,9 +520,9 @@ void JPFeeder::setAttributeAt(const std::string& path, const std::string& attrib
     n->set(attribute, value);
 }
 
-void JPFeeder::setPipeline(JPXmlNode pipeline) {
-    pipeline.name = "pipeline";
-    if (JPXmlNode* c = m_node.child("pipeline")) {
+void JPFeeder::setPipeline(JPXmlNode pipeline, const std::string& element) {
+    pipeline.name = element;
+    if (JPXmlNode* c = m_node.child(element)) {
         *c = std::move(pipeline);
         return;
     }

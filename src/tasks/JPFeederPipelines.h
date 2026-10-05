@@ -3,26 +3,28 @@
 
 #pragma once
 
+#include "model/JPConfiguration.h"
 #include "model/JPFeeder.h"
 #include "pipeline/JPPipeline.h"
 
 #include <optional>
+#include <string>
 
 inline namespace jf {
 
-// A feeder's vision pipeline, as OpenPnP's feeders keep theirs: the one it
-// holds (its kind's default when it holds none), the default put back, and
-// what the feeder sets on it before it runs (sizes in pixels through the
-// camera's scale).
+// A feeder's vision pipelines, as OpenPnP's feeders keep theirs: the one it
+// holds under `element` ("pipeline"; an advanced loose part feeder's
+// "training-pipeline" too), its kind's default when it holds none, the
+// default put back, and what the feeder sets on it before it runs.
 class JPFeederPipelines {
 public:
-    // Its pipeline; none for a kind without one.
-    static std::optional<JPPipeline> of(const JPFeeder& feeder);
+    // Its pipeline; none for a kind (or element) without one.
+    static std::optional<JPPipeline> of(const JPFeeder& feeder, const std::string& element = "pipeline");
     // Its kind's default back; false for a kind without one.
-    static bool reset(JPFeeder& feeder);
-    // What OpenPnP's editor sets on it (ReferenceStripFeederConfigurationWizard's
-    // getCvPipeline), the camera's scale and size in its context.
-    static void configureForEditing(const JPFeeder& feeder, JPPipeline& pipeline);
+    static bool reset(JPFeeder& feeder, const std::string& element = "pipeline");
+    // What OpenPnP's editor sets on it (a strip feeder's sizes in pixels, a
+    // loose part feeder's part), the camera's scale and size in its context.
+    static void configureForEditing(const JPConfiguration& config, const JPFeeder& feeder, JPPipeline& pipeline);
 };
 
 } // inline namespace jf

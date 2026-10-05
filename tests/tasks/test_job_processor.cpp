@@ -72,6 +72,10 @@ public:
     bool discard(const std::string& n, std::string&) override { log.push_back("discard " + n); return true; }
     bool positionNozzle(const std::string&, const JPLocation&, std::string&) override { return true; }
     bool positionCamera(const JPLocation&, std::string&) override { return true; }
+    bool seeRects(const JPLocation&, JPPipeline&, int, SeenRects&, std::string& why) override {
+        why = "no camera";
+        return false;
+    }
     bool actuate(const std::string& name, double value, std::string&) override {
         actuated.push_back(name + "=" + std::to_string(int(value)));
         return true;

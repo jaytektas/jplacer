@@ -12,8 +12,10 @@
 #include "tasks/JPFeederPipelines.h"
 
 #include <cmath>
+#include <filesystem>
 
 using namespace jf;
+namespace fs = std::filesystem;
 
 int main() {
     JPFeeder strip = JPFeeder::create("org.openpnp.machine.reference.feeder.ReferenceStripFeeder", "R1");
@@ -38,7 +40,7 @@ int main() {
     edited.context().pixelsPerMmX = edited.context().pixelsPerMmY = 20;
     edited.context().cameraWidth = 640;
     edited.context().cameraHeight = 480;
-    JPFeederPipelines::configureForEditing(strip, edited);
+    JPFeederPipelines::configureForEditing(JPConfiguration(fs::temp_directory_path().string()), strip, edited);
     assert(std::get<long>(edited.property("DetectFixedCirclesHough.minDiameter")->value) == 27);
     assert(std::get<long>(edited.property("DetectFixedCirclesHough.maxDiameter")->value) == 33);
     assert(std::get<long>(edited.property("DetectFixedCirclesHough.minDistance")->value) == 72);

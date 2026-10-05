@@ -96,6 +96,10 @@ public:
     // Where the next part is picked, for the kinds jplacer works out
     // (OpenPnP's getPickLocation); none for the others.
     std::optional<JPLocation> pickLocation() const;
+    // OpenPnP's isPartHeightAbovePickLocation: its pick location is the
+    // surface the parts lie on (a loose part feeder's), the part's height
+    // added for the pick.
+    bool partHeightAbovePickLocation() const;
     // A feed (OpenPnP's feed, but for a strip's vision check): the count
     // moved on as the feed option says. False, and why, when it cannot be
     // fed; `empty` says when that is because it is empty (OpenPnP's
@@ -129,6 +133,9 @@ public:
     // those are left.
     std::optional<JPLocation> templateOffset, nextPartPick;
     int                       partsFed = 0;
+    // A loose part feeder, while jplacer runs: where its pipeline last found
+    // the part to pick (none: its location).
+    std::optional<JPLocation> foundPick;
     // OpenPnP's resetVisionOffsets.
     void resetVisionOffsets();
     // Its template image's file (OpenPnP's resource file of the vision's
@@ -163,10 +170,11 @@ public:
     void        setLocationOf(const std::string& element, const JPLocation& l);
     // A child element's text (OpenPnP's <parallax-angle>0.0</parallax-angle>).
     std::string childText(const std::string& element, const std::string& def = {}) const;
-    // Its vision pipeline as OpenPnP wrote it (<pipeline><stages>…), or null;
-    // and one put in its place (named "pipeline", where it was).
-    const JPXmlNode* pipeline() const { return m_node.child("pipeline"); }
-    void             setPipeline(JPXmlNode pipeline);
+    // A vision pipeline as OpenPnP wrote it (<pipeline><stages>…, or
+    // another element: an advanced loose part feeder's <training-pipeline>),
+    // or null; and one put in its place (named `element`, where it was).
+    const JPXmlNode* pipeline(const std::string& element = "pipeline") const { return m_node.child(element); }
+    void             setPipeline(JPXmlNode pipeline, const std::string& element = "pipeline");
     void        setChildText(const std::string& element, const std::string& value);
     // An attribute of a child element, by its path ("vision/area-of-interest");
     // set, the elements are made when missing.

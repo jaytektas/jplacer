@@ -43,6 +43,7 @@ public:
     void holding(const std::string& nozzleId, const std::string& partId) override;
     bool positionNozzle(const std::string& nozzleId, const JPLocation& at, std::string& why) override;
     bool positionCamera(const JPLocation& at, std::string& why) override;
+    bool seeRects(const JPLocation& at, JPPipeline& pipeline, int showMs, SeenRects& seen, std::string& why) override;
     bool actuate(const std::string& actuatorName, double value, std::string& why) override;
     bool actuateText(const std::string& actuatorName, const std::string& value, std::string& why) override;
     bool readActuator(const std::string& actuatorName, const std::string& parameter, std::string& value,
@@ -71,6 +72,12 @@ private:
     void prepare(JPCell& cell, JPCameraFeed& feed);
     // The camera to (viewX, viewY), one settled look for a round mark of
     // `diameterMm` expected at (x, y) within `searchMm`: where it is.
+    // The head camera over (viewX, viewY), `pipeline` given its pictures,
+    // scale and places there; its calibration and feed.
+    bool headCameraPipeline(double viewX, double viewY, JPPipeline& pipeline, JPCameraCalibration& cal, JPCameraFeed*& feed,
+                            std::string& why);
+    // The pipeline's working picture on a camera's view for `ms`, `text` over it.
+    void showWorking(JPPipeline& pipeline, const JPCameraFeed* feed, const std::string& text, int ms);
     // The fiducial found from (viewX, viewY) by its OpenPnP pipeline, nearest (x, y) of its results.
     bool lookByPipeline(double viewX, double viewY, double x, double y, const FiducialLook& lookAt, double& foundX,
                         double& foundY, std::string& why);

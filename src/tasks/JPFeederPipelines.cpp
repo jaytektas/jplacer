@@ -3,6 +3,7 @@
 
 #include "JPFeederPipelines.h"
 
+#include "model/JPLength.h"
 #include "openpnp/JPXmlReader.h"
 #include "openpnp/JPXmlWriter.h"
 #include "pipeline/JPDefaultPipelines.h"
@@ -18,7 +19,17 @@ constexpr double kHoleDiameterMm = 1.5, kHolePitchMm = 4.0;
 // OpenPnP's tolerances on them: the least and most a hole may measure, the least pitch.
 constexpr double kLeast = 0.9, kMost = 1.1;
 
-bool isStrip(const JPFeeder& f) { return JPFeeder::simpleName(f.className()) == "ReferenceStripFeeder"; }
+// The default of a kind's pipeline element; null when it has none.
+const std::string* defaultOf(const JPFeeder& f, const std::string& element) {
+    const std::string kind = JPFeeder::simpleName(f.className());
+    if (element == "pipeline") {
+        if (kind == "ReferenceStripFeeder") return &JPDefaultPipelines::stripFeeder();
+        if (kind == "ReferenceLoosePartFeeder") return &JPDefaultPipelines::loosePartFeeder();
+        if (kind == "AdvancedLoosePartFeeder") return &JPDefaultPipelines::advancedLoosePartFeeder();
+    }
+    if (element == "training-pipeline" && kind == "AdvancedLoosePartFeeder") return &JPDefaultPipelines::advancedLoosePartFeederTraining();
+    return nullptr;
+}
 
 std::optional<JPPipeline> parse(const std::string& xml) {
     JPXmlElement root;
@@ -29,24 +40,42 @@ std::optional<JPPipeline> parse(const std::string& xml) {
 
 } // namespace
 
-std::optional<JPPipeline> JPFeederPipelines::of(const JPFeeder& feeder) {
-    if (!isStrip(feeder)) return std::nullopt;
-    if (const JPXmlNode* p = feeder.pipeline())
+std::optional<JPPipeline> JPFeederPipelines::of(const JPFeeder& feeder, const std::string& element) {
+    const std::string* def = defaultOf(feeder, element);
+    if (!def) return std::nullopt;
+    if (const JPXmlNode* p = feeder.pipeline(element))
         if (auto held = parse(JPXmlWriter::text(*p))) return held;
-    return parse(JPDefaultPipelines::stripFeeder());
+    return parse(*def);
 }
 
-bool JPFeederPipelines::reset(JPFeeder& feeder) {
-    if (!isStrip(feeder)) return false;
-    const std::optional<JPPipeline> fresh = parse(JPDefaultPipelines::stripFeeder());
+bool JPFeederPipelines::reset(JPFeeder& feeder, const std::string& element) {
+    const std::string* def = defaultOf(feeder, element);
+    if (!def) return false;
+    const std::optional<JPPipeline> fresh = parse(*def);
     if (!fresh) return false;
-    feeder.setPipeline(fresh->toXml());
+    feeder.setPipeline(fresh->toXml(), element);
     return true;
 }
 
-void JPFeederPipelines::configureForEditing(const JPFeeder& feeder, JPPipeline& pipeline) {
-    if (!isStrip(feeder)) return;
+void JPFeederPipelines::configureForEditing(const JPConfiguration& config, const JPFeeder& feeder, JPPipeline& pipeline) {
+    const std::string kind = JPFeeder::simpleName(feeder.className());
     const auto& ctx = pipeline.context();
+    if (kind == "ReferenceLoosePartFeeder" || kind == "AdvancedLoosePartFeeder") {
+        // Its part: what its template is named after, and its package's body.
+        JPPipelineValue::Part part;
+        part.id = feeder.partId();
+        if (const JPPart* p = config.part(part.id))
+            if (const JPPackage* pkg = config.package(p->packageId)) {
+                part.packageId = pkg->id;
+                part.hasFootprint = true;
+                const double mm = JPLength(1, pkg->footprint.units).convertToUnits(JPLengthUnit::Millimeters).value();
+                part.bodyWidthMm = pkg->footprint.bodyWidth * mm;
+                part.bodyHeightMm = pkg->footprint.bodyHeight * mm;
+            }
+        pipeline.setProperty("part", JPPipelineValue { part });
+        return;
+    }
+    if (kind != "ReferenceStripFeeder") return;
     const double px = (ctx.pixelsPerMmX + ctx.pixelsPerMmY) / 2;
     if (px > 0) {
         pipeline.setProperty("DetectFixedCirclesHough.minDistance", JPPipelineValue { long(kHolePitchMm * kLeast * px) });

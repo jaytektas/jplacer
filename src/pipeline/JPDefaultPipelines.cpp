@@ -22,6 +22,106 @@ const std::string& JPDefaultPipelines::stripFeeder() {
     return xml;
 }
 
+const std::string& JPDefaultPipelines::loosePartFeeder() {
+    static const std::string xml = R"PIPELINE(<!-- 
+	Theory of operation:
+	1. Threshold for bright spots. This captures the part's electrodes.
+	2. Threshold for dark spots, and invert them. This captures the part's body.
+	3. Add the two results above together to get both electrodes and body but no background.
+	4. Blur the result to re-join electrodes and bodies.
+	5. Find contours and filter out small ones. This removes electrodes without bodies - upsidedown
+	resistors.
+	6. Get bounding boxes for contours and orient them to landscape. This "lays down" rectangular
+	components.
+	7. Negate the angle of the results, as MinAreaRect renders angles that are opposite from what
+	OpenPnP expects. 
+ -->
+<cv-pipeline>
+   <stages>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ImageCapture" name="capture" enabled="true" settle-first="true"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ConvertColor" name="gray" enabled="true" conversion="Bgr2Gray"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.Threshold" name="highlights" enabled="true" threshold="200" auto="false" invert="false"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ImageRecall" name="recall1" enabled="true" image-stage-name="gray"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.Threshold" name="lowlights" enabled="true" threshold="120" auto="false" invert="true"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.Add" name="combined" enabled="true" first-stage-name="highlights" second-stage-name="lowlights"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.BlurMedian" name="merged" enabled="true" kernel-size="9"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.FindContours" name="contours" enabled="true" retrieval-mode="External" approximation-method="Simple"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.FilterContours" name="filtered_contours" enabled="true" contours-stage-name="contours" min-area="500.0" max-area="1500.0"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.MinAreaRectContours" name="rects" enabled="true" contours-stage-name="filtered_contours"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.OrientRotatedRects" name="oriented_rects" enabled="true" rotated-rects-stage-name="rects" orientation="Landscape" negate-angle="false"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.OrientRotatedRects" name="results" enabled="true" rotated-rects-stage-name="rects" orientation="Landscape" negate-angle="true"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ImageRecall" name="recall2" enabled="true" image-stage-name="capture"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.DrawContours" name="draw_contours" enabled="true" contours-stage-name="filtered_contours" thickness="2" index="-1"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.DrawRotatedRects" name="draw_results" enabled="true" rotated-rects-stage-name="oriented_rects" thickness="2" draw-rect-center="true" rect-center-radius="3" show-orientation="true">
+         <color r="51" g="255" b="51" a="255"/>
+      </cv-stage>
+   </stages>
+</cv-pipeline>)PIPELINE";
+    return xml;
+}
+
+const std::string& JPDefaultPipelines::advancedLoosePartFeeder() {
+    static const std::string xml = R"PIPELINE(<cv-pipeline>
+   <stages>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ImageRead" name="00" enabled="false" file="_openpnp/vision/openpnp-pipeline-tests"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ImageCapture" name="0" enabled="true" settle-first="true"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.BlurGaussian" name="1" enabled="true" kernel-size="19"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ConvertColor" name="19" enabled="true" conversion="Bgr2HsvFull"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.Normalize" name="2" enabled="true"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.MaskHsv" name="3" enabled="true" hue-min="89" hue-max="115" saturation-min="20" saturation-max="95" value-min="50" value-max="130" invert="false"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ConvertColor" name="4" enabled="true" conversion="Bgr2Gray"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.Threshold" name="5" enabled="true" threshold="8" auto="false" invert="false"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.FindContours" name="6" enabled="true" retrieval-mode="List" approximation-method="None"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.FilterContours" name="7" enabled="true" contours-stage-name="6" min-area="1000.0" max-area="100000.0"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.MinAreaRectContours" name="8" enabled="true" contours-stage-name="7"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ReadPartTemplateImage" name="14" enabled="true" template-file="" extension=".png" prefix="top-" log="false"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ConvertColor" name="10" enabled="true" conversion="Bgr2Gray"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.Normalize" name="16" enabled="true"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ComposeResult" name="13" enabled="true" image-stage-name="16" model-stage-name="14"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ImageRecall" name="11" enabled="true" image-stage-name="0"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.MaskModel" name="12" enabled="true" model-stage-name="7" is-mask="false">
+         <color r="0" g="0" b="0" a="255"/>
+      </cv-stage>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ClosestModel" name="18" enabled="true" log="true" model-stage-name="8" filter-stage-name="13" tolerance="0.2" scale="1.0"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.MaskModel" name="15" enabled="true" model-stage-name="18" is-mask="false">
+         <color r="0" g="0" b="0" a="255"/>
+      </cv-stage>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ConvertColor" name="9" enabled="true" conversion="Bgr2Gray"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.Normalize" name="17" enabled="true"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.MatchPartTemplate" name="results" enabled="true" template-stage-name="13" model-stage-name="18" threshold="0.2"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ConvertColor" name="21" enabled="true" conversion="Gray2Bgr"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.DrawRotatedRects" name="20" enabled="true" rotated-rects-stage-name="results" thickness="1" draw-rect-center="false" rect-center-radius="20"/>
+   </stages>
+</cv-pipeline>)PIPELINE";
+    return xml;
+}
+
+const std::string& JPDefaultPipelines::advancedLoosePartFeederTraining() {
+    static const std::string xml = R"PIPELINE(<cv-pipeline>
+   <stages>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ImageRead" name="00" enabled="false" file="/home/dz/develop/openpnp/_openpnp/vision/openpnp-pipeline-tests/TO252/original_6313736782598297700.png"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ImageCapture" name="0" enabled="true" settle-first="true"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ImageWriteDebug" name="1" enabled="true" prefix="original_" suffix=".png"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.BlurGaussian" name="2" enabled="true" kernel-size="5"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ConvertColor" name="3" enabled="true" conversion="Bgr2HsvFull"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.Normalize" name="4" enabled="true"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.MaskHsv" name="5" enabled="true" hue-min="90" hue-max="120" saturation-min="45" saturation-max="100" value-min="45" value-max="120" invert="false"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ConvertColor" name="6" enabled="true" conversion="Bgr2Gray"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.Threshold" name="7" enabled="true" threshold="80" auto="true" invert="false"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.FindContours" name="8" enabled="true" retrieval-mode="List" approximation-method="None"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.FilterContours" name="9" enabled="true" contours-stage-name="8" min-area="3000.0" max-area="200000.0"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.MinAreaRectContours" name="10" enabled="true" contours-stage-name="9"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ImageRecall" name="11" enabled="true" image-stage-name="0"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.MaskModel" name="12" enabled="true" model-stage-name="9" is-mask="false">
+         <color r="0" g="0" b="0" a="255"/>
+      </cv-stage>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.CreateModelTemplateImage" name="14" enabled="true" model-stage-name="10" degrees="0.0"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.WritePartTemplateImage" name="13" enabled="true" template-file="" extension=".png" prefix="top-" as-package="false"/>
+   </stages>
+</cv-pipeline>)PIPELINE";
+    return xml;
+}
+
 const std::string& JPDefaultPipelines::bottomVision() {
     static const std::string xml = R"PIPELINE(<cv-pipeline>
     <stages>

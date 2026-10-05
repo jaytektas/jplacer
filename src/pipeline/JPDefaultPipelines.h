@@ -13,6 +13,12 @@ class JPDefaultPipelines {
 public:
     // ReferenceStripFeeder-DefaultPipeline.xml.
     static const std::string& stripFeeder();
+    // ReferenceLoosePartFeeder-DefaultPipeline.xml.
+    static const std::string& loosePartFeeder();
+    // AdvancedLoosePartFeeder-DefaultPipeline.xml.
+    static const std::string& advancedLoosePartFeeder();
+    // AdvancedLoosePartFeeder-DefaultTrainingPipeline.xml.
+    static const std::string& advancedLoosePartFeederTraining();
     // ReferenceBottomVision-DefaultPipeline.xml (createStockPipeline("Default")).
     static const std::string& bottomVision();
     // ReferenceFiducialLocator-DefaultPipeline.xml (createStockPipeline("Default")).

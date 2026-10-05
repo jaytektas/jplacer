@@ -163,6 +163,35 @@ void stripForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeed
             "it's past the reference hole.");
 }
 
+// OpenPnP's ReferenceLoosePartFeederConfigurationWizard: its pipeline.
+void looseForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f) {
+    general(add, config, f, false);
+    pickLocation(add, f);
+    add.group("Vision");
+    add.row("");
+    add.button("editPipeline", "Edit Pipeline...");
+    add.button("resetPipeline", "Reset Pipeline");
+    add.end();
+}
+
+// OpenPnP's AdvancedLoosePartFeederConfigurationWizard: its warning first,
+// then the feed and training pipelines.
+void advancedLooseForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f) {
+    add.group("");
+    add.note("Warning: This feeder is incomplete and experimental. Use at your own risk.");
+    general(add, config, f, false);
+    pickLocation(add, f);
+    add.group("Vision");
+    add.row("Feed Pipeline");
+    add.button("editPipeline", "Edit...");
+    add.button("resetPipeline", "Reset");
+    add.end();
+    add.row("Training Pipeline");
+    add.button("editTrainingPipeline", "Edit...");
+    add.button("resetTrainingPipeline", "Reset");
+    add.end();
+}
+
 void trayForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f,
               std::function<void(const std::string&)> warn) {
     general(add, config, f, false);
@@ -704,6 +733,10 @@ JPSetupProperties::Form JPFeederForms::forFeeder(JPConfiguration& config, const 
         photonForm(add, config, f, options);
     } else if (kind == "RapidFeeder") {
         rapidForm(add, config, f);
+    } else if (kind == "ReferenceLoosePartFeeder") {
+        looseForm(add, config, f);
+    } else if (kind == "AdvancedLoosePartFeeder") {
+        advancedLooseForm(add, config, f);
     } else if (kind == "ReferenceDragFeeder" || kind == "ReferenceLeverFeeder") {
         pinForm(add, config, f, options, kind == "ReferenceLeverFeeder");
     } else {

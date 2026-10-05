@@ -250,6 +250,27 @@ yet.
 
 <!-- src: src/setup/JPFeederForms.cpp (rapidForm); src/tasks/JPFeederFeed.cpp (feed, kRapidActuator) -->
 
+### Loose part feeders
+
+A **ReferenceLoosePartFeeder** and an **AdvancedLoosePartFeeder** hold parts lying loose in a bin. Their
+**Location** is over the bin, its Z the bin's floor (the part's height is added for the pick, as the part
+lies on it), its rotation added to the part's. To feed, the head camera looks over the location and runs
+the feeder's OpenPnP pipeline (see [Pipeline Editor](pipeline-editor.md)); its "results" are the parts it
+found, and the one nearest the camera's centre is looked at again from over it, three looks in all, and
+picked where the last look found it. None found: "Feeder Bin: No parts found." The pipeline's picture is
+shown on the camera's view.
+
+- **Vision** (loose part feeder): **Edit Pipeline...** and **Reset Pipeline** (OpenPnP's default back).
+- An advanced loose part feeder says it is experimental, as OpenPnP's does, and keeps two pipelines:
+  **Feed Pipeline** (what finds the parts) and **Training Pipeline** (for making a part's template
+  image), each with **Edit...** and **Reset**. Its part's angle is taken the other way round, as OpenPnP
+  takes it, and a part found outside the camera's first view over the location is not picked.
+
+The editor needs the feeder's part ("Feeder Bin has no part."): its pipelines are titled by it, and its
+stages can read and write the part's template image.
+
+<!-- src: src/setup/JPFeederForms.cpp (looseForm, advancedLooseForm); src/tasks/JPFeederFeed.cpp (looseFeed); src/tasks/JPFeederPipelines.cpp; src/model/JPFeeder.cpp (pickLocation, partHeightAbovePickLocation); src/app/JPlacerJobMachine.cpp (seeRects); src/app/JPlacerOpenPnpTabs.cpp (pipelineAction) -->
+
 ### The other kinds
 
 Their **General Settings** and **Pick Location**; their own settings are kept as OpenPnP wrote them.
