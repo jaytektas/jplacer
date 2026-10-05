@@ -140,6 +140,11 @@ int main() {
     assert(std::abs(cal->lensK1 - kLensK1) < 0.005 && cal->width == 640 && cal->height == 480);
     assert(std::abs(cal->lensK2 - 0.03) < 0.01 && cal->leftOut == 0);
     assert(std::abs(cal->lensCentreX - 336) < 3 && std::abs(cal->lensCentreY - 252) < 3);
+    // The middle looked where the head was, 0.4, -0.3 from the mark (taken as where the camera's place put it).
+    if (!(cal->looked && std::abs(cal->lookedX - 0.4) < 0.01 && std::abs(cal->lookedY + 0.3) < 0.01))
+        std::fprintf(stderr, "looked %g, %g\n", cal->lookedX, cal->lookedY);
+    assert(cal->looked && std::abs(cal->lookedX - 0.4) < 0.01 && std::abs(cal->lookedY + 0.3) < 0.01);
+    assert(JPCameraCalibration::fromJson(cal->toJson()).looked);
     // It went back where it began.
     const auto base = cell.jogBase();
     assert(std::abs(base.at("X") - (kMarkX + 0.4)) < 1e-6 && std::abs(base.at("Y") - (kMarkY - 0.3)) < 1e-6);

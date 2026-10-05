@@ -61,8 +61,21 @@ JPCameraCalibration JPCameraCalibration::atHeight(double atZ) const {
     JPCameraCalibration at = *this;
     const double k = scaleAt(atZ) / scale();
     for (double& m : at.pxPerMm) m *= k;
-    at.z = atZ;   // the same camera, seen from the new height: cameraZ and the focal length stay
+    // Leaning, it looks further across at another height.
+    at.viewShiftX += leanX() * (atZ - z);
+    at.viewShiftY += leanY() * (atZ - z);
+    at.lookedX += leanX() * (atZ - z);
+    at.lookedY += leanY() * (atZ - z);
+    at.z = atZ;   // the same camera, seen from the new height: cameraZ, the focal length and the lean stay
     return at;
+}
+
+double JPCameraCalibration::tiltAboutXDeg() const {
+    return -std::atan(leanY()) * 180 / M_PI;
+}
+
+double JPCameraCalibration::tiltAboutYDeg() const {
+    return std::atan(leanX()) * 180 / M_PI;
 }
 
 bool JPCameraCalibration::estimateObjectZ(double px1, double py1, double px2, double py2, double movedX, double movedY,
@@ -116,8 +129,8 @@ bool JPCameraCalibration::mirrored(bool lookingUp) const {
 bool JPCameraCalibration::machinePoint(double px, double py, double viewX, double viewY, double& x, double& y) const {
     double dx, dy;
     if (!mmForPixels(px - width / 2.0, py - height / 2.0, dx, dy)) return false;
-    x = viewX - dx;
-    y = viewY - dy;
+    x = viewX + viewShiftX - dx;
+    y = viewY + viewShiftY - dy;
     return true;
 }
 
@@ -134,7 +147,7 @@ bool JPCameraCalibration::pixelFor(double x, double y, double viewX, double view
     const JPLens l = lens();
     double u0x, u0y;
     l.undistort(width / 2.0, height / 2.0, u0x, u0y);
-    const double dx = viewX - x, dy = viewY - y;
+    const double dx = viewX + viewShiftX - x, dy = viewY + viewShiftY - y;
     const double ux = u0x + pxPerMm[0] * dx + pxPerMm[1] * dy, uy = u0y + pxPerMm[2] * dx + pxPerMm[3] * dy;
     l.distort(ux, uy, px, py);
     // Far outside the picture the lens's bending folds back on itself and
@@ -176,6 +189,16 @@ JPCameraCalibration JPCameraCalibration::fromJson(const JJson& j) {
     c.secondZ = j["second"]["z"].number();
     c.secondScale = j["second"]["scale"].number();
     c.secondRmsPx = j["second"]["rmsPx"].number();
+    if (j["looked"].isObject()) {
+        c.looked = true;
+        c.lookedX = j["looked"]["x"].number();
+        c.lookedY = j["looked"]["y"].number();
+    }
+    if (j["second"]["looked"].isObject()) {
+        c.secondLooked = true;
+        c.secondLookedX = j["second"]["looked"]["x"].number();
+        c.secondLookedY = j["second"]["looked"]["y"].number();
+    }
     return c;
 }
 
@@ -212,6 +235,14 @@ JJson JPCameraCalibration::toJson() const {
         j["second"]["z"] = secondZ;
         j["second"]["scale"] = secondScale;
         j["second"]["rmsPx"] = secondRmsPx;
+        if (secondLooked) {
+            j["second"]["looked"]["x"] = secondLookedX;
+            j["second"]["looked"]["y"] = secondLookedY;
+        }
+    }
+    if (looked) {
+        j["looked"]["x"] = lookedX;
+        j["looked"]["y"] = lookedY;
     }
     return j;
 }

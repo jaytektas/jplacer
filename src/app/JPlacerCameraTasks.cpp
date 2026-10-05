@@ -192,6 +192,9 @@ void JPlacerCameraTasks::secondHeight(JPCameraCalibration& first, const JPCamera
     first.secondZ = second.z;
     first.secondScale = second.scale();
     first.secondRmsPx = second.rmsPx;
+    first.secondLooked = second.looked;
+    first.secondLookedX = second.lookedX;
+    first.secondLookedY = second.lookedY;
 }
 
 std::string JPlacerCameraTasks::calibrated(const JPCameraConfig& cam, const JPCameraCalibration& c) {

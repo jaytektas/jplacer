@@ -139,6 +139,27 @@ int main() {
             JPCameraCalibration one = two;
             one.secondScale = 0;   // one height: as it is
             assert(one.atHeight(6).scale() == one.scale());
+            // Leaning: the middle looked 0.1 mm further along X and 0.2 back along Y
+            // 10 mm nearer. Tipped about Y towards X, about X towards +Y.
+            JPCameraCalibration lean = two;
+            lean.looked = lean.secondLooked = true;
+            lean.width = 640;
+            lean.height = 480;
+            lean.lookedX = 0.5;
+            lean.secondLookedX = 0.6;
+            lean.secondLookedY = -0.2;
+            assert(lean.leans() && std::abs(lean.leanX() - 0.01) < 1e-12 && std::abs(lean.leanY() + 0.02) < 1e-12);
+            assert(std::abs(lean.tiltAboutYDeg() - std::atan(0.01) * 180 / M_PI) < 1e-9);
+            assert(std::abs(lean.tiltAboutXDeg() - std::atan(0.02) * 180 / M_PI) < 1e-9);
+            // 30 mm up from the first height: it looks 0.3 further along X and 0.6 back along Y.
+            const JPCameraCalibration up30 = lean.atHeight(6);
+            assert(std::abs(up30.viewShiftX - 0.3) < 1e-9 && std::abs(up30.viewShiftY + 0.6) < 1e-9);
+            assert(std::abs(up30.lookedX - 0.8) < 1e-9 && std::abs(up30.leanX() - 0.01) < 1e-12);
+            double mx, my, px, py;
+            assert(up30.machinePoint(320, 240, 100, 50, mx, my) && std::abs(mx - 100.3) < 1e-9 && std::abs(my - 49.4) < 1e-9);
+            assert(up30.pixelFor(mx, my, 100, 50, px, py));
+            const JPCameraCalibration back2 = JPCameraCalibration::fromJson(lean.toJson());
+            assert(back2.leans() && std::abs(back2.secondLookedY + 0.2) < 1e-12);
         }
         // Kept and read back.
         const JPCameraCalibration back = JPCameraCalibration::fromJson(two.toJson());

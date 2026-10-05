@@ -279,6 +279,19 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
     c.leftOut = leftOut;
     c.unmeasured = unmeasured;
     c.when    = now();
+    // Where the picture's middle looked: the mark (where the camera's place
+    // put it) was at the fit's centre with no move, so the middle saw
+    // M^-1 (centre - middle) from it (straightened pixels).
+    {
+        double u0x, u0y;
+        c.lens().undistort(img.width / 2.0, img.height / 2.0, u0x, u0y);
+        const auto& m = fit->pxPerMm;
+        const double d = m[0] * m[3] - m[1] * m[2];
+        const double ex = fit->centreX - u0x, ey = fit->centreY - u0y;
+        c.lookedX = (m[3] * ex - m[1] * ey) / d;
+        c.lookedY = (m[0] * ey - m[2] * ex) / d;
+        c.looked = true;
+    }
     // Each measurement against the final fit, for the results' plots.
     c.outlierPx = limit;
     const auto res = JPCalibrationFit::residualVectorsPx(grid, *fit, img.width, img.height);

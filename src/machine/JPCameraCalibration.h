@@ -52,6 +52,16 @@ struct JPCameraCalibration {
     // where that is (cameraZ), its focal length, and the scale at any height.
     // 0 when measured at one height only.
     double                secondZ = 0, secondScale = 0, secondRmsPx = 0;
+    // Where the picture's middle looked, against where the camera's place
+    // says (the mark was put there): mm, at `z` and at `secondZ`; `looked`
+    // when measured (an older calibration was not). The two heights apart
+    // they give the camera's tilt (OpenPnP's Camera Mounting Error about X
+    // and Y): the line it looks along leans by lean() mm across a mm of height.
+    bool                  looked = false, secondLooked = false;
+    double                lookedX = 0, lookedY = 0, secondLookedX = 0, secondLookedY = 0;
+    // What atHeight moved the camera's view by: the lean over the height
+    // from the one measured (not kept).
+    double                viewShiftX = 0, viewShiftY = 0;
 
     // The scale at the height measured (px/mm, both ways together).
     double scale() const;
@@ -64,9 +74,19 @@ struct JPCameraCalibration {
     double cameraZ() const;
     double focalPx() const;
     double scaleAt(double atZ) const;
-    // This calibration for what is at height `atZ`: its scale there (with two
-    // heights; else as it is).
+    // This calibration for what is at height `atZ`: its scale there, and
+    // where it looks there, as the camera leans (with two heights; else as
+    // it is).
     JPCameraCalibration atHeight(double atZ) const;
+    // Leaning: two heights, where the middle looked measured at both.
+    bool   leans() const { return twoHeights() && looked && secondLooked; }
+    double leanX() const { return leans() ? (secondLookedX - lookedX) / (secondZ - z) : 0; }
+    double leanY() const { return leans() ? (secondLookedY - lookedY) / (secondZ - z) : 0; }
+    // OpenPnP's Camera Mounting Error about the machine's X and Y axes
+    // (degrees, right hand rule): the camera's axis tipped towards -Y about
+    // X, towards X about Y.
+    double tiltAboutXDeg() const;
+    double tiltAboutYDeg() const;
     // OpenPnP's estimateZCoordinateOfObject: the Z of a feature seen at pixel
     // (px1, py1), then at (px2, py2) after the camera (or, under a fixed
     // camera, the nozzle holding it) moved by (movedX, movedY) mm. How far it

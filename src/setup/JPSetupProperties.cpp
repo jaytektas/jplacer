@@ -1240,7 +1240,8 @@ void stepForm(JPCellConfig& cell, const JPSetupTree::Path& p, JPSetupProperties:
 // A calibration's results, and its measurements as graphs: each against the
 // fit in the order measured, all of them about the fit (the outlier limit as a
 // circle), and how far off each is across the picture.
-void calibrationResults(JPFormBuilder& add, const JPCameraCalibration& cal, bool looksUp) {
+// `workingZ`: the camera's Default Working Plane Z; `onHead`: a camera on a head.
+void calibrationResults(JPFormBuilder& add, const JPCameraCalibration& cal, bool looksUp, double workingZ, bool onHead) {
     const std::string size = std::to_string(cal.width) + "\xC3\x97" + std::to_string(cal.height);
     const std::string key = "cal" + std::to_string(cal.width) + "x" + std::to_string(cal.height) + ".";
     auto shown = [&add, &key](const std::string& name, const std::string& label, const std::string& value) {
@@ -1282,6 +1283,39 @@ void calibrationResults(JPFormBuilder& add, const JPCameraCalibration& cal, bool
         std::snprintf(b, sizeof b, "%.3f%% a mm nearer", 100 * (cal.scaleAt(cal.z + (cal.cameraZ() > cal.z ? 1 : -1)) / cal.scale() - 1));
         shown("perMm", "Scale Change", b);
         add.note("Camera At: its centre of projection, from how the scale changes between the two heights.");
+    }
+    // OpenPnP's Camera Mounting Error, and where the camera looks at its working plane.
+    if (cal.leans()) {
+        add.header({ "X Axis", "Y Axis", "Z Axis" });
+        add.row("Camera Mounting Error [Deg]");
+        std::snprintf(b, sizeof b, "%.3f", cal.tiltAboutXDeg());
+        shown("tiltX", "Mounting Error about X", b);
+        std::snprintf(b, sizeof b, "%.3f", cal.tiltAboutYDeg());
+        shown("tiltY", "Mounting Error about Y", b);
+        std::snprintf(b, sizeof b, "%.3f", cal.rotationDeg(looksUp));
+        shown("tiltZ", "Mounting Error about Z", b);
+        add.end();
+        add.endColumns();
+        add.note("How far the camera is tipped from looking straight along Z, about the machine's X and Y axes "
+                 "(right hand rule), from where the middle of the picture looked at the two heights; about Z, how "
+                 "far it is turned. Tipped, it sees what is lower or higher a little to the side: what it looks at "
+                 "is placed by the Default Working Plane Z. A large error does not cost accuracy, only how much of "
+                 "an object centred on the reticle stays in view: set the camera straighter and calibrate again.");
+    }
+    if (cal.looked) {
+        const JPCameraCalibration at = cal.atHeight(workingZ);
+        add.header({ "X", "Y" });
+        add.row(onHead ? "Calibrated Head Offsets" : "Camera Location");
+        std::snprintf(b, sizeof b, "%+.3f", at.lookedX);
+        shown("lookedX", "Looked X", b);
+        std::snprintf(b, sizeof b, "%+.3f", at.lookedY);
+        shown("lookedY", "Looked Y", b);
+        add.end();
+        add.endColumns();
+        add.note(std::string("Where the middle of the picture looks at the Default Working Plane Z, against where the "
+                             "camera's ") + (onHead ? "offsets on the head say" : "place says")
+                 + " (mm). The part at the calibration height is part of what visual homing and the nozzle offsets "
+                   "were measured by, and stays; only the lean between heights is applied.");
     }
     if (cal.points.empty()) {
         add.note("Calibrate again to see its measurements as graphs.");
@@ -1705,7 +1739,11 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     add.end();
     add.note("0 crops every pixel the straightening leaves without picture; 100 shows all of the picture, "
              "dark corners and all.");
-    for (const JPCameraCalibration& cal : c().calibrations) calibrationResults(add, cal, c().looksUp);
+    for (const JPCameraCalibration& cal : c().calibrations) calibrationResults(add, cal, c().looksUp,
+                                                                         c().mount.headId.empty() ? c().mount.offsetZ
+                                                                         : c().workingPlaneZ     ? *c().workingPlaneZ
+                                                                                                 : cal.z,
+                                                                         !c().mount.headId.empty());
 
     // OpenPnP's AutoFocusProvider wizard, for a fixed camera that senses focus.
     if (c().mount.headId.empty() && c().focusSensingMethod == "AutoFocus") {

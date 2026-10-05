@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- Calibrating a camera at two heights now also shows how far it is tipped (OpenPnP's Camera Mounting Error about X, Y
+  and Z) and where it looks at its Default Working Plane Z (Calibrated Head Offsets, or Camera Location for a fixed
+  camera); a tipped head camera's lean is allowed for at that height.
 - A camera's Advanced Calibration has OpenPnP's General Settings: Deinterlace, Cropped Width and Height, and Default
   Working Plane Z, the height a head camera's scale is taken at once calibrated at two heights. OpenPnP's comes in.
 - A camera can be OpenPnP's SwitcherCamera: one of several analog cameras on one capture device through a multiplexer,
