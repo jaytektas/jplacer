@@ -249,6 +249,11 @@ int main() {
         cell.vision.preRotate = false;
         ls.find();
         ls.publish();
+        // Limited: wrapping around is wrong (it was set above), and the ±180° suggestions are not made.
+        S::Issue* noWrap = const_cast<S::Issue*>(find(ls, "Rotation cannot be wrapped-around on a limited articulation axis."));
+        assert(noWrap && ls.setState(*noWrap, S::State::Solved, why) && !cell.axes[3].wrapAroundRotation);
+        assert(ls.setState(*noWrap, S::State::Open, why) && cell.axes[3].wrapAroundRotation);
+        assert(!find(ls, "Rotation can be optimized by wrapping-around the shorter way. Best combined with Limit ±180°."));
         S::Issue* limited = const_cast<S::Issue*>(find(ls, limitedText));
         assert(limited && limited->severity == S::Severity::Error);
         assert(ls.setState(*limited, S::State::Solved, why) && cell.nozzles[0].rotationMode == "LimitedArticulation");

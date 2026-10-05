@@ -507,44 +507,20 @@ void kinematics(JPSolutions& s, const JPIssueChecks::Context& c) {
         bool onNozzle = false;
         for (const JPNozzleConfig& n : cell->nozzles) onNozzle = onNozzle || n.mount.axisRotation == a.id;
         if (!onNozzle) continue;
-        const std::string rotationWiki = std::string(kWiki) + "Machine-Axes#controller-settings-rotational-axis";
-        if (!a.wrapAroundRotation) {
-            Issue i;
-            i.subject = subject;
-            i.issue = "Rotation can be optimized by wrapping-around the shorter way. Best combined with Limit ±180°.";
-            i.solution = "Enable Wrap Around.";
-            i.severity = Severity::Suggestion;
-            i.uri = rotationWiki;
-            i.apply = changing(c, "Wrap Around", [id](JPCellConfig& cell, bool solved) {
-                if (JPAxisConfig* x = axisIn(cell, id)) x->wrapAroundRotation = solved;
-            });
-            s.add(std::move(i));
-        }
-        if (!a.limitRotation) {
-            Issue i;
-            i.subject = subject;
-            i.issue = "Rotation can be optimized by limiting angles to ±180°. Best combined with Wrap Around.";
-            i.solution = "Enable Limit to Range.";
-            i.severity = Severity::Suggestion;
-            i.uri = rotationWiki;
-            i.apply = changing(c, "Limit to Range", [id](JPCellConfig& cell, bool solved) {
-                if (JPAxisConfig* x = axisIn(cell, id)) x->limitRotation = solved;
-            });
-            s.add(std::move(i));
-        }
         // OpenPnP's: a nozzle this axis turns through less than 360° (its soft
         // limits, limited to range) must place by Limited Articulation, and
         // bottom vision then pre-rotate the part.
+        bool limited = false;
         for (const JPNozzleConfig& n : cell->nozzles) {
             if (n.mount.axisRotation != a.id) continue;
             const double low = a.limitRotation && a.softLimitLowEnabled ? a.softLimitLow : -180;
             const double high = a.limitRotation && a.softLimitHighEnabled ? a.softLimitHigh : 180;
             if (n.rotationMode == "LimitedArticulation") {
-                limitedNozzle = true;
+                limited = true;
                 continue;
             }
             if (std::abs(high - low) >= 360 - kRotationEpsilon) continue;
-            limitedNozzle = true;
+            limited = true;
             Issue i;
             i.subject = "ReferenceNozzle " + n.name;
             i.issue = "Rotation axis " + a.name + " is limiting Nozzle " + n.name +
@@ -559,6 +535,41 @@ void kinematics(JPSolutions& s, const JPIssueChecks::Context& c) {
             });
             s.add(std::move(i));
         }
+        limitedNozzle = limitedNozzle || limited;
+        auto rotationIssue = [&](std::string issue, std::string solution, Severity severity, std::string uri,
+                                 const char* what, bool JPAxisConfig::*field, bool solvedValue) {
+            Issue i;
+            i.subject = subject;
+            i.issue = std::move(issue);
+            i.solution = std::move(solution);
+            i.severity = severity;
+            i.uri = std::move(uri);
+            i.apply = changing(c, what, [id, field, solvedValue](JPCellConfig& cell, bool solved) {
+                if (JPAxisConfig* x = axisIn(cell, id)) x->*field = solved ? solvedValue : !solvedValue;
+            });
+            s.add(std::move(i));
+        };
+        if (!limited) {
+            // A whole turn: wrapping around and ±180° make it shorter.
+            const std::string rotationWiki = std::string(kWiki) + "Machine-Axes#controller-settings-rotational-axis";
+            if (!a.wrapAroundRotation)
+                rotationIssue("Rotation can be optimized by wrapping-around the shorter way. Best combined with Limit ±180°.",
+                              "Enable Wrap Around.", Severity::Suggestion, rotationWiki, "Wrap Around",
+                              &JPAxisConfig::wrapAroundRotation, true);
+            if (!a.limitRotation)
+                rotationIssue("Rotation can be optimized by limiting angles to ±180°. Best combined with Wrap Around.",
+                              "Enable Limit to Range.", Severity::Suggestion, rotationWiki, "Limit to Range",
+                              &JPAxisConfig::limitRotation, true);
+            continue;
+        }
+        // Limited articulation: never the shorter way round, and kept within its limits.
+        const std::string limitedWiki = std::string(kWiki) + "Nozzle-Rotation-Mode#setting-up-the-nozzle-rotation-axis";
+        if (a.wrapAroundRotation)
+            rotationIssue("Rotation cannot be wrapped-around on a limited articulation axis.", "Disable Wrap Around.",
+                          Severity::Error, limitedWiki, "Wrap Around", &JPAxisConfig::wrapAroundRotation, false);
+        if (!a.limitRotation)
+            rotationIssue("Rotation must be limited on a limited articulation axis.", "Enable Limit to Range.",
+                          Severity::Error, limitedWiki, "Limit to Range", &JPAxisConfig::limitRotation, true);
     }
     if (limitedNozzle) preRotateIssues(s, c, *cell);
 }
