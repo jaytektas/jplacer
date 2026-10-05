@@ -245,6 +245,15 @@ std::string JPFirmwareProfile::fill(const std::string& tmpl, const std::map<std:
             const size_t close = tmpl.find('}', i);
             if (close != std::string::npos) {
                 const auto it = values.find(tmpl.substr(i + 1, close - i - 1));
+                if (it != values.end() && it->second == kLeaveOut) {
+                    // Its letter (a word's own) and the space before it go with it.
+                    if (!out.empty() && std::isalpha(static_cast<unsigned char>(out.back()))
+                        && (out.size() == 1 || out[out.size() - 2] == ' '))
+                        out.pop_back();
+                    while (!out.empty() && out.back() == ' ') out.pop_back();
+                    i = close;
+                    continue;
+                }
                 if (it != values.end()) {
                     out += it->second;
                     i = close;

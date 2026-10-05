@@ -31,6 +31,11 @@ std::optional<JPDriverConfig> JPDriverConfig::fromJson(const JJson& j, std::stri
     c.compressGcode     = j["compressGcode"].boolean(c.compressGcode);
     if (j["compressionExcludes"].isString()) c.compressionExcludes = j["compressionExcludes"].str();
     c.backslashEscapes  = j["backslashEscapes"].boolean(c.backslashEscapes);
+    for (auto [key, s] : { std::pair { "sendOnChangeFeed", &c.sendOnChangeFeed }, std::pair { "sendOnChangeAcceleration", &c.sendOnChangeAcceleration },
+                           std::pair { "sendOnChangeJerk", &c.sendOnChangeJerk } }) {
+        s->on = j[key]["on"].boolean();
+        s->relativeDeviation = j[key]["relativeDeviation"].number(0.001);
+    }
     for (const auto& [name, tmpl] : j["commands"].obj()) c.commands[name] = tmpl.str();
     return c;
 }
@@ -53,6 +58,12 @@ JJson JPDriverConfig::toJson() const {
     if (compressGcode) j["compressGcode"] = true;
     if (compressionExcludes != JPDriverConfig().compressionExcludes) j["compressionExcludes"] = compressionExcludes;
     if (backslashEscapes) j["backslashEscapes"] = true;
+    for (auto [key, s] : { std::pair { "sendOnChangeFeed", &sendOnChangeFeed }, std::pair { "sendOnChangeAcceleration", &sendOnChangeAcceleration },
+                           std::pair { "sendOnChangeJerk", &sendOnChangeJerk } })
+        if (s->on || s->relativeDeviation != 0.001) {
+            j[key]["on"] = s->on;
+            j[key]["relativeDeviation"] = s->relativeDeviation;
+        }
     if (!commands.empty()) {
         j["commands"] = JJson::object();
         for (const auto& [name, tmpl] : commands) j["commands"][name] = tmpl;

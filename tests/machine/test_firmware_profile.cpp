@@ -22,6 +22,9 @@ static JPFirmwareProfile load(const char* file) {
 }
 
 int main() {
+    // A value left out goes with its letter (OpenPnP's send on change only).
+    assert(JPFirmwareProfile::fill("G1 {axes} F{feed}", { { "axes", "X1" }, { "feed", JPFirmwareProfile::kLeaveOut } }) == "G1 X1");
+    assert(JPFirmwareProfile::fill("M204 S{acceleration} P1", { { "acceleration", JPFirmwareProfile::kLeaveOut } }) == "M204 P1");
     const JPFirmwareProfile generic = load("generic.json");
     const JPFirmwareProfile grbl    = load("grbl.json");
     const JPFirmwareProfile hal     = load("grblhal.json");

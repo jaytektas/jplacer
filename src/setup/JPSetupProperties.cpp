@@ -230,6 +230,13 @@ void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPF
     add.flag("compressGcode", "Compress G-code?", [d]() -> bool& { return d().compressGcode; });
     add.tip("Remove unneeded white-space and trailing decimal digits from G-code to speed up transmissions to the "
             "controller: G1 X100.0000 Y20.1000 is sent as G1X100Y20.1.");
+    for (const auto& [key, label, s] : { std::tuple { "sendOnChangeFeed", "Send FeedRate On Change Only?", &JPDriverConfig::sendOnChangeFeed },
+                                         std::tuple { "sendOnChangeAcceleration", "Send Acceleration On Change Only?", &JPDriverConfig::sendOnChangeAcceleration },
+                                         std::tuple { "sendOnChangeJerk", "Send Jerk On Change Only?", &JPDriverConfig::sendOnChangeJerk } }) {
+        add.flag(key, label, [d, s]() -> bool& { return (d().*s).on; });
+        add.tip("A move's value left out (with its letter) when within the relative deviation of the one last sent, "
+                "as the controller keeps it; sent again after connecting and homing.");
+    }
     add.text("compressionExcludes", "Compression Exclude Characters", [d]() -> std::string& { return d().compressionExcludes; });
     add.tip("Anything between the left-most and right-most of these characters is left out of compression and comments "
             "removal (quotes, brackets); with only one of them, the rest of the line.");

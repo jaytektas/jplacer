@@ -384,6 +384,8 @@ notes.
   than that far away.
 - A nozzle has OpenPnP's Rotation Mode: the part's own angle (as before), the placement's angle, minimal
   rotation, or limited articulation for a nozzle that only turns so far. It comes in with an OpenPnP machine.
+- A controller's Driver Settings have OpenPnP's Send FeedRate, Acceleration and Jerk On Change Only: a move
+  leaves out what the controller already has. They come in with an OpenPnP machine.
 
 ## 0.1.0
 

@@ -43,6 +43,10 @@ bool JPGcodeDriver::connect(std::string& error) {
     }
     JLOGC(JPlacerLog::kDriver, JLogLevel::Info) << cfg()->name << ": opened " << m_link->describe();
     m_running = true;
+    {
+        std::lock_guard lk(m_mutex);
+        m_lastSent.clear();   // a new connection: everything sent again
+    }
     m_io = std::thread(&JPGcodeDriver::ioLoop, this);
     if (cfg()->connectWaitMs > 0) {
         // The I/O thread reads (and logs) whatever the board says meanwhile.
@@ -192,10 +196,31 @@ JPReply JPGcodeDriver::command(const std::string& name, const std::map<std::stri
                                int timeoutMs) {
     const auto c = cfg();   // one set of settings for the whole command
     if (!m_profile) return failed(c->name + " is not connected").get();
+    // A move's feed, acceleration and jerk left out when sent already (On Change Only).
+    std::map<std::string, std::string> v = values;
+    if (name == "move") {
+        std::lock_guard lk(m_mutex);
+        for (const auto& [key, s] : { std::pair { "feed", c->sendOnChangeFeed }, std::pair { "acceleration", c->sendOnChangeAcceleration },
+                                      std::pair { "jerk", c->sendOnChangeJerk } }) {
+            const auto it = v.find(key);
+            if (it == v.end()) continue;
+            const double now = std::strtod(it->second.c_str(), nullptr);
+            const auto last = m_lastSent.find(key);
+            if (s.on && now != 0 && last != m_lastSent.end() && std::abs(now - last->second) <= s.relativeDeviation * std::abs(last->second))
+                it->second = JPFirmwareProfile::kLeaveOut;
+            else
+                m_lastSent[key] = now;
+        }
+    }
+    // Homing (or connecting) starts afresh: everything sent again.
+    if (name == "home") {
+        std::lock_guard lk(m_mutex);
+        m_lastSent.clear();
+    }
     const auto own  = c->commands.find(name);
     const auto text = own != c->commands.end()
-                    ? std::optional<std::string>(JPFirmwareProfile::fill(own->second, values))
-                    : m_profile->command(name, values);
+                    ? std::optional<std::string>(JPFirmwareProfile::fill(own->second, v))
+                    : m_profile->command(name, v);
     if (!text) return failed(m_profile->name() + " has no '" + name + "' command").get();
     if (timeoutMs <= 0 && name == "home") timeoutMs = c->homeTimeoutMs;
     return sendLines(*text, timeoutMs);

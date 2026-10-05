@@ -38,7 +38,8 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Firmware detection, generic G-code proposal | own way | firmware profiles (Grbl, grblHAL, Generic) with `auto` detection |
 | Command timeout, connect wait, max feed rate, log G-code | done | |
 | Compress G-code, remove comments, backslash escapes | done | Driver Settings |
-| Units, letter variables, pre-move commands, send rate on change only | missing | profiles decide the dialect |
+| Send feed rate, acceleration, jerk on change only | done | Driver Settings |
+| Units, letter variables, pre-move commands | missing | profiles decide the dialect |
 | Gcode tab: every command, per head-mountable | done | per controller; empty uses the profile's |
 | Confirmation flow control, location confirmation | own way | the driver waits for each `ok` and reads status reports |
 | Interpolation (max steps, jerk steps, min step time) | missing | |

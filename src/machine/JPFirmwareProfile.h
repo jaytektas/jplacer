@@ -139,7 +139,10 @@ public:
     // The setting id for `key` on the axis `letter`; nothing if not stored.
     std::optional<std::string> axisSettingId(const std::string& key, const std::string& letter) const;
 
-    // A command template with its {placeholders} filled in.
+    // A command template with its {placeholders} filled in. A placeholder
+    // given kLeaveOut is taken out with the letter written before it ("F{feed}"
+    // gone, as OpenPnP leaves out a value that need not be sent again).
+    static constexpr const char* kLeaveOut = "\x1f";
     static std::string fill(const std::string& tmpl, const std::map<std::string, std::string>& values);
 
 private:

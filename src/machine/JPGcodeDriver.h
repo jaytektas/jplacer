@@ -165,6 +165,7 @@ private:
     bool              m_holding = false;
     std::chrono::steady_clock::time_point m_holdUntil;
     std::map<std::string, double> m_holdLast;   // the positions in the last report while held
+    std::map<std::string, double> m_lastSent;   // a move's feed, acceleration, jerk as last sent (On Change Only)
 
     // The I/O thread's own: the command on the wire, when it times out, and
     // the lines it has drawn so far.

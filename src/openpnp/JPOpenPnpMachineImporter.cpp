@@ -290,6 +290,13 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             dc.compressGcode = d.attr("compress-gcode") == "true";
             if (!d.attr("compression-excludes").empty()) dc.compressionExcludes = d.attr("compression-excludes");
             dc.backslashEscapes = d.attr("backslash-escaped-characters-enabled") == "true";
+            for (const auto& [element, s] : { std::pair { "send-on-change-feed-rate", &dc.sendOnChangeFeed },
+                                              std::pair { "send-on-change-acceleration", &dc.sendOnChangeAcceleration },
+                                              std::pair { "send-on-change-jerk", &dc.sendOnChangeJerk } })
+                if (const JPXmlElement* e = d.child(element)) {
+                    s->on = e->attr("send-on-change") == "true";
+                    if (!e->attr("relative-deviation").empty()) s->relativeDeviation = number(e->attr("relative-deviation"));
+                }
 
             Commands& cmds = commands[dc.id];
             for (const JPXmlElement& cmd : d.children) {

@@ -51,6 +51,14 @@ struct JPDriverConfig {
     bool        compressGcode  = false;
     std::string compressionExcludes = "[]\"";
     bool        backslashEscapes = false;
+    // OpenPnP's Send FeedRate / Acceleration / Jerk On Change Only: a move's
+    // {feed}, {acceleration}, {jerk} left out (with its letter) when it is
+    // within `relativeDeviation` of the one last sent (since connecting or homing).
+    struct SendOnChange {
+        bool   on = false;
+        double relativeDeviation = 0.001;
+    };
+    SendOnChange sendOnChangeFeed, sendOnChangeAcceleration, sendOnChangeJerk;
     JPGcodeCompressor::Settings compression() const {
         return { removeComments, compressGcode, compressionExcludes, backslashEscapes };
     }

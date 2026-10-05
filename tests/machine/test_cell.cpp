@@ -271,6 +271,31 @@ int main() {
             assert(cell.moveAxesAndWait({ { "X", x }, { "C", c } }, 1.0, why));
             motion.take();
         }
+        // Send FeedRate On Change Only: the second move at the same speed goes without its F.
+        {
+            JPCellConfig next = cell.config();
+            next.drivers[0].sendOnChangeFeed.on = true;
+            std::string why;
+            assert(cell.reconfigure(next, why));
+            std::mutex m;
+            std::vector<std::string> lines;
+            auto watch = cell.onTraffic.connect([&](std::string, bool out, std::string line) {
+                std::lock_guard lk(m);
+                if (out && line.rfind("G1", 0) == 0) lines.push_back(line);
+            });
+            // (C: X takes a backlash approach at its own speed.)
+            const double c = cell.jogBase().at("C");
+            assert(cell.moveAxesAndWait({ { "C", c + 10 } }, 1.0, why));
+            motion.take();
+            assert(cell.moveAxesAndWait({ { "C", c } }, 1.0, why));
+            motion.take();
+            watch();
+            std::lock_guard lk(m);
+            assert(lines.size() >= 2 && lines[lines.size() - 2].find('F') != std::string::npos
+                   && lines.back().find('F') == std::string::npos);
+            next.drivers[0].sendOnChangeFeed.on = false;
+            assert(cell.reconfigure(next, why));
+        }
         // There, to a hair (a backlash offset taken off leaves rounding dust).
         auto settle = [&](const char* axis, double want) {
             const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(2);
