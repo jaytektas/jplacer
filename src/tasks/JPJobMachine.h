@@ -34,6 +34,7 @@ public:
         // ("AbsolutePartAngle", "PlacementAngle", "MinimalRotation",
         // "LimitedArticulation"); for the last, how far it may turn either way
         // of the pick and of alignment, and its rotation axis's range.
+        bool                     tipChangeOnManualPick = false;
         std::string              rotationMode = "AbsolutePartAngle";
         double                   maxPickArticulation = 15, maxAlignArticulation = 30;
         double                   rotationLow = -180, rotationHigh = 180;

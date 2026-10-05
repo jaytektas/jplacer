@@ -80,6 +80,7 @@ std::vector<JPJobMachine::Nozzle> JPlacerJobMachine::nozzles() const {
         if (n.mount.headId != head) continue;
         Nozzle out1 { n.id, n.name.empty() ? n.id : n.name, n.tipId, n.tipIds, n.pickDwellMs, n.placeDwellMs };
         out1.rotationMode = n.rotationMode;
+        out1.tipChangeOnManualPick = n.tipChangeOnManualPick;
         out1.maxPickArticulation = n.maxPickArticulation;
         out1.maxAlignArticulation = n.maxAlignArticulation;
         // Its rotation axis's range, as OpenPnP's getRotationModeLimits: its soft limits when limited to range.
@@ -191,6 +192,23 @@ bool JPlacerJobMachine::changeTip(const std::string& nozzleId, const std::string
         halves.push_back({ "Unloading " + nameOf(on) + " from " + nozzle.name, "", on->unloadingSteps() });
     if (const JPNozzleTipConfig* wanted = tipOf(tipId))
         halves.push_back({ "Loading " + nameOf(wanted) + " on " + nozzle.name, tipId, wanted->loadSteps });
+    // OpenPnP's manual change: with the tool changer off (or a tip with no steps), asked to be done by hand, in its words.
+    if (!nozzle.changerEnabled || std::any_of(halves.begin(), halves.end(), [](const Half& h) { return h.steps.empty(); })) {
+        std::string instructions;
+        if (const JPNozzleTipConfig* on = tipOf(nozzle.tipId))
+            instructions += "\na manual nozzle tip " + nameOf(on) + " unload from nozzle " + nozzle.name + " and";
+        if (const JPNozzleTipConfig* wanted = tipOf(tipId))
+            instructions += "\na manual nozzle tip " + nameOf(wanted) + " load on nozzle " + nozzle.name + " now.";
+        if (!c->safeZAndWait(nozzle.mount.headId, 1.0, why)) return false;
+        if (const auto& l = nozzle.manualChangeLocation; l && !c->moveToolAndWait(nozzle.mount, { l->x, l->y, l->z, l->rotation }, 1.0, why))
+            return false;
+        if (!m_ask || !m_ask("Please perform" + instructions)) {
+            why = "the nozzle tip change by hand was not done";
+            return false;
+        }
+        for (const Half& h : halves) m_onMain([&] { m_machine.setTipOn(nozzle.id, h.after); });
+        return true;
+    }
     JPTipChanger::Hooks hooks;
     hooks.ask = m_ask;
     hooks.progress = m_progress;

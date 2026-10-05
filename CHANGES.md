@@ -395,6 +395,10 @@ notes.
 - Placing blows off as OpenPnP does: only at a level, the part's package's Blow Off Level or else the nozzle
   tip's new Place Blow-Off Level; with neither, the vacuum just goes off. A package's Vacuum Level sets a vacuum
   actuator that takes a value at pick.
+- A nozzle has OpenPnP's Tool Changer settings: with the automatic tool changer off (or a tip without load and
+  unload steps) a tip change is asked to be done by hand, at the Manual Change Location when set; Change On Manual
+  Pick puts a fitting tip on for a pick from the Feeders tab, which now refuses a pick with a tip that does not
+  fit, as OpenPnP does.
 
 ## 0.1.0
 

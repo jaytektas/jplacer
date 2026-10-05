@@ -730,6 +730,10 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                     n.blowOffClosesVacuum = x.attr("blow-off-closing-valve") == "true";
                     n.pickDwellMs = int(number(x.attr("pick-dwell-milliseconds")));
                     n.dynamicSafeZ = x.attr("enable-dynamic-safe-z") == "true";
+                    n.changerEnabled = x.attr("changer-enabled") == "true";   // OpenPnP's default: by hand
+                    n.tipChangeOnManualPick = x.attr("nozzle-tip-changed-on-manual-feed") == "true";
+                    if (const auto l = location(x, "manual-nozzle-tip-change-location"); l && (l->x != 0 || l->y != 0 || l->z != 0))
+                        n.manualChangeLocation = l;
                     if (const std::string m = x.attr("rotation-mode");
                         m == "AbsolutePartAngle" || m == "PlacementAngle" || m == "MinimalRotation" || m == "LimitedArticulation")
                         n.rotationMode = m;
@@ -744,8 +748,8 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                             if (tipIds.count(t.text)) n.tipIds.push_back(t.text);
                     if (n.fits(x.attr("current-nozzle-tip-id"))) n.tipId = x.attr("current-nozzle-tip-id");
                     if (x.attr("changer-enabled") != "true" && !n.tipIds.empty())
-                        notes.push_back("nozzle " + n.name + ": OpenPnP changes its tips by hand; in jplacer a tip "
-                                        "is changed by its own load and unload steps, by hand when it has none");
+                        notes.push_back("nozzle " + n.name + ": its Automatic Tool Changer is off, as in OpenPnP: a tip "
+                                        "change is asked to be done by hand; turned on, the tips' load and unload steps change them");
                     c.nozzles.push_back(std::move(n));
                 }
             }

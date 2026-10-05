@@ -84,7 +84,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Pick / place dwell | done | |
 | Compatible / loaded tips table | done | |
 | Vacuum, blow-off, sensing actuators | done | |
-| Tool changer enabled, change on manual pick | missing | tips change through each tip's changer steps, on request |
+| Tool changer enabled, change on manual pick, manual change location | done | |
 | Nozzle offset wizard | done | |
 | Z home command (own) | done | jplacer's addition |
 

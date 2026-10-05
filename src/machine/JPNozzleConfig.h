@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "JPMachineLocation.h"
 #include "JPMountConfig.h"
 
 #include <string>
@@ -33,6 +34,13 @@ struct JPNozzleConfig {
     // OpenPnP's Dynamic Safe Z: carrying a part, its safe Z raised by the
     // part's height, so the part's bottom is at safe Z (within the safe zone).
     bool                     dynamicSafeZ = false;
+    // OpenPnP's Tool Changer: tips changed by their load and unload steps
+    // (else asked to be changed by hand, as for a tip without steps); and a
+    // pick from the Feeders tab changing to a tip that fits the part.
+    bool                     changerEnabled = true;
+    bool                     tipChangeOnManualPick = false;
+    // Where the nozzle goes for a tip to be changed by hand (none: where it is, at safe Z).
+    std::optional<JPMachineLocation> manualChangeLocation;
     // OpenPnP's Rotation Mode (JPJobMachine::Nozzle::rotationMode), and for
     // LimitedArticulation how far it may turn about the pick and alignment.
     std::string              rotationMode = "AbsolutePartAngle";
@@ -56,6 +64,9 @@ struct JPNozzleConfig {
         n.vacuumSenseActuatorId = j["vacuumSenseActuator"].str();
         n.pickDwellMs           = int(j["pickDwellMs"].number());
         n.dynamicSafeZ          = j["dynamicSafeZ"].boolean();
+        n.changerEnabled        = j["changerEnabled"].boolean(true);
+        n.tipChangeOnManualPick = j["tipChangeOnManualPick"].boolean();
+        n.manualChangeLocation  = JPMachineLocation::fromJson(j["manualChangeLocation"]);
         if (!j["rotationMode"].str().empty()) n.rotationMode = j["rotationMode"].str();
         n.maxPickArticulation   = j["maxPickArticulation"].number(15.0);
         n.maxAlignArticulation  = j["maxAlignArticulation"].number(30.0);
@@ -78,6 +89,9 @@ struct JPNozzleConfig {
         if (!vacuumSenseActuatorId.empty()) j["vacuumSenseActuator"] = vacuumSenseActuatorId;
         if (pickDwellMs) j["pickDwellMs"] = pickDwellMs;
         if (dynamicSafeZ) j["dynamicSafeZ"] = true;
+        if (!changerEnabled) j["changerEnabled"] = false;
+        if (tipChangeOnManualPick) j["tipChangeOnManualPick"] = true;
+        if (manualChangeLocation) j["manualChangeLocation"] = manualChangeLocation->toJson();
         if (rotationMode != "AbsolutePartAngle") j["rotationMode"] = rotationMode;
         if (maxPickArticulation != 15) j["maxPickArticulation"] = maxPickArticulation;
         if (maxAlignArticulation != 30) j["maxAlignArticulation"] = maxAlignArticulation;

@@ -684,6 +684,33 @@ void nozzleForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     add.note("Pick switches the vacuum on; Place switches it off, then pulses the blow-off for the place dwell (Jog panel).");
 
     // Homing Z alone: after a tip forced on made the motor slip a step.
+    // OpenPnP's ReferenceNozzleToolChangerWizard.
+    add.tab("Tool Changer");
+    add.group("Nozzle Tip Changer");
+    add.flag("changerEnabled", "Automatic Tool Changer Enabled?", [n]() -> bool& { return n().changerEnabled; });
+    add.tip("A tip change runs the tips' load and unload steps; off (or a tip without steps), it is asked to be done by hand.");
+    add.flag("tipChangeOnManualPick", "Change On Manual Pick?", [n]() -> bool& { return n().tipChangeOnManualPick; });
+    add.tip("A pick from the Feeders tab with a tip that does not fit the part changes to one that does.");
+    add.header({ "X", "Y", "Z", "Rotation", "Set?" });
+    auto manual = [n]() -> std::optional<JPMachineLocation>& { return n().manualChangeLocation; };
+    add.row("Manual Change Location", manual() ? Place::Location : Place::None);
+    if (manual()) {
+        add.number("manualX", "Manual Change X", [manual]() -> double& { return manual()->x; });
+        add.number("manualY", "Manual Change Y", [manual]() -> double& { return manual()->y; });
+        add.number("manualZ", "Manual Change Z", [manual]() -> double& { return manual()->z; });
+        add.number("manualRotation", "Manual Change Rotation", [manual]() -> double& { return manual()->rotation; });
+    } else {
+        for (int i = 0; i < 4; ++i) add.skip();
+    }
+    add.flag("manualSet", "Set?", [manual] { return manual().has_value(); },
+             [manual](bool on) {
+                 if (!on) manual().reset();
+                 else if (!manual()) manual() = JPMachineLocation();
+             });
+    add.end();
+    f.reshaping.push_back("manualSet");
+    add.note("Where the nozzle goes, by way of safe Z, for its tip to be changed by hand; not set, it stays where it is.");
+
     add.tab("Homing");
     add.group("Z Home");
     add.text("homeCommand", "Home Command", [n]() -> std::string& { return n().homeCommand; }, "lines");

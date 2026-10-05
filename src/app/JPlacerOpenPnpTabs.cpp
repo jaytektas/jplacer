@@ -312,6 +312,51 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         m_jobRun->machineTask([this, feederId, pick, nozzle](JPJobMachine& machine,
                                                               const std::function<void(const std::function<void()>&)>& onMain,
                                                               std::string& why) {
+            // OpenPnP's pickFeeder: the nozzle's tip must fit the part's package; with Change On Manual Pick, a
+            // fitting tip no nozzle has is put on it; else what to do is said.
+            if (pick && !nozzle.empty()) {
+                std::vector<std::string> fit;
+                std::string packageId;
+                onMain([&] {
+                    if (const JPFeeder* f = m_job.configuration().feeder(feederId))
+                        if (const JPPart* p = m_job.configuration().part(f->partId()))
+                            if (const JPPackage* k = m_job.configuration().package(p->packageId)) {
+                                fit = k->compatibleNozzleTipIds;
+                                packageId = k->id;
+                            }
+                });
+                const auto nozzles = machine.nozzles();
+                const auto self = std::find_if(nozzles.begin(), nozzles.end(), [&](const JPJobMachine::Nozzle& n) { return n.id == nozzle; });
+                auto tipName = [&machine](const std::string& id) {
+                    for (const auto& [tid, name] : machine.tips()) if (tid == id) return name;
+                    return id;
+                };
+                if (self != nozzles.end() && !packageId.empty()
+                    && (self->tipId.empty() || std::find(fit.begin(), fit.end(), self->tipId) == fit.end())) {
+                    const JPJobMachine::Nozzle* alt = nullptr;
+                    bool changed = false;
+                    for (const std::string& t : fit) {
+                        const auto on = std::find_if(nozzles.begin(), nozzles.end(), [&](const JPJobMachine::Nozzle& n) { return n.tipId == t; });
+                        if (on == nozzles.end() && std::find(self->tipIds.begin(), self->tipIds.end(), t) != self->tipIds.end()
+                            && self->tipChangeOnManualPick) {
+                            if (!machine.changeTip(nozzle, t, why)) return false;
+                            changed = true;
+                            break;
+                        }
+                        if (!alt && on != nozzles.end()) alt = &*on;
+                    }
+                    if (!changed) {
+                        why = self->tipId.empty() ? "No nozzle tip loaded on nozzle " + self->name + ". "
+                                                  : "Nozzle " + self->name + " loaded nozzle tip " + tipName(self->tipId)
+                                                        + " is not compatible with package " + packageId + ". ";
+                        if (alt) why += "Consider selecting nozzle " + alt->name + ", it has compatible nozzle tip " + tipName(alt->tipId) + " loaded. ";
+                        else if (!self->tipChangeOnManualPick)
+                            why += "You may want to enable automatic nozzle tip change on manual pick on the Nozzle / Tool Changer. ";
+                        why += "The pick will always be performed with the nozzle selected in the Machine Controls. ";
+                        return false;
+                    }
+                }
+            }
             bool empty = false;
             if (!JPFeederFeed::feed(m_job.configuration(), feederId, nozzle, machine, onMain, why, empty)) return false;
             if (!pick) return true;
