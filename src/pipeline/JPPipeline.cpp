@@ -173,6 +173,16 @@ cv::Point2d JPPipeline::overriddenPoint(const JPPipelineStage& stage, const std:
     return out;
 }
 
+std::string JPPipeline::overriddenText(const JPPipelineStage& stage, const std::string& attribute, const std::string& value,
+                                       const std::string& pipelineProperty) {
+    const JPPipelineValue* v = property(pipelineProperty);
+    if (!v) return value;
+    const std::string* t = std::get_if<std::string>(&v->value);
+    if (!t) throw std::runtime_error("Pipeline property \"" + pipelineProperty + "\" must be a text");
+    m_overrides[stage.name()][attribute] = *t;
+    return *t;
+}
+
 std::map<std::string, std::string> JPPipeline::overrides(const std::string& stageName) const {
     const auto i = m_overrides.find(stageName);
     return i == m_overrides.end() ? std::map<std::string, std::string> {} : i->second;

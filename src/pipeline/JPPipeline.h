@@ -45,6 +45,10 @@ public:
         std::function<bool(double xMm, double yMm, double& px, double& py)> locationToPixel;
         // Where ImageWriteDebug writes (empty: it does not).
         std::string debugDirectory;
+        // The machine's actuator by name, on a head or the machine (null: none);
+        // one set to a value ("true", "1.5", a text) and waited for, or why not.
+        std::function<bool(const std::string& name)> actuatorExists;
+        std::function<bool(const std::string& name, const std::string& value, std::string& why)> actuate;
         // The configuration's directory: part templates live in its "templates".
         std::string configurationDirectory;
     };
@@ -96,6 +100,8 @@ public:
                           const std::string& pipelineProperty);
     cv::Point2d overriddenPoint(const JPPipelineStage& stage, const std::string& attribute, cv::Point2d value,
                                 const std::string& pipelineProperty);
+    std::string overriddenText(const JPPipelineStage& stage, const std::string& attribute, const std::string& value,
+                               const std::string& pipelineProperty);
     // A stage's setting noted as set by the caller (a parameter stage's).
     void noteOverride(const std::string& stageName, const std::string& attribute, const std::string& value) {
         m_overrides[stageName][attribute] = value;

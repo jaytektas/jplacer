@@ -41,6 +41,9 @@ public:
     // A colour child element (<color r g b a/>), as BGR(A) for OpenCV; its default when not written.
     cv::Scalar  color(const std::string& element) const;
     bool        hasColor(const std::string& element) const { return m_node.child(element) != nullptr; }
+    // A child element written for an Object (<actuator-write-value class="java.lang.Boolean">true</…>):
+    // its text, or null when not written.
+    const JPXmlNode* element(const std::string& name) const { return m_node.child(name); }
     void        setColor(const std::string& element, int r, int g, int b, int a);
 
 private:

@@ -14,7 +14,7 @@ inline namespace jf {
 // What a pipeline stage found (OpenPnP's Result.model): nothing, a rotated
 // rectangle or several, circles, key points, contours, lines, template
 // matches, points, a number, a text, an AffineWarp's transform (picture to
-// warped picture), or the reason it failed.
+// warped picture), text read, or the reason it failed.
 struct JPPipelineModel {
     struct Circle {
         double x = 0, y = 0, diameter = 0;
@@ -28,11 +28,17 @@ struct JPPipelineModel {
     struct Failure {
         std::string message;
     };
+    // SimpleOcr's text (lines apart by '\n'), its characters and their scores summed.
+    struct Ocr {
+        std::string text;
+        int         numChars = 0;
+        double      overallScore = 0;
+    };
     using Contours = std::vector<std::vector<cv::Point>>;
 
     std::variant<std::monostate, cv::RotatedRect, std::vector<cv::RotatedRect>, std::vector<Circle>,
                  std::vector<cv::KeyPoint>, Contours, std::vector<Line>, std::vector<TemplateMatch>,
-                 std::vector<cv::Point2d>, cv::Point2d, double, std::string, Failure, cv::KeyPoint, Circle, TemplateMatch, cv::Matx23d>
+                 std::vector<cv::Point2d>, cv::Point2d, double, std::string, Failure, cv::KeyPoint, Circle, TemplateMatch, cv::Matx23d, Ocr>
         value;
 
     bool empty() const { return std::holds_alternative<std::monostate>(value); }

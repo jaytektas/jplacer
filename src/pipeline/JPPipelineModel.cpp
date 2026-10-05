@@ -65,6 +65,11 @@ std::string JPPipelineModel::describe() const {
         }
         std::string operator()(const std::vector<TemplateMatch>& v) const { return list(v, match); }
         std::string operator()(const TemplateMatch& m) const { return match(m); }
+        std::string operator()(const Ocr& o) const {
+            std::ostringstream s;
+            s << "OcrResult [text=" << o.text << ", numChars=" << o.numChars << ", score=" << o.overallScore << "]";
+            return s.str();
+        }
         std::string operator()(const cv::Matx23d& t) const {
             std::ostringstream s;
             s << "AffineTransform[[" << t(0, 0) << ", " << t(0, 1) << ", " << t(0, 2) << "], [" << t(1, 0) << ", " << t(1, 1)
@@ -108,7 +113,8 @@ std::string JPPipelineModel::kind() const {
         case 13: return "KeyPoint";
         case 14: return "Circle";
         case 15: return "TemplateMatch";
-        default: return "AffineTransform";
+        case 16: return "AffineTransform";
+        default: return "OcrModel";
     }
 }
 

@@ -19,6 +19,7 @@
 #include <chrono>
 #include <cmath>
 #include <filesystem>
+#include <sstream>
 
 inline namespace jf {
 
@@ -86,6 +87,41 @@ void JPStageRegistry::addImageStages(std::vector<JPStageType>& types) {
                               cv::resize(out.image, out.image, cv::Size(ctx.cameraWidth, ctx.cameraHeight));
                           out.colorSpace = out.image.channels() == 1 ? "Gray" : s.text("color-space");
                           return out;
+                      } });
+    types.push_back({ std::string(kStages) + "ActuatorWrite", "", "Performs simple actuator write. Machine must be connected, otherwise error is thrown.",
+                      { P { "actuator-name", Kind::Text, "", "" } },
+                      [](JPPipeline& p, JPPipelineStage& s) {
+                          const std::string name = s.text("actuator-name");
+                          if (name.empty()) {
+                              JLOGC(JPlacerLog::kPipeline, JLogLevel::Warn) << "No actuator name specified for pipeline " << s.name() << ".";
+                              return Output {};
+                          }
+                          const auto& ctx = p.context();
+                          if (!ctx.actuatorExists || !ctx.actuatorExists(name))
+                              throw std::runtime_error("Actuator writing (CvStage operation) failed. Unable to find an actuator named " + name);
+                          // The value: its element, or as older files wrote it (a type and a number).
+                          std::string value = "true";
+                          if (const JPXmlNode* e = s.element("actuator-write-value")) value = e->text;
+                          else if (const std::string* type = s.toXml().get("actuator-type")) {
+                              const double v = s.number("actuator-value");
+                              std::ostringstream t;
+                              t << v;
+                              value = *type == "Boolean" ? (v != 0.0 ? "true" : "false") : t.str();
+                          }
+                          std::string why;
+                          // A machine that fails stops the pipeline.
+                          if (!ctx.actuate || !ctx.actuate(name, value, why)) throw JPPipeline::Terminal(why);
+                          return Output {};
+                      } });
+    types.push_back({ std::string(kStages) + "ScriptRun", "",
+                      "Run an arbitrary script file using the built in scripting engine. pipeline and stage are exposed as globals for use by the script. To return a pipeline result you can't use a return statement, but instead just let the object be the last thing the script evaluates.",
+                      { P { "file", Kind::Text, "", "" }, P { "args", Kind::Text, "", "" } },
+                      [](JPPipeline&, JPPipelineStage& s) {
+                          const std::string file = s.text("file");
+                          std::error_code ec;
+                          if (file.empty() || !std::filesystem::exists(file, ec)) return Output {};
+                          // As OpenPnP when no engine takes the file's extension: jplacer has none.
+                          throw std::runtime_error("Unable to find scriping engine for " + file);
                       } });
     types.push_back({ std::string(kStages) + "ImageWrite", "", "", { P { "file", Kind::Text, "", "" } },
                       [](JPPipeline& p, const JPPipelineStage& s) {
