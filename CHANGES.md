@@ -30,6 +30,8 @@ notes.
   end locations ticked, each at its speed with its delay, the auxiliary (peel) actuator, multiple actuations, additive
   rotation; their sprocket holes calibrated by vision as Bamboo feeders' are, Auto-Setup (trying the stock pipelines when
   the feeder's own fails), Preview Vision Features, Discard Parts and the Push-Pull Motion tab.
+- A Rapid feeder's Scan works as OpenPnP's: the camera along the scan reads the feeders' QR codes, and finds or makes
+  each feeder, setting its place and address.
 - Blinds feeders (BlindsFeeder) work as OpenPnP's: the holder's fiducials and their calibration, the tapes on one holder
   sharing its settings and numbered across it, Auto Setup of the pockets, Show Features, the covers opened and closed by
   a nozzle tip that may push (Open/Close Cover, Open/Close All Covers, Calibrate Cover Edges, opened on first use or on

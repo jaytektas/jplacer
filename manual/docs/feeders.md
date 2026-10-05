@@ -27,9 +27,9 @@ ReferenceRotatedTrayFeeder, ReferenceDragFeeder, ReferenceLeverFeeder, Reference
 ReferenceTubeFeeder, ReferenceAutoFeeder, ReferenceSlotAutoFeeder, ReferenceLoosePartFeeder,
 AdvancedLoosePartFeeder, ReferenceHeapFeeder, BlindsFeeder, SchultzFeeder, SlotSchultzFeeder, RapidFeeder,
 Neoden4Feeder, PhotonFeeder and BambooFeederAutoVision. Click one and **Accept**, or double-click it.
-jplacer works out where strip, tray, rotated tray, auto, tube, drag, lever, Schultz, slot, Neoden 4, Photon and Rapid feeders pick, and feeds them. The other kinds are kept and
-set up, but feeding them is not yet available (**Pick...** and **Feed...** say so), and **Move Camera...**
-and **Move Tool...** say jplacer does not work out where they pick yet.
+jplacer works out where each of these kinds picks, and feeds it. A kind it does not know (a feeder class
+another build of OpenPnP added, read from its machine.xml) is kept and shown, but **Pick...** and **Feed...**
+say feeding it is not available.
 
 **Search**, at the right, shows only the feeders with the text typed anywhere in a row, whatever its case
 (a regular expression, as on the other tabs).
@@ -256,11 +256,13 @@ programmed.
 
 A feeder told what to do by its address, as OpenPnP's Rapid feeder: **Rapid Feeder Config** has its
 **Address** and **Pitch**, and a feed sends "address pitch" to the machine's actuator named
-**RAPIDFEEDER**. **Rapid Feeder Scanning** keeps the **Scan Start** and **End Location** and the **Scan
-Increment**; its **Scan** (finding the feeders by their QR codes) needs a QR code reader, not in jplacer
-yet.
+**RAPIDFEEDER**. **Rapid Feeder Scanning**: **Scan** takes the head camera from the **Scan Start** to the
+**Scan End Location** a **Scan Increment** at a time (the end included), reading the QR codes it sees with
+its light on. Each code is a Rapid feeder: the one named by it, else a new one named so (with the first part,
+when it has none); its location is set to where the code was first seen (its Z and rotation kept) and its
+address to the code.
 
-<!-- src: src/setup/JPFeederForms.cpp (rapidForm); src/tasks/JPFeederFeed.cpp (feed, kRapidActuator) -->
+<!-- src: src/setup/JPFeederForms.cpp (rapidForm); src/tasks/JPFeederFeed.cpp (feed, kRapidActuator); src/tasks/JPRapidScan.cpp; src/app/JPlacerJobMachine.cpp (readQrCodes) -->
 
 ### Push-pull feeder
 
@@ -429,9 +431,10 @@ stages can read and write the part's template image.
 
 <!-- src: src/setup/JPFeederForms.cpp (looseForm, advancedLooseForm); src/tasks/JPFeederFeed.cpp (looseFeed); src/tasks/JPFeederPipelines.cpp; src/model/JPFeeder.cpp (pickLocation, partHeightAbovePickLocation); src/app/JPlacerJobMachine.cpp (seeRects); src/app/JPlacerOpenPnpTabs.cpp (pipelineAction) -->
 
-### The other kinds
+### Other kinds
 
-Their **General Settings** and **Pick Location**; their own settings are kept as OpenPnP wrote them.
+A kind jplacer does not know: its **General Settings** and **Pick Location**; its own settings are kept as
+OpenPnP wrote them.
 
 <!-- src: src/setup/JPFeederForms.cpp (forFeeder) -->
 

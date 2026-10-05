@@ -89,6 +89,13 @@ public:
         return false;
     }
     void showOnCamera(const cv::Mat&, int) override {}
+    // The QR codes seen at each place looked at, by its X (none: none seen).
+    std::map<int, std::vector<QrCode>> qr;
+    bool readQrCodes(const JPLocation& at, std::vector<QrCode>& codes, std::string&) override {
+        const auto it = qr.find(int(std::lround(at.x())));
+        codes = it == qr.end() ? std::vector<QrCode> {} : it->second;
+        return true;
+    }
     bool moveNozzle(const std::string&, std::array<std::optional<double>, 4>, double, bool, std::string&) override { return true; }
     bool vacuumOn(const std::string&, std::string&) override { return true; }
     bool zeroActuatorRotation(const std::string&, std::string&) override { return true; }

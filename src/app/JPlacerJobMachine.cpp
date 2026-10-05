@@ -3,6 +3,8 @@
 
 #include "JPlacerJobMachine.h"
 
+#include <opencv2/objdetect.hpp>
+
 #include "pipeline/JPStageUtil.h"
 #include "tasks/JPVisionPipelinePrep.h"
 #include "ui/JPCameraView.h"
@@ -623,6 +625,35 @@ bool JPlacerJobMachine::cameraSight(Sight& sight, std::string& why) {
     sight.width = cal.width;
     sight.height = cal.height;
     sight.twoHeights = cal.twoHeights();
+    return true;
+}
+
+bool JPlacerJobMachine::readQrCodes(const JPLocation& at, std::vector<QrCode>& codes, std::string& why) {
+    ++m_motions;
+    const JPLocation m = at.convertToUnits(JPLengthUnit::Millimeters);
+    JPPipeline capture;
+    JPCameraCalibration cal;
+    JPCameraFeed* feed = nullptr;
+    if (!headCameraPipeline(m.x(), m.y(), capture, cal, feed, why)) return false;
+    cv::Mat bgr;
+    if (!capture.context().capture("Settle", "", bgr, why)) return false;
+    cv::Mat gray;
+    cv::cvtColor(bgr, gray, cv::COLOR_BGR2GRAY);
+    std::vector<std::string> texts;
+    std::vector<cv::Point2f> corners;
+    codes.clear();
+    if (!cv::QRCodeDetector().detectAndDecodeMulti(gray, texts, corners)) return true;
+    for (size_t i = 0; i < texts.size(); ++i) {
+        if (texts[i].empty() || corners.size() < 4 * (i + 1)) continue;
+        // Its middle: the average of its corners.
+        double px = 0, py = 0;
+        for (size_t k = 0; k < 4; ++k) {
+            px += corners[4 * i + k].x / 4;
+            py += corners[4 * i + k].y / 4;
+        }
+        double x = 0, y = 0;
+        if (cal.machinePoint(px, py, m.x(), m.y(), x, y)) codes.push_back({ texts[i], JPLocation(JPLengthUnit::Millimeters, x, y, 0, 0) });
+    }
     return true;
 }
 

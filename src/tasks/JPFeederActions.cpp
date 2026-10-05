@@ -7,6 +7,7 @@
 #include "JPFiducialLocator.h"
 #include "JPHeapFeeder.h"
 #include "JPPhotonFeeders.h"
+#include "JPRapidScan.h"
 #include "JPVisionTapeFeeder.h"
 
 #include "common/JPlacerLog.h"
@@ -66,6 +67,13 @@ bool JPFeederActions::run(JPConfiguration& config, const std::string& feederId, 
             feederNumber = f->real("actuator-value", 0);
         }
     });
+    if (kind == "RapidFeeder" && action == "rapidScan") {
+        int found = 0;
+        outcome.changed = true;
+        if (!JPRapidScan::scan(config, feederId, machine, onMain, found, why)) return false;
+        JLOGC(JPlacerLog::kJob, JLogLevel::Info) << "Rapid scan: " << found << " feeder(s) found";
+        return true;
+    }
     if (kind == "BlindsFeeder" && action.rfind("blinds", 0) == 0) {
         // With the Jog panel's chosen nozzle, where one is pushing.
         const std::string nozzle = machine.chosenNozzle();

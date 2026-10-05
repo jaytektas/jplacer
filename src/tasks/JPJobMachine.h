@@ -206,6 +206,12 @@ public:
     virtual bool lookThrough(const JPLocation& at, JPPipeline& pipeline, Sight& sight, std::string& why) = 0;
     // The head camera's scale, picture size and calibration (a Sight but for where it looks), not moving it.
     virtual bool cameraSight(Sight& sight, std::string& why) = 0;
+    // The QR codes the head camera sees over `at` (its light on, settled): each one's text and where its middle is.
+    struct QrCode {
+        std::string text;
+        JPLocation  at { JPLengthUnit::Millimeters };
+    };
+    virtual bool readQrCodes(const JPLocation& at, std::vector<QrCode>& codes, std::string& why) = 0;
     // A picture (BGR, as a pipeline's) on the head camera's view for `ms`.
     virtual void showOnCamera(const cv::Mat& bgr, int ms) = 0;
     virtual bool alignPart(const std::string& nozzleId, const AlignRequest& request, AlignResult& result,

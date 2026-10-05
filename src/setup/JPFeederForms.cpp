@@ -653,7 +653,7 @@ void rapidForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeed
         add.end();
     }
     length(add, f, "scan-increment", "Scan Increment", 4);
-    add.button("scan", "Scan", "Find the feeders' QR codes along the scan: needs a QR code reader, not in jplacer yet.", false);
+    add.button("rapidScan", "Scan", "Find the Rapid feeders by their QR codes along the scan, and set them up.");
 }
 
 // A length shown as OpenPnP's "%.0f mm" (a pitch's choices).
@@ -1486,7 +1486,7 @@ bool slotAct(JPConfiguration& config, JPFeeder& slot, const std::string& action,
 } // namespace
 
 bool JPFeederForms::isMachineAction(const std::string& action) {
-    for (const char* a : { "testFeed", "testPostPick", "showVisionFeatures", "autoSetupTape", "cleanDropBox", "getSamples", "resetRotation", "partByOcr", "allFeederOcr", "blindsOcrDetect", "blindsShowFeatures",
+    for (const char* a : { "testFeed", "testPostPick", "showVisionFeatures", "autoSetupTape", "cleanDropBox", "getSamples", "resetRotation", "partByOcr", "allFeederOcr", "rapidScan", "blindsOcrDetect", "blindsShowFeatures",
                            "blindsAutoSetup", "blindsOpenCover", "blindsCloseCover", "blindsOpenAll", "blindsCloseAll",
                            "blindsCalibrateEdges", "blindsCalibrateFiducials", "getId", "getFeedCount", "clearFeedCount", "getPitch", "togglePitch",
                            "getStatus", "updateLocation", "actuate", "photonFind", "photonFeed", "photonFeed1mm",

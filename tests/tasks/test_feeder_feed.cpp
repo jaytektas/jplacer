@@ -75,6 +75,13 @@ public:
         return false;
     }
     void showOnCamera(const cv::Mat&, int) override {}
+    // The QR codes seen at each place looked at, by its X (none: none seen).
+    std::map<int, std::vector<QrCode>> qr;
+    bool readQrCodes(const JPLocation& at, std::vector<QrCode>& codes, std::string&) override {
+        const auto it = qr.find(int(std::lround(at.x())));
+        codes = it == qr.end() ? std::vector<QrCode> {} : it->second;
+        return true;
+    }
     // A nozzle's moves (to, speed, straight); its vacuum read in turn (the last again once used up).
     struct Move {
         std::array<std::optional<double>, 4> to;
@@ -671,6 +678,28 @@ int main() {
         assert(JPFeederFeed::feed(config, "PP", "N1", m, nullptr, why, empty) && m.actuated.empty());
         assert(config.feeder("PP")->number("feed-count") == 2 && config.feeder("PP")->feedOptions() == JPFeeder::FeedOptions::Normal);
         config.removeFeeder("PP");
+    }
+    // A Rapid scan: along the line a scan increment at a time, each QR code a
+    // feeder (the one named by it, else a new one), placed where it was first seen.
+    {
+        JPXmlElement re;
+        assert(JPXmlReader::parse(R"(<feeder class="org.openpnp.machine.rapidplacer.RapidFeeder" id="RB" name="B" enabled="true" part-id="R1"><location units="Millimeters" x="0.0" y="0.0" z="-3.0" rotation="90.0"/><scan-start-location units="Millimeters" x="0.0" y="0.0" z="0.0" rotation="0.0"/><scan-end-location units="Millimeters" x="8.0" y="0.0" z="0.0" rotation="0.0"/><scan-increment value="4.0" units="Millimeters"/></feeder>)",
+                                  re, error));
+        config.addFeeder(JPFeeder::fromXml(re));
+        HoleMachine m;
+        const auto mm = JPLengthUnit::Millimeters;
+        m.qr[0] = { { "A", JPLocation(mm, 0.5, 1, 0, 0) } };
+        m.qr[4] = { { "A", JPLocation(mm, 4.5, 1, 0, 0) }, { "B", JPLocation(mm, 5, 2, 0, 0) } };
+        JPFeederActions::Outcome outcome;
+        assert(JPFeederActions::run(config, "RB", "rapidScan", m, nullptr, JPVisionConfig {}, outcome, why));
+        const JPFeeder* b = config.feeder("RB");
+        assert(near(b->location().x(), 5) && near(b->location().z(), -3) && near(b->location().rotation(), 90) && b->text("address") == "B");
+        const JPFeeder* a = nullptr;
+        for (const JPFeeder& f : config.feeders())
+            if (f.typeName() == "RapidFeeder" && f.name() == "A") a = &f;
+        assert(a && near(a->location().x(), 0.5) && a->text("address") == "A" && !a->partId().empty());
+        config.removeFeeder(a->id());
+        config.removeFeeder("RB");
     }
     return 0;
 }
