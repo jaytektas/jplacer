@@ -49,6 +49,7 @@ classes of their own.
 
 ## Build
 
+    packaging/build-opencv.sh      # once: the static OpenCV OpenPnP's vision pipelines run on
     cmake -S . -B build -G Ninja -DCMAKE_PREFIX_PATH=$HOME/jframework-sdk
     cmake --build build
     ./build/jplacer [--verbose] [--trace <category>] [--settings <file>]

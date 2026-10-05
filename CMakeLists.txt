@@ -62,6 +62,16 @@ target_link_libraries(jplacer_camera PUBLIC jplacer_machine PRIVATE JPEG::JPEG P
 add_library(jplacer_vision STATIC ${JPLACER_VISION_SRC})
 target_link_libraries(jplacer_vision PUBLIC jplacer_common)
 
+# OpenPnP's vision pipelines (CvPipeline) and their stages, on OpenCV: the
+# static build packaging/build-opencv.sh makes (only the modules the stages
+# use, nothing else to ship). jplacer's own finders above need none of it.
+set(OpenCV_DIR "$ENV{HOME}/opencv-jplacer/lib/cmake/opencv4" CACHE PATH "The OpenCV packaging/build-opencv.sh built")
+find_package(OpenCV 4.10 REQUIRED COMPONENTS core imgproc calib3d features2d flann objdetect)
+file(GLOB JPLACER_PIPELINE_SRC CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/pipeline/*.cpp)
+add_library(jplacer_pipeline STATIC ${JPLACER_PIPELINE_SRC})
+target_link_libraries(jplacer_pipeline PUBLIC jplacer_openpnp jplacer_camera ${OpenCV_LIBS})
+target_include_directories(jplacer_pipeline PUBLIC ${OpenCV_INCLUDE_DIRS})
+
 # OpenPnP's model: parts, packages and footprints, boards, panels and jobs,
 # kept in OpenPnP's own files. No GUI, no hardware.
 add_library(jplacer_model STATIC ${JPLACER_MODEL_SRC})
@@ -100,7 +110,7 @@ target_precompile_headers(jplacer PRIVATE ${JPLACER_PCH})
 option(JPLACER_TESTS "Build jplacer's tests" ON)
 if(JPLACER_TESTS)
     enable_testing()
-    foreach(module machine openpnp camera vision model tasks setup)
+    foreach(module machine openpnp camera vision pipeline model tasks setup)
       file(GLOB tests CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tests/${module}/*.cpp)
       foreach(src ${tests})
         get_filename_component(name ${src} NAME_WE)
