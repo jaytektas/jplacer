@@ -67,6 +67,8 @@ private:
     Entry* find(const JDockWidget* dock);
 
     JAppWindow&        m_window;
+    // OpenPnP's Multiple Window Style (JPlacerSettings::kMultipleWindows), taken at start.
+    const bool         m_ownWindows;
     std::vector<Entry> m_entries;   // in the order View lists them
     JMenu*             m_view = nullptr;
     std::function<void(JMenu&)> m_viewHead;

@@ -37,6 +37,8 @@ public:
     int  run();
 
     void openPreferences();
+    // Window > Change Appearance… (JPlacerAppearanceDialog).
+    void openAppearance();
     void showAbout();
 
     JAppWindow&  window()  { return *m_window; }

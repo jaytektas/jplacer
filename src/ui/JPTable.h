@@ -44,6 +44,10 @@ class JPTable : public JControl {
 public:
     explicit JPTable(JSceneGraph& graph);
 
+    // OpenPnP's Alternate Rows (Change Appearance): every other row shaded, in every table.
+    static void setAlternateRows(bool on) { s_alternateRows = on; }
+    static bool alternateRows() { return s_alternateRows; }
+
     void setModel(JPTableModel* model);
     // The model's rows changed: sorted and filtered again, the chosen rows
     // kept (by JPTableModel::rowKey).
@@ -99,6 +103,7 @@ public:
     void endEdit() override { stopEditing(true); }
 
 private:
+    static inline bool s_alternateRows = true;
     struct SortKey {
         int  column;
         bool ascending;

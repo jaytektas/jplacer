@@ -144,10 +144,14 @@ minute) stops what it runs for, saying why.
 
 ## Window
 
-OpenPnP's **Window** menu (**Multiple Window Style**, **Change Appearance…**) is there, greyed out: it is not built
-yet.
+As OpenPnP's:
 
-<!-- src: src/app/JPlacerMenuBuilder.cpp (the Window menu) -->
+| Entry | |
+|---|---|
+| **Multiple Window Style** | Ticked, the cameras open in a window of their own, and the machine controls (Jog, Actuators) in another, the main window keeping the rest; unticked, all in the one window. Taken the next time jplacer starts (it says so). |
+| **Change Appearance…** | **Appearance Settings**: the **Theme**, the **Font Size** (how big the whole interface is, as Edit > Preferences' interface scale) and **Alternating Rows Style** (every other row of a table shaded; on to begin with). **Apply** shows the choice, **Save** shows and keeps it, **Cancel** puts back what was kept. |
+
+<!-- src: src/app/JPlacerMenuBuilder.cpp (the Window menu); src/app/JPlacerLayout.cpp (place); src/app/JPlacerAppearanceDialog.cpp; src/ui/JPTable.cpp -->
 
 ## Help
 

@@ -2,6 +2,8 @@
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
 #include "JPlacerLayout.h"
+#include <j/config/Settings.h>
+#include "JPlacerSettings.h"
 
 #include <algorithm>
 
@@ -16,10 +18,17 @@ constexpr float kBottomShare = 0.15f;
 // Of the left column, the cameras' share over the machine controls (the
 // Jog panel needs most of its height for its pad).
 constexpr float kCameraShare = 0.38f;
+// OpenPnP's Multiple Window Style: the cameras' window and the machine
+// controls' window, where they first open, from the main window's corner
+// (screen pixels), and how big.
+constexpr int      kOwnWindowX = 60, kOwnWindowY = 80, kOwnWindowGap = 20;
+constexpr uint32_t kCameraWindowW = 640, kCameraWindowH = 560;
+constexpr uint32_t kControlsWindowW = 360, kControlsWindowH = 560;
 
 } // namespace
 
-JPlacerLayout::JPlacerLayout(JAppWindow& window) : m_window(window) {
+JPlacerLayout::JPlacerLayout(JAppWindow& window)
+    : m_window(window), m_ownWindows(JSettings::instance().get<bool>(JPlacerSettings::kMultipleWindows, false)) {
     JDockSpace& space = window.dockSpace();
     space.setCentreDocks(true);
     space.setSidesOwnCorners(false);   // the console runs the whole width
@@ -87,6 +96,22 @@ int JPlacerLayout::tabRank(const std::string& title) {
 
 void JPlacerLayout::place(const Entry& e) {
     JDockHost& host = hostOf(e.home);
+    // OpenPnP's Multiple Window Style: the cameras, and the machine controls, each in a window of
+    // their own; tabbed with one of their home there already, else the first opening it.
+    if (m_ownWindows && (e.home == Home::Cameras || e.home == Home::Controls)) {
+        for (const Entry& o : m_entries)
+            if (o.dock != e.dock && o.home == e.home && o.dock->placedIn() && o.dock->placedIn() != &host) {
+                JDockHost* own = o.dock->placedIn();
+                own->insertDock(e.dock, own->findDock(o.dock));
+                return;
+            }
+        host.addDock(e.dock);
+        const bool cameras = e.home == Home::Cameras;
+        m_window.floatDockAt(&host, e.dock, m_window.windowX() + kOwnWindowX + (cameras ? 0 : int(kCameraWindowW) + kOwnWindowGap),
+                             m_window.windowY() + kOwnWindowY, cameras ? kCameraWindowW : kControlsWindowW,
+                             cameras ? kCameraWindowH : kControlsWindowH);
+        return;
+    }
     // Tabbed with one from the same home already there, in OpenPnP's order of tabs.
     for (const Entry& o : m_entries)
         if (o.dock != e.dock && o.home == e.home && o.dock->placedIn() == &host) {

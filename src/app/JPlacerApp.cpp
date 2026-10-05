@@ -2,6 +2,8 @@
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
 #include "JPlacerApp.h"
+#include "ui/JPTable.h"
+#include "JPlacerAppearanceDialog.h"
 
 #include "common/JPTranslations.h"
 #include <j/graphics/FontEngine.h>
@@ -55,6 +57,7 @@ JPlacerApp::JPlacerApp(std::string settingsPath) {
         return;
     }
     JPlacerAppearance::applySaved(*m_window);   // before anything is laid out
+    JPTable::setAlternateRows(JSettings::instance().get<bool>(JPlacerSettings::kAlternateRows, true));
 
     m_updater = std::make_unique<JAppUpdater>(
         *m_window, JAppUpdater::JConfig{ "jplacer", JPLACER_VERSION, kReleasesApi, kUpdateUrlEnv,
@@ -124,6 +127,10 @@ void JPlacerApp::openPreferences() {
                                                       addJogStepKeys();
                                                       m_machine->jogStepsChanged();
                                                   });
+}
+
+void JPlacerApp::openAppearance() {
+    m_window->openModal<JPlacerAppearanceDialog>([this](double scale) { JPlacerAppearance::applyScale(*m_window, scale); });
 }
 
 void JPlacerApp::addJogStepKeys() {

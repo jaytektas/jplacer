@@ -28,6 +28,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | View: System Units (inches) | done | every length shown and typed in mm or inches (forms, tables, readout, Jog), kept in mm; on restart, as OpenPnP |
 | View: Language | done | OpenPnP's translations (ru, es, fr, it, de, zh_CN), applied to whatever jplacer names as OpenPnP does; on restart, as OpenPnP |
 | View: Selections in Tables (linked tables) | done | |
+| Window: Multiple Window Style, Change Appearance (theme, font size, alternating rows) | done | on restart, as OpenPnP |
 | Scripting (events, Python/JS scripts) | own way | the Scripts menu and every OpenPnP event; scripts run as programs of their own told what they run for (JSON), and ask the machine through the jplacer module (positions, location, move_to, safe_z, home, actuate, read, gcode, message): OpenPnP's Java object model cannot be offered outside Java |
 | ContactProbeNozzle (probing pick and place heights, nozzle tip Z calibration) | done | contact sense actuator and vacuum sniffle probing, feeder and placement heights with their triggers, part height probing, Z calibration by touch; discard probing; probed heights kept while jplacer runs (OpenPnP keeps them in its file) |
 | Jog panel: feeder take back (Recycle) | done | |

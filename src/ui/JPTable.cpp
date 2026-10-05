@@ -422,7 +422,7 @@ void JPTable::populateRenderPrimitives(JPrimitiveBuffer& buf) {
         const int r = m_view[size_t(v)];
         const float y = b.y + hh + float(v) * rh - m_scrollY;
         const bool chosen = m_selected.count(r) != 0;
-        if (v % 2 == 1) buf.pushRectangle(b.x, y, innerW, rh, Colors::RowAltBg);
+        if (s_alternateRows && v % 2 == 1) buf.pushRectangle(b.x, y, innerW, rh, Colors::RowAltBg);
         if (chosen) {
             uint8_t sel[4] = { Colors::Accent[0], Colors::Accent[1], Colors::Accent[2], 90 };
             buf.pushRectangle(b.x, y, innerW, rh, sel);

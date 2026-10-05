@@ -255,10 +255,19 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
     // OpenPnP's Scripts menu: the scripts folder's scripts (JPlacerScriptsMenu), for as long as the window.
     static std::unique_ptr<JPlacerScriptsMenu> scriptsMenu;
     scriptsMenu = std::make_unique<JPlacerScriptsMenu>(window, graph, app.machine().sharedScripting(), newMenu(window, "Scripts"));
-    // OpenPnP's Window menu: not built yet, so greyed out.
+    // OpenPnP's Window menu: the cameras and the machine controls each in a window of their own (taken at
+    // the next start, said so), and the appearance.
     JMenu* windows = newMenu(window, "Window");
-    for (const char* label : { "Multiple Window Style", "Change Appearance\xE2\x80\xA6" })
-        windows->add(graph, label)->setEnabled(false);
+    JMenuItem* multiple = windows->add(graph, "Multiple Window Style");
+    multiple->setCheckable(true);
+    multiple->setChecked(JSettings::instance().get<bool>(JPlacerSettings::kMultipleWindows, false));
+    // The tick has already flipped when this runs.
+    multiple->onTriggered.connect([multiple] {
+        JSettings::instance().set(JPlacerSettings::kMultipleWindows, multiple->isChecked());
+        JPlacerSettings::save();
+        JDialog::message("Windows Style Changed", "Windows style changed. Please restart jplacer for the changes to take effect.");
+    });
+    windows->add(graph, "Change Appearance\xE2\x80\xA6")->onTriggered.connect([&app] { app.openAppearance(); });
 
     JMenu* help = newMenu(window, "Help");
     // The manual opens in the browser; whatever went wrong is said in the status bar.

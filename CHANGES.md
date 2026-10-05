@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- The Window menu, as OpenPnP's: Multiple Window Style (the cameras and the machine controls each in a window of their
+  own, from the next start) and Change Appearance… (theme, font size, alternating table rows).
 - Scripts can drive the machine, as OpenPnP's can: `import jplacer` (or `require("jplacer")`) to move tools, home,
   switch and read actuators, send G-code and show a message.
 - View > Language, as OpenPnP's: Russian, Spanish, French, Italian, German or Chinese, from OpenPnP's own translations,
