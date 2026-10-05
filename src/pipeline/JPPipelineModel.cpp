@@ -73,6 +73,12 @@ std::string JPPipelineModel::describe() const {
         }
         std::string operator()(const std::string& t) const { return t; }
         std::string operator()(const Failure& f) const { return f.message; }
+        std::string operator()(const cv::KeyPoint& k) const { return (*this)(std::vector<cv::KeyPoint> { k }); }
+        std::string operator()(const Circle& c) const {
+            std::ostringstream s;
+            s << "Circle [x=" << c.x << ", y=" << c.y << ", diameter=" << c.diameter << "]";
+            return s.str();
+        }
     };
     return std::visit(Visitor {}, value);
 }
@@ -91,7 +97,9 @@ std::string JPPipelineModel::kind() const {
         case 9: return "Point";
         case 10: return "Double";
         case 11: return "String";
-        default: return "Exception";
+        case 12: return "Exception";
+        case 13: return "KeyPoint";
+        default: return "Circle";
     }
 }
 

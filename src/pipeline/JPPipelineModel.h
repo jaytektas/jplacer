@@ -31,7 +31,7 @@ struct JPPipelineModel {
 
     std::variant<std::monostate, cv::RotatedRect, std::vector<cv::RotatedRect>, std::vector<Circle>,
                  std::vector<cv::KeyPoint>, Contours, std::vector<Line>, std::vector<TemplateMatch>,
-                 std::vector<cv::Point2d>, cv::Point2d, double, std::string, Failure>
+                 std::vector<cv::Point2d>, cv::Point2d, double, std::string, Failure, cv::KeyPoint, Circle>
         value;
 
     bool empty() const { return std::holds_alternative<std::monostate>(value); }
