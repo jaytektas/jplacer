@@ -68,6 +68,18 @@ void JPCameraView::buildMenu() {
         m_zoomItems.emplace_back(item, z);
     }
     m_menu->add(g, "Zoom Sensitivity", {}, m_zoomMenu.get());
+    m_qualityMenu = std::make_unique<JMenu>("Rendering Quality");
+    for (RenderingQuality q : { RenderingQuality::Low, RenderingQuality::High, RenderingQuality::BestScale }) {
+        static const char* const kLabels[] = { "Low Quality", "High Quality", "Highest Quality (best scale)" };
+        JMenuItem* item = m_qualityMenu->add(g, kLabels[int(q)]);
+        item->setCheckable(true);
+        item->onTriggered.connect([this, q] {
+            setRenderingQuality(q);
+            if (onRenderingQualityChanged) onRenderingQualityChanged(q);
+        });
+        m_qualityItems.emplace_back(item, q);
+    }
+    m_menu->add(g, "Rendering Quality", {}, m_qualityMenu.get());
     for (JPReticle::Kind k : JPReticle::kinds()) {
         JMenuItem* item = m_menu->add(g, JPReticle::name(k));
         item->setCheckable(true);
@@ -143,7 +155,35 @@ void JPCameraView::prepareContextMenu(float, float) {
     m_infoItem->setChecked(m_showInfo);
     m_nozzleHereItem->setVisible(bool(onMoveNozzleHere));
     for (auto& [item, z] : m_zoomItems) item->setChecked(z == m_sensitivity);
+    for (auto& [item, q] : m_qualityItems) item->setChecked(q == m_quality);
     m_estimateZItem->setVisible(onEstimateZ && canEstimateZ && canEstimateZ());
+}
+
+const char* JPCameraView::name(RenderingQuality q) {
+    switch (q) {
+        case RenderingQuality::High:      return "High";
+        case RenderingQuality::BestScale: return "BestScale";
+        default:                          return "Low";
+    }
+}
+
+void JPCameraView::setRenderingQuality(RenderingQuality q) {
+    if (q == m_quality) return;
+    m_quality = q;
+    // Drawn again, sampled the new way.
+    if (m_tex != kNullTexture) {
+        if (m_showingStill) upload(m_still);
+        else if (m_frame.width > 0) upload(m_frame);
+    }
+    invalidate();
+}
+
+void JPCameraView::upload(const JPFrame& picture) {
+    dropTexture();
+    m_tex = m_hal.uploadTexture(picture.rgba.data(), uint32_t(picture.width), uint32_t(picture.height),
+                                m_quality == RenderingQuality::Low ? JTextureSampling::Sharp : JTextureSampling::Smooth);
+    m_w = picture.width;
+    m_h = picture.height;
 }
 
 const char* JPCameraView::name(ZoomSensitivity s) {
@@ -332,10 +372,9 @@ void JPCameraView::setPrompt(const std::string& text) {
 
 void JPCameraView::showPicture(const JPFrame& picture, const std::string& text, int ms) {
     if (picture.width <= 0 || picture.height <= 0) return;
-    dropTexture();
-    m_tex = m_hal.uploadTexture(picture.rgba.data(), uint32_t(picture.width), uint32_t(picture.height));
-    m_w = picture.width;
-    m_h = picture.height;
+    m_still = picture;
+    m_showingStill = true;
+    upload(m_still);
     m_stillText = text;
     m_stillUntil = std::chrono::steady_clock::now() + std::chrono::milliseconds(ms);
     invalidate();
@@ -346,6 +385,7 @@ void JPCameraView::showLatest() {
     // A picture shown in place of the live one, until its time is up.
     if (std::chrono::steady_clock::now() < m_stillUntil) return;
     m_stillText.clear();
+    m_showingStill = false;
     // Held while the machine works (Suspend during tasks), and no oftener than the preview's rate.
     if (suspended && suspended()) return;
     const auto now0 = std::chrono::steady_clock::now();
@@ -362,10 +402,7 @@ void JPCameraView::showLatest() {
         if (m_intervals.size() > kFpsPictures) m_intervals.pop_front();
     }
     m_lastPicture = now;
-    dropTexture();
-    m_tex = m_hal.uploadTexture(m_frame.rgba.data(), uint32_t(m_frame.width), uint32_t(m_frame.height));
-    m_w = m_frame.width;
-    m_h = m_frame.height;
+    upload(m_frame);
     m_message.clear();
     invalidate();
 }
@@ -385,7 +422,10 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     }
     // Fit the picture, shape kept, centred; zoomed about the centre, so the
     // crosshair stays where the camera is looking, and cut to the view.
-    const float scale = std::min(b.width / float(m_w), b.height / float(m_h)) * float(m_zoom);
+    float scale = std::min(b.width / float(m_w), b.height / float(m_h)) * float(m_zoom);
+    // Best scale: a whole number of the view's pixels to a picture's pixel, or of them to one.
+    if (m_quality == RenderingQuality::BestScale)
+        scale = scale >= 1.f ? std::floor(scale) : 1.f / std::ceil(1.f / scale);
     const float w = float(m_w) * scale, h = float(m_h) * scale;
     const float x = b.x + (b.width - w) * 0.5f, y = b.y + (b.height - h) * 0.5f;
     buf.pushClip(b.x, b.y, b.width, b.height);
@@ -522,7 +562,10 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
 
 bool JPCameraView::handleScroll(float, float, float wheel) {
     if (wheel == 0.f) return false;
-    const double z = std::clamp(m_zoom * std::pow(zoomPerNotch(m_sensitivity), double(wheel)), 1.0, kMostZoom);
+    // At best scale only whole steps show: a notch zooms by 2 at least.
+    const double perNotch = m_quality == RenderingQuality::BestScale ? std::max(2.0, zoomPerNotch(m_sensitivity))
+                                                                     : zoomPerNotch(m_sensitivity);
+    const double z = std::clamp(m_zoom * std::pow(perNotch, double(wheel)), 1.0, kMostZoom);
     // Back near fitted is fitted, not 99.99% of it.
     m_zoom = z < 1.0 + 1e-6 ? 1.0 : z;
     invalidate();

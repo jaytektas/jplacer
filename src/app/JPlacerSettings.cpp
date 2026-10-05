@@ -70,6 +70,10 @@ std::string JPlacerSettings::cameraZoomKey(const std::string& cameraId) {
     return "camera." + cameraId + ".zoomSensitivity";
 }
 
+std::string JPlacerSettings::cameraRenderingKey(const std::string& cameraId) {
+    return "camera." + cameraId + ".renderingQuality";
+}
+
 std::string JPlacerSettings::keyFor(const std::string& functionId) {
     return "keys." + functionId;
 }

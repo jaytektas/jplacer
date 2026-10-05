@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- A camera's picture menu has OpenPnP's Rendering Quality: Low (sharp pixels, to begin with), High (smoothed) and
+  Highest (best scale).
 - Calibrating a camera at two heights now also shows how far it is tipped (OpenPnP's Camera Mounting Error about X, Y
   and Z) and where it looks at its Default Working Plane Z (Calibrated Head Offsets, or Camera Location for a fixed
   camera); a tipped head camera's lean is allowed for at that height.

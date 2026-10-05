@@ -123,7 +123,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Advanced calibration: plots | done | in order, X against Y, map |
 | Camera view: zoom, reticles (cross, grid, ruler, circle / square), drag / Shift+click to move | done | |
 | Camera view: footprint reticle, image info and histogram, light toggle, Estimate Z, Move Selected Nozzle to Camera, Zoom Sensitivity | done | reticles: none, cross, grid, ruler, circle, square |
-| Camera view: Rendering Quality | missing | the framework's image drawing has no filtering choice |
+| Camera view: Rendering Quality | done | Low (sharp pixels), High (smoothed), Highest (best scale: whole-number scale, zoom by 2); per camera |
 | Auto focus (up-looking) | done | Focus Sensing Method, the Auto Focus tab, part height by focus in bottom vision |
 | Capture backends (OpenPnpCapture, Webcam, GStreamer, MJPG, ONVIF, Image, Switcher) | partial | V4L2 (OpenPnpCapture, Webcam), MJPG, Image, Switcher, simulated; GStreamer, ONVIF missing |
 

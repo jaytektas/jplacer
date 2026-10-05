@@ -100,6 +100,13 @@ public:
     static const char* name(ZoomSensitivity s);
     void setZoomSensitivity(ZoomSensitivity s) { m_sensitivity = s; }
     std::function<void(ZoomSensitivity)> onZoomSensitivityChanged;
+    // OpenPnP's Rendering Quality: Low draws each pixel as a block (to begin
+    // with); High smooths it; BestScale (Highest Quality) smooths it at a
+    // whole-number scale only, and the wheel zooms by 2 at least.
+    enum class RenderingQuality { Low, High, BestScale };
+    static const char* name(RenderingQuality q);
+    void setRenderingQuality(RenderingQuality q);
+    std::function<void(RenderingQuality)> onRenderingQualityChanged;
     // The live picture shown at most `fps` times a second (0: every picture),
     // and held while `suspended` says (pictures vision shows still shown).
     void setPreviewFps(double fps) { m_previewFps = fps; }
@@ -181,6 +188,14 @@ private:
     std::unique_ptr<JMenu>             m_menu, m_spacingMenu, m_sizeMenu, m_zoomMenu;
     ZoomSensitivity                    m_sensitivity = ZoomSensitivity::Medium;
     std::vector<std::pair<JMenuItem*, ZoomSensitivity>> m_zoomItems;
+    std::unique_ptr<JMenu>             m_qualityMenu;
+    RenderingQuality                   m_quality = RenderingQuality::Low;
+    std::vector<std::pair<JMenuItem*, RenderingQuality>> m_qualityItems;
+    // The picture shown in place of the live one (showPicture), kept to draw
+    // again when the rendering quality changes.
+    JPFrame                            m_still;
+    bool                               m_showingStill = false;
+    void upload(const JPFrame& picture);
     std::vector<std::pair<JMenuItem*, JPReticle::Kind>> m_kindItems;
     std::vector<std::pair<JMenuItem*, double>> m_spacingItems, m_sizeItems;
     JMenuItem*                         m_spacingItem = nullptr;

@@ -197,6 +197,17 @@ void JPlacerMachine::buildCameras() {
                 JPlacerSettings::save();
             };
         }
+        // How the picture is drawn, kept from last time.
+        {
+            using Q = JPCameraView::RenderingQuality;
+            const std::string kept = JSettings::instance().get<std::string>(JPlacerSettings::cameraRenderingKey(c.id), "");
+            for (Q q : { Q::Low, Q::High, Q::BestScale })
+                if (kept == JPCameraView::name(q)) d.panel->view().setRenderingQuality(q);
+            d.panel->view().onRenderingQualityChanged = [id = c.id](Q q) {
+                JSettings::instance().set(JPlacerSettings::cameraRenderingKey(id), std::string(JPCameraView::name(q)));
+                JPlacerSettings::save();
+            };
+        }
         d.panel->onSettings = [this, id = c.id] { showSetup("camera:" + id); };
         d.panel->onRunning = [this, id = c.id, device = c.device["backend"].str() == "switcher" ? c.device["camera"].str() : ""](bool running) {
             // A switcher camera stopped: its device camera need not run for it.

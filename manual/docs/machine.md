@@ -484,7 +484,12 @@ doubling it; **Low**, four. Each camera keeps its own. The zoom shows in the bot
 corner while it is more than fitted, and turning back down stops at fitted. Moving to a point in a zoomed
 picture works as it does fitted.
 
-<!-- src: src/ui/JPCameraView.cpp (handleScroll, zoomPerNotch, kMostZoom); src/app/JPlacerSettings.cpp (cameraZoomKey) -->
+How the picture is drawn is the picture menu's **Rendering Quality**, as OpenPnP's: **Low Quality** (to begin
+with), each of the camera's pixels a sharp-edged block when zoomed in; **High Quality**, smoothed; **Highest
+Quality (best scale)**, smoothed and drawn only at a whole number of screen pixels to each of the camera's (or of
+the camera's to each screen pixel), the wheel then zooming by two at least each notch. Each camera keeps its own.
+
+<!-- src: src/ui/JPCameraView.cpp (handleScroll, zoomPerNotch, kMostZoom, setRenderingQuality, upload, populateRenderPrimitives); src/app/JPlacerSettings.cpp (cameraZoomKey, cameraRenderingKey) -->
 
 **Right-click** a camera's picture to choose its **reticle**, what is drawn over the picture to measure by:
 
