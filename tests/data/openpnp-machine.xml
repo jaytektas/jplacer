@@ -105,6 +105,11 @@
       <actuators class="java.util.ArrayList">
          <actuator class="org.openpnp.machine.reference.ReferenceActuator" id="ACT2" name="PhotonFeederData" value-type="Boolean" index="0"/>
       </actuators>
+      <signalers class="java.util.ArrayList">
+         <signaler class="org.openpnp.machine.reference.signaler.SoundSignaler" id="SIG1" name="SoundSignaler" enable-error-sound="true" enable-finished-sound="false"/>
+         <signaler class="org.openpnp.machine.reference.signaler.ActuatorSignaler" id="SIG2" name="Beacon" actuator-id="ACT1" job-state="ERROR"/>
+         <signaler class="org.openpnp.machine.neoden4.Neoden4Signaler" id="SIG3" name="Neoden4Signaler"/>
+      </signalers>
       <cameras class="java.util.ArrayList">
          <camera class="org.openpnp.machine.reference.camera.OpenPnpCaptureCamera" id="C2" name="BOTTOM_CAMERA" looking="Up" fps="5.0" flip-y="true">
             <units-per-pixel units="Millimeters" x="0.0329" y="0.0328" z="0.0" rotation="0.0"/>

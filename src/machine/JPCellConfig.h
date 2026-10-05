@@ -9,6 +9,7 @@
 #include "JPDriverConfig.h"
 #include "JPHeadConfig.h"
 #include "JPJobProcessorConfig.h"
+#include "JPSignalerConfig.h"
 #include "JPMachineLocation.h"
 #include "JPVisionConfig.h"
 #include "JPNozzleConfig.h"
@@ -32,6 +33,7 @@ struct JPCellConfig {
     std::vector<JPNozzleTipConfig> nozzleTips;
     std::vector<JPCameraConfig>   cameras;
     std::vector<JPActuatorConfig> actuators;
+    std::vector<JPSignalerConfig> signalers;   // OpenPnP's: told how a job runs
     JPSquarenessConfig            squareness;   // the gantry's Y lean, when measured
     // Home as soon as connected: any controller saying so (JPDriverConfig).
     bool homeAfterConnect() const {

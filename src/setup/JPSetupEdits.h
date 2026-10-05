@@ -6,6 +6,7 @@
 #include "machine/JPCellConfig.h"
 
 #include <string>
+#include <vector>
 
 inline namespace jf {
 
@@ -20,7 +21,11 @@ public:
     // goes on the group's head. A changer step goes after the step selected
     // (or at the end of its list), as a move going nowhere until it is
     // given a place. The new part's path, or empty.
-    static std::string add(JPCellConfig& cell, const std::string& path);
+    // `kind`: for a group of several kinds (kinds()), the one to add.
+    static std::string add(JPCellConfig& cell, const std::string& path, const std::string& kind = "");
+    // The kinds Add chooses from there, as OpenPnP's class names (a signaler:
+    // "SoundSignaler", "ActuatorSignaler"); empty where there is one kind.
+    static std::vector<std::string> kinds(const JPCellConfig& cell, const std::string& path);
     // Remove the part at `path`. Refused (false, and why) while anything else
     // names it: an axis a nozzle moves on, a controller an axis is on, the
     // light a camera switches, a head with parts on it, a nozzle tip on a

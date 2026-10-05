@@ -637,6 +637,27 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
         for (const JPXmlElement& x : acts->children) addActuator(x, std::string());
     if (const JPXmlElement* cams = machine->child("cameras"))
         for (const JPXmlElement& x : cams->children) addCamera(x, std::string());
+    if (const JPXmlElement* sigs = machine->child("signalers"))
+        for (const JPXmlElement& x : sigs->children) {
+            const std::string cls = shortClass(x);
+            const auto& names = JPSignalerConfig::classNames();
+            const auto it = std::find(names.begin(), names.end(), cls);
+            if (it == names.end()) {
+                notes.push_back("signaler " + x.attr("name") + " (" + cls + ") has no jplacer equivalent and was left out");
+                continue;
+            }
+            JPSignalerConfig s;
+            s.kind = JPSignalerConfig::Kind(it - names.begin());
+            s.id = x.attr("id");
+            s.name = x.attr("name").empty() ? cls : x.attr("name");
+            s.errorSound = x.attr("enable-error-sound") == "true";
+            s.finishedSound = x.attr("enable-finished-sound") == "true";
+            s.actuatorId = x.attr("actuator-id");
+            const auto& states = JPSignalerConfig::jobStateKeys();
+            if (const auto st = std::find(states.begin(), states.end(), x.attr("job-state")); st != states.end())
+                s.jobState = JPSignalerConfig::JobState(st - states.begin());
+            c.signalers.push_back(std::move(s));
+        }
 
     if (squarenessAxis) {
         auto onInput = [&](JPMountConfig& m) { if (m.axisX == *squarenessAxis) m.axisX = c.squareness.axisX; };

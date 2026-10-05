@@ -235,6 +235,42 @@ int main() {
         assert(JPSetupEdits::remove(c, "step:T:unload:2", why) && c.nozzleTips[0].unloadSteps.size() == 2);
     }
     std::printf("  [OK] a tip's changer steps\n");
+    // Signalers: Add asks which kind (OpenPnP's New Signaler…), each kind its own page.
+    {
+        JPCellConfig c = cell();
+        assert(JPSetupEdits::addable(c, "group:signalers") == "Signaler");
+        assert(JPSetupEdits::kinds(c, "group:signalers").size() == 2);
+        assert(JPSetupEdits::kinds(c, "group:axes").empty());
+        assert(JPSetupEdits::add(c, "group:signalers").empty());   // no kind: nothing added
+        const std::string sound = JPSetupEdits::add(c, "group:signalers", "SoundSignaler");
+        const std::string act = JPSetupEdits::add(c, "group:signalers", "ActuatorSignaler");
+        assert(c.signalers.size() == 2 && sound.rfind("signaler:SIG", 0) == 0 && c.signalers[0].name == "SoundSignaler");
+        assert(JPSetupTree::groupOf(c, act) == "group:signalers");
+        assert(!JPSetupTree::labelsTo(JPSetupTree::build(c), act).empty());
+        JPSetupProperties::Form f = JPSetupProperties::forNode(c, sound, {});
+        assert(f.title == "SoundSignaler SoundSignaler");
+        assert(f.model.find("errorSound") && f.model.find("finishedSound"));
+        f.model.set("errorSound", JVariant(true));
+        assert(c.signalers[0].errorSound);
+        f = JPSetupProperties::forNode(c, act, {});
+        f.model.set("actuator", JVariant(std::string("LIGHT_UP")));
+        f.model.set("jobState", JVariant(std::string("FINISHED")));
+        assert(c.signalers[1].actuatorId == "L" && c.signalers[1].jobState == JPSignalerConfig::JobState::Finished);
+        f.model.set("jobState", JVariant(std::string("")));
+        assert(!c.signalers[1].jobState);
+        // Its actuator is in use while it switches it.
+        std::string why;
+        c.cameras.clear();
+        assert(!JPSetupEdits::remove(c, "actuator:L", why) && why.find("signaler") != std::string::npos);
+        assert(JPSetupEdits::move(c, act, -1) == act && c.signalers[0].kind == JPSignalerConfig::Kind::Actuator);
+        assert(JPSetupEdits::remove(c, act, why) && c.signalers.size() == 1);
+        assert(JPSetupEdits::remove(c, "actuator:L", why));
+        c.signalers.push_back({ JPSignalerConfig::Kind::Actuator, "S9", "Beacon", false, false, "gone", {} });
+        bool said = false;
+        for (const std::string& p : c.problems()) said |= p.find("signaler Beacon") != std::string::npos;
+        assert(said);
+    }
+    std::printf("  [OK] signalers\n");
     std::printf("All setup tests passed.\n");
     return 0;
 }

@@ -1193,6 +1193,31 @@ void actuatorForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::
                    "Off Values.");
 }
 
+// OpenPnP's SoundSignalerConfigurationWizard and ActuatorSignalerConfigurationWizard.
+void signalerForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f) {
+    auto s = finder(cell.signalers, id);
+    f.title = s().className() + " " + s().name;
+    JPFormBuilder add(f);
+    add.tab("Configuration");
+    add.group("");
+    if (s().kind == JPSignalerConfig::Kind::Sound) {
+        add.flag("errorSound", "Play sound on error?", [s]() -> bool& { return s().errorSound; });
+        add.flag("finishedSound", "Play sound on completion?", [s]() -> bool& { return s().finishedSound; });
+        return;
+    }
+    add.byName("actuator", "Actuator", named(cell.actuators, "(none)"), [s]() -> std::string& { return s().actuatorId; });
+    std::vector<std::string> states { "" };
+    for (const std::string& k : JPSignalerConfig::jobStateKeys()) states.push_back(k);
+    add.choice("jobState", "Job State", states,
+               [s] { return s().jobState ? JPSignalerConfig::jobStateKeys()[size_t(*s().jobState)] : std::string(); },
+               [s](const std::string& v) {
+                   const auto& keys = JPSignalerConfig::jobStateKeys();
+                   const auto it = std::find(keys.begin(), keys.end(), v);
+                   s().jobState = it == keys.end() ? std::nullopt
+                                                   : std::optional(JPSignalerConfig::JobState(it - keys.begin()));
+               });
+}
+
 // OpenPnP's ReferencePnpJobProcessorConfigurationWizard: its General group.
 void jobProcessorForm(JPCellConfig& cell, JPSetupProperties::Form& f) {
     f.title = "ReferencePnpJobProcessor";
@@ -1330,6 +1355,7 @@ JPSetupProperties::Form JPSetupProperties::forNode(JPCellConfig& cell, const std
     else if (p.kind == "step" && has(cell.nozzleTips, p.owner)) stepForm(cell, p, f);
     else if (p.kind == "camera" && has(cell.cameras, p.id)) cameraForm(cell, p.id, f);
     else if (p.kind == "actuator" && has(cell.actuators, p.id)) actuatorForm(cell, p.id, f);
+    else if (p.kind == "signaler" && has(cell.signalers, p.id)) signalerForm(cell, p.id, f);
     return f;
 }
 

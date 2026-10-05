@@ -6,6 +6,7 @@
 #include "JPlacerJob.h"
 #include "JPlacerJobMachine.h"
 #include "JPlacerMachine.h"
+#include "JPlacerSignalers.h"
 
 #include "tasks/JPJobProcessor.h"
 #include "ui/JPJobPanel.h"
@@ -81,6 +82,8 @@ private:
     std::atomic<JPJobPanel::RunState>    m_state { JPJobPanel::RunState::Stopped };
     std::atomic<bool>                    m_quitting { false };
     bool                                 m_stepToMotion = true;   // Step Next Motion
+    JPlacerSignalers                     m_signalers { m_machine };
+    bool                                 m_signalSetUp = false;   // a job set up: Stopped to be signalled first
     std::shared_ptr<bool>                m_alive = std::make_shared<bool>(true);
 };
 

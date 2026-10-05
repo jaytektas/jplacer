@@ -188,6 +188,7 @@ void JPlacerJobRun::start(RunState as) {
         m_stepToMotion = settings.steppingToNextMotion;
         m_processor = std::make_unique<JPJobProcessor>(m_job.configuration(), m_job.job(), *m_jobMachine, settings, hooks);
         if (const JPCell* c = m_machine.cell()) m_processor->setVision(c->config().vision);
+        m_signalSetUp = true;
         setState(as);
         run();
     };
@@ -212,11 +213,20 @@ void JPlacerJobRun::start(RunState as) {
 
 void JPlacerJobRun::run() {
     m_worker = std::thread([this] {
+        using JobState = JPSignalerConfig::JobState;
+        auto signal = [this](JobState state) {
+            m_signalers.signal(state, [this](const std::function<void()>& fn) { onMain(fn); });
+        };
+        if (m_signalSetUp) {
+            m_signalSetUp = false;
+            signal(JobState::Stopped);
+        }
         for (;;) {
             if (m_quitting) return;
             const RunState s = m_state;
             if (s == RunState::Stopping) {
                 m_processor->abort();
+                signal(JobState::Stopped);
                 post([this] {
                     setState(RunState::Stopped);
                     m_window.showStatus("Job stopped.", kStatusMs);
@@ -226,12 +236,15 @@ void JPlacerJobRun::run() {
             if (s != RunState::Running && s != RunState::Pausing) return;
             JPJobProcessor::Failure f;
             const int motionsBefore = m_jobMachine->motions();
+            signal(JobState::Running);
             const JPJobProcessor::Result r = m_processor->next(f);
             if (r == JPJobProcessor::Result::Finished) {
+                signal(JobState::Finished);
                 post([this] { setState(RunState::Stopped); });
                 return;
             }
             if (r == JPJobProcessor::Result::Failed) {
+                signal(JobState::Error);
                 post([this, f] {
                     // Paused there (stopped, when stopping), then said.
                     setState(m_state == RunState::Stopping ? RunState::Stopped : RunState::Paused);

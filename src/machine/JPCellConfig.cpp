@@ -29,6 +29,7 @@ JJson JPCellConfig::toJson() const {
     j["nozzleTips"] = toArray(nozzleTips);
     j["cameras"]   = toArray(cameras);
     j["actuators"] = toArray(actuators);
+    if (!signalers.empty()) j["signalers"] = toArray(signalers);
     if (!squareness.axisX.empty()) j["squareness"] = squareness.toJson();
     if (parkAfterHome) j["parkAfterHome"] = true;
     if (discardLocation) j["discardLocation"] = discardLocation->toJson();
@@ -55,6 +56,7 @@ bool JPCellConfig::fromJson(const JJson& j, std::string& error) {
     for (const JJson& t : j["nozzleTips"].arr()) c.nozzleTips.push_back(JPNozzleTipConfig::fromJson(t));
     for (const JJson& m : j["cameras"].arr())   c.cameras.push_back(JPCameraConfig::fromJson(m));
     for (const JJson& a : j["actuators"].arr()) c.actuators.push_back(JPActuatorConfig::fromJson(a));
+    for (const JJson& s : j["signalers"].arr()) c.signalers.push_back(JPSignalerConfig::fromJson(s));
     c.squareness = JPSquarenessConfig::fromJson(j["squareness"]);
     // Kept on the machine before it was a controller's: every controller's now.
     if (j["homeAfterConnect"].boolean())
@@ -137,6 +139,9 @@ std::vector<std::string> JPCellConfig::problems() const {
     for (const JPHeadConfig& h : heads)
         if (!h.pumpActuatorId.empty() && !actuatorIds.count(h.pumpActuatorId))
             out.push_back("head " + h.name + " names a pump actuator that is not in this cell");
+    for (const JPSignalerConfig& s : signalers)
+        if (s.kind == JPSignalerConfig::Kind::Actuator && !s.actuatorId.empty() && !actuatorIds.count(s.actuatorId))
+            out.push_back("signaler " + s.name + " switches an actuator that is not in this cell");
     std::set<std::string> tipIds;
     for (const JPNozzleTipConfig& t : nozzleTips) tipIds.insert(t.id);
     for (const JPNozzleConfig& n : nozzles) {

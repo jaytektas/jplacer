@@ -20,7 +20,7 @@ bool idTaken(const JPCellConfig& cell, const std::string& id) {
         return std::any_of(items.begin(), items.end(), [&id](const auto& i) { return i.id == id; });
     };
     return in(cell.drivers) || in(cell.axes) || in(cell.heads) || in(cell.nozzles) || in(cell.nozzleTips)
-        || in(cell.cameras) || in(cell.actuators);
+        || in(cell.cameras) || in(cell.actuators) || in(cell.signalers);
 }
 
 // Whether a mount moves on `axisId`.
@@ -97,10 +97,17 @@ std::string JPSetupEdits::addable(const JPCellConfig& cell, const std::string& p
     if (g.id == "nozzletips") return "Nozzle Tip";
     if (g.id == "cameras")   return "Camera";
     if (g.id == "actuators") return "Actuator";
+    if (g.id == "signalers") return "Signaler";
     return {};
 }
 
-std::string JPSetupEdits::add(JPCellConfig& cell, const std::string& path) {
+std::vector<std::string> JPSetupEdits::kinds(const JPCellConfig& cell, const std::string& path) {
+    const JPSetupTree::Path g = JPSetupTree::parse(JPSetupTree::groupOf(cell, path));
+    if (g.kind == "group" && g.id == "signalers") return JPSignalerConfig::classNames();
+    return {};
+}
+
+std::string JPSetupEdits::add(JPCellConfig& cell, const std::string& path, const std::string& kind) {
     const JPSetupTree::Path g = JPSetupTree::parse(JPSetupTree::groupOf(cell, path));
     if (g.kind != "group") return {};
     if (g.id == "load" || g.id == "unload") {
@@ -172,6 +179,17 @@ std::string JPSetupEdits::add(JPCellConfig& cell, const std::string& path) {
         cell.actuators.push_back(a);
         return "actuator:" + a.id;
     }
+    if (g.id == "signalers") {
+        const auto& names = JPSignalerConfig::classNames();
+        const auto it = std::find(names.begin(), names.end(), kind);
+        if (it == names.end()) return {};
+        JPSignalerConfig s;
+        s.kind = JPSignalerConfig::Kind(it - names.begin());
+        s.id = newId(cell, "SIG");
+        s.name = kind;   // as OpenPnP names a new one: its class
+        cell.signalers.push_back(s);
+        return "signaler:" + s.id;
+    }
     return {};
 }
 
@@ -207,6 +225,8 @@ bool JPSetupEdits::remove(JPCellConfig& cell, const std::string& path, std::stri
             if (n.vacuumActuatorId == p.id) users.push_back("nozzle " + n.name + " (its vacuum)");
         for (const JPHeadConfig& h : cell.heads)
             if (h.pumpActuatorId == p.id) users.push_back("head " + h.name + " (its pump)");
+        for (const JPSignalerConfig& s : cell.signalers)
+            if (s.kind == JPSignalerConfig::Kind::Actuator && s.actuatorId == p.id) users.push_back("signaler " + s.name);
     } else if (p.kind == "step") {
         std::vector<JPChangerStep>* steps = stepList(cell, p);
         const long i = steps ? stepIndex(p, *steps) : -1;
@@ -219,7 +239,7 @@ bool JPSetupEdits::remove(JPCellConfig& cell, const std::string& path, std::stri
     } else if (p.kind == "nozzletip") {
         for (const JPNozzleConfig& n : cell.nozzles)
             if (n.tipId == p.id) users.push_back("nozzle " + n.name + " (it is on it)");
-    } else if (p.kind != "nozzle" && p.kind != "camera") {
+    } else if (p.kind != "nozzle" && p.kind != "camera" && p.kind != "signaler") {
         why = "only a part can be removed";
         return false;
     }
@@ -233,6 +253,7 @@ bool JPSetupEdits::remove(JPCellConfig& cell, const std::string& path, std::stri
                        : p.kind == "nozzle"    ? erase(cell.nozzles, p.id)
                        : p.kind == "nozzletip" ? erase(cell.nozzleTips, p.id)
                        : p.kind == "camera"    ? erase(cell.cameras, p.id)
+                       : p.kind == "signaler"  ? erase(cell.signalers, p.id)
                                                : erase(cell.actuators, p.id);
     if (!removed) {
         why = "it is not in this cell";
@@ -261,6 +282,7 @@ std::string JPSetupEdits::move(JPCellConfig& cell, const std::string& path, int 
                      : p.kind == "nozzletip" ? moveIn(cell.nozzleTips, p.id, by, any)
                      : p.kind == "camera"    ? moveIn(cell.cameras, p.id, by, sameHead)
                      : p.kind == "actuator"  ? moveIn(cell.actuators, p.id, by, sameHead)
+                     : p.kind == "signaler"  ? moveIn(cell.signalers, p.id, by, any)
                                              : false;
     return moved ? path : std::string();
 }

@@ -349,6 +349,9 @@ notes.
   chooses what goes with it on the others (its board, its part, the part's package, feeder and vision settings).
   View also has OpenPnP's System Units and Language, with only millimetres and English for now.
 - A row chosen in a table on a tab not yet shown is scrolled into view when the tab is shown.
+- Machine Setup has OpenPnP's Signalers: a SoundSignaler plays a sound when a job meets an error or is finished,
+  and an ActuatorSignaler switches an actuator (a beacon, a buzzer) while a job is in a state you choose.
+  Signalers come in with an OpenPnP machine.
 
 ## 0.1.0
 

@@ -82,6 +82,9 @@ public:
     // or an axis to a position.
     std::function<void(JPSetupForm::Tool tool, const Where& to)> moveTo;
     std::function<void(const std::string& axisId, double to)> moveAxis;
+    // OpenPnP's ClassSelectionDialog: one of `classes` chosen (empty: cancelled).
+    std::function<void(const std::string& title, const std::string& description, const std::vector<std::string>& classes,
+                       std::function<void(std::string)> chosen)> chooseClass;
     // The node selected changed (its path).
     std::function<void(const std::string& path)> onSelected;
 
@@ -119,6 +122,7 @@ private:
     // The tree's rows again, open where m_expanded says.
     void setRows(bool firstTime);
     void addPart();
+    void addPart(const std::string& kind);
     void removePart();
     // Open (or close) the selected node and everything under it.
     void setBranch(bool open);

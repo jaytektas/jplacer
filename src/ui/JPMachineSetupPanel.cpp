@@ -237,8 +237,24 @@ void JPMachineSetupPanel::setRows(bool firstTime) {
 }
 
 void JPMachineSetupPanel::addPart() {
+    // A group of several kinds (Signalers): the kind chosen first, as OpenPnP's New Signaler….
+    const std::vector<std::string> kinds = JPSetupEdits::kinds(m_draft, m_selected);
+    if (!kinds.empty()) {
+        if (!chooseClass) return;
+        const std::string what = JPSetupEdits::addable(m_draft, m_selected);
+        chooseClass("Select " + what + "...", "Please select a " + what + " implementation from the list below.", kinds,
+                    [this, alive = std::weak_ptr<bool>(m_alive)](std::string kind) {
+                        if (const auto a = alive.lock(); !a || !*a || kind.empty()) return;
+                        addPart(kind);
+                    });
+        return;
+    }
+    addPart("");
+}
+
+void JPMachineSetupPanel::addPart(const std::string& kind) {
     const std::string from = m_selected, what = JPSetupEdits::addable(m_draft, m_selected);
-    const std::string added = JPSetupEdits::add(m_draft, m_selected);
+    const std::string added = JPSetupEdits::add(m_draft, m_selected, kind);
     if (added.empty()) return;
     JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Machine Setup: added " << added;
     setNote("");

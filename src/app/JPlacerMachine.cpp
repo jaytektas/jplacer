@@ -3,6 +3,7 @@
 
 #include "JPlacerMachine.h"
 
+#include "JPlacerClassSelectionDialog.h"
 #include "JPlacerSettings.h"
 
 #include "camera/JPWhiteBalance.h"
@@ -283,6 +284,10 @@ std::unique_ptr<JPMachineSetupPanel> JPlacerMachine::makeSetup() {
     setup->onSelected = [this](const std::string& path) { m_setupSelected = path; };
     setup->onApply = [this](const JPCellConfig& cell) { return applySetup(cell); };
     setup->onAction = [this](const std::string& path, const std::string& action) { setupAction(path, action); };
+    setup->chooseClass = [this](const std::string& title, const std::string& description, const std::vector<std::string>& classes,
+                                std::function<void(std::string)> chosen) {
+        m_window.openModal<JPlacerClassSelectionDialog>(title, description, classes, std::move(chosen));
+    };
     setup->whereIs = [this](JPSetupForm::Tool tool) { return whereIs(tool); };
     setup->axisAt = [this](const std::string& axisId) -> std::optional<double> {
         if (!m_cell->isConnected()) return std::nullopt;

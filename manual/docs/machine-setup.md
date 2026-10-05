@@ -16,6 +16,7 @@ The machine is shown as a tree of its parts:
 - **Nozzle Tips**: the tips the nozzles take, each with its **Load** and **Unload** steps under it.
 - **Cameras**: the cameras fixed to the machine (looking up at the nozzles).
 - **Actuators**: the actuators on the machine rather than a head.
+- **Signalers**: what tells you how a job is going (below).
 - **Job Processors**: **ReferencePnpJobProcessor**, how a job is run (below).
 - **Vision**: **Bottom Vision** and **Fiducal Locator** (OpenPnP's spelling), how parts and fiducials are
   found (below).
@@ -74,14 +75,33 @@ on Machine Setup does not take them back.
 
 <!-- src: src/setup/JPSetupProperties.cpp (bottomVisionForm, fiducialLocatorForm, finder, defaultSettingsTab); src/ui/JPMachineSetupPanel.cpp (changed, formFor); src/machine/JPVisionConfig.h; src/openpnp/JPOpenPnpMachineImporter.cpp (part-alignments, fiducial-locator); src/tasks/JPFiducialLocator.cpp (partLook); src/tasks/JPJobProcessor.cpp (align); src/app/JPlacerJobMachine.cpp (lookByPipeline, findByPipeline, locateFiducial) -->
 
+### Signalers
+
+A signaler is told how a job runs, as OpenPnP tells it: **STOPPED** when a job is started or stopped,
+**RUNNING** before each step, **ERROR** when a step fails, **FINISHED** when the job is done. **Add** with
+**Signalers** chosen asks which kind:
+
+| Kind | Settings |
+|---|---|
+| **SoundSignaler** | **Play sound on error?** and **Play sound on completion?**: a short falling sound when a job meets an error, a rising one when it is finished. |
+| **ActuatorSignaler** | **Actuator**, switched on while the job is in its **Job State** and off otherwise (a beacon, a buzzer). With no job state chosen it is not switched. It is switched only when that changes what it was last switched to. |
+
+The sounds are played with the desktop's sound player (**pw-play**, **paplay** or **aplay**, the first
+installed); with none, the Log says so. As in OpenPnP, a file **sounds/error.wav** or **sounds/success.wav**
+in jplacer's settings folder (`~/.config/jplacer`) is played in place of jplacer's own. OpenPnP's
+**Neoden4Signaler** is for Neoden4 machines and is not brought in from an OpenPnP machine.
+
+<!-- src: src/machine/JPSignalerConfig.h; src/setup/JPSetupProperties.cpp (signalerForm); src/app/JPlacerSignalers.cpp; src/app/JPlacerSound.cpp; src/common/JPlacerPaths.cpp (configDir); src/app/JPlacerJobRun.cpp (run); src/openpnp/JPOpenPnpMachineImporter.cpp (signalers) -->
+
 ## Adding, removing and ordering parts
 
 **Add** adds a part of the kind chosen: with an axis (or **Axes**) chosen it reads **Add Axis**, with a
 head's **Nozzles** chosen **Add Nozzle**, which goes on that head. A new part has a name saying what it is,
-to change, and an id of its own that stays the same whatever it is renamed to.
+to change, and an id of its own that stays the same whatever it is renamed to. Where there are several
+kinds (**Signalers**), Add first asks which, as OpenPnP's **Select Signaler...** does.
 
 **Remove** removes the chosen part, unless something else uses it: an axis a nozzle or camera moves on,
-a controller an axis is on, an actuator that is a camera's light, a head with parts on it, a nozzle tip
+a controller an axis is on, an actuator that is a camera's light or a signaler's, a head with parts on it, a nozzle tip
 on a nozzle. Then nothing is removed, and the line at the bottom says what uses it. A nozzle tip that
 only fits nozzles is taken off their lists with it.
 

@@ -102,6 +102,22 @@ int main() {
     assert(cell.nozzleTips[0].unloadReversesLoad && cell.nozzleTips[1].loadSteps.empty());
 
     assert(cell.actuators.size() == 2);
+    // Signalers: OpenPnP's sound and actuator ones; any other is left out and said.
+    assert(cell.signalers.size() == 2);
+    assert(cell.signalers[0].kind == JPSignalerConfig::Kind::Sound && cell.signalers[0].id == "SIG1");
+    assert(cell.signalers[0].errorSound && !cell.signalers[0].finishedSound);
+    assert(cell.signalers[1].kind == JPSignalerConfig::Kind::Actuator && cell.signalers[1].name == "Beacon");
+    assert(cell.signalers[1].actuatorId == "ACT1" && cell.signalers[1].jobState == JPSignalerConfig::JobState::Error);
+    {
+        bool said = false;
+        for (const std::string& n : notes) said |= n.find("Neoden4Signaler") != std::string::npos;
+        assert(said);
+        std::string e;
+        JPCellConfig back;
+        assert(back.fromJson(cell.toJson(), e));
+        assert(back.signalers.size() == 2 && back.signalers[1].jobState == JPSignalerConfig::JobState::Error);
+        assert(!back.signalers[0].jobState && back.signalers[0].errorSound);
+    }
     const JPActuatorConfig& sol = cell.actuators[0];
     assert(sol.name == "RIGHT_SOLENOID" && sol.index == "4");
     assert(sol.onCommand == "M64 P{index}" && sol.offCommand == "M65 P{index}");

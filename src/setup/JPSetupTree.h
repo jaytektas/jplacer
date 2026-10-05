@@ -21,12 +21,13 @@ inline namespace jf {
 //       Load, Unload      its changer's steps
 //     Cameras             fixed to the machine (looking up at the nozzles)
 //     Actuators           on the machine, not a head
+//     Signalers           a signaler each
 //
 // Each node has a path naming it: "machine", "driver:<id>", "axis:<id>",
 // "head:<id>", "nozzle:<id>", "nozzletip:<id>", "camera:<id>",
-// "actuator:<id>", "step:<tipId>:<load|unload>:<index>", and for a group
+// "actuator:<id>", "signaler:<id>", "step:<tipId>:<load|unload>:<index>", and for a group
 // "group:<what>" ("group:drivers", "group:axes", "group:heads",
-// "group:nozzletips") or, for a group that belongs to a head (or to the
+// "group:nozzletips", "group:signalers") or, for a group that belongs to a head (or to the
 // machine, an empty head) or a tip, "group:<what>:<owner>"
 // ("group:nozzles:H1", "group:cameras:", "group:load:T1").
 //

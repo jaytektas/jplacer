@@ -86,6 +86,7 @@ JPSetupTree::Node JPSetupTree::build(const JPCellConfig& cell) {
     root.children.push_back(std::move(tips));
     root.children.push_back(group<JPCameraConfig>("Cameras", "group:cameras:", cell.cameras, "camera", fixed));
     root.children.push_back(group<JPActuatorConfig>("Actuators", "group:actuators:", cell.actuators, "actuator", fixed));
+    root.children.push_back(group<JPSignalerConfig>("Signalers", "group:signalers", cell.signalers, "signaler", all));
     // As OpenPnP's: how a job is run, and how it sees.
     Node processors{ "Job Processors", "group:jobprocessors", {} };
     processors.children.push_back({ "ReferencePnpJobProcessor", "jobprocessor", {} });
@@ -134,6 +135,7 @@ std::string JPSetupTree::groupOf(const JPCellConfig& cell, const std::string& pa
     if (p.kind == "axis")     return "group:axes";
     if (p.kind == "head")     return "group:heads";
     if (p.kind == "nozzletip") return "group:nozzletips";
+    if (p.kind == "signaler") return "group:signalers";
     if (p.kind == "step")     return "group:" + p.list + ":" + p.owner;
     if (p.kind == "nozzle")   return mounted(cell.nozzles, "nozzles");
     if (p.kind == "camera")   return mounted(cell.cameras, "cameras");
