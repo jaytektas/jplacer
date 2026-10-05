@@ -625,11 +625,16 @@ std::string JPlacerMachine::nozzlePart(const std::string& nozzleId) const {
 void JPlacerMachine::setNozzlePart(const std::string& nozzleId, const std::string& partId) {
     if (partId.empty()) m_nozzleParts.erase(nozzleId);
     else m_nozzleParts[nozzleId] = partId;
-    // Its height, for the nozzle's Dynamic Safe Z.
-    double height = 0;
-    if (const JPPart* part = m_configuration && !partId.empty() ? m_configuration->part(partId) : nullptr)
-        height = part->heightForSafeZ().convertToUnits(JPLengthUnit::Millimeters).value();
-    if (m_cell) m_cell->setPartHeight(nozzleId, height);
+    // Its height (the nozzle's Dynamic Safe Z), and its package's pick vacuum and place blow-off levels.
+    JPCell::PartOnNozzle on;
+    if (const JPPart* part = m_configuration && !partId.empty() ? m_configuration->part(partId) : nullptr) {
+        on.heightMm = part->heightForSafeZ().convertToUnits(JPLengthUnit::Millimeters).value();
+        if (const JPPackage* pkg = m_configuration->package(part->packageId)) {
+            on.pickVacuumLevel = pkg->pickVacuumLevel;
+            on.placeBlowOffLevel = pkg->placeBlowOffLevel;
+        }
+    }
+    if (m_cell) m_cell->setNozzlePart(nozzleId, on);
 }
 
 void JPlacerMachine::setSetupVisionTests(JPVisionTests tests) {

@@ -162,16 +162,16 @@ int main() {
         std::string why;
         assert(cell.moveAxesAndWait({ { "Z", -5 } }, 1.0, why));
         motion.take();
-        cell.setPartHeight("N", 3);
+        cell.setNozzlePart("N", { 3, 0, 0 });
         cell.parkZ(config.nozzles[0].mount, 1.0);
         assert(motion.take().first && near(cell.jogBase().at("Z"), 1));
         // Head Safe Z too; and a taller part only as high as the zone goes.
         assert(cell.moveAxesAndWait({ { "Z", -5 } }, 1.0, why));
         motion.take();
-        cell.setPartHeight("N", 10);
+        cell.setNozzlePart("N", { 10, 0, 0 });
         cell.safeZ("H", 1.0);
         assert(motion.take().first && near(cell.jogBase().at("Z"), 2));
-        cell.setPartHeight("N", 0);
+        cell.setNozzlePart("N", {});
         cell.parkZ(config.nozzles[0].mount, 1.0);
         assert(motion.take().first && near(cell.jogBase().at("Z"), -2));
         cell.disconnect();

@@ -322,10 +322,10 @@ bool JPCell::safeZAndWait(const std::string& headId, double speed, std::string& 
     return ok;
 }
 
-void JPCell::setPartHeight(const std::string& nozzleId, double heightMm) {
-    m_thread.post([this, nozzleId, heightMm] {
-        if (heightMm > 0) m_partHeights[nozzleId] = heightMm;
-        else m_partHeights.erase(nozzleId);
+void JPCell::setNozzlePart(const std::string& nozzleId, const PartOnNozzle& part) {
+    m_thread.post([this, nozzleId, part] {
+        if (part.heightMm != 0 || part.pickVacuumLevel != 0 || part.placeBlowOffLevel != 0) m_nozzleParts[nozzleId] = part;
+        else m_nozzleParts.erase(nozzleId);
     });
 }
 
@@ -338,7 +338,7 @@ double JPCell::dynamicLift(const JPMountConfig& mount) const {
         const bool same = m.headId == mount.headId && m.axisX == mount.axisX && m.axisY == mount.axisY && m.axisZ == mount.axisZ
                        && m.offsetX == mount.offsetX && m.offsetY == mount.offsetY && m.offsetZ == mount.offsetZ;
         if (!same || !n.dynamicSafeZ) continue;
-        if (const auto h = m_partHeights.find(n.id); h != m_partHeights.end()) return h->second;
+        if (const auto h = m_nozzleParts.find(n.id); h != m_nozzleParts.end()) return h->second.heightMm;
     }
     return 0;
 }
@@ -726,7 +726,19 @@ bool JPCell::doVacuumOn(const JPNozzleConfig& n, std::string& why) {
         m_pumpOn.insert(head->id);
         std::this_thread::sleep_for(std::chrono::milliseconds(head->pumpOnWaitMs));
     }
-    if (!switchTelling(n.vacuumActuatorId, true, why)) return false;
+    // The package's pick vacuum level, to a vacuum actuator taking a value (OpenPnP's actuateVacuumValve(level)).
+    const auto part = m_nozzleParts.find(n.id);
+    const JPActuatorConfig* valve = nullptr;
+    for (const JPActuatorConfig& a : m_config.actuators) if (a.id == n.vacuumActuatorId) valve = &a;
+    if (part != m_nozzleParts.end() && part->second.pickVacuumLevel != 0 && valve && valve->canSet()) {
+        const std::string level = format(part->second.pickVacuumLevel, 3);
+        const bool ok = doSet(n.vacuumActuatorId, level, why);
+        onActuator.emit(n.vacuumActuatorId, ok, ok ? level : why);
+        if (!ok) return false;
+        m_actuated[n.vacuumActuatorId] = true;
+    } else if (!switchTelling(n.vacuumActuatorId, true, why)) {
+        return false;
+    }
     m_holding.insert(n.id);
     return true;
 }
@@ -786,9 +798,25 @@ bool JPCell::doPlace(const JPNozzleConfig& n, std::string& why) {
     if (n.vacuumActuatorId.empty()) { why = "it has no vacuum actuator"; return false; }
     int dwell = n.placeDwellMs;
     for (const JPNozzleTipConfig& t : m_config.nozzleTips) if (t.id == n.tipId) dwell += t.placeDwellMs;
-    const bool blow = !n.blowOffActuatorId.empty();
+    // OpenPnP's place blow-off: the package's level, else the tip's; none, no blow (only the vacuum off).
+    double blowLevel = 0;
+    for (const JPNozzleTipConfig& t : m_config.nozzleTips) if (t.id == n.tipId) blowLevel = t.placeBlowOffLevel;
+    if (const auto part = m_nozzleParts.find(n.id); part != m_nozzleParts.end() && part->second.placeBlowOffLevel != 0)
+        blowLevel = part->second.placeBlowOffLevel;
+    const bool blow = !n.blowOffActuatorId.empty() && blowLevel != 0;
     if (!(blow && n.blowOffClosesVacuum) && !switchTelling(n.vacuumActuatorId, false, why)) return false;
-    if (blow && !switchTelling(n.blowOffActuatorId, true, why)) return false;
+    if (blow) {
+        const JPActuatorConfig* blower = nullptr;
+        for (const JPActuatorConfig& a : m_config.actuators) if (a.id == n.blowOffActuatorId) blower = &a;
+        if (blower && blower->canSet()) {
+            const std::string level = format(blowLevel, 3);
+            const bool ok = doSet(n.blowOffActuatorId, level, why);
+            onActuator.emit(n.blowOffActuatorId, ok, ok ? level : why);
+            if (!ok) return false;
+        } else if (!switchTelling(n.blowOffActuatorId, true, why)) {
+            return false;
+        }
+    }
     std::this_thread::sleep_for(std::chrono::milliseconds(dwell));
     if (blow && !switchTelling(n.blowOffActuatorId, false, why)) return false;
     m_holding.erase(n.id);

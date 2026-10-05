@@ -185,6 +185,49 @@ int main() {
             assert((seen == std::vector<std::string>{ "P on", "V on", "V off", "P off" }));
             watch();
         }
+        // OpenPnP's place blow-off: none without a level (the tip's, else the
+        // part's package's); with one, the blow-off actuator switched with the place.
+        {
+            JPCellConfig next = cell.config();
+            JPActuatorConfig b;
+            b.id = "B";
+            b.name = "Blow";
+            b.driverId = "D";
+            b.onCommand = "M64 P7";
+            b.offCommand = "M65 P7";
+            next.actuators.push_back(b);
+            next.nozzles[0].blowOffActuatorId = "B";
+            std::string why;
+            assert(cell.reconfigure(next, why));
+            std::mutex m;
+            std::vector<std::string> lines;
+            auto watch = cell.onTraffic.connect([&](std::string, bool out, std::string line) {
+                std::lock_guard lk(m);
+                if (out && line == "M64 P7") lines.push_back(line);
+            });
+            std::atomic<int> placed { 0 };
+            auto watchPlace = cell.onActuator.connect([&](std::string id, bool ok, std::string v) {
+                if (id == "V" && ok && v == "off") ++placed;
+            });
+            for (const double level : { 0.0, 1.0 }) {
+                cell.setNozzlePart("N", { 0, 0, level });
+                assert(cell.pickAndWait("N", why));
+                const int before = placed;
+                cell.place("N");
+                const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+                while (placed == before && std::chrono::steady_clock::now() < until)
+                    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+                assert(placed > before);
+                std::this_thread::sleep_for(std::chrono::milliseconds(50));   // the place's last switches
+            }
+            watchPlace();
+            watch();
+            std::lock_guard lk(m);
+            assert(lines.size() == 1);
+            next.nozzles[0].blowOffActuatorId.clear();
+            assert(cell.reconfigure(next, why));
+            cell.setNozzlePart("N", {});
+        }
         // Part detection: the vacuum read after the pick (-31000) must be in
         // the tip's range; out of it, the pick fails, and says so.
         {

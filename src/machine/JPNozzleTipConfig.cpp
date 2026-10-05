@@ -125,6 +125,7 @@ JPNozzleTipConfig JPNozzleTipConfig::fromJson(const JJson& j) {
     t.pushAndDragAllowed = j["pushAndDragAllowed"].boolean();
     t.diameterLowMm      = j["diameterLowMm"].number(t.diameterLowMm);
     t.pickDwellMs  = int(j["pickDwellMs"].number());
+    t.placeBlowOffLevel = j["placeBlowOffLevel"].number(0.0);
     t.placeDwellMs = int(j["placeDwellMs"].number());
     for (const auto& [key, sensing] : { std::pair{ "partOn", &t.partOn }, std::pair{ "partOff", &t.partOff } }) {
         const JJson& d = j[key];
@@ -162,6 +163,7 @@ JJson JPNozzleTipConfig::toJson() const {
     if (pushAndDragAllowed) j["pushAndDragAllowed"] = true;
     j["diameterLowMm"]      = diameterLowMm;
     if (pickDwellMs) j["pickDwellMs"] = pickDwellMs;
+    if (placeBlowOffLevel != 0) j["placeBlowOffLevel"] = placeBlowOffLevel;
     if (placeDwellMs) j["placeDwellMs"] = placeDwellMs;
     for (const auto& [key, sensing] : { std::pair{ "partOn", &partOn }, std::pair{ "partOff", &partOff } }) {
         j[key]["method"]   = sensing->method;

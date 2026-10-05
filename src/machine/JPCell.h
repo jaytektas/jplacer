@@ -157,8 +157,14 @@ public:
     double speed() const { return m_speed; }
     // A move is under way.
     bool isMoving() const { return m_moving; }
-    // The height of the part a nozzle carries (0: none), for its Dynamic Safe Z.
-    void setPartHeight(const std::string& nozzleId, double heightMm);
+    // The part a nozzle is given (OpenPnP's setPart, before its pick): its
+    // height, for the nozzle's Dynamic Safe Z, and its package's pick vacuum
+    // level and place blow-off level (0: none, the vacuum switched on, the
+    // tip's blow-off level used). All 0: no part.
+    struct PartOnNozzle {
+        double heightMm = 0, pickVacuumLevel = 0, placeBlowOffLevel = 0;
+    };
+    void setNozzlePart(const std::string& nozzleId, const PartOnNozzle& part);
 
     // Move a tool — a nozzle, camera or actuator — by the given amounts along
     // its own axes (mm, degrees), at `speed` (0..1) of the slowest axis's
@@ -334,7 +340,7 @@ private:
     std::atomic<bool>                           m_homed{ false };
     std::atomic<bool>                           m_homing{ false };
     std::atomic<bool>                           m_moving{ false };
-    std::map<std::string, double>               m_partHeights;   // by nozzle id; the cell's thread's
+    std::map<std::string, PartOnNozzle>         m_nozzleParts;   // by nozzle id; the cell's thread's
     std::mutex                                  m_roamMutex;
     std::map<std::string, std::pair<double, double>> m_roamFrom;   // by tool: where it was left at unsafe Z
     std::map<std::string, bool>                 m_actuated;      // by actuator id: what it was last switched to

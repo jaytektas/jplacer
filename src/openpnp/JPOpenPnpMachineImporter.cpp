@@ -626,6 +626,7 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                 t.runoutCalibration.zOffset = lengthChild(*cal, "calibration-Z-offset");
             }
             t.pickDwellMs = int(number(x.attr("pick-dwell-milliseconds")));
+            t.placeBlowOffLevel = number(x.attr("place-blow-off-level"));
             t.placeDwellMs = int(number(x.attr("place-dwell-milliseconds")));
             if (x.child("max-part-diameter")) t.maxPartDiameterMm = lengthChild(x, "max-part-diameter");
             if (x.child("max-pick-tolerance")) t.maxPickToleranceMm = lengthChild(x, "max-pick-tolerance");

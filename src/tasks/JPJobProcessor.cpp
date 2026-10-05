@@ -908,11 +908,14 @@ JPJobProcessor::Step JPJobProcessor::pick(Planned& p) {
                 if (n.id == p.nozzleId) nozzleName = n.name;
             status(format("Pick %s from %s for %s using nozzle %s.", j.partId.c_str(), feederName.c_str(),
                           j.placementId.c_str(), nozzleName.c_str()));
+            // The nozzle given the part first, as OpenPnP's setPart: its package's pick vacuum level.
+            m_machine.holding(p.nozzleId, j.partId);
             picked = m_machine.pick(p.nozzleId, *at, pickWhy)
                   && JPFeederFeed::postPick(m_config, feederId, m_machine, [this](const std::function<void()>& fn) { main(fn); },
                                             pickWhy);
         }
         if (!picked) {
+            m_machine.holding(p.nozzleId, "");
             Failure f;
             f.source = Source::Feeder;
             f.id = feederId;

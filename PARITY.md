@@ -93,7 +93,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | OpenPnP | Status | jplacer |
 |---|---|---|
 | Name, pick / place dwell | done | |
-| Place blow-off level | missing | |
+| Place blow-off level | done | and the package's pick vacuum and blow-off levels |
 | Push and drag (allowed, outside diameter) | done | used by blinds feeders |
 | Part dimensions: min / max part diameter, max part height, max pick tolerance | partial | diameter only |
 | Part on / part off vacuum sensing (methods, ranges, probing) | done | |

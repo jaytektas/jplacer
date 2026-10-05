@@ -716,7 +716,10 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
     add.group("Pick & Place");
     add.integer("pickDwellMs", "Pick Dwell Time (ms)", [t]() -> int& { return t().pickDwellMs; }, 0, 60000);
     add.integer("placeDwellMs", "Place Dwell Time (ms)", [t]() -> int& { return t().placeDwellMs; }, 0, 60000);
-    add.note("Added to the nozzle's own dwell.");
+    add.number("placeBlowOffLevel", "Place Blow-Off Level", [t]() -> double& { return t().placeBlowOffLevel; }, 3);
+    add.tip("Default placement blow-off level, if none is given on the Package.");
+    add.note("The dwell times are added to the nozzle's own. The blow-off at place: the part's package's level, else this; "
+             "0, no blow-off.");
     add.group("Push and Drag Usage");
     add.flag("pushAndDragAllowed", "Push & Drag allowed?", [t]() -> bool& { return t().pushAndDragAllowed; });
     add.tip("Determines if the NozzleTip is allowed to be used for pushing and dragging.\nShould only be enabled for NozzleTips "

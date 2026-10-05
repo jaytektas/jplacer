@@ -42,6 +42,8 @@ struct JPNozzleTipConfig {
     double                     diameterLowMm = 0;
     // Waited after a pick or place with this tip, on top of the nozzle's own.
     int                        pickDwellMs = 0;
+    // OpenPnP's Place Blow-Off Level: the blow-off at place, when the part's package gives none (0: no blow-off).
+    double                     placeBlowOffLevel = 0;
     int                        placeDwellMs = 0;
     // PART DETECTION by the vacuum, as in OpenPnP. After a pick (part on) and
     // after a place (part off), the vacuum level read is checked: by itself

@@ -392,6 +392,9 @@ notes.
   board on the network). They come in with an OpenPnP machine.
 - A controller can work with OpenPnP's Letter Variables off and Pre-Move Commands: several axes sharing one
   output, each switched to by its pre-move command. They come in with an OpenPnP machine.
+- Placing blows off as OpenPnP does: only at a level, the part's package's Blow Off Level or else the nozzle
+  tip's new Place Blow-Off Level; with neither, the vacuum just goes off. A package's Vacuum Level sets a vacuum
+  actuator that takes a value at pick.
 
 ## 0.1.0
 
