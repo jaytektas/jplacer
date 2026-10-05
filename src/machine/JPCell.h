@@ -86,6 +86,10 @@ public:
     // Every Z on `headId` into its safe zone (OpenPnP's Head Safe Z). Refused
     // while a move is under way.
     void safeZ(const std::string& headId, double speed);
+    // OpenPnP's Z park: the tool on `mount` to its safe Z (the low end of its
+    // Z axis's safe zone), and first, with the machine's Park all at Safe Z?,
+    // every Z on its head into its safe zone. Refused while a move is under way.
+    void parkZ(const JPMountConfig& mount, double speed);
     // Drop what `nozzleId` holds at the machine's discard location: up to
     // safe Z, across, down to its Z, then a place. Refused while a move is
     // under way; nothing happens when no discard location is set.
@@ -253,6 +257,7 @@ private:
     // The controller axis behind a mount's Z (through a mapped axis); null when none.
     const JPAxisConfig* zMotor(const JPMountConfig& mount) const;
     bool doSafeZ(const std::string& headId, double speed, std::string& why);
+    bool doParkZ(const JPMountConfig& mount, double speed, std::string& why);
     bool doSwitch(const std::string& actuatorId, bool on, std::string& why);
     bool doPick(const JPNozzleConfig& nozzle, std::string& why);
     // A nozzle to `to` at safe Z, the pick or place there, and up again.

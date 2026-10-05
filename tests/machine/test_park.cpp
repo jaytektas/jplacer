@@ -114,5 +114,28 @@ int main() {
         assert(!ok && why.find("park place") != std::string::npos);
         cell.disconnect();
     }
+    {
+        // Z park, as OpenPnP's: the tool's Z to the low end of its safe zone, from below it or from inside it.
+        JPCellConfig config = cellConfig(true);
+        for (JPAxisConfig& a : config.axes)
+            if (a.id == "Z") a.safeZoneLow = -2;
+        JPCell cell(config, profiles());
+        Latch connected, motion;
+        cell.onConnection.connect([&](bool ok, std::string w) { connected.set(ok, w); });
+        cell.onMotion.connect([&](bool ok, std::string w) { motion.set(ok, w); });
+        cell.connect();
+        assert(connected.take().first);
+        cell.home();
+        assert(motion.take().first);
+        std::string why;
+        for (const double from : { -5.0, -1.0 }) {
+            assert(cell.moveAxesAndWait({ { "ZN", from } }, 1.0, why));
+            motion.take();
+            cell.parkZ(config.nozzles[0].mount, 1.0);
+            assert(motion.take().first);
+            assert(near(cell.jogBase().at("Z"), -2));
+        }
+        cell.disconnect();
+    }
     return 0;
 }

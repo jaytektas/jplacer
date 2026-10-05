@@ -453,6 +453,27 @@ void JPCell::safeZ(const std::string& headId, double speed) {
     });
 }
 
+void JPCell::parkZ(const JPMountConfig& mount, double speed) {
+    if (m_moving.exchange(true)) return;
+    m_thread.post([this, mount, speed] {
+        std::string why;
+        bool ok = false;
+        if (!m_connected || !m_homed) why = "not homed: home the machine first";
+        else ok = (!m_config.safeZPark || doSafeZ(mount.headId, speed, why)) && doParkZ(mount, speed, why);
+        m_moving = false;
+        onMotion.emit(ok, why);
+    });
+}
+
+bool JPCell::doParkZ(const JPMountConfig& mount, double speed, std::string& why) {
+    const JPAxisConfig* z = m_config.axis(mount.axisZ);
+    if (z && z->kind == JPAxisConfig::Kind::Mapped) z = m_config.axis(z->inputAxisId);
+    if (!z || z->kind != JPAxisConfig::Kind::Controller || !z->safeZoneLowEnabled) return true;
+    const auto now = jogBase();
+    if (now.count(z->id) && now.at(z->id) == z->safeZoneLow) return true;
+    return doMove({ { z->id, z->safeZoneLow } }, speed, why);
+}
+
 void JPCell::discard(const std::string& nozzleId, double speed) {
     if (m_moving.exchange(true)) return;
     m_thread.post([this, nozzleId, speed] {

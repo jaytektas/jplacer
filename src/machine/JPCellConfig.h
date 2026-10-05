@@ -46,6 +46,8 @@ struct JPCellConfig {
     JPMachineLocation             defaultBoardLocation;         // where a board or panel added to a job starts
     // A tool a panel moves (a camera taken to a feeder) is chosen on the Jog panel.
     bool                          autoToolSelect = true;
+    // Z park (the Jog panel's) takes every tool on the head to safe Z first.
+    bool                          safeZPark = true;
     // The job open last is opened again at start.
     bool                          autoLoadMostRecentJob = true;
     JPJobProcessorConfig          jobProcessor;                 // how a job is run

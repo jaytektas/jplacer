@@ -35,6 +35,7 @@ JJson JPCellConfig::toJson() const {
     if (discardLocation) j["discardLocation"] = discardLocation->toJson();
     j["defaultBoardLocation"] = defaultBoardLocation.toJson();
     j["autoToolSelect"] = autoToolSelect;
+    j["safeZPark"] = safeZPark;
     j["autoLoadMostRecentJob"] = autoLoadMostRecentJob;
     j["jobProcessor"] = jobProcessor.toJson();
     j["vision"] = vision.toJson();
@@ -68,6 +69,7 @@ bool JPCellConfig::fromJson(const JJson& j, std::string& error) {
     c.discardLocation = JPMachineLocation::fromJson(j["discardLocation"]);
     c.defaultBoardLocation = JPMachineLocation::fromJson(j["defaultBoardLocation"]).value_or(JPMachineLocation {});
     if (j["autoToolSelect"].isBool()) c.autoToolSelect = j["autoToolSelect"].boolean();
+    if (j["safeZPark"].isBool()) c.safeZPark = j["safeZPark"].boolean();
     if (j["autoLoadMostRecentJob"].isBool()) c.autoLoadMostRecentJob = j["autoLoadMostRecentJob"].boolean();
     c.jobProcessor = JPJobProcessorConfig::fromJson(j["jobProcessor"]);
     c.vision = JPVisionConfig::fromJson(j["vision"]);

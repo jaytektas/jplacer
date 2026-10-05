@@ -266,7 +266,9 @@ nozzle (with the tip on it), the camera on the head, and anything else on the he
 **Jog** tab:
 
 - **X/Y**: the arrows move the tool by the distance; the park sign in the middle parks the head.
-- **Z**: up and down by the distance; the park sign between takes the head up to safe Z.
+- **Z**: up and down by the distance; the park sign between takes the tool's Z to its safe Z (the low end
+  of its Z axis's safe zone), and first every Z on the head into its safe zone, unless the machine's
+  **Park all at Safe Z?** is unticked in [Machine Setup](machine-setup.md#settings).
 - **C**: turns the tool either way by the distance (in degrees); the park sign between turns it to 0.
 - Beside Z: put the nozzle where the camera is looking, and put the camera over the nozzle (the nozzle
   chosen, or the one chosen last when the camera is chosen). Both go up to safe Z first.
@@ -300,7 +302,7 @@ the hold is complete, and the reset); Grbl and grblHAL have one.
 A controller whose profile has no hold is reset for Stop as well; one with no reset cannot be stopped
 from jplacer, and the status bar says so.
 
-<!-- src: src/machine/JPGcodeDriver.cpp (halt, ioLoop, onPlaceLost); src/machine/JPCell.cpp (stop, onPlaceLost); src/app/JPlacerMachine.cpp (stop); src/ui/JPJogPanel.cpp (act); src/app/JPlacerMenuBuilder.cpp (Stop, Emergency Stop); src/machine/JPFirmwareProfile.cpp (stop); profiles/grblhal.json; profiles/grbl.json -->
+<!-- src: src/machine/JPGcodeDriver.cpp (halt, ioLoop, onPlaceLost); src/machine/JPCell.cpp (stop, onPlaceLost, parkZ, doParkZ); src/app/JPlacerMachine.cpp (stop); src/ui/JPJogPanel.cpp (act); src/app/JPlacerMenuBuilder.cpp (Stop, Emergency Stop); src/machine/JPFirmwareProfile.cpp (stop); profiles/grblhal.json; profiles/grbl.json -->
 
 #### Nozzle tips
 

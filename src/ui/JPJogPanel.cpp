@@ -534,7 +534,8 @@ bool JPJogPanel::act(const std::string& action) {
     else if (action == "c+") jog(0, 0, 0, 1);
     else if (action == "c-") jog(0, 0, 0, -1);
     else if (action == "parkXY") m_cell.park(head, 1.0);
-    else if (action == "parkZ" || action == "safeZ") m_cell.safeZ(head, 1.0);
+    else if (action == "parkZ") m_cell.parkZ(*t.mount, 1.0);
+    else if (action == "safeZ") m_cell.safeZ(head, 1.0);
     else if (action == "parkC") {
         if (!t.mount->axisRotation.empty()) m_cell.moveAxes({ { t.mount->axisRotation, 0.0 } }, 1.0);
     } else if (action == "positionNozzle" || action == "positionCamera") {

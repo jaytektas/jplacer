@@ -114,6 +114,8 @@ void machineForm(JPCellConfig& cell, JPSetupProperties::Form& f) {
     add.group("General");
     add.text("name", "Name", [&cell]() -> std::string& { return cell.name; }, "name");
     add.flag("parkAfterHome", "Park after homed?", [&cell]() -> bool& { return cell.parkAfterHome; });
+    add.flag("safeZPark", "Park all at Safe Z?", [&cell]() -> bool& { return cell.safeZPark; });
+    add.tip("When the Z Park button is pressed, move all tools mounted on the same head to safe Z.");
     add.flag("autoToolSelect", "Auto tool select?", [&cell]() -> bool& { return cell.autoToolSelect; });
     add.tip("Whenever an explicit user action is performed on a tool, automatically select it in Machine Controls.");
     add.flag("autoLoadMostRecentJob", "Auto-load most recent job?", [&cell]() -> bool& { return cell.autoLoadMostRecentJob; });
