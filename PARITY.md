@@ -15,15 +15,17 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | OpenPnP | Status | jplacer |
 |---|---|---|
 | Home after enabled, Park after homed | done | Machine › Configuration |
-| Park all at Safe Z, Auto tool select, Unsafe Z Roaming | missing | |
-| Discard location | done | |
-| Default Board Location | missing | a board starts from Camera Is on It instead |
-| Auto-load most recent job | missing | no jobs yet |
+| Park all at Safe Z, Auto tool select | done | Machine › Configuration; Jog Z park |
+| Unsafe Z Roaming | missing | |
+| Discard location, Default Board Location | done | |
+| Auto-load most recent job | done | on for a new cell; as OpenPnP's for an imported one |
 | Motion planner: continuous motion, uncoordinated moves, interpolation retiming, minimum speed | missing | moves are sent one at a time, each waited for |
 | Motion planner test motion (4 locations) and diagnostics graphs | missing | |
-| Issues & Solutions (guided setup, milestones, auto-fixes) | missing | a calibration checklist is planned (DESIGN.md build order 2) |
-| Log panel (filterable log) | partial | Console shows controller traffic; the log is a file |
-| Signalers (sound, actuator on error / job done) | missing | |
+| Issues & Solutions (guided setup, milestones, auto-fixes) | partial | the tab, milestones and the checks jplacer has so far |
+| Log panel (filterable log) | done | Log tab |
+| Signalers (sound, actuator on error / job done) | done | Neoden4Signaler left out (Neoden4 driver) |
+| View: System Units (inches), Language | missing | millimetres and English only, greyed out in View |
+| View: Selections in Tables (linked tables) | done | |
 | Scripting (events, Python/JS scripts) | missing | |
 
 ## Controllers (GcodeDriver / GcodeAsyncDriver)
@@ -89,7 +91,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 |---|---|---|
 | Name, pick / place dwell | done | |
 | Place blow-off level | missing | |
-| Push and drag (allowed, outside diameter) | missing | |
+| Push and drag (allowed, outside diameter) | done | used by blinds feeders |
 | Part dimensions: min / max part diameter, max part height, max pick tolerance | partial | diameter only |
 | Part on / part off vacuum sensing (methods, ranges, probing) | done | |
 | Tool changer locations, speeds, post actuators | own way | changer steps, a list per tip |
@@ -135,26 +137,25 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | OpenPnP | Status | jplacer |
 |---|---|---|
 | Fiducial locator: passes, max linear offset, parallax | done | Machine › Fiducials |
-| Averaging | missing | |
+| Averaging | done | Fiducal Locator › Average Matches? |
 | Tolerances (scaling, shearing, board offset) | own way | stricter fixed limits, plus a fit spread limit |
 | Fiducial vision pipeline | own way | round-mark finder, no pipeline to tune |
-| Multi-placement manual locate | missing | |
+| Multi-placement manual locate | done | Job tab › Multiple Point Board Location |
 | Board location, side, rotation | done | from fiducials |
-| Panels (arrays, nested) | missing | |
-| Boards tab (board definitions, placements editing) | partial | CPL import and list; no editing |
+| Panels (arrays, nested) | done | Panels tab |
+| Boards tab (board definitions, placements editing) | done | |
 
 ## Parts, packages, vision, feeders, jobs
 
-All in DESIGN.md's build order 3 to 6, none started:
-
 | OpenPnP | Status |
 |---|---|
-| Parts (height, speed, package, pick retries) | missing |
-| Packages (footprint, body, compatible tips, vision) | missing |
-| Bottom vision (pipeline, pre-rotate, size check, max rotation) | missing |
-| Feeders: strip, tray, rotated tray, push-pull, drag, auto, slot auto, lever, heap, loose part, blinds, Schultz, Photon (Lumen) | missing |
-| Job: placements table, start / pause / step / stop, job order, nozzle tip strategy, retries, optimisation | missing |
-| Importers: KiCad, Eagle, Diptrace, named CSV, ... | partial | one CSV / POS importer |
+| Parts (height, speed, package, pick retries) | done |
+| Packages (footprint, body, compatible tips, vision) | done |
+| Vision settings, pipelines and the pipeline editor | done |
+| Bottom vision (pipeline, pre-rotate, size check, max rotation) | done |
+| Feeders: strip, tray, rotated tray, push-pull, drag, auto, slot auto, lever, heap, loose part, blinds, Schultz, Photon, Rapid, Bamboo | done |
+| Job: placements table, start / pause / step / stop, job order, nozzle tip strategy, retries, optimisation | done |
+| Importers: KiCad, Eagle (board and mountsmd), Diptrace, Altium, Proteus, named CSV | done (OpenPnP's solder paste Gerber importer is skipped by OpenPnP itself) |
 
 ## Order of work
 
@@ -163,5 +164,5 @@ Breadth first, with jplacer's own methods where they are better:
 1. Nozzle tips: runout recalibration triggers; part dimensions and push and drag with the job that uses them.
 2. Cameras: remaining calibration settings and results (head offsets, tilt); image transforms; preview FPS cap.
 3. Actuators: profiles, interlocks.
-4. Machine: motion planner settings (continuous motion), Unsafe Z roaming, Default Board Location.
-5. Then DESIGN.md's build order 3 onward: library and job model, feeders and running, vision.
+4. Machine: motion planner settings (continuous motion), Unsafe Z roaming.
+5. View: System Units (inches throughout), languages; Scripting.
