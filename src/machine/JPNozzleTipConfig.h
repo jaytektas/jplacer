@@ -31,6 +31,11 @@ struct JPNozzleTipConfig {
     std::vector<JPChangerStep> loadSteps;
     bool                       unloadReversesLoad = true;
     std::vector<JPChangerStep> unloadSteps;   // when it does not
+    // OpenPnP's Cloning Settings: one tip is the Template (the others' changer
+    // steps can be cloned from it, moved by the difference of their first
+    // moves); a Locked tip is never cloned to; the rest clone from it.
+    bool                       templateTip = false;
+    bool                       templateLocked = false;
     // OpenPnP's Part Dimensions: the largest part it picks (diameter or
     // diagonal, tolerances in), and how far off a part may be picked
     // (bottom vision accepts a part no further off, and looks no further).
@@ -92,6 +97,11 @@ struct JPNozzleTipConfig {
     // an actuator is switched the other way; a move away from safe Z is
     // undone by going up, then across to where that move started.
     std::vector<JPChangerStep> unloadingSteps() const;
+    // OpenPnP's assignNozzleTipChangerSettings: the template's loading and
+    // unloading steps taken, each move moved by how far this tip's first move
+    // is from the template's (a place given in both). False, and nothing
+    // changed, when this tip is locked, or either has no first move to go by.
+    bool cloneChangerFrom(const JPNozzleTipConfig& templateTip);
     static std::vector<JPChangerStep> reversed(const std::vector<JPChangerStep>& steps);
 
     // What is wrong with its steps (a list that does not start with a move

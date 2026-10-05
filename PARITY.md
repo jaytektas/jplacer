@@ -99,7 +99,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Part dimensions: min / max part diameter, max part height, max pick tolerance | done | and Issues & Solutions' checks of them |
 | Part on / part off vacuum sensing (methods, ranges, probing) | done | |
 | Tool changer locations, speeds, post actuators | own way | changer steps, a list per tip |
-| Template / clones | missing | |
+| Template / clones | done | the template's changer steps, moved by the difference of the first moves |
 | Runout calibration (circle divisions, misdetects, Z offset, vision diameter, compensation) | partial | measured and compensated; auto recalibration (on tip change, on home) and fail homing missing; to be tried on the bench with the user there |
 | Background calibration (HSV, detail size) | missing | |
 

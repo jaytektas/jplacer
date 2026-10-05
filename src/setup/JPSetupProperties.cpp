@@ -930,6 +930,56 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
                });
     add.note("The steps of loading and unloading are in the tree under the tip: select one to change it, "
              "Add to add one after it.");
+    // OpenPnP's Cloning Settings.
+    add.group("Cloning Settings");
+    add.choice("cloning", "Behavior", { "Template", "Clones from Template", "Locked" },
+               [t] { return std::string(t().templateTip ? "Template" : t().templateLocked ? "Locked" : "Clones from Template"); },
+               [t, &cell](const std::string& v) {
+                   const std::string id = t().id;
+                   // One template only.
+                   if (v == "Template")
+                       for (JPNozzleTipConfig& other : cell.nozzleTips) other.templateTip = false;
+                   for (JPNozzleTipConfig& tip : cell.nozzleTips)
+                       if (tip.id == id) {
+                           tip.templateTip = v == "Template";
+                           tip.templateLocked = v == "Locked";
+                       }
+               });
+    add.tip("One nozzle tip can become the Template for others to be cloned from. Locations are translated relative "
+            "to the First Location (each tip's first move). If individual nozzle tips are special, mark them as "
+            "Locked to prevent cloning.");
+    f.reshaping.push_back("cloning");
+    const JPNozzleTipConfig* templ = nullptr;
+    for (const JPNozzleTipConfig& tip : cell.nozzleTips)
+        if (tip.templateTip) templ = &tip;
+    if (t().templateTip) {
+        add.editButton("cloneToAll", "Clone Tool Changer Settings to all Nozzle Tips", "Clone Tool Changer Settings to all",
+                       [&cell, id] {
+                           const JPNozzleTipConfig* from = nullptr;
+                           for (const JPNozzleTipConfig& tip : cell.nozzleTips)
+                               if (tip.id == id) from = &tip;
+                           if (!from) return;
+                           const JPNozzleTipConfig source = *from;
+                           for (JPNozzleTipConfig& tip : cell.nozzleTips)
+                               if (tip.id != id) tip.cloneChangerFrom(source);
+                       });
+        add.tip("Clone the Tool Changer settings from this Template nozzle tip, to all the others. Locations are "
+                "translated relative to First Locations.");
+    } else if (!t().templateLocked && templ) {
+        const std::string templateId = templ->id;
+        add.editButton("cloneFromTemplate", "Clone Tool Changer Settings from Template", "Clone Tool Changer Settings from Template",
+                       [t, &cell, templateId] {
+                           for (const JPNozzleTipConfig& tip : cell.nozzleTips)
+                               if (tip.id == templateId) {
+                                   const JPNozzleTipConfig source = tip;
+                                   t().cloneChangerFrom(source);
+                               }
+                       });
+        add.tip("Clone the tool changer settings from the nozzle tip marked as Template. All the locations are "
+                "translated relative to First Location.");
+    }
+    add.note("Cloning needs a first move in this tip's loading steps and in the template's: it is where each is "
+             "taken from.");
 
     add.tab("Calibration");
     add.group("Runout");

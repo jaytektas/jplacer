@@ -119,6 +119,8 @@ JPNozzleTipConfig JPNozzleTipConfig::fromJson(const JJson& j) {
     t.diameter = j["diameter"].number();
     for (const JJson& s : j["load"].arr()) t.loadSteps.push_back(JPChangerStep::fromJson(s));
     t.unloadReversesLoad = j["unloadReversesLoad"].boolean(true);
+    t.templateTip = j["templateTip"].boolean(false);
+    t.templateLocked = j["templateLocked"].boolean(false);
     for (const JJson& s : j["unload"].arr()) t.unloadSteps.push_back(JPChangerStep::fromJson(s));
     t.maxPartDiameterMm  = j["maxPartDiameterMm"].number(t.maxPartDiameterMm);
     t.maxPickToleranceMm = j["maxPickToleranceMm"].number(t.maxPickToleranceMm);
@@ -159,6 +161,8 @@ JJson JPNozzleTipConfig::toJson() const {
     j["diameter"] = diameter;
     j["load"]     = toArray(loadSteps);
     j["unloadReversesLoad"] = unloadReversesLoad;
+    if (templateTip) j["templateTip"] = true;
+    if (templateLocked) j["templateLocked"] = true;
     j["unload"]   = toArray(unloadSteps);
     j["maxPartDiameterMm"]  = maxPartDiameterMm;
     j["maxPickToleranceMm"] = maxPickToleranceMm;
@@ -186,6 +190,37 @@ JJson JPNozzleTipConfig::toJson() const {
     if (!runout.empty())
         for (const auto& [nozzle, r] : runout) j["runout"][nozzle] = r.toJson();
     return j;
+}
+
+bool JPNozzleTipConfig::cloneChangerFrom(const JPNozzleTipConfig& from) {
+    if (templateLocked || &from == this) return false;
+    auto firstMove = [](const std::vector<JPChangerStep>& steps) -> const JPChangerStep* {
+        for (const JPChangerStep& s : steps)
+            if (s.kind == JPChangerStep::Kind::Move) return &s;
+        return nullptr;
+    };
+    const JPChangerStep* mine = firstMove(loadSteps);
+    const JPChangerStep* theirs = firstMove(from.loadSteps);
+    if (!mine || !theirs) return false;
+    // The offset, coordinate by coordinate, where both give one.
+    auto offset = [](const std::optional<double>& a, const std::optional<double>& b) -> std::optional<double> {
+        if (a && b) return *a - *b;
+        return std::nullopt;
+    };
+    const std::optional<double> dx = offset(mine->x, theirs->x), dy = offset(mine->y, theirs->y),
+                                dz = offset(mine->z, theirs->z), dr = offset(mine->rotation, theirs->rotation);
+    auto moved = [&](std::vector<JPChangerStep> steps) {
+        for (JPChangerStep& s : steps) {
+            if (s.kind != JPChangerStep::Kind::Move) continue;
+            for (auto [v, d] : { std::pair { &s.x, dx }, std::pair { &s.y, dy }, std::pair { &s.z, dz }, std::pair { &s.rotation, dr } })
+                if (*v && d) **v += *d;
+        }
+        return steps;
+    };
+    loadSteps = moved(from.loadSteps);
+    unloadReversesLoad = from.unloadReversesLoad;
+    unloadSteps = moved(from.unloadSteps);
+    return true;
 }
 
 } // inline namespace jf

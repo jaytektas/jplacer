@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Nozzle tips have OpenPnP's Cloning Settings: one tip is the template, and the others' tool changer steps
+  can be cloned from it, moved to their own slot.
 - A move's feed rate is now worked out as OpenPnP does: over the path of its linear axes (a diagonal move is
   no longer slowed to one axis's rate), as long as its slowest axis takes; a turn alone in degrees. Axes have
   OpenPnP's Switch Linear ↔ Rotational for a controller axis used the other way round.
