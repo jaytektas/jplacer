@@ -216,11 +216,13 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             if (!a.attr("max-angular-offset").empty()) v.maxAngularOffset = std::strtod(a.attr("max-angular-offset").c_str(), nullptr);
             if (!a.attr("test-alignment-angle").empty())
                 v.testAlignmentAngle = std::strtod(a.attr("test-alignment-angle").c_str(), nullptr);
+            if (a.child("max-linear-offset")) v.maxLinearOffsetMm = lengthChild(a, "max-linear-offset");
             break;
         }
     if (const JPXmlElement* fl = machine->child("fiducial-locator")) {
         if (!fl->attr("fiducial-vision-id").empty()) c.vision.fiducialVisionId = fl->attr("fiducial-vision-id");
         c.vision.enabledAveraging = fl->attr("enabled-averaging") == "true";
+        if (fl->child("max-distance")) c.vision.fiducialMaxDistanceMm = lengthChild(*fl, "max-distance");
     }
     if (const JPXmlElement* fl = machine->child("fiducial-locator"))
         if (const JPXmlElement* t = fl->child("tolerances")) {

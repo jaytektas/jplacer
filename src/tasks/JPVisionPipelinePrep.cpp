@@ -13,8 +13,6 @@ inline namespace jf {
 
 namespace {
 
-// OpenPnP's ReferenceFiducialLocator.maxDistance, for pipelines without a maxDistance stage.
-constexpr double kFiducialMaxDistanceMm = 4.0;
 // The stand-in fiducial's diameter (VisionUtils.readyHomingFiducialWithDiameter).
 constexpr double kStandInFiducialMm = 1.0;
 // ReferenceNozzleTip's maxPartDiameter and maxPickTolerance.
@@ -76,7 +74,7 @@ void assignParameters(JPPipeline& pipeline, const JPVisionSettings& settings) {
 } // namespace
 
 void JPVisionPipelinePrep::fiducial(JPPipeline& pipeline, const JPConfiguration& config, const JPVisionSettings& settings,
-                                    const std::string& partId, const std::string& packageId, double rotation) {
+                                    const std::string& partId, const std::string& packageId, double rotation, double maxDistanceMm) {
     const JPPackage* pkg = packageFor(config, partId, packageId);
     JPPipelineValue::Footprint footprint;
     if (pkg && !pkg->footprint.pads.empty()) {
@@ -97,7 +95,7 @@ void JPVisionPipelinePrep::fiducial(JPPipeline& pipeline, const JPConfiguration&
     padBounds(footprint, w, h);
     pipeline.setProperty("fiducial.diameter", JPPipelineValue { JPPipelineValue::LengthMm { std::max(w, h) } });
     if (!pipeline.stage("maxDistance"))
-        pipeline.setProperty("fiducial.maxDistance", JPPipelineValue { JPPipelineValue::LengthMm { kFiducialMaxDistanceMm } });
+        pipeline.setProperty("fiducial.maxDistance", JPPipelineValue { JPPipelineValue::LengthMm { maxDistanceMm } });
     assignParameters(pipeline, settings);
 }
 

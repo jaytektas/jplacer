@@ -5,6 +5,8 @@
 
 #include "JPJobMachine.h"
 
+#include "machine/JPVisionConfig.h"
+
 #include "model/JPConfiguration.h"
 
 #include <functional>
@@ -28,8 +30,10 @@ public:
     // OpenPnP's FiducialLocatorTolerances, with its defaults.
     struct Tolerances {
         double scaling = 0.05, shearing = 0.05, boardLocationMm = 5.0;
-        // The machine's fiducial vision settings: what a fiducial's part and package do not name.
-        std::string fiducialVisionId = "FVS_Default";
+        // The machine's vision: its fiducial vision settings (what a
+        // fiducial's part and package do not name), whether fiducials are
+        // found by their pipelines, averaging.
+        JPVisionConfig vision;
     };
     struct Result {
         bool        ok = false;
@@ -46,9 +50,10 @@ public:
                          const std::vector<JPPlacementsHolderLocation*>& locations, const Tolerances& tolerances);
     // How a fiducial part is looked at: its size (its package's footprint's
     // first pad) and its fiducial vision settings (the part's, its
-    // package's, else `fiducialVisionId`). What is wrong, if anything.
+    // package's, else the machine's), and its prepared pipeline when the machine finds fiducials by pipeline.
+    // What is wrong, if anything.
     enum class PartProblem { None, NoSize, Disabled };
-    static PartProblem partLook(JPConfiguration& config, const JPPart& part, const std::string& fiducialVisionId,
+    static PartProblem partLook(JPConfiguration& config, const JPPart& part, const JPVisionConfig& vision,
                                 double& diameterMm, JPJobMachine::FiducialLook& look, std::string& settingsName);
 };
 

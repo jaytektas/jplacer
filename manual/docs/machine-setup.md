@@ -17,6 +17,8 @@ The machine is shown as a tree of its parts:
 - **Cameras**: the cameras fixed to the machine (looking up at the nozzles).
 - **Actuators**: the actuators on the machine rather than a head.
 - **Job Processors**: **ReferencePnpJobProcessor**, how a job is run (below).
+- **Vision**: **Bottom Vision** and **Fiducal Locator** (OpenPnP's spelling), how parts and fiducials are
+  found (below).
 
 Choose a part to see its settings beside the tree, each the full height of the panel; drag the divider between them to give either more
 room (where it is is kept for next time). Over the tree, **Search** keeps to the rows whose name contains
@@ -48,6 +50,24 @@ The fiducial check's tolerances (5 % scale, 5 % shear, 5 mm of movement) and how
 are checked first are taken from an imported OpenPnP machine too.
 
 <!-- src: src/setup/JPSetupProperties.cpp (jobProcessorForm); src/machine/JPJobProcessorConfig.cpp; src/openpnp/JPOpenPnpMachineImporter.cpp (pnp-job-processor, fiducial-locator); src/app/JPlacerJobRun.cpp (run) -->
+
+### Vision
+
+**Bottom Vision** holds OpenPnP's ReferenceBottomVision settings: **Enabled?** (parts are aligned over the
+camera looking up), **Bottom Vision Settings** (the machine's default, for parts and packages that name
+none), **Rotate parts prior to vision?**, **Max. vision passes**, **Max. linear offset** (mm) and
+**Max. angular offset** (degrees): a part off by less than both after a pass is taken as found.
+
+**Fiducal Locator** holds OpenPnP's ReferenceFiducialLocator settings: its default **Vision Settings**,
+**Average Matches?** (the passes after the first averaged, with three or more) and **Max. Distance (old
+pipelines only)** (mm, for a pipeline without a maxDistance stage).
+
+Each has **Find parts with** or **Find fiducials with**: **jplacer** (the default) uses jplacer's own
+finder, which needs no tuning; **Pipeline** uses the vision settings' OpenPnP pipeline (see
+[Vision](vision.md#the-pipeline)), as OpenPnP does: the "results" stage's key points for a fiducial (the one
+nearest where it should be), its rectangle for a part, shown on the camera's view as they are found.
+
+<!-- src: src/setup/JPSetupProperties.cpp (bottomVisionForm, fiducialLocatorForm, finder); src/machine/JPVisionConfig.h; src/openpnp/JPOpenPnpMachineImporter.cpp (part-alignments, fiducial-locator); src/tasks/JPFiducialLocator.cpp (partLook); src/tasks/JPJobProcessor.cpp (align); src/app/JPlacerJobMachine.cpp (lookByPipeline, findByPipeline, locateFiducial) -->
 
 ## Adding, removing and ordering parts
 

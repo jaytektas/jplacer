@@ -54,6 +54,8 @@ public:
 
     // Where the divider between the tree and the settings is now: the tree's share.
     double treeShare() const;
+    // The vision settings the Vision nodes choose from.
+    void setConfiguration(const JPConfiguration* config) { m_config = config; }
 
     // The cell as set up, to be put in use: false when it was not taken
     // (it is handed over again with the next change).
@@ -137,6 +139,7 @@ private:
     JFrameTimer              m_retry;
     std::map<std::string, std::string> m_labels;   // the shown form's property names: their labels
     std::vector<JPFirmwareProfile> m_profiles;
+    const JPConfiguration*         m_config = nullptr;
     std::string              m_selected;
     std::vector<std::string> m_reshaping;   // the shown form's properties that change the form
     std::set<std::string>    m_expanded;    // paths of the tree's open nodes

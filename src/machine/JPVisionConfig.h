@@ -21,9 +21,16 @@ struct JPVisionConfig {
     bool        preRotate           = true;
     int         maxVisionPasses     = 3;
     double      maxAngularOffset    = 10.0;   // degrees
+    double      maxLinearOffsetMm   = 1.0;
     double      testAlignmentAngle  = 0.0;
     std::string fiducialVisionId    = "FVS_Default";
     bool        enabledAveraging    = false;
+    // OpenPnP's ReferenceFiducialLocator.maxDistance: for pipelines without a maxDistance stage.
+    double      fiducialMaxDistanceMm = 4.0;
+    // How fiducials and parts are found: by jplacer's own finders (no
+    // tuning), or by the vision settings' OpenPnP pipelines.
+    bool        fiducialPipeline    = false;
+    bool        bottomPipeline      = false;
 
     JJson toJson() const {
         JJson j = JJson::object();
@@ -32,9 +39,13 @@ struct JPVisionConfig {
         j["preRotate"] = preRotate;
         j["maxVisionPasses"] = maxVisionPasses;
         j["maxAngularOffset"] = maxAngularOffset;
+        j["maxLinearOffsetMm"] = maxLinearOffsetMm;
         j["testAlignmentAngle"] = testAlignmentAngle;
         j["fiducialVisionId"] = fiducialVisionId;
         j["enabledAveraging"] = enabledAveraging;
+        j["fiducialMaxDistanceMm"] = fiducialMaxDistanceMm;
+        j["fiducialPipeline"] = fiducialPipeline;
+        j["bottomPipeline"] = bottomPipeline;
         return j;
     }
     static JPVisionConfig fromJson(const JJson& j) {
@@ -45,9 +56,13 @@ struct JPVisionConfig {
         if (j["preRotate"].isBool()) c.preRotate = j["preRotate"].boolean();
         if (j["maxVisionPasses"].isNumber()) c.maxVisionPasses = int(j["maxVisionPasses"].number());
         if (j["maxAngularOffset"].isNumber()) c.maxAngularOffset = j["maxAngularOffset"].number();
+        if (j["maxLinearOffsetMm"].isNumber()) c.maxLinearOffsetMm = j["maxLinearOffsetMm"].number();
         if (j["testAlignmentAngle"].isNumber()) c.testAlignmentAngle = j["testAlignmentAngle"].number();
         if (j["fiducialVisionId"].isString()) c.fiducialVisionId = j["fiducialVisionId"].str();
         if (j["enabledAveraging"].isBool()) c.enabledAveraging = j["enabledAveraging"].boolean();
+        if (j["fiducialMaxDistanceMm"].isNumber()) c.fiducialMaxDistanceMm = j["fiducialMaxDistanceMm"].number();
+        if (j["fiducialPipeline"].isBool()) c.fiducialPipeline = j["fiducialPipeline"].boolean();
+        if (j["bottomPipeline"].isBool()) c.bottomPipeline = j["bottomPipeline"].boolean();
         return c;
     }
 };

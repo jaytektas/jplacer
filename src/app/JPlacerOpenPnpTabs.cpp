@@ -41,6 +41,7 @@ constexpr const char* kFootprintOverlay = "PackageVisionWizard";
 
 JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, JPlacerJob& job, JPlacerMachine& machine)
     : m_window(window), m_job(job), m_machine(machine), m_layout(machine.layout()), m_pipelines(window, machine) {
+    m_machine.setConfiguration(&job.configuration());
     auto openMenu = [this](JMenu* menu, float x, float y) {
         if (JMenuManager::instance().onOpenMenu)
             JMenuManager::instance().onOpenMenu(menu, m_window.windowX() + int(x), m_window.windowY() + int(y), false, false);
@@ -328,9 +329,11 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
                                                        const std::function<void(const std::function<void()>&)>& onMain,
                                                        std::string& why) {
             JPFeederActions::Outcome outcome;
-            std::string fiducialVision;
-            onMain([&] { fiducialVision = machineVisionDefaults().second; });
-            const bool ok = JPFeederActions::run(m_job.configuration(), feederId, action, machine, onMain, fiducialVision,
+            JPVisionConfig vision;
+            onMain([&] {
+                if (const JPCell* c = m_machine.cell()) vision = c->config().vision;
+            });
+            const bool ok = JPFeederActions::run(m_job.configuration(), feederId, action, machine, onMain, vision,
                                                  outcome, why, [this, &onMain](int address, int state) {
                                                      onMain([&] { m_feeders->showSearchState(address, state); });
                                                  });
@@ -536,6 +539,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
 
 JPlacerOpenPnpTabs::~JPlacerOpenPnpTabs() {
     *m_alive = false;
+    m_machine.setConfiguration(nullptr);
     m_jobRun.reset();   // a run under way stops before what it works on goes
     JSettings::instance().set(JPlacerSettings::kPartsSplit, m_parts->split());
     JSettings::instance().set(JPlacerSettings::kPackagesSplit, m_packages->split());

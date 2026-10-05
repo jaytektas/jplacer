@@ -1220,13 +1220,78 @@ void jobProcessorForm(JPCellConfig& cell, JPSetupProperties::Form& f) {
             "cause problems. This is the number of recent placements over which it will count the error");
 }
 
+// The vision settings of a kind, by name (the one set always among them).
+JPFormBuilder::Named visionChoices(const JPConfiguration* config, JPVisionSettings::Kind kind, const std::string& set) {
+    JPFormBuilder::Named n;
+    bool has = false;
+    if (config)
+        for (const JPVisionSettings& v : config->visionSettings())
+            if (v.kind == kind) {
+                n.add(v.name, v.id);
+                has = has || v.id == set;
+            }
+    if (!has) n.add(set, set);
+    return n;
+}
+
+// How jplacer finds it: its own finder, or the vision settings' OpenPnP pipeline.
+void finder(JPFormBuilder& add, bool& pipeline, const char* what) {
+    const JPFormBuilder::Strings names { "jplacer", "Pipeline" };
+    add.choice("finder", std::string("Find ") + what + " with", names, [&pipeline] { return std::string(pipeline ? "Pipeline" : "jplacer"); },
+               [&pipeline](const std::string& v) { pipeline = v == "Pipeline"; });
+    add.tip(std::string("jplacer: jplacer's own finder, which needs no tuning. Pipeline: the vision settings' OpenPnP pipeline, "
+                        "tuned with its sliders and the Pipeline Editor (as OpenPnP finds ") + what + ").");
+}
+
+// OpenPnP's ReferenceBottomVisionConfigurationWizard.
+void bottomVisionForm(JPCellConfig& cell, JPSetupProperties::Form& f, const JPConfiguration* config) {
+    f.title = "ReferenceBottomVision";
+    JPFormBuilder add(f);
+    add.tab("ReferenceBottomVision");
+    add.group("General");
+    JPVisionConfig& v = cell.vision;
+    add.flag("bottomVisionEnabled", "Enabled?", [&v]() -> bool& { return v.bottomVisionEnabled; });
+    add.byName("bottomVisionId", "Bottom Vision Settings", visionChoices(config, JPVisionSettings::Kind::Bottom, v.bottomVisionId),
+               [&v]() -> std::string& { return v.bottomVisionId; });
+    add.flag("preRotate", "Rotate parts prior to vision?", [&v]() -> bool& { return v.preRotate; });
+    add.tip("Pre-rotate default setting for bottom vision. Can be overridden on individual parts.");
+    add.integer("maxVisionPasses", "Max. vision passes", [&v]() -> int& { return v.maxVisionPasses; }, 1, 100);
+    add.tip("The maximum number of bottom vision passes performed to get a good fix on the part.");
+    add.number("maxLinearOffsetMm", "Max. linear offset", [&v]() -> double& { return v.maxLinearOffsetMm; });
+    add.tip("The maximum linear part offset accepted as a good fix i.e. where no additional vision pass is needed.");
+    add.number("maxAngularOffset", "Max. angular offset", [&v]() -> double& { return v.maxAngularOffset; });
+    add.tip("The maximum angular part offset accepted as a good fix i.e. where no additional vision pass is needed.");
+    finder(add, v.bottomPipeline, "parts");
+}
+
+// OpenPnP's ReferenceFiducialLocatorConfigurationWizard.
+void fiducialLocatorForm(JPCellConfig& cell, JPSetupProperties::Form& f, const JPConfiguration* config) {
+    f.title = "ReferenceFiducialLocator";
+    JPFormBuilder add(f);
+    add.tab("ReferenceFiducialLocator");
+    add.group("General");
+    JPVisionConfig& v = cell.vision;
+    add.byName("fiducialVisionId", "Vision Settings", visionChoices(config, JPVisionSettings::Kind::Fiducial, v.fiducialVisionId),
+               [&v]() -> std::string& { return v.fiducialVisionId; });
+    add.flag("enabledAveraging", "Average Matches?", [&v]() -> bool& { return v.enabledAveraging; });
+    add.tip("Finally calculates the arithmetic average over all matches (except the first). Needs 3 or more repeated "
+            "recognitions to work.");
+    add.number("fiducialMaxDistanceMm", "Max. Distance (old pipelines only)", [&v]() -> double& { return v.fiducialMaxDistanceMm; });
+    add.tip("Maximum allowed distance between nominal fiducial location and detected location. This only applies where the "
+            "vision pipeline does not have a maxDistance stage.");
+    finder(add, v.fiducialPipeline, "fiducials");
+}
+
 } // namespace
 
-JPSetupProperties::Form JPSetupProperties::forNode(JPCellConfig& cell, const std::string& path, const std::vector<JPFirmwareProfile>& profiles) {
+JPSetupProperties::Form JPSetupProperties::forNode(JPCellConfig& cell, const std::string& path, const std::vector<JPFirmwareProfile>& profiles,
+                                                   const JPConfiguration* config) {
     Form f;
     const JPSetupTree::Path p = JPSetupTree::parse(path);
     if (p.kind == "machine") machineForm(cell, f);
     else if (p.kind == "jobprocessor") jobProcessorForm(cell, f);
+    else if (p.kind == "vision" && p.id == "bottom") bottomVisionForm(cell, f, config);
+    else if (p.kind == "vision" && p.id == "fiducial") fiducialLocatorForm(cell, f, config);
     else if (p.kind == "driver" && has(cell.drivers, p.id)) driverForm(cell, p.id, profiles, f);
     else if (p.kind == "axis" && has(cell.axes, p.id)) axisForm(cell, p.id, f);
     else if (p.kind == "head" && has(cell.heads, p.id)) headForm(cell, p.id, f);

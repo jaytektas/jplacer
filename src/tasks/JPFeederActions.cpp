@@ -47,7 +47,7 @@ std::string failed(const std::string& prefix, std::string why) {
 } // namespace
 
 bool JPFeederActions::run(JPConfiguration& config, const std::string& feederId, const std::string& action,
-                          JPJobMachine& machine, const OnMain& onMain, const std::string& fiducialVisionId, Outcome& outcome,
+                          JPJobMachine& machine, const OnMain& onMain, const JPVisionConfig& vision, Outcome& outcome,
                           std::string& why, const std::function<void(int address, int state)>& progress) {
     auto main = [&onMain](const std::function<void()>& fn) {
         if (onMain) onMain(fn);
@@ -128,7 +128,7 @@ bool JPFeederActions::run(JPConfiguration& config, const std::string& feederId, 
             at = f->location();
             if (const JPPart* part = config.part(fiducial)) {
                 known = true;
-                problem = JPFiducialLocator::partLook(config, *part, fiducialVisionId, diameter, look, settings);
+                problem = JPFiducialLocator::partLook(config, *part, vision, diameter, look, settings);
             }
         });
         if (fiducial.empty()) {
@@ -188,7 +188,7 @@ bool JPFeederActions::run(JPConfiguration& config, const std::string& feederId, 
             return false;
         }
         if (action == "clearFeedCount") outcome.readings.emplace_back("getFeedCount", "");
-        return !b.then || run(config, feederId, b.then, machine, onMain, fiducialVisionId, outcome, why);
+        return !b.then || run(config, feederId, b.then, machine, onMain, vision, outcome, why);
     }
     why = "no such action: " + action;
     return false;

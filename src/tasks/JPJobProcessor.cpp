@@ -3,6 +3,8 @@
 
 #include "JPJobProcessor.h"
 
+#include "setup/JPVisionPipelines.h"
+
 #include "JPFeederFeed.h"
 #include "JPPhotonFeeders.h"
 #include "JPFiducialLocator.h"
@@ -310,7 +312,7 @@ JPJobProcessor::Step JPJobProcessor::fiducialCheck() {
     tolerances.scaling = m_settings.scalingTolerance;
     tolerances.shearing = m_settings.shearingTolerance;
     tolerances.boardLocationMm = m_settings.boardLocationToleranceMm;
-    tolerances.fiducialVisionId = m_vision.fiducialVisionId;
+    tolerances.vision = m_vision;
     const JPFiducialLocator::Result found =
         JPFiducialLocator::locate(m_config, m_machine, [this](const std::function<void()>& fn) { main(fn); }, those, tolerances);
     if (!found.ok) {
@@ -913,6 +915,14 @@ JPJobProcessor::Step JPJobProcessor::align(Planned& p) {
         rq.imageAngle = pre ? placeLocation(p.job).rotation() : (j.plannedPickLocation ? j.plannedPickLocation->rotation() : 0);
         rq.angleRange = v->text("max-rotation", "Adjust") == "Full" ? 180 : m_vision.maxAngularOffset;
         rq.passes = pre ? m_vision.maxVisionPasses : 1;
+        rq.maxLinearOffsetMm = m_vision.maxLinearOffsetMm;
+        // By its OpenPnP pipeline, when the machine finds parts so.
+        if (m_vision.bottomPipeline) {
+            rq.pipeline = std::make_shared<JPPipeline>(JPVisionPipelines::of(*v));
+            rq.pipeline->context().configurationDirectory = m_config.directory();
+            rq.partId = part->id;
+            rq.settingsId = v->id;
+        }
         name = part->id;
         aligned = true;
     });
@@ -920,7 +930,8 @@ JPJobProcessor::Step JPJobProcessor::align(Planned& p) {
         JLOGC(JPlacerLog::kJob, JLogLevel::Debug) << "not aligning " << j.partId << ": no enabled bottom vision for it";
         return Step::Align;
     }
-    if (rq.shape.empty()) fail(Source::Part, j.partId, "Part " + j.partId + "'s package has no footprint to align it by.");
+    if (rq.shape.empty() && !rq.pipeline)
+        fail(Source::Part, j.partId, "Part " + j.partId + "'s package has no footprint to align it by.");
     std::string nozzleName = p.nozzleId;
     for (const auto& n : m_machine.nozzles())
         if (n.id == p.nozzleId) nozzleName = n.name;

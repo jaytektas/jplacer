@@ -3,6 +3,12 @@
 
 #include "JPlacerJobMachine.h"
 
+#include "pipeline/JPStageUtil.h"
+#include "tasks/JPVisionPipelinePrep.h"
+#include "ui/JPCameraView.h"
+
+#include <opencv2/imgproc.hpp>
+
 #include "common/JPlacerLog.h"
 #include "camera/JPImageFile.h"
 #include "tasks/JPCameraLook.h"
@@ -22,6 +28,13 @@ namespace {
 // once centred on (mm).
 constexpr double kFirstSearchMm = 4.0;
 constexpr double kSearchMm      = 1.0;
+// How long a pipeline's picture of a fiducial found is shown on the camera (OpenPnP's).
+constexpr int kShownPipelineMs = 1500;
+// OpenPnP's bottom vision takes a found rectangle's angle within this of the
+// one wanted (Rotation: Adjust), the sides being alike to it.
+constexpr double kAdjustRange = 45;
+// A step along a found rectangle's angle, to turn it into the machine's angle.
+constexpr double kAngleStepPx = 100;
 
 using Where = std::array<std::optional<double>, 4>;
 
@@ -32,9 +45,9 @@ Where where(const JPLocation& l) {
 
 } // namespace
 
-JPlacerJobMachine::JPlacerJobMachine(JPlacerMachine& machine, OnMain onMain, std::function<bool(const std::string&)> ask,
-                                     std::function<void(const std::string&)> progress)
-    : m_machine(machine), m_onMain(std::move(onMain)), m_ask(std::move(ask)), m_progress(std::move(progress)) {}
+JPlacerJobMachine::JPlacerJobMachine(JPlacerMachine& machine, JPConfiguration& config, OnMain onMain,
+                                     std::function<bool(const std::string&)> ask, std::function<void(const std::string&)> progress)
+    : m_machine(machine), m_config(config), m_onMain(std::move(onMain)), m_ask(std::move(ask)), m_progress(std::move(progress)) {}
 
 JPCellConfig JPlacerJobMachine::config() const {
     JPCellConfig c;
@@ -291,17 +304,29 @@ bool JPlacerJobMachine::locateFiducial(const JPLocation& nominal, double diamete
                 dy = -dy;
             }
         }
+    // One look from a view point: by the pipeline, else by jplacer's finder.
+    const double nx = start.x(), ny = start.y();
+    auto once = [&](double vx, double vy, double search, double& fx, double& fy) {
+        return lookAt.pipeline ? lookByPipeline(vx, vy, nx, ny, lookAt, fx, fy, why)
+                               : look(vx, vy, x, y, diameterMm, search, fx, fy, why);
+    };
+    // OpenPnP's averaging: every pass after the first kept, then averaged.
+    double sumX = 0, sumY = 0;
+    int kept = 0;
     for (int pass = 0; pass < std::max(1, lookAt.passes); ++pass) {
         const double search = pass == 0 ? kFirstSearchMm : kSearchMm;
         double fx = 0, fy = 0;
         if (r == 0) {
-            if (!look(x, y, x, y, diameterMm, search, fx, fy, why)) return false;
+            if (!once(x, y, search, fx, fy)) return false;
         } else {
             double ax = 0, ay = 0, bx = 0, by = 0;
-            if (!look(x + dx, y + dy, x, y, diameterMm, search, ax, ay, why)) return false;
-            if (!look(x - dx, y - dy, x, y, diameterMm, search, bx, by, why)) return false;
+            if (!once(x + dx, y + dy, search, ax, ay)) return false;
+            if (!once(x - dx, y - dy, search, bx, by)) return false;
             fx = (ax + bx) / 2;
             fy = (ay + by) / 2;
+            // The next pass from the other side first.
+            dx = -dx;
+            dy = -dy;
         }
         const double moved = std::hypot(fx - x, fy - y);
         x = fx;
@@ -309,8 +334,108 @@ bool JPlacerJobMachine::locateFiducial(const JPLocation& nominal, double diamete
         JLOGC(JPlacerLog::kJob, JLogLevel::Debug) << "fiducial pass " << pass + 1 << ": " << fx << ", " << fy << " (moved "
                                                   << moved << " mm)";
         if (moved < lookAt.maxLinearOffsetMm) break;
+        if (pass > 0) {
+            sumX += x;
+            sumY += y;
+            ++kept;
+        }
+    }
+    if (lookAt.averaging && kept >= 2) {
+        x = sumX / kept;
+        y = sumY / kept;
+        JLOGC(JPlacerLog::kJob, JLogLevel::Debug) << "fiducial averaged at " << x << ", " << y;
     }
     found = JPLocation(JPLengthUnit::Millimeters, x, y, start.z(), start.rotation());
+    return true;
+}
+
+bool JPlacerJobMachine::lookByPipeline(double viewX, double viewY, double x, double y, const FiducialLook& lookAt,
+                                       double& foundX, double& foundY, std::string& why) {
+    JPCell* c = cell(why);
+    if (!c) return false;
+    JPCameraFeed* feed = nullptr;
+    m_onMain([&] { feed = m_machine.headCameraFeed(); });
+    if (!feed) {
+        why = "no camera on the head";
+        return false;
+    }
+    prepare(*c, *feed);
+    JPCameraCalibration cal;
+    if (!JPCameraLook::calibration(*c, *feed, cal, why)) return false;
+    if (!c->moveToolAndWait(feed->config().mount, { viewX, viewY, std::nullopt, std::nullopt }, 1.0, why)) return false;
+    JPPipeline& p = *lookAt.pipeline;
+    JPPipeline::Context& ctx = p.context();
+    ctx.capture = [feed](const std::string& settle, const std::string&, cv::Mat& bgr, std::string& w) {
+        JPGrayImage settled;
+        if (settle != "Skip" && !JPCameraLook::settled(*feed, settled, w)) return false;
+        JPFrame frame;
+        if (!feed->latest(frame, 0) || frame.width <= 0) {
+            w = feed->config().name + " gives no picture";
+            return false;
+        }
+        cv::Mat rgba(frame.height, frame.width, CV_8UC4, frame.rgba.data());
+        cv::cvtColor(rgba, bgr, cv::COLOR_RGBA2BGR);
+        return true;
+    };
+    ctx.pixelsPerMmX = cal.scaleX();
+    ctx.pixelsPerMmY = cal.scaleY();
+    ctx.cameraWidth = cal.width;
+    ctx.cameraHeight = cal.height;
+    ctx.locationToPixel = [cal, viewX, viewY](double mx, double my, double& px, double& py) {
+        return cal.pixelFor(mx, my, viewX, viewY, px, py);
+    };
+    // As OpenPnP: the fiducial's place told to the stages that look round it.
+    p.setProperty("fiducial.center", JPPipelineValue { JPPipelineValue::LocationMm { x, y } });
+    p.setProperty("MaskCircle.center", JPPipelineValue { JPPipelineValue::LocationMm { x, y } });
+    if (!p.process(why)) return false;
+    // The results: key points, the one nearest where it should be.
+    const JPPipeline::Result* r = p.result("results");
+    if (!r) {
+        why = "Stage \"results\" is missing in the pipeline.";
+        return false;
+    }
+    if (const auto* f = r->model.failure()) {
+        why = f->message;
+        return false;
+    }
+    const auto* points = std::get_if<std::vector<cv::KeyPoint>>(&r->model.value);
+    if (!points) {
+        why = "Pipeline stage \"results\" returned a " + r->model.kind() + " but expected a KeyPoint list.";
+        return false;
+    }
+    if (points->empty()) {
+        why = lookAt.partId + " no matches found.";
+        return false;
+    }
+    double best = INFINITY;
+    for (const cv::KeyPoint& k : *points) {
+        double mx = 0, my = 0;
+        if (!cal.machinePoint(k.pt.x, k.pt.y, viewX, viewY, mx, my)) continue;
+        if (const double d = std::hypot(mx - x, my - y); d < best) {
+            best = d;
+            foundX = mx;
+            foundY = my;
+        }
+    }
+    if (!std::isfinite(best)) {
+        why = "the camera's calibration cannot place the match on the machine";
+        return false;
+    }
+    // What it saw, on the camera's view.
+    cv::Mat rgba;
+    std::string ignored;
+    if (JPStageUtil::toRgba(p.workingImage(), p.workingColorSpace(), true, rgba, ignored)) {
+        JPFrame shown;
+        shown.width = rgba.cols;
+        shown.height = rgba.rows;
+        shown.rgba.assign(rgba.data, rgba.data + rgba.total() * 4);
+        char text[64];
+        std::snprintf(text, sizeof text, "%.3f, %.3f mm", foundX, foundY);
+        m_onMain([&] {
+            if (JPCameraView* view = m_machine.cameraViewOf(feed)) view->showPicture(shown, text, kShownPipelineMs);
+        });
+    }
+    JLOGC(JPlacerLog::kJob, JLogLevel::Debug) << lookAt.partId << " located at " << foundX << ", " << foundY;
     return true;
 }
 
@@ -410,6 +535,36 @@ bool JPlacerJobMachine::alignPart(const std::string& nozzleId, const AlignReques
     const JPMountConfig& cm = feed->config().mount;
     const double camX = cm.offsetX, camY = cm.offsetY, camZ = cm.offsetZ;
     double nx = camX, ny = camY, nr = rq.imageAngle;
+    // By its pipeline: given the camera looking up, prepared for the part (as OpenPnP's preparePipeline).
+    if (rq.pipeline) {
+        JPPipeline::Context& ctx = rq.pipeline->context();
+        ctx.capture = [feed](const std::string& settle, const std::string&, cv::Mat& bgr, std::string& w) {
+            JPGrayImage settled;
+            if (settle != "Skip" && !JPCameraLook::settled(*feed, settled, w)) return false;
+            JPFrame frame;
+            if (!feed->latest(frame, 0) || frame.width <= 0) {
+                w = feed->config().name + " gives no picture";
+                return false;
+            }
+            cv::Mat rgba(frame.height, frame.width, CV_8UC4, frame.rgba.data());
+            cv::cvtColor(rgba, bgr, cv::COLOR_RGBA2BGR);
+            return true;
+        };
+        ctx.pixelsPerMmX = cal.scaleX();
+        ctx.pixelsPerMmY = cal.scaleY();
+        ctx.cameraWidth = cal.width;
+        ctx.cameraHeight = cal.height;
+        ctx.locationToPixel = [cal, camX, camY](double mx, double my, double& px, double& py) {
+            return cal.pixelFor(mx, my, camX, camY, px, py);
+        };
+        bool prepared = false;
+        m_onMain([&] {
+            const JPVisionSettings* v = m_config.visionSettings(rq.settingsId);
+            prepared = v && JPVisionPipelinePrep::bottom(*rq.pipeline, m_config, *v, rq.partId, "", rq.imageAngle, why);
+            if (!v) why = "no bottom vision settings " + rq.settingsId;
+        });
+        if (!prepared) return false;
+    }
     for (int pass = 0; pass < std::max(1, rq.passes); ++pass) {
         if (!c->moveToolAndWait(nozzle.mount, { nx, ny, camZ + rq.partHeightMm, nr }, 1.0, why)) return false;
         JPGrayImage img;
@@ -425,10 +580,19 @@ bool JPlacerJobMachine::alignPart(const std::string& nozzleId, const AlignReques
         fr.toMachine = [&cal, camX, camY](double px, double py, double& mx, double& my) {
             return cal.machinePoint(px, py, camX, camY, mx, my);
         };
-        const JPPartFinder::Result found = JPPartFinder::find(img, rq.shape, fr);
-        if (!found.found) {
-            why = "the part was not found: " + found.why;
-            return false;
+        JPPartFinder::Result found;
+        if (rq.pipeline) {
+            if (!findByPipeline(*rq.pipeline, rq.partId, cal, camX, camY, fr.expectedX, fr.expectedY, fr.angle,
+                                rq.angleRange >= 180 ? 180 : kAdjustRange, found.x, found.y, found.angle, why))
+                return false;
+            found.found = true;
+            found.score = 1;
+        } else {
+            found = JPPartFinder::find(img, rq.shape, fr);
+            if (!found.found) {
+                why = "the part was not found: " + found.why;
+                return false;
+            }
         }
         double px = 0, py = 0;
         if (!cal.machinePoint(found.x, found.y, camX, camY, px, py)) {
@@ -447,6 +611,71 @@ bool JPlacerJobMachine::alignPart(const std::string& nozzleId, const AlignReques
         nx = camX - result.dx;
         ny = camY - result.dy;
         nr = nr - (found.angle - rq.imageAngle);
+    }
+    return true;
+}
+
+bool JPlacerJobMachine::findByPipeline(JPPipeline& p, const std::string& partId, const JPCameraCalibration& cal, double camX,
+                                       double camY, double expectedX, double expectedY, double angle, double range, double& x,
+                                       double& y, double& foundAngle, std::string& why) {
+    // Where it should be in the picture, and turned how (OpenPnP's wanted location).
+    const JPPipelineValue centre { JPPipelineValue::Pixel { expectedX, expectedY } };
+    p.setProperty("MinAreaRect.center", centre);
+    p.setProperty("DetectRectlinearSymmetry.center", centre);
+    p.setProperty("MinAreaRect.expectedAngle", JPPipelineValue { angle });
+    p.setProperty("DetectRectlinearSymmetry.expectedAngle", JPPipelineValue { angle });
+    if (!p.process(why)) return false;
+    // Its results ("result" in older pipelines): one rectangle.
+    const JPPipeline::Result* r = p.result("results");
+    if (!r) r = p.result("result");
+    char buf[200];
+    if (!r) {
+        std::snprintf(buf, sizeof buf, "ReferenceBottomVision (%s): Pipeline error. Pipeline must contain a result named '%s'.",
+                      partId.c_str(), "results");
+        why = buf;
+        return false;
+    }
+    if (const auto* f = r->model.failure()) {
+        why = f->message;
+        return false;
+    }
+    if (r->model.empty()) {
+        std::snprintf(buf, sizeof buf, "ReferenceBottomVision (%s): No result found.", partId.c_str());
+        why = buf;
+        return false;
+    }
+    const auto* rect = std::get_if<cv::RotatedRect>(&r->model.value);
+    if (!rect) {
+        std::snprintf(buf, sizeof buf, "ReferenceBottomVision (%s): Incorrect pipeline result type (%s). Expected RotatedRect.",
+                      partId.c_str(), r->model.kind().c_str());
+        why = buf;
+        return false;
+    }
+    x = rect->center.x;
+    y = rect->center.y;
+    // Its angle on the machine: a step along its angle in the picture, through
+    // the camera's calibration (which knows how the camera looking up is turned and mirrored).
+    const double a = rect->angle * M_PI / 180;
+    double ax = 0, ay = 0, bx = 0, by = 0;
+    if (!cal.machinePoint(x, y, camX, camY, ax, ay)
+        || !cal.machinePoint(x + kAngleStepPx * std::cos(a), y + kAngleStepPx * std::sin(a), camX, camY, bx, by)) {
+        why = "the camera's calibration cannot place the part";
+        return false;
+    }
+    // The rectangle knows no side from another: the turn taken nearest the one wanted.
+    const double seen = std::atan2(by - ay, bx - ax) * 180 / M_PI;
+    foundAngle = angle + JPStageUtil::angleNorm(seen - angle, range);
+    // What it saw, on the camera's view.
+    cv::Mat rgba;
+    std::string ignored;
+    if (JPStageUtil::toRgba(p.workingImage(), p.workingColorSpace(), true, rgba, ignored)) {
+        JPFrame shown;
+        shown.width = rgba.cols;
+        shown.height = rgba.rows;
+        shown.rgba.assign(rgba.data, rgba.data + rgba.total() * 4);
+        m_onMain([&] {
+            if (JPCameraView* view = m_machine.cameraViewOf(m_machine.upCameraFeed())) view->showPicture(shown, partId, kShownPipelineMs);
+        });
     }
     return true;
 }

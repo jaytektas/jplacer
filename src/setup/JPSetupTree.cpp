@@ -86,10 +86,14 @@ JPSetupTree::Node JPSetupTree::build(const JPCellConfig& cell) {
     root.children.push_back(std::move(tips));
     root.children.push_back(group<JPCameraConfig>("Cameras", "group:cameras:", cell.cameras, "camera", fixed));
     root.children.push_back(group<JPActuatorConfig>("Actuators", "group:actuators:", cell.actuators, "actuator", fixed));
-    // As OpenPnP's: how a job is run.
+    // As OpenPnP's: how a job is run, and how it sees.
     Node processors{ "Job Processors", "group:jobprocessors", {} };
     processors.children.push_back({ "ReferencePnpJobProcessor", "jobprocessor", {} });
     root.children.push_back(std::move(processors));
+    Node vision{ "Vision", "group:vision", {} };
+    vision.children.push_back({ "Bottom Vision", "vision:bottom", {} });
+    vision.children.push_back({ "Fiducal Locator", "vision:fiducial", {} });
+    root.children.push_back(std::move(vision));
     return root;
 }
 

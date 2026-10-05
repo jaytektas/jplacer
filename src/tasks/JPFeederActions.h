@@ -5,6 +5,8 @@
 
 #include "JPJobMachine.h"
 
+#include "machine/JPVisionConfig.h"
+
 #include "model/JPConfiguration.h"
 
 #include <functional>
@@ -38,10 +40,10 @@ public:
         bool changed = false;
     };
 
-    // `fiducialVisionId`: the machine's fiducial vision settings, for a fiducial part that names none.
+    // `vision`: the machine's vision (its fiducial vision settings, for a fiducial part that names none).
     // `progress`: a Photon search's, each address as it is asked and answered (JPPhotonFeeders::SearchState).
     static bool run(JPConfiguration& config, const std::string& feederId, const std::string& action, JPJobMachine& machine,
-                    const OnMain& onMain, const std::string& fiducialVisionId, Outcome& outcome, std::string& why,
+                    const OnMain& onMain, const JPVisionConfig& vision, Outcome& outcome, std::string& why,
                     const std::function<void(int address, int state)>& progress = {});
 };
 

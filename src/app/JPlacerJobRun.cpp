@@ -41,7 +41,8 @@ bool allPlaced(const JPJob& job) {
 JPlacerJobRun::JPlacerJobRun(JAppWindow& window, JPlacerJob& job, JPlacerMachine& machine, JPJobPanel& panel)
     : m_window(window), m_job(job), m_machine(machine), m_panel(panel), m_mainThread(std::this_thread::get_id()) {
     m_jobMachine = std::make_unique<JPlacerJobMachine>(
-        machine, [this](const std::function<void()>& fn) { onMain(fn); }, [this](const std::string& q) { return ask(q); },
+        machine, job.configuration(), [this](const std::function<void()>& fn) { onMain(fn); },
+        [this](const std::string& q) { return ask(q); },
         [this](const std::string& s) {
             post([this, s] { m_window.showStatus(s, kStatusMs); });
         });
@@ -287,7 +288,7 @@ void JPlacerJobRun::fiducialCheck(JPPlacementsHolderLocation* location) {
     tolerances.scaling = cell->config().jobProcessor.scalingTolerance;
     tolerances.shearing = cell->config().jobProcessor.shearingTolerance;
     tolerances.boardLocationMm = cell->config().jobProcessor.boardLocationToleranceMm;
-    tolerances.fiducialVisionId = cell->config().vision.fiducialVisionId;
+    tolerances.vision = cell->config().vision;
     // The board or panel set by its fiducials (its own location too, straight
     // in the job), then the camera taken to it.
     m_worker = std::thread([this, location, tolerances] {

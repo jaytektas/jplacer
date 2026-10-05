@@ -14,6 +14,7 @@
 #include "ui/JPIconButton.h"
 #include "ui/JPJogPanel.h"
 #include "ui/JPMachineSetupPanel.h"
+#include "model/JPConfiguration.h"
 #include "ui/JPPositionReadout.h"
 
 #include <j/app/JAppWindow.h>
@@ -120,6 +121,9 @@ public:
     // The head camera's live picture, brought to the front (a selection is
     // made on it); none when there is no camera on the head.
     JPCameraView* headCameraView();
+    // The parts' and vision settings' configuration (Machine Setup's Vision
+    // nodes choose its vision settings).
+    void setConfiguration(const JPConfiguration* config);
     // The view of a camera's feed, shown; null when it has none.
     JPCameraView* cameraViewOf(const JPCameraFeed* feed);
     // For a job (JPlacerJobMachine): the open cell, the head camera's
@@ -222,6 +226,7 @@ private:
     std::unique_ptr<JPlacerTipChanges>  m_tipChanges;    // the nozzles' tips loaded and unloaded
     JPJogPanel*                         m_jog = nullptr; // its chosen tool, for the status bar
     JPMachineSetupPanel*                m_setup = nullptr;
+    const JPConfiguration*              m_configuration = nullptr;
     std::vector<std::function<void()>>  m_unwatch;   // this class's watches on the cell
     std::shared_ptr<bool>               m_alive = std::make_shared<bool>(true);
     JMenuItem*                          m_connectItem    = nullptr;

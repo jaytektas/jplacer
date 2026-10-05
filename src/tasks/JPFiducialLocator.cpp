@@ -3,6 +3,10 @@
 
 #include "JPFiducialLocator.h"
 
+#include "JPVisionPipelinePrep.h"
+
+#include "setup/JPVisionPipelines.h"
+
 #include "common/JPlacerLog.h"
 #include "model/JPFiducialFit.h"
 #include "model/JPPanel.h"
@@ -35,7 +39,7 @@ std::string format(const char* fmt, double a, double b, double c) {
 } // namespace
 
 JPFiducialLocator::PartProblem JPFiducialLocator::partLook(JPConfiguration& config, const JPPart& part,
-                                                           const std::string& fiducialVisionId, double& diameterMm,
+                                                           const JPVisionConfig& vision, double& diameterMm,
                                                            JPJobMachine::FiducialLook& look, std::string& settingsName) {
     // Its size: the fiducial's pad, as its package's footprint draws it.
     const JPPackage* package = config.package(part.packageId);
@@ -47,13 +51,21 @@ JPFiducialLocator::PartProblem JPFiducialLocator::partLook(JPConfiguration& conf
     if (diameterMm <= 0) return PartProblem::NoSize;
     // Looked at as its fiducial vision settings say (the part's, its package's, the machine's).
     look = {};
-    if (const JPVisionSettings* v = config.inheritedVision(part, JPVisionSettings::Kind::Fiducial, fiducialVisionId)) {
+    look.averaging = vision.enabledAveraging;
+    if (const JPVisionSettings* v = config.inheritedVision(part, JPVisionSettings::Kind::Fiducial, vision.fiducialVisionId)) {
         settingsName = v->name;
         if (!v->enabled) return PartProblem::Disabled;
         look.passes = v->number("max-vision-passes", 3);
         look.maxLinearOffsetMm = v->lengthMm("max-linear-offset", 0.2);
         look.parallaxDiameterMm = v->lengthMm("parallax-diameter", 0);
         look.parallaxAngle = v->real("parallax-angle", 0);
+        // By its OpenPnP pipeline, prepared for its part (the camera given it where it is used).
+        if (vision.fiducialPipeline) {
+            look.partId = part.id;
+            look.pipeline = std::make_shared<JPPipeline>(JPVisionPipelines::of(*v));
+            look.pipeline->context().configurationDirectory = config.directory();
+            JPVisionPipelinePrep::fiducial(*look.pipeline, config, *v, part.id, "", 0, vision.fiducialMaxDistanceMm);
+        }
     }
     return PartProblem::None;
 }
@@ -108,7 +120,7 @@ JPFiducialLocator::Result JPFiducialLocator::locate(JPConfiguration& config, JPJ
                 double diameter = 0;
                 JPJobMachine::FiducialLook look;
                 std::string settings;
-                const PartProblem problem = partLook(config, *part, tolerances.fiducialVisionId, diameter, look, settings);
+                const PartProblem problem = partLook(config, *part, tolerances.vision, diameter, look, settings);
                 if (problem != PartProblem::None) {
                     r.about = Result::About::Part;
                     r.id = part->id;

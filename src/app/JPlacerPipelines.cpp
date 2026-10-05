@@ -116,7 +116,8 @@ std::shared_ptr<JPPipeline> JPlacerPipelines::prepared(JPConfiguration& config, 
     auto p = std::make_shared<JPPipeline>(JPVisionPipelines::of(settings));
     useCamera(*p, feed, config.directory());
     if (!bottom) {
-        JPVisionPipelinePrep::fiducial(*p, config, settings, partId, packageId, 0);
+        JPVisionPipelinePrep::fiducial(*p, config, settings, partId, packageId, 0,
+                                       m_machine.cell() ? m_machine.cell()->config().vision.fiducialMaxDistanceMm : JPVisionConfig {}.fiducialMaxDistanceMm);
         return p;
     }
     const double angle = m_machine.cell() ? m_machine.cell()->config().vision.testAlignmentAngle : 0;

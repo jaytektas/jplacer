@@ -16,6 +16,9 @@ notes.
   and Reset Pipeline work.
 - Bottom vision and fiducial settings have OpenPnP's pipeline controls: Edit, Reset, Copy and Paste, and a slider
   for each of the pipeline's parameters, its effect shown on the camera as it moves.
+- Machine Setup has OpenPnP's Vision nodes: Bottom Vision and Fiducal Locator with their settings, and a choice of
+  finding parts and fiducials with jplacer's own finders (the default) or with the vision settings' pipelines.
+  Fiducials are averaged when Average Matches? is set.
 - An Issues & Solutions tab as OpenPnP's: milestones, Find Issues & Solutions, Accept, Dismiss, Reopen, Include
   Solved and Dismissed, with checks of jplacer's Machine Setup (axes, letters, nozzles' axes, homing, Safe Z, soft limits, feed rates,
   rotation), cameras, nozzle tips and Photon feeders.

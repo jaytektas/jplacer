@@ -5,6 +5,8 @@
 
 #include "JPlacerMachine.h"
 
+#include "model/JPConfiguration.h"
+
 #include "tasks/JPJobMachine.h"
 
 #include <atomic>
@@ -24,8 +26,9 @@ class JPlacerJobMachine : public JPJobMachine {
 public:
     using OnMain = std::function<void(const std::function<void()>&)>;
     // `ask`: a tip changer's question for the person, waiting for the answer.
-    JPlacerJobMachine(JPlacerMachine& machine, OnMain onMain, std::function<bool(const std::string&)> ask,
-                      std::function<void(const std::string&)> progress);
+    // `config`: the parts and vision settings (read through `onMain`).
+    JPlacerJobMachine(JPlacerMachine& machine, JPConfiguration& config, OnMain onMain,
+                      std::function<bool(const std::string&)> ask, std::function<void(const std::string&)> progress);
 
     std::vector<Nozzle> nozzles() const override;
     std::vector<std::pair<std::string, std::string>> tips() const override;
@@ -66,10 +69,20 @@ private:
     void prepare(JPCell& cell, JPCameraFeed& feed);
     // The camera to (viewX, viewY), one settled look for a round mark of
     // `diameterMm` expected at (x, y) within `searchMm`: where it is.
+    // The fiducial found from (viewX, viewY) by its OpenPnP pipeline, nearest (x, y) of its results.
+    bool lookByPipeline(double viewX, double viewY, double x, double y, const FiducialLook& lookAt, double& foundX,
+                        double& foundY, std::string& why);
     bool look(double viewX, double viewY, double x, double y, double diameterMm, double searchMm, double& foundX,
               double& foundY, std::string& why);
 
+    // The part found on the up camera by its bottom vision pipeline: its centre
+    // (pixels) and its angle on the machine, near `angle` (within `range` either way).
+    bool findByPipeline(JPPipeline& pipeline, const std::string& partId, const JPCameraCalibration& cal, double camX, double camY,
+                        double expectedX, double expectedY, double angle, double range, double& x, double& y,
+                        double& foundAngle, std::string& why);
+
     JPlacerMachine&                          m_machine;
+    JPConfiguration&                         m_config;
     OnMain                                   m_onMain;
     std::function<bool(const std::string&)>  m_ask;
     std::function<void(const std::string&)>  m_progress;

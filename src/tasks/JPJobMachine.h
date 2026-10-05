@@ -4,9 +4,11 @@
 #pragma once
 
 #include "model/JPLocation.h"
+#include "pipeline/JPPipeline.h"
 #include "vision/JPPartFinder.h"
 #include "vision/JPTemplateFinder.h"
 
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -84,6 +86,12 @@ public:
         double maxLinearOffsetMm = 0.2;
         double parallaxDiameterMm = 0;
         double parallaxAngle = 0;
+        // OpenPnP's averaging: the passes after the first averaged.
+        bool   averaging = false;
+        // Found by this OpenPnP pipeline (prepared for the fiducial's part,
+        // `partId`), else by jplacer's finder.
+        std::shared_ptr<JPPipeline> pipeline;
+        std::string                 partId;
     };
     // The camera over `nominal` (at safe Z), a round mark of `diameterMm`
     // found near there (looked at again, centred, as `look` says), and where
@@ -108,6 +116,10 @@ public:
         double angleRange = 10;
         int    passes = 3;
         double maxLinearOffsetMm = 1;
+        // Found by this OpenPnP pipeline (the part's bottom vision settings'),
+        // prepared for the part and its settings, else by jplacer's finder.
+        std::shared_ptr<JPPipeline> pipeline;
+        std::string                 partId, settingsId;
     };
     // Where the part is on the nozzle as last looked at: the nozzle's turn
     // then, the part's centre less the nozzle's axis (mm), and the part's angle.

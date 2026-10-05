@@ -271,6 +271,7 @@ std::unique_ptr<JPMachineSetupPanel> JPlacerMachine::makeSetup() {
         m_graph, m_cell->config(), m_profiles, m_setupSelected,
         JSettings::instance().get<double>(JPlacerSettings::kSetupTreeShare, JPMachineSetupPanel::kTreeShare));
     m_setup = setup.get();
+    setup->setConfiguration(m_configuration);
     setup->onSelected = [this](const std::string& path) { m_setupSelected = path; };
     setup->onApply = [this](const JPCellConfig& cell) { return applySetup(cell); };
     setup->onAction = [this](const std::string& path, const std::string& action) { setupAction(path, action); };
@@ -545,6 +546,11 @@ JPCameraView* JPlacerMachine::headCameraView() {
     if (!p) return nullptr;
     showCamera(p->camera().id);
     return &p->view();
+}
+
+void JPlacerMachine::setConfiguration(const JPConfiguration* config) {
+    m_configuration = config;
+    if (m_setup) m_setup->setConfiguration(config);
 }
 
 JPCameraView* JPlacerMachine::cameraViewOf(const JPCameraFeed* feed) {

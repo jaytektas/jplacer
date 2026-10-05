@@ -300,7 +300,7 @@ void JPMachineSetupPanel::select(const std::string& path) {
 
 void JPMachineSetupPanel::show(const std::string& path) {
     m_selected = path;
-    JPSetupProperties::Form f = JPSetupProperties::forNode(m_draft, path, m_profiles);
+    JPSetupProperties::Form f = JPSetupProperties::forNode(m_draft, path, m_profiles, m_config);
     m_reshaping = f.reshaping;
     m_title->setText(f.title);
     m_labels.clear();
@@ -336,7 +336,7 @@ void JPMachineSetupPanel::remakeForm() {
     std::weak_ptr<bool> alive = m_alive;
     jPostToNextFrame([this, alive] {
         if (!alive.lock()) return;
-        JPSetupProperties::Form f = JPSetupProperties::forNode(m_draft, m_selected, m_profiles);
+        JPSetupProperties::Form f = JPSetupProperties::forNode(m_draft, m_selected, m_profiles, m_config);
         m_reshaping = f.reshaping;
         m_title->setText(f.title);
         m_labels.clear();

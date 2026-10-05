@@ -17,9 +17,10 @@ inline namespace jf {
 class JPVisionPipelinePrep {
 public:
     // ReferenceFiducialLocator: the package's footprint (none: a round 1 mm
-    // fiducial, as OpenPnP's FIDUCIAL-HOME stands in), its diameter, its rotation.
+    // fiducial, as OpenPnP's FIDUCIAL-HOME stands in), its diameter, its
+    // rotation; `maxDistanceMm` for pipelines without a maxDistance stage.
     static void fiducial(JPPipeline& pipeline, const JPConfiguration& config, const JPVisionSettings& settings,
-                         const std::string& partId, const std::string& packageId, double rotation);
+                         const std::string& partId, const std::string& packageId, double rotation, double maxDistanceMm);
     // ReferenceBottomVision for the part over the camera's centre, turned
     // `rotation`, in one shot: false (and why) without a package to go by.
     static bool bottom(JPPipeline& pipeline, const JPConfiguration& config, const JPVisionSettings& settings,
