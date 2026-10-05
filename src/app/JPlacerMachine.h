@@ -200,6 +200,9 @@ private:
     // A camera's light is on while its camera runs (on screen) and the
     // machine is connected; while not connected, a camera with a light says
     // why its picture is dark.
+    // A light's state as last switched (none: not known), shown on its cameras' toggles; the toggle clicked.
+    void showLight(const std::string& light, std::optional<bool> on);
+    void toggleLight(const std::string& light);
     void lightCameras();
     void bringForward(JPCameraPanel& camera);
     void dropPanels(Keep keep = Keep::Nothing);
@@ -239,6 +242,7 @@ private:
     std::vector<CameraDock>             m_cameras;   // the window's centre
     std::unique_ptr<JPlacerCameraTasks> m_cameraTasks;   // its Calibrate and Visual Test
     std::unique_ptr<JPlacerTipChanges>  m_tipChanges;    // the nozzles' tips loaded and unloaded
+    std::map<std::string, bool>         m_lights;   // by actuator id: on or off as last switched
     JPJogPanel*                         m_jog = nullptr; // its chosen tool, for the status bar
     JPMachineSetupPanel*                m_setup = nullptr;
     JPVisionTests                       m_setupVisionTests;

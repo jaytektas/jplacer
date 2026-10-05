@@ -13,9 +13,11 @@
 #include <j/graphics/GpuHal.h>
 
 #include <chrono>
+#include <deque>
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -75,6 +77,16 @@ public:
     using Overlay = std::function<void(JVectorCanvas& vg, const JPReticle::Place& place, float line)>;
     void setOverlay(const std::string& key, Overlay overlay);
 
+    // OpenPnP's light toggle, a sun at the top right while the camera has a
+    // light (`has`): bright while it is on (`on`; not known: shown off).
+    // Clicked, onToggleLight.
+    void setLight(bool has, std::optional<bool> on);
+    std::function<void()> onToggleLight;
+    // OpenPnP's Show Image Info (the menu's): the picture's size, the zoom,
+    // the pictures a second and a histogram of its colours, at the top left.
+    bool showImageInfo() const { return m_showInfo; }
+    void setShowImageInfo(bool on);
+    std::function<void(bool on)> onShowImageInfoChanged;
     // How far zoomed in: 1 is the picture fitted to the view.
     double zoom() const { return m_zoom; }
     static constexpr double kMostZoom = 64.0;
@@ -133,6 +145,11 @@ private:
     bool pixelAt(float x, float y, double& px, double& py) const;
     void lookAt(float x, float y);
     void buildMenu();
+    // The light toggle's middle and size on screen.
+    void lightToggle(float& cx, float& cy, float& size) const;
+    bool inLightToggle(float x, float y) const;
+    void drawLightToggle(JVectorCanvas& vg) const;
+    void drawImageInfo(JPrimitiveBuffer& buf, float x, float y) const;
     void choose(const JPReticle& reticle);
     // Where the picture was last drawn (widget coordinates) and at what scale,
     // to turn a click into a pixel of it; and the last press, for a double.
@@ -149,6 +166,14 @@ private:
     JMenuItem*                         m_sizeItem    = nullptr;
     JMenuItem*                         m_fitItem     = nullptr;
     JMenuItem*                         m_uncalibrated = nullptr;
+    JMenuItem*                         m_infoItem = nullptr;
+    bool                               m_showInfo = false;
+    JRect                              m_shown {};   // the picture as last drawn, cut to the view
+    bool                               m_hasLight = false, m_lightPressed = false;
+    std::optional<bool>                m_lightOn;
+    // The time between the last pictures, for the pictures a second.
+    std::chrono::steady_clock::time_point m_lastPicture {};
+    std::deque<double>                 m_intervals;
     // A drag to look somewhere: where it started, and where it is now.
     bool                               m_pressed = false, m_dragging = false;
     float                              m_dragX = 0, m_dragY = 0;

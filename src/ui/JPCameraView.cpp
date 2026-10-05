@@ -21,6 +21,16 @@ const double kZoomPerNotch = std::sqrt(2.0);
 // A grid's lines and a ruler's marks are no closer on screen than this many
 // spacings (JStyle::spacing); closer ones are left out.
 constexpr float kLeastGap = 3.f;
+// The pictures a second are the mean over this many pictures (as OpenPnP's).
+constexpr size_t kFpsPictures = 24;
+// The histogram, as OpenPnP draws it: a column for each of the 256 levels,
+// this tall at most; and the light toggle, this many control heights across,
+// its sun's disc and rays as shares of that.
+constexpr float  kHistogramHeight = 50.f;
+constexpr float  kLightControls = 1.33f;
+constexpr float  kSunDisc = 0.27f, kRayFrom = 0.36f, kRayTo = 0.5f;
+constexpr int    kRays = 12;
+constexpr double kPi = 3.14159265358979323846;
 } // namespace
 
 JPCameraView::JPCameraView(JSceneGraph& graph, JGpuHal& hal)
@@ -74,6 +84,13 @@ void JPCameraView::buildMenu() {
     m_spacingItem = m_menu->add(g, "Spacing", {}, m_spacingMenu.get());
     m_sizeItem    = m_menu->add(g, "Size", {}, m_sizeMenu.get());
     m_menu->addSeparator(g);
+    m_infoItem = m_menu->add(g, "Show Image Info");
+    m_infoItem->setCheckable(true);
+    // The tick has already flipped when this runs.
+    m_infoItem->onTriggered.connect([this] {
+        setShowImageInfo(m_infoItem->isChecked());
+        if (onShowImageInfoChanged) onShowImageInfoChanged(m_showInfo);
+    });
     m_fitItem = m_menu->add(g, "Fit the Picture");
     m_fitItem->onTriggered.connect([this] {
         m_zoom = 1.0;
@@ -98,6 +115,115 @@ void JPCameraView::prepareContextMenu(float, float) {
     m_spacingItem->setEnabled(calibrated && lined);
     m_sizeItem->setEnabled(calibrated && shaped);
     m_fitItem->setEnabled(m_zoom > 1.0);
+    m_infoItem->setChecked(m_showInfo);
+}
+
+void JPCameraView::setShowImageInfo(bool on) {
+    m_showInfo = on;
+    invalidate();
+}
+
+void JPCameraView::setLight(bool has, std::optional<bool> on) {
+    m_hasLight = has;
+    m_lightOn = on;
+    invalidate();
+}
+
+void JPCameraView::lightToggle(float& cx, float& cy, float& size) const {
+    // At the top right of the picture as it is on screen.
+    size = JStyle::current().controlHeight * kLightControls;
+    cx = m_shown.x + m_shown.width - size * 0.5f;
+    cy = m_shown.y + size * 0.5f;
+}
+
+bool JPCameraView::inLightToggle(float x, float y) const {
+    if (!m_hasLight || m_selecting || onPicked || m_shown.width <= 0) return false;
+    float cx, cy, size;
+    lightToggle(cx, cy, size);
+    return std::hypot(x - cx, y - cy) <= size * 0.5f;
+}
+
+void JPCameraView::drawLightToggle(JVectorCanvas& vg) const {
+    const JStyle& st = JStyle::current();
+    float cx, cy, size;
+    lightToggle(cx, cy, size);
+    // Pressed, it sinks a little, as OpenPnP's.
+    if (m_lightPressed) {
+        cx += st.borderWidth;
+        cy += st.borderWidth;
+    }
+    const bool on = m_lightOn.value_or(false);
+    const uint8_t* c = on ? Colors::Warning : Colors::MutedText;
+    const JPaint ink = JPaint::solid(rgb(c[0], c[1], c[2]));
+    const JPaint under = JPaint::solid(rgba(Colors::OverlayScrim[0], Colors::OverlayScrim[1], Colors::OverlayScrim[2],
+                                            Colors::OverlayScrim[3]));
+    vg.fillCircle(cx, cy, size * 0.5f, under);
+    const float w = 2 * st.borderWidth;
+    vg.strokeCircle(cx, cy, size * kSunDisc, w, ink);
+    for (int i = 0; i < kRays; ++i) {
+        const double a = (15.0 + 30.0 * i) * kPi / 180.0;
+        vg.drawLine(cx + float(std::cos(a)) * size * kRayFrom, cy + float(std::sin(a)) * size * kRayFrom,
+                    cx + float(std::cos(a)) * size * kRayTo, cy + float(std::sin(a)) * size * kRayTo, w, ink);
+    }
+}
+
+void JPCameraView::drawImageInfo(JPrimitiveBuffer& buf, float x, float y) const {
+    const JStyle& st = JStyle::current();
+    double mean = 0;
+    for (double i : m_intervals) mean += i;
+    const double fps = m_intervals.empty() || mean <= 0 ? 0 : double(m_intervals.size()) / mean;
+    char text[4][48];
+    std::snprintf(text[0], sizeof text[0], "Resolution: %d x %d", m_w, m_h);
+    std::snprintf(text[1], sizeof text[1], "Zoom: %d%%", int(m_zoom * 100));
+    std::snprintf(text[2], sizeof text[2], "FPS: %.1f", fps);
+    std::snprintf(text[3], sizeof text[3], "Histogram:");
+    const float lh = JTextHelper::lineHeight(), pad = 2 * st.spacing;
+    float tw = 256.f + 2;
+    for (const auto& t : text) tw = std::max(tw, JTextHelper::measureWidth(t));
+    const float boxW = tw + 2 * pad, boxH = 4 * lh + kHistogramHeight + 2 + 2 * pad;
+    buf.pushRectangle(x, y, boxW, boxH, Colors::OverlayScrim, st.cornerRadius, st.borderWidth, Colors::ControlText);
+    float ty = y + pad;
+    for (const auto& t : text) {
+        JTextHelper::pushText(buf, x + pad, ty, t, Colors::ControlText);
+        ty += lh;
+    }
+    // Each channel's histogram, smoothed, and scaled so the tallest but the
+    // two most extreme levels (saturation, typically) fills the height.
+    if (m_frame.width != m_w || m_frame.height != m_h || m_frame.rgba.empty()) return;
+    double h[3][256] = {};
+    const size_t n = size_t(m_frame.width) * size_t(m_frame.height);
+    for (size_t i = 0; i < n; ++i)
+        for (int c = 0; c < 3; ++c) h[c][m_frame.rgba[i * 4 + size_t(c)]] += 1;
+    double most = 0;
+    for (auto& channel : h) {
+        double last = channel[0];
+        for (int b = 1; b < 255; ++b) {
+            const double now = channel[b];
+            channel[b] = (now * 2 + last + channel[b + 1]) / 4;
+            last = now;
+        }
+        double sorted[256];
+        std::copy(std::begin(channel), std::end(channel), sorted);
+        std::sort(std::begin(sorted), std::end(sorted));
+        most = std::max(most, sorted[256 - 1 - 2]);
+    }
+    if (most <= 0) return;
+    const float hx = x + pad + 1, hy = ty + 1;
+    const uint8_t* colours[3] = { Colors::Danger, Colors::Success, Colors::Accent };
+    for (int b = 0; b < 256; ++b) {
+        // Tallest first, each channel's column down to the next; under all three, where they overlap, light.
+        int order[3] = { 0, 1, 2 };
+        std::sort(std::begin(order), std::end(order), [&](int a, int c) { return h[a][b] > h[c][b]; });
+        float top = 0;
+        for (int k = 0; k < 3; ++k) {
+            const float v = float(std::min<double>(kHistogramHeight, h[order[k]][b] * kHistogramHeight / most));
+            const float next = k < 2 ? float(std::min<double>(kHistogramHeight, h[order[k + 1]][b] * kHistogramHeight / most)) : 0.f;
+            top = v;
+            if (top > next) buf.pushRectangle(hx + float(b), hy + kHistogramHeight - top, 1, top - next, colours[order[k]], 0.f);
+        }
+        const float all = float(std::min<double>(kHistogramHeight, h[order[2]][b] * kHistogramHeight / most));
+        if (all > 0) buf.pushRectangle(hx + float(b), hy + kHistogramHeight - all, 1, all, Colors::ControlText, 0.f);
+    }
 }
 
 void JPCameraView::choose(const JPReticle& reticle) {
@@ -186,6 +312,12 @@ void JPCameraView::showLatest() {
     // Posted frames can queue behind a busy main loop; take only the newest.
     if (!m_feed || !m_feed->latest(m_frame, m_have)) return;
     m_have = m_frame.sequence;
+    const auto now = std::chrono::steady_clock::now();
+    if (m_lastPicture != std::chrono::steady_clock::time_point {}) {
+        m_intervals.push_back(std::chrono::duration<double>(now - m_lastPicture).count());
+        if (m_intervals.size() > kFpsPictures) m_intervals.pop_front();
+    }
+    m_lastPicture = now;
     dropTexture();
     m_tex = m_hal.uploadTexture(m_frame.rgba.data(), uint32_t(m_frame.width), uint32_t(m_frame.height));
     m_w = m_frame.width;
@@ -248,6 +380,7 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     const float vx1 = std::min(x + w, b.x + b.width), vy1 = std::min(y + h, b.y + b.height);
     buf.popClip();
     buf.pushClip(vx0, vy0, vx1 - vx0, vy1 - vy0);
+    m_shown = JRect { vx0, vy0, vx1 - vx0, vy1 - vy0 };
 
     // The reticle, the cross through the point the camera is looking at
     // first; in millimetres through the calibration for this picture size.
@@ -294,6 +427,9 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
         vg.strokeRect(m_dragX - half, m_dragY - half, 2 * half, 2 * half, line, JPaint::solid(d));
     }
 
+    // The light toggle, while not choosing a place or a selection (as OpenPnP's).
+    if (m_hasLight && !m_selecting && !onPicked) drawLightToggle(vg);
+
     vg.flush(buf);
 
     // A picture left from before the camera was lost: say so over it, or it
@@ -335,6 +471,8 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
         buf.pushRectangle(zx, zy, tw + 2 * pad, lh + 2 * pad, Colors::OverlayScrim, 0.f);
         JTextHelper::pushText(buf, zx + pad, zy + pad, text, Colors::ControlText);
     }
+    // The image info, while nothing is said over the picture.
+    if (m_showInfo && m_message.empty() && m_stillText.empty() && m_prompt.empty()) drawImageInfo(buf, vx0 + pad, vy0 + pad);
     buf.popClip();
 }
 
@@ -424,6 +562,12 @@ void JPCameraView::handleMousePress(float x, float y) {
         if (m_selCorner == -2 && px >= s.x && py >= s.y && px <= s.x + s.width && py <= s.y + s.height) m_selCorner = -1;
         return;
     }
+    // The light toggle: switched when let go over it.
+    if (inLightToggle(x, y)) {
+        m_lightPressed = true;
+        invalidate();
+        return;
+    }
     // A place being chosen: the click is it.
     if (onPicked) {
         double px, py;
@@ -469,6 +613,12 @@ void JPCameraView::handleMouseMove(float x, float y) {
 }
 
 void JPCameraView::handleMouseRelease(float x, float y) {
+    if (m_lightPressed) {
+        m_lightPressed = false;
+        invalidate();
+        if (inLightToggle(x, y) && onToggleLight) onToggleLight();
+        return;
+    }
     if (m_selDragging) {
         m_selDragging = false;
         return;

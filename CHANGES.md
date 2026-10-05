@@ -357,6 +357,8 @@ notes.
 - Machine Setup's machine page has OpenPnP's Auto tool select (the camera or tool another panel moves is chosen
   on the Jog panel), Auto-load most recent job and Default Board Location (where a board added to a job
   starts). They come in with an OpenPnP machine.
+- A camera's picture has OpenPnP's light toggle (a sun at its top right, for a camera with a light) and Show
+  Image Info in its right-click menu: the picture's size, zoom, pictures a second and a colour histogram.
 
 ## 0.1.0
 

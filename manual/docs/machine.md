@@ -493,6 +493,17 @@ undoes the zoom.
 
 <!-- src: src/ui/JPReticle.cpp (spacings, sizes, draw, thinned); src/ui/JPCameraView.cpp (buildMenu, prepareContextMenu, kLeastGap); src/app/JPlacerSettings.cpp (cameraReticleKey) -->
 
+**Show Image Info**, in the same menu, puts a box at the picture's top left, as OpenPnP's does: the picture's
+**Resolution**, the **Zoom**, the pictures a second (**FPS**, over the last 24) and a **Histogram** of its
+red, green and blue levels, each smoothed and scaled to the tallest (the two most extreme levels, usually
+saturated, left out), light where all three overlap.
+
+A camera with a light (Machine Setup, its Light actuator) has OpenPnP's light toggle, a sun at the picture's
+top right: bright while the light is on, dim while it is off (or not known: not connected). Click it to
+switch the light the other way.
+
+<!-- src: src/ui/JPCameraView.cpp (drawImageInfo, drawLightToggle, setLight, handleMouseRelease, kFpsPictures); src/app/JPlacerMachine.cpp (showLight, toggleLight) -->
+
 A camera can drop off its USB connection (noise from the stepper motors on its cable) or hang without
 saying so. jplacer notices either (no picture for a while counts as hung, and so does the very same
 picture over and over, which is how some cameras hang), says so across the top of the last picture, which
