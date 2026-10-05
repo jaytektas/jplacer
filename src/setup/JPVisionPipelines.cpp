@@ -48,6 +48,54 @@ bool JPVisionPipelines::paste(JPVisionSettings& settings, const std::string& tex
     return true;
 }
 
+bool JPVisionPipelines::ensureStock(JPConfiguration& config) {
+    using Kind = JPVisionSettings::Kind;
+    bool changed = false;
+    // One there, with its name, holding the stock pipeline.
+    auto stockOf = [&](Kind kind, const std::string& id, const std::string& name, const std::string& xml) {
+        if (!config.visionSettings(id)) {
+            JPVisionSettings v = JPVisionSettings::create(kind, id);
+            v.name = name;
+            v.enabled = true;
+            config.addVisionSettings(std::move(v));
+            changed = true;
+        }
+        JPVisionSettings& v = *config.visionSettings(id);
+        const JPPipeline want = parse(xml);
+        // Compared as pipelines (each written the same way), not as the text it was read from.
+        if (!v.pipeline() || JPXmlWriter::text(of(v).toXml()) != JPXmlWriter::text(want.toXml())) {
+            set(v, want);
+            changed = true;
+        }
+    };
+    // The machine's default, on a fresh configuration: the stock pipeline.
+    auto defaultOf = [&](Kind kind, const std::string& id, const std::string& name, const std::string& stockId) {
+        if (config.visionSettings(id)) return;
+        JPVisionSettings v = JPVisionSettings::create(kind, id);
+        v.name = name;
+        v.enabled = true;
+        set(v, of(*config.visionSettings(stockId)));
+        config.addVisionSettings(std::move(v));
+        changed = true;
+    };
+    const bool freshBottom = !config.visionSettings(JPVisionSettings::kStockBottomId);
+    const bool freshFiducial = !config.visionSettings(JPVisionSettings::kStockFiducialId);
+    stockOf(Kind::Bottom, JPVisionSettings::kStockBottomId, "- Stock Bottom Vision Settings -", JPDefaultPipelines::bottomVision());
+    stockOf(Kind::Bottom, JPVisionSettings::kStockBottomRectlinearId, "- Rectlinear Symmetry Bottom Vision Settings -",
+            JPDefaultPipelines::bottomVisionRectlinear());
+    stockOf(Kind::Bottom, JPVisionSettings::kStockBottomBodyId, "- Whole Part Body Bottom Vision Settings -",
+            JPDefaultPipelines::bottomVisionBody());
+    stockOf(Kind::Fiducial, JPVisionSettings::kStockFiducialId, "- Stock Fiducial Vision Settings -", JPDefaultPipelines::fiducialLocator());
+    stockOf(Kind::Fiducial, JPVisionSettings::kStockFiducialTemplateId, "- Footprint Fiducial Vision Settings -",
+            JPDefaultPipelines::fiducialLocatorTemplate());
+    if (freshBottom)
+        defaultOf(Kind::Bottom, JPVisionSettings::kDefaultBottomId, "- Default Machine Bottom Vision -", JPVisionSettings::kStockBottomId);
+    if (freshFiducial)
+        defaultOf(Kind::Fiducial, JPVisionSettings::kDefaultFiducialId, "- Default Machine Fiducial Locator -",
+                  JPVisionSettings::kStockFiducialId);
+    return changed;
+}
+
 JPPipelineAssignments::Map JPVisionPipelines::assignments(const JPVisionSettings& settings) {
     return JPPipelineAssignments::fromXml(settings.parameterAssignments());
 }

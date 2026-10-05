@@ -16,9 +16,13 @@
 inline namespace jf {
 
 bool JPCameraLook::taken(JPCameraFeed& feed, JPGrayImage& out, std::string& why, int afterMs) {
-    if (!feed.isRunning()) {
-        why = feed.config().name + " is not running";
-        return false;
+    // Brought on screen for this, it starts a moment later: waited for.
+    for (const auto start = std::chrono::steady_clock::now(); !feed.isRunning();) {
+        if (std::chrono::steady_clock::now() - start > std::chrono::milliseconds(kTimeoutMs)) {
+            why = feed.config().name + " is not running";
+            return false;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(kStartPollMs));
     }
     feed.claim();   // a switcher camera switched in for this
     const auto now = std::chrono::steady_clock::now();

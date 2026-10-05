@@ -10,6 +10,11 @@ notes.
 
 ## Unreleased
 
+- OpenPnP's sample job runs on OpenPnP's default machine as it does in OpenPnP: a first start puts it in the samples
+  folder beside the settings; OpenPnP's stock vision settings are made and kept up to date; a machine from OpenPnP
+  finds fiducials and parts with its pipelines; its up-looking simulated camera shows the part on the nozzle; and
+  with no discard location set it is at the origin.
+- A vision task on a camera that is not in front waits for it to start instead of failing.
 - A nozzle turns parts as OpenPnP's does: while it holds a part its rotation reads the part's angle (the Jog panel
   and the status bar show it), its axis turned by the rotation mode offset. New: Align with Part?, bottom vision's
   turn of the part taken into that offset, and Issues & Solutions suggests it. A pick from the Feeders tab gets the

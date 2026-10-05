@@ -1778,8 +1778,8 @@ JPCameraCalibration JPCell::cameraCalibration(const std::string& cameraId, int w
         if (c.id == cameraId) {
             if (const JPCameraCalibration* k = c.calibrationFor(width, height))
                 return c.mount.headId.empty() || !c.workingPlaneZ ? *k : k->atHeight(*c.workingPlaneZ);
-            // An image camera not calibrated: as its picture is drawn.
-            if (const auto known = c.pictureCalibration(width, height)) return *known;
+            // OpenPnP's simulated cameras not calibrated here: as OpenPnP takes them.
+            if (const auto known = c.openPnpCalibration(width, height)) return *known;
         }
     return {};
 }

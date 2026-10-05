@@ -38,7 +38,8 @@ public:
     using ViewProvider = std::function<bool(double&, double&)>;
     // What the rest of the machine adds to what it sees, read each picture
     // (the cell's Simulation Mode): spots over it in machine millimetres (the
-    // nozzle tips an up-looking camera sees), sparks of noise (at most so many,
+    // nozzle tips an up-looking camera sees) and outlines (the parts on them),
+    // sparks of noise (at most so many,
     // so no two pictures are alike), and dark while its light is off.
     struct Extras {
         struct Spot {
@@ -46,6 +47,13 @@ public:
             float  level = 0;
         };
         std::vector<Spot> spots;
+        // Filled outlines (machine mm, in order: a later one over an earlier
+        // one), as a part on a nozzle tip seen from below: body, then pads.
+        struct Outline {
+            std::vector<std::pair<double, double>> points;
+            float                                  level = 0;
+        };
+        std::vector<Outline> outlines;
         int               sparks = 0;
         bool              dark = false;
     };

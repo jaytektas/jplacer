@@ -23,7 +23,13 @@ The table has **Name** (changed in place, except the stock settings', whose id s
 **Assigned To**: what uses them. That is the stock settings themselves, **Bottom Vision** or **Fiducal
 Locator** for the machine's default (as OpenPnP spells it), then the packages, then the parts, by ID.
 
-<!-- src: src/ui/JPVisionSettingsPanel.cpp (newSettings, deleteSettings, copySettings, pasteSettings, usedIn); src/ui/JPVisionSettingsTableModel.cpp; src/model/JPConfiguration.cpp (visionUsedIn) -->
+As OpenPnP does each time it starts, jplacer keeps OpenPnP's stock settings there with OpenPnP's stock
+pipelines: bottom vision's **- Stock Bottom Vision Settings -**, **- Rectlinear Symmetry Bottom Vision
+Settings -** and **- Whole Part Body Bottom Vision Settings -**, and the fiducials' **- Stock Fiducial
+Vision Settings -** and **- Footprint Fiducial Vision Settings -**; with none yet, the machine's defaults,
+**- Default Machine Bottom Vision -** and **- Default Machine Fiducial Locator -**, start as the stock ones.
+
+<!-- src: src/ui/JPVisionSettingsPanel.cpp (newSettings, deleteSettings, copySettings, pasteSettings, usedIn); src/ui/JPVisionSettingsTableModel.cpp; src/model/JPConfiguration.cpp (visionUsedIn); src/setup/JPVisionPipelines.cpp (ensureStock); src/pipeline/JPDefaultPipelines.cpp -->
 
 ## The settings
 

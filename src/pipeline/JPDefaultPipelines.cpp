@@ -444,4 +444,75 @@ const std::string& JPDefaultPipelines::fiducialLocator() {
     return xml;
 }
 
+const std::string& JPDefaultPipelines::bottomVisionRectlinear() {
+    static const std::string xml = R"PIPELINE(<cv-pipeline>
+   <stages>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ParameterBool" name="pSymmetricLeftRight" enabled="true" parameter-label="Symmetry Left/Right" parameter-description="Switch On if parts are symmetric Left/Right (seen in 0° rotation)." stage-name="results" property-name="symmetricLeftRight" effect-stage-name="results" preview-result="true" invert="false" default-value="true"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ParameterBool" name="pSymmetricUpperLower" enabled="true" parameter-label="Symmetry Upper/Lower" parameter-description="Switch On if parts are symmetric Upper/Lower (seen in 0° rotation)" stage-name="results" property-name="symmetricUpperLower" effect-stage-name="results" preview-result="true" invert="false" default-value="true"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ParameterNumeric" name="pThreshold" enabled="true" parameter-label="Threshold" parameter-description="Threshold brightness for relevant image elements (shiny contacts). Only relevant for asymmetric detection." stage-name="results" property-name="threshold" effect-stage-name="results" preview-result="true" minimum-value="1.0" maximum-value="254.0" default-value="128.0" numeric-type="Integer"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ParameterNumeric" name="pMinDetail" enabled="true" parameter-label="Min. Detail Size" parameter-description="Minimum Detail Size that should be considered masked. Only relevant for asymmetric detection." stage-name="results" property-name="minFeatureSize" effect-stage-name="results" preview-result="true" minimum-value="0.0" maximum-value="0.8" default-value="0.05" numeric-type="MillimetersToPixels"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ImageCapture" name="0" enabled="true" default-light="true" settle-first="true" count="1"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ImageWriteDebug" name="deb0" enabled="true" prefix="bv_source_" suffix=".png"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.BlurGaussian" name="2" enabled="true" kernel-size="7" property-name="BlurGaussian"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.MaskCircle" name="3" enabled="true" diameter="900" property-name="MaskCircle"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ConvertColor" name="4" enabled="true" conversion="Bgr2HsvFull"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.MaskHsv" name="5" enabled="true" auto="false" fraction-to-mask="0.0" hue-min="80" hue-max="150" saturation-min="64" saturation-max="255" value-min="0" value-max="225" 
+        soft-edge="16" soft-factor="0.75" invert="false" binary-mask="false" property-name="MaskHsv"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ConvertColor" name="6" enabled="true" conversion="Hsv2BgrFull"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.DetectRectlinearSymmetry" name="results" enabled="true" expected-angle="225.0" search-distance="100.0" search-angle="30.0" max-width="510.0" max-height="510.0" min-feature-size="0.05" symmetric-left-right="true" symmetric-upper-lower="true" symmetric-function="FullSymmetry" asymmetric-function="OutlineSymmetryMasked" min-symmetry="10.0" sub-sampling="8" super-sampling="2" smoothing="5" gamma="2.5" threshold="128" property-name="DetectRectlinearSymmetry" diagnostics="true" diagnostics-map="false"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ImageRecall" name="8" enabled="true" image-stage-name="0"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.DrawRotatedRects" name="9" enabled="true" rotated-rects-stage-name="results" thickness="2" draw-rect-center="false" rect-center-radius="20" show-orientation="true"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ImageWriteDebug" name="deb1" enabled="true" prefix="bv_result_" suffix=".png"/>
+   </stages>
+</cv-pipeline>)PIPELINE";
+    return xml;
+}
+
+const std::string& JPDefaultPipelines::bottomVisionBody() {
+    static const std::string xml = R"PIPELINE(<cv-pipeline>
+   <stages>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ParameterNumeric" name="pDetail" enabled="true" parameter-label="Min. Detail Size" parameter-description="Minimal size of a detail that should be included in the detected shape." stage-name="filterContours" property-name="minArea" effect-stage-name="contours" preview-result="true" minimum-value="0.0" maximum-value="0.25" default-value="0.01" numeric-type="SquareMillimetersToPixels"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ImageCapture" name="0" enabled="true" default-light="true" settle-option="Settle" count="1"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ImageWriteDebug" name="deb0" enabled="true" prefix="bv_source_" suffix=".png"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.BlurGaussian" name="3" enabled="true" kernel-size="9" property-name="BlurGaussian"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ConvertColor" name="5" enabled="true" conversion="Bgr2HsvFull"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.MaskHsv" name="threshold" enabled="true" auto="false" fraction-to-mask="0.0" hue-min="60" hue-max="130" saturation-min="32" saturation-max="255" value-min="64" value-max="100" soft-edge="0" soft-factor="1.0" invert="false" binary-mask="true" property-name="MaskHsv"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.MaskCircle" name="4" enabled="true" diameter="525" property-name="MaskCircle"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.MaskCircle" name="4b" enabled="true" diameter="100000" property-name="partmask"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.FindContours" name="findCountours" enabled="true" retrieval-mode="List" approximation-method="None"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.FilterContours" name="filterContours" enabled="true" contours-stage-name="findCountours" min-area="0.01" max-area="900000.0" property-name="FilterContours"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.MaskCircle" name="11" enabled="true" diameter="0" property-name=""/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.DrawContours" name="contours" enabled="true" contours-stage-name="filterContours" thickness="1" index="-1">
+         <color r="255" g="255" b="255" a="255"/>
+      </cv-stage>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.MinAreaRect" name="results" enabled="true" threshold-min="100" threshold-max="255" expected-angle="0.0" search-angle="45.0" left-edge="true" right-edge="true" top-edge="true" bottom-edge="true" diagnostics="false" property-name="MinAreaRect"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ImageRecall" name="14" enabled="true" image-stage-name="0"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.DrawRotatedRects" name="15" enabled="true" rotated-rects-stage-name="results" thickness="2" draw-rect-center="false" rect-center-radius="20" show-orientation="false"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ImageWriteDebug" name="deb1" enabled="true" prefix="bv_result_" suffix=".png"/>
+   </stages>
+</cv-pipeline>)PIPELINE";
+    return xml;
+}
+
+const std::string& JPDefaultPipelines::fiducialLocatorTemplate() {
+    static const std::string xml = R"PIPELINE(<cv-pipeline>
+   <stages>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ParameterNumeric" name="maxDistance" enabled="true" parameter-label="Max. Distance" parameter-description="Maximum allowed distance between nominal fiducial location and detected location." stage-name="match_template" property-name="maxDistance" effect-stage-name="draw_keypoints" preview-result="true" minimum-value="0.0" maximum-value="10.0" default-value="4.0" numeric-type="MillimetersToPixels"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.CreateFootprintTemplateImage" name="template" enabled="true"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ImageWriteDebug" name="debug_template" enabled="true" prefix="fidloc_template_" suffix=".png"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ConvertColor" name="template_gray" enabled="true" conversion="Bgr2Gray"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ImageCapture" name="image" enabled="true" settle-first="true"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ConvertColor" name="image_gray" enabled="true" conversion="Bgr2Gray"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ImageWriteDebug" name="debug_original" enabled="true" prefix="fidloc_original_" suffix=".png"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.MatchTemplate" name="match_template" enabled="true" template-stage-name="template_gray" threshold="0.699999988079071" corr="0.8500000238418579" normalize="true" property-name="fiducial" />
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ImageRecall" name="recall_image" enabled="true" image-stage-name="image"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.DrawTemplateMatches" name="draw_matches" enabled="true" template-matches-stage-name="match_template"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ConvertModelToKeyPoints" name="results" enabled="true" model-stage-name="match_template"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.DrawKeyPoints" name="draw_keypoints" enabled="true" key-points-stage-name="results"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ImageWriteDebug" name="debug_results" enabled="true" prefix="fidloc_results_" suffix=".png"/>
+   </stages>
+</cv-pipeline>)PIPELINE";
+    return xml;
+}
+
 } // inline namespace jf

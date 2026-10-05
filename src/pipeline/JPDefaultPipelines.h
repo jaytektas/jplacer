@@ -31,8 +31,13 @@ public:
     static const std::string& blindsFeeder();
     // ReferenceBottomVision-DefaultPipeline.xml (createStockPipeline("Default")).
     static const std::string& bottomVision();
+    // ReferenceBottomVision-RectlinearPipeline.xml and -BodyPipeline.xml (createStockPipeline("Rectlinear"), ("Body")).
+    static const std::string& bottomVisionRectlinear();
+    static const std::string& bottomVisionBody();
     // ReferenceFiducialLocator-DefaultPipeline.xml (createStockPipeline("Default")).
     static const std::string& fiducialLocator();
+    // ReferenceFiducialLocator-TemplatePipeline.xml (createStockPipeline("Template")).
+    static const std::string& fiducialLocatorTemplate();
 };
 
 } // inline namespace jf

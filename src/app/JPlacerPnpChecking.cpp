@@ -19,6 +19,14 @@ void JPlacerPnpChecking::hold(const std::string& nozzleId, std::shared_ptr<const
     else m_state->footprints.erase(nozzleId);
 }
 
+JPlacerPnpChecking::Holder JPlacerPnpChecking::holder() const {
+    return [state = m_state](const std::string& nozzleId) -> std::shared_ptr<const JPFootprint> {
+        std::lock_guard lk(state->mutex);
+        const auto it = state->footprints.find(nozzleId);
+        return it == state->footprints.end() ? nullptr : it->second;
+    };
+}
+
 JPCell::PnpChecker JPlacerPnpChecking::checker() {
     return [state = m_state](const JPCell::PnpCheck& c, std::string& detail) {
         std::shared_ptr<const JPFootprint> footprint;

@@ -156,23 +156,23 @@ struct JPCameraConfig {
     // An image camera's (OpenPnP's ImageCamera, device backend "image")
     // picture scale when it gives none (mm a pixel).
     static constexpr double kDefaultImageUnitsPerPixel = 0.04;
-    // An image camera's calibration, known from its picture: its scale, and
-    // the simulated turn, scale and mirroring it shows it through (as
-    // JPImageSource draws it); none for another camera.
-    std::optional<JPCameraCalibration> pictureCalibration(int width, int height) const {
-        if (device["backend"].str() != "image") return std::nullopt;
-        const double ux = device["imageUnitsPerPixel"]["x"].number(kDefaultImageUnitsPerPixel);
-        const double uy = device["imageUnitsPerPixel"]["y"].number(kDefaultImageUnitsPerPixel);
-        const double scale = device["simulatedScale"].number(1);
-        if (ux <= 0 || uy <= 0 || scale <= 0) return std::nullopt;
-        const double r = device["simulatedRotation"].number(0) * M_PI / 180, cr = std::cos(r), sr = std::sin(r);
-        const double sx = device["simulatedFlipped"].boolean() ? -scale : scale, sy = scale;
+    // OpenPnP's simulated cameras (an ImageCamera, a SimulatedUpCamera) not
+    // calibrated here: taken as OpenPnP takes them, at their Units Per Pixel,
+    // straight (looking up, mirrored, as a camera looking up sees); none for
+    // another camera (it must be calibrated).
+    std::optional<JPCameraCalibration> openPnpCalibration(int width, int height) const {
+        const bool image = device["backend"].str() == "image";
+        const bool simulatedUp = device["backend"].str() == "simulated" && device["openpnpClass"].str() == "SimulatedUpCamera";
+        if (!image && !simulatedUp) return std::nullopt;
+        const double ux = unitsPerPixelX > 0 ? unitsPerPixelX : device["imageUnitsPerPixel"]["x"].number(kDefaultImageUnitsPerPixel);
+        const double uy = unitsPerPixelY > 0 ? unitsPerPixelY : device["imageUnitsPerPixel"]["y"].number(kDefaultImageUnitsPerPixel);
+        if (ux <= 0 || uy <= 0) return std::nullopt;
         JPCameraCalibration c;
         c.valid = true;
         c.width = width;
         c.height = height;
         // A mark at P is seen at the middle + M (V - P), V where the camera looks.
-        c.pxPerMm = { -sx * cr / ux, sx * sr / uy, sy * sr / ux, sy * cr / uy };
+        c.pxPerMm = { (looksUp ? 1 : -1) / ux, 0, 0, 1 / uy };
         c.lensCentreX = width / 2.0;
         c.lensCentreY = height / 2.0;
         return c;

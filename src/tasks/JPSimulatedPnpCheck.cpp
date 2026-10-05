@@ -33,6 +33,8 @@ constexpr double kSlackPx = 1.5, kSlackShare = 0.025;
 // OpenPnP's test picture: part bodies and pad marks (in HSV, full hue range):
 // bright enough, not too saturated; pads also not grey.
 constexpr double kMaskLeastValue = 64, kMaskMostSaturation = 180;
+// The template drawn this many times finer each way, then averaged down.
+constexpr int kCoverageSamples = 8;
 
 } // namespace
 
@@ -82,11 +84,28 @@ bool JPSimulatedPnpCheck::isPartLocation(const Picture& pic, const JPFootprint& 
     const int tw = int(JPStageUtil::javaRound(std::max(b.width * kMarginFactor, b.width + 2 * kMinimumMarginPx)));
     const int th = int(JPStageUtil::javaRound(std::max(b.height * kMarginFactor, b.height + 2 * kMinimumMarginPx)));
     const cv::Scalar black = cv::Scalar::all(0), white = cv::Scalar::all(255);
-    cv::Mat templ(th, tw, CV_8UC3, pick ? white : black);
-    auto centred = [&](const JPPipelineValue::LocationMm& m) { return px(m) + cv::Point2d(tw / 2.0, th / 2.0); };
-    if (!pick) JPStageUtil::fill(templ, body, black, centred);
-    JPStageUtil::fill(templ, pads, pick ? black : white, centred);
-    if (pick) JPStageUtil::fill(templ, body, black, centred);
+    // Drawn as Java2D antialiases: each pixel by how much of it is covered
+    // (drawn finely, then averaged down), which matters for a part only a few
+    // pixels across.
+    cv::Mat fine(th * kCoverageSamples, tw * kCoverageSamples, CV_8UC3, pick ? white : black);
+    auto centred = [&](const JPPipelineValue::LocationMm& m) {
+        return (px(m) + cv::Point2d(tw / 2.0, th / 2.0)) * double(kCoverageSamples);
+    };
+    auto fill = [&](const std::vector<JPPipelineValue::Outline>& outlines, const cv::Scalar& colour) {
+        for (const JPPipelineValue::Outline& o : outlines) {
+            std::vector<cv::Point> pts;
+            for (const JPPipelineValue::LocationMm& p : o) {
+                const cv::Point2d q = centred(p);
+                pts.emplace_back(int(std::lround(q.x - 0.5)), int(std::lround(q.y - 0.5)));
+            }
+            if (pts.size() >= 3) cv::fillPoly(fine, std::vector<std::vector<cv::Point>> { pts }, colour, cv::LINE_8);
+        }
+    };
+    if (!pick) fill(body, black);
+    fill(pads, pick ? black : white);
+    if (pick) fill(body, black);
+    cv::Mat templ;
+    cv::resize(fine, templ, cv::Size(tw, th), 0, 0, cv::INTER_AREA);
     const int templateDimension = int(std::sqrt(double(tw) * tw + double(th) * th));
     const int kernel = (templateDimension / 4) | 1;
     cv::GaussianBlur(templ, templ, cv::Size(kernel, kernel), 0);
@@ -95,9 +114,23 @@ bool JPSimulatedPnpCheck::isPartLocation(const Picture& pic, const JPFootprint& 
     const int dimension = std::max(std::max(tw, th) * kSearchFactor, kLeastSearchPx);
     const double pixelX = (x + pic.offsetX) / pic.unitsPerPixelX, pixelY = (y + pic.offsetY) / pic.unitsPerPixelY;
     const double dx = pixelX - dimension / 2.0, dy = source->rows - (pixelY + dimension / 2.0);
-    const cv::Mat shift = (cv::Mat_<double>(2, 3) << 1, 0, -dx, 0, 1, -dy);
+    // Drawn shifted as Java2D draws it bicubic (Catmull-Rom): the whole
+    // pixels cut out, the fraction left blended from the four around.
+    const int ix = int(std::floor(dx)), iy = int(std::floor(dy));
+    const double fx = dx - ix, fy = dy - iy;
+    auto catmullRom = [](double t) -> cv::Mat {
+        return cv::Mat_<double>(4, 1) << (-t * t * t + 2 * t * t - t) / 2, (3 * t * t * t - 5 * t * t + 2) / 2,
+               (-3 * t * t * t + 4 * t * t + t) / 2, (t * t * t - t * t) / 2;
+    };
+    // The cut-out with a pixel more each side (two after), black beyond the picture.
+    const cv::Rect want(ix - 1, iy - 1, dimension + 3, dimension + 3);
+    cv::Mat cut(want.size(), source->type(), black);
+    const cv::Rect inside = want & cv::Rect(0, 0, source->cols, source->rows);
+    if (inside.area() > 0) (*source)(inside).copyTo(cut(inside - want.tl()));
+    cv::Mat shifted;
+    cv::sepFilter2D(cut, shifted, CV_32F, catmullRom(fx), catmullRom(fy), cv::Point(1, 1), 0, cv::BORDER_CONSTANT);
     cv::Mat target;
-    cv::warpAffine(*source, target, shift, cv::Size(dimension, dimension), cv::INTER_CUBIC, cv::BORDER_CONSTANT, black);
+    shifted(cv::Rect(1, 1, dimension, dimension)).convertTo(target, CV_8U);
     if (pic.filterTestImage) {
         cv::Mat channel;
         cv::extractChannel(templ, channel, 2);

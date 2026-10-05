@@ -277,7 +277,8 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
     };
     const bool homeAfterEnabled = setting("home-after-enabled");   // every controller's
     c.parkAfterHome = setting("park-after-homed");
-    c.discardLocation = location(*machine, "discard-location");
+    // None given: OpenPnP's default, the origin.
+    c.discardLocation = location(*machine, "discard-location").value_or(JPMachineLocation {});
     c.defaultBoardLocation = location(*machine, "default-board-location").value_or(JPMachineLocation {});
     c.autoToolSelect = machine->attr("auto-tool-select") != "false";   // OpenPnP's default: on
     if (machine->child("unsafe-Z-roaming-distance")) c.unsafeZRoamingMm = lengthChild(*machine, "unsafe-Z-roaming-distance");
@@ -360,7 +361,9 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
         j.preRotateAllNozzles = flag("pre-rotate-all-nozzles", j.preRotateAllNozzles);
         j.fiducialLevel = int(number("fiducial-level", j.fiducialLevel));
     }
-    // The machine's vision: its bottom vision (the first part alignment) and fiducial locator.
+    // The machine's vision: its bottom vision (the first part alignment) and
+    // fiducial locator, finding as OpenPnP does: by the vision settings' pipelines.
+    c.vision.fiducialPipeline = c.vision.bottomPipeline = true;
     if (const JPXmlElement* aligns = machine->child("part-alignments"))
         for (const JPXmlElement& a : aligns->children) {
             if (shortClass(a) != "ReferenceBottomVision") continue;
@@ -1263,6 +1266,9 @@ void JPOpenPnpMachineImporter::keepFrom(const JPCellConfig& previous, JPCellConf
                 cam.showAll = was.showAll;
             }
     if (previous.squareness.active()) cell.squareness = previous.squareness;
+    // How parts and fiducials are found, as chosen here (jplacer's finder or the pipelines).
+    cell.vision.fiducialPipeline = previous.vision.fiducialPipeline;
+    cell.vision.bottomPipeline = previous.vision.bottomPipeline;
     // Which tip is on each nozzle is known here (set by hand, or by
     // loading): OpenPnP's file says what it last believed, which a hand
     // since may have changed. A wrong tip is a crash; it is never taken.

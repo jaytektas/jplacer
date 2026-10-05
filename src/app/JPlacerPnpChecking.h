@@ -7,6 +7,7 @@
 #include "model/JPFootprint.h"
 #include "tasks/JPSimulatedPnpCheck.h"
 
+#include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -25,6 +26,9 @@ public:
     void hold(const std::string& nozzleId, std::shared_ptr<const JPFootprint> footprint);
     // What the cell calls.
     JPCell::PnpChecker checker();
+    // The footprint of the part on a nozzle (none: no part), from any thread.
+    using Holder = std::function<std::shared_ptr<const JPFootprint>(const std::string& nozzleId)>;
+    Holder holder() const;
 
 private:
     struct State {

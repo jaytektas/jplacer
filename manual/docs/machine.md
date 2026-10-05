@@ -15,9 +15,14 @@ As OpenPnP does, jplacer started with no machine yet brings in OpenPnP's own def
 controller, one nozzle, a camera looking down at OpenPnP's test picture of the table (`pnp-test.png`) and
 one looking up, and the strip feeders laid out on that picture. Configuration files not there yet
 (packages, parts, vision settings) start as OpenPnP's defaults too. Both travel with jplacer, as does the
-picture: a machine.xml naming one of OpenPnP's own pictures (`classpath://samples/…`) is given that copy.
+picture: a machine.xml naming one of OpenPnP's own pictures (`classpath://samples/…`) is given that copy. OpenPnP's
+sample job, `pnp-test.job.xml` with its board and panel, is put in the `samples/pnp-test` folder beside
+jplacer's settings (`~/.config/jplacer`), to open with **File ▸ Open Job…**. The machine's cameras work
+as OpenPnP's do with no calibration here: an ImageCamera, or a SimulatedUpCamera (which shows the nozzle
+tip and the part on it, its body dark and its pads white, as the part is turned), at its Units Per Pixel.
+A machine with no discard location has it at the origin, as OpenPnP's default.
 
-<!-- src: src/app/JPlacerMachine.cpp (startWithDefault); src/model/JPConfiguration.cpp (load, defaults); src/openpnp/JPOpenPnpMachineImporter.cpp (classpath pictures); openpnp-defaults/README.md -->
+<!-- src: src/app/JPlacerMachine.cpp (startWithDefault); src/model/JPConfiguration.cpp (load, defaults); src/openpnp/JPOpenPnpMachineImporter.cpp (classpath pictures); openpnp-defaults/README.md; src/machine/JPCameraConfig.h (openPnpCalibration); src/app/JPlacerMachine.cpp (setExtras) -->
 
 ## Bringing in a machine set up in OpenPnP
 

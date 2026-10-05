@@ -103,7 +103,10 @@ void JPSimulatedSource::drawScene(JPFrame& frame) {
     // The shapes: each pixel straightened and taken back to the machine, and
     // lit where it falls inside one.
     const double det = m_pxPerMm[0] * m_pxPerMm[3] - m_pxPerMm[1] * m_pxPerMm[2];
-    for (const Shape& sh : m_shapes) {
+    std::vector<Shape> shapes = m_shapes;
+    for (const Extras::Outline& o : extras.outlines)
+        if (o.points.size() >= 3) shapes.push_back({ o.points, o.level });
+    for (const Shape& sh : shapes) {
         if (!known || std::abs(det) < 1e-12) break;
         // Where its corners are seen, for the pixels to test.
         double x0 = 1e300, y0 = 1e300, x1 = -1e300, y1 = -1e300;

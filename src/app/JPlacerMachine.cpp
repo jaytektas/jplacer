@@ -54,6 +54,9 @@ constexpr int kScriptPollMs = 50;
 // A simulated nozzle tip seen from below: this wide when its tip gives no diameter (mm), and this bright.
 constexpr double kSimulatedTipMm = 1.0;
 constexpr float  kSimulatedTipLevel = 230;
+// A part on a tip as OpenPnP's SimulatedUpCamera draws it: its body dark grey (60), its pads white.
+constexpr float  kSimulatedBodyLevel = 60;
+constexpr float  kSimulatedPadLevel = 255;
 // How near the camera's centre a nozzle must be for Adjust Camera Z (OpenPnP's 0.1 mm).
 constexpr double kCenteredMm = 0.1;
 // OpenPnP's Mapped Roughly and Mapped Finely white balance: the brightness levels mapped.
@@ -64,6 +67,8 @@ constexpr int kMappedRoughlyLevels = 8, kMappedFinelyLevels = 32;
 // Where OpenPnP keeps its machine, under the home folder.
 constexpr const char* kOpenPnpDir         = ".openpnp2";
 constexpr const char* kOpenPnpMachineFile = "machine.xml";
+// OpenPnP's samples, shipped (openpnp-defaults) and copied for a first start.
+constexpr const char* kSamplesDir = "samples";
 
 } // namespace
 
@@ -152,6 +157,7 @@ void JPlacerMachine::buildCameras() {
     };
     // OpenPnP's Simulation Mode, for the nozzle tips the up-looking cameras see.
     struct SimulatedTip {
+        std::string   nozzleId;
         JPMountConfig mount;
         double        diameter;
     };
@@ -160,7 +166,7 @@ void JPlacerMachine::buildCameras() {
         double diameter = kSimulatedTipMm;
         for (const JPNozzleTipConfig& t : m_cell->config().nozzleTips)
             if (t.id == n.tipId && t.diameter > 0) diameter = t.diameter;
-        tips.push_back({ n.mount, diameter });
+        tips.push_back({ n.id, n.mount, diameter });
     }
     for (const JPCameraConfig& c : m_cell->config().cameras) {
         std::function<bool(double&, double&)> view;
@@ -187,10 +193,14 @@ void JPlacerMachine::buildCameras() {
         // What OpenPnP's Simulation Mode adds to a simulated camera's picture:
         // the nozzle tips over a fixed one (going round on the runout), sparks
         // of noise, and dark while its light is off.
-        d.panel->feed().setExtras([cell = m_cell.get(), physical, tips, fixed = c.mount.headId.empty(), light = c.lightActuator()] {
+        // OpenPnP's own SimulatedUpCamera shows the nozzles over it whether or not
+        // the machine is in Simulation Mode.
+        const bool openPnpUp = c.device["openpnpClass"].str() == "SimulatedUpCamera";
+        d.panel->feed().setExtras([cell = m_cell.get(), physical, tips, fixed = c.mount.headId.empty(), light = c.lightActuator(),
+                                   openPnpUp, held = m_pnpChecking.holder()] {
             JPSimulatedSource::Extras e;
             const JPSimulationConfig sim = cell->simulation();
-            if (!sim.on()) return e;
+            if (!sim.on() && !openPnpUp) return e;
             if (sim.dynamic()) {
                 e.sparks = sim.cameraNoise;
                 e.dark = !light.empty() && !cell->switchedOn(light).value_or(false);
@@ -200,13 +210,28 @@ void JPlacerMachine::buildCameras() {
                 for (const SimulatedTip& t : tips) {
                     double x, y;
                     if (!physical(t.mount, x, y)) continue;
+                    const auto r = p.find(t.mount.axisRotation);
+                    const double axis = r == p.end() ? 0.0 : r->second;
                     if (sim.dynamic() && sim.runoutMm != 0) {
-                        const auto r = p.find(t.mount.axisRotation);
-                        const double a = ((r == p.end() ? 0.0 : r->second) - sim.runoutPhaseDeg) * M_PI / 180;
+                        const double a = (axis - sim.runoutPhaseDeg) * M_PI / 180;
                         x += sim.runoutMm * std::cos(a);
                         y += sim.runoutMm * std::sin(a);
                     }
                     e.spots.push_back({ x, y, t.diameter, kSimulatedTipLevel });
+                    // The part on it, as OpenPnP's SimulatedUpCamera draws it: its body
+                    // dark grey, its pads white, turned as the part is (the nozzle's rotation).
+                    const auto footprint = held(t.nozzleId);
+                    if (!footprint) continue;
+                    const double mm = JPLength(1, footprint->units).convertToUnits(JPLengthUnit::Millimeters).value();
+                    const double a = (axis + cell->rotationModeOffset(t.nozzleId)) * M_PI / 180, ca = std::cos(a), sa = std::sin(a);
+                    auto placed = [&](const JPFootprint::Outline& o, float level) {
+                        JPSimulatedSource::Extras::Outline out { {}, level };
+                        for (const JPFootprint::Point& pt : o)
+                            out.points.push_back({ x + (pt.x * ca - pt.y * sa) * mm, y + (pt.x * sa + pt.y * ca) * mm });
+                        e.outlines.push_back(std::move(out));
+                    };
+                    placed(footprint->bodyOutline(), kSimulatedBodyLevel);
+                    for (const JPFootprint::Outline& o : footprint->padsOutlines()) placed(o, kSimulatedPadLevel);
                 }
             }
             return e;
@@ -1715,6 +1740,17 @@ void JPlacerMachine::startWithDefault() {
     if (!std::filesystem::exists(machine, ec)) return;
     JLOGC(JPlacerLog::kApp, JLogLevel::Info) << "no machine yet: OpenPnP's default machine from " << machine.string();
     importFrom(machine.string(), false);
+    // OpenPnP's sample job, its board and panel, where they can be opened
+    // (OpenPnP keeps its samples beside it): the configuration's samples folder.
+    const std::filesystem::path samples = std::filesystem::path(shipped) / kSamplesDir;
+    const std::filesystem::path to = std::filesystem::path(JPlacerPaths::configDir()) / kSamplesDir;
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(samples, ec)) {
+        if (!entry.is_regular_file() || entry.path().extension() != ".xml") continue;
+        const std::filesystem::path target = to / std::filesystem::relative(entry.path(), samples, ec);
+        std::filesystem::create_directories(target.parent_path(), ec);
+        std::filesystem::copy_file(entry.path(), target, std::filesystem::copy_options::skip_existing, ec);
+    }
+    if (std::filesystem::exists(to, ec)) JLOGC(JPlacerLog::kApp, JLogLevel::Info) << "OpenPnP's samples in " << to.string();
 }
 
 void JPlacerMachine::importFrom(const std::string& path, bool tell) {

@@ -33,7 +33,8 @@ public:
     // set, taught or measured in jplacer is not OpenPnP's to replace, and is
     // carried into `cell`: each controller's chosen port, which tip is on
     // each nozzle (a wrong one is a crash), each nozzle's Z home command, the tips' changer steps and measured runout, each
-    // camera's calibrations and show-all, and the squareness.
+    // camera's calibrations and show-all, the squareness, and how parts and
+    // fiducials are found (jplacer's finder or the pipelines).
     static void keepFrom(const JPCellConfig& previous, JPCellConfig& cell);
 };
 

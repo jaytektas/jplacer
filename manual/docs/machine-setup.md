@@ -63,8 +63,9 @@ none), **Rotate parts prior to vision?**, **Max. vision passes**, **Max. linear 
 **Average Matches?** (the passes after the first averaged, with three or more) and **Max. Distance (old
 pipelines only)** (mm, for a pipeline without a maxDistance stage).
 
-Each has **Find parts with** or **Find fiducials with**: **jplacer** (the default) uses jplacer's own
-finder, which needs no tuning; **Pipeline** uses the vision settings' OpenPnP pipeline (see
+Each has **Find parts with** or **Find fiducials with**: **jplacer** (the default for a machine set up
+here) uses jplacer's own finder, which needs no tuning; a machine brought in from OpenPnP finds with its
+pipelines, as OpenPnP does (importing it again keeps what was chosen here); **Pipeline** uses the vision settings' OpenPnP pipeline (see
 [Vision](vision.md#the-pipeline)), as OpenPnP does: the "results" stage's key points for a fiducial (the one
 nearest where it should be), its rectangle for a part, shown on the camera's view as they are found.
 

@@ -22,6 +22,9 @@ public:
     // OpenPnP's AbstractVisionSettings ids: the stock settings, and the machine's defaults.
     static constexpr const char* kStockBottomId   = "BVS_Stock";
     static constexpr const char* kStockFiducialId = "FVS_Stock";
+    static constexpr const char* kStockBottomRectlinearId = "BVS_Stock_R";
+    static constexpr const char* kStockBottomBodyId       = "BVS_Stock_B";
+    static constexpr const char* kStockFiducialTemplateId = "FVS_Stock_T";
     static constexpr const char* kDefaultBottomId   = "BVS_Default";
     static constexpr const char* kDefaultFiducialId = "FVS_Default";
 

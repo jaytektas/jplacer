@@ -9,6 +9,7 @@
 #include "common/JPlacerLog.h"
 #include "common/JPlacerPaths.h"
 #include "openpnp/JPOpenPnpMachineImporter.h"
+#include "setup/JPVisionPipelines.h"
 
 #include <j/config/Settings.h>
 #include <j/core/Dialog.h>
@@ -43,10 +44,14 @@ JPlacerJob::JPlacerJob(JAppWindow& window) : m_window(window), m_config(JPlacerP
     if (!m_config.load(problems, error)) {
         JLOGC(JPlacerLog::kApp, JLogLevel::Error) << "configuration: " << error;
         m_window.showStatus("The parts and packages could not be read: " + error, kStatusMs);
-    } else if (m_config.tookDefaults()) {
-        // As OpenPnP: what was not there yet is OpenPnP's default, saved as the start.
-        JLOGC(JPlacerLog::kApp, JLogLevel::Info) << "configuration: OpenPnP's defaults taken for what was not there";
-        configurationKept();
+    } else {
+        // As OpenPnP: what was not there yet is OpenPnP's default, and the
+        // stock vision settings there with the stock pipelines; saved so.
+        const bool stock = JPVisionPipelines::ensureStock(m_config);
+        if (m_config.tookDefaults())
+            JLOGC(JPlacerLog::kApp, JLogLevel::Info) << "configuration: OpenPnP's defaults taken for what was not there";
+        if (stock) JLOGC(JPlacerLog::kApp, JLogLevel::Info) << "configuration: OpenPnP's stock vision settings brought up to date";
+        if (m_config.tookDefaults() || stock) configurationKept();
     }
     for (const std::string& p : problems) JLOGC(JPlacerLog::kApp, JLogLevel::Warn) << p;
     JLOGC(JPlacerLog::kApp, JLogLevel::Info) << m_config.parts().size() << " part(s), " << m_config.packages().size()

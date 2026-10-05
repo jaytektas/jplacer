@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "model/JPConfiguration.h"
 #include "model/JPVisionSettings.h"
 #include "pipeline/JPPipeline.h"
 #include "pipeline/JPPipelineAssignments.h"
@@ -25,6 +26,13 @@ public:
     static std::string copy(const JPVisionSettings& settings);
     // False (and why) for text that is not a pipeline.
     static bool       paste(JPVisionSettings& settings, const std::string& text, std::string& why);
+
+    // OpenPnP's ReferenceBottomVision and ReferenceFiducialLocator
+    // migratePartSettings, on loading: the stock settings (bottom: Default,
+    // Rectlinear, Body; fiducial: Default, Template) there and holding the
+    // stock pipelines; on a fresh configuration, the machine's default
+    // settings made from the stock ones. True when anything changed.
+    static bool       ensureStock(JPConfiguration& config);
 
     static JPPipelineAssignments::Map assignments(const JPVisionSettings& settings);
     static void                       assign(JPVisionSettings& settings, const std::string& parameter, const JPPipelineValue& value);

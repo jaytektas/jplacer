@@ -49,6 +49,7 @@ public:
                                         const JPRoundMarkFinder::Request& request);
 
     static constexpr int kTimeoutMs = 3000;   // for a picture to arrive at all
+    static constexpr int kStartPollMs = 10;   // how often a camera just brought on screen is checked
 
 private:
     // settled() without its scripting events.
