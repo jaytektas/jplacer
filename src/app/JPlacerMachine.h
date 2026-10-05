@@ -131,6 +131,15 @@ public:
     // What a nozzle holds (OpenPnP's Nozzle.getPart): the part last picked
     // with it, "" when none (placed or discarded since).
     std::string nozzlePart(const std::string& nozzleId) const;
+    // The Jog panel's Recycle: the part on a nozzle put back into a feeder
+    // (set by the tabs, which run it as a machine task), and whether some
+    // feeder can take part `partId` back.
+    std::function<void(const std::string& nozzleId)> recycle;
+    std::function<bool(const std::string& partId)>   canRecycle;
+    // Recycle offered again (feeders changed).
+    void refreshRecycle() {
+        if (m_jog) m_jog->refreshRecycle();
+    }
     void        setNozzlePart(const std::string& nozzleId, const std::string& partId);
     // The parts' and vision settings' configuration (Machine Setup's Vision
     // nodes choose its vision settings).

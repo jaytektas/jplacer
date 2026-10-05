@@ -93,6 +93,15 @@ public:
     JPLocation  location() const { return locationOf("location"); }
     void        setLocation(const JPLocation& l) { setLocationOf("location", l); }
 
+    // OpenPnP's canTakeBackPart: whether a part picked from it can be put
+    // back (Recycle): a tape or tray one fed from; an auto feeder that says
+    // it recycles, or a tape feeder calibrated by vision, not already holding
+    // a part put back; a loose part feeder where its part was found; a heap
+    // always. And what putting one back changes (OpenPnP's takeBackPart): the
+    // count taken back, the next feed skipped, the part found forgotten.
+    bool canTakeBackPart() const;
+    void partTakenBack();
+
     // Where the next part is picked, for the kinds jplacer works out
     // (OpenPnP's getPickLocation); none for the others.
     std::optional<JPLocation> pickLocation() const;

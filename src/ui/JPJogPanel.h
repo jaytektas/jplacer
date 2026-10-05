@@ -9,6 +9,7 @@
 #include "machine/JPCell.h"
 
 #include <j/core/JComboBox.h>
+#include <j/core/JButton.h>
 #include <j/core/JContainer.h>
 #include <j/core/JLabel.h>
 #include <j/core/JTabWidget.h>
@@ -88,6 +89,12 @@ public:
     std::function<void(const std::string& nozzleId)> onHomeZ;
     // A nozzle's part put down or dropped (Place, Discard): it holds none.
     std::function<void(const std::string& nozzleId)> onPartGone;
+    // OpenPnP's Recycle: the part on the nozzle put back into a feeder;
+    // offered only when some enabled feeder holding it can take it back.
+    std::function<void(const std::string& nozzleId)> onRecycle;
+    std::function<bool(const std::string& nozzleId)> canRecycle;
+    // Recycle offered or not again (a nozzle's part, or a feeder, changed).
+    void refreshRecycle();
     // Stop (the move held and dropped) or, `emergency`, reset every controller.
     std::function<void(bool emergency)> onStop;
     // The key an action has now (Preferences > Keys), for the tooltips; "" none.
@@ -164,6 +171,7 @@ private:
     size_t                  m_lastNozzle = 0;
     JTabWidget*             m_tabs = nullptr;
     JWidget*                m_tipButton = nullptr;
+    JButton*                m_recycle = nullptr;
     std::vector<double>     m_distances, m_speeds;
     std::unique_ptr<JMenu>  m_tipMenu, m_tipOnIt;
     bool                    m_stepThrough = true;

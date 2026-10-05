@@ -261,6 +261,13 @@ void JPlacerMachine::buildPanels(Keep keep) {
     auto jog = std::make_unique<JPJogPanel>(m_graph, *m_cell, choices);
     m_jog = jog.get();
     jog->onPartGone = [this](const std::string& nozzleId) { setNozzlePart(nozzleId, ""); };
+    jog->onRecycle = [this](const std::string& nozzleId) {
+        if (recycle) recycle(nozzleId);
+    };
+    jog->canRecycle = [this](const std::string& nozzleId) {
+        const std::string part = nozzlePart(nozzleId);
+        return !part.empty() && canRecycle && canRecycle(part);
+    };
     jog->onChoicesChanged = [this] {
         if (!m_jog) return;
         const JPJogPanel::Choices c = m_jog->choices();
@@ -677,6 +684,7 @@ void JPlacerMachine::setNozzlePart(const std::string& nozzleId, const std::strin
         }
     }
     if (m_cell) m_cell->setNozzlePart(nozzleId, on);
+    if (m_jog) m_jog->refreshRecycle();
 }
 
 void JPlacerMachine::setSetupVisionTests(JPVisionTests tests) {

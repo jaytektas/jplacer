@@ -348,7 +348,15 @@ nozzle has its own command, so a machine with a motor per nozzle homes each on i
 <!-- src: src/machine/JPCell.cpp (homeNozzle, doHomeNozzle, nozzlesHomedWith); src/machine/JPNozzleConfig.h (homeCommand); src/ui/JPJogPanel.cpp (showTipMenu); src/app/JPlacerMachine.cpp (homeNozzle); src/setup/JPSetupProperties.cpp (nozzleForm) -->
 
 **Special** tab: **Head Safe Z** (every Z on the head up to safe Z), **Discard** (the nozzle's part to the
-discard location: up, across, down, let go, up again), and **Pick** and **Place** where the nozzle is.
+discard location: up, across, down, let go, up again), **Recycle**, and **Pick** and **Place** where the
+nozzle is. **Recycle**, as OpenPnP's, puts the nozzle's part back into an enabled feeder that holds it and
+can take it back, the nearest to the head's camera: a tape or tray feeder that has fed (its count taken
+back), an auto feeder set to Recycle supported, a push-pull, Bamboo or Photon feeder (its next feed then
+skipped), a loose part feeder where its part was found, or a heap (dropped back into the heap along its
+three moves). It is greyed out when no feeder can; the Feeder.BeforeTakeBack and Feeder.AfterTakeBack
+scripting events run round it.
+
+<!-- src: src/ui/JPJogPanel.cpp (specialPage, refreshRecycle); src/model/JPFeeder.cpp (canTakeBackPart, partTakenBack); src/tasks/JPFeederTakeBack.cpp; src/tasks/JPHeapFeeder.cpp (takeBack); src/app/JPlacerOpenPnpTabs.cpp (recycle) -->
 
 Every button has a key, the same as OpenPnP's to start with (Machine ▸ Jog lists them, and a button's
 tooltip says its key); [Preferences, Keys](preferences.md#keys) changes them, and gives keys to the

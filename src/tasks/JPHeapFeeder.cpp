@@ -226,6 +226,15 @@ public:
         return true;
     }
 
+    // takeBackPart: the part on the nozzle back into the heap.
+    bool takeBack(std::string& why) {
+        const std::optional<Feeder> h = feeder(m_feederId);
+        if (!h) return false;
+        if (!m_machine.safeZ(why) || !alongWays(*h, false, why) || !dropPart(h->location, why) || !m_machine.safeZ(why)) return false;
+        setLastFeedDepth(h->id, h->lastFeedDepth - h->partHeight / 5);
+        return true;
+    }
+
     // DropBox.clean.
     bool clean(const std::string& boxId, std::string& why) {
         for (int i = 0; i < kMaxCleanAttempts; ++i) {
@@ -468,6 +477,11 @@ bool JPHeapFeeder::feed(JPConfiguration& config, const std::string& feederId, co
 bool JPHeapFeeder::getSamples(JPConfiguration& config, const std::string& feederId, const std::string& nozzleId,
                               JPJobMachine& machine, const OnMain& onMain, std::string& why) {
     return Heap(config, feederId, nozzleId, machine, onMain).samples(why);
+}
+
+bool JPHeapFeeder::takeBack(JPConfiguration& config, const std::string& feederId, const std::string& nozzleId, JPJobMachine& machine,
+                            const OnMain& onMain, std::string& why) {
+    return Heap(config, feederId, nozzleId, machine, onMain).takeBack(why);
 }
 
 bool JPHeapFeeder::cleanDropBox(JPConfiguration& config, const std::string& feederId, const std::string& nozzleId,

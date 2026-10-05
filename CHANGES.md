@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- The Jog panel's Special tab has OpenPnP's Recycle: the part on the nozzle put back into a feeder that holds
+  it. Its buttons sit two to a row, so none is cut off in a narrow panel.
 - More of OpenPnP's scripting events run: the camera's settle, capture and position events, nozzle tip
   calibration, part alignment, discards, feeder faults, and Machine.AfterDriverHoming.
 - Nozzle tips have OpenPnP's Background Calibration: measured along with the runout, it finds how the

@@ -23,6 +23,7 @@
 #include "tasks/JPFeederActions.h"
 #include "tasks/JPFeederFeed.h"
 #include "tasks/JPFeederPipelines.h"
+#include "tasks/JPFeederTakeBack.h"
 #include "tasks/JPVisionPipelinePrep.h"
 
 #include "ui/JPFootprintOverlay.h"
@@ -479,6 +480,24 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         if (const JPCell* c = m_machine.cell())
             for (const JPActuatorConfig& a : c->config().actuators) out.push_back(a.name.empty() ? a.id : a.name);
         return out;
+    };
+    // The Jog panel's Recycle (OpenPnP's recycleAction): as a machine task.
+    m_machine.canRecycle = [this](const std::string& partId) {
+        std::optional<JPLocation> camera;
+        return !JPFeederTakeBack::feederFor(m_job.configuration(), partId, camera).empty();
+    };
+    m_machine.recycle = [this](const std::string& nozzleId) {
+        m_jobRun->machineTask([this, nozzleId](JPJobMachine& machine, const std::function<void(const std::function<void()>&)>& onMain,
+                                               std::string& why) {
+            const bool ok = JPFeederTakeBack::takeBack(m_job.configuration(), nozzleId, machine, onMain,
+                                                       &m_machine.scripting(), why);
+            onMain([&] {
+                m_feeders->refresh();
+                m_job.configurationChanged();
+                m_machine.refreshRecycle();
+            });
+            return ok;
+        });
     };
     m_feeders->machineAction = [this](const std::string& feederId, const std::string& action) {
         if (action.rfind("photon", 0) == 0) ensurePhotonActuator();

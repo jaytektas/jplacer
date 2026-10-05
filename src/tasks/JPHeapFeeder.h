@@ -33,6 +33,10 @@ public:
     // OpenPnP's GetSamples: the box cleaned, parts fetched into it, and the camera over it (for the template pipeline).
     static bool getSamples(JPConfiguration& config, const std::string& feederId, const std::string& nozzleId,
                            JPJobMachine& machine, const OnMain& onMain, std::string& why);
+    // OpenPnP's takeBackPart: the part on `nozzleId` taken back to the heap
+    // along its three moves and dropped there, the heap's pick a little higher.
+    static bool takeBack(JPConfiguration& config, const std::string& feederId, const std::string& nozzleId, JPJobMachine& machine,
+                         const OnMain& onMain, std::string& why);
     // OpenPnP's Clean DropBox: the feeder's box emptied.
     static bool cleanDropBox(JPConfiguration& config, const std::string& feederId, const std::string& nozzleId,
                              JPJobMachine& machine, const OnMain& onMain, std::string& why);

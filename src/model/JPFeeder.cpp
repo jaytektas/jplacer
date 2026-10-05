@@ -152,6 +152,30 @@ bool JPFeeder::supportsFeedOptions() const {
     return std::any_of(std::begin(kFeedOptionsKinds), std::end(kFeedOptionsKinds), [&t](const char* k) { return t == k; });
 }
 
+bool JPFeeder::canTakeBackPart() const {
+    const std::string t = feedsAs();
+    if (t == "ReferenceStripFeeder" || t == "ReferenceTrayFeeder" || t == "ReferenceRotatedTrayFeeder" || t == "BlindsFeeder")
+        return number("feed-count") > 0;
+    if (t == "ReferenceAutoFeeder") return flag("recycle-support", false) && feedOptions() != FeedOptions::SkipNext;
+    if (t == "ReferencePushPullFeeder" || t == "BambooFeederAutoVision") return feedOptions() != FeedOptions::SkipNext;
+    if (t == "PhotonFeeder") return feedOptions() == FeedOptions::Normal;
+    if (t == "ReferenceLoosePartFeeder" || t == "AdvancedLoosePartFeeder") return foundPick.has_value();
+    return t == "ReferenceHeapFeeder";
+}
+
+void JPFeeder::partTakenBack() {
+    const std::string t = feedsAs();
+    if (t == "ReferenceStripFeeder" || t == "ReferenceTrayFeeder") {
+        if (feedOptions() == FeedOptions::Normal) setNumber("feed-count", number("feed-count") - 1);
+    } else if (t == "ReferenceRotatedTrayFeeder" || t == "BlindsFeeder") {
+        setNumber("feed-count", number("feed-count") - 1);
+    } else if (t == "ReferenceAutoFeeder" || t == "ReferencePushPullFeeder" || t == "BambooFeederAutoVision" || t == "PhotonFeeder") {
+        setFeedOptions(FeedOptions::SkipNext);
+    } else if (t == "ReferenceLoosePartFeeder" || t == "AdvancedLoosePartFeeder") {
+        foundPick.reset();   // not a second part on the same place
+    }
+}
+
 JPFeeder::FeedOptions JPFeeder::feedOptions() const {
     const std::string o = text("feed-options", "Normal");
     return o == "SkipNext" ? FeedOptions::SkipNext : o == "Disable" ? FeedOptions::Disable : FeedOptions::Normal;
