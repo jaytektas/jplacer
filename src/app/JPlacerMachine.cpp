@@ -157,8 +157,13 @@ void JPlacerMachine::buildCameras() {
         d.panel->onSettings = [this, id = c.id] { showSetup("camera:" + id); };
         d.panel->onRunning = [this](bool) { lightCameras(); };
         if (c.mount.headId.empty()) d.panel->view().onMoveNozzleHere = [this, id = c.id] { moveNozzleToCamera(id); };
-        // OpenPnP's Estimate Z Coordinate of Object, on a camera calibrated at two heights.
+        // OpenPnP's camera Properties: the preview's rate, held while the machine works, and brought forward.
         JPCameraPanel* panel = d.panel.get();
+        d.panel->view().setPreviewFps(c.previewFps);
+        if (c.suspendDuringTasks)
+            d.panel->view().suspended = [this] { return m_cell && (m_cell->isMoving() || (jobRunning && jobRunning())); };
+        if (c.autoCameraView) d.panel->view().onPictureShown = [this, panel] { bringForward(*panel); };
+        // OpenPnP's Estimate Z Coordinate of Object, on a camera calibrated at two heights.
         d.panel->view().canEstimateZ = [this, panel, id = c.id] {
             return m_cell && m_cell->cameraCalibration(id, panel->view().pictureWidth(), panel->view().pictureHeight()).twoHeights();
         };
@@ -676,6 +681,11 @@ bool JPlacerMachine::moveToolTo(JPSetupForm::Tool tool, const Where& to) {
     if (!readyToMove()) return false;
     m_cell->moveTool(*m, to, 1.0);   // at the machine's speed
     selectMoved(*m);
+    // A camera moved to look somewhere, with Auto Camera View: brought forward.
+    for (const JPCameraConfig& cam : m_cell->config().cameras)
+        if (&cam.mount == m && cam.autoCameraView)
+            for (CameraDock& c : m_cameras)
+                if (c.panel->camera().id == cam.id) bringForward(*c.panel);
     return true;
 }
 

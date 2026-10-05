@@ -339,15 +339,23 @@ void JPCameraView::showPicture(const JPFrame& picture, const std::string& text, 
     m_stillText = text;
     m_stillUntil = std::chrono::steady_clock::now() + std::chrono::milliseconds(ms);
     invalidate();
+    if (onPictureShown) onPictureShown();
 }
 
 void JPCameraView::showLatest() {
     // A picture shown in place of the live one, until its time is up.
     if (std::chrono::steady_clock::now() < m_stillUntil) return;
     m_stillText.clear();
+    // Held while the machine works (Suspend during tasks), and no oftener than the preview's rate.
+    if (suspended && suspended()) return;
+    const auto now0 = std::chrono::steady_clock::now();
+    if (m_previewFps > 0 && m_lastShown != std::chrono::steady_clock::time_point {}
+        && now0 - m_lastShown < std::chrono::duration<double>(1.0 / m_previewFps))
+        return;
     // Posted frames can queue behind a busy main loop; take only the newest.
     if (!m_feed || !m_feed->latest(m_frame, m_have)) return;
     m_have = m_frame.sequence;
+    m_lastShown = now0;
     const auto now = std::chrono::steady_clock::now();
     if (m_lastPicture != std::chrono::steady_clock::time_point {}) {
         m_intervals.push_back(std::chrono::duration<double>(now - m_lastPicture).count());

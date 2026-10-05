@@ -373,6 +373,8 @@ notes.
   and Backslash Escaped Characters, and they come in with an OpenPnP machine.
 - Axes can be OpenPnP's cam axes: a Z (or a pair of nozzles' Zs, one each way) that a cam on a rotation axis
   drives. They come in with an OpenPnP machine, where they used to be left out.
+- A camera has OpenPnP's Preview FPS, Suspend during tasks and Auto Camera View, brought in with an OpenPnP
+  machine.
 
 ## 0.1.0
 

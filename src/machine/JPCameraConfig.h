@@ -32,6 +32,13 @@ struct JPCameraConfig {
     // two stacked fields, and cut about its middle to cropWidth x cropHeight
     // (0: that side whole), before anything else is done with it.
     bool          deinterlace = false;
+    // OpenPnP's camera Properties: the live picture shown at most this many
+    // times a second (0: every picture); held still while the machine works
+    // (only what vision shows then); and brought to the front when vision
+    // shows a result on it or it is moved to look somewhere.
+    double        previewFps = 0;
+    bool          suspendDuringTasks = false;
+    bool          autoCameraView = false;
     int           cropWidth = 0, cropHeight = 0;
     // SETTLING, as OpenPnP does it: a picture for vision is one taken once
     // the camera has stopped moving. FixedTime waits `timeMs` after the move.
@@ -142,6 +149,9 @@ struct JPCameraConfig {
         c.device         = j["device"];
         c.showAll        = j["showAll"].number(0.0);
         c.deinterlace    = j["deinterlace"].boolean();
+        c.previewFps     = j["previewFps"].number(0.0);
+        c.suspendDuringTasks = j["suspendDuringTasks"].boolean();
+        c.autoCameraView = j["autoCameraView"].boolean();
         c.cropWidth      = int(j["crop"]["width"].number(0.0));
         c.cropHeight     = int(j["crop"]["height"].number(0.0));
         for (size_t ch = 0; ch < 3; ++ch) {
@@ -193,6 +203,9 @@ struct JPCameraConfig {
         j["device"]             = device;
         j["showAll"]            = showAll;
         if (deinterlace) j["deinterlace"] = true;
+        if (previewFps > 0) j["previewFps"] = previewFps;
+        if (suspendDuringTasks) j["suspendDuringTasks"] = true;
+        if (autoCameraView) j["autoCameraView"] = true;
         if (cropWidth || cropHeight) {
             j["crop"]["width"] = cropWidth;
             j["crop"]["height"] = cropHeight;

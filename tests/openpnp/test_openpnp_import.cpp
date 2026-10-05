@@ -181,6 +181,8 @@ int main() {
     // The image transforms its advanced calibration still applies: de-interlace and crop.
     assert(cell.cameras[1].deinterlace && cell.cameras[1].cropWidth == 400 && cell.cameras[1].cropHeight == 0);
     assert(!cell.cameras[0].deinterlace && cell.cameras[0].cropWidth == 0);
+    // OpenPnP's preview rate is its fps (5 unless set); suspend and auto view off unless set.
+    assert(cell.cameras[1].previewFps == 5 && !cell.cameras[1].suspendDuringTasks && !cell.cameras[1].autoCameraView);
     assert(JPCameraConfig::fromJson(cell.cameras[1].toJson()).cropWidth == 400);
 
     // Nothing in the imported cell points at nothing.

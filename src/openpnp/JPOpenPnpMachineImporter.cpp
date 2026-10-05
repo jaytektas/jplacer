@@ -498,6 +498,10 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
         cam.deinterlace = x.attr("deinterlace") == "true";
         cam.cropWidth = int(number(x.attr("crop-width")));
         cam.cropHeight = int(number(x.attr("crop-height")));
+        // Its preview (OpenPnP's fps is the preview's: 5 unless set), and whether it comes forward.
+        cam.previewFps = x.attr("fps").empty() ? 5.0 : number(x.attr("fps"));
+        cam.suspendDuringTasks = x.attr("suspend-preview-in-tasks") == "true";
+        cam.autoCameraView = x.attr("auto-visible") == "true";
         for (const char* key : { "unique-id", "format-id", "fps", "rotation", "flip-x", "flip-y", "light-actuator-id" })
             if (!x.attr(key).empty()) cam.device[key] = x.attr(key);
         // OpenPnpCaptureCamera's unique id is the device's own name and the

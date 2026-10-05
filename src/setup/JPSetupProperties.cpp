@@ -981,6 +981,14 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     add.text("name", "Name", [c]() -> std::string& { return c().name; }, "name");
     add.choice("looking", "Looking", { "Down", "Up" }, [c] { return std::string(c().looksUp ? "Up" : "Down"); },
                [c](const std::string& v) { c().looksUp = v == "Up"; });
+    add.number("previewFps", "Preview FPS", [c]() -> double& { return c().previewFps; }, 1);
+    add.tip("How many times a second the live picture is shown, at most (0: every picture the camera gives).");
+    add.flag("suspendDuringTasks", "Suspend during tasks?", [c]() -> bool& { return c().suspendDuringTasks; });
+    add.tip("Continuous camera preview is suspended during machine tasks, only frames captured using computer vision "
+            "are shown. For high Preview FPS this improves performance");
+    add.flag("autoCameraView", "Auto Camera View?", [c]() -> bool& { return c().autoCameraView; });
+    add.tip("If enabled, the CameraView will be automatically selected whenever a user action is related to the camera "
+            "or when a computer vision result is presented.");
     auto device = [c]() -> JJson& { return c().device; };
     add.group("Light");
     add.byName("light", "Light Actuator", named(cell.actuators, "(none)"), [device] { return std::as_const(device())["light-actuator-id"].str(); },

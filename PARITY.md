@@ -104,7 +104,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 
 | OpenPnP | Status | jplacer |
 |---|---|---|
-| Name, looking, preview FPS, suspend during tasks, auto camera view, multi-camera view | partial | runs while on screen (own way); FPS cap and auto view missing |
+| Name, looking, preview FPS, suspend during tasks, auto camera view, multi-camera view | done | runs while on screen (own way); each camera its own tab, so no multi-camera view |
 | Light actuator and when it is on | done | |
 | Units per pixel (measure) | own way | from Calibrate |
 | Settling (methods, threshold, timeout, debounce, mask, test moves, diagnostics graph) | done | |
