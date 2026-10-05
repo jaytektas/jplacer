@@ -50,6 +50,10 @@ public:
     // A loose part feeder's looks: what each sees, in turn; where each looked from.
     std::vector<SeenRects> sights;
     std::vector<JPLocation> lookedFrom;
+    bool seeCircles(const JPLocation&, JPPipeline&, SeenCircles&, std::string& why) override {
+        why = "no camera";
+        return false;
+    }
     bool seeRects(const JPLocation& at, JPPipeline&, int, SeenRects& seen, std::string& why) override {
         lookedFrom.push_back(at);
         if (sights.empty()) {

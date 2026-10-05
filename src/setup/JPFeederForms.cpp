@@ -98,12 +98,12 @@ void pickLocation(JPFormBuilder& add, std::function<JPFeeder&()> f) {
     add.end();
 }
 
-void stripForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f) {
+void stripForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f, bool autoSetupRunning) {
     general(add, config, f, true);
 
     add.group("Tape Settings");
-    add.button("autoSetup", "Auto Setup",
-               "Find the strip's holes with the camera: needs the strip feeder's vision, not in jplacer yet.", false);
+    if (autoSetupRunning) add.button("autoSetupCancel", "Cancel Auto Setup");
+    else add.button("autoSetup", "Auto Setup");
     add.row("Part Pitch");
     length(add, f, "part-pitch", "Part Pitch", 4);
     length(add, f, "tape-width", "Tape Width", 8);
@@ -716,7 +716,7 @@ JPSetupProperties::Form JPFeederForms::forFeeder(JPConfiguration& config, const 
     // A Photon feeder's pages are its property sheets' (photonForm); the others' one page.
     if (kind != "PhotonFeeder") add.tab("Configuration");
     if (kind == "ReferenceStripFeeder") {
-        stripForm(add, config, f);
+        stripForm(add, config, f, options.autoSetupRunning);
     } else if (kind == "ReferenceTrayFeeder") {
         trayForm(add, config, f, std::move(warn));
     } else if (kind == "ReferenceAutoFeeder") {

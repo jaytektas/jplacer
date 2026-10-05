@@ -8,6 +8,7 @@
 #include "vision/JPPartFinder.h"
 #include "vision/JPTemplateFinder.h"
 
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -147,6 +148,17 @@ public:
         double            halfWidthMm = 0, halfHeightMm = 0;
     };
     virtual bool seeRects(const JPLocation& at, JPPipeline& pipeline, int showMs, SeenRects& seen, std::string& why) = 0;
+    // As seeRects, its "results" stage's circles (pixels, as found), the
+    // camera's centre's pixel and scale, and a pixel's place on the machine.
+    struct SeenCircles {
+        struct Circle {
+            double x = 0, y = 0, diameter = 0;
+        };
+        std::vector<Circle> circles;
+        double              centreX = 0, centreY = 0, pixelsPerMm = 0;
+        std::function<bool(double px, double py, double& x, double& y)> toMachine;
+    };
+    virtual bool seeCircles(const JPLocation& at, JPPipeline& pipeline, SeenCircles& seen, std::string& why) = 0;
     virtual bool alignPart(const std::string& nozzleId, const AlignRequest& request, AlignResult& result,
                            std::string& why) = 0;
     virtual bool locateHole(const JPLocation& nominal, double diameterMm, double searchMm, double parallaxDiameterMm,

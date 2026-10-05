@@ -74,7 +74,19 @@ A strip of cut tape lying on the machine, its parts picked one after the other a
 - **Tape Settings**: **Part Pitch** (from one part to the next) and **Tape Width**, in mm; **Feed
   Count**, the parts taken so far (**Reset** sets it to 0); **Max Feed Count**, the parts on the strip
   (0: no limit), which **Auto Set MaxFeedCount** works out from the hole locations and the part pitch.
-  **Auto Setup** is not yet available.
+  **Auto Setup** sets the strip up from two clicks on the camera's view, as OpenPnP's does. The head
+  camera's view asks "Click on the center of the first part in the tape."; the camera moves there and the strip's pipeline finds the round marks around it. Among them it takes the
+  sprocket holes: a line of marks 4 mm apart, a quarter of the tape width to half the tape width plus
+  1.25 mm from the part. While waiting for a click, the camera's view shows the lines found, the best one
+  and its holes. "Now click on the center of the second part in the tape." brings the same look at the
+  second part. Then the **Reference Hole Location** and **Next Hole Location** are set from the holes
+  beside the two parts (their Z kept), the **Part Pitch** to the distance between the parts rounded to
+  2 mm, and the **Feed Count** to 0, and the camera goes to the first part's pick location ("Setup
+  complete!"). The button reads **Cancel Auto Setup** while it runs. It stops with an **Auto Setup
+  Failure** when the camera is not calibrated, when no hole is found by a part, when the same part is
+  clicked twice, or when the holes are on the wrong side for the direction the parts were clicked in ("The
+  tape is oriented incorrectly for the feed direction of the components selected"). With a camera
+  calibrated at two heights, the reference hole location's Z must be set first.
 - **Vision**: with **Use Vision?** ticked, each feed has the camera look at the hole it feeds from (and at
   the first hole too when picking starts mid-strip), and the parts are picked where the holes were found
   rather than where the hole locations put them. A hole is looked for within half a hole pitch of where it
@@ -93,7 +105,7 @@ A strip of cut tape lying on the machine, its parts picked one after the other a
 The part is picked across the tape from its hole, as EIA-481 tape lays it out: half the tape width less
 0.5 mm across, 2 mm along, then one part pitch further for each part taken.
 
-<!-- src: src/setup/JPFeederForms.cpp (stripForm, act); src/model/JPFeeder.cpp (pickLocation, idealLineLocations, feed, visionExpected, setVisionFound); src/tasks/JPFeederFeed.cpp; src/app/JPlacerJobMachine.cpp (locateHole); src/tasks/JPFeederPipelines.cpp -->
+<!-- src: src/setup/JPFeederForms.cpp (stripForm, act); src/model/JPFeeder.cpp (pickLocation, idealLineLocations, feed, visionExpected, setVisionFound); src/tasks/JPFeederFeed.cpp; src/app/JPlacerJobMachine.cpp (locateHole, seeCircles); src/tasks/JPFeederPipelines.cpp; src/app/JPlacerStripAutoSetup.cpp; src/tasks/JPStripHoles.cpp; src/vision/JPRansac.cpp -->
 
 ### Tray feeder
 

@@ -113,6 +113,10 @@ JPFeedersPanel::JPFeedersPanel(JSceneGraph& graph, JPConfiguration& config, doub
             if (programPhotonSlots) programPhotonSlots();
             return;
         }
+        if (action == "autoSetup" || action == "autoSetupCancel") {
+            if (autoSetup) autoSetup(m_shown, action);
+            return;
+        }
         if (action == "editPipeline" || action == "resetPipeline" || action == "editTrainingPipeline"
             || action == "resetTrainingPipeline") {
             if (pipelineAction) pipelineAction(m_shown, action);
@@ -195,6 +199,12 @@ void JPFeedersPanel::buildMenu() {
             changed();
         });
     }
+}
+
+void JPFeedersPanel::rebuild() {
+    jPostToNextFrame([this, alive = std::weak_ptr<bool>(m_alive)] {
+        if (const auto a = alive.lock(); a && *a) rebuildForm();
+    });
 }
 
 void JPFeedersPanel::refresh() {
@@ -282,6 +292,7 @@ JPSetupProperties::Form JPFeedersPanel::formFor() {
     options.selecting = m_selecting;
     options.templateImage = [this] { return templateImage(); };
     options.reading = [this](const std::string& action) { return reading(action); };
+    options.autoSetupRunning = autoSetupRunning && autoSetupRunning();
     options.searchStates = [this] { return m_searchStates; };
     return JPFeederForms::forFeeder(m_config, m_shown, [](const std::string& why) { JDialog::message("Error", why); },
                                     options);

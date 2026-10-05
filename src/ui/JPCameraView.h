@@ -82,6 +82,12 @@ public:
     // A point in the picture asked to be looked at (double-click, Shift+click,
     // drag), at this pixel of the picture as taken.
     std::function<void(double px, double py)> onLookAt;
+    // While set, a click is a place chosen (OpenPnP's CameraView action: Auto
+    // Setup's "click on the center of the first part"): its pixel of the
+    // picture as taken; nothing is looked at meanwhile. With what to do,
+    // said over the picture (empty: nothing).
+    std::function<void(double px, double py)> onPicked;
+    void setPrompt(const std::string& text);
 
     // A SELECTION (OpenPnP's CameraView selection, for a template image or an
     // area of interest): while on, a rectangle in the picture as taken's
@@ -118,6 +124,7 @@ private:
     // A picture shown in place of the live one until then, and what it says.
     std::chrono::steady_clock::time_point m_stillUntil {};
     std::string                        m_stillText;
+    std::string                        m_prompt;
     std::string                        m_message;
     std::shared_ptr<const JPStraightener>    m_straight;
     // Where a pixel of the picture as taken is shown: straightened when straightening.

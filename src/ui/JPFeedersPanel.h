@@ -85,6 +85,11 @@ public:
     // A feeder's pipeline: "editPipeline" (the pipeline editor) or "resetPipeline" (its default back);
     // an advanced loose part feeder's training one: "editTrainingPipeline", "resetTrainingPipeline".
     std::function<void(const std::string& feederId, const std::string& action)> pipelineAction;
+    // A strip feeder's Auto Setup: started ("autoSetup") or cancelled ("autoSetupCancel"); whether one is under way.
+    std::function<void(const std::string& feederId, const std::string& action)> autoSetup;
+    std::function<bool()> autoSetupRunning;
+    // The page made again (Auto Setup started or ended).
+    void rebuild();
     // What a page's button read from the machine (by its action), shown on the feeder's page.
     void showReading(const std::string& feederId, const std::string& action, const std::string& value);
     // The feeders changed elsewhere (imported, a job's part): shown again.

@@ -521,6 +521,15 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_parts->setTests(m_visionTests->tests());
     m_packages->setTests(m_visionTests->tests());
     m_vision->setTests(m_visionTests->tests());
+    // A strip feeder's Auto Setup, on the head camera.
+    m_autoSetup = std::make_unique<JPlacerStripAutoSetup>(m_job, m_machine, *m_jobRun, m_pipelines);
+    m_autoSetup->onStateChanged = [this] { m_feeders->rebuild(); };
+    m_autoSetup->onFeederChanged = [this] { m_job.configurationChanged(); };
+    m_feeders->autoSetupRunning = [this] { return m_autoSetup->running(); };
+    m_feeders->autoSetup = [this](const std::string& feederId, const std::string& action) {
+        if (action == "autoSetupCancel") m_autoSetup->cancel();
+        else m_autoSetup->start(feederId);
+    };
     m_jobRun->onPlaced = [this] {
         m_jobPanel->placements().refresh();
         if (m_jobViewer) m_jobViewer->regenerate();
@@ -569,6 +578,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
 
 JPlacerOpenPnpTabs::~JPlacerOpenPnpTabs() {
     *m_alive = false;
+    m_autoSetup.reset();   // its look at the camera stopped first
     m_machine.setConfiguration(nullptr);
     m_jobRun.reset();   // a run under way stops before what it works on goes
     JSettings::instance().set(JPlacerSettings::kPartsSplit, m_parts->split());

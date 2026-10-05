@@ -455,6 +455,39 @@ bool JPlacerJobMachine::seeRects(const JPLocation& at, JPPipeline& p, int showMs
     return true;
 }
 
+bool JPlacerJobMachine::seeCircles(const JPLocation& at, JPPipeline& p, SeenCircles& seen, std::string& why) {
+    ++m_motions;
+    const JPLocation m = at.convertToUnits(JPLengthUnit::Millimeters);
+    JPCameraCalibration cal;
+    JPCameraFeed* feed = nullptr;
+    if (!headCameraPipeline(m.x(), m.y(), p, cal, feed, why)) return false;
+    if (!p.process(why)) return false;
+    seen = {};
+    if (!cal.pixelFor(m.x(), m.y(), m.x(), m.y(), seen.centreX, seen.centreY)) {
+        why = "the camera's calibration cannot place its centre in its picture";
+        return false;
+    }
+    seen.pixelsPerMm = (cal.scaleX() + cal.scaleY()) / 2;
+    const double vx = m.x(), vy = m.y();
+    seen.toMachine = [cal, vx, vy](double px, double py, double& x, double& y) { return cal.machinePoint(px, py, vx, vy, x, y); };
+    const JPPipeline::Result* r = p.result("results");
+    if (!r) {
+        why = "Stage \"results\" is missing in the pipeline.";
+        return false;
+    }
+    if (const auto* f = r->model.failure()) {
+        why = f->message;
+        return false;
+    }
+    if (const auto* l = std::get_if<std::vector<JPPipelineModel::Circle>>(&r->model.value))
+        for (const JPPipelineModel::Circle& c : *l) seen.circles.push_back({ c.x, c.y, c.diameter });
+    else if (!r->model.empty()) {
+        why = "Pipeline stage \"results\" returned a " + r->model.kind() + " but expected a Circle list.";
+        return false;
+    }
+    return true;
+}
+
 bool JPlacerJobMachine::lookByPipeline(double viewX, double viewY, double x, double y, const FiducialLook& lookAt,
                                        double& foundX, double& foundY, std::string& why) {
     JPPipeline& p = *lookAt.pipeline;

@@ -163,6 +163,11 @@ void JPCameraView::setMessage(const std::string& text) {
     invalidate();
 }
 
+void JPCameraView::setPrompt(const std::string& text) {
+    m_prompt = text;
+    invalidate();
+}
+
 void JPCameraView::showPicture(const JPFrame& picture, const std::string& text, int ms) {
     if (picture.width <= 0 || picture.height <= 0) return;
     dropTexture();
@@ -298,6 +303,11 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
         buf.pushRectangle(vx0, vy0, vx1 - vx0, lh + 2 * pad, Colors::OverlayScrim, 0.f);
         JTextHelper::pushText(buf, vx0 + pad, vy0 + pad, m_message, Colors::Warning, vx1 - vx0 - 2 * pad);
     }
+    // What to do (choose a place), over the top.
+    if (!m_prompt.empty() && m_message.empty()) {
+        buf.pushRectangle(vx0, vy0, vx1 - vx0, lh + 2 * pad, Colors::OverlayScrim, 0.f);
+        JTextHelper::pushText(buf, vx0 + pad, vy0 + pad, m_prompt, Colors::ControlText, vx1 - vx0 - 2 * pad);
+    }
     // A picture shown in place of the live one: what it is, at its foot.
     if (!m_stillText.empty()) {
         const float ty = vy1 - lh - 2 * pad;
@@ -412,6 +422,12 @@ void JPCameraView::handleMousePress(float x, float y) {
             }
         }
         if (m_selCorner == -2 && px >= s.x && py >= s.y && px <= s.x + s.width && py <= s.y + s.height) m_selCorner = -1;
+        return;
+    }
+    // A place being chosen: the click is it.
+    if (onPicked) {
+        double px, py;
+        if (pixelAt(x, y, px, py)) onPicked(px, py);
         return;
     }
     m_pressed  = true;

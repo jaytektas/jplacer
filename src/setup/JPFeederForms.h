@@ -42,6 +42,8 @@ public:
         // What a button last read from the machine (a Schultz feeder's ID,
         // feed count, pitch, status), by its action; empty: nothing.
         std::function<std::string(const std::string& action)> reading;
+        // A strip feeder's Auto Setup under way: its button then says Cancel Auto Setup.
+        bool autoSetupRunning = false;
     };
     // `warn`: a value kept, but which will not work (a tray's offset of 0
     // with more than one part that way), to be said.

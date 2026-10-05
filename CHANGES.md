@@ -24,6 +24,8 @@ notes.
 - Loose part feeders work as OpenPnP's (ReferenceLoosePartFeeder and AdvancedLoosePartFeeder): their pipelines find the
   part nearest the camera in three looks, picked from on top of it; their pipelines (an advanced one's training pipeline
   too) edited and reset.
+- A strip feeder's Auto Setup works as OpenPnP's: click two parts on the camera's view, and its sprocket holes, part
+  pitch and feed count are set, the holes it sees shown while it waits.
 - Nozzle tips have OpenPnP's Max. Part Diameter and Max. Pick Tolerance, imported from OpenPnP and used by bottom vision
   pipelines.
 - An Issues & Solutions tab as OpenPnP's: milestones, Find Issues & Solutions, Accept, Dismiss, Reopen, Include
