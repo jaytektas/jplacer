@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Nozzle tips have OpenPnP's Background Calibration: measured along with the runout, it finds how the
+  background round the tip looks, says what could be better, and bottom vision masks it out.
 - Nozzle tips have OpenPnP's Cloning Settings: one tip is the template, and the others' tool changer steps
   can be cloned from it, moved to their own slot.
 - A move's feed rate is now worked out as OpenPnP does: over the path of its linear axes (a diagonal move is

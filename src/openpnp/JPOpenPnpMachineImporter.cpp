@@ -699,6 +699,19 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                                                                JPNozzleTipConfig::RunoutCalibration::kMostDivisions);
                 t.runoutCalibration.misdetects = int(number(cal->attr("allow-misdetections")));
                 t.runoutCalibration.zOffset = lengthChild(*cal, "calibration-Z-offset");
+                // Background calibration: its method, the smallest detail, and what it found.
+                JPNozzleTipConfig::Background& g = t.background;
+                if (!cal->attr("background-calibration-method").empty()) g.method = cal->attr("background-calibration-method");
+                if (cal->child("minimum-detail-size")) g.minimumDetailSizeMm = lengthChild(*cal, "minimum-detail-size");
+                for (auto [attr, field] : { std::pair { "background-min-hue", &g.minHue }, std::pair { "background-max-hue", &g.maxHue },
+                                            std::pair { "background-tol-hue", &g.tolHue },
+                                            std::pair { "background-min-saturation", &g.minSaturation },
+                                            std::pair { "background-max-saturation", &g.maxSaturation },
+                                            std::pair { "background-tol-saturation", &g.tolSaturation },
+                                            std::pair { "background-min-value", &g.minValue },
+                                            std::pair { "background-max-value", &g.maxValue },
+                                            std::pair { "background-tol-value", &g.tolValue } })
+                    if (!cal->attr(attr).empty()) *field = int(number(cal->attr(attr)));
             }
             t.pickDwellMs = int(number(x.attr("pick-dwell-milliseconds")));
             t.placeBlowOffLevel = number(x.attr("place-blow-off-level"));

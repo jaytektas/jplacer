@@ -1028,6 +1028,38 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
         add.note("Each angle's measurement about the fitted axis, on the fitted circle: points well off it mean the "
                  "end was found badly, or the nozzle wobbles.");
     }
+    // OpenPnP's Background Calibration, measured along with the runout.
+    add.group("Background Calibration");
+    auto bg = [t]() -> JPNozzleTipConfig::Background& { return t().background; };
+    add.choice("backgroundMethod", "Method", { "None", "Brightness", "BrightnessAndKeyColor" }, [bg] { return bg().method; },
+               [bg](const std::string& v) { bg().method = v; });
+    add.number("minimumDetailSize", "Minimum Detail Size", [bg] { return bg().minimumDetailSizeMm; },
+               [bg](double v) { if (v > 0) bg().minimumDetailSizeMm = v; });
+    add.tip("Specify the size of the smallest details in the image that are considered a meaningfull part of the shape "
+            "to be detected, like the smallest contacts etc. Smaller specks and artifacts, like dust, scratches, "
+            "texture, etc. are blurred out.");
+    add.header({ "Minimum", "Maximum", "Tolerance" });
+    auto channel = [&add, bg](const std::string& key, const std::string& label, const std::string& tip, int JPNozzleTipConfig::Background::*lo,
+                              int JPNozzleTipConfig::Background::*hi, int JPNozzleTipConfig::Background::*tol) {
+        add.row(label);
+        add.text(key + "Min", label + " Minimum", [bg, lo] { return std::to_string(bg().*lo); }, nullptr);
+        add.text(key + "Max", label + " Maximum", [bg, hi] { return std::to_string(bg().*hi); }, nullptr);
+        add.integer(key + "Tol", label + " Tolerance", [bg, tol]() -> int& { return bg().*tol; }, 0, 255);
+        add.end();
+        add.tip(tip);
+    };
+    using B = JPNozzleTipConfig::Background;
+    channel("backgroundHue", "Hue", "Base Color, Hue in the HSV color model", &B::minHue, &B::maxHue, &B::tolHue);
+    channel("backgroundSaturation", "Saturation", "Saturation in the HSV color model", &B::minSaturation, &B::maxSaturation,
+            &B::tolSaturation);
+    channel("backgroundValue", "Value", "Brightness, Value in the HSV color model", &B::minValue, &B::maxValue, &B::tolValue);
+    add.endColumns();
+    add.note(bg().diagnostics.empty() ? std::string("No diagnostics yet.") : bg().diagnostics);
+    add.actions({ { "Show Problems", "showBackgroundProblems" } });
+    add.note("Calibrate (Runout, above) measures the background too: the pictures of the tip all round give the "
+             "background's range, which bottom vision masks (each widened by its Tolerance) for parts on this tip. "
+             "Show Problems shows, on the camera looking up, the pictures with background the mask would not take, "
+             "beside the same with it marked.");
 }
 
 // An optional coordinate as text: empty when left out (the nozzle stays as it

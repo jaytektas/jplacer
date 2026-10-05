@@ -4,6 +4,7 @@
 #pragma once
 
 #include "machine/JPCell.h"
+#include "tasks/JPBackgroundCalibration.h"
 #include "tasks/JPBacklashCalibrator.h"
 #include "tasks/JPRunoutCalibrator.h"
 #include "ui/JPCameraPanel.h"
@@ -51,7 +52,9 @@ public:
     // Measure the runout of the tip on nozzle `nozzleId` with the fixed
     // camera looking up (JPRunoutCalibrator), asked first (the nozzle goes
     // down to the camera). `done` (main thread): the runout, for the owner to keep.
-    void calibrateRunout(const std::string& nozzleId, std::function<void(const JPRunout&)> done);
+    // With the tip's background calibration on, what it found too (none when too few pictures).
+    void calibrateRunout(const std::string& nozzleId,
+                         std::function<void(const JPRunout&, const std::optional<JPBackgroundCalibration::Result>&)> done);
     // The settling test: a camera on a head moved (dx, dy) and back, or for a
     // fixed camera `tool` (a nozzle held over it, by hand) moved so, then let
     // settle, how it settled kept (JPSettleTrace). `done` (main thread): the trace.

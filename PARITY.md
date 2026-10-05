@@ -101,7 +101,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Tool changer locations, speeds, post actuators | own way | changer steps, a list per tip |
 | Template / clones | done | the template's changer steps, moved by the difference of the first moves |
 | Runout calibration (circle divisions, misdetects, Z offset, vision diameter, compensation) | partial | measured and compensated; auto recalibration (on tip change, on home) and fail homing missing; to be tried on the bench with the user there |
-| Background calibration (HSV, detail size) | missing | |
+| Background calibration (HSV, detail size) | done | with runout calibration; Show Problems as one picture of pairs |
 
 ## Cameras
 

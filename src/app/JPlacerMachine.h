@@ -257,6 +257,8 @@ private:
     std::unique_ptr<JPlacerCameraTasks> m_cameraTasks;   // its Calibrate and Visual Test
     std::unique_ptr<JPlacerTipChanges>  m_tipChanges;    // the nozzles' tips loaded and unloaded
     std::unique_ptr<JPlacerTestMotion>  m_testMotion;    // the motion planner's Test Motion
+    // By nozzle tip: its last background calibration's problem pictures (BGR, as seen and marked, in pairs).
+    std::map<std::string, std::vector<cv::Mat>> m_backgroundProblems;
     std::map<std::string, bool>         m_lights;   // by actuator id: on or off as last switched
     JPJogPanel*                         m_jog = nullptr; // its chosen tool, for the status bar
     JPMachineSetupPanel*                m_setup = nullptr;

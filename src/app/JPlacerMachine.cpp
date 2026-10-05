@@ -3,6 +3,8 @@
 
 #include "JPlacerMachine.h"
 
+#include <opencv2/imgproc.hpp>
+
 #include "JPlacerClassSelectionDialog.h"
 #include "JPlacerSettings.h"
 
@@ -41,6 +43,8 @@ constexpr const char* kImportedCellFile = "openpnp.json";
 // enough to read the reason.
 constexpr int kStatusMs = 3000;
 constexpr int kErrorMs  = 8000;
+// How long the background calibration's problem pictures are shown.
+constexpr int kProblemsMs = 10000;
 
 // How fast Park Head moves, as a share of the axes' rates.
 
@@ -810,8 +814,54 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
             });
             m_setup->remakeForm();
         };
-        if (action == "resetRunout") keep(std::nullopt);
-        else m_cameraTasks->calibrateRunout(nozzleId, [keep](const JPRunout& r) { keep(r); });
+        if (action == "resetRunout") {
+            keep(std::nullopt);
+            return;
+        }
+        m_cameraTasks->calibrateRunout(nozzleId, [this, keep, tipId](const JPRunout& r,
+                                                                     const std::optional<JPBackgroundCalibration::Result>& b) {
+            keep(r);
+            if (!b || !m_setup) return;
+            // The background's range and what it says, kept with the tip; its problem pictures for Show Problems.
+            m_backgroundProblems[tipId] = b->problems;
+            m_setup->change("Background calibration", [&](JPCellConfig& cell) {
+                for (JPNozzleTipConfig& t : cell.nozzleTips)
+                    if (t.id == tipId) {
+                        JPNozzleTipConfig::Background& g = t.background;
+                        g.minHue = b->minHue;
+                        g.maxHue = b->maxHue;
+                        g.minSaturation = b->minSaturation;
+                        g.maxSaturation = b->maxSaturation;
+                        g.minValue = b->minValue;
+                        g.maxValue = b->maxValue;
+                        g.diagnostics = b->diagnostics;
+                    }
+            });
+            m_setup->remakeForm();
+        });
+    } else if (action == "showBackgroundProblems" && path.rfind("nozzletip:", 0) == 0) {
+        // OpenPnP's Show Problems: each picture with problems beside the same with them marked, on the camera looking up.
+        const auto found = m_backgroundProblems.find(path.substr(10));
+        if (found == m_backgroundProblems.end() || found->second.empty()) {
+            m_window.showStatus("No background problems to show: calibrate the tip's runout with background calibration on",
+                                kErrorMs);
+            return;
+        }
+        std::vector<cv::Mat> rows;
+        for (size_t i = 0; i + 1 < found->second.size(); i += 2) {
+            cv::Mat row;
+            cv::hconcat(found->second[i], found->second[i + 1], row);
+            rows.push_back(row);
+        }
+        cv::Mat all, rgba;
+        cv::vconcat(rows, all);
+        cv::cvtColor(all, rgba, cv::COLOR_BGR2RGBA);
+        JPFrame shown;
+        shown.width = rgba.cols;
+        shown.height = rgba.rows;
+        shown.rgba.assign(rgba.data, rgba.data + rgba.total() * 4);
+        if (JPCameraView* view = cameraViewOf(upCameraFeed()))
+            view->showPicture(shown, "Background problems: as seen, and the problems marked", kProblemsMs);
     } else if (action == "calibrateBacklash" && path.rfind("axis:", 0) == 0) {
         // What it found is in use already; kept through Machine Setup, a step to undo.
         const std::string id = path.substr(5);

@@ -3,6 +3,8 @@
 
 #include "JPRunoutCalibrator.h"
 
+#include <opencv2/imgproc.hpp>
+
 #include "JPCameraLook.h"
 
 #include "common/JPlacerLog.h"
@@ -36,7 +38,7 @@ std::string now() {
 
 std::optional<JPRunout> JPRunoutCalibrator::run(JPCell& cell, JPCameraFeed& camera, const JPNozzleConfig& nozzle,
                                                const JPNozzleTipConfig& tip, const Options& o, std::string& why,
-                                               const Progress& progress) {
+                                               const Progress& progress, JPBackgroundCalibration* background) {
     const JPCameraConfig& cam = camera.config();
     const JPMountConfig& m = nozzle.mount;
     if (!cam.mount.headId.empty()) {
@@ -108,6 +110,18 @@ std::optional<JPRunout> JPRunoutCalibrator::run(JPCell& cell, JPCameraFeed& came
             continue;
         }
         points.push_back({ angle, tx - camX, ty - camY });
+        // The picture for the background: the tip's middle blotted out (the smallest part it picks,
+        // less the pick tolerance, but no smaller than the tip), blurred to the smallest detail.
+        if (background) {
+            JPFrame frame;
+            if (camera.latest(frame, 0) && frame.width > 0) {
+                cv::Mat rgba(frame.height, frame.width, CV_8UC4, frame.rgba.data()), bgr;
+                cv::cvtColor(rgba, bgr, cv::COLOR_RGBA2BGR);
+                const double blot = std::max(tip.minPartDiameterMm - 2 * tip.maxPickToleranceMm, tip.diameter);
+                background->add(bgr, found.x, found.y, int(std::ceil(blot * scale * 0.5)),
+                                int(tip.background.minimumDetailSizeMm * scale));
+            }
+        }
     }
     // Up again, whatever happened.
     std::string up;

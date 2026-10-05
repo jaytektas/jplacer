@@ -248,7 +248,8 @@ void JPlacerCameraTasks::calibrateBacklash(const std::string& axisId,
     });
 }
 
-void JPlacerCameraTasks::calibrateRunout(const std::string& nozzleId, std::function<void(const JPRunout&)> done) {
+void JPlacerCameraTasks::calibrateRunout(const std::string& nozzleId,
+                                         std::function<void(const JPRunout&, const std::optional<JPBackgroundCalibration::Result>&)> done) {
     const JPNozzleConfig* nozzle = nullptr;
     for (const JPNozzleConfig& n : m_cell.config().nozzles)
         if (n.id == nozzleId) nozzle = &n;
@@ -284,19 +285,29 @@ void JPlacerCameraTasks::calibrateRunout(const std::string& nozzleId, std::funct
         if (const auto a = alive.lock(); !a || !*a) return;
         if (m_busy) return;   // another task began while asking
         auto result = std::make_shared<JPRunout>();
-        run(*camera, "Measuring " + t.name + "'s runout", [this, camera, n, t, result](std::string& words, const auto& progress) {
+        auto background = std::make_shared<std::optional<JPBackgroundCalibration::Result>>();
+        run(*camera, "Measuring " + t.name + "'s runout", [this, camera, n, t, result, background](std::string& words, const auto& progress) {
             JPRunoutCalibrator::Options o;
             o.speed = kTaskSpeed;
-            const auto r = JPRunoutCalibrator::run(m_cell, camera->feed(), n, t, o, words, progress);
+            // The background calibrated along with it, when the tip asks for it.
+            JPBackgroundCalibration pictures(JPBackgroundCalibration::methodFrom(t.background.method));
+            const bool withBackground = t.background.method != "None";
+            const auto r = JPRunoutCalibrator::run(m_cell, camera->feed(), n, t, o, words, progress, withBackground ? &pictures : nullptr);
             if (!r) return false;
             *result = *r;
+            JPCameraCalibration cal;
+            std::string ignored;
+            JPBackgroundCalibration::Result b;
+            if (withBackground && JPCameraLook::calibration(m_cell, camera->feed(), cal, ignored)
+                && pictures.finish((t.maxPartDiameterMm + 2 * t.maxPickToleranceMm) * cal.scale() * 0.5, b))
+                *background = b;
             char buf[200];
             std::snprintf(buf, sizeof buf, "%s on %s: runout %.3f mm at %.1f deg; its axis %+.3f, %+.3f mm off; fit %.4f mm",
                           t.name.c_str(), n.name.c_str(), r->radius, r->phaseDeg, r->centreX, r->centreY, r->rmsMm);
             words = buf;
             return true;
-        }, [result, done](bool ok) {
-            if (ok && done) done(*result);
+        }, [result, background, done](bool ok) {
+            if (ok && done) done(*result, *background);
         });
     });
 }

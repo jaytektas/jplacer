@@ -149,6 +149,17 @@ JPNozzleTipConfig JPNozzleTipConfig::fromJson(const JJson& j) {
         t.runoutCalibration.zOffset        = k["zOffset"].number(0.0);
         t.runoutCalibration.visionDiameter = k["visionDiameter"].number(0.0);
     }
+    if (const JJson& b = j["background"]; b.isObject()) {
+        Background& g = t.background;
+        if (!b["method"].str().empty()) g.method = b["method"].str();
+        g.minimumDetailSizeMm = b["minimumDetailSize"].number(g.minimumDetailSizeMm);
+        for (auto [key, field] : { std::pair { "minHue", &g.minHue }, std::pair { "maxHue", &g.maxHue }, std::pair { "tolHue", &g.tolHue },
+                                   std::pair { "minSaturation", &g.minSaturation }, std::pair { "maxSaturation", &g.maxSaturation },
+                                   std::pair { "tolSaturation", &g.tolSaturation }, std::pair { "minValue", &g.minValue },
+                                   std::pair { "maxValue", &g.maxValue }, std::pair { "tolValue", &g.tolValue } })
+            *field = int(b[key].number(*field));
+        g.diagnostics = b["diagnostics"].str();
+    }
     if (const JJson& r = j["runout"]; r.isObject())
         for (const auto& [nozzle, v] : r.obj()) t.runout[nozzle] = JPRunout::fromJson(v);
     return t;
@@ -187,6 +198,19 @@ JJson JPNozzleTipConfig::toJson() const {
     j["runoutCalibration"]["misdetects"]     = runoutCalibration.misdetects;
     j["runoutCalibration"]["zOffset"]        = runoutCalibration.zOffset;
     j["runoutCalibration"]["visionDiameter"] = runoutCalibration.visionDiameter;
+    {
+        const Background& g = background;
+        JJson b = JJson::object();
+        b["method"] = g.method;
+        b["minimumDetailSize"] = g.minimumDetailSizeMm;
+        for (auto [key, field] : { std::pair { "minHue", g.minHue }, std::pair { "maxHue", g.maxHue }, std::pair { "tolHue", g.tolHue },
+                                   std::pair { "minSaturation", g.minSaturation }, std::pair { "maxSaturation", g.maxSaturation },
+                                   std::pair { "tolSaturation", g.tolSaturation }, std::pair { "minValue", g.minValue },
+                                   std::pair { "maxValue", g.maxValue }, std::pair { "tolValue", g.tolValue } })
+            b[key] = field;
+        if (!g.diagnostics.empty()) b["diagnostics"] = g.diagnostics;
+        j["background"] = b;
+    }
     if (!runout.empty())
         for (const auto& [nozzle, r] : runout) j["runout"][nozzle] = r.toJson();
     return j;

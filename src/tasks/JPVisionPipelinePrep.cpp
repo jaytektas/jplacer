@@ -173,8 +173,21 @@ void JPVisionPipelinePrep::shot(JPPipeline& pipeline, const JPVisionComposite& c
     pipeline.setProperty("footprint.maxHeight", length(maxDim));
     // The corner masked.
     pipeline.setProperty("MaskCircle.diameter", length(shot.maxMaskRadius * 2));
-    // At least two pixels a sample, or sub-sampling costs too much.
+    // The background masked as the tip's background calibration found it (each range widened by its
+    // tolerance; saturation and value open where OpenPnP leaves them open), sampled at half its smallest detail.
     double sampling = kSamplingMm;
+    if (tip && tip->background.method != "None") {
+        const JPNozzleTipConfig::Background& b = tip->background;
+        sampling = b.minimumDetailSizeMm * 0.5;
+        auto value = [](int v) { return JPPipelineValue { double(v) }; };
+        pipeline.setProperty("MaskHsv.hueMin", value(std::max(0, b.minHue - b.tolHue)));
+        pipeline.setProperty("MaskHsv.hueMax", value(std::min(255, b.maxHue + b.tolHue)));
+        pipeline.setProperty("MaskHsv.saturationMin", value(std::max(0, b.minSaturation - b.tolSaturation)));
+        pipeline.setProperty("MaskHsv.saturationMax", value(255));
+        pipeline.setProperty("MaskHsv.valueMin", value(0));
+        pipeline.setProperty("MaskHsv.valueMax", value(std::min(255, b.maxValue + b.tolValue)));
+    }
+    // At least two pixels a sample, or sub-sampling costs too much.
     if (pxPerMm > 0) sampling = std::max(sampling, kLeastSamplingPx / pxPerMm);
     pipeline.setProperty("BlurGaussian.kernelSize", length(sampling));
     pipeline.setProperty("DetectRectlinearSymmetry.subSampling", length(sampling));

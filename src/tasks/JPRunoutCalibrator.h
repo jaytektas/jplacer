@@ -6,6 +6,7 @@
 #include "camera/JPCameraFeed.h"
 #include "machine/JPCell.h"
 #include "machine/JPRunout.h"
+#include "tasks/JPBackgroundCalibration.h"
 
 #include <functional>
 #include <optional>
@@ -29,9 +30,11 @@ public:
     };
     using Progress = std::function<void(const std::string&)>;
 
+    // With `background`, each picture the tip is found in is given to it
+    // (OpenPnP's background calibration rides on runout calibration).
     static std::optional<JPRunout> run(JPCell& cell, JPCameraFeed& camera, const JPNozzleConfig& nozzle,
                                        const JPNozzleTipConfig& tip, const Options& options, std::string& why,
-                                       const Progress& progress = nullptr);
+                                       const Progress& progress = nullptr, JPBackgroundCalibration* background = nullptr);
 };
 
 } // inline namespace jf

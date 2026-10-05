@@ -83,6 +83,21 @@ struct JPNozzleTipConfig {
         static constexpr int kLeastDivisions = 3, kMostDivisions = 72;
     };
     RunoutCalibration                runoutCalibration;
+    // OpenPnP's Background Calibration (JPBackgroundCalibration): how the
+    // background round the tip is told from a part, measured while runout is
+    // calibrated, and used by bottom vision to mask it (MaskHsv), each range
+    // widened by its tolerance; the smallest detail a part has (bottom
+    // vision's blur and sampling). Method "None", "Brightness" or
+    // "BrightnessAndKeyColor"; HSV with hue 0..255 round the circle.
+    struct Background {
+        std::string method = "None";
+        double      minimumDetailSizeMm = 0.2;
+        int         minHue = 0, maxHue = 0, tolHue = 8;
+        int         minSaturation = 0, maxSaturation = 0, tolSaturation = 8;
+        int         minValue = 0, maxValue = 0, tolValue = 8;
+        std::string diagnostics;
+    };
+    Background                       background;
     std::map<std::string, JPRunout>  runout;
     // The runout to compensate on nozzle `nozzleId`; null when none (or off).
     const JPRunout* runoutOn(const std::string& nozzleId) const {

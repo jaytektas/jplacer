@@ -260,8 +260,9 @@ std::unique_ptr<JWidget> JPSetupForm::page(const JPSetupProperties::Tab& tab) {
 
 float JPSetupForm::widthOf(const JProperty& p) const {
     const JStyle& st = JStyle::current();
-    // Shown text: as wide as it is drawn, with room to spare (a measure falls a little short of it).
-    if (!p.writable()) return std::ceil(JTextHelper::measureWidth(p.get().toString())) + st.spacing;
+    // Shown text: as wide as it is drawn, with room to spare (a measure falls a little short of it), and
+    // no narrower than a number's field, as editor() makes it.
+    if (!p.writable()) return std::max(std::ceil(JTextHelper::measureWidth(p.get().toString())) + st.spacing, numberWidth());
     if (!p.meta.choices.empty()) {
         // The longest item, its padding either side, and the arrow.
         float widest = 0;
