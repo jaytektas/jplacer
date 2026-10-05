@@ -3,6 +3,7 @@
 
 #include "JPCaptureFactory.h"
 #include "JPImageSource.h"
+#include "JPMjpgSource.h"
 
 #include "JPSimulatedSource.h"
 #if defined(__linux__)
@@ -23,6 +24,11 @@ std::unique_ptr<JPCaptureSource> JPCaptureFactory::create(const std::string& cam
                                                    device["scene"], std::move(view),
                                                    int(device["hangAfterFrames"].number()),
                                                    int(device["freezeAfterFrames"].number()));
+    if (backend == "mjpg") {
+        // OpenPnP's MjpgCaptureCamera.
+        return std::make_unique<JPMjpgSource>(cameraName, device["url"].str(), int(device["width"].number(960)),
+                                              int(device["height"].number(720)), int(device["timeoutMs"].number(3000)));
+    }
     if (backend == "image") {
         // OpenPnP's ImageCamera.
         JPImageSource::Settings s;

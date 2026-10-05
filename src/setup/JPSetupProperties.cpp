@@ -1191,6 +1191,13 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
         add.number("simulatedScale", "Simulated Scale", num("simulatedScale", nullptr, 1).first, num("simulatedScale", nullptr, 1).second);
         add.flag("simulatedFlipped", "Simulated Flipped?", [device] { return std::as_const(device())["simulatedFlipped"].boolean(); },
                  [device](bool v) { device()["simulatedFlipped"] = v; });
+    } else if (std::as_const(device())["backend"].str() == "mjpg") {
+        // OpenPnP's MjpgCaptureCameraWizard.
+        add.text("url", "MJPG URL", [device] { return std::as_const(device())["url"].str(); },
+                 [device](const std::string& v) { device()["url"] = v; }, "long");
+        add.tip("The camera's stream: http://host:port/path.");
+        add.integer("timeoutMs", "Timeout [ms]", [device] { return int(std::as_const(device())["timeoutMs"].number(3000)); },
+                    [device](int v) { device()["timeoutMs"] = v; }, 100, 60000);
     } else if (std::as_const(device())["backend"].str() == "simulated") {
         add.text("backend", "Device", [] { return std::string("simulated (set up in the cell file)"); }, nullptr);
     } else {

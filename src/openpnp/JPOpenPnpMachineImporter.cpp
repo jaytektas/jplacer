@@ -553,6 +553,16 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
         // OpenPnpCaptureCamera's unique id is the device's own name and the
         // USB port it was on ("top: top usb-0000:00:14.0-8.2"). jplacer finds a
         // camera by its name alone, so a different port or hub does not lose it.
+        // OpenPnP's MjpgCaptureCamera: a stream of JPEGs over HTTP.
+        if (shortClass(x) == "MjpgCaptureCamera") {
+            cam.device["backend"] = "mjpg";
+            // (Its attribute's spelling, as OpenPnP's XML writer hyphenates "mjpgURL".)
+            for (const char* a : { "mjpg-URL", "mjpg-u-r-l", "mjpg-url" })
+                if (!x.attr(a).empty()) cam.device["url"] = x.attr(a);
+            if (!x.attr("width").empty()) cam.device["width"] = number(x.attr("width"));
+            if (!x.attr("height").empty()) cam.device["height"] = number(x.attr("height"));
+            if (!x.attr("timeout").empty()) cam.device["timeoutMs"] = number(x.attr("timeout"));
+        }
         // OpenPnP's ImageCamera: a picture of the table, shown where the camera looks.
         if (shortClass(x) == "ImageCamera") {
             cam.device["backend"] = "image";

@@ -406,6 +406,8 @@ notes.
   does.
 - A camera can be OpenPnP's ImageCamera: it shows the part of a picture of the table under where it looks, for
   trying jobs and vision with no camera. It comes in with an OpenPnP machine.
+- A camera can be OpenPnP's MjpgCaptureCamera: a network camera streaming JPEGs over HTTP. It comes in with an
+  OpenPnP machine.
 
 ## 0.1.0
 
