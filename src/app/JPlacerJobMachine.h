@@ -34,6 +34,7 @@ public:
                       std::function<bool(const std::string&)> ask, std::function<void(const std::string&)> progress);
 
     std::vector<Nozzle> nozzles() const override;
+    void setRotationModeOffset(const std::string& nozzleId, std::optional<double> offset) override;
     std::optional<double> nozzleRotation(const std::string& nozzleId) const override;
     std::vector<std::pair<std::string, std::string>> tips() const override;
     std::optional<JPLocation> cameraLocation() const override;

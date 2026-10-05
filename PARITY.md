@@ -22,7 +22,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Motion planner: continuous motion | done | Machine › Motion Planner; waits where the machine must stand still (actuator coordination, pick and place, homing, each operation's end) |
 | Motion planner: uncoordinated moves, interpolation retiming, minimum speed | own way | jplacer's movement is kept (as asked): acceleration and jerk are the controller's; OpenPnP's own 3rd-order profiles, sent as interpolated moves, are not used |
 | Motion planner test motion (4 locations) and diagnostics | done | planned time from feed rates and accelerations, actual time, each axis's location and velocity from the controllers' reports |
-| Issues & Solutions (guided setup, milestones, auto-fixes) | partial | the tab, milestones; Actuator, Axis, Calibration (backlash, camera), Camera (preview, device properties), GcodeDriver (generic), Head, Kinematic, NozzleTip and Vision (visual homing, rig, tables) solutions, solved on Accept where OpenPnP's are; firmware-specific driver solutions are jplacer's profiles; VisionSolutions' camera-guided calibration is jplacer's own calibration |
+| Issues & Solutions (guided setup, milestones, auto-fixes) | done | the tab, milestones; Actuator, Axis (rotation, limited articulation, align with part, pre-rotate), Calibration (backlash, camera), Camera (preview, device properties), ContactProbeNozzle, GcodeDriver (generic), Head, HttpActuator, Kinematic, NozzleTip, ReferenceMachine (auto tool select) and Vision (visual homing, rig, tables) solutions, solved on Accept where OpenPnP's are; own way: firmware-specific driver solutions are jplacer's profiles, VisionSolutions' camera-guided calibration and nozzle offsets are jplacer's own calibration, motion control type and GcodeAsyncDriver conversion are jplacer's movement |
 | First start: OpenPnP's default machine, packages, parts and vision settings | done | shipped in openpnp-defaults with OpenPnP's test picture; missing configuration files taken from them |
 | Log panel (filterable log) | done | Log tab |
 | Signalers (sound, actuator on error / job done) | done | Neoden4Signaler left out (Neoden4 driver) |
@@ -87,7 +87,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | OpenPnP | Status | jplacer |
 |---|---|---|
 | Name, axes, offsets | done | |
-| Rotation mode (absolute part angle, ...), align with part | done | the four modes; Align with Part only changes what OpenPnP's DRO shows, and jplacer shows the axes |
+| Rotation mode (absolute part angle, ...), align with part | done | the four modes as OpenPnP's rotation mode offset on the nozzle's rotation (moves and readout), set at pick, gone with the part; Align with Part adds bottom vision's turn |
 | Safe Z, dynamic safe Z | done | safe Z from the axes' safe zones; dynamic safe Z for a nozzle on a Z of its own |
 | Pick / place dwell | done | |
 | Compatible / loaded tips table | done | |

@@ -391,7 +391,33 @@ void JPCell::setNozzlePart(const std::string& nozzleId, const PartOnNozzle& part
         if (!part.partId.empty() || part.heightMm != 0 || part.pickVacuumLevel != 0 || part.placeBlowOffLevel != 0)
             m_nozzleParts[nozzleId] = part;
         else m_nozzleParts.erase(nozzleId);
+        // No part, no rotation mode offset (OpenPnP's setPart(null)).
+        if (part.partId.empty()) setRotationModeOffset(nozzleId, std::nullopt);
     });
+}
+
+void JPCell::setRotationModeOffset(const std::string& nozzleId, std::optional<double> offset) {
+    // In turn with the moves and the part given before and after it.
+    auto set = [this, nozzleId, offset] {
+        std::lock_guard lk(m_mutex);
+        if (offset) m_rotationModeOffset[nozzleId] = *offset;
+        else m_rotationModeOffset.erase(nozzleId);
+        JLOGC(JPlacerLog::kCell, JLogLevel::Debug) << "nozzle " << nozzleId << ": rotation mode offset "
+                                                   << (offset ? std::to_string(*offset) + "°" : std::string("none"));
+    };
+    if (onCellThread()) set();
+    else m_thread.post(set);
+}
+
+double JPCell::rotationModeOffset(const std::string& nozzleId) const {
+    std::lock_guard lk(m_mutex);
+    const auto it = m_rotationModeOffset.find(nozzleId);
+    return it == m_rotationModeOffset.end() ? 0.0 : it->second;
+}
+
+double JPCell::rotationModeOffsetOf(const JPMountConfig& mount) const {
+    const JPNozzleConfig* n = nozzleOf(mount);
+    return n ? rotationModeOffset(n->id) : 0.0;
 }
 
 const JPNozzleConfig* JPCell::nozzleOf(const JPMountConfig& mount) const {
@@ -764,7 +790,7 @@ bool JPCell::doAt(const std::string& nozzleId, const std::array<std::optional<do
         std::map<std::string, double> across;
         if (to[0] && !m.axisX.empty()) across[m.axisX] = *to[0] - m.offsetX;
         if (to[1] && !m.axisY.empty()) across[m.axisY] = *to[1] - m.offsetY;
-        if (to[3] && !m.axisRotation.empty()) across[m.axisRotation] = *to[3];
+        if (to[3] && !m.axisRotation.empty()) across[m.axisRotation] = *to[3] - rotationModeOffset(n.id);
         compensateRunout(m, across, false);
         return doSafeZ(m.headId, speed, why) && (across.empty() || doMove(across, speed, why))
             && (!to[2] || m.axisZ.empty() || doMove({ { m.axisZ, *to[2] - zOffsetOf(m) } }, speed, why))
@@ -878,7 +904,7 @@ bool JPCell::doMoveTool(const JPMountConfig& mount, const std::array<std::option
     std::map<std::string, double> axes;
     if (to[0] && !mount.axisX.empty()) axes[mount.axisX] = *to[0] - mount.offsetX;
     if (to[1] && !mount.axisY.empty()) axes[mount.axisY] = *to[1] - mount.offsetY;
-    if (to[3] && !mount.axisRotation.empty()) axes[mount.axisRotation] = *to[3];
+    if (to[3] && !mount.axisRotation.empty()) axes[mount.axisRotation] = *to[3] - rotationModeOffsetOf(mount);
     compensateRunout(mount, axes, false);
     if (!atSafeZ) {
         if (to[2] && !mount.axisZ.empty()) axes[mount.axisZ] = *to[2] - zOffsetOf(mount);
@@ -1015,14 +1041,15 @@ bool JPCell::pnpChecked(const JPNozzleConfig& n, bool pick, std::string& why) {
     check.pick = pick;
     check.x = coordinate(n.mount.axisX) + n.mount.offsetX;
     check.y = coordinate(n.mount.axisY) + n.mount.offsetY;
-    check.rotation = coordinate(n.mount.axisRotation);
+    const double axisRotation = coordinate(n.mount.axisRotation);
+    check.rotation = axisRotation + rotationModeOffset(n.id);   // the part's angle, as the nozzle reads it
     if (sim.imperfect()) {
         check.x -= sim.homingErrorX;
         check.y -= sim.homingErrorY;
         check.x += sim.nonSquarenessFactor * check.y;
     }
     if (sim.dynamic() && sim.runoutMm != 0) {
-        const double a = (check.rotation - sim.runoutPhaseDeg) * M_PI / 180;
+        const double a = (axisRotation - sim.runoutPhaseDeg) * M_PI / 180;
         check.x += sim.runoutMm * std::cos(a);
         check.y += sim.runoutMm * std::sin(a);
     }
@@ -1776,7 +1803,7 @@ void JPCell::moveTool(const JPMountConfig& mount, std::array<std::optional<doubl
         std::map<std::string, double> across;
         if (to[0] && !mount.axisX.empty()) across[mount.axisX] = *to[0] - mount.offsetX;
         if (to[1] && !mount.axisY.empty()) across[mount.axisY] = *to[1] - mount.offsetY;
-        if (to[3] && !mount.axisRotation.empty()) across[mount.axisRotation] = *to[3];
+        if (to[3] && !mount.axisRotation.empty()) across[mount.axisRotation] = *to[3] - rotationModeOffsetOf(mount);
         compensateRunout(mount, across, false);
         if (ok && !across.empty()) ok = doMove(across, speed, why);
         if (ok && to[2] && !mount.axisZ.empty()) ok = doMove({ { mount.axisZ, *to[2] - zOffsetOf(mount) } }, speed, why);

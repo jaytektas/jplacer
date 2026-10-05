@@ -310,6 +310,26 @@ int main() {
 
         cell.home();
         assert(motion.take().first && cell.isHomed());
+        // OpenPnP's rotation mode offset: the nozzle sent to a rotation turns
+        // its axis that much less, reads that much more, and has none again
+        // once its part is gone.
+        {
+            JPCellConfig next = cell.config();
+            next.nozzles[0].mount.axisRotation = "C";
+            std::string why;
+            assert(cell.reconfigure(next, why));
+            const JPMountConfig mount = cell.config().nozzles[0].mount;
+            cell.setNozzlePart("N", { "R1", 0, 0, 0 });
+            cell.setRotationModeOffset("N", 30.0);
+            assert(cell.moveToolAndWait(mount, { std::nullopt, std::nullopt, std::nullopt, 40.0 }, 1.0, why));
+            assert(std::abs(cell.jogBase().at("C") - 10) < 1e-6);
+            assert(cell.rotationModeOffsetOf(mount) == 30);
+            cell.setNozzlePart("N", {});
+            assert(cell.moveToolAndWait(mount, { std::nullopt, std::nullopt, std::nullopt, 40.0 }, 1.0, why));
+            assert(cell.rotationModeOffsetOf(mount) == 0 && std::abs(cell.jogBase().at("C") - 40) < 1e-6);
+            next.nozzles[0].mount.axisRotation.clear();
+            assert(cell.reconfigure(next, why));
+        }
         // An axis interlock (OpenPnP's ActuatorInterlockMonitor): signalling
         // X moving, switched on before X moves and off after; another axis's move alone
         // leaves it (C here); a confirmation out of range stops the move.

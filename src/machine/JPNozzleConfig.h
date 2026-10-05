@@ -45,6 +45,10 @@ struct JPNozzleConfig {
     // LimitedArticulation how far it may turn about the pick and alignment.
     std::string              rotationMode = "AbsolutePartAngle";
     double                   maxPickArticulation = 15, maxAlignArticulation = 30;
+    // OpenPnP's Align with Part (aligning rotation mode): bottom vision's turn
+    // of the part taken into the nozzle's rotation mode offset, so its
+    // rotation reads the part's angle as aligned (JPCell::setRotationModeOffset).
+    bool                     alignRotationWithPart = false;
     // Homing this nozzle's Z alone (Z only, from the park place): G-code
     // lines sent to the controller of the motor behind its Z, which ends
     // at the axis's home coordinate as a full home does. Empty: none.
@@ -92,6 +96,7 @@ struct JPNozzleConfig {
         if (!j["rotationMode"].str().empty()) n.rotationMode = j["rotationMode"].str();
         n.maxPickArticulation   = j["maxPickArticulation"].number(15.0);
         n.maxAlignArticulation  = j["maxAlignArticulation"].number(30.0);
+        n.alignRotationWithPart = j["alignRotationWithPart"].boolean();
         n.placeDwellMs          = int(j["placeDwellMs"].number());
         n.homeCommand           = j["homeCommand"].str();
         if (const JJson& c = j["contactProbe"]; c.isObject()) {
@@ -132,6 +137,7 @@ struct JPNozzleConfig {
         if (rotationMode != "AbsolutePartAngle") j["rotationMode"] = rotationMode;
         if (maxPickArticulation != 15) j["maxPickArticulation"] = maxPickArticulation;
         if (maxAlignArticulation != 30) j["maxAlignArticulation"] = maxAlignArticulation;
+        if (alignRotationWithPart) j["alignRotationWithPart"] = true;
         if (placeDwellMs) j["placeDwellMs"] = placeDwellMs;
         if (!homeCommand.empty()) j["homeCommand"] = homeCommand;
         if (contactProbe.on()) {

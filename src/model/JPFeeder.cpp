@@ -339,6 +339,20 @@ std::optional<JPLocation> JPFeeder::pickLocation() const {
     return std::nullopt;
 }
 
+JPFeeder JPFeeder::fromXml(const JPXmlElement& e) {
+    JPFeeder f(JPXmlNode::from(e));
+    if (f.typeName() == "ReferenceStripFeeder" && f.text("standard-eia-481").empty()) {
+        // OpenPnP's angleNorm(rotation - 90, 180): within -180 (exclusive) .. 180.
+        double r = f.location().rotation() - 90;
+        while (r > 180) r -= 360;
+        while (r <= -180) r += 360;
+        const JPLocation l = f.location();
+        f.setLocation(l.derive(std::nullopt, std::nullopt, std::nullopt, r));
+        f.setFlag("standard-eia-481", true);
+    }
+    return f;
+}
+
 bool JPFeeder::partHeightAbovePickLocation() const {
     const std::string kind = typeName();
     return kind == "ReferenceLoosePartFeeder" || kind == "AdvancedLoosePartFeeder";

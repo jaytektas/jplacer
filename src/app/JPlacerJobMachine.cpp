@@ -85,6 +85,7 @@ std::vector<JPJobMachine::Nozzle> JPlacerJobMachine::nozzles() const {
         if (n.mount.headId != head) continue;
         Nozzle out1 { n.id, n.name.empty() ? n.id : n.name, n.tipId, n.tipIds, n.pickDwellMs, n.placeDwellMs };
         out1.rotationMode = n.rotationMode;
+        out1.alignRotationWithPart = n.alignRotationWithPart;
         out1.tipChangeOnManualPick = n.tipChangeOnManualPick;
         out1.maxPickArticulation = n.maxPickArticulation;
         out1.maxAlignArticulation = n.maxAlignArticulation;
@@ -104,6 +105,12 @@ std::vector<JPJobMachine::Nozzle> JPlacerJobMachine::nozzles() const {
         out.push_back(std::move(out1));
     }
     return out;
+}
+
+void JPlacerJobMachine::setRotationModeOffset(const std::string& nozzleId, std::optional<double> offset) {
+    m_onMain([&] {
+        if (JPCell* c = m_machine.cell()) c->setRotationModeOffset(nozzleId, offset);
+    });
 }
 
 std::optional<double> JPlacerJobMachine::nozzleRotation(const std::string& nozzleId) const {
@@ -931,8 +938,9 @@ bool JPlacerJobMachine::alignPart(const std::string& nozzleId, const AlignReques
     // Where the camera looks; the part's bottom at its focus.
     const JPMountConfig& cm = feed->config().mount;
     const double camX = cm.offsetX, camY = cm.offsetY, camZ = cm.offsetZ;
-    // The nozzle turned so the part is at the look's angle (its Rotation Mode offset taken off).
-    double nx = camX, ny = camY, nr = rq.imageAngle - rq.partOffset;
+    // The nozzle turned so the part is at the look's angle (the nozzle's
+    // rotation is the part's: its rotation mode offset is the cell's).
+    double nx = camX, ny = camY, nr = rq.imageAngle;
     // By its pipeline: given the camera looking up, prepared for the part (as OpenPnP's preparePipeline).
     std::optional<JPNozzleTipConfig> tip;
     std::shared_ptr<JPVisionComposite> composite;
@@ -986,7 +994,7 @@ bool JPlacerJobMachine::alignPart(const std::string& nozzleId, const AlignReques
         }
         std::vector<std::pair<double, double>> shots;
         if (composite && JPVisionComposite::isAdvanced(composite->solution())) {
-            const double a = (nr + rq.partOffset) * M_PI / 180;
+            const double a = nr * M_PI / 180;
             for (const JPVisionComposite::Shot* s : composite->travel(0, 0))
                 shots.push_back({ std::cos(a) * s->x - std::sin(a) * s->y, std::sin(a) * s->x + std::cos(a) * s->y });
         } else {
@@ -1024,7 +1032,7 @@ bool JPlacerJobMachine::alignPart(const std::string& nozzleId, const AlignReques
     for (int pass = 0; pass < std::max(1, rq.passes); ++pass) {
         // A part seen in several shots (OpenPnP's vision compositing).
         if (composite && JPVisionComposite::isAdvanced(composite->solution())) {
-            const double angle = nr + (pass == 0 ? rq.partOffset : result.partAngle - result.nozzleAngle);
+            const double angle = nr + (pass == 0 ? 0.0 : result.partAngle - result.nozzleAngle);
             double px = 0, py = 0, found = 0;
             if (!alignComposite(*c, nozzle.mount, *rq.pipeline, *composite, tip ? &*tip : nullptr, feed->config().roamingRadiusMm,
                                 cal, camX, camY, camZ + partHeight, nx, ny, nr, angle, rq.partId, px, py, found, why))
@@ -1054,7 +1062,7 @@ bool JPlacerJobMachine::alignPart(const std::string& nozzleId, const AlignReques
             return false;
         }
         // The part's angle as it sits: the nozzle's turn, less what is already known to be off.
-        fr.angle = nr + (pass == 0 ? rq.partOffset : result.partAngle - result.nozzleAngle);
+        fr.angle = nr + (pass == 0 ? 0.0 : result.partAngle - result.nozzleAngle);
         fr.angleRange = pass == 0 ? rq.angleRange : std::min(rq.angleRange, 3.0);
         fr.toMachine = [&cal, camX, camY](double px, double py, double& mx, double& my) {
             return cal.machinePoint(px, py, camX, camY, mx, my);

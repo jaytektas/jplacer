@@ -193,6 +193,16 @@ public:
         double heightMm = 0, pickVacuumLevel = 0, placeBlowOffLevel = 0;
     };
     void setNozzlePart(const std::string& nozzleId, const PartOnNozzle& part);
+    // OpenPnP's rotation mode offset: while a nozzle holds a part, its
+    // rotation is the part's angle, its rotation axis that much less (as
+    // OpenPnP's ReferenceNozzle.toHeadLocation): a rotation it is sent to is
+    // the axis's plus this, and the rotation it reads the axis's plus this.
+    // Set for a pick (by its Rotation Mode, and with Align with Part by bottom
+    // vision's turn); none again when the part goes. 0: none.
+    void   setRotationModeOffset(const std::string& nozzleId, std::optional<double> offset);
+    double rotationModeOffset(const std::string& nozzleId) const;
+    // The offset of the nozzle `mount` is (0 for another tool).
+    double rotationModeOffsetOf(const JPMountConfig& mount) const;
     // Simulation Mode's Pick & Place Checking (OpenPnP's): a nozzle holding
     // a part switching its vacuum on (a pick) or off (a place), not near the
     // discard location, with an image camera on its head, is checked by
@@ -435,6 +445,7 @@ private:
     std::set<std::string>                       m_pumpOn, m_holding;
 
     mutable std::mutex                 m_mutex;   // guards the members below
+    std::map<std::string, double>      m_rotationModeOffset;   // by nozzle id
     std::map<std::string, bool>        m_switchedOn;   // switchedOn()
     std::atomic<std::thread::id>       m_threadId;     // the cell's thread (onCellThread)
     std::map<std::string, double>      m_positions;

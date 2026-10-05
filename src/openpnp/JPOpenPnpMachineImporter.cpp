@@ -1166,6 +1166,7 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                     if (const std::string m = x.attr("rotation-mode");
                         m == "AbsolutePartAngle" || m == "PlacementAngle" || m == "MinimalRotation" || m == "LimitedArticulation")
                         n.rotationMode = m;
+                    n.alignRotationWithPart = x.attr("aligning-rotation-mode") == "true";
                     if (!x.attr("max-pick-articulation-angle").empty()) n.maxPickArticulation = number(x.attr("max-pick-articulation-angle"));
                     if (!x.attr("max-alignment-articulation-angle").empty())
                         n.maxAlignArticulation = number(x.attr("max-alignment-articulation-angle"));

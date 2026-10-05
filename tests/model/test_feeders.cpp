@@ -57,6 +57,16 @@ int main() {
     assert(strip.feed(why) && strip.feed(why) && strip.number("feed-count") == 3);
     at = strip.pickLocation();
     assert(at && near(at->x(), 103.5) && near(at->y(), 44));
+    // Saved before OpenPnP took the rotation in tape as EIA-481's: brought to
+    // it as OpenPnP reads it, its Rotation In Tape 90 less, so it picks as before.
+    {
+        std::string old = kStrip;
+        old.replace(old.find(" standard-eia-481=\"true\""), std::string(" standard-eia-481=\"true\"").size(), "");
+        JPFeeder legacy = parse(old.c_str());
+        assert(legacy.flag("standard-eia-481", false) && near(legacy.location().rotation(), -90));
+        const auto first = legacy.pickLocation();
+        assert(first && near(first->rotation(), 0));
+    }
     // Skip next feed: the count stays once, then feeds go on as normal.
     strip.setFeedOptions(JPFeeder::FeedOptions::SkipNext);
     assert(strip.feed(why) && strip.number("feed-count") == 3 && strip.feedOptions() == JPFeeder::FeedOptions::Normal);

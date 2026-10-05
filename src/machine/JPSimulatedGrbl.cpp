@@ -14,6 +14,8 @@ inline namespace jf {
 
 namespace {
 
+// The order a Grbl reports its axes in.
+constexpr const char* kGrblAxisOrder = "XYZABCUVW";
 // Grbl's real-time bytes.
 constexpr char kStatusQuery = '?';
 constexpr char kSoftReset   = 0x18;
@@ -43,6 +45,12 @@ void JPSimulatedGrbl::configure(const JJson& config) {
         m_machine[l.str()] = 0.0;
         m_offset[l.str()]  = 0.0;
     }
+    // Reported in Grbl's own order (X Y Z A B C U V W), whatever order it was given them in.
+    auto rank = [](const std::string& l) {
+        const size_t at = std::string(kGrblAxisOrder).find(l);
+        return at == std::string::npos ? std::string(kGrblAxisOrder).size() : at;
+    };
+    std::stable_sort(m_letters.begin(), m_letters.end(), [&](const std::string& a, const std::string& b) { return rank(a) < rank(b); });
     m_settings.clear();
     for (const auto& [id, value] : config["settings"].obj()) m_settings[std::atoi(id.c_str())] = value.str();
     m_replies.clear();

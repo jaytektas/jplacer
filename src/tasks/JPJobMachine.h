@@ -39,6 +39,10 @@ public:
         std::string              rotationMode = "AbsolutePartAngle";
         double                   maxPickArticulation = 15, maxAlignArticulation = 30;
         double                   rotationLow = -180, rotationHigh = 180;
+        // OpenPnP's Align with Part (aligning rotation mode): bottom vision's
+        // turn of the part taken into its rotation mode offset, so it reads
+        // the part's angle as aligned.
+        bool                     alignRotationWithPart = false;
         // OpenPnP's ContactProbeNozzle (JPNozzleConfig::ContactProbe), and the
         // tallest part its tip takes (a part of unknown height probed from there).
         JPNozzleConfig::ContactProbe contactProbe;
@@ -50,7 +54,11 @@ public:
     // The head's nozzles, in order, and the machine's nozzle tips (id, name).
     virtual std::vector<Nozzle> nozzles() const = 0;
     virtual std::vector<std::pair<std::string, std::string>> tips() const = 0;
-    // How far a nozzle is turned now (its rotation axis); none when it cannot be told.
+    // OpenPnP's rotation mode offset of a nozzle (JPCell::setRotationModeOffset):
+    // its rotation the part's angle, its axis that much less; none: its axis's.
+    virtual void setRotationModeOffset(const std::string& nozzleId, std::optional<double> offset) = 0;
+    // How far a nozzle's rotation axis is turned now (no rotation mode offset);
+    // none when it cannot be told.
     virtual std::optional<double> nozzleRotation(const std::string& nozzleId) const {
         (void)nozzleId;
         return std::nullopt;
@@ -183,9 +191,7 @@ public:
     struct AlignRequest {
         std::vector<JPPartFinder::Rect> shape;   // the part's own mm
         double partHeightMm = 0;
-        double imageAngle = 0;    // the part's angle for the first look
-        // The nozzle's Rotation Mode offset: its turn is the part's angle less this.
-        double partOffset = 0;
+        double imageAngle = 0;    // the part's angle for the first look (the nozzle's rotation)
         double angleRange = 10;
         int    passes = 3;
         double maxLinearOffsetMm = 1;

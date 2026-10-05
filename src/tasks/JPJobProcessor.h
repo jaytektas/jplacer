@@ -150,9 +150,9 @@ private:
     void script(const std::string& event, JJson globals);
     // What a placement's events are given: the job, its board and placement, its part.
     JJson placementGlobals(const JobPlacement& j) const;
-    // OpenPnP's prepareForPickAndPlaceArticulation: the nozzle's offset for a
-    // part picked at `pickAngle` to be placed at `placeAngle`, by its Rotation Mode.
-    double rotationOffset(const std::string& nozzleId, double pickAngle, double placeAngle) const;
+    // OpenPnP's prepareForPickAndPlaceArticulation (JPRotationMode): the
+    // nozzle's rotation mode offset for the part, given it and kept.
+    void prepareArticulation(const std::string& nozzleId, double pickAngle, double placeAngle);
     void cleanup();
     Step finish();
     void discardAll();

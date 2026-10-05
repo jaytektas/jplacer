@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
 #include "JPJobProcessor.h"
+#include "JPRotationMode.h"
 
 #include "JPAlignRequests.h"
 
@@ -803,37 +804,10 @@ void JPJobProcessor::optimize(bool byPick) {
     m_planned = order;
 }
 
-double JPJobProcessor::rotationOffset(const std::string& nozzleId, double pickAngle, double placeAngle) const {
-    // Kept within -lim..lim, as OpenPnP's angleNorm.
-    auto norm = [](double v, double lim) {
-        while (std::abs(v) > lim) v += v < 0 ? 2 * lim : -2 * lim;
-        return v;
-    };
-    JPJobMachine::Nozzle n;
-    for (const auto& m : m_machine.nozzles())
-        if (m.id == nozzleId) n = m;
-    if (n.rotationMode == "PlacementAngle") return placeAngle;
-    if (n.rotationMode == "MinimalRotation") {
-        const auto now = m_machine.nozzleRotation(nozzleId);
-        return now ? norm(pickAngle - *now, 180) : 0;
-    }
-    if (n.rotationMode == "LimitedArticulation") {
-        const double articulation = n.rotationHigh - n.rotationLow;
-        const double pickToPlace = norm(placeAngle - pickAngle, 180);
-        const double tolerance = n.maxPickArticulation + n.maxAlignArticulation;
-        const double maximum = pickToPlace + (pickToPlace > 0 ? 1 : pickToPlace < 0 ? -1 : 0) * tolerance;
-        double start;
-        if (std::abs(maximum) < articulation) {
-            // Room enough: about the middle of the range.
-            start = (n.rotationLow + n.rotationHigh) * 0.5 - maximum * 0.5;
-        } else if (pickToPlace > 0) {
-            start = n.rotationLow + (articulation - pickToPlace) * n.maxPickArticulation / tolerance;
-        } else {
-            start = n.rotationHigh - (articulation + pickToPlace) * n.maxPickArticulation / tolerance;
-        }
-        return norm(pickAngle - start, 180);
-    }
-    return 0;   // AbsolutePartAngle
+void JPJobProcessor::prepareArticulation(const std::string& nozzleId, double pickAngle, double placeAngle) {
+    const std::optional<double> offset = JPRotationMode::prepare(m_machine, nozzleId, pickAngle, placeAngle);
+    if (offset) m_rotationOffset[nozzleId] = *offset;
+    else m_rotationOffset.erase(nozzleId);
 }
 
 void JPJobProcessor::setPartHeight(const std::string& partId, double heightMm) {
@@ -970,13 +944,9 @@ void JPJobProcessor::prerotate(bool forPick) {
                 angle = placeLocation(p.job).rotation();
             }
         });
-        // The nozzle's turn: the part's angle less its Rotation Mode offset.
-        if (forPick && angle) {
-            m_rotationOffset[p.nozzleId] = rotationOffset(p.nozzleId, pickAngle, placeAngle);
-            *angle -= m_rotationOffset[p.nozzleId];
-        } else if (angle) {
-            if (const auto o = m_rotationOffset.find(p.nozzleId); o != m_rotationOffset.end()) *angle -= o->second;
-        }
+        // OpenPnP's prepareForPickAndPlaceArticulation: the nozzle's rotation
+        // mode offset for the part, the nozzle then turned to the part's angle.
+        if (forPick && angle) prepareArticulation(p.nozzleId, pickAngle, placeAngle);
         // As OpenPnP: a nozzle that cannot turn now turns when it gets there.
         std::string why;
         if (m_settings.preRotateAllNozzles && angle) m_machine.rotate(p.nozzleId, *angle, why);
@@ -1058,11 +1028,10 @@ JPJobProcessor::Step JPJobProcessor::pick(Planned& p) {
                 pickWhy = "Feeder pick location must not be null";
                 continue;
             }
-            // OpenPnP's prepareForPickAndPlaceArticulation: the nozzle picks at the part's angle less its offset.
+            // OpenPnP's prepareForPickAndPlaceArticulation: the nozzle's rotation mode offset for the part.
             double placeAngle = 0;
             main([&] { placeAngle = placeLocation(p.job).rotation(); });
-            m_rotationOffset[p.nozzleId] = rotationOffset(p.nozzleId, at->rotation(), placeAngle);
-            at = at->derive(std::nullopt, std::nullopt, std::nullopt, at->rotation() - m_rotationOffset[p.nozzleId]);
+            prepareArticulation(p.nozzleId, at->rotation(), placeAngle);
             std::string nozzleName = p.nozzleId;
             for (const auto& n : m_machine.nozzles())
                 if (n.id == p.nozzleId) nozzleName = n.name;
@@ -1116,7 +1085,6 @@ JPJobProcessor::Step JPJobProcessor::align(Planned& p) {
         aligned = JPAlignRequests::forPart(m_config, m_vision, *part, j.partHeightMm, place, pick, rq);
         name = part->id;
     });
-    if (const auto o = m_rotationOffset.find(p.nozzleId); o != m_rotationOffset.end()) rq.partOffset = o->second;
     if (!aligned) {
         JLOGC(JPlacerLog::kJob, JLogLevel::Debug) << "not aligning " << j.partId << ": no enabled bottom vision for it";
         return Step::Align;
@@ -1144,6 +1112,16 @@ JPJobProcessor::Step JPJobProcessor::align(Planned& p) {
         script("Vision.PartAlignment.After", g);
         if (found) {
             if (r.measuredPartHeightMm) setPartHeight(j.partId, *r.measuredPartHeightMm);
+            // OpenPnP's aligning rotation mode: the part's turn taken into the
+            // offset, the nozzle then reading the part's angle as found.
+            for (const auto& n : m_machine.nozzles())
+                if (n.id == p.nozzleId && n.alignRotationWithPart) {
+                    const auto o = m_rotationOffset.find(p.nozzleId);
+                    const double offset = (o == m_rotationOffset.end() ? 0.0 : o->second) + (r.partAngle - r.nozzleAngle);
+                    m_rotationOffset[p.nozzleId] = offset;
+                    m_machine.setRotationModeOffset(p.nozzleId, offset);
+                    r.nozzleAngle = r.partAngle;
+                }
             p.alignment = r;
             return Step::Align;
         }
@@ -1166,9 +1144,6 @@ JPJobProcessor::Step JPJobProcessor::place(Planned& p) {
         const double turn = at.rotation() - a->partAngle, t = turn * M_PI / 180;
         const double ox = a->dx * std::cos(t) - a->dy * std::sin(t), oy = a->dx * std::sin(t) + a->dy * std::cos(t);
         at = JPLocation(JPLengthUnit::Millimeters, at.x() - ox, at.y() - oy, at.z(), a->nozzleAngle + turn);
-    } else if (const auto o = m_rotationOffset.find(p.nozzleId); o != m_rotationOffset.end()) {
-        // Not aligned: the nozzle turned to the placement's angle less its Rotation Mode offset.
-        at = at.derive(std::nullopt, std::nullopt, std::nullopt, at.rotation() - o->second);
     }
     std::string nozzleName = p.nozzleId;
     for (const auto& n : m_machine.nozzles())

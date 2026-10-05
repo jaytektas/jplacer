@@ -59,6 +59,18 @@ public:
         return true;
     }
     bool rotate(const std::string&, double, std::string&) override { return true; }
+    // As the cell: a nozzle's rotation its axis's plus its rotation mode
+    // offset; what was picked and placed kept as the axis turned.
+    std::map<std::string, double> rotationOffsets;
+    std::vector<double>           placedOffsets;   // each place's
+    void setRotationModeOffset(const std::string& n, std::optional<double> offset) override {
+        if (offset) rotationOffsets[n] = *offset;
+        else rotationOffsets.erase(n);
+    }
+    JPLocation axisTurned(const std::string& n, const JPLocation& where) const {
+        const auto o = rotationOffsets.find(n);
+        return o == rotationOffsets.end() ? where : where.derive(std::nullopt, std::nullopt, std::nullopt, where.rotation() - o->second);
+    }
     bool pick(const std::string& n, const JPLocation& where, std::string& why) override {
         if (failPicks > 0) {
             --failPicks;
@@ -66,12 +78,13 @@ public:
             log.push_back("pick failed " + n);
             return false;
         }
-        picks.push_back({ n, where });
+        picks.push_back({ n, axisTurned(n, where) });
         log.push_back("pick " + n);
         return true;
     }
     bool place(const std::string& n, const JPLocation& where, std::string&) override {
-        places.push_back({ n, where });
+        places.push_back({ n, axisTurned(n, where) });
+        placedOffsets.push_back(rotationOffsets.count(n) ? rotationOffsets.at(n) : 0.0);
         log.push_back("place " + n);
         return true;
     }
@@ -447,6 +460,32 @@ int main() {
             sawAligned = true;
         }
     assert(sawAligned);
+    // OpenPnP's Align with Part: bottom vision's turn taken into the rotation
+    // mode offset, the nozzle placing at the placement's angle as it reads it:
+    // the axis turned just the same.
+    for (auto& h : machine.heads) h.alignRotationWithPart = true;
+    job.removeAllPlacedStatus();
+    for (const char* id : { "FR", "FC" }) config.feeder(id)->setEnabled(true);
+    config.feeder("FR")->setNumber("feed-count", frCount);
+    config.feeder("FC")->setNumber("feed-count", fcCount);
+    machine.places.clear();
+    machine.placedOffsets.clear();
+    {
+        JPJobProcessor run(config, job, machine, settings, hooks);
+        run.setVision(JPVisionConfig {});
+        JPJobProcessor::Failure f;
+        JPJobProcessor::Result r;
+        while ((r = run.next(f)) == JPJobProcessor::Result::More) {}
+        assert(r == JPJobProcessor::Result::Finished);
+    }
+    bool sawAlignedOffset = false;
+    for (size_t i = 0; i < machine.places.size(); ++i)
+        if (machine.places[i].nozzle == "N2" && std::abs(machine.places[i].where.rotation() - 89) < 1e-9) {
+            assert(std::abs(machine.placedOffsets[i] - 1) < 1e-9);   // the part's 1 degree turn
+            sawAlignedOffset = true;
+        }
+    assert(sawAlignedOffset);
+    for (auto& h : machine.heads) h.alignRotationWithPart = false;
 
     // A part with no feeder: the setup check says so before anything moves.
     job.removeAllPlacedStatus();

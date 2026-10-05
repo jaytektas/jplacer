@@ -22,6 +22,7 @@
 
 #include "model/JPBlindsFeeders.h"
 #include "model/JPDefinitionChanges.h"
+#include "tasks/JPRotationMode.h"
 #include "tasks/JPFeederActions.h"
 #include "tasks/JPFeederFeed.h"
 #include "tasks/JPFeederPipelines.h"
@@ -438,6 +439,13 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
                 if (const JPFeeder* f = m_job.configuration().feeder(feederId)) part = f->partId();
             });
             if (!machine.safeZ(why)) return false;
+            // As OpenPnP's: the nozzle made able to turn the part from its pick to a
+            // test placement (bottom vision's Test Alignment Angle).
+            double testAngle = 0;
+            onMain([&] {
+                if (const JPCell* c = m_machine.cell()) testAngle = c->config().vision.testAlignmentAngle;
+            });
+            JPRotationMode::prepare(machine, nozzle, at->rotation(), testAngle);
             // The nozzle given the part first, as OpenPnP's pick(part): its levels, and the pick checked for it.
             machine.holding(nozzle, part);
             if (!machine.pick(nozzle, *at, why)) {

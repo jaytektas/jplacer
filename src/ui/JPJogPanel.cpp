@@ -606,9 +606,10 @@ std::vector<std::pair<std::string, double>> JPJogPanel::where() const {
     if (m_tool >= m_tools.size()) return out;
     const JPMountConfig& m = *m_tools[m_tool].mount;
     const auto positions = m_cell.positions();
+    // A nozzle holding a part reads the part's angle (its rotation mode offset), as OpenPnP's DRO.
     const std::tuple<const char*, const std::string*, double> axes[] = {
         { "X", &m.axisX, m.offsetX }, { "Y", &m.axisY, m.offsetY }, { "Z", &m.axisZ, m.offsetZ },
-        { "C", &m.axisRotation, 0.0 } };
+        { "C", &m.axisRotation, m_cell.rotationModeOffsetOf(m) } };
     for (const auto& [name, axis, offset] : axes)
         if (const auto p = positions.find(*axis); !axis->empty() && p != positions.end())
             out.emplace_back(name, p->second + offset);

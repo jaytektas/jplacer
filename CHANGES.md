@@ -10,6 +10,14 @@ notes.
 
 ## Unreleased
 
+- A nozzle turns parts as OpenPnP's does: while it holds a part its rotation reads the part's angle (the Jog panel
+  and the status bar show it), its axis turned by the rotation mode offset. New: Align with Part?, bottom vision's
+  turn of the part taken into that offset, and Issues & Solutions suggests it. A pick from the Feeders tab gets the
+  offset too, as OpenPnP's does (against bottom vision's Test Alignment Angle).
+- A strip feeder from an older OpenPnP file (without the EIA-481 flag) is turned as OpenPnP turns it, so its parts are
+  no longer picked 90° off.
+- The simulated controller reports its axes in Grbl's order: a machine whose rotation axis came before Z in its list
+  no longer showed Z and the rotation swapped.
 - Simulation Mode's Pick & Place Checking, as OpenPnP's: with an image camera on the head, each pick must find a part
   in the picture where the nozzle is, and each place its pads, or it fails. OpenPnP's default machine now feeds and
   picks out of the box: its camera counts as calibrated by its picture, and its actuators switch on its simulated

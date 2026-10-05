@@ -38,7 +38,10 @@ public:
     static const std::vector<std::string>& classNames();
     // A class's simple name ("org.openpnp…ReferenceStripFeeder": "ReferenceStripFeeder").
     static std::string simpleName(const std::string& className);
-    static JPFeeder fromXml(const JPXmlElement& e) { return JPFeeder(JPXmlNode::from(e)); }
+    // As OpenPnP reads it: a strip feeder saved before OpenPnP took a part's
+    // rotation in tape as EIA-481's (no standard-eia-481) brought to it, as
+    // ReferenceStripFeeder.commit does (its Rotation In Tape 90 degrees less).
+    static JPFeeder fromXml(const JPXmlElement& e);
     const JPXmlNode& toXml() const { return m_node; }
 
     std::string className() const;

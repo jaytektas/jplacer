@@ -515,6 +515,22 @@ void kinematics(JPSolutions& s, const JPIssueChecks::Context& c) {
             if (n.mount.axisRotation != a.id) continue;
             const double low = a.limitRotation && a.softLimitLowEnabled ? a.softLimitLow : -180;
             const double high = a.limitRotation && a.softLimitHighEnabled ? a.softLimitHigh : 180;
+            // Its rotation reading the part's as bottom vision aligned it (OpenPnP's aligning rotation mode).
+            if (!n.alignRotationWithPart) {
+                Issue i;
+                i.subject = "ReferenceNozzle " + n.name;
+                i.issue = "Align nozzle " + n.name + " rotation with part.";
+                i.solution = "Enable part aligned nozzle rotation mode, so camera view cross-hairs and DRO-coordinates "
+                             "show the bottom vision aligned part rotation instead of the unadjusted nozzle rotation.";
+                i.severity = Severity::Suggestion;
+                i.uri = std::string(kWiki) + "Nozzle-Rotation-Mode#align-nozzle-rotation-with-part";
+                const std::string nid = n.id;
+                i.apply = changing(c, "Align with Part", [nid](JPCellConfig& cell, bool solved) {
+                    for (JPNozzleConfig& x : cell.nozzles)
+                        if (x.id == nid) x.alignRotationWithPart = solved;
+                });
+                s.add(std::move(i));
+            }
             if (n.rotationMode == "LimitedArticulation") {
                 limited = true;
                 continue;

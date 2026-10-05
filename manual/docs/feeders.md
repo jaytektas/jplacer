@@ -34,7 +34,7 @@ say feeding it is not available.
 **Search**, at the right, shows only the feeders with the text typed anywhere in a row, whatever its case
 (a regular expression, as on the other tabs).
 
-<!-- src: src/ui/JPFeedersPanel.cpp (newFeeder, deleteFeeders, feed, pickFrom, moveToPick, selectionChanged); src/app/JPlacerClassSelectionDialog.cpp; src/model/JPFeeder.cpp (create, classNames, pickLocation, feed); src/app/JPlacerMachine.cpp (pickAt, moveToolTo); src/machine/JPCell.cpp (pickAt) -->
+<!-- src: src/ui/JPFeedersPanel.cpp (newFeeder, deleteFeeders, feed, pickFrom, moveToPick, selectionChanged); src/app/JPlacerClassSelectionDialog.cpp; src/model/JPFeeder.cpp (create, classNames, pickLocation, feed, fromXml); src/app/JPlacerMachine.cpp (pickAt, moveToolTo); src/machine/JPCell.cpp (pickAt) -->
 
 ## The table
 
@@ -70,7 +70,8 @@ A strip of cut tape lying on the machine, its parts picked one after the other a
 
 - **General Settings** add **Rotation In Tape**: how the part lies in its pocket, looking at the tape
   with its sprocket holes at the top (0° as the part is drawn in its library; counter-clockwise is
-  positive).
+  positive). A strip saved by an OpenPnP from before that standard (no `standard-eia-481` in its
+  file) is brought to it as OpenPnP reads it: its Rotation In Tape 90° less, so it picks as before.
 - **Tape Settings**: **Part Pitch** (from one part to the next) and **Tape Width**, in mm; **Feed
   Count**, the parts taken so far (**Reset** sets it to 0); **Max Feed Count**, the parts on the strip
   (0: no limit), which **Auto Set MaxFeedCount** works out from the hole locations and the part pitch.

@@ -812,18 +812,25 @@ void nozzleForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
             "part. This allows you to use a lower Safe Z which might improve the machine speed.");
     add.note("Only for a nozzle on a Z axis of its own: on a shared Z (mapped, a cam) the other nozzle would go down.");
     add.group("Rotation");
+    add.row("Rotation Mode");
     add.choice("rotationMode", "Rotation Mode", { "AbsolutePartAngle", "PlacementAngle", "MinimalRotation", "LimitedArticulation" },
                [n] { return n().rotationMode; }, [n](const std::string& v) { n().rotationMode = v; });
+    add.flag("alignRotationWithPart", "Align with Part?", [n]() -> bool& { return n().alignRotationWithPart; });
+    add.end();
+    add.tip("After bottom vision part alignment, make the nozzle Rotation Mode offset align with the part rotation. "
+            "This will make sure the nozzle coordinates as indicated in the reticle (cross-hairs), in the DRO etc. "
+            "match the detected rotation of the part. After placing/discarding the part, the nozzle snaps back to "
+            "indicating the original axis rotation.");
     f.reshaping.push_back("rotationMode");
     if (n().rotationMode == "LimitedArticulation") {
         add.number("maxPickArticulation", "Max. Pick Articulation", [n]() -> double& { return n().maxPickArticulation; }, 1);
         add.number("maxAlignArticulation", "Max. Alignment Articulation", [n]() -> double& { return n().maxAlignArticulation; }, 1);
     }
-    add.note("How the nozzle turns for a part, as OpenPnP's: AbsolutePartAngle, to the part's own angle at pick and at "
-             "place; PlacementAngle, picked already turned against its placement so it places at 0; MinimalRotation, "
-             "picked at whatever angle the nozzle has; LimitedArticulation, for a nozzle with a limited turn (its "
-             "rotation axis limited to range, within its soft limits): about the middle of the range, room left "
-             "for the pick and alignment corrections.");
+    add.note("How the nozzle turns for a part, as OpenPnP's: while it holds the part, its rotation reads the part's "
+             "angle, its axis turned by the rotation mode offset. AbsolutePartAngle, no offset; PlacementAngle, the "
+             "axis at 0 when the part is at its placement's angle; MinimalRotation, picked at whatever angle the axis "
+             "has; LimitedArticulation, for a nozzle with a limited turn (its rotation axis limited to range, within "
+             "its soft limits): about the middle of the range, room left for the pick and alignment corrections.");
 
     // Every tip: whether it fits this nozzle, and which one is on it now.
     add.tab("Nozzle Tips");

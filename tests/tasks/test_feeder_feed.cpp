@@ -33,6 +33,7 @@ bool near(double a, double b) { return std::abs(a - b) < 1e-6; }
 // Finds every hole `shiftX` mm off where it is looked for; or none.
 class HoleMachine : public JPJobMachine {
 public:
+    void setRotationModeOffset(const std::string&, std::optional<double>) override {}   // no parts turned here
     double shiftX = 0.3;
     bool   holes = true;
     int    looks = 0;

@@ -242,6 +242,11 @@ int main() {
         ls.find();
         ls.publish();
         assert(!find(ls, limitedText) && !find(ls, preRotateText));   // ±180°: a whole turn
+        // Each nozzle on it offered OpenPnP's aligning rotation mode, set on Accept.
+        S::Issue* align = const_cast<S::Issue*>(find(ls, "Align nozzle N1 rotation with part."));
+        assert(align && align->severity == S::Severity::Suggestion);
+        assert(ls.setState(*align, S::State::Solved, why) && cell.nozzles[0].alignRotationWithPart);
+        assert(ls.setState(*align, S::State::Open, why) && !cell.nozzles[0].alignRotationWithPart);
         cell.axes[3].limitRotation = true;
         cell.axes[3].softLimitLowEnabled = cell.axes[3].softLimitHighEnabled = true;
         cell.axes[3].softLimitLow = -90;
