@@ -78,6 +78,9 @@ public:
     // Feeding switcher camera `cameraId` (JPSwitcherSource) its pictures: it
     // runs even off screen while any switcher camera on it does.
     void setFeeding(const std::string& cameraId, bool feeding);
+    // Running for a task that needs its pictures, shown or not, for `ms` from
+    // now (each look renews it), as OpenPnP's cameras capture whether shown or not.
+    void keepRunning(int ms);
     // OpenPnP's instructions panel over the picture, for a process worked on
     // this camera (Estimate Z Coordinate of Object); gone with hideInstructions.
     void showInstructions(const std::string& title, const std::string& text, const std::string& proceedLabel,
@@ -98,6 +101,7 @@ public:
 private:
     // Asked to draw and not drawn for this long, the camera is stopped.
     static constexpr int kHiddenMs = 500;
+    std::chrono::steady_clock::time_point m_keepUntil {};   // keepRunning
 
     void start();
     void stopIfHidden();

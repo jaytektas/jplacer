@@ -88,6 +88,7 @@ int main() {
         JJson moved = JJson::array();
         int feedCountSet = -1;
         std::string dialog;
+        bool boardEnabled = true;
         scripting.api = [&](const JJson& request) {
             JJson answer = JJson::object();
             const std::string call = request["call"].str();
@@ -103,6 +104,11 @@ int main() {
                 head["nozzles"] = JJson::array();
                 head["nozzles"].push(nozzle);
                 head["cameras"] = JJson::array();
+                JJson camera = JJson::object();
+                camera["id"] = std::string("C1");
+                camera["name"] = std::string("Top");
+                camera["looking"] = std::string("Down");
+                head["cameras"].push(camera);
                 head["actuators"] = JJson::array();
                 JJson feeder = JJson::object();
                 feeder["id"] = std::string("F1");
@@ -129,6 +135,28 @@ int main() {
                 feedCountSet = int(request["count"].number());
             } else if (call == "dialog") {
                 dialog = request["text"].str();
+            } else if (call == "job") {
+                JJson board = JJson::object();
+                board["id"] = std::string("B1");
+                board["name"] = std::string("pnp-test.board.xml");
+                board["side"] = std::string("Top");
+                board["enabled"] = true;
+                board["location"]["x"] = 10.0;
+                board["location"]["y"] = 20.0;
+                board["location"]["z"] = 0.0;
+                board["location"]["rotation"] = 0.0;
+                answer["result"]["boards"] = JJson::array();
+                answer["result"]["boards"].push(board);
+                answer["result"]["file"] = std::string("pnp-test.job.xml");
+            } else if (call == "boardPlacementLocation") {
+                answer["result"]["x"] = 10.0 + request["location"]["x"].number();
+                answer["result"]["y"] = 20.0 + request["location"]["y"].number();
+                answer["result"]["z"] = 0.0;
+                answer["result"]["rotation"] = 0.0;
+            } else if (call == "readQrCode") {
+                answer["result"] = std::string("XOUT");
+            } else if (call == "setBoardEnabled") {
+                boardEnabled = request["enabled"].boolean();
             }
             return answer;
         };
@@ -146,12 +174,51 @@ int main() {
                                   "for feeder in machine.getFeeders():\n"
                                   "    assert feeder.getFeedCount() == 7\n"
                                   "    feeder.setFeedCount(0)\n"
-                                  "assert gui is None and scripting.getScriptsDirectory().toString()\n"
+                                  "from org.openpnp.util import Utils2D, VisionUtils\n"
+                                  "assert scripting.getScriptsDirectory().toString()\n"
+                                  "camera = machine.getDefaultHead().getDefaultCamera()\n"
+                                  "for board in gui.jobTab.job.boardLocations:\n"
+                                  "    location = Utils2D.calculateBoardPlacementLocation(board, Location(LengthUnit.Millimeters, 3, 3, 0, 0))\n"
+                                  "    assert (location.x, location.y) == (13, 23), str(location)\n"
+                                  "    camera.moveTo(location)\n"
+                                  "    if VisionUtils.readQrCode(camera) is not None:\n"
+                                  "        board.setEnabled(False)\n"
+                                  "        gui.jobTab.refresh()\n"
                                   "showMessageDialog(None, 'Hello!')\n");
         const bool openPnp = scripting.execute((dir / "openpnp.py").string(), JJson::object(), why);
         if (!openPnp) std::fprintf(stderr, "why: %s\n", why.c_str());
-        assert(openPnp && moved.size() == 1 && std::abs(moved[size_t(0)].number() - 26.4) < 1e-9);
+        assert(openPnp && moved.size() == 2 && std::abs(moved[size_t(0)].number() - 26.4) < 1e-9);
+        assert(std::abs(moved[size_t(1)].number() - 13) < 1e-9 && !boardEnabled);
         assert(feedCountSet == 0 && dialog == "Hello!");
+        // OpenPnP's JavaScript scripts, as Nashorn runs them: load, Packages, JavaImporter and with,
+        // for each, print; the same machine.
+        if (std::system("node -e '' >/dev/null 2>&1") == 0) {
+            moved = JJson::array();
+            feedCountSet = -1;
+            dialog.clear();
+            write(dir / "task.js", "function task(f) {\n"
+                                   "  Packages.org.openpnp.util.UiUtils['submitUiMachineTask(Thrunnable)'](f);\n"
+                                   "}\n");
+            write(dir / "openpnp.js", "load(scripting.getScriptsDirectory().toString() + 'task.js');\n"
+                                      "var imports = new JavaImporter(org.openpnp.model, org.openpnp.util);\n"
+                                      "with (imports) {\n"
+                                      "  task(function() {\n"
+                                      "    var nozzle = machine.defaultHead.defaultNozzle;\n"
+                                      "    var location = nozzle.location;\n"
+                                      "    if (String(location) != '(1.000000, 2.000000, 0.000000, 0.000000 mm)') throw new Error(String(location));\n"
+                                      "    nozzle.moveTo(location.add(new Location(LengthUnit.Inches, 1, 0, 0, 0)));\n"
+                                      "  });\n"
+                                      "}\n"
+                                      "for each (var feeder in machine.getFeeders()) {\n"
+                                      "  feeder.setFeedCount(0);\n"
+                                      "  print('Reset ' + feeder.name);\n"
+                                      "}\n"
+                                      "javax.swing.JOptionPane.showMessageDialog(null, 'Hello!');\n");
+            const bool js = scripting.execute((dir / "openpnp.js").string(), JJson::object(), why);
+            if (!js) std::fprintf(stderr, "why: %s\n", why.c_str());
+            assert(js && moved.size() == 1 && std::abs(moved[size_t(0)].number() - 26.4) < 1e-9);
+            assert(feedCountSet == 0 && dialog == "Hello!");
+        }
         scripting.api = nullptr;
         write(dir / "noone.py", "import jplacer\njplacer.positions()\n");
         assert(!scripting.execute((dir / "noone.py").string(), JJson::object(), why) && why.find("no machine to ask") != std::string::npos);

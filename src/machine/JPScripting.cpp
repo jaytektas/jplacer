@@ -409,9 +409,71 @@ class Scripting(Bean):
         return "Scripting"
 
 
+class BoardLocation(Bean):
+    """A board or panel in the job, as OpenPnP's BoardLocation."""
+
+    def __init__(self, index, d):
+        self._index, self.id, self.name, self.side = index, d["id"], d["name"], d["side"]
+        self.enabled = d["enabled"]
+        l = d["location"]
+        self.location = Location(LengthUnit.Millimeters, l["x"], l["y"], l["z"], l["rotation"])
+
+    def setEnabled(self, enabled):
+        jplacer.call("setBoardEnabled", board=self._index, enabled=bool(enabled))
+        self.enabled = bool(enabled)
+
+    def __str__(self):
+        return self.name
+
+
+class Job(Bean):
+    @property
+    def boardLocations(self):
+        return [BoardLocation(i, b) for i, b in enumerate(jplacer.call("job")["boards"])]
+
+    @property
+    def file(self):
+        return jplacer.call("job")["file"]
+
+
+class JobTab(Bean):
+    @property
+    def job(self):
+        return Job()
+
+    def refresh(self):
+        jplacer.call("refreshJob")
+
+
+class Gui(Bean):
+    """OpenPnP's main window, as far as scripts use it: the Job tab."""
+
+    def __init__(self):
+        self.jobTab = JobTab()
+
+    def __str__(self):
+        return "MainFrame"
+
+
+class Utils2D(object):
+    @staticmethod
+    def calculateBoardPlacementLocation(board, location=None):
+        l = _mm(location if location is not None else Location())
+        r = jplacer.call("boardPlacementLocation", board=board._index,
+                         location={"x": l.x, "y": l.y, "z": l.z, "rotation": l.rotation})
+        return Location(LengthUnit.Millimeters, r["x"], r["y"], r["z"], r["rotation"])
+
+
+class VisionUtils(object):
+    @staticmethod
+    def readQrCode(camera):
+        return jplacer.call("readQrCode", camera=camera.id)
+
+
 machine = Machine()
 config = Configuration()
 scripting = Scripting()
+gui = Gui()
 
 
 def install():
@@ -419,10 +481,276 @@ def install():
     builtins.machine = machine
     builtins.config = config
     builtins.scripting = scripting
-    builtins.gui = None
+    builtins.gui = gui
     for name, value in jplacer.globals.items():   # what the script is run for (an event's globals)
         setattr(builtins, name, value)
 )PY";
+
+// OpenPnP's scripting objects for OpenPnP's JavaScript scripts (as Nashorn has
+// them), over the jplacer module.
+constexpr const char* kOpenPnpModelJs = R"JS(// OpenPnP's scripting objects, for OpenPnP's JavaScript scripts, over jplacer's machine.
+// Written by jplacer; changes to it are lost.
+//
+// OpenPnP runs its scripts in Java's own JavaScript (Nashorn); jplacer runs
+// them under node in a context that has what Nashorn gives them: print, load,
+// Packages, JavaImporter (for `with`), `for each`, the Java packages OpenPnP's
+// scripts use (as far as jplacer has them), and OpenPnP's machine, config,
+// scripting and gui. Java's bean getters work both ways: nozzle.location and
+// nozzle.getLocation().
+"use strict";
+const fs = require("fs");
+const vm = require("vm");
+const jplacer = require("jplacer");
+
+// getFoo() (isFoo() for a boolean) beside each property foo of a class.
+function beans(cls, names, bool = []) {
+    for (const n of names) {
+        const getter = (bool.includes(n) ? "is" : "get") + n[0].toUpperCase() + n.slice(1);
+        if (!(getter in cls.prototype))
+            Object.defineProperty(cls.prototype, getter, { value: function () { return this[n]; } });
+    }
+}
+
+const LengthUnit = {
+    Millimeters: "Millimeters", Centimeters: "Centimeters", Meters: "Meters", Inches: "Inches", Feet: "Feet",
+    Mils: "Mils", Microns: "Microns",
+};
+const mmPer = { Millimeters: 1, Centimeters: 10, Meters: 1000, Inches: 25.4, Feet: 304.8, Mils: 0.0254, Microns: 0.001 };
+const shortName = { Millimeters: "mm", Centimeters: "cm", Meters: "m", Inches: "in", Feet: "ft", Mils: "mil", Microns: "um" };
+
+class Location {
+    constructor(units = LengthUnit.Millimeters, x = 0, y = 0, z = 0, rotation = 0) {
+        Object.assign(this, { units, x: +x, y: +y, z: +z, rotation: +rotation });
+    }
+    convertToUnits(units) {
+        const f = mmPer[this.units] / mmPer[units];
+        return new Location(units, this.x * f, this.y * f, this.z * f, this.rotation);
+    }
+    add(l) {
+        const o = l.convertToUnits(this.units);
+        return new Location(this.units, this.x + o.x, this.y + o.y, this.z + o.z, this.rotation + o.rotation);
+    }
+    subtract(l) {
+        const o = l.convertToUnits(this.units);
+        return new Location(this.units, this.x - o.x, this.y - o.y, this.z - o.z, this.rotation - o.rotation);
+    }
+    derive(x, y, z, rotation) {
+        const pick = (v, w) => (v === null || v === undefined ? w : v);
+        return new Location(this.units, pick(x, this.x), pick(y, this.y), pick(z, this.z), pick(rotation, this.rotation));
+    }
+    getLinearDistanceTo(l) {
+        const o = l.convertToUnits(this.units);
+        return Math.hypot(this.x - o.x, this.y - o.y);
+    }
+    toString() {
+        const f = (v) => v.toFixed(6);
+        return `(${f(this.x)}, ${f(this.y)}, ${f(this.z)}, ${f(this.rotation)} ${shortName[this.units]})`;
+    }
+}
+beans(Location, ["units", "x", "y", "z", "rotation"]);
+
+const now = () => jplacer.call("machine");
+
+class Part {
+    constructor(d) { Object.assign(this, { id: d.id, name: d.name, packageId: d.package || "", height: d.height || 0 }); }
+    toString() { return this.id; }
+}
+beans(Part, ["id", "name", "height"]);
+
+class HeadMountable {
+    constructor(d, headId) { Object.assign(this, { id: d.id, name: d.name, headId }); }
+    get location() {
+        const l = jplacer.location(this.id);
+        return new Location(LengthUnit.Millimeters, l.x || 0, l.y || 0, l.z || 0, l.rotation || 0);
+    }
+    get head() { return machine.heads.find((h) => h.id === this.headId) || null; }
+    moveTo(location, speed = 1) {
+        const l = location.convertToUnits(LengthUnit.Millimeters);
+        jplacer.moveTo(this.id, { x: l.x, y: l.y, z: l.z, rotation: l.rotation, speed });
+    }
+    moveToSafeZ(speed = 1) { jplacer.safeZ(this.headId, speed); }
+    toString() { return this.name; }
+}
+beans(HeadMountable, ["id", "name", "location", "head"]);
+
+class Nozzle extends HeadMountable {
+    get part() {
+        for (const h of now().heads)
+            for (const n of h.nozzles) if (n.id === this.id && n.part) return config.getPart(n.part);
+        return null;
+    }
+    pick(part) { jplacer.call("pick", { nozzle: this.id, part: part ? part.id : null }); }
+    place() { jplacer.call("place", { nozzle: this.id }); }
+}
+beans(Nozzle, ["part"]);
+
+class Camera extends HeadMountable {
+    constructor(d, headId) { super(d, headId); this.looking = d.looking || "Down"; }
+}
+beans(Camera, ["looking"]);
+
+class Actuator extends HeadMountable {
+    actuate(value) { jplacer.actuate(this.id, value); }
+    read(parameter) { return jplacer.read(this.id, parameter); }
+}
+
+class Head {
+    constructor(d) {
+        Object.assign(this, { id: d.id, name: d.name });
+        this.nozzles = d.nozzles.map((n) => new Nozzle(n, d.id));
+        this.cameras = d.cameras.map((c) => new Camera(c, d.id));
+        this.actuators = d.actuators.map((a) => new Actuator(a, d.id));
+    }
+    get defaultNozzle() { return this.nozzles[0] || null; }
+    get defaultCamera() { return this.cameras[0] || null; }
+    getActuatorByName(name) { return this.actuators.find((a) => a.name === name) || null; }
+    getNozzle(id) { return this.nozzles.find((n) => n.id === id) || null; }
+    isCarryingPart() { return this.nozzles.some((n) => n.part !== null); }
+    moveToSafeZ(speed = 1) { jplacer.safeZ(this.id, speed); }
+    toString() { return this.name; }
+}
+beans(Head, ["id", "name", "nozzles", "cameras", "actuators", "defaultNozzle", "defaultCamera"]);
+
+class Feeder {
+    constructor(d) { Object.assign(this, { id: d.id, name: d.name, enabled: d.enabled, partId: d.part, feedCount: d.feedCount }); }
+    get part() { return config.getPart(this.partId); }
+    setFeedCount(count) {
+        jplacer.call("setFeedCount", { feeder: this.id, count: Math.trunc(count) });
+        this.feedCount = Math.trunc(count);
+    }
+    toString() { return this.name; }
+}
+beans(Feeder, ["id", "name", "part", "feedCount"]);
+beans(Feeder, ["enabled"], ["enabled"]);
+
+class Machine {
+    get name() { return now().name; }
+    get heads() { return now().heads.map((h) => new Head(h)); }
+    get defaultHead() { return this.heads[0] || null; }
+    get cameras() { return now().cameras.map((c) => new Camera(c)); }
+    get actuators() { return now().actuators.map((a) => new Actuator(a)); }
+    get feeders() { return now().feeders.map((f) => new Feeder(f)); }
+    getActuatorByName(name) {
+        return this.actuators.concat(...this.heads.map((h) => h.actuators)).find((a) => a.name === name) || null;
+    }
+    getFeeder(id) { return this.feeders.find((f) => f.id === id) || null; }
+    getFeederByName(name) { return this.feeders.find((f) => f.name === name) || null; }
+    home() { jplacer.home(); }
+    toString() { return "Machine " + this.name; }
+}
+beans(Machine, ["name", "heads", "defaultHead", "cameras", "actuators", "feeders"]);
+
+class Configuration {
+    get machine() { return machine; }
+    get parts() { return now().parts.map((p) => new Part(p)); }
+    getPart(id) { return this.parts.find((p) => p.id === id) || null; }
+    toString() { return "Configuration"; }
+}
+beans(Configuration, ["machine", "parts"]);
+
+class Scripting {
+    getScriptsDirectory() {
+        const dir = (process.env.JPLACER_SCRIPTS || "") + "/";
+        return { toString: () => dir };
+    }
+    toString() { return "Scripting"; }
+}
+
+class BoardLocation {
+    constructor(index, d) {
+        Object.assign(this, { index, id: d.id, name: d.name, side: d.side, enabled: d.enabled });
+        const l = d.location;
+        this.location = new Location(LengthUnit.Millimeters, l.x, l.y, l.z, l.rotation);
+    }
+    setEnabled(enabled) {
+        jplacer.call("setBoardEnabled", { board: this.index, enabled: !!enabled });
+        this.enabled = !!enabled;
+    }
+    toString() { return this.name; }
+}
+beans(BoardLocation, ["id", "name", "side", "location"]);
+beans(BoardLocation, ["enabled"], ["enabled"]);
+
+class Job {
+    get boardLocations() { return jplacer.call("job").boards.map((b, i) => new BoardLocation(i, b)); }
+    get file() { return jplacer.call("job").file; }
+}
+beans(Job, ["boardLocations", "file"]);
+
+class JobTab {
+    get job() { return new Job(); }
+    refresh() { jplacer.call("refreshJob"); }
+}
+beans(JobTab, ["job"]);
+
+// OpenPnP's main window, as far as scripts use it: the Job tab.
+class Gui {
+    constructor() { this.jobTab = new JobTab(); }
+    toString() { return "MainFrame"; }
+}
+beans(Gui, ["jobTab"]);
+
+const Utils2D = {
+    calculateBoardPlacementLocation(board, location = new Location()) {
+        const l = location.convertToUnits(LengthUnit.Millimeters);
+        const r = jplacer.call("boardPlacementLocation",
+                               { board: board.index, location: { x: l.x, y: l.y, z: l.z, rotation: l.rotation } });
+        return new Location(LengthUnit.Millimeters, r.x, r.y, r.z, r.rotation);
+    },
+};
+const VisionUtils = { readQrCode: (camera) => jplacer.call("readQrCode", { camera: camera.id }) };
+
+const machine = new Machine();
+const config = new Configuration();
+const scripting = new Scripting();
+const gui = new Gui();
+
+// The Java packages OpenPnP's scripts use, as far as jplacer has them.
+const UiUtils = {
+    submitUiMachineTask(task) {
+        try {
+            return task();
+        } catch (e) {
+            jplacer.call("dialog", { title: "Error", text: String(e && e.message ? e.message : e) });
+            throw e;
+        }
+    },
+};
+UiUtils["submitUiMachineTask(Thrunnable)"] = UiUtils.submitUiMachineTask;
+const engines = () => [
+    ["node", process.versions.node, "javascript", ["js"]], ["python3", "", "python", ["py"]], ["sh", "", "shell", ["sh"]],
+].map(([engine, version, language, extensions]) => ({
+    getEngineName: () => engine, getEngineVersion: () => version, getLanguageName: () => language,
+    getLanguageVersion: () => version, getExtensions: () => "[" + extensions.join(", ") + "]",
+}));
+const org = { openpnp: { model: { Location, LengthUnit, Part }, util: { UiUtils, Utils2D, VisionUtils } } };
+const javax = {
+    swing: { JOptionPane: { showMessageDialog: (parent, message, title) =>
+        jplacer.call("dialog", { title: title ? String(title) : "Message", text: String(message) }) } },
+    script: { ScriptEngineManager: class { getEngineFactories() { return engines(); } } },
+};
+
+// Nashorn's own syntax, as node takes it: `for each (x in list)` is `for (x of list)`.
+function nashorn(source) {
+    return source.replace(/for\s+each\s*\(\s*((?:var|let|const)\s+)?([A-Za-z_$][\w$]*)\s+in\s+/g, "for ($1$2 of ");
+}
+
+// The script at `file` run as OpenPnP runs it.
+function run(file) {
+    const context = vm.createContext({
+        machine, config, scripting, gui, org, javax, Packages: { org, javax },
+        print: (...values) => console.log(values.join(" ")),
+        JavaImporter: function (...packages) { return Object.assign({}, ...packages); },
+        require, console, process, module: { exports: {} }, __filename: file, __dirname: require("path").dirname(file),
+    });
+    context.exports = context.module.exports;
+    for (const [name, value] of Object.entries(jplacer.globals)) context[name] = value;   // what it is run for
+    context.load = (path) => vm.runInContext(nashorn(fs.readFileSync(String(path), "utf8")), context, { filename: String(path) });
+    context.load(file);
+}
+
+module.exports = { run, nashorn, Location, LengthUnit, machine, config, scripting };
+)JS";
 
 // The Java packages OpenPnP's Python scripts import, as far as jplacer has them:
 // each (a path under the scripts) and what it holds.
@@ -430,7 +758,7 @@ const std::vector<std::pair<const char*, const char*>> kOpenPnpPackages {
     { "org/__init__.py", "" },
     { "org/openpnp/__init__.py", "" },
     { "org/openpnp/model/__init__.py", "from jplacer_openpnp import Location, LengthUnit, Part\n" },
-    { "org/openpnp/util/__init__.py", "" },
+    { "org/openpnp/util/__init__.py", "from jplacer_openpnp import Utils2D, VisionUtils\n" },
     { "org/openpnp/util/UiUtils.py",
       "# OpenPnP's UiUtils: a machine task run now; an error it raises shown, as OpenPnP shows it.\n"
       "import jplacer\n\n"
@@ -470,6 +798,9 @@ constexpr const char* kHelpersDir = ".jplacer";
 constexpr const char* kOldModuleHeaderPython = "# jplacer's machine, for the scripts jplacer runs (as OpenPnP's scripts have `machine`).";
 constexpr const char* kOldModuleHeaderNode = "// jplacer's machine, for the scripts jplacer runs (as OpenPnP's scripts have `machine`).";
 
+// A JavaScript script started as OpenPnP's Nashorn runs it.
+constexpr const char* kNodeStart = "require('jplacer_openpnp').run(process.argv[1])";
+
 // A Python script started with OpenPnP's globals.
 constexpr const char* kPythonStart =
     "import sys, runpy, jplacer_openpnp; jplacer_openpnp.install(); sys.argv = sys.argv[1:]; "
@@ -495,6 +826,7 @@ JPScripting::JPScripting(std::string scriptsDirectory) : m_directory(std::move(s
     keep(helpers / "jplacer.py", kPythonModule);
     keep(helpers / "jplacer.js", kNodeModule);
     keep(helpers / "jplacer_openpnp.py", kOpenPnpModel);
+    keep(helpers / "jplacer_openpnp.js", kOpenPnpModelJs);
     for (const auto& [file, text] : kOpenPnpPackages) {
         fs::create_directories((helpers / file).parent_path(), ec);
         keep(helpers / file, text);
@@ -568,11 +900,12 @@ bool JPScripting::execute(const std::string& path, const JJson& globals, std::st
     std::vector<char*> envp;
     for (std::string& e : env) envp.push_back(e.data());
     envp.push_back(nullptr);
-    std::string prog = program, file = path, dashC = "-c", start = kPythonStart;
-    // Python: started with OpenPnP's globals (machine, config, scripting, gui).
+    // Python and JavaScript: started with OpenPnP's globals (machine, config, scripting, gui).
+    std::string prog = program, file = path, dashC = "-c", dashE = "-e", pythonStart = kPythonStart, nodeStart = kNodeStart;
     char* plain[] = { prog.data(), file.data(), nullptr };
-    char* python[] = { prog.data(), dashC.data(), start.data(), file.data(), nullptr };
-    char** argv = ext == ".py" ? python : plain;
+    char* python[] = { prog.data(), dashC.data(), pythonStart.data(), file.data(), nullptr };
+    char* node[] = { prog.data(), dashE.data(), nodeStart.data(), file.data(), nullptr };
+    char** argv = ext == ".py" ? python : ext == ".js" ? node : plain;
     posix_spawn_file_actions_t actions;
     posix_spawn_file_actions_init(&actions);
     posix_spawn_file_actions_adddup2(&actions, out[1], STDOUT_FILENO);

@@ -745,6 +745,9 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
 
     // Running the job: a failure's source chosen where it is shown, as OpenPnP does.
     m_jobRun = std::make_unique<JPlacerJobRun>(m_window, job, machine, *m_jobPanel);
+    // What scripts ask of the job (OpenPnP's gui.jobTab, Utils2D, VisionUtils.readQrCode).
+    m_machine.scriptJobMachine = [this]() -> JPJobMachine* { return &m_jobRun->jobMachine(); };
+    m_machine.onScriptJobRequest = [this](const JJson& request) { return scriptJobRequest(request); };
     // The vision pages' tests, on the machine as the job runs it.
     m_visionTests = std::make_unique<JPlacerVisionTests>(m_job, m_machine, *m_jobRun);
     auto visionTest = [this](const std::string& id, const JPVisionForms::Holder& holder, const std::string& test) {
@@ -870,6 +873,8 @@ JPlacerOpenPnpTabs::~JPlacerOpenPnpTabs() {
     m_layout.remove(m_packagesDock.get());
     m_packagesDock->setContent(nullptr);
     m_machine.onImported = nullptr;
+    m_machine.onScriptJobRequest = nullptr;
+    m_machine.scriptJobMachine = nullptr;
     m_layout.remove(m_feedersDock.get());
     m_feedersDock->setContent(nullptr);
     m_layout.remove(m_logDock.get());
@@ -1062,6 +1067,50 @@ void JPlacerOpenPnpTabs::ensurePhotonActuator() {
             m_machine.ensurePhotonActuator();
             return;
         }
+}
+
+JJson JPlacerOpenPnpTabs::scriptJobRequest(const JJson& request) {
+    JJson answer = JJson::object();
+    const std::string call = request["call"].str();
+    const std::vector<JPBoardLocation*> boards = m_job.job().boardLocations();
+    const JJson& index = request["board"];
+    JPBoardLocation* board = index.isNumber() && index.number() >= 0 && size_t(index.number()) < boards.size()
+                           ? boards[size_t(index.number())] : nullptr;
+    auto mm = [](const JPLocation& l) {
+        const JPLocation m = l.convertToUnits(JPLengthUnit::Millimeters);
+        JJson o = JJson::object();
+        o["x"] = m.x();
+        o["y"] = m.y();
+        o["z"] = m.z();
+        o["rotation"] = m.rotation();
+        return o;
+    };
+    if (call == "job") {
+        JJson list = JJson::array();
+        for (const JPBoardLocation* b : boards) {
+            JJson o = JJson::object();
+            o["id"] = b->id;
+            o["name"] = std::filesystem::path(b->fileName).filename().string();
+            o["side"] = b->globalSide() == JPSide::Bottom ? "Bottom" : "Top";
+            o["enabled"] = b->locallyEnabled;
+            o["location"] = mm(b->globalLocation());
+            list.push(o);
+        }
+        answer["result"]["file"] = m_job.job().file;
+        answer["result"]["boards"] = list;
+    } else if (!board && call != "refreshJob") {
+        answer["error"] = std::string("no such board in the job");
+    } else if (call == "setBoardEnabled") {
+        board->locallyEnabled = request["enabled"].boolean();
+        m_job.changed();
+    } else if (call == "boardPlacementLocation") {
+        const JJson& l = request["location"];
+        answer["result"] = mm(board->placementLocation(JPLocation(JPLengthUnit::Millimeters, l["x"].number(), l["y"].number(),
+                                                                  l["z"].number(), l["rotation"].number())));
+    } else if (call == "refreshJob") {
+        m_job.changed();
+    }
+    return answer;
 }
 
 } // inline namespace jf

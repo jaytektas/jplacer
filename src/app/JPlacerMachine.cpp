@@ -72,6 +72,8 @@ constexpr const char* kOpenPnpMachineFile = "machine.xml";
 constexpr const char* kSamplesDir = "samples";
 // The scripts' folder, in the configuration and among OpenPnP's defaults (its Example scripts).
 constexpr const char* kScriptsDir = "scripts";
+// A camera brought forward for a task runs this long at least, shown or not (each look renews it).
+constexpr int kTaskCameraMs = 10000;
 
 } // namespace
 
@@ -1262,7 +1264,10 @@ JPCameraFeed* JPlacerMachine::upCameraFeed() const {
 
 void JPlacerMachine::showCamera(const std::string& cameraId) {
     for (CameraDock& d : m_cameras)
-        if (d.panel->camera().id == cameraId) bringForward(*d.panel);
+        if (d.panel->camera().id == cameraId) {
+            bringForward(*d.panel);
+            d.panel->keepRunning(kTaskCameraMs);   // its pictures needed, shown or not
+        }
 }
 
 std::string JPlacerMachine::chosenNozzleId() const {
@@ -1508,7 +1513,7 @@ JJson JPlacerMachine::scriptRequest(const JJson& request) {
     const JPCellConfig& cfg = m_cell->config();
     // Waiting for the cell from its own thread would never end (an actuator's script, a homing event's).
     const bool moves = call == "moveTo" || call == "safeZ" || call == "home" || call == "actuate" || call == "read"
-                    || call == "pick" || call == "place";
+                    || call == "pick" || call == "place" || call == "readQrCode";
     if (moves && m_cell->onCellThread())
         return fail(call + " cannot be asked from a script the machine itself is running (an actuator's, or a homing event's)");
     // A tool by its name or id: a nozzle, a camera or an actuator on a head.
@@ -1684,6 +1689,18 @@ JJson JPlacerMachine::scriptRequest(const JJson& request) {
             }))
             return fail("jplacer is closing");
         if (!found) return fail("no feeder " + request["feeder"].str());
+    } else if (call == "job" || call == "setBoardEnabled" || call == "boardPlacementLocation" || call == "refreshJob") {
+        if (!onScriptJobRequest) return fail("no job");
+        if (!onMainWait([&] { answer = onScriptJobRequest(request); })) return fail("jplacer is closing");
+    } else if (call == "readQrCode") {
+        // OpenPnP's VisionUtils.readQrCode: what a QR code under the head camera says, where it is now.
+        JPJobMachine* jm = scriptJobMachine ? scriptJobMachine() : nullptr;
+        if (!jm) return fail("no camera to read with");
+        const auto at = jm->cameraLocation();
+        if (!at) return fail("where the camera is is not known");
+        std::vector<JPJobMachine::QrCode> codes;
+        if (!jm->readQrCodes(*at, codes, why)) return fail(why);
+        answer["result"] = codes.empty() ? JJson() : JJson(codes.front().text);
     } else if (call == "dialog") {
         // OpenPnP's JOptionPane.showMessageDialog, shown without waiting.
         std::weak_ptr<bool> alive = m_alive;

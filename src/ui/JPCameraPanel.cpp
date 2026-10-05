@@ -124,6 +124,7 @@ void JPCameraPanel::start() {
 
 void JPCameraPanel::stopIfHidden() {
     if (m_busy || !m_feeding.empty() || !m_feed.isRunning()) return;
+    if (std::chrono::steady_clock::now() < m_keepUntil) return;
     // Hidden: asked to draw a while ago and not drawn since (behind another
     // tab, or closed). Drawn since the last asking: asked again. However long
     // a camera takes to give its first picture, nothing is judged until then.
@@ -175,6 +176,11 @@ void JPCameraPanel::setBusy(bool busy) {
     // A task needs pictures whether or not anyone is looking.
     m_busy = busy;
     if (busy && !m_feed.isRunning()) start();
+}
+
+void JPCameraPanel::keepRunning(int ms) {
+    m_keepUntil = std::chrono::steady_clock::now() + std::chrono::milliseconds(ms);
+    if (!m_feed.isRunning()) start();
 }
 
 void JPCameraPanel::setFeeding(const std::string& cameraId, bool feeding) {

@@ -9,6 +9,7 @@
 #include "JPlacerPnpChecking.h"
 #include "JPlacerTestMotion.h"
 #include "JPlacerTipChanges.h"
+#include "tasks/JPJobMachine.h"
 
 #include "machine/JPCell.h"
 #include "machine/JPScripting.h"
@@ -158,6 +159,11 @@ public:
     // settings shown); shown again when the settings change elsewhere.
     void setSetupVisionTests(JPVisionTests tests);
     std::function<void()> onSetupConfigurationChanged;
+    // A script's request of the job (OpenPnP's gui.jobTab: the board locations,
+    // enabling one, a place on one), answered on the screen's thread.
+    std::function<JJson(const JJson& request)> onScriptJobRequest;
+    // The machine a job runs on, for a script's vision (OpenPnP's VisionUtils.readQrCode).
+    std::function<JPJobMachine*()> scriptJobMachine;
     // Calibrate a camera, or an X or Y axis's backlash (as Machine Setup's
     // buttons do); `finished`: whether it was done.
     void calibrateCamera(const std::string& cameraId, std::function<void(bool ok)> finished);

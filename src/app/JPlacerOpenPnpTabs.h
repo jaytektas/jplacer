@@ -64,6 +64,8 @@ public:
     void importBoard(const JPBoardImporter& importer);
 
 private:
+    // A script's request of the job (JPlacerMachine::onScriptJobRequest).
+    JJson scriptJobRequest(const JJson& request);
     // Asks about one changed board or panel, saving it on Yes; `then` after any answer.
     void confirmSave(JPPlacementsHolder& holder, std::function<void()> then);
     void confirmSaveAll(std::vector<std::string> files, std::function<void()> then);
