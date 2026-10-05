@@ -98,6 +98,10 @@ public:
     // The place row begun moves and captures with the actuator `name` names
     // (when not empty) in place of the nozzle.
     void actuator(std::function<std::string()> name) { rows().back().actuator = std::move(name); }
+    // The place row begun also has OpenPnP's Position Tool (Without Safe Z) button.
+    void positionNoSafeZ() { rows().back().positionNoSafeZ = true; }
+    // The place row begun also has OpenPnP's Contact Probe Tool button.
+    void contactProbe() { rows().back().contactProbe = true; }
     // The place row begun is offsets from `base` (Row::base).
     void base(std::function<std::optional<JPLocation>()> base) { rows().back().base = std::move(base); }
     // An icon button on the row begun (OpenPnP's icon `icon`): the owner does `action`.

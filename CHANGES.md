@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- OpenPnP's other location buttons: Position Tool (Without Safe Z) on a motion test's stops, a tool changer's
+  locations and a push-pull feeder's places, and Contact Probe Tool on a tool changer's Touch Location, which
+  probes its Z.
 - OpenPnP's linear transform axes: an axis can be its inputs (X, Y, Z, rotation) times factors plus an offset, for a
   turned or skewed head; OpenPnP machines with them come in as they are.
 - A controller's Keep Alive, as OpenPnP's: Disconnect leaves its connection open, so a board that resets when its port

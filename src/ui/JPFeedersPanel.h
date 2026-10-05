@@ -54,10 +54,11 @@ public:
     // The machine: where the camera or chosen nozzle is, taking it somewhere
     // at safe Z, and the chosen nozzle's pick at a place.
     std::function<Where(Tool)> whereIs;
-    std::function<void(Tool, const Where&)> moveTo;
+    // `straight`: not by way of safe Z (Position Tool (Without Safe Z)).
+    std::function<void(Tool, const Where&, bool straight)> moveTo;
     // The same for an actuator on the head, by its name (a drag feeder's pin).
     std::function<Where(const std::string& actuator)> whereIsActuator;
-    std::function<void(const std::string& actuator, const Where&)> moveActuatorTo;
+    std::function<void(const std::string& actuator, const Where&, bool straight)> moveActuatorTo;
     // The head camera's live picture, brought to the front, for a drag
     // feeder's template image and area of interest to be selected on; none
     // without a camera on the head.
@@ -132,7 +133,7 @@ private:
     void capture(const JPSetupProperties::Row& row, Tool tool);
     // A place captured (X, Y, Z, rotation; one not known left as it is) put in the row, from its base when it has one.
     void applyCapture(const JPSetupProperties::Row& row, Where now);
-    void goTo(const JPSetupProperties::Row& row, Tool tool);
+    void goTo(const JPSetupProperties::Row& row, Tool tool, bool straight = false);
     void changed();
     // The form made again for the feeder shown (its buttons changed), scrolled as it was.
     void rebuildForm();

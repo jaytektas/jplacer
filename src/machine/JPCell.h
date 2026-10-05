@@ -229,6 +229,8 @@ public:
     // rotation given, then down to Z when one is given. A coordinate not
     // given stays as it is. Refused while a move is under way.
     void moveTool(const JPMountConfig& mount, std::array<std::optional<double>, 4> to, double speed);
+    // The same, straight there (not by way of safe Z): OpenPnP's Position Tool (Without Safe Z).
+    void moveToolStraight(const JPMountConfig& mount, std::array<std::optional<double>, 4> to, double speed);
     // Move axes to coordinates, by axis id. Checked against soft limits; a
     // mapped axis moves its input axis. Runs on the cell thread; the outcome
     // arrives as onMotion.

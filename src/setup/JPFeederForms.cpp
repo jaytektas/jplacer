@@ -996,6 +996,7 @@ void pushPullForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPF
     auto place = [&](const char* label, const char* element, const char* push, const char* multi, const char* pull, bool pushDef,
                      bool multiDef, bool pullDef) {
         add.row(label, Place::Location);
+        add.positionNoSafeZ();
         add.actuator([f] { return f().text("actuator-name"); });
         coordinate(add, f, element, Axis::X, "X");
         coordinate(add, f, element, Axis::Y, "Y");

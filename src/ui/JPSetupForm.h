@@ -67,6 +67,9 @@ public:
     // A place row's (or an axis row's) take-it-from-the-machine and go-there buttons.
     std::function<void(const JPSetupProperties::Row& row, Tool tool)> onCapture;
     std::function<void(const JPSetupProperties::Row& row, Tool tool)> onMoveTo;
+    // OpenPnP's Position Tool (Without Safe Z), and Contact Probe Tool (the row's Z probed).
+    std::function<void(const JPSetupProperties::Row& row, Tool tool)> onMoveToStraight;
+    std::function<void(const JPSetupProperties::Row& row)> onContactProbe;
 
 private:
     std::unique_ptr<JWidget> page(const JPSetupProperties::Tab& tab);
@@ -75,6 +78,8 @@ private:
     std::unique_ptr<JWidget> editor(const JProperty& p, float width);
     std::unique_ptr<JButton> button(const JPSetupProperties::Cell& c);
     void attachPages(int active);
+    // OpenPnP's Position Tool (Without Safe Z) and Contact Probe Tool, on the rows that have them.
+    void optionalPlaceButtons(JContainer& row, const JPSetupProperties::Row& r);
     void locationButtons(JContainer& row, const JPSetupProperties::Row& r);
     // How wide a control for `p` is, as it is laid out.
     float widthOf(const JProperty& p) const;

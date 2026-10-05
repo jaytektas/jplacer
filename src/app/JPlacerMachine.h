@@ -128,12 +128,17 @@ public:
     // across (and turned) to X, Y and the rotation, then down to `at`'s Z (a
     // coordinate not given stays as it is). False, the reason shown, when
     // the machine cannot move.
-    bool moveToolTo(JPSetupForm::Tool tool, const Where& at);
+    // `straight`: not by way of safe Z (OpenPnP's Position Tool (Without Safe Z)).
+    bool moveToolTo(JPSetupForm::Tool tool, const Where& at, bool straight = false);
+    // OpenPnP's Contact Probe Tool: the chosen contact probing nozzle over `at`
+    // (its Start Offset above), probed down and back; `done` (on the screen's
+    // thread) with the Z it met. False, and said, when it cannot start.
+    bool contactProbeAt(const Where& at, std::function<void(double z)> done);
     bool moveToolTo(JPSetupForm::Tool tool, const JPLocation& at);
     // The same for an actuator on the head, by its OpenPnP name (a drag
     // feeder's pin): where it is, and taken to `at` at safe Z.
     Where whereIsActuator(const std::string& name) const;
-    bool  moveActuatorTo(const std::string& name, const Where& at);
+    bool  moveActuatorTo(const std::string& name, const Where& at, bool straight = false);
     // The head camera's live picture, brought to the front (a selection is
     // made on it); none when there is no camera on the head.
     JPCameraView* headCameraView();

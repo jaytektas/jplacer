@@ -89,6 +89,10 @@ public:
     // Take the camera or nozzle to a place (a coordinate left empty stays),
     // or an axis to a position.
     std::function<void(JPSetupForm::Tool tool, const Where& to)> moveTo;
+    // Straight there, not by way of Safe Z (OpenPnP's Position Tool (Without Safe Z)).
+    std::function<void(JPSetupForm::Tool tool, const Where& to)> moveToStraight;
+    // The chosen contact probing nozzle over `at`, probed down: `done` with the Z found.
+    std::function<bool(const Where& at, std::function<void(double z)> done)> contactProbeAt;
     std::function<void(const std::string& axisId, double to)> moveAxis;
     // OpenPnP's ClassSelectionDialog: one of `classes` chosen (empty: cancelled).
     std::function<void(const std::string& title, const std::string& description, const std::vector<std::string>& classes,
@@ -144,7 +148,8 @@ private:
     void capture(const JPSetupProperties::Row& row, JPSetupForm::Tool tool);
     // The values captured put in the row (one not known left as it is), a step to undo.
     void applyCapture(const JPSetupProperties::Row& row, const Where& now, const std::string& at);
-    void goTo(const JPSetupProperties::Row& row, JPSetupForm::Tool tool);
+    void goTo(const JPSetupProperties::Row& row, JPSetupForm::Tool tool, bool straight = false);
+    void probe(const JPSetupProperties::Row& row);
     // A change was made to m_draft: a step to undo, handed over.
     // `from`: the node selected when it was made, to go back to on Undo.
     void record(const std::string& what, const std::string& key, const std::string& from);

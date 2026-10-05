@@ -356,10 +356,12 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         m_window.openModal<JPlacerClassSelectionDialog>(title, description, classes, std::move(chosen));
     };
     m_feeders->whereIs = [this](JPFeedersPanel::Tool t) { return m_machine.whereIs(t); };
-    m_feeders->moveTo = [this](JPFeedersPanel::Tool t, const JPFeedersPanel::Where& to) { m_machine.moveToolTo(t, to); };
+    m_feeders->moveTo = [this](JPFeedersPanel::Tool t, const JPFeedersPanel::Where& to, bool straight) {
+        m_machine.moveToolTo(t, to, straight);
+    };
     m_feeders->whereIsActuator = [this](const std::string& name) { return m_machine.whereIsActuator(name); };
-    m_feeders->moveActuatorTo = [this](const std::string& name, const JPFeedersPanel::Where& to) {
-        m_machine.moveActuatorTo(name, to);
+    m_feeders->moveActuatorTo = [this](const std::string& name, const JPFeedersPanel::Where& to, bool straight) {
+        m_machine.moveActuatorTo(name, to, straight);
     };
     m_feeders->cameraView = [this] { return m_machine.headCameraView(); };
     m_feeders->setHal(&m_window.hal());

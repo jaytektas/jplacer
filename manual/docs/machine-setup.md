@@ -180,6 +180,17 @@ row of coordinates ending in four buttons:
 - **Move Camera** and **Move Nozzle** go there: up to safe Z, across, and, for the nozzle, down to the Z
   given. The machine must be connected and homed; the speed is the Jog panel's.
 
+Where OpenPnP has them, two more follow:
+
+- **Position Tool (Without Safe Z)**, on a motion test's stops and a tool changer's locations: the nozzle goes
+  there straight, without going up to safe Z first.
+- **Contact Probe Tool**, on a tool changer's **Touch Location**: the nozzle chosen on the Jog panel, which
+  must be a contact probe nozzle, goes over the place at its Z plus the probe's Start Offset, probes down
+  as far as the Start Offset and Depth, goes back up, and the Z it touched at is put in the place: one step to
+  undo.
+
+<!-- src: src/ui/JPSetupForm.cpp (optionalPlaceButtons); src/setup/JPSetupProperties.cpp; src/ui/JPMachineSetupPanel.cpp (goTo, probe); src/app/JPlacerMachine.cpp (contactProbeAt) -->
+
 A soft limit or safe zone end has the same two kinds of button for its axis: set it from where the axis is,
 or move the axis there.
 

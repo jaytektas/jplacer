@@ -133,6 +133,7 @@ void motionPlannerTabs(JPCellConfig& cell, JPFormBuilder& add, const JPMotionTes
         auto at = [mp, i]() -> JPMachineLocation& { return mp().stops[i].at; };
         const std::string n = "testMotion" + std::to_string(i + 1);
         add.row(kStops[i], JPFormBuilder::Place::Location);
+        add.positionNoSafeZ();
         add.length(n + "X", std::string(kStops[i]) + " X", [at]() -> double& { return at().x; });
         add.length(n + "Y", std::string(kStops[i]) + " Y", [at]() -> double& { return at().y; });
         add.length(n + "Z", std::string(kStops[i]) + " Z", [at]() -> double& { return at().z; });
@@ -1097,6 +1098,7 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
         for (size_t k = 0; k < 4; ++k) {
             const std::string n = std::to_string(k + 1);
             add.row(kLocations[k], form->at[k] ? Place::Location : Place::None);
+            add.positionNoSafeZ();
             if (form->at[k]) {
                 auto coordinate = [&](const char* key, const char* label, double JPMachineLocation::*field, bool rotation) {
                     add.coordinate(rotation, std::string("changer") + key + n, label,
@@ -1208,6 +1210,7 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
         add.header({ "X", "Y", "Z", "Rotation", "Set?" });
         auto touch = [t]() -> std::optional<JPMachineLocation>& { return t().touchLocation; };
         add.row("Touch Location", touch() ? Place::Location : Place::None);
+        add.contactProbe();
         if (touch()) {
             add.length("touchX", "Touch X", [touch]() -> double& { return touch()->x; });
             add.length("touchY", "Touch Y", [touch]() -> double& { return touch()->y; });

@@ -547,6 +547,7 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
                             if (handler) handler(r, b.tool);
                         });
                     }
+                    optionalPlaceButtons(*row, r);
                 }
                 // Icon buttons last, as OpenPnP puts its own beside a place's.
                 for (const JPSetupProperties::Cell& c : r.cells) {
@@ -592,6 +593,29 @@ std::unique_ptr<JButton> JPSetupForm::button(const JPSetupProperties::Cell& c) {
     return b;
 }
 
+void JPSetupForm::optionalPlaceButtons(JContainer& row, const Row& r) {
+    const bool actuator = r.actuator && !r.actuator().empty();
+    if (r.positionNoSafeZ) {
+        JPIconButton* straight = row.add(std::make_unique<JPIconButton>(
+            m_graph, actuator ? "Position Actuator (Without Safe Z)" : "Position Tool (Without Safe Z)",
+            "position-nozzle-no-safe-z",
+            actuator ? "Position the actuator over the center of the location without first moving to Safe Z."
+                     : "Position the tool over the center of the location without first moving to Safe Z."));
+        const Tool tool = actuator ? Tool::Actuator : Tool::Nozzle;
+        straight->onClicked.connect([this, r, tool] {
+            if (onMoveToStraight) onMoveToStraight(r, tool);
+        });
+    }
+    if (r.contactProbe) {
+        JPIconButton* probe = row.add(std::make_unique<JPIconButton>(
+            m_graph, "Contact Probe Tool", "contact-probe-nozzle",
+            "Position the tool over the center of the location then contact-probe Z."));
+        probe->onClicked.connect([this, r] {
+            if (onContactProbe) onContactProbe(r);
+        });
+    }
+}
+
 void JPSetupForm::locationButtons(JContainer& row, const Row& r) {
     // As OpenPnP's LocationButtonsPanel: go there with the camera or the
     // tool, then take it from where the camera or the tool is.
@@ -609,8 +633,11 @@ void JPSetupForm::locationButtons(JContainer& row, const Row& r) {
                  : B { "Get Tool Coordinates", "capture-nozzle", "Capture the location that the tool is centered on.", Tool::Nozzle, true },
     };
     for (const B& b : buttons) {
-        if (b.capture && b.tool == Tool::Camera)
+        if (b.capture && b.tool == Tool::Camera) {
+            // OpenPnP's optional ones, after Position Tool.
+            optionalPlaceButtons(row, r);
             row.add(std::make_unique<JSeparator>(m_graph, JSeparator::JOrientation::Vertical, JPIconButton::size()));
+        }
         JPIconButton* button = row.add(std::make_unique<JPIconButton>(m_graph, b.name, b.icon, b.tip));
         button->onClicked.connect([this, r, b] {
             auto& handler = b.capture ? onCapture : onMoveTo;

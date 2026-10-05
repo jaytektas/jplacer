@@ -235,6 +235,7 @@ JPFeedersPanel::JPFeedersPanel(JSceneGraph& graph, JPConfiguration& config, doub
     };
     m_form->onCapture = [this](const JPSetupProperties::Row& row, Tool t) { capture(row, t); };
     m_form->onMoveTo = [this](const JPSetupProperties::Row& row, Tool t) { goTo(row, t); };
+    m_form->onMoveToStraight = [this](const JPSetupProperties::Row& row, Tool t) { goTo(row, t, true); };
     m_split = add(std::make_unique<JSplitter>(graph, JSplitter::JOrientation::Vertical, 0.f, 0.f));
     m_split->setHostsPanes(true);
     m_split->setVSizePolicy(JSizePolicyMode::Expanding, 1);
@@ -667,7 +668,7 @@ void JPFeedersPanel::moveToPick(Tool tool) {
     // The camera over it at safe Z; the tool down to it, as OpenPnP moves them.
     Where to { l.x(), l.y(), l.z(), l.rotation() };
     if (tool == Tool::Camera) to[2].reset();
-    if (moveTo) moveTo(tool, to);
+    if (moveTo) moveTo(tool, to, false);
 }
 
 void JPFeedersPanel::capture(const JPSetupProperties::Row& row, Tool tool) {
@@ -717,7 +718,7 @@ void JPFeedersPanel::applyCapture(const JPSetupProperties::Row& row, Where now) 
     changed();
 }
 
-void JPFeedersPanel::goTo(const JPSetupProperties::Row& row, Tool tool) {
+void JPFeedersPanel::goTo(const JPSetupProperties::Row& row, Tool tool, bool straight) {
     Where to;
     for (size_t i = 0; i < row.cells.size() && i < to.size(); ++i) {
         if (row.cells[i].property.empty()) continue;
@@ -736,10 +737,10 @@ void JPFeedersPanel::goTo(const JPSetupProperties::Row& row, Tool tool) {
     // A camera stays at safe Z; a place without Z leaves the tool there too.
     if (tool == Tool::Camera) to[2].reset();
     if (tool == Tool::Actuator) {
-        if (moveActuatorTo && row.actuator) moveActuatorTo(row.actuator(), to);
+        if (moveActuatorTo && row.actuator) moveActuatorTo(row.actuator(), to, straight);
         return;
     }
-    if (moveTo) moveTo(tool, to);
+    if (moveTo) moveTo(tool, to, straight);
 }
 
 } // inline namespace jf

@@ -521,6 +521,10 @@ std::unique_ptr<JPMachineSetupPanel> JPlacerMachine::makeSetup() {
         return i == p.end() ? std::nullopt : std::optional<double>(i->second);
     };
     setup->moveTo = [this](JPSetupForm::Tool tool, const JPMachineSetupPanel::Where& to) { moveToolTo(tool, to); };
+    setup->moveToStraight = [this](JPSetupForm::Tool tool, const JPMachineSetupPanel::Where& to) { moveToolTo(tool, to, true); };
+    setup->contactProbeAt = [this](const JPMachineSetupPanel::Where& at, std::function<void(double)> done) {
+        return contactProbeAt(at, std::move(done));
+    };
     setup->moveAxis = [this](const std::string& axisId, double to) {
         if (!readyToMove()) return;
         m_cell->moveAxes({ { axisId, to } }, 1.0);
@@ -809,14 +813,15 @@ JPlacerMachine::Where JPlacerMachine::whereIsActuator(const std::string& name) c
     return a && !a->mount.headId.empty() ? whereIsMount(&a->mount) : Where {};
 }
 
-bool JPlacerMachine::moveActuatorTo(const std::string& name, const Where& to) {
+bool JPlacerMachine::moveActuatorTo(const std::string& name, const Where& to, bool straight) {
     const JPActuatorConfig* a = m_cell ? m_cell->config().actuatorNamed(name) : nullptr;
     if (!a || a->mount.headId.empty()) {
         m_window.showStatus("No Actuator with name " + name + " on the head", kErrorMs);
         return false;
     }
     if (!readyToMove()) return false;
-    m_cell->moveTool(a->mount, to, 1.0);
+    if (straight) m_cell->moveToolStraight(a->mount, to, 1.0);
+    else m_cell->moveTool(a->mount, to, 1.0);
     selectMoved(a->mount);
     return true;
 }
@@ -904,14 +909,15 @@ std::optional<JPLocation> JPlacerMachine::toolLocation(JPSetupForm::Tool tool) c
     return JPLocation(JPLengthUnit::Millimeters, *at[0], *at[1], at[2].value_or(0), at[3].value_or(0));
 }
 
-bool JPlacerMachine::moveToolTo(JPSetupForm::Tool tool, const Where& to) {
+bool JPlacerMachine::moveToolTo(JPSetupForm::Tool tool, const Where& to, bool straight) {
     const JPMountConfig* m = toolMount(tool);
     if (!m) {
         m_window.showStatus(tool == JPSetupForm::Tool::Camera ? "No camera on a head to move" : "No nozzle to move", kErrorMs);
         return false;
     }
     if (!readyToMove()) return false;
-    m_cell->moveTool(*m, to, 1.0);   // at the machine's speed
+    if (straight) m_cell->moveToolStraight(*m, to, 1.0);
+    else m_cell->moveTool(*m, to, 1.0);   // at the machine's speed
     selectMoved(*m);
     if (tool == JPSetupForm::Tool::Camera)
         for (const JPCameraConfig& cam : m_cell->config().cameras)
@@ -921,6 +927,41 @@ bool JPlacerMachine::moveToolTo(JPSetupForm::Tool tool, const Where& to) {
         if (&cam.mount == m && cam.autoCameraView)
             for (CameraDock& c : m_cameras)
                 if (c.panel->camera().id == cam.id) bringForward(*c.panel);
+    return true;
+}
+
+bool JPlacerMachine::contactProbeAt(const Where& at, std::function<void(double z)> done) {
+    if (!readyToMove() || !at[0] || !at[1] || !at[2]) return false;
+    const std::string id = chosenNozzleId();
+    const JPNozzleConfig* n = nullptr;
+    for (const JPNozzleConfig& z : m_cell->config().nozzles) if (z.id == id) n = &z;
+    if (!n || !n->contactProbe.on()) {
+        m_window.showStatus("Nozzle " + (n ? n->name : id) + " is not a ContactProbeNozzle.", kErrorMs);
+        return false;
+    }
+    const JPMountConfig mount = n->mount;
+    const JPNozzleConfig::ContactProbe p = n->contactProbe;
+    const std::string name = n->name;
+    JPCell* cell = m_cell.get();
+    std::weak_ptr<bool> alive = m_alive;
+    std::thread([this, cell, mount, p, name, id, at, done = std::move(done), alive] {
+        std::string why;
+        double z = 0;
+        // OpenPnP's contactProbeCycle: above the place by the Start Offset, down to meet it, back up.
+        const bool ok = cell->moveToolAndWait(mount, { at[0], at[1], *at[2] + p.startOffsetMm, std::nullopt }, 1.0, why)
+                     && cell->contactProbeAndWait(id, true, p.startOffsetMm + p.depthMm, z, why);
+        double back = 0;
+        std::string ignored;
+        if (ok) cell->contactProbeAndWait(id, false, 0, back, ignored);
+        JMainThreadDispatcher::instance().post([this, ok, z, why, name, done, alive] {
+            if (const auto a = alive.lock(); !a || !*a) return;
+            if (!ok) {
+                m_window.showStatus("Contact probe with " + name + " failed: " + why, kErrorMs);
+                return;
+            }
+            done(z);
+        });
+    }).detach();
     return true;
 }
 

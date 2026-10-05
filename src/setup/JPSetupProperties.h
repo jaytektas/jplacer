@@ -77,6 +77,10 @@ public:
         // LocationButtonsPanel actuatorName), read when it is shown; none
         // or empty: the nozzle chosen.
         std::function<std::string()> actuator;
+        // OpenPnP's optional location buttons: Position Tool (Without Safe Z), and
+        // Contact Probe Tool (the place's Z found by a contact probing nozzle).
+        bool positionNoSafeZ = false;
+        bool contactProbe = false;
         // Place::Location: what its X, Y, Z and rotation are offsets from
         // (OpenPnP's LocationButtonsPanel baseLocation): taken from where the
         // tool is less it, turned back by its rotation; gone to as it, plus

@@ -18,6 +18,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Park all at Safe Z, Auto tool select | done | Machine › Configuration; Jog Z park |
 | Unsafe Z Roaming | done | |
 | Discard location, Default Board Location | done | |
+| Location buttons: Position Camera / Tool / Actuator, Get Coordinates, Position Tool (Without Safe Z), Contact Probe Tool | done | on the rows OpenPnP shows each on |
 | Auto-load most recent job | done | on for a new cell; as OpenPnP's for an imported one |
 | Motion planner: continuous motion | done | Machine › Motion Planner; waits where the machine must stand still (actuator coordination, pick and place, homing, each operation's end) |
 | Motion planner: uncoordinated moves, interpolation retiming, minimum speed | own way | jplacer's movement is kept (as asked): acceleration and jerk are the controller's; OpenPnP's own 3rd-order profiles, sent as interpolated moves, are not used |

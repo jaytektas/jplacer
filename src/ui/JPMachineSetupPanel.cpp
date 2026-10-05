@@ -136,6 +136,8 @@ JPMachineSetupPanel::JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, 
     };
     m_form->onCapture = [this](const JPSetupProperties::Row& row, JPSetupForm::Tool tool) { capture(row, tool); };
     m_form->onMoveTo = [this](const JPSetupProperties::Row& row, JPSetupForm::Tool tool) { goTo(row, tool); };
+    m_form->onMoveToStraight = [this](const JPSetupProperties::Row& row, JPSetupForm::Tool tool) { goTo(row, tool, true); };
+    m_form->onContactProbe = [this](const JPSetupProperties::Row& row) { probe(row); };
 
     m_problems = add(std::make_unique<JLabel>(graph, ""));
     m_problems->setWordWrap(true);
@@ -454,7 +456,7 @@ void JPMachineSetupPanel::applyCapture(const JPSetupProperties::Row& row, const 
     record("Capture " + nameOf(m_draft, at) + ": " + row.label, "", at);
 }
 
-void JPMachineSetupPanel::goTo(const JPSetupProperties::Row& row, JPSetupForm::Tool tool) {
+void JPMachineSetupPanel::goTo(const JPSetupProperties::Row& row, JPSetupForm::Tool tool, bool straight) {
     // A coordinate as a number, or empty (a step's coordinate left out).
     auto value = [this](const std::string& property) -> std::optional<double> {
         if (property.empty()) return std::nullopt;
@@ -474,7 +476,26 @@ void JPMachineSetupPanel::goTo(const JPSetupProperties::Row& row, JPSetupForm::T
     Where to;
     for (size_t i = 0; i < row.cells.size() && i < to.size(); ++i) to[i] = value(row.cells[i].property);
     if (tool == JPSetupForm::Tool::Camera) to[2].reset();   // a camera stays at safe Z
-    if (moveTo) moveTo(tool, to);
+    auto& go = straight ? moveToStraight : moveTo;
+    if (go) go(tool, to);
+}
+
+void JPMachineSetupPanel::probe(const JPSetupProperties::Row& row) {
+    // Where the row says, its Z probed by the chosen contact probing nozzle, and that Z put in it.
+    Where to;
+    for (size_t i = 0; i < row.cells.size() && i < to.size(); ++i) {
+        const JVariant v = m_form->get(row.cells[i].property);
+        if (v.isDouble() || v.isInt()) to[i] = v.toDouble();
+    }
+    if (!to[0] || !to[1] || !to[2] || !contactProbeAt) return;
+    const std::string at = m_selected;
+    const JPSetupProperties::Row r = row;
+    contactProbeAt(to, [this, r, at, alive = std::weak_ptr<bool>(m_alive)](double z) {
+        if (const auto a = alive.lock(); !a || !*a || m_selected != at || r.cells.size() < 3) return;
+        if (!m_form->set(r.cells[2].property, JVariant(z))) return;
+        rebuildTree();
+        record("Contact probe " + nameOf(m_draft, at) + ": " + r.label, "", at);
+    });
 }
 
 void JPMachineSetupPanel::update() {

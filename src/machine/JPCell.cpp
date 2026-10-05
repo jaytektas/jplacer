@@ -1806,6 +1806,20 @@ std::vector<JPCameraCalibration> JPCell::cameraCalibrations(const std::string& c
     return {};
 }
 
+void JPCell::moveToolStraight(const JPMountConfig& mount, std::array<std::optional<double>, 4> to, double speed) {
+    if (m_moving.exchange(true)) {
+        JLOGC(JPlacerLog::kCell, JLogLevel::Debug) << "move refused: one is under way";
+        return;
+    }
+    m_thread.post([this, mount, to, speed] {
+        std::string why;
+        const bool ok = finished(doMoveTool(mount, to, speed, false, why), why);
+        m_moving = false;
+        if (!ok) JLOGC(JPlacerLog::kCell, JLogLevel::Warn) << "move refused: " << why;
+        onMotion.emit(ok, why);
+    });
+}
+
 void JPCell::moveTool(const JPMountConfig& mount, std::array<std::optional<double>, 4> to, double speed) {
     if (m_moving.exchange(true)) {
         JLOGC(JPlacerLog::kCell, JLogLevel::Debug) << "move refused: one is under way";
