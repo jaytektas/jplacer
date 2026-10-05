@@ -112,8 +112,8 @@ public:
     // A button on the row begun (or a row of its own) that changes the part
     // itself (Form::edits): `what` names it as a step to undo.
     void editButton(const std::string& action, const std::string& label, const std::string& what,
-                    std::function<void()> apply) {
-        button(action, label);
+                    std::function<void()> apply, bool enabled = true) {
+        button(action, label, "", enabled);
         m_form.edits[action] = { what, std::move(apply) };
     }
     // Buttons: (label, action) each; the owner does the action.

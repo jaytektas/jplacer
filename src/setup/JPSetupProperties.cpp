@@ -1180,6 +1180,9 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
     const JPNozzleTipConfig* templ = nullptr;
     for (const JPNozzleTipConfig& tip : cell.nozzleTips)
         if (tip.templateTip) templ = &tip;
+    const bool zProbing = std::any_of(cell.nozzles.begin(), cell.nozzles.end(), [](const JPNozzleConfig& n) { return n.contactProbe.on(); });
+    // What a clone takes: chosen for the session, all to begin with, as OpenPnP's form opens.
+    static JPNozzleTipConfig::ClonedParts parts;
     if (t().templateTip) {
         add.editButton("cloneToAll", "Clone Tool Changer Settings to all Nozzle Tips", "Clone Tool Changer Settings to all",
                        [&cell, id] {
@@ -1189,27 +1192,39 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
                            if (!from) return;
                            const JPNozzleTipConfig source = *from;
                            for (JPNozzleTipConfig& tip : cell.nozzleTips)
-                               if (tip.id != id) tip.cloneChangerFrom(source);
+                               if (tip.id != id) tip.cloneChangerFrom(source, parts);
                        });
         add.tip("Clone the Tool Changer settings from this Template nozzle tip, to all the others. Locations are "
                 "translated relative to First Locations.");
-    } else if (!t().templateLocked && templ) {
-        const std::string templateId = templ->id;
+    } else {
+        const std::string templateId = templ ? templ->id : std::string();
         add.editButton("cloneFromTemplate", "Clone Tool Changer Settings from Template", "Clone Tool Changer Settings from Template",
                        [t, &cell, templateId] {
                            for (const JPNozzleTipConfig& tip : cell.nozzleTips)
                                if (tip.id == templateId) {
                                    const JPNozzleTipConfig source = tip;
-                                   t().cloneChangerFrom(source);
+                                   t().cloneChangerFrom(source, parts);
                                }
-                       });
+                       },
+                       // Not for a locked tip, nor with no template to clone from.
+                       !t().templateLocked && templ);
         add.tip("Clone the tool changer settings from the nozzle tip marked as Template. All the locations are "
                 "translated relative to First Location.");
     }
+    add.row("Locations?");
+    add.flag("cloneLocations", "Locations?", [] { return parts.locations; }, [](bool on) { parts.locations = on; });
+    if (zProbing)
+        add.flag("cloneZCalibration", "Z Calibration?", [] { return parts.zCalibration; }, [](bool on) { parts.zCalibration = on; });
+    add.end();
+    add.button("referenceTouchZ", "Calibrate all Touch Locations' Z to Template",
+               "Calibrate all the nozzle tip's touch location Z to the Template reference. This will load the template "
+               "nozzle tip on the default probing nozzle, recalibrate the template's touch location Z and then probe and "
+               "reference all the others to it. Note, unlike cloning this does include nozzle tips marked as Locked.",
+               t().templateTip);
     add.note("Cloning needs a first move in this tip's loading steps and in the template's: it is where each is "
              "taken from.");
     // OpenPnP's Z calibration by touch: shown where a nozzle probes by contact.
-    if (std::any_of(cell.nozzles.begin(), cell.nozzles.end(), [](const JPNozzleConfig& n) { return n.contactProbe.on(); })) {
+    if (zProbing) {
         add.group("Z Calibration");
         add.header({ "X", "Y", "Z", "Rotation", "Set?" });
         auto touch = [t]() -> std::optional<JPMachineLocation>& { return t().touchLocation; };

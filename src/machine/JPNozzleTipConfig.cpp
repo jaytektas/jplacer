@@ -269,7 +269,7 @@ JJson JPNozzleTipConfig::toJson() const {
     return j;
 }
 
-bool JPNozzleTipConfig::cloneChangerFrom(const JPNozzleTipConfig& from) {
+bool JPNozzleTipConfig::cloneChangerFrom(const JPNozzleTipConfig& from, ClonedParts parts) {
     if (templateLocked || &from == this) return false;
     auto firstMove = [](const std::vector<JPChangerStep>& steps) -> const JPChangerStep* {
         for (const JPChangerStep& s : steps)
@@ -294,9 +294,22 @@ bool JPNozzleTipConfig::cloneChangerFrom(const JPNozzleTipConfig& from) {
         }
         return steps;
     };
-    loadSteps = moved(from.loadSteps);
-    unloadReversesLoad = from.unloadReversesLoad;
-    unloadSteps = moved(from.unloadSteps);
+    if (parts.locations) {
+        loadSteps = moved(from.loadSteps);
+        unloadReversesLoad = from.unloadReversesLoad;
+        unloadSteps = moved(from.unloadSteps);
+        touchLocation = from.touchLocation;
+        if (touchLocation) {
+            touchLocation->x += dx.value_or(0);
+            touchLocation->y += dy.value_or(0);
+            touchLocation->z += dz.value_or(0);
+            touchLocation->rotation += dr.value_or(0);
+        }
+    }
+    if (parts.zCalibration) {
+        zCalibrationTrigger = from.zCalibrationTrigger;
+        zCalibrationFailHoming = from.zCalibrationFailHoming;
+    }
     return true;
 }
 

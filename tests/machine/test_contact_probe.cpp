@@ -108,6 +108,15 @@ int main() {
         cell.calibrateZ("N", true);
         waitFor([&] { return !cell.zCalibration("N").has_value(); });
         assert(!cell.zCalibration("N"));
+        // Calibrated and waited for; then another touch location probed with it (OpenPnP's
+        // Calibrate all Touch Locations' Z to Template): met where the calibrated nozzle says,
+        // the same surface, so at the template's Z.
+        assert(cell.calibrateZAndWait("N", why) && near(*cell.zCalibration("N"), 0.7));
+        assert(cell.contactProbeCycleAndWait("N", JPMachineLocation { 30, 10, -5, 0 }, false, z, why));
+        assert(near(z, -6.0) && cell.zCalibration("N"));
+        // A reference probe: the calibration forgotten first, the Z as the machine has it.
+        assert(cell.contactProbeCycleAndWait("N", JPMachineLocation { 30, 10, -5, 0 }, true, z, why));
+        assert(near(z, -6.7) && !cell.zCalibration("N"));
         cell.disconnect();
     }
     {

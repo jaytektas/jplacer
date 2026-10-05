@@ -109,6 +109,8 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Part on / part off vacuum sensing (methods, ranges, probing) | done | |
 | Tool changer locations, speeds, post actuators | done | OpenPnP's form (First…Last Location, speeds 1↔2…3↔4, Post 1–3 Actuators) over the tip's loading steps; steps of jplacer's own beyond it in the tree |
 | Template / clones | done | the template's changer steps, moved by the difference of the first moves |
+| Clone options (Locations?, Z Calibration?), Calibrate all Touch Locations' Z to Template | done | the touch location cloned with the places; Vision Calibration? comes with the changer's vision calibration |
+| Tool changer Vision Calibration (template images empty / occupied, trigger, Z adjust, test; Vision Calibration? on cloning) | missing | |
 | Runout calibration (circle divisions, misdetects, Z offset, vision diameter, compensation) | done | measured and compensated; Auto Recalibration on tip change, in jobs and on homing, with Fail Homing; to be tried on the bench with the user there |
 | Background calibration (HSV, detail size) | done | with runout calibration; Show Problems as one picture of pairs |
 

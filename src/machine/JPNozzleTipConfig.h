@@ -145,11 +145,19 @@ struct JPNozzleTipConfig {
     std::optional<OpenPnpChanger> openPnpChanger() const;
     // The loading steps made from OpenPnP's form (unloading is loading backwards).
     void setOpenPnpChanger(const OpenPnpChanger& changer);
+    // What a clone takes (OpenPnP's Locations? and Z Calibration?).
+    struct ClonedParts {
+        bool locations = true;      // the loading and unloading steps, and the touch location
+        bool zCalibration = true;   // the Z calibration trigger and Fail Homing?
+    };
     // OpenPnP's assignNozzleTipChangerSettings: the template's loading and
-    // unloading steps taken, each move moved by how far this tip's first move
-    // is from the template's (a place given in both). False, and nothing
-    // changed, when this tip is locked, or either has no first move to go by.
-    bool cloneChangerFrom(const JPNozzleTipConfig& templateTip);
+    // unloading steps and touch location taken, each place moved by how far
+    // this tip's first move is from the template's (a coordinate given in
+    // both), and its Z calibration settings, as `parts` says. False, and
+    // nothing changed, when this tip is locked, or either has no first move
+    // to go by.
+    bool cloneChangerFrom(const JPNozzleTipConfig& templateTip, ClonedParts parts);
+    bool cloneChangerFrom(const JPNozzleTipConfig& templateTip) { return cloneChangerFrom(templateTip, ClonedParts()); }
     static std::vector<JPChangerStep> reversed(const std::vector<JPChangerStep>& steps);
 
     // What is wrong with its steps (a list that does not start with a move

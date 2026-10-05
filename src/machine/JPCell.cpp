@@ -479,13 +479,10 @@ bool JPCell::doCalibrateZ(const JPNozzleConfig& n, std::string& why) {
         std::lock_guard lk(m_mutex);
         m_zCalibration.erase(n.id);
     }
-    // OpenPnP's contactProbeCycle: above the touch place by the start offset (by way of safe Z), probed, retracted.
     const JPMachineLocation& at = *tip->touchLocation;
     const JPNozzleConfig::ContactProbe& p = n.contactProbe;
-    double probed = 0, ignored = 0;
-    if (!doMoveTool(n.mount, { at.x, at.y, at.z + p.startOffsetMm, std::nullopt }, 1.0, true, why)
-        || !doContactProbe(n, true, p.depthMm, probed, why) || !doContactProbe(n, false, p.depthMm, ignored, why))
-        return false;
+    double probed = 0;
+    if (!doContactProbeCycle(n, at, probed, why)) return false;
     const double offset = at.z - probed;
     if (std::abs(offset) > p.maxZOffsetMm) {
         why = "Nozzle " + n.name + " nozzle tip " + tip->name + " Z calibration offset " + format(offset, 3)
@@ -496,6 +493,43 @@ bool JPCell::doCalibrateZ(const JPNozzleConfig& n, std::string& why) {
     std::lock_guard lk(m_mutex);
     m_zCalibration[n.id] = { tip->id, offset };
     return true;
+}
+
+bool JPCell::doContactProbeCycle(const JPNozzleConfig& n, const JPMachineLocation& at, double& probedZ, std::string& why) {
+    // OpenPnP's contactProbeCycle: above the place by the start offset (by way of safe Z), probed, retracted.
+    const JPNozzleConfig::ContactProbe& p = n.contactProbe;
+    double ignored = 0;
+    return doMoveTool(n.mount, { at.x, at.y, at.z + p.startOffsetMm, std::nullopt }, 1.0, true, why)
+        && doContactProbe(n, true, p.depthMm, probedZ, why) && doContactProbe(n, false, p.depthMm, ignored, why);
+}
+
+bool JPCell::contactProbeCycleAndWait(const std::string& nozzleId, const JPMachineLocation& at, bool resetZCalibration,
+                                      double& probedZ, std::string& why) {
+    return waitFor([&](std::string& w) {
+        for (const JPNozzleConfig& n : m_config.nozzles) {
+            if (n.id != nozzleId) continue;
+            if (resetZCalibration) {
+                std::lock_guard lk(m_mutex);
+                m_zCalibration.erase(n.id);
+            }
+            return doContactProbeCycle(n, at, probedZ, w);
+        }
+        w = "no nozzle " + nozzleId;
+        return false;
+    }, why);
+}
+
+bool JPCell::calibrateZAndWait(const std::string& nozzleId, std::string& why) {
+    return waitFor([&](std::string& w) {
+        for (const JPNozzleConfig& n : m_config.nozzles)
+            if (n.id == nozzleId) {
+                const bool ok = doCalibrateZ(n, w);
+                onCalibration.emit();
+                return ok;
+            }
+        w = "no nozzle " + nozzleId;
+        return false;
+    }, why);
 }
 
 bool JPCell::doZCalibrationsAfterHoming(std::string& why) {

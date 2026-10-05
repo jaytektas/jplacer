@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- A nozzle tip's Tool Changer tab has OpenPnP's Calibrate all Touch Locations' Z to Template, and the Locations? and
+  Z Calibration? choices for cloning; cloning also takes the touch location. Contact Probe Tool on a touch location now
+  asks first and probes with the default probing nozzle, as OpenPnP's.
 - A controller's Gcode tab has OpenPnP's Export Gcode File and Copy Gcode to Clipboard.
 - OpenPnP's other location buttons: Position Tool (Without Safe Z) on a motion test's stops, a tool changer's
   locations and a push-pull feeder's places, and Contact Probe Tool on a tool changer's Touch Location, which

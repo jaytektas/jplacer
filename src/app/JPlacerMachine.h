@@ -130,10 +130,14 @@ public:
     // the machine cannot move.
     // `straight`: not by way of safe Z (OpenPnP's Position Tool (Without Safe Z)).
     bool moveToolTo(JPSetupForm::Tool tool, const Where& at, bool straight = false);
-    // OpenPnP's Contact Probe Tool: the chosen contact probing nozzle over `at`
-    // (its Start Offset above), probed down and back; `done` (on the screen's
-    // thread) with the Z it met. False, and said, when it cannot start.
+    // OpenPnP's Contact Probe Tool on a touch location (a contact probe
+    // reference): asked first, then the default probing nozzle, its Z
+    // calibration forgotten, over `at` (its Start Offset above), probed down
+    // and back; `done` (on the screen's thread) with the Z it met. False, and
+    // said, when it cannot start.
     bool contactProbeAt(const Where& at, std::function<void(double z)> done);
+    // OpenPnP's Calibrate all Touch Locations' Z to Template (a nozzle tip's Tool Changer tab).
+    void referenceAllTouchLocationsZ();
     bool moveToolTo(JPSetupForm::Tool tool, const JPLocation& at);
     // The same for an actuator on the head, by its OpenPnP name (a drag
     // feeder's pin): where it is, and taken to `at` at safe Z.
@@ -238,6 +242,8 @@ public:
     static std::string cellsDir();
 
 private:
+    // OpenPnP's ContactProbeNozzle.getDefaultNozzle (none: no nozzle probes by contact).
+    const JPNozzleConfig* probingNozzle() const;
     bool openCell(const std::string& path, std::string& error);
     // `tell`: say what was brought in (and what to check) when done.
     void importFrom(const std::string& machineXml, bool tell = true);

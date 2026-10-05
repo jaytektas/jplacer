@@ -930,39 +930,110 @@ bool JPlacerMachine::moveToolTo(JPSetupForm::Tool tool, const Where& to, bool st
     return true;
 }
 
+const JPNozzleConfig* JPlacerMachine::probingNozzle() const {
+    // OpenPnP's ContactProbeNozzle.getDefaultNozzle: the first that probes by contact.
+    if (!m_cell) return nullptr;
+    for (const JPNozzleConfig& n : m_cell->config().nozzles)
+        if (n.contactProbe.on()) return &n;
+    return nullptr;
+}
+
 bool JPlacerMachine::contactProbeAt(const Where& at, std::function<void(double z)> done) {
     if (!readyToMove() || !at[0] || !at[1] || !at[2]) return false;
-    const std::string id = chosenNozzleId();
-    const JPNozzleConfig* n = nullptr;
-    for (const JPNozzleConfig& z : m_cell->config().nozzles) if (z.id == id) n = &z;
-    if (!n || !n->contactProbe.on()) {
-        m_window.showStatus("Nozzle " + (n ? n->name : id) + " is not a ContactProbeNozzle.", kErrorMs);
+    // A touch location is OpenPnP's contact probe reference: asked first, probed with the default probing
+    // nozzle, its Z calibration forgotten.
+    const JPNozzleConfig* n = probingNozzle();
+    if (!n) {
+        m_window.showStatus("No default ContactProbeNozzle found.", kErrorMs);
         return false;
     }
-    const JPMountConfig mount = n->mount;
-    const JPNozzleConfig::ContactProbe p = n->contactProbe;
-    const std::string name = n->name;
+    const std::string id = n->id, name = n->name;
+    const JPMachineLocation to { *at[0], *at[1], *at[2], at[3].value_or(0) };
+    std::weak_ptr<bool> alive = m_alive;
+    JDialog::confirm("Select an Option",
+                     "This will overwrite the Z reference and therefore change the meaning of previously captured Z "
+                     "coordinates.\nYou will need to recapture these locations!\n\nAre you sure?",
+                     [this, id, name, to, done = std::move(done), alive] {
+                         if (const auto a = alive.lock(); !a || !*a || !m_cell || !readyToMove()) return;
+                         JPCell* cell = m_cell.get();
+                         std::thread([this, cell, id, name, to, done, alive] {
+                             std::string why;
+                             double z = 0;
+                             const bool ok = cell->contactProbeCycleAndWait(id, to, true, z, why);
+                             JMainThreadDispatcher::instance().post([this, ok, z, why, name, done, alive] {
+                                 if (const auto a = alive.lock(); !a || !*a) return;
+                                 if (!ok) {
+                                     m_window.showStatus("Contact probe with " + name + " failed: " + why, kErrorMs);
+                                     return;
+                                 }
+                                 done(z);
+                             });
+                         }).detach();
+                     });
+    return true;
+}
+
+void JPlacerMachine::referenceAllTouchLocationsZ() {
+    // OpenPnP's ContactProbeNozzle.referenceAllTouchLocationsZ: the template tip loaded on the default probing
+    // nozzle and its Z calibrated at its own touch location; then every other tip's touch location (one set,
+    // not on a stand-in for no tip) probed with it, and its Z set to where it was met. Locked tips too.
+    if (!m_cell) return;
+    const JPCellConfig& c = m_cell->config();
+    const JPNozzleTipConfig* templ = nullptr;
+    for (const JPNozzleTipConfig& t : c.nozzleTips)
+        if (t.templateTip) templ = &t;
+    if (!templ) {
+        m_window.showStatus("No nozzle tip is marked as Template.", kErrorMs);
+        return;
+    }
+    const JPNozzleConfig* n = probingNozzle();
+    if (!n) {
+        m_window.showStatus("No default ContactProbeNozzle found.", kErrorMs);
+        return;
+    }
+    if (!readyToMove()) return;
+    JPlacerJobMachine* jm = scriptJobMachine ? scriptJobMachine() : nullptr;
+    if (!jm) return;
+    struct Touch {
+        std::string       tipId, name;
+        JPMachineLocation at;
+    };
+    std::vector<Touch> touches;
+    for (const JPNozzleTipConfig& t : c.nozzleTips) {
+        const std::string name = t.name.empty() ? t.id : t.name;
+        if (t.id == templ->id || !t.touchLocation || name.rfind("unloaded", 0) == 0) continue;
+        const JPMachineLocation& l = *t.touchLocation;
+        if (l.x == 0 && l.y == 0 && l.z == 0) continue;
+        touches.push_back({ t.id, name, l });
+    }
     JPCell* cell = m_cell.get();
     std::weak_ptr<bool> alive = m_alive;
-    std::thread([this, cell, mount, p, name, id, at, done = std::move(done), alive] {
+    std::thread([this, cell, jm, nozzleId = n->id, headId = n->mount.headId, onIt = n->tipId, templateId = templ->id,
+                 touches, alive] {
         std::string why;
-        double z = 0;
-        // OpenPnP's contactProbeCycle: above the place by the Start Offset, down to meet it, back up.
-        const bool ok = cell->moveToolAndWait(mount, { at[0], at[1], *at[2] + p.startOffsetMm, std::nullopt }, 1.0, why)
-                     && cell->contactProbeAndWait(id, true, p.startOffsetMm + p.depthMm, z, why);
-        double back = 0;
-        std::string ignored;
-        if (ok) cell->contactProbeAndWait(id, false, 0, back, ignored);
-        JMainThreadDispatcher::instance().post([this, ok, z, why, name, done, alive] {
+        std::vector<std::pair<std::string, double>> found;   // (tip, Z)
+        bool ok = (onIt == templateId || jm->changeTip(nozzleId, templateId, why)) && cell->calibrateZAndWait(nozzleId, why);
+        for (const Touch& t : touches) {
+            if (!ok) break;
+            double z = 0;
+            ok = cell->contactProbeCycleAndWait(nozzleId, t.at, false, z, why);
+            if (!ok) break;
+            JLOGC(JPlacerLog::kCell, JLogLevel::Info) << "Nozzle tip " << t.name << " touch location Z set to " << z
+                                                      << " (previously " << t.at.z << ")";
+            found.push_back({ t.tipId, z });
+        }
+        if (ok) ok = cell->safeZAndWait(headId, 1.0, why);
+        JMainThreadDispatcher::instance().post([this, ok, why, found, alive] {
             if (const auto a = alive.lock(); !a || !*a) return;
-            if (!ok) {
-                m_window.showStatus("Contact probe with " + name + " failed: " + why, kErrorMs);
-                return;
-            }
-            done(z);
+            if (!found.empty() && m_setup)
+                m_setup->change("Calibrate all Touch Locations' Z to Template", [found](JPCellConfig& cell) {
+                    for (JPNozzleTipConfig& t : cell.nozzleTips)
+                        for (const auto& [id, z] : found)
+                            if (t.id == id && t.touchLocation) t.touchLocation->z = z;
+                });
+            if (!ok) m_window.showStatus("Calibrate all Touch Locations' Z to Template failed: " + why, kErrorMs);
         });
     }).detach();
-    return true;
 }
 
 bool JPlacerMachine::moveToolTo(JPSetupForm::Tool tool, const JPLocation& to) {
@@ -1166,6 +1237,8 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
                              m_setup->remakeForm();
                          },
                          nullptr, opts);
+    } else if (action == "referenceTouchZ" && path.rfind("nozzletip:", 0) == 0) {
+        referenceAllTouchLocationsZ();
     } else if ((action == "calibrateZ" || action == "resetZCalibration") && path.rfind("nozzletip:", 0) == 0) {
         // On the nozzle the tip is on.
         const std::string tipId = path.substr(10);

@@ -3,7 +3,8 @@
 
 // OpenPnP's nozzle tip template cloning: a tip takes the template's changer
 // steps, each move moved by how far its own first move is from the
-// template's (a coordinate left out stays left out); a locked tip, or one
+// template's (a coordinate left out stays left out), its touch location too,
+// and the Z calibration settings, as chosen; a locked tip, or one
 // without a first move to go by, is left as it is.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
@@ -47,6 +48,27 @@ int main() {
     assert(!clone.loadSteps[2].x && *clone.loadSteps[2].y == 60 && *clone.loadSteps[2].z == -11);
     assert(*clone.loadSteps[3].x == 120 && !clone.loadSteps[3].z);
     assert(!clone.unloadReversesLoad && *clone.unloadSteps[1].x == 120 && *clone.unloadSteps[0].z == -11);
+
+    // The touch location moved alike, and the Z calibration settings taken;
+    // or, as chosen, only one or the other.
+    templ.touchLocation = JPMachineLocation { 90, 40, -7, 0 };
+    templ.zCalibrationTrigger = "MachineHome";
+    templ.zCalibrationFailHoming = false;
+    {
+        JPNozzleTipConfig both;
+        both.loadSteps = { moveTo(120, 50, -6) };
+        assert(both.cloneChangerFrom(templ));
+        assert(both.touchLocation && both.touchLocation->x == 110 && both.touchLocation->y == 40 && both.touchLocation->z == -8);
+        assert(both.zCalibrationTrigger == "MachineHome" && !both.zCalibrationFailHoming);
+        JPNozzleTipConfig zOnly;
+        zOnly.loadSteps = { moveTo(120, 50, -6) };
+        assert(zOnly.cloneChangerFrom(templ, { .locations = false, .zCalibration = true }));
+        assert(zOnly.loadSteps.size() == 1 && !zOnly.touchLocation && zOnly.zCalibrationTrigger == "MachineHome");
+        JPNozzleTipConfig placesOnly;
+        placesOnly.loadSteps = { moveTo(120, 50, -6) };
+        assert(placesOnly.cloneChangerFrom(templ, { .locations = true, .zCalibration = false }));
+        assert(placesOnly.loadSteps.size() == 4 && placesOnly.touchLocation && placesOnly.zCalibrationTrigger == "Manual");
+    }
 
     // Locked: untouched.
     JPNozzleTipConfig locked = clone;

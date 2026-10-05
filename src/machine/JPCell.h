@@ -140,6 +140,13 @@ public:
     // (none: not calibrated); dropped when the tip changes.
     void calibrateZ(const std::string& nozzleId, bool reset);
     std::optional<double> zCalibration(const std::string& nozzleId) const;
+    // The same, waited for (from a thread of the caller's own).
+    bool calibrateZAndWait(const std::string& nozzleId, std::string& why);
+    // OpenPnP's contactProbeCycle: the nozzle above `at` by its Start Offset (by way of safe Z),
+    // probed down as far as its Depth and retracted; `probedZ` where it met. `resetZCalibration`:
+    // its Z calibration forgotten first (OpenPnP's reference probing). Waited for.
+    bool contactProbeCycleAndWait(const std::string& nozzleId, const JPMachineLocation& at, bool resetZCalibration,
+                                  double& probedZ, std::string& why);
     void setProbedOffset(const std::string& nozzleId, bool feeder, const std::string& key, double offsetMm);
 
     // HOMING: each controller's home command, then the axes are told where
@@ -384,6 +391,7 @@ private:
     bool doCoordinate(const std::string& how, std::string& why);
     bool doContactProbe(const JPNozzleConfig& n, bool forward, double depthMm, double& probedZ, std::string& why);
     bool doCalibrateZ(const JPNozzleConfig& n, std::string& why);
+    bool doContactProbeCycle(const JPNozzleConfig& n, const JPMachineLocation& at, double& probedZ, std::string& why);
     bool doZCalibrationsAfterHoming(std::string& why);
     // The nozzle a mount is (none: a camera's, an actuator's), and its Z offset with its tip's Z calibration in.
     const JPNozzleConfig* nozzleOf(const JPMountConfig& mount) const;
