@@ -1066,7 +1066,9 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                 { "changer-mid-location-2", "changer-mid-to-mid-2-speed", "changer-actuator-post-step-three" },
                 { "changer-end-location", "changer-mid-2-to-end-speed", nullptr },
             };
+            int slot = 0;
             for (const auto& step : changer) {
+                ++slot;
                 const std::optional<JPMachineLocation> at = location(x, step.place);
                 if (at && (at->x != 0 || at->y != 0 || at->z != 0 || at->rotation != 0)) {   // all 0: not set
                     JPChangerStep m;
@@ -1076,6 +1078,7 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                     m.rotation = at->rotation;
                     if (step.speed)
                         if (const JPXmlElement* sp = x.child(step.speed)) m.speed = number(sp->text);
+                    m.openPnpSlot = slot;
                     t.loadSteps.push_back(m);
                 }
                 if (step.actuator)
@@ -1083,6 +1086,7 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                         JPChangerStep s;
                         s.kind = JPChangerStep::Kind::Actuator;
                         s.actuatorId = a->text;   // a name until the actuators are read
+                        s.openPnpSlot = slot;
                         t.loadSteps.push_back(s);
                     }
             }

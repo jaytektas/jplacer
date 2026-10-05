@@ -518,8 +518,11 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
                         // In its column: the column's width, the control at its start
                         // (a box to tick under the middle of its title).
                         const bool tick = p && p->get().isBool();
-                        auto cell = box(m_graph, columns[i], h, tick ? JJustifyContent::Center : JJustifyContent::FlexStart);
+                        const bool text = !p && !c.label.empty();   // a word in the column (OpenPnP's "1 ↔ 2")
+                        auto cell = box(m_graph, columns[i], h,
+                                        tick ? JJustifyContent::Center : text ? JJustifyContent::FlexEnd : JJustifyContent::FlexStart);
                         if (p) cell->add(editor(*p, widthOf(*p)));
+                        else if (text) cell->add(label(m_graph, c.label));
                         row->add(std::move(cell));
                         continue;
                     }

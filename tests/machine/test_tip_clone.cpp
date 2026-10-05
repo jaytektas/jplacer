@@ -56,5 +56,32 @@ int main() {
     // Nothing to go by: untouched.
     JPNozzleTipConfig bare;
     assert(!bare.cloneChangerFrom(templ) && bare.loadSteps.empty());
+
+    // OpenPnP's form: First, Third and Last set, a Post 1 actuator and the speeds
+    // between; loading steps made from it, read back the same, and unloading
+    // backwards with the actuator switched off. Steps of jplacer's own: no form.
+    {
+        JPNozzleTipConfig t;
+        assert(t.openPnpChanger() && !t.openPnpChanger()->at[0]);   // none yet: the form, empty
+        JPNozzleTipConfig::OpenPnpChanger c;
+        c.at[0] = JPMachineLocation { 100, 50, -5, 0 };
+        c.at[2] = JPMachineLocation { 100, 60, -10, 0 };
+        c.at[3] = JPMachineLocation { 100, 60, -2, 0 };
+        c.speed[2] = 0.25;
+        c.speed[3] = 0.5;
+        c.post[0] = "A1";
+        t.setOpenPnpChanger(c);
+        assert(t.loadSteps.size() == 4 && t.loadSteps[1].kind == JPChangerStep::Kind::Actuator && t.loadSteps[1].openPnpSlot == 1);
+        assert(t.loadSteps[2].openPnpSlot == 3 && t.loadSteps[2].speed == 0.25);
+        const auto back = t.openPnpChanger();
+        assert(back && back->at[0] && !back->at[1] && back->at[2]->y == 60 && back->at[3]->z == -2);
+        assert(back->post[0] == "A1" && back->post[1].empty() && back->speed[3] == 0.5);
+        const auto unload = t.unloadingSteps();
+        bool off = false;
+        for (const JPChangerStep& u : unload) off = off || (u.kind == JPChangerStep::Kind::Actuator && u.actuatorId == "A1" && !u.on);
+        assert(off);
+        t.loadSteps.push_back(moveTo(1, 2, 3));   // a step of its own
+        assert(!t.openPnpChanger());
+    }
     return 0;
 }

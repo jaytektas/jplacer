@@ -104,6 +104,49 @@ std::vector<JPChangerStep> JPNozzleTipConfig::unloadingSteps() const {
     return unloadReversesLoad ? reversed(loadSteps) : unloadSteps;
 }
 
+std::optional<JPNozzleTipConfig::OpenPnpChanger> JPNozzleTipConfig::openPnpChanger() const {
+    OpenPnpChanger c;
+    int last = 0;   // the slot (move 2k-1, actuator after it 2k) reached so far
+    for (const JPChangerStep& s : loadSteps) {
+        if (s.kind == Kind::Move && s.openPnpSlot >= 1 && s.openPnpSlot <= 4 && 2 * s.openPnpSlot - 1 > last) {
+            c.at[size_t(s.openPnpSlot - 1)] = JPMachineLocation { s.x.value_or(0), s.y.value_or(0), s.z.value_or(0), s.rotation.value_or(0) };
+            c.speed[size_t(s.openPnpSlot - 1)] = s.speed;
+            last = 2 * s.openPnpSlot - 1;
+        } else if (s.kind == Kind::Actuator && s.on && s.openPnpSlot >= 1 && s.openPnpSlot <= 3 && 2 * s.openPnpSlot > last) {
+            c.post[size_t(s.openPnpSlot - 1)] = s.actuatorId;
+            last = 2 * s.openPnpSlot;
+        } else {
+            return std::nullopt;   // a step OpenPnP's form has no place for
+        }
+    }
+    return c;
+}
+
+void JPNozzleTipConfig::setOpenPnpChanger(const OpenPnpChanger& c) {
+    loadSteps.clear();
+    for (size_t k = 0; k < 4; ++k) {
+        if (const auto& at = c.at[k]) {
+            JPChangerStep m;
+            m.x = at->x;
+            m.y = at->y;
+            m.z = at->z;
+            m.rotation = at->rotation;
+            m.speed = k == 0 ? 1.0 : c.speed[k];
+            m.openPnpSlot = int(k) + 1;
+            loadSteps.push_back(m);
+        }
+        if (k < 3 && !c.post[k].empty()) {
+            JPChangerStep a;
+            a.kind = Kind::Actuator;
+            a.actuatorId = c.post[k];
+            a.on = true;
+            a.openPnpSlot = int(k) + 1;
+            loadSteps.push_back(a);
+        }
+    }
+    unloadReversesLoad = true;
+}
+
 std::vector<std::string> JPNozzleTipConfig::problems() const {
     std::vector<std::string> out;
     const std::string tip = "nozzle tip " + (name.empty() ? id : name) + ": ";

@@ -9,6 +9,7 @@
 
 #include <j/config/Json.h>
 
+#include <array>
 #include <map>
 #include <string>
 #include <vector>
@@ -130,6 +131,20 @@ struct JPNozzleTipConfig {
     // an actuator is switched the other way; a move away from safe Z is
     // undone by going up, then across to where that move started.
     std::vector<JPChangerStep> unloadingSteps() const;
+    // OpenPnP's tool changer, as its Tool Changer tab has it: four locations
+    // (each one not set is left out), the speed of the move to each from the
+    // one before (a share of the machine's; to the First, by way of Safe Z at
+    // full speed), and an actuator switched on after each of the first three
+    // (off, unloading). It is the loading steps, when they are in this form.
+    struct OpenPnpChanger {
+        std::array<std::optional<JPMachineLocation>, 4> at;
+        std::array<double, 4>                           speed { 1, 1, 1, 1 };
+        std::array<std::string, 3>                      post;   // actuator ids; empty: none
+    };
+    // The loading steps in OpenPnP's form; none when they are jplacer's own.
+    std::optional<OpenPnpChanger> openPnpChanger() const;
+    // The loading steps made from OpenPnP's form (unloading is loading backwards).
+    void setOpenPnpChanger(const OpenPnpChanger& changer);
     // OpenPnP's assignNozzleTipChangerSettings: the template's loading and
     // unloading steps taken, each move moved by how far this tip's first move
     // is from the template's (a place given in both). False, and nothing

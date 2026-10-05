@@ -31,6 +31,10 @@ struct JPChangerStep {
     bool                  on = true;
     int                   waitMs = 0;
     std::string           message;
+    // Its place in OpenPnP's tool changer (JPNozzleTipConfig::OpenPnpChanger):
+    // a move, OpenPnP's First (1) to Last (4) Location; an actuator, its Post
+    // 1 to 3 Actuator. 0: a step of jplacer's own.
+    int                   openPnpSlot = 0;
 
     static const char* kindName(Kind k) {
         switch (k) {
@@ -61,6 +65,7 @@ struct JPChangerStep {
         s.on         = j["on"].boolean(true);
         s.waitMs     = int(j["waitMs"].number());
         s.message    = j["message"].str();
+        s.openPnpSlot = int(j["openPnpSlot"].number(0));
         return s;
     }
     // Only what its kind uses.
@@ -80,6 +85,7 @@ struct JPChangerStep {
             case Kind::Wait:     j["waitMs"] = waitMs; break;
             case Kind::Ask:      j["message"] = message; break;
         }
+        if (openPnpSlot) j["openPnpSlot"] = openPnpSlot;
         return j;
     }
 };

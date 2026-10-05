@@ -105,7 +105,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Push and drag (allowed, outside diameter) | done | used by blinds feeders |
 | Part dimensions: min / max part diameter, max part height, max pick tolerance | done | and Issues & Solutions' checks of them |
 | Part on / part off vacuum sensing (methods, ranges, probing) | done | |
-| Tool changer locations, speeds, post actuators | own way | changer steps, a list per tip |
+| Tool changer locations, speeds, post actuators | done | OpenPnP's form (First…Last Location, speeds 1↔2…3↔4, Post 1–3 Actuators) over the tip's loading steps; steps of jplacer's own beyond it in the tree |
 | Template / clones | done | the template's changer steps, moved by the difference of the first moves |
 | Runout calibration (circle divisions, misdetects, Z offset, vision diameter, compensation) | done | measured and compensated; Auto Recalibration on tip change, in jobs and on homing, with Fail Homing; to be tried on the bench with the user there |
 | Background calibration (HSV, detail size) | done | with runout calibration; Show Problems as one picture of pairs |

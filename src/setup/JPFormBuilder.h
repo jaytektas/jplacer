@@ -56,6 +56,8 @@ public:
     void end() { m_open = false; }
     // An empty place on the row begun (a column this row has nothing in).
     void skip() { rows().back().cells.push_back({ "", "" }); }
+    // Words in the next place on the row begun (in its column, at its right).
+    void words(const std::string& text) { rows().back().cells.push_back({ "", text }); }
     void header(const Strings& titles) {
         Row r;
         r.kind = Row::Kind::Header;

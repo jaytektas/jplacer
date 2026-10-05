@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- A nozzle tip's Tool Changer tab has OpenPnP's form: First, Second, Third and Last Location, the speeds between them,
+  and the Post 1 to 3 Actuators, over the tip's loading steps.
 - OpenPnP's Python and JavaScript scripts run in jplacer as they are: they find OpenPnP's `machine`, `config`,
   `scripting` and `gui` (its Job tab's boards), and its Location, LengthUnit, UiUtils, Utils2D, QR code reading and
   message dialog; JavaScript as OpenPnP's Java JavaScript has it (print, load, JavaImporter, for each). OpenPnP's

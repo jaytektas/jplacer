@@ -1055,6 +1055,69 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
 
     add.tab("Tool Changer");
     add.group("Nozzle Tip Changer");
+    // OpenPnP's: four locations, the speed between each two, an actuator
+    // switched after each of the first three; over the loading steps when
+    // they are in its form (made here, or brought in from OpenPnP).
+    if (const auto form = t().openPnpChanger()) {
+        using C = JPNozzleTipConfig::OpenPnpChanger;
+        auto change = [t](const std::function<void(C&)>& edit) {
+            C c = t().openPnpChanger().value_or(C {});
+            edit(c);
+            t().setOpenPnpChanger(c);
+        };
+        auto now = [t] { return t().openPnpChanger().value_or(C {}); };
+        JPFormBuilder::Named actuators;
+        actuators.add("", "");
+        for (const JPActuatorConfig& a : cell.actuators) actuators.add(a.name.empty() ? a.id : a.name, a.id);
+        static const char* const kLocations[] = { "First Location", "Second Location", "Third Location", "Last Location" };
+        static const char* const kSpeeds[] = { "1 \xE2\x86\x94 2", "2 \xE2\x86\x94 3", "3 \xE2\x86\x94 4" };
+        add.header({ "X", "Y", "Z", "Rotation", "Speed", "Set?" });
+        for (size_t k = 0; k < 4; ++k) {
+            const std::string n = std::to_string(k + 1);
+            add.row(kLocations[k], form->at[k] ? Place::Location : Place::None);
+            if (form->at[k]) {
+                auto coordinate = [&](const char* key, const char* label, double JPMachineLocation::*field, bool rotation) {
+                    add.coordinate(rotation, std::string("changer") + key + n, label,
+                                   [now, k, field] { return now().at[k] ? (*now().at[k]).*field : 0.0; },
+                                   [change, k, field](double v) { change([&](C& c) { if (c.at[k]) (*c.at[k]).*field = v; }); });
+                };
+                coordinate("X", "X", &JPMachineLocation::x, false);
+                coordinate("Y", "Y", &JPMachineLocation::y, false);
+                coordinate("Z", "Z", &JPMachineLocation::z, false);
+                coordinate("Rotation", "Rotation", &JPMachineLocation::rotation, true);
+            } else {
+                for (int i = 0; i < 4; ++i) add.skip();
+            }
+            add.skip();   // the speeds are between the locations
+            add.flag("changerSet" + n, "Set?", [now, k] { return now().at[k].has_value(); },
+                     [change, k](bool on) {
+                         change([&](C& c) {
+                             if (!on) c.at[k].reset();
+                             else if (!c.at[k]) c.at[k] = JPMachineLocation();
+                         });
+                     });
+            add.end();
+            f.reshaping.push_back("changerSet" + n);
+            if (k == 3) break;
+            add.row(std::string("Post ") + n + " Actuator");
+            add.byName("changerPost" + n, std::string("Post ") + n + " Actuator", actuators, [now, k] { return now().post[k]; },
+                       [change, k](const std::string& id) { change([&](C& c) { c.post[k] = id; }); });
+            add.skip();
+            add.words(kSpeeds[k]);
+            add.skip();
+            add.number("changerSpeed" + n, kSpeeds[k], [now, k] { return now().speed[k + 1]; },
+                       [change, k](double v) { change([&](C& c) { c.speed[k + 1] = std::clamp(v, 0.0, 1.0); }); });
+            add.end();
+            add.tip(std::string("Speed between ") + kLocations[k] + " and " + kLocations[k + 1] + " (a share of the machine's).");
+        }
+        add.endColumns();
+        add.note("Loading goes to the First Location by way of Safe Z, then to each set location in turn at the speed "
+                 "between, switching each Post Actuator on after its location; unloading goes back the same way, "
+                 "switching them off. The steps are also in the tree under the tip.");
+    } else {
+        add.note("This tip's loading steps are jplacer's own (in the tree under the tip): OpenPnP's four locations "
+                 "show a tip's steps made with them, or brought in from OpenPnP.");
+    }
     add.choice("unloading", "Unloading", { "loading backwards", "steps of its own" },
                [t] { return std::string(t().unloadReversesLoad ? "loading backwards" : "steps of its own"); },
                [t](const std::string& v) {
