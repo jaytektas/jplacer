@@ -5,6 +5,7 @@
 
 #include "JPCaptureMode.h"
 #include "JPFrame.h"
+#include "JPSwitcherSource.h"
 #include "JPWhiteBalance.h"
 
 #include "machine/JPCameraConfig.h"
@@ -41,6 +42,10 @@ public:
     // Where the camera is looking (machine X, Y), for a simulated camera that
     // draws the machine. Set before start().
     void setView(std::function<bool(double&, double&)> view) { m_view = std::move(view); }
+    // What a switcher camera needs of the rest (JPSwitcherSource); set before start().
+    void setSwitching(JPSwitcherSource::Links links) { m_links = std::move(links); }
+    // Its pictures wanted now (vision about to look): a switcher camera switches itself in.
+    void claim() { m_claimed = true; }
 
     void start();
     void stop();
@@ -74,6 +79,8 @@ private:
 
     JPCameraConfig    m_config;
     std::function<bool(double&, double&)> m_view;
+    JPSwitcherSource::Links               m_links;
+    std::atomic<bool>                     m_claimed { true };   // wanted from its start
     std::thread       m_thread;
     std::atomic<bool> m_running{ false };
     uint64_t          m_sequence = 0;   // the capture thread's

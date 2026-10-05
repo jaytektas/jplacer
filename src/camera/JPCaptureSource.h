@@ -29,6 +29,10 @@ public:
     // `error` empty for a plain timeout.
     virtual bool grab(JPFrame& frame, int timeoutMs, std::string& error) = 0;
 
+    // Waiting for its turn (a switcher camera not switched in): no picture,
+    // and not a camera that has hung.
+    virtual bool idle() const { return false; }
+
     // For logs and the UI: "top: top (/dev/video0)".
     virtual std::string describe() const = 0;
 };

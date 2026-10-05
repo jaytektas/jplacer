@@ -123,7 +123,7 @@ void JPCameraPanel::start() {
 }
 
 void JPCameraPanel::stopIfHidden() {
-    if (m_busy || !m_feed.isRunning() || std::chrono::steady_clock::now() - m_drawn < std::chrono::milliseconds(kHiddenMs)) return;
+    if (m_busy || !m_feeding.empty() || !m_feed.isRunning() || std::chrono::steady_clock::now() - m_drawn < std::chrono::milliseconds(kHiddenMs)) return;
     JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Camera: " << m_feed.config().name << " off screen";
     m_feed.stop();
     if (onRunning) onRunning(false);
@@ -165,6 +165,12 @@ void JPCameraPanel::setBusy(bool busy) {
     // A task needs pictures whether or not anyone is looking.
     m_busy = busy;
     if (busy && !m_feed.isRunning()) start();
+}
+
+void JPCameraPanel::setFeeding(const std::string& cameraId, bool feeding) {
+    if (feeding) m_feeding.insert(cameraId);
+    else m_feeding.erase(cameraId);
+    if (feeding && !m_feed.isRunning()) start();
 }
 
 std::vector<JWidget*> JPCameraPanel::tabTools() const {

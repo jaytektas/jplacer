@@ -16,7 +16,8 @@ inline namespace jf {
 
 std::unique_ptr<JPCaptureSource> JPCaptureFactory::create(const std::string& cameraName, const JJson& device,
                                                           std::string& error,
-                                                          std::function<bool(double&, double&)> view) {
+                                                          std::function<bool(double&, double&)> view,
+                                                          const JPSwitcherSource::Links* links, std::function<bool()> takeClaim) {
     const std::string& backend = device["backend"].str();
     if (backend == "simulated")
         return std::make_unique<JPSimulatedSource>(cameraName, int(device["width"].number()),
@@ -28,6 +29,16 @@ std::unique_ptr<JPCaptureSource> JPCaptureFactory::create(const std::string& cam
         // OpenPnP's MjpgCaptureCamera.
         return std::make_unique<JPMjpgSource>(cameraName, device["url"].str(), int(device["width"].number(960)),
                                               int(device["height"].number(720)), int(device["timeoutMs"].number(3000)));
+    }
+    if (backend == "switcher") {
+        // OpenPnP's SwitcherCamera.
+        JPSwitcherSource::Settings s;
+        s.cameraId = device["camera"].str();
+        s.switcher = int(device["switcher"].number(0));
+        s.actuatorId = device["actuator"].str();
+        s.actuatorValue = device["actuatorValue"].number(0);
+        s.delayMs = int(device["actuatorDelayMs"].number(500));
+        return std::make_unique<JPSwitcherSource>(cameraName, s, links ? *links : JPSwitcherSource::Links {}, std::move(takeClaim));
     }
     if (backend == "image") {
         // OpenPnP's ImageCamera.

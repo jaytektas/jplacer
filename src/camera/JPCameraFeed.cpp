@@ -104,7 +104,8 @@ void JPCameraFeed::run() {
 }
 
 void JPCameraFeed::runSource(std::string& why) {
-    auto source = JPCaptureFactory::create(m_config.name, m_config.device, why, m_view);
+    auto source = JPCaptureFactory::create(m_config.name, m_config.device, why, m_view, &m_links,
+                                           [this] { return m_claimed.exchange(false); });
     if (!source || !source->open(why)) return;
     const auto mode = JPCaptureFactory::choose(source->modes(), m_config.device);
     if (!mode) {
@@ -136,6 +137,10 @@ void JPCameraFeed::runSource(std::string& why) {
             if (!error.empty()) {
                 why = error;
                 break;
+            }
+            if (source->idle()) {
+                lastFrame = std::chrono::steady_clock::now();
+                continue;
             }
             if (std::chrono::steady_clock::now() - lastFrame > noPicture) {
                 why = source->describe() + ": no picture for " + std::to_string(noPicture.count())

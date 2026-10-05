@@ -125,7 +125,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Camera view: footprint reticle, image info and histogram, light toggle, Estimate Z, Move Selected Nozzle to Camera, Zoom Sensitivity | done | reticles: none, cross, grid, ruler, circle, square |
 | Camera view: Rendering Quality | missing | the framework's image drawing has no filtering choice |
 | Auto focus (up-looking) | done | Focus Sensing Method, the Auto Focus tab, part height by focus in bottom vision |
-| Capture backends (OpenPnpCapture, Webcam, GStreamer, MJPG, ONVIF, Image, Switcher) | partial | V4L2 (OpenPnpCapture, Webcam), MJPG, Image, simulated; GStreamer, ONVIF, Switcher missing |
+| Capture backends (OpenPnpCapture, Webcam, GStreamer, MJPG, ONVIF, Image, Switcher) | partial | V4L2 (OpenPnpCapture, Webcam), MJPG, Image, Switcher, simulated; GStreamer, ONVIF missing |
 
 ## Actuators
 

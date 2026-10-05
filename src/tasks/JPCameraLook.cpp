@@ -20,6 +20,7 @@ bool JPCameraLook::taken(JPCameraFeed& feed, JPGrayImage& out, std::string& why,
         why = feed.config().name + " is not running";
         return false;
     }
+    feed.claim();   // a switcher camera switched in for this
     const auto now = std::chrono::steady_clock::now();
     const auto takenFrom = now + std::chrono::milliseconds(afterMs);
     auto until = now + std::chrono::milliseconds(afterMs + kTimeoutMs);
@@ -85,6 +86,7 @@ double JPCameraLook::difference(const JPGrayImage& a, const JPGrayImage& b, cons
 bool JPCameraLook::settled(JPCameraFeed& feed, JPGrayImage& out, std::string& why, JPSettleTrace* trace) {
     // OpenPnP's settleAndCapture, with its scripting events: settled, then the picture taken.
     auto event = [&feed, &why](const char* name) { return !feed.scriptEvent || feed.scriptEvent(name, why); };
+    feed.claim();   // a switcher camera switched in for this
     return event("Camera.BeforeSettle") && settledNow(feed, out, why, trace) && event("Camera.AfterSettle")
         && event("Camera.BeforeCapture") && event("Camera.AfterCapture");
 }

@@ -1479,6 +1479,26 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
         add.tip("The camera's stream: http://host:port/path.");
         add.integer("timeoutMs", "Timeout [ms]", [device] { return int(std::as_const(device())["timeoutMs"].number(3000)); },
                     [device](int v) { device()["timeoutMs"] = v; }, 100, 60000);
+    } else if (std::as_const(device())["backend"].str() == "switcher") {
+        // OpenPnP's SwitcherCameraConfigurationWizard.
+        JPFormBuilder::Named sources;
+        for (const JPCameraConfig& other : cell.cameras)
+            if (other.id != id) sources.add(other.name.empty() ? other.id : other.name, other.id);
+        add.byName("switchedCamera", "Source Camera", sources, [device] { return std::as_const(device())["camera"].str(); },
+                   [device](const std::string& v) { device()["camera"] = v; });
+        add.tip("The capture device the multiplexer feeds: its pictures, as taken, are this camera's.");
+        add.integer("switcher", "Switcher Number", [device] { return int(std::as_const(device())["switcher"].number(0)); },
+                    [device](int v) { device()["switcher"] = v; }, 0, 1000);
+        add.tip("Cameras on the same multiplexer share a number.");
+        add.byName("switcherActuator", "Actuator", named(cell.actuators, "(none)"),
+                   [device] { return std::as_const(device())["actuator"].str(); },
+                   [device](const std::string& v) { device()["actuator"] = v; });
+        add.number("actuatorValue", "Actuator Value", [device] { return std::as_const(device())["actuatorValue"].number(0); },
+                   [device](double v) { device()["actuatorValue"] = v; });
+        add.tip("What the actuator is set to, to switch this camera in (on/off for a boolean actuator: not 0 is on).");
+        add.integer("actuatorDelayMs", "Actuator Delay (ms)", [device] { return int(std::as_const(device())["actuatorDelayMs"].number(500)); },
+                    [device](int v) { device()["actuatorDelayMs"] = v; }, 0, 60000);
+        add.tip("How long the picture takes to come through after switching.");
     } else if (std::as_const(device())["backend"].str() == "simulated") {
         add.text("backend", "Device", [] { return std::string("simulated (set up in the cell file)"); }, nullptr);
     } else {
@@ -1486,60 +1506,63 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
         add.text("device", "Device", [device] { return std::as_const(device())["name"].str(); },
                  [device](const std::string& v) { device()["name"] = v; }, "long");
     }
-    add.choice("format", "Format", { "any", "MJPG", "YUYV" },
-               [device] { const std::string v = std::as_const(device())["format"].str(); return v.empty() ? std::string("any") : v; },
-               [device](const std::string& v) { device()["format"] = v == "any" ? std::string() : v; });
-    add.header({ "Width", "Height" });
-    add.row("Size");
-    add.integer("width", "Width", [device] { return int(std::as_const(device())["width"].number()); },
-                [device](int v) { device()["width"] = v; }, 0, 10000);
-    add.integer("height", "Height", [device] { return int(std::as_const(device())["height"].number()); },
-                [device](int v) { device()["height"] = v; }, 0, 10000);
-    add.end();
-    add.note("0: the largest picture the camera offers.");
-
-    // The camera's own settings: each one jplacer sets when it opens the
-    // camera (by hand, or automatic where the camera can), or leaves as the
-    // camera has it.
-    add.group("Properties");
-    add.header({ "Set?", "Auto", "Value" });
-    struct Control { const char* key; const char* label; bool canAuto; };
-    static const Control kControls[] = {
-        { "brightness", "Brightness", true }, { "backlight-compensation", "Backlight Compensation", false },
-        { "contrast", "Contrast", false }, { "exposure", "Exposure", true }, { "focus", "Focus", true },
-        { "gain", "Gain", true }, { "gamma", "Gamma", false }, { "hue", "Hue", true },
-        { "power-line-frequency", "Power Line Freq.", false }, { "saturation", "Saturation", false },
-        { "sharpness", "Sharpness", false }, { "white-balance", "White Balance", true }, { "zoom", "Zoom", false } };
-    for (const Control& k : kControls) {
-        auto control = [device, key = std::string(k.key)]() -> JJson& { return device()["controls"][key]; };
-        const bool set = std::as_const(device())["controls"][k.key].isObject();
-        const std::string name = std::string("control:") + k.key;
-        add.row(k.label);
-        add.flag(name, std::string(k.label) + " set", [device, key = std::string(k.key)] { return std::as_const(device())["controls"][key].isObject(); },
-                 [device, control, key = std::string(k.key)](bool on) {
-                     if (!on) {
-                         JJson rest = JJson::object();
-                         for (const auto& [n, v] : std::as_const(device())["controls"].obj()) if (n != key) rest[n] = v;
-                         device()["controls"] = rest;
-                     } else if (!std::as_const(device())["controls"][key].isObject()) {
-                         control()["auto"] = false;
-                         control()["value"] = 0;
-                     }
-                 });
-        f.reshaping.push_back(name);
-        if (set && k.canAuto)
-            add.flag(name + ":auto", std::string(k.label) + " auto", [control] { return std::as_const(control())["auto"].boolean(); },
-                     [control](bool on) { control()["auto"] = on; });
-        else
-            add.skip();
-        if (set)
-            add.integer(name + ":value", k.label, [control] { return int(std::as_const(control())["value"].number()); },
-                        [control](int v) { control()["value"] = v; }, -1000000, 1000000);
-        else
-            add.skip();
+    // A switcher camera takes its device camera's pictures as they come: it has no size or controls of its own.
+    if (std::as_const(device())["backend"].str() != "switcher") {
+        add.choice("format", "Format", { "any", "MJPG", "YUYV" },
+                   [device] { const std::string v = std::as_const(device())["format"].str(); return v.empty() ? std::string("any") : v; },
+                   [device](const std::string& v) { device()["format"] = v == "any" ? std::string() : v; });
+        add.header({ "Width", "Height" });
+        add.row("Size");
+        add.integer("width", "Width", [device] { return int(std::as_const(device())["width"].number()); },
+                    [device](int v) { device()["width"] = v; }, 0, 10000);
+        add.integer("height", "Height", [device] { return int(std::as_const(device())["height"].number()); },
+                    [device](int v) { device()["height"] = v; }, 0, 10000);
         add.end();
+        add.note("0: the largest picture the camera offers.");
+
+        // The camera's own settings: each one jplacer sets when it opens the
+        // camera (by hand, or automatic where the camera can), or leaves as the
+        // camera has it.
+        add.group("Properties");
+        add.header({ "Set?", "Auto", "Value" });
+        struct Control { const char* key; const char* label; bool canAuto; };
+        static const Control kControls[] = {
+            { "brightness", "Brightness", true }, { "backlight-compensation", "Backlight Compensation", false },
+            { "contrast", "Contrast", false }, { "exposure", "Exposure", true }, { "focus", "Focus", true },
+            { "gain", "Gain", true }, { "gamma", "Gamma", false }, { "hue", "Hue", true },
+            { "power-line-frequency", "Power Line Freq.", false }, { "saturation", "Saturation", false },
+            { "sharpness", "Sharpness", false }, { "white-balance", "White Balance", true }, { "zoom", "Zoom", false } };
+        for (const Control& k : kControls) {
+            auto control = [device, key = std::string(k.key)]() -> JJson& { return device()["controls"][key]; };
+            const bool set = std::as_const(device())["controls"][k.key].isObject();
+            const std::string name = std::string("control:") + k.key;
+            add.row(k.label);
+            add.flag(name, std::string(k.label) + " set", [device, key = std::string(k.key)] { return std::as_const(device())["controls"][key].isObject(); },
+                     [device, control, key = std::string(k.key)](bool on) {
+                         if (!on) {
+                             JJson rest = JJson::object();
+                             for (const auto& [n, v] : std::as_const(device())["controls"].obj()) if (n != key) rest[n] = v;
+                             device()["controls"] = rest;
+                         } else if (!std::as_const(device())["controls"][key].isObject()) {
+                             control()["auto"] = false;
+                             control()["value"] = 0;
+                         }
+                     });
+            f.reshaping.push_back(name);
+            if (set && k.canAuto)
+                add.flag(name + ":auto", std::string(k.label) + " auto", [control] { return std::as_const(control())["auto"].boolean(); },
+                         [control](bool on) { control()["auto"] = on; });
+            else
+                add.skip();
+            if (set)
+                add.integer(name + ":value", k.label, [control] { return int(std::as_const(control())["value"].number()); },
+                            [control](int v) { control()["value"] = v; }, -1000000, 1000000);
+            else
+                add.skip();
+            add.end();
+        }
+        add.note("Set? unticked: the camera keeps its own setting. The values are the camera's own units.");
     }
-    add.note("Set? unticked: the camera keeps its own setting. The values are the camera's own units.");
 
     // OpenPnP's Image Transforms: those its advanced calibration still applies (rotation,
     // offset, flips and scaling are the calibration's straightening here).

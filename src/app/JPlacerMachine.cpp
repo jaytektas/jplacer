@@ -11,6 +11,7 @@
 #include "camera/JPWhiteBalance.h"
 #include "common/JPlacerLog.h"
 #include "common/JPlacerPaths.h"
+#include "model/JPXmlValues.h"
 #include "openpnp/JPOpenPnpMachineImporter.h"
 #include "setup/JPSetupEdits.h"
 #include "tasks/JPPhotonBus.h"
@@ -147,6 +148,31 @@ void JPlacerMachine::buildCameras() {
             g["camera"] = name;
             return scripting->on(event, g, why);
         };
+        // OpenPnP's SwitcherCamera: the device camera's feed (started if it is not
+        // showing), and the actuator that switches the multiplexer to this camera.
+        std::weak_ptr<bool> alive = m_alive;
+        d.panel->feed().setSwitching({
+            [this, alive, switched = c.id](const std::string& id) -> JPCameraFeed* {
+                for (const CameraDock& other : m_cameras) {
+                    if (other.panel->camera().id != id) continue;
+                    JPCameraPanel* device = other.panel.get();
+                    JMainThreadDispatcher::instance().post([alive, device, switched] {
+                        if (const auto a = alive.lock(); a && *a) device->setFeeding(switched, true);
+                    });
+                    return &device->feed();
+                }
+                return nullptr;
+            },
+            [cell = m_cell.get()](const std::string& actuatorId, double value, std::string& why) {
+                for (const JPActuatorConfig& a : cell->config().actuators)
+                    if (a.id == actuatorId) {
+                        if (a.valueType == JPActuatorConfig::ValueType::Boolean)
+                            return cell->switchActuatorAndWait(actuatorId, value != 0, why);
+                        return cell->setActuatorAndWait(actuatorId, JPXmlValues::number(value), why);
+                    }
+                why = "no actuator " + actuatorId;
+                return false;
+            } });
         // Straightened or as taken, kept from last time.
         d.panel->setView(JSettings::instance().get<bool>(JPlacerSettings::cameraStraightKey(c.id), false));
         d.panel->onViewChanged = [id = c.id](bool straight) {
@@ -172,7 +198,13 @@ void JPlacerMachine::buildCameras() {
             };
         }
         d.panel->onSettings = [this, id = c.id] { showSetup("camera:" + id); };
-        d.panel->onRunning = [this](bool) { lightCameras(); };
+        d.panel->onRunning = [this, id = c.id, device = c.device["backend"].str() == "switcher" ? c.device["camera"].str() : ""](bool running) {
+            // A switcher camera stopped: its device camera need not run for it.
+            if (!running && !device.empty())
+                for (const CameraDock& other : m_cameras)
+                    if (other.panel->camera().id == device) other.panel->setFeeding(id, false);
+            lightCameras();
+        };
         if (c.mount.headId.empty()) d.panel->view().onMoveNozzleHere = [this, id = c.id] { moveNozzleToCamera(id); };
         // OpenPnP's camera Properties: the preview's rate, held while the machine works, and brought forward.
         JPCameraPanel* panel = d.panel.get();

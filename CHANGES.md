@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- A camera can be OpenPnP's SwitcherCamera: one of several analog cameras on one capture device through a multiplexer,
+  switched in by an actuator when vision takes its picture. OpenPnP machines bring theirs in.
 - Camera white balance has OpenPnP's Mapped Roughly and Mapped Finely and its color balance curve, and an
   OpenPnP import brings a camera's white balance.
 - A nozzle's Offset Wizard has OpenPnP's precise offsets calibration: a test object picked, turned and placed

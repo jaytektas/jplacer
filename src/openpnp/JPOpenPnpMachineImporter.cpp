@@ -657,6 +657,16 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             if (!x.attr("simulated-scale").empty()) cam.device["simulatedScale"] = number(x.attr("simulated-scale"));
             cam.device["simulatedFlipped"] = x.attr("simulated-flipped") == "true";
         }
+        // OpenPnP's SwitcherCamera: one of the analog cameras on another camera's
+        // capture device, switched in through a multiplexer by an actuator.
+        if (shortClass(x) == "SwitcherCamera") {
+            cam.device["backend"] = "switcher";
+            cam.device["camera"] = x.attr("camera-id");
+            cam.device["switcher"] = number(x.attr("switcher"));
+            cam.device["actuator"] = x.attr("actuator-id");
+            cam.device["actuatorValue"] = number(x.attr("actuator-double-value"));
+            cam.device["actuatorDelayMs"] = x.attr("actuator-delay-millis").empty() ? 500 : number(x.attr("actuator-delay-millis"));
+        }
         if (shortClass(x) == "OpenPnpCaptureCamera") {
             const std::string& uid = x.attr("unique-id");
             const size_t usb = uid.rfind(" usb-");

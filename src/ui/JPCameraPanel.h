@@ -16,6 +16,7 @@
 #include <chrono>
 #include <functional>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -74,6 +75,9 @@ public:
     // While a task drives the camera: its buttons are off, and it runs even
     // off screen.
     void setBusy(bool busy);
+    // Feeding switcher camera `cameraId` (JPSwitcherSource) its pictures: it
+    // runs even off screen while any switcher camera on it does.
+    void setFeeding(const std::string& cameraId, bool feeding);
     // OpenPnP's instructions panel over the picture, for a process worked on
     // this camera (Estimate Z Coordinate of Object); gone with hideInstructions.
     void showInstructions(const std::string& title, const std::string& text, const std::string& proceedLabel,
@@ -105,6 +109,7 @@ private:
     JLabel*                               m_note  = nullptr;
     CalibrationFor                        m_calibrationFor;
     bool                                  m_busy = false;
+    std::set<std::string>                 m_feeding;
     bool                                  m_straight = false;
     std::string                           m_capturesDir;
     JContainer*                           m_instructionsHolder = nullptr;
