@@ -258,6 +258,9 @@ private:
     bool doInterlocks(const std::map<std::string, double>& from, const std::map<std::string, double>& to, bool before,
                       double speed, std::string& why);
     bool inSafeZone(const std::string& axisId, double value) const;
+    // OpenPnP's Unsafe Z Roaming, for a jog of a tool: its Z to safe Z with the move when too far from where it was left low.
+    void roamUnsafeZ(const std::string& toolId, const JPMountConfig& mount, const std::map<std::string, double>& now,
+                     std::map<std::string, double>& targets);
     bool doHome(std::string& why);
     bool doPark(const std::string& headId, double speed, std::string& why);
     bool doHomeNozzle(const std::string& nozzleId, double speed, std::string& why);
@@ -321,6 +324,8 @@ private:
     std::atomic<bool>                           m_homing{ false };
     std::atomic<bool>                           m_moving{ false };
     std::map<std::string, double>               m_partHeights;   // by nozzle id; the cell's thread's
+    std::mutex                                  m_roamMutex;
+    std::map<std::string, std::pair<double, double>> m_roamFrom;   // by tool: where it was left at unsafe Z
     std::map<std::string, bool>                 m_actuated;      // by actuator id: what it was last switched to
     std::map<std::string, std::optional<bool>>  m_conditionalLast;   // by interlocked actuator: its condition's last state
     std::atomic<double>                         m_speed{ 1.0 };

@@ -174,5 +174,25 @@ int main() {
         assert(motion.take().first && near(cell.jogBase().at("Z"), -2));
         cell.disconnect();
     }
+    {
+        // Unsafe Z Roaming: a nozzle left 5 mm below its safe zone stays there
+        // jogged 5 mm, and goes up with the jog that takes it past 10 mm away.
+        JPCell cell(cellConfig(true), profiles());
+        Latch connected, motion;
+        cell.onConnection.connect([&](bool ok, std::string w) { connected.set(ok, w); });
+        cell.onMotion.connect([&](bool ok, std::string w) { motion.set(ok, w); });
+        cell.connect();
+        assert(connected.take().first);
+        cell.home();
+        assert(motion.take().first);
+        std::string why;
+        assert(cell.moveAxesAndWait({ { "X", 200 }, { "Y", 100 }, { "ZN", -5 } }, 1.0, why));
+        motion.take();
+        cell.jog("N", 5, 0, 0, 0, 1.0);
+        assert(motion.take().first && near(cell.jogBase().at("ZN"), -5));
+        cell.jog("N", 6, 0, 0, 0, 1.0);
+        assert(motion.take().first && near(cell.jogBase().at("ZN"), 0) && near(cell.jogBase().at("X"), 211));
+        cell.disconnect();
+    }
     return 0;
 }

@@ -1034,8 +1034,53 @@ void JPCell::jog(const std::string& toolId, double dx, double dy, double dz, dou
     add(mount->axisY, dy);
     add(mount->axisZ, dz);
     add(mount->axisRotation, drot);
+    roamUnsafeZ(toolId, *mount, now, targets);
     compensateRunout(*mount, targets, true);
     if (!targets.empty()) moveAxes(std::move(targets), speed);
+}
+
+void JPCell::roamUnsafeZ(const std::string& toolId, const JPMountConfig& mount, const std::map<std::string, double>& now,
+                         std::map<std::string, double>& targets) {
+    const JPAxisConfig* z = m_config.axis(mount.axisZ);
+    const auto zNow = now.find(mount.axisZ);
+    if (!z || zNow == now.end()) return;
+    // Its safe Z: a virtual axis's is its home; any other's, its safe zone.
+    const bool isVirtual = z->kind == JPAxisConfig::Kind::Virtual;
+    const auto zAt = targets.count(mount.axisZ) ? targets.at(mount.axisZ) : zNow->second;
+    constexpr double kSame = 1e-3;   // coordinates this close are the same place
+    const bool unsafe = isVirtual ? zAt < z->homeCoordinate - kSame : !inSafeZone(mount.axisZ, zAt);
+    auto xy = [&](const std::map<std::string, double>& at) {
+        const auto x = at.find(mount.axisX), y = at.find(mount.axisY);
+        return std::pair { x == at.end() ? 0.0 : x->second, y == at.end() ? 0.0 : y->second };
+    };
+    std::lock_guard lk(m_roamMutex);
+    if (!unsafe) {
+        m_roamFrom.erase(toolId);
+        return;
+    }
+    // Where it was left low (or lowered further): roaming from there.
+    if (!m_roamFrom.count(toolId) || targets.count(mount.axisZ)) {
+        m_roamFrom[toolId] = xy(now);
+        return;
+    }
+    std::map<std::string, double> after = now;
+    for (const auto& [id, t] : targets) after[id] = t;
+    const auto [x0, y0] = m_roamFrom[toolId];
+    const auto [x1, y1] = xy(after);
+    if (std::hypot(x1 - x0, y1 - y0) <= m_config.unsafeZRoamingMm) return;
+    // Too far: up to safe Z with this move.
+    if (isVirtual) {
+        targets[mount.axisZ] = z->homeCoordinate;
+    } else {
+        const JPAxisConfig* raw = z->transformed() ? m_config.axis(z->inputAxisId) : z;
+        if (raw && raw->safeZoneLowEnabled) {
+            const auto out = z->transformed() ? z->mapped(raw->safeZoneLow) : std::optional<double>(raw->safeZoneLow);
+            if (out) targets[mount.axisZ] = *out;
+        }
+    }
+    JLOGC(JPlacerLog::kCell, JLogLevel::Info) << "jogged further than " << m_config.unsafeZRoamingMm
+                                              << " mm at unsafe Z: up to safe Z";
+    m_roamFrom.erase(toolId);
 }
 
 bool JPCell::moveAxesAndWait(std::map<std::string, double> targets, double speed, std::string& why, bool squared) {

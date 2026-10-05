@@ -48,6 +48,10 @@ struct JPCellConfig {
     bool                          autoToolSelect = true;
     // Z park (the Jog panel's) takes every tool on the head to safe Z first.
     bool                          safeZPark = true;
+    // OpenPnP's Unsafe Z Roaming: a tool left below safe Z (a camera's
+    // virtual Z, captured low) jogged further than this from where it was
+    // left goes up to safe Z, so a later move does not bring it down unseen (mm).
+    double                        unsafeZRoamingMm = 10;
     // The job open last is opened again at start.
     bool                          autoLoadMostRecentJob = true;
     JPJobProcessorConfig          jobProcessor;                 // how a job is run

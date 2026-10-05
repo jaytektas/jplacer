@@ -16,7 +16,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 |---|---|---|
 | Home after enabled, Park after homed | done | Machine › Configuration |
 | Park all at Safe Z, Auto tool select | done | Machine › Configuration; Jog Z park |
-| Unsafe Z Roaming | missing | |
+| Unsafe Z Roaming | done | |
 | Discard location, Default Board Location | done | |
 | Auto-load most recent job | done | on for a new cell; as OpenPnP's for an imported one |
 | Motion planner: continuous motion, uncoordinated moves, interpolation retiming, minimum speed | missing | moves are sent one at a time, each waited for |
@@ -166,5 +166,5 @@ Breadth first, with jplacer's own methods where they are better:
 1. Nozzle tips: runout recalibration triggers; part dimensions and push and drag with the job that uses them.
 2. Cameras: remaining calibration settings and results (head offsets, tilt); image transforms; preview FPS cap.
 3. Actuators: profiles, interlocks.
-4. Machine: motion planner settings (continuous motion), Unsafe Z roaming.
+4. Machine: motion planner settings (continuous motion).
 5. View: System Units (inches throughout), languages; Scripting.

@@ -178,6 +178,8 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
     c.discardLocation = location(*machine, "discard-location");
     c.defaultBoardLocation = location(*machine, "default-board-location").value_or(JPMachineLocation {});
     c.autoToolSelect = machine->attr("auto-tool-select") != "false";   // OpenPnP's default: on
+    if (machine->child("unsafe-Z-roaming-distance")) c.unsafeZRoamingMm = lengthChild(*machine, "unsafe-Z-roaming-distance");
+    else if (machine->child("unsafe-z-roaming-distance")) c.unsafeZRoamingMm = lengthChild(*machine, "unsafe-z-roaming-distance");
     c.safeZPark = machine->attr("safe-Z-park") != "false" && machine->attr("safe-z-park") != "false";   // default: on
     c.autoLoadMostRecentJob = setting("auto-load-most-recent-job");     // OpenPnP's default: off
     // How a job is run, and the fiducial locator's tolerances.

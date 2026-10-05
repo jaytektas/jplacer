@@ -380,6 +380,8 @@ notes.
 - Actuators can have OpenPnP's Axis Interlock: switched as axes move (moving, standing still, in or out of the
   safe zone, parked), or read to confirm it is safe to move before or after a move, the machine stopped if not.
   It comes in with an OpenPnP machine.
+- The machine has OpenPnP's Unsafe Z Roaming: a tool left below safe Z goes up to safe Z once it is jogged more
+  than that far away.
 
 ## 0.1.0
 

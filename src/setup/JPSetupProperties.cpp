@@ -118,6 +118,10 @@ void machineForm(JPCellConfig& cell, JPSetupProperties::Form& f) {
     add.flag("parkAfterHome", "Park after homed?", [&cell]() -> bool& { return cell.parkAfterHome; });
     add.flag("safeZPark", "Park all at Safe Z?", [&cell]() -> bool& { return cell.safeZPark; });
     add.tip("When the Z Park button is pressed, move all tools mounted on the same head to safe Z.");
+    add.number("unsafeZRoaming", "Unsafe Z Roaming", [&cell]() -> double& { return cell.unsafeZRoamingMm; }, 2);
+    add.tip("Maximum allowable roaming distance at unsafe Z. Virtual Z axes (typically on cameras) are invisible, therefore "
+            "it can easily be overlooked that you are at unsafe Z. Jogging further away will automatically move the "
+            "virtual axis to Safe Z.");
     add.flag("autoToolSelect", "Auto tool select?", [&cell]() -> bool& { return cell.autoToolSelect; });
     add.tip("Whenever an explicit user action is performed on a tool, automatically select it in Machine Controls.");
     add.flag("autoLoadMostRecentJob", "Auto-load most recent job?", [&cell]() -> bool& { return cell.autoLoadMostRecentJob; });
