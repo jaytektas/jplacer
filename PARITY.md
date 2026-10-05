@@ -116,7 +116,8 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Advanced calibration: results | partial | units per pixel, accuracy, FOV mm and degrees, turn, height, focal length; head offsets and tilt about X / Y missing |
 | Advanced calibration: plots | done | in order, X against Y, map |
 | Camera view: zoom, reticles (cross, grid, ruler, circle / square), drag / Shift+click to move | done | |
-| Camera view: footprint reticle, image info and histogram, light toggle, measure rectangle, Estimate Z | missing | |
+| Camera view: footprint reticle, image info and histogram, light toggle, Estimate Z, Move Selected Nozzle to Camera, Zoom Sensitivity | done | reticles: none, cross, grid, ruler, circle, square |
+| Camera view: Rendering Quality | missing | the framework's image drawing has no filtering choice |
 | Auto focus (up-looking) | missing | |
 | Capture backends (OpenPnpCapture, Webcam, GStreamer, MJPG, ONVIF, Image, Switcher) | partial | V4L2 and simulated |
 

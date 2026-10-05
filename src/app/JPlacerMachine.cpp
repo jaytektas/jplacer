@@ -143,6 +143,17 @@ void JPlacerMachine::buildCameras() {
             JPlacerSettings::save();
         };
         for (const auto& [key, overlay] : m_overlays) d.panel->setOverlay(key, overlay);
+        // How much the wheel zooms, kept from last time.
+        {
+            using Z = JPCameraView::ZoomSensitivity;
+            const std::string kept = JSettings::instance().get<std::string>(JPlacerSettings::cameraZoomKey(c.id), "");
+            for (Z z : { Z::High, Z::Medium, Z::Low })
+                if (kept == JPCameraView::name(z)) d.panel->view().setZoomSensitivity(z);
+            d.panel->view().onZoomSensitivityChanged = [id = c.id](Z z) {
+                JSettings::instance().set(JPlacerSettings::cameraZoomKey(id), std::string(JPCameraView::name(z)));
+                JPlacerSettings::save();
+            };
+        }
         d.panel->onSettings = [this, id = c.id] { showSetup("camera:" + id); };
         d.panel->onRunning = [this](bool) { lightCameras(); };
         if (c.mount.headId.empty()) d.panel->view().onMoveNozzleHere = [this, id = c.id] { moveNozzleToCamera(id); };

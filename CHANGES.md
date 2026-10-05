@@ -361,6 +361,7 @@ notes.
   Image Info in its right-click menu: the picture's size, zoom, pictures a second and a colour histogram. A
   fixed camera's menu has Move Selected Nozzle to Camera, and one calibrated at two heights Estimate Z
   Coordinate of Object, which measures how high a feature is from two clicks on it.
+- A camera's picture menu has OpenPnP's Zoom Sensitivity (High, Medium, Low): how much the wheel zooms.
 
 ## 0.1.0
 

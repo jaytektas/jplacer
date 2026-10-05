@@ -94,6 +94,12 @@ public:
     bool showImageInfo() const { return m_showInfo; }
     void setShowImageInfo(bool on);
     std::function<void(bool on)> onShowImageInfoChanged;
+    // OpenPnP's Zoom Sensitivity: a notch of the wheel zooms by 2 (High), by
+    // the square root of 2 (Medium, to begin with) or the fourth root (Low).
+    enum class ZoomSensitivity { High, Medium, Low };
+    static const char* name(ZoomSensitivity s);
+    void setZoomSensitivity(ZoomSensitivity s) { m_sensitivity = s; }
+    std::function<void(ZoomSensitivity)> onZoomSensitivityChanged;
     // How far zoomed in: 1 is the picture fitted to the view.
     double zoom() const { return m_zoom; }
     static constexpr double kMostZoom = 64.0;
@@ -166,7 +172,9 @@ private:
     double                             m_reachMm = 0;   // how far the picture reaches from its middle
     std::map<std::string, Overlay>     m_overlays;
     JPReticle                          m_reticle;
-    std::unique_ptr<JMenu>             m_menu, m_spacingMenu, m_sizeMenu;
+    std::unique_ptr<JMenu>             m_menu, m_spacingMenu, m_sizeMenu, m_zoomMenu;
+    ZoomSensitivity                    m_sensitivity = ZoomSensitivity::Medium;
+    std::vector<std::pair<JMenuItem*, ZoomSensitivity>> m_zoomItems;
     std::vector<std::pair<JMenuItem*, JPReticle::Kind>> m_kindItems;
     std::vector<std::pair<JMenuItem*, double>> m_spacingItems, m_sizeItems;
     JMenuItem*                         m_spacingItem = nullptr;

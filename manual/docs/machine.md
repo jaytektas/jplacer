@@ -466,11 +466,13 @@ does not move meanwhile. The page's **Confirm** takes it, **Cancel** puts it awa
 <!-- src: src/ui/JPCameraView.cpp (setSelectionEnabled, handleMousePress, dragSelection, captureSelection); src/ui/JPFeedersPanel.cpp (selectOnCamera) -->
 
 Turn the **mouse wheel** over a camera's picture to zoom in or out, up to 64 times, about the middle, so
-the cross stays on the point the camera is looking at. Two notches double the zoom; it shows in the bottom
+the cross stays on the point the camera is looking at. How much a notch zooms is the picture menu's **Zoom
+Sensitivity**, as OpenPnP's: **High**, each notch doubling it; **Medium** (to begin with), two notches
+doubling it; **Low**, four. Each camera keeps its own. The zoom shows in the bottom
 corner while it is more than fitted, and turning back down stops at fitted. Moving to a point in a zoomed
 picture works as it does fitted.
 
-<!-- src: src/ui/JPCameraView.cpp (handleScroll, kZoomPerNotch, kMostZoom) -->
+<!-- src: src/ui/JPCameraView.cpp (handleScroll, zoomPerNotch, kMostZoom); src/app/JPlacerSettings.cpp (cameraZoomKey) -->
 
 **Right-click** a camera's picture to choose its **reticle**, what is drawn over the picture to measure by:
 

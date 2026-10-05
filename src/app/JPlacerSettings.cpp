@@ -66,6 +66,10 @@ std::string JPlacerSettings::cameraReticleKey(const std::string& cameraId) {
     return "camera." + cameraId + ".reticle";
 }
 
+std::string JPlacerSettings::cameraZoomKey(const std::string& cameraId) {
+    return "camera." + cameraId + ".zoomSensitivity";
+}
+
 std::string JPlacerSettings::keyFor(const std::string& functionId) {
     return "keys." + functionId;
 }

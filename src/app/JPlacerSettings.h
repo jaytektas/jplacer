@@ -103,6 +103,8 @@ public:
     static std::string cameraStraightKey(const std::string& cameraId);
     // The reticle over a camera's picture (JPReticle::toText).
     static std::string cameraReticleKey(const std::string& cameraId);
+    // How much a camera's picture zooms by a notch of the wheel (JPCameraView::ZoomSensitivity, by name).
+    static std::string cameraZoomKey(const std::string& cameraId);
     // The key given to a function (JPKeyMap): "keys.<id>", absent for its
     // default, "none" for no key.
     static std::string keyFor(const std::string& functionId);

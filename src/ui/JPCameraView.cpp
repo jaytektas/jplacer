@@ -16,8 +16,14 @@
 inline namespace jf {
 
 namespace {
-// Each notch of the wheel zooms by this much: two notches double it.
-const double kZoomPerNotch = std::sqrt(2.0);
+// Each notch of the wheel zooms by this much, by sensitivity (OpenPnP's).
+double zoomPerNotch(JPCameraView::ZoomSensitivity s) {
+    switch (s) {
+        case JPCameraView::ZoomSensitivity::High: return 2.0;
+        case JPCameraView::ZoomSensitivity::Low:  return std::pow(2.0, 1.0 / 4);
+        default:                                   return std::sqrt(2.0);
+    }
+}
 // A grid's lines and a ruler's marks are no closer on screen than this many
 // spacings (JStyle::spacing); closer ones are left out.
 constexpr float kLeastGap = 3.f;
@@ -51,6 +57,17 @@ void JPCameraView::buildMenu() {
     m_nozzleHereItem->onTriggered.connect([this] {
         if (onMoveNozzleHere) onMoveNozzleHere();
     });
+    m_zoomMenu = std::make_unique<JMenu>("Zoom Sensitivity");
+    for (ZoomSensitivity z : { ZoomSensitivity::High, ZoomSensitivity::Medium, ZoomSensitivity::Low }) {
+        JMenuItem* item = m_zoomMenu->add(g, name(z));
+        item->setCheckable(true);
+        item->onTriggered.connect([this, z] {
+            m_sensitivity = z;
+            if (onZoomSensitivityChanged) onZoomSensitivityChanged(z);
+        });
+        m_zoomItems.emplace_back(item, z);
+    }
+    m_menu->add(g, "Zoom Sensitivity", {}, m_zoomMenu.get());
     for (JPReticle::Kind k : JPReticle::kinds()) {
         JMenuItem* item = m_menu->add(g, JPReticle::name(k));
         item->setCheckable(true);
@@ -125,7 +142,16 @@ void JPCameraView::prepareContextMenu(float, float) {
     m_fitItem->setEnabled(m_zoom > 1.0);
     m_infoItem->setChecked(m_showInfo);
     m_nozzleHereItem->setVisible(bool(onMoveNozzleHere));
+    for (auto& [item, z] : m_zoomItems) item->setChecked(z == m_sensitivity);
     m_estimateZItem->setVisible(onEstimateZ && canEstimateZ && canEstimateZ());
+}
+
+const char* JPCameraView::name(ZoomSensitivity s) {
+    switch (s) {
+        case ZoomSensitivity::High: return "High";
+        case ZoomSensitivity::Low:  return "Low";
+        default:                    return "Medium";
+    }
 }
 
 void JPCameraView::setShowImageInfo(bool on) {
@@ -488,7 +514,7 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
 
 bool JPCameraView::handleScroll(float, float, float wheel) {
     if (wheel == 0.f) return false;
-    const double z = std::clamp(m_zoom * std::pow(kZoomPerNotch, double(wheel)), 1.0, kMostZoom);
+    const double z = std::clamp(m_zoom * std::pow(zoomPerNotch(m_sensitivity), double(wheel)), 1.0, kMostZoom);
     // Back near fitted is fitted, not 99.99% of it.
     m_zoom = z < 1.0 + 1e-6 ? 1.0 : z;
     invalidate();
