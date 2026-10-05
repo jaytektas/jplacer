@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Scripts can drive the machine, as OpenPnP's can: `import jplacer` (or `require("jplacer")`) to move tools, home,
+  switch and read actuators, send G-code and show a message.
 - View > Language, as OpenPnP's: Russian, Spanish, French, Italian, German or Chinese, from OpenPnP's own translations,
   from the next start.
 - Issues & Solutions checks a camera's own settings as OpenPnP does (brightness, contrast, gamma, gain, hue,

@@ -23,6 +23,7 @@ JPCell::JPCell(JPCellConfig config, std::vector<JPFirmwareProfile> profiles)
     : m_config(std::move(config)), m_profiles(std::move(profiles)) {
     for (const JPAxisConfig& a : m_config.axes) m_positions[a.id] = a.homeCoordinate;
     for (const JPDriverConfig& d : m_config.drivers) m_drivers.push_back(makeDriver(asRun(d, m_config)));
+    m_thread.post([this] { m_threadId = std::this_thread::get_id(); });
     // What each actuator was switched to; nothing known once the connection goes.
     onActuator.connect([this](std::string id, bool ok, std::string value) {
         if (!ok || (value != "on" && value != "off")) return;

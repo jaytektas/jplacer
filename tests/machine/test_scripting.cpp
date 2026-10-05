@@ -11,9 +11,12 @@
 
 #include "machine/JPScripting.h"
 
+#include <cstdio>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <vector>
 
 using namespace jf;
 namespace fs = std::filesystem;
@@ -52,6 +55,36 @@ int main() {
     write(dir / "hello.sh", "exit 0\n");
     assert(scripting.execute((dir / "hello.sh").string(), JJson::object(), why));
     assert(!JPScripting::runnable((dir / "notes.txt").string()) && JPScripting::runnable((dir / "a.py").string()));
+    // Asking the machine (OpenPnP's scripts have `machine`): the helper module kept beside the scripts, each
+    // request answered, an error raised in the script; with nothing to ask, said so.
+    assert(fs::exists(dir / "jplacer.py") && fs::exists(dir / "jplacer.js"));
+    std::vector<std::string> asked;
+    scripting.api = [&asked](const JJson& request) {
+        asked.push_back(request["call"].str());
+        JJson answer = JJson::object();
+        if (request["call"].str() == "location") {
+            answer["result"]["x"] = 12.5;
+            answer["result"]["tool"] = request["tool"].str();
+        } else answer["error"] = std::string("not today");
+        return answer;
+    };
+    if (std::system("python3 -c '' >/dev/null 2>&1") == 0) {
+        write(dir / "ask.py", "import jplacer\n"
+                              "at = jplacer.location('N1')\n"
+                              "assert at['x'] == 12.5 and at['tool'] == 'N1', at\n"
+                              "try:\n"
+                              "    jplacer.home()\n"
+                              "    raise SystemExit(5)\n"
+                              "except jplacer.Error as e:\n"
+                              "    assert str(e) == 'not today'\n"
+                              "print('asked', jplacer.event)\n");
+        const bool ok = scripting.execute((dir / "ask.py").string(), JJson::object(), why, "Test.Event");
+        if (!ok) std::fprintf(stderr, "why: %s\n", why.c_str());
+        assert(ok && asked == (std::vector<std::string> { "location", "home" }));
+        scripting.api = nullptr;
+        write(dir / "noone.py", "import jplacer\njplacer.positions()\n");
+        assert(!scripting.execute((dir / "noone.py").string(), JJson::object(), why) && why.find("no machine to ask") != std::string::npos);
+    }
     fs::remove_all(dir);
     return 0;
 }

@@ -103,9 +103,28 @@ line says when it is done, or why it failed, and what it prints goes to the log.
 folder read again), **Open Scripts Directory**, and **Clear Scripting Engine Pool**, greyed out: each script runs as
 a program of its own, so there is no pool.
 
-A script is a Python (`.py`, run by `python3`), JavaScript (`.js`, run by `node`) or shell (`.sh`) file. Unlike
-OpenPnP's, it cannot reach into the machine: it is told what it runs for, as JSON in the environment variable
-`JPLACER_GLOBALS` (and the event's name in `JPLACER_EVENT`), and works with that and the world outside.
+A script is a Python (`.py`, run by `python3`), JavaScript (`.js`, run by `node`) or shell (`.sh`) file. It is told
+what it runs for, as JSON in the environment variable `JPLACER_GLOBALS` (and the event's name in `JPLACER_EVENT`),
+and, as OpenPnP's scripts have `machine`, it can ask the machine through the module `jplacer` that jplacer keeps
+beside the scripts (`import jplacer` in Python, `require("jplacer")` in JavaScript):
+
+| | |
+|---|---|
+| `positions()` | Where each axis is, by name. |
+| `location(tool)` | Where a nozzle, camera or actuator (by name) is: `x`, `y`, `z`, `rotation`. |
+| `move_to(tool, x, y, z, rotation, speed, straight)` | Moves it there (any left out stay), by way of Safe Z unless `straight`; `speed` a share of the machine's. |
+| `safe_z(head, speed)` | The head (the first, when none is named) up to Safe Z. |
+| `home()` | Homes the machine, waiting for it. |
+| `actuate(actuator, value)` | Switches an actuator (`True`/`False`), or sets it to a number or text. |
+| `read(actuator, parameter)` | Reads an actuator. |
+| `gcode(line, controller)` | Sends a line to a controller (the first, when none is named). |
+| `message(text)` | Shows it in the status bar. |
+
+A request that fails raises `jplacer.Error` (an `Error` in JavaScript) with why. Each is a line of JSON written to
+file descriptor 3 (`{"call": "moveTo", "tool": "N1", "x": 10}`) and its answer a line read from 4 (`{"result": …}`
+or `{"error": "…"}`), so a shell script can ask too. A script the machine itself runs (an actuator's, or one at
+Machine.AfterDriverHoming) cannot move it, switch or read actuators, or home it: waiting for the machine there would
+never end, so it is told so.
 
 The **Events** folder's scripts run at OpenPnP's events, those named the event, or the event, a dot and more
 (`Job.Starting.2.py`), in name order: **Startup**, **Machine.AfterHoming**, **Job.Starting**, **Job.Finished**,
@@ -121,7 +140,7 @@ and **Camera.AfterCapture** (each picture vision takes: the `camera`); and **Cam
 moved to look somewhere by a button, once it is there). One that fails (exits other than 0, or runs past a
 minute) stops what it runs for, saying why.
 
-<!-- src: src/app/JPlacerScriptsMenu.cpp; src/machine/JPScripting.cpp; src/tasks/JPJobProcessor.cpp (script, placementGlobals); src/app/JPlacerMachine.cpp (runEvent, moveToolTo); src/app/JPlacerApp.cpp; src/tasks/JPCameraLook.cpp (settled); src/app/JPlacerCameraTasks.cpp (calibrateRunout); src/tasks/JPJobProcessor.cpp (discard, align) -->
+<!-- src: src/app/JPlacerScriptsMenu.cpp; src/machine/JPScripting.cpp; src/tasks/JPJobProcessor.cpp (script, placementGlobals); src/app/JPlacerMachine.cpp (runEvent, moveToolTo); src/app/JPlacerApp.cpp; src/tasks/JPCameraLook.cpp (settled); src/app/JPlacerCameraTasks.cpp (calibrateRunout); src/tasks/JPJobProcessor.cpp (discard, align), src/app/JPlacerMachine.cpp (scriptRequest) -->
 
 ## Window
 

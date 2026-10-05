@@ -163,6 +163,8 @@ public:
     // OpenPnP's Enable Visual Homing: the mark under the head's camera made
     // its homing mark (where it is, how wide) and visual homing turned on.
     void enableVisualHoming(const std::string& headId, std::function<void(bool ok)> finished);
+    // A script's request of the machine (JPScripting::api), answered.
+    JJson scriptRequest(const JJson& request);
     // A camera's own device settings as it last started (none while it has not).
     JJson cameraDeviceControls(const std::string& cameraId) const;
     // A camera's picture drawn smoothed (Rendering Quality High or Highest);

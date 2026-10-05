@@ -5,6 +5,7 @@
 
 #include <j/config/Json.h>
 
+#include <functional>
 #include <mutex>
 #include <set>
 #include <string>
@@ -20,6 +21,8 @@ inline namespace jf {
 // folder's are run at OpenPnP's events ("Job.Starting", "Nozzle.BeforePick"),
 // those named the event (or the event, a dot and more: Job.Starting.2.py),
 // in name order; one that fails (exits other than 0) stops what it is run for.
+// A script asks the machine through `api` (the helper modules jplacer.py and
+// jplacer.js, kept in the scripts folder).
 class JPScripting {
 public:
     // How long a script may run before it is stopped, in ms.
@@ -34,6 +37,15 @@ public:
 
     // A script run, waited for; false with why (its exit, its last words) when it fails.
     bool execute(const std::string& path, const JJson& globals, std::string& why, const std::string& event = "");
+    // What a script asks of the machine (OpenPnP's scripts have `machine`):
+    // a request ({ "call": "moveTo", ... }) answered (the result, or
+    // { "error": why }). Its scripts reach it through the helper modules
+    // jplacer.py and jplacer.js in the scripts folder, or by writing a line of
+    // JSON to fd 3 and reading the answer's line from fd 4. Set by the owner;
+    // called on the thread that runs the script.
+    std::function<JJson(const JJson& request)> api;
+    static constexpr int kRequestFd = 3, kAnswerFd = 4;
+
     // An event's scripts run; false with why when one fails.
     bool on(const std::string& event, const JJson& globals, std::string& why);
     // The scripts looked for afresh (Refresh Scripts).

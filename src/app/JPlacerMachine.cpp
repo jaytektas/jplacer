@@ -48,6 +48,9 @@ constexpr int kStatusMs = 3000;
 constexpr int kErrorMs  = 8000;
 // How long the background calibration's problem pictures are shown.
 constexpr int kProblemsMs = 10000;
+// A script's Home: how long it is waited for, looked at this often (ms).
+constexpr int kScriptHomeMs = 120000;
+constexpr int kScriptPollMs = 50;
 // A simulated nozzle tip seen from below: this wide when its tip gives no diameter (mm), and this bright.
 constexpr double kSimulatedTipMm = 1.0;
 constexpr float  kSimulatedTipLevel = 230;
@@ -69,6 +72,12 @@ JPlacerMachine::JPlacerMachine(JAppWindow& window, JSceneGraph& graph)
       m_connectIcon(graph), m_homeIcon(graph),
       m_position(graph, [this] { return m_jog ? m_jog->where() : std::vector<std::pair<std::string, double>>(); }) {
     m_scripting = std::make_shared<JPScripting>((std::filesystem::path(JPlacerPaths::configDir()) / "scripts").string());
+    m_scripting->api = [this, alive = std::weak_ptr<bool>(m_alive)](const JJson& request) {
+        JJson answer = JJson::object();
+        if (const auto a = alive.lock(); !a || !*a) answer["error"] = std::string("jplacer is closing");
+        else answer = scriptRequest(request);
+        return answer;
+    };
     // The machine's two states, always in view: click the chip to connect or
     // disconnect, the house to home.
     JToolBar& tb = window.toolBar();
@@ -1424,6 +1433,109 @@ void JPlacerMachine::enableVisualHoming(const std::string& headId, std::function
             });
         if (finished) finished(mark.has_value());
     });
+}
+
+JJson JPlacerMachine::scriptRequest(const JJson& request) {
+    JJson answer = JJson::object();
+    auto fail = [&answer](const std::string& why) {
+        answer["error"] = why;
+        return answer;
+    };
+    if (!m_cell) return fail("no machine is open");
+    const std::string call = request["call"].str();
+    const JPCellConfig& cfg = m_cell->config();
+    // Waiting for the cell from its own thread would never end (an actuator's script, a homing event's).
+    const bool moves = call == "moveTo" || call == "safeZ" || call == "home" || call == "actuate" || call == "read";
+    if (moves && m_cell->onCellThread())
+        return fail(call + " cannot be asked from a script the machine itself is running (an actuator's, or a homing event's)");
+    // A tool by its name or id: a nozzle, a camera or an actuator on a head.
+    auto tool = [&cfg](const std::string& name) -> const JPMountConfig* {
+        for (const JPNozzleConfig& n : cfg.nozzles) if (n.name == name || n.id == name) return &n.mount;
+        for (const JPCameraConfig& c : cfg.cameras) if (c.name == name || c.id == name) return &c.mount;
+        for (const JPActuatorConfig& a : cfg.actuators) if (a.name == name || a.id == name) return &a.mount;
+        return nullptr;
+    };
+    auto actuator = [&cfg](const std::string& name) -> const JPActuatorConfig* {
+        for (const JPActuatorConfig& a : cfg.actuators) if (a.name == name || a.id == name) return &a;
+        return nullptr;
+    };
+    auto optional = [&request](const char* key) {
+        const JJson& v = request[key];
+        return v.isNumber() ? std::optional<double>(v.number()) : std::nullopt;
+    };
+    const double speed = request["speed"].isNumber() ? std::clamp(request["speed"].number(), 0.01, 1.0) : 1.0;
+    std::string why;
+    if (call == "positions") {
+        JJson result = JJson::object();
+        for (const auto& [id, v] : m_cell->positions()) {
+            const JPAxisConfig* a = cfg.axis(id);
+            result[a ? a->name : id] = v;
+        }
+        answer["result"] = result;
+    } else if (call == "location") {
+        const JPMountConfig* m = tool(request["tool"].str());
+        if (!m) return fail("no nozzle, camera or actuator " + request["tool"].str());
+        const auto p = m_cell->positions();
+        auto at = [&p](const std::string& axis, double offset) -> JJson {
+            const auto i = p.find(axis);
+            return axis.empty() || i == p.end() ? JJson() : JJson(i->second + offset);
+        };
+        JJson result = JJson::object();
+        result["x"] = at(m->axisX, m->offsetX);
+        result["y"] = at(m->axisY, m->offsetY);
+        result["z"] = at(m->axisZ, m->offsetZ);
+        result["rotation"] = at(m->axisRotation, 0);
+        answer["result"] = result;
+    } else if (call == "moveTo") {
+        const JPMountConfig* m = tool(request["tool"].str());
+        if (!m) return fail("no nozzle, camera or actuator " + request["tool"].str());
+        const std::array<std::optional<double>, 4> to { optional("x"), optional("y"), optional("z"), optional("rotation") };
+        const JPMountConfig mount = *m;
+        const bool ok = request["straight"].boolean() ? m_cell->moveToolStraightAndWait(mount, to, speed, why)
+                                                      : m_cell->moveToolAndWait(mount, to, speed, why);
+        if (!ok) return fail(why);
+    } else if (call == "safeZ") {
+        std::string head = cfg.heads.empty() ? std::string() : cfg.heads.front().id;
+        for (const JPHeadConfig& h : cfg.heads) if (h.name == request["head"].str() || h.id == request["head"].str()) head = h.id;
+        if (head.empty()) return fail("no head");
+        if (!m_cell->safeZAndWait(head, speed, why)) return fail(why);
+    } else if (call == "home") {
+        m_cell->home();
+        // Until it is homed, or stops trying.
+        const auto until = std::chrono::steady_clock::now() + std::chrono::milliseconds(kScriptHomeMs);
+        std::this_thread::sleep_for(std::chrono::milliseconds(kScriptPollMs));
+        while (m_cell->isHoming() && std::chrono::steady_clock::now() < until)
+            std::this_thread::sleep_for(std::chrono::milliseconds(kScriptPollMs));
+        if (!m_cell->isHomed()) return fail("the machine did not home");
+    } else if (call == "actuate") {
+        const JPActuatorConfig* a = actuator(request["actuator"].str());
+        if (!a) return fail("no actuator " + request["actuator"].str());
+        const JJson& v = request["value"];
+        const bool ok = v.isBool() ? m_cell->switchActuatorAndWait(a->id, v.boolean(), why)
+                                   : m_cell->setActuatorAndWait(a->id, v.isNumber() ? JPXmlValues::number(v.number()) : v.str(), why);
+        if (!ok) return fail(why);
+    } else if (call == "read") {
+        const JPActuatorConfig* a = actuator(request["actuator"].str());
+        if (!a) return fail("no actuator " + request["actuator"].str());
+        std::string value;
+        const std::optional<std::string> parameter =
+            request["parameter"].isNull() ? std::nullopt : std::optional<std::string>(request["parameter"].str());
+        if (!m_cell->readActuatorAndWait(a->id, parameter, value, why)) return fail(why);
+        answer["result"] = value;
+    } else if (call == "gcode") {
+        std::string driver = cfg.drivers.empty() ? std::string() : cfg.drivers.front().id;
+        for (const JPDriverConfig& d : cfg.drivers) if (d.name == request["controller"].str() || d.id == request["controller"].str()) driver = d.id;
+        if (driver.empty()) return fail("no controller");
+        m_cell->sendLine(driver, request["line"].str());
+    } else if (call == "message") {
+        std::weak_ptr<bool> alive = m_alive;
+        JMainThreadDispatcher::instance().post([this, alive, text = request["text"].str()] {
+            if (const auto a = alive.lock(); a && *a) m_window.showStatus(text, kErrorMs);
+        });
+    } else {
+        return fail("no such call: " + call);
+    }
+    return answer;
 }
 
 JJson JPlacerMachine::cameraDeviceControls(const std::string& cameraId) const {

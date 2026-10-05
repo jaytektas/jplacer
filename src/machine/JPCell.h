@@ -14,6 +14,7 @@
 
 #include <array>
 #include <atomic>
+#include <thread>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -249,6 +250,8 @@ public:
     JPCameraCalibration cameraCalibration(const std::string& cameraId, int width, int height) const;
     // All of a camera's calibrations, a picture size each.
     std::vector<JPCameraCalibration> cameraCalibrations(const std::string& cameraId) const;
+    // Whether the caller is the cell's own thread (where waiting for the cell would never end).
+    bool onCellThread() const { return std::this_thread::get_id() == m_threadId.load(); }
     // The cell's Simulation Mode as it is now (for the cameras' threads).
     JPSimulationConfig simulation() const;
     // What an actuator was last switched to (on or off), if it has been since connecting.
@@ -416,6 +419,7 @@ private:
 
     mutable std::mutex                 m_mutex;   // guards the members below
     std::map<std::string, bool>        m_switchedOn;   // switchedOn()
+    std::atomic<std::thread::id>       m_threadId;     // the cell's thread (onCellThread)
     std::map<std::string, double>      m_positions;
     std::map<std::string, double>      m_axisPositions;   // controller axes as they report (not squared)
     std::map<std::string, double>      m_sent;       // last commanded coordinate, by axis id
