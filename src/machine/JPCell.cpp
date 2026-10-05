@@ -1830,7 +1830,8 @@ bool JPCell::doMoveNow(std::map<std::string, double> targets, double speed, std:
     // minute: the axis's own, else what the controller stores).
     std::map<std::string, std::vector<const JPAxisConfig*>> byDriver;
     for (const auto& [id, t] : hardware) byDriver[m_config.axis(id)->driverId].push_back(m_config.axis(id));
-    auto send = [&](const std::map<std::string, double>& to, double factor, std::vector<JPGcodeDriver*>& moved) {
+    auto send = [&](const std::map<std::string, double>& from, const std::map<std::string, double>& to, double factor,
+                    std::vector<JPGcodeDriver*>& moved) {
         for (const auto& [driverId, all] : byDriver) {
             JPGcodeDriver* d = driver(driverId);
             if (!d) { why = "no controller " + driverId; return false; }
@@ -1858,8 +1859,11 @@ bool JPCell::doMoveNow(std::map<std::string, double> targets, double speed, std:
                     const JPReply pre = d->sendLines(JPFirmwareProfile::fill(a->preMoveCommand, { { "Coordinate", format(v, d->profile()->decimals()) } }));
                     if (!pre.ok) { why = a->name + ": its pre-move command was refused (" + pre.error + ")"; return false; }
                 }
+            // The feed rate as G-code reads F (NIST RS274NGC 2.1.2.5, as OpenPnP's Motion): over the
+            // linear axes' path, or the rotational ones' when nothing linear moves; as fast as the
+            // slowest axis allows for its part of the move (one not moving: its own rate).
             std::string words;
-            double feed = 0;
+            double feed = 0, seconds = 0, linear2 = 0, rotational2 = 0;
             for (const JPAxisConfig* a : axes) {
                 words += (words.empty() ? "" : " ") + word(*a, to.at(a->id), *d);
                 double rate = a->feedratePerSecond * 60;
@@ -1867,13 +1871,21 @@ bool JPCell::doMoveNow(std::map<std::string, double> targets, double speed, std:
                 if (rate <= 0) rate = d->axisSetting("maxRate", a->letter).value_or(0) / driverUnits(*d);
                 if (rate <= 0) { why = "axis " + a->name + " has no speed: neither the cell nor its controller gives one"; return false; }
                 feed = feed <= 0 ? rate : std::min(feed, rate);
+                const auto f = from.find(a->id);
+                const double dist = f == from.end() ? 0 : std::abs(to.at(a->id) - f->second);
+                if (dist <= 0) continue;
+                seconds = std::max(seconds, dist / (rate / 60));
+                (a->rotationalOnController() ? rotational2 : linear2) += dist * dist;
             }
-            if (const double cap = d->config().maxFeedRate; cap > 0) feed = std::min(feed, cap);
+            const bool linear = linear2 > 0;
+            if (seconds > 0) feed = std::sqrt(linear ? linear2 : rotational2) / seconds * 60;
+            // The controller's Max Feed Rate is for linear moves (a mm rate means nothing to a turn).
+            if (const double cap = d->config().maxFeedRate; cap > 0 && (linear || seconds <= 0)) feed = std::min(feed, cap);
             const double k = std::clamp(speed, 0.0, 1.0) * m_speed * factor;
             feed *= k;
-            // In the controller's units (Driver Settings' Units, as OpenPnP's driverUnitsFactor).
+            // In the controller's units (Driver Settings' Units, as OpenPnP's driverUnitsFactor); a rotational path in degrees.
             const double u = driverUnits(*d);
-            std::map<std::string, std::string> values{ { "axes", words }, { "feed", format(feed * u, 0) } };
+            std::map<std::string, std::string> values{ { "axes", words }, { "feed", format(feed * (linear || seconds <= 0 ? u : 1), 0) } };
             // By type, for Letter Variables off ({X} 12.5); one not in this move left out with its letter.
             for (const auto& [type, name] : { std::pair { JPAxisConfig::Type::X, "X" }, std::pair { JPAxisConfig::Type::Y, "Y" },
                                               std::pair { JPAxisConfig::Type::Z, "Z" }, std::pair { JPAxisConfig::Type::Rotation, "Rotation" } }) {
@@ -1930,8 +1942,11 @@ bool JPCell::doMoveNow(std::map<std::string, double> targets, double speed, std:
                                    : legSeconds(from, hardware, 1);
     }
     std::vector<JPGcodeDriver*> moved;
-    if (needApproach && !send(overshoot, 1, moved)) return false;
-    if (!send(hardware, needApproach ? approach : 1, moved)) return false;
+    // Each leg from where the controllers have the axes (the directional offsets in effect included).
+    std::map<std::string, double> sentFrom = toAxes(now, now);
+    for (auto& [id, v] : sentFrom) v += backlashApplied(id);
+    if (needApproach && !send(sentFrom, overshoot, 1, moved)) return false;
+    if (!send(needApproach ? overshoot : sentFrom, hardware, needApproach ? approach : 1, moved)) return false;
     // Continuous motion: not waited for now, but when the machine must stand still.
     if (m_config.motionPlanner.continuousMotion) {
         for (JPGcodeDriver* d : moved)

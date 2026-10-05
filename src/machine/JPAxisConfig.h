@@ -88,6 +88,12 @@ struct JPAxisConfig {
     static Backlash backlashFromWord(const std::string& w);
     double feedratePerSecond = 0, accelerationPerSecond2 = 0, jerkPerSecond3 = 0;
     bool   wrapAroundRotation = false, limitRotation = false;
+    // OpenPnP's Switch Linear <-> Rotational: the controller takes this axis
+    // the other way round from its type (a linear controller axis driving a
+    // rotation, or the reverse). A move's feed rate is over its linear axes'
+    // path (its rotational ones' when nothing linear moves), as G-code has it.
+    bool   switchLinearRotational = false;
+    bool   rotationalOnController() const { return (type == Type::Rotation) != switchLinearRotational; }
     // What one motor step moves the axis (mm or degrees; 0: not known): a
     // move goes to the nearest whole step.
     double resolution = 0;

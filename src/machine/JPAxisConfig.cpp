@@ -118,6 +118,7 @@ std::optional<JPAxisConfig> JPAxisConfig::fromJson(const JJson& j, std::string& 
     a.accelerationPerSecond2 = j["accelerationPerSecond2"].number();
     a.jerkPerSecond3         = j["jerkPerSecond3"].number();
     a.wrapAroundRotation     = j["wrapAroundRotation"].boolean();
+    a.switchLinearRotational = j["switchLinearRotational"].boolean();
     a.limitRotation          = j["limitRotation"].boolean();
     a.resolution             = j["resolution"].number();
 
@@ -183,6 +184,7 @@ JJson JPAxisConfig::toJson() const {
         j["accelerationPerSecond2"] = accelerationPerSecond2;
         j["jerkPerSecond3"]         = jerkPerSecond3;
         j["wrapAroundRotation"]     = wrapAroundRotation;
+        if (switchLinearRotational) j["switchLinearRotational"] = true;
         j["limitRotation"]          = limitRotation;
         if (resolution > 0) j["resolution"] = resolution;
         if (!preMoveCommand.empty()) j["preMoveCommand"] = preMoveCommand;

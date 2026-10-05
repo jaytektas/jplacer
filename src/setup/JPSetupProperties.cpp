@@ -495,6 +495,14 @@ void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
         add.tip("Sent before a move of this axis when its controller allows pre-move commands (and Letter Variables is "
                 "off), {Coordinate} where the axis was: to switch an output shared by several axes to this one.");
         add.number("homeCoordinate", "Home Coordinate", [a]() -> double& { return a().homeCoordinate; });
+        add.flag("switchLinearRotational", "Switch Linear \u2194 Rotational?", [a]() -> bool& { return a().switchLinearRotational; });
+        add.tip("It is important that jplacer understands whether an Axis is linear or rotational in the controller. Most "
+                "of the times this is already determined by the Axis Type, i.e. X, Y, Z are linear and Rotation is "
+                "rotational. But sometimes you may run out of proper axes on the controller and then have to use a linear "
+                "controller axis for a rotational axis or vice versa. If you cannot configure your controller to switch "
+                "this meaning, it is important to enable the Switch Linear \u2194 Rotational checkbox. This is relevant "
+                "in computing proper limits for feed-rate, acceleration and jerk in mixed axes moves, as only the motion "
+                "of linear axes is taken into consideration for the limits in standard G-Code.");
         // One motor step, and its other side: steps per unit.
         const std::string unit = a().type == A::Type::Rotation ? "Degree" : "Millimeter";
         add.row(a().type == A::Type::Rotation ? "Resolution [Degrees]" : "Resolution [Millimeters]");

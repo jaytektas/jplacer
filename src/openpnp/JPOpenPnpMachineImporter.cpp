@@ -384,6 +384,7 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                 a.accelerationPerSecond2 = lengthChild(x, "acceleration-per-second-2");
                 a.jerkPerSecond3         = lengthChild(x, "jerk-per-second-3");
                 a.wrapAroundRotation     = yes(x.attr("wrap-around-rotation"));
+                a.switchLinearRotational = yes(x.attr("invert-linear-rotational"));
                 a.limitRotation          = yes(x.attr("limit-rotation"));
                 if (const JPXmlElement* r = x.child("resolution")) a.resolution = number(r->text);
                 if (const JPXmlElement* pm = x.child("pre-move-command")) a.preMoveCommand = pm->text;

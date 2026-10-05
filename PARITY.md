@@ -63,7 +63,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Linear transform axis (non-squareness) | own way | squareness measured from board fiducials; Square the Machine |
 | Cam axes (clockwise / counter-clockwise, shared Z) | done | a cam axis kind, clockwise or not |
 | Vibration / chassis resonance | missing | the settle graph shows ringing below 15 Hz (30 fps); frame rates above that, or an accelerometer, needed for chassis modes |
-| Switch linear / rotational | missing | |
+| Switch linear / rotational | done | and the feed rate as G-code reads F (linear path, else rotational) |
 
 ## Head
 

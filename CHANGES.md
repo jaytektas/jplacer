@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- A move's feed rate is now worked out as OpenPnP does: over the path of its linear axes (a diagonal move is
+  no longer slowed to one axis's rate), as long as its slowest axis takes; a turn alone in degrees. Axes have
+  OpenPnP's Switch Linear ↔ Rotational for a controller axis used the other way round.
 - Bottom vision sees a part too big for one picture in several shots, as OpenPnP's Vision Compositing:
   the Packages tab's Vision Compositing works out the shots and draws them, and a camera fixed to the
   machine has OpenPnP's Roaming Radius.
