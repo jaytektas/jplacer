@@ -631,6 +631,8 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             t.placeDwellMs = int(number(x.attr("place-dwell-milliseconds")));
             if (x.child("max-part-diameter")) t.maxPartDiameterMm = lengthChild(x, "max-part-diameter");
             if (x.child("max-pick-tolerance")) t.maxPickToleranceMm = lengthChild(x, "max-pick-tolerance");
+            if (x.child("min-part-diameter")) t.minPartDiameterMm = lengthChild(x, "min-part-diameter");
+            if (x.child("max-part-height")) t.maxPartHeightMm = lengthChild(x, "max-part-height");
             if (x.child("diameter-low")) t.diameterLowMm = lengthChild(x, "diameter-low");
             t.pushAndDragAllowed = yes(x.attr("is-push-and-drag-allowed"));
             // Part detection by the vacuum.

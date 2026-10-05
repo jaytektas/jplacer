@@ -401,6 +401,9 @@ notes.
   fit, as OpenPnP does.
 - A head can have OpenPnP's Z Probe actuator: Capture Camera Location then probes the place and fills in its Z.
   It comes in with an OpenPnP machine.
+- A nozzle tip has OpenPnP's Min. Part Diameter and Max. Part Height (the height taken for a part whose height is
+  not known, for Dynamic Safe Z), and Issues & Solutions checks its part diameters and pick tolerance as OpenPnP
+  does.
 
 ## 0.1.0
 

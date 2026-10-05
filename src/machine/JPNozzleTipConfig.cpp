@@ -122,6 +122,8 @@ JPNozzleTipConfig JPNozzleTipConfig::fromJson(const JJson& j) {
     for (const JJson& s : j["unload"].arr()) t.unloadSteps.push_back(JPChangerStep::fromJson(s));
     t.maxPartDiameterMm  = j["maxPartDiameterMm"].number(t.maxPartDiameterMm);
     t.maxPickToleranceMm = j["maxPickToleranceMm"].number(t.maxPickToleranceMm);
+    t.minPartDiameterMm = j["minPartDiameterMm"].number(t.minPartDiameterMm);
+    t.maxPartHeightMm = j["maxPartHeightMm"].number(t.maxPartHeightMm);
     t.pushAndDragAllowed = j["pushAndDragAllowed"].boolean();
     t.diameterLowMm      = j["diameterLowMm"].number(t.diameterLowMm);
     t.pickDwellMs  = int(j["pickDwellMs"].number());
@@ -160,6 +162,8 @@ JJson JPNozzleTipConfig::toJson() const {
     j["unload"]   = toArray(unloadSteps);
     j["maxPartDiameterMm"]  = maxPartDiameterMm;
     j["maxPickToleranceMm"] = maxPickToleranceMm;
+    j["minPartDiameterMm"] = minPartDiameterMm;
+    j["maxPartHeightMm"] = maxPartHeightMm;
     if (pushAndDragAllowed) j["pushAndDragAllowed"] = true;
     j["diameterLowMm"]      = diameterLowMm;
     if (pickDwellMs) j["pickDwellMs"] = pickDwellMs;

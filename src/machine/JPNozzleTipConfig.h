@@ -36,6 +36,11 @@ struct JPNozzleTipConfig {
     // (bottom vision accepts a part no further off, and looks no further).
     double                     maxPartDiameterMm = 20;
     double                     maxPickToleranceMm = 1;
+    // OpenPnP's Min. Part Diameter (the smallest part it picks: its air bore
+    // plus twice the pick tolerance at least) and Max. Part Height (taken for
+    // a part whose height is not known, as Dynamic Safe Z lifts it).
+    double                     minPartDiameterMm = 0;
+    double                     maxPartHeightMm = 5;
     // OpenPnP's Push and Drag Usage: whether it may push and drag (sturdy
     // enough for the side forces), and its outside diameter at its lowest 0.75 mm.
     bool                       pushAndDragAllowed = false;

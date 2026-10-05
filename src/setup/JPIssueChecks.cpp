@@ -426,6 +426,28 @@ void calibration(JPSolutions& s, const JPIssueChecks::Context& c) {
             s.add(plain("ReferenceNozzleTip " + t.name, "Nozzle tip " + t.name + " has no compatible nozzle.",
                         "Go to the nozzle(s) and enable the Compatible switches where appropriate.", Severity::Error,
                         std::string(kWiki) + "Setup-and-Calibration_Nozzle-Setup#nozzle-to-nozzle-tip-compatibility"));
+        // OpenPnP's NozzleTipSolutions: the pick tolerance and the part diameters agreeing.
+        const std::string tipWiki = std::string(kWiki) + "Setup-and-Calibration_Nozzle-Setup#nozzle-tip-configuration";
+        char mm[48];
+        if (t.maxPickToleranceMm > 1.0) {
+            std::snprintf(mm, sizeof mm, "%.3f mm", t.maxPickToleranceMm);
+            s.add(plain("ReferenceNozzleTip " + t.name, "Nozzle tip " + t.name + " has a large Max. Pick Tolerance of " + mm + ".",
+                        "Set the Max. Pick Tolerance to the actual pick errors you expect. Press the blue info button (below) "
+                        "for more information.", Severity::Error, tipWiki));
+        } else if (t.minPartDiameterMm <= 2 * t.maxPickToleranceMm) {
+            std::snprintf(mm, sizeof mm, "%.3f mm", t.minPartDiameterMm);
+            char tol[48];
+            std::snprintf(tol, sizeof tol, "%.3f mm", t.maxPickToleranceMm);
+            s.add(plain("ReferenceNozzleTip " + t.name, "Nozzle tip " + t.name + " has an invalid Min. Part Diameter of " + mm + ".",
+                        std::string("Make the Min. Part Diameter at least as big as the nozzle tip air bore plus two times the Max. "
+                                    "Pick Tolerance of ") + tol + ". Press the blue info button (below) for more information.",
+                        Severity::Error, tipWiki));
+        } else if (t.minPartDiameterMm >= t.maxPartDiameterMm) {
+            s.add(plain("ReferenceNozzleTip " + t.name,
+                        "Nozzle tip " + t.name + " has a Max. Part Diameter that is not larger than the Min. Part Diameter.",
+                        "Make sure the Max. Part Diameter is larger than the Min. Part Diameter. Press the blue info button "
+                        "(below) for more information.", Severity::Error, tipWiki));
+        }
     }
 }
 

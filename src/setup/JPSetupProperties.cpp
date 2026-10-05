@@ -758,9 +758,14 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
     add.tip("Outside diameter of the nozzle tip at the lowest ~0.75mm.");
     add.group("Part Dimensions");
     add.number("diameter", "Diameter Seen From Below", [t]() -> double& { return t().diameter; });
+    add.number("minPartDiameterMm", "Min. Part Diameter", [t]() -> double& { return t().minPartDiameterMm; });
+    add.tip("Minimum part diameter, to be picked with this the nozzle tip: at least the tip's air bore plus two times the "
+            "Max. Pick Tolerance.");
     add.number("maxPartDiameterMm", "Max. Part Diameter", [t]() -> double& { return t().maxPartDiameterMm; });
     add.tip("Maximum diameter/diagonal of parts picked with this nozzle tip, including tolerances.");
 
+    add.number("maxPartHeightMm", "Max. Part Height", [t]() -> double& { return t().maxPartHeightMm; });
+    add.tip("Maximum part heights picked with this nozzle tip. Used for dynamic safe Z, if part height is unknown.");
     add.number("maxPickToleranceMm", "Max. Pick Tolerance", [t]() -> double& { return t().maxPickToleranceMm; });
     add.tip("Maximum assumed pick tolerance allowed with this nozzle tip.\nThis determines how far away from the nominal "
             "location a detected Bottom Vision alignment position is accepted. It also reduces the computation time of some "

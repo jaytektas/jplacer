@@ -630,6 +630,12 @@ void JPlacerMachine::setNozzlePart(const std::string& nozzleId, const std::strin
     JPCell::PartOnNozzle on;
     if (const JPPart* part = m_configuration && !partId.empty() ? m_configuration->part(partId) : nullptr) {
         on.heightMm = part->heightForSafeZ().convertToUnits(JPLengthUnit::Millimeters).value();
+        // A height not known: the nozzle's tip's Max. Part Height (OpenPnP's getSafePartHeight).
+        if (part->height.value() <= 0 && m_cell)
+            for (const JPNozzleConfig& n : m_cell->config().nozzles)
+                if (n.id == nozzleId)
+                    for (const JPNozzleTipConfig& t : m_cell->config().nozzleTips)
+                        if (t.id == n.tipId) on.heightMm = t.maxPartHeightMm;
         if (const JPPackage* pkg = m_configuration->package(part->packageId)) {
             on.pickVacuumLevel = pkg->pickVacuumLevel;
             on.placeBlowOffLevel = pkg->placeBlowOffLevel;

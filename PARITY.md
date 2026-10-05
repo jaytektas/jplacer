@@ -95,7 +95,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Name, pick / place dwell | done | |
 | Place blow-off level | done | and the package's pick vacuum and blow-off levels |
 | Push and drag (allowed, outside diameter) | done | used by blinds feeders |
-| Part dimensions: min / max part diameter, max part height, max pick tolerance | partial | diameter only |
+| Part dimensions: min / max part diameter, max part height, max pick tolerance | done | and Issues & Solutions' checks of them |
 | Part on / part off vacuum sensing (methods, ranges, probing) | done | |
 | Tool changer locations, speeds, post actuators | own way | changer steps, a list per tip |
 | Template / clones | missing | |

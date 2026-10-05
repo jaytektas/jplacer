@@ -125,5 +125,22 @@ int main() {
     S::Issue* wrap = const_cast<S::Issue*>(
         find(s, "Rotation can be optimized by wrapping-around the shorter way. Best combined with Limit ±180°."));
     assert(s.setState(*wrap, S::State::Solved, why) && cell.axes[3].wrapAroundRotation);
+    // Calibration: a nozzle tip's part diameters and pick tolerance, as OpenPnP's NozzleTipSolutions.
+    {
+        JPNozzleTipConfig t;
+        t.id = "T";
+        t.name = "T1";
+        cell.nozzleTips.push_back(t);   // Min. Part Diameter 0: not more than twice the 1 mm pick tolerance
+        cell.nozzles[0].tipIds = { "T" };
+        s.setTargetMilestone(S::Milestone::Calibration);
+        s.find();
+        s.publish();
+        assert(find(s, "Nozzle tip T1 has an invalid Min. Part Diameter of 0.000 mm."));
+        cell.nozzleTips[0].minPartDiameterMm = 3;
+        cell.nozzleTips[0].maxPartDiameterMm = 3;
+        s.find();
+        s.publish();
+        assert(find(s, "Nozzle tip T1 has a Max. Part Diameter that is not larger than the Min. Part Diameter."));
+    }
     return 0;
 }
