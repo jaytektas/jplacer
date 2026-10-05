@@ -413,6 +413,28 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
         a.valueType = vt == "Double" ? JPActuatorConfig::ValueType::Number
                     : vt == "String" ? JPActuatorConfig::ValueType::Text
                     : vt == "Profile" ? JPActuatorConfig::ValueType::Profile : JPActuatorConfig::ValueType::Boolean;
+        // Its axis interlock (OpenPnP's ActuatorInterlockMonitor).
+        if (const JPXmlElement* im = x.child("interlock-monitor")) {
+            JPActuatorConfig::Interlock& il = a.interlock;
+            il.enabled = true;
+            const auto& types = JPActuatorConfig::Interlock::types();
+            if (std::find(types.begin(), types.end(), im->attr("interlock-type")) != types.end()) il.type = im->attr("interlock-type");
+            for (size_t k = 0; k < 4; ++k) {
+                const std::string n = std::to_string(k + 1);
+                il.axes[k] = im->attr("interlock-axis-" + n + "-id").empty() ? im->attr("interlock-axis" + n + "-id")
+                                                                             : im->attr("interlock-axis-" + n + "-id");
+            }
+            il.conditionalActuatorId = im->attr("conditional-actuator-id");
+            const auto& states = JPActuatorConfig::Interlock::states();
+            if (std::find(states.begin(), states.end(), im->attr("conditional-actuator-state")) != states.end())
+                il.conditionalState = im->attr("conditional-actuator-state");
+            if (!im->attr("conditional-speed-min").empty()) il.speedMin = number(im->attr("conditional-speed-min"));
+            if (!im->attr("conditional-speed-max").empty()) il.speedMax = number(im->attr("conditional-speed-max"));
+            il.goodMin = number(im->attr("confirmation-good-min"));
+            il.goodMax = number(im->attr("confirmation-good-max"));
+            if (const JPXmlElement* p = im->child("confirmation-pattern")) il.pattern = p->text;
+            il.byRegex = im->attr("confirmation-by-regex") == "true";
+        }
         // A profile actuator's actuators and profiles (OpenPnP's ReferenceActuatorProfiles).
         if (const JPXmlElement* ap = x.child("actuator-profiles")) {
             // Its names have the number set apart ("actuator-1-id", "value-1"), or not.

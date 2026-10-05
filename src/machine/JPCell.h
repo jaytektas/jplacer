@@ -253,6 +253,11 @@ private:
     void doDisconnect();
     // The cell thread's side of moveAxes: false with `why` when refused or failed.
     bool doMove(std::map<std::string, double> targets, double speed, std::string& why, bool squared = true);
+    bool doMoveNow(std::map<std::string, double> targets, double speed, std::string& why, bool squared);
+    // OpenPnP's axis interlocks (JPActuatorConfig::Interlock) for a move from `from` to `to`, before or after it.
+    bool doInterlocks(const std::map<std::string, double>& from, const std::map<std::string, double>& to, bool before,
+                      double speed, std::string& why);
+    bool inSafeZone(const std::string& axisId, double value) const;
     bool doHome(std::string& why);
     bool doPark(const std::string& headId, double speed, std::string& why);
     bool doHomeNozzle(const std::string& nozzleId, double speed, std::string& why);
@@ -316,6 +321,8 @@ private:
     std::atomic<bool>                           m_homing{ false };
     std::atomic<bool>                           m_moving{ false };
     std::map<std::string, double>               m_partHeights;   // by nozzle id; the cell's thread's
+    std::map<std::string, bool>                 m_actuated;      // by actuator id: what it was last switched to
+    std::map<std::string, std::optional<bool>>  m_conditionalLast;   // by interlocked actuator: its condition's last state
     std::atomic<double>                         m_speed{ 1.0 };
     // On the cell thread: the heads whose pump is on, the nozzles holding a part.
     std::set<std::string>                       m_pumpOn, m_holding;

@@ -28,6 +28,21 @@ JPActuatorConfig JPActuatorConfig::fromJson(const JJson& j) {
     if (const std::string& v = j["homedActuation"].str(); !v.empty()) a.homedActuation = v;
     if (const std::string& v = j["disabledActuation"].str(); !v.empty()) a.disabledActuation = v;
     for (size_t k = 0; k < kProfileActuators; ++k) a.profileActuators[k] = j["profileActuators"][k].str();
+    if (const JJson& il = j["interlock"]; il.isObject()) {
+        Interlock& i = a.interlock;
+        i.enabled = true;
+        i.type = il["type"].str();
+        if (i.type.empty()) i.type = "None";
+        for (size_t k = 0; k < 4; ++k) i.axes[k] = il["axes"][k].str();
+        i.conditionalActuatorId = il["conditionalActuator"].str();
+        if (!il["conditionalState"].str().empty()) i.conditionalState = il["conditionalState"].str();
+        i.speedMin = il["speedMin"].number(0.0);
+        i.speedMax = il["speedMax"].number(1.0);
+        i.goodMin = il["goodMin"].number(0.0);
+        i.goodMax = il["goodMax"].number(0.0);
+        i.pattern = il["pattern"].str();
+        i.byRegex = il["byRegex"].boolean();
+    }
     for (const JJson& p : j["profiles"].arr()) {
         Profile q;
         q.name = p["name"].str();
@@ -59,6 +74,21 @@ JJson JPActuatorConfig::toJson() const {
     j["enabledActuation"]  = enabledActuation;
     j["homedActuation"]    = homedActuation;
     j["disabledActuation"] = disabledActuation;
+    if (interlock.enabled) {
+        JJson il = JJson::object();
+        il["type"] = interlock.type;
+        il["axes"] = JJson::array();
+        for (const std::string& id : interlock.axes) il["axes"].push(JJson(id));
+        if (!interlock.conditionalActuatorId.empty()) il["conditionalActuator"] = interlock.conditionalActuatorId;
+        il["conditionalState"] = interlock.conditionalState;
+        il["speedMin"] = interlock.speedMin;
+        il["speedMax"] = interlock.speedMax;
+        il["goodMin"] = interlock.goodMin;
+        il["goodMax"] = interlock.goodMax;
+        if (!interlock.pattern.empty()) il["pattern"] = interlock.pattern;
+        if (interlock.byRegex) il["byRegex"] = true;
+        j["interlock"] = il;
+    }
     if (valueType == ValueType::Profile) {
         j["profileActuators"] = JJson::array();
         for (const std::string& id : profileActuators) j["profileActuators"].push(JJson(id));
@@ -74,6 +104,21 @@ JJson JPActuatorConfig::toJson() const {
         }
     }
     return j;
+}
+
+const std::vector<std::string>& JPActuatorConfig::Interlock::types() {
+    static const std::vector<std::string> t { "None", "SignalAxesMoving", "SignalAxesStandingStill", "SignalAxesInsideSafeZone",
+                                              "SignalAxesOutsideSafeZone", "SignalAxesParked", "SignalAxesUnparked",
+                                              "ConfirmInRangeBeforeAxesMove", "ConfirmInRangeAfterAxesMove",
+                                              "ConfirmMatchBeforeAxesMove", "ConfirmMatchAfterAxesMove" };
+    return t;
+}
+
+const std::vector<std::string>& JPActuatorConfig::Interlock::states() {
+    static const std::vector<std::string> s { "SwitchedOff", "SwitchedJustOff", "SwitchedOn", "SwitchedJustOn",
+                                              "SwitchedOffOrUnknown", "SwitchedJustOffOrUnknown", "SwitchedOnOrUnknown",
+                                              "SwitchedJustOnOrUnknown" };
+    return s;
 }
 
 const JPActuatorConfig::Profile* JPActuatorConfig::profileNamed(const std::string& profileName) const {

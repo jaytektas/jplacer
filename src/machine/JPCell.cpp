@@ -84,6 +84,8 @@ bool JPCell::reconfigure(JPCellConfig config, std::string& why) {
             j["input"] = a.inputAxisId;
             j["map"] = JJson::array();
             for (double v : { a.mapInput0, a.mapOutput0, a.mapInput1, a.mapOutput1 }) j["map"].push(v);
+            j["cam"] = JJson::array();
+            for (double v : { a.camRadius, a.camArmsAngle, a.camWheelRadius, a.camWheelGap, a.camClockwise ? 1.0 : 0.0 }) j["cam"].push(v);
             return j;
         };
         JJson axesBefore = JJson::array(), axesAfter = JJson::array();
@@ -832,6 +834,7 @@ bool JPCell::doSwitch(const std::string& actuatorId, bool on, std::string& why, 
         JLOGC(JPlacerLog::kCell, r.ok ? JLogLevel::Info : JLogLevel::Warn)
             << a.name << " " << (on ? "on" : "off") << (r.ok ? std::string() : ": " + r.error);
         why = r.error;
+        if (r.ok) m_actuated[actuatorId] = on;
         return r.ok;
     }
     why = "no actuator " + actuatorId;
@@ -1245,7 +1248,151 @@ void JPCell::moveAxes(std::map<std::string, double> targets, double speed) {
     });
 }
 
+namespace {
+// Coordinates this close are the same place, for the interlocks (OpenPnP's coordinatesMatch).
+constexpr double kInterlockTolerance = 1e-3;
+}
+
 bool JPCell::doMove(std::map<std::string, double> targets, double speed, std::string& why, bool squared) {
+    if (!m_connected || !m_homed) return doMoveNow(std::move(targets), speed, why, squared);
+    // OpenPnP's axis interlocks, around the move (JPActuatorConfig::Interlock).
+    const std::map<std::string, double> from = jogBase();
+    std::map<std::string, double> to = from;
+    for (const auto& [id, t] : targets) to[id] = t;
+    // An axis that follows one moved goes with it.
+    for (const JPAxisConfig& a : m_config.axes)
+        if (a.transformed() && !targets.count(a.id))
+            if (const auto in = targets.find(a.inputAxisId); in != targets.end())
+                if (const auto out = a.mapped(in->second)) to[a.id] = *out;
+    if (!doInterlocks(from, to, true, speed, why)) return false;
+    if (!doMoveNow(std::move(targets), speed, why, squared)) return false;
+    return doInterlocks(from, to, false, speed, why);
+}
+
+bool JPCell::inSafeZone(const std::string& axisId, double value) const {
+    const JPAxisConfig* a = m_config.axis(axisId);
+    if (!a) return true;
+    if (a->transformed()) {
+        const auto raw = a->unmapped(value);
+        a = m_config.axis(a->inputAxisId);
+        if (!a || !raw) return true;
+        value = *raw;
+    }
+    if (a->safeZoneLowEnabled && value < a->safeZoneLow - kInterlockTolerance) return false;
+    if (a->safeZoneHighEnabled && value > a->safeZoneHigh + kInterlockTolerance) return false;
+    return true;
+}
+
+bool JPCell::doInterlocks(const std::map<std::string, double>& from, const std::map<std::string, double>& to, bool before,
+                          double speed, std::string& why) {
+    for (const JPActuatorConfig& a : m_config.actuators) {
+        const JPActuatorConfig::Interlock& il = a.interlock;
+        if (!il.active()) continue;
+        // Only when one of its axes moves.
+        bool moves = false;
+        for (const std::string& id : il.axes) {
+            if (id.empty()) continue;
+            const auto f = from.find(id), t = to.find(id);
+            if (f != from.end() && t != to.end() && std::abs(f->second - t->second) > kInterlockTolerance) moves = true;
+        }
+        if (!moves) continue;
+        if (speed < il.speedMin || speed > il.speedMax) continue;   // masked by the speed
+        // Masked by its conditional actuator not being in its state.
+        if (!il.conditionalActuatorId.empty()) {
+            const std::string& st = il.conditionalState;
+            const bool mayBeOn = st == "SwitchedOn" || st == "SwitchedJustOn" || st == "SwitchedOnOrUnknown";
+            const bool mustBeKnown = st == "SwitchedOn" || st == "SwitchedJustOn" || st == "SwitchedOff" || st == "SwitchedJustOff";
+            const bool justChanged = st.find("Just") != std::string::npos;
+            const auto now = m_actuated.find(il.conditionalActuatorId);
+            if (now != m_actuated.end()) {
+                auto& last = m_conditionalLast[a.id];
+                if (justChanged && last && *last == now->second) continue;
+                last = now->second;
+                if (mayBeOn != now->second) continue;
+            } else if (mustBeKnown) {
+                continue;
+            }
+        }
+        // Each axis where it will be after the move.
+        auto switchTo = [&](bool on) {
+            if (const auto s = m_actuated.find(a.id); s != m_actuated.end() && s->second == on) return true;
+            return doSwitch(a.id, on, why);
+        };
+        const std::string& type = il.type;
+        if (type == "SignalAxesMoving" || type == "SignalAxesStandingStill") {
+            if (!switchTo(before != (type == "SignalAxesStandingStill"))) return false;
+        } else if (type == "SignalAxesInsideSafeZone" || type == "SignalAxesOutsideSafeZone") {
+            bool willBeSafe = true;
+            for (const std::string& id : il.axes)
+                if (!id.empty())
+                    if (const auto t = to.find(id); t != to.end()) willBeSafe = willBeSafe && inSafeZone(id, t->second);
+            // Switched before the move when leaving the zone, after it when coming into it.
+            if (before != willBeSafe)
+                if (!switchTo(willBeSafe != (type == "SignalAxesOutsideSafeZone"))) return false;
+        } else if (type == "SignalAxesParked" || type == "SignalAxesUnparked") {
+            const JPHeadConfig* head = nullptr;
+            for (const JPHeadConfig& h : m_config.heads)
+                if (h.id == a.mount.headId) head = &h;
+            if (!head || !head->park) continue;
+            // The park place as the head's camera would be there.
+            double offX = 0, offY = 0;
+            for (const JPCameraConfig& c : m_config.cameras)
+                if (c.mount.headId == head->id) {
+                    offX = c.mount.offsetX;
+                    offY = c.mount.offsetY;
+                    break;
+                }
+            bool willBeParked = true;
+            for (const std::string& id : il.axes) {
+                const JPAxisConfig* ax = id.empty() ? nullptr : m_config.axis(id);
+                const auto t = to.find(id);
+                if (!ax || t == to.end()) continue;
+                if (ax->type == JPAxisConfig::Type::X) willBeParked = willBeParked && std::abs(t->second - (head->park->x - offX)) <= kInterlockTolerance;
+                else if (ax->type == JPAxisConfig::Type::Y) willBeParked = willBeParked && std::abs(t->second - (head->park->y - offY)) <= kInterlockTolerance;
+                else if (ax->type == JPAxisConfig::Type::Z) willBeParked = willBeParked && inSafeZone(id, t->second);
+                else willBeParked = willBeParked && std::abs(t->second) <= kInterlockTolerance;
+            }
+            if (before != willBeParked)
+                if (!switchTo(willBeParked != (type == "SignalAxesUnparked"))) return false;
+        } else if (type == "ConfirmInRangeBeforeAxesMove" || type == "ConfirmInRangeAfterAxesMove"
+                   || type == "ConfirmMatchBeforeAxesMove" || type == "ConfirmMatchAfterAxesMove") {
+            const bool afterType = type.find("After") != std::string::npos;
+            if (before == afterType) continue;
+            std::string value;
+            if (!doRead(a.id, value, why)) return false;
+            if (type.find("InRange") != std::string::npos) {
+                char* end = nullptr;
+                const double v = std::strtod(value.c_str(), &end);
+                if (end == value.c_str() || v < il.goodMin || v > il.goodMax) {
+                    m_conditionalLast.erase(a.id);
+                    why = a.name + " interlock confirmation " + (end == value.c_str() ? "unreadable: " + value
+                                                                  : v < il.goodMin ? "below good range: " + value
+                                                                                   : "above good range: " + value);
+                    return false;
+                }
+            } else {
+                auto trimmed = [](const std::string& s) {
+                    const size_t b = s.find_first_not_of(" \t\r\n"), e = s.find_last_not_of(" \t\r\n");
+                    return b == std::string::npos ? std::string() : s.substr(b, e - b + 1);
+                };
+                bool match = false;
+                try {
+                    match = il.byRegex ? std::regex_match(value, std::regex(il.pattern)) : trimmed(value) == trimmed(il.pattern);
+                } catch (const std::regex_error&) {
+                    match = false;
+                }
+                if (!match) {
+                    m_conditionalLast.erase(a.id);
+                    why = a.name + " interlock confirmation does not match: " + value + " vs. " + il.pattern;
+                    return false;
+                }
+            }
+        }
+    }
+    return true;
+}
+
+bool JPCell::doMoveNow(std::map<std::string, double> targets, double speed, std::string& why, bool squared) {
     if (!m_connected) { why = "not connected"; return false; }
     if (!m_homed)     { why = "not homed: home the machine first"; return false; }
 

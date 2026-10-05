@@ -1309,6 +1309,49 @@ void actuatorProfilesTab(JPFormBuilder& add, JPCellConfig& cell, std::function<J
              "left as it is. Switched on or off, the actuator takes its Default ON or Default OFF profile.");
 }
 
+// OpenPnP's ActuatorInterlockMonitorConfigurationWizard.
+void actuatorInterlockTab(JPFormBuilder& add, JPCellConfig& cell, std::function<JPActuatorConfig&()> a, JPSetupProperties::Form& f) {
+    using IL = JPActuatorConfig::Interlock;
+    auto il = [a]() -> IL& { return a().interlock; };
+    add.tab("Axis Interlock");
+    add.group("Axis Interlock");
+    add.choice("interlockType", "Interlock Type", IL::types(), [il] { return il().type; }, [il](const std::string& v) { il().type = v; });
+    f.reshaping.push_back("interlockType");
+    const std::string& type = il().type;
+    if (type.find("InRange") != std::string::npos) {
+        add.row("Confirmation range");
+        add.number("goodMin", "Min", [il]() -> double& { return il().goodMin; });
+        add.number("goodMax", "Max", [il]() -> double& { return il().goodMax; });
+        add.end();
+    }
+    if (type.find("Match") != std::string::npos) {
+        add.text("pattern", "Confirmation pattern", [il]() -> std::string& { return il().pattern; }, "long");
+        add.flag("byRegex", "Regex?", [il]() -> bool& { return il().byRegex; });
+    }
+    for (size_t k = 0; k < 4; ++k)
+        add.byName("interlockAxis" + std::to_string(k + 1), "Axis " + std::to_string(k + 1), named(cell.axes, "(none)"),
+                   [il, k]() -> std::string& { return il().axes[k]; });
+    add.group("Interlock Conditions");
+    JPFormBuilder::Named others;
+    others.add("(none)", "");
+    for (const JPActuatorConfig& o : cell.actuators)
+        if (o.id != a().id && o.valueType == JPActuatorConfig::ValueType::Boolean) others.add(o.name.empty() ? o.id : o.name, o.id);
+    add.row("Boolean Actuator");
+    add.byName("conditionalActuator", "Boolean Actuator", others, [il]() -> std::string& { return il().conditionalActuatorId; });
+    add.choice("conditionalState", "State", IL::states(), [il] { return il().conditionalState; },
+               [il](const std::string& v) { il().conditionalState = v; });
+    add.end();
+    add.row("Speed [%]");
+    add.number("speedMin", "Min", [il] { return il().speedMin * 100; }, [il](double v) { il().speedMin = v / 100; }, 1);
+    add.number("speedMax", "Max", [il] { return il().speedMax * 100; }, [il](double v) { il().speedMax = v / 100; }, 1);
+    add.end();
+    add.note("When any of its axes moves: the Signal types switch it (on while moving, standing still, inside or outside "
+             "the axes' safe zone, parked or not; switched before the move when that is leaving, after it when coming), "
+             "the Confirm types read it before or after the move and stop the machine unless it reads in range or matches. "
+             "Only while the Boolean Actuator is in its state (Just: and changed since last time; Unknown: or never "
+             "switched) and at a machine speed in range.");
+}
+
 void actuatorForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f) {
     auto a = finder(cell.actuators, id);
     f.title = "Actuator " + a().name;
@@ -1320,6 +1363,9 @@ void actuatorForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::
     add.group("Coordinate System");
     add.byName("head", "Head", named(cell.heads, "(on the machine)"), [a]() -> std::string& { return a().mount.headId; });
     f.reshaping.push_back("head");
+    add.flag("axisInterlock", "Axis Interlock?", [a]() -> bool& { return a().interlock.enabled; });
+    add.tip("Enable to get an extra Wizard tab to configure an Axis Interlocking Actuator");
+    f.reshaping.push_back("axisInterlock");
     add.group("General");
     // As the machine's state changes: once connected, once homed, before it is let go.
     add.header({ "Enabled", "Homed", "Disabled" });
@@ -1363,6 +1409,7 @@ void actuatorForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::
                    "(the Actuators panel's box). Without commands of their own, On and Off set it to the On and "
                    "Off Values.");
     if (a().valueType == VT::Profile) actuatorProfilesTab(add, cell, a, f);
+    if (a().interlock.enabled) actuatorInterlockTab(add, cell, a, f);
 }
 
 // OpenPnP's SoundSignalerConfigurationWizard and ActuatorSignalerConfigurationWizard.

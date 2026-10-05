@@ -377,6 +377,9 @@ notes.
   machine.
 - A nozzle can have OpenPnP's Dynamic Safe Z: carrying a part, it goes up higher by the part's height when it
   goes to safe Z. It comes in with an OpenPnP machine.
+- Actuators can have OpenPnP's Axis Interlock: switched as axes move (moving, standing still, in or out of the
+  safe zone, parked), or read to confirm it is safe to move before or after a move, the machine stopped if not.
+  It comes in with an OpenPnP machine.
 
 ## 0.1.0
 

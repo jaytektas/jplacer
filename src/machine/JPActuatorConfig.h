@@ -50,6 +50,27 @@ struct JPActuatorConfig {
         std::array<std::string, kProfileActuators> values {};
     };
     std::array<std::string, kProfileActuators> profileActuators {};
+    // OpenPnP's axis interlock (ActuatorInterlockMonitor): as up to four axes
+    // move, the actuator is switched (to signal them moving or standing still,
+    // inside or outside their safe zone, parked or not) or read to confirm
+    // it is safe to move (a number in range, or text matching), before or
+    // after the move; only while `conditionalActuatorId` is in its state (if
+    // one is named) and at a speed (share of full) in range.
+    struct Interlock {
+        bool        enabled = false;   // OpenPnP's Axis Interlock? (its own tab)
+        std::string type = "None";
+        std::array<std::string, 4> axes {};
+        std::string conditionalActuatorId;
+        std::string conditionalState = "SwitchedOn";
+        double      speedMin = 0, speedMax = 1;
+        double      goodMin = 0, goodMax = 0;
+        std::string pattern;
+        bool        byRegex = false;
+        static const std::vector<std::string>& types();
+        static const std::vector<std::string>& states();
+        bool active() const { return enabled && type != "None"; }
+    };
+    Interlock interlock;
     std::vector<Profile> profiles;
     const Profile* profileNamed(const std::string& profileName) const;
     const Profile* defaultProfile(bool on) const;

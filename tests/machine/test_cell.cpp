@@ -210,6 +210,67 @@ int main() {
 
         cell.home();
         assert(motion.take().first && cell.isHomed());
+        // An axis interlock (OpenPnP's ActuatorInterlockMonitor): signalling
+        // X moving, switched on before X moves and off after; another axis's move alone
+        // leaves it (C here); a confirmation out of range stops the move.
+        {
+            JPCellConfig next = cell.config();
+            JPActuatorConfig il;
+            il.id = "IL";
+            il.name = "Brake";
+            il.driverId = "D";
+            il.onCommand = "M64 P5";
+            il.offCommand = "M65 P5";
+            il.interlock.enabled = true;
+            il.interlock.type = "SignalAxesMoving";
+            il.interlock.axes[0] = "X";
+            next.actuators.push_back(il);
+            std::string why;
+            assert(cell.reconfigure(next, why));
+            std::mutex m;
+            std::vector<std::string> lines;
+            auto watch = cell.onTraffic.connect([&](std::string, bool out, std::string line) {
+                std::lock_guard lk(m);
+                if (out && (line == "M64 P5" || line == "M65 P5" || line.rfind("G1", 0) == 0 || line.rfind("G0", 0) == 0))
+                    lines.push_back(line.substr(0, 3));
+            });
+            const double x = cell.jogBase().at("X");
+            assert(cell.moveAxesAndWait({ { "X", x - 1 } }, 1.0, why));
+            motion.take();
+            {
+                std::lock_guard lk(m);
+                assert(lines.size() >= 3 && lines.front() == "M64" && lines.back() == "M65");
+                lines.clear();
+            }
+            const double c = cell.jogBase().at("C");
+            assert(cell.moveAxesAndWait({ { "C", c + 10 } }, 1.0, why));
+            motion.take();
+            {
+                std::lock_guard lk(m);
+                for (const std::string& l : lines) assert(l != "M64" && l != "M65");
+            }
+            watch();
+            // A confirmation before X moves: Vacuum reads -31000, out of 0..10: refused, X stays.
+            next = cell.config();
+            for (JPActuatorConfig& a : next.actuators)
+                if (a.id == "V") {
+                    a.interlock.enabled = true;
+                    a.interlock.type = "ConfirmInRangeBeforeAxesMove";
+                    a.interlock.axes[0] = "X";
+                    a.interlock.goodMin = 0;
+                    a.interlock.goodMax = 10;
+                }
+            assert(cell.reconfigure(next, why));
+            const double x2 = cell.jogBase().at("X");
+            assert(!cell.moveAxesAndWait({ { "X", x2 - 1 } }, 1.0, why) && why.find("below good range") != std::string::npos);
+            motion.take();
+            assert(std::abs(cell.jogBase().at("X") - x2) < 1e-6);
+            for (JPActuatorConfig& a : next.actuators) a.interlock.enabled = false;
+            assert(cell.reconfigure(next, why));
+            // Back where the rest of the test has them.
+            assert(cell.moveAxesAndWait({ { "X", x }, { "C", c } }, 1.0, why));
+            motion.take();
+        }
         // There, to a hair (a backlash offset taken off leaves rounding dust).
         auto settle = [&](const char* axis, double want) {
             const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(2);
