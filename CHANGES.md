@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Actuators can be OpenPnP's ScriptActuator: switching or setting one runs a script of the scripts folder, told
+  whether it is on or the value it is set to.
 - OpenPnP's vision pipelines run in jplacer, every stage of OpenPnP's editor included, and a Pipeline Editor as
   OpenPnP's: stages added, removed, renamed, dragged and switched off, their settings, each stage's picture and
   what it found, the pixel under the mouse, pin, true colours, copy and paste. A strip feeder's Edit Pipeline

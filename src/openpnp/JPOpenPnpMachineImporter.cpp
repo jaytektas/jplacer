@@ -427,6 +427,9 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
         a.valueType = vt == "Double" ? JPActuatorConfig::ValueType::Number
                     : vt == "String" ? JPActuatorConfig::ValueType::Text
                     : vt == "Profile" ? JPActuatorConfig::ValueType::Profile : JPActuatorConfig::ValueType::Boolean;
+        // OpenPnP's ScriptActuator: its script, no controller.
+        if (shortClass(x) == "ScriptActuator")
+            if (const JPXmlElement* sn = x.child("script-name")) a.scriptName = sn->text;
         // OpenPnP's HttpActuator: its URLs, no controller.
         if (shortClass(x) == "HttpActuator") {
             a.http.on = true;

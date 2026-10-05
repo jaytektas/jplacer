@@ -104,7 +104,7 @@ std::string JPSetupEdits::addable(const JPCellConfig& cell, const std::string& p
 std::vector<std::string> JPSetupEdits::kinds(const JPCellConfig& cell, const std::string& path) {
     const JPSetupTree::Path g = JPSetupTree::parse(JPSetupTree::groupOf(cell, path));
     if (g.kind == "group" && g.id == "signalers") return JPSignalerConfig::classNames();
-    if (g.kind == "group" && g.id == "actuators") return { "ReferenceActuator", "HttpActuator" };
+    if (g.kind == "group" && g.id == "actuators") return { "ReferenceActuator", "HttpActuator", "ScriptActuator" };
     if (g.kind == "group" && g.id == "cameras") return { "OpenPnpCaptureCamera", "MjpgCaptureCamera", "ImageCamera" };
     return {};
 }
@@ -178,6 +178,7 @@ std::string JPSetupEdits::add(JPCellConfig& cell, const std::string& path, const
         a.id = newId(cell, "ACT");
         a.name = "New actuator";
         a.http.on = kind == "HttpActuator";
+        if (kind == "ScriptActuator") a.scriptName = "Actuators/" + a.id + ".py";
         a.mount.headId = g.owner;
         if (!cell.drivers.empty()) a.driverId = cell.drivers.front().id;
         cell.actuators.push_back(a);

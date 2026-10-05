@@ -81,16 +81,22 @@ struct JPActuatorConfig {
         std::string onUrl, offUrl, paramUrl, readUrl, regex;
     };
     Http http;
+    // OpenPnP's ScriptActuator: switched or set by running this script of the
+    // scripts folder (JPScripting), told actuateBoolean, actuateDouble or
+    // actuateString; not through a controller. Empty: not one.
+    std::string scriptName;
     std::vector<Profile> profiles;
     const Profile* profileNamed(const std::string& profileName) const;
     const Profile* defaultProfile(bool on) const;
 
     bool canSwitch() const {
+        if (!scriptName.empty()) return true;
         if (http.on) return !http.onUrl.empty() || !http.offUrl.empty() || !http.paramUrl.empty();
         if (valueType == ValueType::Profile) return defaultProfile(true) || defaultProfile(false);
         return !onCommand.empty() || !offCommand.empty() || (!valueCommand.empty() && (!onValue.empty() || !offValue.empty()));
     }
     bool canSet() const {
+        if (!scriptName.empty()) return valueType != ValueType::Boolean;
         if (http.on) return !http.paramUrl.empty();
         if (valueType == ValueType::Profile) return !profiles.empty();
         return valueType != ValueType::Boolean && !valueCommand.empty();

@@ -441,6 +441,7 @@ bool JPlacerMachine::openCell(const std::string& path, std::string& error) {
     dropPanels();
     m_tipChanges.reset();   // a change under way stops before its cell goes
     m_cell = std::make_unique<JPCell>(std::move(config), m_profiles);
+    m_cell->setScripting(m_scripting);
     m_cellPath = path;
     m_tipChanges = std::make_unique<JPlacerTipChanges>(m_window, *m_cell, [this](const std::string& nozzleId, const std::string& tipId) {
         setTipOn(nozzleId, tipId);

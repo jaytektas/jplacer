@@ -1501,6 +1501,16 @@ void actuatorForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::
                    a().valueType = v == "Double" ? VT::Number : v == "String" ? VT::Text : v == "Profile" ? VT::Profile : VT::Boolean;
                });
     f.reshaping.push_back("valueType");
+    if (!a().scriptName.empty()) {
+        // OpenPnP's ScriptActuatorConfigurationWizard.
+        add.group("Script");
+        add.text("scriptName", "Script Name", [a]() -> std::string& { return a().scriptName; }, "long");
+        add.tip("The script, in the scripts folder, run to actuate it.");
+        add.note("Switched, it is told actuateBoolean (true or false); set, actuateDouble (a Double one) or actuateString; "
+                 "and its own name as actuator, in JPLACER_GLOBALS (see the Scripts menu).");
+        if (a().interlock.enabled) actuatorInterlockTab(add, cell, a, f);
+        return;
+    }
     if (a().http.on) {
         // OpenPnP's HttpActuatorConfigurationWizard.
         add.group("HTTP");

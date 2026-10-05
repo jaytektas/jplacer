@@ -4,6 +4,7 @@
 #pragma once
 
 #include "JPCellConfig.h"
+#include "JPScripting.h"
 #include "JPFirmwareProfile.h"
 #include "JPGcodeDriver.h"
 
@@ -165,6 +166,8 @@ public:
         double heightMm = 0, pickVacuumLevel = 0, placeBlowOffLevel = 0;
     };
     void setNozzlePart(const std::string& nozzleId, const PartOnNozzle& part);
+    // Where script actuators' scripts are found and run (none: they cannot be actuated).
+    void setScripting(std::shared_ptr<JPScripting> scripting) { m_scripting = std::move(scripting); }
 
     // Move a tool — a nozzle, camera or actuator — by the given amounts along
     // its own axes (mm, degrees), at `speed` (0..1) of the slowest axis's
@@ -345,6 +348,9 @@ private:
     std::map<std::string, std::pair<double, double>> m_roamFrom;   // by tool: where it was left at unsafe Z
     std::map<std::string, bool>                 m_actuated;      // by actuator id: what it was last switched to
     std::map<std::string, std::string>          m_lastHttpUrl;   // by HTTP actuator: the URL asked last
+    std::shared_ptr<JPScripting>                m_scripting;
+    // A script actuator's script run, told `globals`.
+    bool runActuatorScript(const JPActuatorConfig& a, JJson globals, std::string& why);
     std::map<std::string, std::optional<bool>>  m_conditionalLast;   // by interlocked actuator: its condition's last state
     std::atomic<double>                         m_speed{ 1.0 };
     // On the cell thread: the heads whose pump is on, the nozzles holding a part.

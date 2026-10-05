@@ -28,6 +28,7 @@ JPActuatorConfig JPActuatorConfig::fromJson(const JJson& j) {
     if (const std::string& v = j["homedActuation"].str(); !v.empty()) a.homedActuation = v;
     if (const std::string& v = j["disabledActuation"].str(); !v.empty()) a.disabledActuation = v;
     for (size_t k = 0; k < kProfileActuators; ++k) a.profileActuators[k] = j["profileActuators"][k].str();
+    a.scriptName = j["script"].str();
     if (const JJson& h = j["http"]; h.isObject()) {
         a.http.on = true;
         a.http.onUrl = h["onUrl"].str();
@@ -82,6 +83,7 @@ JJson JPActuatorConfig::toJson() const {
     j["enabledActuation"]  = enabledActuation;
     j["homedActuation"]    = homedActuation;
     j["disabledActuation"] = disabledActuation;
+    if (!scriptName.empty()) j["script"] = scriptName;
     if (http.on) {
         j["http"]["onUrl"] = http.onUrl;
         j["http"]["offUrl"] = http.offUrl;

@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <filesystem>
 #include <future>
 #include <regex>
 #include <thread>
@@ -374,6 +375,13 @@ void JPCell::setActuator(const std::string& actuatorId, const std::string& value
 bool JPCell::doSet(const std::string& actuatorId, const std::string& value, std::string& why, int depth) {
     for (const JPActuatorConfig& a : m_config.actuators) {
         if (a.id != actuatorId) continue;
+        // A script actuator: its script told actuateDouble (a Double one) or actuateString.
+        if (!a.scriptName.empty()) {
+            JJson g = JJson::object();
+            if (a.valueType == JPActuatorConfig::ValueType::Number) g["actuateDouble"] = std::strtod(value.c_str(), nullptr);
+            else g["actuateString"] = value;
+            return runActuatorScript(a, g, why);
+        }
         // An HTTP actuator: its parameter URL, {val} the value.
         if (a.http.on) {
             if (a.http.paramUrl.empty()) {
@@ -851,6 +859,14 @@ bool JPCell::doPlace(const JPNozzleConfig& n, std::string& why) {
 bool JPCell::doSwitch(const std::string& actuatorId, bool on, std::string& why, int depth) {
     for (const JPActuatorConfig& a : m_config.actuators) {
         if (a.id != actuatorId) continue;
+        // A script actuator: its script told actuateBoolean.
+        if (!a.scriptName.empty()) {
+            JJson g = JJson::object();
+            g["actuateBoolean"] = on;
+            const bool ok = runActuatorScript(a, g, why);
+            if (ok) m_actuated[actuatorId] = on;
+            return ok;
+        }
         // An HTTP actuator: its on or off URL, else its parameter URL with 1 or 0.
         if (a.http.on) {
             const std::string& url = on ? a.http.onUrl : a.http.offUrl;
@@ -1342,6 +1358,15 @@ void JPCell::moveAxes(std::map<std::string, double> targets, double speed) {
         if (!ok) JLOGC(JPlacerLog::kCell, JLogLevel::Warn) << "move refused: " << why;
         onMotion.emit(ok, why);
     });
+}
+
+bool JPCell::runActuatorScript(const JPActuatorConfig& a, JJson globals, std::string& why) {
+    if (!m_scripting) {
+        why = a.name + ": no scripts to run";
+        return false;
+    }
+    globals["actuator"] = a.name;
+    return m_scripting->execute((std::filesystem::path(m_scripting->directory()) / a.scriptName).string(), globals, why);
 }
 
 bool JPCell::httpGet(const JPActuatorConfig& a, const std::string& url, std::string& why) {

@@ -134,7 +134,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Machine coordination (before / after actuation, before read) | own way | every actuation and read waits for moves before it to end, and moves wait for it |
 | Axis interlock | done | |
 | HTTP actuators | done | |
-| Script actuators | missing | scripting not built |
+| Script actuators | done | the script runs as a program told actuateBoolean, actuateDouble or actuateString |
 | Actuators panel (switch, read) | done | |
 
 ## Fiducials and boards
