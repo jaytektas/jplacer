@@ -360,10 +360,11 @@ void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
     // A controller axis is one a controller drives; a mapped one follows
     // another through a straight-line map (a second Z driven the other way);
     // a virtual one is only a number jplacer keeps.
-    const Strings kinds{ "controller", "mapped", "virtual" };
+    // A cam one is OpenPnP's cam axis: a Z a cam turned by a rotation axis drives.
+    const Strings kinds{ "controller", "mapped", "cam", "virtual" };
     add.choice("kind", "Kind", kinds, [a] { return std::string(A::kindName(a().kind)); },
                [a](const std::string& v) {
-                   for (A::Kind k : { A::Kind::Controller, A::Kind::Mapped, A::Kind::Virtual })
+                   for (A::Kind k : { A::Kind::Controller, A::Kind::Mapped, A::Kind::Cam, A::Kind::Virtual })
                        if (v == A::kindName(k)) a().kind = k;
                });
     f.reshaping.push_back("kind");
@@ -408,6 +409,21 @@ void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
         add.number("mapOutput1", "Point B output", [a]() -> double& { return a().mapOutput1; });
         add.end();
         add.number("homeCoordinate", "Home Coordinate", [a]() -> double& { return a().homeCoordinate; });
+    }
+    if (a().kind == A::Kind::Cam) {
+        // OpenPnP's ReferenceCamCounterClockwiseAxis (and its clockwise partner, here the same axis turned the other way).
+        add.group("Cam Settings");
+        add.byName("inputAxis", "Input Axis", named(cell.axes, "(none)"), [a]() -> std::string& { return a().inputAxisId; });
+        add.flag("camClockwise", "Clockwise?", [a]() -> bool& { return a().camClockwise; });
+        add.tip("The cam's other side: the nozzle that goes down as the cam turns clockwise (OpenPnP's ReferenceCamClockwiseAxis).");
+        add.number("camRadius", "Cam Radius", [a]() -> double& { return a().camRadius; });
+        add.number("camArmsAngle", "Cam Arms Angle", [a]() -> double& { return a().camArmsAngle; });
+        add.tip("The angle between the cam's two arms (180 for a straight cam); the balance point is at 0 with them folded out.");
+        add.number("camWheelRadius", "Cam Wheel Radius", [a]() -> double& { return a().camWheelRadius; });
+        add.number("camWheelGap", "Cam Wheel Gap", [a]() -> double& { return a().camWheelGap; });
+        add.number("homeCoordinate", "Home Coordinate", [a]() -> double& { return a().homeCoordinate; });
+        add.note("Z = Cam Radius x sin(angle + 90 - Cam Arms Angle / 2) + Cam Wheel Radius + Cam Wheel Gap, the angle that "
+                 "of the input axis (the other way, clockwise), kept within the cam's useful range.");
     }
     add.group("Kinematic Settings");
     // Each limit with its switch, and buttons to take it from where the axis is or go there.

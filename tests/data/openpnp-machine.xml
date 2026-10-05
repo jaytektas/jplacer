@@ -22,7 +22,14 @@
             <map-input-1 value="0.0" units="Millimeters"/>
             <map-output-1 value="0.0" units="Millimeters"/>
          </axis>
-         <axis class="org.openpnp.machine.reference.axis.ReferenceCamCounterClockwiseAxis" id="ACAM" name="cam" type="Z"/>
+         <axis class="org.openpnp.machine.reference.axis.ReferenceControllerAxis" id="ACR" name="camRotation" type="Rotation" letter="B" driver-id="DRV1">
+            <home-coordinate value="0.0" units="Millimeters"/>
+         </axis>
+         <axis class="org.openpnp.machine.reference.axis.ReferenceCamCounterClockwiseAxis" id="ACAM" name="cam" type="Z" input-axis-id="ACR">
+            <cam-radius value="12.0" units="Millimeters"/>
+            <cam-arms-angle>150.0</cam-arms-angle>
+         </axis>
+         <axis class="org.openpnp.machine.reference.axis.ReferenceCamClockwiseAxis" id="ACAMCW" name="camCW" type="Z" input-axis-id="ACAM"/>
       </axes>
       <drivers class="java.util.ArrayList">
          <driver class="org.openpnp.machine.reference.driver.GcodeAsyncDriver" id="DRV1" name="Jaytek" communications="serial" timeout-milliseconds="30000" infinity-timeout-milliseconds="60000" connect-wait-time-milliseconds="3000">

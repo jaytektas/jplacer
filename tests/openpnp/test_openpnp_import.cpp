@@ -69,8 +69,25 @@ int main() {
     assert(d.commands.at("home") == "M18 Z\nG4 P1\nM17 Z\n$HY\n$HX\nG92 X390 Y444 A0 B0 C0\n$HZ\nG92 Z-25.5\nM400");
     assert(noted(notes, "fiducial"));                       // visual homing waits for a calibrated camera
 
-    assert(cell.axes.size() == 4);                         // the cam axis is left out
-    assert(noted(notes, "axis cam"));
+    assert(cell.axes.size() == 7);
+    // OpenPnP's cam axes: the counter-clockwise one on its rotation axis, the
+    // clockwise one its partner's cam turned the other way.
+    {
+        const JPAxisConfig* ccw = cell.axis("ACAM");
+        const JPAxisConfig* cw = cell.axis("ACAMCW");
+        assert(ccw && ccw->kind == JPAxisConfig::Kind::Cam && ccw->inputAxisId == "ACR" && !ccw->camClockwise);
+        assert(ccw->camRadius == 12 && ccw->camArmsAngle == 150);
+        assert(cw && cw->kind == JPAxisConfig::Kind::Cam && cw->inputAxisId == "ACR" && cw->camClockwise && cw->camRadius == 12);
+        // At the cam's balance (0 degrees with the arms 150 apart: 15 degrees short of level), Z is 12 sin 15 each.
+        const double z0 = 12 * std::sin(15 * 3.14159265358979323846 / 180);
+        assert(std::abs(*ccw->mapped(0) - z0) < 1e-9 && std::abs(*cw->mapped(0) - z0) < 1e-9);
+        // Turned 30 degrees, one goes up as the other goes down, and back again.
+        assert(*ccw->mapped(30) > z0 && *cw->mapped(30) < z0);
+        assert(std::abs(*ccw->unmapped(*ccw->mapped(30)) - 30) < 1e-9 && std::abs(*cw->unmapped(*cw->mapped(30)) - 30) < 1e-9);
+        // Kept to its useful range (180 - 150 / 2 = 105 degrees either way).
+        assert(std::abs(*ccw->unmapped(1000) - 105) < 1e-9);
+        assert(JPAxisConfig::fromJson(cw->toJson(), error)->camClockwise);
+    }
     const JPAxisConfig* x = cell.axis("AX");
     assert(x && x->kind == JPAxisConfig::Kind::Controller && x->letter == "X" && x->driverId == "DRV1");
     assert(x->homeCoordinate == 390 && x->softLimitHigh == 390 && x->softLimitHighEnabled);

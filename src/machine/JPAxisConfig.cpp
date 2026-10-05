@@ -3,6 +3,7 @@
 
 #include "JPAxisConfig.h"
 
+#include <algorithm>
 #include <cmath>
 
 inline namespace jf {
@@ -10,7 +11,7 @@ inline namespace jf {
 namespace {
 
 constexpr JPAxisConfig::Kind kKinds[] = { JPAxisConfig::Kind::Controller, JPAxisConfig::Kind::Virtual,
-                                          JPAxisConfig::Kind::Mapped };
+                                          JPAxisConfig::Kind::Mapped, JPAxisConfig::Kind::Cam };
 constexpr JPAxisConfig::Type kTypes[] = { JPAxisConfig::Type::X, JPAxisConfig::Type::Y,
                                           JPAxisConfig::Type::Z, JPAxisConfig::Type::Rotation };
 
@@ -21,6 +22,7 @@ const char* JPAxisConfig::kindName(Kind k) {
         case Kind::Controller: return "controller";
         case Kind::Virtual:    return "virtual";
         case Kind::Mapped:     return "mapped";
+        case Kind::Cam:        return "cam";
     }
     return "";
 }
@@ -35,13 +37,42 @@ const char* JPAxisConfig::typeName(Type t) {
     return "";
 }
 
+namespace {
+// OpenPnP's cam: the angle it is kept short of 90 by, and how gently it goes on beyond.
+constexpr double kAngleCutoff = 89.99;
+constexpr double kExtensionSlope = 0.0001 / 180.0;
+constexpr double kDeg = 3.14159265358979323846 / 180.0;
+}
+
 std::optional<double> JPAxisConfig::mapped(double input) const {
+    if (kind == Kind::Cam) {
+        const double sinusCutoff = std::sin(kAngleCutoff * kDeg);
+        double t = camClockwise ? -input : input;
+        t += 90.0 - camArmsAngle / 2.0;
+        if (t <= -kAngleCutoff) t = (t + kAngleCutoff) * kExtensionSlope - sinusCutoff;
+        else if (t >= kAngleCutoff) t = (t - kAngleCutoff) * kExtensionSlope + sinusCutoff;
+        else t = std::sin(t * kDeg);
+        return t * camRadius + camWheelRadius + camWheelGap;
+    }
     const double span = mapInput1 - mapInput0;
     if (span == 0) return std::nullopt;
     return mapOutput0 + (input - mapInput0) * (mapOutput1 - mapOutput0) / span;
 }
 
 std::optional<double> JPAxisConfig::unmapped(double output) const {
+    if (kind == Kind::Cam) {
+        if (camRadius == 0) return std::nullopt;
+        const double sinusCutoff = std::sin(kAngleCutoff * kDeg);
+        double r = (output - camWheelRadius - camWheelGap) / camRadius;
+        if (r <= -sinusCutoff) r = (r + sinusCutoff) / kExtensionSlope - kAngleCutoff;
+        else if (r >= sinusCutoff) r = (r - sinusCutoff) / kExtensionSlope + kAngleCutoff;
+        else r = std::asin(r) / kDeg;
+        r -= 90.0 - camArmsAngle / 2.0;
+        if (camClockwise) r = -r;
+        // Its useful range.
+        const double range = 180.0 - camArmsAngle / 2.0;
+        return std::max(-range, std::min(range, r));
+    }
     const double span = mapOutput1 - mapOutput0;
     if (span == 0) return std::nullopt;
     return mapInput0 + (output - mapOutput0) * (mapInput1 - mapInput0) / span;
@@ -96,12 +127,18 @@ std::optional<JPAxisConfig> JPAxisConfig::fromJson(const JJson& j, std::string& 
     a.mapOutput0 = map["output0"].number(a.mapOutput0);
     a.mapInput1  = map["input1"].number(a.mapInput1);
     a.mapOutput1 = map["output1"].number(a.mapOutput1);
+    const JJson& cam = j["cam"];
+    a.camRadius      = cam["radius"].number(a.camRadius);
+    a.camArmsAngle   = cam["armsAngle"].number(a.camArmsAngle);
+    a.camWheelRadius = cam["wheelRadius"].number(a.camWheelRadius);
+    a.camWheelGap    = cam["wheelGap"].number(a.camWheelGap);
+    a.camClockwise   = cam["clockwise"].boolean();
 
     if (a.kind == Kind::Controller && (a.driverId.empty() || a.letter.empty())) {
         error = "axis " + a.name + ": a controller axis needs a controller and a letter";
         return std::nullopt;
     }
-    if (a.kind == Kind::Mapped && a.inputAxisId.empty()) {
+    if (a.transformed() && a.inputAxisId.empty()) {
         error = "axis " + a.name + ": a mapped axis needs an input axis";
         return std::nullopt;
     }
@@ -147,6 +184,14 @@ JJson JPAxisConfig::toJson() const {
         j["wrapAroundRotation"]     = wrapAroundRotation;
         j["limitRotation"]          = limitRotation;
         if (resolution > 0) j["resolution"] = resolution;
+    }
+    if (kind == Kind::Cam) {
+        j["inputAxis"] = inputAxisId;
+        j["cam"]["radius"] = camRadius;
+        j["cam"]["armsAngle"] = camArmsAngle;
+        if (camWheelRadius != 0) j["cam"]["wheelRadius"] = camWheelRadius;
+        if (camWheelGap != 0) j["cam"]["wheelGap"] = camWheelGap;
+        if (camClockwise) j["cam"]["clockwise"] = true;
     }
     if (kind == Kind::Mapped) {
         j["inputAxis"]      = inputAxisId;

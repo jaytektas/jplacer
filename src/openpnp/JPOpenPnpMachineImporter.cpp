@@ -370,11 +370,32 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                 c.squareness.atY   = f != 0 ? -offset / f : 0;
                 squarenessAxis     = a.id;
                 continue;
+            } else if (kind == "ReferenceCamCounterClockwiseAxis" || kind == "ReferenceCamClockwiseAxis") {
+                // A clockwise cam's input is its counter-clockwise partner: its cam and input taken from that below.
+                a.kind = JPAxisConfig::Kind::Cam;
+                a.inputAxisId = x.attr("input-axis-id");
+                a.camClockwise = kind == "ReferenceCamClockwiseAxis";
+                if (x.child("cam-radius")) a.camRadius = lengthChild(x, "cam-radius");
+                if (const JPXmlElement* e = x.child("cam-arms-angle")) a.camArmsAngle = number(e->text);
+                a.camWheelRadius = lengthChild(x, "cam-wheel-radius");
+                a.camWheelGap = lengthChild(x, "cam-wheel-gap");
             } else {
                 notes.push_back("axis " + a.name + " (" + kind + ") has no jplacer equivalent yet and was left out");
                 continue;
             }
             c.axes.push_back(std::move(a));
+        }
+        // A clockwise cam: the counter-clockwise partner's cam, on its input axis.
+        for (JPAxisConfig& a : c.axes) {
+            if (a.kind != JPAxisConfig::Kind::Cam || !a.camClockwise) continue;
+            for (const JPAxisConfig& ccw : c.axes)
+                if (ccw.id == a.inputAxisId && ccw.kind == JPAxisConfig::Kind::Cam && !ccw.camClockwise) {
+                    a.inputAxisId = ccw.inputAxisId;
+                    a.camRadius = ccw.camRadius;
+                    a.camArmsAngle = ccw.camArmsAngle;
+                    a.camWheelRadius = ccw.camWheelRadius;
+                    a.camWheelGap = ccw.camWheelGap;
+                }
         }
     }
 

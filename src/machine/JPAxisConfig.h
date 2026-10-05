@@ -26,7 +26,7 @@ inline namespace jf {
 // Feed rate, acceleration and jerk are 0 when the controller's own stored
 // values apply; jplacer keeps only what the controller does not hold.
 struct JPAxisConfig {
-    enum class Kind { Controller, Virtual, Mapped };
+    enum class Kind { Controller, Virtual, Mapped, Cam };
     enum class Type { X, Y, Z, Rotation };
 
     std::string id;
@@ -95,8 +95,18 @@ struct JPAxisConfig {
     std::string inputAxisId;
     double mapInput0 = 0, mapOutput0 = 0, mapInput1 = 1, mapOutput1 = 1;
 
-    // A mapped axis's coordinate for its input axis at `input`, and back.
-    // Nothing when the two map points share an input (no line through them).
+    // OpenPnP's cam axes: a Z that a cam turned by its input (rotation) axis
+    // drives, z = radius x sin(angle + 90 - armsAngle / 2) (+ the old wheel's
+    // radius and gap); the clockwise one the other nozzle's, its angle the
+    // other way. Kept to the cam's useful range, and beyond the arms' end
+    // stretched out just enough to keep a way back.
+    double camRadius = 24, camArmsAngle = 180, camWheelRadius = 0, camWheelGap = 0;
+    bool   camClockwise = false;
+
+    // Whether it follows an input axis (mapped, or a cam), and its coordinate
+    // for its input axis at `input`, and back. Nothing for a map whose two
+    // points share an input (no line through them).
+    bool transformed() const { return kind == Kind::Mapped || kind == Kind::Cam; }
     std::optional<double> mapped(double input) const;
     std::optional<double> unmapped(double output) const;
 

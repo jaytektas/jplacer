@@ -203,7 +203,7 @@ bool JPSetupEdits::remove(JPCellConfig& cell, const std::string& path, std::stri
             if (a.driverId == p.id) users.push_back("actuator " + a.name);
     } else if (p.kind == "axis") {
         for (const JPAxisConfig& a : cell.axes)
-            if (a.kind == JPAxisConfig::Kind::Mapped && a.inputAxisId == p.id) users.push_back("axis " + a.name);
+            if (a.transformed() && a.inputAxisId == p.id) users.push_back("axis " + a.name);
         for (const JPNozzleConfig& n : cell.nozzles)
             if (mountUses(n.mount, p.id)) users.push_back("nozzle " + n.name);
         for (const JPCameraConfig& c : cell.cameras)

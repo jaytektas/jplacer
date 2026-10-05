@@ -127,9 +127,11 @@ std::vector<std::string> JPCellConfig::problems() const {
     for (const JPAxisConfig& a : axes) {
         if (a.kind == JPAxisConfig::Kind::Controller && !driver(a.driverId))
             out.push_back("axis " + a.name + " names a controller that is not in this cell");
-        if (a.kind == JPAxisConfig::Kind::Mapped) {
+        if (a.transformed()) {
             if (!axis(a.inputAxisId))     out.push_back("axis " + a.name + " follows an axis that is not in this cell");
             else if (!a.mapped(0))        out.push_back("axis " + a.name + " has a map with both points at the same input");
+            else if (a.kind == JPAxisConfig::Kind::Cam && a.camRadius <= 0)
+                out.push_back("axis " + a.name + " is a cam with no radius");
         }
     }
     auto checkMount = [&](const std::string& what, const JPMountConfig& m) {

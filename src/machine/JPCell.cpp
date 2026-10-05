@@ -237,7 +237,7 @@ bool JPCell::doPark(const std::string& headId, double speed, std::string& why) {
 
 const JPAxisConfig* JPCell::zMotor(const JPMountConfig& mount) const {
     const JPAxisConfig* z = m_config.axis(mount.axisZ);
-    if (z && z->kind == JPAxisConfig::Kind::Mapped) z = m_config.axis(z->inputAxisId);
+    if (z && z->transformed()) z = m_config.axis(z->inputAxisId);
     return z && z->kind == JPAxisConfig::Kind::Controller ? z : nullptr;
 }
 
@@ -328,7 +328,7 @@ bool JPCell::doSafeZ(const std::string& headId, double speed, std::string& why) 
     std::map<std::string, double> safe;
     for (const JPMountConfig* m : mounts) {
         const JPAxisConfig* z = m_config.axis(m->axisZ);
-        if (z && z->kind == JPAxisConfig::Kind::Mapped) z = m_config.axis(z->inputAxisId);
+        if (z && z->transformed()) z = m_config.axis(z->inputAxisId);
         if (!z || z->kind != JPAxisConfig::Kind::Controller || !now.count(z->id)) continue;
         double t = now.at(z->id);
         if (z->safeZoneLowEnabled)  t = std::max(t, z->safeZoneLow);
@@ -493,7 +493,7 @@ void JPCell::parkZ(const JPMountConfig& mount, double speed) {
 
 bool JPCell::doParkZ(const JPMountConfig& mount, double speed, std::string& why) {
     const JPAxisConfig* z = m_config.axis(mount.axisZ);
-    if (z && z->kind == JPAxisConfig::Kind::Mapped) z = m_config.axis(z->inputAxisId);
+    if (z && z->transformed()) z = m_config.axis(z->inputAxisId);
     if (!z || z->kind != JPAxisConfig::Kind::Controller || !z->safeZoneLowEnabled) return true;
     const auto now = jogBase();
     if (now.count(z->id) && now.at(z->id) == z->safeZoneLow) return true;
@@ -900,7 +900,7 @@ void JPCell::updatePositions(const std::string& driverId, const JPFirmwareProfil
                 m_positions[q.axisX] = x->second + q.xPerY * (y->second - q.atY);
         }
         for (const JPAxisConfig& a : m_config.axes) {
-            if (a.kind != JPAxisConfig::Kind::Mapped) continue;
+            if (!a.transformed()) continue;
             const auto in = m_positions.find(a.inputAxisId);
             if (in == m_positions.end()) continue;
             if (const auto out = a.mapped(in->second)) m_positions[a.id] = *out;
@@ -979,7 +979,7 @@ bool JPCell::doHome(std::string& why) {
         m_backlashLag.clear();
         for (const JPAxisConfig& a : m_config.axes) {
             if (a.kind == JPAxisConfig::Kind::Virtual) m_positions[a.id] = a.homeCoordinate;
-            if (a.kind != JPAxisConfig::Kind::Mapped) m_sent[a.id] = a.homeCoordinate;
+            if (!a.transformed()) m_sent[a.id] = a.homeCoordinate;
         }
         // The home coordinates are the axes' own; squarely, X takes the lean.
         if (const JPSquarenessConfig& q = m_config.squareness; q.active() && m_sent.count(q.axisX) && m_sent.count(q.axisY))
@@ -1246,7 +1246,7 @@ bool JPCell::doMove(std::map<std::string, double> targets, double speed, std::st
         if (a->kind == JPAxisConfig::Kind::Virtual) { virtuals[id] = target; continue; }
         const JPAxisConfig* hw = a;
         double t = target;
-        if (a->kind == JPAxisConfig::Kind::Mapped) {
+        if (a->transformed()) {
             const auto in = a->unmapped(target);
             hw = m_config.axis(a->inputAxisId);
             if (!in || !hw) { why = "axis " + a->name + " cannot be moved through its map"; return false; }

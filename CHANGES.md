@@ -371,6 +371,8 @@ notes.
   board on Ethernet, for one. An OpenPnP machine with a TCP controller now comes in connected that way.
 - A controller's Driver Settings have OpenPnP's Remove Comments, Compress G-code (with its exclude characters)
   and Backslash Escaped Characters, and they come in with an OpenPnP machine.
+- Axes can be OpenPnP's cam axes: a Z (or a pair of nozzles' Zs, one each way) that a cam on a rotation axis
+  drives. They come in with an OpenPnP machine, where they used to be left out.
 
 ## 0.1.0
 
