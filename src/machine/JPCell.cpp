@@ -1442,6 +1442,15 @@ void JPCell::updatePositions(const std::string& driverId, const JPFirmwareProfil
             if (in == m_positions.end()) continue;
             if (const auto out = a.mapped(in->second)) m_positions[a.id] = *out;
         }
+        // A linear transform axis: its inputs' coordinates times its factors, plus its offset.
+        for (const JPAxisConfig& a : m_config.axes) {
+            if (a.kind != JPAxisConfig::Kind::Linear) continue;
+            double v = a.linearOffset;
+            for (size_t i = 0; i < 4; ++i)
+                if (const auto in = m_positions.find(a.linearInputs[i]); !a.linearInputs[i].empty() && in != m_positions.end())
+                    v += a.linearFactors[i] * in->second;
+            m_positions[a.id] = v;
+        }
         snapshot = m_positions;
     }
     if (stateChanged) {
@@ -2062,10 +2071,94 @@ bool JPCell::doInterlocks(const std::map<std::string, double>& from, const std::
     return true;
 }
 
+bool JPCell::resolveLinear(std::map<std::string, double>& targets, const std::map<std::string, double>& now,
+                           std::string& why) const {
+    using Kind = JPAxisConfig::Kind;
+    auto slot = [](JPAxisConfig::Type t) { return size_t(t == JPAxisConfig::Type::X ? 0 : t == JPAxisConfig::Type::Y ? 1
+                                                         : t == JPAxisConfig::Type::Z ? 2 : 3); };
+    // The move's linear axes by their type, and their inputs, consolidated (OpenPnP's toRaw).
+    std::array<const JPAxisConfig*, 4> linear {};
+    std::array<std::string, 4> input;
+    auto take = [&](const JPAxisConfig& a) {
+        const size_t i = slot(a.type);
+        if (linear[i] && linear[i] != &a) {
+            why = "axes " + linear[i]->name + " and " + a.name + " both have the same type in a linear transformation";
+            return false;
+        }
+        linear[i] = &a;
+        for (size_t k = 0; k < 4; ++k) {
+            if (a.linearInputs[k].empty()) continue;
+            if (!input[k].empty() && input[k] != a.linearInputs[k]) {
+                why = "axis " + a.name + " has another " + JPAxisConfig::typeName(JPAxisConfig::Type(k)) + " input than the move's other linear axes";
+                return false;
+            }
+            input[k] = a.linearInputs[k];
+        }
+        return true;
+    };
+    bool any = false;
+    for (const auto& [id, t] : targets)
+        if (const JPAxisConfig* a = m_config.axis(id); a && a->kind == Kind::Linear) {
+            if (!take(*a)) return false;
+            any = true;
+        }
+    if (!any) return true;
+    // The tool the move is of (the one whose axes have its linear axes): its
+    // other linear axes keep where they are, as its location holds them.
+    std::vector<const JPMountConfig*> mounts;
+    for (const JPNozzleConfig& n : m_config.nozzles) mounts.push_back(&n.mount);
+    for (const JPCameraConfig& c : m_config.cameras) mounts.push_back(&c.mount);
+    for (const JPActuatorConfig& a : m_config.actuators) mounts.push_back(&a.mount);
+    for (const JPMountConfig* m : mounts) {
+        const std::array<const std::string*, 4> axes { &m->axisX, &m->axisY, &m->axisZ, &m->axisRotation };
+        bool all = true;
+        for (size_t i = 0; i < 4; ++i) all = all && (!linear[i] || *axes[i] == linear[i]->id);
+        if (!all) continue;
+        for (size_t i = 0; i < 4; ++i) {
+            if (linear[i] || axes[i]->empty()) continue;
+            const JPAxisConfig* a = m_config.axis(*axes[i]);
+            if (a && a->kind == Kind::Linear && !targets.count(a->linearInputs[i]) && !take(*a)) return false;
+        }
+        break;
+    }
+    auto at = [&](const std::string& id) {
+        if (const auto t = targets.find(id); t != targets.end()) return t->second;
+        const auto n = now.find(id);
+        return n == now.end() ? 0.0 : n->second;
+    };
+    // M raw + offset = coordinate, row by type: a linear axis's factors, else the unit row.
+    double m[4][5];
+    for (size_t i = 0; i < 4; ++i) {
+        for (size_t k = 0; k < 4; ++k) m[i][k] = linear[i] ? (input[k].empty() ? 0.0 : linear[i]->linearFactors[k]) : (i == k ? 1.0 : 0.0);
+        m[i][4] = linear[i] ? at(linear[i]->id) - linear[i]->linearOffset : (input[i].empty() ? 0.0 : at(input[i]));
+    }
+    // Gauss-Jordan with partial pivoting.
+    for (size_t c = 0; c < 4; ++c) {
+        size_t p = c;
+        for (size_t r = c + 1; r < 4; ++r) if (std::abs(m[r][c]) > std::abs(m[p][c])) p = r;
+        if (std::abs(m[p][c]) < 1e-12) {
+            why = "the linear transformation of the move's axes cannot be inverted";
+            return false;
+        }
+        if (p != c) for (size_t k = 0; k < 5; ++k) std::swap(m[p][k], m[c][k]);
+        for (size_t r = 0; r < 4; ++r) {
+            if (r == c) continue;
+            const double f = m[r][c] / m[c][c];
+            for (size_t k = c; k < 5; ++k) m[r][k] -= f * m[c][k];
+        }
+    }
+    for (size_t i = 0; i < 4; ++i) if (linear[i]) targets.erase(linear[i]->id);
+    for (size_t k = 0; k < 4; ++k)
+        if (!input[k].empty()) targets[input[k]] = m[k][4] / m[k][k];
+    return true;
+}
+
 bool JPCell::doMoveNow(std::map<std::string, double> targets, double speed, std::string& why, bool squared) {
     if (!m_connected) { why = "not connected"; return false; }
     if (!m_homed)     { why = "not homed: home the machine first"; return false; }
 
+    // Linear transform axes (OpenPnP's) solved back onto their input axes.
+    if (!resolveLinear(targets, jogBase(), why)) return false;
     // A rotation goes the short way round (wrap around), or is kept to
     // -180..180 (limit to range), as its axis is set.
     const auto start = jogBase();

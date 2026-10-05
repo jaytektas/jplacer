@@ -65,7 +65,8 @@ What is brought across:
   automatic), which jplacer sets again every time it opens the camera: a camera that dropped off its
   connection comes back as it was, not on its own defaults.
 - **Non-squareness**: a machine squared in OpenPnP (its X axis a linear transform adding a share of Y)
-  keeps that correction, as jplacer's squareness.
+  keeps that correction, as jplacer's squareness. Any other linear transform axis comes in as a linear axis, its inputs,
+  factors and offset as they were.
 - **Nozzle tips**: each one's name, the diameter OpenPnP's nozzle tip calibration finds it by, as the
   diameter the camera looking up sees, and its tool changer: its places (start, middle, second middle,
   end, those set) and speeds, and the actuators switched between them, become the tip's

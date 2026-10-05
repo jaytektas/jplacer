@@ -11,7 +11,7 @@ inline namespace jf {
 namespace {
 
 constexpr JPAxisConfig::Kind kKinds[] = { JPAxisConfig::Kind::Controller, JPAxisConfig::Kind::Virtual,
-                                          JPAxisConfig::Kind::Mapped, JPAxisConfig::Kind::Cam };
+                                          JPAxisConfig::Kind::Mapped, JPAxisConfig::Kind::Cam, JPAxisConfig::Kind::Linear };
 constexpr JPAxisConfig::Type kTypes[] = { JPAxisConfig::Type::X, JPAxisConfig::Type::Y,
                                           JPAxisConfig::Type::Z, JPAxisConfig::Type::Rotation };
 
@@ -23,6 +23,7 @@ const char* JPAxisConfig::kindName(Kind k) {
         case Kind::Virtual:    return "virtual";
         case Kind::Mapped:     return "mapped";
         case Kind::Cam:        return "cam";
+        case Kind::Linear:     return "linear";
     }
     return "";
 }
@@ -135,11 +136,24 @@ std::optional<JPAxisConfig> JPAxisConfig::fromJson(const JJson& j, std::string& 
     a.camWheelRadius = cam["wheelRadius"].number(a.camWheelRadius);
     a.camWheelGap    = cam["wheelGap"].number(a.camWheelGap);
     a.camClockwise   = cam["clockwise"].boolean();
+    const JJson& linear = j["linear"];
+    for (size_t i = 0; i < 4; ++i) {
+        const char* key = typeName(kTypes[i]);
+        a.linearInputs[i]  = linear["inputs"][key].str();
+        a.linearFactors[i] = linear["factors"][key].number(0.0);
+    }
+    a.linearOffset = linear["offset"].number(0.0);
 
     if (a.kind == Kind::Controller && (a.driverId.empty() || a.letter.empty())) {
         error = "axis " + a.name + ": a controller axis needs a controller and a letter";
         return std::nullopt;
     }
+    if (a.kind == Kind::Linear)
+        for (size_t i = 0; i < 4; ++i)
+            if (a.linearFactors[i] != 0 && a.linearInputs[i].empty()) {
+                error = "axis " + a.name + " has a " + typeName(kTypes[i]) + " factor but no input axis";
+                return std::nullopt;
+            }
     if (a.transformed() && a.inputAxisId.empty()) {
         error = "axis " + a.name + ": a mapped axis needs an input axis";
         return std::nullopt;
@@ -196,6 +210,14 @@ JJson JPAxisConfig::toJson() const {
         if (camWheelRadius != 0) j["cam"]["wheelRadius"] = camWheelRadius;
         if (camWheelGap != 0) j["cam"]["wheelGap"] = camWheelGap;
         if (camClockwise) j["cam"]["clockwise"] = true;
+    }
+    if (kind == Kind::Linear) {
+        for (size_t i = 0; i < 4; ++i) {
+            const char* key = typeName(kTypes[i]);
+            if (!linearInputs[i].empty()) j["linear"]["inputs"][key] = linearInputs[i];
+            if (linearFactors[i] != 0) j["linear"]["factors"][key] = linearFactors[i];
+        }
+        if (linearOffset != 0) j["linear"]["offset"] = linearOffset;
     }
     if (kind == Kind::Mapped) {
         j["inputAxis"]      = inputAxisId;

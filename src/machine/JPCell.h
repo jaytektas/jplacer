@@ -324,6 +324,9 @@ private:
     void doDisconnect(bool keepingAlive = false);
     // The cell thread's side of moveAxes: false with `why` when refused or failed.
     bool doMove(std::map<std::string, double> targets, double speed, std::string& why, bool squared = true);
+    // OpenPnP's linear transform axes among `targets` solved back onto their input
+    // axes (OpenPnP's ReferenceLinearTransformAxis.toRaw); false and why when they cannot be.
+    bool resolveLinear(std::map<std::string, double>& targets, const std::map<std::string, double>& now, std::string& why) const;
     bool doMoveNow(std::map<std::string, double> targets, double speed, std::string& why, bool squared);
     // OpenPnP's axis interlocks (JPActuatorConfig::Interlock) for a move from `from` to `to`, before or after it.
     bool doInterlocks(const std::map<std::string, double>& from, const std::map<std::string, double>& to, bool before,

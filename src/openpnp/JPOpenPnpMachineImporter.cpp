@@ -551,6 +551,16 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                 c.squareness.atY   = f != 0 ? -offset / f : 0;
                 squarenessAxis     = a.id;
                 continue;
+            } else if (kind == "ReferenceLinearTransformAxis") {
+                // OpenPnP's linear transform, as it is: its inputs, factors and offset.
+                a.kind = JPAxisConfig::Kind::Linear;
+                const char* keys[] = { "x", "y", "z", "rotation" };
+                for (size_t i = 0; i < 4; ++i) {
+                    a.linearInputs[i] = x.attr(std::string("input-axis-") + keys[i] + "-id");
+                    a.linearFactors[i] = number(x.attr(std::string("factor-") + keys[i]));
+                    if (a.linearFactors[i] != 0 && a.linearInputs[i].empty()) a.linearFactors[i] = 0;   // as OpenPnP refuses it
+                }
+                a.linearOffset = lengthChild(x, "offset");
             } else if (kind == "ReferenceCamCounterClockwiseAxis" || kind == "ReferenceCamClockwiseAxis") {
                 // A clockwise cam's input is its counter-clockwise partner: its cam and input taken from that below.
                 a.kind = JPAxisConfig::Kind::Cam;

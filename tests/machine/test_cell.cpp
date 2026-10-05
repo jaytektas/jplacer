@@ -13,9 +13,12 @@
 #include "machine/JPCell.h"
 
 #include <atomic>
+#include <cstdio>
+#include <cmath>
 #include <chrono>
 #include <condition_variable>
 #include <mutex>
+#include <thread>
 #include <vector>
 #include <string>
 
@@ -310,6 +313,75 @@ int main() {
 
         cell.home();
         assert(motion.take().first && cell.isHomed());
+        // OpenPnP's linear transform axes: a skewed X (X + 0.01 Y + 1) moved with
+        // Y, and a pair turned 30 degrees moved together, solved back onto the
+        // controller's X and Y; their coordinates read back from them.
+        {
+            JPCellConfig next = cell.config();
+            JPAxisConfig y;
+            y.id = "Y";
+            y.name = "y";
+            y.type = JPAxisConfig::Type::Y;
+            y.driverId = "D";
+            y.letter = "Y";
+            y.feedratePerSecond = 100;
+            next.axes.push_back(y);
+            JPAxisConfig skew;
+            skew.id = "XS";
+            skew.name = "xs";
+            skew.kind = JPAxisConfig::Kind::Linear;
+            skew.type = JPAxisConfig::Type::X;
+            skew.linearInputs = { "X", "Y", "", "" };
+            skew.linearFactors = { 1, 0.01, 0, 0 };
+            skew.linearOffset = 1;
+            next.axes.push_back(skew);
+            {
+                std::string e;
+                const auto back = JPAxisConfig::fromJson(skew.toJson(), e);
+                assert(back && back->kind == JPAxisConfig::Kind::Linear && back->linearInputs[1] == "Y"
+                       && back->linearFactors[1] == 0.01 && back->linearOffset == 1);
+            }
+            const double c30 = std::cos(M_PI / 6), s30 = std::sin(M_PI / 6);
+            JPAxisConfig rx = skew, ry = skew;
+            rx.id = "XR";
+            rx.name = "xr";
+            rx.linearFactors = { c30, -s30, 0, 0 };
+            rx.linearOffset = 0;
+            ry.id = "YR";
+            ry.name = "yr";
+            ry.type = JPAxisConfig::Type::Y;
+            ry.linearFactors = { s30, c30, 0, 0 };
+            ry.linearOffset = 0;
+            next.axes.push_back(rx);
+            next.axes.push_back(ry);
+            std::string why;
+            // Homed, waited for until it is (not by a motion event, which an earlier move may have left).
+            auto homeNow = [&cell] {
+                cell.home();
+                for (int i = 0; i < 500 && (!cell.isHomed() || cell.isHoming() || cell.isMoving()); ++i)
+                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                assert(cell.isHomed());
+            };
+            assert(next.problems().empty());
+            assert(cell.reconfigure(next, why));
+            homeNow();
+            assert(cell.moveAxesAndWait({ { "XS", 50 }, { "Y", 20 } }, 1.0, why));
+            auto settled = [&cell](const char* id, double want) {
+                for (int i = 0; i < 200; ++i) {
+                    if (std::abs(cell.positions().at(id) - want) < 1e-3) return true;
+                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                }
+                return false;
+            };
+            assert(settled("X", 48.8) && settled("XS", 50));
+            assert(cell.moveAxesAndWait({ { "XR", 100 }, { "YR", 40 } }, 1.0, why));
+            // X = cos 30 * 100 + sin 30 * 40, Y = -sin 30 * 100 + cos 30 * 40 (the inverse turn).
+            assert(settled("X", c30 * 100 + s30 * 40) && settled("Y", -s30 * 100 + c30 * 40));
+            assert(settled("XR", 100) && settled("YR", 40));
+            next.axes.resize(next.axes.size() - 4);
+            assert(cell.reconfigure(next, why));
+            homeNow();
+        }
         // OpenPnP's rotation mode offset: the nozzle sent to a rotation turns
         // its axis that much less, reads that much more, and has none again
         // once its part is gone.
@@ -317,7 +389,9 @@ int main() {
             JPCellConfig next = cell.config();
             next.nozzles[0].mount.axisRotation = "C";
             std::string why;
-            assert(cell.reconfigure(next, why));
+            const bool back = cell.reconfigure(next, why);
+            if (!back) std::fprintf(stderr, "why: %s\n", why.c_str());
+            assert(back);
             const JPMountConfig mount = cell.config().nozzles[0].mount;
             cell.setNozzlePart("N", { "R1", 0, 0, 0 });
             cell.setRotationModeOffset("N", 30.0);

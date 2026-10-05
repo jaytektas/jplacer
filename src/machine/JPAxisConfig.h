@@ -7,6 +7,7 @@
 
 #include <j/config/Json.h>
 
+#include <array>
 #include <optional>
 #include <string>
 #include <utility>
@@ -26,7 +27,7 @@ inline namespace jf {
 // Feed rate, acceleration and jerk are 0 when the controller's own stored
 // values apply; jplacer keeps only what the controller does not hold.
 struct JPAxisConfig {
-    enum class Kind { Controller, Virtual, Mapped, Cam };
+    enum class Kind { Controller, Virtual, Mapped, Cam, Linear };
     enum class Type { X, Y, Z, Rotation };
 
     std::string id;
@@ -112,6 +113,14 @@ struct JPAxisConfig {
     // stretched out just enough to keep a way back.
     double camRadius = 24, camArmsAngle = 180, camWheelRadius = 0, camWheelGap = 0;
     bool   camClockwise = false;
+
+    // OpenPnP's ReferenceLinearTransformAxis: its coordinate is the sum of each
+    // input axis's (X, Y, Z, rotation; by its id, empty: none) times its factor,
+    // plus the offset. Moved to, all the linear axes of a move are solved back
+    // onto their inputs together, as OpenPnP inverts its affine transform.
+    std::array<std::string, 4> linearInputs;   // by type: X, Y, Z, rotation
+    std::array<double, 4>      linearFactors {};
+    double                     linearOffset = 0;
 
     // Whether it follows an input axis (mapped, or a cam), and its coordinate
     // for its input axis at `input`, and back. Nothing for a map whose two

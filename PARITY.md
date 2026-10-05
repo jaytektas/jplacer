@@ -67,7 +67,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Backlash calibration ("Calibrate now", with graphs of backlash against speed and sneak-up distance) | done | tolerance from the measuring's own noise (8 pictures a measurement); graphs of play by distance, by speed, and errors after; plus jplacer's DistanceAware method for stretching drives |
 | Virtual axis | done | |
 | Mapped axis (two map points) | done | |
-| Linear transform axis (non-squareness) | own way | squareness measured from board fiducials; Square the Machine |
+| Linear transform axis | done | any linear transform (inputs X/Y/Z/Rotation, factors, offset), the move's linear axes solved onto their inputs as OpenPnP inverts its affine transform; non-squareness kept as jplacer's squareness (measured from board fiducials; Square the Machine) |
 | Cam axes (clockwise / counter-clockwise, shared Z) | done | a cam axis kind, clockwise or not |
 | Simulation Mode (SimulationModeMachine) | done | mode, Replace Drivers?, runout and phase, non-squareness, camera lag and noise, vibration, homing error, Set Machine Table Z, Reset Feeders, Pick & Place Checking (on the image camera's picture, OpenPnP's tolerances), imported |
 | Switch linear / rotational | done | and the feed rate as G-code reads F (linear path, else rotational) |

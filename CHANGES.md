@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- OpenPnP's linear transform axes: an axis can be its inputs (X, Y, Z, rotation) times factors plus an offset, for a
+  turned or skewed head; OpenPnP machines with them come in as they are.
 - A controller's Keep Alive, as OpenPnP's: Disconnect leaves its connection open, so a board that resets when its port
   opens is not reset by the next Connect.
 - A script's pipeline looks with the camera it is given (OpenPnP's `camera` property), a fixed one included.

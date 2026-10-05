@@ -142,6 +142,10 @@ std::vector<std::string> JPCellConfig::problems() const {
             else if (a.kind == JPAxisConfig::Kind::Cam && a.camRadius <= 0)
                 out.push_back("axis " + a.name + " is a cam with no radius");
         }
+        if (a.kind == JPAxisConfig::Kind::Linear)
+            for (const std::string& in : a.linearInputs)
+                if (!in.empty() && (!axis(in) || in == a.id))
+                    out.push_back("axis " + a.name + " transforms an axis that is not in this cell");
     }
     auto checkMount = [&](const std::string& what, const JPMountConfig& m) {
         if (!m.headId.empty() && !headIds.count(m.headId)) out.push_back(what + " is on a head that is not in this cell");

@@ -547,10 +547,11 @@ void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
     // another through a straight-line map (a second Z driven the other way);
     // a virtual one is only a number jplacer keeps.
     // A cam one is OpenPnP's cam axis: a Z a cam turned by a rotation axis drives.
-    const Strings kinds{ "controller", "mapped", "cam", "virtual" };
+    // A linear one is OpenPnP's linear transform: its inputs times their factors, plus an offset.
+    const Strings kinds{ "controller", "mapped", "cam", "linear", "virtual" };
     add.choice("kind", "Kind", kinds, [a] { return std::string(A::kindName(a().kind)); },
                [a](const std::string& v) {
-                   for (A::Kind k : { A::Kind::Controller, A::Kind::Mapped, A::Kind::Cam, A::Kind::Virtual })
+                   for (A::Kind k : { A::Kind::Controller, A::Kind::Mapped, A::Kind::Cam, A::Kind::Linear, A::Kind::Virtual })
                        if (v == A::kindName(k)) a().kind = k;
                });
     f.reshaping.push_back("kind");
@@ -615,6 +616,24 @@ void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
         linRef("mapOutput1", "Point B output", [a]() -> double& { return a().mapOutput1; });
         add.end();
         linRef("homeCoordinate", "Home Coordinate", [a]() -> double& { return a().homeCoordinate; });
+    }
+    if (a().kind == A::Kind::Linear) {
+        // OpenPnP's ReferenceLinearTransformAxis.
+        add.group("Linear Transformation");
+        add.header({ "Input Axis", "Factor" });
+        static const char* const kInputs[] = { "X", "Y", "Z", "Rotation" };
+        for (size_t i = 0; i < 4; ++i) {
+            const std::string key = std::string("linear") + kInputs[i];
+            add.row(kInputs[i]);
+            add.byName(key + "Input", std::string(kInputs[i]) + " Input Axis", named(cell.axes, "(none)"),
+                       [a, i]() -> std::string& { return a().linearInputs[i]; });
+            add.number(key + "Factor", std::string(kInputs[i]) + " Factor", [a, i]() -> double& { return a().linearFactors[i]; }, 6);
+            add.end();
+        }
+        add.endColumns();
+        linRef("linearOffset", "Offset", [a]() -> double& { return a().linearOffset; });
+        add.note("The coordinate is the X input's times its factor, plus the Y input's times its factor, and so on, plus "
+                 "the Offset. Moved to, the linear axes of a move are solved back onto their inputs together.");
     }
     if (a().kind == A::Kind::Cam) {
         // OpenPnP's ReferenceCamCounterClockwiseAxis (and its clockwise partner, here the same axis turned the other way).
