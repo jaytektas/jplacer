@@ -8,6 +8,7 @@
 #include <functional>
 #include <mutex>
 #include <set>
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -31,6 +32,9 @@ public:
     explicit JPScripting(std::string scriptsDirectory);
     const std::string& directory() const { return m_directory; }
     std::string eventsDirectory() const;
+    // Where the helper modules are (jplacer.py, jplacer.js, OpenPnP's Python objects): on the
+    // scripts' import paths, out of the Scripts menu.
+    std::filesystem::path helpersDirectory() const;
     // The file extensions run, and the program each is run by.
     static const std::vector<std::pair<std::string, std::string>>& interpreters();
     static bool runnable(const std::string& path);

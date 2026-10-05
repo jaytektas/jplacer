@@ -31,7 +31,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | View: Selections in Tables (linked tables) | done | |
 | Help: Submit Diagnostics (and the log file it includes) | done | written to a file to attach, not uploaded to Pastebin; no window screenshot or vision debug images |
 | Window: Multiple Window Style, Change Appearance (theme, font size, alternating rows) | done | on restart, as OpenPnP |
-| Scripting (events, Python/JS scripts) | own way | the Scripts menu and every OpenPnP event; scripts run as programs of their own told what they run for (JSON), and ask the machine through the jplacer module (positions, location, move_to, safe_z, home, actuate, read, gcode, message): OpenPnP's Java object model cannot be offered outside Java |
+| Scripting (events, Python/JS scripts) | done | the Scripts menu and every OpenPnP event; scripts run as programs of their own; OpenPnP's Python object model (machine, config, scripting, gui; org.openpnp.model Location/LengthUnit, UiUtils, JOptionPane, javax.script) over the jplacer module, so OpenPnP's Python scripts and its Python Examples run as they are; own way: Java's own JavaScript (Nashorn: JavaImporter, `for each`) cannot run under node, so OpenPnP's JavaScript examples are not shipped |
 | ContactProbeNozzle (probing pick and place heights, nozzle tip Z calibration) | done | contact sense actuator and vacuum sniffle probing, feeder and placement heights with their triggers, part height probing, Z calibration by touch; discard probing; probed heights kept while jplacer runs (OpenPnP keeps them in its file) |
 | Jog panel: feeder take back (Recycle) | done | |
 

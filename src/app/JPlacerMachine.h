@@ -34,6 +34,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <thread>
 #include <vector>
 
 inline namespace jf {
@@ -316,6 +317,9 @@ private:
     std::map<std::string, std::string>  m_nozzleParts;   // nozzle: the part it holds
     std::vector<std::function<void()>>  m_unwatch;   // this class's watches on the cell
     std::shared_ptr<bool>               m_alive = std::make_shared<bool>(true);
+    std::thread::id                     m_mainThread = std::this_thread::get_id();   // the screen's
+    // `fn` run on the screen's thread, waited for (a script's request); false when jplacer is closing.
+    bool onMainWait(const std::function<void()>& fn);
     JMenuItem*                          m_connectItem    = nullptr;
     JMenuItem*                          m_disconnectItem = nullptr;
     JMenuItem*                          m_homeItem       = nullptr;

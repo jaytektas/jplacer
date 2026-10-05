@@ -106,7 +106,8 @@ a program of its own, so there is no pool.
 A script is a Python (`.py`, run by `python3`), JavaScript (`.js`, run by `node`) or shell (`.sh`) file. It is told
 what it runs for, as JSON in the environment variable `JPLACER_GLOBALS` (and the event's name in `JPLACER_EVENT`),
 and, as OpenPnP's scripts have `machine`, it can ask the machine through the module `jplacer` that jplacer keeps
-beside the scripts (`import jplacer` in Python, `require("jplacer")` in JavaScript):
+with the scripts (`import jplacer` in Python, `require("jplacer")` in JavaScript; the helpers are in the
+scripts folder's `.jplacer` folder, on the scripts' import paths):
 
 | | |
 |---|---|
@@ -119,6 +120,21 @@ beside the scripts (`import jplacer` in Python, `require("jplacer")` in JavaScri
 | `read(actuator, parameter)` | Reads an actuator. |
 | `gcode(line, controller)` | Sends a line to a controller (the first, when none is named). |
 | `message(text)` | Shows it in the status bar. |
+| `call("dialog", title=…, text=…)` | Shows it in a dialog. |
+
+A Python script also finds OpenPnP's own scripting objects, so OpenPnP's Python scripts run as they are: `machine`
+(its `defaultHead`, `heads`, `feeders`, `actuators`, `cameras`, `getActuatorByName`, `getFeeder`, `home`), each
+head's `nozzles`, `cameras`, `actuators`, `defaultNozzle`, `defaultCamera`, `isCarryingPart` and `moveToSafeZ`; a
+nozzle, camera or actuator's `name`, `id`, `location`, `moveTo(location)` and `moveToSafeZ`, a nozzle's `part`,
+`pick(part)` and `place()` (where it is), an actuator's `actuate` and `read`; a feeder's `name`, `part`, `enabled`,
+`getFeedCount` and `setFeedCount`; `config` (its `parts` and `getPart`), `scripting` (`getScriptsDirectory`) and
+`gui` (none). Java's bean getters work either way, as in OpenPnP (`nozzle.location`, `nozzle.getLocation()`). The
+Java packages they import are there as far as these go: `org.openpnp.model` (`Location`, with `add`, `subtract`,
+`derive`, `convertToUnits` and OpenPnP's `toString`; `LengthUnit`), `org.openpnp.util.UiUtils`
+(`submitUiMachineTask`: run now, an error shown), `javax.swing.JOptionPane` (`showMessageDialog`, in jplacer's
+dialog) and `javax.script` (the languages jplacer runs). As OpenPnP, jplacer puts OpenPnP's Example scripts in the
+scripts folder's `Examples` (those not there yet, each time it starts): its Python ones, which run as in OpenPnP;
+its JavaScript ones are written for Java's own JavaScript and do not run under `node`.
 
 A request that fails raises `jplacer.Error` (an `Error` in JavaScript) with why. Each is a line of JSON written to
 file descriptor 3 (`{"call": "moveTo", "tool": "N1", "x": 10}`) and its answer a line read from 4 (`{"result": …}`
@@ -140,7 +156,7 @@ and **Camera.AfterCapture** (each picture vision takes: the `camera`); and **Cam
 moved to look somewhere by a button, once it is there). One that fails (exits other than 0, or runs past a
 minute) stops what it runs for, saying why.
 
-<!-- src: src/app/JPlacerScriptsMenu.cpp; src/machine/JPScripting.cpp; src/tasks/JPJobProcessor.cpp (script, placementGlobals); src/app/JPlacerMachine.cpp (runEvent, moveToolTo); src/app/JPlacerApp.cpp; src/tasks/JPCameraLook.cpp (settled); src/app/JPlacerCameraTasks.cpp (calibrateRunout); src/tasks/JPJobProcessor.cpp (discard, align), src/app/JPlacerMachine.cpp (scriptRequest) -->
+<!-- src: src/app/JPlacerScriptsMenu.cpp; src/machine/JPScripting.cpp (kOpenPnpModel, kOpenPnpPackages, helpersDirectory); src/app/JPlacerMachine.cpp (scriptRequest, the Example scripts); openpnp-defaults/scripts; src/tasks/JPJobProcessor.cpp (script, placementGlobals); src/app/JPlacerMachine.cpp (runEvent, moveToolTo); src/app/JPlacerApp.cpp; src/tasks/JPCameraLook.cpp (settled); src/app/JPlacerCameraTasks.cpp (calibrateRunout); src/tasks/JPJobProcessor.cpp (discard, align), src/app/JPlacerMachine.cpp (scriptRequest) -->
 
 ## Window
 

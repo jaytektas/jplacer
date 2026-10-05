@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- OpenPnP's Python scripts run in jplacer as they are: they find OpenPnP's `machine`, `config`, `scripting` and `gui`,
+  and its Location, LengthUnit, UiUtils and message dialog. OpenPnP's Python Example scripts are put in the scripts
+  folder's Examples, as OpenPnP does. jplacer's own helper modules moved out of the Scripts menu.
 - OpenPnP's sample job runs on OpenPnP's default machine as it does in OpenPnP: a first start puts it in the samples
   folder beside the settings; OpenPnP's stock vision settings are made and kept up to date; a machine from OpenPnP
   finds fiducials and parts with its pipelines; its up-looking simulated camera shows the part on the nozzle; and

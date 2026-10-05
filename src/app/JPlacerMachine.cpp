@@ -33,6 +33,7 @@
 
 #include <cstdlib>
 #include <filesystem>
+#include <future>
 #include <map>
 #include <thread>
 
@@ -69,6 +70,8 @@ constexpr const char* kOpenPnpDir         = ".openpnp2";
 constexpr const char* kOpenPnpMachineFile = "machine.xml";
 // OpenPnP's samples, shipped (openpnp-defaults) and copied for a first start.
 constexpr const char* kSamplesDir = "samples";
+// The scripts' folder, in the configuration and among OpenPnP's defaults (its Example scripts).
+constexpr const char* kScriptsDir = "scripts";
 
 } // namespace
 
@@ -76,7 +79,19 @@ JPlacerMachine::JPlacerMachine(JAppWindow& window, JSceneGraph& graph)
     : m_window(window), m_graph(graph), m_layout(window), m_profiles(JPFirmwareProfile::loadAll()),
       m_connectIcon(graph), m_homeIcon(graph),
       m_position(graph, [this] { return m_jog ? m_jog->where() : std::vector<std::pair<std::string, double>>(); }) {
-    m_scripting = std::make_shared<JPScripting>((std::filesystem::path(JPlacerPaths::configDir()) / "scripts").string());
+    m_scripting = std::make_shared<JPScripting>((std::filesystem::path(JPlacerPaths::configDir()) / kScriptsDir).string());
+    // As OpenPnP: its Example scripts put beside the scripts, each that is not there yet.
+    if (const std::string shipped = JPlacerPaths::bundled(JPOpenPnpMachineImporter::kDefaultsDir); !shipped.empty()) {
+        const std::filesystem::path from = std::filesystem::path(shipped) / kScriptsDir;
+        const std::filesystem::path to = std::filesystem::path(JPlacerPaths::configDir()) / kScriptsDir;
+        std::error_code ec;
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(from, ec)) {
+            if (!entry.is_regular_file()) continue;
+            const std::filesystem::path target = to / std::filesystem::relative(entry.path(), from, ec);
+            std::filesystem::create_directories(target.parent_path(), ec);
+            std::filesystem::copy_file(entry.path(), target, std::filesystem::copy_options::skip_existing, ec);
+        }
+    }
     m_scripting->api = [this, alive = std::weak_ptr<bool>(m_alive)](const JJson& request) {
         JJson answer = JJson::object();
         if (const auto a = alive.lock(); !a || !*a) answer["error"] = std::string("jplacer is closing");
@@ -1465,6 +1480,23 @@ void JPlacerMachine::enableVisualHoming(const std::string& headId, std::function
     });
 }
 
+bool JPlacerMachine::onMainWait(const std::function<void()>& fn) {
+    if (std::this_thread::get_id() == m_mainThread) {
+        fn();
+        return true;
+    }
+    std::weak_ptr<bool> alive = m_alive;
+    auto done = std::make_shared<std::promise<void>>();
+    auto result = done->get_future();
+    JMainThreadDispatcher::instance().post([alive, fn, done] {
+        if (const auto a = alive.lock(); a && *a) fn();
+        done->set_value();
+    });
+    while (result.wait_for(std::chrono::milliseconds(kScriptPollMs)) != std::future_status::ready)
+        if (const auto a = alive.lock(); !a || !*a) return false;
+    return true;
+}
+
 JJson JPlacerMachine::scriptRequest(const JJson& request) {
     JJson answer = JJson::object();
     auto fail = [&answer](const std::string& why) {
@@ -1475,7 +1507,8 @@ JJson JPlacerMachine::scriptRequest(const JJson& request) {
     const std::string call = request["call"].str();
     const JPCellConfig& cfg = m_cell->config();
     // Waiting for the cell from its own thread would never end (an actuator's script, a homing event's).
-    const bool moves = call == "moveTo" || call == "safeZ" || call == "home" || call == "actuate" || call == "read";
+    const bool moves = call == "moveTo" || call == "safeZ" || call == "home" || call == "actuate" || call == "read"
+                    || call == "pick" || call == "place";
     if (moves && m_cell->onCellThread())
         return fail(call + " cannot be asked from a script the machine itself is running (an actuator's, or a homing event's)");
     // A tool by its name or id: a nozzle, a camera or an actuator on a head.
@@ -1557,6 +1590,106 @@ JJson JPlacerMachine::scriptRequest(const JJson& request) {
         for (const JPDriverConfig& d : cfg.drivers) if (d.name == request["controller"].str() || d.id == request["controller"].str()) driver = d.id;
         if (driver.empty()) return fail("no controller");
         m_cell->sendLine(driver, request["line"].str());
+    } else if (call == "machine") {
+        // What OpenPnP's scripting objects are made from: the heads with their
+        // nozzles (and the part each holds), cameras and actuators; the
+        // machine's own cameras and actuators; the feeders; the parts.
+        auto named = [](const std::string& id, const std::string& name) {
+            JJson o = JJson::object();
+            o["id"] = id;
+            o["name"] = name.empty() ? id : name;
+            return o;
+        };
+        std::map<std::string, std::string> holding;
+        JJson feeders = JJson::array(), parts = JJson::array();
+        if (!onMainWait([&] {
+                holding = m_nozzleParts;
+                if (!m_configuration) return;
+                for (const JPFeeder& f : m_configuration->feeders()) {
+                    JJson o = named(f.id(), f.name());
+                    o["part"] = f.partId();
+                    o["enabled"] = f.enabled();
+                    o["feedCount"] = f.number("feed-count");
+                    feeders.push(o);
+                }
+                for (const auto& p : m_configuration->parts()) {
+                    JJson o = named(p->id, p->name.value_or(std::string()));
+                    o["package"] = p->packageId;
+                    o["height"] = p->height.convertToUnits(JPLengthUnit::Millimeters).value();
+                    parts.push(o);
+                }
+            }))
+            return fail("jplacer is closing");
+        auto cameraOf = [&](const JPCameraConfig& c) {
+            JJson o = named(c.id, c.name);
+            o["looking"] = c.looksUp ? "Up" : "Down";
+            return o;
+        };
+        JJson heads = JJson::array(), cameras = JJson::array(), actuators = JJson::array();
+        for (const JPHeadConfig& h : cfg.heads) {
+            JJson o = named(h.id, h.name);
+            o["nozzles"] = JJson::array();
+            o["cameras"] = JJson::array();
+            o["actuators"] = JJson::array();
+            for (const JPNozzleConfig& n : cfg.nozzles) {
+                if (n.mount.headId != h.id) continue;
+                JJson z = named(n.id, n.name);
+                z["tip"] = n.tipId;
+                const auto held = holding.find(n.id);
+                z["part"] = held == holding.end() ? std::string() : held->second;
+                o["nozzles"].push(z);
+            }
+            for (const JPCameraConfig& c : cfg.cameras) if (c.mount.headId == h.id) o["cameras"].push(cameraOf(c));
+            for (const JPActuatorConfig& a : cfg.actuators) if (a.mount.headId == h.id) o["actuators"].push(named(a.id, a.name));
+            heads.push(o);
+        }
+        for (const JPCameraConfig& c : cfg.cameras) if (c.mount.headId.empty()) cameras.push(cameraOf(c));
+        for (const JPActuatorConfig& a : cfg.actuators) if (a.mount.headId.empty()) actuators.push(named(a.id, a.name));
+        JJson result = JJson::object();
+        result["name"] = cfg.name;
+        result["heads"] = heads;
+        result["cameras"] = cameras;
+        result["actuators"] = actuators;
+        result["feeders"] = feeders;
+        result["parts"] = parts;
+        answer["result"] = result;
+    } else if (call == "pick" || call == "place") {
+        // OpenPnP's Nozzle.pick(part) and place(), where the nozzle is.
+        const JPNozzleConfig* n = nullptr;
+        for (const JPNozzleConfig& z : cfg.nozzles)
+            if (z.name == request["nozzle"].str() || z.id == request["nozzle"].str()) n = &z;
+        if (!n) return fail("no nozzle " + request["nozzle"].str());
+        const std::string id = n->id, part = request["part"].str();
+        if (call == "pick") {
+            if (!part.empty() && !onMainWait([&] { setNozzlePart(id, part); })) return fail("jplacer is closing");
+            if (!m_cell->pickAndWait(id, why)) {
+                onMainWait([&] { setNozzlePart(id, ""); });
+                return fail(why);
+            }
+        } else {
+            if (!m_cell->placeAtAndWait(id, { std::nullopt, std::nullopt, std::nullopt, std::nullopt }, speed, why)) return fail(why);
+            onMainWait([&] { setNozzlePart(id, ""); });
+        }
+    } else if (call == "setFeedCount") {
+        bool found = false;
+        if (!onMainWait([&] {
+                if (!m_configuration) return;
+                for (const JPFeeder& f : m_configuration->feeders())
+                    if (f.name() == request["feeder"].str() || f.id() == request["feeder"].str())
+                        if (JPFeeder* g = m_configuration->feeder(f.id())) {
+                            g->setNumber("feed-count", request["count"].number());
+                            found = true;
+                        }
+                if (found && onSetupConfigurationChanged) onSetupConfigurationChanged();
+            }))
+            return fail("jplacer is closing");
+        if (!found) return fail("no feeder " + request["feeder"].str());
+    } else if (call == "dialog") {
+        // OpenPnP's JOptionPane.showMessageDialog, shown without waiting.
+        std::weak_ptr<bool> alive = m_alive;
+        JMainThreadDispatcher::instance().post([alive, title = request["title"].str(), text = request["text"].str()] {
+            if (const auto a = alive.lock(); a && *a) JDialog::message(title.empty() ? "Message" : title, text);
+        });
     } else if (call == "message") {
         std::weak_ptr<bool> alive = m_alive;
         JMainThreadDispatcher::instance().post([this, alive, text = request["text"].str()] {
