@@ -118,7 +118,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Position (head offsets, fixed location, safe Z, roaming radius) | done | |
 | Lens calibration | own way | fitted by Calibrate |
 | Image transforms (rotate, offset, flip, crop, scale, de-interlace) | done | crop and de-interlace, as under OpenPnP's advanced calibration; straightening covers the rest |
-| Advanced calibration: settings | partial | grid, reach, outliers, worst fit, two heights; crop size, default working plane Z, detection diameter missing |
+| Advanced calibration: settings | done | grid, reach, outliers, worst fit, two heights; General Settings (deinterlace, cropped width/height, Default Working Plane Z, the scale taken there); detection diameter: the mark's size is measured from its first find (and checked against the head's mark), never asked for |
 | Advanced calibration: results | partial | units per pixel, accuracy, FOV mm and degrees, turn, height, focal length; head offsets and tilt about X / Y missing |
 | Advanced calibration: plots | done | in order, X against Y, map |
 | Camera view: zoom, reticles (cross, grid, ruler, circle / square), drag / Shift+click to move | done | |

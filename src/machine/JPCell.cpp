@@ -1646,7 +1646,8 @@ JPCameraCalibration JPCell::cameraCalibration(const std::string& cameraId, int w
     std::lock_guard lk(m_mutex);
     for (const JPCameraConfig& c : m_config.cameras)
         if (c.id == cameraId)
-            if (const JPCameraCalibration* k = c.calibrationFor(width, height)) return *k;
+            if (const JPCameraCalibration* k = c.calibrationFor(width, height))
+                return c.mount.headId.empty() || !c.workingPlaneZ ? *k : k->atHeight(*c.workingPlaneZ);
     return {};
 }
 

@@ -42,6 +42,11 @@ struct JPCameraConfig {
     // the largest part bottom vision can see in several shots
     // (JPVisionComposite); 0: not set, one shot only.
     double        roamingRadiusMm = 0;
+    // OpenPnP's Default Working Plane Z (a head camera's): the height of what
+    // it looks at when that is not known otherwise, typically the boards'
+    // surface. Calibrated at two heights, its scale is taken there (else at
+    // the height it was calibrated at). A fixed camera's is its own Z.
+    std::optional<double> workingPlaneZ;
     // OpenPnP's Focus Sensing Method (a fixed camera's): "None", or
     // "AutoFocus" (JPAutoFocus): a part of unknown height found in focus
     // above the nozzle. Its Auto Focus tab: the Focal Resolution it narrows
@@ -179,6 +184,7 @@ struct JPCameraConfig {
         c.deinterlace    = j["deinterlace"].boolean();
         c.previewFps     = j["previewFps"].number(0.0);
         c.roamingRadiusMm = j["roamingRadius"].number(0.0);
+        if (j["workingPlaneZ"].isNumber()) c.workingPlaneZ = j["workingPlaneZ"].number();
         if (!j["focusSensingMethod"].str().empty()) c.focusSensingMethod = j["focusSensingMethod"].str();
         if (const JJson& f = j["autoFocus"]; f.isObject()) {
             c.autoFocus.focalResolutionMm = f["focalResolution"].number(c.autoFocus.focalResolutionMm);
@@ -242,6 +248,7 @@ struct JPCameraConfig {
         if (deinterlace) j["deinterlace"] = true;
         if (previewFps > 0) j["previewFps"] = previewFps;
         if (roamingRadiusMm > 0) j["roamingRadius"] = roamingRadiusMm;
+        if (workingPlaneZ) j["workingPlaneZ"] = *workingPlaneZ;
         if (focusSensingMethod != "None") j["focusSensingMethod"] = focusSensingMethod;
         j["autoFocus"]["focalResolution"] = autoFocus.focalResolutionMm;
         j["autoFocus"]["averagedFrames"]  = autoFocus.averagedFrames;

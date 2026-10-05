@@ -64,6 +64,9 @@ struct JPCameraCalibration {
     double cameraZ() const;
     double focalPx() const;
     double scaleAt(double atZ) const;
+    // This calibration for what is at height `atZ`: its scale there (with two
+    // heights; else as it is).
+    JPCameraCalibration atHeight(double atZ) const;
     // OpenPnP's estimateZCoordinateOfObject: the Z of a feature seen at pixel
     // (px1, py1), then at (px2, py2) after the camera (or, under a fixed
     // camera, the nozzle holding it) moved by (movedX, movedY) mm. How far it

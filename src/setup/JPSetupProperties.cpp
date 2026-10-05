@@ -1641,6 +1641,32 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     }
 
     add.tab("Advanced Calibration");
+    // OpenPnP's General Settings: the picture's preparation (the same as Image
+    // Transforms'), and the height of what the camera looks at.
+    add.group("General Settings");
+    add.flag("calDeinterlace", "Deinterlace", [c]() -> bool& { return c().deinterlace; });
+    add.tip("Removes interlacing from stacked frames");
+    add.integer("calCropWidth", "Cropped Width", [c]() -> int& { return c().cropWidth; }, 0, 100000);
+    add.tip("(Use 0 for no cropping)");
+    add.integer("calCropHeight", "Cropped Height", [c]() -> int& { return c().cropHeight; }, 0, 100000);
+    add.tip("(Use 0 for no cropping)");
+    if (c().mount.headId.empty()) {
+        add.number("workingPlaneZ", "Default Working Plane Z", [c]() -> double& { return c().mount.offsetZ; });
+        add.tip("This is the Z coordinate to which the bottom surface of parts carried by the nozzle will be lowered "
+                "for visual alignment (the camera's Z, as on Position).");
+    } else {
+        add.number("workingPlaneZ", "Default Working Plane Z",
+                   [c] {
+                       if (c().workingPlaneZ) return *c().workingPlaneZ;
+                       return c().calibrations.empty() ? 0.0 : c().calibrations.front().z;
+                   },
+                   [c](double v) { c().workingPlaneZ = v; });
+        add.tip("This is the assumed Z coordinate of objects viewed by the camera if their true Z coordinate is "
+                "unknown. Typically this is set to the Z coordinate of the working surface of the board(s) to be "
+                "populated.");
+        add.note("Calibrated at two heights, the camera's scale is taken at the Default Working Plane Z; until it "
+                 "is set, at the height it was calibrated at (shown).");
+    }
     add.group("Camera Calibration");
     add.actions({ { "Start Calibration", "calibrate" } });
     auto k = [c]() -> JPCameraConfig::Calibrating& { return c().calibrating; };

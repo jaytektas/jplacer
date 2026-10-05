@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- A camera's Advanced Calibration has OpenPnP's General Settings: Deinterlace, Cropped Width and Height, and Default
+  Working Plane Z, the height a head camera's scale is taken at once calibrated at two heights. OpenPnP's comes in.
 - A camera can be OpenPnP's SwitcherCamera: one of several analog cameras on one capture device through a multiplexer,
   switched in by an actuator when vision takes its picture. OpenPnP machines bring theirs in.
 - Camera white balance has OpenPnP's Mapped Roughly and Mapped Finely and its color balance curve, and an

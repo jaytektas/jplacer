@@ -587,6 +587,8 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
         // Its preview (OpenPnP's fps is the preview's: 5 unless set), and whether it comes forward.
         cam.previewFps = x.attr("fps").empty() ? 5.0 : number(x.attr("fps"));
         if (x.child("roaming-radius")) cam.roamingRadiusMm = lengthChild(x, "roaming-radius");
+        // A head camera's Default Working Plane Z (a fixed one's is its own Z).
+        if (!headId.empty() && x.child("default-z")) cam.workingPlaneZ = lengthChild(x, "default-z");
         if (!x.attr("focus-sensing-method").empty()) cam.focusSensingMethod = x.attr("focus-sensing-method");
         // White balance: each channel's balance and gamma, and the mapped balance's maps (a number list, as
         // Simple writes a double[]: <double> children, or the numbers in its text).

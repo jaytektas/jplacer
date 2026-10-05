@@ -128,6 +128,18 @@ int main() {
         assert(two.twoHeights());
         assert(std::abs(two.cameraZ() - 36) < 1e-9 && std::abs(two.focalPx() - 1500) < 1e-9);
         assert(std::abs(two.scaleAt(6) - 50) < 1e-9);
+        // Taken at another height (OpenPnP's Default Working Plane Z): its scale
+        // there, turned as before, the same camera seen from there.
+        {
+            const JPCameraCalibration at = two.atHeight(6);
+            assert(std::abs(at.scale() - 50) < 1e-9 && at.pxPerMm[0] < 0 && at.pxPerMm[3] > 0);
+            assert(std::abs(at.cameraZ() - 36) < 1e-9 && std::abs(at.focalPx() - 1500) < 1e-9);
+            double dx, dy;
+            assert(at.mmForPixels(50, 0, dx, dy) && std::abs(std::hypot(dx, dy) - 1) < 1e-9);
+            JPCameraCalibration one = two;
+            one.secondScale = 0;   // one height: as it is
+            assert(one.atHeight(6).scale() == one.scale());
+        }
         // Kept and read back.
         const JPCameraCalibration back = JPCameraCalibration::fromJson(two.toJson());
         assert(back.twoHeights() && std::abs(back.cameraZ() - 36) < 1e-9);

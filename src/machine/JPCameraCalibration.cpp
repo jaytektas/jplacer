@@ -56,6 +56,15 @@ double JPCameraCalibration::scaleAt(double atZ) const {
     return d > 1e-9 ? focalPx() / d : scale();
 }
 
+JPCameraCalibration JPCameraCalibration::atHeight(double atZ) const {
+    if (!twoHeights()) return *this;
+    JPCameraCalibration at = *this;
+    const double k = scaleAt(atZ) / scale();
+    for (double& m : at.pxPerMm) m *= k;
+    at.z = atZ;   // the same camera, seen from the new height: cameraZ and the focal length stay
+    return at;
+}
+
 bool JPCameraCalibration::estimateObjectZ(double px1, double py1, double px2, double py2, double movedX, double movedY,
                                           double& objectZ, std::string& why) const {
     if (!twoHeights()) {
