@@ -5,6 +5,7 @@
 
 #include "JPCellConfig.h"
 #include "JPScripting.h"
+#include "JPMotionTestResult.h"
 #include "JPFirmwareProfile.h"
 #include "JPGcodeDriver.h"
 
@@ -117,6 +118,12 @@ public:
     // pin put down and pulled along). Waiting; false with `why`.
     bool moveToolStraightAndWait(const JPMountConfig& mount, std::array<std::optional<double>, 4> to, double speed,
                                  std::string& why);
+    // OpenPnP's motion planner Test Motion (JPMotionPlannerConfig): `tool` to
+    // the run's first place by way of safe Z, and once it stands there on
+    // through the others, each leg at its share of the machine's speed, by
+    // way of safe Z or straight, then up to safe Z; `reverse` from the last.
+    // Waiting; `result` what the run took (JPMotionTestResult). False with `why`.
+    bool testMotionAndWait(const JPMountConfig& tool, bool reverse, JPMotionTestResult& result, std::string& why);
 
     // HOMING: each controller's home command, then the axes are told where
     // they now are (their home coordinates) and the cell is homed. Until it
@@ -291,8 +298,12 @@ private:
     // How far a nozzle's safe Z is raised for the part it carries (Dynamic Safe Z); 0 for anything else.
     double dynamicLift(const JPMountConfig& mount) const;
     // `depth`: how deep in profiles naming profiles (JPActuatorConfig::Profile) this is.
+    // Each coordinates with the machine as the actuator says (OpenPnP's Machine
+    // Coordination) before and after the actuation itself (doSwitchNow, doSetNow).
     bool doSwitch(const std::string& actuatorId, bool on, std::string& why, int depth = 0);
     bool doSet(const std::string& actuatorId, const std::string& value, std::string& why, int depth = 0);
+    bool doSwitchNow(const JPActuatorConfig& a, bool on, std::string& why, int depth);
+    bool doSetNow(const JPActuatorConfig& a, const std::string& value, std::string& why, int depth);
     bool doProfile(const JPActuatorConfig& actuator, const JPActuatorConfig::Profile& profile, std::string& why, int depth);
     bool doPick(const JPNozzleConfig& nozzle, std::string& why);
     // A nozzle to `to` at safe Z, the pick or place there, and up again.
@@ -304,6 +315,20 @@ private:
     bool doPlace(const JPNozzleConfig& nozzle, std::string& why);
     bool doRead(const std::string& actuatorId, std::string& value, std::string& why,
                 const std::optional<std::string>& parameter = std::nullopt);
+    bool doReadNow(const JPActuatorConfig& a, std::string& value, std::string& why, const std::optional<std::string>& parameter);
+    // OpenPnP's machine coordination, `how` one of JPActuatorConfig's
+    // coordinations: none; the controllers moving told to finish
+    // (CommandStillstand); waited for to stand still (WaitForStillstand); or
+    // every controller waited for and its position read, moving or not
+    // (WaitForUnconditionalCoordination).
+    bool doCoordinate(const std::string& how, std::string& why);
+    // A tool to `to`: by way of safe Z (up, across and turned, down to Z), or straight.
+    bool doMoveTool(const JPMountConfig& mount, const std::array<std::optional<double>, 4>& to, double speed, bool atSafeZ,
+                    std::string& why);
+    // A piece of work's end, `ok` and `why` as it ended: with continuous
+    // motion, the moves it left running waited for (a failure there the
+    // work's, when it had none of its own).
+    bool finished(bool ok, std::string& why);
     // The nozzle's vacuum level, from its sensing actuator (else its vacuum actuator).
     bool readVacuum(const JPNozzleConfig& nozzle, double& level, std::string& why);
     // `work` on the cell's thread, waited for (not a move: no motion is reported).
@@ -360,6 +385,11 @@ private:
     std::map<std::string, double>      m_positions;
     std::map<std::string, double>      m_axisPositions;   // controller axes as they report (not squared)
     std::map<std::string, double>      m_sent;       // last commanded coordinate, by axis id
+    // Continuous motion (JPMotionPlannerConfig): the controllers sent moves not
+    // yet waited for; while any are, where the axes are going is where they are.
+    std::vector<std::string>           m_inMotion;
+    std::atomic<bool>                  m_streaming { false };
+    std::optional<double>              m_planned;    // Test Motion: the moves' planned seconds, summed while set
     // A directional backlash offset in effect, by axis id: the controller's
     // coordinate is the axis's plus this (JPAxisConfig::Backlash).
     std::map<std::string, double>      m_backlashApplied;

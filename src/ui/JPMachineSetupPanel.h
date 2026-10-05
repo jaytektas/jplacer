@@ -58,6 +58,12 @@ public:
     // settings' page they show; what its tests work with.
     void setConfiguration(JPConfiguration* config) { m_config = config; }
     void setVisionTests(JPVisionTests tests) { m_visionTests = std::move(tests); }
+    // The last motion planner Test Motion run, shown on the machine's
+    // Motion Planner Diagnostics (its form made again).
+    void setMotionTest(JPMotionTestResult result) {
+        m_motionTest = std::move(result);
+        remakeForm();
+    }
     // That page's settings changed (they are the configuration's, not the cell's: no undo here);
     // its buttons and sliders, for the settings shown (as the Vision tab does them).
     std::function<void()> onConfigurationChanged;
@@ -157,6 +163,7 @@ private:
     std::vector<JPFirmwareProfile> m_profiles;
     JPConfiguration*               m_config = nullptr;
     JPVisionTests                  m_visionTests;
+    std::optional<JPMotionTestResult> m_motionTest;
     // The properties the shown node's page has of the configuration (its vision settings' tab).
     std::set<std::string>          m_configProperties;
     // The form for the node at `path`, the configuration's properties in it noted.

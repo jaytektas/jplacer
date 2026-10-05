@@ -182,6 +182,33 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
     else if (machine->child("unsafe-z-roaming-distance")) c.unsafeZRoamingMm = lengthChild(*machine, "unsafe-z-roaming-distance");
     c.safeZPark = machine->attr("safe-Z-park") != "false" && machine->attr("safe-z-park") != "false";   // default: on
     c.autoLoadMostRecentJob = setting("auto-load-most-recent-job");     // OpenPnP's default: off
+    // The motion planner: continuous motion and the Test Motion places (OpenPnP's defaults where not said).
+    if (const JPXmlElement* mp = machine->child("motion-planner")) {
+        JPMotionPlannerConfig& m = c.motionPlanner;
+        auto flag = [mp](const char* name, bool def) {
+            const std::string v = mp->attr(name);
+            return v.empty() ? def : v == "true";
+        };
+        auto number = [mp](const char* name, double def) {
+            const std::string v = mp->attr(name);
+            return v.empty() ? def : std::strtod(v.c_str(), nullptr);
+        };
+        m.continuousMotion = flag("allow-continuous-motion", false);
+        m.diagnosticsEnabled = flag("diagnostics-enabled", false);
+        static const char* const kAt[] = { "start-location", "mid-location-1", "mid-location-2", "end-location" };
+        static const char* const kEnabled[] = { "start-location-enabled", "mid-1-location-enabled", "mid-2-location-enabled",
+                                                "end-location-enabled" };
+        static const char* const kSpeed[] = { "to-mid-1-speed", "to-mid-2-speed", "to-end-speed" };
+        static const char* const kSafeZ[] = { "to-mid-1-safe-z", "to-mid-2-safe-z", "to-end-safe-z" };
+        for (size_t i = 0; i < 4; ++i) {
+            m.stops[i].enabled = flag(kEnabled[i], false);
+            if (const auto l = location(*mp, kAt[i])) m.stops[i].at = *l;
+            if (i < 3) {
+                m.speeds[i] = number(kSpeed[i], 1);
+                m.safeZ[i] = flag(kSafeZ[i], true);
+            }
+        }
+    }
     // How a job is run, and the fiducial locator's tolerances.
     if (const JPXmlElement* jp = machine->child("pnp-job-processor")) {
         JPJobProcessorConfig& j = c.jobProcessor;
@@ -500,6 +527,14 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                                            std::pair{ "homed-actuation", &JPActuatorConfig::homedActuation },
                                            std::pair{ "disabled-actuation", &JPActuatorConfig::disabledActuation } })
             if (!x.attr(attr).empty()) a.*field = x.attr(attr);
+        // Its machine coordination: the enums, else (before version 1.1) the flags they replaced.
+        auto coordination = [&x](const char* enumAttr, const char* flagAttr, const char* on, std::string& field) {
+            if (!x.attr(enumAttr).empty()) field = x.attr(enumAttr);
+            else if (!x.attr(flagAttr).empty()) field = x.attr(flagAttr) == "true" ? on : "None";
+        };
+        coordination("coordinated-before-actuate-enum", "coordinated-before-actuate", "WaitForStillstand", a.coordinatedBeforeActuate);
+        coordination("coordinated-after-actuate-enum", "coordinated-after-actuate", "WaitForUnconditionalCoordination", a.coordinatedAfterActuate);
+        coordination("coordinated-before-read-enum", "coordinated-before-read", "WaitForStillstand", a.coordinatedBeforeRead);
         // No controller named: OpenPnP still files its commands under its id
         // on the controller that sends them.
         if (a.driverId.empty())

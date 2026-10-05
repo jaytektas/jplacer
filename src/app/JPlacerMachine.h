@@ -6,6 +6,7 @@
 #include "JPlacerCameraTasks.h"
 #include "JPlacerEstimateZ.h"
 #include "JPlacerLayout.h"
+#include "JPlacerTestMotion.h"
 #include "JPlacerTipChanges.h"
 
 #include "machine/JPCell.h"
@@ -255,6 +256,7 @@ private:
     JPlacerEstimateZ                    m_estimateZ;   // on one of them, while under way
     std::unique_ptr<JPlacerCameraTasks> m_cameraTasks;   // its Calibrate and Visual Test
     std::unique_ptr<JPlacerTipChanges>  m_tipChanges;    // the nozzles' tips loaded and unloaded
+    std::unique_ptr<JPlacerTestMotion>  m_testMotion;    // the motion planner's Test Motion
     std::map<std::string, bool>         m_lights;   // by actuator id: on or off as last switched
     JPJogPanel*                         m_jog = nullptr; // its chosen tool, for the status bar
     JPMachineSetupPanel*                m_setup = nullptr;

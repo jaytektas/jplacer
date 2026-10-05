@@ -14,6 +14,7 @@
 #include <filesystem>
 #include <future>
 #include <regex>
+#include <chrono>
 #include <thread>
 
 inline namespace jf {
@@ -172,6 +173,8 @@ std::string JPCell::format(double v, int decimals) {
 
 void JPCell::doDisconnect() {
     m_homed = false;
+    m_inMotion.clear();
+    m_streaming = false;
     m_pumpOn.clear();
     m_holding.clear();
     if (m_connected) JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_config.name << ": disconnected";
@@ -191,7 +194,7 @@ void JPCell::park(const std::string& headId, double speed) {
     if (m_moving.exchange(true)) return;
     m_thread.post([this, headId, speed] {
         std::string why;
-        const bool ok = doPark(headId, speed, why);
+        const bool ok = finished(doPark(headId, speed, why), why);
         m_moving = false;
         onMotion.emit(ok, why);
     });
@@ -264,6 +267,7 @@ void JPCell::homeNozzle(const std::string& nozzleId, double speed) {
         bool ok = false;
         if (!m_connected || !m_homed) why = "not homed: home the machine first";
         else ok = doHomeNozzle(nozzleId, speed, why);
+        ok = finished(ok, why);
         m_moving = false;
         onMotion.emit(ok, why);
     });
@@ -273,6 +277,7 @@ bool JPCell::doHomeNozzle(const std::string& nozzleId, double speed, std::string
     const JPNozzleConfig* nozzle = nullptr;
     for (const JPNozzleConfig& n : m_config.nozzles) if (n.id == nozzleId) nozzle = &n;
     if (!nozzle) { why = "there is no such nozzle"; return false; }
+    if (!doCoordinate("WaitForStillstand", why)) return false;
     if (nozzle->homeCommand.find_first_not_of(" \t\r\n") == std::string::npos) {
         why = nozzle->name + " has no Z home command (Machine Setup, the nozzle's Homing tab)";
         return false;
@@ -313,7 +318,7 @@ bool JPCell::safeZAndWait(const std::string& headId, double speed, std::string& 
     auto result = done.get_future();
     m_thread.post([this, headId, speed, &done] {
         std::string w;
-        const bool ok = doSafeZ(headId, speed, w);
+        const bool ok = finished(doSafeZ(headId, speed, w), w);
         m_moving = false;
         onMotion.emit(ok, w);
         done.set_value({ ok, w });
@@ -367,53 +372,58 @@ bool JPCell::doSafeZ(const std::string& headId, double speed, std::string& why) 
 void JPCell::setActuator(const std::string& actuatorId, const std::string& value) {
     m_thread.post([this, actuatorId, value] {
         std::string why;
-        const bool ok = doSet(actuatorId, value, why);
+        const bool ok = finished(doSet(actuatorId, value, why), why);
         onActuator.emit(actuatorId, ok, ok ? value : why);
     });
 }
 
 bool JPCell::doSet(const std::string& actuatorId, const std::string& value, std::string& why, int depth) {
-    for (const JPActuatorConfig& a : m_config.actuators) {
-        if (a.id != actuatorId) continue;
-        // A script actuator: its script told actuateDouble (a Double one) or actuateString.
-        if (!a.scriptName.empty()) {
-            JJson g = JJson::object();
-            if (a.valueType == JPActuatorConfig::ValueType::Number) g["actuateDouble"] = std::strtod(value.c_str(), nullptr);
-            else g["actuateString"] = value;
-            return runActuatorScript(a, g, why);
-        }
-        // An HTTP actuator: its parameter URL, {val} the value.
-        if (a.http.on) {
-            if (a.http.paramUrl.empty()) {
-                why = a.name + " has no parameter URL to set it by";
-                return false;
-            }
-            std::string url = a.http.paramUrl;
-            for (size_t at; (at = url.find("{val}")) != std::string::npos;) url.replace(at, 5, value);
-            return httpGet(a, url, why);
-        }
-        // A profile actuator: set to the profile of that name.
-        if (a.valueType == JPActuatorConfig::ValueType::Profile) {
-            const JPActuatorConfig::Profile* p = a.profileNamed(value);
-            if (!p) {
-                why = "Actuator " + a.name + " profile " + value + " not found.";
-                return false;
-            }
-            return doProfile(a, *p, why, depth);
-        }
-        JPGcodeDriver* d = driver(a.driverId);
-        if (!d || !a.canSet()) {
-            why = a.name + " cannot be set to a value";
-            return false;
-        }
-        const JPReply r = d->send(JPFirmwareProfile::fill(a.valueCommand, { { "index", a.index }, { "value", value } })).get();
-        JLOGC(JPlacerLog::kCell, r.ok ? JLogLevel::Info : JLogLevel::Warn)
-            << a.name << " set to " << value << (r.ok ? std::string() : ": " + r.error);
-        why = r.error;
-        return r.ok;
-    }
+    for (const JPActuatorConfig& a : m_config.actuators)
+        if (a.id == actuatorId)
+            return doCoordinate(a.coordinatedBeforeActuate, why) && doSetNow(a, value, why, depth)
+                && doCoordinate(a.coordinatedAfterActuate, why);
     why = "no actuator " + actuatorId;
     return false;
+}
+
+bool JPCell::doSetNow(const JPActuatorConfig& a, const std::string& value, std::string& why, int depth) {
+    const std::string& actuatorId = a.id;
+    // A script actuator: its script told actuateDouble (a Double one) or actuateString.
+    if (!a.scriptName.empty()) {
+        JJson g = JJson::object();
+        if (a.valueType == JPActuatorConfig::ValueType::Number) g["actuateDouble"] = std::strtod(value.c_str(), nullptr);
+        else g["actuateString"] = value;
+        return runActuatorScript(a, g, why);
+    }
+    // An HTTP actuator: its parameter URL, {val} the value.
+    if (a.http.on) {
+        if (a.http.paramUrl.empty()) {
+            why = a.name + " has no parameter URL to set it by";
+            return false;
+        }
+        std::string url = a.http.paramUrl;
+        for (size_t at; (at = url.find("{val}")) != std::string::npos;) url.replace(at, 5, value);
+        return httpGet(a, url, why);
+    }
+    // A profile actuator: set to the profile of that name.
+    if (a.valueType == JPActuatorConfig::ValueType::Profile) {
+        const JPActuatorConfig::Profile* p = a.profileNamed(value);
+        if (!p) {
+            why = "Actuator " + a.name + " profile " + value + " not found.";
+            return false;
+        }
+        return doProfile(a, *p, why, depth);
+    }
+    JPGcodeDriver* d = driver(a.driverId);
+    if (!d || !a.canSet()) {
+        why = a.name + " cannot be set to a value";
+        return false;
+    }
+    const JPReply r = d->send(JPFirmwareProfile::fill(a.valueCommand, { { "index", a.index }, { "value", value } })).get();
+    JLOGC(JPlacerLog::kCell, r.ok ? JLogLevel::Info : JLogLevel::Warn)
+        << a.name << " set to " << value << (r.ok ? std::string() : ": " + r.error);
+    why = r.error;
+    return r.ok;
 }
 
 bool JPCell::doProfile(const JPActuatorConfig& a, const JPActuatorConfig::Profile& p, std::string& why, int depth) {
@@ -442,7 +452,7 @@ bool JPCell::doProfile(const JPActuatorConfig& a, const JPActuatorConfig::Profil
 void JPCell::switchActuator(const std::string& actuatorId, bool on) {
     m_thread.post([this, actuatorId, on] {
         std::string why;
-        const bool ok = doSwitch(actuatorId, on, why);
+        const bool ok = finished(doSwitch(actuatorId, on, why), why);
         onActuator.emit(actuatorId, ok, ok ? (on ? "on" : "off") : why);
     });
 }
@@ -452,7 +462,7 @@ bool JPCell::setActuatorAndWait(const std::string& actuatorId, const std::string
     auto result = done.get_future();
     m_thread.post([this, actuatorId, value, &done] {
         std::string w;
-        const bool ok = doSet(actuatorId, value, w);
+        const bool ok = finished(doSet(actuatorId, value, w), w);
         onActuator.emit(actuatorId, ok, ok ? value : w);
         done.set_value({ ok, w });
     });
@@ -466,7 +476,7 @@ bool JPCell::switchActuatorAndWait(const std::string& actuatorId, bool on, std::
     auto result = done.get_future();
     m_thread.post([this, actuatorId, on, &done] {
         std::string w;
-        const bool ok = doSwitch(actuatorId, on, w);
+        const bool ok = finished(doSwitch(actuatorId, on, w), w);
         onActuator.emit(actuatorId, ok, ok ? (on ? "on" : "off") : w);
         done.set_value({ ok, w });
     });
@@ -479,7 +489,7 @@ void JPCell::pick(const std::string& nozzleId) {
     m_thread.post([this, nozzleId] {
         std::string why;
         for (const JPNozzleConfig& n : m_config.nozzles)
-            if (n.id == nozzleId && !doPick(n, why)) onAlarm.emit(n.name + ": pick failed (" + why + ")");
+            if (n.id == nozzleId && !finished(doPick(n, why), why)) onAlarm.emit(n.name + ": pick failed (" + why + ")");
     });
 }
 
@@ -487,7 +497,7 @@ void JPCell::place(const std::string& nozzleId) {
     m_thread.post([this, nozzleId] {
         std::string why;
         for (const JPNozzleConfig& n : m_config.nozzles)
-            if (n.id == nozzleId && !doPlace(n, why)) onAlarm.emit(n.name + ": place failed (" + why + ")");
+            if (n.id == nozzleId && !finished(doPlace(n, why), why)) onAlarm.emit(n.name + ": place failed (" + why + ")");
     });
 }
 
@@ -517,6 +527,7 @@ void JPCell::safeZ(const std::string& headId, double speed) {
         bool ok = false;
         if (!m_connected || !m_homed) why = "not homed: home the machine first";
         else ok = doSafeZ(headId, speed, why);
+        ok = finished(ok, why);
         m_moving = false;
         onMotion.emit(ok, why);
     });
@@ -529,6 +540,7 @@ void JPCell::parkZ(const JPMountConfig& mount, double speed) {
         bool ok = false;
         if (!m_connected || !m_homed) why = "not homed: home the machine first";
         else ok = (!m_config.safeZPark || doSafeZ(mount.headId, speed, why)) && doParkZ(mount, speed, why);
+        ok = finished(ok, why);
         m_moving = false;
         onMotion.emit(ok, why);
     });
@@ -550,7 +562,7 @@ void JPCell::discard(const std::string& nozzleId, double speed) {
     if (m_moving.exchange(true)) return;
     m_thread.post([this, nozzleId, speed] {
         std::string why;
-        const bool ok = doDiscard(nozzleId, speed, why);
+        const bool ok = finished(doDiscard(nozzleId, speed, why), why);
         m_moving = false;
         onMotion.emit(ok, why);
     });
@@ -616,7 +628,7 @@ bool JPCell::waitFor(std::function<bool(std::string&)> work, std::string& why) {
     auto result = done.get_future();
     m_thread.post([this, &work, &done] {
         std::string w;
-        const bool ok = work(w);
+        const bool ok = finished(work(w), w);
         m_moving = false;
         onMotion.emit(ok, w);
         done.set_value({ ok, w });
@@ -661,9 +673,9 @@ bool JPCell::readVacuumAndWait(const std::string& nozzleId, double& level, std::
 bool JPCell::onThreadAndWait(const std::function<bool(std::string&)>& work, std::string& why) {
     std::promise<std::pair<bool, std::string>> done;
     auto result = done.get_future();
-    m_thread.post([&work, &done] {
+    m_thread.post([this, &work, &done] {
         std::string w;
-        const bool ok = work(w);
+        const bool ok = finished(work(w), w);
         done.set_value({ ok, w });
     });
     const auto [ok, w] = result.get();
@@ -686,34 +698,95 @@ bool JPCell::parkAndWait(const std::string& headId, double speed, std::string& w
 
 bool JPCell::moveToolAndWait(const JPMountConfig& mount, std::array<std::optional<double>, 4> to, double speed,
                              std::string& why) {
-    return waitFor(
-        [&](std::string& w) {
-            bool ok = mount.headId.empty() || doSafeZ(mount.headId, speed, w);
-            std::map<std::string, double> across;
-            if (to[0] && !mount.axisX.empty()) across[mount.axisX] = *to[0] - mount.offsetX;
-            if (to[1] && !mount.axisY.empty()) across[mount.axisY] = *to[1] - mount.offsetY;
-            if (to[3] && !mount.axisRotation.empty()) across[mount.axisRotation] = *to[3];
-            compensateRunout(mount, across, false);
-            if (ok && !across.empty()) ok = doMove(across, speed, w);
-            if (ok && to[2] && !mount.axisZ.empty()) ok = doMove({ { mount.axisZ, *to[2] - mount.offsetZ } }, speed, w);
-            return ok;
-        },
-        why);
+    return waitFor([&](std::string& w) { return doMoveTool(mount, to, speed, true, w); }, why);
 }
 
 bool JPCell::moveToolStraightAndWait(const JPMountConfig& mount, std::array<std::optional<double>, 4> to, double speed,
                                      std::string& why) {
-    return waitFor(
+    return waitFor([&](std::string& w) { return doMoveTool(mount, to, speed, false, w); }, why);
+}
+
+bool JPCell::doMoveTool(const JPMountConfig& mount, const std::array<std::optional<double>, 4>& to, double speed,
+                        bool atSafeZ, std::string& why) {
+    std::map<std::string, double> axes;
+    if (to[0] && !mount.axisX.empty()) axes[mount.axisX] = *to[0] - mount.offsetX;
+    if (to[1] && !mount.axisY.empty()) axes[mount.axisY] = *to[1] - mount.offsetY;
+    if (to[3] && !mount.axisRotation.empty()) axes[mount.axisRotation] = *to[3];
+    compensateRunout(mount, axes, false);
+    if (!atSafeZ) {
+        if (to[2] && !mount.axisZ.empty()) axes[mount.axisZ] = *to[2] - mount.offsetZ;
+        return axes.empty() || doMove(axes, speed, why);
+    }
+    if (!mount.headId.empty() && !doSafeZ(mount.headId, speed, why)) return false;
+    if (!axes.empty() && !doMove(axes, speed, why)) return false;
+    return !to[2] || mount.axisZ.empty() || doMove({ { mount.axisZ, *to[2] - mount.offsetZ } }, speed, why);
+}
+
+bool JPCell::testMotionAndWait(const JPMountConfig& tool, bool reverse, JPMotionTestResult& result, std::string& why) {
+    const JPMotionPlannerConfig planner = m_config.motionPlanner;
+    const auto first = planner.initial(reverse);
+    if (!first) {
+        why = "Test Motion undefined. Please go to the Motion Planner tab and define/enable the Test Motion locations.";
+        return false;
+    }
+    result = JPMotionTestResult();
+    // Where each axis is over the run, from the controllers' reports.
+    std::atomic<bool> sampling { false }, done { false };
+    std::atomic<double> t0 { 0 };
+    using Clock = std::chrono::steady_clock;
+    const Clock::time_point epoch = Clock::now();
+    auto seconds = [epoch] { return std::chrono::duration<double>(Clock::now() - epoch).count(); };
+    std::map<std::string, std::vector<std::pair<double, double>>> samples;   // by axis id
+    std::thread sampler([&] {
+        std::map<std::string, double> last;
+        while (!done) {
+            if (sampling) {
+                const double t = seconds() - t0;
+                for (const auto& [id, at] : reportedPositions())
+                    if (const auto l = last.find(id); l == last.end() || l->second != at) {
+                        samples[id].emplace_back(t, at);
+                        last[id] = at;
+                    }
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+    });
+    const double speed = m_speed;
+    const bool ok = waitFor(
         [&](std::string& w) {
-            std::map<std::string, double> axes;
-            if (to[0] && !mount.axisX.empty()) axes[mount.axisX] = *to[0] - mount.offsetX;
-            if (to[1] && !mount.axisY.empty()) axes[mount.axisY] = *to[1] - mount.offsetY;
-            if (to[3] && !mount.axisRotation.empty()) axes[mount.axisRotation] = *to[3];
-            compensateRunout(mount, axes, false);
-            if (to[2] && !mount.axisZ.empty()) axes[mount.axisZ] = *to[2] - mount.offsetZ;
-            return axes.empty() || doMove(axes, speed, w);
+            auto at = [&](int i) {
+                const JPMachineLocation& l = planner.stops[size_t(i)].at;
+                return std::array<std::optional<double>, 4> { l.x, l.y, l.z, l.rotation };
+            };
+            // To the first place, by way of safe Z, and standing there.
+            if (!doMoveTool(tool, at(*first), 1, true, w) || !doCoordinate("WaitForUnconditionalCoordination", w)) return false;
+            m_planned = 0;
+            t0 = seconds();
+            sampling = true;
+            // Then on through the others, each leg at its speed (the machine's share), as the planner says.
+            for (int i = reverse ? *first - 1 : *first + 1; reverse ? i >= 0 : i < 4; i += reverse ? -1 : 1) {
+                if (!planner.stops[size_t(i)].enabled) continue;
+                // As OpenPnP's: the leg's settings are those of the way into this place (from the one before it).
+                const size_t leg = size_t(reverse ? i : i - 1);
+                if (!doMoveTool(tool, at(i), planner.speeds[leg] * speed, planner.safeZ[leg], w)) return false;
+            }
+            if (!doCoordinate("WaitForStillstand", w)) return false;
+            result.actualS = seconds() - t0;
+            result.plannedS = m_planned.value_or(0);
+            m_planned.reset();
+            sampling = false;
+            // Up to safe Z after, as OpenPnP's.
+            return tool.headId.empty() || doSafeZ(tool.headId, 1, w);
         },
         why);
+    m_planned.reset();
+    done = true;
+    sampler.join();
+    for (auto& [id, points] : samples) {
+        const JPAxisConfig* a = m_config.axis(id);
+        if (points.size() > 1) result.axes[a ? a->name : id] = std::move(points);
+    }
+    return ok;
 }
 
 bool JPCell::switchTelling(const std::string& actuatorId, bool on, std::string& why) {
@@ -857,56 +930,61 @@ bool JPCell::doPlace(const JPNozzleConfig& n, std::string& why) {
 }
 
 bool JPCell::doSwitch(const std::string& actuatorId, bool on, std::string& why, int depth) {
-    for (const JPActuatorConfig& a : m_config.actuators) {
-        if (a.id != actuatorId) continue;
-        // A script actuator: its script told actuateBoolean.
-        if (!a.scriptName.empty()) {
-            JJson g = JJson::object();
-            g["actuateBoolean"] = on;
-            const bool ok = runActuatorScript(a, g, why);
-            if (ok) m_actuated[actuatorId] = on;
-            return ok;
-        }
-        // An HTTP actuator: its on or off URL, else its parameter URL with 1 or 0.
-        if (a.http.on) {
-            const std::string& url = on ? a.http.onUrl : a.http.offUrl;
-            const bool ok = url.empty() ? doSet(actuatorId, on ? "1" : "0", why, depth) : httpGet(a, url, why);
-            if (ok) m_actuated[actuatorId] = on;
-            return ok;
-        }
-        // A profile actuator: its Default ON or Default OFF profile.
-        if (a.valueType == JPActuatorConfig::ValueType::Profile) {
-            const JPActuatorConfig::Profile* p = a.defaultProfile(on);
-            if (!p) {
-                why = "Actuator " + a.name + " " + (on ? "Default ON" : "Default OFF") + " profile not found.";
-                return false;
-            }
-            return doProfile(a, *p, why, depth);
-        }
-        JPGcodeDriver* d = driver(a.driverId);
-        // Its own command for it, else its value command with its on or off value.
-        const std::string& own = on ? a.onCommand : a.offCommand;
-        const std::string& value = on ? a.onValue : a.offValue;
-        const std::string& tmpl = !own.empty() || value.empty() ? own : a.valueCommand;
-        if (!d || tmpl.empty()) {
-            why = a.name + " cannot be switched " + (on ? "on" : "off");
-            return false;
-        }
-        const JPReply r = d->send(JPFirmwareProfile::fill(tmpl, { { "index", a.index }, { "value", value } })).get();
-        JLOGC(JPlacerLog::kCell, r.ok ? JLogLevel::Info : JLogLevel::Warn)
-            << a.name << " " << (on ? "on" : "off") << (r.ok ? std::string() : ": " + r.error);
-        why = r.error;
-        if (r.ok) m_actuated[actuatorId] = on;
-        return r.ok;
-    }
+    for (const JPActuatorConfig& a : m_config.actuators)
+        if (a.id == actuatorId)
+            return doCoordinate(a.coordinatedBeforeActuate, why) && doSwitchNow(a, on, why, depth)
+                && doCoordinate(a.coordinatedAfterActuate, why);
     why = "no actuator " + actuatorId;
     return false;
+}
+
+bool JPCell::doSwitchNow(const JPActuatorConfig& a, bool on, std::string& why, int depth) {
+    const std::string& actuatorId = a.id;
+    // A script actuator: its script told actuateBoolean.
+    if (!a.scriptName.empty()) {
+        JJson g = JJson::object();
+        g["actuateBoolean"] = on;
+        const bool ok = runActuatorScript(a, g, why);
+        if (ok) m_actuated[actuatorId] = on;
+        return ok;
+    }
+    // An HTTP actuator: its on or off URL, else its parameter URL with 1 or 0.
+    if (a.http.on) {
+        const std::string& url = on ? a.http.onUrl : a.http.offUrl;
+        const bool ok = url.empty() ? doSet(actuatorId, on ? "1" : "0", why, depth) : httpGet(a, url, why);
+        if (ok) m_actuated[actuatorId] = on;
+        return ok;
+    }
+    // A profile actuator: its Default ON or Default OFF profile.
+    if (a.valueType == JPActuatorConfig::ValueType::Profile) {
+        const JPActuatorConfig::Profile* p = a.defaultProfile(on);
+        if (!p) {
+            why = "Actuator " + a.name + " " + (on ? "Default ON" : "Default OFF") + " profile not found.";
+            return false;
+        }
+        return doProfile(a, *p, why, depth);
+    }
+    JPGcodeDriver* d = driver(a.driverId);
+    // Its own command for it, else its value command with its on or off value.
+    const std::string& own = on ? a.onCommand : a.offCommand;
+    const std::string& value = on ? a.onValue : a.offValue;
+    const std::string& tmpl = !own.empty() || value.empty() ? own : a.valueCommand;
+    if (!d || tmpl.empty()) {
+        why = a.name + " cannot be switched " + (on ? "on" : "off");
+        return false;
+    }
+    const JPReply r = d->send(JPFirmwareProfile::fill(tmpl, { { "index", a.index }, { "value", value } })).get();
+    JLOGC(JPlacerLog::kCell, r.ok ? JLogLevel::Info : JLogLevel::Warn)
+        << a.name << " " << (on ? "on" : "off") << (r.ok ? std::string() : ": " + r.error);
+    why = r.error;
+    if (r.ok) m_actuated[actuatorId] = on;
+    return r.ok;
 }
 
 void JPCell::readActuator(const std::string& actuatorId) {
     m_thread.post([this, actuatorId] {
         std::string value, why;
-        const bool ok = doRead(actuatorId, value, why);
+        const bool ok = finished(doRead(actuatorId, value, why), why);
         onActuator.emit(actuatorId, ok, ok ? value : why);
     });
 }
@@ -917,7 +995,7 @@ bool JPCell::readActuatorAndWait(const std::string& actuatorId, const std::optio
     auto result = done.get_future();
     m_thread.post([this, actuatorId, parameter, &done] {
         std::string v, w;
-        const bool ok = doRead(actuatorId, v, w, parameter);
+        const bool ok = finished(doRead(actuatorId, v, w, parameter), w);
         onActuator.emit(actuatorId, ok, ok ? v : w);
         done.set_value({ ok, ok ? v : w });
     });
@@ -928,42 +1006,45 @@ bool JPCell::readActuatorAndWait(const std::string& actuatorId, const std::optio
 
 bool JPCell::doRead(const std::string& actuatorId, std::string& value, std::string& why,
                     const std::optional<std::string>& parameter) {
-    for (const JPActuatorConfig& a : m_config.actuators) {
-        if (a.id != actuatorId) continue;
-        if (a.http.on) return httpRead(a, value, why);
-        JPGcodeDriver* d = driver(a.driverId);
-        if (!d || !a.canRead()) {
-            why = a.name + " cannot be read";
-            return false;
-        }
-        std::regex pattern;
-        try {
-            pattern = std::regex(a.readPattern);
-        } catch (const std::regex_error&) {
-            why = a.name + ": its read pattern is not a valid pattern";
-            return false;
-        }
-        std::map<std::string, std::string> vars { { "index", a.index } };
-        if (parameter) vars["value"] = *parameter;
-        const JPReply r = d->send(JPFirmwareProfile::fill(a.readCommand, vars)).get();
-        if (!r.ok) {
-            why = r.error;
-            return false;
-        }
-        for (const std::string& line : r.lines) {
-            std::smatch m;
-            if (std::regex_search(line, m, pattern) && m.size() > 1) {
-                JLOGC(JPlacerLog::kCell, JLogLevel::Info) << a.name << " read " << m[1].str() << (a.unit.empty() ? std::string() : " " + a.unit);
-                value = m[1].str();
-                return true;
-            }
-        }
-        JLOGC(JPlacerLog::kCell, JLogLevel::Warn) << a.name << ": no value in the reply to '" << a.readCommand
-                                                   << "' (pattern " << a.readPattern << ")";
-        why = a.name + ": no value in its reply";
+    for (const JPActuatorConfig& a : m_config.actuators)
+        if (a.id == actuatorId) return doCoordinate(a.coordinatedBeforeRead, why) && doReadNow(a, value, why, parameter);
+    why = "no actuator " + actuatorId;
+    return false;
+}
+
+bool JPCell::doReadNow(const JPActuatorConfig& a, std::string& value, std::string& why,
+                       const std::optional<std::string>& parameter) {
+    if (a.http.on) return httpRead(a, value, why);
+    JPGcodeDriver* d = driver(a.driverId);
+    if (!d || !a.canRead()) {
+        why = a.name + " cannot be read";
         return false;
     }
-    why = "no actuator " + actuatorId;
+    std::regex pattern;
+    try {
+        pattern = std::regex(a.readPattern);
+    } catch (const std::regex_error&) {
+        why = a.name + ": its read pattern is not a valid pattern";
+        return false;
+    }
+    std::map<std::string, std::string> vars { { "index", a.index } };
+    if (parameter) vars["value"] = *parameter;
+    const JPReply r = d->send(JPFirmwareProfile::fill(a.readCommand, vars)).get();
+    if (!r.ok) {
+        why = r.error;
+        return false;
+    }
+    for (const std::string& line : r.lines) {
+        std::smatch m;
+        if (std::regex_search(line, m, pattern) && m.size() > 1) {
+            JLOGC(JPlacerLog::kCell, JLogLevel::Info) << a.name << " read " << m[1].str() << (a.unit.empty() ? std::string() : " " + a.unit);
+            value = m[1].str();
+            return true;
+        }
+    }
+    JLOGC(JPlacerLog::kCell, JLogLevel::Warn) << a.name << ": no value in the reply to '" << a.readCommand
+                                               << "' (pattern " << a.readPattern << ")";
+    why = a.name + ": no value in its reply";
     return false;
 }
 
@@ -1028,7 +1109,7 @@ void JPCell::home() {
     m_thread.post([this] {
         std::string why;
         m_homing = true;
-        const bool ok = doHome(why);
+        const bool ok = finished(doHome(why), why);
         m_homing = false;
         if (ok) {
             m_homed = true;
@@ -1042,6 +1123,9 @@ void JPCell::home() {
 bool JPCell::doHome(std::string& why) {
     if (!m_connected) { why = "not connected"; return false; }
     JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_config.name << ": homing";
+    // Moves left running (continuous motion) were waited for as their work ended, or stopped.
+    m_inMotion.clear();
+    m_streaming = false;
     m_homed = false;
     onHomed.emit(false);
     for (const auto& d : m_drivers) {
@@ -1159,7 +1243,7 @@ bool JPCell::moveAxesAndWait(std::map<std::string, double> targets, double speed
     auto result = done.get_future();
     m_thread.post([this, targets = std::move(targets), speed, squared, &done] {
         std::string w;
-        const bool ok = doMove(targets, speed, w, squared);
+        const bool ok = finished(doMove(targets, speed, w, squared), w);
         m_moving = false;
         onMotion.emit(ok, w);
         done.set_value({ ok, w });
@@ -1178,7 +1262,7 @@ bool JPCell::correctPosition(const std::map<std::string, double>& by, std::strin
     auto result = done.get_future();
     m_thread.post([this, &by, &done] {
         std::string w;
-        const bool ok = doCorrectPosition(by, w);
+        const bool ok = finished(doCorrectPosition(by, w), w);
         m_moving = false;
         done.set_value({ ok, w });
     });
@@ -1340,6 +1424,7 @@ void JPCell::moveTool(const JPMountConfig& mount, std::array<std::optional<doubl
         compensateRunout(mount, across, false);
         if (ok && !across.empty()) ok = doMove(across, speed, why);
         if (ok && to[2] && !mount.axisZ.empty()) ok = doMove({ { mount.axisZ, *to[2] - mount.offsetZ } }, speed, why);
+        ok = finished(ok, why);
         m_moving = false;
         if (!ok) JLOGC(JPlacerLog::kCell, JLogLevel::Warn) << "move refused: " << why;
         onMotion.emit(ok, why);
@@ -1353,7 +1438,7 @@ void JPCell::moveAxes(std::map<std::string, double> targets, double speed) {
     }
     m_thread.post([this, targets = std::move(targets), speed] {
         std::string why;
-        const bool ok = doMove(targets, speed, why);
+        const bool ok = finished(doMove(targets, speed, why), why);
         m_moving = false;
         if (!ok) JLOGC(JPlacerLog::kCell, JLogLevel::Warn) << "move refused: " << why;
         onMotion.emit(ok, why);
@@ -1817,15 +1902,50 @@ bool JPCell::doMoveNow(std::map<std::string, double> targets, double speed, std:
         }
         return true;
     };
+    // Test Motion's plan: each leg as long as its slowest axis takes, speeding
+    // up and slowing down at its acceleration (a triangle when it is too short to reach its rate).
+    if (m_planned) {
+        auto legSeconds = [&](const std::map<std::string, double>& a, const std::map<std::string, double>& b, double factor) {
+            double longest = 0;
+            for (const auto& [id, to] : b) {
+                const JPAxisConfig* ax = m_config.axis(id);
+                const auto f = a.find(id);
+                if (!ax || f == a.end()) continue;
+                const double d = std::abs(to - f->second);
+                JPGcodeDriver* dr = driver(ax->driverId);
+                const double u = dr ? driverUnits(*dr) : 1;
+                double v = ax->feedratePerSecond > 0 ? ax->feedratePerSecond : (dr ? dr->axisSetting("maxRate", ax->letter).value_or(0) / 60 / u : 0);
+                double acc = ax->accelerationPerSecond2 > 0 ? ax->accelerationPerSecond2 : (dr ? dr->axisSetting("acceleration", ax->letter).value_or(0) / u : 0);
+                const double k = std::clamp(speed, 0.0, 1.0) * m_speed * factor;
+                v *= k;
+                acc *= k * k;
+                if (d <= 0 || v <= 0) continue;
+                const double t = acc <= 0 ? d / v : d > v * v / acc ? d / v + v / acc : 2 * std::sqrt(d / acc);
+                longest = std::max(longest, t);
+            }
+            return longest;
+        };
+        const auto from = toAxes(now, now);
+        *m_planned += needApproach ? legSeconds(from, overshoot, 1) + legSeconds(overshoot, hardware, approach)
+                                   : legSeconds(from, hardware, 1);
+    }
     std::vector<JPGcodeDriver*> moved;
     if (needApproach && !send(overshoot, 1, moved)) return false;
     if (!send(hardware, needApproach ? approach : 1, moved)) return false;
-    for (JPGcodeDriver* d : moved) {
-        const JPReply w = d->waitForMotion();
-        if (!w.ok) { why = d->config().name + ": move did not finish (" + w.error + ")"; return false; }
+    // Continuous motion: not waited for now, but when the machine must stand still.
+    if (m_config.motionPlanner.continuousMotion) {
+        for (JPGcodeDriver* d : moved)
+            if (std::find(m_inMotion.begin(), m_inMotion.end(), d->config().id) == m_inMotion.end()) m_inMotion.push_back(d->config().id);
+        m_streaming = !m_inMotion.empty();
+    } else {
+        for (JPGcodeDriver* d : moved) {
+            const JPReply w = d->waitForMotion();
+            if (!w.ok) { why = d->config().name + ": move did not finish (" + w.error + ")"; return false; }
+        }
     }
     // A rotation that both wraps and is limited, gone past +-180 the short
-    // way: its controller is told it is at the same angle within the range.
+    // way: its controller is told it is at the same angle within the range,
+    // once it is there.
     std::map<std::string, double> rewrapped;
     for (const auto& [id, sent] : hardware) {
         const JPAxisConfig* a = m_config.axis(id);
@@ -1834,6 +1954,7 @@ bool JPCell::doMoveNow(std::map<std::string, double> targets, double speed, std:
         const double offset = b != applied.end() ? b->second : backlashApplied(id);
         const double t = sent - offset;
         if (a->type != JPAxisConfig::Type::Rotation || !a->wrapAroundRotation || !a->limitRotation || std::abs(t) <= 180) continue;
+        if (!doCoordinate("WaitForStillstand", why)) return false;
         JPGcodeDriver* d = driver(a->driverId);
         const double in = std::remainder(t, 360.0);
         const JPReply r = d->command("setPosition", { { "axes", word(*a, in + offset, *d) } });
@@ -1873,10 +1994,42 @@ constexpr double kSettledTolerance = 0.05;
 std::map<std::string, double> JPCell::jogBase() const {
     std::lock_guard lk(m_mutex);
     std::map<std::string, double> out = m_positions;
+    // Moves not waited for (continuous motion): the axes are where they were sent.
+    const bool streaming = m_streaming;
     for (const auto& [id, sent] : m_sent)
-        if (const auto p = out.find(id); p != out.end() && std::abs(p->second - sent) <= kSettledTolerance)
+        if (const auto p = out.find(id); p != out.end() && (streaming || std::abs(p->second - sent) <= kSettledTolerance))
             p->second = sent;
     return out;
+}
+
+bool JPCell::finished(bool ok, std::string& why) {
+    if (m_inMotion.empty()) return ok;
+    std::string w;
+    if (!doCoordinate("WaitForStillstand", w) && ok) {
+        why = w;
+        return false;
+    }
+    return ok;
+}
+
+bool JPCell::doCoordinate(const std::string& how, std::string& why) {
+    if (how == "None") return true;
+    std::vector<std::string> ids;
+    if (how == "WaitForUnconditionalCoordination") {
+        for (const JPDriverConfig& d : m_config.drivers) ids.push_back(d.id);
+    } else {
+        ids = m_inMotion;
+    }
+    m_inMotion.clear();
+    m_streaming = false;
+    for (const std::string& id : ids) {
+        JPGcodeDriver* d = driver(id);
+        if (!d || !d->isConnected()) continue;
+        // Told to finish its moves (a CommandStillstand), or waited for and its position read.
+        const JPReply w = how == "CommandStillstand" ? d->command("waitMotion", {}, d->config().homeTimeoutMs) : d->waitForMotion();
+        if (!w.ok) { why = d->config().name + ": move did not finish (" + w.error + ")"; return false; }
+    }
+    return true;
 }
 
 void JPCell::setBacklash(const std::string& axisId, JPAxisConfig::Backlash method, double offset, double sneakUpMm,

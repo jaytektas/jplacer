@@ -38,6 +38,13 @@ struct JPActuatorConfig {
     std::string   enabledActuation = "AssumeUnknown";
     std::string   homedActuation   = "LeaveAsIs";
     std::string   disabledActuation = "LeaveAsIs";
+    // OpenPnP's Machine Coordination (JPCell::doCoordinate): before it is
+    // actuated "None", "CommandStillstand" or "WaitForStillstand"; after,
+    // "None" or "WaitForUnconditionalCoordination"; before it is read, "None"
+    // or "WaitForStillstand".
+    std::string   coordinatedBeforeActuate = "WaitForStillstand";
+    std::string   coordinatedAfterActuate  = "None";
+    std::string   coordinatedBeforeRead    = "WaitForStillstand";
 
     // OpenPnP's actuator profiles (a Profile actuator's): up to kProfileActuators
     // other actuators, and named profiles of a value for each (empty: that one

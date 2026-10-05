@@ -11,6 +11,7 @@
 #include "machine/JPTcpLink.h"
 
 #include <algorithm>
+#include <cstdio>
 #include <cmath>
 #include <cstdlib>
 #include <functional>
@@ -109,7 +110,98 @@ void coordinateSystem(JPFormBuilder& add, JPCellConfig& cell, std::function<T&()
     add.end();
 }
 
-void machineForm(JPCellConfig& cell, JPSetupProperties::Form& f) {
+// OpenPnP's ReferenceAdvancedMotionPlanner tabs: its settings and Test Motion
+// places, and the diagnostics of the last test run (`test`, none yet).
+void motionPlannerTabs(JPCellConfig& cell, JPFormBuilder& add, const JPMotionTestResult* test) {
+    auto mp = [&cell]() -> JPMotionPlannerConfig& { return cell.motionPlanner; };
+    add.tab("Motion Planner");
+    add.group("Motion Planner");
+    add.flag("allowContinuousMotion", "Allow continous motion?", [mp]() -> bool& { return mp().continuousMotion; });
+    add.tip("Often, jplacer directs the controller(s) to execute motion that involves multiple segments. For example, "
+            "consider a move to Safe Z, followed by a move over the target location, followed by a move to lower the "
+            "nozzle down to pick or place a part. If the controller gets these commands as one sequence, there are no "
+            "delays introduced when communicating back and forth. By allowing continuous motion, the planner no longer "
+            "waits for motion to complete each time, unless explicitly told to (an actuator's Machine Coordination, a "
+            "pick or place, the end of each operation).");
+    add.group("Test Motion");
+    add.header({ "X", "Y", "Z", "Rotation", "Enabled?" });
+    static const char* const kStops[] = { "First Location", "Second Location", "Third Location", "Last Location" };
+    for (size_t i = 0; i < 4; ++i) {
+        auto at = [mp, i]() -> JPMachineLocation& { return mp().stops[i].at; };
+        const std::string n = "testMotion" + std::to_string(i + 1);
+        add.row(kStops[i], JPFormBuilder::Place::Location);
+        add.number(n + "X", std::string(kStops[i]) + " X", [at]() -> double& { return at().x; });
+        add.number(n + "Y", std::string(kStops[i]) + " Y", [at]() -> double& { return at().y; });
+        add.number(n + "Z", std::string(kStops[i]) + " Z", [at]() -> double& { return at().z; });
+        add.number(n + "Rotation", std::string(kStops[i]) + " Rotation", [at]() -> double& { return at().rotation; });
+        add.flag(n + "Enabled", std::string(kStops[i]) + " Enabled?", [mp, i]() -> bool& { return mp().stops[i].enabled; });
+        add.end();
+    }
+    add.header({ "Speed", "Safe Z?" });
+    static const char* const kLegs[] = { "Speed 1 ↔ 2", "Speed 2 ↔ 3", "Speed 3 ↔ 4" };
+    static const char* const kLegTips[] = { "Speed between First location and Second location",
+                                            "Speed between Second location and Third location",
+                                            "Speed between Third location and Last location" };
+    for (size_t i = 0; i < 3; ++i) {
+        add.row(kLegs[i]);
+        add.number("testMotionSpeed" + std::to_string(i + 1), kLegs[i], [mp, i]() -> double& { return mp().speeds[i]; });
+        add.tip(kLegTips[i]);
+        add.flag("testMotionSafeZ" + std::to_string(i + 1), std::string(kLegs[i]) + " Safe Z?",
+                 [mp, i]() -> bool& { return mp().safeZ[i]; });
+        add.end();
+    }
+    add.note("CAUTION! Test Motion moves the tool chosen on the Jog panel through the enabled locations, straight "
+             "where Safe Z? is off: make sure the way between them is clear.");
+
+    add.tab("Motion Planner Diagnostics");
+    add.group("");
+    // On one row, as OpenPnP's.
+    auto seconds = [test](double JPMotionTestResult::*field) {
+        return std::function<std::string()>([test, field] {
+            if (!test) return std::string();
+            char text[32];
+            std::snprintf(text, sizeof text, "%.3f", test->*field);
+            return std::string(text);
+        });
+    };
+    add.row("Diagnostics?");
+    add.flag("diagnosticsEnabled", "Diagnostics?", [mp]() -> bool& { return mp().diagnosticsEnabled; });
+    add.tip("Record where each axis is over a Test Motion run, from the controllers' reports, and show it below.");
+    add.button("testMotion", "Test", "Test the motion defined in the Motion Planner tab.");
+    add.text("moveTimePlanned", "Planned [s]", seconds(&JPMotionTestResult::plannedS), nullptr);
+    add.tip("How long the run's moves take as planned from the axes' feed rates and accelerations.");
+    add.text("moveTimeActual", "Actual", seconds(&JPMotionTestResult::actualS), nullptr);
+    add.tip("How long the run took, from leaving the first location to standing still at the last.");
+    add.end();
+    if (!test || !cell.motionPlanner.diagnosticsEnabled || test->axes.empty()) {
+        add.note("no data");
+        return;
+    }
+    // Each axis's place over the run, and its speed between reports.
+    auto location = std::make_shared<JPPlot>();
+    auto velocity = std::make_shared<JPPlot>();
+    location->xTitle = velocity->xTitle = "s";
+    location->yTitle = "mm, °";
+    velocity->yTitle = "mm/s, °/s";
+    static const JPPlot::Tone kTones[] = { JPPlot::Tone::First, JPPlot::Tone::Second, JPPlot::Tone::Muted };
+    size_t k = 0;
+    for (const auto& [name, points] : test->axes) {
+        JPPlot::Series l { name, kTones[k % 3], {} }, v { name, kTones[k % 3], {} };
+        ++k;
+        for (size_t i = 0; i < points.size(); ++i) {
+            l.points.push_back({ points[i].first, points[i].second });
+            if (i > 0 && points[i].first > points[i - 1].first)
+                v.points.push_back({ (points[i].first + points[i - 1].first) / 2,
+                                     (points[i].second - points[i - 1].second) / (points[i].first - points[i - 1].first) });
+        }
+        location->series.push_back(std::move(l));
+        velocity->series.push_back(std::move(v));
+    }
+    add.plot("Location", location);
+    add.plot("Velocity", velocity);
+}
+
+void machineForm(JPCellConfig& cell, JPSetupProperties::Form& f, const JPMotionTestResult* motionTest) {
     f.title = "Machine";
     JPFormBuilder add(f);
     add.tab("Configuration");
@@ -154,6 +246,7 @@ void machineForm(JPCellConfig& cell, JPSetupProperties::Form& f) {
     add.end();
     add.note("Discard Location: where a nozzle drops a part that is not wanted. Default Board Location: where a "
              "board or panel added to a job starts.");
+    motionPlannerTabs(cell, add, motionTest);
 }
 
 void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPFirmwareProfile>& profiles, JPSetupProperties::Form& f) {
@@ -1476,6 +1569,21 @@ void actuatorForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::
     add.flag("axisInterlock", "Axis Interlock?", [a]() -> bool& { return a().interlock.enabled; });
     add.tip("Enable to get an extra Wizard tab to configure an Axis Interlocking Actuator");
     f.reshaping.push_back("axisInterlock");
+    // OpenPnP's Machine Coordination: waiting for the machine around actuating and reading it.
+    add.group("Machine Coordination");
+    add.choice("coordinatedBeforeActuate", "Before Actuation?", { "None", "CommandStillstand", "WaitForStillstand" },
+               [a] { return a().coordinatedBeforeActuate; }, [a](const std::string& v) { a().coordinatedBeforeActuate = v; });
+    add.tip("Coordinate with the machine, before the actuator is actuated, i.e. wait for the controllers to acknowledge "
+            "that all the pending commands (including motion) were sent and executed.");
+    add.choice("coordinatedAfterActuate", "After Actuation?", { "None", "WaitForUnconditionalCoordination" },
+               [a] { return a().coordinatedAfterActuate; }, [a](const std::string& v) { a().coordinatedAfterActuate = v; });
+    add.tip("Coordinate with the machine, after the actuator was actuated, i.e. wait for the controllers to acknowledge "
+            "that the actuation as well as all the pending commands (including motion) were sent and executed and any "
+            "position report processed.");
+    add.choice("coordinatedBeforeRead", "Before Read?", { "None", "WaitForStillstand" },
+               [a] { return a().coordinatedBeforeRead; }, [a](const std::string& v) { a().coordinatedBeforeRead = v; });
+    add.tip("Coordinate with the machine, before the actuator is read, i.e. wait for the controllers to acknowledge that "
+            "all the pending commands (including motion) were sent and executed.");
     add.group("General");
     // As the machine's state changes: once connected, once homed, before it is let go.
     add.header({ "Enabled", "Homed", "Disabled" });
@@ -1694,10 +1802,11 @@ void fiducialLocatorForm(JPCellConfig& cell, JPSetupProperties::Form& f, JPConfi
 } // namespace
 
 JPSetupProperties::Form JPSetupProperties::forNode(JPCellConfig& cell, const std::string& path, const std::vector<JPFirmwareProfile>& profiles,
-                                                   JPConfiguration* config, const JPVisionTests* tests) {
+                                                   JPConfiguration* config, const JPVisionTests* tests,
+                                                   const JPMotionTestResult* motionTest) {
     Form f;
     const JPSetupTree::Path p = JPSetupTree::parse(path);
-    if (p.kind == "machine") machineForm(cell, f);
+    if (p.kind == "machine") machineForm(cell, f, motionTest);
     else if (p.kind == "jobprocessor") jobProcessorForm(cell, f);
     else if (p.kind == "vision" && p.id == "bottom") bottomVisionForm(cell, f, config, tests);
     else if (p.kind == "vision" && p.id == "fiducial") fiducialLocatorForm(cell, f, config, tests);

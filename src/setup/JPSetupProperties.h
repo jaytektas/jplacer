@@ -5,6 +5,7 @@
 
 #include "JPPlot.h"
 #include "JPVisionTests.h"
+#include "machine/JPMotionTestResult.h"
 
 #include "camera/JPFrame.h"
 #include "machine/JPCellConfig.h"
@@ -114,8 +115,11 @@ public:
     // `config`: the vision settings the Vision nodes choose from (none: only
     // the one set), and whose default settings' page they show (edited there,
     // as the Vision tab edits them; `tests`: what its tests work with).
+    // `motionTest`: the last motion planner Test Motion run, for the
+    // machine's Motion Planner Diagnostics (none: not run yet).
     static Form forNode(JPCellConfig& cell, const std::string& path, const std::vector<JPFirmwareProfile>& profiles,
-                        JPConfiguration* config = nullptr, const JPVisionTests* tests = nullptr);
+                        JPConfiguration* config = nullptr, const JPVisionTests* tests = nullptr,
+                        const JPMotionTestResult* motionTest = nullptr);
 };
 
 } // inline namespace jf

@@ -77,6 +77,7 @@ JPlacerMachine::~JPlacerMachine() {
     *m_alive = false;
     dropPanels();         // they stop listening to the cell before the cell goes
     m_tipChanges.reset();
+    m_testMotion.reset();
     m_cell.reset();
 }
 
@@ -440,9 +441,11 @@ bool JPlacerMachine::openCell(const std::string& path, std::string& error) {
 
     dropPanels();
     m_tipChanges.reset();   // a change under way stops before its cell goes
+    m_testMotion.reset();
     m_cell = std::make_unique<JPCell>(std::move(config), m_profiles);
     m_cell->setScripting(m_scripting);
     m_cellPath = path;
+    m_testMotion = std::make_unique<JPlacerTestMotion>(m_window, *m_cell);
     m_tipChanges = std::make_unique<JPlacerTipChanges>(m_window, *m_cell, [this](const std::string& nozzleId, const std::string& tipId) {
         setTipOn(nozzleId, tipId);
     });
@@ -743,6 +746,23 @@ bool JPlacerMachine::readyToMove() {
 
 void JPlacerMachine::setupAction(const std::string& path, const std::string& action) {
     if (!m_cameraTasks) return;
+    if (action == "testMotion" && m_cell) {
+        // The tool chosen on the Jog panel: a nozzle or a camera, else the first nozzle.
+        const std::string chosen = m_jog ? m_jog->toolId() : std::string();
+        const JPMountConfig* tool = nullptr;
+        for (const JPCameraConfig& c : m_cell->config().cameras)
+            if (c.id == chosen) tool = &c.mount;
+        if (!tool) tool = toolMount(JPSetupForm::Tool::Nozzle);
+        if (!tool) {
+            m_window.showStatus("Test Motion: no nozzle or camera to move", kErrorMs);
+            return;
+        }
+        if (m_testMotion)
+            m_testMotion->run(*tool, [this](const JPMotionTestResult& r) {
+                if (m_setup) m_setup->setMotionTest(r);
+            });
+        return;
+    }
     if (action == "visualTest") {
         if (JPCameraPanel* camera = m_cameraTasks->headCamera()) m_cameraTasks->visualTest(*camera);
         else m_window.showStatus("No camera on a head to test with", kErrorMs);

@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- The Machine has OpenPnP's Motion Planner tabs: Allow continuous motion, so the moves of one operation go to the
+  controller back to back, and Test Motion through up to four places with how long it was planned to take and
+  took. Actuators have OpenPnP's Machine Coordination: whether to wait for the machine before and after actuating
+  and before reading.
 - Actuators can be OpenPnP's ScriptActuator: switching or setting one runs a script of the scripts folder, told
   whether it is on or the value it is set to.
 - OpenPnP's vision pipelines run in jplacer, every stage of OpenPnP's editor included, and a Pipeline Editor as

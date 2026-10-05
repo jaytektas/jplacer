@@ -19,8 +19,9 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Unsafe Z Roaming | done | |
 | Discard location, Default Board Location | done | |
 | Auto-load most recent job | done | on for a new cell; as OpenPnP's for an imported one |
-| Motion planner: continuous motion, uncoordinated moves, interpolation retiming, minimum speed | missing | moves are sent one at a time, each waited for |
-| Motion planner test motion (4 locations) and diagnostics graphs | missing | |
+| Motion planner: continuous motion | done | Machine › Motion Planner; waits where the machine must stand still (actuator coordination, pick and place, homing, each operation's end) |
+| Motion planner: uncoordinated moves, interpolation retiming, minimum speed | missing | these shape OpenPnP's own 3rd-order motion profiles, sent as interpolated moves; jplacer leaves acceleration and jerk to the controller |
+| Motion planner test motion (4 locations) and diagnostics | done | planned time from feed rates and accelerations, actual time, each axis's location and velocity from the controllers' reports |
 | Issues & Solutions (guided setup, milestones, auto-fixes) | partial | the tab, milestones and the checks jplacer has so far |
 | Log panel (filterable log) | done | Log tab |
 | Signalers (sound, actuator on error / job done) | done | Neoden4Signaler left out (Neoden4 driver) |
@@ -131,7 +132,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Driver, name, head, offsets | done | |
 | Value type (boolean, double, string, profile), actuator profiles | done | |
 | Actuation per machine state (enabled, homed, disabled) | done | |
-| Machine coordination (before / after actuation, before read) | own way | every actuation and read waits for moves before it to end, and moves wait for it |
+| Machine coordination (before / after actuation, before read) | done | Machine Coordination group, as OpenPnP's |
 | Axis interlock | done | |
 | HTTP actuators | done | |
 | Script actuators | done | the script runs as a program told actuateBoolean, actuateDouble or actuateString |

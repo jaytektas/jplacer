@@ -26,6 +26,9 @@ JPActuatorConfig JPActuatorConfig::fromJson(const JJson& j) {
     // Left out: as an actuator OpenPnP makes is set.
     if (const std::string& v = j["enabledActuation"].str(); !v.empty()) a.enabledActuation = v;
     if (const std::string& v = j["homedActuation"].str(); !v.empty()) a.homedActuation = v;
+    if (const std::string& v = j["coordinatedBeforeActuate"].str(); !v.empty()) a.coordinatedBeforeActuate = v;
+    if (const std::string& v = j["coordinatedAfterActuate"].str(); !v.empty()) a.coordinatedAfterActuate = v;
+    if (const std::string& v = j["coordinatedBeforeRead"].str(); !v.empty()) a.coordinatedBeforeRead = v;
     if (const std::string& v = j["disabledActuation"].str(); !v.empty()) a.disabledActuation = v;
     for (size_t k = 0; k < kProfileActuators; ++k) a.profileActuators[k] = j["profileActuators"][k].str();
     a.scriptName = j["script"].str();
@@ -82,6 +85,9 @@ JJson JPActuatorConfig::toJson() const {
     j["unit"]        = unit;
     j["enabledActuation"]  = enabledActuation;
     j["homedActuation"]    = homedActuation;
+    j["coordinatedBeforeActuate"] = coordinatedBeforeActuate;
+    j["coordinatedAfterActuate"]  = coordinatedAfterActuate;
+    j["coordinatedBeforeRead"]    = coordinatedBeforeRead;
     j["disabledActuation"] = disabledActuation;
     if (!scriptName.empty()) j["script"] = scriptName;
     if (http.on) {
