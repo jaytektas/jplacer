@@ -65,7 +65,8 @@ void JPPlotView::drawChart(JPrimitiveBuffer& buf, const JRect& b) const {
     JChart chart;
     chart.setRect(b.x, b.y, b.width, b.height);
     chart.setBackground(colour(Colors::ChartBg));
-    chart.setAxisTitles(m_plot->xTitle, m_plot->yTitle);
+    chart.setAxisTitles(m_plot->xTitle, m_plot->yTitle, m_plot->y2Title);
+    if (m_plot->y2Lo < m_plot->y2Hi) chart.setY2Range(m_plot->y2Lo, m_plot->y2Hi);
     chart.setShowLegend(m_plot->series.size() > 1);
     const bool scatter = m_plot->kind == JPPlot::Kind::Scatter;
     const bool dots = scatter || m_plot->kind == JPPlot::Kind::Points;
@@ -73,6 +74,7 @@ void JPPlotView::drawChart(JPrimitiveBuffer& buf, const JRect& b) const {
     for (const JPPlot::Series& s : m_plot->series) {
         const int i = chart.addSeries(s.label, toneColour(s.tone), st.borderWidth);
         if (dots) chart.series(i).type = JSeriesType::Scatter;
+        chart.series(i).secondary = s.secondary;
         for (const JPPlot::Point& p : s.points) chart.addPoint(i, p.x, p.y);
     }
     if (scatter) {

@@ -288,20 +288,52 @@ int main() {
             cell.setPnpChecker(nullptr);
             cell.setNozzlePart("N", {});
         }
-        // Part detection: the vacuum read after the pick (-31000) must be in
-        // the tip's range; out of it, the pick fails, and says so.
+        // Part detection, as OpenPnP's: checked at the steps the tip says,
+        // with the nozzle's vacuum sense actuator (none: nothing checked). The
+        // level read (-31000) must be in the tip's range: out of it, no part.
         {
-            Latch<std::string> alarm;
-            auto watch = cell.onAlarm.connect([&](std::string what) { alarm.set(what); });
-            JPCellConfig next = cell.config();
-            next.nozzleTips[0].partOn.high = -31500;
             std::string why;
+            assert(!cell.vacuumChecked("N", JPCell::VacuumStep::AfterPick));
+            JPCellConfig next = cell.config();
+            next.nozzles[0].vacuumSenseActuatorId = "V";
             assert(cell.reconfigure(next, why));
-            cell.pick("N");
-            const std::string what = alarm.take();
-            assert(what.find("pick failed") != std::string::npos && what.find("-31000.0") != std::string::npos);
-            cell.place("N");
-            watch();
+            assert(cell.vacuumChecked("N", JPCell::VacuumStep::AfterPick) && cell.vacuumChecked("N", JPCell::VacuumStep::Align)
+                   && !cell.vacuumChecked("N", JPCell::VacuumStep::AfterPlace));   // no part-off method
+            assert(cell.pickAndWait("N", why));
+            bool on = false;
+            assert(cell.partOnAndWait("N", on, why) && on);
+            JPNozzleTipConfig::Sensing readOn, readOff;
+            cell.vacuumReadings("T", readOn, readOff);
+            assert(readOn.lastReading && *readOn.lastReading == -31000 && !readOn.lastDifference && !readOff.lastReading);
+            next.nozzleTips[0].partOn.high = -31500;
+            assert(cell.reconfigure(next, why));
+            assert(cell.partOnAndWait("N", on, why) && !on);
+            // Perform Checks? off after the pick: not checked there.
+            next.nozzleTips[0].partOnCheckAfterPick = false;
+            assert(cell.reconfigure(next, why));
+            assert(!cell.vacuumChecked("N", JPCell::VacuumStep::AfterPick) && cell.vacuumChecked("N", JPCell::VacuumStep::BeforePlace));
+            // Difference: from the level as the pick's dwell ended (graphed), to the level now.
+            next.nozzleTips[0].partOn = {};
+            next.nozzleTips[0].partOn.method = "Difference";
+            next.nozzleTips[0].partOn.low = -32000;
+            next.nozzleTips[0].partOn.high = -30000;
+            next.nozzleTips[0].partOn.diffLow = -10;
+            next.nozzleTips[0].partOn.diffHigh = 10;
+            assert(cell.reconfigure(next, why));
+            assert(cell.placeAtAndWait("N", { std::nullopt, std::nullopt, std::nullopt, std::nullopt }, 1.0, why));
+            assert(cell.pickAndWait("N", why));
+            assert(cell.partOnAndWait("N", on, why) && on);
+            cell.vacuumReadings("T", readOn, readOff);
+            assert(readOn.lastReading && *readOn.lastReading == -31000 && readOn.lastDifference && *readOn.lastDifference == 0);
+            assert(!readOn.vacuumGraph.empty() && !readOn.valveGraph.empty());
+            assert(cell.placeAtAndWait("N", { std::nullopt, std::nullopt, std::nullopt, std::nullopt }, 1.0, why));
+            next.nozzles[0].vacuumSenseActuatorId.clear();
+            next.nozzleTips[0].partOn = {};
+            next.nozzleTips[0].partOn.method = "Absolute";
+            next.nozzleTips[0].partOn.low = -32000;
+            next.nozzleTips[0].partOn.high = -30000;
+            next.nozzleTips[0].partOnCheckAfterPick = true;
+            assert(cell.reconfigure(next, why));
         }
 
         // Motion: refused until homed, then a tool jogs along its own axes.

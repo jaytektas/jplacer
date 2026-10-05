@@ -13,6 +13,7 @@
 #include <j/core/Signal.h>
 
 #include <array>
+#include <chrono>
 #include <atomic>
 #include <thread>
 #include <map>
@@ -140,6 +141,17 @@ public:
     // (none: not calibrated); dropped when the tip changes.
     void calibrateZ(const std::string& nozzleId, bool reset);
     std::optional<double> zCalibration(const std::string& nozzleId) const;
+    // OpenPnP's part detection steps (JPNozzleTipConfig's Perform Checks?).
+    enum class VacuumStep { AfterPick, Align, BeforePlace, AfterPlace, BeforePick };
+    // OpenPnP's Nozzle.isPartOnEnabled / isPartOffEnabled: whether the
+    // nozzle's tip senses a part at `step` (and the nozzle has a vacuum sense actuator).
+    bool vacuumChecked(const std::string& nozzleId, VacuumStep step) const;
+    // OpenPnP's isPartOn / isPartOff, waited for: false, with why, when the
+    // vacuum could not be read; else `on` / `off` as sensed.
+    bool partOnAndWait(const std::string& nozzleId, bool& on, std::string& why);
+    bool partOffAndWait(const std::string& nozzleId, bool& off, std::string& why);
+    // A tip's last readings and graphs, into `on`'s and `off`'s (Sensing's) last reading fields.
+    void vacuumReadings(const std::string& tipId, JPNozzleTipConfig::Sensing& on, JPNozzleTipConfig::Sensing& off) const;
     // OpenPnP's changer slot vision calibration: how far off (X, Y mm) a
     // tip's changer slot was found (none: not yet), every place of its
     // loading and unloading moved by it; forgotten on homing unless the tip's
@@ -329,6 +341,7 @@ public:
     JSignal<std::string, bool, std::string>      onTraffic;      // controller name, sent, line
     JSignal<std::string, bool, std::string>      onActuator;     // id, done, value or why not
     JSignal<std::string>                         onAlarm;        // in words, with the controller's name
+    JSignal<std::string>                         onVacuumReadings;   // a tip's (its id), read anew
     JSignal<bool, std::string>                   onMotion;       // a move or home ended: ok, why not
     JSignal<bool>                                onHomed;
     JSignal<>                                    onCalibration;  // a camera's calibration or the squareness changed
@@ -408,8 +421,33 @@ private:
     // The nozzle a mount is (none: a camera's, an actuator's), and its Z offset with its tip's Z calibration in.
     const JPNozzleConfig* nozzleOf(const JPMountConfig& mount) const;
     double zOffsetOf(const JPMountConfig& mount) const;
-    // A nozzle's part-off check (its valve opened, closed, the vacuum read): `off` whether it senses none.
-    bool partOffCheck(const JPNozzleConfig& n, const JPNozzleTipConfig& tip, bool& off, std::string& why);
+    // OpenPnP's part detection (JPNozzleTipConfig::Sensing), on the cell's
+    // thread: isPartOn (the level now, against the end of the pick's dwell
+    // for a difference) and isPartOff (the valve opened for the probing time
+    // and closed for the dwell, the level then, against the level just before
+    // for a difference); `on` / `off` what was sensed.
+    bool doPartOn(const JPNozzleConfig& n, bool& on, std::string& why);
+    bool doPartOff(const JPNozzleConfig& n, bool& off, std::string& why);
+    // OpenPnP's establishPickVacuumLevel / establishPlaceVacuumLevel: the
+    // pick's (place's) dwell of `ms`, the level read through it (ending it
+    // once within range when the tip establishes it), as the tip's sensing graphs it.
+    bool doEstablish(const JPNozzleConfig& n, bool pick, int ms, std::string& why);
+    // OpenPnP's storeBeforePickVacuumLevel / storeBeforePlaceVacuumLevel: a graph begun, as the tip's sensing graphs it.
+    bool doStoreBefore(const JPNozzleConfig& n, bool pick, std::string& why);
+    // OpenPnP's nozzle tip vacuum readings and graph, of part on or off: the
+    // time is ms from its start; graphed with a difference, or establishing.
+    struct VacuumRecord {
+        std::optional<double>                  reading, difference;
+        std::vector<std::pair<double, double>> vacuum, valve;
+        std::chrono::steady_clock::time_point  start;
+        bool                                   graphing = false;
+        double t() const;
+        // OpenPnP's startNewVacuumGraph: the level now, the valve switching on (or off).
+        void begin(double level, bool switchingOn);
+    };
+    struct VacuumRecords { VacuumRecord on, off; };
+    static bool graphed(const JPNozzleTipConfig::Sensing& s) { return s.method != "None" && (s.method == "Difference" || s.establish); }
+    const JPNozzleTipConfig* tipOf(const JPNozzleConfig& n) const;
     // A tool to `to`: by way of safe Z (up, across and turned, down to Z), or straight.
     bool doMoveTool(const JPMountConfig& mount, const std::array<std::optional<double>, 4>& to, double speed, bool atSafeZ,
                     std::string& why);
@@ -417,16 +455,12 @@ private:
     // motion, the moves it left running waited for (a failure there the
     // work's, when it had none of its own).
     bool finished(bool ok, std::string& why);
-    // The nozzle's vacuum level, from its sensing actuator (else its vacuum actuator).
+    // The nozzle's vacuum level, from its vacuum sense actuator.
     bool readVacuum(const JPNozzleConfig& nozzle, double& level, std::string& why);
     // `work` on the cell's thread, waited for (not a move: no motion is reported).
     bool onThreadAndWait(const std::function<bool(std::string&)>& work, std::string& why);
     // The nozzle's vacuum on (the pump first, as its head's control says).
     bool doVacuumOn(const JPNozzleConfig& nozzle, std::string& why);
-    // A part on (or off) as `sensing` says, from the level now (and `before`
-    // for a difference); false with why not.
-    bool sensed(const JPNozzleConfig& nozzle, const JPNozzleTipConfig::Sensing& sensing, double before, const char* onOff,
-                std::string& why);
     // Switch, and say so on onActuator.
     bool switchTelling(const std::string& actuatorId, bool on, std::string& why);
     // Switch every actuator as its setting for this machine state says
@@ -493,6 +527,7 @@ private:
     };
     JogGuard                                      m_jogGuard;
     std::map<std::string, std::array<double, 2>> m_slotOffsets;   // tip: slotOffset
+    std::map<std::string, VacuumRecords>          m_vacuum;        // tip: its part detection readings
     std::map<std::string, ZCalibration> m_zCalibration;    // Test Motion: the moves' planned seconds, summed while set
     // A directional backlash offset in effect, by axis id: the controller's
     // coordinate is the axis's plus this (JPAxisConfig::Backlash).

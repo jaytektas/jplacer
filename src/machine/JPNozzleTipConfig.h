@@ -93,17 +93,28 @@ struct JPNozzleTipConfig {
     // OpenPnP's Place Blow-Off Level: the blow-off at place, when the part's package gives none (0: no blow-off).
     double                     placeBlowOffLevel = 0;
     int                        placeDwellMs = 0;
-    // PART DETECTION by the vacuum, as in OpenPnP. After a pick (part on) and
-    // after a place (part off), the vacuum level read is checked: by itself
-    // ("Absolute": within low..high), or as its change from the level read
-    // just before ("Difference": that level within low..high, its change
-    // within diffLow..diffHigh). "None": not checked. Part off is read once
-    // the valve has been opened for `probingMs` and closed for `dwellMs`.
+    // PART DETECTION by the vacuum, as in OpenPnP's. Part on: the vacuum
+    // level read is checked by itself ("Absolute": within low..high), or
+    // ("Difference") as its change from the level at the end of the pick's
+    // dwell (that level within low..high, the change within
+    // diffLow..diffHigh). Part off: the valve opened for `probingMs` and
+    // closed for `dwellMs`, then the level read checked the same way, its
+    // change from the level just before. "None": not checked. Establish
+    // Level: the pick's (place's) dwell ends as soon as the level is within
+    // low..high. Each check is made at the steps ticked.
     struct Sensing {
         std::string method = "None";
+        bool   establish = false;
         double low = 0, high = 0, diffLow = 0, diffHigh = 0;
+        // What was last read (not kept): the level, its change (Difference),
+        // and the vacuum and the valve over the last pick or place and check
+        // (ms from its start; the valve 1 open, 0 closed).
+        std::optional<double> lastReading, lastDifference;
+        std::vector<std::pair<double, double>> vacuumGraph, valveGraph;
     };
     Sensing                    partOn, partOff;
+    bool                       partOnCheckAfterPick = true, partOnCheckAlign = true, partOnCheckBeforePlace = true;
+    bool                       partOffCheckAfterPlace = true, partOffCheckBeforePick = true;
     int                        partOffProbingMs = 0;
     int                        partOffDwellMs = 0;
     // RUNOUT: how its end swings as the nozzle turns, measured with the camera

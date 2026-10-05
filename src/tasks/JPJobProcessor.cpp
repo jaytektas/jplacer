@@ -1010,6 +1010,13 @@ JPJobProcessor::Step JPJobProcessor::pick(Planned& p) {
             last = JobError { f };
             continue;
         }
+        // OpenPnP's part-off check before the pick, at safe Z (a feeder may have
+        // taken the nozzle down to feed): not retried, the placement fails.
+        if (m_machine.vacuumChecked(p.nozzleId, JPJobMachine::VacuumStep::BeforePick)) {
+            bool off = false;
+            if (!m_machine.safeZ(why) || !m_machine.partOff(p.nozzleId, off, why)) fail(Source::Nozzle, p.nozzleId, why);
+            if (!off) fail(Source::Nozzle, p.nozzleId, "Part vacuum-detected on nozzle before pick.");
+        }
         // The pick, retried as the feeder says.
         bool picked = false;
         std::string pickWhy;
@@ -1047,6 +1054,15 @@ JPJobProcessor::Step JPJobProcessor::pick(Planned& p) {
                   && JPFeederFeed::postPick(m_config, feederId, m_machine, [this](const std::function<void()>& fn) { main(fn); },
                                             pickWhy);
             if (picked) script("Nozzle.AfterPick", nozzleGlobals);
+            // OpenPnP's part-on check after the pick (up at safe Z): a pick to try again when not there.
+            if (picked && m_machine.vacuumChecked(p.nozzleId, JPJobMachine::VacuumStep::AfterPick)) {
+                bool on = false;
+                if (!m_machine.partOn(p.nozzleId, on, pickWhy)) picked = false;
+                else if (!on) {
+                    picked = false;
+                    pickWhy = "No part vacuum-detected after pick.";
+                }
+            }
         }
         if (!picked) {
             m_machine.holding(p.nozzleId, "");
@@ -1123,6 +1139,12 @@ JPJobProcessor::Step JPJobProcessor::align(Planned& p) {
                     r.nozzleAngle = r.partAngle;
                 }
             p.alignment = r;
+            // OpenPnP's part-on check after alignment.
+            if (m_machine.vacuumChecked(p.nozzleId, JPJobMachine::VacuumStep::Align)) {
+                bool on = false;
+                if (!m_machine.partOn(p.nozzleId, on, why)) fail(Source::Nozzle, p.nozzleId, why);
+                if (!on) fail(Source::Nozzle, p.nozzleId, "No part vacuum-detected after alignment. Part may have been lost in transit.");
+            }
             return Step::Align;
         }
     }
@@ -1148,14 +1170,26 @@ JPJobProcessor::Step JPJobProcessor::place(Planned& p) {
     std::string nozzleName = p.nozzleId;
     for (const auto& n : m_machine.nozzles())
         if (n.id == p.nozzleId) nozzleName = n.name;
-    status(format("Placing %s for %s using nozzle %s.", j.partId.c_str(), j.placementId.c_str(), nozzleName.c_str()));
     std::string why;
+    // OpenPnP's part-on check before the place.
+    if (m_machine.vacuumChecked(p.nozzleId, JPJobMachine::VacuumStep::BeforePlace)) {
+        bool partThere = false;
+        if (!m_machine.partOn(p.nozzleId, partThere, why)) fail(Source::Nozzle, p.nozzleId, why);
+        if (!partThere) fail(Source::Nozzle, p.nozzleId, "No part vacuum-detected on nozzle before place.");
+    }
+    status(format("Placing %s for %s using nozzle %s.", j.partId.c_str(), j.placementId.c_str(), nozzleName.c_str()));
     JJson nozzleGlobals = placementGlobals(j);
     nozzleGlobals["nozzle"] = p.nozzleId;
     script("Nozzle.BeforePlace", nozzleGlobals);
     at = probedPlace(p.nozzleId, j, at, at.add(JPLocation(JPLengthUnit::Millimeters, 0, 0, -j.partHeightMm, 0)));
     if (!m_machine.place(p.nozzleId, at, why)) fail(Source::Nozzle, p.nozzleId, why);
     script("Nozzle.AfterPlace", nozzleGlobals);
+    // OpenPnP's part-off check after the place (up at safe Z).
+    if (m_machine.vacuumChecked(p.nozzleId, JPJobMachine::VacuumStep::AfterPlace)) {
+        bool off = false;
+        if (!m_machine.partOff(p.nozzleId, off, why)) fail(Source::Nozzle, p.nozzleId, why);
+        if (!off) fail(Source::Nozzle, p.nozzleId, "Part vacuum-detected on nozzle after place.");
+    }
     m_partOn.erase(p.nozzleId);
     m_rotationOffset.erase(p.nozzleId);
     m_machine.holding(p.nozzleId, "");

@@ -23,6 +23,8 @@ namespace {
 // OpenPnP's Pick & Place Checking: not for its test object, nor this near the discard location.
 constexpr const char* kTestObjectPartId = "TEST-OBJECT";
 constexpr double kDiscardNearMm = 4.0;
+// OpenPnP's part-off check: a graph of its own when the last was this long ago (a check before a pick).
+constexpr double kVacuumGraphGapMs = 1000.0;
 } // namespace
 
 JPCell::JPCell(JPCellConfig config, std::vector<JPFirmwareProfile> profiles)
@@ -1123,22 +1125,91 @@ bool JPCell::pnpChecked(const JPNozzleConfig& n, bool pick, std::string& why) {
 bool JPCell::doPick(const JPNozzleConfig& n, std::string& why) {
     if (!m_connected) { why = "not connected"; return false; }
     if (n.vacuumActuatorId.empty()) { why = "it has no vacuum actuator"; return false; }
-    const JPNozzleTipConfig* tip = nullptr;
-    for (const JPNozzleTipConfig& t : m_config.nozzleTips) if (t.id == n.tipId) tip = &t;
-    // Part on, by a difference: the level before the vacuum comes on (none when it already is).
-    double before = 0;
-    if (tip && tip->partOn.method == "Difference" && !m_holding.count(n.id) && !readVacuum(n, before, why)) return false;
+    const JPNozzleTipConfig* tip = tipOf(n);
     if (!pnpChecked(n, true, why)) return false;
-    if (!doVacuumOn(n, why)) return false;
-    std::this_thread::sleep_for(std::chrono::milliseconds(n.pickDwellMs + (tip ? tip->pickDwellMs : 0)));
-    if (tip && tip->partOn.method != "None" && !sensed(n, tip->partOn, before, "on", why)) return false;
+    // OpenPnP's pick: a graph of the vacuum begun, the valve opened, and the
+    // dwell (or until the level is established). The part is checked by the
+    // caller, at the steps the tip says (vacuumChecked).
+    if (!doStoreBefore(n, true, why) || !doVacuumOn(n, why)) return false;
+    return doEstablish(n, true, n.pickDwellMs + (tip ? tip->pickDwellMs : 0), why);
+}
+
+const JPNozzleTipConfig* JPCell::tipOf(const JPNozzleConfig& n) const {
+    for (const JPNozzleTipConfig& t : m_config.nozzleTips)
+        if (t.id == n.tipId) return &t;
+    return nullptr;
+}
+
+double JPCell::VacuumRecord::t() const {
+    return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+}
+
+void JPCell::VacuumRecord::begin(double level, bool switchingOn) {
+    vacuum.clear();
+    valve.clear();
+    start = std::chrono::steady_clock::now();
+    graphing = true;
+    vacuum.push_back({ 0, level });
+    valve.push_back({ 0, switchingOn ? 0.0 : 1.0 });
+    valve.push_back({ t(), switchingOn ? 1.0 : 0.0 });
+}
+
+bool JPCell::doStoreBefore(const JPNozzleConfig& n, bool pick, std::string& why) {
+    const JPNozzleTipConfig* tip = tipOf(n);
+    if (!tip) return true;
+    const bool graph = graphed(pick ? tip->partOn : tip->partOff);
+    double level = 0;
+    if (graph && !readVacuum(n, level, why)) return false;
+    std::lock_guard lk(m_mutex);
+    VacuumRecord& r = pick ? m_vacuum[tip->id].on : m_vacuum[tip->id].off;
+    if (graph) r.begin(level, pick);
+    else r.graphing = false;
+    return true;
+}
+
+bool JPCell::doEstablish(const JPNozzleConfig& n, bool pick, int ms, std::string& why) {
+    const JPNozzleTipConfig* tip = tipOf(n);
+    const JPNozzleTipConfig::Sensing* s = tip ? (pick ? &tip->partOn : &tip->partOff) : nullptr;
+    bool graphing = false;
+    if (s) {
+        std::lock_guard lk(m_mutex);
+        graphing = (pick ? m_vacuum[tip->id].on : m_vacuum[tip->id].off).graphing;
+    }
+    if (!graphing) {
+        // Simply the dwell.
+        std::this_thread::sleep_for(std::chrono::milliseconds(std::max(0, ms)));
+        return true;
+    }
+    const auto until = std::chrono::steady_clock::now() + std::chrono::milliseconds(std::max(0, ms));
+    double level = 0;
+    do {
+        if (!readVacuum(n, level, why)) return false;
+        {
+            std::lock_guard lk(m_mutex);
+            VacuumRecord& r = pick ? m_vacuum[tip->id].on : m_vacuum[tip->id].off;
+            r.vacuum.push_back({ r.t(), level });
+        }
+        // Within range: done.
+        if (s->establish && level >= s->low && level <= s->high) break;
+    } while (std::chrono::steady_clock::now() < until);
+    {
+        std::lock_guard lk(m_mutex);
+        VacuumRecord& r = pick ? m_vacuum[tip->id].on : m_vacuum[tip->id].off;
+        r.valve.push_back({ r.t(), pick ? 1.0 : 0.0 });
+        // The difference's baseline: the level as the dwell ended.
+        if (s->method == "Difference") r.reading = level;
+    }
+    onVacuumReadings.emit(tip->id);
     return true;
 }
 
 bool JPCell::readVacuum(const JPNozzleConfig& n, double& level, std::string& why) {
-    const std::string& sensor = n.vacuumSenseActuatorId.empty() ? n.vacuumActuatorId : n.vacuumSenseActuatorId;
+    if (n.vacuumSenseActuatorId.empty()) {
+        why = "Nozzle " + n.name + " has no vacuum sense actuator assigned.";
+        return false;
+    }
     std::string value;
-    if (!doRead(sensor, value, why)) return false;
+    if (!doRead(n.vacuumSenseActuatorId, value, why)) return false;
     char* end = nullptr;
     level = std::strtod(value.c_str(), &end);
     if (end == value.c_str()) {
@@ -1148,38 +1219,189 @@ bool JPCell::readVacuum(const JPNozzleConfig& n, double& level, std::string& why
     return true;
 }
 
-bool JPCell::sensed(const JPNozzleConfig& n, const JPNozzleTipConfig::Sensing& s, double before, const char* onOff,
-                    std::string& why) {
+bool JPCell::doPartOn(const JPNozzleConfig& n, bool& on, std::string& why) {
+    const JPNozzleTipConfig* tip = tipOf(n);
+    on = false;
+    if (!tip) { why = "Nozzle " + n.name + " has no nozzle tip loaded."; return false; }
+    const JPNozzleTipConfig::Sensing& s = tip->partOn;
     double level = 0;
     if (!readVacuum(n, level, why)) return false;
-    auto outside = [](double v, double lo, double hi) { return v < lo || v > hi; };
-    const std::string part = std::string("part ") + onOff;
-    if (s.method == "Difference") {
-        if (outside(before, s.low, s.high)) {
-            why = part + ": the vacuum before, " + format(before, 1) + ", is outside " + format(s.low, 1) + " .. " + format(s.high, 1);
-            return false;
+    {   // the record, under the lock (not while telling of it)
+        std::lock_guard lk(m_mutex);
+        VacuumRecord& r = m_vacuum[tip->id].on;
+        if (r.graphing) {
+            r.vacuum.push_back({ r.t(), level });
+            r.valve.push_back({ r.t(), 1.0 });   // still on
         }
-        if (const double d = level - before; outside(d, s.diffLow, s.diffHigh)) {
-            why = part + ": the vacuum changed by " + format(d, 1) + ", outside " + format(s.diffLow, 1) + " .. " + format(s.diffHigh, 1);
-            return false;
+        auto outside = [](double v, double lo, double hi) { return v < lo || v > hi; };
+        on = true;
+        if (s.method == "Difference") {
+            // The trend from the level as the pick's dwell ended.
+            const double baseline = r.reading.value_or(0), difference = level - baseline;
+            r.difference = difference;
+            if (outside(baseline, s.low, s.high)) {
+                JLOGC(JPlacerLog::kCell, JLogLevel::Debug) << "Nozzle tip " << tip->name << " baseline vacuum level " << baseline
+                                                           << " outside PartOn range " << s.low << " .. " << s.high;
+                on = false;
+            } else if (outside(difference, s.diffLow, s.diffHigh)) {
+                JLOGC(JPlacerLog::kCell, JLogLevel::Debug) << "Nozzle tip " << tip->name << " vacuum level difference " << difference
+                                                           << " outside PartOn range " << s.diffLow << " .. " << s.diffHigh;
+                on = false;
+            }
+        } else {
+            r.reading = level;
+            r.difference.reset();
+            if (outside(level, s.low, s.high)) {
+                JLOGC(JPlacerLog::kCell, JLogLevel::Debug) << "Nozzle tip " << tip->name << " absolute vacuum level " << level
+                                                           << " outside PartOn range " << s.low << " .. " << s.high;
+                on = false;
+            }
         }
-    } else if (outside(level, s.low, s.high)) {
-        why = part + ": the vacuum, " + format(level, 1) + ", is outside " + format(s.low, 1) + " .. " + format(s.high, 1);
-        return false;
     }
-    JLOGC(JPlacerLog::kCell, JLogLevel::Info) << n.name << ": " << part << " (vacuum " << format(level, 1) << ")";
+    onVacuumReadings.emit(tip->id);
     return true;
 }
 
-bool JPCell::partOffCheck(const JPNozzleConfig& n, const JPNozzleTipConfig& tip, bool& off, std::string& why) {
-    double before = 0;
-    if (tip.partOff.method == "Difference" && !readVacuum(n, before, why)) return false;
+bool JPCell::doPartOff(const JPNozzleConfig& n, bool& off, std::string& why) {
+    const JPNozzleTipConfig* tip = tipOf(n);
+    off = false;
+    if (!tip) { why = "Nozzle " + n.name + " has no nozzle tip loaded."; return false; }
+    const JPNozzleTipConfig::Sensing& s = tip->partOff;
+    const bool graph = graphed(s);
+    auto record = [&](const std::function<void(VacuumRecord&)>& edit) {
+        std::lock_guard lk(m_mutex);
+        edit(m_vacuum[tip->id].off);
+    };
+    // OpenPnP's probePartOffVacuumLevel: a graph begun when the last was long ago (a check before a pick).
+    if (graph) {
+        double level = 0;
+        bool stale = false;
+        record([&](VacuumRecord& r) { stale = !r.graphing || r.t() > kVacuumGraphGapMs; });
+        if (stale) {
+            if (!readVacuum(n, level, why)) return false;
+            record([&](VacuumRecord& r) { r.begin(level, true); });
+        }
+        record([&](VacuumRecord& r) { r.valve.push_back({ r.t(), 0.0 }); });
+    }
+    // A difference's baseline: the level now, before the pulse.
+    if (s.method == "Difference") {
+        double level = 0;
+        if (!readVacuum(n, level, why)) return false;
+        record([&](VacuumRecord& r) {
+            if (r.graphing) r.vacuum.push_back({ r.t(), level });
+            r.reading = level;
+        });
+    }
+    // The pulse: the valve open for the probing time, the level read through it; then closed for the dwell.
+    double level = 0;
     if (!switchTelling(n.vacuumActuatorId, true, why)) return false;
-    std::this_thread::sleep_for(std::chrono::milliseconds(tip.partOffProbingMs));
-    if (!switchTelling(n.vacuumActuatorId, false, why)) return false;
-    std::this_thread::sleep_for(std::chrono::milliseconds(tip.partOffDwellMs));
-    off = sensed(n, tip.partOff, before, "off", why);
+    bool read = true;
+    if (graph) {
+        record([&](VacuumRecord& r) { r.valve.push_back({ r.t(), 1.0 }); });
+        const auto until = std::chrono::steady_clock::now() + std::chrono::milliseconds(std::max(0, tip->partOffProbingMs));
+        do {
+            if (!(read = readVacuum(n, level, why))) break;
+            record([&](VacuumRecord& r) { r.vacuum.push_back({ r.t(), level }); });
+        } while (std::chrono::steady_clock::now() < until);
+        if (read) record([&](VacuumRecord& r) { r.valve.push_back({ r.t(), 1.0 }); });
+    } else {
+        std::this_thread::sleep_for(std::chrono::milliseconds(std::max(0, tip->partOffProbingMs)));
+        if (tip->partOffDwellMs <= 0) read = readVacuum(n, level, why);
+    }
+    // Always closed again.
+    std::string closing;
+    if (!switchTelling(n.vacuumActuatorId, false, closing) && read) {
+        why = closing;
+        return false;
+    }
+    if (!read) return false;
+    if (graph) {
+        record([&](VacuumRecord& r) { r.valve.push_back({ r.t(), 0.0 }); });
+        const auto until = std::chrono::steady_clock::now() + std::chrono::milliseconds(std::max(0, tip->partOffDwellMs));
+        if (tip->partOffDwellMs > 0)
+            do {
+                if (!readVacuum(n, level, why)) return false;
+                record([&](VacuumRecord& r) { r.vacuum.push_back({ r.t(), level }); });
+            } while (std::chrono::steady_clock::now() < until);
+        record([&](VacuumRecord& r) { r.valve.push_back({ r.t(), 0.0 }); });
+    } else if (tip->partOffDwellMs > 0) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(tip->partOffDwellMs));
+        if (!readVacuum(n, level, why)) return false;
+    }
+    auto outside = [](double v, double lo, double hi) { return v < lo || v > hi; };
+    off = true;
+    record([&](VacuumRecord& r) {
+        if (s.method == "Difference") {
+            const double baseline = r.reading.value_or(0), difference = level - baseline;
+            r.difference = difference;
+            if (outside(baseline, s.low, s.high)) {
+                JLOGC(JPlacerLog::kCell, JLogLevel::Debug) << "Nozzle tip " << tip->name << " baseline vacuum level " << baseline
+                                                           << " outside PartOff range " << s.low << " .. " << s.high;
+                off = false;
+            } else if (outside(difference, s.diffLow, s.diffHigh)) {
+                JLOGC(JPlacerLog::kCell, JLogLevel::Debug) << "Nozzle tip " << tip->name << " vacuum level difference " << difference
+                                                           << " outside PartOff range " << s.diffLow << " .. " << s.diffHigh;
+                off = false;
+            }
+        } else {
+            r.reading = level;
+            r.difference.reset();
+            if (outside(level, s.low, s.high)) {
+                JLOGC(JPlacerLog::kCell, JLogLevel::Debug) << "Nozzle tip " << tip->name << " absolute vacuum level " << level
+                                                           << " outside PartOff range " << s.low << " .. " << s.high;
+                off = false;
+            }
+        }
+    });
+    onVacuumReadings.emit(tip->id);
     return true;
+}
+
+bool JPCell::vacuumChecked(const std::string& nozzleId, VacuumStep step) const {
+    std::lock_guard lk(m_mutex);
+    for (const JPNozzleConfig& n : m_config.nozzles) {
+        if (n.id != nozzleId) continue;
+        const JPNozzleTipConfig* tip = tipOf(n);
+        if (!tip || n.vacuumSenseActuatorId.empty()) return false;
+        switch (step) {
+            case VacuumStep::AfterPick:   return tip->partOnCheckAfterPick && tip->partOn.method != "None";
+            case VacuumStep::Align:       return tip->partOnCheckAlign && tip->partOn.method != "None";
+            case VacuumStep::BeforePlace: return tip->partOnCheckBeforePlace && tip->partOn.method != "None";
+            case VacuumStep::AfterPlace:  return tip->partOffCheckAfterPlace && tip->partOff.method != "None";
+            case VacuumStep::BeforePick:  return tip->partOffCheckBeforePick && tip->partOff.method != "None";
+        }
+    }
+    return false;
+}
+
+bool JPCell::partOnAndWait(const std::string& nozzleId, bool& on, std::string& why) {
+    return onThreadAndWait([&](std::string& w) {
+        for (const JPNozzleConfig& n : m_config.nozzles)
+            if (n.id == nozzleId) return doPartOn(n, on, w);
+        w = "no nozzle " + nozzleId;
+        return false;
+    }, why);
+}
+
+bool JPCell::partOffAndWait(const std::string& nozzleId, bool& off, std::string& why) {
+    return onThreadAndWait([&](std::string& w) {
+        for (const JPNozzleConfig& n : m_config.nozzles)
+            if (n.id == nozzleId) return doPartOff(n, off, w);
+        w = "no nozzle " + nozzleId;
+        return false;
+    }, why);
+}
+
+void JPCell::vacuumReadings(const std::string& tipId, JPNozzleTipConfig::Sensing& on, JPNozzleTipConfig::Sensing& off) const {
+    std::lock_guard lk(m_mutex);
+    const auto it = m_vacuum.find(tipId);
+    for (auto [record, into] : { std::pair { it == m_vacuum.end() ? nullptr : &it->second.on, &on },
+                                 std::pair { it == m_vacuum.end() ? nullptr : &it->second.off, &off } }) {
+        into->lastReading = record ? record->reading : std::nullopt;
+        into->lastDifference = record ? record->difference : std::nullopt;
+        into->vacuumGraph = record && record->graphing ? record->vacuum : std::vector<std::pair<double, double>>();
+        into->valveGraph = record && record->graphing ? record->valve : std::vector<std::pair<double, double>>();
+    }
 }
 
 bool JPCell::contactProbeAndWait(const std::string& nozzleId, bool forward, double depthMm, double& probedZ, std::string& why) {
@@ -1241,7 +1463,7 @@ bool JPCell::doContactProbe(const JPNozzleConfig& n, bool forward, double depthM
         }
         bool off = false;
         std::string ignored;
-        if (!partOffCheck(n, *tip, off, ignored)) { why = ignored; return false; }
+        if (!doPartOff(n, off, ignored)) { why = ignored; return false; }
         if (!off) { why = "Nozzle " + n.name + " first sniffle-probe was already sensing contact. Check the settings."; return false; }
         const int count = int(std::ceil(depthMm / std::max(1e-6, p.sniffleIncrementMm)));
         double z = probedZ;
@@ -1249,7 +1471,7 @@ bool JPCell::doContactProbe(const JPNozzleConfig& n, bool forward, double depthM
             z -= p.sniffleIncrementMm;
             if (!moveZ(z) || !doCoordinate("WaitForStillstand", why)) return false;
             std::this_thread::sleep_for(std::chrono::milliseconds(p.sniffleDwellMs));
-            if (!partOffCheck(n, *tip, off, ignored)) { why = ignored; return false; }
+            if (!doPartOff(n, off, ignored)) { why = ignored; return false; }
             if (!off) {
                 // Contact.
                 probedZ = z + p.adjustMm;
@@ -1290,6 +1512,7 @@ bool JPCell::doPlace(const JPNozzleConfig& n, std::string& why) {
     if (const auto part = m_nozzleParts.find(n.id); part != m_nozzleParts.end() && part->second.placeBlowOffLevel != 0)
         blowLevel = part->second.placeBlowOffLevel;
     const bool blow = !n.blowOffActuatorId.empty() && blowLevel != 0;
+    if (!doStoreBefore(n, false, why)) return false;
     if (!(blow && n.blowOffClosesVacuum) && !switchTelling(n.vacuumActuatorId, false, why)) return false;
     if (blow) {
         const JPActuatorConfig* blower = nullptr;
@@ -1303,18 +1526,10 @@ bool JPCell::doPlace(const JPNozzleConfig& n, std::string& why) {
             return false;
         }
     }
-    std::this_thread::sleep_for(std::chrono::milliseconds(dwell));
+    // The dwell (or until the level has decayed into range, as the tip says); the part is checked by the caller.
+    if (!doEstablish(n, false, dwell, why)) return false;
     if (blow && !switchTelling(n.blowOffActuatorId, false, why)) return false;
     m_holding.erase(n.id);
-    // Part off: the valve opened for the probing time and closed for the
-    // dwell, then the vacuum read (a part still on holds it).
-    const JPNozzleTipConfig* tip = nullptr;
-    for (const JPNozzleTipConfig& t : m_config.nozzleTips) if (t.id == n.tipId) tip = &t;
-    if (tip && tip->partOff.method != "None") {
-        bool off = false;
-        if (!partOffCheck(n, *tip, off, why)) return false;
-        if (!off) return false;
-    }
     // The pump goes off with the last part on its head, when it runs for parts (or a task).
     const JPHeadConfig* head = nullptr;
     for (const JPHeadConfig& h : m_config.heads) if (h.id == n.mount.headId) head = &h;

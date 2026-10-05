@@ -1090,6 +1090,15 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             sensing(t.partOff, "off");
             t.partOffProbingMs = int(number(x.attr("part-off-probing-milliseconds")));
             t.partOffDwellMs = int(number(x.attr("part-off-dwell-milliseconds")));
+            t.partOn.establish = yes(x.attr("establish-part-on-level"));
+            t.partOff.establish = yes(x.attr("establish-part-off-level"));
+            // Perform Checks?: each on unless OpenPnP has it off.
+            for (const auto& [child, field] : { std::pair { "part-on-check-after-pick", &t.partOnCheckAfterPick },
+                                                std::pair { "part-on-check-align", &t.partOnCheckAlign },
+                                                std::pair { "part-on-check-before-place", &t.partOnCheckBeforePlace },
+                                                std::pair { "part-off-check-after-place", &t.partOffCheckAfterPlace },
+                                                std::pair { "part-off-check-before-pick", &t.partOffCheckBeforePick } })
+                *field = text(child) != "false";
             const struct { const char* place; const char* speed; const char* actuator; } changer[] = {
                 { "changer-start-location", nullptr, "changer-actuator-post-step-one" },
                 { "changer-mid-location", "changer-start-to-mid-speed", "changer-actuator-post-step-two" },

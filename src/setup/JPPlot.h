@@ -27,11 +27,14 @@ struct JPPlot {
         std::string        label;
         Tone               tone = Tone::First;
         std::vector<Point> points;
+        bool               secondary = false;   // on the second Y axis, at the right (Lines)
     };
     struct Spot { double x = 0, y = 0, value = 0; };
 
     Kind                kind = Kind::Lines;
-    std::string         xTitle, yTitle;
+    std::string         xTitle, yTitle, y2Title;
+    // The second Y axis's range (lo < hi; else as its series need).
+    double              y2Lo = 0, y2Hi = 0;
     bool                logX = false;   // x on a log scale (Lines, Points)
     std::vector<Series> series;
     double              circle = 0;

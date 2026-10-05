@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- Part detection works as OpenPnP's: Establish Level, Perform Checks (after pick, alignment, before place, after
+  place, before pick), a Difference measured from the end of the pick's dwell, and the last readings and a graph of
+  the vacuum and valve on the nozzle tip's Part Detection tab. The checks need the nozzle's vacuum sense actuator.
 - The Jog panel's Safety tab, with OpenPnP's Board Protection: a jog that would take a nozzle below safe Z into one
   of the job's boards is refused.
 - OpenPnP's Vision Calibration of a nozzle tip's changer slot: two template pictures of the slot, empty and

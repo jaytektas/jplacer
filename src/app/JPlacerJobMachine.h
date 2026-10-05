@@ -53,6 +53,9 @@ public:
     bool rotate(const std::string& nozzleId, double angle, std::string& why) override;
     bool pick(const std::string& nozzleId, const JPLocation& at, std::string& why) override;
     bool place(const std::string& nozzleId, const JPLocation& at, std::string& why) override;
+    bool vacuumChecked(const std::string& nozzleId, VacuumStep step) const override;
+    bool partOn(const std::string& nozzleId, bool& on, std::string& why) override;
+    bool partOff(const std::string& nozzleId, bool& off, std::string& why) override;
     bool discard(const std::string& nozzleId, std::string& why) override;
     void holding(const std::string& nozzleId, const std::string& partId) override;
     bool positionNozzle(const std::string& nozzleId, const JPLocation& at, std::string& why) override;

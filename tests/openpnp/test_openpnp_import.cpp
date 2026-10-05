@@ -253,7 +253,7 @@ int main() {
         assert(!sq.axis("AXSQ") && sq.cameras.front().mount.axisX == "AX");
         assert(sq.problems().empty());
     }
-    // A tip's changer slot vision calibration: its settings, and its template
+    // A tip's changer slot vision calibration and part detection: its settings, and its template
     // pictures as OpenPnP's files beside machine.xml; saved and read back the same.
     {
         std::ifstream in(std::string(JPLACER_TESTDATA_DIR) + "/openpnp-machine.xml");
@@ -265,7 +265,8 @@ int main() {
         assert(at != std::string::npos);
         xml.replace(at, tip.size(),
                     R"(id="TIP1" name="503R - 0805 / 0603" vision-calibration="ThirdLocation" vision-calibration-trigger="NozzleTipChange" )"
-                    R"(vision-match-minimum-score="0.35" vision-calibration-max-passes="5">)"
+                    R"(vision-match-minimum-score="0.35" vision-calibration-max-passes="5" establish-part-on-level="true">)"
+                    R"(<part-on-check-align>false</part-on-check-align><part-off-check-before-pick>false</part-off-check-before-pick>)"
                     R"(<vision-calibration-z-adjust value="-1.5" units="Millimeters"/>)"
                     R"(<vision-template-dimension-x value="8.0" units="Millimeters"/>)"
                     R"(<vision-template-dimension-y value="6.0" units="Millimeters"/>)"
@@ -292,6 +293,12 @@ int main() {
         const JPNozzleTipConfig back = JPNozzleTipConfig::fromJson(vc.nozzleTips[0].toJson());
         assert(back.visionCalibration.location == v.location && back.visionCalibration.templateOccupied == v.templateOccupied
                && back.visionCalibration.precisionMm == 0.4 && back.visionCalibration.maxPasses == 5);
+        // Its part detection's Establish Level? and Perform Checks?.
+        const JPNozzleTipConfig& pd = vc.nozzleTips[0];
+        assert(pd.partOn.establish && !pd.partOff.establish && pd.partOnCheckAfterPick && !pd.partOnCheckAlign
+               && pd.partOnCheckBeforePlace && pd.partOffCheckAfterPlace && !pd.partOffCheckBeforePick);
+        const JPNozzleTipConfig pdBack = JPNozzleTipConfig::fromJson(pd.toJson());
+        assert(pdBack.partOn.establish && !pdBack.partOnCheckAlign && !pdBack.partOffCheckBeforePick && pdBack.partOffCheckAfterPlace);
         // The other tip: none.
         assert(!vc.nozzleTips[1].visionCalibration.on() && !vc.nozzleTips[1].visionCalibrationPlace());
     }

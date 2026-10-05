@@ -28,6 +28,10 @@ namespace {
 
 using Strings = std::vector<std::string>;
 
+// A nozzle tip's vacuum graph: the valve's scale (0 closed, 1 open) padded
+// so it runs in a band low down (as OpenPnP's scales).
+constexpr double kValveBandBelow = 0.25, kValveBandAbove = 4.0;
+
 template <class T>
 JPFormBuilder::Named named(const std::vector<T>& items, const std::string& none) {
     JPFormBuilder::Named n;
@@ -1054,32 +1058,76 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
         add.group(title);
         auto sensing = [t, on = on]() -> JPNozzleTipConfig::Sensing& { return on ? t().partOn : t().partOff; };
         const std::string key = on ? "partOn" : "partOff";
+        add.row("Measurement Method");
         add.choice(key + "Method", "Measurement Method", { "None", "Absolute", "Difference" },
                    [sensing] { return sensing().method; }, [sensing](const std::string& v) { sensing().method = v; });
         f.reshaping.push_back(key + "Method");
-        if (sensing().method == "None") continue;
+        if (sensing().method != "None") {
+            add.flag(key + "Establish", "Establish Level?", [sensing]() -> bool& { return sensing().establish; });
+            add.tip(on ? "While the nozzle is pressed down on the part in the pick operation, the vacuum level is repeatedly measured "
+                         "until it builds up to the Vacuum Range or the Pick Dwell Time timeout expires, whichever comes first."
+                       : "While the nozzle is pressed down on the part in the place operation, the vacuum level is repeatedly "
+                         "measured until it decays to the Vacuum Range or the Place Dwell Time timeout expires, whichever comes first.");
+            f.reshaping.push_back(key + "Establish");
+        }
+        add.end();
+        const JPNozzleTipConfig::Sensing& now = sensing();
+        if (now.method == "None") continue;
+        add.row("Perform Checks?");
+        add.skip();
+        if (on) {
+            add.flag("partOnCheckAfterPick", "After Pick", [t]() -> bool& { return t().partOnCheckAfterPick; });
+            add.flag("partOnCheckAlign", "Alignment", [t]() -> bool& { return t().partOnCheckAlign; });
+            add.flag("partOnCheckBeforePlace", "Before Place", [t]() -> bool& { return t().partOnCheckBeforePlace; });
+        } else {
+            add.flag("partOffCheckAfterPlace", "After Place", [t]() -> bool& { return t().partOffCheckAfterPlace; });
+            add.flag("partOffCheckBeforePick", "Before Pick", [t]() -> bool& { return t().partOffCheckBeforePick; });
+        }
+        add.end();
         if (!on) {
-            add.row("Probing Time (ms)");
-            add.integer("partOffProbingMs", "Probing Time (ms)", [t]() -> int& { return t().partOffProbingMs; }, 0, 60000);
-            add.integer("partOffDwellMs", "Dwell Time (ms)", [t]() -> int& { return t().partOffDwellMs; }, 0, 60000);
+            add.row("Valve open/close (ms)");
+            add.integer("partOffProbingMs", "Valve open (ms)", [t]() -> int& { return t().partOffProbingMs; }, 0, 60000);
+            add.tip("The valve is opened and closed to create a small underpressure pulse. The open time should be quite short, no "
+                    "point in creating full pick suction. The close time can be used to wait for the system to react to the "
+                    "pulse, including delays in sensor signal propagation and readout.");
+            add.integer("partOffDwellMs", "Valve close (ms)", [t]() -> int& { return t().partOffDwellMs; }, 0, 60000);
             add.end();
         }
-        add.header({ "Low", "High" });
-        add.row(sensing().method == "Difference" ? "Vacuum Level Before" : "Vacuum Level");
+        auto reading = [](const std::optional<double>& v) {
+            char text[32] = "";
+            if (v) std::snprintf(text, sizeof text, "%.1f", *v);
+            return std::string(text);
+        };
+        add.header({ "Low Value", "High Value", "Last Reading" });
+        add.row("Vacuum Range");
         add.number(key + "Low", "Vacuum Low", [sensing]() -> double& { return sensing().low; }, 1);
         add.number(key + "High", "Vacuum High", [sensing]() -> double& { return sensing().high; }, 1);
+        add.words(reading(now.lastReading));
         add.end();
-        if (sensing().method == "Difference") {
-            add.row("Vacuum Difference");
+        if (now.method == "Difference") {
+            add.row("Difference Range");
             add.number(key + "DiffLow", "Difference Low", [sensing]() -> double& { return sensing().diffLow; }, 1);
             add.number(key + "DiffHigh", "Difference High", [sensing]() -> double& { return sensing().diffHigh; }, 1);
+            add.words(reading(now.lastDifference));
             add.end();
         }
+        add.endColumns();
+        // OpenPnP's graph of the last pick (place) and check: the vacuum, and the valve below it.
+        if ((now.method == "Difference" || now.establish) && !now.vacuumGraph.empty()) {
+            // OpenPnP's two scales: the vacuum's, and the valve's below it.
+            auto plot = std::make_shared<JPPlot>();
+            plot->xTitle = "ms";
+            plot->yTitle = "Vacuum";
+            plot->y2Title = "Valve";
+            plot->y2Lo = -kValveBandBelow;
+            plot->y2Hi = 1 + kValveBandAbove;
+            JPPlot::Series vacuum { "Vacuum", JPPlot::Tone::First, {} }, valve { "Valve", JPPlot::Tone::Second, {}, true };
+            for (const auto& [ms, level] : now.vacuumGraph) vacuum.points.push_back({ ms, level });
+            for (const auto& [ms, open] : now.valveGraph) valve.points.push_back({ ms, open });
+            plot->series = { vacuum, valve };
+            add.plot(on ? "Last Pick" : "Last Place or Check", plot);
+        }
     }
-    add.note("Read from the nozzle's sensing actuator (else its vacuum actuator) after a pick and after a place "
-             "(the place's probe: the valve open for the probing time, then closed for the dwell). Absolute: the "
-             "level within Low..High. Difference: the level just before within Low..High, and its change within "
-             "the difference's.");
 
     add.tab("Tool Changer");
     add.group("Nozzle Tip Changer");

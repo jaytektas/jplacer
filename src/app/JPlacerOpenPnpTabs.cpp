@@ -442,6 +442,15 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
                 if (const JPFeeder* f = m_job.configuration().feeder(feederId)) part = f->partId();
             });
             if (!machine.safeZ(why)) return false;
+            // OpenPnP's pickFeeder: the part-off check first, at safe Z.
+            if (machine.vacuumChecked(nozzle, JPJobMachine::VacuumStep::BeforePick)) {
+                bool off = false;
+                if (!machine.partOff(nozzle, off, why)) return false;
+                if (!off) {
+                    why = "Part vacuum-detected on nozzle before pick.";
+                    return false;
+                }
+            }
             // As OpenPnP's: the nozzle made able to turn the part from its pick to a
             // test placement (bottom vision's Test Alignment Angle).
             double testAngle = 0;
@@ -449,13 +458,23 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
                 if (const JPCell* c = m_machine.cell()) testAngle = c->config().vision.testAlignmentAngle;
             });
             JPRotationMode::prepare(machine, nozzle, at->rotation(), testAngle);
-            // The nozzle given the part first, as OpenPnP's pick(part): its levels, and the pick checked for it.
+            // The nozzle given the part first, as OpenPnP's pick(part): its levels.
             machine.holding(nozzle, part);
             if (!machine.pick(nozzle, *at, why)) {
                 machine.holding(nozzle, "");
                 return false;
             }
-            return JPFeederFeed::postPick(m_job.configuration(), feederId, machine, onMain, why) && machine.safeZ(why);
+            if (!JPFeederFeed::postPick(m_job.configuration(), feederId, machine, onMain, why) || !machine.safeZ(why)) return false;
+            // Then the part-on check.
+            if (machine.vacuumChecked(nozzle, JPJobMachine::VacuumStep::AfterPick)) {
+                bool on = false;
+                if (!machine.partOn(nozzle, on, why)) return false;
+                if (!on) {
+                    why = "No part detected.";
+                    return false;
+                }
+            }
+            return true;
         });
     };
     // OpenPnP's Cycles.zProbe: the head's Z probe over the place at safe Z, read (mm from where it is), and back.

@@ -187,11 +187,13 @@ public:
     }
     // HeapFeederHelper.dropPart: let go at `at`, blown off, checked gone.
     bool dropPart(const JPLocation& at, std::string& why) {
+        bool off = true;
         if (m_machine.place(m_nozzleId, at, why)) {
             m_machine.holding(m_nozzleId, "");
-            return true;
+            if (!m_machine.vacuumChecked(m_nozzleId, JPJobMachine::VacuumStep::AfterPlace)) return true;
+            if (m_machine.partOff(m_nozzleId, off, why) && off) return true;
         }
-        why = "HeapFeeder: Dropping part failed, check nozzle tip (" + why + ")";
+        why = "HeapFeeder: Dropping part failed, check nozzle tip" + (off ? " (" + why + ")" : std::string());
         return false;
     }
     bool dropInto(const JPDropBoxes::Box& b, std::string& why) { return dropPart(b.drop.convertToUnits(kMm), why); }

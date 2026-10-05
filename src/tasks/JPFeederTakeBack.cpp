@@ -84,7 +84,7 @@ bool JPFeederTakeBack::takeBack(JPConfiguration& config, const std::string& nozz
             why = "Feeder: " + feederName + ", Not ready to take back the part (e.g. no free slot)";
             return false;
         }
-        // OpenPnP's putPartBack: at the last pick's place, let go (checked gone), up to safe Z.
+        // OpenPnP's putPartBack: at the last pick's place, let go, up to safe Z, checked gone as the tip says.
         JPLocation at = *pick;
         if (heightAbove) at = at.add(JPLocation(at.units(), 0, 0, JPLength(partHeight, JPLengthUnit::Millimeters).convertToUnits(at.units()).value(), 0));
         if (!machine.place(nozzleId, at, why)) {
@@ -93,6 +93,11 @@ bool JPFeederTakeBack::takeBack(JPConfiguration& config, const std::string& nozz
         }
         machine.holding(nozzleId, "");
         if (!machine.safeZ(why)) return false;
+        bool off = true;
+        if (machine.vacuumChecked(nozzleId, JPJobMachine::VacuumStep::AfterPlace) && (!machine.partOff(nozzleId, off, why) || !off)) {
+            why = "Feeder: " + feederName + ", Putting part back failed, check nozzle tip" + (off ? " (" + why + ")" : std::string());
+            return false;
+        }
     }
     main([&] {
         if (JPFeeder* f = config.feeder(feederId)) f->partTakenBack();

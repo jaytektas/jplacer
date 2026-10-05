@@ -93,10 +93,24 @@ public:
     // Turn the nozzle to `angle` where it is (OpenPnP's pre-rotation); a nozzle without a rotation axis stays.
     virtual bool rotate(const std::string& nozzleId, double angle, std::string& why) = 0;
     // Up to safe Z, across and turned to `at`, down to its Z, the part picked
-    // (the vacuum on, the dwell, the part checked as the tip says), and up.
+    // (the vacuum on, the dwell), and up.
     virtual bool pick(const std::string& nozzleId, const JPLocation& at, std::string& why) = 0;
-    // The same to `at`, the part let go there (and checked gone).
+    // The same to `at`, the part let go there.
     virtual bool place(const std::string& nozzleId, const JPLocation& at, std::string& why) = 0;
+    // OpenPnP's vacuum part detection: whether the nozzle's tip checks at
+    // `step` (Nozzle.isPartOnEnabled / isPartOffEnabled), and the check
+    // (isPartOn / isPartOff, at safe Z): false, with why, when it could not
+    // be made; else `on` / `off` as sensed. A machine that senses no vacuum checks nothing.
+    enum class VacuumStep { AfterPick, Align, BeforePlace, AfterPlace, BeforePick };
+    virtual bool vacuumChecked(const std::string& /*nozzleId*/, VacuumStep /*step*/) const { return false; }
+    virtual bool partOn(const std::string& /*nozzleId*/, bool& on, std::string& /*why*/) {
+        on = true;
+        return true;
+    }
+    virtual bool partOff(const std::string& /*nozzleId*/, bool& off, std::string& /*why*/) {
+        off = true;
+        return true;
+    }
     // What the nozzle holds dropped at the discard location.
     virtual bool discard(const std::string& nozzleId, std::string& why) = 0;
     // What a nozzle holds now (OpenPnP's Nozzle.getPart): the part picked, or "" once placed or discarded.

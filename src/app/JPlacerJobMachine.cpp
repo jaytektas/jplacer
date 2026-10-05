@@ -280,6 +280,32 @@ bool JPlacerJobMachine::place(const std::string& nozzleId, const JPLocation& at,
     return c && c->placeAtAndWait(nozzleId, where(at), 1.0, why);
 }
 
+bool JPlacerJobMachine::vacuumChecked(const std::string& nozzleId, VacuumStep step) const {
+    std::string why;
+    const JPCell* c = cell(why);
+    if (!c) return false;
+    using S = JPCell::VacuumStep;
+    switch (step) {
+        case VacuumStep::AfterPick:   return c->vacuumChecked(nozzleId, S::AfterPick);
+        case VacuumStep::Align:       return c->vacuumChecked(nozzleId, S::Align);
+        case VacuumStep::BeforePlace: return c->vacuumChecked(nozzleId, S::BeforePlace);
+        case VacuumStep::AfterPlace:  return c->vacuumChecked(nozzleId, S::AfterPlace);
+        case VacuumStep::BeforePick:  return c->vacuumChecked(nozzleId, S::BeforePick);
+    }
+    return false;
+}
+
+bool JPlacerJobMachine::partOn(const std::string& nozzleId, bool& on, std::string& why) {
+    JPCell* c = cell(why);
+    return c && c->partOnAndWait(nozzleId, on, why);
+}
+
+bool JPlacerJobMachine::partOff(const std::string& nozzleId, bool& off, std::string& why) {
+    ++m_motions;   // the valve pulsed
+    JPCell* c = cell(why);
+    return c && c->partOffAndWait(nozzleId, off, why);
+}
+
 bool JPlacerJobMachine::tipCalibrated(const std::string& nozzleId) const {
     const JPCellConfig c = config();
     for (const JPNozzleConfig& n : c.nozzles)

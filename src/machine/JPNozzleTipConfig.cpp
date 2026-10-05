@@ -195,6 +195,7 @@ JPNozzleTipConfig JPNozzleTipConfig::fromJson(const JJson& j) {
         const JJson& d = j[key];
         if (!d.isObject()) continue;
         if (const std::string& m = d["method"].str(); !m.empty()) sensing->method = m;
+        sensing->establish = d["establish"].boolean(false);
         sensing->low      = d["low"].number(0.0);
         sensing->high     = d["high"].number(0.0);
         sensing->diffLow  = d["diffLow"].number(0.0);
@@ -202,6 +203,11 @@ JPNozzleTipConfig JPNozzleTipConfig::fromJson(const JJson& j) {
     }
     t.partOffProbingMs = int(j["partOff"]["probingMs"].number());
     t.partOffDwellMs   = int(j["partOff"]["dwellMs"].number());
+    t.partOnCheckAfterPick   = j["partOn"]["checkAfterPick"].boolean(true);
+    t.partOnCheckAlign       = j["partOn"]["checkAlign"].boolean(true);
+    t.partOnCheckBeforePlace = j["partOn"]["checkBeforePlace"].boolean(true);
+    t.partOffCheckAfterPlace = j["partOff"]["checkAfterPlace"].boolean(true);
+    t.partOffCheckBeforePick = j["partOff"]["checkBeforePick"].boolean(true);
     if (const JJson& k = j["runoutCalibration"]; k.isObject()) {
         t.runoutCalibration.enabled        = k["enabled"].boolean();
         t.runoutCalibration.divisions      = int(k["divisions"].number(t.runoutCalibration.divisions));
@@ -266,6 +272,7 @@ JJson JPNozzleTipConfig::toJson() const {
     if (placeDwellMs) j["placeDwellMs"] = placeDwellMs;
     for (const auto& [key, sensing] : { std::pair{ "partOn", &partOn }, std::pair{ "partOff", &partOff } }) {
         j[key]["method"]   = sensing->method;
+        j[key]["establish"] = sensing->establish;
         j[key]["low"]      = sensing->low;
         j[key]["high"]     = sensing->high;
         j[key]["diffLow"]  = sensing->diffLow;
@@ -273,6 +280,11 @@ JJson JPNozzleTipConfig::toJson() const {
     }
     j["partOff"]["probingMs"] = partOffProbingMs;
     j["partOff"]["dwellMs"]   = partOffDwellMs;
+    j["partOn"]["checkAfterPick"]    = partOnCheckAfterPick;
+    j["partOn"]["checkAlign"]        = partOnCheckAlign;
+    j["partOn"]["checkBeforePlace"]  = partOnCheckBeforePlace;
+    j["partOff"]["checkAfterPlace"]  = partOffCheckAfterPlace;
+    j["partOff"]["checkBeforePick"]  = partOffCheckBeforePick;
     j["runoutCalibration"]["enabled"]        = runoutCalibration.enabled;
     j["runoutCalibration"]["divisions"]      = runoutCalibration.divisions;
     j["runoutCalibration"]["misdetects"]     = runoutCalibration.misdetects;

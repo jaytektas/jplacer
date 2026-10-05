@@ -706,6 +706,25 @@ void JPlacerMachine::watchCell() {
             for (CameraDock& c : m_cameras) c.panel->refreshStraightening();
         });
     }));
+    // A tip's vacuum readings and graph, shown on its Part Detection tab.
+    m_unwatch.push_back(m_cell->onVacuumReadings.connect([this, onMain](std::string tipId) {
+        onMain([this, tipId] {
+            if (!m_setup || !m_cell) return;
+            JPNozzleTipConfig::Sensing on, off;
+            m_cell->vacuumReadings(tipId, on, off);
+            m_setup->measured([&](JPCellConfig& cell) {
+                for (JPNozzleTipConfig& t : cell.nozzleTips) {
+                    if (t.id != tipId) continue;
+                    for (auto [from, into] : { std::pair { &on, &t.partOn }, std::pair { &off, &t.partOff } }) {
+                        into->lastReading = from->lastReading;
+                        into->lastDifference = from->lastDifference;
+                        into->vacuumGraph = from->vacuumGraph;
+                        into->valveGraph = from->valveGraph;
+                    }
+                }
+            });
+        });
+    }));
     m_unwatch.push_back(m_cell->onHomed.connect([this, onMain](bool homed) {
         onMain([this, homed] {
             if (!homed && onUnhomed) onUnhomed();
