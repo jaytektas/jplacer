@@ -30,8 +30,10 @@ What is brought across:
   and those that follow another axis (such as two nozzles sharing one Z, one of them reversed).
 - **The head**, its **nozzles** (with the actuator for each nozzle's vacuum, the nozzle tips that fit
   it and the one on it), **cameras** (each by
-  the name its device gives itself, with its light) and **actuators**, and the cameras and actuators
-  fixed to the machine.
+  the name its device gives itself, with its light; an OpenCvCamera by its device index, `/dev/video<index>`,
+  its OpenCV capture properties as the camera's settings; a Webcam by its name; MJPG, image, switcher, ONVIF
+  and GStreamer cameras as they were; a SimulatedUpCamera as a simulated camera that sees the nozzle tips in
+  Simulation Mode) and **actuators**, and the cameras and actuators fixed to the machine.
 - **Actuator commands**: how each one is switched on and off, and how a value is read from it.
 - **The home command**, every line of it, in order: a machine's homing sequence (release Z, home Y and X
   onto their switches, set the coordinates, home Z…) is the controller's own, and Home runs it.
