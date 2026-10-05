@@ -45,6 +45,10 @@ public:
 
     std::vector<Nozzle> nozzles() const override { return heads; }
     std::vector<std::pair<std::string, std::string>> tips() const override { return { { "T1", "Tip 1" }, { "T2", "Tip 2" } }; }
+    bool cameraReaches(const JPLocation&) const override { return true; }
+    TipPush tipPush(const std::string&) const override { return { true, 1.0 }; }
+    std::string holdingPart(const std::string&) const override { return {}; }
+    std::string chosenNozzle() const override { return {}; }
     std::optional<JPLocation> cameraLocation() const override { return at(0, 0); }
     bool safeZ(std::string&) override { log.push_back("safeZ"); return true; }
     bool changeTip(const std::string& n, const std::string& t, std::string&) override {

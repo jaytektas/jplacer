@@ -617,10 +617,17 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
     add.integer("pickDwellMs", "Pick Dwell Time (ms)", [t]() -> int& { return t().pickDwellMs; }, 0, 60000);
     add.integer("placeDwellMs", "Place Dwell Time (ms)", [t]() -> int& { return t().placeDwellMs; }, 0, 60000);
     add.note("Added to the nozzle's own dwell.");
+    add.group("Push and Drag Usage");
+    add.flag("pushAndDragAllowed", "Push & Drag allowed?", [t]() -> bool& { return t().pushAndDragAllowed; });
+    add.tip("Determines if the NozzleTip is allowed to be used for pushing and dragging.\nShould only be enabled for NozzleTips "
+            "that are sturdy enough to take the lateral forces, including the occasional snag.");
+    add.number("diameterLowMm", "Outside Diameter", [t]() -> double& { return t().diameterLowMm; });
+    add.tip("Outside diameter of the nozzle tip at the lowest ~0.75mm.");
     add.group("Part Dimensions");
     add.number("diameter", "Diameter Seen From Below", [t]() -> double& { return t().diameter; });
     add.number("maxPartDiameterMm", "Max. Part Diameter", [t]() -> double& { return t().maxPartDiameterMm; });
     add.tip("Maximum diameter/diagonal of parts picked with this nozzle tip, including tolerances.");
+
     add.number("maxPickToleranceMm", "Max. Pick Tolerance", [t]() -> double& { return t().maxPickToleranceMm; });
     add.tip("Maximum assumed pick tolerance allowed with this nozzle tip.\nThis determines how far away from the nominal "
             "location a detected Bottom Vision alignment position is accepted. It also reduces the computation time of some "

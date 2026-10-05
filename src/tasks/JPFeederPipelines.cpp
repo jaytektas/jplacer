@@ -4,6 +4,7 @@
 #include "JPFeederPipelines.h"
 
 #include "model/JPLength.h"
+#include "model/JPBlindsFeeders.h"
 #include "model/JPPushPullTemplates.h"
 #include "openpnp/JPXmlReader.h"
 #include "openpnp/JPXmlWriter.h"
@@ -38,6 +39,7 @@ const std::string* defaultOf(const JPFeeder& f, const std::string& element, cons
         if (kind == "ReferenceStripFeeder") return &JPDefaultPipelines::stripFeeder();
         if (kind == "ReferenceLoosePartFeeder") return &JPDefaultPipelines::loosePartFeeder();
         if (kind == "AdvancedLoosePartFeeder") return &JPDefaultPipelines::advancedLoosePartFeeder();
+        if (kind == "BlindsFeeder") return &JPDefaultPipelines::blindsFeeder();
         // By its Vision Type.
         if (kind == "BambooFeederAutoVision" || kind == "ReferencePushPullFeeder") {
             const std::string fallback = kind == "BambooFeederAutoVision" ? "CircularSymmetry" : "ColorKeyed";
@@ -155,6 +157,29 @@ void JPFeederPipelines::setupOcr(const JPConfiguration& config, const JPFeeder& 
     } else {
         pipeline.removeProperty("regionOfInterest");
     }
+    pipeline.setProperty("SimpleOcr.fontName", JPPipelineValue { feeder.text("ocr-font-name", kOcrFontName) });
+    pipeline.setProperty("SimpleOcr.fontSizePt", JPPipelineValue { feeder.real("ocr-font-size-pt", kOcrFontSizePt) });
+    pipeline.setProperty("SimpleOcr.alphabet", JPPipelineValue { JPPushPullTemplates::partsAlphabet(config, "\\") });
+}
+
+void JPFeederPipelines::setupBlindsOcr(const JPConfiguration& config, const JPFeeder& feeder, JPPipeline& pipeline, const JPLocation& cameraAt,
+                                       const std::string& action) {
+    if (action == "None") {
+        disableOcr(pipeline);
+        return;
+    }
+    // The label's corners, about the camera.
+    const std::array<JPLocation, 3> corners =
+        JPBlindsFeeders::ocrRegionCorners(feeder, feeder.lengthOf("pocket-centerline", JPLength(0, JPLengthUnit::Millimeters))
+                                                      .convertToUnits(JPLengthUnit::Millimeters)
+                                                      .value());
+    const JPLocation at = cameraAt.convertToUnits(JPLengthUnit::Millimeters);
+    auto offset = [&](const JPLocation& c) {
+        const JPLocation m = JPBlindsFeeders::feederToMachine(feeder, c);
+        return JPPipelineValue::LocationMm { m.x() - at.x(), m.y() - at.y() };
+    };
+    pipeline.setProperty("regionOfInterest", JPPipelineValue { JPPipelineValue::RegionOfInterest { offset(corners[0]), offset(corners[1]),
+                                                                                                   offset(corners[2]), true } });
     pipeline.setProperty("SimpleOcr.fontName", JPPipelineValue { feeder.text("ocr-font-name", kOcrFontName) });
     pipeline.setProperty("SimpleOcr.fontSizePt", JPPipelineValue { feeder.real("ocr-font-size-pt", kOcrFontSizePt) });
     pipeline.setProperty("SimpleOcr.alphabet", JPPipelineValue { JPPushPullTemplates::partsAlphabet(config, "\\") });

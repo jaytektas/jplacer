@@ -99,6 +99,36 @@ std::optional<JPLocation> JPlacerJobMachine::cameraLocation() const {
     return l;
 }
 
+bool JPlacerJobMachine::cameraReaches(const JPLocation& at) const {
+    bool reaches = true;
+    m_onMain([&] {
+        const JPCell* c = m_machine.cell();
+        const JPCameraFeed* feed = m_machine.headCameraFeed();
+        if (!c || !feed) return;
+        const JPLocation m = at.convertToUnits(JPLengthUnit::Millimeters);
+        reaches = c->reaches(feed->config().mount, m.x(), m.y());
+    });
+    return reaches;
+}
+
+JPJobMachine::TipPush JPlacerJobMachine::tipPush(const std::string& tipId) const {
+    for (const JPNozzleTipConfig& t : config().nozzleTips)
+        if (t.id == tipId) return { t.pushAndDragAllowed, t.diameterLowMm };
+    return {};
+}
+
+std::string JPlacerJobMachine::holdingPart(const std::string& nozzleId) const {
+    std::string part;
+    m_onMain([&] { part = m_machine.nozzlePart(nozzleId); });
+    return part;
+}
+
+std::string JPlacerJobMachine::chosenNozzle() const {
+    std::string id;
+    m_onMain([&] { id = m_machine.chosenNozzleId(); });
+    return id;
+}
+
 bool JPlacerJobMachine::safeZ(std::string& why) {
     JPCell* c = cell(why);
     return c && c->safeZAndWait(headId(config()), 1.0, why);

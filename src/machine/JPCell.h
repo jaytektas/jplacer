@@ -224,6 +224,8 @@ public:
     // the commanded one (389.001 for 389), and stepping from it carries the
     // error into every next step — until an exact limit refuses a move back.
     std::map<std::string, double> jogBase() const;
+    // Whether a tool can be taken to (x, y): every axis it moves within its soft limits (OpenPnP's isReachable).
+    bool reaches(const JPMountConfig& mount, double x, double y) const;
     // The firmware each connected controller identified as, by controller id.
     std::map<std::string, std::string> firmware() const;
 

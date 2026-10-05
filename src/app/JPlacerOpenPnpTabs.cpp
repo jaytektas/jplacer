@@ -3,6 +3,7 @@
 
 #include "JPlacerOpenPnpTabs.h"
 
+#include "JPlacerBlindsFiles.h"
 #include "JPlacerChildFiducialsDialog.h"
 #include "JPlacerClassSelectionDialog.h"
 #include "JPlacerChoiceDialog.h"
@@ -17,6 +18,7 @@
 #include <j/platform/JDesktop.h>
 #include "setup/JPIssueChecks.h"
 
+#include "model/JPBlindsFeeders.h"
 #include "model/JPDefinitionChanges.h"
 #include "tasks/JPFeederActions.h"
 #include "tasks/JPFeederFeed.h"
@@ -44,10 +46,16 @@ constexpr double kAtLocationMm = 0.001;
 JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, JPlacerJob& job, JPlacerMachine& machine)
     : m_window(window), m_job(job), m_machine(machine), m_layout(machine.layout()), m_pipelines(window, machine) {
     m_machine.setConfiguration(&job.configuration());
-    // As OpenPnP's vision tape feeders: unhomed, their calibration is no longer true.
+    // As OpenPnP's vision tape and blinds feeders: unhomed, their calibration is no longer true.
     m_machine.onUnhomed = [this] {
-        for (JPFeeder& f : m_job.configuration().feeders())
+        for (JPFeeder& f : m_job.configuration().feeders()) {
             if (f.isVisionTape()) f.visionOffset.reset();
+            // A blinds feeder's fiducials and cover no longer known.
+            if (f.typeName() == "BlindsFeeder") {
+                f.blinds.calibrated = false;
+                f.blinds.coverPositionMm.reset();
+            }
+        }
     };
     auto openMenu = [this](JMenu* menu, float x, float y) {
         if (JMenuManager::instance().onOpenMenu)
@@ -403,6 +411,14 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
             });
             return;
         }
+        // A blinds feeder's, the same for every feeder on its holder.
+        if (f->typeName() == "BlindsFeeder" && action.rfind("reset", 0) == 0) {
+            if (JPFeederPipelines::reset(*f)) {
+                JPBlindsFeeders::propagate(m_job.configuration(), feederId);
+                m_job.configurationChanged();
+            }
+            return;
+        }
         if (heap && action.rfind("reset", 0) == 0) {
             if (JPFeederPipelines::reset(*f, element, &boxes)) m_job.configurationChanged();
             return;
@@ -429,6 +445,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         }
         editFeederPipeline(feederId, element);
     };
+    m_feeders->extractBlindsFiles = [] { JPlacerBlindsFiles::extract(); };
     m_feeders->partUsed = [this](const std::string& partId) {
         for (const JPBoardLocation* l : m_job.job().boardLocations()) {
             if (!l->isEnabled() || !l->holder) continue;
@@ -770,11 +787,16 @@ void JPlacerOpenPnpTabs::editFeederPipeline(const std::string& feederId, const s
     auto pipeline = std::make_shared<JPPipeline>(std::move(*held));
     m_pipelines.useHeadCamera(*pipeline, m_job.configuration().directory());
     JPFeederPipelines::configureForEditing(m_job.configuration(), *f, *pipeline);
+    // A blinds feeder's OCR as it reads, about where the camera is.
+    if (kind == "BlindsFeeder")
+        if (const auto at = m_machine.toolLocation(JPSetupForm::Tool::Camera))
+            JPFeederPipelines::setupBlindsOcr(m_job.configuration(), *f, *pipeline, *at, f->text("ocr-action", "None"));
     const std::string title = (loose ? f->partId() : f->name())
                               + (heap ? (training ? " Training-Pipeline" : " Feeder-Pipeline") : training ? " Training Pipeline" : " Pipeline");
     m_pipelines.edit(title, pipeline, [this, feederId, element](const JPPipeline& edited) {
         if (JPFeeder* kept = m_job.configuration().feeder(feederId)) {
             kept->setPipeline(edited.toXml(), element);
+            if (kept->typeName() == "BlindsFeeder") JPBlindsFeeders::propagate(m_job.configuration(), feederId);
             m_job.configurationChanged();
         }
     });

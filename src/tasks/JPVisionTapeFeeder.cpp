@@ -5,6 +5,7 @@
 
 #include "JPFeederPipelines.h"
 #include "JPFeederVision.h"
+#include "JPTravel.h"
 
 #include "common/JPlacerLog.h"
 #include "model/JPFeederTape.h"
@@ -730,16 +731,7 @@ bool JPVisionTapeFeeder::performOcrOnAll(JPConfiguration& config, const std::str
         return false;
     }
     // Along the shortest path from the camera, by place: a feeder may be swapped out on the way.
-    std::vector<size_t> order(places.size());
-    for (size_t i = 0; i < order.size(); ++i) order[i] = i;
-    std::optional<JPLocation> at = machine.cameraLocation();
-    for (size_t k = 0; k < order.size(); ++k) {
-        size_t best = k;
-        for (size_t i = k; i < order.size(); ++i)
-            if (at && places[order[i]].linearDistanceTo(*at) < places[order[best]].linearDistanceTo(*at)) best = i;
-        std::swap(order[k], order[best]);
-        at = places[order[k]];
-    }
+    const std::vector<size_t> order = JPTravel::order(places, machine.cameraLocation(), std::nullopt);
     for (const size_t i : order) {
         std::string there;
         Ocr ocr { action, stop, &report };

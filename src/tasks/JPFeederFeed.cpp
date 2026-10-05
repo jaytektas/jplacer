@@ -4,6 +4,7 @@
 #include "JPFeederFeed.h"
 
 #include "JPVisionTapeFeeder.h"
+#include "JPBlindsFeeder.h"
 #include "JPHeapFeeder.h"
 
 #include "JPFeederPipelines.h"
@@ -278,6 +279,11 @@ bool JPFeederFeed::feed(JPConfiguration& config, const std::string& feederId, co
         if (const JPFeeder* f = config.feeder(feederId)) tape = f->isVisionTape();
     });
     if (tape) return JPVisionTapeFeeder::feed(config, feederId, nozzleId, machine, onMain, why);
+    bool blinds = false;
+    main([&] {
+        if (const JPFeeder* f = config.feeder(feederId)) blinds = f->typeName() == "BlindsFeeder";
+    });
+    if (blinds) return JPBlindsFeeder::feed(config, feederId, nozzleId, machine, onMain, why);
     bool heap = false;
     main([&] {
         if (const JPFeeder* f = config.feeder(feederId)) heap = f->typeName() == "ReferenceHeapFeeder";

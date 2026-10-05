@@ -182,6 +182,16 @@ public:
         p.set = [set](const JVariant& v) { set(v.toString()); return true; };
         put(std::move(p));
     }
+    // One of `labels`, or a name typed in (an editable choice).
+    void editableChoice(const std::string& name, const std::string& label, const Strings& labels, std::function<std::string()> get,
+                        std::function<void(const std::string&)> set) {
+        JProperty p = make(name, label);
+        p.meta.editor = "editable-choice";
+        for (const std::string& l : labels) p.meta.choices.push_back(JVariant(l));
+        p.get = [get] { return JVariant(get()); };
+        p.set = [set](const JVariant& v) { set(v.toString()); return true; };
+        put(std::move(p));
+    }
     // One of `n`, kept as its id.
     void byName(const std::string& name, const std::string& label, const Named& n, std::function<std::string()> get,
                 std::function<void(const std::string&)> set) {

@@ -313,6 +313,48 @@ other feeder is (else a tape width and 8 mm down the tape), and sets it up with 
 
 <!-- src: src/setup/JPFeederForms.cpp (pushPullForm); src/tasks/JPVisionTapeFeeder.cpp (feedPushPull, autoSetup, performOcr, performOcrOnAll); src/tasks/JPFeederActions.cpp; src/tasks/JPFeederPipelines.cpp (setupOcr); src/model/JPPushPullTemplates.cpp; src/app/JPlacerOcrRegionSetup.cpp; src/ui/JPFeedersPanel.cpp (cloneFromTemplate, cloneToFeeders, plusOne) -->
 
+### Blinds feeder
+
+Tapes side by side in a 3D printed holder (OpenPnP's BlindsFeeder), under a cover with a window (blind) over each pocket
+that a nozzle pushes along the tape to open and close, or a cover pushed ahead of the part being picked. The holder's
+three diamond fiducials make its frame: fiducial 1 its corner, fiducial 2 along the tapes (their length, to whole 2 mm),
+fiducial 3 across them (the holder's extent). Every feeder whose fiducial 1 is the same (within 2 mm) and in the same
+group shares the holder's settings (fiducials, **Normalize**, the cover's calibrated edges for the same tape, vision and
+OCR settings, the pipeline): what one is set to, the others are set to. Setting fiducial 1 of a feeder with none takes
+a holder's settings from a feeder already on it; moving it more than 2 mm moves the whole holder; moving fiducial 2
+turns fiducial 3 with it. Feeders on a holder are numbered across it by their pocket centerline (**Feeder No.**,
+**Feeders Total**).
+
+- **Configuration**: the **Part** (**OCR Detect** reads its label and sets it), **Rotation in Tape**, **Part Z**
+  (**Get Tool Z** takes the chosen nozzle's), **Retry Count**; **Tape Settings**: **Tape Length** and **Feeder
+  Extent** (from the fiducials), **Pocket Pitch**, **Pocket Size**, **Pocket Count** (from the length and pitch),
+  **Pocket Centerline** (across the holder from fiducial 1), **First** and **Last Pocket** with parts, **Feed Count**
+  (**Reset** also forgets where the cover is). **Show Features** shows what vision finds from where the camera is:
+  blinds blue, fiducials white, the centerline and pocket lines, the pockets numbered. **Auto Setup**, with the camera
+  over the tape, takes a holder's settings when it is on one and finds the pocket centerline, pitch and size (with a
+  cover other than blinds: only the centerline, from the camera). **Cover Settings**: **Cover Type** (**NoCover**,
+  **BlindsCover**, **PushCover**), **Cover Open/Close** (**Manual**, **CheckOpen**: checked open by vision before each
+  feed, **OpenOnFirstUse**, **OpenOnJobStart**), **Push speed**, **Push Z Offset**, the **Edge Distance Open** and
+  **Closed** the nozzle pushes from, **Open Cover**, **Close Cover**, **Open All Covers**, **Close All Covers** (all
+  the blinds feeders whose covers are not so, the shortest way), and **Calibrate Cover Edges**, which opens and
+  closes the cover, looking where it lies, until it is within half the pocket position tolerance.
+- **Feeder Array**: the **Feeder Group Name** (choose or type one: a holder renamed, or joined), **Extract 3D-Printing
+  Files...** (OpenPnP's OpenSCAD models for the holder written to a folder, not over files there); the **Fiducial 1**
+  to **3** locations, **Normalize** (trust the holder's whole mm grid over vision) and **Calibrate Fiducials**; **Use
+  Fiducial Vision?** (calibrated by vision on first use; fiducial 2 out of the camera's reach is rebuilt from 1 and 3);
+  the **OCR Action** (**None**, **CheckCorrect**: a wrong part stops, **ChangePart**), **OCR Text Orientation**,
+  **OCR Margin** (where the labels are, before the tapes; negative: after them), **OCR Font** and size, **Set OCR
+  Settings to all** and **Set Pipeline to all** (every other blinds feeder, asked first), **Edit** and **Reset
+  Pipeline**.
+
+The cover is pushed by a nozzle holding no part with a tip that allows pushing (Machine Setup, nozzle tip, Push and Drag
+Usage), the chosen nozzle first; when none has one, one is loaded (and on a feed, put back). A feed takes the next
+pocket ("empty" past the last), opening the cover as its actuation says. Before a job, the feeders it uses that need it
+are visited: calibrated, opened, their label read; a tip loaded to push is put back, and a part OCR changed stops the
+job ("OCR changed parts: … Please review.").
+
+<!-- src: src/setup/JPFeederForms.cpp (blindsForm); src/model/JPBlindsFeeders.cpp; src/tasks/JPBlindsFeeder.cpp; src/tasks/JPBlindsVision.cpp; src/tasks/JPJobProcessor.cpp (preFlight); src/app/JPlacerBlindsFiles.cpp; src/ui/JPFeedersPanel.cpp -->
+
 ### Heap feeder
 
 Loose parts in a heap (OpenPnP's ReferenceHeapFeeder), taken out by the nozzle and dropped into a drop box to be looked at.

@@ -93,6 +93,8 @@ public:
     // ("ocrRegionCancel"); what its going-on button says while under way (empty: not under way).
     std::function<void(const std::string& feederId, const std::string& action)> ocrRegion;
     std::function<std::string()> ocrRegionStep;
+    // A blinds feeder's Extract 3D-Printing Files: the OpenSCAD files written to a folder chosen.
+    std::function<void()> extractBlindsFiles;
     // The page made again (Auto Setup started or ended).
     void rebuild();
     // What a page's button read from the machine (by its action), shown on the feeder's page.

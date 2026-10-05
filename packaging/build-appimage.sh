@@ -38,6 +38,8 @@ cp -r "$ROOT/manual/site" "$APPDIR/usr/bin/manual"
 cp -r "$ROOT/profiles" "$APPDIR/usr/bin/profiles"
 # OpenPnP's icons too: JPOpenPnpIcons reads usr/bin/icons.
 cp -r "$ROOT/icons" "$APPDIR/usr/bin/icons"
+# And its BlindsFeeder OpenSCAD models: a blinds feeder's Extract 3D-Printing Files reads usr/bin/openscad.
+cp -r "$ROOT/openscad" "$APPDIR/usr/bin/openscad"
 
 # The icon twice: the PNG is what the AppImage itself shows, and both are what jplacer copies into the
 # icon theme when it adds itself to the applications menu (src/app/JPlacerLauncher.cpp).

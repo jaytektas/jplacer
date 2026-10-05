@@ -44,6 +44,10 @@ public:
     // the stages' own region, font and size).
     static void setupOcr(const JPConfiguration& config, const JPFeeder& feeder, JPPipeline& pipeline);
     static void disableOcr(JPPipeline& pipeline);
+    // A blinds feeder's OCR as `action` asks (None: off): its label's corners,
+    // about the camera at `cameraAt`, the region of interest, rectified.
+    static void setupBlindsOcr(const JPConfiguration& config, const JPFeeder& feeder, JPPipeline& pipeline, const JPLocation& cameraAt,
+                               const std::string& action);
 };
 
 } // inline namespace jf

@@ -502,6 +502,18 @@ bool JPCell::doAt(const std::string& nozzleId, const std::array<std::optional<do
     return false;
 }
 
+bool JPCell::reaches(const JPMountConfig& mount, double x, double y) const {
+    std::map<std::string, double> target;
+    if (!mount.axisX.empty()) target[mount.axisX] = x - mount.offsetX;
+    if (!mount.axisY.empty()) target[mount.axisY] = y - mount.offsetY;
+    for (const auto& [id, t] : toAxes(target, jogBase())) {
+        const JPAxisConfig* a = m_config.axis(id);
+        if (!a) continue;
+        if ((a->softLimitLowEnabled && t < a->softLimitLow) || (a->softLimitHighEnabled && t > a->softLimitHigh)) return false;
+    }
+    return true;
+}
+
 bool JPCell::waitFor(std::function<bool(std::string&)> work, std::string& why) {
     if (m_moving.exchange(true)) {
         why = "another move is under way";

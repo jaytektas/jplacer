@@ -141,6 +141,18 @@ public:
     // is from where vision found it (none: not calibrated); forgotten when its
     // pick location or holes are set (setLocationOf) or the machine is unhomed.
     std::optional<JPLocation> visionOffset;
+    // A blinds feeder (OpenPnP's BlindsFeeder), while jplacer runs: where its
+    // cover was last seen or left (mm along its tape, OpenPnP's coverPosition;
+    // none: not known), whether its fiducials are calibrated (and being so),
+    // and the part OCR replaced on job start (to stop the job).
+    struct Blinds {
+        std::optional<double> coverPositionMm;
+        bool                  calibrated = false, calibrating = false;
+        std::string           ocrChangedPartId;
+        // A nozzle given a tip to push the cover on job start, and the tip it had (to be put back).
+        std::string           pushNozzleId, pushTipBefore;
+    };
+    Blinds blinds;
     // Whether it is one (its pick location from JPFeederTape).
     bool isVisionTape() const { return typeName() == "BambooFeederAutoVision" || typeName() == "ReferencePushPullFeeder"; }
     // OpenPnP's resetVisionOffsets.

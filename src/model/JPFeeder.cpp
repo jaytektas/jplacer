@@ -3,6 +3,7 @@
 
 #include "JPFeeder.h"
 
+#include "JPBlindsFeeders.h"
 #include "JPFeederTape.h"
 
 #include "JPLengthUnits.h"
@@ -250,6 +251,8 @@ std::optional<JPLocation> JPFeeder::pickLocation() const {
         if (!photonUnconfigured().empty()) return std::nullopt;
         return locationOf("offset").offsetWithRotationFrom(*photonSlotLocation);
     }
+    // The pocket fed, in its holder's frame.
+    if (kind == "BlindsFeeder") return JPBlindsFeeders::pickLocation(*this, JPBlindsFeeders::fedPocket(*this));
     // Where its tape's frame puts the part in the feed cycle (OpenPnP's 1-based count: at 0, the last).
     if (isVisionTape()) {
         const JPFeederTape::Params tape = JPFeederTape::of(*this);
@@ -348,10 +351,10 @@ bool JPFeeder::feed(std::string& why, bool* empty) {
         if (feedOptions() == FeedOptions::SkipNext) setFeedOptions(FeedOptions::Normal);
         return true;
     }
-    // A tube: nothing to do; a drag, lever, Rapid, Schultz, Neoden 4, Photon, loose part, heap or Bamboo feeder's feed is the machine's (JPFeederFeed). An auto feeder: its actuator, on a normal feed (JPFeederFeed).
+    // A tube: nothing to do; a drag, lever, Rapid, Schultz, Neoden 4, Photon, loose part, heap, blinds or Bamboo feeder's feed is the machine's (JPFeederFeed). An auto feeder: its actuator, on a normal feed (JPFeederFeed).
     if (kind == "ReferenceTubeFeeder" || kind == "ReferenceDragFeeder" || kind == "ReferenceLeverFeeder" || kind == "RapidFeeder"
         || kind == "SchultzFeeder" || kind == "Neoden4Feeder" || kind == "PhotonFeeder" || kind == "ReferenceLoosePartFeeder"
-        || kind == "AdvancedLoosePartFeeder" || kind == "ReferenceHeapFeeder" || isVisionTape())
+        || kind == "AdvancedLoosePartFeeder" || kind == "ReferenceHeapFeeder" || kind == "BlindsFeeder" || isVisionTape())
         return true;
     if (kind == "ReferenceAutoFeeder") {
         m_actuate = feedOptions() == FeedOptions::Normal;

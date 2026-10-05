@@ -30,6 +30,12 @@ notes.
   end locations ticked, each at its speed with its delay, the auxiliary (peel) actuator, multiple actuations, additive
   rotation; their sprocket holes calibrated by vision as Bamboo feeders' are, Auto-Setup (trying the stock pipelines when
   the feeder's own fails), Preview Vision Features, Discard Parts and the Push-Pull Motion tab.
+- Blinds feeders (BlindsFeeder) work as OpenPnP's: the holder's fiducials and their calibration, the tapes on one holder
+  sharing its settings and numbered across it, Auto Setup of the pockets, Show Features, the covers opened and closed by
+  a nozzle tip that may push (Open/Close Cover, Open/Close All Covers, Calibrate Cover Edges, opened on first use or on
+  job start), push covers, OCR of the part's label, feeder groups, the pipeline and OCR settings set to all, and Extract
+  3D-Printing Files.
+- Nozzle tips have OpenPnP's Push and Drag Usage: whether a tip may push, and its outside diameter.
 - Push-pull feeders read the part in them by OCR as OpenPnP's: Setup OCR Region on the camera's view, Part by OCR,
   All Feeder OCR with its report, the wrong part actions (swap feeders, swap or create one, change the part, with or
   without cloning), Stop after wrong part, and the check on job start. Their Clone Settings: a feeder used as a

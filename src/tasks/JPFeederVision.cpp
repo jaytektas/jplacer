@@ -188,9 +188,9 @@ bool JPFeederVision::find(const JPPipelineModel& results, Mode mode, const Setti
                                           .derive(std::nullopt, std::nullopt, std::nullopt, 0.0);
                 // Onto EIA-481's grid.
                 if (settings.normalizePickLocation)
-                    relative = JPLocation(kMm, std::round(relative.x() / kPartPitchMinMm) * kPartPitchMinMm,
+                    relative = JPLocation(kMm, std::floor(relative.x() / kPartPitchMinMm + 0.5) * kPartPitchMinMm,
                                           -kHoleToPartMinMm
-                                              + std::round((relative.y() + kHoleToPartMinMm) / kHoleToPartGridMm) * kHoleToPartGridMm,
+                                              + std::floor((relative.y() + kHoleToPartMinMm) / kHoleToPartGridMm + 0.5) * kHoleToPartGridMm,
                                           0, 0);
                 found.pick = found.hole1->add(relative.rotateXy(angleTape)).derive(std::nullopt, std::nullopt, pick.z(), angleTape);
             }

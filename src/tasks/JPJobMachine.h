@@ -39,6 +39,17 @@ public:
     virtual std::vector<std::pair<std::string, std::string>> tips() const = 0;
     // Where the head's camera is now; none when it cannot be told.
     virtual std::optional<JPLocation> cameraLocation() const = 0;
+    // Whether the head camera can be taken to `at` (its axes within their soft limits).
+    virtual bool cameraReaches(const JPLocation& at) const = 0;
+    // A nozzle tip's Push and Drag Usage: whether it may push, and its outside diameter at its lowest (mm).
+    struct TipPush {
+        bool   allowed = false;
+        double diameterLowMm = 0;
+    };
+    virtual TipPush tipPush(const std::string& tipId) const = 0;
+    // The part a nozzle holds (empty: none), and the nozzle chosen on the Jog panel (empty: none).
+    virtual std::string holdingPart(const std::string& nozzleId) const = 0;
+    virtual std::string chosenNozzle() const = 0;
     // An actuator on the head to `to` (X, Y, Z, rotation; one not given stays
     // as it is) at `speed` (0..1) of the machine's: up to safe Z and across
     // first when `safeZFirst`, else straight there, every axis at once.

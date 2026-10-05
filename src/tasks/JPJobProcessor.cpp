@@ -6,11 +6,14 @@
 #include "JPAlignRequests.h"
 
 #include "JPFeederFeed.h"
+#include "JPBlindsFeeder.h"
+#include "JPTravel.h"
 #include "JPVisionTapeFeeder.h"
 #include "JPPhotonFeeders.h"
 #include "JPFiducialLocator.h"
 
 #include "common/JPlacerLog.h"
+#include "model/JPBlindsFeeders.h"
 #include "model/JPBoardLocation.h"
 #include "model/JPPanel.h"
 #include "model/JPPanelLocation.h"
@@ -67,53 +70,6 @@ JPLocation mm(const JPLocation& l) { return l.convertToUnits(JPLengthUnit::Milli
 double distance(const JPLocation& a, const JPLocation& b) {
     const JPLocation x = mm(a), y = mm(b);
     return std::hypot(x.x() - y.x(), x.y() - y.y());
-}
-
-// OpenPnP's TravellingSalesman: an order through `points` from `start`
-// (and towards `end`), short: nearest first, then improved by 2-opt.
-std::vector<size_t> travel(const std::vector<JPLocation>& points, const std::optional<JPLocation>& start,
-                           const std::optional<JPLocation>& end) {
-    const size_t n = points.size();
-    std::vector<size_t> order;
-    if (n == 0) return order;
-    std::vector<bool> used(n, false);
-    std::optional<JPLocation> at = start;
-    for (size_t k = 0; k < n; ++k) {
-        size_t best = n;
-        double bestD = std::numeric_limits<double>::max();
-        for (size_t i = 0; i < n; ++i) {
-            if (used[i]) continue;
-            const double d = at ? distance(*at, points[i]) : 0;
-            if (d < bestD) {
-                bestD = d;
-                best = i;
-            }
-        }
-        used[best] = true;
-        order.push_back(best);
-        at = points[best];
-    }
-    // The path's length, from the start and to the end where given.
-    auto length = [&](const std::vector<size_t>& o) {
-        double l = start ? distance(*start, points[o.front()]) : 0;
-        for (size_t i = 1; i < o.size(); ++i) l += distance(points[o[i - 1]], points[o[i]]);
-        if (end) l += distance(points[o.back()], *end);
-        return l;
-    };
-    bool better = true;
-    for (int pass = 0; better && pass < 50; ++pass) {
-        better = false;
-        for (size_t i = 0; i + 1 < n; ++i)
-            for (size_t j = i + 1; j < n; ++j) {
-                std::vector<size_t> trial = order;
-                std::reverse(trial.begin() + long(i), trial.begin() + long(j) + 1);
-                if (length(trial) + 1e-9 < length(order)) {
-                    order = trial;
-                    better = true;
-                }
-            }
-    }
-    return order;
 }
 
 // The middle of some places; none without any.
@@ -275,26 +231,37 @@ JPJobProcessor::Step JPJobProcessor::preFlight() {
     for (const std::string& id : photon)
         if (!JPPhotonFeeders::prepareForJob(m_config, id, m_machine, [this](const std::function<void()>& fn) { main(fn); }, why))
             fail(Source::Feeder, id, why);
-    // A Bamboo feeder the job uses, not yet calibrated: visited along the
-    // shortest path from the camera, and calibrated.
-    std::vector<std::string> visit;
+    // OpenPnP's feeder preparation: the feeders the job uses that need a
+    // visit (a Bamboo or push-pull feeder not yet calibrated; a blinds feeder
+    // to calibrate, read or open) visited along the shortest path from the
+    // camera; then every blinds feeder used prepared after the visits.
+    std::vector<std::string> visit, used;
     std::vector<JPLocation> visitAt;
     main([&] {
         for (const JPFeeder& f : m_config.feeders()) {
-            if (!f.enabled() || !f.isVisionTape()) continue;
-            const auto at = JPVisionTapeFeeder::jobPreparationLocation(f);
+            const bool blinds = f.typeName() == "BlindsFeeder";
+            if (!f.enabled() || !(f.isVisionTape() || blinds)) continue;
+            if (std::none_of(m_jobPlacements.begin(), m_jobPlacements.end(), [&f](const JobPlacement& j) { return j.partId == f.partId(); }))
+                continue;
+            if (blinds) used.push_back(f.id());
+            const auto at = blinds ? JPBlindsFeeders::jobPreparationLocation(f) : JPVisionTapeFeeder::jobPreparationLocation(f);
             if (!at) continue;
-            for (const JobPlacement& j : m_jobPlacements)
-                if (j.partId == f.partId()) {
-                    visit.push_back(f.id());
-                    visitAt.push_back(*at);
-                    break;
-                }
+            visit.push_back(f.id());
+            visitAt.push_back(*at);
         }
     });
-    for (const size_t i : travel(visitAt, m_machine.cameraLocation(), std::nullopt))
-        if (!JPVisionTapeFeeder::prepareForJob(m_config, visit[i], m_machine, [this](const std::function<void()>& fn) { main(fn); }, why))
-            fail(Source::Feeder, visit[i], why);
+    const auto onMain = [this](const std::function<void()>& fn) { main(fn); };
+    for (const size_t i : JPTravel::order(visitAt, m_machine.cameraLocation(), std::nullopt)) {
+        bool blinds = false;
+        main([&] {
+            if (const JPFeeder* f = m_config.feeder(visit[i])) blinds = f->typeName() == "BlindsFeeder";
+        });
+        const bool ok = blinds ? JPBlindsFeeder::prepareForJob(m_config, visit[i], true, m_machine, onMain, why)
+                               : JPVisionTapeFeeder::prepareForJob(m_config, visit[i], m_machine, onMain, why);
+        if (!ok) fail(Source::Feeder, visit[i], why);
+    }
+    for (const std::string& id : used)
+        if (!JPBlindsFeeder::prepareForJob(m_config, id, false, m_machine, onMain, why)) fail(Source::Feeder, id, why);
     m_restart = true;
     return Step::FiducialCheck;
 }
@@ -429,7 +396,7 @@ std::vector<size_t> JPJobProcessor::byPickLocation(const std::vector<size_t>& in
         }
     });
     if (!feeders.empty()) {
-        const std::vector<size_t> order = travel(picks, start, std::nullopt);
+        const std::vector<size_t> order = JPTravel::order(picks, start, std::nullopt);
         for (const size_t i : local)
             for (size_t k = 0; k < order.size(); ++k)
                 if (feeders[order[k]] == m_jobPlacements[i].partId) {
@@ -463,7 +430,7 @@ std::vector<size_t> JPJobProcessor::byPickPlaceLocation(const std::vector<size_t
         main([&] {
             for (const size_t i : group) places.push_back(placeLocation(i));
         });
-        for (const size_t k : travel(places, from, std::nullopt)) out.push_back(group[k]);
+        for (const size_t k : JPTravel::order(places, from, std::nullopt)) out.push_back(group[k]);
         main([&] {
             if (first) {
                 m_previousPlaceStart = placeLocation(out.front());
@@ -796,7 +763,7 @@ void JPJobProcessor::optimize(bool byPick) {
     });
     if (places.size() != m_planned.size()) return;   // not every one has a place: as planned
     std::vector<Planned> order;
-    for (const size_t i : travel(places, m_machine.cameraLocation(), std::nullopt)) order.push_back(m_planned[i]);
+    for (const size_t i : JPTravel::order(places, m_machine.cameraLocation(), std::nullopt)) order.push_back(m_planned[i]);
     m_planned = order;
 }
 

@@ -8,6 +8,7 @@
 #include "camera/JPImageFile.h"
 #include "common/JPlacerLog.h"
 #include "setup/JPFeederForms.h"
+#include "model/JPBlindsFeeders.h"
 #include "model/JPPushPullTemplates.h"
 
 #include <j/core/Dialog.h>
@@ -92,6 +93,11 @@ JPFeedersPanel::JPFeedersPanel(JSceneGraph& graph, JPConfiguration& config, doub
     m_form->setOpenPnpPlaceButtons(true);
     m_form->setVSizePolicy(JSizePolicyMode::Expanding, 1);
     m_form->onChanged = [this](const std::string& property) {
+        // A blinds feeder's pockets counted again, and its holder's settings given to the others on it.
+        if (JPFeeder* f = m_config.feeder(m_shown); f && f->typeName() == "BlindsFeeder") {
+            JPBlindsFeeders::recalculateGeometry(*f);
+            JPBlindsFeeders::propagate(m_config, m_shown);
+        }
         m_table->refresh();
         changed();
         // The pin's name decides what its place rows' buttons move; a slot's
@@ -102,7 +108,8 @@ JPFeedersPanel::JPFeedersPanel(JSceneGraph& graph, JPConfiguration& config, doub
             if (const JPFeeder* f = m_config.feeder(m_shown); f && f->typeName() == "ReferencePushPullFeeder" && f->flag("additive-rotation", true))
                 machineAction(m_shown, "resetRotation");
         if (property == "actuator-name" || property.rfind("slot.", 0) == 0 || property == "drop-box-id" || property == "drop-box.name"
-            || property == "additive-rotation" || property == "used-as-template" || property == "part")
+            || property == "additive-rotation" || property == "used-as-template" || property == "part" || property == "feeder-group-name"
+            || property == "pocket-pitch" || property == "cover-type")
             jPostToNextFrame([this, alive = std::weak_ptr<bool>(m_alive)] {
                 if (const auto a = alive.lock(); a && *a) rebuildForm();
             });
@@ -123,6 +130,36 @@ JPFeedersPanel::JPFeedersPanel(JSceneGraph& graph, JPConfiguration& config, doub
         }
         if (action == "autoSetup" || action == "autoSetupCancel") {
             if (autoSetup) autoSetup(m_shown, action);
+            return;
+        }
+        if (action == "blindsGetToolZ") {
+            // The chosen nozzle's Z as the part's.
+            const Where at = whereIs ? whereIs(Tool::Nozzle) : Where {};
+            JPFeeder* f = m_config.feeder(m_shown);
+            if (!f || !at[2]) {
+                JDialog::message("Error", "Nothing captured: the machine is not connected.");
+                return;
+            }
+            f->setLocation(f->location().derive(std::nullopt, std::nullopt, *at[2], std::nullopt));
+            rebuild();
+            changed();
+            return;
+        }
+        if (action == "blindsOcrToAll" || action == "blindsPipelineToAll") {
+            const std::string id = m_shown;
+            JDialog::confirm("Warning",
+                             action == "blindsOcrToAll"
+                                 ? "This will replace the OCR settings of all the other BlindsFeeders on the machine with those of this BlindsFeeder. Are you sure?"
+                                 : "This will replace the pipeline of all the other BlindsFeeders on the machine with the pipeline of this BlindsFeeder. Are you sure?",
+                             [this, id, action] {
+                                 std::string why;
+                                 JPFeederForms::act(m_config, id, action, why);
+                                 changed();
+                             });
+            return;
+        }
+        if (action == "blindsExtract") {
+            if (extractBlindsFiles) extractBlindsFiles();
             return;
         }
         if (action == "setupOcrRegion" || action == "ocrRegionNext" || action == "ocrRegionCancel") {

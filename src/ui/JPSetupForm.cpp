@@ -13,6 +13,7 @@
 #include "JPTextField.h"
 #include "JPUiParts.h"
 
+#include <j/core/JComboBox.h>
 #include <j/core/FrameTimer.h>
 #include <j/core/JButton.h>
 #include <j/core/JColorButton.h>
@@ -326,7 +327,17 @@ std::unique_ptr<JWidget> JPSetupForm::editor(const JProperty& p, float width) {
         if (!p.meta.tooltip.empty()) e.widget->setTooltip(p.meta.tooltip);
         return std::move(e.widget);
     }
-    if (p.meta.editor == "color") {
+    if (p.meta.editor == "editable-choice") {
+        // A choice that may also be typed: the choices offered, any name kept (on Return or choosing).
+        std::vector<std::string> items;
+        for (const JVariant& c : p.meta.choices) items.push_back(c.toString());
+        auto combo = std::make_unique<JComboBox>(m_graph, items);
+        JComboBox* c = combo.get();
+        c->setEditable(true);
+        c->onTextChanged.connect([set = bound.set](const std::string& t) { set(JVariant(t)); });
+        e.pull = [c, get = p.get] { c->setEditText(get().toString()); };
+        e.widget = std::move(combo);
+    } else     if (p.meta.editor == "color") {
         // The swatch; a click opens the colour chooser.
         auto button = std::make_unique<JColorButton>(m_graph, 2 * numberWidth(), st.controlHeight);
         JColorButton* b = button.get();

@@ -38,6 +38,10 @@ public:
     int    looks = 0;
     std::vector<Nozzle> nozzles() const override { return {}; }
     std::vector<std::pair<std::string, std::string>> tips() const override { return {}; }
+    bool cameraReaches(const JPLocation&) const override { return true; }
+    TipPush tipPush(const std::string&) const override { return { true, 1.0 }; }
+    std::string holdingPart(const std::string&) const override { return {}; }
+    std::string chosenNozzle() const override { return {}; }
     std::optional<JPLocation> cameraLocation() const override { return std::nullopt; }
     bool safeZ(std::string&) override { return true; }
     bool changeTip(const std::string&, const std::string&, std::string&) override { return true; }

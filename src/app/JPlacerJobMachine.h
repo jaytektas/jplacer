@@ -33,6 +33,10 @@ public:
     std::vector<Nozzle> nozzles() const override;
     std::vector<std::pair<std::string, std::string>> tips() const override;
     std::optional<JPLocation> cameraLocation() const override;
+    bool cameraReaches(const JPLocation& at) const override;
+    TipPush tipPush(const std::string& tipId) const override;
+    std::string holdingPart(const std::string& nozzleId) const override;
+    std::string chosenNozzle() const override;
     bool isHomed() const override;
     bool safeZ(std::string& why) override;
     bool changeTip(const std::string& nozzleId, const std::string& tipId, std::string& why) override;
