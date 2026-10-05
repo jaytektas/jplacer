@@ -72,6 +72,9 @@ public:
     std::function<bool()> machineReady;
     // The machine's actuators by name.
     std::function<std::vector<std::string>()> actuatorNames;
+    // OpenPnP's Z probe: the head's Z probe read over (x, y) on the machine, its Z to `done`; false when there is
+    // no probe (nothing is done).
+    std::function<bool(double x, double y, std::function<void(double z)> done)> probeZ;
     // Whether the job uses a part (an enabled placement on an enabled board).
     std::function<bool(const std::string& partId)> partUsed;
 
@@ -127,6 +130,8 @@ private:
     void pick();
     void moveToPick(Tool tool);
     void capture(const JPSetupProperties::Row& row, Tool tool);
+    // A place captured (X, Y, Z, rotation; one not known left as it is) put in the row, from its base when it has one.
+    void applyCapture(const JPSetupProperties::Row& row, Where now);
     void goTo(const JPSetupProperties::Row& row, Tool tool);
     void changed();
     // The form made again for the feeder shown (its buttons changed), scrolled as it was.

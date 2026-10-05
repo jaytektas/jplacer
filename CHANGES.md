@@ -399,6 +399,8 @@ notes.
   unload steps) a tip change is asked to be done by hand, at the Manual Change Location when set; Change On Manual
   Pick puts a fitting tip on for a pick from the Feeders tab, which now refuses a pick with a tip that does not
   fit, as OpenPnP does.
+- A head can have OpenPnP's Z Probe actuator: Capture Camera Location then probes the place and fills in its Z.
+  It comes in with an OpenPnP machine.
 
 ## 0.1.0
 

@@ -599,6 +599,9 @@ void headForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
     add.note("Two round marks at two heights. A head camera is calibrated over the homing fiducial and, with Two "
              "Heights? on (its Advanced Calibration), again over the secondary mark, at least 1 mm higher or lower.");
 
+    add.group("Z Probe");
+    add.byName("zProbeActuator", "Z Probe Actuator", named(cell.actuators, "(none)"), [h]() -> std::string& { return h().zProbeActuatorId; });
+    add.tip("Read, in millimetres from where it is, wherever Capture Camera Location captures a place: the place's Z.");
     add.group("Pump");
     add.byName("pumpActuator", "Vacuum Pump Actuator", named(cell.actuators, "(none)"), [h]() -> std::string& { return h().pumpActuatorId; });
     add.choice("pumpControl", "Pump Control", { "None", "PartOn", "TaskDuration", "KeepRunning" },

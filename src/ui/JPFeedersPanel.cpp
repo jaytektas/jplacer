@@ -679,8 +679,26 @@ void JPFeedersPanel::capture(const JPSetupProperties::Row& row, Tool tool) {
         if (!whereIs) return;
         now = whereIs(tool);
     }
-    // As OpenPnP: the camera's coordinates are X, Y and rotation (its Z is what a Z probe finds).
-    if (tool == Tool::Camera) now[2].reset();
+    // As OpenPnP: the camera's coordinates are X, Y and rotation; its Z is what the head's Z probe finds there,
+    // filled in when the probe has read.
+    if (tool == Tool::Camera) {
+        now[2].reset();
+        if (probeZ && now[0] && now[1]) {
+            const Where at = now;
+            const JPSetupProperties::Row r = row;
+            if (probeZ(*now[0], *now[1], [this, at, r, alive = std::weak_ptr<bool>(m_alive)](double z) {
+                    if (const auto a = alive.lock(); !a || !*a) return;
+                    Where probed = at;
+                    probed[2] = z;
+                    applyCapture(r, probed);
+                }))
+                return;
+        }
+    }
+    applyCapture(row, now);
+}
+
+void JPFeedersPanel::applyCapture(const JPSetupProperties::Row& row, Where now) {
     // Offsets from a base: less it, turned back by its rotation.
     if (const auto base = row.base ? row.base() : std::nullopt; base && now[0] && now[1]) {
         const JPLocation at(JPLengthUnit::Millimeters, *now[0], *now[1], now[2].value_or(0), now[3].value_or(0));

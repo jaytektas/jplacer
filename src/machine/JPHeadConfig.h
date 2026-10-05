@@ -32,6 +32,9 @@ struct JPHeadConfig {
     std::string pumpActuatorId;
     std::string pumpControl;
     int         pumpOnWaitMs = 0;
+    // OpenPnP's Z Probe actuator: read (in mm, from where it is) at a place the
+    // camera captures, the place's Z.
+    std::string zProbeActuatorId;
 
     static JPHeadConfig fromJson(const JJson& j);
     JJson toJson() const;

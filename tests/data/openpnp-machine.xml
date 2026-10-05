@@ -69,6 +69,7 @@
          <head class="org.openpnp.machine.reference.ReferenceHead" id="H1" name="H1" visual-homing-method="ResetToFiducialLocation" vacuum-pump-control="KeepRunning" pump-on-wait-milliseconds="60000">
             <park-location units="Millimeters" x="390.0" y="420.0" z="0.0" rotation="0.0"/>
             <pump-actuator-name>RIGHT_SOLENOID</pump-actuator-name>
+            <z-probe-actuator-name>RIGHT_SOLENOID</z-probe-actuator-name>
             <homing-fiducial-location units="Millimeters" x="137.137" y="179.265" z="0.0" rotation="0.0"/>
             <calibration-primary-fiducial-location units="Millimeters" x="137.137" y="179.265" z="-23.6" rotation="0.0"/>
             <calibration-secondary-fiducial-location units="Millimeters" x="167.193" y="179.308" z="-12.7" rotation="0.0"/>

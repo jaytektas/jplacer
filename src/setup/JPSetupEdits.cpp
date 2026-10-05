@@ -227,6 +227,8 @@ bool JPSetupEdits::remove(JPCellConfig& cell, const std::string& path, std::stri
             if (n.vacuumActuatorId == p.id) users.push_back("nozzle " + n.name + " (its vacuum)");
         for (const JPHeadConfig& h : cell.heads)
             if (h.pumpActuatorId == p.id) users.push_back("head " + h.name + " (its pump)");
+        for (const JPHeadConfig& h : cell.heads)
+            if (h.zProbeActuatorId == p.id) users.push_back("head " + h.name + " (its Z probe)");
         for (const JPSignalerConfig& s : cell.signalers)
             if (s.kind == JPSignalerConfig::Kind::Actuator && s.actuatorId == p.id) users.push_back("signaler " + s.name);
         for (const JPActuatorConfig& a : cell.actuators)

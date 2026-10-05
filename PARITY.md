@@ -71,7 +71,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Homing fiducial, Visual Test, Visual Home | done | |
 | Park location | done | |
 | Calibration rig: primary, secondary marks, test object | partial | marks used by two-height calibration; test object unused |
-| Z probe actuator | missing | |
+| Z probe actuator | done | Capture Camera Location probes Z |
 | Pump: actuator, control mode, on-wait | done | |
 
 ## Nozzles

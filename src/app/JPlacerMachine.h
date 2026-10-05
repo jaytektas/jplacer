@@ -96,6 +96,8 @@ public:
 
     // Whether a job is running (no other cell is opened meanwhile).
     std::function<bool()> jobRunning;
+    // The head's Z probe read over (x, y), its Z to `done`; false without one (JPFeedersPanel::probeZ).
+    std::function<bool(double x, double y, std::function<void(double z)> done)> probeZ;
     // The machine connected or not (a job's Start, Step and Stop follow it, as OpenPnP's do).
     std::function<void(bool connected)> onConnectedChanged;
     // The machine no longer homed (or homed again: it is unhomed first), on the main thread.

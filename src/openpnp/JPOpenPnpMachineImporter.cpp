@@ -415,6 +415,7 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
     // Actuators first: nozzles name theirs.
     std::map<std::string, std::string> actuatorIdByName;
     std::map<std::string, std::string> pumpNames;   // head id -> its pump actuator's name
+    std::map<std::string, std::string> probeNames;  // head id -> its Z probe actuator's name
     auto addActuator = [&](const JPXmlElement& x, const std::string& headId) {
         JPActuatorConfig a;
         a.id       = x.attr("id");
@@ -698,6 +699,7 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             head.pumpControl           = h.attr("vacuum-pump-control");
             head.pumpOnWaitMs          = int(number(h.attr("pump-on-wait-milliseconds")));
             if (const JPXmlElement* pump = h.child("pump-actuator-name")) pumpNames[head.id] = pump->text;
+            if (const JPXmlElement* probe = h.child("z-probe-actuator-name")) probeNames[head.id] = probe->text;
             if (!h.attr("visual-homing-method").empty() && h.attr("visual-homing-method") != "None"
                 && h.attr("visual-homing-method") != "ResetToFiducialLocation")
                 notes.push_back("head " + head.name + ": visual homing method " + h.attr("visual-homing-method")
@@ -798,9 +800,12 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                 s.actuatorId.clear();
             }
         }
-    for (JPHeadConfig& h : c.heads)
+    for (JPHeadConfig& h : c.heads) {
+        if (const auto p = probeNames.find(h.id); p != probeNames.end())
+            if (const auto a = actuatorIdByName.find(p->second); a != actuatorIdByName.end()) h.zProbeActuatorId = a->second;
         if (const auto p = pumpNames.find(h.id); p != pumpNames.end())
             if (const auto a = actuatorIdByName.find(p->second); a != actuatorIdByName.end()) h.pumpActuatorId = a->second;
+    }
     for (const std::string& p : c.problems()) notes.push_back(p);
     JLOGC(JPlacerLog::kImport, JLogLevel::Info) << machineXml << ": " << c.drivers.size() << " controller(s), "
         << c.axes.size() << " axes, " << c.nozzles.size() << " nozzle(s), " << c.nozzleTips.size() << " nozzle tip(s), "

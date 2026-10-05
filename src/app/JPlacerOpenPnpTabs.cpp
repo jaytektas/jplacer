@@ -388,6 +388,41 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
             return JPFeederFeed::postPick(m_job.configuration(), feederId, machine, onMain, why) && machine.safeZ(why);
         });
     };
+    // OpenPnP's Cycles.zProbe: the head's Z probe over the place at safe Z, read (mm from where it is), and back.
+    auto probeZ = [this](double x, double y, std::function<void(double)> done) {
+        std::string probe;
+        if (const JPCell* c = m_machine.cell())
+            for (const JPHeadConfig& h : c->config().heads)
+                if (!h.zProbeActuatorId.empty())
+                    for (const JPActuatorConfig& a : c->config().actuators)
+                        if (a.id == h.zProbeActuatorId) probe = a.name.empty() ? a.id : a.name;
+        if (probe.empty()) return false;
+        return m_jobRun->machineTask([this, probe, x, y, done](JPJobMachine& machine,
+                                                             const std::function<void(const std::function<void()>&)>& onMain,
+                                                             std::string& why) {
+            JPlacerMachine::Where was;
+            onMain([&] { was = m_machine.whereIsActuator(probe); });
+            if (!machine.safeZ(why)) return false;
+            if (!machine.moveActuator(probe, JPLocation(JPLengthUnit::Millimeters, x, y, 0, 0), false, 1.0, why)) return false;
+            std::string reading;
+            if (!machine.readActuator(probe, "", reading, why)) return false;
+            char* end = nullptr;
+            const double z = std::strtod(reading.c_str(), &end);
+            if (end == reading.c_str()) {
+                why = "Z Probe " + probe + " conversion failed (" + reading + ")";
+                return false;
+            }
+            // Back where it was.
+            if (was[0] && was[1] && !machine.moveActuator(probe, JPLocation(JPLengthUnit::Millimeters, *was[0], *was[1], 0, 0),
+                                                          false, 1.0, why))
+                return false;
+            const double at = was[2].value_or(0) + z;
+            onMain([done, at] { done(at); });
+            return true;
+        });
+    };
+    m_feeders->probeZ = probeZ;
+    m_machine.probeZ = probeZ;
     m_feeders->actuatorNames = [this] {
         std::vector<std::string> out;
         if (const JPCell* c = m_machine.cell())

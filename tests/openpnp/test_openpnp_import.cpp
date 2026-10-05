@@ -110,6 +110,7 @@ int main() {
     assert(head.rigPrimary && head.rigPrimary->z == -23.6 && head.rigPrimaryDiameter == 1.85);
     assert(head.rigSecondary && head.rigSecondary->x == 167.193 && head.rigSecondary->z == -12.7);
     assert(head.pumpActuatorId == "ACT1" && head.pumpControl == "KeepRunning" && head.pumpOnWaitMs == 60000);
+    assert(head.zProbeActuatorId == "ACT1");   // its Z probe, by name
     assert(cell.nozzles.size() == 1);
     const JPNozzleConfig& n = cell.nozzles[0];
     assert(n.mount.headId == "H1" && n.mount.axisZ == "AZR" && n.mount.offsetX == 22.458);

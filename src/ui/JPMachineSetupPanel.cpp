@@ -414,11 +414,36 @@ void JPMachineSetupPanel::capture(const JPSetupProperties::Row& row, JPSetupForm
         const std::optional<double> v = axisAt ? axisAt(row.axis) : std::nullopt;
         if (v && !row.cells.empty()) any = m_form->set(row.cells.front().property, JVariant(*v));
     } else {
-        const Where now = whereIs ? whereIs(tool) : Where{};
-        // The row's cells are X, Y, Z and rotation, in that order; an empty one is skipped.
-        for (size_t i = 0; i < row.cells.size() && i < now.size(); ++i)
-            if (!row.cells[i].property.empty() && now[i]) any = m_form->set(row.cells[i].property, JVariant(*now[i])) || any;
+        Where now = whereIs ? whereIs(tool) : Where{};
+        // A camera's Z is what the head's Z probe finds there (OpenPnP's capture), filled in once it has read.
+        if (tool == JPSetupForm::Tool::Camera && probeZ && now[0] && now[1]) {
+            const JPSetupProperties::Row r = row;
+            if (probeZ(*now[0], *now[1], [this, r, now, at, alive = std::weak_ptr<bool>(m_alive)](double z) {
+                    // Another part chosen meanwhile: what was captured is for a page no longer shown.
+                    if (const auto a = alive.lock(); !a || !*a || m_selected != at) return;
+                    Where probed = now;
+                    probed[2] = z;
+                    applyCapture(r, probed, at);
+                }))
+                return;
+        }
+        applyCapture(row, now, at);
+        return;
     }
+    if (!any) {
+        setNote("Nothing captured: the machine is not connected, or nothing is chosen to capture from.");
+        return;
+    }
+    setNote("");
+    rebuildTree();
+    record("Capture " + nameOf(m_draft, at) + ": " + row.label, "", at);
+}
+
+void JPMachineSetupPanel::applyCapture(const JPSetupProperties::Row& row, const Where& now, const std::string& at) {
+    // The row's cells are X, Y, Z and rotation, in that order; an empty one is skipped.
+    bool any = false;
+    for (size_t i = 0; i < row.cells.size() && i < now.size(); ++i)
+        if (!row.cells[i].property.empty() && now[i]) any = m_form->set(row.cells[i].property, JVariant(*now[i])) || any;
     if (!any) {
         setNote("Nothing captured: the machine is not connected, or nothing is chosen to capture from.");
         return;

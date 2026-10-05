@@ -78,6 +78,8 @@ public:
     using Where = std::array<std::optional<double>, 4>;
     std::function<Where(JPSetupForm::Tool tool)> whereIs;
     std::function<std::optional<double>(const std::string& axisId)> axisAt;
+    // OpenPnP's Z probe for a camera's capture: as JPFeedersPanel::probeZ.
+    std::function<bool(double x, double y, std::function<void(double z)> done)> probeZ;
     // Take the camera or nozzle to a place (a coordinate left empty stays),
     // or an axis to a position.
     std::function<void(JPSetupForm::Tool tool, const Where& to)> moveTo;
@@ -134,6 +136,8 @@ private:
     void changed(const std::string& property);
     // A place row's buttons: take it from the machine (one step to undo), or go there.
     void capture(const JPSetupProperties::Row& row, JPSetupForm::Tool tool);
+    // The values captured put in the row (one not known left as it is), a step to undo.
+    void applyCapture(const JPSetupProperties::Row& row, const Where& now, const std::string& at);
     void goTo(const JPSetupProperties::Row& row, JPSetupForm::Tool tool);
     // A change was made to m_draft: a step to undo, handed over.
     // `from`: the node selected when it was made, to go back to on Undo.
