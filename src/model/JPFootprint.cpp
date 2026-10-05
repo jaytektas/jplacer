@@ -5,11 +5,81 @@
 
 #include "JPXmlValues.h"
 
+#include <algorithm>
 #include <cmath>
 
 inline namespace jf {
 
 using V = JPXmlValues;
+
+namespace {
+
+// Points along a quarter circle, for a rounded corner.
+constexpr int kArcSteps = 6;
+// Pin 1's mark: this share of the pad's smaller side across, at most one of
+// the footprint's units.
+constexpr double kMarkShare = 0.9, kMarkMost = 1.0;
+constexpr int kMarkSteps = 16;
+
+// A pad's outline about its centre before it is turned: a rectangle whose
+// corners are rounded by `r` (all four, or with `innerOnly` those on its -X
+// half, as OpenPnP adds a square right half to a rounded rectangle).
+JPFootprint::Outline rounded(double w, double h, double r, bool innerOnly) {
+    JPFootprint::Outline pts;
+    const double hw = w / 2, hh = h / 2;
+    auto corner = [&](double cx, double cy, double a0, bool round, double sx, double sy) {
+        if (!round || r <= 0) {
+            pts.push_back({ sx, sy });
+            return;
+        }
+        for (int i = 0; i <= kArcSteps; ++i) {
+            const double a = a0 + (M_PI / 2) * double(i) / kArcSteps;
+            pts.push_back({ cx + r * std::cos(a), cy + r * std::sin(a) });
+        }
+    };
+    corner(hw - r, -hh + r, -M_PI / 2, !innerOnly, hw, -hh);   // bottom right
+    corner(hw - r, hh - r, 0, !innerOnly, hw, hh);             // top right
+    corner(-hw + r, hh - r, M_PI / 2, true, -hw, hh);          // top left
+    corner(-hw + r, -hh + r, M_PI, true, -hw, -hh);            // bottom left
+    return pts;
+}
+
+} // namespace
+
+std::vector<JPFootprint::Outline> JPFootprint::padOutlines(const Pad& pad) {
+    const double a = pad.rotation * M_PI / 180, ca = std::cos(a), sa = std::sin(a);
+    auto placed = [&](Outline o) {
+        for (Point& p : o) p = { pad.x + p.x * ca - p.y * sa, pad.y + p.x * sa + p.y * ca };
+        return o;
+    };
+    // OpenPnP's rounding: a corner arc as wide as the smaller side times the roundness.
+    const double arc = std::min(pad.width, pad.height) * pad.roundness / 100;
+    std::vector<Outline> out { placed(rounded(pad.width, pad.height, std::fabs(arc) / 2, arc < 0)) };
+    if (pad.mark) {
+        const double r = std::min(std::min(pad.width, pad.height) * kMarkShare, kMarkMost) / 2;
+        Outline ring;
+        for (int i = 0; i < kMarkSteps; ++i) {
+            const double t = 2 * M_PI * i / kMarkSteps;
+            ring.push_back({ r * std::cos(t), r * std::sin(t) });
+        }
+        out.push_back(placed(ring));
+    }
+    return out;
+}
+
+std::vector<JPFootprint::Outline> JPFootprint::padsOutlines() const {
+    std::vector<Outline> out;
+    for (const Pad& p : pads)
+        for (Outline& o : padOutlines(p)) out.push_back(std::move(o));
+    return out;
+}
+
+JPFootprint::Outline JPFootprint::bodyOutline() const {
+    Pad body;
+    body.width = bodyWidth;
+    body.height = bodyHeight;
+    return padOutlines(body).front();
+}
 
 void JPFootprint::toggleMark(size_t index) {
     if (index >= pads.size()) return;

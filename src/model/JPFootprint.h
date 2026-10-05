@@ -25,6 +25,10 @@ public:
         double      roundness = 0;     // percent; negative: rounded on one side only
     };
     enum class Generator { Dual, Quad, Bga, Kicad };
+    struct Point {
+        double x = 0, y = 0;
+    };
+    using Outline = std::vector<Point>;
 
     JPLengthUnit     units = JPLengthUnit::Millimeters;
     std::vector<Pad> pads;
@@ -35,6 +39,13 @@ public:
 
     // Pad 1's mark moved to `pad` (or taken off it, when it had it).
     void toggleMark(size_t pad);
+    // As OpenPnP's Pad.getShape, in the footprint's units: the pad's
+    // outline, its corners rounded as its roundness says, turned and moved to
+    // its place; with pad 1's mark, the mark's ring after it.
+    static std::vector<Outline> padOutlines(const Pad& pad);
+    // Every pad's outlines (getPadsShape), and the body's (getBodyShape).
+    std::vector<Outline> padsOutlines() const;
+    Outline              bodyOutline() const;
     // Pads made from the generator's numbers and added; false (and why)
     // when the numbers do not suit it. Kicad pads come from a .kicad_mod file
     // (JPKicadModImporter), not from here.

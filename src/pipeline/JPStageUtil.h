@@ -3,10 +3,14 @@
 
 #pragma once
 
+#include "camera/JPImageFile.h"
+
 #include <opencv2/core.hpp>
+#include <opencv2/imgproc.hpp>
 
 #include <algorithm>
 #include <cmath>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -18,6 +22,29 @@ public:
     // Java's Math.round: half up, also for negative numbers.
     static long javaRound(double v) { return long(std::floor(v + 0.5)); }
     static bool blank(const std::string& s) { return s.find_first_not_of(" \t") == std::string::npos; }
+    // A picture file as OpenCV wants it (BGR, as OpenCV's imread), and back.
+    static cv::Mat readPicture(const std::string& path) {
+        JPFrame frame;
+        std::string error;
+        if (!JPImageFile::readPng(path, frame, error)) throw std::runtime_error(error);
+        cv::Mat rgba(frame.height, frame.width, CV_8UC4, frame.rgba.data());
+        cv::Mat bgr;
+        cv::cvtColor(rgba, bgr, cv::COLOR_RGBA2BGR);
+        return bgr;
+    }
+    static void writePicture(const std::string& path, const cv::Mat& mat) {
+        cv::Mat rgba;
+        if (mat.channels() == 1) cv::cvtColor(mat, rgba, cv::COLOR_GRAY2RGBA);
+        else if (mat.channels() == 3) cv::cvtColor(mat, rgba, cv::COLOR_BGR2RGBA);
+        else cv::cvtColor(mat, rgba, cv::COLOR_BGRA2RGBA);
+        if (rgba.depth() != CV_8U) rgba.convertTo(rgba, CV_8U);
+        JPFrame frame;
+        frame.width = rgba.cols;
+        frame.height = rgba.rows;
+        frame.rgba.assign(rgba.data, rgba.data + rgba.total() * 4);
+        std::string error;
+        if (!JPImageFile::writePng(path, frame, error)) throw std::runtime_error(error);
+    }
     // HslColor.toRGB: hue in degrees, saturation and luminance in percent, as BGR for OpenCV.
     static cv::Scalar hsl(float h, float s, float l) {
         h = std::fmod(h, 360.0f) / 360.0f;

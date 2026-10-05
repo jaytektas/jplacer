@@ -8,8 +8,8 @@
 
 #include "JPPipeline.h"
 #include "JPStageRegistry.h"
+#include "JPStageUtil.h"
 
-#include "camera/JPImageFile.h"
 #include "common/JPlacerLog.h"
 
 #include <j/core/Log.h>
@@ -28,33 +28,6 @@ using Kind = JPStageType::Kind;
 using Output = JPStageType::Output;
 using P = JPStageType::Property;
 constexpr const char* kStages = "org.openpnp.vision.pipeline.stages.";
-
-bool blank(const std::string& s) { return s.find_first_not_of(" \t") == std::string::npos; }
-
-// A picture file as OpenCV wants it (BGR), and back.
-cv::Mat readPicture(const std::string& path) {
-    JPFrame frame;
-    std::string error;
-    if (!JPImageFile::readPng(path, frame, error)) throw std::runtime_error(error);
-    cv::Mat rgba(frame.height, frame.width, CV_8UC4, frame.rgba.data());
-    cv::Mat bgr;
-    cv::cvtColor(rgba, bgr, cv::COLOR_RGBA2BGR);
-    return bgr;
-}
-
-void writePicture(const std::string& path, const cv::Mat& mat) {
-    cv::Mat rgba;
-    if (mat.channels() == 1) cv::cvtColor(mat, rgba, cv::COLOR_GRAY2RGBA);
-    else if (mat.channels() == 3) cv::cvtColor(mat, rgba, cv::COLOR_BGR2RGBA);
-    else cv::cvtColor(mat, rgba, cv::COLOR_BGRA2RGBA);
-    if (rgba.depth() != CV_8U) rgba.convertTo(rgba, CV_8U);
-    JPFrame frame;
-    frame.width = rgba.cols;
-    frame.height = rgba.rows;
-    frame.rgba.assign(rgba.data, rgba.data + rgba.total() * 4);
-    std::string error;
-    if (!JPImageFile::writePng(path, frame, error)) throw std::runtime_error(error);
-}
 
 } // namespace
 
@@ -105,7 +78,7 @@ void JPStageRegistry::addImageStages(std::vector<JPStageType>& types) {
                           std::error_code ec;
                           if (!std::filesystem::exists(file, ec)) return Output {};
                           Output out;
-                          out.image = readPicture(file);
+                          out.image = JPStageUtil::readPicture(file);
                           const auto& ctx = p.context();
                           // As if the camera took it: at its size.
                           if (s.flag("handle-as-captured") && ctx.cameraWidth > 0 && ctx.cameraHeight > 0
@@ -116,7 +89,7 @@ void JPStageRegistry::addImageStages(std::vector<JPStageType>& types) {
                       } });
     types.push_back({ std::string(kStages) + "ImageWrite", "", "", { P { "file", Kind::Text, "", "" } },
                       [](JPPipeline& p, const JPPipelineStage& s) {
-                          writePicture(s.text("file"), p.workingImage());
+                          JPStageUtil::writePicture(s.text("file"), p.workingImage());
                           return Output {};
                       } });
     types.push_back({ std::string(kStages) + "ImageWriteDebug", "", "",
@@ -130,13 +103,13 @@ void JPStageRegistry::addImageStages(std::vector<JPStageType>& types) {
                           std::filesystem::create_directories(dir, ec);
                           const long long nanos = std::chrono::duration_cast<std::chrono::nanoseconds>(
                                                       std::chrono::system_clock::now().time_since_epoch()).count();
-                          writePicture(dir + "/" + s.text("prefix") + std::to_string(nanos) + s.text("suffix"), p.workingImage());
+                          JPStageUtil::writePicture(dir + "/" + s.text("prefix") + std::to_string(nanos) + s.text("suffix"), p.workingImage());
                           return Output {};
                       } });
     types.push_back({ std::string(kStages) + "ImageRecall", "", "", { P { "image-stage-name", Kind::StageName, "", "" } },
                       [](JPPipeline& p, const JPPipelineStage& s) {
                           const std::string from = s.text("image-stage-name");
-                          if (blank(from)) return Output {};
+                          if (JPStageUtil::blank(from)) return Output {};
                           const JPPipeline::Result& r = p.expectedResult(from);
                           if (r.image.empty()) return Output {};
                           Output out;
@@ -149,7 +122,7 @@ void JPStageRegistry::addImageStages(std::vector<JPStageType>& types) {
                         P { "first-scalar", Kind::Number, "1.0", "" }, P { "second-scalar", Kind::Number, "1.0", "" } },
                       [](JPPipeline& p, const JPPipelineStage& s) {
                           const std::string a = s.text("first-stage-name"), b = s.text("second-stage-name");
-                          if (blank(a) || blank(b)) return Output {};
+                          if (JPStageUtil::blank(a) || JPStageUtil::blank(b)) return Output {};
                           const cv::Mat& first = p.expectedResult(a).image;
                           const cv::Mat& second = p.expectedResult(b).image;
                           const double fs = s.number("first-scalar"), ss = s.number("second-scalar");
@@ -166,8 +139,8 @@ void JPStageRegistry::addImageStages(std::vector<JPStageType>& types) {
                       { P { "model-stage-name", Kind::StageName, "", "" }, P { "property-name", Kind::Text, "", "" } },
                       [](JPPipeline& p, const JPPipelineStage& s) {
                           const std::string from = s.text("model-stage-name"), name = s.text("property-name");
-                          if (blank(from)) throw std::runtime_error("modelStageName is required.");
-                          if (blank(name)) throw std::runtime_error("propertyName is required.");
+                          if (JPStageUtil::blank(from)) throw std::runtime_error("modelStageName is required.");
+                          if (JPStageUtil::blank(name)) throw std::runtime_error("propertyName is required.");
                           const JPPipelineModel& m = p.expectedResult(from).model;
                           Output out;
                           // The bean properties OpenPnP's models have.

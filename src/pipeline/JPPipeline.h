@@ -45,6 +45,8 @@ public:
         std::function<bool(double xMm, double yMm, double& px, double& py)> locationToPixel;
         // Where ImageWriteDebug writes (empty: it does not).
         std::string debugDirectory;
+        // The configuration's directory: part templates live in its "templates".
+        std::string configurationDirectory;
     };
     // A stage's failure that stops the pipeline (OpenPnP's TerminalException).
     struct Terminal : std::runtime_error {

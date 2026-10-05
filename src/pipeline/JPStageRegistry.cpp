@@ -12,6 +12,7 @@ JPStageRegistry::JPStageRegistry() {
     addDetectStages(m_types);
     addModelStages(m_types);
     addMatchStages(m_types);
+    addTemplateStages(m_types);
     addDrawStages(m_types);
 }
 
