@@ -125,6 +125,17 @@ public:
               const std::string& editor = "") {
         text(name, label, [ref] { return ref(); }, [ref](const std::string& v) { ref() = v; }, editor);
     }
+    // A whole number from `min` to `max` on a slider (a pipeline's parameter).
+    void slider(const std::string& name, const std::string& label, int min, int max, std::function<int()> get,
+                std::function<void(int)> set) {
+        JProperty p = make(name, label);
+        p.meta.editor = "slider";
+        p.meta.min = JVariant(min);
+        p.meta.max = JVariant(max);
+        p.get = [get] { return JVariant(get()); };
+        p.set = [set](const JVariant& v) { set(int(v.toInt())); return true; };
+        put(std::move(p));
+    }
     // A colour, as "#rrggbb", picked from the colour chooser.
     void color(const std::string& name, const std::string& label, std::function<std::string()> get,
                std::function<void(const std::string&)> set) {

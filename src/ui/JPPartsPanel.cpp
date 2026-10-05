@@ -3,6 +3,8 @@
 
 #include "JPPartsPanel.h"
 
+#include "JPVisionPipelineActions.h"
+
 #include "JPFieldGrid.h"
 #include "setup/JPFormBuilder.h"
 #include "setup/JPVisionForms.h"
@@ -86,7 +88,12 @@ JPPartsPanel::JPPartsPanel(JSceneGraph& graph, JPConfiguration& config, double s
     m_table->onEditRefused = [](const std::string&) {};
     m_form = m_tabsPane->add(std::make_unique<JPSetupForm>(graph));
     m_form->setVSizePolicy(JSizePolicyMode::Expanding, 1);
-    m_form->onChanged = [this](const std::string&) {
+    m_form->onChanged = [this](const std::string& property) {
+        if (property.find(":parameter:") != std::string::npos) {
+            if (onParameterChanged) onParameterChanged();
+            act(property);
+            return;
+        }
         m_table->refresh();
         changed();
     };
@@ -178,6 +185,28 @@ void JPPartsPanel::updateWizards() {
     m_form->setForm(std::move(form));
 }
 
+bool JPPartsPanel::pipelineAct(const std::string& settingsId, const JPVisionForms::Holder& holder, const std::string& what) {
+    JPVisionPipelineActions::Hooks hooks;
+    hooks.edit = [this, holder](const std::string& id) {
+        if (editPipeline) editPipeline(id, holder);
+    };
+    hooks.preview = [this, holder](const std::string& id, const std::string& parameter) {
+        if (previewParameter) previewParameter(id, holder, parameter);
+    };
+    hooks.machineDefault = [this](JPVisionSettings::Kind kind) {
+        const auto defaults = machineDefaults ? machineDefaults() : std::pair<std::string, std::string> {};
+        return m_config.visionSettings(kind == JPVisionSettings::Kind::Bottom ? defaults.first : defaults.second);
+    };
+    hooks.changed = [this] {
+        // Its sliders follow the pipeline.
+        m_shownPart.clear();
+        updateWizards();
+        m_table->refresh();
+        changed();
+    };
+    return JPVisionPipelineActions::act(m_config, settingsId, what, hooks);
+}
+
 void JPPartsPanel::act(const std::string& action) {
     const JPPart* p = selectedPart();
     if (!p) return;
@@ -191,6 +220,7 @@ void JPPartsPanel::act(const std::string& action) {
     if (!v) return;
     const std::string id = v->id;
     const JPVisionForms::Holder holder { JPVisionForms::Holder::Kind::Part, p->id };
+    if (pipelineAct(id, holder, what)) return;
     auto run = [this, id, what, holder] {
         std::string why;
         if (JPVisionForms::act(m_config, id, what, holder, why)) {

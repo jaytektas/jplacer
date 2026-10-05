@@ -3,6 +3,8 @@
 
 #include "JPVisionSettingsPanel.h"
 
+#include "JPVisionPipelineActions.h"
+
 #include "JPUiParts.h"
 
 #include "model/JPOpenPnpIds.h"
@@ -86,11 +88,20 @@ JPVisionSettingsPanel::JPVisionSettingsPanel(JSceneGraph& graph, JPConfiguration
     m_table->onEditRefused = [](const std::string&) {};
     m_form = m_formPane->add(std::make_unique<JPSetupForm>(graph));
     m_form->setVSizePolicy(JSizePolicyMode::Expanding, 1);
-    m_form->onChanged = [this](const std::string&) {
+    m_form->onChanged = [this](const std::string& property) {
+        if (property.find(":parameter:") != std::string::npos) {
+            if (onParameterChanged) onParameterChanged();
+            pipelineAct(property);
+            return;
+        }
         m_table->refresh();
         changed();
     };
     m_form->onAction = [this](const std::string& action) {
+        if (action.find("Pipeline") != std::string::npos) {
+            pipelineAct(action);
+            return;
+        }
         if (action.rfind(":reset") == std::string::npos) return;
         JDialogOptions opts;
         opts.okLabel = "Yes";
@@ -142,6 +153,30 @@ std::string JPVisionSettingsPanel::usedIn(const JPVisionSettings& v) const {
     const bool bottom = v.kind == JPVisionSettings::Kind::Bottom;
     return joined(m_config.visionUsedIn(v, bottom ? defaults.first : defaults.second,
                                         bottom ? "Bottom Vision" : "Fiducal Locator"));
+}
+
+void JPVisionSettingsPanel::pipelineAct(const std::string& action) {
+    const size_t colon = action.find(':');
+    if (colon == std::string::npos || m_shown.empty()) return;
+    JPVisionPipelineActions::Hooks hooks;
+    hooks.edit = [this](const std::string& id) {
+        if (editPipeline) editPipeline(id, JPVisionForms::Holder {});
+    };
+    hooks.preview = [this](const std::string& id, const std::string& parameter) {
+        if (previewParameter) previewParameter(id, JPVisionForms::Holder {}, parameter);
+    };
+    hooks.machineDefault = [this](JPVisionSettings::Kind kind) {
+        const auto defaults = machineDefaults ? machineDefaults() : std::pair<std::string, std::string> {};
+        return m_config.visionSettings(kind == JPVisionSettings::Kind::Bottom ? defaults.first : defaults.second);
+    };
+    hooks.changed = [this] {
+        // Its sliders follow the pipeline.
+        m_shown.clear();
+        showForm();
+        m_table->refresh();
+        changed();
+    };
+    JPVisionPipelineActions::act(m_config, m_shown, action.substr(colon + 1), hooks);
 }
 
 void JPVisionSettingsPanel::showForm() {

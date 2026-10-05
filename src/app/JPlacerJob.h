@@ -57,6 +57,9 @@ public:
     // After an edit to parts, packages, boards or panels: the configuration
     // saved (said in the status bar when it cannot be), and the views told.
     void configurationChanged();
+    // Saved, without the pages being shown again: a value shown only where
+    // it was changed (a pipeline parameter's slider, while it is dragged).
+    void configurationKept();
 
     // For the window's close: false (and a question asked) while the job
     // has changes not saved; the window is closed again once answered.

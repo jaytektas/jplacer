@@ -12,6 +12,7 @@
 #include <j/core/MenuSystem.h>
 #include <j/graphics/GpuHal.h>
 
+#include <chrono>
 #include <functional>
 #include <map>
 #include <memory>
@@ -43,6 +44,9 @@ public:
     void setFeed(JPCameraFeed* feed);
     // What to say in place of a picture (no camera, why it stopped).
     void setMessage(const std::string& text);
+    // OpenPnP's showFilteredImage: `picture` (as the camera's pixels) shown
+    // in place of the live picture for `ms`, `text` over it.
+    void showPicture(const JPFrame& picture, const std::string& text, int ms);
     // Show the picture straightened (JPStraightener, drawn as its mesh), or
     // as taken (null). Clicks stay in the picture-as-taken's pixels.
     void setStraightener(std::shared_ptr<const JPStraightener> straightener) {
@@ -111,6 +115,9 @@ private:
     int                                m_w = 0, m_h = 0;
     uint64_t                           m_have = 0;
     JPFrame                            m_frame;
+    // A picture shown in place of the live one until then, and what it says.
+    std::chrono::steady_clock::time_point m_stillUntil {};
+    std::string                        m_stillText;
     std::string                        m_message;
     std::shared_ptr<const JPStraightener>    m_straight;
     // Where a pixel of the picture as taken is shown: straightened when straightening.

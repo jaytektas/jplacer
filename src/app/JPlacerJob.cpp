@@ -81,6 +81,11 @@ void JPlacerJob::configurationChanged() {
     notify(Change::Configuration);
 }
 
+void JPlacerJob::configurationKept() {
+    std::string error;
+    if (!m_config.save(error)) m_window.showStatus("The configuration was not saved: " + error, kStatusMs);
+}
+
 void JPlacerJob::title() {
     const std::string name = m_job->file.empty() ? kUntitled : std::filesystem::path(m_job->file).filename().string();
     m_window.setTitle(std::string("jplacer - ") + (m_job->dirty ? "*" : "") + name);

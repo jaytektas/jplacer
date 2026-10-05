@@ -85,7 +85,7 @@ target_link_libraries(jplacer_tasks PUBLIC jplacer_machine jplacer_camera jplace
 # Machine Setup's model of a cell: its tree, what each part edits, adding
 # and removing parts. No widget is made here.
 add_library(jplacer_setup STATIC ${JPLACER_SETUP_SRC})
-target_link_libraries(jplacer_setup PUBLIC jplacer_machine jplacer_model)
+target_link_libraries(jplacer_setup PUBLIC jplacer_machine jplacer_model jplacer_pipeline)
 
 add_library(jplacer_ui STATIC ${JPLACER_UI_SRC})
 target_link_libraries(jplacer_ui PUBLIC jplacer_machine jplacer_camera jplacer_setup jplacer_model jplacer_pipeline)

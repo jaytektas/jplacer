@@ -38,8 +38,8 @@ greyed here.
 A job uses **Enabled?**, **Pre-rotate** (Default: as the machine's bottom vision says) and **Rotation**
 (**Adjust**: within the machine's max angular offset; **Full**: all the way round). jplacer finds the part
 by its footprint, so the size check and the vision offsets are kept as OpenPnP wrote them but not needed
-(see [Running the job](jobs.md#running-the-job)). **Edit Pipeline**, **Test Alignment** and **Detect
-Offsets** are not yet available.
+(see [Running the job](jobs.md#running-the-job)). **Test Alignment** and **Detect Offsets** are not yet
+available.
 
 **Fiducial Vision Settings** add the **Fiducial Locator**: **Max. Vision Passes**, **Max. Linear Offset**,
 **Parallax Diameter** and **Parallax Angle**. A fiducial check uses them (see [Jobs](jobs.md#running-the-job)):
@@ -50,5 +50,32 @@ is not yet available.
 
 A part uses its own settings, else its package's, else the machine's (OpenPnP's part alignment and
 fiducial locator, brought in with an OpenPnP machine).
+
+## The pipeline
+
+Both kinds keep OpenPnP's vision pipeline with them (OpenPnP's stock pipeline for the kind until they
+have one of their own). The **Pipeline** row works it as OpenPnP's does: **Edit...** opens it in the
+[Pipeline Editor](pipeline-editor.md); **Reset** puts back the machine's default settings' pipeline (or,
+for the machine's default settings themselves, the stock one), after asking; the copy button puts the
+pipeline on the clipboard as OpenPnP's text, and the paste button replaces it with one from the
+clipboard, after asking.
+
+<!-- src: src/setup/JPVisionForms.cpp (pipelineControls); src/ui/JPVisionPipelineActions.cpp; src/setup/JPVisionPipelines.cpp -->
+
+Under it, a slider for each of the pipeline's parameters (its **ParameterNumeric** and **ParameterBool**
+stages: a threshold, a least detail size, a search distance), named and explained as the pipeline names
+them. The value is kept with these settings, not in the pipeline, so settings that share a pipeline can
+each tune it. Moving a slider runs the pipeline on the camera and shows the stage the parameter affects,
+then the result, on the camera's view for three seconds each, with the parameter's name and value over
+them ("Threshold = 204").
+
+<!-- src: src/pipeline/JPPipelineParameter.cpp; src/pipeline/JPPipelineAssignments.cpp; src/app/JPlacerPipelines.cpp (previewVision); src/ui/JPCameraView.cpp (showPicture) -->
+
+The pipeline is run as OpenPnP prepares it: a fiducial's on the head camera, with its package's footprint
+(on the Vision tab, a round 1 mm fiducial); bottom vision's on the camera looking up, with the package of
+the part or package the page is for (on the Vision tab, the part chosen on the Parts tab, else the package
+chosen on the Packages tab) turned by the machine's test alignment angle, over the camera's centre.
+
+<!-- src: src/tasks/JPVisionPipelinePrep.cpp; src/app/JPlacerPipelines.cpp (prepared) -->
 
 <!-- src: src/setup/JPVisionForms.cpp; src/tasks/JPJobProcessor.cpp (align); src/tasks/JPFiducialLocator.cpp (FiducialLook); src/app/JPlacerJobMachine.cpp (locateFiducial); src/model/JPConfiguration.cpp (inheritedVision); src/machine/JPVisionConfig.h -->

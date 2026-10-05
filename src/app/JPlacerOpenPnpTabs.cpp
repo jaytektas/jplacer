@@ -205,6 +205,13 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_parts->openMenu = openMenu;
     m_parts->onChanged = [this] { m_job.configurationChanged(); };
     m_parts->machineDefaults = [this] { return machineVisionDefaults(); };
+    m_parts->editPipeline = [this](const std::string& id, const JPVisionForms::Holder& h) {
+        m_pipelines.editVision(m_job.configuration(), id, h.id, "", [this] { m_job.configurationChanged(); });
+    };
+    m_parts->onParameterChanged = [this] { m_job.configurationKept(); };
+    m_parts->previewParameter = [this](const std::string& id, const JPVisionForms::Holder& h, const std::string& parameter) {
+        m_pipelines.previewVision(m_job.configuration(), id, h.id, "", parameter);
+    };
     m_parts->onPickPart = [this](const JPPart& part) {
         JPFeeder* f = m_job.configuration().findFeeder(part.id, m_machine.toolLocation(JPSetupForm::Tool::Camera));
         if (!f) {
@@ -226,6 +233,13 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     };
     m_packages->onChanged = [this] { m_job.configurationChanged(); };
     m_packages->machineDefaults = [this] { return machineVisionDefaults(); };
+    m_packages->editPipeline = [this](const std::string& id, const JPVisionForms::Holder& h) {
+        m_pipelines.editVision(m_job.configuration(), id, "", h.id, [this] { m_job.configurationChanged(); });
+    };
+    m_packages->onParameterChanged = [this] { m_job.configurationKept(); };
+    m_packages->previewParameter = [this](const std::string& id, const JPVisionForms::Holder& h, const std::string& parameter) {
+        m_pipelines.previewVision(m_job.configuration(), id, "", h.id, parameter);
+    };
     m_packagesDock = std::make_unique<JDockWidget>("Packages", 0.f, 0.f, 0.f, 0.f);
     m_packagesDock->setContent(m_packages.get());
     m_layout.add(m_packagesDock.get(), JPlacerLayout::Home::Work);
@@ -235,6 +249,21 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
                                                        JSettings::instance().get<double>(JPlacerSettings::kVisionSplit, kSplit));
     m_vision->onChanged = [this] { m_job.configurationChanged(); };
     m_vision->machineDefaults = [this] { return machineVisionDefaults(); };
+    m_vision->editPipeline = [this](const std::string& id, const JPVisionForms::Holder&) {
+        m_pipelines.editVision(m_job.configuration(), id, "", "", [this] { m_job.configurationChanged(); });
+    };
+    m_vision->onParameterChanged = [this] { m_job.configurationKept(); };
+    m_vision->previewParameter = [this](const std::string& id, const JPVisionForms::Holder&, const std::string& parameter) {
+        m_pipelines.previewVision(m_job.configuration(), id, "", "", parameter);
+    };
+    m_pipelines.chosenPart = [this] {
+        const JPPart* p = m_parts->selectedPart();
+        return p ? p->id : std::string();
+    };
+    m_pipelines.chosenPackage = [this] {
+        const JPPackage* p = m_packages->selectedPackage();
+        return p ? p->id : std::string();
+    };
     m_visionDock = std::make_unique<JDockWidget>("Vision", 0.f, 0.f, 0.f, 0.f);
     m_visionDock->setContent(m_vision.get());
     m_layout.add(m_visionDock.get(), JPlacerLayout::Home::Work);
@@ -483,16 +512,25 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         }
     };
 
+    // The pages shown again on the next frame, once for all the changes made
+    // meanwhile: a change made from a page (a slider dragged) must not take
+    // the page away while it is still handling the click.
     m_watch = m_job.watch([this, jobName](JPlacerJob::Change) {
-        m_jobPanel->refresh();
-        m_jobViewer->followJob(&m_job.job().root(), jobName(), {});
-        m_panels->refresh();
-        m_boards->refresh();
-        m_parts->refresh();
-        m_packages->refresh();
-        m_feeders->refresh();
-        m_vision->refresh();
-        ensurePhotonActuator();
+        if (m_refreshPending) return;
+        m_refreshPending = true;
+        jPostToNextFrame([this, jobName, alive = std::weak_ptr<bool>(m_alive)] {
+            if (const auto a = alive.lock(); !a || !*a) return;
+            m_refreshPending = false;
+            m_jobPanel->refresh();
+            m_jobViewer->followJob(&m_job.job().root(), jobName(), {});
+            m_panels->refresh();
+            m_boards->refresh();
+            m_parts->refresh();
+            m_packages->refresh();
+            m_feeders->refresh();
+            m_vision->refresh();
+            ensurePhotonActuator();
+        });
     });
 }
 

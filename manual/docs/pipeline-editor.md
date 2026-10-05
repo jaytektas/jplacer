@@ -18,6 +18,9 @@ feeder has none), with the head camera's picture. **Reset Pipeline** puts the de
 
 <!-- src: src/setup/JPFeederForms.cpp (stripForm); src/tasks/JPFeederPipelines.cpp; src/pipeline/JPDefaultPipelines.cpp; src/app/JPlacerOpenPnpTabs.cpp (pipelineAction) -->
 
+Bottom vision and fiducial settings have it too, under **Pipeline ▸ Edit...** on their pages (the Vision
+tab, a part's or a package's): see [Vision](vision.md#the-pipeline).
+
 The editor opens in a window of its own, nine tenths of the main window's size. The pipeline is run once
 as it opens, and again after every change, so the result of each stage is always the current one.
 

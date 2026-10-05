@@ -547,6 +547,15 @@ JPCameraView* JPlacerMachine::headCameraView() {
     return &p->view();
 }
 
+JPCameraView* JPlacerMachine::cameraViewOf(const JPCameraFeed* feed) {
+    for (const CameraDock& d : m_cameras)
+        if (&d.panel->feed() == feed) {
+            showCamera(d.panel->camera().id);
+            return &d.panel->view();
+        }
+    return nullptr;
+}
+
 JPlacerMachine::Where JPlacerMachine::whereIs(JPSetupForm::Tool tool) const {
     return whereIsMount(toolMount(tool));
 }

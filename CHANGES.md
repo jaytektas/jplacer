@@ -14,6 +14,8 @@ notes.
   OpenPnP's: stages added, removed, renamed, dragged and switched off, their settings, each stage's picture and
   what it found, the pixel under the mouse, pin, true colours, copy and paste. A strip feeder's Edit Pipeline
   and Reset Pipeline work.
+- Bottom vision and fiducial settings have OpenPnP's pipeline controls: Edit, Reset, Copy and Paste, and a slider
+  for each of the pipeline's parameters, its effect shown on the camera as it moves.
 - An Issues & Solutions tab as OpenPnP's: milestones, Find Issues & Solutions, Accept, Dismiss, Reopen, Include
   Solved and Dismissed, with checks of jplacer's Machine Setup (axes, letters, nozzles' axes, homing, Safe Z, soft limits, feed rates,
   rotation), cameras, nozzle tips and Photon feeders.

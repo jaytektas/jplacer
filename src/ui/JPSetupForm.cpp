@@ -16,6 +16,7 @@
 #include <j/core/FrameTimer.h>
 #include <j/core/JButton.h>
 #include <j/core/JColorButton.h>
+#include <j/core/JSlider.h>
 #include <j/core/JLabel.h>
 #include <j/core/JPropertyBinding.h>
 #include <j/core/JScrollArea.h>
@@ -304,6 +305,25 @@ std::unique_ptr<JWidget> JPSetupForm::editor(const JProperty& p, float width) {
         e.pull();
         m_pulling = false;
         m_pulls.push_back(e.pull);
+        return std::move(e.widget);
+    }
+    if (p.meta.editor == "slider") {
+        // Whole numbers from its least to its most along it; each move an edit.
+        const int lo = int(p.meta.min.toInt()), hi = std::max(lo + 1, int(p.meta.max.toInt()));
+        auto slider = std::make_unique<JSlider>(m_graph, 0.f, st.controlHeight);
+        JSlider* sl = slider.get();
+        sl->onValueChanged.connect([set = bound.set, lo, hi](float v) {
+            set(JVariant(lo + int(std::lround(v * float(hi - lo)))));
+        });
+        e.pull = [sl, get = p.get, lo, hi] { sl->setValue(float(get().toInt() - lo) / float(hi - lo)); };
+        e.widget = std::move(slider);
+        e.widget->setHSizePolicy(JSizePolicyMode::Expanding, 1);
+        e.widget->setVSizePolicy(JSizePolicyMode::Fixed);
+        m_pulling = true;
+        e.pull();
+        m_pulling = false;
+        m_pulls.push_back(e.pull);
+        if (!p.meta.tooltip.empty()) e.widget->setTooltip(p.meta.tooltip);
         return std::move(e.widget);
     }
     if (p.meta.editor == "color") {

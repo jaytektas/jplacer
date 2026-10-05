@@ -50,6 +50,13 @@ public:
     void        setLengthMm(const std::string& element, double mm);
     JPLocation  locationOf(const std::string& element) const;
     void        setLocationOf(const std::string& element, const JPLocation& l);
+    // Its pipeline as OpenPnP wrote it (<cv-pipeline>), or null; and one
+    // put in its place (first, as OpenPnP writes it).
+    const JPXmlNode* pipeline() const { return m_node.child("cv-pipeline"); }
+    void             setPipeline(JPXmlNode pipeline);
+    // The values it gives its pipeline's parameters (<pipeline-parameter-assignments>), or null; and new ones.
+    const JPXmlNode* parameterAssignments() const { return m_node.child("pipeline-parameter-assignments"); }
+    void             setParameterAssignments(JPXmlNode assignments);
 
 private:
     JPXmlNode m_node;

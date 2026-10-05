@@ -57,6 +57,27 @@ JPVisionSettings JPVisionSettings::create(Kind kind, const std::string& newId) {
 
 std::string JPVisionSettings::className() const { return text("class"); }
 
+void JPVisionSettings::setPipeline(JPXmlNode pipeline) {
+    pipeline.name = "cv-pipeline";
+    if (JPXmlNode* c = m_node.child("cv-pipeline")) {
+        *c = std::move(pipeline);
+        return;
+    }
+    m_node.children.insert(m_node.children.begin(), std::move(pipeline));
+}
+
+void JPVisionSettings::setParameterAssignments(JPXmlNode assignments) {
+    assignments.name = "pipeline-parameter-assignments";
+    if (JPXmlNode* c = m_node.child("pipeline-parameter-assignments")) {
+        *c = std::move(assignments);
+        return;
+    }
+    // After the pipeline, as OpenPnP writes them.
+    auto at = m_node.children.begin();
+    if (!m_node.children.empty() && m_node.children.front().name == "cv-pipeline") ++at;
+    m_node.children.insert(at, std::move(assignments));
+}
+
 std::string JPVisionSettings::text(const std::string& attribute, const std::string& def) const {
     const std::string* v = m_node.get(attribute);
     return v ? *v : def;

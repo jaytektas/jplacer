@@ -10,6 +10,7 @@
 #include "JPTable.h"
 
 #include "model/JPConfiguration.h"
+#include "setup/JPVisionForms.h"
 
 #include <j/core/JContainer.h>
 #include <j/core/JLineEdit.h>
@@ -42,6 +43,13 @@ public:
     std::function<std::vector<std::pair<std::string, std::string>>()> nozzleTips;
     // The machine's default vision settings ids (bottom, fiducial).
     std::function<std::pair<std::string, std::string>()> machineDefaults;
+    // A vision setting's pipeline in the Pipeline Editor; a parameter's
+    // slider moved (its effect to show). With the part or package the page is for.
+    std::function<void(const std::string& settingsId, const JPVisionForms::Holder& holder)> editPipeline;
+    std::function<void(const std::string& settingsId, const JPVisionForms::Holder& holder, const std::string& parameter)>
+        previewParameter;
+    // A parameter's slider moved: the setting to be saved (the pages not shown again).
+    std::function<void()> onParameterChanged;
 
     void refresh();
     void selectPackage(const JPPackage* package);
@@ -49,6 +57,8 @@ public:
     double split() const;
 
 private:
+    // One of the pipeline's buttons or sliders: done (true), else not one of them.
+    bool pipelineAct(const std::string& settingsId, const JPVisionForms::Holder& holder, const std::string& what);
     std::vector<JPPackage*> selections() const;
     void updateWizards(bool force = false);
     void newPackage();

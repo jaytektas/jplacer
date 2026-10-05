@@ -5,7 +5,10 @@
 
 #include "JPFormBuilder.h"
 
+#include "JPVisionPipelines.h"
+
 #include "model/JPOpenPnpIds.h"
+#include "pipeline/JPPipelineParameter.h"
 
 #include <cstdio>
 
@@ -35,6 +38,27 @@ void enumChoice(JPFormBuilder& add, std::function<JPVisionSettings&()> v, const 
                [v, attribute](const std::string& s) { v().setText(attribute, s); });
 }
 
+// OpenPnP's PipelineControls: Edit, Reset, Copy and Paste; then a slider
+// for each of the pipeline's parameters, its value the setting's.
+void pipelineControls(JPFormBuilder& add, std::function<JPVisionSettings&()> v, const std::string& prefix) {
+    add.row("Pipeline");
+    add.button(prefix + "editPipeline", "Edit...", "Edit the pipeline in the Pipeline Editor");
+    add.button(prefix + "resetPipeline", "Reset", "Reset the pipeline to the default.");
+    add.iconButton(prefix + "copyPipeline", "copy", "Copy the pipeline to the clipboard in text format.");
+    add.iconButton(prefix + "pastePipeline", "paste", "Create a new pipeline from a definition on the clipboard.");
+    add.end();
+    for (const JPPipelineParameter& p : JPPipelineParameter::of(JPVisionPipelines::of(v()))) {
+        add.slider(prefix + "parameter:" + p.name(), p.label(), p.minimumScalar(), p.maximumScalar(),
+                   [v, p] {
+                       const auto m = JPVisionPipelines::assignments(v());
+                       const auto it = m.find(p.name());
+                       return p.toScalar(it == m.end() ? nullptr : &it->second);
+                   },
+                   [v, p](int scalar) { JPVisionPipelines::assign(v(), p.name(), p.toValue(scalar)); });
+        if (!p.description().empty()) add.tip(p.description());
+    }
+}
+
 void general(JPFormBuilder& add, std::function<JPVisionSettings&()> v, const std::string& usedIn, bool bottom,
              const JPVisionForms::Holder& holder) {
     using Kind = JPVisionForms::Holder::Kind;
@@ -60,7 +84,10 @@ void general(JPFormBuilder& add, std::function<JPVisionSettings&()> v, const std
     add.button(prefix + "reset", "Reset to Default");
     add.end();
     add.flag(prefix + "enabled", "Enabled?", [v] { return v().enabled; }, [v](bool on) { v().enabled = on; });
-    if (!bottom) return;
+    if (!bottom) {
+        pipelineControls(add, v, prefix);
+        return;
+    }
     add.row("Pre-rotate");
     enumChoice(add, v, "pre-rotate-usage", "Pre-rotate", { "Default", "AlwaysOn", "AlwaysOff" });
     enumChoice(add, v, "max-rotation", "Rotation", { "Adjust", "Full" });
@@ -71,10 +98,7 @@ void general(JPFormBuilder& add, std::function<JPVisionSettings&()> v, const std
                 [v] { return v().number("check-size-tolerance-percent", 20); },
                 [v](int p) { v().setText("check-size-tolerance-percent", std::to_string(p)); }, 0, 1000);
     add.end();
-    add.row("Pipeline");
-    add.button(prefix + "editPipeline", "Edit Pipeline", "jplacer finds parts without a pipeline to tune: not available.",
-               false);
-    add.end();
+    pipelineControls(add, v, prefix);
 }
 
 void bottomForm(JPFormBuilder& add, std::function<JPVisionSettings&()> v, const std::string& usedIn,

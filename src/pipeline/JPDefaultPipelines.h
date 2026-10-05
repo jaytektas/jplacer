@@ -8,11 +8,15 @@
 inline namespace jf {
 
 // OpenPnP's default pipelines, as its resources hold them: what Reset
-// Pipeline puts back.
+// Pipeline puts back, and what a setting without a pipeline starts from.
 class JPDefaultPipelines {
 public:
     // ReferenceStripFeeder-DefaultPipeline.xml.
     static const std::string& stripFeeder();
+    // ReferenceBottomVision-DefaultPipeline.xml (createStockPipeline("Default")).
+    static const std::string& bottomVision();
+    // ReferenceFiducialLocator-DefaultPipeline.xml (createStockPipeline("Default")).
+    static const std::string& fiducialLocator();
 };
 
 } // inline namespace jf

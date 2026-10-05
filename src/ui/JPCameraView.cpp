@@ -163,7 +163,21 @@ void JPCameraView::setMessage(const std::string& text) {
     invalidate();
 }
 
+void JPCameraView::showPicture(const JPFrame& picture, const std::string& text, int ms) {
+    if (picture.width <= 0 || picture.height <= 0) return;
+    dropTexture();
+    m_tex = m_hal.uploadTexture(picture.rgba.data(), uint32_t(picture.width), uint32_t(picture.height));
+    m_w = picture.width;
+    m_h = picture.height;
+    m_stillText = text;
+    m_stillUntil = std::chrono::steady_clock::now() + std::chrono::milliseconds(ms);
+    invalidate();
+}
+
 void JPCameraView::showLatest() {
+    // A picture shown in place of the live one, until its time is up.
+    if (std::chrono::steady_clock::now() < m_stillUntil) return;
+    m_stillText.clear();
     // Posted frames can queue behind a busy main loop; take only the newest.
     if (!m_feed || !m_feed->latest(m_frame, m_have)) return;
     m_have = m_frame.sequence;
@@ -283,6 +297,12 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     if (!m_message.empty()) {
         buf.pushRectangle(vx0, vy0, vx1 - vx0, lh + 2 * pad, Colors::OverlayScrim, 0.f);
         JTextHelper::pushText(buf, vx0 + pad, vy0 + pad, m_message, Colors::Warning, vx1 - vx0 - 2 * pad);
+    }
+    // A picture shown in place of the live one: what it is, at its foot.
+    if (!m_stillText.empty()) {
+        const float ty = vy1 - lh - 2 * pad;
+        buf.pushRectangle(vx0, ty, vx1 - vx0, lh + 2 * pad, Colors::OverlayScrim, 0.f);
+        JTextHelper::pushText(buf, vx0 + pad, ty + pad, m_stillText, Colors::ControlText, vx1 - vx0 - 2 * pad);
     }
     // The selection's size, at its top left.
     if (m_selecting && m_selection.width > 0 && m_selection.height > 0) {

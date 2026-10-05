@@ -76,6 +76,7 @@ private:
     JPlacerMachine&               m_machine;
     JPlacerLayout&                m_layout;
     int                           m_watch = 0;
+    bool                          m_refreshPending = false;
     std::unique_ptr<JPPartsPanel>    m_parts;
     std::unique_ptr<JDockWidget>     m_partsDock;
     std::unique_ptr<JPPackagesPanel> m_packages;

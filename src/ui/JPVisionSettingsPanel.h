@@ -9,6 +9,7 @@
 #include "JPVisionSettingsTableModel.h"
 
 #include "model/JPConfiguration.h"
+#include "setup/JPVisionForms.h"
 
 #include <j/core/JComboBox.h>
 #include <j/core/JContainer.h>
@@ -33,11 +34,19 @@ public:
     std::function<void()> onChanged;
     // The machine's default vision settings ids (bottom, fiducial), for Assigned To.
     std::function<std::pair<std::string, std::string>()> machineDefaults;
+    // A setting's pipeline in the Pipeline Editor; a parameter's slider moved
+    // (its effect to show). With the part or package the page is for.
+    std::function<void(const std::string& settingsId, const JPVisionForms::Holder& holder)> editPipeline;
+    std::function<void(const std::string& settingsId, const JPVisionForms::Holder& holder, const std::string& parameter)>
+        previewParameter;
+    // A parameter's slider moved: the setting to be saved (the pages not shown again).
+    std::function<void()> onParameterChanged;
 
     void refresh();
     double split() const;
 
 private:
+    void pipelineAct(const std::string& action);
     std::vector<JPVisionSettings*> selections() const;
     std::string usedIn(const JPVisionSettings& v) const;
     void showForm();

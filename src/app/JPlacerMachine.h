@@ -120,6 +120,8 @@ public:
     // The head camera's live picture, brought to the front (a selection is
     // made on it); none when there is no camera on the head.
     JPCameraView* headCameraView();
+    // The view of a camera's feed, shown; null when it has none.
+    JPCameraView* cameraViewOf(const JPCameraFeed* feed);
     // For a job (JPlacerJobMachine): the open cell, the head camera's
     // pictures, why a tip change cannot be made (empty: it can), and the tip
     // now on a nozzle kept (a step in Machine Setup; nothing moves).
