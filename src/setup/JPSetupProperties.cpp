@@ -1223,7 +1223,7 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
             add.end();
             const std::string file = empty ? vc().templateEmpty : vc().templateOccupied;
             if (!file.empty() && templatePicture)
-                add.image("Template " + what, [templatePicture, file] { return templatePicture(file); });
+                add.image("", [templatePicture, file] { return templatePicture(file); });
         }
     }
 

@@ -524,6 +524,7 @@ std::unique_ptr<JPMachineSetupPanel> JPlacerMachine::makeSetup() {
     };
     setup->moveTo = [this](JPSetupForm::Tool tool, const JPMachineSetupPanel::Where& to) { moveToolTo(tool, to); };
     setup->moveToStraight = [this](JPSetupForm::Tool tool, const JPMachineSetupPanel::Where& to) { moveToolTo(tool, to, true); };
+    setup->setHal(&m_window.hal());
     // Template pictures are named by what they hold: one read is kept.
     setup->templatePicture = [this, kept = std::make_shared<std::map<std::string, std::shared_ptr<const JPFrame>>>()](
                                  const std::string& fileName) -> std::shared_ptr<const JPFrame> {

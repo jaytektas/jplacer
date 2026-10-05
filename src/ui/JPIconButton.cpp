@@ -33,6 +33,7 @@ JPIconButton::JPIconButton(JSceneGraph& graph, const std::string& name, Glyph gl
     auto& l = m_graph.getLayout(m_nodeId);
     l.boundingBox.width  = s;
     l.boundingBox.height = s;
+    setMinimumSize(s, s);   // never squeezed below its icon: what is beside it gives way
     onClicked.connect([this] {
         if (!m_checkable) return;
         setChecked(!m_checked);

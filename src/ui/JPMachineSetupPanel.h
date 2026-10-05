@@ -94,6 +94,8 @@ public:
     // The chosen contact probing nozzle over `at`, probed down: `done` with the Z found.
     std::function<bool(const Where& at, std::function<void(double z)> done)> contactProbeAt;
     std::function<void(const std::string& axisId, double to)> moveAxis;
+    // Where the form's pictures are drawn (a template picture).
+    void setHal(JGpuHal* hal) { m_form->setHal(hal); }
     // A nozzle tip's changer slot template picture by its file name (none: not shown).
     JPSetupProperties::TemplatePicture templatePicture;
     // OpenPnP's ClassSelectionDialog: one of `classes` chosen (empty: cancelled).
