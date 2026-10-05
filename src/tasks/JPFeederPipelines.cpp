@@ -4,6 +4,7 @@
 #include "JPFeederPipelines.h"
 
 #include "model/JPLength.h"
+#include "model/JPPushPullTemplates.h"
 #include "openpnp/JPXmlReader.h"
 #include "openpnp/JPXmlWriter.h"
 #include "pipeline/JPDefaultPipelines.h"
@@ -18,6 +19,9 @@ namespace {
 constexpr double kHoleDiameterMm = 1.5, kHolePitchMm = 4.0;
 // OpenPnP's tolerances on them: the least and most a hole may measure, the least pitch.
 constexpr double kLeast = 0.9, kMost = 1.1;
+// A push-pull feeder's OCR font, as OpenPnP's defaults.
+constexpr const char* kOcrFontName = "Liberation Mono";
+constexpr double      kOcrFontSizePt = 7.0;
 
 // The default of a kind's pipeline element; null when it has none.
 const std::string* defaultOf(const JPFeeder& f, const std::string& element, const JPDropBoxes* boxes) {
@@ -117,6 +121,11 @@ void JPFeederPipelines::configureForEditing(const JPConfiguration& config, const
     if (kind == "BambooFeederAutoVision" || kind == "ReferencePushPullFeeder") {
         if (ctx.cameraWidth > 0 && ctx.pixelsPerMmX > 0 && ctx.pixelsPerMmY > 0)
             configureTape(feeder, pipeline, true, ctx.cameraWidth, ctx.cameraHeight, 1 / ctx.pixelsPerMmX, 1 / ctx.pixelsPerMmY);
+        // A push-pull feeder's OCR as it reads (OpenPnP's getCvPipeline(…, performOcr true, …)).
+        if (kind == "ReferencePushPullFeeder") {
+            if (JPPushPullTemplates::ocrRegion(feeder)) setupOcr(config, feeder, pipeline);
+            else disableOcr(pipeline);
+        }
         return;
     }
     if (kind != "ReferenceStripFeeder") return;
@@ -133,6 +142,29 @@ void JPFeederPipelines::configureForEditing(const JPConfiguration& config, const
                                                                 : ctx.cameraWidth / 2.0 / ctx.pixelsPerMmX;
         pipeline.setProperty("sprocketHole.maxDistance", JPPipelineValue { JPPipelineValue::LengthMm { range } });
     }
+}
+
+void JPFeederPipelines::setupOcr(const JPConfiguration& config, const JPFeeder& feeder, JPPipeline& pipeline) {
+    if (const auto region = JPPushPullTemplates::ocrRegion(feeder)) {
+        auto at = [](const JPLocation& l) {
+            const JPLocation m = l.convertToUnits(JPLengthUnit::Millimeters);
+            return JPPipelineValue::LocationMm { m.x(), m.y() };
+        };
+        pipeline.setProperty("regionOfInterest", JPPipelineValue { JPPipelineValue::RegionOfInterest {
+                                                     at(region->upperLeft), at(region->upperRight), at(region->lowerLeft), region->rectify } });
+    } else {
+        pipeline.removeProperty("regionOfInterest");
+    }
+    pipeline.setProperty("SimpleOcr.fontName", JPPipelineValue { feeder.text("ocr-font-name", kOcrFontName) });
+    pipeline.setProperty("SimpleOcr.fontSizePt", JPPipelineValue { feeder.real("ocr-font-size-pt", kOcrFontSizePt) });
+    pipeline.setProperty("SimpleOcr.alphabet", JPPipelineValue { JPPushPullTemplates::partsAlphabet(config, "\\") });
+}
+
+void JPFeederPipelines::disableOcr(JPPipeline& pipeline) {
+    pipeline.removeProperty("regionOfInterest");
+    pipeline.removeProperty("SimpleOcr.fontName");
+    pipeline.removeProperty("SimpleOcr.fontSizePt");
+    pipeline.setProperty("SimpleOcr.alphabet", JPPipelineValue { std::string() });   // empty: OCR off
 }
 
 void JPFeederPipelines::configureTape(const JPFeeder& feeder, JPPipeline& pipeline, bool autoSetup, int width, int height,

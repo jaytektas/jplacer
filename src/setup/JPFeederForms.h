@@ -8,6 +8,7 @@
 #include "model/JPConfiguration.h"
 
 #include <functional>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -44,6 +45,12 @@ public:
         std::function<std::string(const std::string& action)> reading;
         // A strip feeder's Auto Setup under way: its button then says Cancel Auto Setup.
         bool autoSetupRunning = false;
+        // The fonts OCR can read (a push-pull feeder's OCR Font Name choices, as OpenPnP lists them).
+        std::vector<std::string> fonts;
+        // A push-pull feeder's Setup OCR Region under way: what its going-on button says (empty: not under way).
+        std::string ocrRegionStep;
+        // A push-pull feeder's Clone … Settings? ticks, the page's own (by "location", "tape", "vision", "pushPull").
+        std::map<std::string, bool>* cloneChoices = nullptr;
     };
     // `warn`: a value kept, but which will not work (a tray's offset of 0
     // with more than one part that way), to be said.

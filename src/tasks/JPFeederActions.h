@@ -30,7 +30,9 @@ inline namespace jf {
 // Feed and Feed 1mm (on the bus, the nozzle left where it is) and Search
 // (every address asked, JPPhotonFeeders::findAll); a Bamboo feeder's Test
 // feed and Test post pick, Preview Vision Features and Auto-Setup (JPVisionTapeFeeder);
-// a push-pull feeder's Preview Vision Features, Auto-Setup and rotation Reset
+// a push-pull feeder's Preview Vision Features, Auto-Setup (also of a new one
+// in a row: the camera over it first), Part by OCR (the camera over the OCR
+// region, the part read set), All Feeder OCR, and rotation Reset
 // (its feed actuator's rotation axis called 0 where it is, in additive mode);
 // a heap feeder's Clean DropBox and GetSamples (JPHeapFeeder, with the head's first nozzle). An action whose actuator (or fiducial part) is
 // not set does nothing (the log says so).
@@ -42,6 +44,8 @@ public:
         std::vector<std::pair<std::string, std::string>> readings;
         // The feeder was changed (a slot Schultz feeder's location found by its fiducial).
         bool changed = false;
+        // A push-pull feeder's OCR report, to be shown (empty: none).
+        std::string report;
     };
 
     // `vision`: the machine's vision (its fiducial vision settings, for a fiducial part that names none).

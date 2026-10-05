@@ -51,6 +51,7 @@ public:
         std::vector<JPRansac::Line> lines;
         std::optional<JPLocation>   hole1, hole2, pick, visionOffset;
         std::optional<std::string>  ocrText;
+        double                      ocrAvgScore = 0;   // its characters' scores on average
     };
     // `results`: the "results" stage's model. False, and why, when the mode needs holes not found.
     static bool find(const JPPipelineModel& results, Mode mode, const Settings& settings, const Camera& camera, Found& found,

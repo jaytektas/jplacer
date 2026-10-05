@@ -88,6 +88,8 @@ public:
     const JPPipelineModel& workingModel() const { return m_model; }
 
     void                   setProperty(const std::string& name, JPPipelineValue value) { m_properties[name] = std::move(value); }
+    // A property no longer set (OpenPnP's setProperty(name, null)): the stages' own settings again.
+    void                   removeProperty(const std::string& name) { m_properties.erase(name); }
     const JPPipelineValue* property(const std::string& name) const;
     void                   clearProperties() { m_properties.clear(); }
     Context&               context() { return m_context; }

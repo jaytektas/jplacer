@@ -284,7 +284,34 @@ the places ticked to the end, the auxiliary actuator on, pulled back through tho
 first push and the last pull go all the way, those between only through the places ticked ↑↓. Then up to safe Z and
 calibrated as the trigger says. A repeated feed moves nothing.
 
-<!-- src: src/setup/JPFeederForms.cpp (pushPullForm); src/tasks/JPVisionTapeFeeder.cpp (feedPushPull, autoSetup); src/tasks/JPFeederActions.cpp; src/tasks/JPFeederPipelines.cpp -->
+**OCR** (in **Vision**) reads the part id printed beside the tape. **Setup OCR Region** takes the camera over the
+holes, then asks on its view, step by step (the feeder's page shows **Next**, then **Finish**, and **Cancel**): move
+the camera where the text is, if it is not in view (jog, or click to look there), click the upper left, upper right
+and lower left corner of the text (a click again takes a corner back), and click to switch between a rectangle and a
+parallelogram. The **OCR Font Name** (or [Barcode], to read a barcode or QR code instead) and **OCR Font Size [pt]**
+are the printed text's; its alphabet is every character of the part ids. What OCR read names a part by its id, whole,
+or as the end of an id after a "-"; on the first line, and up to a space unless a part id has one.
+
+The **OCR Wrong Part Action** says what happens when the part read is not the feeder's: **None**; **SwapFeeders**
+(the push-pull feeder that has that part takes this one's place, and the other way round, and is turned on);
+**SwapOrCreate** (the same, or, when no feeder has it, a new feeder for it at this place, cloned from this one or its
+template, and this one turned off); **ChangePart**; **ChangePartAndClone** (cloned from the new part's template).
+**Stop after wrong part?** fails with what was done. A feeder with no part takes the part read, cloned from its
+template. **Part by OCR** reads and changes the part; **All Feeder OCR** reads every enabled push-pull feeder with OCR,
+along the shortest way, doing what each says; both end with an **OCR Report**. **Check on Job Start?**: a job first
+reads each uncalibrated feeder it uses, and a wrong part stops it (a feeder without an OCR region then stops it too).
+OCR is read with the holes' calibration when the region needs no camera move, else from the region's place.
+
+**Clone Settings**: **Use this one as Template?**; **Template** says what the feeder would clone from (the template
+whose part shares its tape and reel specification or package, else the most alike: a template, the same feed pitch,
+tape width and part pitch, in the same row, on, nearest), or for a template what it clones to. **Clone from
+Template** (or, for a template, **Clone to Feeders**, every feeder with a compatible part) takes the ticked settings:
+**Location** (the pick location's Z and the options), **Tape**, **Vision** (with the pipeline) and **Push-Pull**, the
+template's lever places moved to this feeder's tape (its X and Y swapped when it is turned). Auto-Setup clones from
+the template first. **+** (beside Auto-Setup) adds one more feeder like this one in its row, as far on as the nearest
+other feeder is (else a tape width and 8 mm down the tape), and sets it up with the camera there.
+
+<!-- src: src/setup/JPFeederForms.cpp (pushPullForm); src/tasks/JPVisionTapeFeeder.cpp (feedPushPull, autoSetup, performOcr, performOcrOnAll); src/tasks/JPFeederActions.cpp; src/tasks/JPFeederPipelines.cpp (setupOcr); src/model/JPPushPullTemplates.cpp; src/app/JPlacerOcrRegionSetup.cpp; src/ui/JPFeedersPanel.cpp (cloneFromTemplate, cloneToFeeders, plusOne) -->
 
 ### Heap feeder
 

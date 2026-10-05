@@ -165,6 +165,8 @@ public:
     // Its kind's own values, by their XML names.
     std::string text(const std::string& attribute, const std::string& def = {}) const;
     void        setText(const std::string& attribute, const std::string& value);
+    // An attribute taken away (read as its default again).
+    void        removeAttribute(const std::string& attribute);
     int         number(const std::string& attribute, int def = 0) const;
     void        setNumber(const std::string& attribute, int value);
     double      real(const std::string& attribute, double def = 0) const;
@@ -173,6 +175,10 @@ public:
     void        setFlag(const std::string& attribute, bool on);
     // Whether it has the child element at all (a location never set has none).
     bool        has(const std::string& element) const { return m_node.child(element) != nullptr; }
+    const JPXmlNode* child(const std::string& element) const { return m_node.child(element); }
+    // A child element put in (replacing one of its name), or taken away.
+    void        setChild(JPXmlNode node);
+    void        removeChild(const std::string& element);
     JPLocation  locationOf(const std::string& element) const;
     void        setLocationOf(const std::string& element, const JPLocation& l);
     // A child element's text (OpenPnP's <parallax-angle>0.0</parallax-angle>).

@@ -84,7 +84,8 @@ public:
     // The feeders, in order.
     std::vector<JPFeeder>&       feeders() { return m_feeders; }
     const std::vector<JPFeeder>& feeders() const { return m_feeders; }
-    JPFeeder* feeder(const std::string& id);
+    JPFeeder*       feeder(const std::string& id);
+    const JPFeeder* feeder(const std::string& id) const;
     // A feeder added after the others; one taken away.
     JPFeeder& addFeeder(JPFeeder f);
     void      removeFeeder(const std::string& id);

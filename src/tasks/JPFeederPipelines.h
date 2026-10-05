@@ -38,6 +38,12 @@ public:
     // given), else half the distance between the feeder's holes and a pitch.
     static void configureTape(const JPFeeder& feeder, JPPipeline& pipeline, bool autoSetup, int width, int height,
                               double mmPerPixelX, double mmPerPixelY);
+    // A push-pull feeder's OCR (OpenPnP's setupOcr): its OCR region the
+    // pipeline's region of interest, its font and size, and every character
+    // of the part ids its alphabet; or OCR switched off (an empty alphabet,
+    // the stages' own region, font and size).
+    static void setupOcr(const JPConfiguration& config, const JPFeeder& feeder, JPPipeline& pipeline);
+    static void disableOcr(JPPipeline& pipeline);
 };
 
 } // inline namespace jf

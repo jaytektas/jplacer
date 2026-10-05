@@ -3,13 +3,13 @@
 
 #include "JPFeederActions.h"
 
-#include "JPVisionTapeFeeder.h"
-#include "JPHeapFeeder.h"
-
 #include "JPFiducialLocator.h"
+#include "JPHeapFeeder.h"
 #include "JPPhotonFeeders.h"
+#include "JPVisionTapeFeeder.h"
 
 #include "common/JPlacerLog.h"
+#include "model/JPFeederTape.h"
 
 #include <j/core/Log.h>
 
@@ -81,6 +81,31 @@ bool JPFeederActions::run(JPConfiguration& config, const std::string& feederId, 
     if ((kind == "BambooFeederAutoVision" || kind == "ReferencePushPullFeeder") && action == "autoSetupTape") {
         outcome.changed = true;
         return JPVisionTapeFeeder::autoSetup(config, feederId, machine, onMain, why);
+    }
+    if (kind == "ReferencePushPullFeeder" && action == "autoSetupInRow") {
+        std::optional<JPLocation> at;
+        main([&] {
+            if (const JPFeeder* f = config.feeder(feederId))
+                at = JPFeederTape::partLocation(0, std::nullopt, JPFeederTape::of(*f), f->real("rotation-in-feeder", 0));
+        });
+        outcome.changed = true;
+        return at && machine.positionCamera(*at, why) && JPVisionTapeFeeder::autoSetup(config, feederId, machine, onMain, why);
+    }
+    if (kind == "ReferencePushPullFeeder" && (action == "partByOcr" || action == "allFeederOcr")) {
+        outcome.changed = true;
+        bool ok = false;
+        if (action == "partByOcr") {
+            std::optional<JPLocation> at;
+            main([&] {
+                if (const JPFeeder* f = config.feeder(feederId)) at = JPVisionTapeFeeder::ocrLocation(*f);
+            });
+            ok = at && machine.positionCamera(*at, why)
+                 && JPVisionTapeFeeder::performOcr(config, feederId, machine, onMain, { "ChangePart", false, &outcome.report }, why);
+        } else {
+            ok = JPVisionTapeFeeder::performOcrOnAll(config, feederId, machine, onMain, {}, false, outcome.report, why);
+        }
+        if (ok && outcome.report.empty()) outcome.report = "No action taken.";
+        return ok;
     }
     if (kind == "ReferencePushPullFeeder" && action == "resetRotation") {
         // Its feed actuator's rotation axis called 0 where it is, in additive mode.

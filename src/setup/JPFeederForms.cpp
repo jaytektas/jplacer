@@ -7,9 +7,11 @@
 
 #include "common/JPlacerLog.h"
 #include "model/JPFeederTape.h"
+#include "model/JPPushPullTemplates.h"
 
 #include <j/core/Log.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -791,7 +793,8 @@ void bambooForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFee
 // Settings, Vision) and ReferencePushPullMotionConfigurationWizard (the
 // Push-Pull Settings: its actuators and the places the lever is pushed and
 // pulled through, with their speeds and delays).
-void pushPullForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f, const std::vector<std::string>& actuators) {
+void pushPullForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f, const JPFeederForms::Options& options) {
+    const std::vector<std::string>& actuators = options.actuators;
     general(add, config, f, false);
 
     add.group("Locations");
@@ -800,6 +803,7 @@ void pushPullForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPF
     add.button("autoSetupTape", "Auto-Setup with Camera at Pick Location",
                "Center the camera on the pick location and press this button to Auto-Setup\nIf there are multiple picks per "
                "feed cycle, choose the one closest to the tape reel.");
+    add.iconButton("plusOne", "general-add", "Add one more feeder like this one, advancing in a row.");
     add.end();
     add.header({ "X", "Y", "Z" });
     add.row("Pick Location", Place::Location);
@@ -872,6 +876,50 @@ void pushPullForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPF
     add.button("resetStatistics", "Reset Statistics", "Reset the average obtained precision statistics.");
     add.end();
     add.tip("Precision wanted i.e. the tolerable pick location offset");
+    // OCR: the part in the feeder read, and what to do about a wrong one.
+    JPFormBuilder::Strings fonts;
+    const std::string font = f().text("ocr-font-name", "Liberation Mono");
+    if (std::find(options.fonts.begin(), options.fonts.end(), font) == options.fonts.end()) fonts.push_back(font);
+    fonts.push_back("");
+    fonts.insert(fonts.end(), options.fonts.begin(), options.fonts.end());
+    add.row("OCR Wrong Part Action");
+    add.choice("ocr-wrong-part-action", "OCR Wrong Part Action", { "None", "SwapFeeders", "SwapOrCreate", "ChangePart", "ChangePartAndClone" },
+               [f] { return f().text("ocr-wrong-part-action", "SwapOrCreate"); },
+               [f](const std::string& v) { f().setText("ocr-wrong-part-action", v); });
+    add.choice("ocr-font-name", "OCR Font Name", fonts, [f] { return f().text("ocr-font-name", "Liberation Mono"); },
+               [f](const std::string& v) { f().setText("ocr-font-name", v); });
+    if (options.ocrRegionStep.empty()) {
+        add.button("setupOcrRegion", "Setup OCR Region", "Moves the camera to the vision location and lets you select the OCR region of interest.");
+    } else {
+        add.button("ocrRegionNext", options.ocrRegionStep);
+        add.button("ocrRegionCancel", "Cancel");
+    }
+    add.end();
+    add.tip("Determines what action should be taken when OCR detects the wrong Part ID in the feeder.\n"
+            "- None: Use this setting if you don't want to use OCR.\n"
+            "- SwapFeeders: If a wrong part is detected but the right part is selected in a different ReferencePushPullFeeder, the "
+            "locations of the two feeders are swapped. The swapped-in feeder will be enabled. This will happen, if you "
+            "unload/reload/rearrange your feeders on the machine.\n"
+            "- SwapOrCreate: Works like SwapFeeders, but if no other feeder with the right part is found, a new one will be created and "
+            "swapped-in at the current feeder's location. The current feeder is then disabled in turn (they are now sitting at the same "
+            "location and only one must be enabled).\n"
+            "- ChangePart: The part in the current feeder is changed. This will only work correctly, if the tape settings etc. remain "
+            "the same between the parts i.e. if you restrict any reloading/rearranging to groups of feeders with the same settings.\n"
+            "- ChangePartAndClone: The part in the current feeder is changed but settings are cloned from a template feeder.");
+    add.row("Stop after wrong part?");
+    add.flag("ocr-stop-after-wrong-part", "Stop after wrong part?", [f] { return f().flag("ocr-stop-after-wrong-part", false); },
+             [f](bool on) { f().setFlag("ocr-stop-after-wrong-part", on); });
+    add.number("ocr-font-size-pt", "OCR Font Size [pt]", [f] { return f().real("ocr-font-size-pt", 7.0); },
+               [f](double v) { f().setReal("ocr-font-size-pt", v); });
+    add.button("partByOcr", "Part by OCR", "Perform OCR and assign the recognized part.");
+    add.end();
+    add.row("Check on Job Start?");
+    add.flag("ocr-discover-on-job-start", "Check on Job Start?", [f] { return f().flag("ocr-discover-on-job-start", true); },
+             [f](bool on) { f().setFlag("ocr-discover-on-job-start", on); });
+    add.button("allFeederOcr", "All Feeder OCR", "Go to all the feeders with OCR and rediscover the parts loaded in them.");
+    add.end();
+    add.tip("On Job Start, check that the correct parts are selected in OCR-enabled feeders at their locations.\nOtherwise the Job is "
+            "stopped.\nThis will also vision-calibrate the feeders' locations, if calibration is enabled.");
     add.row("");
     add.button("editPipeline", "Edit Pipeline", "Edit the Pipeline to be used for all vision operations of this feeder.");
     add.choice("pipeline-type", "Vision Type", { "ColorKeyed", "CircularSymmetry" },
@@ -882,6 +930,41 @@ void pushPullForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPF
             "detected as follows:\n- ColorKeyed: the background under the holes must be of a vivid color (green by default).\n"
             "- CircularSymmetry: the shape of the holes must be circular, their inside/outside must be plain.\n"
             "Both types of pipeline will further assess detected holes by size, alignment, pitch and expected distance.");
+
+    add.group("Clone Settings");
+    std::map<std::string, bool>* choices = options.cloneChoices;
+    auto choice = [choices](const std::string& key) {
+        return std::function<bool()>([choices, key] { return !choices || (*choices)[key]; });
+    };
+    auto setChoice = [choices](const std::string& key) {
+        return std::function<void(bool)>([choices, key](bool on) {
+            if (choices) (*choices)[key] = on;
+        });
+    };
+    const bool templ = f().flag("used-as-template", false);
+    add.row("Use this one as Template?");
+    add.flag("used-as-template", "Use this one as Template?", [f] { return f().flag("used-as-template", false); },
+             [f](bool on) { f().setFlag("used-as-template", on); });
+    add.flag("clone.location", "Clone Location Settings?", choice("location"), setChoice("location"));
+    if (templ) add.button("cloneToFeeders", "Clone to Feeders", "Clone the settings from this feeder to all compatible feeders.");
+    else
+        add.button("cloneFromTemplate", "Clone from Template",
+                   "Clone the settings from the selected template feeder,\ntransforming any coordinates to the pick location and orientation.");
+    add.end();
+    add.tip("Use this feeder as a template for cloning settings to other feeders.\nThe templates are matched by tape & reel specification "
+            "or package of the parts\nloaded in feeders.\nWhen no template matches formally, the feeder with the greatest similarities\n"
+            "is taken (feed pitch, tape width, proximity, etc.).");
+    add.text("clone.status", "Template:", [&config, f] { return JPPushPullTemplates::cloneTemplateStatus(config, f().id()); }, nullptr, "lines");
+    add.flag("clone.tape", "Clone Tape Setting?", choice("tape"), setChoice("tape"));
+    add.tip("Clone the Tape Settings.");
+    add.row("Clone Vision Settings?");
+    add.flag("clone.vision", "Clone Vision Settings?", choice("vision"), setChoice("vision"));
+    add.end();
+    add.tip("Clone the Vision settings, including the pipeline.");
+    add.row("Clone Push-Pull Settings?");
+    add.flag("clone.pushPull", "Clone Push-Pull Settings?", choice("pushPull"), setChoice("pushPull"));
+    add.end();
+    add.tip("Clone the Push-Pull Motion Settings.");
 
     add.tab("Push-Pull Motion");
     add.group("Push-Pull Settings");
@@ -1160,7 +1243,7 @@ JPSetupProperties::Form JPFeederForms::forFeeder(JPConfiguration& config, const 
     } else if (kind == "ReferenceAutoFeeder") {
         autoForm(add, config, f, options.actuators);
     } else if (kind == "ReferencePushPullFeeder") {
-        pushPullForm(add, config, f, options.actuators);
+        pushPullForm(add, config, f, options);
     } else if (kind == "ReferenceHeapFeeder") {
         heapForm(add, config, f);
     } else if (kind == "BambooFeederAutoVision") {
@@ -1235,7 +1318,7 @@ bool slotAct(JPConfiguration& config, JPFeeder& slot, const std::string& action,
 } // namespace
 
 bool JPFeederForms::isMachineAction(const std::string& action) {
-    for (const char* a : { "testFeed", "testPostPick", "showVisionFeatures", "autoSetupTape", "cleanDropBox", "getSamples", "resetRotation", "getId", "getFeedCount", "clearFeedCount", "getPitch", "togglePitch",
+    for (const char* a : { "testFeed", "testPostPick", "showVisionFeatures", "autoSetupTape", "cleanDropBox", "getSamples", "resetRotation", "partByOcr", "allFeederOcr", "getId", "getFeedCount", "clearFeedCount", "getPitch", "togglePitch",
                            "getStatus", "updateLocation", "actuate", "photonFind", "photonFeed", "photonFeed1mm",
                            "photonSearch" })
         if (action == a) return true;

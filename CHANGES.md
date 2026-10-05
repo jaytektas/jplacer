@@ -30,6 +30,11 @@ notes.
   end locations ticked, each at its speed with its delay, the auxiliary (peel) actuator, multiple actuations, additive
   rotation; their sprocket holes calibrated by vision as Bamboo feeders' are, Auto-Setup (trying the stock pipelines when
   the feeder's own fails), Preview Vision Features, Discard Parts and the Push-Pull Motion tab.
+- Push-pull feeders read the part in them by OCR as OpenPnP's: Setup OCR Region on the camera's view, Part by OCR,
+  All Feeder OCR with its report, the wrong part actions (swap feeders, swap or create one, change the part, with or
+  without cloning), Stop after wrong part, and the check on job start. Their Clone Settings: a feeder used as a
+  template, Clone from Template and Clone to Feeders with the template's places moved to each tape, and + for one more
+  feeder in the row, set up there.
 - Heap feeders (ReferenceHeapFeeder) work as OpenPnP's: parts fetched from the heap by the nozzle's vacuum (stirred or
   poked), dropped into a drop box, the ones the right way up found by the feeder's pipeline and the others turned by
   dropping them again; drop boxes made, named, deleted and cleaned, their pipelines and dummy part, GetSamples for the

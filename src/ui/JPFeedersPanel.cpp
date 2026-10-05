@@ -8,6 +8,7 @@
 #include "camera/JPImageFile.h"
 #include "common/JPlacerLog.h"
 #include "setup/JPFeederForms.h"
+#include "model/JPPushPullTemplates.h"
 
 #include <j/core/Dialog.h>
 #include <j/core/JLabel.h>
@@ -16,6 +17,7 @@
 #include <j/core/JTextHelper.h>
 #include <j/core/Log.h>
 #include <j/core/FrameTimer.h>
+#include <j/graphics/FontEngine.h>
 
 #include <chrono>
 #include <cstdlib>
@@ -100,7 +102,7 @@ JPFeedersPanel::JPFeedersPanel(JSceneGraph& graph, JPConfiguration& config, doub
             if (const JPFeeder* f = m_config.feeder(m_shown); f && f->typeName() == "ReferencePushPullFeeder" && f->flag("additive-rotation", true))
                 machineAction(m_shown, "resetRotation");
         if (property == "actuator-name" || property.rfind("slot.", 0) == 0 || property == "drop-box-id" || property == "drop-box.name"
-            || property == "additive-rotation")
+            || property == "additive-rotation" || property == "used-as-template" || property == "part")
             jPostToNextFrame([this, alive = std::weak_ptr<bool>(m_alive)] {
                 if (const auto a = alive.lock(); a && *a) rebuildForm();
             });
@@ -123,6 +125,22 @@ JPFeedersPanel::JPFeedersPanel(JSceneGraph& graph, JPConfiguration& config, doub
             if (autoSetup) autoSetup(m_shown, action);
             return;
         }
+        if (action == "setupOcrRegion" || action == "ocrRegionNext" || action == "ocrRegionCancel") {
+            if (ocrRegion) ocrRegion(m_shown, action);
+            return;
+        }
+        if (action == "cloneFromTemplate") {
+            cloneFromTemplate(m_shown);
+            return;
+        }
+        if (action == "cloneToFeeders") {
+            cloneToFeeders(m_shown);
+            return;
+        }
+        if (action == "plusOne") {
+            plusOne(m_shown);
+            return;
+        }
         // A Bamboo feeder's, as OpenPnP's asks: its count reset, or its settings overwritten by Auto-Setup.
         if (const JPFeeder* f = m_config.feeder(m_shown); f && f->isVisionTape()) {
             const std::string id = m_shown;
@@ -138,7 +156,9 @@ JPFeedersPanel::JPFeedersPanel(JSceneGraph& graph, JPConfiguration& config, doub
             }
             const JPLocation at = f->location();
             if (action == "autoSetupTape" && (at.x() != 0 || at.y() != 0)) {
-                JDialog::confirm("Warning", "This may overwrite all your current settings. Are you sure?", [this, id] {
+                std::string ask = "This may overwrite all your current settings. Are you sure?";
+                if (f->flag("used-as-template", false)) ask += "\n\nThis feeder is marked as template. Are you really, really sure?";
+                JDialog::confirm("Warning", ask, [this, id] {
                     if (machineAction) machineAction(id, "autoSetupTape");
                 });
                 return;
@@ -184,6 +204,80 @@ JPFeedersPanel::JPFeedersPanel(JSceneGraph& graph, JPConfiguration& config, doub
     buildMenu();
     m_table->setContextMenu(m_menu.get());
     selectionChanged();
+}
+
+void JPFeedersPanel::cloneFromTemplate(const std::string& feederId) {
+    const JPFeeder* f = m_config.feeder(feederId);
+    if (!f) return;
+    auto& c = m_cloneChoices;
+    if (f->flag("used-as-template", false)) {
+        JDialog::message("Error", "This feeder is used as a template and cannot be overwritten.");
+        return;
+    }
+    if (!(c["tape"] || c["pushPull"] || c["vision"])) {
+        JDialog::message("Error", "Please select some feeder settings to clone.");
+        return;
+    }
+    if (JPPushPullTemplates::templateFeeder(m_config, feederId).empty()) {
+        JDialog::message("Error", "No suitable template feeder found.");
+        return;
+    }
+    JDialog::confirm("Warning",
+                     "This will overwrite the selected settings with those from the template:\n\n"
+                         + JPPushPullTemplates::cloneTemplateStatus(m_config, feederId) + "\n\nAre you sure?",
+                     [this, feederId] {
+                         auto& c = m_cloneChoices;
+                         std::string why;
+                         if (!JPPushPullTemplates::smartClone(m_config, feederId, {}, { c["location"], c["tape"], c["pushPull"], c["vision"], c["vision"] },
+                                                              why))
+                             JDialog::message("Error", why);
+                         rebuild();
+                         m_table->refresh();
+                         changed();
+                     });
+}
+
+void JPFeedersPanel::cloneToFeeders(const std::string& feederId) {
+    const JPFeeder* f = m_config.feeder(feederId);
+    if (!f) return;
+    auto& c = m_cloneChoices;
+    if (!f->flag("used-as-template", false)) {
+        JDialog::message("Error", "This feeder is not used as a template.");
+        return;
+    }
+    if (!(c["tape"] || c["pushPull"] || c["vision"])) {
+        JDialog::message("Error", "Please select some feeder settings to clone.");
+        return;
+    }
+    if (JPPushPullTemplates::compatibleFeeders(m_config, feederId).empty()) {
+        JDialog::message("Error", "No suitable feeders found to clone to.");
+        return;
+    }
+    JDialog::confirm("Warning",
+                     "This will overwrite the selected settings in all the target feeders:\n\n"
+                         + JPPushPullTemplates::cloneTemplateStatus(m_config, feederId) + "\n\nAre you sure?",
+                     [this, feederId] {
+                         auto& c = m_cloneChoices;
+                         for (const std::string& target : JPPushPullTemplates::compatibleFeeders(m_config, feederId))
+                             JPPushPullTemplates::cloneSettings(m_config, target, feederId,
+                                                                { c["location"], c["tape"], c["pushPull"], c["vision"], c["vision"] });
+                         rebuild();
+                         m_table->refresh();
+                         changed();
+                     });
+}
+
+void JPFeedersPanel::plusOne(const std::string& feederId) {
+    std::string newId, why;
+    if (!JPPushPullTemplates::createInRow(m_config, feederId, newId, why)) {
+        if (!why.empty()) JDialog::message("Error", why);
+        return;
+    }
+    m_table->refresh();
+    changed();
+    selectFeeder(newId);
+    // The camera over its place, and it set up from there.
+    if (machineAction) machineAction(newId, "autoSetupInRow");
 }
 
 double JPFeedersPanel::split() const {
@@ -321,6 +415,15 @@ JPSetupProperties::Form JPFeedersPanel::formFor() {
     options.reading = [this](const std::string& action) { return reading(action); };
     options.autoSetupRunning = autoSetupRunning && autoSetupRunning();
     options.searchStates = [this] { return m_searchStates; };
+    if (m_fonts.empty()) {
+        // OpenPnP's createFontSelectionList: the barcode reader first, then the system's fonts.
+        m_fonts.push_back("[Barcode]");
+        for (const JSystemFont& f : jListSystemFonts())
+            if (std::find(m_fonts.begin(), m_fonts.end(), f.name) == m_fonts.end()) m_fonts.push_back(f.name);
+    }
+    options.fonts = m_fonts;
+    options.ocrRegionStep = ocrRegionStep ? ocrRegionStep() : std::string();
+    options.cloneChoices = &m_cloneChoices;
     return JPFeederForms::forFeeder(m_config, m_shown, [](const std::string& why) { JDialog::message("Error", why); },
                                     options);
 }

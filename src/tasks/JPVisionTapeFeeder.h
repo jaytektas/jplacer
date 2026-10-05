@@ -27,6 +27,15 @@ inline namespace jf {
 class JPVisionTapeFeeder {
 public:
     using OnMain = std::function<void(const std::function<void()>&)>;
+    // What a push-pull feeder does about the part OCR reads (OpenPnP's
+    // OcrWrongPartAction: None, SwapFeeders, SwapOrCreate, ChangePart,
+    // ChangePartAndClone), whether a wrong part stops (and fails), and where
+    // what was done is reported (null: nowhere).
+    struct Ocr {
+        std::string  action = "None";
+        bool         stop = false;
+        std::string* report = nullptr;
+    };
 
     // OpenPnP's feed. A Bamboo feeder: the nozzle over the pick location first
     // when Move before feed is set; on a normal feed with no part left of the
@@ -38,9 +47,24 @@ public:
     // OpenPnP's assertCalibrated: holes at least 3 mm apart, and calibrated when not yet (or as the trigger says after a tape feed).
     static bool assertCalibrated(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine, const OnMain& onMain,
                                  bool tapeFeed, std::string& why);
-    // OpenPnP's performSprocketCalibration: the vision offset found again.
+    // OpenPnP's performSprocketCalibration: the vision offset found again (a push-pull feeder's OCR acted on as `ocr` says).
+    static bool calibrate(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine, const OnMain& onMain,
+                          std::string& why, const Ocr& ocr);
     static bool calibrate(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine, const OnMain& onMain,
                           std::string& why);
+    // OpenPnP's performOcr: a push-pull feeder calibrated, its OCR read and acted on; false without an OCR region.
+    static bool performOcr(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine, const OnMain& onMain,
+                           const Ocr& ocr, std::string& why);
+    // OpenPnP's performOcrOnAllFeeders: every enabled push-pull feeder with OCR
+    // (a wrong part action, or `feederId`'s Stop after wrong part), visited
+    // along the shortest path from the camera, each by its pick location (it may
+    // have been swapped meanwhile); `action` empty: each feeder's own action and stop.
+    static bool performOcrOnAll(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine, const OnMain& onMain,
+                                const std::string& action, bool stop, std::string& report, std::string& why);
+    // OpenPnP's getNominalVisionLocation: between the holes (none set: nothing), at the pick location's Z, turned with the part.
+    static JPLocation nominalVisionLocation(const JPFeeder& feeder);
+    // OpenPnP's getOcrLocation: the nominal vision location moved by the OCR region's offsets.
+    static JPLocation ocrLocation(const JPFeeder& feeder);
     // OpenPnP's autoSetup, with the camera over the pick location (the one
     // nearest the reel, when a feed brings several): the pick location and
     // holes found from there, the statistics reset, then the holes calibrated;
@@ -52,9 +76,11 @@ public:
     static bool showFeatures(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine, const OnMain& onMain,
                              std::string& why);
     // OpenPnP's getJobPreparationLocation: where an uncalibrated feeder (with
-    // a trigger) is visited before a job; none when it needs no visit.
+    // a trigger, or a push-pull feeder checking its part on job start) is
+    // visited before a job; none when it needs no visit.
     static std::optional<JPLocation> jobPreparationLocation(const JPFeeder& feeder);
-    // OpenPnP's prepareForJob(true): calibrated when not yet.
+    // OpenPnP's prepareForJob(true): calibrated when not yet (a push-pull
+    // feeder checking its part on job start: its OCR read, a wrong part stopping the job).
     static bool prepareForJob(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine, const OnMain& onMain,
                               std::string& why);
 

@@ -22,6 +22,7 @@
 #include <filesystem>
 #include <functional>
 #include <map>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -88,6 +89,10 @@ public:
     // A strip feeder's Auto Setup: started ("autoSetup") or cancelled ("autoSetupCancel"); whether one is under way.
     std::function<void(const std::string& feederId, const std::string& action)> autoSetup;
     std::function<bool()> autoSetupRunning;
+    // A push-pull feeder's Setup OCR Region: started ("setupOcrRegion"), gone on ("ocrRegionNext"), cancelled
+    // ("ocrRegionCancel"); what its going-on button says while under way (empty: not under way).
+    std::function<void(const std::string& feederId, const std::string& action)> ocrRegion;
+    std::function<std::string()> ocrRegionStep;
     // The page made again (Auto Setup started or ended).
     void rebuild();
     // What a page's button read from the machine (by its action), shown on the feeder's page.
@@ -132,6 +137,14 @@ private:
     // The shown drag feeder's template image, read from its file again when the file changed.
     std::shared_ptr<const JPFrame> templateImage();
 
+    // A push-pull feeder's Clone … Settings? ticks (the page's own, all on at first, as OpenPnP's).
+    std::map<std::string, bool>         m_cloneChoices { { "location", true }, { "tape", true }, { "vision", true }, { "pushPull", true } };
+    // The fonts OCR can read, listed once.
+    std::vector<std::string>            m_fonts;
+    // A push-pull feeder's Clone from Template, Clone to Feeders and + (one more in its row).
+    void cloneFromTemplate(const std::string& feederId);
+    void cloneToFeeders(const std::string& feederId);
+    void plusOne(const std::string& feederId);
     JPConfiguration&                    m_config;
     JPFeedersTableModel                 m_model;
     JPTable*                            m_table = nullptr;

@@ -453,6 +453,10 @@ std::string JPFeeder::text(const std::string& attribute, const std::string& def)
 
 void JPFeeder::setText(const std::string& attribute, const std::string& value) { m_node.set(attribute, value); }
 
+void JPFeeder::removeAttribute(const std::string& attribute) {
+    std::erase_if(m_node.attributes, [&attribute](const auto& a) { return a.first == attribute; });
+}
+
 int JPFeeder::number(const std::string& attribute, int def) const {
     const std::string* v = m_node.get(attribute);
     return v && !v->empty() ? std::atoi(v->c_str()) : def;
@@ -473,6 +477,15 @@ bool JPFeeder::flag(const std::string& attribute, bool def) const {
 }
 
 void JPFeeder::setFlag(const std::string& attribute, bool on) { m_node.set(attribute, on ? "true" : "false"); }
+
+void JPFeeder::setChild(JPXmlNode node) {
+    if (JPXmlNode* c = m_node.child(node.name)) *c = std::move(node);
+    else m_node.add(std::move(node));
+}
+
+void JPFeeder::removeChild(const std::string& element) {
+    std::erase_if(m_node.children, [&element](const JPXmlNode& c) { return c.name == element; });
+}
 
 JPLocation JPFeeder::locationOf(const std::string& element) const {
     const JPXmlNode* c = m_node.child(element);

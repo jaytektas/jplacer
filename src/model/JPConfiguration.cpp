@@ -238,6 +238,12 @@ void JPConfiguration::removeFeeder(const std::string& id) {
     std::erase_if(m_feeders, [&id](const JPFeeder& f) { return f.id() == id; });
 }
 
+const JPFeeder* JPConfiguration::feeder(const std::string& id) const {
+    for (const JPFeeder& f : m_feeders)
+        if (f.id() == id) return &f;
+    return nullptr;
+}
+
 JPFeeder* JPConfiguration::feeder(const std::string& id) {
     for (JPFeeder& f : m_feeders)
         if (f.id() == id) return &f;

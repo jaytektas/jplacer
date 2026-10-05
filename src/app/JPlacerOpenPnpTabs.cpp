@@ -359,6 +359,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
                     m_job.configurationChanged();
                 }
                 if (action == "photonSearch") m_feeders->searchEnded();
+                if (ok && !outcome.report.empty()) JDialog::message("OCR Report", outcome.report);
             });
             return ok;
         });
@@ -554,6 +555,16 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_autoSetup->onStateChanged = [this] { m_feeders->rebuild(); };
     m_autoSetup->onFeederChanged = [this] { m_job.configurationChanged(); };
     m_feeders->autoSetupRunning = [this] { return m_autoSetup->running(); };
+    // A push-pull feeder's Setup OCR Region.
+    m_ocrRegion = std::make_unique<JPlacerOcrRegionSetup>(m_job, m_machine, *m_jobRun);
+    m_ocrRegion->onStateChanged = [this] { m_feeders->rebuild(); };
+    m_ocrRegion->onFeederChanged = [this] { m_job.configurationChanged(); };
+    m_feeders->ocrRegionStep = [this] { return m_ocrRegion->running() ? m_ocrRegion->proceedLabel() : std::string(); };
+    m_feeders->ocrRegion = [this](const std::string& feederId, const std::string& action) {
+        if (action == "ocrRegionCancel") m_ocrRegion->cancel();
+        else if (action == "ocrRegionNext") m_ocrRegion->next();
+        else m_ocrRegion->start(feederId);
+    };
     m_feeders->autoSetup = [this](const std::string& feederId, const std::string& action) {
         if (action == "autoSetupCancel") m_autoSetup->cancel();
         else m_autoSetup->start(feederId);
@@ -607,6 +618,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
 JPlacerOpenPnpTabs::~JPlacerOpenPnpTabs() {
     *m_alive = false;
     m_autoSetup.reset();   // its look at the camera stopped first
+    m_ocrRegion.reset();
     m_machine.setConfiguration(nullptr);
     m_machine.onUnhomed = nullptr;
     m_jobRun.reset();   // a run under way stops before what it works on goes
