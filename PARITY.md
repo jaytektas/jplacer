@@ -34,7 +34,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 |---|---|---|
 | Serial port settings, DTR / RTS, line endings | done | |
 | TCP communications | done | |
-| Keep Alive | missing | |
+| Keep Alive | own way | it keeps a disabled machine's connection; jplacer's Connect and Disconnect open and close it, with no disabled-but-connected state |
 | Firmware detection, generic G-code proposal | own way | firmware profiles (Grbl, grblHAL, Generic) with `auto` detection |
 | Command timeout, connect wait, max feed rate, log G-code | done | |
 | Compress G-code, remove comments, backslash escapes | done | Driver Settings |
