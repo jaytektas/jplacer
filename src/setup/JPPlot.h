@@ -21,7 +21,7 @@ inline namespace jf {
 struct JPPlot {
     enum class Kind { Lines, Points, Scatter, Map };
     // A series' colour, as a role the form's style gives.
-    enum class Tone { First, Second, Muted };
+    enum class Tone { First, Second, Third, Muted };
     struct Point { double x = 0, y = 0; };
     struct Series {
         std::string        label;

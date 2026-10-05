@@ -3,6 +3,8 @@
 
 #include "JPSetupProperties.h"
 
+#include "camera/JPWhiteBalance.h"
+
 #include "JPVisionForms.h"
 
 #include "JPFormBuilder.h"
@@ -183,10 +185,10 @@ void motionPlannerTabs(JPCellConfig& cell, JPFormBuilder& add, const JPMotionTes
     location->xTitle = velocity->xTitle = "s";
     location->yTitle = "mm, °";
     velocity->yTitle = "mm/s, °/s";
-    static const JPPlot::Tone kTones[] = { JPPlot::Tone::First, JPPlot::Tone::Second, JPPlot::Tone::Muted };
+    static const JPPlot::Tone kTones[] = { JPPlot::Tone::First, JPPlot::Tone::Second, JPPlot::Tone::Third, JPPlot::Tone::Muted };
     size_t k = 0;
     for (const auto& [name, points] : test->axes) {
-        JPPlot::Series l { name, kTones[k % 3], {} }, v { name, kTones[k % 3], {} };
+        JPPlot::Series l { name, kTones[k % 4], {} }, v { name, kTones[k % 4], {} };
         ++k;
         for (size_t i = 0; i < points.size(); ++i) {
             l.points.push_back({ points[i].first, points[i].second });
@@ -1562,14 +1564,43 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
         const bool gamma = std::string(row) == "Gamma";
         add.row(row);
         for (size_t ch = 0; ch < 3; ++ch)
+            // Set by hand, as OpenPnP's: the mapped balance (which they only approximate) dropped.
             add.number(std::string(gamma ? "gamma" : "balance") + channel[ch], std::string(channel[ch]) + " " + row,
-                       [wb, ch, gamma]() -> double& { return gamma ? wb().gamma[ch] : wb().balance[ch]; }, 3);
+                       [wb, ch, gamma] { return gamma ? wb().gamma[ch] : wb().balance[ch]; },
+                       [wb, ch, gamma](double v) {
+                           (gamma ? wb().gamma[ch] : wb().balance[ch]) = v;
+                           for (auto& m : wb().maps) m.clear();
+                       }, 3);
         add.end();
     }
-    add.actions({ { "Overall", "whiteBalanceOverall" }, { "Brightest", "whiteBalanceBrightest" }, { "Reset", "whiteBalanceReset" } });
+    add.actions({ { "Overall", "whiteBalanceOverall" }, { "Brightest", "whiteBalanceBrightest" },
+                  { "Mapped Roughly", "whiteBalanceMappedRoughly" }, { "Mapped Finely", "whiteBalanceMappedFinely" },
+                  { "Reset", "whiteBalanceReset" } });
     add.note("Each channel is scaled by its balance, then given its gamma. Overall and Brightest work them out "
              "from what the camera sees now (something white or grey in view): the other channels brought up to "
-             "the strongest, measured over the brighter fifth of the picture, or at its edge.");
+             "the strongest, measured over the brighter fifth of the picture, or at its edge. Mapped Roughly (8 "
+             "levels) and Mapped Finely (32) map each channel at each level of brightness, with a gradiented gray "
+             "object in view; the balance and gamma then show roughly what the map does, and setting one by hand "
+             "drops the map.");
+    // OpenPnP's color balance graph: each channel's output for each input (one line, unbalanced).
+    {
+        const JPWhiteBalance table(wb());
+        auto curve = std::make_shared<JPPlot>();
+        curve->xTitle = "in";
+        curve->yTitle = "out";
+        if (wb().neutral()) {
+            curve->series.push_back({ "neutral", JPPlot::Tone::Muted, { { 0, 0 }, { 255, 255 } } });
+        } else {
+            const char* names[] = { "red", "green", "blue" };
+            const JPPlot::Tone tones[] = { JPPlot::Tone::First, JPPlot::Tone::Second, JPPlot::Tone::Third };
+            for (size_t ch = 0; ch < 3; ++ch) {
+                JPPlot::Series s { names[ch], tones[ch], {} };
+                for (int i = 0; i < 256; ++i) s.points.push_back({ double(i), double(table.output(ch, i)) });
+                curve->series.push_back(std::move(s));
+            }
+        }
+        add.plot("Color Balance", curve);
+    }
 
     add.tab("Position");
     coordinateSystem<JPCameraConfig>(add, cell, c, "(fixed to the machine)", true, f);

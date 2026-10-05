@@ -32,6 +32,14 @@ public:
     // percentile itself ("Brightest"), and the gammas matched at the median.
     // Nothing, with `why`, when the picture is too dark to tell.
     static std::optional<Values> automatic(const JPFrame& frame, bool averaged, std::string& why);
+    // OpenPnP's Mapped Roughly (8 levels) and Mapped Finely (32): with a gray
+    // gradient in view, each channel mapped at each of `levels` brightness
+    // levels to the gray's brightness there (JPCameraConfig::WhiteBalance::maps),
+    // the balance and gammas worked out too as an approximation. Nothing (and
+    // why) when the picture has no gray at some level.
+    static std::optional<Values> automaticMapped(const JPFrame& frame, int levels, std::string& why);
+    // The table's output for `level` of channel `ch` (0 red, 1 green, 2 blue): the curve's points.
+    uint8_t output(size_t ch, int level) const { return m_table[ch][size_t(level)]; }
 
 private:
     bool                                  m_neutral;

@@ -28,6 +28,7 @@ JColor toneColour(JPPlot::Tone t) {
     switch (t) {
         case JPPlot::Tone::First:  return colour(Colors::Danger);
         case JPPlot::Tone::Second: return colour(Colors::Success);
+        case JPPlot::Tone::Third:  return colour(Colors::Accent);
         case JPPlot::Tone::Muted:  return colour(Colors::MutedText);
     }
     return colour(Colors::Accent);

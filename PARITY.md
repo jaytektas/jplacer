@@ -114,7 +114,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Units per pixel (measure) | own way | from Calibrate |
 | Settling (methods, threshold, timeout, debounce, mask, test moves, diagnostics graph) | done | |
 | Device settings and properties table | done | |
-| White balance (balance, gamma, Overall, Brightest) | partial | Mapped Roughly / Finely and the curve plot missing |
+| White balance (balance, gamma, Overall, Brightest, Mapped Roughly / Finely, curve plot) | done | imported from OpenPnP too |
 | Position (head offsets, fixed location, safe Z, roaming radius) | done | |
 | Lens calibration | own way | fitted by Calibrate |
 | Image transforms (rotate, offset, flip, crop, scale, de-interlace) | done | crop and de-interlace, as under OpenPnP's advanced calibration; straightening covers the rest |

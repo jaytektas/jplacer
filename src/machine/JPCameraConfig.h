@@ -93,10 +93,18 @@ struct JPCameraConfig {
     std::optional<JPSettleTrace> settleTrace;
     // WHITE BALANCE, as OpenPnP's: each channel (red, green, blue) scaled by
     // its balance, then given its own gamma (JPWhiteBalance).
+    // OpenPnP's mapped white balance: per channel, what each of a number of
+    // equal brightness levels becomes (0..1), interpolated between; when set,
+    // it is used in place of the balance and gamma (which then say roughly
+    // what it does).
     struct WhiteBalance {
         std::array<double, 3> balance{ 1, 1, 1 };
         std::array<double, 3> gamma{ 1, 1, 1 };
-        bool neutral() const { return balance == std::array<double, 3>{ 1, 1, 1 } && gamma == std::array<double, 3>{ 1, 1, 1 }; }
+        std::array<std::vector<double>, 3> maps;
+        bool mapped() const { return !maps[0].empty() && maps[0].size() == maps[1].size() && maps[0].size() == maps[2].size(); }
+        bool neutral() const {
+            return balance == std::array<double, 3>{ 1, 1, 1 } && gamma == std::array<double, 3>{ 1, 1, 1 } && !mapped();
+        }
     };
     WhiteBalance  whiteBalance;
     // When its light (device "light-actuator-id") is switched, as in OpenPnP:
@@ -185,6 +193,7 @@ struct JPCameraConfig {
         for (size_t ch = 0; ch < 3; ++ch) {
             c.whiteBalance.balance[ch] = j["whiteBalance"]["balance"][ch].number(1.0);
             c.whiteBalance.gamma[ch]   = j["whiteBalance"]["gamma"][ch].number(1.0);
+            for (const JJson& v : j["whiteBalance"]["maps"][ch].arr()) c.whiteBalance.maps[ch].push_back(v.number());
         }
         if (const JJson& l = j["light"]; l.isObject()) {
             c.light.beforeCapture = l["beforeCapture"].boolean(c.light.beforeCapture);
@@ -252,6 +261,15 @@ struct JPCameraConfig {
             }
             j["whiteBalance"]["balance"] = balance;
             j["whiteBalance"]["gamma"]   = gamma;
+            if (whiteBalance.mapped()) {
+                JJson maps = JJson::array();
+                for (size_t ch = 0; ch < 3; ++ch) {
+                    JJson m = JJson::array();
+                    for (double v : whiteBalance.maps[ch]) m.push(JJson(v));
+                    maps.push(m);
+                }
+                j["whiteBalance"]["maps"] = maps;
+            }
         }
         j["light"]["beforeCapture"] = light.beforeCapture;
         j["light"]["userAction"]    = light.userAction;

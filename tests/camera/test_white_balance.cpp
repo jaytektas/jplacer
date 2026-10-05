@@ -60,6 +60,29 @@ int main() {
     // Too dark to tell.
     assert(!JPWhiteBalance::automatic(picture(10, 10, 10), true, why) && !why.empty());
 
+    // Mapped (OpenPnP's Mapped Roughly): a gray gradient whose blue runs at 80%, mapped at 8 levels; the
+    // table then gives blue back what red and green have, along the gradient; a manual balance's maps none.
+    {
+        JPFrame g;
+        g.width = 256;
+        g.height = 32;
+        g.rgba.resize(size_t(g.width * g.height * 4));
+        for (int y = 0; y < g.height; ++y)
+            for (int x = 0; x < g.width; ++x) {
+                uint8_t* p = &g.rgba[size_t((y * g.width + x) * 4)];
+                p[0] = p[1] = uint8_t(x);
+                p[2] = uint8_t(x * 0.8);
+                p[3] = 255;
+            }
+        const auto m = JPWhiteBalance::automaticMapped(g, 8, why);
+        assert(m && m->mapped() && m->maps[2].size() == 8 && !m->neutral());
+        const JPWhiteBalance table(*m);
+        for (int x : { 80, 128, 160 }) {
+            const int red = table.output(0, x), blue = table.output(2, int(x * 0.8));
+            assert(std::abs(red - blue) <= 12);
+        }
+    }
+
     std::puts("test_white_balance: ok");
     return 0;
 }

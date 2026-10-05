@@ -18,6 +18,7 @@
 #include <optional>
 #include <regex>
 #include <set>
+#include <sstream>
 
 inline namespace jf {
 
@@ -587,6 +588,28 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
         cam.previewFps = x.attr("fps").empty() ? 5.0 : number(x.attr("fps"));
         if (x.child("roaming-radius")) cam.roamingRadiusMm = lengthChild(x, "roaming-radius");
         if (!x.attr("focus-sensing-method").empty()) cam.focusSensingMethod = x.attr("focus-sensing-method");
+        // White balance: each channel's balance and gamma, and the mapped balance's maps (a number list, as
+        // Simple writes a double[]: <double> children, or the numbers in its text).
+        {
+            const char* channels[] = { "red", "green", "blue" };
+            for (size_t ch = 0; ch < 3; ++ch) {
+                const std::string c = channels[ch];
+                if (!x.attr(c + "-balance").empty()) cam.whiteBalance.balance[ch] = number(x.attr(c + "-balance"));
+                if (!x.attr(c + "-gamma").empty()) cam.whiteBalance.gamma[ch] = number(x.attr(c + "-gamma"));
+                if (const JPXmlElement* m = x.child(c + "-color-map")) {
+                    std::vector<double>& map = cam.whiteBalance.maps[ch];
+                    for (const JPXmlElement& v : m->children) map.push_back(number(v.text));
+                    if (map.empty()) {
+                        std::string list = m->text;
+                        for (char& ch2 : list) if (ch2 == ',') ch2 = ' ';
+                        std::istringstream in(list);
+                        for (double v; in >> v;) map.push_back(v);
+                    }
+                }
+            }
+            if (!cam.whiteBalance.mapped())
+                for (auto& m : cam.whiteBalance.maps) m.clear();
+        }
         if (const JPXmlElement* fp = x.child("focus-provider")) {
             if (fp->child("focal-resolution")) cam.autoFocus.focalResolutionMm = lengthChild(*fp, "focal-resolution");
             if (!fp->attr("averaged-frames").empty()) cam.autoFocus.averagedFrames = int(number(fp->attr("averaged-frames")));

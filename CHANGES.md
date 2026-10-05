@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Camera white balance has OpenPnP's Mapped Roughly and Mapped Finely and its color balance curve, and an
+  OpenPnP import brings a camera's white balance.
 - A nozzle's Offset Wizard has OpenPnP's precise offsets calibration: a test object picked, turned and placed
   at six angles, the camera finding where it went.
 - A contact probing nozzle can probe the discard place too (Discard Probing), brushing the part off there.
