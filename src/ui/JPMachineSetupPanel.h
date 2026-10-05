@@ -94,6 +94,8 @@ public:
     // The chosen contact probing nozzle over `at`, probed down: `done` with the Z found.
     std::function<bool(const Where& at, std::function<void(double z)> done)> contactProbeAt;
     std::function<void(const std::string& axisId, double to)> moveAxis;
+    // A nozzle tip's changer slot template picture by its file name (none: not shown).
+    JPSetupProperties::TemplatePicture templatePicture;
     // OpenPnP's ClassSelectionDialog: one of `classes` chosen (empty: cancelled).
     std::function<void(const std::string& title, const std::string& description, const std::vector<std::string>& classes,
                        std::function<void(std::string)> chosen)> chooseClass;

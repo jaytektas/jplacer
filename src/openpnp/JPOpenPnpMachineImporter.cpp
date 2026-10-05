@@ -1053,6 +1053,25 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             if (const auto l = location(x, "touch-location"); l && (l->x != 0 || l->y != 0 || l->z != 0)) t.touchLocation = l;
             if (!x.attr("z-calibration-trigger").empty()) t.zCalibrationTrigger = x.attr("z-calibration-trigger");
             t.zCalibrationFailHoming = x.attr("z-calibration-fail-homing") != "false";
+            // The changer slot's vision calibration; its template pictures are OpenPnP's files, beside machine.xml.
+            {
+                JPNozzleTipConfig::VisionCalibration& v = t.visionCalibration;
+                if (!x.attr("vision-calibration").empty()) v.location = x.attr("vision-calibration");
+                if (!x.attr("vision-calibration-trigger").empty()) v.trigger = x.attr("vision-calibration-trigger");
+                if (!x.attr("vision-match-minimum-score").empty()) v.minimumScore = number(x.attr("vision-match-minimum-score"));
+                if (!x.attr("vision-calibration-max-passes").empty()) v.maxPasses = int(number(x.attr("vision-calibration-max-passes")));
+                for (const auto& [child, field] : { std::pair { "vision-calibration-z-adjust", &v.zAdjustMm },
+                                                    std::pair { "vision-template-dimension-x", &v.templateWidthMm },
+                                                    std::pair { "vision-template-dimension-y", &v.templateHeightMm },
+                                                    std::pair { "vision-template-tolerance", &v.toleranceMm },
+                                                    std::pair { "vision-calibration-tolerance", &v.precisionMm } })
+                    if (x.child(child)) *field = lengthChild(x, child);
+                for (const auto& [child, field] : { std::pair { "vision-template-image-empty", &v.templateEmpty },
+                                                    std::pair { "vision-template-image-occupied", &v.templateOccupied } })
+                    if (const JPXmlElement* image = x.child(child); image && !image->attr("hash").empty())
+                        *field = (std::filesystem::path(machineXml).parent_path() / "org.openpnp.vision.TemplateImage"
+                                  / (image->attr("hash") + ".png")).string();
+            }
             if (x.child("max-pick-tolerance")) t.maxPickToleranceMm = lengthChild(x, "max-pick-tolerance");
             if (x.child("min-part-diameter")) t.minPartDiameterMm = lengthChild(x, "min-part-diameter");
             if (x.child("max-part-height")) t.maxPartHeightMm = lengthChild(x, "max-part-height");

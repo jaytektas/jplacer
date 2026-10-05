@@ -1001,7 +1001,8 @@ void nozzleForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
              "is closed, AfterHoming until the machine is homed, EachTime never.");
 }
 
-void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f) {
+void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f,
+                   const JPSetupProperties::TemplatePicture& templatePicture) {
     auto t = finder(cell.nozzleTips, id);
     f.title = "Nozzle tip " + t().name;
     JPFormBuilder add(f);
@@ -1158,6 +1159,74 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
                });
     add.note("The steps of loading and unloading are in the tree under the tip: select one to change it, "
              "Add to add one after it.");
+    // OpenPnP's Vision Calibration of the changer slot (JPNozzleTipConfig::VisionCalibration).
+    add.group("Vision Calibration");
+    auto vc = [t]() -> JPNozzleTipConfig::VisionCalibration& { return t().visionCalibration; };
+    add.row("Vision Location");
+    add.choice("visionLocation", "Vision Location",
+               { "None", "FirstLocation", "SecondLocation", "ThirdLocation", "LastLocation", "TouchLocation" },
+               [vc] { return vc().location; }, [vc](const std::string& v) { vc().location = v; });
+    add.tip("Location for vision calibration, or None for no calibration. Choose a location where the nozzle tip in the slot is "
+            "visible.");
+    if (vc().on()) {
+        add.length("visionZAdjust", "Adjust Z", [vc]() -> double& { return vc().zAdjustMm; });
+        add.tip("Adjust the Z coordinate of the Vision Location by this offset. Set it to the Z distance between the template "
+                "subject that you are detecting with Vision Calibration, e.g. the visible surface of the changer slot, and the "
+                "(imaginary) underside of the nozzle tip when at that location. Positive adjustment when the nozzle tip is below, "
+                "negative when it is above that surface. The setting can overcome scaling errors in the camera view, especially "
+                "when things are much closer to the camera than usual. 3D Units per Pixel must be configured on the camera.");
+    }
+    add.end();
+    f.reshaping.push_back("visionLocation");
+    if (vc().on()) {
+        add.note("Capture two template images of your nozzle tip changer slot both in empty and occupied state. Using the "
+                 "templates, vision calibration will then calibrate the changer locations in X/Y and also make sure the slot is "
+                 "empty or occupied as expected.");
+        add.choice("visionTrigger", "Calibration Trigger", { "Manual", "MachineHome", "NozzleTipChange" },
+                   [vc] { return vc().trigger; }, [vc](const std::string& v) { vc().trigger = v; });
+        static const char* const kTemplateTip =
+            "The template is centered around the selected Vision Location. Choose dimensions as small as possible, but the "
+            "templates should include tell-tale horizontal and vertical edges. Furthermore, the nozzle tip should be visible "
+            "when it occupies the changer slot.";
+        add.row("Template Width");
+        add.length("visionTemplateWidth", "Template Width", [vc]() -> double& { return vc().templateWidthMm; });
+        add.tip(std::string("Template image width (X). ") + kTemplateTip);
+        add.length("visionTemplateHeight", "Template Height", [vc]() -> double& { return vc().templateHeightMm; });
+        add.tip(std::string("Template image height (Y). ") + kTemplateTip);
+        add.end();
+        add.row("Tolerance");
+        add.length("visionTolerance", "Tolerance", [vc]() -> double& { return vc().toleranceMm; });
+        add.tip("Maximum calibration tolerance i.e. how far away from the nominal location the calibrated location can be.");
+        add.length("visionPrecision", "Wanted Precision", [vc]() -> double& { return vc().precisionMm; });
+        add.tip("If the detected template image match is further away than the Wanted Precision, the camera is re-centered and "
+                "another vision pass is made.");
+        add.end();
+        add.integer("visionMaxPasses", "Max. Passes", [vc]() -> int& { return vc().maxPasses; }, 1, 100);
+        add.row("Minimum Score");
+        add.number("visionMinimumScore", "Minimum Score", [vc]() -> double& { return vc().minimumScore; });
+        add.tip("When the template images are matched against the camera image, a score is computed indicating the quality of "
+                "the match. If the obtained score is smaller than the Minimum Score given here, the calibration fails. This "
+                "should stop the machine from atempting a nozzle tip change, when the position is wrong.");
+        add.words("Last Score");
+        char score[32] = "";
+        if (vc().lastScore) std::snprintf(score, sizeof score, "%.3f", *vc().lastScore);
+        add.words(score);
+        add.button("testSlotVision", "Test", "Test the vision calibration.");
+        add.end();
+        for (const bool empty : { true, false }) {
+            const std::string what = empty ? "Empty" : "Occupied";
+            add.row("Template " + what);
+            add.button(empty ? "captureSlotEmpty" : "captureSlotOccupied", "Capture",
+                       "Capture the template image for the " + std::string(empty ? "empty" : "occupied") + " nozzle tip holder slot.");
+            add.button(empty ? "resetSlotEmpty" : "resetSlotOccupied", "Reset",
+                       "Reset the template image for the " + std::string(empty ? "empty" : "occupied") + " nozzle tip holder slot.");
+            add.end();
+            const std::string file = empty ? vc().templateEmpty : vc().templateOccupied;
+            if (!file.empty() && templatePicture)
+                add.image("Template " + what, [templatePicture, file] { return templatePicture(file); });
+        }
+    }
+
     // OpenPnP's Cloning Settings.
     add.group("Cloning Settings");
     add.choice("cloning", "Behavior", { "Template", "Clones from Template", "Locked" },
@@ -1215,6 +1284,8 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
     add.flag("cloneLocations", "Locations?", [] { return parts.locations; }, [](bool on) { parts.locations = on; });
     if (zProbing)
         add.flag("cloneZCalibration", "Z Calibration?", [] { return parts.zCalibration; }, [](bool on) { parts.zCalibration = on; });
+    add.flag("cloneVisionCalibration", "Vision Calibration?", [] { return parts.visionCalibration; },
+             [](bool on) { parts.visionCalibration = on; });
     add.end();
     add.button("referenceTouchZ", "Calibrate all Touch Locations' Z to Template",
                "Calibrate all the nozzle tip's touch location Z to the Template reference. This will load the template "
@@ -2389,7 +2460,7 @@ void fiducialLocatorForm(JPCellConfig& cell, JPSetupProperties::Form& f, JPConfi
 
 JPSetupProperties::Form JPSetupProperties::forNode(JPCellConfig& cell, const std::string& path, const std::vector<JPFirmwareProfile>& profiles,
                                                    JPConfiguration* config, const JPVisionTests* tests,
-                                                   const JPMotionTestResult* motionTest) {
+                                                   const JPMotionTestResult* motionTest, TemplatePicture templatePicture) {
     Form f;
     const JPSetupTree::Path p = JPSetupTree::parse(path);
     if (p.kind == "machine") machineForm(cell, f, motionTest);
@@ -2400,7 +2471,7 @@ JPSetupProperties::Form JPSetupProperties::forNode(JPCellConfig& cell, const std
     else if (p.kind == "axis" && has(cell.axes, p.id)) axisForm(cell, p.id, f);
     else if (p.kind == "head" && has(cell.heads, p.id)) headForm(cell, p.id, f);
     else if (p.kind == "nozzle" && has(cell.nozzles, p.id)) nozzleForm(cell, p.id, f);
-    else if (p.kind == "nozzletip" && has(cell.nozzleTips, p.id)) nozzleTipForm(cell, p.id, f);
+    else if (p.kind == "nozzletip" && has(cell.nozzleTips, p.id)) nozzleTipForm(cell, p.id, f, templatePicture);
     else if (p.kind == "step" && has(cell.nozzleTips, p.owner)) stepForm(cell, p, f);
     else if (p.kind == "camera" && has(cell.cameras, p.id)) cameraForm(cell, p.id, f);
     else if (p.kind == "actuator" && has(cell.actuators, p.id)) actuatorForm(cell, p.id, f);

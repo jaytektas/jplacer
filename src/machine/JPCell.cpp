@@ -446,6 +446,19 @@ double JPCell::zOffsetOf(const JPMountConfig& mount) const {
     return mount.offsetZ;
 }
 
+std::optional<std::array<double, 2>> JPCell::slotOffset(const std::string& tipId) const {
+    std::lock_guard lk(m_mutex);
+    const auto o = m_slotOffsets.find(tipId);
+    if (o == m_slotOffsets.end()) return std::nullopt;
+    return o->second;
+}
+
+void JPCell::setSlotOffset(const std::string& tipId, std::optional<std::array<double, 2>> offset) {
+    std::lock_guard lk(m_mutex);
+    if (offset) m_slotOffsets[tipId] = *offset;
+    else m_slotOffsets.erase(tipId);
+}
+
 std::optional<double> JPCell::zCalibration(const std::string& nozzleId) const {
     std::lock_guard lk(m_mutex);
     const auto c = m_zCalibration.find(nozzleId);
@@ -1526,6 +1539,12 @@ void JPCell::home() {
         if (ok) {
             m_homed = true;
             actuateFor(&JPActuatorConfig::homedActuation);
+            // OpenPnP's ReferenceNozzleTip.home: the changer slots found again, unless only by hand.
+            {
+                std::lock_guard lk(m_mutex);
+                for (const JPNozzleTipConfig& t : m_config.nozzleTips)
+                    if (t.visionCalibration.trigger != "Manual") m_slotOffsets.erase(t.id);
+            }
             // The tips' Z calibrations, as their triggers say; one with Fail Homing failing fails the homing.
             if (!finished(doZCalibrationsAfterHoming(why), why)) {
                 m_homed = false;

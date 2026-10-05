@@ -48,6 +48,32 @@ struct JPNozzleTipConfig {
     std::optional<JPMachineLocation> touchLocation;
     std::string                zCalibrationTrigger = "Manual";
     bool                       zCalibrationFailHoming = true;
+    // OpenPnP's changer slot Vision Calibration: the head camera over one of
+    // the changer's places ("None", "FirstLocation", "SecondLocation",
+    // "ThirdLocation", "LastLocation" or "TouchLocation"), Z Adjust added for
+    // its scale, finds the slot by two template pictures of it, empty and
+    // occupied (Template Width x Height mm; PNG files named beside the cell
+    // file), in a picture Tolerance larger, pass after pass (at most Max.
+    // Passes) until one moves less than Precision; under Minimum Score, or
+    // further than Tolerance off, it fails. How far off the slot was moves
+    // every place of the tip's loading and unloading: worked out when first
+    // needed, again on each change with "NozzleTipChange", and forgotten on
+    // homing unless "Manual".
+    struct VisionCalibration {
+        std::string location = "None";
+        double      zAdjustMm = 0;
+        std::string trigger = "Manual";
+        double      templateWidthMm = 10, templateHeightMm = 10;
+        double      toleranceMm = 4, precisionMm = 0.7;
+        int         maxPasses = 3;
+        double      minimumScore = 0.2;
+        std::string templateEmpty, templateOccupied;   // file names (or whole paths); empty: none
+        std::optional<double> lastScore;               // the last match's (not kept)
+        bool on() const { return location != "None"; }
+    };
+    VisionCalibration          visionCalibration;
+    // The place Vision Calibration names, Z Adjust added (none: None, or that place not set).
+    std::optional<JPMachineLocation> visionCalibrationPlace() const;
     // OpenPnP's Part Dimensions: the largest part it picks (diameter or
     // diagonal, tolerances in), and how far off a part may be picked
     // (bottom vision accepts a part no further off, and looks no further).
@@ -145,10 +171,11 @@ struct JPNozzleTipConfig {
     std::optional<OpenPnpChanger> openPnpChanger() const;
     // The loading steps made from OpenPnP's form (unloading is loading backwards).
     void setOpenPnpChanger(const OpenPnpChanger& changer);
-    // What a clone takes (OpenPnP's Locations? and Z Calibration?).
+    // What a clone takes (OpenPnP's Locations?, Z Calibration? and Vision Calibration?).
     struct ClonedParts {
-        bool locations = true;      // the loading and unloading steps, and the touch location
-        bool zCalibration = true;   // the Z calibration trigger and Fail Homing?
+        bool locations = true;           // the loading and unloading steps, and the touch location
+        bool zCalibration = true;        // the Z calibration trigger and Fail Homing?
+        bool visionCalibration = true;   // the Vision Calibration settings and templates
     };
     // OpenPnP's assignNozzleTipChangerSettings: the template's loading and
     // unloading steps and touch location taken, each place moved by how far

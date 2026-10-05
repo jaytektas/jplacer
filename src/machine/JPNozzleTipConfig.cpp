@@ -167,6 +167,20 @@ JPNozzleTipConfig JPNozzleTipConfig::fromJson(const JJson& j) {
     t.touchLocation = JPMachineLocation::fromJson(j["touchLocation"]);
     if (!j["zCalibrationTrigger"].str().empty()) t.zCalibrationTrigger = j["zCalibrationTrigger"].str();
     t.zCalibrationFailHoming = j["zCalibrationFailHoming"].boolean(true);
+    if (const JJson& v = j["visionCalibration"]; v.isObject()) {
+        VisionCalibration& c = t.visionCalibration;
+        if (!v["location"].str().empty()) c.location = v["location"].str();
+        if (!v["trigger"].str().empty()) c.trigger = v["trigger"].str();
+        c.zAdjustMm        = v["zAdjust"].number(c.zAdjustMm);
+        c.templateWidthMm  = v["templateWidth"].number(c.templateWidthMm);
+        c.templateHeightMm = v["templateHeight"].number(c.templateHeightMm);
+        c.toleranceMm      = v["tolerance"].number(c.toleranceMm);
+        c.precisionMm      = v["precision"].number(c.precisionMm);
+        c.maxPasses        = int(v["maxPasses"].number(c.maxPasses));
+        c.minimumScore     = v["minimumScore"].number(c.minimumScore);
+        c.templateEmpty    = v["templateEmpty"].str();
+        c.templateOccupied = v["templateOccupied"].str();
+    }
     for (const JJson& s : j["unload"].arr()) t.unloadSteps.push_back(JPChangerStep::fromJson(s));
     t.maxPartDiameterMm  = j["maxPartDiameterMm"].number(t.maxPartDiameterMm);
     t.maxPickToleranceMm = j["maxPickToleranceMm"].number(t.maxPickToleranceMm);
@@ -225,6 +239,21 @@ JJson JPNozzleTipConfig::toJson() const {
     if (touchLocation) j["touchLocation"] = touchLocation->toJson();
     j["zCalibrationTrigger"] = zCalibrationTrigger;
     j["zCalibrationFailHoming"] = zCalibrationFailHoming;
+    if (visionCalibration.on() || !visionCalibration.templateEmpty.empty() || !visionCalibration.templateOccupied.empty()) {
+        const VisionCalibration& c = visionCalibration;
+        JJson& v = j["visionCalibration"];
+        v["location"]       = c.location;
+        v["trigger"]        = c.trigger;
+        v["zAdjust"]        = c.zAdjustMm;
+        v["templateWidth"]  = c.templateWidthMm;
+        v["templateHeight"] = c.templateHeightMm;
+        v["tolerance"]      = c.toleranceMm;
+        v["precision"]      = c.precisionMm;
+        v["maxPasses"]      = c.maxPasses;
+        v["minimumScore"]   = c.minimumScore;
+        if (!c.templateEmpty.empty()) v["templateEmpty"] = c.templateEmpty;
+        if (!c.templateOccupied.empty()) v["templateOccupied"] = c.templateOccupied;
+    }
     j["unload"]   = toArray(unloadSteps);
     j["maxPartDiameterMm"]  = maxPartDiameterMm;
     j["maxPickToleranceMm"] = maxPickToleranceMm;
@@ -269,6 +298,31 @@ JJson JPNozzleTipConfig::toJson() const {
     return j;
 }
 
+std::optional<JPMachineLocation> JPNozzleTipConfig::visionCalibrationPlace() const {
+    const VisionCalibration& c = visionCalibration;
+    std::optional<JPMachineLocation> at;
+    static const char* const kPlaces[] = { "FirstLocation", "SecondLocation", "ThirdLocation", "LastLocation" };
+    if (c.location == "TouchLocation") {
+        at = touchLocation;
+    } else if (const auto changer = openPnpChanger()) {
+        for (size_t i = 0; i < std::size(kPlaces); ++i)
+            if (c.location == kPlaces[i]) at = changer->at[i];
+    } else {
+        // Steps of jplacer's own: the first and the last move that give a place.
+        const JPChangerStep* first = nullptr;
+        const JPChangerStep* last = nullptr;
+        for (const JPChangerStep& s : loadSteps)
+            if (s.kind == JPChangerStep::Kind::Move && s.x && s.y) {
+                if (!first) first = &s;
+                last = &s;
+            }
+        const JPChangerStep* named = c.location == "FirstLocation" ? first : c.location == "LastLocation" ? last : nullptr;
+        if (named) at = JPMachineLocation { *named->x, *named->y, named->z.value_or(0), named->rotation.value_or(0) };
+    }
+    if (at) at->z += c.zAdjustMm;
+    return at;
+}
+
 bool JPNozzleTipConfig::cloneChangerFrom(const JPNozzleTipConfig& from, ClonedParts parts) {
     if (templateLocked || &from == this) return false;
     auto firstMove = [](const std::vector<JPChangerStep>& steps) -> const JPChangerStep* {
@@ -310,6 +364,7 @@ bool JPNozzleTipConfig::cloneChangerFrom(const JPNozzleTipConfig& from, ClonedPa
         zCalibrationTrigger = from.zCalibrationTrigger;
         zCalibrationFailHoming = from.zCalibrationFailHoming;
     }
+    if (parts.visionCalibration) visionCalibration = from.visionCalibration;
     return true;
 }
 

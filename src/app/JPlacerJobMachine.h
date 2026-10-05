@@ -94,6 +94,9 @@ public:
     // How many times the machine has been moved for the job (OpenPnP's motion
     // history, for Step Next Motion).
     int motions() const { return m_motions; }
+    // The head camera over (x, y), its light on, one settled picture (BGR),
+    // and its calibration for what is at height `z` there.
+    bool lookAt(double x, double y, double z, cv::Mat& bgr, JPCameraCalibration& cal, std::string& why);
 
 private:
     // The cell's settings as they are now, and its head (the camera's).

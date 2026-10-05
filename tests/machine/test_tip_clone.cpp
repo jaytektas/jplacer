@@ -4,7 +4,7 @@
 // OpenPnP's nozzle tip template cloning: a tip takes the template's changer
 // steps, each move moved by how far its own first move is from the
 // template's (a coordinate left out stays left out), its touch location too,
-// and the Z calibration settings, as chosen; a locked tip, or one
+// and the Z and vision calibration settings, as chosen; a locked tip, or one
 // without a first move to go by, is left as it is.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
@@ -54,12 +54,15 @@ int main() {
     templ.touchLocation = JPMachineLocation { 90, 40, -7, 0 };
     templ.zCalibrationTrigger = "MachineHome";
     templ.zCalibrationFailHoming = false;
+    templ.visionCalibration.location = "LastLocation";
+    templ.visionCalibration.templateEmpty = "e.png";
     {
         JPNozzleTipConfig both;
         both.loadSteps = { moveTo(120, 50, -6) };
         assert(both.cloneChangerFrom(templ));
         assert(both.touchLocation && both.touchLocation->x == 110 && both.touchLocation->y == 40 && both.touchLocation->z == -8);
         assert(both.zCalibrationTrigger == "MachineHome" && !both.zCalibrationFailHoming);
+        assert(both.visionCalibration.location == "LastLocation" && both.visionCalibration.templateEmpty == "e.png");
         JPNozzleTipConfig zOnly;
         zOnly.loadSteps = { moveTo(120, 50, -6) };
         assert(zOnly.cloneChangerFrom(templ, { .locations = false, .zCalibration = true }));
@@ -68,6 +71,10 @@ int main() {
         placesOnly.loadSteps = { moveTo(120, 50, -6) };
         assert(placesOnly.cloneChangerFrom(templ, { .locations = true, .zCalibration = false }));
         assert(placesOnly.loadSteps.size() == 4 && placesOnly.touchLocation && placesOnly.zCalibrationTrigger == "Manual");
+        JPNozzleTipConfig noVision;
+        noVision.loadSteps = { moveTo(120, 50, -6) };
+        assert(noVision.cloneChangerFrom(templ, { .locations = true, .zCalibration = true, .visionCalibration = false }));
+        assert(!noVision.visionCalibration.on() && noVision.visionCalibration.templateEmpty.empty());
     }
 
     // Locked: untouched.

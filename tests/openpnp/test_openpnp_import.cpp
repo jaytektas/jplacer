@@ -253,6 +253,48 @@ int main() {
         assert(!sq.axis("AXSQ") && sq.cameras.front().mount.axisX == "AX");
         assert(sq.problems().empty());
     }
+    // A tip's changer slot vision calibration: its settings, and its template
+    // pictures as OpenPnP's files beside machine.xml; saved and read back the same.
+    {
+        std::ifstream in(std::string(JPLACER_TESTDATA_DIR) + "/openpnp-machine.xml");
+        std::stringstream ss;
+        ss << in.rdbuf();
+        std::string xml = ss.str();
+        const std::string tip = R"(id="TIP1" name="503R - 0805 / 0603">)";
+        const size_t at = xml.find(tip);
+        assert(at != std::string::npos);
+        xml.replace(at, tip.size(),
+                    R"(id="TIP1" name="503R - 0805 / 0603" vision-calibration="ThirdLocation" vision-calibration-trigger="NozzleTipChange" )"
+                    R"(vision-match-minimum-score="0.35" vision-calibration-max-passes="5">)"
+                    R"(<vision-calibration-z-adjust value="-1.5" units="Millimeters"/>)"
+                    R"(<vision-template-dimension-x value="8.0" units="Millimeters"/>)"
+                    R"(<vision-template-dimension-y value="6.0" units="Millimeters"/>)"
+                    R"(<vision-template-tolerance value="3.0" units="Millimeters"/>)"
+                    R"(<vision-calibration-tolerance value="0.4" units="Millimeters"/>)"
+                    R"(<vision-template-image-empty hash="abc123"/><vision-template-image-occupied hash="def456"/>)");
+        const std::filesystem::path dir = std::filesystem::temp_directory_path() / "jplacer-test-slot";
+        std::filesystem::create_directories(dir);
+        const std::string path = (dir / "machine.xml").string();
+        std::ofstream(path) << xml;
+        JPCellConfig vc;
+        std::vector<std::string> vcNotes;
+        assert(JPOpenPnpMachineImporter::import(path, vc, vcNotes, error));
+        std::filesystem::remove_all(dir);
+        const JPNozzleTipConfig::VisionCalibration& v = vc.nozzleTips[0].visionCalibration;
+        assert(v.location == "ThirdLocation" && v.trigger == "NozzleTipChange" && v.minimumScore == 0.35 && v.maxPasses == 5);
+        assert(v.zAdjustMm == -1.5 && v.templateWidthMm == 8 && v.templateHeightMm == 6 && v.toleranceMm == 3 && v.precisionMm == 0.4);
+        assert(v.templateEmpty == (dir / "org.openpnp.vision.TemplateImage" / "abc123.png").string());
+        assert(v.templateOccupied == (dir / "org.openpnp.vision.TemplateImage" / "def456.png").string());
+        // Its place: the tip's Third Location, Z adjusted.
+        const auto place = vc.nozzleTips[0].visionCalibrationPlace();
+        const auto changer = vc.nozzleTips[0].openPnpChanger();
+        assert(place && changer && changer->at[2] && place->x == changer->at[2]->x && place->z == changer->at[2]->z - 1.5);
+        const JPNozzleTipConfig back = JPNozzleTipConfig::fromJson(vc.nozzleTips[0].toJson());
+        assert(back.visionCalibration.location == v.location && back.visionCalibration.templateOccupied == v.templateOccupied
+               && back.visionCalibration.precisionMm == 0.4 && back.visionCalibration.maxPasses == 5);
+        // The other tip: none.
+        assert(!vc.nozzleTips[1].visionCalibration.on() && !vc.nozzleTips[1].visionCalibrationPlace());
+    }
     // OpenPnP's OpenCvCamera (a device index, OpenCV's properties) and Webcam (by name): capture devices.
     {
         std::ifstream in(std::string(JPLACER_TESTDATA_DIR) + "/openpnp-machine.xml");

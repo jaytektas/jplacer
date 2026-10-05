@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- OpenPnP's Vision Calibration of a nozzle tip's changer slot: two template pictures of the slot, empty and
+  occupied; before each tip change the slot is found by them, checked empty or occupied as it should be, and the change
+  moved by how far off it was. Cloning can take it too, and OpenPnP machines bring it with their template pictures.
 - A nozzle tip's Tool Changer tab has OpenPnP's Calibrate all Touch Locations' Z to Template, and the Locations? and
   Z Calibration? choices for cloning; cloning also takes the touch location. Contact Probe Tool on a touch location now
   asks first and probes with the default probing nozzle, as OpenPnP's.

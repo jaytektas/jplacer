@@ -138,6 +138,8 @@ public:
     bool contactProbeAt(const Where& at, std::function<void(double z)> done);
     // OpenPnP's Calibrate all Touch Locations' Z to Template (a nozzle tip's Tool Changer tab).
     void referenceAllTouchLocationsZ();
+    // A tip's changer slot found by vision scoring `score` (its Last Score, shown on its Tool Changer tab).
+    void slotScored(const std::string& tipId, double score);
     bool moveToolTo(JPSetupForm::Tool tool, const JPLocation& at);
     // The same for an actuator on the head, by its OpenPnP name (a drag
     // feeder's pin): where it is, and taken to `at` at safe Z.
@@ -242,6 +244,8 @@ public:
     static std::string cellsDir();
 
 private:
+    // OpenPnP's Vision Calibration buttons (Capture, Reset, Test) for a tip.
+    void slotVisionAction(const std::string& tipId, const std::string& action);
     // OpenPnP's ContactProbeNozzle.getDefaultNozzle (none: no nozzle probes by contact).
     const JPNozzleConfig* probingNozzle() const;
     bool openCell(const std::string& path, std::string& error);

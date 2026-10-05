@@ -3,6 +3,8 @@
 
 #include "JPlacerMachine.h"
 #include "JPlacerJobMachine.h"
+#include "JPlacerSlotVision.h"
+#include "camera/JPImageFile.h"
 
 #include <opencv2/imgproc.hpp>
 
@@ -522,6 +524,18 @@ std::unique_ptr<JPMachineSetupPanel> JPlacerMachine::makeSetup() {
     };
     setup->moveTo = [this](JPSetupForm::Tool tool, const JPMachineSetupPanel::Where& to) { moveToolTo(tool, to); };
     setup->moveToStraight = [this](JPSetupForm::Tool tool, const JPMachineSetupPanel::Where& to) { moveToolTo(tool, to, true); };
+    // Template pictures are named by what they hold: one read is kept.
+    setup->templatePicture = [this, kept = std::make_shared<std::map<std::string, std::shared_ptr<const JPFrame>>>()](
+                                 const std::string& fileName) -> std::shared_ptr<const JPFrame> {
+        if (const auto it = kept->find(fileName); it != kept->end()) return it->second;
+        auto frame = std::make_shared<JPFrame>();
+        std::string error;
+        if (!JPImageFile::readPng(JPlacerSlotVision::templatePath(m_cellPath, fileName), *frame, error)) {
+            JLOGC(JPlacerLog::kUi, JLogLevel::Warn) << error;
+            return nullptr;
+        }
+        return (*kept)[fileName] = std::move(frame);
+    };
     setup->contactProbeAt = [this](const JPMachineSetupPanel::Where& at, std::function<void(double)> done) {
         return contactProbeAt(at, std::move(done));
     };
@@ -973,6 +987,74 @@ bool JPlacerMachine::contactProbeAt(const Where& at, std::function<void(double z
     return true;
 }
 
+void JPlacerMachine::slotScored(const std::string& tipId, double score) {
+    if (!m_setup) return;
+    m_setup->measured([&](JPCellConfig& cell) {
+        for (JPNozzleTipConfig& t : cell.nozzleTips)
+            if (t.id == tipId) t.visionCalibration.lastScore = score;
+    });
+}
+
+void JPlacerMachine::slotVisionAction(const std::string& tipId, const std::string& action) {
+    // OpenPnP's Vision Calibration buttons on a nozzle tip's Tool Changer tab, on the tip as set up.
+    if (!m_cell || !m_setup) return;
+    const bool empty = action.find("Empty") != std::string::npos;
+    if (action == "resetSlotEmpty" || action == "resetSlotOccupied") {
+        m_setup->change(empty ? "Reset Template Empty" : "Reset Template Occupied", [tipId, empty](JPCellConfig& cell) {
+            for (JPNozzleTipConfig& t : cell.nozzleTips)
+                if (t.id == tipId) (empty ? t.visionCalibration.templateEmpty : t.visionCalibration.templateOccupied).clear();
+        });
+        m_setup->remakeForm();   // its picture gone
+        return;
+    }
+    std::optional<JPNozzleTipConfig> tip;
+    for (const JPNozzleTipConfig& t : m_cell->config().nozzleTips)
+        if (t.id == tipId) tip = t;
+    if (!tip || !readyToMove()) return;
+    JPlacerJobMachine* jm = scriptJobMachine ? scriptJobMachine() : nullptr;
+    if (!jm) return;
+    // OpenPnP's getNozzleWhereLoaded: in its slot when on no nozzle.
+    bool onNozzle = false;
+    for (const JPNozzleConfig& n : m_cell->config().nozzles) onNozzle = onNozzle || n.tipId == tipId;
+    JPCell* cell = m_cell.get();
+    std::weak_ptr<bool> alive = m_alive;
+    std::thread([this, cell, jm, tip = *tip, action, empty, occupied = !onNozzle, cellPath = m_cellPath, alive] {
+        std::string why, fileName;
+        std::optional<double> score;
+        std::array<double, 2> offset {};
+        JPlacerSlotVision vision(*jm, *cell, cellPath);
+        bool ok;
+        if (action == "testSlotVision") {
+            // OpenPnP's Test: found afresh, then forgotten again.
+            cell->setSlotOffset(tip.id, std::nullopt);
+            ok = vision.calibrate(tip, true, occupied, offset, score, why);
+            cell->setSlotOffset(tip.id, std::nullopt);
+        } else {
+            ok = vision.captureTemplate(tip, fileName, why);
+        }
+        JMainThreadDispatcher::instance().post([this, ok, why, fileName, score, offset, tipId = tip.id, action, empty, alive] {
+            if (const auto a = alive.lock(); !a || !*a || !m_setup) return;
+            if (!ok) {
+                m_window.showStatus(why, kErrorMs);
+                return;
+            }
+            if (action == "testSlotVision") {
+                if (score) slotScored(tipId, *score);
+                char text[160];
+                std::snprintf(text, sizeof text, "Changer slot found %.3f, %.3f mm off (%.3f mm)%s", offset[0], offset[1],
+                              std::hypot(offset[0], offset[1]), score ? (", score " + std::to_string(*score)).c_str() : "");
+                m_window.showStatus(text, kErrorMs);
+                return;
+            }
+            m_setup->change(empty ? "Capture Template Empty" : "Capture Template Occupied", [tipId, empty, fileName](JPCellConfig& cell) {
+                for (JPNozzleTipConfig& t : cell.nozzleTips)
+                    if (t.id == tipId) (empty ? t.visionCalibration.templateEmpty : t.visionCalibration.templateOccupied) = fileName;
+            });
+            m_setup->remakeForm();   // its picture shown
+        });
+    }).detach();
+}
+
 void JPlacerMachine::referenceAllTouchLocationsZ() {
     // OpenPnP's ContactProbeNozzle.referenceAllTouchLocationsZ: the template tip loaded on the default probing
     // nozzle and its Z calibrated at its own touch location; then every other tip's touch location (one set,
@@ -1237,6 +1319,10 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
                              m_setup->remakeForm();
                          },
                          nullptr, opts);
+    } else if ((action == "captureSlotEmpty" || action == "captureSlotOccupied" || action == "resetSlotEmpty"
+                || action == "resetSlotOccupied" || action == "testSlotVision")
+               && path.rfind("nozzletip:", 0) == 0) {
+        slotVisionAction(path.substr(10), action);
     } else if (action == "referenceTouchZ" && path.rfind("nozzletip:", 0) == 0) {
         referenceAllTouchLocationsZ();
     } else if ((action == "calibrateZ" || action == "resetZCalibration") && path.rfind("nozzletip:", 0) == 0) {

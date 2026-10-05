@@ -121,9 +121,12 @@ public:
     // as the Vision tab edits them; `tests`: what its tests work with).
     // `motionTest`: the last motion planner Test Motion run, for the
     // machine's Motion Planner Diagnostics (none: not run yet).
+    // `templatePicture`: a template picture by its file name (a nozzle tip's
+    // changer slot vision; none: not shown).
+    using TemplatePicture = std::function<std::shared_ptr<const JPFrame>(const std::string& fileName)>;
     static Form forNode(JPCellConfig& cell, const std::string& path, const std::vector<JPFirmwareProfile>& profiles,
                         JPConfiguration* config = nullptr, const JPVisionTests* tests = nullptr,
-                        const JPMotionTestResult* motionTest = nullptr);
+                        const JPMotionTestResult* motionTest = nullptr, TemplatePicture templatePicture = {});
 };
 
 } // inline namespace jf

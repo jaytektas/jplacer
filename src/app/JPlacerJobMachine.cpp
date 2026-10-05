@@ -4,6 +4,7 @@
 #include "JPlacerJobMachine.h"
 
 #include "JPlacerCameraTasks.h"
+#include "JPlacerSlotVision.h"
 
 #include <opencv2/objdetect.hpp>
 
@@ -200,12 +201,14 @@ bool JPlacerJobMachine::changeTip(const std::string& nozzleId, const std::string
     struct Half {
         std::string                what, after;
         std::vector<JPChangerStep> steps;
+        const JPNozzleTipConfig*   tip;
+        bool                       slotOccupied;   // as its slot is then: the tip in it to load, not to unload
     };
     std::vector<Half> halves;
     if (const JPNozzleTipConfig* on = tipOf(nozzle.tipId))
-        halves.push_back({ "Unloading " + nameOf(on) + " from " + nozzle.name, "", on->unloadingSteps() });
+        halves.push_back({ "Unloading " + nameOf(on) + " from " + nozzle.name, "", on->unloadingSteps(), on, false });
     if (const JPNozzleTipConfig* wanted = tipOf(tipId))
-        halves.push_back({ "Loading " + nameOf(wanted) + " on " + nozzle.name, tipId, wanted->loadSteps });
+        halves.push_back({ "Loading " + nameOf(wanted) + " on " + nozzle.name, tipId, wanted->loadSteps, wanted, true });
     // OpenPnP's manual change: with the tool changer off (or a tip with no steps), asked to be done by hand, in its words.
     if (!nozzle.changerEnabled || std::any_of(halves.begin(), halves.end(), [](const Half& h) { return h.steps.empty(); })) {
         std::string instructions;
@@ -226,7 +229,22 @@ bool JPlacerJobMachine::changeTip(const std::string& nozzleId, const std::string
     JPTipChanger::Hooks hooks;
     hooks.ask = m_ask;
     hooks.progress = m_progress;
-    for (const Half& h : halves) {
+    std::string cellPath;
+    m_onMain([&] { cellPath = m_machine.cellPath(); });
+    for (Half& h : halves) {
+        // OpenPnP's changer slot vision calibration: every place moved by how far off the slot was found.
+        std::array<double, 2> offset {};
+        std::optional<double> score;
+        if (!JPlacerSlotVision(*this, *c, cellPath).calibrate(*h.tip, true, h.slotOccupied, offset, score, why)) {
+            why = h.what + ": " + why;
+            return false;
+        }
+        if (score) m_onMain([&] { m_machine.slotScored(h.tip->id, *score); });
+        for (JPChangerStep& s : h.steps) {
+            if (s.kind != JPChangerStep::Kind::Move) continue;
+            if (s.x) *s.x += offset[0];
+            if (s.y) *s.y += offset[1];
+        }
         if (!JPTipChanger::run(*c, names, nozzle, h.steps, h.what, false, hooks, why)) {
             why = h.what + ": " + why + ". Look at " + nozzle.name +
                   " and say which tip is on it (the Jog panel's tip menu, Manual Change): that moves nothing.";
@@ -803,6 +821,15 @@ bool JPlacerJobMachine::cameraSight(Sight& sight, std::string& why) {
     sight.width = cal.width;
     sight.height = cal.height;
     sight.twoHeights = cal.twoHeights();
+    return true;
+}
+
+bool JPlacerJobMachine::lookAt(double x, double y, double z, cv::Mat& bgr, JPCameraCalibration& cal, std::string& why) {
+    ++m_motions;
+    JPPipeline capture;
+    JPCameraFeed* feed = nullptr;
+    if (!headCameraPipeline(x, y, capture, cal, feed, why) || !capture.context().capture("Settle", "", bgr, why)) return false;
+    cal = cal.atHeight(z);
     return true;
 }
 

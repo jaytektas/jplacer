@@ -140,6 +140,12 @@ public:
     // (none: not calibrated); dropped when the tip changes.
     void calibrateZ(const std::string& nozzleId, bool reset);
     std::optional<double> zCalibration(const std::string& nozzleId) const;
+    // OpenPnP's changer slot vision calibration: how far off (X, Y mm) a
+    // tip's changer slot was found (none: not yet), every place of its
+    // loading and unloading moved by it; forgotten on homing unless the tip's
+    // Vision Calibration trigger is Manual.
+    std::optional<std::array<double, 2>> slotOffset(const std::string& tipId) const;
+    void setSlotOffset(const std::string& tipId, std::optional<std::array<double, 2>> offset);
     // The same, waited for (from a thread of the caller's own).
     bool calibrateZAndWait(const std::string& nozzleId, std::string& why);
     // OpenPnP's contactProbeCycle: the nozzle above `at` by its Start Offset (by way of safe Z),
@@ -479,6 +485,7 @@ private:
         std::string tipId;
         double      offsetMm = 0;
     };
+    std::map<std::string, std::array<double, 2>> m_slotOffsets;   // tip: slotOffset
     std::map<std::string, ZCalibration> m_zCalibration;    // Test Motion: the moves' planned seconds, summed while set
     // A directional backlash offset in effect, by axis id: the controller's
     // coordinate is the axis's plus this (JPAxisConfig::Backlash).
