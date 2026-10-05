@@ -133,7 +133,8 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Actuation per machine state (enabled, homed, disabled) | done | |
 | Machine coordination (before / after actuation, before read) | own way | every actuation and read waits for moves before it to end, and moves wait for it |
 | Axis interlock | done | |
-| HTTP, script actuators | missing | |
+| HTTP actuators | done | |
+| Script actuators | missing | scripting not built |
 | Actuators panel (switch, read) | done | |
 
 ## Fiducials and boards

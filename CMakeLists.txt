@@ -44,7 +44,7 @@ target_link_libraries(jplacer_common PUBLIC JFramework::platform)
 
 # Controllers, links, firmware profiles. No widget header is included here.
 add_library(jplacer_machine STATIC ${JPLACER_MACHINE_SRC})
-target_link_libraries(jplacer_machine PUBLIC jplacer_common Threads::Threads)
+target_link_libraries(jplacer_machine PUBLIC jplacer_common Threads::Threads OpenSSL::SSL OpenSSL::Crypto)
 
 # Reading OpenPnP's files (machine.xml) into jplacer's. Expat parses the XML.
 find_package(EXPAT REQUIRED)

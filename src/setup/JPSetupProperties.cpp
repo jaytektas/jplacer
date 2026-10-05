@@ -1418,6 +1418,21 @@ void actuatorForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::
                    a().valueType = v == "Double" ? VT::Number : v == "String" ? VT::Text : v == "Profile" ? VT::Profile : VT::Boolean;
                });
     f.reshaping.push_back("valueType");
+    if (a().http.on) {
+        // OpenPnP's HttpActuatorConfigurationWizard.
+        add.group("HTTP");
+        add.text("onUrl", "On URL", [a]() -> std::string& { return a().http.onUrl; }, "long");
+        add.text("offUrl", "Off URL", [a]() -> std::string& { return a().http.offUrl; }, "long");
+        add.text("paramUrl", "Param URL", [a]() -> std::string& { return a().http.paramUrl; }, "long");
+        add.text("readUrl", "Read URL", [a]() -> std::string& { return a().http.readUrl; }, "long");
+        add.text("regex", "Read Regex", [a]() -> std::string& { return a().http.regex; }, "long");
+        add.note("Switched by a GET of the On or Off URL (with none, the Param URL with 1 or 0), set by the Param URL "
+                 "with {val} the value, read by the Read URL: its lines, or each one's (?<Value>...) group of the regex. "
+                 "A URL the same as the one asked last is not asked again.");
+        if (a().valueType == VT::Profile) actuatorProfilesTab(add, cell, a, f);
+        if (a().interlock.enabled) actuatorInterlockTab(add, cell, a, f);
+        return;
+    }
     add.group("Commands");
     add.text("onCommand", "On", [a]() -> std::string& { return a().onCommand; }, "long");
     add.text("offCommand", "Off", [a]() -> std::string& { return a().offCommand; }, "long");

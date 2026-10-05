@@ -261,6 +261,10 @@ private:
     // A controller's units (its Driver Settings' Units): a millimetre in them,
     // an axis's letter and coordinate as sent, and a coordinate it reports in mm.
     double driverUnits(const JPGcodeDriver& d) const;
+    // OpenPnP's HttpActuator: a GET of `url` (not again when it was the last one), and its read.
+    static constexpr int kHttpTimeoutMs = 5000;
+    bool httpGet(const JPActuatorConfig& a, const std::string& url, std::string& why);
+    bool httpRead(const JPActuatorConfig& a, std::string& value, std::string& why);
     std::string word(const JPAxisConfig& a, double value, const JPGcodeDriver& d) const;
     double fromDriver(const JPAxisConfig& a, double value, const std::string& driverId);
     // OpenPnP's Unsafe Z Roaming, for a jog of a tool: its Z to safe Z with the move when too far from where it was left low.
@@ -332,6 +336,7 @@ private:
     std::mutex                                  m_roamMutex;
     std::map<std::string, std::pair<double, double>> m_roamFrom;   // by tool: where it was left at unsafe Z
     std::map<std::string, bool>                 m_actuated;      // by actuator id: what it was last switched to
+    std::map<std::string, std::string>          m_lastHttpUrl;   // by HTTP actuator: the URL asked last
     std::map<std::string, std::optional<bool>>  m_conditionalLast;   // by interlocked actuator: its condition's last state
     std::atomic<double>                         m_speed{ 1.0 };
     // On the cell thread: the heads whose pump is on, the nozzles holding a part.

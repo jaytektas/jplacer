@@ -423,6 +423,16 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
         a.valueType = vt == "Double" ? JPActuatorConfig::ValueType::Number
                     : vt == "String" ? JPActuatorConfig::ValueType::Text
                     : vt == "Profile" ? JPActuatorConfig::ValueType::Profile : JPActuatorConfig::ValueType::Boolean;
+        // OpenPnP's HttpActuator: its URLs, no controller.
+        if (shortClass(x) == "HttpActuator") {
+            a.http.on = true;
+            auto text = [&x](const char* name) { const JPXmlElement* e = x.child(name); return e ? e->text : std::string(); };
+            a.http.onUrl = text("on-url");
+            a.http.offUrl = text("off-url");
+            a.http.paramUrl = text("param-url");
+            a.http.readUrl = text("read-url");
+            a.http.regex = text("regex");
+        }
         // Its axis interlock (OpenPnP's ActuatorInterlockMonitor).
         if (const JPXmlElement* im = x.child("interlock-monitor")) {
             JPActuatorConfig::Interlock& il = a.interlock;

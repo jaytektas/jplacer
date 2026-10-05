@@ -28,6 +28,14 @@ JPActuatorConfig JPActuatorConfig::fromJson(const JJson& j) {
     if (const std::string& v = j["homedActuation"].str(); !v.empty()) a.homedActuation = v;
     if (const std::string& v = j["disabledActuation"].str(); !v.empty()) a.disabledActuation = v;
     for (size_t k = 0; k < kProfileActuators; ++k) a.profileActuators[k] = j["profileActuators"][k].str();
+    if (const JJson& h = j["http"]; h.isObject()) {
+        a.http.on = true;
+        a.http.onUrl = h["onUrl"].str();
+        a.http.offUrl = h["offUrl"].str();
+        a.http.paramUrl = h["paramUrl"].str();
+        a.http.readUrl = h["readUrl"].str();
+        a.http.regex = h["regex"].str();
+    }
     if (const JJson& il = j["interlock"]; il.isObject()) {
         Interlock& i = a.interlock;
         i.enabled = true;
@@ -74,6 +82,13 @@ JJson JPActuatorConfig::toJson() const {
     j["enabledActuation"]  = enabledActuation;
     j["homedActuation"]    = homedActuation;
     j["disabledActuation"] = disabledActuation;
+    if (http.on) {
+        j["http"]["onUrl"] = http.onUrl;
+        j["http"]["offUrl"] = http.offUrl;
+        j["http"]["paramUrl"] = http.paramUrl;
+        j["http"]["readUrl"] = http.readUrl;
+        j["http"]["regex"] = http.regex;
+    }
     if (interlock.enabled) {
         JJson il = JJson::object();
         il["type"] = interlock.type;

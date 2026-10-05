@@ -71,19 +71,31 @@ struct JPActuatorConfig {
         bool active() const { return enabled && type != "None"; }
     };
     Interlock interlock;
+    // OpenPnP's HttpActuator: switched, set and read by HTTP GETs of these,
+    // not through a controller. Off or on with no URL of its own sets "0" or
+    // "1" by the parameter URL ({val} the value); a URL the same as last time
+    // is not asked again. Read: the lines of the read URL's answer, or of each
+    // the regex's "Value" group.
+    struct Http {
+        bool        on = false;
+        std::string onUrl, offUrl, paramUrl, readUrl, regex;
+    };
+    Http http;
     std::vector<Profile> profiles;
     const Profile* profileNamed(const std::string& profileName) const;
     const Profile* defaultProfile(bool on) const;
 
     bool canSwitch() const {
+        if (http.on) return !http.onUrl.empty() || !http.offUrl.empty() || !http.paramUrl.empty();
         if (valueType == ValueType::Profile) return defaultProfile(true) || defaultProfile(false);
         return !onCommand.empty() || !offCommand.empty() || (!valueCommand.empty() && (!onValue.empty() || !offValue.empty()));
     }
     bool canSet() const {
+        if (http.on) return !http.paramUrl.empty();
         if (valueType == ValueType::Profile) return !profiles.empty();
         return valueType != ValueType::Boolean && !valueCommand.empty();
     }
-    bool canRead()   const { return !readCommand.empty() && !readPattern.empty(); }
+    bool canRead()   const { return http.on ? !http.readUrl.empty() : !readCommand.empty() && !readPattern.empty(); }
 
     static JPActuatorConfig fromJson(const JJson& j);
     JJson toJson() const;

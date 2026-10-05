@@ -6,6 +6,7 @@
 #include "common/JPlacerLog.h"
 
 #include <j/core/Log.h>
+#include <j/io/HttpClient.h>
 
 #include <algorithm>
 #include <cmath>
@@ -373,6 +374,16 @@ void JPCell::setActuator(const std::string& actuatorId, const std::string& value
 bool JPCell::doSet(const std::string& actuatorId, const std::string& value, std::string& why, int depth) {
     for (const JPActuatorConfig& a : m_config.actuators) {
         if (a.id != actuatorId) continue;
+        // An HTTP actuator: its parameter URL, {val} the value.
+        if (a.http.on) {
+            if (a.http.paramUrl.empty()) {
+                why = a.name + " has no parameter URL to set it by";
+                return false;
+            }
+            std::string url = a.http.paramUrl;
+            for (size_t at; (at = url.find("{val}")) != std::string::npos;) url.replace(at, 5, value);
+            return httpGet(a, url, why);
+        }
         // A profile actuator: set to the profile of that name.
         if (a.valueType == JPActuatorConfig::ValueType::Profile) {
             const JPActuatorConfig::Profile* p = a.profileNamed(value);
@@ -812,6 +823,13 @@ bool JPCell::doPlace(const JPNozzleConfig& n, std::string& why) {
 bool JPCell::doSwitch(const std::string& actuatorId, bool on, std::string& why, int depth) {
     for (const JPActuatorConfig& a : m_config.actuators) {
         if (a.id != actuatorId) continue;
+        // An HTTP actuator: its on or off URL, else its parameter URL with 1 or 0.
+        if (a.http.on) {
+            const std::string& url = on ? a.http.onUrl : a.http.offUrl;
+            const bool ok = url.empty() ? doSet(actuatorId, on ? "1" : "0", why, depth) : httpGet(a, url, why);
+            if (ok) m_actuated[actuatorId] = on;
+            return ok;
+        }
         // A profile actuator: its Default ON or Default OFF profile.
         if (a.valueType == JPActuatorConfig::ValueType::Profile) {
             const JPActuatorConfig::Profile* p = a.defaultProfile(on);
@@ -868,6 +886,7 @@ bool JPCell::doRead(const std::string& actuatorId, std::string& value, std::stri
                     const std::optional<std::string>& parameter) {
     for (const JPActuatorConfig& a : m_config.actuators) {
         if (a.id != actuatorId) continue;
+        if (a.http.on) return httpRead(a, value, why);
         JPGcodeDriver* d = driver(a.driverId);
         if (!d || !a.canRead()) {
             why = a.name + " cannot be read";
@@ -1292,6 +1311,58 @@ void JPCell::moveAxes(std::map<std::string, double> targets, double speed) {
         if (!ok) JLOGC(JPlacerLog::kCell, JLogLevel::Warn) << "move refused: " << why;
         onMotion.emit(ok, why);
     });
+}
+
+bool JPCell::httpGet(const JPActuatorConfig& a, const std::string& url, std::string& why) {
+    // The same URL as last time: not asked again (OpenPnP's lastActuationUrl).
+    if (m_lastHttpUrl[a.id] == url) return true;
+    const JHttpResponse r = JHttpClient::getSync(url, kHttpTimeoutMs, { { "User-Agent", "Mozilla/5.0" } });
+    JLOGC(JPlacerLog::kCell, r.ok() ? JLogLevel::Info : JLogLevel::Warn)
+        << a.name << " GET " << url << ": " << (r.error.empty() ? std::to_string(r.status) : r.error);
+    if (!r.error.empty()) {
+        why = a.name + ": " + r.error;
+        return false;
+    }
+    m_lastHttpUrl[a.id] = url;
+    return true;
+}
+
+bool JPCell::httpRead(const JPActuatorConfig& a, std::string& value, std::string& why) {
+    const JHttpResponse r = JHttpClient::getSync(a.http.readUrl, kHttpTimeoutMs, { { "User-Agent", "Mozilla/5.0" } });
+    if (!r.error.empty()) {
+        why = a.name + ": " + r.error;
+        return false;
+    }
+    // OpenPnP's named group "Value": std::regex has no names, so it becomes a plain group, counted.
+    std::string pattern = a.http.regex;
+    size_t group = 0;
+    if (const size_t at = pattern.find("(?<Value>"); at != std::string::npos) {
+        group = 1;
+        for (size_t i = 0; i < at; ++i)
+            if (pattern[i] == '(' && (i == 0 || pattern[i - 1] != '\\') && (i + 1 >= pattern.size() || pattern[i + 1] != '?')) ++group;
+        pattern.replace(at, 9, "(");
+    }
+    std::regex re;
+    try {
+        re = std::regex(pattern);
+    } catch (const std::regex_error&) {
+        why = a.name + ": its regex is not a valid pattern";
+        return false;
+    }
+    value.clear();
+    std::string text = r.text(), line;
+    for (size_t start = 0; start <= text.size();) {
+        const size_t end = text.find('\n', start);
+        line = text.substr(start, end == std::string::npos ? std::string::npos : end - start);
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        std::smatch m;
+        if (a.http.regex.empty()) value += line;
+        else if (group > 0 && std::regex_match(line, m, re) && m.size() > group) value += m[group].str();
+        if (end == std::string::npos) break;
+        start = end + 1;
+    }
+    JLOGC(JPlacerLog::kCell, JLogLevel::Info) << a.name << " read " << value;
+    return true;
 }
 
 double JPCell::driverUnits(const JPGcodeDriver& d) const {

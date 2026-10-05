@@ -104,6 +104,7 @@ std::string JPSetupEdits::addable(const JPCellConfig& cell, const std::string& p
 std::vector<std::string> JPSetupEdits::kinds(const JPCellConfig& cell, const std::string& path) {
     const JPSetupTree::Path g = JPSetupTree::parse(JPSetupTree::groupOf(cell, path));
     if (g.kind == "group" && g.id == "signalers") return JPSignalerConfig::classNames();
+    if (g.kind == "group" && g.id == "actuators") return { "ReferenceActuator", "HttpActuator" };
     return {};
 }
 
@@ -174,6 +175,7 @@ std::string JPSetupEdits::add(JPCellConfig& cell, const std::string& path, const
         JPActuatorConfig a;
         a.id = newId(cell, "ACT");
         a.name = "New actuator";
+        a.http.on = kind == "HttpActuator";
         a.mount.headId = g.owner;
         if (!cell.drivers.empty()) a.driverId = cell.drivers.front().id;
         cell.actuators.push_back(a);

@@ -146,7 +146,7 @@ std::vector<std::string> JPCellConfig::problems() const {
         actuatorIds.insert(a.id);
         checkMount("actuator " + a.name, a.mount);
         // A profile actuator sends nothing of its own: its actuators do.
-        const bool sends = (a.valueType != JPActuatorConfig::ValueType::Profile && a.canSwitch()) || a.canRead();
+        const bool sends = !a.http.on && ((a.valueType != JPActuatorConfig::ValueType::Profile && a.canSwitch()) || a.canRead());
         if (sends && !driver(a.driverId))
             out.push_back("actuator " + a.name + " has commands but no controller to send them to");
     }
