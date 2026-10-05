@@ -487,6 +487,10 @@ void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPF
         if (*about) add.note(about);
     }
     add.note("Empty: the firmware profile's command, shown greyed. A command can be several lines.");
+    // OpenPnP's: the controller's settings, its commands with them, written out whole.
+    add.group("Import / Export");
+    add.button("gcode:export", "Export Gcode File", "Export the Gcode profile to a file.");
+    add.button("gcode:copy", "Copy Gcode to Clipboard", "Copy the Gcode profile to the clipboard.");
 }
 
 // What measuring an axis's backlash found, as graphs.

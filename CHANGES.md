@@ -10,6 +10,7 @@ notes.
 
 ## Unreleased
 
+- A controller's Gcode tab has OpenPnP's Export Gcode File and Copy Gcode to Clipboard.
 - OpenPnP's other location buttons: Position Tool (Without Safe Z) on a motion test's stops, a tool changer's
   locations and a push-pull feeder's places, and Contact Probe Tool on a tool changer's Touch Location, which
   probes its Z.

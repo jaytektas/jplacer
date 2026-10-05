@@ -149,6 +149,8 @@ private:
     // The values captured put in the row (one not known left as it is), a step to undo.
     void applyCapture(const JPSetupProperties::Row& row, const Where& now, const std::string& at);
     void goTo(const JPSetupProperties::Row& row, JPSetupForm::Tool tool, bool straight = false);
+    // OpenPnP's Export Gcode File and Copy Gcode to Clipboard: the controller shown, written out.
+    void exportGcode(bool toClipboard);
     void probe(const JPSetupProperties::Row& row);
     // A change was made to m_draft: a step to undo, handed over.
     // `from`: the node selected when it was made, to go back to on Undo.

@@ -50,6 +50,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Units (millimetres or inches) | done | Driver Settings |
 | Letter variables off, pre-move commands | done | Driver Settings; a Pre-Move Command per axis |
 | Gcode tab: every command, per head-mountable | done | per controller; empty uses the profile's |
+| Gcode tab: Import / Export (Export Gcode File, Copy Gcode to Clipboard) | done | the controller's settings as jplacer keeps them (JSON); OpenPnP's Load, Paste and Reset are not on its form |
 | Confirmation flow control, location confirmation | own way | the driver waits for each `ok` and reads status reports |
 | Interpolation (max steps, jerk steps, min step time) | own way | as above: the controller plans the motion |
 | Console | done | Console dock |

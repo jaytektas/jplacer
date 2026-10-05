@@ -11,11 +11,14 @@
 #include "setup/JPSetupProperties.h"
 #include "setup/JPSetupTree.h"
 
+#include <j/core/Dialog.h>
 #include <j/core/JStyle.h>
 #include <j/core/Log.h>
 
 #include <algorithm>
 #include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <functional>
 
 inline namespace jf {
@@ -130,6 +133,10 @@ JPMachineSetupPanel::JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, 
         // The default vision settings' page's: as the Vision tab does them.
         if ((action.rfind("bottom:", 0) == 0 || action.rfind("fiducial:", 0) == 0) && !shownVisionSettings().empty()) {
             if (visionAction) visionAction(shownVisionSettings(), action);
+            return;
+        }
+        if (action == "gcode:export" || action == "gcode:copy") {
+            exportGcode(action == "gcode:copy");
             return;
         }
         if (onAction) onAction(m_selected, action);
@@ -478,6 +485,33 @@ void JPMachineSetupPanel::goTo(const JPSetupProperties::Row& row, JPSetupForm::T
     if (tool == JPSetupForm::Tool::Camera) to[2].reset();   // a camera stays at safe Z
     auto& go = straight ? moveToStraight : moveTo;
     if (go) go(tool, to);
+}
+
+void JPMachineSetupPanel::exportGcode(bool toClipboard) {
+    // The controller shown, as it is set up here (OpenPnP writes its whole driver).
+    const JPDriverConfig* d = m_draft.driver(JPSetupTree::parse(m_selected).id);
+    if (!d) return;
+    const std::string text = d->toJson().dump(2);
+    if (toClipboard) {
+        JWidget::clipboardSet(text);
+        JDialog::message("Copied Gcode", "Copied Gcode to Clipboard");
+        return;
+    }
+    JDialog::saveFile("Save Gcode Profile As...", { "json" }, [text](std::string path) {
+        if (path.empty()) return;
+        if (!path.ends_with(".json")) path += ".json";
+        auto write = [text, path] {
+            std::ofstream out(path, std::ios::binary | std::ios::trunc);
+            out << text;
+            if (!out) JDialog::message("Export Failed", "Could not write " + path + ".");
+        };
+        if (!std::filesystem::exists(path)) {
+            write();
+            return;
+        }
+        JDialog::confirm("Replace file?",
+                         std::filesystem::path(path).filename().string() + " already exists. Do you want to replace it?", write);
+    });
 }
 
 void JPMachineSetupPanel::probe(const JPSetupProperties::Row& row) {
