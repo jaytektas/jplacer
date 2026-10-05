@@ -105,6 +105,7 @@ std::vector<std::string> JPSetupEdits::kinds(const JPCellConfig& cell, const std
     const JPSetupTree::Path g = JPSetupTree::parse(JPSetupTree::groupOf(cell, path));
     if (g.kind == "group" && g.id == "signalers") return JPSignalerConfig::classNames();
     if (g.kind == "group" && g.id == "actuators") return { "ReferenceActuator", "HttpActuator" };
+    if (g.kind == "group" && g.id == "cameras") return { "OpenPnpCaptureCamera", "ImageCamera" };
     return {};
 }
 
@@ -167,7 +168,8 @@ std::string JPSetupEdits::add(JPCellConfig& cell, const std::string& path, const
         c.looksUp = g.owner.empty();   // a camera fixed to the machine looks up at the nozzles
         c.mount.headId = g.owner;
         c.device = JJson::object();
-        c.device["backend"] = "v4l2";
+        // OpenPnP's ImageCamera (a picture of the table) when chosen, else a capture device.
+        c.device["backend"] = kind == "ImageCamera" ? "image" : "v4l2";
         cell.cameras.push_back(c);
         return "camera:" + c.id;
     }

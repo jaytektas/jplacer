@@ -1162,7 +1162,36 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
 
     add.tab("Device Settings");
     add.group("Device");
-    if (std::as_const(device())["backend"].str() == "simulated") {
+    if (std::as_const(device())["backend"].str() == "image") {
+        // OpenPnP's ImageCameraConfigurationWizard: a picture of the table, shown where the camera looks.
+        auto num = [device](const char* a, const char* b, double def) {
+            return std::pair { [device, a, b, def] {
+                                   const JJson& d = std::as_const(device());
+                                   return b ? d[a][b].number(def) : d[a].number(def);
+                               },
+                               [device, a, b](double v) {
+                                   if (b) device()[a][b] = v;
+                                   else device()[a] = v;
+                               } };
+        };
+        add.text("source", "Source File", [device] { return std::as_const(device())["source"].str(); },
+                 [device](const std::string& v) { device()["source"] = v; }, "long");
+        add.tip("A PNG of the machine's table, as the camera would see it from straight above.");
+        add.header({ "X", "Y" });
+        add.row("Image Units Per Pixel");
+        add.number("imageUppX", "Units Per Pixel X", num("imageUnitsPerPixel", "x", 0.04).first, num("imageUnitsPerPixel", "x", 0.04).second, 5);
+        add.number("imageUppY", "Units Per Pixel Y", num("imageUnitsPerPixel", "y", 0.04).first, num("imageUnitsPerPixel", "y", 0.04).second, 5);
+        add.end();
+        add.row("Image Offset");
+        add.number("imageOffsetX", "Offset X", num("imageOffset", "x", 0).first, num("imageOffset", "x", 0).second);
+        add.number("imageOffsetY", "Offset Y", num("imageOffset", "y", 0).first, num("imageOffset", "y", 0).second);
+        add.end();
+        add.endColumns();
+        add.number("simulatedRotation", "Simulated Rotation", num("simulatedRotation", nullptr, 0).first, num("simulatedRotation", nullptr, 0).second);
+        add.number("simulatedScale", "Simulated Scale", num("simulatedScale", nullptr, 1).first, num("simulatedScale", nullptr, 1).second);
+        add.flag("simulatedFlipped", "Simulated Flipped?", [device] { return std::as_const(device())["simulatedFlipped"].boolean(); },
+                 [device](bool v) { device()["simulatedFlipped"] = v; });
+    } else if (std::as_const(device())["backend"].str() == "simulated") {
         add.text("backend", "Device", [] { return std::string("simulated (set up in the cell file)"); }, nullptr);
     } else {
         // Found by the name the device gives itself, whichever socket it is in.

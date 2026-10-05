@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
 #include "JPCaptureFactory.h"
+#include "JPImageSource.h"
 
 #include "JPSimulatedSource.h"
 #if defined(__linux__)
@@ -22,6 +23,22 @@ std::unique_ptr<JPCaptureSource> JPCaptureFactory::create(const std::string& cam
                                                    device["scene"], std::move(view),
                                                    int(device["hangAfterFrames"].number()),
                                                    int(device["freezeAfterFrames"].number()));
+    if (backend == "image") {
+        // OpenPnP's ImageCamera.
+        JPImageSource::Settings s;
+        s.path = device["source"].str();
+        s.width = int(device["width"].number(640));
+        s.height = int(device["height"].number(480));
+        s.fps = device["fps"].number(10);
+        s.unitsPerPixelX = device["imageUnitsPerPixel"]["x"].number(0.04);
+        s.unitsPerPixelY = device["imageUnitsPerPixel"]["y"].number(0.04);
+        s.offsetX = device["imageOffset"]["x"].number(0);
+        s.offsetY = device["imageOffset"]["y"].number(0);
+        s.rotation = device["simulatedRotation"].number(0);
+        s.scale = device["simulatedScale"].number(1);
+        s.flipped = device["simulatedFlipped"].boolean();
+        return std::make_unique<JPImageSource>(cameraName, s, std::move(view));
+    }
 #if defined(__linux__)
     if (backend == "v4l2") {
         if (device["name"].str().empty()) {

@@ -12,6 +12,7 @@
 #include "camera/JPCameraFeed.h"
 #include "camera/JPCaptureFactory.h"
 #include "camera/JPImageFile.h"
+#include "camera/JPImageSource.h"
 #include "camera/JPImageTransform.h"
 #include "camera/JPPixels.h"
 
@@ -25,6 +26,35 @@
 using namespace jf;
 
 int main() {
+    // OpenPnP's ImageCamera: the part of a picture of the table under the camera.
+    {
+        // A 100 x 100 picture, 1 mm a pixel: each pixel's red its column, green its row.
+        JPFrame table;
+        table.width = table.height = 100;
+        for (int y = 0; y < 100; ++y)
+            for (int x = 0; x < 100; ++x)
+                for (uint8_t v : { uint8_t(x), uint8_t(y), uint8_t(0), uint8_t(255) }) table.rgba.push_back(v);
+        const std::string path = (std::filesystem::temp_directory_path() / "jplacer-test-table.png").string();
+        std::string error;
+        assert(JPImageFile::writePng(path, table, error));
+        JPImageSource::Settings st;
+        st.path = path;
+        st.width = 10;
+        st.height = 10;
+        st.unitsPerPixelX = st.unitsPerPixelY = 1;
+        double vx = 30, vy = 20;
+        JPImageSource cam("image", st, [&](double& x, double& y) { x = vx; y = vy; return true; });
+        assert(cam.open(error));
+        JPFrame f;
+        cam.render(vx, vy, f);
+        // The view's middle is machine (30, 20): picture column 30, row 100 - 20 = 80 (its rows run down).
+        const size_t mid = (size_t(5) * 10 + 5) * 4;
+        assert(f.width == 10 && f.rgba[mid] == 30 && f.rgba[mid + 1] == 80);
+        // Up the machine's Y is up the view.
+        const size_t above = (size_t(4) * 10 + 5) * 4;
+        assert(f.rgba[above + 1] == 79);
+        std::filesystem::remove(path);
+    }
     // OpenPnP's image transforms: two stacked fields woven, then cut about the middle.
     {
         JPFrame f;

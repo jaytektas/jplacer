@@ -553,6 +553,30 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
         // OpenPnpCaptureCamera's unique id is the device's own name and the
         // USB port it was on ("top: top usb-0000:00:14.0-8.2"). jplacer finds a
         // camera by its name alone, so a different port or hub does not lose it.
+        // OpenPnP's ImageCamera: a picture of the table, shown where the camera looks.
+        if (shortClass(x) == "ImageCamera") {
+            cam.device["backend"] = "image";
+            if (const JPXmlElement* src = x.child("source-uri")) {
+                std::string uri = src->text;
+                if (uri.rfind("file:", 0) == 0) uri = uri.substr(uri.rfind("file://", 0) == 0 ? 7 : 5);
+                cam.device["source"] = uri;
+                if (uri.rfind("classpath:", 0) == 0)
+                    notes.push_back("camera " + cam.name + ": its picture is inside OpenPnP (" + uri + "); choose a picture file for it");
+            }
+            if (!x.attr("width").empty()) cam.device["width"] = number(x.attr("width"));
+            if (!x.attr("height").empty()) cam.device["height"] = number(x.attr("height"));
+            if (const auto upp = location(x, "image-units-per-pixel")) {
+                cam.device["imageUnitsPerPixel"]["x"] = upp->x;
+                cam.device["imageUnitsPerPixel"]["y"] = upp->y;
+            }
+            if (const auto off = location(x, "image-offset")) {
+                cam.device["imageOffset"]["x"] = off->x;
+                cam.device["imageOffset"]["y"] = off->y;
+            }
+            if (!x.attr("simulated-rotation").empty()) cam.device["simulatedRotation"] = number(x.attr("simulated-rotation"));
+            if (!x.attr("simulated-scale").empty()) cam.device["simulatedScale"] = number(x.attr("simulated-scale"));
+            cam.device["simulatedFlipped"] = x.attr("simulated-flipped") == "true";
+        }
         if (shortClass(x) == "OpenPnpCaptureCamera") {
             const std::string& uid = x.attr("unique-id");
             const size_t usb = uid.rfind(" usb-");
