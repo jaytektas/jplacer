@@ -236,6 +236,73 @@ int main() {
         assert(find(vs, "Safe Z of Nozzle N1 lower than secondary fiducial Z."));
         assert(!find(vs, "Safe Z of Nozzle N1 lower than primary fiducial Z."));
     }
+    // OpenPnP's KinematicSolutions: Safe Z dynamic or fixed (the choice taken on Accept), positive Safe Z, the tallest part.
+    {
+        JPCellConfig k2 = cell;
+        k2.axes[2].safeZoneLowEnabled = k2.axes[2].safeZoneHighEnabled = true;
+        k2.axes[2].safeZoneLow = 3;
+        k2.axes[2].safeZoneHigh = 5;
+        JPNozzleTipConfig t;
+        t.id = "T9";
+        t.name = "T9";
+        t.maxPartHeightMm = 4;
+        k2.nozzleTips.push_back(t);
+        k2.nozzles[0].tipIds = { "T9" };
+        k2.nozzles[0].dynamicSafeZ = true;
+        JPIssueChecks::Context k = c;
+        k.cell = [&k2]() -> const JPCellConfig* { return &k2; };
+        k.changeCell = [&k2](const std::string&, const std::function<void(JPCellConfig&)>& edit) { edit(k2); };
+        k.axisPosition = [](const std::string& id) -> std::optional<double> {
+            if (id == "x") return -3;
+            if (id == "y") return 7;
+            if (id == "z") return 12.5;
+            return std::nullopt;
+        };
+        S kin;
+        kin.setChecks(JPIssueChecks::all(k));
+        kin.setTargetMilestone(S::Milestone::Kinematics);
+        kin.find();
+        kin.publish();
+        assert(find(kin, "Unconventional Z Axis on N1."));
+        assert(find(kin, "Nozzle N1 with tip T9 Safe Z Zone violation."));
+        S::Issue* dyn = const_cast<S::Issue*>(find(kin, "Dynamic Safe Z for N2."));
+        assert(dyn && dyn->choice == "Fixed Safe Z" && dyn->choices.size() == 2);
+        dyn->choice = "Dynamic Safe Z";
+        std::string why;
+        assert(kin.setState(*dyn, S::State::Solved, why) && k2.nozzles[1].dynamicSafeZ);
+        assert(kin.setState(*dyn, S::State::Open, why) && !k2.nozzles[1].dynamicSafeZ);
+        // The manual tip change location, from where the nozzle is.
+        S::Issue* manual = const_cast<S::Issue*>(find(kin, "Set the manual nozzle tip change location for N1."));
+        assert(manual && kin.setState(*manual, S::State::Solved, why));
+        assert(k2.nozzles[0].manualChangeLocation && k2.nozzles[0].manualChangeLocation->x == -3
+               && k2.nozzles[0].manualChangeLocation->z == 12.5);
+    }
+    // A tip's background calibration: the method chosen, then the tip calibrated.
+    {
+        JPCellConfig b2 = cell;
+        JPNozzleTipConfig t;
+        t.id = "T8";
+        t.name = "T8";
+        b2.nozzleTips.push_back(t);
+        JPIssueChecks::Context k = c;
+        k.cell = [&b2]() -> const JPCellConfig* { return &b2; };
+        k.changeCell = [&b2](const std::string&, const std::function<void(JPCellConfig&)>& edit) { edit(b2); };
+        std::string calibrated;
+        k.calibrateTip = [&calibrated](const std::string& id, std::function<void(bool)> finished) {
+            calibrated = id;
+            finished(true);
+        };
+        S bg;
+        bg.setChecks(JPIssueChecks::all(k));
+        bg.setTargetMilestone(S::Milestone::Calibration);
+        bg.find();
+        bg.publish();
+        S::Issue* method = const_cast<S::Issue*>(find(bg, "Set background calibration method for T8."));
+        assert(method && method->choices.size() == 2);
+        method->choice = "Brightness";
+        std::string why;
+        assert(bg.setState(*method, S::State::Solved, why) && calibrated == "T8" && b2.nozzleTips.back().background.method == "Brightness");
+    }
     // OpenPnP's GcodeDriverSolutions: flow control for a Grbl, pre-move commands, the maximum feed rate, compression.
     {
         JPCellConfig g = cell;

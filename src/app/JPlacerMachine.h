@@ -157,6 +157,9 @@ public:
     // buttons do); `finished`: whether it was done.
     void calibrateCamera(const std::string& cameraId, std::function<void(bool ok)> finished);
     void calibrateBacklash(const std::string& axisId, std::function<void(bool ok)> finished);
+    // A nozzle tip calibrated (its runout, and its background as its method
+    // says) on the nozzle it is loaded on; `finished`: whether it was.
+    void calibrateTip(const std::string& tipId, std::function<void(bool ok)> finished);
     // OpenPnP's Enable Visual Homing: the mark under the head's camera made
     // its homing mark (where it is, how wide) and visual homing turned on.
     void enableVisualHoming(const std::string& headId, std::function<void(bool ok)> finished);

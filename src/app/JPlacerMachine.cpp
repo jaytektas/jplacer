@@ -1391,6 +1391,21 @@ void JPlacerMachine::calibrateBacklash(const std::string& axisId, std::function<
     }, std::move(finished));
 }
 
+void JPlacerMachine::calibrateTip(const std::string& tipId, std::function<void(bool ok)> finished) {
+    const JPNozzleConfig* on = nullptr;
+    if (m_cell)
+        for (const JPNozzleConfig& n : m_cell->config().nozzles)
+            if (n.tipId == tipId) on = &n;
+    if (!on) {
+        m_window.showStatus("Load the tip on a nozzle first: it is calibrated on that nozzle", kErrorMs);
+        if (finished) finished(false);
+        return;
+    }
+    calibrateTipRunout(on->id, true, [finished](bool ok, const std::string&) {
+        if (finished) finished(ok);
+    });
+}
+
 void JPlacerMachine::enableVisualHoming(const std::string& headId, std::function<void(bool ok)> finished) {
     if (!m_cameraTasks) {
         if (finished) finished(false);

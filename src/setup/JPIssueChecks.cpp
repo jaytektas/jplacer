@@ -17,6 +17,8 @@ constexpr const char* kWiki = "https://github.com/openpnp/openpnp/wiki/";
 // OpenPnP's: a preview faster than this is suggested down to the other.
 constexpr double kMostPreviewFps = 15;
 constexpr double kSuggestedPreviewFps = 5;
+// OpenPnP's: a Safe Z above this (mm) is unconventional (Z=0 retracted, the boards below).
+constexpr double kConventionalSafeZMm = 2;
 // OpenPnP's: the calibration rig's two fiducials at least this far apart in Z (mm).
 constexpr double kLeastRigZGapMm = 2;
 
@@ -228,6 +230,71 @@ void kinematics(JPSolutions& s, const JPIssueChecks::Context& c) {
         s.add(std::move(i));
     }
     auto where = [&c](const std::string& axisId) { return c.axisPosition ? c.axisPosition(axisId) : std::nullopt; };
+    // OpenPnP's: each nozzle's Safe Z decided first, dynamic (lifted by the part's height) or fixed.
+    for (const JPNozzleConfig& n : cell->nozzles) {
+        Issue i;
+        i.subject = "ReferenceNozzle " + n.name;
+        i.issue = "Dynamic Safe Z for " + n.name + ".";
+        i.solution = "Decide whether " + n.name + " has dynamic Safe Z or not.";
+        i.severity = Severity::Fundamental;
+        i.uri = std::string(kWiki) + "Kinematic-Solutions#dynamic-safe-z";
+        i.choices = { { "Dynamic Safe Z", "If a part is on the nozzle, the nozzle is lifted to Safe Z + part height. Safe Z must "
+                                          "only account for the tallest obstacle. This will result in faster, more optimized "
+                                          "machine motion. Recommended." },
+                      { "Fixed Safe Z", "Safe Z is always at a fixed level. Safe Z must account for both the tallest obstacle "
+                                        "and the tallest part on the nozzle. This will result in slower, less optimized machine "
+                                        "motion." } };
+        i.choice = n.dynamicSafeZ ? "Dynamic Safe Z" : "Fixed Safe Z";
+        const std::string id = n.id, text = i.issue;
+        const bool old = n.dynamicSafeZ;
+        // The choice taken on Accept: the published issue's (as the panel sets it).
+        i.apply = [c, sp = &s, id, text, old](State to, std::string&) {
+            std::string choice;
+            for (const auto& p : sp->issues())
+                if (p->issue == text) choice = p->choice;
+            if (c.changeCell)
+                c.changeCell("Dynamic Safe Z", [&](JPCellConfig& cell) {
+                    for (JPNozzleConfig& x : cell.nozzles)
+                        if (x.id == id) x.dynamicSafeZ = to == State::Solved ? choice == "Dynamic Safe Z" : old;
+                });
+            return true;
+        };
+        s.add(std::move(i));
+    }
+    // OpenPnP's NozzleTipSolutions: where a tip is changed by hand, captured from where the nozzle is.
+    for (const JPNozzleConfig& n : cell->nozzles) {
+        if (n.manualChangeLocation) continue;
+        Issue i;
+        i.subject = "ReferenceNozzle " + n.name;
+        i.issue = "Set the manual nozzle tip change location for " + n.name + ".";
+        i.solution = "Jog " + n.name + " to the manual nozzle tip changing location, then press Accept.";
+        i.severity = Severity::Suggestion;
+        i.uri = std::string(kWiki) + "Kinematic-Solutions#capture-safe-z";
+        i.extendedDescription = "Jog " + n.name + " to a suitable location where you can manually exchange the nozzle tips.\n\n"
+                                "Even if you (plan to) use an automatic nozzle tip changer, it is useful to have this location "
+                                "defined, in case you want to disable automatic changing temporarily.\n\nOften it is best to move "
+                                "Z all the way up so the tip is well reachable.\n\nPress Accept to store the location.";
+        const std::string id = n.id;
+        const JPMountConfig m = n.mount;
+        i.apply = [c, id, m, where](State to, std::string& why) {
+            std::optional<JPMachineLocation> at;
+            if (to == State::Solved) {
+                const auto x = where(m.axisX), y = where(m.axisY), z = where(m.axisZ), r = where(m.axisRotation);
+                if (!x || !y) {
+                    why = "Where the nozzle is cannot be told: connect and home the machine first.";
+                    return false;
+                }
+                at = JPMachineLocation { *x + m.offsetX, *y + m.offsetY, z ? *z + m.offsetZ : 0.0, r.value_or(0.0) };
+            }
+            if (c.changeCell)
+                c.changeCell("Manual tip change location", [&](JPCellConfig& cell) {
+                    for (JPNozzleConfig& x : cell.nozzles)
+                        if (x.id == id) x.manualChangeLocation = at;
+                });
+            return true;
+        };
+        s.add(std::move(i));
+    }
     // Safe Z of each nozzle's Z axis.
     const std::string safeZWiki = std::string(kWiki) + "Kinematic-Solutions#capture-safe-z";
     for (const JPNozzleConfig& n : cell->nozzles) {
@@ -253,6 +320,22 @@ void kinematics(JPSolutions& s, const JPIssueChecks::Context& c) {
             s.add(std::move(i));
             continue;
         }
+        // The nozzle's Safe Z: where its Z axis's safe zone begins, plus its offset.
+        const double safeZ = z->safeZoneLow + n.mount.offsetZ;
+        if (z->safeZoneLowEnabled && z->safeZoneHighEnabled && safeZ > kConventionalSafeZMm)
+            s.add(plain("ReferenceNozzle " + name, "Unconventional Z Axis on " + name + ".",
+                        "The Safe Z of " + name + " is positive, which is unconventional. jplacer, as OpenPnP, typically uses Z "
+                        "coordinates that have Z=0 when the nozzle is retracted, with the PCB surface in the negative Z range. "
+                        "Please read the Wiki to understand the implications of not following this convention.",
+                        Severity::Warning, std::string(kWiki) + "Machine-Axes#a-word-about-z-coordinates"));
+        // Lifted by the tallest part a tip takes, the nozzle must stay within the safe zone.
+        if (n.dynamicSafeZ && z->safeZoneLowEnabled && z->safeZoneHighEnabled)
+            for (const JPNozzleTipConfig& t : cell->nozzleTips)
+                if (n.fits(t.id) && safeZ + t.maxPartHeightMm > z->safeZoneHigh + n.mount.offsetZ)
+                    s.add(plain("ReferenceNozzleTip " + t.name, "Nozzle " + name + " with tip " + t.name + " Safe Z Zone violation.",
+                                "With dynamic safe Z, the Max. Part Height of each compatible nozzle tip must be smaller than the "
+                                "axis " + zName + " Safe Z Zone.",
+                                Severity::Error, std::string(kWiki) + "Kinematic-Solutions#dynamic-safe-z-zone"));
         if (z->safeZoneLowEnabled || z->safeZoneHighEnabled) continue;
         Issue i;
         i.subject = "ReferenceNozzle " + name;
@@ -491,6 +574,38 @@ void calibration(JPSolutions& s, const JPIssueChecks::Context& c) {
             solvedByWork(s, i, [c, axisId](std::function<void(bool)> finished) { c.calibrateBacklash(axisId, std::move(finished)); });
             s.add(std::move(i));
         }
+    }
+    // OpenPnP's NozzleTipSolutions: a tip's background calibration, chosen and then calibrated on its nozzle.
+    for (const JPNozzleTipConfig& t : cell->nozzleTips) {
+        if (t.background.method != "None" || !c.calibrateTip) continue;
+        Issue i;
+        i.subject = "ReferenceNozzleTip " + t.name;
+        i.issue = "Set background calibration method for " + t.name + ".";
+        i.solution = "Depending on the type of nozzle tip or shade, select the proper background calibration.";
+        i.severity = Severity::Suggestion;
+        i.uri = std::string(kWiki) + "Nozzle-Tip-Background-Calibration";
+        i.choices = { { "BrightnessAndKeyColor", "Brightness and Key-Color: the nozzle tip and/or background (shade) is "
+                                                 "color-keyed so computer vision can robustly distinguish background pixels "
+                                                 "from foreground pixels (\"green-screening\"). Use for green Juki style nozzles." },
+                      { "Brightness", "Brightness: the background is just dark, the foreground is distinguished by brightness only." } };
+        i.choice = "BrightnessAndKeyColor";
+        i.extendedDescription = "Select the proper background calibration.\n\nCAUTION: the nozzle the tip " + t.name
+                              + " is loaded on will move over the up-looking camera and perform a new nozzle tip calibration, "
+                                "including the background calibration.\n\nWhen ready, press Accept.";
+        const std::string tipId = t.id, text = i.issue;
+        Work work = [c, tipId, text, sp = &s](std::function<void(bool)> finished) {
+            std::string choice = "BrightnessAndKeyColor";
+            for (const auto& p : sp->issues())
+                if (p->issue == text) choice = p->choice;
+            if (c.changeCell)
+                c.changeCell("Background calibration method", [&](JPCellConfig& cell) {
+                    for (JPNozzleTipConfig& x : cell.nozzleTips)
+                        if (x.id == tipId) x.background.method = choice;
+                });
+            c.calibrateTip(tipId, std::move(finished));
+        };
+        solvedByWork(s, i, std::move(work));
+        s.add(std::move(i));
     }
     for (const JPNozzleTipConfig& t : cell->nozzleTips) {
         bool fits = false;

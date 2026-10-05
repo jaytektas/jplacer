@@ -52,6 +52,8 @@ public:
         // machine, in the background): `finished` says whether it was.
         std::function<void(const std::string& cameraId, std::function<void(bool ok)> finished)> calibrateCamera;
         std::function<void(const std::string& axisId, std::function<void(bool ok)> finished)> calibrateBacklash;
+        // A nozzle tip calibrated on the nozzle it is loaded on (runout, background).
+        std::function<void(const std::string& tipId, std::function<void(bool ok)> finished)> calibrateTip;
         // The mark under a head's camera made its homing mark, visual homing on.
         std::function<void(const std::string& headId, std::function<void(bool ok)> finished)> enableVisualHoming;
         // A camera's picture drawn smoothed (Rendering Quality High or better), and set so or back to Low.

@@ -660,6 +660,9 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         context.calibrateBacklash = [this](const std::string& id, std::function<void(bool)> finished) {
             m_machine.calibrateBacklash(id, std::move(finished));
         };
+        context.calibrateTip = [this](const std::string& id, std::function<void(bool)> finished) {
+            m_machine.calibrateTip(id, std::move(finished));
+        };
         context.enableVisualHoming = [this](const std::string& id, std::function<void(bool)> finished) {
             m_machine.enableVisualHoming(id, std::move(finished));
         };
