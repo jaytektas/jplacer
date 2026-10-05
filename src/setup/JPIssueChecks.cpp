@@ -14,6 +14,9 @@ using Issue = JPSolutions::Issue;
 using S = JPSolutions;
 
 constexpr const char* kWiki = "https://github.com/openpnp/openpnp/wiki/";
+// OpenPnP's: a preview faster than this is suggested down to the other.
+constexpr double kMostPreviewFps = 15;
+constexpr double kSuggestedPreviewFps = 5;
 
 // What OpenPnP's PlainIssue is: only to be dismissed (or looked up).
 Issue plain(std::string subject, std::string issue, std::string solution, Severity severity, std::string uri) {
@@ -469,14 +472,203 @@ void production(JPSolutions& s, const JPIssueChecks::Context& c) {
 
 } // namespace
 
+// OpenPnP's ActuatorSolutions: what a holder (a nozzle, the head, a camera)
+// needs of the actuator it uses for something (`qualifier`): one assigned, a
+// controller for it (unless HTTP or a script works it), and the commands
+// that do what is asked of it: switch it, set it, or read it.
+enum class Use { Actuate, Read };
+void actuatorIssues(JPSolutions& s, const JPIssueChecks::Context& c, const JPCellConfig& cell, const std::string& holder,
+                    const std::string& actuatorId, const std::string& qualifier, Use use, const std::string& uri,
+                    bool nested = false) {
+    const JPActuatorConfig* a = nullptr;
+    for (const JPActuatorConfig& x : cell.actuators)
+        if (x.id == actuatorId) a = &x;
+    if (!a) {
+        s.add(plain(holder, holder + " is missing a " + qualifier + " actuator.",
+                    "Create and assign a " + qualifier + " actuator as described in the Wiki.", Severity::Warning, uri));
+        return;
+    }
+    const std::string subject = "ReferenceActuator " + a->name;
+    if (!a->http.on && a->scriptName.empty() && a->driverId.empty()) {
+        s.add(plain(subject, "The " + qualifier + " actuator " + a->name + " has no driver assigned.",
+                    "Assign a driver as described in the Wiki.", Severity::Warning,
+                    std::string(kWiki) + "Setup-and-Calibration%3A-Actuators#driver-assignment"));
+        return;
+    }
+    if (a->http.on || !a->scriptName.empty()) return;   // worked by HTTP or a script, not by commands
+    std::string driver = a->driverId;
+    for (const JPDriverConfig& d : cell.drivers)
+        if (d.id == a->driverId) driver = d.name;
+    using V = JPActuatorConfig::ValueType;
+    // A command it lacks: given with the issue, and set as it is accepted.
+    auto missing = [&](const std::string& command, const std::string& label, std::string JPActuatorConfig::*field,
+                       bool regex) {
+        Issue i;
+        i.subject = subject;
+        i.issue = "The " + qualifier + " actuator " + a->name + " has no " + command + " assigned.";
+        i.solution = "Assign the " + std::string(regex ? "regular expression" : "command") + " to driver " + driver
+                   + " as described in the Wiki.";
+        i.severity = Severity::Warning;
+        i.uri = uri;
+        auto text = std::make_shared<std::string>();
+        JPSolutions::Property p;
+        p.kind = JPSolutions::Property::Kind::Text;
+        p.label = label;
+        p.tooltip = "The " + label + " for the " + qualifier + " actuator, as its controller takes it.";
+        p.getText = [text] { return *text; };
+        p.setText = [text](const std::string& v) { *text = v; };
+        i.properties.push_back(std::move(p));
+        const std::string id = a->id;
+        i.apply = [c, id, field, text](State to, std::string& why) {
+            if (to == State::Solved && text->empty()) {
+                why = "type the command first";
+                return false;
+            }
+            if (c.changeCell)
+                c.changeCell("Actuator command", [&](JPCellConfig& cell) {
+                    for (JPActuatorConfig& x : cell.actuators)
+                        if (x.id == id) x.*field = to == State::Solved ? *text : std::string();
+                });
+            return true;
+        };
+        s.add(std::move(i));
+    };
+    if (use == Use::Read) {
+        if (a->readCommand.empty()) missing("ACTUATOR_READ_COMMAND", "Read Command", &JPActuatorConfig::readCommand, false);
+        if (a->readPattern.empty()) missing("ACTUATOR_READ_REGEX", "Read Reply Pattern", &JPActuatorConfig::readPattern, true);
+        return;
+    }
+    switch (a->valueType) {
+        case V::Boolean:
+            if (a->onCommand.empty() && a->offCommand.empty()) {
+                missing("ACTUATE_BOOLEAN_COMMAND", "On Command", &JPActuatorConfig::onCommand, false);
+                missing("ACTUATE_BOOLEAN_COMMAND (off)", "Off Command", &JPActuatorConfig::offCommand, false);
+            }
+            break;
+        case V::Number:
+            if (a->valueCommand.empty()) missing("ACTUATE_DOUBLE_COMMAND", "Set Value Command", &JPActuatorConfig::valueCommand, false);
+            break;
+        case V::Text:
+            if (a->valueCommand.empty()) missing("ACTUATE_STRING_COMMAND", "Set Value Command", &JPActuatorConfig::valueCommand, false);
+            break;
+        case V::Profile:
+            // Each of its profile's actuators, not further down (a profile of profiles would not end).
+            if (!nested)
+                for (const std::string& other : a->profileActuators)
+                    if (!other.empty() && other != a->id)
+                        actuatorIssues(s, c, cell, subject, other, qualifier, use, uri, true);
+            break;
+    }
+}
+
+void actuators(JPSolutions& s, const JPIssueChecks::Context& c) {
+    const JPCellConfig* cell = c.cell ? c.cell() : nullptr;
+    if (!cell || !s.isTargeting(Milestone::Basics)) return;
+    const std::string vacuum = std::string(kWiki) + "Setup-and-Calibration%3A-Vacuum-Setup";
+    // A nozzle tip that senses the vacuum needs something to read it with.
+    bool sensing = false;
+    for (const JPNozzleTipConfig& t : cell->nozzleTips)
+        if (t.partOn.method != "None" || t.partOff.method != "None") sensing = true;
+    for (const JPNozzleConfig& n : cell->nozzles) {
+        const std::string holder = "ReferenceNozzle " + n.name;
+        actuatorIssues(s, c, *cell, holder, n.vacuumActuatorId, "vacuum valve", Use::Actuate, vacuum);
+        if (!n.blowOffActuatorId.empty()) actuatorIssues(s, c, *cell, holder, n.blowOffActuatorId, "blow off", Use::Actuate, vacuum);
+        if (sensing)
+            actuatorIssues(s, c, *cell, holder, n.vacuumSenseActuatorId, "vacuum sensing", Use::Read,
+                           std::string(kWiki) + "Setup-and-Calibration%3A-Vacuum-Sensing#actuator-setup");
+    }
+    for (const JPHeadConfig& h : cell->heads) {
+        const std::string holder = "ReferenceHead " + h.name;
+        actuatorIssues(s, c, *cell, holder, h.pumpActuatorId, "pump control", Use::Actuate, vacuum + "#pump-control-setup");
+        if (!h.zProbeActuatorId.empty())
+            actuatorIssues(s, c, *cell, holder, h.zProbeActuatorId, "Z probe", Use::Read, std::string(kWiki) + "Z-Probing");
+    }
+    for (const JPCameraConfig& cam : cell->cameras) {
+        const std::string holder = "Camera " + cam.name;
+        actuatorIssues(s, c, *cell, holder, cam.lightActuator(), "camera light", Use::Actuate,
+                       std::string(kWiki) + "Setup-and-Calibration%3A-Camera-Lighting");
+        if (cam.device["backend"].str() == "switcher")
+            actuatorIssues(s, c, *cell, holder, cam.device["actuator"].str(), "camera switcher", Use::Actuate,
+                           std::string(kWiki) + "SwitcherCamera#configuration");
+    }
+}
+
+// OpenPnP's CameraSolutions on how the cameras show: the preview's rate,
+// suspended in tasks, brought forward, and drawn smoothed.
+void cameraViews(JPSolutions& s, const JPIssueChecks::Context& c) {
+    const JPCellConfig* cell = c.cell ? c.cell() : nullptr;
+    if (!cell || !s.isTargeting(Milestone::Vision)) return;
+    const std::string general = std::string(kWiki) + "Setup-and-Calibration_General-Camera-Setup#general-configuration";
+    for (const JPCameraConfig& cam : cell->cameras) {
+        const std::string id = cam.id, subject = "Camera " + cam.name;
+        if (cam.previewFps > kMostPreviewFps) {
+            Issue i;
+            i.subject = subject;
+            i.issue = "A high Preview FPS value might create undue CPU load.";
+            i.solution = "Set to 5 FPS.";
+            i.severity = Severity::Suggestion;
+            i.uri = general;
+            const double old = cam.previewFps;
+            i.apply = changing(c, "Camera preview rate", [id, old](JPCellConfig& cell, bool solved) {
+                for (JPCameraConfig& x : cell.cameras)
+                    if (x.id == id) x.previewFps = solved ? kSuggestedPreviewFps : old;
+            });
+            s.add(std::move(i));
+        }
+        if (!cam.suspendDuringTasks) {
+            const bool switcher = cam.device["backend"].str() == "switcher";
+            Issue i;
+            i.subject = subject;
+            i.issue = std::string(switcher ? "For a SwitcherCamera it is mandatory" : "It is recommended")
+                    + " to suspend camera preview during machine tasks / Jobs.";
+            i.solution = "Enable Suspend during tasks.";
+            i.severity = switcher ? Severity::Error : Severity::Suggestion;
+            i.uri = general;
+            i.apply = changing(c, "Camera suspended during tasks", [id](JPCellConfig& cell, bool solved) {
+                for (JPCameraConfig& x : cell.cameras)
+                    if (x.id == id) x.suspendDuringTasks = solved;
+            });
+            s.add(std::move(i));
+        }
+        if (!cam.autoCameraView) {
+            Issue i;
+            i.subject = subject;
+            i.issue = "In single camera preview jplacer can automatically switch the camera for you.";
+            i.solution = "Enable Auto Camera View.";
+            i.severity = Severity::Suggestion;
+            i.uri = general;
+            i.apply = changing(c, "Auto Camera View", [id](JPCellConfig& cell, bool solved) {
+                for (JPCameraConfig& x : cell.cameras)
+                    if (x.id == id) x.autoCameraView = solved;
+            });
+            s.add(std::move(i));
+        }
+        if (c.renderingSmooth && c.setRenderingSmooth && !c.renderingSmooth(id)) {
+            Issue i;
+            i.subject = subject;
+            i.issue = "The preview rendering quality can be improved.";
+            i.solution = "Set to Rendering Quality to High (right click the Camera View to see other options).";
+            i.severity = Severity::Suggestion;
+            i.uri = std::string(kWiki) + "Setup-and-Calibration_General-Camera-Setup#camera-view-configuration";
+            i.apply = [c, id](State to, std::string&) {
+                c.setRenderingSmooth(id, to == State::Solved);
+                return true;
+            };
+            s.add(std::move(i));
+        }
+    }
+}
+
 std::vector<JPSolutions::Check> JPIssueChecks::all(const Context& c) {
     return {
         [c](JPSolutions& s) { setupProblems(s, c); },
         [c](JPSolutions& s) { welcome(s, c); },
         [c](JPSolutions& s) { connect(s, c); },
         [c](JPSolutions& s) { basics(s, c); },
+        [c](JPSolutions& s) { actuators(s, c); },
         [c](JPSolutions& s) { kinematics(s, c); },
         [c](JPSolutions& s) { vision(s, c); },
+        [c](JPSolutions& s) { cameraViews(s, c); },
         [c](JPSolutions& s) { calibration(s, c); },
         [c](JPSolutions& s) { production(s, c); },
     };

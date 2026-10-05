@@ -153,6 +153,10 @@ public:
     // settings shown); shown again when the settings change elsewhere.
     void setSetupVisionTests(JPVisionTests tests);
     std::function<void()> onSetupConfigurationChanged;
+    // A camera's picture drawn smoothed (Rendering Quality High or Highest);
+    // set to High, or back to Low, and kept (Issues & Solutions).
+    bool cameraRenderingSmooth(const std::string& cameraId) const;
+    void setCameraRenderingSmooth(const std::string& cameraId, bool smooth);
     // Every board in the job given this Z (mm): OpenPnP's Set Machine Table Z.
     std::function<void(double z)> setBoardsZ;
     std::function<void(const std::string& settingsId, const std::string& action)> onSetupVisionAction;

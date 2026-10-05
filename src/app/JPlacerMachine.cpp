@@ -1375,6 +1375,22 @@ void JPlacerMachine::changeSetup(const std::string& what, const std::function<vo
     if (m_setup) m_setup->change(what, edit);
 }
 
+bool JPlacerMachine::cameraRenderingSmooth(const std::string& cameraId) const {
+    for (const CameraDock& d : m_cameras)
+        if (d.panel->camera().id == cameraId) return d.panel->view().renderingQuality() != JPCameraView::RenderingQuality::Low;
+    return true;   // no picture to draw
+}
+
+void JPlacerMachine::setCameraRenderingSmooth(const std::string& cameraId, bool smooth) {
+    using Q = JPCameraView::RenderingQuality;
+    for (CameraDock& d : m_cameras)
+        if (d.panel->camera().id == cameraId) {
+            JPCameraView& view = d.panel->view();
+            view.setRenderingQuality(smooth ? Q::High : Q::Low);
+            if (view.onRenderingQualityChanged) view.onRenderingQualityChanged(view.renderingQuality());
+        }
+}
+
 bool JPlacerMachine::cameraCalibrated(const std::string& cameraId) const {
     return m_cell && !m_cell->cameraCalibrations(cameraId).empty();
 }

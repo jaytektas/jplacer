@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- Issues & Solutions checks the actuators as OpenPnP does (vacuum, blow off, sensing, pump, Z probe, camera lights and
+  switchers: assigned, on a controller, with their commands, typed in the issue) and the cameras' previews (rate,
+  suspended in tasks, Auto Camera View, Rendering Quality).
 - The Machine has OpenPnP's Simulation Mode tab: simulated imperfections (homing error, non-squareness, nozzle tip runout,
   camera lag, noise and vibration) on the simulated cameras, Replace Drivers? to run a real machine's settings on
   simulated controllers, Set Machine Table Z and Reset Feeders. OpenPnP's SimulationModeMachine comes in with them.

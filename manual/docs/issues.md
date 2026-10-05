@@ -39,9 +39,9 @@ jplacer checks its own Machine Setup where OpenPnP checks its drivers' settings:
 | any | Machine Setup's own problems: a part naming another that is not there. |
 | Welcome | A head without nozzles. |
 | Connect | A controller or a camera still simulated. |
-| Basics | An axis without a controller or a letter (set right in the issue), the letter E, two axes of one controller with the same letter; a nozzle without a Z or a rotation axis; nozzles sharing one. |
+| Basics | An axis without a controller or a letter (set right in the issue), the letter E, two axes of one controller with the same letter; a nozzle without a Z or a rotation axis; nozzles sharing one. The actuators, as OpenPnP's ActuatorSolutions: each nozzle's vacuum valve (and blow off, when it has one; and, when a nozzle tip senses the vacuum, something to read it), the head's pump control (and Z probe, when it has one), each camera's light (and a switcher camera's switcher): one assigned, a controller for it (unless HTTP or a script works it), and the commands for what it is asked to do (switch, set, read), typed in the issue and set on Accept; a profile actuator's own actuators each. |
 | Kinematics | The machine not homed (Accept homes it); a Z axis's Safe Z zone invalid, or not set (Accept takes where the nozzle is as its Safe Z); an X or Y axis without soft limits (Accept takes where it is); an axis without a feed rate or acceleration; a nozzle's rotation not wrapping around, or not limited to ±180° (Accept sets it). |
-| Vision | A camera settling by a fixed time (Accept sets the adaptive Euclidean method), one not calibrated, one without a white balance. |
+| Vision | A camera settling by a fixed time (Accept sets the adaptive Euclidean method), one not calibrated, one without a white balance. As OpenPnP's CameraSolutions: a Preview FPS over 15 (Accept sets 5), a preview not suspended during tasks (an error for a switcher camera; Accept suspends it), Auto Camera View off (Accept turns it on), and Rendering Quality Low (Accept sets High). |
 | Calibration | A nozzle tip that no nozzle takes. |
 | any | A Photon feeder's slot without a location, or without an offset from it. |
 

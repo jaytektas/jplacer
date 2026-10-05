@@ -48,6 +48,9 @@ public:
         std::function<bool()> homed;
         std::function<void()> home;
         std::function<std::optional<double>(const std::string& axisId)> axisPosition;
+        // A camera's picture drawn smoothed (Rendering Quality High or better), and set so or back to Low.
+        std::function<bool(const std::string& cameraId)> renderingSmooth;
+        std::function<void(const std::string& cameraId, bool smooth)> setRenderingSmooth;
         // A change to the cell's settings, a Machine Setup step (undone as one).
         std::function<void(const std::string& what, const std::function<void(JPCellConfig&)>& edit)> changeCell;
     };

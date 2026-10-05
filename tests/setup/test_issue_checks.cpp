@@ -97,6 +97,34 @@ int main() {
     assert(find(s, "Duplicate axis letter X on axes x, y."));
     assert(find(s, "Nozzles N1 and N2 have the same Z axis assigned."));
     assert(find(s, "Nozzles N1 and N2 have the same Rotation axis assigned."));
+    // The actuators, as OpenPnP's ActuatorSolutions: none assigned; then one with no command, given on Accept.
+    assert(find(s, "ReferenceNozzle N1 is missing a vacuum valve actuator."));
+    assert(find(s, "ReferenceHead Head is missing a pump control actuator."));
+    {
+        JPActuatorConfig v;
+        v.id = "V";
+        v.name = "Vac";
+        v.driverId = "D";
+        cell.actuators.push_back(v);
+        cell.nozzles[0].vacuumActuatorId = "V";
+        s.find();
+        s.publish();
+        assert(!find(s, "ReferenceNozzle N1 is missing a vacuum valve actuator."));
+        S::Issue* cmd = const_cast<S::Issue*>(find(s, "The vacuum valve actuator Vac has no ACTUATE_BOOLEAN_COMMAND assigned."));
+        assert(cmd && cmd->solution == "Assign the command to driver Gantry as described in the Wiki.");
+        std::string why;
+        assert(!s.setState(*cmd, S::State::Solved, why) && !why.empty());   // nothing typed
+        cmd->properties.front().setText("M8");
+        assert(s.setState(*cmd, S::State::Solved, why) && cell.actuators.back().onCommand == "M8");
+        cell.actuators.back().driverId.clear();   // no controller: said so instead
+        s.find();
+        s.publish();
+        assert(find(s, "The vacuum valve actuator Vac has no driver assigned."));
+        cell.actuators.back().http.on = true;     // worked by HTTP: needs none
+        s.find();
+        s.publish();
+        assert(!find(s, "The vacuum valve actuator Vac has no driver assigned."));
+    }
     // The letter set from the issue itself.
     S::Issue* letter = const_cast<S::Issue*>(find(s, "Axis letter is missing. Assign the letter to continue."));
     letter->properties.front().setText("Z");
@@ -141,6 +169,34 @@ int main() {
         s.find();
         s.publish();
         assert(find(s, "Nozzle tip T1 has a Max. Part Diameter that is not larger than the Min. Part Diameter."));
+    }
+    // The cameras' preview, as OpenPnP's CameraSolutions: its rate, suspended in tasks, brought forward, drawn smoothed.
+    {
+        JPCameraConfig cam;
+        cam.id = "C";
+        cam.name = "Top";
+        cam.previewFps = 30;
+        cam.device = JJson::object();
+        cam.device["backend"] = "switcher";
+        cell.cameras.push_back(cam);
+        bool smooth = false;
+        c.renderingSmooth = [&smooth](const std::string&) { return smooth; };
+        c.setRenderingSmooth = [&smooth](const std::string&, bool on) { smooth = on; };
+        S v;
+        v.setChecks(JPIssueChecks::all(c));
+        v.setTargetMilestone(S::Milestone::Vision);
+        v.find();
+        v.publish();
+        S::Issue* fps = const_cast<S::Issue*>(find(v, "A high Preview FPS value might create undue CPU load."));
+        S::Issue* suspend = const_cast<S::Issue*>(find(v, "For a SwitcherCamera it is mandatory to suspend camera preview during machine tasks / Jobs."));
+        S::Issue* quality = const_cast<S::Issue*>(find(v, "The preview rendering quality can be improved."));
+        assert(fps && suspend && suspend->severity == S::Severity::Error && quality);
+        assert(find(v, "In single camera preview jplacer can automatically switch the camera for you."));
+        std::string why;
+        assert(v.setState(*fps, S::State::Solved, why) && cell.cameras.back().previewFps == 5);
+        assert(v.setState(*suspend, S::State::Solved, why) && cell.cameras.back().suspendDuringTasks);
+        assert(v.setState(*quality, S::State::Solved, why) && smooth);
+        assert(v.setState(*fps, S::State::Open, why) && cell.cameras.back().previewFps == 30);   // undone
     }
     return 0;
 }

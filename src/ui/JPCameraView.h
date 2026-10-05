@@ -106,6 +106,7 @@ public:
     enum class RenderingQuality { Low, High, BestScale };
     static const char* name(RenderingQuality q);
     void setRenderingQuality(RenderingQuality q);
+    RenderingQuality renderingQuality() const { return m_quality; }
     std::function<void(RenderingQuality)> onRenderingQualityChanged;
     // The live picture shown at most `fps` times a second (0: every picture),
     // and held while `suspended` says (pictures vision shows still shown).
