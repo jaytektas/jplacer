@@ -364,6 +364,9 @@ notes.
 - A camera's picture menu has OpenPnP's Zoom Sensitivity (High, Medium, Low): how much the wheel zooms.
 - A camera's Machine Setup has OpenPnP's Image Transforms: crop width and height, and de-interlace. They come
   in with an OpenPnP machine.
+- Actuators can be OpenPnP's Profile actuators: named profiles that set up to six other actuators at once
+  (lights, valves), with Default ON and Default OFF profiles, chosen on the Actuators panel. They come in with
+  an OpenPnP machine.
 
 ## 0.1.0
 
