@@ -586,6 +586,13 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
         // Its preview (OpenPnP's fps is the preview's: 5 unless set), and whether it comes forward.
         cam.previewFps = x.attr("fps").empty() ? 5.0 : number(x.attr("fps"));
         if (x.child("roaming-radius")) cam.roamingRadiusMm = lengthChild(x, "roaming-radius");
+        if (!x.attr("focus-sensing-method").empty()) cam.focusSensingMethod = x.attr("focus-sensing-method");
+        if (const JPXmlElement* fp = x.child("focus-provider")) {
+            if (fp->child("focal-resolution")) cam.autoFocus.focalResolutionMm = lengthChild(*fp, "focal-resolution");
+            if (!fp->attr("averaged-frames").empty()) cam.autoFocus.averagedFrames = int(number(fp->attr("averaged-frames")));
+            if (!fp->attr("focus-speed").empty()) cam.autoFocus.focusSpeed = number(fp->attr("focus-speed"));
+            cam.autoFocus.showDiagnostics = fp->attr("show-diagnostics") != "false";
+        }
         cam.suspendDuringTasks = x.attr("suspend-preview-in-tasks") == "true";
         cam.autoCameraView = x.attr("auto-visible") == "true";
         for (const char* key : { "unique-id", "format-id", "fps", "rotation", "flip-x", "flip-y", "light-actuator-id" })

@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- The camera looking up can auto focus, as OpenPnP's: a part whose height is not known is measured by bringing
+  it into focus, and its Auto Focus tab tests it and can set the camera's Z.
 - Nozzles can probe by touch, as OpenPnP's ContactProbeNozzle: a job finds feeder and placement heights (and a
   part's height when it is not known) with a contact sensing actuator, and a nozzle tip's Z can be calibrated
   at its touch location.

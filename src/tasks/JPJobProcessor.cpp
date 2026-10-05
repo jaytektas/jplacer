@@ -1127,6 +1127,7 @@ JPJobProcessor::Step JPJobProcessor::align(Planned& p) {
         }
         script("Vision.PartAlignment.After", g);
         if (found) {
+            if (r.measuredPartHeightMm) setPartHeight(j.partId, *r.measuredPartHeightMm);
             p.alignment = r;
             return Step::Align;
         }

@@ -53,6 +53,11 @@ public:
     // Measure the runout of the tip on nozzle `nozzleId` with the fixed
     // camera looking up (JPRunoutCalibrator), asked first (the nozzle goes
     // down to the camera). `done` (main thread): the runout, for the owner to keep.
+    // OpenPnP's Auto Focus Test: the nozzle (with its tip) over the fixed
+    // camera, from its tip's largest part height above the camera's Z down
+    // to it, found in focus (JPAutoFocus). `done` (main thread): how far above
+    // the camera's Z that was.
+    void autoFocusTest(JPCameraPanel& camera, const JPNozzleConfig& nozzle, std::function<void(double)> done);
     // OpenPnP's scripting, for its NozzleCalibration events (none: not run).
     void setScripting(std::shared_ptr<JPScripting> scripting) { m_scripting = std::move(scripting); }
     // With the tip's background calibration on, what it found too (none when too few pictures).

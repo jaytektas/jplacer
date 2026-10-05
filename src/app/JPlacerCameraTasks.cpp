@@ -3,6 +3,8 @@
 
 #include "JPlacerCameraTasks.h"
 
+#include "tasks/JPAutoFocus.h"
+
 #include "common/JPlacerLog.h"
 #include "tasks/JPCameraCalibrator.h"
 #include "tasks/JPCameraLook.h"
@@ -24,6 +26,8 @@ namespace {
 // so they go at the machine's speed (the Jog panel's Speed, which scales
 // every move), as jogs and parks do.
 constexpr double kTaskSpeed = 1.0;
+// How long each of auto focus's pictures is shown (OpenPnP's 1 s).
+constexpr int kAutoFocusShownMs = 1000;
 // How long a result stays in the status bar.
 constexpr int kResultMs = 8000;
 // Two heights closer than this measure the camera's distance too poorly.
@@ -315,6 +319,54 @@ void JPlacerCameraTasks::calibrateRunout(const std::string& nozzleId,
         }, [result, background, done](bool ok) {
             if (ok && done) done(*result, *background);
         });
+    });
+}
+
+void JPlacerCameraTasks::autoFocusTest(JPCameraPanel& camera, const JPNozzleConfig& nozzle, std::function<void(double)> done) {
+    const JPNozzleTipConfig* tip = nullptr;
+    for (const JPNozzleTipConfig& t : m_cell.config().nozzleTips)
+        if (t.id == nozzle.tipId) tip = &t;
+    if (const std::string why = m_busy ? std::string("a camera task is already under way")
+                              : !tip ? std::string("A nozzle tip must be loaded.")
+                              : notReady(&camera, true, false);
+        !why.empty()) {
+        m_window.showStatus("Auto Focus: " + why, kResultMs);
+        return;
+    }
+    const JPNozzleTipConfig t = *tip;
+    const JPMountConfig mount = nozzle.mount;
+    auto distance = std::make_shared<double>(0);
+    JPCameraPanel* panel = &camera;
+    std::weak_ptr<bool> alive = m_alive;
+    run(camera, "Auto Focus", [this, panel, t, mount, distance, alive](std::string& words, const auto&) {
+        JPCameraFeed& feed = panel->feed();
+        JPCameraCalibration cal;
+        if (!JPCameraLook::calibration(m_cell, feed, cal, words)) return false;
+        const JPCameraConfig& cam = feed.config();
+        JPAutoFocus::Request rq;
+        rq.tool = mount;
+        rq.x = cam.mount.offsetX;
+        rq.y = cam.mount.offsetY;
+        rq.z1 = cam.mount.offsetZ;
+        rq.z0 = rq.z1 + t.maxPartHeightMm;
+        rq.subjectMaxSizeMm = t.maxPartDiameterMm + 2 * t.maxPickToleranceMm;
+        rq.mmPerPixel = cal.scale() > 0 ? 1 / cal.scale() : 0;
+        rq.settings = cam.autoFocus;
+        rq.machineSpeed = m_cell.speed();
+        auto show = [panel, alive](const JPFrame& frame, const std::string& text) {
+            JMainThreadDispatcher::instance().post([panel, alive, frame, text] {
+                if (const auto a = alive.lock(); a && *a) panel->view().showPicture(frame, text, kAutoFocusShownMs);
+            });
+        };
+        const auto z = JPAutoFocus::run(m_cell, feed, rq, show, words);
+        if (!z) return false;
+        *distance = *z - rq.z1;
+        char text[96];
+        std::snprintf(text, sizeof text, "in focus at Z %.3f, %.3f mm above the camera's Z", *z, *distance);
+        words = text;
+        return true;
+    }, [distance, done](bool ok) {
+        if (ok && done) done(*distance);
     });
 }
 

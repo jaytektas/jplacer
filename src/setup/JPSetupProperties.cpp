@@ -1322,6 +1322,11 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     add.flag("autoCameraView", "Auto Camera View?", [c]() -> bool& { return c().autoCameraView; });
     add.tip("If enabled, the CameraView will be automatically selected whenever a user action is related to the camera "
             "or when a computer vision result is presented.");
+    if (c().mount.headId.empty()) {
+        add.choice("focusSensingMethod", "Focus Sensing Method", { "None", "AutoFocus" }, [c] { return c().focusSensingMethod; },
+                   [c](const std::string& v) { c().focusSensingMethod = v; });
+        f.reshaping.push_back("focusSensingMethod");
+    }
     auto device = [c]() -> JJson& { return c().device; };
     add.group("Light");
     add.byName("light", "Light Actuator", named(cell.actuators, "(none)"), [device] { return std::as_const(device())["light-actuator-id"].str(); },
@@ -1601,6 +1606,42 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     add.note("0 crops every pixel the straightening leaves without picture; 100 shows all of the picture, "
              "dark corners and all.");
     for (const JPCameraCalibration& cal : c().calibrations) calibrationResults(add, cal, c().looksUp);
+
+    // OpenPnP's AutoFocusProvider wizard, for a fixed camera that senses focus.
+    if (c().mount.headId.empty() && c().focusSensingMethod == "AutoFocus") {
+        add.tab("Auto Focus");
+        add.group("General");
+        auto af = [c]() -> JPCameraConfig::AutoFocus& { return c().autoFocus; };
+        add.row("Focal Resolution");
+        add.number("focalResolution", "Focal Resolution", [af] { return af().focalResolutionMm; },
+                   [af](double v) { if (v > 0) af().focalResolutionMm = v; });
+        add.iconButton("autoFocusTest", "position-actuator", "Auto-Focus the selected nozzle in this camera. If a part is on the nozzle, "
+                                                      "its height will be determined.");
+        add.end();
+        add.tip("The focal resolution at which to stop the search. The smaller, the more precise the focus, and the longer it takes.");
+        add.integer("averagedFrames", "Averaged Frames", [af]() -> int& { return af().averagedFrames; }, 1, 100);
+        add.tip("Number of frames to average when determining the focus score. Increase to filter out noise.");
+        add.number("focusSpeed", "Focus Speed", [af] { return af().focusSpeed; },
+                   [af](double v) { af().focusSpeed = std::clamp(v, 0.01, 1.0); });
+        add.tip("Speed factor when moving through the focal range. Slower moves avoid vibrations.");
+        add.flag("showDiagnostics", "Show Diagnostics?", [af]() -> bool& { return af().showDiagnostics; });
+        add.tip("Show detected edges and Auto Focus status text in the camera view.");
+        add.row("Last Focus Distance");
+        add.text("lastFocusDistance", "Last Focus Distance",
+                 std::function<std::string()>([c] {
+                     if (!c().lastFocusDistanceMm) return std::string();
+                     char text[32];
+                     std::snprintf(text, sizeof text, "%.3f", *c().lastFocusDistanceMm);
+                     return std::string(text);
+                 }),
+                 nullptr);
+        add.button("adjustCameraZ", "Adjust Camera Z",
+                   "After having auto-focused, adjust the camera Z coordinate to match the focal distance i.e. make sure the "
+                   "camera is focused.");
+        add.end();
+        add.note("Test runs the nozzle chosen on the Jog panel over the camera from its tip's largest part height down to the "
+                 "camera's Z and finds where it is in focus; Last Focus Distance is how far above the camera's Z that was.");
+    }
 }
 
 // OpenPnP's ReferenceActuatorProfilesWizard: the actuators a profile sets, and

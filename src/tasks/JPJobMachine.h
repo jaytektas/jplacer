@@ -196,6 +196,8 @@ public:
         double dx = 0, dy = 0;
         double partAngle = 0;
         double cameraX = 0, cameraY = 0;   // where the camera looking up is
+        // A part of unknown height measured on the way (OpenPnP's auto focus part height): its height.
+        std::optional<double> measuredPartHeightMm;
     };
     // The head camera over `at` (its X and Y), `pipeline` run on its picture
     // and shown on the camera for `showMs`: its "results" stage's

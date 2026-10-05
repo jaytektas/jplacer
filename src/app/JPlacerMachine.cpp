@@ -45,6 +45,8 @@ constexpr int kStatusMs = 3000;
 constexpr int kErrorMs  = 8000;
 // How long the background calibration's problem pictures are shown.
 constexpr int kProblemsMs = 10000;
+// How near the camera's centre a nozzle must be for Adjust Camera Z (OpenPnP's 0.1 mm).
+constexpr double kCenteredMm = 0.1;
 
 // How fast Park Head moves, as a share of the axes' rates.
 
@@ -872,6 +874,64 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
             });
             m_setup->remakeForm();
         });
+    } else if ((action == "autoFocusTest" || action == "adjustCameraZ") && path.rfind("camera:", 0) == 0) {
+        const std::string cameraId = path.substr(7);
+        const JPMountConfig* nozzleMount = toolMount(JPSetupForm::Tool::Nozzle);
+        const JPNozzleConfig* nozzle = nullptr;
+        for (const JPNozzleConfig& n : m_cell->config().nozzles)
+            if (&n.mount == nozzleMount) nozzle = &n;
+        if (!nozzle) {
+            m_window.showStatus("No nozzle chosen on the Jog panel", kErrorMs);
+            return;
+        }
+        if (action == "autoFocusTest") {
+            for (CameraDock& c : m_cameras)
+                if (c.panel->camera().id == cameraId)
+                    m_cameraTasks->autoFocusTest(*c.panel, *nozzle, [this, cameraId](double distance) {
+                        if (!m_setup) return;
+                        m_setup->measured([&](JPCellConfig& cell) {
+                            for (JPCameraConfig& cam : cell.cameras)
+                                if (cam.id == cameraId) cam.lastFocusDistanceMm = distance;
+                        });
+                    });
+            return;
+        }
+        // OpenPnP's Adjust Camera Z: the camera's Z made the nozzle's, once it is over the camera and focused.
+        const JPCameraConfig* cam = nullptr;
+        for (const JPCameraConfig& c : m_cell->config().cameras)
+            if (c.id == cameraId) cam = &c;
+        const auto at = toolLocation(JPSetupForm::Tool::Nozzle);
+        if (!cam || !at) return;
+        if (!nozzlePart(nozzle->id).empty()) {
+            m_window.showStatus("Nozzle " + nozzle->name + " has part on. Use nozzle tip to measure.", kErrorMs);
+            return;
+        }
+        const JPLocation l = at->convertToUnits(JPLengthUnit::Millimeters);
+        if (std::hypot(l.x() - cam->mount.offsetX, l.y() - cam->mount.offsetY) > kCenteredMm) {
+            m_window.showStatus("Nozzle " + nozzle->name + " unexpected location. Please center and focus first.", kErrorMs);
+            return;
+        }
+        const double z = l.z();
+        JDialogOptions opts;
+        opts.okLabel = "Yes";
+        opts.cancelLabel = "No";
+        JDialog::confirm("Adjust Camera Z",
+                         "This will overwrite the current camera Z position and therefore change the camera-to-subject "
+                         "distance and the subject scale. You will need to recalibrate the Units per Pixel!\n\nAre you sure?",
+                         [this, cameraId, z] {
+                             if (!m_setup) return;
+                             m_setup->change("Camera Z", [&](JPCellConfig& cell) {
+                                 for (JPCameraConfig& c : cell.cameras)
+                                     if (c.id == cameraId) {
+                                         JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << "Setting camera " << c.name << " Z to " << z
+                                                                                    << " (previously " << c.mount.offsetZ << ")";
+                                         c.mount.offsetZ = z;
+                                         c.lastFocusDistanceMm.reset();
+                                     }
+                             });
+                             m_setup->remakeForm();
+                         },
+                         nullptr, opts);
     } else if ((action == "calibrateZ" || action == "resetZCalibration") && path.rfind("nozzletip:", 0) == 0) {
         // On the nozzle the tip is on.
         const std::string tipId = path.substr(10);

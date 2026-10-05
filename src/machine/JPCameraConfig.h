@@ -42,6 +42,21 @@ struct JPCameraConfig {
     // the largest part bottom vision can see in several shots
     // (JPVisionComposite); 0: not set, one shot only.
     double        roamingRadiusMm = 0;
+    // OpenPnP's Focus Sensing Method (a fixed camera's): "None", or
+    // "AutoFocus" (JPAutoFocus): a part of unknown height found in focus
+    // above the nozzle. Its Auto Focus tab: the Focal Resolution it narrows
+    // down to (mm), pictures averaged at each step, the speed it moves at (a
+    // share of the machine's), and whether it shows what it sees.
+    std::string   focusSensingMethod = "None";
+    struct AutoFocus {
+        double focalResolutionMm = 0.05;
+        int    averagedFrames = 1;
+        double focusSpeed = 0.5;
+        bool   showDiagnostics = true;
+    };
+    AutoFocus     autoFocus;
+    // How far above the camera's Z the last auto focus test found focus (while jplacer runs; not kept).
+    std::optional<double> lastFocusDistanceMm;
     bool          suspendDuringTasks = false;
     bool          autoCameraView = false;
     int           cropWidth = 0, cropHeight = 0;
@@ -156,6 +171,13 @@ struct JPCameraConfig {
         c.deinterlace    = j["deinterlace"].boolean();
         c.previewFps     = j["previewFps"].number(0.0);
         c.roamingRadiusMm = j["roamingRadius"].number(0.0);
+        if (!j["focusSensingMethod"].str().empty()) c.focusSensingMethod = j["focusSensingMethod"].str();
+        if (const JJson& f = j["autoFocus"]; f.isObject()) {
+            c.autoFocus.focalResolutionMm = f["focalResolution"].number(c.autoFocus.focalResolutionMm);
+            c.autoFocus.averagedFrames    = int(f["averagedFrames"].number(c.autoFocus.averagedFrames));
+            c.autoFocus.focusSpeed        = f["focusSpeed"].number(c.autoFocus.focusSpeed);
+            c.autoFocus.showDiagnostics   = f["showDiagnostics"].boolean(true);
+        }
         c.suspendDuringTasks = j["suspendDuringTasks"].boolean();
         c.autoCameraView = j["autoCameraView"].boolean();
         c.cropWidth      = int(j["crop"]["width"].number(0.0));
@@ -211,6 +233,11 @@ struct JPCameraConfig {
         if (deinterlace) j["deinterlace"] = true;
         if (previewFps > 0) j["previewFps"] = previewFps;
         if (roamingRadiusMm > 0) j["roamingRadius"] = roamingRadiusMm;
+        if (focusSensingMethod != "None") j["focusSensingMethod"] = focusSensingMethod;
+        j["autoFocus"]["focalResolution"] = autoFocus.focalResolutionMm;
+        j["autoFocus"]["averagedFrames"]  = autoFocus.averagedFrames;
+        j["autoFocus"]["focusSpeed"]      = autoFocus.focusSpeed;
+        j["autoFocus"]["showDiagnostics"] = autoFocus.showDiagnostics;
         if (suspendDuringTasks) j["suspendDuringTasks"] = true;
         if (autoCameraView) j["autoCameraView"] = true;
         if (cropWidth || cropHeight) {

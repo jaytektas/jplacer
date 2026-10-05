@@ -6,6 +6,7 @@
 #include <opencv2/objdetect.hpp>
 
 #include "pipeline/JPStageUtil.h"
+#include "tasks/JPAutoFocus.h"
 #include "tasks/JPVisionPipelinePrep.h"
 #include "ui/JPCameraView.h"
 
@@ -32,6 +33,8 @@ constexpr double kFirstSearchMm = 4.0;
 constexpr double kSearchMm      = 1.0;
 // How long a pipeline's picture of a fiducial found is shown on the camera (OpenPnP's).
 constexpr int kShownPipelineMs = 1500;
+// A part height found by focusing no more than this is the nozzle tip's own (OpenPnP's 0.001 mm).
+constexpr double kLeastFocusedHeightMm = 0.001;
 // OpenPnP's bottom vision takes a found rectangle's angle within this of the
 // one wanted (Rotation: Adjust), the sides being alike to it.
 constexpr double kAdjustRange = 45;
@@ -922,13 +925,64 @@ bool JPlacerJobMachine::alignPart(const std::string& nozzleId, const AlignReques
         });
         if (!prepared) return false;
     }
+    // A part of unknown height: found by focusing on it (OpenPnP's auto focus), over each shot (the
+    // centre, without compositing), as high as the tip's tallest part above the camera down to it.
+    double partHeight = rq.partHeightMm;
+    if (!tip)
+        m_onMain([&] {
+            if (const JPCell* cc = m_machine.cell())
+                for (const JPNozzleTipConfig& t : cc->config().nozzleTips)
+                    if (t.id == nozzle.tipId) tip = t;
+        });
+    if (partHeight <= 0) {
+        if (feed->config().focusSensingMethod != "AutoFocus" || !tip) {
+            why = "Part height unknown and camera " + feed->config().name + " does not support part height sensing.";
+            return false;
+        }
+        std::vector<std::pair<double, double>> shots;
+        if (composite && JPVisionComposite::isAdvanced(composite->solution())) {
+            const double a = (nr + rq.partOffset) * M_PI / 180;
+            for (const JPVisionComposite::Shot* s : composite->travel(0, 0))
+                shots.push_back({ std::cos(a) * s->x - std::sin(a) * s->y, std::sin(a) * s->x + std::cos(a) * s->y });
+        } else {
+            shots.push_back({ 0, 0 });
+        }
+        double sum = 0;
+        for (const auto& [sx, sy] : shots) {
+            JPAutoFocus::Request af;
+            af.tool = nozzle.mount;
+            af.x = nx - sx;
+            af.y = ny - sy;
+            af.rotation = nr;
+            af.z1 = camZ;
+            af.z0 = camZ + tip->maxPartHeightMm;
+            af.subjectMaxSizeMm = tip->maxPartDiameterMm + 2 * tip->maxPickToleranceMm;
+            af.mmPerPixel = cal.scale() > 0 ? 1 / cal.scale() : 0;
+            af.settings = feed->config().autoFocus;
+            af.machineSpeed = c->speed();
+            const auto z = JPAutoFocus::run(*c, *feed, af, [this](const JPFrame& frame, const std::string& text) {
+                m_onMain([&] {
+                    if (JPCameraView* view = m_machine.cameraViewOf(m_machine.upCameraFeed())) view->showPicture(frame, text, kShownPipelineMs);
+                });
+            }, why);
+            if (!z) return false;
+            sum += *z - camZ;
+        }
+        partHeight = sum / double(shots.size());
+        if (partHeight <= kLeastFocusedHeightMm) {
+            why = "Auto focus part height determination failed. Camera seems to have focused on nozzle tip.";
+            return false;
+        }
+        JLOGC(JPlacerLog::kJob, JLogLevel::Info) << "Part " << rq.partId << " height set to " << partHeight << " by camera focus provider.";
+        result.measuredPartHeightMm = partHeight;
+    }
     for (int pass = 0; pass < std::max(1, rq.passes); ++pass) {
         // A part seen in several shots (OpenPnP's vision compositing).
         if (composite && JPVisionComposite::isAdvanced(composite->solution())) {
             const double angle = nr + (pass == 0 ? rq.partOffset : result.partAngle - result.nozzleAngle);
             double px = 0, py = 0, found = 0;
             if (!alignComposite(*c, nozzle.mount, *rq.pipeline, *composite, tip ? &*tip : nullptr, feed->config().roamingRadiusMm,
-                                cal, camX, camY, camZ + rq.partHeightMm, nx, ny, nr, angle, rq.partId, px, py, found, why))
+                                cal, camX, camY, camZ + partHeight, nx, ny, nr, angle, rq.partId, px, py, found, why))
                 return false;
             result.nozzleAngle = nr;
             result.cameraX = camX;
@@ -946,7 +1000,7 @@ bool JPlacerJobMachine::alignPart(const std::string& nozzleId, const AlignReques
             nr = nr - (found - rq.imageAngle);
             continue;
         }
-        if (!c->moveToolAndWait(nozzle.mount, { nx, ny, camZ + rq.partHeightMm, nr }, 1.0, why)) return false;
+        if (!c->moveToolAndWait(nozzle.mount, { nx, ny, camZ + partHeight, nr }, 1.0, why)) return false;
         JPGrayImage img;
         if (!JPCameraLook::settled(*feed, img, why)) return false;
         JPPartFinder::Request fr;
