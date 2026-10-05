@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Scripts can run OpenPnP vision pipelines as OpenPnP's do (CvPipeline): on the head camera, with each stage's
+  results, and the working image shown on the camera.
 - Controllers running Smoothieware, Marlin, RepRapFirmware (Duet) or TinyG are recognised and driven as OpenPnP sets them
   up, and Issues & Solutions checks their firmware as OpenPnP does (Smoothieware's PnP build, RepRapFirmware 3.3,
   Marlin's rotation axes, an unknown firmware).

@@ -89,6 +89,8 @@ int main() {
         int feedCountSet = -1;
         std::string dialog;
         bool boardEnabled = true;
+        std::string pipelineXml;
+        int shownMs = 0;
         scripting.api = [&](const JJson& request) {
             JJson answer = JJson::object();
             const std::string call = request["call"].str();
@@ -157,6 +159,20 @@ int main() {
                 answer["result"] = std::string("XOUT");
             } else if (call == "setBoardEnabled") {
                 boardEnabled = request["enabled"].boolean();
+            } else if (call == "pipeline") {
+                pipelineXml = request["xml"].str();
+                JJson keyPoint = JJson::object();
+                keyPoint["pt"]["x"] = 320.5;
+                keyPoint["pt"]["y"] = 240.0;
+                keyPoint["size"] = 12.0;
+                JJson result = JJson::object();
+                result["kind"] = std::string("List");
+                result["text"] = std::string("[KeyPoint [pt={320.5, 240.0}]]");
+                result["value"] = JJson::array();
+                result["value"].push(keyPoint);
+                answer["result"]["results"]["results"] = result;
+            } else if (call == "showPipelineImage") {
+                shownMs = int(request["ms"].number());
             }
             return answer;
         };
@@ -184,11 +200,22 @@ int main() {
                                   "    if VisionUtils.readQrCode(camera) is not None:\n"
                                   "        board.setEnabled(False)\n"
                                   "        gui.jobTab.refresh()\n"
+                                  "from org.openpnp.vision.pipeline import CvPipeline\n"
+                                  "from org.openpnp.util import OpenCvUtils\n"
+                                  "pipeline = CvPipeline('<cv-pipeline><stages/></cv-pipeline>')\n"
+                                  "pipeline.setProperty('camera', camera)\n"
+                                  "pipeline.process()\n"
+                                  "found = pipeline.getResult('results').model\n"
+                                  "assert found[0].pt.x == 320.5 and found[0].getSize() == 12.0, found\n"
+                                  "assert pipeline.getResult('none') is None\n"
+                                  "gui.getCameraViews().getCameraView(camera).showFilteredImage(\n"
+                                  "    OpenCvUtils.toBufferedImage(pipeline.getWorkingImage()), 'found', 1500)\n"
                                   "showMessageDialog(None, 'Hello!')\n");
         const bool openPnp = scripting.execute((dir / "openpnp.py").string(), JJson::object(), why);
         if (!openPnp) std::fprintf(stderr, "why: %s\n", why.c_str());
         assert(openPnp && moved.size() == 2 && std::abs(moved[size_t(0)].number() - 26.4) < 1e-9);
         assert(std::abs(moved[size_t(1)].number() - 13) < 1e-9 && !boardEnabled);
+        assert(pipelineXml == "<cv-pipeline><stages/></cv-pipeline>" && shownMs == 1500);
         assert(feedCountSet == 0 && dialog == "Hello!");
         // OpenPnP's JavaScript scripts, as Nashorn runs them: load, Packages, JavaImporter and with,
         // for each, print; the same machine.

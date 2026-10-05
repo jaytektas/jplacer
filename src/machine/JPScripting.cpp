@@ -451,8 +451,92 @@ class Gui(Bean):
     def __init__(self):
         self.jobTab = JobTab()
 
+    def getCameraViews(self):
+        return _CameraViews()
+
     def __str__(self):
         return "MainFrame"
+
+
+class _Model(Bean):
+    """A pipeline result's model, as OpenPnP's scripts read it (attributes, and Java's getters)."""
+
+    def __init__(self, d):
+        for k, v in d.items():
+            setattr(self, k, _model(v))
+
+    def __repr__(self):
+        return repr(self.__dict__)
+
+
+def _model(v):
+    if isinstance(v, dict):
+        return _Model(v)
+    if isinstance(v, list):
+        return [_model(x) for x in v]
+    return v
+
+
+class _Result(Bean):
+    def __init__(self, d):
+        self.model, self._text = _model(d.get("value")), d.get("text", "")
+
+    def toString(self):
+        return self._text
+
+    __str__ = toString
+
+
+class CvPipeline(Bean):
+    """OpenPnP's CvPipeline, run by jplacer on the head camera where it is."""
+
+    def __init__(self, xml="<cv-pipeline><stages/></cv-pipeline>"):
+        self._xml, self._properties, self._results = xml, {}, {}
+
+    def setProperty(self, name, value):
+        self._properties[name] = value
+
+    def getProperty(self, name):
+        return self._properties.get(name)
+
+    def process(self):
+        self._results = jplacer.call("pipeline", xml=self._xml)["results"]
+
+    def getResult(self, name):
+        r = self._results.get(str(name))
+        return _Result(r) if r is not None else None
+
+    def getExpectedResult(self, name):
+        r = self.getResult(name)
+        if r is None:
+            raise Exception("Pipeline result stage \"%s\" not found." % name)
+        return r
+
+    def getWorkingImage(self):
+        return _WorkingImage()
+
+    def toXmlString(self):
+        return self._xml
+
+
+class _WorkingImage(object):
+    """The last pipeline's working image (kept by jplacer to show)."""
+
+
+class OpenCvUtils(object):
+    @staticmethod
+    def toBufferedImage(image):
+        return image
+
+
+class _CameraView(object):
+    def showFilteredImage(self, image, text="", milliseconds=1500):
+        jplacer.call("showPipelineImage", ms=int(milliseconds), text=str(text))
+
+
+class _CameraViews(object):
+    def getCameraView(self, camera):
+        return _CameraView()
 
 
 class Utils2D(object):
@@ -686,9 +770,35 @@ beans(JobTab, ["job"]);
 // OpenPnP's main window, as far as scripts use it: the Job tab.
 class Gui {
     constructor() { this.jobTab = new JobTab(); }
+    getCameraViews() { return cameraViews; }
     toString() { return "MainFrame"; }
 }
 beans(Gui, ["jobTab"]);
+
+// OpenPnP's CvPipeline, run by jplacer on the head camera where it is.
+class CvPipeline {
+    constructor(xml = "<cv-pipeline><stages/></cv-pipeline>") { Object.assign(this, { xml, properties: {}, results: {} }); }
+    setProperty(name, value) { this.properties[name] = value; }
+    getProperty(name) { return this.properties[name]; }
+    process() { this.results = jplacer.call("pipeline", { xml: this.xml }).results; }
+    getResult(name) {
+        const r = this.results[String(name)];
+        return r ? { model: r.value, getModel: () => r.value, toString: () => r.text } : null;
+    }
+    getExpectedResult(name) {
+        const r = this.getResult(name);
+        if (!r) throw new Error(`Pipeline result stage "${name}" not found.`);
+        return r;
+    }
+    getWorkingImage() { return { toString: () => "working image" }; }
+    toXmlString() { return this.xml; }
+}
+const OpenCvUtils = { toBufferedImage: (image) => image };
+const cameraViews = {
+    getCameraView: () => ({
+        showFilteredImage: (image, text = "", ms = 1500) => jplacer.call("showPipelineImage", { ms: Math.trunc(ms), text: String(text) }),
+    }),
+};
 
 const Utils2D = {
     calculateBoardPlacementLocation(board, location = new Location()) {
@@ -723,7 +833,8 @@ const engines = () => [
     getEngineName: () => engine, getEngineVersion: () => version, getLanguageName: () => language,
     getLanguageVersion: () => version, getExtensions: () => "[" + extensions.join(", ") + "]",
 }));
-const org = { openpnp: { model: { Location, LengthUnit, Part }, util: { UiUtils, Utils2D, VisionUtils } } };
+const org = { openpnp: { model: { Location, LengthUnit, Part }, util: { UiUtils, Utils2D, VisionUtils, OpenCvUtils },
+                         vision: { pipeline: { CvPipeline } } } };
 const javax = {
     swing: { JOptionPane: { showMessageDialog: (parent, message, title) =>
         jplacer.call("dialog", { title: title ? String(title) : "Message", text: String(message) }) } },
@@ -740,7 +851,15 @@ function run(file) {
     const context = vm.createContext({
         machine, config, scripting, gui, org, javax, Packages: { org, javax },
         print: (...values) => console.log(values.join(" ")),
-        JavaImporter: function (...packages) { return Object.assign({}, ...packages); },
+        // A package's names, or a class by its own (JavaImporter(org.openpnp.vision.pipeline.CvPipeline)).
+        JavaImporter: function (...packages) {
+            const names = {};
+            for (const p of packages) {
+                if (typeof p === "function") names[p.name] = p;
+                else if (p) Object.assign(names, p);
+            }
+            return names;
+        },
         require, console, process, module: { exports: {} }, __filename: file, __dirname: require("path").dirname(file),
     });
     context.exports = context.module.exports;
@@ -758,7 +877,9 @@ const std::vector<std::pair<const char*, const char*>> kOpenPnpPackages {
     { "org/__init__.py", "" },
     { "org/openpnp/__init__.py", "" },
     { "org/openpnp/model/__init__.py", "from jplacer_openpnp import Location, LengthUnit, Part\n" },
-    { "org/openpnp/util/__init__.py", "from jplacer_openpnp import Utils2D, VisionUtils\n" },
+    { "org/openpnp/util/__init__.py", "from jplacer_openpnp import Utils2D, VisionUtils, OpenCvUtils\n" },
+    { "org/openpnp/vision/__init__.py", "" },
+    { "org/openpnp/vision/pipeline/__init__.py", "from jplacer_openpnp import CvPipeline\n" },
     { "org/openpnp/util/UiUtils.py",
       "# OpenPnP's UiUtils: a machine task run now; an error it raises shown, as OpenPnP shows it.\n"
       "import jplacer\n\n"

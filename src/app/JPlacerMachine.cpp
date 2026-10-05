@@ -1513,7 +1513,7 @@ JJson JPlacerMachine::scriptRequest(const JJson& request) {
     const JPCellConfig& cfg = m_cell->config();
     // Waiting for the cell from its own thread would never end (an actuator's script, a homing event's).
     const bool moves = call == "moveTo" || call == "safeZ" || call == "home" || call == "actuate" || call == "read"
-                    || call == "pick" || call == "place" || call == "readQrCode";
+                    || call == "pick" || call == "place" || call == "readQrCode" || call == "pipeline";
     if (moves && m_cell->onCellThread())
         return fail(call + " cannot be asked from a script the machine itself is running (an actuator's, or a homing event's)");
     // A tool by its name or id: a nozzle, a camera or an actuator on a head.
@@ -1701,6 +1701,15 @@ JJson JPlacerMachine::scriptRequest(const JJson& request) {
         std::vector<JPJobMachine::QrCode> codes;
         if (!jm->readQrCodes(*at, codes, why)) return fail(why);
         answer["result"] = codes.empty() ? JJson() : JJson(codes.front().text);
+    } else if (call == "pipeline" || call == "showPipelineImage") {
+        // OpenPnP's CvPipeline.process and showFilteredImage, on the head camera where it is.
+        JPJobMachine* jm = scriptJobMachine ? scriptJobMachine() : nullptr;
+        if (!jm) return fail("no camera to look with");
+        JJson result;
+        const bool ok = call == "pipeline" ? m_scriptVision.run(*jm, request, result, why)
+                                           : m_scriptVision.show(*jm, int(request["ms"].number(kErrorMs)), why);
+        if (!ok) return fail(why);
+        answer["result"] = result;
     } else if (call == "dialog") {
         // OpenPnP's JOptionPane.showMessageDialog, shown without waiting.
         std::weak_ptr<bool> alive = m_alive;
