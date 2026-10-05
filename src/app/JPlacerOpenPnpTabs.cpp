@@ -3,6 +3,8 @@
 
 #include "JPlacerOpenPnpTabs.h"
 
+#include "model/JPLengthUnits.h"
+
 #include "JPlacerBlindsFiles.h"
 #include "JPlacerChildFiducialsDialog.h"
 #include "JPlacerClassSelectionDialog.h"
@@ -725,6 +727,13 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         m_vision->refresh();
         m_job.configurationChanged();
     };
+    m_machine.setBoardsZ = [this](double z) {
+        for (JPBoardLocation* b : m_job.job().boardLocations()) {
+            const JPLocation l = b->globalLocation();
+            b->setGlobalLocation(l.derive(std::nullopt, std::nullopt, z / JPLengthUnits::toMillimeters(l.units()), std::nullopt));
+        }
+        m_job.changed();
+    };
     m_packages->setTests(m_visionTests->tests());
     m_vision->setTests(m_visionTests->tests());
     // A strip feeder's Auto Setup, on the head camera.
@@ -810,6 +819,7 @@ JPlacerOpenPnpTabs::~JPlacerOpenPnpTabs() {
     m_machine.onUnhomed = nullptr;
     m_machine.onSetupVisionAction = nullptr;
     m_machine.onSetupConfigurationChanged = nullptr;
+    m_machine.setBoardsZ = nullptr;
     m_jobRun.reset();   // a run under way stops before what it works on goes
     JSettings::instance().set(JPlacerSettings::kPartsSplit, m_parts->split());
     JSettings::instance().set(JPlacerSettings::kPackagesSplit, m_packages->split());

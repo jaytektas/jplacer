@@ -104,8 +104,12 @@ void JPCameraFeed::run() {
 }
 
 void JPCameraFeed::runSource(std::string& why) {
-    auto source = JPCaptureFactory::create(m_config.name, m_config.device, why, m_view, &m_links,
-                                           [this] { return m_claimed.exchange(false); });
+    JPCaptureFactory::Context context;
+    context.view = m_view;
+    context.extras = m_extras;
+    context.links = m_links;
+    context.takeClaim = [this] { return m_claimed.exchange(false); };
+    auto source = JPCaptureFactory::create(m_config.name, m_config.device, why, context);
     if (!source || !source->open(why)) return;
     const auto mode = JPCaptureFactory::choose(source->modes(), m_config.device);
     if (!mode) {

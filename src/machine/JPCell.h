@@ -249,6 +249,10 @@ public:
     JPCameraCalibration cameraCalibration(const std::string& cameraId, int width, int height) const;
     // All of a camera's calibrations, a picture size each.
     std::vector<JPCameraCalibration> cameraCalibrations(const std::string& cameraId) const;
+    // The cell's Simulation Mode as it is now (for the cameras' threads).
+    JPSimulationConfig simulation() const;
+    // What an actuator was last switched to (on or off), if it has been since connecting.
+    std::optional<bool> switchedOn(const std::string& actuatorId) const;
 
     // Each controller's last reported state (Idle, Run, Alarm…), by controller id.
     std::map<std::string, std::string> states() const;
@@ -282,6 +286,9 @@ public:
 private:
     JPGcodeDriver* driver(const std::string& id) const;
     std::unique_ptr<JPGcodeDriver> makeDriver(const JPDriverConfig& config);
+    // A controller as it is run: as set up, or, while the cell's Simulation Mode
+    // replaces drivers (OpenPnP's Replace Drivers?), simulated, its axes' letters kept.
+    static JPDriverConfig asRun(const JPDriverConfig& driver, const JPCellConfig& cell);
     static std::string format(double v, int decimals);
     void updatePositions(const std::string& driverId, const JPFirmwareProfile::Status& status);
     void doDisconnect();
@@ -408,6 +415,7 @@ private:
     std::set<std::string>                       m_pumpOn, m_holding;
 
     mutable std::mutex                 m_mutex;   // guards the members below
+    std::map<std::string, bool>        m_switchedOn;   // switchedOn()
     std::map<std::string, double>      m_positions;
     std::map<std::string, double>      m_axisPositions;   // controller axes as they report (not squared)
     std::map<std::string, double>      m_sent;       // last commanded coordinate, by axis id

@@ -20,7 +20,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Discard location, Default Board Location | done | |
 | Auto-load most recent job | done | on for a new cell; as OpenPnP's for an imported one |
 | Motion planner: continuous motion | done | Machine › Motion Planner; waits where the machine must stand still (actuator coordination, pick and place, homing, each operation's end) |
-| Motion planner: uncoordinated moves, interpolation retiming, minimum speed | missing | these shape OpenPnP's own 3rd-order motion profiles, sent as interpolated moves; jplacer leaves acceleration and jerk to the controller |
+| Motion planner: uncoordinated moves, interpolation retiming, minimum speed | own way | jplacer's movement is kept (as asked): acceleration and jerk are the controller's; OpenPnP's own 3rd-order profiles, sent as interpolated moves, are not used |
 | Motion planner test motion (4 locations) and diagnostics | done | planned time from feed rates and accelerations, actual time, each axis's location and velocity from the controllers' reports |
 | Issues & Solutions (guided setup, milestones, auto-fixes) | partial | the tab, milestones and the checks jplacer has so far |
 | Log panel (filterable log) | done | Log tab |
@@ -47,7 +47,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Letter variables off, pre-move commands | done | Driver Settings; a Pre-Move Command per axis |
 | Gcode tab: every command, per head-mountable | done | per controller; empty uses the profile's |
 | Confirmation flow control, location confirmation | own way | the driver waits for each `ok` and reads status reports |
-| Interpolation (max steps, jerk steps, min step time) | missing | |
+| Interpolation (max steps, jerk steps, min step time) | own way | as above: the controller plans the motion |
 | Console | done | Console dock |
 
 ## Axes
@@ -65,7 +65,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Mapped axis (two map points) | done | |
 | Linear transform axis (non-squareness) | own way | squareness measured from board fiducials; Square the Machine |
 | Cam axes (clockwise / counter-clockwise, shared Z) | done | a cam axis kind, clockwise or not |
-| Vibration / chassis resonance | missing | the settle graph shows ringing below 15 Hz (30 fps); frame rates above that, or an accelerometer, needed for chassis modes |
+| Simulation Mode (SimulationModeMachine) | partial | mode, Replace Drivers?, runout and phase, non-squareness, camera lag and noise, vibration, homing error, Set Machine Table Z, Reset Feeders, imported; Pick & Place Checking missing |
 | Switch linear / rotational | done | and the feed rate as G-code reads F (linear path, else rotational) |
 
 ## Head

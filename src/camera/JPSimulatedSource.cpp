@@ -16,14 +16,17 @@ namespace {
 // The test picture's grid pitch in pixels and its two shades.
 constexpr int     kGrid  = 40;
 constexpr uint8_t kDark  = 40;
+// OpenPnP's: a light off shades the picture by 200 of 255; a spark is white at up to 15 of 255.
+constexpr float kDarkShare = 55.f / 255.f;
+constexpr int   kSparkAlphaMost = 15;
 constexpr uint8_t kLight = 90;
 
 } // namespace
 
 JPSimulatedSource::JPSimulatedSource(std::string name, int width, int height, double fps,
                                      const JJson& scene, ViewProvider view, int hangAfterFrames,
-                                     int freezeAfterFrames)
-    : m_name(std::move(name)), m_mode{ "SIM", width, height, fps }, m_view(std::move(view)),
+                                     int freezeAfterFrames, ExtrasProvider extras)
+    : m_name(std::move(name)), m_mode{ "SIM", width, height, fps }, m_view(std::move(view)), m_extras(std::move(extras)),
       m_hangAfterFrames(hangAfterFrames), m_freezeAfterFrames(freezeAfterFrames) {
     if (!scene.isObject()) return;
     m_hasScene = true;
@@ -68,7 +71,11 @@ void JPSimulatedSource::drawScene(JPFrame& frame) {
     // a perfect lens, at the middle straightened.
     double ox0, oy0;
     lens.undistort(cx, cy, ox0, oy0);
-    for (const Mark& m : m_marks) {
+    // The scene's marks, and what the machine adds over it (nozzle tips).
+    const Extras extras = m_extras ? m_extras() : Extras {};
+    std::vector<Mark> marks = m_marks;
+    for (const Extras::Spot& s : extras.spots) marks.push_back({ s.x, s.y, s.diameter, s.level });
+    for (const Mark& m : marks) {
         if (!known) break;
         const double dx = vx - m.x, dy = vy - m.y;
         const double px = ox0 + m_pxPerMm[0] * dx + m_pxPerMm[1] * dy;
@@ -136,6 +143,23 @@ void JPSimulatedSource::drawScene(JPFrame& frame) {
                 const float a = float(in) / (kSub * kSub);
                 v = v * (1 - a) + sh.level * a;
             }
+    }
+    // OpenPnP's simulated exposure: shaded while the light is off, and sparks
+    // of noise (faint short lines, so no two pictures are alike).
+    if (extras.dark)
+        for (float& v : lum) v *= kDarkShare;
+    if (extras.sparks > 0) {
+        std::uniform_int_distribution<int> count(0, extras.sparks - 1), dir(-1, 1), alpha(0, kSparkAlphaMost);
+        std::uniform_int_distribution<int> px(0, frame.width - 1), py(0, frame.height - 1);
+        for (int n = count(m_rng); n > 0; --n) {
+            const int x = px(m_rng), y = py(m_rng), x2 = x + dir(m_rng), y2 = y + dir(m_rng);
+            const float a = float(alpha(m_rng)) / 255.f;
+            for (const auto& [sx, sy] : { std::pair { x, y }, std::pair { x2, y2 } })
+                if (sx >= 0 && sy >= 0 && sx < frame.width && sy < frame.height) {
+                    float& v = lum[size_t(sy) * size_t(frame.width) + size_t(sx)];
+                    v = v * (1 - a) + 255.f * a;
+                }
+        }
     }
     uint8_t* p = frame.rgba.data();
     for (float v : lum) {

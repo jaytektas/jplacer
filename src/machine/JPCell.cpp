@@ -22,7 +22,44 @@ inline namespace jf {
 JPCell::JPCell(JPCellConfig config, std::vector<JPFirmwareProfile> profiles)
     : m_config(std::move(config)), m_profiles(std::move(profiles)) {
     for (const JPAxisConfig& a : m_config.axes) m_positions[a.id] = a.homeCoordinate;
-    for (const JPDriverConfig& d : m_config.drivers) m_drivers.push_back(makeDriver(d));
+    for (const JPDriverConfig& d : m_config.drivers) m_drivers.push_back(makeDriver(asRun(d, m_config)));
+    // What each actuator was switched to; nothing known once the connection goes.
+    onActuator.connect([this](std::string id, bool ok, std::string value) {
+        if (!ok || (value != "on" && value != "off")) return;
+        std::lock_guard lk(m_mutex);
+        m_switchedOn[id] = value == "on";
+    });
+    onConnection.connect([this](bool, std::string) {
+        std::lock_guard lk(m_mutex);
+        m_switchedOn.clear();
+    });
+}
+
+JPSimulationConfig JPCell::simulation() const {
+    std::lock_guard lk(m_mutex);
+    return m_config.simulation;
+}
+
+std::optional<bool> JPCell::switchedOn(const std::string& actuatorId) const {
+    std::lock_guard lk(m_mutex);
+    const auto it = m_switchedOn.find(actuatorId);
+    return it == m_switchedOn.end() ? std::nullopt : std::optional(it->second);
+}
+
+JPDriverConfig JPCell::asRun(const JPDriverConfig& driver, const JPCellConfig& cell) {
+    if (!cell.simulation.replacesDrivers()) return driver;
+    JPDriverConfig run = driver;
+    JJson letters = JJson::array();
+    for (const JPAxisConfig& a : cell.axes)
+        if (a.kind == JPAxisConfig::Kind::Controller && a.driverId == driver.id && !a.letter.empty()) letters.push(a.letter);
+    run.link = JJson::object();
+    run.link["type"] = std::string("simulated");
+    run.link["simulator"]["axisLetters"] = letters;
+    // A grblHAL, as jplacer's own simulator is.
+    run.link["simulator"]["identity"] = JJson::array();
+    run.link["simulator"]["identity"].push(std::string("[VER:1.1f.20250101:]"));
+    run.link["simulator"]["identity"].push(std::string("[FIRMWARE:grblHAL]"));
+    return run;
 }
 
 std::unique_ptr<JPGcodeDriver> JPCell::makeDriver(const JPDriverConfig& config) {
@@ -61,10 +98,10 @@ bool JPCell::reconfigure(JPCellConfig config, std::string& why) {
         for (const JPDriverConfig& d : config.drivers) {
             auto old = std::find_if(m_drivers.begin(), m_drivers.end(), [&d](const auto& o) { return o && o->id() == d.id; });
             if (old == m_drivers.end()) {
-                drivers.push_back(makeDriver(d));
+                drivers.push_back(makeDriver(asRun(d, config)));
                 continue;
             }
-            (*old)->setConfig(d);
+            (*old)->setConfig(asRun(d, config));
             drivers.push_back(std::move(*old));
         }
         for (auto& gone : m_drivers)

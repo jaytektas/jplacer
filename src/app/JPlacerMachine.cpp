@@ -8,9 +8,11 @@
 #include "JPlacerClassSelectionDialog.h"
 #include "JPlacerSettings.h"
 
+#include "camera/JPSimulatedViewpoint.h"
 #include "camera/JPWhiteBalance.h"
 #include "common/JPlacerLog.h"
 #include "common/JPlacerPaths.h"
+#include "model/JPLengthUnits.h"
 #include "model/JPXmlValues.h"
 #include "openpnp/JPOpenPnpMachineImporter.h"
 #include "setup/JPSetupEdits.h"
@@ -46,6 +48,9 @@ constexpr int kStatusMs = 3000;
 constexpr int kErrorMs  = 8000;
 // How long the background calibration's problem pictures are shown.
 constexpr int kProblemsMs = 10000;
+// A simulated nozzle tip seen from below: this wide when its tip gives no diameter (mm), and this bright.
+constexpr double kSimulatedTipMm = 1.0;
+constexpr float  kSimulatedTipLevel = 230;
 // How near the camera's centre a nozzle must be for Adjust Camera Z (OpenPnP's 0.1 mm).
 constexpr double kCenteredMm = 0.1;
 // OpenPnP's Mapped Roughly and Mapped Finely white balance: the brightness levels mapped.
@@ -124,17 +129,44 @@ void JPlacerMachine::buildCameras() {
     // where the switches put it when visual homing corrects the coordinates.
     const std::string captures = (std::filesystem::path(JPlacerPaths::configDir()) / "captures").string();
     std::vector<JPCameraPanel*> panels;
+    // Where a tool on the head physically is: its axes, its offset, and the
+    // correction visual homing made (the world stays where the switches put it).
+    auto physical = [cell = m_cell.get()](const JPMountConfig& m, double& x, double& y) {
+        const auto p = cell->positions();
+        const auto px = p.find(m.axisX), py = p.find(m.axisY);
+        if (px == p.end() || py == p.end()) return false;
+        const auto corrected = cell->correctionSinceHome();
+        const auto cx = corrected.find(m.axisX), cy = corrected.find(m.axisY);
+        x = px->second + m.offsetX + (cx == corrected.end() ? 0 : cx->second);
+        y = py->second + m.offsetY + (cy == corrected.end() ? 0 : cy->second);
+        return true;
+    };
+    // OpenPnP's Simulation Mode, for the nozzle tips the up-looking cameras see.
+    struct SimulatedTip {
+        JPMountConfig mount;
+        double        diameter;
+    };
+    std::vector<SimulatedTip> tips;
+    for (const JPNozzleConfig& n : m_cell->config().nozzles) {
+        double diameter = kSimulatedTipMm;
+        for (const JPNozzleTipConfig& t : m_cell->config().nozzleTips)
+            if (t.id == n.tipId && t.diameter > 0) diameter = t.diameter;
+        tips.push_back({ n.mount, diameter });
+    }
     for (const JPCameraConfig& c : m_cell->config().cameras) {
         std::function<bool(double&, double&)> view;
         if (!c.mount.axisX.empty() && !c.mount.axisY.empty())
-            view = [cell = m_cell.get(), m = c.mount](double& x, double& y) {
-                const auto p = cell->positions();
-                const auto px = p.find(m.axisX), py = p.find(m.axisY);
-                if (px == p.end() || py == p.end()) return false;
-                const auto corrected = cell->correctionSinceHome();
-                const auto cx = corrected.find(m.axisX), cy = corrected.find(m.axisY);
-                x = px->second + m.offsetX + (cx == corrected.end() ? 0 : cx->second);
-                y = py->second + m.offsetY + (cy == corrected.end() ? 0 : cy->second);
+            view = [cell = m_cell.get(), physical, m = c.mount, seen = std::make_shared<JPSimulatedViewpoint>()](double& x, double& y) {
+                if (!physical(m, x, y)) return false;
+                if (const JPSimulationConfig sim = cell->simulation(); sim.on()) seen->look(sim, JPSimulatedViewpoint::Clock::now(), x, y);
+                return true;
+            };
+        else
+            // A fixed camera looks from where it is, at the nozzle tips over it (simulated).
+            view = [cell = m_cell.get(), at = c.mount](double& x, double& y) {
+                if (!cell->simulation().on()) return false;
+                x = at.offsetX;
+                y = at.offsetY;
                 return true;
             };
         CameraDock d;
@@ -143,6 +175,33 @@ void JPlacerMachine::buildCameras() {
                                                       return cell->cameraCalibration(id, width, height);
                                                   });
         // OpenPnP's camera events, run where vision takes its pictures (off the screen's thread).
+        // What OpenPnP's Simulation Mode adds to a simulated camera's picture:
+        // the nozzle tips over a fixed one (going round on the runout), sparks
+        // of noise, and dark while its light is off.
+        d.panel->feed().setExtras([cell = m_cell.get(), physical, tips, fixed = c.mount.headId.empty(), light = c.lightActuator()] {
+            JPSimulatedSource::Extras e;
+            const JPSimulationConfig sim = cell->simulation();
+            if (!sim.on()) return e;
+            if (sim.dynamic()) {
+                e.sparks = sim.cameraNoise;
+                e.dark = !light.empty() && !cell->switchedOn(light).value_or(false);
+            }
+            if (fixed) {
+                const auto p = cell->positions();
+                for (const SimulatedTip& t : tips) {
+                    double x, y;
+                    if (!physical(t.mount, x, y)) continue;
+                    if (sim.dynamic() && sim.runoutMm != 0) {
+                        const auto r = p.find(t.mount.axisRotation);
+                        const double a = ((r == p.end() ? 0.0 : r->second) - sim.runoutPhaseDeg) * M_PI / 180;
+                        x += sim.runoutMm * std::cos(a);
+                        y += sim.runoutMm * std::sin(a);
+                    }
+                    e.spots.push_back({ x, y, t.diameter, kSimulatedTipLevel });
+                }
+            }
+            return e;
+        });
         d.panel->feed().scriptEvent = [scripting = m_scripting, name = c.name](const std::string& event, std::string& why) {
             JJson g = JJson::object();
             g["camera"] = name;
@@ -854,6 +913,37 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
             m_testMotion->run(*tool, [this](const JPMotionTestResult& r) {
                 if (m_setup) m_setup->setMotionTest(r);
             });
+        return;
+    }
+    if (action == "resetFeeders" && m_configuration) {
+        // OpenPnP's Simulation Mode Reset Feeders: the strip and blinds feeders from their first part again.
+        int reset = 0;
+        for (JPFeeder& feeder : m_configuration->feeders()) {
+            const std::string kind = JPFeeder::simpleName(feeder.className());
+            if (kind != "ReferenceStripFeeder" && kind != "BlindsFeeder") continue;
+            feeder.setNumber("feed-count", 0);
+            ++reset;
+        }
+        if (onSetupConfigurationChanged) onSetupConfigurationChanged();
+        m_window.showStatus("Reset Feeders: " + std::to_string(reset) + " feeder(s) back to their first part", kStatusMs);
+        return;
+    }
+    if (action == "setMachineTableZ" && m_cell && m_configuration) {
+        // OpenPnP's Set Machine Table Z: the feeders (a strip feeder's holes too), the job's boards and the cameras.
+        const double z = m_cell->config().simulation.machineTableZ;
+        auto atZ = [z](const JPLocation& l) {
+            return l.derive(std::nullopt, std::nullopt, z / JPLengthUnits::toMillimeters(l.units()), std::nullopt);
+        };
+        for (JPFeeder& feeder : m_configuration->feeders())
+            for (const char* element : { "location", "reference-hole-location", "last-hole-location" })
+                if (feeder.has(element)) feeder.setLocationOf(element, atZ(feeder.locationOf(element)));
+        if (onSetupConfigurationChanged) onSetupConfigurationChanged();
+        if (setBoardsZ) setBoardsZ(z);
+        changeSetup("Set Machine Table Z", [z](JPCellConfig& cell) {
+            for (JPCameraConfig& c : cell.cameras) c.mount.offsetZ = z;
+        });
+        m_window.showStatus("Machine Table Z " + JPUiParts::coordinate(z) + " given to the feeders, the boards and the cameras",
+                            kStatusMs);
         return;
     }
     if (action == "visualTest") {

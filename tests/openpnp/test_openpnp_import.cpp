@@ -253,6 +253,34 @@ int main() {
         assert(!sq.axis("AXSQ") && sq.cameras.front().mount.axisX == "AX");
         assert(sq.problems().empty());
     }
+    // OpenPnP's SimulationModeMachine: its simulated imperfections.
+    {
+        std::ifstream in(std::string(JPLACER_TESTDATA_DIR) + "/openpnp-machine.xml");
+        std::stringstream ss;
+        ss << in.rdbuf();
+        std::string xml = ss.str();
+        const std::string reference = R"(<machine class="org.openpnp.machine.reference.ReferenceMachine">)";
+        const size_t at = xml.find(reference);
+        assert(at != std::string::npos);
+        xml.replace(at, reference.size(),
+                    R"(<machine class="org.openpnp.machine.reference.SimulationModeMachine" simulation-mode="DynamicImperfectionsMachine" )"
+                    R"(replacing-drivers="false" simulated-non-squareness-factor="0.002" simulated-runout-phase="45.0" )"
+                    R"(simulated-camera-noise="20" simulated-camera-lag="0.05" simulated-vibration-amplitude="0.1" )"
+                    R"(simulated-vibration-duration="0.3">)"
+                    R"(<simulated-runout value="0.05" units="Millimeters"/>)"
+                    R"(<homing-error units="Millimeters" x="0.4" y="-0.2" z="0.0" rotation="0.0"/>)");
+        const std::string path = (std::filesystem::temp_directory_path() / "jplacer-test-simulation.xml").string();
+        std::ofstream(path) << xml;
+        JPCellConfig simCell;
+        std::vector<std::string> simNotes;
+        assert(JPOpenPnpMachineImporter::import(path, simCell, simNotes, error));
+        std::filesystem::remove(path);
+        const JPSimulationConfig& sim = simCell.simulation;
+        assert(sim.dynamic() && !sim.replaceDrivers && sim.nonSquarenessFactor == 0.002 && sim.runoutPhaseDeg == 45);
+        assert(sim.cameraNoise == 20 && sim.cameraLagS == 0.05 && sim.vibrationAmplitudeMm == 0.1 && sim.vibrationDurationS == 0.3);
+        assert(std::abs(sim.runoutMm - 0.05) < 1e-12 && sim.homingErrorX == 0.4 && sim.homingErrorY == -0.2);
+        assert(!cell.simulation.on());   // a ReferenceMachine is not simulated
+    }
 
     return 0;
 }

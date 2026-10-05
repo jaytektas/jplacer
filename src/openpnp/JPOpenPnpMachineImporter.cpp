@@ -183,6 +183,24 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
     else if (machine->child("unsafe-z-roaming-distance")) c.unsafeZRoamingMm = lengthChild(*machine, "unsafe-z-roaming-distance");
     c.safeZPark = machine->attr("safe-Z-park") != "false" && machine->attr("safe-z-park") != "false";   // default: on
     c.autoLoadMostRecentJob = setting("auto-load-most-recent-job");     // OpenPnP's default: off
+    // OpenPnP's SimulationModeMachine: the simulated imperfections (its defaults where not said).
+    if (shortClass(*machine) == "SimulationModeMachine") {
+        JPSimulationConfig& sim = c.simulation;
+        sim.mode = JPSimulationConfig::modeNamed(machine->attr("simulation-mode"));
+        sim.replaceDrivers = machine->attr("replacing-drivers") != "false";
+        auto real = [machine](const char* a, double def) { return machine->attr(a).empty() ? def : number(machine->attr(a)); };
+        sim.nonSquarenessFactor = real("simulated-non-squareness-factor", 0);
+        if (machine->child("simulated-runout")) sim.runoutMm = lengthChild(*machine, "simulated-runout");
+        sim.runoutPhaseDeg = real("simulated-runout-phase", 30);
+        sim.cameraNoise = int(real("simulated-camera-noise", 0));
+        sim.cameraLagS = real("simulated-camera-lag", 0);
+        sim.vibrationAmplitudeMm = real("simulated-vibration-amplitude", 0);
+        sim.vibrationDurationS = real("simulated-vibration-duration", 0.2);
+        if (const auto e = location(*machine, "homing-error")) {
+            sim.homingErrorX = e->x;
+            sim.homingErrorY = e->y;
+        }
+    }
     // The motion planner: continuous motion and the Test Motion places (OpenPnP's defaults where not said).
     if (const JPXmlElement* mp = machine->child("motion-planner")) {
         JPMotionPlannerConfig& m = c.motionPlanner;

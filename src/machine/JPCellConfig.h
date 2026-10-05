@@ -12,6 +12,7 @@
 #include "JPSignalerConfig.h"
 #include "JPMachineLocation.h"
 #include "JPMotionPlannerConfig.h"
+#include "JPSimulationConfig.h"
 #include "JPVisionConfig.h"
 #include "JPNozzleConfig.h"
 #include "JPNozzleTipConfig.h"
@@ -56,6 +57,7 @@ struct JPCellConfig {
     // The job open last is opened again at start.
     bool                          autoLoadMostRecentJob = true;
     JPMotionPlannerConfig         motionPlanner;                // OpenPnP's motion planner: continuous motion, test motion
+    JPSimulationConfig            simulation;                   // OpenPnP's Simulation Mode
     JPJobProcessorConfig          jobProcessor;                 // how a job is run
     JPVisionConfig                vision;                       // bottom vision and the fiducial locator
 

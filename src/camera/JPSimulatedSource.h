@@ -36,6 +36,20 @@ class JPSimulatedSource : public JPCaptureSource {
 public:
     // Where the camera is looking (machine X, Y); false when unknown.
     using ViewProvider = std::function<bool(double&, double&)>;
+    // What the rest of the machine adds to what it sees, read each picture
+    // (the cell's Simulation Mode): spots over it in machine millimetres (the
+    // nozzle tips an up-looking camera sees), sparks of noise (at most so many,
+    // so no two pictures are alike), and dark while its light is off.
+    struct Extras {
+        struct Spot {
+            double x = 0, y = 0, diameter = 0;
+            float  level = 0;
+        };
+        std::vector<Spot> spots;
+        int               sparks = 0;
+        bool              dark = false;
+    };
+    using ExtrasProvider = std::function<Extras()>;
 
     // `hangAfterFrames`: after so many pictures it sends no more and says
     // nothing (as a camera wedged by noise on its cable does), until opened
@@ -44,7 +58,7 @@ public:
     // opened again; 0 never.
     JPSimulatedSource(std::string name, int width, int height, double fps,
                       const JJson& scene = JJson(), ViewProvider view = nullptr, int hangAfterFrames = 0,
-                      int freezeAfterFrames = 0);
+                      int freezeAfterFrames = 0, ExtrasProvider extras = nullptr);
 
     bool open(std::string& error) override;
     void close() override {}
@@ -70,6 +84,7 @@ private:
     double m_lensCentre[2] = {};
     bool m_lensCentreSet = false;
     ViewProvider m_view;
+    ExtrasProvider m_extras;
     std::mt19937 m_rng{ 1 };
     uint64_t m_sequence = 0;
     int m_hangAfterFrames = 0;

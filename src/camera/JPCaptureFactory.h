@@ -4,6 +4,7 @@
 #pragma once
 
 #include "JPCaptureSource.h"
+#include "JPSimulatedSource.h"
 #include "JPSwitcherSource.h"
 
 #include <functional>
@@ -22,14 +23,18 @@ class JJson;
 // plus, for either, an optional chosen mode: "format", "width", "height", "fps".
 class JPCaptureFactory {
 public:
-    // `view`: where the camera is looking, for a simulated camera with a
-    // scene (it draws what is there).
-    // `links`, `takeClaim`: what a switcher camera needs (JPSwitcherSource).
+    // What a source may need of the rest of the machine.
+    struct Context {
+        // Where the camera is looking, and what the machine adds to its
+        // picture, for a simulated camera with a scene (JPSimulatedSource).
+        std::function<bool(double&, double&)> view;
+        JPSimulatedSource::ExtrasProvider     extras;
+        // What a switcher camera needs (JPSwitcherSource).
+        JPSwitcherSource::Links               links;
+        std::function<bool()>                 takeClaim;
+    };
     static std::unique_ptr<JPCaptureSource> create(const std::string& cameraName, const JJson& device,
-                                                   std::string& error,
-                                                   std::function<bool(double&, double&)> view = nullptr,
-                                                   const JPSwitcherSource::Links* links = nullptr,
-                                                   std::function<bool()> takeClaim = nullptr);
+                                                   std::string& error, const Context& context = {});
 
     // The mode to start in: the one the configuration names if the device
     // offers it, else the biggest picture in a format that decodes fastest

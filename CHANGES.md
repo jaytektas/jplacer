@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- The Machine has OpenPnP's Simulation Mode tab: simulated imperfections (homing error, non-squareness, nozzle tip runout,
+  camera lag, noise and vibration) on the simulated cameras, Replace Drivers? to run a real machine's settings on
+  simulated controllers, Set Machine Table Z and Reset Feeders. OpenPnP's SimulationModeMachine comes in with them.
 - View > System Units > Inches, as OpenPnP's: every length shown and typed in inches (rotations in degrees), from the
   next start. The Jog distances are kept apart for inches.
 - A camera can be OpenPnP's GstreamerCamera: any GStreamer pipeline, as gst-launch-1.0 is given one (GStreamer must be

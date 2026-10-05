@@ -204,6 +204,58 @@ void motionPlannerTabs(JPCellConfig& cell, JPFormBuilder& add, const JPMotionTes
     add.plot("Velocity", velocity);
 }
 
+// OpenPnP's SimulationModeMachine tab: the machine's imperfections, simulated.
+void simulationTab(JPCellConfig& cell, JPFormBuilder& add, JPSetupProperties::Form& f) {
+    using S = JPSimulationConfig;
+    auto sim = [&cell]() -> S& { return cell.simulation; };
+    add.tab("Simulation Mode");
+    add.group("Simulation Mode");
+    add.choice("simulationMode", "Simulation Mode",
+               { "Off", "IdealMachine", "StaticImperfectionsMachine", "DynamicImperfectionsMachine" },
+               [sim] { return std::string(S::name(sim().mode)); }, [sim](const std::string& v) { sim().mode = S::modeNamed(v); });
+    f.reshaping.push_back("simulationMode");
+    add.flag("simulationReplaceDrivers", "Replace Drivers?", [sim]() -> bool& { return sim().replaceDrivers; });
+    add.tip("Replace driver connections with a built-in simulated controller, simulating the real driver. Will only "
+            "become effective when you connect the machine again.");
+    add.note("IdealMachine: none of the imperfections below. StaticImperfectionsMachine: the homing error and the "
+             "non-squareness. DynamicImperfectionsMachine: all of them. They show on the simulated cameras: a head "
+             "camera sees the machine through them, an up-looking one sees the nozzle tips go round on the runout.");
+    add.group("Imperfections");
+    add.row("Nozzle Tip Runout");
+    add.length("simulatedRunout", "Nozzle Tip Runout", [sim]() -> double& { return sim().runoutMm; });
+    add.end();
+    add.tip("Simulates runout of that radius on all nozzle tips.");
+    add.number("simulatedRunoutPhase", "Runout Phase", [sim]() -> double& { return sim().runoutPhaseDeg; });
+    add.tip("Phase angle for the simulated runout.");
+    add.note("Be aware that runout will be apparent as an offset in the cross-hairs of the Down-looking Camera, "
+             "whenever the Nozzle is positioned. This also happens when watching a Job perform.");
+    add.number("simulatedNonSquareness", "Non-Squareness Factor", [sim]() -> double& { return sim().nonSquarenessFactor; }, 6);
+    add.tip("Creates simulated Non-Squareness by that factor.");
+    add.number("simulatedCameraLag", "Camera Lag [s]", [sim]() -> double& { return sim().cameraLagS; });
+    add.integer("simulatedCameraNoise", "Camera Noise", [sim]() -> int& { return sim().cameraNoise; }, 0, 100000);
+    add.tip("Creates simulated noise in the camera image (number of sparks) to satisfy Camera Settling that the frame "
+            "has changed.");
+    add.length("simulatedVibrationAmplitude", "Vibration Amplitude", [sim]() -> double& { return sim().vibrationAmplitudeMm; });
+    add.tip("Simulates Vibration: a head camera shakes along each move as it stops, by this much at first, at the "
+            "machine's Eigenfrequency (13.3 Hz).");
+    add.number("simulatedVibrationDuration", "Vibration Duration [s]", [sim]() -> double& { return sim().vibrationDurationS; });
+    add.tip("Vibration duration in seconds (exponential decay to ~1%).");
+    add.header({ "X", "Y" });
+    add.row("Homing Error");
+    add.length("simulatedHomingErrorX", "Homing Error X", [sim]() -> double& { return sim().homingErrorX; });
+    add.length("simulatedHomingErrorY", "Homing Error Y", [sim]() -> double& { return sim().homingErrorY; });
+    add.end();
+    add.endColumns();
+    add.tip("Simulates an initial homing error by that offset. Used to test visual homing.");
+    add.group("Locations");
+    add.row("Machine Table Z");
+    add.length("machineTableZ", "Machine Table Z", [sim]() -> double& { return sim().machineTableZ; });
+    add.button("setMachineTableZ", "Set Machine Table Z", "Gives the feeders, the job's boards and the cameras this Z.");
+    add.end();
+    add.actions({ { "Reset Feeders", "resetFeeders" } });
+    add.tip("Sets the feed count of every strip and blinds feeder back to 0.");
+}
+
 void machineForm(JPCellConfig& cell, JPSetupProperties::Form& f, const JPMotionTestResult* motionTest) {
     f.title = "Machine";
     JPFormBuilder add(f);
@@ -250,6 +302,7 @@ void machineForm(JPCellConfig& cell, JPSetupProperties::Form& f, const JPMotionT
     add.note("Discard Location: where a nozzle drops a part that is not wanted. Default Board Location: where a "
              "board or panel added to a job starts.");
     motionPlannerTabs(cell, add, motionTest);
+    simulationTab(cell, add, f);
 }
 
 void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPFirmwareProfile>& profiles, JPSetupProperties::Form& f) {

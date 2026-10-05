@@ -38,6 +38,7 @@ JJson JPCellConfig::toJson() const {
     j["safeZPark"] = safeZPark;
     j["unsafeZRoaming"] = unsafeZRoamingMm;
     j["motionPlanner"] = motionPlanner.toJson();
+    j["simulation"] = simulation.toJson();
     j["autoLoadMostRecentJob"] = autoLoadMostRecentJob;
     j["jobProcessor"] = jobProcessor.toJson();
     j["vision"] = vision.toJson();
@@ -74,6 +75,7 @@ bool JPCellConfig::fromJson(const JJson& j, std::string& error) {
     if (j["safeZPark"].isBool()) c.safeZPark = j["safeZPark"].boolean();
     c.unsafeZRoamingMm = j["unsafeZRoaming"].number(c.unsafeZRoamingMm);
     c.motionPlanner = JPMotionPlannerConfig::fromJson(j["motionPlanner"]);
+    c.simulation = JPSimulationConfig::fromJson(j["simulation"]);
     if (j["autoLoadMostRecentJob"].isBool()) c.autoLoadMostRecentJob = j["autoLoadMostRecentJob"].boolean();
     c.jobProcessor = JPJobProcessorConfig::fromJson(j["jobProcessor"]);
     c.vision = JPVisionConfig::fromJson(j["vision"]);

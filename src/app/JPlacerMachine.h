@@ -153,6 +153,8 @@ public:
     // settings shown); shown again when the settings change elsewhere.
     void setSetupVisionTests(JPVisionTests tests);
     std::function<void()> onSetupConfigurationChanged;
+    // Every board in the job given this Z (mm): OpenPnP's Set Machine Table Z.
+    std::function<void(double z)> setBoardsZ;
     std::function<void(const std::string& settingsId, const std::string& action)> onSetupVisionAction;
     void refreshSetupForm();
     // The view of a camera's feed, shown; null when it has none.
