@@ -48,11 +48,14 @@ public:
 
     void refresh();
     double split() const;
+    // A button of a settings' page (prefixed "bottom:" or "fiducial:"), or a
+    // parameter's slider moved, for the settings `settingsId`; shown here or on
+    // Machine Setup's vision nodes (as the machine's default).
+    void act(const std::string& settingsId, const std::string& action);
 
 private:
     JPVisionForms::Tests m_tests;
     const JPVisionForms::Tests* tests() const { return m_tests.angle ? &m_tests : nullptr; }
-    void pipelineAct(const std::string& action);
     std::vector<JPVisionSettings*> selections() const;
     std::string usedIn(const JPVisionSettings& v) const;
     void showForm();

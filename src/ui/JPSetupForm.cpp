@@ -260,7 +260,8 @@ std::unique_ptr<JWidget> JPSetupForm::page(const JPSetupProperties::Tab& tab) {
 
 float JPSetupForm::widthOf(const JProperty& p) const {
     const JStyle& st = JStyle::current();
-    if (!p.writable()) return JTextHelper::measureWidth(p.get().toString());
+    // Shown text: as wide as it is drawn, with room to spare (a measure falls a little short of it).
+    if (!p.writable()) return std::ceil(JTextHelper::measureWidth(p.get().toString())) + st.spacing;
     if (!p.meta.choices.empty()) {
         // The longest item, its padding either side, and the arrow.
         float widest = 0;
@@ -276,9 +277,12 @@ float JPSetupForm::widthOf(const JProperty& p) const {
 std::unique_ptr<JWidget> JPSetupForm::editor(const JProperty& p, float width) {
     const JStyle& st = JStyle::current();
     if (!p.writable()) {
+        // As wide as its text with room to spare, and no narrower than a number's field (it may grow).
         auto value = std::make_unique<JLabel>(m_graph, p.get().toString(), 0.f, st.labelHeight);
         JLabel* v = value.get();
         v->setMinWidthFollowsText(true);
+        v->setHSizePolicy(JSizePolicyMode::Fixed);
+        v->setFixedSize(std::max(width, numberWidth()), st.labelHeight);
         m_pulls.push_back([v, get = p.get] { v->setText(get().toString()); });
         return value;
     }

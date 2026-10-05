@@ -129,7 +129,14 @@ public:
     void        setNozzlePart(const std::string& nozzleId, const std::string& partId);
     // The parts' and vision settings' configuration (Machine Setup's Vision
     // nodes choose its vision settings).
-    void setConfiguration(const JPConfiguration* config);
+    void setConfiguration(JPConfiguration* config);
+    // Machine Setup's vision nodes' default settings' page: what its tests
+    // work with, its settings changed, its buttons and sliders (for the
+    // settings shown); shown again when the settings change elsewhere.
+    void setSetupVisionTests(JPVisionTests tests);
+    std::function<void()> onSetupConfigurationChanged;
+    std::function<void(const std::string& settingsId, const std::string& action)> onSetupVisionAction;
+    void refreshSetupForm();
     // The view of a camera's feed, shown; null when it has none.
     JPCameraView* cameraViewOf(const JPCameraFeed* feed);
     // For a job (JPlacerJobMachine): the open cell, the head camera's
@@ -232,7 +239,8 @@ private:
     std::unique_ptr<JPlacerTipChanges>  m_tipChanges;    // the nozzles' tips loaded and unloaded
     JPJogPanel*                         m_jog = nullptr; // its chosen tool, for the status bar
     JPMachineSetupPanel*                m_setup = nullptr;
-    const JPConfiguration*              m_configuration = nullptr;
+    JPVisionTests                       m_setupVisionTests;
+    JPConfiguration*                    m_configuration = nullptr;
     std::map<std::string, std::string>  m_nozzleParts;   // nozzle: the part it holds
     std::vector<std::function<void()>>  m_unwatch;   // this class's watches on the cell
     std::shared_ptr<bool>               m_alive = std::make_shared<bool>(true);

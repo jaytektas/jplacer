@@ -4,6 +4,7 @@
 #pragma once
 
 #include "JPPlot.h"
+#include "JPVisionTests.h"
 
 #include "camera/JPFrame.h"
 #include "machine/JPCellConfig.h"
@@ -101,9 +102,11 @@ public:
     // The form for the node at `path` (JPSetupTree); an empty model for a
     // group, or a part not in `cell`. `profiles`: the firmware profiles a
     // controller can name (and whose commands it can replace). The model refers to `cell`, which must outlive it.
-    // `config`: the vision settings the Vision nodes choose from (none: only the one set).
+    // `config`: the vision settings the Vision nodes choose from (none: only
+    // the one set), and whose default settings' page they show (edited there,
+    // as the Vision tab edits them; `tests`: what its tests work with).
     static Form forNode(JPCellConfig& cell, const std::string& path, const std::vector<JPFirmwareProfile>& profiles,
-                        const JPConfiguration* config = nullptr);
+                        JPConfiguration* config = nullptr, const JPVisionTests* tests = nullptr);
 };
 
 } // inline namespace jf

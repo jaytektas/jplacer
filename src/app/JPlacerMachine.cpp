@@ -273,6 +273,13 @@ std::unique_ptr<JPMachineSetupPanel> JPlacerMachine::makeSetup() {
         JSettings::instance().get<double>(JPlacerSettings::kSetupTreeShare, JPMachineSetupPanel::kTreeShare));
     m_setup = setup.get();
     setup->setConfiguration(m_configuration);
+    setup->setVisionTests(m_setupVisionTests);
+    setup->onConfigurationChanged = [this] {
+        if (onSetupConfigurationChanged) onSetupConfigurationChanged();
+    };
+    setup->visionAction = [this](const std::string& id, const std::string& action) {
+        if (onSetupVisionAction) onSetupVisionAction(id, action);
+    };
     setup->onSelected = [this](const std::string& path) { m_setupSelected = path; };
     setup->onApply = [this](const JPCellConfig& cell) { return applySetup(cell); };
     setup->onAction = [this](const std::string& path, const std::string& action) { setupAction(path, action); };
@@ -560,7 +567,16 @@ void JPlacerMachine::setNozzlePart(const std::string& nozzleId, const std::strin
     else m_nozzleParts[nozzleId] = partId;
 }
 
-void JPlacerMachine::setConfiguration(const JPConfiguration* config) {
+void JPlacerMachine::setSetupVisionTests(JPVisionTests tests) {
+    m_setupVisionTests = std::move(tests);
+    if (m_setup) m_setup->setVisionTests(m_setupVisionTests);
+}
+
+void JPlacerMachine::refreshSetupForm() {
+    if (m_setup) m_setup->refreshForm();
+}
+
+void JPlacerMachine::setConfiguration(JPConfiguration* config) {
     m_configuration = config;
     if (m_setup) m_setup->setConfiguration(config);
 }

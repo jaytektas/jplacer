@@ -54,8 +54,16 @@ public:
 
     // Where the divider between the tree and the settings is now: the tree's share.
     double treeShare() const;
-    // The vision settings the Vision nodes choose from.
-    void setConfiguration(const JPConfiguration* config) { m_config = config; }
+    // The vision settings the Vision nodes choose from, and whose default
+    // settings' page they show; what its tests work with.
+    void setConfiguration(JPConfiguration* config) { m_config = config; }
+    void setVisionTests(JPVisionTests tests) { m_visionTests = std::move(tests); }
+    // That page's settings changed (they are the configuration's, not the cell's: no undo here);
+    // its buttons and sliders, for the settings shown (as the Vision tab does them).
+    std::function<void()> onConfigurationChanged;
+    std::function<void(const std::string& settingsId, const std::string& action)> visionAction;
+    // The page shown again (the vision settings changed elsewhere).
+    void refreshForm();
 
     // The cell as set up, to be put in use: false when it was not taken
     // (it is handed over again with the next change).
@@ -139,7 +147,14 @@ private:
     JFrameTimer              m_retry;
     std::map<std::string, std::string> m_labels;   // the shown form's property names: their labels
     std::vector<JPFirmwareProfile> m_profiles;
-    const JPConfiguration*         m_config = nullptr;
+    JPConfiguration*               m_config = nullptr;
+    JPVisionTests                  m_visionTests;
+    // The properties the shown node's page has of the configuration (its vision settings' tab).
+    std::set<std::string>          m_configProperties;
+    // The form for the node at `path`, the configuration's properties in it noted.
+    JPSetupProperties::Form        formFor(const std::string& path);
+    // The settings the shown vision node's second tab is for (empty: none).
+    std::string                    shownVisionSettings() const;
     std::string              m_selected;
     std::vector<std::string> m_reshaping;   // the shown form's properties that change the form
     std::set<std::string>    m_expanded;    // paths of the tree's open nodes

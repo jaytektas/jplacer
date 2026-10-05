@@ -3,6 +3,8 @@
 
 #include "JPSetupProperties.h"
 
+#include "JPVisionForms.h"
+
 #include "JPFormBuilder.h"
 #include "JPSetupTree.h"
 
@@ -1257,7 +1259,20 @@ void finder(JPFormBuilder& add, bool& pipeline, const char* what) {
 }
 
 // OpenPnP's ReferenceBottomVisionConfigurationWizard.
-void bottomVisionForm(JPCellConfig& cell, JPSetupProperties::Form& f, const JPConfiguration* config) {
+// The machine's default vision settings of a kind, their page as a second tab (OpenPnP's
+// BottomVisionSettingsConfigurationWizard, FiducialVisionSettingsConfigurationWizard), edited in the configuration.
+// (Its page is its own tab, "Bottom Vision Settings" or "Fiducial Vision Settings".)
+void defaultSettingsTab(JPFormBuilder& add, JPConfiguration* config, const std::string& id, bool bottom, const JPVisionTests* tests) {
+    if (!config) return;
+    const JPVisionSettings* v = config->visionSettings(id);
+    if (!v) return;
+    std::string used;
+    for (const std::string& u : config->visionUsedIn(*v, id, bottom ? "Bottom Vision" : "Fiducal Locator"))
+        used += (used.empty() ? "" : ", ") + u;
+    JPVisionForms::addPage(add, *config, id, used, JPVisionForms::Holder {}, tests);
+}
+
+void bottomVisionForm(JPCellConfig& cell, JPSetupProperties::Form& f, JPConfiguration* config, const JPVisionTests* tests) {
     f.title = "ReferenceBottomVision";
     JPFormBuilder add(f);
     add.tab("ReferenceBottomVision");
@@ -1275,10 +1290,11 @@ void bottomVisionForm(JPCellConfig& cell, JPSetupProperties::Form& f, const JPCo
     add.number("maxAngularOffset", "Max. angular offset", [&v]() -> double& { return v.maxAngularOffset; });
     add.tip("The maximum angular part offset accepted as a good fix i.e. where no additional vision pass is needed.");
     finder(add, v.bottomPipeline, "parts");
+    defaultSettingsTab(add, config, v.bottomVisionId, true, tests);
 }
 
 // OpenPnP's ReferenceFiducialLocatorConfigurationWizard.
-void fiducialLocatorForm(JPCellConfig& cell, JPSetupProperties::Form& f, const JPConfiguration* config) {
+void fiducialLocatorForm(JPCellConfig& cell, JPSetupProperties::Form& f, JPConfiguration* config, const JPVisionTests* tests) {
     f.title = "ReferenceFiducialLocator";
     JPFormBuilder add(f);
     add.tab("ReferenceFiducialLocator");
@@ -1293,18 +1309,19 @@ void fiducialLocatorForm(JPCellConfig& cell, JPSetupProperties::Form& f, const J
     add.tip("Maximum allowed distance between nominal fiducial location and detected location. This only applies where the "
             "vision pipeline does not have a maxDistance stage.");
     finder(add, v.fiducialPipeline, "fiducials");
+    defaultSettingsTab(add, config, v.fiducialVisionId, false, tests);
 }
 
 } // namespace
 
 JPSetupProperties::Form JPSetupProperties::forNode(JPCellConfig& cell, const std::string& path, const std::vector<JPFirmwareProfile>& profiles,
-                                                   const JPConfiguration* config) {
+                                                   JPConfiguration* config, const JPVisionTests* tests) {
     Form f;
     const JPSetupTree::Path p = JPSetupTree::parse(path);
     if (p.kind == "machine") machineForm(cell, f);
     else if (p.kind == "jobprocessor") jobProcessorForm(cell, f);
-    else if (p.kind == "vision" && p.id == "bottom") bottomVisionForm(cell, f, config);
-    else if (p.kind == "vision" && p.id == "fiducial") fiducialLocatorForm(cell, f, config);
+    else if (p.kind == "vision" && p.id == "bottom") bottomVisionForm(cell, f, config, tests);
+    else if (p.kind == "vision" && p.id == "fiducial") fiducialLocatorForm(cell, f, config, tests);
     else if (p.kind == "driver" && has(cell.drivers, p.id)) driverForm(cell, p.id, profiles, f);
     else if (p.kind == "axis" && has(cell.axes, p.id)) axisForm(cell, p.id, f);
     else if (p.kind == "head" && has(cell.heads, p.id)) headForm(cell, p.id, f);

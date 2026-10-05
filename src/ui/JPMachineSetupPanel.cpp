@@ -117,6 +117,11 @@ JPMachineSetupPanel::JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, 
     m_form->setVSizePolicy(JSizePolicyMode::Expanding, 1);
     m_form->onChanged = [this](const std::string& property) { changed(property); };
     m_form->onAction = [this](const std::string& action) {
+        // The default vision settings' page's: as the Vision tab does them.
+        if ((action.rfind("bottom:", 0) == 0 || action.rfind("fiducial:", 0) == 0) && !shownVisionSettings().empty()) {
+            if (visionAction) visionAction(shownVisionSettings(), action);
+            return;
+        }
         if (onAction) onAction(m_selected, action);
     };
     m_form->onCapture = [this](const JPSetupProperties::Row& row, JPSetupForm::Tool tool) { capture(row, tool); };
@@ -298,9 +303,31 @@ void JPMachineSetupPanel::select(const std::string& path) {
     if (m_selected == before && before != path) show(path);
 }
 
+JPSetupProperties::Form JPMachineSetupPanel::formFor(const std::string& path) {
+    JPSetupProperties::Form f = JPSetupProperties::forNode(m_draft, path, m_profiles, m_config, m_visionTests.angle ? &m_visionTests : nullptr);
+    m_configProperties.clear();
+    for (const JPSetupProperties::Tab& t : f.tabs)
+        if (t.title.size() > 15 && t.title.compare(t.title.size() - 15, 15, "Vision Settings") == 0)
+            for (const JPSetupProperties::Group& g : t.groups)
+                for (const JPSetupProperties::Row& r : g.rows)
+                    for (const JPSetupProperties::Cell& c : r.cells)
+                        if (!c.property.empty() && !c.button) m_configProperties.insert(c.property);
+    return f;
+}
+
+std::string JPMachineSetupPanel::shownVisionSettings() const {
+    const JPSetupTree::Path p = JPSetupTree::parse(m_selected);
+    if (p.kind != "vision") return {};
+    if (p.id == "bottom") return m_draft.vision.bottomVisionId;
+    if (p.id == "fiducial") return m_draft.vision.fiducialVisionId;
+    return {};
+}
+
+void JPMachineSetupPanel::refreshForm() { m_form->refresh(); }
+
 void JPMachineSetupPanel::show(const std::string& path) {
     m_selected = path;
-    JPSetupProperties::Form f = JPSetupProperties::forNode(m_draft, path, m_profiles, m_config);
+    JPSetupProperties::Form f = formFor(path);
     m_reshaping = f.reshaping;
     m_title->setText(f.title);
     m_labels.clear();
@@ -311,6 +338,12 @@ void JPMachineSetupPanel::show(const std::string& path) {
 }
 
 void JPMachineSetupPanel::changed(const std::string& property) {
+    // The default vision settings' (the configuration's): saved with it, not undone here.
+    if (m_configProperties.count(property)) {
+        if (property.find(":parameter:") != std::string::npos && visionAction) visionAction(shownVisionSettings(), property);
+        if (onConfigurationChanged) onConfigurationChanged();
+        return;
+    }
     const auto label = m_labels.find(property);
     const std::string what = nameOf(m_draft, m_selected) + ": " + (label == m_labels.end() ? property : label->second);
     const std::string at = m_selected;
@@ -336,7 +369,7 @@ void JPMachineSetupPanel::remakeForm() {
     std::weak_ptr<bool> alive = m_alive;
     jPostToNextFrame([this, alive] {
         if (!alive.lock()) return;
-        JPSetupProperties::Form f = JPSetupProperties::forNode(m_draft, m_selected, m_profiles, m_config);
+        JPSetupProperties::Form f = formFor(m_selected);
         m_reshaping = f.reshaping;
         m_title->setText(f.title);
         m_labels.clear();

@@ -91,34 +91,13 @@ JPVisionSettingsPanel::JPVisionSettingsPanel(JSceneGraph& graph, JPConfiguration
     m_form->onChanged = [this](const std::string& property) {
         if (property.find(":parameter:") != std::string::npos) {
             if (onParameterChanged) onParameterChanged();
-            pipelineAct(property);
+            act(m_shown, property);
             return;
         }
         m_table->refresh();
         changed();
     };
-    m_form->onAction = [this](const std::string& action) {
-        if (action.find("Pipeline") != std::string::npos || action.find(":test") != std::string::npos
-            || action.find(":detectOffsets") != std::string::npos) {
-            pipelineAct(action);
-            return;
-        }
-        if (action.rfind(":reset") == std::string::npos) return;
-        JDialogOptions opts;
-        opts.okLabel = "Yes";
-        opts.cancelLabel = "No";
-        const std::string id = m_shown;
-        JDialog::confirm("Reset to Default", "This will reset the vision settings to the default settings. Are you sure?",
-                         [this, id] {
-                             std::string why;
-                             if (!JPVisionForms::act(m_config, id, "reset", JPVisionForms::Holder {}, why)) return;
-                             m_shown.clear();
-                             showForm();
-                             m_table->refresh();
-                             changed();
-                         },
-                         nullptr, opts);
-    };
+    m_form->onAction = [this](const std::string& action) { act(m_shown, action); };
     m_split = add(std::make_unique<JSplitter>(graph, JSplitter::JOrientation::Vertical, 0.f, 0.f));
     m_split->setHostsPanes(true);
     m_split->setVSizePolicy(JSizePolicyMode::Expanding, 1);
@@ -156,31 +135,49 @@ std::string JPVisionSettingsPanel::usedIn(const JPVisionSettings& v) const {
                                         bottom ? "Bottom Vision" : "Fiducal Locator"));
 }
 
-void JPVisionSettingsPanel::pipelineAct(const std::string& action) {
+void JPVisionSettingsPanel::act(const std::string& settingsId, const std::string& action) {
     const size_t colon = action.find(':');
-    if (colon == std::string::npos || m_shown.empty()) return;
-    JPVisionPipelineActions::Hooks hooks;
-    hooks.edit = [this](const std::string& id) {
-        if (editPipeline) editPipeline(id, JPVisionForms::Holder {});
-    };
-    hooks.preview = [this](const std::string& id, const std::string& parameter) {
-        if (previewParameter) previewParameter(id, JPVisionForms::Holder {}, parameter);
-    };
-    hooks.machineDefault = [this](JPVisionSettings::Kind kind) {
-        const auto defaults = machineDefaults ? machineDefaults() : std::pair<std::string, std::string> {};
-        return m_config.visionSettings(kind == JPVisionSettings::Kind::Bottom ? defaults.first : defaults.second);
-    };
-    hooks.test = [this](const std::string& id, const std::string& test) {
-        if (visionTest) visionTest(id, JPVisionForms::Holder {}, test);
-    };
-    hooks.changed = [this] {
-        // Its sliders follow the pipeline.
-        m_shown.clear();
-        showForm();
-        m_table->refresh();
-        changed();
-    };
-    JPVisionPipelineActions::act(m_config, m_shown, action.substr(colon + 1), hooks);
+    if (colon == std::string::npos || settingsId.empty()) return;
+    if (action.find("Pipeline") != std::string::npos || action.find(":test") != std::string::npos
+        || action.find(":detectOffsets") != std::string::npos || action.find(":parameter:") != std::string::npos) {
+        JPVisionPipelineActions::Hooks hooks;
+        hooks.edit = [this](const std::string& id) {
+            if (editPipeline) editPipeline(id, JPVisionForms::Holder {});
+        };
+        hooks.preview = [this](const std::string& id, const std::string& parameter) {
+            if (previewParameter) previewParameter(id, JPVisionForms::Holder {}, parameter);
+        };
+        hooks.machineDefault = [this](JPVisionSettings::Kind kind) {
+            const auto defaults = machineDefaults ? machineDefaults() : std::pair<std::string, std::string> {};
+            return m_config.visionSettings(kind == JPVisionSettings::Kind::Bottom ? defaults.first : defaults.second);
+        };
+        hooks.test = [this](const std::string& id, const std::string& test) {
+            if (visionTest) visionTest(id, JPVisionForms::Holder {}, test);
+        };
+        hooks.changed = [this] {
+            // Its sliders follow the pipeline.
+            m_shown.clear();
+            showForm();
+            m_table->refresh();
+            changed();
+        };
+        JPVisionPipelineActions::act(m_config, settingsId, action.substr(colon + 1), hooks);
+        return;
+    }
+    if (action.rfind(":reset") == std::string::npos) return;
+    JDialogOptions opts;
+    opts.okLabel = "Yes";
+    opts.cancelLabel = "No";
+    JDialog::confirm("Reset to Default", "This will reset the vision settings to the default settings. Are you sure?",
+                     [this, settingsId] {
+                         std::string why;
+                         if (!JPVisionForms::act(m_config, settingsId, "reset", JPVisionForms::Holder {}, why)) return;
+                         m_shown.clear();
+                         showForm();
+                         m_table->refresh();
+                         changed();
+                     },
+                     nullptr, opts);
 }
 
 void JPVisionSettingsPanel::showForm() {

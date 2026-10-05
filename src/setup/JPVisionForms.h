@@ -4,6 +4,7 @@
 #pragma once
 
 #include "JPSetupProperties.h"
+#include "JPVisionTests.h"
 
 #include "model/JPConfiguration.h"
 
@@ -31,15 +32,8 @@ public:
         std::string id;
     };
 
-    // What the test buttons work with, from the machine: the angle a part is
-    // tested at (the machine's test alignment angle), whether it is centred
-    // after the test. Without them the tests are not offered.
-    struct Tests {
-        std::function<double()>     angle;
-        std::function<void(double)> setAngle;
-        std::function<bool()>       center;
-        std::function<void(bool)>   setCenter;
-    };
+    // What the test buttons work with (JPVisionTests).
+    using Tests = JPVisionTests;
     // `usedIn`: what uses it, as Assigned To lists it.
     static JPSetupProperties::Form forSettings(JPConfiguration& config, const std::string& id, const std::string& usedIn,
                                                const Tests* tests = nullptr);

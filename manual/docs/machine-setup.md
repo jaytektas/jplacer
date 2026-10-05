@@ -67,7 +67,12 @@ finder, which needs no tuning; **Pipeline** uses the vision settings' OpenPnP pi
 [Vision](vision.md#the-pipeline)), as OpenPnP does: the "results" stage's key points for a fiducial (the one
 nearest where it should be), its rectangle for a part, shown on the camera's view as they are found.
 
-<!-- src: src/setup/JPSetupProperties.cpp (bottomVisionForm, fiducialLocatorForm, finder); src/machine/JPVisionConfig.h; src/openpnp/JPOpenPnpMachineImporter.cpp (part-alignments, fiducial-locator); src/tasks/JPFiducialLocator.cpp (partLook); src/tasks/JPJobProcessor.cpp (align); src/app/JPlacerJobMachine.cpp (lookByPipeline, findByPipeline, locateFiducial) -->
+Each also has a second tab, **Bottom Vision Settings** or **Fiducial Vision Settings**: the machine's default
+vision settings' own page, as the [Vision](vision.md) tab shows it (its pipeline, sliders and tests), edited
+there too. Those settings belong to the job's configuration, not the machine: they are saved with it, and Undo
+on Machine Setup does not take them back.
+
+<!-- src: src/setup/JPSetupProperties.cpp (bottomVisionForm, fiducialLocatorForm, finder, defaultSettingsTab); src/ui/JPMachineSetupPanel.cpp (changed, formFor); src/machine/JPVisionConfig.h; src/openpnp/JPOpenPnpMachineImporter.cpp (part-alignments, fiducial-locator); src/tasks/JPFiducialLocator.cpp (partLook); src/tasks/JPJobProcessor.cpp (align); src/app/JPlacerJobMachine.cpp (lookByPipeline, findByPipeline, locateFiducial) -->
 
 ## Adding, removing and ordering parts
 

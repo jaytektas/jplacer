@@ -263,7 +263,10 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     // Vision: the vision settings; the machine's defaults from the cell.
     m_vision = std::make_unique<JPVisionSettingsPanel>(graph, job.configuration(),
                                                        JSettings::instance().get<double>(JPlacerSettings::kVisionSplit, kSplit));
-    m_vision->onChanged = [this] { m_job.configurationChanged(); };
+    m_vision->onChanged = [this] {
+        m_job.configurationChanged();
+        m_machine.refreshSetupForm();   // Machine Setup's vision nodes show the defaults too
+    };
     m_vision->machineDefaults = [this] { return machineVisionDefaults(); };
     m_vision->editPipeline = [this](const std::string& id, const JPVisionForms::Holder&) {
         m_pipelines.editVision(m_job.configuration(), id, "", "", [this] { m_job.configurationChanged(); });
@@ -565,6 +568,13 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_packages->visionTest = visionTest;
     m_vision->visionTest = visionTest;
     m_parts->setTests(m_visionTests->tests());
+    // Machine Setup's vision nodes: their default settings' page, as the Vision tab's.
+    m_machine.setSetupVisionTests(m_visionTests->tests());
+    m_machine.onSetupVisionAction = [this](const std::string& id, const std::string& action) { m_vision->act(id, action); };
+    m_machine.onSetupConfigurationChanged = [this] {
+        m_vision->refresh();
+        m_job.configurationChanged();
+    };
     m_packages->setTests(m_visionTests->tests());
     m_vision->setTests(m_visionTests->tests());
     // A strip feeder's Auto Setup, on the head camera.
@@ -638,6 +648,8 @@ JPlacerOpenPnpTabs::~JPlacerOpenPnpTabs() {
     m_ocrRegion.reset();
     m_machine.setConfiguration(nullptr);
     m_machine.onUnhomed = nullptr;
+    m_machine.onSetupVisionAction = nullptr;
+    m_machine.onSetupConfigurationChanged = nullptr;
     m_jobRun.reset();   // a run under way stops before what it works on goes
     JSettings::instance().set(JPlacerSettings::kPartsSplit, m_parts->split());
     JSettings::instance().set(JPlacerSettings::kPackagesSplit, m_packages->split());
