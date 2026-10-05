@@ -1514,6 +1514,13 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
         add.tip("The camera's stream: http://host:port/path.");
         add.integer("timeoutMs", "Timeout [ms]", [device] { return int(std::as_const(device())["timeoutMs"].number(3000)); },
                     [device](int v) { device()["timeoutMs"] = v; }, 100, 60000);
+    } else if (std::as_const(device())["backend"].str() == "gstreamer") {
+        // OpenPnP's GstreamerCameraConfigurationWizard.
+        add.text("gstPipeline", "Pipeline launch string", [device] { return std::as_const(device())["pipeline"].str(); },
+                 [device](const std::string& v) { device()["pipeline"] = v; }, "long");
+        add.note("As gst-launch-1.0 is given one (\"v4l2src device=/dev/video0 ! image/jpeg,width=1280,height=720 ! "
+                 "jpegdec\"): its pictures, turned to colour, are this camera's, at the size and rate the pipeline "
+                 "gives. GStreamer must be installed on the computer.");
     } else if (std::as_const(device())["backend"].str() == "onvif") {
         // OpenPnP's OnvifIPCameraConfigurationWizard.
         auto field = [device](const char* key) {
@@ -1569,8 +1576,8 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
                  [device](const std::string& v) { device()["name"] = v; }, "long");
     }
     // A switcher camera takes its device camera's pictures as they come, an ONVIF one is set up by what it
-    // offers: neither has a size or controls set here.
-    if (std::as_const(device())["backend"].str() != "switcher" && std::as_const(device())["backend"].str() != "onvif") {
+    // offers, a GStreamer one is as its pipeline says: none has a size or controls set here.
+    if (const std::string& b = std::as_const(device())["backend"].str(); b != "switcher" && b != "onvif" && b != "gstreamer") {
         add.choice("format", "Format", { "any", "MJPG", "YUYV" },
                    [device] { const std::string v = std::as_const(device())["format"].str(); return v.empty() ? std::string("any") : v; },
                    [device](const std::string& v) { device()["format"] = v == "any" ? std::string() : v; });

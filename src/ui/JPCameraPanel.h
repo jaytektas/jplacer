@@ -96,7 +96,7 @@ public:
     void populateRenderPrimitives(JPrimitiveBuffer& buf) override;
 
 private:
-    // Off screen this long, the camera is stopped.
+    // Asked to draw and not drawn for this long, the camera is stopped.
     static constexpr int kHiddenMs = 500;
 
     void start();
@@ -116,7 +116,8 @@ private:
     std::unique_ptr<JPInstructions>       m_instructions;
     bool                                  m_instructionsShown = false;
     float                                 m_instructionsWidth = -1;   // the width they were sized for
-    std::chrono::steady_clock::time_point m_drawn;   // last drawn: on screen until shortly after
+    std::chrono::steady_clock::time_point m_drawn;         // last drawn
+    std::chrono::steady_clock::time_point m_askedToDraw;   // asked to draw since, by a picture (stopIfHidden)
     std::vector<std::function<void()>>    m_unwatch;
     std::shared_ptr<bool>                 m_alive = std::make_shared<bool>(true);
 };

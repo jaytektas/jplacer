@@ -105,7 +105,7 @@ std::vector<std::string> JPSetupEdits::kinds(const JPCellConfig& cell, const std
     const JPSetupTree::Path g = JPSetupTree::parse(JPSetupTree::groupOf(cell, path));
     if (g.kind == "group" && g.id == "signalers") return JPSignalerConfig::classNames();
     if (g.kind == "group" && g.id == "actuators") return { "ReferenceActuator", "HttpActuator", "ScriptActuator" };
-    if (g.kind == "group" && g.id == "cameras") return { "OpenPnpCaptureCamera", "MjpgCaptureCamera", "ImageCamera", "SwitcherCamera", "OnvifIPCamera" };
+    if (g.kind == "group" && g.id == "cameras") return { "OpenPnpCaptureCamera", "MjpgCaptureCamera", "ImageCamera", "SwitcherCamera", "OnvifIPCamera", "GstreamerCamera" };
     return {};
 }
 
@@ -173,6 +173,7 @@ std::string JPSetupEdits::add(JPCellConfig& cell, const std::string& path, const
                               : kind == "MjpgCaptureCamera" ? "mjpg"
                               : kind == "SwitcherCamera"    ? "switcher"
                               : kind == "OnvifIPCamera"     ? "onvif"
+                              : kind == "GstreamerCamera"   ? "gstreamer"
                                                             : "v4l2";
         cell.cameras.push_back(c);
         return "camera:" + c.id;

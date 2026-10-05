@@ -123,7 +123,17 @@ void JPCameraPanel::start() {
 }
 
 void JPCameraPanel::stopIfHidden() {
-    if (m_busy || !m_feeding.empty() || !m_feed.isRunning() || std::chrono::steady_clock::now() - m_drawn < std::chrono::milliseconds(kHiddenMs)) return;
+    if (m_busy || !m_feeding.empty() || !m_feed.isRunning()) return;
+    // Hidden: asked to draw a while ago and not drawn since (behind another
+    // tab, or closed). Drawn since the last asking: asked again. However long
+    // a camera takes to give its first picture, nothing is judged until then.
+    const auto now = std::chrono::steady_clock::now();
+    if (std::max(m_drawn, m_view->drawnAt()) >= m_askedToDraw) {
+        m_askedToDraw = now;
+        m_view->invalidate();
+        return;
+    }
+    if (now - m_askedToDraw < std::chrono::milliseconds(kHiddenMs)) return;
     JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Camera: " << m_feed.config().name << " off screen";
     m_feed.stop();
     if (onRunning) onRunning(false);

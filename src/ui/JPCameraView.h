@@ -115,6 +115,8 @@ public:
     std::function<void()> onPictureShown;
     // How far zoomed in: 1 is the picture fitted to the view.
     double zoom() const { return m_zoom; }
+    // When it was last drawn (on screen then).
+    std::chrono::steady_clock::time_point drawnAt() const { return m_drawnAt; }
     static constexpr double kMostZoom = 64.0;
 
     // A point in the picture asked to be looked at (double-click, Shift+click,
@@ -181,6 +183,7 @@ private:
     // to turn a click into a pixel of it; and the last press, for a double.
     float                              m_picX = 0, m_picY = 0, m_picScale = 0;
     double                             m_zoom = 1.0;
+    std::chrono::steady_clock::time_point m_drawnAt;
     JPCameraCalibration                m_cal;
     double                             m_reachMm = 0;   // how far the picture reaches from its middle
     std::map<std::string, Overlay>     m_overlays;

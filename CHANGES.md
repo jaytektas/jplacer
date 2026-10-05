@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- A camera can be OpenPnP's GstreamerCamera: any GStreamer pipeline, as gst-launch-1.0 is given one (GStreamer must be
+  installed). OpenPnP machines bring theirs in.
+- A camera slow to give its first picture is no longer taken for hidden and stopped before it shows.
 - A camera can be OpenPnP's OnvifIPCamera: an IP camera set up over ONVIF (user and password, resolution, resize),
   its snapshots its pictures. OpenPnP machines bring theirs in.
 - A camera's picture menu has OpenPnP's Rendering Quality: Low (sharp pixels, to begin with), High (smoothed) and

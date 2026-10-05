@@ -3,6 +3,7 @@
 
 #include "JPCaptureFactory.h"
 #include "JPImageSource.h"
+#include "JPGstreamerSource.h"
 #include "JPMjpgSource.h"
 #include "JPOnvifSource.h"
 
@@ -31,6 +32,8 @@ std::unique_ptr<JPCaptureSource> JPCaptureFactory::create(const std::string& cam
         return std::make_unique<JPMjpgSource>(cameraName, device["url"].str(), int(device["width"].number(960)),
                                               int(device["height"].number(720)), int(device["timeoutMs"].number(3000)));
     }
+    if (backend == "gstreamer")   // OpenPnP's GstreamerCamera.
+        return std::make_unique<JPGstreamerSource>(cameraName, device["pipeline"].str());
     if (backend == "onvif") {
         // OpenPnP's OnvifIPCamera.
         JPOnvifSource::Settings s;

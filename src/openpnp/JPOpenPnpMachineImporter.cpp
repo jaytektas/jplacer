@@ -669,6 +669,11 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             cam.device["actuatorValue"] = number(x.attr("actuator-double-value"));
             cam.device["actuatorDelayMs"] = x.attr("actuator-delay-millis").empty() ? 500 : number(x.attr("actuator-delay-millis"));
         }
+        // OpenPnP's GstreamerCamera: a gst-launch pipeline's pictures.
+        if (shortClass(x) == "GstreamerCamera") {
+            cam.device["backend"] = "gstreamer";
+            cam.device["pipeline"] = x.attr("gstPipeline");
+        }
         // OpenPnP's OnvifIPCamera: an IP camera set up over ONVIF, its snapshots its pictures.
         if (shortClass(x) == "OnvifIPCamera") {
             cam.device["backend"] = "onvif";

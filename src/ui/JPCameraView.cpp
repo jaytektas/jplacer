@@ -408,6 +408,7 @@ void JPCameraView::showLatest() {
 }
 
 void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
+    m_drawnAt = std::chrono::steady_clock::now();
     const JRect b = bounds();
     const JStyle& st = JStyle::current();
     buf.pushRectangle(b.x, b.y, b.width, b.height, Colors::DockContentBg, 0.f);
