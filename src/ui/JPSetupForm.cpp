@@ -86,7 +86,7 @@ std::unique_ptr<JLabel> label(JSceneGraph& graph, const std::string& text) {
     const JStyle& st = JStyle::current();
     auto l = std::make_unique<JLabel>(graph, text, 0.f, st.labelHeight);
     // Its text's width, and a little: the text is cut at the label's edge.
-    l->setFixedSize(std::ceil(JTextHelper::measureWidth(text)) + st.spacing, st.labelHeight);
+    l->setFixedSize(std::ceil(JTextHelper::measureWidth(tr(text))) + st.spacing, st.labelHeight);
     return l;
 }
 
@@ -242,7 +242,7 @@ std::unique_ptr<JWidget> JPSetupForm::page(const JPSetupProperties::Tab& tab) {
     float labels = 0;
     for (const JPSetupProperties::Group& g : tab.groups)
         for (const Row& r : g.rows)
-            if (r.kind == Row::Kind::Fields) labels = std::max(labels, std::ceil(JTextHelper::measureWidth(r.label)) + st.spacing);
+            if (r.kind == Row::Kind::Fields) labels = std::max(labels, std::ceil(JTextHelper::measureWidth(tr(r.label))) + st.spacing);
     float height = 0;
     for (const JPSetupProperties::Group& g : tab.groups) {
         float h = 0;
@@ -266,7 +266,7 @@ float JPSetupForm::widthOf(const JProperty& p) const {
     if (!p.meta.choices.empty()) {
         // The longest item, its padding either side, and the arrow.
         float widest = 0;
-        for (const JVariant& c : p.meta.choices) widest = std::max(widest, JTextHelper::measureWidth(c.toString()));
+        for (const JVariant& c : p.meta.choices) widest = std::max(widest, JTextHelper::measureWidth(tr(c.toString())));
         const float fits = std::ceil(widest) + 2 * st.fieldPadding + st.controlHeight + 2 * st.spacing;
         // One typed into has a text field's room too.
         return p.meta.editor == "editable-choice" ? std::max(fits, 2 * numberWidth()) : fits;
@@ -397,7 +397,7 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
         if (r.kind == Row::Kind::Header) {
             // One without titles ends the columns.
             underHeader = !r.cells.empty();
-            for (size_t i = 0; i < r.cells.size(); ++i) widen(i, JTextHelper::measureWidth(r.cells[i].label));
+            for (size_t i = 0; i < r.cells.size(); ++i) widen(i, JTextHelper::measureWidth(tr(r.cells[i].label)));
         }
         if (r.kind != Row::Kind::Fields || !underHeader || !inGrid(r)) continue;
         // The header names the columns: their own labels are not shown.

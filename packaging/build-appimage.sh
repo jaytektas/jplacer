@@ -36,6 +36,8 @@ strip "$APPDIR/usr/bin/jplacer"
 cp -r "$ROOT/manual/site" "$APPDIR/usr/bin/manual"
 # Firmware profiles travel beside the executable too: JPFirmwareProfile reads usr/bin/profiles.
 cp -r "$ROOT/profiles" "$APPDIR/usr/bin/profiles"
+# OpenPnP's translations too: View > Language reads usr/bin/translations (JPTranslations).
+cp -r "$ROOT/translations" "$APPDIR/usr/bin/translations"
 # OpenPnP's icons too: JPOpenPnpIcons reads usr/bin/icons.
 cp -r "$ROOT/icons" "$APPDIR/usr/bin/icons"
 # And its BlindsFeeder OpenSCAD models: a blinds feeder's Extract 3D-Printing Files reads usr/bin/openscad.

@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- View > Language, as OpenPnP's: Russian, Spanish, French, Italian, German or Chinese, from OpenPnP's own translations,
+  from the next start.
 - Issues & Solutions checks a camera's own settings as OpenPnP does (brightness, contrast, gamma, gain, hue,
   saturation, white balance, sharpness, auto exposure) and sets them right on Accept.
 - Issues & Solutions points out a nozzle, actuator or camera on other X or Y axes than its head's camera, and fixes

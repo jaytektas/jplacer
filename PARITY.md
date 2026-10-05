@@ -26,7 +26,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Log panel (filterable log) | done | Log tab |
 | Signalers (sound, actuator on error / job done) | done | Neoden4Signaler left out (Neoden4 driver) |
 | View: System Units (inches) | done | every length shown and typed in mm or inches (forms, tables, readout, Jog), kept in mm; on restart, as OpenPnP |
-| View: Language | missing | English only; the others greyed out in View |
+| View: Language | done | OpenPnP's translations (ru, es, fr, it, de, zh_CN), applied to whatever jplacer names as OpenPnP does; on restart, as OpenPnP |
 | View: Selections in Tables (linked tables) | done | |
 | Scripting (events, Python/JS scripts) | partial | the Scripts menu and every OpenPnP event; scripts run as programs of their own told what they run for (JSON), with no machine API |
 | ContactProbeNozzle (probing pick and place heights, nozzle tip Z calibration) | done | contact sense actuator and vacuum sniffle probing, feeder and placement heights with their triggers, part height probing, Z calibration by touch; discard probing; probed heights kept while jplacer runs (OpenPnP keeps them in its file) |

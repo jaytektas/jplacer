@@ -8,6 +8,7 @@
 #include "JPlacerHelpPages.h"
 #include "JPlacerScriptsMenu.h"
 #include "JPlacerSettings.h"
+#include "common/JPTranslations.h"
 
 #include <filesystem>
 
@@ -169,10 +170,21 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
         unlinkedItem->setChecked(!value.toBool());
         linkedItem->setChecked(value.toBool());
     });
+    // As OpenPnP's: kept, and taken at the next start (said so).
     JMenu* language = subMenu("Language");
-    JMenuItem* english = tick(language, "English (United States)", true, true);
-    english->onTriggered.connect([english] { english->setChecked(true); });
-    for (const char* other : { "Russian", "Spanish", "French", "Italian", "German", "Chinese (China)" }) tick(language, other, false, false);
+    {
+        const std::string chosen = JSettings::instance().get<std::string>(JPlacerSettings::kLanguage, "en");
+        auto items = std::make_shared<std::vector<std::pair<JMenuItem*, std::string>>>();
+        for (const JPTranslations::Language& l : JPTranslations::languages())
+            items->emplace_back(tick(language, l.name, chosen == l.code, true), l.code);
+        for (const auto& [item, code] : *items)
+            item->onTriggered.connect([items, code = code] {
+                for (const auto& [other, otherCode] : *items) other->setChecked(otherCode == code);
+                JSettings::instance().set(JPlacerSettings::kLanguage, code);
+                JPlacerSettings::save();
+                JDialog::message("Notice", "Please restart jplacer for the changes to take effect.");
+            });
+    }
     app.machine().layout().setViewMenu(newMenu(window, "View"), graph, [&graph, units, tables, language](JMenu& view) {
         view.add(graph, "System Units", {}, units);
         view.add(graph, "Selections in Tables", {}, tables);

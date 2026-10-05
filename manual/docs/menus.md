@@ -42,13 +42,13 @@ key taken off, in [Preferences, Keys](preferences.md#keys); the menu then shows 
 |---|---|
 | **System Units** | **Millimeters** (to start with) or **Inches**, as in OpenPnP: the units every length is shown and typed in (coordinates, offsets, sizes, axis speeds and limits, the position at the foot of the window, tables, the Jog distances), to one more place in inches; rotations stay in degrees. Lengths are kept in millimetres whichever is chosen. The choice takes effect the next time jplacer starts (it says so). A table's length in other units than these is shown in its own, with their name. The Jog distances are kept apart for each (Edit > Preferences, Jog): to start with 0.01 to 100 mm, or 0.001 to 10 in. |
 | **Selections in Tables** | **Unlinked** (to start with) or **Linked**. Linked, what you choose in one tab's table chooses what goes with it on the other tabs, as in OpenPnP (see below). |
-| **Language** | **English (United States)**, ticked. OpenPnP's other languages (Russian, Spanish, French, Italian, German, Chinese) are greyed out: not built yet. |
+| **Language** | **English (United States)** (to start with), **Russian**, **Spanish**, **French**, **Italian**, **German** or **Chinese (China)**, as in OpenPnP: OpenPnP's own translations, so whatever jplacer names as OpenPnP does (menus, tabs, panels' titles, labels, buttons, table headings) is shown in that language, and the rest in English. The choice takes effect the next time jplacer starts (it says so). OpenPnP's German, Spanish, French and Italian translations cover little; its Russian and Chinese, most of it. |
 
 Under them, a tick for each panel: each camera, **Jog**, **Actuators**, **[Parts](parts.md)**, **[Packages](packages.md)**,
 **Machine Setup**, **Machine** and **Console**. Untick one to close it; tick it to show it again where it lives (see
 [The machine's panels](machine.md#the-machines-panels)).
 
-<!-- src: src/app/JPlacerMenuBuilder.cpp (View); src/app/JPlacerLayout.cpp (rebuildMenu); src/model/JPSystemUnits.cpp; src/setup/JPFormBuilder.h (length); src/ui/JPLengthCell.cpp; src/ui/JPJogPanel.cpp (defaultDistances, jog); src/app/JPlacerSettings.cpp (jogDistancesKey) -->
+<!-- src: src/app/JPlacerMenuBuilder.cpp (View); src/app/JPlacerLayout.cpp (rebuildMenu); src/model/JPSystemUnits.cpp; src/setup/JPFormBuilder.h (length); src/ui/JPLengthCell.cpp; src/ui/JPJogPanel.cpp (defaultDistances, jog); src/app/JPlacerSettings.cpp (jogDistancesKey), src/common/JPTranslations.cpp -->
 
 ### Linked tables
 

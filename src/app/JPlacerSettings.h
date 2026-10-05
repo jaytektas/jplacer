@@ -48,6 +48,8 @@ public:
     // The Jog panel's steps, numbers apart: the distances a press moves (in
     // the System Units, kept apart for each, or degrees) and the speeds (%) a
     // key or Faster / Slower picks.
+    // OpenPnP's View > Language: a JPTranslations code, "en" to begin with (taken at start).
+    static constexpr const char* kLanguage           = "view.language";
     // OpenPnP's View > System Units: "Millimeters" or "Inches" (taken at start).
     static constexpr const char* kSystemUnits        = "view.systemUnits";
     static constexpr const char* kJogDistances       = "jog.distances";

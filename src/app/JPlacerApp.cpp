@@ -3,6 +3,8 @@
 
 #include "JPlacerApp.h"
 
+#include "common/JPTranslations.h"
+#include <j/graphics/FontEngine.h>
 #include "model/JPSystemUnits.h"
 
 #include "JPlacerLauncher.h"
@@ -34,6 +36,13 @@ JPlacerApp::JPlacerApp(std::string settingsPath) {
     JPlacerSettings::load(settingsPath);
     // How much the log says, as last chosen (the console's controls).
     JPLogLevels::fromText(JSettings::instance().get<std::string>(JPlacerSettings::kLogLevels, "info")).apply();
+    // The language, as chosen (a change takes effect at the next start): its
+    // words, and its letters for the font the window is about to build.
+    if (const std::string language = JSettings::instance().get<std::string>(JPlacerSettings::kLanguage, "en"); language != "en") {
+        std::string why;
+        if (JPTranslations::load(JPTranslations::directory(), language, why)) JFontEngine::addCodepoints(JPTranslations::codepoints());
+        else JLOGC(JPlacerLog::kApp, JLogLevel::Warn) << "language " << language << ": " << why;
+    }
     // The units lengths are shown in, as chosen (a change takes effect at the next start).
     JPSystemUnits::setUnits(JSettings::instance().get<std::string>(JPlacerSettings::kSystemUnits, "Millimeters") == "Inches"
                                 ? JPLengthUnit::Inches
