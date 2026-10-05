@@ -267,7 +267,9 @@ float JPSetupForm::widthOf(const JProperty& p) const {
         // The longest item, its padding either side, and the arrow.
         float widest = 0;
         for (const JVariant& c : p.meta.choices) widest = std::max(widest, JTextHelper::measureWidth(c.toString()));
-        return std::ceil(widest) + 2 * st.fieldPadding + st.controlHeight + 2 * st.spacing;
+        const float fits = std::ceil(widest) + 2 * st.fieldPadding + st.controlHeight + 2 * st.spacing;
+        // One typed into has a text field's room too.
+        return p.meta.editor == "editable-choice" ? std::max(fits, 2 * numberWidth()) : fits;
     }
     const JVariant v = p.get();
     if (v.isBool()) return st.checkHeight;

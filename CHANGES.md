@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- A camera can be OpenPnP's OnvifIPCamera: an IP camera set up over ONVIF (user and password, resolution, resize),
+  its snapshots its pictures. OpenPnP machines bring theirs in.
 - A camera's picture menu has OpenPnP's Rendering Quality: Low (sharp pixels, to begin with), High (smoothed) and
   Highest (best scale).
 - Calibrating a camera at two heights now also shows how far it is tipped (OpenPnP's Camera Mounting Error about X, Y

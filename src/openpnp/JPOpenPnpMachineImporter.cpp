@@ -669,6 +669,16 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             cam.device["actuatorValue"] = number(x.attr("actuator-double-value"));
             cam.device["actuatorDelayMs"] = x.attr("actuator-delay-millis").empty() ? 500 : number(x.attr("actuator-delay-millis"));
         }
+        // OpenPnP's OnvifIPCamera: an IP camera set up over ONVIF, its snapshots its pictures.
+        if (shortClass(x) == "OnvifIPCamera") {
+            cam.device["backend"] = "onvif";
+            cam.device["host"] = x.attr("host-IP");   // as OpenPnP's XML writer hyphenates "hostIP"
+            cam.device["username"] = x.attr("username");
+            cam.device["password"] = x.attr("password");
+            cam.device["preferredResolution"] = x.attr("preferred-resolution");
+            cam.device["resizeWidth"] = number(x.attr("resize-width"));
+            cam.device["resizeHeight"] = number(x.attr("resize-height"));
+        }
         if (shortClass(x) == "OpenPnpCaptureCamera") {
             const std::string& uid = x.attr("unique-id");
             const size_t usb = uid.rfind(" usb-");

@@ -3,6 +3,7 @@
 
 #include "JPSetupProperties.h"
 
+#include "camera/JPOnvif.h"
 #include "camera/JPWhiteBalance.h"
 
 #include "JPVisionForms.h"
@@ -1513,6 +1514,33 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
         add.tip("The camera's stream: http://host:port/path.");
         add.integer("timeoutMs", "Timeout [ms]", [device] { return int(std::as_const(device())["timeoutMs"].number(3000)); },
                     [device](int v) { device()["timeoutMs"] = v; }, 100, 60000);
+    } else if (std::as_const(device())["backend"].str() == "onvif") {
+        // OpenPnP's OnvifIPCameraConfigurationWizard.
+        auto field = [device](const char* key) {
+            return std::pair { [device, key] { return std::as_const(device())[key].str(); },
+                               [device, key](const std::string& v) { device()[key] = v; } };
+        };
+        add.text("onvifHost", "Camera IP", field("host").first, field("host").second);
+        add.tip("(IP:port)");
+        add.text("onvifUsername", "Username", field("username").first, field("username").second);
+        add.tip("(normally required)");
+        add.text("onvifPassword", "Password", field("password").first, field("password").second);
+        add.tip("(leave blank for none)");
+        JPFormBuilder::Strings resolutions { "" };
+        for (const JPOnvif::Resolution& r : JPOnvif::knownResolutions(std::as_const(device())["host"].str()))
+            resolutions.push_back(r.text());
+        add.editableChoice("onvifResolution", "Resolution", resolutions, field("preferredResolution").first,
+                           field("preferredResolution").second);
+        add.tip("(only supported resolutions shown)");
+        add.integer("onvifResizeWidth", "Target Width", [device] { return int(std::as_const(device())["resizeWidth"].number(0)); },
+                    [device](int v) { device()["resizeWidth"] = v; }, 0, 100000);
+        add.tip("(Use 0 for no resizing)");
+        add.integer("onvifResizeHeight", "Target Height", [device] { return int(std::as_const(device())["resizeHeight"].number(0)); },
+                    [device](int v) { device()["resizeHeight"] = v; }, 0, 100000);
+        add.tip("(Use 0 for no resizing)");
+        add.note("The camera is set to the Resolution (empty: its largest) in its first JPEG profile, at its best "
+                 "quality and fastest rate, and its snapshots are fetched one after another. The resolutions it "
+                 "offers are listed once it has been opened.");
     } else if (std::as_const(device())["backend"].str() == "switcher") {
         // OpenPnP's SwitcherCameraConfigurationWizard.
         JPFormBuilder::Named sources;
@@ -1540,8 +1568,9 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
         add.text("device", "Device", [device] { return std::as_const(device())["name"].str(); },
                  [device](const std::string& v) { device()["name"] = v; }, "long");
     }
-    // A switcher camera takes its device camera's pictures as they come: it has no size or controls of its own.
-    if (std::as_const(device())["backend"].str() != "switcher") {
+    // A switcher camera takes its device camera's pictures as they come, an ONVIF one is set up by what it
+    // offers: neither has a size or controls set here.
+    if (std::as_const(device())["backend"].str() != "switcher" && std::as_const(device())["backend"].str() != "onvif") {
         add.choice("format", "Format", { "any", "MJPG", "YUYV" },
                    [device] { const std::string v = std::as_const(device())["format"].str(); return v.empty() ? std::string("any") : v; },
                    [device](const std::string& v) { device()["format"] = v == "any" ? std::string() : v; });

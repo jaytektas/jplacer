@@ -4,6 +4,7 @@
 #include "JPCaptureFactory.h"
 #include "JPImageSource.h"
 #include "JPMjpgSource.h"
+#include "JPOnvifSource.h"
 
 #include "JPSimulatedSource.h"
 #if defined(__linux__)
@@ -29,6 +30,18 @@ std::unique_ptr<JPCaptureSource> JPCaptureFactory::create(const std::string& cam
         // OpenPnP's MjpgCaptureCamera.
         return std::make_unique<JPMjpgSource>(cameraName, device["url"].str(), int(device["width"].number(960)),
                                               int(device["height"].number(720)), int(device["timeoutMs"].number(3000)));
+    }
+    if (backend == "onvif") {
+        // OpenPnP's OnvifIPCamera.
+        JPOnvifSource::Settings s;
+        s.host = device["host"].str();
+        s.username = device["username"].str();
+        s.password = device["password"].str();
+        s.preferredResolution = device["preferredResolution"].str();
+        s.resizeWidth = int(device["resizeWidth"].number(0));
+        s.resizeHeight = int(device["resizeHeight"].number(0));
+        s.fps = device["fps"].number(10);
+        return std::make_unique<JPOnvifSource>(cameraName, s);
     }
     if (backend == "switcher") {
         // OpenPnP's SwitcherCamera.
