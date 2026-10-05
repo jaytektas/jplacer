@@ -683,6 +683,7 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                     actuator("vacuum-sense-actuator-name", n.vacuumSenseActuatorId);
                     n.blowOffClosesVacuum = x.attr("blow-off-closing-valve") == "true";
                     n.pickDwellMs = int(number(x.attr("pick-dwell-milliseconds")));
+                    n.dynamicSafeZ = x.attr("enable-dynamic-safe-z") == "true";
                     n.placeDwellMs = int(number(x.attr("place-dwell-milliseconds")));
                     // OpenPnP keeps the ids of tips since deleted in a
                     // nozzle's list; only tips the machine has are kept.

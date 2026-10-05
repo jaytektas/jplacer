@@ -319,6 +319,27 @@ bool JPCell::safeZAndWait(const std::string& headId, double speed, std::string& 
     return ok;
 }
 
+void JPCell::setPartHeight(const std::string& nozzleId, double heightMm) {
+    m_thread.post([this, nozzleId, heightMm] {
+        if (heightMm > 0) m_partHeights[nozzleId] = heightMm;
+        else m_partHeights.erase(nozzleId);
+    });
+}
+
+double JPCell::dynamicLift(const JPMountConfig& mount) const {
+    // Only a nozzle on a Z of its own: on a shared one (mapped, a cam) raising it lowers the other.
+    const JPAxisConfig* z = m_config.axis(mount.axisZ);
+    if (!z || z->kind != JPAxisConfig::Kind::Controller) return 0;
+    for (const JPNozzleConfig& n : m_config.nozzles) {
+        const JPMountConfig& m = n.mount;
+        const bool same = m.headId == mount.headId && m.axisX == mount.axisX && m.axisY == mount.axisY && m.axisZ == mount.axisZ
+                       && m.offsetX == mount.offsetX && m.offsetY == mount.offsetY && m.offsetZ == mount.offsetZ;
+        if (!same || !n.dynamicSafeZ) continue;
+        if (const auto h = m_partHeights.find(n.id); h != m_partHeights.end()) return h->second;
+    }
+    return 0;
+}
+
 bool JPCell::doSafeZ(const std::string& headId, double speed, std::string& why) {
     std::vector<const JPMountConfig*> mounts;
     for (const JPCameraConfig& c : m_config.cameras)     if (c.mount.headId == headId) mounts.push_back(&c.mount);
@@ -331,9 +352,10 @@ bool JPCell::doSafeZ(const std::string& headId, double speed, std::string& why) 
         if (z && z->transformed()) z = m_config.axis(z->inputAxisId);
         if (!z || z->kind != JPAxisConfig::Kind::Controller || !now.count(z->id)) continue;
         double t = now.at(z->id);
-        if (z->safeZoneLowEnabled)  t = std::max(t, z->safeZoneLow);
+        // Dynamic Safe Z: the part's bottom at the zone's low end.
+        if (z->safeZoneLowEnabled)  t = std::max(t, z->safeZoneLow + dynamicLift(*m));
         if (z->safeZoneHighEnabled) t = std::min(t, z->safeZoneHigh);
-        if (t != now.at(z->id)) safe[z->id] = t;
+        if (t != now.at(z->id)) safe[z->id] = std::max(t, safe.count(z->id) ? safe[z->id] : t);
     }
     return safe.empty() || doMove(safe, speed, why);
 }
@@ -495,9 +517,12 @@ bool JPCell::doParkZ(const JPMountConfig& mount, double speed, std::string& why)
     const JPAxisConfig* z = m_config.axis(mount.axisZ);
     if (z && z->transformed()) z = m_config.axis(z->inputAxisId);
     if (!z || z->kind != JPAxisConfig::Kind::Controller || !z->safeZoneLowEnabled) return true;
+    // Its effective safe Z: the part it carries lifted clear (Dynamic Safe Z), within the zone.
+    double target = z->safeZoneLow + dynamicLift(mount);
+    if (z->safeZoneHighEnabled) target = std::min(target, z->safeZoneHigh);
     const auto now = jogBase();
-    if (now.count(z->id) && now.at(z->id) == z->safeZoneLow) return true;
-    return doMove({ { z->id, z->safeZoneLow } }, speed, why);
+    if (now.count(z->id) && now.at(z->id) == target) return true;
+    return doMove({ { z->id, target } }, speed, why);
 }
 
 void JPCell::discard(const std::string& nozzleId, double speed) {

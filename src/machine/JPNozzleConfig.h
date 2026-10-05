@@ -30,6 +30,9 @@ struct JPNozzleConfig {
     // Waited after the vacuum is on (pick) or off (place), with the tip's own.
     int                      pickDwellMs = 0;
     int                      placeDwellMs = 0;
+    // OpenPnP's Dynamic Safe Z: carrying a part, its safe Z raised by the
+    // part's height, so the part's bottom is at safe Z (within the safe zone).
+    bool                     dynamicSafeZ = false;
     // Homing this nozzle's Z alone (Z only, from the park place): G-code
     // lines sent to the controller of the motor behind its Z, which ends
     // at the axis's home coordinate as a full home does. Empty: none.
@@ -48,6 +51,7 @@ struct JPNozzleConfig {
         n.blowOffClosesVacuum   = j["blowOffClosesVacuum"].boolean();
         n.vacuumSenseActuatorId = j["vacuumSenseActuator"].str();
         n.pickDwellMs           = int(j["pickDwellMs"].number());
+        n.dynamicSafeZ          = j["dynamicSafeZ"].boolean();
         n.placeDwellMs          = int(j["placeDwellMs"].number());
         n.homeCommand           = j["homeCommand"].str();
         return n;
@@ -66,6 +70,7 @@ struct JPNozzleConfig {
         if (blowOffClosesVacuum) j["blowOffClosesVacuum"] = true;
         if (!vacuumSenseActuatorId.empty()) j["vacuumSenseActuator"] = vacuumSenseActuatorId;
         if (pickDwellMs) j["pickDwellMs"] = pickDwellMs;
+        if (dynamicSafeZ) j["dynamicSafeZ"] = true;
         if (placeDwellMs) j["placeDwellMs"] = placeDwellMs;
         if (!homeCommand.empty()) j["homeCommand"] = homeCommand;
         return j;

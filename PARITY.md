@@ -78,7 +78,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 |---|---|---|
 | Name, axes, offsets | done | |
 | Rotation mode (absolute part angle, ...), align with part | missing | |
-| Safe Z, dynamic safe Z | partial | safe Z from the axes' safe zones; dynamic safe Z missing |
+| Safe Z, dynamic safe Z | done | safe Z from the axes' safe zones; dynamic safe Z for a nozzle on a Z of its own |
 | Pick / place dwell | done | |
 | Compatible / loaded tips table | done | |
 | Vacuum, blow-off, sensing actuators | done | |

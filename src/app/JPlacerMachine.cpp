@@ -625,6 +625,11 @@ std::string JPlacerMachine::nozzlePart(const std::string& nozzleId) const {
 void JPlacerMachine::setNozzlePart(const std::string& nozzleId, const std::string& partId) {
     if (partId.empty()) m_nozzleParts.erase(nozzleId);
     else m_nozzleParts[nozzleId] = partId;
+    // Its height, for the nozzle's Dynamic Safe Z.
+    double height = 0;
+    if (const JPPart* part = m_configuration && !partId.empty() ? m_configuration->part(partId) : nullptr)
+        height = part->heightForSafeZ().convertToUnits(JPLengthUnit::Millimeters).value();
+    if (m_cell) m_cell->setPartHeight(nozzleId, height);
 }
 
 void JPlacerMachine::setSetupVisionTests(JPVisionTests tests) {

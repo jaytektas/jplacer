@@ -157,6 +157,8 @@ public:
     double speed() const { return m_speed; }
     // A move is under way.
     bool isMoving() const { return m_moving; }
+    // The height of the part a nozzle carries (0: none), for its Dynamic Safe Z.
+    void setPartHeight(const std::string& nozzleId, double heightMm);
 
     // Move a tool — a nozzle, camera or actuator — by the given amounts along
     // its own axes (mm, degrees), at `speed` (0..1) of the slowest axis's
@@ -258,6 +260,8 @@ private:
     const JPAxisConfig* zMotor(const JPMountConfig& mount) const;
     bool doSafeZ(const std::string& headId, double speed, std::string& why);
     bool doParkZ(const JPMountConfig& mount, double speed, std::string& why);
+    // How far a nozzle's safe Z is raised for the part it carries (Dynamic Safe Z); 0 for anything else.
+    double dynamicLift(const JPMountConfig& mount) const;
     // `depth`: how deep in profiles naming profiles (JPActuatorConfig::Profile) this is.
     bool doSwitch(const std::string& actuatorId, bool on, std::string& why, int depth = 0);
     bool doSet(const std::string& actuatorId, const std::string& value, std::string& why, int depth = 0);
@@ -311,6 +315,7 @@ private:
     std::atomic<bool>                           m_homed{ false };
     std::atomic<bool>                           m_homing{ false };
     std::atomic<bool>                           m_moving{ false };
+    std::map<std::string, double>               m_partHeights;   // by nozzle id; the cell's thread's
     std::atomic<double>                         m_speed{ 1.0 };
     // On the cell thread: the heads whose pump is on, the nozzles holding a part.
     std::set<std::string>                       m_pumpOn, m_holding;

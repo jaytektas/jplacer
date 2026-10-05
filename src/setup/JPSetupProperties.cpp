@@ -598,6 +598,11 @@ void nozzleForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     add.integer("pickDwellMs", "Pick Dwell Time (ms)", [n]() -> int& { return n().pickDwellMs; }, 0, 60000);
     add.integer("placeDwellMs", "Place Dwell Time (ms)", [n]() -> int& { return n().placeDwellMs; }, 0, 60000);
     add.note("The total dwell is the nozzle's and its tip's together.");
+    add.group("Safe Z");
+    add.flag("dynamicSafeZ", "Dynamic Safe Z", [n]() -> bool& { return n().dynamicSafeZ; });
+    add.tip("When moving to Safe Z, account for the part height on the nozzle i.e. lift the nozzle higher with a taller "
+            "part. This allows you to use a lower Safe Z which might improve the machine speed.");
+    add.note("Only for a nozzle on a Z axis of its own: on a shared Z (mapped, a cam) the other nozzle would go down.");
 
     // Every tip: whether it fits this nozzle, and which one is on it now.
     add.tab("Nozzle Tips");

@@ -375,6 +375,8 @@ notes.
   drives. They come in with an OpenPnP machine, where they used to be left out.
 - A camera has OpenPnP's Preview FPS, Suspend during tasks and Auto Camera View, brought in with an OpenPnP
   machine.
+- A nozzle can have OpenPnP's Dynamic Safe Z: carrying a part, it goes up higher by the part's height when it
+  goes to safe Z. It comes in with an OpenPnP machine.
 
 ## 0.1.0
 

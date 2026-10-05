@@ -137,5 +137,42 @@ int main() {
         }
         cell.disconnect();
     }
+    {
+        // Dynamic Safe Z: a nozzle on its own Z carrying a part 3 mm tall goes
+        // 3 mm higher, its part's bottom at the zone's low end (within the zone);
+        // without a part, to the low end itself.
+        JPCellConfig config = cellConfig(true);
+        for (JPAxisConfig& a : config.axes)
+            if (a.id == "Z") {
+                a.safeZoneLow = -2;
+                a.safeZoneHigh = 2;
+            }
+        config.nozzles[0].mount.axisZ = "Z";
+        config.nozzles[0].dynamicSafeZ = true;
+        JPCell cell(config, profiles());
+        Latch connected, motion;
+        cell.onConnection.connect([&](bool ok, std::string w) { connected.set(ok, w); });
+        cell.onMotion.connect([&](bool ok, std::string w) { motion.set(ok, w); });
+        cell.connect();
+        assert(connected.take().first);
+        cell.home();
+        assert(motion.take().first);
+        std::string why;
+        assert(cell.moveAxesAndWait({ { "Z", -5 } }, 1.0, why));
+        motion.take();
+        cell.setPartHeight("N", 3);
+        cell.parkZ(config.nozzles[0].mount, 1.0);
+        assert(motion.take().first && near(cell.jogBase().at("Z"), 1));
+        // Head Safe Z too; and a taller part only as high as the zone goes.
+        assert(cell.moveAxesAndWait({ { "Z", -5 } }, 1.0, why));
+        motion.take();
+        cell.setPartHeight("N", 10);
+        cell.safeZ("H", 1.0);
+        assert(motion.take().first && near(cell.jogBase().at("Z"), 2));
+        cell.setPartHeight("N", 0);
+        cell.parkZ(config.nozzles[0].mount, 1.0);
+        assert(motion.take().first && near(cell.jogBase().at("Z"), -2));
+        cell.disconnect();
+    }
     return 0;
 }
