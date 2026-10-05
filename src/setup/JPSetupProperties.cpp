@@ -217,6 +217,18 @@ void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPF
     add.group("Settings");
     add.number("maxFeedRate", "Max. Feed Rate [/min]", [d]() -> double& { return d().maxFeedRate; }, 0);
     add.flag("logGcode", "Log G-code?", [d]() -> bool& { return d().logGcode; });
+    add.flag("backslashEscapes", "Backslash Escaped Characters?", [d]() -> bool& { return d().backslashEscapes; });
+    add.tip("Allows insertion of unicode characters into Gcode strings as \\uxxxx where xxxx is four hexidecimal "
+            "characters.  Also permits \\t for tab, \\b for backspace, \\n for line feed, \\r for carriage return, "
+            "and \\f for form feed.");
+    add.flag("removeComments", "Remove Comments?", [d]() -> bool& { return d().removeComments; });
+    add.tip("Remove comments from G-code to speed up transmissions to the controller.");
+    add.flag("compressGcode", "Compress G-code?", [d]() -> bool& { return d().compressGcode; });
+    add.tip("Remove unneeded white-space and trailing decimal digits from G-code to speed up transmissions to the "
+            "controller: G1 X100.0000 Y20.1000 is sent as G1X100Y20.1.");
+    add.text("compressionExcludes", "Compression Exclude Characters", [d]() -> std::string& { return d().compressionExcludes; });
+    add.tip("Anything between the left-most and right-most of these characters is left out of compression and comments "
+            "removal (quotes, brackets); with only one of them, the rest of the line.");
     add.integer("commandTimeoutMs", "Command Timeout [ms]", [d]() -> int& { return d().commandTimeoutMs; }, 100, 600000);
     add.integer("connectWaitMs", "Connect Wait Time [ms]", [d]() -> int& { return d().connectWaitMs; }, 0, 60000);
     add.integer("identifyTimeoutMs", "Identify Timeout [ms]", [d]() -> int& { return d().identifyTimeoutMs; }, 100, 60000);

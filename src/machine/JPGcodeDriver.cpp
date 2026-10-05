@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
 #include "JPGcodeDriver.h"
+#include "JPGcodeCompressor.h"
 
 #include "JPLinkFactory.h"
 
@@ -403,6 +404,8 @@ void JPGcodeDriver::ioLoop() {
             }
             if (next) {
                 m_inFlight  = std::move(next);
+                // As the controller's settings say: comments removed, compressed, escapes made characters.
+                m_inFlight->line = JPGcodeCompressor::process(m_inFlight->line, cfg()->compression());
                 m_collected = {};
                 m_deadline  = Clock::now() + std::chrono::milliseconds(m_inFlight->timeoutMs);
                 JLOGC(JPlacerLog::kTraffic, cfg()->logGcode ? JLogLevel::Info : JLogLevel::Trace) << cfg()->name << " > " << m_inFlight->line;

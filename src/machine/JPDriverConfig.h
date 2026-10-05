@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "JPGcodeCompressor.h"
+
 #include <j/config/Json.h>
 
 #include <map>
@@ -42,6 +44,16 @@ struct JPDriverConfig {
     double maxFeedRate    = 0;
     // Every line sent and received goes to the log (else only when tracing).
     bool   logGcode       = false;
+    // OpenPnP's: each line sent with its comments removed, compressed (but
+    // between the exclude characters), backslash escapes made characters
+    // (JPGcodeCompressor).
+    bool        removeComments = false;
+    bool        compressGcode  = false;
+    std::string compressionExcludes = "[]\"";
+    bool        backslashEscapes = false;
+    JPGcodeCompressor::Settings compression() const {
+        return { removeComments, compressGcode, compressionExcludes, backslashEscapes };
+    }
     // Commands this controller is sent instead of its profile's (same names:
     // home, move, …). A machine wired its own way homes its own way.
     std::map<std::string, std::string> commands;

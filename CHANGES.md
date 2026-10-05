@@ -369,6 +369,8 @@ notes.
   an OpenPnP machine.
 - A controller can be reached over TCP (an IP address or host name and a port), as OpenPnP's can: a grblHAL
   board on Ethernet, for one. An OpenPnP machine with a TCP controller now comes in connected that way.
+- A controller's Driver Settings have OpenPnP's Remove Comments, Compress G-code (with its exclude characters)
+  and Backslash Escaped Characters, and they come in with an OpenPnP machine.
 
 ## 0.1.0
 

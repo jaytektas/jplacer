@@ -284,6 +284,10 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                 dc.connectWaitMs = int(number(d.attr("connect-wait-time-milliseconds")));
             dc.maxFeedRate = number(d.attr("max-feed-rate"));
             dc.logGcode = d.attr("logging-gcode") == "true";
+            dc.removeComments = d.attr("remove-comments") == "true";
+            dc.compressGcode = d.attr("compress-gcode") == "true";
+            if (!d.attr("compression-excludes").empty()) dc.compressionExcludes = d.attr("compression-excludes");
+            dc.backslashEscapes = d.attr("backslash-escaped-characters-enabled") == "true";
 
             Commands& cmds = commands[dc.id];
             for (const JPXmlElement& cmd : d.children) {

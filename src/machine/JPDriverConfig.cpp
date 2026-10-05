@@ -27,6 +27,10 @@ std::optional<JPDriverConfig> JPDriverConfig::fromJson(const JJson& j, std::stri
     c.maxFeedRate       = j["maxFeedRate"].number(c.maxFeedRate);
     c.homeAfterConnect  = j["homeAfterConnect"].boolean();
     c.logGcode          = j["logGcode"].boolean(c.logGcode);
+    c.removeComments    = j["removeComments"].boolean(c.removeComments);
+    c.compressGcode     = j["compressGcode"].boolean(c.compressGcode);
+    if (j["compressionExcludes"].isString()) c.compressionExcludes = j["compressionExcludes"].str();
+    c.backslashEscapes  = j["backslashEscapes"].boolean(c.backslashEscapes);
     for (const auto& [name, tmpl] : j["commands"].obj()) c.commands[name] = tmpl.str();
     return c;
 }
@@ -45,6 +49,10 @@ JJson JPDriverConfig::toJson() const {
     if (maxFeedRate > 0) j["maxFeedRate"] = maxFeedRate;
     if (homeAfterConnect) j["homeAfterConnect"] = true;
     if (logGcode) j["logGcode"] = true;
+    if (removeComments) j["removeComments"] = true;
+    if (compressGcode) j["compressGcode"] = true;
+    if (compressionExcludes != JPDriverConfig().compressionExcludes) j["compressionExcludes"] = compressionExcludes;
+    if (backslashEscapes) j["backslashEscapes"] = true;
     if (!commands.empty()) {
         j["commands"] = JJson::object();
         for (const auto& [name, tmpl] : commands) j["commands"][name] = tmpl;
