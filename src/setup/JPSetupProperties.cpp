@@ -92,9 +92,9 @@ void coordinateSystem(JPFormBuilder& add, JPCellConfig& cell, std::function<T&()
         // Where it is on the machine; Z where a part is in focus over it.
         add.header({ "X", "Y", "Z" });
         add.row("Location", Place::Location);
-        add.number("offsetX", "X", [mount]() -> double& { return mount().offsetX; });
-        add.number("offsetY", "Y", [mount]() -> double& { return mount().offsetY; });
-        add.number("offsetZ", "Z", [mount]() -> double& { return mount().offsetZ; });
+        add.length("offsetX", "X", [mount]() -> double& { return mount().offsetX; });
+        add.length("offsetY", "Y", [mount]() -> double& { return mount().offsetY; });
+        add.length("offsetZ", "Z", [mount]() -> double& { return mount().offsetZ; });
         add.end();
         return;
     }
@@ -107,9 +107,9 @@ void coordinateSystem(JPFormBuilder& add, JPCellConfig& cell, std::function<T&()
     add.byName("axisRotation", "Rotation axis", axes, [mount]() -> std::string& { return mount().axisRotation; });
     add.end();
     add.row("Offset");
-    add.number("offsetX", "Offset X", [mount]() -> double& { return mount().offsetX; });
-    add.number("offsetY", "Offset Y", [mount]() -> double& { return mount().offsetY; });
-    add.number("offsetZ", "Offset Z", [mount]() -> double& { return mount().offsetZ; });
+    add.length("offsetX", "Offset X", [mount]() -> double& { return mount().offsetX; });
+    add.length("offsetY", "Offset Y", [mount]() -> double& { return mount().offsetY; });
+    add.length("offsetZ", "Offset Z", [mount]() -> double& { return mount().offsetZ; });
     add.end();
 }
 
@@ -133,9 +133,9 @@ void motionPlannerTabs(JPCellConfig& cell, JPFormBuilder& add, const JPMotionTes
         auto at = [mp, i]() -> JPMachineLocation& { return mp().stops[i].at; };
         const std::string n = "testMotion" + std::to_string(i + 1);
         add.row(kStops[i], JPFormBuilder::Place::Location);
-        add.number(n + "X", std::string(kStops[i]) + " X", [at]() -> double& { return at().x; });
-        add.number(n + "Y", std::string(kStops[i]) + " Y", [at]() -> double& { return at().y; });
-        add.number(n + "Z", std::string(kStops[i]) + " Z", [at]() -> double& { return at().z; });
+        add.length(n + "X", std::string(kStops[i]) + " X", [at]() -> double& { return at().x; });
+        add.length(n + "Y", std::string(kStops[i]) + " Y", [at]() -> double& { return at().y; });
+        add.length(n + "Z", std::string(kStops[i]) + " Z", [at]() -> double& { return at().z; });
         add.number(n + "Rotation", std::string(kStops[i]) + " Rotation", [at]() -> double& { return at().rotation; });
         add.flag(n + "Enabled", std::string(kStops[i]) + " Enabled?", [mp, i]() -> bool& { return mp().stops[i].enabled; });
         add.end();
@@ -213,7 +213,7 @@ void machineForm(JPCellConfig& cell, JPSetupProperties::Form& f, const JPMotionT
     add.flag("parkAfterHome", "Park after homed?", [&cell]() -> bool& { return cell.parkAfterHome; });
     add.flag("safeZPark", "Park all at Safe Z?", [&cell]() -> bool& { return cell.safeZPark; });
     add.tip("When the Z Park button is pressed, move all tools mounted on the same head to safe Z.");
-    add.number("unsafeZRoaming", "Unsafe Z Roaming", [&cell]() -> double& { return cell.unsafeZRoamingMm; }, 2);
+    add.length("unsafeZRoaming", "Unsafe Z Roaming", [&cell]() -> double& { return cell.unsafeZRoamingMm; }, 2);
     add.tip("Maximum allowable roaming distance at unsafe Z. Virtual Z axes (typically on cameras) are invisible, therefore "
             "it can easily be overlooked that you are at unsafe Z. Jogging further away will automatically move the "
             "virtual axis to Safe Z.");
@@ -225,9 +225,9 @@ void machineForm(JPCellConfig& cell, JPSetupProperties::Form& f, const JPMotionT
     auto at = [&cell]() -> std::optional<JPMachineLocation>& { return cell.discardLocation; };
     add.row("Discard Location", at() ? Place::Location : Place::None);
     if (at()) {
-        add.number("discardX", "Discard X", [at]() -> double& { return at()->x; });
-        add.number("discardY", "Discard Y", [at]() -> double& { return at()->y; });
-        add.number("discardZ", "Discard Z", [at]() -> double& { return at()->z; });
+        add.length("discardX", "Discard X", [at]() -> double& { return at()->x; });
+        add.length("discardY", "Discard Y", [at]() -> double& { return at()->y; });
+        add.length("discardZ", "Discard Z", [at]() -> double& { return at()->z; });
         add.number("discardRotation", "Discard Rotation", [at]() -> double& { return at()->rotation; });
     } else {
         for (int i = 0; i < 4; ++i) add.skip();
@@ -241,9 +241,9 @@ void machineForm(JPCellConfig& cell, JPSetupProperties::Form& f, const JPMotionT
     f.reshaping.push_back("discard");
     auto board = [&cell]() -> JPMachineLocation& { return cell.defaultBoardLocation; };
     add.row("Default Board Location", Place::Location);
-    add.number("defaultBoardX", "Default Board X", [board]() -> double& { return board().x; });
-    add.number("defaultBoardY", "Default Board Y", [board]() -> double& { return board().y; });
-    add.number("defaultBoardZ", "Default Board Z", [board]() -> double& { return board().z; });
+    add.length("defaultBoardX", "Default Board X", [board]() -> double& { return board().x; });
+    add.length("defaultBoardY", "Default Board Y", [board]() -> double& { return board().y; });
+    add.length("defaultBoardZ", "Default Board Z", [board]() -> double& { return board().z; });
     add.number("defaultBoardRotation", "Default Board Rotation", [board]() -> double& { return board().rotation; });
     add.skip();   // always set: nothing under Set?
     add.end();
@@ -471,6 +471,17 @@ void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
     auto a = finder(cell.axes, id);
     f.title = "Axis " + a().name;
     JPFormBuilder add(f);
+    // A linear axis's coordinates, speeds and play are lengths (in the System
+    // Units); a rotational one's, degrees.
+    const bool linear = a().type != A::Type::Rotation;
+    auto lin = [&add, linear](const std::string& name, const std::string& label, std::function<double()> get,
+                               std::function<void(double)> set, int decimals) {
+        if (linear) add.length(name, label, std::move(get), std::move(set), decimals);
+        else add.number(name, label, std::move(get), std::move(set), decimals);
+    };
+    auto linRef = [lin](const std::string& name, const std::string& label, std::function<double&()> ref, int decimals = 3) {
+        lin(name, label, [ref] { return ref(); }, [ref](double v) { ref() = v; }, decimals);
+    };
     add.tab("Configuration");
     add.group("Properties");
     // A controller axis is one a controller drives; a mapped one follows
@@ -489,6 +500,7 @@ void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
                    for (A::Type t : { A::Type::X, A::Type::Y, A::Type::Z, A::Type::Rotation })
                        if (v == A::typeName(t)) a().type = t;
                });
+    f.reshaping.push_back("type");   // lengths or degrees
     add.text("name", "Name", [a]() -> std::string& { return a().name; }, "name");
     if (a().kind == A::Kind::Controller) {
         add.group("Controller Settings");
@@ -497,7 +509,7 @@ void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
         add.text("preMoveCommand", "Pre-Move Command", [a]() -> std::string& { return a().preMoveCommand; }, "long");
         add.tip("Sent before a move of this axis when its controller allows pre-move commands (and Letter Variables is "
                 "off), {Coordinate} where the axis was: to switch an output shared by several axes to this one.");
-        add.number("homeCoordinate", "Home Coordinate", [a]() -> double& { return a().homeCoordinate; });
+        linRef("homeCoordinate", "Home Coordinate", [a]() -> double& { return a().homeCoordinate; });
         add.flag("switchLinearRotational", "Switch Linear \u2194 Rotational?", [a]() -> bool& { return a().switchLinearRotational; });
         add.tip("It is important that jplacer understands whether an Axis is linear or rotational in the controller. Most "
                 "of the times this is already determined by the Axis Type, i.e. X, Y, Z are linear and Rotation is "
@@ -507,11 +519,19 @@ void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
                 "in computing proper limits for feed-rate, acceleration and jerk in mixed axes moves, as only the motion "
                 "of linear axes is taken into consideration for the limits in standard G-Code.");
         // One motor step, and its other side: steps per unit.
-        const std::string unit = a().type == A::Type::Rotation ? "Degree" : "Millimeter";
-        add.row(a().type == A::Type::Rotation ? "Resolution [Degrees]" : "Resolution [Millimeters]");
-        add.number("resolution", "Resolution", [a]() -> double& { return a().resolution; }, 6);
-        add.number("stepsPerUnit", "Steps / " + unit, [a] { return a().resolution > 0 ? 1 / a().resolution : 0.0; },
-                   [a](double v) { a().resolution = v > 0 ? 1 / v : 0; }, 6);
+        const std::string unit = !linear ? "Degree" : JPSystemUnits::inches() ? "Inch" : "Millimeter";
+        add.row(std::string("Resolution [") + (!linear ? "Degrees" : JPSystemUnits::inches() ? "Inches" : "Millimeters") + "]");
+        linRef("resolution", "Resolution", [a]() -> double& { return a().resolution; }, 6);
+        // Steps a unit: one over a step, in the units shown.
+        add.number("stepsPerUnit", "Steps / " + unit,
+                   [a, linear] {
+                       const double step = linear ? JPSystemUnits::shown(a().resolution) : a().resolution;
+                       return step > 0 ? 1 / step : 0.0;
+                   },
+                   [a, linear](double v) {
+                       const double step = v > 0 ? 1 / v : 0;
+                       a().resolution = linear ? JPSystemUnits::stored(step) : step;
+                   }, 6);
         add.end();
         if (a().type == A::Type::Rotation) {
             add.flag("limitRotation", "Limit to Range", [a]() -> bool& { return a().limitRotation; });
@@ -521,21 +541,21 @@ void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
     }
     if (a().kind == A::Kind::Virtual) {
         add.group("Virtual Axis");
-        add.number("homeCoordinate", "Home / Safe Z", [a]() -> double& { return a().homeCoordinate; });
+        linRef("homeCoordinate", "Home / Safe Z", [a]() -> double& { return a().homeCoordinate; });
     }
     if (a().kind == A::Kind::Mapped) {
         add.group("Axis Mapping");
         add.byName("inputAxis", "Input Axis", named(cell.axes, "(none)"), [a]() -> std::string& { return a().inputAxisId; });
         add.header({ "Input", "Output" });
         add.row("Map Point A");
-        add.number("mapInput0", "Point A input", [a]() -> double& { return a().mapInput0; });
-        add.number("mapOutput0", "Point A output", [a]() -> double& { return a().mapOutput0; });
+        linRef("mapInput0", "Point A input", [a]() -> double& { return a().mapInput0; });
+        linRef("mapOutput0", "Point A output", [a]() -> double& { return a().mapOutput0; });
         add.end();
         add.row("Map Point B");
-        add.number("mapInput1", "Point B input", [a]() -> double& { return a().mapInput1; });
-        add.number("mapOutput1", "Point B output", [a]() -> double& { return a().mapOutput1; });
+        linRef("mapInput1", "Point B input", [a]() -> double& { return a().mapInput1; });
+        linRef("mapOutput1", "Point B output", [a]() -> double& { return a().mapOutput1; });
         add.end();
-        add.number("homeCoordinate", "Home Coordinate", [a]() -> double& { return a().homeCoordinate; });
+        linRef("homeCoordinate", "Home Coordinate", [a]() -> double& { return a().homeCoordinate; });
     }
     if (a().kind == A::Kind::Cam) {
         // OpenPnP's ReferenceCamCounterClockwiseAxis (and its clockwise partner, here the same axis turned the other way).
@@ -543,20 +563,20 @@ void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
         add.byName("inputAxis", "Input Axis", named(cell.axes, "(none)"), [a]() -> std::string& { return a().inputAxisId; });
         add.flag("camClockwise", "Clockwise?", [a]() -> bool& { return a().camClockwise; });
         add.tip("The cam's other side: the nozzle that goes down as the cam turns clockwise (OpenPnP's ReferenceCamClockwiseAxis).");
-        add.number("camRadius", "Cam Radius", [a]() -> double& { return a().camRadius; });
+        add.length("camRadius", "Cam Radius", [a]() -> double& { return a().camRadius; });
         add.number("camArmsAngle", "Cam Arms Angle", [a]() -> double& { return a().camArmsAngle; });
         add.tip("The angle between the cam's two arms (180 for a straight cam); the balance point is at 0 with them folded out.");
-        add.number("camWheelRadius", "Cam Wheel Radius", [a]() -> double& { return a().camWheelRadius; });
-        add.number("camWheelGap", "Cam Wheel Gap", [a]() -> double& { return a().camWheelGap; });
-        add.number("homeCoordinate", "Home Coordinate", [a]() -> double& { return a().homeCoordinate; });
+        add.length("camWheelRadius", "Cam Wheel Radius", [a]() -> double& { return a().camWheelRadius; });
+        add.length("camWheelGap", "Cam Wheel Gap", [a]() -> double& { return a().camWheelGap; });
+        linRef("homeCoordinate", "Home Coordinate", [a]() -> double& { return a().homeCoordinate; });
         add.note("Z = Cam Radius x sin(angle + 90 - Cam Arms Angle / 2) + Cam Wheel Radius + Cam Wheel Gap, the angle that "
                  "of the input axis (the other way, clockwise), kept within the cam's useful range.");
     }
     add.group("Kinematic Settings");
     // Each limit with its switch, and buttons to take it from where the axis is or go there.
-    auto limit = [&add, a, id](const std::string& key, const std::string& label, double A::*value, bool A::*on) {
+    auto limit = [&add, a, id, linRef](const std::string& key, const std::string& label, double A::*value, bool A::*on) {
         add.row(label, Place::Axis, id);
-        add.number(key, label, [a, value]() -> double& { return a().*value; });
+        linRef(key, label, [a, value]() -> double& { return a().*value; });
         add.flag(key + "Enabled", "Enabled?", [a, on]() -> bool& { return a().*on; });
         add.end();
     };
@@ -565,12 +585,12 @@ void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
     limit("safeZoneHigh", "Safe Zone High", &A::safeZoneHigh, &A::safeZoneHighEnabled);
     limit("softLimitHigh", "Soft Limit High", &A::softLimitHigh, &A::softLimitHighEnabled);
     add.row("Feed Rate [/s]");
-    add.number("feedratePerSecond", "Feed Rate [/s]", [a]() -> double& { return a().feedratePerSecond; }, 1);
-    add.number("feedratePerMinute", "Feed Rate [/min]", [a] { return a().feedratePerSecond * 60; },
-               [a](double v) { a().feedratePerSecond = v / 60; }, 1);
+    linRef("feedratePerSecond", "Feed Rate [/s]", [a]() -> double& { return a().feedratePerSecond; }, 1);
+    lin("feedratePerMinute", "Feed Rate [/min]", [a] { return a().feedratePerSecond * 60; },
+        [a](double v) { a().feedratePerSecond = v / 60; }, 1);
     add.end();
-    add.number("accelerationPerSecond2", "Acceleration [/s\u00B2]", [a]() -> double& { return a().accelerationPerSecond2; }, 1);
-    add.number("jerkPerSecond3", "Jerk [/s\u00B3]", [a]() -> double& { return a().jerkPerSecond3; }, 1);
+    linRef("accelerationPerSecond2", "Acceleration [/s\u00B2]", [a]() -> double& { return a().accelerationPerSecond2; }, 1);
+    linRef("jerkPerSecond3", "Jerk [/s\u00B3]", [a]() -> double& { return a().jerkPerSecond3; }, 1);
     add.note("0: the controller's own. Acceleration and jerk reach a controller whose move command takes "
              "{acceleration} or {jerk} (its Gcode tab).");
 
@@ -597,14 +617,14 @@ void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
     f.reshaping.push_back("backlash");
     const A::Backlash method = a().backlash;
     if (method == A::Backlash::DistanceAware) {
-        add.number("approachMm", "Least Approach", [a] { return a().approachMm; },
-                   [a](double v) { if (v >= 0) a().approachMm = v; });
+        lin("approachMm", "Least Approach", [a] { return a().approachMm; },
+            [a](double v) { if (v >= 0) a().approachMm = v; }, 3);
         add.number("backlashSpeedFactor", "Speed Factor", [a]() -> double& { return a().backlashSpeedFactor; }, 2);
     } else if (method != A::Backlash::None) {
-        add.number("backlashOffset", "Backlash Offset", [a]() -> double& { return a().backlashOffset; });
+        linRef("backlashOffset", "Backlash Offset", [a]() -> double& { return a().backlashOffset; });
         if (method == A::Backlash::DirectionalSneakUp)
-            add.number("sneakUp", "Sneak-up Distance", [a] { return a().sneakUpMm; },
-                       [a](double v) { if (v >= 0) a().sneakUpMm = v; });
+            lin("sneakUp", "Sneak-up Distance", [a] { return a().sneakUpMm; },
+                [a](double v) { if (v >= 0) a().sneakUpMm = v; }, 3);
         if (method != A::Backlash::Directional)
             add.number("backlashSpeedFactor", "Speed Factor", [a]() -> double& { return a().backlashSpeedFactor; }, 2);
     }
@@ -660,9 +680,9 @@ void headForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
                             bool withZ) {
         add.row(what, at() ? Place::Location : Place::None);
         if (at()) {
-            add.number(key + "X", what + " X", [at]() -> double& { return at()->x; });
-            add.number(key + "Y", what + " Y", [at]() -> double& { return at()->y; });
-            if (withZ) add.number(key + "Z", what + " Z", [at]() -> double& { return at()->z; });
+            add.length(key + "X", what + " X", [at]() -> double& { return at()->x; });
+            add.length(key + "Y", what + " Y", [at]() -> double& { return at()->y; });
+            if (withZ) add.length(key + "Z", what + " Z", [at]() -> double& { return at()->z; });
             else add.skip();
         } else {
             add.skip();
@@ -680,7 +700,7 @@ void headForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
     add.header({ "X", "Y", "Z", "Set?" });
     place("homingFiducial", "Homing Fiducial", [h]() -> std::optional<JPMachineLocation>& { return h().homingFiducial; }, true);
     if (h().homingFiducial) {
-        add.number("homingFiducialDiameter", "Fiducial Diameter", [h]() -> double& { return h().homingFiducialDiameter; });
+        add.length("homingFiducialDiameter", "Fiducial Diameter", [h]() -> double& { return h().homingFiducialDiameter; });
         add.row("Homing Method");
         add.choice("visualHoming", "Homing Method", { "Switches", "ResetToFiducialLocation" },
                    [h] { return std::string(h().visualHoming ? "ResetToFiducialLocation" : "Switches"); },
@@ -697,9 +717,9 @@ void headForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
     place("rigPrimary", "Primary Mark", [h]() -> std::optional<JPMachineLocation>& { return h().rigPrimary; }, true);
     place("rigSecondary", "Secondary Mark", [h]() -> std::optional<JPMachineLocation>& { return h().rigSecondary; }, true);
     add.row("Mark Diameters");
-    add.number("rigPrimaryDiameter", "Primary Diameter", [h]() -> double& { return h().rigPrimaryDiameter; });
-    add.number("rigSecondaryDiameter", "Secondary Diameter", [h]() -> double& { return h().rigSecondaryDiameter; });
-    add.number("rigTestObjectDiameter", "Test Object", [h]() -> double& { return h().rigTestObjectDiameter; });
+    add.length("rigPrimaryDiameter", "Primary Diameter", [h]() -> double& { return h().rigPrimaryDiameter; });
+    add.length("rigSecondaryDiameter", "Secondary Diameter", [h]() -> double& { return h().rigSecondaryDiameter; });
+    add.length("rigTestObjectDiameter", "Test Object", [h]() -> double& { return h().rigTestObjectDiameter; });
     add.tip("The diameter of the test object the nozzles' precise offsets are calibrated with (a nozzle's Offset Wizard).");
     add.end();
     add.note("Two round marks at two heights. A head camera is calibrated over the homing fiducial and, with Two "
@@ -804,9 +824,9 @@ void nozzleForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     auto manual = [n]() -> std::optional<JPMachineLocation>& { return n().manualChangeLocation; };
     add.row("Manual Change Location", manual() ? Place::Location : Place::None);
     if (manual()) {
-        add.number("manualX", "Manual Change X", [manual]() -> double& { return manual()->x; });
-        add.number("manualY", "Manual Change Y", [manual]() -> double& { return manual()->y; });
-        add.number("manualZ", "Manual Change Z", [manual]() -> double& { return manual()->z; });
+        add.length("manualX", "Manual Change X", [manual]() -> double& { return manual()->x; });
+        add.length("manualY", "Manual Change Y", [manual]() -> double& { return manual()->y; });
+        add.length("manualZ", "Manual Change Z", [manual]() -> double& { return manual()->z; });
         add.number("manualRotation", "Manual Change Rotation", [manual]() -> double& { return manual()->rotation; });
     } else {
         for (int i = 0; i < 4; ++i) add.skip();
@@ -861,17 +881,17 @@ void nozzleForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
                    [cp]() -> std::string& { return cp().actuatorId; });
     add.number("contactProbeSpeed", "Probe Speed", [cp]() -> double& { return cp().speed; });
     add.tip("Probing speed factor, for the contact sense actuator's probing command.");
-    add.number("contactProbeStartOffset", "Start Offset", [cp]() -> double& { return cp().startOffsetMm; });
+    add.length("contactProbeStartOffset", "Start Offset", [cp]() -> double& { return cp().startOffsetMm; });
     add.tip("Contact probing start offset in Z above the nominal location. Note: for part height probing, the maximum "
             "part height on the NozzleTip is used instead, if the part height is not yet known.");
-    add.number("contactProbeDepth", "Probe Depth", [cp]() -> double& { return cp().depthMm; });
+    add.length("contactProbeDepth", "Probe Depth", [cp]() -> double& { return cp().depthMm; });
     add.tip("Maximum contact probing depth in Z, from the Start Offset.");
     if (cp().method == "VacuumSense") {
-        add.number("sniffleIncrement", "Sniffle Increment", [cp]() -> double& { return cp().sniffleIncrementMm; });
+        add.length("sniffleIncrement", "Sniffle Increment", [cp]() -> double& { return cp().sniffleIncrementMm; });
         add.tip("Vacuum sensing \"sniffle\" increment in Z.");
         add.integer("sniffleDwellTime", "Sniffle Dwell Time [ms]", [cp]() -> int& { return cp().sniffleDwellMs; }, 0, 60000);
     }
-    add.number("contactProbeAdjust", "Final Adjustment", [cp]() -> double& { return cp().adjustMm; });
+    add.length("contactProbeAdjust", "Final Adjustment", [cp]() -> double& { return cp().adjustMm; });
     add.tip("Contact probing final adjustment in Z (positive values point upwards in Z). Use positive values to "
             "compensate probing overshoot; negative values to add additional nozzle tip spring tensioning.");
     const Strings triggers{ "Off", "Once", "AfterHoming", "EachTime" };
@@ -909,19 +929,19 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
     add.flag("pushAndDragAllowed", "Push & Drag allowed?", [t]() -> bool& { return t().pushAndDragAllowed; });
     add.tip("Determines if the NozzleTip is allowed to be used for pushing and dragging.\nShould only be enabled for NozzleTips "
             "that are sturdy enough to take the lateral forces, including the occasional snag.");
-    add.number("diameterLowMm", "Outside Diameter", [t]() -> double& { return t().diameterLowMm; });
+    add.length("diameterLowMm", "Outside Diameter", [t]() -> double& { return t().diameterLowMm; });
     add.tip("Outside diameter of the nozzle tip at the lowest ~0.75mm.");
     add.group("Part Dimensions");
-    add.number("diameter", "Diameter Seen From Below", [t]() -> double& { return t().diameter; });
-    add.number("minPartDiameterMm", "Min. Part Diameter", [t]() -> double& { return t().minPartDiameterMm; });
+    add.length("diameter", "Diameter Seen From Below", [t]() -> double& { return t().diameter; });
+    add.length("minPartDiameterMm", "Min. Part Diameter", [t]() -> double& { return t().minPartDiameterMm; });
     add.tip("Minimum part diameter, to be picked with this the nozzle tip: at least the tip's air bore plus two times the "
             "Max. Pick Tolerance.");
-    add.number("maxPartDiameterMm", "Max. Part Diameter", [t]() -> double& { return t().maxPartDiameterMm; });
+    add.length("maxPartDiameterMm", "Max. Part Diameter", [t]() -> double& { return t().maxPartDiameterMm; });
     add.tip("Maximum diameter/diagonal of parts picked with this nozzle tip, including tolerances.");
 
-    add.number("maxPartHeightMm", "Max. Part Height", [t]() -> double& { return t().maxPartHeightMm; });
+    add.length("maxPartHeightMm", "Max. Part Height", [t]() -> double& { return t().maxPartHeightMm; });
     add.tip("Maximum part heights picked with this nozzle tip. Used for dynamic safe Z, if part height is unknown.");
-    add.number("maxPickToleranceMm", "Max. Pick Tolerance", [t]() -> double& { return t().maxPickToleranceMm; });
+    add.length("maxPickToleranceMm", "Max. Pick Tolerance", [t]() -> double& { return t().maxPickToleranceMm; });
     add.tip("Maximum assumed pick tolerance allowed with this nozzle tip.\nThis determines how far away from the nominal "
             "location a detected Bottom Vision alignment position is accepted. It also reduces the computation time of some "
             "vision operations by limiting the search range.");
@@ -1041,9 +1061,9 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
         auto touch = [t]() -> std::optional<JPMachineLocation>& { return t().touchLocation; };
         add.row("Touch Location", touch() ? Place::Location : Place::None);
         if (touch()) {
-            add.number("touchX", "Touch X", [touch]() -> double& { return touch()->x; });
-            add.number("touchY", "Touch Y", [touch]() -> double& { return touch()->y; });
-            add.number("touchZ", "Touch Z", [touch]() -> double& { return touch()->z; });
+            add.length("touchX", "Touch X", [touch]() -> double& { return touch()->x; });
+            add.length("touchY", "Touch Y", [touch]() -> double& { return touch()->y; });
+            add.length("touchZ", "Touch Z", [touch]() -> double& { return touch()->z; });
             add.number("touchRotation", "Touch Rotation", [touch]() -> double& { return touch()->rotation; });
         } else {
             for (int i = 0; i < 4; ++i) add.skip();
@@ -1083,8 +1103,8 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
     add.integer("runoutDivisions", "Circle Divisions", [rc]() -> int& { return rc().divisions; }, RC::kLeastDivisions,
                 RC::kMostDivisions);
     add.integer("runoutMisdetects", "Allowed Misdetects", [rc]() -> int& { return rc().misdetects; }, 0, RC::kMostDivisions);
-    add.number("runoutZOffset", "Calibration Z Offset", [rc]() -> double& { return rc().zOffset; });
-    add.number("runoutVisionDiameter", "Vision Diameter", [rc] { return rc().visionDiameter; },
+    add.length("runoutZOffset", "Calibration Z Offset", [rc]() -> double& { return rc().zOffset; });
+    add.length("runoutVisionDiameter", "Vision Diameter", [rc] { return rc().visionDiameter; },
                [rc](double v) { if (v >= 0) rc().visionDiameter = v; });
     add.actions({ { "Calibrate", "calibrateRunout" }, { "Reset", "resetRunout" } });
     add.note("Calibrate measures the tip on the nozzle it is on, over the fixed camera looking up: down to the "
@@ -1127,7 +1147,7 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
     auto bg = [t]() -> JPNozzleTipConfig::Background& { return t().background; };
     add.choice("backgroundMethod", "Method", { "None", "Brightness", "BrightnessAndKeyColor" }, [bg] { return bg().method; },
                [bg](const std::string& v) { bg().method = v; });
-    add.number("minimumDetailSize", "Minimum Detail Size", [bg] { return bg().minimumDetailSizeMm; },
+    add.length("minimumDetailSize", "Minimum Detail Size", [bg] { return bg().minimumDetailSizeMm; },
                [bg](double v) { if (v > 0) bg().minimumDetailSizeMm = v; });
     add.tip("Specify the size of the smallest details in the image that are considered a meaningfull part of the shape "
             "to be detected, like the smallest contacts etc. Smaller specks and artifacts, like dust, scratches, "
@@ -1254,13 +1274,21 @@ void calibrationResults(JPFormBuilder& add, const JPCameraCalibration& cal, bool
     std::snprintf(b, sizeof b, "%.3f", cal.z);
     shown("z", "At Z", b);
     const double umX = 1000 / cal.scaleX(), umY = 1000 / cal.scaleY();
-    std::snprintf(b, sizeof b, "%.2f \xC3\x97 %.2f \xC2\xB5m", umX, umY);
+    // In the System Units, as OpenPnP shows them (micrometres are a millimetre's).
+    if (JPSystemUnits::inches())
+        std::snprintf(b, sizeof b, "%.6f \xC3\x97 %.6f in", JPSystemUnits::shown(umX / 1000), JPSystemUnits::shown(umY / 1000));
+    else
+        std::snprintf(b, sizeof b, "%.2f \xC3\x97 %.2f \xC2\xB5m", umX, umY);
     shown("upp", "Units Per Pixel", b);
     std::snprintf(b, sizeof b, "%.3f \xC3\x97 %.3f px/mm", cal.scaleX(), cal.scaleY());
     shown("scale", "Scale", b);
-    std::snprintf(b, sizeof b, "%.2f \xC2\xB5m (%.3f px)", cal.rmsPx * (umX + umY) / 2, cal.rmsPx);
+    if (JPSystemUnits::inches())
+        std::snprintf(b, sizeof b, "%.6f in (%.3f px)", JPSystemUnits::shown(cal.rmsPx * (umX + umY) / 2000), cal.rmsPx);
+    else
+        std::snprintf(b, sizeof b, "%.2f \xC2\xB5m (%.3f px)", cal.rmsPx * (umX + umY) / 2, cal.rmsPx);
     shown("accuracy", "Estimated Locating Accuracy", b);
-    std::snprintf(b, sizeof b, "%.2f \xC3\x97 %.2f mm", cal.width / cal.scaleX(), cal.height / cal.scaleY());
+    std::snprintf(b, sizeof b, "%.*f \xC3\x97 %.*f %s", JPSystemUnits::places(2), JPSystemUnits::shown(cal.width / cal.scaleX()),
+                  JPSystemUnits::places(2), JPSystemUnits::shown(cal.height / cal.scaleY()), JPSystemUnits::suffix());
     shown("fov", "Field of View", b);
     std::snprintf(b, sizeof b, "%.3f deg%s", cal.rotationDeg(looksUp), cal.mirrored(looksUp) ? ", mirrored" : "");
     shown("turn", "Mounting Error (turned)", b);
@@ -1307,15 +1335,15 @@ void calibrationResults(JPFormBuilder& add, const JPCameraCalibration& cal, bool
         const JPCameraCalibration at = cal.atHeight(workingZ);
         add.header({ "X", "Y" });
         add.row(onHead ? "Calibrated Head Offsets" : "Camera Location");
-        std::snprintf(b, sizeof b, "%+.3f", at.lookedX);
+        std::snprintf(b, sizeof b, "%+.*f", JPSystemUnits::places(3), JPSystemUnits::shown(at.lookedX));
         shown("lookedX", "Looked X", b);
-        std::snprintf(b, sizeof b, "%+.3f", at.lookedY);
+        std::snprintf(b, sizeof b, "%+.*f", JPSystemUnits::places(3), JPSystemUnits::shown(at.lookedY));
         shown("lookedY", "Looked Y", b);
         add.end();
         add.endColumns();
         add.note(std::string("Where the middle of the picture looks at the Default Working Plane Z, against where the "
                              "camera's ") + (onHead ? "offsets on the head say" : "place says")
-                 + " (mm). The part at the calibration height is part of what visual homing and the nozzle offsets "
+                 + ". The part at the calibration height is part of what visual homing and the nozzle offsets "
                    "were measured by, and stays; only the lean between heights is applied.");
     }
     if (cal.points.empty()) {
@@ -1404,8 +1432,8 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     // A start for calibrating with a nozzle's tip, whose size is not known.
     add.header({ "X", "Y" });
     add.row("Units per Pixel");
-    add.number("unitsPerPixelX", "Units per Pixel X", [c]() -> double& { return c().unitsPerPixelX; }, 5);
-    add.number("unitsPerPixelY", "Units per Pixel Y", [c]() -> double& { return c().unitsPerPixelY; }, 5);
+    add.length("unitsPerPixelX", "Units per Pixel X", [c]() -> double& { return c().unitsPerPixelX; }, 5);
+    add.length("unitsPerPixelY", "Units per Pixel Y", [c]() -> double& { return c().unitsPerPixelY; }, 5);
     add.end();
     add.note("A rough start: calibrating measures them.");
     add.group("When the Camera Is Lost");
@@ -1495,12 +1523,12 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
         add.tip("A PNG of the machine's table, as the camera would see it from straight above.");
         add.header({ "X", "Y" });
         add.row("Image Units Per Pixel");
-        add.number("imageUppX", "Units Per Pixel X", num("imageUnitsPerPixel", "x", 0.04).first, num("imageUnitsPerPixel", "x", 0.04).second, 5);
-        add.number("imageUppY", "Units Per Pixel Y", num("imageUnitsPerPixel", "y", 0.04).first, num("imageUnitsPerPixel", "y", 0.04).second, 5);
+        add.length("imageUppX", "Units Per Pixel X", num("imageUnitsPerPixel", "x", 0.04).first, num("imageUnitsPerPixel", "x", 0.04).second, 5);
+        add.length("imageUppY", "Units Per Pixel Y", num("imageUnitsPerPixel", "y", 0.04).first, num("imageUnitsPerPixel", "y", 0.04).second, 5);
         add.end();
         add.row("Image Offset");
-        add.number("imageOffsetX", "Offset X", num("imageOffset", "x", 0).first, num("imageOffset", "x", 0).second);
-        add.number("imageOffsetY", "Offset Y", num("imageOffset", "y", 0).first, num("imageOffset", "y", 0).second);
+        add.length("imageOffsetX", "Offset X", num("imageOffset", "x", 0).first, num("imageOffset", "x", 0).second);
+        add.length("imageOffsetY", "Offset Y", num("imageOffset", "y", 0).first, num("imageOffset", "y", 0).second);
         add.end();
         add.endColumns();
         add.number("simulatedRotation", "Simulated Rotation", num("simulatedRotation", nullptr, 0).first, num("simulatedRotation", nullptr, 0).second);
@@ -1698,7 +1726,7 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     add.tab("Position");
     coordinateSystem<JPCameraConfig>(add, cell, c, "(fixed to the machine)", true, f);
     if (c().mount.headId.empty()) {
-        add.number("roamingRadius", "Roaming Radius", [c] { return c().roamingRadiusMm; },
+        add.length("roamingRadius", "Roaming Radius", [c] { return c().roamingRadiusMm; },
                    [c](double v) { c().roamingRadiusMm = std::max(0.0, v); });
         add.tip("The maximum nominal roaming radius over the camera, which also indicates the largest part diagonal "
                 "that can be supported. If set to zero, this switches off multi-shot vision (see package Vision "
@@ -1721,11 +1749,11 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     add.integer("calCropHeight", "Cropped Height", [c]() -> int& { return c().cropHeight; }, 0, 100000);
     add.tip("(Use 0 for no cropping)");
     if (c().mount.headId.empty()) {
-        add.number("workingPlaneZ", "Default Working Plane Z", [c]() -> double& { return c().mount.offsetZ; });
+        add.length("workingPlaneZ", "Default Working Plane Z", [c]() -> double& { return c().mount.offsetZ; });
         add.tip("This is the Z coordinate to which the bottom surface of parts carried by the nozzle will be lowered "
                 "for visual alignment (the camera's Z, as on Position).");
     } else {
-        add.number("workingPlaneZ", "Default Working Plane Z",
+        add.length("workingPlaneZ", "Default Working Plane Z",
                    [c] {
                        if (c().workingPlaneZ) return *c().workingPlaneZ;
                        return c().calibrations.empty() ? 0.0 : c().calibrations.front().z;
@@ -1751,13 +1779,13 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
                [k](double v) { k().outlierSpread = std::max(1.0, v); }, 1);
     add.number("calMaxRms", "Worst Fit Taken (px)", [k] { return k().maxRmsPx; },
                [k](double v) { if (v > 0) k().maxRmsPx = v; }, 2);
-    add.row("Lead-in (mm)");
-    add.number("calLeadIn", "Lead-in (mm)", [k] { return k().leadInMm; }, [k](double v) { if (v >= 0) k().leadInMm = v; }, 2);
+    add.row("Lead-in");
+    add.length("calLeadIn", "Lead-in", [k] { return k().leadInMm; }, [k](double v) { if (v >= 0) k().leadInMm = v; }, 2);
     add.integer("calFrames", "Pictures Each", [k]() -> int& { return k().frames; }, 1, JPCameraConfig::Calibrating::kMostFrames);
     add.end();
     add.flag("calTwoHeights", "Two Heights?", [k]() -> bool& { return k().twoHeights; });
     if (c().mount.headId.empty())
-        add.number("calRaise", "Raise For The Second (mm)", [k] { return k().raiseMm; },
+        add.length("calRaise", "Raise For The Second", [k] { return k().raiseMm; },
                    [k](double v) { if (v > 0) k().raiseMm = v; }, 2);
     add.note("Calibrating moves the mark through a grid of places across the picture, Reach of the way from the "
              "middle to as near the edge as leaves room for the mark (1: all the way). More places measure the "
@@ -1787,7 +1815,7 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
         add.group("General");
         auto af = [c]() -> JPCameraConfig::AutoFocus& { return c().autoFocus; };
         add.row("Focal Resolution");
-        add.number("focalResolution", "Focal Resolution", [af] { return af().focalResolutionMm; },
+        add.length("focalResolution", "Focal Resolution", [af] { return af().focalResolutionMm; },
                    [af](double v) { if (v > 0) af().focalResolutionMm = v; });
         add.iconButton("autoFocusTest", "position-actuator", "Auto-Focus the selected nozzle in this camera. If a part is on the nozzle, "
                                                       "its height will be determined.");
@@ -2160,7 +2188,7 @@ void bottomVisionForm(JPCellConfig& cell, JPSetupProperties::Form& f, JPConfigur
     add.tip("Pre-rotate default setting for bottom vision. Can be overridden on individual parts.");
     add.integer("maxVisionPasses", "Max. vision passes", [&v]() -> int& { return v.maxVisionPasses; }, 1, 100);
     add.tip("The maximum number of bottom vision passes performed to get a good fix on the part.");
-    add.number("maxLinearOffsetMm", "Max. linear offset", [&v]() -> double& { return v.maxLinearOffsetMm; });
+    add.length("maxLinearOffsetMm", "Max. linear offset", [&v]() -> double& { return v.maxLinearOffsetMm; });
     add.tip("The maximum linear part offset accepted as a good fix i.e. where no additional vision pass is needed.");
     add.number("maxAngularOffset", "Max. angular offset", [&v]() -> double& { return v.maxAngularOffset; });
     add.tip("The maximum angular part offset accepted as a good fix i.e. where no additional vision pass is needed.");
@@ -2180,7 +2208,7 @@ void fiducialLocatorForm(JPCellConfig& cell, JPSetupProperties::Form& f, JPConfi
     add.flag("enabledAveraging", "Average Matches?", [&v]() -> bool& { return v.enabledAveraging; });
     add.tip("Finally calculates the arithmetic average over all matches (except the first). Needs 3 or more repeated "
             "recognitions to work.");
-    add.number("fiducialMaxDistanceMm", "Max. Distance (old pipelines only)", [&v]() -> double& { return v.fiducialMaxDistanceMm; });
+    add.length("fiducialMaxDistanceMm", "Max. Distance (old pipelines only)", [&v]() -> double& { return v.fiducialMaxDistanceMm; });
     add.tip("Maximum allowed distance between nominal fiducial location and detected location. This only applies where the "
             "vision pipeline does not have a maxDistance stage.");
     finder(add, v.fiducialPipeline, "fiducials");

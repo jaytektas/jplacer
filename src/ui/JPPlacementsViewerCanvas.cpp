@@ -3,6 +3,8 @@
 
 #include "JPPlacementsViewerCanvas.h"
 
+#include "model/JPSystemUnits.h"
+
 #include "model/JPPanelLocation.h"
 #include "model/JPSides.h"
 
@@ -465,20 +467,24 @@ void JPPlacementsViewerCanvas::drawReticleAndScales(JPrimitiveBuffer& buf) {
     // The division: 1, 2 or 5 times a power of ten, about a major division apart.
     const Vec lo = toObject(a.x, a.y + a.height), hi = toObject(a.x + a.width, a.y);
     const double minX = std::min(lo.x, hi.x), maxX = std::max(lo.x, hi.x), minY = lo.y, maxY = hi.y;
-    double perDivision = (maxX - minX) / (a.width / major);
-    const double power = std::floor(std::log10(perDivision));
-    double mult = perDivision / std::pow(10, power);
+    // Worked out in the System Units (a round number of them a division), drawn in millimetres.
+    const double scale = JPSystemUnits::shown(1.0);   // units a millimetre
+    double perUnits = scale * (maxX - minX) / (a.width / major);
+    const double power = std::floor(std::log10(perUnits));
+    double mult = perUnits / std::pow(10, power);
     mult = mult >= 2.5 ? 5 : mult >= 1.5 ? 2 : 1;
-    perDivision = mult * std::pow(10, power);
+    perUnits = mult * std::pow(10, power);
+    const double perDivision = perUnits / scale;
     const double perTick = mult == 5 ? perDivision / 5 : perDivision / 10;
-    std::string unit = "mm";
-    double shown = 1;
+    const bool inches = JPSystemUnits::inches();
+    std::string unit = inches ? "in" : "mm";
+    double shown = scale;   // a millimetre, as labelled
     int decimals = 0;
-    if (perDivision > 1) decimals = 0;
-    else if (perDivision > 0.1) decimals = 1;
+    if (inches ? perUnits >= 1 : perUnits > 1) decimals = 0;
+    else if (inches ? perUnits >= 0.1 : perUnits > 0.1) decimals = 1;
     else {
-        unit = "um";
-        shown = 1000;
+        unit = inches ? "mil" : "um";
+        shown = scale * 1000;
     }
     const double x0 = perDivision * std::floor(minX / perDivision), x1 = perDivision * std::ceil(maxX / perDivision);
     const double y0 = perDivision * std::floor(minY / perDivision), y1 = perDivision * std::ceil(maxY / perDivision);

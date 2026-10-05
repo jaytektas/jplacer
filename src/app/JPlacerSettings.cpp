@@ -3,6 +3,8 @@
 
 #include "JPlacerSettings.h"
 
+#include "model/JPSystemUnits.h"
+
 #include "common/JPlacerLog.h"
 #include "common/JPlacerPaths.h"
 
@@ -68,6 +70,10 @@ std::string JPlacerSettings::cameraReticleKey(const std::string& cameraId) {
 
 std::string JPlacerSettings::cameraZoomKey(const std::string& cameraId) {
     return "camera." + cameraId + ".zoomSensitivity";
+}
+
+const char* JPlacerSettings::jogDistancesKey() {
+    return JPSystemUnits::inches() ? kJogDistancesInches : kJogDistances;
 }
 
 std::string JPlacerSettings::cameraRenderingKey(const std::string& cameraId) {

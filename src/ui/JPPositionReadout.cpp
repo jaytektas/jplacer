@@ -42,8 +42,10 @@ std::string JPPositionReadout::text() const {
     std::string coordinates;
     for (const auto& [name, value] : m_source()) {
         const auto z = m_zero.find(name);
+        // C is the rotation: degrees; the rest lengths, in the System Units.
+        const double shown = value - (z == m_zero.end() ? 0.0 : z->second);
         coordinates += (coordinates.empty() ? "" : "   ") + name + " "
-                     + JPUiParts::coordinate(value - (z == m_zero.end() ? 0.0 : z->second));
+                     + (name == "C" ? JPUiParts::angle(shown) : JPUiParts::coordinate(shown));
     }
     return (m_relative ? kRelative : "") + coordinates;
 }

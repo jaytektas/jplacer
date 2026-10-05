@@ -3,6 +3,8 @@
 
 #include "JPUiParts.h"
 
+#include "model/JPSystemUnits.h"
+
 #include <j/core/JStyle.h>
 
 #include <algorithm>
@@ -36,7 +38,13 @@ std::unique_ptr<JButton> JPUiParts::button(JSceneGraph& graph, const std::string
 
 std::string JPUiParts::coordinate(double v) {
     char buf[32];
-    std::snprintf(buf, sizeof buf, "%.3f", v);
+    std::snprintf(buf, sizeof buf, "%.*f", JPSystemUnits::places(3), JPSystemUnits::shown(v));
+    return buf;
+}
+
+std::string JPUiParts::angle(double degrees) {
+    char buf[32];
+    std::snprintf(buf, sizeof buf, "%.3f", degrees);
     return buf;
 }
 

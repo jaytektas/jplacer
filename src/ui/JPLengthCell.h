@@ -10,7 +10,7 @@
 inline namespace jf {
 
 // A length in a table cell, as OpenPnP's LengthCellValue: shown to three
-// places in the system's units (millimetres), or in its own units with
+// places in the System Units (JPSystemUnits), or in its own units with
 // their name when `nativeUnits` and they differ; edited as a number with or
 // without units, the old length's units taken where none are given.
 struct JPLengthCell {

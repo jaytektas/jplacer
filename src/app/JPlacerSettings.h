@@ -45,9 +45,14 @@ public:
     static constexpr const char* kJogDistance      = "jog.distance";
     static constexpr const char* kJogSpeed         = "jog.speed";
     static constexpr const char* kJogStepThrough   = "jog.stepThrough";   // tip changes asked step by step
-    // The Jog panel's steps, numbers apart: the distances a press moves (mm
-    // or degrees) and the speeds (%) a key or Faster / Slower picks.
-    static constexpr const char* kJogDistances     = "jog.distances";
+    // The Jog panel's steps, numbers apart: the distances a press moves (in
+    // the System Units, kept apart for each, or degrees) and the speeds (%) a
+    // key or Faster / Slower picks.
+    // OpenPnP's View > System Units: "Millimeters" or "Inches" (taken at start).
+    static constexpr const char* kSystemUnits        = "view.systemUnits";
+    static constexpr const char* kJogDistances       = "jog.distances";
+    static constexpr const char* kJogDistancesInches = "jog.distancesInches";
+    static const char* jogDistancesKey();
     static constexpr const char* kJogSpeeds        = "jog.speeds";
     // The cell file (cells/<name>.json) opened last; opened again at start.
     static constexpr const char* kMachineCell      = "machine.cell";

@@ -37,27 +37,28 @@ std::function<JPFeeder&()> finder(JPConfiguration& config, const std::string& id
     return [&config, id]() -> JPFeeder& { return *config.feeder(id); };
 }
 
-// A location's coordinate, read and set in millimetres (its rotation as it is).
+// A location's coordinate, read and set in millimetres (shown in the System
+// Units; its rotation as it is).
 enum class Axis { X, Y, Z, Rotation };
 void coordinate(JPFormBuilder& add, std::function<JPFeeder&()> f, const std::string& element, Axis axis,
                 const std::string& label) {
-    add.number(element + "." + label, label,
-               [f, element, axis] {
-                   const JPLocation l = f().locationOf(element).convertToUnits(kMm);
-                   return axis == Axis::X ? l.x() : axis == Axis::Y ? l.y() : axis == Axis::Z ? l.z() : l.rotation();
-               },
-               [f, element, axis](double v) {
-                   const JPLocation l = f().locationOf(element).convertToUnits(kMm);
-                   f().setLocationOf(element, l.derive(axis == Axis::X ? std::optional(v) : std::nullopt,
-                                                       axis == Axis::Y ? std::optional(v) : std::nullopt,
-                                                       axis == Axis::Z ? std::optional(v) : std::nullopt,
-                                                       axis == Axis::Rotation ? std::optional(v) : std::nullopt));
-               });
+    auto get = [f, element, axis] {
+        const JPLocation l = f().locationOf(element).convertToUnits(kMm);
+        return axis == Axis::X ? l.x() : axis == Axis::Y ? l.y() : axis == Axis::Z ? l.z() : l.rotation();
+    };
+    auto set = [f, element, axis](double v) {
+        const JPLocation l = f().locationOf(element).convertToUnits(kMm);
+        f().setLocationOf(element, l.derive(axis == Axis::X ? std::optional(v) : std::nullopt,
+                                            axis == Axis::Y ? std::optional(v) : std::nullopt,
+                                            axis == Axis::Z ? std::optional(v) : std::nullopt,
+                                            axis == Axis::Rotation ? std::optional(v) : std::nullopt));
+    };
+    add.coordinate(axis == Axis::Rotation, element + "." + label, label, get, set);
 }
 
 void length(JPFormBuilder& add, std::function<JPFeeder&()> f, const std::string& element, const std::string& label,
             double def) {
-    add.number(element, label, [f, element, def] { return mm(f().lengthOf(element, JPLength(def, kMm))); },
+    add.length(element, label, [f, element, def] { return mm(f().lengthOf(element, JPLength(def, kMm))); },
                [f, element](double v) { f().setLengthOf(element, JPLength(v, kMm)); });
 }
 
@@ -213,7 +214,7 @@ void trayForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeede
     add.header({ "X", "Y" });
     add.row("Offsets");
     for (const Axis a : { Axis::X, Axis::Y })
-        add.number(std::string("offsets.") + (a == Axis::X ? "X" : "Y"), a == Axis::X ? "X" : "Y",
+        add.length(std::string("offsets.") + (a == Axis::X ? "X" : "Y"), a == Axis::X ? "X" : "Y",
                    [f, a] {
                        const JPLocation l = f().locationOf("offsets").convertToUnits(kMm);
                        return a == Axis::X ? l.x() : l.y();
@@ -360,8 +361,8 @@ void neoden4Form(JPFormBuilder& add, JPConfiguration& config, std::function<JPFe
     general(add, config, f, false);
     pickLocation(add, f);
     add.group("Other");
-    add.row("Pitch In Tape [mm]");
-    length(add, f, "part-pitch-in-tape", "Pitch In Tape [mm]", 4);
+    add.row("Pitch In Tape");
+    length(add, f, "part-pitch-in-tape", "Pitch In Tape", 4);
     add.integer("part-rotation-in-tape", "Rotation In Tape [deg]",
                 [f] { return std::atoi(f().childText("part-rotation-in-tape", "0").c_str()); },
                 [f](int v) { f().setChildText("part-rotation-in-tape", std::to_string(v)); }, -kMostCount, kMostCount);
@@ -491,7 +492,7 @@ void slotForm(JPFormBuilder& add, JPConfiguration& config, const std::string& sl
     for (const auto& [axis, label] : { std::pair { Axis::X, "X" }, std::pair { Axis::Y, "Y" }, std::pair { Axis::Z, "Z" },
                                        std::pair { Axis::Rotation, "Rotation" } }) {
         const Axis a = axis;
-        add.number(std::string("slot.offsets.") + label, label,
+        add.coordinate(a == Axis::Rotation, std::string("slot.offsets.") + label, label,
                    [banks, bank, loaded, a] {
                        const auto bf = banks().feeder(bank(), loaded());
                        if (!bf) return 0.0;
@@ -591,7 +592,7 @@ void photonForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFee
         for (const auto& [axis, label] : { std::pair { Axis::X, "X" }, std::pair { Axis::Y, "Y" }, std::pair { Axis::Z, "Z" },
                                            std::pair { Axis::Rotation, "Rotation" } }) {
             const Axis a = axis;
-            add.number(std::string("photon.slot.") + label, label,
+            add.coordinate(a == Axis::Rotation, std::string("photon.slot.") + label, label,
                        [slotAt, a] {
                            const JPLocation l = slotAt().value_or(JPLocation(kMm)).convertToUnits(kMm);
                            return a == Axis::X ? l.x() : a == Axis::Y ? l.y() : a == Axis::Z ? l.z() : l.rotation();
@@ -1098,7 +1099,7 @@ void blindsForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFee
     add.tip("Picth of the part pockets in the tape.");
     add.row("Pocket Count");
     add.text("pocket-count", "Pocket Count", [f] { return std::to_string(f().number("pocket-count", 0)); }, nullptr);
-    add.number("pocket-centerline", "Pocket Centerline", [len] { return len("pocket-centerline", 0); },
+    add.length("pocket-centerline", "Pocket Centerline", [len] { return len("pocket-centerline", 0); },
                [&config, f](double v) { JPBlindsFeeders::setPocketCenterline(config, f().id(), v); });
     add.end();
     add.row("First Pocket");
@@ -1156,7 +1157,7 @@ void blindsForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFee
         const std::string element = "fiducial-" + std::to_string(n) + "-location";
         add.row("Fiducial " + std::to_string(n), Place::Location);
         for (const Axis axis : { Axis::X, Axis::Y })
-            add.number(element + (axis == Axis::X ? ".X" : ".Y"), axis == Axis::X ? "X" : "Y",
+            add.length(element + (axis == Axis::X ? ".X" : ".Y"), axis == Axis::X ? "X" : "Y",
                        [f, element, axis] {
                            const JPLocation l = f().locationOf(element).convertToUnits(kMm);
                            return axis == Axis::X ? l.x() : l.y();
@@ -1318,7 +1319,7 @@ void heapForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeede
         add.row(label, Place::Location);
         for (const auto& [axis, name] : { std::pair { Axis::X, "X" }, std::pair { Axis::Y, "Y" }, std::pair { Axis::Z, "Z" } }) {
             auto [get, set] = boxPlace(which, axis);
-            add.number(std::string("drop-box.") + which + "." + name, name, get, set);
+            add.length(std::string("drop-box.") + which + "." + name, name, get, set);
         }
         add.end();
     }
@@ -1374,7 +1375,7 @@ void rotatedTrayForm(JPFormBuilder& add, JPConfiguration& config, std::function<
     add.button("calculateOffsets", "Calculate Offsets & Tray Rotation");
     add.row("Column Offset");
     for (const bool x : { true, false })
-        add.number(x ? "offsets.X" : "offsets.Y", x ? "Column Offset" : "Row Offset",
+        add.length(x ? "offsets.X" : "offsets.Y", x ? "Column Offset" : "Row Offset",
                    [f, x] {
                        const JPLocation l = f().locationOf("offsets").convertToUnits(kMm);
                        return x ? l.x() : l.y();

@@ -3,6 +3,8 @@
 
 #include "JPJogPanel.h"
 
+#include "model/JPSystemUnits.h"
+
 #include "JPIconButton.h"
 #include "JPIcons.h"
 #include "JPUiParts.h"
@@ -37,8 +39,10 @@ std::string percent(double share) {
 } // namespace
 
 const std::vector<double>& JPJogPanel::defaultDistances() {
-    static const std::vector<double> steps = { 0.01, 0.1, 1, 10, 25, 50, 100 };   // as OpenPnP offers
-    return steps;
+    // As OpenPnP offers, in millimetres or in inches (and a few between).
+    static const std::vector<double> mm = { 0.01, 0.1, 1, 10, 25, 50, 100 };
+    static const std::vector<double> inches = { 0.001, 0.01, 0.1, 1, 2, 5, 10 };
+    return JPSystemUnits::inches() ? inches : mm;
 }
 
 const std::vector<double>& JPJogPanel::defaultSpeeds() {
@@ -480,6 +484,7 @@ void JPJogPanel::showTipMenu() {
 }
 
 double JPJogPanel::distance() const { return m_distances[size_t(m_distanceIndex)]; }
+double JPJogPanel::lengthStep() const { return JPSystemUnits::stored(distance()); }
 double JPJogPanel::speed() const    { return std::max(kLeastSpeed, m_speedShare); }
 
 JPJogPanel::Choices JPJogPanel::choices() const {
@@ -506,10 +511,11 @@ const JPJogPanel::Tool* JPJogPanel::camera() const {
 
 void JPJogPanel::jog(double dx, double dy, double dz, double dc) {
     if (m_tools.empty()) return;
-    const double d = distance();
+    // Along the axes in the System Units, turned in degrees.
+    const double d = lengthStep(), r = distance();
     JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Jog: " << m_tools[m_tool].label << " by " << dx * d << ", " << dy * d << ", "
-                                            << dz * d << ", " << dc * d;
-    m_cell.jog(m_tools[m_tool].id, dx * d, dy * d, dz * d, dc * d, 1.0);
+                                            << dz * d << ", " << dc * r;
+    m_cell.jog(m_tools[m_tool].id, dx * d, dy * d, dz * d, dc * r, 1.0);
 }
 
 void JPJogPanel::moveTo(const Tool& tool, const Tool& over) {

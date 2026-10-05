@@ -3,6 +3,8 @@
 
 #include "JPlacerApp.h"
 
+#include "model/JPSystemUnits.h"
+
 #include "JPlacerLauncher.h"
 #include "common/JPLogLevels.h"
 #include "common/JPlacerLog.h"
@@ -32,6 +34,10 @@ JPlacerApp::JPlacerApp(std::string settingsPath) {
     JPlacerSettings::load(settingsPath);
     // How much the log says, as last chosen (the console's controls).
     JPLogLevels::fromText(JSettings::instance().get<std::string>(JPlacerSettings::kLogLevels, "info")).apply();
+    // The units lengths are shown in, as chosen (a change takes effect at the next start).
+    JPSystemUnits::setUnits(JSettings::instance().get<std::string>(JPlacerSettings::kSystemUnits, "Millimeters") == "Inches"
+                                ? JPLengthUnit::Inches
+                                : JPLengthUnit::Millimeters);
     JLOGC(JPlacerLog::kApp, JLogLevel::Info) << "starting jplacer " << JPLACER_VERSION;
 
     m_window = std::make_unique<JAppWindow>(kWindowTitle, kWindowWidth, kWindowHeight);

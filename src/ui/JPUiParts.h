@@ -22,8 +22,10 @@ public:
     // A button as wide as its label: JButton's minimum width fits the text,
     // and a zero design width lets the layout settle on it.
     static std::unique_ptr<JButton> button(JSceneGraph& graph, const std::string& label);
-    // A coordinate as panels show it.
+    // A length (a coordinate) in millimetres as panels show it: in the System Units.
     static std::string coordinate(double v);
+    // An angle in degrees as panels show it.
+    static std::string angle(double degrees);
 };
 
 } // inline namespace jf

@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- View > System Units > Inches, as OpenPnP's: every length shown and typed in inches (rotations in degrees), from the
+  next start. The Jog distances are kept apart for inches.
 - A camera can be OpenPnP's GstreamerCamera: any GStreamer pipeline, as gst-launch-1.0 is given one (GStreamer must be
   installed). OpenPnP machines bring theirs in.
 - A camera slow to give its first picture is no longer taken for hidden and stopped before it shows.

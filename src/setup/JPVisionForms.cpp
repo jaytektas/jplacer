@@ -125,7 +125,7 @@ void bottomForm(JPFormBuilder& add, std::function<JPVisionSettings&()> v, const 
     add.header({ "X", "Y" });
     add.row("Vision Center Offsets");
     for (const bool x : { true, false })
-        add.number(x ? "bottom:offsetX" : "bottom:offsetY", x ? "X" : "Y",
+        add.length(x ? "bottom:offsetX" : "bottom:offsetY", x ? "X" : "Y",
                    [v, x] {
                        const JPLocation l = v().locationOf("vision-offset").convertToUnits(JPLengthUnit::Millimeters);
                        return x ? l.x() : l.y();
@@ -151,11 +151,11 @@ void fiducialForm(JPFormBuilder& add, std::function<JPVisionSettings&()> v, cons
     add.integer("fiducial:max-vision-passes", "Max. Vision Passes", [v] { return v().number("max-vision-passes", 3); },
                 [v](int n) { v().setText("max-vision-passes", std::to_string(n)); }, 1, 100);
     add.tip("The maximum number of fiducial vision passes performed to get a good fix on the part.");
-    add.number("fiducial:max-linear-offset", "Max. Linear Offset", [v] { return v().lengthMm("max-linear-offset", 0.2); },
+    add.length("fiducial:max-linear-offset", "Max. Linear Offset", [v] { return v().lengthMm("max-linear-offset", 0.2); },
                [v](double mm) { v().setLengthMm("max-linear-offset", mm); });
     add.tip("The maximum linear fiducial offset accepted as a good fix i.e. where no additional vision pass is needed.");
     add.row("Parallax Diameter");
-    add.number("fiducial:parallax-diameter", "Parallax Diameter", [v] { return v().lengthMm("parallax-diameter", 0); },
+    add.length("fiducial:parallax-diameter", "Parallax Diameter", [v] { return v().lengthMm("parallax-diameter", 0); },
                [v](double mm) { v().setLengthMm("parallax-diameter", mm); });
     add.number("fiducial:parallax-angle", "Parallax Angle", [v] { return v().real("parallax-angle", 0); },
                [v](double a) { v().setText("parallax-angle", num(a)); });

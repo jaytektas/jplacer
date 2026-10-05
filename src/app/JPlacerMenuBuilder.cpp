@@ -11,6 +11,8 @@
 
 #include <filesystem>
 
+#include <j/config/Settings.h>
+#include <j/core/Dialog.h>
 #include <j/core/MenuSystem.h>
 
 #include <initializer_list>
@@ -136,10 +138,20 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
         i->setEnabled(enabled);
         return i;
     };
+    // As OpenPnP's: kept, and taken at the next start (said so).
     JMenu* units = subMenu("System Units");
-    tick(units, "Inches", false, false);
-    JMenuItem* mm = tick(units, "Millimeters", true, true);
-    mm->onTriggered.connect([mm] { mm->setChecked(true); });
+    const bool inches = JSettings::instance().get<std::string>(JPlacerSettings::kSystemUnits, "Millimeters") == "Inches";
+    JMenuItem* inchesItem = tick(units, "Inches", inches, true);
+    JMenuItem* mmItem = tick(units, "Millimeters", !inches, true);
+    auto setUnits = [inchesItem, mmItem](bool toInches) {
+        inchesItem->setChecked(toInches);
+        mmItem->setChecked(!toInches);
+        JSettings::instance().set(JPlacerSettings::kSystemUnits, std::string(toInches ? "Inches" : "Millimeters"));
+        JPlacerSettings::save();
+        JDialog::message("Notice", "Please restart jplacer for the changes to take effect.");
+    };
+    inchesItem->onTriggered.connect([setUnits] { setUnits(true); });
+    mmItem->onTriggered.connect([setUnits] { setUnits(false); });
     JMenu* tables = subMenu("Selections in Tables");
     const bool linked = JSettings::instance().get<bool>(JPlacerSettings::kTablesLinked, false);
     JMenuItem* unlinkedItem = tick(tables, "Unlinked", !linked, true);

@@ -3,6 +3,8 @@
 
 #include "JPlacerPreferencesDialog.h"
 
+#include "model/JPSystemUnits.h"
+
 #include "JPlacerAppearance.h"
 #include "JPlacerLauncher.h"
 #include "JPlacerMachine.h"
@@ -241,7 +243,8 @@ std::unique_ptr<JContainer> JPlacerPreferencesDialog::jogPage() {
     JSceneGraph& g = graph();
     auto page = std::make_unique<JContainer>(g, 0.f, 0.f);
     JPUiParts::asPanel(*page);
-    const std::string distanceLabel = "Distance steps (mm or degrees)", speedLabel = "Speed steps (%)";
+    const std::string distanceLabel = std::string("Distance steps (") + JPSystemUnits::suffix() + " or degrees)",
+                      speedLabel = "Speed steps (%)";
     const float widest = std::max(JTextHelper::measureWidth(distanceLabel), JTextHelper::measureWidth(speedLabel));
 
     page->add(heading(g, "Jog panel"));
@@ -257,7 +260,7 @@ std::unique_ptr<JContainer> JPlacerPreferencesDialog::jogPage() {
     page->add(labelled(g, speedLabel, widest, std::move(speeds)));
     page->add(note("Numbers apart, smallest first. The distance slider steps through the distances; the speeds "
                       "mark the speed slider, and Faster and Slower go to the next. Each step can be given a key on "
-                      "the Keys tab (1 for 1 mm, say). Empty: the steps jplacer starts with."));
+                      "the Keys tab (1 for 1 unit, say). Empty: the steps jplacer starts with."));
     m_jogNote = page->add(note(""));
 
     // Taken as a whole when committed; steps that make no sense are said so,
@@ -285,7 +288,7 @@ std::unique_ptr<JContainer> JPlacerPreferencesDialog::jogPage() {
             fillKeys();   // the steps' own keys
         });
     };
-    take(d, JPlacerSettings::kJogDistances, JPlacerMachine::kLeastJogDistance, JPlacerMachine::kMostJogDistance, false);
+    take(d, JPlacerSettings::jogDistancesKey(), JPlacerMachine::kLeastJogDistance, JPlacerMachine::kMostJogDistance, false);
     take(s, JPlacerSettings::kJogSpeeds, 1, 100, true);
     return page;
 }

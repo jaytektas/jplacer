@@ -128,7 +128,8 @@ public:
     void populateRenderPrimitives(JPrimitiveBuffer& buf) override;
 
     // The distance chosen for a jog step (mm).
-    double distance() const;
+    double distance() const;     // as chosen: in the System Units (a turn's, degrees)
+    double lengthStep() const;   // the distance as a length, in millimetres
 
 private:
     struct Tool {

@@ -4,6 +4,7 @@
 #pragma once
 
 #include "JPSetupProperties.h"
+#include "model/JPSystemUnits.h"
 
 #include <functional>
 #include <memory>
@@ -153,11 +154,28 @@ public:
         JProperty p = make(name, label);
         p.meta.decimals = decimals;
         p.get = [get] { return JVariant(get()); };
-        p.set = [set](const JVariant& v) { set(v.toDouble()); return true; };
+        if (set) p.set = [set](const JVariant& v) { set(v.toDouble()); return true; };   // none: shown, not edited
         put(std::move(p));
     }
     void number(const std::string& name, const std::string& label, std::function<double&()> ref, int decimals = 3) {
         number(name, label, [ref] { return ref(); }, [ref](double v) { ref() = v; }, decimals);
+    }
+    // A length, kept in millimetres: shown and typed in the System Units
+    // (JPSystemUnits), to `decimals` places in millimetres.
+    void length(const std::string& name, const std::string& label, std::function<double()> get,
+                std::function<void(double)> set, int decimals = 3) {
+        std::function<void(double)> stored;
+        if (set) stored = [set](double v) { set(JPSystemUnits::stored(v)); };
+        number(name, label, [get] { return JPSystemUnits::shown(get()); }, std::move(stored), JPSystemUnits::places(decimals));
+    }
+    void length(const std::string& name, const std::string& label, std::function<double&()> ref, int decimals = 3) {
+        length(name, label, [ref] { return ref(); }, [ref](double v) { ref() = v; }, decimals);
+    }
+    // A location's coordinate: its rotation in degrees, the others lengths.
+    void coordinate(bool rotation, const std::string& name, const std::string& label, std::function<double()> get,
+                    std::function<void(double)> set) {
+        if (rotation) number(name, label, std::move(get), std::move(set));
+        else length(name, label, std::move(get), std::move(set));
     }
     void integer(const std::string& name, const std::string& label, std::function<int()> get,
                  std::function<void(int)> set, int min, int max) {

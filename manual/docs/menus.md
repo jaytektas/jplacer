@@ -40,7 +40,7 @@ key taken off, in [Preferences, Keys](preferences.md#keys); the menu then shows 
 
 | Entry | |
 |---|---|
-| **System Units** | **Millimeters**, ticked: jplacer works in millimetres. **Inches** is greyed out: not built yet. |
+| **System Units** | **Millimeters** (to start with) or **Inches**, as in OpenPnP: the units every length is shown and typed in (coordinates, offsets, sizes, axis speeds and limits, the position at the foot of the window, tables, the Jog distances), to one more place in inches; rotations stay in degrees. Lengths are kept in millimetres whichever is chosen. The choice takes effect the next time jplacer starts (it says so). A table's length in other units than these is shown in its own, with their name. The Jog distances are kept apart for each (Edit > Preferences, Jog): to start with 0.01 to 100 mm, or 0.001 to 10 in. |
 | **Selections in Tables** | **Unlinked** (to start with) or **Linked**. Linked, what you choose in one tab's table chooses what goes with it on the other tabs, as in OpenPnP (see below). |
 | **Language** | **English (United States)**, ticked. OpenPnP's other languages (Russian, Spanish, French, Italian, German, Chinese) are greyed out: not built yet. |
 
@@ -48,7 +48,7 @@ Under them, a tick for each panel: each camera, **Jog**, **Actuators**, **[Parts
 **Machine Setup**, **Machine** and **Console**. Untick one to close it; tick it to show it again where it lives (see
 [The machine's panels](machine.md#the-machines-panels)).
 
-<!-- src: src/app/JPlacerMenuBuilder.cpp (View); src/app/JPlacerLayout.cpp (rebuildMenu) -->
+<!-- src: src/app/JPlacerMenuBuilder.cpp (View); src/app/JPlacerLayout.cpp (rebuildMenu); src/model/JPSystemUnits.cpp; src/setup/JPFormBuilder.h (length); src/ui/JPLengthCell.cpp; src/ui/JPJogPanel.cpp (defaultDistances, jog); src/app/JPlacerSettings.cpp (jogDistancesKey) -->
 
 ### Linked tables
 
