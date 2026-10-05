@@ -680,6 +680,117 @@ void actuators(JPSolutions& s, const JPIssueChecks::Context& c) {
     }
 }
 
+// OpenPnP's GcodeDriverSolutions, as far as they are not about firmwares
+// jplacer meets through its profiles: serial flow control for a Grbl, pre-move
+// commands and letter variables, the driver's maximum feed rate, and G-code
+// compression and comments (the faster at Advanced, the safer before it).
+void drivers(JPSolutions& s, const JPIssueChecks::Context& c) {
+    const JPCellConfig* cell = c.cell ? c.cell() : nullptr;
+    if (!cell) return;
+    const std::string asyncWiki = std::string(kWiki) + "GcodeAsyncDriver#gcodedriver-new-settings";
+    for (const JPDriverConfig& d : cell->drivers) {
+        const std::string id = d.id, subject = "GcodeDriver " + d.name;
+        auto set = [c, id](const char* what, std::function<void(JPDriverConfig&, bool solved)> edit) {
+            return changing(c, what, [id, edit](JPCellConfig& cell, bool solved) {
+                for (JPDriverConfig& x : cell.drivers)
+                    if (x.id == id) edit(x, solved);
+            });
+        };
+        bool hasAxes = false;
+        for (const JPAxisConfig& a : cell->axes) hasAxes = hasAxes || a.driverId == d.id;
+        // A Grbl takes no serial flow control (OpenPnP's FirmwareType.Grbl).
+        const bool grbl = d.profile == "grbl" || d.profile == "grblhal";
+        const std::string flow = d.link["flowControl"].str();
+        if (s.isTargeting(Milestone::Connect) && grbl && d.link["type"].str() == "serial" && !flow.empty() && flow != "none") {
+            Issue i;
+            i.subject = subject;
+            i.issue = "Change of serial port Flow Control recommended.";
+            i.solution = "Set Flow Control to Off on serial port. The detected Grbl controller is known to not (reliably) "
+                         "support serial flow-control.";
+            i.severity = Severity::Warning;
+            i.uri = "https://en.wikipedia.org/wiki/Flow_control_(data)#Hardware_flow_control";
+            i.apply = set("Serial flow control", [flow](JPDriverConfig& x, bool solved) { x.link["flowControl"] = solved ? std::string() : flow; });
+            s.add(std::move(i));
+        }
+        if (hasAxes && s.isTargeting(Milestone::Basics)) {
+            Issue i;
+            i.subject = subject;
+            i.severity = Severity::Fundamental;
+            i.uri = std::string(kWiki) + "Advanced-Motion-Control#migration-from-a-previous-version";
+            if (d.supportingPreMove) {
+                i.issue = "Disallow Pre-Move Commands for automatic G-code setup and other advanced features. Accept or Dismiss to continue.";
+                i.solution = "Disable Allow Letter Pre-Move Commands.";
+                i.apply = set("Pre-move commands", [](JPDriverConfig& x, bool solved) { x.supportingPreMove = !solved; });
+                s.add(std::move(i));
+            } else if (!d.usingLetterVariables) {
+                i.issue = "Use Axis Letter Variables for simpler use, automatic G-code setup, and other advanced features.";
+                i.solution = "Enable Letter Variables.";
+                i.apply = set("Letter variables", [](JPDriverConfig& x, bool solved) { x.usingLetterVariables = solved; });
+                s.add(std::move(i));
+            }
+        }
+        if (hasAxes && s.isTargeting(Milestone::Kinematics) && d.maxFeedRate > 0) {
+            Issue i;
+            i.subject = subject;
+            i.issue = "Axis velocity limited by driver Maximum Feed Rate. ";
+            i.solution = "Remove driver Maximum Feed Rate.";
+            i.severity = Severity::Suggestion;
+            i.uri = asyncWiki;
+            const double old = d.maxFeedRate;
+            i.apply = set("Maximum feed rate", [old](JPDriverConfig& x, bool solved) { x.maxFeedRate = solved ? 0 : old; });
+            s.add(std::move(i));
+        }
+        if (s.isTargeting(Milestone::Advanced)) {
+            if (!d.compressGcode) {
+                Issue i;
+                i.subject = subject;
+                i.issue = "Compress Gcode for superior communications speed.";
+                i.solution = "Enable Compress Gcode.";
+                i.severity = Severity::Suggestion;
+                i.uri = asyncWiki;
+                i.apply = set("Compress G-code", [](JPDriverConfig& x, bool solved) { x.compressGcode = solved; });
+                s.add(std::move(i));
+            }
+            if (!d.removeComments) {
+                Issue i;
+                i.subject = subject;
+                i.issue = "Remove Gcode comments for superior communications speed.";
+                i.solution = "Enable Remove Comments.";
+                i.severity = Severity::Suggestion;
+                i.uri = asyncWiki;
+                i.apply = set("Remove G-code comments", [](JPDriverConfig& x, bool solved) { x.removeComments = solved; });
+                s.add(std::move(i));
+            }
+        } else {
+            // Conservative: offered, never counted as unhandled.
+            if (d.compressGcode) {
+                Issue i;
+                i.subject = subject;
+                i.issue = "Disable G-code compression for trouble-free operation with incompatible controllers.";
+                i.solution = "Disable Compress G-code.";
+                i.severity = Severity::Information;
+                i.uri = asyncWiki;
+                i.neverUnhandled = true;
+                i.extendedDescription = "CAUTION: This is a troubleshooting option, you should only disable G-code "
+                                        "compression if it causes problems.";
+                i.apply = set("Compress G-code", [](JPDriverConfig& x, bool solved) { x.compressGcode = !solved; });
+                s.add(std::move(i));
+            }
+            if (d.removeComments) {
+                Issue i;
+                i.subject = subject;
+                i.issue = "Keep G-code comments for better debugging.";
+                i.solution = "Disable Remove Comments.";
+                i.severity = Severity::Information;
+                i.uri = asyncWiki;
+                i.neverUnhandled = true;
+                i.apply = set("Remove G-code comments", [](JPDriverConfig& x, bool solved) { x.removeComments = !solved; });
+                s.add(std::move(i));
+            }
+        }
+    }
+}
+
 // OpenPnP's VisionSolutions, as far as they are not jplacer's own
 // calibration: visual homing, and the calibration rig's heights.
 void visionSetup(JPSolutions& s, const JPIssueChecks::Context& c) {
@@ -808,6 +919,7 @@ std::vector<JPSolutions::Check> JPIssueChecks::all(const Context& c) {
         [c](JPSolutions& s) { connect(s, c); },
         [c](JPSolutions& s) { basics(s, c); },
         [c](JPSolutions& s) { actuators(s, c); },
+        [c](JPSolutions& s) { drivers(s, c); },
         [c](JPSolutions& s) { kinematics(s, c); },
         [c](JPSolutions& s) { vision(s, c); },
         [c](JPSolutions& s) { cameraViews(s, c); },

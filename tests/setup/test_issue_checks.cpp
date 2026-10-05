@@ -236,6 +236,37 @@ int main() {
         assert(find(vs, "Safe Z of Nozzle N1 lower than secondary fiducial Z."));
         assert(!find(vs, "Safe Z of Nozzle N1 lower than primary fiducial Z."));
     }
+    // OpenPnP's GcodeDriverSolutions: flow control for a Grbl, pre-move commands, the maximum feed rate, compression.
+    {
+        JPCellConfig g = cell;
+        g.drivers.front().profile = "grblhal";
+        g.drivers.front().link["type"] = std::string("serial");
+        g.drivers.front().link["flowControl"] = std::string("rtscts");
+        g.drivers.front().supportingPreMove = true;
+        g.drivers.front().maxFeedRate = 5000;
+        JPIssueChecks::Context k = c;
+        k.cell = [&g]() -> const JPCellConfig* { return &g; };
+        k.changeCell = [&g](const std::string&, const std::function<void(JPCellConfig&)>& edit) { edit(g); };
+        S d;
+        d.setChecks(JPIssueChecks::all(k));
+        d.setTargetMilestone(S::Milestone::Kinematics);
+        d.find();
+        d.publish();
+        S::Issue* flow = const_cast<S::Issue*>(find(d, "Change of serial port Flow Control recommended."));
+        S::Issue* premove = const_cast<S::Issue*>(find(d, "Disallow Pre-Move Commands for automatic G-code setup and other advanced features. Accept or Dismiss to continue."));
+        S::Issue* feed = const_cast<S::Issue*>(find(d, "Axis velocity limited by driver Maximum Feed Rate. "));
+        assert(flow && premove && feed && !find(d, "Compress Gcode for superior communications speed."));
+        std::string why;
+        assert(d.setState(*flow, S::State::Solved, why) && g.drivers.front().link["flowControl"].str().empty());
+        assert(d.setState(*premove, S::State::Solved, why) && !g.drivers.front().supportingPreMove);
+        assert(d.setState(*feed, S::State::Solved, why) && g.drivers.front().maxFeedRate == 0);
+        assert(d.setState(*feed, S::State::Open, why) && g.drivers.front().maxFeedRate == 5000);
+        d.setTargetMilestone(S::Milestone::Advanced);
+        d.find();
+        d.publish();
+        S::Issue* compress = const_cast<S::Issue*>(find(d, "Compress Gcode for superior communications speed."));
+        assert(compress && d.setState(*compress, S::State::Solved, why) && g.drivers.front().compressGcode);
+    }
     // Production: the tables linked on Accept, unlinked again on Reopen.
     {
         bool linked = false;

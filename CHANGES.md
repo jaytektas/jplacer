@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Issues & Solutions checks the controllers as OpenPnP's GcodeDriverSolutions does: serial flow control on a Grbl,
+  pre-move commands and letter variables, the Maximum Feed Rate, G-code compression and comments.
 - Issues & Solutions, as OpenPnP's VisionSolutions: Enable Visual Homing (Accept finds the mark under the head camera
   and makes it the homing mark), the calibration rig's heights against each other and against Safe Z, and linking the
   tables in Production.
