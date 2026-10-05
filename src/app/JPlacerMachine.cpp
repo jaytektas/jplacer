@@ -1104,26 +1104,7 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
         if (JPCameraView* view = cameraViewOf(upCameraFeed()))
             view->showPicture(shown, "Background problems: as seen, and the problems marked", kProblemsMs);
     } else if (action == "calibrateBacklash" && path.rfind("axis:", 0) == 0) {
-        // What it found is in use already; kept through Machine Setup, a step to undo.
-        const std::string id = path.substr(5);
-        m_cameraTasks->calibrateBacklash(id, [this, id](const JPBacklashCalibrator::Result& r) {
-            if (!m_setup) return;
-            std::string name = id;
-            if (const JPAxisConfig* a = m_cell->config().axis(id)) name = a->name;
-            m_setup->change("Backlash of " + name, [&](JPCellConfig& cell) {
-                for (JPAxisConfig& a : cell.axes)
-                    if (a.id == id) {
-                        a.backlash = r.method;
-                        a.backlashOffset = r.offset;
-                        a.sneakUpMm = r.sneakUpMm;
-                        a.backlashSpeedFactor = r.speedFactor;
-                        a.backlashTable = r.table;
-                        a.approachMm = r.approachMm;
-                        a.backlashCalibration = r.data;
-                    }
-            });
-            m_setup->remakeForm();
-        });
+        calibrateBacklash(path.substr(5), nullptr);
     } else if (action == "homeNozzleZ" && path.rfind("nozzle:", 0) == 0) {
         homeNozzle(path.substr(7));
     } else if (action.rfind("whiteBalance", 0) == 0 && path.rfind("camera:", 0) == 0) {
@@ -1373,6 +1354,41 @@ void JPlacerMachine::showSetupNode(const std::string& path) {
 
 void JPlacerMachine::changeSetup(const std::string& what, const std::function<void(JPCellConfig&)>& edit) {
     if (m_setup) m_setup->change(what, edit);
+}
+
+void JPlacerMachine::calibrateCamera(const std::string& cameraId, std::function<void(bool ok)> finished) {
+    for (CameraDock& c : m_cameras)
+        if (c.panel->camera().id == cameraId && m_cameraTasks) {
+            m_cameraTasks->calibrate(*c.panel, std::move(finished));
+            return;
+        }
+    if (finished) finished(false);
+}
+
+void JPlacerMachine::calibrateBacklash(const std::string& axisId, std::function<void(bool ok)> finished) {
+    if (!m_cameraTasks) {
+        if (finished) finished(false);
+        return;
+    }
+    // What it found is in use already; kept through Machine Setup, a step to undo.
+    m_cameraTasks->calibrateBacklash(axisId, [this, axisId](const JPBacklashCalibrator::Result& r) {
+        if (!m_setup) return;
+        std::string name = axisId;
+        if (const JPAxisConfig* a = m_cell->config().axis(axisId)) name = a->name;
+        m_setup->change("Backlash of " + name, [&](JPCellConfig& cell) {
+            for (JPAxisConfig& a : cell.axes)
+                if (a.id == axisId) {
+                    a.backlash = r.method;
+                    a.backlashOffset = r.offset;
+                    a.sneakUpMm = r.sneakUpMm;
+                    a.backlashSpeedFactor = r.speedFactor;
+                    a.backlashTable = r.table;
+                    a.approachMm = r.approachMm;
+                    a.backlashCalibration = r.data;
+                }
+        });
+        m_setup->remakeForm();
+    }, std::move(finished));
 }
 
 bool JPlacerMachine::cameraRenderingSmooth(const std::string& cameraId) const {

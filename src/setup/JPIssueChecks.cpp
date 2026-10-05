@@ -51,6 +51,39 @@ std::function<bool(State, std::string&)> changing(const JPIssueChecks::Context& 
     };
 }
 
+// An issue solved by work on the machine (`start`, in the background): Accept
+// starts it; when it fails, the issue is open again, as OpenPnP restores it.
+using Work = std::function<void(std::function<void(bool ok)> finished)>;
+void solvedByWork(JPSolutions& s, Issue& i, Work start) {
+    const std::string fingerprint = i.fingerprint();
+    i.canBeAccepted = true;
+    i.apply = [sp = &s, fingerprint, start = std::move(start)](State to, std::string& why) {
+        if (to != State::Solved) return true;   // what it did stays: done again on another Accept
+        // Failing at once (the machine not ready): Accept fails. Failing later: open again.
+        auto starting = std::make_shared<bool>(true);
+        auto failedAtOnce = std::make_shared<bool>(false);
+        start([sp, fingerprint, starting, failedAtOnce](bool ok) {
+            if (ok) return;
+            if (*starting) {
+                *failedAtOnce = true;
+                return;
+            }
+            for (const auto& issue : sp->issues())
+                if (issue->fingerprint() == fingerprint && issue->state == State::Solved) {
+                    std::string w;
+                    sp->setState(*issue, State::Open, w);
+                    sp->publish();
+                }
+        });
+        *starting = false;
+        if (*failedAtOnce) {
+            why = "it could not be started (the status bar says why)";
+            return false;
+        }
+        return true;
+    };
+}
+
 JPAxisConfig* axisIn(JPCellConfig& cell, const std::string& id) {
     for (JPAxisConfig& a : cell.axes)
         if (a.id == id) return &a;
@@ -403,10 +436,17 @@ void vision(JPSolutions& s, const JPIssueChecks::Context& c) {
         }
         if (c.calibrated && !c.calibrated(id)) {
             Issue i = plain("Camera " + name, "Camera " + name + " is not calibrated.",
-                            "Calibrate it with the Calibrate button on its picture's tab: jplacer then knows its scale, its "
-                            "lens and where it is.",
+                            "Calibrate it (as the Calibrate button on its picture's tab does): jplacer then knows its "
+                            "scale, its lens and where it is.",
                             Severity::Error, std::string(kWiki) + "Camera-Calibration");
             i.activate = show;
+            i.extendedDescription = cam.mount.headId.empty()
+                ? "CAUTION: a nozzle's tip goes down over the camera " + name + " and moves about in a grid a few "
+                  "millimetres across (asked first). The nozzle must hold no part.\n\nWhen ready, press Accept."
+                : "CAUTION: the camera " + name + " moves over the head's homing mark and through a grid of places "
+                  "across its picture.\n\nWhen ready, press Accept.";
+            if (c.calibrateCamera)
+                solvedByWork(s, i, [c, id](std::function<void(bool)> finished) { c.calibrateCamera(id, std::move(finished)); });
             s.add(std::move(i));
         }
         if (cam.whiteBalance.neutral()) {
@@ -422,6 +462,34 @@ void vision(JPSolutions& s, const JPIssueChecks::Context& c) {
 void calibration(JPSolutions& s, const JPIssueChecks::Context& c) {
     const JPCellConfig* cell = c.cell ? c.cell() : nullptr;
     if (!cell || !s.isTargeting(Milestone::Calibration)) return;
+    // OpenPnP's CalibrationSolutions: each head's X and Y backlash, measured by its camera over its homing mark.
+    for (const JPHeadConfig& h : cell->heads) {
+        const JPCameraConfig* camera = nullptr;
+        for (const JPCameraConfig& cam : cell->cameras)
+            if (!camera && cam.mount.headId == h.id && !cam.mount.axisX.empty()) camera = &cam;
+        if (!camera || !h.homingFiducial || !c.calibrateBacklash || (c.calibrated && !c.calibrated(camera->id))) continue;
+        for (const std::string& axisId : { camera->mount.axisX, camera->mount.axisY }) {
+            const JPAxisConfig* a = cell->axis(axisId);
+            if (!a || a->kind != JPAxisConfig::Kind::Controller) continue;
+            Issue i;
+            i.subject = "Camera " + camera->name;
+            i.issue = "Calibrate backlash compensation for axis " + a->name + ".";
+            i.solution = "Automatically calibrates the backlash compensation for " + a->name
+                       + " using the primary calibration fiducial.";
+            i.severity = Severity::Fundamental;
+            i.uri = std::string(kWiki) + "Calibration-Solutions#calibrating-backlash-compensation";
+            i.extendedDescription = "Backlash compensation is used to avoid the effects of any looseness or play in the "
+                                    "mechanical linkages of machine axes.\n\nCAUTION: The camera " + camera->name
+                                  + " will move over the primary fiducial and then perform a calibration motion pattern "
+                                    "on the axis " + a->name + ".\n\nWhen ready, press Accept.";
+            const std::string cameraId = camera->id;
+            i.activate = [c, cameraId] {
+                if (c.showSetup) c.showSetup("camera:" + cameraId);
+            };
+            solvedByWork(s, i, [c, axisId](std::function<void(bool)> finished) { c.calibrateBacklash(axisId, std::move(finished)); });
+            s.add(std::move(i));
+        }
+    }
     for (const JPNozzleTipConfig& t : cell->nozzleTips) {
         bool fits = false;
         for (const JPNozzleConfig& n : cell->nozzles) fits = fits || n.fits(t.id);

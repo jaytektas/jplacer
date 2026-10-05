@@ -48,6 +48,10 @@ public:
         std::function<bool()> homed;
         std::function<void()> home;
         std::function<std::optional<double>(const std::string& axisId)> axisPosition;
+        // A camera calibrated, an X or Y axis's backlash calibrated (on the
+        // machine, in the background): `finished` says whether it was.
+        std::function<void(const std::string& cameraId, std::function<void(bool ok)> finished)> calibrateCamera;
+        std::function<void(const std::string& axisId, std::function<void(bool ok)> finished)> calibrateBacklash;
         // A camera's picture drawn smoothed (Rendering Quality High or better), and set so or back to Low.
         std::function<bool(const std::string& cameraId)> renderingSmooth;
         std::function<void(const std::string& cameraId, bool smooth)> setRenderingSmooth;

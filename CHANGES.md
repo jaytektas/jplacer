@@ -10,6 +10,7 @@ notes.
 
 ## Unreleased
 
+- Issues & Solutions calibrates on Accept, as OpenPnP does: a camera not calibrated, and each head's X and Y backlash.
 - Issues & Solutions checks the actuators as OpenPnP does (vacuum, blow off, sensing, pump, Z probe, camera lights and
   switchers: assigned, on a controller, with their commands, typed in the issue) and the cameras' previews (rate,
   suspended in tasks, Auto Camera View, Rendering Quality).

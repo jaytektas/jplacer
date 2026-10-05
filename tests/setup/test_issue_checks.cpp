@@ -170,6 +170,40 @@ int main() {
         s.publish();
         assert(find(s, "Nozzle tip T1 has a Max. Part Diameter that is not larger than the Min. Part Diameter."));
     }
+    // Calibration solved by work on the machine: Accept starts it; failing at once, Accept fails; failing later, open again.
+    {
+        JPCameraConfig cam;
+        cam.id = "T";
+        cam.name = "Down";
+        cam.mount = { "H", "x", "y", "", "" };
+        JPCellConfig withCamera = cell;
+        withCamera.cameras.push_back(cam);
+        withCamera.heads.front().homingFiducial = JPMachineLocation { 10, 10, 0, 0 };
+        withCamera.axes[0].kind = JPAxisConfig::Kind::Controller;
+        withCamera.axes[1].kind = JPAxisConfig::Kind::Controller;
+        JPIssueChecks::Context k = c;
+        k.cell = [&withCamera]() -> const JPCellConfig* { return &withCamera; };
+        std::function<void(bool)> later;
+        bool atOnce = false;
+        k.calibrateBacklash = [&](const std::string&, std::function<void(bool)> finished) {
+            if (atOnce) finished(false);
+            else later = std::move(finished);
+        };
+        S b;
+        b.setChecks(JPIssueChecks::all(k));
+        b.setTargetMilestone(S::Milestone::Calibration);
+        b.find();
+        b.publish();
+        S::Issue* x = const_cast<S::Issue*>(find(b, "Calibrate backlash compensation for axis x."));
+        assert(x && find(b, "Calibrate backlash compensation for axis y.") && x->severity == S::Severity::Fundamental);
+        std::string why;
+        assert(b.setState(*x, S::State::Solved, why) && x->state == S::State::Solved && later);
+        later(false);   // failed on the machine
+        x = const_cast<S::Issue*>(find(b, "Calibrate backlash compensation for axis x."));
+        assert(x->state == S::State::Open);
+        atOnce = true;
+        assert(!b.setState(*x, S::State::Solved, why) && x->state == S::State::Open && !why.empty());
+    }
     // The cameras' preview, as OpenPnP's CameraSolutions: its rate, suspended in tasks, brought forward, drawn smoothed.
     {
         JPCameraConfig cam;

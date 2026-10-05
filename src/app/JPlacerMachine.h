@@ -153,6 +153,10 @@ public:
     // settings shown); shown again when the settings change elsewhere.
     void setSetupVisionTests(JPVisionTests tests);
     std::function<void()> onSetupConfigurationChanged;
+    // Calibrate a camera, or an X or Y axis's backlash (as Machine Setup's
+    // buttons do); `finished`: whether it was done.
+    void calibrateCamera(const std::string& cameraId, std::function<void(bool ok)> finished);
+    void calibrateBacklash(const std::string& axisId, std::function<void(bool ok)> finished);
     // A camera's picture drawn smoothed (Rendering Quality High or Highest);
     // set to High, or back to Low, and kept (Issues & Solutions).
     bool cameraRenderingSmooth(const std::string& cameraId) const;

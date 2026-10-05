@@ -137,13 +137,14 @@ void JPlacerCameraTasks::run(JPCameraPanel& camera, const std::string& name, Tas
     });
 }
 
-void JPlacerCameraTasks::calibrate(JPCameraPanel& camera) {
+void JPlacerCameraTasks::calibrate(JPCameraPanel& camera, std::function<void(bool ok)> finished) {
     if (camera.camera().mount.axisX.empty() || camera.camera().mount.axisY.empty()) {
-        calibrateFixed(camera);
+        calibrateFixed(camera, std::move(finished));
         return;
     }
     if (const std::string why = notReady(&camera, false, true); !why.empty()) {
         m_window.showStatus("Calibrate: " + why, kResultMs);
+        if (finished) finished(false);
         return;
     }
     JPCameraFeed* feed = &camera.feed();
@@ -183,8 +184,9 @@ void JPlacerCameraTasks::calibrate(JPCameraPanel& camera) {
         }
         words = calibrated(feed->config(), *result) + second;
         return true;
-    }, [this, cameraId, result](bool ok) {
+    }, [this, cameraId, result, finished](bool ok) {
         if (ok) keepCalibration(cameraId, *result);
+        if (finished) finished(ok);
     });
 }
 
@@ -218,7 +220,8 @@ void JPlacerCameraTasks::keepCalibration(const std::string& cameraId, const JPCa
 }
 
 void JPlacerCameraTasks::calibrateBacklash(const std::string& axisId,
-                                           std::function<void(const JPBacklashCalibrator::Result&)> done) {
+                                           std::function<void(const JPBacklashCalibrator::Result&)> done,
+                                           std::function<void(bool ok)> finished) {
     // The head camera that rides on the axis, over its head's homing mark.
     JPCameraPanel* camera = nullptr;
     for (JPCameraPanel* p : m_cameras) {
@@ -227,10 +230,12 @@ void JPlacerCameraTasks::calibrateBacklash(const std::string& axisId,
     }
     if (!camera) {
         m_window.showStatus("Calibrate backlash: no camera on a head rides on this axis", kResultMs);
+        if (finished) finished(false);
         return;
     }
     if (const std::string why = notReady(camera, true, true); !why.empty()) {
         m_window.showStatus("Calibrate backlash: " + why, kResultMs);
+        if (finished) finished(false);
         return;
     }
     JPCameraFeed* feed = &camera->feed();
@@ -257,8 +262,9 @@ void JPlacerCameraTasks::calibrateBacklash(const std::string& axisId,
                       result->worstAfterMm);
         words = buf;
         return true;
-    }, [result, done](bool ok) {
+    }, [result, done, finished](bool ok) {
         if (ok && done) done(*result);
+        if (finished) finished(ok);
     });
 }
 
@@ -638,7 +644,7 @@ bool JPlacerCameraTasks::lookAt(JPCameraPanel& camera, double x, double y) {
     return true;
 }
 
-void JPlacerCameraTasks::calibrateFixed(JPCameraPanel& camera) {
+void JPlacerCameraTasks::calibrateFixed(JPCameraPanel& camera, std::function<void(bool ok)> finished) {
     JPCameraFeed* feed = &camera.feed();
     const JPCameraConfig& cam = feed->config();
     // The mark is a nozzle's tip: the first nozzle on a head that moves on X, Y and Z.
@@ -653,6 +659,7 @@ void JPlacerCameraTasks::calibrateFixed(JPCameraPanel& camera) {
                     : std::string();
     if (!why.empty()) {
         m_window.showStatus("Calibrate: " + why, kResultMs);
+        if (finished) finished(false);
         return;
     }
     // The camera's place is its offset: where it looks, and the height in focus.
@@ -667,9 +674,12 @@ void JPlacerCameraTasks::calibrateFixed(JPCameraPanel& camera) {
     const std::string cameraId = cam.id;
     std::weak_ptr<bool> alive = m_alive;
     JPCameraPanel* panel = &camera;
-    JDialog::confirm("Calibrate " + cam.name, body, [this, alive, panel, feed, tool, place, cameraId] {
+    JDialog::confirm("Calibrate " + cam.name, body, [this, alive, panel, feed, tool, place, cameraId, finished] {
         if (const auto a = alive.lock(); !a || !*a) return;
-        if (m_busy) return;   // another task began while asking
+        if (m_busy) {   // another task began while asking
+            if (finished) finished(false);
+            return;
+        }
         auto result = std::make_shared<JPCameraCalibration>();
         run(*panel, "Calibrating " + feed->config().name, [this, feed, tool, place, result](std::string& words, const auto& progress) {
             progress("the nozzle over the camera");
@@ -709,9 +719,12 @@ void JPlacerCameraTasks::calibrateFixed(JPCameraPanel& camera) {
             *result = *c;
             words = calibrated(feed->config(), *c) + secondWhy;
             return true;
-        }, [this, cameraId, result](bool ok) {
+        }, [this, cameraId, result, finished](bool ok) {
             if (ok) keepCalibration(cameraId, *result);
+            if (finished) finished(ok);
         });
+    }, [finished] {
+        if (finished) finished(false);   // not confirmed
     });
 }
 

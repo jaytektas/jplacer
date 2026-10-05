@@ -47,7 +47,8 @@ public:
     // A camera on the head: over the head's homing mark, then measured with
     // known moves. A fixed camera: a nozzle's tip held over it (asked first,
     // as a nozzle goes down to it) and moved about.
-    void calibrate(JPCameraPanel& camera);
+    // `finished`: whether it was calibrated (false too when it could not start, or was not confirmed).
+    void calibrate(JPCameraPanel& camera, std::function<void(bool ok)> finished = nullptr);
     // Look at the homing mark and say how far it is from its setting.
     void visualTest(JPCameraPanel& camera);
     // Measure the runout of the tip on nozzle `nozzleId` with the fixed
@@ -89,7 +90,8 @@ public:
     // Measure an X or Y axis's backlash with the head camera over the head's
     // homing mark (JPBacklashCalibrator). `done` (main thread): what it found,
     // in use already, for the owner to keep.
-    void calibrateBacklash(const std::string& axisId, std::function<void(const JPBacklashCalibrator::Result&)> done);
+    void calibrateBacklash(const std::string& axisId, std::function<void(const JPBacklashCalibrator::Result&)> done,
+                           std::function<void(bool ok)> finished = nullptr);
     // Finish a home with the camera (JPVisualHoming), through the first
     // calibrated camera on a head that homes visually. Says why not when
     // there is no such camera. Nothing when no head homes visually. `done`
@@ -112,7 +114,7 @@ private:
     // task is shown as it goes.
     using Task = std::function<bool(std::string& words, const std::function<void(const std::string&)>& progress)>;
     void run(JPCameraPanel& camera, const std::string& name, Task task, std::function<void(bool)> done = nullptr);
-    void calibrateFixed(JPCameraPanel& camera);
+    void calibrateFixed(JPCameraPanel& camera, std::function<void(bool ok)> finished);
     bool cameraView(const JPCameraConfig& camera, double& x, double& y, std::string& why) const;
     bool lookAt(JPCameraPanel& camera, double x, double y);
     // A new calibration in use, and saved in the cell file.
