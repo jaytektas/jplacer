@@ -391,6 +391,51 @@ void JPStageRegistry::addFilterStages(std::vector<JPStageType>& types) {
                               }
                           return Output {};
                       } });
+    types.push_back({ std::string(kStages) + "HistogramEqualizeAdaptive", "",
+                      "Applies contrast limited adaptive histogram equalization (CLAHE) to the selected channels of the image.  For gray scale images this will increase the image contrast.  For color images, the results will vary depending on the image format and channels selected for equalization.  Generally applying histogram equalization to a color image will result in a false color image; however, contrast enhancement can be achieved on HSV formats by applying equalization to only the third channel (V).",
+                      { P { "channels-to-equalize", Kind::Choice, "All",
+                            "Selects which channel(s) of the image to equalize.  This setting has no effect on single channel (gray scale) images.",
+                            { "First", "Second", "Third", "FirstAndSecond", "FirstAndThird", "SecondAndThird", "All" } },
+                        P { "clip-limit", Kind::Number, "2.0", "The threshold for contrast limiting.  Lower values will limit the amount of contrast enhancement while higher values will allow for more enhancement but at the risk of increasing noise in homogeneous regions of the image." },
+                        P { "number-of-tile-rows", Kind::Integer, "10", "The number of tile rows into which the image is partitioned." },
+                        P { "number-of-tile-cols", Kind::Integer, "16", "The number of tile columns into which the image is partitioned." } },
+                      [](JPPipeline& p, JPPipelineStage& s) {
+                          static const std::pair<const char*, int> codes[] = { { "First", 1 }, { "Second", 2 }, { "Third", 4 },
+                                                                               { "FirstAndSecond", 3 }, { "FirstAndThird", 5 },
+                                                                               { "SecondAndThird", 6 }, { "All", 7 } };
+                          int code = 7;
+                          for (const auto& [n, c] : codes)
+                              if (s.text("channels-to-equalize") == n) code = c;
+                          auto clahe = cv::createCLAHE(s.number("clip-limit"),
+                                                       cv::Size(s.integer("number-of-tile-rows"), s.integer("number-of-tile-cols")));
+                          cv::Mat& mat = p.workingImage();
+                          const int n = mat.channels();
+                          for (int i = 0; i < n; ++i)
+                              if (n == 1 || (code >> i) % 2 == 1) {
+                                  cv::Mat ch;
+                                  cv::extractChannel(mat, ch, i);
+                                  clahe->apply(ch, ch);
+                                  cv::insertChannel(ch, mat, i);
+                              }
+                          return Output {};
+                      } });
+    types.push_back({ std::string(kStages) + "GrabCut", "", "",
+                      { P { "side-square", Kind::Integer, "50", "" }, P { "back-ground-origin-x", Kind::Integer, "50", "" },
+                        P { "back-ground-origin-y", Kind::Integer, "50", "" } },
+                      [](JPPipeline& p, JPPipelineStage& s) {
+                          cv::Mat& mat = p.workingImage();
+                          const int side = s.integer("side-square"), ox = s.integer("back-ground-origin-x"), oy = s.integer("back-ground-origin-y");
+                          const cv::Rect rect(cv::Point(ox - side, oy - side), cv::Point(ox + side, oy + side));
+                          cv::Mat mask, bg, fg;
+                          cv::grabCut(mat, mask, rect, bg, fg, 1, cv::GC_INIT_WITH_RECT);
+                          // The foreground, sure and likely.
+                          cv::Mat fgMask = mask == cv::GC_FGD, pfgMask = mask == cv::GC_PR_FGD;
+                          cv::Mat fgImage(mat.size(), mat.type(), cv::Scalar::all(0)), pfgImage(mat.size(), mat.type(), cv::Scalar::all(0));
+                          mat.copyTo(fgImage, fgMask);
+                          mat.copyTo(pfgImage, pfgMask);
+                          cv::bitwise_or(fgImage, pfgImage, mat);
+                          return Output {};
+                      } });
     types.push_back({ std::string(kStages) + "DetectEdgesCanny", "", "",
                       { P { "threshold1", Kind::Number, "40.0", "" }, P { "threshold2", Kind::Number, "180.0", "" } },
                       [](JPPipeline& p, const JPPipelineStage& s) {

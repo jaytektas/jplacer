@@ -9,6 +9,7 @@
 #include "JPStageRegistry.h"
 #include "JPStageUtil.h"
 
+#include <opencv2/features2d.hpp>
 #include <opencv2/imgproc.hpp>
 
 #include <cfloat>
@@ -283,6 +284,74 @@ void JPStageRegistry::addDetectStages(std::vector<JPStageType>& types) {
                                   out.model.value = cv::RotatedRect(cv::Point2f(float(center.x + r->center.x), float(center.y + r->center.y)),
                                                                     r->size, r->angle);
                           }
+                          return out;
+                      } });
+    types.push_back({ std::string(kStages) + "SimpleBlobDetector", "", "",
+                      { P { "threshold-step", Kind::Number, "10.0", "" }, P { "threshold-min", Kind::Number, "50.0", "" },
+                        P { "threshold-max", Kind::Number, "220.0", "" }, P { "repeatability", Kind::Integer, "2", "" },
+                        P { "dist-between-blobs", Kind::Number, "10.0", "" }, P { "color", Kind::Flag, "true", "" },
+                        P { "color-value", Kind::Number, "0.0", "" }, P { "area", Kind::Flag, "true", "" },
+                        P { "area-min", Kind::Number, "25.0", "" }, P { "area-max", Kind::Number, "5000.0", "" },
+                        P { "circularity", Kind::Flag, "false", "" }, P { "circularity-min", Kind::Number, "0.800000011920929", "" },
+                        P { "circularity-max", Kind::Number, "-1.0", "" }, P { "inertia", Kind::Flag, "true", "" },
+                        P { "inertia-ratio-min", Kind::Number, "0.10000000149011612", "" }, P { "inertia-ratio-max", Kind::Number, "-1.0", "" },
+                        P { "convexity", Kind::Flag, "true", "" }, P { "convexity-min", Kind::Number, "0.949999988079071", "" },
+                        P { "convexity-max", Kind::Number, "-1.0", "" },
+                        P { "property-name", Kind::Text, "SimpleBlobDetector", "Name of the property through which OpenPnP controls this stage. Use \"SimpleBlobDetector\" for standard control." } },
+                      [](JPPipeline& p, JPPipelineStage& s) {
+                          const std::string control = s.text("property-name");
+                          const double dist = p.overridden(s, "dist-between-blobs", s.number("dist-between-blobs"), control + ".distBetweenBlobs");
+                          double areaMin = s.number("area-min"), areaMax = s.number("area-max");
+                          // The caller's area: the limits around it, as fractions.
+                          const double area = p.overridden(s, "area", NAN, control + ".area");
+                          if (std::isfinite(area)) {
+                              areaMax = area * (1 + std::max(0.0, s.number("area-max")));
+                              areaMin = area * (1 - std::max(0.0, std::min(1.0, s.number("area-min"))));
+                          }
+                          auto most = [](double v) { return float(v < 0 ? 3.4028234663852886E+038 : v); };
+                          cv::SimpleBlobDetector::Params pr;
+                          pr.thresholdStep = float(s.number("threshold-step"));
+                          pr.minThreshold = float(s.number("threshold-min"));
+                          pr.maxThreshold = float(s.number("threshold-max"));
+                          pr.minRepeatability = size_t(std::max(0, s.integer("repeatability")));
+                          pr.minDistBetweenBlobs = float(dist);
+                          pr.filterByColor = s.flag("color");
+                          pr.blobColor = uchar(s.number("color-value"));
+                          pr.filterByArea = s.flag("area");
+                          pr.minArea = float(areaMin);
+                          pr.maxArea = most(areaMax);
+                          pr.filterByCircularity = s.flag("circularity");
+                          pr.minCircularity = float(s.number("circularity-min"));
+                          pr.maxCircularity = most(s.number("circularity-max"));
+                          pr.filterByInertia = s.flag("inertia");
+                          pr.minInertiaRatio = float(s.number("inertia-ratio-min"));
+                          pr.maxInertiaRatio = most(s.number("inertia-ratio-max"));
+                          pr.filterByConvexity = s.flag("convexity");
+                          pr.minConvexity = float(s.number("convexity-min"));
+                          pr.maxConvexity = most(s.number("convexity-max"));
+                          std::vector<cv::KeyPoint> points;
+                          cv::SimpleBlobDetector::create(pr)->detect(p.workingImage(), points);
+                          Output out;
+                          out.model.value = points;
+                          return out;
+                      } });
+    types.push_back({ std::string(kStages) + "DetectLinesHough", "", "Finds circles in the working image. Diameter and spacing can be specified.",
+                      { P { "rho", Kind::Number, "0.5", "Distance resolution from center." },
+                        P { "theta", Kind::Number, "0.017453292519943295", "Angular resolution, in degrees." },
+                        P { "threshold", Kind::Integer, "1000", "Minimum accumulator count." },
+                        P { "min-line-length", Kind::Number, "30.0", "Minimum line length, as a percent of the diagonal image length." },
+                        P { "max-line-gap", Kind::Number, "5.0", "Max line gap, as a percent of the diagonal image length." } },
+                      [](JPPipeline& p, JPPipelineStage& s) {
+                          const cv::Mat& mat = p.workingImage();
+                          const double diagonal = std::hypot(mat.cols, mat.rows);
+                          std::vector<cv::Vec4i> lines;
+                          cv::HoughLinesP(mat, lines, s.number("rho"), s.number("theta"), s.integer("threshold"),
+                                          diagonal * s.number("min-line-length") / 100, diagonal * s.number("max-line-gap") / 100);
+                          // As OpenPnP: each line a two-point contour.
+                          Model::Contours contours;
+                          for (const cv::Vec4i& l : lines) contours.push_back({ { l[0], l[1] }, { l[2], l[3] } });
+                          Output out;
+                          out.model.value = std::move(contours);
                           return out;
                       } });
     types.push_back({ std::string(kStages) + "DetectCirclesHough", "", "Finds circles in the working image. Diameter and spacing can be specified.",

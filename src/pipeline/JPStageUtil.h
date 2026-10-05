@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cmath>
 #include <string>
+#include <vector>
 
 inline namespace jf {
 
@@ -53,6 +54,45 @@ public:
         const float l = (hi + lo) / 2;
         const float sat = hi == lo ? 0 : l <= 0.5f ? (hi - lo) / (hi + lo) : (hi - lo) / (2 - hi - lo);
         return hsl(std::fmod(h + 180.0f, 360.0f), sat * 100, l * 100);
+    }
+    // OpenCvUtils.matMaxima: the local maxima of a one-channel float picture
+    // within [rangeMin, rangeMax], row by row, each the top of its 3 x 3.
+    static std::vector<cv::Point> matMaxima(const cv::Mat& mat, double rangeMin, double rangeMax) {
+        std::vector<cv::Point> out;
+        const int rEnd = mat.rows - 1, cEnd = mat.cols - 1;
+        auto at = [&mat](int r, int c) { return double(mat.at<float>(r, c)); };
+        for (int r = 0; r <= rEnd; ++r) {
+            bool before = true;
+            double cur = at(r, 0);
+            for (int c = 1; c <= cEnd; ++c) {
+                const double val = at(r, c);
+                if (val == cur) continue;
+                if (cur < val) {
+                    before = true;
+                } else {
+                    if (before && rangeMin <= cur && cur <= rangeMax) {
+                        if (0 < r && (at(r - 1, c - 1) >= cur || at(r - 1, c) >= cur)) {
+                        } else if (r < rEnd && (at(r + 1, c - 1) > cur || at(r + 1, c) > cur)) {
+                        } else if (1 < c && ((0 < r && at(r - 1, c - 2) >= cur) || at(r, c - 2) > cur || (r < rEnd && at(r + 1, c - 2) > cur))) {
+                        } else {
+                            out.emplace_back(c - 1, r);
+                        }
+                    }
+                    if (before) before = false;
+                }
+                cur = val;
+            }
+            // The row's end.
+            if (before && rangeMin <= cur && cur <= rangeMax && cEnd >= 2) {
+                if (0 < r && (at(r - 1, cEnd - 1) >= cur || at(r - 1, cEnd) >= cur)) {
+                } else if (r < rEnd && (at(r + 1, cEnd - 1) > cur || at(r + 1, cEnd) > cur)) {
+                } else if ((1 < r && at(r - 1, cEnd - 2) >= cur) || at(r, cEnd - 2) > cur || (r < rEnd && at(r + 1, cEnd - 2) > cur)) {
+                } else {
+                    out.emplace_back(cEnd, r);
+                }
+            }
+        }
+        return out;
     }
     // Utils2D.angleNorm: into ±lim.
     static double angleNorm(double val, double lim = 45.0) {
