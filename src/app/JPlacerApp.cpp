@@ -2,6 +2,11 @@
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
 #include "JPlacerApp.h"
+#include <j/platform/JDesktop.h>
+#include "JPlacerDiagnosticsDialog.h"
+#include <filesystem>
+#include "common/JPlacerPaths.h"
+#include "common/JPLogFile.h"
 #include "ui/JPTable.h"
 #include "JPlacerAppearanceDialog.h"
 
@@ -32,10 +37,14 @@ constexpr uint32_t    kWindowHeight = 800;
 // pretend one for testing (see JAppUpdater.h).
 constexpr const char* kReleasesApi  = "https://api.github.com/repos/jaytektas/jplacer/releases/latest";
 constexpr const char* kUpdateUrlEnv = "JPLACER_UPDATE_URL";
+// How long a failure stays in the status bar, to read the reason.
+constexpr int kErrorMs = 8000;
 }
 
 JPlacerApp::JPlacerApp(std::string settingsPath) {
     JPlacerSettings::load(settingsPath);
+    // The log kept in a file too, as OpenPnP's log/OpenPnP.log.
+    m_logFile = std::make_unique<JPLogFile>((std::filesystem::path(JPlacerPaths::configDir()) / "log" / "jplacer.log").string());
     // How much the log says, as last chosen (the console's controls).
     JPLogLevels::fromText(JSettings::instance().get<std::string>(JPlacerSettings::kLogLevels, "info")).apply();
     // The language, as chosen (a change takes effect at the next start): its
@@ -127,6 +136,27 @@ void JPlacerApp::openPreferences() {
                                                       addJogStepKeys();
                                                       m_machine->jogStepsChanged();
                                                   });
+}
+
+void JPlacerApp::openDiagnostics() {
+    JPlacerDiagnosticsDialog::Sources s;
+    s.cellFile = m_machine->cellPath();
+    s.partsFile = (std::filesystem::path(m_job->configuration().directory()) / JPConfiguration::kPartsFile).string();
+    s.packagesFile = (std::filesystem::path(m_job->configuration().directory()) / JPConfiguration::kPackagesFile).string();
+    s.logFile = m_logFile->path();
+    s.saveJob = [this] {
+        m_job->save();
+        return m_job->job().file;
+    };
+    s.version = JPLACER_VERSION;
+    m_window->openModal<JPlacerDiagnosticsDialog>(s, [this](const std::string& file, const std::string& why) {
+        if (file.empty()) {
+            m_window->showStatus("Submit Diagnostics: " + why, kErrorMs);
+            return;
+        }
+        JDesktop::openUrl(std::filesystem::path(file).parent_path().string());
+        m_window->showStatus("Diagnostics written to " + file + ": attach it to an issue at github.com/jaytektas/jplacer/issues", kErrorMs);
+    });
 }
 
 void JPlacerApp::openAppearance() {

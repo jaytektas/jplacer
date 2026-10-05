@@ -163,6 +163,8 @@ public:
     // OpenPnP's Enable Visual Homing: the mark under the head's camera made
     // its homing mark (where it is, how wide) and visual homing turned on.
     void enableVisualHoming(const std::string& headId, std::function<void(bool ok)> finished);
+    // The open cell's file.
+    const std::string& cellPath() const { return m_cellPath; }
     // A script's request of the machine (JPScripting::api), answered.
     JJson scriptRequest(const JJson& request);
     // A camera's own device settings as it last started (none while it has not).

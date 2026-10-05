@@ -3,6 +3,8 @@
 
 #include "JPLogPanel.h"
 
+#include "common/JPLogLine.h"
+
 #include "JPGroupFrame.h"
 #include "JPIconButton.h"
 #include "JPUiParts.h"
@@ -27,32 +29,6 @@ namespace {
 
 // OpenPnP's search box is twenty characters wide.
 constexpr int kSearchColumns = 20;
-
-// OpenPnP's (tinylog's) names for the levels.
-const char* levelName(JLogLevel l) {
-    switch (l) {
-        case JLogLevel::Trace: return "TRACE";
-        case JLogLevel::Debug: return "DEBUG";
-        case JLogLevel::Info:  return "INFO";
-        case JLogLevel::Warn:  return "WARNING";
-        case JLogLevel::Error: return "ERROR";
-        case JLogLevel::Off:   return "OFF";
-    }
-    return "";
-}
-
-// Now, as OpenPnP's log writes it: yyyy-MM-dd HH:mm:ss.SSS.
-std::string stamp() {
-    const auto now = std::chrono::system_clock::now();
-    const std::time_t t = std::chrono::system_clock::to_time_t(now);
-    const int ms = int(std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count() % 1000);
-    std::tm tm {};
-    localtime_r(&t, &tm);
-    char text[40];
-    std::snprintf(text, sizeof text, "%04d-%02d-%02d %02d:%02d:%02d.%03d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
-                  tm.tm_hour, tm.tm_min, tm.tm_sec, ms);
-    return text;
-}
 
 std::string folded(std::string s) {
     for (char& c : s) c = char(std::tolower(static_cast<unsigned char>(c)));
@@ -94,7 +70,7 @@ JPLogPanel::JPLogPanel(JSceneGraph& graph) : JContainer(graph), m_model(std::mak
     JPUiParts::asPanel(*this);
     const JStyle& st = JStyle::current();
     std::vector<std::string> levels;
-    for (JLogLevel l : allLevels()) levels.push_back(levelName(l));
+    for (JLogLevel l : allLevels()) levels.push_back(JPLogLine::levelName(l));
     auto label = [&](JContainer& row, const char* text) {
         JLabel* l = row.add(std::make_unique<JLabel>(graph, text));
         l->setFixedSize(JTextHelper::measureWidth(text) + st.spacing, st.controlHeight);
@@ -163,7 +139,7 @@ JPLogPanel::JPLogPanel(JSceneGraph& graph) : JContainer(graph), m_model(std::mak
         {
             std::lock_guard lk(inbox->mutex);
             first = inbox->entries.empty();
-            inbox->entries.push_back({ stamp() + " " + cat + " " + levelName(level) + ": " + msg, cat, level });
+            inbox->entries.push_back({ JPLogLine::text(level, cat, msg), cat, level });
         }
         if (first)
             JMainThreadDispatcher::instance().post([this, alive] {

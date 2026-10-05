@@ -28,6 +28,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | View: System Units (inches) | done | every length shown and typed in mm or inches (forms, tables, readout, Jog), kept in mm; on restart, as OpenPnP |
 | View: Language | done | OpenPnP's translations (ru, es, fr, it, de, zh_CN), applied to whatever jplacer names as OpenPnP does; on restart, as OpenPnP |
 | View: Selections in Tables (linked tables) | done | |
+| Help: Submit Diagnostics (and the log file it includes) | done | written to a file to attach, not uploaded to Pastebin; no window screenshot or vision debug images |
 | Window: Multiple Window Style, Change Appearance (theme, font size, alternating rows) | done | on restart, as OpenPnP |
 | Scripting (events, Python/JS scripts) | own way | the Scripts menu and every OpenPnP event; scripts run as programs of their own told what they run for (JSON), and ask the machine through the jplacer module (positions, location, move_to, safe_z, home, actuate, read, gcode, message): OpenPnP's Java object model cannot be offered outside Java |
 | ContactProbeNozzle (probing pick and place heights, nozzle tip Z calibration) | done | contact sense actuator and vacuum sniffle probing, feeder and placement heights with their triggers, part height probing, Z calibration by touch; discard probing; probed heights kept while jplacer runs (OpenPnP keeps them in its file) |
@@ -164,7 +165,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Vision settings, pipelines and the pipeline editor | done |
 | Bottom vision (pipeline, pre-rotate, size check, max rotation) | done |
 | Vision compositing (multi-shot bottom vision, the package's preview) | done |
-| Feeders: strip, tray, rotated tray, push-pull, drag, auto, slot auto, lever, heap, loose part, blinds, Schultz, Photon, Rapid, Bamboo | done |
+| Feeders: strip, tray, rotated tray, push-pull, drag, auto, slot auto, lever, heap, loose part, advanced loose part, tube, blinds, Schultz, slot Schultz, Photon, Rapid, Bamboo | done |
 | Job: placements table, start / pause / step / stop, job order, nozzle tip strategy, retries, optimisation | done |
 | Importers: KiCad, Eagle (board and mountsmd), Diptrace, Altium, Proteus, named CSV | done (OpenPnP's solder paste Gerber importer is skipped by OpenPnP itself) |
 

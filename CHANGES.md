@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Help > Submit Diagnostics…, as OpenPnP's: what helps with a problem put in one file to attach to an issue (nothing is
+  uploaded). The log is now also kept in a file, log/jplacer.log.
 - The Window menu, as OpenPnP's: Multiple Window Style (the cameras and the machine controls each in a window of their
   own, from the next start) and Change Appearance… (theme, font size, alternating table rows).
 - Scripts can drive the machine, as OpenPnP's can: `import jplacer` (or `require("jplacer")`) to move tools, home,

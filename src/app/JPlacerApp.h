@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "common/JPLogFile.h"
 #include <j/app/JAppUpdater.h>
 #include <j/app/JAppWindow.h>
 #include <j/core/GenesisComponents.h>
@@ -37,6 +38,8 @@ public:
     int  run();
 
     void openPreferences();
+    // Help > Submit Diagnostics (JPlacerDiagnosticsDialog).
+    void openDiagnostics();
     // Window > Change Appearance… (JPlacerAppearanceDialog).
     void openAppearance();
     void showAbout();
@@ -50,6 +53,8 @@ public:
 
 private:
     JGuiApplication              m_app;
+    // The log's file (log/jplacer.log): first made, last gone, so it has everything.
+    std::unique_ptr<JPLogFile>   m_logFile;
     std::unique_ptr<JAppWindow>  m_window;
     // jplacer's own updates, from its GitHub releases: checked as it opens (unless
     // turned off in Preferences), on Help > Check for Updates, and installed as

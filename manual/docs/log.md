@@ -5,7 +5,11 @@ entry, its time, where it comes from, its level and what it says ("2026-10-05 12
 Job finished without error"), coloured by its level (trace green, information blue, warnings and errors
 red, an error on a background of its own). While the list is at its end it follows the newest entry.
 
-<!-- src: src/ui/JPLogPanel.cpp -->
+The log is also written to a file as it comes, as OpenPnP's `log/OpenPnP.log`: `log/jplacer.log` in jplacer's
+folder (`~/.config/jplacer`), each entry a line as the tab shows it. Past 10 MB it is moved aside to
+`jplacer.log.1` (the one before that dropped) and begun again. Help > Submit Diagnostics can include it.
+
+<!-- src: src/ui/JPLogPanel.cpp; src/common/JPLogFile.cpp; src/common/JPLogLine.cpp -->
 
 **Global Logging Settings ▸ Global Log Level** sets how much the log says at all: it is the log's own
 level, the same as the Console's **Log**, and kept for next time.
