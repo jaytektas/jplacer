@@ -27,7 +27,9 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Signalers (sound, actuator on error / job done) | done | Neoden4Signaler left out (Neoden4 driver) |
 | View: System Units (inches), Language | missing | millimetres and English only, greyed out in View |
 | View: Selections in Tables (linked tables) | done | |
-| Scripting (events, Python/JS scripts) | partial | the Scripts menu and events, scripts run as programs of their own told what they run for (JSON); no machine API for them; camera, nozzle tip and calibration events not fired yet |
+| Scripting (events, Python/JS scripts) | partial | the Scripts menu and every OpenPnP event but the ContactProbeNozzle's and take-back's (not built); scripts run as programs of their own told what they run for (JSON), with no machine API |
+| ContactProbeNozzle (probing pick and place heights) | missing | |
+| Jog panel: feeder take back | missing | |
 
 ## Controllers (GcodeDriver / GcodeAsyncDriver)
 

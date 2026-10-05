@@ -58,6 +58,11 @@ public:
     bool isLost() const { return m_lost; }
     std::string lostWhy() const;
 
+    // OpenPnP's camera scripting events (Camera.BeforeSettle, Camera.AfterCapture, ...)
+    // for this camera, run where vision takes its pictures (JPCameraLook);
+    // false with why when one failed. Set once, before pictures are taken.
+    std::function<bool(const std::string& event, std::string& why)> scriptEvent;
+
     JSignal<uint64_t>    onFrame;     // a new frame's sequence
     JSignal<std::string> onError;     // why it was lost (it is opened again until stopped)
     JSignal<bool>        onRunning;

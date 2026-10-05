@@ -137,6 +137,12 @@ void JPlacerMachine::buildCameras() {
                                                   [cell = m_cell.get()](const std::string& id, int width, int height) {
                                                       return cell->cameraCalibration(id, width, height);
                                                   });
+        // OpenPnP's camera events, run where vision takes its pictures (off the screen's thread).
+        d.panel->feed().scriptEvent = [scripting = m_scripting, name = c.name](const std::string& event, std::string& why) {
+            JJson g = JJson::object();
+            g["camera"] = name;
+            return scripting->on(event, g, why);
+        };
         // Straightened or as taken, kept from last time.
         d.panel->setView(JSettings::instance().get<bool>(JPlacerSettings::cameraStraightKey(c.id), false));
         d.panel->onViewChanged = [id = c.id](bool straight) {
@@ -206,6 +212,7 @@ void JPlacerMachine::buildCameras() {
     if (!m_cameras.empty()) bringForward(*m_cameras.front().panel);
     m_cameraTasks = std::make_unique<JPlacerCameraTasks>(m_window, *m_cell, std::move(panels),
                                                          [this](JPCameraPanel& p) { bringForward(p); }, m_cellPath);
+    m_cameraTasks->setScripting(m_scripting);
     // Machine Setup shows it (the cell keeps it: JPlacerMachine::applySetup).
     m_cameraTasks->onCalibrated = [this](const std::string& cameraId, const JPCameraCalibration& calibration) {
         if (!m_setup) return;
@@ -514,21 +521,36 @@ void JPlacerMachine::watchCell() {
     m_unwatch.push_back(m_cell->onHomed.connect([this, onMain](bool homed) {
         onMain([this, homed] {
             if (!homed && onUnhomed) onUnhomed();
-            // Once homed, by the camera too where a head homes visually; then
-            // parked, when the machine is set to.
-            if (homed && m_cameraTasks)
-                m_cameraTasks->visualHome([this](bool ok) {
-                    if (ok && m_cell && m_cell->config().parkAfterHome) park();
-                    if (ok) runEvent("Machine.AfterHoming");
+            // As OpenPnP's: Machine.AfterDriverHoming once the controllers have homed, then the head's
+            // (visual) homing, Machine.AfterHoming, and the park.
+            if (!homed) return;
+            auto afterHoming = [this] {
+                runEvent("Machine.AfterHoming", [this] {
+                    if (m_cell && m_cell->isHomed() && m_cell->config().parkAfterHome) park();
                 });
-            else if (homed)
-                runEvent("Machine.AfterHoming");
+            };
+            runEvent("Machine.AfterDriverHoming", [this, afterHoming] {
+                if (!m_cell || !m_cell->isHomed()) return;
+                if (m_cameraTasks)
+                    m_cameraTasks->visualHome([afterHoming](bool ok) {
+                        if (ok) afterHoming();
+                    });
+                else
+                    afterHoming();
+            });
         });
     }));
     m_unwatch.push_back(m_cell->onState.connect([onMain](std::string, std::string) { onMain([] {}); }));
     m_unwatch.push_back(m_cell->onMotion.connect([this, onMain](bool ok, std::string why) {
         onMain([this, ok, why] {
             if (m_cell->isHomed() || ok) m_homeFailed = false;
+            // A camera moved to look somewhere: OpenPnP's Camera.AfterPosition once it is there.
+            if (!m_positionedCamera.empty()) {
+                const std::string camera = std::exchange(m_positionedCamera, std::string());
+                JJson g = JJson::object();
+                g["camera"] = camera;
+                if (ok) runEvent("Camera.AfterPosition", nullptr, g);
+            }
             if (!ok && !why.empty()) {
                 if (!m_cell->isHomed()) m_homeFailed = true;
                 m_window.showStatus(why, kErrorMs);
@@ -711,6 +733,9 @@ bool JPlacerMachine::moveToolTo(JPSetupForm::Tool tool, const Where& to) {
     if (!readyToMove()) return false;
     m_cell->moveTool(*m, to, 1.0);   // at the machine's speed
     selectMoved(*m);
+    if (tool == JPSetupForm::Tool::Camera)
+        for (const JPCameraConfig& cam : m_cell->config().cameras)
+            if (&cam.mount == m) m_positionedCamera = cam.name;
     // A camera moved to look somewhere, with Auto Camera View: brought forward.
     for (const JPCameraConfig& cam : m_cell->config().cameras)
         if (&cam.mount == m && cam.autoCameraView)
@@ -1249,14 +1274,19 @@ void JPlacerMachine::toggleLight(const std::string& light) {
     m_cell->switchActuator(light, it == m_lights.end() || !it->second);
 }
 
-void JPlacerMachine::runEvent(const std::string& event) {
+void JPlacerMachine::runEvent(const std::string& event, std::function<void()> then, JJson globals) {
     // Off the screen's thread: a script may take its time; what fails is said in the log and the status line.
-    std::thread([this, event, scripting = m_scripting, alive = std::weak_ptr<bool>(m_alive)] {
+    std::thread([this, event, then = std::move(then), globals = std::move(globals), scripting = m_scripting,
+                 alive = std::weak_ptr<bool>(m_alive)] {
         std::string why;
-        if (scripting->on(event, JJson::object(), why)) return;
-        JLOGC(JPlacerLog::kApp, JLogLevel::Warn) << event << ": " << why;
-        JMainThreadDispatcher::instance().post([this, alive, why, event] {
-            if (const auto a = alive.lock(); a && *a) m_window.showStatus(event + ": " + why, kErrorMs);
+        const bool ok = scripting->on(event, globals, why);
+        if (!ok) JLOGC(JPlacerLog::kApp, JLogLevel::Warn) << event << ": " << why;
+        if (ok && !then) return;
+        JMainThreadDispatcher::instance().post([this, alive, ok, why, event, then] {
+            const auto a = alive.lock();
+            if (!a || !*a) return;
+            if (!ok) m_window.showStatus(event + ": " + why, kErrorMs);
+            if (then) then();
         });
     }).detach();
 }

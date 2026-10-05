@@ -49,6 +49,10 @@ public:
                                         const JPRoundMarkFinder::Request& request);
 
     static constexpr int kTimeoutMs = 3000;   // for a picture to arrive at all
+
+private:
+    // settled() without its scripting events.
+    static bool settledNow(JPCameraFeed& feed, JPGrayImage& out, std::string& why, JPSettleTrace* trace);
 };
 
 } // inline namespace jf

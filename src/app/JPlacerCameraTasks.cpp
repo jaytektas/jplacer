@@ -292,8 +292,14 @@ void JPlacerCameraTasks::calibrateRunout(const std::string& nozzleId,
             // The background calibrated along with it, when the tip asks for it.
             JPBackgroundCalibration pictures(JPBackgroundCalibration::methodFrom(t.background.method));
             const bool withBackground = t.background.method != "None";
+            // OpenPnP's NozzleCalibration.Starting before it, and .Finished once the tip was found enough.
+            JJson g = JJson::object();
+            g["nozzle"] = n.name;
+            g["camera"] = camera->camera().name;
+            if (m_scripting && !m_scripting->on("NozzleCalibration.Starting", g, words)) return false;
             const auto r = JPRunoutCalibrator::run(m_cell, camera->feed(), n, t, o, words, progress, withBackground ? &pictures : nullptr);
             if (!r) return false;
+            if (m_scripting && !m_scripting->on("NozzleCalibration.Finished", g, words)) return false;
             *result = *r;
             JPCameraCalibration cal;
             std::string ignored;

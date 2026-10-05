@@ -731,6 +731,13 @@ JPJobProcessor::Step JPJobProcessor::plannedStep(Step step, Step after) {
             }
         });
         if (hasFeeder && m_hooks.feedersChanged) m_hooks.feedersChanged();
+        if (hasFeeder) {
+            // OpenPnP's Feeder.Fault: the feeder and what went wrong.
+            JJson g = JJson::object();
+            g["feeder"] = feederId;
+            g["exception"] = e.failure.message;
+            script("Feeder.Fault", g);
+        }
         if (hasFeeder && j.processingCount < m_settings.maxPlacementRetries) {
             j.status = Status::Pending;
         } else {
@@ -811,6 +818,16 @@ double JPJobProcessor::rotationOffset(const std::string& nozzleId, double pickAn
         return norm(pickAngle - start, 180);
     }
     return 0;   // AbsolutePartAngle
+}
+
+bool JPJobProcessor::discard(const std::string& nozzleId, std::string& why) {
+    // OpenPnP's Cycles.discardAlways: Job.BeforeDiscard and Job.AfterDiscard round it.
+    JJson g = JJson::object();
+    g["nozzle"] = nozzleId;
+    script("Job.BeforeDiscard", g);
+    if (!m_machine.discard(nozzleId, why)) return false;
+    script("Job.AfterDiscard", g);
+    return true;
 }
 
 void JPJobProcessor::script(const std::string& event, JJson globals) {
@@ -961,7 +978,7 @@ JPJobProcessor::Step JPJobProcessor::pick(Planned& p) {
             last = JobError { f };
             // What may be on the nozzle is dropped before trying again.
             std::string why;
-            if (!m_machine.discard(p.nozzleId, why)) fail(Source::Nozzle, p.nozzleId, why);
+            if (!discard(p.nozzleId, why)) fail(Source::Nozzle, p.nozzleId, why);
             m_rotationOffset.erase(p.nozzleId);
             continue;
         }
@@ -1003,7 +1020,19 @@ JPJobProcessor::Step JPJobProcessor::align(Planned& p) {
     for (int i = 0; i < std::max(1, m_settings.maxVisionRetries); ++i) {
         status(format("Aligning %s for %s using nozzle %s.", j.partId.c_str(), j.placementId.c_str(), nozzleName.c_str()));
         JPJobMachine::AlignResult r;
-        if (m_machine.alignPart(p.nozzleId, rq, r, why)) {
+        // OpenPnP's Vision.PartAlignment.Before and After (with the offsets found, if any).
+        JJson g = JJson::object();
+        g["part"] = j.partId;
+        g["nozzle"] = p.nozzleId;
+        script("Vision.PartAlignment.Before", g);
+        const bool found = m_machine.alignPart(p.nozzleId, rq, r, why);
+        if (found) {
+            g["offsets"]["x"] = r.dx;
+            g["offsets"]["y"] = r.dy;
+            g["offsets"]["rotation"] = r.partAngle - r.nozzleAngle;
+        }
+        script("Vision.PartAlignment.After", g);
+        if (found) {
             p.alignment = r;
             return Step::Align;
         }
@@ -1061,7 +1090,7 @@ JPJobProcessor::Step JPJobProcessor::place(Planned& p) {
 void JPJobProcessor::discardAll() {
     for (auto it = m_partOn.begin(); it != m_partOn.end();) {
         std::string why;
-        if (!m_machine.discard(it->first, why)) fail(Source::Nozzle, it->first, why);
+        if (!discard(it->first, why)) fail(Source::Nozzle, it->first, why);
         m_rotationOffset.erase(it->first);
         m_partsFeeder.erase(it->first);
         m_machine.holding(it->first, "");

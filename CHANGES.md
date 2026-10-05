@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- More of OpenPnP's scripting events run: the camera's settle, capture and position events, nozzle tip
+  calibration, part alignment, discards, feeder faults, and Machine.AfterDriverHoming.
 - Nozzle tips have OpenPnP's Background Calibration: measured along with the runout, it finds how the
   background round the tip looks, says what could be better, and bottom vision masks it out.
 - Nozzle tips have OpenPnP's Cloning Settings: one tip is the template, and the others' tool changer steps

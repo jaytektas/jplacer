@@ -4,6 +4,7 @@
 #pragma once
 
 #include "machine/JPCell.h"
+#include "machine/JPScripting.h"
 #include "tasks/JPBackgroundCalibration.h"
 #include "tasks/JPBacklashCalibrator.h"
 #include "tasks/JPRunoutCalibrator.h"
@@ -52,6 +53,8 @@ public:
     // Measure the runout of the tip on nozzle `nozzleId` with the fixed
     // camera looking up (JPRunoutCalibrator), asked first (the nozzle goes
     // down to the camera). `done` (main thread): the runout, for the owner to keep.
+    // OpenPnP's scripting, for its NozzleCalibration events (none: not run).
+    void setScripting(std::shared_ptr<JPScripting> scripting) { m_scripting = std::move(scripting); }
     // With the tip's background calibration on, what it found too (none when too few pictures).
     void calibrateRunout(const std::string& nozzleId,
                          std::function<void(const JPRunout&, const std::optional<JPBackgroundCalibration::Result>&)> done);
@@ -104,6 +107,7 @@ private:
     std::vector<JPCameraPanel*>         m_cameras;
     std::function<void(JPCameraPanel&)> m_bringForward;
     std::string                         m_cellPath;
+    std::shared_ptr<JPScripting>        m_scripting;
     std::thread                         m_worker;
     bool                                m_busy = false;   // main thread's
     std::shared_ptr<bool>               m_alive = std::make_shared<bool>(true);

@@ -111,10 +111,17 @@ The **Events** folder's scripts run at OpenPnP's events, those named the event, 
 (`Job.Starting.2.py`), in name order: **Startup**, **Machine.AfterHoming**, **Job.Starting**, **Job.Finished**,
 **Job.Error** (with the `exception`), **Job.Placement.Starting**, **Job.Placement.Complete**,
 **Feeder.BeforeFeed**, **Feeder.AfterFeed**, **Nozzle.BeforePick**, **Nozzle.AfterPick**, **Nozzle.BeforePlace**
-and **Nozzle.AfterPlace** (each with the `job`, `board`, `placement` and `part`, and the `feeder` or `nozzle`). One
-that fails (exits other than 0, or runs past a minute) stops the job, saying why.
+and **Nozzle.AfterPlace** (each with the `job`, `board`, `placement` and `part`, and the `feeder` or `nozzle`);
+**Feeder.Fault** (a deferred placement's feeder failing: the `feeder` and the `exception`); **Job.BeforeDiscard**
+and **Job.AfterDiscard** (the `nozzle`); **Vision.PartAlignment.Before** and **Vision.PartAlignment.After** (the
+`part`, the `nozzle`, after it the `offsets` found); **Machine.AfterDriverHoming** (the controllers homed, before
+visual homing and Machine.AfterHoming); **NozzleCalibration.Starting** and **NozzleCalibration.Finished** (runout
+calibration: the `nozzle` and `camera`); **Camera.BeforeSettle**, **Camera.AfterSettle**, **Camera.BeforeCapture**
+and **Camera.AfterCapture** (each picture vision takes: the `camera`); and **Camera.AfterPosition** (a camera
+moved to look somewhere by a button, once it is there). One that fails (exits other than 0, or runs past a
+minute) stops what it runs for, saying why.
 
-<!-- src: src/app/JPlacerScriptsMenu.cpp; src/machine/JPScripting.cpp; src/tasks/JPJobProcessor.cpp (script, placementGlobals); src/app/JPlacerMachine.cpp (runEvent); src/app/JPlacerApp.cpp -->
+<!-- src: src/app/JPlacerScriptsMenu.cpp; src/machine/JPScripting.cpp; src/tasks/JPJobProcessor.cpp (script, placementGlobals); src/app/JPlacerMachine.cpp (runEvent, moveToolTo); src/app/JPlacerApp.cpp; src/tasks/JPCameraLook.cpp (settled); src/app/JPlacerCameraTasks.cpp (calibrateRunout); src/tasks/JPJobProcessor.cpp (discard, align) -->
 
 ## Window
 

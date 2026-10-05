@@ -175,7 +175,8 @@ public:
     JPScripting& scripting() { return *m_scripting; }
     std::shared_ptr<JPScripting> sharedScripting() const { return m_scripting; }
     // An event's scripts run off the screen's thread (Startup, Machine.AfterHoming); a failure said.
-    void runEvent(const std::string& event);
+    // `then` (screen's thread) once they have run, whether they failed or not.
+    void runEvent(const std::string& event, std::function<void()> then = nullptr, JJson globals = JJson::object());
 
     // The directory cell files are kept in.
     static std::string cellsDir();
@@ -257,6 +258,7 @@ private:
     std::unique_ptr<JPlacerCameraTasks> m_cameraTasks;   // its Calibrate and Visual Test
     std::unique_ptr<JPlacerTipChanges>  m_tipChanges;    // the nozzles' tips loaded and unloaded
     std::unique_ptr<JPlacerTestMotion>  m_testMotion;    // the motion planner's Test Motion
+    std::string                         m_positionedCamera;   // a camera moved to look somewhere, by name, until there
     // By nozzle tip: its last background calibration's problem pictures (BGR, as seen and marked, in pairs).
     std::map<std::string, std::vector<cv::Mat>> m_backgroundProblems;
     std::map<std::string, bool>         m_lights;   // by actuator id: on or off as last switched

@@ -83,6 +83,13 @@ double JPCameraLook::difference(const JPGrayImage& a, const JPGrayImage& b, cons
 }
 
 bool JPCameraLook::settled(JPCameraFeed& feed, JPGrayImage& out, std::string& why, JPSettleTrace* trace) {
+    // OpenPnP's settleAndCapture, with its scripting events: settled, then the picture taken.
+    auto event = [&feed, &why](const char* name) { return !feed.scriptEvent || feed.scriptEvent(name, why); };
+    return event("Camera.BeforeSettle") && settledNow(feed, out, why, trace) && event("Camera.AfterSettle")
+        && event("Camera.BeforeCapture") && event("Camera.AfterCapture");
+}
+
+bool JPCameraLook::settledNow(JPCameraFeed& feed, JPGrayImage& out, std::string& why, JPSettleTrace* trace) {
     const JPCameraConfig::Settle& st = feed.config().settle;
     const bool fixed = st.method == "FixedTime" || st.method.empty();
     if (fixed && !trace) return taken(feed, out, why, st.timeMs);

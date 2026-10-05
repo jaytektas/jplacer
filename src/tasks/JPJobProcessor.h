@@ -134,6 +134,8 @@ private:
     void optimize(bool byPick);
     void prerotate(bool forPick);
     // An event's scripts run; one failing fails the job (OpenPnP's Scripting.on).
+    // The part on a nozzle dropped at the discard location, with OpenPnP's discard events round it.
+    bool discard(const std::string& nozzleId, std::string& why);
     void script(const std::string& event, JJson globals);
     // What a placement's events are given: the job, its board and placement, its part.
     JJson placementGlobals(const JobPlacement& j) const;
