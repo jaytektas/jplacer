@@ -93,7 +93,9 @@ std::vector<JPJobMachine::Nozzle> JPlacerJobMachine::nozzles() const {
             if (t.id == n.tipId) {
                 out1.pickDwellMs += t.pickDwellMs;
                 out1.placeDwellMs += t.placeDwellMs;
+                out1.tipMaxPartHeightMm = t.maxPartHeightMm;
             }
+        out1.contactProbe = n.contactProbe;
         out.push_back(std::move(out1));
     }
     return out;
@@ -246,6 +248,26 @@ bool JPlacerJobMachine::place(const std::string& nozzleId, const JPLocation& at,
     ++m_motions;
     JPCell* c = cell(why);
     return c && c->placeAtAndWait(nozzleId, where(at), 1.0, why);
+}
+
+bool JPlacerJobMachine::contactProbe(const std::string& nozzleId, bool forward, double depthMm, double& probedZ, std::string& why) {
+    ++m_motions;
+    JPCell* c = cell(why);
+    return c && c->contactProbeAndWait(nozzleId, forward, depthMm, probedZ, why);
+}
+
+std::optional<double> JPlacerJobMachine::probedOffset(const std::string& nozzleId, bool feeder, const std::string& key) const {
+    std::optional<double> out;
+    m_onMain([&] {
+        if (const JPCell* c = m_machine.cell()) out = c->probedOffset(nozzleId, feeder, key);
+    });
+    return out;
+}
+
+void JPlacerJobMachine::setProbedOffset(const std::string& nozzleId, bool feeder, const std::string& key, double offsetMm) {
+    m_onMain([&] {
+        if (JPCell* c = m_machine.cell()) c->setProbedOffset(nozzleId, feeder, key, offsetMm);
+    });
 }
 
 void JPlacerJobMachine::holding(const std::string& nozzleId, const std::string& partId) {

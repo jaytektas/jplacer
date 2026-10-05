@@ -872,6 +872,18 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
             });
             m_setup->remakeForm();
         });
+    } else if ((action == "calibrateZ" || action == "resetZCalibration") && path.rfind("nozzletip:", 0) == 0) {
+        // On the nozzle the tip is on.
+        const std::string tipId = path.substr(10);
+        const JPNozzleConfig* on = nullptr;
+        for (const JPNozzleConfig& n : m_cell->config().nozzles)
+            if (n.tipId == tipId) on = &n;
+        if (!on) {
+            m_window.showStatus("Load the tip on a nozzle first: it is calibrated on that nozzle", kErrorMs);
+            return;
+        }
+        if (action == "calibrateZ" && !readyToMove()) return;
+        m_cell->calibrateZ(on->id, action == "resetZCalibration");
     } else if (action == "showBackgroundProblems" && path.rfind("nozzletip:", 0) == 0) {
         // OpenPnP's Show Problems: each picture with problems beside the same with them marked, on the camera looking up.
         const auto found = m_backgroundProblems.find(path.substr(10));

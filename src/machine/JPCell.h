@@ -124,6 +124,22 @@ public:
     // way of safe Z or straight, then up to safe Z; `reverse` from the last.
     // Waiting; `result` what the run took (JPMotionTestResult). False with `why`.
     bool testMotionAndWait(const JPMountConfig& tool, bool reverse, JPMotionTestResult& result, std::string& why);
+    // OpenPnP's ContactProbeNozzle.contactProbe, from where the nozzle is:
+    // forward probes down (at most `depthMm`) until contact, and leaves it
+    // there (Final Adjustment applied); back retracts. `probedZ`: the nozzle's
+    // Z then. Waiting; false with `why` (no contact, no way to probe).
+    bool contactProbeAndWait(const std::string& nozzleId, bool forward, double depthMm, double& probedZ, std::string& why);
+    // The probed height offsets a contact probing nozzle keeps, by feeder
+    // (`feeder`) or by part; forgotten on homing as its triggers say.
+    std::optional<double> probedOffset(const std::string& nozzleId, bool feeder, const std::string& key) const;
+    // OpenPnP's nozzle tip Z calibration (JPNozzleTipConfig::touchLocation):
+    // the tip on a contact probing nozzle probed at its touch location, and
+    // every Z move of the nozzle made by how far off it was; or (`reset`)
+    // forgotten. Not waited for; a failure is an alarm. The offset in use
+    // (none: not calibrated); dropped when the tip changes.
+    void calibrateZ(const std::string& nozzleId, bool reset);
+    std::optional<double> zCalibration(const std::string& nozzleId) const;
+    void setProbedOffset(const std::string& nozzleId, bool feeder, const std::string& key, double offsetMm);
 
     // HOMING: each controller's home command, then the axes are told where
     // they now are (their home coordinates) and the cell is homed. Until it
@@ -322,6 +338,14 @@ private:
     // every controller waited for and its position read, moving or not
     // (WaitForUnconditionalCoordination).
     bool doCoordinate(const std::string& how, std::string& why);
+    bool doContactProbe(const JPNozzleConfig& n, bool forward, double depthMm, double& probedZ, std::string& why);
+    bool doCalibrateZ(const JPNozzleConfig& n, std::string& why);
+    bool doZCalibrationsAfterHoming(std::string& why);
+    // The nozzle a mount is (none: a camera's, an actuator's), and its Z offset with its tip's Z calibration in.
+    const JPNozzleConfig* nozzleOf(const JPMountConfig& mount) const;
+    double zOffsetOf(const JPMountConfig& mount) const;
+    // A nozzle's part-off check (its valve opened, closed, the vacuum read): `off` whether it senses none.
+    bool partOffCheck(const JPNozzleConfig& n, const JPNozzleTipConfig& tip, bool& off, std::string& why);
     // A tool to `to`: by way of safe Z (up, across and turned, down to Z), or straight.
     bool doMoveTool(const JPMountConfig& mount, const std::array<std::optional<double>, 4>& to, double speed, bool atSafeZ,
                     std::string& why);
@@ -389,7 +413,15 @@ private:
     // yet waited for; while any are, where the axes are going is where they are.
     std::vector<std::string>           m_inMotion;
     std::atomic<bool>                  m_streaming { false };
-    std::optional<double>              m_planned;    // Test Motion: the moves' planned seconds, summed while set
+    std::optional<double>              m_planned;
+    // Contact probing's offsets, by nozzle, then feeder (or part) id.
+    std::map<std::string, std::map<std::string, double>> m_probedFeederOffsets, m_probedPartOffsets;
+    // By nozzle: its tip's Z calibration (the tip it was made with, the offset).
+    struct ZCalibration {
+        std::string tipId;
+        double      offsetMm = 0;
+    };
+    std::map<std::string, ZCalibration> m_zCalibration;    // Test Motion: the moves' planned seconds, summed while set
     // A directional backlash offset in effect, by axis id: the controller's
     // coordinate is the axis's plus this (JPAxisConfig::Backlash).
     std::map<std::string, double>      m_backlashApplied;

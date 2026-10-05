@@ -33,6 +33,8 @@ public:
     //   "stallDwell":      false    // G4 after a move (the wait for it) never answers: a move that lasts
     //   "holdNeverStill":  false    // a feed hold never completes ("Hold:1", still slowing)
     //   "alarm":           false    // in alarm from the start (left so by a reset mid-move)
+    //   "probeSurface":    { "Z": -6.5 }   // where G38.2 meets something, in work coordinates, by letter
+    //                                      // (none: a probe move meets nothing, ALARM:4 as grbl's)
     // }
     void configure(const JJson& config);
 
@@ -56,6 +58,7 @@ private:
 
     std::map<std::string, double> m_machine;   // machine coordinates, by letter
     std::map<std::string, double> m_offset;    // work = machine - offset
+    std::map<std::string, double> m_probeSurface;   // work coordinates, by letter
     bool                          m_relative = false;
     bool                          m_silent   = false;
     bool                          m_garble   = false;

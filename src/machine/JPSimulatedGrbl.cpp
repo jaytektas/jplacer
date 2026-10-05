@@ -52,6 +52,9 @@ void JPSimulatedGrbl::configure(const JJson& config) {
     m_stallDwell = config["stallDwell"].boolean();
     m_holdNeverStill = config["holdNeverStill"].boolean();
     m_alarm          = config["alarm"].boolean();
+    m_probeSurface.clear();
+    if (config["probeSurface"].isObject())
+        for (const auto& [letter, at] : config["probeSurface"].obj()) m_probeSurface[letter] = at.number();
 }
 
 void JPSimulatedGrbl::receive(const std::string& bytes) {
@@ -189,7 +192,7 @@ void JPSimulatedGrbl::gcode(const std::string& line) {
         i = j;
     }
 
-    bool motion = false, setPosition = false;
+    bool motion = false, setPosition = false, probe = false;
     // A long move: the wait for motion to end after one is not answered
     // (until a reset).
     if (m_stallDwell && m_moved)
@@ -199,6 +202,9 @@ void JPSimulatedGrbl::gcode(const std::string& line) {
         if (letter == 'G') {
             const int g = int(value * 10 + 0.5);   // G92.1 -> 921
             if (g == 0 || g == 10) motion = m_moved = true;
+            // A probe toward something (G38.2), stopping where it is met; away (G38.4), as a move.
+            else if (g == 382) probe = motion = m_moved = true;
+            else if (g == 384) motion = m_moved = true;
             else if (g == 900) m_relative = false;
             else if (g == 910) m_relative = true;
             else if (g == 920) setPosition = true;
@@ -215,6 +221,28 @@ void JPSimulatedGrbl::gcode(const std::string& line) {
                 return;
             }
         }
+    }
+    if (probe) {
+        // Met where the surface lies between here and the target, else nothing met: grbl's ALARM:4.
+        bool met = false;
+        for (const auto& [letter, value] : words) {
+            const std::string l(1, letter);
+            const auto it = m_machine.find(l);
+            const auto surface = m_probeSurface.find(l);
+            if (it == m_machine.end() || surface == m_probeSurface.end()) continue;
+            const double here = it->second - m_offset[l], to = m_relative ? here + value : value;
+            if ((surface->second - here) * (surface->second - to) <= 0) {
+                it->second = surface->second + m_offset[l];
+                met = true;
+            }
+        }
+        if (!met) {
+            m_alarm = true;
+            m_out.push_back("ALARM:4");
+            return;
+        }
+        m_out.push_back("ok");
+        return;
     }
     for (const auto& [letter, value] : words) {
         const std::string l(1, letter);

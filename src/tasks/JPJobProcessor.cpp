@@ -820,6 +820,97 @@ double JPJobProcessor::rotationOffset(const std::string& nozzleId, double pickAn
     return 0;   // AbsolutePartAngle
 }
 
+void JPJobProcessor::setPartHeight(const std::string& partId, double heightMm) {
+    main([&] {
+        if (JPPart* part = m_config.part(partId)) part->height = JPLength(heightMm, JPLengthUnit::Millimeters);
+    });
+    for (JobPlacement& other : m_jobPlacements)
+        if (other.partId == partId) other.partHeightMm = heightMm;
+}
+
+JPLocation JPJobProcessor::probedPick(const std::string& nozzleId, const std::string& feederId, JobPlacement& j, JPLocation at,
+                                      const JPLocation& base, bool heightAbove) {
+    std::optional<JPJobMachine::Nozzle> n;
+    for (const auto& x : m_machine.nozzles())
+        if (x.id == nozzleId) n = x;
+    if (!n || n->contactProbe.feederHeightProbing == "Off" || !n->contactProbe.on()) return at;
+    const JPNozzleConfig::ContactProbe& p = n->contactProbe;
+    const JPLocation b = mm(base);
+    at = mm(at);
+    // From on top of the part: its height, or (not known) the tallest the tip takes.
+    const bool unknown = j.partHeightMm <= 0;
+    const bool partHeightProbing = heightAbove && unknown;
+    const double partZ = b.z() + (heightAbove ? (unknown ? n->tipMaxPartHeightMm : j.partHeightMm) : 0);
+    at = at.derive(std::nullopt, std::nullopt, partZ, std::nullopt);
+    const std::optional<double> kept = m_machine.probedOffset(nozzleId, true, feederId);
+    const bool needed = p.method == "ContactSenseActuator"
+                     && (p.feederHeightProbing == "EachTime" || partHeightProbing || !kept);
+    if (!needed) return kept ? at.derive(std::nullopt, std::nullopt, partZ + *kept, std::nullopt) : at;
+    std::string why;
+    if (!m_machine.moveNozzle(nozzleId, { at.x(), at.y(), partZ + p.startOffsetMm, at.rotation() }, 1.0, true, why))
+        fail(Source::Nozzle, nozzleId, why);
+    JJson g = placementGlobals(j);
+    g["nozzle"] = nozzleId;
+    g["feeder"] = feederId;
+    script("Nozzle.BeforePickProbe", g);
+    double z = 0, ignored = 0;
+    if (!m_machine.contactProbe(nozzleId, true, partHeightProbing ? n->tipMaxPartHeightMm : p.depthMm, z, why))
+        fail(Source::Nozzle, nozzleId, why);
+    double offset = 0;
+    if (partHeightProbing) {
+        // The part's height: how far above the pick place it was met.
+        setPartHeight(j.partId, z - b.z());
+        JLOGC(JPlacerLog::kJob, JLogLevel::Info) << "Nozzle " << n->name << " probed part " << j.partId << " height at " << (z - b.z());
+    } else {
+        offset = z - partZ;
+    }
+    m_machine.setProbedOffset(nozzleId, true, feederId, offset);
+    if (!m_machine.contactProbe(nozzleId, false, p.depthMm, ignored, why)) fail(Source::Nozzle, nozzleId, why);
+    script("Nozzle.AfterPickProbe", g);
+    return at.derive(std::nullopt, std::nullopt, z, std::nullopt);
+}
+
+JPLocation JPJobProcessor::probedPlace(const std::string& nozzleId, JobPlacement& j, JPLocation at, const JPLocation& base) {
+    std::optional<JPJobMachine::Nozzle> n;
+    for (const auto& x : m_machine.nozzles())
+        if (x.id == nozzleId) n = x;
+    if (!n || n->contactProbe.partHeightProbing == "Off" || !n->contactProbe.on()) return at;
+    const JPNozzleConfig::ContactProbe& p = n->contactProbe;
+    const JPLocation b = mm(base);
+    at = mm(at);
+    const bool unknown = j.partHeightMm <= 0;
+    const double partZ = b.z() + (unknown ? n->tipMaxPartHeightMm : j.partHeightMm);
+    at = at.derive(std::nullopt, std::nullopt, partZ, std::nullopt);
+    const std::optional<double> kept = m_machine.probedOffset(nozzleId, false, j.partId);
+    // As OpenPnP's isPartHeightProbingNeeded, which reads the feeder's trigger for "each time" here.
+    const bool needed = p.method == "ContactSenseActuator" && (p.feederHeightProbing == "EachTime" || unknown || !kept);
+    if (!needed) return kept ? at.derive(std::nullopt, std::nullopt, partZ + *kept, std::nullopt) : at;
+    std::string why;
+    if (!m_machine.moveNozzle(nozzleId, { at.x(), at.y(), partZ + p.startOffsetMm, at.rotation() }, 1.0, true, why))
+        fail(Source::Nozzle, nozzleId, why);
+    JJson g = placementGlobals(j);
+    g["nozzle"] = nozzleId;
+    script("Nozzle.BeforePlaceProbe", g);
+    double z = 0, ignored = 0;
+    if (!m_machine.contactProbe(nozzleId, true, unknown ? n->tipMaxPartHeightMm + p.depthMm : p.depthMm, z, why))
+        fail(Source::Nozzle, nozzleId, why);
+    double offset = 0;
+    if (unknown) {
+        const double h = z - b.z();
+        if (h <= 0)
+            fail(Source::Nozzle, nozzleId, "Part height " + j.partId + " probing by nozzle " + n->name
+                                               + " failed (returned negative height). Check PCB Z and probing adjustment.");
+        setPartHeight(j.partId, h);
+        JLOGC(JPlacerLog::kJob, JLogLevel::Info) << "Nozzle " << n->name << " probed part " << j.partId << " height at " << h;
+    } else {
+        offset = z - partZ;
+    }
+    m_machine.setProbedOffset(nozzleId, false, j.partId, offset);
+    if (!m_machine.contactProbe(nozzleId, false, p.depthMm, ignored, why)) fail(Source::Nozzle, nozzleId, why);
+    script("Nozzle.AfterPlaceProbe", g);
+    return at.derive(std::nullopt, std::nullopt, z, std::nullopt);
+}
+
 bool JPJobProcessor::discard(const std::string& nozzleId, std::string& why) {
     // OpenPnP's Cycles.discardAlways: Job.BeforeDiscard and Job.AfterDiscard round it.
     JJson g = JJson::object();
@@ -937,13 +1028,15 @@ JPJobProcessor::Step JPJobProcessor::pick(Planned& p) {
         bool picked = false;
         std::string pickWhy;
         for (int i = 0; i < 1 + feederPickRetries && !picked; ++i) {
-            std::optional<JPLocation> at;
+            std::optional<JPLocation> at, pickBase;
+            bool heightAbove = false;
             main([&] {
                 const JPFeeder* f = m_config.feeder(feederId);
                 if (!f) return;
-                at = f->pickLocation();
+                at = pickBase = f->pickLocation();
+                heightAbove = f->partHeightAbovePickLocation();
                 // Picked from on top of the part, as high as it is.
-                if (at && f->partHeightAbovePickLocation()) at = at->add(JPLocation(at->units(), 0, 0, mmIn(at->units(), j.partHeightMm), 0));
+                if (at && heightAbove) at = at->add(JPLocation(at->units(), 0, 0, mmIn(at->units(), j.partHeightMm), 0));
             });
             if (!at) {
                 pickWhy = "Feeder pick location must not be null";
@@ -964,6 +1057,7 @@ JPJobProcessor::Step JPJobProcessor::pick(Planned& p) {
             JJson nozzleGlobals = placementGlobals(j);
             nozzleGlobals["nozzle"] = p.nozzleId;
             script("Nozzle.BeforePick", nozzleGlobals);
+            at = probedPick(p.nozzleId, feederId, j, *at, *pickBase, heightAbove);
             picked = m_machine.pick(p.nozzleId, *at, pickWhy)
                   && JPFeederFeed::postPick(m_config, feederId, m_machine, [this](const std::function<void()>& fn) { main(fn); },
                                             pickWhy);
@@ -1067,6 +1161,7 @@ JPJobProcessor::Step JPJobProcessor::place(Planned& p) {
     JJson nozzleGlobals = placementGlobals(j);
     nozzleGlobals["nozzle"] = p.nozzleId;
     script("Nozzle.BeforePlace", nozzleGlobals);
+    at = probedPlace(p.nozzleId, j, at, at.add(JPLocation(JPLengthUnit::Millimeters, 0, 0, -j.partHeightMm, 0)));
     if (!m_machine.place(p.nozzleId, at, why)) fail(Source::Nozzle, p.nozzleId, why);
     script("Nozzle.AfterPlace", nozzleGlobals);
     m_partOn.erase(p.nozzleId);

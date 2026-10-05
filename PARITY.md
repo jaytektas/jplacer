@@ -27,8 +27,8 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Signalers (sound, actuator on error / job done) | done | Neoden4Signaler left out (Neoden4 driver) |
 | View: System Units (inches), Language | missing | millimetres and English only, greyed out in View |
 | View: Selections in Tables (linked tables) | done | |
-| Scripting (events, Python/JS scripts) | partial | the Scripts menu and every OpenPnP event but the ContactProbeNozzle's (not built); scripts run as programs of their own told what they run for (JSON), with no machine API |
-| ContactProbeNozzle (probing pick and place heights) | missing | |
+| Scripting (events, Python/JS scripts) | partial | the Scripts menu and every OpenPnP event; scripts run as programs of their own told what they run for (JSON), with no machine API |
+| ContactProbeNozzle (probing pick and place heights, nozzle tip Z calibration) | partial | contact sense actuator and vacuum sniffle probing, feeder and placement heights with their triggers, part height probing, Z calibration by touch; probed heights kept while jplacer runs (OpenPnP keeps them in its file); discard probing missing |
 | Jog panel: feeder take back (Recycle) | done | |
 
 ## Controllers (GcodeDriver / GcodeAsyncDriver)

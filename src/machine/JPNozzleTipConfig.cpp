@@ -121,6 +121,9 @@ JPNozzleTipConfig JPNozzleTipConfig::fromJson(const JJson& j) {
     t.unloadReversesLoad = j["unloadReversesLoad"].boolean(true);
     t.templateTip = j["templateTip"].boolean(false);
     t.templateLocked = j["templateLocked"].boolean(false);
+    t.touchLocation = JPMachineLocation::fromJson(j["touchLocation"]);
+    if (!j["zCalibrationTrigger"].str().empty()) t.zCalibrationTrigger = j["zCalibrationTrigger"].str();
+    t.zCalibrationFailHoming = j["zCalibrationFailHoming"].boolean(true);
     for (const JJson& s : j["unload"].arr()) t.unloadSteps.push_back(JPChangerStep::fromJson(s));
     t.maxPartDiameterMm  = j["maxPartDiameterMm"].number(t.maxPartDiameterMm);
     t.maxPickToleranceMm = j["maxPickToleranceMm"].number(t.maxPickToleranceMm);
@@ -174,6 +177,9 @@ JJson JPNozzleTipConfig::toJson() const {
     j["unloadReversesLoad"] = unloadReversesLoad;
     if (templateTip) j["templateTip"] = true;
     if (templateLocked) j["templateLocked"] = true;
+    if (touchLocation) j["touchLocation"] = touchLocation->toJson();
+    j["zCalibrationTrigger"] = zCalibrationTrigger;
+    j["zCalibrationFailHoming"] = zCalibrationFailHoming;
     j["unload"]   = toArray(unloadSteps);
     j["maxPartDiameterMm"]  = maxPartDiameterMm;
     j["maxPickToleranceMm"] = maxPickToleranceMm;

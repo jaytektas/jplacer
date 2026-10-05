@@ -95,11 +95,25 @@ bool JPCell::reconfigure(JPCellConfig config, std::string& why) {
         for (const JPAxisConfig& a : m_config.axes) axesBefore.push(where(a));
         for (const JPAxisConfig& a : config.axes) axesAfter.push(where(a));
         const bool axesChanged = axesBefore.dump() != axesAfter.dump();
+        // A nozzle given another tip: its Z calibration (the old tip's) dropped, and with the new tip's
+        // NozzleTipChange trigger, made again once this is done (OpenPnP's ensureZCalibrated on load).
+        std::vector<std::string> recalibrate;
+        std::map<std::string, std::string> tipBefore;
+        for (const JPNozzleConfig& n : m_config.nozzles) tipBefore[n.id] = n.tipId;
         {
             std::lock_guard lk(m_mutex);
             m_config = std::move(config);
             for (const JPAxisConfig& a : m_config.axes) m_positions.try_emplace(a.id, a.homeCoordinate);
+            for (const JPNozzleConfig& n : m_config.nozzles) {
+                const auto was = tipBefore.find(n.id);
+                if (was != tipBefore.end() && was->second == n.tipId) continue;
+                m_zCalibration.erase(n.id);
+                for (const JPNozzleTipConfig& t : m_config.nozzleTips)
+                    if (t.id == n.tipId && n.contactProbe.on() && t.zCalibrationTrigger == "NozzleTipChange" && t.touchLocation && m_homed)
+                        recalibrate.push_back(n.id);
+            }
         }
+        for (const std::string& id : recalibrate) calibrateZ(id, false);
         JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_config.name << ": set up anew"
             << (axesChanged ? "; the axes changed" : "");
         if (axesChanged && m_homed) {
@@ -333,6 +347,96 @@ void JPCell::setNozzlePart(const std::string& nozzleId, const PartOnNozzle& part
         if (part.heightMm != 0 || part.pickVacuumLevel != 0 || part.placeBlowOffLevel != 0) m_nozzleParts[nozzleId] = part;
         else m_nozzleParts.erase(nozzleId);
     });
+}
+
+const JPNozzleConfig* JPCell::nozzleOf(const JPMountConfig& mount) const {
+    for (const JPNozzleConfig& n : m_config.nozzles) {
+        const JPMountConfig& m = n.mount;
+        if (m.headId == mount.headId && m.axisX == mount.axisX && m.axisY == mount.axisY && m.axisZ == mount.axisZ
+            && m.offsetX == mount.offsetX && m.offsetY == mount.offsetY && m.offsetZ == mount.offsetZ)
+            return &n;
+    }
+    return nullptr;
+}
+
+double JPCell::zOffsetOf(const JPMountConfig& mount) const {
+    // A nozzle's tip Z calibration (OpenPnP's toHeadLocation): the tip met lower than it should,
+    // the nozzle goes that much lower everywhere.
+    if (const JPNozzleConfig* n = nozzleOf(mount)) {
+        std::lock_guard lk(m_mutex);
+        if (const auto c = m_zCalibration.find(n->id); c != m_zCalibration.end()) return mount.offsetZ + c->second.offsetMm;
+    }
+    return mount.offsetZ;
+}
+
+std::optional<double> JPCell::zCalibration(const std::string& nozzleId) const {
+    std::lock_guard lk(m_mutex);
+    const auto c = m_zCalibration.find(nozzleId);
+    if (c == m_zCalibration.end()) return std::nullopt;
+    return c->second.offsetMm;
+}
+
+void JPCell::calibrateZ(const std::string& nozzleId, bool reset) {
+    m_thread.post([this, nozzleId, reset] {
+        std::string why;
+        bool ok = true;
+        if (reset) {
+            std::lock_guard lk(m_mutex);
+            m_zCalibration.erase(nozzleId);
+        } else {
+            for (const JPNozzleConfig& n : m_config.nozzles)
+                if (n.id == nozzleId) ok = finished(doCalibrateZ(n, why), why);
+        }
+        if (!ok) onAlarm.emit(why);
+        onCalibration.emit();
+    });
+}
+
+bool JPCell::doCalibrateZ(const JPNozzleConfig& n, std::string& why) {
+    const JPNozzleTipConfig* tip = nullptr;
+    for (const JPNozzleTipConfig& t : m_config.nozzleTips) if (t.id == n.tipId) tip = &t;
+    if (!tip) { why = "Nozzle " + n.name + " has no nozzle tip loaded."; return false; }
+    if (!tip->touchLocation) { why = "Nozzle tip " + tip->name + " has no touch location configured."; return false; }
+    if (!n.contactProbe.on()) { why = "Nozzle " + n.name + " has contact probing disabled."; return false; }
+    {
+        std::lock_guard lk(m_mutex);
+        m_zCalibration.erase(n.id);
+    }
+    // OpenPnP's contactProbeCycle: above the touch place by the start offset (by way of safe Z), probed, retracted.
+    const JPMachineLocation& at = *tip->touchLocation;
+    const JPNozzleConfig::ContactProbe& p = n.contactProbe;
+    double probed = 0, ignored = 0;
+    if (!doMoveTool(n.mount, { at.x, at.y, at.z + p.startOffsetMm, std::nullopt }, 1.0, true, why)
+        || !doContactProbe(n, true, p.depthMm, probed, why) || !doContactProbe(n, false, p.depthMm, ignored, why))
+        return false;
+    const double offset = at.z - probed;
+    if (std::abs(offset) > p.maxZOffsetMm) {
+        why = "Nozzle " + n.name + " nozzle tip " + tip->name + " Z calibration offset " + format(offset, 3)
+            + " mm unexpectedly large. Check setup.";
+        return false;
+    }
+    JLOGC(JPlacerLog::kCell, JLogLevel::Info) << n.name << ": nozzle tip " << tip->name << " Z calibration offset " << format(offset, 3);
+    std::lock_guard lk(m_mutex);
+    m_zCalibration[n.id] = { tip->id, offset };
+    return true;
+}
+
+bool JPCell::doZCalibrationsAfterHoming(std::string& why) {
+    // OpenPnP's ContactProbeNozzle.home: each probing nozzle's tip calibrated again, unless by hand only.
+    for (const JPNozzleConfig& n : m_config.nozzles) {
+        const JPNozzleTipConfig* tip = nullptr;
+        for (const JPNozzleTipConfig& t : m_config.nozzleTips) if (t.id == n.tipId) tip = &t;
+        if (!tip || !n.contactProbe.on() || tip->zCalibrationTrigger == "Manual") continue;
+        std::string w;
+        if (doCalibrateZ(n, w)) continue;
+        if (tip->zCalibrationFailHoming) {
+            why = w;
+            return false;
+        }
+        JLOGC(JPlacerLog::kCell, JLogLevel::Warn) << w;
+        onAlarm.emit(w);
+    }
+    return true;
 }
 
 double JPCell::dynamicLift(const JPMountConfig& mount) const {
@@ -582,7 +686,7 @@ bool JPCell::doDiscard(const std::string& nozzleId, double speed, std::string& w
         if (!m.axisX.empty()) across[m.axisX] = at.x - m.offsetX;
         if (!m.axisY.empty()) across[m.axisY] = at.y - m.offsetY;
         return doSafeZ(m.headId, speed, why) && doMove(across, speed, why)
-            && (m.axisZ.empty() || doMove({ { m.axisZ, at.z - m.offsetZ } }, speed, why)) && doPlace(n, why)
+            && (m.axisZ.empty() || doMove({ { m.axisZ, at.z - zOffsetOf(m) } }, speed, why)) && doPlace(n, why)
             && doSafeZ(m.headId, speed, why);
     }
     why = "no nozzle " + nozzleId;
@@ -600,7 +704,7 @@ bool JPCell::doAt(const std::string& nozzleId, const std::array<std::optional<do
         if (to[3] && !m.axisRotation.empty()) across[m.axisRotation] = *to[3];
         compensateRunout(m, across, false);
         return doSafeZ(m.headId, speed, why) && (across.empty() || doMove(across, speed, why))
-            && (!to[2] || m.axisZ.empty() || doMove({ { m.axisZ, *to[2] - m.offsetZ } }, speed, why))
+            && (!to[2] || m.axisZ.empty() || doMove({ { m.axisZ, *to[2] - zOffsetOf(m) } }, speed, why))
             && (pick ? doPick(n, why) : doPlace(n, why)) && doSafeZ(m.headId, speed, why);
     }
     why = "no nozzle " + nozzleId;
@@ -714,12 +818,12 @@ bool JPCell::doMoveTool(const JPMountConfig& mount, const std::array<std::option
     if (to[3] && !mount.axisRotation.empty()) axes[mount.axisRotation] = *to[3];
     compensateRunout(mount, axes, false);
     if (!atSafeZ) {
-        if (to[2] && !mount.axisZ.empty()) axes[mount.axisZ] = *to[2] - mount.offsetZ;
+        if (to[2] && !mount.axisZ.empty()) axes[mount.axisZ] = *to[2] - zOffsetOf(mount);
         return axes.empty() || doMove(axes, speed, why);
     }
     if (!mount.headId.empty() && !doSafeZ(mount.headId, speed, why)) return false;
     if (!axes.empty() && !doMove(axes, speed, why)) return false;
-    return !to[2] || mount.axisZ.empty() || doMove({ { mount.axisZ, *to[2] - mount.offsetZ } }, speed, why);
+    return !to[2] || mount.axisZ.empty() || doMove({ { mount.axisZ, *to[2] - zOffsetOf(mount) } }, speed, why);
 }
 
 bool JPCell::testMotionAndWait(const JPMountConfig& tool, bool reverse, JPMotionTestResult& result, std::string& why) {
@@ -874,6 +978,113 @@ bool JPCell::sensed(const JPNozzleConfig& n, const JPNozzleTipConfig::Sensing& s
     return true;
 }
 
+bool JPCell::partOffCheck(const JPNozzleConfig& n, const JPNozzleTipConfig& tip, bool& off, std::string& why) {
+    double before = 0;
+    if (tip.partOff.method == "Difference" && !readVacuum(n, before, why)) return false;
+    if (!switchTelling(n.vacuumActuatorId, true, why)) return false;
+    std::this_thread::sleep_for(std::chrono::milliseconds(tip.partOffProbingMs));
+    if (!switchTelling(n.vacuumActuatorId, false, why)) return false;
+    std::this_thread::sleep_for(std::chrono::milliseconds(tip.partOffDwellMs));
+    off = sensed(n, tip.partOff, before, "off", why);
+    return true;
+}
+
+bool JPCell::contactProbeAndWait(const std::string& nozzleId, bool forward, double depthMm, double& probedZ, std::string& why) {
+    return waitFor([&](std::string& w) {
+        for (const JPNozzleConfig& n : m_config.nozzles)
+            if (n.id == nozzleId) return doContactProbe(n, forward, depthMm, probedZ, w);
+        w = "no nozzle " + nozzleId;
+        return false;
+    }, why);
+}
+
+bool JPCell::doContactProbe(const JPNozzleConfig& n, bool forward, double depthMm, double& probedZ, std::string& why) {
+    if (!m_connected || !m_homed) { why = "not homed: home the machine first"; return false; }
+    const JPNozzleConfig::ContactProbe& p = n.contactProbe;
+    const JPMountConfig& m = n.mount;
+    // The nozzle's Z (its own, the offset in).
+    auto zNow = [&] {
+        const auto at = jogBase();
+        const auto z = at.find(m.axisZ);
+        return (z == at.end() ? 0.0 : z->second) + zOffsetOf(m);
+    };
+    auto moveZ = [&](double z) { return doMove({ { m.axisZ, z - zOffsetOf(m) } }, 1.0, why); };
+    if (p.method == "ContactSenseActuator") {
+        if (p.actuatorId.empty()) { why = n.name + " has no contact sense actuator"; return false; }
+        if (!doSwitch(p.actuatorId, forward, why)) return false;
+        // The controller moved under the actuator's command: where it stopped, as it reports it.
+        if (!doCoordinate("WaitForUnconditionalCoordination", why)) return false;
+        {
+            std::lock_guard lk(m_mutex);
+            for (auto& [id, sent] : m_sent)
+                if (const auto at = m_positions.find(id); at != m_positions.end()) sent = at->second;
+        }
+        probedZ = zNow();
+        if (forward) {
+            probedZ += p.adjustMm;
+            if (!moveZ(probedZ)) return false;
+        }
+        return true;
+    }
+    if (p.method == "VacuumSense") {
+        probedZ = zNow();
+        if (!forward) return true;
+        // OpenPnP's sniffle: the part-off check, stepping down until the nozzle is blocked.
+        const JPNozzleTipConfig* tip = nullptr;
+        for (const JPNozzleTipConfig& t : m_config.nozzleTips) if (t.id == n.tipId) tip = &t;
+        if (!tip) { why = "Nozzle " + n.name + " cannot sniffle-probe without nozzle tip."; return false; }
+        if (tip->partOff.method == "None") {
+            why = "Nozzle tip " + tip->name + " cannot sniffle-probe without Part-Off sensing method.";
+            return false;
+        }
+        if (n.vacuumActuatorId.empty()) { why = "Nozzle " + n.name + " cannot sniffle-probe without vacuum valve actuator."; return false; }
+        if (n.vacuumSenseActuatorId.empty()) {
+            why = "Nozzle " + n.name + " cannot sniffle-probe without vacuum sensing actuator.";
+            return false;
+        }
+        if (m_holding.count(n.id)) {
+            why = "Nozzle " + n.name + " cannot sniffle-probe with part on nozzle. Free nozzle vacuum sensing needed.";
+            return false;
+        }
+        bool off = false;
+        std::string ignored;
+        if (!partOffCheck(n, *tip, off, ignored)) { why = ignored; return false; }
+        if (!off) { why = "Nozzle " + n.name + " first sniffle-probe was already sensing contact. Check the settings."; return false; }
+        const int count = int(std::ceil(depthMm / std::max(1e-6, p.sniffleIncrementMm)));
+        double z = probedZ;
+        for (int i = 0; i < count; ++i) {
+            z -= p.sniffleIncrementMm;
+            if (!moveZ(z) || !doCoordinate("WaitForStillstand", why)) return false;
+            std::this_thread::sleep_for(std::chrono::milliseconds(p.sniffleDwellMs));
+            if (!partOffCheck(n, *tip, off, ignored)) { why = ignored; return false; }
+            if (!off) {
+                // Contact.
+                probedZ = z + p.adjustMm;
+                return moveZ(probedZ);
+            }
+        }
+        why = "Nozzle " + n.name + " sniffle-probing made no contact. Check the settings.";
+        return false;
+    }
+    why = "Nozzle " + n.name + " has contact probing disabled.";
+    return false;
+}
+
+std::optional<double> JPCell::probedOffset(const std::string& nozzleId, bool feeder, const std::string& key) const {
+    std::lock_guard lk(m_mutex);
+    const auto& all = feeder ? m_probedFeederOffsets : m_probedPartOffsets;
+    const auto n = all.find(nozzleId);
+    if (n == all.end()) return std::nullopt;
+    const auto k = n->second.find(key);
+    if (k == n->second.end()) return std::nullopt;
+    return k->second;
+}
+
+void JPCell::setProbedOffset(const std::string& nozzleId, bool feeder, const std::string& key, double offsetMm) {
+    std::lock_guard lk(m_mutex);
+    (feeder ? m_probedFeederOffsets : m_probedPartOffsets)[nozzleId][key] = offsetMm;
+}
+
 bool JPCell::doPlace(const JPNozzleConfig& n, std::string& why) {
     if (!m_connected) { why = "not connected"; return false; }
     if (n.vacuumActuatorId.empty()) { why = "it has no vacuum actuator"; return false; }
@@ -906,13 +1117,9 @@ bool JPCell::doPlace(const JPNozzleConfig& n, std::string& why) {
     const JPNozzleTipConfig* tip = nullptr;
     for (const JPNozzleTipConfig& t : m_config.nozzleTips) if (t.id == n.tipId) tip = &t;
     if (tip && tip->partOff.method != "None") {
-        double before = 0;
-        if (tip->partOff.method == "Difference" && !readVacuum(n, before, why)) return false;
-        if (!switchTelling(n.vacuumActuatorId, true, why)) return false;
-        std::this_thread::sleep_for(std::chrono::milliseconds(tip->partOffProbingMs));
-        if (!switchTelling(n.vacuumActuatorId, false, why)) return false;
-        std::this_thread::sleep_for(std::chrono::milliseconds(tip->partOffDwellMs));
-        if (!sensed(n, tip->partOff, before, "off", why)) return false;
+        bool off = false;
+        if (!partOffCheck(n, *tip, off, why)) return false;
+        if (!off) return false;
     }
     // The pump goes off with the last part on its head, when it runs for parts (or a task).
     const JPHeadConfig* head = nullptr;
@@ -1109,12 +1316,18 @@ void JPCell::home() {
     m_thread.post([this] {
         std::string why;
         m_homing = true;
-        const bool ok = finished(doHome(why), why);
+        bool ok = finished(doHome(why), why);
         m_homing = false;
         if (ok) {
             m_homed = true;
             actuateFor(&JPActuatorConfig::homedActuation);
-            onHomed.emit(true);
+            // The tips' Z calibrations, as their triggers say; one with Fail Homing failing fails the homing.
+            if (!finished(doZCalibrationsAfterHoming(why), why)) {
+                m_homed = false;
+                ok = false;
+            } else {
+                onHomed.emit(true);
+            }
         }
         onMotion.emit(ok, why);
     });
@@ -1127,6 +1340,16 @@ bool JPCell::doHome(std::string& why) {
     m_inMotion.clear();
     m_streaming = false;
     m_homed = false;
+    // OpenPnP's ContactProbeNozzle.home: heights probed "after homing" (or no longer probed) forgotten.
+    {
+        std::lock_guard lk(m_mutex);
+        for (const JPNozzleConfig& n : m_config.nozzles) {
+            const JPNozzleConfig::ContactProbe& p = n.contactProbe;
+            const bool sensing = p.method == "ContactSenseActuator";
+            if (!sensing || p.feederHeightProbing == "Off" || p.feederHeightProbing == "AfterHoming") m_probedFeederOffsets.erase(n.id);
+            if (!sensing || p.partHeightProbing == "Off" || p.partHeightProbing == "AfterHoming") m_probedPartOffsets.erase(n.id);
+        }
+    }
     onHomed.emit(false);
     for (const auto& d : m_drivers) {
         // A controller left in alarm (reset mid-move) is unlocked to home:
@@ -1423,7 +1646,7 @@ void JPCell::moveTool(const JPMountConfig& mount, std::array<std::optional<doubl
         if (to[3] && !mount.axisRotation.empty()) across[mount.axisRotation] = *to[3];
         compensateRunout(mount, across, false);
         if (ok && !across.empty()) ok = doMove(across, speed, why);
-        if (ok && to[2] && !mount.axisZ.empty()) ok = doMove({ { mount.axisZ, *to[2] - mount.offsetZ } }, speed, why);
+        if (ok && to[2] && !mount.axisZ.empty()) ok = doMove({ { mount.axisZ, *to[2] - zOffsetOf(mount) } }, speed, why);
         ok = finished(ok, why);
         m_moving = false;
         if (!ok) JLOGC(JPlacerLog::kCell, JLogLevel::Warn) << "move refused: " << why;

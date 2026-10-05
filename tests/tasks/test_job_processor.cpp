@@ -97,7 +97,27 @@ public:
         codes = it == qr.end() ? std::vector<QrCode> {} : it->second;
         return true;
     }
-    bool moveNozzle(const std::string&, std::array<std::optional<double>, 4>, double, bool, std::string&) override { return true; }
+    bool moveNozzle(const std::string&, std::array<std::optional<double>, 4> to, double, bool, std::string&) override {
+        if (to[2]) lastZ = *to[2];
+        return true;
+    }
+    // Contact probing: met 1.2 below where the nozzle was taken (its start offset, 1, above where it should): 0.2 low.
+    double lastZ = 0;
+    int    probes = 0;
+    std::map<std::string, double> offsets;
+    bool contactProbe(const std::string&, bool forward, double, double& z, std::string&) override {
+        if (forward) ++probes;
+        z = forward ? lastZ - 1.2 : lastZ;
+        return true;
+    }
+    std::optional<double> probedOffset(const std::string& n, bool feeder, const std::string& key) const override {
+        const auto it = offsets.find(n + (feeder ? "/feeder/" : "/part/") + key);
+        if (it == offsets.end()) return std::nullopt;
+        return it->second;
+    }
+    void setProbedOffset(const std::string& n, bool feeder, const std::string& key, double offset) override {
+        offsets[n + (feeder ? "/feeder/" : "/part/") + key] = offset;
+    }
     bool vacuumOn(const std::string&, std::string&) override { return true; }
     bool zeroActuatorRotation(const std::string&, std::string&) override { return true; }
     bool positionActuator(const std::string&, std::array<std::optional<double>, 4>, double, bool, std::string&) override { return true; }
@@ -269,6 +289,38 @@ int main() {
     assert(std::find(machine.log.begin(), machine.log.end(), "tip N2 T2") != machine.log.end());
     assert(std::find(machine.log.begin(), machine.log.end(), "tip N1 T1") == machine.log.end());
     assert(std::count(machine.log.begin(), machine.log.end(), "fiducial") == 2);
+    // Contact probing, each feeder and part probed once (OpenPnP's ContactProbeNozzle, "Once"): every pick
+    // and place 0.2 lower than it would be; four probes (two feeders, two parts), the rest by the offsets kept.
+    {
+        // (The trays' counts, the log and what was picked and placed put back after.)
+        const int fr = config.feeder("FR")->number("feed-count"), fc = config.feeder("FC")->number("feed-count");
+        const auto log = machine.log;
+        const auto picks = machine.picks, places = machine.places;
+        job.removeAllPlacedStatus();
+        for (auto& h : machine.heads) {
+            h.contactProbe.method = "ContactSenseActuator";
+            h.contactProbe.feederHeightProbing = "Once";
+            h.contactProbe.partHeightProbing = "Once";
+        }
+        machine.picks.clear();
+        machine.places.clear();
+        JPJobProcessor run(config, job, machine, settings, hooks);
+        JPJobProcessor::Failure f;
+        JPJobProcessor::Result r;
+        while ((r = run.next(f)) == JPJobProcessor::Result::More) {}
+        assert(r == JPJobProcessor::Result::Finished);
+        assert(machine.probes == 4 && machine.picks.size() == 3 && machine.places.size() == 3);
+        for (const auto& p : machine.picks) assert(std::abs(p.where.z() - (-5.2)) < 1e-9);
+        for (const auto& p : machine.places) assert(std::abs(p.where.z() - (1.6 + 0.5 - 0.2)) < 1e-9);
+        for (auto& h : machine.heads) h.contactProbe = JPNozzleConfig::ContactProbe {};
+        config.feeder("FR")->setNumber("feed-count", fr);
+        config.feeder("FC")->setNumber("feed-count", fc);
+        machine.log = log;
+        machine.picks = picks;
+        machine.places = places;
+        for (const char* id : { "R1a", "R1b", "C1a" }) job.storePlacedStatus(*bl, id, true);
+    }
+
     // OpenPnP's Rotation Modes (no bottom vision here): PlacementAngle picks
     // the part already turned against its placement, so the nozzle places at
     // 0; LimitedArticulation turns about the middle of its axis's range (here

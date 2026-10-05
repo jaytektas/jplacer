@@ -51,6 +51,9 @@ public:
     void holding(const std::string& nozzleId, const std::string& partId) override;
     bool positionNozzle(const std::string& nozzleId, const JPLocation& at, std::string& why) override;
     bool positionCamera(const JPLocation& at, std::string& why) override;
+    bool contactProbe(const std::string& nozzleId, bool forward, double depthMm, double& probedZ, std::string& why) override;
+    std::optional<double> probedOffset(const std::string& nozzleId, bool feeder, const std::string& key) const override;
+    void setProbedOffset(const std::string& nozzleId, bool feeder, const std::string& key, double offsetMm) override;
     bool moveNozzle(const std::string& nozzleId, std::array<std::optional<double>, 4> to, double speed, bool safeZFirst,
                     std::string& why) override;
     bool vacuumOn(const std::string& nozzleId, std::string& why) override;

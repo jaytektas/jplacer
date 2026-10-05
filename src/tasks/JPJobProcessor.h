@@ -136,6 +136,16 @@ private:
     // An event's scripts run; one failing fails the job (OpenPnP's Scripting.on).
     // The part on a nozzle dropped at the discard location, with OpenPnP's discard events round it.
     bool discard(const std::string& nozzleId, std::string& why);
+    // OpenPnP's ContactProbeNozzle.moveToPickLocation / moveToPlacementLocation:
+    // where a contact probing nozzle picks (from `feederId`) or places, `at`
+    // (the part's height in, `base` without it): the height probed, as its
+    // trigger says (and the part's height, when not known), else the offset it
+    // found before applied. Unchanged for a nozzle that does not probe.
+    JPLocation probedPick(const std::string& nozzleId, const std::string& feederId, JobPlacement& j, JPLocation at,
+                          const JPLocation& base, bool heightAbove);
+    JPLocation probedPlace(const std::string& nozzleId, JobPlacement& j, JPLocation at, const JPLocation& base);
+    // A part's height found by probing: kept with the part, and for the job's placements of it.
+    void setPartHeight(const std::string& partId, double heightMm);
     void script(const std::string& event, JJson globals);
     // What a placement's events are given: the job, its board and placement, its part.
     JJson placementGlobals(const JobPlacement& j) const;

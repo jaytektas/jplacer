@@ -4,6 +4,7 @@
 #pragma once
 
 #include "JPChangerStep.h"
+#include "JPMachineLocation.h"
 #include "JPRunout.h"
 
 #include <j/config/Json.h>
@@ -36,6 +37,16 @@ struct JPNozzleTipConfig {
     // moves); a Locked tip is never cloned to; the rest clone from it.
     bool                       templateTip = false;
     bool                       templateLocked = false;
+    // OpenPnP's nozzle tip Z calibration, for a contact probing nozzle
+    // (JPNozzleConfig::ContactProbe): the tip probed at its Touch Location
+    // (none: not set), and every Z move of the nozzle made by how far it met it
+    // from where it should (at most the nozzle's Max Z Offset); when, as
+    // "Manual" (Calibrate Now only), "MachineHome" (once homed) or
+    // "NozzleTipChange" (once homed and on each load); with Fail Homing, a
+    // calibration failing once homed fails the homing.
+    std::optional<JPMachineLocation> touchLocation;
+    std::string                zCalibrationTrigger = "Manual";
+    bool                       zCalibrationFailHoming = true;
     // OpenPnP's Part Dimensions: the largest part it picks (diameter or
     // diagonal, tolerances in), and how far off a part may be picked
     // (bottom vision accepts a part no further off, and looks no further).

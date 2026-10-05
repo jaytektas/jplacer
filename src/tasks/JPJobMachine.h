@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "machine/JPNozzleConfig.h"
 #include "model/JPLocation.h"
 #include "pipeline/JPPipeline.h"
 #include "vision/JPPartFinder.h"
@@ -38,6 +39,10 @@ public:
         std::string              rotationMode = "AbsolutePartAngle";
         double                   maxPickArticulation = 15, maxAlignArticulation = 30;
         double                   rotationLow = -180, rotationHigh = 180;
+        // OpenPnP's ContactProbeNozzle (JPNozzleConfig::ContactProbe), and the
+        // tallest part its tip takes (a part of unknown height probed from there).
+        JPNozzleConfig::ContactProbe contactProbe;
+        double                   tipMaxPartHeightMm = 0;
     };
 
     virtual ~JPJobMachine() = default;
@@ -88,6 +93,17 @@ public:
     virtual bool discard(const std::string& nozzleId, std::string& why) = 0;
     // What a nozzle holds now (OpenPnP's Nozzle.getPart): the part picked, or "" once placed or discarded.
     virtual void holding(const std::string& /*nozzleId*/, const std::string& /*partId*/) {}
+    // Contact probing (JPCell::contactProbeAndWait), and the offsets it keeps
+    // by feeder or part (JPCell::probedOffset); none where the machine cannot probe.
+    virtual bool contactProbe(const std::string& /*nozzleId*/, bool /*forward*/, double /*depthMm*/, double& /*probedZ*/,
+                              std::string& why) {
+        why = "this machine cannot contact probe";
+        return false;
+    }
+    virtual std::optional<double> probedOffset(const std::string& /*nozzleId*/, bool /*feeder*/, const std::string& /*key*/) const {
+        return std::nullopt;
+    }
+    virtual void setProbedOffset(const std::string& /*nozzleId*/, bool /*feeder*/, const std::string& /*key*/, double /*offsetMm*/) {}
     // The nozzle over `at` at safe Z, turned to its rotation (not down).
     virtual bool positionNozzle(const std::string& nozzleId, const JPLocation& at, std::string& why) = 0;
     // The head camera over `at` (as it is, its height kept).

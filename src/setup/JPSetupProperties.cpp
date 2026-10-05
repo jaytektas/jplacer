@@ -835,6 +835,44 @@ void nozzleForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     add.actions({ { "Calculate Nozzle Offset", "calculateNozzleOffset" } });
     add.note("The offsets on the Configuration tab change by how far the camera is from where the nozzle thought it "
              "was; Undo takes them back.");
+
+    // OpenPnP's ContactProbeNozzle wizard.
+    add.tab("Contact Probe");
+    add.group("Contact Probing");
+    auto cp = [n]() -> JPNozzleConfig::ContactProbe& { return n().contactProbe; };
+    add.choice("contactProbeMethod", "Method", { "None", "VacuumSense", "ContactSenseActuator" }, [cp] { return cp().method; },
+               [cp](const std::string& v) { cp().method = v; });
+    f.reshaping.push_back("contactProbeMethod");
+    if (cp().method == "ContactSenseActuator")
+        add.byName("contactProbeActuator", "Contact Sense Actuator", named(cell.actuators, "(none)"),
+                   [cp]() -> std::string& { return cp().actuatorId; });
+    add.number("contactProbeSpeed", "Probe Speed", [cp]() -> double& { return cp().speed; });
+    add.tip("Probing speed factor, for the contact sense actuator's probing command.");
+    add.number("contactProbeStartOffset", "Start Offset", [cp]() -> double& { return cp().startOffsetMm; });
+    add.tip("Contact probing start offset in Z above the nominal location. Note: for part height probing, the maximum "
+            "part height on the NozzleTip is used instead, if the part height is not yet known.");
+    add.number("contactProbeDepth", "Probe Depth", [cp]() -> double& { return cp().depthMm; });
+    add.tip("Maximum contact probing depth in Z, from the Start Offset.");
+    if (cp().method == "VacuumSense") {
+        add.number("sniffleIncrement", "Sniffle Increment", [cp]() -> double& { return cp().sniffleIncrementMm; });
+        add.tip("Vacuum sensing \"sniffle\" increment in Z.");
+        add.integer("sniffleDwellTime", "Sniffle Dwell Time [ms]", [cp]() -> int& { return cp().sniffleDwellMs; }, 0, 60000);
+    }
+    add.number("contactProbeAdjust", "Final Adjustment", [cp]() -> double& { return cp().adjustMm; });
+    add.tip("Contact probing final adjustment in Z (positive values point upwards in Z). Use positive values to "
+            "compensate probing overshoot; negative values to add additional nozzle tip spring tensioning.");
+    const Strings triggers{ "Off", "Once", "AfterHoming", "EachTime" };
+    add.choice("feederHeightProbing", "Feeder Height Probing", triggers, [cp] { return cp().feederHeightProbing; },
+               [cp](const std::string& v) { cp().feederHeightProbing = v; });
+    add.tip("Probe for feeder heights. On some feeder types, this can probe for the Part Height, when it is unknown.");
+    add.choice("partHeightProbing", "Placement Height Probing", triggers, [cp] { return cp().partHeightProbing; },
+               [cp](const std::string& v) { cp().partHeightProbing = v; });
+    add.tip("Probe for placement heights. Includes probing for Part Height, when it is unknown.");
+    add.note("ContactSenseActuator: the actuator switched on is the controller's probing move down until contact (e.g. "
+             "G38.2), switched off its retract; the nozzle's Z is then where the controller says it stopped. "
+             "VacuumSense: the nozzle stepped down a Sniffle Increment at a time until its tip's part-off check finds "
+             "the nozzle blocked. Probing heights are kept by feeder and by part (while jplacer runs): Once until it "
+             "is closed, AfterHoming until the machine is homed, EachTime never.");
 }
 
 void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f) {
@@ -980,6 +1018,39 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
     }
     add.note("Cloning needs a first move in this tip's loading steps and in the template's: it is where each is "
              "taken from.");
+    // OpenPnP's Z calibration by touch: shown where a nozzle probes by contact.
+    if (std::any_of(cell.nozzles.begin(), cell.nozzles.end(), [](const JPNozzleConfig& n) { return n.contactProbe.on(); })) {
+        add.group("Z Calibration");
+        add.header({ "X", "Y", "Z", "Rotation", "Set?" });
+        auto touch = [t]() -> std::optional<JPMachineLocation>& { return t().touchLocation; };
+        add.row("Touch Location", touch() ? Place::Location : Place::None);
+        if (touch()) {
+            add.number("touchX", "Touch X", [touch]() -> double& { return touch()->x; });
+            add.number("touchY", "Touch Y", [touch]() -> double& { return touch()->y; });
+            add.number("touchZ", "Touch Z", [touch]() -> double& { return touch()->z; });
+            add.number("touchRotation", "Touch Rotation", [touch]() -> double& { return touch()->rotation; });
+        } else {
+            for (int i = 0; i < 4; ++i) add.skip();
+        }
+        add.flag("touchSet", "Set?", [touch] { return touch().has_value(); },
+                 [touch](bool on) {
+                     if (!on) touch().reset();
+                     else if (!touch()) touch() = JPMachineLocation();
+                 });
+        add.end();
+        f.reshaping.push_back("touchSet");
+        add.endColumns();
+        add.choice("zCalibrationTrigger", "Z Calibration", { "Manual", "MachineHome", "NozzleTipChange" },
+                   [t] { return t().zCalibrationTrigger; }, [t](const std::string& v) { t().zCalibrationTrigger = v; });
+        add.tip("When the tip's Z is calibrated by touch: Manual (Calibrate Now only), MachineHome (once the machine is "
+                "homed), NozzleTipChange (once homed, and each time it is loaded).");
+        add.flag("zCalibrationFailHoming", "Fail Homing?", [t]() -> bool& { return t().zCalibrationFailHoming; });
+        add.tip("A calibration failing once the machine is homed fails the homing.");
+        add.actions({ { "Calibrate Now", "calibrateZ" }, { "Reset", "resetZCalibration" } });
+        add.note("The nozzle the tip is on probes the Touch Location from its Start Offset (Contact Probe tab); how far "
+                 "it met it from Z, up to the nozzle's largest Z offset, moves every Z of that nozzle, while the tip "
+                 "stays on it.");
+    }
 
     add.tab("Calibration");
     add.group("Runout");

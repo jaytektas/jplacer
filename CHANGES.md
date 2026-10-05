@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- Nozzles can probe by touch, as OpenPnP's ContactProbeNozzle: a job finds feeder and placement heights (and a
+  part's height when it is not known) with a contact sensing actuator, and a nozzle tip's Z can be calibrated
+  at its touch location.
 - The Jog panel's Special tab has OpenPnP's Recycle: the part on the nozzle put back into a feeder that holds
   it. Its buttons flow onto as many lines as the panel's width needs, so none is cut off.
 - More of OpenPnP's scripting events run: the camera's settle, capture and position events, nozzle tip

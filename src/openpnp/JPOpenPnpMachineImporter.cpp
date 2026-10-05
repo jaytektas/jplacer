@@ -719,6 +719,10 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             if (x.child("max-part-diameter")) t.maxPartDiameterMm = lengthChild(x, "max-part-diameter");
             t.templateTip = x.attr("template-nozzle-tip") == "true";
             t.templateLocked = x.attr("template-locked") == "true";
+            // Z calibration by touch: where (an unset, all-zero place is none), when, and whether it fails homing.
+            if (const auto l = location(x, "touch-location"); l && (l->x != 0 || l->y != 0 || l->z != 0)) t.touchLocation = l;
+            if (!x.attr("z-calibration-trigger").empty()) t.zCalibrationTrigger = x.attr("z-calibration-trigger");
+            t.zCalibrationFailHoming = x.attr("z-calibration-fail-homing") != "false";
             if (x.child("max-pick-tolerance")) t.maxPickToleranceMm = lengthChild(x, "max-pick-tolerance");
             if (x.child("min-part-diameter")) t.minPartDiameterMm = lengthChild(x, "min-part-diameter");
             if (x.child("max-part-height")) t.maxPartHeightMm = lengthChild(x, "max-part-height");
@@ -823,6 +827,22 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                     n.blowOffClosesVacuum = x.attr("blow-off-closing-valve") == "true";
                     n.pickDwellMs = int(number(x.attr("pick-dwell-milliseconds")));
                     n.dynamicSafeZ = x.attr("enable-dynamic-safe-z") == "true";
+                    // A ContactProbeNozzle: its contact probing (OpenPnP's defaults where not said).
+                    if (shortClass(x) == "ContactProbeNozzle") {
+                        JPNozzleConfig::ContactProbe& p = n.contactProbe;
+                        p.method = x.attr("contact-probe-method").empty() ? "ContactSenseActuator" : x.attr("contact-probe-method");
+                        actuator("contact-probe-actuator-name", p.actuatorId);
+                        if (x.child("contact-probe-start-offset-z")) p.startOffsetMm = lengthChild(x, "contact-probe-start-offset-z");
+                        if (x.child("contact-probe-depth-z")) p.depthMm = lengthChild(x, "contact-probe-depth-z");
+                        if (x.child("sniffle-increment-z")) p.sniffleIncrementMm = lengthChild(x, "sniffle-increment-z");
+                        if (x.child("contact-probe-adjust-z")) p.adjustMm = lengthChild(x, "contact-probe-adjust-z");
+                        if (!x.attr("contact-probe-speed").empty()) p.speed = number(x.attr("contact-probe-speed"));
+                        if (!x.attr("sniffle-dwell-time").empty()) p.sniffleDwellMs = int(number(x.attr("sniffle-dwell-time")));
+                        if (!x.attr("feeder-height-probing").empty()) p.feederHeightProbing = x.attr("feeder-height-probing");
+                        if (!x.attr("part-height-probing").empty()) p.partHeightProbing = x.attr("part-height-probing");
+                        p.discardProbing = x.attr("discard-probing") == "true";
+                        if (!x.attr("max-z-offset-mm").empty()) p.maxZOffsetMm = number(x.attr("max-z-offset-mm"));
+                    }
                     n.changerEnabled = x.attr("changer-enabled") == "true";   // OpenPnP's default: by hand
                     n.tipChangeOnManualPick = x.attr("nozzle-tip-changed-on-manual-feed") == "true";
                     if (const auto l = location(x, "manual-nozzle-tip-change-location"); l && (l->x != 0 || l->y != 0 || l->z != 0))

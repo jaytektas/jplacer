@@ -49,6 +49,28 @@ struct JPNozzleConfig {
     // lines sent to the controller of the motor behind its Z, which ends
     // at the axis's home coordinate as a full home does. Empty: none.
     std::string              homeCommand;
+    // OpenPnP's ContactProbeNozzle: the heights of feeders and placements (and
+    // a part's height, when not known) found by touch. Method "None",
+    // "ContactSenseActuator" (the actuator, switched on, probes down until the
+    // controller senses contact, and off retracts; the place is where the
+    // controller says it stopped) or "VacuumSense" (the nozzle stepped down
+    // Sniffle Increment at a time until its part-off check senses the nozzle
+    // blocked). From Start Offset above where it should be, as deep as Probe
+    // Depth, then Final Adjustment (up: overshoot; down: spring tension). The
+    // feeder and placement probing triggers: "Off", "Once", "AfterHoming" or
+    // "EachTime"; Discard Probing probes the discard place each time.
+    struct ContactProbe {
+        std::string method = "None";
+        std::string actuatorId;
+        double      speed = 0.05;   // for the probing command (a share of top speed)
+        double      startOffsetMm = 1, depthMm = 2, sniffleIncrementMm = 0.1, adjustMm = 0;
+        int         sniffleDwellMs = 250;
+        std::string feederHeightProbing = "EachTime", partHeightProbing = "EachTime";
+        bool        discardProbing = false;
+        double      maxZOffsetMm = 2;
+        bool on() const { return method != "None"; }
+    };
+    ContactProbe             contactProbe;
 
     bool fits(const std::string& nozzleTipId) const {
         for (const std::string& t : tipIds) if (t == nozzleTipId) return true;
@@ -72,6 +94,21 @@ struct JPNozzleConfig {
         n.maxAlignArticulation  = j["maxAlignArticulation"].number(30.0);
         n.placeDwellMs          = int(j["placeDwellMs"].number());
         n.homeCommand           = j["homeCommand"].str();
+        if (const JJson& c = j["contactProbe"]; c.isObject()) {
+            ContactProbe& p = n.contactProbe;
+            if (!c["method"].str().empty()) p.method = c["method"].str();
+            p.actuatorId         = c["actuator"].str();
+            p.speed              = c["speed"].number(p.speed);
+            p.startOffsetMm      = c["startOffset"].number(p.startOffsetMm);
+            p.depthMm            = c["depth"].number(p.depthMm);
+            p.sniffleIncrementMm = c["sniffleIncrement"].number(p.sniffleIncrementMm);
+            p.adjustMm           = c["adjust"].number(p.adjustMm);
+            p.sniffleDwellMs     = int(c["sniffleDwellMs"].number(p.sniffleDwellMs));
+            if (!c["feederHeightProbing"].str().empty()) p.feederHeightProbing = c["feederHeightProbing"].str();
+            if (!c["partHeightProbing"].str().empty()) p.partHeightProbing = c["partHeightProbing"].str();
+            p.discardProbing     = c["discardProbing"].boolean(false);
+            p.maxZOffsetMm       = c["maxZOffset"].number(p.maxZOffsetMm);
+        }
         return n;
     }
     JJson toJson() const {
@@ -97,6 +134,23 @@ struct JPNozzleConfig {
         if (maxAlignArticulation != 30) j["maxAlignArticulation"] = maxAlignArticulation;
         if (placeDwellMs) j["placeDwellMs"] = placeDwellMs;
         if (!homeCommand.empty()) j["homeCommand"] = homeCommand;
+        if (contactProbe.on()) {
+            const ContactProbe& p = contactProbe;
+            JJson c = JJson::object();
+            c["method"] = p.method;
+            c["actuator"] = p.actuatorId;
+            c["speed"] = p.speed;
+            c["startOffset"] = p.startOffsetMm;
+            c["depth"] = p.depthMm;
+            c["sniffleIncrement"] = p.sniffleIncrementMm;
+            c["adjust"] = p.adjustMm;
+            c["sniffleDwellMs"] = p.sniffleDwellMs;
+            c["feederHeightProbing"] = p.feederHeightProbing;
+            c["partHeightProbing"] = p.partHeightProbing;
+            c["discardProbing"] = p.discardProbing;
+            c["maxZOffset"] = p.maxZOffsetMm;
+            j["contactProbe"] = c;
+        }
         return j;
     }
 };
