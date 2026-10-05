@@ -26,6 +26,25 @@ inline namespace jf {
 
 namespace {
 
+// jplacer's name -> the control that turns it automatic (and its on and
+// off values), and the one that sets it by hand.
+struct Control { const char* name; uint32_t autoId; int autoOn, autoOff; uint32_t valueId; };
+const Control kControls[] = {
+    { "exposure",      V4L2_CID_EXPOSURE_AUTO, V4L2_EXPOSURE_APERTURE_PRIORITY, V4L2_EXPOSURE_MANUAL, V4L2_CID_EXPOSURE_ABSOLUTE },
+    { "white-balance", V4L2_CID_AUTO_WHITE_BALANCE, 1, 0, V4L2_CID_WHITE_BALANCE_TEMPERATURE },
+    { "focus",         V4L2_CID_FOCUS_AUTO, 1, 0, V4L2_CID_FOCUS_ABSOLUTE },
+    { "gain",          V4L2_CID_AUTOGAIN, 1, 0, V4L2_CID_GAIN },
+    { "brightness",    V4L2_CID_AUTOBRIGHTNESS, 1, 0, V4L2_CID_BRIGHTNESS },
+    { "hue",           V4L2_CID_HUE_AUTO, 1, 0, V4L2_CID_HUE },
+    { "contrast",               0, 0, 0, V4L2_CID_CONTRAST },
+    { "saturation",             0, 0, 0, V4L2_CID_SATURATION },
+    { "gamma",                  0, 0, 0, V4L2_CID_GAMMA },
+    { "sharpness",              0, 0, 0, V4L2_CID_SHARPNESS },
+    { "backlight-compensation", 0, 0, 0, V4L2_CID_BACKLIGHT_COMPENSATION },
+    { "power-line-frequency",   0, 0, 0, V4L2_CID_POWER_LINE_FREQUENCY },
+    { "zoom",                   0, 0, 0, V4L2_CID_ZOOM_ABSOLUTE },
+};
+
 // How many buffers the driver fills ahead: enough that a slow decode does
 // not drop the stream, few enough that the picture is not old.
 constexpr unsigned kBuffers = 3;
@@ -212,25 +231,35 @@ bool JPV4L2Source::start(const JPCaptureMode& mode, std::string& error) {
     return true;
 }
 
+JJson JPV4L2Source::controls() const {
+    JJson out = JJson::object();
+    if (m_fd < 0) return out;
+    for (const Control& c : kControls) {
+        v4l2_queryctrl q{};
+        q.id = c.valueId;
+        if (xioctl(m_fd, VIDIOC_QUERYCTRL, &q) != 0 || (q.flags & V4L2_CTRL_FLAG_DISABLED)) continue;
+        v4l2_control v{};
+        v.id = c.valueId;
+        if (xioctl(m_fd, VIDIOC_G_CTRL, &v) != 0) continue;
+        JJson& r = out[c.name];
+        r["value"] = v.value;
+        r["min"] = q.minimum;
+        r["max"] = q.maximum;
+        r["default"] = q.default_value;
+        if (c.autoId) {
+            v4l2_queryctrl qa{};
+            qa.id = c.autoId;
+            v4l2_control a{};
+            a.id = c.autoId;
+            if (xioctl(m_fd, VIDIOC_QUERYCTRL, &qa) == 0 && !(qa.flags & V4L2_CTRL_FLAG_DISABLED)
+                && xioctl(m_fd, VIDIOC_G_CTRL, &a) == 0)
+                r["auto"] = a.value != c.autoOff;
+        }
+    }
+    return out;
+}
+
 void JPV4L2Source::applyControls() {
-    // jplacer's name -> the control that turns it automatic (and its on and
-    // off values), and the one that sets it by hand.
-    struct Control { const char* name; uint32_t autoId; int autoOn, autoOff; uint32_t valueId; };
-    static const Control kControls[] = {
-        { "exposure",      V4L2_CID_EXPOSURE_AUTO, V4L2_EXPOSURE_APERTURE_PRIORITY, V4L2_EXPOSURE_MANUAL, V4L2_CID_EXPOSURE_ABSOLUTE },
-        { "white-balance", V4L2_CID_AUTO_WHITE_BALANCE, 1, 0, V4L2_CID_WHITE_BALANCE_TEMPERATURE },
-        { "focus",         V4L2_CID_FOCUS_AUTO, 1, 0, V4L2_CID_FOCUS_ABSOLUTE },
-        { "gain",          V4L2_CID_AUTOGAIN, 1, 0, V4L2_CID_GAIN },
-        { "brightness",    V4L2_CID_AUTOBRIGHTNESS, 1, 0, V4L2_CID_BRIGHTNESS },
-        { "hue",           V4L2_CID_HUE_AUTO, 1, 0, V4L2_CID_HUE },
-        { "contrast",               0, 0, 0, V4L2_CID_CONTRAST },
-        { "saturation",             0, 0, 0, V4L2_CID_SATURATION },
-        { "gamma",                  0, 0, 0, V4L2_CID_GAMMA },
-        { "sharpness",              0, 0, 0, V4L2_CID_SHARPNESS },
-        { "backlight-compensation", 0, 0, 0, V4L2_CID_BACKLIGHT_COMPENSATION },
-        { "power-line-frequency",   0, 0, 0, V4L2_CID_POWER_LINE_FREQUENCY },
-        { "zoom",                   0, 0, 0, V4L2_CID_ZOOM_ABSOLUTE },
-    };
     auto set = [this](const char* name, uint32_t id, int value) {
         v4l2_control c{};
         c.id = id;

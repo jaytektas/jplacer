@@ -654,6 +654,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         context.calibrated = [this](const std::string& id) { return m_machine.cameraCalibrated(id); };
         context.showSetup = [this](const std::string& path) { m_machine.showSetupNode(path); };
         context.renderingSmooth = [this](const std::string& id) { return m_machine.cameraRenderingSmooth(id); };
+        context.cameraControls = [this](const std::string& id) { return m_machine.cameraDeviceControls(id); };
         context.calibrateCamera = [this](const std::string& id, std::function<void(bool)> finished) {
             m_machine.calibrateCamera(id, std::move(finished));
         };

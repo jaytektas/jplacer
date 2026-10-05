@@ -22,7 +22,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Motion planner: continuous motion | done | Machine › Motion Planner; waits where the machine must stand still (actuator coordination, pick and place, homing, each operation's end) |
 | Motion planner: uncoordinated moves, interpolation retiming, minimum speed | own way | jplacer's movement is kept (as asked): acceleration and jerk are the controller's; OpenPnP's own 3rd-order profiles, sent as interpolated moves, are not used |
 | Motion planner test motion (4 locations) and diagnostics | done | planned time from feed rates and accelerations, actual time, each axis's location and velocity from the controllers' reports |
-| Issues & Solutions (guided setup, milestones, auto-fixes) | partial | the tab, milestones and the checks jplacer has so far |
+| Issues & Solutions (guided setup, milestones, auto-fixes) | partial | the tab, milestones; Actuator, Axis, Calibration (backlash, camera), Camera (preview, device properties), GcodeDriver (generic), Head, Kinematic, NozzleTip and Vision (visual homing, rig, tables) solutions, solved on Accept where OpenPnP's are; firmware-specific driver solutions are jplacer's profiles; VisionSolutions' camera-guided calibration is jplacer's own calibration |
 | Log panel (filterable log) | done | Log tab |
 | Signalers (sound, actuator on error / job done) | done | Neoden4Signaler left out (Neoden4 driver) |
 | View: System Units (inches) | done | every length shown and typed in mm or inches (forms, tables, readout, Jog), kept in mm; on restart, as OpenPnP |

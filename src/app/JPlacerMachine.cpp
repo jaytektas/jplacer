@@ -1426,6 +1426,12 @@ void JPlacerMachine::enableVisualHoming(const std::string& headId, std::function
     });
 }
 
+JJson JPlacerMachine::cameraDeviceControls(const std::string& cameraId) const {
+    for (const CameraDock& d : m_cameras)
+        if (d.panel->camera().id == cameraId) return d.panel->feed().deviceControls();
+    return JJson::object();
+}
+
 bool JPlacerMachine::cameraRenderingSmooth(const std::string& cameraId) const {
     for (const CameraDock& d : m_cameras)
         if (d.panel->camera().id == cameraId) return d.panel->view().renderingQuality() != JPCameraView::RenderingQuality::Low;

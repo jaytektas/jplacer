@@ -204,6 +204,40 @@ int main() {
         atOnce = true;
         assert(!b.setState(*x, S::State::Solved, why) && x->state == S::State::Open && !why.empty());
     }
+    // OpenPnP's CameraSolutions on the device's own settings: each to its raw value, none automatic.
+    {
+        JPCellConfig p2 = cell;
+        JPCameraConfig cam;
+        cam.id = "U";
+        cam.name = "Up";
+        cam.device = JJson::object();
+        cam.device["backend"] = "v4l2";
+        p2.cameras.push_back(cam);
+        JPIssueChecks::Context k = c;
+        k.cell = [&p2]() -> const JPCellConfig* { return &p2; };
+        k.changeCell = [&p2](const std::string&, const std::function<void(JPCellConfig&)>& edit) { edit(p2); };
+        k.cameraControls = [](const std::string&) {
+            return JJson::parse(R"({ "brightness": { "value": 10, "min": -64, "max": 64, "default": 0 },
+                                     "sharpness": { "value": 3, "min": 0, "max": 7, "default": 3 },
+                                     "contrast": { "value": 32, "min": 0, "max": 64, "default": 32 },
+                                     "exposure": { "value": 157, "min": 1, "max": 5000, "default": 157, "auto": true } })");
+        };
+        S cp;
+        cp.setChecks(JPIssueChecks::all(k));
+        cp.setTargetMilestone(S::Milestone::Vision);
+        cp.find();
+        cp.publish();
+        S::Issue* bright = const_cast<S::Issue*>(find(cp, "The brightness of camera Up should be set to 0."));
+        S::Issue* sharp = const_cast<S::Issue*>(find(cp, "The sharpness of camera Up should be set to 0."));
+        S::Issue* exposure = const_cast<S::Issue*>(find(cp, "The exposure of camera Up should not be set to Auto."));
+        assert(bright && sharp && exposure && !find(cp, "The contrast of camera Up should be set to 32."));
+        assert(bright->solution.find("Therefore, revert to the default setting.") != std::string::npos);
+        std::string why;
+        assert(cp.setState(*exposure, S::State::Solved, why));
+        const JJson& set = std::as_const(p2.cameras.back().device)["controls"]["exposure"];
+        assert(!set["auto"].boolean() && set["value"].number() == 157);
+        assert(cp.setState(*exposure, S::State::Open, why) && !std::as_const(p2.cameras.back().device)["controls"]["exposure"].isObject());
+    }
     // OpenPnP's VisionSolutions: Enable Visual Homing (the mark under the camera on Accept), the rig's heights.
     {
         JPCameraConfig cam;

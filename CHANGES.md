@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Issues & Solutions checks a camera's own settings as OpenPnP does (brightness, contrast, gamma, gain, hue,
+  saturation, white balance, sharpness, auto exposure) and sets them right on Accept.
 - Issues & Solutions points out a nozzle, actuator or camera on other X or Y axes than its head's camera, and fixes
   it on Accept.
 - Issues & Solutions: each nozzle's Safe Z dynamic or fixed, an unconventional Safe Z, the tallest part against the

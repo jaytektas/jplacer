@@ -58,6 +58,11 @@ void JPCameraFeed::stop() {
     if (m_thread.joinable()) m_thread.join();
 }
 
+JJson JPCameraFeed::deviceControls() const {
+    std::lock_guard lk(m_mutex);
+    return m_deviceControls;
+}
+
 bool JPCameraFeed::latestUnbalanced(JPFrame& out) const {
     std::lock_guard lk(m_mutex);
     const JPFrame& f = m_config.whiteBalance.neutral() ? m_latest : m_unbalanced;
@@ -122,6 +127,10 @@ void JPCameraFeed::runSource(std::string& why) {
         m_mode = *mode;
     }
     JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << m_config.name << ": " << mode->describe();
+    {
+        std::lock_guard lk(m_mutex);
+        m_deviceControls = source->controls();
+    }
     onRunning.emit(true);
 
     JPFrame frame;

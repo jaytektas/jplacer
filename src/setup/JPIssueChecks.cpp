@@ -954,6 +954,82 @@ void drivers(JPSolutions& s, const JPIssueChecks::Context& c) {
     }
 }
 
+// OpenPnP's CameraSolutions on a capture device's own settings: none
+// automatic, and each at the value that gives the sensor's raw picture.
+void cameraProperties(JPSolutions& s, const JPIssueChecks::Context& c) {
+    const JPCellConfig* cell = c.cell ? c.cell() : nullptr;
+    if (!cell || !c.cameraControls || !s.isTargeting(Milestone::Vision)) return;
+    const std::string uri = std::string(kWiki) + "OpenPnpCaptureCamera#camera-properties";
+    for (const JPCameraConfig& cam : cell->cameras) {
+        if (cam.device["backend"].str() != "v4l2") continue;
+        const JJson have = c.cameraControls(cam.id);
+        const std::string id = cam.id, subject = "Camera " + cam.name;
+        // Set by hand to `value` on Accept; back as it was on Reopen.
+        auto apply = [c, id](const std::string& key, const JJson& was, int value) {
+            return changing(c, "Camera " + key, [id, key, was, value](JPCellConfig& cell, bool solved) {
+                for (JPCameraConfig& x : cell.cameras) {
+                    if (x.id != id) continue;
+                    if (!solved) {
+                        if (was.isObject()) x.device["controls"][key] = was;
+                        else {
+                            JJson rest = JJson::object();
+                            for (const auto& [n, v] : std::as_const(x.device)["controls"].obj()) if (n != key) rest[n] = v;
+                            x.device["controls"] = rest;
+                        }
+                        continue;
+                    }
+                    x.device["controls"][key]["auto"] = false;
+                    x.device["controls"][key]["value"] = value;
+                }
+            });
+        };
+        // OpenPnP's property, its name in words, what to do, and the value wanted (its default unless said).
+        struct Wanted { const char* key; const char* words; const char* what; bool minimum; const char* uri; };
+        static const Wanted kWanted[] = {
+            { "brightness", "brightness", "revert to the default setting", false, nullptr },
+            { "contrast", "contrast", "revert to the default setting", false, nullptr },
+            { "gamma", "gamma", "revert to the default setting", false, nullptr },
+            { "gain", "gain", "revert to the default setting", false, nullptr },
+            { "sharpness", "sharpness", "set to the minimum", true, nullptr },
+            { "hue", "hue", "revert to the default setting", false, nullptr },
+            { "saturation", "saturation", "revert to the default setting", false, nullptr },
+            { "white-balance", "white balance",
+              "revert to the default setting. Issues & Solutions will propose calibrating static white balance instead", false,
+              "Camera-White-Balance#problems-with-device-white-balance" },
+        };
+        for (const Wanted& w : kWanted) {
+            const JJson& p = have[w.key];
+            if (!p.isObject()) continue;
+            const int wanted = int(p[w.minimum ? "min" : "default"].number());
+            const bool automatic = p["auto"].boolean();
+            if (!automatic && int(p["value"].number()) == wanted) continue;
+            Issue i;
+            i.subject = subject;
+            i.issue = std::string("The ") + w.words + " of camera " + cam.name + " should be set to " + std::to_string(wanted) + ".";
+            i.solution = std::string("Computer vision works best with raw information from the camera sensor, even if the images "
+                                     "look less appealing to humans. ")
+                       + (automatic ? std::string("Switch off the Auto ") + w.words + " and " : std::string("Therefore, ")) + w.what + ".";
+            i.severity = Severity::Suggestion;
+            i.uri = w.uri ? std::string(kWiki) + w.uri : uri;
+            i.apply = apply(w.key, std::as_const(cam.device)["controls"][w.key], wanted);
+            s.add(std::move(i));
+        }
+        // Exposure: not automatic; kept at what the camera chose for what it sees now.
+        if (const JJson& e = have["exposure"]; e.isObject() && e["auto"].boolean()) {
+            Issue i;
+            i.subject = subject;
+            i.issue = "The exposure of camera " + cam.name + " should not be set to Auto.";
+            i.solution = "Computer vision can only be robust and repeatable if the effect of exposure is stable. Switch off the "
+                         "Auto exposure and set to a static exposure value: the one it has chosen now. The camera should look at "
+                         "a representative, rather bright subject when you press Accept.";
+            i.severity = Severity::Suggestion;
+            i.uri = uri;
+            i.apply = apply("exposure", std::as_const(cam.device)["controls"]["exposure"], int(e["value"].number()));
+            s.add(std::move(i));
+        }
+    }
+}
+
 // OpenPnP's VisionSolutions, as far as they are not jplacer's own
 // calibration: visual homing, and the calibration rig's heights.
 void visionSetup(JPSolutions& s, const JPIssueChecks::Context& c) {
@@ -1087,6 +1163,7 @@ std::vector<JPSolutions::Check> JPIssueChecks::all(const Context& c) {
         [c](JPSolutions& s) { kinematics(s, c); },
         [c](JPSolutions& s) { vision(s, c); },
         [c](JPSolutions& s) { cameraViews(s, c); },
+        [c](JPSolutions& s) { cameraProperties(s, c); },
         [c](JPSolutions& s) { visionSetup(s, c); },
         [c](JPSolutions& s) { calibration(s, c); },
         [c](JPSolutions& s) { production(s, c); },

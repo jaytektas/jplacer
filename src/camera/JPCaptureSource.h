@@ -6,6 +6,8 @@
 #include "JPCaptureMode.h"
 #include "JPFrame.h"
 
+#include <j/config/Json.h>
+
 #include <string>
 #include <vector>
 
@@ -28,6 +30,11 @@ public:
     // The next picture, into `frame` (RGBA). False on timeout or failure;
     // `error` empty for a plain timeout.
     virtual bool grab(JPFrame& frame, int timeoutMs, std::string& error) = 0;
+
+    // The device's own settings as they are now, by jplacer's names
+    // ("exposure": { "value", "min", "max", "default", "auto" (where it has
+    // one) }); none for a source without.
+    virtual JJson controls() const { return JJson::object(); }
 
     // Waiting for its turn (a switcher camera not switched in): no picture,
     // and not a camera that has hung.

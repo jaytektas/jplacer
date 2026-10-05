@@ -56,6 +56,8 @@ public:
         std::function<void(const std::string& tipId, std::function<void(bool ok)> finished)> calibrateTip;
         // The mark under a head's camera made its homing mark, visual homing on.
         std::function<void(const std::string& headId, std::function<void(bool ok)> finished)> enableVisualHoming;
+        // A camera's own device settings as it last started (JPCaptureSource::controls).
+        std::function<JJson(const std::string& cameraId)> cameraControls;
         // A camera's picture drawn smoothed (Rendering Quality High or better), and set so or back to Low.
         std::function<bool(const std::string& cameraId)> renderingSmooth;
         std::function<void(const std::string& cameraId, bool smooth)> setRenderingSmooth;
