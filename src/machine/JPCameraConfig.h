@@ -28,6 +28,11 @@ struct JPCameraConfig {
     // (enlarged until every part has picture behind it) .. 1 whole (all the
     // camera sees). See JPStraightener.
     double        showAll = 0;
+    // OpenPnP's image transforms (JPImageTransform): each picture woven from
+    // two stacked fields, and cut about its middle to cropWidth x cropHeight
+    // (0: that side whole), before anything else is done with it.
+    bool          deinterlace = false;
+    int           cropWidth = 0, cropHeight = 0;
     // SETTLING, as OpenPnP does it: a picture for vision is one taken once
     // the camera has stopped moving. FixedTime waits `timeMs` after the move.
     // The others compare each picture with the one before (Maximum, Mean,
@@ -136,6 +141,9 @@ struct JPCameraConfig {
         c.unitsPerPixelY = j["unitsPerPixel"]["y"].number();
         c.device         = j["device"];
         c.showAll        = j["showAll"].number(0.0);
+        c.deinterlace    = j["deinterlace"].boolean();
+        c.cropWidth      = int(j["crop"]["width"].number(0.0));
+        c.cropHeight     = int(j["crop"]["height"].number(0.0));
         for (size_t ch = 0; ch < 3; ++ch) {
             c.whiteBalance.balance[ch] = j["whiteBalance"]["balance"][ch].number(1.0);
             c.whiteBalance.gamma[ch]   = j["whiteBalance"]["gamma"][ch].number(1.0);
@@ -184,6 +192,11 @@ struct JPCameraConfig {
         j["unitsPerPixel"]["y"] = unitsPerPixelY;
         j["device"]             = device;
         j["showAll"]            = showAll;
+        if (deinterlace) j["deinterlace"] = true;
+        if (cropWidth || cropHeight) {
+            j["crop"]["width"] = cropWidth;
+            j["crop"]["height"] = cropHeight;
+        }
         if (!whiteBalance.neutral()) {
             JJson balance = JJson::array(), gamma = JJson::array();
             for (size_t ch = 0; ch < 3; ++ch) {

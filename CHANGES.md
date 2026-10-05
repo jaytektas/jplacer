@@ -362,6 +362,8 @@ notes.
   fixed camera's menu has Move Selected Nozzle to Camera, and one calibrated at two heights Estimate Z
   Coordinate of Object, which measures how high a feature is from two clicks on it.
 - A camera's picture menu has OpenPnP's Zoom Sensitivity (High, Medium, Low): how much the wheel zooms.
+- A camera's Machine Setup has OpenPnP's Image Transforms: crop width and height, and de-interlace. They come
+  in with an OpenPnP machine.
 
 ## 0.1.0
 

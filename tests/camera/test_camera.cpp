@@ -12,6 +12,7 @@
 #include "camera/JPCameraFeed.h"
 #include "camera/JPCaptureFactory.h"
 #include "camera/JPImageFile.h"
+#include "camera/JPImageTransform.h"
 #include "camera/JPPixels.h"
 
 #include <j/config/Json.h>
@@ -24,6 +25,26 @@
 using namespace jf;
 
 int main() {
+    // OpenPnP's image transforms: two stacked fields woven, then cut about the middle.
+    {
+        JPFrame f;
+        f.width = 2;
+        f.height = 4;
+        for (uint8_t row : { 0, 1, 2, 3 })   // rows 0, 1 the even field; 2, 3 the odd one
+            for (int i = 0; i < 2 * 4; ++i) f.rgba.push_back(row);
+        JPImageTransform::deinterlace(f);
+        assert(f.rgba[0] == 0 && f.rgba[8] == 2 && f.rgba[16] == 1 && f.rgba[24] == 3);
+        JPFrame g;
+        g.width = 4;
+        g.height = 4;
+        for (int y = 0; y < 4; ++y)
+            for (int x = 0; x < 4; ++x)
+                for (int k = 0; k < 4; ++k) g.rgba.push_back(uint8_t(y * 4 + x));
+        JPImageTransform::crop(g, 2, 0);   // 2 across about the middle, all of it down
+        assert(g.width == 2 && g.height == 4 && g.rgba.size() == 2 * 4 * 4 && g.rgba[0] == 1 && g.rgba[4] == 2);
+        JPImageTransform::crop(g, 0, 9);   // nothing to cut
+        assert(g.width == 2 && g.height == 4);
+    }
     // YUYV: white and black pixel pairs (Y 235 / 16, no colour).
     const uint8_t yuyv[] = { 235, 128, 235, 128, 16, 128, 16, 128 };
     std::vector<uint8_t> rgba;

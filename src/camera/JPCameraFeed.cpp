@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
+#include "JPImageTransform.h"
 #include "JPCameraFeed.h"
 
 #include "JPCaptureFactory.h"
@@ -156,6 +157,9 @@ void JPCameraFeed::runSource(std::string& why) {
             }
         }
         m_lost = false;   // pictures again
+        // OpenPnP's de-interlacing and cropping first, as it does them.
+        if (m_config.deinterlace) JPImageTransform::deinterlace(frame);
+        JPImageTransform::crop(frame, m_config.cropWidth, m_config.cropHeight);
         frame.sequence = ++m_sequence;   // the feed's own count, unbroken when the camera is opened again
         JLOGC(JPlacerLog::kFrames, JLogLevel::Trace) << m_config.name << " frame " << frame.sequence << " "
                                                      << frame.width << "x" << frame.height << ", brightness "

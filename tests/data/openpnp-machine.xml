@@ -111,7 +111,7 @@
          <signaler class="org.openpnp.machine.neoden4.Neoden4Signaler" id="SIG3" name="Neoden4Signaler"/>
       </signalers>
       <cameras class="java.util.ArrayList">
-         <camera class="org.openpnp.machine.reference.camera.OpenPnpCaptureCamera" id="C2" name="BOTTOM_CAMERA" looking="Up" fps="5.0" flip-y="true">
+         <camera class="org.openpnp.machine.reference.camera.OpenPnpCaptureCamera" id="C2" name="BOTTOM_CAMERA" looking="Up" fps="5.0" flip-y="true" deinterlace="true" crop-width="400" crop-height="0">
             <units-per-pixel units="Millimeters" x="0.0329" y="0.0328" z="0.0" rotation="0.0"/>
             <head-offsets units="Millimeters" x="65.885" y="97.575" z="-24.0" rotation="0.0"/>
          </camera>

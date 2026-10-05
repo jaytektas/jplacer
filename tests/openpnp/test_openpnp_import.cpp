@@ -150,6 +150,10 @@ int main() {
     assert(cell.cameras[0].settle.method == "Euclidean" && cell.cameras[0].settle.threshold == 0.45 && cell.cameras[0].settle.debounce == 5);
     assert(cell.cameras[0].whiteBalance.balance[2] == 1.375 && cell.cameras[0].whiteBalance.gamma[2] == 1.09);
     assert(cell.cameras[1].looksUp && cell.cameras[1].mount.headId.empty() && cell.cameras[1].mount.offsetZ == -24);
+    // The image transforms its advanced calibration still applies: de-interlace and crop.
+    assert(cell.cameras[1].deinterlace && cell.cameras[1].cropWidth == 400 && cell.cameras[1].cropHeight == 0);
+    assert(!cell.cameras[0].deinterlace && cell.cameras[0].cropWidth == 0);
+    assert(JPCameraConfig::fromJson(cell.cameras[1].toJson()).cropWidth == 400);
 
     // Nothing in the imported cell points at nothing.
     assert(cell.problems().empty());

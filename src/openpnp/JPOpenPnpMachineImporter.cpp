@@ -441,6 +441,10 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                             "calibrate the camera in jplacer");
         cam.device = JJson::object();
         cam.device["openpnpClass"] = shortClass(x);
+        // The image transforms that apply under advanced calibration (de-interlace, crop).
+        cam.deinterlace = x.attr("deinterlace") == "true";
+        cam.cropWidth = int(number(x.attr("crop-width")));
+        cam.cropHeight = int(number(x.attr("crop-height")));
         for (const char* key : { "unique-id", "format-id", "fps", "rotation", "flip-x", "flip-y", "light-actuator-id" })
             if (!x.attr(key).empty()) cam.device[key] = x.attr(key);
         // OpenPnpCaptureCamera's unique id is the device's own name and the

@@ -1094,6 +1094,20 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     }
     add.note("Set? unticked: the camera keeps its own setting. The values are the camera's own units.");
 
+    // OpenPnP's Image Transforms: those its advanced calibration still applies (rotation,
+    // offset, flips and scaling are the calibration's straightening here).
+    add.tab("Image Transforms");
+    add.group("Image Transforms");
+    add.integer("cropWidth", "Crop Width", [c]() -> int& { return c().cropWidth; }, 0, 100000);
+    add.tip("(Use 0 for no cropping)");
+    add.integer("cropHeight", "Crop Height", [c]() -> int& { return c().cropHeight; }, 0, 100000);
+    add.tip("(Use 0 for no cropping)");
+    add.flag("deinterlace", "De-Interlace?", [c]() -> bool& { return c().deinterlace; });
+    add.tip("(Removes interlacing from stacked frames)");
+    add.note("Each picture is de-interlaced, then cut to the crop about its middle, before anything else is done with it: "
+             "a camera is calibrated for the picture size it gives then. Rotation, offset, flipping and scaling are "
+             "the calibration's straightening (As Taken off).");
+
     add.tab("White Balance");
     add.group("White Balance");
     add.header({ "Red", "Green", "Blue" });

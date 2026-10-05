@@ -111,7 +111,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | White balance (balance, gamma, Overall, Brightest) | partial | Mapped Roughly / Finely and the curve plot missing |
 | Position (head offsets, fixed location, safe Z, roaming radius) | partial | roaming radius missing |
 | Lens calibration | own way | fitted by Calibrate |
-| Image transforms (rotate, offset, flip, crop, scale, de-interlace) | partial | straightening covers rotation and lens; crop, flip, scale, de-interlace missing |
+| Image transforms (rotate, offset, flip, crop, scale, de-interlace) | done | crop and de-interlace, as under OpenPnP's advanced calibration; straightening covers the rest |
 | Advanced calibration: settings | partial | grid, reach, outliers, worst fit, two heights; crop size, default working plane Z, detection diameter missing |
 | Advanced calibration: results | partial | units per pixel, accuracy, FOV mm and degrees, turn, height, focal length; head offsets and tilt about X / Y missing |
 | Advanced calibration: plots | done | in order, X against Y, map |
