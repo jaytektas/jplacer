@@ -265,6 +265,7 @@ float JPSetupForm::widthOf(const JProperty& p) const {
     // Shown text: as wide as it is drawn, with room to spare (a measure falls a little short of it), and
     // no narrower than a number's field, as editor() makes it.
     if (!p.writable() && !p.get().isBool()) return std::max(std::ceil(JTextHelper::measureWidth(p.get().toString())) + st.spacing, numberWidth());
+    if (p.meta.editor == "slider") return 2 * numberWidth();   // room to slide in (a column's; a row's grows)
     if (!p.meta.choices.empty()) {
         // The longest item, its padding either side, and the arrow.
         float widest = 0;

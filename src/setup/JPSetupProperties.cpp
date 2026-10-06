@@ -2435,7 +2435,8 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
             add.group("Properties");
             // The device's own ranges and defaults, and its values where not set, as the camera reports them.
             const JJson have = live.cameraControls ? live.cameraControls(c().id) : JJson::object();
-            add.header({ "Set?", "Auto", "Value", "Min", "Max", "Default" });
+            // OpenPnP's columns (Auto, Min, the Value's slider and number, Max, Default), jplacer's Set? first.
+            add.header({ "Set?", "Auto", "Min", "Value", "", "Max", "Default" });
             struct Control { const char* key; const char* label; bool canAuto; };
             static const Control kControls[] = {
                 { "brightness", "Brightness", true }, { "backlight-compensation", "Backlight Compensation", false },
@@ -2467,12 +2468,21 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
                     add.skip();
                 const JJson& own = have[k.key];
                 auto shown = [&own](const char* field) { return own[field].isNumber() ? std::to_string(int(own[field].number())) : std::string(); };
-                if (set)
+                add.words(shown("min"));
+                if (set) {
+                    // The slider from the camera's least to its most, where it says them.
+                    if (own["min"].isNumber() && own["max"].isNumber() && own["max"].number() > own["min"].number())
+                        add.slider(name + ":slider", k.label, int(own["min"].number()), int(own["max"].number()),
+                                   [control] { return int(std::as_const(control())["value"].number()); },
+                                   [control](int v) { control()["value"] = v; });
+                    else
+                        add.skip();
                     add.integer(name + ":value", k.label, [control] { return int(std::as_const(control())["value"].number()); },
                                 [control](int v) { control()["value"] = v; }, -1000000, 1000000);
-                else
+                } else {
+                    add.skip();
                     add.words(shown("value"));
-                add.words(shown("min"));
+                }
                 add.words(shown("max"));
                 add.words(shown("default"));
                 add.end();

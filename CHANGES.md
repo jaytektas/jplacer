@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- A capture camera's properties are in OpenPnP's columns (Auto, Min, Value, Max, Default), each value with OpenPnP's
+  slider from the camera's least to its most.
 - A camera's General Configuration pairs its settings as OpenPnP's (Preview FPS with Suspend during tasks?, Auto
   Camera View? with Show in multi camera view?), its light's OFF ticks are named beside the ON ones, and its Camera
   Settling is laid out in OpenPnP's columns.
