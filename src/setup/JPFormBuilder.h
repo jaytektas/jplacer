@@ -275,6 +275,16 @@ public:
                 m_form.model.add(std::move(q));
             }
     }
+    // What the last row's label alone says when pointed at (its settings say their own).
+    void labelTip(const std::string& text) { rows().back().tooltip = text; }
+    // What one setting (by its property) says when pointed at, where a row has several.
+    void tipOf(const std::string& property, const std::string& text) {
+        if (const JProperty* p = m_form.model.find(property)) {
+            JProperty q = *p;
+            q.meta.tooltip = text;
+            m_form.model.add(std::move(q));
+        }
+    }
     // A button on the row begun (or a row of its own): the owner does `action`.
     void button(const std::string& action, const std::string& label, const std::string& tooltip = "", bool enabled = true) {
         JPSetupProperties::Cell c;

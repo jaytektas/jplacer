@@ -434,7 +434,11 @@ void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPF
     add.tab("Driver Settings");
     add.group("Settings");
     add.number("maxFeedRate", "Max. Feed Rate [/min]", [d]() -> double& { return d().maxFeedRate; }, 0);
+    add.tip("Maximum tool-path feed-rate in driver units per minute.\nSet to 0 to disable and only use axis feed-rate "
+            "limits. Diagonal moves will then be faster.");
     add.flag("logGcode", "Log G-code?", [d]() -> bool& { return d().logGcode; });
+    add.tip("Log the generated Gcode, and what the controller answers, into the log (the Log tab and the console), "
+            "rather than only when the traffic category is traced.");
     add.choice("units", "Units", { "Millimeters", "Inches" }, [d] { return d().units; }, [d](const std::string& v) { d().units = v; });
     add.tip("The units of the controller's G-code: coordinates, feed rate, acceleration and jerk (rotations stay degrees). "
             "Its connect command must say so to it (G20 for inches, G21 for millimetres).");
@@ -457,12 +461,23 @@ void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPF
                                          std::tuple { "sendOnChangeAcceleration", "Send Acceleration On Change Only?", &JPDriverConfig::sendOnChangeAcceleration },
                                          std::tuple { "sendOnChangeJerk", "Send Jerk On Change Only?", &JPDriverConfig::sendOnChangeJerk } }) {
         add.flag(key, label, [d, s]() -> bool& { return (d().*s).on; });
-        add.tip("A move's value left out (with its letter) when within the relative deviation of the one last sent, "
-                "as the controller keeps it; sent again after connecting and homing.");
+        add.tip(std::string("Only send ") + (s == &JPDriverConfig::sendOnChangeFeed ? "FeedRate" : s == &JPDriverConfig::sendOnChangeAcceleration ? "Acceleration" : "Jerk")
+                + " values to driver when they have actually change.\nA move's value is left out (with its letter) when "
+                  "within the relative deviation of the one last sent, as the controller keeps it; sent again after "
+                  "connecting and homing.");
     }
     add.text("compressionExcludes", "Compression Exclude Characters", [d]() -> std::string& { return d().compressionExcludes; });
-    add.tip("Anything between the left-most and right-most of these characters is left out of compression and comments "
-            "removal (quotes, brackets); with only one of them, the rest of the line.");
+    add.tip("Compression of G-code follows the rules of the NIST RS274NGC standard for plain G- and M-command lines.\n"
+            "However, there are some standard and proprietary extensions to the syntax, where compression and comments "
+            "removal is inadmissible. To support these extensions, you can specify a list of characters that serve as "
+            "brackets or quotes around these parts of the command-lines.\n"
+            "The following are typical examples: \" ' <> {} [] ()\n"
+            "Because of potential syntax ambiguities (escaping, nesting) anything between the left-most and right-most "
+            "exclude-character is defensively excluded from compression and comments removal. If only a single "
+            "exclude-character is found, the rest of the line is excluded.\n"
+            "Notes: use the [] characters, to support NIST RS274NGC section 3.3.2.3 expressions. Add the () characters "
+            "if you want to preserve round bracket comments when using comments removal. Semicolon end-of-line comments "
+            "will still be removed.");
     add.integer("commandTimeoutMs", "Command Timeout [ms]", [d]() -> int& { return d().commandTimeoutMs; }, 100, 600000);
     add.integer("connectWaitMs", "Connect Wait Time [ms]", [d]() -> int& { return d().connectWaitMs; }, 0, 60000);
     add.flag("keepAlive", "Keep Alive", [d]() -> bool& { return d().keepAlive; });
@@ -470,7 +485,8 @@ void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPF
             "connect (a controller that resets as its port is opened is not reset again).");
     add.integer("identifyTimeoutMs", "Identify Timeout [ms]", [d]() -> int& { return d().identifyTimeoutMs; }, 100, 60000);
     add.integer("dollarWaitMs", "$-Command Wait Time [ms]", [d]() -> int& { return d().dollarWaitMs; }, 0, 60000);
-    add.tip("After a command beginning with $ (a grbl setting, written to its EEPROM) is confirmed, the next waits this long.");
+    add.tip("Whenever a command starts with a $ sign, add this wait time before sending the next command. The TinyG "
+            "controller is known to require this pause, so it can write settings to the EEPROM uninterrupted.");
     add.integer("homeTimeoutMs", "Home Timeout [ms]", [d]() -> int& { return d().homeTimeoutMs; }, 1000, 600000);
     add.integer("statusIntervalMs", "Status Interval [ms]", [d]() -> int& { return d().statusIntervalMs; }, 10, 10000);
     add.note("Max. Feed Rate 0: moves are as fast as their axes allow.");
@@ -639,6 +655,7 @@ void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
         add.group("Controller Settings");
         add.byName("driver", "Driver", named(cell.drivers, "(none)"), [a]() -> std::string& { return a().driverId; });
         add.text("letter", "Axis Letter", [a]() -> std::string& { return a().letter; });
+        add.tip("The axis letter (X, Y, Z etc.) as used by the Controller.");
         add.text("preMoveCommand", "Pre-Move Command", [a]() -> std::string& { return a().preMoveCommand; }, "long");
         add.tip("Sent before a move of this axis when its controller allows pre-move commands (and Letter Variables is "
                 "off), {Coordinate} where the axis was: to switch an output shared by several axes to this one.");
@@ -665,10 +682,20 @@ void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
                        const double step = v > 0 ? 1 / v : 0;
                        a().resolution = linear ? JPSystemUnits::stored(step) : step;
                    }, 6);
+        add.tip("Steps per Unit are the reciprocal of the Resolution.\nThese are often found in the controller "
+                "configuration, therefore you can enter them here to automatically calculate the Resolution.");
         add.end();
+        add.tipOf("resolution", "Resolution of this axis. Coordinates will be rounded to the nearest multiple when it "
+                                "comes to comparing them, i.e. a move is only executed, if they differ after being "
+                                "rounded.\nIdeally, this is set to the micro-step (or similar) physical resolution of "
+                                "the axis, or a practicle integral multiple thereof. The Resolution is the reciprocal of "
+                                "the Steps / Unit, that is often configured in controllers.");
         if (a().type == A::Type::Rotation) {
             add.flag("limitRotation", "Limit to Range", [a]() -> bool& { return a().limitRotation; });
+            add.tip("Limit the rotation to -180° ... +180° or the custom Soft-Limits if enabled.");
             add.flag("wrapAroundRotation", "Wrap Around", [a]() -> bool& { return a().wrapAroundRotation; });
+            add.tip("Always rotate the axis the shorter way around. E.g. if it is at 270° and is commanded to go to "
+                    "0° it will instead go to 360°.");
             add.note("Limit to Range keeps the angle within -180..180; Wrap Around turns the short way round.");
         }
     }
@@ -1511,13 +1538,19 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
     add.integer("runoutDivisions", "Circle Divisions", [rc]() -> int& { return rc().divisions; }, RC::kLeastDivisions,
                 RC::kMostDivisions);
     add.integer("runoutMisdetects", "Allowed Misdetects", [rc]() -> int& { return rc().misdetects; }, 0, RC::kMostDivisions);
+    add.tip("Number of missed detections tolerated before a calibration fails.");
     add.length("runoutOffsetThreshold", "Offset Threshold", [rc] { return rc().offsetThresholdMm; },
                [rc](double v) { if (v > 0) rc().offsetThresholdMm = v; });
     add.tip("The largest runout (and nozzle offset error) accepted: a tip found further than this from where the nozzle "
             "was sent counts as a misdetect.");
     add.length("runoutZOffset", "Calibration Z Offset", [rc]() -> double& { return rc().zOffset; });
+    add.tip("When the vision-detected feature of a nozzle is higher up on the nozzle tip it is recommended to shift the "
+            "focus plane with the \"Z Offset\".\nIf a nozzle tip is named \"unloaded\" it is used as a stand-in for "
+            "calibration of the bare nozzle tip holder. Again the \"Z Offset\" can be used to calibrate at the proper "
+            "focal plane.");
     add.length("runoutVisionDiameter", "Vision Diameter", [rc] { return rc().visionDiameter; },
                [rc](double v) { if (v >= 0) rc().visionDiameter = v; });
+    add.tip("Diameter of the feature/edge that should be detected in calibration vision (0: the tip's diameter).");
     add.actions({ { "Position Tool", "positionRunoutTool" }, { "Calibrate", "calibrateRunout" }, { "Reset", "resetRunout" } });
     add.note("Position Tool takes the nozzle the tip is on over the camera looking up, at its focus plus the Z offset. "
              "Calibrate measures the tip on the nozzle it is on, over the fixed camera looking up: down to the "
@@ -1582,7 +1615,8 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
     channel("backgroundValue", "Value", "Brightness, Value in the HSV color model", &B::minValue, &B::maxValue, &B::tolValue);
     add.endColumns();
     add.note(bg().diagnostics.empty() ? std::string("No diagnostics yet.") : bg().diagnostics);
-    add.actions({ { "Show Problems", "showBackgroundProblems" } });
+    add.actionsWithTips({ { "Show Problems", "showBackgroundProblems",
+                            "Display the problematic image portions in the camera preview." } });
     add.note("Calibrate (Runout, above) measures the background too: the pictures of the tip all round give the "
              "background's range, which bottom vision masks (each widened by its Tolerance) for parts on this tip. "
              "Show Problems shows, on the camera looking up, the pictures with background the mask would not take, "
@@ -1867,6 +1901,12 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     add.flag("lightUserAction", "User Camera Action?", [light]() -> bool& { return light().userAction; });
     add.flag("lightAntiGlare", "Anti-Glare?", [light]() -> bool& { return light().antiGlare; });
     add.end();
+    add.tipOf("lightBeforeCapture", "The light is actuated ON, before this camera is capturing an image for computer vision.");
+    add.tipOf("lightAfterCapture", "The light is actuated OFF, after this camera has captured an image for computer vision.");
+    add.tipOf("lightUserAction", "The light is actuated ON when a user action is deliberately positioning or otherwise "
+                                 "using the camera.");
+    add.tipOf("lightAntiGlare", "To prevent glare from this camera light, the light is actuated OFF, before any other "
+                                "camera looking the opposite way is capturing.");
     add.note("ON: before a picture is taken for vision; while you are looking at the camera. OFF: after the "
              "picture for vision; while another camera takes one (anti-glare).");
     add.group("Units Per Pixel");
@@ -2752,6 +2792,7 @@ void actuatorForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::
     add.choice("disabledActuation", "Disabled", { "LeaveAsIs", "ActuateOn", "ActuateOff" },
                [a] { return a().disabledActuation; }, [a](const std::string& v) { a().disabledActuation = v; });
     add.end();
+    add.labelTip("When the machine state changes, a specific actuation value can be assumed or set.");
     // {index} in a command is replaced by the index.
     add.text("index", "Index", [a]() -> std::string& { return a().index; });
     add.text("unit", "Unit Read", [a]() -> std::string& { return a().unit; });
@@ -2765,6 +2806,13 @@ void actuatorForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::
                [a](const std::string& v) {
                    a().valueType = v == "Double" ? VT::Number : v == "String" ? VT::Text : v == "Profile" ? VT::Profile : VT::Boolean;
                });
+    add.tip("Determines the primary data type of Actuator write values.\n"
+            "Boolean: ON/OFF switching Actuator.\n"
+            "Double: Numeric Actuator to drive scalar values.\n"
+            "String: Textual Actuator to drive arbitrary codes and values.\n"
+            "Profile: Multiple-choice Actuator that can define a number of named profiles and drive other Actuators.\n"
+            "Note: the primary data type will not be enforced in the operation of the actuator. Mixed type usage is "
+            "still possible (for backwards compatibility).");
     f.reshaping.push_back("valueType");
     if (!a().scriptName.empty()) {
         // OpenPnP's ScriptActuatorConfigurationWizard.

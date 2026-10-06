@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- More of Machine Setup says what each setting does, in OpenPnP's words: the GcodeDriver's settings, an axis's
+  letter, resolution and rotation limits, an actuator's actuation and value type, a camera's light switching, and a
+  nozzle tip's runout calibration.
 - A nozzle tip's Auto Z Calibration is laid out as OpenPnP's, with the nozzle's calibrated Z offset beside it; Fail
   Homing? shows only when the calibration is automatic, and the Tool Changer's settings say what they do.
 - The head's Calibration Rig is laid out as OpenPnP's: Primary Fiducial, Secondary Fiducial and Test Object, each
