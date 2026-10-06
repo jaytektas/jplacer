@@ -453,7 +453,8 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
         for (size_t i = 0; i < r.cells.size(); ++i) {
             if (r.cells[i].button) continue;
             const JProperty* p = find(r.cells[i].property);
-            widen(i, p ? widthOf(*p) : numberWidth());   // an empty place keeps a number's room
+            // Words in a column as wide as they are; an empty place keeps a number's room.
+            widen(i, p ? widthOf(*p) : r.cells[i].label.empty() ? numberWidth() : JTextHelper::measureWidth(tr(r.cells[i].label)));
         }
     }
 
@@ -469,6 +470,9 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
             case Row::Kind::Header: {
                 underHeader = !r.cells.empty();
                 if (!underHeader) break;
+                // Columns without titles (fields lined up as OpenPnP's): no row of titles.
+                if (std::all_of(r.cells.begin(), r.cells.end(), [](const JPSetupProperties::Cell& c) { return c.label.empty(); }))
+                    break;
                 auto row = JPUiParts::row(m_graph);
                 row->add(box(m_graph, labels, st.labelHeight, JJustifyContent::FlexEnd));
                 for (size_t i = 0; i < r.cells.size(); ++i) {

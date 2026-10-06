@@ -110,20 +110,28 @@ void stripForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeed
     add.group("Tape Settings");
     if (autoSetupRunning) add.button("autoSetupCancel", "Cancel Auto Setup");
     else add.button("autoSetup", "Auto Setup");
+    // OpenPnP's columns: Part Pitch at the left; Tape Width, Feed Count and Max Feed Count at the right.
+    add.header({ "", "", "" });
     add.row("Part Pitch");
     length(add, f, "part-pitch", "Part Pitch", 4);
+    add.words("Tape Width");
     length(add, f, "tape-width", "Tape Width", 8);
     add.end();
-    add.row("Feed Count");
+    add.row("");
+    add.skip();
+    add.words("Feed Count");
     count(add, f, "feed-count", "Feed Count", 0);
     add.button("resetFeedCount", "Reset", "Reset the feed count to zero, and reset all cached hole positions found by vision.");
     add.end();
-    add.row("Max Feed Count");
+    add.row("");
+    add.skip();
+    add.words("Max Feed Count", "Max number of parts to feed from this strip.  If set to zero, this setting is ignored.");
     count(add, f, "max-feed-count", "Max Feed Count", 0);
-    add.tip("Max number of parts to feed from this strip.  If set to zero, this setting is ignored.");
+    add.tipOf("max-feed-count", "Max number of parts to feed from this strip.  If set to zero, this setting is ignored.");
     add.button("autoSetMaxFeedCount", "Auto Set MaxFeedCount",
                "Calculate the Max Feed Count using the feeder's hole locations and part pitch");
     add.end();
+    add.endColumns();
 
     add.group("Vision");
     add.flag("vision-enabled", "Use Vision?", [f] { return f().flag("vision-enabled", false); },

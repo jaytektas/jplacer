@@ -10,6 +10,7 @@ notes.
 
 ## Unreleased
 
+- A strip feeder's Tape Settings are laid out in OpenPnP's columns.
 - New Axis… asks which of OpenPnP's axis classes, as OpenPnP's does; the class dialogs are worded as OpenPnP's.
 - A controller in Machine Setup has OpenPnP's Console tab: its G-code traffic as it happens, and a command line to
   send it a line (Force Upper Case as OpenPnP's).
