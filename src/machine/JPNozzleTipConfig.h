@@ -129,6 +129,11 @@ struct JPNozzleTipConfig {
         int    misdetects = 0;
         double zOffset = 0;
         double visionDiameter = 0;
+        // OpenPnP's Offset Threshold: a tip found further than this from
+        // where the nozzle was sent is a misdetect (looked for this far and
+        // kDetectionMargin more, so one beyond it is seen, and refused).
+        double offsetThresholdMm = 0.5;
+        static constexpr double kDetectionMargin = 0.4;
         // OpenPnP's Auto Recalibration: "NozzleTipChange" (on each load, and
         // once homed), "NozzleTipChangeInJob" (forgotten on each load, measured
         // again when a job needs it), "MachineHome" (once homed, and on a load

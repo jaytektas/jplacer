@@ -214,6 +214,7 @@ JPNozzleTipConfig JPNozzleTipConfig::fromJson(const JJson& j) {
         t.runoutCalibration.misdetects     = int(k["misdetects"].number(0));
         t.runoutCalibration.zOffset        = k["zOffset"].number(0.0);
         t.runoutCalibration.visionDiameter = k["visionDiameter"].number(0.0);
+        t.runoutCalibration.offsetThresholdMm = k["offsetThreshold"].number(t.runoutCalibration.offsetThresholdMm);
         if (!k["recalibration"].str().empty()) t.runoutCalibration.recalibration = k["recalibration"].str();
         t.runoutCalibration.failHoming     = k["failHoming"].boolean(true);
     }
@@ -288,6 +289,7 @@ JJson JPNozzleTipConfig::toJson() const {
     j["runoutCalibration"]["enabled"]        = runoutCalibration.enabled;
     j["runoutCalibration"]["divisions"]      = runoutCalibration.divisions;
     j["runoutCalibration"]["misdetects"]     = runoutCalibration.misdetects;
+    j["runoutCalibration"]["offsetThreshold"] = runoutCalibration.offsetThresholdMm;
     j["runoutCalibration"]["zOffset"]        = runoutCalibration.zOffset;
     j["runoutCalibration"]["visionDiameter"] = runoutCalibration.visionDiameter;
     j["runoutCalibration"]["recalibration"]  = runoutCalibration.recalibration;

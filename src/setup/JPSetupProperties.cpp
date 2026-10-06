@@ -1397,11 +1397,16 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
     add.integer("runoutDivisions", "Circle Divisions", [rc]() -> int& { return rc().divisions; }, RC::kLeastDivisions,
                 RC::kMostDivisions);
     add.integer("runoutMisdetects", "Allowed Misdetects", [rc]() -> int& { return rc().misdetects; }, 0, RC::kMostDivisions);
+    add.length("runoutOffsetThreshold", "Offset Threshold", [rc] { return rc().offsetThresholdMm; },
+               [rc](double v) { if (v > 0) rc().offsetThresholdMm = v; });
+    add.tip("The largest runout (and nozzle offset error) accepted: a tip found further than this from where the nozzle "
+            "was sent counts as a misdetect.");
     add.length("runoutZOffset", "Calibration Z Offset", [rc]() -> double& { return rc().zOffset; });
     add.length("runoutVisionDiameter", "Vision Diameter", [rc] { return rc().visionDiameter; },
                [rc](double v) { if (v >= 0) rc().visionDiameter = v; });
-    add.actions({ { "Calibrate", "calibrateRunout" }, { "Reset", "resetRunout" } });
-    add.note("Calibrate measures the tip on the nozzle it is on, over the fixed camera looking up: down to the "
+    add.actions({ { "Position Tool", "positionRunoutTool" }, { "Calibrate", "calibrateRunout" }, { "Reset", "resetRunout" } });
+    add.note("Position Tool takes the nozzle the tip is on over the camera looking up, at its focus plus the Z offset. "
+             "Calibrate measures the tip on the nozzle it is on, over the fixed camera looking up: down to the "
              "camera's focus (plus the Z offset), turned to each of Circle Divisions angles round the circle, its "
              "end found at each (Vision Diameter across; 0: the tip's diameter), and a circle fitted. With Compensate? "
              "on, every move of that nozzle is sent the swing the other way, so the tip's centre lands where it is "

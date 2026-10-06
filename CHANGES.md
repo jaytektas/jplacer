@@ -10,6 +10,7 @@ notes.
 
 ## Unreleased
 
+- Runout calibration has OpenPnP's Offset Threshold (a tip found too far off is a misdetect) and Position Tool.
 - Camera settling has all of OpenPnP's options: the Motion method, Color Sensitive, Edge Sensitive, Enhance Contrast,
   Denoise and Diagnostics (every settle graphed, its pictures replayed), and a fixed camera's Rotate and Up tests.
   OpenPnP cameras that settle by Motion come in as they are.

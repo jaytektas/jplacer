@@ -21,9 +21,6 @@ inline namespace jf {
 
 namespace {
 
-// How far from where the nozzle was sent the tip is looked for (mm): far
-// more than any runout.
-constexpr double kSearchMm = 1.5;
 // With no size known, the end is looked for between these (mm).
 constexpr double kLeastTipMm = 0.2, kMostTipMm = 4.0;
 
@@ -60,6 +57,8 @@ std::optional<JPRunout> JPRunoutCalibrator::run(JPCell& cell, JPCameraFeed& came
                                      JPNozzleTipConfig::RunoutCalibration::kMostDivisions);
     const double scale = cal.scale();
     const double diameter = k.visionDiameter > 0 ? k.visionDiameter : tip.diameter;
+    // Looked for beyond the threshold, so a tip found there is seen (and refused) rather than missed.
+    const double search = k.offsetThresholdMm * (1 + JPNozzleTipConfig::RunoutCalibration::kDetectionMargin);
     // Where the camera looks, and the axes that put the tip's axis there.
     const double camX = cam.mount.offsetX, camY = cam.mount.offsetY;
     const double ax = camX - m.offsetX, ay = camY - m.offsetY, az = cam.mount.offsetZ + k.zOffset - m.offsetZ;
@@ -93,18 +92,29 @@ std::optional<JPRunout> JPRunoutCalibrator::run(JPCell& cell, JPCameraFeed& came
             JPRoundMarkFinder::Request rq;
             rq.expectedX = ex;
             rq.expectedY = ey;
-            rq.searchRadius = kSearchMm * scale;
+            rq.searchRadius = search * scale;
             rq.diameter = diameter * scale;
             found = JPCameraLook::findTryingHarder(cell, camera, img, rq);
         } else {
-            found = JPRoundMarkFinder::findAnySize(img, ex, ey, kSearchMm * scale, kLeastTipMm * scale, kMostTipMm * scale);
+            found = JPRoundMarkFinder::findAnySize(img, ex, ey, search * scale, kLeastTipMm * scale, kMostTipMm * scale);
         }
         double tx, ty;
+        if (found.found && cal.machinePoint(found.x, found.y, camX, camY, tx, ty)
+            && std::hypot(tx - camX, ty - camY) > k.offsetThresholdMm) {
+            // Beyond the Offset Threshold: a misdetect.
+            char far[96];
+            std::snprintf(far, sizeof far, "found %.3f mm off, beyond the offset threshold of %.3f mm",
+                          std::hypot(tx - camX, ty - camY), k.offsetThresholdMm);
+            found.found = false;
+            found.why = far;
+        }
         if (!found.found || !cal.machinePoint(found.x, found.y, camX, camY, tx, ty)) {
             JLOGC(JPlacerLog::kCamera, JLogLevel::Warn) << tip.name << " on " << nozzle.name << " not found at " << angle
                                                         << " deg: " << found.why;
             if (++failed > k.misdetects) {
-                why = "the tip was not found at " + std::to_string(failed) + " angle(s)" + (found.why.empty() ? "" : ": " + found.why);
+                // OpenPnP's words, and what the last one was.
+                why = "Nozzle tip " + tip.name + " on " + nozzle.name + " calibration: too many vision misdetects. Check the "
+                      "allowable distance threshold and/or computer vision. (" + found.why + ")";
                 ok = false;
             }
             continue;

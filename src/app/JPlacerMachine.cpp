@@ -1314,6 +1314,24 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
                             if (cam.id == id) cam.settleTrace = trace;
                     });
                 });
+    } else if (action == "positionRunoutTool" && path.rfind("nozzletip:", 0) == 0) {
+        // OpenPnP's Position Tool: the nozzle the tip is on over the camera looking up, where the tip is calibrated.
+        const std::string tipId = path.substr(10);
+        const JPNozzleConfig* on = nullptr;
+        for (const JPNozzleConfig& n : m_cell->config().nozzles)
+            if (n.tipId == tipId) on = &n;
+        const JPCameraFeed* up = upCameraFeed();
+        const JPNozzleTipConfig* tip = nullptr;
+        for (const JPNozzleTipConfig& t : m_cell->config().nozzleTips)
+            if (t.id == tipId) tip = &t;
+        if (!on || !up || !tip) {
+            m_window.showStatus(!on ? "Load the tip on a nozzle first" : "No camera looking up", kErrorMs);
+            return;
+        }
+        if (!readyToMove()) return;
+        const JPMountConfig& cam = up->config().mount;
+        m_cell->moveTool(on->mount, { cam.offsetX, cam.offsetY, cam.offsetZ + tip->runoutCalibration.zOffset, std::nullopt }, 1.0);
+        selectMoved(on->mount);
     } else if ((action == "calibrateRunout" || action == "resetRunout") && path.rfind("nozzletip:", 0) == 0) {
         // On the nozzle the tip is on; kept through Machine Setup, a step to undo.
         const std::string tipId = path.substr(10);

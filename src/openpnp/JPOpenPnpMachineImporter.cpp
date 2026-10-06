@@ -1038,6 +1038,9 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                                                                JPNozzleTipConfig::RunoutCalibration::kMostDivisions);
                 t.runoutCalibration.misdetects = int(number(cal->attr("allow-misdetections")));
                 t.runoutCalibration.zOffset = lengthChild(*cal, "calibration-Z-offset");
+                // Its Offset Threshold (an older OpenPnP's as a plain number of mm).
+                if (cal->child("offset-threshold-length")) t.runoutCalibration.offsetThresholdMm = lengthChild(*cal, "offset-threshold-length");
+                else if (const double old = number(cal->attr("offset-threshold")); old > 0) t.runoutCalibration.offsetThresholdMm = old;
                 if (!cal->attr("recalibration-trigger").empty()) t.runoutCalibration.recalibration = cal->attr("recalibration-trigger");
                 t.runoutCalibration.failHoming = cal->attr("fail-homing") != "false";
                 // Background calibration: its method, the smallest detail, and what it found.

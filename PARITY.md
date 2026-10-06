@@ -112,7 +112,8 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Template / clones | done | the template's changer steps, moved by the difference of the first moves |
 | Clone options (Locations?, Z Calibration?, Vision Calibration?), Calibrate all Touch Locations' Z to Template | done | the touch location cloned with the places |
 | Tool changer Vision Calibration (template images empty / occupied, trigger, Z adjust, test; Vision Calibration? on cloning) | done | the slot offset is worked out again after jplacer starts (OpenPnP keeps it in its configuration) |
-| Runout calibration (circle divisions, misdetects, Z offset, vision diameter, compensation) | done | measured and compensated; Auto Recalibration on tip change, in jobs and on homing, with Fail Homing; to be tried on the bench with the user there |
+| Runout calibration (circle divisions, misdetects, offset threshold, Z offset, vision diameter, compensation, Position Tool) | done | measured and compensated; Auto Recalibration on tip change, in jobs and on homing, with Fail Homing; to be tried on the bench with the user there |
+| Runout: Calibrate Camera Position and Rotation | own way | the fixed camera's location and turn come from jplacer's camera calibration |
 | Background calibration (HSV, detail size) | done | with runout calibration; Show Problems as one picture of pairs |
 
 ## Cameras

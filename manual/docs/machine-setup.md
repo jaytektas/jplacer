@@ -147,14 +147,19 @@ nozzle's axis. **Calibrate** on the tip's Calibration tab measures it on the noz
 as the nozzle goes down to the camera), with the fixed camera looking up: the nozzle over the camera, down
 to its focus plus the **Calibration Z Offset**, turned to each of **Circle Divisions** angles round the
 circle (up to **Allowed Misdetects** of them may fail), its end found at each (**Vision Diameter** across;
-0: the tip's diameter), and a circle fitted through them by least squares. The results show the runout (the
+0: the tip's diameter), and a circle fitted through them by least squares. As OpenPnP's, an end found further
+than the **Offset Threshold** from where the nozzle was sent counts as a misdetect (it is looked for that far
+and 40% more); too many, and the calibration fails with OpenPnP's words. **Position Tool** takes the nozzle the
+tip is on over the camera looking up, at its focus plus the Calibration Z Offset. The results show the runout (the
 circle's radius, and the angle it points at), how far the nozzle's axis is from where the camera's position
 and the nozzle's offset say (reported, not corrected: one of those is off by that much), how well the circle
 fits, and a graph of each measurement about the axis. With **Compensate?** on, every move of that nozzle is
 sent the swing the other way, so the tip's centre lands where it is sent at any angle, and a turn alone
 moves X and Y to keep it there. Each nozzle the tip was measured on keeps its own; **Reset** forgets it for
 the nozzle it is on. An OpenPnP import brings how it is measured (whether compensated, the divisions, the
-misdetects allowed, the Z offset, when it is measured again); importing again keeps what jplacer measured.
+misdetects allowed, the offset threshold, the Z offset, when it is measured again); importing again keeps what
+jplacer measured. OpenPnP's **Calibrate Camera Position and Rotation** is not here: jplacer measures the camera's
+location and turn by its own camera calibration.
 
 **Auto Recalibration**, as OpenPnP's, says when it is measured again without asking: **NozzleTipChange**
 (on each load of the tip, and once the machine is homed), **NozzleTipChangeInJob** (forgotten on each load;

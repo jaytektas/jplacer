@@ -138,6 +138,15 @@ int main() {
     // Up again after.
     assert(std::abs(cell.positions().at("Z")) <= 1);
 
+    // OpenPnP's Offset Threshold: a runout larger than it is a misdetect at every angle, and fails.
+    {
+        JPNozzleTipConfig tight = cell.config().nozzleTips.front();
+        tight.runoutCalibration.offsetThresholdMm = 0.05;
+        std::string tooFar;
+        assert(!JPRunoutCalibrator::run(cell, feed, cell.config().nozzles.front(), tight, JPRunoutCalibrator::Options{}, tooFar));
+        assert(tooFar.find("too many vision misdetects") != std::string::npos);
+    }
+
     // Compensated: the tip's centre lands where it is sent, at any angle.
     JPCellConfig next = cell.config();
     next.nozzleTips.front().runout["N"] = *r;
