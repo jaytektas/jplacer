@@ -1844,8 +1844,10 @@ void calibrationResults(JPFormBuilder& add, const JPCameraCalibration& cal, bool
         add.endColumns();
         add.note(std::string("Where the middle of the picture looks at the Default Working Plane Z, against where the "
                              "camera's ") + (onHead ? "offsets on the head say" : "place says")
-                 + ". The part at the calibration height is part of what visual homing and the nozzle offsets "
-                   "were measured by, and stays; only the lean between heights is applied.");
+                 + (onHead ? ". The part at the calibration height is part of what visual homing and the nozzle offsets "
+                             "were measured by, and stays; only the lean between heights is applied."
+                           : ". Calibrated, the camera's location is moved by it (as OpenPnP applies it), so it reads "
+                             "about 0 until the camera or the first nozzle's offset changes."));
     }
     if (cal.points.empty()) {
         add.note("Calibrate again to see its measurements as graphs.");

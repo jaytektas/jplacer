@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Calibrating a fixed camera (the one looking up) moves its location to where it was measured to be, as OpenPnP
+  applies its calibration; calibrate the nozzle offsets first, as the first nozzle's tip is what it is measured by.
 - Machine Setup's tree highlights what is shown when it is brought up from elsewhere (a camera's settings button, say)
   even when its name holds a "/" (a nozzle tip named "0805 / 0603").
 - Save the picture on a camera that is not running starts it and saves a fresh, lit picture, not the last one from

@@ -54,6 +54,8 @@ namespace {
 constexpr const char* kImportedCellFile = "openpnp.json";
 // How long a status-bar message stays: a confirmation briefly, a failure long
 // enough to read the reason.
+// A fixed camera's calibrated place moved by less than this (mm, each way): left as it is.
+constexpr double kLeastPlaceMoveMm = 0.001;
 constexpr int kStatusMs = 3000;
 constexpr int kErrorMs  = 8000;
 // How long the background calibration's problem pictures are shown.
@@ -450,10 +452,37 @@ void JPlacerMachine::buildCameras() {
     };
     // Machine Setup shows it (the cell keeps it: JPlacerMachine::applySetup).
     m_cameraTasks->onCalibrated = [this](const std::string& cameraId, const JPCameraCalibration& calibration) {
-        if (!m_setup) return;
+        if (!m_setup || !m_cell) return;
+        // A fixed camera's place, as OpenPnP's applyCalibrationToMachine: where the middle of its picture looked
+        // (the nozzle's tip, put where its place said) becomes its place, the calibration kept against it. (A
+        // camera on the head keeps its offsets: visual homing and the nozzle offsets are measured by it.)
+        const JPCameraConfig* cam = nullptr;
+        for (const JPCameraConfig& c : m_cell->config().cameras)
+            if (c.id == cameraId) cam = &c;
+        JPCameraCalibration kept = calibration;
+        const bool fixed = cam && cam->mount.headId.empty() && kept.looked;
+        const double dx = fixed ? kept.lookedX : 0, dy = fixed ? kept.lookedY : 0;
+        if (fixed) {
+            kept.lookedX -= dx;
+            kept.lookedY -= dy;
+            kept.secondLookedX -= dx;
+            kept.secondLookedY -= dy;
+            m_cell->setCameraCalibration(cameraId, kept);
+        }
         m_setup->measured([&](JPCellConfig& cell) {
             for (JPCameraConfig& c : cell.cameras)
-                if (c.id == cameraId) c.keepCalibration(calibration);
+                if (c.id == cameraId) c.keepCalibration(kept);
+        });
+        if (!fixed || (std::abs(dx) < kLeastPlaceMoveMm && std::abs(dy) < kLeastPlaceMoveMm)) return;
+        const std::string name = cam->name;
+        JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << name << ": its location moved by " << dx << ", " << dy
+                                                    << " (calibrated)";
+        m_setup->change(name + ": Camera Location calibrated", [&](JPCellConfig& cell) {
+            for (JPCameraConfig& c : cell.cameras)
+                if (c.id == cameraId) {
+                    c.mount.offsetX += dx;
+                    c.mount.offsetY += dy;
+                }
         });
     };
     m_cameraTasks->onTuned = [this](const std::string& cameraId, const JJson& controls) {
