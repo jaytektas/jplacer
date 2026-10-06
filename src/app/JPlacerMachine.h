@@ -6,6 +6,7 @@
 #include "JPlacerCameraTasks.h"
 #include "JPlacerEstimateZ.h"
 #include "JPlacerLayout.h"
+#include "JPlacerNeoden4Buzzer.h"
 #include "JPlacerPnpChecking.h"
 #include "JPlacerScriptVision.h"
 #include "JPlacerTestMotion.h"
@@ -211,6 +212,8 @@ public:
     // pictures, why a tip change cannot be made (empty: it can), and the tip
     // now on a nozzle kept (a step in Machine Setup; nothing moves).
     JPCell*       cell() const { return m_cell.get(); }
+    // A Neoden4Signaler's beeping (on the main thread).
+    JPlacerNeoden4Buzzer& neoden4Buzzer() { return m_neoden4Buzzer; }
     JPCameraFeed* headCameraFeed() const;
     // The first camera fixed to the machine (looking up at the nozzles), a
     // calibrated one first; none when there is none.
@@ -349,6 +352,7 @@ private:
     JPConfiguration*                    m_configuration = nullptr;
     JPlacerPnpChecking                  m_pnpChecking;   // Simulation Mode's Pick & Place Checking
     JPlacerScriptVision                 m_scriptVision;  // scripts' pipelines (OpenPnP's CvPipeline)
+    JPlacerNeoden4Buzzer                m_neoden4Buzzer { *this };   // Neoden4Signaler's beeping
     std::map<std::string, std::string>  m_nozzleParts;   // nozzle: the part it holds
     std::vector<std::function<void()>>  m_unwatch;   // this class's watches on the cell
     std::shared_ptr<bool>               m_alive = std::make_shared<bool>(true);

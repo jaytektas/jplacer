@@ -7,6 +7,7 @@
 
 #include "common/JPlacerLog.h"
 #include "common/JPlacerPaths.h"
+#include "machine/JPNeoden4Link.h"
 #include "machine/JPTcpLink.h"
 
 #include <j/core/Log.h>
@@ -84,6 +85,51 @@ constexpr double kNullDriverFeedMmPerMin = 5000;   // NullDriver's default
 constexpr double kNullDriverAccelerationS = 0.5;
 constexpr double kNullDriverRotationFactor = 10;
 constexpr double kNullDriverHomingX = 5.736, kNullDriverHomingY = 6.112;
+
+// OpenPnP's NeoDen4Driver's own default (a GcodeDriver's is 1 s).
+constexpr int kNeoden4ConnectWaitMs = 3000;
+
+// OpenPnP's NeoDen4Driver works the actuators it knows by their names: each
+// nozzle's vacuum (on: full vacuum; off: a puff, then none) and blow (set to
+// a level), the cameras' lights (on: 3 down, 1 up), the rails (on: speed 25)
+// and ReleaseC (letting every rotation go). They get the NeoDen 4 link's
+// commands for that (JPNeoden4Link); an actuator of another name, none.
+void neoden4Actuator(JPActuatorConfig& a) {
+    using V = JPActuatorConfig::ValueType;
+    for (int n = 1; n <= 4; ++n) {
+        const std::string i = std::to_string(n);
+        if (a.name == "N" + i + "-Vacuum" || a.name == "N" + i + "-Blow") {
+            a.readCommand = "AIR? " + i;
+            a.readPattern = "^AIR:(-?\\d+)";
+            if (a.name.back() == 'm') {
+                a.valueType = V::Boolean;
+                a.onCommand = "VACUUM " + i + " ON";
+                a.offCommand = "VACUUM " + i + " OFF";
+            } else {
+                // Blowing: set to a level (OpenPnP switches it on as nothing; off here is no air).
+                a.valueType = V::Number;
+                a.valueCommand = "AIR " + i + " {value}";
+                a.offValue = "0";
+            }
+            return;
+        }
+    }
+    const std::pair<const char*, std::pair<const char*, const char*>> levels[] = {
+        { "Lights-Down", { "LIGHTS DOWN {value}", "3" } }, { "Lights-Up", { "LIGHTS UP {value}", "1" } },
+        { "Rails", { "RAILS {value}", "25" } } };
+    for (const auto& [name, how] : levels)
+        if (a.name == name) {
+            a.valueType = V::Number;
+            a.valueCommand = how.first;
+            a.onValue = how.second;
+            a.offValue = "0";
+            return;
+        }
+    if (a.name == "ReleaseC") {
+        a.valueType = V::Boolean;
+        a.onCommand = a.offCommand = "RELEASEC";
+    }
+}
 void migrateNullDriver(JPXmlElement& machine) {
     auto legacy = std::find_if(machine.children.begin(), machine.children.end(),
                                [](const JPXmlElement& e) { return e.name == "driver"; });
@@ -399,6 +445,26 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
         }
     std::map<std::string, Commands> commands;   // by driver id
     std::set<std::string> nullDrivers;          // OpenPnP's NullDriver: simulated here
+    std::set<std::string> neoden4Drivers;       // OpenPnP's NeoDen4Driver
+    // A controller's serial port, as OpenPnP keeps it.
+    auto serialLink = [&](const JPXmlElement& d, JJson& link, const char* type) {
+        const JPXmlElement* serial = d.child("serial");
+        link["type"] = type;
+        link["port"] = serial ? serialPort(serial->attr("port-name")) : std::string();
+        link["baud"] = serial ? number(serial->attr("baud")) : 0.0;
+        const std::string flow = serial ? serial->attr("flow-control") : std::string();
+        link["flowControl"] = flow == "RtsCts" ? "rtscts" : flow == "XonXoff" ? "xonxoff" : "none";
+        if (!serial) return;
+        // OpenPnP spells the settings out ("Eight", "One", "None").
+        const std::string bits = serial->attr("data-bits"), stop = serial->attr("stop-bits"), parity = serial->attr("parity");
+        link["dataBits"] = bits == "Five" ? 5 : bits == "Six" ? 6 : bits == "Seven" ? 7 : 8;
+        link["stopBits"] = stop == "Two" ? 2 : 1;
+        link["parity"] = parity == "Even" ? "even" : parity == "Odd" ? "odd" : "none";
+        link["setDtr"] = serial->attr("set-dtr") == "true";
+        link["setRts"] = serial->attr("set-rts") == "true";
+        const std::string ending = serial->attr("line-ending-type");
+        link["lineEnding"] = ending == "CR" ? "CR" : ending == "CRLF" ? "CRLF" : "LF";
+    };
 
     if (const JPXmlElement* drivers = machine->child("drivers")) {
         for (const JPXmlElement& d : drivers->children) {
@@ -413,6 +479,27 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                 dc.link["type"] = std::string("simulated");
                 dc.homeAfterConnect = homeAfterEnabled;
                 nullDrivers.insert(dc.id);
+                c.drivers.push_back(std::move(dc));
+                continue;
+            }
+            if (kind == "NeoDen4Driver") {
+                // OpenPnP's NeoDen 4 driver: its own protocol on its serial
+                // port (JPNeoden4Link), its X and Y scaled as it has them.
+                JPDriverConfig dc;
+                dc.id   = d.attr("id");
+                dc.name = d.attr("name").empty() ? kind : d.attr("name");
+                dc.profile = "neoden4";
+                dc.link = JJson::object();
+                serialLink(d, dc.link, "neoden4");
+                dc.link["scaleX"] = d.attr("scale-factor-x").empty() ? JPNeoden4Link::kScaleX : number(d.attr("scale-factor-x"));
+                dc.link["scaleY"] = d.attr("scale-factor-y").empty() ? JPNeoden4Link::kScaleY : number(d.attr("scale-factor-y"));
+                if (const double t = number(d.attr("timeout-milliseconds")); t > 0) dc.commandTimeoutMs = int(t);
+                // OpenPnP's NeoDen4Driver waits 3 s once connected, unless set.
+                dc.connectWaitMs = d.attr("connect-wait-time-milliseconds").empty() ? kNeoden4ConnectWaitMs
+                                                                                    : int(number(d.attr("connect-wait-time-milliseconds")));
+                if (d.attr("units") == "Inches") dc.units = "Inches";
+                dc.homeAfterConnect = homeAfterEnabled;
+                neoden4Drivers.insert(dc.id);
                 c.drivers.push_back(std::move(dc));
                 continue;
             }
@@ -432,23 +519,7 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                 const std::string ending = tcp ? tcp->attr("line-ending-type") : std::string();
                 dc.link["lineEnding"] = ending == "CR" ? "CR" : ending == "CRLF" ? "CRLF" : "LF";
             } else {
-                const JPXmlElement* serial = d.child("serial");
-                dc.link["type"] = "serial";
-                dc.link["port"] = serial ? serialPort(serial->attr("port-name")) : std::string();
-                dc.link["baud"] = serial ? number(serial->attr("baud")) : 0.0;
-                const std::string flow = serial ? serial->attr("flow-control") : std::string();
-                dc.link["flowControl"] = flow == "RtsCts" ? "rtscts" : flow == "XonXoff" ? "xonxoff" : "none";
-                if (serial) {
-                    // OpenPnP spells the settings out ("Eight", "One", "None").
-                    const std::string bits = serial->attr("data-bits"), stop = serial->attr("stop-bits"), parity = serial->attr("parity");
-                    dc.link["dataBits"] = bits == "Five" ? 5 : bits == "Six" ? 6 : bits == "Seven" ? 7 : 8;
-                    dc.link["stopBits"] = stop == "Two" ? 2 : 1;
-                    dc.link["parity"] = parity == "Even" ? "even" : parity == "Odd" ? "odd" : "none";
-                    dc.link["setDtr"] = serial->attr("set-dtr") == "true";
-                    dc.link["setRts"] = serial->attr("set-rts") == "true";
-                    const std::string ending = serial->attr("line-ending-type");
-                    dc.link["lineEnding"] = ending == "CR" ? "CR" : ending == "CRLF" ? "CRLF" : "LF";
-                }
+                serialLink(d, dc.link, "serial");
             }
             if (const double t = number(d.attr("timeout-milliseconds")); t > 0) dc.commandTimeoutMs = int(t);
             if (const double t = number(d.attr("infinity-timeout-milliseconds")); t > 0) dc.homeTimeoutMs = int(t);
@@ -732,7 +803,7 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             for (const auto& [driverId, cmds] : commands)
                 for (const auto& [key, text] : cmds)
                     if (key.second == a.id) a.driverId = driverId;
-        if (shortClass(x) != "ReferenceActuator")
+        if (shortClass(x) != "ReferenceActuator" && shortClass(x) != "NeoDen4FeederActuator")
             notes.push_back("actuator " + a.name + " (" + shortClass(x) + ") was imported as a plain actuator");
         const auto cmds = commands.find(a.driverId);
         if (cmds != commands.end()) {
@@ -748,6 +819,22 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                 a.readCommand = translate(*t, -1, "actuator " + a.name, notes);
             if (const std::string* t = findCommand(cmds->second, "ACTUATOR_READ_REGEX", a.id))
                 a.readPattern = plainGroups(*t);
+        }
+        if (neoden4Drivers.count(a.driverId)) {
+            if (shortClass(x) == "NeoDen4FeederActuator") {
+                // Its feeder and peeler, as OpenPnP keeps them; set to a length.
+                JPActuatorConfig::Neoden4Feeder& f = a.neoden4Feeder;
+                f.on = true;
+                auto whole = [&x](const char* attr, int& field) { if (!x.attr(attr).empty()) field = int(number(x.attr(attr))); };
+                whole("feeder-id", f.feederId);
+                whole("peeler-id", f.peelerId);
+                whole("feed-strength", f.feedStrength);
+                whole("peel-strength", f.peelStrength);
+                whole("peel-length", f.peelLength);
+                a.valueType = JPActuatorConfig::ValueType::Number;
+            } else {
+                neoden4Actuator(a);
+            }
         }
         actuatorIdByName[a.name] = a.id;
         c.actuators.push_back(std::move(a));

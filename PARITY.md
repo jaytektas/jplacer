@@ -27,7 +27,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Issues & Solutions: nozzle solution (Standalone, DualNegated, DualCam, units), NullDriver and camera replacements | done | |
 | First start: OpenPnP's default machine, packages, parts and vision settings | done | shipped in openpnp-defaults with OpenPnP's test picture; missing configuration files taken from them |
 | Log panel (filterable log) | done | Log tab |
-| Signalers (sound, actuator on error / job done) | done | Neoden4Signaler left out (Neoden4 driver) |
+| Signalers (sound, actuator on error / job done, Neoden4Signaler) | done | Neoden4Signaler: the first NeoDen 4 controller's buzzer, beeping until confirmed; its sound ticks are honoured (OpenPnP's ignores them) |
 | View: System Units (inches) | done | every length shown and typed in mm or inches (forms, tables, readout, Jog), kept in mm; on restart, as OpenPnP |
 | View: Language | done | OpenPnP's translations (ru, es, fr, it, de, zh_CN), applied to whatever jplacer names as OpenPnP does; on restart, as OpenPnP |
 | View: Selections in Tables (linked tables) | done | |
@@ -58,6 +58,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Confirmation flow control, location confirmation | own way | the driver waits for each `ok` and reads status reports |
 | Interpolation (max steps, jerk steps, min step time) | own way | as above: the controller plans the motion |
 | Console | done | Console dock |
+| NeoDen4Driver (home, moves, air, lights, rails, feeders; Home Coordinate and Scale Factor), NeoDen4FeederActuator (Change Feeder ID) | done | Communications Type neoden4 with the neoden4 profile: the driver's lines done in the NeoDen's binary protocol; the actuators by OpenPnP's names; Change Feeder ID updates the actuator's Feeder ID; a Blow actuator switched off sets no air (OpenPnP's does nothing) |
 | NullDriver (simulated controller), old single-driver machine.xml migration | done | jplacer's simulated controller, axes given letters; an old `<driver>` NullDriver migrated as OpenPnP's load does |
 
 ## Axes

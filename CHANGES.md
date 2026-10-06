@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- A NeoDen 4 can be driven, as OpenPnP's NeoDen4Driver drives it: Communications Type neoden4, its scale factors
+  and home coordinates, its nozzles' vacuum and blow, lights, rails and feeders by their names; its NeoDen 4 feeder
+  actuators (with Change Feeder ID) and its Neoden4Signaler, the buzzer beeping until a job's end is confirmed.
+  An OpenPnP NeoDen 4 machine comes in with all of these.
 - Issues & Solutions' Welcome milestone has OpenPnP's Create nozzles for this head: so many standalone nozzles,
   negated pairs or cam pairs, with their axes and vacuum actuators, made at once.
 - The console's G-code box has OpenPnP's Force Upper Case and its history (Up and Down through the last 50 lines).

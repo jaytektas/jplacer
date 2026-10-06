@@ -112,6 +112,10 @@ std::optional<std::string> JPSerialLink::readLine(int timeoutMs) {
     return line;
 }
 
+std::vector<uint8_t> JPSerialLink::readBytes(int timeoutMs) {
+    return m_serial.readClaimed(timeoutMs);
+}
+
 std::string JPSerialLink::describe() const {
     const Settings& st = m_settings;
     const std::string parity = st.parity == "even" ? "E" : st.parity == "odd" ? "O" : "N";

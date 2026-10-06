@@ -649,7 +649,8 @@ bool JPCell::doSetNow(const JPActuatorConfig& a, const std::string& value, std::
         why = a.name + " cannot be set to a value";
         return false;
     }
-    const JPReply r = d->send(JPFirmwareProfile::fill(a.valueCommand, { { "index", a.index }, { "value", value } })).get();
+    const std::string& tmpl = a.neoden4Feeder.on ? a.neoden4Feeder.command() : a.valueCommand;
+    const JPReply r = d->send(JPFirmwareProfile::fill(tmpl, { { "index", a.index }, { "value", value } })).get();
     JLOGC(JPlacerLog::kCell, r.ok ? JLogLevel::Info : JLogLevel::Warn)
         << a.name << " set to " << value << (r.ok ? std::string() : ": " + r.error);
     why = r.error;
@@ -2863,6 +2864,23 @@ void JPCell::detectFirmware(const std::string& driverId) {
         }
         if (!why.empty()) onAlarm.emit(why);
         else onFirmwareDetected.emit(driverId);
+    });
+}
+
+void JPCell::changeNeoden4FeederId(const std::string& actuatorId, int newId, std::function<void(const std::string& why)> done) {
+    m_thread.post([this, actuatorId, newId, done = std::move(done)] {
+        std::string why = "no actuator " + actuatorId;
+        for (const JPActuatorConfig& a : m_config.actuators) {
+            if (a.id != actuatorId) continue;
+            JPGcodeDriver* d = driver(a.driverId);
+            if (!a.neoden4Feeder.on) why = a.name + " is not a NeoDen 4 feeder actuator";
+            else if (!m_connected || !d) why = a.name + ": connect first";
+            else {
+                const JPReply r = d->send("FEEDERID " + std::to_string(a.neoden4Feeder.feederId) + " " + std::to_string(newId)).get();
+                why = r.ok ? std::string() : r.error;
+            }
+        }
+        done(why);
     });
 }
 

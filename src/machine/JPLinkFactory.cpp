@@ -3,6 +3,7 @@
 
 #include "JPLinkFactory.h"
 
+#include "JPNeoden4Link.h"
 #include "JPSerialLink.h"
 #include "JPSimulatedLink.h"
 #include "JPTcpLink.h"
@@ -13,13 +14,13 @@ inline namespace jf {
 
 std::unique_ptr<JPLink> JPLinkFactory::create(const JJson& link, std::string& error) {
     const std::string& type = link["type"].str();
-    if (type == "serial") {
-        JPSerialLink::Settings st;
+    // A serial port's settings, as OpenPnP's serial settings are.
+    auto serial = [&](JPSerialLink::Settings& st) {
         st.port = link["port"].str();
         st.baud = int(link["baud"].number());
         if (st.port.empty() || st.baud <= 0) {
             error = "a serial link needs a port and a baud rate";
-            return nullptr;
+            return false;
         }
         st.flow = link["flowControl"].str();
         // Left out: as nearly every controller is (8 data bits, 1 stop bit, no parity, lines left be).
@@ -28,7 +29,20 @@ std::unique_ptr<JPLink> JPLinkFactory::create(const JJson& link, std::string& er
         st.parity = link["parity"].str();
         st.setDtr = link["setDtr"].boolean();
         st.setRts = link["setRts"].boolean();
+        return true;
+    };
+    if (type == "serial") {
+        JPSerialLink::Settings st;
+        if (!serial(st)) return nullptr;
         return std::make_unique<JPSerialLink>(std::move(st));
+    }
+    if (type == "neoden4") {
+        // OpenPnP's NeoDen4Driver: its serial port, and the scale of X and Y.
+        JPNeoden4Link::Settings st;
+        if (!serial(st.serial)) return nullptr;
+        st.scaleX = link["scaleX"].number(JPNeoden4Link::kScaleX);
+        st.scaleY = link["scaleY"].number(JPNeoden4Link::kScaleY);
+        return std::make_unique<JPNeoden4Link>(std::move(st));
     }
     if (type == "simulated") return std::make_unique<JPSimulatedLink>(link["simulator"]);
     if (type == "tcp") {

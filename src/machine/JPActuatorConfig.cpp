@@ -5,6 +5,11 @@
 
 inline namespace jf {
 
+std::string JPActuatorConfig::Neoden4Feeder::command() const {
+    return "NEOFEED " + std::to_string(feederId) + " " + std::to_string(feedStrength) + " " + std::to_string(peelerId) + " "
+         + std::to_string(peelStrength) + " " + std::to_string(peelLength) + " {value}";
+}
+
 JPActuatorConfig JPActuatorConfig::fromJson(const JJson& j) {
     JPActuatorConfig a;
     a.id          = j["id"].str();
@@ -39,6 +44,15 @@ JPActuatorConfig JPActuatorConfig::fromJson(const JJson& j) {
         a.http.paramUrl = h["paramUrl"].str();
         a.http.readUrl = h["readUrl"].str();
         a.http.regex = h["regex"].str();
+    }
+    if (const JJson& n = j["neoden4Feeder"]; n.isObject()) {
+        Neoden4Feeder& f = a.neoden4Feeder;
+        f.on = true;
+        f.feederId = int(n["feederId"].number(f.feederId));
+        f.peelerId = int(n["peelerId"].number(f.peelerId));
+        f.feedStrength = int(n["feedStrength"].number(f.feedStrength));
+        f.peelStrength = int(n["peelStrength"].number(f.peelStrength));
+        f.peelLength = int(n["peelLength"].number(f.peelLength));
     }
     if (const JJson& il = j["interlock"]; il.isObject()) {
         Interlock& i = a.interlock;
@@ -96,6 +110,13 @@ JJson JPActuatorConfig::toJson() const {
         j["http"]["paramUrl"] = http.paramUrl;
         j["http"]["readUrl"] = http.readUrl;
         j["http"]["regex"] = http.regex;
+    }
+    if (neoden4Feeder.on) {
+        j["neoden4Feeder"]["feederId"] = neoden4Feeder.feederId;
+        j["neoden4Feeder"]["peelerId"] = neoden4Feeder.peelerId;
+        j["neoden4Feeder"]["feedStrength"] = neoden4Feeder.feedStrength;
+        j["neoden4Feeder"]["peelStrength"] = neoden4Feeder.peelStrength;
+        j["neoden4Feeder"]["peelLength"] = neoden4Feeder.peelLength;
     }
     if (interlock.enabled) {
         JJson il = JJson::object();

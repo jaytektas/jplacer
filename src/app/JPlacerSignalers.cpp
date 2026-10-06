@@ -30,6 +30,11 @@ void JPlacerSignalers::signal(JPSignalerConfig::JobState state,
             if (state == State::Finished && s.finishedSound) JPlacerSound::play(JPlacerSound::Sound::Success);
             continue;
         }
+        if (s.kind == JPSignalerConfig::Kind::Neoden4) {
+            const bool error = state == State::Error && s.errorSound, finished = state == State::Finished && s.finishedSound;
+            if (error || finished) onMain([&] { m_machine.neoden4Buzzer().signal(error); });
+            continue;
+        }
         if (s.actuatorId.empty() || !s.jobState || !cell) continue;
         const bool on = state == *s.jobState;
         if (const auto it = m_actuated.find(s.id); it != m_actuated.end() && it->second == on) continue;

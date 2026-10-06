@@ -1,0 +1,45 @@
+{
+  "id": "neoden4",
+  "name": "NeoDen 4",
+  "priority": -10,
+  "_comment": "A NeoDen 4 through its own link (JPNeoden4Link), which does these lines in the machine's binary protocol as OpenPnP's NeoDen4Driver does.",
+  "identify": {
+    "command": "M115",
+    "pattern": "FIRMWARE_NAME:NeoDen4"
+  },
+  "replies": {
+    "ok": "^ok$",
+    "error": "^error",
+    "alarm": "^ALARM"
+  },
+  "status": {
+    "command": "?",
+    "realtime": false,
+    "pattern": "^<([A-Za-z]+)\\|Pos:([-0-9.,]+)>",
+    "stateGroup": 1,
+    "positionGroup": 2,
+    "positions": "list",
+    "idleState": "Idle"
+  },
+  "axisLetters": [
+    "X",
+    "Y",
+    "Z",
+    "U",
+    "V",
+    "W",
+    "A",
+    "B",
+    "C",
+    "D"
+  ],
+  "decimals": 4,
+  "commands": {
+    "move": "G1 {axes} F{feed}",
+    "rapid": "G0 {axes}",
+    "home": "G28",
+    "setPosition": "G92 {axes}",
+    "dwell": "G4 P{milliseconds}",
+    "waitMotion": "M400"
+  }
+}

@@ -9,12 +9,14 @@
 #undef NDEBUG
 #include <cassert>
 
+#include "machine/JPNeoden4Link.h"
 #include "openpnp/JPOpenPnpMachineImporter.h"
 
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <regex>
 #include <sstream>
 #include <string>
 
@@ -343,6 +345,51 @@ int main() {
         assert(su && su->device["backend"].str() == "simulated" && su->device["width"].number() == 800);
         const JJson& m = su->device["scene"]["pxPerMm"];
         assert(std::abs(m[size_t(0)].number() + 50) < 1e-9 && std::abs(m[size_t(3)].number() - 50) < 1e-9);   // flipped, 50 px/mm
+    }
+    // OpenPnP's NeoDen4Driver: a NeoDen 4 link on its serial port, its scale,
+    // and its named actuators worked by the link's commands; a NeoDen 4 feeder
+    // actuator, its feeder and peeler.
+    {
+        std::ifstream in(std::string(JPLACER_TESTDATA_DIR) + "/openpnp-machine.xml");
+        std::stringstream ss;
+        ss << in.rdbuf();
+        std::string xml = ss.str();
+        const std::string drivers = R"(<drivers class="java.util.ArrayList">)";
+        xml.insert(xml.find(drivers) + drivers.size(),
+                   R"(<driver class="org.openpnp.machine.neoden4.NeoDen4Driver" id="NEO" name="NeoDen4" communications="serial" )"
+                   R"(scale-factor-x="1.05" home-coordinate-x="-437.0"><serial port-name="ttyS1" baud="115200" flow-control="Off" )"
+                   R"(data-bits="Eight" stop-bits="One" parity="None" set-dtr="false" set-rts="false"/></driver>)");
+        const std::string actuators = R"(<actuators class="java.util.ArrayList">)";
+        const size_t machineActuators = xml.find(actuators, xml.find("</heads>"));
+        assert(machineActuators != std::string::npos);
+        xml.insert(machineActuators + actuators.size(),
+                   R"(<actuator class="org.openpnp.machine.reference.ReferenceActuator" id="NV2" name="N2-Vacuum" value-type="Boolean" driver-id="NEO"/>)"
+                   R"(<actuator class="org.openpnp.machine.reference.ReferenceActuator" id="NB2" name="N2-Blow" value-type="Boolean" driver-id="NEO"/>)"
+                   R"(<actuator class="org.openpnp.machine.reference.ReferenceActuator" id="LD" name="Lights-Down" value-type="Boolean" driver-id="NEO"/>)"
+                   R"(<actuator class="org.openpnp.machine.reference.ReferenceActuator" id="RC" name="ReleaseC" value-type="Boolean" driver-id="NEO"/>)"
+                   R"(<actuator class="org.openpnp.machine.neoden4.NeoDen4FeederActuator" id="F7" name="Feeder7" value-type="Double" )"
+                   R"(driver-id="NEO" feeder-id="7" peeler-id="27" feed-strength="60" peel-strength="40" peel-length="80"/>)");
+        const std::string path = (std::filesystem::temp_directory_path() / "jplacer-test-neoden4.xml").string();
+        std::ofstream(path) << xml;
+        JPCellConfig neo;
+        std::vector<std::string> neoNotes;
+        assert(JPOpenPnpMachineImporter::import(path, neo, neoNotes, error));
+        std::filesystem::remove(path);
+        const JPDriverConfig* d = nullptr;
+        for (const JPDriverConfig& x : neo.drivers) if (x.id == "NEO") d = &x;
+        assert(d && d->profile == "neoden4" && d->link["type"].str() == "neoden4" && d->link["baud"].number() == 115200);
+        assert(d->link["scaleX"].number() == 1.05 && d->link["scaleY"].number() == JPNeoden4Link::kScaleY && d->connectWaitMs == 3000);
+        std::map<std::string, const JPActuatorConfig*> by;
+        for (const JPActuatorConfig& a : neo.actuators) by[a.id] = &a;
+        assert(by["NV2"]->onCommand == "VACUUM 2 ON" && by["NV2"]->offCommand == "VACUUM 2 OFF" && by["NV2"]->readCommand == "AIR? 2");
+        assert(std::regex_search("AIR:-120", std::regex(by["NV2"]->readPattern)));
+        assert(by["NB2"]->valueType == JPActuatorConfig::ValueType::Number && by["NB2"]->valueCommand == "AIR 2 {value}");
+        assert(by["LD"]->valueCommand == "LIGHTS DOWN {value}" && by["LD"]->onValue == "3" && by["LD"]->offValue == "0");
+        assert(by["RC"]->onCommand == "RELEASEC");
+        const JPActuatorConfig& f = *by["F7"];
+        assert(f.neoden4Feeder.on && f.canSet() && f.neoden4Feeder.command() == "NEOFEED 7 60 27 40 80 {value}");
+        assert(JPActuatorConfig::fromJson(f.toJson()).neoden4Feeder.peelLength == 80);
+        for (const std::string& n : neoNotes) assert(n.find("NeoDen4") == std::string::npos);
     }
     // OpenPnP's SimulationModeMachine: its simulated imperfections.
     {

@@ -92,6 +92,19 @@ struct JPActuatorConfig {
     // scripts folder (JPScripting), told actuateBoolean, actuateDouble or
     // actuateString; not through a controller. Empty: not one.
     std::string scriptName;
+    // OpenPnP's NeoDen4FeederActuator: set to a length, a NeoDen 4 feeder is
+    // fed that far (its Feeder ID, at Feed Strength) and its peeler (Peeler
+    // ID, at Peel Strength) peels Peel Length % of five times it; through a
+    // NeoDen 4 controller (JPNeoden4Link's NEOFEED). Off: not one.
+    struct Neoden4Feeder {
+        bool on = false;
+        int  feederId = 1, peelerId = 1;
+        int  feedStrength = 50, peelStrength = 30;
+        int  peelLength = 100;   // per cent
+        // The command it is set by, {value} the length.
+        std::string command() const;
+    };
+    Neoden4Feeder neoden4Feeder;
     std::vector<Profile> profiles;
     const Profile* profileNamed(const std::string& profileName) const;
     const Profile* defaultProfile(bool on) const;
@@ -104,6 +117,7 @@ struct JPActuatorConfig {
     }
     bool canSet() const {
         if (!scriptName.empty()) return valueType != ValueType::Boolean;
+        if (neoden4Feeder.on) return true;
         if (http.on) return !http.paramUrl.empty();
         if (valueType == ValueType::Profile) return !profiles.empty();
         return valueType != ValueType::Boolean && !valueCommand.empty();

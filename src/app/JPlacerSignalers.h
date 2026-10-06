@@ -18,7 +18,8 @@ class JPlacerMachine;
 // each step, in error when a step fails, finished when the last is done. A
 // SoundSignaler plays its sound for an error or a finish; an ActuatorSignaler
 // switches its actuator on in its job state and off in any other, only when
-// that changes what it last switched it to.
+// that changes what it last switched it to; a Neoden4Signaler beeps the
+// NeoDen 4's buzzer for an error or a finish (JPlacerNeoden4Buzzer).
 class JPlacerSignalers {
 public:
     explicit JPlacerSignalers(JPlacerMachine& machine) : m_machine(machine) {}

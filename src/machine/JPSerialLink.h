@@ -9,6 +9,7 @@
 
 #include <deque>
 #include <string>
+#include <vector>
 
 inline namespace jf {
 
@@ -40,6 +41,9 @@ public:
     bool write(const std::string& bytes) override;
     std::optional<std::string> readLine(int timeoutMs) override;
     std::string describe() const override;
+    // The bytes received within `timeoutMs` as they come, for a controller
+    // that speaks in bytes, not lines (JPNeoden4Link); not mixed with readLine.
+    std::vector<uint8_t> readBytes(int timeoutMs);
 
 private:
     // Move complete lines out of m_partial into m_lines.

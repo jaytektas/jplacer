@@ -11,6 +11,7 @@
 #include "JPFormBuilder.h"
 #include "JPSetupTree.h"
 
+#include "machine/JPNeoden4Link.h"
 #include "machine/JPTcpLink.h"
 
 #include <algorithm>
@@ -347,12 +348,39 @@ void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPF
         auto linkText = [d](const char* key, const std::string& none) {
             return [d, key, none] { const std::string v = std::as_const(d().link)[key].str(); return v.empty() ? none : v; };
         };
-        // OpenPnP's Communications Type: a serial port, or TCP.
-        add.choice("communicationsType", "Communications Type", { "serial", "tcp" }, linkText("type", "serial"),
-                   [d](const std::string& v) { d().link["type"] = v; });
+        // OpenPnP's Communications Type: a serial port, or TCP; or a NeoDen 4
+        // (OpenPnP's NeoDen4Driver: its own protocol on a serial port, its
+        // firmware profile the neoden4 one).
+        add.choice("communicationsType", "Communications Type", { "serial", "tcp", "neoden4" }, linkText("type", "serial"),
+                   [d](const std::string& v) {
+                       d().link["type"] = v;
+                       if (v == "neoden4") d().profile = "neoden4";
+                   });
         f.reshaping.push_back("communicationsType");
-        add.choice("lineEnding", "Line-Endings", { "LF", "CR", "CRLF" }, linkText("lineEnding", "LF"),
-                   [d](const std::string& v) { d().link["lineEnding"] = v; });
+        const bool neoden4 = std::as_const(d().link)["type"].str() == "neoden4";
+        if (!neoden4)
+            add.choice("lineEnding", "Line-Endings", { "LF", "CR", "CRLF" }, linkText("lineEnding", "LF"),
+                       [d](const std::string& v) { d().link["lineEnding"] = v; });
+        if (neoden4) {
+            // OpenPnP's NeoDen4Driver settings: where X and Y home (the axes'
+            // home coordinates), and the scale of their steps.
+            add.group("NeoDen 4");
+            constexpr int kScaleDecimals = 8;   // OpenPnP's Y scale has eight places
+            for (const auto& [type, key, label] : { std::tuple { JPAxisConfig::Type::X, "homeCoordinateX", "Home Coordinate X" },
+                                                    std::tuple { JPAxisConfig::Type::Y, "homeCoordinateY", "Home Coordinate Y" } }) {
+                auto axis = [&cell, d, type]() -> JPAxisConfig* {
+                    for (JPAxisConfig& a : cell.axes)
+                        if (a.kind == JPAxisConfig::Kind::Controller && a.driverId == d().id && a.type == type) return &a;
+                    return nullptr;
+                };
+                if (axis()) add.length(key, label, [axis]() -> double& { return axis()->homeCoordinate; });
+            }
+            add.number("scaleX", "Scale Factor - X", [d] { return std::as_const(d().link)["scaleX"].number(JPNeoden4Link::kScaleX); },
+                       [d](double v) { d().link["scaleX"] = v; }, kScaleDecimals);
+            add.number("scaleY", "Scale Factor - Y", [d] { return std::as_const(d().link)["scaleY"].number(JPNeoden4Link::kScaleY); },
+                       [d](double v) { d().link["scaleY"] = v; }, kScaleDecimals);
+            add.tip("The machine's steps are hundredths of a millimetre, times these.");
+        }
         if (std::as_const(d().link)["type"].str() == "tcp") {
             add.group("TCP");
             add.text("host", "IP Address", [d] { return std::as_const(d().link)["host"].str(); },
@@ -2413,6 +2441,26 @@ void actuatorForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::
     add.group("Properties");
     add.byName("driver", "Driver", named(cell.drivers, "(none)"), [a]() -> std::string& { return a().driverId; });
     add.text("name", "Name", [a]() -> std::string& { return a().name; }, "name");
+    if (a().neoden4Feeder.on) {
+        // OpenPnP's NeoDen4FeederActuator: the feeder and peeler it works, and
+        // how hard; Change Feeder ID gives the feeder (kept in it) a new one.
+        auto nf = [a]() -> JPActuatorConfig::Neoden4Feeder& { return a().neoden4Feeder; };
+        constexpr int kMostId = 99, kMostStrength = 255;
+        add.integer("peelerId", "Peeler ID", [nf]() -> int& { return nf().peelerId; }, 0, kMostId);
+        add.integer("feederId", "Feeder ID", [nf]() -> int& { return nf().feederId; }, 0, kMostId);
+        add.integer("feedStrength", "Feed Strength", [nf]() -> int& { return nf().feedStrength; }, 0, kMostStrength);
+        add.integer("peelStrength", "Peel Strength", [nf]() -> int& { return nf().peelStrength; }, 0, kMostStrength);
+        add.integer("peelLength", "Peel length [%]", [nf]() -> int& { return nf().peelLength; }, 0, 1000);
+        add.tip("How far the peeler peels, as a share of five times the length fed.");
+        add.row("Change Feeder ID");
+        Strings ids;
+        for (int i = 0; i <= kMostId; ++i) ids.push_back(std::to_string(i));
+        add.choice("newFeederId", "New ID", ids, [] { return std::to_string(JPSetupProperties::neoden4NewFeederId()); },
+                   [](const std::string& v) { JPSetupProperties::neoden4NewFeederId() = std::atoi(v.c_str()); });
+        add.button("changeFeederId", "Change", "Give the feeder its Feeder ID names the New ID (stored in the feeder's NVMEM).");
+        add.end();
+        f.viewOnly.push_back("newFeederId");
+    }
     add.group("Coordinate System");
     add.byName("head", "Head", named(cell.heads, "(on the machine)"), [a]() -> std::string& { return a().mount.headId; });
     f.reshaping.push_back("head");
@@ -2515,6 +2563,18 @@ void signalerForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::
     if (s().kind == JPSignalerConfig::Kind::Sound) {
         add.flag("errorSound", "Play sound on error?", [s]() -> bool& { return s().errorSound; });
         add.flag("finishedSound", "Play sound on completion?", [s]() -> bool& { return s().finishedSound; });
+        return;
+    }
+    if (s().kind == JPSignalerConfig::Kind::Neoden4) {
+        // OpenPnP's Neoden4SignalerConfigurationWizard: each sound, and a test of it.
+        add.row("Play sound on error?");
+        add.flag("errorSound", "Play sound on error?", [s]() -> bool& { return s().errorSound; });
+        add.button("testErrorSound", "Test error sound", "Beep the NeoDen 4's buzzer as for a job error.");
+        add.end();
+        add.row("Play sound on completion?");
+        add.flag("finishedSound", "Play sound on completion?", [s]() -> bool& { return s().finishedSound; });
+        add.button("testFinishedSound", "Test finished sound", "Beep the NeoDen 4's buzzer as for a job finished.");
+        add.end();
         return;
     }
     add.byName("actuator", "Actuator", named(cell.actuators, "(none)"), [s]() -> std::string& { return s().actuatorId; });
@@ -2650,6 +2710,11 @@ void fiducialLocatorForm(JPCellConfig& cell, JPSetupProperties::Form& f, JPConfi
 }
 
 } // namespace
+
+int& JPSetupProperties::neoden4NewFeederId() {
+    static int id = 0;
+    return id;
+}
 
 JPSetupProperties::Form JPSetupProperties::forNode(JPCellConfig& cell, const std::string& path, const std::vector<JPFirmwareProfile>& profiles,
                                                    JPConfiguration* config, const JPVisionTests* tests,

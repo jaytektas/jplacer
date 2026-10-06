@@ -339,6 +339,10 @@ public:
     // is (its profile chosen again, as at connect when "auto"); onFirmwareDetected
     // says so, with the controller's id; a failure is an alarm. Not waited for.
     void detectFirmware(const std::string& driverId);
+    // OpenPnP's Change Feeder ID, of a NeoDen 4 feeder actuator: the feeder
+    // its Feeder ID names given `newId` (0 to 99, kept in the feeder) by its
+    // controller. `done` is told why not (empty: changed), on the cell's thread.
+    void changeNeoden4FeederId(const std::string& actuatorId, int newId, std::function<void(const std::string& why)> done);
 
     JSignal<bool, std::string>                   onConnection;   // connected; why not (a failure or a lost link)
     JSignal<std::map<std::string, double>>       onPositions;

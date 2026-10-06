@@ -8,7 +8,7 @@
 inline namespace jf {
 
 const std::vector<std::string>& JPSignalerConfig::classNames() {
-    static const std::vector<std::string> n { "SoundSignaler", "ActuatorSignaler" };
+    static const std::vector<std::string> n { "SoundSignaler", "ActuatorSignaler", "Neoden4Signaler" };
     return n;
 }
 
@@ -22,7 +22,7 @@ JJson JPSignalerConfig::toJson() const {
     j["class"] = className();
     j["id"] = id;
     j["name"] = name;
-    if (kind == Kind::Sound) {
+    if (kind != Kind::Actuator) {
         j["errorSound"] = errorSound;
         j["finishedSound"] = finishedSound;
     } else {

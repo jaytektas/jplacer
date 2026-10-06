@@ -21,6 +21,7 @@
 #include "model/JPXmlValues.h"
 #include "openpnp/JPOpenPnpMachineImporter.h"
 #include "setup/JPSetupEdits.h"
+#include "setup/JPSetupProperties.h"
 #include "tasks/JPPhotonBus.h"
 #include "ui/JPActuatorPanel.h"
 #include "ui/JPConsolePanel.h"
@@ -1375,6 +1376,30 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
         }
     } else if (action == "detectFirmware" && path.rfind("driver:", 0) == 0) {
         m_cell->detectFirmware(path.substr(7));
+    } else if ((action == "testErrorSound" || action == "testFinishedSound") && path.rfind("signaler:", 0) == 0) {
+        // OpenPnP's Neoden4Signaler tests: beeping as for a job's error or finish (ticked or not).
+        m_neoden4Buzzer.signal(action == "testErrorSound");
+    } else if (action == "changeFeederId" && path.rfind("actuator:", 0) == 0) {
+        // OpenPnP's Change Feeder ID; the actuator then works the feeder by its new id.
+        const std::string actuatorId = path.substr(9);
+        const int newId = JPSetupProperties::neoden4NewFeederId();
+        std::weak_ptr<bool> alive = m_alive;
+        m_cell->changeNeoden4FeederId(actuatorId, newId, [this, alive, actuatorId, newId](const std::string& why) {
+            JMainThreadDispatcher::instance().post([this, alive, actuatorId, newId, why] {
+                if (const auto a = alive.lock(); !a || !*a) return;
+                if (!why.empty()) {
+                    m_window.showStatus("Change Feeder ID: " + why, kErrorMs);
+                    return;
+                }
+                m_window.showStatus("Feeder ID changed to " + std::to_string(newId), kStatusMs);
+                if (!m_setup) return;
+                m_setup->change("Change Feeder ID", [&](JPCellConfig& cell) {
+                    for (JPActuatorConfig& act : cell.actuators)
+                        if (act.id == actuatorId) act.neoden4Feeder.feederId = newId;
+                });
+                m_setup->remakeForm();
+            });
+        });
     } else if (action == "positionRunoutTool" && path.rfind("nozzletip:", 0) == 0) {
         // OpenPnP's Position Tool: the nozzle the tip is on over the camera looking up, where the tip is calibrated.
         const std::string tipId = path.substr(10);
