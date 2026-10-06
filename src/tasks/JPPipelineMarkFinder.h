@@ -12,15 +12,17 @@
 inline namespace jf {
 
 // A round mark found by a vision pipeline, as OpenPnP's camera calibration
-// finds its fiducial (CalibrateCameraProcess): the picture given to its
-// ImageCapture, the expected centre, distance and diameter set as its
-// "DetectCircularSymmetry" properties, and the mark its "results" keypoint,
-// whose centre is then measured to a fraction of a pixel close by.
-// The pipeline is the camera's own (editable; OpenPnP's default unless
-// changed): JPDefaultPipelines::cameraCalibration.
+// finds its fiducial (CalibrateCameraProcess) and its nozzle tip calibration
+// finds the tip (ReferenceNozzleTipCalibration.findCircle): the picture given
+// to its ImageCapture, the expected centre, distance and diameter set as the
+// properties of `control` ("DetectCircularSymmetry", "nozzleTip"), and the
+// mark the "results" stage's (a keypoint, circle or rotated rectangle; more
+// than one, as OpenPnP: none taken), whose centre is then measured to a
+// fraction of a pixel close by. The pipeline is the camera's or the tip's
+// own (editable; OpenPnP's default unless changed).
 class JPPipelineMarkFinder {
 public:
-    explicit JPPipelineMarkFinder(const std::string& pipelineXml);
+    explicit JPPipelineMarkFinder(const std::string& pipelineXml, std::string control = "DetectCircularSymmetry");
 
     // Near (x, y), within maxDistance pixels, about `diameter` pixels across.
     JPRoundMark find(const JPGrayImage& image, double x, double y, double maxDistance, double diameter);
@@ -30,7 +32,8 @@ public:
                             double maxDiameter);
 
 private:
-    JPPipeline m_pipeline;
+    JPPipeline  m_pipeline;
+    std::string m_control;
     bool       m_parsed = false;
     cv::Mat    m_picture;   // what its ImageCapture gives
 };

@@ -224,7 +224,11 @@ sent the swing the other way, so the tip's centre lands where it is sent at any 
 moves X and Y to keep it there. Each nozzle the tip was measured on keeps its own; **Reset** forgets it for
 the nozzle it is on. An OpenPnP import brings how it is measured (whether compensated, the divisions, the
 misdetects allowed, the offset threshold, the Z offset, when it is measured again); importing again keeps what
-jplacer measured. OpenPnP's **Calibrate Camera Position and Rotation** is not here: jplacer measures the camera's
+jplacer measured, and the tip's own pipeline. The tip is found in each picture by its **Pipeline**, as OpenPnP's
+(ImageCapture, DetectCircularSymmetry under the `nozzleTip` properties, given where to look, how far and the
+Vision Diameter; one result within the offset threshold, more than one not taken), its centre then measured
+to a fraction of a pixel close by: **Edit** opens it in the pipeline editor on the camera looking up, and
+**Reset** puts OpenPnP's default back. OpenPnP's **Calibrate Camera Position and Rotation** is not here: jplacer measures the camera's
 location and turn by its own camera calibration.
 
 **Auto Recalibration**, as OpenPnP's, says when it is measured again without asking: **NozzleTipChange**
@@ -236,7 +240,7 @@ nozzles it fits but is not on; with **Fail Homing?**, a measurement failing then
 A job measures any tip it uses that is to be compensated and not yet measured on its nozzle (Calibrate
 nozzle tip, before the picks).
 
-<!-- src: src/machine/JPRunout.cpp (fit, runoutAt); src/machine/JPNozzleTipConfig.h (RunoutCalibration, runoutOn); src/tasks/JPRunoutCalibrator.cpp; src/machine/JPCell.cpp (compensateRunout, runoutFor); src/app/JPlacerCameraTasks.cpp (calibrateRunout, measureRunout); src/app/JPlacerMachine.cpp (setupAction, recalibrateAfterHoming, setTipOn); src/tasks/JPJobProcessor.cpp (calibrateNozzleTip); src/app/JPlacerJobMachine.cpp (calibrateTip); src/setup/JPSetupProperties.cpp (nozzleTipForm); src/openpnp/JPOpenPnpMachineImporter.cpp (calibration, keepFrom) -->
+<!-- src: src/machine/JPRunout.cpp (fit, runoutAt); src/machine/JPNozzleTipConfig.h (RunoutCalibration, runoutOn); src/tasks/JPRunoutCalibrator.cpp; src/tasks/JPPipelineMarkFinder.cpp; src/machine/JPCell.cpp (compensateRunout, runoutFor); src/app/JPlacerCameraTasks.cpp (calibrateRunout, measureRunout); src/app/JPlacerMachine.cpp (setupAction, recalibrateAfterHoming, setTipOn); src/tasks/JPJobProcessor.cpp (calibrateNozzleTip); src/app/JPlacerJobMachine.cpp (calibrateTip); src/setup/JPSetupProperties.cpp (nozzleTipForm); src/openpnp/JPOpenPnpMachineImporter.cpp (calibration, keepFrom) -->
 
 **Loaded?** on a nozzle's Nozzle Tips tab says which tip is on it now: ticking one moves nothing, and a tip
 is on one nozzle at a time.

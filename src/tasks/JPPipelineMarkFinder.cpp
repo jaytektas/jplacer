@@ -17,7 +17,6 @@ namespace {
 
 // OpenPnP's names: the stage giving the marks, and the properties the calibration sets.
 constexpr const char* kResults = "results";
-constexpr const char* kControl = "DetectCircularSymmetry";
 // Each size tried a fifth bigger than the last (findAnySize).
 constexpr double kSizeStep = 1.2;
 // The pipeline's find refined to a fraction of a pixel (its DetectCircularSymmetry settles on a
@@ -36,7 +35,7 @@ cv::Mat toBgr(const JPGrayImage& image) {
 
 } // namespace
 
-JPPipelineMarkFinder::JPPipelineMarkFinder(const std::string& pipelineXml) {
+JPPipelineMarkFinder::JPPipelineMarkFinder(const std::string& pipelineXml, std::string control) : m_control(std::move(control)) {
     JPXmlElement root;
     std::string error;
     if (JPXmlReader::parse(pipelineXml, root, error)) {
@@ -67,9 +66,9 @@ JPRoundMark JPPipelineMarkFinder::find(const JPGrayImage& image, double x, doubl
     m_picture = toBgr(image);
     m_pipeline.context().cameraWidth = image.width;
     m_pipeline.context().cameraHeight = image.height;
-    m_pipeline.setProperty(std::string(kControl) + ".center", JPPipelineValue { JPPipelineValue::Pixel { x, y } });
-    m_pipeline.setProperty(std::string(kControl) + ".maxDistance", JPPipelineValue { maxDistance });
-    m_pipeline.setProperty(std::string(kControl) + ".diameter", JPPipelineValue { diameter });
+    m_pipeline.setProperty(m_control + ".center", JPPipelineValue { JPPipelineValue::Pixel { x, y } });
+    m_pipeline.setProperty(m_control + ".maxDistance", JPPipelineValue { maxDistance });
+    m_pipeline.setProperty(m_control + ".diameter", JPPipelineValue { diameter });
     std::string why;
     if (!m_pipeline.process(why)) {
         m.why = why;
@@ -81,18 +80,28 @@ JPRoundMark JPPipelineMarkFinder::find(const JPGrayImage& image, double x, doubl
         m.why = "the calibration pipeline has no \"results\" stage";
         return m;
     }
-    const auto* points = std::get_if<std::vector<cv::KeyPoint>>(&results->model.value);
-    const cv::KeyPoint* point = std::get_if<cv::KeyPoint>(&results->model.value);
-    if (points && !points->empty()) point = &points->front();
-    if (!point) {
-        if (const auto* failed = std::get_if<JPPipelineModel::Failure>(&results->model.value)) m.why = failed->message;
-        else m.why = "no round mark found";
+    // As OpenPnP takes them: keypoints, circles or rotated rectangles, their centres (and sizes).
+    struct Spot { double x, y, size; };
+    std::vector<Spot> spots;
+    const auto& v = results->model.value;
+    if (const auto* k = std::get_if<std::vector<cv::KeyPoint>>(&v)) for (const auto& p : *k) spots.push_back({ p.pt.x, p.pt.y, p.size });
+    else if (const auto* one = std::get_if<cv::KeyPoint>(&v)) spots.push_back({ one->pt.x, one->pt.y, one->size });
+    else if (const auto* c = std::get_if<std::vector<JPPipelineModel::Circle>>(&v)) for (const auto& p : *c) spots.push_back({ p.x, p.y, p.diameter });
+    else if (const auto* circle = std::get_if<JPPipelineModel::Circle>(&v)) spots.push_back({ circle->x, circle->y, circle->diameter });
+    else if (const auto* r = std::get_if<std::vector<cv::RotatedRect>>(&v)) for (const auto& p : *r) spots.push_back({ p.center.x, p.center.y, 0 });
+    else if (const auto* rect = std::get_if<cv::RotatedRect>(&v)) spots.push_back({ rect->center.x, rect->center.y, 0 });
+    // Further than asked: not it (OpenPnP drops a result beyond its threshold).
+    std::erase_if(spots, [&](const Spot& p) { return std::hypot(p.x - x, p.y - y) > maxDistance; });
+    if (spots.size() != 1) {
+        if (const auto* failed = std::get_if<JPPipelineModel::Failure>(&v)) m.why = failed->message;
+        else if (spots.empty()) m.why = "no round mark found";
+        else m.why = "the pipeline found more than one; it should find exactly one";
         return m;
     }
     m.found = true;
-    m.x = point->pt.x;
-    m.y = point->pt.y;
-    m.diameter = point->size > 0 ? point->size : diameter;
+    m.x = spots.front().x;
+    m.y = spots.front().y;
+    m.diameter = spots.front().size > 0 ? spots.front().size : diameter;
     m.confidence = 1;
     // Its centre to a fraction of a pixel, near where the pipeline found it.
     JPRoundMarkFinder::Request near;

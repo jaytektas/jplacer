@@ -115,6 +115,7 @@ void JPCameraPanel::populateRenderPrimitives(JPrimitiveBuffer& buf) {
 }
 
 void JPCameraPanel::start() {
+    if (!m_powered) return;   // opened only while the machine is on
     JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Camera: " << m_feed.config().name << " on screen";
     m_view->setMessage("Starting " + m_feed.config().name + "\xE2\x80\xA6");
     m_state->setText("");
@@ -168,6 +169,24 @@ void JPCameraPanel::refreshStraightening() {
     if (m_straight && mode && !s)
         setNote(cam.name + " is not calibrated for its " + std::to_string(mode->width) + "\xC3\x97"
                 + std::to_string(mode->height) + " pictures: shown as taken");
+}
+
+void JPCameraPanel::setPowered(bool on) {
+    if (on && m_powered) return;
+    m_powered = on;
+    if (on) {
+        // Opened when next drawn (or for a task).
+        m_view->setMessage("");
+        invalidate();
+        return;
+    }
+    if (m_feed.isRunning()) {
+        JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Camera: " << m_feed.config().name << " closed: the machine is off";
+        m_feed.stop();
+        if (onRunning) onRunning(false);
+    }
+    m_view->clearPicture();
+    m_view->setMessage(m_feed.config().name + ": the machine is off");
 }
 
 void JPCameraPanel::setBusy(bool busy) {

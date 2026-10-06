@@ -134,6 +134,8 @@ struct JPNozzleTipConfig {
         // kDetectionMargin more, so one beyond it is seen, and refused).
         double offsetThresholdMm = 0.5;
         static constexpr double kDetectionMargin = 0.4;
+        // OpenPnP's calibration Pipeline: what finds the tip (its XML; empty: OpenPnP's default).
+        std::string pipeline;
         // OpenPnP's Auto Recalibration: "NozzleTipChange" (on each load, and
         // once homed), "NozzleTipChangeInJob" (forgotten on each load, measured
         // again when a job needs it), "MachineHome" (once homed, and on a load

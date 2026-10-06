@@ -209,6 +209,9 @@ public:
     std::function<void(const std::string& settingsId, const std::string& action)> onSetupVisionAction;
     // A camera's calibration pipeline (OpenPnP's Advanced Calibration's) opened in the pipeline editor.
     std::function<void(const std::string& cameraId)> onEditCalibrationPipeline;
+    // A nozzle tip's calibration pipeline in the editor (on the camera looking up), and kept.
+    std::function<void(const std::string& tipId)> onEditTipPipeline;
+    void setTipPipeline(const std::string& tipId, const std::string& xml);
     // That pipeline kept (its XML; empty: OpenPnP's default again), one step to undo.
     void setCalibrationPipeline(const std::string& cameraId, const std::string& xml);
     // Machine Setup's Feeders: each feeder's page the Feeders tab's (given to each Machine Setup made);

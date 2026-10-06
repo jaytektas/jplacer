@@ -360,6 +360,14 @@ void JPCameraView::setFeed(JPCameraFeed* feed) {
     invalidate();
 }
 
+void JPCameraView::clearPicture() {
+    dropTexture();
+    // Pictures already on their way (posted before the camera closed) not shown either.
+    if (JPFrame last; m_feed && m_feed->latest(last, 0)) m_have = last.sequence;
+    m_frame = JPFrame {};
+    invalidate();
+}
+
 void JPCameraView::setMessage(const std::string& text) {
     m_message = text;
     invalidate();

@@ -75,6 +75,9 @@ public:
     // While a task drives the camera: its buttons are off, and it runs even
     // off screen.
     void setBusy(bool busy);
+    // The machine powered on (connected) or off: the camera is opened only while it is on, and closed
+    // and let go of (another program may use it) once it is off.
+    void setPowered(bool on);
     // Feeding switcher camera `cameraId` (JPSwitcherSource) its pictures: it
     // runs even off screen while any switcher camera on it does.
     void setFeeding(const std::string& cameraId, bool feeding);
@@ -113,6 +116,7 @@ private:
     JLabel*                               m_note  = nullptr;
     CalibrationFor                        m_calibrationFor;
     bool                                  m_busy = false;
+    bool                                  m_powered = false;
     std::set<std::string>                 m_feeding;
     bool                                  m_straight = false;
     std::string                           m_capturesDir;

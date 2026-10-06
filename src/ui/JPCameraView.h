@@ -46,6 +46,8 @@ public:
     void setFeed(JPCameraFeed* feed);
     // What to say in place of a picture (no camera, why it stopped).
     void setMessage(const std::string& text);
+    // The picture shown taken away (the camera closed), until the next one comes.
+    void clearPicture();
     // OpenPnP's showFilteredImage: `picture` (as the camera's pixels) shown
     // in place of the live picture for `ms`, `text` over it.
     void showPicture(const JPFrame& picture, const std::string& text, int ms);

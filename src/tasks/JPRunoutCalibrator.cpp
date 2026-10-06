@@ -8,7 +8,8 @@
 #include "JPCameraLook.h"
 
 #include "common/JPlacerLog.h"
-#include "vision/JPRoundMarkFinder.h"
+#include "JPPipelineMarkFinder.h"
+#include "pipeline/JPDefaultPipelines.h"
 
 #include <j/core/Log.h>
 
@@ -65,6 +66,7 @@ std::optional<JPRunout> JPRunoutCalibrator::run(JPCell& cell, JPCameraFeed& came
 
     std::vector<JPRunout::Point> points;
     int failed = 0;
+    JPPipelineMarkFinder finder(k.pipeline.empty() ? JPDefaultPipelines::nozzleTipCalibration() : k.pipeline, "nozzleTip");
     bool ok = cell.safeZAndWait(m.headId, o.speed, why)
            && cell.moveAxesAndWait({ { m.axisX, ax }, { m.axisY, ay }, { m.axisRotation, -180 } }, o.speed, why)
            && cell.moveAxesAndWait({ { m.axisZ, az } }, o.speed, why);
@@ -87,17 +89,10 @@ std::optional<JPRunout> JPRunoutCalibrator::run(JPCell& cell, JPCameraFeed& came
             ex = img.width / 2.0;
             ey = img.height / 2.0;
         }
-        JPRoundMark found;
-        if (diameter > 0) {
-            JPRoundMarkFinder::Request rq;
-            rq.expectedX = ex;
-            rq.expectedY = ey;
-            rq.searchRadius = search * scale;
-            rq.diameter = diameter * scale;
-            found = JPCameraLook::findTryingHarder(cell, camera, img, rq);
-        } else {
-            found = JPRoundMarkFinder::findAnySize(img, ex, ey, search * scale, kLeastTipMm * scale, kMostTipMm * scale);
-        }
+        // The tip found by its calibration pipeline (OpenPnP's, editable), under the "nozzleTip" properties.
+        JPRoundMark found = diameter > 0
+                                      ? finder.find(img, ex, ey, search * scale, diameter * scale)
+                                      : finder.findAnySize(img, ex, ey, search * scale, kLeastTipMm * scale, kMostTipMm * scale);
         double tx, ty;
         if (found.found && cal.machinePoint(found.x, found.y, camX, camY, tx, ty)
             && std::hypot(tx - camX, ty - camY) > k.offsetThresholdMm) {

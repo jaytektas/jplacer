@@ -14,6 +14,9 @@ public:
     // A camera's Advanced Calibration (OpenPnP's AdvancedCalibration.createDefaultPipeline): the
     // calibration mark found by its circular symmetry, given as keypoints ("results").
     static const std::string& cameraCalibration();
+    // A nozzle tip's calibration (ReferenceNozzleTip-Calibration-DefaultPipeline.xml): the tip found by its
+    // circular symmetry under the "nozzleTip" properties.
+    static const std::string& nozzleTipCalibration();
     // ReferenceStripFeeder-DefaultPipeline.xml.
     static const std::string& stripFeeder();
     // ReferenceLoosePartFeeder-DefaultPipeline.xml.

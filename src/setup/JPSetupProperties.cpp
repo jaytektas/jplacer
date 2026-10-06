@@ -1604,6 +1604,11 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
     add.length("runoutVisionDiameter", "Vision Diameter", [rc] { return rc().visionDiameter; },
                [rc](double v) { if (v >= 0) rc().visionDiameter = v; });
     add.tip("Diameter of the feature/edge that should be detected in calibration vision (0: the tip's diameter).");
+    // OpenPnP's calibration Pipeline: what finds the tip (its centre then measured to a fraction of a pixel close by).
+    add.row("Pipeline");
+    add.button("editTipPipeline", "Edit", "Edit the pipeline that finds the nozzle tip.");
+    add.button("resetTipPipeline", "Reset", "Reset the pipeline to OpenPnP's default.", !rc().pipeline.empty());
+    add.end();
     add.actions({ { "Position Tool", "positionRunoutTool" }, { "Calibrate", "calibrateRunout" }, { "Reset", "resetRunout" } });
     add.note("Position Tool takes the nozzle the tip is on over the camera looking up, at its focus plus the Z offset. "
              "Calibrate measures the tip on the nozzle it is on, over the fixed camera looking up: down to the "

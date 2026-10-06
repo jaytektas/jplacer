@@ -847,6 +847,30 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
             m_machine.setCalibrationPipeline(cameraId, JPXmlWriter::text(kept.toXml()));
         });
     };
+    // A nozzle tip's calibration pipeline in the editor, run on the camera looking up (its own, or OpenPnP's default).
+    m_machine.onEditTipPipeline = [this](const std::string& tipId) {
+        const JPCell* cell = m_machine.cell();
+        if (!cell) return;
+        const JPNozzleTipConfig* tip = nullptr;
+        for (const JPNozzleTipConfig& t : cell->config().nozzleTips)
+            if (t.id == tipId) tip = &t;
+        const JPCameraConfig* up = nullptr;
+        for (const JPCameraConfig& c : cell->config().cameras)
+            if (c.looksUp && !up) up = &c;
+        if (!tip) return;
+        const std::string& own = tip->runoutCalibration.pipeline;
+        JPXmlElement root;
+        std::string error;
+        if (!JPXmlReader::parse(own.empty() ? JPDefaultPipelines::nozzleTipCalibration() : own, root, error)) {
+            JDialog::message("Error", "The nozzle tip's calibration pipeline could not be read: " + error);
+            return;
+        }
+        auto pipeline = std::make_shared<JPPipeline>(JPPipeline::fromXml(root));
+        m_pipelines.useCamera(*pipeline, up ? m_machine.cameraFeed(up->id) : nullptr, m_job.configuration().directory());
+        m_pipelines.edit("Nozzle Tip " + tip->name + " Calibration Pipeline", pipeline, [this, tipId](const JPPipeline& kept) {
+            m_machine.setTipPipeline(tipId, JPXmlWriter::text(kept.toXml()));
+        });
+    };
     m_machine.onSetupConfigurationChanged = [this] {
         m_vision->refresh();
         m_job.configurationChanged();
@@ -956,6 +980,7 @@ JPlacerOpenPnpTabs::~JPlacerOpenPnpTabs() {
     m_machine.onUnhomed = nullptr;
     m_machine.onSetupVisionAction = nullptr;
     m_machine.onEditCalibrationPipeline = nullptr;
+    m_machine.onEditTipPipeline = nullptr;
     m_machine.onSetupConfigurationChanged = nullptr;
     m_machine.setBoardsZ = nullptr;
     m_jobRun.reset();   // a run under way stops before what it works on goes

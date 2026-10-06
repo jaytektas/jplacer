@@ -433,6 +433,7 @@ void JPlacerMachine::buildCameras() {
         d.dock->setContent(d.panel.get());
         for (JWidget* tool : d.panel->tabTools()) d.dock->addTitleWidget(tool, JPIconButton::size());
         panels.push_back(d.panel.get());
+        d.panel->setPowered(m_cell && m_cell->isConnected());   // opened only while the machine is on
         m_cameras.push_back(std::move(d));
     }
     for (CameraDock& d : m_cameras) m_layout.add(d.dock.get(), JPlacerLayout::Home::Cameras, d.panel->camera().shownInMultiView);
@@ -709,6 +710,8 @@ void JPlacerMachine::updateMenu() {
     if (m_homeItem)       m_homeItem->setEnabled(connected);
     if (m_parkItem)       m_parkItem->setEnabled(connected && m_cell->isHomed());
     if (onConnectedChanged) onConnectedChanged(connected);
+    // The cameras opened only while the machine is on, let go of once it is off.
+    for (CameraDock& d : m_cameras) d.panel->setPowered(connected);
 }
 
 bool JPlacerMachine::openCell(const std::string& path, std::string& error) {
@@ -1346,7 +1349,21 @@ void JPlacerMachine::setCalibrationPipeline(const std::string& cameraId, const s
     m_setup->remakeForm();
 }
 
+void JPlacerMachine::setTipPipeline(const std::string& tipId, const std::string& xml) {
+    if (!m_setup) return;
+    m_setup->change(xml.empty() ? "Reset Nozzle Tip Calibration Pipeline" : "Nozzle Tip Calibration Pipeline", [&](JPCellConfig& cell) {
+        for (JPNozzleTipConfig& t : cell.nozzleTips)
+            if (t.id == tipId) t.runoutCalibration.pipeline = xml;
+    });
+    m_setup->remakeForm();
+}
+
 void JPlacerMachine::setupAction(const std::string& path, const std::string& action) {
+    if ((action == "editTipPipeline" || action == "resetTipPipeline") && path.rfind("nozzletip:", 0) == 0) {
+        if (action == "resetTipPipeline") setTipPipeline(path.substr(10), "");
+        else if (onEditTipPipeline) onEditTipPipeline(path.substr(10));
+        return;
+    }
     if ((action == "editCalibrationPipeline" || action == "resetCalibrationPipeline") && path.rfind("camera:", 0) == 0) {
         if (action == "resetCalibrationPipeline") setCalibrationPipeline(path.substr(7), "");
         else if (onEditCalibrationPipeline) onEditCalibrationPipeline(path.substr(7));

@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- The cameras are opened only while the machine is on, and closed and let go of (for other programs) when it is
+  turned off.
+- A nozzle tip's runout calibration finds the tip with its own OpenPnP pipeline, editable on its Calibration tab
+  (Pipeline: Edit, Reset) and brought in from OpenPnP.
 - A camera's calibration finds its mark with OpenPnP's Advanced Calibration pipeline (DetectCircularSymmetry, on
   OpenCV), editable from the Advanced Calibration page (Edit Pipeline, Reset Pipeline) and brought in from OpenPnP;
   the mark's centre is still measured to a fraction of a pixel.

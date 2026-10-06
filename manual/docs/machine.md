@@ -478,11 +478,13 @@ at once:
 
 <!-- src: src/ui/JPCameraPanel.cpp (tabTools); src/ui/JPIcons.cpp; src/ui/JPIconButton.cpp (setLeads); src/app/JPlacerMachine.cpp (buildCameras); JFramework include/j/core/DockWidget.h (addTitleWidget) -->
 
-A camera runs while its picture is on screen and stops half a
+A camera is opened only while the machine is on (connected), and closed, and let go of for other programs,
+once it is off: until then its picture says "the machine is off". While the machine is on, a camera runs
+while its picture is on screen and stops half a
 second after it is not (another tab in front, the window minimised), so a camera nobody sees costs
 nothing. A task using a camera brings its tab to the front, and keeps the camera running until it ends.
 
-<!-- src: src/app/JPlacerMachine.cpp (buildCameras, bringForward); src/ui/JPCameraPanel.cpp (populateRenderPrimitives, stopIfHidden, kHiddenMs, setBusy) -->
+<!-- src: src/app/JPlacerMachine.cpp (buildCameras, bringForward); src/ui/JPCameraPanel.cpp (populateRenderPrimitives, stopIfHidden, kHiddenMs, setBusy, setPowered); src/app/JPlacerMachine.cpp (updateMenu) -->
 
 A camera is found by the name the device gives itself (for example `top: top`), not by the USB socket
 it is plugged into, so moving it to another socket or hub does not lose it. jplacer picks the largest

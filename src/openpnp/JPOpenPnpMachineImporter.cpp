@@ -1200,6 +1200,12 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                 else if (const double old = number(cal->attr("offset-threshold")); old > 0) t.runoutCalibration.offsetThresholdMm = old;
                 if (!cal->attr("recalibration-trigger").empty()) t.runoutCalibration.recalibration = cal->attr("recalibration-trigger");
                 t.runoutCalibration.failHoming = cal->attr("fail-homing") != "false";
+                // Its pipeline (what finds the tip), as OpenPnP keeps it.
+                if (const JPXmlElement* pipeline = cal->child("pipeline"); pipeline && pipeline->child("stages")) {
+                    JPXmlNode cv = JPXmlNode::from(*pipeline);
+                    cv.name = "cv-pipeline";
+                    t.runoutCalibration.pipeline = JPXmlWriter::text(cv);
+                }
                 // Background calibration: its method, the smallest detail, and what it found.
                 JPNozzleTipConfig::Background& g = t.background;
                 if (!cal->attr("background-calibration-method").empty()) g.method = cal->attr("background-calibration-method");
