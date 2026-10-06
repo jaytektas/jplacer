@@ -39,8 +39,11 @@ constexpr size_t kDirectionMoves = 3;
 // Samples before the lens is fitted for predicting where the next mark is.
 constexpr size_t kLensPredictFrom = 8;
 // Once three marks are measured, a mark is searched for this far from where
-// the fit so far predicts.
+// the fit so far predicts, and measured with this much of its edge round (the
+// mark may be dimmer and bent towards the picture's corners, and still be
+// measured: nothing else is mistaken for it that near).
 constexpr double kPredictedSearchPx = 25;
+constexpr double kPredictedMinShape = 0.5;
 // A find further from the fit than the settings' times its spread (and at
 // least so many pixels) is left out; at most one in so many.
 constexpr double kOutlierPx = 1.0;
@@ -140,7 +143,8 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
                          f->centreY + f->pxPerMm[2] * dx + f->pxPerMm[3] * dy, ex, ey);
             radius = kPredictedSearchPx;
         }
-        JPRoundMark m = finder.find(img, ex, ey, radius, markPx);
+        const double minShape = radius == kPredictedSearchPx ? kPredictedMinShape : 0;
+        JPRoundMark m = finder.find(img, ex, ey, radius, markPx, minShape);
         // More pictures, the mark's place their mean: one picture alone wanders.
         if (m.found) {
             const int frames = std::clamp(o.calibrating.frames, 1, JPCameraConfig::Calibrating::kMostFrames);
@@ -149,7 +153,7 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
             for (int f = 1; f < frames; ++f) {
                 JPGrayImage more;
                 if (!JPCameraLook::taken(feed, more, why, 1)) return false;
-                const JPRoundMark again = finder.find(more, ex, ey, radius, markPx);
+                const JPRoundMark again = finder.find(more, ex, ey, radius, markPx, minShape);
                 if (!again.found) continue;
                 sx += again.x;
                 sy += again.y;

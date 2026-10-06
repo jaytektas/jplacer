@@ -2,13 +2,14 @@
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
 // Defaults, then Auto-Tune, against a stand-in camera that, like many, does
-// not say what its automatic exposure and white balance settled on (it reads
-// back the last value set by hand): every setting to the camera's default,
-// the automatic ones left to it until its picture holds steady (its automatic
-// exposure coming round slowly from far off), then exposure and white balance
-// found from the picture (the values giving the picture it gave by itself),
-// held and kept by hand; values that do not give that picture: not reached; a
-// camera with no settings of its own: nothing to tune.
+// not say what its automatic exposure settled on (it reads back the last
+// value set by hand): the settings vision wants so (OpenPnP's
+// CameraSolutions) by hand, white balance at its default and sharpness at its
+// least; exposure left to it until its picture holds steady (coming round
+// slowly from far off), then found from the picture (the value giving the
+// brightness it gave by itself), held and kept by hand; an exposure that does
+// not give that brightness: not reached; a camera with no settings of its
+// own: nothing to tune.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
@@ -22,14 +23,15 @@ namespace {
 
 // Exposure 1..5000 (automatic, settling at 333 slowly: a twentieth of the way, on a
 // log scale, each picture, from where it was set), white balance 2800..6500
-// (automatic, settling at 4600), brightness (manual only). Its picture: as
-// bright as its exposure (on a log scale), as warm as its white balance is low.
+// (default 4600, automatic or not), sharpness 0..100 (default 50), brightness
+// (manual only). Its picture: as bright as its exposure (on a log scale), as
+// warm as its white balance is low.
 class StandIn : public JPCaptureSource {
 public:
     bool   exposureAuto = false, balanceAuto = false;
     double exposure = 4900, balance = 2800;   // as set by hand: what it reads back (far off: overexposed)
     mutable double autoExposure = 0;          // where its automatic exposure has got to
-    int    brightness = 10;
+    int    brightness = 10, sharpness = 80;
     int    sets = 0;
     bool open(std::string&) override { return true; }
     void close() override {}
@@ -48,6 +50,10 @@ public:
         };
         one("exposure", exposure, 1, 5000, 156, exposureAuto);
         one("white-balance", balance, 2800, 6500, 4600, balanceAuto);
+        c["sharpness"]["value"] = sharpness;
+        c["sharpness"]["min"] = 0;
+        c["sharpness"]["max"] = 100;
+        c["sharpness"]["default"] = 50;
         c["brightness"]["value"] = brightness;
         c["brightness"]["default"] = 128;
         return c;
@@ -62,6 +68,7 @@ public:
         if (c["white-balance"]["auto"].isBool()) balanceAuto = c["white-balance"]["auto"].boolean();
         if (!balanceAuto && c["white-balance"]["value"].isNumber()) balance = c["white-balance"]["value"].number();
         if (c["brightness"]["value"].isNumber()) brightness = int(c["brightness"]["value"].number());
+        if (c["sharpness"]["value"].isNumber()) sharpness = int(c["sharpness"]["value"].number());
     }
     // Its picture now: grey of a brightness from the exposure in use, tinted by the white balance in use.
     JPFrame picture() const {
@@ -105,21 +112,22 @@ int main() {
     StandIn cam;
     JPAutoTune tune(1200, 200);
     assert(tune.start(cam, t));
-    // Defaults: brightness to its default; exposure and white balance left automatic.
-    assert(cam.brightness == 128 && cam.exposureAuto && cam.balanceAuto);
+    // As vision wants them, by hand: brightness and white balance their defaults, sharpness its least;
+    // exposure left to the camera.
+    assert(cam.brightness == 128 && cam.sharpness == 0 && !cam.balanceAuto && cam.balance == 4600 && cam.exposureAuto);
     // Run as the camera's thread does: a picture every 33 ms, a step between.
     std::optional<JJson> tuned;
-    for (int i = 0; i < 200 && !tuned; ++i) {
+    for (int i = 0; i < 400 && !tuned; ++i) {
         t += milliseconds(33);
         tune.see(cam.picture(), t);
         tuned = tune.step(cam, t);
     }
     assert(tuned);
-    // Found from the picture, though the camera never said them: near what it settled on by itself.
-    const double exposure = (*tuned)["exposure"]["value"].number(), balance = (*tuned)["white-balance"]["value"].number();
-    assert(!(*tuned)["exposure"]["auto"].boolean() && !(*tuned)["white-balance"]["auto"].boolean());
-    assert(std::abs(std::log2(exposure / 333)) < 0.2);
-    assert(std::abs(balance - 4600) < 150);
+    // Found from the picture, though the camera never said it: near what it settled on by itself.
+    const double exposure = (*tuned)["exposure"]["value"].number();
+    assert(!(*tuned)["exposure"]["auto"].boolean() && std::abs(std::log2(exposure / 333)) < 0.2);
+    assert((*tuned)["white-balance"]["value"].number() == 4600 && !(*tuned)["white-balance"]["auto"].boolean());
+    assert((*tuned)["sharpness"]["value"].number() == 0);
     assert((*tuned)["brightness"]["value"].number() == 128 && !(*tuned)["brightness"]["auto"].boolean());
     assert(!cam.exposureAuto && !cam.balanceAuto);   // held by hand
     assert(!tune.step(cam, t + milliseconds(5000)));   // done once

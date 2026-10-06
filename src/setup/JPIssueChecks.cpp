@@ -5,6 +5,7 @@
 
 #include "JPNozzleSolution.h"
 
+#include "camera/JPVisionDeviceSettings.h"
 #include "machine/JPFirmwareProfile.h"
 
 #include <algorithm>
@@ -1344,23 +1345,24 @@ void cameraProperties(JPSolutions& s, const JPIssueChecks::Context& c) {
             });
         };
         // OpenPnP's property, its name in words, what to do, and the value wanted (its default unless said).
-        struct Wanted { const char* key; const char* words; const char* what; bool minimum; const char* uri; };
+        // The values themselves: JPVisionDeviceSettings (Auto-Tune sets them so too).
+        struct Wanted { const char* key; const char* words; const char* what; const char* uri; };
         static const Wanted kWanted[] = {
-            { "brightness", "brightness", "revert to the default setting", false, nullptr },
-            { "contrast", "contrast", "revert to the default setting", false, nullptr },
-            { "gamma", "gamma", "revert to the default setting", false, nullptr },
-            { "gain", "gain", "revert to the default setting", false, nullptr },
-            { "sharpness", "sharpness", "set to the minimum", true, nullptr },
-            { "hue", "hue", "revert to the default setting", false, nullptr },
-            { "saturation", "saturation", "revert to the default setting", false, nullptr },
+            { "brightness", "brightness", "revert to the default setting", nullptr },
+            { "contrast", "contrast", "revert to the default setting", nullptr },
+            { "gamma", "gamma", "revert to the default setting", nullptr },
+            { "gain", "gain", "revert to the default setting", nullptr },
+            { "sharpness", "sharpness", "set to the minimum", nullptr },
+            { "hue", "hue", "revert to the default setting", nullptr },
+            { "saturation", "saturation", "revert to the default setting", nullptr },
             { "white-balance", "white balance",
-              "revert to the default setting. Issues & Solutions will propose calibrating static white balance instead", false,
+              "revert to the default setting. Issues & Solutions will propose calibrating static white balance instead",
               "Camera-White-Balance#problems-with-device-white-balance" },
         };
         for (const Wanted& w : kWanted) {
             const JJson& p = have[w.key];
             if (!p.isObject()) continue;
-            const int wanted = int(p[w.minimum ? "min" : "default"].number());
+            const int wanted = int(JPVisionDeviceSettings::wanted(w.key, p).value_or(0));
             const bool automatic = p["auto"].boolean();
             if (!automatic && int(p["value"].number()) == wanted) continue;
             Issue i;

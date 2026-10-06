@@ -17,6 +17,11 @@ notes.
   camera starting far off (very bright or very dark) is no longer tuned to a picture it was still passing through; it
   looks at each value it tries only once the camera shows it, and checks the values it finds give the picture the
   camera gave by itself (not tuned, and homing stops, when they do not).
+- Auto-Tune sets the camera as OpenPnP's Issues & Solutions recommends for vision: sharpness at its least (the
+  camera's own sharpening upset the measuring of marks), white balance at its default (jplacer's White Balance does
+  the colour), the rest at their defaults; only exposure is tuned. Issues & Solutions and Auto-Tune now agree.
+- Camera calibration again measures a mark towards the picture's corners when only half its edge looks round, as it
+  did before it used the calibration pipeline.
 - Visual homing looks again as OpenPnP's does: up to the FIDUCIAL-HOME part's Max Vision Passes, until a look corrects
   by less than its Max Linear Offset, the last look's correction standing; it no longer fails a home that is a few
   hundredths of a millimetre off after three looks.

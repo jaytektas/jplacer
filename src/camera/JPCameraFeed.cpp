@@ -180,18 +180,16 @@ void JPCameraFeed::runSource(std::string& why) {
                 std::lock_guard lk(m_mutex);
                 m_deviceControls = source->controls();
             }
-            const JPAutoTune::Look aim = tuning->aim(), got = tuning->got();
             if (tuning->reached()) {
-                JLOGC(JPlacerLog::kCamera, JLogLevel::Info)
-                    << m_config.name << ": auto-tuned: brightness " << got.brightness << " (aimed " << aim.brightness
-                    << "), warmth " << got.warmth << " (aimed " << aim.warmth << "): " << tuned->dump();
+                JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << m_config.name << ": auto-tuned: brightness " << tuning->got()
+                                                            << " (aimed " << tuning->aim() << "): " << tuned->dump();
                 m_tuned = *tuned;
                 tune->done(*tuned);
             } else {
                 // Not kept: what the device holds now is not what it was tuned for.
                 JLOGC(JPlacerLog::kCamera, JLogLevel::Warn)
-                    << m_config.name << ": not tuned: the values found give brightness " << got.brightness << ", warmth "
-                    << got.warmth << ", not the " << aim.brightness << ", " << aim.warmth << " aimed for: " << tuned->dump();
+                    << m_config.name << ": not tuned: the exposure found gives brightness " << tuning->got() << ", not the "
+                    << tuning->aim() << " aimed for: " << tuned->dump();
                 tune->done(std::nullopt);
             }
             tune.reset();

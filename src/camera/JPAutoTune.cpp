@@ -3,6 +3,8 @@
 
 #include "JPAutoTune.h"
 
+#include "JPVisionDeviceSettings.h"
+
 #include <algorithm>
 #include <cmath>
 
@@ -13,58 +15,43 @@ namespace {
 // Every so many pixels looked at: enough for a picture's overall look.
 constexpr size_t kStride = 61;
 
-// The settings found from the picture (what each is, as a device names it).
-struct Found {
-    const char* name;
-    bool        brightness, geometric;
-};
-constexpr Found kFound[] = { { "exposure", true, true }, { "white-balance", false, false } };
+// The setting found from the picture (as a device names it): exposure, on a log scale.
+constexpr const char* kExposure = "exposure";
 
 } // namespace
 
-JPAutoTune::Look JPAutoTune::lookAt(const JPFrame& frame) {
-    double r = 0, g = 0, b = 0;
+double JPAutoTune::brightnessOf(const JPFrame& frame) {
+    double sum = 0;
     size_t n = 0;
-    for (size_t i = 0; i + 2 < frame.rgba.size(); i += kStride * 4, ++n) {
-        r += frame.rgba[i];
-        g += frame.rgba[i + 1];
-        b += frame.rgba[i + 2];
-    }
-    Look l;
-    if (!n) return l;
-    l.brightness = (r + g + b) / (3.0 * double(n));
-    l.warmth = (r + g + b) > 0 ? (r - b) / (r + g + b) : 0;
-    return l;
+    for (size_t i = 0; i + 2 < frame.rgba.size(); i += kStride * 4, ++n) sum += frame.rgba[i] + frame.rgba[i + 1] + frame.rgba[i + 2];
+    return n ? sum / (3.0 * double(n)) : 0;
 }
 
 bool JPAutoTune::reached() const {
-    return std::abs(m_got.brightness - m_aim.brightness) <= std::max(kReachLevels, kReachShare * m_aim.brightness)
-        && std::abs(m_got.warmth - m_aim.warmth) <= kReachWarmth;
+    return std::abs(m_got - m_aim) <= std::max(kReachLevels, kReachShare * m_aim);
 }
 
 bool JPAutoTune::start(JPCaptureSource& source, Clock::time_point now) {
-    // Each setting to the device's default; those it can, left to it.
+    // Those vision wants so (JPVisionDeviceSettings) by hand, as it wants them; any other to the device's
+    // default, or left to it where it can be.
     m_tuning = JJson::object();
-    m_searches.clear();
+    m_search.reset();
     m_autoLooks.clear();
     const JJson have = source.controls();   // kept: its settings are walked
     for (const auto& [name, c] : have.obj()) {
         JJson want = JJson::object();
-        want["auto"] = c["auto"].isBool();
-        if (!c["auto"].isBool()) want["value"] = c["default"].number(c["value"].number());
+        if (const auto value = JPVisionDeviceSettings::wanted(name, c)) {
+            want["auto"] = false;
+            want["value"] = *value;
+        } else {
+            want["auto"] = c["auto"].isBool();
+            if (!c["auto"].isBool()) want["value"] = c["default"].number(c["value"].number());
+        }
         m_tuning[name] = want;
-        // Exposure and white balance found from the picture, where the device says their range.
-        for (const Found& f : kFound)
-            if (name == f.name && c["auto"].isBool() && c["min"].isNumber() && c["max"].isNumber()
-                && c["max"].number() > c["min"].number()) {
-                Search s;
-                s.name = name;
-                s.brightness = f.brightness;
-                s.geometric = f.geometric && c["min"].number() > 0;
-                s.lo = c["min"].number();
-                s.hi = c["max"].number();
-                m_searches.push_back(s);
-            }
+        // Exposure found from the picture, where the device says its range.
+        if (name == kExposure && c["auto"].isBool() && c["min"].isNumber() && c["max"].isNumber()
+            && c["max"].number() > c["min"].number())
+            m_search = Search { c["min"].number() > 0, c["min"].number(), c["max"].number() };
     }
     if (m_tuning.obj().empty()) return false;
     source.setControls(m_tuning);
@@ -76,50 +63,45 @@ bool JPAutoTune::start(JPCaptureSource& source, Clock::time_point now) {
 
 void JPAutoTune::see(const JPFrame& frame, Clock::time_point when) {
     if (m_step == Step::Auto) {
-        m_autoLooks.push_back({ when, lookAt(frame) });
+        m_autoLooks.push_back({ when, brightnessOf(frame) });
         return;
     }
     if (m_step != Step::Search && m_step != Step::Check) return;
-    // Passed over while the device takes the values, then looked at.
+    // Passed over while the device takes the value, then looked at.
     if (++m_seen <= kSettleFrames) return;
-    const Look l = lookAt(frame);
-    m_sum.brightness += l.brightness;
-    m_sum.warmth += l.warmth;
+    m_sum += brightnessOf(frame);
 }
 
-void JPAutoTune::tryValues(JPCaptureSource& source, Clock::time_point now) {
-    for (Search& s : m_searches) {
-        s.tried = m_phase == Phase::Low ? s.lo : m_phase == Phase::High ? s.hi
-                  : s.geometric ? std::sqrt(s.lo * s.hi) : (s.lo + s.hi) / 2;
-        JJson want = JJson::object();
-        want["auto"] = false;
-        want["value"] = std::round(s.tried);
-        m_tuning[s.name] = want;
-    }
+void JPAutoTune::tryValue(JPCaptureSource& source) {
+    Search& s = *m_search;
+    s.tried = m_phase == Phase::Low ? s.lo : m_phase == Phase::High ? s.hi : s.geometric ? std::sqrt(s.lo * s.hi) : (s.lo + s.hi) / 2;
+    JJson want = JJson::object();
+    want["auto"] = false;
+    want["value"] = std::round(s.tried);
+    m_tuning[kExposure] = want;
     source.setControls(m_tuning);
     m_seen = 0;
-    m_sum = Look {};
-    m_due = now;
+    m_sum = 0;
 }
 
 std::optional<JJson> JPAutoTune::step(JPCaptureSource& source, Clock::time_point now) {
     if (m_step == Step::Done || now < m_due) return std::nullopt;
     if (m_step == Step::Auto) {
-        // The aim: the device's picture once it holds steady (else, waited long enough, its last).
+        // The aim: the device's brightness once it holds steady (else, waited long enough, its last).
         const auto from = now - std::chrono::milliseconds(kSteadyMs);
-        Look sum, least { 1e9, 1e9 }, most { -1e9, -1e9 };
+        double sum = 0, least = 1e9, most = -1e9;
         int n = 0;
-        for (const auto& [when, l] : m_autoLooks)
+        for (const auto& [when, b] : m_autoLooks)
             if (when >= from) {
-                sum.brightness += l.brightness;
-                sum.warmth += l.warmth;
-                least = { std::min(least.brightness, l.brightness), std::min(least.warmth, l.warmth) };
-                most = { std::max(most.brightness, l.brightness), std::max(most.warmth, l.warmth) };
+                sum += b;
+                least = std::min(least, b);
+                most = std::max(most, b);
                 ++n;
             }
-        const bool steady = n > 1 && most.brightness - least.brightness <= kSteadyLevels && most.warmth - least.warmth <= kSteadyWarmth;
+        const bool steady = n > 1 && most - least <= kSteadyLevels;
         if (!steady && now - m_started < std::chrono::milliseconds(kAutoMostMs)) return std::nullopt;
-        if (n) m_aim = { sum.brightness / n, sum.warmth / n };
+        if (n) m_aim = sum / n;
+        m_got = m_aim;   // what it holds, where nothing is searched for
         // Switched to manual: the device holds what it settled on (where it says so; else found below).
         for (auto& [name, want] : m_tuning.obj()) {
             if (!want["auto"].boolean()) continue;
@@ -127,12 +109,11 @@ std::optional<JJson> JPAutoTune::step(JPCaptureSource& source, Clock::time_point
             want["auto"] = false;
         }
         source.setControls(m_tuning);
-        m_got = m_aim;   // what it holds, where nothing is searched for
-        if (n && !m_searches.empty()) {
+        if (n && m_search) {
             m_step = Step::Search;
             m_phase = Phase::Low;
             m_halvings = 0;
-            tryValues(source, now);
+            tryValue(source);
             return std::nullopt;
         }
         m_step = Step::Hold;
@@ -141,43 +122,28 @@ std::optional<JJson> JPAutoTune::step(JPCaptureSource& source, Clock::time_point
     }
     if (m_step == Step::Search) {
         if (m_seen < kSettleFrames + kLookFrames) return std::nullopt;   // not looked yet
-        const double looks = double(m_seen - kSettleFrames);
-        const Look got { m_sum.brightness / looks, m_sum.warmth / looks };
-        for (Search& s : m_searches) {
-            const double value = s.brightness ? got.brightness : got.warmth, aim = s.brightness ? m_aim.brightness : m_aim.warmth;
-            if (m_phase == Phase::Low) s.atLo = value;
-            else if (m_phase == Phase::High) s.atHi = value;
-            else {
-                // Which half the aim is in: the picture goes from atLo to atHi as the value goes from lo to hi.
-                const bool rising = s.atHi >= s.atLo;
-                if ((value < aim) == rising) s.lo = s.tried;
-                else s.hi = s.tried;
-            }
-        }
+        Search& s = *m_search;
+        const double b = looked();
+        if (m_phase == Phase::Low) s.atLo = b;
+        else if (m_phase == Phase::High) s.atHi = b;
+        else if ((b < m_aim) == (s.atHi >= s.atLo)) s.lo = s.tried;   // the aim in the upper half (brighter as it rises)
+        else s.hi = s.tried;
         if (m_phase == Phase::Low) m_phase = Phase::High;
         else if (m_phase == Phase::High) m_phase = Phase::Halving;
         else ++m_halvings;
         if (m_halvings < kHalvings) {
-            tryValues(source, now);
+            tryValue(source);
             return std::nullopt;
         }
         // Found: the middle of what is left, then the picture it gives looked at.
-        for (Search& s : m_searches) {
-            JJson want = JJson::object();
-            want["auto"] = false;
-            want["value"] = std::round(s.geometric ? std::sqrt(s.lo * s.hi) : (s.lo + s.hi) / 2);
-            m_tuning[s.name] = want;
-        }
-        source.setControls(m_tuning);
-        m_seen = 0;
-        m_sum = Look {};
+        m_phase = Phase::Halving;
+        tryValue(source);
         m_step = Step::Check;
         return std::nullopt;
     }
     if (m_step == Step::Check) {
         if (m_seen < kSettleFrames + kLookFrames) return std::nullopt;
-        const double looks = double(m_seen - kSettleFrames);
-        m_got = { m_sum.brightness / looks, m_sum.warmth / looks };
+        m_got = looked();
         m_step = Step::Hold;
         m_due = now + std::chrono::milliseconds(m_holdMs);
         return std::nullopt;

@@ -65,7 +65,8 @@ void JPPipelineMarkFinder::useCapture() {
     };
 }
 
-JPRoundMark JPPipelineMarkFinder::find(const JPGrayImage& image, double x, double y, double maxDistance, double diameter) {
+JPRoundMark JPPipelineMarkFinder::find(const JPGrayImage& image, double x, double y, double maxDistance, double diameter,
+                                       double minShape) {
     JPRoundMark m;
     if (!m_parsed) {
         m.why = "the camera's calibration pipeline could not be read";
@@ -121,6 +122,7 @@ JPRoundMark JPPipelineMarkFinder::find(const JPGrayImage& image, double x, doubl
     near.expectedY = m.y;
     near.searchRadius = kRefineShare * diameter;
     near.diameter = diameter;
+    if (minShape > 0) near.minShape = minShape;
     if (const JPRoundMark fine = JPRoundMarkFinder::find(image, near); fine.found) {
         m.x = fine.x;
         m.y = fine.y;

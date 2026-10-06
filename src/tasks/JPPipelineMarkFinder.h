@@ -27,8 +27,9 @@ public:
     // camera's scale (pixels a millimetre) for what is set in millimetres.
     JPPipelineMarkFinder(JPPipeline prepared, std::string control, double pxPerMmX, double pxPerMmY);
 
-    // Near (x, y), within maxDistance pixels, about `diameter` pixels across.
-    JPRoundMark find(const JPGrayImage& image, double x, double y, double maxDistance, double diameter);
+    // Near (x, y), within maxDistance pixels, about `diameter` pixels across; its centre refined where at least
+    // `minShape` of its edge is round (0: JPRoundMarkFinder's own share).
+    JPRoundMark find(const JPGrayImage& image, double x, double y, double maxDistance, double diameter, double minShape = 0);
     // Its size not known yet (before calibration): sizes from minDiameter to
     // maxDiameter, each a fifth bigger, the most symmetric mark kept.
     JPRoundMark findAnySize(const JPGrayImage& image, double x, double y, double maxDistance, double minDiameter,
