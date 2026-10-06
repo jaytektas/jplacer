@@ -31,6 +31,7 @@ public:
     static void addAffineStages(std::vector<JPStageType>& types);
     static void addOcrStages(std::vector<JPStageType>& types);
     static void addSymmetryStages(std::vector<JPStageType>& types);
+    static void addRoundMarkStages(std::vector<JPStageType>& types);   // jplacer's own
 
 private:
     JPStageRegistry();

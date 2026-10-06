@@ -11,8 +11,9 @@ inline namespace jf {
 // Pipeline puts back, and what a setting without a pipeline starts from.
 class JPDefaultPipelines {
 public:
-    // A camera's Advanced Calibration (OpenPnP's AdvancedCalibration.createDefaultPipeline): the
-    // calibration mark found by its circular symmetry, given as keypoints ("results").
+    // A camera's Advanced Calibration, as OpenPnP's AdvancedCalibration.createDefaultPipeline but for its
+    // detector: the calibration mark found and measured by jplacer's DetectRoundMark (its edge fitted to a
+    // fraction of a pixel), given as keypoints ("results").
     static const std::string& cameraCalibration();
     // A nozzle tip's calibration (ReferenceNozzleTip-Calibration-DefaultPipeline.xml): the tip found by its
     // circular symmetry under the "nozzleTip" properties.

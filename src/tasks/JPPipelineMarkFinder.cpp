@@ -82,6 +82,8 @@ JPRoundMark JPPipelineMarkFinder::find(const JPGrayImage& image, double x, doubl
     m_pipeline.setProperty(m_control + ".center", JPPipelineValue { JPPipelineValue::Pixel { x, y } });
     m_pipeline.setProperty(m_control + ".maxDistance", JPPipelineValue { maxDistance });
     m_pipeline.setProperty(m_control + ".diameter", JPPipelineValue { diameter });
+    if (minShape > 0) m_pipeline.setProperty(m_control + ".minShape", JPPipelineValue { minShape });
+    else m_pipeline.removeProperty(m_control + ".minShape");
     std::string why;
     if (!m_pipeline.process(why)) {
         m.why = why;

@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- Camera calibration measures its mark with jplacer's own round mark finder again, now as a pipeline stage of its
+  own (DetectRoundMark) in the calibration pipeline, still editable; Reset Pipeline puts it in place of an imported
+  OpenPnP one.
 - A camera's Device Settings have Expose each picture? with a Brightness: every picture taken for vision is taken
   with the exposure set first for that brightness under the light there is then, for a cell whose light changes.
 - Defaults, then Auto-Tune switches the camera's light on first (and other cameras' Anti-Glare lights off), so the
