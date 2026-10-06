@@ -77,7 +77,7 @@ In a job, a part whose solution is one of corners is aligned shot by shot: the n
 shot's corners over the camera (without going up to safe Z within the roaming radius), the pipeline
 finds the corners there, and what the shots found is put together.
 
-<!-- src: src/ui/JPPackagesPanel.cpp (nozzleTipsTab, settingsTab, footprintTab, generatePads, compositingTab, showFootprint); src/ui/JPFootprintTableModel.cpp; src/model/JPFootprint.cpp (generate); src/model/JPKicadModImporter.cpp; src/ui/JPFootprintOverlay.cpp; src/ui/JPCompositingPreview.cpp; src/tasks/JPVisionComposite.cpp (compute, composeShots, travel, interpret); src/tasks/JPVisionPipelinePrep.cpp (composite, bottom, shot); src/app/JPlacerJobMachine.cpp (alignPart, alignComposite); src/app/JPlacerOpenPnpTabs.cpp (computeComposite) -->
+<!-- src: src/ui/JPPackagesPanel.cpp (nozzleTipsTab, settingsTab, footprintTab, generatePads, compositingTab, showFootprint); src/ui/JPFootprintTableModel.cpp; src/model/JPFootprint.cpp (generate); src/model/JPKicadModImporter.cpp; src/ui/JPFootprintOverlay.cpp; src/ui/JPCompositingPreview.cpp; src/tasks/JPVisionComposite.cpp (compute, composeShots, travel, interpret); src/tasks/JPVisionPipelinePrep.cpp (composite, bottom, shot); src/tasks/JPCellJobMachine.cpp (alignPart, alignComposite); src/app/JPlacerOpenPnpTabs.cpp (computeComposite) -->
 
 **Bottom Vision Settings** and **Fiducial Vision Settings** show the vision settings the package uses (its
 own, else the machine's), as on the [Vision](vision.md#the-settings) tab. **Specialize for** the package

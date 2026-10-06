@@ -98,4 +98,4 @@ chosen on the Packages tab) turned by the machine's test alignment angle, over t
 
 <!-- src: src/tasks/JPVisionPipelinePrep.cpp; src/app/JPlacerPipelines.cpp (prepared) -->
 
-<!-- src: src/setup/JPVisionForms.cpp; src/tasks/JPJobProcessor.cpp (align); src/tasks/JPAlignRequests.cpp; src/tasks/JPFiducialLocator.cpp (FiducialLook, lookFor); src/app/JPlacerJobMachine.cpp (locateFiducial); src/app/JPlacerVisionTests.cpp; src/app/JPlacerMachine.cpp (nozzlePart); src/model/JPConfiguration.cpp (inheritedVision); src/machine/JPVisionConfig.h -->
+<!-- src: src/setup/JPVisionForms.cpp; src/tasks/JPJobProcessor.cpp (align); src/tasks/JPAlignRequests.cpp; src/tasks/JPFiducialLocator.cpp (FiducialLook, lookFor); src/tasks/JPCellJobMachine.cpp (locateFiducial); src/app/JPlacerVisionTests.cpp; src/app/JPlacerMachine.cpp (nozzlePart); src/model/JPConfiguration.cpp (inheritedVision); src/machine/JPVisionConfig.h -->

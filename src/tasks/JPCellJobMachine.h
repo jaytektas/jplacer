@@ -3,7 +3,9 @@
 
 #pragma once
 
-#include "JPlacerMachine.h"
+#include "JPJobMachineHost.h"
+#include "machine/JPCameraCalibration.h"
+#include "machine/JPCellConfig.h"
 
 #include "model/JPConfiguration.h"
 
@@ -25,7 +27,7 @@ inline namespace jf {
 // found by the head camera as the visual test finds the homing mark:
 // centred on, then measured again until it moves less than 0.2 mm.
 // Whatever is read of the cell's settings is read through `onMain`.
-class JPlacerJobMachine : public JPJobMachine {
+class JPCellJobMachine : public JPJobMachine {
 public:
     // A pipeline (OpenPnP's, for a script's CvPipeline) run on a camera, by its id or
     // name, where it is (nothing moved); false and why when it fails.
@@ -35,7 +37,7 @@ public:
     using OnMain = std::function<void(const std::function<void()>&)>;
     // `ask`: a tip changer's question for the person, waiting for the answer.
     // `config`: the parts and vision settings (read through `onMain`).
-    JPlacerJobMachine(JPlacerMachine& machine, JPConfiguration& config, OnMain onMain,
+    JPCellJobMachine(JPJobMachineHost& host, JPConfiguration& config, OnMain onMain,
                       std::function<bool(const std::string&)> ask, std::function<void(const std::string&)> progress);
 
     std::vector<Nozzle> nozzles() const override;
@@ -133,7 +135,7 @@ private:
                         double camY, double z, double nx, double ny, double nr, double angle, const std::string& partId,
                         JPBottomVision::Seen& seen, std::string& why);
 
-    JPlacerMachine&                          m_machine;
+    JPJobMachineHost&                        m_host;
     JPConfiguration&                         m_config;
     OnMain                                   m_onMain;
     std::function<bool(const std::string&)>  m_ask;

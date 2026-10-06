@@ -109,7 +109,7 @@ A strip of cut tape lying on the machine, its parts picked one after the other a
 The part is picked across the tape from its hole, as EIA-481 tape lays it out: half the tape width less
 0.5 mm across, 2 mm along, then one part pitch further for each part taken.
 
-<!-- src: src/setup/JPFeederForms.cpp (stripForm, act); src/model/JPFeeder.cpp (pickLocation, idealLineLocations, feed, visionExpected, setVisionFound); src/tasks/JPFeederFeed.cpp; src/app/JPlacerJobMachine.cpp (locateHole, seeCircles); src/tasks/JPFeederPipelines.cpp; src/app/JPlacerStripAutoSetup.cpp; src/tasks/JPStripHoles.cpp; src/vision/JPRansac.cpp -->
+<!-- src: src/setup/JPFeederForms.cpp (stripForm, act); src/model/JPFeeder.cpp (pickLocation, idealLineLocations, feed, visionExpected, setVisionFound); src/tasks/JPFeederFeed.cpp; src/tasks/JPCellJobMachine.cpp (locateHole, seeCircles); src/tasks/JPFeederPipelines.cpp; src/app/JPlacerStripAutoSetup.cpp; src/tasks/JPStripHoles.cpp; src/vision/JPRansac.cpp -->
 
 ### Tray feeder
 
@@ -142,7 +142,7 @@ value (after each pick), **Move before feed** (the nozzle over the pick location
 supported**. **Test feed** and **Test post pick** actuate them. A repeated feed (Skip next feed) does not
 actuate. A **tube feeder** is picked at its pick location with nothing to feed.
 
-<!-- src: src/setup/JPFeederForms.cpp (autoForm); src/tasks/JPFeederFeed.cpp (feed, postPick); src/app/JPlacerJobMachine.cpp (actuate); src/app/JPlacerOpenPnpTabs.cpp (machineAction) -->
+<!-- src: src/setup/JPFeederForms.cpp (autoForm); src/tasks/JPFeederFeed.cpp (feed, postPick); src/tasks/JPCellJobMachine.cpp (actuate); src/app/JPlacerOpenPnpTabs.cpp (machineAction) -->
 
 ### Drag feeder
 
@@ -169,7 +169,7 @@ interest, puts a selection on the head camera's picture (see [Machine](machine.m
 away. **Reset vision offsets** forgets where the template was last found, so the next feed looks again
 first. Without a template image or an area of interest the feed says it is required.
 
-<!-- src: src/setup/JPFeederForms.cpp (pinForm); src/tasks/JPFeederFeed.cpp (pinFeed); src/model/JPFeeder.cpp (pickLocation, templatePath); src/ui/JPFeedersPanel.cpp (selectOnCamera, confirmTemplate); src/app/JPlacerJobMachine.cpp (moveActuator, matchTemplate); src/vision/JPTemplateFinder.cpp; src/ui/JPSetupForm.cpp (locationButtons) -->
+<!-- src: src/setup/JPFeederForms.cpp (pinForm); src/tasks/JPFeederFeed.cpp (pinFeed); src/model/JPFeeder.cpp (pickLocation, templatePath); src/ui/JPFeedersPanel.cpp (selectOnCamera, confirmTemplate); src/tasks/JPCellJobMachine.cpp (moveActuator, matchTemplate); src/vision/JPTemplateFinder.cpp; src/ui/JPSetupForm.cpp (locationButtons) -->
 
 ### Lever feeder
 
@@ -268,7 +268,7 @@ its light on. Each code is a Rapid feeder: the one named by it, else a new one n
 when it has none); its location is set to where the code was first seen (its Z and rotation kept) and its
 address to the code.
 
-<!-- src: src/setup/JPFeederForms.cpp (rapidForm); src/tasks/JPFeederFeed.cpp (feed, kRapidActuator); src/tasks/JPRapidScan.cpp; src/app/JPlacerJobMachine.cpp (readQrCodes) -->
+<!-- src: src/setup/JPFeederForms.cpp (rapidForm); src/tasks/JPFeederFeed.cpp (feed, kRapidActuator); src/tasks/JPRapidScan.cpp; src/tasks/JPCellJobMachine.cpp (readQrCodes) -->
 
 ### Push-pull feeder
 
@@ -435,7 +435,7 @@ shown on the camera's view.
 The editor needs the feeder's part ("Feeder Bin has no part."): its pipelines are titled by it, and its
 stages can read and write the part's template image.
 
-<!-- src: src/setup/JPFeederForms.cpp (looseForm, advancedLooseForm); src/tasks/JPFeederFeed.cpp (looseFeed); src/tasks/JPFeederPipelines.cpp; src/model/JPFeeder.cpp (pickLocation, partHeightAbovePickLocation); src/app/JPlacerJobMachine.cpp (seeRects); src/app/JPlacerOpenPnpTabs.cpp (pipelineAction) -->
+<!-- src: src/setup/JPFeederForms.cpp (looseForm, advancedLooseForm); src/tasks/JPFeederFeed.cpp (looseFeed); src/tasks/JPFeederPipelines.cpp; src/model/JPFeeder.cpp (pickLocation, partHeightAbovePickLocation); src/tasks/JPCellJobMachine.cpp (seeRects); src/app/JPlacerOpenPnpTabs.cpp (pipelineAction) -->
 
 ### Other kinds
 

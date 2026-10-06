@@ -39,9 +39,9 @@ bool allPlaced(const JPJob& job) {
 } // namespace
 
 JPlacerJobRun::JPlacerJobRun(JAppWindow& window, JPlacerJob& job, JPlacerMachine& machine, JPJobPanel& panel)
-    : m_window(window), m_job(job), m_machine(machine), m_panel(panel), m_mainThread(std::this_thread::get_id()) {
-    m_jobMachine = std::make_unique<JPlacerJobMachine>(
-        machine, job.configuration(), [this](const std::function<void()>& fn) { onMain(fn); },
+    : m_window(window), m_job(job), m_machine(machine), m_host(machine), m_panel(panel), m_mainThread(std::this_thread::get_id()) {
+    m_jobMachine = std::make_unique<JPCellJobMachine>(
+        m_host, job.configuration(), [this](const std::function<void()>& fn) { onMain(fn); },
         [this](const std::string& q) { return ask(q); },
         [this](const std::string& s) {
             post([this, s] { m_window.showStatus(s, kStatusMs); });
@@ -79,7 +79,7 @@ void JPlacerJobRun::post(std::function<void()> fn) {
     });
 }
 
-JPlacerJobMachine& JPlacerJobRun::jobMachine() { return *m_jobMachine; }
+JPCellJobMachine& JPlacerJobRun::jobMachine() { return *m_jobMachine; }
 
 void JPlacerJobRun::onMain(const std::function<void()>& fn) {
     // Already there (a hand-off made inside another): done now.

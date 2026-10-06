@@ -4,7 +4,8 @@
 #pragma once
 
 #include "JPlacerJob.h"
-#include "JPlacerJobMachine.h"
+#include "JPlacerJobHost.h"
+#include "tasks/JPCellJobMachine.h"
 #include "JPlacerMachine.h"
 #include "JPlacerSignalers.h"
 
@@ -37,7 +38,7 @@ public:
     // A run under way is stopped where it is (it is not parked) and waited for.
     ~JPlacerJobRun();
     // The machine a job runs on (for a script's vision, off the screen's thread).
-    JPlacerJobMachine& jobMachine();
+    JPCellJobMachine& jobMachine();
 
     JPlacerJobRun(const JPlacerJobRun&)            = delete;
     JPlacerJobRun& operator=(const JPlacerJobRun&) = delete;
@@ -78,9 +79,10 @@ private:
     JAppWindow&                          m_window;
     JPlacerJob&                          m_job;
     JPlacerMachine&                      m_machine;
+    JPlacerJobHost                       m_host;   // the machine as the job machine's host
     JPJobPanel&                          m_panel;
     const std::thread::id                m_mainThread;   // the screen's
-    std::unique_ptr<JPlacerJobMachine>   m_jobMachine;
+    std::unique_ptr<JPCellJobMachine>   m_jobMachine;
     std::unique_ptr<JPJobProcessor>      m_processor;
     std::thread                          m_worker;
     std::atomic<JPJobPanel::RunState>    m_state { JPJobPanel::RunState::Stopped };

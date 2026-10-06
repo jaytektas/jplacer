@@ -44,7 +44,7 @@
 
 inline namespace jf {
 
-class JPlacerJobMachine;
+class JPCellJobMachine;
 class JPBoardLocation;
 
 // The machine jplacer is working with: the open cell (cells/<name>.json),
@@ -186,7 +186,7 @@ public:
     // The job's boards (each board in panels too), for the Jog panel's Board Protection.
     std::function<std::vector<const JPBoardLocation*>()> jobBoards;
     // The machine a job runs on, for a script's vision (OpenPnP's VisionUtils.readQrCode).
-    std::function<JPlacerJobMachine*()> scriptJobMachine;
+    std::function<JPCellJobMachine*()> scriptJobMachine;
     // Calibrate a camera, or an X or Y axis's backlash (as Machine Setup's
     // buttons do); `finished`: whether it was done.
     void calibrateCamera(const std::string& cameraId, std::function<void(bool ok)> finished);
@@ -237,7 +237,7 @@ public:
     void refreshSetupForm();
     // The view of a camera's feed, shown; null when it has none.
     JPCameraView* cameraViewOf(const JPCameraFeed* feed);
-    // For a job (JPlacerJobMachine): the open cell, the head camera's
+    // For a job (JPCellJobMachine): the open cell, the head camera's
     // pictures, why a tip change cannot be made (empty: it can), and the tip
     // now on a nozzle kept (a step in Machine Setup; nothing moves).
     JPCell*       cell() const { return m_cell.get(); }

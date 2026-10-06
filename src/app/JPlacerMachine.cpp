@@ -2,8 +2,8 @@
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
 #include "JPlacerMachine.h"
-#include "JPlacerJobMachine.h"
-#include "JPlacerSlotVision.h"
+#include "tasks/JPCellJobMachine.h"
+#include "tasks/JPTipSlotVision.h"
 #include "model/JPBoardLocation.h"
 #include "model/JPBoard.h"
 #include "camera/JPImageFile.h"
@@ -617,7 +617,7 @@ std::unique_ptr<JPMachineSetupPanel> JPlacerMachine::makeSetup() {
         if (const auto it = kept->find(fileName); it != kept->end()) return it->second;
         auto frame = std::make_shared<JPFrame>();
         std::string error;
-        if (!JPImageFile::readPng(JPlacerSlotVision::templatePath(m_cellPath, fileName), *frame, error)) {
+        if (!JPImageFile::readPng(JPTipSlotVision::templatePath(m_cellPath, fileName), *frame, error)) {
             JLOGC(JPlacerLog::kUi, JLogLevel::Warn) << error;
             return nullptr;
         }
@@ -1202,7 +1202,7 @@ void JPlacerMachine::slotVisionAction(const std::string& tipId, const std::strin
     for (const JPNozzleTipConfig& t : m_cell->config().nozzleTips)
         if (t.id == tipId) tip = t;
     if (!tip || !readyToMove()) return;
-    JPlacerJobMachine* jm = scriptJobMachine ? scriptJobMachine() : nullptr;
+    JPCellJobMachine* jm = scriptJobMachine ? scriptJobMachine() : nullptr;
     if (!jm) return;
     // OpenPnP's getNozzleWhereLoaded: in its slot when on no nozzle.
     bool onNozzle = false;
@@ -1213,7 +1213,7 @@ void JPlacerMachine::slotVisionAction(const std::string& tipId, const std::strin
         std::string why, fileName;
         std::optional<double> score;
         std::array<double, 2> offset {};
-        JPlacerSlotVision vision(*jm, *cell, cellPath);
+        JPTipSlotVision vision(*jm, *cell, cellPath);
         bool ok;
         if (action == "testSlotVision") {
             // OpenPnP's Test: found afresh, then forgotten again.
@@ -1265,7 +1265,7 @@ void JPlacerMachine::referenceAllTouchLocationsZ() {
         return;
     }
     if (!readyToMove()) return;
-    JPlacerJobMachine* jm = scriptJobMachine ? scriptJobMachine() : nullptr;
+    JPCellJobMachine* jm = scriptJobMachine ? scriptJobMachine() : nullptr;
     if (!jm) return;
     struct Touch {
         std::string       tipId, name;
@@ -2308,7 +2308,7 @@ JJson JPlacerMachine::scriptRequest(const JJson& request) {
         if (!onMainWait([&] { answer = onScriptJobRequest(request); })) return fail("jplacer is closing");
     } else if (call == "readQrCode") {
         // OpenPnP's VisionUtils.readQrCode: what a QR code under the head camera says, where it is now.
-        JPlacerJobMachine* jm = scriptJobMachine ? scriptJobMachine() : nullptr;
+        JPCellJobMachine* jm = scriptJobMachine ? scriptJobMachine() : nullptr;
         if (!jm) return fail("no camera to read with");
         const auto at = jm->cameraLocation();
         if (!at) return fail("where the camera is is not known");
@@ -2317,7 +2317,7 @@ JJson JPlacerMachine::scriptRequest(const JJson& request) {
         answer["result"] = codes.empty() ? JJson() : JJson(codes.front().text);
     } else if (call == "pipeline" || call == "showPipelineImage") {
         // OpenPnP's CvPipeline.process and showFilteredImage, on the head camera where it is.
-        JPlacerJobMachine* jm = scriptJobMachine ? scriptJobMachine() : nullptr;
+        JPCellJobMachine* jm = scriptJobMachine ? scriptJobMachine() : nullptr;
         if (!jm) return fail("no camera to look with");
         JJson result;
         const bool ok = call == "pipeline" ? m_scriptVision.run(*jm, request, result, why)

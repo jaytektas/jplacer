@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
-#include "JPlacerSlotVision.h"
+#include "JPTipSlotVision.h"
 
-#include "JPlacerJobMachine.h"
+#include "JPCellJobMachine.h"
 
 #include "common/JPlacerLog.h"
 #include "machine/JPCell.h"
@@ -32,16 +32,16 @@ std::string format(const char* f, double a, double b) {
 
 } // namespace
 
-JPlacerSlotVision::JPlacerSlotVision(JPlacerJobMachine& machine, JPCell& cell, std::string cellPath)
+JPTipSlotVision::JPTipSlotVision(JPCellJobMachine& machine, JPCell& cell, std::string cellPath)
     : m_machine(machine), m_cell(cell), m_cellPath(std::move(cellPath)) {}
 
-std::string JPlacerSlotVision::templatePath(const std::string& cellPath, const std::string& fileName) {
+std::string JPTipSlotVision::templatePath(const std::string& cellPath, const std::string& fileName) {
     // A whole path (OpenPnP's own file, imported) as it is.
     if (std::filesystem::path(fileName).is_absolute()) return fileName;
     return (std::filesystem::path(cellPath).parent_path() / kFolder / fileName).string();
 }
 
-bool JPlacerSlotVision::load(const std::string& fileName, const char* what, const std::string& tipName, cv::Mat& picture,
+bool JPTipSlotVision::load(const std::string& fileName, const char* what, const std::string& tipName, cv::Mat& picture,
                              std::string& why) const {
     if (fileName.empty()) {
         why = "Nozzle tip " + tipName + " changer slot vision calibration: " + what + " missing.";
@@ -56,7 +56,7 @@ bool JPlacerSlotVision::load(const std::string& fileName, const char* what, cons
     return true;
 }
 
-bool JPlacerSlotVision::calibrate(const JPNozzleTipConfig& tip, bool tipChange, bool occupied, std::array<double, 2>& offset,
+bool JPTipSlotVision::calibrate(const JPNozzleTipConfig& tip, bool tipChange, bool occupied, std::array<double, 2>& offset,
                                   std::optional<double>& score, std::string& why) {
     const JPNozzleTipConfig::VisionCalibration& v = tip.visionCalibration;
     offset = { 0, 0 };
@@ -121,7 +121,7 @@ bool JPlacerSlotVision::calibrate(const JPNozzleTipConfig& tip, bool tipChange, 
     return true;
 }
 
-bool JPlacerSlotVision::captureTemplate(const JPNozzleTipConfig& tip, std::string& fileName, std::string& why) {
+bool JPTipSlotVision::captureTemplate(const JPNozzleTipConfig& tip, std::string& fileName, std::string& why) {
     const auto at = tip.visionCalibrationPlace();
     if (!at) {
         why = "Select a vision calibration location first.";

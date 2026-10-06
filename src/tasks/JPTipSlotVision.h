@@ -14,16 +14,16 @@
 inline namespace jf {
 
 class JPCell;
-class JPlacerJobMachine;
+class JPCellJobMachine;
 
 // OpenPnP's nozzle tip changer slot vision calibration
 // (JPNozzleTipConfig::VisionCalibration), on the head camera: a tip's
 // template pictures taken, and its slot found by them, how far off kept by
 // the cell (JPCell::slotOffset). Called on a thread of the caller's own.
-class JPlacerSlotVision {
+class JPTipSlotVision {
 public:
     // `cellPath`: the cell's file; the template pictures are beside it.
-    JPlacerSlotVision(JPlacerJobMachine& machine, JPCell& cell, std::string cellPath);
+    JPTipSlotVision(JPCellJobMachine& machine, JPCell& cell, std::string cellPath);
 
     // OpenPnP's ensureVisionCalibration: the offset kept, or (none kept, or
     // `tipChange` with the NozzleTipChange trigger) the slot found, expected
@@ -46,7 +46,7 @@ public:
 private:
     bool load(const std::string& fileName, const char* what, const std::string& tipName, cv::Mat& picture, std::string& why) const;
 
-    JPlacerJobMachine& m_machine;
+    JPCellJobMachine& m_machine;
     JPCell&            m_cell;
     std::string        m_cellPath;
 };

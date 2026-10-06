@@ -6,7 +6,7 @@
 #include "openpnp/JPXmlWriter.h"
 #include "openpnp/JPXmlReader.h"
 #include "pipeline/JPDefaultPipelines.h"
-#include "JPlacerJobMachine.h"
+#include "tasks/JPCellJobMachine.h"
 
 #include "model/JPLengthUnits.h"
 
@@ -812,7 +812,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     // Running the job: a failure's source chosen where it is shown, as OpenPnP does.
     m_jobRun = std::make_unique<JPlacerJobRun>(m_window, job, machine, *m_jobPanel);
     // What scripts ask of the job (OpenPnP's gui.jobTab, Utils2D, VisionUtils.readQrCode).
-    m_machine.scriptJobMachine = [this]() -> JPlacerJobMachine* { return &m_jobRun->jobMachine(); };
+    m_machine.scriptJobMachine = [this]() -> JPCellJobMachine* { return &m_jobRun->jobMachine(); };
     m_machine.onScriptJobRequest = [this](const JJson& request) { return scriptJobRequest(request); };
     m_machine.jobBoards = [this] {
         std::vector<const JPBoardLocation*> boards;

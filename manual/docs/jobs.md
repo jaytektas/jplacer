@@ -164,7 +164,7 @@ A job goes as OpenPnP's does:
    what the part is off, and moved by its offset on the nozzle. A part with bottom vision off is placed as
    it was picked.
 
-<!-- src: src/machine/JPJobProcessorConfig.h; src/tasks/JPJobProcessor.cpp (preFlight, plan, ordered, planner, pick, align, place, cleanup); src/vision/JPPartFinder.cpp; src/app/JPlacerJobMachine.cpp (alignPart); src/tasks/JPBottomVision.cpp (findOffsets); src/tasks/JPAlignRequests.cpp; src/tasks/JPFiducialLocator.cpp; src/model/JPFiducialFit.cpp; src/app/JPlacerJobMachine.cpp (locateFiducial, changeTip) -->
+<!-- src: src/machine/JPJobProcessorConfig.h; src/tasks/JPJobProcessor.cpp (preFlight, plan, ordered, planner, pick, align, place, cleanup); src/vision/JPPartFinder.cpp; src/tasks/JPCellJobMachine.cpp (alignPart); src/tasks/JPBottomVision.cpp (findOffsets); src/tasks/JPAlignRequests.cpp; src/tasks/JPFiducialLocator.cpp; src/model/JPFiducialFit.cpp; src/tasks/JPCellJobMachine.cpp (locateFiducial, changeTip) -->
 
 When something fails, the job pauses and says why (**Job Error**); the board, placement, part or feeder
 it is about is chosen on its tab. **Resume** goes on from there. With **Defer Errors** (or a placement's

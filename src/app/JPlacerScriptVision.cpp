@@ -3,7 +3,7 @@
 
 #include "JPlacerScriptVision.h"
 
-#include "JPlacerJobMachine.h"
+#include "tasks/JPCellJobMachine.h"
 
 #include "openpnp/JPXmlReader.h"
 #include "pipeline/JPPipeline.h"
@@ -78,7 +78,7 @@ JJson valueOf(const JPPipelineModel& m) {
 
 } // namespace
 
-bool JPlacerScriptVision::run(JPlacerJobMachine& machine, const JJson& request, JJson& result, std::string& why) {
+bool JPlacerScriptVision::run(JPCellJobMachine& machine, const JJson& request, JJson& result, std::string& why) {
     JPXmlElement root;
     if (!JPXmlReader::parse(request["xml"].str(), root, why)) return false;
     if (root.name != "cv-pipeline") {
@@ -120,7 +120,7 @@ bool JPlacerScriptVision::run(JPlacerJobMachine& machine, const JJson& request, 
     return true;
 }
 
-bool JPlacerScriptVision::show(JPlacerJobMachine& machine, int ms, const std::string& text, std::string& why) {
+bool JPlacerScriptVision::show(JPCellJobMachine& machine, int ms, const std::string& text, std::string& why) {
     cv::Mat image;
     std::string camera;
     {

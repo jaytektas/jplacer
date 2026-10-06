@@ -13,7 +13,7 @@
 
 inline namespace jf {
 
-class JPlacerJobMachine;
+class JPCellJobMachine;
 
 // OpenPnP's CvPipeline for scripts: a pipeline (OpenPnP's XML) run on the
 // camera the script set (else the head camera) where it is, each stage's result given
@@ -24,9 +24,9 @@ class JPlacerScriptVision {
 public:
     // {"xml": "<cv-pipeline>…", "camera": id or name (none: the head camera)}:
     // {"results": {stage: {"kind", "text", "value"}}}; false and why when it fails.
-    bool run(JPlacerJobMachine& machine, const JJson& request, JJson& result, std::string& why);
+    bool run(JPCellJobMachine& machine, const JJson& request, JJson& result, std::string& why);
     // The last run's working image on its camera for `ms`, with `text`.
-    bool show(JPlacerJobMachine& machine, int ms, const std::string& text, std::string& why);
+    bool show(JPCellJobMachine& machine, int ms, const std::string& text, std::string& why);
 
 private:
     std::mutex m_mutex;
