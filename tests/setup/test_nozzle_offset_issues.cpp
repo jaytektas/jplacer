@@ -59,6 +59,18 @@ int main() {
         cell.axes[size_t(k)].safeZoneLowEnabled = true;
         cell.axes[size_t(k)].safeZoneLow = -1;
     }
+    // LEFT's Z mapped from the controller's Z (as an OpenPnP machine's ZL): its Safe Z is the controller axis's.
+    JPAxisConfig zl;
+    zl.id = "zl";
+    zl.name = "ZL";
+    zl.kind = JPAxisConfig::Kind::Mapped;
+    zl.type = JPAxisConfig::Type::Z;
+    zl.inputAxisId = "z";
+    zl.mapInput0 = 0;
+    zl.mapOutput0 = 0;
+    zl.mapInput1 = -1;
+    zl.mapOutput1 = -1;
+    cell.axes.push_back(zl);
     JPHeadConfig h;
     h.id = "H";
     h.name = "H1";
@@ -78,13 +90,13 @@ int main() {
     JPNozzleConfig left, right;
     left.id = "L";
     left.name = "LEFT";
-    left.mount = { "H", "x", "y", "z", "c" };
+    left.mount = { "H", "x", "y", "zl", "c" };
     right.id = "R";
     right.name = "RIGHT";
     right.mount = { "H", "x", "y", "z2", "c2" };
     cell.nozzles = { left, right };
 
-    std::map<std::string, double> at { { "x", 157.0 }, { "y", 241.2 }, { "z", -23.6 }, { "z2", -23.4 } };
+    std::map<std::string, double> at { { "x", 157.0 }, { "y", 241.2 }, { "zl", -23.6 }, { "z2", -23.4 } };
     int previewed = -1, calibratedAt = -1;
     std::string chosen;
     std::optional<JPIssueChecks::Context::OffsetsResult> result;
@@ -106,7 +118,7 @@ int main() {
         finished(true);
     };
     c.nozzleOffsetsResult = [&result](const std::string&) { return result; };
-    c.nozzleZ = [&at](const std::string& id) -> std::optional<double> { return id == "L" ? at["z"] - 0.4 : at["z2"]; };
+    c.nozzleZ = [&at](const std::string& id) -> std::optional<double> { return id == "L" ? at["zl"] - 0.4 : at["z2"]; };
 
     S s;
     s.setChecks(JPIssueChecks::all(c));
@@ -121,10 +133,10 @@ int main() {
     assert(chosen == "L");
     std::string why;
     // Above Safe Z: refused.
-    at["z"] = 0;
+    at["zl"] = 0;
     assert(!s.setState(*leftPrimary, S::State::Solved, why) && why.find("lower than Safe Z") != std::string::npos);
     // Touching the fiducial: its Z taken, the offsets the fiducial less the axes.
-    at["z"] = -23.6;
+    at["zl"] = -23.6;
     assert(s.setState(*leftPrimary, S::State::Solved, why));
     assert(near(cell.heads[0].rigPrimary->z, -23.6));
     assert(near(cell.nozzles[0].mount.offsetX, 137.137 - 157.0) && near(cell.nozzles[0].mount.offsetY, 179.265 - 241.2)
@@ -141,9 +153,9 @@ int main() {
     s.publish();
     S::Issue* secondary = find(s, "Nozzle LEFT offsets for the secondary fiducial.");
     assert(secondary);
-    at["z"] = -22.6;
+    at["zl"] = -22.6;
     assert(!s.setState(*secondary, S::State::Solved, why) && why.find("apart") != std::string::npos);
-    at["z"] = -12.7;
+    at["zl"] = -12.7;
     assert(s.setState(*secondary, S::State::Solved, why) && near(cell.heads[0].rigSecondary->z, -12.7));
     assert(near(cell.nozzles[0].mount.offsetX, 137.137 - 157.0));   // the secondary's: no offsets
     S::Issue* rightPrimary = find(s, "Nozzle RIGHT offsets for the primary fiducial.");
@@ -190,7 +202,7 @@ int main() {
     assert(shownAgain && diameter.getNumber() == 244);
     // The test object's height: the nozzle tip touching it, captured (as a pick takes the nozzle's Z).
     assert(precise->properties[2].actionLabel == "Capture Test Object Z");
-    at["z"] = -22.0;
+    at["zl"] = -22.0;
     shownAgain = false;
     precise->properties[2].action();
     assert(shownAgain && cell.heads[0].rigTestObjectZ && near(*cell.heads[0].rigTestObjectZ, -22.4));

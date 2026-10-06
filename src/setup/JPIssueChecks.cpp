@@ -112,6 +112,20 @@ void solvedByWork(JPSolutions& s, Issue& i, Work start) {
     };
 }
 
+// An axis's Safe Z (the low end of its safe zone), in its own coordinates: a mapped or cam axis's from the axis it
+// follows (where the safe zone is), through its mapping, as OpenPnP's nozzle Safe Z is; none when not set.
+std::optional<double> axisSafeZ(const JPCellConfig& cell, const std::string& axisId) {
+    const JPAxisConfig* a = cell.axis(axisId);
+    if (!a) return std::nullopt;
+    if (a->transformed()) {
+        const JPAxisConfig* input = cell.axis(a->inputAxisId);
+        if (!input || !input->safeZoneLowEnabled) return std::nullopt;
+        return a->mapped(input->safeZoneLow);
+    }
+    if (!a->safeZoneLowEnabled) return std::nullopt;
+    return a->safeZoneLow;
+}
+
 JPAxisConfig* axisIn(JPCellConfig& cell, const std::string& id) {
     for (JPAxisConfig& a : cell.axes)
         if (a.id == id) return &a;
@@ -1466,9 +1480,9 @@ void visionSetup(JPSolutions& s, const JPIssueChecks::Context& c) {
         const JPNozzleConfig* nozzle = nullptr;
         for (const JPNozzleConfig& n : cell->nozzles)
             if (!nozzle && n.mount.headId == h.id) nozzle = &n;
-        const JPAxisConfig* z = nozzle ? cell->axis(nozzle->mount.axisZ) : nullptr;
-        if (!z || !z->safeZoneLowEnabled) continue;
-        const double safeZ = z->safeZoneLow + nozzle->mount.offsetZ;
+        const auto nozzleSafeZ = nozzle ? axisSafeZ(*cell, nozzle->mount.axisZ) : std::nullopt;
+        if (!nozzleSafeZ) continue;
+        const double safeZ = *nozzleSafeZ + nozzle->mount.offsetZ;
         for (const auto& [rig, qualifier] : { std::pair { h.rigPrimary, "primary" }, std::pair { h.rigSecondary, "secondary" } })
             if (rig && rig->z >= safeZ)
                 s.add(plain("ReferenceNozzle " + nozzle->name, "Safe Z of Nozzle " + nozzle->name + " lower than " + qualifier + " fiducial Z.",
@@ -1497,8 +1511,7 @@ void nozzleOffsets(JPSolutions& s, const JPIssueChecks::Context& c) {
         for (const JPNozzleConfig& n : cell->nozzles) {
             if (n.mount.headId != h.id) continue;
             const bool isDefault = &n == first;
-            const JPAxisConfig* z = cell->axis(n.mount.axisZ);
-            const bool hasSafeZ = z && z->safeZoneLowEnabled;
+            const bool hasSafeZ = axisSafeZ(*cell, n.mount.axisZ).has_value();
             const std::string nozzleId = n.id, headId = h.id, name = n.name;
             // VisionSolutions' perNozzleSolutions: the offsets for the primary (and, the first nozzle, the secondary) fiducial.
             if (s.isTargeting(Milestone::Vision) && primaryXY && (primaryZ || isDefault) && hasSafeZ) {
@@ -1572,9 +1585,9 @@ void nozzleOffsets(JPSolutions& s, const JPIssueChecks::Context& c) {
                             why = "The machine must be connected and homed.";
                             return false;
                         }
-                        const JPAxisConfig* zAxis = now->axis(k->mount.axisZ);
+                        const auto safe = axisSafeZ(*now, k->mount.axisZ);
                         if (isDefault) {
-                            if (!zAxis || !zAxis->safeZoneLowEnabled || zAxis->safeZoneLow <= *az) {
+                            if (!safe || *safe <= *az) {
                                 why = "The calibration " + qualifier + " fidcuial Z must be lower than Safe Z.";
                                 return false;
                             }

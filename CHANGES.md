@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- A nozzle whose Z is a mapped axis (as an imported OpenPnP machine's ZL) now gets its Safe Z from the axis it is
+  mapped from, so its nozzle offset issues show in Issues & Solutions.
 - Nozzle offsets are calibrated in Issues & Solutions, as in OpenPnP: "Nozzle N offsets for the primary fiducial"
   (jog the nozzle tip onto the fiducial and Accept; the first nozzle also sets the fiducials' Z), then "Calibrate
   precise camera <-> nozzle N offsets", with OpenPnP's Feature diameter (each change shows the circle found on the
