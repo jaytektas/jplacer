@@ -76,6 +76,8 @@ struct JPCameraConfig {
     // turned `rotation` degrees counter-clockwise, moved by offsetX, offsetY pixels, flipped (flipX
     // upside down, flipY left to right). The camera is calibrated for the picture they give.
     double        rotation = 0;
+    // OpenPnP's Advanced Calibration pipeline: what finds the calibration mark (its XML; empty: OpenPnP's default).
+    std::string   calibrationPipeline;
     int           offsetX = 0, offsetY = 0, scaleWidth = 0, scaleHeight = 0;
     bool          flipX = false, flipY = false;
     // SETTLING, as OpenPnP does it: a picture for vision is one taken once
@@ -245,6 +247,7 @@ struct JPCameraConfig {
         c.shownInMultiView = j["shownInMultiView"].boolean(true);
         c.cropWidth      = int(j["crop"]["width"].number(0.0));
         c.cropHeight     = int(j["crop"]["height"].number(0.0));
+        c.calibrationPipeline = j["calibrationPipeline"].str();
         if (const JJson& t = j["transforms"]; t.isObject()) {
             c.rotation    = t["rotation"].number(0.0);
             c.offsetX     = int(t["offsetX"].number(0.0));
@@ -324,6 +327,7 @@ struct JPCameraConfig {
             j["crop"]["width"] = cropWidth;
             j["crop"]["height"] = cropHeight;
         }
+        if (!calibrationPipeline.empty()) j["calibrationPipeline"] = calibrationPipeline;
         if (rotation != 0 || offsetX || offsetY || scaleWidth || scaleHeight || flipX || flipY) {
             JJson t = JJson::object();
             t["rotation"] = rotation;

@@ -1337,7 +1337,21 @@ bool JPlacerMachine::readyToMove() {
     return true;
 }
 
+void JPlacerMachine::setCalibrationPipeline(const std::string& cameraId, const std::string& xml) {
+    if (!m_setup) return;
+    m_setup->change(xml.empty() ? "Reset Calibration Pipeline" : "Calibration Pipeline", [&](JPCellConfig& cell) {
+        for (JPCameraConfig& cam : cell.cameras)
+            if (cam.id == cameraId) cam.calibrationPipeline = xml;
+    });
+    m_setup->remakeForm();
+}
+
 void JPlacerMachine::setupAction(const std::string& path, const std::string& action) {
+    if ((action == "editCalibrationPipeline" || action == "resetCalibrationPipeline") && path.rfind("camera:", 0) == 0) {
+        if (action == "resetCalibrationPipeline") setCalibrationPipeline(path.substr(7), "");
+        else if (onEditCalibrationPipeline) onEditCalibrationPipeline(path.substr(7));
+        return;
+    }
     // A driver's Console: the command line sent to it (Force Upper Case as ticked), the line cleared.
     if (action == "consoleSend" && path.rfind("driver:", 0) == 0 && m_cell) {
         std::string line = JPSetupProperties::consoleCommand();

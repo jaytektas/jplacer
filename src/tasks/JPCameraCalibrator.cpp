@@ -8,7 +8,8 @@
 #include "common/JPLens.h"
 #include "common/JPlacerLog.h"
 #include "vision/JPCalibrationFit.h"
-#include "vision/JPRoundMarkFinder.h"
+#include "JPPipelineMarkFinder.h"
+#include "pipeline/JPDefaultPipelines.h"
 
 #include <j/core/Log.h>
 
@@ -38,9 +39,8 @@ constexpr size_t kDirectionMoves = 3;
 // Samples before the lens is fitted for predicting where the next mark is.
 constexpr size_t kLensPredictFrom = 8;
 // Once three marks are measured, a mark is searched for this far from where
-// the fit so far predicts, and accepted with this much of its edge round.
+// the fit so far predicts.
 constexpr double kPredictedSearchPx = 25;
-constexpr double kPredictedMinShape = 0.5;
 // A find further from the fit than the settings' times its spread (and at
 // least so many pixels) is left out; at most one in so many.
 constexpr double kOutlierPx = 1.0;
@@ -88,8 +88,16 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
     JPGrayImage img;
     if (!JPCameraLook::settled(feed, img, why)) return std::nullopt;
     const double side = std::min(img.width, img.height);
-    const JPRoundMark first = JPRoundMarkFinder::findAnySize(img, img.width / 2.0, img.height / 2.0, kFirstSearch * side,
-                                                             kMinMarkShare * side, kMaxMarkShare * side);
+    // The mark found by the camera's calibration pipeline (OpenPnP's Advanced Calibration's, editable).
+    JPPipelineMarkFinder finder(cam.calibrationPipeline.empty() ? JPDefaultPipelines::cameraCalibration() : cam.calibrationPipeline);
+    // Its size from the mark's and the camera's rough scale, as OpenPnP's; not known (a nozzle's tip), looked for at every size.
+    const double roughUpp = (cam.unitsPerPixelX + cam.unitsPerPixelY) / 2;
+    JPRoundMark first;
+    if (o.markDiameterMm > 0 && roughUpp > 0)
+        first = finder.find(img, img.width / 2.0, img.height / 2.0, kFirstSearch * side, o.markDiameterMm / roughUpp);
+    if (!first.found)
+        first = finder.findAnySize(img, img.width / 2.0, img.height / 2.0, kFirstSearch * side, kMinMarkShare * side,
+                                   kMaxMarkShare * side);
     if (!first.found) {
         why = feed.config().name + " sees no round mark near the middle of its picture: put it over one first ("
             + first.why + ")";
@@ -132,16 +140,7 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
                          f->centreY + f->pxPerMm[2] * dx + f->pxPerMm[3] * dy, ex, ey);
             radius = kPredictedSearchPx;
         }
-        JPRoundMarkFinder::Request rq;
-        rq.expectedX = ex;
-        rq.expectedY = ey;
-        rq.searchRadius = radius;
-        rq.diameter = markPx;
-        // Where the fit says, within a few pixels, nothing else is mistaken
-        // for it: the mark may be dimmer and bent towards the picture's
-        // corners, and still be measured.
-        if (radius == kPredictedSearchPx) rq.minShape = kPredictedMinShape;
-        JPRoundMark m = JPRoundMarkFinder::find(img, rq);
+        JPRoundMark m = finder.find(img, ex, ey, radius, markPx);
         // More pictures, the mark's place their mean: one picture alone wanders.
         if (m.found) {
             const int frames = std::clamp(o.calibrating.frames, 1, JPCameraConfig::Calibrating::kMostFrames);
@@ -150,7 +149,7 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
             for (int f = 1; f < frames; ++f) {
                 JPGrayImage more;
                 if (!JPCameraLook::taken(feed, more, why, 1)) return false;
-                const JPRoundMark again = JPRoundMarkFinder::find(more, rq);
+                const JPRoundMark again = finder.find(more, ex, ey, radius, markPx);
                 if (!again.found) continue;
                 sx += again.x;
                 sy += again.y;

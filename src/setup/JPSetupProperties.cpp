@@ -2652,6 +2652,12 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     }
     add.group("Camera Calibration");
     add.actions({ { "Start Calibration", "calibrate" } });
+    // OpenPnP's Advanced Calibration pipeline: what finds the calibration mark (its centre then measured to a
+    // fraction of a pixel close by), editable as OpenPnP's other pipelines.
+    add.row("Pipeline");
+    add.button("editCalibrationPipeline", "Edit Pipeline", "Edit the pipeline that finds the calibration mark.");
+    add.button("resetCalibrationPipeline", "Reset Pipeline", "Reset the pipeline to OpenPnP's default.", !c().calibrationPipeline.empty());
+    add.end();
     auto k = [c]() -> JPCameraConfig::Calibrating& { return c().calibrating; };
     const int most = JPCameraConfig::Calibrating::kMostPlaces;
     add.row("Places Across");

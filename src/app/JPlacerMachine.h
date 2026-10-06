@@ -207,6 +207,10 @@ public:
     // Every board in the job given this Z (mm): OpenPnP's Set Machine Table Z.
     std::function<void(double z)> setBoardsZ;
     std::function<void(const std::string& settingsId, const std::string& action)> onSetupVisionAction;
+    // A camera's calibration pipeline (OpenPnP's Advanced Calibration's) opened in the pipeline editor.
+    std::function<void(const std::string& cameraId)> onEditCalibrationPipeline;
+    // That pipeline kept (its XML; empty: OpenPnP's default again), one step to undo.
+    void setCalibrationPipeline(const std::string& cameraId, const std::string& xml);
     // Machine Setup's Feeders: each feeder's page the Feeders tab's (given to each Machine Setup made);
     // the feeders changed, or the shown feeder's page made or shown again.
     void setSetupFeederPages(JPMachineSetupPanel::FeederPages pages) {

@@ -11,6 +11,9 @@ inline namespace jf {
 // Pipeline puts back, and what a setting without a pipeline starts from.
 class JPDefaultPipelines {
 public:
+    // A camera's Advanced Calibration (OpenPnP's AdvancedCalibration.createDefaultPipeline): the
+    // calibration mark found by its circular symmetry, given as keypoints ("results").
+    static const std::string& cameraCalibration();
     // ReferenceStripFeeder-DefaultPipeline.xml.
     static const std::string& stripFeeder();
     // ReferenceLoosePartFeeder-DefaultPipeline.xml.

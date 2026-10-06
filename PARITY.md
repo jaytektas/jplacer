@@ -139,6 +139,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Position (head offsets, fixed location, safe Z, roaming radius) | done | |
 | Lens calibration | own way | fitted by Calibrate |
 | Image transforms (rotate, offset, flip, crop, scale, de-interlace) | done | all of OpenPnP's, in its order, before calibration (calibrate after changing them); imported unless OpenPnP's advanced calibration overrides them |
+| Advanced calibration: pipeline (DetectCircularSymmetry on OpenCV) | done | OpenPnP's default, imported, editable from the page (Edit / Reset Pipeline; OpenPnP has no button for it); the find refined to a fraction of a pixel |
 | Advanced calibration: settings | done | grid, reach, outliers, worst fit, two heights; General Settings (deinterlace, cropped width/height, Default Working Plane Z, the scale taken there); detection diameter: the mark's size is measured from its first find (and checked against the head's mark), never asked for |
 | Advanced calibration: results | done | units per pixel, accuracy, FOV mm and degrees, turn, height, focal length; Camera Mounting Error about X, Y and Z, and Calibrated Head Offsets / Camera Location at the Default Working Plane Z (from where the picture's middle looked at the two heights; the lean between heights applied) |
 | Advanced calibration: plots | done | in order, X against Y, map |

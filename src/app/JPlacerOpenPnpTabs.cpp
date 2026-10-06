@@ -2,6 +2,9 @@
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
 #include "JPlacerOpenPnpTabs.h"
+#include "openpnp/JPXmlWriter.h"
+#include "openpnp/JPXmlReader.h"
+#include "pipeline/JPDefaultPipelines.h"
 #include "JPlacerJobMachine.h"
 
 #include "model/JPLengthUnits.h"
@@ -824,6 +827,26 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     // Machine Setup's vision nodes: their default settings' page, as the Vision tab's.
     m_machine.setSetupVisionTests(m_visionTests->tests());
     m_machine.onSetupVisionAction = [this](const std::string& id, const std::string& action) { m_vision->act(id, action); };
+    // A camera's calibration pipeline in the editor, run on that camera (its own, or OpenPnP's default).
+    m_machine.onEditCalibrationPipeline = [this](const std::string& cameraId) {
+        const JPCameraConfig* cam = nullptr;
+        if (const JPCell* cell = m_machine.cell())
+            for (const JPCameraConfig& c : cell->config().cameras)
+                if (c.id == cameraId) cam = &c;
+        if (!cam) return;
+        const std::string xml = cam->calibrationPipeline.empty() ? JPDefaultPipelines::cameraCalibration() : cam->calibrationPipeline;
+        JPXmlElement root;
+        std::string error;
+        if (!JPXmlReader::parse(xml, root, error)) {
+            JDialog::message("Error", "The calibration pipeline could not be read: " + error);
+            return;
+        }
+        auto pipeline = std::make_shared<JPPipeline>(JPPipeline::fromXml(root));
+        m_pipelines.useCamera(*pipeline, m_machine.cameraFeed(cameraId), m_job.configuration().directory());
+        m_pipelines.edit("Camera " + cam->name + " Calibration Pipeline", pipeline, [this, cameraId](const JPPipeline& kept) {
+            m_machine.setCalibrationPipeline(cameraId, JPXmlWriter::text(kept.toXml()));
+        });
+    };
     m_machine.onSetupConfigurationChanged = [this] {
         m_vision->refresh();
         m_job.configurationChanged();
@@ -932,6 +955,7 @@ JPlacerOpenPnpTabs::~JPlacerOpenPnpTabs() {
     m_machine.setConfiguration(nullptr);
     m_machine.onUnhomed = nullptr;
     m_machine.onSetupVisionAction = nullptr;
+    m_machine.onEditCalibrationPipeline = nullptr;
     m_machine.onSetupConfigurationChanged = nullptr;
     m_machine.setBoardsZ = nullptr;
     m_jobRun.reset();   // a run under way stops before what it works on goes

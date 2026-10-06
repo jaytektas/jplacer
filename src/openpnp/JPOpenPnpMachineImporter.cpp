@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
 #include "JPOpenPnpMachineImporter.h"
+#include "JPXmlWriter.h"
 
 #include "JPXmlReader.h"
 
@@ -880,6 +881,12 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
         // unless its advanced calibration overrides them (then OpenPnP does not apply them).
         const JPXmlElement* advanced = x.child("advanced-calibration");
         const bool overridden = advanced && advanced->attr("overriding-old-transforms-and-distortion-correction-settings") == "true";
+        // Its advanced calibration's pipeline (what finds the calibration mark), as OpenPnP keeps it.
+        if (const JPXmlElement* pipeline = advanced ? advanced->child("pipeline") : nullptr; pipeline && pipeline->child("stages")) {
+            JPXmlNode cv = JPXmlNode::from(*pipeline);
+            cv.name = "cv-pipeline";
+            cam.calibrationPipeline = JPXmlWriter::text(cv);
+        }
         if (!overridden) {
             cam.rotation = number(x.attr("rotation"));
             cam.offsetX = int(number(x.attr("offset-x")));

@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- A camera's calibration finds its mark with OpenPnP's Advanced Calibration pipeline (DetectCircularSymmetry, on
+  OpenCV), editable from the Advanced Calibration page (Edit Pipeline, Reset Pipeline) and brought in from OpenPnP;
+  the mark's centre is still measured to a fraction of a pixel.
 - A camera's Image Transforms have OpenPnP's Rotation, Offset X and Y, Flip Vertical? and Flip Horizontal?, and Scale
   Width and Height, besides the crop and De-Interlace?, brought in from OpenPnP too.
 - Defaults, then Auto-Tune finds exposure and white balance from the picture when a camera does not say what its
