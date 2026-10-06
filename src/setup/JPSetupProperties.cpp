@@ -2515,19 +2515,33 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
         }
     }
 
-    // OpenPnP's Image Transforms: those its advanced calibration still applies (rotation,
-    // offset, flips and scaling are the calibration's straightening here).
+    // OpenPnP's Image Transforms, in its order on the page; done to each picture as it comes, before anything
+    // else, so the camera is calibrated for the picture they give (calibrate again after changing them).
     add.tab("Image Transforms");
     add.group("Image Transforms");
-    add.integer("cropWidth", "Crop Width", [c]() -> int& { return c().cropWidth; }, 0, 100000);
-    add.tip("(Use 0 for no cropping)");
-    add.integer("cropHeight", "Crop Height", [c]() -> int& { return c().cropHeight; }, 0, 100000);
-    add.tip("(Use 0 for no cropping)");
+    add.number("rotation", "Rotation", [c]() -> double& { return c().rotation; }, 3);
+    add.tip("Degrees, counter-clockwise; the picture grows to the turned picture's bounds.");
+    add.integer("offsetX", "Offset X", [c]() -> int& { return c().offsetX; }, -100000, 100000);
+    add.integer("offsetY", "Offset Y", [c]() -> int& { return c().offsetY; }, -100000, 100000);
+    add.flag("flipX", "Flip Vertical?", [c]() -> bool& { return c().flipX; });
+    add.flag("flipY", "Flip Horizontal?", [c]() -> bool& { return c().flipY; });
+    for (const auto& [key, label, ref, note] :
+         { std::tuple { "cropWidth", "Crop Width", &JPCameraConfig::cropWidth, "(Use 0 for no cropping)" },
+           std::tuple { "cropHeight", "Crop Height", &JPCameraConfig::cropHeight, "(Use 0 for no cropping)" },
+           std::tuple { "scaleWidth", "Scale Width", &JPCameraConfig::scaleWidth, "(Use 0 for no scaling)" },
+           std::tuple { "scaleHeight", "Scale Height", &JPCameraConfig::scaleHeight, "(Use 0 for no scaling)" } }) {
+        add.row(label);
+        add.integer(key, label, [c, ref]() -> int& { return c().*ref; }, 0, 100000);
+        add.words(note);
+        add.end();
+    }
+    add.row("De-Interlace?");
     add.flag("deinterlace", "De-Interlace?", [c]() -> bool& { return c().deinterlace; });
-    add.tip("(Removes interlacing from stacked frames)");
-    add.note("Each picture is de-interlaced, then cut to the crop about its middle, before anything else is done with it: "
-             "a camera is calibrated for the picture size it gives then. Rotation, offset, flipping and scaling are "
-             "the calibration's straightening (As Taken off).");
+    add.words("(Removes interlacing from stacked frames)");
+    add.end();
+    add.note("Each picture is de-interlaced, cropped about its middle, scaled, turned, moved and flipped, in that order, "
+             "before anything else is done with it: the camera is calibrated for the picture they give, so calibrate it "
+             "again after changing them.");
 
     add.tab("White Balance");
     add.group("White Balance");

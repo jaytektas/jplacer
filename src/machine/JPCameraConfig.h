@@ -72,6 +72,12 @@ struct JPCameraConfig {
     // OpenPnP's Capture FPS: how many pictures a second the camera gave over its Test (not kept).
     std::optional<double> captureFps;
     int           cropWidth = 0, cropHeight = 0;
+    // OpenPnP's other image transforms, after the crop: scaled to scaleWidth x scaleHeight (0: as it is),
+    // turned `rotation` degrees counter-clockwise, moved by offsetX, offsetY pixels, flipped (flipX
+    // upside down, flipY left to right). The camera is calibrated for the picture they give.
+    double        rotation = 0;
+    int           offsetX = 0, offsetY = 0, scaleWidth = 0, scaleHeight = 0;
+    bool          flipX = false, flipY = false;
     // SETTLING, as OpenPnP does it: a picture for vision is one taken once
     // the camera has stopped moving. FixedTime waits `timeMs` after the move.
     // The others compare each picture with the one before (Maximum, Mean,
@@ -239,6 +245,15 @@ struct JPCameraConfig {
         c.shownInMultiView = j["shownInMultiView"].boolean(true);
         c.cropWidth      = int(j["crop"]["width"].number(0.0));
         c.cropHeight     = int(j["crop"]["height"].number(0.0));
+        if (const JJson& t = j["transforms"]; t.isObject()) {
+            c.rotation    = t["rotation"].number(0.0);
+            c.offsetX     = int(t["offsetX"].number(0.0));
+            c.offsetY     = int(t["offsetY"].number(0.0));
+            c.scaleWidth  = int(t["scaleWidth"].number(0.0));
+            c.scaleHeight = int(t["scaleHeight"].number(0.0));
+            c.flipX       = t["flipX"].boolean();
+            c.flipY       = t["flipY"].boolean();
+        }
         for (size_t ch = 0; ch < 3; ++ch) {
             c.whiteBalance.balance[ch] = j["whiteBalance"]["balance"][ch].number(1.0);
             c.whiteBalance.gamma[ch]   = j["whiteBalance"]["gamma"][ch].number(1.0);
@@ -308,6 +323,17 @@ struct JPCameraConfig {
         if (cropWidth || cropHeight) {
             j["crop"]["width"] = cropWidth;
             j["crop"]["height"] = cropHeight;
+        }
+        if (rotation != 0 || offsetX || offsetY || scaleWidth || scaleHeight || flipX || flipY) {
+            JJson t = JJson::object();
+            t["rotation"] = rotation;
+            t["offsetX"] = offsetX;
+            t["offsetY"] = offsetY;
+            t["scaleWidth"] = scaleWidth;
+            t["scaleHeight"] = scaleHeight;
+            t["flipX"] = flipX;
+            t["flipY"] = flipY;
+            j["transforms"] = t;
         }
         if (!whiteBalance.neutral()) {
             JJson balance = JJson::array(), gamma = JJson::array();

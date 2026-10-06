@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- A camera's Image Transforms have OpenPnP's Rotation, Offset X and Y, Flip Vertical? and Flip Horizontal?, and Scale
+  Width and Height, besides the crop and De-Interlace?, brought in from OpenPnP too.
 - Defaults, then Auto-Tune finds exposure and white balance from the picture when a camera does not say what its
   automatic modes chose (as on the bench's cameras), in about two seconds; it, Reapply to Camera and the Capture
   FPS Test now work while the camera's picture is hidden behind its settings page.

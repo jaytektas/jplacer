@@ -216,6 +216,11 @@ void JPCameraFeed::runSource(std::string& why) {
         // OpenPnP's de-interlacing and cropping first, as it does them.
         if (m_config.deinterlace) JPImageTransform::deinterlace(frame);
         JPImageTransform::crop(frame, m_config.cropWidth, m_config.cropHeight);
+        // Then OpenPnP's affine transforms, in its order.
+        JPImageTransform::scale(frame, m_config.scaleWidth, m_config.scaleHeight);
+        JPImageTransform::rotate(frame, m_config.rotation);
+        JPImageTransform::offset(frame, m_config.offsetX, m_config.offsetY);
+        JPImageTransform::flip(frame, m_config.flipX, m_config.flipY);
         frame.sequence = ++m_sequence;   // the feed's own count, unbroken when the camera is opened again
         JLOGC(JPlacerLog::kFrames, JLogLevel::Trace) << m_config.name << " frame " << frame.sequence << " "
                                                      << frame.width << "x" << frame.height << ", brightness "

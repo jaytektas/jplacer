@@ -104,6 +104,36 @@ int main() {
         JPImageTransform::crop(g, 0, 9);   // nothing to cut
         assert(g.width == 2 && g.height == 4);
     }
+    // OpenPnP's other transforms: flips, offset, a quarter turn, scaling.
+    {
+        // A 3 x 2 picture, each pixel's red its index.
+        auto picture = [] {
+            JPFrame f;
+            f.width = 3;
+            f.height = 2;
+            for (int i = 0; i < 6; ++i) f.rgba.insert(f.rgba.end(), { uint8_t(10 * i), 0, 0, 255 });
+            return f;
+        };
+        auto red = [](const JPFrame& f, int x, int y) { return int(f.rgba[size_t(y * f.width + x) * 4]); };
+        JPFrame f = picture();
+        JPImageTransform::flip(f, false, true);   // about the Y axis: left to right
+        assert(red(f, 0, 0) == 20 && red(f, 2, 1) == 30);
+        f = picture();
+        JPImageTransform::flip(f, true, false);   // about the X axis: upside down
+        assert(red(f, 0, 0) == 30 && red(f, 2, 1) == 20);
+        f = picture();
+        JPImageTransform::offset(f, 1, 0);   // a pixel right, black where it came from
+        assert(red(f, 0, 0) == 0 && red(f, 1, 0) == 0 && red(f, 2, 0) == 10 && red(f, 1, 1) == 30);
+        f = picture();
+        JPImageTransform::rotate(f, 90);   // counter-clockwise: the right column on top
+        assert(f.width == 2 && f.height == 3);
+        assert(red(f, 0, 0) == 20 && red(f, 1, 0) == 50 && red(f, 0, 2) == 0 && red(f, 1, 2) == 30);
+        f = picture();
+        JPImageTransform::scale(f, 6, 4);
+        assert(f.width == 6 && f.height == 4 && f.rgba.size() == 6 * 4 * 4);
+        JPImageTransform::scale(f, 0, 0);   // nothing to do
+        assert(f.width == 6 && f.height == 4);
+    }
     // YUYV: white and black pixel pairs (Y 235 / 16, no colour).
     const uint8_t yuyv[] = { 235, 128, 235, 128, 16, 128, 16, 128 };
     std::vector<uint8_t> rgba;

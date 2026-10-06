@@ -876,6 +876,19 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
         cam.deinterlace = x.attr("deinterlace") == "true";
         cam.cropWidth = int(number(x.attr("crop-width")));
         cam.cropHeight = int(number(x.attr("crop-height")));
+        // OpenPnP's other image transforms (as its camera keeps them: rotation, offset, scale and flips),
+        // unless its advanced calibration overrides them (then OpenPnP does not apply them).
+        const JPXmlElement* advanced = x.child("advanced-calibration");
+        const bool overridden = advanced && advanced->attr("overriding-old-transforms-and-distortion-correction-settings") == "true";
+        if (!overridden) {
+            cam.rotation = number(x.attr("rotation"));
+            cam.offsetX = int(number(x.attr("offset-x")));
+            cam.offsetY = int(number(x.attr("offset-y")));
+            cam.scaleWidth = int(number(x.attr("scale-width")));
+            cam.scaleHeight = int(number(x.attr("scale-height")));
+            cam.flipX = x.attr("flip-x") == "true";
+            cam.flipY = x.attr("flip-y") == "true";
+        }
         // Its preview (OpenPnP's fps is the preview's: 5 unless set), and whether it comes forward.
         cam.previewFps = x.attr("fps").empty() ? 5.0 : number(x.attr("fps"));
         if (x.child("roaming-radius")) cam.roamingRadiusMm = lengthChild(x, "roaming-radius");
