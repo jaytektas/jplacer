@@ -86,9 +86,9 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 |---|---|---|
 | Homing fiducial, Visual Test, Visual Home | done | |
 | Park location | done | |
-| Calibration rig: primary, secondary marks, test object | done | marks used by two-height calibration; the test object by a nozzle's Calibrate Precise Offsets |
+| Calibration rig: Primary Fiducial, Secondary Fiducial, Test Object, each with its Diameter (OpenPnP's layout and tips) | done | fiducials used by two-height calibration; the test object by a nozzle's Calibrate Precise Offsets |
 | Z probe actuator | done | Capture Camera Location probes Z |
-| Pump: actuator, control mode, on-wait | done | |
+| Pump: actuator, control mode, on-wait | done | OpenPnP's tips on Pump Control and Pump On Wait |
 
 ## Nozzles
 

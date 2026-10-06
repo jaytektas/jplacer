@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- The head's Calibration Rig is laid out as OpenPnP's: Primary Fiducial, Secondary Fiducial and Test Object, each
+  with its Diameter; the head's buttons and Pump settings say what they do, in OpenPnP's words.
 - The Issues & Solutions tab shows OpenPnP's dot, coloured by the severest open issue.
 - A capture camera's Device Settings have Defaults, then Auto-Tune: every property to the camera's own default, the
   automatic ones left to settle for a moment, then held and kept as its settings.

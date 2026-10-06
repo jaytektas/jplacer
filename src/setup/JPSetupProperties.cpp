@@ -835,9 +835,10 @@ void headForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
     add.group("Properties");
     add.text("name", "Name", [h]() -> std::string& { return h().name; }, "name");
     add.group("Locations");
-    // A place kept as "none" until it is set: a box to set it, then its coordinates.
+    // A place kept as "none" until it is set: a box to set it, then its coordinates (and a diameter, the
+    // Calibration Rig's).
     auto place = [&add, &f](const std::string& key, const std::string& what, std::function<std::optional<JPMachineLocation>&()> at,
-                            bool withZ) {
+                            bool withZ, const std::string& tip = "", std::function<double&()> diameter = {}) {
         add.row(what, at() ? Place::Location : Place::None);
         if (at()) {
             add.length(key + "X", what + " X", [at]() -> double& { return at()->x; });
@@ -849,11 +850,13 @@ void headForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
             add.skip();
             add.skip();
         }
+        if (diameter) add.length(key + "Diameter", what + " Diameter", diameter);
         add.flag(key, "Set?", [at] { return at().has_value(); },
                  [at](bool on) {
                      if (!on) at().reset();
                      else if (!at()) at() = JPMachineLocation();
                  });
+        if (!tip.empty()) add.tip(tip);
         add.end();
         f.reshaping.push_back(key);
     };
@@ -866,24 +869,33 @@ void headForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
                    [h] { return std::string(h().visualHoming ? "ResetToFiducialLocation" : "Switches"); },
                    [h](const std::string& v) { h().visualHoming = v == "ResetToFiducialLocation"; });
         add.end();
-        add.actions({ { "Visual Test", "visualTest" }, { "Visual Home", "visualHome" } });
-        add.note("Set the homing fiducial up early, before capturing many places: each time it changes or moves, "
-                 "every place captured since is off by as much.");
+        add.actionsWithTips({ { "Visual Test", "visualTest",
+                                "Test the visual homing fiducial locator without affecting the machine coordinate system." },
+                              { "Visual Home", "visualHome", "Perform visual homing." } });
+        add.note("Important Notice: the homing fiducial should be mounted and configured early in the build process, "
+                 "before you start capturing a large number of locations for the Machine Setup (nozzle tip changer, "
+                 "feeders etc.) Each time the above settings are changed or the fiducial physically moved, all the "
+                 "already captured locations in the Machine Setup will be broken.");
     }
     place("park", "Park Location", [h]() -> std::optional<JPMachineLocation>& { return h().park; }, false);
 
     add.group("Calibration Rig");
-    add.header({ "X", "Y", "Z", "Set?" });
-    place("rigPrimary", "Primary Mark", [h]() -> std::optional<JPMachineLocation>& { return h().rigPrimary; }, true);
-    place("rigSecondary", "Secondary Mark", [h]() -> std::optional<JPMachineLocation>& { return h().rigSecondary; }, true);
-    add.row("Mark Diameters");
-    add.length("rigPrimaryDiameter", "Primary Diameter", [h]() -> double& { return h().rigPrimaryDiameter; });
-    add.length("rigSecondaryDiameter", "Secondary Diameter", [h]() -> double& { return h().rigSecondaryDiameter; });
+    add.header({ "X", "Y", "Z", "Diameter", "Set?" });
+    place("rigPrimary", "Primary Fiducial", [h]() -> std::optional<JPMachineLocation>& { return h().rigPrimary; }, true,
+          "Calibration primary fiducial location. Must be placed at PCB surface Z height.",
+          [h]() -> double& { return h().rigPrimaryDiameter; });
+    place("rigSecondary", "Secondary Fiducial", [h]() -> std::optional<JPMachineLocation>& { return h().rigSecondary; }, true,
+          "Calibration secondary fiducial location. Must be placed at different Z height than the primary fiducial.",
+          [h]() -> double& { return h().rigSecondaryDiameter; });
+    add.row("Test Object");
+    add.skip();
+    add.skip();
+    add.skip();
     add.length("rigTestObjectDiameter", "Test Object", [h]() -> double& { return h().rigTestObjectDiameter; });
     add.tip("The diameter of the test object the nozzles' precise offsets are calibrated with (a nozzle's Offset Wizard).");
     add.end();
-    add.note("Two round marks at two heights. A head camera is calibrated over the homing fiducial and, with Two "
-             "Heights? on (its Advanced Calibration), again over the secondary mark, at least 1 mm higher or lower.");
+    add.note("Diameter: diameter of the fiducial. A head camera is calibrated over the homing fiducial and, with Two "
+             "Heights? on (its Advanced Calibration), again over the secondary fiducial, at least 1 mm higher or lower.");
 
     add.group("Z Probe");
     add.byName("zProbeActuator", "Z Probe Actuator", named(cell.actuators, "(none)"), [h]() -> std::string& { return h().zProbeActuatorId; });
@@ -893,9 +905,17 @@ void headForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
     add.choice("pumpControl", "Pump Control", { "None", "PartOn", "TaskDuration", "KeepRunning" },
                [h] { return h().pumpControl.empty() ? std::string("None") : h().pumpControl; },
                [h](const std::string& v) { h().pumpControl = v; });
+    add.tip("Determine how the pump on/off state is controlled:\n"
+            "None: the pump is controlled manually or outside of OpenPnP. Use this for a controller-side hysteresis "
+            "control, for instance.\n"
+            "PartOn: the pump is switched on when a part is about to be picked, it is switched off when no part is on "
+            "any nozzle.\n"
+            "TaskDuration: the pump is switched on when a part is about to be picked, it is only switched off when "
+            "queued tasks (e.g. the running job) is finished, given no part is on any nozzle.\n"
+            "KeepRunning: the pump is switched on when a part is about to be picked, it is kept running until "
+            "explicitly switched off, or until the machine is being disabled.");
     add.integer("pumpOnWaitMs", "Pump On Wait [ms]", [h]() -> int& { return h().pumpOnWaitMs; }, 0, 600000);
-    add.note("PartOn: on while a nozzle holds a part. TaskDuration: on for the work, off with the last part. "
-             "KeepRunning: once on, left on.");
+    add.tip("When switching on the pump, wait this time for it to reach proper pressure.");
 }
 
 void nozzleForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f) {
