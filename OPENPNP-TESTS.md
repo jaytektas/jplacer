@@ -6,7 +6,7 @@ test passes here only when it passes there.
 
 Status: **passing** (ported and passing), **to port**.
 
-**30 of 253 test methods passing.**
+**33 of 253 test methods passing.**
 
 | OpenPnP test | Methods | Status | jplacer test |
 |---|---|---|---|
@@ -21,7 +21,7 @@ Status: **passing** (ported and passing), **to port**.
 | HttpActuatorTest.java (testOffsets) | 1 | to port |  |
 | JobProcessorTest.java (testNozzleTips, testStartAsPlanned, testBoardPart, testUnsorted, testFlexibility, testAllOnePart, testRank, testRank2, testRankWeak, testRankRounded, testRankRoundedFlexibility) | 11 | to port |  |
 | LocalisationTest.java (propertiesFileIsNormalised) | 1 | to port |  |
-| ModelUnitsTest.java (testLengths, testAreas, testVolumes) | 3 | to port |  |
+| ModelUnitsTest.java (testLengths, testAreas, testVolumes) | 3 | passing | tests/model/test_model_units.cpp |
 | OpenCvTest.java (openCvWorks) | 1 | to port |  |
 | QuickHullTest.java (testQuickHull) | 1 | passing | tests/model/test_quick_hull.cpp |
 | ReferenceBottomVisionInheritanceTest.java (testBottomVisionSettingsInheritance, testBottomVisionReset) | 2 | to port |  |

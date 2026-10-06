@@ -10,6 +10,8 @@
 
 inline namespace jf {
 
+class JPArea;
+
 // A length and its units, as OpenPnP's Length: converted, added and
 // compared across units; parsed from text such as "1.5mm" or "20 mil".
 class JPLength {
@@ -25,7 +27,12 @@ public:
     static double convert(double value, JPLengthUnit from, JPLengthUnit to);
     JPLength add(const JPLength& l) const;
     JPLength subtract(const JPLength& l) const;
+    JPLength add(double d) const { return withValue(m_value + d); }
+    JPLength subtract(double d) const { return withValue(m_value - d); }
     JPLength multiply(double d) const { return withValue(m_value * d); }
+    // The area of this times `l`, in the square of these units.
+    JPArea   multiply(const JPLength& l) const;
+    JPLength modulo(const JPLength& l) const;
     JPLength divide(double d) const { return withValue(m_value / d); }
     double   divide(const JPLength& l) const { return m_value / l.convertToUnits(units()).m_value; }
     JPLength abs() const;

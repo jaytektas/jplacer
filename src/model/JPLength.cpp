@@ -3,7 +3,10 @@
 
 #include "JPLength.h"
 
+#include "JPArea.h"
+#include "JPAreaUnits.h"
 #include "JPLengthUnits.h"
+#include "JPUnitText.h"
 
 #include <cctype>
 #include <cmath>
@@ -42,13 +45,6 @@ double fromMm(double mm, JPLengthUnit u) {
     return mm;
 }
 
-bool sameIgnoringCase(const std::string& a, const std::string& b) {
-    if (a.size() != b.size()) return false;
-    for (size_t i = 0; i < a.size(); ++i)
-        if (std::tolower(static_cast<unsigned char>(a[i])) != std::tolower(static_cast<unsigned char>(b[i]))) return false;
-    return true;
-}
-
 } // namespace
 
 double JPLength::convert(double value, JPLengthUnit from, JPLengthUnit to) {
@@ -69,6 +65,14 @@ JPLength JPLength::subtract(const JPLength& l) const {
     return withValue(m_value - l.convertToUnits(units()).m_value);
 }
 
+JPLength JPLength::modulo(const JPLength& l) const {
+    return withValue(std::fmod(m_value, l.convertToUnits(units()).m_value));
+}
+
+JPArea JPLength::multiply(const JPLength& l) const {
+    return JPArea(m_value * l.convertToUnits(units()).m_value, JPAreaUnits::fromLengthUnit(units()));
+}
+
 JPLength JPLength::abs() const {
     return withValue(std::fabs(m_value));
 }
@@ -79,46 +83,20 @@ JPLength JPLength::changeUnitsIfUnspecified(JPLengthUnit units) const {
 }
 
 std::optional<JPLength> JPLength::parse(const std::string& text, bool requireUnits) {
-    size_t a = 0, b = text.size();
-    while (a < b && std::isspace(static_cast<unsigned char>(text[a]))) ++a;
-    while (b > a && std::isspace(static_cast<unsigned char>(text[b - 1]))) --b;
-    const std::string s = text.substr(a, b - a);
-    size_t startOfUnits = std::string::npos;
-    for (size_t i = 0; i < s.size(); ++i) {
-        const char ch = s[i];
-        if (ch != '-' && ch != '.' && !std::isdigit(static_cast<unsigned char>(ch))) {
-            startOfUnits = i;
-            break;
-        }
-    }
+    const JPUnitText::Parts parts = JPUnitText::split(text);
     std::optional<JPLengthUnit> units;
-    std::string valueText = s;
-    if (startOfUnits != std::string::npos) {
-        valueText = s.substr(0, startOfUnits);
-        std::string unitText = s.substr(startOfUnits);
-        size_t ua = 0, ub = unitText.size();
-        while (ua < ub && std::isspace(static_cast<unsigned char>(unitText[ua]))) ++ua;
-        while (ub > ua && std::isspace(static_cast<unsigned char>(unitText[ub - 1]))) --ub;
-        unitText = unitText.substr(ua, ub - ua);
-        std::string withMicro;
-        for (const char c : unitText) {
-            if (c == 'u') withMicro += "\xCE\xBC";
-            else withMicro += c;
-        }
+    if (parts.hasUnits)
         for (const JPLengthUnit u : { JPLengthUnit::Meters, JPLengthUnit::Centimeters, JPLengthUnit::Millimeters,
                                       JPLengthUnit::Feet, JPLengthUnit::Inches, JPLengthUnit::Mils, JPLengthUnit::Microns })
-            if (sameIgnoringCase(JPLengthUnits::shortName(u), withMicro)) {
+            if (JPUnitText::sameIgnoringCase(JPLengthUnits::shortName(u), parts.units)) {
                 units = u;
                 break;
             }
-    }
     if (requireUnits && !units) return std::nullopt;
-    if (valueText.empty()) return std::nullopt;
-    char* end = nullptr;
-    const double v = std::strtod(valueText.c_str(), &end);
-    if (end != valueText.c_str() + valueText.size()) return std::nullopt;
+    const std::optional<double> v = JPUnitText::number(parts.value);
+    if (!v) return std::nullopt;
     JPLength l;
-    l.m_value = v;
+    l.m_value = *v;
     l.m_units = units;
     return l;
 }
