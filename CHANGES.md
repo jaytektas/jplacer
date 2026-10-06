@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- The PhotonFeederData actuator jplacer makes is read through the first G-code controller (as OpenPnP: a simulated
+  one has none), its reply pattern OpenPnP's `rs485-reply: (?<Value>.*)`. Checked against OpenPnP's Photon feeder
+  tests, all of which now pass.
 - An actuator's Read Reply Pattern takes OpenPnP's `(?<Value>...)` group as OpenPnP does: a pattern typed so was
   refused, and one brought in from OpenPnP with groups before the Value group read the wrong one. OpenPnP's
   patterns are now brought in as they are.

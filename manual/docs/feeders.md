@@ -246,7 +246,8 @@ Feeder Address To Scan**, a strip showing each as it is asked, found or missing,
 finds. A feed finds the feeder's address and sets it up when needed, moves it on by its pitch with the
 nozzle taken over its pick meanwhile, and waits until it says it is done, trying again as OpenPnP does; a
 job finds and sets up the Photon feeders it uses first. When the machine has no PhotonFeederData actuator,
-one is made on its first controller (a Machine Setup step, undone like any other).
+one is made, as OpenPnP makes it: read through its first G-code controller by `M485 {value}`, the value its
+reply's `rs485-reply: (?<Value>.*)` finds (a Machine Setup step, undone like any other).
 
 **Program Feeder Slots ▸ Start Wizard** (the machine connected) programs slots you built yourself: take
 every Photon feeder out and press **Next**; then put a feeder into the slot whose number is shown (change
@@ -254,7 +255,7 @@ it if you like). The feeder is given that slot's address, set up there, and the 
 next, for the next slot, until **Finish**. The search's highest address is raised to the last one
 programmed.
 
-<!-- src: src/app/JPlacerPhotonSlotsDialog.cpp; src/app/JPlacerMachine.cpp (ensurePhotonActuator); src/tasks/JPPhotonFeeders.cpp; src/tasks/JPPhotonCommands.cpp; src/tasks/JPPhotonPacket.cpp; src/tasks/JPPhotonBus.cpp; src/model/JPPhotonProperties.cpp; src/model/JPFeeder.cpp (name, photonUnconfigured, pickLocation); src/setup/JPFeederForms.cpp (photonForm); src/ui/JPSearchStrip.cpp; src/tasks/JPJobProcessor.cpp (preFlight) -->
+<!-- src: src/app/JPlacerPhotonSlotsDialog.cpp; src/app/JPlacerMachine.cpp (ensurePhotonActuator); src/tasks/JPPhotonFeeders.cpp (addDataActuator); src/tasks/JPPhotonCommands.cpp; src/tasks/JPPhotonPacket.cpp; src/tasks/JPPhotonBus.cpp; src/model/JPPhotonProperties.cpp; src/model/JPFeeder.cpp (name, photonUnconfigured, pickLocation); src/setup/JPFeederForms.cpp (photonForm); src/ui/JPSearchStrip.cpp; src/tasks/JPJobProcessor.cpp (preFlight) -->
 
 ### Rapid feeder
 

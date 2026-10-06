@@ -6,6 +6,7 @@
 #include "JPJobMachine.h"
 #include "JPPhotonBusInterface.h"
 
+#include "machine/JPCellConfig.h"
 #include "model/JPConfiguration.h"
 
 #include <functional>
@@ -29,6 +30,11 @@ public:
     // OpenPnP's PhotonFeeder.getBus: the one bus every Photon feeder talks on, through `machine`'s
     // PhotonFeederData actuator.
     static JPPhotonBusInterface& bus(JPJobMachine& machine);
+    // OpenPnP's setBus: the bus used in its place (null: the machine's again).
+    static void setBus(JPPhotonBusInterface* bus);
+    // OpenPnP's getDataActuator: the PhotonFeederData actuator added to the machine when it has none, read by
+    // "M485 {value}" through its first G-code controller, the reply's "rs485-reply: (?<Value>.*)". False: it had one.
+    static bool addDataActuator(JPCellConfig& cell);
 
     // Find: its slot address asked afresh (none when it does not answer).
     static bool findSlotAddress(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine,

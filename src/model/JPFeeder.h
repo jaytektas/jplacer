@@ -83,6 +83,8 @@ public:
     std::optional<JPLocation> photonSlotLocation;
     // Why it cannot be picked from yet, as OpenPnP says it; empty: it can.
     std::string photonUnconfigured() const;
+    // OpenPnP's setHardwareId: its hardware id, and its name too while it is still named as its class.
+    void setHardwareId(const std::string& id);
     int         feedRetryCount() const { return number("feed-retry-count", 3); }
     void        setFeedRetryCount(int n) { setNumber("feed-retry-count", n); }
     int         pickRetryCount() const { return number("pick-retry-count", 3); }

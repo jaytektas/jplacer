@@ -130,6 +130,11 @@ std::string JPFeeder::photonUnconfigured() const {
     return {};
 }
 
+void JPFeeder::setHardwareId(const std::string& id) {
+    if (text("name") == typeName()) setText("name", id);
+    setText("hardware-id", id);
+}
+
 std::string JPFeeder::partId() const {
     if (!isSlot()) return text("part-id");
     return slotLoad ? slotLoad->partId : std::string();

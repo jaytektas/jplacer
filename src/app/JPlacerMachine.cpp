@@ -24,6 +24,7 @@
 #include "setup/JPSetupEdits.h"
 #include "setup/JPSetupProperties.h"
 #include "tasks/JPPhotonBus.h"
+#include "tasks/JPPhotonFeeders.h"
 #include "ui/JPActuatorPanel.h"
 #include "ui/JPConsolePanel.h"
 #include "ui/JPIcons.h"
@@ -2369,16 +2370,7 @@ bool JPlacerMachine::cameraCalibrated(const std::string& cameraId) const {
 void JPlacerMachine::ensurePhotonActuator() {
     if (!m_setup || !m_cell || m_cell->config().actuatorNamed(JPPhotonBus::kDataActuator)) return;
     JLOGC(JPlacerLog::kCell, JLogLevel::Info) << "Photon feeders: actuator " << JPPhotonBus::kDataActuator << " made";
-    m_setup->change(std::string("Actuator ") + JPPhotonBus::kDataActuator, [](JPCellConfig& cell) {
-        JPActuatorConfig a;
-        a.id = JPSetupEdits::newId(cell, "ACT");
-        a.name = JPPhotonBus::kDataActuator;
-        a.valueType = JPActuatorConfig::ValueType::Text;
-        if (!cell.drivers.empty()) a.driverId = cell.drivers.front().id;
-        a.readCommand = "M485 {value}";
-        a.readPattern = "rs485-reply: (.*)";
-        cell.actuators.push_back(a);
-    });
+    m_setup->change(std::string("Actuator ") + JPPhotonBus::kDataActuator, [](JPCellConfig& cell) { JPPhotonFeeders::addDataActuator(cell); });
 }
 
 void JPlacerMachine::setEditItems(JMenuItem* undo, JMenuItem* redo) {

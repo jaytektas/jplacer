@@ -7,6 +7,7 @@
 #include "JPPhotonCommands.h"
 
 #include "common/JPlacerLog.h"
+#include "setup/JPSetupEdits.h"
 
 #include <j/core/Log.h>
 
@@ -34,12 +35,6 @@ struct Run {
         else fn();
     }
 };
-
-// A Photon feeder's hardware id given: one still named as its class is named by it (OpenPnP's setHardwareId).
-void setHardwareId(JPFeeder& f, const std::string& id) {
-    if (f.text("name") == f.typeName()) f.setText("name", id);
-    f.setText("hardware-id", id);
-}
 
 bool findSlotAddress(const Run& r, const std::string& feederId, bool force, std::string& why) {
     std::string id;
@@ -88,7 +83,7 @@ bool initializeIfNeeded(const Run& r, const std::string& feederId, std::string& 
             const std::string other = got->uuid.value_or("");
             if (!r.config.photonFeeder(other)) {
                 JPFeeder made = JPFeeder::create(kPhotonClass, "");
-                setHardwareId(made, other);
+                made.setHardwareId(other);
                 r.config.addFeeder(std::move(made));
             }
             r.config.setPhotonSlot(r.config.photonFeeder(other)->id(), got->fromAddress);
@@ -107,7 +102,15 @@ int maxRetry(const Run& r) {
 
 } // namespace
 
+namespace {
+
+// The bus set in place of the machine's (OpenPnP's setBus).
+JPPhotonBusInterface* s_setBus = nullptr;
+
+} // namespace
+
 JPPhotonBusInterface& JPPhotonFeeders::bus(JPJobMachine& machine) {
+    if (s_setBus) return *s_setBus;
     // OpenPnP's one bus (from address 0): its packets numbered in turn, whichever feeder sends them.
     static JPJobMachine* s_machine = nullptr;
     static JPPhotonBus s_bus(0, [](const std::string& parameter, std::string& value, std::string& why) {
@@ -115,6 +118,26 @@ JPPhotonBusInterface& JPPhotonFeeders::bus(JPJobMachine& machine) {
     });
     s_machine = &machine;
     return s_bus;
+}
+
+void JPPhotonFeeders::setBus(JPPhotonBusInterface* bus) { s_setBus = bus; }
+
+bool JPPhotonFeeders::addDataActuator(JPCellConfig& cell) {
+    if (cell.actuatorNamed(JPPhotonBus::kDataActuator)) return false;
+    JPActuatorConfig a;
+    a.id = JPSetupEdits::newId(cell, "ACT");
+    a.name = JPPhotonBus::kDataActuator;
+    a.valueType = JPActuatorConfig::ValueType::Text;
+    // Read through the first G-code controller (OpenPnP sets it on one GcodeDriver only).
+    for (const JPDriverConfig& d : cell.drivers)
+        if (d.className().rfind("Gcode", 0) == 0) {
+            a.driverId = d.id;
+            a.readCommand = "M485 {value}";
+            a.readPattern = "rs485-reply: (?<Value>.*)";
+            break;
+        }
+    cell.actuators.push_back(a);
+    return true;
 }
 
 bool JPPhotonFeeders::findSlotAddress(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine,
@@ -252,7 +275,7 @@ bool JPPhotonFeeders::findAll(JPConfiguration& config, JPJobMachine& machine, co
                 toAdd.push_back(JPFeeder::create(kPhotonClass, ""));
                 f = &toAdd.back();
             }
-            setHardwareId(*f, uuid);
+            f->setHardwareId(uuid);
             if (config.feeder(f->id())) config.setPhotonSlot(f->id(), address);
             else f->photonSlot = address;
         });

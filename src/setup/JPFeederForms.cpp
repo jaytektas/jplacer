@@ -1501,7 +1501,9 @@ JPSetupProperties::Form JPFeederForms::forFeeder(JPConfiguration& config, const 
     JPSetupProperties::Form form;
     JPFeeder* feeder = config.feeder(feederId);
     if (!feeder) return form;
-    form.title = feeder->name();
+    // A Photon feeder's as OpenPnP's getPropertySheetHolderTitle: "Unconfigured PhotonFeeder" until it has a
+    // hardware id, then its class and name.
+    form.title = feeder->isPhoton() && !feeder->text("hardware-id").empty() ? feeder->typeName() + " " + feeder->name() : feeder->name();
     JPFormBuilder add(form);
     const auto f = finder(config, feederId);
     const std::string kind = feeder->typeName();
