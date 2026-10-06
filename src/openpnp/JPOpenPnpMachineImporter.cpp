@@ -1242,6 +1242,7 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                     const auto& names = JPRunout::algorithms();
                     if (std::find(names.begin(), names.end(), algorithm) != names.end()) t.runoutCalibration.algorithm = algorithm;
                 }
+                if (!cal->attr("excenter-ratio").empty()) t.runoutCalibration.excenterRatio = number(cal->attr("excenter-ratio"));
                 // What OpenPnP measured, for each nozzle: its model (the centre, radius and phase), or its table.
                 if (const JPXmlElement* lookup = cal->child("runout-compensation-lookup"))
                     for (const JPXmlElement& entry : lookup->children) {

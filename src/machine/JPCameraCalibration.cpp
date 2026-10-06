@@ -121,6 +121,13 @@ double JPCameraCalibration::rotationDeg(bool lookingUp) const {
                      : std::atan2(-pxPerMm[2], -pxPerMm[0]) * kDegPerRad;
 }
 
+void JPCameraCalibration::turnBy(double turnDeg) {
+    // A thing at displacement d from the view is seen where this calibration puts R(turn) d: M becomes M R(-turn).
+    const double c = std::cos(turnDeg / kDegPerRad), s = std::sin(turnDeg / kDegPerRad);
+    const std::array<double, 4> m = pxPerMm;
+    pxPerMm = { m[0] * c - m[1] * s, m[0] * s + m[1] * c, m[2] * c - m[3] * s, m[2] * s + m[3] * c };
+}
+
 bool JPCameraCalibration::mirrored(bool lookingUp) const {
     const double det = pxPerMm[0] * pxPerMm[3] - pxPerMm[1] * pxPerMm[2];
     return lookingUp ? det < 0 : det > 0;

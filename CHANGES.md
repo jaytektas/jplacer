@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- A nozzle tip's Calibration tab has OpenPnP's Calibrate Camera Position and Rotation: the tip, its runout
+  measured, is sent round a circle over the camera looking up, and the camera's position and turn are set from
+  where it is seen.
+
 - A nozzle tip's runout is fitted and compensated by OpenPnP's algorithms, chosen on its Calibration tab as
   Compensation Algorithm: Model (the axis's offset compensated too), NoOffset (the swing alone), CameraOffset (the
   swing alone, and the camera looking up taken to be off by the axis's offset for that nozzle, where bottom

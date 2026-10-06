@@ -1504,6 +1504,31 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
             return;
         }
         calibrateTipRunout(on->id, true, nullptr);
+    } else if (action == "calibrateRunoutCamera" && path.rfind("nozzletip:", 0) == 0) {
+        // OpenPnP's Calibrate Camera Position and Rotation, with the tip on the nozzle it is on.
+        const std::string tipId = path.substr(10);
+        const JPNozzleConfig* on = nullptr;
+        for (const JPNozzleConfig& n : m_cell->config().nozzles)
+            if (n.tipId == tipId) on = &n;
+        if (!on) {
+            m_window.showStatus("Load the tip on a nozzle first: the camera is calibrated with it", kErrorMs);
+            return;
+        }
+        m_cameraTasks->calibrateRunoutCamera(on->id, [this](const std::string& cameraId, const JPRunoutCalibrator::CameraFix& fix) {
+            if (!m_setup) return;
+            // Its position; its turn into its own calibrations, else (none: as OpenPnP) its picture's rotation.
+            m_setup->change("Camera position and rotation", [&](JPCellConfig& cell) {
+                for (JPCameraConfig& cam : cell.cameras)
+                    if (cam.id == cameraId) {
+                        cam.mount.offsetX = fix.x;
+                        cam.mount.offsetY = fix.y;
+                        if (!cam.calibrations.empty())
+                            for (JPCameraCalibration& c : cam.calibrations) c.turnBy(fix.turnDeg);
+                        else
+                            cam.rotation -= fix.turnDeg;
+                    }
+            });
+        });
     } else if (action == "calibrateNozzleOffsets" && path.rfind("nozzle:", 0) == 0) {
         const std::string nozzleId = path.substr(7);
         JPCameraPanel* camera = m_cameraTasks->headCamera();

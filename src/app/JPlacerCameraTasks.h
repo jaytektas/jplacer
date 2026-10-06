@@ -92,6 +92,10 @@ public:
     using RunoutDone = std::function<void(bool ok, const JPRunout&, const std::optional<JPBackgroundCalibration::Result>&,
                                           const std::string& why)>;
     void calibrateRunout(const std::string& nozzleId, bool ask, RunoutDone done);
+    // OpenPnP's Calibrate Camera Position and Rotation with the tip on `nozzleId` (JPRunoutCalibrator::
+    // calibrateCamera), asking first. `done` (main thread): where the camera looking up is and how far it is turned.
+    using CameraFixDone = std::function<void(const std::string& cameraId, const JPRunoutCalibrator::CameraFix&)>;
+    void calibrateRunoutCamera(const std::string& nozzleId, CameraFixDone done);
     // The settling test: a camera on a head moved (dx, dy) and back, or for a
     // fixed camera `tool` (a nozzle held over it, by hand) moved so, or turned
     // `dc` degrees and back, or (`up`, OpenPnP's) brought over it at Safe Z

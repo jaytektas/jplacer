@@ -242,8 +242,18 @@ over it, and the tip's own pipeline. The tip is found in each picture by its **P
 (ImageCapture, DetectCircularSymmetry under the `nozzleTip` properties, given where to look, how far and the
 Vision Diameter; one result within the offset threshold, more than one not taken), its centre then measured
 to a fraction of a pixel close by: **Edit** opens it in the pipeline editor on the camera looking up, and
-**Reset** puts OpenPnP's default back. OpenPnP's **Calibrate Camera Position and Rotation** is not here: jplacer measures the camera's
-location and turn by its own camera calibration.
+**Reset** puts OpenPnP's default back.
+
+**Calibrate Camera Position and Rotation**, as OpenPnP's (asked first; the tip measured on its nozzle first:
+"Calibrate the nozzle tip first."), sends the tip, its runout compensated, round a circle over the camera
+looking up, its **Excenter Ratio** (a quarter, to begin with; brought from OpenPnP) of the picture's smaller
+side out from the middle, turning with it, and finds it at each of the Circle Divisions angles, with the
+Offset Threshold about where it was sent. For an Affine algorithm, the affine transform taking where it was
+seen onto where it was sent gives where the camera is (its translation) and how far it is turned; for the
+others, the circle through what was seen (its centre how far the camera is off, its phase the turn, less the
+excenter's own direction, which OpenPnP's leaves in). The camera's place is set to it, and its turn put right
+in its calibrations (with none, OpenPnP's way: its picture's rotation). With a CameraOffset algorithm the
+axis's own offset is taken to be the camera's, so the place found is where the camera is for that nozzle.
 
 **Auto Recalibration**, as OpenPnP's, says when it is measured again without asking: **NozzleTipChange**
 (on each load of the tip, and once the machine is homed), **NozzleTipChangeInJob** (forgotten on each load;
@@ -254,7 +264,7 @@ nozzles it fits but is not on; with **Fail Homing?**, a measurement failing then
 A job measures any tip it uses that is to be compensated and not yet measured on its nozzle (Calibrate
 nozzle tip, before the picks).
 
-<!-- src: src/machine/JPRunout.cpp (offset, cameraOffset, algorithms); src/tasks/JPRunoutFit.cpp; src/machine/JPNozzleTipConfig.h (RunoutCalibration, runoutOn); src/machine/JPNozzleTipConfig.cpp; src/machine/JPCell.cpp (cameraOffsetFor); src/tasks/JPCellJobMachine.cpp (alignPart); src/app/JPlacerMachine.cpp (moveNozzleToCamera); src/tasks/JPRunoutCalibrator.cpp; src/tasks/JPPipelineMarkFinder.cpp; src/machine/JPCell.cpp (compensateRunout, runoutFor); src/app/JPlacerCameraTasks.cpp (calibrateRunout); src/tasks/JPRunoutCalibrator.cpp (measure); src/app/JPlacerMachine.cpp (setupAction, recalibrateAfterHoming, setTipOn); src/tasks/JPJobProcessor.cpp (calibrateNozzleTip); src/tasks/JPCellJobMachine.cpp (calibrateTip); src/setup/JPSetupProperties.cpp (nozzleTipForm); src/openpnp/JPOpenPnpMachineImporter.cpp (calibration, keepFrom) -->
+<!-- src: src/machine/JPRunout.cpp (offset, cameraOffset, algorithms); src/tasks/JPRunoutFit.cpp; src/machine/JPNozzleTipConfig.h (RunoutCalibration, runoutOn); src/machine/JPNozzleTipConfig.cpp; src/machine/JPCell.cpp (cameraOffsetFor); src/tasks/JPCellJobMachine.cpp (alignPart); src/app/JPlacerMachine.cpp (moveNozzleToCamera); src/tasks/JPRunoutCalibrator.cpp (calibrateCamera, findTip); src/machine/JPCameraCalibration.cpp (turnBy); src/app/JPlacerCameraTasks.cpp (calibrateRunoutCamera); src/tasks/JPPipelineMarkFinder.cpp; src/machine/JPCell.cpp (compensateRunout, runoutFor); src/app/JPlacerCameraTasks.cpp (calibrateRunout); src/tasks/JPRunoutCalibrator.cpp (measure); src/app/JPlacerMachine.cpp (setupAction, recalibrateAfterHoming, setTipOn); src/tasks/JPJobProcessor.cpp (calibrateNozzleTip); src/tasks/JPCellJobMachine.cpp (calibrateTip); src/setup/JPSetupProperties.cpp (nozzleTipForm); src/openpnp/JPOpenPnpMachineImporter.cpp (calibration, keepFrom) -->
 
 **Loaded?** on a nozzle's Nozzle Tips tab says which tip is on it now: ticking one moves nothing, and a tip
 is on one nozzle at a time.

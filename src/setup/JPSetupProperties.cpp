@@ -1667,13 +1667,17 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
     add.button("editTipPipeline", "Edit", "Edit the pipeline that finds the nozzle tip.");
     add.button("resetTipPipeline", "Reset", "Reset the pipeline to OpenPnP's default.", !rc().pipeline.empty());
     add.end();
-    add.actions({ { "Position Tool", "positionRunoutTool" }, { "Calibrate", "calibrateRunout" }, { "Reset", "resetRunout" } });
+    add.actions({ { "Position Tool", "positionRunoutTool" }, { "Calibrate", "calibrateRunout" }, { "Reset", "resetRunout" },
+                  { "Calibrate Camera Position and Rotation", "calibrateRunoutCamera" } });
     add.note("Position Tool takes the nozzle the tip is on over the camera looking up, at its focus plus the Z offset. "
              "Calibrate measures the tip on the nozzle it is on, over the fixed camera looking up: down to the "
              "camera's focus (plus the Z offset), turned to each of Circle Divisions angles round the circle, its "
              "end found at each (Vision Diameter across; 0: the tip's diameter), and fitted as the Compensation "
              "Algorithm says. With Compensate? on, every move of that nozzle is sent the compensation the other way, so "
-             "the tip's centre lands where it is sent at any angle. Reset forgets it for that nozzle.");
+             "the tip's centre lands where it is sent at any angle. Reset forgets it for that nozzle. Calibrate Camera "
+             "Position and Rotation (the tip measured first) sends the tip round a circle over the camera looking up, a "
+             "quarter of its picture out, and sets where the camera is and how far its picture is turned from where "
+             "the tip was seen.");
     for (const auto& [nozzleId, r] : t().runout) {
         std::string nozzleName = nozzleId;
         for (const JPNozzleConfig& n : cell.nozzles)

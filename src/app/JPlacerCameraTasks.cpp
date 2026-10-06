@@ -336,6 +336,61 @@ void JPlacerCameraTasks::calibrateRunout(const std::string& nozzleId, bool ask, 
     JDialog::confirm("Calibrate " + tip->name + " on " + nozzle->name, body, start);
 }
 
+void JPlacerCameraTasks::calibrateRunoutCamera(const std::string& nozzleId, CameraFixDone done) {
+    const JPNozzleConfig* nozzle = nullptr;
+    for (const JPNozzleConfig& n : m_cell.config().nozzles)
+        if (n.id == nozzleId) nozzle = &n;
+    const JPNozzleTipConfig* tip = nullptr;
+    if (nozzle)
+        for (const JPNozzleTipConfig& t : m_cell.config().nozzleTips)
+            if (t.id == nozzle->tipId) tip = &t;
+    JPCameraPanel* camera = nullptr;
+    for (JPCameraPanel* p : m_cameras)
+        if (!camera && p->camera().mount.headId.empty() && p->camera().looksUp) camera = p;
+    std::string why = m_busy ? "a camera task is already under way"
+                    : !m_cell.isConnected() ? "connect the machine first"
+                    : !m_cell.isHomed() ? "home the machine first"
+                    : !nozzle ? "no such nozzle"
+                    : !tip ? nozzle->name + " has no tip on it"
+                    : !camera ? "there is no fixed camera looking up"
+                    : !tip->runoutOn(nozzle->id) ? "Calibrate the nozzle tip first."
+                    : std::string();
+    if (!why.empty()) {
+        m_window.showStatus("Calibrate camera position and rotation: " + why, kResultMs);
+        return;
+    }
+    const JPNozzleConfig n = *nozzle;
+    const JPNozzleTipConfig t = *tip;
+    std::weak_ptr<bool> alive = m_alive;
+    auto start = [this, alive, camera, n, t, done] {
+        if (const auto a = alive.lock(); !a || !*a) return;
+        if (m_busy) return;   // another task began while asking
+        auto fix = std::make_shared<JPRunoutCalibrator::CameraFix>();
+        run(*camera, "Calibrating " + camera->camera().name + "'s position and rotation", [this, camera, n, t, fix](std::string& w, const auto& progress) {
+            JPRunoutCalibrator::Options o;
+            o.speed = kTaskSpeed;
+            const auto r = JPRunoutCalibrator::calibrateCamera(m_cell, camera->feed(), n, t, o, w, progress);
+            if (!r) return false;
+            *fix = *r;
+            char said[200];
+            std::snprintf(said, sizeof said, "%s is at %.3f, %.3f and turned %.3f deg (fit %.4f mm)", camera->camera().name.c_str(),
+                          r->x, r->y, r->turnDeg, r->rmsMm);
+            w = said;
+            return true;
+        }, [fix, done, id = camera->camera().id](bool ok) {
+            if (ok && done) done(id, *fix);
+        });
+    };
+    const JPCameraConfig& cam = camera->camera();
+    char body[640];
+    std::snprintf(body, sizeof body,
+                  "%s's tip %s is sent round a circle over %s (X %.3f, Y %.3f) at Z %.3f, turning as it goes; the camera's "
+                  "position and rotation are set by where it is seen.\n\nThe nozzle must hold no part, and nothing must be in its way.",
+                  nozzle->name.c_str(), tip->name.c_str(), cam.name.c_str(), cam.mount.offsetX, cam.mount.offsetY,
+                  cam.mount.offsetZ + tip->runoutCalibration.zOffset);
+    JDialog::confirm("Calibrate " + cam.name + " Position and Rotation", body, start);
+}
+
 void JPlacerCameraTasks::calibrateNozzleOffsets(JPCameraPanel& camera, const JPNozzleConfig& nozzle,
                                                 std::function<void(double, double)> done) {
     if (const std::string why = notReady(&camera, true, false); !why.empty()) {

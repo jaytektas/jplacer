@@ -7,6 +7,7 @@
 
 #include "JPCameraLook.h"
 #include "JPRunoutFit.h"
+#include "model/JPFiducialFit.h"
 #include "machine/JPScripting.h"
 
 #include "common/JPlacerLog.h"
@@ -16,6 +17,7 @@
 #include <j/core/Log.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdio>
 #include <ctime>
@@ -26,6 +28,34 @@ namespace {
 
 // With no size known, the end is looked for between these (mm).
 constexpr double kLeastTipMm = 0.2, kMostTipMm = 4.0;
+
+// The tip's end found in a settled picture by the calibration pipeline (OpenPnP's findCircle): looked for about
+// where it is expected (expectX, expectY, mm), up to the Offset Threshold and its margin; one further than the
+// threshold from there is a misdetect. Where it is on the machine into tx, ty.
+JPRoundMark findTip(JPPipelineMarkFinder& finder, const JPGrayImage& img, const JPCameraCalibration& cal, double camX, double camY,
+                    double expectX, double expectY, double diameter, double searchMm, double thresholdMm, double& tx, double& ty) {
+    const double scale = cal.scale();
+    double ex, ey;
+    if (!cal.pixelFor(expectX, expectY, camX, camY, ex, ey)) {
+        ex = img.width / 2.0;
+        ey = img.height / 2.0;
+    }
+    // By its calibration pipeline (OpenPnP's, editable), under the "nozzleTip" properties.
+    JPRoundMark found = diameter > 0 ? finder.find(img, ex, ey, searchMm * scale, diameter * scale)
+                                     : finder.findAnySize(img, ex, ey, searchMm * scale, kLeastTipMm * scale, kMostTipMm * scale);
+    if (found.found && cal.machinePoint(found.x, found.y, camX, camY, tx, ty)) {
+        if (const double off = std::hypot(tx - expectX, ty - expectY); off > thresholdMm) {
+            // Beyond the Offset Threshold: a misdetect.
+            char far[96];
+            std::snprintf(far, sizeof far, "found %.3f mm off, beyond the offset threshold of %.3f mm", off, thresholdMm);
+            found.found = false;
+            found.why = far;
+        }
+    } else {
+        found.found = false;
+    }
+    return found;
+}
 
 std::string now() {
     const std::time_t t = std::time(nullptr);
@@ -86,26 +116,9 @@ std::optional<JPRunout> JPRunoutCalibrator::run(JPCell& cell, JPCameraFeed& came
             ok = false;
             break;
         }
-        double ex, ey;
-        if (!cal.pixelFor(camX, camY, camX, camY, ex, ey)) {
-            ex = img.width / 2.0;
-            ey = img.height / 2.0;
-        }
-        // The tip found by its calibration pipeline (OpenPnP's, editable), under the "nozzleTip" properties.
-        JPRoundMark found = diameter > 0
-                                      ? finder.find(img, ex, ey, search * scale, diameter * scale)
-                                      : finder.findAnySize(img, ex, ey, search * scale, kLeastTipMm * scale, kMostTipMm * scale);
-        double tx, ty;
-        if (found.found && cal.machinePoint(found.x, found.y, camX, camY, tx, ty)
-            && std::hypot(tx - camX, ty - camY) > k.offsetThresholdMm) {
-            // Beyond the Offset Threshold: a misdetect.
-            char far[96];
-            std::snprintf(far, sizeof far, "found %.3f mm off, beyond the offset threshold of %.3f mm",
-                          std::hypot(tx - camX, ty - camY), k.offsetThresholdMm);
-            found.found = false;
-            found.why = far;
-        }
-        if (!found.found || !cal.machinePoint(found.x, found.y, camX, camY, tx, ty)) {
+        double tx = 0, ty = 0;
+        const JPRoundMark found = findTip(finder, img, cal, camX, camY, camX, camY, diameter, search, k.offsetThresholdMm, tx, ty);
+        if (!found.found) {
             JLOGC(JPlacerLog::kCamera, JLogLevel::Warn) << tip.name << " on " << nozzle.name << " not found at " << angle
                                                         << " deg: " << found.why;
             if (++failed > k.misdetects) {
@@ -143,6 +156,127 @@ std::optional<JPRunout> JPRunoutCalibrator::run(JPCell& cell, JPCameraFeed& came
     JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << tip.name << " on " << nozzle.name << ": runout " << r->radius
         << " mm at " << r->phaseDeg << " deg, axis off by " << r->centreX << ", " << r->centreY << ", fit " << r->rmsMm;
     return r;
+}
+
+std::optional<JPRunoutCalibrator::CameraFix> JPRunoutCalibrator::calibrateCamera(JPCell& cell, JPCameraFeed& camera,
+                                                                                 const JPNozzleConfig& nozzle, const JPNozzleTipConfig& tip,
+                                                                                 const Options& o, std::string& why, const Progress& progress) {
+    const JPCameraConfig& cam = camera.config();
+    const JPMountConfig& m = nozzle.mount;
+    if (!cam.mount.headId.empty() || !cam.looksUp) {
+        why = cam.name + " is not a camera fixed to the machine, looking up";
+        return std::nullopt;
+    }
+    if (!cell.isHomed()) {
+        why = "home the machine first";
+        return std::nullopt;
+    }
+    if (!tip.runoutOn(nozzle.id)) {
+        why = "Calibrate the nozzle tip first.";
+        return std::nullopt;
+    }
+    JPCameraCalibration cal;
+    if (!JPCameraLook::calibration(cell, camera, cal, why)) return std::nullopt;
+    const JPNozzleTipConfig::RunoutCalibration& k = tip.runoutCalibration;
+    const int divisions = std::clamp(k.divisions, JPNozzleTipConfig::RunoutCalibration::kLeastDivisions,
+                                     JPNozzleTipConfig::RunoutCalibration::kMostDivisions);
+    const double diameter = k.visionDiameter > 0 ? k.visionDiameter : tip.diameter;
+    const double search = k.offsetThresholdMm * (1 + JPNozzleTipConfig::RunoutCalibration::kDetectionMargin);
+    const double camX = cam.mount.offsetX, camY = cam.mount.offsetY, z = cam.mount.offsetZ + k.zOffset;
+    // The excenter: the picture's middle, that share of its smaller side to the right, on the machine.
+    double excenterX = 0, excenterY = 0;
+    {
+        double mx, my, px, py;
+        const double side = std::min(cal.width, cal.height) * k.excenterRatio;
+        if (!cal.pixelFor(camX, camY, camX, camY, px, py) || !cal.machinePoint(px + side, py, camX, camY, mx, my)) {
+            why = cam.name + "'s calibration cannot place its picture on the machine";
+            return std::nullopt;
+        }
+        excenterX = mx - camX;
+        excenterY = my - camY;
+    }
+    std::vector<JPLocation> seen, sent;
+    std::vector<JPRunout::Point> points;
+    int failed = 0;
+    JPPipelineMarkFinder finder(k.pipeline.empty() ? JPDefaultPipelines::nozzleTipCalibration() : k.pipeline, "nozzleTip");
+    bool ok = true;
+    for (int i = 0; ok && i < divisions; ++i) {
+        const double angle = -180 + 360.0 * i / divisions, a = angle * M_PI / 180;
+        // Where the tip is sent (its runout compensated, as OpenPnP's nozzle.moveTo).
+        const double sx = camX + excenterX * std::cos(a) - excenterY * std::sin(a);
+        const double sy = camY + excenterX * std::sin(a) + excenterY * std::cos(a);
+        char said[64];
+        std::snprintf(said, sizeof said, "turned to %.0f deg (%d of %d)", angle, i + 1, divisions);
+        if (progress) progress(said);
+        const std::array<std::optional<double>, 4> to { sx, sy, z, angle };
+        if (!(i == 0 ? cell.moveToolAndWait(m, to, o.speed, why) : cell.moveToolStraightAndWait(m, to, o.speed, why))) {
+            ok = false;
+            break;
+        }
+        JPGrayImage img;
+        if (!JPCameraLook::settled(camera, img, why)) {
+            ok = false;
+            break;
+        }
+        double tx = 0, ty = 0;
+        const JPRoundMark found = findTip(finder, img, cal, camX, camY, sx, sy, diameter, search, k.offsetThresholdMm, tx, ty);
+        if (!found.found) {
+            JLOGC(JPlacerLog::kCamera, JLogLevel::Warn) << tip.name << " on " << nozzle.name << " not found at " << angle
+                                                        << " deg: " << found.why;
+            if (++failed > k.misdetects) {
+                why = "Nozzle tip " + tip.name + " on " + nozzle.name + " calibration: too many vision misdetects. Check the "
+                      "allowable distance threshold and/or computer vision. (" + found.why + ")";
+                ok = false;
+            }
+            continue;
+        }
+        // Seen from the camera's middle; sent, on the machine.
+        seen.emplace_back(JPLengthUnit::Millimeters, tx - camX, ty - camY, 0, angle);
+        sent.emplace_back(JPLengthUnit::Millimeters, sx, sy, 0, angle);
+        points.push_back({ angle, tx - camX, ty - camY });
+    }
+    // Over the camera, where it now is, and up again, whatever happened.
+    std::string up;
+    if (!cell.safeZAndWait(m.headId, o.speed, up) && why.empty()) why = up;
+    if (!ok) return std::nullopt;
+    if (points.size() < std::max<size_t>(3, size_t(divisions - k.misdetects))) {
+        why = "Nozzle tip " + tip.name + " on " + nozzle.name + " calibration: too many vision misdetects. Check the "
+              "allowable distance threshold and/or computer vision.";
+        return std::nullopt;
+    }
+    CameraFix fix;
+    fix.points = int(points.size());
+    if (k.algorithm.find("Affine") != std::string::npos) {
+        // What was seen onto where it was sent: its translation where the camera's middle is, its rotation the turn.
+        const JPAffineTransform t = JPFiducialFit::derive(seen, sent);
+        const JPAffineTransform::Info info = t.info();
+        fix.x = info.xTranslation;
+        fix.y = info.yTranslation;
+        fix.turnDeg = info.rotationAngleDeg;
+        double sum = 0;
+        for (size_t i = 0; i < seen.size(); ++i) {
+            double ox, oy;
+            t.apply(seen[i].x(), seen[i].y(), ox, oy);
+            sum += std::pow(ox - sent[i].x(), 2) + std::pow(oy - sent[i].y(), 2);
+        }
+        fix.rmsMm = std::sqrt(sum / double(seen.size()));
+    } else {
+        // The circle through what was seen: its centre the camera's error, its phase the turn (less the excenter's
+        // own direction, which OpenPnP's leaves in: a camera looking up sees it along -X, half a turn).
+        const auto circle = JPRunoutFit::fit(points, "Model");
+        if (!circle) {
+            why = "too few angles measured to fit the circle";
+            return std::nullopt;
+        }
+        fix.x = camX - circle->centreX;
+        fix.y = camY - circle->centreY;
+        fix.turnDeg = std::remainder(circle->phaseDeg + std::atan2(excenterY, excenterX) * 180 / M_PI, 360.0);
+        fix.rmsMm = circle->rmsMm;
+    }
+    JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << cam.name << " by " << tip.name << " on " << nozzle.name << ": at " << fix.x << ", "
+                                                << fix.y << " (was " << camX << ", " << camY << "), turned " << fix.turnDeg
+                                                << " deg, fit " << fix.rmsMm;
+    return fix;
 }
 
 std::optional<JPRunout> JPRunoutCalibrator::measure(JPCell& cell, JPCameraFeed& feed, const JPNozzleConfig& n,

@@ -145,6 +145,9 @@ struct JPNozzleTipConfig {
         // OpenPnP's Runout Compensation Algorithm (JPRunout::algorithms()): how the measurements are fitted and
         // compensated; OpenPnP's default for a new tip.
         std::string algorithm = JPRunout::kDefaultAlgorithm;
+        // OpenPnP's Excenter Ratio: Calibrate Camera Position and Rotation sends the tip round a circle this share
+        // of the picture's smaller side out from the camera's middle.
+        double excenterRatio = 0.25;
         bool   failHoming = true;
         static constexpr int kLeastDivisions = 3, kMostDivisions = 72;
     };

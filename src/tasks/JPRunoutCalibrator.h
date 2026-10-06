@@ -39,6 +39,21 @@ public:
     // A measuring as a task makes it, on the calling thread (a job's): NozzleCalibration's scripting events
     // round it (with `scripting`), the background calibrated along with it when the tip asks for it; `words`
     // says what was found, or why not.
+    // OpenPnP's Calibrate Camera Position and Rotation: the tip, its runout measured and compensated, sent round a
+    // circle about the camera looking up (the tip's Excenter Ratio of the picture's smaller side out), found at
+    // each of its Circle Divisions angles; where the camera is (its middle on the machine) and how far its
+    // picture is turned, from where the tip was sent against where it was seen: by the affine transform taking
+    // the one onto the other for an Affine algorithm, else by the circle through what was seen (its centre the
+    // camera's error, its phase the turn).
+    struct CameraFix {
+        double x = 0, y = 0;     // where the camera's middle is (mm)
+        double turnDeg = 0;      // how far what it sees is turned from the machine (its picture to be turned back)
+        double rmsMm = 0;        // how well it fits
+        int    points = 0;
+    };
+    static std::optional<CameraFix> calibrateCamera(JPCell& cell, JPCameraFeed& camera, const JPNozzleConfig& nozzle,
+                                                    const JPNozzleTipConfig& tip, const Options& options, std::string& why,
+                                                    const Progress& progress = nullptr);
     static std::optional<JPRunout> measure(JPCell& cell, JPCameraFeed& camera, const JPNozzleConfig& nozzle,
                                            const JPNozzleTipConfig& tip, JPScripting* scripting, std::string& words,
                                            const Progress& progress, std::optional<JPBackgroundCalibration::Result>& background);

@@ -210,6 +210,51 @@ int main() {
         if (camera) assert(std::abs(cx - kAxisX) < 0.004 && std::abs(cy - kAxisY) < 0.004);
     }
 
+    // OpenPnP's Calibrate Camera Position and Rotation, for an Affine algorithm and a circle's: the camera set
+    // 0.3, -0.2 mm off and its calibration turned 2 deg from what it sees; the tip (its swing compensated) sent round
+    // an excenter circle. Where the camera is, for this nozzle (as the axis's own offset is taken to be the
+    // camera's, the CameraOffset way), and the turn; put right, measured again, nothing left.
+    for (const char* algorithm : { "ModelCameraOffsetAffine", "ModelCameraOffset" }) {
+        JPCellConfig wrong = cell.config();
+        wrong.nozzleTips.front().runout.clear();
+        wrong.nozzleTips.front().runoutCalibration.algorithm = algorithm;
+        wrong.cameras.front().mount.offsetX = kCamX + 0.3;
+        wrong.cameras.front().mount.offsetY = kCamY - 0.2;
+        assert(cell.reconfigure(wrong, why));
+        JPCameraCalibration turned = cal;
+        turned.turnBy(-2);
+        cell.setCameraCalibration("B", turned);
+        // Not before the tip is measured.
+        assert(!JPRunoutCalibrator::calibrateCamera(cell, feed, cell.config().nozzles.front(), cell.config().nozzleTips.front(),
+                                                    JPRunoutCalibrator::Options{}, why)
+               && why == "Calibrate the nozzle tip first.");
+        const auto m = JPRunoutCalibrator::run(cell, feed, cell.config().nozzles.front(), cell.config().nozzleTips.front(),
+                                               JPRunoutCalibrator::Options{}, why);
+        assert(m);
+        JPCellConfig measured = cell.config();
+        measured.nozzleTips.front().runout["N"] = *m;
+        assert(cell.reconfigure(measured, why));
+        auto fix = JPRunoutCalibrator::calibrateCamera(cell, feed, cell.config().nozzles.front(), cell.config().nozzleTips.front(),
+                                                       JPRunoutCalibrator::Options{}, why);
+        if (!fix) std::fprintf(stderr, "%s: %s\n", algorithm, why.c_str());
+        assert(fix && fix->points == 8);
+        std::fprintf(stderr, "%s: camera at %.4f, %.4f, turned %.3f deg, fit %.4f\n", algorithm, fix->x, fix->y, fix->turnDeg, fix->rmsMm);
+        assert(std::abs(fix->x - (kCamX - kAxisX)) < 0.005 && std::abs(fix->y - (kCamY - kAxisY)) < 0.005);
+        assert(std::abs(fix->turnDeg - 2) < 0.2);   // what it sees, turned from what the calibration says
+        // Put right (as the tip's Calibrate Camera Position and Rotation does), measured again.
+        JPCellConfig right = cell.config();
+        right.cameras.front().mount.offsetX = fix->x;
+        right.cameras.front().mount.offsetY = fix->y;
+        assert(cell.reconfigure(right, why));
+        turned.turnBy(fix->turnDeg);
+        cell.setCameraCalibration("B", turned);
+        fix = JPRunoutCalibrator::calibrateCamera(cell, feed, cell.config().nozzles.front(), cell.config().nozzleTips.front(),
+                                                  JPRunoutCalibrator::Options{}, why);
+        assert(fix && std::abs(fix->x - (kCamX - kAxisX)) < 0.005 && std::abs(fix->y - (kCamY - kAxisY)) < 0.005);
+        assert(std::abs(fix->turnDeg) < 0.2);
+        cell.setCameraCalibration("B", cal);
+    }
+
     feed.stop();
     cell.disconnect();
     return 0;

@@ -118,6 +118,9 @@ struct JPCameraCalibration {
     // How its pictures show the machine (Y up): mirrored or not, and how far the machine's X is turned in them
     // (OpenPnP turns its pictures to show the machine as from above: neither).
     bool   pictureMirrored() const;
+    // What it sees is turned `turnDeg` (counter-clockwise, on the machine) from what this calibration says (as
+    // Calibrate Camera Position and Rotation finds it): the calibration turned to match.
+    void   turnBy(double turnDeg);
     double pictureTurnDeg() const;
 
     static JPCameraCalibration fromJson(const JJson& j);
