@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Machine Setup's tools are OpenPnP's icons for what is chosen: Delete (asking first), Permutate Up and Down, the
+  group's New, and a nozzle tip's Unload and Load (on the Jog panel's nozzle).
 - More of Machine Setup says what each setting does, in OpenPnP's words: the GcodeDriver's settings, an axis's
   letter, resolution and rotation limits, an actuator's actuation and value type, a camera's light switching, and a
   nozzle tip's runout calibration.

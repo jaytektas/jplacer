@@ -1622,6 +1622,11 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
                 || action == "resetSlotOccupied" || action == "testSlotVision")
                && path.rfind("nozzletip:", 0) == 0) {
         slotVisionAction(path.substr(10), action);
+    } else if ((action == "loadNozzleTip" || action == "unloadNozzleTip") && path.rfind("nozzletip:", 0) == 0) {
+        // OpenPnP's Load and Unload: on the nozzle chosen on the Jog panel, by the tip's changer steps.
+        const std::string nozzleId = chosenNozzleId();
+        if (nozzleId.empty() || !m_tipChanges) return;
+        m_tipChanges->change(nozzleId, action == "loadNozzleTip" ? path.substr(10) : std::string(), false);
     } else if (action == "referenceTouchZ" && path.rfind("nozzletip:", 0) == 0) {
         referenceAllTouchLocationsZ();
     } else if ((action == "calibrateZ" || action == "resetZCalibration") && path.rfind("nozzletip:", 0) == 0) {

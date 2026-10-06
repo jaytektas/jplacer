@@ -9,7 +9,6 @@
 #include "machine/JPCellConfig.h"
 #include "setup/JPSetupHistory.h"
 
-#include <j/core/JButton.h>
 #include <j/core/FrameTimer.h>
 #include <j/core/JContainer.h>
 #include <j/core/JLabel.h>
@@ -139,6 +138,7 @@ private:
     void setRows(bool firstTime);
     void addPart();
     void addPart(const std::string& kind);
+    void confirmRemove();   // asked first, as OpenPnP's
     void removePart();
     // Open (or close) the selected node and everything under it.
     void setBranch(bool open);
@@ -193,10 +193,9 @@ private:
     std::unique_ptr<JMenu>   m_treeMenu;   // a right-click on the tree
     JMenuItem*               m_menuAdd    = nullptr;
     JMenuItem*               m_menuRemove = nullptr;
-    JButton*                 m_add      = nullptr;
-    JButton*                 m_remove   = nullptr;
-    JButton*                 m_up       = nullptr;
-    JButton*                 m_down     = nullptr;
+    // The tools, kept here: the row holds those the selection has (update()), in OpenPnP's order.
+    JContainer*                   m_tools = nullptr;
+    std::unique_ptr<JPIconButton> m_unload, m_load, m_remove, m_up, m_down, m_add;
     JLabel*                  m_title    = nullptr;
     JPSetupForm*             m_form     = nullptr;
     std::shared_ptr<bool>    m_alive = std::make_shared<bool>(true);   // for work posted to a later frame

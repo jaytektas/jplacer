@@ -17,6 +17,7 @@
 #include <j/core/Log.h>
 
 #include <algorithm>
+#include <cctype>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -63,16 +64,26 @@ JPMachineSetupPanel::JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, 
     m_retry.setInterval(kRetryMs).setSingleShot(true);
     m_retry.timeout.connect([this] { handOver(); });
 
+    // OpenPnP's tools: the selected part's own (a nozzle tip's Unload and Load, Delete, Permutate Up and
+    // Down), then its group's New (update() shows those the selection has, named and drawn for its kind).
     auto tools = JPUiParts::row(graph);
-    m_add = tools->add(JPUiParts::button(graph, "Add"));
-    m_add->onClicked.connect([this] { addPart(); });
-    m_remove = tools->add(JPUiParts::button(graph, "Remove"));
-    m_remove->onClicked.connect([this] { removePart(); });
-    m_up = tools->add(JPUiParts::button(graph, "Up"));
+    auto tool = [&](const char* name, const char* icon) { return std::make_unique<JPIconButton>(graph, name, icon, ""); };
+    m_unload = tool("Unload", "nozzletip-unload");
+    m_unload->setTooltip("Unload the currently loaded nozzle tip.");
+    m_unload->onClicked.connect([this] { if (onAction) onAction(m_selected, "unloadNozzleTip"); });
+    m_load = tool("Load", "nozzletip-load");
+    m_load->setTooltip("Load the currently selected nozzle tip.");
+    m_load->onClicked.connect([this] { if (onAction) onAction(m_selected, "loadNozzleTip"); });
+    m_remove = tool("Delete", "general-remove");
+    m_remove->setLeads(JPIconButton::Leads::Elsewhere);   // asks first
+    m_remove->onClicked.connect([this] { confirmRemove(); });
+    m_up = tool("Permutate Up", "arrow-up");
     m_up->onClicked.connect([this] { moveSelected(-1); });
-    m_down = tools->add(JPUiParts::button(graph, "Down"));
+    m_down = tool("Permutate Down", "arrow-down");
     m_down->onClicked.connect([this] { moveSelected(+1); });
-    add(std::move(tools));
+    m_add = tool("New", "general-add");
+    m_add->onClicked.connect([this] { addPart(); });
+    m_tools = add(std::move(tools));
 
     // The tree beside the selected part's settings, each the full height, a
     // divider between them to drag.
@@ -120,7 +131,7 @@ JPMachineSetupPanel::JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, 
     m_menuAdd = m_treeMenu->add(graph, "Add");
     m_menuAdd->onTriggered.connect([this] { addPart(); });
     m_menuRemove = m_treeMenu->add(graph, "Remove");
-    m_menuRemove->onTriggered.connect([this] { removePart(); });
+    m_menuRemove->onTriggered.connect([this] { confirmRemove(); });
     m_tree->setContextMenu(m_treeMenu.get());
     m_tree->setRightClickSelects(true);
 
@@ -290,6 +301,19 @@ void JPMachineSetupPanel::addPart(const std::string& kind) {
     rebuildTree();
     select(added);
     record("Add " + what, "", from);
+}
+
+void JPMachineSetupPanel::confirmRemove() {
+    // As OpenPnP's: asked first (and one step to undo after).
+    const std::string at = m_selected, name = nameOf(m_draft, at);
+    JDialogOptions opts;
+    opts.okLabel = "Yes";
+    opts.cancelLabel = "No";
+    JDialog::confirm("Delete " + name + "?", "Are you sure you want to delete " + name + "?",
+                     [this, at, alive = std::weak_ptr<bool>(m_alive)] {
+                         if (const auto a = alive.lock(); !a || !*a || m_selected != at) return;
+                         removePart();
+                     }, nullptr, opts);
 }
 
 void JPMachineSetupPanel::removePart() {
@@ -549,18 +573,49 @@ void JPMachineSetupPanel::probe(const JPSetupProperties::Row& row) {
 }
 
 void JPMachineSetupPanel::update() {
+    // OpenPnP's actions for each kind of part: Delete's name, icon and words, and whether it moves up and down.
+    struct Kind { const char* kind; const char* name; const char* icon; bool permutes; };
+    static const Kind kKinds[] = {
+        { "driver", "driver", "general-remove", true },     { "axis", "axis", "general-remove", true },
+        { "actuator", "actuator", "general-remove", true }, { "camera", "camera", "general-remove", false },
+        { "nozzle", "nozzle", "nozzle-remove", false },     { "nozzletip", "nozzle tip", "nozzletip-remove", false },
+        { "signaler", "signaler", "general-remove", false }, { "head", "head", "general-remove", false },
+        { "step", "step", "general-remove", true },
+    };
     const std::string what = JPSetupEdits::addable(m_draft, m_selected);
-    m_add->setLabel(what.empty() ? "Add" : "Add " + what);
-    m_add->setEnabled(!what.empty());
-    m_menuAdd->setLabel(m_add->label());
-    m_menuAdd->setEnabled(!what.empty());
     const std::string kind = JPSetupTree::parse(m_selected).kind;
+    const Kind* k = nullptr;
+    for (const Kind& c : kKinds)
+        if (kind == c.kind) k = &c;
     // A step of unloading that is loading backwards is shown, not changed.
-    const bool part = kind == "step" ? !what.empty() : kind != "machine" && kind != "group";
-    m_remove->setEnabled(part);
+    const bool part = k && (kind != "step" || !what.empty());
+    auto title = [](std::string s) {
+        for (size_t i = 0; i < s.size(); ++i)
+            if (i == 0 || s[i - 1] == ' ') s[i] = char(std::toupper(static_cast<unsigned char>(s[i])));
+        return s;
+    };
+    m_tools->clear();   // the buttons are kept here
+    if (kind == "nozzletip") m_tools->add(m_unload.get())->add(m_load.get());
+    if (part) m_tools->add(m_remove.get());
+    if (part && k->permutes) m_tools->add(m_up.get())->add(m_down.get());
+    if (!what.empty()) m_tools->add(m_add.get());
+    if (part) {
+        m_remove->setIcon(k->icon);
+        m_remove->setTooltip("Delete the currently selected " + std::string(k->name) + ".");
+        m_up->setTooltip("Move the currently selected " + std::string(k->name) + " one position up.");
+        m_down->setTooltip("Move the currently selected " + std::string(k->name) + " one position down.");
+    }
+    m_menuRemove->setLabel(part ? "Delete " + title(k->name) + "..." : std::string("Delete..."));
     m_menuRemove->setEnabled(part);
-    m_up->setEnabled(part);
-    m_down->setEnabled(part);
+    // The group's New: OpenPnP's own icon for nozzles and nozzle tips; "…" where a kind is chosen first.
+    m_add->setIcon(what == "Nozzle" ? "nozzle-add" : what == "Nozzle Tip" ? "nozzletip-add" : "general-add");
+    std::string lower = what == "Controller" ? "driver" : what;
+    for (char& c : lower) c = char(std::tolower(static_cast<unsigned char>(c)));
+    m_add->setTooltip("Create a new " + lower + ".");
+    const bool chooses = !JPSetupEdits::kinds(m_draft, m_selected).empty();
+    m_add->setLeads(chooses ? JPIconButton::Leads::Elsewhere : JPIconButton::Leads::Nowhere);
+    m_menuAdd->setLabel(what.empty() ? "New" : "New " + std::string(what == "Controller" ? "Driver" : what) + (chooses ? "..." : ""));
+    m_menuAdd->setEnabled(!what.empty());
 
     std::string problems;
     for (const std::string& p : m_draft.problems()) problems += (problems.empty() ? "" : "\n") + p;
