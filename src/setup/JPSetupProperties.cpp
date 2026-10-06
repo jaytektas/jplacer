@@ -2439,37 +2439,55 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
 
     add.tab("White Balance");
     add.group("White Balance");
-    add.header({ "Red", "Green", "Blue" });
     auto wb = [c]() -> JPCameraConfig::WhiteBalance& { return c().whiteBalance; };
+    // OpenPnP's sliders, in percent (0 to 200), each with its value to type.
     const char* channel[] = { "Red", "Green", "Blue" };
-    for (const char* row : { "Balance", "Gamma" }) {
-        const bool gamma = std::string(row) == "Gamma";
-        add.row(row);
-        for (size_t ch = 0; ch < 3; ++ch)
+    for (const bool gamma : { false, true })
+        for (size_t ch = 0; ch < 3; ++ch) {
+            const std::string label = std::string(channel[ch]) + (gamma ? " Gamma" : " Balance");
+            const std::string key = std::string(gamma ? "gamma" : "balance") + channel[ch];
             // Set by hand, as OpenPnP's: the mapped balance (which they only approximate) dropped.
-            add.number(std::string(gamma ? "gamma" : "balance") + channel[ch], std::string(channel[ch]) + " " + row,
-                       [wb, ch, gamma] { return gamma ? wb().gamma[ch] : wb().balance[ch]; },
-                       [wb, ch, gamma](double v) {
-                           (gamma ? wb().gamma[ch] : wb().balance[ch]) = v;
-                           for (auto& m : wb().maps) m.clear();
-                       }, 3);
-        add.end();
-    }
-    add.actions({ { "Overall", "whiteBalanceOverall" }, { "Brightest", "whiteBalanceBrightest" },
-                  { "Mapped Roughly", "whiteBalanceMappedRoughly" }, { "Mapped Finely", "whiteBalanceMappedFinely" },
-                  { "Reset", "whiteBalanceReset" } });
-    add.note("Each channel is scaled by its balance, then given its gamma. Overall and Brightest work them out "
-             "from what the camera sees now (something white or grey in view): the other channels brought up to "
-             "the strongest, measured over the brighter fifth of the picture, or at its edge. Mapped Roughly (8 "
-             "levels) and Mapped Finely (32) map each channel at each level of brightness, with a gradiented gray "
-             "object in view; the balance and gamma then show roughly what the map does, and setting one by hand "
-             "drops the map.");
-    // OpenPnP's color balance graph: each channel's output for each input (one line, unbalanced).
-    {
+            auto get = [wb, ch, gamma] { return gamma ? wb().gamma[ch] : wb().balance[ch]; };
+            auto set = [wb, ch, gamma](double v) {
+                (gamma ? wb().gamma[ch] : wb().balance[ch]) = std::clamp(v, 0.0, 2.0);
+                for (auto& m : wb().maps) m.clear();
+            };
+            add.row(label);
+            add.slider(key + "Slider", label, 0, 200, [get] { return int(std::lround(get() * 100)); },
+                       [set](int percent) { set(percent / 100.0); });
+            add.integer(key, label, [get] { return int(std::lround(get() * 100)); }, [set](int percent) { set(percent / 100.0); },
+                        0, 200);
+            add.bare();
+            add.end();
+        }
+    add.row("Auto White-Balance");
+    add.button("whiteBalanceOverall", "Overall",
+               "Hold a neutral bright object in front of the camera and press this button to automatically calibrate "
+               "the white-balance.\nThis method looks at where the bulk of the color is distributed, overall.");
+    add.button("whiteBalanceBrightest", "Brightest",
+               "Hold a neutral bright object in front of the camera and press this button to automatically calibrate "
+               "the white-balance.\nThis method looks at the brightest parts and averages the color in those parts.");
+    add.button("whiteBalanceMappedRoughly", "Mapped Roughly",
+               "Hold a gradiented gray object in front of the camera and press this button to automatically calibrate "
+               "the white-balance.\nThis method uses a rough mapped approach, the image must contain all shades.");
+    add.button("whiteBalanceMappedFinely", "Mapped Finely",
+               "Hold a gradiented gray object in front of the camera and press this button to automatically calibrate "
+               "the white-balance.\nThis method uses a fine mapped approach, the image must contain all shades.");
+    add.button("whiteBalanceReset", "Reset", "Switch off the white-balance / Reset to neutral.");
+    add.end();
+    add.note("Each channel is scaled by its balance, then given its gamma (100: as it is). Overall and Brightest work "
+             "them out from what the camera sees now: the other channels brought up to the strongest, measured over "
+             "the brighter fifth of the picture, or at its edge. Mapped Roughly (8 levels) and Mapped Finely (32) map "
+             "each channel at each level of brightness; the balance and gamma then show roughly what the map does, "
+             "and setting one by hand drops the map.");
+    // OpenPnP's color balance graph: each channel's output for each input (one line, unbalanced), as set now.
+    add.plot("Color Balance", [wb]() -> std::shared_ptr<const JPPlot> {
         const JPWhiteBalance table(wb());
         auto curve = std::make_shared<JPPlot>();
-        curve->xTitle = "in";
-        curve->yTitle = "out";
+        curve->xTitle = "Input Level";
+        curve->yTitle = "Output Level";
+        curve->xLo = curve->yLo = 0;
+        curve->xHi = curve->yHi = 255;
         if (wb().neutral()) {
             curve->series.push_back({ "neutral", JPPlot::Tone::Muted, { { 0, 0 }, { 255, 255 } } });
         } else {
@@ -2481,8 +2499,8 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
                 curve->series.push_back(std::move(s));
             }
         }
-        add.plot("Color Balance", curve);
-    }
+        return curve;
+    });
 
     add.tab("Position");
     coordinateSystem<JPCameraConfig>(add, cell, c, "(fixed to the machine)", true, f);

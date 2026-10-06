@@ -468,7 +468,8 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
                                                                      - 2 * (st.scrollBarWidth + st.itemPadding));
                 if (!r.label.empty()) place(label(m_graph, r.label), st.labelHeight);
                 const float h = kPlotLines * st.labelHeight;
-                auto view = std::make_unique<JPPlotView>(m_graph, r.plot);
+                auto view = std::make_unique<JPPlotView>(m_graph, r.plotNow ? r.plotNow() : r.plot);
+                if (r.plotNow) m_pulls.push_back([shown = view.get(), get = r.plotNow] { shown->setPlot(get()); });
                 view->setFixedSize(width, h);
                 place(std::move(view), h);
                 break;

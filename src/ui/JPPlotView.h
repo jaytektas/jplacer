@@ -18,6 +18,7 @@ class JPPlotView : public JWidget {
 public:
     JPPlotView(JSceneGraph& graph, std::shared_ptr<const JPPlot> plot);
 
+    void setPlot(std::shared_ptr<const JPPlot> plot);
     void populateRenderPrimitives(JPrimitiveBuffer& buf) override;
 
 private:

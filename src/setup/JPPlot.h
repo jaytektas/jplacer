@@ -33,7 +33,8 @@ struct JPPlot {
 
     Kind                kind = Kind::Lines;
     std::string         xTitle, yTitle, y2Title;
-    // The second Y axis's range (lo < hi; else as its series need).
+    // The X, Y and second Y axes' ranges (lo < hi; else as their series need).
+    double              xLo = 0, xHi = 0, yLo = 0, yHi = 0;
     double              y2Lo = 0, y2Hi = 0;
     bool                logX = false;   // x on a log scale (Lines, Points)
     std::vector<Series> series;

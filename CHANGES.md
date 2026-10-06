@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- A camera's White Balance is laid out as OpenPnP's: a slider for each colour's balance and gamma, in percent, with
+  its value to type; the Color Balance graph follows them as they move, and the Auto White-Balance buttons say how
+  each works.
 - Machine Setup's tools are OpenPnP's icons for what is chosen: Delete (asking first), Permutate Up and Down, the
   group's New, and a nozzle tip's Unload and Load (on the Jog panel's nozzle).
 - More of Machine Setup says what each setting does, in OpenPnP's words: the GcodeDriver's settings, an axis's

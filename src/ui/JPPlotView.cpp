@@ -51,6 +51,11 @@ JColor heat(double t) {
 JPPlotView::JPPlotView(JSceneGraph& graph, std::shared_ptr<const JPPlot> plot)
     : JWidget(graph, "JPPlotView"), m_plot(std::move(plot)) {}
 
+void JPPlotView::setPlot(std::shared_ptr<const JPPlot> plot) {
+    m_plot = std::move(plot);
+    m_graph.invalidateNode(m_nodeId, DirtySelf);
+}
+
 void JPPlotView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     if (!m_plot) return;
     const JRect b = bounds();
@@ -66,6 +71,8 @@ void JPPlotView::drawChart(JPrimitiveBuffer& buf, const JRect& b) const {
     chart.setRect(b.x, b.y, b.width, b.height);
     chart.setBackground(colour(Colors::ChartBg));
     chart.setAxisTitles(m_plot->xTitle, m_plot->yTitle, m_plot->y2Title);
+    if (m_plot->xLo < m_plot->xHi) chart.setXRange(m_plot->xLo, m_plot->xHi);
+    if (m_plot->yLo < m_plot->yHi) chart.setYRange(m_plot->yLo, m_plot->yHi);
     if (m_plot->y2Lo < m_plot->y2Hi) chart.setY2Range(m_plot->y2Lo, m_plot->y2Hi);
     chart.setShowLegend(m_plot->series.size() > 1);
     const bool scatter = m_plot->kind == JPPlot::Kind::Scatter;

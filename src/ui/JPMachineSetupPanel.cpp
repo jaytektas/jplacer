@@ -432,6 +432,7 @@ void JPMachineSetupPanel::changed(const std::string& property) {
     }
     // Typing on in the same field is the same step.
     record(what, at + "|" + property, at);
+    m_form->refresh();   // what shows the same setting another way (a slider's number, a graph)
 }
 
 void JPMachineSetupPanel::measured(const std::function<void(JPCellConfig&)>& edit) {

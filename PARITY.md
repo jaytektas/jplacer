@@ -134,7 +134,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Show in multi camera view? | done | a camera window of its own each: off, it starts closed |
 | OpenPnpCaptureCamera: properties with Min/Max/Default, Freeze Properties, Reapply to Camera, Capture FPS test | done | properties ticked are always set on opening (frozen) |
 | Device settings and properties table | done | |
-| White balance (balance, gamma, Overall, Brightest, Mapped Roughly / Finely, curve plot) | done | imported from OpenPnP too |
+| White balance (balance, gamma, Overall, Brightest, Mapped Roughly / Finely, curve plot) | done | OpenPnP's sliders (percent) and tips, the graph live; imported from OpenPnP too |
 | Position (head offsets, fixed location, safe Z, roaming radius) | done | |
 | Lens calibration | own way | fitted by Calibrate |
 | Image transforms (rotate, offset, flip, crop, scale, de-interlace) | done | crop and de-interlace, as under OpenPnP's advanced calibration; straightening covers the rest |

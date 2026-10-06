@@ -89,6 +89,14 @@ public:
         r.plot = std::move(plot);
         rows().push_back(std::move(r));
     }
+    // A graph under the title `label`, `plot` read again on each refresh (one that follows its settings).
+    void plot(const std::string& label, std::function<std::shared_ptr<const JPPlot>()> plot) {
+        Row r;
+        r.kind = Row::Kind::Plot;
+        r.label = label;
+        r.plotNow = std::move(plot);
+        rows().push_back(std::move(r));
+    }
     // A picture by `label`, `image` read again on each refresh.
     void image(const std::string& label, std::function<std::shared_ptr<const JPFrame>()> image, bool ownSize = false) {
         Row r;
@@ -275,6 +283,8 @@ public:
                 m_form.model.add(std::move(q));
             }
     }
+    // The last setting on the row begun shown without words of its own (the row's label is its).
+    void bare() { rows().back().cells.back().label.clear(); }
     // What the last row's label alone says when pointed at (its settings say their own).
     void labelTip(const std::string& text) { rows().back().tooltip = text; }
     // What one setting (by its property) says when pointed at, where a row has several.
