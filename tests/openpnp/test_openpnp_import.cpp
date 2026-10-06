@@ -479,5 +479,71 @@ int main() {
         for (const std::string& n : defNotes) assert(n.find("not a kind") == std::string::npos && n.find("left out") == std::string::npos);
     }
 
+    // OpenPnP's runout compensation: SampleJobTest's tip (version 2.1, ModelCameraOffsetAffine) with the runout
+    // OpenPnP measured on N1; an older tip's algorithm migrated as OpenPnP's commit() does; a table kept.
+    {
+        const std::string file = std::string(JPLACER_TESTDATA_DIR) + "/openpnp/sample-job/machine.xml";
+        JPCellConfig sample;
+        std::vector<std::string> sampleNotes;
+        assert(JPOpenPnpMachineImporter::import(file, sample, sampleNotes, error));
+        const JPNozzleTipConfig& nt = sample.nozzleTips.front();
+        assert(nt.runoutCalibration.algorithm == "ModelCameraOffsetAffine" && nt.runout.count("N1"));
+        const JPRunout& r = nt.runout.at("N1");
+        assert(r.algorithm == "ModelCameraOffsetAffine" && std::abs(r.radius - 0.40102755214753383) < 1e-12);
+        assert(std::abs(r.phaseDeg - 61.13284053048539) < 1e-12 && std::abs(r.centreX + 0.006718750000000028) < 1e-12);
+        double cx, cy;
+        r.cameraOffset(cx, cy);
+        assert(cx == r.centreX && cy == r.centreY);
+
+        std::ifstream in(file);
+        std::stringstream ss;
+        ss << in.rdbuf();
+        const std::string xml = ss.str();
+        auto withCalibration = [&](const std::string& from, const std::string& to) {
+            std::string changed = xml;
+            const size_t at = changed.find(from);
+            assert(at != std::string::npos);
+            changed.replace(at, from.size(), to);
+            const std::string path = (std::filesystem::temp_directory_path() / "jplacer-test-runout.xml").string();
+            std::ofstream(path) << changed;
+            JPCellConfig c;
+            std::vector<std::string> n;
+            assert(JPOpenPnpMachineImporter::import(path, c, n, error));
+            std::filesystem::remove(path);
+            return c.nozzleTips.front();
+        };
+        const std::string calibration = R"(runout-compensation-algorithm="ModelCameraOffsetAffine")";
+        assert(xml.find(calibration) != std::string::npos);
+        const std::string version = R"(version="2.1")";
+        assert(xml.find(version) != std::string::npos);
+        // Before 2.1: a Model one becomes its Affine counterpart; before 2: ModelCameraOffset (then Affine).
+        assert(withCalibration(version, R"(version="2.0")").runoutCalibration.algorithm == "ModelCameraOffsetAffine");
+        assert(withCalibration(calibration, R"(runout-compensation-algorithm="ModelNoOffset")")
+                   .runoutCalibration.algorithm == "ModelNoOffset");
+        {
+            std::string older = xml;
+            older.replace(older.find(version), version.size(), R"(version="2.0")");
+            older.replace(older.find(calibration), calibration.size(), R"(runout-compensation-algorithm="Model")");
+            const std::string path = (std::filesystem::temp_directory_path() / "jplacer-test-runout.xml").string();
+            std::ofstream(path) << older;
+            JPCellConfig c;
+            std::vector<std::string> n;
+            assert(JPOpenPnpMachineImporter::import(path, c, n, error));
+            std::filesystem::remove(path);
+            assert(c.nozzleTips.front().runoutCalibration.algorithm == "ModelAffine");
+            assert(c.nozzleTips.front().runout.at("N1").algorithm == "ModelCameraOffsetAffine");   // as it was measured
+        }
+        // A table: its measured offsets, in mm, by angle.
+        const JPNozzleTipConfig table = withCalibration(
+            R"(<runout-compensation class="org.openpnp.machine.reference.ReferenceNozzleTipCalibration$ModelBasedRunoutCameraOffsetCompensation")",
+            R"(<runout-compensation class="org.openpnp.machine.reference.ReferenceNozzleTipCalibration$TableBasedRunoutCompensation">)"
+            R"(<nozzle-tip-measured-locations class="java.util.ArrayList">)"
+            R"(<location units="Millimeters" x="0.1" y="0.0" z="0.0" rotation="-180.0"/>)"
+            R"(<location units="Inches" x="0.0" y="0.01" z="0.0" rotation="0.0"/>)"
+            R"(</nozzle-tip-measured-locations></runout-compensation><ignored)");
+        const JPRunout& t = table.runout.at("N1");
+        assert(t.table() && t.points.size() == 2 && t.points[0].angle == -180 && std::abs(t.points[1].dy - 0.254) < 1e-12);
+    }
+
     return 0;
 }

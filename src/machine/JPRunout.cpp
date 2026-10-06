@@ -13,72 +13,77 @@ constexpr double kRad = M_PI / 180;
 
 } // namespace
 
+const std::vector<std::string>& JPRunout::algorithms() {
+    static const std::vector<std::string> names { "Model", "ModelAffine", "ModelNoOffset", "ModelNoOffsetAffine",
+                                                  "ModelCameraOffset", "ModelCameraOffsetAffine", "Table" };
+    return names;
+}
+
 void JPRunout::runoutAt(double a, double& dx, double& dy) const {
     const double t = (a - phaseDeg) * kRad;
     dx = radius * std::cos(t);
     dy = radius * std::sin(t);
 }
 
-std::optional<JPRunout> JPRunout::fit(const std::vector<Point>& points) {
-    if (points.size() < 3) return std::nullopt;
-    // Unknowns u = (cx, cy, A, B), A = r cos phase, B = r sin phase:
-    //   dx = cx + A cos a + B sin a,   dy = cy + A sin a - B cos a.
-    // Normal equations N u = v.
-    double N[4][4] = {}, v[4] = {};
-    auto row = [&](const double r[4], double y) {
-        for (int i = 0; i < 4; ++i) {
-            v[i] += r[i] * y;
-            for (int j = 0; j < 4; ++j) N[i][j] += r[i] * r[j];
+void JPRunout::offset(double a, double& dx, double& dy) const {
+    if (table()) {
+        // OpenPnP's TableBasedRunoutCompensation: between the two measurements the angle lies between (past the
+        // last, between it and the first), in proportion.
+        dx = dy = 0;
+        if (points.empty()) return;
+        while (a < -180) a += 360;
+        while (a > 180) a -= 360;
+        const Point* p = nullptr;
+        const Point* q = nullptr;
+        if (a >= points.back().angle) {
+            p = &points.back();
+            q = &points.front();
+        } else {
+            for (size_t i = 0; i + 1 < points.size() && !p; ++i)
+                if (a < points[i + 1].angle) {
+                    p = &points[i];
+                    q = &points[i + 1];
+                }
         }
-    };
-    for (const Point& p : points) {
-        const double c = std::cos(p.angle * kRad), s = std::sin(p.angle * kRad);
-        const double rx[4] = { 1, 0, c, s }, ry[4] = { 0, 1, s, -c };
-        row(rx, p.dx);
-        row(ry, p.dy);
-    }
-    // Gaussian elimination with partial pivoting.
-    double u[4];
-    for (int k = 0; k < 4; ++k) {
-        int best = k;
-        for (int i = k + 1; i < 4; ++i)
-            if (std::abs(N[i][k]) > std::abs(N[best][k])) best = i;
-        if (std::abs(N[best][k]) < 1e-12) return std::nullopt;
-        if (best != k) {
-            for (int j = 0; j < 4; ++j) std::swap(N[k][j], N[best][j]);
-            std::swap(v[k], v[best]);
+        if (!p) {
+            p = q = &points.front();
         }
-        for (int i = k + 1; i < 4; ++i) {
-            const double f = N[i][k] / N[k][k];
-            for (int j = k; j < 4; ++j) N[i][j] -= f * N[k][j];
-            v[i] -= f * v[k];
-        }
+        const double ratio = q->angle - p->angle != 0 ? (a - p->angle) / (q->angle - p->angle) : 1.0;
+        dx = p->dx + (q->dx - p->dx) * ratio;
+        dy = p->dy + (q->dy - p->dy) * ratio;
+        return;
     }
-    for (int k = 3; k >= 0; --k) {
-        double sum = v[k];
-        for (int j = k + 1; j < 4; ++j) sum -= N[k][j] * u[j];
-        u[k] = sum / N[k][k];
+    runoutAt(a, dx, dy);
+    if (algorithm == "Model" || algorithm == "ModelAffine") {
+        dx += centreX;
+        dy += centreY;
     }
-    JPRunout r;
-    r.centreX = u[0];
-    r.centreY = u[1];
-    r.radius = std::hypot(u[2], u[3]);
-    r.phaseDeg = std::atan2(u[3], u[2]) / kRad;
-    r.points = points;
+}
+
+void JPRunout::cameraOffset(double& dx, double& dy) const {
+    const bool camera = algorithm == "ModelCameraOffset" || algorithm == "ModelCameraOffsetAffine";
+    dx = camera ? centreX : 0;
+    dy = camera ? centreY : 0;
+}
+
+void JPRunout::estimateError() {
+    // OpenPnP's estimateModelError: each measurement against the model (its centre and swing).
+    rmsMm = peakMm = 0;
+    if (points.empty() || table()) return;
     double sum = 0;
     for (const Point& p : points) {
         double sx, sy;
-        r.runoutAt(p.angle, sx, sy);
-        const double e = std::hypot(p.dx - r.centreX - sx, p.dy - r.centreY - sy);
+        runoutAt(p.angle, sx, sy);
+        const double e = std::hypot(p.dx - centreX - sx, p.dy - centreY - sy);
         sum += e * e;
-        r.peakMm = std::max(r.peakMm, e);
+        peakMm = std::max(peakMm, e);
     }
-    r.rmsMm = std::sqrt(sum / double(points.size()));
-    return r;
+    rmsMm = std::sqrt(sum / double(points.size()));
 }
 
 JPRunout JPRunout::fromJson(const JJson& j) {
     JPRunout r;
+    r.algorithm = j["algorithm"].isString() ? j["algorithm"].str() : std::string(kKeptAlgorithm);
     r.centreX = j["centre"]["x"].number();
     r.centreY = j["centre"]["y"].number();
     r.radius = j["radius"].number();
@@ -92,6 +97,7 @@ JPRunout JPRunout::fromJson(const JJson& j) {
 
 JJson JPRunout::toJson() const {
     JJson j = JJson::object();
+    j["algorithm"] = algorithm;
     j["centre"]["x"] = centreX;
     j["centre"]["y"] = centreY;
     j["radius"] = radius;

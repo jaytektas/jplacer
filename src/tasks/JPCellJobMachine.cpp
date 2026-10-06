@@ -1062,8 +1062,12 @@ bool JPCellJobMachine::alignPart(const std::string& nozzleId, const AlignRequest
     const JPMountConfig& cm = feed->config().mount;
     const double camX = cm.offsetX, camY = cm.offsetY, camZ = cm.offsetZ;
     // The nozzle turned so the part is at the look's angle (the nozzle's
-    // rotation is the part's: its rotation mode offset is the cell's).
-    double nx = camX, ny = camY, nr = rq.imageAngle;
+    // rotation is the part's: its rotation mode offset is the cell's), over
+    // the camera as it is for this nozzle (OpenPnP's camera.getLocation(nozzle):
+    // less its tip's camera offset); what is seen measured from where it is set.
+    double cameraDx = 0, cameraDy = 0;
+    c->cameraOffsetFor(nozzleId, cameraDx, cameraDy);
+    double nx = camX - cameraDx, ny = camY - cameraDy, nr = rq.imageAngle;
     // By its pipeline: given the camera looking up, prepared for the part (as OpenPnP's preparePipeline).
     std::optional<JPNozzleTipConfig> tip;
     std::shared_ptr<JPVisionComposite> composite;

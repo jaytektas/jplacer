@@ -10,6 +10,14 @@ notes.
 
 ## Unreleased
 
+- A nozzle tip's runout is fitted and compensated by OpenPnP's algorithms, chosen on its Calibration tab as
+  Compensation Algorithm: Model (the axis's offset compensated too), NoOffset (the swing alone), CameraOffset (the
+  swing alone, and the camera looking up taken to be off by the axis's offset for that nozzle, where bottom
+  vision puts the nozzle), each fitted as a circle or, the Affine ones, by an affine transform; or Table (the
+  measured offsets, interpolated). A new tip uses OpenPnP's default, ModelCameraOffsetAffine; a tip set up before
+  keeps how it was compensated (ModelNoOffset). An OpenPnP import brings the algorithm and the runout OpenPnP
+  measured on each nozzle.
+
 - An OpenPnP machine runs in Simulation Mode as it does in OpenPnP: a G-code controller brought from OpenPnP is
   simulated by OpenPnP's GcodeServer, which takes the commands that controller is set up with (G28 to home, M114,
   M400, ...). A controller OpenPnP simulates (Communications "simulated", or TCP to "GcodeServer") is simulated so

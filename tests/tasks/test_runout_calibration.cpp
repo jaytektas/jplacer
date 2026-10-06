@@ -6,7 +6,9 @@
 // the nozzle turns (a hidden radius and phase), about an axis a little off
 // where the nozzle's offset says. The calibrator must find the circle; with
 // it compensated, moves to any angle put the tip's centre where they were sent
-// (the axis's own offset aside, which is reported, not compensated).
+// (the axis's own offset aside, which is reported, not compensated). Then
+// each of OpenPnP's compensation algorithms, measured anew: where moves put
+// the tip, and where the camera looking up is taken to be for the nozzle.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
@@ -168,6 +170,45 @@ int main() {
     double tx, ty;
     tipAt(cell.positions(), tx, ty);
     assert(std::hypot(tx - kAxisX - kCamX, ty - kAxisY - kCamY) < 0.004);
+
+    // OpenPnP's compensation algorithms, each measured anew: where a move sends the tip, and where the camera
+    // looking up is for this nozzle.
+    for (const std::string& algorithm : JPRunout::algorithms()) {
+        JPCellConfig plain = cell.config();
+        plain.nozzleTips.front().runout.clear();
+        plain.nozzleTips.front().runoutCalibration.algorithm = algorithm;
+        assert(cell.reconfigure(plain, why));
+        const auto m = JPRunoutCalibrator::run(cell, feed, cell.config().nozzles.front(), cell.config().nozzleTips.front(),
+                                               JPRunoutCalibrator::Options{}, why);
+        if (!m) std::fprintf(stderr, "%s: %s\n", algorithm.c_str(), why.c_str());
+        assert(m && m->algorithm == algorithm);
+        if (!m->table())
+            assert(std::abs(m->radius - kRadius) < 0.004 && std::abs(m->centreX - kAxisX) < 0.004 && std::abs(m->centreY - kAxisY) < 0.004);
+        JPCellConfig kept = cell.config();
+        kept.nozzleTips.front().runout["N"] = *m;
+        assert(cell.reconfigure(kept, why));
+        // Model and Table: the tip where it is sent; the others: the swing alone, so it is off by the axis.
+        const bool whole = algorithm == "Model" || algorithm == "ModelAffine" || algorithm == "Table";
+        // At the angles measured, and (a table interpolating) between them.
+        for (double angle : { -90.0, 45.0, 0.0, 22.5, -157.5 }) {
+            moved.clear();
+            cell.moveTool(mount, { kCamX, kCamY, std::nullopt, angle }, 1.0);
+            assert(moved.take());
+            double ax, ay;
+            tipAt(cell.positions(), ax, ay);
+            const double ex = kCamX + (whole ? 0 : kAxisX), ey = kCamY + (whole ? 0 : kAxisY);
+            const bool between = std::fmod(std::abs(angle), 45.0) != 0;
+            // A table is straight between its angles: off the circle there by its sagitta.
+            const double within = algorithm == "Table" && between ? kRadius * (1 - std::cos(M_PI / 8)) + 0.004 : 0.004;
+            if (std::hypot(ax - ex, ay - ey) >= within)
+                std::fprintf(stderr, "%s at %g: %g, %g, expected %g, %g\n", algorithm.c_str(), angle, ax, ay, ex, ey);
+            assert(std::hypot(ax - ex, ay - ey) < within);
+        }
+        double cx = 0, cy = 0;
+        const bool camera = cell.cameraOffsetFor("N", cx, cy);
+        assert(camera == (algorithm.rfind("ModelCameraOffset", 0) == 0));
+        if (camera) assert(std::abs(cx - kAxisX) < 0.004 && std::abs(cy - kAxisY) < 0.004);
+    }
 
     feed.stop();
     cell.disconnect();

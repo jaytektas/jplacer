@@ -227,6 +227,9 @@ public:
     // vision's turn); none again when the part goes. 0: none.
     void   setRotationModeOffset(const std::string& nozzleId, std::optional<double> offset);
     double rotationModeOffset(const std::string& nozzleId) const;
+    // How far the camera looking up is taken to be from where it is set for this nozzle (its tip's runout, by a
+    // CameraOffset algorithm: OpenPnP's getCameraToolCalibratedOffset); false, and 0, when not.
+    bool cameraOffsetFor(const std::string& nozzleId, double& dx, double& dy) const;
     // The offset of the nozzle `mount` is (0 for another tool).
     double rotationModeOffsetOf(const JPMountConfig& mount) const;
     // Simulation Mode's Pick & Place Checking (OpenPnP's): a nozzle holding

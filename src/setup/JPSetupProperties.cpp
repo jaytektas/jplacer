@@ -1637,6 +1637,15 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
             "manually only.");
     add.flag("runoutFailHoming", "Fail Homing?", [rc]() -> bool& { return rc().failHoming; });
     add.tip("When the calibration fails during homing, also fail the homing cycle.");
+    add.choice("runoutAlgorithm", "Compensation Algorithm", JPRunout::algorithms(), [rc] { return rc().algorithm; },
+               [rc](const std::string& v) { rc().algorithm = v; });
+    add.tip("OpenPnP's runout compensation algorithm (its machine.xml's; ModelCameraOffsetAffine to begin with). Model: the "
+            "tip's offset from where it was sent (its axis off, and the swing) is sent the other way in every move. "
+            "NoOffset: the swing alone; the axis's offset only shown, as the camera's position error. CameraOffset: "
+            "the swing alone, and the camera looking up taken to be off by the axis's offset for this nozzle (where "
+            "the nozzle goes over it, and bottom vision). Affine: fitted by the affine transform onto a 1 mm runout, "
+            "else a circle (Kasa). Table: the measured offsets, interpolated between their angles. Calibrate again "
+            "after changing it.");
     add.integer("runoutDivisions", "Circle Divisions", [rc]() -> int& { return rc().divisions; }, RC::kLeastDivisions,
                 RC::kMostDivisions);
     add.integer("runoutMisdetects", "Allowed Misdetects", [rc]() -> int& { return rc().misdetects; }, 0, RC::kMostDivisions);
@@ -1662,9 +1671,9 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
     add.note("Position Tool takes the nozzle the tip is on over the camera looking up, at its focus plus the Z offset. "
              "Calibrate measures the tip on the nozzle it is on, over the fixed camera looking up: down to the "
              "camera's focus (plus the Z offset), turned to each of Circle Divisions angles round the circle, its "
-             "end found at each (Vision Diameter across; 0: the tip's diameter), and a circle fitted. With Compensate? "
-             "on, every move of that nozzle is sent the swing the other way, so the tip's centre lands where it is "
-             "sent at any angle. Reset forgets it for that nozzle.");
+             "end found at each (Vision Diameter across; 0: the tip's diameter), and fitted as the Compensation "
+             "Algorithm says. With Compensate? on, every move of that nozzle is sent the compensation the other way, so "
+             "the tip's centre lands where it is sent at any angle. Reset forgets it for that nozzle.");
     for (const auto& [nozzleId, r] : t().runout) {
         std::string nozzleName = nozzleId;
         for (const JPNozzleConfig& n : cell.nozzles)
@@ -1677,12 +1686,18 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
         char b[120];
         std::snprintf(b, sizeof b, "%.4f mm at %.1f deg", r.radius, r.phaseDeg);
         shown("runout", "Runout", b);
+        shown("algorithm", "Algorithm", r.algorithm);
         std::snprintf(b, sizeof b, "%+.4f, %+.4f mm", r.centreX, r.centreY);
-        shown("axis", "Axis Off By", b);
-        std::snprintf(b, sizeof b, "%.4f mm, worst %.4f", r.rmsMm, r.peakMm);
-        shown("fit", "Fit", b);
-        add.note("Axis Off By: how far the nozzle's axis is from where the camera's position and the nozzle's offset "
-                 "say; one of them is off by that much.");
+        shown("axis", r.table() ? "First Offset" : r.algorithm.rfind("ModelCameraOffset", 0) == 0 ? "Camera Position Offset"
+                                 : r.algorithm.rfind("ModelNoOffset", 0) == 0 ? "Camera Position Error" : "Center", b);
+        if (!r.table()) {
+            std::snprintf(b, sizeof b, "%.4f mm, worst %.4f", r.rmsMm, r.peakMm);
+            shown("fit", "Fit", b);
+        }
+        add.note(r.table() ? "First Offset: where the tip was found at the first angle, from where it was sent."
+                 : "How far the nozzle's axis is from where the camera's position and the nozzle's offset say: Center, "
+                   "compensated in every move (the nozzle's offset taken to be off); Camera Position Error, only shown; "
+                   "Camera Position Offset, the camera looking up taken to be off by it for this nozzle.");
         auto plot = std::make_shared<JPPlot>();
         plot->kind = JPPlot::Kind::Scatter;
         plot->xTitle = "X mm";

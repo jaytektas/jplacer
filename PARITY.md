@@ -125,6 +125,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Tool changer Vision Calibration (template images empty / occupied, trigger, Z adjust, test; Vision Calibration? on cloning) | done | the slot offset is worked out again after jplacer starts (OpenPnP keeps it in its configuration) |
 | Runout calibration pipeline (Edit / Reset, nozzleTip properties) | done | OpenPnP's default, imported; the find refined to a fraction of a pixel |
 | Runout calibration (circle divisions, misdetects, offset threshold, Z offset, vision diameter, compensation, Position Tool) | done | measured and compensated; Auto Recalibration on tip change, in jobs and on homing, with Fail Homing; to be tried on the bench with the user there |
+| Runout compensation algorithms (Model, ModelAffine, ModelNoOffset, ModelNoOffsetAffine, ModelCameraOffset, ModelCameraOffsetAffine, Table; the camera offset for its nozzle) | done | imported with OpenPnP's migration and what OpenPnP measured; chosen on the tip's Calibration tab (OpenPnP has no field for it) |
 | Runout: Calibrate Camera Position and Rotation | own way | the fixed camera's location and turn come from jplacer's camera calibration |
 | Background calibration (HSV, detail size) | done | with runout calibration; Show Problems as one picture of pairs |
 

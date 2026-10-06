@@ -213,18 +213,32 @@ nozzle's axis. **Calibrate** on the tip's Calibration tab measures it on the noz
 as the nozzle goes down to the camera), with the fixed camera looking up: the nozzle over the camera, down
 to its focus plus the **Calibration Z Offset**, turned to each of **Circle Divisions** angles round the
 circle (up to **Allowed Misdetects** of them may fail), its end found at each (**Vision Diameter** across;
-0: the tip's diameter), and a circle fitted through them by least squares. As OpenPnP's, an end found further
+0: the tip's diameter), and fitted as its **Compensation Algorithm** says (OpenPnP's, which keeps it in its
+machine.xml; **ModelCameraOffsetAffine** for a new tip, as OpenPnP's default; a tip kept before there was a
+choice keeps how it was compensated, **ModelNoOffset**). As OpenPnP's, an end found further
 than the **Offset Threshold** from where the nozzle was sent counts as a misdetect (it is looked for that far
 and 40% more); too many, and the calibration fails with OpenPnP's words. **Position Tool** takes the nozzle the
-tip is on over the camera looking up, at its focus plus the Calibration Z Offset. The results show the runout (the
-circle's radius, and the angle it points at), how far the nozzle's axis is from where the camera's position
-and the nozzle's offset say (reported, not corrected: one of those is off by that much), how well the circle
-fits, and a graph of each measurement about the axis. With **Compensate?** on, every move of that nozzle is
-sent the swing the other way, so the tip's centre lands where it is sent at any angle, and a turn alone
-moves X and Y to keep it there. Each nozzle the tip was measured on keeps its own; **Reset** forgets it for
-the nozzle it is on. An OpenPnP import brings how it is measured (whether compensated, the divisions, the
-misdetects allowed, the offset threshold, the Z offset, when it is measured again); importing again keeps what
-jplacer measured, and the tip's own pipeline. The tip is found in each picture by its **Pipeline**, as OpenPnP's
+tip is on over the camera looking up, at its focus plus the Calibration Z Offset (where the camera is for that
+nozzle, below).
+
+The algorithms, as OpenPnP's: **Model**, **ModelNoOffset** and **ModelCameraOffset** fit a circle by the Kasa
+method, the phase the average of each angle less where the end was found about its centre; their **Affine**
+ones fit the affine transform taking where an end of 1 mm runout would be onto where it was found (its
+translation the centre, its scales the runout, its rotation the phase), which copes better with noise;
+**Table** keeps the measurements themselves. With **Compensate?** on, every move of that nozzle is sent the
+compensation the other way, and a turn alone moves X and Y to keep the end where it is: a **Model** the whole
+offset (the swing, and the axis's offset from where the camera's position and the nozzle's offset say, taken
+as the nozzle's offset being off), a **NoOffset** or **CameraOffset** the swing alone, a **Table** its offsets,
+in proportion between their angles. With a **CameraOffset** one, the camera looking up is taken to be off by
+the axis's offset for that nozzle: the nozzle goes over it there for bottom vision, Position Tool and Move
+Selected Nozzle to Camera. The results show the algorithm, the runout (the circle's radius, and the angle it
+points at), the axis's offset (**Center**, **Camera Position Error** for a NoOffset one, **Camera Position
+Offset** for a CameraOffset one; a Table's **First Offset**), how well the circle fits, and a graph of each
+measurement about the axis. Each nozzle the tip was measured on keeps its own; **Reset** forgets it for the
+nozzle it is on. An OpenPnP import brings how it is measured (whether compensated, the algorithm, migrated as
+OpenPnP does for an older one, the divisions, the misdetects allowed, the offset threshold, the Z offset, when
+it is measured again) and what OpenPnP measured on each nozzle; importing again keeps what jplacer measured
+over it, and the tip's own pipeline. The tip is found in each picture by its **Pipeline**, as OpenPnP's
 (ImageCapture, DetectCircularSymmetry under the `nozzleTip` properties, given where to look, how far and the
 Vision Diameter; one result within the offset threshold, more than one not taken), its centre then measured
 to a fraction of a pixel close by: **Edit** opens it in the pipeline editor on the camera looking up, and
@@ -240,7 +254,7 @@ nozzles it fits but is not on; with **Fail Homing?**, a measurement failing then
 A job measures any tip it uses that is to be compensated and not yet measured on its nozzle (Calibrate
 nozzle tip, before the picks).
 
-<!-- src: src/machine/JPRunout.cpp (fit, runoutAt); src/machine/JPNozzleTipConfig.h (RunoutCalibration, runoutOn); src/tasks/JPRunoutCalibrator.cpp; src/tasks/JPPipelineMarkFinder.cpp; src/machine/JPCell.cpp (compensateRunout, runoutFor); src/app/JPlacerCameraTasks.cpp (calibrateRunout); src/tasks/JPRunoutCalibrator.cpp (measure); src/app/JPlacerMachine.cpp (setupAction, recalibrateAfterHoming, setTipOn); src/tasks/JPJobProcessor.cpp (calibrateNozzleTip); src/tasks/JPCellJobMachine.cpp (calibrateTip); src/setup/JPSetupProperties.cpp (nozzleTipForm); src/openpnp/JPOpenPnpMachineImporter.cpp (calibration, keepFrom) -->
+<!-- src: src/machine/JPRunout.cpp (offset, cameraOffset, algorithms); src/tasks/JPRunoutFit.cpp; src/machine/JPNozzleTipConfig.h (RunoutCalibration, runoutOn); src/machine/JPNozzleTipConfig.cpp; src/machine/JPCell.cpp (cameraOffsetFor); src/tasks/JPCellJobMachine.cpp (alignPart); src/app/JPlacerMachine.cpp (moveNozzleToCamera); src/tasks/JPRunoutCalibrator.cpp; src/tasks/JPPipelineMarkFinder.cpp; src/machine/JPCell.cpp (compensateRunout, runoutFor); src/app/JPlacerCameraTasks.cpp (calibrateRunout); src/tasks/JPRunoutCalibrator.cpp (measure); src/app/JPlacerMachine.cpp (setupAction, recalibrateAfterHoming, setTipOn); src/tasks/JPJobProcessor.cpp (calibrateNozzleTip); src/tasks/JPCellJobMachine.cpp (calibrateTip); src/setup/JPSetupProperties.cpp (nozzleTipForm); src/openpnp/JPOpenPnpMachineImporter.cpp (calibration, keepFrom) -->
 
 **Loaded?** on a nozzle's Nozzle Tips tab says which tip is on it now: ticking one moves nothing, and a tip
 is on one nozzle at a time.

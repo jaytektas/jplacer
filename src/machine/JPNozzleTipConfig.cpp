@@ -217,6 +217,8 @@ JPNozzleTipConfig JPNozzleTipConfig::fromJson(const JJson& j) {
         t.runoutCalibration.offsetThresholdMm = k["offsetThreshold"].number(t.runoutCalibration.offsetThresholdMm);
         if (!k["recalibration"].str().empty()) t.runoutCalibration.recalibration = k["recalibration"].str();
         t.runoutCalibration.failHoming     = k["failHoming"].boolean(true);
+        // Kept before there was a choice: as it was compensated, the swing alone.
+        t.runoutCalibration.algorithm = k["algorithm"].isString() ? k["algorithm"].str() : std::string(JPRunout::kKeptAlgorithm);
         t.runoutCalibration.pipeline       = k["pipeline"].str();
     }
     if (const JJson& b = j["background"]; b.isObject()) {
@@ -296,6 +298,7 @@ JJson JPNozzleTipConfig::toJson() const {
     j["runoutCalibration"]["visionDiameter"] = runoutCalibration.visionDiameter;
     j["runoutCalibration"]["recalibration"]  = runoutCalibration.recalibration;
     j["runoutCalibration"]["failHoming"]     = runoutCalibration.failHoming;
+    j["runoutCalibration"]["algorithm"]      = runoutCalibration.algorithm;
     {
         const Background& g = background;
         JJson b = JJson::object();

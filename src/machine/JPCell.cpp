@@ -2048,11 +2048,11 @@ void JPCell::compensateRunout(const JPMountConfig& mount, std::map<std::string, 
     if (at == now.end()) return;
     const double from = at->second, to = rot == targets.end() ? from : rot->second;
     if (rot == targets.end() && !targets.count(mount.axisX) && !targets.count(mount.axisY)) return;
-    // The axes now carry the swing at the angle they are at; sent where the
-    // tip's centre is to be, they carry the swing at the new angle instead.
+    // The axes now carry the compensation at the angle they are at (its algorithm's offset: the swing, with the
+    // centre for a Model, or a Table's); sent where the tip's centre is to be, the one at the new angle instead.
     double fx, fy, tx, ty;
-    r->runoutAt(from, fx, fy);
-    r->runoutAt(to, tx, ty);
+    r->offset(from, fx, fy);
+    r->offset(to, tx, ty);
     auto axis = [&](const std::string& id, double was, double swing) {
         const auto t = targets.find(id);
         const auto n = now.find(id);
@@ -2061,6 +2061,17 @@ void JPCell::compensateRunout(const JPMountConfig& mount, std::map<std::string, 
     };
     axis(mount.axisX, fx, tx);
     axis(mount.axisY, fy, ty);
+}
+
+bool JPCell::cameraOffsetFor(const std::string& nozzleId, double& dx, double& dy) const {
+    dx = dy = 0;
+    for (const JPNozzleConfig& n : m_config.nozzles)
+        if (n.id == nozzleId)
+            if (const JPRunout* r = runoutFor(n.mount)) {
+                r->cameraOffset(dx, dy);
+                return dx != 0 || dy != 0;
+            }
+    return false;
 }
 
 const JPRunout* JPCell::runoutFor(const JPMountConfig& m) const {

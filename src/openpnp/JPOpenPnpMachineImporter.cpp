@@ -1218,7 +1218,7 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             t.name = x.attr("name");
             if (const JPXmlElement* cal = x.child("calibration")) {
                 t.diameter = lengthChild(*cal, "calibration-tip-diameter");
-                // Runout: how it is measured (the measurements are jplacer's own).
+                // Runout: how it is measured and compensated, and what OpenPnP measured.
                 t.runoutCalibration.enabled = yes(cal->attr("enabled"));
                 if (const int n = int(number(cal->attr("angle-subdivisions"))); n > 0)
                     t.runoutCalibration.divisions = std::clamp(n, JPNozzleTipConfig::RunoutCalibration::kLeastDivisions,
@@ -1230,6 +1230,54 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                 else if (const double old = number(cal->attr("offset-threshold")); old > 0) t.runoutCalibration.offsetThresholdMm = old;
                 if (!cal->attr("recalibration-trigger").empty()) t.runoutCalibration.recalibration = cal->attr("recalibration-trigger");
                 t.runoutCalibration.failHoming = cal->attr("fail-homing") != "false";
+                // Its Runout Compensation Algorithm, as OpenPnP's commit() migrates it: before version 2,
+                // ModelCameraOffset; before 2.1, a Model one's Affine counterpart.
+                {
+                    std::string algorithm = cal->attr("runout-compensation-algorithm").empty()
+                                                ? std::string(JPRunout::kDefaultAlgorithm) : cal->attr("runout-compensation-algorithm");
+                    const double version = number(cal->attr("version"));
+                    if (version < 2) algorithm = "ModelCameraOffset";
+                    if (version < 2.1 && (algorithm == "Model" || algorithm == "ModelNoOffset" || algorithm == "ModelCameraOffset"))
+                        algorithm += "Affine";
+                    const auto& names = JPRunout::algorithms();
+                    if (std::find(names.begin(), names.end(), algorithm) != names.end()) t.runoutCalibration.algorithm = algorithm;
+                }
+                // What OpenPnP measured, for each nozzle: its model (the centre, radius and phase), or its table.
+                if (const JPXmlElement* lookup = cal->child("runout-compensation-lookup"))
+                    for (const JPXmlElement& entry : lookup->children) {
+                        const JPXmlElement* key = entry.child("string");
+                        const JPXmlElement* rc = entry.child("runout-compensation");
+                        if (!key || !rc) continue;
+                        const std::string kind = rc->attr("class").substr(rc->attr("class").rfind('$') + 1);
+                        const bool affine = t.runoutCalibration.algorithm.find("Affine") != std::string::npos;
+                        JPRunout r;
+                        r.when = "measured in OpenPnP";
+                        if (kind == "TableBasedRunoutCompensation") {
+                            r.algorithm = "Table";
+                            if (const JPXmlElement* list = rc->child("nozzle-tip-measured-locations"))
+                                for (const JPXmlElement& l : list->children) {
+                                    const std::string& u = l.attr("units");
+                                    r.points.push_back({ number(l.attr("rotation")), toMm(number(l.attr("x")), u), toMm(number(l.attr("y")), u) });
+                                }
+                            if (r.points.empty()) continue;
+                            r.centreX = r.points.front().dx;
+                            r.centreY = r.points.front().dy;
+                        } else {
+                            const std::string family = kind == "ModelBasedRunoutCameraOffsetCompensation" ? "ModelCameraOffset"
+                                                     : kind == "ModelBasedRunoutNoOffsetCompensation"     ? "ModelNoOffset"
+                                                     : kind == "ModelBasedRunoutCompensation"             ? "Model" : "";
+                            if (family.empty()) continue;
+                            r.algorithm = family + (affine ? "Affine" : "");
+                            const std::string& u = rc->attr("units");
+                            r.centreX = toMm(number(rc->attr("center-x")), u);
+                            r.centreY = toMm(number(rc->attr("center-y")), u);
+                            r.radius = toMm(number(rc->attr("radius")), u);
+                            r.phaseDeg = number(rc->attr("phase-shift"));
+                            r.peakMm = toMm(number(rc->attr("peak-error")), u);
+                            r.rmsMm = toMm(number(rc->attr("rms-error")), u);
+                        }
+                        t.runout[key->text] = r;
+                    }
                 // Its pipeline (what finds the tip), as OpenPnP keeps it.
                 if (const JPXmlElement* pipeline = cal->child("pipeline"); pipeline && pipeline->child("stages")) {
                     JPXmlNode cv = JPXmlNode::from(*pipeline);
@@ -1543,7 +1591,8 @@ void JPOpenPnpMachineImporter::keepFrom(const JPCellConfig& previous, JPCellConf
                 tip.loadSteps = was.loadSteps;
                 tip.unloadReversesLoad = was.unloadReversesLoad;
                 tip.unloadSteps = was.unloadSteps;
-                tip.runout = was.runout;   // measured here, not in OpenPnP
+                // Measured here: kept over what OpenPnP measured on that nozzle.
+                for (const auto& [nozzleId, r] : was.runout) tip.runout[nozzleId] = r;
             }
 }
 

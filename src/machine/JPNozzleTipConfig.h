@@ -142,6 +142,9 @@ struct JPNozzleTipConfig {
         // when not yet measured) or "Manual"; with Fail Homing, a calibration
         // failing once homed fails the homing.
         std::string recalibration = "NozzleTipChangeInJob";
+        // OpenPnP's Runout Compensation Algorithm (JPRunout::algorithms()): how the measurements are fitted and
+        // compensated; OpenPnP's default for a new tip.
+        std::string algorithm = JPRunout::kDefaultAlgorithm;
         bool   failHoming = true;
         static constexpr int kLeastDivisions = 3, kMostDivisions = 72;
     };

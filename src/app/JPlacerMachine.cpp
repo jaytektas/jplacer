@@ -1483,8 +1483,11 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
             return;
         }
         if (!readyToMove()) return;
+        // Where the camera is for this nozzle (less its tip's camera offset), as OpenPnP's getCalibrationLocation.
         const JPMountConfig& cam = up->config().mount;
-        m_cell->moveTool(on->mount, { cam.offsetX, cam.offsetY, cam.offsetZ + tip->runoutCalibration.zOffset, std::nullopt }, 1.0);
+        double dx = 0, dy = 0;
+        m_cell->cameraOffsetFor(on->id, dx, dy);
+        m_cell->moveTool(on->mount, { cam.offsetX - dx, cam.offsetY - dy, cam.offsetZ + tip->runoutCalibration.zOffset, std::nullopt }, 1.0);
         selectMoved(on->mount);
     } else if ((action == "calibrateRunout" || action == "resetRunout") && path.rfind("nozzletip:", 0) == 0) {
         // On the nozzle the tip is on; kept through Machine Setup, a step to undo.
@@ -2477,8 +2480,14 @@ void JPlacerMachine::moveNozzleToCamera(const std::string& cameraId) {
     if (!readyToMove()) return;
     for (const JPCameraConfig& cam : m_cell->config().cameras)
         if (cam.id == cameraId) {
-            // Over the camera at its focal plane, the nozzle's rotation kept; by way of safe Z.
-            m_cell->moveTool(*nozzle, { cam.mount.offsetX, cam.mount.offsetY, cam.mount.offsetZ, std::nullopt }, 1.0);
+            // Over the camera at its focal plane, the nozzle's rotation kept; by way of safe Z. The camera looking up
+            // where it is for this nozzle (less its tip's camera offset, as OpenPnP's camera.getLocation(nozzle)).
+            double dx = 0, dy = 0;
+            const JPCameraFeed* up = upCameraFeed();
+            if (up && up->config().id == cameraId)
+                for (const JPNozzleConfig& n : m_cell->config().nozzles)
+                    if (&n.mount == nozzle) m_cell->cameraOffsetFor(n.id, dx, dy);
+            m_cell->moveTool(*nozzle, { cam.mount.offsetX - dx, cam.mount.offsetY - dy, cam.mount.offsetZ, std::nullopt }, 1.0);
             selectMoved(*nozzle);
         }
 }

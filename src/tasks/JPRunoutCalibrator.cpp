@@ -6,6 +6,7 @@
 #include <opencv2/imgproc.hpp>
 
 #include "JPCameraLook.h"
+#include "JPRunoutFit.h"
 #include "machine/JPScripting.h"
 
 #include "common/JPlacerLog.h"
@@ -133,7 +134,7 @@ std::optional<JPRunout> JPRunoutCalibrator::run(JPCell& cell, JPCameraFeed& came
     std::string up;
     if (!cell.safeZAndWait(m.headId, o.speed, up) && why.empty()) why = up;
     if (!ok) return std::nullopt;
-    auto r = JPRunout::fit(points);
+    auto r = JPRunoutFit::fit(points, k.algorithm);
     if (!r) {
         why = "too few angles measured to fit the circle";
         return std::nullopt;
