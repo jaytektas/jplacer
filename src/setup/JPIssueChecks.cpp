@@ -3,6 +3,8 @@
 
 #include "JPIssueChecks.h"
 
+#include "tasks/JPVisionFeature.h"
+
 #include "JPNozzleSolution.h"
 
 #include "camera/JPVisionDeviceSettings.h"
@@ -32,6 +34,10 @@ constexpr double kSuggestedPreviewFps = 5;
 constexpr double kConventionalSafeZMm = 2;
 // OpenPnP's: the calibration rig's two fiducials at least this far apart in Z (mm).
 constexpr double kLeastRigZGapMm = 2;
+// OpenPnP's: a default nozzle's head offsets Z beyond this is taken as set (its CAUTION); a feature's diameter to
+// begin with when none is known, and the largest offered when the camera's picture size is not known (pixels).
+constexpr double kNonZeroReferenceZMm = 0.1;
+constexpr int    kFirstFeaturePx = 20, kMostFeaturePx = 1000;
 // OpenPnP's: a rotation range this close to 360° is not limited.
 constexpr double kRotationEpsilon = 1e-5;
 // OpenPnP's contact probe command without a Z soft limit or feed rate to go by.
@@ -1472,6 +1478,242 @@ void visionSetup(JPSolutions& s, const JPIssueChecks::Context& c) {
     }
 }
 
+// OpenPnP's nozzle offsets, as its VisionSolutions and CalibrationSolutions have them, for each nozzle on a head
+// with a camera: rough offsets taken from the nozzle tip touching the calibration rig's primary fiducial (and for
+// the head's first nozzle, the fiducials' Z), then precise offsets from a test object picked, turned and placed.
+void nozzleOffsets(JPSolutions& s, const JPIssueChecks::Context& c) {
+    const JPCellConfig* cell = c.cell ? c.cell() : nullptr;
+    if (!cell) return;
+    for (const JPHeadConfig& h : cell->heads) {
+        const JPCameraConfig* camera = nullptr;
+        for (const JPCameraConfig& cam : cell->cameras)
+            if (!camera && cam.mount.headId == h.id && !cam.mount.axisX.empty()) camera = &cam;
+        const JPNozzleConfig* first = nullptr;
+        for (const JPNozzleConfig& n : cell->nozzles)
+            if (!first && n.mount.headId == h.id) first = &n;
+        if (!camera || !first) continue;
+        const bool primaryXY = h.rigPrimary.has_value(), primaryZ = h.rigPrimary && h.rigPrimary->z != 0;
+        const bool secondaryXY = h.rigSecondary.has_value(), secondaryZ = h.rigSecondary && h.rigSecondary->z != 0;
+        for (const JPNozzleConfig& n : cell->nozzles) {
+            if (n.mount.headId != h.id) continue;
+            const bool isDefault = &n == first;
+            const JPAxisConfig* z = cell->axis(n.mount.axisZ);
+            const bool hasSafeZ = z && z->safeZoneLowEnabled;
+            const std::string nozzleId = n.id, headId = h.id, name = n.name;
+            // VisionSolutions' perNozzleSolutions: the offsets for the primary (and, the first nozzle, the secondary) fiducial.
+            if (s.isTargeting(Milestone::Vision) && primaryXY && (primaryZ || isDefault) && hasSafeZ) {
+                for (const bool primary : (isDefault && secondaryXY) ? std::vector<bool> { true, false } : std::vector<bool> { true }) {
+                    const std::string qualifier = primary ? "primary" : "secondary";
+                    const bool nonZeroReferenceZ = primary && isDefault && std::abs(n.mount.offsetZ) > kNonZeroReferenceZMm;
+                    Issue i;
+                    i.subject = "ReferenceNozzle " + name;
+                    i.issue = "Nozzle " + name + " offsets for the " + qualifier + " fiducial.";
+                    i.solution = "Move the nozzle " + name + " to the " + qualifier + " calibration fiducial and capture its offsets.";
+                    i.severity = Severity::Fundamental;
+                    i.uri = std::string(kWiki) + "Vision-Solutions#nozzle-offsets";
+                    i.extendedDescription =
+                        "Once the calibration " + qualifier + " fiducial is captured in X, Y you can use it to capture the nozzle "
+                        "head offsets (first approximation).\n\n"
+                        + (isDefault ? "This will also capture the calibration " + qualifier + " fiducial Z coordinate.\n\n"
+                                     : "This will also equalize Z of nozzle " + name + " to Z of the default nozzle " + first->name + ".\n\n")
+                        + (nonZeroReferenceZ ? "CAUTION: A non-zero head offsets Z has been detected on default nozzle " + name + ". "
+                                               "Accepting this solution will reset it to zero, creating the new reference in Z. This will "
+                                               "change the meaning of Z coordinates that have already been captured. Do not accept this "
+                                               "solution, unless you are confident this is OK. In the worst case, this may lead to machine "
+                                               "collisions! You have been warned!\n\n" : "")
+                        + "Jog nozzle " + name + " over the " + qualifier + " fiducial. Lower the nozzle tip down until it touches "
+                          "the fiducial.\n\nCAUTION: this is a very important Z coordinate, please capture it with care.\n\nThen press "
+                          "Accept to capture the nozzle head offsets.";
+                    i.forcedUnsolved = isDefault && !(primary ? primaryZ : secondaryZ);
+                    i.activate = [c, nozzleId] {
+                        if (c.chooseNozzle) c.chooseNozzle(nozzleId);
+                    };
+                    // What it changed, to undo: the nozzle's offsets and the fiducial's Z as they were.
+                    struct Before {
+                        double x = 0, y = 0, z = 0, fiducialZ = 0;
+                        bool   taken = false;
+                    };
+                    auto before = std::make_shared<Before>();
+                    i.apply = [c, nozzleId, headId, primary, isDefault, qualifier, before](State to, std::string& why) {
+                        if (!c.changeCell) return true;
+                        if (to != State::Solved) {
+                            if (!before->taken) return true;
+                            c.changeCell("Nozzle offsets for the " + qualifier + " fiducial", [&](JPCellConfig& cell) {
+                                for (JPNozzleConfig& k : cell.nozzles)
+                                    if (k.id == nozzleId && primary) {
+                                        k.mount.offsetX = before->x;
+                                        k.mount.offsetY = before->y;
+                                        k.mount.offsetZ = before->z;
+                                    }
+                                for (JPHeadConfig& hh : cell.heads)
+                                    if (hh.id == headId && isDefault) {
+                                        auto& rig = primary ? hh.rigPrimary : hh.rigSecondary;
+                                        if (rig) rig->z = before->fiducialZ;
+                                    }
+                            });
+                            return true;
+                        }
+                        const JPCellConfig* now = c.cell ? c.cell() : nullptr;
+                        const JPNozzleConfig* k = nullptr;
+                        const JPHeadConfig* hh = nullptr;
+                        if (now) {
+                            for (const JPNozzleConfig& x : now->nozzles) if (x.id == nozzleId) k = &x;
+                            for (const JPHeadConfig& x : now->heads) if (x.id == headId) hh = &x;
+                        }
+                        if (!k || !hh || !hh->rigPrimary || (!primary && !hh->rigSecondary)) {
+                            why = "The head's " + qualifier + " fiducial location X and Y must be set first.";
+                            return false;
+                        }
+                        // The pure nozzle location: its axes, its offsets taken away.
+                        const auto ax = c.axisPosition ? c.axisPosition(k->mount.axisX) : std::nullopt;
+                        const auto ay = c.axisPosition ? c.axisPosition(k->mount.axisY) : std::nullopt;
+                        const auto az = c.axisPosition ? c.axisPosition(k->mount.axisZ) : std::nullopt;
+                        if (!ax || !ay || !az) {
+                            why = "The machine must be connected and homed.";
+                            return false;
+                        }
+                        const JPAxisConfig* zAxis = now->axis(k->mount.axisZ);
+                        if (isDefault) {
+                            if (!zAxis || !zAxis->safeZoneLowEnabled || zAxis->safeZoneLow <= *az) {
+                                why = "The calibration " + qualifier + " fidcuial Z must be lower than Safe Z.";
+                                return false;
+                            }
+                            if (!primary && std::abs(hh->rigPrimary->z - *az) < kLeastRigZGapMm) {
+                                char gap[32];
+                                std::snprintf(gap, sizeof gap, "%g", kLeastRigZGapMm);
+                                why = std::string("Primary and secondary calibration fidcuial Z must be more than ") + gap + " mm apart.";
+                                return false;
+                            }
+                        }
+                        before->x = k->mount.offsetX;
+                        before->y = k->mount.offsetY;
+                        before->z = k->mount.offsetZ;
+                        before->fiducialZ = (primary ? hh->rigPrimary : hh->rigSecondary)->z;
+                        before->taken = true;
+                        c.changeCell("Nozzle offsets for the " + qualifier + " fiducial", [&](JPCellConfig& cell) {
+                            JPHeadConfig* head = nullptr;
+                            for (JPHeadConfig& x : cell.heads) if (x.id == headId) head = &x;
+                            for (JPNozzleConfig& x : cell.nozzles) {
+                                if (x.id != nozzleId || !head) continue;
+                                // The reference nozzle: the fiducial's Z is where its tip is.
+                                if (isDefault) (primary ? head->rigPrimary : head->rigSecondary)->z = *az;
+                                if (!primary) continue;
+                                const JPMachineLocation& p = *head->rigPrimary;
+                                double ox = p.x - *ax, oy = p.y - *ay;
+                                const double oz = p.z - *az;
+                                // Offsets near the old ones (inside the fiducial) may already be calibrated precisely: Z only.
+                                if (std::sqrt(std::pow(before->x - ox, 2) + std::pow(before->y - oy, 2) + std::pow(before->z - oz, 2))
+                                    < head->rigPrimaryDiameter * 0.5) {
+                                    ox = before->x;
+                                    oy = before->y;
+                                }
+                                x.mount.offsetX = ox;
+                                x.mount.offsetY = oy;
+                                x.mount.offsetZ = oz;
+                            }
+                        });
+                        return true;
+                    };
+                    s.add(std::move(i));
+                }
+            }
+            // CalibrationSolutions' perNozzleSolutions: the precise offsets, with a test object.
+            const bool roughlySet = n.mount.offsetX != 0 || n.mount.offsetY != 0 || n.mount.offsetZ != 0;
+            const bool simulated = isDefault && camera->device["backend"].str() == "image";
+            if (s.isTargeting(Milestone::Calibration) && primaryXY && primaryZ && (roughlySet || simulated)
+                && c.calibratePreciseNozzleOffsets) {
+                Issue i;
+                i.subject = "ReferenceNozzle " + name;
+                i.issue = "Calibrate precise camera ↔ nozzle " + name + " offsets.";
+                i.solution = "Use a test object to perform the precision camera ↔ nozzle " + name + " offsets calibration.";
+                i.severity = Severity::Fundamental;
+                i.uri = std::string(kWiki) + "Calibration-Solutions#calibrating-precision-camera-to-nozzle-offsets";
+                // The feature diameter (pixels): the test object's as known, else OpenPnP's 20.
+                auto px = std::make_shared<int>(kFirstFeaturePx);
+                if (const auto scale = c.headCameraPixelsPerMm ? c.headCameraPixelsPerMm() : std::nullopt; scale && h.rigTestObjectDiameter > 0)
+                    *px = int(std::lround(h.rigTestObjectDiameter * *scale));
+                int width = 0, height = 0;
+                if (!camera->calibrations.empty()) {
+                    width = camera->calibrations.front().width;
+                    height = camera->calibrations.front().height;
+                }
+                JPSolutions::Property diameter;
+                diameter.kind = JPSolutions::Property::Kind::Integer;
+                diameter.label = "Feature diameter";
+                diameter.tooltip = "Adjust the feature diameter that should be detected.";
+                diameter.min = JPVisionFeature::kLeastDiameterPx;
+                diameter.max = width > 0 ? JPVisionFeature::maxDiameter(width, height) : kMostFeaturePx;
+                diameter.getNumber = [px] { return double(*px); };
+                diameter.setNumber = [c, px](double v) {
+                    *px = int(v);
+                    if (c.previewFeature) c.previewFeature(*px);   // shown on the camera's view
+                };
+                i.properties.push_back(std::move(diameter));
+                JPSolutions::Property next;
+                next.kind = JPSolutions::Property::Kind::Action;
+                next.tooltip = "Cycle to the next auto-detected contour";
+                next.actionLabel = "Auto-Detect Next";
+                next.action = [c, px, sp = &s] {
+                    if (!c.autoDetectFeature) return;
+                    c.autoDetectFeature(*px, [px, sp](std::optional<int> found) {
+                        if (found) *px = *found;
+                        sp->solutionChanged();
+                    });
+                };
+                i.properties.push_back(std::move(next));
+                // The test object's height, captured as the fiducials' are: the nozzle tip touching it.
+                JPSolutions::Property capture;
+                capture.kind = JPSolutions::Property::Kind::Action;
+                capture.tooltip = "Jog nozzle " + name + " down until its tip touches the test object, then capture its Z: where "
+                                  "the nozzle picks and places it. Not captured: the primary fiducial's Z.";
+                capture.actionLabel = "Capture Test Object Z";
+                capture.action = [c, nozzleId, headId, sp = &s] {
+                    const auto z = c.nozzleZ ? c.nozzleZ(nozzleId) : std::nullopt;
+                    if (!z || !c.changeCell) return;
+                    c.changeCell("Test object Z", [&](JPCellConfig& cell) {
+                        for (JPHeadConfig& x : cell.heads)
+                            if (x.id == headId) x.rigTestObjectZ = *z;
+                    });
+                    sp->solutionChanged();
+                };
+                i.properties.push_back(std::move(capture));
+                char heightText[160];
+                if (h.rigTestObjectZ) std::snprintf(heightText, sizeof heightText, "\n\nTest object Z: %.3f mm (captured).", *h.rigTestObjectZ);
+                else std::snprintf(heightText, sizeof heightText, "\n\nTest object Z: %.3f mm (the primary fiducial's; capture it for a thicker "
+                                                                  "object).", h.rigPrimary->z);
+                std::string results = heightText;
+                if (const auto r = c.nozzleOffsetsResult ? c.nozzleOffsetsResult(nozzleId) : std::nullopt) {
+                    char buf[320];
+                    std::snprintf(buf, sizeof buf,
+                                  "\n\nResults:\nDetected Nozzle Head Offsets: %.4f, %.4f mm\nPrevious Nozzle Head Offsets: %.4f, %.4f mm\n"
+                                  "Difference: %+.4f, %+.4f mm",
+                                  r->afterX, r->afterY, r->beforeX, r->beforeY, r->afterX - r->beforeX, r->afterY - r->beforeY);
+                    results += buf;
+                }
+                i.extendedDescription =
+                    "To calibrate precision camera ↔ nozzle offsets, we let the nozzle pick, rotate and place a small test "
+                    "object and then measure the resulting offsets using the camera.\n\nInstructions about suitable test objects "
+                    "etc. must be obtained in the OpenPnP Wiki. Press the blue Info button (below) to open the Wiki.\n\nPlace the "
+                    "calibration test object onto the calibration primary fiducial.\n\nJog camera " + camera->name + " over the "
+                    "test object. Target it with the cross-hairs.\n\nJog nozzle " + name + " down until its tip touches the test "
+                    "object and press Capture Test Object Z (for anything thicker than paper).\n\nAdjust the Feature diameter up and down and see if it is "
+                    "detected right in the camera view. A green circle and cross-hairs should appear and hug the test object "
+                    "contour. Zoom the camera using the scroll-wheel.\n\nCAUTION The nozzle " + name + " will move to the test "
+                    "object and perform the calibration pick & place pattern. Make sure to load the right nozzle tip and ready the "
+                    "vacuum system.\n\nWhen ready, press Accept." + results;
+                const std::string cameraId = camera->id;
+                i.activate = [c, cameraId] {
+                    if (c.showCamera) c.showCamera(cameraId);
+                };
+                solvedByWork(s, i, [c, nozzleId, px](std::function<void(bool)> finished) {
+                    c.calibratePreciseNozzleOffsets(nozzleId, *px, std::move(finished));
+                });
+                s.add(std::move(i));
+            }
+        }
+    }
+}
+
 // OpenPnP's CameraSolutions on how the cameras show: the preview's rate,
 // suspended in tasks, brought forward, and drawn smoothed.
 void cameraViews(JPSolutions& s, const JPIssueChecks::Context& c) {
@@ -1573,6 +1815,7 @@ std::vector<JPSolutions::Check> JPIssueChecks::all(const Context& c) {
         [c](JPSolutions& s) { cameraViews(s, c); },
         [c](JPSolutions& s) { cameraProperties(s, c); },
         [c](JPSolutions& s) { visionSetup(s, c); },
+        [c](JPSolutions& s) { nozzleOffsets(s, c); },
         [c](JPSolutions& s) { calibration(s, c); },
         [c](JPSolutions& s) { scripting(s, c); },
         [c](JPSolutions& s) { production(s, c); },

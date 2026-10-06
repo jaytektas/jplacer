@@ -19,6 +19,7 @@ JPHeadConfig JPHeadConfig::fromJson(const JJson& j) {
     h.rigPrimaryDiameter    = rig["primaryDiameter"].number();
     h.rigSecondaryDiameter  = rig["secondaryDiameter"].number();
     h.rigTestObjectDiameter = rig["testObjectDiameter"].number();
+    if (rig["testObjectZ"].isNumber()) h.rigTestObjectZ = rig["testObjectZ"].number();
     h.pumpActuatorId        = j["pump"]["actuator"].str();
     h.zProbeActuatorId      = j["zProbeActuator"].str();
     h.pumpControl           = j["pump"]["control"].str();
@@ -43,6 +44,7 @@ JJson JPHeadConfig::toJson() const {
         rig["primaryDiameter"]    = rigPrimaryDiameter;
         rig["secondaryDiameter"]  = rigSecondaryDiameter;
         rig["testObjectDiameter"] = rigTestObjectDiameter;
+        if (rigTestObjectZ) rig["testObjectZ"] = *rigTestObjectZ;
         j["calibrationRig"] = rig;
     }
     if (!zProbeActuatorId.empty()) j["zProbeActuator"] = zProbeActuatorId;

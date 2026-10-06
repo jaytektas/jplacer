@@ -119,6 +119,12 @@ JPIssuesPanel::JPIssuesPanel(JSceneGraph& graph, JPSolutions& solutions, double 
     m_milestoneText = add(std::make_unique<JLabel>(graph, " - "));
     m_milestoneText->setFixedSize(0.f, st.labelHeight);
     m_milestoneText->setHSizePolicy(JSizePolicyMode::Expanding, 1);
+    // An issue's properties changed behind its controls: shown again, on the next frame.
+    m_solutions.onSolutionChanged = [this, alive = std::weak_ptr<bool>(m_alive)] {
+        jPostToNextFrame([this, alive] {
+            if (alive.lock()) showIssue();
+        });
+    };
     m_warn = add(std::make_unique<JLabel>(graph, ""));
     m_warn->setFixedSize(0.f, st.labelHeight);
     m_warn->setHSizePolicy(JSizePolicyMode::Expanding, 1);
@@ -180,7 +186,10 @@ JPIssuesPanel::JPIssuesPanel(JSceneGraph& graph, JPSolutions& solutions, double 
     selectionChanged();
 }
 
-JPIssuesPanel::~JPIssuesPanel() { *m_alive = false; }
+JPIssuesPanel::~JPIssuesPanel() {
+    *m_alive = false;
+    m_solutions.onSolutionChanged = nullptr;
+}
 
 double JPIssuesPanel::split() const {
     const std::vector<float> f = m_split->fractions();

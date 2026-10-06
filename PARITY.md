@@ -127,6 +127,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Runout calibration (circle divisions, misdetects, offset threshold, Z offset, vision diameter, compensation, Position Tool) | done | measured and compensated; Auto Recalibration on tip change, in jobs and on homing, with Fail Homing; to be tried on the bench with the user there |
 | Runout compensation algorithms (Model, ModelAffine, ModelNoOffset, ModelNoOffsetAffine, ModelCameraOffset, ModelCameraOffsetAffine, Table; the camera offset for its nozzle) | done | imported with OpenPnP's migration and what OpenPnP measured; chosen on the tip's Calibration tab (OpenPnP has no field for it) |
 | Runout: Calibrate Camera Position and Rotation | done | Affine or circle fit, as the algorithm; the turn into jplacer's calibration (else the picture's rotation, as OpenPnP); Excenter Ratio imported |
+| Nozzle offsets in Issues & Solutions (offsets for the primary/secondary fiducial; Calibrate precise camera ↔ nozzle offsets with Feature diameter, Auto-Detect Next, results) | done | plus Capture Test Object Z (jplacer's own: a test object thicker than paper) |
 | Background calibration (HSV, detail size) | done | with runout calibration; Show Problems as one picture of pairs |
 
 ## Cameras

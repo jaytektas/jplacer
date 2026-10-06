@@ -1218,6 +1218,10 @@ void JPlacerMachine::selectMoved(const JPMountConfig& mount) {
         if (!id.empty()) m_jog->selectTool(id);
 }
 
+void JPlacerMachine::chooseTool(const std::string& toolId) {
+    if (m_jog) m_jog->selectTool(toolId);
+}
+
 bool JPlacerMachine::readyToMove() {
     if (!m_cell || !m_cell->isConnected()) {
         m_window.showStatus("Connect the machine first", kErrorMs);
@@ -1528,30 +1532,6 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
                             cam.rotation -= fix.turnDeg;
                     }
             });
-        });
-    } else if (action == "calibrateNozzleOffsets" && path.rfind("nozzle:", 0) == 0) {
-        const std::string nozzleId = path.substr(7);
-        JPCameraPanel* camera = m_cameraTasks->headCamera();
-        const JPNozzleConfig* nozzle = nullptr;
-        for (const JPNozzleConfig& n : m_cell->config().nozzles)
-            if (n.id == nozzleId) nozzle = &n;
-        if (!camera || !nozzle) {
-            m_window.showStatus("Nozzle offsets: a camera on the head and the nozzle are needed", kErrorMs);
-            return;
-        }
-        m_cameraTasks->calibrateNozzleOffsets(*camera, *nozzle, [this, nozzleId](double dx, double dy) {
-            if (!m_setup) return;
-            m_setup->change("Precise nozzle offsets", [&](JPCellConfig& cell) {
-                for (JPNozzleConfig& n : cell.nozzles)
-                    if (n.id == nozzleId) {
-                        JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << "Set nozzle " << n.name << " head offsets to "
-                            << n.mount.offsetX + dx << ", " << n.mount.offsetY + dy << " (previously " << n.mount.offsetX
-                            << ", " << n.mount.offsetY << ")";
-                        n.mount.offsetX += dx;
-                        n.mount.offsetY += dy;
-                    }
-            });
-            m_setup->remakeForm();
         });
     } else if ((action == "autoFocusTest" || action == "adjustCameraZ") && path.rfind("camera:", 0) == 0) {
         const std::string cameraId = path.substr(7);
@@ -2017,6 +1997,84 @@ void JPlacerMachine::capturePrimaryFiducial(const std::string& headId, std::func
             if (finished) finished(mark.has_value());
         });
     }, true);
+}
+
+void JPlacerMachine::previewFeature(int px) {
+    JPCameraPanel* camera = m_cameraTasks ? m_cameraTasks->headCamera() : nullptr;
+    if (camera) m_cameraTasks->previewFeature(*camera, px);
+}
+
+void JPlacerMachine::autoDetectFeature(int fromPx, std::function<void(std::optional<int>)> done) {
+    JPCameraPanel* camera = m_cameraTasks ? m_cameraTasks->headCamera() : nullptr;
+    if (!camera) {
+        if (done) done(std::nullopt);
+        return;
+    }
+    m_cameraTasks->autoDetectFeature(*camera, fromPx, std::move(done));
+}
+
+std::optional<double> JPlacerMachine::headCameraPixelsPerMm() const {
+    JPCameraPanel* camera = m_cameraTasks ? m_cameraTasks->headCamera() : nullptr;
+    if (!camera || !m_cell) return std::nullopt;
+    const auto cals = m_cell->cameraCalibrations(camera->camera().id);
+    if (cals.empty()) return std::nullopt;
+    return cals.front().scale();
+}
+
+std::optional<JPlacerMachine::OffsetsResult> JPlacerMachine::nozzleOffsetsResult(const std::string& nozzleId) const {
+    const auto it = m_offsetsResults.find(nozzleId);
+    return it == m_offsetsResults.end() ? std::nullopt : std::optional(it->second);
+}
+
+void JPlacerMachine::calibratePreciseNozzleOffsets(const std::string& nozzleId, int px, std::function<void(bool ok)> finished) {
+    JPCameraPanel* camera = m_cameraTasks ? m_cameraTasks->headCamera() : nullptr;
+    const JPNozzleConfig* nozzle = nullptr;
+    if (m_cell)
+        for (const JPNozzleConfig& n : m_cell->config().nozzles)
+            if (n.id == nozzleId) nozzle = &n;
+    if (!camera || !nozzle) {
+        m_window.showStatus("Nozzle offsets: a camera on the head and the nozzle are needed", kErrorMs);
+        if (finished) finished(false);
+        return;
+    }
+    // The test object measured where the camera looks now, and kept as the head's (OpenPnP's
+    // setCalibrationTestObjectDiameter); then the calibration with it.
+    const std::string headId = nozzle->mount.headId;
+    m_cameraTasks->measureFeature(*camera, px, [this, nozzleId, headId, finished](std::optional<double> mm) {
+        if (!mm || !m_cell) {
+            if (finished) finished(false);
+            return;
+        }
+        changeSetup("Calibration test object diameter", [&](JPCellConfig& cell) {
+            for (JPHeadConfig& h : cell.heads)
+                if (h.id == headId) h.rigTestObjectDiameter = *mm;
+        });
+        JPCameraPanel* again = m_cameraTasks ? m_cameraTasks->headCamera() : nullptr;
+        const JPNozzleConfig* n = nullptr;
+        for (const JPNozzleConfig& k : m_cell->config().nozzles)
+            if (k.id == nozzleId) n = &k;
+        if (!again || !n) {
+            if (finished) finished(false);
+            return;
+        }
+        m_cameraTasks->calibrateNozzleOffsets(*again, *n, [this, nozzleId, finished](bool ok, double dx, double dy) {
+            if (ok && m_setup) {
+                m_setup->change("Precise nozzle offsets", [&](JPCellConfig& cell) {
+                    for (JPNozzleConfig& k : cell.nozzles)
+                        if (k.id == nozzleId) {
+                            OffsetsResult r { k.mount.offsetX, k.mount.offsetY, k.mount.offsetX + dx, k.mount.offsetY + dy };
+                            JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << "Set nozzle " << k.name << " head offsets to " << r.afterX
+                                << ", " << r.afterY << " (previously " << r.beforeX << ", " << r.beforeY << ")";
+                            k.mount.offsetX = r.afterX;
+                            k.mount.offsetY = r.afterY;
+                            m_offsetsResults[nozzleId] = r;
+                        }
+                });
+                m_setup->remakeForm();
+            }
+            if (finished) finished(ok);
+        });
+    });
 }
 
 bool JPlacerMachine::onMainWait(const std::function<void()>& fn) {

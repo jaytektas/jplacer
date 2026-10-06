@@ -125,6 +125,11 @@ public:
     std::function<void()> onChanged;
     // A milestone completed or gone back to: searched again.
     std::function<void()> onMilestoneChanged;
+    // OpenPnP's solutionChanged: an issue's properties changed behind its controls (Auto-Detect Next): shown again.
+    std::function<void()> onSolutionChanged;
+    void solutionChanged() const {
+        if (onSolutionChanged) onSolutionChanged();
+    }
 
 private:
     void addMilestoneIssue();

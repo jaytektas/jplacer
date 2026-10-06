@@ -16,6 +16,7 @@
 
 #include <functional>
 #include <map>
+#include <optional>
 #include <memory>
 #include <string>
 #include <thread>
@@ -76,8 +77,15 @@ public:
     // picks it at 6 angles round the circle and places it turned 180 degrees,
     // the camera finding it after each. `done` (main thread): how far the
     // nozzle's X and Y offsets are off (the average of where it moved, half
-    // its turns' displacement each).
-    void calibrateNozzleOffsets(JPCameraPanel& camera, const JPNozzleConfig& nozzle, std::function<void(double, double)> done);
+    // its turns' displacement each); not ok: it failed.
+    void calibrateNozzleOffsets(JPCameraPanel& camera, const JPNozzleConfig& nozzle, std::function<void(bool ok, double, double)> done);
+    // OpenPnP's VisionFeatureIssue, on `camera`'s settled picture where it looks now (JPVisionFeature): the feature
+    // of about `px` found and shown on its view (the circle and its cross-hairs, "Diameter N px - Score S", as the
+    // issue's Feature diameter shows it); Auto-Detect Next from `fromPx` (`done`, main thread: the diameter, none
+    // when there is none); and measured (`done`: its diameter in mm by the camera's calibration, none when not found).
+    void previewFeature(JPCameraPanel& camera, int px);
+    void autoDetectFeature(JPCameraPanel& camera, int fromPx, std::function<void(std::optional<int>)> done);
+    void measureFeature(JPCameraPanel& camera, int px, std::function<void(std::optional<double> mm)> done);
     // OpenPnP's Auto Focus Test: the nozzle (with its tip) over the fixed
     // camera, from its tip's largest part height above the camera's Z down
     // to it, found in focus (JPAutoFocus). `done` (main thread): how far above

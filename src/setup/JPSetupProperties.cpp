@@ -1017,9 +1017,19 @@ void headForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
     add.row("Test Object");
     add.skip();
     add.skip();
-    add.skip();
+    add.length("rigTestObjectZ", "Test Object Z",
+               [h] { return h().rigTestObjectZ.value_or(h().rigPrimary ? h().rigPrimary->z : 0.0); },
+               [h](double v) { h().rigTestObjectZ = v; });
+    add.tip("The test object's top, where a nozzle picks and places it for its precise offsets (captured in Issues & "
+            "Solutions with the nozzle tip touching it). Not set: the primary fiducial's Z, for a paper-thin object.");
     add.length("rigTestObjectDiameter", "Test Object", [h]() -> double& { return h().rigTestObjectDiameter; });
-    add.tip("The diameter of the test object the nozzles' precise offsets are calibrated with (a nozzle's Offset Wizard).");
+    add.tip("The diameter of the test object the nozzles' precise offsets are calibrated with (Issues & Solutions' "
+            "Calibrate precise camera \u2194 nozzle offsets).");
+    add.flag("rigTestObjectZSet", "Test Object Z Set?", [h] { return h().rigTestObjectZ.has_value(); },
+             [h](bool on) {
+                 if (!on) h().rigTestObjectZ.reset();
+                 else if (!h().rigTestObjectZ) h().rigTestObjectZ = h().rigPrimary ? h().rigPrimary->z : 0.0;
+             });
     add.end();
     add.note("Diameter: diameter of the fiducial. A head camera is calibrated over the homing fiducial and, with Two "
              "Heights? on (its Advanced Calibration), again over the secondary fiducial, at least 1 mm higher or lower.");
@@ -1174,15 +1184,6 @@ void nozzleForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     add.actions({ { "Calculate Nozzle Offset", "calculateNozzleOffset" } });
     add.note("The offsets on the Configuration tab change by how far the camera is from where the nozzle thought it "
              "was; Undo takes them back.");
-    // OpenPnP's precise camera <-> nozzle offsets calibration with a test object.
-    add.group("Precise Offsets with a Test Object");
-    add.note("Place the calibration test object (its diameter: the head's Calibration Rig Test Object) onto the head's "
-             "primary calibration fiducial, load the right nozzle tip and ready the vacuum. The camera finds the "
-             "object; the nozzle picks it at several angles round the circle (six, unless an OpenPnP import says otherwise) "
-             "and places it turned 180 degrees, the camera "
-             "finding it after each; the true nozzle axis is midway, so its X and Y offsets change by the average of "
-             "where it moved (runout cancels out). CAUTION: the nozzle moves to the test object.");
-    add.actions({ { "Calibrate Precise Offsets", "calibrateNozzleOffsets" } });
 
     // OpenPnP's ContactProbeNozzle wizard (a ReferenceNozzle has none).
     if (!n().contactProbe.nozzle) return;

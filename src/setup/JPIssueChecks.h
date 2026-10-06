@@ -73,6 +73,22 @@ public:
         std::function<std::string(const std::string& driverId)> firmwareProfile;
         // `config` changed (saved, and the tabs showing it told).
         std::function<void()> configurationChanged;
+        // The nozzle chosen on the Jog panel; a camera's view brought to the front.
+        std::function<void(const std::string& nozzleId)> chooseNozzle;
+        std::function<void(const std::string& cameraId)> showCamera;
+        // OpenPnP's VisionFeatureIssue with the head camera: the feature of `px` shown on its view, Auto-Detect Next
+        // (`done`: the diameter found), and its pixels a mm (none: not calibrated).
+        std::function<void(int px)> previewFeature;
+        std::function<void(int fromPx, std::function<void(std::optional<int>)> done)> autoDetectFeature;
+        std::function<std::optional<double>()> headCameraPixelsPerMm;
+        // OpenPnP's precise nozzle offsets: the test object measured at `px` and kept, then picked, turned and placed.
+        std::function<void(const std::string& nozzleId, int px, std::function<void(bool ok)> finished)> calibratePreciseNozzleOffsets;
+        struct OffsetsResult {
+            double beforeX = 0, beforeY = 0, afterX = 0, afterY = 0;
+        };
+        std::function<std::optional<OffsetsResult>(const std::string& nozzleId)> nozzleOffsetsResult;
+        // Where a nozzle's Z is now, as a pick at a Z takes it (none: not known).
+        std::function<std::optional<double>(const std::string& nozzleId)> nozzleZ;
         // A change to the cell's settings, a Machine Setup step (undone as one).
         std::function<void(const std::string& what, const std::function<void(JPCellConfig&)>& edit)> changeCell;
     };

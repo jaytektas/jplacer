@@ -3,6 +3,8 @@
 
 #include "JPlacerCameraTasks.h"
 
+#include <opencv2/imgproc.hpp>
+
 #include "tasks/JPAutoFocus.h"
 
 #include "common/JPlacerLog.h"
@@ -10,6 +12,7 @@
 #include "tasks/JPCameraLook.h"
 #include "tasks/JPVisualHoming.h"
 #include "tasks/JPVisualTest.h"
+#include "tasks/JPVisionFeature.h"
 #include "vision/JPRoundMarkFinder.h"
 
 #include <j/core/Dialog.h>
@@ -28,6 +31,8 @@ namespace {
 // so they go at the machine's speed (the Jog panel's Speed, which scales
 // every move), as jogs and parks do.
 constexpr double kTaskSpeed = 1.0;
+// How long a feature found is shown on the camera's view (OpenPnP's diagnosticsMilliseconds).
+constexpr int kFeatureShownMs = 4000;
 // OpenPnP's precise nozzle offsets calibration (its angles: the cell's nozzleOffsetAngles): the extra wait after each
 // pick and place, the test object's height (a pseudo part's), and centring on it (passes, near enough).
 constexpr int    kExtraVacuumDwellMs = 300;
@@ -392,15 +397,17 @@ void JPlacerCameraTasks::calibrateRunoutCamera(const std::string& nozzleId, Came
 }
 
 void JPlacerCameraTasks::calibrateNozzleOffsets(JPCameraPanel& camera, const JPNozzleConfig& nozzle,
-                                                std::function<void(double, double)> done) {
+                                                std::function<void(bool, double, double)> done) {
     if (const std::string why = notReady(&camera, true, false); !why.empty()) {
         m_window.showStatus("Nozzle offsets: " + why, kResultMs);
+        if (done) done(false, 0, 0);
         return;
     }
     const JPHeadConfig* h = head(camera.camera());
     if (!h || !h->rigPrimary || h->rigTestObjectDiameter <= 0) {
         m_window.showStatus("Nozzle offsets: the head's calibration rig needs its primary fiducial and the test object's diameter",
                             kResultMs);
+        if (done) done(false, 0, 0);
         return;
     }
     const JPHeadConfig rig = *h;
@@ -412,7 +419,8 @@ void JPlacerCameraTasks::calibrateNozzleOffsets(JPCameraPanel& camera, const JPN
         JPCameraCalibration cal;
         if (!JPCameraLook::calibration(m_cell, *feed, cal, words)) return false;
         const double scale = cal.scale();
-        const double z = rig.rigPrimary->z;
+        // Picked and placed at the test object's top: captured, else the primary fiducial's Z (a paper-thin object).
+        const double z = rig.rigTestObjectZ.value_or(rig.rigPrimary->z);
         // OpenPnP's centerInOnSubjectLocation: the camera over the test object, until it is centred.
         auto centreOn = [&](double& x, double& y) {
             for (int pass = 0; pass < kCentrePasses; ++pass) {
@@ -477,7 +485,116 @@ void JPlacerCameraTasks::calibrateNozzleOffsets(JPCameraPanel& camera, const JPN
         words = buf;
         return true;
     }, [offsets, done](bool ok) {
-        if (ok && done) done(offsets->first, offsets->second);
+        if (done) done(ok, offsets->first, offsets->second);
+    });
+}
+
+namespace {
+
+// A settled picture from `feed`, in colour (BGR); false, and why, when there is none.
+bool settledColour(JPCameraFeed& feed, cv::Mat& bgr, std::string& why) {
+    JPGrayImage settled;
+    if (!JPCameraLook::settled(feed, settled, why)) return false;
+    JPFrame frame;
+    if (!feed.latest(frame, 0) || frame.width <= 0) {
+        why = feed.config().name + " gives no picture";
+        return false;
+    }
+    cv::Mat rgba(frame.height, frame.width, CV_8UC4, frame.rgba.data());
+    cv::cvtColor(rgba, bgr, cv::COLOR_RGBA2BGR);
+    return true;
+}
+
+JPFrame frameOf(const cv::Mat& bgr) {
+    cv::Mat rgba;
+    cv::cvtColor(bgr, rgba, cv::COLOR_BGR2RGBA);
+    JPFrame f;
+    f.width = rgba.cols;
+    f.height = rgba.rows;
+    f.rgba.assign(rgba.data, rgba.data + rgba.total() * 4);
+    f.captured = std::chrono::steady_clock::now();
+    return f;
+}
+
+} // namespace
+
+void JPlacerCameraTasks::previewFeature(JPCameraPanel& camera, int px) {
+    if (m_busy) return;   // another task's pictures are not to be taken from under it
+    JPCameraPanel* panel = &camera;
+    run(camera, "Feature diameter", [this, panel, px](std::string& words, const auto&) {
+        cv::Mat bgr;
+        if (!settledColour(panel->feed(), bgr, words)) return false;
+        double score = 0;
+        const auto found = JPVisionFeature::detect(bgr, px, JPVisionFeature::kPreviewSearch, true, true, score);
+        char text[96];
+        std::snprintf(text, sizeof text, "Diameter %d px - Score %.2f", px, score);
+        words = text;
+        std::weak_ptr<bool> alive = m_alive;
+        JMainThreadDispatcher::instance().post([alive, panel, frame = frameOf(bgr), text = std::string(text)] {
+            if (const auto a = alive.lock(); a && *a) panel->view().showPicture(frame, text, kFeatureShownMs);
+        });
+        return found.has_value();
+    }, nullptr);
+}
+
+void JPlacerCameraTasks::autoDetectFeature(JPCameraPanel& camera, int fromPx, std::function<void(std::optional<int>)> done) {
+    if (m_busy) {
+        if (done) done(std::nullopt);
+        return;
+    }
+    JPCameraPanel* panel = &camera;
+    auto result = std::make_shared<std::optional<int>>();
+    run(camera, "Auto-Detect Next", [this, panel, fromPx, result](std::string& words, const auto& progress) {
+        cv::Mat bgr;
+        if (!settledColour(panel->feed(), bgr, words)) return false;
+        progress("trying every diameter");
+        *result = JPVisionFeature::next(bgr, fromPx);
+        if (!*result) {
+            words = "no feature found";
+            return false;
+        }
+        // The best diameter shown again.
+        double score = 0;
+        JPVisionFeature::detect(bgr, **result, JPVisionFeature::kPreviewSearch, true, true, score);
+        char text[96];
+        std::snprintf(text, sizeof text, "Best Diameter %d px", **result);
+        words = text;
+        std::weak_ptr<bool> alive = m_alive;
+        JMainThreadDispatcher::instance().post([alive, panel, frame = frameOf(bgr), text = std::string(text)] {
+            if (const auto a = alive.lock(); a && *a) panel->view().showPicture(frame, text, kFeatureShownMs);
+        });
+        return true;
+    }, [result, done](bool) {
+        if (done) done(*result);
+    });
+}
+
+void JPlacerCameraTasks::measureFeature(JPCameraPanel& camera, int px, std::function<void(std::optional<double>)> done) {
+    if (const std::string why = m_busy ? std::string("a camera task is already under way") : notReady(&camera, true, false); !why.empty()) {
+        m_window.showStatus("Feature: " + why, kResultMs);
+        if (done) done(std::nullopt);
+        return;
+    }
+    JPCameraPanel* panel = &camera;
+    auto mm = std::make_shared<std::optional<double>>();
+    run(camera, "Measuring the feature", [this, panel, px, mm](std::string& words, const auto&) {
+        JPCameraCalibration cal;
+        if (!JPCameraLook::calibration(m_cell, panel->feed(), cal, words)) return false;
+        cv::Mat bgr;
+        if (!settledColour(panel->feed(), bgr, words)) return false;
+        double score = 0;
+        const auto found = JPVisionFeature::detect(bgr, px, 0, false, false, score);
+        if (!found) {
+            words = "Subject not found.";
+            return false;
+        }
+        *mm = found->diameter / cal.scale();
+        char text[96];
+        std::snprintf(text, sizeof text, "the feature is %.3f mm (%.1f px) across", **mm, found->diameter);
+        words = text;
+        return true;
+    }, [mm, done](bool) {
+        if (done) done(*mm);
     });
 }
 

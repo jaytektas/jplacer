@@ -472,6 +472,14 @@ const JPNozzleConfig* JPCell::nozzleOf(const JPMountConfig& mount) const {
     return nullptr;
 }
 
+std::optional<double> JPCell::toolZ(const JPMountConfig& mount) const {
+    if (mount.axisZ.empty()) return std::nullopt;
+    const auto p = positions();
+    const auto z = p.find(mount.axisZ);
+    if (z == p.end()) return std::nullopt;
+    return z->second + zOffsetOf(mount);
+}
+
 double JPCell::zOffsetOf(const JPMountConfig& mount) const {
     // A nozzle's tip Z calibration (OpenPnP's toHeadLocation): the tip met lower than it should,
     // the nozzle goes that much lower everywhere.

@@ -729,6 +729,28 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         context.capturePrimaryFiducial = [this](const std::string& id, std::function<void(bool)> finished) {
             m_machine.capturePrimaryFiducial(id, std::move(finished));
         };
+        context.chooseNozzle = [this](const std::string& id) { m_machine.chooseTool(id); };
+        context.showCamera = [this](const std::string& id) { m_machine.showCamera(id); };
+        context.previewFeature = [this](int px) { m_machine.previewFeature(px); };
+        context.autoDetectFeature = [this](int fromPx, std::function<void(std::optional<int>)> done) {
+            m_machine.autoDetectFeature(fromPx, std::move(done));
+        };
+        context.headCameraPixelsPerMm = [this] { return m_machine.headCameraPixelsPerMm(); };
+        context.calibratePreciseNozzleOffsets = [this](const std::string& id, int px, std::function<void(bool)> finished) {
+            m_machine.calibratePreciseNozzleOffsets(id, px, std::move(finished));
+        };
+        context.nozzleOffsetsResult = [this](const std::string& id) -> std::optional<JPIssueChecks::Context::OffsetsResult> {
+            const auto r = m_machine.nozzleOffsetsResult(id);
+            if (!r) return std::nullopt;
+            return JPIssueChecks::Context::OffsetsResult { r->beforeX, r->beforeY, r->afterX, r->afterY };
+        };
+        context.nozzleZ = [this](const std::string& id) -> std::optional<double> {
+            const JPCell* cell = m_machine.cell();
+            if (!cell || !cell->isConnected()) return std::nullopt;
+            for (const JPNozzleConfig& n : cell->config().nozzles)
+                if (n.id == id) return cell->toolZ(n.mount);
+            return std::nullopt;
+        };
         context.enableVisualHoming = [this](const std::string& id, std::function<void(bool)> finished) {
             m_machine.enableVisualHoming(id, std::move(finished));
         };

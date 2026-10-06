@@ -10,6 +10,14 @@ notes.
 
 ## Unreleased
 
+- Nozzle offsets are calibrated in Issues & Solutions, as in OpenPnP: "Nozzle N offsets for the primary fiducial"
+  (jog the nozzle tip onto the fiducial and Accept; the first nozzle also sets the fiducials' Z), then "Calibrate
+  precise camera <-> nozzle N offsets", with OpenPnP's Feature diameter (each change shows the circle found on the
+  camera, which should hug the test object) and Auto-Detect Next; Accept measures the test object, then picks,
+  turns and places it, and shows the result. The test object's height can be captured with the nozzle tip touching
+  it (Capture Test Object Z), for anything thicker than paper; it is kept on the head's Calibration Rig. Calibrate
+  Precise Offsets has left the nozzle's Machine Setup page.
+
 - Changing a nozzle's X/Y offsets (Calibrate Precise Offsets, or typing them) takes along what depends on them, as
   in OpenPnP: the nozzle tips' runout is forgotten (it was measured against the old offsets), the manual tip change
   location moves with it, an actuator fastened to it gets the new offsets, and for the head's first nozzle the

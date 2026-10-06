@@ -201,6 +201,19 @@ public:
     // over the primary fiducial, calibrated there, and the fiducial found with it made the calibration rig's
     // primary fiducial (its X, Y and diameter).
     void capturePrimaryFiducial(const std::string& headId, std::function<void(bool ok)> finished);
+    // OpenPnP's "Calibrate precise camera <-> nozzle offsets." with the head camera: the feature (the test object)
+    // previewed at `px`, Auto-Detect Next from `fromPx` (main thread: the diameter), and Accept: the test object
+    // measured at `px` and kept as the head's Calibration Rig Test Object, then the pick, turn and place pattern,
+    // the nozzle's offsets changed by what it found (a Machine Setup step). The head camera's pixels a mm (none:
+    // not calibrated); and the last result for each nozzle (its offsets before and after).
+    void previewFeature(int px);
+    void autoDetectFeature(int fromPx, std::function<void(std::optional<int>)> done);
+    void calibratePreciseNozzleOffsets(const std::string& nozzleId, int px, std::function<void(bool ok)> finished);
+    std::optional<double> headCameraPixelsPerMm() const;
+    struct OffsetsResult {
+        double beforeX = 0, beforeY = 0, afterX = 0, afterY = 0;
+    };
+    std::optional<OffsetsResult> nozzleOffsetsResult(const std::string& nozzleId) const;
     // The open cell's file.
     const std::string& cellPath() const { return m_cellPath; }
     // A script's request of the machine (JPScripting::api), answered.
@@ -251,8 +264,9 @@ public:
     JPCameraFeed* cameraFeed(const std::string& idOrName) const;
     // A camera's picture in front (where its dock is), for a look at it.
     void showCamera(const std::string& cameraId);
-    // The nozzle chosen on the Jog panel (else the first); empty: none.
+    // The nozzle chosen on the Jog panel (else the first); empty: none. A tool (a nozzle, camera or actuator) chosen there.
     std::string   chosenNozzleId() const;
+    void          chooseTool(const std::string& toolId);
     std::string   tipChangeRefusal(const std::string& nozzleId, const std::string& tipId) const;
     void          setTipOn(const std::string& nozzleId, const std::string& tipId);
     // OpenPnP's Photon feeders talk through a machine actuator named
@@ -378,7 +392,8 @@ private:
     JPMachineSetupPanel::FeederPages m_setupFeederPages;   // each Machine Setup made is given them
     JPVisionTests                       m_setupVisionTests;
     JPConfiguration*                    m_configuration = nullptr;
-    JPPnpChecking                  m_pnpChecking;   // Simulation Mode's Pick & Place Checking
+    JPPnpChecking                  m_pnpChecking;
+    std::map<std::string, OffsetsResult> m_offsetsResults;   // by nozzle: Calibrate precise offsets' last   // Simulation Mode's Pick & Place Checking
     JPlacerScriptVision                 m_scriptVision;  // scripts' pipelines (OpenPnP's CvPipeline)
     JPlacerNeoden4Buzzer                m_neoden4Buzzer { *this };   // Neoden4Signaler's beeping
     std::map<std::string, std::string>  m_nozzleParts;   // nozzle: the part it holds

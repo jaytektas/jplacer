@@ -230,6 +230,9 @@ public:
     // How far the camera looking up is taken to be from where it is set for this nozzle (its tip's runout, by a
     // CameraOffset algorithm: OpenPnP's getCameraToolCalibratedOffset); false, and 0, when not.
     bool cameraOffsetFor(const std::string& nozzleId, double& dx, double& dy) const;
+    // Where a tool's Z is now, as a move to a Z takes it (its axis, its offset and a nozzle tip's Z calibration):
+    // what a captured height is; none when its Z axis's place is not known.
+    std::optional<double> toolZ(const JPMountConfig& mount) const;
     // The offset of the nozzle `mount` is (0 for another tool).
     double rotationModeOffsetOf(const JPMountConfig& mount) const;
     // Simulation Mode's Pick & Place Checking (OpenPnP's): a nozzle holding
