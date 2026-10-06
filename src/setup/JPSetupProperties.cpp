@@ -330,7 +330,8 @@ void machineForm(JPCellConfig& cell, JPSetupProperties::Form& f, const JPMotionT
     simulationTab(cell, add, f);
 }
 
-void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPFirmwareProfile>& profiles, JPSetupProperties::Form& f) {
+void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPFirmwareProfile>& profiles, JPSetupProperties::Form& f,
+                const JPSetupProperties::Live& live) {
     auto d = finder(cell.drivers, id);
     f.title = "Controller " + d().name;
     JPFormBuilder add(f);
@@ -583,6 +584,27 @@ void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPF
     add.group("Import / Export");
     add.button("gcode:export", "Export Gcode File", "Export the Gcode profile to a file.");
     add.button("gcode:copy", "Copy Gcode to Clipboard", "Copy the Gcode profile to the clipboard.");
+
+    // OpenPnP's Console: what passes between jplacer and this controller, and a line to send to it.
+    add.tab("Console");
+    add.group("Gcode console");
+    add.text("console:lines", "", [console = live.driverConsole, id] {
+        std::vector<std::string> lines = console ? console(id) : std::vector<std::string> {};
+        // Always as many lines (the box keeps its height), the newest at the bottom.
+        if (lines.size() > JPSetupProperties::kConsoleLines)
+            lines.erase(lines.begin(), lines.end() - long(JPSetupProperties::kConsoleLines));
+        std::string text(JPSetupProperties::kConsoleLines - lines.size(), '\n');
+        for (size_t i = 0; i < lines.size(); ++i) text += (i ? "\n" : "") + lines[i];
+        return text;
+    }, nullptr, "lines");
+    add.row("Command line:");
+    add.text("console:command", "Command line:", [] { return JPSetupProperties::consoleCommand(); },
+             [](const std::string& v) { JPSetupProperties::consoleCommand() = v; }, "command:consoleSend");
+    add.button("consoleSend", "Send", "Send the command line to this controller.");
+    add.end();
+    add.flag("console:upperCase", "Force Upper Case", [] { return JPSetupProperties::consoleUpperCase(); },
+             [](bool on) { JPSetupProperties::consoleUpperCase() = on; });
+    for (const char* p : { "console:lines", "console:command", "console:upperCase" }) f.viewOnly.push_back(p);
 }
 
 // What measuring an axis's backlash found, as graphs.
@@ -3080,6 +3102,16 @@ int& JPSetupProperties::neoden4NewFeederId() {
     return id;
 }
 
+std::string& JPSetupProperties::consoleCommand() {
+    static std::string line;
+    return line;
+}
+
+bool& JPSetupProperties::consoleUpperCase() {
+    static bool on = true;   // OpenPnP's: on, as most controllers want their commands
+    return on;
+}
+
 JPSetupProperties::Form JPSetupProperties::forNode(JPCellConfig& cell, const std::string& path, const std::vector<JPFirmwareProfile>& profiles,
                                                    JPConfiguration* config, const JPVisionTests* tests,
                                                    const JPMotionTestResult* motionTest, const Live& live) {
@@ -3089,7 +3121,7 @@ JPSetupProperties::Form JPSetupProperties::forNode(JPCellConfig& cell, const std
     else if (p.kind == "jobprocessor") jobProcessorForm(cell, f);
     else if (p.kind == "vision" && p.id == "bottom") bottomVisionForm(cell, f, config, tests);
     else if (p.kind == "vision" && p.id == "fiducial") fiducialLocatorForm(cell, f, config, tests);
-    else if (p.kind == "driver" && has(cell.drivers, p.id)) driverForm(cell, p.id, profiles, f);
+    else if (p.kind == "driver" && has(cell.drivers, p.id)) driverForm(cell, p.id, profiles, f, live);
     else if (p.kind == "axis" && has(cell.axes, p.id)) axisForm(cell, p.id, f);
     else if (p.kind == "head" && has(cell.heads, p.id)) headForm(cell, p.id, f);
     else if (p.kind == "nozzle" && has(cell.nozzles, p.id)) nozzleForm(cell, p.id, f);

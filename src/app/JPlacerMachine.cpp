@@ -38,6 +38,8 @@
 #include <j/core/Log.h>
 #include <j/core/MainThreadDispatcher.h>
 
+#include <algorithm>
+#include <cctype>
 #include <cstdlib>
 #include <filesystem>
 #include <future>
@@ -598,6 +600,12 @@ std::unique_ptr<JPMachineSetupPanel> JPlacerMachine::makeSetup() {
     setup->setHal(&m_window.hal());
     // Template pictures are named by what they hold: one read is kept.
     setup->live.cameraControls = [this](const std::string& cameraId) { return cameraDeviceControls(cameraId); };
+    setup->live.driverConsole = [this, consoles = m_consoles](const std::string& driverId) {
+        if (m_cell)
+            for (const JPDriverConfig& d : m_cell->config().drivers)
+                if (d.id == driverId) return consoles->lines(d.name);
+        return std::vector<std::string> {};
+    };
     setup->live.zCalibration = [this](const std::string& tipId) -> std::optional<double> {
         if (!m_cell) return std::nullopt;
         for (const JPNozzleConfig& n : m_cell->config().nozzles)
@@ -776,6 +784,17 @@ void JPlacerMachine::watchCell() {
     }));
     // A home by the switches is finished with the camera where the head homes visually.
     // A new calibration straightens the picture from then on.
+    // Each controller's traffic, for its Console tab: kept, the tab shown again (at most once a frame) when it is the one shown.
+    m_unwatch.push_back(m_cell->onTraffic.connect([this, consoles = m_consoles, due = m_consoleDue, alive](std::string name, bool sent,
+                                                                                                         std::string line) {
+        consoles->add(name, sent, line);
+        if (due->exchange(true)) return;
+        JMainThreadDispatcher::instance().post([this, due, alive] {
+            due->store(false);
+            if (const auto a = alive.lock(); !a || !*a || !m_setup) return;
+            if (m_setupSelected.rfind("driver:", 0) == 0) m_setup->refreshForm();
+        });
+    }));
     m_unwatch.push_back(m_cell->onCalibration.connect([this, onMain] {
         onMain([this] {
             for (CameraDock& c : m_cameras) c.panel->refreshStraightening();
@@ -1318,6 +1337,18 @@ bool JPlacerMachine::readyToMove() {
 }
 
 void JPlacerMachine::setupAction(const std::string& path, const std::string& action) {
+    // A driver's Console: the command line sent to it (Force Upper Case as ticked), the line cleared.
+    if (action == "consoleSend" && path.rfind("driver:", 0) == 0 && m_cell) {
+        std::string line = JPSetupProperties::consoleCommand();
+        if (line.empty()) return;
+        if (JPSetupProperties::consoleUpperCase())
+            std::transform(line.begin(), line.end(), line.begin(), [](unsigned char ch) { return char(std::toupper(ch)); });
+        JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "console: " << line;
+        m_cell->sendLine(path.substr(7), line);
+        JPSetupProperties::consoleCommand().clear();
+        refreshSetupForm();
+        return;
+    }
     if (!m_cameraTasks) return;
     if (action == "testMotion" && m_cell) {
         // The tool chosen on the Jog panel: a nozzle or a camera, else the first nozzle.

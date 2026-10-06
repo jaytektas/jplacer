@@ -138,6 +138,8 @@ public:
         std::function<JJson(const std::string& cameraId)> cameraControls;
         // The Z calibration offset of the nozzle a tip is loaded on (OpenPnP's calibrationOffsetZ; none: not calibrated).
         std::function<std::optional<double>(const std::string& nozzleTipId)> zCalibration;
+        // A controller's G-code console (OpenPnP's driver Console tab): its traffic, newest last.
+        std::function<std::vector<std::string>(const std::string& driverId)> driverConsole;
     };
     static Form forNode(JPCellConfig& cell, const std::string& path, const std::vector<JPFirmwareProfile>& profiles,
                         JPConfiguration* config = nullptr, const JPVisionTests* tests = nullptr,
@@ -145,6 +147,10 @@ public:
     // The New ID chosen on a NeoDen 4 feeder actuator's form, for its Change
     // Feeder ID (not kept).
     static int& neoden4NewFeederId();
+    // A driver Console's command line as typed (sent by "consoleSend") and its Force Upper Case (not kept).
+    static std::string& consoleCommand();
+    static bool& consoleUpperCase();
+    static constexpr size_t kConsoleLines = 24;   // the console's lines shown
 };
 
 } // inline namespace jf

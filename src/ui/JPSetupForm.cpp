@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
 #include "JPSetupForm.h"
+#include "JPHistoryLineEdit.h"
 
 #include "JPGroupFrame.h"
 #include "JPIconButton.h"
@@ -295,6 +296,16 @@ std::unique_ptr<JWidget> JPSetupForm::editor(const JProperty& p, float width) {
         box->setEnabled(false);
         return box;
     }
+    if (!p.writable() && isText(p) && p.meta.editor == "lines") {
+        // Lines shown, not edited (a console's): as tall as they are, across the row.
+        auto value = std::make_unique<JLabel>(m_graph, p.get().toString(), 0.f, linesHeight(p));
+        JLabel* v = value.get();
+        v->setWordWrap(true);
+        v->setHSizePolicy(JSizePolicyMode::Expanding, 1);
+        v->setVSizePolicy(JSizePolicyMode::Fixed);
+        m_pulls.push_back([v, get = p.get] { v->setText(get().toString()); });
+        return value;
+    }
     if (!p.writable()) {
         // As wide as its text with room to spare, and no narrower than a number's field (it may grow).
         auto value = std::make_unique<JLabel>(m_graph, p.get().toString(), 0.f, st.labelHeight);
@@ -325,6 +336,28 @@ std::unique_ptr<JWidget> JPSetupForm::editor(const JProperty& p, float width) {
         e.widget->setHSizePolicy(JSizePolicyMode::Expanding, 1);
         e.widget->setVSizePolicy(JSizePolicyMode::Fixed);
         e.widget->setSize(m_graph.getLayoutConst(e.widget->getNodeId()).boundingBox.width, linesHeight(p));
+        m_pulling = true;
+        e.pull();
+        m_pulling = false;
+        m_pulls.push_back(e.pull);
+        return std::move(e.widget);
+    }
+    if (isText(p) && p.meta.editor.rfind("command:", 0) == 0) {
+        // A command line (a console's): kept as typed, Return does the action after "command:", the lines
+        // sent before (Up, Down) offered again.
+        auto line = std::make_unique<JPHistoryLineEdit>(m_graph, "");
+        JPHistoryLineEdit* l = line.get();
+        l->onTextChanged.connect([set = bound.set](const std::string& t) { set(JVariant(t)); });
+        l->onReturnPressed.connect([this, l, action = p.meta.editor.substr(8)] {
+            l->remember(l->text());
+            if (onAction) onAction(action);
+        });
+        e.pull = [l, get = p.get] {
+            if (const std::string now = get().toString(); now != l->text()) l->setText(now);
+        };
+        e.widget = std::move(line);
+        e.widget->setHSizePolicy(JSizePolicyMode::Expanding, 1);
+        e.widget->setVSizePolicy(JSizePolicyMode::Fixed);
         m_pulling = true;
         e.pull();
         m_pulling = false;

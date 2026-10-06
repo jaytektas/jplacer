@@ -4,6 +4,7 @@
 #pragma once
 
 #include "JPlacerCameraTasks.h"
+#include "JPlacerDriverConsoles.h"
 #include "JPlacerEstimateZ.h"
 #include "JPlacerLayout.h"
 #include "JPlacerNeoden4Buzzer.h"
@@ -32,6 +33,7 @@
 #include "model/JPLocation.h"
 
 #include <array>
+#include <atomic>
 #include <functional>
 #include <map>
 #include <memory>
@@ -367,6 +369,9 @@ private:
     JPlacerNeoden4Buzzer                m_neoden4Buzzer { *this };   // Neoden4Signaler's beeping
     std::map<std::string, std::string>  m_nozzleParts;   // nozzle: the part it holds
     std::vector<std::function<void()>>  m_unwatch;   // this class's watches on the cell
+    // Each controller's traffic for its Console tab, and whether the form is to be shown again for it.
+    std::shared_ptr<JPlacerDriverConsoles> m_consoles = std::make_shared<JPlacerDriverConsoles>();
+    std::shared_ptr<std::atomic<bool>>     m_consoleDue = std::make_shared<std::atomic<bool>>(false);
     std::shared_ptr<bool>               m_alive = std::make_shared<bool>(true);
     std::thread::id                     m_mainThread = std::this_thread::get_id();   // the screen's
     // `fn` run on the screen's thread, waited for (a script's request); false when jplacer is closing.

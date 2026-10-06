@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- A controller in Machine Setup has OpenPnP's Console tab: its G-code traffic as it happens, and a command line to
+  send it a line (Force Upper Case as OpenPnP's).
 - The Help menu's What's New is OpenPnP's Change Log, and Check for Updates its Check For Updates….
 - A new configuration's vision settings are made in OpenPnP's order: the Default Machine Bottom Vision before
   the Whole Part Body settings.
