@@ -54,6 +54,13 @@ public:
     std::function<void(JPPlacementsHolderLocation* where, const std::string& placementId, bool on)> onPlacementEnabled;
     std::function<void(JPPlacementsHolderLocation* where, bool on)> onLocationEnabled;
     std::function<void(JPPlacementsHolderLocation* where, bool on)> onCheckFiducials;
+    // The job's viewer's, as OpenPnP's: a placement's Placed? (and what it
+    // is now), the head camera centred on a place, and a board's or panel's
+    // fiducial check.
+    std::function<bool(const JPPlacementsHolderLocation* where, const std::string& placementId)> placedOf;
+    std::function<void(JPPlacementsHolderLocation* where, const std::string& placementId, bool placed)> onPlacementPlaced;
+    std::function<void(const JPLocation& at)> onCenterCamera;
+    std::function<void(JPPlacementsHolderLocation* where)> onFiducialCheck;
 
     void populateRenderPrimitives(JPrimitiveBuffer& buf) override;
     void handleMousePress(float mx, float my) override;

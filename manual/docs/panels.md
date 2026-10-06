@@ -72,9 +72,12 @@ up in another, struck through when it is not enabled), and as ticked its **Board
 **Board/Panel Origins**, **Fiducials** and **Placements**, and a **Reticle**. **Viewing From Top** turns to
 the bottom and back; a panel can show its children only or all its descendants. The wheel zooms about
 the pointer; drag to pan. Right-click a board, panel, placement or fiducial for its **Enabled?** and
-**Check Fids?**.
+**Check Fids?**. In the job's viewer, as OpenPnP's, a placement or fiducial also has **Placed?** and
+**Center Camera on Placement** (or **Fiducial**), and a board or panel **Center Camera on Board Location**
+(or **Panel Location**: its origin, or for one bottom side up its corner at the far X) and **Run Fiduicial
+Check on Board Location** (as the Job tab's Fiducial Check: set by its fiducials, the camera taken there).
 
-<!-- src: src/ui/JPPlacementsViewer.cpp; src/ui/JPPlacementsViewerCanvas.cpp; src/app/JPlacerViewerDock.cpp -->
+<!-- src: src/ui/JPPlacementsViewer.cpp; src/ui/JPPlacementsViewerCanvas.cpp; src/app/JPlacerViewerDock.cpp; src/app/JPlacerOpenPnpTabs.cpp; src/app/JPlacerJobRun.cpp (fiducialCheck) -->
 
 ## Saving panels
 

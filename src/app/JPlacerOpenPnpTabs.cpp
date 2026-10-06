@@ -837,6 +837,18 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         m_jobPanel->placements().refresh();
         if (m_jobViewer) m_jobViewer->regenerate();
     };
+    // The job viewer's right-click menu, as OpenPnP's.
+    JPPlacementsViewerCanvas& jobCanvas = m_jobViewer->canvas();
+    jobCanvas.placedOf = [this](const JPPlacementsHolderLocation* where, const std::string& id) {
+        return m_job.job().retrievePlacedStatus(*where, id);
+    };
+    jobCanvas.onPlacementPlaced = [this](JPPlacementsHolderLocation* where, const std::string& id, bool placed) {
+        m_job.job().storePlacedStatus(*where, id, placed);
+        m_job.changed();
+        m_jobRun->onPlaced();
+    };
+    jobCanvas.onCenterCamera = [this](const JPLocation& at) { m_machine.moveToolTo(JPSetupForm::Tool::Camera, at); };
+    jobCanvas.onFiducialCheck = [this](JPPlacementsHolderLocation* where) { m_jobRun->fiducialCheck(where); };
     m_jobRun->showSource = [this](const JPJobProcessor::Failure& f) {
         using Source = JPJobProcessor::Failure::Source;
         switch (f.source) {

@@ -634,6 +634,24 @@ void JPPlacementsViewerCanvas::prepareContextMenu(float mx, float my) {
         enabled->onTriggered.connect([this, at, id, on] {
             if (onPlacementEnabled) onPlacementEnabled(at, id, on);
         });
+        if (m_isJob && at) {
+            m_menu->addSeparator(g);
+            JMenuItem* placed = m_menu->add(g, "Placed?");
+            placed->setCheckable(true);
+            const bool was = placedOf && placedOf(at, id);
+            placed->setChecked(was);
+            placed->onTriggered.connect([this, at, id, was] {
+                if (onPlacementPlaced) onPlacementPlaced(at, id, !was);
+            });
+            m_menu->addSeparator(g);
+            const std::string type = placement->type == JPPlacement::Type::Placement ? "Placement" : "Fiducial";
+            JMenuItem* centre = m_menu->add(g, "Center Camera on " + type);
+            centre->setTooltip("Centers the top camera on the " + type);
+            const JPLocation there = at->placementLocation(placement->location);
+            centre->onTriggered.connect([this, there] {
+                if (onCenterCamera) onCenterCamera(there);
+            });
+        }
     } else {
         m_menu->add(g, where->kind() == JPPlacementsHolderLocation::Kind::Board ? "Board" : "Panel")->setEnabled(false);
         if (!uniqueId.empty()) m_menu->add(g, "Id:   " + uniqueId)->setEnabled(false);
@@ -656,6 +674,26 @@ void JPPlacementsViewerCanvas::prepareContextMenu(float mx, float my) {
         fids->onTriggered.connect([this, where, check] {
             if (onCheckFiducials) onCheckFiducials(where, check);
         });
+        if (m_isJob) {
+            const std::string type = where->kind() == JPPlacementsHolderLocation::Kind::Board ? "Board Location" : "Panel Location";
+            m_menu->addSeparator(g);
+            JMenuItem* centre = m_menu->add(g, "Center Camera on " + type);
+            centre->setTooltip("Centers the top camera on the " + type);
+            // Its origin; a board or panel bottom side up, the corner at its far X (as OpenPnP's).
+            JPLocation origin(JPLengthUnit::Millimeters);
+            if (where->globalSide() == JPSide::Bottom && where->holder)
+                origin = JPLocation(where->holder->dimensions.units(), where->holder->dimensions.x(), 0, 0, 0);
+            const JPLocation there = where->placementLocation(origin);
+            centre->onTriggered.connect([this, there] {
+                if (onCenterCamera) onCenterCamera(there);
+            });
+            m_menu->addSeparator(g);
+            JMenuItem* check = m_menu->add(g, "Run Fiduicial Check on " + type);
+            check->setTooltip("Runs a fiducial check and adjusts the position and rotation of the " + type);
+            check->onTriggered.connect([this, where] {
+                if (onFiducialCheck) onFiducialCheck(where);
+            });
+        }
     }
     setContextMenu(m_menu.get());
 }

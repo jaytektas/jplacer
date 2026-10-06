@@ -56,12 +56,14 @@ public:
     std::function<void(const JPJobProcessor::Failure&)> showSource;
     // A placement placed: the placed counts and tables shown again.
     std::function<void()> onPlaced;
+    // The Job tab's Fiducial Check of one board or panel (also the job viewer's):
+    // it set by its fiducials (where it is straight in the job), the camera taken to it.
+    void fiducialCheck(JPPlacementsHolderLocation* location);
 
 private:
     void startPauseResume();
     void step();
     void stop();
-    void fiducialCheck(JPPlacementsHolderLocation* location);
     // Starts the processor anew (asking to reset a job all placed), then runs it.
     void start(JPJobPanel::RunState as);
     // The run on the worker: steps while Running (one while Pausing).

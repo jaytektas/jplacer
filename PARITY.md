@@ -164,6 +164,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Board location, side, rotation | done | from fiducials |
 | Panels (arrays, nested) | done | Panels tab |
 | Boards tab (board definitions, placements editing) | done | |
+| Board, panel and job viewers (outlines, origins, fiducials, placements, reticle; right-click Enabled?, Check Fids?, Placed?, Center Camera, Run Fiducial Check) | done | |
 
 ## Parts, packages, vision, feeders, jobs
 
