@@ -49,7 +49,7 @@ done. The window can be made bigger by dragging its edge.
     first and have had less testing. Off when jplacer is first installed.
 
 **Check Now**
-:   Closes Preferences and looks for a newer version straight away, as **Help ▸ Check for Updates**
+:   Closes Preferences and looks for a newer version straight away, as **Help ▸ Check For Updates…**
     does.
 
 <!-- src: src/app/JPlacerSettings.cpp (updatesAtStartup defaults to true, updatesBeta to false); src/app/JPlacerPreferencesDialog.cpp (the Updates rows, Check Now) -->

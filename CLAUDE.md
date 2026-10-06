@@ -40,7 +40,7 @@ at once. Every icon button chooses; none is left ambiguous.
 carries a `<!-- src: -->` note naming the file it comes from (never a line
 number). A change a user would notice updates the manual IN THE SAME COMMIT,
 and adds a plain-words line under `## Unreleased` in `CHANGES.md`. The manual
-ships inside the AppImage (Help > User Manual), What's New is generated from
+ships inside the AppImage (Help > User Manual), the Change Log (What's New) is generated from
 `CHANGES.md`, and `manual/tools/build.sh` fails on a stale source note or a
 broken link.
 
@@ -66,5 +66,5 @@ Use the `release` and `beta` skills; they run `packaging/build-release.sh` and
 release raises the patch (a hand-raised version is kept) and commits it with
 the CHANGES.md notes; a beta is built as `<next patch>-beta.N` without
 committing any version, and published as a GitHub pre-release from the `beta`
-branch. `JAppUpdater` checks at startup and on Help > Check for Updates; set
+branch. `JAppUpdater` checks at startup and on Help > Check For Updates…; set
 `JPLACER_UPDATE_URL` to point it at a test releases URL.

@@ -304,12 +304,12 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
         open(&JPlacerHelpPages::openManual, "User manual opened in your browser");
     });
     help->addSeparator(graph);
-    entry(keys, help, graph, "help.whatsNew", "Help", "What's New", none, [open] {
-        open(&JPlacerHelpPages::openWhatsNew, "What's New opened in your browser");
+    entry(keys, help, graph, "help.whatsNew", "Help", "Change Log", none, [open] {
+        open(&JPlacerHelpPages::openWhatsNew, "Change Log opened in your browser");
     });
     help->addSeparator(graph);
     entry(keys, help, graph, "help.submitDiagnostics", "Help", "Submit Diagnostics\xE2\x80\xA6", none, [&app] { app.openDiagnostics(); });
-    entry(keys, help, graph, "help.checkUpdates", "Help", "Check for Updates", none, [&app] { app.updater().check(true); });
+    entry(keys, help, graph, "help.checkUpdates", "Help", "Check For Updates\xE2\x80\xA6", none, [&app] { app.updater().check(true); });
 }
 
 } // inline namespace jf

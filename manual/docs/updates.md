@@ -8,7 +8,7 @@ jplacer updates itself. Updates come from the project's
 - **When jplacer opens**, unless you have turned that off in [Preferences](preferences.md). It only
   speaks up when there is a newer version: no internet connection, for example, is not worth
   interrupting you for every time.
-- **Help ▸ Check for Updates** (or **Check Now** in Preferences). Because you asked, you are told every
+- **Help ▸ Check For Updates…** (or **Check Now** in Preferences). Because you asked, you are told every
   answer: a newer version, that you are up to date, or that it could not check and why.
 
 <!-- src: src/app/JPlacerApp.cpp (run checks at startup when updatesAtStartup); JFramework include/j/app/JAppUpdater.h (check, manual reports every outcome) -->
@@ -21,7 +21,7 @@ whether to download and install it.
 - **Update** downloads it, with a progress window you can cancel. When the download is complete,
   jplacer closes, puts the new version in place and starts it again.
 - **Not now** leaves it for later. Tick **Don't ask about *version* again** first and that version is
-  not offered when jplacer opens; a later version is, and **Check for Updates** still finds it.
+  not offered when jplacer opens; a later version is, and **Check For Updates…** still finds it.
 
 Every download is checked against the checksum published with the release before anything is changed.
 A download that does not match is not installed, and nothing is changed if a download fails.

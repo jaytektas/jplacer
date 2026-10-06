@@ -13,7 +13,7 @@ Needs the JFramework SDK installed at `$HOME/jframework-sdk`, plus CMake, Ninja 
 ## Releases
 
 Linux releases are AppImages that update themselves: jplacer checks for a newer release when it opens
-and from Help > Check for Updates. Edit > Preferences turns the startup check off and on, and opts in
+and from Help > Check For Updates…. Edit > Preferences turns the startup check off and on, and opts in
 to beta versions.
 
 ## License

@@ -189,8 +189,8 @@ As OpenPnP's:
 | **Quick Start** | Opens [Getting started](getting-started.md) in your web browser. |
 | **Setup and Calibration** | Opens [Machine Setup](machine-setup.md) in your web browser. |
 | **User Manual** | Opens this manual in your web browser. |
-| **What's New** | Opens [What's new](whats-new.md) in your web browser. |
+| **Change Log** | Opens [What's new](whats-new.md), the change log, in your web browser. |
 | **Submit Diagnostics…** | As OpenPnP's: describe the problem, choose what to include (the machine's cell file, `parts.xml`, `packages.xml`, the latest log, anonymous system information, the current job, saved first) and **Send**. Where OpenPnP uploads it to Pastebin, jplacer sends nothing anywhere: it writes one file (`diagnostics/jplacer-diagnostics-<date>-<time>.txt`, each file under its name) and opens its folder, for you to attach to an issue on jplacer's GitHub or wherever you choose. |
-| **Check for Updates** | Looks for a newer jplacer now, and tells you the answer (see [Updates](updates.md)). |
+| **Check For Updates…** | Looks for a newer jplacer now, and tells you the answer (see [Updates](updates.md)). |
 
 <!-- src: src/app/JPlacerMenuBuilder.cpp (the Help menu); src/app/JPlacerHelpPages.cpp (opening the manual); src/app/JPlacerDiagnosticsDialog.cpp; src/app/JPlacerApp.cpp (openDiagnostics) -->

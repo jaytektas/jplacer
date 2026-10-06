@@ -10,6 +10,7 @@ notes.
 
 ## Unreleased
 
+- The Help menu's What's New is OpenPnP's Change Log, and Check for Updates its Check For Updates….
 - A new configuration's vision settings are made in OpenPnP's order: the Default Machine Bottom Vision before
   the Whole Part Body settings.
 - Machine Setup lists the feeders, as OpenPnP's: choosing one shows its page there, the same as on the Feeders tab.
