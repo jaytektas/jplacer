@@ -90,7 +90,7 @@ int main() {
     // OpenPnP's NullDriver issue: Replace with GcodeDriver makes it a serial controller; Undo, the simulation again.
     {
         S::Issue* nullDriver = const_cast<S::Issue*>(find(s, "The simulation NullDriver can be replaced with a GcodeDriver to drive a real controller."));
-        assert(nullDriver);
+        assert(nullDriver && nullDriver->canBeAccepted);
         std::string why;
         assert(s.setState(*nullDriver, S::State::Solved, why) && cell.drivers.front().link["type"].str() == "serial");
         assert(s.setState(*nullDriver, S::State::Open, why) && cell.drivers.front().link["type"].str() == "simulated");
@@ -107,7 +107,7 @@ int main() {
         s.publish();
         S::Issue* image = const_cast<S::Issue*>(
             find(s, "The simulation ImageCamera can be replaced with a OpenPnpCaptureCamera to connect to a real USB camera."));
-        assert(image);
+        assert(image && image->canBeAccepted);
         std::string why;
         assert(s.setState(*image, S::State::Solved, why) && cell.cameras.back().device["backend"].str() == "v4l2");
         assert(s.setState(*image, S::State::Open, why) && cell.cameras.back().device["source"].str() == "table.png");

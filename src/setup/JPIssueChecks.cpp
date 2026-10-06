@@ -3,6 +3,8 @@
 
 #include "JPIssueChecks.h"
 
+#include "JPNozzleSolution.h"
+
 #include "machine/JPFirmwareProfile.h"
 
 #include <algorithm>
@@ -20,6 +22,8 @@ using Issue = JPSolutions::Issue;
 using S = JPSolutions;
 
 constexpr const char* kWiki = "https://github.com/openpnp/openpnp/wiki/";
+// OpenPnP's Number of Nozzle Units: at most this many.
+constexpr int kMostNozzleUnits = 8;
 // OpenPnP's: a preview faster than this is suggested down to the other.
 constexpr double kMostPreviewFps = 15;
 constexpr double kSuggestedPreviewFps = 5;
@@ -109,20 +113,62 @@ JPAxisConfig* axisIn(JPCellConfig& cell, const std::string& id) {
 
 void welcome(JPSolutions& s, const JPIssueChecks::Context& c) {
     const JPCellConfig* cell = c.cell ? c.cell() : nullptr;
-    if (!cell) return;
-    for (const JPHeadConfig& h : cell->heads) {
-        bool any = false;
-        for (const JPNozzleConfig& n : cell->nozzles) any = any || n.mount.headId == h.id;
-        if (any) continue;
-        Issue i = plain("ReferenceHead " + h.name, "Create nozzles for this head.",
-                        "Choose the number and type of your nozzles: add them in Machine Setup.", Severity::Fundamental,
-                        std::string(kWiki) + "Issues-and-Solutions#welcome-milestone");
-        const std::string id = h.id;
-        i.activate = [c, id] {
-            if (c.showSetup) c.showSetup("head:" + id);
-        };
-        s.add(std::move(i));
-    }
+    if (!cell || cell->heads.empty() || !s.isTargeting(Milestone::Welcome)) return;
+    // OpenPnP's HeadSolutions: the default head's nozzles made as so many units of a kind, on its camera's axes.
+    const JPHeadConfig& head = cell->heads.front();
+    const JPCameraConfig* camera = nullptr;
+    for (const JPCameraConfig& cam : cell->cameras)
+        if (cam.mount.headId == head.id && !camera) camera = &cam;
+    if (!camera) return;
+    // Past the Welcome milestone the machine is taken as set up already: solved, shown only with the solved ones.
+    const bool fresh = s.isAtMostTargeting(Milestone::Welcome);
+    if (!fresh && !s.showSolved()) return;
+    Issue i = plain("ReferenceHead " + head.name, "Create nozzles for this head.", "Choose the number and type of your nozzles.",
+                    Severity::Fundamental, std::string(kWiki) + "Setup-and-Calibration%3A-Nozzle-Setup");
+    i.canBeAccepted = true;   // a solution to accept, not only to dismiss
+    if (!fresh) i.state = State::Solved;
+    i.extendedDescription =
+        "Accepting this solution may change your machine configuration fundamentally. The new solution overwrites your "
+        "existing nozzle and axis configuration. As far as nozzles and axes remain the same type and count, their detail "
+        "configuration is preserved. A nozzle solution can be applied multiple times, you can revisit and expand it. "
+        "Caution: Reopen will not restore the previous configuration, only enable a fresh choice (Edit > Undo in Machine "
+        "Setup does).";
+    JPNozzleSolution::Kind kind;
+    int current = 1;
+    JPNozzleSolution::current(*cell, head.id, kind, current);
+    auto units = std::make_shared<int>(current);
+    i.choices = { { JPNozzleSolution::name(JPNozzleSolution::Kind::Standalone),
+                    "Standalone Nozzle: a nozzle has its own dedicated Z axis motor." },
+                  { JPNozzleSolution::name(JPNozzleSolution::Kind::DualNegated),
+                    "Nozzle Pair, Shared Z Axis, Negated: a nozzle pair shares a Z axis motor. When the first nozzle moves up, "
+                    "then second one moves down equally. The nozzles are negatively coupled by rack and pinion or belt." },
+                  { JPNozzleSolution::name(JPNozzleSolution::Kind::DualCam),
+                    "Nozzle Pair, Shared Z Axis, Cam: a nozzle pair shares a Z axis motor. The two nozzles are pushed down by a "
+                    "rotational cam, pulled up with a spring." } };
+    i.choice = JPNozzleSolution::name(kind);
+    JPSolutions::Property count;
+    count.kind = JPSolutions::Property::Kind::Integer;
+    count.label = "Number of Nozzle Units";
+    count.tooltip = "The Number of Nozzles or Pairs of Nozzles";
+    count.min = 1;
+    count.max = kMostNozzleUnits;
+    count.getNumber = [units] { return double(*units); };
+    count.setNumber = [units](double v) { *units = std::clamp(int(v), 1, kMostNozzleUnits); };
+    i.properties.push_back(std::move(count));
+    const std::string headId = head.id, cameraId = camera->id, text = i.issue;
+    // The choice taken on Accept: the published issue's (as the panel sets it). Reopened: only a fresh
+    // choice, as OpenPnP's.
+    i.apply = [c, sp = &s, headId, cameraId, units, text](State to, std::string&) {
+        if (to != State::Solved || !c.changeCell) return true;
+        JPNozzleSolution::Kind chosen = JPNozzleSolution::Kind::Standalone;
+        for (const auto& p : sp->issues())
+            if (p->issue == text) JPNozzleSolution::parse(p->choice, chosen);
+        c.changeCell("Create nozzles for this head", [&](JPCellConfig& cell) {
+            JPNozzleSolution::apply(cell, headId, cameraId, chosen, *units);
+        });
+        return true;
+    };
+    s.add(std::move(i));
 }
 
 void basics(JPSolutions& s, const JPIssueChecks::Context& c) {
@@ -603,6 +649,7 @@ void connect(JPSolutions& s, const JPIssueChecks::Context& c) {
         Issue i = plain("NullDriver " + d.name, "The simulation NullDriver can be replaced with a GcodeDriver to drive a real controller.",
                         "Replace with GcodeDriver.", Severity::Fundamental,
                         std::string(kWiki) + "Setup-and-Calibration%3A-Driver-Setup#automatic-conversion-of-the-nulldriver");
+        i.canBeAccepted = true;   // a solution to accept, not only to dismiss
         const std::string id = d.id;
         const JJson simulated = d.link;
         i.apply = changing(c, "Replace with GcodeDriver", [id, simulated](JPCellConfig& cell, bool solved) {
@@ -633,6 +680,7 @@ void connect(JPSolutions& s, const JPIssueChecks::Context& c) {
                         up ? "The SimulatedUpCamera can be replaced with a OpenPnpCaptureCamera to connect to a real USB camera."
                            : "The simulation ImageCamera can be replaced with a OpenPnpCaptureCamera to connect to a real USB camera.",
                         "Replace with OpenPnpCaptureCamera.", Severity::Fundamental, std::string(kWiki) + "OpenPnpCaptureCamera");
+        i.canBeAccepted = true;   // a solution to accept, not only to dismiss
         const std::string id = cam.id;
         const JJson simulated = cam.device;
         i.apply = changing(c, "Replace with OpenPnpCaptureCamera", [id, simulated](JPCellConfig& cell, bool solved) {
