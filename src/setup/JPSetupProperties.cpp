@@ -1716,8 +1716,33 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     }
     auto device = [c]() -> JJson& { return c().device; };
     add.group("Light");
-    add.byName("light", "Light Actuator", named(cell.actuators, "(none)"), [device] { return std::as_const(device())["light-actuator-id"].str(); },
-               [device](const std::string& v) { device()["light-actuator-id"] = v; });
+    {
+        // A camera on a head: the head's actuators, and the machine's only when allowed (OpenPnP's, for older
+        // scripts' lights) or one of them is the light already.
+        static bool allowMachine = false;
+        const std::string headId = c().mount.headId, current = std::as_const(device())["light-actuator-id"].str();
+        bool machineLight = false;
+        for (const JPActuatorConfig& a : cell.actuators)
+            if (a.id == current && a.mount.headId.empty()) machineLight = true;
+        const bool listMachine = headId.empty() || allowMachine || machineLight;
+        JPFormBuilder::Named lights;
+        lights.add("(none)", "");
+        for (const JPActuatorConfig& a : cell.actuators)
+            if (a.mount.headId == headId || (listMachine && a.mount.headId.empty())) lights.add(a.name.empty() ? a.id : a.name, a.id);
+        add.row("Light Actuator");
+        add.byName("light", "Light Actuator", lights, [device] { return std::as_const(device())["light-actuator-id"].str(); },
+                   [device](const std::string& v) { device()["light-actuator-id"] = v; });
+        f.reshaping.push_back("light");
+        if (!headId.empty()) {
+            add.flag("lightAllowMachine", "Allow Machine Actuators?", [machineLight] { return allowMachine || machineLight; },
+                     [](bool on) { allowMachine = on; });
+            add.tip("It is recommended to attach the Light Actuator to the camera's head. However, for backwards-compatibility "
+                    "with how Light Actuators were used in Scripts, you can enable this switch and choose a Machine actuator.");
+            f.reshaping.push_back("lightAllowMachine");
+            f.viewOnly.push_back("lightAllowMachine");
+        }
+        add.end();
+    }
     auto light = [c]() -> JPCameraConfig::Light& { return c().light; };
     add.header({ "ON", "OFF" });
     add.row("Before Capture?");

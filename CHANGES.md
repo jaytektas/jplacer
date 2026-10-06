@@ -10,7 +10,8 @@ notes.
 
 ## Unreleased
 
-- A camera's Show in multi camera view?, as OpenPnP's: off, its window starts closed.
+- A camera's Show in multi camera view?, as OpenPnP's: off, its window starts closed; and its light chosen from its
+  head's actuators, the machine's too with Allow Machine Actuators?.
 - Runout calibration has OpenPnP's Offset Threshold (a tip found too far off is a misdetect) and Position Tool.
 - Camera settling has all of OpenPnP's options: the Motion method, Color Sensitive, Edge Sensitive, Enhance Contrast,
   Denoise and Diagnostics (every settle graphed, its pictures replayed), and a fixed camera's Rotate and Up tests.
