@@ -1122,76 +1122,110 @@ void blindsForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFee
     add.choice("part", "Part", ids, [f] { return f().partId(); }, [f](const std::string& id) { f().setPartId(id); });
     add.button("blindsOcrDetect", "OCR Detect", "Try to detect and set the part by OCR.");
     add.end();
+    // OpenPnP's columns: a setting at the left, another at the right, a button beyond.
+    add.header({ "", "", "" });
     add.row("Rotation in Tape");
     coordinate(add, f, "location", Axis::Rotation, "Rotation in Tape");
+    add.words("Part Z");
     coordinate(add, f, "location", Axis::Z, "Part Z");
     add.button("blindsGetToolZ", "Get Tool Z", "Capture the Z height that the tool is at.");
     add.end();
-    add.tip("The Rotation in Tape setting must be interpreted relative to the tape's orientation, regardless of how the "
-            "feeder/tape is oriented on the machine. Look at the tape so that the sprocket holes are at the top: this is 0°; "
-            "positive rotation goes counter-clockwise from the part's upright orientation in your E-CAD library.");
+    const char* const kRotationTip =
+        "The Rotation in Tape setting must be interpreted relative to the tape's orientation, regardless of how the "
+        "feeder/tape is oriented on the machine. Look at the tape so that the sprocket holes are at the top: this is 0\u00B0; "
+        "positive rotation goes counter-clockwise from the part's upright orientation in your E-CAD library.";
+    add.labelTip(kRotationTip);
+    add.tipOf("location.Rotation in Tape", kRotationTip);
+    add.endColumns();
     add.integer("feed-retry-count", "Retry Count", [f] { return f().feedRetryCount(); }, [f](int v) { f().setFeedRetryCount(v); }, 0,
                 kMostCount);
 
     add.group("Tape Settings");
+    add.header({ "", "", "" });
     add.row("Tape Length");
     add.text("tape-length", "Tape Length", [len, shown] { return shown(len("tape-length", 0)); }, nullptr);
+    add.words("Feeder Extent");
     add.text("feeder-extent", "Feeder Extent", [len, shown] { return shown(len("feeder-extent", 0)); }, nullptr);
     add.button("blindsShowFeatures", "Show Features",
                "Show the features recognized by vision, taking the camera center and/or already set feeder properties into consideration.");
     add.end();
-    add.tip("Length of the tape.");
+    add.labelTip("Length of the tape.");
     add.row("Pocket Pitch");
     length(add, f, "pocket-pitch", "Pocket Pitch", 0);
+    add.words("Pocket Size");
     length(add, f, "pocket-size", "Pocket Size", 0);
     add.button("blindsAutoSetup", "Auto Setup", "Capture the pocket pitch, size and centerline from the current camera position.");
     add.end();
-    add.tip("Picth of the part pockets in the tape.");
+    add.labelTip("Picth of the part pockets in the tape.");
+    add.tipOf("pocket-pitch", "Picth of the part pockets in the tape.");
     add.row("Pocket Count");
     add.text("pocket-count", "Pocket Count", [f] { return std::to_string(f().number("pocket-count", 0)); }, nullptr);
+    add.words("Pocket Centerline");
     add.length("pocket-centerline", "Pocket Centerline", [len] { return len("pocket-centerline", 0); },
                [&config, f](double v) { JPBlindsFeeders::setPocketCenterline(config, f().id(), v); });
     add.end();
     add.row("First Pocket");
     count(add, f, "first-pocket", "First Pocket", 1);
+    add.words("Feeder No.");
     add.text("feeder-no", "Feeder No.", [f] { return std::to_string(f().number("feeder-no", 0)); }, nullptr);
     add.end();
-    add.tip("First pocket of the tape that contains a part. Use the Show Features Button to indicate pocket numbers.");
+    add.labelTip("First pocket of the tape that contains a part. Use the Show Features Button to indicate pocket numbers.");
+    add.tipOf("first-pocket", "First pocket of the tape that contains a part. Use the Show Features Button to indicate pocket numbers.");
     add.row("Last Pocket");
     count(add, f, "last-pocket", "Last Pocket", 0);
+    add.words("Feeders Total");
     add.text("feeders-total", "Feeders Total", [f] { return std::to_string(f().number("feeders-total", 0)); }, nullptr);
     add.end();
-    add.tip("Last pocket of the tape that contains a part. Use the Show Features Button to indicate pocket numbers.");
+    add.labelTip("Last pocket of the tape that contains a part. Use the Show Features Button to indicate pocket numbers.");
+    add.tipOf("last-pocket", "Last pocket of the tape that contains a part. Use the Show Features Button to indicate pocket numbers.");
     add.row("Feed Count");
     count(add, f, "feed-count", "Feed Count", 0);
+    add.skip();
+    add.skip();
     add.button("blindsResetFeedCount", "Reset", "Reset the Feed Count to 0 (for a newly loaded tape).");
     add.end();
+    add.endColumns();
 
     add.group("Cover Settings");
+    add.header({ "", "", "" });
     add.row("Cover Type");
     add.choice("cover-type", "Cover Type", { "NoCover", "BlindsCover", "PushCover" }, [f] { return f().text("cover-type", "BlindsCover"); },
                [f](const std::string& v) { f().setText("cover-type", v); });
+    add.words("Cover Open/Close");
     add.choice("cover-actuation", "Cover Open/Close", { "Manual", "CheckOpen", "OpenOnFirstUse", "OpenOnJobStart" },
                [f] { return f().text("cover-actuation", "OpenOnJobStart"); }, [f](const std::string& v) { f().setText("cover-actuation", v); });
     add.button("blindsOpenCover", "Open Cover", "Open this cover using the nozzle tip.");
     add.end();
     add.row("Push speed");
     add.number("push-speed", "Push speed", [f] { return f().real("push-speed", 0.1); }, [f](double v) { f().setReal("push-speed", v); });
+    add.words("Push Z Offset");
     length(add, f, "push-Z-offset", "Push Z Offset", 0.25);
     add.button("blindsCloseCover", "Close Cover", "Close this cover using the nozzle tip.");
     add.end();
-    add.tip("Speed factor when pushing the cover.");
-    add.row("");
-    add.button("blindsOpenAll", "Open All Covers", "Open the covers of all the enabled feeders of the machine.");
-    add.button("blindsCloseAll", "Close All Covers",
-               "Close the opened covers of all the feeders of the machine (including those of enabled feeders where the cover state is unknown).");
-    add.end();
+    add.labelTip("Speed factor when pushing the cover.");
+    add.tipOf("push-speed", "Speed factor when pushing the cover.");
+    // OpenPnP's Open All Covers and Close All Covers: each on a row of its own, in the buttons' column.
+    for (const auto& [action, label, tip] :
+         { std::tuple { "blindsOpenAll", "Open All Covers", "Open the covers of all the enabled feeders of the machine." },
+           std::tuple { "blindsCloseAll", "Close All Covers",
+                        "Close the opened covers of all the feeders of the machine (including those of enabled feeders where the "
+                        "cover state is unknown)." } }) {
+        add.row("");
+        add.skip();
+        add.skip();
+        add.skip();
+        add.button(action, label, tip);
+        add.end();
+    }
     add.row("Edge Distance Open");
     length(add, f, "edge-open-distance", "Edge Distance Open", 2);
+    add.words("Edge Distance Closed");
     length(add, f, "edge-closed-distance", "Edge Distance Closed", 2);
     add.button("blindsCalibrateEdges", "Calibrate Cover Edges", "Calibrate the cover edges against the nozzle tip to get precise open/close positioning.");
     add.end();
-    add.tip("Distance from sprocket to the edge used for opening the cover (default: 2mm).");
+    add.labelTip("Distance from sprocket to the edge used for opening the cover (default: 2mm).");
+    add.tipOf("edge-open-distance", "Distance from sprocket to the edge used for opening the cover (default: 2mm).");
+    add.endColumns();
 
     add.tab("Feeder Array");
     add.group("Array");
