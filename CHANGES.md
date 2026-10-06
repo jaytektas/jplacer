@@ -18,7 +18,7 @@ notes.
 - More of Machine Setup says what each setting does, in OpenPnP's words: the GcodeDriver's settings and
   line-endings, an axis's letter, resolution, rotation limits and backlash Calibrate, an actuator's actuation and
   value type, a camera's light switching and Capture FPS, and a nozzle tip's runout calibration; the Jog panel's
-  Recycle too.
+  Recycle too, and bottom vision's Rotation and the fiducial locator's Parallax Angle.
 - A nozzle tip's Auto Z Calibration is laid out as OpenPnP's, with the nozzle's calibrated Z offset beside it; Fail
   Homing? shows only when the calibration is automatic, and the Tool Changer's settings say what they do.
 - The head's Calibration Rig is laid out as OpenPnP's: Primary Fiducial, Secondary Fiducial and Test Object, each

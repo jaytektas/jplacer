@@ -92,6 +92,8 @@ void general(JPFormBuilder& add, std::function<JPVisionSettings&()> v, const std
     enumChoice(add, v, "pre-rotate-usage", "Pre-rotate", { "Default", "AlwaysOn", "AlwaysOff" });
     enumChoice(add, v, "max-rotation", "Rotation", { "Adjust", "Full" });
     add.end();
+    add.tipOf("max-rotation", "Adjust for all parts, where only some minor offset is expected. Full for parts, "
+                              "where bottom vision detects pin 1");
     add.row("Part size check");
     enumChoice(add, v, "check-part-size-method", "Part size check", { "Disabled", "BodySize", "PadExtents" });
     add.integer("check-size-tolerance-percent", "Size tolerance (%)",
@@ -160,6 +162,10 @@ void fiducialForm(JPFormBuilder& add, std::function<JPVisionSettings&()> v, cons
     add.number("fiducial:parallax-angle", "Parallax Angle", [v] { return v().real("parallax-angle", 0); },
                [v](double a) { v().setText("parallax-angle", num(a)); });
     add.end();
+    add.tipOf("fiducial:parallax-angle", "Angle at which the two parallax view points of the camera are distanced from "
+                                         "each other.\nChoose an angle which favors the faster axis of your machine: "
+                                         "0\u00B0 favors X, 90\u00B0 favors Y.\nOther angles might be used to improve "
+                                         "accuracy or to even out LED ring reflections.");
     add.tip("When the Parallax Diameter is given, the Fiducial Locator will perform its detection from two parallax "
             "camera view-points on both sides of the expected location of the fiducial, set apart by it, and take the "
             "middle: for shiny fiducials that reflect the camera.");
