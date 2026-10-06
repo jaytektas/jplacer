@@ -3,6 +3,8 @@
 
 #include "JPDriverConfig.h"
 
+#include "JPMotionControlType.h"
+
 #include <utility>
 
 inline namespace jf {
@@ -29,6 +31,15 @@ std::optional<JPDriverConfig> JPDriverConfig::fromJson(const JJson& j, std::stri
     c.homeTimeoutMs     = int(j["homeTimeoutMs"].number(c.homeTimeoutMs));
     c.connectWaitMs     = int(j["connectWaitMs"].number(c.connectWaitMs));
     c.maxFeedRate       = j["maxFeedRate"].number(c.maxFeedRate);
+    c.motionControlType = j["motionControlType"].isString() ? j["motionControlType"].str() : std::string("EuclideanAxisLimits");
+    if (!JPMotionControlType::fromName(c.motionControlType)) c.motionControlType = "ToolpathFeedRate";
+    if (const JJson& i = j["interpolation"]; i.isObject()) {
+        c.interpolationMaxSteps  = int(i["maxSteps"].number(c.interpolationMaxSteps));
+        c.interpolationJerkSteps = int(i["jerkSteps"].number(c.interpolationJerkSteps));
+        c.interpolationMinStep   = int(i["minStep"].number(c.interpolationMinStep));
+        c.interpolationTimeStep  = i["timeStep"].number(c.interpolationTimeStep);
+        c.junctionDeviation      = i["junctionDeviation"].number(c.junctionDeviation);
+    }
     c.syncInitialLocation = j["syncInitialLocation"].boolean();
     c.allowUnhomedMotion  = j["allowUnhomedMotion"].boolean();
     c.logGcode          = j["logGcode"].boolean(c.logGcode);
@@ -68,6 +79,12 @@ JJson JPDriverConfig::toJson() const {
     j["homeTimeoutMs"]     = homeTimeoutMs;
     j["connectWaitMs"]     = connectWaitMs;
     if (maxFeedRate > 0) j["maxFeedRate"] = maxFeedRate;
+    j["motionControlType"] = motionControlType;
+    j["interpolation"]["maxSteps"] = interpolationMaxSteps;
+    j["interpolation"]["jerkSteps"] = interpolationJerkSteps;
+    j["interpolation"]["minStep"] = interpolationMinStep;
+    j["interpolation"]["timeStep"] = interpolationTimeStep;
+    j["interpolation"]["junctionDeviation"] = junctionDeviation;
     if (syncInitialLocation) j["syncInitialLocation"] = true;
     if (allowUnhomedMotion) j["allowUnhomedMotion"] = true;
     if (logGcode) j["logGcode"] = true;

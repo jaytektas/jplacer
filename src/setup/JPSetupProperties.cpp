@@ -12,6 +12,7 @@
 #include "JPFormBuilder.h"
 #include "JPSetupTree.h"
 
+#include "machine/JPMotionControlType.h"
 #include "machine/JPNeoden4Link.h"
 #include "machine/JPTcpLink.h"
 
@@ -154,6 +155,12 @@ void motionPlannerTabs(JPCellConfig& cell, JPFormBuilder& add, const JPMotionTes
             "delays introduced when communicating back and forth. By allowing continuous motion, the planner no longer "
             "waits for motion to complete each time, unless explicitly told to (an actuator's Machine Coordination, a "
             "pick or place, the end of each operation).");
+    // (OpenPnP's Allow uncoordinated? comes with jplacer's uncoordinated motion planning.)
+    add.flag("interpolationRetiming", "Interpolation Retiming?", [mp]() -> bool& { return mp().interpolationRetiming; });
+    add.tip("Interpolation can only approximate the true 3rd-order motion profiles, some deviations are expected. "
+            "Re-timing will stretch the motion to match the original 3rd-order timing. However this will slightly reduce "
+            "the peak feedrate. By switching this off, you get the planned peak feedrate but slightly shorter move "
+            "duration.");
     add.number("minimumSpeed", "Minimum Speed [%]", [mp] { return mp().minimumSpeed * 100; },
                [mp](double v) { mp().minimumSpeed = std::clamp(v, 0.0, 100.0) / 100; }, 1);
     add.tip("Minimum speed supported by the motion planner: the Jog panel's speed goes no lower.");
@@ -456,6 +463,30 @@ void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPF
     }
     add.tab("Driver Settings");
     add.group("Settings");
+    {
+        std::vector<std::string> types;
+        for (JPMotionControlType::Value v : JPMotionControlType::kAll) types.push_back(JPMotionControlType(v).name());
+        add.choice("motionControlType", "Motion Control Type", types, [d] { return d().motionControlType; },
+                   [d](const std::string& v) { d().motionControlType = v; });
+        add.tip("Determines how the motion planner will plan the motion and how it will talk to the controller:\n"
+                "ToolpathFeedRate: Apply the nominal driver feed-rate limit multiplied by the speed factor to the tool-path. "
+                "The driver feed-rate must be specified. No acceleration control is applied.\n"
+                "EuclideanAxisLimits: Apply axis feed-rate, acceleration and jerk limits multiplied by the proper speed "
+                "factors. The Euclidean Metric is calculated to allow the machine to run faster in a diagonal. Only the "
+                "speed factor maximum is set, ramping up and down the speed is entirely left to the controller.\n"
+                "ConstantAcceleration: Apply motion planning assuming a controller with constant acceleration motion "
+                "control.\n"
+                "ModeratedConstantAcceleration: Apply motion planning assuming a controller with constant acceleration "
+                "motion control but moderate the acceleration and velocity to resemble those of 3rd order control, "
+                "resulting in a move that takes the same amount of time and has similar average acceleration. This will "
+                "already reduce vibrations a bit.\n"
+                "SimpleSCurve: Apply motion planning assuming a controller with simplified S-Curve motion control. "
+                "Simplified S-Curves have no constant acceleration phase, only jerk phases (e.g. TinyG, Marlin).\n"
+                "Simulated3rdOrderControl: Apply motion planning assuming a controller with constant acceleration motion "
+                "control but simulating 3rd order control with time step interpolation (a GcodeAsyncDriver: its Advanced "
+                "Settings' Interpolation).\n"
+                "Full3rdOrderControl: Apply motion planning assuming a controller with full 3rd order motion control.");
+    }
     add.number("maxFeedRate", "Max. Feed Rate [/min]", [d]() -> double& { return d().maxFeedRate; }, 0);
     add.tip("Maximum tool-path feed-rate in driver units per minute.\nSet to 0 to disable and only use axis feed-rate "
             "limits. Diagonal moves will then be faster.");
@@ -619,6 +650,24 @@ void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPF
     add.flag("console:upperCase", "Force Upper Case", [] { return JPSetupProperties::consoleUpperCase(); },
              [](bool on) { JPSetupProperties::consoleUpperCase() = on; });
     for (const char* p : { "console:lines", "console:command", "console:upperCase" }) f.viewOnly.push_back(p);
+
+    // OpenPnP's GcodeAsyncDriver Advanced Settings: the interpolation of Simulated3rdOrderControl.
+    if (d().gcodeClass != "GcodeAsyncDriver") return;
+    add.tab("Advanced Settings");
+    add.group("Interpolation");
+    add.integer("interpolationMaxSteps", "Maximum Number of Steps", [d]() -> int& { return d().interpolationMaxSteps; }, 1, 100000);
+    add.tip("Maximum number of steps that can be used for interpolation of one move.\nUse a portion of your controller's "
+            "maximum queue depth.\nIf the number is exceeded, the motion planner will fall back to a single moderated move.");
+    add.integer("interpolationJerkSteps", "Maximum Number of Jerk Steps", [d]() -> int& { return d().interpolationJerkSteps; }, 1, 1000);
+    add.tip("Maximum number of interpolation steps used to simulate jerk control.\nThis means the acceleration will be "
+            "ramped up or down in so many steps relative to maximum acceleration.");
+    add.number("interpolationTimeStep", "Minimum Step Time [s]", [d]() -> double& { return d().interpolationTimeStep; }, 6);
+    add.tip("The minimal time step used to interpolate advanced motion paths. Specified in seconds.");
+    add.integer("interpolationMinStep", "Minimum Axis Resolution Ticks", [d]() -> int& { return d().interpolationMinStep; }, 1, 100000);
+    add.tip("Minimum step axis distance used to interpolate advanced motion paths.\nThis is given in resolution ticks of "
+            "the axes.");
+    add.length("junctionDeviation", "Maximum Junction Deviation", [d]() -> double& { return d().junctionDeviation; });
+    add.tip("The maximum Junction Deviation allowed by the driver. Please consult the driver's documentation.");
 }
 
 // What measuring an axis's backlash found, as graphs.

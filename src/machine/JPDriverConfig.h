@@ -54,6 +54,14 @@ struct JPDriverConfig {
     std::string detectedFirmware;
     // The fastest any move is sent, per minute (0: no cap beyond the axes' own).
     double maxFeedRate    = 0;
+    // OpenPnP's Motion Control Type (JPMotionControlType's names): how a move is planned and what the controller
+    // is told of it. A cell kept before it was a setting keeps how its moves were sent: EuclideanAxisLimits.
+    std::string motionControlType = "ToolpathFeedRate";
+    // OpenPnP's GcodeAsyncDriver Interpolation, for Simulated3rdOrderControl: at most so many steps a move (of the
+    // controller's queue), jerk simulated in so many steps of acceleration, the least step time (s) and axis
+    // distance (resolution ticks), and the controller's junction deviation (mm).
+    int    interpolationMaxSteps = 32, interpolationJerkSteps = 4, interpolationMinStep = 16;
+    double interpolationTimeStep = 0.001, junctionDeviation = 0.02;
     // Every line sent and received goes to the log (else only when tracing).
     bool   logGcode       = false;
     // OpenPnP's: each line sent with its comments removed, compressed (but

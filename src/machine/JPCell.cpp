@@ -3,6 +3,8 @@
 
 #include "JPCell.h"
 
+#include "JPMotion.h"
+
 #include "common/JPlacerLog.h"
 
 #include <j/core/Log.h>
@@ -13,6 +15,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <future>
+#include <limits>
 #include <regex>
 #include <charconv>
 #include <chrono>
@@ -2663,120 +2666,145 @@ bool JPCell::doMoveNow(std::map<std::string, double> targets, double speed, std:
         }
     }
 
-    // One move per controller, at the slowest axis's rate (mm or degrees per
-    // minute: the axis's own, else what the controller stores).
+    // The move as OpenPnP's motion planner plans it (JPMotion): every controller's moving axes together, each
+    // controller then told what its Motion Control Type says (one move, a moderated one, or interpolated steps).
     std::map<std::string, std::vector<const JPAxisConfig*>> byDriver;
     for (const auto& [id, t] : hardware) byDriver[m_config.axis(id)->driverId].push_back(m_config.axis(id));
     auto send = [&](const std::map<std::string, double>& from, const std::map<std::string, double>& to, double factor,
                     std::vector<JPGcodeDriver*>& moved) {
+        std::vector<JPMotion::Axis> motionAxes;
+        std::vector<JPMotion::Driver> motionDrivers;
+        JPMotion::Location location0, location1;
         for (const auto& [driverId, all] : byDriver) {
             JPGcodeDriver* d = driver(driverId);
             if (!d) { why = "no controller " + driverId; return false; }
-            // OpenPnP's Letter Variables off: the axes named by type ({X} {Y} {Z} {Rotation}),
-            // so a move has one of each; several of a type (two nozzles' Zs) go one after another.
-            std::vector<std::vector<const JPAxisConfig*>> commands;
-            if (d->config().usingLetterVariables) {
-                commands.push_back(all);
-            } else {
-                for (const JPAxisConfig* a : all) {
-                    auto c = std::find_if(commands.begin(), commands.end(), [a](const auto& cmd) {
-                        return std::none_of(cmd.begin(), cmd.end(), [a](const JPAxisConfig* b) { return b->type == a->type; });
-                    });
-                    if (c == commands.end()) commands.push_back({ a });
-                    else c->push_back(a);
-                }
-            }
-            for (const auto& axes : commands) {
-            // OpenPnP's Pre-Move Commands: each moving axis's, {Coordinate} where it was.
-            if (d->config().supportingPreMove && !d->config().usingLetterVariables)
-                for (const JPAxisConfig* a : axes) {
-                    if (a->preMoveCommand.empty()) continue;
-                    const auto was = now.find(a->id);
-                    const double v = was == now.end() ? 0 : (a->type == JPAxisConfig::Type::Rotation ? was->second : was->second * driverUnits(*d));
-                    const JPReply pre = d->sendLines(JPFirmwareProfile::fill(a->preMoveCommand, { { "Coordinate", format(v, d->profile()->decimals()) } }));
-                    if (!pre.ok) { why = a->name + ": its pre-move command was refused (" + pre.error + ")"; return false; }
-                }
-            // The feed rate as G-code reads F (NIST RS274NGC 2.1.2.5, as OpenPnP's Motion): over the
-            // linear axes' path, or the rotational ones' when nothing linear moves; as fast as the
-            // slowest axis allows for its part of the move (one not moving: its own rate).
-            std::string words;
-            double feed = 0, seconds = 0, linear2 = 0, rotational2 = 0;
-            for (const JPAxisConfig* a : axes) {
-                words += (words.empty() ? "" : " ") + word(*a, to.at(a->id), *d);
-                double rate = a->feedratePerSecond * 60;
-                // The controller's own (in its units), in the machine's.
-                if (rate <= 0) rate = d->axisSetting("maxRate", a->letter).value_or(0) / driverUnits(*d);
-                if (rate <= 0) { why = "axis " + a->name + " has no speed: neither the cell nor its controller gives one"; return false; }
-                feed = feed <= 0 ? rate : std::min(feed, rate);
-                const auto f = from.find(a->id);
-                const double dist = f == from.end() ? 0 : std::abs(to.at(a->id) - f->second);
-                if (dist <= 0) continue;
-                seconds = std::max(seconds, dist / (rate / 60));
-                (a->rotationalOnController() ? rotational2 : linear2) += dist * dist;
-            }
-            const bool linear = linear2 > 0;
-            if (seconds > 0) feed = std::sqrt(linear ? linear2 : rotational2) / seconds * 60;
-            // The controller's Max Feed Rate is for linear moves (a mm rate means nothing to a turn).
-            if (const double cap = d->config().maxFeedRate; cap > 0 && (linear || seconds <= 0)) feed = std::min(feed, cap);
-            const double k = std::clamp(speed, 0.0, 1.0) * m_speed * factor;
-            feed *= k;
-            // In the controller's units (Driver Settings' Units, as OpenPnP's driverUnitsFactor); a rotational path in degrees.
+            const JPMotionControlType type = JPMotionControlType::fromName(d->config().motionControlType).value_or(JPMotionControlType());
             const double u = driverUnits(*d);
-            std::map<std::string, std::string> values{ { "axes", words }, { "feed", format(feed * (linear || seconds <= 0 ? u : 1), 0) } };
-            // By type, for Letter Variables off ({X} 12.5); one not in this move left out with its letter.
-            for (const auto& [type, name] : { std::pair { JPAxisConfig::Type::X, "X" }, std::pair { JPAxisConfig::Type::Y, "Y" },
-                                              std::pair { JPAxisConfig::Type::Z, "Z" }, std::pair { JPAxisConfig::Type::Rotation, "Rotation" } }) {
-                values[name] = JPFirmwareProfile::kLeaveOut;
-                for (const JPAxisConfig* a : axes)
-                    if (a->type == type) {
-                        const std::string w = word(*a, to.at(a->id), *d);
-                        values[name] = w.substr(a->letter.size());
+            JPMotion::Driver md;
+            md.id = driverId;
+            md.type = type;
+            md.feedRatePerSecond = d->config().maxFeedRate / u / 60;
+            md.interpolationMaxSteps = d->config().interpolationMaxSteps;
+            md.interpolationJerkSteps = d->config().interpolationJerkSteps;
+            md.interpolationMinStep = d->config().interpolationMinStep;
+            md.interpolationTimeStep = d->config().interpolationTimeStep;
+            md.junctionDeviation = d->config().junctionDeviation;
+            for (const JPAxisConfig* a : all) {
+                JPMotion::Axis ma;
+                ma.id = a->id;
+                ma.driverId = driverId;
+                ma.rotational = a->rotationalOnController();
+                // The axis's own limits, else what the controller stores (in its units); as OpenPnP's
+                // getMotionLimit, no jerk for a controller with constant acceleration.
+                ma.limit[1] = a->feedratePerSecond > 0 ? a->feedratePerSecond : d->axisSetting("maxRate", a->letter).value_or(0) / u / 60;
+                ma.limit[2] = a->accelerationPerSecond2 > 0 ? a->accelerationPerSecond2 : d->axisSetting("acceleration", a->letter).value_or(0) / u;
+                ma.limit[3] = type.isConstantAcceleration() ? 0 : a->jerkPerSecond3;
+                if (ma.limit[1] <= 0) { why = "axis " + a->name + " has no speed: neither the cell nor its controller gives one"; return false; }
+                if (a->resolution > 0) ma.resolution = a->resolution;
+                if (a->softLimitLowEnabled) ma.softLow = a->softLimitLow;
+                if (a->softLimitHighEnabled) ma.softHigh = a->softLimitHigh;
+                if (a->safeZoneLowEnabled) ma.safeLow = a->safeZoneLow;
+                if (a->safeZoneHighEnabled) ma.safeHigh = a->safeZoneHigh;
+                motionAxes.push_back(ma);
+                const auto f = from.find(a->id);
+                location0[a->id] = f == from.end() ? to.at(a->id) : f->second;
+                location1[a->id] = to.at(a->id);
+            }
+            // OpenPnP's getMinimumRate: the axes' least limit at the planner's minimum speed, down to a whole decimal
+            // digit in the controller's units (no rate rounded to nothing).
+            for (int order = 1; order <= 3; order++) {
+                double rate = std::numeric_limits<double>::infinity();
+                for (const JPMotion::Axis& ma : motionAxes)
+                    if (ma.driverId == driverId && ma.limit[order] != 0) rate = std::min(rate, ma.limit[order]);
+                rate *= std::pow(m_config.motionPlanner.minimumSpeed, order);
+                rate = std::pow(10, std::floor(std::log10(rate * u))) / u;
+                md.minimumRate[order] = std::isfinite(rate) ? rate : 1;
+            }
+            motionDrivers.push_back(md);
+        }
+        const double k = std::clamp(speed, 0.0, 1.0) * m_speed * factor;
+        JPMotion motion(motionAxes, motionDrivers, location0, location1, k, 0);
+        // Test Motion's plan: as long as the planned motion takes.
+        if (m_planned) *m_planned += motion.time();
+        for (const JPMotion::Driver& md : motionDrivers) {
+            JPGcodeDriver* d = driver(md.id);
+            const auto& all = byDriver.at(md.id);
+            if (md.type.isInterpolated() && d->config().gcodeClass != "GcodeAsyncDriver") {
+                why = d->config().name + ": Driver does not support move interpolation. Please refer to Issues & Solutions.";
+                return false;
+            }
+            for (const JPMotion::MoveTo& mv : motion.interpolatedMoveToCommands(md, m_config.motionPlanner.interpolationRetiming)) {
+                // This controller's axes that move to the waypoint, in the cell's order.
+                std::vector<const JPAxisConfig*> movers;
+                for (const JPAxisConfig* a : all)
+                    if (mv.moved.count(a->id)) movers.push_back(a);
+                if (movers.empty()) continue;
+                // OpenPnP's Letter Variables off: the axes named by type ({X} {Y} {Z} {Rotation}), so a move has one
+                // of each; several of a type (two nozzles' Zs) go one after another.
+                std::vector<std::vector<const JPAxisConfig*>> commands;
+                if (d->config().usingLetterVariables) {
+                    commands.push_back(movers);
+                } else {
+                    for (const JPAxisConfig* a : movers) {
+                        auto c = std::find_if(commands.begin(), commands.end(), [a](const auto& cmd) {
+                            return std::none_of(cmd.begin(), cmd.end(), [a](const JPAxisConfig* b) { return b->type == a->type; });
+                        });
+                        if (c == commands.end()) commands.push_back({ a });
+                        else c->push_back(a);
                     }
+                }
+                for (const auto& axes : commands) {
+                    // OpenPnP's Pre-Move Commands: each moving axis's, {Coordinate} where it was.
+                    if (d->config().supportingPreMove && !d->config().usingLetterVariables)
+                        for (const JPAxisConfig* a : axes) {
+                            if (a->preMoveCommand.empty()) continue;
+                            const auto was = now.find(a->id);
+                            const double v = was == now.end() ? 0 : (a->type == JPAxisConfig::Type::Rotation ? was->second : was->second * driverUnits(*d));
+                            const JPReply pre = d->sendLines(JPFirmwareProfile::fill(a->preMoveCommand, { { "Coordinate", format(v, d->profile()->decimals()) } }));
+                            if (!pre.ok) { why = a->name + ": its pre-move command was refused (" + pre.error + ")"; return false; }
+                        }
+                    std::string words;
+                    bool linear = false;
+                    for (const JPAxisConfig* a : axes) {
+                        words += (words.empty() ? "" : " ") + word(*a, mv.moved.at(a->id), *d);
+                        if (!a->rotationalOnController()) linear = true;
+                    }
+                    // In the controller's units (Driver Settings' Units, as OpenPnP's driverUnitsFactor); a
+                    // rotational path's feed rate in degrees. A rate the type does not set is left out with its letter.
+                    const double u = driverUnits(*d);
+                    std::map<std::string, std::string> values{ { "axes", words } };
+                    values["feed"] = mv.feedRatePerSecond ? format(*mv.feedRatePerSecond * 60 * (linear ? u : 1), 0) : JPFirmwareProfile::kLeaveOut;
+                    values["acceleration"] = mv.accelerationPerSecond2 ? format(*mv.accelerationPerSecond2 * u, 0) : JPFirmwareProfile::kLeaveOut;
+                    values["jerk"] = mv.jerkPerSecond3 ? format(*mv.jerkPerSecond3 * u, 0) : JPFirmwareProfile::kLeaveOut;
+                    // By type, for Letter Variables off ({X} 12.5); one not in this move left out with its letter.
+                    for (const auto& [type, name] : { std::pair { JPAxisConfig::Type::X, "X" }, std::pair { JPAxisConfig::Type::Y, "Y" },
+                                                      std::pair { JPAxisConfig::Type::Z, "Z" }, std::pair { JPAxisConfig::Type::Rotation, "Rotation" } }) {
+                        values[name] = JPFirmwareProfile::kLeaveOut;
+                        for (const JPAxisConfig* a : axes)
+                            if (a->type == type) {
+                                const std::string w = word(*a, mv.moved.at(a->id), *d);
+                                values[name] = w.substr(a->letter.size());
+                            }
+                    }
+                    JLOGC(JPlacerLog::kCell, JLogLevel::Debug) << "move " << d->config().name << " (" << md.type.name() << "): " << words;
+                    const JPReply r = d->command("move", values);
+                    if (!r.ok) { why = d->config().name + ": move refused (" + r.error + ")"; return false; }
+                    if (std::find(moved.begin(), moved.end(), d) == moved.end()) moved.push_back(d);
+                }
             }
-            // The slowest acceleration and jerk among the axes, for a command
-            // that sets them ({acceleration}, {jerk}): scaled as the speed is,
-            // so a slower move is the same move stretched in time.
-            double accel = 0, jerk = 0;
-            for (const JPAxisConfig* a : axes) {
-                if (a->accelerationPerSecond2 > 0) accel = accel > 0 ? std::min(accel, a->accelerationPerSecond2) : a->accelerationPerSecond2;
-                if (a->jerkPerSecond3 > 0) jerk = jerk > 0 ? std::min(jerk, a->jerkPerSecond3) : a->jerkPerSecond3;
-            }
-            if (accel > 0) values["acceleration"] = format(accel * k * k * u, 0);
-            if (jerk > 0) values["jerk"] = format(jerk * k * k * k * u, 0);
-            JLOGC(JPlacerLog::kCell, JLogLevel::Debug) << "move " << d->config().name << ": " << words << " F" << format(feed, 0);
-            const JPReply r = d->command("move", values);
-            if (!r.ok) { why = d->config().name + ": move refused (" + r.error + ")"; return false; }
-            if (std::find(moved.begin(), moved.end(), d) == moved.end()) moved.push_back(d);
-            }
+            if (motion.hasOption(JPMotion::InterpolationFailed))
+                JLOGC(JPlacerLog::kCell, JLogLevel::Warn) << d->config().name << ": interpolation failed (Maximum Number of Steps "
+                                                          << md.interpolationMaxSteps << " reached): a moderated move instead";
         }
         return true;
     };
-    // Test Motion's plan: each leg as long as its slowest axis takes, speeding
-    // up and slowing down at its acceleration (a triangle when it is too short to reach its rate).
-    if (m_planned) {
-        auto legSeconds = [&](const std::map<std::string, double>& a, const std::map<std::string, double>& b, double factor) {
-            double longest = 0;
-            for (const auto& [id, to] : b) {
-                const JPAxisConfig* ax = m_config.axis(id);
-                const auto f = a.find(id);
-                if (!ax || f == a.end()) continue;
-                const double d = std::abs(to - f->second);
-                JPGcodeDriver* dr = driver(ax->driverId);
-                const double u = dr ? driverUnits(*dr) : 1;
-                double v = ax->feedratePerSecond > 0 ? ax->feedratePerSecond : (dr ? dr->axisSetting("maxRate", ax->letter).value_or(0) / 60 / u : 0);
-                double acc = ax->accelerationPerSecond2 > 0 ? ax->accelerationPerSecond2 : (dr ? dr->axisSetting("acceleration", ax->letter).value_or(0) / u : 0);
-                const double k = std::clamp(speed, 0.0, 1.0) * m_speed * factor;
-                v *= k;
-                acc *= k * k;
-                if (d <= 0 || v <= 0) continue;
-                const double t = acc <= 0 ? d / v : d > v * v / acc ? d / v + v / acc : 2 * std::sqrt(d / acc);
-                longest = std::max(longest, t);
-            }
-            return longest;
-        };
-        const auto from = toAxes(now, now);
-        *m_planned += needApproach ? legSeconds(from, overshoot, 1) + legSeconds(overshoot, hardware, approach)
-                                   : legSeconds(from, hardware, 1);
+    // The overshoot, like any place an axis stops at, a whole step (past the target, the way it overshoots): the
+    // approach is then a move of whole steps (not one the planner, like OpenPnP's, takes for no move at all).
+    for (auto& [id, o] : overshoot) {
+        const JPAxisConfig* a = m_config.axis(id);
+        const double t = hardware.at(id);
+        if (a->resolution <= 0 || o == t) continue;
+        o = (o > t ? std::ceil(o / a->resolution) : std::floor(o / a->resolution)) * a->resolution;
     }
     std::vector<JPGcodeDriver*> moved;
     // Each leg from where the controllers have the axes (the directional offsets in effect included).

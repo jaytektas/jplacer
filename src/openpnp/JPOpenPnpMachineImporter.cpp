@@ -9,6 +9,7 @@
 #include "common/JPlacerLog.h"
 #include "common/JPlacerPaths.h"
 #include "camera/JPSimulatedUpCamera.h"
+#include "machine/JPMotionControlType.h"
 #include "machine/JPNeoden4Link.h"
 #include "machine/JPTcpLink.h"
 
@@ -532,6 +533,14 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             if (!d.attr("dollar-wait-time-milliseconds").empty())
                 dc.dollarWaitMs = int(number(d.attr("dollar-wait-time-milliseconds")));
             dc.maxFeedRate = number(d.attr("max-feed-rate"));
+            // OpenPnP's default when not written: ToolpathFeedRate.
+            if (JPMotionControlType::fromName(d.attr("motion-control-type"))) dc.motionControlType = d.attr("motion-control-type");
+            // The GcodeAsyncDriver's interpolation.
+            if (!d.attr("interpolation-max-steps").empty()) dc.interpolationMaxSteps = int(number(d.attr("interpolation-max-steps")));
+            if (!d.attr("interpolation-jerk-steps").empty()) dc.interpolationJerkSteps = int(number(d.attr("interpolation-jerk-steps")));
+            if (!d.attr("interpolation-min-step").empty()) dc.interpolationMinStep = int(number(d.attr("interpolation-min-step")));
+            if (!d.attr("interpolation-time-step").empty()) dc.interpolationTimeStep = number(d.attr("interpolation-time-step"));
+            if (d.child("junction-deviation")) dc.junctionDeviation = lengthChild(d, "junction-deviation");
             dc.logGcode = d.attr("logging-gcode") == "true";
             dc.removeComments = d.attr("remove-comments") == "true";
             dc.compressGcode = d.attr("compress-gcode") == "true";

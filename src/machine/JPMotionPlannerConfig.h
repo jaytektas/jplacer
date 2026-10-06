@@ -36,6 +36,8 @@ struct JPMotionPlannerConfig {
     bool                diagnosticsEnabled = false;
     // OpenPnP's Minimum Speed: the slowest share of full speed offered (the Jog panel's speed goes no lower).
     double              minimumSpeed = kDefaultMinimumSpeed;
+    // OpenPnP's Interpolation Retiming?: interpolated moves (Simulated3rdOrderControl) stretched to the planned time.
+    bool                interpolationRetiming = true;
     static constexpr double kDefaultMinimumSpeed = 0.05;
     std::array<Stop, 4> stops { Stop{ false, { 0, 0, 0, 0 } }, Stop{ false, { 0, 400, 0, 0 } },
                                 Stop{ false, { 380, 400, 0, 0 } }, Stop{ false, { 380, 0, 0, 0 } } };
@@ -61,6 +63,7 @@ struct JPMotionPlannerConfig {
         p.continuousMotion   = j["continuousMotion"].boolean(false);
         p.diagnosticsEnabled = j["diagnosticsEnabled"].boolean(false);
         p.minimumSpeed = j["minimumSpeed"].number(kDefaultMinimumSpeed);
+        p.interpolationRetiming = j["interpolationRetiming"].boolean(true);
         for (size_t i = 0; i < p.stops.size(); ++i) {
             const JJson& s = j["testMotion"][i];
             if (!s.isObject()) continue;
@@ -78,6 +81,7 @@ struct JPMotionPlannerConfig {
         j["continuousMotion"] = continuousMotion;
         j["diagnosticsEnabled"] = diagnosticsEnabled;
         j["minimumSpeed"] = minimumSpeed;
+        j["interpolationRetiming"] = interpolationRetiming;
         JJson stopsJ = JJson::array();
         for (size_t i = 0; i < stops.size(); ++i) {
             JJson s = JJson::object();

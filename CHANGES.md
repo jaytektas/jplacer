@@ -10,6 +10,11 @@ notes.
 
 ## Unreleased
 
+- OpenPnP's motion control: each controller's Motion Control Type (ToolpathFeedRate, EuclideanAxisLimits,
+  ConstantAcceleration, ModeratedConstantAcceleration, SimpleSCurve, Simulated3rdOrderControl, Full3rdOrderControl),
+  with OpenPnP's motion planning behind it, the interpolation settings (a GcodeAsyncDriver's Advanced Settings) and
+  Interpolation Retiming; brought in from OpenPnP. Existing cells keep how their moves were sent (EuclideanAxisLimits).
+- A backlash overshoot stops on a whole step of the axis, so the approach after it is never lost.
 - Issues & Solutions starts vision as OpenPnP's does: Primary calibration fiducial position and initial camera
   calibration (jog the camera over the fiducial, Accept). A new machine's camera can now be calibrated before
   any homing mark is set; it works out its first scale itself.
