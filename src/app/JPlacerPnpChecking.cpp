@@ -46,8 +46,8 @@ JPCell::PnpChecker JPlacerPnpChecking::checker() {
         picture.path = d["source"].str();
         picture.unitsPerPixelX = d["imageUnitsPerPixel"]["x"].number(JPCameraConfig::kDefaultImageUnitsPerPixel);
         picture.unitsPerPixelY = d["imageUnitsPerPixel"]["y"].number(JPCameraConfig::kDefaultImageUnitsPerPixel);
-        picture.offsetX = d["imageOffset"]["x"].number(0);
-        picture.offsetY = d["imageOffset"]["y"].number(0);
+        picture.offsetX = d["imageOffset"]["x"].number(0.0);
+        picture.offsetY = d["imageOffset"]["y"].number(0.0);
         picture.filterTestImage = d["filterTestImageVision"].boolean(true);
         const JPSimulatedPnpCheck::Tolerance tolerance =
             c.pick ? JPSimulatedPnpCheck::Tolerance { d["pickLocationToleranceMm"].number(kPickToleranceMm),

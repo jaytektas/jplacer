@@ -6,6 +6,7 @@
 #include "machine/JPNozzleConfig.h"
 #include "model/JPLocation.h"
 #include "pipeline/JPPipeline.h"
+#include "tasks/JPBottomVision.h"
 #include "tasks/JPTravel.h"
 #include "vision/JPPartFinder.h"
 #include "vision/JPTemplateFinder.h"
@@ -201,25 +202,24 @@ public:
     // of it, nearest first: `found`. One look from each place.
     // Bottom vision (OpenPnP's part alignment): the part on the nozzle over
     // the camera looking up, as high as the part (its bottom where the
-    // camera is focused), turned to `imageAngle`; found by its shape (its
-    // pads, else its body) within `angleRange` either way of the angle it
-    // should have there; with more passes, the nozzle moved and turned to
-    // put it where it should be and looked at again, until it moves less
-    // than `maxLinearOffsetMm` and turns less than a tenth of a degree.
+    // camera is focused), expected at `imageAngle` (the placement's, pre-rotated;
+    // else 0); found by its shape (its pads, else its body) within `angleRange`
+    // either way of it, and its offsets worked out as OpenPnP's findOffsets does
+    // (`offsets`: passes, Vision Offset, Max. Pick Tolerance, size check).
     struct AlignRequest {
         std::vector<JPPartFinder::Rect> shape;   // the part's own mm
         double partHeightMm = 0;
-        double imageAngle = 0;    // the part's angle for the first look (the nozzle's rotation)
+        double imageAngle = 0;
         double angleRange = 10;
-        int    passes = 3;
-        double maxLinearOffsetMm = 1;
+        JPBottomVision::Settings offsets;
         // Found by this OpenPnP pipeline (the part's bottom vision settings'),
         // prepared for the part and its settings, else by jplacer's finder.
         std::shared_ptr<JPPipeline> pipeline;
         std::string                 partId, settingsId;
     };
-    // Where the part is on the nozzle as last looked at: the nozzle's turn
-    // then, the part's centre less the nozzle's axis (mm), and the part's angle.
+    // Where the part is on the nozzle: with the nozzle turned to `nozzleAngle`,
+    // the part's centre less the nozzle's axis (mm), and the part's angle
+    // (OpenPnP's PartAlignmentOffset, pre-rotated or not, put so).
     struct AlignResult {
         double nozzleAngle = 0;
         double dx = 0, dy = 0;

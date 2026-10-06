@@ -189,7 +189,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Parts (height, speed, package, pick retries) | done |
 | Packages (footprint, body, compatible tips, vision) | done |
 | Vision settings, pipelines and the pipeline editor | done |
-| Bottom vision (pipeline, pre-rotate, size check, max rotation) | done |
+| Bottom vision (pipeline, pre-rotate, size check, max rotation, vision offset, pick tolerance; OpenPnP's findOffsets, passing its ReferenceBottomVision tests) | done |
 | Vision compositing (multi-shot bottom vision, the package's preview) | done |
 | Feeders: strip, tray, rotated tray, push-pull, drag, auto, slot auto, lever, heap, loose part, advanced loose part, tube, blinds, Schultz, slot Schultz, Photon, Rapid, Bamboo | done |
 | Job: placements table, start / pause / step / stop, job order, nozzle tip strategy, retries, optimisation | done |

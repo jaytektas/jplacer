@@ -38,6 +38,9 @@ public:
     // A new one of `kind`, as OpenPnP's New Settings makes it: named after its class.
     static JPVisionSettings create(Kind kind, const std::string& id);
 
+    // OpenPnP's setValues: everything of `another`'s but its id and name.
+    void setValues(const JPVisionSettings& another);
+
     // OpenPnP's isStockSetting: its id says "Stock" (not to be renamed or deleted).
     bool isStock() const { return id.find("Stock") != std::string::npos; }
     std::string className() const;

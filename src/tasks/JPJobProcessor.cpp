@@ -1097,8 +1097,7 @@ JPJobProcessor::Step JPJobProcessor::align(Planned& p) {
     main([&] {
         const JPPart* part = m_config.part(j.partId);
         if (!part) return;
-        const double place = placeLocation(p.job).rotation(), pick = j.plannedPickLocation ? j.plannedPickLocation->rotation() : 0;
-        aligned = JPAlignRequests::forPart(m_config, m_vision, *part, j.partHeightMm, place, pick, rq);
+        aligned = JPAlignRequests::forPart(m_config, m_vision, *part, j.partHeightMm, placeLocation(p.job).rotation(), rq);
         name = part->id;
     });
     if (!aligned) {

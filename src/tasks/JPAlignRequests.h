@@ -17,11 +17,10 @@ inline namespace jf {
 class JPAlignRequests {
 public:
     // A part's alignment: none (false) when bottom vision is off for it or
-    // its settings are not enabled. `placeAngle`: the angle it is placed at;
-    // `pickAngle`: the angle it was picked at. `settings`: the bottom vision
-    // settings that apply (null: none).
+    // its settings are not enabled. `placeAngle`: the angle it is placed at.
+    // `settings`: the bottom vision settings that apply (null: none).
     static bool forPart(const JPConfiguration& config, const JPVisionConfig& vision, const JPPart& part, double partHeightMm,
-                        double placeAngle, double pickAngle, JPJobMachine::AlignRequest& request,
+                        double placeAngle, JPJobMachine::AlignRequest& request,
                         const JPVisionSettings** settings = nullptr);
 };
 

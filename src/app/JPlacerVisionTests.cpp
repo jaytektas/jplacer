@@ -101,7 +101,7 @@ void JPlacerVisionTests::align(const std::string& settingsId, const JPVisionForm
             if (!part) return;
             heightMm = part->height.convertToUnits(JPLengthUnit::Millimeters).value();
             const JPVisionConfig vision = m_machine.cell() ? m_machine.cell()->config().vision : JPVisionConfig {};
-            ok = JPAlignRequests::forPart(config, vision, *part, heightMm, angle, angle, rq);
+            ok = JPAlignRequests::forPart(config, vision, *part, heightMm, angle, rq);
         });
         if (!ok) {
             why = "Bottom vision is not enabled for " + partId + ".";

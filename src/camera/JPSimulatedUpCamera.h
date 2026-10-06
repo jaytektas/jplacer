@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "JPSimulatedSource.h"
 #include "machine/JPMachineLocation.h"
 
 #include <j/config/Json.h>
@@ -67,6 +68,30 @@ public:
         JJson scene() const;
     };
     static bool is(const JJson& device) { return device["openpnpClass"].str() == "SimulatedUpCamera"; }
+
+    // A nozzle over it: its axis at (x, y), its tip at `tipZ` and so wide (mm), turned `angle` (the part's way).
+    struct Nozzle {
+        double x = 0, y = 0, tipZ = 0, tipDiameter = 0, angle = 0;
+    };
+    // A part on a nozzle: its body's and pads' outlines in its own frame (mm), and its height (0: unknown).
+    using Polygon = std::vector<std::pair<double, double>>;
+    struct Part {
+        Polygon              body;
+        std::vector<Polygon> pads;
+        double               heightMm = 0;
+    };
+    // The nozzle tip and the part on it (none: no part) as this camera at (cameraX, cameraY, cameraZ) sees them from
+    // below, added to `extras`. As OpenPnP's SimulatedUpCamera draws them (`openPnp`: its settings): seen in
+    // perspective, shaded and blurred as far from the focus as they are, the tip in its scenario's colour, the body
+    // dark grey and the pads white, the part off by the Pick Error Offsets and turned as the nozzle is. Without
+    // (a jplacer simulated camera looking up): flat, in greys.
+    static void drawNozzle(const Settings* openPnp, double cameraX, double cameraY, double cameraZ, const Nozzle& nozzle,
+                           const Part* part, JPSimulatedSource::Extras& extras);
+    // A tip and a part's body and pads, in greys (a jplacer camera) and in colour (OpenPnP's).
+    static constexpr float kTipLevel = 230, kBodyLevel = 60, kPadLevel = 255;
+    static constexpr std::array<float, 3> kBodyColor { 60, 60, 60 }, kPadColor { 255, 255, 255 };
+    // A part of no known height is drawn as this high (mm).
+    static constexpr double kPartHeightMm = 1;
 };
 
 } // inline namespace jf

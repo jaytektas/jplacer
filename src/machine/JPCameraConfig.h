@@ -289,7 +289,7 @@ struct JPCameraConfig {
             c.settle.fullColor  = st["fullColor"].boolean(false);
             c.settle.gaussianBlur = int(st["gaussianBlur"].number(0));
             c.settle.gradients  = st["gradients"].boolean(false);
-            c.settle.contrastEnhance = st["contrastEnhance"].number(0);
+            c.settle.contrastEnhance = st["contrastEnhance"].number(0.0);
             c.settle.diagnostics = st["diagnostics"].boolean(false);
         }
         if (const JJson& l = j["lost"]; l.isObject()) {

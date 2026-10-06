@@ -227,9 +227,9 @@ void JPPartsPanel::act(const std::string& action) {
     const std::string id = v->id;
     const JPVisionForms::Holder holder { JPVisionForms::Holder::Kind::Part, p->id };
     if (pipelineAct(id, holder, what)) return;
-    auto run = [this, id, what, holder] {
+    auto run = [this, id, what, holder, machineDefault = bottom ? defaults.first : defaults.second] {
         std::string why;
-        if (JPVisionForms::act(m_config, id, what, holder, why)) {
+        if (JPVisionForms::act(m_config, id, what, holder, machineDefault, why)) {
             m_shownPart.clear();
             updateWizards();
             m_table->refresh();

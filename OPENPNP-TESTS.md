@@ -6,7 +6,7 @@ test passes here only when it passes there.
 
 Status: **passing** (ported and passing), **to port**.
 
-**35 of 253 test methods passing.**
+**48 of 253 test methods passing.**
 
 | OpenPnP test | Methods | Status | jplacer test |
 |---|---|---|---|
@@ -24,9 +24,9 @@ Status: **passing** (ported and passing), **to port**.
 | ModelUnitsTest.java (testLengths, testAreas, testVolumes) | 3 | passing | tests/model/test_model_units.cpp |
 | OpenCvTest.java (openCvWorks) | 1 | to port |  |
 | QuickHullTest.java (testQuickHull) | 1 | passing | tests/model/test_quick_hull.cpp |
-| ReferenceBottomVisionInheritanceTest.java (testBottomVisionSettingsInheritance, testBottomVisionReset) | 2 | to port |  |
-| ReferenceBottomVisionOffsetTest.java (testSymetricPartNoOffsetNoPreRotation, testSymetricPartNoOffsetWithPreRotation, testSymetricPartWithOffsetWithPreRotation, testAsymetricPartNoOffsetNoPreRotation, testAsymetricPartNoOffsetWithPreRotation, testAsymetricPartWithOffsetNoPreRotation, testAsymetricPartWithOffsetWithPreRotation, testAsymetricPartWithOffsetNoPreRotationWithError, testAsymetricPartWithOffsetWithPreRotationWithError) | 9 | to port |  |
-| ReferenceBottomVisionTest.java (testPositiveAngle, testNegativeAngle) | 2 | to port |  |
+| ReferenceBottomVisionInheritanceTest.java (testBottomVisionSettingsInheritance, testBottomVisionReset) | 2 | passing | tests/setup/test_bottom_vision_inheritance.cpp |
+| ReferenceBottomVisionOffsetTest.java (testSymetricPartNoOffsetNoPreRotation, testSymetricPartNoOffsetWithPreRotation, testSymetricPartWithOffsetWithPreRotation, testAsymetricPartNoOffsetNoPreRotation, testAsymetricPartNoOffsetWithPreRotation, testAsymetricPartWithOffsetNoPreRotation, testAsymetricPartWithOffsetWithPreRotation, testAsymetricPartWithOffsetNoPreRotationWithError, testAsymetricPartWithOffsetWithPreRotationWithError) | 9 | passing | tests/tasks/test_bottom_vision_offset.cpp |
+| ReferenceBottomVisionTest.java (testPositiveAngle, testNegativeAngle) | 2 | passing | tests/tasks/test_bottom_vision_offset.cpp |
 | ReferenceFiducialLocatorTest.java (testJust1, testJust2, testNominal, testCollinear, testSameX, testSameY) | 6 | passing | tests/model/test_best_fiducials.cpp |
 | ReferenceJobProcessorRetryTests.java (testFeederFeedRetry, testFeederDisable, testFeederPickRetry, testPartPickRetry, testPartFailover, testPlacementRetry, testPlacementRetryDisablesOneFeeder, testPlacementRetryNeverDisablesAnyFeeder) | 8 | to port |  |
 | SampleJobTest.java (testSampleJob) | 1 | to port |  |

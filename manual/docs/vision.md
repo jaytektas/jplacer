@@ -29,22 +29,27 @@ Settings -** and **- Whole Part Body Bottom Vision Settings -**, and the fiducia
 Vision Settings -** and **- Footprint Fiducial Vision Settings -**; with none yet, the machine's defaults,
 **- Default Machine Bottom Vision -** and **- Default Machine Fiducial Locator -**, start as the stock ones.
 
+<!-- src: src/tasks/JPBottomVision.cpp (findOffsets, partSizeCheck, partCheckSize); src/setup/JPVisionForms.cpp (act); src/model/JPVisionSettings.cpp (setValues) -->
+
 <!-- src: src/ui/JPVisionSettingsPanel.cpp (newSettings, deleteSettings, copySettings, pasteSettings, usedIn); src/ui/JPVisionSettingsTableModel.cpp; src/model/JPConfiguration.cpp (visionUsedIn); src/setup/JPVisionPipelines.cpp (ensureStock); src/pipeline/JPDefaultPipelines.cpp -->
 
 ## The settings
 
 Under the table, the chosen settings' page. **General**: **Name**, **Assigned to**, **Enabled?**, and
-**Reset to Default**, which makes them as the stock settings of their kind (keeping their name), after
-asking. **Specialize** and **Generalize** are for settings shown from a part or package, so they are
+**Reset to Default**, which gives them the values of the machine's default settings of their kind (the
+machine's default itself the stock settings' values), keeping their name, after asking. **Specialize** and **Generalize** are for settings shown from a part or package, so they are
 greyed here.
 
 **Bottom Vision Settings** add **Pre-rotate** (Default, AlwaysOn, AlwaysOff), **Rotation** (Adjust, Full),
 **Part size check** (Disabled, BodySize, PadExtents) with its **Size tolerance (%)**, and **Vision Offsets**:
 **Asymmetric?** (the contacts are off the part's centre by design) and the **Vision Center Offsets**.
-A job uses **Enabled?**, **Pre-rotate** (Default: as the machine's bottom vision says) and **Rotation**
-(**Adjust**: within the machine's max angular offset; **Full**: all the way round). jplacer finds the part
-by its footprint, so the size check and the vision offsets are kept as OpenPnP wrote them but not needed
-(see [Running the job](jobs.md#running-the-job)).
+A job uses them all, as OpenPnP's bottom vision does: **Enabled?**, **Pre-rotate** (Default: as the
+machine's bottom vision says), **Rotation** (**Adjust**: the part taken as turned less than 45° either way;
+**Full**: all the way round), the **Part size check** (the part as measured, its width and length, within
+the **Size tolerance** of its body, or of its pads' extent; else the alignment fails, saying which, the
+nominal, the limit and what was measured: "Part R1 width too small: nominal 3.000mm, limit 2.400mm,
+measured 1.277mm"), and the **Vision Center Offsets**, taken off what is found, turned as the part is (see
+[Running the job](jobs.md#running-the-job)).
 
 **Test Alignment** aligns the part on the nozzle chosen on the Jog panel over the camera looking up, as a
 job would at the **Placement Angle** (the machine's test alignment angle), and shows what it found on the

@@ -130,4 +130,12 @@ void JPVisionSettings::setLocationOf(const std::string& element, const JPLocatio
     else m_node.add(fresh);
 }
 
+void JPVisionSettings::setValues(const JPVisionSettings& another) {
+    if (&another == this) return;
+    const std::string keepId = id, keepName = name;
+    *this = another;
+    id = keepId;
+    name = keepName;
+}
+
 } // inline namespace jf

@@ -41,12 +41,13 @@ public:
     // tabs), its buttons' actions prefixed "bottom:" or "fiducial:".
     static void addPage(JPFormBuilder& add, JPConfiguration& config, const std::string& id, const std::string& usedIn,
                         const Holder& holder, const Tests* tests = nullptr);
-    // A button of a page: "reset", "specialize" (a copy of `id`'s settings
+    // A button of a page: "reset" (to the machine's default settings, `machineDefaultId`; the machine's own to
+    // the stock ones), "specialize" (a copy of `id`'s settings
     // for the holder, named after it), "generalize" (a package's parts' own
     // settings taken off). False, and why (empty when nothing was done),
     // when it did nothing.
     static bool act(JPConfiguration& config, const std::string& id, const std::string& action, const Holder& holder,
-                    std::string& why);
+                    const std::string& machineDefaultId, std::string& why);
     // What Generalize takes away: the package's parts with settings of their own of the kind.
     static std::vector<std::string> specializedIn(const JPConfiguration& config, const Holder& holder, JPVisionSettings::Kind kind);
 };

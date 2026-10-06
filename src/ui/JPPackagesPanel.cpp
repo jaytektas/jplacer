@@ -274,9 +274,9 @@ void JPPackagesPanel::visionAct(const std::string& action) {
     const std::string id = v->id;
     const JPVisionForms::Holder holder { JPVisionForms::Holder::Kind::Package, p->id };
     if (pipelineAct(id, holder, what)) return;
-    auto run = [this, id, what, holder] {
+    auto run = [this, id, what, holder, machineDefault = bottom ? defaults.first : defaults.second] {
         std::string why;
-        if (JPVisionForms::act(m_config, id, what, holder, why)) {
+        if (JPVisionForms::act(m_config, id, what, holder, machineDefault, why)) {
             updateWizards(true);
             m_table->refresh();
             changed();

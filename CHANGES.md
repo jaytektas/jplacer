@@ -10,6 +10,15 @@ notes.
 
 ## Unreleased
 
+- Bottom vision works out a part's offsets as OpenPnP's does, step for step: the Vision Center Offsets are now
+  taken off (they were kept but not used), the Part size check is made, offsets beyond the nozzle tip's Max. Pick
+  Tolerance stop the placement, and a part not pre-rotated is looked at with the nozzle at 0° (it was looked at as
+  picked). Checked against OpenPnP's own bottom vision tests on its simulated camera.
+- Reset to Default on vision settings gives them the machine's default settings, as OpenPnP's (it gave the stock
+  ones); the machine's default itself is reset to the stock settings.
+- An image camera's offset, rotation, scale, distortion and Y rotation, its fiducials, a simulated camera's focal
+  length and frame rate, and a switcher camera's actuator value kept only their whole numbers when read back from
+  the cell (12.5 became 12). They keep their fractions now.
 - A pipeline length given in mm becomes pixels at the mean of the camera's mm per pixel, as OpenPnP works it out
   (it was the mean of its pixels per mm, a hair different on a camera whose X and Y scales differ).
 - Routes through feeders and placements are found by OpenPnP's own travelling salesman (simulated annealing, seeded

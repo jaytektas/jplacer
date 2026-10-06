@@ -182,7 +182,12 @@ void JPVisionSettingsPanel::act(const std::string& settingsId, const std::string
     JDialog::confirm("Reset to Default", "This will reset the vision settings to the default settings. Are you sure?",
                      [this, settingsId] {
                          std::string why;
-                         if (!JPVisionForms::act(m_config, settingsId, "reset", JPVisionForms::Holder {}, why)) return;
+                         const JPVisionSettings* v = m_config.visionSettings(settingsId);
+                         const auto defaults = machineDefaults ? machineDefaults() : std::pair<std::string, std::string> {};
+                         const bool bottom = !v || v->kind == JPVisionSettings::Kind::Bottom;
+                         if (!JPVisionForms::act(m_config, settingsId, "reset", JPVisionForms::Holder {}, bottom ? defaults.first : defaults.second,
+                                                 why))
+                             return;
                          m_shown.clear();
                          showForm();
                          m_table->refresh();

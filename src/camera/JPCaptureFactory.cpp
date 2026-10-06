@@ -49,7 +49,7 @@ std::unique_ptr<JPCaptureSource> JPCaptureFactory::create(const std::string& cam
         s.preferredResolution = device["preferredResolution"].str();
         s.resizeWidth = int(device["resizeWidth"].number(0));
         s.resizeHeight = int(device["resizeHeight"].number(0));
-        s.fps = device["fps"].number(10);
+        s.fps = device["fps"].number(10.0);
         return std::make_unique<JPOnvifSource>(cameraName, s);
     }
     if (backend == "switcher") {
@@ -58,7 +58,7 @@ std::unique_ptr<JPCaptureSource> JPCaptureFactory::create(const std::string& cam
         s.cameraId = device["camera"].str();
         s.switcher = int(device["switcher"].number(0));
         s.actuatorId = device["actuator"].str();
-        s.actuatorValue = device["actuatorValue"].number(0);
+        s.actuatorValue = device["actuatorValue"].number(0.0);
         s.delayMs = int(device["actuatorDelayMs"].number(500));
         return std::make_unique<JPSwitcherSource>(cameraName, s, context.links, context.takeClaim);
     }
@@ -92,21 +92,21 @@ std::unique_ptr<JPCaptureSource> JPCaptureFactory::create(const std::string& cam
         s.path = device["source"].str();
         s.width = int(device["width"].number(640));
         s.height = int(device["height"].number(480));
-        s.fps = device["fps"].number(10);
+        s.fps = device["fps"].number(10.0);
         s.unitsPerPixelX = device["imageUnitsPerPixel"]["x"].number(JPCameraConfig::kDefaultImageUnitsPerPixel);
         s.unitsPerPixelY = device["imageUnitsPerPixel"]["y"].number(JPCameraConfig::kDefaultImageUnitsPerPixel);
-        s.offsetX = device["imageOffset"]["x"].number(0);
-        s.offsetY = device["imageOffset"]["y"].number(0);
-        s.rotation = device["simulatedRotation"].number(0);
-        s.scale = device["simulatedScale"].number(1);
+        s.offsetX = device["imageOffset"]["x"].number(0.0);
+        s.offsetY = device["imageOffset"]["y"].number(0.0);
+        s.rotation = device["simulatedRotation"].number(0.0);
+        s.scale = device["simulatedScale"].number(1.0);
         s.flipped = device["simulatedFlipped"].boolean();
-        s.distortion = device["simulatedDistortion"].number(0);
-        s.yRotation = device["simulatedYRotation"].number(0);
-        s.focalLengthMm = device["focalLengthMm"].number(6);
+        s.distortion = device["simulatedDistortion"].number(0.0);
+        s.yRotation = device["simulatedYRotation"].number(0.0);
+        s.focalLengthMm = device["focalLengthMm"].number(6.0);
         s.sensorDiagonalMm = device["sensorDiagonalMm"].number(4.4);
         for (const auto& [key, field] : { std::pair { "primaryFiducial", &s.primaryFiducial }, std::pair { "secondaryFiducial", &s.secondaryFiducial } })
             if (const JJson& f = device[key]; f.isObject())
-                *field = JPImageSource::Settings::Fiducial { f["x"].number(0), f["y"].number(0), f["z"].number(0) };
+                *field = JPImageSource::Settings::Fiducial { f["x"].number(0.0), f["y"].number(0.0), f["z"].number(0.0) };
         return std::make_unique<JPImageSource>(cameraName, s, context.view);
     }
 #if defined(__linux__)

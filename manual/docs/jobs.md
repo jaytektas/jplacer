@@ -148,15 +148,20 @@ A job goes as OpenPnP's does:
 5. **Alignment** (bottom vision), when the machine's bottom vision is on and the part's
    [Bottom Vision Settings](vision.md#the-settings) are enabled: the nozzle takes the part over the
    camera looking up, its bottom at the camera's focus, turned to the placement's angle (pre-rotated, as
-   the settings' Pre-rotate and the machine say; else as picked). The part is found by its package's
-   footprint pads (else its body) drawn as the camera should see them and matched against the picture,
-   within the machine's max angular offset either way (all the way round with Rotation: Full); with
-   pre-rotation the nozzle is moved and turned to centre it and it is looked at again, up to the
-   machine's passes. Each look is tried again up to Max Vision Attempts. The part is then placed with
-   what was found taken off: the nozzle turned by what the part is off, and moved by its offset on the
-   nozzle. A part with bottom vision off is placed as it was picked.
+   the settings' Pre-rotate and the machine say; else at 0°), as OpenPnP's bottom vision does. The part
+   is found by its settings' pipeline (or by its package's footprint pads, else its body, drawn as the
+   camera should see them and matched against the picture), turned less than 45° either way of the angle
+   wanted (all the way round with Rotation: Full). Pre-rotated, the nozzle is moved and turned by what
+   was seen and the part looked at again, until it is off by less than the machine's Max. Linear Offset
+   (its corner too, as turned) and Max. Angular Offset, or the machine's passes run out. The settings'
+   Vision Center Offsets are taken off what was found; offsets further than the nozzle tip's Max. Pick
+   Tolerance fail it ("Part R1 bottom vision offsets length 0.713mm larger than the allowed Max. Pick
+   Tolerance 0.500mm set on nozzle tip NT1."), as does the Part size check. Each look is tried again up
+   to Max Vision Attempts. The part is then placed with what was found taken off: the nozzle turned by
+   what the part is off, and moved by its offset on the nozzle. A part with bottom vision off is placed as
+   it was picked.
 
-<!-- src: src/machine/JPJobProcessorConfig.h; src/tasks/JPJobProcessor.cpp (preFlight, plan, ordered, planner, pick, align, place, cleanup); src/vision/JPPartFinder.cpp; src/app/JPlacerJobMachine.cpp (alignPart); src/tasks/JPFiducialLocator.cpp; src/model/JPFiducialFit.cpp; src/app/JPlacerJobMachine.cpp (locateFiducial, changeTip) -->
+<!-- src: src/machine/JPJobProcessorConfig.h; src/tasks/JPJobProcessor.cpp (preFlight, plan, ordered, planner, pick, align, place, cleanup); src/vision/JPPartFinder.cpp; src/app/JPlacerJobMachine.cpp (alignPart); src/tasks/JPBottomVision.cpp (findOffsets); src/tasks/JPAlignRequests.cpp; src/tasks/JPFiducialLocator.cpp; src/model/JPFiducialFit.cpp; src/app/JPlacerJobMachine.cpp (locateFiducial, changeTip) -->
 
 When something fails, the job pauses and says why (**Job Error**); the board, placement, part or feeder
 it is about is chosen on its tab. **Resume** goes on from there. With **Defer Errors** (or a placement's

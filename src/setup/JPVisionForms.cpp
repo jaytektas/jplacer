@@ -208,20 +208,19 @@ std::vector<std::string> JPVisionForms::specializedIn(const JPConfiguration& con
 }
 
 bool JPVisionForms::act(JPConfiguration& config, const std::string& id, const std::string& action, const Holder& holder,
+                        const std::string& machineDefaultId,
                         std::string& why) {
     why.clear();
     JPVisionSettings* v = config.visionSettings(id);
     if (!v) return false;
     const bool bottom = v->kind == JPVisionSettings::Kind::Bottom;
     if (action == "reset") {
-        // As the stock settings of its kind, its id and name kept.
-        const JPVisionSettings* stock =
-            config.visionSettings(bottom ? JPVisionSettings::kStockBottomId : JPVisionSettings::kStockFiducialId);
-        if (!stock || stock == v) return false;
-        const std::string keepId = v->id, keepName = v->name;
-        *v = *stock;
-        v->id = keepId;
-        v->name = keepName;
+        // As the machine's default settings; the machine's default itself as the stock settings of its kind.
+        const JPVisionSettings* from = config.visionSettings(machineDefaultId);
+        if (!from || from == v)
+            from = config.visionSettings(bottom ? JPVisionSettings::kStockBottomId : JPVisionSettings::kStockFiducialId);
+        if (!from || from == v) return false;
+        v->setValues(*from);
         return true;
     }
     if (action == "specialize" && holder.kind != Holder::Kind::None) {

@@ -2263,7 +2263,7 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
                                device()[key][axis] = v;
                                // All at the origin: none, as OpenPnP's.
                                const JJson& f = std::as_const(device())[key];
-                               if (f["x"].number(0) == 0 && f["y"].number(0) == 0 && f["z"].number(0) == 0) {
+                               if (f["x"].number(0.0) == 0 && f["y"].number(0.0) == 0 && f["z"].number(0.0) == 0) {
                                    JJson rest = JJson::object();
                                    for (const auto& [n, val] : std::as_const(device()).obj()) if (n != key) rest[n] = val;
                                    device() = rest;
@@ -2330,7 +2330,7 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
         add.byName("switcherActuator", "Actuator", named(cell.actuators, "(none)"),
                    [device] { return std::as_const(device())["actuator"].str(); },
                    [device](const std::string& v) { device()["actuator"] = v; });
-        add.number("actuatorValue", "Actuator Value", [device] { return std::as_const(device())["actuatorValue"].number(0); },
+        add.number("actuatorValue", "Actuator Value", [device] { return std::as_const(device())["actuatorValue"].number(0.0); },
                    [device](double v) { device()["actuatorValue"] = v; });
         add.tip("What the actuator is set to, to switch this camera in (on/off for a boolean actuator: not 0 is on).");
         add.integer("actuatorDelayMs", "Actuator Delay (ms)", [device] { return int(std::as_const(device())["actuatorDelayMs"].number(500)); },
@@ -2399,7 +2399,7 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
             };
             auto get = [device, own, axis] {
                 const JJson& l = std::as_const(device())["simulatedLocation"];
-                return l.isObject() ? l[axis].number(0) : own();
+                return l.isObject() ? l[axis].number(0.0) : own();
             };
             auto set = [device, c, axis](double v) {
                 // The first change: its own from where it is set up to be, that one axis changed.

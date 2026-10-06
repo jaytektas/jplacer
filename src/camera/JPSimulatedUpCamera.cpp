@@ -82,4 +82,51 @@ JJson JPSimulatedUpCamera::Settings::scene() const {
     return scene;
 }
 
+void JPSimulatedUpCamera::drawNozzle(const Settings* up, double camX, double camY, double camZ, const Nozzle& n, const Part* part,
+                                     JPSimulatedSource::Extras& e) {
+    using Rgb = std::array<float, 3>;
+    // A thing dz above the focus is seen nearer the middle, smaller, by the perspective, and its colour darker by
+    // the perspective squared.
+    auto shaded = [](const Rgb& rgb, double perspective) {
+        Rgb out;
+        for (size_t k = 0; k < 3; ++k) out[k] = float(std::min(255.0, rgb[k] / (perspective * perspective)));
+        return out;
+    };
+    auto seen = [&](double x, double y, double perspective) {
+        return std::pair { camX + (x - camX) / perspective, camY + (y - camY) / perspective };
+    };
+    JPSimulatedSource::Extras::Spot tip { n.x, n.y, n.tipDiameter, kTipLevel, std::nullopt, 0 };
+    if (up) {
+        const double perspective = up->perspective(n.tipZ - camZ);
+        if (perspective <= 0 || perspective > kFarthest) return;
+        const Scenario& sc = scenario(up->scenario);
+        std::tie(tip.x, tip.y) = seen(n.x, n.y, perspective);
+        tip.diameter = n.tipDiameter / perspective;
+        tip.color = shaded({ float(sc.nozzleTip[0]), float(sc.nozzleTip[1]), float(sc.nozzleTip[2]) }, perspective);
+        tip.blurPx = float(up->blurPx(n.tipZ - camZ));
+    }
+    e.spots.push_back(tip);
+    if (!part) return;
+    // Its underside a part's height below the tip.
+    const double partZ = n.tipZ - (part->heightMm > 0 ? part->heightMm : kPartHeightMm);
+    const double perspective = up ? up->perspective(partZ - camZ) : 1;
+    if (perspective <= 0 || perspective > kFarthest) return;
+    const float blur = up ? float(up->blurPx(partZ - camZ)) : 0;
+    const double a = n.angle * M_PI / 180, ca = std::cos(a), sa = std::sin(a);
+    const JPMachineLocation err = up ? up->errorOffsets : JPMachineLocation {};
+    const double ea = err.rotation * M_PI / 180, cea = std::cos(ea), sea = std::sin(ea);
+    auto placed = [&](const Polygon& o, float level, const Rgb& rgb) {
+        JPSimulatedSource::Extras::Outline out { {}, level, std::nullopt, blur };
+        if (up) out.color = shaded(rgb, perspective);
+        for (const auto& [x, y] : o) {
+            // In the part's frame: off by the error, turned by its rotation; then turned as the nozzle is.
+            const double px = err.x + x * cea - y * sea, py = err.y + x * sea + y * cea;
+            out.points.push_back(seen(n.x + px * ca - py * sa, n.y + px * sa + py * ca, perspective));
+        }
+        e.outlines.push_back(std::move(out));
+    };
+    placed(part->body, kBodyLevel, kBodyColor);
+    for (const Polygon& o : part->pads) placed(o, kPadLevel, kPadColor);
+}
+
 } // inline namespace jf
