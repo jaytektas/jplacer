@@ -1365,26 +1365,35 @@ void rotatedTrayForm(JPFormBuilder& add, JPConfiguration& config, std::function<
         add.end();
     }
     add.group("Tray Parameters");
+    // OpenPnP's columns: a setting at the left, another (or a count) at the right.
+    add.header({ "", "", "" });
     add.row("Number of Tray Rows");
     count(add, f, "tray-count-rows", "Number of Tray Rows", 1);
+    add.words("Number of Tray Columns");
     count(add, f, "tray-count-cols", "Number of Tray Columns", 1);
     add.end();
     add.row("Feed Count");
     count(add, f, "feed-count", "Feed Count", 0);
-    add.button("resetFeedCount", "Reset");
     add.text("remaining", "Components remaining:", [f] {
         const int total = std::max(f().number("tray-count-rows", 1), 1) * std::max(f().number("tray-count-cols", 1), 1);
-        return std::to_string(std::max(0, total - f().number("feed-count")));
+        return "Components remaining: " + std::to_string(std::max(0, total - f().number("feed-count")));
     }, nullptr);
+    add.button("resetFeedCount", "Reset");
     add.end();
-    add.number("component-rotation-in-tray", "Component Rotation in Tray [°]",
+    add.row("Component Rotation in Tray [\u00B0]");
+    add.number("component-rotation-in-tray", "Component Rotation in Tray [\u00B0]",
                [f] { return f().real("component-rotation-in-tray", 0); },
                [f](double v) { f().setReal("component-rotation-in-tray", v); });
-    add.tip("Rotation of the components relative to the tray's A->B (row) axis");
+    add.words("Z Height");
     coordinate(add, f, "location", Axis::Z, "Z Height");
+    add.end();
+    add.tipOf("component-rotation-in-tray", "Rotation of the components relative to the tray's A->B (row) axis");
+    add.endColumns();
     add.button("calculateOffsets", "Calculate Offsets & Tray Rotation");
+    add.header({ "", "", "" });
     add.row("Column Offset");
-    for (const bool x : { true, false })
+    for (const bool x : { true, false }) {
+        if (!x) add.words("Row Offset");
         add.length(x ? "offsets.X" : "offsets.Y", x ? "Column Offset" : "Row Offset",
                    [f, x] {
                        const JPLocation l = f().locationOf("offsets").convertToUnits(kMm);
@@ -1395,8 +1404,10 @@ void rotatedTrayForm(JPFormBuilder& add, JPConfiguration& config, std::function<
                        f().setLocationOf("offsets", l.derive(x ? std::optional(v) : std::nullopt, x ? std::nullopt : std::optional(v),
                                                              std::nullopt, std::nullopt));
                    });
+    }
     add.end();
-    coordinate(add, f, "location", Axis::Rotation, "Tray Rotation [°]");
+    add.endColumns();
+    coordinate(add, f, "location", Axis::Rotation, "Tray Rotation [\u00B0]");
     add.tip("Angle of the tray's A->B (row) axis relative to the machine's positive X-axis");
     add.group("Tray Illustration");
     add.image("", [] { return JPIllustrations::picture("rotatedtrayfeeder.png"); }, true);

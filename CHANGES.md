@@ -10,6 +10,7 @@ notes.
 
 ## Unreleased
 
+- A rotated tray feeder's Tray Parameters are laid out in OpenPnP's columns.
 - A strip feeder's Tape Settings are laid out in OpenPnP's columns, Auto Setup across them.
 - New Axis… asks which of OpenPnP's axis classes, as OpenPnP's does; the class dialogs are worded as OpenPnP's.
 - A controller in Machine Setup has OpenPnP's Console tab: its G-code traffic as it happens, and a command line to
