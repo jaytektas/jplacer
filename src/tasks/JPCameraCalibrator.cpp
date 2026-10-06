@@ -30,6 +30,9 @@ constexpr double kMaxMarkShare = 0.4;
 // The first moves, small enough that the mark stays near where it was: a
 // share of the picture's smaller side.
 constexpr double kNudgeShare = 0.05;
+// Neither the mark's size nor the camera's rough scale known (a new machine): the scale probed first, a move of
+// kProbeMm doubled until the mark moves at least kProbePx in the picture, at most kProbeMostMm.
+constexpr double kProbeMm = 0.1, kProbePx = 8, kProbeMostMm = 12.8;
 // The grid's places across and down the picture come from the camera's
 // settings (JPCameraConfig::Calibrating), at least this many each way: the
 // lens is fitted with ten numbers, and its bending must show.
@@ -109,8 +112,23 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
     const double markPx = first.diameter;
     // The scale the mark's size suggests (else the camera's own rough one);
     // the moves measure the real one.
-    const double guessPxPerMm = o.markDiameterMm > 0 ? markPx / o.markDiameterMm
-                                                     : 2 / (cam.unitsPerPixelX + cam.unitsPerPixelY);
+    double guessPxPerMm = o.markDiameterMm > 0 ? markPx / o.markDiameterMm
+                         : cam.unitsPerPixelX + cam.unitsPerPixelY > 0 ? 2 / (cam.unitsPerPixelX + cam.unitsPerPixelY) : 0;
+    if (guessPxPerMm <= 0) {
+        // Probed: moved along X until the mark moves clearly, the scale its pixels over the millimetres.
+        for (double d = kProbeMm; d <= kProbeMostMm && guessPxPerMm <= 0; d *= 2) {
+            if (!cell.moveAxesAndWait({ { mount.axisX, x0 + d }, { mount.axisY, y0 } }, o.speed, why)) return std::nullopt;
+            JPGrayImage probe;
+            if (!JPCameraLook::settled(feed, probe, why)) return std::nullopt;
+            const JPRoundMark m = finder.find(probe, first.x, first.y, kFirstSearch * side, markPx);
+            if (m.found && std::hypot(m.x - first.x, m.y - first.y) >= kProbePx) guessPxPerMm = std::hypot(m.x - first.x, m.y - first.y) / d;
+        }
+        if (!cell.moveAxesAndWait({ { mount.axisX, x0 }, { mount.axisY, y0 } }, o.speed, why)) return std::nullopt;
+        if (guessPxPerMm <= 0) {
+            why = "the mark did not move in the picture when the head moved: is it the right camera?";
+            return std::nullopt;
+        }
+    }
 
     std::vector<JPCalibrationFit::Sample> samples;
     auto back = [&] {

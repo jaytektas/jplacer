@@ -10,6 +10,11 @@ notes.
 
 ## Unreleased
 
+- Issues & Solutions starts vision as OpenPnP's does: Primary calibration fiducial position and initial camera
+  calibration (jog the camera over the fiducial, Accept). A new machine's camera can now be calibrated before
+  any homing mark is set; it works out its first scale itself.
+- The precise nozzle offsets calibration's number of angles is a setting (Angles, under its button), imported from
+  OpenPnP.
 - Calibrating a fixed camera (the one looking up) moves its location to where it was measured to be, as OpenPnP
   applies its calibration; calibrate the nozzle offsets first, as the first nozzle's tip is what it is measured by.
 - Machine Setup's tree highlights what is shown when it is brought up from elsewhere (a camera's settings button, say)

@@ -1402,6 +1402,31 @@ void visionSetup(JPSolutions& s, const JPIssueChecks::Context& c) {
         const JPCameraConfig* camera = nullptr;
         for (const JPCameraConfig& cam : cell->cameras)
             if (!camera && cam.mount.headId == h.id && !cam.mount.axisX.empty()) camera = &cam;
+        // As OpenPnP's, first: the primary calibration fiducial's place, and the camera calibrated over it (a new
+        // machine's first vision step: nothing else is known yet).
+        if (camera && (!h.rigPrimary || h.rigPrimaryDiameter <= 0) && c.capturePrimaryFiducial) {
+            Issue i;
+            i.subject = "ReferenceHead " + h.name;
+            i.issue = "Primary calibration fiducial position and initial camera calibration.";
+            i.solution = "Move the camera over the primary calibration fiducial and capture its position.";
+            i.severity = Severity::Fundamental;
+            i.uri = std::string(kWiki) + "Vision-Solutions#calibration-primary-fiducial";
+            i.extendedDescription =
+                "Camera calibration can be performed automatically by looking at fiducials while moving the camera around "
+                "in a certain pattern. This solution determines the X, Y position of the primary fiducial and it performs "
+                "preliminary camera calibration.\n\nInstructions for how to create and position the primary fiducial must be "
+                "obtained in the OpenPnP Wiki. There are very important rules that must be observed! Press the Info button "
+                "to open the Wiki.\n\nOnce you have prepared the calibration primary fiducial you can capture its position "
+                "in X, Y.\n\nJog camera " + camera->name + " over the primary fiducial. Target it roughly with the "
+                "cross-hairs (its size is found).\n\nThen press Accept to capture the position. The camera will perform a "
+                "calibration movement pattern.";
+            const std::string cameraId = camera->id, headId = h.id;
+            i.activate = [c, cameraId] {
+                if (c.showSetup) c.showSetup("camera:" + cameraId);
+            };
+            solvedByWork(s, i, [c, headId](std::function<void(bool)> finished) { c.capturePrimaryFiducial(headId, std::move(finished)); });
+            s.add(std::move(i));
+        }
         if (camera && !h.visualHoming && c.enableVisualHoming && (!c.calibrated || c.calibrated(camera->id))) {
             Issue i;
             i.subject = "ReferenceHead " + h.name;

@@ -2109,6 +2109,36 @@ void JPlacerMachine::enableVisualHoming(const std::string& headId, std::function
     });
 }
 
+void JPlacerMachine::capturePrimaryFiducial(const std::string& headId, std::function<void(bool ok)> finished) {
+    JPCameraPanel* camera = nullptr;
+    for (CameraDock& c : m_cameras)
+        if (!camera && c.panel->camera().mount.headId == headId && !c.panel->camera().mount.axisX.empty()) camera = c.panel.get();
+    if (!m_cameraTasks || !camera) {
+        m_window.showStatus("Primary fiducial: the head has no camera", kErrorMs);
+        if (finished) finished(false);
+        return;
+    }
+    m_cameraTasks->calibrate(*camera, [this, headId, finished](bool ok) {
+        if (!ok) {
+            if (finished) finished(false);
+            return;
+        }
+        // Calibrated where it stands, back over the fiducial: found again, now measured.
+        m_cameraTasks->captureMark(headId, [this, headId, finished](std::optional<JPlacerCameraTasks::Mark> mark) {
+            if (mark)
+                changeSetup("Primary calibration fiducial", [&](JPCellConfig& cell) {
+                    for (JPHeadConfig& h : cell.heads)
+                        if (h.id == headId) {
+                            const double z = h.rigPrimary ? h.rigPrimary->z : 0.0;
+                            h.rigPrimary = JPMachineLocation { mark->x, mark->y, z, 0 };
+                            h.rigPrimaryDiameter = mark->diameter;
+                        }
+                });
+            if (finished) finished(mark.has_value());
+        });
+    }, true);
+}
+
 bool JPlacerMachine::onMainWait(const std::function<void()>& fn) {
     if (std::this_thread::get_id() == m_mainThread) {
         fn();

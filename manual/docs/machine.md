@@ -618,12 +618,15 @@ picture says the light is off.
 jplacer measures its cameras itself: nothing is taken from another program. **Calibrate** (the target),
 in the tab of the camera on the head, works out how big a pixel is on the machine in X and in Y, which way the
 camera is turned (or mirrored), and how its lens bends the picture. The machine must be connected and
-homed, and the head's homing mark (its place and diameter, brought across by an OpenPnP import) must be
-set.
+homed. With the head's homing mark set (its place and diameter, brought across by an OpenPnP import) it
+calibrates over that; on a new machine, with none set, it calibrates over the mark the camera is over now
+(jog it there first), as Issues & Solutions' first vision step does (see below).
 
-1. The camera moves over the homing mark.
+1. The camera moves over the homing mark (when there is one).
 2. It finds the mark at whatever size it appears (the scale is not known yet), checking that its edge
-   is round nearly all the way round.
+   is round nearly all the way round. Neither the mark's diameter nor the camera's rough scale known, the
+   head is first moved a little along X, twice as far each time, until the mark moves clearly in the
+   picture: how far it moved gives a first scale.
 3. Three small moves show which way the mark goes in the picture; then the head carries the mark to
    7 by 5 places across the whole picture, out to as near its edges as leaves room for the mark, nearest
    the middle first, finding it at each. Towards the corners the mark can be too dim and bent to measure;

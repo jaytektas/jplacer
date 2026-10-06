@@ -54,7 +54,9 @@ public:
     // known moves. A fixed camera: a nozzle's tip held over it (asked first,
     // as a nozzle goes down to it) and moved about.
     // `finished`: whether it was calibrated (false too when it could not start, or was not confirmed).
-    void calibrate(JPCameraPanel& camera, std::function<void(bool ok)> finished = nullptr);
+    // `here`: a camera on the head calibrated over the mark it is over now, of a size it finds (as when the
+    // head has no homing mark yet: a new machine).
+    void calibrate(JPCameraPanel& camera, std::function<void(bool ok)> finished = nullptr, bool here = false);
     // Look at the homing mark and say how far it is from its setting.
     void visualTest(JPCameraPanel& camera);
     // OpenPnP's Enable Visual Homing: the round mark under a head's camera

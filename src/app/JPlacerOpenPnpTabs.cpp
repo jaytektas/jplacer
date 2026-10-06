@@ -724,6 +724,9 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         context.calibrateTip = [this](const std::string& id, std::function<void(bool)> finished) {
             m_machine.calibrateTip(id, std::move(finished));
         };
+        context.capturePrimaryFiducial = [this](const std::string& id, std::function<void(bool)> finished) {
+            m_machine.capturePrimaryFiducial(id, std::move(finished));
+        };
         context.enableVisualHoming = [this](const std::string& id, std::function<void(bool)> finished) {
             m_machine.enableVisualHoming(id, std::move(finished));
         };

@@ -197,6 +197,10 @@ public:
     // OpenPnP's Enable Visual Homing: the mark under the head's camera made
     // its homing mark (where it is, how wide) and visual homing turned on.
     void enableVisualHoming(const std::string& headId, std::function<void(bool ok)> finished);
+    // OpenPnP's "Primary calibration fiducial position and initial camera calibration": the head's camera,
+    // over the primary fiducial, calibrated there, and the fiducial found with it made the calibration rig's
+    // primary fiducial (its X, Y and diameter).
+    void capturePrimaryFiducial(const std::string& headId, std::function<void(bool ok)> finished);
     // The open cell's file.
     const std::string& cellPath() const { return m_cellPath; }
     // A script's request of the machine (JPScripting::api), answered.

@@ -43,6 +43,10 @@ struct JPCellConfig {
     JPMachineLocation             defaultBoardLocation;         // where a board or panel added to a job starts
     // A tool a panel moves (a camera taken to a feeder) is chosen on the Jog panel.
     bool                          autoToolSelect = true;
+    // OpenPnP's Calibration Solutions' nozzle-offset-angles: how many angles round the circle the precise nozzle
+    // offsets calibration picks and places its test object at.
+    int                           nozzleOffsetAngles = 6;
+    static constexpr int          kMostNozzleOffsetAngles = 36;
     // Z park (the Jog panel's) takes every tool on the head to safe Z first.
     bool                          safeZPark = true;
     // OpenPnP's Unsafe Z Roaming: a tool left below safe Z (a camera's

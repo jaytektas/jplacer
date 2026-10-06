@@ -3,6 +3,7 @@
 
 #include "JPCellConfig.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <set>
 
@@ -36,6 +37,7 @@ JJson JPCellConfig::toJson() const {
     if (discardLocation) j["discardLocation"] = discardLocation->toJson();
     j["defaultBoardLocation"] = defaultBoardLocation.toJson();
     j["autoToolSelect"] = autoToolSelect;
+    j["nozzleOffsetAngles"] = nozzleOffsetAngles;
     j["safeZPark"] = safeZPark;
     j["unsafeZRoaming"] = unsafeZRoamingMm;
     j["motionPlanner"] = motionPlanner.toJson();
@@ -74,6 +76,7 @@ bool JPCellConfig::fromJson(const JJson& j, std::string& error) {
     c.discardLocation = JPMachineLocation::fromJson(j["discardLocation"]);
     c.defaultBoardLocation = JPMachineLocation::fromJson(j["defaultBoardLocation"]).value_or(JPMachineLocation {});
     if (j["autoToolSelect"].isBool()) c.autoToolSelect = j["autoToolSelect"].boolean();
+    c.nozzleOffsetAngles = std::clamp(int(j["nozzleOffsetAngles"].number(c.nozzleOffsetAngles)), 1, kMostNozzleOffsetAngles);
     if (j["safeZPark"].isBool()) c.safeZPark = j["safeZPark"].boolean();
     c.unsafeZRoamingMm = j["unsafeZRoaming"].number(c.unsafeZRoamingMm);
     c.motionPlanner = JPMotionPlannerConfig::fromJson(j["motionPlanner"]);

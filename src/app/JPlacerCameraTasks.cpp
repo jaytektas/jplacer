@@ -28,9 +28,8 @@ namespace {
 // so they go at the machine's speed (the Jog panel's Speed, which scales
 // every move), as jogs and parks do.
 constexpr double kTaskSpeed = 1.0;
-// OpenPnP's precise nozzle offsets calibration: the angles round the circle, the extra wait after each
+// OpenPnP's precise nozzle offsets calibration (its angles: the cell's nozzleOffsetAngles): the extra wait after each
 // pick and place, the test object's height (a pseudo part's), and centring on it (passes, near enough).
-constexpr int    kNozzleOffsetAngles = 6;
 constexpr int    kExtraVacuumDwellMs = 300;
 constexpr double kTestObjectHeightMm = 0.01;
 constexpr int    kCentrePasses = 3;
@@ -146,30 +145,34 @@ void JPlacerCameraTasks::run(JPCameraPanel& camera, const std::string& name, Tas
     });
 }
 
-void JPlacerCameraTasks::calibrate(JPCameraPanel& camera, std::function<void(bool ok)> finished) {
+void JPlacerCameraTasks::calibrate(JPCameraPanel& camera, std::function<void(bool ok)> finished, bool here) {
     if (camera.camera().mount.axisX.empty() || camera.camera().mount.axisY.empty()) {
         calibrateFixed(camera, std::move(finished));
         return;
     }
-    if (const std::string why = notReady(&camera, false, true); !why.empty()) {
+    if (const std::string why = notReady(&camera, false, false); !why.empty()) {
         m_window.showStatus("Calibrate: " + why, kResultMs);
         if (finished) finished(false);
         return;
     }
     JPCameraFeed* feed = &camera.feed();
     const JPHeadConfig h = *head(feed->config());
+    // Asked to, or no homing mark yet (a new machine): calibrated over the mark it is over now, of a size it finds.
+    const bool hasMark = !here && h.homingFiducial && h.homingFiducialDiameter > 0;
     const std::string cameraId = feed->config().id;
     auto result = std::make_shared<JPCameraCalibration>();
-    run(camera, "Calibrating " + feed->config().name, [this, feed, h, result](std::string& words, const auto& progress) {
+    run(camera, "Calibrating " + feed->config().name, [this, feed, h, hasMark, result](std::string& words, const auto& progress) {
         // Over the mark first, as near as the camera's offset on the head says.
         const JPMountConfig& m = feed->config().mount;
-        progress("moving over the homing mark");
-        if (!m_cell.moveAxesAndWait({ { m.axisX, h.homingFiducial->x - m.offsetX },
-                                      { m.axisY, h.homingFiducial->y - m.offsetY } }, kTaskSpeed, words))
-            return false;
+        if (hasMark) {
+            progress("moving over the homing mark");
+            if (!m_cell.moveAxesAndWait({ { m.axisX, h.homingFiducial->x - m.offsetX },
+                                          { m.axisY, h.homingFiducial->y - m.offsetY } }, kTaskSpeed, words))
+                return false;
+        }
         JPCameraCalibrator::Options o;
-        o.markDiameterMm = h.homingFiducialDiameter;
-        o.markZ = h.homingFiducial->z;
+        o.markDiameterMm = hasMark ? h.homingFiducialDiameter : 0;
+        o.markZ = h.homingFiducial ? h.homingFiducial->z : 0;
         o.speed = kTaskSpeed;
         o.calibrating = feed->config().calibrating;
         const auto c = JPCameraCalibrator::run(m_cell, *feed, o, words, progress);
@@ -177,7 +180,7 @@ void JPlacerCameraTasks::calibrate(JPCameraPanel& camera, std::function<void(boo
         *result = *c;
         // Again over the secondary mark, at another height.
         std::string second;
-        if (o.calibrating.twoHeights && h.rigSecondary
+        if (hasMark && o.calibrating.twoHeights && h.rigSecondary
             && std::abs(h.rigSecondary->z - h.homingFiducial->z) >= kLeastHeightGapMm) {
             progress("moving over the secondary mark");
             JPCameraCalibrator::Options o2 = o;
@@ -416,7 +419,7 @@ void JPlacerCameraTasks::calibrateNozzleOffsets(JPCameraPanel& camera, const JPN
         if (!centreOn(x, y)) return false;
         double sumX = 0, sumY = 0;
         int accumulated = 0;
-        const double da = 360.0 / kNozzleOffsetAngles;
+        const double da = 360.0 / std::max(1, m_cell.config().nozzleOffsetAngles);
         bool ok = true;
         for (double angle = -180 + da / 2; angle < 180 && ok; angle += da) {
             char step[64];

@@ -332,6 +332,8 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
     c.discardLocation = location(*machine, "discard-location").value_or(JPMachineLocation {});
     c.defaultBoardLocation = location(*machine, "default-board-location").value_or(JPMachineLocation {});
     c.autoToolSelect = machine->attr("auto-tool-select") != "false";   // OpenPnP's default: on
+    if (const JPXmlElement* cs = machine->child("calibration-solutions"); cs && !cs->attr("nozzle-offset-angles").empty())
+        c.nozzleOffsetAngles = std::clamp(std::atoi(cs->attr("nozzle-offset-angles").c_str()), 1, JPCellConfig::kMostNozzleOffsetAngles);
     if (machine->child("unsafe-Z-roaming-distance")) c.unsafeZRoamingMm = lengthChild(*machine, "unsafe-Z-roaming-distance");
     else if (machine->child("unsafe-z-roaming-distance")) c.unsafeZRoamingMm = lengthChild(*machine, "unsafe-z-roaming-distance");
     c.safeZPark = machine->attr("safe-Z-park") != "false" && machine->attr("safe-z-park") != "false";   // default: on
