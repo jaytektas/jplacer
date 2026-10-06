@@ -93,6 +93,13 @@ std::unique_ptr<JPCaptureSource> JPCaptureFactory::create(const std::string& cam
         s.rotation = device["simulatedRotation"].number(0);
         s.scale = device["simulatedScale"].number(1);
         s.flipped = device["simulatedFlipped"].boolean();
+        s.distortion = device["simulatedDistortion"].number(0);
+        s.yRotation = device["simulatedYRotation"].number(0);
+        s.focalLengthMm = device["focalLengthMm"].number(6);
+        s.sensorDiagonalMm = device["sensorDiagonalMm"].number(4.4);
+        for (const auto& [key, field] : { std::pair { "primaryFiducial", &s.primaryFiducial }, std::pair { "secondaryFiducial", &s.secondaryFiducial } })
+            if (const JJson& f = device[key]; f.isObject())
+                *field = JPImageSource::Settings::Fiducial { f["x"].number(0), f["y"].number(0), f["z"].number(0) };
         return std::make_unique<JPImageSource>(cameraName, s, context.view);
     }
 #if defined(__linux__)

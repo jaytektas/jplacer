@@ -1948,7 +1948,8 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     }
 
     add.tab("Device Settings");
-    add.group("Device");
+    // A picture's settings are OpenPnP's groups of their own.
+    if (std::as_const(device())["backend"].str() != "image") add.group("Device");
     if (std::as_const(device())["backend"].str() == "image") {
         // OpenPnP's ImageCameraConfigurationWizard: a picture of the table, shown where the camera looks.
         auto num = [device](const char* a, const char* b, double def) {
@@ -1961,23 +1962,71 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
                                    else device()[a] = v;
                                } };
         };
-        add.text("source", "Source File", [device] { return std::as_const(device())["source"].str(); },
-                 [device](const std::string& v) { device()["source"] = v; }, "long");
-        add.tip("A PNG of the machine's table, as the camera would see it from straight above.");
+        constexpr double kDefaultFocalLengthMm = 6, kDefaultSensorDiagonalMm = 4.4;   // OpenPnP's
+        add.group("Camera Simulation");
         add.header({ "X", "Y" });
-        add.row("Image Units Per Pixel");
-        add.length("imageUppX", "Units Per Pixel X", num("imageUnitsPerPixel", "x", 0.04).first, num("imageUnitsPerPixel", "x", 0.04).second, 5);
-        add.length("imageUppY", "Units Per Pixel Y", num("imageUnitsPerPixel", "y", 0.04).first, num("imageUnitsPerPixel", "y", 0.04).second, 5);
+        add.row("Pixel Dimension");
+        add.integer("width", "Width", [device] { return int(std::as_const(device())["width"].number(640)); },
+                    [device](int v) { device()["width"] = v; }, 1, 10000);
+        add.integer("height", "Height", [device] { return int(std::as_const(device())["height"].number(480)); },
+                    [device](int v) { device()["height"] = v; }, 1, 10000);
         add.end();
-        add.row("Image Offset");
+        add.row("Simulated Units per Pixel");
+        add.length("imageUppX", "Units Per Pixel X", num("imageUnitsPerPixel", "x", 0.04).first, num("imageUnitsPerPixel", "x", 0.04).second, 6);
+        add.length("imageUppY", "Units Per Pixel Y", num("imageUnitsPerPixel", "y", 0.04).first, num("imageUnitsPerPixel", "y", 0.04).second, 6);
+        add.end();
+        add.tip("To allow simulation of Unit per Pixel calibration, the true Units per Pixel of the image must be stored independently.");
+        add.row("Offset");
         add.length("imageOffsetX", "Offset X", num("imageOffset", "x", 0).first, num("imageOffset", "x", 0).second);
         add.length("imageOffsetY", "Offset Y", num("imageOffset", "y", 0).first, num("imageOffset", "y", 0).second);
         add.end();
+        add.tip("Offset applied between calculated and used pixel in picture. Used to shift the image if required.");
         add.endColumns();
-        add.number("simulatedRotation", "Simulated Rotation", num("simulatedRotation", nullptr, 0).first, num("simulatedRotation", nullptr, 0).second);
-        add.number("simulatedScale", "Simulated Scale", num("simulatedScale", nullptr, 1).first, num("simulatedScale", nullptr, 1).second);
-        add.flag("simulatedFlipped", "Simulated Flipped?", [device] { return std::as_const(device())["simulatedFlipped"].boolean(); },
+        add.number("simulatedRotation", "Z Rotation", num("simulatedRotation", nullptr, 0).first, num("simulatedRotation", nullptr, 0).second);
+        add.tip("Simulated camera mounting rotation around the Z axis (Portrait/Landscape/mounting error).");
+        add.number("simulatedYRotation", "Y Rotation", num("simulatedYRotation", nullptr, 0).first, num("simulatedYRotation", nullptr, 0).second);
+        add.tip("Simulated camera mounting error as a rotation around the Y axis (sideways tilt).");
+        add.number("simulatedScale", "Viewing Scale", num("simulatedScale", nullptr, 1).first, num("simulatedScale", nullptr, 1).second);
+        add.number("simulatedDistortion", "Distortion [%]", num("simulatedDistortion", nullptr, 0).first, num("simulatedDistortion", nullptr, 0).second);
+        add.tip("Simulated lens distortion. Positive values create Barrel distortion, negative values create a Pincushion distortion.");
+        add.flag("simulatedFlipped", "View mirrored?", [device] { return std::as_const(device())["simulatedFlipped"].boolean(); },
                  [device](bool v) { device()["simulatedFlipped"] = v; });
+        add.tip("Simulate the camera as showing a mirrored view");
+        add.row("Source URL");
+        add.text("source", "Source URL", [device] { return std::as_const(device())["source"].str(); },
+                 [device](const std::string& v) { device()["source"] = v; }, "long");
+        add.button("browseImageSource", "Browse", "Choose the picture of the machine's table (PNG).");
+        add.end();
+        add.group("Simulated Calibration Rig");
+        add.row("Focal Length");
+        add.length("focalLength", "Focal Length", num("focalLengthMm", nullptr, kDefaultFocalLengthMm).first,
+                   num("focalLengthMm", nullptr, kDefaultFocalLengthMm).second);
+        add.length("sensorDiagonal", "Sensor Diagonal", num("sensorDiagonalMm", nullptr, kDefaultSensorDiagonalMm).first,
+                   num("sensorDiagonalMm", nullptr, kDefaultSensorDiagonalMm).second);
+        add.end();
+        add.tip("Lens focal length, and the imaging sensor's diagonal for relation with it (e.g. 1/4\" 4.5 mm, 1/3\" 6.0 mm, "
+                "1/2.5\" 7.2 mm, 1/2\" 8.0 mm).");
+        add.header({ "X", "Y", "Z" });
+        for (const auto& [key, label] : { std::pair { "primaryFiducial", "Primary Fiducial" }, std::pair { "secondaryFiducial", "Secondary Fiducial" } }) {
+            add.row(label);
+            for (const char* axis : { "x", "y", "z" })
+                add.length(std::string(key) + "." + axis, std::string(label) + " " + axis, num(key, axis, 0).first,
+                           [device, key, axis](double v) {
+                               device()[key][axis] = v;
+                               // All at the origin: none, as OpenPnP's.
+                               const JJson& f = std::as_const(device())[key];
+                               if (f["x"].number(0) == 0 && f["y"].number(0) == 0 && f["z"].number(0) == 0) {
+                                   JJson rest = JJson::object();
+                                   for (const auto& [n, val] : std::as_const(device()).obj()) if (n != key) rest[n] = val;
+                                   device() = rest;
+                               }
+                           });
+            add.end();
+        }
+        add.endColumns();
+        add.note("Two 1 mm white fiducials drawn into the picture where they are on the machine (none at the origin), the "
+                 "secondary at its own height: as far from the camera as the lens and sensor make it, smaller or bigger, "
+                 "blurred, and moved by the Y Rotation. For trying the camera's calibration.");
     } else if (std::as_const(device())["backend"].str() == "mjpg") {
         // OpenPnP's MjpgCaptureCameraWizard.
         add.text("url", "MJPG URL", [device] { return std::as_const(device())["url"].str(); },
@@ -2086,9 +2135,9 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
                  [device](const std::string& v) { device()["name"] = v; }, "long");
     }
     // A switcher camera takes its device camera's pictures as they come, an ONVIF one is set up by what it
-    // offers, a GStreamer one is as its pipeline says, a NeoDen 4 one has its own: none has a size or controls set here.
+    // offers, a GStreamer one is as its pipeline says, a NeoDen 4 or picture one has its own: none has a size or controls set here.
     if (const std::string& b = std::as_const(device())["backend"].str();
-        b != "switcher" && b != "onvif" && b != "gstreamer" && b != "neoden4" && b != "neoden4Switcher") {
+        b != "switcher" && b != "onvif" && b != "gstreamer" && b != "neoden4" && b != "neoden4Switcher" && b != "image") {
         // A capture device's own format and settings (OpenPnP's OpenPnpCaptureCamera); a picture or simulation has none.
         const bool captureDevice = b == "v4l2" || b.empty();
         if (captureDevice)

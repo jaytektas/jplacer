@@ -53,6 +53,35 @@ int main() {
         // Up the machine's Y is up the view.
         const size_t above = (size_t(4) * 10 + 5) * 4;
         assert(f.rgba[above + 1] == 79);
+        // OpenPnP's Simulated Calibration Rig: a 1 mm white fiducial where it is (here 10 px across at
+        // 0.1 mm a pixel); the secondary, 10 mm higher, nearer the lens so bigger, and blurred.
+        {
+            JPImageSource::Settings rig = st;
+            rig.width = rig.height = 200;
+            rig.unitsPerPixelX = rig.unitsPerPixelY = 0.1;
+            rig.primaryFiducial = JPImageSource::Settings::Fiducial { 30, 20, 0 };
+            rig.secondaryFiducial = JPImageSource::Settings::Fiducial { 33, 20, 10 };
+            JPImageSource r("rig", rig, nullptr);
+            assert(r.open(error));
+            JPFrame g;
+            r.render(30, 20, g);
+            auto at = [&g](int x, int y) { return g.rgba[(size_t(y) * size_t(g.width) + size_t(x)) * 4]; };
+            assert(at(100, 100) == 255 && at(100, 107) != 255);   // the primary in the middle, 10 px across
+            // The secondary 3 mm right: 30 px at the primary's scale, more (it is nearer), its edge soft.
+            int right = 0, soft = 0;
+            for (int x = 120; x < 200; ++x) {
+                if (at(x, 100) > 250) right = x;
+                if (at(x, 100) > 10 && at(x, 100) < 245) ++soft;
+            }
+            assert(right > 136 && soft >= 2);
+            // A barrel distortion: the picture changes, its corner grey (no picture there) or not, the middle kept.
+            rig.distortion = 10;
+            JPImageSource d("distorted", rig, nullptr);
+            assert(d.open(error));
+            JPFrame h;
+            d.render(30, 20, h);
+            assert(h.rgba != g.rgba && h.rgba[(size_t(100) * 200 + 100) * 4] == 255);
+        }
         std::filesystem::remove(path);
     }
     // OpenPnP's image transforms: two stacked fields woven, then cut about the middle.

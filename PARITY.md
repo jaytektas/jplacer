@@ -143,6 +143,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Camera view: Rendering Quality | done | Low (sharp pixels), High (smoothed), Highest (best scale: whole-number scale, zoom by 2); per camera |
 | Auto focus (up-looking) | done | Focus Sensing Method, the Auto Focus tab, part height by focus in bottom vision |
 | Capture backends (OpenPnpCapture, Webcam, OpenCv, GStreamer, MJPG, ONVIF, Image, Switcher, Neoden4Camera, Neoden4SwitcherCamera) | done | V4L2 (OpenPnpCapture, Webcam, OpenCvCamera by its index and OpenCV properties), MJPG, Image, Switcher, ONVIF, GStreamer (the system's gst-launch-1.0), NeoDen 4 (libneodencam.so loaded at run time; Width, Height and Shift set on the camera, as OpenPnP's fields suggest though its code leaves them), simulated |
+| ImageCamera: Camera Simulation (pixel dimension, units per pixel, offset, Z and Y rotation, viewing scale, distortion, mirrored, source with Browse) and Simulated Calibration Rig (focal length, sensor diagonal, primary and secondary fiducials, focal blur) | done | |
 
 ## Actuators
 

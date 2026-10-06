@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- An image camera has all of OpenPnP's Camera Simulation settings (Y Rotation, Distortion, Browse for the picture)
+  and its Simulated Calibration Rig: two fiducials drawn into the picture, the second at another height, blurred.
 - The machine's Pool scripting engines?, as OpenPnP's: Python and JavaScript scripts run by interpreters kept from
   one script to the next, faster to start; Scripts > Clear Scripting Engine Pool ends them. Issues & Solutions
   suggests it at Advanced.

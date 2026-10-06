@@ -964,6 +964,17 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             if (!x.attr("simulated-rotation").empty()) cam.device["simulatedRotation"] = number(x.attr("simulated-rotation"));
             if (!x.attr("simulated-scale").empty()) cam.device["simulatedScale"] = number(x.attr("simulated-scale"));
             cam.device["simulatedFlipped"] = x.attr("simulated-flipped") == "true";
+            // Its lens distortion and Y tilt, and its Simulated Calibration Rig (a fiducial at the origin is none, as OpenPnP's).
+            if (!x.attr("simulated-distortion").empty()) cam.device["simulatedDistortion"] = number(x.attr("simulated-distortion"));
+            if (!x.attr("simulated-y-rotation").empty()) cam.device["simulatedYRotation"] = number(x.attr("simulated-y-rotation"));
+            if (x.child("focal-length")) cam.device["focalLengthMm"] = lengthChild(x, "focal-length");
+            if (x.child("sensor-diagonal")) cam.device["sensorDiagonalMm"] = lengthChild(x, "sensor-diagonal");
+            for (const auto& [element, key] : { std::pair { "primary-fiducial", "primaryFiducial" }, std::pair { "secondary-fiducial", "secondaryFiducial" } })
+                if (const auto f = location(x, element); f && (f->x != 0 || f->y != 0 || f->z != 0 || f->rotation != 0)) {
+                    cam.device[key]["x"] = f->x;
+                    cam.device[key]["y"] = f->y;
+                    cam.device[key]["z"] = f->z;
+                }
         }
         // OpenPnP's SwitcherCamera: one of the analog cameras on another camera's
         // capture device, switched in through a multiplexer by an actuator.

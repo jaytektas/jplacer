@@ -8,6 +8,7 @@
 
 #include <chrono>
 #include <functional>
+#include <optional>
 #include <string>
 
 inline namespace jf {
@@ -17,7 +18,12 @@ inline namespace jf {
 // vision can be tried without a camera. The picture is `unitsPerPixelX` x
 // `unitsPerPixelY` mm a pixel, its bottom left at the machine's origin less
 // `offsetX`, `offsetY`; the view turned by `rotation` degrees, scaled by
-// `scale` and mirrored (`flipped`) as OpenPnP's simulated ones are.
+// `scale` and mirrored (`flipped`) as OpenPnP's simulated ones are. As
+// OpenPnP's, a Simulated Calibration Rig: two 1 mm white fiducials (none
+// where not set), the secondary at another height, so smaller as a lens of
+// `focalLengthMm` over a sensor `sensorDiagonalMm` across sees it, blurred,
+// and moved by the camera's tilt; and the lens's `distortion` (%, barrel
+// when positive) and the camera tilted `yRotation` degrees about Y.
 class JPImageSource : public JPCaptureSource {
 public:
     struct Settings {
@@ -28,6 +34,10 @@ public:
         double      offsetX = 0, offsetY = 0;
         double      rotation = 0, scale = 1;
         bool        flipped = false;
+        double      distortion = 0, yRotation = 0;
+        double      focalLengthMm = 6, sensorDiagonalMm = 4.4;
+        struct Fiducial { double x = 0, y = 0, z = 0; };
+        std::optional<Fiducial> primaryFiducial, secondaryFiducial;
     };
     // Where the camera is looking (machine X, Y); false when unknown.
     using ViewProvider = std::function<bool(double&, double&)>;
@@ -45,6 +55,13 @@ public:
     void render(double x, double y, JPFrame& frame) const;
 
 private:
+    // A fiducial `at` (mm from where the camera looks) drawn as OpenPnP's
+    // drawFiducial does, at `uppX` x `uppY` mm a pixel; blurred, the
+    // secondary's focal blur.
+    void drawFiducial(JPFrame& frame, double atX, double atY, double uppX, double uppY, bool blurred) const;
+    // OpenPnP's lens distortion and Y tilt, the picture remapped.
+    void distort(JPFrame& frame, double cameraDistance) const;
+
     std::string  m_name;
     Settings     m_settings;
     ViewProvider m_view;

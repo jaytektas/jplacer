@@ -318,7 +318,12 @@ int main() {
                    R"(<open-cv-capture-property-value property="CAP_PROP_GUID" value="1.0" set-before-open="false" set-after-open="true"/></properties></camera>)"
                    R"(<camera class="org.openpnp.machine.reference.camera.Webcams" id="WC" name="WEB_CAMERA" looking="Up" device-id="HD Webcam C525 /dev/video4" preferred-width="640" preferred-height="480"/>)"
                    R"(<camera class="org.openpnp.machine.reference.camera.SimulatedUpCamera" id="SU" name="SIM_UP" looking="Up" width="800" height="600" simulated-flipped="true">)"
-                   R"(<simulated-units-per-pixel units="Millimeters" x="0.02" y="0.02" z="0.0" rotation="0.0"/></camera>)");
+                   R"(<simulated-units-per-pixel units="Millimeters" x="0.02" y="0.02" z="0.0" rotation="0.0"/></camera>)"
+                   R"(<camera class="org.openpnp.machine.reference.camera.ImageCamera" id="IM" name="IMAGE" looking="Down" width="640" height="480" )"
+                   R"(simulated-distortion="5.0" simulated-y-rotation="2.0" source-uri="classpath://samples/pnp-test/pnp-test.png">)"
+                   R"(<focal-length value="8.0" units="Millimeters"/><sensor-diagonal value="6.0" units="Millimeters"/>)"
+                   R"(<primary-fiducial units="Millimeters" x="10.0" y="20.0" z="0.0" rotation="0.0"/>)"
+                   R"(<secondary-fiducial units="Millimeters" x="0.0" y="0.0" z="0.0" rotation="0.0"/></camera>)");
         const std::string path = (std::filesystem::temp_directory_path() / "jplacer-test-cameras.xml").string();
         std::ofstream(path) << xml;
         JPCellConfig cams;
@@ -342,6 +347,12 @@ int main() {
         const JPCameraConfig* su = nullptr;
         for (const JPCameraConfig& c : cams.cameras) if (c.id == "SU") su = &c;
         assert(su && su->device["backend"].str() == "simulated" && su->device["width"].number() == 800);
+        // An ImageCamera's lens distortion, tilt and Simulated Calibration Rig (a fiducial at the origin: none).
+        const JPCameraConfig* im = nullptr;
+        for (const JPCameraConfig& c : cams.cameras) if (c.id == "IM") im = &c;
+        assert(im && im->device["simulatedDistortion"].number() == 5 && im->device["simulatedYRotation"].number() == 2);
+        assert(im->device["focalLengthMm"].number() == 8 && im->device["sensorDiagonalMm"].number() == 6);
+        assert(im->device["primaryFiducial"]["y"].number() == 20 && !im->device["secondaryFiducial"].isObject());
         const JJson& m = su->device["scene"]["pxPerMm"];
         assert(std::abs(m[size_t(0)].number() + 50) < 1e-9 && std::abs(m[size_t(3)].number() - 50) < 1e-9);   // flipped, 50 px/mm
     }

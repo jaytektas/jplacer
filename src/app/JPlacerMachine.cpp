@@ -1379,6 +1379,18 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
             m_window.showStatus(d.panel->camera().name + ": Testing...", kStatusMs);
             return;
         }
+    } else if (action == "browseImageSource" && path.rfind("camera:", 0) == 0) {
+        // OpenPnP's ImageCamera Browse: the picture of the table chosen.
+        const std::string id = path.substr(7);
+        std::weak_ptr<bool> alive = m_alive;
+        JDialog::openFile("Source URL", { "png" }, [this, alive, id](std::string chosen) {
+            if (const auto a = alive.lock(); !a || !*a || chosen.empty() || !m_setup) return;
+            m_setup->change("Source URL", [&](JPCellConfig& cell) {
+                for (JPCameraConfig& cam : cell.cameras)
+                    if (cam.id == id) cam.device["source"] = chosen;
+            });
+            m_setup->remakeForm();
+        });
     } else if (action == "detectFirmware" && path.rfind("driver:", 0) == 0) {
         m_cell->detectFirmware(path.substr(7));
     } else if ((action == "testErrorSound" || action == "testFinishedSound") && path.rfind("signaler:", 0) == 0) {
