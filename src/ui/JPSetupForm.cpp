@@ -454,14 +454,23 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
             if (r.cells[i].button) continue;
             const JProperty* p = find(r.cells[i].property);
             // Words in a column as wide as they are; an empty place keeps a number's room.
-            widen(i, p ? widthOf(*p) : r.cells[i].label.empty() ? numberWidth() : JTextHelper::measureWidth(tr(r.cells[i].label)));
+            widen(i, p ? widthOf(*p) : r.cells[i].label.empty() ? numberWidth()
+                                                            : JTextHelper::measureWidth(tr(r.cells[i].label)) + JStyle::current().spacing);
         }
     }
 
     const float rowH = rowHeight();
     float inner = 0;
+    // A wide button (OpenPnP's Auto Setup) spans as far as the group's rows of settings reach.
+    std::vector<JButton*> wides;
+    float reach = 0;
     auto place = [&](std::unique_ptr<JWidget> w, float h) {
         inner += (inner > 0 ? st.spacing : 0) + h;
+        float natural = 0;
+        for (const JWidget* c : w->children()) natural += m_graph.getLayoutConst(c->getNodeId()).minWidth;
+        if (!w->children().empty())
+            natural += float(w->children().size() - 1) * m_graph.getLayoutConst(w->getNodeId()).gap;
+        reach = std::max(reach, natural);
         frame->add(std::move(w));
     };
     underHeader = false;
@@ -551,8 +560,12 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
             }
             case Row::Kind::Actions: {
                 auto row = JPUiParts::row(m_graph);
-                row->add(box(m_graph, labels, rowH, JJustifyContent::FlexEnd));
-                for (const JPSetupProperties::Cell& c : r.cells) row->add(button(c));
+                const bool wide = r.cells.size() == 1 && r.cells.front().wide;
+                if (!wide) row->add(box(m_graph, labels, rowH, JJustifyContent::FlexEnd));
+                for (const JPSetupProperties::Cell& c : r.cells) {
+                    JButton* b = row->add(button(c));
+                    if (wide) wides.push_back(b);
+                }
                 place(std::move(row), rowH);
                 break;
             }
@@ -640,6 +653,11 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
                 break;
             }
         }
+    }
+    for (JButton* b : wides) {
+        const float w = std::max(reach, m_graph.getLayoutConst(b->getNodeId()).minWidth);
+        b->setHSizePolicy(JSizePolicyMode::Fixed);
+        b->setFixedSize(w, m_graph.getLayoutConst(b->getNodeId()).boundingBox.height);
     }
     height = inner + JPGroupFrame::extraHeight();
     frame->setVSizePolicy(JSizePolicyMode::Fixed);

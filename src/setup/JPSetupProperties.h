@@ -47,6 +47,8 @@ public:
         std::string tooltip;
         // A button shown as this icon (OpenPnP's icon's name), its label then its name.
         std::string icon;
+        // A button of its own row across the group (OpenPnP's Auto Setup).
+        bool        wide = false;
     };
     // What a place row's buttons use: the camera on the head, or the tool
     // chosen (a nozzle); and what an axis row takes, an axis's position.

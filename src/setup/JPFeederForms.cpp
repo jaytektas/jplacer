@@ -108,8 +108,8 @@ void stripForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeed
     general(add, config, f, true);
 
     add.group("Tape Settings");
-    if (autoSetupRunning) add.button("autoSetupCancel", "Cancel Auto Setup");
-    else add.button("autoSetup", "Auto Setup");
+    if (autoSetupRunning) add.wideButton("autoSetupCancel", "Cancel Auto Setup");
+    else add.wideButton("autoSetup", "Auto Setup");
     // OpenPnP's columns: Part Pitch at the left; Tape Width, Feed Count and Max Feed Count at the right.
     add.header({ "", "", "" });
     add.row("Part Pitch");

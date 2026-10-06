@@ -295,6 +295,11 @@ public:
             m_form.model.add(std::move(q));
         }
     }
+    // A button on a row of its own, across the group (OpenPnP's Auto Setup): the owner does `action`.
+    void wideButton(const std::string& action, const std::string& label, const std::string& tooltip = "") {
+        button(action, label, tooltip);
+        rows().back().cells.back().wide = true;
+    }
     // A button on the row begun (or a row of its own): the owner does `action`.
     void button(const std::string& action, const std::string& label, const std::string& tooltip = "", bool enabled = true) {
         JPSetupProperties::Cell c;
