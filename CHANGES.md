@@ -10,6 +10,7 @@ notes.
 
 ## Unreleased
 
+- An axis's soft limit and safe zone buttons say which limit they take or go to, as OpenPnP's.
 - A controller's Sync Initial Location and Allow Unhomed Motion, as OpenPnP's: an unhomed machine can be jogged on
   controllers that say where they are, and moved at all where they allow it. A tick box that cannot be changed now
   is shown greyed and stays as it is.

@@ -68,6 +68,8 @@ public:
         std::string tooltip;             // what its label says when pointed at
         Place       place = Place::None; // its cells are X, Y, Z, rotation (Location) or one axis (Axis)
         std::string axis;                // Place::Axis: which axis
+        // Place::Axis: what its capture and move buttons say (empty: the general words).
+        std::string captureTip, moveTip;
         std::shared_ptr<const JPPlot> plot;   // Kind::Plot
         // Kind::Strip: each cell's state (JPSearchStrip's), read again on a refresh.
         std::function<std::vector<int>()> strip;

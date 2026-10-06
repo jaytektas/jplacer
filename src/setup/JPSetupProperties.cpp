@@ -722,16 +722,25 @@ void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
     }
     add.group("Kinematic Settings");
     // Each limit with its switch, and buttons to take it from where the axis is or go there.
-    auto limit = [&add, a, id, linRef](const std::string& key, const std::string& label, double A::*value, bool A::*on) {
+    auto limit = [&add, a, id, linRef](const std::string& key, const std::string& label, double A::*value, bool A::*on,
+                                       const std::string& capture, const std::string& move) {
         add.row(label, Place::Axis, id);
+        add.placeTips(capture, move);
         linRef(key, label, [a, value]() -> double& { return a().*value; });
         add.flag(key + "Enabled", "Enabled?", [a, on]() -> bool& { return a().*on; });
         add.end();
     };
-    limit("softLimitLow", "Soft Limit Low", &A::softLimitLow, &A::softLimitLowEnabled);
-    limit("safeZoneLow", "Safe Zone Low", &A::safeZoneLow, &A::safeZoneLowEnabled);
-    limit("safeZoneHigh", "Safe Zone High", &A::safeZoneHigh, &A::safeZoneHighEnabled);
-    limit("softLimitHigh", "Soft Limit High", &A::softLimitHigh, &A::softLimitHighEnabled);
+    // OpenPnP's words for each row's buttons.
+    limit("softLimitLow", "Soft Limit Low", &A::softLimitLow, &A::softLimitLowEnabled,
+          "Capture the current axis position as the low soft-limit.", "Position the axis to the low soft-limit coordinate.");
+    limit("safeZoneLow", "Safe Zone Low", &A::safeZoneLow, &A::safeZoneLowEnabled,
+          "Capture the current axis position as the lower limit of the safe zone.",
+          "Position the axis to the lower limit of the safe zone.");
+    limit("safeZoneHigh", "Safe Zone High", &A::safeZoneHigh, &A::safeZoneHighEnabled,
+          "Capture the current axis position as the upper limit of the safe zone.",
+          "Position the axis to the higher limit of the safe zone.");
+    limit("softLimitHigh", "Soft Limit High", &A::softLimitHigh, &A::softLimitHighEnabled,
+          "Capture the current axis position as the high soft-limit.", "Position the axis to the high soft-limit coordinate.");
     add.row("Feed Rate [/s]");
     linRef("feedratePerSecond", "Feed Rate [/s]", [a]() -> double& { return a().feedratePerSecond; }, 1);
     lin("feedratePerMinute", "Feed Rate [/min]", [a] { return a().feedratePerSecond * 60; },

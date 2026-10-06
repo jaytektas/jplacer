@@ -582,12 +582,13 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
                 }
                 if (r.place == JPSetupProperties::Place::Axis) {
                     JPIconButton* capture = row->add(std::make_unique<JPIconButton>(
-                        m_graph, "Capture Axis", &JPIcons::captureCamera, "Set from where the axis is"));
+                        m_graph, "Capture Axis", &JPIcons::captureCamera,
+                        r.captureTip.empty() ? std::string("Set from where the axis is") : r.captureTip));
                     capture->onClicked.connect([this, r] {
                         if (onCapture) onCapture(r, Tool::Camera);
                     });
                     JPIconButton* move = row->add(std::make_unique<JPIconButton>(
-                        m_graph, "Move Axis", &JPIcons::moveCamera, "Move the axis here"));
+                        m_graph, "Move Axis", &JPIcons::moveCamera, r.moveTip.empty() ? std::string("Move the axis here") : r.moveTip));
                     move->onClicked.connect([this, r] {
                         if (onMoveTo) onMoveTo(r, Tool::Camera);
                     });

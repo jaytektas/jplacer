@@ -54,6 +54,11 @@ public:
         m_open = true;
     }
     void end() { m_open = false; }
+    // What the row begun's capture and move buttons say (Place::Axis), as OpenPnP words them for that row.
+    void placeTips(const std::string& capture, const std::string& move) {
+        rows().back().captureTip = capture;
+        rows().back().moveTip = move;
+    }
     // An empty place on the row begun (a column this row has nothing in).
     void skip() { rows().back().cells.push_back({ "", "" }); }
     // Words in the next place on the row begun (in its column, at its right).
