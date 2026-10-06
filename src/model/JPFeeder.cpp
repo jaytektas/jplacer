@@ -35,9 +35,11 @@ JPFeeder JPFeeder::create(const std::string& className, const std::string& partI
     const std::string simple = simpleName(className);
     const bool slot = simple == "ReferenceSlotAutoFeeder" || simple == "SlotSchultzFeeder";
     const std::string id = JPOpenPnpIds::create(slot ? "SLOT-" : "FDR");
+    // As a new OpenPnP feeder ends up: made at version 1.0, it is migrated as soon as it is made, its feed retries
+    // from its retry count (3), its pick retries 0.
     n.attr("class", className).attr("version", "1.1").attr("id", id)
         .attr("name", slot ? id : simple).attr("enabled", "false").attr("part-id", slot ? std::string() : partId)
-        .attr("feed-retry-count", "3").attr("pick-retry-count", "3").attr("priority", "Normal");
+        .attr("feed-retry-count", "3").attr("pick-retry-count", "0").attr("priority", "Normal");
     n.add(JPLocationXml::to("location", JPLocation(JPLengthUnit::Millimeters)));
     return JPFeeder(std::move(n));
 }

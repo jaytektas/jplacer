@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- A new feeder's Pick Retry Count starts at 0, as a new OpenPnP feeder's does (it was 3). Checked against OpenPnP's
+  job retry tests (feed and pick retries, an empty feeder failed over, faults counted with Defer), all of which pass.
 - The job planner gives a second nozzle its placement as OpenPnP's does: by the time the head takes to get there
   (from the axes' speed and acceleration), to where the head goes for that nozzle (it was the straight distance to
   where the part goes). Checked against OpenPnP's JobProcessorTest: the same tip changes, cycles, planning cost

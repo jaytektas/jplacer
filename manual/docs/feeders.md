@@ -57,14 +57,15 @@ for **Set Enabled** (**Enabled**, **Disabled**) and **Set Feed option**, for eve
 
 Under the table, the chosen feeder's **Configuration**. Each change is made as soon as it is entered
 (Return, Tab or leaving the field), so there is no Apply. Every kind has **General Settings**: its
-**Part**, **Feed Retry Count** and **Pick Retry Count**. A place has OpenPnP's four buttons after it:
+**Part**, **Feed Retry Count** and **Pick Retry Count** (a new feeder's 3 and 0, as a new OpenPnP feeder's). A
+place has OpenPnP's four buttons after it:
 **Position Camera** and **Position Tool** take the camera, or the nozzle chosen on the Jog panel, to the
 place at safe Z; **Get Camera Coordinates** and **Get Tool Coordinates** set the place from where the
 camera or the nozzle is now (the camera's X and Y; the nozzle's Z as well). A push-pull motion's places
 (a feeder moved by an actuator) also have **Position Actuator (Without Safe Z)**, which takes the actuator
 there straight, without going up to safe Z first.
 
-<!-- src: src/setup/JPFeederForms.cpp (general, pickLocation, push-pull motion); src/ui/JPSetupForm.cpp (locationButtons); src/ui/JPFeedersPanel.cpp (capture, goTo) -->
+<!-- src: src/setup/JPFeederForms.cpp (general, pickLocation, push-pull motion); src/model/JPFeeder.cpp (create); src/ui/JPSetupForm.cpp (locationButtons); src/ui/JPFeedersPanel.cpp (capture, goTo) -->
 
 ### Strip feeder
 

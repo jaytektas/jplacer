@@ -6,7 +6,7 @@ test passes here only when it passes there.
 
 Status: **passing** (ported and passing), **to port**.
 
-**242 of 253 test methods passing.**
+**250 of 253 test methods passing.**
 
 | OpenPnP test | Methods | Status | jplacer test |
 |---|---|---|---|
@@ -28,7 +28,7 @@ Status: **passing** (ported and passing), **to port**.
 | ReferenceBottomVisionOffsetTest.java (testSymetricPartNoOffsetNoPreRotation, testSymetricPartNoOffsetWithPreRotation, testSymetricPartWithOffsetWithPreRotation, testAsymetricPartNoOffsetNoPreRotation, testAsymetricPartNoOffsetWithPreRotation, testAsymetricPartWithOffsetNoPreRotation, testAsymetricPartWithOffsetWithPreRotation, testAsymetricPartWithOffsetNoPreRotationWithError, testAsymetricPartWithOffsetWithPreRotationWithError) | 9 | passing | tests/tasks/test_bottom_vision_offset.cpp |
 | ReferenceBottomVisionTest.java (testPositiveAngle, testNegativeAngle) | 2 | passing | tests/tasks/test_bottom_vision_offset.cpp |
 | ReferenceFiducialLocatorTest.java (testJust1, testJust2, testNominal, testCollinear, testSameX, testSameY) | 6 | passing | tests/model/test_best_fiducials.cpp |
-| ReferenceJobProcessorRetryTests.java (testFeederFeedRetry, testFeederDisable, testFeederPickRetry, testPartPickRetry, testPartFailover, testPlacementRetry, testPlacementRetryDisablesOneFeeder, testPlacementRetryNeverDisablesAnyFeeder) | 8 | to port |  |
+| ReferenceJobProcessorRetryTests.java (testFeederFeedRetry, testFeederDisable, testFeederPickRetry, testPartPickRetry, testPartFailover, testPlacementRetry, testPlacementRetryDisablesOneFeeder, testPlacementRetryNeverDisablesAnyFeeder) | 8 | passing | tests/tasks/test_job_retries.cpp |
 | SampleJobTest.java (testSampleJob) | 1 | to port |  |
 | SamplePanelizedJobTest.java (testSampleJob) | 1 | to port |  |
 | TavellingSalesmanTest.java (testTravellingSalesmanA, testTravellingSalesmanB, testTravellingSalesmanC) | 3 | passing | tests/tasks/test_travelling_salesman.cpp |
