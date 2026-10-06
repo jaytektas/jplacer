@@ -6,7 +6,7 @@ test passes here only when it passes there.
 
 Status: **passing** (ported and passing), **to port**.
 
-**223 of 253 test methods passing.**
+**228 of 253 test methods passing.**
 
 | OpenPnP test | Methods | Status | jplacer test |
 |---|---|---|---|
@@ -15,8 +15,8 @@ Status: **passing** (ported and passing), **to port**.
 | BlindsFeederTest.java (testBlindsFeederBasics, testBlindsFeederGroups) | 2 | to port |  |
 | CalculateBoardLocationTests.java (calculateBoardLocationTopNoAffineNoWidth, calculateBoardLocationTopWithAffineNoWidth, calculateBoardLocationTopNoAffineWithWidth, calculateBoardLocationTopWithAffineWithWidth, calculateBoardLocationBottomNoAffineNoWidth, calculateBoardLocationBottomWithAffineNoWidth, calculateBoardLocationBottomNoAffineWithWidth, calculateBoardLocationBottomWithAffineWithWidth, calculateBoardLocationInverseTopNoAffineNoWidth, calculateBoardLocationInverseTopWithAffineNoWidth, calculateBoardLocationInverseTopNoAffineWithWidth, calculateBoardLocationInverseTopWithAffineWithWidth, calculateBoardLocationInverseBottomNoAffineNoWidth, calculateBoardLocationInverseBottomWithAffineNoWidth, calculateBoardLocationInverseBottomNoAffineWithWidth, calculateBoardLocationInverseBottomWithAffineWithWidth) | 16 | passing | tests/model/test_calculate_board_location.cpp |
 | CvStageTest.java (testPipelinePropertyOverrides) | 1 | passing | tests/pipeline/test_cv_stage.cpp |
-| EagleLoaderTest.java (testLoadBoard, testLoadSchematic) | 2 | to port |  |
-| EagleMountsmdUlpImporterTest.java (testDemoBoard, testEAT001, testWholeNumbers) | 3 | to port |  |
+| EagleLoaderTest.java (testLoadBoard, testLoadSchematic) | 2 | passing | tests/model/test_eagle_importers.cpp (the schematic read and nothing imported, as OpenPnP's importer) |
+| EagleMountsmdUlpImporterTest.java (testDemoBoard, testEAT001, testWholeNumbers) | 3 | passing | tests/model/test_eagle_importers.cpp |
 | GcodeDriverTest.java (testActuatorRead, testActuatorReadNoRegex, testActuatorReadNoCommand, testActuatorReadBadRegex) | 4 | passing | tests/machine/test_gcode_actuator_read.cpp |
 | HttpActuatorTest.java (testOffsets) | 1 | passing | tests/machine/test_http_actuator.cpp |
 | JobProcessorTest.java (testNozzleTips, testStartAsPlanned, testBoardPart, testUnsorted, testFlexibility, testAllOnePart, testRank, testRank2, testRankWeak, testRankRounded, testRankRoundedFlexibility) | 11 | to port |  |

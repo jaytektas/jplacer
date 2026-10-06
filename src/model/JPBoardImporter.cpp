@@ -58,6 +58,12 @@ std::string latin1ToUtf8(const std::string& bytes) {
 
 bool JPBoardImporter::read(const std::vector<std::string>& files, const std::vector<bool>& options,
                            JPConfiguration& config, JPBoard& out, std::string& error) const {
+    // A file for each it reads (empty: none), an option for each it has.
+    if (files.size() != this->files().size() || options.size() != this->options().size()) {
+        error = name() + ": " + std::to_string(this->files().size()) + " files and " + std::to_string(this->options().size())
+              + " options expected";
+        return false;
+    }
     try {
         parse(files, options, config, out);
         return true;
