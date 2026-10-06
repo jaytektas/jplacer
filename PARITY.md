@@ -192,10 +192,9 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 
 ## Order of work
 
-Breadth first, with jplacer's own methods where they are better:
+Every area above is done or covered its own way; what is left is checking against OpenPnP itself:
 
-1. Nozzle tips: runout recalibration triggers; part dimensions and push and drag with the job that uses them.
-2. Cameras: remaining calibration settings and results (head offsets, tilt); image transforms; preview FPS cap.
-3. Actuators: profiles, interlocks.
-4. Machine: motion planner settings (continuous motion).
-5. View: System Units (inches throughout), languages; Scripting.
+1. Side by side with OpenPnP (run headless), panel by panel: layouts, words, tooltips and icons, put right
+   where they differ.
+2. On the bench, with real hardware: camera Defaults, then Auto-Tune, runout calibration, nozzle tip Z
+   calibration and Load / Unload from Machine Setup.
