@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- A new configuration's vision settings are made in OpenPnP's order: the Default Machine Bottom Vision before
+  the Whole Part Body settings.
 - Machine Setup lists the feeders, as OpenPnP's: choosing one shows its page there, the same as on the Feeders tab.
 - The machine's General settings are in OpenPnP's order, with its Home after enabled? (every controller homing
   the machine once it connects).

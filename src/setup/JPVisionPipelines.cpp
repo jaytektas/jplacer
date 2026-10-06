@@ -83,13 +83,14 @@ bool JPVisionPipelines::ensureStock(JPConfiguration& config) {
     stockOf(Kind::Bottom, JPVisionSettings::kStockBottomId, "- Stock Bottom Vision Settings -", JPDefaultPipelines::bottomVision());
     stockOf(Kind::Bottom, JPVisionSettings::kStockBottomRectlinearId, "- Rectlinear Symmetry Bottom Vision Settings -",
             JPDefaultPipelines::bottomVisionRectlinear());
+    // In OpenPnP's order (a fresh configuration's default before the whole part body's, as its migration adds them).
+    if (freshBottom)
+        defaultOf(Kind::Bottom, JPVisionSettings::kDefaultBottomId, "- Default Machine Bottom Vision -", JPVisionSettings::kStockBottomId);
     stockOf(Kind::Bottom, JPVisionSettings::kStockBottomBodyId, "- Whole Part Body Bottom Vision Settings -",
             JPDefaultPipelines::bottomVisionBody());
     stockOf(Kind::Fiducial, JPVisionSettings::kStockFiducialId, "- Stock Fiducial Vision Settings -", JPDefaultPipelines::fiducialLocator());
     stockOf(Kind::Fiducial, JPVisionSettings::kStockFiducialTemplateId, "- Footprint Fiducial Vision Settings -",
             JPDefaultPipelines::fiducialLocatorTemplate());
-    if (freshBottom)
-        defaultOf(Kind::Bottom, JPVisionSettings::kDefaultBottomId, "- Default Machine Bottom Vision -", JPVisionSettings::kStockBottomId);
     if (freshFiducial)
         defaultOf(Kind::Fiducial, JPVisionSettings::kDefaultFiducialId, "- Default Machine Fiducial Locator -",
                   JPVisionSettings::kStockFiducialId);
