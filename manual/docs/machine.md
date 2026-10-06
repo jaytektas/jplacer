@@ -435,7 +435,9 @@ list of its profiles: choose one and each of the actuators it sets is set to its
 What is sent to and received from the controllers (position reports are left out), and what jplacer's log
 says, newest at the bottom. It follows each new line while it is scrolled to the end; scroll back and it
 stays where you put it, until you scroll to the end again. Type a line in the box and press **Send** or
-Return to send it as it is. With more than one controller, choose which one from the list beside the box.
+Return to send it, as OpenPnP's G-code console does: with **Force Upper Case** (ticked to begin with) in
+capitals, as most controllers want; Up and Down go back through the last 50 lines sent. With more than one
+controller, choose which one from the list beside the box.
 
 Over the lines, what is shown:
 
@@ -451,7 +453,7 @@ Over the lines, what is shown:
 The levels are the log's own, so they set what goes into the log file as well. They are kept for next
 time; `--verbose`, `--quiet` or `--trace <category>` on the command line go over them for that run.
 
-<!-- src: src/ui/JPConsolePanel.cpp; src/ui/JPMenuButton.cpp; src/common/JPLogLevels.cpp; src/common/JPlacerLog.h (all); src/app/JPlacerMachine.cpp (the console's settings); src/app/JPlacerApp.cpp (applied at start); src/main.cpp (parseArgs); src/machine/JPGcodeDriver.cpp (status lines are not passed on as traffic) -->
+<!-- src: src/ui/JPConsolePanel.cpp; src/ui/JPHistoryLineEdit.cpp; src/ui/JPMenuButton.cpp; src/common/JPLogLevels.cpp; src/common/JPlacerLog.h (all); src/app/JPlacerMachine.cpp (the console's settings); src/app/JPlacerApp.cpp (applied at start); src/main.cpp (parseArgs); src/machine/JPGcodeDriver.cpp (status lines are not passed on as traffic) -->
 
 ### Cameras
 

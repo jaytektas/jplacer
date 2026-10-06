@@ -3,6 +3,8 @@
 
 #include "JPConsolePanel.h"
 
+#include "JPHistoryLineEdit.h"
+
 #include "JPMenuButton.h"
 #include "JPUiParts.h"
 
@@ -14,6 +16,7 @@
 #include <j/core/MainThreadDispatcher.h>
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 
 inline namespace jf {
@@ -86,10 +89,15 @@ JPConsolePanel::JPConsolePanel(JSceneGraph& graph, JPCell& cell, bool showTraffi
         for (const JPDriverConfig& d : cell.config().drivers) names.push_back(d.name);
         m_controller = input->add(std::make_unique<JComboBox>(graph, names));
     }
-    m_input = input->add(std::make_unique<JLineEdit>(graph, "G-code to send"));
+    m_input = input->add(std::make_unique<JPHistoryLineEdit>(graph, "G-code to send"));
     m_input->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     m_input->onReturnPressed.connect([this] { send(); });
     input->add(JPUiParts::button(graph, "Send"))->onClicked.connect([this] { send(); });
+    // OpenPnP's Force Upper Case: on, as most controllers want their commands.
+    const std::string upper = "Force Upper Case";
+    m_upperCase = input->add(std::make_unique<JCheckBox>(
+        graph, upper, st.checkHeight + 2 * st.spacing + std::ceil(JTextHelper::measureWidth(upper))));
+    m_upperCase->setChecked(true);
     add(std::move(input));
 
     m_watch.on(cell.onTraffic, [this](std::string name, bool sent, std::string line) {
@@ -196,8 +204,11 @@ void JPConsolePanel::addLine(const std::string& line) {
 }
 
 void JPConsolePanel::send() {
-    const std::string line = m_input->text();
+    std::string line = m_input->text();
     if (line.empty() || m_cell.config().drivers.empty()) return;
+    m_input->remember(line);
+    if (m_upperCase->isChecked())
+        std::transform(line.begin(), line.end(), line.begin(), [](unsigned char ch) { return char(std::toupper(ch)); });
     JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "console: " << line;
     const size_t which = m_controller ? size_t(std::max(0, m_controller->currentIndex())) : 0;
     m_cell.sendLine(m_cell.config().drivers[std::min(which, m_cell.config().drivers.size() - 1)].id, line);

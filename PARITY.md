@@ -53,6 +53,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Gcode tab: every command, per head-mountable | done | per controller; empty uses the profile's |
 | Gcode tab: Import / Export (Export Gcode File, Copy Gcode to Clipboard) | done | the controller's settings as jplacer keeps them (JSON); OpenPnP's Load, Paste and Reset are not on its form |
 | Driver settings: $-Command Wait Time, Detect Firmware (and the firmware's answer) | done | Detect Firmware asks a connected controller only |
+| Gcode console (send to a controller, Force Upper Case, history) | done | the Console dock, choosing the controller |
 | Confirmation flow control, location confirmation | own way | the driver waits for each `ok` and reads status reports |
 | Interpolation (max steps, jerk steps, min step time) | own way | as above: the controller plans the motion |
 | Console | done | Console dock |

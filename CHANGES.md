@@ -10,6 +10,7 @@ notes.
 
 ## Unreleased
 
+- The console's G-code box has OpenPnP's Force Upper Case and its history (Up and Down through the last 50 lines).
 - A capture camera's properties show the camera's Min, Max and Default, with OpenPnP's Reapply to Camera, and any
   camera's Capture FPS can be measured.
 - A controller's Driver Settings have OpenPnP's $-Command Wait Time and Detect Firmware, with what the firmware said.

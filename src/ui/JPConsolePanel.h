@@ -13,6 +13,8 @@
 #include <j/core/JComboBox.h>
 #include <j/core/JContainer.h>
 #include <j/core/JLabel.h>
+#include "JPHistoryLineEdit.h"
+
 #include <j/core/JLineEdit.h>
 #include <j/core/JListView.h>
 #include <j/core/MenuSystem.h>
@@ -59,7 +61,8 @@ private:
     JComboBox*               m_level      = nullptr;
     JButton*                 m_categories = nullptr;
     JComboBox*               m_controller = nullptr;
-    JLineEdit*               m_input      = nullptr;
+    JPHistoryLineEdit*       m_input      = nullptr;
+    JCheckBox*               m_upperCase  = nullptr;   // OpenPnP's Force Upper Case
     std::unique_ptr<JMenu>   m_menu;
     std::vector<std::unique_ptr<JMenu>> m_submenus;
     std::vector<std::string> m_lines;
