@@ -10,8 +10,8 @@ notes.
 
 ## Unreleased
 
-- A push-pull feeder's Tape Settings, Vision and Clone Settings, a Bamboo feeder's Vision and a heap feeder's
-  settings are laid out in OpenPnP's columns.
+- A push-pull feeder's Tape Settings, Vision and Clone Settings, a Bamboo feeder's Vision, a heap feeder's and a drag or
+  lever feeder's settings are laid out in OpenPnP's columns.
 - A rotated tray feeder's Tray Parameters are laid out in OpenPnP's columns.
 - A strip feeder's Tape Settings are laid out in OpenPnP's columns, Auto Setup across them.
 - New Axis… asks which of OpenPnP's axis classes, as OpenPnP's does; the class dialogs are worded as OpenPnP's.

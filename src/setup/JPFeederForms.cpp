@@ -296,6 +296,8 @@ void pinForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder
     const JPPart* part = config.part(f().partId());
     const bool part0402 = !lever && part && (part->packageId.find("C0402") != std::string::npos
                                    || part->packageId.find("R0402") != std::string::npos);
+    // OpenPnP's columns: the settings at the left, the peel-off actuator (and the 0402 note) at the right.
+    add.header({ "", "", "" });
     add.row("Part Pitch");
     length(add, f, "part-pitch", "Part Pitch", 4);
     if (part0402) add.text("part0402", "", [] { return std::string("0402 Part DETECTED"); }, nullptr);
@@ -310,9 +312,11 @@ void pinForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder
     add.row("Actuator Name");
     add.text("actuator-name", "Actuator Name", [f] { return f().text("actuator-name"); },
              [f](const std::string& v) { f().setText("actuator-name", v); });
+    add.words("Peel Off Actuator Name");
     add.text("peel-off-actuator-name", "Peel Off Actuator Name", [f] { return f().text("peel-off-actuator-name"); },
              [f](const std::string& v) { f().setText("peel-off-actuator-name", v); });
     add.end();
+    add.endColumns();
 
     add.group("Locations");
     add.header({ "X", "Y", "Z" });
