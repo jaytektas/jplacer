@@ -159,7 +159,7 @@ only fits nozzles is taken off their lists with it.
 **Up** and **Down** move the chosen part among the others in its group. The order is the order they
 are shown in elsewhere (the cameras' tabs, the Axes panel).
 
-<!-- src: src/setup/JPSetupEdits.cpp (addable, add, remove, move, newId) ; src/machine/JPCell.cpp (asRun) -->
+<!-- src: src/setup/JPSetupEdits.cpp (addable, kinds, add, remove, move, newId); src/machine/JPCell.cpp (asRun) -->
 
 ## Settings
 
