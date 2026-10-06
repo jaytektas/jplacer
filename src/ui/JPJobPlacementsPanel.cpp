@@ -135,21 +135,22 @@ void JPJobPlacementsPanel::buildMenu() {
         type->add(g, JPPlacement::typeName(t))->onTriggered.connect(forChosen([t](JPPlacement& p) { p.type = t; }));
     auto [side, sideItem] = sub("Set Side");
     m_setSide = sideItem;
+    sideItem->setTooltip("Set the selected placement(s) side");
     for (JPSide s : { JPSide::Bottom, JPSide::Top })
         side->add(g, JPSides::name(s))->onTriggered.connect(forChosen([s](JPPlacement& p) { p.side = s; }));
     auto [placed, placedItem] = sub("Set Placed");
-    (void)placedItem;
+    placedItem->setTooltip("Set the selected placement(s) status");
     for (bool on : { true, false })
         placed->add(g, on ? "Placed" : "Not Placed")->onTriggered.connect([this, on] {
             for (const int r : m_table->selectedRows()) m_model.setPlaced(r, on);
             m_table->refresh();
         });
     auto [enabled, enabledItem] = sub("Set Enabled");
-    (void)enabledItem;
+    enabledItem->setTooltip("Set selected placement(s) enabled");
     for (bool on : { true, false })
         enabled->add(g, on ? "Enabled" : "Disabled")->onTriggered.connect(forChosen([on](JPPlacement& p) { p.enabled = on; }));
     auto [errors, errorsItem] = sub("Set Error Handling");
-    (void)errorsItem;
+    errorsItem->setTooltip("Set the selected placement(s) error handling");
     for (JPPlacement::ErrorHandling e :
          { JPPlacement::ErrorHandling::Default, JPPlacement::ErrorHandling::Alert, JPPlacement::ErrorHandling::Defer })
         errors->add(g, JPPlacement::errorHandlingName(e))

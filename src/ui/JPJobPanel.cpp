@@ -204,12 +204,13 @@ double JPJobPanel::split() const {
 void JPJobPanel::buildMenu() {
     JSceneGraph& g = m_graph;
     m_menu = std::make_unique<JMenu>("Job");
-    auto sub = [&](const std::string& title) {
+    // OpenPnP's descriptions, as its menu entries' tooltips.
+    auto sub = [&](const std::string& title, const std::string& tip) {
         m_subMenus.push_back(std::make_unique<JMenu>(title));
-        m_menu->add(g, title, {}, m_subMenus.back().get());
+        m_menu->add(g, title, {}, m_subMenus.back().get())->setTooltip(tip);
         return m_subMenus.back().get();
     };
-    JMenu* side = sub("Set Side");
+    JMenu* side = sub("Set Side", "Set the selected board(s) and/or panel(s) Side");
     for (JPSide s : { JPSide::Bottom, JPSide::Top })
         side->add(g, JPSides::name(s))->onTriggered.connect([this, s] {
             // Only those straight in the job are turned over.
@@ -220,14 +221,14 @@ void JPJobPanel::buildMenu() {
             m_table->refresh();
             m_placements->refresh();
         });
-    JMenu* enabled = sub("Set Enabled");
+    JMenu* enabled = sub("Set Enabled", "Set the selected board(s) and/or panel(s) Enabled state");
     for (bool on : { true, false })
         enabled->add(g, on ? "Enabled" : "Disabled")->onTriggered.connect([this, on] {
             for (JPPlacementsHolderLocation* l : selections())
                 if (l->isParentBranchEnabled()) m_model.edit(l, [on](JPPlacementsHolderLocation& x) { x.locallyEnabled = on; });
             m_table->refresh();
         });
-    JMenu* fids = sub("Set Check Fids");
+    JMenu* fids = sub("Set Check Fids", "Set the selected board(s) and/or panel(s) Check Fids state");
     for (bool check : { true, false })
         fids->add(g, check ? "Check" : "Don't Check")->onTriggered.connect([this, check] {
             for (JPPlacementsHolderLocation* l : selections())
@@ -371,6 +372,7 @@ void JPJobPanel::updateJobActions() {
     m_stop->setEnabled(m_machineEnabled && (running || m_runState == RunState::Paused));
     if (m_startItem) {
         m_startItem->setLabel(running ? "Pause" : m_runState == RunState::Paused ? "Resume" : "Start");
+        m_startItem->setTooltip(m_start->tooltip());
         m_startItem->setEnabled(m_start->isEnabled());
     }
     if (m_stepItem) m_stepItem->setEnabled(m_step->isEnabled());
@@ -392,11 +394,16 @@ void JPJobPanel::showAddMenu() {
     if (!openMenu) return;
     JSceneGraph& g = m_graph;
     m_addMenu = std::make_unique<JMenu>("Add Board/Panel");
-    m_addMenu->add(g, "New Board...")->onTriggered.connect([this] { addNew(false); });
-    m_addMenu->add(g, "Existing Board...")->onTriggered.connect([this] { addExisting(false); });
+    auto entry = [&](const char* label, const char* tip, std::function<void()> act) {
+        JMenuItem* item = m_addMenu->add(g, label);
+        item->setTooltip(tip);
+        item->onTriggered.connect(std::move(act));
+    };
+    entry("New Board...", "Create a new board and add it to the job.", [this] { addNew(false); });
+    entry("Existing Board...", "Add an existing board to the job.", [this] { addExisting(false); });
     m_addMenu->addSeparator(g);
-    m_addMenu->add(g, "New Panel...")->onTriggered.connect([this] { addNew(true); });
-    m_addMenu->add(g, "Existing Panel...")->onTriggered.connect([this] { addExisting(true); });
+    entry("New Panel...", "Create a new panel and add it to the job.", [this] { addNew(true); });
+    entry("Existing Panel...", "Add an existing panel to the job.", [this] { addExisting(true); });
     const JRect b = m_graph.getLayoutConst(m_add->getNodeId()).boundingBox;
     openMenu(m_addMenu.get(), b.x + b.width, b.y + b.height);
 }

@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- Menu entries say what they do, as OpenPnP's: the Job menu, Add Board/Panel, the boards', placements' and panel
+  children's Set Side, Set Enabled, Set Check Fids, Set Placed and Set Error Handling, each value's own; the tip
+  now shows beside the menu instead of over its entries.
 - A SimulatedUpCamera has OpenPnP's Camera Simulation settings on its Device Settings: Camera Location, Pixel
   Dimension, Simulated Units per Pixel, Focal Length and Sensor Diagonal (nozzles and parts higher or lower seen
   smaller and darker), Background Scenario (coloured backgrounds and tips), Pick Error Offsets, View mirrored? and

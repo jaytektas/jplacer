@@ -166,31 +166,38 @@ JPPanelDefinitionPanel::JPPanelDefinitionPanel(JSceneGraph& graph, JPConfigurati
 
 void JPPanelDefinitionPanel::buildMenus() {
     JSceneGraph& g = m_graph;
-    auto sub = [&](JMenu& on, const std::string& title) {
+    // OpenPnP's descriptions as tooltips: a submenu's, and each value's ("Set the selected child(ren) to side Top").
+    auto sub = [&](JMenu& on, const std::string& title, const std::string& tip) {
         m_subMenus.push_back(std::make_unique<JMenu>(title));
-        on.add(g, title, {}, m_subMenus.back().get());
+        on.add(g, title, {}, m_subMenus.back().get())->setTooltip(tip);
         return m_subMenus.back().get();
+    };
+    auto value = [&](JMenu* on, const std::string& name, const std::string& tip) {
+        JMenuItem* item = on->add(g, name);
+        item->setTooltip(tip + " " + name);
+        return item;
     };
     // Children: each change to the chosen children.
     m_childMenu = std::make_unique<JMenu>("Children");
     m_replace = m_childMenu->add(g, "Replace child(ren)...");
+    m_replace->setTooltip("Replaces the selected child(ren) with another board or panel");
     m_replace->onTriggered.connect([this] { replaceChildren(); });
-    JMenu* side = sub(*m_childMenu, "Set Side...");
+    JMenu* side = sub(*m_childMenu, "Set Side...", "Sets the side of the selected items");
     for (JPSide s : { JPSide::Bottom, JPSide::Top })
-        side->add(g, JPSides::name(s))->onTriggered.connect([this, s] {
+        value(side, JPSides::name(s), "Set the selected child(ren) to side")->onTriggered.connect([this, s] {
             for (JPPlacementsHolderLocation* c : childSelections()) m_children.setSide(c, s);
             m_childTable->refresh();
         });
-    JMenu* enabled = sub(*m_childMenu, "Set Enabled...");
+    JMenu* enabled = sub(*m_childMenu, "Set Enabled...", "Sets the enabled state of the selected items");
     for (bool on : { true, false })
-        enabled->add(g, on ? "Enabled" : "Disabled")->onTriggered.connect([this, on] {
+        value(enabled, on ? "Enabled" : "Disabled", "Set the selected child(ren) to")->onTriggered.connect([this, on] {
             for (JPPlacementsHolderLocation* c : childSelections())
                 m_children.edit(c, [on](JPPlacementsHolderLocation& x) { x.locallyEnabled = on; });
             m_childTable->refresh();
         });
-    JMenu* fids = sub(*m_childMenu, "Set Check Fids...");
+    JMenu* fids = sub(*m_childMenu, "Set Check Fids...", "Sets the check fiducial state of the selected child(ren)");
     for (bool check : { true, false })
-        fids->add(g, check ? "Check" : "Don't Check")->onTriggered.connect([this, check] {
+        value(fids, check ? "Check" : "Don't Check", "Set check fiducial state of the selected child(ren) to")->onTriggered.connect([this, check] {
             for (JPPlacementsHolderLocation* c : childSelections())
                 m_children.edit(c, [check](JPPlacementsHolderLocation& x) { x.checkFiducials = check; });
             m_childTable->refresh();
@@ -198,16 +205,16 @@ void JPPanelDefinitionPanel::buildMenus() {
 
     // Alignment fiducials: their side, turned on or off.
     m_fiducialMenu = std::make_unique<JMenu>("Fiducials");
-    JMenu* fside = sub(*m_fiducialMenu, "Set Side...");
+    JMenu* fside = sub(*m_fiducialMenu, "Set Side...", "Sets the side of the selected items");
     for (JPSide s : { JPSide::Bottom, JPSide::Top })
-        fside->add(g, JPSides::name(s))->onTriggered.connect([this, s] {
+        value(fside, JPSides::name(s), "Set the selected fiducial(s) to side")->onTriggered.connect([this, s] {
             for (const JPPlacement* p : fiducialSelections()) m_fiducials.edit(p->id, [s](JPPlacement& q) { q.side = s; });
             m_fiducials.reload();
             m_fiducialTable->refresh();
         });
-    JMenu* fenabled = sub(*m_fiducialMenu, "Set Enabled...");
+    JMenu* fenabled = sub(*m_fiducialMenu, "Set Enabled...", "Sets the enabled state of the selected items");
     for (bool on : { true, false })
-        fenabled->add(g, on ? "Enabled" : "Disabled")->onTriggered.connect([this, on] {
+        value(fenabled, on ? "Enabled" : "Disabled", "Set the selected fiducial(s) to")->onTriggered.connect([this, on] {
             const int col = m_fiducials.columnOf(JPPlacementsTableModel::kEnabled);
             for (const int r : m_fiducialTable->selectedRows()) m_fiducials.setChecked(r, col, on);
             m_fiducials.reload();
@@ -286,23 +293,29 @@ void JPPanelDefinitionPanel::showAddMenu() {
     if (!openMenu || !panel()) return;
     JSceneGraph& g = m_graph;
     m_addMenu = std::make_unique<JMenu>("Add Child");
-    m_addMenu->add(g, "Add New Board...")->onTriggered.connect([this] {
+    // Each with OpenPnP's description as its tooltip.
+    auto entry = [&](const char* label, const char* tip, std::function<void()> act) {
+        JMenuItem* item = m_addMenu->add(g, label);
+        item->setTooltip(tip);
+        item->onTriggered.connect(std::move(act));
+    };
+    entry("Add New Board...", "Create and add a new board to this panel", [this] {
         JDialog::saveFile("Save New Board As...", { "xml" }, [this](std::string path) {
             addBoard(withSuffix(path, ".board.xml"), "Unable to create new board");
         });
     });
-    m_addMenu->add(g, "Add Existing Board...")->onTriggered.connect([this] {
+    entry("Add Existing Board...", "Add an existing board to this panel", [this] {
         if (chooseExisting)
             chooseExisting("Select existing board...", "board",
                            [this](std::string path) { addBoard(path, "Board load failed"); });
     });
     m_addMenu->addSeparator(g);
-    m_addMenu->add(g, "Add New Panel...")->onTriggered.connect([this] {
+    entry("Add New Panel...", "Create and add a new panel to this panel", [this] {
         JDialog::saveFile("Save New Panel As...", { "xml" }, [this](std::string path) {
             addPanel(withSuffix(path, ".panel.xml"), "Unable to create new panel");
         });
     });
-    m_addMenu->add(g, "Add Existing Panel...")->onTriggered.connect([this] {
+    entry("Add Existing Panel...", "Add an existing panel to this panel", [this] {
         if (chooseExisting)
             chooseExisting("Select existing panel...", "panel",
                            [this](std::string path) { addPanel(path, "Panel load failed"); });

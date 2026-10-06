@@ -111,16 +111,22 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
     JPJobPanel& jobs = app.tabs().jobPanel();
     menuStore().push_back(std::make_unique<JMenu>("Add Board/Panel"));
     JMenu* addBoard = menuStore().back().get();
-    entry(keys, addBoard, graph, "edit.newBoard", "Edit", "New Board\xE2\x80\xA6", none, [&jobs] { jobs.addNew(false); });
-    entry(keys, addBoard, graph, "edit.existingBoard", "Edit", "Existing Board\xE2\x80\xA6", none, [&jobs] { jobs.addExisting(false); });
+    entry(keys, addBoard, graph, "edit.newBoard", "Edit", "New Board\xE2\x80\xA6", none, [&jobs] { jobs.addNew(false); })
+        ->setTooltip("Create a new board and add it to the job.");
+    entry(keys, addBoard, graph, "edit.existingBoard", "Edit", "Existing Board\xE2\x80\xA6", none, [&jobs] { jobs.addExisting(false); })
+        ->setTooltip("Add an existing board to the job.");
     addBoard->addSeparator(graph);
-    entry(keys, addBoard, graph, "edit.newPanel", "Edit", "New Panel\xE2\x80\xA6", none, [&jobs] { jobs.addNew(true); });
-    entry(keys, addBoard, graph, "edit.existingPanel", "Edit", "Existing Panel\xE2\x80\xA6", none, [&jobs] { jobs.addExisting(true); });
+    entry(keys, addBoard, graph, "edit.newPanel", "Edit", "New Panel\xE2\x80\xA6", none, [&jobs] { jobs.addNew(true); })
+        ->setTooltip("Create a new panel and add it to the job.");
+    entry(keys, addBoard, graph, "edit.existingPanel", "Edit", "Existing Panel\xE2\x80\xA6", none, [&jobs] { jobs.addExisting(true); })
+        ->setTooltip("Add an existing panel to the job.");
     edit->add(graph, "Add Board/Panel", {}, addBoard);
     JMenuItem* removeBoard =
         entry(keys, edit, graph, "edit.removeBoard", "Edit", "Remove Board(s)/Panel(s)", none, [&jobs] { jobs.removeSelected(); });
     edit->addSeparator(graph);
     JMenuItem* captureTool = entry(keys, edit, graph, "edit.captureTool", "Edit", "Capture Tool Location", none, [&jobs] { jobs.captureTool(); });
+    removeBoard->setTooltip("Remove the selected board(s) and/or panel(s) from the job.");
+    captureTool->setTooltip("Set the board's Z to the tool's current Z.");
     jobs.setEditItems(removeBoard, captureTool);
     edit->addSeparator(graph);
     entry(keys, edit, graph, "edit.preferences", "Edit", "Preferences\xE2\x80\xA6", none, [&app] { app.openPreferences(); });
@@ -249,7 +255,11 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
         if (jobPanel.onStop) jobPanel.onStop();
     });
     job->addSeparator(graph);
-    entry(keys, job, graph, "job.resetAllPlaced", "Job", "Reset All Placed", none, [&jobPanel] { jobPanel.resetAllPlaced(); });
+    entry(keys, job, graph, "job.resetAllPlaced", "Job", "Reset All Placed", none, [&jobPanel] { jobPanel.resetAllPlaced(); })
+        ->setTooltip("Reset the Placed status for every placement in the job.");
+    // OpenPnP's descriptions, as its menu entries' tooltips.
+    step->setTooltip("Process one step of the job and pause.");
+    stop->setTooltip("Stop processing the job.");
     jobPanel.setMenuItems(start, step, stop);
 
     // OpenPnP's Scripts menu: the scripts folder's scripts (JPlacerScriptsMenu), for as long as the window.
