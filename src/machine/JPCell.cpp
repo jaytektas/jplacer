@@ -2264,7 +2264,52 @@ namespace {
 constexpr double kInterlockTolerance = 1e-3;
 }
 
+void JPCell::rotateWithNextMove(const std::string& nozzleId, double angle) {
+    std::promise<void> done;
+    auto queued = done.get_future();
+    m_thread.post([&] {
+        for (const JPNozzleConfig& n : m_config.nozzles)
+            if (n.id == nozzleId && !n.mount.axisRotation.empty())
+                m_subordinate[n.mount.axisRotation] = angle - rotationModeOffset(n.id);
+        done.set_value();
+    });
+    queued.wait();
+}
+
+void JPCell::mergeSubordinate(std::map<std::string, double>& targets) {
+    // Only the axes of a head whose every Z is in its safe zone, where it is and where it goes, as OpenPnP.
+    const auto now = jogBase();
+    std::set<std::string> ok;
+    for (const JPHeadConfig& h : m_config.heads) {
+        std::vector<const JPMountConfig*> mounts;
+        for (const JPCameraConfig& c : m_config.cameras)     if (c.mount.headId == h.id) mounts.push_back(&c.mount);
+        for (const JPNozzleConfig& n : m_config.nozzles)     if (n.mount.headId == h.id) mounts.push_back(&n.mount);
+        for (const JPActuatorConfig& a : m_config.actuators) if (a.mount.headId == h.id) mounts.push_back(&a.mount);
+        bool safe = true;
+        for (const JPMountConfig* m : mounts) {
+            if (m->axisZ.empty()) continue;
+            const auto at = now.find(m->axisZ);
+            const auto to = targets.find(m->axisZ);
+            if ((at != now.end() && !inSafeZone(m->axisZ, at->second)) || (to != targets.end() && !inSafeZone(m->axisZ, to->second)))
+                safe = false;
+        }
+        if (!safe) continue;
+        for (const JPMountConfig* m : mounts)
+            for (const std::string* id : { &m->axisX, &m->axisY, &m->axisZ, &m->axisRotation })
+                if (!id->empty()) ok.insert(*id);
+    }
+    for (auto it = m_subordinate.begin(); it != m_subordinate.end();) {
+        if (!ok.count(it->first)) {
+            ++it;
+            continue;
+        }
+        targets.emplace(it->first, it->second);   // the move's own target for the axis first
+        it = m_subordinate.erase(it);
+    }
+}
+
 bool JPCell::doMove(std::map<std::string, double> targets, double speed, std::string& why, bool squared) {
+    if (!m_subordinate.empty()) mergeSubordinate(targets);
     if (!m_connected || !m_homed) return doMoveNow(std::move(targets), speed, why, squared);
     // OpenPnP's axis interlocks, around the move (JPActuatorConfig::Interlock).
     const std::map<std::string, double> from = jogBase();
@@ -2931,6 +2976,11 @@ std::map<std::string, double> JPCell::jogBase() const {
 }
 
 bool JPCell::finished(bool ok, std::string& why) {
+    // Subordinate moves not gone with one: dropped, as OpenPnP's waitForCompletion drains them.
+    if (!m_subordinate.empty()) {
+        JLOGC(JPlacerLog::kCell, JLogLevel::Warn) << "a pre-rotation not made: no move with the head in its safe zone came after it";
+        m_subordinate.clear();
+    }
     if (m_inMotion.empty()) return ok;
     std::string w;
     if (!doCoordinate("WaitForStillstand", w) && ok) {

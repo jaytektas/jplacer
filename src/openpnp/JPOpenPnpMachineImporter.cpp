@@ -87,6 +87,7 @@ constexpr double kNullDriverFeedMmPerMin = 5000;   // NullDriver's default
 constexpr double kNullDriverAccelerationS = 0.5;
 constexpr double kNullDriverRotationFactor = 10;
 constexpr double kNullDriverHomingX = 5.736, kNullDriverHomingY = 6.112;
+constexpr const char* kGrblHalAxisOrder = "XYZABCUV";   // a grblHAL's axes, the first N of these
 
 // OpenPnP's NeoDen4Driver's own default (a GcodeDriver's is 1 s).
 constexpr int kNeoden4ConnectWaitMs = 3000;
@@ -679,28 +680,39 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
     }
 
     // A NullDriver's axes have no letters in OpenPnP; jplacer's simulated
-    // controller moves them by letter: X and Y by type, the others the next free.
+    // controller, a grblHAL, moves them by letter. A grblHAL of N axes has
+    // the first N of its order (X Y Z A B C U V), so those are the letters:
+    // X and Y by type, rotations A, B, C, a Z the Z, then whatever is left.
     for (JPDriverConfig& d : c.drivers) {
         if (!nullDrivers.count(d.id)) continue;
+        std::vector<JPAxisConfig*> axes;
         std::set<std::string> used;
-        for (const JPAxisConfig& a : c.axes)
-            if (a.kind == JPAxisConfig::Kind::Controller && a.driverId == d.id && !a.letter.empty()) used.insert(a.letter);
-        for (JPAxisConfig& a : c.axes) {
-            if (a.kind != JPAxisConfig::Kind::Controller || a.driverId != d.id || !a.letter.empty()) continue;
-            // X and Y by type; a rotation A, B, C; a Z (another linear) Z, U, V, W; then any left.
-            const bool rotation = a.type == JPAxisConfig::Type::Rotation;
-            std::vector<std::string> wanted = a.type == JPAxisConfig::Type::X   ? std::vector<std::string> { "X" }
-                                            : a.type == JPAxisConfig::Type::Y   ? std::vector<std::string> { "Y" }
-                                            : rotation                          ? std::vector<std::string> { "A", "B", "C" }
-                                                                                : std::vector<std::string> { "Z", "U", "V", "W" };
-            for (const char* l : { "Z", "A", "B", "C", "U", "V", "W" }) wanted.push_back(l);
+        for (JPAxisConfig& a : c.axes)
+            if (a.kind == JPAxisConfig::Kind::Controller && a.driverId == d.id) {
+                axes.push_back(&a);
+                if (!a.letter.empty()) used.insert(a.letter);
+            }
+        const std::string order = kGrblHalAxisOrder;
+        std::vector<std::string> free;
+        for (size_t i = 0; i < std::min(axes.size(), order.size()); ++i)
+            if (!used.count(order.substr(i, 1))) free.push_back(order.substr(i, 1));
+        auto take = [&](JPAxisConfig& a, const std::vector<std::string>& wanted) {
             for (const std::string& l : wanted)
-                if (!used.count(l)) {
+                if (const auto f = std::find(free.begin(), free.end(), l); f != free.end()) {
                     a.letter = l;
-                    break;
+                    free.erase(f);
+                    return;
                 }
-            if (!a.letter.empty()) used.insert(a.letter);
-        }
+        };
+        for (JPAxisConfig* a : axes)
+            if (a->letter.empty() && (a->type == JPAxisConfig::Type::X || a->type == JPAxisConfig::Type::Y))
+                take(*a, { a->type == JPAxisConfig::Type::X ? "X" : "Y" });
+        for (JPAxisConfig* a : axes)
+            if (a->letter.empty() && a->type == JPAxisConfig::Type::Rotation) take(*a, { "A", "B", "C" });
+        for (JPAxisConfig* a : axes)
+            if (a->letter.empty() && a->type == JPAxisConfig::Type::Z) take(*a, { "Z" });
+        for (JPAxisConfig* a : axes)
+            if (a->letter.empty()) take(*a, free);
         JJson letters = JJson::array();
         for (const JPAxisConfig& a : c.axes)
             if (a.kind == JPAxisConfig::Kind::Controller && a.driverId == d.id && !a.letter.empty()) letters.push(a.letter);
@@ -1323,7 +1335,8 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             head.name                  = h.attr("name");
             head.homingFiducial        = location(h, "homing-fiducial-location");
             head.visualHoming          = h.attr("visual-homing-method") == "ResetToFiducialLocation";
-            head.park                  = location(h, "park-location");
+            // Not set in the file: OpenPnP's default, the origin.
+            head.park                  = location(h, "park-location").value_or(JPMachineLocation {});
             head.rigPrimary            = location(h, "calibration-primary-fiducial-location");
             head.rigSecondary          = location(h, "calibration-secondary-fiducial-location");
             head.rigPrimaryDiameter    = lengthChild(h, "calibration-primary-fiducial-diameter");
@@ -1368,6 +1381,11 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                     actuator("vacuum-actuator-name", n.vacuumActuatorId);
                     actuator("blow-off-actuator-name", n.blowOffActuatorId);
                     actuator("vacuum-sense-actuator-name", n.vacuumSenseActuatorId);
+                    // OpenPnP's migration of a nozzle older than its version 200: the one actuator named serves for both.
+                    if (number(x.attr("version")) < 200) {
+                        if (n.vacuumSenseActuatorId.empty()) n.vacuumSenseActuatorId = n.vacuumActuatorId;
+                        else if (n.vacuumActuatorId.empty()) n.vacuumActuatorId = n.vacuumSenseActuatorId;
+                    }
                     n.blowOffClosesVacuum = x.attr("blow-off-closing-valve") == "true";
                     n.pickDwellMs = int(number(x.attr("pick-dwell-milliseconds")));
                     n.dynamicSafeZ = x.attr("enable-dynamic-safe-z") == "true";

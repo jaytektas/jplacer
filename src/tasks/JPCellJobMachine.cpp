@@ -272,16 +272,10 @@ bool JPCellJobMachine::changeTip(const std::string& nozzleId, const std::string&
 }
 
 bool JPCellJobMachine::rotate(const std::string& nozzleId, double angle, std::string& why) {
-    ++m_motions;
     JPCell* c = cell(why);
     if (!c) return false;
-    for (const JPNozzleConfig& n : config().nozzles)
-        if (n.id == nozzleId) {
-            if (n.mount.axisRotation.empty()) return true;
-            return c->moveAxesAndWait({ { n.mount.axisRotation, angle } }, 1.0, why);
-        }
-    why = "no nozzle " + nozzleId;
-    return false;
+    c->rotateWithNextMove(nozzleId, angle);
+    return true;
 }
 
 bool JPCellJobMachine::pick(const std::string& nozzleId, const JPLocation& at, std::string& why) {

@@ -48,13 +48,13 @@ machine):
 | **Max Vision Attempts** | How many times a part's vision alignment is tried. |
 | **Step Next Motion** | **Step** runs on to the next step that moves the machine. |
 | **Optimize Multiple Nozzles** | With several nozzles, picks and places in the shortest way rather than in nozzle order. |
-| **Pre-Rotate All Nozzles** | Turns every nozzle for its pick (and its place) on the way. |
+| **Pre-Rotate All Nozzles** | Turns every nozzle for its pick (and its place) on the way: as OpenPnP's, not a move of its own, the turn goes with the next move made with every Z on the head in its safe zone (both nozzles turned for their placements as the head sets off for the first). |
 | **Feeder fault limit**, **Feeder fault window size** | With deferred errors, a feeder is turned off when this many of its last so many feeds and picks failed. |
 
 The fiducial check's tolerances (5 % scale, 5 % shear, 5 mm of movement) and how many levels of panels
 are checked first are taken from an imported OpenPnP machine too.
 
-<!-- src: src/tasks/JPTravel.cpp; src/common/JPJavaRandom.cpp; src/tasks/JPCellJobMachine.cpp (travelCost); src/setup/JPSetupProperties.cpp (jobProcessorForm); src/machine/JPJobProcessorConfig.cpp; src/openpnp/JPOpenPnpMachineImporter.cpp (pnp-job-processor, fiducial-locator); src/app/JPlacerJobRun.cpp (run) -->
+<!-- src: src/tasks/JPTravel.cpp; src/common/JPJavaRandom.cpp; src/tasks/JPCellJobMachine.cpp (travelCost); src/setup/JPSetupProperties.cpp (jobProcessorForm); src/machine/JPJobProcessorConfig.cpp; src/openpnp/JPOpenPnpMachineImporter.cpp (pnp-job-processor, fiducial-locator); src/app/JPlacerJobRun.cpp (run); src/tasks/JPJobProcessor.cpp (prerotate); src/tasks/JPCellJobMachine.cpp (rotate); src/machine/JPCell.cpp (rotateWithNextMove, mergeSubordinate, finished) -->
 
 ### Vision
 

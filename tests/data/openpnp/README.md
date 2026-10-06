@@ -19,3 +19,8 @@ ReferenceBottomVisionOffsetTest and ReferenceBottomVisionInheritanceTest.
 
 `job-processor/` is OpenPnP's `src/test/resources/config/JobProcessorTest`: its two-nozzle test machine,
 parts, packages and its panelized job of the pnp-test board, run by its JobProcessorTest.
+
+`basic-job/` is OpenPnP's `src/test/resources/config/BasicJobTest`: its basic test machine (two
+nozzles, two tips with changer locations, a tube feeder), parts and packages, run by its BasicJobTest.
+Its machine's old single `<driver>` is OpenPnP's test driver (`org.openpnp.machine.reference.driver.test.TestDriver`,
+which only passes moves on to the test); here it is the NullDriver, whose migration makes the same axes.

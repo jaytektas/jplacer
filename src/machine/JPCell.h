@@ -276,6 +276,10 @@ public:
     // reported and as taught (a nozzle tip changer's places), not corrected
     // for the gantry's squareness.
     bool moveAxesAndWait(std::map<std::string, double> targets, double speed, std::string& why, bool squared = true);
+    // OpenPnP's subordinate rotation (a job's pre-rotation): the nozzle's turn to `angle` is not a move of its own;
+    // it goes with the next move made while every Z of its head is in its safe zone, there and where it goes, and is
+    // dropped when the machine next waits for its moves to finish.
+    void rotateWithNextMove(const std::string& nozzleId, double angle);
 
     // The machine is not where its coordinates say: each axis (by id) is off
     // by `by`, so from now on where it is now is called (now - by). Told to
@@ -377,6 +381,8 @@ private:
     void doDisconnect(bool keepingAlive = false);
     // The cell thread's side of moveAxes: false with `why` when refused or failed.
     bool doMove(std::map<std::string, double> targets, double speed, std::string& why, bool squared = true);
+    // The subordinate moves (rotateWithNextMove) that can go with a move to `targets`, put into it.
+    void mergeSubordinate(std::map<std::string, double>& targets);
     // A planned motion sent to its controllers, as each one's Motion Control Type says; `moved`: the controllers
     // told to move.
     bool emitMotion(JPMotion& motion, const std::map<std::string, double>& now, std::vector<JPGcodeDriver*>& moved, std::string& why);
@@ -550,6 +556,8 @@ private:
     };
     std::atomic<bool>                  m_planning { false };
     std::vector<Planned>               m_plan;
+    // Subordinate moves (rotateWithNextMove), by axis: the cell's thread's.
+    std::map<std::string, double>      m_subordinate;
     // Contact probing's offsets, by nozzle, then feeder (or part) id.
     std::map<std::string, std::map<std::string, double>> m_probedFeederOffsets, m_probedPartOffsets;
     // By nozzle: its tip's Z calibration (the tip it was made with, the offset).

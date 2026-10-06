@@ -10,6 +10,16 @@ notes.
 
 ## Unreleased
 
+- A job's pre-rotation (Pre-Rotate All Nozzles) is no longer a move of its own: as in OpenPnP, each nozzle's turn
+  goes with the next move made with the head at safe Z, so the nozzles turn while the head travels. Checked against
+  OpenPnP's BasicJobTest: every move and switching of its two-nozzle job, in order.
+- An OpenPnP machine imported with no park location set parks at the origin, as in OpenPnP (it could not park).
+  A nozzle from an older OpenPnP naming only one vacuum actuator uses it for both vacuum and sensing, as OpenPnP
+  does, so it picks (it said it had no vacuum actuator).
+- A simulated controller made from OpenPnP's NullDriver names its axes as a grblHAL with that many axes does
+  (two nozzles: Z, A, B, C), so where each axis is reads back right; a second nozzle's Z was U, which was never
+  read back, so it was not raised after a pick. The grblHAL profile reads U and V axes too.
+
 - A new feeder's Pick Retry Count starts at 0, as a new OpenPnP feeder's does (it was 3). Checked against OpenPnP's
   job retry tests (feed and pick retries, an empty feeder failed over, faults counted with Defer), all of which pass.
 - The job planner gives a second nozzle its placement as OpenPnP's does: by the time the head takes to get there

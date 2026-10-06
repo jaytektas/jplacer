@@ -42,8 +42,9 @@ What is brought across:
 - **Controllers** that OpenPnP talks G-code to, with their serial port settings (port, speed, flow
   control, parity, data and stop bits, DTR / RTS, line endings), their maximum feed rate and G-code logging.
   An actuator with no controller of its own is the first controller's, as in OpenPnP.
-  OpenPnP's **NullDriver** (its simulated controller) becomes jplacer's simulated one, its axes given letters
-  (X and Y, then Z, A, B, C, U, V, W). An old `machine.xml` whose one controller is a `<driver>` NullDriver
+  OpenPnP's **NullDriver** (its simulated controller) becomes jplacer's simulated one, a grblHAL: its
+  axes given the letters a grblHAL of that many axes has (the first of X, Y, Z, A, B, C, U, V), X and Y by
+  type, the rotations A, B, C, a Z the Z, the rest what is left (two nozzles: Z, A, B and C). An old `machine.xml` whose one controller is a `<driver>` NullDriver
   (OpenPnP's own default machine still is) is first brought up to date as OpenPnP does on loading it: an X
   and a Y axis for all, a Z and a rotation axis of its own for each nozzle (the rotation limited as the
   nozzle was, its old Safe Z the axis's safe zone), virtual ones for each camera, at the old feed rate
@@ -52,7 +53,8 @@ What is brought across:
 - **Axes**: those driven by a controller, those with no hardware behind them (such as a camera's Z),
   and those that follow another axis (such as two nozzles sharing one Z, one of them reversed).
 - **The head**, its **nozzles** (with the actuator for each nozzle's vacuum, the nozzle tips that fit
-  it and the one on it), **cameras** (each by
+  it and the one on it; a nozzle from an older OpenPnP naming only its vacuum actuator, or only its vacuum
+  sense actuator, uses that one for both, as OpenPnP does on loading it), **cameras** (each by
   the name its device gives itself, with its light; an OpenCvCamera by its device index, `/dev/video<index>`,
   its OpenCV capture properties as the camera's settings; a Webcam by its name; MJPG, image, switcher, ONVIF
   and GStreamer cameras as they were; a SimulatedUpCamera as a simulated camera that sees the nozzle tips in
@@ -75,7 +77,8 @@ What is brought across:
 - **Vision**: the bottom vision's settings (on or off, the vision settings parts use by default, passes)
   and the fiducial locator's (its vision settings, its tolerances), and the job processor's settings
   (see [Job Processors](machine-setup.md#job-processors)).
-- **The head's places**: its homing fiducial and whether it homes visually, its park location, the
+- **The head's places**: its homing fiducial and whether it homes visually, its park location (none set
+  in OpenPnP: the origin, where OpenPnP parks it), the
   calibration rig's two fiducials (their places, heights and diameters) and test object, and its pump
   (which actuator, when it runs, how long it takes to come up).
 

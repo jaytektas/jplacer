@@ -192,7 +192,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Bottom vision (pipeline, pre-rotate, size check, max rotation, vision offset, pick tolerance; OpenPnP's findOffsets, passing its ReferenceBottomVision tests) | done |
 | Vision compositing (multi-shot bottom vision, the package's preview) | done |
 | Feeders: strip, tray, rotated tray, push-pull, drag, auto, slot auto, lever, heap, loose part, advanced loose part, tube, blinds, Schultz, slot Schultz, Photon, Rapid, Bamboo | done |
-| Job: placements table, start / pause / step / stop, job order, nozzle tip strategy, retries, optimisation | done |
+| Job: placements table, start / pause / step / stop, job order, nozzle tip strategy, retries, optimisation, pre-rotation as a subordinate move (gone with the next move at safe Z; OpenPnP's BasicJobTest's moves and actuations, in order, on the cell) | done |
 | Importers: KiCad, Eagle (board and mountsmd), Diptrace, Altium, Proteus, named CSV | done (OpenPnP's solder paste Gerber importer is skipped by OpenPnP itself) |
 
 ## Order of work

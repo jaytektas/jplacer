@@ -98,7 +98,8 @@ public:
     virtual bool safeZ(std::string& why) = 0;
     // The tip on `nozzleId` changed for `tipId`: the one on it unloaded, then `tipId` loaded.
     virtual bool changeTip(const std::string& nozzleId, const std::string& tipId, std::string& why) = 0;
-    // Turn the nozzle to `angle` where it is (OpenPnP's pre-rotation); a nozzle without a rotation axis stays.
+    // Turn the nozzle to `angle` with the next move made at safe Z (OpenPnP's pre-rotation, a subordinate move); a
+    // nozzle without a rotation axis stays.
     virtual bool rotate(const std::string& nozzleId, double angle, std::string& why) = 0;
     // Up to safe Z, across and turned to `at`, down to its Z, the part picked
     // (the vacuum on, the dwell), and up.
