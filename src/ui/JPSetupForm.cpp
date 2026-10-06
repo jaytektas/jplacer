@@ -548,7 +548,10 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
                         row->add(std::move(cell));
                         continue;
                     }
-                    if (!c.label.empty()) row->add(label(m_graph, c.label));
+                    if (!c.label.empty()) {
+                        auto* words = row->add(label(m_graph, c.label));
+                        if (!p && !c.tooltip.empty()) words->setTooltip(c.tooltip);
+                    }
                     if (p) row->add(editor(*p, widthOf(*p)));
                 }
                 // A place: take it from where the camera or nozzle is, or go there.

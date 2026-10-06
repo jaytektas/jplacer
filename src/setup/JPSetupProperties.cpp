@@ -1267,6 +1267,9 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
                          });
                      });
             add.end();
+            if (k == 0)
+                add.tip("First location in a nozzle tip loading motion sequence.\nThis is the first way-point when loading "
+                        "the nozzle tip and the\nlast way-point when unloading it.");
             f.reshaping.push_back("changerSet" + n);
             if (k == 3) break;
             add.row(std::string("Post ") + n + " Actuator");
@@ -1385,7 +1388,11 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
                });
     add.tip("One nozzle tip can become the Template for others to be cloned from. Locations are translated relative "
             "to the First Location (each tip's first move). If individual nozzle tips are special, mark them as "
-            "Locked to prevent cloning.");
+            "Locked to prevent cloning.\n"
+            "Template: Mark this nozzle tip as the template that can be cloned to and from the other nozzle tips.\n"
+            "Clones from Template: This nozzle tip can clone its settings from the nozzle tip marked as the Template.\n"
+            "Locked: This nozzle tip is locked against cloning. Note, its touch location Z can still be calibrated "
+            "against the template nozzle tip reference.");
     f.reshaping.push_back("cloning");
     const JPNozzleTipConfig* templ = nullptr;
     for (const JPNozzleTipConfig& tip : cell.nozzleTips)
@@ -1459,13 +1466,31 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
         add.end();
         f.reshaping.push_back("touchSet");
         add.endColumns();
-        add.choice("zCalibrationTrigger", "Z Calibration", { "Manual", "MachineHome", "NozzleTipChange" },
+        add.row("Auto Z Calibration");
+        add.choice("zCalibrationTrigger", "Auto Z Calibration", { "Manual", "MachineHome", "NozzleTipChange" },
                    [t] { return t().zCalibrationTrigger; }, [t](const std::string& v) { t().zCalibrationTrigger = v; });
-        add.tip("When the tip's Z is calibrated by touch: Manual (Calibrate Now only), MachineHome (once the machine is "
-                "homed), NozzleTipChange (once homed, and each time it is loaded).");
-        add.flag("zCalibrationFailHoming", "Fail Homing?", [t]() -> bool& { return t().zCalibrationFailHoming; });
-        add.tip("A calibration failing once the machine is homed fails the homing.");
-        add.actions({ { "Calibrate Now", "calibrateZ" }, { "Reset", "resetZCalibration" } });
+        add.tip("Calibrate the nozzle/nozzle tip Z by probing against the Touch Location surface.\n"
+                "Z calibration can be triggered manually using the Calibrate now button or automatically:\n"
+                "Manual: No automatic Z calibration is done. Manual calibration is stored permanently in the "
+                "configuration and remains valid through machine homing.\n"
+                "MachineHome: Automatic Z calibration is performed when the machine is homed. The nozzle Z calibration "
+                "is reused when another Nozzle Tip is loaded.\n"
+                "NozzleTipChange: Automatic Z calibration is done whenever this Nozzle Tip is changed or when the "
+                "machine is homed and this Nozzle Tip is currently loaded.\n"
+                "Note, you can use a stand-in Nozzle Tip named \"unloaded\" to perform Z calibration of the naked nozzle.");
+        const auto offset = live.zCalibration ? live.zCalibration(t().id) : std::nullopt;
+        char offsetText[32] = "";
+        if (offset) std::snprintf(offsetText, sizeof offsetText, "%.3f", *offset);
+        add.words(offsetText, "Calibrated Z offset of the nozzle");
+        add.button("resetZCalibration", "Reset", "Reset the Z calibration.");
+        add.button("calibrateZ", "Calibrate now",
+                   "Calibrate the nozzle/nozzle tip Z by contact-probing against the Touch Location surface.");
+        add.end();
+        f.reshaping.push_back("zCalibrationTrigger");
+        if (t().zCalibrationTrigger != "Manual") {
+            add.flag("zCalibrationFailHoming", "Fail Homing?", [t]() -> bool& { return t().zCalibrationFailHoming; });
+            add.tip("When the Z calibration fails during homing, also fail the homing cycle.");
+        }
         add.note("The nozzle the tip is on probes the Touch Location from its Start Offset (Contact Probe tab); how far "
                  "it met it from Z, up to the nozzle's largest Z offset, moves every Z of that nozzle, while the tip "
                  "stays on it.");

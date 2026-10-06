@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- A nozzle tip's Auto Z Calibration is laid out as OpenPnP's, with the nozzle's calibrated Z offset beside it; Fail
+  Homing? shows only when the calibration is automatic, and the Tool Changer's settings say what they do.
 - The head's Calibration Rig is laid out as OpenPnP's: Primary Fiducial, Secondary Fiducial and Test Object, each
   with its Diameter; the head's buttons and Pump settings say what they do, in OpenPnP's words.
 - The Issues & Solutions tab shows OpenPnP's dot, coloured by the severest open issue.

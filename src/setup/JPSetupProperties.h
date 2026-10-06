@@ -134,6 +134,8 @@ public:
         std::function<std::shared_ptr<const JPFrame>(const std::string& fileName)> templatePicture;
         // A camera's device settings as it has them (JPCaptureSource::controls).
         std::function<JJson(const std::string& cameraId)> cameraControls;
+        // The Z calibration offset of the nozzle a tip is loaded on (OpenPnP's calibrationOffsetZ; none: not calibrated).
+        std::function<std::optional<double>(const std::string& nozzleTipId)> zCalibration;
     };
     static Form forNode(JPCellConfig& cell, const std::string& path, const std::vector<JPFirmwareProfile>& profiles,
                         JPConfiguration* config = nullptr, const JPVisionTests* tests = nullptr,

@@ -597,6 +597,12 @@ std::unique_ptr<JPMachineSetupPanel> JPlacerMachine::makeSetup() {
     setup->setHal(&m_window.hal());
     // Template pictures are named by what they hold: one read is kept.
     setup->live.cameraControls = [this](const std::string& cameraId) { return cameraDeviceControls(cameraId); };
+    setup->live.zCalibration = [this](const std::string& tipId) -> std::optional<double> {
+        if (!m_cell) return std::nullopt;
+        for (const JPNozzleConfig& n : m_cell->config().nozzles)
+            if (n.tipId == tipId) return m_cell->zCalibration(n.id);
+        return std::nullopt;
+    };
     setup->live.templatePicture = [this, kept = std::make_shared<std::map<std::string, std::shared_ptr<const JPFrame>>>()](
                                  const std::string& fileName) -> std::shared_ptr<const JPFrame> {
         if (const auto it = kept->find(fileName); it != kept->end()) return it->second;
@@ -772,6 +778,7 @@ void JPlacerMachine::watchCell() {
     m_unwatch.push_back(m_cell->onCalibration.connect([this, onMain] {
         onMain([this] {
             for (CameraDock& c : m_cameras) c.panel->refreshStraightening();
+            refreshSetupForm();   // a nozzle tip's calibrated Z offset
         });
     }));
     // What each controller said it is (Detect Firmware, and at connect), shown on its page.
