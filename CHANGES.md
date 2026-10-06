@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- A script can run an event's scripts or another script, as in OpenPnP: `scripting.on(event, globals)` and
+  `scripting.execute(script, globals)`.
 - Bottom vision on a camera looking up (which sees the machine mirrored) now tells its pipeline the part's angle,
   footprint and, for vision compositing, the edges each shot looks for as the picture shows them. A composite shot
   looked for the wrong side of a pad, so a part seen in several shots came out turned by up to a few tenths of a

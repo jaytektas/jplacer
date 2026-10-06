@@ -6,7 +6,7 @@ test passes here only when it passes there.
 
 Status: **passing** (ported and passing), **to port**.
 
-**230 of 253 test methods passing.**
+**231 of 253 test methods passing.**
 
 | OpenPnP test | Methods | Status | jplacer test |
 |---|---|---|---|
@@ -53,4 +53,4 @@ Status: **passing** (ported and passing), **to port**.
 | org/openpnp/machine/photon/protocol/commands/MoveFeedStatusTest.java (createCommand, decodeOk, decodeUninitializedFeeder, decodeCouldNotReach, decodeFeedingInProgress, decodeLengthTooShort, decodeLengthTooLong) | 7 | passing | tests/tasks/test_photon_protocol.cpp |
 | org/openpnp/machine/photon/protocol/commands/ProgramFeederFloorAddressTest.java (createCommand, decodeOk, decodeLengthTooShort, decodeLengthTooLong) | 4 | passing | tests/tasks/test_photon_protocol.cpp |
 | org/openpnp/machine/photon/protocol/commands/UninitializedFeedersRespondTest.java (createCommand, decodeOk, decodeLengthTooShort, decodeLengthTooLong) | 4 | passing | tests/tasks/test_photon_protocol.cpp |
-| org/openpnp/scripting/ScriptingTest.java (testScripting) | 1 | to port |  |
+| org/openpnp/scripting/ScriptingTest.java (testScripting) | 1 | passing | tests/machine/test_openpnp_scripting.cpp (Python and JavaScript, the engines jplacer runs; results through files) |

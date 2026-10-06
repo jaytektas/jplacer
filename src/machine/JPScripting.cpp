@@ -42,7 +42,7 @@ class Error(Exception):
 def call(name, **arguments):
     """Ask the machine; the answer, or Error with why."""
     arguments["call"] = name
-    os.write(_request, (json.dumps(arguments) + "\n").encode())
+    os.write(_request, (json.dumps(arguments, default=str) + "\n").encode())
     answer = json.loads(_answers.readline())
     if "error" in answer:
         raise Error(answer["error"])
@@ -397,6 +397,14 @@ class Scripting(Bean):
     def getScriptsDirectory(self):
         return _Path(os.environ.get("JPLACER_SCRIPTS", "") + os.sep)
 
+    def on(self, event, globals=None):
+        """An event's scripts run, with these globals."""
+        jplacer.call("scriptingOn", event=str(event), globals=globals or {})
+
+    def execute(self, script, globals=None):
+        """A script run (its path, or one in the scripts folder), with these globals."""
+        jplacer.call("scriptingExecute", path=str(script), globals=globals or {})
+
     def __str__(self):
         return "Scripting"
 
@@ -730,6 +738,10 @@ class Scripting {
         const dir = (process.env.JPLACER_SCRIPTS || "") + "/";
         return { toString: () => dir };
     }
+    // An event's scripts run, with these globals.
+    on(event, globals = {}) { jplacer.call("scriptingOn", { event: String(event), globals }); }
+    // A script run (its path, or one in the scripts folder), with these globals.
+    execute(script, globals = {}) { jplacer.call("scriptingExecute", { path: String(script), globals }); }
     toString() { return "Scripting"; }
 }
 
@@ -1076,6 +1088,30 @@ bool JPScripting::execute(const std::string& path, const JJson& globals, std::st
         env.push_back("PYTHONPATH=" + helpers + (py && *py ? ":" + std::string(py) : std::string()));
         env.push_back("NODE_PATH=" + helpers + (node && *node ? ":" + std::string(node) : std::string()));
     }
+    // OpenPnP's scripting.on and scripting.execute, asked by the script: answered here (each on an interpreter of its
+    // own: this one is busy), anything else asked of the machine.
+    const std::function<JJson(const JJson&)> served = [this](const JJson& request) {
+        const std::string call = request["call"].str();
+        if (call != "scriptingOn" && call != "scriptingExecute") {
+            if (api) return api(request);
+            JJson none = JJson::object();
+            none["error"] = std::string("no machine to ask");
+            return none;
+        }
+        std::string w;
+        bool ok = false;
+        if (call == "scriptingOn") {
+            ok = on(request["event"].str(), request["globals"], w);
+        } else {
+            fs::path script = request["path"].str();
+            if (script.is_relative()) script = fs::path(m_directory) / script;
+            ok = execute(script.string(), request["globals"], w);
+        }
+        JJson answer = JJson::object();
+        if (ok) answer["result"] = JJson();
+        else answer["error"] = w;
+        return answer;
+    };
     JPScriptProcess::Result r;
     const bool pooled = m_pooling && (ext == ".py" || ext == ".js");
     if (pooled) {
@@ -1102,7 +1138,7 @@ bool JPScripting::execute(const std::string& path, const JJson& globals, std::st
         run["path"] = fs::absolute(path).string();
         run["globals"] = globals;
         run["event"] = event;
-        r = engine->run(name, run, api, kTimeoutMs);
+        r = engine->run(name, run, served, kTimeoutMs);
         if (engine->serving() && m_pooling) {
             {
                 std::lock_guard lk(m_poolMutex);
@@ -1122,7 +1158,7 @@ bool JPScripting::execute(const std::string& path, const JJson& globals, std::st
             why = name + ": " + why;
             return false;
         }
-        r = once->run(name, JJson(), api, kTimeoutMs);
+        r = once->run(name, JJson(), served, kTimeoutMs);
     }
     if (r.end == JPScriptProcess::Result::End::TimedOut) {
         why = name + " did not finish within " + std::to_string(kTimeoutMs / 1000) + " s";

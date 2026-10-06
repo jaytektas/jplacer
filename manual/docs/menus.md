@@ -134,7 +134,9 @@ A Python or JavaScript script also finds OpenPnP's own scripting objects, so Ope
 head's `nozzles`, `cameras`, `actuators`, `defaultNozzle`, `defaultCamera`, `isCarryingPart` and `moveToSafeZ`; a
 nozzle, camera or actuator's `name`, `id`, `location`, `moveTo(location)` and `moveToSafeZ`, a nozzle's `part`,
 `pick(part)` and `place()` (where it is), an actuator's `actuate` and `read`; a feeder's `name`, `part`, `enabled`,
-`getFeedCount` and `setFeedCount`; `config` (its `parts` and `getPart`), `scripting` (`getScriptsDirectory`) and
+`getFeedCount` and `setFeedCount`; `config` (its `parts` and `getPart`), `scripting` (`getScriptsDirectory`;
+`on(event, globals)`, the event's scripts run, and `execute(script, globals)`, a script run, each on an interpreter
+of its own, the globals given to it as its own) and
 `gui` (its `jobTab`: the `job`'s `boardLocations`, each with its `location`, `side` and `setEnabled`, and
 `refresh`). Java's bean getters work either way, as in OpenPnP (`nozzle.location`, `nozzle.getLocation()`). The
 Java packages they import are there as far as these go: `org.openpnp.model` (`Location`, with `add`, `subtract`,
