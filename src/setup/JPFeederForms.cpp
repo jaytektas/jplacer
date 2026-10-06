@@ -760,20 +760,26 @@ void bambooForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFee
         std::snprintf(buf, sizeof buf, "%.3f", mm(l));
         return std::string(buf);
     };
+    // OpenPnP's three columns of settings, a button at the right.
+    add.header({ "", "", "", "", "" });
     add.row("Calibration Trigger");
     add.choice("calibration-trigger", "Calibration Trigger", { "None", "OnFirstUse", "UntilConfident", "OnEachTapeFeed" },
                [f] { return f().text("calibration-trigger", "UntilConfident"); },
                [f](const std::string& v) { f().setText("calibration-trigger", v); });
+    add.words("Precision Average");
     add.text("precision-average", "Precision Average", [f, shown] { return shown(JPFeederTape::precisionAverage(f())); }, nullptr);
+    add.words("Calibration Count");
     add.text("calibration-count", "Calibration Count", [f] { return std::to_string(f().number("calibration-count", 0)); }, nullptr);
     add.end();
     add.row("Precision wanted");
     length(add, f, "precision-wanted", "Precision wanted", 0.1);
+    add.words("Precision Confidence Limit");
     add.text("precision-confidence-limit", "Precision Confidence Limit",
              [f, shown] { return shown(JPFeederTape::precisionConfidenceLimit(f())); }, nullptr);
     add.button("resetStatistics", "Reset Statistics", "Reset the average obtained precision statistics.");
     add.end();
     add.tip("Precision wanted i.e. the tolerable pick location offset");
+    add.endColumns();
 
     add.group("Actuators");
     add.header({ "Actuator", "Actuator Value" });
@@ -846,26 +852,35 @@ void pushPullForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPF
     add.tip("Snap rows of sprocket holes to the Axis parallel.");
 
     add.group("Tape Settings");
+    // OpenPnP's columns: Part Pitch and Feed Pitch at the left; Rotation in Tape, Multiplier and Feed Count at the right.
+    add.header({ "", "", "" });
     add.row("Part Pitch");
     length(add, f, "part-pitch", "Part Pitch", 4);
+    add.words("Rotation in Tape");
     add.number("rotation-in-feeder", "Rotation in Tape", [f] { return f().real("rotation-in-feeder", 0); },
                [f](double v) { f().setReal("rotation-in-feeder", v); });
     add.end();
-    add.tip("Pitch of the parts in the tape (2mm, 4mm, 8mm, 12mm, etc.)");
+    add.labelTip("Pitch of the parts in the tape (2mm, 4mm, 8mm, 12mm, etc.)");
+    add.tipOf("part-pitch", "Pitch of the parts in the tape (2mm, 4mm, 8mm, 12mm, etc.)");
     add.row("Feed Pitch");
     length(add, f, "feed-pitch", "Feed Pitch", 4);
+    add.words("Multiplier");
     add.integer("feed-multiplier", "Multiplier", [f] { return f().number("feed-multiplier", 1); },
                 [f](int v) { f().setNumber("feed-multiplier", v); }, 1, kMostCount);
     add.button("discardParts", "Discard Parts",
                "Discard parts left over in the (multi-part) feed cycle.\nStarts with a fresh feed cycle including vision "
                "calibration (if enabled).");
     add.end();
-    add.tip("How much the tape will be advanced by one lever actuation (usually multiples of 4mm)");
-    add.row("Feed Count");
+    add.labelTip("How much the tape will be advanced by one lever actuation (usually multiples of 4mm)");
+    add.tipOf("feed-pitch", "How much the tape will be advanced by one lever actuation (usually multiples of 4mm)");
+    add.row("");
+    add.skip();
+    add.words("Feed Count", "Total feed count of the feeder.");
     count(add, f, "feed-count", "Feed Count", 0);
     add.button("resetFeedCount", "Reset Feed Count", "Reset the feed count e.g. when a tape has been changed.");
     add.end();
-    add.tip("Total feed count of the feeder.");
+    add.tipOf("feed-count", "Total feed count of the feeder.");
+    add.endColumns();
 
     add.group("Vision");
     auto shown = [](const JPLength& l) {
@@ -873,15 +888,20 @@ void pushPullForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPF
         std::snprintf(buf, sizeof buf, "%.3f", mm(l));
         return std::string(buf);
     };
+    // OpenPnP's three columns of settings, a button at the right.
+    add.header({ "", "", "", "", "" });
     add.row("Calibration Trigger");
     add.choice("calibration-trigger", "Calibration Trigger", { "None", "OnFirstUse", "UntilConfident", "OnEachTapeFeed" },
                [f] { return f().text("calibration-trigger", "UntilConfident"); },
                [f](const std::string& v) { f().setText("calibration-trigger", v); });
+    add.words("Precision Average");
     add.text("precision-average", "Precision Average", [f, shown] { return shown(JPFeederTape::precisionAverage(f())); }, nullptr);
+    add.words("Calibration Count");
     add.text("calibration-count", "Calibration Count", [f] { return std::to_string(f().number("calibration-count", 0)); }, nullptr);
     add.end();
     add.row("Precision wanted");
     length(add, f, "precision-wanted", "Precision wanted", 0.1);
+    add.words("Precision Confidence Limit");
     add.text("precision-confidence-limit", "Precision Confidence Limit",
              [f, shown] { return shown(JPFeederTape::precisionConfidenceLimit(f())); }, nullptr);
     add.button("resetStatistics", "Reset Statistics", "Reset the average obtained precision statistics.");
@@ -897,6 +917,7 @@ void pushPullForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPF
     add.choice("ocr-wrong-part-action", "OCR Wrong Part Action", { "None", "SwapFeeders", "SwapOrCreate", "ChangePart", "ChangePartAndClone" },
                [f] { return f().text("ocr-wrong-part-action", "SwapOrCreate"); },
                [f](const std::string& v) { f().setText("ocr-wrong-part-action", v); });
+    add.words("OCR Font Name");
     add.choice("ocr-font-name", "OCR Font Name", fonts, [f] { return f().text("ocr-font-name", "Liberation Mono"); },
                [f](const std::string& v) { f().setText("ocr-font-name", v); });
     if (options.ocrRegionStep.empty()) {
@@ -920,6 +941,7 @@ void pushPullForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPF
     add.row("Stop after wrong part?");
     add.flag("ocr-stop-after-wrong-part", "Stop after wrong part?", [f] { return f().flag("ocr-stop-after-wrong-part", false); },
              [f](bool on) { f().setFlag("ocr-stop-after-wrong-part", on); });
+    add.words("OCR Font Size [pt]");
     add.number("ocr-font-size-pt", "OCR Font Size [pt]", [f] { return f().real("ocr-font-size-pt", 7.0); },
                [f](double v) { f().setReal("ocr-font-size-pt", v); });
     add.button("partByOcr", "Part by OCR", "Perform OCR and assign the recognized part.");
@@ -927,10 +949,13 @@ void pushPullForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPF
     add.row("Check on Job Start?");
     add.flag("ocr-discover-on-job-start", "Check on Job Start?", [f] { return f().flag("ocr-discover-on-job-start", true); },
              [f](bool on) { f().setFlag("ocr-discover-on-job-start", on); });
+    add.skip();
+    add.skip();
     add.button("allFeederOcr", "All Feeder OCR", "Go to all the feeders with OCR and rediscover the parts loaded in them.");
     add.end();
     add.tip("On Job Start, check that the correct parts are selected in OCR-enabled feeders at their locations.\nOtherwise the Job is "
             "stopped.\nThis will also vision-calibrate the feeders' locations, if calibration is enabled.");
+    add.endColumns();
     add.row("");
     add.button("editPipeline", "Edit Pipeline", "Edit the Pipeline to be used for all vision operations of this feeder.");
     add.choice("pipeline-type", "Vision Type", { "ColorKeyed", "CircularSymmetry" },
@@ -953,29 +978,40 @@ void pushPullForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPF
         });
     };
     const bool templ = f().flag("used-as-template", false);
+    // OpenPnP's columns: the template at the left, what a clone takes at the right.
+    add.header({ "", "", "" });
     add.row("Use this one as Template?");
     add.flag("used-as-template", "Use this one as Template?", [f] { return f().flag("used-as-template", false); },
              [f](bool on) { f().setFlag("used-as-template", on); });
+    add.words("Clone Location Settings?");
     add.flag("clone.location", "Clone Location Settings?", choice("location"), setChoice("location"));
     if (templ) add.button("cloneToFeeders", "Clone to Feeders", "Clone the settings from this feeder to all compatible feeders.");
     else
         add.button("cloneFromTemplate", "Clone from Template",
                    "Clone the settings from the selected template feeder,\ntransforming any coordinates to the pick location and orientation.");
     add.end();
-    add.tip("Use this feeder as a template for cloning settings to other feeders.\nThe templates are matched by tape & reel specification "
-            "or package of the parts\nloaded in feeders.\nWhen no template matches formally, the feeder with the greatest similarities\n"
-            "is taken (feed pitch, tape width, proximity, etc.).");
+    add.labelTip("Use this feeder as a template for cloning settings to other feeders.\nThe templates are matched by tape & reel "
+                 "specification or package of the parts\nloaded in feeders.\nWhen no template matches formally, the feeder with the "
+                 "greatest similarities\nis taken (feed pitch, tape width, proximity, etc.).");
+    add.row("Template:");
     add.text("clone.status", "Template:", [&config, f] { return JPPushPullTemplates::cloneTemplateStatus(config, f().id()); }, nullptr, "lines");
+    add.words("Clone Tape Setting?");
     add.flag("clone.tape", "Clone Tape Setting?", choice("tape"), setChoice("tape"));
-    add.tip("Clone the Tape Settings.");
-    add.row("Clone Vision Settings?");
+    add.end();
+    add.tipOf("clone.tape", "Clone the Tape Settings.");
+    add.row("");
+    add.skip();
+    add.words("Clone Vision Settings?");
     add.flag("clone.vision", "Clone Vision Settings?", choice("vision"), setChoice("vision"));
     add.end();
-    add.tip("Clone the Vision settings, including the pipeline.");
-    add.row("Clone Push-Pull Settings?");
+    add.tipOf("clone.vision", "Clone the Vision settings, including the pipeline.");
+    add.row("");
+    add.skip();
+    add.words("Clone Push-Pull Settings?");
     add.flag("clone.pushPull", "Clone Push-Pull Settings?", choice("pushPull"), setChoice("pushPull"));
     add.end();
-    add.tip("Clone the Push-Pull Motion Settings.");
+    add.tipOf("clone.pushPull", "Clone the Push-Pull Motion Settings.");
+    add.endColumns();
 
     add.tab("Push-Pull Motion");
     add.group("Push-Pull Settings");

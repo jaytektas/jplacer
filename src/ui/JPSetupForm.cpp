@@ -474,10 +474,12 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
         frame->add(std::move(w));
     };
     underHeader = false;
+    bool titled = false;   // the columns have titles
     for (const Row& r : g.rows) {
         switch (r.kind) {
             case Row::Kind::Header: {
                 underHeader = !r.cells.empty();
+                titled = std::any_of(r.cells.begin(), r.cells.end(), [](const JPSetupProperties::Cell& c) { return !c.label.empty(); });
                 if (!underHeader) break;
                 // Columns without titles (fields lined up as OpenPnP's): no row of titles.
                 if (std::all_of(r.cells.begin(), r.cells.end(), [](const JPSetupProperties::Cell& c) { return c.label.empty(); }))
@@ -592,8 +594,11 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
                         // (a box to tick under the middle of its title).
                         const bool tick = p && p->get().isBool();
                         const bool text = !p && !c.label.empty();   // a word in the column (OpenPnP's "1 ↔ 2")
+                        // (Under columns without titles, a tick box at the column's start, as OpenPnP's.)
                         auto cell = box(m_graph, columns[i], h,
-                                        tick ? JJustifyContent::Center : text ? JJustifyContent::FlexEnd : JJustifyContent::FlexStart);
+                                        tick && titled ? JJustifyContent::Center
+                                        : text         ? JJustifyContent::FlexEnd
+                                                       : JJustifyContent::FlexStart);
                         if (p) cell->add(editor(*p, widthOf(*p)));
                         else if (text) cell->add(label(m_graph, c.label));
                         row->add(std::move(cell));
