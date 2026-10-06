@@ -366,6 +366,8 @@ int main() {
                    R"(<actuator class="org.openpnp.machine.reference.ReferenceActuator" id="NB2" name="N2-Blow" value-type="Boolean" driver-id="NEO"/>)"
                    R"(<actuator class="org.openpnp.machine.reference.ReferenceActuator" id="LD" name="Lights-Down" value-type="Boolean" driver-id="NEO"/>)"
                    R"(<actuator class="org.openpnp.machine.reference.ReferenceActuator" id="RC" name="ReleaseC" value-type="Boolean" driver-id="NEO"/>)"
+                   R"(<actuator class="org.openpnp.machine.reference.actuator.ThermistorToLinearSensorActuator" id="TH" name="Heat" )"
+                   R"(value-type="Double" driver-id="DRV1" scale="2.0" offset="1.0" v-ref="3.3" adc-max="4095.0"/>)"
                    R"(<actuator class="org.openpnp.machine.neoden4.NeoDen4FeederActuator" id="F7" name="Feeder7" value-type="Double" )"
                    R"(driver-id="NEO" feeder-id="7" peeler-id="27" feed-strength="60" peel-strength="40" peel-length="80"/>)");
         const std::string path = (std::filesystem::temp_directory_path() / "jplacer-test-neoden4.xml").string();
@@ -389,6 +391,12 @@ int main() {
         assert(f.neoden4Feeder.on && f.canSet() && f.neoden4Feeder.command() == "NEOFEED 7 60 27 40 80 {value}");
         assert(JPActuatorConfig::fromJson(f.toJson()).neoden4Feeder.peelLength == 80);
         for (const std::string& n : neoNotes) assert(n.find("NeoDen4") == std::string::npos);
+        // OpenPnP's ThermistorToLinearSensorActuator: 25 degrees C is a 100 kOhm thermistor's 3.152 V, times 2 plus 1.
+        const JPActuatorConfig& th = *by["TH"];
+        assert(th.thermistor.on && th.thermistor.scale == 2 && th.thermistor.offset == 1 && th.thermistor.r2 == 4700);
+        assert(std::abs(th.thermistor.transform(25) - 7.3037249283667665) < 1e-9);
+        assert(JPActuatorConfig::fromJson(th.toJson()).thermistor.scale == 2);
+        for (const std::string& n : neoNotes) assert(n.find("Heat") == std::string::npos);
     }
     // OpenPnP's SimulationModeMachine: its simulated imperfections.
     {

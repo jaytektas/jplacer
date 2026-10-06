@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- An actuator can be OpenPnP's ThermistorToLinearSensorActuator: a temperature read turned into what a linear sensor
+  would read, set on its Transforms tab. Number boxes are wide enough for all their decimal places.
 - A NeoDen 4 can be driven, as OpenPnP's NeoDen4Driver drives it: Communications Type neoden4, its scale factors
   and home coordinates, its nozzles' vacuum and blow, lights, rails and feeders by their names; its NeoDen 4 feeder
   actuators (with Change Feeder ID) and its Neoden4Signaler, the buzzer beeping until a job's end is confirmed.

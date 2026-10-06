@@ -155,6 +155,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Axis interlock | done | |
 | HTTP actuators | done | |
 | Script actuators | done | the script runs as a program told actuateBoolean, actuateDouble or actuateString |
+| ThermistorToLinearSensorActuator (thermistor, ADC, linear transform) | done | its Transforms tab; R1 kept but not used, as OpenPnP |
 | Actuators panel (switch, read) | done | |
 
 ## Fiducials and boards

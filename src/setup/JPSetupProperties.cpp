@@ -2591,6 +2591,29 @@ void actuatorForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::
                    "Off Values.");
     if (a().valueType == VT::Profile) actuatorProfilesTab(add, cell, a, f);
     if (a().interlock.enabled) actuatorInterlockTab(add, cell, a, f);
+    if (a().thermistor.on) {
+        // OpenPnP's ThermistorToLinearSensorActuatorTransforms.
+        using T = JPActuatorConfig::Thermistor;
+        auto value = [a](double T::*field) { return [a, field]() -> double& { return a().thermistor.*field; }; };
+        constexpr int kCoefficientDecimals = 18;   // OpenPnP's coefficients, to their last digit
+        add.tab("Transforms");
+        add.group("Thermistor");
+        add.number("thermistorA", "A", value(&T::a), kCoefficientDecimals);
+        add.number("thermistorB", "B", value(&T::b), kCoefficientDecimals);
+        add.number("thermistorC", "C", value(&T::c), kCoefficientDecimals);
+        add.number("thermistorR1", "R1", value(&T::r1));
+        add.tip("(Not yet supported)");
+        add.number("thermistorR2", "R2", value(&T::r2));
+        add.group("ADC");
+        add.number("adcMax", "Maximum Value", value(&T::adcMax));
+        add.number("vRef", "Voltage Reference", value(&T::vRef));
+        add.group("Linear Transform");
+        add.number("thermistorScale", "Scale", value(&T::scale));
+        add.number("thermistorOffset", "Offset", value(&T::offset));
+        add.note("What is read is taken as a temperature (degrees C) and turned into what a linear sensor would read: "
+                 "the thermistor's resistance at it (A, B, C), below R2 in a divider read by the ADC, as a voltage, "
+                 "times Scale plus Offset.");
+    }
 }
 
 // OpenPnP's SoundSignalerConfigurationWizard and ActuatorSignalerConfigurationWizard.

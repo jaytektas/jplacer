@@ -27,6 +27,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 
 inline namespace jf {
 
@@ -273,6 +274,13 @@ float JPSetupForm::widthOf(const JProperty& p) const {
     }
     const JVariant v = p.get();
     if (v.isBool()) return st.checkHeight;
+    if (v.isDouble() && p.meta.decimals > 0) {
+        // Room for all its places (a coefficient's many), its padding and its spin buttons.
+        char text[64];
+        std::snprintf(text, sizeof text, "%.*f", p.meta.decimals, v.toDouble());
+        const float fits = std::ceil(JTextHelper::measureWidth(text)) + 2 * st.fieldPadding + st.controlHeight + 2 * st.spacing;
+        return std::max(fits, numberWidth());
+    }
     if (v.isInt() || v.isDouble() || p.meta.editor == "number") return numberWidth();
     return 2 * numberWidth();   // a name, a line of text ("long" ones take the row's room)
 }

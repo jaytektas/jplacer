@@ -776,6 +776,16 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                     a.profiles.push_back(std::move(q));
                 }
         }
+        // OpenPnP's ThermistorToLinearSensorActuator: its thermistor, ADC and linear transform.
+        if (shortClass(x) == "ThermistorToLinearSensorActuator") {
+            using T = JPActuatorConfig::Thermistor;
+            a.thermistor.on = true;
+            for (const auto& [attr, field] : { std::pair { "a", &T::a }, std::pair { "b", &T::b }, std::pair { "c", &T::c },
+                                               std::pair { "r1", &T::r1 }, std::pair { "r2", &T::r2 },
+                                               std::pair { "adc-max", &T::adcMax }, std::pair { "v-ref", &T::vRef },
+                                               std::pair { "scale", &T::scale }, std::pair { "offset", &T::offset } })
+                if (!x.attr(attr).empty()) a.thermistor.*field = number(x.attr(attr));
+        }
         // What on and off set it to, as OpenPnP's defaults.
         if (a.valueType == JPActuatorConfig::ValueType::Number) {
             a.onValue = x.attr("default-on-double");
@@ -803,7 +813,8 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             for (const auto& [driverId, cmds] : commands)
                 for (const auto& [key, text] : cmds)
                     if (key.second == a.id) a.driverId = driverId;
-        if (shortClass(x) != "ReferenceActuator" && shortClass(x) != "NeoDen4FeederActuator")
+        if (shortClass(x) != "ReferenceActuator" && shortClass(x) != "NeoDen4FeederActuator"
+            && shortClass(x) != "ThermistorToLinearSensorActuator")
             notes.push_back("actuator " + a.name + " (" + shortClass(x) + ") was imported as a plain actuator");
         const auto cmds = commands.find(a.driverId);
         if (cmds != commands.end()) {

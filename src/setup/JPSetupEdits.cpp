@@ -104,7 +104,7 @@ std::string JPSetupEdits::addable(const JPCellConfig& cell, const std::string& p
 std::vector<std::string> JPSetupEdits::kinds(const JPCellConfig& cell, const std::string& path) {
     const JPSetupTree::Path g = JPSetupTree::parse(JPSetupTree::groupOf(cell, path));
     if (g.kind == "group" && g.id == "signalers") return JPSignalerConfig::classNames();
-    if (g.kind == "group" && g.id == "actuators") return { "ReferenceActuator", "HttpActuator", "ScriptActuator", "NeoDen4FeederActuator" };
+    if (g.kind == "group" && g.id == "actuators") return { "ReferenceActuator", "HttpActuator", "ScriptActuator", "ThermistorToLinearSensorActuator", "NeoDen4FeederActuator" };
     if (g.kind == "group" && g.id == "cameras")
         return { "OpenPnpCaptureCamera", "Neoden4Camera", "Neoden4SwitcherCamera", "MjpgCaptureCamera", "ImageCamera",
                  "SwitcherCamera", "OnvifIPCamera", "GstreamerCamera" };
@@ -188,6 +188,7 @@ std::string JPSetupEdits::add(JPCellConfig& cell, const std::string& path, const
         a.name = "New actuator";
         a.http.on = kind == "HttpActuator";
         if (kind == "ScriptActuator") a.scriptName = "Actuators/" + a.id + ".py";
+        a.thermistor.on = kind == "ThermistorToLinearSensorActuator";
         a.mount.headId = g.owner;
         if (!cell.drivers.empty()) a.driverId = cell.drivers.front().id;
         // OpenPnP's NeoDen4FeederActuator: set to a length, on the NeoDen 4 controller.

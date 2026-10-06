@@ -14,6 +14,7 @@
 #include <filesystem>
 #include <future>
 #include <regex>
+#include <charconv>
 #include <chrono>
 #include <thread>
 
@@ -1631,7 +1632,21 @@ bool JPCell::readActuatorAndWait(const std::string& actuatorId, const std::optio
 bool JPCell::doRead(const std::string& actuatorId, std::string& value, std::string& why,
                     const std::optional<std::string>& parameter) {
     for (const JPActuatorConfig& a : m_config.actuators)
-        if (a.id == actuatorId) return doCoordinate(a.coordinatedBeforeRead, why) && doReadNow(a, value, why, parameter);
+        if (a.id == actuatorId) {
+            if (!doCoordinate(a.coordinatedBeforeRead, why) || !doReadNow(a, value, why, parameter)) return false;
+            if (!a.thermistor.on) return true;
+            // OpenPnP's ThermistorToLinearSensorActuator: the temperature read, as a linear sensor would read it.
+            char* end = nullptr;
+            const double t = std::strtod(value.c_str(), &end);
+            if (end == value.c_str()) {
+                why = a.name + ": '" + value + "' is not a temperature";
+                return false;
+            }
+            char out[32];
+            const auto done = std::to_chars(out, out + sizeof out, a.thermistor.transform(t));
+            value.assign(out, done.ptr);
+            return true;
+        }
     why = "no actuator " + actuatorId;
     return false;
 }

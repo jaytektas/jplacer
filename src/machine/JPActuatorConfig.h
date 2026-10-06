@@ -105,6 +105,22 @@ struct JPActuatorConfig {
         std::string command() const;
     };
     Neoden4Feeder neoden4Feeder;
+    // OpenPnP's ThermistorToLinearSensorActuator: the value read is taken as
+    // a temperature (degrees C) and made what a linear sensor wired in its
+    // place would read: the resistance a thermistor with these Steinhart-Hart
+    // coefficients (A, B, C) has at it, the ADC reading (Maximum Value) it
+    // gives below R2 in a divider, that as a voltage (Voltage Reference),
+    // times Scale plus Offset. R1 is kept, not used (as in OpenPnP: not yet
+    // supported). Off: not one.
+    struct Thermistor {
+        bool   on = false;
+        double a = 0.000722378300319346, b = 0.000216301852054578, c = 9.2641025635702e-08;
+        double r1 = 0, r2 = 4700;
+        double adcMax = 4095, vRef = 3.3;
+        double scale = 1, offset = 0;
+        double transform(double celsius) const;
+    };
+    Thermistor thermistor;
     std::vector<Profile> profiles;
     const Profile* profileNamed(const std::string& profileName) const;
     const Profile* defaultProfile(bool on) const;

@@ -3,11 +3,25 @@
 
 #include "JPActuatorConfig.h"
 
+#include <cmath>
+
 inline namespace jf {
 
 std::string JPActuatorConfig::Neoden4Feeder::command() const {
     return "NEOFEED " + std::to_string(feederId) + " " + std::to_string(feedStrength) + " " + std::to_string(peelerId) + " "
          + std::to_string(peelStrength) + " " + std::to_string(peelLength) + " {value}";
+}
+
+double JPActuatorConfig::Thermistor::transform(double celsius) const {
+    // OpenPnP's temperatureToResistance (the Steinhart-Hart equation solved for R), resistanceToAdc, adcToVoltage.
+    constexpr double kKelvin = 273.15;
+    const double tK = celsius + kKelvin;
+    const double x = 1 / (2 * c) * (a - 1 / tK);
+    const double y = std::sqrt(std::pow(b / (3 * c), 3) + std::pow(x, 2));
+    const double r = std::exp(std::pow(y - x, 1.0 / 3) - std::pow(y + x, 1.0 / 3));
+    const double adc = (adcMax * r) / (r + r2);
+    const double v = (adc / adcMax) * vRef;
+    return v * scale + offset;
 }
 
 JPActuatorConfig JPActuatorConfig::fromJson(const JJson& j) {
@@ -53,6 +67,16 @@ JPActuatorConfig JPActuatorConfig::fromJson(const JJson& j) {
         f.feedStrength = int(n["feedStrength"].number(f.feedStrength));
         f.peelStrength = int(n["peelStrength"].number(f.peelStrength));
         f.peelLength = int(n["peelLength"].number(f.peelLength));
+    }
+    if (const JJson& t = j["thermistor"]; t.isObject()) {
+        Thermistor& th = a.thermistor;
+        th.on = true;
+        for (const auto& [key, field] : { std::pair { "a", &Thermistor::a }, std::pair { "b", &Thermistor::b },
+                                          std::pair { "c", &Thermistor::c }, std::pair { "r1", &Thermistor::r1 },
+                                          std::pair { "r2", &Thermistor::r2 }, std::pair { "adcMax", &Thermistor::adcMax },
+                                          std::pair { "vRef", &Thermistor::vRef }, std::pair { "scale", &Thermistor::scale },
+                                          std::pair { "offset", &Thermistor::offset } })
+            th.*field = t[key].number(th.*field);
     }
     if (const JJson& il = j["interlock"]; il.isObject()) {
         Interlock& i = a.interlock;
@@ -110,6 +134,14 @@ JJson JPActuatorConfig::toJson() const {
         j["http"]["paramUrl"] = http.paramUrl;
         j["http"]["readUrl"] = http.readUrl;
         j["http"]["regex"] = http.regex;
+    }
+    if (thermistor.on) {
+        for (const auto& [key, field] : { std::pair { "a", &Thermistor::a }, std::pair { "b", &Thermistor::b },
+                                          std::pair { "c", &Thermistor::c }, std::pair { "r1", &Thermistor::r1 },
+                                          std::pair { "r2", &Thermistor::r2 }, std::pair { "adcMax", &Thermistor::adcMax },
+                                          std::pair { "vRef", &Thermistor::vRef }, std::pair { "scale", &Thermistor::scale },
+                                          std::pair { "offset", &Thermistor::offset } })
+            j["thermistor"][key] = thermistor.*field;
     }
     if (neoden4Feeder.on) {
         j["neoden4Feeder"]["feederId"] = neoden4Feeder.feederId;
