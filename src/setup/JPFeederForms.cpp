@@ -1288,6 +1288,7 @@ void heapForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeede
                  return b ? b->name : std::string();
              },
              [&config, box](const std::string& v) { config.dropBoxes().setName(box(), v); });
+    add.bare();   // OpenPnP's name field has no words of its own
     add.button("newDropBox", "New");
     add.button("deleteDropBox", "Delete");
     add.end();
@@ -1304,25 +1305,31 @@ void heapForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeede
         add.skip();
         add.end();
     }
-    add.endColumns();
+    // Under the same columns, as OpenPnP's: a count under X, a setting's name under Y and the setting under Z.
     add.row("Feed Retry Count");
     add.integer("feed-retry-count", "Feed Retry Count", [f] { return f().feedRetryCount(); }, [f](int v) { f().setFeedRetryCount(v); }, 0,
                 kMostCount);
+    add.words("Depth");
     add.number("box-depth", "Depth", [f] { return f().real("box-depth", -25); }, [f](double v) { f().setReal("box-depth", v); });
     add.end();
     add.row("Pick Retry Count");
     add.integer("pick-retry-count", "Pick Retry Count", [f] { return f().pickRetryCount(); }, [f](int v) { f().setPickRetryCount(v); }, 0,
                 kMostCount);
+    add.words("Last Feed Depth");
     add.number("last-feed-depth", "Last Feed Depth", [f] { return f().real("last-feed-depth", 0); },
                [f](double v) { f().setReal("last-feed-depth", v); });
     add.button("resetLastFeedDepth", "Reset");
     add.end();
     add.row("Max flip attempts");
     count(add, f, "throw-away-drop-box-content-after-failed-feeds", "Max flip attempts", 9);
+    add.words("Vacuum Difference");
     add.integer("required-vacuum-difference", "Vacuum Difference", [f] { return f().number("required-vacuum-difference", 150); },
                 [f](int v) { f().setNumber("required-vacuum-difference", v); }, 0, kMostCount);
     add.end();
-    add.tip("After this numer of feed, mark the parts as disposable. So the next feed is done with new parts.");
+    add.labelTip("After this numer of feed, mark the parts as disposable. So the next feed is done with new parts.");
+    add.tipOf("throw-away-drop-box-content-after-failed-feeds",
+              "After this numer of feed, mark the parts as disposable. So the next feed is done with new parts.");
+    add.endColumns();
     JPFormBuilder::Strings ids;
     for (const auto& p : config.parts()) ids.push_back(p->id);
     add.row("Part");
