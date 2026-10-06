@@ -24,11 +24,12 @@ constexpr int    kCorrections   = 3;
 
 } // namespace
 
-JPVisualHoming::Result JPVisualHoming::run(JPCell& cell, JPCameraFeed& feed, const JPHeadConfig& head, double speed) {
+JPVisualHoming::Result JPVisualHoming::run(JPCell& cell, JPCameraFeed& feed, const JPHeadConfig& head, double speed,
+                                           const JPVisualTest::Look* look) {
     Result r;
     const JPMountConfig& mount = feed.config().mount;
     for (int i = 0; i <= kCorrections; ++i) {
-        const JPVisualTest::Result t = JPVisualTest::run(cell, feed, head, speed);
+        const JPVisualTest::Result t = JPVisualTest::run(cell, feed, head, speed, look);
         if (!t.found) {
             r.why = t.why;
             return r;

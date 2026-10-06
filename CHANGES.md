@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Visual homing and Visual Test look for the FIDUCIAL-HOME part with its fiducial vision pipeline, as OpenPnP's
+  visual homing does.
 - The cameras are opened only while the machine is on, and closed and let go of (for other programs) when it is
   turned off.
 - A nozzle tip's runout calibration finds the tip with its own OpenPnP pipeline, editable on its Calibration tab

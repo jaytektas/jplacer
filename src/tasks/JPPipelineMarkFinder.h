@@ -23,6 +23,9 @@ inline namespace jf {
 class JPPipelineMarkFinder {
 public:
     explicit JPPipelineMarkFinder(const std::string& pipelineXml, std::string control = "DetectCircularSymmetry");
+    // A pipeline already prepared (a fiducial's: its part's vision settings, properties set), with the
+    // camera's scale (pixels a millimetre) for what is set in millimetres.
+    JPPipelineMarkFinder(JPPipeline prepared, std::string control, double pxPerMmX, double pxPerMmY);
 
     // Near (x, y), within maxDistance pixels, about `diameter` pixels across.
     JPRoundMark find(const JPGrayImage& image, double x, double y, double maxDistance, double diameter);
@@ -32,6 +35,7 @@ public:
                             double maxDiameter);
 
 private:
+    void       useCapture();
     JPPipeline  m_pipeline;
     std::string m_control;
     bool       m_parsed = false;

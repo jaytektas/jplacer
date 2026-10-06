@@ -446,6 +446,9 @@ void JPlacerMachine::buildCameras() {
     m_cameraTasks = std::make_unique<JPlacerCameraTasks>(m_window, *m_cell, std::move(panels),
                                                          [this](JPCameraPanel& p) { bringForward(p); }, m_cellPath);
     m_cameraTasks->setScripting(m_scripting);
+    m_cameraTasks->homeFiducialLook = [this]() -> std::optional<JPVisualTest::Look> {
+        return homeFiducialLook ? homeFiducialLook() : std::nullopt;
+    };
     // Machine Setup shows it (the cell keeps it: JPlacerMachine::applySetup).
     m_cameraTasks->onCalibrated = [this](const std::string& cameraId, const JPCameraCalibration& calibration) {
         if (!m_setup) return;

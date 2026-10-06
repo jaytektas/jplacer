@@ -6,6 +6,9 @@
 #include "camera/JPCameraFeed.h"
 #include "machine/JPCell.h"
 #include "machine/JPHeadConfig.h"
+#include "pipeline/JPPipeline.h"
+
+#include <memory>
 
 #include <string>
 
@@ -25,7 +28,14 @@ public:
         std::string why;
     };
 
-    static Result run(JPCell& cell, JPCameraFeed& feed, const JPHeadConfig& head, double speed);
+    // How the mark is looked for, as OpenPnP's visual homing does: the FIDUCIAL-HOME part's size (its
+    // package's pad) and its fiducial vision settings' pipeline, prepared (JPFiducialLocator::partLook).
+    struct Look {
+        double                      diameterMm = 0;
+        std::shared_ptr<JPPipeline> pipeline;   // none: jplacer's finder alone
+    };
+    // `look` none: OpenPnP's "Visual homing is missing the FIDUCIAL-HOME part. Please create it."
+    static Result run(JPCell& cell, JPCameraFeed& feed, const JPHeadConfig& head, double speed, const Look* look);
 
 };
 

@@ -5,6 +5,7 @@
 
 #include "machine/JPCell.h"
 #include "machine/JPScripting.h"
+#include "tasks/JPVisualTest.h"
 #include "tasks/JPBackgroundCalibration.h"
 #include "tasks/JPBacklashCalibrator.h"
 #include "tasks/JPRunoutCalibrator.h"
@@ -43,6 +44,9 @@ public:
 
     // A calibration was made, kept in the cell and saved (for what shows it).
     std::function<void(const std::string& cameraId, const JPCameraCalibration&)> onCalibrated;
+    // How the homing fiducial is looked for, as OpenPnP's visual homing: the FIDUCIAL-HOME part's size and
+    // its fiducial vision pipeline (none: there is no such part). Asked on the main thread.
+    std::function<std::optional<JPVisualTest::Look>()> homeFiducialLook;
 
     // A camera on the head: over the head's homing mark, then measured with
     // known moves. A fixed camera: a nozzle's tip held over it (asked first,

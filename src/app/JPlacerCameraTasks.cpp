@@ -576,9 +576,10 @@ void JPlacerCameraTasks::visualTest(JPCameraPanel& camera) {
     }
     JPCameraFeed* feed = &camera.feed();
     const JPHeadConfig h = *head(feed->config());
-    run(camera, "Visual Test", [this, feed, h](std::string& words, const auto& progress) {
+    const auto look = homeFiducialLook ? homeFiducialLook() : std::nullopt;
+    run(camera, "Visual Test", [this, feed, h, look](std::string& words, const auto& progress) {
         progress("looking at the homing mark");
-        const JPVisualTest::Result r = JPVisualTest::run(m_cell, *feed, h, kTaskSpeed);
+        const JPVisualTest::Result r = JPVisualTest::run(m_cell, *feed, h, kTaskSpeed, look ? &*look : nullptr);
         if (!r.found) {
             words = r.why;
             return false;
@@ -664,9 +665,10 @@ void JPlacerCameraTasks::visualHome(std::function<void(bool)> done) {
     }
     JPCameraFeed* feed = &camera->feed();
     const JPHeadConfig h = *homing;
-    run(*camera, "Visual homing", [this, feed, h](std::string& words, const auto& progress) {
+    const auto look = homeFiducialLook ? homeFiducialLook() : std::nullopt;
+    run(*camera, "Visual homing", [this, feed, h, look](std::string& words, const auto& progress) {
         progress("looking at the homing mark");
-        const JPVisualHoming::Result r = JPVisualHoming::run(m_cell, *feed, h, kTaskSpeed);
+        const JPVisualHoming::Result r = JPVisualHoming::run(m_cell, *feed, h, kTaskSpeed, look ? &*look : nullptr);
         if (!r.ok) {
             words = r.why;
             return false;

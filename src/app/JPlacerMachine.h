@@ -211,6 +211,8 @@ public:
     std::function<void(const std::string& cameraId)> onEditCalibrationPipeline;
     // A nozzle tip's calibration pipeline in the editor (on the camera looking up), and kept.
     std::function<void(const std::string& tipId)> onEditTipPipeline;
+    // How visual homing looks for the homing fiducial (the FIDUCIAL-HOME part's; none: no such part).
+    std::function<std::optional<JPVisualTest::Look>()> homeFiducialLook;
     void setTipPipeline(const std::string& tipId, const std::string& xml);
     // That pipeline kept (its XML; empty: OpenPnP's default again), one step to undo.
     void setCalibrationPipeline(const std::string& cameraId, const std::string& xml);

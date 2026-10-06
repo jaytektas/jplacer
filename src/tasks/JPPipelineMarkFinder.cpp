@@ -42,7 +42,19 @@ JPPipelineMarkFinder::JPPipelineMarkFinder(const std::string& pipelineXml, std::
         m_pipeline = JPPipeline::fromXml(root);
         m_parsed = !m_pipeline.stages().empty();
     }
-    // Its ImageCapture: the picture the calibration took (already settled, the light as it was).
+    useCapture();
+}
+
+JPPipelineMarkFinder::JPPipelineMarkFinder(JPPipeline prepared, std::string control, double pxPerMmX, double pxPerMmY)
+    : m_pipeline(std::move(prepared)), m_control(std::move(control)) {
+    m_parsed = !m_pipeline.stages().empty();
+    m_pipeline.context().pixelsPerMmX = pxPerMmX;
+    m_pipeline.context().pixelsPerMmY = pxPerMmY;
+    useCapture();
+}
+
+void JPPipelineMarkFinder::useCapture() {
+    // Its ImageCapture: the picture taken (already settled, the light as it was).
     m_pipeline.context().capture = [this](const std::string&, const std::string&, cv::Mat& bgr, std::string& why) {
         if (m_picture.empty()) {
             why = "no picture";

@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
 #include "JPVisualTest.h"
+#include "JPPipelineMarkFinder.h"
 
 #include "JPCameraLook.h"
 
@@ -22,11 +23,15 @@ constexpr double kSearchMm = 2.0;
 
 } // namespace
 
-JPVisualTest::Result JPVisualTest::run(JPCell& cell, JPCameraFeed& feed, const JPHeadConfig& head, double speed) {
+JPVisualTest::Result JPVisualTest::run(JPCell& cell, JPCameraFeed& feed, const JPHeadConfig& head, double speed, const Look* look) {
     Result r;
     const JPMountConfig& mount = feed.config().mount;
-    if (!head.homingFiducial || head.homingFiducialDiameter <= 0) {
-        r.why = "the head has no homing mark set (its place and size)";
+    if (!head.homingFiducial) {
+        r.why = "the head has no homing fiducial set";
+        return r;
+    }
+    if (!look || look->diameterMm <= 0) {
+        r.why = "Visual homing is missing the FIDUCIAL-HOME part. Please create it.";
         return r;
     }
     if (mount.axisX.empty() || mount.axisY.empty()) {
@@ -48,12 +53,20 @@ JPVisualTest::Result JPVisualTest::run(JPCell& cell, JPCameraFeed& feed, const J
         return r;
     }
     const double scale = std::sqrt(cal.scaleX() * cal.scaleY());
-    JPRoundMarkFinder::Request rq;
-    rq.expectedX = img.width / 2.0;
-    rq.expectedY = img.height / 2.0;
-    rq.searchRadius = kSearchMm * scale;
-    rq.diameter = head.homingFiducialDiameter * scale;
-    const JPRoundMark m = JPCameraLook::findTryingHarder(cell, feed, img, rq);
+    // Found as OpenPnP's Fiducial Locator finds it: the part's pipeline (its centre then measured to a fraction
+    // of a pixel close by); without one (fiducials not found by pipeline), jplacer's finder.
+    JPRoundMark m;
+    if (look->pipeline) {
+        JPPipelineMarkFinder finder(*look->pipeline, "fiducial", cal.scaleX(), cal.scaleY());
+        m = finder.find(img, img.width / 2.0, img.height / 2.0, kSearchMm * scale, look->diameterMm * scale);
+    } else {
+        JPRoundMarkFinder::Request rq;
+        rq.expectedX = img.width / 2.0;
+        rq.expectedY = img.height / 2.0;
+        rq.searchRadius = kSearchMm * scale;
+        rq.diameter = look->diameterMm * scale;
+        m = JPCameraLook::findTryingHarder(cell, feed, img, rq);
+    }
     if (!m.found) {
         r.why = "the homing mark was not found: " + m.why;
         return r;

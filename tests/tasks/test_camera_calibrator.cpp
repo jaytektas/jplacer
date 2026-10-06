@@ -16,6 +16,8 @@
 #include "tasks/JPCameraCalibrator.h"
 #include "tasks/JPVisualHoming.h"
 #include "tasks/JPVisualTest.h"
+#include "openpnp/JPXmlReader.h"
+#include "pipeline/JPDefaultPipelines.h"
 
 #include <chrono>
 #include <cmath>
@@ -122,7 +124,18 @@ int main() {
 
     // Not calibrated: the visual test says so.
     const JPHeadConfig& head = cell.config().heads.front();
-    JPVisualTest::Result t = JPVisualTest::run(cell, feed, head, 1.0);
+    // As OpenPnP's visual homing: the FIDUCIAL-HOME part's size and its fiducial pipeline (OpenPnP's stock one).
+    JPVisualTest::Look look;
+    look.diameterMm = head.homingFiducialDiameter;
+    {
+        JPXmlElement root;
+        std::string error;
+        assert(JPXmlReader::parse(JPDefaultPipelines::fiducialLocator(), root, error));
+        look.pipeline = std::make_shared<JPPipeline>(JPPipeline::fromXml(root));
+    }
+    // Without the part, OpenPnP's words.
+    assert(JPVisualTest::run(cell, feed, head, 1.0, nullptr).why.find("FIDUCIAL-HOME") != std::string::npos);
+    JPVisualTest::Result t = JPVisualTest::run(cell, feed, head, 1.0, &look);
     assert(!t.found && t.why.find("calibrate") != std::string::npos);
 
     // Roughly over the mark (not exactly: the first look must find it off centre).
@@ -156,18 +169,18 @@ int main() {
 
     // Calibrated, the visual test finds the mark where the scene put it.
     cell.setCameraCalibration("C", *cal);
-    t = JPVisualTest::run(cell, feed, head, 1.0);
+    t = JPVisualTest::run(cell, feed, head, 1.0, &look);
     assert(t.found);
     assert(std::abs(t.markX - kMarkX) < 0.002 && std::abs(t.markY - kMarkY) < 0.002);
     assert(std::abs(t.offsetX - (kMarkX - kSetX)) < 0.002 && std::abs(t.offsetY - (kMarkY - kSetY)) < 0.002);
 
     // Visual homing corrects the coordinates by that, and then the mark
     // measures where its setting says.
-    const JPVisualHoming::Result vh = JPVisualHoming::run(cell, feed, head, 1.0);
+    const JPVisualHoming::Result vh = JPVisualHoming::run(cell, feed, head, 1.0, &look);
     if (!vh.ok) std::fprintf(stderr, "visual homing: %s\n", vh.why.c_str());
     assert(vh.ok);
     assert(std::abs(vh.correctedX - (kMarkX - kSetX)) < 0.003 && std::abs(vh.correctedY - (kMarkY - kSetY)) < 0.003);
-    t = JPVisualTest::run(cell, feed, head, 1.0);
+    t = JPVisualTest::run(cell, feed, head, 1.0, &look);
     assert(t.found && std::hypot(t.offsetX, t.offsetY) < 0.005);
 
     feed.stop();

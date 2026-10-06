@@ -675,11 +675,15 @@ mirrored.
 #### Visual Test
 
 **Visual Test** (the tick in a ring) moves a calibrated head camera to look where the head's settings say the homing mark is,
-finds the mark, and says how far it really is from there, in mm in X and Y. Nothing is changed: right
+finds the mark, and says how far it really is from there, in mm in X and Y. As OpenPnP's visual homing, the
+mark is the **FIDUCIAL-HOME** part: its size is its package's pad, and it is found by that part's fiducial
+vision settings' pipeline (the Fiducial Locator's), its centre then measured to a fraction of a pixel close
+by; without the part, "Visual homing is missing the FIDUCIAL-HOME part. Please create it." Visual homing finds
+it the same way. Nothing is changed: right
 after a visual home it reads within a few hundredths of a millimetre, and any time later it shows whether
 the machine has lost its place.
 
-<!-- src: src/tasks/JPVisualTest.cpp; src/app/JPlacerCameraTasks.cpp (visualTest) -->
+<!-- src: src/tasks/JPVisualTest.cpp; src/app/JPlacerCameraTasks.cpp (visualTest) ; src/tasks/JPVisualTest.cpp (run, Look); src/app/JPlacerOpenPnpTabs.cpp (homeFiducialLook) -->
 
 #### Finding round marks
 

@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "JPVisualTest.h"
+
 #include "camera/JPCameraFeed.h"
 #include "machine/JPCell.h"
 #include "machine/JPHeadConfig.h"
@@ -26,7 +28,8 @@ public:
         std::string why;
     };
 
-    static Result run(JPCell& cell, JPCameraFeed& feed, const JPHeadConfig& head, double speed);
+    // `look`: how the homing fiducial is looked for (JPVisualTest::Look, the FIDUCIAL-HOME part's).
+    static Result run(JPCell& cell, JPCameraFeed& feed, const JPHeadConfig& head, double speed, const JPVisualTest::Look* look);
 };
 
 } // inline namespace jf
