@@ -1982,9 +1982,12 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     add.tab("Camera Settling");
     add.group("Camera Settling");
     auto settle = [c]() -> JPCameraConfig::Settle& { return c().settle; };
+    // OpenPnP's columns: a setting at the left, another at the right.
+    add.header({ "", "", "" });
     add.row("Settle Method");
     add.choice("settleMethod", "Settle Method", { "FixedTime", "Maximum", "Mean", "Euclidean", "Square", "Motion" },
                [settle] { return settle().method; }, [settle](const std::string& v) { settle().method = v; });
+    add.words(settle().method == "FixedTime" ? "Settle Time (ms)" : "Settle Timeout (ms)");
     if (settle().method == "FixedTime")
         add.integer("settleTimeMs", "Settle Time (ms)", [settle]() -> int& { return settle().timeMs; }, 0, 10000);
     else
@@ -1992,23 +1995,27 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     add.end();
     f.reshaping.push_back("settleMethod");
     if (settle().method == "FixedTime") {
+        add.endColumns();
         add.note("A picture for vision is one taken this long after the move ended.");
     } else {
         add.row("Settle Threshold");
         add.number("settleThreshold", "Settle Threshold", [settle]() -> double& { return settle().threshold; }, 3);
+        add.words("Debounce Frames");
         add.integer("settleDebounce", "Debounce Frames", [settle]() -> int& { return settle().debounce; }, 0, 100);
         add.end();
         add.row("Color Sensitive?");
         add.flag("settleFullColor", "Color Sensitive?", [settle]() -> bool& { return settle().fullColor; });
         add.tip("Compare as full color image, i.e. difference in colors with same brightness will register.");
+        add.words("Edge Sensitive?");
         add.flag("settleGradients", "Edge Sensitive?", [settle]() -> bool& { return settle().gradients; });
-        add.tip("Use the gradients of the images rather than brightness.");
+        add.tipOf("settleGradients", "Use the gradients of the images rather than brightness.");
         add.end();
         add.row("Enhance Contrast");
         add.number("settleContrastEnhance", "Enhance Contrast", [settle]() -> double& { return settle().contrastEnhance; }, 2);
         add.tip("How much it should enhance the contrast from 0.0 (original image) to 1.0 (full dynamic range).");
+        add.words("Denoise (Pixel)");
         add.integer("settleGaussianBlur", "Denoise (Pixel)", [settle]() -> int& { return settle().gaussianBlur; }, 0, 999);
-        add.tip("Diameter in pixels of the Gaussian Blur used to denoise the images. For large diameters the image will be "
+        add.tipOf("settleGaussianBlur", "Diameter in pixels of the Gaussian Blur used to denoise the images. For large diameters the image will be "
                 "scaled down for better speed.");
         add.end();
         add.row("Center Mask");
@@ -2016,9 +2023,11 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
         add.tip("Size of the central circular mask, relative to the camera dimension (height or width, whichever is smaller). "
                 "0.0 no mask; 0.5 circular center area of half the camera view; 1.0 circular center area to the edge of the "
                 "camera view; 1.5 circular area vignetting the camera view.");
+        add.words("Diagnostics?");
         add.flag("settleDiagnostics", "Diagnostics?", [settle]() -> bool& { return settle().diagnostics; });
-        add.tip("Enable graphical diagnostics and replay of settle frames.");
+        add.tipOf("settleDiagnostics", "Enable graphical diagnostics and replay of settle frames.");
         add.end();
+        add.endColumns();
         add.note(settle().method == "Motion"
                      ? "Each picture is looked for in the one before: how many pixels it moved (more than a twentieth of "
                        "it, no match, the most), until that stays under the threshold for Debounce Frames more pictures, "
