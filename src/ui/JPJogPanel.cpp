@@ -530,7 +530,13 @@ const JPJogPanel::Tool* JPJogPanel::camera() const {
 void JPJogPanel::jog(double dx, double dy, double dz, double dc) {
     if (m_tools.empty()) return;
     // Along the axes in the System Units, turned in degrees.
-    const double d = lengthStep(), r = distance();
+    double d = lengthStep(), r = distance();
+    // As OpenPnP's: with Shift held, two steps finer (a hundredth), no finer than the smallest distance.
+    if (JWidget::s_shiftDown && !m_distances.empty() && r > 0) {
+        const double k = std::min(1.0, std::max(kShiftFiner, m_distances.front() / r));
+        d *= k;
+        r *= k;
+    }
     JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Jog: " << m_tools[m_tool].label << " by " << dx * d << ", " << dy * d << ", "
                                             << dz * d << ", " << dc * r;
     m_cell.jog(m_tools[m_tool].id, dx * d, dy * d, dz * d, dc * r, 1.0);
@@ -596,9 +602,19 @@ bool JPJogPanel::act(const std::string& action) {
         else if (action == "pick") m_cell.pick(n->id);
         else m_cell.place(n->id);
         if (action != "pick" && onPartGone) onPartGone(n->id);
-    } else if (action == "distance+" || action == "distance-" || action.rfind("distance:", 0) == 0) {
+    } else if (action == "distance+" || action == "distance-" || action.rfind("distance:", 0) == 0
+               || action.rfind("increment:", 0) == 0) {
+        // OpenPnP's First to Fifth Jog Increment: 0.01 mm (0.001 in) times ten each; the distance nearest it.
+        auto nearest = [this](int n) {
+            const double want = (JPSystemUnits::inches() ? kFirstIncrementIn : kFirstIncrementMm) * std::pow(10.0, n - 1);
+            int best = 0;
+            for (size_t k = 0; k < m_distances.size(); ++k)
+                if (std::abs(std::log(m_distances[k] / want)) < std::abs(std::log(m_distances[size_t(best)] / want))) best = int(k);
+            return best;
+        };
         const int i = action == "distance+" ? m_distanceIndex + 1
                     : action == "distance-" ? m_distanceIndex - 1
+                    : action.rfind("increment:", 0) == 0 ? nearest(std::atoi(action.c_str() + 10))
                     : std::atoi(action.c_str() + 9);
         const double steps = double(std::max<size_t>(m_distances.size(), 2) - 1);
         if (i >= 0 && i < int(m_distances.size()) && m_distance)

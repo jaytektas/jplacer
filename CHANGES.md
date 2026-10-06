@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- OpenPnP's keys: Ctrl+Shift+F1 to F5 choose the First to Fifth Jog Increment, Shift makes a jog two steps finer,
+  and Ctrl+Shift+R, S and A start, step and stop the job (Save Job As no longer has Ctrl+Shift+S, as OpenPnP's).
+  The jog functions have OpenPnP's names.
 - Menu entries say what they do, as OpenPnP's: the Job menu, Add Board/Panel, the boards', placements' and panel
   children's Set Side, Set Enabled, Set Check Fids, Set Placed and Set Error Handling, each value's own; the tip
   now shows beside the menu instead of over its entries.

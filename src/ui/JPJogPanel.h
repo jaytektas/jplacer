@@ -50,6 +50,8 @@ inline namespace jf {
 class JPJogPanel : public JContainer {
 public:
     static constexpr int    kDistanceFirst = 2;      // 1 mm
+    // OpenPnP's: its first jog increment (each next ten times it), and Shift's two steps finer.
+    static constexpr double kFirstIncrementMm = 0.01, kFirstIncrementIn = 0.001, kShiftFiner = 0.01;
     static constexpr double kSpeedFirst    = 0.25;
     // The steps until the person sets their own: distances (mm or degrees),
     // and speeds (shares of full speed).

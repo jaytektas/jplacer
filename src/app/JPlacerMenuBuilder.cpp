@@ -82,7 +82,7 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
     file->add(graph, "Open Recent Job...", {}, recent);
     file->addSeparator(graph);
     entry(keys, file, graph, "file.saveJob", "File", "Save Job", ctrl('S'), [&app] { app.job().save(); });
-    entry(keys, file, graph, "file.saveJobAs", "File", "Save Job As\xE2\x80\xA6", ctrl('S', true), [&app] { app.job().saveAs(); });
+    entry(keys, file, graph, "file.saveJobAs", "File", "Save Job As\xE2\x80\xA6", none, [&app] { app.job().saveAs(); });
     file->addSeparator(graph);
     entry(keys, file, graph, "file.saveConfiguration", "File", "Save Configuration", none,
           [&app] { app.tabs().saveConfiguration(); });
@@ -227,13 +227,19 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
         { "Y+", ctrl(uint32_t(K::Up)), "y+" },    { "Y-", ctrl(uint32_t(K::Down)), "y-" },
         { "Z+", ctrl('\''), "z+" },              { "Z-", ctrl('/'), "z-" },
         { "Turn Anticlockwise", ctrl(','), "c+" }, { "Turn Clockwise", ctrl('.'), "c-" },
-        { "Turn to 0", none, "parkC" },
-        { "Larger Distance", ctrl('='), "distance+" }, { "Smaller Distance", ctrl('-'), "distance-" },
+        { "Park C", none, "parkC" },
+        { "Raise Jog Increment", ctrl('='), "distance+" }, { "Lower Jog Increment", ctrl('-'), "distance-" },
+        { "First Jog Increment", ctrl(uint32_t(K::F1), true), "increment:1" },
+        { "Second Jog Increment", ctrl(uint32_t(K::F2), true), "increment:2" },
+        { "Third Jog Increment", ctrl(uint32_t(K::F3), true), "increment:3" },
+        { "Fourth Jog Increment", ctrl(uint32_t(K::F4), true), "increment:4" },
+        { "Fifth Jog Increment", ctrl(uint32_t(K::F5), true), "increment:5" },
         { "Faster", none, "speed+" },              { "Slower", none, "speed-" },
-        { "Park Head", ctrl('P', true), "parkXY" }, { "Up to Safe Z", ctrl('L', true), "parkZ" },
+        { "Park XY", ctrl('P', true), "parkXY" }, { "Park Z", ctrl('L', true), "parkZ" },
         { "Head Safe Z", ctrl('Z', true), "safeZ" }, { "Discard", ctrl('D', true), "discard" },
         { "Pick", none, "pick" },                  { "Place", none, "place" },
-        { "Nozzle to the Camera", none, "positionNozzle" }, { "Camera to the Nozzle", none, "positionCamera" },
+        { "Move last selected tool to camera position", none, "positionNozzle" },
+        { "Move camera to position of selected tool", none, "positionCamera" },
     };
     for (const J& j : jogs)
         entry(keys, jog, graph, std::string("jog.") + j.action, "Jog", j.label, j.key,
@@ -245,13 +251,13 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
     // Job: OpenPnP's, the Job tab's run buttons and Reset All Placed.
     JMenu* job = newMenu(window, "Job");
     JPJobPanel& jobPanel = app.tabs().jobPanel();
-    JMenuItem* start = entry(keys, job, graph, "job.start", "Job", "Start", none, [&jobPanel] {
+    JMenuItem* start = entry(keys, job, graph, "job.start", "Job", "Start", ctrl('R', true), [&jobPanel] {
         if (jobPanel.onStartPauseResume) jobPanel.onStartPauseResume();
     });
-    JMenuItem* step = entry(keys, job, graph, "job.step", "Job", "Step", none, [&jobPanel] {
+    JMenuItem* step = entry(keys, job, graph, "job.step", "Job", "Step", ctrl('S', true), [&jobPanel] {
         if (jobPanel.onStep) jobPanel.onStep();
     });
-    JMenuItem* stop = entry(keys, job, graph, "job.stop", "Job", "Stop", none, [&jobPanel] {
+    JMenuItem* stop = entry(keys, job, graph, "job.stop", "Job", "Stop", ctrl('A', true), [&jobPanel] {
         if (jobPanel.onStop) jobPanel.onStop();
     });
     job->addSeparator(graph);

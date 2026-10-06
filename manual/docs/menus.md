@@ -16,7 +16,7 @@ key taken off, in [Preferences, Keys](preferences.md#keys); the menu then shows 
 | **Open Job…** (Ctrl+O) | Opens a `.job.xml` file. |
 | **Open Recent Job...** | The ten jobs opened or saved last, newest first. |
 | **Save Job** (Ctrl+S) | Saves the open job. |
-| **Save Job As…** (Ctrl+Shift+S) | Saves the open job to a file you choose. |
+| **Save Job As…** | Saves the open job to a file you choose. |
 | **Save Configuration** | Saves the parts, packages and the lists of boards and panels, and asks about each board with changes (see [Boards](boards.md#saving-boards)). |
 | **Import Placements** | OpenPnP's importers, reading placements into the board chosen on the Boards tab (see [Boards](boards.md#importing-placements)). |
 | **Quit** | Closes jplacer, after asking about a job with changes and about each board with changes. If an update has been downloaded, it is installed now. |
@@ -81,16 +81,16 @@ What is chosen by a link chooses nothing further. A part with no feeder leaves t
 | **Stop** (Escape) | Holds the move under way and drops what is queued; the position is kept (see [Stopping a move](machine.md#stopping-a-move)). |
 | **Emergency Stop** | Resets every controller at once; home again before moving. |
 | **Park Head** | Takes the head out of the way (see [Parking](machine.md#parking)). Available once homed. |
-| **Jog** | The [Jog panel](machine.md#jog)'s moves, with OpenPnP's keys: **X+** / **X-** (Ctrl+Right / Ctrl+Left), **Y+** / **Y-** (Ctrl+Up / Ctrl+Down), **Z+** / **Z-** (Ctrl+' / Ctrl+/), **Turn Anticlockwise** / **Turn Clockwise** (Ctrl+, / Ctrl+.), **Turn to 0**, **Larger** / **Smaller Distance** (Ctrl+= / Ctrl+-), **Faster** / **Slower**, **Park Head** (Ctrl+Shift+P), **Up to Safe Z** (Ctrl+Shift+L), **Head Safe Z** (Ctrl+Shift+Z), **Discard** (Ctrl+Shift+D), **Pick**, **Place**, **Nozzle to the Camera**, **Camera to the Nozzle**. A key is not taken from a text field that uses it. |
+| **Jog** | The [Jog panel](machine.md#jog)'s moves, with OpenPnP's keys: **X+** / **X-** (Ctrl+Right / Ctrl+Left), **Y+** / **Y-** (Ctrl+Up / Ctrl+Down), **Z+** / **Z-** (Ctrl+' / Ctrl+/), **Turn Anticlockwise** / **Turn Clockwise** (Ctrl+, / Ctrl+.), **Park C** (the rotation to 0), **Raise** / **Lower Jog Increment** (Ctrl+= / Ctrl+-), **First** to **Fifth Jog Increment** (Ctrl+Shift+F1 to F5: 0.01, 0.1, 1, 10 and 100 mm, or 0.001 to 10 in; the nearest of the distances offered), **Faster** / **Slower**, **Park XY** (Ctrl+Shift+P), **Park Z** (Ctrl+Shift+L), **Head Safe Z** (Ctrl+Shift+Z), **Discard** (Ctrl+Shift+D), **Pick**, **Place**, **Move last selected tool to camera position**, **Move camera to position of selected tool**. With Shift held, a jog moves two steps finer (a hundredth, no finer than the smallest distance), as OpenPnP's. A key is not taken from a text field that uses it. |
 | **Machine Setup…** | Shows [Machine Setup](machine-setup.md), to look at and change what the machine is made of. |
 
-<!-- src: src/app/JPlacerMenuBuilder.cpp (the Machine menu); src/app/JPlacerMachine.cpp (updateMenu) -->
+<!-- src: src/app/JPlacerMenuBuilder.cpp (the Machine menu); src/app/JPlacerMachine.cpp (updateMenu); src/ui/JPJogPanel.cpp (act, jog) -->
 
 ## Job
 
 | Entry | |
 |---|---|
-| **Start** (**Pause** while the job runs, **Resume** while it is paused), **Step**, **Stop** | As the Job tab's buttons (see [Running the job](jobs.md#running-the-job)). |
+| **Start** (**Pause** while the job runs, **Resume** while it is paused; Ctrl+Shift+R), **Step** (Ctrl+Shift+S), **Stop** (Ctrl+Shift+A) | As the Job tab's buttons (see [Running the job](jobs.md#running-the-job)). |
 | **Reset All Placed** | Marks every placement of the job not placed, so the job places them all again. |
 
 <!-- src: src/app/JPlacerMenuBuilder.cpp (the Job menu); src/ui/JPJobPanel.cpp (setMenuItems, resetAllPlaced, updateJobActions) -->

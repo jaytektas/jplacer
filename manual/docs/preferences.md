@@ -85,7 +85,7 @@ entry's key, and the Jog panel's buttons say theirs when you hover over them.
 The [Jog panel](machine.md#jog)'s steps, numbers apart, smallest first:
 
 **Distance steps (mm or degrees)**
-:   What the distance slider steps through, and **Larger** / **Smaller Distance** go to. 0.001 to 1000.
+:   What the distance slider steps through, and **Raise** / **Lower Jog Increment** go to (and the First to Fifth Jog Increment pick from). 0.001 to 1000.
     It starts as 0.01 0.1 1 10 25 50 100.
 
 **Speed steps (%)**
