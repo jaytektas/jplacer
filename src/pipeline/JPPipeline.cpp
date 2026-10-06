@@ -4,6 +4,7 @@
 #include "JPPipeline.h"
 
 #include "JPStageRegistry.h"
+#include "JPVisionUtils.h"
 
 #include <opencv2/imgproc.hpp>
 
@@ -143,19 +144,18 @@ double JPPipeline::overridden(const JPPipelineStage& stage, const std::string& a
                               const std::string& pipelineProperty) {
     const JPPipelineValue* v = property(pipelineProperty);
     if (!v) return value;
-    const double pxPerMm = (m_context.pixelsPerMmX + m_context.pixelsPerMmY) / 2;
     auto needCamera = [&] {
-        if (pxPerMm <= 0) throw std::runtime_error("Unable to convert to pixels because pipeline property \"camera\" is not set");
+        if (m_context.pixelsPerMmX <= 0 || m_context.pixelsPerMmY <= 0)
+            throw std::runtime_error("Unable to convert to pixels because pipeline property \"camera\" is not set");
+        return JPVisionUtils::Camera::ofScale(m_context.pixelsPerMmX, m_context.pixelsPerMmY);
     };
     double out = value;
     if (const double* d = std::get_if<double>(&v->value)) out = *d;
     else if (const long* l = std::get_if<long>(&v->value)) out = double(*l);
     else if (const auto* len = std::get_if<JPPipelineValue::LengthMm>(&v->value)) {
-        needCamera();
-        out = len->mm * pxPerMm;
+        out = JPVisionUtils::toPixels(JPLength(len->mm, JPLengthUnit::Millimeters), needCamera());
     } else if (const auto* area = std::get_if<JPPipelineValue::AreaMm2>(&v->value)) {
-        needCamera();
-        out = area->mm2 * m_context.pixelsPerMmX * m_context.pixelsPerMmY;
+        out = JPVisionUtils::toPixels(JPArea(area->mm2, JPAreaUnit::SquareMillimeters), needCamera());
     } else {
         throw std::runtime_error("Pipeline property \"" + pipelineProperty + "\" must be a number, a length or an area");
     }

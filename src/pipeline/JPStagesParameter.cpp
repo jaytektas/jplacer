@@ -9,6 +9,7 @@
 #include "JPPipeline.h"
 #include "JPStageRegistry.h"
 #include "JPStageUtil.h"
+#include "JPVisionUtils.h"
 
 #include <cmath>
 #include <sstream>
@@ -69,11 +70,11 @@ std::optional<std::string> applied(const JPPipeline& p, const JPPipelineStage& s
     if (type == "Integer") v = double(JPStageUtil::javaRound(v));
     const auto& ctx = p.context();
     if (type == "MillimetersToPixels") {
-        if (ctx.pixelsPerMmX <= 0) return std::nullopt;
-        v *= (ctx.pixelsPerMmX + ctx.pixelsPerMmY) / 2;
+        if (ctx.pixelsPerMmX <= 0 || ctx.pixelsPerMmY <= 0) return std::nullopt;
+        v = JPVisionUtils::toPixels(JPLength(v, JPLengthUnit::Millimeters), JPVisionUtils::Camera::ofScale(ctx.pixelsPerMmX, ctx.pixelsPerMmY));
     } else if (type == "SquareMillimetersToPixels") {
-        if (ctx.pixelsPerMmX <= 0) return std::nullopt;
-        v *= ctx.pixelsPerMmX * ctx.pixelsPerMmY;
+        if (ctx.pixelsPerMmX <= 0 || ctx.pixelsPerMmY <= 0) return std::nullopt;
+        v = JPVisionUtils::toPixels(JPArea(v, JPAreaUnit::SquareMillimeters), JPVisionUtils::Camera::ofScale(ctx.pixelsPerMmX, ctx.pixelsPerMmY));
     }
     return shown(v);
 }

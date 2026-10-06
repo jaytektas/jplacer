@@ -5,6 +5,7 @@
 
 #include "model/JPLength.h"
 #include "pipeline/JPStageUtil.h"
+#include "pipeline/JPVisionUtils.h"
 
 #include <opencv2/imgproc.hpp>
 
@@ -70,8 +71,10 @@ bool JPSimulatedPnpCheck::isPartLocation(const Picture& pic, const JPFootprint& 
     for (const JPFootprint::Outline& o : footprint.padsOutlines()) pads.push_back(outline(o));
     const std::vector<JPPipelineValue::Outline> body { outline(footprint.bodyOutline()) };
     const double a = -rotation * M_PI / 180, ca = std::cos(a), sa = std::sin(a);
+    JPVisionUtils::Camera camera;
+    camera.unitsPerPixel = JPLocation(JPLengthUnit::Millimeters, pic.unitsPerPixelX, pic.unitsPerPixelY, 0, 0);
     auto px = [&](const JPPipelineValue::LocationMm& m) {
-        const double u = m.x / pic.unitsPerPixelX, v = -m.y / pic.unitsPerPixelY;
+        const auto [u, v] = JPVisionUtils::locationPixelCenterOffsets(camera, JPLocation(JPLengthUnit::Millimeters, m.x, m.y, 0, 0));
         return cv::Point2d(u * ca - v * sa, u * sa + v * ca);
     };
     std::vector<JPPipelineValue::Outline> all = pads;
@@ -112,6 +115,7 @@ bool JPSimulatedPnpCheck::isPartLocation(const Picture& pic, const JPFootprint& 
 
     // The picture around the place, as the camera would see it there (sub-pixel, bicubic).
     const int dimension = std::max(std::max(tw, th) * kSearchFactor, kLeastSearchPx);
+    camera.width = camera.height = dimension;   // the cut-out is the picture searched
     const double pixelX = (x + pic.offsetX) / pic.unitsPerPixelX, pixelY = (y + pic.offsetY) / pic.unitsPerPixelY;
     const double dx = pixelX - dimension / 2.0, dy = source->rows - (pixelY + dimension / 2.0);
     // Drawn shifted as Java2D draws it bicubic (Catmull-Rom): the whole
@@ -147,9 +151,8 @@ bool JPSimulatedPnpCheck::isPartLocation(const Picture& pic, const JPFootprint& 
     std::optional<double> bestScore;
     double bestDistance = DBL_MAX;
     for (const cv::Point& p : JPStageUtil::matMaxima(result, tolerance.minimumScore * kConsideredShare, DBL_MAX)) {
-        const double ox = (p.x + tw / 2.0 - dimension / 2.0) * pic.unitsPerPixelX;
-        const double oy = (dimension / 2.0 - (p.y + th / 2.0)) * pic.unitsPerPixelY;
-        const double distance = std::hypot(ox, oy), score = result.at<float>(p.y, p.x);
+        const JPLocation offset = JPVisionUtils::pixelCenterOffsets(camera, p.x + tw / 2.0, p.y + th / 2.0);
+        const double distance = std::hypot(offset.x(), offset.y()), score = result.at<float>(p.y, p.x);
         if (!bestScore || (bestDistance > distance && *bestScore * kNearerShare < score)) {
             bestScore = score;
             bestDistance = distance;

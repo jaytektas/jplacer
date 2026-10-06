@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- A pipeline length given in mm becomes pixels at the mean of the camera's mm per pixel, as OpenPnP works it out
+  (it was the mean of its pixels per mm, a hair different on a camera whose X and Y scales differ).
 - Routes through feeders and placements are found by OpenPnP's own travelling salesman (simulated annealing, seeded
   as OpenPnP's, each hop timed by the camera axes' speed and acceleration), so a job takes the route OpenPnP would.
 - The Motion Planner's Allow uncoordinated?, as OpenPnP's: with continuous motion, a move by way of safe Z is planned

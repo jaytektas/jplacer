@@ -69,7 +69,7 @@ set(OpenCV_DIR "$ENV{HOME}/opencv-jplacer/lib/cmake/opencv4" CACHE PATH "The Ope
 find_package(OpenCV 4.10 REQUIRED COMPONENTS core imgproc calib3d features2d flann objdetect)
 file(GLOB JPLACER_PIPELINE_SRC CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/pipeline/*.cpp)
 add_library(jplacer_pipeline STATIC ${JPLACER_PIPELINE_SRC})
-target_link_libraries(jplacer_pipeline PUBLIC jplacer_openpnp jplacer_camera jplacer_vision ${OpenCV_LIBS})
+target_link_libraries(jplacer_pipeline PUBLIC jplacer_openpnp jplacer_model jplacer_camera jplacer_vision ${OpenCV_LIBS})
 target_include_directories(jplacer_pipeline PUBLIC ${OpenCV_INCLUDE_DIRS})
 
 # OpenPnP's model: parts, packages and footprints, boards, panels and jobs,
