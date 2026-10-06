@@ -29,6 +29,10 @@ struct JPDriverConfig {
     std::string id;
     std::string name;
     std::string profile = "auto";
+    // OpenPnP's class for a G-code controller, "GcodeDriver" or "GcodeAsyncDriver" (the same here: jplacer's
+    // controllers queue their commands either way); a simulated one is a NullDriver, a NeoDen 4 a NeoDen4Driver.
+    std::string gcodeClass = "GcodeDriver";
+    std::string className() const;   // as OpenPnP names it (Machine Setup's tree)
     bool        homeAfterConnect = false;   // the machine homes once this controller connects
     // OpenPnP's Sync Initial Location (where the controller says it is, taken once connected, so an unhomed
     // machine may be jogged) and Allow Unhomed Motion (with it, any move before homing: absolute encoders).

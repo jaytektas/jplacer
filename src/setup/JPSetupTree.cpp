@@ -15,12 +15,48 @@ std::string labelOf(const std::string& name, const std::string& id) {
     return name.empty() ? id : name;
 }
 
+// OpenPnP's class of each kind of part, as its tree names them: "<class> <name>".
+std::string classOf(const JPDriverConfig& d) { return d.className(); }
+std::string classOf(const JPNozzleConfig& n) { return n.className(); }
+std::string classOf(const JPSignalerConfig& s) { return s.className(); }
+std::string classOf(const JPAxisConfig& a) {
+    using K = JPAxisConfig::Kind;
+    switch (a.kind) {
+        case K::Controller: return "ReferenceControllerAxis";
+        case K::Virtual:    return "ReferenceVirtualAxis";
+        case K::Mapped:     return "ReferenceMappedAxis";
+        case K::Cam:        return a.camClockwise ? "ReferenceCamClockwiseAxis" : "ReferenceCamCounterClockwiseAxis";
+        case K::Linear:     return "ReferenceLinearTransformAxis";
+    }
+    return "ReferenceControllerAxis";
+}
+std::string classOf(const JPCameraConfig& c) {
+    // The class it came in as from OpenPnP, else the one its device is.
+    if (const std::string& kept = c.device["openpnpClass"].str(); !kept.empty()) return kept;
+    const std::string& backend = c.device["backend"].str();
+    static const std::pair<const char*, const char*> kClasses[] = {
+        { "image", "ImageCamera" },         { "mjpg", "MjpgCaptureCamera" },          { "switcher", "SwitcherCamera" },
+        { "onvif", "OnvifIPCamera" },       { "gstreamer", "GstreamerCamera" },       { "neoden4", "Neoden4Camera" },
+        { "neoden4Switcher", "Neoden4SwitcherCamera" }, { "simulated", "SimulatedUpCamera" },
+    };
+    for (const auto& [b, cls] : kClasses)
+        if (backend == b) return cls;
+    return "OpenPnpCaptureCamera";
+}
+std::string classOf(const JPActuatorConfig& a) {
+    if (a.neoden4Feeder.on) return "NeoDen4FeederActuator";
+    if (a.thermistor.on) return "ThermistorToLinearSensorActuator";
+    if (a.http.on) return "HttpActuator";
+    if (!a.scriptName.empty()) return "ScriptActuator";
+    return "ReferenceActuator";
+}
+
 template <class T>
 JPSetupTree::Node group(const std::string& label, const std::string& path, const std::vector<T>& items,
                         const std::string& itemKind, const std::function<bool(const T&)>& in) {
     JPSetupTree::Node g{ label, path, {} };
     for (const T& i : items)
-        if (in(i)) g.children.push_back({ labelOf(i.name, i.id), itemKind + ":" + i.id, {} });
+        if (in(i)) g.children.push_back({ classOf(i) + " " + labelOf(i.name, i.id), itemKind + ":" + i.id, {} });
     return g;
 }
 
@@ -59,11 +95,12 @@ bool contains(const JPSetupTree::Node& n, const std::string& path, std::vector<s
 JPSetupTree::Node JPSetupTree::build(const JPCellConfig& cell) {
     Node root{ cell.name.empty() ? "Machine" : cell.name, "machine", {} };
     auto all = [](const auto&) { return true; };
-    root.children.push_back(group<JPDriverConfig>("Controllers", "group:drivers", cell.drivers, "driver", all));
+    // OpenPnP's order: Axes, Signalers, Heads (Feeders are their own tab here), Nozzle Tips, Cameras, Actuators, Drivers.
     root.children.push_back(group<JPAxisConfig>("Axes", "group:axes", cell.axes, "axis", all));
+    root.children.push_back(group<JPSignalerConfig>("Signalers", "group:signalers", cell.signalers, "signaler", all));
     Node heads{ "Heads", "group:heads", {} };
     for (const JPHeadConfig& h : cell.heads) {
-        Node head{ labelOf(h.name, h.id), "head:" + h.id, {} };
+        Node head{ "ReferenceHead " + labelOf(h.name, h.id), "head:" + h.id, {} };
         auto on = [id = h.id](const auto& part) { return part.mount.headId == id; };
         head.children.push_back(group<JPNozzleConfig>("Nozzles", "group:nozzles:" + h.id, cell.nozzles, "nozzle", on));
         head.children.push_back(group<JPCameraConfig>("Cameras", "group:cameras:" + h.id, cell.cameras, "camera", on));
@@ -77,7 +114,7 @@ JPSetupTree::Node JPSetupTree::build(const JPCellConfig& cell) {
     if (!loose.children.empty()) root.children.push_back(std::move(loose));
     Node tips{ "Nozzle Tips", "group:nozzletips", {} };
     for (const JPNozzleTipConfig& t : cell.nozzleTips) {
-        Node tip{ labelOf(t.name, t.id), "nozzletip:" + t.id, {} };
+        Node tip{ "ReferenceNozzleTip " + labelOf(t.name, t.id), "nozzletip:" + t.id, {} };
         tip.children.push_back(steps(cell, "Load", t.id, "load", t.loadSteps));
         tip.children.push_back(t.unloadReversesLoad ? steps(cell, "Unload (loading backwards)", t.id, "unload", t.unloadingSteps())
                                                     : steps(cell, "Unload", t.id, "unload", t.unloadSteps));
@@ -86,7 +123,7 @@ JPSetupTree::Node JPSetupTree::build(const JPCellConfig& cell) {
     root.children.push_back(std::move(tips));
     root.children.push_back(group<JPCameraConfig>("Cameras", "group:cameras:", cell.cameras, "camera", fixed));
     root.children.push_back(group<JPActuatorConfig>("Actuators", "group:actuators:", cell.actuators, "actuator", fixed));
-    root.children.push_back(group<JPSignalerConfig>("Signalers", "group:signalers", cell.signalers, "signaler", all));
+    root.children.push_back(group<JPDriverConfig>("Drivers", "group:drivers", cell.drivers, "driver", all));
     // As OpenPnP's: how a job is run, and how it sees.
     Node processors{ "Job Processors", "group:jobprocessors", {} };
     processors.children.push_back({ "ReferencePnpJobProcessor", "jobprocessor", {} });

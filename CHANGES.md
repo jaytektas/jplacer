@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- Machine Setup's tree is OpenPnP's: Axes, Signalers, Heads, Nozzle Tips, Cameras, Actuators, Drivers, each part
+  named by its class and name (ReferenceHead H1). A new nozzle is a ReferenceNozzle or a ContactProbeNozzle, as
+  OpenPnP's, and only a ContactProbeNozzle has the Contact Probe tab.
 - A camera's White Balance is laid out as OpenPnP's: a slider for each colour's balance and gamma, in percent, with
   its value to type; the Color Balance graph follows them as they move, and the Auto White-Balance buttons say how
   each works.

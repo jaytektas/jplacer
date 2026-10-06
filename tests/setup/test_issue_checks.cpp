@@ -183,6 +183,7 @@ int main() {
     // A contact probing nozzle, as OpenPnP's ContactProbeNozzle: its actuator,
     // on its Z's controller, and its probing command (suggested for a Grbl).
     {
+        cell.nozzles[1].contactProbe.nozzle = true;
         cell.nozzles[1].contactProbe.method = "ContactSenseActuator";
         s.find();
         s.publish();

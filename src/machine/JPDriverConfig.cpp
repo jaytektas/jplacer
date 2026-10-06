@@ -3,6 +3,8 @@
 
 #include "JPDriverConfig.h"
 
+#include <utility>
+
 inline namespace jf {
 
 std::optional<JPDriverConfig> JPDriverConfig::fromJson(const JJson& j, std::string& error) {
@@ -19,6 +21,7 @@ std::optional<JPDriverConfig> JPDriverConfig::fromJson(const JJson& j, std::stri
     }
     c.link = j["link"];
     if (j.contains("profile")) c.profile = j["profile"].str();
+    if (j["openpnpClass"].str() == "GcodeAsyncDriver") c.gcodeClass = "GcodeAsyncDriver";
     c.statusIntervalMs  = int(j["statusIntervalMs"].number(c.statusIntervalMs));
     c.commandTimeoutMs  = int(j["commandTimeoutMs"].number(c.commandTimeoutMs));
     c.identifyTimeoutMs = int(j["identifyTimeoutMs"].number(c.identifyTimeoutMs));
@@ -47,11 +50,17 @@ std::optional<JPDriverConfig> JPDriverConfig::fromJson(const JJson& j, std::stri
     return c;
 }
 
+std::string JPDriverConfig::className() const {
+    const std::string type = std::as_const(link)["type"].str();
+    return type == "simulated" ? "NullDriver" : type == "neoden4" ? "NeoDen4Driver" : gcodeClass;
+}
+
 JJson JPDriverConfig::toJson() const {
     JJson j = JJson::object();
     j["id"]                = id;
     j["name"]              = name;
     j["profile"]           = profile;
+    if (gcodeClass != "GcodeDriver") j["openpnpClass"] = gcodeClass;
     j["link"]              = link;
     j["statusIntervalMs"]  = statusIntervalMs;
     j["commandTimeoutMs"]  = commandTimeoutMs;

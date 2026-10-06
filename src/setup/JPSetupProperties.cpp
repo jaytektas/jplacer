@@ -1090,7 +1090,8 @@ void nozzleForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
              "where it moved (runout cancels out). CAUTION: the nozzle moves to the test object.");
     add.actions({ { "Calibrate Precise Offsets", "calibrateNozzleOffsets" } });
 
-    // OpenPnP's ContactProbeNozzle wizard.
+    // OpenPnP's ContactProbeNozzle wizard (a ReferenceNozzle has none).
+    if (!n().contactProbe.nozzle) return;
     add.tab("Contact Probe");
     add.group("Contact Probing");
     auto cp = [n]() -> JPNozzleConfig::ContactProbe& { return n().contactProbe; };

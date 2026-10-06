@@ -512,6 +512,7 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             JPDriverConfig dc;
             dc.id   = d.attr("id");
             dc.name = d.attr("name");
+            dc.gcodeClass = kind;
             dc.link = JJson::object();
             if (d.attr("communications") == "tcp") {
                 const JPXmlElement* tcp = d.child("tcp");
@@ -1342,6 +1343,7 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                     // A ContactProbeNozzle: its contact probing (OpenPnP's defaults where not said).
                     if (shortClass(x) == "ContactProbeNozzle") {
                         JPNozzleConfig::ContactProbe& p = n.contactProbe;
+                        p.nozzle = true;
                         p.method = x.attr("contact-probe-method").empty() ? "ContactSenseActuator" : x.attr("contact-probe-method");
                         actuator("contact-probe-actuator-name", p.actuatorId);
                         if (x.child("contact-probe-start-offset-z")) p.startOffsetMm = lengthChild(x, "contact-probe-start-offset-z");

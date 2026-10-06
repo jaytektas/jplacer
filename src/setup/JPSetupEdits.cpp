@@ -108,6 +108,7 @@ std::vector<std::string> JPSetupEdits::kinds(const JPCellConfig& cell, const std
     // controllers queue their commands either way), or a NeoDen 4.
     if (g.kind == "group" && g.id == "drivers") return { "NullDriver", "GcodeDriver", "GcodeAsyncDriver", "NeoDen4Driver" };
     if (g.kind == "group" && g.id == "actuators") return { "ReferenceActuator", "HttpActuator", "ScriptActuator", "ThermistorToLinearSensorActuator", "NeoDen4FeederActuator" };
+    if (g.kind == "group" && g.id == "nozzles") return { "ReferenceNozzle", "ContactProbeNozzle" };
     if (g.kind == "group" && g.id == "cameras")
         return { "OpenPnpCaptureCamera", "Neoden4Camera", "Neoden4SwitcherCamera", "MjpgCaptureCamera", "ImageCamera",
                  "SwitcherCamera", "OnvifIPCamera", "GstreamerCamera" };
@@ -135,6 +136,7 @@ std::string JPSetupEdits::add(JPCellConfig& cell, const std::string& path, const
         d.link = JJson::object();
         d.link["type"] = kind == "NullDriver" ? "simulated" : kind == "NeoDen4Driver" ? "neoden4" : "serial";
         if (kind == "NeoDen4Driver") d.profile = "neoden4";
+        if (kind == "GcodeAsyncDriver") d.gcodeClass = kind;
         cell.drivers.push_back(d);
         return "driver:" + d.id;
     }
@@ -158,6 +160,7 @@ std::string JPSetupEdits::add(JPCellConfig& cell, const std::string& path, const
         n.id = newId(cell, "NOZ");
         n.name = "New nozzle";
         n.mount.headId = g.owner;
+        n.contactProbe.nozzle = kind == "ContactProbeNozzle";
         cell.nozzles.push_back(n);
         return "nozzle:" + n.id;
     }

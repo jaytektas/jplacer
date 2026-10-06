@@ -324,6 +324,7 @@ int main() {
         const auto picks = machine.picks, places = machine.places;
         job.removeAllPlacedStatus();
         for (auto& h : machine.heads) {
+            h.contactProbe.nozzle = true;
             h.contactProbe.method = "ContactSenseActuator";
             h.contactProbe.feederHeightProbing = "Once";
             h.contactProbe.partHeightProbing = "Once";

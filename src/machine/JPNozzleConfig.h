@@ -64,6 +64,7 @@ struct JPNozzleConfig {
     // feeder and placement probing triggers: "Off", "Once", "AfterHoming" or
     // "EachTime"; Discard Probing probes the discard place each time.
     struct ContactProbe {
+        bool        nozzle = false;   // the nozzle is a ContactProbeNozzle (else a ReferenceNozzle)
         std::string method = "None";
         std::string actuatorId;
         double      speed = 0.05;   // for the probing command (a share of top speed)
@@ -72,9 +73,10 @@ struct JPNozzleConfig {
         std::string feederHeightProbing = "EachTime", partHeightProbing = "EachTime";
         bool        discardProbing = false;
         double      maxZOffsetMm = 2;
-        bool on() const { return method != "None"; }
+        bool on() const { return nozzle && method != "None"; }
     };
     ContactProbe             contactProbe;
+    std::string className() const { return contactProbe.nozzle ? "ContactProbeNozzle" : "ReferenceNozzle"; }
 
     bool fits(const std::string& nozzleTipId) const {
         for (const std::string& t : tipIds) if (t == nozzleTipId) return true;
@@ -101,6 +103,7 @@ struct JPNozzleConfig {
         n.homeCommand           = j["homeCommand"].str();
         if (const JJson& c = j["contactProbe"]; c.isObject()) {
             ContactProbe& p = n.contactProbe;
+            p.nozzle = true;
             if (!c["method"].str().empty()) p.method = c["method"].str();
             p.actuatorId         = c["actuator"].str();
             p.speed              = c["speed"].number(p.speed);
@@ -140,7 +143,7 @@ struct JPNozzleConfig {
         if (alignRotationWithPart) j["alignRotationWithPart"] = true;
         if (placeDwellMs) j["placeDwellMs"] = placeDwellMs;
         if (!homeCommand.empty()) j["homeCommand"] = homeCommand;
-        if (contactProbe.on()) {
+        if (contactProbe.nozzle) {
             const ContactProbe& p = contactProbe;
             JJson c = JJson::object();
             c["method"] = p.method;

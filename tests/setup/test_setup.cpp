@@ -89,9 +89,12 @@ int main() {
     assert(root.label == "Bench" && root.path == "machine");
     assert(find(root, "group:axes")->children.size() == 3);
     assert(find(root, "group:nozzles:H")->children.front().path == "nozzle:N");
-    assert(find(root, "group:cameras:")->children.front().label == "BOTTOM");
+    // Each named as OpenPnP's tree names it: its class, then its name.
+    const std::string bottom = find(root, "group:cameras:")->children.front().label;
+    assert(bottom.size() > 7 && bottom.compare(bottom.size() - 7, 7, " BOTTOM") == 0);
     const auto labels = JPSetupTree::labelsTo(root, "nozzle:N");
-    assert(labels.size() == 5 && labels[2] == "H1" && labels[4] == "LEFT");
+    assert(labels.size() == 5 && labels[2] == "ReferenceHead H1" && labels[4] == "ReferenceNozzle LEFT");
+    assert(root.children.front().path == "group:axes" && root.children.back().path == "group:vision");
     assert(JPSetupTree::groupOf(c, "nozzle:N") == "group:nozzles:H");
     std::printf("  [OK] the tree\n");
 
@@ -187,8 +190,15 @@ int main() {
     assert(!nozzle.model.get("fits:" + tipId).toBool());
     // Laid out as OpenPnP lays out a nozzle: its tips on a tab of their own,
     // the axes and offsets as columns under X / Y / Z / Rotation.
-    assert(nozzle.tabs.size() == 7 && nozzle.tabs[0].title == "Configuration" && nozzle.tabs[1].title == "Nozzle Tips"
-           && nozzle.tabs[2].title == "Vacuum" && nozzle.tabs[3].title == "Tool Changer" && nozzle.tabs[4].title == "Homing" && nozzle.tabs[5].title == "Offset Wizard" && nozzle.tabs[6].title == "Contact Probe");
+    assert(nozzle.tabs.size() == 6 && nozzle.tabs[0].title == "Configuration" && nozzle.tabs[1].title == "Nozzle Tips"
+           && nozzle.tabs[2].title == "Vacuum" && nozzle.tabs[3].title == "Tool Changer" && nozzle.tabs[4].title == "Homing" && nozzle.tabs[5].title == "Offset Wizard");
+    // A ContactProbeNozzle has OpenPnP's Contact Probe tab too.
+    {
+        JPCellConfig probing = c;
+        probing.nozzles[0].contactProbe.nozzle = true;
+        const JPSetupProperties::Form f = JPSetupProperties::forNode(probing, "nozzle:N", {});
+        assert(f.tabs.size() == 7 && f.tabs[6].title == "Contact Probe");
+    }
     {
         const JPSetupProperties::Group& cs = nozzle.tabs[0].groups[1];
         assert(cs.title == "Coordinate System" && cs.rows[1].kind == JPSetupProperties::Row::Kind::Header);
