@@ -43,6 +43,7 @@ public:
     std::optional<double> nozzleRotation(const std::string& nozzleId) const override;
     std::vector<std::pair<std::string, std::string>> tips() const override;
     std::optional<JPLocation> cameraLocation() const override;
+    std::optional<JPTravel::Cost> travelCost() const override;
     bool cameraReaches(const JPLocation& at) const override;
     TipPush tipPush(const std::string& tipId) const override;
     std::string holdingPart(const std::string& nozzleId) const override;

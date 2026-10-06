@@ -43,7 +43,7 @@ machine):
 | Setting | |
 |---|---|
 | **Max Placement Attempts** | How many times a placement is tried, when its errors are deferred, before it is left in error. |
-| **Job order** | How the placements are ordered: **Part**, **Height:Part**, **Part:Board**, **Height:Part:Board**, **Board:Part**, **Pick Locations**, **Pick and Place Locations** (the shortest way between feeders, then between places), **Nozzle Tips** (the default: by the tip that picks them, the busiest first), **Nozzle Tips (Inflexible Tips First)** or **Unsorted**. A placement the tips already on the nozzles can pick still goes first. |
+| **Job order** | How the placements are ordered: **Part**, **Height:Part**, **Part:Board**, **Height:Part:Board**, **Board:Part**, **Pick Locations**, **Pick and Place Locations** (the shortest way between feeders, then between places: found, as every route a job takes, by OpenPnP's travelling salesman, its simulated annealing seeded as OpenPnP's so the same job gives the same route, a hop costed by the time the default head camera's X and Y axes take at their feed rates and accelerations), **Nozzle Tips** (the default: by the tip that picks them, the busiest first), **Nozzle Tips (Inflexible Tips First)** or **Unsorted**. A placement the tips already on the nozzles can pick still goes first. |
 | **Nozzle tip loading strategy** | **Minimize** tip changes; **Start As Planned**, the first cycle of a job as the order says, then as Minimize; **Fully As Planned**, always as the order says. |
 | **Max Vision Attempts** | How many times a part's vision alignment is tried. |
 | **Step Next Motion** | **Step** runs on to the next step that moves the machine. |
@@ -54,7 +54,7 @@ machine):
 The fiducial check's tolerances (5 % scale, 5 % shear, 5 mm of movement) and how many levels of panels
 are checked first are taken from an imported OpenPnP machine too.
 
-<!-- src: src/setup/JPSetupProperties.cpp (jobProcessorForm); src/machine/JPJobProcessorConfig.cpp; src/openpnp/JPOpenPnpMachineImporter.cpp (pnp-job-processor, fiducial-locator); src/app/JPlacerJobRun.cpp (run) -->
+<!-- src: src/tasks/JPTravel.cpp; src/common/JPJavaRandom.cpp; src/app/JPlacerJobMachine.cpp (travelCost); src/setup/JPSetupProperties.cpp (jobProcessorForm); src/machine/JPJobProcessorConfig.cpp; src/openpnp/JPOpenPnpMachineImporter.cpp (pnp-job-processor, fiducial-locator); src/app/JPlacerJobRun.cpp (run) -->
 
 ### Vision
 

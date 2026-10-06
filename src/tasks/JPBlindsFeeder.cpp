@@ -601,7 +601,7 @@ bool JPBlindsFeeder::actuateAllCovers(JPConfiguration& config, const std::string
     // The pusher first (it may need a tip); the way from where the camera is.
     Pusher p;
     if (!Blinds(config, ids.front(), machine, onMain).pusher(nozzleId, true, p, why)) return false;
-    for (const size_t i : JPTravel::order(places, machine.cameraLocation(), std::nullopt))
+    for (const size_t i : JPTravel::order(places, machine.cameraLocation(), std::nullopt, machine.travelCost()))
         if (!Blinds(config, ids[i], machine, onMain).actuateCover("", open, true, false, why)) return false;
     return true;
 }

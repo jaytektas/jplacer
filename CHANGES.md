@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Routes through feeders and placements are found by OpenPnP's own travelling salesman (simulated annealing, seeded
+  as OpenPnP's, each hop timed by the camera axes' speed and acceleration), so a job takes the route OpenPnP would.
 - The Motion Planner's Allow uncoordinated?, as OpenPnP's: with continuous motion, a move by way of safe Z is planned
   as one sequence and blended, the head moving on while the nozzle is still rising or already falling (for a
   controller with 3rd order motion control, simulated or true).

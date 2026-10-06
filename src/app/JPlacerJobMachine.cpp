@@ -142,6 +142,27 @@ std::optional<JPLocation> JPlacerJobMachine::cameraLocation() const {
     return l;
 }
 
+std::optional<JPTravel::Cost> JPlacerJobMachine::travelCost() const {
+    // As OpenPnP's TravelCost with no tool given: the default (first) head's first camera, its raw axes.
+    const JPCellConfig c = config();
+    const JPCameraConfig* camera = nullptr;
+    for (const JPCameraConfig& cam : c.cameras)
+        if (!camera && !c.heads.empty() && cam.mount.headId == c.heads.front().id) camera = &cam;
+    if (!camera) return std::nullopt;
+    auto raw = [&c](const std::string& id) -> const JPAxisConfig* {
+        const JPAxisConfig* a = c.axis(id);
+        while (a && a->transformed()) a = c.axis(a->inputAxisId);
+        return a && a->kind == JPAxisConfig::Kind::Controller ? a : nullptr;
+    };
+    auto axis = [](const JPAxisConfig* a) -> std::optional<JPTravel::Axis> {
+        if (!a || a->feedratePerSecond <= 0 || a->accelerationPerSecond2 <= 0) return std::nullopt;
+        return JPTravel::Axis { a->feedratePerSecond, a->accelerationPerSecond2 };
+    };
+    const auto x = axis(raw(camera->mount.axisX)), y = axis(raw(camera->mount.axisY));
+    if (!x || !y) return std::nullopt;
+    return JPTravel::Cost { *x, *y, axis(raw(camera->mount.axisZ)) };
+}
+
 bool JPlacerJobMachine::cameraReaches(const JPLocation& at) const {
     bool reaches = true;
     m_onMain([&] {

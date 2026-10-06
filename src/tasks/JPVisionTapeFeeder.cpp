@@ -731,7 +731,7 @@ bool JPVisionTapeFeeder::performOcrOnAll(JPConfiguration& config, const std::str
         return false;
     }
     // Along the shortest path from the camera, by place: a feeder may be swapped out on the way.
-    const std::vector<size_t> order = JPTravel::order(places, machine.cameraLocation(), std::nullopt);
+    const std::vector<size_t> order = JPTravel::order(places, machine.cameraLocation(), std::nullopt, machine.travelCost());
     for (const size_t i : order) {
         std::string there;
         Ocr ocr { action, stop, &report };

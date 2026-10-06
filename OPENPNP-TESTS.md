@@ -1,0 +1,56 @@
+# OpenPnP's own tests
+
+Every test in OpenPnP's suite (`reference/openpnp/src/test/java`), ported to run against jplacer: each OpenPnP
+test method is reproduced with the same inputs and the same expectations, in the jplacer test named here. A
+test passes here only when it passes there.
+
+Status: **passing** (ported and passing), **to port**.
+
+**12 of 257 test methods passing.**
+
+| OpenPnP test | Methods | Status | jplacer test |
+|---|---|---|---|
+| AdvancedMotionTest.java (testMotionProfiles, testMotionPaths) | 2 | passing | tests/machine/test_motion_profile.cpp (testMotionProfiles), tests/machine/test_motion_path.cpp (testMotionPaths) |
+| BasicJobTest.java (testSimpleJob) | 1 | to port |  |
+| BlindsFeederTest.java (testBlindsFeederBasics, testBlindsFeederGroups) | 2 | to port |  |
+| CalculateBoardLocationTests.java (calculateBoardLocationTopNoAffineNoWidth, calculateBoardLocationTopWithAffineNoWidth, calculateBoardLocationTopNoAffineWithWidth, calculateBoardLocationTopWithAffineWithWidth, calculateBoardLocationBottomNoAffineNoWidth, calculateBoardLocationBottomWithAffineNoWidth, calculateBoardLocationBottomNoAffineWithWidth, calculateBoardLocationBottomWithAffineWithWidth, calculateBoardLocationInverseTopNoAffineNoWidth, calculateBoardLocationInverseTopWithAffineNoWidth, calculateBoardLocationInverseTopNoAffineWithWidth, calculateBoardLocationInverseTopWithAffineWithWidth, calculateBoardLocationInverseBottomNoAffineNoWidth, calculateBoardLocationInverseBottomWithAffineNoWidth, calculateBoardLocationInverseBottomNoAffineWithWidth, calculateBoardLocationInverseBottomWithAffineWithWidth) | 16 | to port |  |
+| CvStageTest.java (testPipelinePropertyOverrides) | 1 | to port |  |
+| EagleLoaderTest.java (testLoadBoard, testLoadSchematic) | 2 | to port |  |
+| EagleMountsmdUlpImporterTest.java (testDemoBoard, testEAT001, testWholeNumbers) | 3 | to port |  |
+| GcodeDriverTest.java (testActuatorRead, testActuatorReadNoRegex, testActuatorReadNoCommand, testActuatorReadBadRegex) | 4 | to port |  |
+| HttpActuatorTest.java (testOffsets) | 1 | to port |  |
+| JobProcessorTest.java (testNozzleTips, testStartAsPlanned, testBoardPart, testUnsorted, testFlexibility, testAllOnePart, testRank, testRank2, testRankWeak, testRankRounded, testRankRoundedFlexibility) | 11 | to port |  |
+| LocalisationTest.java (propertiesFileIsNormalised) | 1 | to port |  |
+| ModelUnitsTest.java (testLengths, testAreas, testVolumes) | 3 | to port |  |
+| OpenCvTest.java (openCvWorks) | 1 | to port |  |
+| QuickHullTest.java (testQuickHull) | 1 | passing | tests/model/test_quick_hull.cpp |
+| ReferenceBottomVisionInheritanceTest.java (testBottomVisionSettingsInheritance, testBottomVisionReset) | 2 | to port |  |
+| ReferenceBottomVisionOffsetTest.java (testSymetricPartNoOffsetNoPreRotation, testSymetricPartNoOffsetWithPreRotation, testSymetricPartWithOffsetWithPreRotation, testAsymetricPartNoOffsetNoPreRotation, testAsymetricPartNoOffsetWithPreRotation, testAsymetricPartWithOffsetNoPreRotation, testAsymetricPartWithOffsetWithPreRotation, testAsymetricPartWithOffsetNoPreRotationWithError, testAsymetricPartWithOffsetWithPreRotationWithError) | 9 | to port |  |
+| ReferenceBottomVisionTest.java (testPositiveAngle, testNegativeAngle) | 2 | to port |  |
+| ReferenceFiducialLocatorTest.java (testJust1, testJust2, testNominal, testCollinear, testSameX, testSameY) | 6 | passing | tests/model/test_best_fiducials.cpp |
+| ReferenceJobProcessorRetryTests.java (testFeederFeedRetry, testFeederDisable, testFeederPickRetry, testPartPickRetry, testPartFailover, testPlacementRetry, testPlacementRetryDisablesOneFeeder, testPlacementRetryNeverDisablesAnyFeeder) | 8 | to port |  |
+| SampleJobTest.java (testSampleJob) | 1 | to port |  |
+| SamplePanelizedJobTest.java (testSampleJob) | 1 | to port |  |
+| TavellingSalesmanTest.java (testTravellingSalesmanA, testTravellingSalesmanB, testTravellingSalesmanC) | 3 | passing | tests/tasks/test_travelling_salesman.cpp |
+| Utils2DTest.java (testCalculateBoardPlacementLocationSimple, testAngleFromPoint) | 3 | to port |  |
+| VisionCompositingTest.java (testPackageSolutions) | 1 | to port |  |
+| VisionUtilsTest.java (testOffsets, testConversions) | 2 | to port |  |
+| org/openpnp/machine/photon/PhotonFeederLoadingTest.java (loadingOfPhotonProperties, loadingOfDataActuator, loadingOfDataActuatorFillsInGcodeForGcodeDrivers) | 3 | to port |  |
+| org/openpnp/machine/photon/PhotonFeederSlotsTest.java (byDefaultAnUnknownSlotHasNoLocationConfigured) | 1 | to port |  |
+| org/openpnp/machine/photon/PhotonFeederTest.java (getJobPreparationLocationReturnsNull, getDataActuatorCreatesReferenceActuatorIfOneDoesNotExist, getSlotAddressReturnsNullByDefault, isEnabledReturnsFalseIfSetEnabledToFalse, isEnabledReturnsFalseIfNoHardwareIdSet, isEnabledReturnsFalseIfNoPartIsSet, isEnabledReturnsFalseIfNoAddressIsSet, isEnabledReturnsFalseIfSlotHasNoLocation, isEnabledReturnsFalseIfFeederHasNoOffset, isEnabledReturnsTrueIfEverythingIsSet, getNameByDefaultReturnsClassSimpleName, getNameUsesHardwareIdWhenThatIsSet, getNameUsesHardwareIdAndSlotWhenBothAreSet, setHardwareIdOverridesNameOnlyIfItIsNotAlreadySet, setNameWorksWithoutSlotIncluded, setNameWorksWithSlotIncluded, setNameWorksWithOverridingNoneSlot, setNameWorksWithUnexpectedSlotNumber, setNameWithMalformedSlotKeepsMalformedSlot, setNameCorrectlyTrimsInputName, setNameWithMultipleRandomSlots, isInitializedByDefaultReturnsFalse, prepareForJobFindsFeederAddressAndInitializes, prepareForJobInitializesIfSlotAddressIsSet, prepareForJobDoesNotInitializeIfSlotCanNotBeFound, prepareForJobFindsFeederAgainIfLostToTimeout, prepareForJobFindsFeederAgainIfWrongFeederUUIDAndMakesNewFeeder, prepareForJobFindsFeederAgainIfWrongFeederUUIDAndUsesExistingFeeder, prepareForJobThrowsExceptionIfNewSlotHasNoLocation, prepareForJobThrowsExceptionIfFeederHasNoOffset, prepareForJobThrowsExceptionAfterOneRetry, prepareForJobThrowsExceptionAfterNoRetries, getPartPitchByDefaultReturnsFourMillimeters, feedMovesPartForwardByPitch, feedInitializesIfUninitializedErrorIsReturned, feedThrowsExceptionAfterOneRetry, feedThrowsExceptionAfterNoRetries, feedThrowsExceptionWhenFeederCannotBeInitialized, feedThrowsExceptionIfTheFeedTimesOut, feedInitializesOnUninitializedFeeder, feedWillCheckTheStatusAtLeastThreeTimesBeforeFailing, feedWillFailIfMotorCouldNotReachDestination, twoFeedersCanNotHaveTheSameAddress, findSlotAddressForcesFind, findSlotAddressClearsSlotAddressOnTimeout, findAllFeedersUsingMaxFeederAddress, findAllFeedersFindsNewAndExistingFeeders, findAllFeedersFillsNullHardwareIdFeedersBeforeCreatingNewOnes, findAllFeedersRemovesFeederAddressIfTimeoutOccurs, getPropertySheetHolderTitleDefault, getPropertySheetHolderTitleUsesHardwareIdNameIfConfigured, getPropertySheetsOnlyReturnsGlobalConfigWithNullHardwareId, getPropertySheetsAlsoReturnsFeederConfigurationWithHardwareIdSet, findIssuesGivesNothingIfNoHardwareIdIsPresent, findIssuesAddsIssueIfSlotHasNoLocationSet, findIssuesAddsIssueIfFeederHasNoOffsetSet, getPickLocationThrowsExceptionIfNoSlotAddressIsSet, getPickLocationThrowsExceptionIfSlotHasNoLocation, getPickLocationThrowsExceptionIfFeederHasNoOffset, getPickLocationUsesOffsetWithRotation) | 61 | to port |  |
+| org/openpnp/machine/photon/PhotonPropertiesTest.java (getFeederSlotsCausesFeederSlotsToBeSetOnMachine, byDefaultTheMaxFeederAddressIs50) | 2 | to port |  |
+| org/openpnp/machine/photon/protocol/PacketTest.java (callingToByteStringAutomaticallySetsPayloadLengthAndCrC, cloningPacket, decodingValidPacket, decodingEmptyString, decodingOddLengthString, decodingPacketWithBadChecksum, decodingPacketWithTooShortLength, decodingPacketWithTooLongLength, decodingTimeout) | 9 | to port |  |
+| org/openpnp/machine/photon/protocol/PhotonBusTest.java (busSendsPacketInStringForm, busReturnsEmptyOptionalIfTimeoutOccurs, busReturnsEmptyOptionalIfWrongPacketId, busIncrementsPacketId, busPacketIdRollsOver) | 5 | to port |  |
+| org/openpnp/machine/photon/protocol/ResponsesHelperTest.java (testWrongFeederUUID, testMotorFault, testUninitializedFeeder, getFeederIdOk, initializeFeederOk, getVersionOk, moveFeedForwardOk, moveFeedBackwardOk, moveFeedStatusOk, getFeederAddressOk, identifyFeederOk, programFeederFloorOk) | 12 | to port |  |
+| org/openpnp/machine/photon/protocol/TestBusTest.java (busRespondsWithReplyToRequestedCommandPacket, busRespondsWithReplyToRequestedCommand, busRespondsWithTimeout, busRespondsWithExceptionIfCommandHasNoReply, busRespondsWithExceptionIfCommandIsNotMockedAtAll, busValidatesToAddress, busValidatesFromAddress, busValidatesPayloadLength, busValidatesPayloadDataLength, busValidatesPayloadData, busAdjustsResponsePacketId, busCanHandleRespondingDifferentlyToDifferentSendingPackets, busWillOverrideReplyIfCommandIsSpecifiedAgain, busThrowsAssertionFailedErrorIfCommandNotInvoked, busDoesNotThrowAssertionFailedErrorIfCommandIsInvoked, busVerifiesContentOfCalls, busVerifiesOrderOfCalls, busWillFailWithNoMoreCalls, canVerifyCallsThenVerifyNoMore, canImmediatelyVerifyNoMoreCalls, canImmediatelyFailIfSomethingSentAndNothingSent, callVerificationStillWorksIfReplyIsChanged, canVerifyInMockedOrder, willFailVerifyInMockedOrder, whenReliesOnPacketContentEvenIfContentChanges, verifyReliesOnPacketContentEvenIfContentChanges, verifyMockedOrderReliesOnPacketContentEvenIfContentChanges, verifyInMockedOrderCallsNothingElseSent) | 28 | to port |  |
+| org/openpnp/machine/photon/protocol/commands/GetFeederAddressTest.java (createCommand, decodeOk, decodeLengthTooShort, decodeLengthTooLong) | 4 | to port |  |
+| org/openpnp/machine/photon/protocol/commands/GetFeederIdTest.java (createCommand, decodeOk, decodeLengthTooShort, decodeLengthTooLong) | 4 | to port |  |
+| org/openpnp/machine/photon/protocol/commands/GetVersionTest.java (createCommand, decodeOk, decodeLengthTooShort, decodeLengthTooLong) | 4 | to port |  |
+| org/openpnp/machine/photon/protocol/commands/IdentifyFeederTest.java (createCommand, decodeOk, decodeLengthTooShort, decodeLengthTooLong) | 4 | to port |  |
+| org/openpnp/machine/photon/protocol/commands/InitializeFeederTest.java (createCommand, decodeOk, decodeWrongFeederUuid, decodeLengthTooShort, decodeLengthTooLong) | 5 | to port |  |
+| org/openpnp/machine/photon/protocol/commands/MoveFeedBackwardTest.java (createCommand, decodeOk, decodeUninitializedFeeder, decodeMotorFault, decodeLengthTooShort, decodeLengthTooLong) | 6 | to port |  |
+| org/openpnp/machine/photon/protocol/commands/MoveFeedForwardTest.java (createCommand, decodeOk, decodeUninitializedFeeder, decodeMotorFault) | 6 | to port |  |
+| org/openpnp/machine/photon/protocol/commands/MoveFeedStatusTest.java (createCommand, decodeOk, decodeUninitializedFeeder, decodeCouldNotReach, decodeFeedingInProgress, decodeLengthTooShort, decodeLengthTooLong) | 7 | to port |  |
+| org/openpnp/machine/photon/protocol/commands/ProgramFeederFloorAddressTest.java (createCommand, decodeOk, decodeLengthTooShort, decodeLengthTooLong) | 4 | to port |  |
+| org/openpnp/machine/photon/protocol/commands/UninitializedFeedersRespondTest.java (createCommand, decodeOk, decodeLengthTooShort, decodeLengthTooLong) | 4 | to port |  |
+| org/openpnp/scripting/ScriptingTest.java (testScripting) | 1 | to port |  |

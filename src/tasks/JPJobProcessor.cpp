@@ -263,7 +263,7 @@ JPJobProcessor::Step JPJobProcessor::preFlight() {
         }
     });
     const auto onMain = [this](const std::function<void()>& fn) { main(fn); };
-    for (const size_t i : JPTravel::order(visitAt, m_machine.cameraLocation(), std::nullopt)) {
+    for (const size_t i : JPTravel::order(visitAt, m_machine.cameraLocation(), std::nullopt, m_machine.travelCost())) {
         bool blinds = false;
         main([&] {
             if (const JPFeeder* f = m_config.feeder(visit[i])) blinds = f->typeName() == "BlindsFeeder";
@@ -408,7 +408,7 @@ std::vector<size_t> JPJobProcessor::byPickLocation(const std::vector<size_t>& in
         }
     });
     if (!feeders.empty()) {
-        const std::vector<size_t> order = JPTravel::order(picks, start, std::nullopt);
+        const std::vector<size_t> order = JPTravel::order(picks, start, std::nullopt, m_machine.travelCost());
         for (const size_t i : local)
             for (size_t k = 0; k < order.size(); ++k)
                 if (feeders[order[k]] == m_jobPlacements[i].partId) {
@@ -442,7 +442,7 @@ std::vector<size_t> JPJobProcessor::byPickPlaceLocation(const std::vector<size_t
         main([&] {
             for (const size_t i : group) places.push_back(placeLocation(i));
         });
-        for (const size_t k : JPTravel::order(places, from, std::nullopt)) out.push_back(group[k]);
+        for (const size_t k : JPTravel::order(places, from, std::nullopt, m_machine.travelCost())) out.push_back(group[k]);
         main([&] {
             if (first) {
                 m_previousPlaceStart = placeLocation(out.front());
@@ -800,7 +800,7 @@ void JPJobProcessor::optimize(bool byPick) {
     });
     if (places.size() != m_planned.size()) return;   // not every one has a place: as planned
     std::vector<Planned> order;
-    for (const size_t i : JPTravel::order(places, m_machine.cameraLocation(), std::nullopt)) order.push_back(m_planned[i]);
+    for (const size_t i : JPTravel::order(places, m_machine.cameraLocation(), std::nullopt, m_machine.travelCost())) order.push_back(m_planned[i]);
     m_planned = order;
 }
 

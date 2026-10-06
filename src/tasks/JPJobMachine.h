@@ -6,6 +6,7 @@
 #include "machine/JPNozzleConfig.h"
 #include "model/JPLocation.h"
 #include "pipeline/JPPipeline.h"
+#include "tasks/JPTravel.h"
 #include "vision/JPPartFinder.h"
 #include "vision/JPTemplateFinder.h"
 
@@ -65,6 +66,9 @@ public:
     }
     // Where the head's camera is now; none when it cannot be told.
     virtual std::optional<JPLocation> cameraLocation() const = 0;
+    // OpenPnP's TravelCost for routes (JPTravel): the default head's camera's X, Y (and Z, where a controller's)
+    // axes; none (the routes by straight-line distance, as OpenPnP's when it cannot make one) when not known.
+    virtual std::optional<JPTravel::Cost> travelCost() const { return std::nullopt; }
     // Whether the head camera can be taken to `at` (its axes within their soft limits).
     virtual bool cameraReaches(const JPLocation& at) const = 0;
     // A nozzle tip's Push and Drag Usage: whether it may push, and its outside diameter at its lowest (mm).
