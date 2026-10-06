@@ -35,6 +35,9 @@ public:
     // ("exposure": { "value", "min", "max", "default", "auto" (where it has
     // one) }); none for a source without.
     virtual JJson controls() const { return JJson::object(); }
+    // OpenPnP's Reapply to Camera: the device's own settings set again as they
+    // are to be (a device without such settings: nothing).
+    virtual void reapplyControls() {}
 
     // Waiting for its turn (a switcher camera not switched in): no picture,
     // and not a camera that has hung.

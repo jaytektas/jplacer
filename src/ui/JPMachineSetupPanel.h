@@ -96,8 +96,8 @@ public:
     std::function<void(const std::string& axisId, double to)> moveAxis;
     // Where the form's pictures are drawn (a template picture).
     void setHal(JGpuHal* hal) { m_form->setHal(hal); }
-    // A nozzle tip's changer slot template picture by its file name (none: not shown).
-    JPSetupProperties::TemplatePicture templatePicture;
+    // What the running machine shows the forms (JPSetupProperties::Live).
+    JPSetupProperties::Live live;
     // OpenPnP's ClassSelectionDialog: one of `classes` chosen (empty: cancelled).
     std::function<void(const std::string& title, const std::string& description, const std::vector<std::string>& classes,
                        std::function<void(std::string)> chosen)> chooseClass;

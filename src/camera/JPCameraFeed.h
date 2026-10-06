@@ -63,6 +63,8 @@ public:
     // The device's own settings as they were when it last started
     // (JPCaptureSource::controls); none before.
     JJson deviceControls() const;
+    // OpenPnP's Reapply to Camera: the device's settings set again (on its own thread, soon).
+    void reapplyControls() { m_reapply = true; }
     // The mode it is capturing in, once started.
     std::optional<JPCaptureMode> mode() const;
     // Lost (or hung) and being opened again, and why: until its first picture
@@ -98,6 +100,7 @@ private:
     mutable std::mutex           m_mutex;   // guards the members below
     JPFrame                      m_latest;
     JJson m_deviceControls = JJson::object();   // deviceControls()
+    std::atomic<bool> m_reapply { false };       // reapplyControls()
     JPFrame                      m_unbalanced;   // m_latest before white balance (kept while there is one)
     JPWhiteBalance               m_balance;
     std::optional<JPCaptureMode> m_mode;

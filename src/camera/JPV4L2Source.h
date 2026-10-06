@@ -36,6 +36,7 @@ public:
     bool grab(JPFrame& frame, int timeoutMs, std::string& error) override;
     std::string describe() const override;
     JJson controls() const override;
+    void reapplyControls() override { applyControls(); }
 
     // Every capture device present, by the name it gives itself.
     static std::vector<std::string> deviceNames();

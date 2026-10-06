@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- A capture camera's properties show the camera's Min, Max and Default, with OpenPnP's Reapply to Camera, and any
+  camera's Capture FPS can be measured.
 - A controller's Driver Settings have OpenPnP's $-Command Wait Time and Detect Firmware, with what the firmware said.
 - A simulated controller can be made a real one: its Communications Type on Machine Setup, or Issues & Solutions'
   Replace with GcodeDriver, as OpenPnP's NullDriver.

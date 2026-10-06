@@ -79,6 +79,8 @@ constexpr const char* kSamplesDir = "samples";
 constexpr const char* kScriptsDir = "scripts";
 // A camera brought forward for a task runs this long at least, shown or not (each look renews it).
 constexpr int kTaskCameraMs = 10000;
+// OpenPnP's Capture FPS test: pictures counted over this long.
+constexpr int kCaptureFpsTestMs = 2000;
 
 } // namespace
 
@@ -544,7 +546,8 @@ std::unique_ptr<JPMachineSetupPanel> JPlacerMachine::makeSetup() {
     setup->moveToStraight = [this](JPSetupForm::Tool tool, const JPMachineSetupPanel::Where& to) { moveToolTo(tool, to, true); };
     setup->setHal(&m_window.hal());
     // Template pictures are named by what they hold: one read is kept.
-    setup->templatePicture = [this, kept = std::make_shared<std::map<std::string, std::shared_ptr<const JPFrame>>>()](
+    setup->live.cameraControls = [this](const std::string& cameraId) { return cameraDeviceControls(cameraId); };
+    setup->live.templatePicture = [this, kept = std::make_shared<std::map<std::string, std::shared_ptr<const JPFrame>>>()](
                                  const std::string& fileName) -> std::shared_ptr<const JPFrame> {
         if (const auto it = kept->find(fileName); it != kept->end()) return it->second;
         auto frame = std::make_shared<JPFrame>();
@@ -1332,6 +1335,44 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
                             if (cam.id == id) cam.settleTrace = trace;
                     });
                 });
+    } else if ((action == "reapplyControls" || action == "captureFpsTest") && path.rfind("camera:", 0) == 0) {
+        const std::string id = path.substr(7);
+        for (CameraDock& d : m_cameras) {
+            if (d.panel->camera().id != id) continue;
+            JPCameraFeed* feed = &d.panel->feed();
+            if (!feed->isRunning()) {
+                showCamera(id);   // started for it; try again once it shows
+                m_window.showStatus(d.panel->camera().name + " is starting: try again once it shows", kStatusMs);
+                return;
+            }
+            if (action == "reapplyControls") {
+                feed->reapplyControls();
+                m_window.showStatus(d.panel->camera().name + ": its properties set again", kStatusMs);
+                if (m_setup) m_setup->remakeForm();
+                return;
+            }
+            // OpenPnP's Capture FPS test: the pictures counted over a while, the average.
+            std::weak_ptr<bool> alive = m_alive;
+            std::thread([this, feed, id, alive] {
+                JPFrame frame;
+                feed->latest(frame, 0);
+                const uint64_t first = frame.sequence;
+                const auto start = std::chrono::steady_clock::now();
+                std::this_thread::sleep_for(std::chrono::milliseconds(kCaptureFpsTestMs));
+                feed->latest(frame, 0);
+                const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+                const double fps = double(frame.sequence - first) / std::max(seconds, 1e-3);
+                JMainThreadDispatcher::instance().post([this, id, fps, alive] {
+                    if (const auto a = alive.lock(); !a || !*a || !m_setup) return;
+                    m_setup->measured([&](JPCellConfig& cell) {
+                        for (JPCameraConfig& cam : cell.cameras)
+                            if (cam.id == id) cam.captureFps = fps;
+                    });
+                });
+            }).detach();
+            m_window.showStatus(d.panel->camera().name + ": Testing...", kStatusMs);
+            return;
+        }
     } else if (action == "detectFirmware" && path.rfind("driver:", 0) == 0) {
         m_cell->detectFirmware(path.substr(7));
     } else if (action == "positionRunoutTool" && path.rfind("nozzletip:", 0) == 0) {

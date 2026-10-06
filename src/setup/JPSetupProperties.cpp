@@ -1025,7 +1025,7 @@ void nozzleForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
 }
 
 void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f,
-                   const JPSetupProperties::TemplatePicture& templatePicture) {
+                   const JPSetupProperties::Live& live) {
     auto t = finder(cell.nozzleTips, id);
     f.title = "Nozzle tip " + t().name;
     JPFormBuilder add(f);
@@ -1289,8 +1289,8 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
                        "Reset the template image for the " + std::string(empty ? "empty" : "occupied") + " nozzle tip holder slot.");
             add.end();
             const std::string file = empty ? vc().templateEmpty : vc().templateOccupied;
-            if (!file.empty() && templatePicture)
-                add.image("", [templatePicture, file] { return templatePicture(file); });
+            if (!file.empty() && live.templatePicture)
+                add.image("", [picture = live.templatePicture, file] { return picture(file); });
         }
     }
 
@@ -1704,7 +1704,7 @@ void calibrationResults(JPFormBuilder& add, const JPCameraCalibration& cal, bool
              "picture badly there.");
 }
 
-void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f) {
+void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f, const JPSetupProperties::Live& live) {
     auto c = finder(cell.cameras, id);
     f.title = "Camera " + c().name;
     JPFormBuilder add(f);
@@ -2018,9 +2018,12 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     // A switcher camera takes its device camera's pictures as they come, an ONVIF one is set up by what it
     // offers, a GStreamer one is as its pipeline says: none has a size or controls set here.
     if (const std::string& b = std::as_const(device())["backend"].str(); b != "switcher" && b != "onvif" && b != "gstreamer") {
-        add.choice("format", "Format", { "any", "MJPG", "YUYV" },
-                   [device] { const std::string v = std::as_const(device())["format"].str(); return v.empty() ? std::string("any") : v; },
-                   [device](const std::string& v) { device()["format"] = v == "any" ? std::string() : v; });
+        // A capture device's own format and settings (OpenPnP's OpenPnpCaptureCamera); a picture or simulation has none.
+        const bool captureDevice = b == "v4l2" || b.empty();
+        if (captureDevice)
+            add.choice("format", "Format", { "any", "MJPG", "YUYV" },
+                       [device] { const std::string v = std::as_const(device())["format"].str(); return v.empty() ? std::string("any") : v; },
+                       [device](const std::string& v) { device()["format"] = v == "any" ? std::string() : v; });
         add.header({ "Width", "Height" });
         add.row("Size");
         add.integer("width", "Width", [device] { return int(std::as_const(device())["width"].number()); },
@@ -2029,49 +2032,68 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
                     [device](int v) { device()["height"] = v; }, 0, 10000);
         add.end();
         add.note("0: the largest picture the camera offers.");
+        // OpenPnP's Capture FPS: how fast the camera gives pictures, measured.
+        add.row("Capture FPS");
+        char fps[32] = "";
+        if (c().captureFps) std::snprintf(fps, sizeof fps, "%.1f", *c().captureFps);
+        add.words(fps);
+        add.button("captureFpsTest", "Test", "Count the pictures the camera gives over two seconds: the average FPS obtained.");
+        add.end();
 
-        // The camera's own settings: each one jplacer sets when it opens the
-        // camera (by hand, or automatic where the camera can), or leaves as the
-        // camera has it.
-        add.group("Properties");
-        add.header({ "Set?", "Auto", "Value" });
-        struct Control { const char* key; const char* label; bool canAuto; };
-        static const Control kControls[] = {
-            { "brightness", "Brightness", true }, { "backlight-compensation", "Backlight Compensation", false },
-            { "contrast", "Contrast", false }, { "exposure", "Exposure", true }, { "focus", "Focus", true },
-            { "gain", "Gain", true }, { "gamma", "Gamma", false }, { "hue", "Hue", true },
-            { "power-line-frequency", "Power Line Freq.", false }, { "saturation", "Saturation", false },
-            { "sharpness", "Sharpness", false }, { "white-balance", "White Balance", true }, { "zoom", "Zoom", false } };
-        for (const Control& k : kControls) {
-            auto control = [device, key = std::string(k.key)]() -> JJson& { return device()["controls"][key]; };
-            const bool set = std::as_const(device())["controls"][k.key].isObject();
-            const std::string name = std::string("control:") + k.key;
-            add.row(k.label);
-            add.flag(name, std::string(k.label) + " set", [device, key = std::string(k.key)] { return std::as_const(device())["controls"][key].isObject(); },
-                     [device, control, key = std::string(k.key)](bool on) {
-                         if (!on) {
-                             JJson rest = JJson::object();
-                             for (const auto& [n, v] : std::as_const(device())["controls"].obj()) if (n != key) rest[n] = v;
-                             device()["controls"] = rest;
-                         } else if (!std::as_const(device())["controls"][key].isObject()) {
-                             control()["auto"] = false;
-                             control()["value"] = 0;
-                         }
-                     });
-            f.reshaping.push_back(name);
-            if (set && k.canAuto)
-                add.flag(name + ":auto", std::string(k.label) + " auto", [control] { return std::as_const(control())["auto"].boolean(); },
-                         [control](bool on) { control()["auto"] = on; });
-            else
-                add.skip();
-            if (set)
-                add.integer(name + ":value", k.label, [control] { return int(std::as_const(control())["value"].number()); },
-                            [control](int v) { control()["value"] = v; }, -1000000, 1000000);
-            else
-                add.skip();
-            add.end();
+        if (captureDevice) {
+            // The camera's own settings: each one jplacer sets when it opens the
+            // camera (by hand, or automatic where the camera can), or leaves as the
+            // camera has it.
+            add.group("Properties");
+            // The device's own ranges and defaults, and its values where not set, as the camera reports them.
+            const JJson have = live.cameraControls ? live.cameraControls(c().id) : JJson::object();
+            add.header({ "Set?", "Auto", "Value", "Min", "Max", "Default" });
+            struct Control { const char* key; const char* label; bool canAuto; };
+            static const Control kControls[] = {
+                { "brightness", "Brightness", true }, { "backlight-compensation", "Backlight Compensation", false },
+                { "contrast", "Contrast", false }, { "exposure", "Exposure", true }, { "focus", "Focus", true },
+                { "gain", "Gain", true }, { "gamma", "Gamma", false }, { "hue", "Hue", true },
+                { "power-line-frequency", "Power Line Freq.", false }, { "saturation", "Saturation", false },
+                { "sharpness", "Sharpness", false }, { "white-balance", "White Balance", true }, { "zoom", "Zoom", false } };
+            for (const Control& k : kControls) {
+                auto control = [device, key = std::string(k.key)]() -> JJson& { return device()["controls"][key]; };
+                const bool set = std::as_const(device())["controls"][k.key].isObject();
+                const std::string name = std::string("control:") + k.key;
+                add.row(k.label);
+                add.flag(name, std::string(k.label) + " set", [device, key = std::string(k.key)] { return std::as_const(device())["controls"][key].isObject(); },
+                         [device, control, key = std::string(k.key)](bool on) {
+                             if (!on) {
+                                 JJson rest = JJson::object();
+                                 for (const auto& [n, v] : std::as_const(device())["controls"].obj()) if (n != key) rest[n] = v;
+                                 device()["controls"] = rest;
+                             } else if (!std::as_const(device())["controls"][key].isObject()) {
+                                 control()["auto"] = false;
+                                 control()["value"] = 0;
+                             }
+                         });
+                f.reshaping.push_back(name);
+                if (set && k.canAuto)
+                    add.flag(name + ":auto", std::string(k.label) + " auto", [control] { return std::as_const(control())["auto"].boolean(); },
+                             [control](bool on) { control()["auto"] = on; });
+                else
+                    add.skip();
+                const JJson& own = have[k.key];
+                auto shown = [&own](const char* field) { return own[field].isNumber() ? std::to_string(int(own[field].number())) : std::string(); };
+                if (set)
+                    add.integer(name + ":value", k.label, [control] { return int(std::as_const(control())["value"].number()); },
+                                [control](int v) { control()["value"] = v; }, -1000000, 1000000);
+                else
+                    add.words(shown("value"));
+                add.words(shown("min"));
+                add.words(shown("max"));
+                add.words(shown("default"));
+                add.end();
+            }
+            add.note("Set? unticked: the camera keeps its own setting (shown greyed as it has it). The values are the camera's "
+                     "own units; Min, Max and Default are the camera's, as it reports them while it runs. The settings ticked "
+                     "are set each time the camera opens (OpenPnP's Freeze Properties).");
+            add.button("reapplyControls", "Reapply to Camera", "Reapply the frozen properties to the camera.");
         }
-        add.note("Set? unticked: the camera keeps its own setting. The values are the camera's own units.");
     }
 
     // OpenPnP's Image Transforms: those its advanced calibration still applies (rotation,
@@ -2631,7 +2653,7 @@ void fiducialLocatorForm(JPCellConfig& cell, JPSetupProperties::Form& f, JPConfi
 
 JPSetupProperties::Form JPSetupProperties::forNode(JPCellConfig& cell, const std::string& path, const std::vector<JPFirmwareProfile>& profiles,
                                                    JPConfiguration* config, const JPVisionTests* tests,
-                                                   const JPMotionTestResult* motionTest, TemplatePicture templatePicture) {
+                                                   const JPMotionTestResult* motionTest, const Live& live) {
     Form f;
     const JPSetupTree::Path p = JPSetupTree::parse(path);
     if (p.kind == "machine") machineForm(cell, f, motionTest);
@@ -2642,9 +2664,9 @@ JPSetupProperties::Form JPSetupProperties::forNode(JPCellConfig& cell, const std
     else if (p.kind == "axis" && has(cell.axes, p.id)) axisForm(cell, p.id, f);
     else if (p.kind == "head" && has(cell.heads, p.id)) headForm(cell, p.id, f);
     else if (p.kind == "nozzle" && has(cell.nozzles, p.id)) nozzleForm(cell, p.id, f);
-    else if (p.kind == "nozzletip" && has(cell.nozzleTips, p.id)) nozzleTipForm(cell, p.id, f, templatePicture);
+    else if (p.kind == "nozzletip" && has(cell.nozzleTips, p.id)) nozzleTipForm(cell, p.id, f, live);
     else if (p.kind == "step" && has(cell.nozzleTips, p.owner)) stepForm(cell, p, f);
-    else if (p.kind == "camera" && has(cell.cameras, p.id)) cameraForm(cell, p.id, f);
+    else if (p.kind == "camera" && has(cell.cameras, p.id)) cameraForm(cell, p.id, f, live);
     else if (p.kind == "actuator" && has(cell.actuators, p.id)) actuatorForm(cell, p.id, f);
     else if (p.kind == "signaler" && has(cell.signalers, p.id)) signalerForm(cell, p.id, f);
     return f;

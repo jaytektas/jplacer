@@ -340,7 +340,7 @@ void JPMachineSetupPanel::select(const std::string& path) {
 
 JPSetupProperties::Form JPMachineSetupPanel::formFor(const std::string& path) {
     JPSetupProperties::Form f = JPSetupProperties::forNode(m_draft, path, m_profiles, m_config, m_visionTests.angle ? &m_visionTests : nullptr,
-                                                           m_motionTest ? &*m_motionTest : nullptr, templatePicture);
+                                                           m_motionTest ? &*m_motionTest : nullptr, live);
     m_configProperties.clear();
     for (const JPSetupProperties::Tab& t : f.tabs)
         if (t.title.size() > 15 && t.title.compare(t.title.size() - 15, 15, "Vision Settings") == 0)

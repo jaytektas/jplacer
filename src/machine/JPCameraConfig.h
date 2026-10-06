@@ -69,6 +69,8 @@ struct JPCameraConfig {
     // (a capture card's camera shown through SwitcherCameras, say); View, or
     // anything that looks through it, opens it.
     bool          shownInMultiView = true;
+    // OpenPnP's Capture FPS: how many pictures a second the camera gave over its Test (not kept).
+    std::optional<double> captureFps;
     int           cropWidth = 0, cropHeight = 0;
     // SETTLING, as OpenPnP does it: a picture for vision is one taken once
     // the camera has stopped moving. FixedTime waits `timeMs` after the move.

@@ -142,6 +142,11 @@ void JPCameraFeed::runSource(std::string& why) {
     uint64_t lastPrint = 0;
     auto changed = std::chrono::steady_clock::now();
     while (m_running) {
+        if (m_reapply.exchange(false)) {
+            source->reapplyControls();
+            std::lock_guard lk(m_mutex);
+            m_deviceControls = source->controls();
+        }
         std::string error;
         if (!source->grab(frame, kGrabSliceMs, error)) {
             if (!error.empty()) {
