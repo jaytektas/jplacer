@@ -107,10 +107,16 @@ JPBoardPlacementsPanel::JPBoardPlacementsPanel(JSceneGraph& graph, JPConfigurati
 void JPBoardPlacementsPanel::buildContextMenu() {
     JSceneGraph& g = m_graph;
     m_contextMenu = std::make_unique<JMenu>("Placements");
-    auto sub = [&](const std::string& title) {
+    // OpenPnP's descriptions as tooltips: the submenu's, and each value's ("Set placement side(s) to Top").
+    auto sub = [&](const std::string& title, const std::string& tip) {
         m_subMenus.push_back(std::make_unique<JMenu>(title));
-        m_contextMenu->add(g, title, {}, m_subMenus.back().get());
+        m_contextMenu->add(g, title, {}, m_subMenus.back().get())->setTooltip(tip + "...");
         return m_subMenus.back().get();
+    };
+    auto value = [&](JMenu* on, const std::string& name, const std::string& tip) {
+        JMenuItem* item = on->add(g, name);
+        item->setTooltip(tip + " " + name);
+        return item;
     };
     auto forChosen = [this](std::function<void(JPPlacement&)> set) {
         return [this, set] {
@@ -118,19 +124,19 @@ void JPBoardPlacementsPanel::buildContextMenu() {
             m_table->refresh();
         };
     };
-    JMenu* type = sub("Set Type");
+    JMenu* type = sub("Set Type", "Set placement type(s) to");
     for (JPPlacement::Type t : { JPPlacement::Type::Placement, JPPlacement::Type::Fiducial })
-        type->add(g, JPPlacement::typeName(t))->onTriggered.connect(forChosen([t](JPPlacement& p) { p.type = t; }));
-    JMenu* side = sub("Set Side");
+        value(type, JPPlacement::typeName(t), "Set placement type(s) to")->onTriggered.connect(forChosen([t](JPPlacement& p) { p.type = t; }));
+    JMenu* side = sub("Set Side", "Set placement side(s) to");
     for (JPSide s : { JPSide::Bottom, JPSide::Top })
-        side->add(g, JPSides::name(s))->onTriggered.connect(forChosen([s](JPPlacement& p) { p.side = s; }));
-    JMenu* enabled = sub("Set Enabled");
+        value(side, JPSides::name(s), "Set placement side(s) to")->onTriggered.connect(forChosen([s](JPPlacement& p) { p.side = s; }));
+    JMenu* enabled = sub("Set Enabled", "Set placement enable(s) to");
     for (bool on : { true, false })
-        enabled->add(g, on ? "Enabled" : "Disabled")->onTriggered.connect(forChosen([on](JPPlacement& p) { p.enabled = on; }));
-    JMenu* errors = sub("Set Error Handling");
+        value(enabled, on ? "Enabled" : "Disabled", "Set placement enable(s) to")->onTriggered.connect(forChosen([on](JPPlacement& p) { p.enabled = on; }));
+    JMenu* errors = sub("Set Error Handling", "Set placement error handling(s) to");
     for (JPPlacement::ErrorHandling e :
          { JPPlacement::ErrorHandling::Default, JPPlacement::ErrorHandling::Alert, JPPlacement::ErrorHandling::Defer })
-        errors->add(g, JPPlacement::errorHandlingName(e))
+        value(errors, JPPlacement::errorHandlingName(e), "Set placement error handling(s) to")
             ->onTriggered.connect(forChosen([e](JPPlacement& p) { p.errorHandling = e; }));
 }
 

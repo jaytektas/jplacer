@@ -11,6 +11,7 @@
 #include "setup/JPSetupProperties.h"
 #include "setup/JPSetupTree.h"
 
+#include <j/core/JCheckBox.h>
 #include <j/core/Dialog.h>
 #include <j/core/JStyle.h>
 #include <j/core/Log.h>
@@ -86,9 +87,17 @@ JPMachineSetupPanel::JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, 
     m_split->addPane(m_treePane.get(), float(treeShare));
     m_split->addPane(m_formPane.get(), float(1 - treeShare));
 
-    // Over the tree: a filter, its ✕ on the right clearing it. (Opening and
-    // closing every branch is the tree's right-click menu.)
+    // Over the tree: OpenPnP's Expand (ticked, every branch open; not, every
+    // one closed; the tree's right-click menu does either too), and a filter,
+    // its ✕ on the right clearing it.
     auto find = JPUiParts::row(graph);
+    JCheckBox* expand = find->add(std::make_unique<JCheckBox>(graph, "Expand", 0.f));
+    expand->setHSizePolicy(JSizePolicyMode::Fixed);
+    expand->setTooltip("Expand machine configuration tree");
+    expand->onStateChanged.connect([this](bool on) {
+        if (on) m_tree->expandAll();
+        else collapseAll();
+    });
     JLineEdit* search = m_search = find->add(std::make_unique<JLineEdit>(graph, "Search"));
     search->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     search->setClearButtonEnabled(true);

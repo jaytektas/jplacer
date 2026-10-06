@@ -22,7 +22,7 @@ The machine is shown as a tree of its parts:
   found (below).
 
 Choose a part to see its settings beside the tree, each the full height of the panel; drag the divider between them to give either more
-room (where it is is kept for next time). Over the tree, **Search** keeps to the rows whose name contains
+room (where it is is kept for next time). Over the tree, OpenPnP's **Expand** opens every branch when ticked and closes them when not, and **Search** keeps to the rows whose name contains
 what is typed (and the groups they are in); the **×** at its right clears it. Right-click a row for **Open
 This Branch** and **Close This Branch** (the row and everything under it), **Open All**, **Close All**
 (down to the machine's groups), and Add and Remove as the buttons above. A line under the settings says

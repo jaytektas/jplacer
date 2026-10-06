@@ -131,6 +131,7 @@ void JPJobPlacementsPanel::buildMenu() {
     };
     auto [type, typeItem] = sub("Set Type");
     m_setType = typeItem;
+    typeItem->setTooltip("Set the selected placement(s) type");
     for (JPPlacement::Type t : { JPPlacement::Type::Placement, JPPlacement::Type::Fiducial })
         type->add(g, JPPlacement::typeName(t))->onTriggered.connect(forChosen([t](JPPlacement& p) { p.type = t; }));
     auto [side, sideItem] = sub("Set Side");

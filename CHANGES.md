@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Machine Setup has OpenPnP's Expand tick box over the tree (every branch opened, or closed). The Boards tab's
+  placement menus say what each entry does, as OpenPnP's.
 - OpenPnP's keys: Ctrl+Shift+F1 to F5 choose the First to Fifth Jog Increment, Shift makes a jog two steps finer,
   and Ctrl+Shift+R, S and A start, step and stop the job (Save Job As no longer has Ctrl+Shift+S, as OpenPnP's).
   The jog functions have OpenPnP's names.
