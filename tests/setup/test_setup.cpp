@@ -235,6 +235,20 @@ int main() {
         assert(JPSetupEdits::remove(c, "step:T:unload:2", why) && c.nozzleTips[0].unloadSteps.size() == 2);
     }
     std::printf("  [OK] a tip's changer steps\n");
+    // Controllers: Add asks which kind (OpenPnP's driver classes), each named after it.
+    {
+        JPCellConfig c = cell();
+        assert(JPSetupEdits::kinds(c, "group:drivers").size() == 4);
+        assert(JPSetupEdits::add(c, "group:drivers").empty());
+        const size_t before = c.drivers.size();
+        assert(!JPSetupEdits::add(c, "group:drivers", "NullDriver").empty());
+        assert(!JPSetupEdits::add(c, "group:drivers", "NeoDen4Driver").empty());
+        assert(!JPSetupEdits::add(c, "group:drivers", "GcodeAsyncDriver").empty());
+        assert(c.drivers.size() == before + 3);
+        assert(c.drivers[before].name == "NullDriver" && c.drivers[before].link["type"].str() == "simulated");
+        assert(c.drivers[before + 1].link["type"].str() == "neoden4" && c.drivers[before + 1].profile == "neoden4");
+        assert(c.drivers[before + 2].link["type"].str() == "serial" && c.drivers[before + 2].profile == "auto");
+    }
     // Signalers: Add asks which kind (OpenPnP's New Signaler…), each kind its own page.
     {
         JPCellConfig c = cell();

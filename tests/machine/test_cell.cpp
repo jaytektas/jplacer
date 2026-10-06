@@ -41,7 +41,7 @@ JPCellConfig cellConfig() {
                      "link": { "type": "simulated", "simulator": {
                          "identity": [ "[VER:1.1f.20250101:]", "[FIRMWARE:grblHAL]" ],
                          "axisLetters": [ "X", "Y", "Z", "A" ],
-                         "replies": { "M1000 P1": "-31000" } } } } ],
+                         "replies": { "M1000 P1": "-31000", "M1000 P3": "25" } } } } ],
       "heads": [ { "id": "H", "name": "Head", "pump": { "actuator": "P", "control": "PartOn", "onWaitMs": 0 } } ],
       "axes": [ { "id": "X",  "name": "x",  "kind": "controller", "type": "x", "driver": "D", "letter": "X",
                   "homeCoordinate": 390, "feedratePerSecond": 100,
@@ -62,7 +62,9 @@ JPCellConfig cellConfig() {
                      { "id": "P", "name": "Pump", "driver": "D", "index": "2",
                        "onCommand": "M64 P{index}", "offCommand": "M65 P{index}", "disabledActuation": "ActuateOff" },
                      { "id": "L", "name": "Light", "driver": "D", "valueType": "number", "valueCommand": "M3 S{value}",
-                       "onValue": "255", "offValue": "0" } ]
+                       "onValue": "255", "offValue": "0" },
+                     { "id": "TH", "name": "Heat", "driver": "D", "index": "3", "readCommand": "M1000 P{index}",
+                       "readPattern": "^(-?\\d+)$", "thermistor": { "scale": 2, "offset": 1 } } ]
     })";
     JPCellConfig c;
     std::string error;
@@ -114,6 +116,10 @@ int main() {
         assert(actuator.take() == std::make_pair(true, std::string("on")));
         cell.readActuator("V");
         assert(actuator.take() == std::make_pair(true, std::string("-31000")));
+        // OpenPnP's ThermistorToLinearSensorActuator: 25 degrees C read, a linear sensor's 3.152 V, times 2 plus 1.
+        cell.readActuator("TH");
+        const auto heat = actuator.take();
+        assert(heat.first && std::abs(std::stod(heat.second) - 7.3037249283667665) < 1e-9);
 
         // A Number actuator: set to a value by its value command; on and off,
         // with no commands of their own, set it to its on and off values.
@@ -803,6 +809,25 @@ int main() {
         cell.connect();
         const auto [ok, why] = connection.take();
         assert(!ok && why.find("carrier-pigeon") != std::string::npos && !cell.isConnected());
+    }
+    // A simulated controller added without its axes' letters (Machine Setup's NullDriver): given its axes'
+    // letters, it identifies and moves.
+    {
+        JPCellConfig c = cellConfig();
+        c.drivers[0].link = JJson::object();
+        c.drivers[0].link["type"] = std::string("simulated");
+        JPCell cell(c, profiles());
+        Latch<std::pair<bool, std::string>> connection;
+        cell.onConnection.connect([&](bool ok, std::string why) { connection.set({ ok, why }); });
+        cell.connect();
+        const auto [ok, why] = connection.take();
+        assert(ok && cell.firmware().at("D") == "grblHAL");
+        cell.sendLine("D", "G0 X7");
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+        while (cell.positions()["X"] != 7.0 && std::chrono::steady_clock::now() < deadline)
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        assert(cell.positions().at("X") == 7.0);
+        cell.disconnect();
     }
     return 0;
 }

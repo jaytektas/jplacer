@@ -145,7 +145,11 @@ and its Neoden4Camera and Neoden4SwitcherCameras.
 **Add** adds a part of the kind chosen: with an axis (or **Axes**) chosen it reads **Add Axis**, with a
 head's **Nozzles** chosen **Add Nozzle**, which goes on that head. A new part has a name saying what it is,
 to change, and an id of its own that stays the same whatever it is renamed to. Where there are several
-kinds (**Signalers**), Add first asks which, as OpenPnP's **Select Signaler...** does.
+kinds (**Controllers**, **Cameras**, **Actuators**, **Signalers**), Add first asks which, as OpenPnP's
+**Select Signaler...** does. A controller is OpenPnP's **NullDriver** (jplacer's simulated controller,
+moving whatever axes are put on it), **GcodeDriver** or **GcodeAsyncDriver** (the same here: a G-code
+controller on a serial port, its commands queued either way) or **NeoDen4Driver** (a NeoDen 4); each new
+one is named after its kind.
 
 **Remove** removes the chosen part, unless something else uses it: an axis a nozzle or camera moves on,
 a controller an axis is on, an actuator that is a camera's light or a signaler's, a head with parts on it, a nozzle tip
@@ -155,7 +159,7 @@ only fits nozzles is taken off their lists with it.
 **Up** and **Down** move the chosen part among the others in its group. The order is the order they
 are shown in elsewhere (the cameras' tabs, the Axes panel).
 
-<!-- src: src/setup/JPSetupEdits.cpp (addable, add, remove, move, newId) -->
+<!-- src: src/setup/JPSetupEdits.cpp (addable, add, remove, move, newId) ; src/machine/JPCell.cpp (asRun) -->
 
 ## Settings
 

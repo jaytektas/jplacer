@@ -360,7 +360,8 @@ private:
     JPGcodeDriver* driver(const std::string& id) const;
     std::unique_ptr<JPGcodeDriver> makeDriver(const JPDriverConfig& config);
     // A controller as it is run: as set up, or, while the cell's Simulation Mode
-    // replaces drivers (OpenPnP's Replace Drivers?), simulated, its axes' letters kept.
+    // replaces drivers (OpenPnP's Replace Drivers?), simulated, its axes' letters kept;
+    // a simulated one set up without letters given its axes' letters too.
     static JPDriverConfig asRun(const JPDriverConfig& driver, const JPCellConfig& cell);
     static std::string format(double v, int decimals);
     void updatePositions(const std::string& driverId, const JPFirmwareProfile::Status& status);

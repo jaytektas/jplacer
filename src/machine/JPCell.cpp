@@ -57,13 +57,18 @@ std::optional<bool> JPCell::switchedOn(const std::string& actuatorId) const {
 }
 
 JPDriverConfig JPCell::asRun(const JPDriverConfig& driver, const JPCellConfig& cell) {
-    if (!cell.simulation.replacesDrivers()) return driver;
+    // A simulated controller set up without its axes (one added on Machine Setup) takes them as a replaced one does.
+    const JJson& link = driver.link;
+    const bool bareSimulated = link["type"].str() == "simulated" && link["simulator"]["axisLetters"].arr().empty();
+    if (!cell.simulation.replacesDrivers() && !bareSimulated) return driver;
     JPDriverConfig run = driver;
     JJson letters = JJson::array();
     for (const JPAxisConfig& a : cell.axes)
         if (a.kind == JPAxisConfig::Kind::Controller && a.driverId == driver.id && !a.letter.empty()) letters.push(a.letter);
-    run.link = JJson::object();
-    run.link["type"] = std::string("simulated");
+    if (!bareSimulated) {
+        run.link = JJson::object();
+        run.link["type"] = std::string("simulated");
+    }
     run.link["simulator"]["axisLetters"] = letters;
     // A grblHAL, as jplacer's own simulator is.
     run.link["simulator"]["identity"] = JJson::array();
