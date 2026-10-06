@@ -4,6 +4,7 @@
 #include "JPSetupProperties.h"
 
 #include "camera/JPOnvif.h"
+#include "camera/JPSimulatedUpCamera.h"
 #include "camera/JPWhiteBalance.h"
 
 #include "JPVisionForms.h"
@@ -1949,7 +1950,7 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
 
     add.tab("Device Settings");
     // A picture's settings are OpenPnP's groups of their own.
-    if (std::as_const(device())["backend"].str() != "image") add.group("Device");
+    if (std::as_const(device())["backend"].str() != "image" && !JPSimulatedUpCamera::is(std::as_const(device()))) add.group("Device");
     if (std::as_const(device())["backend"].str() == "image") {
         // OpenPnP's ImageCameraConfigurationWizard: a picture of the table, shown where the camera looks.
         auto num = [device](const char* a, const char* b, double def) {
@@ -2127,6 +2128,96 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
         add.integer("neodenGain", "Gain", whole("gain", 8).first, whole("gain", 8).second, 0, 32767);
         add.note("Before each picture the device is switched to it, and set to its exposure and gain (a change resets "
                  "the camera).");
+    } else if (std::as_const(device())["backend"].str() == "simulated" && JPSimulatedUpCamera::is(std::as_const(device()))) {
+        // OpenPnP's SimulatedUpCameraConfigurationWizard.
+        using Up = JPSimulatedUpCamera;
+        auto value = [device](const char* a, const char* b, double def) {
+            return std::pair { [device, a, b, def] {
+                                   const JJson& d = std::as_const(device());
+                                   return b ? d[a][b].number(def) : d[a].number(def);
+                               },
+                               [device, a, b](double v) {
+                                   if (b) device()[a][b] = v;
+                                   else device()[a] = v;
+                               } };
+        };
+        add.group("Camera Simulation");
+        add.header({ "X", "Y", "Z", "Rotation" });
+        // Its location: where it is set up to be until one of its own is given (as OpenPnP takes it then).
+        add.row("Camera Location");
+        for (const char* axis : { "x", "y", "z", "rotation" }) {
+            auto own = [c, axis] {
+                const JPMountConfig& m = c().mount;
+                return std::string(axis) == "x" ? m.offsetX : std::string(axis) == "y" ? m.offsetY : std::string(axis) == "z" ? m.offsetZ : 0.0;
+            };
+            auto get = [device, own, axis] {
+                const JJson& l = std::as_const(device())["simulatedLocation"];
+                return l.isObject() ? l[axis].number(0) : own();
+            };
+            auto set = [device, c, axis](double v) {
+                // The first change: its own from where it is set up to be, that one axis changed.
+                if (!std::as_const(device())["simulatedLocation"].isObject()) {
+                    const JPMountConfig& m = c().mount;
+                    device()["simulatedLocation"] = JPMachineLocation { m.offsetX, m.offsetY, m.offsetZ, 0 }.toJson();
+                }
+                device()["simulatedLocation"][axis] = v;
+            };
+            if (std::string(axis) == "rotation") add.number(std::string("simulatedLocation.") + axis, "Camera Location Rotation", get, set);
+            else add.length(std::string("simulatedLocation.") + axis, std::string("Camera Location ") + axis, get, set);
+        }
+        add.end();
+        add.tip("The Camera simulated location. Note: In order to test calibration procedures, we cannot use the regular camera location.");
+        add.row("Pixel Dimension");
+        add.integer("width", "Width", [device] { return int(std::as_const(device())["width"].number(Up::kDefaultWidth)); },
+                    [device](int v) { device()["width"] = v; }, 1, 10000);
+        add.integer("height", "Height", [device] { return int(std::as_const(device())["height"].number(Up::kDefaultHeight)); },
+                    [device](int v) { device()["height"] = v; }, 1, 10000);
+        add.end();
+        add.row("Simulated Units per Pixel");
+        // As the camera takes them (a cell from before they were kept: from its scene); either set keeps both.
+        for (const bool x : { true, false })
+            add.length(x ? "simulatedUppX" : "simulatedUppY", x ? "Simulated Units per Pixel X" : "Simulated Units per Pixel Y",
+                       [device, x] {
+                           const Up::Settings st = Up::Settings::fromDevice(std::as_const(device()));
+                           return x ? st.uppX : st.uppY;
+                       },
+                       [device, x](double v) {
+                           const Up::Settings st = Up::Settings::fromDevice(std::as_const(device()));
+                           device()["simulatedUnitsPerPixel"]["x"] = x ? v : st.uppX;
+                           device()["simulatedUnitsPerPixel"]["y"] = x ? st.uppY : v;
+                           device()["simulatedFlipped"] = st.mirrored;
+                       }, 6);
+        add.end();
+        add.tip("The camera simulated units per pixel. Note: In order to test calibration procedures, we cannot use the regular units per pixel.");
+        add.length("focalLength", "Focal Length", value("focalLengthMm", nullptr, Up::kDefaultFocalLengthMm).first,
+                   value("focalLengthMm", nullptr, Up::kDefaultFocalLengthMm).second);
+        add.length("sensorDiagonal", "Sensor Diagonal", value("sensorDiagonalMm", nullptr, Up::kDefaultSensorDiagonalMm).first,
+                   value("sensorDiagonalMm", nullptr, Up::kDefaultSensorDiagonalMm).second);
+        JPFormBuilder::Strings scenarios;
+        for (const Up::Scenario& sc : Up::scenarios()) scenarios.push_back(sc.name);
+        add.choice("backgroundScenario", "Background Scenario", scenarios,
+                   [device] { const std::string v = std::as_const(device())["backgroundScenario"].str(); return v.empty() ? std::string(Up::kDefaultScenario) : v; },
+                   [device](const std::string& v) { device()["backgroundScenario"] = v; });
+        add.tip("Choose a background scenario. It simulates a background shade and nozzle tip color.");
+        add.row("Pick Error Offsets");
+        for (const char* axis : { "x", "y", "z", "rotation" }) {
+            if (std::string(axis) == "rotation") add.number("errorOffsets.rotation", "Pick Error Rotation", value("errorOffsets", axis, 0).first, value("errorOffsets", axis, 0).second);
+            else add.length(std::string("errorOffsets.") + axis, std::string("Pick Error ") + axis, value("errorOffsets", axis, 0).first, value("errorOffsets", axis, 0).second);
+        }
+        add.end();
+        add.tip("Picked part on nozzle error offsets in simulation.");
+        add.endColumns();
+        add.flag("simulatedFlipped", "View mirrored?", [device] { return Up::Settings::fromDevice(std::as_const(device())).mirrored; },
+                 [device](bool v) {
+                     const Up::Settings st = Up::Settings::fromDevice(std::as_const(device()));
+                     device()["simulatedUnitsPerPixel"]["x"] = st.uppX;
+                     device()["simulatedUnitsPerPixel"]["y"] = st.uppY;
+                     device()["simulatedFlipped"] = v;
+                 });
+        add.tip("Simulate the camera as showing a mirrored view");
+        add.flag("simulateFocalBlur", "Simulate Focal Blur?", [device] { return std::as_const(device())["simulateFocalBlur"].boolean(); },
+                 [device](bool v) { device()["simulateFocalBlur"] = v; });
+        add.tip("Simulate focal blur in order to test Auto Focus.");
     } else if (std::as_const(device())["backend"].str() == "simulated") {
         add.text("backend", "Device", [] { return std::string("simulated (set up in the cell file)"); }, nullptr);
     } else {
@@ -2137,7 +2228,8 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     // A switcher camera takes its device camera's pictures as they come, an ONVIF one is set up by what it
     // offers, a GStreamer one is as its pipeline says, a NeoDen 4 or picture one has its own: none has a size or controls set here.
     if (const std::string& b = std::as_const(device())["backend"].str();
-        b != "switcher" && b != "onvif" && b != "gstreamer" && b != "neoden4" && b != "neoden4Switcher" && b != "image") {
+        b != "switcher" && b != "onvif" && b != "gstreamer" && b != "neoden4" && b != "neoden4Switcher" && b != "image"
+        && !JPSimulatedUpCamera::is(std::as_const(device()))) {
         // A capture device's own format and settings (OpenPnP's OpenPnpCaptureCamera); a picture or simulation has none.
         const bool captureDevice = b == "v4l2" || b.empty();
         if (captureDevice)

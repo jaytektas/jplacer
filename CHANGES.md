@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- A SimulatedUpCamera has OpenPnP's Camera Simulation settings on its Device Settings: Camera Location, Pixel
+  Dimension, Simulated Units per Pixel, Focal Length and Sensor Diagonal (nozzles and parts higher or lower seen
+  smaller and darker), Background Scenario (coloured backgrounds and tips), Pick Error Offsets, View mirrored? and
+  Simulate Focal Blur?. It now shows the nozzles even when the machine is not in Simulation Mode.
 - An image camera has all of OpenPnP's Camera Simulation settings (Y Rotation, Distortion, Browse for the picture)
   and its Simulated Calibration Rig: two fiducials drawn into the picture, the second at another height, blurred.
 - The machine's Pool scripting engines?, as OpenPnP's: Python and JavaScript scripts run by interpreters kept from

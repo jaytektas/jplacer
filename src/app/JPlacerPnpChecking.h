@@ -22,18 +22,23 @@ inline namespace jf {
 // with the camera's tolerances (OpenPnP's defaults when it has none).
 class JPlacerPnpChecking {
 public:
-    // The part on `nozzleId`, by its package's footprint (none: no part, or none known).
-    void hold(const std::string& nozzleId, std::shared_ptr<const JPFootprint> footprint);
+    // The part on `nozzleId`, by its package's footprint (none: no part, or none known), and its height (mm; 0 not known).
+    void hold(const std::string& nozzleId, std::shared_ptr<const JPFootprint> footprint, double heightMm);
     // What the cell calls.
     JPCell::PnpChecker checker();
-    // The footprint of the part on a nozzle (none: no part), from any thread.
-    using Holder = std::function<std::shared_ptr<const JPFootprint>(const std::string& nozzleId)>;
+    // The part on a nozzle (no footprint: no part), from any thread.
+    struct Held {
+        std::shared_ptr<const JPFootprint> footprint;
+        double                             heightMm = 0;
+    };
+    using Holder = std::function<Held(const std::string& nozzleId)>;
     Holder holder() const;
 
 private:
     struct State {
         std::mutex                                                   mutex;
         std::map<std::string, std::shared_ptr<const JPFootprint>>   footprints;   // by nozzle id
+        std::map<std::string, double>                               heights;      // by nozzle id
         JPSimulatedPnpCheck                                          engine;
     };
     std::shared_ptr<State> m_state = std::make_shared<State>();

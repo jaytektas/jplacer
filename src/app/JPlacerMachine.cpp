@@ -13,6 +13,7 @@
 #include "JPlacerClassSelectionDialog.h"
 #include "JPlacerSettings.h"
 
+#include "camera/JPSimulatedUpCamera.h"
 #include "camera/JPSimulatedViewpoint.h"
 #include "camera/JPWhiteBalance.h"
 #include "common/JPlacerLog.h"
@@ -64,6 +65,9 @@ constexpr float  kSimulatedTipLevel = 230;
 // A part on a tip as OpenPnP's SimulatedUpCamera draws it: its body dark grey (60), its pads white.
 constexpr float  kSimulatedBodyLevel = 60;
 constexpr float  kSimulatedPadLevel = 255;
+// OpenPnP's SimulatedUpCamera: a part's body and pads in these colours, a part of no known height taken as so high.
+constexpr std::array<float, 3> kSimulatedBodyColor { 60, 60, 60 }, kSimulatedPadColor { 255, 255, 255 };
+constexpr double kSimulatedPartHeightMm = 1;
 // How near the camera's centre a nozzle must be for Adjust Camera Z (OpenPnP's 0.1 mm).
 constexpr double kCenteredMm = 0.1;
 // OpenPnP's Mapped Roughly and Mapped Finely white balance: the brightness levels mapped.
@@ -194,6 +198,12 @@ void JPlacerMachine::buildCameras() {
         tips.push_back({ n.id, n.mount, diameter });
     }
     for (const JPCameraConfig& c : m_cell->config().cameras) {
+        // OpenPnP's own SimulatedUpCamera (JPSimulatedUpCamera): it shows the nozzles over it whether or not
+        // the machine is in Simulation Mode, from where it physically is (its Camera Location, else its own).
+        const bool openPnpUp = JPSimulatedUpCamera::is(c.device);
+        const JPSimulatedUpCamera::Settings up = JPSimulatedUpCamera::Settings::fromDevice(c.device);
+        const double camX = up.location ? up.location->x : c.mount.offsetX, camY = up.location ? up.location->y : c.mount.offsetY;
+        const double camZ = up.location ? up.location->z : c.mount.offsetZ;
         std::function<bool(double&, double&)> view;
         if (!c.mount.axisX.empty() && !c.mount.axisY.empty())
             view = [cell = m_cell.get(), physical, m = c.mount, seen = std::make_shared<JPSimulatedViewpoint>()](double& x, double& y) {
@@ -203,10 +213,10 @@ void JPlacerMachine::buildCameras() {
             };
         else
             // A fixed camera looks from where it is, at the nozzle tips over it (simulated).
-            view = [cell = m_cell.get(), at = c.mount](double& x, double& y) {
-                if (!cell->simulation().on()) return false;
-                x = at.offsetX;
-                y = at.offsetY;
+            view = [cell = m_cell.get(), at = c.mount, openPnpUp, camX, camY](double& x, double& y) {
+                if (!openPnpUp && !cell->simulation().on()) return false;
+                x = openPnpUp ? camX : at.offsetX;
+                y = openPnpUp ? camY : at.offsetY;
                 return true;
             };
         CameraDock d;
@@ -218,11 +228,8 @@ void JPlacerMachine::buildCameras() {
         // What OpenPnP's Simulation Mode adds to a simulated camera's picture:
         // the nozzle tips over a fixed one (going round on the runout), sparks
         // of noise, and dark while its light is off.
-        // OpenPnP's own SimulatedUpCamera shows the nozzles over it whether or not
-        // the machine is in Simulation Mode.
-        const bool openPnpUp = c.device["openpnpClass"].str() == "SimulatedUpCamera";
         d.panel->feed().setExtras([cell = m_cell.get(), physical, tips, fixed = c.mount.headId.empty(), light = c.lightActuator(),
-                                   openPnpUp, held = m_pnpChecking.holder()] {
+                                   openPnpUp, up, camX, camY, camZ, held = m_pnpChecking.holder()] {
             JPSimulatedSource::Extras e;
             const JPSimulationConfig sim = cell->simulation();
             if (!sim.on() && !openPnpUp) return e;
@@ -230,34 +237,69 @@ void JPlacerMachine::buildCameras() {
                 e.sparks = sim.cameraNoise;
                 e.dark = !light.empty() && !cell->switchedOn(light).value_or(false);
             }
-            if (fixed) {
-                const auto p = cell->positions();
-                for (const SimulatedTip& t : tips) {
-                    double x, y;
-                    if (!physical(t.mount, x, y)) continue;
-                    const auto r = p.find(t.mount.axisRotation);
-                    const double axis = r == p.end() ? 0.0 : r->second;
-                    if (sim.dynamic() && sim.runoutMm != 0) {
-                        const double a = (axis - sim.runoutPhaseDeg) * M_PI / 180;
-                        x += sim.runoutMm * std::cos(a);
-                        y += sim.runoutMm * std::sin(a);
-                    }
-                    e.spots.push_back({ x, y, t.diameter, kSimulatedTipLevel });
-                    // The part on it, as OpenPnP's SimulatedUpCamera draws it: its body
-                    // dark grey, its pads white, turned as the part is (the nozzle's rotation).
-                    const auto footprint = held(t.nozzleId);
-                    if (!footprint) continue;
-                    const double mm = JPLength(1, footprint->units).convertToUnits(JPLengthUnit::Millimeters).value();
-                    const double a = (axis + cell->rotationModeOffset(t.nozzleId)) * M_PI / 180, ca = std::cos(a), sa = std::sin(a);
-                    auto placed = [&](const JPFootprint::Outline& o, float level) {
-                        JPSimulatedSource::Extras::Outline out { {}, level };
-                        for (const JPFootprint::Point& pt : o)
-                            out.points.push_back({ x + (pt.x * ca - pt.y * sa) * mm, y + (pt.x * sa + pt.y * ca) * mm });
-                        e.outlines.push_back(std::move(out));
-                    };
-                    placed(footprint->bodyOutline(), kSimulatedBodyLevel);
-                    for (const JPFootprint::Outline& o : footprint->padsOutlines()) placed(o, kSimulatedPadLevel);
+            if (!fixed) return e;
+            using Rgb = std::array<float, 3>;
+            // OpenPnP's SimulatedUpCamera: a thing dz above its focus seen nearer its middle, smaller, by the
+            // perspective, and its colour darker by the perspective squared; blurred, as it says.
+            const JPSimulatedUpCamera::Scenario& scenario = JPSimulatedUpCamera::scenario(up.scenario);
+            auto shaded = [](const Rgb& rgb, double perspective) {
+                Rgb out;
+                for (size_t k = 0; k < 3; ++k) out[k] = float(std::min(255.0, rgb[k] / (perspective * perspective)));
+                return out;
+            };
+            auto seen = [&](double x, double y, double perspective) {
+                return std::pair { camX + (x - camX) / perspective, camY + (y - camY) / perspective };
+            };
+            const auto p = cell->positions();
+            for (const SimulatedTip& t : tips) {
+                double x, y;
+                if (!physical(t.mount, x, y)) continue;
+                const auto r = p.find(t.mount.axisRotation);
+                const double axis = r == p.end() ? 0.0 : r->second;
+                if (sim.dynamic() && sim.runoutMm != 0) {
+                    const double a = (axis - sim.runoutPhaseDeg) * M_PI / 180;
+                    x += sim.runoutMm * std::cos(a);
+                    y += sim.runoutMm * std::sin(a);
                 }
+                const auto zAxis = p.find(t.mount.axisZ);
+                const double tipZ = zAxis == p.end() ? camZ : zAxis->second + t.mount.offsetZ;
+                double perspective = 1;
+                JPSimulatedSource::Extras::Spot tip { x, y, t.diameter, kSimulatedTipLevel, std::nullopt, 0 };
+                if (openPnpUp) {
+                    perspective = up.perspective(tipZ - camZ);
+                    if (perspective <= 0 || perspective > JPSimulatedUpCamera::kFarthest) continue;
+                    std::tie(tip.x, tip.y) = seen(x, y, perspective);
+                    tip.diameter = t.diameter / perspective;
+                    tip.color = shaded({ float(scenario.nozzleTip[0]), float(scenario.nozzleTip[1]), float(scenario.nozzleTip[2]) }, perspective);
+                    tip.blurPx = float(up.blurPx(tipZ - camZ));
+                }
+                e.spots.push_back(tip);
+                // The part on it, as OpenPnP's SimulatedUpCamera draws it: its body
+                // dark grey, its pads white, turned as the part is (the nozzle's rotation),
+                // its underside a part's height below the tip, picked off by the Pick Error Offsets.
+                const JPlacerPnpChecking::Held part = held(t.nozzleId);
+                if (!part.footprint) continue;
+                const double partZ = tipZ - (part.heightMm > 0 ? part.heightMm : kSimulatedPartHeightMm);
+                const double partPerspective = openPnpUp ? up.perspective(partZ - camZ) : 1;
+                if (partPerspective <= 0 || partPerspective > JPSimulatedUpCamera::kFarthest) continue;
+                const float partBlur = openPnpUp ? float(up.blurPx(partZ - camZ)) : 0;
+                const double mm = JPLength(1, part.footprint->units).convertToUnits(JPLengthUnit::Millimeters).value();
+                const double a = (axis + cell->rotationModeOffset(t.nozzleId)) * M_PI / 180, ca = std::cos(a), sa = std::sin(a);
+                const JPMachineLocation err = openPnpUp ? up.errorOffsets : JPMachineLocation {};
+                const double ea = err.rotation * M_PI / 180, cea = std::cos(ea), sea = std::sin(ea);
+                auto placed = [&](const JPFootprint::Outline& o, float level, const Rgb& rgb) {
+                    JPSimulatedSource::Extras::Outline out { {}, level, std::nullopt, partBlur };
+                    if (openPnpUp) out.color = shaded(rgb, partPerspective);
+                    for (const JPFootprint::Point& pt : o) {
+                        // In the part's frame: off by the error, turned by its rotation; then turned as the nozzle is.
+                        const double px = err.x + (pt.x * cea - pt.y * sea) * mm, py = err.y + (pt.x * sea + pt.y * cea) * mm;
+                        const auto [sx, sy] = seen(x + px * ca - py * sa, y + px * sa + py * ca, partPerspective);
+                        out.points.push_back({ sx, sy });
+                    }
+                    e.outlines.push_back(std::move(out));
+                };
+                placed(part.footprint->bodyOutline(), kSimulatedBodyLevel, kSimulatedBodyColor);
+                for (const JPFootprint::Outline& o : part.footprint->padsOutlines()) placed(o, kSimulatedPadLevel, kSimulatedPadColor);
             }
             return e;
         });
@@ -919,8 +961,10 @@ void JPlacerMachine::setNozzlePart(const std::string& nozzleId, const std::strin
     JPCell::PartOnNozzle on;
     on.partId = partId;
     std::shared_ptr<const JPFootprint> footprint;   // for Simulation Mode's Pick & Place Checking
+    double heightMm = 0;                            // and for a simulated up-looking camera's picture of it
     if (const JPPart* part = m_configuration && !partId.empty() ? m_configuration->part(partId) : nullptr) {
         on.heightMm = part->heightForSafeZ().convertToUnits(JPLengthUnit::Millimeters).value();
+        heightMm = std::abs(part->height.convertToUnits(JPLengthUnit::Millimeters).value());
         // A height not known: the nozzle's tip's Max. Part Height (OpenPnP's getSafePartHeight).
         if (part->height.value() <= 0 && m_cell)
             for (const JPNozzleConfig& n : m_cell->config().nozzles)
@@ -933,7 +977,7 @@ void JPlacerMachine::setNozzlePart(const std::string& nozzleId, const std::strin
             footprint = std::make_shared<const JPFootprint>(pkg->footprint);
         }
     }
-    m_pnpChecking.hold(nozzleId, std::move(footprint));
+    m_pnpChecking.hold(nozzleId, std::move(footprint), heightMm);
     if (m_cell) m_cell->setNozzlePart(nozzleId, on);
     if (m_jog) m_jog->refreshRecycle();
 }

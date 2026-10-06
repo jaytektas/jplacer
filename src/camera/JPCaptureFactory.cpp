@@ -9,6 +9,7 @@
 #include "JPOnvifSource.h"
 
 #include "JPSimulatedSource.h"
+#include "JPSimulatedUpCamera.h"
 #if defined(__linux__)
 #include "JPV4L2Source.h"
 #endif
@@ -20,6 +21,12 @@ inline namespace jf {
 std::unique_ptr<JPCaptureSource> JPCaptureFactory::create(const std::string& cameraName, const JJson& device,
                                                           std::string& error, const Context& context) {
     const std::string& backend = device["backend"].str();
+    if (backend == "simulated" && JPSimulatedUpCamera::is(device)) {
+        // OpenPnP's SimulatedUpCamera: its picture made from its own settings.
+        const JPSimulatedUpCamera::Settings up = JPSimulatedUpCamera::Settings::fromDevice(device);
+        return std::make_unique<JPSimulatedSource>(cameraName, up.width, up.height, device["fps"].number(JPSimulatedUpCamera::kFps),
+                                                   up.scene(), context.view, 0, 0, context.extras);
+    }
     if (backend == "simulated")
         return std::make_unique<JPSimulatedSource>(cameraName, int(device["width"].number()),
                                                    int(device["height"].number()), device["fps"].number(),

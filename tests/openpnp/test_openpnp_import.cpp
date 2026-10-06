@@ -9,6 +9,7 @@
 #undef NDEBUG
 #include <cassert>
 
+#include "camera/JPSimulatedUpCamera.h"
 #include "machine/JPNeoden4Link.h"
 #include "openpnp/JPOpenPnpMachineImporter.h"
 
@@ -353,7 +354,11 @@ int main() {
         assert(im && im->device["simulatedDistortion"].number() == 5 && im->device["simulatedYRotation"].number() == 2);
         assert(im->device["focalLengthMm"].number() == 8 && im->device["sensorDiagonalMm"].number() == 6);
         assert(im->device["primaryFiducial"]["y"].number() == 20 && !im->device["secondaryFiducial"].isObject());
-        const JJson& m = su->device["scene"]["pxPerMm"];
+        // As OpenPnP keeps it: its simulated units per pixel, mirrored back (flipped), its background; the
+        // picture's scale from them (mirrored back: X the way a camera looking down sees it).
+        assert(su->device["simulatedUnitsPerPixel"]["x"].number() == 0.02 && su->device["simulatedFlipped"].boolean());
+        assert(su->device["backgroundScenario"].str() == "Dark");
+        const JJson m = JPSimulatedUpCamera::Settings::fromDevice(su->device).scene()["pxPerMm"];
         assert(std::abs(m[size_t(0)].number() + 50) < 1e-9 && std::abs(m[size_t(3)].number() - 50) < 1e-9);   // flipped, 50 px/mm
     }
     // OpenPnP's NeoDen4Driver: a NeoDen 4 link on its serial port, its scale,

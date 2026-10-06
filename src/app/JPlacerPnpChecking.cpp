@@ -13,17 +13,20 @@ constexpr double kPickToleranceMm = 0.1, kPickMinimumScore = 0.87;
 constexpr double kPlaceToleranceMm = 0.1, kPlaceMinimumScore = 0.58;
 } // namespace
 
-void JPlacerPnpChecking::hold(const std::string& nozzleId, std::shared_ptr<const JPFootprint> footprint) {
+void JPlacerPnpChecking::hold(const std::string& nozzleId, std::shared_ptr<const JPFootprint> footprint, double heightMm) {
     std::lock_guard lk(m_state->mutex);
+    m_state->heights[nozzleId] = heightMm;
     if (footprint) m_state->footprints[nozzleId] = std::move(footprint);
     else m_state->footprints.erase(nozzleId);
 }
 
 JPlacerPnpChecking::Holder JPlacerPnpChecking::holder() const {
-    return [state = m_state](const std::string& nozzleId) -> std::shared_ptr<const JPFootprint> {
+    return [state = m_state](const std::string& nozzleId) -> Held {
         std::lock_guard lk(state->mutex);
-        const auto it = state->footprints.find(nozzleId);
-        return it == state->footprints.end() ? nullptr : it->second;
+        Held held;
+        if (const auto it = state->footprints.find(nozzleId); it != state->footprints.end()) held.footprint = it->second;
+        if (const auto it = state->heights.find(nozzleId); it != state->heights.end()) held.heightMm = it->second;
+        return held;
     };
 }
 

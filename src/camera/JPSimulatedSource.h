@@ -7,8 +7,10 @@
 
 #include <j/config/Json.h>
 
+#include <array>
 #include <chrono>
 #include <functional>
+#include <optional>
 #include <random>
 #include <vector>
 
@@ -31,7 +33,8 @@ inline namespace jf {
 //              "marks": [ { "x": 137.137, "y": 179.265, "diameter": 1.85 },
 //                         { "x": 150, "y": 179, "diameter": 1, "level": 5 } ],   // its own brightness (a hole)
 //              "shapes": [ { "points": [[10, 10], [11, 10], [11, 11], [10, 11]] } ],   // convex, machine mm (pads)
-//              "ground": 30, "mark": 190, "noise": 3 }
+//              "ground": 30, "mark": 190, "noise": 3,
+//              "groundColor": [34, 34, 34] }                   // a coloured ground (else grey, "ground")
 class JPSimulatedSource : public JPCaptureSource {
 public:
     // Where the camera is looking (machine X, Y); false when unknown.
@@ -42,9 +45,12 @@ public:
     // sparks of noise (at most so many,
     // so no two pictures are alike), and dark while its light is off.
     struct Extras {
+        // Each in its grey `level`, or its own `color` (RGB); `blurPx`, out of focus by so many pixels.
         struct Spot {
             double x = 0, y = 0, diameter = 0;
             float  level = 0;
+            std::optional<std::array<float, 3>> color;
+            float  blurPx = 0;
         };
         std::vector<Spot> spots;
         // Filled outlines (machine mm, in order: a later one over an earlier
@@ -52,6 +58,8 @@ public:
         struct Outline {
             std::vector<std::pair<double, double>> points;
             float                                  level = 0;
+            std::optional<std::array<float, 3>>    color;
+            float                                  blurPx = 0;
         };
         std::vector<Outline> outlines;
         int               sparks = 0;
@@ -79,8 +87,9 @@ public:
 private:
     void drawScene(JPFrame& frame);
 
-    struct Mark { double x, y, diameter; float level; };
-    struct Shape { std::vector<std::pair<double, double>> points; float level; };
+    using Rgb = std::array<float, 3>;
+    struct Mark { double x, y, diameter; Rgb color; float blurPx = 0; };
+    struct Shape { std::vector<std::pair<double, double>> points; Rgb color; float blurPx = 0; };
 
     std::string m_name;
     JPCaptureMode m_mode;
@@ -88,7 +97,8 @@ private:
     double m_pxPerMm[4] = {};
     std::vector<Mark> m_marks;
     std::vector<Shape> m_shapes;
-    float m_ground = 0, m_noise = 0;
+    Rgb   m_ground {};
+    float m_noise = 0;
     double m_lensK1 = 0, m_lensK2 = 0;
     double m_lensCentre[2] = {};
     bool m_lensCentreSet = false;
