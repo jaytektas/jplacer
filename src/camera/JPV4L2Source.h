@@ -37,6 +37,10 @@ public:
     std::string describe() const override;
     JJson controls() const override;
     void reapplyControls() override { applyControls(); }
+    void setControls(const JJson& controls) override {
+        m_controls = controls;
+        applyControls();
+    }
 
     // Every capture device present, by the name it gives itself.
     static std::vector<std::string> deviceNames();

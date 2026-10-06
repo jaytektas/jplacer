@@ -3,6 +3,7 @@
 
 #include "JPImageTransform.h"
 #include "JPCameraFeed.h"
+#include "JPAutoTune.h"
 
 #include "JPCaptureFactory.h"
 
@@ -83,6 +84,11 @@ std::optional<JPCaptureMode> JPCameraFeed::mode() const {
     return m_mode;
 }
 
+void JPCameraFeed::autoTune(int autoMs, std::function<void(std::optional<JJson>)> done) {
+    std::lock_guard lk(m_mutex);
+    m_tuneAsked = Tune { autoMs, std::move(done) };
+}
+
 void JPCameraFeed::run() {
     // A camera can drop off its bus (a stepper's noise on a USB cable) or
     // hang with no error: either way it is closed and opened again, by its
@@ -141,11 +147,40 @@ void JPCameraFeed::runSource(std::string& why) {
     const auto samePicture = std::chrono::seconds(m_config.lost.samePictureS);
     uint64_t lastPrint = 0;
     auto changed = std::chrono::steady_clock::now();
+    // Defaults, then Auto-Tune (autoTune): asked for, and under way.
+    std::optional<Tune> tune;
+    std::optional<JPAutoTune> tuning;
     while (m_running) {
         if (m_reapply.exchange(false)) {
             source->reapplyControls();
             std::lock_guard lk(m_mutex);
             m_deviceControls = source->controls();
+        }
+        if (!tune) {
+            std::lock_guard lk(m_mutex);
+            if (m_tuneAsked) {
+                tune = std::move(m_tuneAsked);
+                m_tuneAsked.reset();
+            }
+            if (tune) {
+                tuning.emplace(tune->autoMs, kHoldMs);
+                if (!tuning->start(*source, std::chrono::steady_clock::now())) {
+                    tune->done(std::nullopt);
+                    tune.reset();
+                    tuning.reset();
+                } else {
+                    JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << m_config.name << ": defaults set, auto-tuning";
+                }
+            }
+        } else if (const auto tuned = tuning->step(*source, std::chrono::steady_clock::now())) {
+            {
+                std::lock_guard lk(m_mutex);
+                m_deviceControls = source->controls();
+            }
+            JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << m_config.name << ": auto-tuned";
+            tune->done(*tuned);
+            tune.reset();
+            tuning.reset();
         }
         std::string error;
         if (!source->grab(frame, kGrabSliceMs, error)) {
@@ -197,6 +232,7 @@ void JPCameraFeed::runSource(std::string& why) {
         }
         onFrame.emit(m_latest.sequence);
     }
+    if (tune) tune->done(std::nullopt);   // stopped before the tuning was done
     source->close();
 }
 

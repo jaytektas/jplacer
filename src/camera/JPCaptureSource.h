@@ -38,6 +38,9 @@ public:
     // OpenPnP's Reapply to Camera: the device's own settings set again as they
     // are to be (a device without such settings: nothing).
     virtual void reapplyControls() {}
+    // The device's own settings to be these (as `controls` is written: by name, "auto" and "value"; a
+    // setting with "auto" false and no "value" switched to manual, keeping what it has), set now.
+    virtual void setControls(const JJson&) {}
 
     // Waiting for its turn (a switcher camera not switched in): no picture,
     // and not a camera that has hung.

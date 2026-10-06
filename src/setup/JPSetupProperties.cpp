@@ -2327,6 +2327,9 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
                      "own units; Min, Max and Default are the camera's, as it reports them while it runs. The settings ticked "
                      "are set each time the camera opens (OpenPnP's Freeze Properties).");
             add.button("reapplyControls", "Reapply to Camera", "Reapply the frozen properties to the camera.");
+            add.button("defaultsAutoTune", "Defaults, then Auto-Tune",
+                       "Set every property to the camera's own default, let those it can tune themselves for a moment, "
+                       "then keep what they settled on (every property set).");
         }
     }
 

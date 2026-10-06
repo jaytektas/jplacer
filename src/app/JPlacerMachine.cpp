@@ -68,6 +68,8 @@ constexpr float  kSimulatedPadLevel = 255;
 // OpenPnP's SimulatedUpCamera: a part's body and pads in these colours, a part of no known height taken as so high.
 constexpr std::array<float, 3> kSimulatedBodyColor { 60, 60, 60 }, kSimulatedPadColor { 255, 255, 255 };
 constexpr double kSimulatedPartHeightMm = 1;
+// Defaults, then Auto-Tune: how long the camera's automatic settings are left to settle.
+constexpr int kAutoTuneMs = 1500;
 // How near the camera's centre a nozzle must be for Adjust Camera Z (OpenPnP's 0.1 mm).
 constexpr double kCenteredMm = 0.1;
 // OpenPnP's Mapped Roughly and Mapped Finely white balance: the brightness levels mapped.
@@ -1385,6 +1387,39 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
                             if (cam.id == id) cam.settleTrace = trace;
                     });
                 });
+    } else if (action == "defaultsAutoTune" && path.rfind("camera:", 0) == 0) {
+        // Every property to the camera's default, the automatic ones tuned a moment, then held and kept.
+        const std::string id = path.substr(7);
+        for (CameraDock& d : m_cameras) {
+            if (d.panel->camera().id != id) continue;
+            JPCameraFeed* feed = &d.panel->feed();
+            const std::string name = d.panel->camera().name;
+            if (!feed->isRunning()) {
+                showCamera(id);   // started for it; try again once it shows
+                m_window.showStatus(name + " is starting: try again once it shows", kStatusMs);
+                return;
+            }
+            m_window.showStatus(name + ": defaults set, auto-tuning...", kStatusMs);
+            std::weak_ptr<bool> alive = m_alive;
+            feed->autoTune(kAutoTuneMs, [this, alive, id, name](std::optional<JJson> tuned) {
+                JMainThreadDispatcher::instance().post([this, alive, id, name, tuned] {
+                    if (const auto a = alive.lock(); !a || !*a) return;
+                    if (!tuned) {
+                        m_window.showStatus(name + ": not tuned (the camera has no properties, or it stopped)", kErrorMs);
+                        return;
+                    }
+                    if (m_setup) {
+                        m_setup->change(name + ": Defaults, then Auto-Tune", [&](JPCellConfig& cell) {
+                            for (JPCameraConfig& cam : cell.cameras)
+                                if (cam.id == id) cam.device["controls"] = *tuned;
+                        });
+                        m_setup->remakeForm();
+                    }
+                    m_window.showStatus(name + ": auto-tuned; its properties kept", kStatusMs);
+                });
+            });
+            return;
+        }
     } else if ((action == "reapplyControls" || action == "captureFpsTest") && path.rfind("camera:", 0) == 0) {
         const std::string id = path.substr(7);
         for (CameraDock& d : m_cameras) {

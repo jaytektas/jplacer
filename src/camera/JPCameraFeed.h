@@ -65,6 +65,12 @@ public:
     JJson deviceControls() const;
     // OpenPnP's Reapply to Camera: the device's settings set again (on its own thread, soon).
     void reapplyControls() { m_reapply = true; }
+    // Defaults, then Auto-Tune: every setting the device has to its own default, those with an automatic
+    // mode left to it for `autoMs`, then switched to manual holding what they settled on; `done` told the
+    // settings so arrived at (by name: "auto" false and "value"), or none when the device has no settings
+    // or it stopped first. On the capture thread, soon.
+    void autoTune(int autoMs, std::function<void(std::optional<JJson> tuned)> done);
+    static constexpr int kHoldMs = 200;   // after switching to manual, before the held values are read
     // The mode it is capturing in, once started.
     std::optional<JPCaptureMode> mode() const;
     // Lost (or hung) and being opened again, and why: until its first picture
@@ -101,6 +107,12 @@ private:
     JPFrame                      m_latest;
     JJson m_deviceControls = JJson::object();   // deviceControls()
     std::atomic<bool> m_reapply { false };       // reapplyControls()
+    // autoTune(): asked (guarded by m_mutex), then its steps on the capture thread.
+    struct Tune {
+        int autoMs = 0;
+        std::function<void(std::optional<JJson>)> done;
+    };
+    std::optional<Tune> m_tuneAsked;
     JPFrame                      m_unbalanced;   // m_latest before white balance (kept while there is one)
     JPWhiteBalance               m_balance;
     std::optional<JPCaptureMode> m_mode;
