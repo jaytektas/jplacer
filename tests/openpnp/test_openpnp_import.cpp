@@ -146,21 +146,20 @@ int main() {
         const JPActuatorConfig back = JPActuatorConfig::fromJson(lights.toJson());
         assert(back.valueType == JPActuatorConfig::ValueType::Profile && back.profileNamed("All")->values[0] == "true");
     }
-    // Signalers: OpenPnP's sound and actuator ones; any other is left out and said.
-    assert(cell.signalers.size() == 2);
+    // Signalers: OpenPnP's sound, actuator and Neoden4 ones.
+    assert(cell.signalers.size() == 3);
     assert(cell.signalers[0].kind == JPSignalerConfig::Kind::Sound && cell.signalers[0].id == "SIG1");
     assert(cell.signalers[0].errorSound && !cell.signalers[0].finishedSound);
     assert(cell.signalers[1].kind == JPSignalerConfig::Kind::Actuator && cell.signalers[1].name == "Beacon");
     assert(cell.signalers[1].actuatorId == "ACT1" && cell.signalers[1].jobState == JPSignalerConfig::JobState::Error);
+    assert(cell.signalers[2].kind == JPSignalerConfig::Kind::Neoden4 && cell.signalers[2].id == "SIG3");
     {
-        bool said = false;
-        for (const std::string& n : notes) said |= n.find("Neoden4Signaler") != std::string::npos;
-        assert(said);
+        for (const std::string& n : notes) assert(n.find("Neoden4Signaler") == std::string::npos);
         std::string e;
         JPCellConfig back;
         assert(back.fromJson(cell.toJson(), e));
-        assert(back.signalers.size() == 2 && back.signalers[1].jobState == JPSignalerConfig::JobState::Error);
-        assert(!back.signalers[0].jobState && back.signalers[0].errorSound);
+        assert(back.signalers.size() == 3 && back.signalers[1].jobState == JPSignalerConfig::JobState::Error);
+        assert(!back.signalers[0].jobState && back.signalers[0].errorSound && back.signalers[2].kind == JPSignalerConfig::Kind::Neoden4);
     }
     const JPActuatorConfig& sol = cell.actuators[0];
     assert(sol.name == "RIGHT_SOLENOID" && sol.index == "4");

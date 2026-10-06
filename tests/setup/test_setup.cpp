@@ -239,7 +239,7 @@ int main() {
     {
         JPCellConfig c = cell();
         assert(JPSetupEdits::addable(c, "group:signalers") == "Signaler");
-        assert(JPSetupEdits::kinds(c, "group:signalers").size() == 2);
+        assert(JPSetupEdits::kinds(c, "group:signalers").size() == 3);
         assert(JPSetupEdits::kinds(c, "group:axes").empty());
         assert(JPSetupEdits::add(c, "group:signalers").empty());   // no kind: nothing added
         const std::string sound = JPSetupEdits::add(c, "group:signalers", "SoundSignaler");
