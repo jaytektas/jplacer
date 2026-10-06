@@ -45,12 +45,6 @@ std::string nameOf(const JPCellConfig& cell, const std::string& path) {
     return labels.empty() ? path : labels.back();
 }
 
-std::string joined(const std::vector<std::string>& parts) {
-    std::string out;
-    for (const std::string& p : parts) out += (out.empty() ? "" : "/") + p;
-    return out;
-}
-
 } // namespace
 
 JPMachineSetupPanel::JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, std::vector<JPFirmwareProfile> profiles,
@@ -399,7 +393,7 @@ void JPMachineSetupPanel::select(const std::string& path) {
     }
     // Selecting in the tree shows it (onSelectionChanged), unless it is shown already.
     const std::string before = m_selected;
-    m_tree->selectByPath(joined(labels));
+    m_tree->selectByLabels(labels);   // a name may hold a "/" ("0805 / 0603")
     if (m_selected == before && before != path) show(path);
 }
 

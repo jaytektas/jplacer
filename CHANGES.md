@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Machine Setup's tree highlights what is shown when it is brought up from elsewhere (a camera's settings button, say)
+  even when its name holds a "/" (a nozzle tip named "0805 / 0603").
 - Save the picture on a camera that is not running starts it and saves a fresh, lit picture, not the last one from
   when it stopped (which could be dark).
 - Camera calibration measures its mark with jplacer's own round mark finder again, now as a pipeline stage of its
