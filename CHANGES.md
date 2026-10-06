@@ -10,6 +10,12 @@ notes.
 
 ## Unreleased
 
+- Changing a nozzle's X/Y offsets (Calibrate Precise Offsets, or typing them) takes along what depends on them, as
+  in OpenPnP: the nozzle tips' runout is forgotten (it was measured against the old offsets), the manual tip change
+  location moves with it, an actuator fastened to it gets the new offsets, and for the head's first nozzle the
+  camera looking up moves with it. Undo takes them back together.
+- Calibrate Precise Offsets lets the test object go if it fails while holding it, instead of lifting it on vacuum.
+
 - A nozzle tip's Calibration tab has OpenPnP's Calibrate Camera Position and Rotation: the tip, its runout
   measured, is sent round a circle over the camera looking up, and the camera's position and turn are set from
   where it is seen.

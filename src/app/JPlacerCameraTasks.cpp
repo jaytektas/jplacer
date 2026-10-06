@@ -446,6 +446,7 @@ void JPlacerCameraTasks::calibrateNozzleOffsets(JPCameraPanel& camera, const JPN
         int accumulated = 0;
         const double da = 360.0 / std::max(1, m_cell.config().nozzleOffsetAngles);
         bool ok = true;
+        bool holding = false;   // picked and not yet placed
         for (double angle = -180 + da / 2; angle < 180 && ok; angle += da) {
             char step[64];
             std::snprintf(step, sizeof step, "pick and place at %.0f deg", angle);
@@ -454,15 +455,18 @@ void JPlacerCameraTasks::calibrateNozzleOffsets(JPCameraPanel& camera, const JPN
             sumY -= y;
             // Picked at the angle, placed turned 180: the true axis is midway between the two places.
             ok = m_cell.pickAtAndWait(n.id, { x, y, z, angle }, kTaskSpeed, words);
+            holding = ok;
             if (ok) std::this_thread::sleep_for(std::chrono::milliseconds(kExtraVacuumDwellMs));
             ok = ok && m_cell.placeAtAndWait(n.id, { x, y, z + kTestObjectHeightMm, angle + 180 }, kTaskSpeed, words);
+            if (ok) holding = false;
             if (ok) std::this_thread::sleep_for(std::chrono::milliseconds(kExtraVacuumDwellMs));
             ok = ok && centreOn(x, y);
             sumX += x;
             sumY += y;
             accumulated += 2;
         }
-        // Up, unturned, whatever happened.
+        // The test object let go where it is, if it is still held (as OpenPnP's); then up, unturned, whatever happened.
+        if (holding) m_cell.place(n.id);
         std::string up;
         m_cell.moveToolAndWait(n.mount, { std::nullopt, std::nullopt, std::nullopt, 0.0 }, kTaskSpeed, up);
         if (!ok) return false;

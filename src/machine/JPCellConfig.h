@@ -72,6 +72,13 @@ struct JPCellConfig {
     // Every reference that points at nothing (an axis naming a missing
     // controller, a nozzle a missing axis, ...), in words; empty when sound.
     std::vector<std::string> problems() const;
+    // OpenPnP's adjustHeadOffsetsDependencies, for each nozzle whose X, Y offsets differ from `before`'s: every
+    // nozzle tip's runout forgotten (measured against the old offsets; more than kOffsetsMovedMm), the nozzle's
+    // manual tip change location moved with it, what else on the head shares its old X, Y offsets (an actuator
+    // fastened to it) given the new ones, and for its head's first (default) nozzle, the cameras looking up
+    // moved with it (they were most likely calibrated with it).
+    void followNozzleOffsets(const JPCellConfig& before);
+    static constexpr double kOffsetsMovedMm = 0.01;
 
     const JPAxisConfig*   axis(const std::string& id) const;
     const JPDriverConfig* driver(const std::string& id) const;

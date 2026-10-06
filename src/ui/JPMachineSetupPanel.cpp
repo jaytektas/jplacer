@@ -223,6 +223,8 @@ void JPMachineSetupPanel::change(const std::string& what, const std::function<vo
 }
 
 void JPMachineSetupPanel::record(const std::string& what, const std::string& key, const std::string& from) {
+    // A nozzle's offsets changed: what depends on them follows, in the same step (OpenPnP's).
+    m_draft.followNozzleOffsets(m_recorded);
     JPSetupHistory::State after{ m_draft, m_selected };
     m_history.record(what, key, { std::move(m_recorded), from }, after);
     m_recorded = std::move(after.cell);

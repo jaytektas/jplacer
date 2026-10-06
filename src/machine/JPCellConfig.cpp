@@ -4,6 +4,7 @@
 #include "JPCellConfig.h"
 
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <set>
 
@@ -205,6 +206,50 @@ std::vector<std::string> JPCellConfig::problems() const {
                 out.push_back("the squareness correction names an axis that is not a controller's in this cell");
         }
     return out;
+}
+
+} // inline namespace jf
+
+inline namespace jf {
+
+void JPCellConfig::followNozzleOffsets(const JPCellConfig& before) {
+    for (JPNozzleConfig& n : nozzles) {
+        const JPNozzleConfig* was = nullptr;
+        for (const JPNozzleConfig& b : before.nozzles)
+            if (b.id == n.id) was = &b;
+        if (!was) continue;
+        const double oldX = was->mount.offsetX, oldY = was->mount.offsetY;
+        const double dx = n.mount.offsetX - oldX, dy = n.mount.offsetY - oldY;
+        if (dx == 0 && dy == 0) continue;
+        if (std::hypot(dx, dy) > kOffsetsMovedMm)
+            for (JPNozzleTipConfig& t : nozzleTips) t.runout.clear();
+        if (n.manualChangeLocation) {
+            n.manualChangeLocation->x += dx;
+            n.manualChangeLocation->y += dy;
+        }
+        // Only offsets that were set (OpenPnP's isInitialized: not all zero) say what else was set from them.
+        if (oldX == 0 && oldY == 0 && was->mount.offsetZ == 0) continue;
+        // What is fastened to it: the same X, Y offsets as it had.
+        auto follows = [&](JPMountConfig& m) {
+            if (m.headId == n.mount.headId && std::hypot(m.offsetX - oldX, m.offsetY - oldY) <= kOffsetsMovedMm) {
+                m.offsetX = n.mount.offsetX;
+                m.offsetY = n.mount.offsetY;
+            }
+        };
+        for (JPActuatorConfig& a : actuators) follows(a.mount);
+        for (JPCameraConfig& c : cameras)
+            if (!c.mount.headId.empty()) follows(c.mount);
+        // The head's default nozzle: the cameras looking up were most likely calibrated with it.
+        const JPNozzleConfig* first = nullptr;
+        for (const JPNozzleConfig& k : nozzles)
+            if (!first && k.mount.headId == n.mount.headId) first = &k;
+        if (first == &n)
+            for (JPCameraConfig& c : cameras)
+                if (c.mount.headId.empty() && c.looksUp && (c.mount.offsetX != 0 || c.mount.offsetY != 0 || c.mount.offsetZ != 0)) {
+                    c.mount.offsetX += dx;
+                    c.mount.offsetY += dy;
+                }
+    }
 }
 
 } // inline namespace jf
