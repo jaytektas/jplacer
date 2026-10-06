@@ -54,6 +54,10 @@ public:
 private:
     // settled() without its scripting events.
     static bool settledNow(JPCameraFeed& feed, JPGrayImage& out, std::string& why, JPSettleTrace* trace);
+    // With the camera's Expose each picture?, the exposure set for its brightness and `out` taken again;
+    // false only when it could not be (no exposure to set, the camera stopped). Waited for at most kExposeMs.
+    static bool exposedNow(JPCameraFeed& feed, JPGrayImage& out, std::string& why);
+    static constexpr int kExposeMs = 3000;
 };
 
 } // inline namespace jf

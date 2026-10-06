@@ -5,6 +5,7 @@
 
 #include "JPCaptureMode.h"
 #include "JPFrame.h"
+#include "JPOneShotExposure.h"
 #include "JPSimulatedSource.h"
 #include "JPSwitcherSource.h"
 #include "JPWhiteBalance.h"
@@ -71,6 +72,10 @@ public:
     // or it stopped first. On the capture thread, soon.
     void autoTune(int autoMs, std::function<void(std::optional<JJson> tuned)> done);
     static constexpr int kAutoTuneMs = 1200;   // the moment its automatic settings are given (autoTune)
+    // Its exposure set, by hand, for a picture of `target` brightness (JPOneShotExposure); `done` told how it
+    // went (not ok, with why, when the device has no exposure, it stopped first, or the target was not reached).
+    // On the capture thread, soon.
+    void expose(double target, std::function<void(const JPOneShotExposure::Result&)> done);
     static constexpr int kHoldMs = 200;   // after switching to manual, before the held values are read
     // The mode it is capturing in, once started.
     std::optional<JPCaptureMode> mode() const;
@@ -114,7 +119,14 @@ private:
         std::function<void(std::optional<JJson>)> done;
     };
     std::optional<Tune> m_tuneAsked;
+    // expose(): asked (guarded by m_mutex), then its steps on the capture thread.
+    struct Expose {
+        double target = 0;
+        std::function<void(const JPOneShotExposure::Result&)> done;
+    };
+    std::optional<Expose> m_exposeAsked;
     std::optional<JJson> m_tuned;   // the capture thread's: what Auto-Tune arrived at, set each time it opens again
+    std::optional<double> m_exposed;   // the capture thread's: the exposure expose() last set, set each time too
     JPFrame                      m_unbalanced;   // m_latest before white balance (kept while there is one)
     JPWhiteBalance               m_balance;
     std::optional<JPCaptureMode> m_mode;

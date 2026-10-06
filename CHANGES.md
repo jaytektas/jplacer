@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- A camera's Device Settings have Expose each picture? with a Brightness: every picture taken for vision is taken
+  with the exposure set first for that brightness under the light there is then, for a cell whose light changes.
 - Defaults, then Auto-Tune switches the camera's light on first (and other cameras' Anti-Glare lights off), so the
   camera is tuned for the pictures vision takes; with the machine off it says to connect first, rather than tuning
   a dark camera.

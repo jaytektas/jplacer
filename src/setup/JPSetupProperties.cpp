@@ -2517,6 +2517,11 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
             add.flag("autoTuneOnHoming", "Auto-Tune when homing?", [c]() -> bool& { return c().autoTuneOnHoming; });
             add.tip("Each visual homing, first over the head's primary fiducial with the light on: Defaults, then "
                     "Auto-Tune, its properties kept; homing goes on once it is tuned.");
+            add.flag("exposeEachPicture", "Expose each picture?", [c]() -> bool& { return c().exposeEachPicture; });
+            add.tip("Each picture taken for vision (every pipeline's, visual homing's, calibration's) taken with the "
+                    "exposure set first for the Brightness below, under the light there is then.");
+            add.integer("exposeBrightness", "Brightness", [c]() -> int& { return c().exposeBrightness; }, 1, 254);
+            add.tip("The brightness (1 to 254) a picture for vision is exposed for.");
         }
     }
 

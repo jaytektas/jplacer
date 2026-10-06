@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <future>
 #include <optional>
 #include <thread>
 
@@ -74,8 +75,27 @@ bool JPCameraLook::settled(JPCameraFeed& feed, JPGrayImage& out, std::string& wh
     // OpenPnP's settleAndCapture, with its scripting events: settled, then the picture taken.
     auto event = [&feed, &why](const char* name) { return !feed.scriptEvent || feed.scriptEvent(name, why); };
     feed.claim();   // a switcher camera switched in for this
-    return event("Camera.BeforeSettle") && settledNow(feed, out, why, trace) && event("Camera.AfterSettle")
+    return event("Camera.BeforeSettle") && settledNow(feed, out, why, trace) && exposedNow(feed, out, why)
+        && event("Camera.AfterSettle")
         && event("Camera.BeforeCapture") && event("Camera.AfterCapture");
+}
+
+bool JPCameraLook::exposedNow(JPCameraFeed& feed, JPGrayImage& out, std::string& why) {
+    if (!feed.config().exposeEachPicture) return true;
+    // Told on the capture thread; shared, so a late answer has somewhere to go.
+    auto told = std::make_shared<std::promise<JPOneShotExposure::Result>>();
+    std::future<JPOneShotExposure::Result> exposed = told->get_future();
+    feed.expose(feed.config().exposeBrightness, [told](const JPOneShotExposure::Result& r) { told->set_value(r); });
+    if (exposed.wait_for(std::chrono::milliseconds(kExposeMs)) != std::future_status::ready) {
+        why = feed.config().name + " was not exposed within " + std::to_string(kExposeMs) + " ms";
+        return false;
+    }
+    // Not reached (too dark even at its longest, say): the picture as near as it got, for vision to judge.
+    if (const JPOneShotExposure::Result r = exposed.get(); !r.ok && r.pictures == 0) {
+        why = feed.config().name + " could not be exposed: " + r.why;
+        return false;
+    }
+    return taken(feed, out, why, 0);
 }
 
 bool JPCameraLook::settledNow(JPCameraFeed& feed, JPGrayImage& out, std::string& why, JPSettleTrace* trace) {

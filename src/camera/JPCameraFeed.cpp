@@ -84,6 +84,11 @@ std::optional<JPCaptureMode> JPCameraFeed::mode() const {
     return m_mode;
 }
 
+void JPCameraFeed::expose(double target, std::function<void(const JPOneShotExposure::Result&)> done) {
+    std::lock_guard lk(m_mutex);
+    m_exposeAsked = Expose { target, std::move(done) };
+}
+
 void JPCameraFeed::autoTune(int autoMs, std::function<void(std::optional<JJson>)> done) {
     std::lock_guard lk(m_mutex);
     m_tuneAsked = Tune { autoMs, std::move(done) };
@@ -120,9 +125,14 @@ void JPCameraFeed::runSource(std::string& why) {
     context.extras = m_extras;
     context.links = m_links;
     context.takeClaim = [this] { return m_claimed.exchange(false); };
-    // Opened with its settings as last tuned, where they were (kept in the cell by whoever asked).
+    // Opened with its settings as last tuned, where they were (kept in the cell by whoever asked), and its
+    // exposure as last set for a picture (the light most likely as it was).
     JJson device = m_config.device;
     if (m_tuned) device["controls"] = *m_tuned;
+    if (m_exposed) {
+        device["controls"]["exposure"]["auto"] = false;
+        device["controls"]["exposure"]["value"] = *m_exposed;
+    }
     auto source = JPCaptureFactory::create(m_config.name, device, why, context);
     if (!source || !source->open(why)) return;
     const auto mode = JPCaptureFactory::choose(source->modes(), m_config.device);
@@ -153,6 +163,9 @@ void JPCameraFeed::runSource(std::string& why) {
     // Defaults, then Auto-Tune (autoTune): asked for, and under way.
     std::optional<Tune> tune;
     std::optional<JPAutoTune> tuning;
+    // expose(): asked for, and under way (not while tuning).
+    std::optional<Expose> exposeAsk;
+    std::optional<JPOneShotExposure> exposing;
     while (m_running) {
         if (m_reapply.exchange(false)) {
             source->reapplyControls();
@@ -184,6 +197,7 @@ void JPCameraFeed::runSource(std::string& why) {
                 JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << m_config.name << ": auto-tuned: brightness " << tuning->got()
                                                             << " (aimed " << tuning->aim() << "): " << tuned->dump();
                 m_tuned = *tuned;
+                m_exposed.reset();   // tuned afresh
                 tune->done(*tuned);
             } else {
                 // Not kept: what the device holds now is not what it was tuned for.
@@ -194,6 +208,32 @@ void JPCameraFeed::runSource(std::string& why) {
             }
             tune.reset();
             tuning.reset();
+        }
+        if (!tune && !exposeAsk) {
+            {
+                std::lock_guard lk(m_mutex);
+                exposeAsk = std::move(m_exposeAsked);
+                m_exposeAsked.reset();
+            }
+            if (exposeAsk) {
+                exposing.emplace();
+                JPOneShotExposure::Result failed;
+                if (!exposing->start(*source, exposeAsk->target, failed.why)) {
+                    exposeAsk->done(failed);
+                    exposeAsk.reset();
+                    exposing.reset();
+                }
+            }
+        } else if (exposing) {
+            if (const auto done = exposing->step(*source)) {
+                JLOGC(JPlacerLog::kCamera, done->ok ? JLogLevel::Info : JLogLevel::Warn)
+                    << m_config.name << ": exposed " << done->exposure << " for brightness " << done->brightness << " in "
+                    << done->pictures << " picture(s)" << (done->ok ? std::string() : ": " + done->why);
+                m_exposed = done->exposure;
+                exposeAsk->done(*done);
+                exposeAsk.reset();
+                exposing.reset();
+            }
         }
         std::string error;
         if (!source->grab(frame, kGrabSliceMs, error)) {
@@ -214,6 +254,7 @@ void JPCameraFeed::runSource(std::string& why) {
         }
         lastFrame = std::chrono::steady_clock::now();
         if (tuning) tuning->see(frame, lastFrame);   // Auto-Tune looks at the pictures as taken
+        if (exposing) exposing->see(frame);
         if (canFreeze) {
             const uint64_t print = fingerprint(frame.rgba);
             if (print != lastPrint) {
@@ -252,6 +293,11 @@ void JPCameraFeed::runSource(std::string& why) {
         onFrame.emit(m_latest.sequence);
     }
     if (tune) tune->done(std::nullopt);   // stopped before the tuning was done
+    if (exposeAsk) {
+        JPOneShotExposure::Result stopped;
+        stopped.why = m_config.name + " stopped";
+        exposeAsk->done(stopped);
+    }
     source->close();
 }
 
