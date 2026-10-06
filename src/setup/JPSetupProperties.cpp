@@ -378,6 +378,9 @@ void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPF
         if (!neoden4)
             add.choice("lineEnding", "Line-Endings", { "LF", "CR", "CRLF" }, linkText("lineEnding", "LF"),
                        [d](const std::string& v) { d().link["lineEnding"] = v; });
+        if (!neoden4)
+            add.tip("Line-endings used in commands and responses (if the driver uses them).\nLF = Line Feed\n"
+                    "CR = Carriage Return\nCRLF = Line Feed & Carriage Return");
         if (neoden4) {
             // OpenPnP's NeoDen4Driver settings: where X and Y home (the axes'
             // home coordinates), and the scale of their steps.
@@ -846,7 +849,11 @@ void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
             break;
     }
     if (a().kind == A::Kind::Controller && (a().type == A::Type::X || a().type == A::Type::Y)) {
-        add.actions({ { "Calibrate", "calibrateBacklash" } });
+        add.actionsWithTips({ { "Calibrate", "calibrateBacklash",
+                                "Calibrate the axis backlash compensation settings using the calibration fiducial.\n"
+                                "Make sure the calibration rig is set up and present.\nConsider using this function "
+                                "from Issues & Solutions where you get step by step instructions, for the needed "
+                                "preparatory steps and the calibration in proper sequence." } });
         add.note("Calibrate measures the play with the head camera over the homing fiducial (the machine homed, the "
                  "camera calibrated): standing still for the tolerance, then coming in from either side over "
                  "distances and at speeds, then chooses the method and tries it with moves from random places.");
@@ -2363,6 +2370,9 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
         add.words(fps);
         add.button("captureFpsTest", "Test", "Count the pictures the camera gives over two seconds: the average FPS obtained.");
         add.end();
+        add.labelTip("The test captures frames as fast as possible and computes the average FPS obtained.\nFrames are "
+                     "copied from the camera buffer, but no additional processing is done (no lens calibration, no "
+                     "transforms etc.)");
 
         if (captureDevice) {
             // The camera's own settings: each one jplacer sets when it opens the

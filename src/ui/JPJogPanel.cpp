@@ -388,7 +388,7 @@ std::unique_ptr<JWidget> JPJogPanel::specialPage() {
     struct B { const char* label; const char* action; const char* tip; };
     for (const B& b : { B{ "Head Safe Z", "safeZ", "Every Z on the head up to safe Z" },
                         B{ "Discard", "discard", "Drop the nozzle's part at the discard location" },
-                        B{ "Recycle", "recycle", "Put the nozzle's part back into a feeder that holds it" },
+                        B{ "Recycle", "recycle", "Put the part on the current nozzle back in a feeder." },
                         B{ "Pick", "pick", "Vacuum on where the nozzle is, as a pick does" },
                         B{ "Place", "place", "Vacuum off and blow off where the nozzle is, as a place does" } }) {
         JButton* button = buttons->add(JPUiParts::button(m_graph, b.label));
