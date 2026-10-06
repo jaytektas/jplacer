@@ -32,8 +32,8 @@ void JPImageBox::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     buf.pushRectangle(b.x, b.y, b.width, b.height, Colors::DockContentBg, 0.f, st.borderWidth, Colors::Border);
     if (m_tex != kNullTexture && m_image) {
         const float inset = st.borderWidth;
-        const float room = std::max(0.f, std::min(b.width, b.height) - 2 * inset);
-        const float scale = std::min(room / float(m_image->width), room / float(m_image->height));
+        const float roomW = std::max(0.f, b.width - 2 * inset), roomH = std::max(0.f, b.height - 2 * inset);
+        const float scale = std::min(roomW / float(m_image->width), roomH / float(m_image->height));
         const float w = float(m_image->width) * scale, h = float(m_image->height) * scale;
         buf.pushImage(b.x + (b.width - w) * 0.5f, b.y + (b.height - h) * 0.5f, w, h, m_tex);
     }

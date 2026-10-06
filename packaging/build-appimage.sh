@@ -42,6 +42,8 @@ cp -r "$ROOT/translations" "$APPDIR/usr/bin/translations"
 cp -r "$ROOT/openpnp-defaults" "$APPDIR/usr/bin/openpnp-defaults"
 # OpenPnP's icons too: JPOpenPnpIcons reads usr/bin/icons.
 cp -r "$ROOT/icons" "$APPDIR/usr/bin/icons"
+# OpenPnP's illustrations too: JPIllustrations reads usr/bin/illustrations.
+cp -r "$ROOT/illustrations" "$APPDIR/usr/bin/illustrations"
 # And its BlindsFeeder OpenSCAD models: a blinds feeder's Extract 3D-Printing Files reads usr/bin/openscad.
 cp -r "$ROOT/openscad" "$APPDIR/usr/bin/openscad"
 

@@ -12,6 +12,7 @@ notes.
 
 - An actuator can be OpenPnP's ThermistorToLinearSensorActuator: a temperature read turned into what a linear sensor
   would read, set on its Transforms tab. Number boxes are wide enough for all their decimal places.
+- A rotated tray feeder's page shows OpenPnP's Tray Illustration of its three points and offsets.
 - Adding a controller on Machine Setup asks which kind, as OpenPnP's: NullDriver (simulated), GcodeDriver,
   GcodeAsyncDriver or NeoDen4Driver.
 - A NeoDen 4 can be driven, as OpenPnP's NeoDen4Driver drives it: Communications Type neoden4, its scale factors

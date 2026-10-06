@@ -71,8 +71,10 @@ public:
         std::shared_ptr<const JPPlot> plot;   // Kind::Plot
         // Kind::Strip: each cell's state (JPSearchStrip's), read again on a refresh.
         std::function<std::vector<int>()> strip;
-        // Kind::Image: the picture now (null: none), read again on a refresh.
+        // Kind::Image: the picture now (null: none), read again on a refresh;
+        // shown in a square box, or (an illustration) at its own size.
         std::function<std::shared_ptr<const JPFrame>()> image;
+        bool ownSize = false;
         // Place::Location: the actuator its tool buttons use (OpenPnP's
         // LocationButtonsPanel actuatorName), read when it is shown; none
         // or empty: the nozzle chosen.

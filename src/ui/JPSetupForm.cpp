@@ -482,19 +482,25 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
             }
             case Row::Kind::Image: {
                 // Its label in the labels' column, the picture beside it.
-                const float side = kImageLines * st.labelHeight;
+                float width = kImageLines * st.labelHeight, height = width;
+                if (r.ownSize && r.image)
+                    if (const auto shown = r.image(); shown && shown->width > 0) {
+                        // As drawn, inside the box's border.
+                        width = float(shown->width) + 2 * st.borderWidth;
+                        height = float(shown->height) + 2 * st.borderWidth;
+                    }
                 auto row = JPUiParts::row(m_graph);
-                auto name = box(m_graph, labels, side, JJustifyContent::FlexEnd);
+                auto name = box(m_graph, labels, height, JJustifyContent::FlexEnd);
                 name->add(label(m_graph, r.label));
                 row->add(std::move(name));
                 JPImageBox* image = row->add(std::make_unique<JPImageBox>(m_graph, m_hal));
-                image->setFixedSize(side, side);
+                image->setFixedSize(width, height);
                 auto pull = [image, get = r.image] { image->setImage(get ? get() : nullptr); };
                 pull();
                 m_pulls.push_back(pull);
-                row->setFixedSize(0.f, side);
+                row->setFixedSize(0.f, height);
                 row->setHSizePolicy(JSizePolicyMode::Expanding, 1);
-                place(std::move(row), side);
+                place(std::move(row), height);
                 break;
             }
             case Row::Kind::Actions: {

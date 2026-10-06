@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
 #include "JPFeederForms.h"
+#include "JPIllustrations.h"
 
 #include "JPFormBuilder.h"
 
@@ -1389,6 +1390,8 @@ void rotatedTrayForm(JPFormBuilder& add, JPConfiguration& config, std::function<
     add.end();
     coordinate(add, f, "location", Axis::Rotation, "Tray Rotation [°]");
     add.tip("Angle of the tray's A->B (row) axis relative to the machine's positive X-axis");
+    add.group("Tray Illustration");
+    add.image("", [] { return JPIllustrations::picture("rotatedtrayfeeder.png"); }, true);
 }
 
 } // namespace

@@ -81,11 +81,12 @@ public:
         rows().push_back(std::move(r));
     }
     // A picture by `label`, `image` read again on each refresh.
-    void image(const std::string& label, std::function<std::shared_ptr<const JPFrame>()> image) {
+    void image(const std::string& label, std::function<std::shared_ptr<const JPFrame>()> image, bool ownSize = false) {
         Row r;
         r.kind = Row::Kind::Image;
         r.label = label;
         r.image = std::move(image);
+        r.ownSize = ownSize;
         rows().push_back(std::move(r));
     }
     // A search's progress across the form, `states` read again on each refresh.

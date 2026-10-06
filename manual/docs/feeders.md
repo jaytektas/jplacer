@@ -128,9 +128,10 @@ sets it to 0) and the components remaining, the **Component Rotation in Tray** (
 A to B), the **Z Height**, and **Calculate Offsets & Tray Rotation**, which works out the **Column
 Offset**, **Row Offset** and **Tray Rotation** from the three points: it says what is wrong when the points
 and counts do not agree, or the corner at B is not square (within 2.5°). Parts are taken along a row,
-then the next.
+then the next. The **Tray Illustration** under them, OpenPnP's, shows where the three points are and what
+the offsets measure.
 
-<!-- src: src/setup/JPFeederForms.cpp (rotatedTrayForm, act); src/model/JPFeeder.cpp (pickLocation, feed) -->
+<!-- src: src/setup/JPFeederForms.cpp (rotatedTrayForm, act); src/model/JPFeeder.cpp (pickLocation, feed); src/setup/JPIllustrations.cpp; illustrations/rotatedtrayfeeder.png -->
 
 ### Auto feeder and tube feeder
 
