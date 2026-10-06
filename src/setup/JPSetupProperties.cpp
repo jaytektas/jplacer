@@ -2036,6 +2036,45 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
         add.integer("actuatorDelayMs", "Actuator Delay (ms)", [device] { return int(std::as_const(device())["actuatorDelayMs"].number(500)); },
                     [device](int v) { device()["actuatorDelayMs"] = v; }, 0, 60000);
         add.tip("How long the picture takes to come through after switching.");
+    } else if (std::as_const(device())["backend"].str() == "neoden4") {
+        // OpenPnP's Neoden4CameraConfigurationWizard: General and Image.
+        auto whole = [device](const char* key, int def) {
+            return std::pair { [device, key, def] { return int(std::as_const(device())[key].number(def)); },
+                               [device, key](int v) { device()[key] = v; } };
+        };
+        constexpr int kMostPixels = 10000, kMostTimeoutMs = 600000;
+        add.integer("neodenCameraId", "Camera Id", whole("cameraId", 1).first, whole("cameraId", 1).second, 0, 255);
+        add.tip("Which of the NeoDen's cameras: 1 looks down, 5 looks up.");
+        add.integer("neodenTimeoutMs", "Timeout", whole("timeoutMs", 1000).first, whole("timeoutMs", 1000).second, 1, kMostTimeoutMs);
+        add.tip("(millisecs)");
+        add.group("Image");
+        add.integer("neodenWidth", "Width", whole("width", 1024).first, whole("width", 1024).second, 1, kMostPixels);
+        add.integer("neodenShiftX", "Shift X", whole("shiftX", 0).first, whole("shiftX", 0).second, 0, kMostPixels);
+        add.tip("(pixels)");
+        add.integer("neodenHeight", "Height", whole("height", 1024).first, whole("height", 1024).second, 1, kMostPixels);
+        add.integer("neodenShiftY", "Shift Y", whole("shiftY", 0).first, whole("shiftY", 0).second, 0, kMostPixels);
+        add.tip("(pixels)");
+        add.note("Taken through the NeoDen's camera library (libneodencam.so), which must be installed: grey pictures "
+                 "Width x Height, from Shift X, Shift Y on the sensor.");
+    } else if (std::as_const(device())["backend"].str() == "neoden4Switcher") {
+        // OpenPnP's Neoden4SwitcherCameraConfigurationWizard.
+        JPFormBuilder::Named sources;
+        for (const JPCameraConfig& other : cell.cameras)
+            if (other.id != id && std::as_const(other.device)["backend"].str() == "neoden4")
+                sources.add(other.name.empty() ? other.id : other.name, other.id);
+        add.byName("neodenSource", "Source Camera", sources, [device] { return std::as_const(device())["camera"].str(); },
+                   [device](const std::string& v) { device()["camera"] = v; });
+        add.tip("The NeoDen 4 camera whose picture size and timeout it takes.");
+        auto whole = [device](const char* key, int def) {
+            return std::pair { [device, key, def] { return int(std::as_const(device())[key].number(def)); },
+                               [device, key](int v) { device()[key] = v; } };
+        };
+        add.integer("neodenSwitcher", "Switcher Number", whole("switcher", 0).first, whole("switcher", 0).second, 0, 255);
+        add.tip("The NeoDen camera it reads (1 looks down, 5 looks up).");
+        add.integer("neodenExposure", "Exposure", whole("exposure", 25).first, whole("exposure", 25).second, 0, 32767);
+        add.integer("neodenGain", "Gain", whole("gain", 8).first, whole("gain", 8).second, 0, 32767);
+        add.note("Before each picture the device is switched to it, and set to its exposure and gain (a change resets "
+                 "the camera).");
     } else if (std::as_const(device())["backend"].str() == "simulated") {
         add.text("backend", "Device", [] { return std::string("simulated (set up in the cell file)"); }, nullptr);
     } else {
@@ -2044,8 +2083,9 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
                  [device](const std::string& v) { device()["name"] = v; }, "long");
     }
     // A switcher camera takes its device camera's pictures as they come, an ONVIF one is set up by what it
-    // offers, a GStreamer one is as its pipeline says: none has a size or controls set here.
-    if (const std::string& b = std::as_const(device())["backend"].str(); b != "switcher" && b != "onvif" && b != "gstreamer") {
+    // offers, a GStreamer one is as its pipeline says, a NeoDen 4 one has its own: none has a size or controls set here.
+    if (const std::string& b = std::as_const(device())["backend"].str();
+        b != "switcher" && b != "onvif" && b != "gstreamer" && b != "neoden4" && b != "neoden4Switcher") {
         // A capture device's own format and settings (OpenPnP's OpenPnpCaptureCamera); a picture or simulation has none.
         const bool captureDevice = b == "v4l2" || b.empty();
         if (captureDevice)

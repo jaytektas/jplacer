@@ -104,8 +104,10 @@ std::string JPSetupEdits::addable(const JPCellConfig& cell, const std::string& p
 std::vector<std::string> JPSetupEdits::kinds(const JPCellConfig& cell, const std::string& path) {
     const JPSetupTree::Path g = JPSetupTree::parse(JPSetupTree::groupOf(cell, path));
     if (g.kind == "group" && g.id == "signalers") return JPSignalerConfig::classNames();
-    if (g.kind == "group" && g.id == "actuators") return { "ReferenceActuator", "HttpActuator", "ScriptActuator" };
-    if (g.kind == "group" && g.id == "cameras") return { "OpenPnpCaptureCamera", "MjpgCaptureCamera", "ImageCamera", "SwitcherCamera", "OnvifIPCamera", "GstreamerCamera" };
+    if (g.kind == "group" && g.id == "actuators") return { "ReferenceActuator", "HttpActuator", "ScriptActuator", "NeoDen4FeederActuator" };
+    if (g.kind == "group" && g.id == "cameras")
+        return { "OpenPnpCaptureCamera", "Neoden4Camera", "Neoden4SwitcherCamera", "MjpgCaptureCamera", "ImageCamera",
+                 "SwitcherCamera", "OnvifIPCamera", "GstreamerCamera" };
     return {};
 }
 
@@ -169,12 +171,14 @@ std::string JPSetupEdits::add(JPCellConfig& cell, const std::string& path, const
         c.mount.headId = g.owner;
         c.device = JJson::object();
         // OpenPnP's ImageCamera (a picture of the table) when chosen, else a capture device.
-        c.device["backend"] = kind == "ImageCamera"         ? "image"
-                              : kind == "MjpgCaptureCamera" ? "mjpg"
-                              : kind == "SwitcherCamera"    ? "switcher"
-                              : kind == "OnvifIPCamera"     ? "onvif"
-                              : kind == "GstreamerCamera"   ? "gstreamer"
-                                                            : "v4l2";
+        c.device["backend"] = kind == "ImageCamera"             ? "image"
+                              : kind == "MjpgCaptureCamera"     ? "mjpg"
+                              : kind == "SwitcherCamera"        ? "switcher"
+                              : kind == "OnvifIPCamera"         ? "onvif"
+                              : kind == "GstreamerCamera"       ? "gstreamer"
+                              : kind == "Neoden4Camera"         ? "neoden4"
+                              : kind == "Neoden4SwitcherCamera" ? "neoden4Switcher"
+                                                                : "v4l2";
         cell.cameras.push_back(c);
         return "camera:" + c.id;
     }
@@ -186,6 +190,16 @@ std::string JPSetupEdits::add(JPCellConfig& cell, const std::string& path, const
         if (kind == "ScriptActuator") a.scriptName = "Actuators/" + a.id + ".py";
         a.mount.headId = g.owner;
         if (!cell.drivers.empty()) a.driverId = cell.drivers.front().id;
+        // OpenPnP's NeoDen4FeederActuator: set to a length, on the NeoDen 4 controller.
+        if (kind == "NeoDen4FeederActuator") {
+            a.neoden4Feeder.on = true;
+            a.valueType = JPActuatorConfig::ValueType::Number;
+            for (const JPDriverConfig& d : cell.drivers)
+                if (std::as_const(d.link)["type"].str() == "neoden4") {
+                    a.driverId = d.id;
+                    break;
+                }
+        }
         cell.actuators.push_back(a);
         return "actuator:" + a.id;
     }

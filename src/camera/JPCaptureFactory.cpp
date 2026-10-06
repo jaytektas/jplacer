@@ -5,6 +5,7 @@
 #include "JPImageSource.h"
 #include "JPGstreamerSource.h"
 #include "JPMjpgSource.h"
+#include "JPNeoden4Source.h"
 #include "JPOnvifSource.h"
 
 #include "JPSimulatedSource.h"
@@ -53,6 +54,30 @@ std::unique_ptr<JPCaptureSource> JPCaptureFactory::create(const std::string& cam
         s.actuatorValue = device["actuatorValue"].number(0);
         s.delayMs = int(device["actuatorDelayMs"].number(500));
         return std::make_unique<JPSwitcherSource>(cameraName, s, context.links, context.takeClaim);
+    }
+    if (backend == "neoden4" || backend == "neoden4Switcher") {
+        // OpenPnP's Neoden4Camera; a Neoden4SwitcherCamera takes its source Neoden4Camera's picture size and timeout.
+        const bool switcher = backend == "neoden4Switcher";
+        JJson source = device;
+        if (switcher) {
+            source = context.links.deviceOf ? context.links.deviceOf(device["camera"].str()) : JJson::object();
+            if (source["backend"].str() != "neoden4") {
+                error = cameraName + ": its Source Camera is not a NeoDen 4 camera";
+                return nullptr;
+            }
+        }
+        JPNeoden4Source::Settings s;
+        s.camera = switcher ? int(device["switcher"].number(0)) : int(source["cameraId"].number(1));
+        s.width = int(source["width"].number(1024));
+        s.height = int(source["height"].number(1024));
+        s.timeoutMs = int(source["timeoutMs"].number(1000));
+        s.shiftX = int(source["shiftX"].number(0));
+        s.shiftY = int(source["shiftY"].number(0));
+        if (switcher) {
+            s.exposure = int(device["exposure"].number(25));
+            s.gain = int(device["gain"].number(8));
+        }
+        return std::make_unique<JPNeoden4Source>(cameraName, s);
     }
     if (backend == "image") {
         // OpenPnP's ImageCamera.

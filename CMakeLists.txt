@@ -121,6 +121,10 @@ if(JPLACER_TESTS)
         add_test(NAME ${name} COMMAND ${name})
       endforeach()
     endforeach()
+    # The NeoDen 4 cameras' test loads a stand-in for the machine's camera library, as the real one is loaded.
+    add_library(neodencam SHARED ${CMAKE_CURRENT_SOURCE_DIR}/tests/fakes/neodencam.cpp)
+    add_dependencies(test_neoden4_camera neodencam)
+    set_tests_properties(test_neoden4_camera PROPERTIES ENVIRONMENT "LD_LIBRARY_PATH=$<TARGET_FILE_DIR:neodencam>")
     # The calibration fit's test also checks the machine module's calibration record.
     target_link_libraries(test_calibration_fit PRIVATE jplacer_machine)
     # The simulated scene's test runs the camera's simulation into the finder.

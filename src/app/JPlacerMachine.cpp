@@ -300,6 +300,11 @@ void JPlacerMachine::buildCameras() {
                     }
                 why = "no actuator " + actuatorId;
                 return false;
+            },
+            [cell = m_cell.get()](const std::string& id) {
+                for (const JPCameraConfig& other : cell->config().cameras)
+                    if (other.id == id) return other.device;
+                return JJson::object();
             } });
         // Straightened or as taken, kept from last time.
         d.panel->setView(JSettings::instance().get<bool>(JPlacerSettings::cameraStraightKey(c.id), false));

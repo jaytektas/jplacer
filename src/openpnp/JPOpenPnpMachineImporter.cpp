@@ -963,6 +963,22 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             cam.device["actuatorValue"] = number(x.attr("actuator-double-value"));
             cam.device["actuatorDelayMs"] = x.attr("actuator-delay-millis").empty() ? 500 : number(x.attr("actuator-delay-millis"));
         }
+        // OpenPnP's Neoden4Camera: one of the NeoDen's cameras through its library.
+        if (shortClass(x) == "Neoden4Camera") {
+            cam.device["backend"] = "neoden4";
+            for (const auto& [attr, key, def] : { std::tuple { "camera-id", "cameraId", 1 }, std::tuple { "width", "width", 1024 },
+                                                  std::tuple { "height", "height", 1024 }, std::tuple { "timeout", "timeoutMs", 1000 },
+                                                  std::tuple { "shift-x", "shiftX", 0 }, std::tuple { "shift-y", "shiftY", 0 } })
+                cam.device[key] = x.attr(attr).empty() ? def : int(number(x.attr(attr)));
+        }
+        // OpenPnP's Neoden4SwitcherCamera: a NeoDen camera read through a Neoden4Camera, at its exposure and gain.
+        if (shortClass(x) == "Neoden4SwitcherCamera") {
+            cam.device["backend"] = "neoden4Switcher";
+            cam.device["camera"] = x.attr("camera-id");
+            cam.device["switcher"] = int(number(x.attr("switcher")));
+            cam.device["exposure"] = x.attr("exposure").empty() ? 25 : int(number(x.attr("exposure")));
+            cam.device["gain"] = x.attr("gain").empty() ? 8 : int(number(x.attr("gain")));
+        }
         // OpenPnP's GstreamerCamera: a gst-launch pipeline's pictures.
         if (shortClass(x) == "GstreamerCamera") {
             cam.device["backend"] = "gstreamer";

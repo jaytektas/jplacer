@@ -31,10 +31,12 @@ public:
     };
     // What it needs of the rest: another camera's feed (started if it is not
     // running), and an actuator set (false with why). `takeClaim`: whether it
-    // is wanted now (cleared on reading).
+    // is wanted now (cleared on reading). And another camera's device
+    // settings, as configured (a NeoDen 4 switcher camera's source's).
     struct Links {
         std::function<JPCameraFeed*(const std::string& cameraId)> camera;
         std::function<bool(const std::string& actuatorId, double value, std::string& why)> actuate;
+        std::function<JJson(const std::string& cameraId)> deviceOf;
     };
 
     JPSwitcherSource(std::string cameraName, Settings settings, Links links, std::function<bool()> takeClaim);
