@@ -127,6 +127,10 @@ int main() {
     // As OpenPnP's visual homing: the FIDUCIAL-HOME part's size and its fiducial pipeline (OpenPnP's stock one).
     JPVisualTest::Look look;
     look.diameterMm = head.homingFiducialDiameter;
+    // Its Max. Distance: this scene's mark is well within 2 mm of its setting. At OpenPnP's 4 mm the stock
+    // pipeline's coarse pass (a 7 px grid over the wider search) can now and then miss a mark this size for a
+    // speck of the picture's noise, as OpenPnP's own would.
+    look.maxDistanceMm = 2.0;
     {
         JPXmlElement root;
         std::string error;
