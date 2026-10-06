@@ -22,6 +22,7 @@ std::optional<JPDriverConfig> JPDriverConfig::fromJson(const JJson& j, std::stri
     c.statusIntervalMs  = int(j["statusIntervalMs"].number(c.statusIntervalMs));
     c.commandTimeoutMs  = int(j["commandTimeoutMs"].number(c.commandTimeoutMs));
     c.identifyTimeoutMs = int(j["identifyTimeoutMs"].number(c.identifyTimeoutMs));
+    c.dollarWaitMs = int(j["dollarWaitMs"].number(c.dollarWaitMs));
     c.homeTimeoutMs     = int(j["homeTimeoutMs"].number(c.homeTimeoutMs));
     c.connectWaitMs     = int(j["connectWaitMs"].number(c.connectWaitMs));
     c.maxFeedRate       = j["maxFeedRate"].number(c.maxFeedRate);
@@ -53,6 +54,7 @@ JJson JPDriverConfig::toJson() const {
     j["statusIntervalMs"]  = statusIntervalMs;
     j["commandTimeoutMs"]  = commandTimeoutMs;
     j["identifyTimeoutMs"] = identifyTimeoutMs;
+    j["dollarWaitMs"] = dollarWaitMs;
     j["homeTimeoutMs"]     = homeTimeoutMs;
     j["connectWaitMs"]     = connectWaitMs;
     if (maxFeedRate > 0) j["maxFeedRate"] = maxFeedRate;

@@ -10,6 +10,7 @@ notes.
 
 ## Unreleased
 
+- A controller's Driver Settings have OpenPnP's $-Command Wait Time and Detect Firmware, with what the firmware said.
 - A simulated controller can be made a real one: its Communications Type on Machine Setup, or Issues & Solutions'
   Replace with GcodeDriver, as OpenPnP's NullDriver.
 - The job viewer's right-click menu has OpenPnP's Placed?, Center Camera on a placement, fiducial, board or panel,

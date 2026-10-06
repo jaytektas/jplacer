@@ -40,6 +40,11 @@ struct JPDriverConfig {
     // host): a question asked before the greeting has arrived gets its answer
     // cut in two by it.
     int connectWaitMs     = 1000;
+    // OpenPnP's $-Command Wait Time: after a command beginning with $ is
+    // confirmed (a grbl setting, written to its EEPROM), the next waits this long.
+    int dollarWaitMs      = 50;
+    // What the controller said it is when last identified (Detect Firmware); not kept.
+    std::string detectedFirmware;
     // The fastest any move is sent, per minute (0: no cap beyond the axes' own).
     double maxFeedRate    = 0;
     // Every line sent and received goes to the log (else only when tracing).

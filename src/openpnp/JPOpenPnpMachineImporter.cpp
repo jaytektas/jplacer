@@ -454,6 +454,8 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             if (const double t = number(d.attr("infinity-timeout-milliseconds")); t > 0) dc.homeTimeoutMs = int(t);
             if (!d.attr("connect-wait-time-milliseconds").empty())
                 dc.connectWaitMs = int(number(d.attr("connect-wait-time-milliseconds")));
+            if (!d.attr("dollar-wait-time-milliseconds").empty())
+                dc.dollarWaitMs = int(number(d.attr("dollar-wait-time-milliseconds")));
             dc.maxFeedRate = number(d.attr("max-feed-rate"));
             dc.logGcode = d.attr("logging-gcode") == "true";
             dc.removeComments = d.attr("remove-comments") == "true";

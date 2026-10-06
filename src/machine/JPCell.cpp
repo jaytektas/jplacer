@@ -2848,6 +2848,24 @@ std::map<std::string, std::string> JPCell::firmware() const {
     return m_firmware;
 }
 
+void JPCell::detectFirmware(const std::string& driverId) {
+    m_thread.post([this, driverId] {
+        std::string why;
+        for (const auto& d : m_drivers) {
+            if (d->id() != driverId) continue;
+            if (!m_connected) {
+                why = d->config().name + " is not connected: connect first";
+            } else if (d->identify(why)) {
+                std::lock_guard lk(m_mutex);
+                m_firmware[d->id()] = d->profile()->name();
+                m_firmwareIdentity[d->id()] = d->identity();
+            }
+        }
+        if (!why.empty()) onAlarm.emit(why);
+        else onFirmwareDetected.emit(driverId);
+    });
+}
+
 std::map<std::string, std::string> JPCell::firmwareIdentity() const {
     std::lock_guard lk(m_mutex);
     return m_firmwareIdentity;

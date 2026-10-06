@@ -721,6 +721,19 @@ void JPlacerMachine::watchCell() {
             for (CameraDock& c : m_cameras) c.panel->refreshStraightening();
         });
     }));
+    // What each controller said it is (Detect Firmware, and at connect), shown on its page.
+    auto showFirmware = [this] {
+        if (!m_setup || !m_cell) return;
+        const auto said = m_cell->firmwareIdentity();
+        m_setup->measured([&](JPCellConfig& cell) {
+            for (JPDriverConfig& d : cell.drivers)
+                if (const auto it = said.find(d.id); it != said.end()) d.detectedFirmware = it->second;
+        });
+    };
+    m_unwatch.push_back(m_cell->onFirmwareDetected.connect([onMain, showFirmware](std::string) { onMain(showFirmware); }));
+    m_unwatch.push_back(m_cell->onConnection.connect([onMain, showFirmware](bool ok, std::string) {
+        if (ok) onMain(showFirmware);
+    }));
     // A tip's vacuum readings and graph, shown on its Part Detection tab.
     m_unwatch.push_back(m_cell->onVacuumReadings.connect([this, onMain](std::string tipId) {
         onMain([this, tipId] {
@@ -1319,6 +1332,8 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
                             if (cam.id == id) cam.settleTrace = trace;
                     });
                 });
+    } else if (action == "detectFirmware" && path.rfind("driver:", 0) == 0) {
+        m_cell->detectFirmware(path.substr(7));
     } else if (action == "positionRunoutTool" && path.rfind("nozzletip:", 0) == 0) {
         // OpenPnP's Position Tool: the nozzle the tip is on over the camera looking up, where the tip is calibrated.
         const std::string tipId = path.substr(10);

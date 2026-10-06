@@ -335,6 +335,10 @@ public:
     std::map<std::string, std::string> firmware() const;
     // By controller id: what it said when it was identified (JPGcodeDriver::identity).
     std::map<std::string, std::string> firmwareIdentity() const;
+    // OpenPnP's Detect Firmware: a connected controller asked again what it
+    // is (its profile chosen again, as at connect when "auto"); onFirmwareDetected
+    // says so, with the controller's id; a failure is an alarm. Not waited for.
+    void detectFirmware(const std::string& driverId);
 
     JSignal<bool, std::string>                   onConnection;   // connected; why not (a failure or a lost link)
     JSignal<std::map<std::string, double>>       onPositions;
@@ -342,6 +346,7 @@ public:
     JSignal<std::string, bool, std::string>      onActuator;     // id, done, value or why not
     JSignal<std::string>                         onAlarm;        // in words, with the controller's name
     JSignal<std::string>                         onVacuumReadings;   // a tip's (its id), read anew
+    JSignal<std::string>                         onFirmwareDetected; // a controller's (its id), asked again
     JSignal<bool, std::string>                   onMotion;       // a move or home ended: ok, why not
     JSignal<bool>                                onHomed;
     JSignal<>                                    onCalibration;  // a camera's calibration or the squareness changed

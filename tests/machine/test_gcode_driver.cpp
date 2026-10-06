@@ -90,6 +90,12 @@ int main() {
         std::smatch m;
         assert(std::regex_search(read.lines[0], m, vacuum.pattern) && m[1] == "-12000");
 
+        // OpenPnP's $-Command Wait Time: after a $ command, the next waits (50 ms to begin with).
+        assert(driver.send("$I").get().ok);
+        const auto afterDollar = std::chrono::steady_clock::now();
+        assert(driver.send("G4 P0").get().ok);
+        assert(std::chrono::steady_clock::now() - afterDollar >= std::chrono::milliseconds(driver.config().dollarWaitMs));
+
         const JPReply refused = driver.send("M9999").get();
         assert(!refused.ok && refused.error == "error:20");
         assert(!driver.command("no-such-command").ok);

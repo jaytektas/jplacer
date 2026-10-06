@@ -53,6 +53,9 @@ public:
 
     // Its settings, as they are now (a copy: they can change while it runs).
     JPDriverConfig config() const { return *cfg(); }
+    // Identify the firmware (connected): its answer kept (identity()), and,
+    // with the "auto" profile, the profile it answers to chosen.
+    bool identify(std::string& error);
     // Which controller it is; never changes.
     const std::string& id() const { return m_id; }
     // New settings, taken while it runs: its name, timeouts, status interval
@@ -139,7 +142,6 @@ private:
     void finish(JPReply reply);
     void failAll(const std::string& why);
     std::future<JPReply> failed(const std::string& why);
-    bool identify(std::string& error);
     // A status report asked for now and waited for (within the command
     // timeout): status() is then the controller as it is.
     bool readStatusNow(std::string& error);
@@ -172,6 +174,7 @@ private:
     // A stop under way: held, waiting for the motion to come to rest.
     bool              m_holding = false;
     std::chrono::steady_clock::time_point m_holdUntil;
+    std::chrono::steady_clock::time_point m_dollarUntil;   // nothing sent before (after a $ command)
     std::map<std::string, double> m_holdLast;   // the positions in the last report while held
     std::map<std::string, double> m_lastSent;   // a move's feed, acceleration, jerk as last sent (On Change Only)
 

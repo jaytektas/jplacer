@@ -424,9 +424,16 @@ void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPF
     add.tip("Keep the connection open when the machine is disconnected, and take it up again as it is on the next "
             "connect (a controller that resets as its port is opened is not reset again).");
     add.integer("identifyTimeoutMs", "Identify Timeout [ms]", [d]() -> int& { return d().identifyTimeoutMs; }, 100, 60000);
+    add.integer("dollarWaitMs", "$-Command Wait Time [ms]", [d]() -> int& { return d().dollarWaitMs; }, 0, 60000);
+    add.tip("After a command beginning with $ (a grbl setting, written to its EEPROM) is confirmed, the next waits this long.");
     add.integer("homeTimeoutMs", "Home Timeout [ms]", [d]() -> int& { return d().homeTimeoutMs; }, 1000, 600000);
     add.integer("statusIntervalMs", "Status Interval [ms]", [d]() -> int& { return d().statusIntervalMs; }, 10, 10000);
     add.note("Max. Feed Rate 0: moves are as fast as their axes allow.");
+    // OpenPnP's Detect Firmware, and what the controller said.
+    add.group("Firmware");
+    add.button("detectFirmware", "Detect Firmware", "Ask the connected controller again what firmware it runs.");
+    add.text("detectedFirmware", "Firmware", [d] { return d().detectedFirmware.empty() ? std::string("(not asked yet: connect)") : d().detectedFirmware; },
+             nullptr, "lines");
 
     // The firmware's commands, each replaceable for this controller (a
     // machine wired its own way homes its own way). Empty: the profile's.

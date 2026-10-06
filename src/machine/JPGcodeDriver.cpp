@@ -429,7 +429,7 @@ void JPGcodeDriver::ioLoop() {
                 m_holdLast = st.positions;
             }
         }
-        if (!m_inFlight && !m_holding) {
+        if (!m_inFlight && !m_holding && Clock::now() >= m_dollarUntil) {
             std::optional<Pending> next;
             {
                 std::lock_guard lk(m_mutex);
@@ -537,6 +537,9 @@ void JPGcodeDriver::handleLine(const std::string& line) {
 void JPGcodeDriver::finish(JPReply reply) {
     if (!reply.ok)
         JLOGC(JPlacerLog::kDriver, JLogLevel::Debug) << cfg()->name << ": '" << m_inFlight->line << "' failed: " << reply.error;
+    // OpenPnP's $-Command Wait Time: the controller given time to write a setting.
+    if (reply.ok && m_inFlight->line.rfind('$', 0) == 0)
+        m_dollarUntil = Clock::now() + std::chrono::milliseconds(std::max(0, cfg()->dollarWaitMs));
     m_inFlight->promise.set_value(std::move(reply));
     m_inFlight.reset();
 }
