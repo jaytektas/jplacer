@@ -37,12 +37,7 @@ struct JPCellConfig {
     std::vector<JPActuatorConfig> actuators;
     std::vector<JPSignalerConfig> signalers;   // OpenPnP's: told how a job runs
     JPSquarenessConfig            squareness;   // the gantry's Y lean, when measured
-    // Home as soon as connected: any controller saying so (JPDriverConfig).
-    bool homeAfterConnect() const {
-        for (const JPDriverConfig& d : drivers)
-            if (d.homeAfterConnect) return true;
-        return false;
-    }
+    bool                          homeAfterEnabled = false;   // OpenPnP's: home as soon as the machine is on
     bool                          parkAfterHome    = false;   // park once homed (after visual homing)
     std::optional<JPMachineLocation>     discardLocation;            // where a part not wanted is dropped
     JPMachineLocation             defaultBoardLocation;         // where a board or panel added to a job starts

@@ -120,7 +120,10 @@ void JPCameraFeed::runSource(std::string& why) {
     context.extras = m_extras;
     context.links = m_links;
     context.takeClaim = [this] { return m_claimed.exchange(false); };
-    auto source = JPCaptureFactory::create(m_config.name, m_config.device, why, context);
+    // Opened with its settings as last tuned, where they were (kept in the cell by whoever asked).
+    JJson device = m_config.device;
+    if (m_tuned) device["controls"] = *m_tuned;
+    auto source = JPCaptureFactory::create(m_config.name, device, why, context);
     if (!source || !source->open(why)) return;
     const auto mode = JPCaptureFactory::choose(source->modes(), m_config.device);
     if (!mode) {
@@ -178,6 +181,7 @@ void JPCameraFeed::runSource(std::string& why) {
                 m_deviceControls = source->controls();
             }
             JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << m_config.name << ": auto-tuned";
+            m_tuned = *tuned;
             tune->done(*tuned);
             tune.reset();
             tuning.reset();

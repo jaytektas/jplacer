@@ -199,5 +199,5 @@ Every area above is done or covered its own way; what is left is checking agains
 
 1. Side by side with OpenPnP (run headless), panel by panel: layouts, words, tooltips and icons, put right
    where they differ.
-2. On the bench, with real hardware: camera Defaults, then Auto-Tune, runout calibration, nozzle tip Z
+2. On the bench, with real hardware: camera Defaults, then Auto-Tune (and Auto-Tune when homing, jplacer's own), runout calibration, nozzle tip Z
    calibration and Load / Unload from Machine Setup.

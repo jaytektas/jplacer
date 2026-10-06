@@ -70,6 +70,7 @@ public:
     // settings so arrived at (by name: "auto" false and "value"), or none when the device has no settings
     // or it stopped first. On the capture thread, soon.
     void autoTune(int autoMs, std::function<void(std::optional<JJson> tuned)> done);
+    static constexpr int kAutoTuneMs = 1200;   // the moment its automatic settings are given (autoTune)
     static constexpr int kHoldMs = 200;   // after switching to manual, before the held values are read
     // The mode it is capturing in, once started.
     std::optional<JPCaptureMode> mode() const;
@@ -113,6 +114,7 @@ private:
         std::function<void(std::optional<JJson>)> done;
     };
     std::optional<Tune> m_tuneAsked;
+    std::optional<JJson> m_tuned;   // the capture thread's: what Auto-Tune arrived at, set each time it opens again
     JPFrame                      m_unbalanced;   // m_latest before white balance (kept while there is one)
     JPWhiteBalance               m_balance;
     std::optional<JPCaptureMode> m_mode;

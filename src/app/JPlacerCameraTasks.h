@@ -47,6 +47,8 @@ public:
     // How the homing fiducial is looked for, as OpenPnP's visual homing: the FIDUCIAL-HOME part's size and
     // its fiducial vision pipeline (none: there is no such part). Asked on the main thread.
     std::function<std::optional<JPVisualTest::Look>()> homeFiducialLook;
+    // A camera was auto-tuned when homing: its properties kept in the cell and saved (for what shows them).
+    std::function<void(const std::string& cameraId, const JJson& controls)> onTuned;
 
     // A camera on the head: over the head's homing mark, then measured with
     // known moves. A fixed camera: a nozzle's tip held over it (asked first,
@@ -141,6 +143,8 @@ private:
     // What a calibration found, in words.
     static std::string calibrated(const JPCameraConfig& cam, const JPCameraCalibration& c);
     void keepCalibration(const std::string& cameraId, const JPCameraCalibration& calibration);
+    // On the worker: the camera over `at`, Defaults, then Auto-Tune, waited for, and kept (false: `why`).
+    bool autoTuneAt(JPCameraFeed& feed, const JPMachineLocation& at, std::string& why);
     // What stops a task starting on `camera`, in words; empty when it can.
     std::string notReady(const JPCameraPanel* camera, bool needsCalibration, bool needsHomingMark) const;
     const JPHeadConfig* head(const JPCameraConfig& camera) const;

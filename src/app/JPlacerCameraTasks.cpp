@@ -17,6 +17,7 @@
 #include <j/core/MainThreadDispatcher.h>
 
 #include <cstdio>
+#include <future>
 #include <optional>
 
 inline namespace jf {
@@ -36,6 +37,8 @@ constexpr int    kCentrePasses = 3;
 constexpr double kCentredMm = 0.01;
 // How long each of auto focus's pictures is shown (OpenPnP's 1 s).
 constexpr int kAutoFocusShownMs = 1000;
+// How long Auto-Tune when homing may take, all told (it takes about two seconds).
+constexpr int kTuneWaitMs = 10000;
 // How long a result stays in the status bar.
 constexpr int kResultMs = 8000;
 // Looking for a mark under the camera: how far from the middle, and how small and big, as shares of the
@@ -666,7 +669,18 @@ void JPlacerCameraTasks::visualHome(std::function<void(bool)> done) {
     JPCameraFeed* feed = &camera->feed();
     const JPHeadConfig h = *homing;
     const auto look = homeFiducialLook ? homeFiducialLook() : std::nullopt;
-    run(*camera, "Visual homing", [this, feed, h, look](std::string& words, const auto& progress) {
+    // Auto-Tune when homing: over the head's primary fiducial (else its homing fiducial), the light on as run()
+    // switches it for vision, before the homing fiducial is looked for.
+    const std::optional<JPMachineLocation> tuneAt =
+        camera->camera().autoTuneOnHoming ? (h.rigPrimary ? h.rigPrimary : h.homingFiducial) : std::nullopt;
+    run(*camera, "Visual homing", [this, feed, h, look, tuneAt](std::string& words, const auto& progress) {
+        if (tuneAt) {
+            progress("auto-tuning on the primary fiducial");
+            if (!autoTuneAt(*feed, *tuneAt, words)) {
+                words = "Auto-Tune when homing: " + words;
+                return false;
+            }
+        }
         progress("looking at the homing mark");
         const JPVisualHoming::Result r = JPVisualHoming::run(m_cell, *feed, h, kTaskSpeed, look ? &*look : nullptr);
         if (!r.ok) {
@@ -679,6 +693,38 @@ void JPlacerCameraTasks::visualHome(std::function<void(bool)> done) {
         words = buf;
         return true;
     }, std::move(done));
+}
+
+bool JPlacerCameraTasks::autoTuneAt(JPCameraFeed& feed, const JPMachineLocation& at, std::string& why) {
+    const JPMountConfig& mount = feed.config().mount;
+    if (!m_cell.moveAxesAndWait({ { mount.axisX, at.x - mount.offsetX }, { mount.axisY, at.y - mount.offsetY } }, kTaskSpeed, why))
+        return false;
+    // Told on the capture thread; shared, so a late answer has somewhere to go.
+    auto told = std::make_shared<std::promise<std::optional<JJson>>>();
+    std::future<std::optional<JJson>> tuned = told->get_future();
+    feed.autoTune(JPCameraFeed::kAutoTuneMs, [told](std::optional<JJson> t) { told->set_value(std::move(t)); });
+    if (tuned.wait_for(std::chrono::milliseconds(kTuneWaitMs)) != std::future_status::ready) {
+        why = feed.config().name + " was not tuned within " + std::to_string(kTuneWaitMs / 1000) + " s";
+        return false;
+    }
+    const std::optional<JJson> controls = tuned.get();
+    if (!controls) {
+        why = feed.config().name + " was not tuned (it has no properties of its own, or it stopped)";
+        return false;
+    }
+    // Kept in the cell and saved, as a calibration is, on the main thread.
+    std::weak_ptr<bool> alive = m_alive;
+    JMainThreadDispatcher::instance().post([this, alive, id = feed.config().id, c = *controls] {
+        if (const auto a = alive.lock(); !a || !*a) return;
+        m_cell.setCameraControls(id, c);
+        std::string error;
+        if (!m_cell.config().save(m_cellPath, error)) {
+            JLOGC(JPlacerLog::kApp, JLogLevel::Error) << error;
+            m_window.showStatus("The camera's tuned properties are in use but were not saved: " + error, kResultMs);
+        }
+        if (onTuned) onTuned(id, c);
+    });
+    return true;
 }
 
 JPCameraPanel* JPlacerCameraTasks::headCamera() const {

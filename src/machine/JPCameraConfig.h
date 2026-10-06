@@ -78,6 +78,9 @@ struct JPCameraConfig {
     double        rotation = 0;
     // OpenPnP's Advanced Calibration pipeline: what finds the calibration mark (its XML; empty: OpenPnP's default).
     std::string   calibrationPipeline;
+    // Defaults, then Auto-Tune, over the head's primary fiducial with the light on, each time it homes visually,
+    // before the homing fiducial is looked for.
+    bool          autoTuneOnHoming = false;
     int           offsetX = 0, offsetY = 0, scaleWidth = 0, scaleHeight = 0;
     bool          flipX = false, flipY = false;
     // SETTLING, as OpenPnP does it: a picture for vision is one taken once
@@ -248,6 +251,7 @@ struct JPCameraConfig {
         c.cropWidth      = int(j["crop"]["width"].number(0.0));
         c.cropHeight     = int(j["crop"]["height"].number(0.0));
         c.calibrationPipeline = j["calibrationPipeline"].str();
+        c.autoTuneOnHoming = j["autoTuneOnHoming"].boolean();
         if (const JJson& t = j["transforms"]; t.isObject()) {
             c.rotation    = t["rotation"].number(0.0);
             c.offsetX     = int(t["offsetX"].number(0.0));
@@ -328,6 +332,7 @@ struct JPCameraConfig {
             j["crop"]["height"] = cropHeight;
         }
         if (!calibrationPipeline.empty()) j["calibrationPipeline"] = calibrationPipeline;
+        if (autoTuneOnHoming) j["autoTuneOnHoming"] = true;
         if (rotation != 0 || offsetX || offsetY || scaleWidth || scaleHeight || flipX || flipY) {
             JJson t = JJson::object();
             t["rotation"] = rotation;

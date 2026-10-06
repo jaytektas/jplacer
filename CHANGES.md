@@ -10,6 +10,13 @@ notes.
 
 ## Unreleased
 
+- Defaults, then Auto-Tune switches the camera's light on first (and other cameras' Anti-Glare lights off), so the
+  camera is tuned for the pictures vision takes; with the machine off it says to connect first, rather than tuning
+  a dark camera.
+- A camera's Device Settings have Auto-Tune when homing?: each visual homing first tunes the camera over the head's
+  primary fiducial with its light on, then finds the homing fiducial, then goes on as before (nozzle tips, park).
+- Home after enabled? is the machine's setting alone, as in OpenPnP; the controllers' own Home after connected? is
+  gone (a cell that had it ticked keeps it on the machine).
 - Visual homing and Visual Test look for the FIDUCIAL-HOME part with its fiducial vision pipeline, as OpenPnP's
   visual homing does.
 - The cameras are opened only while the machine is on, and closed and let go of (for other programs) when it is

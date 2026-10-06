@@ -31,6 +31,7 @@ JJson JPCellConfig::toJson() const {
     j["actuators"] = toArray(actuators);
     if (!signalers.empty()) j["signalers"] = toArray(signalers);
     if (!squareness.axisX.empty()) j["squareness"] = squareness.toJson();
+    if (homeAfterEnabled) j["homeAfterEnabled"] = true;
     if (parkAfterHome) j["parkAfterHome"] = true;
     if (discardLocation) j["discardLocation"] = discardLocation->toJson();
     j["defaultBoardLocation"] = defaultBoardLocation.toJson();
@@ -66,9 +67,9 @@ bool JPCellConfig::fromJson(const JJson& j, std::string& error) {
     for (const JJson& a : j["actuators"].arr()) c.actuators.push_back(JPActuatorConfig::fromJson(a));
     for (const JJson& s : j["signalers"].arr()) c.signalers.push_back(JPSignalerConfig::fromJson(s));
     c.squareness = JPSquarenessConfig::fromJson(j["squareness"]);
-    // Kept on the machine before it was a controller's: every controller's now.
-    if (j["homeAfterConnect"].boolean())
-        for (JPDriverConfig& d : c.drivers) d.homeAfterConnect = true;
+    // The machine's, as OpenPnP's; kept before as the machine's homeAfterConnect, or a controller's.
+    c.homeAfterEnabled = j["homeAfterEnabled"].boolean() || j["homeAfterConnect"].boolean();
+    for (const JJson& d : j["drivers"].arr()) c.homeAfterEnabled = c.homeAfterEnabled || d["homeAfterConnect"].boolean();
     c.parkAfterHome = j["parkAfterHome"].boolean();
     c.discardLocation = JPMachineLocation::fromJson(j["discardLocation"]);
     c.defaultBoardLocation = JPMachineLocation::fromJson(j["defaultBoardLocation"]).value_or(JPMachineLocation {});

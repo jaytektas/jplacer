@@ -326,7 +326,7 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
         const JPXmlElement* e = machine->child(name);
         return e && e->text.find("true") != std::string::npos;
     };
-    const bool homeAfterEnabled = setting("home-after-enabled");   // every controller's
+    c.homeAfterEnabled = setting("home-after-enabled");
     c.parkAfterHome = setting("park-after-homed");
     // None given: OpenPnP's default, the origin.
     c.discardLocation = location(*machine, "discard-location").value_or(JPMachineLocation {});
@@ -480,7 +480,6 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                 dc.name = d.attr("name").empty() ? kind : d.attr("name");
                 dc.link = JJson::object();
                 dc.link["type"] = std::string("simulated");
-                dc.homeAfterConnect = homeAfterEnabled;
                 nullDrivers.insert(dc.id);
                 c.drivers.push_back(std::move(dc));
                 continue;
@@ -501,7 +500,6 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                 dc.connectWaitMs = d.attr("connect-wait-time-milliseconds").empty() ? kNeoden4ConnectWaitMs
                                                                                     : int(number(d.attr("connect-wait-time-milliseconds")));
                 if (d.attr("units") == "Inches") dc.units = "Inches";
-                dc.homeAfterConnect = homeAfterEnabled;
                 neoden4Drivers.insert(dc.id);
                 c.drivers.push_back(std::move(dc));
                 continue;
@@ -562,7 +560,6 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             if (const std::string* home = findCommand(cmds, "HOME_COMMAND", ""))
                 if (const std::string t = translate(*home, -1, "controller " + dc.name, notes); !t.empty())
                     dc.commands["home"] = t;
-            dc.homeAfterConnect = homeAfterEnabled;
             dc.syncInitialLocation = d.attr("sync-initial-location") == "true";
             dc.allowUnhomedMotion = d.attr("allow-unhomed-motion") == "true";
             c.drivers.push_back(std::move(dc));

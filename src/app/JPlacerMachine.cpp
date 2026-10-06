@@ -71,7 +71,6 @@ constexpr float  kSimulatedPadLevel = 255;
 constexpr std::array<float, 3> kSimulatedBodyColor { 60, 60, 60 }, kSimulatedPadColor { 255, 255, 255 };
 constexpr double kSimulatedPartHeightMm = 1;
 // Defaults, then Auto-Tune: how long the camera's automatic settings are left to settle.
-constexpr int kAutoTuneMs = 1200;
 // How near the camera's centre a nozzle must be for Adjust Camera Z (OpenPnP's 0.1 mm).
 constexpr double kCenteredMm = 0.1;
 // OpenPnP's Mapped Roughly and Mapped Finely white balance: the brightness levels mapped.
@@ -457,6 +456,13 @@ void JPlacerMachine::buildCameras() {
                 if (c.id == cameraId) c.keepCalibration(calibration);
         });
     };
+    m_cameraTasks->onTuned = [this](const std::string& cameraId, const JJson& controls) {
+        if (!m_setup) return;
+        m_setup->measured([&](JPCellConfig& cell) {
+            for (JPCameraConfig& c : cell.cameras)
+                if (c.id == cameraId) c.device["controls"] = controls;
+        });
+    };
     lightCameras();
 }
 
@@ -775,7 +781,7 @@ void JPlacerMachine::watchCell() {
             m_connectFailed = !ok && wasConnecting;
             if (ok) m_lost.clear();
             // Homed straight away, when the machine is set to (after a connect asked for here).
-            if (ok && wasConnecting && m_cell->config().homeAfterConnect()) home();
+            if (ok && wasConnecting && m_cell->config().homeAfterEnabled) home();
             else if (!wasConnecting && !why.empty()) m_lost = why;   // dropped while working
             // A camera on screen gets its light as soon as there is a
             // machine to switch it; without one, its panel says why it is dark.
@@ -1468,13 +1474,27 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
             if (d.panel->camera().id != id) continue;
             JPCameraFeed* feed = &d.panel->feed();
             const std::string name = d.panel->camera().name;
+            // Tuned to the pictures vision takes: the machine on, the camera's light on, other cameras' lights off
+            // against glare (as for a capture), before the camera starts looking.
+            if (!m_cell || !m_cell->isConnected()) {
+                m_window.showStatus(name + ": connect the machine first; the camera is tuned with its light on", kErrorMs);
+                return;
+            }
+            const std::string light = d.panel->camera().lightActuator();
+            for (CameraDock& other : m_cameras) {
+                const std::string theirs = other.panel->camera().lightActuator();
+                if (&other != &d && other.panel->camera().light.antiGlare && !theirs.empty() && theirs != light)
+                    m_cell->switchActuator(theirs, false);
+            }
+            if (!light.empty()) m_cell->switchActuator(light, true);
             // Run, shown or not (its settings page may be over it): the tuning starts once it gives pictures.
             d.panel->keepRunning(kTaskCameraMs);
             m_window.showStatus(name + ": defaults set, auto-tuning...", kStatusMs);
             std::weak_ptr<bool> alive = m_alive;
-            feed->autoTune(kAutoTuneMs, [this, alive, id, name](std::optional<JJson> tuned) {
+            feed->autoTune(JPCameraFeed::kAutoTuneMs, [this, alive, id, name](std::optional<JJson> tuned) {
                 JMainThreadDispatcher::instance().post([this, alive, id, name, tuned] {
                     if (const auto a = alive.lock(); !a || !*a) return;
+                    lightCameras();   // the lights back to what the cameras on screen want
                     if (!tuned) {
                         m_window.showStatus(name + ": not tuned (the camera has no properties, or it stopped)", kErrorMs);
                         return;

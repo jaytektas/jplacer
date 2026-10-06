@@ -297,11 +297,8 @@ void machineForm(JPCellConfig& cell, JPSetupProperties::Form& f, const JPMotionT
     add.tab("Configuration");
     add.group("General");
     add.text("name", "Name", [&cell]() -> std::string& { return cell.name; }, "name");
-    // OpenPnP's order. Home after enabled? is each controller's Home after connected? (jplacer's machine is
-    // enabled as its controllers connect): ticked, every one homes; shown ticked when any does.
-    add.flag("homeAfterEnabled", "Home after enabled?",
-             [&cell] { return std::any_of(cell.drivers.begin(), cell.drivers.end(), [](const JPDriverConfig& d) { return d.homeAfterConnect; }); },
-             [&cell](bool on) { for (JPDriverConfig& d : cell.drivers) d.homeAfterConnect = on; });
+    // OpenPnP's order.
+    add.flag("homeAfterEnabled", "Home after enabled?", [&cell]() -> bool& { return cell.homeAfterEnabled; });
     add.flag("parkAfterHome", "Park after homed?", [&cell]() -> bool& { return cell.parkAfterHome; });
     add.flag("safeZPark", "Park all at Safe Z?", [&cell]() -> bool& { return cell.safeZPark; });
     add.tip("When the Z Park button is pressed, move all tools mounted on the same head to safe Z.");
@@ -360,7 +357,6 @@ void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPF
     for (const JPFirmwareProfile& p : profiles) choices.push_back(p.id());
     add.choice("profile", "Firmware Profile", choices, [d] { return d().profile; },
                [d](const std::string& v) { d().profile = v; });
-    add.flag("homeAfterConnect", "Home after connected?", [d]() -> bool& { return d().homeAfterConnect; });
     // OpenPnP's: where the controller says it is, taken once connected (so the unhomed machine can be
     // jogged); with it, Allow Unhomed Motion lets any move go before homing.
     add.flag("syncInitialLocation", "Sync Initial Location", [d]() -> bool& { return d().syncInitialLocation; });
@@ -2515,8 +2511,12 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
                      "are set each time the camera opens (OpenPnP's Freeze Properties).");
             add.button("reapplyControls", "Reapply to Camera", "Reapply the frozen properties to the camera.");
             add.button("defaultsAutoTune", "Defaults, then Auto-Tune",
-                       "Set every property to the camera's own default, let those it can tune themselves for a moment, "
-                       "then keep what they settled on (every property set).");
+                       "Set every property to the camera's own default, let those it can tune themselves for a moment "
+                       "with the camera's light on (the machine must be on), then keep what they settled on (every "
+                       "property set).");
+            add.flag("autoTuneOnHoming", "Auto-Tune when homing?", [c]() -> bool& { return c().autoTuneOnHoming; });
+            add.tip("Each visual homing, first over the head's primary fiducial with the light on: Defaults, then "
+                    "Auto-Tune, its properties kept; homing goes on once it is tuned.");
         }
     }
 

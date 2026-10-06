@@ -2084,6 +2084,12 @@ void JPCell::setCameraCalibration(const std::string& cameraId, const JPCameraCal
     onCalibration.emit();
 }
 
+void JPCell::setCameraControls(const std::string& cameraId, const JJson& controls) {
+    std::lock_guard lk(m_mutex);
+    for (JPCameraConfig& c : m_config.cameras)
+        if (c.id == cameraId) c.device["controls"] = controls;
+}
+
 JPSquarenessConfig JPCell::squareness() const {
     std::lock_guard lk(m_mutex);
     return m_config.squareness;

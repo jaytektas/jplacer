@@ -41,18 +41,17 @@ int main() {
     assert(d.link["port"].str() == "/dev/ttyACM0" && d.link["baud"].number() == 115200);
     assert(d.link["flowControl"].str() == "rtscts");
     // The machine's own settings.
-    // Home after connected: a controller's. A cell kept with it on the machine
-    // (before) gives it to every controller, and keeps it there from then on.
+    // Home after enabled: the machine's, as OpenPnP's. A cell kept with it as the machine's
+    // homeAfterConnect, or a controller's, (before) keeps it as the machine's from then on.
     {
         JJson j = cell.toJson();
-        j["homeAfterConnect"] = true;
+        j["drivers"][0]["homeAfterConnect"] = true;
         JPCellConfig was;
         std::string e;
-        assert(was.fromJson(j, e) && was.homeAfterConnect());
-        for (const JPDriverConfig& dc : was.drivers) assert(dc.homeAfterConnect);
-        assert(!was.toJson()["homeAfterConnect"].boolean() && was.toJson()["drivers"][0]["homeAfterConnect"].boolean());
+        assert(was.fromJson(j, e) && was.homeAfterEnabled);
+        assert(was.toJson()["homeAfterEnabled"].boolean() && !was.toJson()["drivers"][0]["homeAfterConnect"].boolean());
     }
-    assert(!cell.homeAfterConnect() && cell.parkAfterHome && cell.discardLocation && cell.discardLocation->x == 40.935);
+    assert(!cell.homeAfterEnabled && cell.parkAfterHome && cell.discardLocation && cell.discardLocation->x == 40.935);
     // Auto tool select (on unless said off), auto-load most recent job, the default board location.
     assert(cell.autoToolSelect && cell.autoLoadMostRecentJob && cell.poolScriptingEngines);
     assert(cell.defaultBoardLocation.x == 120.0 && cell.defaultBoardLocation.y == 80.5 && cell.defaultBoardLocation.rotation == 90.0);
