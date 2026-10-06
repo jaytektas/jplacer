@@ -308,7 +308,12 @@ void JPMachineSetupPanel::addPart() {
         if (!chooseClass) return;
         const std::string what = JPSetupEdits::addable(m_draft, m_selected);
         // OpenPnP's titles name a controller a Driver.
-        chooseClass("Select " + std::string(what == "Controller" ? "Driver" : what) + "...", "Please select a " + what + " implementation from the list below.", kinds,
+        // OpenPnP's words, its "implemention" for a nozzle too.
+        const std::string named = what == "Controller" ? "Driver" : what;
+        chooseClass("Select " + named + "...",
+                    "Please select a" + std::string(named == "Actuator" ? "n " : " ") + named
+                        + (named == "Nozzle" ? " implemention" : " implementation") + " from the list below.",
+                    kinds,
                     [this, alive = std::weak_ptr<bool>(m_alive)](std::string kind) {
                         if (const auto a = alive.lock(); !a || !*a || kind.empty()) return;
                         addPart(kind);

@@ -157,11 +157,13 @@ tree's right-click menu has **New** and **Delete** too.
 **New** adds a part of the kind chosen: with an axis (or **Axes**) chosen an axis, with a head's
 **Nozzles** chosen a nozzle, which goes on that head. A new part has a name saying what it is, to change,
 and an id of its own that stays the same whatever it is renamed to. Where there are several kinds
-(**Drivers**, a head's **Nozzles**, **Cameras**, **Actuators**, **Signalers**), New first asks which, as OpenPnP's **Select
+(**Axes**, **Drivers**, a head's **Nozzles**, **Cameras**, **Actuators**, **Signalers**), New first asks which, as OpenPnP's **Select
 Signaler...** does (its button shows "…"). A controller is OpenPnP's **NullDriver** (jplacer's simulated
 controller, moving whatever axes are put on it), **GcodeDriver** or **GcodeAsyncDriver** (the same here: a
 G-code controller on a serial port, its commands queued either way) or **NeoDen4Driver** (a NeoDen 4);
-each new one is named after its kind. A nozzle is OpenPnP's **ReferenceNozzle** or **ContactProbeNozzle**
+each new one is named after its kind. An axis is OpenPnP's **ReferenceControllerAxis**, **ReferenceVirtualAxis**, **ReferenceMappedAxis**,
+**ReferenceCamCounterClockwiseAxis**, **ReferenceCamClockwiseAxis** or **ReferenceLinearTransformAxis** (its
+**Kind** can be changed after). A nozzle is OpenPnP's **ReferenceNozzle** or **ContactProbeNozzle**
 (only that one has the **Contact Probe** tab).
 
 **Delete** asks first, as OpenPnP's ("Are you sure you want to delete ...?"), then removes the chosen part,

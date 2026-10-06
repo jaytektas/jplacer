@@ -264,7 +264,11 @@ int main() {
         JPCellConfig c = cell();
         assert(JPSetupEdits::addable(c, "group:signalers") == "Signaler");
         assert(JPSetupEdits::kinds(c, "group:signalers").size() == 3);
-        assert(JPSetupEdits::kinds(c, "group:axes").empty());
+        assert(JPSetupEdits::kinds(c, "group:heads").empty());
+        // An axis is one of OpenPnP's axis classes, chosen as its New Axis… asks.
+        assert(JPSetupEdits::kinds(c, "group:axes").size() == 6);
+        const std::string cam = JPSetupEdits::add(c, "group:axes", "ReferenceCamClockwiseAxis");
+        assert(c.axes.back().kind == JPAxisConfig::Kind::Cam && c.axes.back().camClockwise && cam.rfind("axis:AXS", 0) == 0);
         assert(JPSetupEdits::add(c, "group:signalers").empty());   // no kind: nothing added
         const std::string sound = JPSetupEdits::add(c, "group:signalers", "SoundSignaler");
         const std::string act = JPSetupEdits::add(c, "group:signalers", "ActuatorSignaler");

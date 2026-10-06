@@ -109,6 +109,9 @@ std::vector<std::string> JPSetupEdits::kinds(const JPCellConfig& cell, const std
     if (g.kind == "group" && g.id == "drivers") return { "NullDriver", "GcodeDriver", "GcodeAsyncDriver", "NeoDen4Driver" };
     if (g.kind == "group" && g.id == "actuators") return { "ReferenceActuator", "HttpActuator", "ScriptActuator", "ThermistorToLinearSensorActuator", "NeoDen4FeederActuator" };
     if (g.kind == "group" && g.id == "nozzles") return { "ReferenceNozzle", "ContactProbeNozzle" };
+    if (g.kind == "group" && g.id == "axes")
+        return { "ReferenceControllerAxis", "ReferenceVirtualAxis", "ReferenceMappedAxis", "ReferenceCamCounterClockwiseAxis",
+                 "ReferenceCamClockwiseAxis", "ReferenceLinearTransformAxis" };
     if (g.kind == "group" && g.id == "cameras")
         return { "OpenPnpCaptureCamera", "Neoden4Camera", "Neoden4SwitcherCamera", "MjpgCaptureCamera", "ImageCamera",
                  "SwitcherCamera", "OnvifIPCamera", "GstreamerCamera" };
@@ -144,6 +147,14 @@ std::string JPSetupEdits::add(JPCellConfig& cell, const std::string& path, const
         JPAxisConfig a;
         a.id = newId(cell, "AXS");
         a.name = "New axis";
+        // OpenPnP's axis class chosen (a controller axis when none is).
+        using K = JPAxisConfig::Kind;
+        a.kind = kind == "ReferenceVirtualAxis"                                               ? K::Virtual
+               : kind == "ReferenceMappedAxis"                                                ? K::Mapped
+               : kind == "ReferenceCamCounterClockwiseAxis" || kind == "ReferenceCamClockwiseAxis" ? K::Cam
+               : kind == "ReferenceLinearTransformAxis"                                       ? K::Linear
+                                                                                              : K::Controller;
+        a.camClockwise = kind == "ReferenceCamClockwiseAxis";
         if (!cell.drivers.empty()) a.driverId = cell.drivers.front().id;
         cell.axes.push_back(a);
         return "axis:" + a.id;
