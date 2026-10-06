@@ -9,7 +9,8 @@ set up; here it is looked at, changed and added to.
 ## The tree
 
 The machine is shown as a tree of its parts, in OpenPnP's order, each named as OpenPnP names it, its
-class and then its name (**ReferenceHead H1**, **GcodeAsyncDriver Jaytek**):
+class and then its name (**ReferenceHead H1**, **GcodeAsyncDriver Jaytek**), with OpenPnP's icon before a
+nozzle, a camera, a driver and an axis (linear or rotation):
 
 - **Axes**: every axis, whichever controller drives it.
 - **Signalers**: what tells you how a job is going (below).
@@ -32,7 +33,7 @@ This Branch** and **Close This Branch** (the row and everything under it), **Ope
 what the last change could not do, or what is not in use until put right, only while there is something
 to say. A camera's gear icon (in its tab) opens Machine Setup on that camera.
 
-<!-- src: src/setup/JPSetupTree.cpp (build, classOf); src/machine/JPDriverConfig.cpp (className); src/machine/JPNozzleConfig.h (className); src/ui/JPMachineSetupPanel.cpp (the search, showNode, setBranch, collapseAll, the tree's menu, the divider, kTreeShare); src/app/JPlacerMachine.cpp (showSetup); src/app/JPlacerSettings.h (kSetupTreeShare) -->
+<!-- src: src/setup/JPSetupTree.cpp (build, classOf, iconOf); src/ui/JPSetupTreeView.cpp; src/machine/JPDriverConfig.cpp (className); src/machine/JPNozzleConfig.h (className); src/ui/JPMachineSetupPanel.cpp (the search, showNode, setBranch, collapseAll, the tree's menu, the divider, kTreeShare); src/app/JPlacerMachine.cpp (showSetup); src/app/JPlacerSettings.h (kSetupTreeShare) -->
 
 ### Job Processors
 
