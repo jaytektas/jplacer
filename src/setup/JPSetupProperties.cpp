@@ -1891,15 +1891,20 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     }
     add.group("Test");
     const bool fixedCamera = c().mount.headId.empty();
-    std::vector<std::pair<std::string, std::string>> tests { { "Left", "settleTestLeft" }, { "Right", "settleTestRight" },
-                                                             { "Back", "settleTestBack" }, { "Front", "settleTestFront" },
-                                                             { "Here", "settleTestHere" } };
+    // OpenPnP's words for each.
+    std::vector<JPFormBuilder::Action> tests {
+        { "Left", "settleTestLeft", "Makes a move to the left and back, then settles the Camera. Uses the Jog increment distance." },
+        { "Right", "settleTestRight", "Makes a move to the right and back, then settles the Camera. Uses the Jog increment distance." },
+        { "Back", "settleTestBack", "Makes a move to the rear and back, then settles the Camera. Uses the Jog increment distance." },
+        { "Front", "settleTestFront", "Makes a move to the front and back, then settles the Camera. Uses the Jog increment distance." },
+        { "Here", "settleTestHere", "Test-Settle the Camera with no motion." } };
     // A fixed camera's: the nozzle turned, and the nozzle brought over it (OpenPnP's Up).
     if (fixedCamera) {
-        tests.push_back({ "Rotate", "settleTestRotate" });
-        tests.push_back({ "Up", "settleTestUp" });
+        tests.push_back({ "Rotate", "settleTestRotate", "Makes a rotation and back, then settles the Camera. Uses the Jog increment." });
+        tests.push_back({ "Up", "settleTestUp",
+                          "Moves the nozzle to the camera at Safe Z (or just to Safe Z and back), then settles the camera." });
     }
-    add.actions(tests);
+    add.actionsWithTips(tests);
     add.note(fixedCamera
                  ? "Move the nozzle chosen on the Jog pad one jog step (the Jog pad's distance) that way and back, turn "
                    "it one jog step and back (Rotate), or not at all (Here), and let the camera settle as a picture for "
