@@ -1496,7 +1496,7 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
                     if (const auto a = alive.lock(); !a || !*a) return;
                     lightCameras();   // the lights back to what the cameras on screen want
                     if (!tuned) {
-                        m_window.showStatus(name + ": not tuned (the camera has no properties, or it stopped)", kErrorMs);
+                        m_window.showStatus(name + ": not tuned (the camera has no properties, it stopped, or the values found did not give the picture it gave by itself: see the log)", kErrorMs);
                         return;
                     }
                     if (m_setup) {

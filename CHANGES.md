@@ -13,6 +13,13 @@ notes.
 - Defaults, then Auto-Tune switches the camera's light on first (and other cameras' Anti-Glare lights off), so the
   camera is tuned for the pictures vision takes; with the machine off it says to connect first, rather than tuning
   a dark camera.
+- Auto-Tune waits for the camera's own automatic exposure to settle (up to 6 seconds) before taking it as the aim, so a
+  camera starting far off (very bright or very dark) is no longer tuned to a picture it was still passing through; it
+  looks at each value it tries only once the camera shows it, and checks the values it finds give the picture the
+  camera gave by itself (not tuned, and homing stops, when they do not).
+- Visual homing looks again as OpenPnP's does: up to the FIDUCIAL-HOME part's Max Vision Passes, until a look corrects
+  by less than its Max Linear Offset, the last look's correction standing; it no longer fails a home that is a few
+  hundredths of a millimetre off after three looks.
 - A camera's Device Settings have Auto-Tune when homing?: each visual homing first tunes the camera over the head's
   primary fiducial with its light on, then finds the homing fiducial, then goes on as before (nozzle tips, park).
 - Home after enabled? is the machine's setting alone, as in OpenPnP; the controllers' own Home after connected? is

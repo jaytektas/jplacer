@@ -16,8 +16,10 @@
 inline namespace jf {
 
 // Defaults, then Auto-Tune, on a capture device's own settings: each to the
-// device's default, those with an automatic mode left to it a moment
-// (`autoMs`), the picture it gives then looked at; then all switched to
+// device's default, those with an automatic mode left to it at least a
+// moment (`autoMs`) and until its picture holds steady (a camera's automatic
+// exposure can take seconds to come back from far off), the picture it gives
+// then looked at; then all switched to
 // manual. Many cameras do not say what their automatic exposure and white
 // balance settled on (they read back the last value set by hand), so those
 // two are found from the picture instead: set together, a step at a time, a
@@ -30,11 +32,17 @@ class JPAutoTune {
 public:
     using Clock = std::chrono::steady_clock;
 
-    // Pictures a step lets pass before it looks (the camera taking the new
-    // settings), then how many it looks at; steps in which each search halves.
-    static constexpr int kSettleFrames = 2, kLookFrames = 1, kHalvings = 6;
-    // The share of the automatic moment at its end whose pictures are the aim.
-    static constexpr double kAimShare = 0.4;
+    // Pictures a step lets pass before it looks, then how many it looks at; steps in which each search halves.
+    // Passed: those the driver may have queued (3) and those a camera takes to show a new setting (a UVC camera,
+    // 2, measured).
+    static constexpr int kSettleFrames = 5, kLookFrames = 1, kHalvings = 6;
+    // Tuned only when the picture with the values found is this near the aim: within kReachLevels (of 255) or
+    // kReachShare of the aim's brightness, whichever is more, and kReachWarmth.
+    static constexpr double kReachLevels = 12, kReachShare = 0.15, kReachWarmth = 0.05;
+    // Steady: over the last kSteadyMs, the pictures' brightness within kSteadyLevels (of 255) and warmth within
+    // kSteadyWarmth; those pictures are the aim. Waited for at most kAutoMostMs, the last of them then the aim.
+    static constexpr int    kSteadyMs = 400, kAutoMostMs = 6000;
+    static constexpr double kSteadyLevels = 2.0, kSteadyWarmth = 0.01;
 
     JPAutoTune(int autoMs, int holdMs) : m_autoMs(autoMs), m_holdMs(holdMs) {}
 
@@ -42,7 +50,8 @@ public:
     bool start(JPCaptureSource& source, Clock::time_point now);
     // A picture the device gave (as taken), at `when`.
     void see(const JPFrame& frame, Clock::time_point when);
-    // On with it; the settings arrived at once done (each "auto" false, "value" held), else none yet.
+    // On with it; the settings arrived at once done (each "auto" false, "value" held), else none yet. Done,
+    // reached() says whether they gave the picture aimed for (got(): the one they gave).
     std::optional<JJson> step(JPCaptureSource& source, Clock::time_point now);
 
     // A picture's brightness (0..255) and warmth (its red less its blue, against all three).
@@ -50,9 +59,13 @@ public:
         double brightness = 0, warmth = 0;
     };
     static Look lookAt(const JPFrame& frame);
+    // The picture aimed for (the device's own, steady), once the automatic moment is over.
+    Look aim() const { return m_aim; }
+    Look got() const { return m_got; }
+    bool reached() const;
 
 private:
-    enum class Step { Auto, Search, Hold, Done };
+    enum class Step { Auto, Search, Check, Hold, Done };
     // One setting found from the picture: its range, the value tried, and which way the picture goes.
     struct Search {
         std::string name;
@@ -69,7 +82,7 @@ private:
     Clock::time_point   m_started {}, m_due {};
     JJson               m_tuning;   // what is set: each setting's "auto" and "value"
     std::vector<std::pair<Clock::time_point, Look>> m_autoLooks;
-    Look                m_aim;
+    Look                m_aim, m_got;
     std::vector<Search> m_searches;
     Phase               m_phase = Phase::Low;
     int                 m_halvings = 0;

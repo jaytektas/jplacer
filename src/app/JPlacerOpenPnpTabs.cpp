@@ -839,7 +839,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         std::string settings;
         if (JPFiducialLocator::partLook(config, *part, vision, diameter, look, settings) != JPFiducialLocator::PartProblem::None)
             return std::nullopt;
-        return JPVisualTest::Look { diameter, look.pipeline };
+        return JPVisualTest::Look { diameter, look.pipeline, look.passes, look.maxLinearOffsetMm };
     };
     // A camera's calibration pipeline in the editor, run on that camera (its own, or OpenPnP's default).
     m_machine.onEditCalibrationPipeline = [this](const std::string& cameraId) {

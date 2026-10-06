@@ -33,6 +33,9 @@ public:
     struct Look {
         double                      diameterMm = 0;
         std::shared_ptr<JPPipeline> pipeline;   // none: jplacer's finder alone
+        // Its fiducial vision settings' Max Vision Passes and Max Linear Offset (visual homing's).
+        int                         passes = 3;
+        double                      maxLinearOffsetMm = 0.2;
     };
     // `look` none: OpenPnP's "Visual homing is missing the FIDUCIAL-HOME part. Please create it."
     static Result run(JPCell& cell, JPCameraFeed& feed, const JPHeadConfig& head, double speed, const Look* look);

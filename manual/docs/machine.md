@@ -214,14 +214,17 @@ machine imported from OpenPnP homes the way it did in OpenPnP, with the same com
 The switches put the head within a fraction of a millimetre. Where the head is set to home visually (an
 imported head that did so in OpenPnP is), Home then finishes with the camera: the calibrated camera on
 the head is brought to the front, looks at the homing mark, and the coordinates are corrected so the mark measures
-exactly where the head's settings say it is. It looks again to check, and corrects again if that left
-more than 0.02 mm (about how closely a machine returns to a place). The line under the camera buttons and
+exactly where the head's settings say it is. As OpenPnP's, it looks again, up to the **FIDUCIAL-HOME**
+part's fiducial vision settings' **Max Vision Passes** (3 to begin with), until a look corrects it by less
+than their **Max Linear Offset** (0.2 mm to begin with); the last look's correction stands. With the camera's
+**Auto-Tune when homing?** ticked, the camera is first tuned over the head's primary fiducial (see Machine
+Setup). The line under the camera buttons and
 the status bar say by how much it corrected. Until a camera on the head is calibrated, Home says it homed
 by the switches only.
 
 <!-- src: src/machine/JPGcodeDriver.cpp (connect, unlockForHoming); src/machine/JPCell.cpp (doHome) -->
 
-<!-- src: src/tasks/JPVisualHoming.cpp (kHomedWithinMm, kCorrections); src/app/JPlacerCameraTasks.cpp (visualHome); src/app/JPlacerMachine.cpp (onHomed); src/machine/JPCell.cpp (correctPosition) -->
+<!-- src: src/tasks/JPVisualHoming.cpp (run); src/app/JPlacerOpenPnpTabs.cpp (homeFiducialLook); src/app/JPlacerCameraTasks.cpp (visualHome); src/app/JPlacerMachine.cpp (onHomed); src/machine/JPCell.cpp (correctPosition) -->
 
 The house is grey while the machine is not homed, an amber arc while it homes, and green once homed; a
 failed home turns it red and the status bar says why. A red **ALARM** strip runs across the top of the

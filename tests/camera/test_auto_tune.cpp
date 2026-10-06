@@ -4,9 +4,10 @@
 // Defaults, then Auto-Tune, against a stand-in camera that, like many, does
 // not say what its automatic exposure and white balance settled on (it reads
 // back the last value set by hand): every setting to the camera's default,
-// the automatic ones left to it for their moment while its pictures are
-// looked at, then exposure and white balance found from the picture (the
-// values giving the picture it gave by itself), held and kept by hand; a
+// the automatic ones left to it until its picture holds steady (its automatic
+// exposure coming round slowly from far off), then exposure and white balance
+// found from the picture (the values giving the picture it gave by itself),
+// held and kept by hand; values that do not give that picture: not reached; a
 // camera with no settings of its own: nothing to tune.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
@@ -19,13 +20,15 @@ using namespace jf;
 
 namespace {
 
-// Exposure 1..5000 (automatic, settling at 333), white balance 2800..6500
+// Exposure 1..5000 (automatic, settling at 333 slowly: a twentieth of the way, on a
+// log scale, each picture, from where it was set), white balance 2800..6500
 // (automatic, settling at 4600), brightness (manual only). Its picture: as
 // bright as its exposure (on a log scale), as warm as its white balance is low.
 class StandIn : public JPCaptureSource {
 public:
     bool   exposureAuto = false, balanceAuto = false;
-    double exposure = 50, balance = 2800;   // as set by hand: what it reads back
+    double exposure = 4900, balance = 2800;   // as set by hand: what it reads back (far off: overexposed)
+    mutable double autoExposure = 0;          // where its automatic exposure has got to
     int    brightness = 10;
     int    sets = 0;
     bool open(std::string&) override { return true; }
@@ -51,7 +54,10 @@ public:
     }
     void setControls(const JJson& c) override {
         ++sets;
-        if (c["exposure"]["auto"].isBool()) exposureAuto = c["exposure"]["auto"].boolean();
+        if (c["exposure"]["auto"].isBool()) {
+            if (c["exposure"]["auto"].boolean() && !exposureAuto) autoExposure = exposure;
+            exposureAuto = c["exposure"]["auto"].boolean();
+        }
         if (!exposureAuto && c["exposure"]["value"].isNumber()) exposure = c["exposure"]["value"].number();
         if (c["white-balance"]["auto"].isBool()) balanceAuto = c["white-balance"]["auto"].boolean();
         if (!balanceAuto && c["white-balance"]["value"].isNumber()) balance = c["white-balance"]["value"].number();
@@ -59,7 +65,8 @@ public:
     }
     // Its picture now: grey of a brightness from the exposure in use, tinted by the white balance in use.
     JPFrame picture() const {
-        const double e = exposureAuto ? 333 : exposure, w = balanceAuto ? 4600 : balance;
+        if (exposureAuto) autoExposure *= std::pow(333 / autoExposure, 0.05);
+        const double e = exposureAuto ? autoExposure : exposure, w = balanceAuto ? 4600 : balance;
         const double grey = std::clamp(25 * std::log2(e), 0.0, 255.0);
         const double tint = (6500 - w) / 3700 * 60;   // warmer when lower
         JPFrame f;
@@ -72,6 +79,15 @@ public:
             f.rgba[i + 2] = uint8_t(std::clamp(grey - tint, 0.0, 255.0));
         }
         return f;
+    }
+};
+
+// Takes no exposure set by hand: set by hand, it is at its least whatever is asked.
+class Stuck : public StandIn {
+public:
+    void setControls(const JJson& c) override {
+        StandIn::setControls(c);
+        if (!exposureAuto) exposure = 1;
     }
 };
 
@@ -106,8 +122,21 @@ int main() {
     assert(std::abs(balance - 4600) < 150);
     assert((*tuned)["brightness"]["value"].number() == 128 && !(*tuned)["brightness"]["auto"].boolean());
     assert(!cam.exposureAuto && !cam.balanceAuto);   // held by hand
-    // Done in about two seconds of pictures.
     assert(!tune.step(cam, t + milliseconds(5000)));   // done once
+    assert(tune.reached());
+    // Values that do not give the picture aimed for: done, but not reached.
+    {
+        Stuck stuck;
+        JPAutoTune st(1200, 200);
+        assert(st.start(stuck, t));
+        std::optional<JJson> got;
+        for (int i = 0; i < 400 && !got; ++i) {
+            t += milliseconds(33);
+            st.see(stuck.picture(), t);
+            got = st.step(stuck, t);
+        }
+        assert(got && !st.reached());
+    }
     // No settings of its own: nothing to tune.
     Bare bare;
     JPAutoTune none(1200, 200);

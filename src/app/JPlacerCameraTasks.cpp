@@ -37,8 +37,8 @@ constexpr int    kCentrePasses = 3;
 constexpr double kCentredMm = 0.01;
 // How long each of auto focus's pictures is shown (OpenPnP's 1 s).
 constexpr int kAutoFocusShownMs = 1000;
-// How long Auto-Tune when homing may take, all told (it takes about two seconds).
-constexpr int kTuneWaitMs = 10000;
+// How long Auto-Tune when homing may take, all told (the camera's automatic moment, 6 s at most, then the search).
+constexpr int kTuneWaitMs = 12000;
 // How long a result stays in the status bar.
 constexpr int kResultMs = 8000;
 // Looking for a mark under the camera: how far from the middle, and how small and big, as shares of the
@@ -709,7 +709,7 @@ bool JPlacerCameraTasks::autoTuneAt(JPCameraFeed& feed, const JPMachineLocation&
     }
     const std::optional<JJson> controls = tuned.get();
     if (!controls) {
-        why = feed.config().name + " was not tuned (it has no properties of its own, or it stopped)";
+        why = feed.config().name + " was not tuned (it has no properties of its own, it stopped, or the values found did not give the picture it gave by itself: see the log)";
         return false;
     }
     // Kept in the cell and saved, as a calibration is, on the main thread.
