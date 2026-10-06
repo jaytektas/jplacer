@@ -622,12 +622,30 @@ void connect(JPSolutions& s, const JPIssueChecks::Context& c) {
         s.add(std::move(i));
     }
     for (const JPCameraConfig& cam : cell->cameras) {
-        if (cam.device["backend"].str() != "simulated") continue;
-        Issue i = plain("Camera " + cam.name, "Camera not connected to jplacer",
-                        "On the camera's Machine Setup page select the correct Device and Format. An image from the camera "
-                        "should appear in the camera's view pane.",
-                        Severity::Fundamental, std::string(kWiki) + "OpenPnpCaptureCamera");
+        // OpenPnP's ImageCamera and SimulatedUpCamera issues (a simulated camera of jplacer's own, as the
+        // first): Accept makes it a capture device (its Device chosen on its page), its place, calibration
+        // and settings kept; Undo makes it the simulation again.
+        const std::string backend = cam.device["backend"].str();
+        if (backend != "simulated" && backend != "image") continue;
+        const bool up = cam.device["openpnpClass"].str() == "SimulatedUpCamera";
+        const std::string kind = up ? "SimulatedUpCamera" : backend == "image" ? "ImageCamera" : "camera";
+        Issue i = plain(kind + " " + cam.name,
+                        up ? "The SimulatedUpCamera can be replaced with a OpenPnpCaptureCamera to connect to a real USB camera."
+                           : "The simulation ImageCamera can be replaced with a OpenPnpCaptureCamera to connect to a real USB camera.",
+                        "Replace with OpenPnpCaptureCamera.", Severity::Fundamental, std::string(kWiki) + "OpenPnpCaptureCamera");
         const std::string id = cam.id;
+        const JJson simulated = cam.device;
+        i.apply = changing(c, "Replace with OpenPnpCaptureCamera", [id, simulated](JPCellConfig& cell, bool solved) {
+            for (JPCameraConfig& x : cell.cameras) {
+                if (x.id != id) continue;
+                if (solved) {
+                    x.device = JJson::object();
+                    x.device["backend"] = std::string("v4l2");
+                } else {
+                    x.device = simulated;
+                }
+            }
+        });
         i.activate = [c, id] {
             if (c.showSetup) c.showSetup("camera:" + id);
         };

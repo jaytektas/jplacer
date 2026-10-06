@@ -95,6 +95,24 @@ int main() {
         assert(s.setState(*nullDriver, S::State::Solved, why) && cell.drivers.front().link["type"].str() == "serial");
         assert(s.setState(*nullDriver, S::State::Open, why) && cell.drivers.front().link["type"].str() == "simulated");
     }
+    // OpenPnP's ImageCamera issue: Replace with OpenPnpCaptureCamera makes it a capture device; Undo, the picture again.
+    {
+        JPCameraConfig picture;
+        picture.id = "IMG";
+        picture.name = "Top";
+        picture.device["backend"] = std::string("image");
+        picture.device["source"] = std::string("table.png");
+        cell.cameras.push_back(picture);
+        s.find();
+        s.publish();
+        S::Issue* image = const_cast<S::Issue*>(
+            find(s, "The simulation ImageCamera can be replaced with a OpenPnpCaptureCamera to connect to a real USB camera."));
+        assert(image);
+        std::string why;
+        assert(s.setState(*image, S::State::Solved, why) && cell.cameras.back().device["backend"].str() == "v4l2");
+        assert(s.setState(*image, S::State::Open, why) && cell.cameras.back().device["source"].str() == "table.png");
+        cell.cameras.pop_back();
+    }
     // The firmware it identified as (OpenPnP's GcodeDriverSolutions): a Smoothieware
     // without the PnP build, RepRapFirmware before 3.3, Marlin without rotation axes,
     // and one not known; the PnP Smoothieware built for its axes: nothing.
