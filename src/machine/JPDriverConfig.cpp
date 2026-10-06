@@ -27,6 +27,8 @@ std::optional<JPDriverConfig> JPDriverConfig::fromJson(const JJson& j, std::stri
     c.connectWaitMs     = int(j["connectWaitMs"].number(c.connectWaitMs));
     c.maxFeedRate       = j["maxFeedRate"].number(c.maxFeedRate);
     c.homeAfterConnect  = j["homeAfterConnect"].boolean();
+    c.syncInitialLocation = j["syncInitialLocation"].boolean();
+    c.allowUnhomedMotion  = j["allowUnhomedMotion"].boolean();
     c.logGcode          = j["logGcode"].boolean(c.logGcode);
     c.removeComments    = j["removeComments"].boolean(c.removeComments);
     c.compressGcode     = j["compressGcode"].boolean(c.compressGcode);
@@ -59,6 +61,8 @@ JJson JPDriverConfig::toJson() const {
     j["connectWaitMs"]     = connectWaitMs;
     if (maxFeedRate > 0) j["maxFeedRate"] = maxFeedRate;
     if (homeAfterConnect) j["homeAfterConnect"] = true;
+    if (syncInitialLocation) j["syncInitialLocation"] = true;
+    if (allowUnhomedMotion) j["allowUnhomedMotion"] = true;
     if (logGcode) j["logGcode"] = true;
     if (removeComments) j["removeComments"] = true;
     if (compressGcode) j["compressGcode"] = true;

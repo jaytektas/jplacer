@@ -263,7 +263,7 @@ float JPSetupForm::widthOf(const JProperty& p) const {
     const JStyle& st = JStyle::current();
     // Shown text: as wide as it is drawn, with room to spare (a measure falls a little short of it), and
     // no narrower than a number's field, as editor() makes it.
-    if (!p.writable()) return std::max(std::ceil(JTextHelper::measureWidth(p.get().toString())) + st.spacing, numberWidth());
+    if (!p.writable() && !p.get().isBool()) return std::max(std::ceil(JTextHelper::measureWidth(p.get().toString())) + st.spacing, numberWidth());
     if (!p.meta.choices.empty()) {
         // The longest item, its padding either side, and the arrow.
         float widest = 0;
@@ -287,6 +287,14 @@ float JPSetupForm::widthOf(const JProperty& p) const {
 
 std::unique_ptr<JWidget> JPSetupForm::editor(const JProperty& p, float width) {
     const JStyle& st = JStyle::current();
+    if (!p.writable() && p.get().isBool()) {
+        // A tick box that cannot be changed now: shown greyed, as it stands.
+        JProperty shown = p;
+        shown.set = [](const JVariant&) { return false; };
+        std::unique_ptr<JWidget> box = editor(shown, width);
+        box->setEnabled(false);
+        return box;
+    }
     if (!p.writable()) {
         // As wide as its text with room to spare, and no narrower than a number's field (it may grow).
         auto value = std::make_unique<JLabel>(m_graph, p.get().toString(), 0.f, st.labelHeight);

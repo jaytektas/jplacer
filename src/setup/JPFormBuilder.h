@@ -199,7 +199,7 @@ public:
     void flag(const std::string& name, const std::string& label, std::function<bool()> get, std::function<void(bool)> set) {
         JProperty p = make(name, label);
         p.get = [get] { return JVariant(get()); };
-        p.set = [set](const JVariant& v) { set(v.toBool()); return true; };
+        if (set) p.set = [set](const JVariant& v) { set(v.toBool()); return true; };   // none: shown, not edited
         put(std::move(p));
     }
     void flag(const std::string& name, const std::string& label, std::function<bool&()> ref) {

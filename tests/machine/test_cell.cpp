@@ -829,5 +829,27 @@ int main() {
         assert(cell.positions().at("X") == 7.0);
         cell.disconnect();
     }
+    // OpenPnP's Sync Initial Location and Allow Unhomed Motion: unhomed, a jog only with the first, any other
+    // move only with both; without, each refused saying so.
+    for (const int mode : { 0, 1, 2 }) {
+        JPCellConfig c = cellConfig();
+        c.drivers[0].syncInitialLocation = mode >= 1;
+        c.drivers[0].allowUnhomedMotion = mode >= 2;
+        JPCell cell(c, profiles());
+        Latch<std::pair<bool, std::string>> connection, motion;
+        cell.onConnection.connect([&](bool ok, std::string why) { connection.set({ ok, why }); });
+        cell.onMotion.connect([&](bool ok, std::string why) { motion.set({ ok, why }); });
+        cell.connect();
+        assert(connection.take().first && !cell.isHomed());
+        cell.jog("N", 1, 0, 0, 0, 1.0);
+        const auto jogged = motion.take();
+        assert(jogged.first == (mode >= 1));
+        if (mode == 0) assert(jogged.second.find("Sync. Initial Location") != std::string::npos);
+        cell.moveAxes({ { "X", 5.0 } }, 1.0);
+        const auto moved = motion.take();
+        assert(moved.first == (mode >= 2));
+        if (mode == 1) assert(moved.second.find("Allow Unhomed Motion") != std::string::npos);
+        cell.disconnect();
+    }
     return 0;
 }

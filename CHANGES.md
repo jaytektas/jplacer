@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- A controller's Sync Initial Location and Allow Unhomed Motion, as OpenPnP's: an unhomed machine can be jogged on
+  controllers that say where they are, and moved at all where they allow it. A tick box that cannot be changed now
+  is shown greyed and stays as it is.
 - Machine Setup has OpenPnP's Expand tick box over the tree (every branch opened, or closed). The Boards tab's
   placement menus say what each entry does, as OpenPnP's.
 - OpenPnP's keys: Ctrl+Shift+F1 to F5 choose the First to Fifth Jog Increment, Shift makes a jog two steps finer,

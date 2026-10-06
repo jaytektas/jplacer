@@ -560,6 +560,8 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                 if (const std::string t = translate(*home, -1, "controller " + dc.name, notes); !t.empty())
                     dc.commands["home"] = t;
             dc.homeAfterConnect = homeAfterEnabled;
+            dc.syncInitialLocation = d.attr("sync-initial-location") == "true";
+            dc.allowUnhomedMotion = d.attr("allow-unhomed-motion") == "true";
             c.drivers.push_back(std::move(dc));
         }
     }

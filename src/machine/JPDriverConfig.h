@@ -30,6 +30,10 @@ struct JPDriverConfig {
     std::string name;
     std::string profile = "auto";
     bool        homeAfterConnect = false;   // the machine homes once this controller connects
+    // OpenPnP's Sync Initial Location (where the controller says it is, taken once connected, so an unhomed
+    // machine may be jogged) and Allow Unhomed Motion (with it, any move before homing: absolute encoders).
+    bool        syncInitialLocation = false;
+    bool        allowUnhomedMotion = false;
     JJson       link;
     int statusIntervalMs  = 100;
     int commandTimeoutMs  = 5000;

@@ -163,10 +163,14 @@ JPJogPanel::JPJogPanel(JSceneGraph& graph, JPCell& cell, Choices start) : JConta
     m_note = add(std::make_unique<JLabel>(graph, ""));
     m_note->setWordWrap(true);
     m_watch.on(cell.onMotion, [this](bool ok, std::string why) { m_note->setText(ok ? std::string() : why); });
-    m_watch.on(cell.onHomed, [this](bool homed) {
-        m_note->setText(homed ? std::string() : "Home the machine to move it.");
-    });
-    if (!cell.isHomed()) m_note->setText("Home the machine to move it.");
+    // Unhomed: home it to move it, unless its controllers said where they are (Sync Initial Location), when it can be jogged.
+    auto unhomedNote = [&cell] {
+        for (const JPDriverConfig& d : cell.config().drivers)
+            if (d.syncInitialLocation) return std::string("Not homed: jogging only, until the machine is homed.");
+        return std::string("Home the machine to move it.");
+    };
+    m_watch.on(cell.onHomed, [this, unhomedNote](bool homed) { m_note->setText(homed ? std::string() : unhomedNote()); });
+    if (!cell.isHomed()) m_note->setText(unhomedNote());
     refreshKeys();
 }
 

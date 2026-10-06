@@ -1883,7 +1883,7 @@ void JPCell::jog(const std::string& toolId, double dx, double dy, double dz, dou
         if (!m_jogGuard(*mount, after)) return;
     }
     compensateRunout(*mount, targets, true);
-    if (!targets.empty()) moveAxes(std::move(targets), speed);
+    if (!targets.empty()) moveAxes(std::move(targets), speed, true);
 }
 
 void JPCell::roamUnsafeZ(const std::string& toolId, const JPMountConfig& mount, const std::map<std::string, double>& now,
@@ -2145,14 +2145,17 @@ void JPCell::moveTool(const JPMountConfig& mount, std::array<std::optional<doubl
     });
 }
 
-void JPCell::moveAxes(std::map<std::string, double> targets, double speed) {
+void JPCell::moveAxes(std::map<std::string, double> targets, double speed, bool jog) {
     if (m_moving.exchange(true)) {
         JLOGC(JPlacerLog::kCell, JLogLevel::Debug) << "move refused: one is under way";
         return;
     }
-    m_thread.post([this, targets = std::move(targets), speed] {
+    m_thread.post([this, targets = std::move(targets), speed, jog] {
         std::string why;
-        const bool ok = finished(doMove(targets, speed, why), why);
+        m_jogMove = jog;
+        const bool moved = doMove(targets, speed, why);
+        m_jogMove = false;
+        const bool ok = finished(moved, why);
         m_moving = false;
         if (!ok) JLOGC(JPlacerLog::kCell, JLogLevel::Warn) << "move refused: " << why;
         onMotion.emit(ok, why);
@@ -2469,9 +2472,39 @@ bool JPCell::resolveLinear(std::map<std::string, double>& targets, const std::ma
     return true;
 }
 
+bool JPCell::unhomedAllowed(const std::map<std::string, double>& targets, bool jog, std::string& why) const {
+    // OpenPnP's: unhomed, a jog only on controllers with Sync Initial Location (they said where they are
+    // when connected), any other move only where they Allow Unhomed Motion too.
+    std::set<std::string> drivers;
+    std::function<void(const std::string&, int)> driversOf = [&](const std::string& axisId, int depth) {
+        const JPAxisConfig* a = m_config.axis(axisId);
+        if (!a || depth > int(m_config.axes.size())) return;
+        if (a->kind == JPAxisConfig::Kind::Controller) drivers.insert(a->driverId);
+        else if (!a->inputAxisId.empty()) driversOf(a->inputAxisId, depth + 1);
+        else for (const std::string& in : a->linearInputs) if (!in.empty()) driversOf(in, depth + 1);
+    };
+    for (const auto& [axisId, to] : targets) driversOf(axisId, 0);
+    if (drivers.empty()) {
+        why = "not homed: home the machine first";
+        return false;
+    }
+    for (const JPDriverConfig& d : m_config.drivers) {
+        if (!drivers.count(d.id)) continue;
+        if (jog && !d.syncInitialLocation) {
+            why = "Machine not homed. Jogging only allowed if driver " + d.name + " has option \"Sync. Initial Location\" enabled.";
+            return false;
+        }
+        if (!jog && !(d.syncInitialLocation && d.allowUnhomedMotion)) {
+            why = "Machine not homed. Motion only allowed if driver " + d.name + " has option \"Allow Unhomed Motion\" enabled.";
+            return false;
+        }
+    }
+    return true;
+}
+
 bool JPCell::doMoveNow(std::map<std::string, double> targets, double speed, std::string& why, bool squared) {
     if (!m_connected) { why = "not connected"; return false; }
-    if (!m_homed)     { why = "not homed: home the machine first"; return false; }
+    if (!m_homed && !unhomedAllowed(targets, m_jogMove, why)) return false;
 
     // Linear transform axes (OpenPnP's) solved back onto their input axes.
     if (!resolveLinear(targets, jogBase(), why)) return false;

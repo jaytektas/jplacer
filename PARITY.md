@@ -45,6 +45,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Serial port settings, DTR / RTS, line endings | done | |
 | TCP communications | done | |
 | Keep Alive | done | per controller: Disconnect leaves its connection open, Connect takes it up as it is; imported; Issues & Solutions' warning |
+| Sync Initial Location, Allow Unhomed Motion | done | unhomed jogs and moves allowed per controller, refused with OpenPnP's words; imported |
 | Firmware detection, generic G-code proposal | done | firmware profiles with `auto` detection: Grbl, grblHAL, Generic, and OpenPnP's Smoothieware, Marlin, RepRapFirmware (Duet) and TinyG set up as its GcodeDriverSolutions proposes; its firmware issues (Smoothieware PnP build and PAXIS, RepRapFirmware 3.3, Marlin rotation axes, unknown firmware) from the M115 reply |
 | Command timeout, connect wait, max feed rate, log G-code | done | |
 | Compress G-code, remove comments, backslash escapes | done | Driver Settings |

@@ -267,7 +267,8 @@ public:
     // Move axes to coordinates, by axis id. Checked against soft limits; a
     // mapped axis moves its input axis. Runs on the cell thread; the outcome
     // arrives as onMotion.
-    void moveAxes(std::map<std::string, double> targets, double speed);
+    // `jog`: a jog (OpenPnP's JogMotion), which an unhomed machine allows on more controllers (unhomedAllowed).
+    void moveAxes(std::map<std::string, double> targets, double speed, bool jog = false);
     // The same, waiting for the outcome: for a procedure on a thread of its
     // own (never the cell's, which runs the move). False with `why`.
     // `squared` false: the targets are in the axes' own coordinates, as
@@ -364,6 +365,9 @@ private:
     // replaces drivers (OpenPnP's Replace Drivers?), simulated, its axes' letters kept;
     // a simulated one set up without letters given its axes' letters too.
     static JPDriverConfig asRun(const JPDriverConfig& driver, const JPCellConfig& cell);
+    // Whether moving to `targets` is allowed before homing (OpenPnP's): every controller they are on
+    // with Sync Initial Location for a jog, and Allow Unhomed Motion too for any other move.
+    bool unhomedAllowed(const std::map<std::string, double>& targets, bool jog, std::string& why) const;
     static std::string format(double v, int decimals);
     void updatePositions(const std::string& driverId, const JPFirmwareProfile::Status& status);
     // `keepingAlive`: a Disconnect asked for, which leaves the Keep Alive controllers open.
@@ -495,6 +499,7 @@ private:
                                          const std::map<std::string, double>& now) const;
 
     JPCellConfig                                m_config;
+    bool                                        m_jogMove = false;   // the move under way is a jog (cell thread)
     std::vector<JPFirmwareProfile>              m_profiles;
     std::vector<std::unique_ptr<JPGcodeDriver>> m_drivers;
     std::atomic<bool>                           m_connected{ false };

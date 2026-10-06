@@ -334,6 +334,16 @@ void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPF
     add.choice("profile", "Firmware Profile", choices, [d] { return d().profile; },
                [d](const std::string& v) { d().profile = v; });
     add.flag("homeAfterConnect", "Home after connected?", [d]() -> bool& { return d().homeAfterConnect; });
+    // OpenPnP's: where the controller says it is, taken once connected (so the unhomed machine can be
+    // jogged); with it, Allow Unhomed Motion lets any move go before homing.
+    add.flag("syncInitialLocation", "Sync Initial Location", [d]() -> bool& { return d().syncInitialLocation; });
+    add.tip("After enabling the driver, synchronize the initial location from the controller. Allows you to safely jog "
+            "an unhomed machine.");
+    f.reshaping.push_back("syncInitialLocation");
+    add.flag("allowUnhomedMotion", "Allow Unhomed Motion", [d] { return d().allowUnhomedMotion; },
+             d().syncInitialLocation ? std::function<void(bool)>([d](bool v) { d().allowUnhomedMotion = v; }) : nullptr);
+    add.tip("Allow the driver axes to move in the unhomed machine state. This likely only makes sense for machines with "
+            "absolute linear encoders. Only available when Sync Initial Location is first enabled.");
     // A simulated controller (OpenPnP's NullDriver) is for trying jplacer
     // without a machine; made a serial or TCP one here (or by Issues &
     // Solutions' Replace with GcodeDriver), it drives a real controller.
