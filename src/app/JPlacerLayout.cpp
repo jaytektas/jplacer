@@ -51,11 +51,11 @@ void JPlacerLayout::setViewMenu(JMenu* view, JSceneGraph& graph, std::function<v
     rebuildMenu();
 }
 
-void JPlacerLayout::add(JDockWidget* dock, Home home) {
+void JPlacerLayout::add(JDockWidget* dock, Home home, bool shown) {
     // Listed beside the others of its home (the cameras together, first).
     const auto at = std::find_if(m_entries.begin(), m_entries.end(), [home](const Entry& e) { return e.home > home; });
     const Entry& e = *m_entries.insert(at, Entry{ dock, home });
-    place(e);
+    if (shown) place(e);
     rebuildMenu();
 }
 

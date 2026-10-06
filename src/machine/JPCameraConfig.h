@@ -65,6 +65,10 @@ struct JPCameraConfig {
     std::optional<double> lastFocusDistanceMm;
     bool          suspendDuringTasks = false;
     bool          autoCameraView = false;
+    // OpenPnP's Show in multi camera view?: off, its dock starts closed
+    // (a capture card's camera shown through SwitcherCameras, say); View, or
+    // anything that looks through it, opens it.
+    bool          shownInMultiView = true;
     int           cropWidth = 0, cropHeight = 0;
     // SETTLING, as OpenPnP does it: a picture for vision is one taken once
     // the camera has stopped moving. FixedTime waits `timeMs` after the move.
@@ -230,6 +234,7 @@ struct JPCameraConfig {
         }
         c.suspendDuringTasks = j["suspendDuringTasks"].boolean();
         c.autoCameraView = j["autoCameraView"].boolean();
+        c.shownInMultiView = j["shownInMultiView"].boolean(true);
         c.cropWidth      = int(j["crop"]["width"].number(0.0));
         c.cropHeight     = int(j["crop"]["height"].number(0.0));
         for (size_t ch = 0; ch < 3; ++ch) {
@@ -297,6 +302,7 @@ struct JPCameraConfig {
         j["autoFocus"]["showDiagnostics"] = autoFocus.showDiagnostics;
         if (suspendDuringTasks) j["suspendDuringTasks"] = true;
         if (autoCameraView) j["autoCameraView"] = true;
+        if (!shownInMultiView) j["shownInMultiView"] = false;
         if (cropWidth || cropHeight) {
             j["crop"]["width"] = cropWidth;
             j["crop"]["height"] = cropHeight;

@@ -807,6 +807,7 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
         }
         cam.suspendDuringTasks = x.attr("suspend-preview-in-tasks") == "true";
         cam.autoCameraView = x.attr("auto-visible") == "true";
+        cam.shownInMultiView = x.attr("shown-in-multi-camera-view") != "false";
         for (const char* key : { "unique-id", "format-id", "fps", "rotation", "flip-x", "flip-y", "light-actuator-id" })
             if (!x.attr(key).empty()) cam.device[key] = x.attr(key);
         // OpenPnpCaptureCamera's unique id is the device's own name and the

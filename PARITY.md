@@ -124,6 +124,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Light actuator and when it is on | done | |
 | Units per pixel (measure) | own way | from Calibrate |
 | Settling (methods incl. Motion, threshold, timeout, debounce, mask, colour, edges, contrast, denoise, test moves incl. Rotate and Up, diagnostics graph and replay) | done | |
+| Show in multi camera view? | done | a camera window of its own each: off, it starts closed |
 | Device settings and properties table | done | |
 | White balance (balance, gamma, Overall, Brightest, Mapped Roughly / Finely, curve plot) | done | imported from OpenPnP too |
 | Position (head offsets, fixed location, safe Z, roaming radius) | done | |

@@ -1706,6 +1706,9 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     add.flag("autoCameraView", "Auto Camera View?", [c]() -> bool& { return c().autoCameraView; });
     add.tip("If enabled, the CameraView will be automatically selected whenever a user action is related to the camera "
             "or when a computer vision result is presented.");
+    add.flag("shownInMultiView", "Show in multi camera view?", [c]() -> bool& { return c().shownInMultiView; });
+    add.tip("Show this camera in the Camera Panel when mutiple cameras are shown. For example this can be switched off for "
+            "capture card cameras that are already exposed through SwitcherCameras. (Off, its window starts closed.)");
     if (c().mount.headId.empty()) {
         add.choice("focusSensingMethod", "Focus Sensing Method", { "None", "AutoFocus" }, [c] { return c().focusSensingMethod; },
                    [c](const std::string& v) { c().focusSensingMethod = v; });

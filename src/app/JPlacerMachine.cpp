@@ -380,8 +380,13 @@ void JPlacerMachine::buildCameras() {
         panels.push_back(d.panel.get());
         m_cameras.push_back(std::move(d));
     }
-    for (CameraDock& d : m_cameras) m_layout.add(d.dock.get(), JPlacerLayout::Home::Cameras);
-    if (!m_cameras.empty()) bringForward(*m_cameras.front().panel);
+    for (CameraDock& d : m_cameras) m_layout.add(d.dock.get(), JPlacerLayout::Home::Cameras, d.panel->camera().shownInMultiView);
+    // The first camera shown in front.
+    for (CameraDock& d : m_cameras)
+        if (d.panel->camera().shownInMultiView) {
+            bringForward(*d.panel);
+            break;
+        }
     m_cameraTasks = std::make_unique<JPlacerCameraTasks>(m_window, *m_cell, std::move(panels),
                                                          [this](JPCameraPanel& p) { bringForward(p); }, m_cellPath);
     m_cameraTasks->setScripting(m_scripting);

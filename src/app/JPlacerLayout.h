@@ -43,8 +43,8 @@ public:
     // docks from now on; `head` adds the entries over them each time they are made.
     void setViewMenu(JMenu* view, JSceneGraph& graph, std::function<void(JMenu&)> head);
 
-    // A dock to lay out: shown at its home now, and listed in View.
-    void add(JDockWidget* dock, Home home);
+    // A dock to lay out: shown at its home now (unless not `shown`: closed, to be shown from View), and listed in View.
+    void add(JDockWidget* dock, Home home, bool shown = true);
     // Before a dock goes: taken out of wherever it is, and off View.
     void remove(JDockWidget* dock);
     // Shown (at its home, if it was closed) and brought to the front of its tabs.
