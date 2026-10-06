@@ -598,10 +598,24 @@ void connect(JPSolutions& s, const JPIssueChecks::Context& c) {
     if (!cell || !s.isTargeting(Milestone::Connect)) return;
     for (const JPDriverConfig& d : cell->drivers) {
         if (d.link["type"].str() != "simulated") continue;
-        Issue i = plain("Controller " + d.name, "Controller not connected to jplacer",
-                        "On the controller's Machine Setup page choose its port, then connect: it is simulated now.",
-                        Severity::Fundamental, std::string(kWiki) + "Issues-and-Solutions#connect-milestone");
+        // OpenPnP's NullDriver issue: Accept makes it a real controller (a serial port to choose on its
+        // page), its axes, actuators and settings kept; Undo makes it the simulation again.
+        Issue i = plain("NullDriver " + d.name, "The simulation NullDriver can be replaced with a GcodeDriver to drive a real controller.",
+                        "Replace with GcodeDriver.", Severity::Fundamental,
+                        std::string(kWiki) + "Setup-and-Calibration%3A-Driver-Setup#automatic-conversion-of-the-nulldriver");
         const std::string id = d.id;
+        const JJson simulated = d.link;
+        i.apply = changing(c, "Replace with GcodeDriver", [id, simulated](JPCellConfig& cell, bool solved) {
+            for (JPDriverConfig& x : cell.drivers) {
+                if (x.id != id) continue;
+                if (solved) {
+                    x.link = JJson::object();
+                    x.link["type"] = std::string("serial");
+                } else {
+                    x.link = simulated;
+                }
+            }
+        });
         i.activate = [c, id] {
             if (c.showSetup) c.showSetup("driver:" + id);
         };

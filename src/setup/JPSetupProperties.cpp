@@ -329,11 +329,19 @@ void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPF
     add.choice("profile", "Firmware Profile", choices, [d] { return d().profile; },
                [d](const std::string& v) { d().profile = v; });
     add.flag("homeAfterConnect", "Home after connected?", [d]() -> bool& { return d().homeAfterConnect; });
-    // A simulated controller is for trying jplacer without a machine; it is
-    // set up in the cell file.
+    // A simulated controller (OpenPnP's NullDriver) is for trying jplacer
+    // without a machine; made a serial or TCP one here (or by Issues &
+    // Solutions' Replace with GcodeDriver), it drives a real controller.
     if (std::as_const(d().link)["type"].str() == "simulated") {
         add.group("Communications");
-        add.text("link", "Link", [] { return std::string("simulated (set up in the cell file)"); }, nullptr);
+        add.choice("communicationsType", "Communications Type", { "simulated", "serial", "tcp" }, [] { return std::string("simulated"); },
+                   [d](const std::string& v) {
+                       if (v == "simulated") return;
+                       d().link = JJson::object();
+                       d().link["type"] = v;
+                   });
+        f.reshaping.push_back("communicationsType");
+        add.note("Simulated: a controller jplacer imitates, to try it without a machine. Serial or TCP: the real one.");
     } else {
         add.group("Communications");
         auto linkText = [d](const char* key, const std::string& none) {

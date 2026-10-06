@@ -87,7 +87,14 @@ int main() {
     s.setTargetMilestone(S::Milestone::Connect);
     s.find();
     s.publish();
-    assert(find(s, "Controller not connected to jplacer"));
+    // OpenPnP's NullDriver issue: Replace with GcodeDriver makes it a serial controller; Undo, the simulation again.
+    {
+        S::Issue* nullDriver = const_cast<S::Issue*>(find(s, "The simulation NullDriver can be replaced with a GcodeDriver to drive a real controller."));
+        assert(nullDriver);
+        std::string why;
+        assert(s.setState(*nullDriver, S::State::Solved, why) && cell.drivers.front().link["type"].str() == "serial");
+        assert(s.setState(*nullDriver, S::State::Open, why) && cell.drivers.front().link["type"].str() == "simulated");
+    }
     // The firmware it identified as (OpenPnP's GcodeDriverSolutions): a Smoothieware
     // without the PnP build, RepRapFirmware before 3.3, Marlin without rotation axes,
     // and one not known; the PnP Smoothieware built for its axes: nothing.
