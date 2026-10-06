@@ -1881,17 +1881,30 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     add.text("name", "Name", [c]() -> std::string& { return c().name; }, "name");
     add.choice("looking", "Looking", { "Down", "Up" }, [c] { return std::string(c().looksUp ? "Up" : "Down"); },
                [c](const std::string& v) { c().looksUp = v == "Up"; });
+    // OpenPnP's pairs: Preview FPS beside Suspend during tasks?, Auto Camera View? beside Show in multi camera view?.
+    add.header({ "", "", "" });
+    add.row("Preview FPS");
     add.number("previewFps", "Preview FPS", [c]() -> double& { return c().previewFps; }, 1);
-    add.tip("How many times a second the live picture is shown, at most (0: every picture the camera gives).");
+    add.words("Suspend during tasks?");
     add.flag("suspendDuringTasks", "Suspend during tasks?", [c]() -> bool& { return c().suspendDuringTasks; });
-    add.tip("Continuous camera preview is suspended during machine tasks, only frames captured using computer vision "
-            "are shown. For high Preview FPS this improves performance");
+    add.end();
+    add.labelTip("How many times a second the live picture is shown, at most (0: every picture the camera gives).");
+    add.tipOf("previewFps", "How many times a second the live picture is shown, at most (0: every picture the camera gives).");
+    add.tipOf("suspendDuringTasks", "Continuous camera preview is suspended during machine tasks, only frames captured using "
+                                    "computer vision are shown. For high Preview FPS this improves performance");
+    add.row("Auto Camera View?");
     add.flag("autoCameraView", "Auto Camera View?", [c]() -> bool& { return c().autoCameraView; });
-    add.tip("If enabled, the CameraView will be automatically selected whenever a user action is related to the camera "
-            "or when a computer vision result is presented.");
+    add.words("Show in multi camera view?");
     add.flag("shownInMultiView", "Show in multi camera view?", [c]() -> bool& { return c().shownInMultiView; });
-    add.tip("Show this camera in the Camera Panel when mutiple cameras are shown. For example this can be switched off for "
-            "capture card cameras that are already exposed through SwitcherCameras. (Off, its window starts closed.)");
+    add.end();
+    add.labelTip("If enabled, the CameraView will be automatically selected whenever a user action is related to the camera "
+                 "or when a computer vision result is presented.");
+    add.tipOf("autoCameraView", "If enabled, the CameraView will be automatically selected whenever a user action is related "
+                                "to the camera or when a computer vision result is presented.");
+    add.tipOf("shownInMultiView", "Show this camera in the Camera Panel when mutiple cameras are shown. For example this can be "
+                                  "switched off for capture card cameras that are already exposed through SwitcherCameras. "
+                                  "(Off, its window starts closed.)");
+    add.endColumns();
     if (c().mount.headId.empty()) {
         add.choice("focusSensingMethod", "Focus Sensing Method", { "None", "AutoFocus" }, [c] { return c().focusSensingMethod; },
                    [c](const std::string& v) { c().focusSensingMethod = v; });
@@ -1927,15 +1940,19 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
         add.end();
     }
     auto light = [c]() -> JPCameraConfig::Light& { return c().light; };
-    add.header({ "ON", "OFF" });
+    // OpenPnP's: ON at the left, OFF at the right, each tick with its name.
+    add.header({ "ON", "", "OFF" });
     add.row("Before Capture?");
     add.flag("lightBeforeCapture", "Before Capture?", [light]() -> bool& { return light().beforeCapture; });
+    add.words("After Capture?");
     add.flag("lightAfterCapture", "After Capture?", [light]() -> bool& { return light().afterCapture; });
     add.end();
     add.row("User Camera Action?");
     add.flag("lightUserAction", "User Camera Action?", [light]() -> bool& { return light().userAction; });
+    add.words("Anti-Glare?");
     add.flag("lightAntiGlare", "Anti-Glare?", [light]() -> bool& { return light().antiGlare; });
     add.end();
+    add.endColumns();
     add.tipOf("lightBeforeCapture", "The light is actuated ON, before this camera is capturing an image for computer vision.");
     add.tipOf("lightAfterCapture", "The light is actuated OFF, after this camera has captured an image for computer vision.");
     add.tipOf("lightUserAction", "The light is actuated ON when a user action is deliberately positioning or otherwise "

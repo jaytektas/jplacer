@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- A camera's General Configuration pairs its settings as OpenPnP's (Preview FPS with Suspend during tasks?, Auto
+  Camera View? with Show in multi camera view?), and its light's OFF ticks are named beside the ON ones.
 - A push-pull feeder's Tape Settings, Vision and Clone Settings, a Bamboo feeder's Vision, a heap feeder's, a drag or
   lever feeder's and a blinds feeder's settings are laid out in OpenPnP's columns.
 - A rotated tray feeder's Tray Parameters are laid out in OpenPnP's columns.
