@@ -51,12 +51,20 @@ std::string classOf(const JPActuatorConfig& a) {
     return "ReferenceActuator";
 }
 
+// OpenPnP's icon for each kind of part in its tree (getPropertySheetHolderIcon); none for the others.
+std::string iconOf(const JPNozzleConfig&) { return "capture-nozzle"; }
+std::string iconOf(const JPCameraConfig&) { return "capture-camera"; }
+std::string iconOf(const JPDriverConfig&) { return "driver"; }
+std::string iconOf(const JPAxisConfig& a) { return a.type == JPAxisConfig::Type::Rotation ? "axis-rotate" : "axis-cartesian"; }
+template <class T>
+std::string iconOf(const T&) { return {}; }
+
 template <class T>
 JPSetupTree::Node group(const std::string& label, const std::string& path, const std::vector<T>& items,
                         const std::string& itemKind, const std::function<bool(const T&)>& in) {
     JPSetupTree::Node g{ label, path, {} };
     for (const T& i : items)
-        if (in(i)) g.children.push_back({ classOf(i) + " " + labelOf(i.name, i.id), itemKind + ":" + i.id, {} });
+        if (in(i)) g.children.push_back({ classOf(i) + " " + labelOf(i.name, i.id), itemKind + ":" + i.id, {}, iconOf(i) });
     return g;
 }
 

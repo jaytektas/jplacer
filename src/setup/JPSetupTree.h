@@ -39,6 +39,7 @@ public:
         std::string       label;
         std::string       path;
         std::vector<Node> children;
+        std::string       icon;   // OpenPnP's icon for its kind (JPOpenPnpIcons' name); empty for none
     };
 
     static Node build(const JPCellConfig& cell);

@@ -5,6 +5,7 @@
 
 #include "JPIconButton.h"
 #include "JPSetupForm.h"
+#include "JPSetupTreeView.h"
 
 #include "machine/JPCellConfig.h"
 #include "setup/JPSetupHistory.h"

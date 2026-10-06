@@ -33,6 +33,7 @@ JTreeViewNode rows(const JPSetupTree::Node& n, const std::set<std::string>& expa
     JTreeViewNode r;
     r.label = n.label;
     r.userData = n.path;
+    r.icon = JPSetupTreeView::iconOf(n.icon);
     r.expanded = expanded.count(n.path) > 0 || (firstTime && (n.path == "machine" || n.path.rfind("group:", 0) == 0));
     for (const JPSetupTree::Node& c : n.children) r.children.push_back(rows(c, expanded, firstTime));
     return r;
@@ -114,7 +115,7 @@ JPMachineSetupPanel::JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, 
     search->setClearButtonEnabled(true);
     m_treePane->add(std::move(find));
 
-    m_tree = m_treePane->add(std::make_unique<JTreeView>(graph, 0.f, 0.f));   // the rest of its pane
+    m_tree = m_treePane->add(std::make_unique<JPSetupTreeView>(graph));   // the rest of its pane
     m_tree->setVSizePolicy(JSizePolicyMode::Expanding, 1);
     search->onTextChanged.connect([this](const std::string& text) { m_tree->setFilter(text); });
     m_tree->onSelectionChanged.connect([this](JTreeViewNode* n) {
