@@ -1126,13 +1126,10 @@ void nozzleForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     add.group("Precise Offsets with a Test Object");
     add.note("Place the calibration test object (its diameter: the head's Calibration Rig Test Object) onto the head's "
              "primary calibration fiducial, load the right nozzle tip and ready the vacuum. The camera finds the "
-             "object; the nozzle picks it at the Angles round the circle and places it turned 180 degrees, the camera "
+             "object; the nozzle picks it at several angles round the circle (six, unless an OpenPnP import says otherwise) "
+             "and places it turned 180 degrees, the camera "
              "finding it after each; the true nozzle axis is midway, so its X and Y offsets change by the average of "
              "where it moved (runout cancels out). CAUTION: the nozzle moves to the test object.");
-    add.integer("nozzleOffsetAngles", "Angles", [&cell]() -> int& { return cell.nozzleOffsetAngles; }, 1,
-                JPCellConfig::kMostNozzleOffsetAngles);
-    add.tip("How many angles round the circle the test object is picked at (each placed 180 degrees on); the machine's, "
-            "for every nozzle (OpenPnP's nozzle-offset-angles). More average out more of the machine's scatter.");
     add.actions({ { "Calibrate Precise Offsets", "calibrateNozzleOffsets" } });
 
     // OpenPnP's ContactProbeNozzle wizard (a ReferenceNozzle has none).
