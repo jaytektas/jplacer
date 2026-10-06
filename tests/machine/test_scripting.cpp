@@ -251,6 +251,68 @@ int main() {
         write(dir / "noone.py", "import jplacer\njplacer.positions()\n");
         assert(!scripting.execute((dir / "noone.py").string(), JJson::object(), why) && why.find("no machine to ask") != std::string::npos);
     }
+    // OpenPnP's pooled script engines: one interpreter serving run after run (the same process, what a
+    // script leaves behind kept), each run's own globals and event, a script's exit its run's, the machine
+    // asked as before; pooling off, each run its own process again.
+    if (std::system("python3 -c '' >/dev/null 2>&1") == 0) {
+        scripting.api = [](const JJson& request) {
+            JJson answer = JJson::object();
+            answer["result"] = request["call"].str() == "location" ? JJson(7.5) : JJson();
+            return answer;
+        };
+        const fs::path pids = dir / "pids.txt";
+        write(dir / "pool.py", "import os, sys, builtins, jplacer\n"
+                               "builtins.runs = getattr(builtins, 'runs', 0) + 1\n"
+                               "open(" + std::string("'") + pids.string() + "', 'a').write('%d %d %s %s\\n' % (os.getpid(), builtins.runs, jplacer.event, jplacer.globals.get('k')))\n"
+                               "assert jplacer.location('N1') == 7.5\n"
+                               "assert os.getcwd() == " + std::string("'") + dir.string() + "'\n"
+                               "if jplacer.globals.get('k') == 'fail': sys.exit(4)\n");
+        auto runs = [&pids] {
+            std::vector<std::vector<std::string>> lines;
+            std::ifstream in(pids);
+            for (std::string pid, n, event, k; in >> pid >> n >> event >> k;) lines.push_back({ pid, n, event, k });
+            return lines;
+        };
+        scripting.setPooling(true);
+        JJson g = JJson::object();
+        for (const char* k : { "one", "two", "fail", "three" }) {
+            g["k"] = std::string(k);
+            const bool ok = scripting.execute((dir / "pool.py").string(), g, why, std::string("Ev.") + k);
+            assert(ok == (std::string(k) != "fail"));
+            if (!ok) assert(why.find("exit 4") != std::string::npos);
+        }
+        auto lines = runs();
+        assert(lines.size() == 4 && lines[0][0] == lines[3][0] && lines[3][1] == "4" && lines[1][2] == "Ev.two" && lines[3][3] == "three");
+        // Clear Scripting Engine Pool: the interpreter kept ends (and the events found without scripts are forgotten).
+        assert(scripting.canClearPool() && scripting.clearPool() == 1 && !scripting.canClearPool());
+        // Off: the interpreter kept ends, and each run is a new one.
+        scripting.setPooling(false);
+        g["k"] = std::string("again");
+        assert(scripting.execute((dir / "pool.py").string(), g, why, "Ev.again"));
+        lines = runs();
+        assert(lines.size() == 5 && lines[4][0] != lines[3][0] && lines[4][1] == "1");
+        if (std::system("node -e '' >/dev/null 2>&1") == 0) {
+            fs::remove(pids);
+            write(dir / "pool.js", "const fs = require('fs');\n"
+                                   "globalThis.runs = (globalThis.runs || 0) + 1;\n"
+                                   "fs.appendFileSync('" + pids.string() + "', process.pid + ' ' + runs + ' ' + jplacer_event() + ' ' + k + '\\n');\n"
+                                   "function jplacer_event() { return require('jplacer').event; }\n"
+                                   "if (machine === undefined) throw new Error('no machine');\n"
+                                   "if (k === 'fail') process.exit(2);\n");
+            scripting.setPooling(true);
+            for (const char* k : { "one", "fail", "two" }) {
+                g["k"] = std::string(k);
+                const bool ok = scripting.execute((dir / "pool.js").string(), g, why, std::string("Ev.") + k);
+                if (ok != (std::string(k) != "fail")) std::fprintf(stderr, "why: %s\n", why.c_str());
+                assert(ok == (std::string(k) != "fail"));
+                if (!ok) assert(why.find("exit 2") != std::string::npos);
+            }
+            lines = runs();
+            assert(lines.size() == 3 && lines[0][0] == lines[2][0] && lines[2][2] == "Ev.two" && lines[2][3] == "two");
+            scripting.setPooling(false);
+        }
+        scripting.api = nullptr;
+    }
     fs::remove_all(dir);
     return 0;
 }

@@ -2,24 +2,16 @@
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
 #include "JPScripting.h"
+#include "JPScriptProcess.h"
 
 #include "common/JPlacerLog.h"
 
 #include <j/core/Log.h>
 
 #include <algorithm>
-#include <chrono>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
-#include <thread>
-
-#include <fcntl.h>
-#include <poll.h>
-#include <signal.h>
-#include <spawn.h>
-#include <sys/wait.h>
-#include <unistd.h>
 
 extern char** environ;
 
@@ -931,6 +923,78 @@ constexpr const char* kPythonStart =
     "import sys, runpy, jplacer_openpnp; jplacer_openpnp.install(); sys.argv = sys.argv[1:]; "
     "runpy.run_path(sys.argv[0], run_name='__main__')";
 
+// OpenPnP's pooled script engines: an interpreter that stays, running each
+// script it is sent (JPScriptProcess, served) as kPythonStart and kNodeStart
+// run one, with that run's globals; what a script leaves behind (a module's
+// state, the working folder) stays, as OpenPnP warns.
+constexpr const char* kPythonServe = R"PY(
+import sys, os, json, runpy, traceback
+import jplacer, jplacer_openpnp
+_runs = os.fdopen(5, "r")
+_ends = os.fdopen(6, "w")
+for _line in _runs:
+    _run = json.loads(_line)
+    jplacer.globals = _run["globals"]
+    jplacer.event = _run["event"]
+    os.environ["JPLACER_GLOBALS"] = json.dumps(_run["globals"])
+    os.environ["JPLACER_EVENT"] = _run["event"]
+    _code = 0
+    try:
+        jplacer_openpnp.install()
+        os.chdir(os.path.dirname(_run["path"]))
+        sys.argv = [_run["path"]]
+        runpy.run_path(_run["path"], run_name="__main__")
+    except SystemExit as e:
+        if isinstance(e.code, int):
+            _code = e.code
+        elif e.code is not None:
+            print(e.code, file=sys.stderr)
+            _code = 1
+    except BaseException:
+        traceback.print_exc()
+        _code = 1
+    sys.stdout.flush()
+    sys.stderr.flush()
+    _ends.write(json.dumps({"exit": _code}) + "\n")
+    _ends.flush()
+)PY";
+
+constexpr const char* kNodeServe = R"JS(
+const fs = require("fs");
+const path = require("path");
+const jplacer = require("jplacer");
+const openpnp = require("jplacer_openpnp");
+class Exit { constructor(code) { this.code = code; } }
+const leave = process.exit.bind(process);
+process.exit = (code) => { throw new Exit(code === undefined ? 0 : code); };
+const buf = Buffer.alloc(65536);
+let pending = "";
+for (;;) {
+    while (!pending.includes("\n")) {
+        let n = 0;
+        try { n = fs.readSync(5, buf, 0, buf.length, null); } catch (e) { if (e.code === "EAGAIN") continue; throw e; }
+        if (n <= 0) leave(0);
+        pending += buf.toString("utf8", 0, n);
+    }
+    const nl = pending.indexOf("\n");
+    const run = JSON.parse(pending.slice(0, nl));
+    pending = pending.slice(nl + 1);
+    jplacer.globals = run.globals;
+    jplacer.event = run.event;
+    process.env.JPLACER_GLOBALS = JSON.stringify(run.globals);
+    process.env.JPLACER_EVENT = run.event;
+    let code = 0;
+    try {
+        process.chdir(path.dirname(run.path));
+        openpnp.run(run.path);
+    } catch (e) {
+        if (e instanceof Exit) code = e.code;
+        else { console.error(e && e.stack ? e.stack : String(e)); code = 1; }
+    }
+    fs.writeSync(6, JSON.stringify({ exit: code }) + "\n");
+}
+)JS";
+
 // `text` written to `path` unless it is there already.
 void keep(const fs::path& path, const std::string& text) {
     std::ifstream in(path, std::ios::binary);
@@ -982,8 +1046,11 @@ bool JPScripting::runnable(const std::string& path) {
 }
 
 void JPScripting::refresh() {
-    std::lock_guard lk(m_mutex);
-    m_eventsWithout.clear();
+    {
+        std::lock_guard lk(m_mutex);
+        m_eventsWithout.clear();
+    }
+    if (onPoolChanged) onPoolChanged();
 }
 
 bool JPScripting::execute(const std::string& path, const JJson& globals, std::string& why, const std::string& event) {
@@ -995,26 +1062,13 @@ bool JPScripting::execute(const std::string& path, const JJson& globals, std::st
         why = path + ": no way to run a " + ext + " script";
         return false;
     }
-    // Its output; and the machine's API (JPScripting::api): its requests on fd 3, the answers on fd 4.
-    int out[2], req[2], rep[2];
-    if (::pipe2(out, O_CLOEXEC) != 0) {
-        why = path + ": cannot be run";
-        return false;
-    }
-    if (::pipe2(req, O_CLOEXEC) != 0 || ::pipe2(rep, O_CLOEXEC) != 0) {
-        ::close(out[0]);
-        ::close(out[1]);
-        why = path + ": cannot be run";
-        return false;
-    }
-    // Its environment: ours, and what it is run for.
+    const std::string name = fs::path(path).filename().string();
+    // Its environment: ours, and where the machine is asked and the helper modules are; run once,
+    // what it is run for (served, each run says).
     std::vector<std::string> env;
     for (char** e = environ; *e; ++e) env.emplace_back(*e);
-    env.push_back("JPLACER_GLOBALS=" + globals.dump());
-    env.push_back("JPLACER_EVENT=" + event);
     env.push_back("JPLACER_SCRIPTS=" + m_directory);
     env.push_back("JPLACER_API=" + std::to_string(kRequestFd) + "," + std::to_string(kAnswerFd));
-    // The helper modules (jplacer.py, jplacer.js) beside the scripts, found wherever the script is.
     {
         const char* py = std::getenv("PYTHONPATH");
         const char* node = std::getenv("NODE_PATH");
@@ -1022,98 +1076,109 @@ bool JPScripting::execute(const std::string& path, const JJson& globals, std::st
         env.push_back("PYTHONPATH=" + helpers + (py && *py ? ":" + std::string(py) : std::string()));
         env.push_back("NODE_PATH=" + helpers + (node && *node ? ":" + std::string(node) : std::string()));
     }
-    std::vector<char*> envp;
-    for (std::string& e : env) envp.push_back(e.data());
-    envp.push_back(nullptr);
-    // Python and JavaScript: started with OpenPnP's globals (machine, config, scripting, gui).
-    std::string prog = program, file = path, dashC = "-c", dashE = "-e", pythonStart = kPythonStart, nodeStart = kNodeStart;
-    char* plain[] = { prog.data(), file.data(), nullptr };
-    char* python[] = { prog.data(), dashC.data(), pythonStart.data(), file.data(), nullptr };
-    char* node[] = { prog.data(), dashE.data(), nodeStart.data(), file.data(), nullptr };
-    char** argv = ext == ".py" ? python : ext == ".js" ? node : plain;
-    posix_spawn_file_actions_t actions;
-    posix_spawn_file_actions_init(&actions);
-    posix_spawn_file_actions_adddup2(&actions, out[1], STDOUT_FILENO);
-    posix_spawn_file_actions_adddup2(&actions, out[1], STDERR_FILENO);
-    posix_spawn_file_actions_adddup2(&actions, req[1], kRequestFd);
-    posix_spawn_file_actions_adddup2(&actions, rep[0], kAnswerFd);
-    posix_spawn_file_actions_addchdir_np(&actions, fs::path(path).parent_path().c_str());
-    pid_t pid = 0;
-    const int failed = posix_spawnp(&pid, prog.c_str(), &actions, nullptr, argv, envp.data());
-    posix_spawn_file_actions_destroy(&actions);
-    ::close(out[1]);
-    ::close(req[1]);
-    ::close(rep[0]);
-    auto closeApi = [&req, &rep] {
-        ::close(req[0]);
-        ::close(rep[1]);
-    };
-    if (failed) {
-        ::close(out[0]);
-        closeApi();
-        why = fs::path(path).filename().string() + ": " + program + " is not installed";
-        return false;
-    }
-    // What it prints, line by line to the log, until it ends or its time is up; what it
-    // asks of the machine, a line of JSON each, answered a line each.
-    std::string text, last, asked;
-    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(kTimeoutMs);
-    bool timedOut = false, asking = true;
-    for (;;) {
-        const auto left = std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now()).count();
-        if (left <= 0) {
-            timedOut = true;
-            break;
-        }
-        pollfd p[2] = { { out[0], POLLIN, 0 }, { req[0], short(asking ? POLLIN : 0), 0 } };
-        if (::poll(p, 2, int(left)) <= 0) continue;
-        if (asking && (p[1].revents & (POLLIN | POLLHUP))) {
-            char buf[4096];
-            const ssize_t n = ::read(req[0], buf, sizeof buf);
-            if (n <= 0) asking = false;   // closed its end
-            else asked.append(buf, size_t(n));
-            for (size_t nl; (nl = asked.find('\n')) != std::string::npos;) {
-                const std::string line = asked.substr(0, nl);
-                asked.erase(0, nl + 1);
-                JJson answer = JJson::object();
-                const JJson request = JJson::parse(line);
-                if (!request.isObject()) answer["error"] = std::string("not a request: ") + line;
-                else if (!api) answer["error"] = std::string("no machine to ask");
-                else answer = api(request);
-                const std::string reply = answer.dump() + "\n";
-                if (::write(rep[1], reply.data(), reply.size()) < 0) asking = false;
+    JPScriptProcess::Result r;
+    const bool pooled = m_pooling && (ext == ".py" || ext == ".js");
+    if (pooled) {
+        // OpenPnP's pooled script engines: an interpreter left from before, or a new one, serving this run.
+        std::unique_ptr<JPScriptProcess> engine;
+        {
+            std::lock_guard lk(m_poolMutex);
+            auto& idle = m_idle[ext];
+            if (!idle.empty()) {
+                engine = std::move(idle.back());
+                idle.pop_back();
             }
         }
-        if (!(p[0].revents & (POLLIN | POLLHUP))) continue;
-        char buf[4096];
-        const ssize_t n = ::read(out[0], buf, sizeof buf);
-        if (n <= 0) break;
-        text.append(buf, size_t(n));
-        for (size_t nl; (nl = text.find('\n')) != std::string::npos;) {
-            last = text.substr(0, nl);
-            JLOGC(JPlacerLog::kApp, JLogLevel::Info) << fs::path(path).filename().string() << ": " << last;
-            text.erase(0, nl + 1);
+        if (!engine) {
+            const std::vector<std::string> argv = ext == ".py" ? std::vector<std::string> { program, "-c", kPythonServe }
+                                                               : std::vector<std::string> { program, "-e", kNodeServe };
+            engine = JPScriptProcess::spawn(argv, env, m_directory, true, why);
+            if (!engine) {
+                why = name + ": " + why;
+                return false;
+            }
         }
+        JJson run = JJson::object();
+        run["path"] = fs::absolute(path).string();
+        run["globals"] = globals;
+        run["event"] = event;
+        r = engine->run(name, run, api, kTimeoutMs);
+        if (engine->serving() && m_pooling) {
+            {
+                std::lock_guard lk(m_poolMutex);
+                m_idle[ext].push_back(std::move(engine));
+            }
+            if (onPoolChanged) onPoolChanged();
+        }
+    } else {
+        env.push_back("JPLACER_GLOBALS=" + globals.dump());
+        env.push_back("JPLACER_EVENT=" + event);
+        // Python and JavaScript: started with OpenPnP's globals (machine, config, scripting, gui).
+        const std::vector<std::string> argv = ext == ".py"   ? std::vector<std::string> { program, "-c", kPythonStart, path }
+                                            : ext == ".js"   ? std::vector<std::string> { program, "-e", kNodeStart, path }
+                                                             : std::vector<std::string> { program, path };
+        const auto once = JPScriptProcess::spawn(argv, env, fs::path(path).parent_path().string(), false, why);
+        if (!once) {
+            why = name + ": " + why;
+            return false;
+        }
+        r = once->run(name, JJson(), api, kTimeoutMs);
     }
-    ::close(out[0]);
-    closeApi();
-    if (timedOut) ::kill(pid, SIGKILL);
-    int status = 0;
-    ::waitpid(pid, &status, 0);
-    if (!text.empty()) {
-        last = text;
-        JLOGC(JPlacerLog::kApp, JLogLevel::Info) << fs::path(path).filename().string() << ": " << text;
-    }
-    if (timedOut) {
-        why = fs::path(path).filename().string() + " did not finish within " + std::to_string(kTimeoutMs / 1000) + " s";
+    if (r.end == JPScriptProcess::Result::End::TimedOut) {
+        why = name + " did not finish within " + std::to_string(kTimeoutMs / 1000) + " s";
         return false;
     }
-    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        why = fs::path(path).filename().string() + " failed" + (WIFEXITED(status) ? " (exit " + std::to_string(WEXITSTATUS(status)) + ")" : "")
-            + (last.empty() ? "" : ": " + last);
+    if (r.end == JPScriptProcess::Result::End::Lost) {
+        why = name + " failed: its script engine ended" + (r.last.empty() ? "" : ": " + r.last);
+        return false;
+    }
+    if (r.code != 0) {
+        why = name + " failed" + (r.code > 0 ? " (exit " + std::to_string(r.code) + ")" : "") + (r.last.empty() ? "" : ": " + r.last);
         return false;
     }
     return true;
+}
+
+void JPScripting::setPooling(bool on) {
+    m_pooling = on;
+    if (on) return;
+    {
+        std::lock_guard lk(m_poolMutex);
+        m_idle.clear();   // each ends as its runs are closed
+    }
+    if (onPoolChanged) onPoolChanged();
+}
+
+int JPScripting::clearPool() {
+    int ended = 0;
+    {
+        std::lock_guard lk(m_mutex);
+        m_eventsWithout.clear();
+    }
+    {
+        std::lock_guard lk(m_poolMutex);
+        for (const auto& [ext, idle] : m_idle) ended += int(idle.size());
+        m_idle.clear();
+    }
+    JLOGC(JPlacerLog::kApp, JLogLevel::Info) << (ended ? std::to_string(ended) + " scripting engine(s) cleared from the pool"
+                                                       : std::string("No scripting engines in pool, nothing to do"));
+    if (onPoolChanged) onPoolChanged();
+    return ended;
+}
+
+bool JPScripting::canClearPool() {
+    {
+        std::lock_guard lk(m_poolMutex);
+        for (const auto& [ext, idle] : m_idle)
+            if (!idle.empty()) return true;
+    }
+    std::lock_guard lk(m_mutex);
+    return !m_eventsWithout.empty();
+}
+
+JPScripting::~JPScripting() {
+    std::lock_guard lk(m_poolMutex);
+    m_idle.clear();
 }
 
 bool JPScripting::on(const std::string& event, const JJson& globals, std::string& why) {
@@ -1129,8 +1194,11 @@ bool JPScripting::on(const std::string& event, const JJson& globals, std::string
         if (base == event || base.rfind(event + ".", 0) == 0) scripts.push_back(e.path());
     }
     if (scripts.empty()) {
-        std::lock_guard lk(m_mutex);
-        m_eventsWithout.insert(event);
+        {
+            std::lock_guard lk(m_mutex);
+            m_eventsWithout.insert(event);
+        }
+        if (onPoolChanged) onPoolChanged();
         return true;
     }
     std::sort(scripts.begin(), scripts.end(), [](const fs::path& a, const fs::path& b) { return a.filename() < b.filename(); });

@@ -161,6 +161,7 @@
       </nozzle-tips>
       <home-after-enabled>false</home-after-enabled>
       <park-after-homed>true</park-after-homed>
+      <pool-scripting-engines>true</pool-scripting-engines>
       <auto-load-most-recent-job>true</auto-load-most-recent-job>
       <default-board-location units="Millimeters" x="120.0" y="80.5" z="-2.0" rotation="90.0"/>
    </machine>

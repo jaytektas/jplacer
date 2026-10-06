@@ -53,14 +53,14 @@ int main() {
     }
     assert(!cell.homeAfterConnect() && cell.parkAfterHome && cell.discardLocation && cell.discardLocation->x == 40.935);
     // Auto tool select (on unless said off), auto-load most recent job, the default board location.
-    assert(cell.autoToolSelect && cell.autoLoadMostRecentJob);
+    assert(cell.autoToolSelect && cell.autoLoadMostRecentJob && cell.poolScriptingEngines);
     assert(cell.defaultBoardLocation.x == 120.0 && cell.defaultBoardLocation.y == 80.5 && cell.defaultBoardLocation.rotation == 90.0);
     {
         std::string e;
         JPCellConfig back;
         JPCellConfig off = cell;
         off.autoToolSelect = false;
-        assert(back.fromJson(off.toJson(), e) && !back.autoToolSelect && back.autoLoadMostRecentJob);
+        assert(back.fromJson(off.toJson(), e) && !back.autoToolSelect && back.autoLoadMostRecentJob && back.poolScriptingEngines);
         assert(back.defaultBoardLocation.z == -2.0);
     }
     // The rest of OpenPnP's serial settings, in jplacer's words.

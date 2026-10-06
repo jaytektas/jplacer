@@ -100,10 +100,15 @@ What is chosen by a link chooses nothing further. A part with no feeder leaves t
 As OpenPnP's: the scripts in jplacer's scripts folder (`~/.config/jplacer/scripts`), by name, each folder a
 submenu of its own (but **Events**, and a folder holding a file named `.ignore`). Choose one to run it; the status
 line says when it is done, or why it failed, and what it prints goes to the log. Then **Refresh Scripts** (the
-folder read again), **Open Scripts Directory**, and **Clear Scripting Engine Pool**, greyed out: each script runs as
-a program of its own, so there is no pool.
+folder read again), **Open Scripts Directory**, and **Clear Scripting Engine Pool**: the interpreters kept by
+the machine's **Pool scripting engines?** end, and events found without scripts are looked for again (greyed when
+there is nothing to clear).
 
-A script is a Python (`.py`, run by `python3`), JavaScript (`.js`, run by `node`) or shell (`.sh`) file. It is told
+A script is a Python (`.py`, run by `python3`), JavaScript (`.js`, run by `node`) or shell (`.sh`) file, each run
+as a program of its own; with the machine's **Pool scripting engines?** ticked (Machine Setup, the machine's
+General settings, as OpenPnP's), Python and JavaScript scripts are run by interpreters kept from one script to
+the next, faster to start, but what one script leaves behind (a module's state, the working folder) is there
+for the next, and a JavaScript script's asynchronous work is not waited for. It is told
 what it runs for, as JSON in the environment variable `JPLACER_GLOBALS` (and the event's name in `JPLACER_EVENT`),
 and, as OpenPnP's scripts have `machine`, it can ask the machine through the module `jplacer` that jplacer keeps
 with the scripts (`import jplacer` in Python, `require("jplacer")` in JavaScript; the helpers are in the
@@ -163,7 +168,7 @@ and **Camera.AfterCapture** (each picture vision takes: the `camera`); and **Cam
 moved to look somewhere by a button, once it is there). One that fails (exits other than 0, or runs past a
 minute) stops what it runs for, saying why.
 
-<!-- src: src/app/JPlacerScriptsMenu.cpp; src/machine/JPScripting.cpp (kOpenPnpModel, kOpenPnpModelJs, kOpenPnpPackages, helpersDirectory); src/app/JPlacerOpenPnpTabs.cpp (scriptJobRequest); src/app/JPlacerScriptVision.cpp; src/app/JPlacerMachine.cpp (scriptRequest, the Example scripts); openpnp-defaults/scripts; src/tasks/JPJobProcessor.cpp (script, placementGlobals); src/app/JPlacerMachine.cpp (runEvent, moveToolTo); src/app/JPlacerApp.cpp; src/tasks/JPCameraLook.cpp (settled); src/app/JPlacerCameraTasks.cpp (calibrateRunout); src/tasks/JPJobProcessor.cpp (discard, align), src/app/JPlacerMachine.cpp (scriptRequest) -->
+<!-- src: src/app/JPlacerScriptsMenu.cpp; src/machine/JPScriptProcess.h; src/machine/JPScripting.cpp (kPythonServe, kNodeServe, clearPool, kOpenPnpModel, kOpenPnpModelJs, kOpenPnpPackages, helpersDirectory); src/app/JPlacerOpenPnpTabs.cpp (scriptJobRequest); src/app/JPlacerScriptVision.cpp; src/app/JPlacerMachine.cpp (scriptRequest, the Example scripts); openpnp-defaults/scripts; src/tasks/JPJobProcessor.cpp (script, placementGlobals); src/app/JPlacerMachine.cpp (runEvent, moveToolTo); src/app/JPlacerApp.cpp; src/tasks/JPCameraLook.cpp (settled); src/app/JPlacerCameraTasks.cpp (calibrateRunout); src/tasks/JPJobProcessor.cpp (discard, align), src/app/JPlacerMachine.cpp (scriptRequest) -->
 
 ## Window
 

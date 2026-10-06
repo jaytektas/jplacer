@@ -284,6 +284,9 @@ void machineForm(JPCellConfig& cell, JPSetupProperties::Form& f, const JPMotionT
             "virtual axis to Safe Z.");
     add.flag("autoToolSelect", "Auto tool select?", [&cell]() -> bool& { return cell.autoToolSelect; });
     add.tip("Whenever an explicit user action is performed on a tool, automatically select it in Machine Controls.");
+    add.flag("poolScriptingEngines", "Pool scripting engines?", [&cell]() -> bool& { return cell.poolScriptingEngines; });
+    add.tip("Python and JavaScript scripts are run by interpreters kept from one script to the next, not started anew "
+            "each time: faster, but what a script leaves behind (a module's state) is there for the next.");
     add.flag("autoLoadMostRecentJob", "Auto-load most recent job?", [&cell]() -> bool& { return cell.autoLoadMostRecentJob; });
     add.group("Locations");
     add.header({ "X", "Y", "Z", "Rotation", "Set?" });

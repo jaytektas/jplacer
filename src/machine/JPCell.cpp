@@ -45,6 +45,12 @@ JPCell::JPCell(JPCellConfig config, std::vector<JPFirmwareProfile> profiles)
     });
 }
 
+void JPCell::setScripting(std::shared_ptr<JPScripting> scripting) {
+    m_scripting = std::move(scripting);
+    // OpenPnP's Pool scripting engines?, as the machine has it.
+    if (m_scripting) m_scripting->setPooling(m_config.poolScriptingEngines);
+}
+
 JPSimulationConfig JPCell::simulation() const {
     std::lock_guard lk(m_mutex);
     return m_config.simulation;
@@ -172,6 +178,7 @@ bool JPCell::reconfigure(JPCellConfig config, std::string& why) {
             m_homed = false;
             onHomed.emit(false);
         }
+        if (m_scripting) m_scripting->setPooling(m_config.poolScriptingEngines);
         done.set_value({ true, "" });
     });
     const auto [ok, w] = result.get();

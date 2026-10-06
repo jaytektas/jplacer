@@ -27,9 +27,18 @@ constexpr int kErrorMs  = 8000;
 JPlacerScriptsMenu::JPlacerScriptsMenu(JAppWindow& window, JSceneGraph& graph, std::shared_ptr<JPScripting> scripting, JMenu* menu)
     : m_window(window), m_graph(graph), m_scripting(std::move(scripting)), m_menu(menu) {
     refresh();
+    // Clear Scripting Engine Pool greyed while there is nothing to clear, as the pool changes on any thread.
+    m_scripting->onPoolChanged = [this, alive = std::weak_ptr<bool>(m_alive)] {
+        JMainThreadDispatcher::instance().post([this, alive] {
+            if (const auto a = alive.lock(); a && *a && m_clearPool) m_clearPool->setEnabled(m_scripting->canClearPool());
+        });
+    };
 }
 
-JPlacerScriptsMenu::~JPlacerScriptsMenu() { *m_alive = false; }
+JPlacerScriptsMenu::~JPlacerScriptsMenu() {
+    *m_alive = false;
+    m_scripting->onPoolChanged = nullptr;
+}
 
 void JPlacerScriptsMenu::refresh() {
     m_scripting->refresh();
@@ -41,7 +50,13 @@ void JPlacerScriptsMenu::refresh() {
     m_menu->add(m_graph, "Open Scripts Directory")->onTriggered.connect([this] {
         if (!JDesktop::openUrl(m_scripting->directory())) m_window.showStatus("The scripts folder could not be opened", kErrorMs);
     });
-    m_menu->add(m_graph, "Clear Scripting Engine Pool")->setEnabled(false);
+    m_clearPool = m_menu->add(m_graph, "Clear Scripting Engine Pool");
+    m_clearPool->setEnabled(m_scripting->canClearPool());
+    m_clearPool->onTriggered.connect([this] {
+        const int ended = m_scripting->clearPool();
+        m_window.showStatus(ended ? std::to_string(ended) + " scripting engine(s) cleared from the pool"
+                                  : std::string("No scripting engines in pool, nothing to do"), kStatusMs);
+    });
 }
 
 void JPlacerScriptsMenu::fill(JMenu* menu, const std::string& directory) {

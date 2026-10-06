@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- The machine's Pool scripting engines?, as OpenPnP's: Python and JavaScript scripts run by interpreters kept from
+  one script to the next, faster to start; Scripts > Clear Scripting Engine Pool ends them. Issues & Solutions
+  suggests it at Advanced.
 - An actuator can be OpenPnP's ThermistorToLinearSensorActuator: a temperature read turned into what a linear sensor
   would read, set on its Transforms tab. Number boxes are wide enough for all their decimal places.
 - A rotated tray feeder's page shows OpenPnP's Tray Illustration of its three points and offsets.

@@ -1511,6 +1511,27 @@ void cameraViews(JPSolutions& s, const JPIssueChecks::Context& c) {
     }
 }
 
+// OpenPnP's ScriptingSolutions: at Advanced, script engines pooled.
+void scripting(JPSolutions& s, const JPIssueChecks::Context& c) {
+    const JPCellConfig* cell = c.cell ? c.cell() : nullptr;
+    if (!cell || !s.isTargeting(Milestone::Advanced) || cell->poolScriptingEngines) return;
+    Issue i;
+    i.subject = "ReferenceMachine";
+    i.issue = "Script execuction performance can be improved by enabling engine pooling.";
+    i.solution = "Enable script engine pooling.";
+    i.severity = Severity::Suggestion;
+    i.uri = std::string(kWiki) + "Scripting#script-engine-pooling";
+    i.extendedDescription = "By default, every time a script should be executed, a new instance of the appropriate script "
+                            "engine is created.\n\nBy enabling script engine pooling, a new instance of any script engine is "
+                            "only created if the pool doesn't contain an available instance of the appropriate type. "
+                            "Following executions re-use the already initialized script engines, lowering execution time "
+                            "for scripting hooks. This feature is only relevant if you use scripting.\n\nScript engine "
+                            "pooling can - depending on the script engine implementation - cause global state to be kept "
+                            "in following invocations. Check the wiki for further information.";
+    i.apply = changing(c, "Pool scripting engines", [](JPCellConfig& x, bool solved) { x.poolScriptingEngines = solved; });
+    s.add(std::move(i));
+}
+
 std::vector<JPSolutions::Check> JPIssueChecks::all(const Context& c) {
     return {
         [c](JPSolutions& s) { setupProblems(s, c); },
@@ -1526,6 +1547,7 @@ std::vector<JPSolutions::Check> JPIssueChecks::all(const Context& c) {
         [c](JPSolutions& s) { cameraProperties(s, c); },
         [c](JPSolutions& s) { visionSetup(s, c); },
         [c](JPSolutions& s) { calibration(s, c); },
+        [c](JPSolutions& s) { scripting(s, c); },
         [c](JPSolutions& s) { production(s, c); },
     };
 }

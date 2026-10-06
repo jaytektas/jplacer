@@ -335,6 +335,7 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
     else if (machine->child("unsafe-z-roaming-distance")) c.unsafeZRoamingMm = lengthChild(*machine, "unsafe-z-roaming-distance");
     c.safeZPark = machine->attr("safe-Z-park") != "false" && machine->attr("safe-z-park") != "false";   // default: on
     c.autoLoadMostRecentJob = setting("auto-load-most-recent-job");     // OpenPnP's default: off
+    c.poolScriptingEngines = setting("pool-scripting-engines");         // OpenPnP's default: off
     // OpenPnP's SimulationModeMachine: the simulated imperfections (its defaults where not said).
     if (shortClass(*machine) == "SimulationModeMachine") {
         JPSimulationConfig& sim = c.simulation;

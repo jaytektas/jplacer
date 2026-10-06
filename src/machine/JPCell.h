@@ -242,7 +242,8 @@ public:
     using PnpChecker = std::function<bool(const PnpCheck& check, std::string& detail)>;
     void setPnpChecker(PnpChecker checker) { m_pnpChecker = std::move(checker); }
     // Where script actuators' scripts are found and run (none: they cannot be actuated).
-    void setScripting(std::shared_ptr<JPScripting> scripting) { m_scripting = std::move(scripting); }
+    // The scripts it runs at OpenPnP's events, pooled as the machine says (poolScriptingEngines).
+    void setScripting(std::shared_ptr<JPScripting> scripting);
 
     // Whether `value` of the axis is within its safe zone (OpenPnP's isInSafeZZone; no safe zone: anywhere).
     bool inSafeZone(const std::string& axisId, double value) const;

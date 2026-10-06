@@ -573,6 +573,14 @@ int main() {
         d.publish();
         S::Issue* compress = const_cast<S::Issue*>(find(d, "Compress Gcode for superior communications speed."));
         assert(compress && d.setState(*compress, S::State::Solved, why) && g.drivers.front().compressGcode);
+        // OpenPnP's ScriptingSolutions: script engines pooled on Accept, not on Reopen; none once pooled.
+        S::Issue* pool = const_cast<S::Issue*>(find(d, "Script execuction performance can be improved by enabling engine pooling."));
+        assert(pool && pool->canBeAccepted && d.setState(*pool, S::State::Solved, why) && g.poolScriptingEngines);
+        assert(d.setState(*pool, S::State::Open, why) && !g.poolScriptingEngines);
+        g.poolScriptingEngines = true;
+        d.find();
+        d.publish();
+        assert(!find(d, "Script execuction performance can be improved by enabling engine pooling."));
     }
     // Production: the tables linked on Accept, unlinked again on Reopen.
     {

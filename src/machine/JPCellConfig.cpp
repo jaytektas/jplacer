@@ -40,6 +40,7 @@ JJson JPCellConfig::toJson() const {
     j["motionPlanner"] = motionPlanner.toJson();
     j["simulation"] = simulation.toJson();
     j["autoLoadMostRecentJob"] = autoLoadMostRecentJob;
+    if (poolScriptingEngines) j["poolScriptingEngines"] = true;
     j["jobProcessor"] = jobProcessor.toJson();
     j["vision"] = vision.toJson();
     return j;
@@ -77,6 +78,7 @@ bool JPCellConfig::fromJson(const JJson& j, std::string& error) {
     c.motionPlanner = JPMotionPlannerConfig::fromJson(j["motionPlanner"]);
     c.simulation = JPSimulationConfig::fromJson(j["simulation"]);
     if (j["autoLoadMostRecentJob"].isBool()) c.autoLoadMostRecentJob = j["autoLoadMostRecentJob"].boolean();
+    c.poolScriptingEngines = j["poolScriptingEngines"].boolean();
     c.jobProcessor = JPJobProcessorConfig::fromJson(j["jobProcessor"]);
     c.vision = JPVisionConfig::fromJson(j["vision"]);
     *this = std::move(c);

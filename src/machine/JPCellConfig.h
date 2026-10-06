@@ -56,6 +56,8 @@ struct JPCellConfig {
     double                        unsafeZRoamingMm = 10;
     // The job open last is opened again at start.
     bool                          autoLoadMostRecentJob = true;
+    // OpenPnP's Pool scripting engines?: Python and JavaScript interpreters kept for the next script (JPScripting).
+    bool                          poolScriptingEngines = false;
     JPMotionPlannerConfig         motionPlanner;                // OpenPnP's motion planner: continuous motion, test motion
     JPSimulationConfig            simulation;                   // OpenPnP's Simulation Mode
     JPJobProcessorConfig          jobProcessor;                 // how a job is run
