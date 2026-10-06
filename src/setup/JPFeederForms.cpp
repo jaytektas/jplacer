@@ -1651,8 +1651,8 @@ bool JPFeederForms::act(JPConfiguration& config, const std::string& feederId, co
             return false;
         }
         double colStep = cols > 1 ? ab / (cols - 1) : 0, rowStep = rows > 1 ? bc / (rows - 1) : 0;
-        const double rowAngle = std::atan2(b.y() - a.y(), b.x() - a.x()) * 180 / M_PI;
-        const double colAngle = std::atan2(c.y() - b.y(), c.x() - b.x()) * 180 / M_PI;
+        const double rowAngle = a.angleTo(b);
+        const double colAngle = b.angleTo(c);
         if (rows > 1 && cols > 1) {
             double check = std::remainder(rowAngle - colAngle, 360.0);
             if (std::abs(check) < 90 - 2.5 || std::abs(check) > 90 + 2.5) {

@@ -33,6 +33,9 @@ public:
 
     JPLocation convertToUnits(JPLengthUnit units) const;
     double linearDistanceTo(const JPLocation& l) const;
+    // OpenPnP's Utils2D.getAngleFromPoint: the angle of the line from this place to `second`, degrees counter-
+    // clockwise from +X (-180..180).
+    double angleTo(const JPLocation& second) const;
     double linearDistanceTo(double x, double y) const;
     double xyzDistanceTo(const JPLocation& l) const;
     JPLength linearLengthTo(const JPLocation& l) const { return JPLength(linearDistanceTo(l), m_units); }

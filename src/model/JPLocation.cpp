@@ -16,6 +16,11 @@ JPLocation JPLocation::convertToUnits(JPLengthUnit units) const {
                       JPLength::convert(m_z, m_units, units), m_rotation);
 }
 
+double JPLocation::angleTo(const JPLocation& secondIn) const {
+    const JPLocation second = secondIn.convertToUnits(m_units);
+    return std::atan2(second.y() - y(), second.x() - x()) * 180 / M_PI;
+}
+
 double JPLocation::linearDistanceTo(const JPLocation& l) const {
     const JPLocation o = l.convertToUnits(m_units);
     return linearDistanceTo(o.m_x, o.m_y);

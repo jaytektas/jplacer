@@ -204,11 +204,6 @@ JPLocation pointAlongLine(const JPLocation& a, const JPLocation& bIn, double dis
 
 double mm(const JPLength& l) { return l.convertToUnits(JPLengthUnit::Millimeters).value(); }
 
-double angleFromPoint(const JPLocation& first, const JPLocation& secondIn) {
-    const JPLocation second = secondIn.convertToUnits(first.units());
-    return std::atan2(second.y() - first.y(), second.x() - first.x()) * 180 / M_PI;
-}
-
 } // namespace
 
 std::pair<JPLocation, JPLocation> JPFeeder::idealLineLocations() const {
@@ -330,7 +325,7 @@ std::optional<JPLocation> JPFeeder::pickLocation() const {
         const double x = JPLength(tapeWidth.convertToUnits(JPLengthUnit::Millimeters).value() / 2 - 0.5, JPLengthUnit::Millimeters)
                              .convertToUnits(l.units()).value();
         const double y = JPLength(2, JPLengthUnit::Millimeters).convertToUnits(l.units()).value();
-        double angle = angleFromPoint(b, a) - 90;
+        double angle = b.angleTo(a) - 90;
         const double r = angle * M_PI / 180;
         l = l.add(JPLocation(l.units(), x * std::cos(r) - y * std::sin(r), x * std::sin(r) + y * std::cos(r), 0, 0));
         if (flag("standard-eia-481", true)) angle += 90;

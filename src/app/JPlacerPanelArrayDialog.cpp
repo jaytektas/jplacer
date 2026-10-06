@@ -242,7 +242,7 @@ void JPlacerPanelArrayDialog::generate() {
         const JPLocation r = root.convertToUnits(JPLengthUnit::Millimeters);
         const JPLocation cm = center.convertToUnits(JPLengthUnit::Millimeters);
         const double radiusStep = std::hypot(r.x() - cm.x(), r.y() - cm.y());
-        const double initAngle = std::atan2(r.y() - cm.y(), r.x() - cm.x()) * 180 / M_PI;
+        const double initAngle = cm.angleTo(r);
         int count = m_angular;
         for (int i = 0; i < m_radial; ++i) {
             const double radius = radiusStep * (i + 1);
