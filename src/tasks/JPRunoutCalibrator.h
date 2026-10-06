@@ -6,6 +6,7 @@
 #include "camera/JPCameraFeed.h"
 #include "machine/JPCell.h"
 #include "machine/JPRunout.h"
+#include "machine/JPScripting.h"
 #include "tasks/JPBackgroundCalibration.h"
 
 #include <functional>
@@ -35,6 +36,12 @@ public:
     static std::optional<JPRunout> run(JPCell& cell, JPCameraFeed& camera, const JPNozzleConfig& nozzle,
                                        const JPNozzleTipConfig& tip, const Options& options, std::string& why,
                                        const Progress& progress = nullptr, JPBackgroundCalibration* background = nullptr);
+    // A measuring as a task makes it, on the calling thread (a job's): NozzleCalibration's scripting events
+    // round it (with `scripting`), the background calibrated along with it when the tip asks for it; `words`
+    // says what was found, or why not.
+    static std::optional<JPRunout> measure(JPCell& cell, JPCameraFeed& camera, const JPNozzleConfig& nozzle,
+                                           const JPNozzleTipConfig& tip, JPScripting* scripting, std::string& words,
+                                           const Progress& progress, std::optional<JPBackgroundCalibration::Result>& background);
 };
 
 } // inline namespace jf

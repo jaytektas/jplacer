@@ -3,9 +3,9 @@
 
 #include "JPlacerJobHost.h"
 
-#include "JPlacerCameraTasks.h"
 #include "JPlacerMachine.h"
 
+#include "tasks/JPRunoutCalibrator.h"
 #include "ui/JPCameraView.h"
 
 inline namespace jf {
@@ -36,7 +36,7 @@ void JPlacerJobHost::slotScored(const std::string& tipId, double score) { m_mach
 std::optional<JPRunout> JPlacerJobHost::measureRunout(JPCell& cell, JPCameraFeed& feed, const JPNozzleConfig& nozzle,
                                                       const JPNozzleTipConfig& tip, std::string& words,
                                                       std::optional<JPBackgroundCalibration::Result>& background) {
-    return JPlacerCameraTasks::measureRunout(cell, feed, nozzle, tip, &m_machine.scripting(), words, nullptr, background);
+    return JPRunoutCalibrator::measure(cell, feed, nozzle, tip, &m_machine.scripting(), words, nullptr, background);
 }
 
 void JPlacerJobHost::keepRunout(const std::string& tipId, const std::string& nozzleId, const std::optional<JPRunout>& runout) {

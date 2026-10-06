@@ -84,6 +84,12 @@ struct JPDriverConfig {
     // open (a board that resets as its port is opened is not reset again),
     // and Connect takes it up as it is.
     bool        keepAlive = false;
+    // What simulates it (a simulated link, or Simulation Mode's Replace Drivers): jplacer's grblHAL
+    // (JPSimulatedGrbl), or, for a G-code controller brought from OpenPnP, OpenPnP's GcodeServer (JPGcodeServer),
+    // which takes the commands OpenPnP's controllers are set up with.
+    static constexpr const char* kGrblHal = "grblHAL";
+    static constexpr const char* kGcodeServer = "GcodeServer";
+    std::string simulator = kGrblHal;
     // OpenPnP's Send FeedRate / Acceleration / Jerk On Change Only: a move's
     // {feed}, {acceleration}, {jerk} left out (with its letter) when it is
     // within `relativeDeviation` of the one last sent (since connecting or homing).

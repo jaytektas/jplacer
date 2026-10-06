@@ -36,6 +36,9 @@ public:
         // Its fiducial vision settings' Max Vision Passes and Max Linear Offset (visual homing's).
         int                         passes = 3;
         double                      maxLinearOffsetMm = 0.2;
+        // How far from where it should be a pipeline's find may be: the fiducial locator's Max. Distance, as
+        // OpenPnP's visual homing (by its fiducial locator) allows.
+        double                      maxDistanceMm = 4.0;
     };
     // `look` none: OpenPnP's "Visual homing is missing the FIDUCIAL-HOME part. Please create it."
     static Result run(JPCell& cell, JPCameraFeed& feed, const JPHeadConfig& head, double speed, const Look* look);

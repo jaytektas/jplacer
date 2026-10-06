@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
-#include "JPlacerPnpChecking.h"
+#include "JPPnpChecking.h"
 
 #include "machine/JPCameraConfig.h"
+
+#include <cmath>
 
 inline namespace jf {
 
@@ -13,14 +15,14 @@ constexpr double kPickToleranceMm = 0.1, kPickMinimumScore = 0.87;
 constexpr double kPlaceToleranceMm = 0.1, kPlaceMinimumScore = 0.58;
 } // namespace
 
-void JPlacerPnpChecking::hold(const std::string& nozzleId, std::shared_ptr<const JPFootprint> footprint, double heightMm) {
+void JPPnpChecking::hold(const std::string& nozzleId, std::shared_ptr<const JPFootprint> footprint, double heightMm) {
     std::lock_guard lk(m_state->mutex);
     m_state->heights[nozzleId] = heightMm;
     if (footprint) m_state->footprints[nozzleId] = std::move(footprint);
     else m_state->footprints.erase(nozzleId);
 }
 
-JPlacerPnpChecking::Holder JPlacerPnpChecking::holder() const {
+JPPnpChecking::Holder JPPnpChecking::holder() const {
     return [state = m_state](const std::string& nozzleId) -> Held {
         std::lock_guard lk(state->mutex);
         Held held;
@@ -30,7 +32,29 @@ JPlacerPnpChecking::Holder JPlacerPnpChecking::holder() const {
     };
 }
 
-JPCell::PnpChecker JPlacerPnpChecking::checker() {
+JPPnpChecking::PartOn JPPnpChecking::partOn(const JPConfiguration* configuration, const JPCellConfig& cell,
+                                            const std::string& nozzleId, const std::string& partId) {
+    PartOn r;
+    r.on.partId = partId;
+    const JPPart* part = configuration && !partId.empty() ? configuration->part(partId) : nullptr;
+    if (!part) return r;
+    r.on.heightMm = part->heightForSafeZ().convertToUnits(JPLengthUnit::Millimeters).value();
+    r.held.heightMm = std::abs(part->height.convertToUnits(JPLengthUnit::Millimeters).value());
+    // A height not known: the nozzle's tip's Max. Part Height (OpenPnP's getSafePartHeight).
+    if (part->height.value() <= 0)
+        for (const JPNozzleConfig& n : cell.nozzles)
+            if (n.id == nozzleId)
+                for (const JPNozzleTipConfig& t : cell.nozzleTips)
+                    if (t.id == n.tipId) r.on.heightMm = t.maxPartHeightMm;
+    if (const JPPackage* pkg = configuration->package(part->packageId)) {
+        r.on.pickVacuumLevel = pkg->pickVacuumLevel;
+        r.on.placeBlowOffLevel = pkg->placeBlowOffLevel;
+        r.held.footprint = std::make_shared<const JPFootprint>(pkg->footprint);
+    }
+    return r;
+}
+
+JPCell::PnpChecker JPPnpChecking::checker() {
     return [state = m_state](const JPCell::PnpCheck& c, std::string& detail) {
         std::shared_ptr<const JPFootprint> footprint;
         {

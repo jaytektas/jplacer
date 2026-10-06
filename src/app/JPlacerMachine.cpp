@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
 #include "JPlacerMachine.h"
+#include "tasks/JPCameraSimulation.h"
 #include "tasks/JPCellJobMachine.h"
 #include "tasks/JPTipSlotVision.h"
 #include "model/JPBoardLocation.h"
@@ -13,8 +14,6 @@
 #include "JPlacerClassSelectionDialog.h"
 #include "JPlacerSettings.h"
 
-#include "camera/JPSimulatedUpCamera.h"
-#include "camera/JPSimulatedViewpoint.h"
 #include "camera/JPWhiteBalance.h"
 #include "common/JPlacerLog.h"
 #include "common/JPlacerPaths.h"
@@ -64,8 +63,6 @@ constexpr int kProblemsMs = 10000;
 // A script's Home: how long it is waited for, looked at this often (ms).
 constexpr int kScriptHomeMs = 120000;
 constexpr int kScriptPollMs = 50;
-// A simulated nozzle tip seen from below: this wide when its tip gives no diameter (mm).
-constexpr double kSimulatedTipMm = 1.0;
 // Defaults, then Auto-Tune: how long the camera's automatic settings are left to settle.
 // How near the camera's centre a nozzle must be for Adjust Camera Z (OpenPnP's 0.1 mm).
 constexpr double kCenteredMm = 0.1;
@@ -172,103 +169,14 @@ void JPlacerMachine::buildCameras() {
     // where the switches put it when visual homing corrects the coordinates.
     const std::string captures = (std::filesystem::path(JPlacerPaths::configDir()) / "captures").string();
     std::vector<JPCameraPanel*> panels;
-    // Where a tool on the head physically is: its axes, its offset, and the
-    // correction visual homing made (the world stays where the switches put it).
-    auto physical = [cell = m_cell.get()](const JPMountConfig& m, double& x, double& y) {
-        const auto p = cell->positions();
-        const auto px = p.find(m.axisX), py = p.find(m.axisY);
-        if (px == p.end() || py == p.end()) return false;
-        const auto corrected = cell->correctionSinceHome();
-        const auto cx = corrected.find(m.axisX), cy = corrected.find(m.axisY);
-        x = px->second + m.offsetX + (cx == corrected.end() ? 0 : cx->second);
-        y = py->second + m.offsetY + (cy == corrected.end() ? 0 : cy->second);
-        return true;
-    };
-    // OpenPnP's Simulation Mode, for the nozzle tips the up-looking cameras see.
-    struct SimulatedTip {
-        std::string   nozzleId;
-        JPMountConfig mount;
-        double        diameter;
-    };
-    std::vector<SimulatedTip> tips;
-    for (const JPNozzleConfig& n : m_cell->config().nozzles) {
-        double diameter = kSimulatedTipMm;
-        for (const JPNozzleTipConfig& t : m_cell->config().nozzleTips)
-            if (t.id == n.tipId && t.diameter > 0) diameter = t.diameter;
-        tips.push_back({ n.id, n.mount, diameter });
-    }
     for (const JPCameraConfig& c : m_cell->config().cameras) {
-        // OpenPnP's own SimulatedUpCamera (JPSimulatedUpCamera): it shows the nozzles over it whether or not
-        // the machine is in Simulation Mode, from where it physically is (its Camera Location, else its own).
-        const bool openPnpUp = JPSimulatedUpCamera::is(c.device);
-        const JPSimulatedUpCamera::Settings up = JPSimulatedUpCamera::Settings::fromDevice(c.device);
-        const double camX = up.location ? up.location->x : c.mount.offsetX, camY = up.location ? up.location->y : c.mount.offsetY;
-        const double camZ = up.location ? up.location->z : c.mount.offsetZ;
-        std::function<bool(double&, double&)> view;
-        if (!c.mount.axisX.empty() && !c.mount.axisY.empty())
-            view = [cell = m_cell.get(), physical, m = c.mount, seen = std::make_shared<JPSimulatedViewpoint>()](double& x, double& y) {
-                if (!physical(m, x, y)) return false;
-                if (const JPSimulationConfig sim = cell->simulation(); sim.on()) seen->look(sim, JPSimulatedViewpoint::Clock::now(), x, y);
-                return true;
-            };
-        else
-            // A fixed camera looks from where it is, at the nozzle tips over it (simulated).
-            view = [cell = m_cell.get(), at = c.mount, openPnpUp, camX, camY](double& x, double& y) {
-                if (!openPnpUp && !cell->simulation().on()) return false;
-                x = openPnpUp ? camX : at.offsetX;
-                y = openPnpUp ? camY : at.offsetY;
-                return true;
-            };
         CameraDock d;
-        d.panel = std::make_unique<JPCameraPanel>(m_graph, m_window.hal(), c, captures, std::move(view),
+        d.panel = std::make_unique<JPCameraPanel>(m_graph, m_window.hal(), c, captures, JPCameraSimulation::view(*m_cell, c),
                                                   [cell = m_cell.get()](const std::string& id, int width, int height) {
                                                       return cell->cameraCalibration(id, width, height);
                                                   });
+        d.panel->feed().setExtras(JPCameraSimulation::extras(*m_cell, c, m_pnpChecking.holder()));
         // OpenPnP's camera events, run where vision takes its pictures (off the screen's thread).
-        // What OpenPnP's Simulation Mode adds to a simulated camera's picture:
-        // the nozzle tips over a fixed one (going round on the runout), sparks
-        // of noise, and dark while its light is off.
-        d.panel->feed().setExtras([cell = m_cell.get(), physical, tips, fixed = c.mount.headId.empty(), light = c.lightActuator(),
-                                   openPnpUp, up, camX, camY, camZ, holding = m_pnpChecking.holder()] {
-            JPSimulatedSource::Extras e;
-            const JPSimulationConfig sim = cell->simulation();
-            if (!sim.on() && !openPnpUp) return e;
-            if (sim.dynamic()) {
-                e.sparks = sim.cameraNoise;
-                e.dark = !light.empty() && !cell->switchedOn(light).value_or(false);
-            }
-            if (!fixed) return e;
-            const auto p = cell->positions();
-            for (const SimulatedTip& t : tips) {
-                double x, y;
-                if (!physical(t.mount, x, y)) continue;
-                const auto r = p.find(t.mount.axisRotation);
-                const double axis = r == p.end() ? 0.0 : r->second;
-                if (sim.dynamic() && sim.runoutMm != 0) {
-                    const double a = (axis - sim.runoutPhaseDeg) * M_PI / 180;
-                    x += sim.runoutMm * std::cos(a);
-                    y += sim.runoutMm * std::sin(a);
-                }
-                const auto zAxis = p.find(t.mount.axisZ);
-                const double tipZ = zAxis == p.end() ? camZ : zAxis->second + t.mount.offsetZ;
-                const JPSimulatedUpCamera::Nozzle nozzle { x, y, tipZ, t.diameter, axis + cell->rotationModeOffset(t.nozzleId) };
-                // The part on it, as the footprint has it, in mm.
-                const JPlacerPnpChecking::Held held = holding(t.nozzleId);
-                std::optional<JPSimulatedUpCamera::Part> part;
-                if (held.footprint) {
-                    const double mm = JPLength(1, held.footprint->units).convertToUnits(JPLengthUnit::Millimeters).value();
-                    auto inMm = [mm](const JPFootprint::Outline& o) {
-                        JPSimulatedUpCamera::Polygon out;
-                        for (const JPFootprint::Point& pt : o) out.push_back({ pt.x * mm, pt.y * mm });
-                        return out;
-                    };
-                    part = JPSimulatedUpCamera::Part { inMm(held.footprint->bodyOutline()), {}, held.heightMm };
-                    for (const JPFootprint::Outline& o : held.footprint->padsOutlines()) part->pads.push_back(inMm(o));
-                }
-                JPSimulatedUpCamera::drawNozzle(openPnpUp ? &up : nullptr, camX, camY, camZ, nozzle, part ? &*part : nullptr, e);
-            }
-            return e;
-        });
         d.panel->feed().scriptEvent = [scripting = m_scripting, name = c.name](const std::string& event, std::string& why) {
             JJson g = JJson::object();
             g["camera"] = name;
@@ -988,28 +896,12 @@ std::string JPlacerMachine::nozzlePart(const std::string& nozzleId) const {
 void JPlacerMachine::setNozzlePart(const std::string& nozzleId, const std::string& partId) {
     if (partId.empty()) m_nozzleParts.erase(nozzleId);
     else m_nozzleParts[nozzleId] = partId;
-    // Its height (the nozzle's Dynamic Safe Z), and its package's pick vacuum and place blow-off levels.
-    JPCell::PartOnNozzle on;
-    on.partId = partId;
-    std::shared_ptr<const JPFootprint> footprint;   // for Simulation Mode's Pick & Place Checking
-    double heightMm = 0;                            // and for a simulated up-looking camera's picture of it
-    if (const JPPart* part = m_configuration && !partId.empty() ? m_configuration->part(partId) : nullptr) {
-        on.heightMm = part->heightForSafeZ().convertToUnits(JPLengthUnit::Millimeters).value();
-        heightMm = std::abs(part->height.convertToUnits(JPLengthUnit::Millimeters).value());
-        // A height not known: the nozzle's tip's Max. Part Height (OpenPnP's getSafePartHeight).
-        if (part->height.value() <= 0 && m_cell)
-            for (const JPNozzleConfig& n : m_cell->config().nozzles)
-                if (n.id == nozzleId)
-                    for (const JPNozzleTipConfig& t : m_cell->config().nozzleTips)
-                        if (t.id == n.tipId) on.heightMm = t.maxPartHeightMm;
-        if (const JPPackage* pkg = m_configuration->package(part->packageId)) {
-            on.pickVacuumLevel = pkg->pickVacuumLevel;
-            on.placeBlowOffLevel = pkg->placeBlowOffLevel;
-            footprint = std::make_shared<const JPFootprint>(pkg->footprint);
-        }
-    }
-    m_pnpChecking.hold(nozzleId, std::move(footprint), heightMm);
-    if (m_cell) m_cell->setNozzlePart(nozzleId, on);
+    // Its height (the nozzle's Dynamic Safe Z), and its package's pick vacuum and place blow-off levels; its
+    // footprint for Simulation Mode's Pick & Place Checking and a simulated up-looking camera's picture of it.
+    const JPPnpChecking::PartOn part = m_cell ? JPPnpChecking::partOn(m_configuration, m_cell->config(), nozzleId, partId)
+                                              : JPPnpChecking::PartOn {};
+    m_pnpChecking.hold(nozzleId, part.held.footprint, part.held.heightMm);
+    if (m_cell) m_cell->setNozzlePart(nozzleId, part.on);
     if (m_jog) m_jog->refreshRecycle();
 }
 

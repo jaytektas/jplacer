@@ -2,6 +2,8 @@
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
 #include "JPlacerOpenPnpTabs.h"
+
+#include "tasks/JPVisualHoming.h"
 #include "tasks/JPFiducialLocator.h"
 #include "openpnp/JPXmlWriter.h"
 #include "openpnp/JPXmlReader.h"
@@ -833,16 +835,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_machine.onSetupVisionAction = [this](const std::string& id, const std::string& action) { m_vision->act(id, action); };
     // OpenPnP's visual homing: the FIDUCIAL-HOME part, looked for as the Fiducial Locator looks for a fiducial.
     m_machine.homeFiducialLook = [this]() -> std::optional<JPVisualTest::Look> {
-        JPConfiguration& config = m_job.configuration();
-        const JPPart* part = config.part("FIDUCIAL-HOME");
-        if (!part) return std::nullopt;
-        const JPVisionConfig vision = m_machine.cell() ? m_machine.cell()->config().vision : JPVisionConfig {};
-        double diameter = 0;
-        JPJobMachine::FiducialLook look;
-        std::string settings;
-        if (JPFiducialLocator::partLook(config, *part, vision, diameter, look, settings) != JPFiducialLocator::PartProblem::None)
-            return std::nullopt;
-        return JPVisualTest::Look { diameter, look.pipeline, look.passes, look.maxLinearOffsetMm };
+        return JPVisualHoming::homeLook(m_job.configuration(), m_machine.cell() ? m_machine.cell()->config().vision : JPVisionConfig {});
     };
     // A camera's calibration pipeline in the editor, run on that camera (its own, or OpenPnP's default).
     m_machine.onEditCalibrationPipeline = [this](const std::string& cameraId) {

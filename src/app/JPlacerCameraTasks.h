@@ -92,12 +92,6 @@ public:
     using RunoutDone = std::function<void(bool ok, const JPRunout&, const std::optional<JPBackgroundCalibration::Result>&,
                                           const std::string& why)>;
     void calibrateRunout(const std::string& nozzleId, bool ask, RunoutDone done);
-    // The measuring itself, on the calling thread (a job's): NozzleCalibration's
-    // scripting events round it, the background calibrated along with it.
-    static std::optional<JPRunout> measureRunout(JPCell& cell, JPCameraFeed& feed, const JPNozzleConfig& nozzle,
-                                                 const JPNozzleTipConfig& tip, JPScripting* scripting, std::string& words,
-                                                 const std::function<void(const std::string&)>& progress,
-                                                 std::optional<JPBackgroundCalibration::Result>& background);
     // The settling test: a camera on a head moved (dx, dy) and back, or for a
     // fixed camera `tool` (a nozzle held over it, by hand) moved so, or turned
     // `dc` degrees and back, or (`up`, OpenPnP's) brought over it at Safe Z

@@ -24,3 +24,7 @@ parts, packages and its panelized job of the pnp-test board, run by its JobProce
 nozzles, two tips with changer locations, a tube feeder), parts and packages, run by its BasicJobTest.
 Its machine's old single `<driver>` is OpenPnP's test driver (`org.openpnp.machine.reference.driver.test.TestDriver`,
 which only passes moves on to the test); here it is the NullDriver, whose migration makes the same axes.
+
+`sample-job/machine.xml` is OpenPnP's `src/test/resources/config/SampleJobTest/machine.xml`: its imperfect
+simulated machine, run with OpenPnP's own parts, packages and sample jobs (`openpnp-defaults`) by its
+SampleJobTest and SamplePanelizedJobTest.

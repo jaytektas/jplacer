@@ -6,6 +6,7 @@
 #include <opencv2/imgproc.hpp>
 
 #include "JPCameraLook.h"
+#include "machine/JPScripting.h"
 
 #include "common/JPlacerLog.h"
 #include "JPPipelineMarkFinder.h"
@@ -140,6 +141,35 @@ std::optional<JPRunout> JPRunoutCalibrator::run(JPCell& cell, JPCameraFeed& came
     r->when = now();
     JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << tip.name << " on " << nozzle.name << ": runout " << r->radius
         << " mm at " << r->phaseDeg << " deg, axis off by " << r->centreX << ", " << r->centreY << ", fit " << r->rmsMm;
+    return r;
+}
+
+std::optional<JPRunout> JPRunoutCalibrator::measure(JPCell& cell, JPCameraFeed& feed, const JPNozzleConfig& n,
+                                                    const JPNozzleTipConfig& t, JPScripting* scripting, std::string& words,
+                                                    const Progress& progress,
+                                                    std::optional<JPBackgroundCalibration::Result>& background) {
+    const Options o;
+    // The background calibrated along with it, when the tip asks for it.
+    JPBackgroundCalibration pictures(JPBackgroundCalibration::methodFrom(t.background.method));
+    const bool withBackground = t.background.method != "None";
+    // OpenPnP's NozzleCalibration.Starting before it, and .Finished once the tip was found enough.
+    JJson g = JJson::object();
+    g["nozzle"] = n.name;
+    g["camera"] = feed.config().name;
+    if (scripting && !scripting->on("NozzleCalibration.Starting", g, words)) return std::nullopt;
+    const auto r = run(cell, feed, n, t, o, words, progress, withBackground ? &pictures : nullptr);
+    if (!r) return std::nullopt;
+    if (scripting && !scripting->on("NozzleCalibration.Finished", g, words)) return std::nullopt;
+    JPCameraCalibration cal;
+    std::string ignored;
+    JPBackgroundCalibration::Result b;
+    if (withBackground && JPCameraLook::calibration(cell, feed, cal, ignored)
+        && pictures.finish((t.maxPartDiameterMm + 2 * t.maxPickToleranceMm) * cal.scale() * 0.5, b))
+        background = b;
+    char buf[200];
+    std::snprintf(buf, sizeof buf, "%s on %s: runout %.3f mm at %.1f deg; its axis %+.3f, %+.3f mm off; fit %.4f mm",
+                  t.name.c_str(), n.name.c_str(), r->radius, r->phaseDeg, r->centreX, r->centreY, r->rmsMm);
+    words = buf;
     return r;
 }
 

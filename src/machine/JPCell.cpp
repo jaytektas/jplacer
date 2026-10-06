@@ -70,16 +70,32 @@ std::optional<bool> JPCell::switchedOn(const std::string& actuatorId) const {
 JPDriverConfig JPCell::asRun(const JPDriverConfig& driver, const JPCellConfig& cell) {
     // A simulated controller set up without its axes (one added on Machine Setup) takes them as a replaced one does.
     const JJson& link = driver.link;
-    const bool bareSimulated = link["type"].str() == "simulated" && link["simulator"]["axisLetters"].arr().empty();
+    const bool bareSimulated = link["type"].str() == "simulated" && link["simulator"]["axisLetters"].arr().empty()
+                            && link["simulator"]["axes"].arr().empty();
     if (!cell.simulation.replacesDrivers() && !bareSimulated) return driver;
     JPDriverConfig run = driver;
-    JJson letters = JJson::array();
-    for (const JPAxisConfig& a : cell.axes)
-        if (a.kind == JPAxisConfig::Kind::Controller && a.driverId == driver.id && !a.letter.empty()) letters.push(a.letter);
     if (!bareSimulated) {
         run.link = JJson::object();
         run.link["type"] = std::string("simulated");
     }
+    if (driver.simulator == JPDriverConfig::kGcodeServer) {
+        // OpenPnP's GcodeServer, with the controller's axes (their home coordinates for G28).
+        run.link["simulator"]["kind"] = std::string("gcodeServer");
+        JJson axes = JJson::array();
+        for (const JPAxisConfig& a : cell.axes)
+            if (a.kind == JPAxisConfig::Kind::Controller && a.driverId == driver.id && !a.letter.empty()) {
+                JJson x = JJson::object();
+                x["letter"] = a.letter;
+                x["home"] = a.homeCoordinate;
+                x["rotational"] = a.rotationalOnController();
+                axes.push(x);
+            }
+        run.link["simulator"]["axes"] = axes;
+        return run;
+    }
+    JJson letters = JJson::array();
+    for (const JPAxisConfig& a : cell.axes)
+        if (a.kind == JPAxisConfig::Kind::Controller && a.driverId == driver.id && !a.letter.empty()) letters.push(a.letter);
     run.link["simulator"]["axisLetters"] = letters;
     // A grblHAL, as jplacer's own simulator is.
     run.link["simulator"]["identity"] = JJson::array();
@@ -1863,7 +1879,8 @@ bool JPCell::doHome(std::string& why) {
         m_backlashApplied.clear();
         m_backlashLag.clear();
         for (const JPAxisConfig& a : m_config.axes) {
-            if (a.kind == JPAxisConfig::Kind::Virtual) m_positions[a.id] = a.homeCoordinate;
+            if (a.kind == JPAxisConfig::Kind::Virtual || (a.kind == JPAxisConfig::Kind::Controller && !reported(a)))
+                m_positions[a.id] = a.homeCoordinate;
             if (!a.transformed()) m_sent[a.id] = a.homeCoordinate;
         }
         // The home coordinates are the axes' own; squarely, X takes the lean.
@@ -2015,6 +2032,7 @@ bool JPCell::doCorrectPosition(const std::map<std::string, double>& by, std::str
     std::lock_guard lk(m_mutex);
     for (const auto& [id, d] : by) {
         if (const auto s = m_sent.find(id); s != m_sent.end()) s->second -= d;
+        if (const JPAxisConfig* a = m_config.axis(id); a && !reported(*a)) m_positions[id] -= d;
         m_corrected[id] += d;
     }
     JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_config.name << ": position corrected";
@@ -2241,6 +2259,12 @@ bool JPCell::sharesLetter(const JPAxisConfig& a) const {
         if (&b != &a && b.id != a.id && b.kind == JPAxisConfig::Kind::Controller && b.driverId == a.driverId && b.letter == a.letter)
             return true;
     return false;
+}
+
+bool JPCell::reported(const JPAxisConfig& a) const {
+    if (sharesLetter(a)) return false;
+    const JPGcodeDriver* d = driver(a.driverId);
+    return !d || !d->profile() || !d->profile()->statusCommand().empty();
 }
 
 double JPCell::driverUnits(const JPGcodeDriver& d) const {
@@ -2947,7 +2971,7 @@ bool JPCell::doMoveNow(std::map<std::string, double> targets, double speed, std:
     }
     for (const auto& [id, t] : virtuals) m_positions[id] = t;
     for (const auto& [id, t] : hardware)
-        if (const JPAxisConfig* a = m_config.axis(id); a && sharesLetter(*a)) m_positions[id] = targets.count(id) ? targets.at(id) : t;
+        if (const JPAxisConfig* a = m_config.axis(id); a && !reported(*a)) m_positions[id] = targets.count(id) ? targets.at(id) : t;
     for (const auto& [id, t] : targets) m_sent[id] = t;
     for (const auto& [id, t] : square)  m_sent[id] = t;
     // An axis moved only to keep the gantry square is where it was, squarely.
@@ -2976,11 +3000,6 @@ std::map<std::string, double> JPCell::jogBase() const {
 }
 
 bool JPCell::finished(bool ok, std::string& why) {
-    // Subordinate moves not gone with one: dropped, as OpenPnP's waitForCompletion drains them.
-    if (!m_subordinate.empty()) {
-        JLOGC(JPlacerLog::kCell, JLogLevel::Warn) << "a pre-rotation not made: no move with the head in its safe zone came after it";
-        m_subordinate.clear();
-    }
     if (m_inMotion.empty()) return ok;
     std::string w;
     if (!doCoordinate("WaitForStillstand", w) && ok) {
@@ -2992,6 +3011,11 @@ bool JPCell::finished(bool ok, std::string& why) {
 
 bool JPCell::doCoordinate(const std::string& how, std::string& why) {
     if (how == "None") return true;
+    // Subordinate moves not gone with one: dropped, as OpenPnP's waitForCompletion drains them.
+    if (!m_subordinate.empty()) {
+        JLOGC(JPlacerLog::kCell, JLogLevel::Warn) << "a pre-rotation not made: no move with the head in its safe zone came after it";
+        m_subordinate.clear();
+    }
     // A planned sequence goes first: it is part of what is waited for.
     if (!m_plan.empty() && !flushPlan(why)) return false;
     std::vector<std::string> ids;

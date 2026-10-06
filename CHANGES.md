@@ -10,6 +10,22 @@ notes.
 
 ## Unreleased
 
+- An OpenPnP machine runs in Simulation Mode as it does in OpenPnP: a G-code controller brought from OpenPnP is
+  simulated by OpenPnP's GcodeServer, which takes the commands that controller is set up with (G28 to home, M114,
+  M400, ...). A controller OpenPnP simulates (Communications "simulated", or TCP to "GcodeServer") is simulated so
+  too. Before, such a machine could not home in Simulation Mode. Checked against OpenPnP's SampleJobTest and
+  SamplePanelizedJobTest: its imperfect simulated machine homes (visually), finds every board's fiducials, and
+  places all of OpenPnP's sample job, each pick and place checked against the table's picture.
+- On a controller whose firmware reports no position (generic G-code), the axes are taken to be where they were
+  sent, as in OpenPnP; before, they seemed never to move.
+- Importing from OpenPnP: a linear transform axis (such as a non-squareness correction) now brings its inputs, as
+  OpenPnP writes them; it was read wrongly, and a move through it failed. An actuator naming a controller the
+  machine does not have uses the first controller, as in OpenPnP.
+- Visual homing finds the homing mark up to the Fiducial Locator's Max. Distance from where it should be (4 mm to
+  begin with), as in OpenPnP; it gave up beyond 2 mm.
+- In Simulation Mode, the camera looking up sees a nozzle where its axes put it, as in OpenPnP; after visual
+  homing it saw the nozzle off by the homing correction, so nozzle tip calibration failed.
+
 - A job's pre-rotation (Pre-Rotate All Nozzles) is no longer a move of its own: as in OpenPnP, each nozzle's turn
   goes with the next move made with the head at safe Z, so the nozzles turn while the head travels. Checked against
   OpenPnP's BasicJobTest: every move and switching of its two-nozzle job, in order.

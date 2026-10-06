@@ -6,7 +6,7 @@ test passes here only when it passes there.
 
 Status: **passing** (ported and passing), **to port**.
 
-**251 of 253 test methods passing.**
+**253 of 253 test methods passing.**
 
 | OpenPnP test | Methods | Status | jplacer test |
 |---|---|---|---|
@@ -29,8 +29,8 @@ Status: **passing** (ported and passing), **to port**.
 | ReferenceBottomVisionTest.java (testPositiveAngle, testNegativeAngle) | 2 | passing | tests/tasks/test_bottom_vision_offset.cpp |
 | ReferenceFiducialLocatorTest.java (testJust1, testJust2, testNominal, testCollinear, testSameX, testSameY) | 6 | passing | tests/model/test_best_fiducials.cpp |
 | ReferenceJobProcessorRetryTests.java (testFeederFeedRetry, testFeederDisable, testFeederPickRetry, testPartPickRetry, testPartFailover, testPlacementRetry, testPlacementRetryDisablesOneFeeder, testPlacementRetryNeverDisablesAnyFeeder) | 8 | passing | tests/tasks/test_job_retries.cpp |
-| SampleJobTest.java (testSampleJob) | 1 | to port |  |
-| SamplePanelizedJobTest.java (testSampleJob) | 1 | to port |  |
+| SampleJobTest.java (testSampleJob) | 1 | passing | tests/tasks/test_sample_job.cpp SampleJobTest (homed visually, the job placed, each pick and place checked) |
+| SamplePanelizedJobTest.java (testSampleJob) | 1 | passing | tests/tasks/test_sample_job.cpp SamplePanelizedJobTest (as SampleJobTest, the panelized job) |
 | TavellingSalesmanTest.java (testTravellingSalesmanA, testTravellingSalesmanB, testTravellingSalesmanC) | 3 | passing | tests/tasks/test_travelling_salesman.cpp |
 | Utils2DTest.java (testCalculateBoardPlacementLocationSimple, testAngleFromPoint) | 2 | passing | tests/model/test_utils_2d.cpp |
 | VisionCompositingTest.java (testPackageSolutions) | 1 | passing | tests/tasks/test_vision_compositing.cpp |

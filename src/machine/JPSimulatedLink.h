@@ -4,11 +4,13 @@
 #pragma once
 
 #include "JPLink.h"
+#include "JPGcodeServer.h"
 #include "JPSimulatedGrbl.h"
 
 inline namespace jf {
 
-// A link to an in-process simulated controller (JPSimulatedGrbl).
+// A link to an in-process simulated controller: a Grbl-family one (JPSimulatedGrbl), or, with "kind":
+// "gcodeServer" in its config, OpenPnP's generic G-code one (JPGcodeServer).
 class JPSimulatedLink : public JPLink {
 public:
     explicit JPSimulatedLink(const JJson& config);
@@ -21,7 +23,12 @@ public:
     std::string describe() const override;
 
 private:
+    bool hasOutput() const;
+    std::string takeLine();
+
+    bool            m_gcodeServer = false;
     JPSimulatedGrbl m_controller;
+    JPGcodeServer   m_server;
     bool            m_open = false;
 };
 

@@ -51,6 +51,7 @@ std::optional<JPDriverConfig> JPDriverConfig::fromJson(const JJson& j, std::stri
     c.usingLetterVariables = j["letterVariables"].boolean(true);
     c.supportingPreMove = j["preMove"].boolean(false);
     c.keepAlive = j["keepAlive"].boolean(false);
+    if (j["simulator"].str() == kGcodeServer) c.simulator = kGcodeServer;
     for (auto [key, s] : { std::pair { "sendOnChangeFeed", &c.sendOnChangeFeed }, std::pair { "sendOnChangeAcceleration", &c.sendOnChangeAcceleration },
                            std::pair { "sendOnChangeJerk", &c.sendOnChangeJerk } }) {
         s->on = j[key]["on"].boolean();
@@ -62,7 +63,7 @@ std::optional<JPDriverConfig> JPDriverConfig::fromJson(const JJson& j, std::stri
 
 std::string JPDriverConfig::className() const {
     const std::string type = std::as_const(link)["type"].str();
-    return type == "simulated" ? "NullDriver" : type == "neoden4" ? "NeoDen4Driver" : gcodeClass;
+    return type == "simulated" && simulator != kGcodeServer ? "NullDriver" : type == "neoden4" ? "NeoDen4Driver" : gcodeClass;
 }
 
 JJson JPDriverConfig::toJson() const {
@@ -96,6 +97,7 @@ JJson JPDriverConfig::toJson() const {
     if (!usingLetterVariables) j["letterVariables"] = false;
     if (supportingPreMove) j["preMove"] = true;
     if (keepAlive) j["keepAlive"] = true;
+    if (simulator != kGrblHal) j["simulator"] = simulator;
     for (auto [key, s] : { std::pair { "sendOnChangeFeed", &sendOnChangeFeed }, std::pair { "sendOnChangeAcceleration", &sendOnChangeAcceleration },
                            std::pair { "sendOnChangeJerk", &sendOnChangeJerk } })
         if (s->on || s->relativeDeviation != 0.001) {

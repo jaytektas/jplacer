@@ -8,6 +8,10 @@
 #include "camera/JPCameraFeed.h"
 #include "machine/JPCell.h"
 #include "machine/JPHeadConfig.h"
+#include "machine/JPVisionConfig.h"
+#include "model/JPConfiguration.h"
+
+#include <optional>
 
 #include <string>
 
@@ -31,6 +35,9 @@ public:
 
     // `look`: how the homing fiducial is looked for (JPVisualTest::Look, the FIDUCIAL-HOME part's).
     static Result run(JPCell& cell, JPCameraFeed& feed, const JPHeadConfig& head, double speed, const JPVisualTest::Look* look);
+    // How the FIDUCIAL-HOME part says the homing fiducial is looked for (its package's fiducial, its vision
+    // settings), by the machine's `vision`; none when there is no such part or it cannot be looked for.
+    static std::optional<JPVisualTest::Look> homeLook(JPConfiguration& configuration, const JPVisionConfig& vision);
 };
 
 } // inline namespace jf

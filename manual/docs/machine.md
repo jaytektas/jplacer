@@ -41,7 +41,12 @@ What is brought across:
 
 - **Controllers** that OpenPnP talks G-code to, with their serial port settings (port, speed, flow
   control, parity, data and stop bits, DTR / RTS, line endings), their maximum feed rate and G-code logging.
-  An actuator with no controller of its own is the first controller's, as in OpenPnP.
+  An actuator with no controller of its own, or naming one the machine does not have, is the first
+  controller's, as in OpenPnP. A G-code controller OpenPnP simulates (Communications **simulated**, or TCP to
+  the address `GcodeServer`) is simulated here as OpenPnP does it: by its GcodeServer (see Simulation Mode in
+  [Machine Setup](machine-setup.md#settings)). A linear transform axis brings its inputs and factors (OpenPnP
+  writes them `input-axis-X-id`, `factor-x`, ...), so a non-squareness transform becomes the squareness
+  correction.
   OpenPnP's **NullDriver** (its simulated controller) becomes jplacer's simulated one, a grblHAL: its
   axes given the letters a grblHAL of that many axes has (the first of X, Y, Z, A, B, C, U, V), X and Y by
   type, the rotations A, B, C, a Z the Z, the rest what is left (two nozzles: Z, A, B and C). An old `machine.xml` whose one controller is a `<driver>` NullDriver
@@ -160,10 +165,11 @@ read. jplacer comes with profiles for grblHAL (including the JayTEK plugin's vac
 readings), Grbl 1.1, and generic G-code; and, as OpenPnP sets them up, for Smoothieware, Marlin,
 RepRapFirmware (Duet) and TinyG: each known by its answer to M115 (its FIRMWARE_NAME), its position read
 with M114, moves waited for with M400 (TinyG: its own `ok` and `err:` replies, G28.2 to home, G28.3 to set
-its place). A profile of your own, placed in `profiles/` in jplacer's
+its place). On a controller whose profile reads no position (generic G-code), the axes are where they were
+last sent once a move is waited for, as OpenPnP's drivers keep them. A profile of your own, placed in `profiles/` in jplacer's
 configuration folder, is used as well, and replaces a bundled one with the same `id`.
 
-<!-- src: src/machine/JPFirmwareProfile.h; src/machine/JPFirmwareProfile.cpp (profileDirs, loadAll); profiles/smoothieware.json; profiles/marlin.json; profiles/reprapfirmware.json; profiles/tinyg.json -->
+<!-- src: src/machine/JPFirmwareProfile.h; src/machine/JPFirmwareProfile.cpp (profileDirs, loadAll); profiles/smoothieware.json; profiles/marlin.json; profiles/reprapfirmware.json; profiles/tinyg.json ; src/machine/JPCell.cpp (reported) -->
 
 ## The machine's panels
 
@@ -689,12 +695,13 @@ mirrored.
 finds the mark, and says how far it really is from there, in mm in X and Y. As OpenPnP's visual homing, the
 mark is the **FIDUCIAL-HOME** part: its size is its package's pad, and it is found by that part's fiducial
 vision settings' pipeline (the Fiducial Locator's), its centre then measured to a fraction of a pixel close
-by; without the part, "Visual homing is missing the FIDUCIAL-HOME part. Please create it." Visual homing finds
-it the same way. Nothing is changed: right
+by, up to the Fiducial Locator's **Max. Distance** (4 mm to begin with) from where it should be, as OpenPnP's
+visual homing allows; without the part, "Visual homing is missing the FIDUCIAL-HOME part. Please create it."
+Visual homing finds it the same way. Nothing is changed: right
 after a visual home it reads within a few hundredths of a millimetre, and any time later it shows whether
 the machine has lost its place.
 
-<!-- src: src/tasks/JPVisualTest.cpp; src/app/JPlacerCameraTasks.cpp (visualTest) ; src/tasks/JPVisualTest.cpp (run, Look); src/app/JPlacerOpenPnpTabs.cpp (homeFiducialLook) -->
+<!-- src: src/tasks/JPVisualTest.cpp; src/app/JPlacerCameraTasks.cpp (visualTest) ; src/tasks/JPVisualTest.cpp (run, Look); src/tasks/JPVisualHoming.cpp (homeLook); src/app/JPlacerOpenPnpTabs.cpp (homeFiducialLook) -->
 
 #### Finding round marks
 

@@ -513,8 +513,18 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             dc.id   = d.attr("id");
             dc.name = d.attr("name");
             dc.gcodeClass = kind;
+            // Simulated, as OpenPnP simulates it: its GcodeServer, which takes the commands it is set up with.
+            dc.simulator = JPDriverConfig::kGcodeServer;
             dc.link = JJson::object();
-            if (d.attr("communications") == "tcp") {
+            const JPXmlElement* tcpLink = d.child("tcp");
+            if (d.attr("communications") == "simulated"
+                || (d.attr("communications") == "tcp" && tcpLink && tcpLink->attr("ip-address") == "GcodeServer")) {
+                // OpenPnP's built-in GcodeServer (its Simulated communications, or TCP to "GcodeServer").
+                dc.link["type"] = std::string("simulated");
+                const JPXmlElement* simulated = d.child("simulated");
+                const std::string ending = simulated ? simulated->attr("line-ending-type") : std::string();
+                dc.link["lineEnding"] = ending == "CR" ? "CR" : ending == "CRLF" ? "CRLF" : "LF";
+            } else if (d.attr("communications") == "tcp") {
                 const JPXmlElement* tcp = d.child("tcp");
                 dc.link["type"] = "tcp";
                 dc.link["host"] = tcp ? tcp->attr("ip-address") : std::string();
@@ -628,14 +638,14 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                 a.mapOutput1  = lengthChild(x, "map-output-1");
             } else if (kind == "ReferenceLinearTransformAxis" && a.type == JPAxisConfig::Type::X
                        && std::abs(number(x.attr("factor-x")) - 1) < 1e-12 && number(x.attr("factor-z")) == 0
-                       && number(x.attr("factor-rotation")) == 0 && !x.attr("input-axis-x-id").empty()
-                       && !x.attr("input-axis-y-id").empty() && !squarenessAxis) {
+                       && number(x.attr("factor-rotation")) == 0 && !x.attr("input-axis-X-id").empty()
+                       && !x.attr("input-axis-Y-id").empty() && !squarenessAxis) {
                 // OpenPnP's non-squareness: X = X + factorY Y + offset, which is
                 // jplacer's squareness about Y = -offset / factorY. What rides on
                 // this axis rides on its input X (see below).
                 const double f = number(x.attr("factor-y")), offset = lengthChild(x, "offset");
-                c.squareness.axisX = x.attr("input-axis-x-id");
-                c.squareness.axisY = x.attr("input-axis-y-id");
+                c.squareness.axisX = x.attr("input-axis-X-id");
+                c.squareness.axisY = x.attr("input-axis-Y-id");
                 c.squareness.xPerY = f;
                 c.squareness.atY   = f != 0 ? -offset / f : 0;
                 squarenessAxis     = a.id;
@@ -643,9 +653,11 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             } else if (kind == "ReferenceLinearTransformAxis") {
                 // OpenPnP's linear transform, as it is: its inputs, factors and offset.
                 a.kind = JPAxisConfig::Kind::Linear;
+                // As OpenPnP writes them: its inputs input-axis-X-id .. input-axis-rotation-id, its factors factor-x ..
                 const char* keys[] = { "x", "y", "z", "rotation" };
+                const char* inputs[] = { "X", "Y", "Z", "rotation" };
                 for (size_t i = 0; i < 4; ++i) {
-                    a.linearInputs[i] = x.attr(std::string("input-axis-") + keys[i] + "-id");
+                    a.linearInputs[i] = x.attr(std::string("input-axis-") + inputs[i] + "-id");
                     a.linearFactors[i] = number(x.attr(std::string("factor-") + keys[i]));
                     if (a.linearFactors[i] != 0 && a.linearInputs[i].empty()) a.linearFactors[i] = 0;   // as OpenPnP refuses it
                 }
@@ -731,8 +743,9 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
         a.id       = x.attr("id");
         a.name     = x.attr("name");
         a.driverId = x.attr("driver-id");
-        // None given: the machine's first controller, as OpenPnP's AbstractActuator.getDriver falls back.
-        if (a.driverId.empty() && !c.drivers.empty()) a.driverId = c.drivers.front().id;
+        // None given, or one the machine does not have: the machine's first controller, as OpenPnP's
+        // AbstractActuator.getDriver falls back.
+        if (!c.driver(a.driverId) && !c.drivers.empty()) a.driverId = c.drivers.front().id;
         a.mount    = mount(x, headId);
         a.index    = x.attr("index");
         const std::string& vt = x.attr("value-type");

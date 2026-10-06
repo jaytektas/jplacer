@@ -278,7 +278,7 @@ public:
     bool moveAxesAndWait(std::map<std::string, double> targets, double speed, std::string& why, bool squared = true);
     // OpenPnP's subordinate rotation (a job's pre-rotation): the nozzle's turn to `angle` is not a move of its own;
     // it goes with the next move made while every Z of its head is in its safe zone, there and where it goes, and is
-    // dropped when the machine next waits for its moves to finish.
+    // dropped when the machine is next waited for (an actuator coordinated with it, continuous motion's wait).
     void rotateWithNextMove(const std::string& nozzleId, double angle);
 
     // The machine is not where its coordinates say: each axis (by id) is off
@@ -400,6 +400,10 @@ private:
     double driverUnits(const JPGcodeDriver& d) const;
     // Whether another axis of its controller has its letter (a shared output, OpenPnP's pre-move commands).
     bool sharesLetter(const JPAxisConfig& a) const;
+    // Whether the axis's controller reports where it is: not when the axis shares its letter, nor when the
+    // controller's firmware profile has no status report; such an axis is where it was last sent (as OpenPnP's
+    // drivers keep where they sent their axes).
+    bool reported(const JPAxisConfig& a) const;
     // OpenPnP's HttpActuator: a GET of `url` (not again when it was the last one), and its read.
     static constexpr int kHttpTimeoutMs = 5000;
     bool httpGet(const JPActuatorConfig& a, const std::string& url, std::string& why);

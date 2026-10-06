@@ -11,6 +11,7 @@
 #undef NDEBUG
 #include <cassert>
 
+#include "CellJobHost.h"
 #include "machine/JPCell.h"
 #include "machine/JPFirmwareProfile.h"
 #include "model/JPBoard.h"
@@ -52,47 +53,6 @@ std::vector<JPFirmwareProfile> profiles() {
     std::stable_sort(all.begin(), all.end(), [](const JPFirmwareProfile& a, const JPFirmwareProfile& b) { return a.priority() > b.priority(); });
     return all;
 }
-
-// What the job machine takes from where it runs: the cell, no cameras to look through, the tips it puts on.
-class Host : public JPJobMachineHost {
-public:
-    explicit Host(JPCell& cell) : m_cell(cell) {}
-    JPCell* cell() const override { return &m_cell; }
-    std::optional<JPLocation> cameraLocation() const override { return std::nullopt; }
-    JPCameraFeed* headCameraFeed() const override { return nullptr; }
-    JPCameraFeed* upCameraFeed() const override { return nullptr; }
-    JPCameraFeed* cameraFeed(const std::string&) const override { return nullptr; }
-    void showPicture(const JPCameraFeed*, const JPFrame&, const std::string&, int) override {}
-    void showCamera(const std::string&) override {}
-    std::string nozzlePart(const std::string& nozzleId) const override {
-        const auto p = m_parts.find(nozzleId);
-        return p == m_parts.end() ? std::string() : p->second;
-    }
-    void setNozzlePart(const std::string& nozzleId, const std::string& partId) override { m_parts[nozzleId] = partId; }
-    std::string chosenNozzleId() const override { return {}; }
-    std::string tipChangeRefusal(const std::string&, const std::string&) const override { return {}; }
-    void setTipOn(const std::string& nozzleId, const std::string& tipId) override {
-        JPCellConfig c = m_cell.config();
-        for (JPNozzleConfig& n : c.nozzles)
-            if (n.id == nozzleId) n.tipId = tipId;
-        std::string why;
-        const bool ok = m_cell.reconfigure(c, why);
-        assert(ok);
-    }
-    std::string cellPath() const override { return {}; }
-    void slotScored(const std::string&, double) override {}
-    std::optional<JPRunout> measureRunout(JPCell&, JPCameraFeed&, const JPNozzleConfig&, const JPNozzleTipConfig&, std::string& words,
-                                          std::optional<JPBackgroundCalibration::Result>&) override {
-        words = "no camera looking up";
-        return std::nullopt;
-    }
-    void keepRunout(const std::string&, const std::string&, const std::optional<JPRunout>&) override {}
-    void keepBackground(const std::string&, const JPBackgroundCalibration::Result&) override {}
-
-private:
-    JPCell&                            m_cell;
-    std::map<std::string, std::string> m_parts;
-};
 
 // One of OpenPnP's expected operations: a move of a tool to a location (in the head's coordinates, as OpenPnP's
 // test gives them: X, Y, Z, rotation), or an actuation.
@@ -185,7 +145,7 @@ int main() {
     l->setLocation(JPLocation(JPLengthUnit::Millimeters, 0, 0, -10, 0));
     job.addBoardOrPanelLocation(std::move(l));
 
-    Host host(cell);
+    CellJobHost host(cell, config);   // no cameras: none is looked through
     JPCellJobMachine machine(host, config, [](const std::function<void()>& fn) { fn(); }, [](const std::string&) { return true; },
                              [](const std::string&) {});
     JPJobProcessor::Hooks hooks;

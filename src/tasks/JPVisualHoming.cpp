@@ -3,6 +3,7 @@
 
 #include "JPVisualHoming.h"
 
+#include "JPFiducialLocator.h"
 #include "JPVisualTest.h"
 
 #include "common/JPlacerLog.h"
@@ -30,12 +31,23 @@ JPVisualHoming::Result JPVisualHoming::run(JPCell& cell, JPCameraFeed& feed, con
         if (!cell.correctPosition({ { mount.axisX, t.offsetX }, { mount.axisY, t.offsetY } }, r.why)) return r;
         r.correctedX += t.offsetX;
         r.correctedY += t.offsetY;
-        if (std::hypot(t.offsetX, t.offsetY) < look->maxLinearOffsetMm) break;   // as OpenPnP's: the locator satisfied
+        if (!look || std::hypot(t.offsetX, t.offsetY) < look->maxLinearOffsetMm) break;   // as OpenPnP's: the locator satisfied
     }
     r.ok = true;
     JLOGC(JPlacerLog::kCell, JLogLevel::Info) << "visual homing: corrected by " << r.correctedX << ", " << r.correctedY
                                               << " (the last find " << r.leftX << ", " << r.leftY << ")";
     return r;
+}
+
+std::optional<JPVisualTest::Look> JPVisualHoming::homeLook(JPConfiguration& configuration, const JPVisionConfig& vision) {
+    const JPPart* part = configuration.part("FIDUCIAL-HOME");
+    if (!part) return std::nullopt;
+    double diameter = 0;
+    JPJobMachine::FiducialLook look;
+    std::string settings;
+    if (JPFiducialLocator::partLook(configuration, *part, vision, diameter, look, settings) != JPFiducialLocator::PartProblem::None)
+        return std::nullopt;
+    return JPVisualTest::Look { diameter, look.pipeline, look.passes, look.maxLinearOffsetMm, vision.fiducialMaxDistanceMm };
 }
 
 } // inline namespace jf

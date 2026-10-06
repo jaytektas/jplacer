@@ -17,8 +17,8 @@ inline namespace jf {
 
 namespace {
 
-// How far from where it should be the mark is looked for (mm): the switches
-// put the head within a fraction of this.
+// How far from where it should be the mark is looked for by jplacer's finder (mm): the switches put the head
+// within a fraction of this.
 constexpr double kSearchMm = 2.0;
 
 } // namespace
@@ -58,7 +58,7 @@ JPVisualTest::Result JPVisualTest::run(JPCell& cell, JPCameraFeed& feed, const J
     JPRoundMark m;
     if (look->pipeline) {
         JPPipelineMarkFinder finder(*look->pipeline, "fiducial", cal.scaleX(), cal.scaleY());
-        m = finder.find(img, img.width / 2.0, img.height / 2.0, kSearchMm * scale, look->diameterMm * scale);
+        m = finder.find(img, img.width / 2.0, img.height / 2.0, look->maxDistanceMm * scale, look->diameterMm * scale);
     } else {
         JPRoundMarkFinder::Request rq;
         rq.expectedX = img.width / 2.0;

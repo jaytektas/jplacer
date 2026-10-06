@@ -22,6 +22,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Discard location, Default Board Location | done | |
 | Location buttons: Position Camera / Tool / Actuator, Get Coordinates, Position Tool (Without Safe Z), Contact Probe Tool | done | on the rows OpenPnP shows each on |
 | Auto-load most recent job | done | on for a new cell; as OpenPnP's for an imported one |
+| Simulation Mode's Replace Drivers (OpenPnP's GcodeServer for its G-code controllers; Communications simulated, TCP to GcodeServer) | done | jplacer's own controllers keep a simulated grblHAL |
 | Motion planner: continuous motion | done | Machine › Motion Planner; waits where the machine must stand still (actuator coordination, pick and place, homing, each operation's end) |
 | Motion Control Type (all seven), OpenPnP's motion profiles and Motion (coordinated, synchronized), interpolation (GcodeAsyncDriver Advanced Settings), Interpolation Retiming, minimum speed and rates | done | OpenPnP's MotionProfile and Motion ported and checked against its AdvancedMotionTest; imported |
 | Motion planner: Allow uncoordinated? (uncoordinated motion blending, the path planner) | done | OpenPnP's AbstractMotionPath ported, passing its testMotionPaths; a safe Z sequence planned and blended with continuous motion |
