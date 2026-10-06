@@ -68,11 +68,6 @@ double seconds() {
 
 JPLocation mm(const JPLocation& l) { return l.convertToUnits(JPLengthUnit::Millimeters); }
 
-double distance(const JPLocation& a, const JPLocation& b) {
-    const JPLocation x = mm(a), y = mm(b);
-    return std::hypot(x.x() - y.x(), x.y() - y.y());
-}
-
 // The middle of some places; none without any.
 std::optional<JPLocation> centre(const std::vector<JPLocation>& places) {
     if (places.empty()) return std::nullopt;
@@ -568,15 +563,23 @@ std::optional<JPJobProcessor::Planned> JPJobProcessor::planWithout(const JPJobMa
             if (fits(i, tipId)) compatible.push_back(i);
     });
     if (compatible.empty()) return std::nullopt;
-    // The one nearest (to pick and to place) to those already planned.
+    // OpenPnP's: the one costing least (its TravelCost, by the head's X and Y) to move to from where the head goes
+    // to pick and to place those already planned (each place less its nozzle's offset: where the head goes).
     std::optional<size_t> best;
     std::optional<double> cost;
-    if (m_settings.strategy != Strategy::FullyAsPlanned && !planned.empty()) {
+    const std::optional<JPTravel::Cost> travel = m_machine.travelCost();
+    if (m_settings.strategy != Strategy::FullyAsPlanned && !planned.empty() && travel) {
+        std::map<std::string, std::pair<double, double>> offsets;
+        for (const JPJobMachine::Nozzle& m : m_machine.nozzles()) offsets[m.id] = { m.offsetX, m.offsetY };
+        auto head = [&offsets](const JPLocation& at, const std::string& nozzleId) {
+            const auto o = offsets[nozzleId];
+            return at.subtract(JPLocation(JPLengthUnit::Millimeters, o.first, o.second, 0, 0));
+        };
         std::vector<JPLocation> picks, places;
         main([&] {
             for (const Planned& p : planned) {
-                if (const auto& at = m_jobPlacements[p.job].plannedPickLocation) picks.push_back(*at);
-                places.push_back(placeLocation(p.job));
+                if (const auto& at = m_jobPlacements[p.job].plannedPickLocation) picks.push_back(head(mm(*at), p.nozzleId));
+                places.push_back(head(mm(placeLocation(p.job)), p.nozzleId));
             }
         });
         const auto pickCentre = centre(picks), placeCentre = centre(places);
@@ -586,8 +589,8 @@ std::optional<JPJobProcessor::Planned> JPJobProcessor::planWithout(const JPJobMa
                 for (const size_t i : compatible) {
                     const auto& at = m_jobPlacements[i].plannedPickLocation;
                     if (!at) continue;
-                    const double c = distance(*at, *pickCentre) + distance(placeLocation(i), *placeCentre);
-                    if (c < least) {
+                    const double c = travel->cost(head(mm(*at), n.id), *pickCentre) + travel->cost(head(mm(placeLocation(i)), n.id), *placeCentre);
+                    if (least > c) {
                         least = c;
                         best = i;
                         cost = c;
@@ -676,6 +679,14 @@ JPJobProcessor::Step JPJobProcessor::plan() {
     std::stable_sort(jobs.begin(), jobs.end(), [this](size_t a, size_t b) { return m_jobPlacements[a].rank < m_jobPlacements[b].rank; });
     m_planned = planner(jobs, plannedTips);
     if (m_planned.empty()) fail(Source::None, "", "Planner failed to plan any placements. Please contact support.");
+    if (m_hooks.planned) {
+        std::vector<PlannedPlacement> step;
+        for (const Planned& p : m_planned) {
+            const JobPlacement& j = m_jobPlacements[p.job];
+            step.push_back({ p.nozzleId, p.tipId, j.boardId, j.placementId, j.partId, j.rank, p.cost });
+        }
+        m_hooks.planned(step);
+    }
     for (const Planned& p : m_planned) {
         m_jobPlacements[p.job].status = Status::Processing;
         ++m_jobPlacements[p.job].processingCount;

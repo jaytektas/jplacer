@@ -16,3 +16,6 @@ ReferenceBottomVisionOffsetTest and ReferenceBottomVisionInheritanceTest.
 `eagle/` holds OpenPnP's `samples/Demo Board/Demo Board v2.mn[tb]`, `samples/EAT001/EAT001.mn[tb]`,
 `samples/test/mountsmd_whole_numbers.mnt` and `src/test/resources/samples/eagle/eagle.brd` and
 `eagle.sch`, read by its EagleMountsmdUlpImporterTest and EagleLoaderTest.
+
+`job-processor/` is OpenPnP's `src/test/resources/config/JobProcessorTest`: its two-nozzle test machine,
+parts, packages and its panelized job of the pnp-test board, run by its JobProcessorTest.

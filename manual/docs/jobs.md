@@ -138,7 +138,10 @@ A job goes as OpenPnP's does:
 3. **Planning.** The placements still to do, lowest rank first (a rank ten or more above the lowest
    waits for it), are ordered as Machine Setup's **Job order** says (by nozzle tip unless set otherwise,
    see [Job Processors](machine-setup.md#job-processors)); each nozzle is given one, with the tip on it if one fits, else a tip that
-   does.
+   does. A nozzle after the first takes, of those its tip fits, the one quickest for the head to reach from
+   the middle of the picks and the middle of the places already planned (as OpenPnP's planner: the time the
+   head's X and Y axes take, from their speed and acceleration, to where the head goes for that nozzle);
+   with two nozzles, the other way round where that is quicker.
 4. **Each cycle**: the nozzle tips changed where needed (by their changer steps), the nozzles turned for
    the pick, each part fed (retried as the feeder's Feed Retry Count says; an empty feeder is turned off
    and the next one holding the part used) and picked (retried as its Pick Retry Count says, a part that

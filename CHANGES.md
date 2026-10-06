@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- The job planner gives a second nozzle its placement as OpenPnP's does: by the time the head takes to get there
+  (from the axes' speed and acceleration), to where the head goes for that nozzle (it was the straight distance to
+  where the part goes). Checked against OpenPnP's JobProcessorTest: the same tip changes, cycles, planning cost
+  and part changes for every job order, strategy and ranking it tries.
 - A script can run an event's scripts or another script, as in OpenPnP: `scripting.on(event, globals)` and
   `scripting.execute(script, globals)`.
 - Bottom vision on a camera looking up (which sees the machine mirrored) now tells its pipeline the part's angle,

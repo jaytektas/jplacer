@@ -47,6 +47,14 @@ public:
     using JobOrder = JPJobProcessorConfig::JobOrder;
     using Strategy = JPJobProcessorConfig::Strategy;
 
+    // OpenPnP's PlannedPlacement: a nozzle, the tip it places with, the placement (its board's unique id), its part
+    // and rank, and what moving to it costs from those planned before it (its TravelCost; none: not chosen by it).
+    struct PlannedPlacement {
+        std::string           nozzleId, tipId, boardId, placementId, partId;
+        int                   rank = 0;
+        std::optional<double> planningCost;
+    };
+
     struct Hooks {
         // Runs `fn` where the model lives (the screen's thread), waiting for it; none: here.
         std::function<void(const std::function<void()>& fn)> onMain;
@@ -59,6 +67,8 @@ public:
         // OpenPnP's scripting events ("Job.Starting", "Nozzle.BeforePick"), with what they are for; a failing
         // script stops the job (false, with why).
         std::function<bool(const std::string& event, const JJson& globals, std::string& why)> event;
+        // Each plan made (OpenPnP's PlannerStepResults): what each nozzle is to place, in turn.
+        std::function<void(const std::vector<PlannedPlacement>&)> planned;
     };
 
     // What went wrong, and on what (OpenPnP's JobProcessorException and its source).

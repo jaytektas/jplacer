@@ -31,10 +31,14 @@ double estimateCost(double distance, const JPTravel::Axis& axis) {
 
 } // namespace
 
+double JPTravel::Cost::cost(const JPLocation& a, const JPLocation& b) const {
+    return std::max(estimateCost(a.x() - b.x(), x), estimateCost(a.y() - b.y(), y));
+}
+
 double JPTravel::Cost::xyzCost(const JPLocation& a, const JPLocation& b) const {
-    double cost = std::max(estimateCost(a.x() - b.x(), x), estimateCost(a.y() - b.y(), y));
-    if (z) cost = std::max(cost, estimateCost(a.z() - b.z(), *z));
-    return cost;
+    double c = cost(a, b);
+    if (z) c = std::max(c, estimateCost(a.z() - b.z(), *z));
+    return c;
 }
 
 JPTravel::JPTravel(std::vector<JPLocation> points, std::optional<JPLocation> start, std::optional<JPLocation> end,

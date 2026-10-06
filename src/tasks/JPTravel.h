@@ -25,6 +25,8 @@ public:
     struct Cost {
         Axis x, y;
         std::optional<Axis> z;
+        // OpenPnP's getCost: over X and Y; getXyzCost: Z too, where it has it.
+        double cost(const JPLocation& a, const JPLocation& b) const;
         double xyzCost(const JPLocation& a, const JPLocation& b) const;
     };
 

@@ -80,6 +80,8 @@ std::vector<JPJobMachine::Nozzle> JPlacerJobMachine::nozzles() const {
     for (const JPNozzleConfig& n : c.nozzles) {
         if (n.mount.headId != head) continue;
         Nozzle out1 { n.id, n.name.empty() ? n.id : n.name, n.tipId, n.tipIds, n.pickDwellMs, n.placeDwellMs };
+        out1.offsetX = n.mount.offsetX;
+        out1.offsetY = n.mount.offsetY;
         out1.rotationMode = n.rotationMode;
         out1.alignRotationWithPart = n.alignRotationWithPart;
         out1.tipChangeOnManualPick = n.tipChangeOnManualPick;

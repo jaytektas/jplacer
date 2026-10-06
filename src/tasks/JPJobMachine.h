@@ -33,6 +33,9 @@ public:
         std::vector<std::string> tipIds;   // the tips that fit it
         // Waited after its vacuum is on (pick) or off (place): its own and its tip's.
         int                      pickDwellMs = 0, placeDwellMs = 0;
+        // Its offset from the head (mm): a place it goes to, less this, is where the head goes (OpenPnP's
+        // toHeadLocation).
+        double                   offsetX = 0, offsetY = 0;
         // OpenPnP's Rotation Mode: how its turn relates to the part's angle
         // ("AbsolutePartAngle", "PlacementAngle", "MinimalRotation",
         // "LimitedArticulation"); for the last, how far it may turn either way
