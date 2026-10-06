@@ -10,6 +10,7 @@
 
 #include "machine/JPGcodeDriver.h"
 
+#include <atomic>
 #include <chrono>
 #include <regex>
 #include <string>
@@ -67,13 +68,14 @@ int main() {
         assert(driver.profile() && driver.profile()->id() == "grblhal");
         assert(driver.plugins().size() == 1 && driver.plugins()[0]->name == "JayTEK");
 
-        int statusSeen = 0;
+        std::atomic<int> statusSeen { 0 };   // counted on the driver's thread
         driver.onStatus.connect([&](JPFirmwareProfile::Status) { ++statusSeen; });
 
         const JPReply moved = driver.command("move", { { "axes", "X10 Y5" }, { "feed", "3000" } });
         assert(moved.ok);
         const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
-        while (driver.status().positions["X"] != 10.0 && std::chrono::steady_clock::now() < deadline)
+        // The report is kept, then passed on: both waited for.
+        while ((driver.status().positions["X"] != 10.0 || statusSeen == 0) && std::chrono::steady_clock::now() < deadline)
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
         const JPFirmwareProfile::Status st = driver.status();
         assert(st.state == "Idle" && st.positions.at("X") == 10.0 && st.positions.at("Y") == 5.0);
