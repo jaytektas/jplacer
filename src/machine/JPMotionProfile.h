@@ -168,6 +168,8 @@ public:
     static constexpr double kEps = 1e-8;
 
 private:
+    friend class JPMotionPath;   // OpenPnP's AbstractMotionPath works on the profiles' insides
+
     bool solveRegion(double vPeak0, double vPeak1, double sResult0, double sResult1, double tResult0, double tResult1,
                      double vEffEntry, double vEffExit, double tMin, double bestTime, int iterations, double stol, double vtol,
                      double ttol);
@@ -180,6 +182,7 @@ private:
     double sMin = 0, sMax = 0, vMax = 0, aMaxEntry = 0, aMaxExit = 0, jMax = 0, tMin = 0, tMax = 0;
     double sEntryControl = 0, sExitControl = 0, tEntryControl = 0, tExitControl = 0;
     int    m_eval = 0;
+    double m_initialTime = 0;   // JPMotionPath's: the time solved on its own, before the path was optimized
     double m_time = 0;
     double sBound0 = 0, sBound1 = 0, tSBound0 = 0, tSBound1 = 0;
     double vBound0 = 0, tVBound0 = 0, vBound1 = 0, tVBound1 = 0;
