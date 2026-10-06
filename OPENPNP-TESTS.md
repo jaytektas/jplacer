@@ -6,13 +6,13 @@ test passes here only when it passes there.
 
 Status: **passing** (ported and passing), **to port**.
 
-**228 of 253 test methods passing.**
+**230 of 253 test methods passing.**
 
 | OpenPnP test | Methods | Status | jplacer test |
 |---|---|---|---|
 | AdvancedMotionTest.java (testMotionProfiles, testMotionPaths) | 2 | passing | tests/machine/test_motion_profile.cpp (testMotionProfiles), tests/machine/test_motion_path.cpp (testMotionPaths) |
 | BasicJobTest.java (testSimpleJob) | 1 | to port |  |
-| BlindsFeederTest.java (testBlindsFeederBasics, testBlindsFeederGroups) | 2 | to port |  |
+| BlindsFeederTest.java (testBlindsFeederBasics, testBlindsFeederGroups) | 2 | passing | tests/model/test_blinds_feeder_groups.cpp |
 | CalculateBoardLocationTests.java (calculateBoardLocationTopNoAffineNoWidth, calculateBoardLocationTopWithAffineNoWidth, calculateBoardLocationTopNoAffineWithWidth, calculateBoardLocationTopWithAffineWithWidth, calculateBoardLocationBottomNoAffineNoWidth, calculateBoardLocationBottomWithAffineNoWidth, calculateBoardLocationBottomNoAffineWithWidth, calculateBoardLocationBottomWithAffineWithWidth, calculateBoardLocationInverseTopNoAffineNoWidth, calculateBoardLocationInverseTopWithAffineNoWidth, calculateBoardLocationInverseTopNoAffineWithWidth, calculateBoardLocationInverseTopWithAffineWithWidth, calculateBoardLocationInverseBottomNoAffineNoWidth, calculateBoardLocationInverseBottomWithAffineNoWidth, calculateBoardLocationInverseBottomNoAffineWithWidth, calculateBoardLocationInverseBottomWithAffineWithWidth) | 16 | passing | tests/model/test_calculate_board_location.cpp |
 | CvStageTest.java (testPipelinePropertyOverrides) | 1 | passing | tests/pipeline/test_cv_stage.cpp |
 | EagleLoaderTest.java (testLoadBoard, testLoadSchematic) | 2 | passing | tests/model/test_eagle_importers.cpp (the schematic read and nothing imported, as OpenPnP's importer) |
