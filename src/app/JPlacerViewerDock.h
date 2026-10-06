@@ -18,7 +18,7 @@
 inline namespace jf {
 
 // A board's or panel's viewer (OpenPnP's Board Viewer and Panel Viewer
-// windows) as a dock: opened beside the cameras, where it can be dragged
+// windows) as a dock: opened as a tab in the work area, where it can be dragged
 // out on its own, and kept showing whichever board or panel its tab has
 // chosen (named over its options), drawn again as it changes.
 class JPlacerViewerDock {

@@ -38,7 +38,8 @@ void JPlacerViewerDock::place() {
     if (m_dock) return;
     m_dock = std::make_unique<JDockWidget>(m_kind + " Viewer", 0.f, 0.f, 0.f, 0.f);
     m_dock->setContent(m_viewer.get());
-    m_layout.add(m_dock.get(), JPlacerLayout::Home::Cameras);
+    // In the work area, wide enough for the drawing beside its options.
+    m_layout.add(m_dock.get(), JPlacerLayout::Home::Work);
 }
 
 void JPlacerViewerDock::showJob(JPPanelLocation* root, const std::string& name,

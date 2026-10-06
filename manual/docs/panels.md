@@ -66,7 +66,7 @@ copies short); **OK** keeps them, **Cancel** puts the panel back as it was.
 ## The viewer
 
 **View Panel** (and the Boards tab's **View Board**) opens the viewer, as OpenPnP's Panel Viewer and Board
-Viewer: beside the cameras, where it can be dragged out on its own, showing the chosen panel or board and
+Viewer: a tab in the work area (after the others), where it can be dragged out on its own, showing the chosen panel or board and
 following the choice. It draws each board's and panel's outline (top side up in one colour, bottom side
 up in another, struck through when it is not enabled), and as ticked its **Board/Panel Locations**,
 **Board/Panel Origins**, **Fiducials** and **Placements**, and a **Reticle**. **Viewing From Top** turns to

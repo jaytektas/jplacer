@@ -11,7 +11,7 @@ notes.
 ## Unreleased
 
 - The job viewer's right-click menu has OpenPnP's Placed?, Center Camera on a placement, fiducial, board or panel,
-  and Run Fiducial Check.
+  and Run Fiducial Check; the viewers open as a tab in the work area, wide enough to see.
 - A camera's Show in multi camera view?, as OpenPnP's: off, its window starts closed; and its light chosen from its
   head's actuators, the machine's too with Allow Machine Actuators?.
 - Runout calibration has OpenPnP's Offset Threshold (a tip found too far off is a misdetect) and Position Tool.
