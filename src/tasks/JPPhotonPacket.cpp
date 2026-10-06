@@ -5,6 +5,7 @@
 
 #include <cctype>
 #include <cstdio>
+#include <utility>
 
 inline namespace jf {
 
@@ -23,6 +24,9 @@ struct Crc8 {
     int value() const { return (crc >> 8) & 0xFF; }
 };
 
+// A feeder's hardware id: 12 bytes.
+constexpr size_t kUuidBytes = 12;
+
 int hexDigit(char c) {
     if (c >= '0' && c <= '9') return c - '0';
     const char l = char(std::tolower(static_cast<unsigned char>(c)));
@@ -31,6 +35,27 @@ int hexDigit(char c) {
 }
 
 } // namespace
+
+JPPhotonPacket JPPhotonPacket::command(int commandId, int toAddress) {
+    JPPhotonPacket p;
+    p.toAddress = toAddress;
+    return std::move(p.putByte(commandId));
+}
+
+JPPhotonPacket& JPPhotonPacket::putByte(int data) {
+    payload.push_back(uint8_t(data & 0xFF));
+    return *this;
+}
+
+JPPhotonPacket& JPPhotonPacket::putUuid(const std::string& uuid) {
+    for (size_t i = 0; i < kUuidBytes; ++i) putByte(2 * i + 1 < uuid.size() ? byteAt(uuid, i) : 0);
+    return *this;
+}
+
+int JPPhotonPacket::byteAt(const std::string& text, size_t index) {
+    const int hi = hexDigit(text[2 * index]), lo = hexDigit(text[2 * index + 1]);
+    return (hi < 0 || lo < 0) ? -1 : hi * 16 + lo;
+}
 
 int JPPhotonPacket::crc() const {
     Crc8 c;
@@ -60,11 +85,8 @@ std::optional<JPPhotonPacket> JPPhotonPacket::decode(const std::string& text) {
     // At least a header: to, from, packet id, length, CRC.
     if (text == "TIMEOUT" || text.size() % 2 != 0 || text.size() < 10) return std::nullopt;
     std::vector<int> data(text.size() / 2);
-    for (size_t i = 0; i < data.size(); ++i) {
-        const int hi = hexDigit(text[2 * i]), lo = hexDigit(text[2 * i + 1]);
-        if (hi < 0 || lo < 0) return std::nullopt;
-        data[i] = hi * 16 + lo;
-    }
+    for (size_t i = 0; i < data.size(); ++i)
+        if ((data[i] = byteAt(text, i)) < 0) return std::nullopt;
     JPPhotonPacket p;
     p.toAddress = data[0];
     p.fromAddress = data[1];
@@ -78,7 +100,7 @@ std::optional<JPPhotonPacket> JPPhotonPacket::decode(const std::string& text) {
 std::string JPPhotonPacket::uuid(size_t from) const {
     std::string out;
     char buf[3];
-    for (size_t i = 0; i < 12 && from + i < payload.size(); ++i) {
+    for (size_t i = 0; i < kUuidBytes && from + i < payload.size(); ++i) {
         std::snprintf(buf, sizeof buf, "%02X", payload[from + i]);
         out += buf;
     }

@@ -3,29 +3,33 @@
 
 #pragma once
 
-#include "JPJobMachine.h"
-#include "JPPhotonPacket.h"
+#include "JPPhotonBusInterface.h"
 
+#include <functional>
 #include <optional>
 #include <string>
 
 inline namespace jf {
 
-// The Photon feeders' bus, as OpenPnP's PhotonBus: a packet from address 0,
-// numbered in turn (0 to 255, then again), sent as the read parameter of the
-// machine's PhotonFeederData actuator (its controller's "M485 {value}"); the
-// reply is the packet read back, taken only when its number is the one sent.
-class JPPhotonBus {
+// The Photon feeders' bus, as OpenPnP's PhotonBus: a packet from its address, numbered in turn (0 to 255, then
+// again), sent as the read parameter of the machine's PhotonFeederData actuator (its controller's "M485 {value}");
+// the reply is the packet read back, taken only when its number is the one sent.
+class JPPhotonBus : public JPPhotonBusInterface {
 public:
     static constexpr const char* kDataActuator = "PhotonFeederData";
+    // The data actuator read with `parameter`: its value, else false and why.
+    using Read = std::function<bool(const std::string& parameter, std::string& value, std::string& why)>;
 
-    explicit JPPhotonBus(JPJobMachine& machine) : m_machine(machine) {}
-    // None when nothing (or nothing that is its reply) came back; `why` then
-    // says why, when the actuator could not be read at all.
-    std::optional<JPPhotonPacket> send(JPPhotonPacket packet, std::string& why);
+    JPPhotonBus(int fromAddress, Read read) : m_fromAddress(fromAddress), m_read(std::move(read)) {}
+
+    std::optional<JPPhotonPacket> send(JPPhotonPacket packet, std::string& why) override;
 
 private:
-    JPJobMachine& m_machine;
+    int  nextPacketId();
+
+    int  m_fromAddress;
+    Read m_read;
+    int  m_packetId = 0;
 };
 
 } // inline namespace jf

@@ -3,6 +3,7 @@
 
 #include "JPPhotonFeeders.h"
 
+#include "JPPhotonBus.h"
 #include "JPPhotonCommands.h"
 
 #include "common/JPlacerLog.h"
@@ -50,9 +51,8 @@ bool findSlotAddress(const Run& r, const std::string& feederId, bool force, std:
         }
     });
     if (known && !force) return true;
-    JPPhotonBus bus(r.machine);
     std::string seen;
-    const auto got = JPPhotonCommands::getFeederAddress(bus, id, seen);
+    const auto got = JPPhotonCommands::send(JPPhotonFeeders::bus(r.machine), JPPhotonCommands::getFeederAddress(id), seen);
     if (!seen.empty() && !got) {
         why = seen;
         return false;
@@ -73,9 +73,8 @@ bool initializeIfNeeded(const Run& r, const std::string& feederId, std::string& 
         }
     });
     if (done || !slot) return true;
-    JPPhotonBus bus(r.machine);
     std::string seen;
-    const auto got = JPPhotonCommands::initializeFeeder(bus, *slot, id, seen);
+    const auto got = JPPhotonCommands::send(JPPhotonFeeders::bus(r.machine), JPPhotonCommands::initializeFeeder(*slot, id), seen);
     if (!seen.empty() && !got) {
         why = seen;
         return false;
@@ -86,12 +85,13 @@ bool initializeIfNeeded(const Run& r, const std::string& feederId, std::string& 
             r.config.resolvePhoton();
         } else if (got->error == Error::WrongFeederUuid) {
             // Another feeder answers there: that one is at this address.
-            if (!r.config.photonFeeder(got->uuid)) {
+            const std::string other = got->uuid.value_or("");
+            if (!r.config.photonFeeder(other)) {
                 JPFeeder made = JPFeeder::create(kPhotonClass, "");
-                setHardwareId(made, got->uuid);
+                setHardwareId(made, other);
                 r.config.addFeeder(std::move(made));
             }
-            r.config.setPhotonSlot(r.config.photonFeeder(got->uuid)->id(), got->fromAddress);
+            r.config.setPhotonSlot(r.config.photonFeeder(other)->id(), got->fromAddress);
         } else if (JPFeeder* f = r.config.feeder(feederId)) {
             f->photonInitialized = true;
         }
@@ -106,6 +106,16 @@ int maxRetry(const Run& r) {
 }
 
 } // namespace
+
+JPPhotonBusInterface& JPPhotonFeeders::bus(JPJobMachine& machine) {
+    // OpenPnP's one bus (from address 0): its packets numbered in turn, whichever feeder sends them.
+    static JPJobMachine* s_machine = nullptr;
+    static JPPhotonBus s_bus(0, [](const std::string& parameter, std::string& value, std::string& why) {
+        return s_machine->readActuator(JPPhotonBus::kDataActuator, parameter, value, why);
+    });
+    s_machine = &machine;
+    return s_bus;
+}
 
 bool JPPhotonFeeders::findSlotAddress(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine,
                                       const OnMain& onMain, std::string& why) {
@@ -136,9 +146,9 @@ bool JPPhotonFeeders::feed(JPConfiguration& config, const std::string& feederId,
             why = unconfigured;
             return false;
         }
-        JPPhotonBus bus(machine);
+        JPPhotonBusInterface& bus = JPPhotonFeeders::bus(machine);
         std::string seen;
-        const auto moved = JPPhotonCommands::moveFeedForward(bus, *slot, distanceMm * 10, seen);
+        const auto moved = JPPhotonCommands::send(bus, JPPhotonCommands::moveFeedForward(*slot, distanceMm * 10), seen);
         if (!moved) {
             r.main([&] {
                 if (JPFeeder* f = config.feeder(feederId)) {
@@ -169,7 +179,7 @@ bool JPPhotonFeeders::feed(JPConfiguration& config, const std::string& feederId,
                     return false;
                 }
             }
-            const auto status = JPPhotonCommands::moveFeedStatus(bus, *slot, seen);
+            const auto status = JPPhotonCommands::send(bus, JPPhotonCommands::moveFeedStatus(*slot), seen);
             if (!status) continue;   // no answer: asked again after a while
             if (status->error == Error::None) return true;
             if (status->error == Error::CouldNotReach) {
@@ -213,11 +223,11 @@ bool JPPhotonFeeders::findAll(JPConfiguration& config, JPJobMachine& machine, co
     r.main([&] { most = config.photon().maxFeederAddress(); });
     JLOGC(JPlacerLog::kJob, JLogLevel::Info) << "Searching for Photon Feeders";
     std::vector<JPFeeder> toAdd;
-    JPPhotonBus bus(machine);
+    JPPhotonBusInterface& bus = JPPhotonFeeders::bus(machine);
     for (int address = 1; address <= most; ++address) {
         if (progress) progress(address, SearchState::Searching);
         std::string seen;
-        const auto got = JPPhotonCommands::getFeederId(bus, address, seen);
+        const auto got = JPPhotonCommands::send(bus, JPPhotonCommands::getFeederId(address), seen);
         if (!got && !seen.empty()) {
             why = seen;
             return false;
@@ -232,16 +242,17 @@ bool JPPhotonFeeders::findAll(JPConfiguration& config, JPJobMachine& machine, co
                     }
                 return;
             }
-            JPFeeder* f = config.photonFeeder(got->uuid);
+            const std::string uuid = got->uuid.value_or("");
+            JPFeeder* f = config.photonFeeder(uuid);
             if (!f) f = config.photonFeeder("");
             if (!f)
                 for (JPFeeder& added : toAdd)
-                    if (added.text("hardware-id") == got->uuid) f = &added;
+                    if (added.text("hardware-id") == uuid) f = &added;
             if (!f) {
                 toAdd.push_back(JPFeeder::create(kPhotonClass, ""));
                 f = &toAdd.back();
             }
-            setHardwareId(*f, got->uuid);
+            setHardwareId(*f, uuid);
             if (config.feeder(f->id())) config.setPhotonSlot(f->id(), address);
             else f->photonSlot = address;
         });

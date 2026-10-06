@@ -4,6 +4,7 @@
 #pragma once
 
 #include "JPJobMachine.h"
+#include "JPPhotonBusInterface.h"
 
 #include "model/JPConfiguration.h"
 
@@ -24,6 +25,10 @@ public:
     using OnMain = std::function<void(const std::function<void()>&)>;
     // OpenPnP's FeederSearchState.
     enum class SearchState { Unknown, Searching, Found, Missing };
+
+    // OpenPnP's PhotonFeeder.getBus: the one bus every Photon feeder talks on, through `machine`'s
+    // PhotonFeederData actuator.
+    static JPPhotonBusInterface& bus(JPJobMachine& machine);
 
     // Find: its slot address asked afresh (none when it does not answer).
     static bool findSlotAddress(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine,

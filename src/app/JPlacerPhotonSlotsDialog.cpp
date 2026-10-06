@@ -4,6 +4,7 @@
 #include "JPlacerPhotonSlotsDialog.h"
 
 #include "tasks/JPPhotonCommands.h"
+#include "tasks/JPPhotonFeeders.h"
 
 #include <j/core/JButton.h>
 #include <j/core/JStyle.h>
@@ -81,10 +82,10 @@ void JPlacerPhotonSlotsDialog::start() {
                 if (shared->alive) fn();
             });
         };
-        JPPhotonBus bus(machine);
+        JPPhotonBusInterface& bus = JPPhotonFeeders::bus(machine);
         while (!shared->stop) {
             std::string why;
-            const auto found = JPPhotonCommands::uninitializedFeedersRespond(bus, why);
+            const auto found = JPPhotonCommands::send(bus, JPPhotonCommands::uninitializedFeedersRespond(), why);
             if (!found || !found->valid) {
                 if (why.empty()) continue;   // nobody waiting yet: asked again
                 ui([&] { setStatus(why); });
@@ -98,14 +99,15 @@ void JPlacerPhotonSlotsDialog::start() {
                 setStatus(said("Feeder found! Programming address %d.", address));
             });
             if (address == 0) break;
-            const auto programmed = JPPhotonCommands::programFeederFloorAddress(bus, found->uuid, address, why);
+            const std::string uuid = found->uuid.value_or("");
+            const auto programmed = JPPhotonCommands::send(bus, JPPhotonCommands::programFeederFloorAddress(uuid, address), why);
             if (!programmed) {
                 shared->stop = true;
                 ui([&] { setStatus("Feeder address programming failed."); });
                 return true;
             }
             ui([&] { setStatus("Programming done."); });
-            const auto ready = JPPhotonCommands::initializeFeeder(bus, address, found->uuid, why);
+            const auto ready = JPPhotonCommands::send(bus, JPPhotonCommands::initializeFeeder(address, uuid), why);
             if (!ready || !ready->valid || ready->error != JPPhotonCommands::Error::None) {
                 ui([&] { setStatus("Failed to initialize feeder after updating slot address."); });
                 return true;
