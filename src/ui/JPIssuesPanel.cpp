@@ -195,6 +195,27 @@ void JPIssuesPanel::findIssuesAndSolutions() {
     if (m_model->rowCount() > 0) m_table->selectRow(m_table->modelRowAt(0));
     showMilestone();
     selectionChanged();
+    updateIndicator();
+}
+
+void JPIssuesPanel::updateIndicator() {
+    if (!onIndicator) return;
+    using S = JPSolutions;
+    S::Severity most = S::Severity::None;
+    for (const auto& i : m_solutions.issues())
+        if (i->state == S::State::Open && int(i->severity) >= int(most)) most = i->severity;
+    if (int(most) <= int(S::Severity::Information)) {
+        onIndicator(std::nullopt);
+        return;
+    }
+    // OpenPnP's severity colours, saturated as its indicator draws them (the weakest channel to 0, the strongest to 200).
+    static const std::array<int, 3> kColors[] = { { 255, 255, 255 }, { 255, 255, 255 }, { 255, 255, 157 },
+                                                  { 255, 220, 157 }, { 255, 157, 157 }, { 200, 220, 255 } };
+    const std::array<int, 3>& c = kColors[int(most)];
+    const int lo = std::min({ c[0], c[1], c[2] }), hi = std::max({ c[0], c[1], c[2] });
+    constexpr double kSaturated = 200;
+    const double f = kSaturated / std::max(1, hi - lo);
+    onIndicator(std::array<uint8_t, 4> { uint8_t((c[0] - lo) * f), uint8_t((c[1] - lo) * f), uint8_t((c[2] - lo) * f), 255 });
 }
 
 std::vector<JPSolutions::Issue*> JPIssuesPanel::selections() const {
@@ -291,6 +312,7 @@ void JPIssuesPanel::setState(JPSolutions::State state) {
     }
     m_warn->setText(" After each round of solving issues, please run Find Issues & Solutions again to catch dependent issues.");
     m_table->refresh();
+    updateIndicator();
     showMilestone();
     selectionChanged();
 }

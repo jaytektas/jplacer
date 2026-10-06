@@ -3,9 +3,11 @@
 The **Issues & Solutions** tab, as OpenPnP's, lists what is wrong with, or could be better in, the
 machine's setup, each with what to do about it. The machine is set up a **milestone** at a time —
 Welcome, Connect, Basics, Kinematics, Vision, Calibration, Production, Advanced — and only what belongs
-to the target milestone and those before it is checked.
+to the target milestone and those before it is checked. While an issue more serious than Information is open,
+the tab's title carries a dot in the colour of the severest one (blue Fundamental, red Error, orange Warning,
+yellow Suggestion), as OpenPnP's does.
 
-<!-- src: src/setup/JPSolutions.cpp; src/ui/JPIssuesPanel.cpp -->
+<!-- src: src/setup/JPSolutions.cpp; src/ui/JPIssuesPanel.cpp (updateIndicator); src/app/JPlacerOpenPnpTabs.cpp -->
 
 **Find Issues & Solutions** checks again (it is also done once when jplacer starts). Beside it, the
 target **Milestone** and what it is for; the ⓘ button opens OpenPnP's wiki page about it. **Include

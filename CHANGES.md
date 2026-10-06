@@ -10,6 +10,7 @@ notes.
 
 ## Unreleased
 
+- The Issues & Solutions tab shows OpenPnP's dot, coloured by the severest open issue.
 - A capture camera's Device Settings have Defaults, then Auto-Tune: every property to the camera's own default, the
   automatic ones left to settle for a moment, then held and kept as its settings.
 - The Motion Planner's Minimum Speed, as OpenPnP's: the Jog panel's speed goes no lower (5% to begin with).

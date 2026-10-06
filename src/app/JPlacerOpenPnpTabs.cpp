@@ -742,6 +742,8 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_issues->openUri = [](const std::string& uri) { JDesktop::openUrl(uri); };
     m_issues->showError = [](const std::string& why) { JDialog::message("Error", why); };
     m_issuesDock = std::make_unique<JDockWidget>("Issues & Solutions", 0.f, 0.f, 0.f, 0.f);
+    // OpenPnP's indicator: a dot after the tab's title, the colour of the severest open issue.
+    m_issues->onIndicator = [dock = m_issuesDock.get()](std::optional<std::array<uint8_t, 4>> color) { dock->setBadge(color); };
     // A milestone completed: searched again (not while its own Accept is at work).
     m_solutions.onMilestoneChanged = [this, alive = std::weak_ptr<bool>(m_alive)] {
         jPostToNextFrame([this, alive] {

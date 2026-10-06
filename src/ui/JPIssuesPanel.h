@@ -15,6 +15,8 @@
 #include <j/core/JLabel.h>
 #include <j/core/Splitter.h>
 
+#include <array>
+#include <optional>
 #include <functional>
 #include <memory>
 #include <string>
@@ -41,8 +43,13 @@ public:
 
     // A web page (an issue's or the milestone's wiki page) to open.
     std::function<void(const std::string& uri)> openUri;
+    // OpenPnP's issue indicator: the colour of the severest open issue above Information (its severity's
+    // colour, saturated), or none; told after each search and each change of state.
+    std::function<void(std::optional<std::array<uint8_t, 4>> color)> onIndicator;
     // Something went wrong doing a solution: to be said.
     std::function<void(const std::string& why)> showError;
+    // The indicator worked out again and told (onIndicator).
+    void updateIndicator();
 
 private:
     class Model;
