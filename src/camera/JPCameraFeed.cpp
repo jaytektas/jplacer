@@ -200,6 +200,7 @@ void JPCameraFeed::runSource(std::string& why) {
             continue;
         }
         lastFrame = std::chrono::steady_clock::now();
+        if (tuning) tuning->see(frame, lastFrame);   // Auto-Tune looks at the pictures as taken
         if (canFreeze) {
             const uint64_t print = fingerprint(frame.rgba);
             if (print != lastPrint) {

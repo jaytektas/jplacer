@@ -71,7 +71,7 @@ constexpr float  kSimulatedPadLevel = 255;
 constexpr std::array<float, 3> kSimulatedBodyColor { 60, 60, 60 }, kSimulatedPadColor { 255, 255, 255 };
 constexpr double kSimulatedPartHeightMm = 1;
 // Defaults, then Auto-Tune: how long the camera's automatic settings are left to settle.
-constexpr int kAutoTuneMs = 1500;
+constexpr int kAutoTuneMs = 1200;
 // How near the camera's centre a nozzle must be for Adjust Camera Z (OpenPnP's 0.1 mm).
 constexpr double kCenteredMm = 0.1;
 // OpenPnP's Mapped Roughly and Mapped Finely white balance: the brightness levels mapped.
@@ -88,6 +88,7 @@ constexpr const char* kSamplesDir = "samples";
 constexpr const char* kScriptsDir = "scripts";
 // A camera brought forward for a task runs this long at least, shown or not (each look renews it).
 constexpr int kTaskCameraMs = 10000;
+constexpr int kCaptureFpsPollMs = 50;   // how often the Capture FPS test looks for a camera's first picture
 // OpenPnP's Capture FPS test: pictures counted over this long.
 constexpr int kCaptureFpsTestMs = 2000;
 
@@ -1433,11 +1434,8 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
             if (d.panel->camera().id != id) continue;
             JPCameraFeed* feed = &d.panel->feed();
             const std::string name = d.panel->camera().name;
-            if (!feed->isRunning()) {
-                showCamera(id);   // started for it; try again once it shows
-                m_window.showStatus(name + " is starting: try again once it shows", kStatusMs);
-                return;
-            }
+            // Run, shown or not (its settings page may be over it): the tuning starts once it gives pictures.
+            d.panel->keepRunning(kTaskCameraMs);
             m_window.showStatus(name + ": defaults set, auto-tuning...", kStatusMs);
             std::weak_ptr<bool> alive = m_alive;
             feed->autoTune(kAutoTuneMs, [this, alive, id, name](std::optional<JJson> tuned) {
@@ -1464,11 +1462,8 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
         for (CameraDock& d : m_cameras) {
             if (d.panel->camera().id != id) continue;
             JPCameraFeed* feed = &d.panel->feed();
-            if (!feed->isRunning()) {
-                showCamera(id);   // started for it; try again once it shows
-                m_window.showStatus(d.panel->camera().name + " is starting: try again once it shows", kStatusMs);
-                return;
-            }
+            // Run, shown or not (its settings page may be over it); what is asked is done once it is open.
+            d.panel->keepRunning(kTaskCameraMs);
             if (action == "reapplyControls") {
                 feed->reapplyControls();
                 m_window.showStatus(d.panel->camera().name + ": its properties set again", kStatusMs);
@@ -1478,8 +1473,11 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
             // OpenPnP's Capture FPS test: the pictures counted over a while, the average.
             std::weak_ptr<bool> alive = m_alive;
             std::thread([this, feed, id, alive] {
+                // Counted from its first picture (it may have only just been opened).
                 JPFrame frame;
-                feed->latest(frame, 0);
+                const auto opening = std::chrono::steady_clock::now();
+                while (!feed->latest(frame, 0) && std::chrono::steady_clock::now() - opening < std::chrono::milliseconds(kTaskCameraMs / 2))
+                    std::this_thread::sleep_for(std::chrono::milliseconds(kCaptureFpsPollMs));
                 const uint64_t first = frame.sequence;
                 const auto start = std::chrono::steady_clock::now();
                 std::this_thread::sleep_for(std::chrono::milliseconds(kCaptureFpsTestMs));

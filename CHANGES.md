@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- Defaults, then Auto-Tune finds exposure and white balance from the picture when a camera does not say what its
+  automatic modes chose (as on the bench's cameras), in about two seconds; it, Reapply to Camera and the Capture
+  FPS Test now work while the camera's picture is hidden behind its settings page.
 - A nozzle's, camera's or actuator's Coordinate System shows OpenPnP's Safe Z (from its Z axis), under the Z column.
 - A capture camera's properties are in OpenPnP's columns (Auto, Min, Value, Max, Default), each value with OpenPnP's
   slider from the camera's least to its most.
