@@ -4,6 +4,7 @@
 #pragma once
 
 #include "JPCellConfig.h"
+#include "JPMotion.h"
 #include "JPScripting.h"
 #include "JPMotionTestResult.h"
 #include "JPFirmwareProfile.h"
@@ -376,6 +377,11 @@ private:
     void doDisconnect(bool keepingAlive = false);
     // The cell thread's side of moveAxes: false with `why` when refused or failed.
     bool doMove(std::map<std::string, double> targets, double speed, std::string& why, bool squared = true);
+    // A planned motion sent to its controllers, as each one's Motion Control Type says; `moved`: the controllers
+    // told to move.
+    bool emitMotion(JPMotion& motion, const std::map<std::string, double>& now, std::vector<JPGcodeDriver*>& moved, std::string& why);
+    // The planned sequence, optimized and sent (nothing planned: nothing to do).
+    bool flushPlan(std::string& why);
     // OpenPnP's linear transform axes among `targets` solved back onto their input
     // axes (OpenPnP's ReferenceLinearTransformAxis.toRaw); false and why when they cannot be.
     bool resolveLinear(std::map<std::string, double>& targets, const std::map<std::string, double>& now, std::string& why) const;
@@ -536,6 +542,14 @@ private:
     std::vector<std::string>           m_inMotion;
     std::atomic<bool>                  m_streaming { false };
     std::optional<double>              m_planned;
+    // A sequence planned before it is sent (doMoveTool with continuous motion and Allow uncoordinated?): each leg's
+    // motion and where the axes were for it, optimized together by flushPlan (OpenPnP's motion plan).
+    struct Planned {
+        JPMotion                      motion;
+        std::map<std::string, double> now;
+    };
+    std::atomic<bool>                  m_planning { false };
+    std::vector<Planned>               m_plan;
     // Contact probing's offsets, by nozzle, then feeder (or part) id.
     std::map<std::string, std::map<std::string, double>> m_probedFeederOffsets, m_probedPartOffsets;
     // By nozzle: its tip's Z calibration (the tip it was made with, the offset).

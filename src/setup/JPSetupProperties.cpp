@@ -155,7 +155,10 @@ void motionPlannerTabs(JPCellConfig& cell, JPFormBuilder& add, const JPMotionTes
             "delays introduced when communicating back and forth. By allowing continuous motion, the planner no longer "
             "waits for motion to complete each time, unless explicitly told to (an actuator's Machine Coordination, a "
             "pick or place, the end of each operation).");
-    // (OpenPnP's Allow uncoordinated? comes with jplacer's uncoordinated motion planning.)
+    add.flag("allowUncoordinated", "Allow uncoordinated?", [mp]() -> bool& { return mp().allowUncoordinated; });
+    add.tip("Allowing uncoordinated motion, will enable the planner to use advanced features such as overshooting, motion "
+            "blending etc. This requires a driver that supports simulated or true 3rd-order motion control (with these "
+            "features on the controller).");
     add.flag("interpolationRetiming", "Interpolation Retiming?", [mp]() -> bool& { return mp().interpolationRetiming; });
     add.tip("Interpolation can only approximate the true 3rd-order motion profiles, some deviations are expected. "
             "Re-timing will stretch the motion to match the original 3rd-order timing. However this will slightly reduce "

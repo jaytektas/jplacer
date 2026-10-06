@@ -90,6 +90,8 @@ public:
     const Location& location1() const { return m_location1; }
     const std::vector<Axis>& axes() const { return m_axes; }
     const std::vector<JPMotionProfile>& profiles() const { return m_profiles; }
+    std::vector<JPMotionProfile>& profiles() { return m_profiles; }   // for JPMotionPath's optimizing
+    const std::vector<Driver>& drivers() const { return m_drivers; }
 
     Location momentaryLocation(double t) const;
     Location momentaryVelocity(double t) const;

@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- The Motion Planner's Allow uncoordinated?, as OpenPnP's: with continuous motion, a move by way of safe Z is planned
+  as one sequence and blended, the head moving on while the nozzle is still rising or already falling (for a
+  controller with 3rd order motion control, simulated or true).
 - OpenPnP's motion control: each controller's Motion Control Type (ToolpathFeedRate, EuclideanAxisLimits,
   ConstantAcceleration, ModeratedConstantAcceleration, SimpleSCurve, Simulated3rdOrderControl, Full3rdOrderControl),
   with OpenPnP's motion planning behind it, the interpolation settings (a GcodeAsyncDriver's Advanced Settings) and

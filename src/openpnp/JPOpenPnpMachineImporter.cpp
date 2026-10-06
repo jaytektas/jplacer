@@ -373,6 +373,8 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
         };
         m.continuousMotion = flag("allow-continuous-motion", false);
         m.diagnosticsEnabled = flag("diagnostics-enabled", false);
+        m.allowUncoordinated = flag("allow-uncoordinated", false);
+        m.interpolationRetiming = flag("interpolation-retiming", true);
         m.minimumSpeed = number("minimum-speed", JPMotionPlannerConfig::kDefaultMinimumSpeed);
         static const char* const kAt[] = { "start-location", "mid-location-1", "mid-location-2", "end-location" };
         static const char* const kEnabled[] = { "start-location-enabled", "mid-1-location-enabled", "mid-2-location-enabled",

@@ -16,6 +16,7 @@
 
 #include <chrono>
 #include <cmath>
+#include <cstdio>
 #include <condition_variable>
 #include <memory>
 #include <mutex>
@@ -214,6 +215,51 @@ int main() {
         std::string why;
         assert(!cell.testMotionAndWait(camera, false, result, why) && why.find("Test Motion undefined") == 0);
         cell.disconnect();
+    }
+    {
+        // OpenPnP's Allow uncoordinated?: on a controller with full 3rd order motion control, with continuous
+        // motion, a nozzle's legs by way of safe Z (up, across, down) planned as one sequence, the move across
+        // within the Safe Zone uncoordinated, blended: the planned run shorter than its moves one by one, and the
+        // nozzle where it was sent.
+        double planned[2] {};
+        for (const bool uncoordinated : { false, true }) {
+            JPCellConfig config = cellConfig(true);
+            config.actuators.clear();
+            config.drivers[0].motionControlType = "Full3rdOrderControl";
+            for (JPAxisConfig& a : config.axes) {
+                if (a.id == "C") continue;
+                a.accelerationPerSecond2 = 1000;
+                a.jerkPerSecond3 = 20000;
+                if (a.id == "Z") {
+                    a.safeZoneLow = -5;
+                    a.safeZoneHigh = 5;
+                    a.safeZoneLowEnabled = a.safeZoneHighEnabled = true;
+                }
+            }
+            config.nozzles.push_back(JPNozzleConfig::fromJson(JJson::parse(
+                R"({ "id": "N", "name": "N1", "mount": { "head": "H", "axisX": "X", "axisY": "Y", "axisZ": "Z" } })")));
+            JPMotionPlannerConfig& mp = config.motionPlanner;
+            mp.allowUncoordinated = uncoordinated;
+            mp.stops[0] = { true, { 0, 0, -10, 0 } };
+            mp.stops[1] = { true, { 100, 0, -10, 0 } };
+            mp.stops[2] = { false, { 0, 0, 0, 0 } };
+            mp.stops[3] = { false, { 0, 0, 0, 0 } };
+            mp.safeZ = { true, true, true };
+            mp.speeds = { 1, 1, 1 };
+            JPCell cell(config, profiles());
+            Sent sent;
+            start(cell, sent);
+            std::string why;
+            JPMotionTestResult result;
+            assert(cell.testMotionAndWait(config.nozzles[0].mount, false, result, why));
+            planned[uncoordinated] = result.plannedS;
+            assert(result.plannedS > 0);
+            // Where it was sent (then up to safe Z, as Test Motion ends).
+            assert(std::abs(cell.jogBase().at("X") - 100) < 1e-6 && std::abs(cell.jogBase().at("Y")) < 1e-6);
+            cell.disconnect();
+        }
+        std::fprintf(stderr, "planned one by one %.3f s, blended %.3f s\n", planned[0], planned[1]);
+        assert(planned[1] < planned[0] - 0.01);
     }
     return 0;
 }

@@ -4,6 +4,7 @@
 #include "JPCell.h"
 
 #include "JPMotion.h"
+#include "JPMotionPath.h"
 
 #include "common/JPlacerLog.h"
 
@@ -982,9 +983,18 @@ bool JPCell::doMoveTool(const JPMountConfig& mount, const std::array<std::option
         if (to[2] && !mount.axisZ.empty()) axes[mount.axisZ] = *to[2] - zOffsetOf(mount);
         return axes.empty() || doMove(axes, speed, why);
     }
-    if (!mount.headId.empty() && !doSafeZ(mount.headId, speed, why)) return false;
-    if (!axes.empty() && !doMove(axes, speed, why)) return false;
-    return !to[2] || mount.axisZ.empty() || doMove({ { mount.axisZ, *to[2] - zOffsetOf(mount) } }, speed, why);
+    // OpenPnP's motion plan: with continuous motion and Allow uncoordinated?, up, across and down planned as one
+    // sequence, the moves within the Safe Zone uncoordinated, optimized together, then sent.
+    const bool planning = m_config.motionPlanner.continuousMotion && m_config.motionPlanner.allowUncoordinated && m_homed;
+    m_planning = planning;
+    const bool ok = (mount.headId.empty() || doSafeZ(mount.headId, speed, why)) && (axes.empty() || doMove(axes, speed, why))
+                    && (!to[2] || mount.axisZ.empty() || doMove({ { mount.axisZ, *to[2] - zOffsetOf(mount) } }, speed, why));
+    m_planning = false;
+    if (!ok) {
+        m_plan.clear();   // nothing of a sequence that failed is sent
+        return false;
+    }
+    return !planning || flushPlan(why);
 }
 
 bool JPCell::testMotionAndWait(const JPMountConfig& tool, bool reverse, JPMotionTestResult& result, std::string& why) {
@@ -1563,6 +1573,8 @@ bool JPCell::doPlace(const JPNozzleConfig& n, std::string& why) {
 }
 
 bool JPCell::doSwitch(const std::string& actuatorId, bool on, std::string& why, int depth) {
+    // A planned sequence goes first (OpenPnP executes its motion plan before an actuation).
+    if (!m_plan.empty() && !flushPlan(why)) return false;
     for (const JPActuatorConfig& a : m_config.actuators)
         if (a.id == actuatorId)
             return doCoordinate(a.coordinatedBeforeActuate, why) && doSwitchNow(a, on, why, depth)
@@ -2511,6 +2523,106 @@ bool JPCell::unhomedAllowed(const std::map<std::string, double>& targets, bool j
     return true;
 }
 
+bool JPCell::emitMotion(JPMotion& motion, const std::map<std::string, double>& now, std::vector<JPGcodeDriver*>& moved,
+                        std::string& why) {
+    // Each controller told what its Motion Control Type says of the motion (one move, a moderated one, or
+    // interpolated steps).
+    for (const JPMotion::Driver& md : motion.drivers()) {
+        JPGcodeDriver* d = driver(md.id);
+        // This controller's axes, in the motion's order (the cell's).
+        std::vector<const JPAxisConfig*> all;
+        for (const JPMotion::Axis& ma : motion.axes())
+            if (ma.driverId == md.id) all.push_back(m_config.axis(ma.id));
+        if (md.type.isInterpolated() && d->config().gcodeClass != "GcodeAsyncDriver") {
+            why = d->config().name + ": Driver does not support move interpolation. Please refer to Issues & Solutions.";
+            return false;
+        }
+        for (const JPMotion::MoveTo& mv : motion.interpolatedMoveToCommands(md, m_config.motionPlanner.interpolationRetiming)) {
+            // This controller's axes that move to the waypoint, in the cell's order.
+            std::vector<const JPAxisConfig*> movers;
+            for (const JPAxisConfig* a : all)
+                if (mv.moved.count(a->id)) movers.push_back(a);
+            if (movers.empty()) continue;
+            // OpenPnP's Letter Variables off: the axes named by type ({X} {Y} {Z} {Rotation}), so a move has one
+            // of each; several of a type (two nozzles' Zs) go one after another.
+            std::vector<std::vector<const JPAxisConfig*>> commands;
+            if (d->config().usingLetterVariables) {
+                commands.push_back(movers);
+            } else {
+                for (const JPAxisConfig* a : movers) {
+                    auto c = std::find_if(commands.begin(), commands.end(), [a](const auto& cmd) {
+                        return std::none_of(cmd.begin(), cmd.end(), [a](const JPAxisConfig* b) { return b->type == a->type; });
+                    });
+                    if (c == commands.end()) commands.push_back({ a });
+                    else c->push_back(a);
+                }
+            }
+            for (const auto& axes : commands) {
+                // OpenPnP's Pre-Move Commands: each moving axis's, {Coordinate} where it was.
+                if (d->config().supportingPreMove && !d->config().usingLetterVariables)
+                    for (const JPAxisConfig* a : axes) {
+                        if (a->preMoveCommand.empty()) continue;
+                        const auto was = now.find(a->id);
+                        const double v = was == now.end() ? 0 : (a->type == JPAxisConfig::Type::Rotation ? was->second : was->second * driverUnits(*d));
+                        const JPReply pre = d->sendLines(JPFirmwareProfile::fill(a->preMoveCommand, { { "Coordinate", format(v, d->profile()->decimals()) } }));
+                        if (!pre.ok) { why = a->name + ": its pre-move command was refused (" + pre.error + ")"; return false; }
+                    }
+                std::string words;
+                bool linear = false;
+                for (const JPAxisConfig* a : axes) {
+                    words += (words.empty() ? "" : " ") + word(*a, mv.moved.at(a->id), *d);
+                    if (!a->rotationalOnController()) linear = true;
+                }
+                // In the controller's units (Driver Settings' Units, as OpenPnP's driverUnitsFactor); a
+                // rotational path's feed rate in degrees. A rate the type does not set is left out with its letter.
+                const double u = driverUnits(*d);
+                std::map<std::string, std::string> values{ { "axes", words } };
+                values["feed"] = mv.feedRatePerSecond ? format(*mv.feedRatePerSecond * 60 * (linear ? u : 1), 0) : JPFirmwareProfile::kLeaveOut;
+                values["acceleration"] = mv.accelerationPerSecond2 ? format(*mv.accelerationPerSecond2 * u, 0) : JPFirmwareProfile::kLeaveOut;
+                values["jerk"] = mv.jerkPerSecond3 ? format(*mv.jerkPerSecond3 * u, 0) : JPFirmwareProfile::kLeaveOut;
+                // By type, for Letter Variables off ({X} 12.5); one not in this move left out with its letter.
+                for (const auto& [type, name] : { std::pair { JPAxisConfig::Type::X, "X" }, std::pair { JPAxisConfig::Type::Y, "Y" },
+                                                  std::pair { JPAxisConfig::Type::Z, "Z" }, std::pair { JPAxisConfig::Type::Rotation, "Rotation" } }) {
+                    values[name] = JPFirmwareProfile::kLeaveOut;
+                    for (const JPAxisConfig* a : axes)
+                        if (a->type == type) {
+                            const std::string w = word(*a, mv.moved.at(a->id), *d);
+                            values[name] = w.substr(a->letter.size());
+                        }
+                }
+                JLOGC(JPlacerLog::kCell, JLogLevel::Debug) << "move " << d->config().name << " (" << md.type.name() << "): " << words;
+                const JPReply r = d->command("move", values);
+                if (!r.ok) { why = d->config().name + ": move refused (" + r.error + ")"; return false; }
+                if (std::find(moved.begin(), moved.end(), d) == moved.end()) moved.push_back(d);
+            }
+        }
+        if (motion.hasOption(JPMotion::InterpolationFailed))
+            JLOGC(JPlacerLog::kCell, JLogLevel::Warn) << d->config().name << ": interpolation failed (Maximum Number of Steps "
+                                                      << md.interpolationMaxSteps << " reached): a moderated move instead";
+    }
+    return true;
+}
+
+bool JPCell::flushPlan(std::string& why) {
+    // A planned sequence (doMoveTool): optimized as OpenPnP's motion planner does (JPMotionPath), then sent.
+    if (m_plan.empty()) return true;
+    std::vector<Planned> plan = std::move(m_plan);
+    m_plan.clear();
+    std::vector<std::vector<JPMotionProfile>*> path;
+    for (Planned& p : plan) path.push_back(&p.motion.profiles());
+    JPMotionPath(path).solve();
+    std::vector<JPGcodeDriver*> moved;
+    for (Planned& p : plan) {
+        if (m_planned) *m_planned += p.motion.time();
+        if (!emitMotion(p.motion, p.now, moved, why)) return false;
+    }
+    // Continuous motion: waited for where the machine must stand still.
+    for (JPGcodeDriver* d : moved)
+        if (std::find(m_inMotion.begin(), m_inMotion.end(), d->config().id) == m_inMotion.end()) m_inMotion.push_back(d->config().id);
+    m_streaming = !m_inMotion.empty();
+    return true;
+}
+
 bool JPCell::doMoveNow(std::map<std::string, double> targets, double speed, std::string& why, bool squared) {
     if (!m_connected) { why = "not connected"; return false; }
     if (!m_homed && !unhomedAllowed(targets, m_jogMove, why)) return false;
@@ -2723,80 +2835,24 @@ bool JPCell::doMoveNow(std::map<std::string, double> targets, double speed, std:
             motionDrivers.push_back(md);
         }
         const double k = std::clamp(speed, 0.0, 1.0) * m_speed * factor;
-        JPMotion motion(motionAxes, motionDrivers, location0, location1, k, 0);
+        // Planning a sequence (doMoveTool, continuous motion): OpenPnP's Allow uncoordinated?, a move from and to
+        // the Safe Zone uncoordinated, free to stray from the straight line, then optimized with the others.
+        int options = 0;
+        if (m_planning && m_config.motionPlanner.allowUncoordinated) {
+            bool safe = true;
+            for (const auto& [id, v] : location0) safe = safe && inSafeZone(id, v);
+            for (const auto& [id, v] : location1) safe = safe && inSafeZone(id, v);
+            if (safe) options = JPMotion::flag(JPMotion::UncoordinatedMotion) | JPMotion::flag(JPMotion::LimitToSafeZone)
+                                | JPMotion::flag(JPMotion::SynchronizeStraighten);
+        }
+        JPMotion motion(motionAxes, motionDrivers, location0, location1, k, options);
+        if (m_planning) {
+            m_plan.push_back({ std::move(motion), now });
+            return true;
+        }
         // Test Motion's plan: as long as the planned motion takes.
         if (m_planned) *m_planned += motion.time();
-        for (const JPMotion::Driver& md : motionDrivers) {
-            JPGcodeDriver* d = driver(md.id);
-            const auto& all = byDriver.at(md.id);
-            if (md.type.isInterpolated() && d->config().gcodeClass != "GcodeAsyncDriver") {
-                why = d->config().name + ": Driver does not support move interpolation. Please refer to Issues & Solutions.";
-                return false;
-            }
-            for (const JPMotion::MoveTo& mv : motion.interpolatedMoveToCommands(md, m_config.motionPlanner.interpolationRetiming)) {
-                // This controller's axes that move to the waypoint, in the cell's order.
-                std::vector<const JPAxisConfig*> movers;
-                for (const JPAxisConfig* a : all)
-                    if (mv.moved.count(a->id)) movers.push_back(a);
-                if (movers.empty()) continue;
-                // OpenPnP's Letter Variables off: the axes named by type ({X} {Y} {Z} {Rotation}), so a move has one
-                // of each; several of a type (two nozzles' Zs) go one after another.
-                std::vector<std::vector<const JPAxisConfig*>> commands;
-                if (d->config().usingLetterVariables) {
-                    commands.push_back(movers);
-                } else {
-                    for (const JPAxisConfig* a : movers) {
-                        auto c = std::find_if(commands.begin(), commands.end(), [a](const auto& cmd) {
-                            return std::none_of(cmd.begin(), cmd.end(), [a](const JPAxisConfig* b) { return b->type == a->type; });
-                        });
-                        if (c == commands.end()) commands.push_back({ a });
-                        else c->push_back(a);
-                    }
-                }
-                for (const auto& axes : commands) {
-                    // OpenPnP's Pre-Move Commands: each moving axis's, {Coordinate} where it was.
-                    if (d->config().supportingPreMove && !d->config().usingLetterVariables)
-                        for (const JPAxisConfig* a : axes) {
-                            if (a->preMoveCommand.empty()) continue;
-                            const auto was = now.find(a->id);
-                            const double v = was == now.end() ? 0 : (a->type == JPAxisConfig::Type::Rotation ? was->second : was->second * driverUnits(*d));
-                            const JPReply pre = d->sendLines(JPFirmwareProfile::fill(a->preMoveCommand, { { "Coordinate", format(v, d->profile()->decimals()) } }));
-                            if (!pre.ok) { why = a->name + ": its pre-move command was refused (" + pre.error + ")"; return false; }
-                        }
-                    std::string words;
-                    bool linear = false;
-                    for (const JPAxisConfig* a : axes) {
-                        words += (words.empty() ? "" : " ") + word(*a, mv.moved.at(a->id), *d);
-                        if (!a->rotationalOnController()) linear = true;
-                    }
-                    // In the controller's units (Driver Settings' Units, as OpenPnP's driverUnitsFactor); a
-                    // rotational path's feed rate in degrees. A rate the type does not set is left out with its letter.
-                    const double u = driverUnits(*d);
-                    std::map<std::string, std::string> values{ { "axes", words } };
-                    values["feed"] = mv.feedRatePerSecond ? format(*mv.feedRatePerSecond * 60 * (linear ? u : 1), 0) : JPFirmwareProfile::kLeaveOut;
-                    values["acceleration"] = mv.accelerationPerSecond2 ? format(*mv.accelerationPerSecond2 * u, 0) : JPFirmwareProfile::kLeaveOut;
-                    values["jerk"] = mv.jerkPerSecond3 ? format(*mv.jerkPerSecond3 * u, 0) : JPFirmwareProfile::kLeaveOut;
-                    // By type, for Letter Variables off ({X} 12.5); one not in this move left out with its letter.
-                    for (const auto& [type, name] : { std::pair { JPAxisConfig::Type::X, "X" }, std::pair { JPAxisConfig::Type::Y, "Y" },
-                                                      std::pair { JPAxisConfig::Type::Z, "Z" }, std::pair { JPAxisConfig::Type::Rotation, "Rotation" } }) {
-                        values[name] = JPFirmwareProfile::kLeaveOut;
-                        for (const JPAxisConfig* a : axes)
-                            if (a->type == type) {
-                                const std::string w = word(*a, mv.moved.at(a->id), *d);
-                                values[name] = w.substr(a->letter.size());
-                            }
-                    }
-                    JLOGC(JPlacerLog::kCell, JLogLevel::Debug) << "move " << d->config().name << " (" << md.type.name() << "): " << words;
-                    const JPReply r = d->command("move", values);
-                    if (!r.ok) { why = d->config().name + ": move refused (" + r.error + ")"; return false; }
-                    if (std::find(moved.begin(), moved.end(), d) == moved.end()) moved.push_back(d);
-                }
-            }
-            if (motion.hasOption(JPMotion::InterpolationFailed))
-                JLOGC(JPlacerLog::kCell, JLogLevel::Warn) << d->config().name << ": interpolation failed (Maximum Number of Steps "
-                                                          << md.interpolationMaxSteps << " reached): a moderated move instead";
-        }
-        return true;
+        return emitMotion(motion, now, moved, why);
     };
     // The overshoot, like any place an axis stops at, a whole step (past the target, the way it overshoots): the
     // approach is then a move of whole steps (not one the planner, like OpenPnP's, takes for no move at all).
@@ -2874,8 +2930,8 @@ constexpr double kSettledTolerance = 0.05;
 std::map<std::string, double> JPCell::jogBase() const {
     std::lock_guard lk(m_mutex);
     std::map<std::string, double> out = m_positions;
-    // Moves not waited for (continuous motion): the axes are where they were sent.
-    const bool streaming = m_streaming;
+    // Moves not waited for (continuous motion), or planned and not yet sent: the axes are where they were sent.
+    const bool streaming = m_streaming || m_planning;
     for (const auto& [id, sent] : m_sent)
         if (const auto p = out.find(id); p != out.end() && (streaming || std::abs(p->second - sent) <= kSettledTolerance))
             p->second = sent;
@@ -2894,6 +2950,8 @@ bool JPCell::finished(bool ok, std::string& why) {
 
 bool JPCell::doCoordinate(const std::string& how, std::string& why) {
     if (how == "None") return true;
+    // A planned sequence goes first: it is part of what is waited for.
+    if (!m_plan.empty() && !flushPlan(why)) return false;
     std::vector<std::string> ids;
     if (how == "WaitForUnconditionalCoordination") {
         for (const JPDriverConfig& d : m_config.drivers) ids.push_back(d.id);

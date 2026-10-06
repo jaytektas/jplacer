@@ -36,6 +36,9 @@ struct JPMotionPlannerConfig {
     bool                diagnosticsEnabled = false;
     // OpenPnP's Minimum Speed: the slowest share of full speed offered (the Jog panel's speed goes no lower).
     double              minimumSpeed = kDefaultMinimumSpeed;
+    // OpenPnP's Allow uncoordinated?: with continuous motion, a move within the Safe Zone may stray from the straight
+    // line, the moves of a safe Z sequence blended (OpenPnP's motion planning, JPMotionPath).
+    bool                allowUncoordinated = false;
     // OpenPnP's Interpolation Retiming?: interpolated moves (Simulated3rdOrderControl) stretched to the planned time.
     bool                interpolationRetiming = true;
     static constexpr double kDefaultMinimumSpeed = 0.05;
@@ -64,6 +67,7 @@ struct JPMotionPlannerConfig {
         p.diagnosticsEnabled = j["diagnosticsEnabled"].boolean(false);
         p.minimumSpeed = j["minimumSpeed"].number(kDefaultMinimumSpeed);
         p.interpolationRetiming = j["interpolationRetiming"].boolean(true);
+        p.allowUncoordinated = j["allowUncoordinated"].boolean(false);
         for (size_t i = 0; i < p.stops.size(); ++i) {
             const JJson& s = j["testMotion"][i];
             if (!s.isObject()) continue;
@@ -82,6 +86,7 @@ struct JPMotionPlannerConfig {
         j["diagnosticsEnabled"] = diagnosticsEnabled;
         j["minimumSpeed"] = minimumSpeed;
         j["interpolationRetiming"] = interpolationRetiming;
+        j["allowUncoordinated"] = allowUncoordinated;
         JJson stopsJ = JJson::array();
         for (size_t i = 0; i < stops.size(); ++i) {
             JJson s = JJson::object();
