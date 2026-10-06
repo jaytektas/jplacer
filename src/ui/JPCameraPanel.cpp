@@ -89,7 +89,14 @@ JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCameraCon
     // screen: a camera behind another tab, or closed, is stopped.
     m_unwatch.push_back(m_feed.onFrame.connect([this, alive](uint64_t) {
         JMainThreadDispatcher::instance().post([this, alive] {
-            if (const auto a = alive.lock(); a && *a) stopIfHidden();
+            if (const auto a = alive.lock(); !a || !*a) return;
+            stopIfHidden();
+            // Save Picture asked of it while it was not running: the fresh picture, once it has come.
+            JPFrame frame;
+            if (m_saveFrom && m_feed.latest(frame, 0) && frame.sequence >= *m_saveFrom) {
+                m_saveFrom.reset();
+                savePicture();
+            }
         });
     }));
 }
@@ -219,6 +226,18 @@ void JPCameraPanel::setNote(const std::string& text) {
 std::string JPCameraPanel::savePicture() {
     JPCameraFeed& feed = m_feed;
     JPFrame frame;
+    if (!feed.isRunning()) {
+        // Its last picture is from when it stopped (dark, as likely as not): a fresh one instead.
+        if (!m_powered) {
+            setNote(feed.config().name + ": the machine is off");
+            return {};
+        }
+        const uint64_t last = feed.latest(frame, 0) ? frame.sequence : 0;
+        m_saveFrom = last + kSaveSkipFrames;
+        keepRunning(kSaveRunMs);
+        setNote("Saving a picture once " + feed.config().name + " has started\xE2\x80\xA6");
+        return {};
+    }
     if (!feed.latest(frame, 0)) {
         setNote("No picture yet to save.");
         return {};

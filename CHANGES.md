@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Save the picture on a camera that is not running starts it and saves a fresh, lit picture, not the last one from
+  when it stopped (which could be dark).
 - Camera calibration measures its mark with jplacer's own round mark finder again, now as a pipeline stage of its
   own (DetectRoundMark) in the calibration pipeline, still editable; Reset Pipeline puts it in place of an imported
   OpenPnP one.

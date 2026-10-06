@@ -95,12 +95,27 @@ JPlacerApp::JPlacerApp(std::string settingsPath) {
     m_machine->keysChanged();
     // Automation (JF_AI_BUS, jf-busctl): what a widget click cannot reach.
     // "dock:<title>" brings a dock's tab to the front, so its widgets can be
-    // driven.
+    // driven; "setup:<path>" shows Machine Setup's node at `path`
+    // (JPSetupTree's: "nozzletip:<id>", "camera:<id>"...), and
+    // "setup-action:<path>|<action>" presses its form's button `action`.
     JAiBus::instance().onAction = [this](uint32_t, const std::string& action) {
-        constexpr std::string_view kDock = "dock:";
-        if (action.rfind(kDock, 0) != 0) return 0;
-        const std::string title = action.substr(kDock.size());
-        return m_tabs->showDock(title) || m_machine->showDock(title) ? 1 : -1;
+        constexpr std::string_view kDock = "dock:", kSetup = "setup:", kSetupAction = "setup-action:";
+        if (action.rfind(kDock, 0) == 0) {
+            const std::string title = action.substr(kDock.size());
+            return m_tabs->showDock(title) || m_machine->showDock(title) ? 1 : -1;
+        }
+        if (action.rfind(kSetup, 0) == 0) {
+            m_machine->showSetup(action.substr(kSetup.size()));
+            return 1;
+        }
+        if (action.rfind(kSetupAction, 0) == 0) {
+            const std::string rest = action.substr(kSetupAction.size());
+            const size_t bar = rest.find('|');
+            if (bar == std::string::npos) return -1;
+            m_machine->setupAction(rest.substr(0, bar), rest.substr(bar + 1));
+            return 1;
+        }
+        return 0;
     };
     m_window->setStatusText("jplacer " JPLACER_VERSION);
 

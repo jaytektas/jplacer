@@ -103,6 +103,9 @@ public:
     bool showDock(const std::string& title);
     // Machine Setup in front, showing the node at `path` (JPSetupTree).
     void showSetup(const std::string& path);
+    // A Machine Setup button pressed (`action`, the form's) on the node at `path`: Visual Test, Visual Home,
+    // a camera's Start Calibration, a nozzle tip's Calibrate... (also from automation).
+    void setupAction(const std::string& path, const std::string& action);
     // Drawn over every camera's picture (and the cameras made later) until
     // set again by the same key; null takes it away.
     void setCameraOverlay(const std::string& key, JPCameraView::Overlay overlay);
@@ -320,8 +323,6 @@ private:
     void bringForward(JPCameraPanel& camera);
     void dropPanels(Keep keep = Keep::Nothing);
     void updateEditItems();
-    // Machine Setup's buttons: Visual Test, Visual Home, a camera's Start Calibration.
-    void setupAction(const std::string& path, const std::string& action);
     // What Machine Setup's place buttons use: the camera on the head, or the
     // nozzle chosen on the Jog panel (else the first). Null when there is none.
     const JPMountConfig* toolMount(JPSetupForm::Tool tool) const;

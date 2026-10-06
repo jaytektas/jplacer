@@ -602,7 +602,9 @@ How long each of these is, is the camera's own, in Machine Setup on its General 
 
 **Save the picture** (the disk) writes the camera's latest picture as a PNG (lossless, so it measures the same as
 the live picture did) to `captures/` in jplacer's configuration folder, named after the camera and the
-moment it was taken; the line over the picture names the file.
+moment it was taken; the line over the picture names the file. A camera that is not running (its picture
+hidden behind another tab, say) is started first, its light as for you to look at, and a fresh picture saved
+once it has given ten; not its last one, from when it stopped.
 
 A camera only shows what is in front of it, and in an enclosed machine that is dark until its light is
 on. While the machine is connected, a camera's light is on while the camera runs (its picture is on

@@ -16,6 +16,7 @@
 #include <chrono>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -93,7 +94,9 @@ public:
     // A word about the picture (what a task is doing, why it is dark).
     void setNote(const std::string& text);
     // Write the latest picture to capturesDir. The file written, or empty
-    // with the reason in the note.
+    // with the reason in the note. A camera not running is started first (its
+    // light as it is set for you to look at) and a fresh picture saved once
+    // it has given kSaveSkipFrames: empty then, the note saying so.
     std::string savePicture();
     // Its tools, as icon buttons for the dock's tab (each JPIconButton::size()
     // wide), in order. Owned here.
@@ -104,6 +107,10 @@ public:
 private:
     // Asked to draw and not drawn for this long, the camera is stopped.
     static constexpr int kHiddenMs = 500;
+    // Save Picture on a camera not running: the pictures passed over while it opens and its light comes up, and
+    // how long it is kept running for it.
+    static constexpr int kSaveSkipFrames = 10, kSaveRunMs = 3000;
+    std::optional<uint64_t> m_saveFrom;   // a picture to save, once the feed's count reaches it
     std::chrono::steady_clock::time_point m_keepUntil {};   // keepRunning
 
     void start();
