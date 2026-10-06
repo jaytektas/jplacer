@@ -123,9 +123,6 @@ private:
     bool look(double viewX, double viewY, double x, double y, double diameterMm, double searchMm, double& foundX,
               double& foundY, std::string& why);
 
-    // The bottom vision pipeline run on the up camera's picture: the one
-    // rectangle its results give (pixels), what it saw shown on the camera.
-    bool pipelineRect(JPPipeline& pipeline, const std::string& partId, cv::RotatedRect& rect, std::string& why);
     // A part bigger than one look, seen in the shots of `composite` (OpenPnP's
     // vision compositing): the nozzle to each shot, its corners found, then
     // put together. `nx`, `ny`, `nr`: where the nozzle is meant to be over

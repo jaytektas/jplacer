@@ -79,9 +79,9 @@ void JPStageRegistry::addSymmetryStages(std::vector<JPStageType>& types) {
                                   p.noteOverride(s.name(), "min-diameter", std::to_string(q.minDiameter));
                                   p.noteOverride(s.name(), "max-diameter", std::to_string(q.maxDiameter));
                               }
-                              maxDistance = int(p.overridden(s, "max-distance", maxDistance, control + ".maxDistance"));
-                              q.searchWidth = int(p.overridden(s, "search-width", q.searchWidth, control + ".searchWidth"));
-                              q.searchHeight = int(p.overridden(s, "search-height", q.searchHeight, control + ".searchHeight"));
+                              maxDistance = int(p.overriddenInteger(s, "max-distance", maxDistance, control + ".maxDistance"));
+                              q.searchWidth = int(p.overriddenInteger(s, "search-width", q.searchWidth, control + ".searchWidth"));
+                              q.searchHeight = int(p.overriddenInteger(s, "search-height", q.searchHeight, control + ".searchHeight"));
                               center = p.overriddenPoint(s, "center", center, control + ".center");
                           }
                           if (q.searchWidth <= 0) q.searchWidth = maxDistance * 2;
@@ -162,11 +162,11 @@ void JPStageRegistry::addSymmetryStages(std::vector<JPStageType>& types) {
                               q.maxWidth = p.overridden(s, "max-width", q.maxWidth, control + ".maxWidth");
                               q.maxHeight = p.overridden(s, "max-height", q.maxHeight, control + ".maxHeight");
                               q.minFeatureSize = p.overridden(s, "min-feature-size", q.minFeatureSize, control + ".minFeatureSize");
-                              q.threshold = int(p.overridden(s, "threshold", q.threshold, control + ".threshold"));
+                              q.threshold = int(p.overriddenInteger(s, "threshold", q.threshold, control + ".threshold"));
                               leftRight = p.overriddenFlag(s, "symmetric-left-right", leftRight, control + ".symmetricLeftRight");
                               upperLower = p.overriddenFlag(s, "symmetric-upper-lower", upperLower, control + ".symmetricUpperLower");
-                              q.subSampling = int(p.overridden(s, "sub-sampling", q.subSampling, control + ".subSampling"));
-                              q.superSampling = int(p.overridden(s, "super-sampling", q.superSampling, control + ".superSampling"));
+                              q.subSampling = int(p.overriddenInteger(s, "sub-sampling", q.subSampling, control + ".subSampling"));
+                              q.superSampling = int(p.overriddenInteger(s, "super-sampling", q.superSampling, control + ".superSampling"));
                           }
                           q.xCenter = int(center.x);
                           q.yCenter = int(center.y);

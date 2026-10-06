@@ -6,7 +6,7 @@ test passes here only when it passes there.
 
 Status: **passing** (ported and passing), **to port**.
 
-**219 of 253 test methods passing.**
+**223 of 253 test methods passing.**
 
 | OpenPnP test | Methods | Status | jplacer test |
 |---|---|---|---|
@@ -14,15 +14,15 @@ Status: **passing** (ported and passing), **to port**.
 | BasicJobTest.java (testSimpleJob) | 1 | to port |  |
 | BlindsFeederTest.java (testBlindsFeederBasics, testBlindsFeederGroups) | 2 | to port |  |
 | CalculateBoardLocationTests.java (calculateBoardLocationTopNoAffineNoWidth, calculateBoardLocationTopWithAffineNoWidth, calculateBoardLocationTopNoAffineWithWidth, calculateBoardLocationTopWithAffineWithWidth, calculateBoardLocationBottomNoAffineNoWidth, calculateBoardLocationBottomWithAffineNoWidth, calculateBoardLocationBottomNoAffineWithWidth, calculateBoardLocationBottomWithAffineWithWidth, calculateBoardLocationInverseTopNoAffineNoWidth, calculateBoardLocationInverseTopWithAffineNoWidth, calculateBoardLocationInverseTopNoAffineWithWidth, calculateBoardLocationInverseTopWithAffineWithWidth, calculateBoardLocationInverseBottomNoAffineNoWidth, calculateBoardLocationInverseBottomWithAffineNoWidth, calculateBoardLocationInverseBottomNoAffineWithWidth, calculateBoardLocationInverseBottomWithAffineWithWidth) | 16 | passing | tests/model/test_calculate_board_location.cpp |
-| CvStageTest.java (testPipelinePropertyOverrides) | 1 | to port |  |
+| CvStageTest.java (testPipelinePropertyOverrides) | 1 | passing | tests/pipeline/test_cv_stage.cpp |
 | EagleLoaderTest.java (testLoadBoard, testLoadSchematic) | 2 | to port |  |
 | EagleMountsmdUlpImporterTest.java (testDemoBoard, testEAT001, testWholeNumbers) | 3 | to port |  |
 | GcodeDriverTest.java (testActuatorRead, testActuatorReadNoRegex, testActuatorReadNoCommand, testActuatorReadBadRegex) | 4 | passing | tests/machine/test_gcode_actuator_read.cpp |
 | HttpActuatorTest.java (testOffsets) | 1 | passing | tests/machine/test_http_actuator.cpp |
 | JobProcessorTest.java (testNozzleTips, testStartAsPlanned, testBoardPart, testUnsorted, testFlexibility, testAllOnePart, testRank, testRank2, testRankWeak, testRankRounded, testRankRoundedFlexibility) | 11 | to port |  |
-| LocalisationTest.java (propertiesFileIsNormalised) | 1 | to port |  |
+| LocalisationTest.java (propertiesFileIsNormalised) | 1 | passing | tests/model/test_localisation.cpp |
 | ModelUnitsTest.java (testLengths, testAreas, testVolumes) | 3 | passing | tests/model/test_model_units.cpp |
-| OpenCvTest.java (openCvWorks) | 1 | to port |  |
+| OpenCvTest.java (openCvWorks) | 1 | passing | tests/pipeline/test_cv_stage.cpp |
 | QuickHullTest.java (testQuickHull) | 1 | passing | tests/model/test_quick_hull.cpp |
 | ReferenceBottomVisionInheritanceTest.java (testBottomVisionSettingsInheritance, testBottomVisionReset) | 2 | passing | tests/setup/test_bottom_vision_inheritance.cpp |
 | ReferenceBottomVisionOffsetTest.java (testSymetricPartNoOffsetNoPreRotation, testSymetricPartNoOffsetWithPreRotation, testSymetricPartWithOffsetWithPreRotation, testAsymetricPartNoOffsetNoPreRotation, testAsymetricPartNoOffsetWithPreRotation, testAsymetricPartWithOffsetNoPreRotation, testAsymetricPartWithOffsetWithPreRotation, testAsymetricPartWithOffsetNoPreRotationWithError, testAsymetricPartWithOffsetWithPreRotationWithError) | 9 | passing | tests/tasks/test_bottom_vision_offset.cpp |
@@ -33,7 +33,7 @@ Status: **passing** (ported and passing), **to port**.
 | SamplePanelizedJobTest.java (testSampleJob) | 1 | to port |  |
 | TavellingSalesmanTest.java (testTravellingSalesmanA, testTravellingSalesmanB, testTravellingSalesmanC) | 3 | passing | tests/tasks/test_travelling_salesman.cpp |
 | Utils2DTest.java (testCalculateBoardPlacementLocationSimple, testAngleFromPoint) | 2 | passing | tests/model/test_utils_2d.cpp |
-| VisionCompositingTest.java (testPackageSolutions) | 1 | to port |  |
+| VisionCompositingTest.java (testPackageSolutions) | 1 | passing | tests/tasks/test_vision_compositing.cpp |
 | VisionUtilsTest.java (testOffsets, testConversions) | 2 | passing | tests/pipeline/test_vision_utils.cpp |
 | org/openpnp/machine/photon/PhotonFeederLoadingTest.java (loadingOfPhotonProperties, loadingOfDataActuator, loadingOfDataActuatorFillsInGcodeForGcodeDrivers) | 3 | passing | tests/tasks/test_photon_feeder.cpp |
 | org/openpnp/machine/photon/PhotonFeederSlotsTest.java (byDefaultAnUnknownSlotHasNoLocationConfigured) | 1 | passing | tests/tasks/test_photon_feeder.cpp |

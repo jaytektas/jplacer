@@ -10,10 +10,13 @@
 #include "model/JPVisionSettings.h"
 #include "pipeline/JPPipeline.h"
 #include "pipeline/JPStageUtil.h"
+#include "tasks/JPVisionComposite.h"
+#include "tasks/JPVisionPipelinePrep.h"
 
 #include <j/core/Log.h>
 
 #include <algorithm>
+#include <array>
 #include <cfloat>
 #include <cmath>
 #include <cstdio>
@@ -195,11 +198,81 @@ bool JPBottomVision::findByPipeline(JPPipeline& p, const std::string& partId, co
     const JPPipelineValue centre { JPPipelineValue::Pixel { expectedX, expectedY } };
     p.setProperty("MinAreaRect.center", centre);
     p.setProperty("DetectRectlinearSymmetry.center", centre);
-    p.setProperty("MinAreaRect.expectedAngle", JPPipelineValue { angle });
-    p.setProperty("DetectRectlinearSymmetry.expectedAngle", JPPipelineValue { angle });
+    const double pictureAngle = p.context().pictureAngle(angle);
+    p.setProperty("MinAreaRect.expectedAngle", JPPipelineValue { pictureAngle });
+    p.setProperty("DetectRectlinearSymmetry.expectedAngle", JPPipelineValue { pictureAngle });
     cv::RotatedRect rect;
     if (!resultRect(p, partId, rect, why)) return false;
     return seenOf(rect, cal, cameraX, cameraY, angle, range, seen, why);
+}
+
+bool JPBottomVision::seeComposite(const Composite& k, double nx, double ny, double angle, Seen& seen, std::string& why) {
+    const double c = std::cos(angle * M_PI / 180), s = std::sin(angle * M_PI / 180);
+    auto turned = [c, s](double x, double y) { return std::pair { c * x - s * y, s * x + c * y }; };
+    // Where the nozzle is, as the part's frame sees it (from the part's centre over the camera).
+    double hereX = 0, hereY = 0;
+    if (!k.nozzleAt(hereX, hereY)) {
+        why = "the nozzle's place is not known";
+        return false;
+    }
+    const double fromX = c * (hereX - nx) + s * (hereY - ny), fromY = -s * (hereX - nx) + c * (hereY - ny);
+    k.composite.restart();
+    for (const JPVisionComposite::Shot* shot : k.composite.travel(fromX, fromY)) {
+        // The nozzle so the shot's middle is over the camera.
+        const auto [sx, sy] = turned(shot->x, shot->y);
+        if (!k.moveTo(nx - sx, ny - sy, why)) return false;
+        // Where the part's centre is in the picture: the shot's middle away from the camera's centre.
+        double partX = 0, partY = 0;
+        if (!k.cal.pixelFor(k.cameraX - sx, k.cameraY - sy, k.cameraX, k.cameraY, partX, partY)) {
+            why = "the camera's calibration cannot place the part";
+            return false;
+        }
+        JPVisionPipelinePrep::shot(k.pipeline, k.composite, *shot, k.tip, partX, partY);
+        cv::RotatedRect rect;
+        if (!resultRect(k.pipeline, k.partId, rect, why)) return false;
+        if (k.shown) k.shown(k.pipeline);
+        // Its corners on the machine, from where the part's centre should be; each told apart (left or right,
+        // upper or lower) in the part's own frame.
+        cv::Point2f corners[4];
+        rect.points(corners);
+        std::array<JPVisionComposite::Point, 4> rel {};
+        double mx = 0, my = 0;
+        for (size_t i = 0; i < 4; ++i) {
+            double x = 0, y = 0;
+            if (!k.cal.machinePoint(corners[i].x, corners[i].y, k.cameraX, k.cameraY, x, y)) {
+                why = "the camera's calibration cannot place the part";
+                return false;
+            }
+            rel[i] = { x - (k.cameraX - sx), y - (k.cameraY - sy) };
+            mx += rel[i].x / 4;
+            my += rel[i].y / 4;
+        }
+        std::array<JPVisionComposite::Point, 4> points {};
+        std::array<bool, 4> taken {};
+        for (const auto& p : rel) {
+            const double qx = c * (p.x - mx) + s * (p.y - my), qy = -s * (p.x - mx) + c * (p.y - my);
+            const size_t idx = size_t((qx < 0 ? 0 : 1) + (qy > 0 ? 0 : 2));
+            if (taken[idx]) {
+                why = "ReferenceBottomVision (" + k.partId + "): the shot's rectangle is turned too far to tell its corners apart";
+                return false;
+            }
+            taken[idx] = true;
+            points[idx] = p;
+        }
+        k.composite.accumulate(*shot, points);
+    }
+    JPVisionComposite::Detected d;
+    if (!k.composite.interpret(angle, d, why)) {
+        why += " for part " + k.partId;
+        return false;
+    }
+    // The part's centre with the nozzle where it is meant to be.
+    seen.x = k.cameraX + d.center.x;
+    seen.y = k.cameraY + d.center.y;
+    seen.angle = d.angle;
+    seen.widthMm = d.size.x;
+    seen.heightMm = d.size.y;
+    return true;
 }
 
 bool JPBottomVision::resultRect(JPPipeline& p, const std::string& partId, cv::RotatedRect& rect, std::string& why) {

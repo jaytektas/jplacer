@@ -58,6 +58,8 @@ void JPlacerPipelines::useCamera(JPPipeline& pipeline, JPCameraFeed* feed, const
     if (!cal.valid) return;
     ctx.pixelsPerMmX = cal.scaleX();
     ctx.pixelsPerMmY = cal.scaleY();
+    ctx.pictureMirrored = cal.pictureMirrored();
+    ctx.pictureTurnDeg = cal.pictureTurnDeg();
     if (feed != m_machine.headCameraFeed()) return;
     ctx.locationToPixel = [this, cal](double x, double y, double& px, double& py) {
         const JPlacerMachine::Where at = m_machine.whereIs(JPSetupForm::Tool::Camera);

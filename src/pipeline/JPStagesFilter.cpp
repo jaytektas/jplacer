@@ -123,8 +123,8 @@ void JPStageRegistry::addFilterStages(std::vector<JPStageType>& types) {
                       { P { "kernel-size", Kind::Integer, "3", "Width and height of the blurring kernel. Should be and odd number greater than or equal to 3" },
                         P { "property-name", Kind::Text, "BlurGaussian", "Name of the property through which OpenPnP controls this stage. Use \"BlurGaussian\" for standard control." } },
                       [](JPPipeline& p, const JPPipelineStage& s) {
-                          const int k = int(std::lround(p.overridden(s, "kernel-size", oddKernel(s.integer("kernel-size")),
-                                                                     s.text("property-name") + ".kernelSize"))) | 1;
+                          const int k = int(p.overriddenInteger(s, "kernel-size", oddKernel(s.integer("kernel-size")),
+                                                                  s.text("property-name") + ".kernelSize")) | 1;
                           cv::Mat& mat = p.workingImage();
                           cv::GaussianBlur(mat, mat, cv::Size(k, k), 0);
                           return Output {};
@@ -190,7 +190,7 @@ void JPStageRegistry::addFilterStages(std::vector<JPStageType>& types) {
                       [](JPPipeline& p, const JPPipelineStage& s) {
                           const cv::Mat& mat = p.workingImage();
                           const std::string control = s.text("property-name");
-                          const int diameter = int(std::lround(p.overridden(s, "diameter", s.integer("diameter"), control + ".diameter")));
+                          const int diameter = int(p.overriddenInteger(s, "diameter", s.integer("diameter"), control + ".diameter"));
                           const cv::Point2d center = p.overriddenPoint(s, "center", { mat.cols * 0.5, mat.rows * 0.5 }, control + ".center");
                           cv::Mat mask(mat.size(), CV_8UC1, cv::Scalar(0));
                           if (diameter != 0) cv::circle(mask, center, std::abs(diameter) / 2, cv::Scalar(255), -1);
@@ -246,7 +246,7 @@ void JPStageRegistry::addFilterStages(std::vector<JPStageType>& types) {
                           }
                           const std::string control = s.text("property-name");
                           auto limit = [&](const char* attribute, const char* name) {
-                              return int(std::lround(p.overridden(s, attribute, s.integer(attribute), control + "." + name)));
+                              return int(p.overriddenInteger(s, attribute, s.integer(attribute), control + "." + name));
                           };
                           const int hueMin = limit("hue-min", "hueMin"), hueMax = limit("hue-max", "hueMax");
                           const int satMin = limit("saturation-min", "saturationMin"), satMax = limit("saturation-max", "saturationMax");

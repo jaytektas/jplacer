@@ -10,6 +10,14 @@ notes.
 
 ## Unreleased
 
+- Bottom vision on a camera looking up (which sees the machine mirrored) now tells its pipeline the part's angle,
+  footprint and, for vision compositing, the edges each shot looks for as the picture shows them. A composite shot
+  looked for the wrong side of a pad, so a part seen in several shots came out turned by up to a few tenths of a
+  degree. Checked against OpenPnP's VisionCompositingTest on its simulated camera: all its parts pass.
+- A pipeline setting that is a whole number, given a length or a number by OpenPnP, is rounded as OpenPnP rounds it
+  (it was cut down: 12.7 pixels became 12, now 13).
+- Translated texts read as OpenPnP reads them: a "\r" in a tooltip no longer shows as a stray "r", and a text
+  ending in a space keeps it.
 - The PhotonFeederData actuator jplacer makes is read through the first G-code controller (as OpenPnP: a simulated
   one has none), its reply pattern OpenPnP's `rs485-reply: (?<Value>.*)`. Checked against OpenPnP's Photon feeder
   tests, all of which now pass.

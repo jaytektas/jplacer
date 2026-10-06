@@ -126,6 +126,15 @@ bool JPCameraCalibration::mirrored(bool lookingUp) const {
     return lookingUp ? det < 0 : det > 0;
 }
 
+// A machine displacement v of what is seen moves it -M v in the picture (rows down): (-(Mv).x, (Mv).y) with Y up.
+bool JPCameraCalibration::pictureMirrored() const { return -pxPerMm[0] * pxPerMm[3] + pxPerMm[1] * pxPerMm[2] < 0; }
+
+double JPCameraCalibration::pictureTurnDeg() const {
+    // The machine's X in the picture; mirrored, the turn of the mirror image of it.
+    const double a = std::atan2(pxPerMm[2], -pxPerMm[0]) * kDegPerRad;
+    return pictureMirrored() ? a - 180 : a;
+}
+
 bool JPCameraCalibration::machinePoint(double px, double py, double viewX, double viewY, double& x, double& y) const {
     double dx, dy;
     if (!mmForPixels(px - width / 2.0, py - height / 2.0, dx, dy)) return false;

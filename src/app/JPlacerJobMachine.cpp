@@ -670,6 +670,8 @@ bool JPlacerJobMachine::headCameraPipeline(double viewX, double viewY, JPPipelin
     };
     ctx.pixelsPerMmX = cal.scaleX();
     ctx.pixelsPerMmY = cal.scaleY();
+    ctx.pictureMirrored = cal.pictureMirrored();
+    ctx.pictureTurnDeg = cal.pictureTurnDeg();
     ctx.cameraWidth = cal.width;
     ctx.cameraHeight = cal.height;
     ctx.locationToPixel = [cal, viewX, viewY](double mx, double my, double& px, double& py) {
@@ -714,6 +716,8 @@ bool JPlacerJobMachine::cameraPipeline(const std::string& camera, JPPipeline& p,
     };
     ctx.pixelsPerMmX = cal.scaleX();
     ctx.pixelsPerMmY = cal.scaleY();
+    ctx.pictureMirrored = cal.pictureMirrored();
+    ctx.pictureTurnDeg = cal.pictureTurnDeg();
     ctx.cameraWidth = cal.width;
     ctx.cameraHeight = cal.height;
     ctx.locationToPixel = [cal, vx, vy](double mx, double my, double& px, double& py) {
@@ -1085,6 +1089,8 @@ bool JPlacerJobMachine::alignPart(const std::string& nozzleId, const AlignReques
         };
         ctx.pixelsPerMmX = cal.scaleX();
         ctx.pixelsPerMmY = cal.scaleY();
+        ctx.pictureMirrored = cal.pictureMirrored();
+        ctx.pictureTurnDeg = cal.pictureTurnDeg();
         ctx.cameraWidth = cal.width;
         ctx.cameraHeight = cal.height;
         ctx.locationToPixel = [cal, camX, camY](double mx, double my, double& px, double& py) {
@@ -1240,91 +1246,31 @@ bool JPlacerJobMachine::alignComposite(JPCell& cell, const JPMountConfig& nozzle
                                        const JPNozzleTipConfig* tip, double roamingRadiusMm, const JPCameraCalibration& cal,
                                        double camX, double camY, double z, double nx, double ny, double nr, double angle,
                                        const std::string& partId, JPBottomVision::Seen& seen, std::string& why) {
-    const double c = std::cos(angle * M_PI / 180), s = std::sin(angle * M_PI / 180);
-    auto turned = [c, s](double x, double y) { return std::pair { c * x - s * y, s * x + c * y }; };
-    // Where the nozzle is, as the part's frame sees it (from the part's centre over the camera).
-    const auto at = cell.jogBase();
-    auto where = [&at](const std::string& axis, double offset) {
-        const auto p = at.find(axis);
-        return p == at.end() ? 0.0 : p->second + offset;
+    auto nozzleAt = [&cell, &nozzle](double& x, double& y) {
+        const auto at = cell.jogBase();
+        auto where = [&at](const std::string& axis, double offset) {
+            const auto p = at.find(axis);
+            return p == at.end() ? 0.0 : p->second + offset;
+        };
+        x = where(nozzle.axisX, nozzle.offsetX);
+        y = where(nozzle.axisY, nozzle.offsetY);
+        return true;
     };
-    const double hereX = where(nozzle.axisX, nozzle.offsetX), hereY = where(nozzle.axisY, nozzle.offsetY);
-    const double fromX = c * (hereX - nx) + s * (hereY - ny), fromY = -s * (hereX - nx) + c * (hereY - ny);
     const JPNozzleTipConfig defaults;
     const double tipTolerance = (tip ? *tip : defaults).maxPickToleranceMm;
-    composite.restart();
-    for (const JPVisionComposite::Shot* shot : composite.travel(fromX, fromY)) {
-        // The nozzle so the shot's middle is over the camera: at camera Z within the roaming radius, else by way of safe Z.
-        const auto [sx, sy] = turned(shot->x, shot->y);
-        const auto nowAt = cell.jogBase();
-        auto now = [&nowAt](const std::string& axis, double offset) {
-            const auto p = nowAt.find(axis);
-            return p == nowAt.end() ? 0.0 : p->second + offset;
-        };
-        const double off = std::hypot(now(nozzle.axisX, nozzle.offsetX) - camX, now(nozzle.axisY, nozzle.offsetY) - camY);
-        const std::array<std::optional<double>, 4> to { nx - sx, ny - sy, z, nr };
-        const bool moved = off > roamingRadiusMm + tipTolerance ? cell.moveToolAndWait(nozzle, to, 1.0, why)
-                                                                  : cell.moveToolStraightAndWait(nozzle, to, 1.0, why);
-        if (!moved) return false;
-        // Where the part's centre is in the picture: the shot's middle away from the camera's centre.
-        double partX = 0, partY = 0;
-        if (!cal.pixelFor(camX - sx, camY - sy, camX, camY, partX, partY)) {
-            why = "the camera's calibration cannot place the part";
-            return false;
-        }
-        JPVisionPipelinePrep::shot(pipeline, composite, *shot, tip, partX, partY);
-        cv::RotatedRect rect;
-        if (!pipelineRect(pipeline, partId, rect, why)) return false;
-        // Its corners on the machine, from where the part's centre should be; each told apart
-        // (left or right, upper or lower) in the part's own frame.
-        cv::Point2f corners[4];
-        rect.points(corners);
-        std::array<JPVisionComposite::Point, 4> rel {};
-        double mx = 0, my = 0;
-        for (int i = 0; i < 4; ++i) {
-            double x = 0, y = 0;
-            if (!cal.machinePoint(corners[i].x, corners[i].y, camX, camY, x, y)) {
-                why = "the camera's calibration cannot place the part";
-                return false;
-            }
-            rel[size_t(i)] = { x - (camX - sx), y - (camY - sy) };
-            mx += rel[size_t(i)].x / 4;
-            my += rel[size_t(i)].y / 4;
-        }
-        std::array<JPVisionComposite::Point, 4> points {};
-        std::array<bool, 4> taken {};
-        for (const auto& p : rel) {
-            const double qx = c * (p.x - mx) + s * (p.y - my), qy = -s * (p.x - mx) + c * (p.y - my);
-            const size_t idx = size_t((qx < 0 ? 0 : 1) + (qy > 0 ? 0 : 2));
-            if (taken[idx]) {
-                why = "ReferenceBottomVision (" + partId + "): the shot's rectangle is turned too far to tell its corners apart";
-                return false;
-            }
-            taken[idx] = true;
-            points[idx] = p;
-        }
-        composite.accumulate(*shot, points);
-    }
-    JPVisionComposite::Detected d;
-    if (!composite.interpret(angle, d, why)) {
-        why += " for part " + partId;
-        return false;
-    }
-    // The part's centre with the nozzle where it is meant to be.
-    seen.x = camX + d.center.x;
-    seen.y = camY + d.center.y;
-    seen.angle = d.angle;
-    seen.widthMm = d.size.x;
-    seen.heightMm = d.size.y;
-    return true;
-}
-
-bool JPlacerJobMachine::pipelineRect(JPPipeline& p, const std::string& partId, cv::RotatedRect& rect, std::string& why) {
-    if (!JPBottomVision::resultRect(p, partId, rect, why)) return false;
+    // At camera Z within the roaming radius, else by way of safe Z.
+    auto moveTo = [&](double x, double y, std::string& w) {
+        double hereX = 0, hereY = 0;
+        nozzleAt(hereX, hereY);
+        const std::array<std::optional<double>, 4> to { x, y, z, nr };
+        return std::hypot(hereX - camX, hereY - camY) > roamingRadiusMm + tipTolerance ? cell.moveToolAndWait(nozzle, to, 1.0, w)
+                                                                                         : cell.moveToolStraightAndWait(nozzle, to, 1.0, w);
+    };
     JPCameraFeed* feed = nullptr;
     m_onMain([&] { feed = m_machine.upCameraFeed(); });
-    showWorking(p, feed, partId, kShownPipelineMs);
-    return true;
+    const JPBottomVision::Composite k { pipeline, composite, tip, cal, camX, camY, partId, nozzleAt, moveTo,
+                                        [this, feed, &partId](JPPipeline& p) { showWorking(p, feed, partId, kShownPipelineMs); } };
+    return JPBottomVision::seeComposite(k, nx, ny, angle, seen, why);
 }
 
 } // inline namespace jf

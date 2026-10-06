@@ -44,7 +44,7 @@ void JPStageRegistry::addMatchStages(std::vector<JPStageType>& types) {
                           cv::Point2d center(mat.cols * 0.5, mat.rows * 0.5);
                           const std::string control = s.text("property-name");
                           if (!control.empty()) {
-                              maxDistance = double(JPStageUtil::javaRound(p.overridden(s, "max-distance", maxDistance, control + ".maxDistance")));
+                              maxDistance = double(p.overriddenInteger(s, "max-distance", long(maxDistance), control + ".maxDistance"));
                               center = p.overriddenPoint(s, "center", center, control + ".center");
                           }
                           cv::Mat result;

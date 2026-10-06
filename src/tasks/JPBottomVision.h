@@ -15,7 +15,9 @@
 inline namespace jf {
 
 class JPFootprint;
+class JPVisionComposite;
 struct JPCameraCalibration;
+struct JPNozzleTipConfig;
 class JPPipeline;
 class JPVisionSettings;
 
@@ -79,6 +81,22 @@ public:
     static bool findByPipeline(JPPipeline& pipeline, const std::string& partId, const JPCameraCalibration& cal, double cameraX,
                                double cameraY, double nozzleX, double nozzleY, double angle, double range, Seen& seen,
                                std::string& why);
+    // OpenPnP's vision compositing: a part bigger than one look seen in the shots of `composite`, its corners put
+    // together. For each shot, in the order travelled from where the nozzle is (`nozzleAt`), `moveTo` puts the
+    // nozzle (meant to be at nozzleX, nozzleY over the camera) so the shot's middle is over the camera, and the
+    // pipeline (prepared for the shot) is run (`shown`: what it saw). `angle`: the part's, as expected.
+    struct Composite {
+        JPPipeline&                pipeline;
+        JPVisionComposite&         composite;
+        const JPNozzleTipConfig*   tip;
+        const JPCameraCalibration& cal;
+        double                     cameraX, cameraY;
+        std::string                partId;
+        std::function<bool(double& x, double& y)>                       nozzleAt;
+        std::function<bool(double x, double y, std::string& why)>       moveTo;
+        std::function<void(JPPipeline&)>                                shown;
+    };
+    static bool seeComposite(const Composite& c, double nozzleX, double nozzleY, double angle, Seen& seen, std::string& why);
     // The pipeline run and its result: one rectangle, as OpenPnP's processPipelineAndGetResult insists.
     static bool resultRect(JPPipeline& pipeline, const std::string& partId, cv::RotatedRect& rect, std::string& why);
 

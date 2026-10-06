@@ -75,16 +75,8 @@ std::map<std::string, std::string> JPTranslations::parse(const std::string& text
     std::map<std::string, std::string> out;
     std::istringstream in(text);
     std::string line, logical;
-    auto take = [&out](const std::string& entry) {
-        const std::string e = trim(entry);
-        if (e.empty() || e[0] == '#' || e[0] == '!') return;
-        size_t sep = std::string::npos;
-        for (size_t i = 0; i < e.size(); ++i) {
-            if (e[i] == '\\') { ++i; continue; }
-            if (e[i] == '=' || e[i] == ':') { sep = i; break; }
-        }
-        if (sep == std::string::npos) return;
-        const std::string key = trim(e.substr(0, sep)), raw = trim(e.substr(sep + 1));
+    // Java's Properties.loadConvert: \t \n \r \f, \uXXXX, else the character itself.
+    auto unescape = [](const std::string& raw) {
         std::string value;
         for (size_t i = 0; i < raw.size(); ++i) {
             if (raw[i] != '\\' || i + 1 >= raw.size()) {
@@ -95,11 +87,28 @@ std::map<std::string, std::string> JPTranslations::parse(const std::string& text
             if (c == 'u' && i + 4 < raw.size()) {
                 utf8(value, uint32_t(std::stoul(raw.substr(i + 1, 4), nullptr, 16)));
                 i += 4;
-            } else if (c == 'n') value += '\n';
-            else if (c == 't') value += '\t';
+            } else if (c == 't') value += '\t';
+            else if (c == 'n') value += '\n';
+            else if (c == 'r') value += '\r';
+            else if (c == 'f') value += '\f';
             else value += c;
         }
-        out[key] = value;
+        return value;
+    };
+    // As Java's Properties.load: blanks before the key skipped; the key up to an unescaped '=', ':' or blank;
+    // blanks, one '=' or ':', and blanks after it skipped; the value the rest, its trailing blanks kept.
+    auto take = [&out, &unescape](const std::string& entry) {
+        auto blank = [](char c) { return c == ' ' || c == '\t' || c == '\f'; };
+        size_t i = 0;
+        while (i < entry.size() && blank(entry[i])) ++i;
+        if (i >= entry.size() || entry[i] == '#' || entry[i] == '!') return;
+        const size_t keyStart = i;
+        while (i < entry.size() && entry[i] != '=' && entry[i] != ':' && !blank(entry[i])) i += entry[i] == '\\' ? 2 : 1;
+        const size_t keyEnd = std::min(i, entry.size());
+        while (i < entry.size() && blank(entry[i])) ++i;
+        if (i < entry.size() && (entry[i] == '=' || entry[i] == ':')) ++i;
+        while (i < entry.size() && blank(entry[i])) ++i;
+        out[unescape(entry.substr(keyStart, keyEnd - keyStart))] = unescape(i < entry.size() ? entry.substr(i) : std::string());
     };
     while (std::getline(in, line)) {
         if (!line.empty() && line.back() == '\r') line.pop_back();

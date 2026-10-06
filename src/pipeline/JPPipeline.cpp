@@ -4,6 +4,7 @@
 #include "JPPipeline.h"
 
 #include "JPStageRegistry.h"
+#include "JPStageUtil.h"
 #include "JPVisionUtils.h"
 
 #include <opencv2/imgproc.hpp>
@@ -160,6 +161,22 @@ double JPPipeline::overridden(const JPPipelineStage& stage, const std::string& a
         throw std::runtime_error("Pipeline property \"" + pipelineProperty + "\" must be a number, a length or an area");
     }
     m_overrides[stage.name()][attribute] = shown(out);
+    return out;
+}
+
+long JPPipeline::overriddenInteger(const JPPipelineStage& stage, const std::string& attribute, long value,
+                                   const std::string& pipelineProperty) {
+    const JPPipelineValue* v = property(pipelineProperty);
+    if (!v) return value;
+    // A whole number as it is; anything else as a number, rounded.
+    long out = 0;
+    if (const long* l = std::get_if<long>(&v->value)) {
+        out = *l;
+        m_overrides[stage.name()][attribute] = std::to_string(out);
+    } else {
+        out = JPStageUtil::javaRound(overridden(stage, attribute, double(value), pipelineProperty));
+        m_overrides[stage.name()][attribute] = std::to_string(out);
+    }
     return out;
 }
 

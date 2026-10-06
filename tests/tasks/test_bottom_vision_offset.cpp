@@ -18,128 +18,18 @@
 #include <string>
 #include <vector>
 
-#include <opencv2/imgproc.hpp>
-
-#include "camera/JPSimulatedSource.h"
-#include "camera/JPSimulatedUpCamera.h"
-#include "machine/JPCameraCalibration.h"
-#include "machine/JPNozzleTipConfig.h"
-#include "machine/JPVisionConfig.h"
-#include "model/JPConfiguration.h"
-#include "setup/JPVisionPipelines.h"
-#include "tasks/JPAlignRequests.h"
-#include "tasks/JPBottomVision.h"
-#include "tasks/JPVisionPipelinePrep.h"
+#include "BottomVisionBench.h"
 
 using namespace jf;
 namespace fs = std::filesystem;
 
 namespace {
 
-// OpenPnP's default machine: the camera looking up ("Bottom", 640 x 480 at 0.0134375 mm a pixel) and its place.
-constexpr double kUpp = 0.0134375, kCamX = 118.799, kCamY = 7.117, kCamZ = 0;
-constexpr int    kWidth = 640, kHeight = 480;
 // What OpenPnP's test allows, and sets the nozzle tip's Max. Pick Tolerance to (for the large offsets).
 constexpr double kMaxErrorMm = 0.1, kMaxErrorDeg = 0.07, kPickToleranceMm = 2;
 
-struct Bench {
-    JPConfiguration    config;
-    JPVisionConfig     vision;
-    JPNozzleTipConfig  tip;
-    JPSimulatedUpCamera::Settings up;
-    JPCameraCalibration cal;
-
-    explicit Bench(const std::string& dir) : config(dir) {
-        std::vector<std::string> problems;
-        std::string error;
-        assert(config.load(problems, error));
-        JPVisionPipelines::ensureStock(config);
-        // OpenPnP's default ReferenceBottomVision: enabled, not pre-rotating, by its pipeline.
-        vision.preRotate = false;
-        vision.bottomPipeline = true;
-        tip.name = "NT1";
-        tip.maxPickToleranceMm = kPickToleranceMm;
-        up.width = kWidth;
-        up.height = kHeight;
-        up.uppX = up.uppY = kUpp;
-        up.location = JPMachineLocation { kCamX, kCamY, kCamZ, 0 };
-        // The camera as calibrated: its picture's scale, turn and mirroring (the simulation's own).
-        const JJson scene = up.scene();
-        cal.valid = true;
-        for (size_t i = 0; i < 4; ++i) cal.pxPerMm[i] = scene["pxPerMm"][i].number();
-        cal.width = kWidth;
-        cal.height = kHeight;
-        cal.lensCentreX = kWidth / 2.0;
-        cal.lensCentreY = kHeight / 2.0;
-    }
-
-    JPVisionSettings& settingsOf(const std::string& partId) {
-        const JPVisionSettings* v = config.inheritedVision(*config.part(partId), JPVisionSettings::Kind::Bottom, vision.bottomVisionId);
-        assert(v);
-        return *config.visionSettings(v->id);
-    }
-
-    // ReferenceBottomVision.findOffsets for the part on the nozzle, placed at `placementAngle`.
-    bool findOffsets(const std::string& partId, double placementAngle, JPBottomVision::Offset& offset, std::string& why) {
-        const JPPart& part = *config.part(partId);
-        const double heightMm = part.height.convertToUnits(JPLengthUnit::Millimeters).value();
-        JPJobMachine::AlignRequest rq;
-        assert(JPAlignRequests::forPart(config, vision, part, heightMm, placementAngle, rq));
-        rq.offsets.maxPickToleranceMm = tip.maxPickToleranceMm;
-        rq.offsets.tipName = tip.name;
-        JPPipeline& pipeline = *rq.pipeline;
-        JPPipeline::Context& ctx = pipeline.context();
-        ctx.pixelsPerMmX = ctx.pixelsPerMmY = 1 / kUpp;
-        ctx.cameraWidth = kWidth;
-        ctx.cameraHeight = kHeight;
-        // The part on the nozzle, as its footprint has it.
-        const JPFootprint& f = config.package(part.packageId)->footprint;
-        const double mm = JPLength(1, f.units).convertToUnits(JPLengthUnit::Millimeters).value();
-        auto inMm = [mm](const JPFootprint::Outline& o) {
-            JPSimulatedUpCamera::Polygon out;
-            for (const JPFootprint::Point& p : o) out.push_back({ p.x * mm, p.y * mm });
-            return out;
-        };
-        JPSimulatedUpCamera::Part held { inMm(f.bodyOutline()), {}, heightMm };
-        for (const JPFootprint::Outline& o : f.padsOutlines()) held.pads.push_back(inMm(o));
-        // The camera's picture with the nozzle where it is.
-        JPSimulatedUpCamera::Nozzle nozzle;
-        nozzle.tipDiameter = 1;
-        JPSimulatedSource source("Bottom", kWidth, kHeight, kFps, up.scene(), [](double& x, double& y) {
-            x = kCamX;
-            y = kCamY;
-            return true;
-        }, 0, 0, [&] {
-            JPSimulatedSource::Extras e;
-            JPSimulatedUpCamera::drawNozzle(&up, kCamX, kCamY, kCamZ, nozzle, &held, e);
-            return e;
-        });
-        std::string error;
-        assert(source.open(error) && source.start(source.modes().front(), error));
-        ctx.capture = [&](const std::string&, const std::string&, cv::Mat& bgr, std::string& w) {
-            JPFrame frame;
-            if (!source.grab(frame, kGrabMs, w)) return false;
-            cv::Mat rgba(frame.height, frame.width, CV_8UC4, frame.rgba.data());
-            cv::cvtColor(rgba, bgr, cv::COLOR_RGBA2BGR);
-            return true;
-        };
-        if (!JPVisionPipelinePrep::bottom(pipeline, config, *config.visionSettings(rq.settingsId), partId, "", rq.imageAngle, &tip,
-                                          nullptr, why))
-            return false;
-        const JPBottomVision::Look look = [&](const JPLocation& at, double expected, int, JPBottomVision::Seen& seen, std::string& w) {
-            // The nozzle there, at the camera's height for the part (its underside in focus).
-            nozzle.x = at.x();
-            nozzle.y = at.y();
-            nozzle.angle = at.rotation();
-            nozzle.tipZ = kCamZ + heightMm;
-            return JPBottomVision::findByPipeline(pipeline, partId, cal, kCamX, kCamY, at.x(), at.y(), expected,
-                                                  rq.offsets.fullRotation ? 180 : JPBottomVision::kAdjustRange, seen, w);
-        };
-        return JPBottomVision::findOffsets(rq.offsets, kCamX, kCamY, look, offset, why);
-    }
-
-    static constexpr double kFps = 1000;
-    static constexpr int    kGrabMs = 1000;
+struct Bench : BottomVisionBench {
+    explicit Bench(const std::string& dir) : BottomVisionBench(dir) { tip.maxPickToleranceMm = kPickToleranceMm; }
 };
 
 // One of OpenPnP's tests: the part, its settings, and the offsets expected for each placement angle.

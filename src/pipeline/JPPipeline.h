@@ -43,6 +43,15 @@ public:
         // place's pixel in its picture.
         double pixelsPerMmX = 0, pixelsPerMmY = 0;
         std::function<bool(double xMm, double yMm, double& px, double& py)> locationToPixel;
+        // How the picture shows the machine (JPCameraCalibration::pictureMirrored, pictureTurnDeg): OpenPnP's are
+        // turned to show it as from above, so what OpenPnP tells a pipeline in the machine's terms (an angle, a
+        // footprint, a side) is told in the picture's.
+        bool   pictureMirrored = false;
+        double pictureTurnDeg = 0;
+        // A machine angle (right-handed) as the picture shows it.
+        double pictureAngle(double machineAngle) const {
+            return pictureMirrored ? pictureTurnDeg - machineAngle : pictureTurnDeg + machineAngle;
+        }
         // Where ImageWriteDebug writes (empty: it does not).
         std::string debugDirectory;
         // The machine's actuator by name, on a head or the machine (null: none);
@@ -100,6 +109,9 @@ public:
     // OpenPnP's getPossiblePipelinePropertyOverride. The override is noted.
     double     overridden(const JPPipelineStage& stage, const std::string& attribute, double value,
                           const std::string& pipelineProperty);
+    // The same for a whole-number setting (OpenPnP's Integer or Long): a number given rounded as Java's Math.round.
+    long        overriddenInteger(const JPPipelineStage& stage, const std::string& attribute, long value,
+                                  const std::string& pipelineProperty);
     cv::Point2d overriddenPoint(const JPPipelineStage& stage, const std::string& attribute, cv::Point2d value,
                                 const std::string& pipelineProperty);
     bool        overriddenFlag(const JPPipelineStage& stage, const std::string& attribute, bool value,

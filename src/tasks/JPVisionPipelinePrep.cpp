@@ -27,11 +27,17 @@ JPPipelineValue::Outline outline(const JPFootprint::Outline& o, double mm) {
     return out;
 }
 
-JPPipelineValue::Footprint footprintOf(const JPFootprint& f) {
+// The footprint as the picture shows it (mirrored where the picture is).
+JPPipelineValue::Footprint footprintOf(const JPFootprint& f, const JPPipeline::Context& ctx) {
     const double mm = JPLength(1, f.units).convertToUnits(JPLengthUnit::Millimeters).value();
     JPPipelineValue::Footprint out;
     for (const JPFootprint::Outline& o : f.padsOutlines()) out.pads.push_back(outline(o, mm));
     out.body = outline(f.bodyOutline(), mm);
+    if (ctx.pictureMirrored) {
+        for (JPPipelineValue::Outline& o : out.pads)
+            for (auto& pt : o) pt.x = -pt.x;
+        for (auto& pt : out.body) pt.x = -pt.x;
+    }
     return out;
 }
 
@@ -76,7 +82,7 @@ void JPVisionPipelinePrep::fiducial(JPPipeline& pipeline, const JPConfiguration&
     const JPPackage* pkg = packageFor(config, partId, packageId);
     JPPipelineValue::Footprint footprint;
     if (pkg && !pkg->footprint.pads.empty()) {
-        footprint = footprintOf(pkg->footprint);
+        footprint = footprintOf(pkg->footprint, pipeline.context());
     } else {
         // A round 1 mm pad.
         JPFootprint stand;
@@ -84,11 +90,11 @@ void JPVisionPipelinePrep::fiducial(JPPipeline& pipeline, const JPConfiguration&
         pad.width = pad.height = kStandInFiducialMm;
         pad.roundness = 100;
         stand.pads.push_back(pad);
-        footprint = footprintOf(stand);
+        footprint = footprintOf(stand, pipeline.context());
     }
     pipeline.setProperty("part", JPPipelineValue { partOf(partId, pkg) });
     pipeline.setProperty("footprint", JPPipelineValue { footprint });
-    pipeline.setProperty("footprint.rotation", JPPipelineValue { rotation });
+    pipeline.setProperty("footprint.rotation", JPPipelineValue { pipeline.context().pictureAngle(rotation) });
     double w = 0, h = 0;
     padBounds(footprint, w, h);
     pipeline.setProperty("fiducial.diameter", JPPipelineValue { JPPipelineValue::LengthMm { std::max(w, h) } });
@@ -141,14 +147,14 @@ bool JPVisionPipelinePrep::bottom(JPPipeline& pipeline, const JPConfiguration& c
     const JPNozzleTipConfig defaults;
     const double tipTolerance = (tip ? *tip : defaults).maxPickToleranceMm;
     pipeline.setProperty("part", JPPipelineValue { partOf(partId, pkg) });
-    pipeline.setProperty("footprint", JPPipelineValue { footprintOf(pkg->footprint) });
-    pipeline.setProperty("footprint.rotation", JPPipelineValue { rotation });
+    pipeline.setProperty("footprint", JPPipelineValue { footprintOf(pkg->footprint, ctx) });
+    pipeline.setProperty("footprint.rotation", JPPipelineValue { ctx.pictureAngle(rotation) });
     // The part where it should be: over the camera's centre.
     const JPPipelineValue centre { JPPipelineValue::Pixel { ctx.cameraWidth / 2.0, ctx.cameraHeight / 2.0 } };
     pipeline.setProperty("MinAreaRect.center", centre);
-    pipeline.setProperty("MinAreaRect.expectedAngle", JPPipelineValue { rotation });
+    pipeline.setProperty("MinAreaRect.expectedAngle", JPPipelineValue { ctx.pictureAngle(rotation) });
     pipeline.setProperty("DetectRectlinearSymmetry.center", centre);
-    pipeline.setProperty("DetectRectlinearSymmetry.expectedAngle", JPPipelineValue { rotation });
+    pipeline.setProperty("DetectRectlinearSymmetry.expectedAngle", JPPipelineValue { ctx.pictureAngle(rotation) });
     pipeline.setProperty("DetectRectlinearSymmetry.searchDistance",
                          JPPipelineValue { JPPipelineValue::LengthMm { tipTolerance * kSearchMargin } });
     const std::vector<const JPVisionComposite::Shot*> travel = c->travel(0, 0);
@@ -166,7 +172,7 @@ void JPVisionPipelinePrep::shot(JPPipeline& pipeline, const JPVisionComposite& c
     const double tipTolerance = (tip ? *tip : defaults).maxPickToleranceMm;
     auto length = [](double mm) { return JPPipelineValue { JPPipelineValue::LengthMm { mm } }; };
     // The footprint moved to the shot, cropped to fit in its mask.
-    pipeline.setProperty("footprint.xOffset", length(shot.x));
+    pipeline.setProperty("footprint.xOffset", length(ctx.pictureMirrored ? -shot.x : shot.x));
     pipeline.setProperty("footprint.yOffset", length(shot.y));
     const double maxDim = std::sqrt(2.0) * shot.maxMaskRadius - tipTolerance * kSearchMargin;
     pipeline.setProperty("footprint.maxWidth", length(maxDim));
@@ -198,8 +204,9 @@ void JPVisionPipelinePrep::shot(JPPipeline& pipeline, const JPVisionComposite& c
         // The whole part masked, and the edges this shot sees.
         pipeline.setProperty("partmask.diameter", length((composite.maxPadRadius() + tipTolerance) * 2));
         pipeline.setProperty("partmask.center", JPPipelineValue { JPPipelineValue::Pixel { partX, partY } });
-        pipeline.setProperty("MinAreaRect.leftEdge", JPPipelineValue { shot.hasLeftEdge() });
-        pipeline.setProperty("MinAreaRect.rightEdge", JPPipelineValue { shot.hasRightEdge() });
+        // The part's sides (to its -X and +X) are the picture's right and left when it is mirrored.
+        pipeline.setProperty("MinAreaRect.leftEdge", JPPipelineValue { ctx.pictureMirrored ? shot.hasRightEdge() : shot.hasLeftEdge() });
+        pipeline.setProperty("MinAreaRect.rightEdge", JPPipelineValue { ctx.pictureMirrored ? shot.hasLeftEdge() : shot.hasRightEdge() });
         pipeline.setProperty("MinAreaRect.topEdge", JPPipelineValue { shot.hasTopEdge() });
         pipeline.setProperty("MinAreaRect.bottomEdge", JPPipelineValue { shot.hasBottomEdge() });
         pipeline.setProperty("MinAreaRect.searchAngle",

@@ -45,6 +45,12 @@ public:
 
     // Where a point seen at (x, y) would be through a perfect lens.
     void undistort(double x, double y, double& ux, double& uy) const {
+        // A perfect lens: as it is.
+        if (k1 == 0 && k2 == 0) {
+            ux = x;
+            uy = y;
+            return;
+        }
         // r_seen = r f(r): solved for r by fixed-point steps, quick for any
         // lens that does not fold the picture over itself.
         const double sx = x - centreX, sy = y - centreY;

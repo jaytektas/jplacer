@@ -115,6 +115,10 @@ struct JPCameraCalibration {
     // looking up sees the machine as a mirror image of one looking down.
     double rotationDeg(bool lookingUp = false) const;
     bool   mirrored(bool lookingUp = false) const;
+    // How its pictures show the machine (Y up): mirrored or not, and how far the machine's X is turned in them
+    // (OpenPnP turns its pictures to show the machine as from above: neither).
+    bool   pictureMirrored() const;
+    double pictureTurnDeg() const;
 
     static JPCameraCalibration fromJson(const JJson& j);
     JJson toJson() const;
