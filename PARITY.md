@@ -14,7 +14,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 
 | OpenPnP | Status | jplacer |
 |---|---|---|
-| Machine Setup tree: OpenPnP's order and "Class Name" titles; ReferenceNozzle / ContactProbeNozzle | done | Feeders are the Feeders tab's |
+| Machine Setup tree: OpenPnP's order, "Class Name" titles and icons; Feeders (each its Feeders tab page); ReferenceNozzle / ContactProbeNozzle | done | |
 | Machine Setup tools: Delete X, Permutate Up / Down, New X..., a nozzle tip's Unload / Load, with OpenPnP's icons and tips; delete asks first | done | per kind as OpenPnP's; a head and a changer step (jplacer's) have them too |
 | Home after enabled, Park after homed | done | Machine › Configuration |
 | Park all at Safe Z, Auto tool select | done | Machine › Configuration; Jog Z park |

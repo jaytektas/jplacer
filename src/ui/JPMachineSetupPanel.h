@@ -56,7 +56,7 @@ public:
     double treeShare() const;
     // The vision settings the Vision nodes choose from, and whose default
     // settings' page they show; what its tests work with.
-    void setConfiguration(JPConfiguration* config) { m_config = config; }
+    void setConfiguration(JPConfiguration* config);   // (its feeders in the tree)
     void setVisionTests(JPVisionTests tests) { m_visionTests = std::move(tests); }
     // The last motion planner Test Motion run, shown on the machine's
     // Motion Planner Diagnostics (its form made again).
@@ -70,6 +70,21 @@ public:
     std::function<void(const std::string& settingsId, const std::string& action)> visionAction;
     // The page shown again (the vision settings changed elsewhere).
     void refreshForm();
+
+    // OpenPnP's Feeders in the tree (the configuration's): a feeder's page is the Feeders tab's, made and
+    // worked by it (JPFeedersPanel::pageFor, edited, act, captureFor, goToFor). Not the cell's: no undo here.
+    struct FeederPages {
+        std::function<JPSetupProperties::Form(const std::string& feederId)> page;
+        std::function<void(const std::string& feederId, const std::string& property)> edited;
+        std::function<void(const std::string& feederId, const std::string& action)> act;
+        std::function<void(const std::string& feederId, const JPSetupProperties::Row&, JPSetupForm::Tool, bool capture,
+                           bool straight)> place;   // capture (or move to, straight or by way of safe Z) a row's place
+    };
+    FeederPages feederPages;
+    // The feeders changed elsewhere (added, removed, renamed): the tree again; or a feeder's page made again
+    // (`remade`) or shown again, when it is the one shown.
+    void feedersChanged();
+    void feederPageChanged(bool remade);
 
     // The cell as set up, to be put in use: false when it was not taken
     // (it is handed over again with the next change).
@@ -130,6 +145,8 @@ public:
     void redo();
 private:
     void rebuildTree();
+    // The feeder whose page is shown ("" for none).
+    std::string shownFeeder() const;
     // The note line: shown with `text`, gone when it is empty.
     void setNote(const std::string& text);
     // A line under the settings shown with `text`, taking no room without.

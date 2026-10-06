@@ -119,6 +119,17 @@ public:
     // OpenPnP's pickFeeder: a feed, then the chosen nozzle's pick at its pick location.
     void pickFrom(JPFeeder& f);
 
+    // A feeder's page shown elsewhere too (Machine Setup's Feeders, as OpenPnP's): the feeder chosen here,
+    // its page as this tab makes it; then what is done on the other page done as on this one.
+    JPSetupProperties::Form pageFor(const std::string& feederId);
+    bool showFeeder(const std::string& feederId);   // chosen and shown here; false when there is no such feeder
+    void edited(const std::string& property);   // a setting on the shown feeder's page changed
+    void act(const std::string& action);        // a button on it
+    void captureFor(const JPSetupProperties::Row& row, Tool tool) { capture(row, tool); }
+    void goToFor(const JPSetupProperties::Row& row, Tool tool, bool straight) { goTo(row, tool, straight); }
+    // The shown feeder's page made again (its buttons changed), or only shown again (a reading came).
+    std::function<void()> onPageRemade, onPageRefreshed;
+
 private:
     std::vector<JPFeeder*> selections() const;
     JPFeeder* selection() const;

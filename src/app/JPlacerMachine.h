@@ -205,6 +205,17 @@ public:
     // Every board in the job given this Z (mm): OpenPnP's Set Machine Table Z.
     std::function<void(double z)> setBoardsZ;
     std::function<void(const std::string& settingsId, const std::string& action)> onSetupVisionAction;
+    // Machine Setup's Feeders: each feeder's page the Feeders tab's (given to each Machine Setup made);
+    // the feeders changed, or the shown feeder's page made or shown again.
+    void setSetupFeederPages(JPMachineSetupPanel::FeederPages pages) {
+        m_setupFeederPages = std::move(pages);
+        if (m_setup) {
+            m_setup->feederPages = m_setupFeederPages;
+            m_setup->feedersChanged();
+        }
+    }
+    void setupFeedersChanged() { if (m_setup) m_setup->feedersChanged(); }
+    void setupFeederPageChanged(bool remade) { if (m_setup) m_setup->feederPageChanged(remade); }
     void refreshSetupForm();
     // The view of a camera's feed, shown; null when it has none.
     JPCameraView* cameraViewOf(const JPCameraFeed* feed);
@@ -348,6 +359,7 @@ private:
     std::map<std::string, bool>         m_lights;   // by actuator id: on or off as last switched
     JPJogPanel*                         m_jog = nullptr; // its chosen tool, for the status bar
     JPMachineSetupPanel*                m_setup = nullptr;
+    JPMachineSetupPanel::FeederPages m_setupFeederPages;   // each Machine Setup made is given them
     JPVisionTests                       m_setupVisionTests;
     JPConfiguration*                    m_configuration = nullptr;
     JPlacerPnpChecking                  m_pnpChecking;   // Simulation Mode's Pick & Place Checking

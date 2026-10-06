@@ -10,7 +10,7 @@
 inline namespace jf {
 
 // Machine Setup's tree, each part's row with OpenPnP's icon for its kind
-// before its name (a nozzle, a camera, a driver, a linear or rotation axis),
+// before its name (a nozzle, a camera, a driver, a linear or rotation axis, a feeder),
 // as OpenPnP's tree shows them. A node's icon is iconOf(its OpenPnP icon's
 // name); 0 for none.
 class JPSetupTreeView : public JTreeView {

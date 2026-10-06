@@ -141,6 +141,12 @@ JPMachineSetupPanel::JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, 
     m_form->setVSizePolicy(JSizePolicyMode::Expanding, 1);
     m_form->onChanged = [this](const std::string& property) { changed(property); };
     m_form->onAction = [this](const std::string& action) {
+        // A feeder's page: the Feeders tab works its buttons.
+        if (const std::string feeder = shownFeeder(); !feeder.empty()) {
+            if (feederPages.act) feederPages.act(feeder, action);
+            m_form->refresh();
+            return;
+        }
         // A change the button makes itself (a profile added): a step to undo, the form made again.
         if (const auto e = m_edits.find(action); e != m_edits.end()) {
             const std::string at = m_selected, what = nameOf(m_draft, at) + ": " + e->second.what;
@@ -162,9 +168,28 @@ JPMachineSetupPanel::JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, 
         }
         if (onAction) onAction(m_selected, action);
     };
-    m_form->onCapture = [this](const JPSetupProperties::Row& row, JPSetupForm::Tool tool) { capture(row, tool); };
-    m_form->onMoveTo = [this](const JPSetupProperties::Row& row, JPSetupForm::Tool tool) { goTo(row, tool); };
-    m_form->onMoveToStraight = [this](const JPSetupProperties::Row& row, JPSetupForm::Tool tool) { goTo(row, tool, true); };
+    m_form->onCapture = [this](const JPSetupProperties::Row& row, JPSetupForm::Tool tool) {
+        if (const std::string feeder = shownFeeder(); !feeder.empty()) {
+            if (feederPages.place) feederPages.place(feeder, row, tool, true, false);
+            m_form->refresh();
+            return;
+        }
+        capture(row, tool);
+    };
+    m_form->onMoveTo = [this](const JPSetupProperties::Row& row, JPSetupForm::Tool tool) {
+        if (const std::string feeder = shownFeeder(); !feeder.empty()) {
+            if (feederPages.place) feederPages.place(feeder, row, tool, false, false);
+            return;
+        }
+        goTo(row, tool);
+    };
+    m_form->onMoveToStraight = [this](const JPSetupProperties::Row& row, JPSetupForm::Tool tool) {
+        if (const std::string feeder = shownFeeder(); !feeder.empty()) {
+            if (feederPages.place) feederPages.place(feeder, row, tool, false, true);
+            return;
+        }
+        goTo(row, tool, true);
+    };
     m_form->onContactProbe = [this](const JPSetupProperties::Row& row) { probe(row); };
 
     m_problems = add(std::make_unique<JLabel>(graph, ""));
@@ -272,7 +297,7 @@ void JPMachineSetupPanel::rebuildTree() {
 void JPMachineSetupPanel::setRows(bool firstTime) {
     JTreeViewNode top;
     top.expanded = true;
-    top.children.push_back(rows(JPSetupTree::build(m_draft), m_expanded, firstTime));
+    top.children.push_back(rows(JPSetupTree::build(m_draft, m_config), m_expanded, firstTime));
     m_tree->setRootNode(std::move(top));
 }
 
@@ -346,7 +371,7 @@ void JPMachineSetupPanel::setBranch(bool open) {
         for (const JPSetupTree::Node& c : n.children) found = walk(c, inside) || found;
         return found;
     };
-    walk(JPSetupTree::build(m_draft), false);
+    walk(JPSetupTree::build(m_draft, m_config), false);
     setRows(false);
     const std::string keep = m_selected;
     m_selected.clear();
@@ -362,7 +387,7 @@ void JPMachineSetupPanel::collapseAll() {
 }
 
 void JPMachineSetupPanel::select(const std::string& path) {
-    const std::vector<std::string> labels = JPSetupTree::labelsTo(JPSetupTree::build(m_draft), path);
+    const std::vector<std::string> labels = JPSetupTree::labelsTo(JPSetupTree::build(m_draft, m_config), path);
     if (labels.empty()) {
         if (path != "machine") select("machine");   // gone (another cell, or removed elsewhere)
         return;
@@ -374,6 +399,16 @@ void JPMachineSetupPanel::select(const std::string& path) {
 }
 
 JPSetupProperties::Form JPMachineSetupPanel::formFor(const std::string& path) {
+    // A feeder's: the Feeders tab's page, with OpenPnP's place buttons as there.
+    if (const JPSetupTree::Path p = JPSetupTree::parse(path); p.kind == "feeder") {
+        m_configProperties.clear();
+        m_form->setOpenPnpPlaceButtons(true);
+        JPSetupProperties::Form f = feederPages.page ? feederPages.page(p.id) : JPSetupProperties::Form {};
+        if (const JPFeeder* feeder = m_config ? m_config->feeder(p.id) : nullptr)
+            f.title = feeder->typeName() + " " + (feeder->name().empty() ? feeder->id() : feeder->name());
+        return f;
+    }
+    m_form->setOpenPnpPlaceButtons(false);
     JPSetupProperties::Form f = JPSetupProperties::forNode(m_draft, path, m_profiles, m_config, m_visionTests.angle ? &m_visionTests : nullptr,
                                                            m_motionTest ? &*m_motionTest : nullptr, live);
     m_configProperties.clear();
@@ -396,6 +431,27 @@ std::string JPMachineSetupPanel::shownVisionSettings() const {
 
 void JPMachineSetupPanel::refreshForm() { m_form->refresh(); }
 
+void JPMachineSetupPanel::setConfiguration(JPConfiguration* config) {
+    m_config = config;
+    feedersChanged();
+}
+
+std::string JPMachineSetupPanel::shownFeeder() const {
+    const JPSetupTree::Path p = JPSetupTree::parse(m_selected);
+    return p.kind == "feeder" ? p.id : std::string();
+}
+
+void JPMachineSetupPanel::feedersChanged() {
+    rebuildTree();
+    if (!shownFeeder().empty()) select(m_selected);   // gone: the machine instead
+}
+
+void JPMachineSetupPanel::feederPageChanged(bool remade) {
+    if (shownFeeder().empty()) return;
+    if (remade) remakeForm();
+    else m_form->refresh();
+}
+
 void JPMachineSetupPanel::show(const std::string& path) {
     m_selected = path;
     JPSetupProperties::Form f = formFor(path);
@@ -411,6 +467,13 @@ void JPMachineSetupPanel::show(const std::string& path) {
 }
 
 void JPMachineSetupPanel::changed(const std::string& property) {
+    // A feeder's page: the Feeders tab takes the change (and saves it); its name shows in the tree.
+    if (const std::string feeder = shownFeeder(); !feeder.empty()) {
+        if (feederPages.edited) feederPages.edited(feeder, property);
+        rebuildTree();
+        m_form->refresh();
+        return;
+    }
     // The default vision settings' (the configuration's): saved with it, not undone here.
     if (m_configProperties.count(property)) {
         if (property.find(":parameter:") != std::string::npos && visionAction) visionAction(shownVisionSettings(), property);

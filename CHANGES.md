@@ -10,6 +10,7 @@ notes.
 
 ## Unreleased
 
+- Machine Setup lists the feeders, as OpenPnP's: choosing one shows its page there, the same as on the Feeders tab.
 - The machine's General settings are in OpenPnP's order, with its Home after enabled? (every controller homing
   the machine once it connects).
 - Machine Setup's tree is OpenPnP's: Axes, Signalers, Heads, Nozzle Tips, Cameras, Actuators, Drivers, each part

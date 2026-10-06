@@ -350,7 +350,28 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_feeders->onChanged = [this] {
         m_job.configurationChanged();
         ensurePhotonActuator();
+        m_machine.setupFeedersChanged();
     };
+    // Machine Setup's Feeders, as OpenPnP's: each feeder's page this tab's, worked by it.
+    m_feeders->onPageRemade = [this] { m_machine.setupFeederPageChanged(true); };
+    m_feeders->onPageRefreshed = [this] { m_machine.setupFeederPageChanged(false); };
+    JPMachineSetupPanel::FeederPages pages;
+    pages.page = [this](const std::string& id) { return m_feeders->pageFor(id); };
+    pages.edited = [this](const std::string& id, const std::string& property) {
+        if (!m_feeders->showFeeder(id)) return;
+        m_feeders->edited(property);
+        m_feeders->refresh();
+    };
+    pages.act = [this](const std::string& id, const std::string& action) {
+        if (m_feeders->showFeeder(id)) m_feeders->act(action);
+    };
+    pages.place = [this](const std::string& id, const JPSetupProperties::Row& row, JPFeedersPanel::Tool tool, bool capture,
+                         bool straight) {
+        if (!m_feeders->showFeeder(id)) return;
+        if (capture) m_feeders->captureFor(row, tool);
+        else m_feeders->goToFor(row, tool, straight);
+    };
+    m_machine.setSetupFeederPages(std::move(pages));
     m_feeders->chooseClass = [this](const std::string& title, const std::string& description,
                                     const std::vector<std::string>& classes, std::function<void(std::string)> chosen) {
         m_window.openModal<JPlacerClassSelectionDialog>(title, description, classes, std::move(chosen));
@@ -907,6 +928,7 @@ JPlacerOpenPnpTabs::~JPlacerOpenPnpTabs() {
     *m_alive = false;
     m_autoSetup.reset();   // its look at the camera stopped first
     m_ocrRegion.reset();
+    m_machine.setSetupFeederPages({});
     m_machine.setConfiguration(nullptr);
     m_machine.onUnhomed = nullptr;
     m_machine.onSetupVisionAction = nullptr;

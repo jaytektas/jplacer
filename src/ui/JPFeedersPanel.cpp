@@ -95,144 +95,8 @@ JPFeedersPanel::JPFeedersPanel(JSceneGraph& graph, JPConfiguration& config, doub
     m_form = m_formPane->add(std::make_unique<JPSetupForm>(graph));
     m_form->setOpenPnpPlaceButtons(true);
     m_form->setVSizePolicy(JSizePolicyMode::Expanding, 1);
-    m_form->onChanged = [this](const std::string& property) {
-        // A blinds feeder's pockets counted again, and its holder's settings given to the others on it.
-        if (JPFeeder* f = m_config.feeder(m_shown); f && f->typeName() == "BlindsFeeder") {
-            JPBlindsFeeders::recalculateGeometry(*f);
-            JPBlindsFeeders::propagate(m_config, m_shown);
-        }
-        m_table->refresh();
-        changed();
-        // The pin's name decides what its place rows' buttons move; a slot's
-        // bank and feeder (and their names), or a heap's drop box (and its
-        // name), what its choices list.
-        // A push-pull feeder's additive rotation turned on (or its actuator chosen): its rotation counted from where it is, as OpenPnP's.
-        if ((property == "additive-rotation" || property == "actuator-name") && machineAction && machineReady && machineReady())
-            if (const JPFeeder* f = m_config.feeder(m_shown); f && f->typeName() == "ReferencePushPullFeeder" && f->flag("additive-rotation", true))
-                machineAction(m_shown, "resetRotation");
-        if (property == "actuator-name" || property.rfind("slot.", 0) == 0 || property == "drop-box-id" || property == "drop-box.name"
-            || property == "additive-rotation" || property == "used-as-template" || property == "part" || property == "feeder-group-name"
-            || property == "pocket-pitch" || property == "cover-type")
-            jPostToNextFrame([this, alive = std::weak_ptr<bool>(m_alive)] {
-                if (const auto a = alive.lock(); a && *a) rebuildForm();
-            });
-    };
-    m_form->onAction = [this](const std::string& action) {
-        using Selecting = JPFeederForms::Options::Selecting;
-        if (action == "selectTemplate" || action == "selectAoi") {
-            selectOnCamera(action == "selectTemplate" ? Selecting::Template : Selecting::AreaOfInterest);
-            return;
-        }
-        if (action == "cancelTemplate" || action == "cancelAoi") {
-            cancelSelection();
-            return;
-        }
-        if (action == "photonProgram") {
-            if (programPhotonSlots) programPhotonSlots();
-            return;
-        }
-        if (action == "autoSetup" || action == "autoSetupCancel") {
-            if (autoSetup) autoSetup(m_shown, action);
-            return;
-        }
-        if (action == "blindsGetToolZ") {
-            // The chosen nozzle's Z as the part's.
-            const Where at = whereIs ? whereIs(Tool::Nozzle) : Where {};
-            JPFeeder* f = m_config.feeder(m_shown);
-            if (!f || !at[2]) {
-                JDialog::message("Error", "Nothing captured: the machine is not connected.");
-                return;
-            }
-            f->setLocation(f->location().derive(std::nullopt, std::nullopt, *at[2], std::nullopt));
-            rebuild();
-            changed();
-            return;
-        }
-        if (action == "blindsOcrToAll" || action == "blindsPipelineToAll") {
-            const std::string id = m_shown;
-            JDialog::confirm("Warning",
-                             action == "blindsOcrToAll"
-                                 ? "This will replace the OCR settings of all the other BlindsFeeders on the machine with those of this BlindsFeeder. Are you sure?"
-                                 : "This will replace the pipeline of all the other BlindsFeeders on the machine with the pipeline of this BlindsFeeder. Are you sure?",
-                             [this, id, action] {
-                                 std::string why;
-                                 JPFeederForms::act(m_config, id, action, why);
-                                 changed();
-                             });
-            return;
-        }
-        if (action == "blindsExtract") {
-            if (extractBlindsFiles) extractBlindsFiles();
-            return;
-        }
-        if (action == "setupOcrRegion" || action == "ocrRegionNext" || action == "ocrRegionCancel") {
-            if (ocrRegion) ocrRegion(m_shown, action);
-            return;
-        }
-        if (action == "cloneFromTemplate") {
-            cloneFromTemplate(m_shown);
-            return;
-        }
-        if (action == "cloneToFeeders") {
-            cloneToFeeders(m_shown);
-            return;
-        }
-        if (action == "plusOne") {
-            plusOne(m_shown);
-            return;
-        }
-        // A Bamboo feeder's, as OpenPnP's asks: its count reset, or its settings overwritten by Auto-Setup.
-        if (const JPFeeder* f = m_config.feeder(m_shown); f && f->isVisionTape()) {
-            const std::string id = m_shown;
-            if (action == "resetFeedCount") {
-                JDialog::confirm("Warning", "This will reset the recorded feed count of this feeder. Are you sure?", [this, id] {
-                    std::string why;
-                    if (!JPFeederForms::act(m_config, id, "resetFeedCount", why)) return;
-                    rebuild();
-                    m_table->refresh();
-                    changed();
-                });
-                return;
-            }
-            const JPLocation at = f->location();
-            if (action == "autoSetupTape" && (at.x() != 0 || at.y() != 0)) {
-                std::string ask = "This may overwrite all your current settings. Are you sure?";
-                if (f->flag("used-as-template", false)) ask += "\n\nThis feeder is marked as template. Are you really, really sure?";
-                JDialog::confirm("Warning", ask, [this, id] {
-                    if (machineAction) machineAction(id, "autoSetupTape");
-                });
-                return;
-            }
-        }
-        if (action == "editPipeline" || action == "resetPipeline" || action == "editTrainingPipeline"
-            || action == "resetTrainingPipeline" || action == "editDropBoxPipeline" || action == "resetDropBoxPipeline") {
-            if (pipelineAction) pipelineAction(m_shown, action);
-            return;
-        }
-        // A search shows its strip from the start, every address not yet asked.
-        if (action == "photonSearch") {
-            m_searchStates.assign(size_t(std::max(1, m_config.photon().maxFeederAddress())), 0);
-            jPostToNextFrame([this, alive = std::weak_ptr<bool>(m_alive)] {
-                if (const auto a = alive.lock(); a && *a) rebuildForm();
-            });
-        }
-        // Done on the machine: on its thread.
-        if (JPFeederForms::isMachineAction(action)) {
-            if (machineAction) machineAction(m_shown, action);
-            return;
-        }
-        std::string why;
-        if (!JPFeederForms::act(m_config, m_shown, action, why, [this](const std::string& key) { return reading(key); })) {
-            if (!why.empty()) JDialog::message("Error", why);
-            return;
-        }
-        // Not while the button clicked is still in its page: the page is made again.
-        jPostToNextFrame([this, alive = std::weak_ptr<bool>(m_alive)] {
-            if (const auto a = alive.lock(); a && *a) rebuildForm();
-        });
-        m_table->refresh();
-        changed();
-    };
+    m_form->onChanged = [this](const std::string& property) { edited(property); };
+    m_form->onAction = [this](const std::string& action) { act(action); };
     m_form->onCapture = [this](const JPSetupProperties::Row& row, Tool t) { capture(row, t); };
     m_form->onMoveTo = [this](const JPSetupProperties::Row& row, Tool t) { goTo(row, t); };
     m_form->onMoveToStraight = [this](const JPSetupProperties::Row& row, Tool t) { goTo(row, t, true); };
@@ -386,6 +250,146 @@ JPFeeder* JPFeedersPanel::selection() const {
     return s.size() == 1 ? s.front() : nullptr;
 }
 
+void JPFeedersPanel::edited(const std::string& property) {
+    // A blinds feeder's pockets counted again, and its holder's settings given to the others on it.
+    if (JPFeeder* f = m_config.feeder(m_shown); f && f->typeName() == "BlindsFeeder") {
+        JPBlindsFeeders::recalculateGeometry(*f);
+        JPBlindsFeeders::propagate(m_config, m_shown);
+    }
+    m_table->refresh();
+    changed();
+    // The pin's name decides what its place rows' buttons move; a slot's
+    // bank and feeder (and their names), or a heap's drop box (and its
+    // name), what its choices list.
+    // A push-pull feeder's additive rotation turned on (or its actuator chosen): its rotation counted from where it is, as OpenPnP's.
+    if ((property == "additive-rotation" || property == "actuator-name") && machineAction && machineReady && machineReady())
+        if (const JPFeeder* f = m_config.feeder(m_shown); f && f->typeName() == "ReferencePushPullFeeder" && f->flag("additive-rotation", true))
+            machineAction(m_shown, "resetRotation");
+    if (property == "actuator-name" || property.rfind("slot.", 0) == 0 || property == "drop-box-id" || property == "drop-box.name"
+        || property == "additive-rotation" || property == "used-as-template" || property == "part" || property == "feeder-group-name"
+        || property == "pocket-pitch" || property == "cover-type")
+        jPostToNextFrame([this, alive = std::weak_ptr<bool>(m_alive)] {
+            if (const auto a = alive.lock(); a && *a) rebuildForm();
+        });
+}
+
+void JPFeedersPanel::act(const std::string& action) {
+    using Selecting = JPFeederForms::Options::Selecting;
+    if (action == "selectTemplate" || action == "selectAoi") {
+        selectOnCamera(action == "selectTemplate" ? Selecting::Template : Selecting::AreaOfInterest);
+        return;
+    }
+    if (action == "cancelTemplate" || action == "cancelAoi") {
+        cancelSelection();
+        return;
+    }
+    if (action == "photonProgram") {
+        if (programPhotonSlots) programPhotonSlots();
+        return;
+    }
+    if (action == "autoSetup" || action == "autoSetupCancel") {
+        if (autoSetup) autoSetup(m_shown, action);
+        return;
+    }
+    if (action == "blindsGetToolZ") {
+        // The chosen nozzle's Z as the part's.
+        const Where at = whereIs ? whereIs(Tool::Nozzle) : Where {};
+        JPFeeder* f = m_config.feeder(m_shown);
+        if (!f || !at[2]) {
+            JDialog::message("Error", "Nothing captured: the machine is not connected.");
+            return;
+        }
+        f->setLocation(f->location().derive(std::nullopt, std::nullopt, *at[2], std::nullopt));
+        rebuild();
+        changed();
+        return;
+    }
+    if (action == "blindsOcrToAll" || action == "blindsPipelineToAll") {
+        const std::string id = m_shown;
+        JDialog::confirm("Warning",
+                         action == "blindsOcrToAll"
+                             ? "This will replace the OCR settings of all the other BlindsFeeders on the machine with those of this BlindsFeeder. Are you sure?"
+                             : "This will replace the pipeline of all the other BlindsFeeders on the machine with the pipeline of this BlindsFeeder. Are you sure?",
+                         [this, id, action] {
+                             std::string why;
+                             JPFeederForms::act(m_config, id, action, why);
+                             changed();
+                         });
+        return;
+    }
+    if (action == "blindsExtract") {
+        if (extractBlindsFiles) extractBlindsFiles();
+        return;
+    }
+    if (action == "setupOcrRegion" || action == "ocrRegionNext" || action == "ocrRegionCancel") {
+        if (ocrRegion) ocrRegion(m_shown, action);
+        return;
+    }
+    if (action == "cloneFromTemplate") {
+        cloneFromTemplate(m_shown);
+        return;
+    }
+    if (action == "cloneToFeeders") {
+        cloneToFeeders(m_shown);
+        return;
+    }
+    if (action == "plusOne") {
+        plusOne(m_shown);
+        return;
+    }
+    // A Bamboo feeder's, as OpenPnP's asks: its count reset, or its settings overwritten by Auto-Setup.
+    if (const JPFeeder* f = m_config.feeder(m_shown); f && f->isVisionTape()) {
+        const std::string id = m_shown;
+        if (action == "resetFeedCount") {
+            JDialog::confirm("Warning", "This will reset the recorded feed count of this feeder. Are you sure?", [this, id] {
+                std::string why;
+                if (!JPFeederForms::act(m_config, id, "resetFeedCount", why)) return;
+                rebuild();
+                m_table->refresh();
+                changed();
+            });
+            return;
+        }
+        const JPLocation at = f->location();
+        if (action == "autoSetupTape" && (at.x() != 0 || at.y() != 0)) {
+            std::string ask = "This may overwrite all your current settings. Are you sure?";
+            if (f->flag("used-as-template", false)) ask += "\n\nThis feeder is marked as template. Are you really, really sure?";
+            JDialog::confirm("Warning", ask, [this, id] {
+                if (machineAction) machineAction(id, "autoSetupTape");
+            });
+            return;
+        }
+    }
+    if (action == "editPipeline" || action == "resetPipeline" || action == "editTrainingPipeline"
+        || action == "resetTrainingPipeline" || action == "editDropBoxPipeline" || action == "resetDropBoxPipeline") {
+        if (pipelineAction) pipelineAction(m_shown, action);
+        return;
+    }
+    // A search shows its strip from the start, every address not yet asked.
+    if (action == "photonSearch") {
+        m_searchStates.assign(size_t(std::max(1, m_config.photon().maxFeederAddress())), 0);
+        jPostToNextFrame([this, alive = std::weak_ptr<bool>(m_alive)] {
+            if (const auto a = alive.lock(); a && *a) rebuildForm();
+        });
+    }
+    // Done on the machine: on its thread.
+    if (JPFeederForms::isMachineAction(action)) {
+        if (machineAction) machineAction(m_shown, action);
+        return;
+    }
+    std::string why;
+    if (!JPFeederForms::act(m_config, m_shown, action, why, [this](const std::string& key) { return reading(key); })) {
+        if (!why.empty()) JDialog::message("Error", why);
+        return;
+    }
+    // Not while the button clicked is still in its page: the page is made again.
+    jPostToNextFrame([this, alive = std::weak_ptr<bool>(m_alive)] {
+        if (const auto a = alive.lock(); a && *a) rebuildForm();
+    });
+    m_table->refresh();
+    changed();
+}
+
 void JPFeedersPanel::selectFeeder(const std::string& id) {
     m_table->selectRow(m_model.rowOf(id));
 }
@@ -424,6 +428,7 @@ void JPFeedersPanel::showSearchState(int address, int state) {
     if (size_t(address) > m_searchStates.size()) m_searchStates.resize(size_t(address), 0);
     m_searchStates[size_t(address - 1)] = state;
     m_form->refresh();
+    if (onPageRefreshed) onPageRefreshed();
 }
 
 void JPFeedersPanel::searchEnded() {
@@ -441,11 +446,24 @@ std::string JPFeedersPanel::reading(const std::string& action) const {
 
 void JPFeedersPanel::showReading(const std::string& feederId, const std::string& action, const std::string& value) {
     m_readings[feederId][action] = value;
-    if (feederId == m_shown) m_form->refresh();
+    if (feederId != m_shown) return;
+    m_form->refresh();
+    if (onPageRefreshed) onPageRefreshed();
 }
 
 void JPFeedersPanel::rebuildForm() {
-    if (m_config.feeder(m_shown)) m_form->remake(formFor());
+    if (!m_config.feeder(m_shown)) return;
+    m_form->remake(formFor());
+    if (onPageRemade) onPageRemade();
+}
+
+bool JPFeedersPanel::showFeeder(const std::string& feederId) {
+    if (m_shown != feederId) selectFeeder(feederId);
+    return m_shown == feederId && !feederId.empty();
+}
+
+JPSetupProperties::Form JPFeedersPanel::pageFor(const std::string& feederId) {
+    return showFeeder(feederId) ? formFor() : JPSetupProperties::Form {};
 }
 
 JPSetupProperties::Form JPFeedersPanel::formFor() {

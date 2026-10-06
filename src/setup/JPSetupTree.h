@@ -4,28 +4,32 @@
 #pragma once
 
 #include "machine/JPCellConfig.h"
+#include "model/JPConfiguration.h"
 
 #include <string>
 #include <vector>
 
 inline namespace jf {
 
-// A cell as Machine Setup shows it: a tree of what the machine is made of.
+// A cell as Machine Setup shows it: a tree of what the machine is made of,
+// in OpenPnP's order, each part named by its OpenPnP class and its name.
 //
 //   Machine
-//     Controllers         a controller each
 //     Axes                an axis each
+//     Signalers           a signaler each
+//     Feeders             a feeder each (the configuration's, when given)
 //     Heads               a head each, and on it
 //       Nozzles, Cameras, Actuators
 //     Nozzle Tips         a nozzle tip each, and under it
 //       Load, Unload      its changer's steps
 //     Cameras             fixed to the machine (looking up at the nozzles)
 //     Actuators           on the machine, not a head
-//     Signalers           a signaler each
+//     Drivers             a controller each
+//     Job Processors, Vision
 //
 // Each node has a path naming it: "machine", "driver:<id>", "axis:<id>",
 // "head:<id>", "nozzle:<id>", "nozzletip:<id>", "camera:<id>",
-// "actuator:<id>", "signaler:<id>", "step:<tipId>:<load|unload>:<index>", and for a group
+// "actuator:<id>", "signaler:<id>", "feeder:<id>", "step:<tipId>:<load|unload>:<index>", and for a group
 // "group:<what>" ("group:drivers", "group:axes", "group:heads",
 // "group:nozzletips", "group:signalers") or, for a group that belongs to a head (or to the
 // machine, an empty head) or a tip, "group:<what>:<owner>"
@@ -42,7 +46,8 @@ public:
         std::string       icon;   // OpenPnP's icon for its kind (JPOpenPnpIcons' name); empty for none
     };
 
-    static Node build(const JPCellConfig& cell);
+    // With the configuration, its feeders too.
+    static Node build(const JPCellConfig& cell, const JPConfiguration* config = nullptr);
 
     // A path's parts: its kind ("axis", "group", "machine"), the id after it
     // (a group's: what it holds; a step's: its index), and whose it is (a

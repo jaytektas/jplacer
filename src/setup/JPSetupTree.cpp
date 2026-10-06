@@ -100,12 +100,19 @@ bool contains(const JPSetupTree::Node& n, const std::string& path, std::vector<s
 
 } // namespace
 
-JPSetupTree::Node JPSetupTree::build(const JPCellConfig& cell) {
+JPSetupTree::Node JPSetupTree::build(const JPCellConfig& cell, const JPConfiguration* config) {
     Node root{ cell.name.empty() ? "Machine" : cell.name, "machine", {} };
     auto all = [](const auto&) { return true; };
     // OpenPnP's order: Axes, Signalers, Heads (Feeders are their own tab here), Nozzle Tips, Cameras, Actuators, Drivers.
     root.children.push_back(group<JPAxisConfig>("Axes", "group:axes", cell.axes, "axis", all));
     root.children.push_back(group<JPSignalerConfig>("Signalers", "group:signalers", cell.signalers, "signaler", all));
+    if (config) {
+        // The Feeders tab's feeders, each its page there (OpenPnP's Feeders, with its feeder icon).
+        Node feeders{ "Feeders", "group:feeders", {} };
+        for (const JPFeeder& f : config->feeders())
+            feeders.children.push_back({ f.typeName() + " " + labelOf(f.name(), f.id()), "feeder:" + f.id(), {}, "feeder" });
+        root.children.push_back(std::move(feeders));
+    }
     Node heads{ "Heads", "group:heads", {} };
     for (const JPHeadConfig& h : cell.heads) {
         Node head{ "ReferenceHead " + labelOf(h.name, h.id), "head:" + h.id, {} };

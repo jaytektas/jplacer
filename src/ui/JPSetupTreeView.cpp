@@ -14,7 +14,7 @@ inline namespace jf {
 namespace {
 
 // The icons OpenPnP's tree shows (getPropertySheetHolderIcon), in the order of their numbers.
-constexpr const char* kIcons[] = { "capture-nozzle", "capture-camera", "driver", "axis-cartesian", "axis-rotate" };
+constexpr const char* kIcons[] = { "capture-nozzle", "capture-camera", "driver", "axis-cartesian", "axis-rotate", "feeder" };
 // An icon as tall as this share of its row, drawn at twice that and shown smaller to stay sharp.
 constexpr float kRowShare = 0.8f;
 constexpr float kOversample = 2.f;

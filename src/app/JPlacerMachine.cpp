@@ -570,6 +570,7 @@ std::unique_ptr<JPMachineSetupPanel> JPlacerMachine::makeSetup() {
         JSettings::instance().get<double>(JPlacerSettings::kSetupTreeShare, JPMachineSetupPanel::kTreeShare));
     m_setup = setup.get();
     setup->setConfiguration(m_configuration);
+    setup->feederPages = m_setupFeederPages;
     setup->setVisionTests(m_setupVisionTests);
     setup->onConfigurationChanged = [this] {
         if (onSetupConfigurationChanged) onSetupConfigurationChanged();
