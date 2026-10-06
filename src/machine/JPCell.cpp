@@ -5,6 +5,7 @@
 
 #include "JPMotion.h"
 #include "JPMotionPath.h"
+#include "JPValueRegex.h"
 
 #include "common/JPlacerLog.h"
 
@@ -1686,13 +1687,13 @@ bool JPCell::doReadNow(const JPActuatorConfig& a, std::string& value, std::strin
         why = a.name + " cannot be read";
         return false;
     }
-    std::regex pattern;
-    try {
-        pattern = std::regex(a.readPattern);
-    } catch (const std::regex_error&) {
+    // OpenPnP's Actuator Read Regex: its "Value" group, else (a pattern of jplacer's own) its first.
+    JPValueRegex pattern;
+    if (!pattern.compile(a.readPattern)) {
         why = a.name + ": its read pattern is not a valid pattern";
         return false;
     }
+    const size_t group = pattern.valueGroup().value_or(1);
     std::map<std::string, std::string> vars { { "index", a.index } };
     if (parameter) vars["value"] = *parameter;
     const JPReply r = d->send(JPFirmwareProfile::fill(a.readCommand, vars)).get();
@@ -1702,9 +1703,9 @@ bool JPCell::doReadNow(const JPActuatorConfig& a, std::string& value, std::strin
     }
     for (const std::string& line : r.lines) {
         std::smatch m;
-        if (std::regex_search(line, m, pattern) && m.size() > 1) {
-            JLOGC(JPlacerLog::kCell, JLogLevel::Info) << a.name << " read " << m[1].str() << (a.unit.empty() ? std::string() : " " + a.unit);
-            value = m[1].str();
+        if (std::regex_search(line, m, pattern.regex()) && m.size() > group) {
+            JLOGC(JPlacerLog::kCell, JLogLevel::Info) << a.name << " read " << m[group].str() << (a.unit.empty() ? std::string() : " " + a.unit);
+            value = m[group].str();
             return true;
         }
     }
@@ -2212,22 +2213,13 @@ bool JPCell::httpRead(const JPActuatorConfig& a, std::string& value, std::string
         why = a.name + ": " + r.error;
         return false;
     }
-    // OpenPnP's named group "Value": std::regex has no names, so it becomes a plain group, counted.
-    std::string pattern = a.http.regex;
-    size_t group = 0;
-    if (const size_t at = pattern.find("(?<Value>"); at != std::string::npos) {
-        group = 1;
-        for (size_t i = 0; i < at; ++i)
-            if (pattern[i] == '(' && (i == 0 || pattern[i - 1] != '\\') && (i + 1 >= pattern.size() || pattern[i + 1] != '?')) ++group;
-        pattern.replace(at, 9, "(");
-    }
-    std::regex re;
-    try {
-        re = std::regex(pattern);
-    } catch (const std::regex_error&) {
+    // Its lines, or each one's "Value" group of the regex.
+    JPValueRegex re;
+    if (!re.compile(a.http.regex)) {
         why = a.name + ": its regex is not a valid pattern";
         return false;
     }
+    const size_t group = re.valueGroup().value_or(0);
     value.clear();
     std::string text = r.text(), line;
     for (size_t start = 0; start <= text.size();) {
@@ -2236,7 +2228,7 @@ bool JPCell::httpRead(const JPActuatorConfig& a, std::string& value, std::string
         if (!line.empty() && line.back() == '\r') line.pop_back();
         std::smatch m;
         if (a.http.regex.empty()) value += line;
-        else if (group > 0 && std::regex_match(line, m, re) && m.size() > group) value += m[group].str();
+        else if (group > 0 && std::regex_match(line, m, re.regex()) && m.size() > group) value += m[group].str();
         if (end == std::string::npos) break;
         start = end + 1;
     }

@@ -4,7 +4,7 @@
 // OpenPnP's HttpActuator: switched on by a GET of its On URL, off with no Off
 // URL by its Param URL with 0, set by the Param URL with {val} the value, the
 // same URL not asked twice running; read by its Read URL, the regex's
-// "Value" group of each line.
+// "Value" group of each line (OpenPnP's HttpActuatorTest among them).
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
@@ -48,7 +48,7 @@ int main() {
                 std::lock_guard lk(m);
                 asked.push_back(path);
             }
-            const std::string body = path == "/read" ? "temp: 21.5\r\nhumidity: 40\r\n" : "ok";
+            const std::string body = path == "/read" ? "temp: 21.5\r\nhumidity: 40\r\n" : path == "/msr" ? "read:42" : "ok";
             const std::string reply = "HTTP/1.1 200 OK\r\nContent-Length: " + std::to_string(body.size())
                                     + "\r\nConnection: close\r\n\r\n" + body;
             ::send(c, reply.data(), reply.size(), 0);
@@ -75,11 +75,25 @@ int main() {
     assert(cell.switchActuatorAndWait("H", false, why));  // no Off URL: the Param URL with 0
     assert(cell.setActuatorAndWait("H", "7", why));
     assert(cell.readActuatorAndWait("H", std::nullopt, value, why) && value == "21.5");
+    // OpenPnP's HttpActuatorTest: its Read URL answering "read:42", its regex read:(?<Value>-?\d+): 42.
+    {
+        JPCellConfig msr;
+        msr.name = "HttpActuatorTest";
+        JPActuatorConfig r;
+        r.id = "M";
+        r.name = "Measure";
+        r.http.on = true;
+        r.http.readUrl = base + "/msr";
+        r.http.regex = "read:(?<Value>-?\\d+)";
+        msr.actuators.push_back(r);
+        JPCell measuring(msr, {});
+        assert(measuring.readActuatorAndWait("M", std::nullopt, value, why) && std::stod(value) == 42.0);
+    }
     stop = true;
     ::shutdown(listener, SHUT_RDWR);
     ::close(listener);
     server.join();
     std::lock_guard lk(m);
-    assert((asked == std::vector<std::string> { "/on", "/set?v=0", "/set?v=7", "/read" }));
+    assert((asked == std::vector<std::string> { "/on", "/set?v=0", "/set?v=7", "/read", "/msr" }));
     return 0;
 }

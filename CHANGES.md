@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- An actuator's Read Reply Pattern takes OpenPnP's `(?<Value>...)` group as OpenPnP does: a pattern typed so was
+  refused, and one brought in from OpenPnP with groups before the Value group read the wrong one. OpenPnP's
+  patterns are now brought in as they are.
 - Bottom vision works out a part's offsets as OpenPnP's does, step for step: the Vision Center Offsets are now
   taken off (they were kept but not used), the Part size check is made, offsets beyond the nozzle tip's Max. Pick
   Tolerance stop the placement, and a part not pre-rotated is looked at with the nozzle at 0° (it was looked at as

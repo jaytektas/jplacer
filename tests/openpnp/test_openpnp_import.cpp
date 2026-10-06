@@ -164,7 +164,7 @@ int main() {
     const JPActuatorConfig& sol = cell.actuators[0];
     assert(sol.name == "RIGHT_SOLENOID" && sol.index == "4");
     assert(sol.onCommand == "M64 P{index}" && sol.offCommand == "M65 P{index}");
-    assert(sol.readCommand == "M1000 P0" && sol.readPattern == "-?(\\d+)");
+    assert(sol.readCommand == "M1000 P0" && sol.readPattern == "-?(?<Value>\\d+)");
     const JPActuatorConfig& photon = cell.actuators[1];
     assert(photon.mount.headId.empty() && photon.driverId == "DRV1");   // found by its commands
     assert(photon.onCommand == "M64 P{index}");            // the driver's default switch command

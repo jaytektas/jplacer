@@ -268,11 +268,6 @@ std::string translate(const std::string& tmpl, int on, const std::string& what,
     return out;
 }
 
-// OpenPnP regexes use Java's named groups; std::regex does not have them.
-std::string plainGroups(const std::string& re) {
-    return std::regex_replace(re, std::regex(R"(\(\?<[A-Za-z][A-Za-z0-9]*>)"), "(");
-}
-
 std::string serialPort(const std::string& name) {
     if (name.empty() || name.find('/') != std::string::npos || name.rfind("COM", 0) == 0) return name;
     return "/dev/" + name;
@@ -845,7 +840,7 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
             if (const std::string* t = findCommand(cmds->second, "ACTUATOR_READ_COMMAND", a.id))
                 a.readCommand = translate(*t, -1, "actuator " + a.name, notes);
             if (const std::string* t = findCommand(cmds->second, "ACTUATOR_READ_REGEX", a.id))
-                a.readPattern = plainGroups(*t);
+                a.readPattern = *t;
         }
         if (neoden4Drivers.count(a.driverId)) {
             if (shortClass(x) == "NeoDen4FeederActuator") {
