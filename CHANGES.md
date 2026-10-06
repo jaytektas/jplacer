@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- The machine's General settings are in OpenPnP's order, with its Home after enabled? (every controller homing
+  the machine once it connects).
 - Machine Setup's tree is OpenPnP's: Axes, Signalers, Heads, Nozzle Tips, Cameras, Actuators, Drivers, each part
   named by its class and name (ReferenceHead H1), with OpenPnP's icons. A new nozzle is a ReferenceNozzle or a ContactProbeNozzle, as
   OpenPnP's, and only a ContactProbeNozzle has the Contact Probe tab.

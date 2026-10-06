@@ -279,15 +279,20 @@ void machineForm(JPCellConfig& cell, JPSetupProperties::Form& f, const JPMotionT
     add.tab("Configuration");
     add.group("General");
     add.text("name", "Name", [&cell]() -> std::string& { return cell.name; }, "name");
+    // OpenPnP's order. Home after enabled? is each controller's Home after connected? (jplacer's machine is
+    // enabled as its controllers connect): ticked, every one homes; shown ticked when any does.
+    add.flag("homeAfterEnabled", "Home after enabled?",
+             [&cell] { return std::any_of(cell.drivers.begin(), cell.drivers.end(), [](const JPDriverConfig& d) { return d.homeAfterConnect; }); },
+             [&cell](bool on) { for (JPDriverConfig& d : cell.drivers) d.homeAfterConnect = on; });
     add.flag("parkAfterHome", "Park after homed?", [&cell]() -> bool& { return cell.parkAfterHome; });
     add.flag("safeZPark", "Park all at Safe Z?", [&cell]() -> bool& { return cell.safeZPark; });
     add.tip("When the Z Park button is pressed, move all tools mounted on the same head to safe Z.");
+    add.flag("autoToolSelect", "Auto tool select?", [&cell]() -> bool& { return cell.autoToolSelect; });
+    add.tip("Whenever an explicit user action is performed on a tool, automatically select it in Machine Controls.");
     add.length("unsafeZRoaming", "Unsafe Z Roaming", [&cell]() -> double& { return cell.unsafeZRoamingMm; }, 2);
     add.tip("Maximum allowable roaming distance at unsafe Z. Virtual Z axes (typically on cameras) are invisible, therefore "
             "it can easily be overlooked that you are at unsafe Z. Jogging further away will automatically move the "
             "virtual axis to Safe Z.");
-    add.flag("autoToolSelect", "Auto tool select?", [&cell]() -> bool& { return cell.autoToolSelect; });
-    add.tip("Whenever an explicit user action is performed on a tool, automatically select it in Machine Controls.");
     add.flag("poolScriptingEngines", "Pool scripting engines?", [&cell]() -> bool& { return cell.poolScriptingEngines; });
     add.tip("Python and JavaScript scripts are run by interpreters kept from one script to the next, not started anew "
             "each time: faster, but what a script leaves behind (a module's state) is there for the next.");
