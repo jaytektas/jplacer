@@ -136,6 +136,9 @@ void motionPlannerTabs(JPCellConfig& cell, JPFormBuilder& add, const JPMotionTes
             "delays introduced when communicating back and forth. By allowing continuous motion, the planner no longer "
             "waits for motion to complete each time, unless explicitly told to (an actuator's Machine Coordination, a "
             "pick or place, the end of each operation).");
+    add.number("minimumSpeed", "Minimum Speed [%]", [mp] { return mp().minimumSpeed * 100; },
+               [mp](double v) { mp().minimumSpeed = std::clamp(v, 0.0, 100.0) / 100; }, 1);
+    add.tip("Minimum speed supported by the motion planner: the Jog panel's speed goes no lower.");
     add.group("Test Motion");
     add.header({ "X", "Y", "Z", "Rotation", "Enabled?" });
     static const char* const kStops[] = { "First Location", "Second Location", "Third Location", "Last Location" };

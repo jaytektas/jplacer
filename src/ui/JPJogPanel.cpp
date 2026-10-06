@@ -507,7 +507,8 @@ void JPJogPanel::showTipMenu() {
 
 double JPJogPanel::distance() const { return m_distances[size_t(m_distanceIndex)]; }
 double JPJogPanel::lengthStep() const { return JPSystemUnits::stored(distance()); }
-double JPJogPanel::speed() const    { return std::max(kLeastSpeed, m_speedShare); }
+// No slower than the motion planner's Minimum Speed (OpenPnP's).
+double JPJogPanel::speed() const    { return std::max({ kLeastSpeed, m_cell.config().motionPlanner.minimumSpeed, m_speedShare }); }
 
 JPJogPanel::Choices JPJogPanel::choices() const {
     if (m_tools.empty()) return {};

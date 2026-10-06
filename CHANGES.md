@@ -10,6 +10,7 @@ notes.
 
 ## Unreleased
 
+- The Motion Planner's Minimum Speed, as OpenPnP's: the Jog panel's speed goes no lower (5% to begin with).
 - An axis's soft limit and safe zone buttons say which limit they take or go to, as OpenPnP's.
 - A controller's Sync Initial Location and Allow Unhomed Motion, as OpenPnP's: an unhomed machine can be jogged on
   controllers that say where they are, and moved at all where they allow it. A tick box that cannot be changed now

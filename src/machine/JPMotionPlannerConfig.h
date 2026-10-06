@@ -34,6 +34,9 @@ struct JPMotionPlannerConfig {
 
     bool                continuousMotion = false;
     bool                diagnosticsEnabled = false;
+    // OpenPnP's Minimum Speed: the slowest share of full speed offered (the Jog panel's speed goes no lower).
+    double              minimumSpeed = kDefaultMinimumSpeed;
+    static constexpr double kDefaultMinimumSpeed = 0.05;
     std::array<Stop, 4> stops { Stop{ false, { 0, 0, 0, 0 } }, Stop{ false, { 0, 400, 0, 0 } },
                                 Stop{ false, { 380, 400, 0, 0 } }, Stop{ false, { 380, 0, 0, 0 } } };
     std::array<double, 3> speeds { 1, 1, 1 };   // between stop i and i+1
@@ -57,6 +60,7 @@ struct JPMotionPlannerConfig {
         if (!j.isObject()) return p;
         p.continuousMotion   = j["continuousMotion"].boolean(false);
         p.diagnosticsEnabled = j["diagnosticsEnabled"].boolean(false);
+        p.minimumSpeed = j["minimumSpeed"].number(kDefaultMinimumSpeed);
         for (size_t i = 0; i < p.stops.size(); ++i) {
             const JJson& s = j["testMotion"][i];
             if (!s.isObject()) continue;
@@ -73,6 +77,7 @@ struct JPMotionPlannerConfig {
         JJson j = JJson::object();
         j["continuousMotion"] = continuousMotion;
         j["diagnosticsEnabled"] = diagnosticsEnabled;
+        j["minimumSpeed"] = minimumSpeed;
         JJson stopsJ = JJson::array();
         for (size_t i = 0; i < stops.size(); ++i) {
             JJson s = JJson::object();
