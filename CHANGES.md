@@ -10,6 +10,7 @@ notes.
 
 ## Unreleased
 
+- A nozzle's, camera's or actuator's Coordinate System shows OpenPnP's Safe Z (from its Z axis), under the Z column.
 - A capture camera's properties are in OpenPnP's columns (Auto, Min, Value, Max, Default), each value with OpenPnP's
   slider from the camera's least to its most.
 - A camera's General Configuration pairs its settings as OpenPnP's (Preview FPS with Suspend during tasks?, Auto

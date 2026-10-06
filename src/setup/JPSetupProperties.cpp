@@ -121,6 +121,24 @@ void coordinateSystem(JPFormBuilder& add, JPCellConfig& cell, std::function<T&()
     add.length("offsetY", "Offset Y", [mount]() -> double& { return mount().offsetY; });
     add.length("offsetZ", "Offset Z", [mount]() -> double& { return mount().offsetZ; });
     add.end();
+    // OpenPnP's Safe Z, shown not set (it is the Z axis's Safe Zone Low): where this part's Z is at safe Z.
+    add.row("Safe Z");
+    add.skip();
+    add.skip();
+    add.text("safeZ", "Safe Z", [&cell, mount] {
+        const JPAxisConfig* z = cell.axis(mount().axisZ);
+        const JPAxisConfig* raw = z && z->transformed() ? cell.axis(z->inputAxisId) : z;
+        // A virtual Z is at safe Z at its home coordinate (where roaming too far takes it).
+        const bool virtualZ = z && z->kind == JPAxisConfig::Kind::Virtual;
+        if (!virtualZ && (!raw || !raw->safeZoneLowEnabled)) return std::string();
+        const auto out = virtualZ ? std::optional<double>(z->homeCoordinate)
+                         : z->transformed() ? z->mapped(raw->safeZoneLow) : std::optional<double>(raw->safeZoneLow);
+        if (!out) return std::string();
+        char b[32];
+        std::snprintf(b, sizeof b, "%.3f", JPSystemUnits::shown(*out + mount().offsetZ));
+        return std::string(b);
+    }, nullptr);
+    add.end();
 }
 
 // OpenPnP's ReferenceAdvancedMotionPlanner tabs: its settings and Test Motion
