@@ -365,6 +365,7 @@ void JPMachineSetupPanel::show(const std::string& path) {
     m_selected = path;
     JPSetupProperties::Form f = formFor(path);
     m_reshaping = f.reshaping;
+    m_viewOnly = f.viewOnly;
     m_edits = f.edits;
     m_title->setText(f.title);
     m_labels.clear();
@@ -379,6 +380,10 @@ void JPMachineSetupPanel::changed(const std::string& property) {
     if (m_configProperties.count(property)) {
         if (property.find(":parameter:") != std::string::npos && visionAction) visionAction(shownVisionSettings(), property);
         if (onConfigurationChanged) onConfigurationChanged();
+        return;
+    }
+    if (std::find(m_viewOnly.begin(), m_viewOnly.end(), property) != m_viewOnly.end()) {
+        if (std::find(m_reshaping.begin(), m_reshaping.end(), property) != m_reshaping.end()) remakeForm();
         return;
     }
     const auto label = m_labels.find(property);
@@ -408,6 +413,7 @@ void JPMachineSetupPanel::remakeForm() {
         if (!alive.lock()) return;
         JPSetupProperties::Form f = formFor(m_selected);
         m_reshaping = f.reshaping;
+        m_viewOnly = f.viewOnly;
         m_edits = f.edits;
         m_title->setText(f.title);
         m_labels.clear();

@@ -3,9 +3,13 @@
 
 #include "JPCameraLook.h"
 
+#include "JPSettleCompare.h"
+
 #include "common/JPlacerLog.h"
 
 #include <j/core/Log.h>
+
+#include <opencv2/core.hpp>
 
 #include <algorithm>
 #include <chrono>
@@ -16,6 +20,13 @@
 inline namespace jf {
 
 bool JPCameraLook::taken(JPCameraFeed& feed, JPGrayImage& out, std::string& why, int afterMs) {
+    JPFrame frame;
+    if (!takenFrame(feed, frame, why, afterMs)) return false;
+    out = JPGrayImage::fromRgba(frame.rgba.data(), frame.width, frame.height);
+    return true;
+}
+
+bool JPCameraLook::takenFrame(JPCameraFeed& feed, JPFrame& frame, std::string& why, int afterMs) {
     // Brought on screen for this, it starts a moment later: waited for.
     for (const auto start = std::chrono::steady_clock::now(); !feed.isRunning();) {
         if (std::chrono::steady_clock::now() - start > std::chrono::milliseconds(kTimeoutMs)) {
@@ -33,11 +44,9 @@ bool JPCameraLook::taken(JPCameraFeed& feed, JPGrayImage& out, std::string& why,
     // seen lost: plugged back in, the task carries on where it was.
     const auto wait = std::chrono::seconds(std::max(0, feed.config().lost.waitS));
     std::optional<std::chrono::steady_clock::time_point> lostAt;
-    JPFrame frame;
     for (auto at = now; at < until; at = std::chrono::steady_clock::now()) {
         if (feed.latest(frame, 0) && frame.captured >= takenFrom) {
             if (lostAt) JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << feed.config().name << " is back";
-            out = JPGrayImage::fromRgba(frame.rgba.data(), frame.width, frame.height);
             return true;
         }
         if (feed.isLost()) {
@@ -61,32 +70,6 @@ bool JPCameraLook::taken(JPCameraFeed& feed, JPGrayImage& out, std::string& why,
     return false;
 }
 
-double JPCameraLook::difference(const JPGrayImage& a, const JPGrayImage& b, const std::string& method, double maskCircle) {
-    if (a.width != b.width || a.height != b.height || a.pixels.empty()) return 100;
-    const double r = maskCircle > 0 ? maskCircle * std::min(a.width, a.height) * 0.5 : 0;
-    const double cx = (a.width - 1) * 0.5, cy = (a.height - 1) * 0.5;
-    double sum = 0, sumSq = 0, most = 0;
-    size_t n = 0;
-    for (int y = 0; y < a.height; ++y)
-        for (int x = 0; x < a.width; ++x) {
-            if (r > 0 && (x - cx) * (x - cx) + (y - cy) * (y - cy) > r * r) continue;
-            const size_t i = size_t(y) * size_t(a.width) + size_t(x);
-            const double d = std::abs(double(a.pixels[i]) - double(b.pixels[i]));
-            sum += d;
-            sumSq += d * d;
-            most = std::max(most, d);
-            ++n;
-        }
-    if (n == 0) return 0;
-    // OpenPnP's norms, each over its full scale.
-    double v = 0;
-    if (method == "Maximum")     v = most / 255.0;
-    else if (method == "Mean")   v = sum / (255.0 * double(n));
-    else if (method == "Square") v = sumSq / (255.0 * 255.0 * double(n));
-    else                         v = std::sqrt(sumSq) / (255.0 * std::sqrt(double(n)));   // Euclidean
-    return v * 100;
-}
-
 bool JPCameraLook::settled(JPCameraFeed& feed, JPGrayImage& out, std::string& why, JPSettleTrace* trace) {
     // OpenPnP's settleAndCapture, with its scripting events: settled, then the picture taken.
     auto event = [&feed, &why](const char* name) { return !feed.scriptEvent || feed.scriptEvent(name, why); };
@@ -98,6 +81,9 @@ bool JPCameraLook::settled(JPCameraFeed& feed, JPGrayImage& out, std::string& wh
 bool JPCameraLook::settledNow(JPCameraFeed& feed, JPGrayImage& out, std::string& why, JPSettleTrace* trace) {
     const JPCameraConfig::Settle& st = feed.config().settle;
     const bool fixed = st.method == "FixedTime" || st.method.empty();
+    // OpenPnP's Diagnostics: every settle traced, its pictures kept, handed to the feed's owner.
+    JPSettleTrace kept;
+    if (!trace && st.diagnostics && !fixed) trace = &kept;
     if (fixed && !trace) return taken(feed, out, why, st.timeMs);
     // Each picture taken since the call against the one before, until still
     // (or, timed, until the time is up).
@@ -108,47 +94,70 @@ bool JPCameraLook::settledNow(JPCameraFeed& feed, JPGrayImage& out, std::string&
         trace->method = fixed ? std::string("FixedTime") : st.method;
         trace->threshold = fixed ? 0 : st.threshold;
     }
-    JPGrayImage last;
-    if (!taken(feed, last, why, 0)) return false;
+    auto pictures = std::make_shared<std::vector<JPSettleTrace::Picture>>();
+    JPSettleCompare compare(st, method);
+    auto record = [&](const JPFrame& frame, const cv::Mat& prepared) {
+        if (!trace || !st.diagnostics) return;
+        const double ms = std::chrono::duration<double, std::milli>(frame.captured - start).count();
+        trace->captures.push_back({ ms, 0.0 });
+        trace->captures.push_back({ ms, 1.0 });
+        trace->captures.push_back({ ms, 0.0 });
+        cv::Mat bytes;
+        prepared.convertTo(bytes, CV_8U);
+        JPSettleTrace::Picture p { ms, bytes.cols, bytes.rows, bytes.channels(), {} };
+        p.pixels.assign(bytes.data, bytes.data + bytes.total() * bytes.elemSize());
+        pictures->push_back(std::move(p));
+    };
+    JPFrame frame;
+    if (!takenFrame(feed, frame, why, 0)) return false;
+    cv::Mat last = compare.prepare(frame);
+    record(frame, last);
     const auto until = start + std::chrono::milliseconds(fixed ? st.timeMs : st.timeoutMs);
     int still = 0;
-    JPFrame frame;
-    uint64_t have = 0;
-    while (true) {
+    bool done = false;
+    uint64_t have = frame.sequence;
+    while (!done) {
         if (!feed.latest(frame, have)) {
             if (std::chrono::steady_clock::now() > until) break;
             std::this_thread::sleep_for(std::chrono::milliseconds(2));
             continue;
         }
         have = frame.sequence;
-        JPGrayImage next = JPGrayImage::fromRgba(frame.rgba.data(), frame.width, frame.height);
-        const double d = difference(last, next, method, st.maskCircle);
-        last = std::move(next);
+        cv::Mat next = compare.prepare(frame);
+        record(frame, next);
+        const double d = compare.difference(last, next);
+        last = next;
         const double ms = std::chrono::duration<double, std::milli>(frame.captured - start).count();
         if (trace) trace->points.push_back({ ms, d });
         if (fixed) {
             if (frame.captured >= until) {
                 if (trace) trace->settledMs = ms;
-                out = std::move(last);
-                return true;
+                done = true;
             }
             continue;
         }
-        still = d <= st.threshold ? still + 1 : 0;
+        // As OpenPnP's: over the threshold starts the count again; a picture
+        // the same as the one before (no noise at all: a picture repeated) does not count.
+        if (d > st.threshold) still = 0;
+        else if (d > 0) ++still;
         if (still > st.debounce) {
             if (trace) trace->settledMs = ms;
-            out = std::move(last);
-            return true;
+            done = true;
+        } else if (std::chrono::steady_clock::now() > until) {
+            break;
         }
-        if (std::chrono::steady_clock::now() > until) break;
     }
-    if (fixed) {
-        if (trace) trace->settledMs = st.timeMs;
-    } else {
-        JLOGC(JPlacerLog::kCamera, JLogLevel::Warn) << feed.config().name << ": not settled within " << st.timeoutMs
-                                                    << " ms; the last picture is used";
+    if (!done) {
+        if (fixed) {
+            if (trace) trace->settledMs = st.timeMs;
+        } else {
+            JLOGC(JPlacerLog::kCamera, JLogLevel::Warn) << feed.config().name << ": not settled within " << st.timeoutMs
+                                                        << " ms; the last picture is used";
+        }
     }
-    out = std::move(last);
+    if (trace && st.diagnostics) trace->pictures = pictures;
+    if (trace == &kept && feed.onSettleTrace) feed.onSettleTrace(kept);
+    out = JPGrayImage::fromRgba(frame.rgba.data(), frame.width, frame.height);
     return true;
 }
 

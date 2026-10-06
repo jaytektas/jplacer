@@ -25,14 +25,14 @@ public:
     // the last picture (as OpenPnP does), and the log says so.
     // With `trace`, how it settled is kept there (each picture's difference
     // from the last, by the settle method, against time; with FixedTime too,
-    // by the Euclidean difference, for the settling graph).
+    // by the Euclidean difference, for the settling graph). With the
+    // camera's Diagnostics, every settle is traced, with its pictures, and
+    // handed to the feed's onSettleTrace when no `trace` is asked for.
     static bool settled(JPCameraFeed& feed, JPGrayImage& out, std::string& why, JPSettleTrace* trace = nullptr);
     // A picture taken at least `afterMs` after the call.
     static bool taken(JPCameraFeed& feed, JPGrayImage& out, std::string& why, int afterMs);
-    // How much `b` differs from `a` by `method` (Maximum, Mean, Euclidean,
-    // Square), as a percentage of full scale, in a centred circle of
-    // `maskCircle` of the smaller side (0: everywhere).
-    static double difference(const JPGrayImage& a, const JPGrayImage& b, const std::string& method, double maskCircle);
+    // The same, the picture as the camera gave it.
+    static bool takenFrame(JPCameraFeed& feed, JPFrame& frame, std::string& why, int afterMs);
     // The camera's calibration for the pictures it is taking (waiting for
     // one, to know their size). False (and why) when it has none at that size.
     static bool calibration(JPCell& cell, JPCameraFeed& feed, JPCameraCalibration& out, std::string& why);

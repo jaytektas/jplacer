@@ -263,9 +263,19 @@ void JPlacerMachine::buildCameras() {
             g["camera"] = name;
             return scripting->on(event, g, why);
         };
+        std::weak_ptr<bool> alive = m_alive;
+        // OpenPnP's settling Diagnostics: each settle's graph and pictures shown on the camera's Camera Settling tab.
+        d.panel->feed().onSettleTrace = [this, alive, id = c.id](const JPSettleTrace& trace) {
+            JMainThreadDispatcher::instance().post([this, alive, id, trace] {
+                if (const auto a = alive.lock(); !a || !*a || !m_setup) return;
+                m_setup->measured([&](JPCellConfig& cell) {
+                    for (JPCameraConfig& cam : cell.cameras)
+                        if (cam.id == id) cam.settleTrace = trace;
+                });
+            });
+        };
         // OpenPnP's SwitcherCamera: the device camera's feed (started if it is not
         // showing), and the actuator that switches the multiplexer to this camera.
-        std::weak_ptr<bool> alive = m_alive;
         d.panel->feed().setSwitching({
             [this, alive, switched = c.id](const std::string& id) -> JPCameraFeed* {
                 for (const CameraDock& other : m_cameras) {
@@ -1290,11 +1300,14 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
         // One jog step (the Jog pad's distance) out and back, or none.
         const std::string id = path.substr(7);
         const double step = m_jog ? m_jog->lengthStep() : 0;
-        const double dx = action == "settleTestLeft" ? -step : action == "settleTestRight" ? step : 0;
-        const double dy = action == "settleTestFront" ? -step : action == "settleTestBack" ? step : 0;
+        JPlacerCameraTasks::SettleMove move;
+        move.dx = action == "settleTestLeft" ? -step : action == "settleTestRight" ? step : 0;
+        move.dy = action == "settleTestFront" ? -step : action == "settleTestBack" ? step : 0;
+        move.dc = action == "settleTestRotate" && m_jog ? m_jog->distance() : 0;
+        move.up = action == "settleTestUp";
         for (CameraDock& c : m_cameras)
             if (c.panel->camera().id == id)
-                m_cameraTasks->settleTest(*c.panel, toolMount(JPSetupForm::Tool::Nozzle), dx, dy, [this, id](const JPSettleTrace& trace) {
+                m_cameraTasks->settleTest(*c.panel, toolMount(JPSetupForm::Tool::Nozzle), move, [this, id](const JPSettleTrace& trace) {
                     if (!m_setup) return;
                     m_setup->measured([&](JPCellConfig& cell) {
                         for (JPCameraConfig& cam : cell.cameras)

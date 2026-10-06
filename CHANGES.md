@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- Camera settling has all of OpenPnP's options: the Motion method, Color Sensitive, Edge Sensitive, Enhance Contrast,
+  Denoise and Diagnostics (every settle graphed, its pictures replayed), and a fixed camera's Rotate and Up tests.
+  OpenPnP cameras that settle by Motion come in as they are.
 - Part detection works as OpenPnP's: Establish Level, Perform Checks (after pick, alignment, before place, after
   place, before pick), a Difference measured from the end of the pick's dwell, and the last readings and a graph of
   the vacuum and valve on the nozzle tip's Part Detection tab. The checks need the nozzle's vacuum sense actuator.

@@ -10,6 +10,7 @@
 #include "JPWhiteBalance.h"
 
 #include "machine/JPCameraConfig.h"
+#include "machine/JPSettleTrace.h"
 
 #include <j/core/Signal.h>
 
@@ -73,6 +74,8 @@ public:
     // for this camera, run where vision takes its pictures (JPCameraLook);
     // false with why when one failed. Set once, before pictures are taken.
     std::function<bool(const std::string& event, std::string& why)> scriptEvent;
+    // A settle traced for the camera's Diagnostics (JPCameraLook::settled), on the settling thread.
+    std::function<void(const JPSettleTrace& trace)> onSettleTrace;
 
     JSignal<uint64_t>    onFrame;     // a new frame's sequence
     JSignal<std::string> onError;     // why it was lost (it is opened again until stopped)

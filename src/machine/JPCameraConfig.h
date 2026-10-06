@@ -69,10 +69,16 @@ struct JPCameraConfig {
     // SETTLING, as OpenPnP does it: a picture for vision is one taken once
     // the camera has stopped moving. FixedTime waits `timeMs` after the move.
     // The others compare each picture with the one before (Maximum, Mean,
-    // Euclidean or Square of the difference, as a percentage of full scale,
-    // in a circle of `maskCircle` of the picture's height, 0 the whole
-    // picture) until the difference has stayed under `threshold` for
-    // `debounce` pictures more, or `timeoutMs` has passed.
+    // Euclidean or Square of the difference, as a percentage of full scale;
+    // Motion, how far in pixels the picture moved) in a circle of
+    // `maskCircle` of the picture's height (0 the whole picture) until the
+    // difference has stayed under `threshold` for `debounce` pictures more,
+    // or `timeoutMs` has passed. Each picture is first made grey (unless
+    // `fullColor`), its contrast enhanced by `contrastEnhance` (0 none, 1 to
+    // the full range), blurred by a Gaussian `gaussianBlur` pixels across
+    // (0 none; a large one on a picture scaled down), and with `gradients`
+    // its edges taken (Laplacian). `diagnostics`: each settle's pictures and
+    // differences kept for its graph and replay.
     struct Settle {
         std::string method = "FixedTime";
         int         timeMs = 150;
@@ -80,6 +86,11 @@ struct JPCameraConfig {
         double      threshold = 0.5;
         int         debounce = 0;
         double      maskCircle = 0;
+        bool        fullColor = false;
+        int         gaussianBlur = 0;
+        bool        gradients = false;
+        double      contrastEnhance = 0;
+        bool        diagnostics = false;
     };
     Settle        settle;
     // When it counts as LOST (JPCameraFeed): no picture for `noPictureS`, or
@@ -239,6 +250,11 @@ struct JPCameraConfig {
             c.settle.threshold  = st["threshold"].number(c.settle.threshold);
             c.settle.debounce   = int(st["debounce"].number(c.settle.debounce));
             c.settle.maskCircle = st["maskCircle"].number(c.settle.maskCircle);
+            c.settle.fullColor  = st["fullColor"].boolean(false);
+            c.settle.gaussianBlur = int(st["gaussianBlur"].number(0));
+            c.settle.gradients  = st["gradients"].boolean(false);
+            c.settle.contrastEnhance = st["contrastEnhance"].number(0);
+            c.settle.diagnostics = st["diagnostics"].boolean(false);
         }
         if (const JJson& l = j["lost"]; l.isObject()) {
             c.lost.noPictureS   = int(l["noPictureS"].number(c.lost.noPictureS));
@@ -313,6 +329,11 @@ struct JPCameraConfig {
         j["settle"]["threshold"]  = settle.threshold;
         j["settle"]["debounce"]   = settle.debounce;
         j["settle"]["maskCircle"] = settle.maskCircle;
+        j["settle"]["fullColor"]  = settle.fullColor;
+        j["settle"]["gaussianBlur"] = settle.gaussianBlur;
+        j["settle"]["gradients"]  = settle.gradients;
+        j["settle"]["contrastEnhance"] = settle.contrastEnhance;
+        j["settle"]["diagnostics"] = settle.diagnostics;
         j["lost"]["noPictureS"]   = lost.noPictureS;
         j["lost"]["samePictureS"] = lost.samePictureS;
         j["lost"]["waitS"]        = lost.waitS;

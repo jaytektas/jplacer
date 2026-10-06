@@ -31,6 +31,10 @@ using Strings = std::vector<std::string>;
 // A nozzle tip's vacuum graph: the valve's scale (0 closed, 1 open) padded
 // so it runs in a band low down (as OpenPnP's scales).
 constexpr double kValveBandBelow = 0.25, kValveBandAbove = 4.0;
+// A camera's settling graph: the pictures' capture ticks in a band low down, as OpenPnP's.
+constexpr double kCaptureBandBelow = 0.1, kCaptureBandAbove = 6.0;
+// A picture and a difference this close in time (ms) are the same picture's.
+constexpr double kSameMs = 0.5;
 
 template <class T>
 JPFormBuilder::Named named(const std::vector<T>& items, const std::string& none) {
@@ -1335,6 +1339,7 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
     add.flag("cloneVisionCalibration", "Vision Calibration?", [] { return parts.visionCalibration; },
              [](bool on) { parts.visionCalibration = on; });
     add.end();
+    for (const char* choice : { "cloneLocations", "cloneZCalibration", "cloneVisionCalibration" }) f.viewOnly.push_back(choice);
     add.button("referenceTouchZ", "Calibrate all Touch Locations' Z to Template",
                "Calibrate all the nozzle tip's touch location Z to the Template reference. This will load the template "
                "nozzle tip on the default probing nozzle, recalibrate the template's touch location Z and then probe and "
@@ -1738,49 +1743,90 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     add.tab("Camera Settling");
     add.group("Camera Settling");
     auto settle = [c]() -> JPCameraConfig::Settle& { return c().settle; };
-    add.choice("settleMethod", "Settle Method", { "FixedTime", "Maximum", "Mean", "Euclidean", "Square" },
+    add.row("Settle Method");
+    add.choice("settleMethod", "Settle Method", { "FixedTime", "Maximum", "Mean", "Euclidean", "Square", "Motion" },
                [settle] { return settle().method; }, [settle](const std::string& v) { settle().method = v; });
+    if (settle().method == "FixedTime")
+        add.integer("settleTimeMs", "Settle Time (ms)", [settle]() -> int& { return settle().timeMs; }, 0, 10000);
+    else
+        add.integer("settleTimeoutMs", "Settle Timeout (ms)", [settle]() -> int& { return settle().timeoutMs; }, 0, 60000);
+    add.end();
     f.reshaping.push_back("settleMethod");
     if (settle().method == "FixedTime") {
-        add.integer("settleTimeMs", "Settle Time (ms)", [settle]() -> int& { return settle().timeMs; }, 0, 10000);
         add.note("A picture for vision is one taken this long after the move ended.");
     } else {
         add.row("Settle Threshold");
         add.number("settleThreshold", "Settle Threshold", [settle]() -> double& { return settle().threshold; }, 3);
-        add.integer("settleTimeoutMs", "Settle Timeout (ms)", [settle]() -> int& { return settle().timeoutMs; }, 0, 60000);
-        add.end();
-        add.row("Debounce Frames");
         add.integer("settleDebounce", "Debounce Frames", [settle]() -> int& { return settle().debounce; }, 0, 100);
-        add.number("settleMaskCircle", "Center Mask", [settle]() -> double& { return settle().maskCircle; }, 3);
         add.end();
-        add.note("Each picture is compared with the one before (as a percentage of full scale), in a centred "
-                 "circle of Center Mask of the picture (0: all of it), until the difference stays under the "
-                 "threshold for Debounce Frames more pictures, or the timeout passes.");
+        add.row("Color Sensitive?");
+        add.flag("settleFullColor", "Color Sensitive?", [settle]() -> bool& { return settle().fullColor; });
+        add.tip("Compare as full color image, i.e. difference in colors with same brightness will register.");
+        add.flag("settleGradients", "Edge Sensitive?", [settle]() -> bool& { return settle().gradients; });
+        add.tip("Use the gradients of the images rather than brightness.");
+        add.end();
+        add.row("Enhance Contrast");
+        add.number("settleContrastEnhance", "Enhance Contrast", [settle]() -> double& { return settle().contrastEnhance; }, 2);
+        add.tip("How much it should enhance the contrast from 0.0 (original image) to 1.0 (full dynamic range).");
+        add.integer("settleGaussianBlur", "Denoise (Pixel)", [settle]() -> int& { return settle().gaussianBlur; }, 0, 999);
+        add.tip("Diameter in pixels of the Gaussian Blur used to denoise the images. For large diameters the image will be "
+                "scaled down for better speed.");
+        add.end();
+        add.row("Center Mask");
+        add.number("settleMaskCircle", "Center Mask", [settle]() -> double& { return settle().maskCircle; }, 3);
+        add.tip("Size of the central circular mask, relative to the camera dimension (height or width, whichever is smaller). "
+                "0.0 no mask; 0.5 circular center area of half the camera view; 1.0 circular center area to the edge of the "
+                "camera view; 1.5 circular area vignetting the camera view.");
+        add.flag("settleDiagnostics", "Diagnostics?", [settle]() -> bool& { return settle().diagnostics; });
+        add.tip("Enable graphical diagnostics and replay of settle frames.");
+        add.end();
+        add.note(settle().method == "Motion"
+                     ? "Each picture is looked for in the one before: how many pixels it moved (more than a twentieth of "
+                       "it, no match, the most), until that stays under the threshold for Debounce Frames more pictures, "
+                       "or the timeout passes."
+                     : "Each picture is compared with the one before (as a percentage of full scale), until the "
+                       "difference stays under the threshold for Debounce Frames more pictures, or the timeout passes.");
     }
     add.group("Test");
-    add.actions({ { "Left", "settleTestLeft" }, { "Right", "settleTestRight" }, { "Back", "settleTestBack" },
-                  { "Front", "settleTestFront" }, { "Here", "settleTestHere" } });
-    add.note(c().mount.headId.empty()
-                 ? "Move the nozzle chosen on the Jog pad one jog step (the Jog pad's distance) that way and back, "
-                   "or not at all (Here), let the camera settle as a picture for vision would, and graph how it came "
-                   "to rest. Put the nozzle over the camera, at its focus, first: only X and Y move."
+    const bool fixedCamera = c().mount.headId.empty();
+    std::vector<std::pair<std::string, std::string>> tests { { "Left", "settleTestLeft" }, { "Right", "settleTestRight" },
+                                                             { "Back", "settleTestBack" }, { "Front", "settleTestFront" },
+                                                             { "Here", "settleTestHere" } };
+    // A fixed camera's: the nozzle turned, and the nozzle brought over it (OpenPnP's Up).
+    if (fixedCamera) {
+        tests.push_back({ "Rotate", "settleTestRotate" });
+        tests.push_back({ "Up", "settleTestUp" });
+    }
+    add.actions(tests);
+    add.note(fixedCamera
+                 ? "Move the nozzle chosen on the Jog pad one jog step (the Jog pad's distance) that way and back, turn "
+                   "it one jog step and back (Rotate), or not at all (Here), and let the camera settle as a picture for "
+                   "vision would, and graph how it came to rest. Up brings the nozzle over the camera at Safe Z (already "
+                   "there, it goes up to Safe Z and back). Put the nozzle over the camera, at its focus, first: only X "
+                   "and Y move, and no move goes to Safe Z."
                  : "Move the camera one jog step (the Jog pad's distance) that way and back, or not at all (Here), "
                    "let it settle as a picture for vision would, and graph how it came to rest.");
     if (const auto& t = c().settleTrace) {
         auto g = std::make_shared<JPPlot>();
         g->kind = JPPlot::Kind::Lines;
         g->xTitle = "ms";
-        g->yTitle = "difference %";
+        g->yTitle = t->method == "Motion" ? "motion px" : "difference %";
         JPPlot::Series d{ "difference", JPPlot::Tone::First, {} };
         for (const auto& [ms, v] : t->points) d.points.push_back({ ms, v });
         g->series.push_back(d);
         if (t->threshold > 0 && !t->points.empty())
             g->series.push_back({ "threshold", JPPlot::Tone::Second,
                                   { { t->points.front().first, t->threshold }, { t->points.back().first, t->threshold } } });
-        if (t->settledMs >= 0) {
-            double top = t->threshold;
-            for (const auto& [ms, v] : t->points) top = std::max(top, v);
-            g->series.push_back({ "settled", JPPlot::Tone::Muted, { { t->settledMs, 0 }, { t->settledMs, top } } });
+        double top = t->threshold;
+        for (const auto& [ms, v] : t->points) top = std::max(top, v);
+        if (t->settledMs >= 0) g->series.push_back({ "settled", JPPlot::Tone::Muted, { { t->settledMs, 0 }, { t->settledMs, top } } });
+        // OpenPnP's Capture row: when each picture was taken, a tick low down.
+        if (!t->captures.empty()) {
+            JPPlot::Series capture { "capture", JPPlot::Tone::Third, {}, true };
+            for (const auto& [ms, on] : t->captures) capture.points.push_back({ ms, on });
+            g->series.push_back(capture);
+            g->y2Lo = -kCaptureBandBelow;
+            g->y2Hi = 1 + kCaptureBandAbove;
         }
         char title[120];
         if (t->settledMs >= 0) std::snprintf(title, sizeof title, "Settled after %.0f ms (%s)", t->settledMs, t->method.c_str());
@@ -1791,6 +1837,35 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
                        "is how long the camera takes to come to rest."
                      : "Each picture's difference from the one before; the camera is still once it stays under the "
                        "threshold. A threshold just above the flat part, with a little room, settles soonest.");
+        // OpenPnP's replay: the pictures as they were compared, one at a time.
+        if (t->pictures && !t->pictures->empty()) {
+            const int count = int(t->pictures->size());
+            auto trace = [c]() -> JPSettleTrace& { return *c().settleTrace; };
+            add.slider("settleReplay", "Replay", 1, count, [trace, count] { return std::clamp(trace().replay, 0, count - 1) + 1; },
+                       [trace](int v) { trace().replay = v - 1; });
+            f.reshaping.push_back("settleReplay");
+            f.viewOnly.push_back("settleReplay");
+            const JPSettleTrace::Picture& p = (*t->pictures)[size_t(std::clamp(t->replay, 0, count - 1))];
+            auto picture = std::make_shared<JPFrame>();
+            picture->width = p.width;
+            picture->height = p.height;
+            picture->rgba.reserve(size_t(p.width) * size_t(p.height) * 4);
+            for (size_t i = 0; i + size_t(p.channels) <= p.pixels.size(); i += size_t(p.channels)) {
+                // Grey, or OpenCV's blue, green, red.
+                const uint8_t r = p.channels == 1 ? p.pixels[i] : p.pixels[i + 2], gr = p.channels == 1 ? p.pixels[i] : p.pixels[i + 1];
+                const uint8_t b = p.pixels[i];
+                picture->rgba.insert(picture->rgba.end(), { r, gr, b, 255 });
+            }
+            std::shared_ptr<const JPFrame> shown = picture;
+            add.image("", [shown] { return shown; });
+            double diff = -1;
+            for (const auto& [ms, v] : t->points)
+                if (ms <= p.ms + kSameMs) diff = v;
+            char at[120];
+            if (diff >= 0) std::snprintf(at, sizeof at, "Picture taken at %.0f ms, %.3f from the one before.", p.ms, diff);
+            else std::snprintf(at, sizeof at, "Picture taken at %.0f ms, the first.", p.ms);
+            add.note(at);
+        }
     }
 
     add.tab("Device Settings");

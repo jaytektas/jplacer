@@ -91,10 +91,16 @@ public:
                                                  const std::function<void(const std::string&)>& progress,
                                                  std::optional<JPBackgroundCalibration::Result>& background);
     // The settling test: a camera on a head moved (dx, dy) and back, or for a
-    // fixed camera `tool` (a nozzle held over it, by hand) moved so, then let
+    // fixed camera `tool` (a nozzle held over it, by hand) moved so, or turned
+    // `dc` degrees and back, or (`up`, OpenPnP's) brought over it at Safe Z
+    // (when more than kUpNearMm away; else up to Safe Z and back), then let
     // settle, how it settled kept (JPSettleTrace). `done` (main thread): the trace.
-    void settleTest(JPCameraPanel& camera, const JPMountConfig* tool, double dx, double dy,
-                    std::function<void(const JPSettleTrace&)> done);
+    struct SettleMove {
+        double dx = 0, dy = 0, dc = 0;
+        bool   up = false;
+    };
+    static constexpr double kUpNearMm = 5.0;
+    void settleTest(JPCameraPanel& camera, const JPMountConfig* tool, SettleMove move, std::function<void(const JPSettleTrace&)> done);
     // Measure an X or Y axis's backlash with the head camera over the head's
     // homing mark (JPBacklashCalibrator). `done` (main thread): what it found,
     // in use already, for the owner to keep.

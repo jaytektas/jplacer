@@ -494,30 +494,64 @@ void JPlacerCameraTasks::autoFocusTest(JPCameraPanel& camera, const JPNozzleConf
     });
 }
 
-void JPlacerCameraTasks::settleTest(JPCameraPanel& camera, const JPMountConfig* tool, double dx, double dy,
+void JPlacerCameraTasks::settleTest(JPCameraPanel& camera, const JPMountConfig* tool, SettleMove move,
                                     std::function<void(const JPSettleTrace&)> done) {
     // What moves: the camera, on a head; else the tool held over it.
     const bool fixed = camera.camera().mount.headId.empty();
     const JPMountConfig* moving = fixed ? tool : &camera.camera().mount;
-    const bool moves = (dx != 0 || dy != 0) && moving && !moving->axisX.empty() && !moving->axisY.empty();
+    const bool planar = move.dx != 0 || move.dy != 0;
+    const bool moves = planar && moving && !moving->axisX.empty() && !moving->axisY.empty();
+    const bool turns = move.dc != 0 && fixed && moving && !moving->axisRotation.empty();
     std::string why = m_busy ? "a camera task is already under way" : std::string();
-    if (why.empty() && moves && !m_cell.isHomed()) why = "home the machine first";
-    if (why.empty() && (dx != 0 || dy != 0) && !moves) why = fixed ? "no nozzle to move over it" : "it does not move on X and Y";
+    if (why.empty() && (moves || turns || move.up) && !m_cell.isHomed()) why = "home the machine first";
+    if (why.empty() && planar && !moves) why = fixed ? "no nozzle to move over it" : "it does not move on X and Y";
+    if (why.empty() && move.dc != 0 && !turns) why = "no nozzle to turn over it";
+    if (why.empty() && move.up && (!fixed || !moving)) why = "no nozzle to bring over it";
     if (!why.empty()) {
         m_window.showStatus("Settling test: " + why, kResultMs);
         return;
     }
     JPCameraFeed* feed = &camera.feed();
     auto trace = std::make_shared<JPSettleTrace>();
-    const JPMountConfig mount = moves ? *moving : JPMountConfig{};
-    run(camera, "Settling test", [this, feed, moves, mount, dx, dy, trace](std::string& words, const auto& progress) {
+    const JPMountConfig mount = moving ? *moving : JPMountConfig{};
+    const JPMountConfig cameraMount = camera.camera().mount;
+    run(camera, "Settling test", [this, feed, moves, turns, move, mount, cameraMount, trace](std::string& words, const auto& progress) {
+        const auto at = m_cell.jogBase();
         if (moves) {
             progress("moving and back");
-            const auto at = m_cell.jogBase();
             const double x = at.at(mount.axisX), y = at.at(mount.axisY);
-            if (!m_cell.moveAxesAndWait({ { mount.axisX, x + dx }, { mount.axisY, y + dy } }, kTaskSpeed, words)
+            if (!m_cell.moveAxesAndWait({ { mount.axisX, x + move.dx }, { mount.axisY, y + move.dy } }, kTaskSpeed, words)
                 || !m_cell.moveAxesAndWait({ { mount.axisX, x }, { mount.axisY, y } }, kTaskSpeed, words))
                 return false;
+        }
+        if (turns) {
+            progress("turning and back");
+            const double c = at.at(mount.axisRotation);
+            if (!m_cell.moveAxesAndWait({ { mount.axisRotation, c + move.dc } }, kTaskSpeed, words)
+                || !m_cell.moveAxesAndWait({ { mount.axisRotation, c } }, kTaskSpeed, words))
+                return false;
+        }
+        if (move.up) {
+            // Where the nozzle is, against where the camera is.
+            auto coordinate = [&at](const std::string& axis, double offset) {
+                const auto p = at.find(axis);
+                return (p == at.end() ? 0.0 : p->second) + offset;
+            };
+            const double x = coordinate(mount.axisX, mount.offsetX), y = coordinate(mount.axisY, mount.offsetY),
+                         z = coordinate(mount.axisZ, mount.offsetZ);
+            const double far = std::sqrt(std::pow(x - cameraMount.offsetX, 2) + std::pow(y - cameraMount.offsetY, 2)
+                                         + std::pow(z - cameraMount.offsetZ, 2));
+            if (far > kUpNearMm) {
+                progress("bringing the nozzle over the camera");
+                if (!m_cell.moveToolAndWait(mount, { cameraMount.offsetX, cameraMount.offsetY, cameraMount.offsetZ, std::nullopt },
+                                            kTaskSpeed, words))
+                    return false;
+            } else {
+                progress("up to Safe Z and back");
+                if (!m_cell.safeZAndWait(mount.headId, kTaskSpeed, words)
+                    || !m_cell.moveToolStraightAndWait(mount, { x, y, z, std::nullopt }, kTaskSpeed, words))
+                    return false;
+            }
         }
         progress("letting it settle");
         JPGrayImage picture;

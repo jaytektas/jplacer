@@ -103,6 +103,9 @@ public:
         // Properties whose change changes which others there are (an axis's
         // kind, a camera's head): the form is made again after one changes.
         std::vector<std::string> reshaping;
+        // Properties that only change what is shown (a choice for this
+        // session, a picture to look at), not the part: no step to undo.
+        std::vector<std::string> viewOnly;
         // Buttons that change the part themselves (a row added to a table, or
         // taken away), by their action: what it is called as a step to undo,
         // and the change. The form is made again after one.

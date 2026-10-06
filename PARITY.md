@@ -122,7 +122,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Name, looking, preview FPS, suspend during tasks, auto camera view, multi-camera view | done | runs while on screen (own way); each camera its own tab, so no multi-camera view |
 | Light actuator and when it is on | done | |
 | Units per pixel (measure) | own way | from Calibrate |
-| Settling (methods, threshold, timeout, debounce, mask, test moves, diagnostics graph) | done | |
+| Settling (methods incl. Motion, threshold, timeout, debounce, mask, colour, edges, contrast, denoise, test moves incl. Rotate and Up, diagnostics graph and replay) | done | |
 | Device settings and properties table | done | |
 | White balance (balance, gamma, Overall, Brightest, Mapped Roughly / Finely, curve plot) | done | imported from OpenPnP too |
 | Position (head offsets, fixed location, safe Z, roaming radius) | done | |

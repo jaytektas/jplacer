@@ -76,6 +76,10 @@ bool   yes(const std::string& s)    { return s == "true"; }
 // nozzle was, Safe Z its old one), virtual ones for each camera, at the old
 // feed rate (rotation 10 times it) reached in half a second, and the lower
 // left PCB fiducial of OpenPnP's test picture as the homing fiducial.
+// OpenPnP's older camera settling, migrated as its commit() does: a negative
+// time was a Maximum threshold in 0..255 levels, the time then its default.
+constexpr double kOldSettleScale = 2.55;
+constexpr int    kOldSettleTimeMs = 250;
 constexpr double kNullDriverFeedMmPerMin = 5000;   // NullDriver's default
 constexpr double kNullDriverAccelerationS = 0.5;
 constexpr double kNullDriverRotationFactor = 10;
@@ -978,12 +982,19 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                 notes.push_back("camera " + cam.name + ": its mapped white balance is not brought in; balance it again "
                                 "(Machine Setup, White Balance)");
             // Settling: how a picture for vision waits for the camera to stop.
-            if (!x.attr("settle-method").empty()) {
-                cam.settle.method = x.attr("settle-method") == "Motion" ? "Euclidean" : x.attr("settle-method");
-                if (x.attr("settle-method") == "Motion")
-                    notes.push_back("camera " + cam.name + ": settles by Euclidean difference; jplacer has no Motion settling");
-            }
+            if (!x.attr("settle-method").empty()) cam.settle.method = x.attr("settle-method");
+            cam.settle.fullColor = yes(x.attr("settle-full-color"));
+            if (!x.attr("settle-gaussian-blur").empty()) cam.settle.gaussianBlur = int(number(x.attr("settle-gaussian-blur")));
+            cam.settle.gradients = yes(x.attr("settle-gradients"));
+            if (!x.attr("settle-contrast-enhance").empty()) cam.settle.contrastEnhance = number(x.attr("settle-contrast-enhance"));
+            cam.settle.diagnostics = yes(x.attr("settle-diagnostics"));
             if (!x.attr("settle-time-ms").empty()) cam.settle.timeMs = int(number(x.attr("settle-time-ms")));
+            // OpenPnP's older settling: a negative time was a Maximum threshold.
+            if (x.attr("settle-method").empty() && cam.settle.timeMs < 0) {
+                cam.settle.method = "Maximum";
+                cam.settle.threshold = std::abs(cam.settle.timeMs) / kOldSettleScale;
+                cam.settle.timeMs = kOldSettleTimeMs;
+            }
             if (!x.attr("settle-timeout-ms").empty()) cam.settle.timeoutMs = int(number(x.attr("settle-timeout-ms")));
             if (!x.attr("settle-threshold").empty()) cam.settle.threshold = number(x.attr("settle-threshold"));
             if (!x.attr("settle-debounce").empty()) cam.settle.debounce = int(number(x.attr("settle-debounce")));
