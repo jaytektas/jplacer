@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.10
+
 - The bottom camera's Calibrate does the whole job as one: the camera's scale and lens with the tip over it, then
   the tip's runout, then the camera's true position and rotation (about the nozzle's axis, not the tip's end),
   asking only once. With the tip's calibration not enabled it stops after the first and says so.
@@ -21,6 +23,7 @@ notes.
   (Device Settings: Auto-Tune when calibrating?, Auto-Tune for each part?).
 - Changing a camera's settings no longer brings the other camera forward (the camera panels, made again, kept the one
   you were on in front); before, ticking Auto on the bottom camera put the top camera in front and turned its light on.
+
 ## 0.1.9
 
 - A camera view with no picture is crossed out in red, as in OpenPnP; a live camera not calibrated for its picture
