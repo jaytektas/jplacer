@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- File > Open Recent Job is greyed out while there are no recent jobs, instead of opening an empty sliver.
+
 - A nozzle tip's calibration is one step to undo, and the machine takes it once (its runout and its background
   were two, each remaking Machine Setup and the panels); putting a tip on likewise. Homing forgets other tips'
   runout in one step too.
