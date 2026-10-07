@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.17
+
 - jplacer no longer crashes when the nozzle tip menu is open while the Jog panel is made again (after a
   calibration's result, say) and an entry with a submenu, such as Manual Change, is pointed at: the menu now
   closes instead.
