@@ -91,6 +91,8 @@ public:
     std::function<void(const std::string& nozzleId)> onHomeZ;
     // The tip on a nozzle calibrated (its runout measured over the camera looking up), from its tip menu.
     std::function<void(const std::string& nozzleId)> onCalibrateTip;
+    // A tool jogged (its id, and by how much: X, Y, Z in mm): for the camera looking at it to be shown.
+    std::function<void(const std::string& toolId, double dx, double dy, double dz)> onJogged;
     // A nozzle's part put down or dropped (Place, Discard): it holds none.
     std::function<void(const std::string& nozzleId)> onPartGone;
     // OpenPnP's Recycle: the part on the nozzle put back into a feeder;

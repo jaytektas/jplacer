@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- Moving a nozzle by hand (Position Tool, Move Selected Nozzle to Camera, a jog) brings forward the camera looking
+  at where it goes (the nearest within 50 mm) when it has Auto Camera View, as in OpenPnP: over the bottom camera,
+  its view.
 ## 0.1.8
 
 - The strip across the top of the window now also shows FAILED when a camera task (a calibration, the precise

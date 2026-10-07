@@ -564,6 +564,7 @@ void JPJogPanel::jog(double dx, double dy, double dz, double dc) {
     JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Jog: " << m_tools[m_tool].label << " by " << dx * d << ", " << dy * d << ", "
                                             << dz * d << ", " << dc * r;
     m_cell.jog(m_tools[m_tool].id, dx * d, dy * d, dz * d, dc * r, 1.0);
+    if (onJogged) onJogged(m_tools[m_tool].id, dx * d, dy * d, dz * d);
 }
 
 void JPJogPanel::moveTo(const Tool& tool, const Tool& over) {

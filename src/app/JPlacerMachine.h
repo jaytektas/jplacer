@@ -347,6 +347,10 @@ private:
     // nozzle chosen on the Jog panel (else the first). Null when there is none.
     const JPMountConfig* toolMount(JPSetupForm::Tool tool) const;
     Where whereIsMount(const JPMountConfig* mount) const;
+    // OpenPnP's targeted user action: a tool moved by hand (Position Tool, a jog) to `to`; the camera looking at
+    // it (the tool itself if a camera, else the nearest camera within kTargetedCameraMm of where it goes)
+    // brought forward when it has Auto Camera View.
+    void showCameraLookingAt(const JPMountConfig& tool, const Where& to);
     // Connected and homed; else the status bar says what is needed first.
     // OpenPnP's auto tool select: the tool a panel moved chosen on the Jog panel.
     void selectMoved(const JPMountConfig& mount);

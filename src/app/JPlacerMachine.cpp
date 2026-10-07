@@ -56,6 +56,9 @@ constexpr const char* kImportedCellFile = "openpnp.json";
 // enough to read the reason.
 // A fixed camera's calibrated place moved by less than this (mm, each way): left as it is.
 constexpr double kLeastPlaceMoveMm = 0.001;
+// OpenPnP's targeted user action: a camera within this of where a tool is moved by hand (mm, the whole distance)
+// is the one looking at it.
+constexpr double kTargetedCameraMm = 50;
 constexpr int kStatusMs = 3000;
 constexpr int kErrorMs  = 8000;
 // How long the background calibration's problem pictures are shown.
@@ -437,6 +440,19 @@ void JPlacerMachine::buildPanels(Keep keep) {
     jog->keyFor = [this](const std::string& action) { return keyFor ? keyFor(action) : std::string(); };
     jog->onHomeZ = [this](const std::string& nozzleId) { homeNozzle(nozzleId); };
     jog->onCalibrateTip = [this](const std::string& nozzleId) { calibrateTipRunout(nozzleId, nullptr); };
+    // As OpenPnP's jog, a targeted user action: the camera looking at where the tool goes shown.
+    jog->onJogged = [this](const std::string& toolId, double dx, double dy, double dz) {
+        if (!m_cell) return;
+        const JPMountConfig* m = nullptr;
+        for (const JPNozzleConfig& n : m_cell->config().nozzles) if (n.id == toolId) m = &n.mount;
+        for (const JPCameraConfig& c : m_cell->config().cameras) if (c.id == toolId) m = &c.mount;
+        if (!m) return;
+        Where at = whereIsMount(m);
+        if (at[0]) *at[0] += dx;
+        if (at[1]) *at[1] += dy;
+        if (at[2]) *at[2] += dz;
+        showCameraLookingAt(*m, at);
+    };
     jog->openMenu = [this](JMenu* menu, float x, float y) {
         if (JMenuManager::instance().onOpenMenu)
             JMenuManager::instance().onOpenMenu(menu, m_window.windowX() + int(x), m_window.windowY() + int(y), false, false);
@@ -977,12 +993,39 @@ bool JPlacerMachine::moveToolTo(JPSetupForm::Tool tool, const Where& to, bool st
     if (tool == JPSetupForm::Tool::Camera)
         for (const JPCameraConfig& cam : m_cell->config().cameras)
             if (&cam.mount == m) m_positionedCamera = cam.name;
-    // A camera moved to look somewhere, with Auto Camera View: brought forward.
-    for (const JPCameraConfig& cam : m_cell->config().cameras)
-        if (&cam.mount == m && cam.autoCameraView)
-            for (CameraDock& c : m_cameras)
-                if (c.panel->camera().id == cam.id) bringForward(*c.panel);
+    showCameraLookingAt(*m, to);
     return true;
+}
+
+void JPlacerMachine::showCameraLookingAt(const JPMountConfig& tool, const Where& to) {
+    if (!m_cell) return;
+    const JPCameraConfig* nearest = nullptr;
+    double nearestMm = kTargetedCameraMm;
+    for (const JPCameraConfig& cam : m_cell->config().cameras) {
+        if (&cam.mount == &tool) {   // a camera moved: that's easy
+            nearest = &cam;
+            break;
+        }
+        // Where the camera is: a fixed one at its place, one on a head where its axes have it.
+        const Where at = cam.mount.headId.empty() ? Where { cam.mount.offsetX, cam.mount.offsetY, cam.mount.offsetZ, std::nullopt }
+                                                  : whereIsMount(&cam.mount);
+        double sum = 0;
+        bool any = false;
+        for (size_t i = 0; i < 3; ++i)
+            if (to[i] && at[i]) {
+                sum += (*to[i] - *at[i]) * (*to[i] - *at[i]);
+                any = true;
+            }
+        if (!any) continue;
+        const double d = std::sqrt(sum);
+        if (d < nearestMm) {
+            nearestMm = d;
+            nearest = &cam;
+        }
+    }
+    if (!nearest || !nearest->autoCameraView) return;
+    for (CameraDock& c : m_cameras)
+        if (c.panel->camera().id == nearest->id) bringForward(*c.panel);
 }
 
 bool JPlacerMachine::jogSafe(const JPMountConfig& tool, const std::map<std::string, double>& axes) {
@@ -2619,6 +2662,7 @@ void JPlacerMachine::moveNozzleToCamera(const std::string& cameraId) {
                     if (&n.mount == nozzle) m_cell->cameraOffsetFor(n.id, dx, dy);
             m_cell->moveTool(*nozzle, { cam.mount.offsetX - dx, cam.mount.offsetY - dy, cam.mount.offsetZ, std::nullopt }, 1.0);
             selectMoved(*nozzle);
+            showCameraLookingAt(*nozzle, { cam.mount.offsetX - dx, cam.mount.offsetY - dy, cam.mount.offsetZ, std::nullopt });
         }
 }
 
