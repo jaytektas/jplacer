@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- The Jog panel's nozzle tip button shows whether the tip on the chosen nozzle is calibrated: green when it is
+  (or its calibration is off), red when its calibration is on and it is not; its tooltip says which and when.
 - A failed visual homing fails the homing, as OpenPnP's: the machine is not homed and Home turns red (it showed
   green, homed by the switches alone). Home stays busy until the whole homing has finished.
 - Parking the head (X and Y) switches every camera's light off, until you next do something at a camera.

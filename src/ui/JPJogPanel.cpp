@@ -3,6 +3,8 @@
 
 #include "JPJogPanel.h"
 
+#include "common/JPWhen.h"
+
 #include "model/JPSystemUnits.h"
 
 #include "JPIconButton.h"
@@ -144,11 +146,13 @@ JPJogPanel::JPJogPanel(JSceneGraph& graph, JPCell& cell, Choices start) : JConta
     tip->onClicked.connect([this] { showTipMenu(); });
     m_tipButton = top->add(std::move(tip));
     m_tipButton->setEnabled(m_tools[m_tool].nozzle);
+    refreshTipButton();
     tools->onIndexChanged.connect([this](int i) {
         if (i < 0 || size_t(i) >= m_tools.size()) return;
         m_tool = size_t(i);
         if (m_tools[m_tool].nozzle) m_lastNozzle = m_tool;
         m_tipButton->setEnabled(m_tools[m_tool].nozzle);
+        refreshTipButton();
         refreshRecycle();
         if (onChoicesChanged) onChoicesChanged();
     });
@@ -537,6 +541,39 @@ JPJogPanel::Choices JPJogPanel::choices() const {
 const std::string& JPJogPanel::toolId() const {
     static const std::string none;
     return m_tools.empty() ? none : m_tools[m_tool].id;
+}
+
+void JPJogPanel::refreshTipButton() {
+    auto* button = static_cast<JPIconButton*>(m_tipButton);
+    if (!button) return;
+    // The tip on the chosen nozzle, calibrated there or not, when its calibration is on: green calibrated (or its
+    // calibration off), red not calibrated; no tip on it, plain. Plain to see here, not only in Machine Setup.
+    const Tool* n = nozzle();
+    const JPCellConfig& c = m_cell.config();
+    const JPNozzleTipConfig* tip = nullptr;
+    std::string nozzleName;
+    if (n)
+        for (const JPNozzleConfig& nz : c.nozzles)
+            if (nz.id == n->id) {
+                nozzleName = nz.name;
+                for (const JPNozzleTipConfig& t : c.nozzleTips)
+                    if (t.id == nz.tipId) tip = &t;
+            }
+    std::string said = "The nozzle's tip: load one, unload it, or say which is on it";
+    using Tone = JPIconButton::Tone;
+    Tone tone = Tone::None;
+    if (tip && !tip->runoutCalibration.enabled) {
+        tone = Tone::Good;
+        said += ".\n" + tip->name + " on " + nozzleName + ": its calibration is not enabled.";
+    } else if (tip && tip->runout.count(n->id)) {
+        tone = Tone::Good;
+        said += ".\n" + tip->name + " on " + nozzleName + ": calibrated, " + JPWhen::withAgo(tip->runout.at(n->id).when) + ".";
+    } else if (tip) {
+        tone = Tone::Bad;
+        said += ".\n" + tip->name + " on " + nozzleName + ": NOT calibrated (its calibration is enabled): Calibrate it (this menu).";
+    }
+    button->setTone(tone);
+    button->setTooltip(said);
 }
 
 const JPJogPanel::Tool* JPJogPanel::nozzle() const {

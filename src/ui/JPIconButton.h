@@ -42,6 +42,14 @@ public:
     // Drawn as a button at rest too (a surface and an edge), for a pad of
     // controls rather than a panel's tools.
     void setFramed(bool on) { m_framed = on; }
+    // A state its glyph shows in colour: Good (the theme's success colour), Bad (its danger colour), or None
+    // (its usual ink). Greyed while disabled whatever it is.
+    enum class Tone { None, Good, Bad };
+    void setTone(Tone tone) {
+        if (tone == m_tone) return;
+        m_tone = tone;
+        invalidate();
+    }
     enum class Leads { Nowhere, Menu, Elsewhere };
     void setLeads(Leads leads) { m_leads = leads; }
     void setChecked(bool on);
@@ -52,6 +60,7 @@ public:
 
 private:
     Glyph       m_glyph;
+    Tone        m_tone = Tone::None;
     std::string m_icon;   // an OpenPnP icon's name, instead of a glyph
     bool  m_checkable = false;
     bool  m_framed    = false;

@@ -181,7 +181,9 @@ private:
     JComboBox*              m_toolBox = nullptr;
     size_t                  m_lastNozzle = 0;
     JTabWidget*             m_tabs = nullptr;
-    JWidget*                m_tipButton = nullptr;
+    JWidget*                m_tipButton = nullptr;   // a JPIconButton
+    // The tip button's colour and tooltip: the chosen nozzle's tip calibrated there or not.
+    void refreshTipButton();
     JButton*                m_recycle = nullptr;
     std::vector<double>     m_distances, m_speeds;
     std::unique_ptr<JMenu>  m_tipMenu, m_tipOnIt;

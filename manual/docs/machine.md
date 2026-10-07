@@ -374,7 +374,10 @@ from jplacer, and the status bar says so.
 
 #### Nozzle tips
 
-Beside the tool, for a nozzle, the **nozzle tip** button opens its tip menu:
+Beside the tool, for a nozzle, the **nozzle tip** button shows at a glance whether the tip on it is
+calibrated there: **green** when it is (or its calibration is not enabled), **red** when its calibration is
+enabled and it has not been calibrated on that nozzle; plain with no tip on it. Its tooltip says which, and
+when it was calibrated. (OpenPnP shows this only on the tip's Calibration tab.) It opens its tip menu:
 
 - what is on the nozzle now;
 - **Load** each tip that fits it (one on another nozzle, or with no load steps, is shown but cannot be
@@ -417,7 +420,7 @@ Where nozzles share one Z motor (a see-saw head), homing either homes both, and 
 (with RIGHT)**). It is shown greyed while the nozzle has no home command or the machine is not homed. Each
 nozzle has its own command, so a machine with a motor per nozzle homes each on its own.
 
-<!-- src: src/machine/JPCell.cpp (homeNozzle, doHomeNozzle, nozzlesHomedWith); src/machine/JPNozzleConfig.h (homeCommand); src/ui/JPJogPanel.cpp (showTipMenu); src/app/JPlacerMachine.cpp (homeNozzle); src/setup/JPSetupProperties.cpp (nozzleForm) -->
+<!-- src: src/machine/JPCell.cpp (homeNozzle, doHomeNozzle, nozzlesHomedWith); src/machine/JPNozzleConfig.h (homeCommand); src/ui/JPJogPanel.cpp (showTipMenu, refreshTipButton); src/ui/JPIconButton.cpp (setTone); src/app/JPlacerMachine.cpp (homeNozzle); src/setup/JPSetupProperties.cpp (nozzleForm) -->
 
 **Special** tab: **Head Safe Z** (every Z on the head up to safe Z), **Discard** (the nozzle's part to the
 discard location: up, across, down, let go, up again), **Recycle**, and **Pick** and **Place** where the

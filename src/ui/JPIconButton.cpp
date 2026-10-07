@@ -73,8 +73,11 @@ void JPIconButton::populateRenderPrimitives(JPrimitiveBuffer& buf) {
         const float w = st.borderWidth, h = w * 0.5f;
         vg.strokeRoundedRect(b.x + h, b.y + h, b.width - w, b.height - w, s * kRoundShare, w, JPaint::solid(colour(st.Border)));
     }
-    const JColor ink = !enabled ? colour(st.MutedText)
-                     : m_checked ? colour(st.HighlightedText) : colour(st.TextPrimary);
+    const JColor ink = !enabled                ? colour(st.MutedText)
+                     : m_checked               ? colour(st.HighlightedText)
+                     : m_tone == Tone::Good    ? colour(st.Success)
+                     : m_tone == Tone::Bad     ? colour(st.Danger)
+                                               : colour(st.TextPrimary);
     if (m_glyph) m_glyph(vg, b.x + b.width * 0.5f, b.y + b.height * 0.5f, s * kGlyphShare, ink);
     if (!m_icon.empty())
         if (JPOpenPnpIcons* icons = JPOpenPnpIcons::instance()) {
