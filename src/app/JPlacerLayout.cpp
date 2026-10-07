@@ -6,6 +6,9 @@
 #include "JPlacerSettings.h"
 
 #include <algorithm>
+#include <cstdio>
+#include <set>
+#include <sstream>
 
 inline namespace jf {
 
@@ -165,6 +168,45 @@ void JPlacerLayout::rebuildMenu() {
             else hide(*entry);
         });
     }
+}
+
+void JPlacerLayout::save() const {
+    JSettings& set = JSettings::instance();
+    JPlatformWindow& w = m_window.window();
+    char geometry[96];
+    std::snprintf(geometry, sizeof geometry, "%d %d %u %u %d", w.screenX(), w.screenY(), w.width(), w.height(),
+                  w.isMaximized() ? 1 : 0);
+    set.set(JPlacerSettings::kWindowGeometry, std::string(geometry));
+    set.set(JPlacerSettings::kDockLayout, m_window.dockLayoutText());
+    std::string closed;
+    for (const Entry& e : m_entries)
+        if (!e.dock->placedIn()) closed += e.dock->title() + "\n";
+    set.set(JPlacerSettings::kClosedDocks, closed);
+    JPlacerSettings::save();
+}
+
+void JPlacerLayout::restore() {
+    JSettings& set = JSettings::instance();
+    JPlatformWindow& w = m_window.window();
+    int x = 0, y = 0, maximized = 0;
+    unsigned width = 0, height = 0;
+    if (std::sscanf(set.get<std::string>(JPlacerSettings::kWindowGeometry, "").c_str(), "%d %d %u %u %d", &x, &y, &width,
+                    &height, &maximized) == 5) {
+        if (maximized) w.setMaximized(true);
+        else if (width > 0 && height > 0) {
+            w.setPosition(x, y);
+            w.setSize(width, height);
+        }
+    }
+    const std::string text = set.get<std::string>(JPlacerSettings::kDockLayout, "");
+    if (text.empty() || !m_window.restoreDockLayout(text)) return;
+    // Closed when it was left: closed again (not put back at its home).
+    std::set<std::string> closed;
+    std::istringstream lines(set.get<std::string>(JPlacerSettings::kClosedDocks, ""));
+    for (std::string t; std::getline(lines, t);) closed.insert(t);
+    for (const Entry& e : m_entries)
+        if (closed.count(e.dock->title())) hide(e);
+    rebuildMenu();
 }
 
 JPlacerLayout::Entry* JPlacerLayout::find(const JDockWidget* dock) {

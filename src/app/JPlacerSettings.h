@@ -51,6 +51,12 @@ public:
     // OpenPnP's Window > Multiple Window Style: the cameras and the machine
     // controls each in a window of their own (taken at start).
     static constexpr const char* kMultipleWindows    = "window.multipleWindowStyle";
+    // The window as last left: its docks (where each is, docked or in a window of its own: JAppWindow's
+    // dockLayoutText), the docks closed (their titles, a line each), and its place and size
+    // ("x y width height maximized").
+    static constexpr const char* kDockLayout         = "window.dockLayout";
+    static constexpr const char* kClosedDocks        = "window.closedDocks";
+    static constexpr const char* kWindowGeometry     = "window.geometry";
     // OpenPnP's Change Appearance: tables' rows shaded every other one.
     static constexpr const char* kAlternateRows      = "window.alternateRows";
     // OpenPnP's View > Language: a JPTranslations code, "en" to begin with (taken at start).

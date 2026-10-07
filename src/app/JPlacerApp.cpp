@@ -2,6 +2,8 @@
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
 #include "JPlacerApp.h"
+
+#include <j/core/FrameTimer.h>
 #include <j/platform/JDesktop.h>
 #include "JPlacerDiagnosticsDialog.h"
 #include <filesystem>
@@ -74,7 +76,11 @@ JPlacerApp::JPlacerApp(std::string settingsPath) {
 
     m_job = std::make_unique<JPlacerJob>(*m_window);
     // The job asked about first, then each changed board (OpenPnP's quit).
-    m_window->onCloseRequest = [this] { return m_job->mayClose() && (!m_tabs || m_tabs->mayClose()); };
+    m_window->onCloseRequest = [this] {
+        const bool closing = m_job->mayClose() && (!m_tabs || m_tabs->mayClose());
+        if (closing && m_machine) m_machine->layout().save();   // the docks as left, for next time
+        return closing;
+    };
     m_icons = std::make_unique<JPOpenPnpIcons>(m_window->hal());
     m_machine = std::make_unique<JPlacerMachine>(*m_window, m_app.sceneGraph());
     if (!m_machine->cell() || m_machine->cell()->config().autoLoadMostRecentJob) m_job->openLast();
@@ -86,6 +92,8 @@ JPlacerApp::JPlacerApp(std::string settingsPath) {
     addJogStepKeys();
     // OpenPnP's Startup event: its scripts run once jplacer is up.
     m_machine->runEvent("Startup");
+    // The docks and the window as last left, once every dock is in (the first frame).
+    jPostToNextFrame([this] { m_machine->layout().restore(); });
     // The Jog panel's tooltips say each button's key, as it is now.
     m_machine->keyFor = [this](const std::string& action) {
         const std::string jog = m_keys->keyText("jog." + action);

@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- jplacer opens as it was last closed: the window's place and size, every panel where you left it (docked,
+  tabbed or in a window of its own), the front tabs, the splits' sizes, and closed panels still closed.
 - The Console's lines are one text you can copy from: drag over them (or Ctrl+A), then Ctrl+C, or right-click for
   Copy, Select All and Clear.
 - The Jog panel's nozzle tip menu has Manual Change > Move to Manual Change Location: the nozzle goes up to safe Z,

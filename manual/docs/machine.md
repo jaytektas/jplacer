@@ -187,6 +187,13 @@ stack it with others.
 **View** has a tick for each panel. Untick one to close it (or close it with its tab's **×**); tick it
 to bring it back, where it lives above, in front of the others there.
 
+jplacer opens as it was last closed: the window's place and size (or maximized), every panel where you
+left it (docked, tabbed, split, or in a window of its own, at its place and size), the tab in front of
+each group, the splits' sizes, and the panels closed staying closed. A panel new since then (a camera
+added) goes to its place above.
+
+<!-- src: src/app/JPlacerLayout.cpp (save, restore); src/app/JPlacerApp.cpp (onCloseRequest); src/app/JPlacerSettings.h (kDockLayout, kClosedDocks, kWindowGeometry) -->
+
 <!-- src: src/app/JPlacerLayout.cpp (place, show, rebuildMenu, kLeftShare, kBottomShare); src/app/JPlacerMachine.cpp (buildPanels, buildCameras); src/app/JPlacerMenuBuilder.cpp (View); JFramework include/j/core/DockSpace.h (sideCap) -->
 
 ### Where the tool is

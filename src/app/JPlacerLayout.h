@@ -49,6 +49,12 @@ public:
     void remove(JDockWidget* dock);
     // Shown (at its home, if it was closed) and brought to the front of its tabs.
     void show(JDockWidget* dock);
+    // The window as it is now kept for next time: its place and size, every dock where it is (docked, or in
+    // a window of its own), and which are closed.
+    void save() const;
+    // The window as kept last time, if it was: once every dock is added. A dock new since then stays at
+    // its home.
+    void restore();
 
 private:
     struct Entry {
