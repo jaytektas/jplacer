@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.12
+
 - A floating camera window stays where you put it: it no longer jumps back into the dock when a camera setting
   changes (a light switched from it, a calibration recorded).
 - jplacer no longer quits (crashes) at the end of the bottom camera's calibration: when calibrating moved the
