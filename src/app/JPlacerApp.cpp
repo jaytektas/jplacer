@@ -3,6 +3,8 @@
 
 #include "JPlacerApp.h"
 
+#include "common/JPBackups.h"
+
 #include <j/core/FrameTimer.h>
 #include <j/platform/JDesktop.h>
 #include "JPlacerDiagnosticsDialog.h"
@@ -45,10 +47,17 @@ constexpr int kErrorMs = 8000;
 
 JPlacerApp::JPlacerApp(std::string settingsPath) {
     JPlacerSettings::load(settingsPath);
+    // What this run starts from, copied before it writes anything (JPBackups): a rolling set, as many as
+    // Preferences says (none: 0).
+    const int keep = JSettings::instance().get<int>(JPlacerSettings::kBackupsKept, JPBackups::kKeep);
+    std::string backupDir, backupWhy = "turned off in Preferences";
+    const bool backedUp = keep > 0 && JPBackups::take(JPlacerPaths::configDir(), settingsPath, keep, backupDir, backupWhy);
     // The log kept in a file too, as OpenPnP's log/OpenPnP.log.
     m_logFile = std::make_unique<JPLogFile>((std::filesystem::path(JPlacerPaths::configDir()) / "log" / "jplacer.log").string());
     // How much the log says, as last chosen (the console's controls).
     JPLogLevels::fromText(JSettings::instance().get<std::string>(JPlacerSettings::kLogLevels, "info")).apply();
+    if (backedUp) JLOGC(JPlacerLog::kApp, JLogLevel::Info) << "settings and cells backed up to " << backupDir;
+    else JLOGC(JPlacerLog::kApp, JLogLevel::Info) << "no backup: " << backupWhy;
     // The language, as chosen (a change takes effect at the next start): its
     // words, and its letters for the font the window is about to build.
     if (const std::string language = JSettings::instance().get<std::string>(JPlacerSettings::kLanguage, "en"); language != "en") {

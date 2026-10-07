@@ -14,9 +14,12 @@
 #include "ui/JPTextField.h"
 #include "ui/JPUiParts.h"
 
+#include "common/JPBackups.h"
+
 
 #include <j/config/Settings.h>
 #include <j/core/Dialog.h>
+#include <j/core/JSpinBox.h>
 #include <j/core/JStyle.h>
 #include <j/core/JTextHelper.h>
 #include <j/core/MainThreadDispatcher.h>
@@ -28,6 +31,9 @@
 inline namespace jf {
 
 namespace {
+
+// The most backups Preferences offers to keep.
+constexpr int kMostBackups = 200;
 
 void store(const char* key, bool on) {
     JSettings::instance().set(key, on);
@@ -141,6 +147,18 @@ std::unique_ptr<JContainer> JPlacerPreferencesDialog::generalPage(std::function<
         });
         page->add(std::move(launcher));
     }
+
+    page->add(heading(g, "Backups"));
+    // A rolling set: as jplacer starts, its settings and cells are copied, the oldest let go past this many.
+    auto kept = std::make_unique<JSpinBox>(g, 0, kMostBackups, 0.f);
+    kept->setValue(JSettings::instance().get<int>(JPlacerSettings::kBackupsKept, JPBackups::kKeep));
+    kept->onValueChanged.connect([](int n) {
+        JSettings::instance().set(JPlacerSettings::kBackupsKept, n);
+        JPlacerSettings::save();
+    });
+    page->add(labelled(g, "Backups kept", std::max(widest, JTextHelper::measureWidth("Backups kept")), std::move(kept)));
+    page->add(note("Each time jplacer starts, its settings and machines are copied into the backups folder beside them, "
+                   "the oldest let go past this many. 0: none taken."));
 
     page->add(heading(g, "Updates"));
     auto atStartup = std::make_unique<JCheckBox>(g, "Check for updates when jplacer opens", 0.f);

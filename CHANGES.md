@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Each time jplacer starts it copies its settings and every machine into backups/<date and time>/ beside them,
+  a rolling set of the last 20 (Preferences > Backups kept; 0 for none).
 - Saving the settings never takes anything out of the file: every setting already there is kept, and only what
   this run changed is written. A settings file that cannot be read is left alone instead of being set aside.
 - A calibrated camera is shown straightened to begin with, as in OpenPnP (it was shown as taken, bent by the

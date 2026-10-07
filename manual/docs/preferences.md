@@ -38,6 +38,17 @@ done. The window can be made bigger by dragging its edge.
 
 <!-- src: src/app/JPlacerSettings.cpp (tearOffMenus defaults to false, launcher to true); src/app/JPlacerPreferencesDialog.cpp (the General rows); src/app/JPlacerLauncher.cpp (supported) -->
 
+### Backups
+
+**Backups kept**
+:   Each time jplacer starts, before it changes anything, it copies its settings (`jplacer.json`) and every
+    machine (the `cells` folder) into `backups/<date and time>/` beside them, a rolling set: past this
+    many, the oldest copy is let go. 20 when jplacer is first installed; 0 takes none. The log says where
+    each copy went. To go back to one, copy its files over those beside the backups folder while jplacer
+    is closed.
+
+<!-- src: src/common/JPBackups.cpp; src/app/JPlacerApp.cpp (the backup at start); src/app/JPlacerPreferencesDialog.cpp (Backups); src/app/JPlacerSettings.h (kBackupsKept) -->
+
 ### Updates
 
 **Check for updates when jplacer opens**

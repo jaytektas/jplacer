@@ -55,6 +55,9 @@ public:
     // dockLayoutText), the docks closed (their titles, a line each), and its place and size
     // ("x y width height maximized").
     static constexpr const char* kDockLayout         = "window.dockLayout";
+    // How many copies of the settings and cells, one taken as jplacer starts, are kept (the oldest let go;
+    // 0: none taken).
+    static constexpr const char* kBackupsKept        = "backups.kept";
     static constexpr const char* kClosedDocks        = "window.closedDocks";
     static constexpr const char* kWindowGeometry     = "window.geometry";
     // OpenPnP's Change Appearance: tables' rows shaded every other one.
