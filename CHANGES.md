@@ -15,6 +15,8 @@ notes.
   closes instead.
 - A panel's menus open beside it when the panel is floating (the nozzle tip menu of a floating Jog opened
   near the main window's corner); the Console's and the job tabs' tables' menus too.
+- A button's tip goes away when the button is pressed (it stood over the menu the button opened) and stays away
+  until the pointer leaves the button; in a narrow floating window a tip wraps to fit instead of being cut off.
 
 ## 0.1.16
 
