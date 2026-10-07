@@ -59,6 +59,11 @@ void JPCameraFeed::stop() {
     if (m_thread.joinable()) m_thread.join();
 }
 
+void JPCameraFeed::knowDeviceControls(const JJson& controls) {
+    std::lock_guard lk(m_mutex);
+    if (m_deviceControls.obj().empty()) m_deviceControls = controls;
+}
+
 JJson JPCameraFeed::deviceControls() const {
     std::lock_guard lk(m_mutex);
     return m_deviceControls;

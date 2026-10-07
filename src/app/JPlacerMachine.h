@@ -384,6 +384,7 @@ private:
     };
     // Between dropPanels and buildCameras of a remaking (Keep::Setup): each camera's dock, by camera id.
     std::map<std::string, std::unique_ptr<JDockWidget>> m_keptCameraDocks;
+    std::map<std::string, JJson>                        m_keptDeviceControls;   // and each feed's deviceControls
     std::map<std::string, JPCameraView::Overlay> m_overlays;   // drawn on every camera (setCameraOverlay)
     std::vector<CameraDock>             m_cameras;   // the window's centre
     JPlacerEstimateZ                    m_estimateZ;   // on one of them, while under way

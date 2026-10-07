@@ -180,6 +180,8 @@ void JPlacerMachine::dropPanels(Keep keep) {
             c.dock->setContent(nullptr);
             c.dock->clearTitleWidgets();
             m_keptCameraDocks[c.panel->camera().id] = std::move(c.dock);
+            // And what its device said of its settings, for the new panel while it is not on screen.
+            m_keptDeviceControls[c.panel->camera().id] = c.panel->feed().deviceControls();
         } else {
             m_layout.remove(c.dock.get());
         }
@@ -337,6 +339,8 @@ void JPlacerMachine::buildCameras() {
             d.dock = std::make_unique<JDockWidget>(c.name, 0.f, 0.f, 0.f, 0.f);
         }
         d.dock->setContent(d.panel.get());
+        if (const auto known = m_keptDeviceControls.find(c.id); known != m_keptDeviceControls.end())
+            d.panel->feed().knowDeviceControls(known->second);
         for (JWidget* tool : d.panel->tabTools()) d.dock->addTitleWidget(tool, JPIconButton::size());
         panels.push_back(d.panel.get());
         d.panel->setPowered(m_cell && m_cell->isConnected());   // opened only while the machine is on
@@ -345,6 +349,7 @@ void JPlacerMachine::buildCameras() {
     // Docks of cameras gone (or renamed) go; new ones go to the cameras' place.
     for (auto& [id, dock] : m_keptCameraDocks) m_layout.remove(dock.get());
     m_keptCameraDocks.clear();
+    m_keptDeviceControls.clear();
     for (CameraDock& d : m_cameras)
         if (!d.kept) m_layout.add(d.dock.get(), JPlacerLayout::Home::Cameras, d.panel->camera().shownInMultiView);
     // The first camera shown in front.

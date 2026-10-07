@@ -64,6 +64,9 @@ public:
     // The device's own settings as they were when it last started
     // (JPCaptureSource::controls); none before.
     JJson deviceControls() const;
+    // What a feed of the same camera before it learned of the device's settings (their ranges and defaults), until
+    // this one runs and asks the device itself: a camera's panels made again while it is not on screen keep them.
+    void knowDeviceControls(const JJson& controls);
     // OpenPnP's Reapply to Camera: the device's settings set again (on its own thread, soon).
     void reapplyControls() { m_reapply = true; }
     // Defaults, then Auto-Tune: every setting the device has to its own default, those with an automatic
