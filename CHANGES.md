@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.15
+
 - The Jog panel's nozzle tip button shows whether the tip on the chosen nozzle is calibrated: green when it is
   (or its calibration is off), red when its calibration is on and it is not; its tooltip says which and when.
 - A failed visual homing fails the homing, as OpenPnP's: the machine is not homed and Home turns red (it showed
@@ -17,6 +19,7 @@ notes.
 - Parking the head (X and Y) switches every camera's light off, until you next do something at a camera.
 - A camera's Device Settings keep their Min, Max, Default and sliders after Defaults, then Auto-Tune (or any
   camera setting changed) while the camera is not on screen; they went blank until the camera next ran.
+
 ## 0.1.14
 
 - Auto-Tune when calibrating? now applies to every calibration that looks through the camera: backlash, the
