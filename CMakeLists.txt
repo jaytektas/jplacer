@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(jplacer VERSION 0.1.5 LANGUAGES CXX)
+project(jplacer VERSION 0.1.6 LANGUAGES CXX)
 
 # THE VERSION is the line above: the last release, raised by packaging/build-release.sh as it cuts the
 # next one. A BETA is never written here -- packaging/build-beta.sh builds one as <next patch>-beta.N by
