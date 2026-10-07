@@ -94,6 +94,17 @@ public:
                           std::function<void()> onCancel, std::function<void()> onProceed);
     void hideInstructions();
     void setProceedEnabled(bool on) { m_instructions->setProceedEnabled(on); }
+    // A number on the instructions (JPInstructions::showNumber), and none.
+    void showInstructionsNumber(const std::string& label, int value, int min, int max, std::function<void(int)> changed) {
+        m_instructions->showNumber(label, value, min, max, std::move(changed));
+        m_instructionsWidth = -1;   // sized again, with its number, on the next frame
+        invalidate();
+    }
+    void hideInstructionsNumber() {
+        m_instructions->hideNumber();
+        m_instructionsWidth = -1;
+        invalidate();
+    }
     // A word about the picture (what a task is doing, why it is dark).
     void setNote(const std::string& text);
     // Write the latest picture to capturesDir. The file written, or empty

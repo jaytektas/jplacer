@@ -84,6 +84,7 @@ bool pipelineFor(JPConfiguration& config, const std::string& feederId, JPJobMach
         pipeline = JPFeederPipelines::of(*f);
         if (!pipeline) return;
         pipeline->context().configurationDirectory = config.directory();
+        pipeline->context().label = "feeder " + f->id();
         JPFeederPipelines::configureTape(*f, *pipeline, autoSetup, sight.width, sight.height, sight.mmPerPixelX, sight.mmPerPixelY);
         if (isPushPull(*f)) {
             if (performOcr && JPPushPullTemplates::ocrRegion(*f)) JPFeederPipelines::setupOcr(config, *f, *pipeline);

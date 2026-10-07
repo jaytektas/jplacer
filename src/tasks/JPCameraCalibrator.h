@@ -30,6 +30,9 @@ class JPCameraCalibrator {
 public:
     struct Options {
         double markDiameterMm = 0;     // the mark it looks at; 0: not known
+        // The mark's size in the picture, set by the person (OpenPnP's Detection Diameter): looked for at that
+        // size alone; 0: from its size in mm and the scale.
+        double markPx = 0;
         // The scale to expect the mark at first (pixels a mm); 0: the camera's rough one. (A second pass, at
         // another height: the first's.)
         double markPxPerMm = 0;

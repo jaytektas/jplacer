@@ -47,6 +47,7 @@ bool JPAlignRequests::forPart(const JPConfiguration& config, const JPVisionConfi
     if (vision.bottomPipeline) {
         rq.pipeline = std::make_shared<JPPipeline>(JPVisionPipelines::of(*v));
         rq.pipeline->context().configurationDirectory = config.directory();
+        rq.pipeline->context().label = "bottom vision";
         rq.partId = part.id;
         rq.settingsId = v->id;
     }

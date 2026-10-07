@@ -52,8 +52,11 @@ public:
         double pictureAngle(double machineAngle) const {
             return pictureMirrored ? pictureTurnDeg - machineAngle : pictureTurnDeg + machineAngle;
         }
-        // Where ImageWriteDebug writes (empty: it does not).
+        // Where ImageWriteDebug writes (empty: where vision debugging says, JPVisionDebug; off, it does not).
         std::string debugDirectory;
+        // What the pipeline is run for ("bottom vision R12"), naming its pictures' folder while vision
+        // debugging is on (JPVisionDebug); empty: "pipeline".
+        std::string label;
         // The machine's actuator by name, on a head or the machine (null: none);
         // one set to a value ("true", "1.5", a text) and waited for, or why not.
         std::function<bool(const std::string& name)> actuatorExists;

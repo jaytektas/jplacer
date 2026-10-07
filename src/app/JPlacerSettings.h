@@ -58,6 +58,8 @@ public:
     // How many copies of the settings and cells, one taken as jplacer starts, are kept (the oldest let go;
     // 0: none taken).
     static constexpr const char* kBackupsKept        = "backups.kept";
+    // Vision debugging (JPVisionDebug): every pipeline run's pictures kept under the configuration directory.
+    static constexpr const char* kVisionDebug        = "vision.debugPictures";
     static constexpr const char* kClosedDocks        = "window.closedDocks";
     static constexpr const char* kWindowGeometry     = "window.geometry";
     // OpenPnP's Change Appearance: tables' rows shaded every other one.
@@ -117,6 +119,7 @@ public:
     static void remove(const std::string& key);
 
     static bool updatesBeta();
+    static bool visionDebug();
     static bool updatesAtStartup();
     static bool tearOffMenus();
     static bool launcher();

@@ -15,6 +15,8 @@
 #include "ui/JPUiParts.h"
 
 #include "common/JPBackups.h"
+#include "common/JPlacerPaths.h"
+#include "pipeline/JPVisionDebug.h"
 
 
 #include <j/config/Settings.h>
@@ -159,6 +161,19 @@ std::unique_ptr<JContainer> JPlacerPreferencesDialog::generalPage(std::function<
     page->add(labelled(g, "Backups kept", std::max(widest, JTextHelper::measureWidth("Backups kept")), std::move(kept)));
     page->add(note("Each time jplacer starts, its settings and machines are copied into the backups folder beside them, "
                    "the oldest let go past this many. 0: none taken."));
+
+    page->add(heading(g, "Debugging"));
+    auto visionDebug = std::make_unique<JCheckBox>(g, "Save vision pictures for debugging", 0.f);
+    visionDebug->setChecked(JPlacerSettings::visionDebug());
+    visionDebug->onStateChanged.connect([](bool on) {
+        JPVisionDebug::setDirectory(on ? JPlacerPaths::configDir() : std::string());
+        store(JPlacerSettings::kVisionDebug, on);
+    });
+    page->add(std::move(visionDebug));
+    page->add(note("As OpenPnP does at its Debug log level: every vision pipeline run keeps each stage's picture, a "
+                   "folder a run in log/vision beside the settings (" + JPlacerPaths::configDir()
+                   + "), with what each stage found; ImageWriteDebug stages write too. It fills the disk: on only "
+                     "while looking into a problem."));
 
     page->add(heading(g, "Updates"));
     auto atStartup = std::make_unique<JCheckBox>(g, "Check for updates when jplacer opens", 0.f);

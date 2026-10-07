@@ -356,6 +356,7 @@ void JPlacerMachine::buildCameras() {
     m_cameraTasks = std::make_unique<JPlacerCameraTasks>(m_window, *m_cell, std::move(panels),
                                                          [this](JPCameraPanel& p) { bringForward(p); }, m_cellPath);
     m_cameraTasks->setScripting(m_scripting);
+    m_cameraTasks->chosenNozzle = [this] { return chosenNozzleId(); };
     // A camera looking up calibrated with a tip over it: as one calibration, on to the tip's runout (where its
     // calibration is enabled), then the camera's true position and rotation (about the nozzle's axis, not the
     // tip's end, which is off it by the runout: what the first step's position was off by).

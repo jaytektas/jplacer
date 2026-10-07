@@ -157,7 +157,10 @@ public:
         std::optional<JPPipeline> pipeline;
         main([&] {
             pipeline = JPFeederPipelines::ofDropBox(m_config.dropBoxes(), boxId);
-            if (pipeline) pipeline->context().configurationDirectory = m_config.directory();
+            if (pipeline) {
+                pipeline->context().configurationDirectory = m_config.directory();
+                pipeline->context().label = "drop box " + boxId;
+            }
         });
         if (!b || !pipeline) {
             why = "no drop box " + boxId;
@@ -373,6 +376,7 @@ public:
                 pipeline = JPFeederPipelines::of(*f, "feeder-pipeline", &m_config.dropBoxes());
                 if (pipeline) {
                     pipeline->context().configurationDirectory = m_config.directory();
+                    pipeline->context().label = "feeder " + f->id();
                     JPFeederPipelines::configureForEditing(m_config, *f, *pipeline);
                 }
             }

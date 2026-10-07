@@ -178,6 +178,7 @@ bool JPFeederFeed::looseFeed(JPConfiguration& config, const std::string& feederI
         held = JPFeederPipelines::of(*f);
         if (held) {
             held->context().configurationDirectory = config.directory();
+            held->context().label = "feeder " + f->id();
             JPFeederPipelines::configureForEditing(config, *f, *held);
         }
         location = f->location().convertToUnits(kMm);

@@ -10,6 +10,8 @@
 #include "common/JPlacerLog.h"
 #include "tasks/JPCameraCalibrator.h"
 #include "tasks/JPCameraLook.h"
+#include "tasks/JPPipelineMarkFinder.h"
+#include "pipeline/JPDefaultPipelines.h"
 #include "tasks/JPVisualHoming.h"
 #include "tasks/JPVisualTest.h"
 #include "tasks/JPVisionFeature.h"
@@ -20,10 +22,22 @@
 #include <j/core/MainThreadDispatcher.h>
 
 #include <cstdio>
+#include <atomic>
 #include <future>
+#include <thread>
 #include <optional>
 
 inline namespace jf {
+
+namespace {
+// OpenPnP's CalibrateCameraProcess: the mask a quarter of the picture's smaller side, the green centering circle
+// half of it, the search a fifth wider than the Detection Diameter, which starts at 25 px when the tip's size
+// is not known.
+constexpr double kInitialMaskShare = 1 / 4.0, kCenteringShare = 0.5, kMaskOverDiameter = 1.2;
+constexpr int    kDefaultDetectionPx = 25, kLeastDetectionPx = 4;
+// How often a step waiting on the person looks whether it was answered (with nothing to show meanwhile).
+constexpr int    kAskPollMs = 50;
+} // namespace
 
 namespace {
 
@@ -163,6 +177,8 @@ void JPlacerCameraTasks::run(JPCameraPanel& camera, const std::string& name, Tas
             m_busy = false;
             panel->setBusy(false);
             panel->onCancelTask = nullptr;
+            panel->hideInstructions();   // a step the person was asked to do, left over
+            panel->view().setMarks({});
             const std::string text = ok ? words : cancelled ? name + " cancelled" : name + " failed: " + words;
             panel->setNote(text);
             m_window.showStatus(text, kResultMs);
@@ -998,89 +1014,237 @@ bool JPlacerCameraTasks::lookAt(JPCameraPanel& camera, double x, double y) {
     return true;
 }
 
+bool JPlacerCameraTasks::askOperator(JPCameraPanel* panel, const std::string& title, const std::string& text,
+                                     const std::function<void()>& meanwhile, const NumberAsk* number) {
+    auto answer = std::make_shared<std::atomic<int>>(0);   // 1 Next, -1 Cancel
+    std::weak_ptr<bool> alive = m_alive;
+    std::optional<NumberAsk> asked;
+    if (number) asked = *number;
+    JMainThreadDispatcher::instance().post([this, alive, panel, title, text, answer, asked] {
+        if (const auto a = alive.lock(); !a || !*a) return;
+        panel->showInstructions(title, text, "Next",
+                                [this, answer] {
+                                    *answer = -1;
+                                    m_cell.setCancelled(true);
+                                },
+                                [answer] { *answer = 1; });
+        panel->setProceedEnabled(true);
+        if (asked) {
+            auto into = asked->into;
+            panel->showInstructionsNumber(asked->label, *into, asked->min, asked->max, [into](int v) { *into = v; });
+        } else {
+            panel->hideInstructionsNumber();
+        }
+    });
+    while (*answer == 0 && !m_cell.isCancelled()) {
+        if (meanwhile) meanwhile();
+        else std::this_thread::sleep_for(std::chrono::milliseconds(kAskPollMs));
+    }
+    return *answer == 1 && !m_cell.isCancelled();
+}
+
 void JPlacerCameraTasks::calibrateFixed(JPCameraPanel& camera, std::function<void(bool ok)> finished) {
     JPCameraFeed* feed = &camera.feed();
     const JPCameraConfig& cam = feed->config();
-    // The mark is a nozzle's tip: the first nozzle on a head that moves on X, Y and Z.
-    const JPNozzleConfig* nozzle = nullptr;
-    for (const JPNozzleConfig& n : m_cell.config().nozzles)
-        if (!nozzle && !n.mount.headId.empty() && !n.mount.axisX.empty() && !n.mount.axisY.empty() && !n.mount.axisZ.empty())
-            nozzle = &n;
     std::string why = m_busy ? "a camera task is already under way"
                     : !m_cell.isConnected() ? "connect the machine first"
                     : !m_cell.isHomed() ? "home the machine first"
-                    : !nozzle ? "there is no nozzle on a head to hold over " + cam.name
                     : std::string();
     if (!why.empty()) {
         m_window.showStatus("Calibrate: " + why, kResultMs);
         if (finished) finished(false);
         return;
     }
+    // OpenPnP's CalibrateCameraProcess for a camera looking up, step by step on the camera's instructions: the
+    // smallest tip loaded; the nozzle over the camera, jogged into the green circle; down to the calibration
+    // height, turned through 360 degrees to see it stays in the circle (jogged if not); the Detection Diameter
+    // set until the red circle turns green with a + on the tip; then the moves, by themselves. At the second
+    // height the same, from the tip back in the circle. Cancel (or the red X) stops it at any step.
+    JPCameraPanel* panel = &camera;
+    const std::string title = "Camera Calibration Instructions/Status";
+    std::weak_ptr<bool> alive = m_alive;
+    panel->showInstructions(title, "Select a nozzle and load it with the smallest available nozzle tip. Click Next when "
+                                   "ready to proceed.", "Next",
+        [panel, finished] {
+            panel->hideInstructions();
+            if (finished) finished(false);
+        },
+        [this, alive, panel, finished] {
+            if (const auto a = alive.lock(); !a || !*a) return;
+            // The nozzle chosen (in Jog), as OpenPnP's the selected one; else the first that moves on X, Y and Z.
+            const std::string chosen = chosenNozzle ? chosenNozzle() : std::string();
+            const JPNozzleConfig* nozzle = nullptr;
+            for (const JPNozzleConfig& n : m_cell.config().nozzles)
+                if (!n.mount.headId.empty() && !n.mount.axisX.empty() && !n.mount.axisY.empty() && !n.mount.axisZ.empty()
+                    && (n.id == chosen || (!nozzle && chosen.empty())))
+                    nozzle = &n;
+            if (!nozzle || m_busy) {
+                panel->hideInstructions();
+                m_window.showStatus(std::string("Calibrate: ") + (m_busy ? "a camera task is already under way"
+                                                                          : "choose a nozzle on a head (Jog) to hold over the camera"),
+                                    kResultMs);
+                if (finished) finished(false);
+                return;
+            }
+            calibrateFixedWith(*panel, *nozzle, finished);
+        });
+    panel->setProceedEnabled(true);
+    panel->hideInstructionsNumber();
+}
+
+void JPlacerCameraTasks::calibrateFixedWith(JPCameraPanel& camera, const JPNozzleConfig& nozzle, std::function<void(bool ok)> finished) {
+    JPCameraFeed* feed = &camera.feed();
+    const JPCameraConfig& cam = feed->config();
     // The camera's place is its offset: where it looks, and the height in focus.
-    const JPMountConfig& place = cam.mount;
-    const JPMountConfig tool = nozzle->mount;
+    const JPMountConfig place = cam.mount;
+    const JPMountConfig tool = nozzle.mount;
     const std::string cameraId = cam.id;
-    // The tip's size, as OpenPnP's camera calibration takes it (its Calibration Tip Diameter): its runout's Vision
-    // Diameter, else its own Diameter; every find that size, so nothing bigger round about it (the nozzle's base)
-    // is taken for it. No tip, or neither set: found at whatever size it is.
+    // The tip's size, as OpenPnP's (its Calibration Tip Diameter): its runout's Vision Diameter, else its own
+    // Diameter; the Detection Diameter starts from it, in pixels through the camera's rough scale (else
+    // OpenPnP's default).
     double tipMm = 0;
     std::string tipName;
     for (const JPNozzleTipConfig& t : m_cell.config().nozzleTips)
-        if (t.id == nozzle->tipId) {
+        if (t.id == nozzle.tipId) {
             tipMm = t.runoutCalibration.visionDiameter > 0 ? t.runoutCalibration.visionDiameter : t.diameter;
             tipName = t.name;
         }
+    const double roughUpp = (cam.unitsPerPixelX + cam.unitsPerPixelY) / 2;
+    const int startPx = tipMm > 0 && roughUpp > 0 ? int(std::lround(tipMm / roughUpp)) : kDefaultDetectionPx;
     JPCameraPanel* panel = &camera;
-    // As OpenPnP's camera calibration, straight to work (no asking): what it does, and Cancel, on the camera's
-    // instructions while it works.
-    const std::string nozzleId = nozzle->id;
+    const std::string nozzleId = nozzle.id;
     auto result = std::make_shared<JPCameraCalibration>();
     auto finds = showFinds(*panel);
-    run(*panel, "Calibrating " + feed->config().name, [this, feed, tool, place, result, finds, tipMm, tipName](std::string& words, const auto& progress) {
+    const std::string title = "Camera Calibration Instructions/Status";
+    run(*panel, "Calibrating " + feed->config().name, [this, panel, feed, tool, place, result, finds, tipMm, tipName, startPx,
+                                                         title](std::string& words, const auto& progress) {
+        std::weak_ptr<bool> alive = m_alive;
+        auto marks = [this, alive, panel](std::vector<JPCameraView::Mark> m) {
+            JMainThreadDispatcher::instance().post([alive, panel, m = std::move(m)] {
+                if (const auto a = alive.lock(); a && *a) panel->view().setMarks(m);
+            });
+        };
+        // The picture's size, for its middle and the green circle (OpenPnP's: a quarter of its smaller side,
+        // its centering half of that).
+        JPGrayImage img;
+        if (!JPCameraLook::taken(*feed, img, words, 1)) return false;
+        const double cx = (img.width - 1) / 2.0, cy = (img.height - 1) / 2.0, side = std::min(img.width, img.height);
+        const double centering = side * kInitialMaskShare * kCenteringShare;
+        const auto greenCircle = [&] { marks({ { cx, cy, centering, true, false } }); };
+        // Where the tip is (its X and Y) after the person has jogged it.
+        double atX = 0, atY = 0;
+        const auto here = [&] {
+            const auto p = m_cell.positions();
+            atX = p.at(tool.axisX);
+            atY = p.at(tool.axisY);
+        };
+        // The Detection Diameter set by the person: the tip looked for at it, round the middle, all the while,
+        // red where it is looked for, green with a + where found (OpenPnP's swing worker).
+        JPPipelineMarkFinder finder(feed->config().calibrationPipeline.empty() ? JPDefaultPipelines::cameraCalibration()
+                                                                              : feed->config().calibrationPipeline);
+        const auto detectionDiameter = [&](int start, int& px) {
+            auto into = std::make_shared<std::atomic<int>>(start);
+            std::string lastSaid;
+            NumberAsk ask { "Detection Diameter", into, kLeastDetectionPx, int(side) };
+            const bool next = askOperator(panel, title,
+                "Use the mouse scroll wheel to zoom in on the fiducial/nozzle tip and then adjust the Detection Diameter "
+                "until the red circle turns green with a + at its center and is sized to just fit the fiducial/nozzle tip "
+                "with the + centered on the fiducial/nozzle tip. When ready, click Next to begin the automated "
+                "calibration collection sequence.",
+                [&] {
+                    JPGrayImage look;
+                    std::string ignored;
+                    if (!JPCameraLook::taken(*feed, look, ignored, 1)) return;
+                    const double d = *into;
+                    const JPRoundMark m = finder.find(look, cx, cy, std::max(side * kInitialMaskShare / 2, d * kMaskOverDiameter), d);
+                    marks({ m.found ? JPCameraView::Mark { m.x, m.y, d, true, true } : JPCameraView::Mark { cx, cy, d, false, false } });
+                    // What the search says, on the camera's line: found where, or why not.
+                    char said[200];
+                    if (m.found) std::snprintf(said, sizeof said, "Detection Diameter %.0f px: found at %.1f, %.1f", d, m.x, m.y);
+                    else std::snprintf(said, sizeof said, "Detection Diameter %.0f px: not found (%s)", d, m.why.c_str());
+                    JMainThreadDispatcher::instance().post([alive, panel, text = std::string(said)] {
+                        if (const auto a = alive.lock(); a && *a) panel->setNote(text);
+                    });
+                    if (said != lastSaid) {   // in the log once each time it changes
+                        lastSaid = said;
+                        JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << feed->config().name << ": " << lastSaid;
+                    }
+                },
+                &ask);
+            marks({});
+            px = *into;
+            return next;
+        };
+        const auto cancelled = [&] { words = "cancelled"; return false; };
+
+        // Over the camera at safe Z, the green circle in the middle: jogged into it.
         progress("the nozzle over the camera");
-        const bool over = m_cell.safeZAndWait(tool.headId, kTaskSpeed, words)
-            && m_cell.moveAxesAndWait({ { tool.axisX, place.offsetX - tool.offsetX },
-                                        { tool.axisY, place.offsetY - tool.offsetY } }, kTaskSpeed, words)
-            && m_cell.moveAxesAndWait({ { tool.axisZ, place.offsetZ - tool.offsetZ } }, kTaskSpeed, words);
-        std::optional<JPCameraCalibration> c;
+        if (!m_cell.safeZAndWait(tool.headId, kTaskSpeed, words)
+            || !m_cell.moveAxesAndWait({ { tool.axisX, place.offsetX - tool.offsetX }, { tool.axisY, place.offsetY - tool.offsetY } },
+                                       kTaskSpeed, words))
+            return false;
+        greenCircle();
+        if (!askOperator(panel, title, "Using the jog controls on the Machine Controls panel, jog the nozzle tip so that it is "
+                                       "approximately in the center of the green circle. When ready, click Next to lower/raise "
+                                       "the nozzle tip to the calibration height.", nullptr))
+            return cancelled();
+        here();
+        // At each height: down (or up) to it where the tip was jogged, turned through 360 to see it stays in the
+        // circle, the Detection Diameter set, then measured.
+        JPCameraCalibrator::Options o;
+        o.speed = kTaskSpeed;
+        o.calibrating = feed->config().calibrating;
+        o.moving = &tool;
+        o.found = finds;
+        if (tipMm > 0) {
+            o.markDiameterMm = tipMm;
+            o.markWhat = "the nozzle tip " + tipName;
+            o.markSizeFrom = ", or its Vision Diameter (else its Diameter) set wrong";
+        }
+        const double raise = o.calibrating.raiseMm;
+        const bool twoPasses = o.calibrating.twoHeights && raise >= kLeastHeightGapMm;
+        std::optional<JPCameraCalibration> c, c2;
         std::string secondWhy;
-        if (over) {
-            JPCameraCalibrator::Options o;
-            o.markZ = place.offsetZ;
-            o.speed = kTaskSpeed;
-            o.calibrating = feed->config().calibrating;
-            o.moving = &tool;
-            o.found = finds;
-            if (tipMm > 0) {
-                o.markDiameterMm = tipMm;
-                o.markWhat = "the nozzle tip " + tipName;
-                o.markSizeFrom = ", or its Vision Diameter (else its Diameter) set wrong";
-            }
-            // Again with the tip raised (away from a camera looking up): a second pass.
-            const double raise = o.calibrating.raiseMm;
-            const bool twoPasses = o.calibrating.twoHeights && raise >= kLeastHeightGapMm;
-            if (twoPasses) o.pass = "pass 1 of 2";
-            if (feed->config().autoTuneCalibrating) {
+        int px = startPx;
+        for (int pass = 0; pass < (twoPasses ? 2 : 1); ++pass) {
+            const double z = place.offsetZ + (pass == 0 ? 0 : raise);
+            o.pass = twoPasses ? "pass " + std::to_string(pass + 1) + " of 2" : std::string();
+            o.markZ = z;
+            progress(o.pass.empty() ? std::string("to the calibration height") : o.pass + ", to its height");
+            if (!m_cell.moveAxesAndWait({ { tool.axisX, atX }, { tool.axisY, atY }, { tool.axisZ, z - tool.offsetZ } }, kTaskSpeed, words))
+                break;
+            if (pass == 0 && feed->config().autoTuneCalibrating) {
                 progress("Auto-Tune on the nozzle's tip");
-                if (!autoTuneHere(*feed, words)) return false;
+                if (!autoTuneHere(*feed, words)) break;
             }
-            c = JPCameraCalibrator::run(m_cell, *feed, o, words, progress);
-            if (c && twoPasses) {
-                char said[64];
-                std::snprintf(said, sizeof said, "pass 2 of 2, the nozzle raised %.1f mm", raise);
-                progress(said);
-                JPCameraCalibrator::Options o2 = o;
-                o2.pass = "pass 2 of 2";
-                o2.markPxPerMm = c->scale();   // the tip at the first pass's scale, as a start
-                o2.markZ = place.offsetZ + raise;
-                std::string why;
-                std::optional<JPCameraCalibration> c2;
-                if (m_cell.moveAxesAndWait({ { tool.axisZ, place.offsetZ + raise - tool.offsetZ } }, kTaskSpeed, why))
-                    c2 = JPCameraCalibrator::run(m_cell, *feed, o2, why, progress);
-                if (c2) secondHeight(*c, *c2);
-                else secondWhy = "; raised: " + why;
+            greenCircle();
+            if (!askOperator(panel, title, "Using the jog controls on the Machine Controls panel, rotate the nozzle tip through "
+                                           "360 degrees and verify it stays within the green circle. If necessary, jog it in X "
+                                           "and/or Y so that it remains within the circle when it is rotated. Click Next when "
+                                           "ready.", nullptr)) {
+                cancelled();
+                break;
+            }
+            marks({});
+            here();
+            if (!detectionDiameter(px, px)) {
+                cancelled();
+                break;
+            }
+            o.markPx = px;
+            // The moves by themselves now: the instructions put away until the next step.
+            JMainThreadDispatcher::instance().post([alive, panel] {
+                if (const auto a = alive.lock(); a && *a) panel->hideInstructions();
+            });
+            auto& got = pass == 0 ? c : c2;
+            std::string why;
+            got = JPCameraCalibrator::run(m_cell, *feed, o, pass == 0 ? words : why, progress);
+            if (!got) {
+                if (pass == 1) secondWhy = "; raised: " + why;
+                break;
             }
         }
+        if (c && c2) secondHeight(*c, *c2);
         // Up again, whatever happened.
         std::string up;
         if (!m_cell.safeZAndWait(tool.headId, kTaskSpeed, up) && words.empty()) words = up;

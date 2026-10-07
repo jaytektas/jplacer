@@ -49,6 +49,19 @@ done. The window can be made bigger by dragging its edge.
 
 <!-- src: src/common/JPBackups.cpp; src/app/JPlacerApp.cpp (the backup at start); src/app/JPlacerPreferencesDialog.cpp (Backups); src/app/JPlacerSettings.h (kBackupsKept) -->
 
+### Debugging
+
+**Save vision pictures for debugging**
+:   What OpenPnP does at its Debug log level. While ticked, every vision pipeline run (bottom vision, fiducials,
+    feeders, a camera's or a nozzle tip's calibration) keeps each of its stages' pictures in a folder of its
+    own, `log/vision/<date and time>_<what it was for>/` beside jplacer's settings, numbered in the stages'
+    order (`01_<stage>.png`, `02_<stage>.png`…), with `stages.txt` saying each stage's class, how long it took
+    and what it found. A pipeline's **ImageWriteDebug** stages write too, into
+    `org.openpnp.vision.pipeline.stages.ImageWriteDebug/` there, as OpenPnP's do. It fills the disk quickly:
+    tick it while looking into a problem, then untick it. Off when jplacer is first installed.
+
+<!-- src: src/pipeline/JPVisionDebug.cpp; src/pipeline/JPPipeline.cpp (process); src/pipeline/JPStagesImage.cpp (ImageWriteDebug); src/app/JPlacerPreferencesDialog.cpp (Debugging); src/app/JPlacerApp.cpp; src/app/JPlacerSettings.h (kVisionDebug) -->
+
 ### Updates
 
 **Check for updates when jplacer opens**

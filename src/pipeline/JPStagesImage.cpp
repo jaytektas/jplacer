@@ -9,6 +9,7 @@
 #include "JPPipeline.h"
 #include "JPStageRegistry.h"
 #include "JPStageUtil.h"
+#include "JPVisionDebug.h"
 
 #include "common/JPlacerLog.h"
 
@@ -131,10 +132,13 @@ void JPStageRegistry::addImageStages(std::vector<JPStageType>& types) {
     types.push_back({ std::string(kStages) + "ImageWriteDebug", "", "",
                       { P { "prefix", Kind::Text, "debug", "" }, P { "suffix", Kind::Text, ".png", "" } },
                       [](JPPipeline& p, const JPPipelineStage& s) {
-                          // Only while the pipeline's log says debug.
-                          if (!JLog::instance().enabled(JPlacerLog::kPipeline, JLogLevel::Debug) || p.context().debugDirectory.empty())
-                              return Output {};
-                          const std::string dir = p.context().debugDirectory;
+                          // As OpenPnP's, only while debugging: vision debugging on (Preferences), into its folder
+                          // (else the pipeline's own, given with the pipeline's log at debug).
+                          const bool logged = JLog::instance().enabled(JPlacerLog::kPipeline, JLogLevel::Debug);
+                          const std::string dir = JPVisionDebug::on() ? JPVisionDebug::imageWriteDebugDirectory()
+                                                : logged              ? p.context().debugDirectory
+                                                                      : std::string();
+                          if (dir.empty()) return Output {};
                           std::error_code ec;
                           std::filesystem::create_directories(dir, ec);
                           const long long nanos = std::chrono::duration_cast<std::chrono::nanoseconds>(

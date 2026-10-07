@@ -326,6 +326,11 @@ void JPCameraView::choose(const JPReticle& reticle) {
     if (onReticleChanged) onReticleChanged(m_reticle);
 }
 
+void JPCameraView::setMarks(std::vector<Mark> marks) {
+    m_marks = std::move(marks);
+    invalidate();
+}
+
 void JPCameraView::setOverlay(const std::string& key, Overlay overlay) {
     if (overlay) m_overlays[key] = std::move(overlay);
     else m_overlays.erase(key);
@@ -521,6 +526,19 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
                    st.spacing, kLeastGap * st.spacing, JPaint::solid(c));
     if (place)
         for (const auto& [key, overlay] : m_overlays) overlay(vg, place, line);
+    // Marks in the picture's own pixels (calibrated or not).
+    for (const Mark& mk : m_marks) {
+        float sx, sy;
+        if (!selectionCorner(mk.x, mk.y, sx, sy)) continue;
+        const uint8_t* tone = mk.found ? Colors::Success : Colors::Danger;
+        const JPaint ink = JPaint::solid(rgb(tone[0], tone[1], tone[2]));
+        const float r = float(mk.diameter * 0.5) * scale;
+        vg.strokeCircle(sx, sy, r, 2 * line, ink);
+        if (mk.cross) {
+            vg.drawLine(sx - r * 0.5f, sy, sx + r * 0.5f, sy, 2 * line, ink);
+            vg.drawLine(sx, sy - r * 0.5f, sx, sy + r * 0.5f, 2 * line, ink);
+        }
+    }
 
     // The selection: its outline and a handle at each corner, its size by it.
     if (m_selecting && m_selection.width > 0 && m_selection.height > 0) {

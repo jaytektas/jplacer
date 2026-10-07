@@ -103,12 +103,18 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
     // Its size from the mark's and the scale given (else the camera's rough one), as OpenPnP's; not found at it,
     // looked for about it; the size not known, at every size.
     const double roughUpp = (cam.unitsPerPixelX + cam.unitsPerPixelY) / 2;
-    const double expectPx = o.markDiameterMm <= 0 ? 0
+    const double expectPx = o.markPx > 0          ? o.markPx
+                          : o.markDiameterMm <= 0 ? 0
                           : o.markPxPerMm > 0     ? o.markDiameterMm * o.markPxPerMm
                           : roughUpp > 0          ? o.markDiameterMm / roughUpp
                                                   : 0;
     JPRoundMark first;
     if (expectPx > 0) first = finder.find(img, img.width / 2.0, img.height / 2.0, kFirstSearch * side, expectPx);
+    if (!first.found && o.markPx > 0) {
+        why = feed.config().name + " sees nothing round " + std::to_string(int(std::lround(o.markPx)))
+            + " px across near the middle of its picture (the Detection Diameter): " + first.why;
+        return std::nullopt;
+    }
     if (!first.found)
         first = finder.findAnySize(img, img.width / 2.0, img.height / 2.0, kFirstSearch * side,
                                    expectPx > 0 ? kKnownLeast * expectPx : kMinMarkShare * side,

@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
 #include "JPPipeline.h"
+#include "JPVisionDebug.h"
 
 #include "JPStageRegistry.h"
 #include "JPStageUtil.h"
@@ -120,6 +121,8 @@ bool JPPipeline::process(std::string& why) {
         r.milliseconds = ms;
         m_results[stage.name()] = std::move(r);
     }
+    // Vision debugging: each stage's picture kept (JPVisionDebug).
+    if (JPVisionDebug::on()) JPVisionDebug::saveRun(*this, m_context.label);
     if (terminal.empty()) return true;
     why = terminal;
     return false;

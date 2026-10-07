@@ -68,6 +68,7 @@ JPFiducialLocator::PartProblem JPFiducialLocator::partLook(JPConfiguration& conf
             look.partId = part.id;
             look.pipeline = std::make_shared<JPPipeline>(JPVisionPipelines::of(*v));
             look.pipeline->context().configurationDirectory = config.directory();
+            look.pipeline->context().label = "fiducial " + part.id;
             JPVisionPipelinePrep::fiducial(*look.pipeline, config, *v, part.id, part.packageId, 0, vision.fiducialMaxDistanceMm);
         }
     }
@@ -99,6 +100,7 @@ JPFiducialLocator::PartProblem JPFiducialLocator::lookFor(JPConfiguration& confi
         if (vision.fiducialPipeline) {
             look.pipeline = std::make_shared<JPPipeline>(JPVisionPipelines::of(*v));
             look.pipeline->context().configurationDirectory = config.directory();
+            look.pipeline->context().label = "fiducial";
             JPVisionPipelinePrep::fiducial(*look.pipeline, config, *v, "", "", 0, vision.fiducialMaxDistanceMm);
         }
     }

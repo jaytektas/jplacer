@@ -64,6 +64,10 @@ void JPlacerSettings::save() {
             << "settings not saved to " << JSettings::instance().path().string();
 }
 
+bool JPlacerSettings::visionDebug() {
+    return JSettings::instance().get<bool>(kVisionDebug, false);
+}
+
 bool JPlacerSettings::updatesBeta() {
     return JSettings::instance().get<bool>(kUpdatesBeta, false);
 }

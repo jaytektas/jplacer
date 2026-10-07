@@ -10,6 +10,13 @@ notes.
 
 ## Unreleased
 
+- Preferences > Debugging > Save vision pictures for debugging: while ticked, every vision pipeline run keeps each
+  stage's picture in a folder of its own (log/vision, beside the settings) with what each stage found, as OpenPnP
+  does at its Debug log level; ImageWriteDebug stages write too (they never did).
+- The bottom camera's Calibrate goes step by step as OpenPnP's: load the smallest tip; jog it into the green
+  circle; at the calibration height turn it 360 degrees to see it stays in; set the Detection Diameter until the
+  red circle turns green with a + on the tip (it starts at the tip's size); then the moves run by themselves.
+  At the second height, the same again. The line over the picture says why the tip is not found at that size.
 - Closing jplacer during a camera calibration cancels it (it stops before its next move) and quits, rather than
   waiting for the whole calibration to finish first.
 - A camera in a floating window has its right-click menu again (reticles, zoom, and the rest), as when docked.

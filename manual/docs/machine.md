@@ -721,18 +721,28 @@ How the camera is measured, and whether at two heights, is set on that tab.
 
 #### Calibrating a fixed camera
 
-A camera fixed to the machine (one looking up at the nozzles) cannot be moved over a mark, so the mark
-is moved over it: **Calibrate** (the target), in that camera's tab, holds a nozzle's tip over it, at once,
-as OpenPnP's (nothing asked; the nozzle must hold no part and have nothing in its way, and the red X
-**Cancel** beside Calibrate stops it). The head's Z comes up into its safe zone, the nozzle goes over the
-camera's place and down to the camera's height (both from the camera's offset, where it is and the height
-it is focused at), the calibration is made by moving the nozzle instead of the camera, and the nozzle
-comes up again, whether it worked or not. The tip is looked for at its size, as OpenPnP's (its Calibration
-Tip Diameter): the tip's runout **Vision Diameter**, else its **Diameter**, through the camera's rough scale
-(an imported camera keeps OpenPnP's), and only about that size, so the nozzle's base round it, the bigger
-round thing, is not taken for it; the second pass starts from the scale the first measured. Measured more
-than a fifth off that size, the calibration stops and says so (the tip, or its size setting, is wrong). With
-no tip on the nozzle, or neither size set, it is found at whatever size it is.
+A camera fixed to the machine (one looking up at the nozzles) cannot be moved over a mark, so the mark is
+moved over it: **Calibrate** (the target), in that camera's tab, holds a nozzle's tip over it, step by step
+as OpenPnP's camera calibration, on the camera's **Camera Calibration Instructions/Status** with **Next** and
+**Cancel** (the red X beside Calibrate cancels too, at any step):
+
+1. "Select a nozzle and load it with the smallest available nozzle tip." The nozzle chosen in Jog when you
+   press **Next** is the one used (as OpenPnP's selected nozzle); none chosen, the first on the head.
+2. The head's Z comes up into its safe zone and the nozzle goes over the camera's place; a **green circle**
+   in the middle of the picture (an eighth of its smaller side across). Jog the tip into it, then **Next**.
+3. The tip goes down to the camera's height (the camera's offset: where it is focused). Turn it through 360
+   degrees (Jog) and see it stays in the circle, jogging it if not, then **Next**.
+4. **Detection Diameter**: the tip is looked for at that size, all the while, about the middle: a **red**
+   circle that size where it is looked for, **green with a +** where it is found; the line over the picture
+   says which, and why not. It starts at the tip's size (its runout **Vision Diameter**, else its
+   **Diameter**, through the camera's rough scale; else 25 px, as OpenPnP's): set it until the circle is green
+   and just fits the tip, then **Next**. Only that size is taken, so the nozzle's base round the tip, the
+   bigger round thing, is not.
+5. The moves, by themselves: the calibration is made by moving the nozzle instead of the camera.
+
+At the second height (the camera's **Calibrating** settings: two heights, the tip raised), steps 3 to 5 again,
+from where the tip was jogged. Then the nozzle comes up, whether it worked or not. Measured more than a fifth
+off its size, the tip stops the calibration, which says so (the tip, or its size setting, is wrong).
 
 It goes on, as one calibration and without asking again, when the tip on that nozzle has its calibration
 enabled (its **Enable?**): the tip's **runout** is measured over the camera (the camera's scale now known),
@@ -747,7 +757,7 @@ A camera looking up sees the machine as a mirror image of one looking down; its 
 mirrored are given against that, so a straight-mounted camera looking up reads as turned 0 and not
 mirrored.
 
-<!-- src: src/app/JPlacerCameraTasks.cpp (calibrateFixed, onFixedCalibrated, calibrateRunoutCamera); src/app/JPlacerMachine.cpp (onFixedCalibrated, calibrateCameraPosition); src/tasks/JPCameraCalibrator.cpp (Options::moving); src/machine/JPCell.cpp (safeZAndWait); src/machine/JPCameraCalibration.cpp (rotationDeg, mirrored) -->
+<!-- src: src/app/JPlacerCameraTasks.cpp (calibrateFixed, calibrateFixedWith, askOperator, onFixedCalibrated, calibrateRunoutCamera); src/ui/JPInstructions.cpp (showNumber); src/ui/JPCameraView.cpp (setMarks); src/app/JPlacerMachine.cpp (onFixedCalibrated, calibrateCameraPosition); src/tasks/JPCameraCalibrator.cpp (Options::moving); src/machine/JPCell.cpp (safeZAndWait); src/machine/JPCameraCalibration.cpp (rotationDeg, mirrored) -->
 
 #### Visual Test
 

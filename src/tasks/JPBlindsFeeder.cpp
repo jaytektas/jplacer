@@ -91,6 +91,7 @@ public:
             pipeline = JPFeederPipelines::of(*f);
             if (!pipeline) return;
             pipeline->context().configurationDirectory = m_config.directory();
+            pipeline->context().label = "feeder " + f->id();
             JPFeederPipelines::setupBlindsOcr(m_config, *f, *pipeline, at, ocr);
         });
         if (!pipeline) return missing(why);

@@ -14,6 +14,7 @@
 
 #include <j/app/JAppWindow.h>
 
+#include <atomic>
 #include <functional>
 #include <map>
 #include <optional>
@@ -102,6 +103,8 @@ public:
     // A camera looking up calibrated with a nozzle's tip held over it (`nozzleId`): for the owner to go on, as one
     // calibration, with the tip's runout and the camera's true position and rotation.
     std::function<void(const std::string& cameraId, const std::string& nozzleId)> onFixedCalibrated;
+    // The nozzle chosen (Jog's), for a camera looking up calibrated with its tip, as OpenPnP's selected nozzle.
+    std::function<std::string()> chosenNozzle;
     using RunoutDone = std::function<void(bool ok, const JPRunout&, const std::optional<JPBackgroundCalibration::Result>&,
                                           const std::string& why)>;
     void calibrateRunout(const std::string& nozzleId, RunoutDone done);
@@ -152,6 +155,20 @@ private:
     using Task = std::function<bool(std::string& words, const std::function<void(const std::string&)>& progress)>;
     void run(JPCameraPanel& camera, const std::string& name, Task task, std::function<void(bool)> done = nullptr);
     void calibrateFixed(JPCameraPanel& camera, std::function<void(bool ok)> finished);
+    // Its steps from the nozzle chosen on (OpenPnP's, once the smallest tip is loaded).
+    void calibrateFixedWith(JPCameraPanel& camera, const JPNozzleConfig& nozzle, std::function<void(bool ok)> finished);
+    // A number the person sets on a step (OpenPnP's Detection Diameter): what it is called, where it is kept
+    // (read by the task as it goes), and its range.
+    struct NumberAsk {
+        std::string                       label;
+        std::shared_ptr<std::atomic<int>> into;
+        int                               min = 0, max = 0;
+    };
+    // The person's turn, from a task's thread (OpenPnP's instructions): `text` on the camera with Next and Cancel,
+    // and `number` to set when given; true on Next, false cancelled (Cancel, the red X, closing). `meanwhile`
+    // runs over and over on this thread until then (a live search shown); none: it waits.
+    bool askOperator(JPCameraPanel* panel, const std::string& title, const std::string& text,
+                     const std::function<void()>& meanwhile, const NumberAsk* number = nullptr);
     bool cameraView(const JPCameraConfig& camera, double& x, double& y, std::string& why) const;
     bool lookAt(JPCameraPanel& camera, double x, double y);
     // A new calibration in use, and saved in the cell file.

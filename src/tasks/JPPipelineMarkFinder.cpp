@@ -54,6 +54,8 @@ JPPipelineMarkFinder::JPPipelineMarkFinder(JPPipeline prepared, std::string cont
 }
 
 void JPPipelineMarkFinder::useCapture() {
+    // Named for vision debugging's folders: the nozzle tip's, else a round mark's (a camera's calibration).
+    m_pipeline.context().label = m_control == "nozzleTip" ? "nozzle tip" : "round mark";
     // Its ImageCapture: the picture taken (already settled, the light as it was).
     m_pipeline.context().capture = [this](const std::string&, const std::string&, cv::Mat& bgr, std::string& why) {
         if (m_picture.empty()) {

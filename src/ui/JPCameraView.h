@@ -78,6 +78,15 @@ public:
     // null to take it away.
     using Overlay = std::function<void(JVectorCanvas& vg, const JPReticle::Place& place, float line)>;
     void setOverlay(const std::string& key, Overlay overlay);
+    // Circles drawn on the picture in its own pixels, calibrated or not (OpenPnP's CalibrateCameraProcess
+    // shows its green and red circles so): where, how big across, found (green, else red), and with a + at
+    // its middle. Empty: none.
+    struct Mark {
+        double x = 0, y = 0, diameter = 0;
+        bool   found = true;
+        bool   cross = false;
+    };
+    void setMarks(std::vector<Mark> marks);
 
     // OpenPnP's light toggle, a sun at the top right while the camera has a
     // light (`has`): bright while it is on (`on`; not known: shown off).
@@ -199,6 +208,7 @@ private:
     JPCameraCalibration                m_cal;
     double                             m_reachMm = 0;   // how far the picture reaches from its middle
     std::map<std::string, Overlay>     m_overlays;
+    std::vector<Mark>                  m_marks;      // setMarks
     JPReticle                          m_reticle;
     std::unique_ptr<JMenu>             m_menu, m_spacingMenu, m_sizeMenu, m_zoomMenu;
     ZoomSensitivity                    m_sensitivity = ZoomSensitivity::Medium;

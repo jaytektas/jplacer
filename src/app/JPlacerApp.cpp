@@ -4,6 +4,7 @@
 #include "JPlacerApp.h"
 
 #include "common/JPBackups.h"
+#include "pipeline/JPVisionDebug.h"
 
 #include <j/core/FrameTimer.h>
 #include <j/platform/JDesktop.h>
@@ -49,6 +50,8 @@ JPlacerApp::JPlacerApp(std::string settingsPath) {
     JPlacerSettings::load(settingsPath);
     // What this run starts from, copied before it writes anything (JPBackups): a rolling set, as many as
     // Preferences says (none: 0).
+    // Vision debugging, as last left (Preferences).
+    if (JPlacerSettings::visionDebug()) JPVisionDebug::setDirectory(JPlacerPaths::configDir());
     const int keep = JSettings::instance().get<int>(JPlacerSettings::kBackupsKept, JPBackups::kKeep);
     std::string backupDir, backupWhy = "turned off in Preferences";
     const bool backedUp = keep > 0 && JPBackups::take(JPlacerPaths::configDir(), settingsPath, keep, backupDir, backupWhy);
