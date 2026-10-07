@@ -1627,17 +1627,66 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
     }
 
     add.tab("Calibration");
-    add.group("Runout");
+    // As OpenPnP's ReferenceNozzleTipCalibrationWizard: its Calibration panel (enabled, the tool positioned over
+    // the camera looking up; Calibrate, Reset, Calibrate Camera Position and Rotation; when; Fail Homing?), then
+    // its Nozzle Tip Calibration panel (what the tip is, how it is measured), then Background Calibration.
+    add.group("Calibration");
     auto rc = [t]() -> JPNozzleTipConfig::RunoutCalibration& { return t().runoutCalibration; };
     using RC = JPNozzleTipConfig::RunoutCalibration;
-    add.flag("runoutEnabled", "Compensate?", [rc]() -> bool& { return rc().enabled; });
+    add.row("Enable?");
+    add.flag("runoutEnabled", "", [rc]() -> bool& { return rc().enabled; });
+    add.iconButton("positionRunoutTool", "position-nozzle", "Position the tool over the bottom camera.");
+    add.end();
+    add.row("Calibration");
+    add.button("calibrateRunout", "Calibrate", "Calibrate the nozzle tip on the nozzle it is on, over the camera looking up.");
+    add.button("resetRunout", "Reset", "Forget the calibration on the nozzle it is on.");
+    add.button("calibrateRunoutCamera", "Calibrate Camera Position and Rotation",
+               "Calibrate the bottom vision camera position and rotation according to a pattern of measured nozzle positions.");
+    add.end();
     add.choice("runoutRecalibration", "Auto Recalibration", { "NozzleTipChange", "NozzleTipChangeInJob", "MachineHome", "Manual" },
                [rc] { return rc().recalibration; }, [rc](const std::string& v) { rc().recalibration = v; });
-    add.tip("Determines when a recalibration is automatically executed: on each nozzle tip change; on each nozzle tip "
-            "change but only in Jobs; on each machine homing (and on nozzle tip change when not yet calibrated); or "
-            "manually only.");
+    add.tip("Determines when a recalibration is automatically executed: on each nozzle tip change (by the changer or by "
+            "hand); on each nozzle tip change but only in Jobs; on each machine homing (and on nozzle tip change when not "
+            "yet calibrated); or manually only.");
     add.flag("runoutFailHoming", "Fail Homing?", [rc]() -> bool& { return rc().failHoming; });
     add.tip("When the calibration fails during homing, also fail the homing cycle.");
+
+    add.group("Nozzle Tip Calibration");
+    {
+        // OpenPnP's Status: the tip on the nozzle it is on, and how it is calibrated there.
+        std::string status = "Please load the nozzle tip on a nozzle.";
+        for (const JPNozzleConfig& n : cell.nozzles) {
+            if (n.tipId != t().id) continue;
+            status = t().name + " on " + n.name + ": ";
+            if (const auto it = t().runout.find(n.id); it != t().runout.end()) {
+                char b[120];
+                std::snprintf(b, sizeof b, "runout %.4f mm at %.1f deg (%s)", it->second.radius, it->second.phaseDeg,
+                              it->second.algorithm.c_str());
+                status += b;
+            } else {
+                status += "Uncalibrated";
+            }
+        }
+        add.text("runoutStatus", "Status", [status] { return status; }, nullptr);
+    }
+    add.row("Circle Divisions");
+    add.integer("runoutDivisions", "", [rc]() -> int& { return rc().divisions; }, RC::kLeastDivisions, RC::kMostDivisions);
+    add.integer("runoutMisdetects", "Allowed Misdectects", [rc]() -> int& { return rc().misdetects; }, 0, RC::kMostDivisions);
+    add.tip("Number of missed detections tolerated before a calibration fails.");
+    add.end();
+    add.row("Offset Threshold");
+    add.length("runoutOffsetThreshold", "", [rc] { return rc().offsetThresholdMm; },
+               [rc](double v) { if (v > 0) rc().offsetThresholdMm = v; });
+    add.length("runoutZOffset", "Calibration Z Offset", [rc]() -> double& { return rc().zOffset; });
+    add.tip("When the vision-detected feature of a nozzle is higher up on the nozzle tip it is recommended to shift the "
+            "focus plane with the \"Z Offset\".\nIf a nozzle tip is named \"unloaded\" it is used as a stand-in for "
+            "calibration of the bare nozzle tip holder. Again the \"Z Offset\" can be used to calibrate at the proper "
+            "focal plane.");
+    add.end();
+    add.length("runoutVisionDiameter", "Vision Diameter", [rc] { return rc().visionDiameter; },
+               [rc](double v) { if (v >= 0) rc().visionDiameter = v; });
+    add.tip("Diameter of the feature/edge that should be detected in calibration vision (0: the tip's diameter).");
+    // Beyond OpenPnP's panel (it keeps the algorithm in machine.xml only): how the runout is fitted and compensated.
     add.choice("runoutAlgorithm", "Compensation Algorithm", JPRunout::algorithms(), [rc] { return rc().algorithm; },
                [rc](const std::string& v) { rc().algorithm = v; });
     add.tip("OpenPnP's runout compensation algorithm (its machine.xml's; ModelCameraOffsetAffine to begin with). Model: the "
@@ -1647,34 +1696,16 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
             "the nozzle goes over it, and bottom vision). Affine: fitted by the affine transform onto a 1 mm runout, "
             "else a circle (Kasa). Table: the measured offsets, interpolated between their angles. Calibrate again "
             "after changing it.");
-    add.integer("runoutDivisions", "Circle Divisions", [rc]() -> int& { return rc().divisions; }, RC::kLeastDivisions,
-                RC::kMostDivisions);
-    add.integer("runoutMisdetects", "Allowed Misdetects", [rc]() -> int& { return rc().misdetects; }, 0, RC::kMostDivisions);
-    add.tip("Number of missed detections tolerated before a calibration fails.");
-    add.length("runoutOffsetThreshold", "Offset Threshold", [rc] { return rc().offsetThresholdMm; },
-               [rc](double v) { if (v > 0) rc().offsetThresholdMm = v; });
-    add.tip("The largest runout (and nozzle offset error) accepted: a tip found further than this from where the nozzle "
-            "was sent counts as a misdetect.");
-    add.length("runoutZOffset", "Calibration Z Offset", [rc]() -> double& { return rc().zOffset; });
-    add.tip("When the vision-detected feature of a nozzle is higher up on the nozzle tip it is recommended to shift the "
-            "focus plane with the \"Z Offset\".\nIf a nozzle tip is named \"unloaded\" it is used as a stand-in for "
-            "calibration of the bare nozzle tip holder. Again the \"Z Offset\" can be used to calibrate at the proper "
-            "focal plane.");
-    add.length("runoutVisionDiameter", "Vision Diameter", [rc] { return rc().visionDiameter; },
-               [rc](double v) { if (v >= 0) rc().visionDiameter = v; });
-    add.tip("Diameter of the feature/edge that should be detected in calibration vision (0: the tip's diameter).");
     // OpenPnP's calibration Pipeline: what finds the tip (its centre then measured to a fraction of a pixel close by).
     add.row("Pipeline");
     add.button("editTipPipeline", "Edit", "Edit the pipeline that finds the nozzle tip.");
     add.button("resetTipPipeline", "Reset", "Reset the pipeline to OpenPnP's default.", !rc().pipeline.empty());
     add.end();
-    add.actions({ { "Position Tool", "positionRunoutTool" }, { "Calibrate", "calibrateRunout" }, { "Reset", "resetRunout" },
-                  { "Calibrate Camera Position and Rotation", "calibrateRunoutCamera" } });
     add.note("Position Tool takes the nozzle the tip is on over the camera looking up, at its focus plus the Z offset. "
              "Calibrate measures the tip on the nozzle it is on, over the fixed camera looking up: down to the "
              "camera's focus (plus the Z offset), turned to each of Circle Divisions angles round the circle, its "
              "end found at each (Vision Diameter across; 0: the tip's diameter), and fitted as the Compensation "
-             "Algorithm says. With Compensate? on, every move of that nozzle is sent the compensation the other way, so "
+             "Algorithm says. With Enable? on, every move of that nozzle is sent the compensation the other way, so "
              "the tip's centre lands where it is sent at any angle. Reset forgets it for that nozzle. Calibrate Camera "
              "Position and Rotation (the tip measured first) sends the tip round a circle over the camera looking up, a "
              "quarter of its picture out, and sets where the camera is and how far its picture is turned from where "

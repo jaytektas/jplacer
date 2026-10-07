@@ -361,6 +361,8 @@ Beside the tool, for a nozzle, the **nozzle tip** button opens its tip menu:
   chosen). The tip on the nozzle is unloaded first, by its own unload steps, then the new one loaded by
   its load steps;
 - **Unload** the tip on it;
+- **Calibrate** the tip on it: its runout measured over the camera looking up, at once (greyed with no tip
+  on the nozzle, or the machine not homed);
 - **Step Through**: each changer step is shown, with its place and speed, and runs only once you say
   so; stop at any step. On by default, and kept for next time;
 - **Manual Change**: first **Move to Manual Change Location**, the nozzle taken where its tip is changed
@@ -467,7 +469,9 @@ Over the lines, what is shown:
 - **G-code**: the controllers' traffic, on or off.
 - **Log**: how much the log says, every category: Off, Errors, Warnings, Info (what was done and what came
   of it, to begin with), Debug (the steps in between) or Trace (every event, many a second). Each log line
-  starts with its level and category, as in the log file: `[INFO][machine.cell] ...`, `[WARN][camera] ...`.
+  starts with its level and category, as in the log file: `[INFO][machine.cell] ...`, `[WARN][camera] ...`;
+  a controller's traffic with `[GCODE]` and the controller's name, an arrow saying which way it went:
+  `[GCODE][Jaytek] → G1 X10`.
 - **Categories**: a menu of the log's categories (`machine.cell`, `camera`, and so on), each **As Log** or
   at a level of its own: turn one part up (the controllers, `machine.driver`) without the rest, or one
   that is too busy down. **All as Log** puts them all back.

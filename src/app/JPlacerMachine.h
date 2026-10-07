@@ -378,9 +378,8 @@ private:
     std::unique_ptr<JPlacerTipChanges>  m_tipChanges;    // the nozzles' tips loaded and unloaded
     std::unique_ptr<JPlacerTestMotion>  m_testMotion;    // the motion planner's Test Motion
     std::string                         m_positionedCamera;   // a camera moved to look somewhere, by name, until there
-    // A tip's runout measured on the nozzle it is on (asking first, or not: an automatic recalibration),
-    // then kept; `done` whether it was, and why not.
-    void calibrateTipRunout(const std::string& nozzleId, bool ask, std::function<void(bool, const std::string&)> done);
+    // A tip's runout measured on the nozzle it is on, then kept; `done` whether it was, and why not.
+    void calibrateTipRunout(const std::string& nozzleId, std::function<void(bool, const std::string&)> done);
     // Once homed, each of `nozzles` in turn (JPlacerMachine::recalibrateAfterHoming); `done` false when one
     // failed with Fail Homing (the machine then unhomed).
     void recalibrateAfterHoming(std::vector<std::string> nozzles, std::function<void(bool)> done);

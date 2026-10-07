@@ -460,6 +460,15 @@ void JPJogPanel::showTipMenu() {
     unload->onTriggered.connect([this, nozzleId] {
         if (onChangeTip) onChangeTip(nozzleId, "", m_stepThrough);
     });
+    // The tip on it calibrated where it is (OpenPnP's nozzle tip Calibrate).
+    std::string calibrateLabel = onIt.empty() ? std::string("Calibrate") : "Calibrate " + onIt;
+    if (onIt.empty())             calibrateLabel += " (no tip on it)";
+    else if (!m_cell.isHomed())   calibrateLabel += " (home the machine first)";
+    JMenuItem* calibrate = m_tipMenu->add(g, calibrateLabel);
+    calibrate->setEnabled(!onIt.empty() && m_cell.isHomed());
+    calibrate->onTriggered.connect([this, nozzleId] {
+        if (onCalibrateTip) onCalibrateTip(nozzleId);
+    });
     m_tipMenu->addSeparator(g);
     JMenuItem* step = m_tipMenu->add(g, "Step Through");
     step->setCheckable(true);

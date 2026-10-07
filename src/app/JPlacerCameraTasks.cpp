@@ -285,7 +285,7 @@ void JPlacerCameraTasks::calibrateBacklash(const std::string& axisId,
     });
 }
 
-void JPlacerCameraTasks::calibrateRunout(const std::string& nozzleId, bool ask, RunoutDone done) {
+void JPlacerCameraTasks::calibrateRunout(const std::string& nozzleId, RunoutDone done) {
     const JPNozzleConfig* nozzle = nullptr;
     for (const JPNozzleConfig& n : m_cell.config().nozzles)
         if (n.id == nozzleId) nozzle = &n;
@@ -310,35 +310,18 @@ void JPlacerCameraTasks::calibrateRunout(const std::string& nozzleId, bool ask, 
     }
     const JPNozzleConfig n = *nozzle;
     const JPNozzleTipConfig t = *tip;
-    std::weak_ptr<bool> alive = m_alive;
-    auto start = [this, alive, camera, n, t, done] {
-        if (const auto a = alive.lock(); !a || !*a) return;
-        if (m_busy) return;   // another task began while asking
-        auto result = std::make_shared<JPRunout>();
-        auto background = std::make_shared<std::optional<JPBackgroundCalibration::Result>>();
-        auto words = std::make_shared<std::string>();
-        run(*camera, "Measuring " + t.name + "'s runout", [this, camera, n, t, result, background, words](std::string& w, const auto& progress) {
-            const auto r = JPRunoutCalibrator::measure(m_cell, camera->feed(), n, t, m_scripting.get(), w, progress, *background);
-            *words = w;
-            if (!r) return false;
-            *result = *r;
-            return true;
-        }, [result, background, words, done](bool ok) {
-            if (done) done(ok, *result, *background, *words);
-        });
-    };
-    if (!ask) {
-        start();
-        return;
-    }
-    const JPCameraConfig& cam = camera->camera();
-    char body[640];
-    std::snprintf(body, sizeof body,
-                  "%s's tip %s is measured over %s: the nozzle goes over the camera (X %.3f, Y %.3f), down to Z %.3f, "
-                  "and turns round a full circle.\n\nThe nozzle must hold no part, and nothing must be in its way.",
-                  nozzle->name.c_str(), tip->name.c_str(), cam.name.c_str(), cam.mount.offsetX, cam.mount.offsetY,
-                  cam.mount.offsetZ + tip->runoutCalibration.zOffset);
-    JDialog::confirm("Calibrate " + tip->name + " on " + nozzle->name, body, start);
+    auto result = std::make_shared<JPRunout>();
+    auto background = std::make_shared<std::optional<JPBackgroundCalibration::Result>>();
+    auto words = std::make_shared<std::string>();
+    run(*camera, "Measuring " + t.name + "'s runout", [this, camera, n, t, result, background, words](std::string& w, const auto& progress) {
+        const auto r = JPRunoutCalibrator::measure(m_cell, camera->feed(), n, t, m_scripting.get(), w, progress, *background);
+        *words = w;
+        if (!r) return false;
+        *result = *r;
+        return true;
+    }, [result, background, words, done](bool ok) {
+        if (done) done(ok, *result, *background, *words);
+    });
 }
 
 void JPlacerCameraTasks::calibrateRunoutCamera(const std::string& nozzleId, CameraFixDone done) {

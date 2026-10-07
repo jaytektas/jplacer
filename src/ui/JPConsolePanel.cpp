@@ -108,8 +108,9 @@ JPConsolePanel::JPConsolePanel(JSceneGraph& graph, JPCell& cell, bool showTraffi
     add(std::move(input));
 
     m_watch.on(cell.onTraffic, [this](std::string name, bool sent, std::string line) {
-        // Kept even while not shown: ticking G-code shows what passed meanwhile.
-        addLines({ Line { true, JLogLevel::Info, "", name + (sent ? " \xE2\x86\x92 " : " \xE2\x86\x90 ") + line } });
+        // As the log's lines, its kind and its controller first ("[GCODE][Jaytek] → G1 X10"). Kept even while
+        // not shown: ticking G-code shows what passed meanwhile.
+        addLines({ Line { true, JLogLevel::Info, "", "[GCODE][" + name + "] " + (sent ? "\xE2\x86\x92 " : "\xE2\x86\x90 ") + line } });
     });
     // The log, from any thread: kept, then taken in on the main thread, each line as the log file has it
     // ("[INFO][machine.cell] ..."). Its traffic category is left out: the G-code box shows that.

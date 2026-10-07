@@ -89,6 +89,8 @@ public:
     std::function<void(JMenu* menu, float x, float y)> openMenu;
     // Home the nozzle's Z alone (JPCell::homeNozzle).
     std::function<void(const std::string& nozzleId)> onHomeZ;
+    // The tip on a nozzle calibrated (its runout measured over the camera looking up), from its tip menu.
+    std::function<void(const std::string& nozzleId)> onCalibrateTip;
     // A nozzle's part put down or dropped (Place, Discard): it holds none.
     std::function<void(const std::string& nozzleId)> onPartGone;
     // OpenPnP's Recycle: the part on the nozzle put back into a feeder;

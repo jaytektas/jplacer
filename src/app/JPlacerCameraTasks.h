@@ -93,13 +93,13 @@ public:
     void autoFocusTest(JPCameraPanel& camera, const JPNozzleConfig& nozzle, std::function<void(double)> done);
     // OpenPnP's scripting, for its NozzleCalibration events (none: not run).
     void setScripting(std::shared_ptr<JPScripting> scripting) { m_scripting = std::move(scripting); }
-    // A nozzle's tip's runout measured over the fixed camera, asking first
-    // (`ask`) or not (an automatic recalibration). `done` (main thread): whether
+    // A nozzle's tip's runout measured over the fixed camera, at once (as OpenPnP's Calibrate, which does
+    // not ask). `done` (main thread): whether
     // it was measured, the runout, the background calibration's result (with
     // the tip's on; none when too few pictures) and, failing, why.
     using RunoutDone = std::function<void(bool ok, const JPRunout&, const std::optional<JPBackgroundCalibration::Result>&,
                                           const std::string& why)>;
-    void calibrateRunout(const std::string& nozzleId, bool ask, RunoutDone done);
+    void calibrateRunout(const std::string& nozzleId, RunoutDone done);
     // OpenPnP's Calibrate Camera Position and Rotation with the tip on `nozzleId` (JPRunoutCalibrator::
     // calibrateCamera), asking first. `done` (main thread): where the camera looking up is and how far it is turned.
     using CameraFixDone = std::function<void(const std::string& cameraId, const JPRunoutCalibrator::CameraFix&)>;
