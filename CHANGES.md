@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.9
+
 - A camera view with no picture is crossed out in red, as in OpenPnP; a live camera not calibrated for its picture
   size is crossed out too, saying so (camera setting: Warn if camera calibration is not completed, on by default).
 - Camera calibration shows each find on the camera's view as it goes: a green circle where the mark (or the nozzle
@@ -17,6 +19,7 @@ notes.
 - Moving a nozzle by hand (Position Tool, Move Selected Nozzle to Camera, a jog) brings forward the camera looking
   at where it goes (the nearest within 50 mm) when it has Auto Camera View, as in OpenPnP: over the bottom camera,
   its view.
+
 ## 0.1.8
 
 - The strip across the top of the window now also shows FAILED when a camera task (a calibration, the precise
