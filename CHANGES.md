@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Calibrating a nozzle's precise offsets logs each angle's estimate and says in its result how closely they agree,
+  so an inconsistent run shows as one.
 - The bottom camera's calibration steps no longer put a box over the camera: what to do is on the camera's line,
   Next is a green start button beside Calibrate (the red X cancels), and the Detection Diameter is a field under
   the line, saying beside it whether the tip is found.

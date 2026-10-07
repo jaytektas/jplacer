@@ -516,10 +516,12 @@ void JPlacerCameraTasks::calibrateNozzleOffsets(JPCameraPanel& camera, const JPN
         bool holding = false;   // picked and not yet placed
         const int angles = std::max(1, m_cell.config().nozzleOffsetAngles);
         int at = 0;
+        std::vector<std::pair<double, double>> each;   // each angle's own estimate (half how far it moved)
         for (double angle = -180 + da / 2; angle < 180 && ok; angle += da) {
             char step[80];
             std::snprintf(step, sizeof step, "pick and place at %.0f deg, %d of %d", angle, ++at, angles);
             progress(step);
+            const double beforeX = x, beforeY = y;
             sumX -= x;
             sumY -= y;
             // Picked at the angle, placed turned 180: the true axis is midway between the two places.
@@ -533,6 +535,12 @@ void JPlacerCameraTasks::calibrateNozzleOffsets(JPCameraPanel& camera, const JPN
             sumX += x;
             sumY += y;
             accumulated += 2;
+            if (ok) {
+                // This angle's estimate, in the log, so how well they agree can be seen.
+                each.push_back({ (x - beforeX) / 2, (y - beforeY) / 2 });
+                JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << "  " << n.name << " at " << angle << " deg: "
+                                                            << each.back().first << ", " << each.back().second << " mm off";
+            }
         }
         // The test object let go where it is, if it is still held (as OpenPnP's); then up, unturned, whatever happened.
         if (holding) m_cell.place(n.id);
@@ -541,8 +549,12 @@ void JPlacerCameraTasks::calibrateNozzleOffsets(JPCameraPanel& camera, const JPN
         if (!ok) return false;
         offsets->first = sumX / accumulated;
         offsets->second = sumY / accumulated;
-        char buf[160];
-        std::snprintf(buf, sizeof buf, "%s's offsets %+.4f, %+.4f mm off", n.name.c_str(), offsets->first, offsets->second);
+        // How far the angles' estimates are from their mean, at most: how far the result can be trusted.
+        double spread = 0;
+        for (const auto& [ex, ey] : each) spread = std::max(spread, std::hypot(ex - offsets->first, ey - offsets->second));
+        char buf[200];
+        std::snprintf(buf, sizeof buf, "%s's offsets %+.4f, %+.4f mm off (%zu angles, each within %.4f mm of that)", n.name.c_str(),
+                      offsets->first, offsets->second, each.size(), spread);
         words = buf;
         return true;
     }, [offsets, done](bool ok) {
