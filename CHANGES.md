@@ -10,11 +10,14 @@ notes.
 
 ## Unreleased
 
+## 0.1.5
+
 - Fixed: an update could lose jplacer's settings and replace your machine with OpenPnP's default machine. The
   new version started while the old one was still writing the settings, found them empty, and took the bench
   for a new install. Settings are now written whole and kept before the new version starts; jplacer never
   writes the default machine over one you have (it opens the machine changed last); and a settings file that
   cannot be read is put aside as jplacer.json.unreadable instead of being replaced.
+
 ## 0.1.4
 
 - A nozzle tip's Calibrate runs at once, as in OpenPnP; it no longer asks first.
