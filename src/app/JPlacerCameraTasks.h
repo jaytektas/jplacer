@@ -105,6 +105,8 @@ public:
     std::function<void(const std::string& cameraId, const std::string& nozzleId)> onFixedCalibrated;
     // The nozzle chosen (Jog's), for a camera looking up calibrated with its tip, as OpenPnP's selected nozzle.
     std::function<std::string()> chosenNozzle;
+    // A move the person made from a camera's picture (OpenPnP's fireTargetedUserAction): for its light.
+    std::function<void(const std::string& cameraId)> onUserAction;
     using RunoutDone = std::function<void(bool ok, const JPRunout&, const std::optional<JPBackgroundCalibration::Result>&,
                                           const std::string& why)>;
     void calibrateRunout(const std::string& nozzleId, RunoutDone done);

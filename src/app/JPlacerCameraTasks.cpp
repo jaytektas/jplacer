@@ -1016,6 +1016,7 @@ bool JPlacerCameraTasks::lookAt(JPCameraPanel& camera, double x, double y) {
     }
     const JPMountConfig& m = camera.camera().mount;
     m_cell.moveAxes({ { m.axisX, x - m.offsetX }, { m.axisY, y - m.offsetY } }, kTaskSpeed);
+    if (onUserAction) onUserAction(camera.camera().id);
     return true;
 }
 
@@ -1069,6 +1070,7 @@ void JPlacerCameraTasks::lookAtFixed(JPCameraPanel& camera, double px, double py
     const double nowX = ax->second + tool->offsetX, nowY = ay->second + tool->offsetY;
     const double toX = nowX - offX, toY = nowY - offY;
     const double r = cam.roamingRadiusMm;
+    if (onUserAction) onUserAction(cam.id);
     if (r > 0 && std::hypot(nowX - camX, nowY - camY) < r && std::hypot(toX - camX, toY - camY) < r) {
         m_cell.moveAxes({ { tool->axisX, ax->second - offX }, { tool->axisY, ay->second - offY } }, kTaskSpeed, true);
     } else {

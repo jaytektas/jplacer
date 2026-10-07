@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- A camera's light comes on when you move a tool to it (a jog, Position Tool, Move Selected Nozzle to Camera, a
+  click in its picture), as OpenPnP's User Camera Action does, even when the camera is not on screen or its
+  Auto Camera View is off; it stays on until you switch it off.
 - A floating camera window's right-click menu now opens and stays open (in 0.1.13 it closed at once, leaving a
   resize pointer); menus and drop-downs opened while a floating window has the focus stay open too.
 - Dragging (or double-clicking) in the bottom camera's picture moves the nozzle so that point comes to the

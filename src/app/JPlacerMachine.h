@@ -36,6 +36,7 @@
 #include <atomic>
 #include <functional>
 #include <map>
+#include <set>
 #include <memory>
 #include <optional>
 #include <string>
@@ -401,6 +402,11 @@ private:
     // By nozzle tip: its last background calibration's problem pictures (BGR, as seen and marked, in pairs).
     std::map<std::string, std::vector<cv::Mat>> m_backgroundProblems;
     std::map<std::string, bool>         m_lights;   // by actuator id: on or off as last switched
+    // Cameras whose light a move you made near them switched on (OpenPnP's targeted user action), kept on until
+    // switched off by hand.
+    std::set<std::string>               m_userLit;
+    // That camera's light on for a move you made at it, when its User Camera Action? says so.
+    void userActionLight(const std::string& cameraId);
     JPJogPanel*                         m_jog = nullptr; // its chosen tool, for the status bar
     JPMachineSetupPanel*                m_setup = nullptr;
     JPMachineSetupPanel::FeederPages m_setupFeederPages;   // each Machine Setup made is given them

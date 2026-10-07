@@ -357,6 +357,8 @@ void JPlacerMachine::buildCameras() {
                                                          [this](JPCameraPanel& p) { bringForward(p); }, m_cellPath);
     m_cameraTasks->setScripting(m_scripting);
     m_cameraTasks->chosenNozzle = [this] { return chosenNozzleId(); };
+    // A click in a camera's picture that moves the machine is a move you made at that camera (its light on).
+    m_cameraTasks->onUserAction = [this](const std::string& cameraId) { userActionLight(cameraId); };
     // A camera looking up calibrated with a tip over it: as one calibration, on to the tip's runout (where its
     // calibration is enabled), then the camera's true position and rotation (about the nozzle's axis, not the
     // tip's end, which is off it by the runout: what the first step's position was off by).
@@ -750,6 +752,7 @@ void JPlacerMachine::watchCell() {
             if (!ok)
                 for (CameraDock& c : m_cameras)
                     if (const std::string light = c.panel->camera().lightActuator(); !light.empty()) showLight(light, std::nullopt);
+            if (!ok) m_userLit.clear();   // lights a move switched on are not switched on again by reconnecting
             lightCameras();
             if (!why.empty()) m_window.showStatus(why, kErrorMs);
             else m_window.showStatus(ok ? m_cell->config().name + " connected" : m_cell->config().name + " disconnected", kStatusMs);
@@ -1107,9 +1110,22 @@ void JPlacerMachine::showCameraLookingAt(const JPMountConfig& tool, const Where&
             nearest = &cam;
         }
     }
-    if (!nearest || !nearest->autoCameraView) return;
+    if (!nearest) return;
+    // OpenPnP's cameraViewHasChanged: the camera's light on (User Camera Action?), on screen or not; brought to
+    // the front only with Auto Camera View?.
+    userActionLight(nearest->id);
+    if (!nearest->autoCameraView) return;
     for (CameraDock& c : m_cameras)
         if (c.panel->camera().id == nearest->id) bringForward(*c.panel);
+}
+
+void JPlacerMachine::userActionLight(const std::string& cameraId) {
+    if (!m_cell || !m_cell->isConnected()) return;
+    for (const JPCameraConfig& cam : m_cell->config().cameras)
+        if (cam.id == cameraId && cam.light.userAction && !cam.lightActuator().empty()) {
+            m_userLit.insert(cameraId);
+            lightCameras();
+        }
 }
 
 bool JPlacerMachine::jogSafe(const JPMountConfig& tool, const std::map<std::string, double>& axes) {
@@ -2752,7 +2768,12 @@ void JPlacerMachine::toggleLight(const std::string& light) {
         return;
     }
     const auto it = m_lights.find(light);
-    m_cell->switchActuator(light, it == m_lights.end() || !it->second);
+    const bool on = it == m_lights.end() || !it->second;
+    // Switched off by hand: no longer kept on for a move you made near its camera.
+    if (!on)
+        for (const JPCameraConfig& cam : m_cell->config().cameras)
+            if (cam.lightActuator() == light) m_userLit.erase(cam.id);
+    m_cell->switchActuator(light, on);
 }
 
 void JPlacerMachine::runEvent(const std::string& event, std::function<void()> then, JJson globals) {
@@ -2781,7 +2802,9 @@ void JPlacerMachine::lightCameras() {
     for (CameraDock& c : m_cameras) {
         const std::string light = c.panel->camera().lightActuator();
         if (light.empty()) continue;
-        lights[light] = lights[light] || (c.panel->isRunning() && c.panel->camera().light.userAction);
+        // On screen, or looked at by a move you made (OpenPnP's targeted user action, which leaves it on).
+        const bool wanted = c.panel->isRunning() || m_userLit.count(c.panel->camera().id) > 0;
+        lights[light] = lights[light] || (wanted && c.panel->camera().light.userAction);
         if (!connected) c.panel->setNote("Light off: connect the machine to light this camera.");
     }
     if (!connected) return;
