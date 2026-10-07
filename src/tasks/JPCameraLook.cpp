@@ -171,8 +171,9 @@ bool JPCameraLook::settledNow(JPCameraFeed& feed, JPGrayImage& out, std::string&
         if (fixed) {
             if (trace) trace->settledMs = st.timeMs;
         } else {
-            JLOGC(JPlacerLog::kCamera, JLogLevel::Warn) << feed.config().name << ": not settled within " << st.timeoutMs
-                                                        << " ms; the last picture is used";
+            // As OpenPnP's (its debug log): a time-out is the settling's way out, not a fault.
+            JLOGC(JPlacerLog::kCamera, JLogLevel::Debug) << feed.config().name << ": not settled within " << st.timeoutMs
+                                                         << " ms; the last picture is used";
         }
     }
     if (trace && st.diagnostics) trace->pictures = pictures;

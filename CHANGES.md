@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- A camera that does not settle within its Settle Timeout no longer warns in the log each time: as in OpenPnP
+  (its debug log), the last picture is used and it is written at Debug.
 ## 0.1.6
 
 - Calibrate precise nozzle offsets starts where you sized the test object (Feature diameter or Auto-Detect Next):
