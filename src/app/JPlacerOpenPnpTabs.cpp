@@ -20,6 +20,7 @@
 #include "JPlacerPanelArrayDialog.h"
 #include "JPlacerPhotonSlotsDialog.h"
 #include "JPlacerImportDialog.h"
+#include "JPlacerMenuOpener.h"
 #include "JPlacerSettings.h"
 #include <sstream>
 #include <set>
@@ -69,15 +70,11 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
             }
         }
     };
-    auto openMenu = [this](JMenu* menu, float x, float y) {
-        if (JMenuManager::instance().onOpenMenu)
-            JMenuManager::instance().onOpenMenu(menu, m_window.windowX() + int(x), m_window.windowY() + int(y), false, false);
-    };
 
     auto currentJob = [this]() -> const JPJob* { return &m_job.job(); };
     m_boards = std::make_unique<JPBoardsPanel>(graph, job.configuration(), currentJob,
                                                JSettings::instance().get<double>(JPlacerSettings::kBoardsSplit, kSplit));
-    m_boards->openMenu = openMenu;
+    m_boards->openMenu = JPlacerMenuOpener::from(m_window, m_boards.get());
     m_boards->onChanged = [this] {
         if (m_boardViewer) m_boardViewer->regenerate();
         changed();
@@ -124,7 +121,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     };
     m_jobPanel = std::make_unique<JPJobPanel>(graph, job.configuration(), [this] { return &m_job.job(); },
                                               JSettings::instance().get<double>(JPlacerSettings::kJobSplit, kSplit));
-    m_jobPanel->openMenu = openMenu;
+    m_jobPanel->openMenu = JPlacerMenuOpener::from(m_window, m_jobPanel.get());
     m_jobPanel->onChanged = [this] {
         if (m_jobViewer) m_jobViewer->regenerate();
         m_job.changed();
@@ -161,7 +158,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     // Panels: its definition's dialogs, and the panel viewer.
     m_panels = std::make_unique<JPPanelsPanel>(graph, job.configuration(), currentJob,
                                                JSettings::instance().get<double>(JPlacerSettings::kPanelsSplit, kSplit));
-    m_panels->openMenu = openMenu;
+    m_panels->openMenu = JPlacerMenuOpener::from(m_window, m_panels.get());
     m_panels->confirmSave = [this](JPPlacementsHolder& h, std::function<void()> then) { confirmSave(h, std::move(then)); };
     m_panels->onChanged = [this] {
         if (m_panelViewer) m_panelViewer->regenerate();
@@ -230,7 +227,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
 
     m_parts = std::make_unique<JPPartsPanel>(graph, job.configuration(),
                                              JSettings::instance().get<double>(JPlacerSettings::kPartsSplit, kSplit));
-    m_parts->openMenu = openMenu;
+    m_parts->openMenu = JPlacerMenuOpener::from(m_window, m_parts.get());
     m_parts->onChanged = [this] { m_job.configurationChanged(); };
     m_parts->machineDefaults = [this] { return machineVisionDefaults(); };
     m_parts->editPipeline = [this](const std::string& id, const JPVisionForms::Holder& h) {
@@ -254,7 +251,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
 
     m_packages = std::make_unique<JPPackagesPanel>(graph, job.configuration(),
                                                    JSettings::instance().get<double>(JPlacerSettings::kPackagesSplit, kSplit));
-    m_packages->openMenu = openMenu;
+    m_packages->openMenu = JPlacerMenuOpener::from(m_window, m_packages.get());
     m_packages->nozzleTips = [this] { return m_machine.nozzleTips(); };
     m_packages->onShowFootprint = [this](const JPFootprint* f) {
         m_machine.setCameraOverlay(kFootprintOverlay, f ? JPFootprintOverlay::of(*f) : nullptr);
@@ -352,7 +349,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     // Feeders: the machine's moves and picks, and OpenPnP's machine's feeders taken on its import.
     m_feeders = std::make_unique<JPFeedersPanel>(graph, job.configuration(),
                                                  JSettings::instance().get<double>(JPlacerSettings::kFeedersSplit, kSplit));
-    m_feeders->openMenu = openMenu;
+    m_feeders->openMenu = JPlacerMenuOpener::from(m_window, m_feeders.get());
     m_feeders->onChanged = [this] {
         m_job.configurationChanged();
         ensurePhotonActuator();

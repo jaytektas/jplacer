@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
 #include "JPlacerMachine.h"
+#include "JPlacerMenuOpener.h"
 
 #include "common/JPWhen.h"
 #include "tasks/JPCameraSimulation.h"
@@ -500,10 +501,7 @@ void JPlacerMachine::buildPanels(Keep keep) {
         if (at[2]) *at[2] += dz;
         showCameraLookingAt(*m, at);
     };
-    jog->openMenu = [this](JMenu* menu, float x, float y) {
-        if (JMenuManager::instance().onOpenMenu)
-            JMenuManager::instance().onOpenMenu(menu, m_window.windowX() + int(x), m_window.windowY() + int(y), false, false);
-    };
+    jog->openMenu = JPlacerMenuOpener::from(m_window, jog.get());
     panels.push_back({ "Jog",       Home::Controls, std::move(jog) });
     panels.push_back({ "Actuators", Home::Controls, std::make_unique<JPActuatorPanel>(m_graph, *m_cell) });
     if (keep != Keep::Nothing) panels.push_back({ "Machine Setup", Home::Work, nullptr });   // kept
@@ -519,10 +517,7 @@ void JPlacerMachine::buildPanels(Keep keep) {
         JSettings::instance().set(JPlacerSettings::kLogLevels, levels.toText());
         JPlacerSettings::save();
     };
-    console->openMenu = [this](JMenu* menu, float x, float y) {
-        if (JMenuManager::instance().onOpenMenu)
-            JMenuManager::instance().onOpenMenu(menu, m_window.windowX() + int(x), m_window.windowY() + int(y), false, false);
-    };
+    console->openMenu = JPlacerMenuOpener::from(m_window, console.get());
     panels.push_back({ "Console",   Home::Console, std::move(console) });
 
     const bool first = m_docks.empty();

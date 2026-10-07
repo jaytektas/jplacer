@@ -10,6 +10,12 @@ notes.
 
 ## Unreleased
 
+- jplacer no longer crashes when the nozzle tip menu is open while the Jog panel is made again (after a
+  calibration's result, say) and an entry with a submenu, such as Manual Change, is pointed at: the menu now
+  closes instead.
+- A panel's menus open beside it when the panel is floating (the nozzle tip menu of a floating Jog opened
+  near the main window's corner); the Console's and the job tabs' tables' menus too.
+
 ## 0.1.16
 
 - Calibrating a nozzle's precise offsets logs each angle's estimate and says in its result how closely they agree,
