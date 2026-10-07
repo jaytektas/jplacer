@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.8
+
 - The strip across the top of the window now also shows FAILED when a camera task (a calibration, the precise
   nozzle offsets) fails, with why, until the next task starts; and WAITING while the pump comes up to pressure.
 - Switching the vacuum pump on now says in the log and Console how long it waits for it to come up to pressure (the
@@ -24,6 +26,7 @@ notes.
   one still held the controller's port).
 - The Log tab is readable on the dark theme: information in the normal text colour (it was OpenPnP's blue, made
   for a white background), warnings and errors in the theme's warning and danger colours.
+
 ## 0.1.7
 
 - Issues & Solutions: an issue whose solution runs on the machine (a calibration, the nozzle offsets) is marked
