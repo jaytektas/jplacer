@@ -1118,6 +1118,11 @@ bool JPCell::doVacuumOn(const JPNozzleConfig& n, std::string& why) {
     if (head && !head->pumpActuatorId.empty() && head->pumpControl != "None" && !m_pumpOn.count(head->id)) {
         if (!switchTelling(head->pumpActuatorId, true, why)) return false;
         m_pumpOn.insert(head->id);
+        // Said, not waited out in silence: a long one (a pump bringing a reservoir up to pressure) would look like a stall.
+        if (head->pumpOnWaitMs > 0)
+            JLOGC(JPlacerLog::kCell, JLogLevel::Info)
+                << head->name << ": the pump switched on; waiting " << head->pumpOnWaitMs / 1000.0
+                << " s (the head's Pump On Wait) for it to come up to pressure before the valve opens";
         std::this_thread::sleep_for(std::chrono::milliseconds(head->pumpOnWaitMs));
     }
     // The package's pick vacuum level, to a vacuum actuator taking a value (OpenPnP's actuateVacuumValve(level)).

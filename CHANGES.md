@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Switching the vacuum pump on now says in the log and Console how long it waits for it to come up to pressure (the
+  head's Pump On Wait) before the valve opens; a long first wait no longer looks like a stall.
 - Issues & Solutions: Auto-Detect Next (or anything that changes an issue's values) no longer rebuilds the issue's
   page: its values are read again where they are, and the page stays scrolled where you left it.
 - A controller's serial Port is a list of the ports there now, as in OpenPnP (each by its stable name; the one set
