@@ -78,6 +78,8 @@ public:
         // OpenPnP's own words for the issue and solution, where jplacer shows plainer ones: what the
         // fingerprint covers, so what was solved or dismissed stays so. Empty: as shown.
         std::string openpnpIssue, openpnpSolution;
+        // OpenPnP's subject (its class's name, "ReferenceNozzle N1"), where it is said as what it is ("Nozzle N1").
+        std::string openpnpSubject;
         // Stable across searches: what it is about, the issue and the solution (OpenPnP's words).
         std::string fingerprint() const;
     };
@@ -110,7 +112,8 @@ public:
     void find();
     void publish();
     // From inside a check: an issue found (one already found is not added
-    // twice). True when it was solved before.
+    // twice), its subject said as what it is rather than by OpenPnP's class
+    // name. True when it was solved before.
     bool add(Issue issue);
     // Every issue found by the last search not yet published, open: for a
     // milestone's completion to say what is still open.

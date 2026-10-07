@@ -33,7 +33,7 @@ JPAxisConfig axis(const std::string& id, JPAxisConfig::Type type, const std::str
 
 const S::Issue* find(const S& s, const std::string& issue) {
     for (const auto& i : s.issues())
-        if (i->issue == issue) return i.get();
+        if (i->issue == issue || i->openpnpIssue == issue) return i.get();   // by its own words or OpenPnP's
     return nullptr;
 }
 
@@ -166,7 +166,9 @@ int main() {
         s.publish();
         assert(!find(s, "ReferenceNozzle N1 is missing a vacuum valve actuator."));
         S::Issue* cmd = const_cast<S::Issue*>(find(s, "The vacuum valve actuator Vac has no ACTUATE_BOOLEAN_COMMAND assigned."));
-        assert(cmd && cmd->solution == "Assign the command to driver Gantry as described in the Wiki.");
+        assert(cmd && cmd->openpnpSolution == "Assign the command to driver Gantry as described in the Wiki.");
+        // Said plainly, remembered by OpenPnP's words.
+        assert(cmd->issue == "The vacuum valve actuator Vac has no On Command." && cmd->solution.find("(below), then Accept") != std::string::npos);
         std::string why;
         assert(!s.setState(*cmd, S::State::Solved, why) && !why.empty());   // nothing typed
         cmd->properties.front().setText("M8");
@@ -539,7 +541,7 @@ int main() {
         hs.find();
         hs.publish();
         S::Issue* y = const_cast<S::Issue*>(find(hs, "Inconsistent Y axis assignment z (not the same as default camera Down)."));
-        assert(y && y->severity == S::Severity::Error && y->solution == "Assign y as the Y axis.");
+        assert(y && y->severity == S::Severity::Error && y->openpnpSolution == "Assign y as the Y axis.");
         assert(!find(hs, "Inconsistent X axis assignment x (not the same as default camera Down)."));
         std::string why;
         assert(hs.setState(*y, S::State::Solved, why) && h2.nozzles[1].mount.axisY == "y");

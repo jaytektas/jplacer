@@ -71,7 +71,7 @@ const char* JPSolutions::name(State s) {
 
 std::string JPSolutions::Issue::fingerprint() const {
     // FNV-1a over what OpenPnP's SHA-1 covers: stable between sessions.
-    const std::string text = subject + "\n" + (openpnpIssue.empty() ? issue : openpnpIssue) + "\n"
+    const std::string text = (openpnpSubject.empty() ? subject : openpnpSubject) + "\n" + (openpnpIssue.empty() ? issue : openpnpIssue) + "\n"
                              + (openpnpSolution.empty() ? solution : openpnpSolution);
     uint64_t h = 1469598103934665603ull;
     for (const unsigned char c : text) {
@@ -124,6 +124,20 @@ void JPSolutions::publish() {
 
 bool JPSolutions::add(Issue issue) {
     if (!m_pending) return false;
+    // OpenPnP's class names said as what they are.
+    static const std::pair<const char*, const char*> kSaid[] = {
+        { "ReferenceNozzleTip ", "Nozzle tip " }, { "ReferenceNozzle ", "Nozzle " },   { "ContactProbeNozzle ", "Nozzle " },
+        { "ReferenceHead ", "Head " },            { "ReferenceControllerAxis ", "Axis " }, { "ReferenceActuator ", "Actuator " },
+        { "HttpActuator ", "Actuator " },          { "NullDriver ", "Controller " },  { "GcodeDriver ", "Controller " },
+        { "ImageCamera ", "Camera " },             { "SimulatedUpCamera ", "Camera " }, { "PhotonFeeder ", "Feeder " },
+        { "ReferenceMachine", "Machine" },         { "ReferenceBottomVision", "Bottom vision" } };
+    for (const auto& [openpnp, said] : kSaid) {
+        const std::string prefix = openpnp;
+        if (issue.subject.rfind(prefix, 0) != 0) continue;
+        if (issue.openpnpSubject.empty()) issue.openpnpSubject = issue.subject;
+        issue.subject = said + issue.subject.substr(prefix.size());
+        break;
+    }
     const std::string f = issue.fingerprint();
     for (const auto& p : *m_pending)
         if (p->fingerprint() == f) return true;

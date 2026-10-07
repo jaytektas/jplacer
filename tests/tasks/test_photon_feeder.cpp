@@ -138,7 +138,7 @@ struct Bench {
         solutions.find();
         solutions.publish();
         for (const auto& i : solutions.issues())
-            if (i->subject == "PhotonFeeder " + f(id).name()) return i.get();
+            if (i->openpnpSubject == "PhotonFeeder " + f(id).name() && i->subject == "Feeder " + f(id).name()) return i.get();
         return nullptr;
     }
     JPSolutions solutions;

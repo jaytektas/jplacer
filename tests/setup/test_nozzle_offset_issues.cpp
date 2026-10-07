@@ -39,7 +39,7 @@ JPAxisConfig axis(const std::string& id, JPAxisConfig::Type type, const std::str
 
 S::Issue* find(S& s, const std::string& issue) {
     for (const auto& i : s.issues())
-        if (i->issue == issue) return i.get();
+        if (i->issue == issue || i->openpnpIssue == issue) return i.get();   // by its own words or OpenPnP's
     return nullptr;
 }
 
@@ -134,7 +134,8 @@ int main() {
     // Remembered by OpenPnP's words, as before they were said plainer.
     {
         S::Issue openpnp;
-        openpnp.subject = leftPrimary->subject;
+        openpnp.subject = leftPrimary->openpnpSubject;
+        assert(leftPrimary->subject == "Nozzle LEFT" && openpnp.subject == "ReferenceNozzle LEFT");
         openpnp.issue = "Nozzle LEFT offsets for the primary fiducial.";
         openpnp.solution = "Move the nozzle LEFT to the primary calibration fiducial and capture its offsets.";
         assert(leftPrimary->fingerprint() == openpnp.fingerprint());

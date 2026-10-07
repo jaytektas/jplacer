@@ -58,6 +58,22 @@ Issue plain(std::string subject, std::string issue, std::string solution, Severi
     return i;
 }
 
+// Said plainly: what it is about and what Accept does, in words a user knows; OpenPnP's own words kept as what the
+// fingerprint covers, so what was solved or dismissed under them stays so.
+Issue& say(Issue& i, std::string issue, std::string solution) {
+    if (i.openpnpIssue.empty()) {
+        i.openpnpIssue = i.issue;
+        i.openpnpSolution = i.solution;
+    }
+    i.issue = std::move(issue);
+    i.solution = std::move(solution);
+    return i;
+}
+Issue said(Issue i, std::string issue, std::string solution) {
+    say(i, std::move(issue), std::move(solution));
+    return i;
+}
+
 void setupProblems(JPSolutions& s, const JPIssueChecks::Context& c) {
     const JPCellConfig* cell = c.cell ? c.cell() : nullptr;
     if (!cell) return;
@@ -148,6 +164,8 @@ void welcome(JPSolutions& s, const JPIssueChecks::Context& c) {
                     Severity::Fundamental, std::string(kWiki) + "Setup-and-Calibration%3A-Nozzle-Setup");
     i.canBeAccepted = true;   // a solution to accept, not only to dismiss
     if (!fresh) i.state = State::Solved;
+    say(i, "Set how many nozzles head " + head.name + " has, and how their Z is driven.",
+        "Choose the number of nozzles and the kind (below), then Accept: the nozzles and their axes are made.");
     i.extendedDescription =
         "Accepting this solution may change your machine configuration fundamentally. The new solution overwrites your "
         "existing nozzle and axis configuration. As far as nozzles and axes remain the same type and count, their detail "
@@ -203,17 +221,20 @@ void basics(JPSolutions& s, const JPIssueChecks::Context& c) {
             if (c.showSetup) c.showSetup("axis:" + id);
         };
         if (a.driverId.empty()) {
-            Issue i = plain(subject, "Axis is not assigned to a driver.", "Assign a driver.", Severity::Fundamental, axesWiki);
+            Issue i = said(plain(subject, "Axis is not assigned to a driver.", "Assign a driver.", Severity::Fundamental, axesWiki),
+                           "Axis " + a.name + " has no controller to drive it.", "Choose its Driver on its Machine Setup page.");
             i.activate = show;
             s.add(std::move(i));
             continue;
         }
         // The letter, set right here (OpenPnP's AxisLetterIssue).
-        auto letterIssue = [&](std::string issue, std::string solution, Severity severity) {
+        auto letterIssue = [&](std::string issue, std::string solution, Severity severity, std::string plainIssue,
+                               std::string plainSolution) {
             Issue i;
             i.subject = subject;
             i.issue = std::move(issue);
             i.solution = std::move(solution);
+            say(i, std::move(plainIssue), std::move(plainSolution));
             i.severity = severity;
             i.uri = axesWiki;
             i.activate = show;
@@ -239,12 +260,16 @@ void basics(JPSolutions& s, const JPIssueChecks::Context& c) {
         };
         if (a.letter.empty()) {
             letterIssue("Axis letter is missing. Assign the letter to continue.",
-                        "Assign the axis letter (below), then press Accept.", Severity::Fundamental);
+                        "Assign the axis letter (below), then press Accept.", Severity::Fundamental,
+                        "Axis " + a.name + " has no letter (the name its controller knows it by).",
+                        "Type the letter its controller uses for it (below), then Accept.");
             continue;
         }
         if (a.letter == "E")
             letterIssue("Avoid axis letter E, if possible. Use proper rotation axes instead.",
-                        "Assign a proper rotation axis letter (below), then press Accept.", Severity::Warning);
+                        "Assign a proper rotation axis letter (below), then press Accept.", Severity::Warning,
+                        "Axis " + a.name + " uses letter E, an extruder's letter that controllers treat specially.",
+                        "Give it a rotation axis letter such as A, B or C (below), then Accept.");
         std::vector<std::string> duplicates;
         for (const JPAxisConfig& b : cell->axes)
             if (b.kind == JPAxisConfig::Kind::Controller && b.driverId == a.driverId && b.letter == a.letter)
@@ -255,7 +280,8 @@ void basics(JPSolutions& s, const JPIssueChecks::Context& c) {
             letterIssue("Duplicate axis letter " + a.letter + " on axes " + names + ".",
                         "Assign the unique axis letter where wrong, press Accept, then press Find Issues & Solutions again to "
                         "clear the correct one.",
-                        Severity::Error);
+                        Severity::Error, "Axes " + names + " share the letter " + a.letter + " on one controller.",
+                        "Give each its own letter (below) and Accept, then Find Issues & Solutions again.");
         }
     }
     // Each nozzle its own Z and a rotation axis.
@@ -295,6 +321,8 @@ void basics(JPSolutions& s, const JPIssueChecks::Context& c) {
         i.subject = "ReferenceMachine";
         i.issue = "jplacer can often automatically select the right tool for you in Machine Controls.";
         i.solution = "Enable Auto tool select.";
+        say(i, "The Jog panel can choose the nozzle or camera being used for you.",
+            "Accept turns on Auto tool select: the Jog panel follows the tool each action uses.");
         i.severity = Severity::Suggestion;
         i.uri = std::string(kWiki) + "Setup-and-Calibration_Machine-Setup#configuration";
         i.apply = changing(c, "Auto tool select", [](JPCellConfig& cell, bool solved) { cell.autoToolSelect = solved; });
@@ -307,6 +335,8 @@ void basics(JPSolutions& s, const JPIssueChecks::Context& c) {
         i.subject = "HttpActuator " + a.name;
         i.issue = "A HTTPActuator with Read URL likely needs a regular Expression to parse the value.";
         i.solution = "Set an example expression";
+        say(i, "HTTP actuator " + a.name + " reads a page but has no pattern to find the value in it.",
+            std::string("Accept sets an example pattern, ") + kHttpReadExample + ", to adjust to what the page says.");
         i.severity = Severity::Warning;
         i.uri = std::string(kWiki) + "HttpActuatorRead";
         const std::string id = a.id;
@@ -327,6 +357,8 @@ void preRotateIssues(JPSolutions& s, const JPIssueChecks::Context& c, const JPCe
         i.subject = "ReferenceBottomVision";
         i.issue = "Pre-rotate bottom vision must be enabled, because the machine has a limited articulation nozzle.";
         i.solution = "Enable Pre-Rotate.";
+        say(i, "Bottom vision must turn each part before looking at it: a nozzle here cannot turn a full circle.",
+            "Accept turns on Pre-Rotate: the part is turned to its placement angle before the camera looks at it.");
         i.severity = Severity::Error;
         i.uri = uri + "global-configuration";
         i.apply = changing(c, "Pre-Rotate", [](JPCellConfig& cell, bool solved) { cell.vision.preRotate = solved; });
@@ -346,6 +378,8 @@ void preRotateIssues(JPSolutions& s, const JPIssueChecks::Context& c, const JPCe
     i.issue = "Pre-rotate bottom vision must be allowed on all vision settings, because the machine has a limited "
               "articulation nozzle.";
     i.solution = "Switch from AlwaysOff to Default";
+    say(i, "Some parts' vision settings forbid turning the part before bottom vision, but a nozzle here cannot turn a full circle.",
+        "Accept sets their Pre-Rotate from AlwaysOff to Default.");
     i.severity = Severity::Error;
     i.uri = uri + "part-configuration";
     i.extendedDescription = "Switch vision settings pre-rotate usage from AlwaysOff to Default on these parts:";
@@ -368,6 +402,7 @@ void kinematics(JPSolutions& s, const JPIssueChecks::Context& c) {
         i.subject = "ReferenceMachine";
         i.issue = "To continue, the machine must be enabled and homed.";
         i.solution = "Home the machine now.";
+        say(i, "Connect and home the machine to go on: the next steps move it.", "Accept homes it now.");
         i.severity = Severity::Fundamental;
         i.uri = std::string(kWiki) + "User-Manual#machine-controls";
         i.extendedDescription = "Connect the machine first, then press Accept to home it.";
@@ -394,6 +429,8 @@ void kinematics(JPSolutions& s, const JPIssueChecks::Context& c) {
                                         "and the tallest part on the nozzle. This will result in slower, less optimized machine "
                                         "motion." } };
         i.choice = n.dynamicSafeZ ? "Dynamic Safe Z" : "Fixed Safe Z";
+        say(i, "Choose how nozzle " + n.name + " travels while it carries a part: lifted by the part's height, or not.",
+            "Choose Dynamic or Fixed Safe Z (below), then Accept.");
         const std::string id = n.id, text = i.issue;
         const bool old = n.dynamicSafeZ;
         // The choice taken on Accept: the published issue's (as the panel sets it).
@@ -417,6 +454,8 @@ void kinematics(JPSolutions& s, const JPIssueChecks::Context& c) {
         i.subject = "ReferenceNozzle " + n.name;
         i.issue = "Set the manual nozzle tip change location for " + n.name + ".";
         i.solution = "Jog " + n.name + " to the manual nozzle tip changing location, then press Accept.";
+        say(i, "Set where nozzle " + n.name + " goes to have its tip changed by hand.",
+            "Jog " + n.name + " to where you can reach its tip easily, then Accept.");
         i.severity = Severity::Suggestion;
         i.uri = std::string(kWiki) + "Kinematic-Solutions#capture-safe-z";
         i.extendedDescription = "Jog " + n.name + " to a suitable location where you can manually exchange the nozzle tips.\n\n"
@@ -457,6 +496,8 @@ void kinematics(JPSolutions& s, const JPIssueChecks::Context& c) {
             i.subject = "ReferenceControllerAxis " + zName;
             i.issue = "Invalid Safe Z Zone on " + zName + ".";
             i.solution = "The Safe Z Zone of " + zName + " is invalid (lower limit > higher limit). Start fresh configuration.";
+            say(i, "The Safe Z zone of axis " + zName + " is invalid: its low end is above its high end.",
+                "Accept clears it, so Safe Z can be set afresh.");
             i.severity = Severity::Error;
             i.uri = safeZWiki;
             const JPAxisConfig old = *z;
@@ -472,24 +513,32 @@ void kinematics(JPSolutions& s, const JPIssueChecks::Context& c) {
         // The nozzle's Safe Z: where its Z axis's safe zone begins, plus its offset.
         const double safeZ = z->safeZoneLow + n.mount.offsetZ;
         if (z->safeZoneLowEnabled && z->safeZoneHighEnabled && safeZ > kConventionalSafeZMm)
-            s.add(plain("ReferenceNozzle " + name, "Unconventional Z Axis on " + name + ".",
+            s.add(said(plain("ReferenceNozzle " + name, "Unconventional Z Axis on " + name + ".",
                         "The Safe Z of " + name + " is positive, which is unconventional. jplacer, as OpenPnP, typically uses Z "
                         "coordinates that have Z=0 when the nozzle is retracted, with the PCB surface in the negative Z range. "
                         "Please read the Wiki to understand the implications of not following this convention.",
-                        Severity::Warning, std::string(kWiki) + "Machine-Axes#a-word-about-z-coordinates"));
+                        Severity::Warning, std::string(kWiki) + "Machine-Axes#a-word-about-z-coordinates"),
+                       "Nozzle " + name + "'s Safe Z is above 0: Z is meant to be 0 with the nozzle up, and negative going down.",
+                       "Set Z so it reads 0 with the nozzle retracted and the boards below in negative Z; the Wiki says why it "
+                       "matters."));
         // Lifted by the tallest part a tip takes, the nozzle must stay within the safe zone.
         if (n.dynamicSafeZ && z->safeZoneLowEnabled && z->safeZoneHighEnabled)
             for (const JPNozzleTipConfig& t : cell->nozzleTips)
                 if (n.fits(t.id) && safeZ + t.maxPartHeightMm > z->safeZoneHigh + n.mount.offsetZ)
-                    s.add(plain("ReferenceNozzleTip " + t.name, "Nozzle " + name + " with tip " + t.name + " Safe Z Zone violation.",
-                                "With dynamic safe Z, the Max. Part Height of each compatible nozzle tip must be smaller than the "
-                                "axis " + zName + " Safe Z Zone.",
-                                Severity::Error, std::string(kWiki) + "Kinematic-Solutions#dynamic-safe-z-zone"));
+                    s.add(said(plain("ReferenceNozzleTip " + t.name, "Nozzle " + name + " with tip " + t.name + " Safe Z Zone violation.",
+                                     "With dynamic safe Z, the Max. Part Height of each compatible nozzle tip must be smaller than the "
+                                     "axis " + zName + " Safe Z Zone.",
+                                     Severity::Error, std::string(kWiki) + "Kinematic-Solutions#dynamic-safe-z-zone"),
+                               "Nozzle " + name + " lifted by tip " + t.name + "'s tallest part would go above its Safe Z zone.",
+                               "With Dynamic Safe Z, make tip " + t.name + "'s Max. Part Height smaller than axis " + zName
+                                   + "'s Safe Z zone."));
         if (z->safeZoneLowEnabled || z->safeZoneHighEnabled) continue;
         Issue i;
         i.subject = "ReferenceNozzle " + name;
         i.issue = "Set Safe Z of " + name + ".";
         i.solution = "Jog " + name + " over the tallest obstacle and capture.";
+        say(i, "Set nozzle " + name + "'s Safe Z: the height it travels at, clear of everything.",
+            "Jog " + name + " just above the tallest obstacle, with some clearance, then Accept.");
         i.severity = Severity::Fundamental;
         i.uri = safeZWiki;
         i.forcedUnsolved = true;
@@ -531,6 +580,8 @@ void kinematics(JPSolutions& s, const JPIssueChecks::Context& c) {
                 i.subject = subject;
                 i.issue = "Set the " + side + " soft limit of " + a.name + ".";
                 i.solution = "Move axis " + a.name + " to the " + side + " soft limit and capture.";
+                say(i, "Set how far axis " + a.name + " may go on its " + (low ? "low" : "high") + " side (its soft limit).",
+                    "Jog axis " + a.name + " to its " + (low ? "low" : "high") + " end, short of any limit switch, then Accept.");
                 i.severity = Severity::Suggestion;
                 i.uri = std::string(kWiki) + "Kinematic-Solutions#capture-soft-limits";
                 i.activate = show;
@@ -560,16 +611,18 @@ void kinematics(JPSolutions& s, const JPIssueChecks::Context& c) {
         }
         const std::string motionWiki = std::string(kWiki) + "Machine-Axes#kinematic-settings--axis-limits";
         if (a.feedratePerSecond <= 0) {
-            Issue i = plain(subject, "A feed-rate must be set on axis " + a.name + ".",
-                            "Go to Machine Setup / Axes / ReferenceControllerAxis " + a.name + " and set the Feed Rate.",
-                            Severity::Error, motionWiki);
+            Issue i = said(plain(subject, "A feed-rate must be set on axis " + a.name + ".",
+                                 "Go to Machine Setup / Axes / ReferenceControllerAxis " + a.name + " and set the Feed Rate.",
+                                 Severity::Error, motionWiki),
+                           "Axis " + a.name + " has no feed rate (its top speed).", "Set its Feed Rate on its Machine Setup page.");
             i.activate = show;
             s.add(std::move(i));
         }
         if (a.accelerationPerSecond2 <= 0) {
-            Issue i = plain(subject, "An acceleration limit must be set on axis " + a.name + ".",
-                            "Go to Machine Setup / Axes / ReferenceControllerAxis " + a.name + " and set the Acceleration.",
-                            Severity::Error, motionWiki);
+            Issue i = said(plain(subject, "An acceleration limit must be set on axis " + a.name + ".",
+                                 "Go to Machine Setup / Axes / ReferenceControllerAxis " + a.name + " and set the Acceleration.",
+                                 Severity::Error, motionWiki),
+                           "Axis " + a.name + " has no acceleration limit.", "Set its Acceleration on its Machine Setup page.");
             i.activate = show;
             s.add(std::move(i));
         }
@@ -592,6 +645,9 @@ void kinematics(JPSolutions& s, const JPIssueChecks::Context& c) {
                 i.issue = "Align nozzle " + n.name + " rotation with part.";
                 i.solution = "Enable part aligned nozzle rotation mode, so camera view cross-hairs and DRO-coordinates "
                              "show the bottom vision aligned part rotation instead of the unadjusted nozzle rotation.";
+                say(i, "Show nozzle " + n.name + "'s angle as the part's, once bottom vision has seen it.",
+                    "Accept turns on Align with Part: the cross-hairs and the position readout show the part's angle as "
+                    "bottom vision found it, not the bare nozzle's.");
                 i.severity = Severity::Suggestion;
                 i.uri = std::string(kWiki) + "Nozzle-Rotation-Mode#align-nozzle-rotation-with-part";
                 const std::string nid = n.id;
@@ -612,6 +668,8 @@ void kinematics(JPSolutions& s, const JPIssueChecks::Context& c) {
             i.issue = "Rotation axis " + a.name + " is limiting Nozzle " + n.name +
                       " to less than 360°. Must use the LimitedArticulation rotation mode.";
             i.solution = "Set the LimitedArticulation rotation mode.";
+            say(i, "Nozzle " + n.name + " cannot turn a full circle: axis " + a.name + " is limited to less than 360°.",
+                "Accept sets its Rotation Mode to LimitedArticulation, which keeps every turn within its limits.");
             i.severity = Severity::Error;
             i.uri = std::string(kWiki) + "Nozzle-Rotation-Mode";
             const std::string nid = n.id, oldMode = n.rotationMode;
@@ -623,11 +681,13 @@ void kinematics(JPSolutions& s, const JPIssueChecks::Context& c) {
         }
         limitedNozzle = limitedNozzle || limited;
         auto rotationIssue = [&](std::string issue, std::string solution, Severity severity, std::string uri,
-                                 const char* what, bool JPAxisConfig::*field, bool solvedValue) {
+                                 const char* what, bool JPAxisConfig::*field, bool solvedValue, std::string plainIssue,
+                                 std::string plainSolution) {
             Issue i;
             i.subject = subject;
             i.issue = std::move(issue);
             i.solution = std::move(solution);
+            say(i, std::move(plainIssue), std::move(plainSolution));
             i.severity = severity;
             i.uri = std::move(uri);
             i.apply = changing(c, what, [id, field, solvedValue](JPCellConfig& cell, bool solved) {
@@ -641,21 +701,29 @@ void kinematics(JPSolutions& s, const JPIssueChecks::Context& c) {
             if (!a.wrapAroundRotation)
                 rotationIssue("Rotation can be optimized by wrapping-around the shorter way. Best combined with Limit ±180°.",
                               "Enable Wrap Around.", Severity::Suggestion, rotationWiki, "Wrap Around",
-                              &JPAxisConfig::wrapAroundRotation, true);
+                              &JPAxisConfig::wrapAroundRotation, true,
+                              "Axis " + a.name + " can turn the shorter way round (350° to 10° is 20°, not 340°).",
+                              "Accept turns on Wrap Around; best with Limit to Range.");
             if (!a.limitRotation)
                 rotationIssue("Rotation can be optimized by limiting angles to ±180°. Best combined with Wrap Around.",
                               "Enable Limit to Range.", Severity::Suggestion, rotationWiki, "Limit to Range",
-                              &JPAxisConfig::limitRotation, true);
+                              &JPAxisConfig::limitRotation, true,
+                              "Axis " + a.name + " can keep its angles within ±180°, never winding up past them.",
+                              "Accept turns on Limit to Range; best with Wrap Around.");
             continue;
         }
         // Limited articulation: never the shorter way round, and kept within its limits.
         const std::string limitedWiki = std::string(kWiki) + "Nozzle-Rotation-Mode#setting-up-the-nozzle-rotation-axis";
         if (a.wrapAroundRotation)
             rotationIssue("Rotation cannot be wrapped-around on a limited articulation axis.", "Disable Wrap Around.",
-                          Severity::Error, limitedWiki, "Wrap Around", &JPAxisConfig::wrapAroundRotation, false);
+                          Severity::Error, limitedWiki, "Wrap Around", &JPAxisConfig::wrapAroundRotation, false,
+                          "Axis " + a.name + " must not take the shorter way round: its nozzle cannot turn a full circle.",
+                          "Accept turns off Wrap Around.");
         if (!a.limitRotation)
             rotationIssue("Rotation must be limited on a limited articulation axis.", "Enable Limit to Range.",
-                          Severity::Error, limitedWiki, "Limit to Range", &JPAxisConfig::limitRotation, true);
+                          Severity::Error, limitedWiki, "Limit to Range", &JPAxisConfig::limitRotation, true,
+                          "Axis " + a.name + " must be kept within its limits: its nozzle cannot turn a full circle.",
+                          "Accept turns on Limit to Range.");
     }
     if (limitedNozzle) preRotateIssues(s, c, *cell);
 }
@@ -670,6 +738,9 @@ void connect(JPSolutions& s, const JPIssueChecks::Context& c) {
         Issue i = plain("NullDriver " + d.name, "The simulation NullDriver can be replaced with a GcodeDriver to drive a real controller.",
                         "Replace with GcodeDriver.", Severity::Fundamental,
                         std::string(kWiki) + "Setup-and-Calibration%3A-Driver-Setup#automatic-conversion-of-the-nulldriver");
+        say(i, "Controller " + d.name + " is simulated: make it the real controller.",
+            "Accept makes it a G-code controller on a serial port (choose the port on its page); its axes, actuators and "
+            "settings are kept.");
         i.canBeAccepted = true;   // a solution to accept, not only to dismiss
         const std::string id = d.id;
         const JJson simulated = d.link;
@@ -701,6 +772,8 @@ void connect(JPSolutions& s, const JPIssueChecks::Context& c) {
                         up ? "The SimulatedUpCamera can be replaced with a OpenPnpCaptureCamera to connect to a real USB camera."
                            : "The simulation ImageCamera can be replaced with a OpenPnpCaptureCamera to connect to a real USB camera.",
                         "Replace with OpenPnpCaptureCamera.", Severity::Fundamental, std::string(kWiki) + "OpenPnpCaptureCamera");
+        say(i, "Camera " + cam.name + " is simulated: make it the real USB camera.",
+            "Accept makes it a capture camera (choose the device on its page); its place, calibration and settings are kept.");
         i.canBeAccepted = true;   // a solution to accept, not only to dismiss
         const std::string id = cam.id;
         const JJson simulated = cam.device;
@@ -735,6 +808,8 @@ void vision(JPSolutions& s, const JPIssueChecks::Context& c) {
             i.subject = "Camera " + name;
             i.issue = "Use an adaptive camera settling method.";
             i.solution = "Set a suitable camera settling method automatically.";
+            say(i, "Camera " + name + " waits a fixed time after every move for its picture to settle.",
+                "Accept makes it wait only until the picture stops changing (Euclidean settling): no longer than needed.");
             i.severity = Severity::Fundamental;
             i.uri = std::string(kWiki) + "Camera-Settling";
             i.activate = show;
@@ -774,9 +849,11 @@ void vision(JPSolutions& s, const JPIssueChecks::Context& c) {
             s.add(std::move(i));
         }
         if (cam.whiteBalance.neutral()) {
-            Issue i = plain("Camera " + name, "Calibrate static white balance for camera " + name + ".",
-                            "For best results with color-keyed computer vision, it is recommended to use static white balance.",
-                            Severity::Suggestion, std::string(kWiki) + "Camera-White-Balance");
+            Issue i = said(plain("Camera " + name, "Calibrate static white balance for camera " + name + ".",
+                                 "For best results with color-keyed computer vision, it is recommended to use static white balance.",
+                                 Severity::Suggestion, std::string(kWiki) + "Camera-White-Balance"),
+                           "Camera " + name + " has no fixed white balance: its colours drift with the scene.",
+                           "Calibrate a static white balance (on the camera's page), so colour-keyed vision sees steady colours.");
             i.activate = show;
             s.add(std::move(i));
         }
@@ -800,6 +877,8 @@ void calibration(JPSolutions& s, const JPIssueChecks::Context& c) {
             i.issue = "Calibrate backlash compensation for axis " + a->name + ".";
             i.solution = "Automatically calibrates the backlash compensation for " + a->name
                        + " using the primary calibration fiducial.";
+            say(i, "Measure the play (backlash) in axis " + a->name + ", to compensate for it.",
+                "Accept moves camera " + camera->name + " over the primary fiducial and measures it.");
             i.severity = Severity::Fundamental;
             i.uri = std::string(kWiki) + "Calibration-Solutions#calibrating-backlash-compensation";
             i.extendedDescription = "Backlash compensation is used to avoid the effects of any looseness or play in the "
@@ -828,6 +907,8 @@ void calibration(JPSolutions& s, const JPIssueChecks::Context& c) {
                                                  "from foreground pixels (\"green-screening\"). Use for green Juki style nozzles." },
                       { "Brightness", "Brightness: the background is just dark, the foreground is distinguished by brightness only." } };
         i.choice = "BrightnessAndKeyColor";
+        say(i, "Choose how the camera looking up tells nozzle tip " + t.name + " from its background.",
+            "Choose by the tip's colour (below), then Accept: the tip is calibrated on the nozzle it is on.");
         i.extendedDescription = "Select the proper background calibration.\n\nCAUTION: the nozzle the tip " + t.name
                               + " is loaded on will move over the up-looking camera and perform a new nozzle tip calibration, "
                                 "including the background calibration.\n\nWhen ready, press Accept.";
@@ -850,9 +931,11 @@ void calibration(JPSolutions& s, const JPIssueChecks::Context& c) {
         bool fits = false;
         for (const JPNozzleConfig& n : cell->nozzles) fits = fits || n.fits(t.id);
         if (!fits)
-            s.add(plain("ReferenceNozzleTip " + t.name, "Nozzle tip " + t.name + " has no compatible nozzle.",
-                        "Go to the nozzle(s) and enable the Compatible switches where appropriate.", Severity::Error,
-                        std::string(kWiki) + "Setup-and-Calibration_Nozzle-Setup#nozzle-to-nozzle-tip-compatibility"));
+            s.add(said(plain("ReferenceNozzleTip " + t.name, "Nozzle tip " + t.name + " has no compatible nozzle.",
+                             "Go to the nozzle(s) and enable the Compatible switches where appropriate.", Severity::Error,
+                             std::string(kWiki) + "Setup-and-Calibration_Nozzle-Setup#nozzle-to-nozzle-tip-compatibility"),
+                       "Nozzle tip " + t.name + " fits no nozzle.",
+                       "On each nozzle it fits, tick it as compatible (the nozzle's page in Machine Setup)."));
         // OpenPnP's NozzleTipSolutions: the pick tolerance and the part diameters agreeing.
         const std::string tipWiki = std::string(kWiki) + "Setup-and-Calibration_Nozzle-Setup#nozzle-tip-configuration";
         char mm[48];
@@ -888,6 +971,8 @@ void production(JPSolutions& s, const JPIssueChecks::Context& c) {
                      "For instance, if a placement is selected, the corresponding part will be selected on the Parts tab, "
                      "the package on the Packages tab, the vision settings on the Vision tab, and the feeder on the Feeders "
                      "tab, if one is present for the part.";
+        say(i, "Choosing a row on one tab can choose what goes with it on the others.",
+            "Accept links the tables: a placement chosen chooses its part, package, vision settings and feeder on their tabs.");
         i.severity = Severity::Suggestion;
         i.uri = std::string(kWiki) + "User-Manual#the-tabs";
         i.apply = [c](State to, std::string&) {
@@ -925,15 +1010,20 @@ void actuatorIssues(JPSolutions& s, const JPIssueChecks::Context& c, const JPCel
     for (const JPActuatorConfig& x : cell.actuators)
         if (x.id == actuatorId) a = &x;
     if (!a) {
-        s.add(plain(holder, holder + " is missing a " + qualifier + " actuator.",
-                    "Create and assign a " + qualifier + " actuator as described in the Wiki.", Severity::Warning, uri));
+        s.add(said(plain(holder, holder + " is missing a " + qualifier + " actuator.",
+                         "Create and assign a " + qualifier + " actuator as described in the Wiki.", Severity::Warning, uri),
+                   (holder.rfind("Reference", 0) == 0 ? holder.substr(std::string("Reference").size()) : holder) + " has no "
+                       + qualifier + " actuator.",
+                   "Make an actuator for its " + qualifier + " and choose it on its page in Machine Setup."));
         return;
     }
     const std::string subject = "ReferenceActuator " + a->name;
     if (!a->http.on && a->scriptName.empty() && a->driverId.empty()) {
-        s.add(plain(subject, "The " + qualifier + " actuator " + a->name + " has no driver assigned.",
-                    "Assign a driver as described in the Wiki.", Severity::Warning,
-                    std::string(kWiki) + "Setup-and-Calibration%3A-Actuators#driver-assignment"));
+        s.add(said(plain(subject, "The " + qualifier + " actuator " + a->name + " has no driver assigned.",
+                         "Assign a driver as described in the Wiki.", Severity::Warning,
+                         std::string(kWiki) + "Setup-and-Calibration%3A-Actuators#driver-assignment"),
+                   "The " + qualifier + " actuator " + a->name + " has no controller to work it.",
+                   "Choose its Driver on its page in Machine Setup."));
         return;
     }
     if (a->http.on || !a->scriptName.empty()) return;   // worked by HTTP or a script, not by commands
@@ -949,6 +1039,9 @@ void actuatorIssues(JPSolutions& s, const JPIssueChecks::Context& c, const JPCel
         i.issue = "The " + qualifier + " actuator " + a->name + " has no " + command + " assigned.";
         i.solution = "Assign the " + std::string(regex ? "regular expression" : "command") + " to driver " + driver
                    + " as described in the Wiki.";
+        say(i, "The " + qualifier + " actuator " + a->name + " has no " + label + ".",
+            "Type the " + std::string(regex ? "pattern its controller's reply is read by" : "command its controller takes")
+                + " (below), then Accept.");
         i.severity = Severity::Warning;
         i.uri = uri;
         auto text = std::make_shared<std::string>();
@@ -1035,6 +1128,9 @@ void contactProbeIssues(JPSolutions& s, const JPIssueChecks::Context& c, const J
         i.issue = "Z driver " + driverName(z->driverId) + " not same as actuator " + a->name + " driver " +
                   (a->driverId.empty() ? std::string("(unassigned)") : driverName(a->driverId)) + ".";
         i.solution = "Assign driver " + driverName(z->driverId) + " to actuator " + a->name + ".";
+        say(i, "Probe actuator " + a->name + " is not on controller " + driverName(z->driverId) + ", which drives nozzle "
+                   + n.name + "'s Z: the probing move must be that controller's.",
+            "Accept puts actuator " + a->name + " on " + driverName(z->driverId) + ".");
         i.severity = Severity::Error;
         i.uri = std::string(kWiki) + "Setup-and-Calibration%3A-Actuators#adding-actuators";
         const std::string to = z->driverId, from = a->driverId;
@@ -1068,6 +1164,8 @@ void contactProbeIssues(JPSolutions& s, const JPIssueChecks::Context& c, const J
         i.subject = "ReferenceActuator " + a->name;
         i.issue = "ACTUATE_BOOLEAN_COMMAND suggested.";
         i.solution = "Change it.";
+        say(i, "A better probing command for actuator " + a->name + ": probing down to below Z's low limit.",
+            "Accept sets it (shown below).");
         i.severity = Severity::Suggestion;
         i.uri = std::string(kWiki) + "Advanced-Motion-Control#migration-from-a-previous-version";
         i.extendedDescription = "Suggested gcode is:\n" + suggested + " ; probe down in absolute coordinates until the "
@@ -1144,6 +1242,11 @@ void headAxes(JPSolutions& s, const JPIssueChecks::Context& c) {
                 i.issue = std::string("Inconsistent ") + type + " axis assignment " + (had ? had->name : std::string("null"))
                         + " (not the same as default camera " + camera->name + ").";
                 i.solution = "Assign " + (want ? want->name : wanted) + " as the " + type + " axis.";
+                const std::string what = std::string(kind == "nozzle" ? "Nozzle " : kind == "actuator" ? "Actuator " : "Camera ")
+                                       + subject.substr(subject.find(' ') + 1);
+                say(i, what + "'s " + type + " axis is " + (had ? had->name : std::string("none")) + ", not camera " + camera->name
+                           + "'s: things on one head move together.",
+                    "Accept gives it " + (want ? want->name : wanted) + " as its " + type + " axis.");
                 i.severity = kind == "nozzle" ? Severity::Error : Severity::Warning;
                 i.uri = std::string(kWiki) + "Mapping-Axes";
                 const std::string old = axis;
@@ -1236,6 +1339,9 @@ void drivers(JPSolutions& s, const JPIssueChecks::Context& c) {
             i.subject = subject;
             i.issue = "Use Keep-Alive only when necessary. It may cause hard to diagnose problems.";
             i.solution = "Disable Connection Keep-Alive.";
+            say(i, "Controller " + d.name + " keeps its connection open through Keep-Alive, which can cause problems that are "
+                   "hard to find.",
+                "Accept turns off Connection Keep-Alive; turn it back on only if the connection needs it.");
             i.severity = Severity::Warning;
             i.apply = set("Keep Alive", [](JPDriverConfig& x, bool solved) { x.keepAlive = !solved; });
             s.add(std::move(i));
@@ -1251,6 +1357,8 @@ void drivers(JPSolutions& s, const JPIssueChecks::Context& c) {
             i.issue = "Change of serial port Flow Control recommended.";
             i.solution = "Set Flow Control to Off on serial port. The detected Grbl controller is known to not (reliably) "
                          "support serial flow-control.";
+            say(i, "Controller " + d.name + " is a Grbl, which does not reliably support serial flow control.",
+                "Accept sets its serial port's Flow Control to Off.");
             i.severity = Severity::Warning;
             i.uri = "https://en.wikipedia.org/wiki/Flow_control_(data)#Hardware_flow_control";
             i.apply = set("Serial flow control", [flow](JPDriverConfig& x, bool solved) { x.link["flowControl"] = solved ? std::string() : flow; });
@@ -1264,11 +1372,15 @@ void drivers(JPSolutions& s, const JPIssueChecks::Context& c) {
             if (d.supportingPreMove) {
                 i.issue = "Disallow Pre-Move Commands for automatic G-code setup and other advanced features. Accept or Dismiss to continue.";
                 i.solution = "Disable Allow Letter Pre-Move Commands.";
+                say(i, "Controller " + d.name + " allows pre-move commands, which get in the way of automatic G-code setup.",
+                    "Accept turns off Allow Letter Pre-Move Commands (or Dismiss to keep them).");
                 i.apply = set("Pre-move commands", [](JPDriverConfig& x, bool solved) { x.supportingPreMove = !solved; });
                 s.add(std::move(i));
             } else if (!d.usingLetterVariables) {
                 i.issue = "Use Axis Letter Variables for simpler use, automatic G-code setup, and other advanced features.";
                 i.solution = "Enable Letter Variables.";
+                say(i, "Controller " + d.name + "'s G-code can name its axes by letter, as automatic G-code setup needs.",
+                    "Accept turns on Letter Variables.");
                 i.apply = set("Letter variables", [](JPDriverConfig& x, bool solved) { x.usingLetterVariables = solved; });
                 s.add(std::move(i));
             }
@@ -1278,6 +1390,8 @@ void drivers(JPSolutions& s, const JPIssueChecks::Context& c) {
             i.subject = subject;
             i.issue = "Axis velocity limited by driver Maximum Feed Rate. ";
             i.solution = "Remove driver Maximum Feed Rate.";
+            say(i, "Controller " + d.name + "'s Maximum Feed Rate slows every axis on it.",
+                "Accept removes it: each axis is limited by its own feed rate.");
             i.severity = Severity::Suggestion;
             i.uri = asyncWiki;
             const double old = d.maxFeedRate;
@@ -1290,6 +1404,8 @@ void drivers(JPSolutions& s, const JPIssueChecks::Context& c) {
                 i.subject = subject;
                 i.issue = "Compress Gcode for superior communications speed.";
                 i.solution = "Enable Compress Gcode.";
+                say(i, "Controller " + d.name + " can be sent shorter G-code, for faster communication.",
+                    "Accept turns on Compress G-code.");
                 i.severity = Severity::Suggestion;
                 i.uri = asyncWiki;
                 i.apply = set("Compress G-code", [](JPDriverConfig& x, bool solved) { x.compressGcode = solved; });
@@ -1300,6 +1416,8 @@ void drivers(JPSolutions& s, const JPIssueChecks::Context& c) {
                 i.subject = subject;
                 i.issue = "Remove Gcode comments for superior communications speed.";
                 i.solution = "Enable Remove Comments.";
+                say(i, "Controller " + d.name + " can be sent its G-code without comments, for faster communication.",
+                    "Accept turns on Remove Comments.");
                 i.severity = Severity::Suggestion;
                 i.uri = asyncWiki;
                 i.apply = set("Remove G-code comments", [](JPDriverConfig& x, bool solved) { x.removeComments = solved; });
@@ -1312,6 +1430,8 @@ void drivers(JPSolutions& s, const JPIssueChecks::Context& c) {
                 i.subject = subject;
                 i.issue = "Disable G-code compression for trouble-free operation with incompatible controllers.";
                 i.solution = "Disable Compress G-code.";
+                say(i, "Controller " + d.name + " is sent compressed G-code; some controllers cannot take it.",
+                    "Accept turns off Compress G-code (only if it causes problems).");
                 i.severity = Severity::Information;
                 i.uri = asyncWiki;
                 i.neverUnhandled = true;
@@ -1325,6 +1445,8 @@ void drivers(JPSolutions& s, const JPIssueChecks::Context& c) {
                 i.subject = subject;
                 i.issue = "Keep G-code comments for better debugging.";
                 i.solution = "Disable Remove Comments.";
+                say(i, "Controller " + d.name + " is sent its G-code without comments; with them, its log is easier to follow.",
+                    "Accept turns off Remove Comments.");
                 i.severity = Severity::Information;
                 i.uri = asyncWiki;
                 i.neverUnhandled = true;
@@ -1429,6 +1551,9 @@ void visionSetup(JPSolutions& s, const JPIssueChecks::Context& c) {
             i.subject = "ReferenceHead " + h.name;
             i.issue = "Primary calibration fiducial position and initial camera calibration.";
             i.solution = "Move the camera over the primary calibration fiducial and capture its position.";
+            say(i, "Capture the primary fiducial's position, and calibrate camera " + camera->name + " over it.",
+                "Jog camera " + camera->name + " over the primary fiducial, then Accept: its position is captured and the "
+                "camera calibrated around it.");
             i.severity = Severity::Fundamental;
             i.uri = std::string(kWiki) + "Vision-Solutions#calibration-primary-fiducial";
             i.extendedDescription =
@@ -1452,6 +1577,8 @@ void visionSetup(JPSolutions& s, const JPIssueChecks::Context& c) {
             i.subject = "ReferenceHead " + h.name;
             i.issue = "Enable Visual Homing.";
             i.solution = "Mount a permanent fiducial to your machine and use it for repeatable precision X/Y homing.";
+            say(i, "Home X and Y precisely by camera, on a fiducial fixed to the machine (Visual Homing).",
+                "Jog camera " + camera->name + " over the fixed fiducial, then Accept: it is found and set up for homing.");
             i.severity = Severity::Suggestion;
             i.uri = std::string(kWiki) + "Visual-Homing";
             i.extendedDescription =
@@ -1471,10 +1598,13 @@ void visionSetup(JPSolutions& s, const JPIssueChecks::Context& c) {
         if (h.rigPrimary && h.rigSecondary && std::abs(h.rigPrimary->z - h.rigSecondary->z) < kLeastRigZGapMm) {
             char gap[32];
             std::snprintf(gap, sizeof gap, "%g", kLeastRigZGapMm);
-            s.add(plain("ReferenceHead " + h.name, "Primary/secondary calibration fiducial Z too close together.",
-                        "Head " + h.name + " primary and secondary calibration fiducial Z coordinates must be at least "
-                            + gap + "\u00A0mm apart.",
-                        Severity::Error, nozzleOffsets));
+            s.add(said(plain("ReferenceHead " + h.name, "Primary/secondary calibration fiducial Z too close together.",
+                             "Head " + h.name + " primary and secondary calibration fiducial Z coordinates must be at least "
+                                 + gap + "\u00A0mm apart.",
+                             Severity::Error, nozzleOffsets),
+                       "The primary and secondary fiducials' heights are less than " + std::string(gap)
+                           + "\u00A0mm apart: the camera's two scales cannot be told apart.",
+                       "Raise or lower one of them on the calibration rig, then set its height again."));
         }
         // The head's first nozzle comes down to the rig's fiducials from its Safe Z.
         const JPNozzleConfig* nozzle = nullptr;
@@ -1485,10 +1615,13 @@ void visionSetup(JPSolutions& s, const JPIssueChecks::Context& c) {
         const double safeZ = *nozzleSafeZ + nozzle->mount.offsetZ;
         for (const auto& [rig, qualifier] : { std::pair { h.rigPrimary, "primary" }, std::pair { h.rigSecondary, "secondary" } })
             if (rig && rig->z >= safeZ)
-                s.add(plain("ReferenceNozzle " + nozzle->name, "Safe Z of Nozzle " + nozzle->name + " lower than " + qualifier + " fiducial Z.",
-                            "Safe Z of Nozzle " + nozzle->name + " is lower than the calibration " + qualifier + " fiducial Z. "
-                                + "Please change the calibration rig " + qualifier + " height or adjust Safe Z.",
-                            Severity::Error, nozzleOffsets));
+                s.add(said(plain("ReferenceNozzle " + nozzle->name, "Safe Z of Nozzle " + nozzle->name + " lower than " + qualifier + " fiducial Z.",
+                                 "Safe Z of Nozzle " + nozzle->name + " is lower than the calibration " + qualifier + " fiducial Z. "
+                                     + "Please change the calibration rig " + qualifier + " height or adjust Safe Z.",
+                                 Severity::Error, nozzleOffsets),
+                           "Nozzle " + nozzle->name + "'s Safe Z is no higher than the " + qualifier + " fiducial: it would hit it "
+                               "travelling.",
+                           "Raise nozzle " + nozzle->name + "'s Safe Z, or lower the " + qualifier + " fiducial on the calibration rig."));
     }
 }
 
@@ -1661,6 +1794,9 @@ void nozzleOffsets(JPSolutions& s, const JPIssueChecks::Context& c) {
                 i.subject = "ReferenceNozzle " + name;
                 i.issue = "Calibrate precise camera ↔ nozzle " + name + " offsets.";
                 i.solution = "Use a test object to perform the precision camera ↔ nozzle " + name + " offsets calibration.";
+                say(i, "Calibrate nozzle " + name + "'s precise offsets from the camera (fine nozzle calibration).",
+                    "Nozzle " + name + " picks, turns and places a test object on the primary fiducial; the camera measures "
+                    "where it went each time.");
                 i.severity = Severity::Fundamental;
                 i.uri = std::string(kWiki) + "Calibration-Solutions#calibrating-precision-camera-to-nozzle-offsets";
                 // The feature diameter (pixels): the test object's as known, else OpenPnP's 20.
@@ -1762,6 +1898,8 @@ void cameraViews(JPSolutions& s, const JPIssueChecks::Context& c) {
             i.subject = subject;
             i.issue = "A high Preview FPS value might create undue CPU load.";
             i.solution = "Set to 5 FPS.";
+            say(i, "Camera " + cam.name + "'s preview is refreshed so often it loads the computer.",
+                "Accept sets its Preview FPS to 5.");
             i.severity = Severity::Suggestion;
             i.uri = general;
             const double old = cam.previewFps;
@@ -1778,6 +1916,9 @@ void cameraViews(JPSolutions& s, const JPIssueChecks::Context& c) {
             i.issue = std::string(switcher ? "For a SwitcherCamera it is mandatory" : "It is recommended")
                     + " to suspend camera preview during machine tasks / Jobs.";
             i.solution = "Enable Suspend during tasks.";
+            say(i, std::string("Camera ") + cam.name + "'s preview keeps running while the machine works"
+                       + (switcher ? ": a switcher camera must stop it." : "; stopping it spares the computer for the work."),
+                "Accept turns on Suspend during tasks.");
             i.severity = switcher ? Severity::Error : Severity::Suggestion;
             i.uri = general;
             i.apply = changing(c, "Camera suspended during tasks", [id](JPCellConfig& cell, bool solved) {
@@ -1791,6 +1932,7 @@ void cameraViews(JPSolutions& s, const JPIssueChecks::Context& c) {
             i.subject = subject;
             i.issue = "In single camera preview jplacer can automatically switch the camera for you.";
             i.solution = "Enable Auto Camera View.";
+            say(i, "With one camera shown, the view can switch to the camera in use.", "Accept turns on Auto Camera View.");
             i.severity = Severity::Suggestion;
             i.uri = general;
             i.apply = changing(c, "Auto Camera View", [id](JPCellConfig& cell, bool solved) {
@@ -1804,6 +1946,8 @@ void cameraViews(JPSolutions& s, const JPIssueChecks::Context& c) {
             i.subject = subject;
             i.issue = "The preview rendering quality can be improved.";
             i.solution = "Set to Rendering Quality to High (right click the Camera View to see other options).";
+            say(i, "Camera " + cam.name + "'s view can be drawn smoother.",
+                "Accept sets its Rendering Quality to High (right-click the camera view for other options).");
             i.severity = Severity::Suggestion;
             i.uri = std::string(kWiki) + "Setup-and-Calibration_General-Camera-Setup#camera-view-configuration";
             i.apply = [c, id](State to, std::string&) {
@@ -1823,6 +1967,7 @@ void scripting(JPSolutions& s, const JPIssueChecks::Context& c) {
     i.subject = "ReferenceMachine";
     i.issue = "Script execuction performance can be improved by enabling engine pooling.";
     i.solution = "Enable script engine pooling.";
+    say(i, "Scripts can start faster by reusing their script engines.", "Accept turns on script engine pooling.");
     i.severity = Severity::Suggestion;
     i.uri = std::string(kWiki) + "Scripting#script-engine-pooling";
     i.extendedDescription = "By default, every time a script should be executed, a new instance of the appropriate script "
