@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Saving the settings never takes anything out of the file: every setting already there is kept, and only what
+  this run changed is written. A settings file that cannot be read is left alone instead of being set aside.
 - A calibrated camera is shown straightened to begin with, as in OpenPnP (it was shown as taken, bent by the
   lens, until the eye button was turned off; settings lost in an update put it back to that).
 - A camera that does not settle within its Settle Timeout says why: the least difference it saw against its

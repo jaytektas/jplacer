@@ -142,7 +142,7 @@ void JPKeyMap::bind(Function& f, JMenuShortcut key) {
 
 void JPKeyMap::keep(const Function& f) {
     const std::string name = JPlacerSettings::keyFor(f.id);
-    if (same(f.key, f.byDefault)) JSettings::instance().remove(name);
+    if (same(f.key, f.byDefault)) JPlacerSettings::remove(name);
     else JSettings::instance().set(name, f.key.key == K::Unknown ? std::string(kNone) : format(f.key));
 }
 
@@ -186,7 +186,7 @@ void JPKeyMap::resetAll() {
         for (const Function& other : m_functions)
             if (&other != &f && f.byDefault.key != K::Unknown && same(other.key, f.byDefault)) free = false;
         bind(f, free ? f.byDefault : JMenuShortcut{});
-        JSettings::instance().remove(JPlacerSettings::keyFor(f.id));
+        JPlacerSettings::remove(JPlacerSettings::keyFor(f.id));
     }
     JPlacerSettings::save();
     if (onChanged) onChanged();

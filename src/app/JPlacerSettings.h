@@ -102,11 +102,16 @@ public:
     static std::string defaultPath();
 
     // Point JSettings at `path` and read it. A missing file is a first run, not
-    // an error: every key has a default where it is read.
+    // an error: every key has a default where it is read. A file there that
+    // cannot be read is left as it is: nothing is written to it this run.
     static void load(const std::string& path);
 
-    // Write JSettings back to the file load() named.
+    // Write JSettings back to the file load() named, never taking anything out
+    // of it: every setting the file has is kept, but those taken out on
+    // purpose this run (remove).
     static void save();
+    // A setting back to its default: taken out, and out of the file at the next save.
+    static void remove(const std::string& key);
 
     static bool updatesBeta();
     static bool updatesAtStartup();

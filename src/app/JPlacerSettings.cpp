@@ -10,9 +10,11 @@
 
 #include <j/config/Json.h>
 #include <j/config/Settings.h>
+#include <j/core/VariantJson.h>
 #include <j/core/Log.h>
 
 #include <filesystem>
+#include <set>
 
 inline namespace jf {
 
@@ -22,22 +24,42 @@ std::string JPlacerSettings::defaultPath() {
                        : (std::filesystem::path(dir) / "jplacer.json").string();
 }
 
+namespace {
+// The file could not be read when loaded: never written this run.
+bool s_unreadable = false;
+// Settings taken out on purpose this run (back to their defaults): not kept from the file.
+std::set<std::string> s_removed;
+} // namespace
+
 void JPlacerSettings::load(const std::string& path) {
-    // A file there that cannot be read is set aside, not written over with nothing: what it held may be
-    // recovered from it.
     std::error_code ec;
-    if (std::filesystem::exists(path, ec) && !JJson::tryParseFile(path)) {
-        const std::string aside = path + ".unreadable";
-        std::filesystem::rename(path, aside, ec);
+    s_unreadable = std::filesystem::exists(path, ec) && !JJson::tryParseFile(path);
+    if (s_unreadable)
         JLOGC(JPlacerLog::kSettings, JLogLevel::Error)
-            << "settings: " << path << " could not be read; set aside as " << aside << ", starting without them";
-    }
+            << "settings: " << path << " could not be read; it is left as it is, and nothing is written to it this run";
     JSettings::instance().setPath(path).loadJson();
     JLOGC(JPlacerLog::kSettings, JLogLevel::Info) << "settings: " << path;
 }
 
+void JPlacerSettings::remove(const std::string& key) {
+    JSettings::instance().remove(key);
+    s_removed.insert(key);
+}
+
 void JPlacerSettings::save() {
-    if (!JSettings::instance().saveJson())
+    JSettings& set = JSettings::instance();
+    if (s_unreadable) {
+        JLOGC(JPlacerLog::kSettings, JLogLevel::Warn) << "settings not saved: " << set.path().string() << " could not be read";
+        return;
+    }
+    // What the file has is kept: a setting this run never read or set (or lost, as a run that started
+    // without them would have) stays as it is in the file.
+    if (const auto file = JJson::tryParseFile(set.path().string()); file && file->isObject()) {
+        const JVariant kept = fromJson(*file);   // held: toMap() refers into it
+        for (const auto& [key, value] : kept.toMap())
+            if (!set.has(key) && !s_removed.count(key)) set.set(key, value);
+    }
+    if (!set.saveJson())
         JLOGC(JPlacerLog::kSettings, JLogLevel::Error)
             << "settings not saved to " << JSettings::instance().path().string();
 }

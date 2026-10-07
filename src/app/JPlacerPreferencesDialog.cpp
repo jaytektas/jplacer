@@ -277,7 +277,7 @@ std::unique_ptr<JContainer> JPlacerPreferencesDialog::jogPage() {
                 field->setValue(JPJogPanel::formatSteps(now));
                 return;
             }
-            if (empty) JSettings::instance().remove(key);
+            if (empty) JPlacerSettings::remove(key);
             else JSettings::instance().set(key, JPJogPanel::formatSteps(steps));
             JPlacerSettings::save();
             m_jogNote->setText("");
