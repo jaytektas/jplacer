@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.4
+
 - A nozzle tip's Calibrate runs at once, as in OpenPnP; it no longer asks first.
 - The nozzle tip Calibration tab is laid out as OpenPnP's: Enable? with Position Tool, the Calibrate, Reset and
   Calibrate Camera Position and Rotation buttons, Auto Recalibration, Fail Homing?, then Nozzle Tip Calibration
@@ -18,6 +20,7 @@ notes.
 - Putting a tip on by hand (Manual Change) now follows its Auto Recalibration: NozzleTipChange calibrates it
   every time, MachineHome when it is not yet calibrated on that nozzle.
 - Controller traffic in the Console starts with [GCODE] and the controller's name, like the log's lines.
+
 ## 0.1.3
 
 - Each log line in the Console starts with its level and category, as in the log file: [INFO][machine.cell] ...
