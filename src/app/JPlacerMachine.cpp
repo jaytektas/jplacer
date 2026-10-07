@@ -856,10 +856,19 @@ bool JPlacerMachine::applySetup(JPCellConfig cell) {
         m_window.showStatus("Machine Setup's changes are taken once the machine stops", kStatusMs);
         return false;
     }
+    // The cameras in front (on screen, so running) stay in front when they are made again: a setting changed
+    // on one (an Auto ticked) must not bring another forward, and with it its light.
+    std::vector<std::string> inFront;
+    if (keep != Keep::SetupAndCameras)
+        for (CameraDock& c : m_cameras)
+            if (c.panel->isRunning()) inFront.push_back(c.panel->camera().id);
     dropPanels(keep);
     const bool taken = m_cell->reconfigure(cell, error);
     watchCell();
     buildPanels(keep);
+    for (const std::string& id : inFront)
+        for (CameraDock& c : m_cameras)
+            if (c.panel->camera().id == id) bringForward(*c.panel);
     updateMenu();
     showState();
     if (!taken) {
