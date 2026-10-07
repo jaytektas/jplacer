@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- Issues & Solutions: an issue whose solution runs on the machine (a calibration, the nozzle offsets) is marked
+  Solved only once that work has succeeded, as in OpenPnP. While it runs, and if it fails, it stays open, so
+  Accept tries it again; before, it showed Solved at once and then fell back to open with its buttons wrong.
 - Each time jplacer starts it copies its settings and every machine into backups/<date and time>/ beside them,
   a rolling set of the last 20 (Preferences > Backups kept; 0 for none).
 - Saving the settings never takes anything out of the file: every setting already there is kept, and only what

@@ -95,36 +95,48 @@ std::function<bool(State, std::string&)> changing(const JPIssueChecks::Context& 
     };
 }
 
-// An issue solved by work on the machine (`start`, in the background): Accept
-// starts it; when it fails, the issue is open again, as OpenPnP restores it.
+// An issue solved by work on the machine (`start`, in the background), as OpenPnP's (its machine task, the
+// state set in its success callback): Accept starts it and the issue stays as it was while it runs; solved
+// once the work has succeeded, and as it was when it fails (Accept again to try again; why it failed is in
+// the status bar and the log).
 using Work = std::function<void(std::function<void(bool ok)> finished)>;
 void solvedByWork(JPSolutions& s, Issue& i, Work start) {
     const std::string fingerprint = i.fingerprint();
     i.canBeAccepted = true;
-    i.apply = [sp = &s, fingerprint, start = std::move(start)](State to, std::string& why) {
+    auto succeeded = std::make_shared<bool>(false);   // the work done: the state may now become Solved
+    i.apply = [sp = &s, fingerprint, start = std::move(start), succeeded](State to, std::string& why) {
         if (to != State::Solved) return true;   // what it did stays: done again on another Accept
-        // Failing at once (the machine not ready): Accept fails. Failing later: open again.
+        if (*succeeded) {
+            *succeeded = false;
+            return true;
+        }
         auto starting = std::make_shared<bool>(true);
-        auto failedAtOnce = std::make_shared<bool>(false);
-        start([sp, fingerprint, starting, failedAtOnce](bool ok) {
-            if (ok) return;
-            if (*starting) {
-                *failedAtOnce = true;
+        auto failedAtOnce = std::make_shared<bool>(false), doneAtOnce = std::make_shared<bool>(false);
+        start([sp, fingerprint, starting, failedAtOnce, doneAtOnce, succeeded](bool ok) {
+            if (ok && *starting) {   // done before Accept came back: solved by it
+                *doneAtOnce = true;
                 return;
             }
+            if (!ok) {
+                if (*starting) *failedAtOnce = true;
+                else sp->solutionChanged();   // shown again as it is: still open, Accept to try again
+                return;
+            }
+            // Done: solved now (the work not done again).
             for (const auto& issue : sp->issues())
-                if (issue->fingerprint() == fingerprint && issue->state == State::Solved) {
+                if (issue->fingerprint() == fingerprint && issue->state != State::Solved) {
+                    *succeeded = true;
                     std::string w;
-                    sp->setState(*issue, State::Open, w);
-                    sp->publish();
+                    sp->setState(*issue, State::Solved, w);
+                    *succeeded = false;
                 }
+            sp->solutionChanged();
         });
         *starting = false;
-        if (*failedAtOnce) {
-            why = "it could not be started (the status bar says why)";
-            return false;
-        }
-        return true;
+        if (*doneAtOnce) return true;
+        // Not solved yet: started (solved when it succeeds), or it could not start.
+        why = *failedAtOnce ? "it could not be started (the status bar says why)" : "";
+        return false;
     };
 }
 

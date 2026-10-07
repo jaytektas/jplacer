@@ -135,9 +135,14 @@ JPIssuesPanel::JPIssuesPanel(JSceneGraph& graph, JPSolutions& solutions, double 
     m_milestoneText->setFixedSize(0.f, st.labelHeight);
     m_milestoneText->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     // An issue's properties changed behind its controls: shown again, on the next frame.
+    // An issue changed behind its controls (its work done or failed, a property found): the table, the
+    // buttons and the indicator as it now is, on the next frame.
     m_solutions.onSolutionChanged = [this, alive = std::weak_ptr<bool>(m_alive)] {
         jPostToNextFrame([this, alive] {
-            if (alive.lock()) showIssue();
+            if (!alive.lock()) return;
+            m_table->refresh();
+            selectionChanged();
+            updateIndicator();
         });
     };
     m_warn = add(std::make_unique<JLabel>(graph, ""));

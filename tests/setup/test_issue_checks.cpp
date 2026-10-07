@@ -383,10 +383,16 @@ int main() {
         S::Issue* x = const_cast<S::Issue*>(find(b, "Calibrate backlash compensation for axis x."));
         assert(x && find(b, "Calibrate backlash compensation for axis y.") && x->severity == S::Severity::Fundamental);
         std::string why;
-        assert(b.setState(*x, S::State::Solved, why) && x->state == S::State::Solved && later);
-        later(false);   // failed on the machine
+        // As OpenPnP's: started, not solved until it has succeeded.
+        assert(!b.setState(*x, S::State::Solved, why) && why.empty() && x->state == S::State::Open && later);
+        later(false);   // failed on the machine: still open, Accept to try again
         x = const_cast<S::Issue*>(find(b, "Calibrate backlash compensation for axis x."));
         assert(x->state == S::State::Open);
+        later = nullptr;
+        assert(!b.setState(*x, S::State::Solved, why) && later);
+        later(true);    // succeeded: solved now
+        assert(x->state == S::State::Solved);
+        b.setState(*x, S::State::Open, why);
         atOnce = true;
         assert(!b.setState(*x, S::State::Solved, why) && x->state == S::State::Open && !why.empty());
     }
