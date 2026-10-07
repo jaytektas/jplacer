@@ -12,6 +12,7 @@
 
 #include <j/core/JContainer.h>
 #include <j/core/JLabel.h>
+#include <j/core/JSpinBox.h>
 
 #include <chrono>
 #include <functional>
@@ -88,23 +89,22 @@ public:
     // Running for a task that needs its pictures, shown or not, for `ms` from
     // now (each look renews it), as OpenPnP's cameras capture whether shown or not.
     void keepRunning(int ms);
+    // A step of a camera task waiting on the person (OpenPnP's instructions, without its box): `line` on the
+    // camera's note line, `detail` (OpenPnP's whole wording) the tooltip of Next, the green start in the
+    // title strip, which `onNext` answers; the red X cancels. endStep: nothing waits.
+    void askStep(const std::string& line, const std::string& detail, std::function<void()> onNext);
+    void endStep();
+    // A number the step asks for (OpenPnP's Detection Diameter), under the note line; and none.
+    void showStepNumber(const std::string& label, int value, int min, int max, std::function<void(int)> changed);
+    void hideStepNumber();
+    // What the number's label says now (a search's result with it: "found", "not found"), and its tooltip.
+    void setStepNumberLabel(const std::string& label, const std::string& tooltip);
     // OpenPnP's instructions panel over the picture, for a process worked on
     // this camera (Estimate Z Coordinate of Object); gone with hideInstructions.
     void showInstructions(const std::string& title, const std::string& text, const std::string& proceedLabel,
                           std::function<void()> onCancel, std::function<void()> onProceed);
     void hideInstructions();
     void setProceedEnabled(bool on) { m_instructions->setProceedEnabled(on); }
-    // A number on the instructions (JPInstructions::showNumber), and none.
-    void showInstructionsNumber(const std::string& label, int value, int min, int max, std::function<void(int)> changed) {
-        m_instructions->showNumber(label, value, min, max, std::move(changed));
-        m_instructionsWidth = -1;   // sized again, with its number, on the next frame
-        invalidate();
-    }
-    void hideInstructionsNumber() {
-        m_instructions->hideNumber();
-        m_instructionsWidth = -1;
-        invalidate();
-    }
     // A word about the picture (what a task is doing, why it is dark).
     void setNote(const std::string& text);
     // Write the latest picture to capturesDir. The file written, or empty
@@ -132,7 +132,13 @@ private:
 
     JPCameraFeed                          m_feed;
     JPCameraView*                         m_view = nullptr;
-    std::unique_ptr<JPIconButton>         m_asTaken, m_save, m_calibrate, m_cancelTask, m_visualTest, m_settings;
+    std::unique_ptr<JPIconButton>         m_asTaken, m_save, m_calibrate, m_next, m_cancelTask, m_visualTest, m_settings;
+    std::function<void()>                 m_onNext;     // askStep's
+    float                                 m_noteWidth = -1;   // the width the note was sized for (-1: again)
+    JContainer*                           m_stepRow = nullptr;
+    JSpinBox*                             m_stepNumber = nullptr;
+    JLabel*                               m_stepNumberLabel = nullptr;
+    std::function<void(int)>              m_onNumber;
     JLabel*                               m_state = nullptr;
     JLabel*                               m_note  = nullptr;
     CalibrationFor                        m_calibrationFor;

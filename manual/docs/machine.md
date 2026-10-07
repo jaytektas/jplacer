@@ -749,8 +749,10 @@ How the camera is measured, and whether at two heights, is set on that tab.
 
 A camera fixed to the machine (one looking up at the nozzles) cannot be moved over a mark, so the mark is
 moved over it: **Calibrate** (the target), in that camera's tab, holds a nozzle's tip over it, step by step
-as OpenPnP's camera calibration, on the camera's **Camera Calibration Instructions/Status** with **Next** and
-**Cancel** (the red X beside Calibrate cancels too, at any step):
+as OpenPnP's camera calibration. Each step waiting on you says what to do on the camera's line under the
+picture's size, folded to the panel's width; **Next** is the green start beside Calibrate in the camera's title
+strip (its tooltip OpenPnP's whole wording), and the red X beside it cancels, at any step. Nothing is laid over
+the picture or takes room from it:
 
 1. "Select a nozzle and load it with the smallest available nozzle tip." The nozzle chosen in Jog when you
    press **Next** is the one used (as OpenPnP's selected nozzle); none chosen, the first on the head.
@@ -758,9 +760,9 @@ as OpenPnP's camera calibration, on the camera's **Camera Calibration Instructio
    in the middle of the picture (an eighth of its smaller side across). Jog the tip into it, then **Next**.
 3. The tip goes down to the camera's height (the camera's offset: where it is focused). Turn it through 360
    degrees (Jog) and see it stays in the circle, jogging it if not, then **Next**.
-4. **Detection Diameter**: the tip is looked for at that size, all the while, about the middle: a **red**
-   circle that size where it is looked for, **green with a +** where it is found; the line over the picture
-   says which, and why not. It starts at the tip's size (its runout **Vision Diameter**, else its
+4. **Detection Diameter**: a field under the camera's line; the tip is looked for at that size, all the while,
+   about the middle: a **red** circle that size where it is looked for, **green with a +** where it is found;
+   beside the field, "found" or "not found" (pointed at, where, or why not; the log says each change). It starts at the tip's size (its runout **Vision Diameter**, else its
    **Diameter**, through the camera's rough scale; else 25 px, as OpenPnP's): set it until the circle is green
    and just fits the tip, then **Next**. Only that size is taken, so the nozzle's base round the tip, the
    bigger round thing, is not.
@@ -783,7 +785,7 @@ A camera looking up sees the machine as a mirror image of one looking down; its 
 mirrored are given against that, so a straight-mounted camera looking up reads as turned 0 and not
 mirrored.
 
-<!-- src: src/app/JPlacerCameraTasks.cpp (calibrateFixed, calibrateFixedWith, askOperator, onFixedCalibrated, calibrateRunoutCamera); src/ui/JPInstructions.cpp (showNumber); src/ui/JPCameraView.cpp (setMarks); src/app/JPlacerMachine.cpp (onFixedCalibrated, calibrateCameraPosition); src/tasks/JPCameraCalibrator.cpp (Options::moving); src/machine/JPCell.cpp (safeZAndWait); src/machine/JPCameraCalibration.cpp (rotationDeg, mirrored) -->
+<!-- src: src/app/JPlacerCameraTasks.cpp (calibrateFixed, calibrateFixedWith, askOperator, onFixedCalibrated, calibrateRunoutCamera); src/ui/JPCameraPanel.cpp (askStep, endStep, showStepNumber, setStepNumberLabel); src/ui/JPCameraView.cpp (setMarks); src/app/JPlacerMachine.cpp (onFixedCalibrated, calibrateCameraPosition); src/tasks/JPCameraCalibrator.cpp (Options::moving); src/machine/JPCell.cpp (safeZAndWait); src/machine/JPCameraCalibration.cpp (rotationDeg, mirrored) -->
 
 #### Visual Test
 

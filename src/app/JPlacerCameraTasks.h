@@ -166,8 +166,9 @@ private:
         std::shared_ptr<std::atomic<int>> into;
         int                               min = 0, max = 0;
     };
-    // The person's turn, from a task's thread (OpenPnP's instructions): `text` on the camera with Next and Cancel,
-    // and `number` to set when given; true on Next, false cancelled (Cancel, the red X, closing). `meanwhile`
+    // The person's turn, from a task's thread (OpenPnP's instructions, on the camera's line): `line` saying what
+    // to do, `detail` (OpenPnP's words) Next's tooltip, and `number` to set when given; true on Next, false
+    // cancelled (the red X, closing). `meanwhile`
     // runs over and over on this thread until then (a live search shown); none: it waits.
     // A click on (or drop in) a fixed camera's picture: the nozzle moved so that point comes to its middle.
     void lookAtFixed(JPCameraPanel& camera, double px, double py);
@@ -178,7 +179,7 @@ private:
     void tunedHere(const JPCameraFeed& feed);
     // Where a camera on the head looks now (its feed's).
     std::optional<std::pair<double, double>> cameraAt(const JPCameraFeed& feed) const;
-    bool askOperator(JPCameraPanel* panel, const std::string& title, const std::string& text,
+    bool askOperator(JPCameraPanel* panel, const std::string& line, const std::string& detail,
                      const std::function<void()>& meanwhile, const NumberAsk* number = nullptr);
     bool cameraView(const JPCameraConfig& camera, double& x, double& y, std::string& why) const;
     bool lookAt(JPCameraPanel& camera, double x, double y);

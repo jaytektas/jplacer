@@ -2,6 +2,8 @@
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
 #include "JPCameraPanel.h"
+#include <j/core/JStyle.h>
+#include <j/core/JSpinBox.h>
 
 #include "JPIcons.h"
 #include "JPUiParts.h"
@@ -20,6 +22,13 @@
 #include <filesystem>
 
 inline namespace jf {
+
+namespace {
+// What Next says while nothing waits on it.
+constexpr const char* kNextTip = "Next: a step of what is under way on this camera waits for you (its line says what to do)";
+// How wide a step's number is, in control heights.
+constexpr float kNumberWidths = 4;
+} // namespace
 
 JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCameraConfig& camera, std::string capturesDir,
                              std::function<bool(double&, double&)> view, CalibrationFor calibrationFor)
@@ -51,6 +60,12 @@ JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCameraCon
         m_cancelTask->setEnabled(false);
         if (onCancelTask) onCancelTask();
     });
+    // OpenPnP's green start: Next, when a step of a camera task waits on the person (askStep).
+    m_next = std::make_unique<JPIconButton>(graph, "Next", "control-start", kNextTip);
+    m_next->setEnabled(false);
+    m_next->onClicked.connect([this] {
+        if (auto f = m_onNext) f();
+    });
     m_visualTest = std::make_unique<JPIconButton>(graph, "Visual Test", &JPIcons::check, "Visual test of the calibration");
     m_visualTest->onClicked.connect([this] { if (onVisualTest) onVisualTest(); });
     m_settings = std::make_unique<JPIconButton>(graph, "Camera Settings", &JPIcons::gear,
@@ -64,6 +79,18 @@ JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCameraCon
     // What a camera task is doing, or the last thing done: a line of its own,
     // so a result reads in full.
     m_note = add(std::make_unique<JLabel>(graph, ""));
+    // Folded to the panel's width, as tall as its text (a step's line, a result in full).
+    m_note->setWordWrap(true);
+    m_note->setVSizePolicy(JSizePolicyMode::Fixed);
+    m_note->setHSizePolicy(JSizePolicyMode::Expanding, 1);
+    // A number a step asks for (OpenPnP's Detection Diameter), on a row of its own under the note while asked.
+    m_stepRow = add(JPUiParts::row(graph));
+    m_stepNumber = m_stepRow->add(std::make_unique<JSpinBox>(graph, 0, 1, JStyle::current().controlHeight * kNumberWidths));
+    m_stepNumber->onValueChanged.connect([this](int v) {
+        if (auto f = m_onNumber) f(v);
+    });
+    m_stepNumberLabel = m_stepRow->add(std::make_unique<JLabel>(graph, ""));
+    hideStepNumber();
     m_instructionsHolder = add(std::make_unique<JContainer>(graph, 0.f, 0.f));
     m_instructionsHolder->setDirection(JFlexDirection::Column)->setAlignItems(JAlignItems::Stretch);
     m_instructionsHolder->setVSizePolicy(JSizePolicyMode::Fixed);
@@ -121,6 +148,12 @@ void JPCameraPanel::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     m_drawn = std::chrono::steady_clock::now();
     if (!m_feed.isRunning()) start();
     // The instructions as tall as their text folds to at this width.
+    // The note as tall as its text folds to at this width.
+    if (const float w = m_note->bounds().width; w > 0 && w != m_noteWidth) {
+        m_noteWidth = w;
+        m_note->setFixedSize(0.f, std::max(JStyle::current().labelHeight, m_note->heightFor(w)));
+        invalidate();
+    }
     if (const float w = m_instructionsHolder->bounds().width; m_instructionsShown && w > 0 && w != m_instructionsWidth) {
         m_instructionsWidth = w;
         m_instructionsHolder->setFixedSize(0.f, m_instructions->heightFor(m_instructionsWidth));
@@ -228,11 +261,52 @@ void JPCameraPanel::setFeeding(const std::string& cameraId, bool feeding) {
 }
 
 std::vector<JWidget*> JPCameraPanel::tabTools() const {
-    return { m_asTaken.get(), m_save.get(), m_calibrate.get(), m_cancelTask.get(), m_visualTest.get(), m_settings.get() };
+    return { m_asTaken.get(), m_save.get(), m_calibrate.get(), m_next.get(), m_cancelTask.get(), m_visualTest.get(), m_settings.get() };
+}
+
+void JPCameraPanel::askStep(const std::string& line, const std::string& detail, std::function<void()> onNext) {
+    setNote(line);
+    m_onNext = std::move(onNext);
+    m_next->setTooltip("Next: " + detail);
+    m_next->setEnabled(true);
+    m_cancelTask->setEnabled(true);
+}
+
+void JPCameraPanel::endStep() {
+    m_onNext = nullptr;
+    m_next->setTooltip(kNextTip);
+    m_next->setEnabled(false);
+    m_cancelTask->setEnabled(m_busy);
+    hideStepNumber();
+}
+
+void JPCameraPanel::showStepNumber(const std::string& label, int value, int min, int max, std::function<void(int)> changed) {
+    m_onNumber = nullptr;   // setting it up is not a change
+    m_stepNumberLabel->setText(label);
+    m_stepNumber->setRange(min, max);
+    m_stepNumber->setValue(value);
+    m_onNumber = std::move(changed);
+    m_stepRow->setVisible(true);
+    m_stepRow->setFixedSize(0.f, JStyle::current().controlHeight);
+    invalidate();
+}
+
+void JPCameraPanel::setStepNumberLabel(const std::string& label, const std::string& tooltip) {
+    m_stepNumberLabel->setText(label);
+    m_stepNumberLabel->setTooltip(tooltip);
+}
+
+void JPCameraPanel::hideStepNumber() {
+    m_onNumber = nullptr;
+    m_stepRow->setVisible(false);
+    m_stepRow->setFixedSize(0.f, 0.f);
+    invalidate();
 }
 
 void JPCameraPanel::setNote(const std::string& text) {
     m_note->setText(text);
+    m_noteWidth = -1;   // sized to it on the next frame
+    invalidate();
 }
 
 std::string JPCameraPanel::savePicture() {

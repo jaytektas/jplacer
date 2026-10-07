@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- The bottom camera's calibration steps no longer put a box over the camera: what to do is on the camera's line,
+  Next is a green start button beside Calibrate (the red X cancels), and the Detection Diameter is a field under
+  the line, saying beside it whether the tip is found.
 - A floating camera window's right-click menu now really opens and stays open (0.1.14 fixed only half of it: the
   menu still closed the moment it opened); drop-downs in a floating window too.
 - A nozzle tip's Tool Changer tab is a table of steps, as many as the change takes (not OpenPnP's four places):
