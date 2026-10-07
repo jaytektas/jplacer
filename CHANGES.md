@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- A floating camera window's right-click menu now really opens and stays open (0.1.14 fixed only half of it: the
+  menu still closed the moment it opened); drop-downs in a floating window too.
 - A nozzle tip's Tool Changer tab is a table of steps, as many as the change takes (not OpenPnP's four places):
   each row a move (or safe Z, an actuator, a wait, a question) with its own add, delete, up and down buttons;
   unloading can have its own table, to go round the holders (to the middle of the machine first, say).
