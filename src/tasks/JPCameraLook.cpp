@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstdio>
 #include <future>
 #include <optional>
 #include <thread>
@@ -135,6 +136,7 @@ bool JPCameraLook::settledNow(JPCameraFeed& feed, JPGrayImage& out, std::string&
     const auto until = start + std::chrono::milliseconds(fixed ? st.timeMs : st.timeoutMs);
     int still = 0;
     bool done = false;
+    double least = -1;   // the smallest difference seen (none yet): said with a time-out
     uint64_t have = frame.sequence;
     while (!done) {
         if (!feed.latest(frame, have)) {
@@ -147,6 +149,7 @@ bool JPCameraLook::settledNow(JPCameraFeed& feed, JPGrayImage& out, std::string&
         record(frame, next);
         const double d = compare.difference(last, next);
         last = next;
+        if (d > 0 && (least < 0 || d < least)) least = d;
         const double ms = std::chrono::duration<double, std::milli>(frame.captured - start).count();
         if (trace) trace->points.push_back({ ms, d });
         if (fixed) {
@@ -171,9 +174,16 @@ bool JPCameraLook::settledNow(JPCameraFeed& feed, JPGrayImage& out, std::string&
         if (fixed) {
             if (trace) trace->settledMs = st.timeMs;
         } else {
-            // As OpenPnP's (its debug log): a time-out is the settling's way out, not a fault.
-            JLOGC(JPlacerLog::kCamera, JLogLevel::Debug) << feed.config().name << ": not settled within " << st.timeoutMs
-                                                         << " ms; the last picture is used";
+            // Said every time (OpenPnP only notes it in its debug log): a camera that never settles waits out its
+            // timeout on every look. Its least difference against the threshold says why: with the least
+            // above it, the picture's own noise is more than the threshold allows (raise it: Settle Test).
+            char numbers[160];
+            std::snprintf(numbers, sizeof numbers, "least difference %.2f%%, threshold %.2f%%", least, st.threshold);
+            JLOGC(JPlacerLog::kCamera, JLogLevel::Warn)
+                << feed.config().name << ": not settled within " << st.timeoutMs << " ms (" << numbers << ")"
+                << (least > st.threshold ? "; the picture's noise is above the threshold, so it can never settle: raise "
+                                           "Settle Threshold above it (Settle Test)" : "")
+                << "; the last picture is used";
         }
     }
     if (trace && st.diagnostics) trace->pictures = pictures;
