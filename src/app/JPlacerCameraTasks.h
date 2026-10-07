@@ -167,6 +167,8 @@ private:
     // The person's turn, from a task's thread (OpenPnP's instructions): `text` on the camera with Next and Cancel,
     // and `number` to set when given; true on Next, false cancelled (Cancel, the red X, closing). `meanwhile`
     // runs over and over on this thread until then (a live search shown); none: it waits.
+    // A click on (or drop in) a fixed camera's picture: the nozzle moved so that point comes to its middle.
+    void lookAtFixed(JPCameraPanel& camera, double px, double py);
     bool askOperator(JPCameraPanel* panel, const std::string& title, const std::string& text,
                      const std::function<void()>& meanwhile, const NumberAsk* number = nullptr);
     bool cameraView(const JPCameraConfig& camera, double& x, double& y, std::string& why) const;
@@ -193,6 +195,9 @@ private:
     std::shared_ptr<JPScripting>        m_scripting;
     std::thread                         m_worker;
     bool                                m_busy = false;   // main thread's
+    // A task waiting on the person (askOperator): the picture may move the nozzle meanwhile, the task's.
+    std::atomic<bool>                   m_operatorTurn { false };
+    std::optional<JPMountConfig>        m_operatorTool;   // main thread's
     // Where the camera on the head was (X, Y, its offsets in) when a feature was last sized there (Feature
     // diameter, Auto-Detect Next): the precise nozzle offsets' test object is looked for there first.
     std::optional<std::pair<double, double>> m_featureAt;

@@ -553,7 +553,15 @@ With a camera on the head calibrated and the machine homed, **double-click** any
 part. Or **drag** in the picture: a line from the cross to the pointer shows the move, which is made when
 the button is let go; let go outside the picture and nothing moves.
 
-<!-- src: src/ui/JPCameraView.cpp (handleMousePress, handleMouseRelease, lookAt); src/app/JPlacerCameraTasks.cpp (onLookAtPixel, lookAt) -->
+In a fixed camera's picture (one looking up) the same moves the **nozzle** instead, as OpenPnP's: the point
+clicked or dropped on comes to the middle of the picture. That's the nozzle chosen in Jog, or, while a camera
+calibration waits on you (jogging the tip into the green circle), the nozzle being calibrated. It goes
+straight there within the camera's **Roaming Radius**, else by way of safe Z, back at the same height. The
+distance comes from the camera's calibration, or, before it has one, from its **Units Per Pixel**, the picture
+taken as seen from above with Y up (OpenPnP's): on a camera whose picture is mirrored or turned, the nozzle
+then moves the other way, until the camera is calibrated.
+
+<!-- src: src/ui/JPCameraView.cpp (handleMousePress, handleMouseRelease, lookAt); src/app/JPlacerCameraTasks.cpp (onLookAtPixel, lookAt, lookAtFixed, askOperator) -->
 
 While a page asks for a **selection** on the head camera's picture (a drag feeder's template image or
 area of interest), a rectangle with a handle at each corner is drawn over it, its size in pixels by it.

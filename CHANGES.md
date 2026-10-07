@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- A floating camera window's right-click menu now opens and stays open (in 0.1.13 it closed at once, leaving a
+  resize pointer); menus and drop-downs opened while a floating window has the focus stay open too.
+- Dragging (or double-clicking) in the bottom camera's picture moves the nozzle so that point comes to the
+  middle, as OpenPnP's, also while its calibration waits for the tip to be jogged into the circle.
 ## 0.1.13
 
 - Preferences > Debugging > Save vision pictures for debugging: while ticked, every vision pipeline run keeps each

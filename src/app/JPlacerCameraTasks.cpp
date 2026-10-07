@@ -78,6 +78,11 @@ JPlacerCameraTasks::JPlacerCameraTasks(JAppWindow& window, JPCell& cell, std::ve
         panel->onVisualTest = [this, panel] { visualTest(*panel); };
         // Double-click the picture: the camera looks there.
         panel->onLookAtPixel = [this, panel](double px, double py) {
+            // A fixed camera (one looking up): the nozzle moved, as OpenPnP's.
+            if (panel->camera().mount.axisX.empty() || panel->camera().mount.axisY.empty()) {
+                lookAtFixed(*panel, px, py);
+                return;
+            }
             JPCameraCalibration cal;
             double vx, vy, x, y;
             if (!cameraLook(panel->camera().id, cal, vx, vy)) {
@@ -1014,6 +1019,65 @@ bool JPlacerCameraTasks::lookAt(JPCameraPanel& camera, double x, double y) {
     return true;
 }
 
+void JPlacerCameraTasks::lookAtFixed(JPCameraPanel& camera, double px, double py) {
+    // OpenPnP's CameraView.moveToClick for a camera not on the head: the nozzle moved so the point clicked (or
+    // dropped on) comes to the middle of the picture; straight there within the camera's roaming radius, else by
+    // way of safe Z, back at its height. While a camera task waits on the person (jogging the tip into the
+    // circle), allowed, and the nozzle is the task's.
+    if (m_busy && !m_operatorTurn) {
+        m_window.showStatus("A camera task is under way", kResultMs);
+        return;
+    }
+    if (!m_cell.isConnected() || !m_cell.isHomed()) {
+        m_window.showStatus("To move the nozzle where the picture is clicked, home the machine first", kResultMs);
+        return;
+    }
+    const JPCameraConfig& cam = camera.camera();
+    const auto mode = camera.feed().mode();
+    if (!mode) return;
+    // The tool: the task's, else the nozzle chosen (Jog), else the first on a head.
+    std::optional<JPMountConfig> tool = m_busy ? m_operatorTool : std::nullopt;
+    if (!tool) {
+        const std::string chosen = chosenNozzle ? chosenNozzle() : std::string();
+        for (const JPNozzleConfig& n : m_cell.config().nozzles)
+            if (!n.mount.axisX.empty() && !n.mount.axisY.empty() && (n.id == chosen || (!tool && chosen.empty()))) tool = n.mount;
+    }
+    if (!tool) {
+        m_window.showStatus("Choose a nozzle (Jog) to move over " + cam.name, kResultMs);
+        return;
+    }
+    // How far the point is from the middle, on the machine: by the camera's calibration, else its rough scale
+    // with the picture taken as seen from above, Y up (OpenPnP's getCameraViewCenterOffsetsFromXy).
+    const double camX = cam.mount.offsetX, camY = cam.mount.offsetY;
+    const JPCameraCalibration cal = m_cell.cameraCalibration(cam.id, mode->width, mode->height);
+    double offX = 0, offY = 0;
+    if (cal.valid) {
+        double x, y;
+        if (!cal.machinePoint(px, py, camX, camY, x, y)) return;
+        offX = x - camX;
+        offY = y - camY;
+    } else if (cam.unitsPerPixelX > 0 && cam.unitsPerPixelY > 0) {
+        offX = (px - mode->width / 2.0) * cam.unitsPerPixelX;
+        offY = -(py - mode->height / 2.0) * cam.unitsPerPixelY;
+    } else {
+        m_window.showStatus(cam.name + " has no scale to move by: calibrate it, or set its Units Per Pixel", kResultMs);
+        return;
+    }
+    const auto p = m_cell.positions();
+    const auto ax = p.find(tool->axisX), ay = p.find(tool->axisY);
+    if (ax == p.end() || ay == p.end()) return;
+    const double nowX = ax->second + tool->offsetX, nowY = ay->second + tool->offsetY;
+    const double toX = nowX - offX, toY = nowY - offY;
+    const double r = cam.roamingRadiusMm;
+    if (r > 0 && std::hypot(nowX - camX, nowY - camY) < r && std::hypot(toX - camX, toY - camY) < r) {
+        m_cell.moveAxes({ { tool->axisX, ax->second - offX }, { tool->axisY, ay->second - offY } }, kTaskSpeed, true);
+    } else {
+        std::optional<double> z;
+        if (const auto az = p.find(tool->axisZ); az != p.end()) z = az->second + tool->offsetZ;
+        m_cell.moveTool(*tool, { toX, toY, z, std::nullopt }, kTaskSpeed);
+    }
+}
+
 bool JPlacerCameraTasks::askOperator(JPCameraPanel* panel, const std::string& title, const std::string& text,
                                      const std::function<void()>& meanwhile, const NumberAsk* number) {
     auto answer = std::make_shared<std::atomic<int>>(0);   // 1 Next, -1 Cancel
@@ -1036,10 +1100,16 @@ bool JPlacerCameraTasks::askOperator(JPCameraPanel* panel, const std::string& ti
             panel->hideInstructionsNumber();
         }
     });
+    // The person's turn: the camera's picture may move the nozzle meanwhile (lookAtFixed), until the task's
+    // next move.
+    m_operatorTurn = true;
     while (*answer == 0 && !m_cell.isCancelled()) {
         if (meanwhile) meanwhile();
         else std::this_thread::sleep_for(std::chrono::milliseconds(kAskPollMs));
     }
+    // Any move the person started ends before the task moves on.
+    while (m_cell.isMoving()) std::this_thread::sleep_for(std::chrono::milliseconds(kAskPollMs));
+    m_operatorTurn = false;
     return *answer == 1 && !m_cell.isCancelled();
 }
 
@@ -1116,6 +1186,7 @@ void JPlacerCameraTasks::calibrateFixedWith(JPCameraPanel& camera, const JPNozzl
     auto result = std::make_shared<JPCameraCalibration>();
     auto finds = showFinds(*panel);
     const std::string title = "Camera Calibration Instructions/Status";
+    m_operatorTool = tool;   // the nozzle a click on the picture moves while the person has the turn
     run(*panel, "Calibrating " + feed->config().name, [this, panel, feed, tool, place, result, finds, tipMm, tipName, startPx,
                                                          title](std::string& words, const auto& progress) {
         std::weak_ptr<bool> alive = m_alive;
@@ -1253,6 +1324,7 @@ void JPlacerCameraTasks::calibrateFixedWith(JPCameraPanel& camera, const JPNozzl
         words = calibrated(feed->config(), *c) + secondWhy;
         return true;
     }, [this, cameraId, result, finished, nozzleId](bool ok) {
+        m_operatorTool.reset();
         if (ok) keepCalibration(cameraId, *result);
         if (finished) finished(ok);
         if (ok && onFixedCalibrated) onFixedCalibrated(cameraId, nozzleId);
