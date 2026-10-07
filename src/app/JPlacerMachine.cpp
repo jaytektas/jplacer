@@ -2478,11 +2478,30 @@ void JPlacerMachine::importOpenPnp() {
 
 void JPlacerMachine::startWithDefault() {
     if (!JPlacerSettings::machineCell().empty()) return;
+    // No cell named, but cells here already (the settings lost or new): the one used last opened, never
+    // OpenPnP's default machine written over one.
+    std::error_code ec;
+    std::filesystem::path newest;
+    std::filesystem::file_time_type newestTime;
+    for (const auto& e : std::filesystem::directory_iterator(cellsDir(), ec)) {
+        if (e.path().extension() != ".json") continue;
+        const auto t = e.last_write_time(ec);
+        if (newest.empty() || t > newestTime) {
+            newest = e.path();
+            newestTime = t;
+        }
+    }
+    if (!newest.empty()) {
+        std::string error;
+        JLOGC(JPlacerLog::kApp, JLogLevel::Warn) << "no cell named in the settings: opening " << newest.string()
+                                                   << ", the one changed last";
+        if (!openCell(newest.string(), error)) JLOGC(JPlacerLog::kApp, JLogLevel::Warn) << error;
+        return;
+    }
     const std::string shipped = JPlacerPaths::bundled(JPOpenPnpMachineImporter::kDefaultsDir);
     if (shipped.empty()) return;
     const std::filesystem::path machine =
         std::filesystem::path(shipped) / JPOpenPnpMachineImporter::kDefaultsConfig / kOpenPnpMachineFile;
-    std::error_code ec;
     if (!std::filesystem::exists(machine, ec)) return;
     JLOGC(JPlacerLog::kApp, JLogLevel::Info) << "no machine yet: OpenPnP's default machine from " << machine.string();
     importFrom(machine.string(), false);

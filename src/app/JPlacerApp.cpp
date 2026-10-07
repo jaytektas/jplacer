@@ -148,6 +148,8 @@ int JPlacerApp::run() {
     // not worth interrupting for every time jplacer opens.
     if (JPlacerSettings::updatesAtStartup()) m_updater->check(false);
     const int rc = m_window->run();
+    // Kept before an update starts the new copy, which reads them as it starts.
+    JPlacerSettings::save();
     m_updater->installStaged();
     return rc;
 }

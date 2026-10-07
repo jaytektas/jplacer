@@ -8,6 +8,7 @@
 #include "common/JPlacerLog.h"
 #include "common/JPlacerPaths.h"
 
+#include <j/config/Json.h>
 #include <j/config/Settings.h>
 #include <j/core/Log.h>
 
@@ -22,6 +23,15 @@ std::string JPlacerSettings::defaultPath() {
 }
 
 void JPlacerSettings::load(const std::string& path) {
+    // A file there that cannot be read is set aside, not written over with nothing: what it held may be
+    // recovered from it.
+    std::error_code ec;
+    if (std::filesystem::exists(path, ec) && !JJson::tryParseFile(path)) {
+        const std::string aside = path + ".unreadable";
+        std::filesystem::rename(path, aside, ec);
+        JLOGC(JPlacerLog::kSettings, JLogLevel::Error)
+            << "settings: " << path << " could not be read; set aside as " << aside << ", starting without them";
+    }
     JSettings::instance().setPath(path).loadJson();
     JLOGC(JPlacerLog::kSettings, JLogLevel::Info) << "settings: " << path;
 }

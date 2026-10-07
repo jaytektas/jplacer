@@ -22,7 +22,14 @@ as OpenPnP's do with no calibration here: an ImageCamera, or a SimulatedUpCamera
 tip and the part on it, its body dark and its pads white, as the part is turned), at its Units Per Pixel.
 A machine with no discard location has it at the origin, as OpenPnP's default.
 
-<!-- src: src/app/JPlacerMachine.cpp (startWithDefault); src/model/JPConfiguration.cpp (load, defaults); src/openpnp/JPOpenPnpMachineImporter.cpp (classpath pictures); openpnp-defaults/README.md; src/machine/JPCameraConfig.h (openPnpCalibration); src/app/JPlacerMachine.cpp (setExtras) -->
+The default machine is only brought in when there is no machine at all. With the settings not naming one
+but machines already kept beside them (`cells`), jplacer opens the one changed last instead, and never
+writes OpenPnP's default over one. A settings file that cannot be read is put aside as
+`jplacer.json.unreadable` (what it held can still be had from it), and jplacer starts without it. The
+settings are written whole or not at all, and kept before an update starts the new version, so the new
+version always finds them.
+
+<!-- src: src/app/JPlacerSettings.cpp (load); src/app/JPlacerApp.cpp (run); src/app/JPlacerMachine.cpp (startWithDefault); src/model/JPConfiguration.cpp (load, defaults); src/openpnp/JPOpenPnpMachineImporter.cpp (classpath pictures); openpnp-defaults/README.md; src/machine/JPCameraConfig.h (openPnpCalibration); src/app/JPlacerMachine.cpp (setExtras) -->
 
 ## Bringing in a machine set up in OpenPnP
 
