@@ -135,14 +135,16 @@ JPIssuesPanel::JPIssuesPanel(JSceneGraph& graph, JPSolutions& solutions, double 
     m_milestoneText->setFixedSize(0.f, st.labelHeight);
     m_milestoneText->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     // An issue's properties changed behind its controls: shown again, on the next frame.
-    // An issue changed behind its controls (its work done or failed, a property found): the table, the
-    // buttons and the indicator as it now is, on the next frame.
+    // An issue changed behind its controls (a value found, as Auto-Detect Next's; its work done or failed):
+    // the table, the buttons and the indicator as it now is, and the page's values read again in place (not
+    // made again: it stays scrolled where it is), on the next frame.
     m_solutions.onSolutionChanged = [this, alive = std::weak_ptr<bool>(m_alive)] {
         jPostToNextFrame([this, alive] {
             if (!alive.lock()) return;
             m_table->refresh();
-            selectionChanged();
+            showButtons();
             updateIndicator();
+            m_form->refresh();
         });
     };
     m_warn = add(std::make_unique<JLabel>(graph, ""));
@@ -261,6 +263,13 @@ void JPIssuesPanel::showMilestone() {
 }
 
 void JPIssuesPanel::selectionChanged() {
+    showButtons();
+    const auto chosen = selections();
+    if (chosen.size() == 1 && chosen.front()->activate) chosen.front()->activate();
+    showIssue();
+}
+
+void JPIssuesPanel::showButtons() {
     // As OpenPnP's selectionActions: what the chosen issues can do.
     const auto chosen = selections();
     bool accept = false, dismiss = false, reopen = false, info = false;
@@ -274,8 +283,6 @@ void JPIssuesPanel::selectionChanged() {
     m_dismiss->setEnabled(dismiss);
     m_reopen->setEnabled(reopen);
     m_info->setEnabled(info);
-    if (chosen.size() == 1 && chosen.front()->activate) chosen.front()->activate();
-    showIssue();
 }
 
 void JPIssuesPanel::showIssue() {

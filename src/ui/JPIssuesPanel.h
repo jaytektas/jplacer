@@ -56,6 +56,8 @@ private:
     class Model;
     std::vector<JPSolutions::Issue*> selections() const;
     void selectionChanged();
+    // What the chosen issues can do: Accept, Dismiss, Reopen, Info enabled.
+    void showButtons();
     void setState(JPSolutions::State state);
     void showMilestone();
     void showIssue();
