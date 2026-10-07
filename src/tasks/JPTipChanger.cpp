@@ -59,6 +59,14 @@ bool JPTipChanger::run(JPCell& cell, const JPCellConfig& names, const JPNozzleCo
                        const Hooks& hooks, std::string& why) {
     using K = JPChangerStep::Kind;
     const JPMountConfig& m = nozzle.mount;
+    // No backlash compensation that moves past a place and back while among the changer's slots (OpenPnP's
+    // SpeedOverPrecision): a one-sided axis would carry the tip its Backlash Offset past a slot's point into
+    // its wall. On again however the steps end.
+    struct Precise {
+        JPCell& cell;
+        explicit Precise(JPCell& c) : cell(c) { cell.setSpeedOverPrecision(true); }
+        ~Precise() { cell.setSpeedOverPrecision(false); }
+    } precise(cell);
     // A place for the nozzle, as its axes' targets: the nozzle's offset taken off.
     auto targets = [&m](const JPChangerStep& s, bool withZ) {
         std::map<std::string, double> t;

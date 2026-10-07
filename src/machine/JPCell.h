@@ -314,6 +314,11 @@ public:
     // Backlash compensation on (as each axis says) or off (every move goes
     // straight to its target): off while the backlash is being measured.
     void setBacklashCompensation(bool on) { m_backlashOn = on; }
+    // OpenPnP's MotionOption.SpeedOverPrecision for the moves made while on: no backlash compensation that
+    // makes extra moves (one-sided's going past the target and back, sneaking up's stopping short, the
+    // distance-aware back-off); a directional offset still shifts where a move ends. For moves among things
+    // that a move past the target would hit (a nozzle tip changer's slots).
+    void setSpeedOverPrecision(bool on) { m_speedOverPrecision = on; }
     // The controller axes' positions as their controllers report them: with
     // a directional backlash offset in effect, the axis's plus it (where the
     // drive was sent). positions() gives the axes' own.
@@ -599,6 +604,7 @@ private:
     std::map<std::string, double>      m_backlashLag;
     std::map<std::string, double>      m_reported;   // controller axes, as reported
     std::atomic<bool>                  m_backlashOn{ true };
+    std::atomic<bool>                  m_speedOverPrecision{ false };   // setSpeedOverPrecision
     std::map<std::string, double>      m_corrected;  // correctPosition's since the last home, summed
     std::map<std::string, std::string> m_firmware;
     std::map<std::string, std::string> m_firmwareIdentity;

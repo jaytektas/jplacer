@@ -2846,7 +2846,7 @@ bool JPCell::doMoveNow(std::map<std::string, double> targets, double speed, std:
                 double driveFrom = sentFrom;
                 // Coming in less than the least approach along the curve: back
                 // off that far first (a waypoint, sent as it is).
-                const bool backOff = a->travelFor(dir * lag) + std::abs(t - driveFrom) < a->approachMm;
+                const bool backOff = !m_speedOverPrecision && a->travelFor(dir * lag) + std::abs(t - driveFrom) < a->approachMm;
                 if (backOff) {
                     const double w = t - dir * a->approachMm;
                     lag = a->lagMoved(lag, driveFrom, w);
@@ -2867,6 +2867,7 @@ bool JPCell::doMoveNow(std::map<std::string, double> targets, double speed, std:
             }
             if (a->backlash == JPAxisConfig::Backlash::OneSided || a->backlash == JPAxisConfig::Backlash::OneSidedOptimized) {
                 if (before != 0) applied[id] = 0;
+                if (m_speedOverPrecision) continue;   // no going past and back (OpenPnP's SpeedOverPrecision)
                 // Ending travel must be opposite to the offset's sign. One-sided:
                 // always by way of the target plus the offset (unless it does not
                 // move). Optimized: only a move of nothing, or the wrong way.
@@ -2885,7 +2886,7 @@ bool JPCell::doMoveNow(std::map<std::string, double> targets, double speed, std:
             applied[id] = effective;
             t = end;
             overshoot[id] = end;
-            if (a->backlash == JPAxisConfig::Backlash::DirectionalSneakUp && travel != 0 && a->sneakUpMm > 0) {
+            if (a->backlash == JPAxisConfig::Backlash::DirectionalSneakUp && travel != 0 && a->sneakUpMm > 0 && !m_speedOverPrecision) {
                 const double here = (f == from.end() ? end : f->second) + before;
                 const double dir = travel > 0 ? 1 : -1;
                 double shortOf = end - dir * a->sneakUpMm;

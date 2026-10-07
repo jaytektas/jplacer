@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Nozzle tip loading and unloading no longer make backlash compensation's extra moves: a one-sided axis went its
+  Backlash Offset past each changer place and back, which could drive the tip into the slot's wall.
 ## 0.1.15
 
 - The Jog panel's nozzle tip button shows whether the tip on the chosen nozzle is calibrated: green when it is

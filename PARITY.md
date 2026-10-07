@@ -78,6 +78,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Capture / move buttons on limits | done | |
 | Backlash: methods (one-sided, directional, directional sneak-up) with offset, sneak-up and speed factor | done | |
 | Backlash calibration ("Calibrate now", with graphs of backlash against speed and sneak-up distance) | done | tolerance from the measuring's own noise (8 pictures a measurement); graphs of play by distance, by speed, and errors after; plus jplacer's DistanceAware method for stretching drives |
+| Backlash compensation in nozzle tip changer moves | own way | OpenPnP compensates them (a one-sided axis goes past the slot's point and back); jplacer makes no extra backlash moves there (OpenPnP's SpeedOverPrecision) |
 | Virtual axis | done | |
 | Mapped axis (two map points) | done | |
 | Linear transform axis | done | any linear transform (inputs X/Y/Z/Rotation, factors, offset), the move's linear axes solved onto their inputs as OpenPnP inverts its affine transform; non-squareness kept as jplacer's squareness (measured from board fiducials; Square the Machine) |

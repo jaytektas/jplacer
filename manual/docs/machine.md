@@ -297,7 +297,13 @@ machine keeps OpenPnP's method, offset, sneak-up distance and speed factor. Chan
 speed or limits leaves the machine homed: only a change to where an axis is (its kind, controller, letter,
 home coordinate or mapping) needs it homed again.
 
-<!-- src: src/machine/JPAxisConfig.h (Backlash); src/machine/JPCell.cpp (doMove: overshoot, approach, applied; updatePositions; reconfigure); src/openpnp/JPOpenPnpMachineImporter.cpp (backlash) -->
+A nozzle tip changer's steps (loading and unloading) make no extra backlash moves: no going past a place and
+back (one-sided), no stopping short to sneak up, no distance-aware back-off; a directional offset still
+shifts where each step ends. Among the slots, a one-sided axis would carry the tip its offset past a slot's
+point, into its wall. (OpenPnP compensates changer moves as any other; its own SpeedOverPrecision, which does
+this, it uses only for a heap feeder.)
+
+<!-- src: src/machine/JPAxisConfig.h (Backlash); src/machine/JPCell.cpp (doMove: overshoot, approach, applied; updatePositions; reconfigure; setSpeedOverPrecision); src/tasks/JPTipChanger.cpp (run); src/openpnp/JPOpenPnpMachineImporter.cpp (backlash) -->
 
 **Calibrate** on an X or Y axis's Backlash Compensation tab measures its play with the camera that rides on
 it, over the head's homing fiducial (the machine homed, the camera calibrated), compensation off while it
