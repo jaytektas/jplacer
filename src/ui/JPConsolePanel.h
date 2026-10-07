@@ -51,9 +51,19 @@ public:
     std::function<void(JMenu* menu, float x, float y)> openMenu;
 
 private:
-    void addLine(const std::string& line);
-    // Lines added at the end, the oldest let go past the history kept.
-    void addLines(const std::vector<std::string>& lines);
+    // A line kept: the controllers' traffic, or the log's (its level and category), and its words.
+    struct Line {
+        bool        traffic = false;
+        JLogLevel   level = JLogLevel::Info;
+        std::string category;
+        std::string text;
+    };
+    // Lines added at the end, the oldest let go past the history kept; each shown as the choices over
+    // the lines say (G-code, Log, Categories).
+    void addLines(std::vector<Line> lines);
+    bool shows(const Line& line) const;
+    // What is shown made again from the lines kept, as the choices now say.
+    void refilter();
     void clear();
     // Lines come in on any thread; they are taken in on the main one, many at once.
     void takeLogLines();
@@ -72,14 +82,16 @@ private:
     std::unique_ptr<JMenu>   m_menu;
     std::unique_ptr<JMenu>   m_textMenu;   // the lines' right-click menu
     std::vector<std::unique_ptr<JMenu>> m_submenus;
-    std::deque<size_t>       m_lineSizes;   // each line's length in the text, its newline counted
+    std::deque<Line>         m_lines;       // the history kept, oldest first
+    std::deque<size_t>       m_shownSizes;  // each line's length in the text, its newline counted (0: not shown)
+    JPLogLevels              m_levels = JPLogLevels::current();   // the choices, as last set
     bool                     m_showTraffic = true;
     int                      m_listener = 0;
     // Log lines waiting for the main thread: shared with the log's listener,
     // which may still be running on another thread as the panel goes.
     struct Inbox {
         std::mutex               mutex;
-        std::vector<std::string> lines;
+        std::vector<Line>        lines;
     };
     std::shared_ptr<Inbox>   m_inbox = std::make_shared<Inbox>();
     std::shared_ptr<bool>    m_alive = std::make_shared<bool>(true);

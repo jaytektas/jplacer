@@ -473,6 +473,11 @@ Over the lines, what is shown:
   that is too busy down. **All as Log** puts them all back.
 - **Clear** empties the console.
 
+Each choice applies to the lines already there as well as to those to come: choose **Errors** and only the
+errors stay; untick **G-code** and the traffic goes (ticked again, it is back, with what passed
+meanwhile). A line quieter than the level in force when it was written (a Debug line while the log said
+Info) was never logged, so turning the level up later does not bring it back.
+
 The levels are the log's own, so they set what goes into the log file as well. They are kept for next
 time; `--verbose`, `--quiet` or `--trace <category>` on the command line go over them for that run.
 

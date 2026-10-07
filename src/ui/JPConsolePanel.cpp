@@ -56,6 +56,7 @@ JPConsolePanel::JPConsolePanel(JSceneGraph& graph, JPCell& cell, bool showTraffi
     m_traffic->onStateChanged.connect([this](bool on) {
         m_showTraffic = on;
         if (onShowTraffic) onShowTraffic(on);
+        refilter();
     });
     JLabel* log = shows->add(std::make_unique<JLabel>(graph, "Log", std::ceil(JTextHelper::measureWidth("Log")) + st.spacing));
     log->setHSizePolicy(JSizePolicyMode::Fixed);
@@ -107,7 +108,8 @@ JPConsolePanel::JPConsolePanel(JSceneGraph& graph, JPCell& cell, bool showTraffi
     add(std::move(input));
 
     m_watch.on(cell.onTraffic, [this](std::string name, bool sent, std::string line) {
-        if (m_showTraffic) addLine(name + (sent ? " \xE2\x86\x92 " : " \xE2\x86\x90 ") + line);
+        // Kept even while not shown: ticking G-code shows what passed meanwhile.
+        addLines({ Line { true, JLogLevel::Info, "", name + (sent ? " \xE2\x86\x92 " : " \xE2\x86\x90 ") + line } });
     });
     // The log, from any thread: kept, then taken in on the main thread. Its
     // traffic category is left out: the G-code box shows that.
@@ -120,7 +122,7 @@ JPConsolePanel::JPConsolePanel(JSceneGraph& graph, JPCell& cell, bool showTraffi
         {
             std::lock_guard lk(inbox->mutex);
             first = inbox->lines.empty();
-            inbox->lines.push_back(tag + cat + ": " + msg);
+            inbox->lines.push_back(Line { false, level, cat, tag + cat + ": " + msg });
         }
         if (first)
             JMainThreadDispatcher::instance().post([this, alive] {
@@ -135,16 +137,18 @@ JPConsolePanel::~JPConsolePanel() {
 }
 
 void JPConsolePanel::takeLogLines() {
-    std::vector<std::string> lines;
+    std::vector<Line> lines;
     {
         std::lock_guard lk(m_inbox->mutex);
         lines.swap(m_inbox->lines);
     }
-    addLines(lines);
+    addLines(std::move(lines));
 }
 
 void JPConsolePanel::levelsChanged() {
-    if (onLogLevels) onLogLevels(JPLogLevels::current());
+    m_levels = JPLogLevels::current();
+    if (onLogLevels) onLogLevels(m_levels);
+    refilter();
 }
 
 void JPConsolePanel::showCategories() {
@@ -195,29 +199,55 @@ void JPConsolePanel::showCategories() {
 // Newest last, as a terminal: the view follows each new line while it is at
 // the end, and stays on the same lines while the reader has scrolled back
 // (the oldest going as the history fills); a selection stays on its text.
-void JPConsolePanel::addLine(const std::string& line) { addLines({ line }); }
-
-void JPConsolePanel::addLines(const std::vector<std::string>& lines) {
+void JPConsolePanel::addLines(std::vector<Line> lines) {
     if (lines.empty()) return;
-    // One line to a row, a newline between them (none after the last: no empty row at the end). Each line's
-    // size counts the newline after it, there once the next comes.
+    // One line to a row, a newline between them (none after the last: no empty row at the end). A shown
+    // line's size counts the newline after it, there once the next comes.
     std::string more;
-    for (const std::string& l : lines) {
-        if (!m_lineSizes.empty() || !more.empty()) more += "\n";
-        more += l;
-        m_lineSizes.push_back(l.size() + 1);
+    bool any = !m_text->text().empty();
+    for (Line& l : lines) {
+        const bool shown = shows(l);
+        if (shown) {
+            if (any) more += "\n";
+            more += l.text;
+            any = true;
+        }
+        m_shownSizes.push_back(shown ? l.text.size() + 1 : 0);
+        m_lines.push_back(std::move(l));
     }
     m_text->appendText(more);
     size_t gone = 0;
-    while (m_lineSizes.size() > kLines) {
-        gone += m_lineSizes.front();
-        m_lineSizes.pop_front();
+    while (m_lines.size() > kLines) {
+        gone += m_shownSizes.front();
+        m_shownSizes.pop_front();
+        m_lines.pop_front();
     }
-    m_text->dropFront(gone);
+    m_text->dropFront(std::min(gone, m_text->text().size()));
+}
+
+bool JPConsolePanel::shows(const Line& line) const {
+    if (line.traffic) return m_showTraffic;
+    const auto own = m_levels.own.find(line.category);
+    return line.level >= (own == m_levels.own.end() ? m_levels.global : own->second);
+}
+
+void JPConsolePanel::refilter() {
+    std::string text;
+    for (size_t i = 0; i < m_lines.size(); ++i) {
+        const bool shown = shows(m_lines[i]);
+        if (shown) {
+            if (!text.empty()) text += "\n";
+            text += m_lines[i].text;
+        }
+        m_shownSizes[i] = shown ? m_lines[i].text.size() + 1 : 0;
+    }
+    m_text->setText(text);
+    m_text->scrollToEnd();
 }
 
 void JPConsolePanel::clear() {
-    m_lineSizes.clear();
+    m_lines.clear();
+    m_shownSizes.clear();
     m_text->setText("");
 }
 

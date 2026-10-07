@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- The Console's G-code, Log and Categories choices now apply to the lines already shown, not only to new ones:
+  choose Errors and only the errors stay.
 - Machine Setup's Search also finds a part by the settings on its page: "motion" finds the controller (Motion
   Control Type) and the machine (its Motion Planner tab), and choosing it opens that tab.
 ## 0.1.2
