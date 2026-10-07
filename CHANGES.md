@@ -10,6 +10,7 @@ notes.
 
 ## Unreleased
 
+- Each log line in the Console starts with its level and category, as in the log file: [INFO][machine.cell] ...
 - The Console's G-code, Log and Categories choices now apply to the lines already shown, not only to new ones:
   choose Errors and only the errors stay.
 - Machine Setup's Search also finds a part by the settings on its page: "motion" finds the controller (Motion

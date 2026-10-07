@@ -111,18 +111,17 @@ JPConsolePanel::JPConsolePanel(JSceneGraph& graph, JPCell& cell, bool showTraffi
         // Kept even while not shown: ticking G-code shows what passed meanwhile.
         addLines({ Line { true, JLogLevel::Info, "", name + (sent ? " \xE2\x86\x92 " : " \xE2\x86\x90 ") + line } });
     });
-    // The log, from any thread: kept, then taken in on the main thread. Its
-    // traffic category is left out: the G-code box shows that.
+    // The log, from any thread: kept, then taken in on the main thread, each line as the log file has it
+    // ("[INFO][machine.cell] ..."). Its traffic category is left out: the G-code box shows that.
     std::weak_ptr<bool> alive = m_alive;
     m_listener = JLog::instance().addListener([this, alive, inbox = m_inbox](JLogLevel level, const std::string& cat,
                                                                               const std::string& msg) {
         if (cat == JPlacerLog::kTraffic) return;
-        const std::string tag = level >= JLogLevel::Warn ? "\xE2\x9A\xA0 " : level == JLogLevel::Info ? "" : JPLogLevels::name(level) + " ";
         bool first;
         {
             std::lock_guard lk(inbox->mutex);
             first = inbox->lines.empty();
-            inbox->lines.push_back(Line { false, level, cat, tag + cat + ": " + msg });
+            inbox->lines.push_back(Line { false, level, cat, std::string("[") + jLogLevelName(level) + "][" + cat + "] " + msg });
         }
         if (first)
             JMainThreadDispatcher::instance().post([this, alive] {
