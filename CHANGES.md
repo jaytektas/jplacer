@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.2
+
 - jplacer opens as it was last closed: the window's place and size, every panel where you left it (docked,
   tabbed or in a window of its own), the front tabs, the splits' sizes, and closed panels still closed.
 - The Console's lines are one text you can copy from: drag over them (or Ctrl+A), then Ctrl+C, or right-click for
@@ -25,6 +27,7 @@ notes.
   accepted.
 - Issues & Solutions' bar is tidier: the Milestone box is as wide as its longest milestone, the checkboxes sit
   beside their labels, and the wiki button is at the right.
+
 ## 0.1.1
 
 - Issues & Solutions' Milestone is now a box: choose any milestone to go straight to it (back to Calibration
