@@ -14,6 +14,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <deque>
+#include <fstream>
 #include <future>
 #include <map>
 #include <memory>
@@ -130,6 +131,11 @@ public:
 
 private:
     using Clock = std::chrono::steady_clock;
+
+    // OpenPnP's Log G-code?: each command sent written to a file of its own, in the controllers' folder
+    // beside the settings (GcodeDriver/<name>-<when>.g), opened at the first, closed on disconnecting.
+    void logGcode(const std::string& line);
+    std::ofstream m_gcodeLog;
 
     struct Pending {
         std::string            line;

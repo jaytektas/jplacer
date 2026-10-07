@@ -476,9 +476,10 @@ Over the lines, what is shown:
 - **G-code**: the controllers' traffic, on or off.
 - **Log**: how much the log says, every category: Off, Errors, Warnings, Info (what was done and what came
   of it, to begin with), Debug (the steps in between) or Trace (every event, many a second). Each log line
-  starts with its level and category, as in the log file: `[INFO][machine.cell] ...`, `[WARN][camera] ...`;
-  a controller's traffic with `[GCODE]` and the controller's name, an arrow saying which way it went:
-  `[GCODE][Jaytek] → G1 X10`.
+  starts with the time it came (to the millisecond) and its level and category, as in the log file:
+  `14:03:56.926 [INFO][machine.cell] ...`; a controller's traffic with `[GCODE]` and the controller's name,
+  an arrow saying which way it went: `14:03:56.930 [GCODE][Jaytek] → G1 X10`. The traffic is written to the
+  log file too (at Info, without the status reports), so the log holds what the console showed.
 - **Categories**: a menu of the log's categories (`machine.cell`, `camera`, and so on), each **As Log** or
   at a level of its own: turn one part up (the controllers, `machine.driver`) without the rest, or one
   that is too busy down. **All as Log** puts them all back.

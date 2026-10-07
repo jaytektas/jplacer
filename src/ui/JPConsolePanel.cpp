@@ -17,7 +17,10 @@
 
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 #include <cmath>
+#include <cstdio>
+#include <ctime>
 
 inline namespace jf {
 
@@ -26,6 +29,18 @@ namespace {
 // How much history is kept: enough to scroll back through a homing or a
 // settings dump, bounded so a long session does not grow without end.
 constexpr size_t kLines = 1000;
+
+// The time of day a line came, to the millisecond ("14:03:56.926"), as the log file has it.
+std::string timeNow() {
+    const auto now = std::chrono::system_clock::now();
+    const std::time_t t = std::chrono::system_clock::to_time_t(now);
+    const int ms = int(std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count() % 1000);
+    char text[32];
+    std::strftime(text, sizeof text, "%H:%M:%S", std::localtime(&t));
+    char out[40];
+    std::snprintf(out, sizeof out, "%s.%03d ", text, ms);
+    return out;
+}
 
 // The Log box's words for the levels (JPLogLevels::choices, in order).
 std::string shown(JLogLevel l) {
@@ -110,7 +125,7 @@ JPConsolePanel::JPConsolePanel(JSceneGraph& graph, JPCell& cell, bool showTraffi
     m_watch.on(cell.onTraffic, [this](std::string name, bool sent, std::string line) {
         // As the log's lines, its kind and its controller first ("[GCODE][Jaytek] → G1 X10"). Kept even while
         // not shown: ticking G-code shows what passed meanwhile.
-        addLines({ Line { true, JLogLevel::Info, "", "[GCODE][" + name + "] " + (sent ? "\xE2\x86\x92 " : "\xE2\x86\x90 ") + line } });
+        addLines({ Line { true, JLogLevel::Info, "", timeNow() + "[GCODE][" + name + "] " + (sent ? "\xE2\x86\x92 " : "\xE2\x86\x90 ") + line } });
     });
     // The log, from any thread: kept, then taken in on the main thread, each line as the log file has it
     // ("[INFO][machine.cell] ..."). Its traffic category is left out: the G-code box shows that.
@@ -122,7 +137,7 @@ JPConsolePanel::JPConsolePanel(JSceneGraph& graph, JPCell& cell, bool showTraffi
         {
             std::lock_guard lk(inbox->mutex);
             first = inbox->lines.empty();
-            inbox->lines.push_back(Line { false, level, cat, std::string("[") + jLogLevelName(level) + "][" + cat + "] " + msg });
+            inbox->lines.push_back(Line { false, level, cat, timeNow() + "[" + jLogLevelName(level) + "][" + cat + "] " + msg });
         }
         if (first)
             JMainThreadDispatcher::instance().post([this, alive] {

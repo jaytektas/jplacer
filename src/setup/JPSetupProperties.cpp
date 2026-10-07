@@ -494,8 +494,8 @@ void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPF
     add.tip("Maximum tool-path feed-rate in driver units per minute.\nSet to 0 to disable and only use axis feed-rate "
             "limits. Diagonal moves will then be faster.");
     add.flag("logGcode", "Log G-code?", [d]() -> bool& { return d().logGcode; });
-    add.tip("Log the generated Gcode, and what the controller answers, into the log (the Log tab and the console), "
-            "rather than only when the traffic category is traced.");
+    add.tip("Log the generated Gcode into a separate file in the GcodeDriver folder beside jplacer's settings "
+            "(as OpenPnP's driver subdirectory). The log and the console have it anyway.");
     add.choice("units", "Units", { "Millimeters", "Inches" }, [d] { return d().units; }, [d](const std::string& v) { d().units = v; });
     add.tip("The units of the controller's G-code: coordinates, feed rate, acceleration and jerk (rotations stay degrees). "
             "Its connect command must say so to it (G20 for inches, G21 for millimetres).");

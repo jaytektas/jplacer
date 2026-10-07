@@ -10,6 +10,13 @@ notes.
 
 ## Unreleased
 
+- Calibrate precise nozzle offsets starts where you sized the test object (Feature diameter or Auto-Detect Next):
+  the camera goes back there to measure it and look for it. It looked on the primary fiducial before, where the
+  object need not be.
+- The controller traffic is written to the log file too, and every Console line starts with the time it came
+  (to the millisecond), so a step that takes long shows.
+- A controller's Log G-code? writes the G-code sent to a file of its own (GcodeDriver/<name>-<time>.g beside the
+  settings), as in OpenPnP.
 ## 0.1.5
 
 - Fixed: an update could lose jplacer's settings and replace your machine with OpenPnP's default machine. The

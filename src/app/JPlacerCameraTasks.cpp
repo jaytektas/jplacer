@@ -396,8 +396,13 @@ void JPlacerCameraTasks::calibrateNozzleOffsets(JPCameraPanel& camera, const JPN
     const JPHeadConfig rig = *h;
     const JPNozzleConfig n = nozzle;
     JPCameraFeed* feed = &camera.feed();
+    // The test object looked for where it was sized (Feature diameter, Auto-Detect Next), else where the camera
+    // is now, as OpenPnP's (the camera targeting it), else on the primary fiducial.
+    std::pair<double, double> start { h->rigPrimary->x, h->rigPrimary->y };
+    if (m_featureAt) start = *m_featureAt;
+    else if (const auto now = cameraAt(camera)) start = *now;
     auto offsets = std::make_shared<std::pair<double, double>>(0, 0);
-    run(camera, "Calibrating " + nozzle.name + "'s offsets", [this, feed, rig, n, offsets](std::string& words, const auto& progress) {
+    run(camera, "Calibrating " + nozzle.name + "'s offsets", [this, feed, rig, n, offsets, start](std::string& words, const auto& progress) {
         const JPMountConfig& cm = feed->config().mount;
         JPCameraCalibration cal;
         if (!JPCameraLook::calibration(m_cell, *feed, cal, words)) return false;
@@ -430,7 +435,7 @@ void JPlacerCameraTasks::calibrateNozzleOffsets(JPCameraPanel& camera, const JPN
             }
             return true;
         };
-        double x = rig.rigPrimary->x, y = rig.rigPrimary->y;
+        double x = start.first, y = start.second;
         progress("finding the test object");
         if (!centreOn(x, y)) return false;
         double sumX = 0, sumY = 0;
@@ -501,8 +506,17 @@ JPFrame frameOf(const cv::Mat& bgr) {
 
 } // namespace
 
+std::optional<std::pair<double, double>> JPlacerCameraTasks::cameraAt(const JPCameraPanel& camera) const {
+    const JPMountConfig& m = camera.camera().mount;
+    const auto p = m_cell.positions();
+    const auto x = p.find(m.axisX), y = p.find(m.axisY);
+    if (m.axisX.empty() || m.axisY.empty() || x == p.end() || y == p.end()) return std::nullopt;
+    return std::pair { x->second + m.offsetX, y->second + m.offsetY };
+}
+
 void JPlacerCameraTasks::previewFeature(JPCameraPanel& camera, int px) {
     if (m_busy) return;   // another task's pictures are not to be taken from under it
+    if (const auto at = cameraAt(camera)) m_featureAt = at;
     JPCameraPanel* panel = &camera;
     run(camera, "Feature diameter", [this, panel, px](std::string& words, const auto&) {
         cv::Mat bgr;
@@ -525,6 +539,7 @@ void JPlacerCameraTasks::autoDetectFeature(JPCameraPanel& camera, int fromPx, st
         if (done) done(std::nullopt);
         return;
     }
+    if (const auto at = cameraAt(camera)) m_featureAt = at;
     JPCameraPanel* panel = &camera;
     auto result = std::make_shared<std::optional<int>>();
     run(camera, "Auto-Detect Next", [this, panel, fromPx, result](std::string& words, const auto& progress) {
@@ -560,7 +575,11 @@ void JPlacerCameraTasks::measureFeature(JPCameraPanel& camera, int px, std::func
     }
     JPCameraPanel* panel = &camera;
     auto mm = std::make_shared<std::optional<double>>();
-    run(camera, "Measuring the feature", [this, panel, px, mm](std::string& words, const auto&) {
+    const auto at = m_featureAt;
+    run(camera, "Measuring the feature", [this, panel, px, mm, at](std::string& words, const auto&) {
+        // Measured where it was sized (the camera taken back there, if it was moved since).
+        if (at && !m_cell.moveToolAndWait(panel->camera().mount, { at->first, at->second, std::nullopt, std::nullopt }, kTaskSpeed, words))
+            return false;
         JPCameraCalibration cal;
         if (!JPCameraLook::calibration(m_cell, panel->feed(), cal, words)) return false;
         cv::Mat bgr;

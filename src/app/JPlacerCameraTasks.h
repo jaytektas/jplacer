@@ -165,6 +165,10 @@ private:
     std::shared_ptr<JPScripting>        m_scripting;
     std::thread                         m_worker;
     bool                                m_busy = false;   // main thread's
+    // Where the camera on the head was (X, Y, its offsets in) when a feature was last sized there (Feature
+    // diameter, Auto-Detect Next): the precise nozzle offsets' test object is looked for there first.
+    std::optional<std::pair<double, double>> m_featureAt;
+    std::optional<std::pair<double, double>> cameraAt(const JPCameraPanel& camera) const;
     std::shared_ptr<bool>               m_alive = std::make_shared<bool>(true);
 };
 

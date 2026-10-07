@@ -7,10 +7,13 @@
 #include "JPLinkFactory.h"
 
 #include "common/JPlacerLog.h"
+#include "common/JPlacerPaths.h"
 
 #include <j/core/Log.h>
 
 #include <cstdlib>
+#include <ctime>
+#include <filesystem>
 
 inline namespace jf {
 
@@ -165,8 +168,29 @@ bool JPGcodeDriver::identify(std::string& error) {
     return false;
 }
 
+void JPGcodeDriver::logGcode(const std::string& line) {
+    if (!m_gcodeLog.is_open()) {
+        std::error_code ec;
+        const std::filesystem::path dir = std::filesystem::path(JPlacerPaths::configDir()) / "GcodeDriver";
+        std::filesystem::create_directories(dir, ec);
+        const std::time_t now = std::time(nullptr);
+        char when[32];
+        std::strftime(when, sizeof when, "%Y%m%d-%H%M%S", std::localtime(&now));
+        const std::filesystem::path file = dir / (cfg()->name + "-" + when + ".g");
+        m_gcodeLog.open(file);
+        if (!m_gcodeLog) {
+            JLOGC(JPlacerLog::kDriver, JLogLevel::Warn) << cfg()->name << ": cannot open the G-code log " << file.string();
+            return;
+        }
+        JLOGC(JPlacerLog::kDriver, JLogLevel::Info) << cfg()->name << ": G-code logged to " << file.string();
+    }
+    m_gcodeLog << line << '\n';
+    m_gcodeLog.flush();
+}
+
 void JPGcodeDriver::disconnect() {
     if (m_running) JLOGC(JPlacerLog::kDriver, JLogLevel::Info) << cfg()->name << ": disconnecting";
+    if (m_gcodeLog.is_open()) m_gcodeLog.close();
     m_running = false;
     if (m_io.joinable()) m_io.join();
     failAll("disconnected");
@@ -444,7 +468,9 @@ void JPGcodeDriver::ioLoop() {
                 m_inFlight->line = JPGcodeCompressor::process(m_inFlight->line, cfg()->compression());
                 m_collected = {};
                 m_deadline  = Clock::now() + std::chrono::milliseconds(m_inFlight->timeoutMs);
-                JLOGC(JPlacerLog::kTraffic, cfg()->logGcode ? JLogLevel::Info : JLogLevel::Trace) << cfg()->name << " > " << m_inFlight->line;
+                // Into the log as the console shows it (status reports apart), and Log G-code?'s file.
+                JLOGC(JPlacerLog::kTraffic, JLogLevel::Info) << cfg()->name << " > " << m_inFlight->line;
+                if (cfg()->logGcode) logGcode(m_inFlight->line);
                 onTraffic.emit(true, m_inFlight->line);
                 if (!m_link->write(m_inFlight->line + lineEnding())) {
                     lost("could not write to " + m_link->describe());
@@ -510,7 +536,7 @@ void JPGcodeDriver::handleLine(const std::string& line) {
             return;
         }
     }
-    JLOGC(JPlacerLog::kTraffic, cfg()->logGcode ? JLogLevel::Info : JLogLevel::Trace) << cfg()->name << " < " << line;
+    JLOGC(JPlacerLog::kTraffic, JLogLevel::Info) << cfg()->name << " < " << line;
     onTraffic.emit(false, line);
     if (!p) return;
 
