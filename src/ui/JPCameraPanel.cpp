@@ -33,7 +33,7 @@ JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCameraCon
     m_asTaken = std::make_unique<JPIconButton>(graph, "As Taken", &JPIcons::eye,
                                                "As taken: the picture as the camera gives it, not straightened");
     m_asTaken->setCheckable(true);
-    m_asTaken->setChecked(true);
+    m_asTaken->setChecked(!m_straight);
     m_asTaken->onToggled.connect([this](bool asTaken) {
         m_straight = !asTaken;
         refreshStraightening();

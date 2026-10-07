@@ -125,7 +125,7 @@ private:
     bool                                  m_busy = false;
     bool                                  m_powered = false;
     std::set<std::string>                 m_feeding;
-    bool                                  m_straight = false;
+    bool                                  m_straight = true;   // straightened unless asked otherwise
     std::string                           m_capturesDir;
     JContainer*                           m_instructionsHolder = nullptr;
     std::unique_ptr<JPInstructions>       m_instructions;

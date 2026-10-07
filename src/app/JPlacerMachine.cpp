@@ -222,8 +222,9 @@ void JPlacerMachine::buildCameras() {
                     if (other.id == id) return other.device;
                 return JJson::object();
             } });
-        // Straightened or as taken, kept from last time.
-        d.panel->setView(JSettings::instance().get<bool>(JPlacerSettings::cameraStraightKey(c.id), false));
+        // Straightened or as taken, kept from last time; straightened to begin with, as OpenPnP shows a calibrated
+        // camera (one not calibrated is shown as taken anyway, and says so).
+        d.panel->setView(JSettings::instance().get<bool>(JPlacerSettings::cameraStraightKey(c.id), true));
         d.panel->onViewChanged = [id = c.id](bool straight) {
             JSettings::instance().set(JPlacerSettings::cameraStraightKey(id), straight);
             JPlacerSettings::save();

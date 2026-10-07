@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- A calibrated camera is shown straightened to begin with, as in OpenPnP (it was shown as taken, bent by the
+  lens, until the eye button was turned off; settings lost in an update put it back to that).
 - A camera that does not settle within its Settle Timeout says why: the least difference it saw against its
   threshold, and when the picture's own noise is above the threshold (so it can never settle), that the threshold
   needs raising: Denoise (Pixel) first. OpenPnP only notes a time-out in its debug log.

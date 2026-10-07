@@ -510,7 +510,7 @@ at once:
 
 | Icon | |
 |---|---|
-| eye | **As taken**: lit, the picture is shown as the camera gives it; off, it is straightened (below). |
+| eye | **As taken**: lit, the picture is shown as the camera gives it; off (to begin with), it is straightened (below). The choice is kept for each camera. |
 | disk | **Save the picture** (below). |
 | target | **Calibrate** the camera (below). |
 | tick in a ring | **Visual test** of the calibration (below). |
