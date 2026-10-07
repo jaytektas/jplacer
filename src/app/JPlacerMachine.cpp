@@ -134,6 +134,12 @@ JPlacerMachine::JPlacerMachine(JAppWindow& window, JSceneGraph& graph)
 
 JPlacerMachine::~JPlacerMachine() {
     *m_alive = false;
+    // Closing with a camera task under way (a calibration): cancelled, as its red X does, so it stops before
+    // its next move (up to safe Z still goes) and closing waits for that, not for all of it.
+    if (m_cell && m_cameraTasks && m_cameraTasks->busy()) {
+        JLOGC(JPlacerLog::kApp, JLogLevel::Info) << "closing: the camera task under way cancelled";
+        m_cell->setCancelled(true);
+    }
     dropPanels();         // they stop listening to the cell before the cell goes
     m_tipChanges.reset();
     m_testMotion.reset();

@@ -576,7 +576,7 @@ the camera's to each screen pixel), the wheel then zooming by two at least each 
 
 <!-- src: src/ui/JPCameraView.cpp (handleScroll, zoomPerNotch, kMostZoom, setRenderingQuality, upload, populateRenderPrimitives); src/app/JPlacerSettings.cpp (cameraZoomKey, cameraRenderingKey) -->
 
-**Right-click** a camera's picture to choose its **reticle**, what is drawn over the picture to measure by:
+**Right-click** a camera's picture (docked, or in a window of its own) to choose its **reticle**, what is drawn over the picture to measure by:
 
 | Reticle | |
 |---|---|
@@ -672,7 +672,8 @@ camera's **Warn if camera calibration is not completed**); not while a task is t
 While it runs, the line over the picture says which pass of how many (two when it measures at two heights)
 and which move of how many ("pass 1 of 2, measuring, move 14 of 38"), and **Cancel** (OpenPnP's red X,
 beside Calibrate, greyed but while a task runs on that camera) stops it before its next move: the move under
-way ends where it was going, up to safe Z still goes, and it is said to be cancelled, not failed. The view
+way ends where it was going, up to safe Z still goes, and it is said to be cancelled, not failed. Closing jplacer
+while it runs cancels it the same way, then closes. The view
 shows each find as it comes: the picture with a green circle and cross where
 the mark (or, for a camera looking up, the nozzle's tip) was found, the size it was found, and which move of
 how many ("measuring, move 14 of 38"), so a wrong find shows at once.
@@ -706,7 +707,7 @@ and calibrating again at a size replaces only that one. A camera taking pictures
 been calibrated at is shown as taken, and a task that measures with it says it is not calibrated for
 that size.
 
-<!-- src: src/tasks/JPCameraCalibrator.cpp; src/vision/JPCalibrationFit.cpp (fitWithLens); src/common/JPLens.h; src/tasks/JPCameraLook.cpp (calibration); src/machine/JPCameraConfig.h (calibrationFor, keepCalibration); src/app/JPlacerCameraTasks.cpp (calibrate, notReady, kTaskSpeed, run); src/ui/JPCameraPanel.cpp (setBusy, the note, refreshStraightening, m_cancelTask); src/ui/JPCameraView.cpp (errorCross, setTaskUnderway); src/tasks/JPCameraCalibrator.h (pass); src/machine/JPCell.cpp (setCancelled, waitFor, moveAxesAndWait) -->
+<!-- src: src/tasks/JPCameraCalibrator.cpp; src/vision/JPCalibrationFit.cpp (fitWithLens); src/common/JPLens.h; src/tasks/JPCameraLook.cpp (calibration); src/machine/JPCameraConfig.h (calibrationFor, keepCalibration); src/app/JPlacerCameraTasks.cpp (calibrate, notReady, kTaskSpeed, run); src/ui/JPCameraPanel.cpp (setBusy, the note, refreshStraightening, m_cancelTask); src/ui/JPCameraView.cpp (errorCross, setTaskUnderway); src/tasks/JPCameraCalibrator.h (pass); src/app/JPlacerMachine.cpp (~JPlacerMachine); src/machine/JPCell.cpp (setCancelled, waitFor, moveAxesAndWait) -->
 
 When the head has a **secondary calibration mark** (Machine Setup, the head's Calibration Rig, brought
 across from OpenPnP's calibration rig) at least 1 mm higher or lower than the homing mark, the camera is

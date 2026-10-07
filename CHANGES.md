@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- Closing jplacer during a camera calibration cancels it (it stops before its next move) and quits, rather than
+  waiting for the whole calibration to finish first.
+- A camera in a floating window has its right-click menu again (reticles, zoom, and the rest), as when docked.
 - The bottom camera's calibration looks for the nozzle tip at its own size (its Vision Diameter, else its
   Diameter), and only about that size, so the nozzle's base round it is no longer taken for the tip; the second
   height starts from the first's scale. A tip measuring the wrong size stops the calibration and says so.
