@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.14
+
 - Auto-Tune when calibrating? now applies to every calibration that looks through the camera: backlash, the
   precise nozzle offsets, Feature Diameter, Auto-Detect Next and its measuring, capturing a fiducial and Auto
   Focus's Test, as well as the camera's and the nozzle tip's own (it tunes once where it looks, not on every
@@ -21,6 +23,7 @@ notes.
   resize pointer); menus and drop-downs opened while a floating window has the focus stay open too.
 - Dragging (or double-clicking) in the bottom camera's picture moves the nozzle so that point comes to the
   middle, as OpenPnP's, also while its calibration waits for the tip to be jogged into the circle.
+
 ## 0.1.13
 
 - Preferences > Debugging > Save vision pictures for debugging: while ticked, every vision pipeline run keeps each
