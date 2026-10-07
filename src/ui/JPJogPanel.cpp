@@ -468,6 +468,16 @@ void JPJogPanel::showTipMenu() {
         m_stepThrough = !m_stepThrough;
         if (onChoicesChanged) onChoicesChanged();
     });
+    // The nozzle taken where its tip is changed by hand: up to safe Z, across, down to the location's Z.
+    std::string goLabel = "Move to Manual Change Location";
+    if (!nozzle->manualChangeLocation) goLabel += " (not set: Machine Setup)";
+    else if (!m_cell.isHomed())      goLabel += " (home the machine first)";
+    JMenuItem* go = m_tipOnIt->add(g, goLabel);
+    go->setEnabled(nozzle->manualChangeLocation && m_cell.isHomed());
+    go->onTriggered.connect([this, mount = nozzle->mount, at = nozzle->manualChangeLocation] {
+        if (at) m_cell.moveTool(mount, { at->x, at->y, at->z, at->rotation }, speed());
+    });
+    m_tipOnIt->addSeparator(g);
     // Saying which tip is on it: nothing moves.
     JMenuItem* none = m_tipOnIt->add(g, "None");
     none->setCheckable(true);

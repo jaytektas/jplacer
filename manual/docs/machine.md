@@ -356,8 +356,10 @@ Beside the tool, for a nozzle, the **nozzle tip** button opens its tip menu:
 - **Unload** the tip on it;
 - **Step Through**: each changer step is shown, with its place and speed, and runs only once you say
   so; stop at any step. On by default, and kept for next time;
-- **Manual Change**: say which tip is on the nozzle, or none, when it was changed by hand (nothing moves)
-  or a change was stopped;
+- **Manual Change**: first **Move to Manual Change Location**, the nozzle taken where its tip is changed
+  by hand (up to safe Z, across and turned, then down to the location's Z, at the Speed slider's speed;
+  greyed when the nozzle has no Manual Change Location, or the machine is not homed); then say which tip
+  is on the nozzle, or none, when it was changed by hand (nothing moves) or a change was stopped;
 - **Home Z**: the nozzle's Z homed alone (see [Homing a nozzle's Z](#homing-a-nozzles-z)).
 
 The machine must be connected and homed. Each step's place is where the nozzle goes, in the axes' own

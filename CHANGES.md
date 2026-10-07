@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- The Jog panel's nozzle tip menu has Manual Change > Move to Manual Change Location: the nozzle goes up to safe Z,
+  across, and down to where its tip is changed by hand.
 - Every issue in Issues & Solutions now says plainly what it is about and what Accept does, instead of OpenPnP's
   wording (which names its own classes and settings): for example "Controller N is simulated: make it the real
   controller", "Measure the play (backlash) in axis X". What you had solved or dismissed stays so.
