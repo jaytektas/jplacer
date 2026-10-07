@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Machine Setup's Search also finds a part by the settings on its page: "motion" finds the controller (Motion
+  Control Type) and the machine (its Motion Planner tab), and choosing it opens that tab.
 ## 0.1.2
 
 - jplacer opens as it was last closed: the window's place and size, every panel where you left it (docked,

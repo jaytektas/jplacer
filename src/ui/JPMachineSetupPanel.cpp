@@ -112,6 +112,11 @@ JPMachineSetupPanel::JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, 
     m_tree = m_treePane->add(std::make_unique<JPSetupTreeView>(graph));   // the rest of its pane
     m_tree->setVSizePolicy(JSizePolicyMode::Expanding, 1);
     search->onTextChanged.connect([this](const std::string& text) { m_tree->setFilter(text); });
+    // The search finds a part by its name or by any setting on its page ("motion": the controller's Motion
+    // Control Type, the machine's Motion Planner).
+    m_tree->setFilterMatcher([this](const JTreeViewNode& n, const std::string& filter) {
+        return !n.userData.empty() && wordsOf(n.userData).find(filter) != std::string::npos;
+    });
     m_tree->onSelectionChanged.connect([this](JTreeViewNode* n) {
         if (n && n->userData != m_selected) show(n->userData);
     });
@@ -290,7 +295,20 @@ void JPMachineSetupPanel::rebuildTree() {
     setRows(firstTime);
 }
 
+const std::string& JPMachineSetupPanel::wordsOf(const std::string& path) {
+    if (const auto it = m_words.find(path); it != m_words.end()) return it->second;
+    // The page as forNode makes it, nothing live attached (feeders: the Feeders tab's page).
+    const JPSetupTree::Path p = JPSetupTree::parse(path);
+    const JPSetupProperties::Form f = p.kind == "feeder"
+        ? (feederPages.page ? feederPages.page(p.id) : JPSetupProperties::Form {})
+        : JPSetupProperties::forNode(m_draft, path, m_profiles, m_config);
+    std::string words;
+    for (const JPSetupProperties::Tab& t : f.tabs) words += "\n" + JPSetupProperties::words(t);
+    return m_words[path] = words;
+}
+
 void JPMachineSetupPanel::setRows(bool firstTime) {
+    m_words.clear();   // the parts, or what is on their pages, may have changed
     JTreeViewNode top;
     top.expanded = true;
     top.children.push_back(rows(JPSetupTree::build(m_draft, m_config), m_expanded, firstTime));
@@ -462,7 +480,17 @@ void JPMachineSetupPanel::show(const std::string& path) {
     m_title->setText(f.title);
     m_labels.clear();
     for (const JProperty& p : f.model.all()) m_labels[p.name] = p.meta.label.empty() ? p.name : p.meta.label;
-    m_form->setForm(std::move(f));
+    // Found by the search through a setting: on the first tab that holds it.
+    std::string tab;
+    if (std::string filter = m_search->text(); !filter.empty()) {
+        for (char& c : filter) c = char(std::tolower(static_cast<unsigned char>(c)));
+        for (const JPSetupProperties::Tab& t : f.tabs)
+            if (JPSetupProperties::words(t).find(filter) != std::string::npos) {
+                tab = t.title;
+                break;
+            }
+    }
+    m_form->setForm(std::move(f), tab);
     if (onSelected) onSelected(path);
     update();
 }

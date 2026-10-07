@@ -36,9 +36,9 @@ public:
 
     explicit JPSetupForm(JSceneGraph& graph);
 
-    // Show `form` in place of what was shown, on the tab of the same title
-    // as before. The model's closures must stay valid while it is shown.
-    void setForm(JPSetupProperties::Form form);
+    // Show `form` in place of what was shown, on the tab titled `tab` when it has one, else on the tab of
+    // the same title as before. The model's closures must stay valid while it is shown.
+    void setForm(JPSetupProperties::Form form, const std::string& tab = "");
     // The form shown made again from `form` (the same thing's, its buttons
     // changed): the tab open and each page's scroll kept.
     void remake(JPSetupProperties::Form form);

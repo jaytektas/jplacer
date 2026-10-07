@@ -145,6 +145,9 @@ public:
     void redo();
 private:
     void rebuildTree();
+    // The words on a node's page (its tabs', groups', rows' and settings' names, lower-cased), for the
+    // search to find a node by what it holds: made when first asked for, forgotten as the tree is made again.
+    const std::string& wordsOf(const std::string& path);
     // The feeder whose page is shown ("" for none).
     std::string shownFeeder() const;
     // The note line: shown with `text`, gone when it is empty.
@@ -189,6 +192,7 @@ private:
     JPSetupHistory           m_history;
     JFrameTimer              m_retry;
     std::map<std::string, std::string> m_labels;   // the shown form's property names: their labels
+    std::map<std::string, std::string> m_words;    // wordsOf, by node path
     std::vector<JPFirmwareProfile> m_profiles;
     JPConfiguration*               m_config = nullptr;
     JPVisionTests                  m_visionTests;

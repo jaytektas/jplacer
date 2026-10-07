@@ -27,13 +27,15 @@ nozzle, a camera, a driver and an axis (linear or rotation):
 
 Choose a part to see its settings beside the tree, each the full height of the panel; drag the divider between them to give either more
 room (where it is is kept for next time). Over the tree, OpenPnP's **Expand** opens every branch when ticked and closes them when not, and **Search** keeps to the rows whose name contains
-what is typed (and the groups they are in); the **×** at its right clears it. Right-click a row for **Open
+what is typed (and the groups they are in), with everything under them, and to the rows whose page has a
+setting, tab or group of that name ("motion": the controller's **Motion Control Type**, the machine's
+**Motion Planner**); chosen, such a page opens on the tab that has it. The **×** at its right clears it. Right-click a row for **Open
 This Branch** and **Close This Branch** (the row and everything under it), **Open All**, **Close All**
 (down to the machine's groups), and New and Delete as the tools above. A line under the settings says
 what the last change could not do, or what is not in use until put right, only while there is something
 to say. A camera's gear icon (in its tab) opens Machine Setup on that camera.
 
-<!-- src: src/app/JPlacerDriverConsoles.cpp; src/setup/JPSetupTree.cpp (build, classOf, iconOf); src/ui/JPSetupTreeView.cpp; src/ui/JPFeedersPanel.cpp (pageFor, edited, act); src/app/JPlacerOpenPnpTabs.cpp (FeederPages); src/machine/JPDriverConfig.cpp (className); src/machine/JPNozzleConfig.h (className); src/ui/JPMachineSetupPanel.cpp (the search, showNode, setBranch, collapseAll, the tree's menu, the divider, kTreeShare); src/app/JPlacerMachine.cpp (showSetup); src/app/JPlacerSettings.h (kSetupTreeShare) -->
+<!-- src: src/ui/JPMachineSetupPanel.cpp (wordsOf, show); src/setup/JPSetupProperties.cpp (words); src/app/JPlacerDriverConsoles.cpp; src/setup/JPSetupTree.cpp (build, classOf, iconOf); src/ui/JPSetupTreeView.cpp; src/ui/JPFeedersPanel.cpp (pageFor, edited, act); src/app/JPlacerOpenPnpTabs.cpp (FeederPages); src/machine/JPDriverConfig.cpp (className); src/machine/JPNozzleConfig.h (className); src/ui/JPMachineSetupPanel.cpp (the search, showNode, setBranch, collapseAll, the tree's menu, the divider, kTreeShare); src/app/JPlacerMachine.cpp (showSetup); src/app/JPlacerSettings.h (kSetupTreeShare) -->
 
 ### Job Processors
 

@@ -146,6 +146,9 @@ public:
     static Form forNode(JPCellConfig& cell, const std::string& path, const std::vector<JPFirmwareProfile>& profiles,
                         JPConfiguration* config = nullptr, const JPVisionTests* tests = nullptr,
                         const JPMotionTestResult* motionTest = nullptr, const Live& live = {});
+    // A tab's words as Machine Setup's search looks at them, lower-cased, a line each: its title, its
+    // groups', and its rows' and settings' names.
+    static std::string words(const Tab& tab);
     // The New ID chosen on a NeoDen 4 feeder actuator's form, for its Change
     // Feeder ID (not kept).
     static int& neoden4NewFeederId();

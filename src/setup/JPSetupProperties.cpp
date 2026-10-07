@@ -3256,6 +3256,19 @@ void fiducialLocatorForm(JPCellConfig& cell, JPSetupProperties::Form& f, JPConfi
 
 } // namespace
 
+std::string JPSetupProperties::words(const Tab& tab) {
+    std::string words = tab.title;
+    for (const Group& g : tab.groups) {
+        words += "\n" + g.title;
+        for (const Row& r : g.rows) {
+            words += "\n" + r.label;
+            for (const Cell& c : r.cells) words += "\n" + c.label;
+        }
+    }
+    for (char& c : words) c = char(std::tolower(static_cast<unsigned char>(c)));
+    return words;
+}
+
 int& JPSetupProperties::neoden4NewFeederId() {
     static int id = 0;
     return id;

@@ -130,7 +130,7 @@ void JPSetupForm::attachPages(int active) {
     invalidate();
 }
 
-void JPSetupForm::setForm(JPSetupProperties::Form form) {
+void JPSetupForm::setForm(JPSetupProperties::Form form, const std::string& tab) {
     // The same tab as before, when this part has one of that name.
     const int was = m_tabs->activeTab();
     const std::string wasTitle = was >= 0 && was < int(m_form.tabs.size()) ? m_form.tabs[size_t(was)].title : "";
@@ -146,6 +146,8 @@ void JPSetupForm::setForm(JPSetupProperties::Form form) {
         m_pages.push_back(page(m_form.tabs[i]));
         if (m_form.tabs[i].title == wasTitle) active = int(i);
     }
+    for (size_t i = 0; i < m_form.tabs.size() && !tab.empty(); ++i)
+        if (m_form.tabs[i].title == tab) active = int(i);
     attachPages(active);
 }
 
