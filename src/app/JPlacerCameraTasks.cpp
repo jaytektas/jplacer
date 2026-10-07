@@ -222,6 +222,7 @@ void JPlacerCameraTasks::calibrate(JPCameraPanel& camera, std::function<void(boo
             o2.pass = "pass 2 of 2";
             o2.markDiameterMm = h.rigSecondaryDiameter;
             o2.markZ = h.rigSecondary->z;
+            o2.markPxPerMm = c->scale();   // at the first pass's scale, as a start
             std::string why;
             std::optional<JPCameraCalibration> c2;
             if (m_cell.moveAxesAndWait({ { m.axisX, h.rigSecondary->x - m.offsetX },
@@ -354,7 +355,8 @@ void JPlacerCameraTasks::calibrateRunout(const std::string& nozzleId, RunoutDone
                 || !autoTuneHere(camera->feed(), w))
                 return false;
         }
-        const auto r = JPRunoutCalibrator::measure(m_cell, camera->feed(), n, t, m_scripting.get(), w, progress, *background);
+        const auto r = JPRunoutCalibrator::measure(m_cell, camera->feed(), n, t, m_scripting.get(), w, progress, *background,
+                                                   showFinds(*camera));
         *words = w;
         if (!r) return false;
         *result = *r;
@@ -397,6 +399,7 @@ void JPlacerCameraTasks::calibrateRunoutCamera(const std::string& nozzleId, Came
         run(*camera, "Calibrating " + camera->camera().name + "'s position and rotation", [this, camera, n, t, fix](std::string& w, const auto& progress) {
             JPRunoutCalibrator::Options o;
             o.speed = kTaskSpeed;
+            o.found = showFinds(*camera);
             const auto r = JPRunoutCalibrator::calibrateCamera(m_cell, camera->feed(), n, t, o, w, progress);
             if (!r) return false;
             *fix = *r;
@@ -1017,13 +1020,23 @@ void JPlacerCameraTasks::calibrateFixed(JPCameraPanel& camera, std::function<voi
     const JPMountConfig& place = cam.mount;
     const JPMountConfig tool = nozzle->mount;
     const std::string cameraId = cam.id;
+    // The tip's size, as OpenPnP's camera calibration takes it (its Calibration Tip Diameter): its runout's Vision
+    // Diameter, else its own Diameter; every find that size, so nothing bigger round about it (the nozzle's base)
+    // is taken for it. No tip, or neither set: found at whatever size it is.
+    double tipMm = 0;
+    std::string tipName;
+    for (const JPNozzleTipConfig& t : m_cell.config().nozzleTips)
+        if (t.id == nozzle->tipId) {
+            tipMm = t.runoutCalibration.visionDiameter > 0 ? t.runoutCalibration.visionDiameter : t.diameter;
+            tipName = t.name;
+        }
     JPCameraPanel* panel = &camera;
     // As OpenPnP's camera calibration, straight to work (no asking): what it does, and Cancel, on the camera's
     // instructions while it works.
     const std::string nozzleId = nozzle->id;
     auto result = std::make_shared<JPCameraCalibration>();
     auto finds = showFinds(*panel);
-    run(*panel, "Calibrating " + feed->config().name, [this, feed, tool, place, result, finds](std::string& words, const auto& progress) {
+    run(*panel, "Calibrating " + feed->config().name, [this, feed, tool, place, result, finds, tipMm, tipName](std::string& words, const auto& progress) {
         progress("the nozzle over the camera");
         const bool over = m_cell.safeZAndWait(tool.headId, kTaskSpeed, words)
             && m_cell.moveAxesAndWait({ { tool.axisX, place.offsetX - tool.offsetX },
@@ -1038,6 +1051,11 @@ void JPlacerCameraTasks::calibrateFixed(JPCameraPanel& camera, std::function<voi
             o.calibrating = feed->config().calibrating;
             o.moving = &tool;
             o.found = finds;
+            if (tipMm > 0) {
+                o.markDiameterMm = tipMm;
+                o.markWhat = "the nozzle tip " + tipName;
+                o.markSizeFrom = ", or its Vision Diameter (else its Diameter) set wrong";
+            }
             // Again with the tip raised (away from a camera looking up): a second pass.
             const double raise = o.calibrating.raiseMm;
             const bool twoPasses = o.calibrating.twoHeights && raise >= kLeastHeightGapMm;
@@ -1053,6 +1071,7 @@ void JPlacerCameraTasks::calibrateFixed(JPCameraPanel& camera, std::function<voi
                 progress(said);
                 JPCameraCalibrator::Options o2 = o;
                 o2.pass = "pass 2 of 2";
+                o2.markPxPerMm = c->scale();   // the tip at the first pass's scale, as a start
                 o2.markZ = place.offsetZ + raise;
                 std::string why;
                 std::optional<JPCameraCalibration> c2;

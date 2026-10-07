@@ -129,6 +129,7 @@ std::optional<JPRunout> JPRunoutCalibrator::run(JPCell& cell, JPCameraFeed& came
             }
             continue;
         }
+        if (o.found) o.found(img, found.x, found.y, found.diameter, said);
         points.push_back({ angle, tx - camX, ty - camY });
         // The picture for the background: the tip's middle blotted out (the smallest part it picks,
         // less the pick tolerance, but no smaller than the tip), blurred to the smallest detail.
@@ -230,6 +231,7 @@ std::optional<JPRunoutCalibrator::CameraFix> JPRunoutCalibrator::calibrateCamera
             }
             continue;
         }
+        if (o.found) o.found(img, found.x, found.y, found.diameter, said);
         // Seen from the camera's middle; sent, on the machine.
         seen.emplace_back(JPLengthUnit::Millimeters, tx - camX, ty - camY, 0, angle);
         sent.emplace_back(JPLengthUnit::Millimeters, sx, sy, 0, angle);
@@ -282,8 +284,10 @@ std::optional<JPRunoutCalibrator::CameraFix> JPRunoutCalibrator::calibrateCamera
 std::optional<JPRunout> JPRunoutCalibrator::measure(JPCell& cell, JPCameraFeed& feed, const JPNozzleConfig& n,
                                                     const JPNozzleTipConfig& t, JPScripting* scripting, std::string& words,
                                                     const Progress& progress,
-                                                    std::optional<JPBackgroundCalibration::Result>& background) {
-    const Options o;
+                                                    std::optional<JPBackgroundCalibration::Result>& background,
+                                                    const Found& found) {
+    Options o;
+    o.found = found;
     // The background calibrated along with it, when the tip asks for it.
     JPBackgroundCalibration pictures(JPBackgroundCalibration::methodFrom(t.background.method));
     const bool withBackground = t.background.method != "None";

@@ -726,8 +726,12 @@ as OpenPnP's (nothing asked; the nozzle must hold no part and have nothing in it
 **Cancel** beside Calibrate stops it). The head's Z comes up into its safe zone, the nozzle goes over the
 camera's place and down to the camera's height (both from the camera's offset, where it is and the height
 it is focused at), the calibration is made by moving the nozzle instead of the camera, and the nozzle
-comes up again, whether it worked or not. The tip's size need not be known: the camera's rough scale (an
-imported camera keeps OpenPnP's) is enough to start from.
+comes up again, whether it worked or not. The tip is looked for at its size, as OpenPnP's (its Calibration
+Tip Diameter): the tip's runout **Vision Diameter**, else its **Diameter**, through the camera's rough scale
+(an imported camera keeps OpenPnP's), and only about that size, so the nozzle's base round it, the bigger
+round thing, is not taken for it; the second pass starts from the scale the first measured. Measured more
+than a fifth off that size, the calibration stops and says so (the tip, or its size setting, is wrong). With
+no tip on the nozzle, or neither size set, it is found at whatever size it is.
 
 It goes on, as one calibration and without asking again, when the tip on that nozzle has its calibration
 enabled (its **Enable?**): the tip's **runout** is measured over the camera (the camera's scale now known),

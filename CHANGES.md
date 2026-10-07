@@ -10,6 +10,12 @@ notes.
 
 ## Unreleased
 
+- The bottom camera's calibration looks for the nozzle tip at its own size (its Vision Diameter, else its
+  Diameter), and only about that size, so the nozzle's base round it is no longer taken for the tip; the second
+  height starts from the first's scale. A tip measuring the wrong size stops the calibration and says so.
+- Nozzle tip calibration (and Calibrate Camera Position and Rotation) shows each found tip on the camera, a
+  green circle and cross, as the camera's own calibration does.
+
 ## 0.1.12
 
 - A floating camera window stays where you put it: it no longer jumps back into the dock when a camera setting

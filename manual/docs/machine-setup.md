@@ -222,7 +222,8 @@ OpenPnP's (nothing asked), on the nozzle it is on (the Jog panel's tip menu has 
 fixed camera looking up: the nozzle over the camera, down
 to its focus plus the **Calibration Z Offset**, turned to each of **Circle Divisions** angles round the
 circle (up to **Allowed Misdectects**, OpenPnP's spelling, of them may fail), its end found at each (**Vision Diameter** across;
-0: the tip's diameter), and fitted as its **Compensation Algorithm** says (OpenPnP's, which keeps it in its
+0: the tip's diameter; each find shown on the camera, a green circle and cross where it was, as the camera's
+own calibration shows its), and fitted as its **Compensation Algorithm** says (OpenPnP's, which keeps it in its
 machine.xml; **ModelCameraOffsetAffine** for a new tip, as OpenPnP's default; a tip kept before there was a
 choice keeps how it was compensated, **ModelNoOffset**). As OpenPnP's, an end found further
 than the **Offset Threshold** from where the nozzle was sent counts as a misdetect (it is looked for that far

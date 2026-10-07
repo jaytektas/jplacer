@@ -27,6 +27,10 @@ namespace {
 constexpr double kFirstSearch  = 0.3;
 constexpr double kMinMarkShare = 0.02;   // of the picture's smaller side
 constexpr double kMaxMarkShare = 0.4;
+// The mark's size known but the scale only roughly (a camera looking up, before it is calibrated): the sizes
+// tried when it is not found at the size expected, a share of that size either way. Nothing much bigger is
+// taken (a nozzle's base, three times its tip across, is not its tip).
+constexpr double kKnownLeast = 0.5, kKnownMost = 1.6;
 // The first moves, small enough that the mark stays near where it was: a
 // share of the picture's smaller side.
 constexpr double kNudgeShare = 0.05;
@@ -96,14 +100,19 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
     const double side = std::min(img.width, img.height);
     // The mark found by the camera's calibration pipeline (OpenPnP's Advanced Calibration's, editable).
     JPPipelineMarkFinder finder(cam.calibrationPipeline.empty() ? JPDefaultPipelines::cameraCalibration() : cam.calibrationPipeline);
-    // Its size from the mark's and the camera's rough scale, as OpenPnP's; not known (a nozzle's tip), looked for at every size.
+    // Its size from the mark's and the scale given (else the camera's rough one), as OpenPnP's; not found at it,
+    // looked for about it; the size not known, at every size.
     const double roughUpp = (cam.unitsPerPixelX + cam.unitsPerPixelY) / 2;
+    const double expectPx = o.markDiameterMm <= 0 ? 0
+                          : o.markPxPerMm > 0     ? o.markDiameterMm * o.markPxPerMm
+                          : roughUpp > 0          ? o.markDiameterMm / roughUpp
+                                                  : 0;
     JPRoundMark first;
-    if (o.markDiameterMm > 0 && roughUpp > 0)
-        first = finder.find(img, img.width / 2.0, img.height / 2.0, kFirstSearch * side, o.markDiameterMm / roughUpp);
+    if (expectPx > 0) first = finder.find(img, img.width / 2.0, img.height / 2.0, kFirstSearch * side, expectPx);
     if (!first.found)
-        first = finder.findAnySize(img, img.width / 2.0, img.height / 2.0, kFirstSearch * side, kMinMarkShare * side,
-                                   kMaxMarkShare * side);
+        first = finder.findAnySize(img, img.width / 2.0, img.height / 2.0, kFirstSearch * side,
+                                   expectPx > 0 ? kKnownLeast * expectPx : kMinMarkShare * side,
+                                   expectPx > 0 ? kKnownMost * expectPx : kMaxMarkShare * side);
     if (!first.found) {
         why = feed.config().name + " sees no round mark near the middle of its picture: put it over one first ("
             + first.why + ")";
@@ -287,8 +296,8 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
         const double measuredMm = markPx / scale;
         if (std::abs(measuredMm / o.markDiameterMm - 1) > kMarkSizeTolerance) {
             char buf[160];
-            std::snprintf(buf, sizeof buf, "the mark measured %.2f mm across, not the %.2f mm expected: is it the right mark?",
-                          measuredMm, o.markDiameterMm);
+            std::snprintf(buf, sizeof buf, "%s measured %.2f mm across, not the %.2f mm expected: is it the right mark%s?",
+                          o.markWhat.c_str(), measuredMm, o.markDiameterMm, o.markSizeFrom.c_str());
             why = buf;
             return std::nullopt;
         }

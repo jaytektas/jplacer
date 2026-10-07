@@ -29,7 +29,13 @@ inline namespace jf {
 class JPCameraCalibrator {
 public:
     struct Options {
-        double markDiameterMm = 0;     // the mark it looks at; 0: not known (a nozzle's tip)
+        double markDiameterMm = 0;     // the mark it looks at; 0: not known
+        // The scale to expect the mark at first (pixels a mm); 0: the camera's rough one. (A second pass, at
+        // another height: the first's.)
+        double markPxPerMm = 0;
+        // What the mark is and where its size comes from, for saying a mark measured the wrong size.
+        std::string markWhat = "the mark";
+        std::string markSizeFrom;   // ", or its size setting wrong" and the like; empty: nothing more said
         double markZ = 0;              // the mark's height (the calibration holds there)
         double speed = 1.0;            // share of the axes' rates (the machine's speed scales it)
         // The grid, the outliers, the worst fit taken (JPCameraConfig::Calibrating).

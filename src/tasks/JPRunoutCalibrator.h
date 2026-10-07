@@ -8,6 +8,7 @@
 #include "machine/JPRunout.h"
 #include "machine/JPScripting.h"
 #include "tasks/JPBackgroundCalibration.h"
+#include "vision/JPGrayImage.h"
 
 #include <functional>
 #include <optional>
@@ -26,8 +27,12 @@ inline namespace jf {
 // Runs on a thread of its own: it waits on moves and pictures.
 class JPRunoutCalibrator {
 public:
+    // Each find (on the calibration's thread): the picture, where the tip's end was found in it and how big
+    // (pixels), and the step ("turned to 60 deg (3 of 6)"), for it to be shown where it was found.
+    using Found = std::function<void(const JPGrayImage& picture, double x, double y, double diameterPx, const std::string& step)>;
     struct Options {
         double speed = 1.0;   // share of the axes' rates
+        Found  found;
     };
     using Progress = std::function<void(const std::string&)>;
 
@@ -56,7 +61,8 @@ public:
                                                     const Progress& progress = nullptr);
     static std::optional<JPRunout> measure(JPCell& cell, JPCameraFeed& camera, const JPNozzleConfig& nozzle,
                                            const JPNozzleTipConfig& tip, JPScripting* scripting, std::string& words,
-                                           const Progress& progress, std::optional<JPBackgroundCalibration::Result>& background);
+                                           const Progress& progress, std::optional<JPBackgroundCalibration::Result>& background,
+                                           const Found& found = nullptr);
 };
 
 } // inline namespace jf
