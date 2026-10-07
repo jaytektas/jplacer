@@ -71,6 +71,9 @@ public:
     // settings so arrived at (by name: "auto" false and "value"), or none when the device has no settings
     // or it stopped first. On the capture thread, soon.
     void autoTune(int autoMs, std::function<void(std::optional<JJson> tuned)> done);
+    // The device's settings set to `controls` (as autoTune tells them: by name, "auto" and "value"), as kept for a
+    // part (Auto-Tune for each part); on the capture thread, soon.
+    void setControls(JJson controls);
     static constexpr int kAutoTuneMs = 1200;   // the moment its automatic settings are given (autoTune)
     // Its exposure set, by hand, for a picture of `target` brightness (JPOneShotExposure); `done` told how it
     // went (not ok, with why, when the device has no exposure, it stopped first, or the target was not reached).
@@ -119,6 +122,7 @@ private:
         std::function<void(std::optional<JJson>)> done;
     };
     std::optional<Tune> m_tuneAsked;
+    std::optional<JJson> m_setAsked;   // setControls()
     // expose(): asked (guarded by m_mutex), then its steps on the capture thread.
     struct Expose {
         double target = 0;

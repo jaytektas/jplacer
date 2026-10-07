@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <map>
+
 #include "JPJobMachineHost.h"
 #include "machine/JPCameraCalibration.h"
 #include "machine/JPCellConfig.h"
@@ -104,7 +106,13 @@ public:
     // and its calibration for what is at height `z` there.
     bool lookAt(double x, double y, double z, cv::Mat& bgr, JPCameraCalibration& cal, std::string& why);
 
+    // A job run begun: the camera settings kept for each part (Auto-Tune for each part?) forgotten, tuned afresh.
+    void newRun() { m_partTunes.clear(); }
+
 private:
+    // Auto-Tune for each part?: tuned on the first of each part, its values put back for those after.
+    bool tuneForPart(JPCameraFeed& feed, const std::string& partId, std::string& why);
+    std::map<std::string, JJson> m_partTunes;   // by part id, for the run
     // The cell's settings as they are now, and its head (the camera's).
     JPCellConfig config() const;
     std::string  headId(const JPCellConfig& c) const;

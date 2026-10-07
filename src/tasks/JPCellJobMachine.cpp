@@ -28,6 +28,9 @@ inline namespace jf {
 
 namespace {
 
+// How long a part's Auto-Tune may take (its automatic settings given their moment, then held), at most (ms).
+constexpr int kPartTuneWaitMs = 15000;
+
 // How far from where it should be a fiducial is looked for at first, then
 // once centred on (mm).
 constexpr double kFirstSearchMm = 4.0;
@@ -966,6 +969,29 @@ bool JPCellJobMachine::lookByPipeline(double viewX, double viewY, double x, doub
     return true;
 }
 
+bool JPCellJobMachine::tuneForPart(JPCameraFeed& feed, const std::string& partId, std::string& why) {
+    if (const auto kept = m_partTunes.find(partId); kept != m_partTunes.end()) {
+        feed.setControls(kept->second);   // put back: the picture then settles as any does
+        return true;
+    }
+    auto told = std::make_shared<std::promise<std::optional<JJson>>>();
+    std::future<std::optional<JJson>> tuned = told->get_future();
+    feed.autoTune(JPCameraFeed::kAutoTuneMs, [told](std::optional<JJson> t) { told->set_value(std::move(t)); });
+    if (tuned.wait_for(std::chrono::milliseconds(kPartTuneWaitMs)) != std::future_status::ready) {
+        why = feed.config().name + " was not tuned on " + partId + " within " + std::to_string(kPartTuneWaitMs / 1000) + " s";
+        return false;
+    }
+    const std::optional<JJson> controls = tuned.get();
+    if (!controls) {
+        why = feed.config().name + " could not be tuned on " + partId + " (see the log)";
+        return false;
+    }
+    m_partTunes[partId] = *controls;
+    JLOGC(JPlacerLog::kJob, JLogLevel::Info) << feed.config().name << ": tuned on the first " << partId
+                                             << "; kept for every " << partId << " this run";
+    return true;
+}
+
 void JPCellJobMachine::prepare(JPCell& cell, JPCameraFeed& feed) {
     const std::string id = feed.config().id;
     m_onMain([&] { m_host.showCamera(id); });
@@ -1176,6 +1202,7 @@ bool JPCellJobMachine::alignPart(const std::string& nozzleId, const AlignRequest
         shapeY0 = std::min(shapeY0, r.y - ey);
         shapeY1 = std::max(shapeY1, r.y + ey);
     }
+    bool partTuned = false;   // this alignment's part tuned on, or its kept values put back
     const JPBottomVision::Look look = [&](const JPLocation& at, double expected, int pass, JPBottomVision::Seen& seen,
                                           std::string& w) {
         const double nx = at.x(), ny = at.y(), nr = at.rotation();
@@ -1190,6 +1217,11 @@ bool JPCellJobMachine::alignPart(const std::string& nozzleId, const AlignRequest
             return true;
         }
         if (!c->moveToolAndWait(nozzle.mount, { nx, ny, z, nr }, 1.0, w)) return false;
+        // The camera's Auto-Tune for each part?: once, the part over it.
+        if (feed->config().autoTuneEachPart && !partTuned && !rq.partId.empty()) {
+            if (!tuneForPart(*feed, rq.partId, w)) return false;
+            partTuned = true;
+        }
         JPGrayImage img;
         if (!JPCameraLook::settled(*feed, img, w)) return false;
         if (rq.pipeline) {

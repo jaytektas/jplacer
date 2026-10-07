@@ -158,6 +158,8 @@ void JPlacerJobRun::stop() {
 
 void JPlacerJobRun::start(RunState as) {
     JPCell* cell = m_machine.cell();
+    // A run begun afresh (not resumed): its parts' camera settings tuned anew.
+    if (as == RunState::Running && !running()) m_jobMachine->newRun();
     if (!cell || !cell->isConnected()) {
         m_window.showStatus("Connect the machine first", kStatusMs);
         return;

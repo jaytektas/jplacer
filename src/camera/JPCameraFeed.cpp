@@ -94,6 +94,11 @@ void JPCameraFeed::autoTune(int autoMs, std::function<void(std::optional<JJson>)
     m_tuneAsked = Tune { autoMs, std::move(done) };
 }
 
+void JPCameraFeed::setControls(JJson controls) {
+    std::lock_guard lk(m_mutex);
+    m_setAsked = std::move(controls);
+}
+
 void JPCameraFeed::run() {
     // A camera can drop off its bus (a stepper's noise on a USB cable) or
     // hang with no error: either way it is closed and opened again, by its
@@ -169,6 +174,16 @@ void JPCameraFeed::runSource(std::string& why) {
     while (m_running) {
         if (m_reapply.exchange(false)) {
             source->reapplyControls();
+            std::lock_guard lk(m_mutex);
+            m_deviceControls = source->controls();
+        }
+        std::optional<JJson> setting;
+        {
+            std::lock_guard lk(m_mutex);
+            setting.swap(m_setAsked);
+        }
+        if (setting) {
+            source->setControls(*setting);
             std::lock_guard lk(m_mutex);
             m_deviceControls = source->controls();
         }

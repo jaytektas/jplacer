@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- Cameras can Auto-Tune when calibrating (their own calibration and a nozzle tip's, with the mark or tip over them:
+  the time a bottom camera has something to tune on) and for each part in a job: the first part of each kind is
+  tuned on and its settings kept for the rest of that kind for the run, without tuning again
+  (Device Settings: Auto-Tune when calibrating?, Auto-Tune for each part?).
 - Changing a camera's settings no longer brings the other camera forward (the camera panels, made again, kept the one
   you were on in front); before, ticking Auto on the bottom camera put the top camera in front and turned its light on.
 ## 0.1.9

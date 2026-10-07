@@ -155,6 +155,8 @@ private:
     void keepCalibration(const std::string& cameraId, const JPCameraCalibration& calibration);
     // On the worker: the camera over `at`, Defaults, then Auto-Tune, waited for, and kept (false: `why`).
     bool autoTuneAt(JPCameraFeed& feed, const JPMachineLocation& at, std::string& why);
+    // The same where the camera looks now (what is to be tuned on already over it), the values kept.
+    bool autoTuneHere(JPCameraFeed& feed, std::string& why);
     // What stops a task starting on `camera`, in words; empty when it can.
     std::string notReady(const JPCameraPanel* camera, bool needsCalibration, bool needsHomingMark) const;
     const JPHeadConfig* head(const JPCameraConfig& camera) const;

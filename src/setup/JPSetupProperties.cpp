@@ -2637,6 +2637,14 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
             add.flag("autoTuneOnHoming", "Auto-Tune when homing?", [c]() -> bool& { return c().autoTuneOnHoming; });
             add.tip("Each visual homing, first over the head's primary fiducial with the light on: Defaults, then "
                     "Auto-Tune, its properties kept; homing goes on once it is tuned.");
+            add.flag("autoTuneCalibrating", "Auto-Tune when calibrating?", [c]() -> bool& { return c().autoTuneCalibrating; });
+            add.tip("Before this camera's calibration and a nozzle tip's calibration over it, with the mark or the tip in "
+                    "place and the light on: Defaults, then Auto-Tune, its properties kept. For a camera looking up, the "
+                    "time something is over it to tune on.");
+            add.flag("autoTuneEachPart", "Auto-Tune for each part?", [c]() -> bool& { return c().autoTuneEachPart; });
+            add.tip("Bottom vision in a job: the first part of each kind tuned on, over the camera (Defaults, then "
+                    "Auto-Tune); what it arrived at kept for that part for the run and put back for every one of its "
+                    "kind after (no tuning again). A new run tunes afresh.");
             add.flag("exposeEachPicture", "Expose each picture?", [c]() -> bool& { return c().exposeEachPicture; });
             add.tip("Each picture taken for vision (every pipeline's, visual homing's, calibration's) taken with the "
                     "exposure set first for the Brightness below, under the light there is then.");

@@ -184,6 +184,10 @@ void JPlacerCameraTasks::calibrate(JPCameraPanel& camera, std::function<void(boo
         o.speed = kTaskSpeed;
         o.calibrating = feed->config().calibrating;
         o.found = finds;
+        if (feed->config().autoTuneCalibrating) {
+            progress("Auto-Tune over the mark");
+            if (!autoTuneHere(*feed, words)) return false;
+        }
         const auto c = JPCameraCalibrator::run(m_cell, *feed, o, words, progress);
         if (!c) return false;
         *result = *c;
@@ -318,6 +322,15 @@ void JPlacerCameraTasks::calibrateRunout(const std::string& nozzleId, RunoutDone
     auto background = std::make_shared<std::optional<JPBackgroundCalibration::Result>>();
     auto words = std::make_shared<std::string>();
     run(*camera, "Measuring " + t.name + "'s runout", [this, camera, n, t, result, background, words](std::string& w, const auto& progress) {
+        // Tuned on the tip first, over the camera at its focus (the camera's Auto-Tune when calibrating?).
+        if (camera->camera().autoTuneCalibrating) {
+            const JPMountConfig& cm = camera->camera().mount;
+            progress("Auto-Tune on the tip");
+            if (!m_cell.moveToolAndWait(n.mount, { cm.offsetX, cm.offsetY, cm.offsetZ + t.runoutCalibration.zOffset, std::nullopt },
+                                        kTaskSpeed, w)
+                || !autoTuneHere(camera->feed(), w))
+                return false;
+        }
         const auto r = JPRunoutCalibrator::measure(m_cell, camera->feed(), n, t, m_scripting.get(), w, progress, *background);
         *words = w;
         if (!r) return false;
@@ -884,6 +897,10 @@ bool JPlacerCameraTasks::autoTuneAt(JPCameraFeed& feed, const JPMachineLocation&
     const JPMountConfig& mount = feed.config().mount;
     if (!m_cell.moveAxesAndWait({ { mount.axisX, at.x - mount.offsetX }, { mount.axisY, at.y - mount.offsetY } }, kTaskSpeed, why))
         return false;
+    return autoTuneHere(feed, why);
+}
+
+bool JPlacerCameraTasks::autoTuneHere(JPCameraFeed& feed, std::string& why) {
     // Told on the capture thread; shared, so a late answer has somewhere to go.
     auto told = std::make_shared<std::promise<std::optional<JJson>>>();
     std::future<std::optional<JJson>> tuned = told->get_future();
@@ -1015,6 +1032,10 @@ void JPlacerCameraTasks::calibrateFixed(JPCameraPanel& camera, std::function<voi
                 o.calibrating = feed->config().calibrating;
                 o.moving = &tool;
                 o.found = finds;
+                if (feed->config().autoTuneCalibrating) {
+                    progress("Auto-Tune on the nozzle's tip");
+                    if (!autoTuneHere(*feed, words)) return false;
+                }
                 c = JPCameraCalibrator::run(m_cell, *feed, o, words, progress);
                 // Again with the tip raised (away from a camera looking up).
                 const double raise = o.calibrating.raiseMm;
