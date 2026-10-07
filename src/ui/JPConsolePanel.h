@@ -16,9 +16,10 @@
 #include "JPHistoryLineEdit.h"
 
 #include <j/core/JLineEdit.h>
-#include <j/core/JListView.h>
+#include <j/core/JTextArea.h>
 #include <j/core/MenuSystem.h>
 
+#include <deque>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -35,7 +36,9 @@ inline namespace jf {
 // off), **Log** (how much the log says, every category), and **Categories ▾**
 // (a menu: each category as the Log level, or a level of its own). The log's
 // levels are the log's own (JLog): they set what is written to the log file
-// too. The console follows its newest line while scrolled to the end.
+// too. The console follows its newest line while scrolled to the end. Its
+// lines are one read-only text: dragged over, Ctrl+A, and Copy (Ctrl+C or
+// the right-click menu: Copy, Select All, Clear) take them to paste.
 class JPConsolePanel : public JContainer {
 public:
     JPConsolePanel(JSceneGraph& graph, JPCell& cell, bool showTraffic);
@@ -49,6 +52,9 @@ public:
 
 private:
     void addLine(const std::string& line);
+    // Lines added at the end, the oldest let go past the history kept.
+    void addLines(const std::vector<std::string>& lines);
+    void clear();
     // Lines come in on any thread; they are taken in on the main one, many at once.
     void takeLogLines();
     void showCategories();
@@ -56,7 +62,7 @@ private:
     void send();
 
     JPCell&                  m_cell;
-    JListView*               m_list       = nullptr;
+    JTextArea*               m_text       = nullptr;
     JCheckBox*               m_traffic    = nullptr;
     JComboBox*               m_level      = nullptr;
     JButton*                 m_categories = nullptr;
@@ -64,8 +70,9 @@ private:
     JPHistoryLineEdit*       m_input      = nullptr;
     JCheckBox*               m_upperCase  = nullptr;   // OpenPnP's Force Upper Case
     std::unique_ptr<JMenu>   m_menu;
+    std::unique_ptr<JMenu>   m_textMenu;   // the lines' right-click menu
     std::vector<std::unique_ptr<JMenu>> m_submenus;
-    std::vector<std::string> m_lines;
+    std::deque<size_t>       m_lineSizes;   // each line's length in the text, its newline counted
     bool                     m_showTraffic = true;
     int                      m_listener = 0;
     // Log lines waiting for the main thread: shared with the log's listener,

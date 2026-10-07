@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- The Console's lines are one text you can copy from: drag over them (or Ctrl+A), then Ctrl+C, or right-click for
+  Copy, Select All and Clear.
 - The Jog panel's nozzle tip menu has Manual Change > Move to Manual Change Location: the nozzle goes up to safe Z,
   across, and down to where its tip is changed by hand.
 - Every issue in Issues & Solutions now says plainly what it is about and what Accept does, instead of OpenPnP's

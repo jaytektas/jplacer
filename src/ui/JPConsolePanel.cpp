@@ -75,14 +75,20 @@ JPConsolePanel::JPConsolePanel(JSceneGraph& graph, JPCell& cell, bool showTraffi
     m_categories = shows->add(std::make_unique<JPMenuButton>(graph, "Categories"));
     m_categories->onClicked.connect([this] { showCategories(); });
     auto clear = shows->add(JPUiParts::button(graph, "Clear"));
-    clear->onClicked.connect([this] {
-        m_lines.clear();
-        m_list->setItems(m_lines);
-    });
+    clear->onClicked.connect([this] { this->clear(); });
     add(std::move(shows));
 
-    m_list = add(std::make_unique<JListView>(graph));
-    m_list->setVSizePolicy(JSizePolicyMode::Expanding, 1);
+    m_text = add(std::make_unique<JTextArea>(graph));
+    m_text->setReadOnly(true);
+    m_text->setMouseSelection(true);
+    m_text->setVSizePolicy(JSizePolicyMode::Expanding, 1);
+    m_text->setHSizePolicy(JSizePolicyMode::Expanding, 1);
+    m_textMenu = std::make_unique<JMenu>("Console");
+    m_textMenu->add(graph, "Copy")->onTriggered.connect([this] { m_text->copySelection(); });
+    m_textMenu->add(graph, "Select All")->onTriggered.connect([this] { m_text->selectAll(); });
+    m_textMenu->addSeparator(graph);
+    m_textMenu->add(graph, "Clear")->onTriggered.connect([this] { this->clear(); });
+    m_text->setContextMenu(m_textMenu.get());
     auto input = JPUiParts::row(graph);
     if (cell.config().drivers.size() > 1) {
         std::vector<std::string> names;
@@ -134,7 +140,7 @@ void JPConsolePanel::takeLogLines() {
         std::lock_guard lk(m_inbox->mutex);
         lines.swap(m_inbox->lines);
     }
-    for (const std::string& l : lines) addLine(l);
+    addLines(lines);
 }
 
 void JPConsolePanel::levelsChanged() {
@@ -187,20 +193,32 @@ void JPConsolePanel::showCategories() {
 }
 
 // Newest last, as a terminal: the view follows each new line while it is at
-// the end, and stays where it is while the reader has scrolled back (the
-// oldest lines going as the history fills, the view kept on the same ones).
-void JPConsolePanel::addLine(const std::string& line) {
-    const bool following = m_list->isAtEnd();
-    const float at = m_list->scrollY();
-    m_lines.push_back(line);
-    size_t dropped = 0;
-    if (m_lines.size() > kLines) {
-        dropped = m_lines.size() - kLines;
-        m_lines.erase(m_lines.begin(), m_lines.begin() + long(dropped));
+// the end, and stays on the same lines while the reader has scrolled back
+// (the oldest going as the history fills); a selection stays on its text.
+void JPConsolePanel::addLine(const std::string& line) { addLines({ line }); }
+
+void JPConsolePanel::addLines(const std::vector<std::string>& lines) {
+    if (lines.empty()) return;
+    // One line to a row, a newline between them (none after the last: no empty row at the end). Each line's
+    // size counts the newline after it, there once the next comes.
+    std::string more;
+    for (const std::string& l : lines) {
+        if (!m_lineSizes.empty() || !more.empty()) more += "\n";
+        more += l;
+        m_lineSizes.push_back(l.size() + 1);
     }
-    m_list->setItems(m_lines);
-    if (following) m_list->scrollToEnd();
-    else m_list->setScrollY(at - float(dropped) * m_list->rowHeight());
+    m_text->appendText(more);
+    size_t gone = 0;
+    while (m_lineSizes.size() > kLines) {
+        gone += m_lineSizes.front();
+        m_lineSizes.pop_front();
+    }
+    m_text->dropFront(gone);
+}
+
+void JPConsolePanel::clear() {
+    m_lineSizes.clear();
+    m_text->setText("");
 }
 
 void JPConsolePanel::send() {

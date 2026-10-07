@@ -448,7 +448,9 @@ list of its profiles: choose one and each of the actuators it sets is set to its
 
 What is sent to and received from the controllers (position reports are left out), and what jplacer's log
 says, newest at the bottom. It follows each new line while it is scrolled to the end; scroll back and it
-stays where you put it, until you scroll to the end again. Type a line in the box and press **Send** or
+stays where you put it, until you scroll to the end again. The lines are one text, to copy from: drag over
+them, or Ctrl+A for all of it, then Ctrl+C; right-click for **Copy**, **Select All** and **Clear**. It keeps
+the last 1000 lines. Type a line in the box and press **Send** or
 Return to send it, as OpenPnP's G-code console does: with **Force Upper Case** (ticked to begin with) in
 capitals, as most controllers want; Up and Down go back through the last 50 lines sent. With more than one
 controller, choose which one from the list beside the box.
