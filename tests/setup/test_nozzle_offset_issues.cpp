@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
-// OpenPnP's nozzle offset issues in Issues & Solutions. Vision: "Nozzle N offsets for the primary fiducial." for
+// OpenPnP's nozzle offset issues in Issues & Solutions, said plainer. Vision: "Set nozzle N approximate offsets ..." for
 // each nozzle once the calibration rig's primary fiducial X, Y is known (and its Z, but for the head's first
 // nozzle), and for the first nozzle the secondary fiducial's too; Accept with the nozzle tip touching the fiducial
 // takes the fiducial's Z (the first nozzle) and the offsets (the fiducial less where the axes are), keeping X, Y
@@ -126,11 +126,19 @@ int main() {
     s.find();
     s.publish();
     // The primary fiducial's Z not known: only the first nozzle's (it takes the Z), forced open.
-    S::Issue* leftPrimary = find(s, "Nozzle LEFT offsets for the primary fiducial.");
-    assert(leftPrimary && leftPrimary->forcedUnsolved && !find(s, "Nozzle RIGHT offsets for the primary fiducial."));
-    assert(!find(s, "Nozzle LEFT offsets for the secondary fiducial."));
+    S::Issue* leftPrimary = find(s, "Set nozzle LEFT approximate offsets and capture the primary fiducial height (coarse nozzle calibration).");
+    assert(leftPrimary && leftPrimary->forcedUnsolved && !find(s, "Set nozzle RIGHT approximate offsets and match its Z to nozzle LEFT (coarse nozzle calibration)."));
+    assert(!find(s, "Set the secondary fiducial height (probed with nozzle LEFT)."));
     leftPrimary->activate();
     assert(chosen == "L");
+    // Remembered by OpenPnP's words, as before they were said plainer.
+    {
+        S::Issue openpnp;
+        openpnp.subject = leftPrimary->subject;
+        openpnp.issue = "Nozzle LEFT offsets for the primary fiducial.";
+        openpnp.solution = "Move the nozzle LEFT to the primary calibration fiducial and capture its offsets.";
+        assert(leftPrimary->fingerprint() == openpnp.fingerprint());
+    }
     std::string why;
     // Above Safe Z: refused.
     at["zl"] = 0;
@@ -151,14 +159,14 @@ int main() {
     cell.heads[0].rigSecondary = JPMachineLocation { 167.193, 179.308, 0, 0 };
     s.find();
     s.publish();
-    S::Issue* secondary = find(s, "Nozzle LEFT offsets for the secondary fiducial.");
+    S::Issue* secondary = find(s, "Set the secondary fiducial height (probed with nozzle LEFT).");
     assert(secondary);
     at["zl"] = -22.6;
     assert(!s.setState(*secondary, S::State::Solved, why) && why.find("apart") != std::string::npos);
     at["zl"] = -12.7;
     assert(s.setState(*secondary, S::State::Solved, why) && near(cell.heads[0].rigSecondary->z, -12.7));
     assert(near(cell.nozzles[0].mount.offsetX, 137.137 - 157.0));   // the secondary's: no offsets
-    S::Issue* rightPrimary = find(s, "Nozzle RIGHT offsets for the primary fiducial.");
+    S::Issue* rightPrimary = find(s, "Set nozzle RIGHT approximate offsets and match its Z to nozzle LEFT (coarse nozzle calibration).");
     assert(rightPrimary);
     at["x"] = 117.0;
     at["y"] = 241.1;
@@ -172,7 +180,7 @@ int main() {
     s.setShowSolved(true);   // a solved issue is listed with Include Solved?
     s.find();
     s.publish();
-    rightPrimary = find(s, "Nozzle RIGHT offsets for the primary fiducial.");
+    rightPrimary = find(s, "Set nozzle RIGHT approximate offsets and match its Z to nozzle LEFT (coarse nozzle calibration).");
     assert(rightPrimary && s.setState(*rightPrimary, S::State::Open, why) && s.setState(*rightPrimary, S::State::Solved, why));
     assert(cell.nozzles[1].mount.offsetX == keptX && cell.nozzles[1].mount.offsetY == keptY);
     assert(near(cell.nozzles[1].mount.offsetZ, -23.6 + 23.5));
@@ -180,7 +188,7 @@ int main() {
     at["x"] = 116.0;
     s.find();
     s.publish();
-    rightPrimary = find(s, "Nozzle RIGHT offsets for the primary fiducial.");
+    rightPrimary = find(s, "Set nozzle RIGHT approximate offsets and match its Z to nozzle LEFT (coarse nozzle calibration).");
     assert(rightPrimary && s.setState(*rightPrimary, S::State::Open, why) && s.setState(*rightPrimary, S::State::Solved, why));
     assert(near(cell.nozzles[1].mount.offsetX, 137.137 - 116.0));
 

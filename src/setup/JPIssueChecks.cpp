@@ -1520,15 +1520,37 @@ void nozzleOffsets(JPSolutions& s, const JPIssueChecks::Context& c) {
                     const bool nonZeroReferenceZ = primary && isDefault && std::abs(n.mount.offsetZ) > kNonZeroReferenceZMm;
                     Issue i;
                     i.subject = "ReferenceNozzle " + name;
-                    i.issue = "Nozzle " + name + " offsets for the " + qualifier + " fiducial.";
-                    i.solution = "Move the nozzle " + name + " to the " + qualifier + " calibration fiducial and capture its offsets.";
+                    // Said for what each does (OpenPnP's titles kept for the fingerprint): the first nozzle on the primary
+                    // fiducial sets its rough offsets and the fiducial's height; another nozzle there its rough offsets and
+                    // its Z matched to the first's; the first nozzle on the secondary only probes that fiducial's height.
+                    i.openpnpIssue = "Nozzle " + name + " offsets for the " + qualifier + " fiducial.";
+                    i.openpnpSolution = "Move the nozzle " + name + " to the " + qualifier + " calibration fiducial and capture its offsets.";
+                    if (!primary)
+                        i.issue = "Set the secondary fiducial height (probed with nozzle " + name + ").";
+                    else if (isDefault)
+                        i.issue = "Set nozzle " + name + " approximate offsets and capture the primary fiducial height (coarse nozzle calibration).";
+                    else
+                        i.issue = "Set nozzle " + name + " approximate offsets and match its Z to nozzle " + first->name
+                                  + " (coarse nozzle calibration).";
+                    i.solution = "Jog nozzle " + name + "'s tip down onto the " + qualifier + " fiducial until it touches, then Accept.";
                     i.severity = Severity::Fundamental;
                     i.uri = std::string(kWiki) + "Vision-Solutions#nozzle-offsets";
+                    const std::string does =
+                        !primary ? "Nozzle " + name + " is only a probe here: its tip touching the secondary fiducial gives that fiducial's "
+                                   "height, the height of the camera's second scale (units per pixel), so the camera knows its scale at "
+                                   "any height. No nozzle offsets are changed; no other nozzle does this.\n\n"
+                        : isDefault ? "Nozzle " + name + "'s approximate X, Y offsets from the camera: the primary fiducial's X, Y (captured "
+                                      "with the camera) less where the nozzle's axes are with its tip on it. Its Z offset becomes 0: nozzle "
+                                      + name + " is the reference in Z, and the height it touches is kept as the primary fiducial's Z.\n\n"
+                                    : "Nozzle " + name + "'s approximate X, Y offsets from the camera: the primary fiducial's X, Y (captured "
+                                      "with the camera) less where the nozzle's axes are with its tip on it. Its Z offset is set so it "
+                                      "reads the same Z as nozzle " + first->name + " touching the same fiducial.\n\n";
                     i.extendedDescription =
-                        "Once the calibration " + qualifier + " fiducial is captured in X, Y you can use it to capture the nozzle "
-                        "head offsets (first approximation).\n\n"
-                        + (isDefault ? "This will also capture the calibration " + qualifier + " fiducial Z coordinate.\n\n"
-                                     : "This will also equalize Z of nozzle " + name + " to Z of the default nozzle " + first->name + ".\n\n")
+                        does
+                        + (primary ? std::string("These are a first approximation, close enough for Calibrate precise camera ↔ nozzle "
+                                                 "offsets to find its test object. Offsets already within half the fiducial's diameter of "
+                                                 "these are kept (they may be the precise ones); then only Z is set.\n\n")
+                                   : std::string())
                         + (nonZeroReferenceZ ? "CAUTION: A non-zero head offsets Z has been detected on default nozzle " + name + ". "
                                                "Accepting this solution will reset it to zero, creating the new reference in Z. This will "
                                                "change the meaning of Z coordinates that have already been captured. Do not accept this "
@@ -1536,7 +1558,7 @@ void nozzleOffsets(JPSolutions& s, const JPIssueChecks::Context& c) {
                                                "collisions! You have been warned!\n\n" : "")
                         + "Jog nozzle " + name + " over the " + qualifier + " fiducial. Lower the nozzle tip down until it touches "
                           "the fiducial.\n\nCAUTION: this is a very important Z coordinate, please capture it with care.\n\nThen press "
-                          "Accept to capture the nozzle head offsets.";
+                          "Accept.";
                     i.forcedUnsolved = isDefault && !(primary ? primaryZ : secondaryZ);
                     i.activate = [c, nozzleId] {
                         if (c.chooseNozzle) c.chooseNozzle(nozzleId);
@@ -1551,7 +1573,7 @@ void nozzleOffsets(JPSolutions& s, const JPIssueChecks::Context& c) {
                         if (!c.changeCell) return true;
                         if (to != State::Solved) {
                             if (!before->taken) return true;
-                            c.changeCell("Nozzle offsets for the " + qualifier + " fiducial", [&](JPCellConfig& cell) {
+                            c.changeCell(primary ? "Nozzle approximate offsets" : "Secondary fiducial height", [&](JPCellConfig& cell) {
                                 for (JPNozzleConfig& k : cell.nozzles)
                                     if (k.id == nozzleId && primary) {
                                         k.mount.offsetX = before->x;
@@ -1603,7 +1625,7 @@ void nozzleOffsets(JPSolutions& s, const JPIssueChecks::Context& c) {
                         before->z = k->mount.offsetZ;
                         before->fiducialZ = (primary ? hh->rigPrimary : hh->rigSecondary)->z;
                         before->taken = true;
-                        c.changeCell("Nozzle offsets for the " + qualifier + " fiducial", [&](JPCellConfig& cell) {
+                        c.changeCell(primary ? "Nozzle approximate offsets" : "Secondary fiducial height", [&](JPCellConfig& cell) {
                             JPHeadConfig* head = nullptr;
                             for (JPHeadConfig& x : cell.heads) if (x.id == headId) head = &x;
                             for (JPNozzleConfig& x : cell.nozzles) {

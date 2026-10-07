@@ -71,7 +71,8 @@ const char* JPSolutions::name(State s) {
 
 std::string JPSolutions::Issue::fingerprint() const {
     // FNV-1a over what OpenPnP's SHA-1 covers: stable between sessions.
-    const std::string text = subject + "\n" + issue + "\n" + solution;
+    const std::string text = subject + "\n" + (openpnpIssue.empty() ? issue : openpnpIssue) + "\n"
+                             + (openpnpSolution.empty() ? solution : openpnpSolution);
     uint64_t h = 1469598103934665603ull;
     for (const unsigned char c : text) {
         h ^= c;

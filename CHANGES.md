@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- The coarse nozzle offset issues say what they do: "Set nozzle LEFT approximate offsets and capture the primary
+  fiducial height", "Set nozzle RIGHT approximate offsets and match its Z to nozzle LEFT", and "Set the secondary
+  fiducial height" (which changes no offsets), each explained plainly. What was accepted under OpenPnP's names stays
+  accepted.
 - Issues & Solutions' bar is tidier: the Milestone box is as wide as its longest milestone, the checkboxes sit
   beside their labels, and the wiki button is at the right.
 ## 0.1.1

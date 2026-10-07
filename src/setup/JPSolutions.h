@@ -75,7 +75,10 @@ public:
         std::function<void()> activate;
 
         bool        unhandled() const { return !neverUnhandled && state == State::Open; }
-        // Stable across searches: what it is about, the issue and the solution.
+        // OpenPnP's own words for the issue and solution, where jplacer shows plainer ones: what the
+        // fingerprint covers, so what was solved or dismissed stays so. Empty: as shown.
+        std::string openpnpIssue, openpnpSolution;
+        // Stable across searches: what it is about, the issue and the solution (OpenPnP's words).
         std::string fingerprint() const;
     };
     // What a search adds issues to.
