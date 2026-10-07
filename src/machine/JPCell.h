@@ -370,6 +370,7 @@ public:
     JSignal<std::string>                         onVacuumReadings;   // a tip's (its id), read anew
     JSignal<std::string>                         onFirmwareDetected; // a controller's (its id), asked again
     JSignal<bool, std::string>                   onMotion;       // a move or home ended: ok, why not
+    JSignal<std::string>                         onWaiting;      // a wait on purpose begun (what, how long), "" when it ends
     JSignal<bool>                                onHomed;
     JSignal<>                                    onCalibration;  // a camera's calibration or the squareness changed
     JSignal<std::string, std::string>            onState;        // controller id, its new state

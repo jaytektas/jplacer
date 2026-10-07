@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- The strip across the top of the window now also shows FAILED when a camera task (a calibration, the precise
+  nozzle offsets) fails, with why, until the next task starts; and WAITING while the pump comes up to pressure.
 - Switching the vacuum pump on now says in the log and Console how long it waits for it to come up to pressure (the
   head's Pump On Wait) before the valve opens; a long first wait no longer looks like a stall.
 - Issues & Solutions: Auto-Detect Next (or anything that changes an issue's values) no longer rebuilds the issue's

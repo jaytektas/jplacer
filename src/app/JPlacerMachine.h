@@ -418,6 +418,8 @@ private:
     bool                                m_connecting  = false;   // asked, not yet answered
     bool                                m_connectFailed = false; // the last connect failed
     std::string                         m_lost;                  // why the link dropped, until the next connect
+    std::string                         m_waiting;   // a wait on purpose under way (the cell's onWaiting), shown in the banner
+    std::string                         m_failure;   // the last camera task's failure, shown until the next begins
     bool                                m_homeFailed = false;
     std::string                         m_setupSelected;   // Machine Setup's node, kept while the cell reopens
     struct NozzleMark {

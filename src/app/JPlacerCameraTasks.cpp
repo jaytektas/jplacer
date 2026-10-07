@@ -115,6 +115,7 @@ void JPlacerCameraTasks::run(JPCameraPanel& camera, const std::string& name, Tas
     JPCameraPanel* panel = &camera;
     panel->setBusy(true);
     panel->setNote(name + "\xE2\x80\xA6");
+    if (onTaskOutcome) onTaskOutcome("");
     std::weak_ptr<bool> alive = m_alive;
     auto onMain = [alive](std::function<void()> fn) {
         JMainThreadDispatcher::instance().post([alive, fn] {
@@ -145,6 +146,7 @@ void JPlacerCameraTasks::run(JPCameraPanel& camera, const std::string& name, Tas
             const std::string text = ok ? words : name + " failed: " + words;
             panel->setNote(text);
             m_window.showStatus(text, kResultMs);
+            if (onTaskOutcome) onTaskOutcome(ok ? std::string() : text);
             if (done) done(ok);
         });
     });

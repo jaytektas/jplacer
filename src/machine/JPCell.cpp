@@ -1123,7 +1123,14 @@ bool JPCell::doVacuumOn(const JPNozzleConfig& n, std::string& why) {
             JLOGC(JPlacerLog::kCell, JLogLevel::Info)
                 << head->name << ": the pump switched on; waiting " << head->pumpOnWaitMs / 1000.0
                 << " s (the head's Pump On Wait) for it to come up to pressure before the valve opens";
+        if (head->pumpOnWaitMs > 0) {
+            char text[160];
+            std::snprintf(text, sizeof text, "Waiting %.0f s for the pump to come up to pressure (%s's Pump On Wait)",
+                          head->pumpOnWaitMs / 1000.0, head->name.c_str());
+            onWaiting.emit(text);
+        }
         std::this_thread::sleep_for(std::chrono::milliseconds(head->pumpOnWaitMs));
+        if (head->pumpOnWaitMs > 0) onWaiting.emit(std::string());
     }
     // The package's pick vacuum level, to a vacuum actuator taking a value (OpenPnP's actuateVacuumValve(level)).
     const auto part = m_nozzleParts.find(n.id);

@@ -97,6 +97,8 @@ public:
     // not ask). `done` (main thread): whether
     // it was measured, the runout, the background calibration's result (with
     // the tip's on; none when too few pictures) and, failing, why.
+    // A task begun ("") and how it ended: "" done, else what failed and why (for a banner that cannot be missed).
+    std::function<void(const std::string& failure)> onTaskOutcome;
     using RunoutDone = std::function<void(bool ok, const JPRunout&, const std::optional<JPBackgroundCalibration::Result>&,
                                           const std::string& why)>;
     void calibrateRunout(const std::string& nozzleId, RunoutDone done);

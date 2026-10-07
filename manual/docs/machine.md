@@ -148,9 +148,12 @@ first.
 When a connection fails, the chip turns red and the status bar at the bottom of the window says why.
 If a connection is lost while working (a cable pulled, the controller reset), a red **CONNECTION LOST**
 strip runs across the top of the window until you connect again: that strip is kept for what must not
-be missed.
+be missed. In order, most pressing first: **ALARM** (a controller stopped on an alarm), **CONNECTION
+LOST**, **FAILED** (a camera task, such as a calibration or the precise nozzle offsets, that failed: what
+and why, until the next task starts) and **WAITING** (a wait on purpose while it lasts, such as the pump
+coming up to pressure for its Pump On Wait).
 
-<!-- src: src/machine/JPGcodeDriver.cpp (identify: nothing answered); src/machine/JPCell.cpp (onLost); src/app/JPlacerMachine.cpp (showState); JFramework src/io/SerialPort.cpp (one owner) -->
+<!-- src: src/machine/JPGcodeDriver.cpp (identify: nothing answered); src/machine/JPCell.cpp (onLost, onWaiting, doVacuumOn); src/app/JPlacerMachine.cpp (showState); src/app/JPlacerCameraTasks.cpp (run, onTaskOutcome); JFramework src/io/SerialPort.cpp (one owner) -->
 
 ### Choosing the port
 

@@ -316,6 +316,11 @@ void JPlacerMachine::buildCameras() {
     m_cameraTasks = std::make_unique<JPlacerCameraTasks>(m_window, *m_cell, std::move(panels),
                                                          [this](JPCameraPanel& p) { bringForward(p); }, m_cellPath);
     m_cameraTasks->setScripting(m_scripting);
+    // A task's failure in the banner, until the next task begins.
+    m_cameraTasks->onTaskOutcome = [this](const std::string& failure) {
+        m_failure = failure;
+        showState();
+    };
     m_cameraTasks->homeFiducialLook = [this]() -> std::optional<JPVisualTest::Look> {
         return homeFiducialLook ? homeFiducialLook() : std::nullopt;
     };
@@ -777,6 +782,13 @@ void JPlacerMachine::watchCell() {
         });
     }));
     m_unwatch.push_back(m_cell->onState.connect([onMain](std::string, std::string) { onMain([] {}); }));
+    // A wait on purpose (the pump coming up to pressure) in the banner while it lasts.
+    m_unwatch.push_back(m_cell->onWaiting.connect([this, onMain](std::string what) {
+        onMain([this, what] {
+            m_waiting = what;
+            showState();
+        });
+    }));
     m_unwatch.push_back(m_cell->onMotion.connect([this, onMain](bool ok, std::string why) {
         onMain([this, ok, why] {
             if (m_cell->isHomed() || ok) m_homeFailed = false;
@@ -2438,6 +2450,10 @@ void JPlacerMachine::showState() {
                            "or a failed home). Find the cause; the Console shows what it said.", Colors::Danger);
     else if (!connected && !m_lost.empty())
         m_window.setNotice("CONNECTION LOST", m_lost, Colors::Danger);
+    else if (!m_failure.empty())
+        m_window.setNotice("FAILED", m_failure + " The next task clears this; the Console and log say more.", Colors::Danger);
+    else if (connected && !m_waiting.empty())
+        m_window.setNotice("WAITING", m_waiting, Colors::Warning);
     else
         m_window.setNotice("");
 }
