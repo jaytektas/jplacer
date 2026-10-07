@@ -86,22 +86,23 @@ int main() {
     JPNozzleTipConfig bare;
     assert(!bare.cloneChangerFrom(templ) && bare.loadSteps.empty());
 
-    // OpenPnP's form: First, Third and Last set, a Post 1 actuator and the speeds
-    // between; loading steps made from it, read back the same, and unloading
-    // backwards with the actuator switched off. Steps of jplacer's own: no form.
+    // OpenPnP's four places read from the loading steps brought in from it (First, Third and Last, a Post 1
+    // actuator between): what its Vision Calibration's places name; unloading backwards switches the actuator
+    // off. A step of jplacer's own: no longer OpenPnP's form.
     {
         JPNozzleTipConfig t;
-        assert(t.openPnpChanger() && !t.openPnpChanger()->at[0]);   // none yet: the form, empty
-        JPNozzleTipConfig::OpenPnpChanger c;
-        c.at[0] = JPMachineLocation { 100, 50, -5, 0 };
-        c.at[2] = JPMachineLocation { 100, 60, -10, 0 };
-        c.at[3] = JPMachineLocation { 100, 60, -2, 0 };
-        c.speed[2] = 0.25;
-        c.speed[3] = 0.5;
-        c.post[0] = "A1";
-        t.setOpenPnpChanger(c);
-        assert(t.loadSteps.size() == 4 && t.loadSteps[1].kind == JPChangerStep::Kind::Actuator && t.loadSteps[1].openPnpSlot == 1);
-        assert(t.loadSteps[2].openPnpSlot == 3 && t.loadSteps[2].speed == 0.25);
+        assert(t.openPnpChanger() && !t.openPnpChanger()->at[0]);   // no steps: the form, empty
+        auto place = [](double x, double y, double z, int slot, double speed) {
+            JPChangerStep m = moveTo(x, y, z);
+            m.openPnpSlot = slot;
+            m.speed = speed;
+            return m;
+        };
+        JPChangerStep post;
+        post.kind = JPChangerStep::Kind::Actuator;
+        post.actuatorId = "A1";
+        post.openPnpSlot = 1;
+        t.loadSteps = { place(100, 50, -5, 1, 1), post, place(100, 60, -10, 3, 0.25), place(100, 60, -2, 4, 0.5) };
         const auto back = t.openPnpChanger();
         assert(back && back->at[0] && !back->at[1] && back->at[2]->y == 60 && back->at[3]->z == -2);
         assert(back->post[0] == "A1" && back->post[1].empty() && back->speed[3] == 0.5);

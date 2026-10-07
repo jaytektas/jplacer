@@ -193,8 +193,6 @@ struct JPNozzleTipConfig {
     };
     // The loading steps in OpenPnP's form; none when they are jplacer's own.
     std::optional<OpenPnpChanger> openPnpChanger() const;
-    // The loading steps made from OpenPnP's form (unloading is loading backwards).
-    void setOpenPnpChanger(const OpenPnpChanger& changer);
     // What a clone takes (OpenPnP's Locations?, Z Calibration? and Vision Calibration?).
     struct ClonedParts {
         bool locations = true;           // the loading and unloading steps, and the touch location

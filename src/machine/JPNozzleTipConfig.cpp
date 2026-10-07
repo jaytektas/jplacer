@@ -122,31 +122,6 @@ std::optional<JPNozzleTipConfig::OpenPnpChanger> JPNozzleTipConfig::openPnpChang
     return c;
 }
 
-void JPNozzleTipConfig::setOpenPnpChanger(const OpenPnpChanger& c) {
-    loadSteps.clear();
-    for (size_t k = 0; k < 4; ++k) {
-        if (const auto& at = c.at[k]) {
-            JPChangerStep m;
-            m.x = at->x;
-            m.y = at->y;
-            m.z = at->z;
-            m.rotation = at->rotation;
-            m.speed = k == 0 ? 1.0 : c.speed[k];
-            m.openPnpSlot = int(k) + 1;
-            loadSteps.push_back(m);
-        }
-        if (k < 3 && !c.post[k].empty()) {
-            JPChangerStep a;
-            a.kind = Kind::Actuator;
-            a.actuatorId = c.post[k];
-            a.on = true;
-            a.openPnpSlot = int(k) + 1;
-            loadSteps.push_back(a);
-        }
-    }
-    unloadReversesLoad = true;
-}
-
 std::vector<std::string> JPNozzleTipConfig::problems() const {
     std::vector<std::string> out;
     const std::string tip = "nozzle tip " + (name.empty() ? id : name) + ": ";

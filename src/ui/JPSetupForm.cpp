@@ -250,7 +250,13 @@ std::unique_ptr<JWidget> JPSetupForm::page(const JPSetupProperties::Tab& tab) {
     float labels = 0;
     for (const JPSetupProperties::Group& g : tab.groups)
         for (const Row& r : g.rows)
-            if (r.kind == Row::Kind::Fields) labels = std::max(labels, std::ceil(JTextHelper::measureWidth(tr(r.label))) + st.spacing);
+            if (r.kind == Row::Kind::Fields) {
+                // Its name, and the icon buttons before it.
+                float leading = 0;
+                for (const JPSetupProperties::Cell& c : r.cells)
+                    if (c.button && c.leading) leading += JPIconButton::size();
+                labels = std::max(labels, std::ceil(JTextHelper::measureWidth(tr(r.label))) + st.spacing + leading);
+            }
     float height = 0;
     for (const JPSetupProperties::Group& g : tab.groups) {
         float h = 0;
@@ -288,6 +294,13 @@ float JPSetupForm::widthOf(const JProperty& p) const {
         std::snprintf(text, sizeof text, "%.*f", p.meta.decimals, v.toDouble());
         const float fits = std::ceil(JTextHelper::measureWidth(text)) + 2 * st.fieldPadding + st.controlHeight + 2 * st.spacing;
         return std::max(fits, numberWidth());
+    }
+    if (v.isInt() && p.meta.min.isInt() && p.meta.max.isInt()) {
+        // A whole number in a range: room for its longest end (a percentage's three digits, not a coordinate's
+        // ten places), its padding and its spin buttons.
+        const std::string least = std::to_string(p.meta.min.toInt()), most = std::to_string(p.meta.max.toInt());
+        const float digits = std::max(JTextHelper::measureWidth(least), JTextHelper::measureWidth(most));
+        return std::min(numberWidth(), std::ceil(digits) + 2 * st.fieldPadding + st.controlHeight + 2 * st.spacing);
     }
     if (v.isInt() || v.isDouble() || p.meta.editor == "number") return numberWidth();
     return 2 * numberWidth();   // a name, a line of text ("long" ones take the row's room)
@@ -649,12 +662,21 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
                     if (const JProperty* p = find(c.property); p && p->meta.editor == "lines") h = std::max(h, linesHeight(*p));
                 auto row = JPUiParts::row(m_graph);
                 auto name = box(m_graph, labels, h, JJustifyContent::FlexEnd);
+                // Its own icon buttons first (a list's row's), then its name.
+                for (const JPSetupProperties::Cell& c : r.cells) {
+                    if (!c.button || !c.leading) continue;
+                    JPIconButton* b = name->add(std::make_unique<JPIconButton>(m_graph, c.label, c.icon, c.tooltip));
+                    b->setEnabled(c.enabled && !greyed(c.property));
+                    b->onClicked.connect([this, action = c.property] {
+                        if (onAction) onAction(action);
+                    });
+                }
                 JLabel* named = name->add(label(m_graph, r.label));
                 if (!r.tooltip.empty()) named->setTooltip(r.tooltip);
                 row->add(std::move(name));
                 for (size_t i = 0; i < r.cells.size(); ++i) {
                     const JPSetupProperties::Cell& c = r.cells[i];
-                    if (c.button && !c.icon.empty()) continue;   // after the place's buttons
+                    if (c.button && !c.icon.empty()) continue;   // after the place's buttons, or before its name
                     if (c.button) {
                         row->add(button(c));
                         continue;
@@ -703,7 +725,7 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
                 }
                 // Icon buttons last, as OpenPnP puts its own beside a place's.
                 for (const JPSetupProperties::Cell& c : r.cells) {
-                    if (!c.button || c.icon.empty()) continue;
+                    if (!c.button || c.icon.empty() || c.leading) continue;
                     JPIconButton* b = row->add(std::make_unique<JPIconButton>(m_graph, c.label, c.icon, c.tooltip));
                     b->setEnabled(c.enabled && !greyed(c.property));
                     b->onClicked.connect([this, action = c.property] {

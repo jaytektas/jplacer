@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- A nozzle tip's Tool Changer tab is a table of steps, as many as the change takes (not OpenPnP's four places):
+  each row a move (or safe Z, an actuator, a wait, a question) with its own add, delete, up and down buttons;
+  unloading can have its own table, to go round the holders (to the middle of the machine first, say).
+- Whole-number settings are sized to their range (a percentage's field is narrower).
 - Nozzle tip loading and unloading no longer make backlash compensation's extra moves: a one-sided axis went its
   Backlash Offset past each changer place and back, which could drive the tip into the slot's wall.
 ## 0.1.15

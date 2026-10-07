@@ -1248,6 +1248,8 @@ void nozzleForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
              "is closed, AfterHoming until the machine is homed, EachTime never.");
 }
 
+void changerSteps(JPFormBuilder& add, const JPCellConfig& cell, const std::function<JPNozzleTipConfig&()>& tip, bool load);
+
 void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f,
                    const JPSetupProperties::Live& live) {
     auto t = finder(cell.nozzleTips, id);
@@ -1373,74 +1375,15 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
     }
 
     add.tab("Tool Changer");
-    add.group("Nozzle Tip Changer");
-    // OpenPnP's: four locations, the speed between each two, an actuator
-    // switched after each of the first three; over the loading steps when
-    // they are in its form (made here, or brought in from OpenPnP).
-    if (const auto form = t().openPnpChanger()) {
-        using C = JPNozzleTipConfig::OpenPnpChanger;
-        auto change = [t](const std::function<void(C&)>& edit) {
-            C c = t().openPnpChanger().value_or(C {});
-            edit(c);
-            t().setOpenPnpChanger(c);
-        };
-        auto now = [t] { return t().openPnpChanger().value_or(C {}); };
-        JPFormBuilder::Named actuators;
-        actuators.add("", "");
-        for (const JPActuatorConfig& a : cell.actuators) actuators.add(a.name.empty() ? a.id : a.name, a.id);
-        static const char* const kLocations[] = { "First Location", "Second Location", "Third Location", "Last Location" };
-        static const char* const kSpeeds[] = { "1 \xE2\x86\x94 2", "2 \xE2\x86\x94 3", "3 \xE2\x86\x94 4" };
-        add.header({ "X", "Y", "Z", "Rotation", "Speed", "Set?" });
-        for (size_t k = 0; k < 4; ++k) {
-            const std::string n = std::to_string(k + 1);
-            add.row(kLocations[k], form->at[k] ? Place::Location : Place::None);
-            add.positionNoSafeZ();
-            if (form->at[k]) {
-                auto coordinate = [&](const char* key, const char* label, double JPMachineLocation::*field, bool rotation) {
-                    add.coordinate(rotation, std::string("changer") + key + n, label,
-                                   [now, k, field] { return now().at[k] ? (*now().at[k]).*field : 0.0; },
-                                   [change, k, field](double v) { change([&](C& c) { if (c.at[k]) (*c.at[k]).*field = v; }); });
-                };
-                coordinate("X", "X", &JPMachineLocation::x, false);
-                coordinate("Y", "Y", &JPMachineLocation::y, false);
-                coordinate("Z", "Z", &JPMachineLocation::z, false);
-                coordinate("Rotation", "Rotation", &JPMachineLocation::rotation, true);
-            } else {
-                for (int i = 0; i < 4; ++i) add.skip();
-            }
-            add.skip();   // the speeds are between the locations
-            add.flag("changerSet" + n, "Set?", [now, k] { return now().at[k].has_value(); },
-                     [change, k](bool on) {
-                         change([&](C& c) {
-                             if (!on) c.at[k].reset();
-                             else if (!c.at[k]) c.at[k] = JPMachineLocation();
-                         });
-                     });
-            add.end();
-            if (k == 0)
-                add.tip("First location in a nozzle tip loading motion sequence.\nThis is the first way-point when loading "
-                        "the nozzle tip and the\nlast way-point when unloading it.");
-            f.reshaping.push_back("changerSet" + n);
-            if (k == 3) break;
-            add.row(std::string("Post ") + n + " Actuator");
-            add.byName("changerPost" + n, std::string("Post ") + n + " Actuator", actuators, [now, k] { return now().post[k]; },
-                       [change, k](const std::string& id) { change([&](C& c) { c.post[k] = id; }); });
-            add.skip();
-            add.words(kSpeeds[k]);
-            add.skip();
-            add.number("changerSpeed" + n, kSpeeds[k], [now, k] { return now().speed[k + 1]; },
-                       [change, k](double v) { change([&](C& c) { c.speed[k + 1] = std::clamp(v, 0.0, 1.0); }); });
-            add.end();
-            add.tip(std::string("Speed between ") + kLocations[k] + " and " + kLocations[k + 1] + " (a share of the machine's).");
-        }
-        add.endColumns();
-        add.note("Loading goes to the First Location by way of Safe Z, then to each set location in turn at the speed "
-                 "between, switching each Post Actuator on after its location; unloading goes back the same way, "
-                 "switching them off. The steps are also in the tree under the tip.");
-    } else {
-        add.note("This tip's loading steps are jplacer's own (in the tree under the tip): OpenPnP's four locations "
-                 "show a tip's steps made with them, or brought in from OpenPnP.");
-    }
+    // The changer's steps, as many as the change takes (OpenPnP's four places are its first four moves, brought
+    // in from OpenPnP so): loading, then unloading as loading backwards or steps of its own.
+    add.group("Loading");
+    changerSteps(add, cell, t, true);
+    add.note("Loading comes in to its first move by way of Safe Z, then takes each step in turn, a move to its place at "
+             "its speed (a share of the machine's); an empty coordinate stays as it is, so a move with no Z keeps the "
+             "height (at Safe Z, to go round the other holders). Then up to Safe Z. Each row's buttons add a step "
+             "after it, delete it, or move it up or down; the steps are also in the tree under the tip.");
+    add.group("Unloading");
     add.choice("unloading", "Unloading", { "loading backwards", "steps of its own" },
                [t] { return std::string(t().unloadReversesLoad ? "loading backwards" : "steps of its own"); },
                [t](const std::string& v) {
@@ -1451,8 +1394,13 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
                        tip.unloadSteps = tip.unloadingSteps();
                    tip.unloadReversesLoad = backwards;
                });
-    add.note("The steps of loading and unloading are in the tree under the tip: select one to change it, "
-             "Add to add one after it.");
+    f.reshaping.push_back("unloading");
+    if (t().unloadReversesLoad)
+        add.note("Unloading takes loading's steps backwards: each move back to where the one before it went, at the speed "
+                 "of the move it undoes, an actuator switched the other way. Choose steps of its own to unload another "
+                 "way (from the park place, by the middle of the machine first, say).");
+    else
+        changerSteps(add, cell, t, false);
     // OpenPnP's Vision Calibration of the changer slot (JPNozzleTipConfig::VisionCalibration).
     add.group("Vision Calibration");
     auto vc = [t]() -> JPNozzleTipConfig::VisionCalibration& { return t().visionCalibration; };
@@ -1907,6 +1855,96 @@ void stepForm(JPCellConfig& cell, const JPSetupTree::Path& p, JPSetupProperties:
         case S::Kind::Ask:
             add.text("message", "Message", [step]() -> std::string& { return step().message; }, "long");
             break;
+    }
+}
+
+// A nozzle tip's loading (or its own unloading) steps as a table, as many as it takes: each step a row, a move
+// its place (the place buttons, a coordinate left empty staying as it is) and the speed it goes there at; the
+// other kinds their own settings. Each row adds a step after it, is deleted, or moves up or down: a step
+// each to undo. (OpenPnP's changer has four places, which cannot go round a row of holders.)
+void changerSteps(JPFormBuilder& add, const JPCellConfig& cell, const std::function<JPNozzleTipConfig&()>& tip, bool load) {
+    using S = JPChangerStep;
+    auto list = [tip, load]() -> std::vector<S>& { return load ? tip().loadSteps : tip().unloadSteps; };
+    const std::string which = load ? "Loading" : "Unloading";
+    const std::string prefix = load ? "loadStep" : "unloadStep";
+    const Strings kinds{ S::kindName(S::Kind::Move), S::kindName(S::Kind::SafeZ), S::kindName(S::Kind::Actuator),
+                         S::kindName(S::Kind::Wait), S::kindName(S::Kind::Ask) };
+    const size_t count = list().size();
+    add.header({ "Kind", "X", "Y", "Z", "Rotation", "Speed [%]" });
+    for (size_t i = 0; i < count; ++i) {
+        const std::string key = prefix + std::to_string(i) + ".";
+        auto step = [list, i]() -> S& { return list()[i]; };
+        const S::Kind kind = step().kind;
+        add.row(std::to_string(i + 1), kind == S::Kind::Move ? Place::Location : Place::None);
+        add.choice(key + "kind", "Kind", kinds, [step] { return std::string(S::kindName(step().kind)); },
+                   [step](const std::string& v) {
+                       for (S::Kind k : { S::Kind::Move, S::Kind::SafeZ, S::Kind::Actuator, S::Kind::Wait, S::Kind::Ask })
+                           if (v == S::kindName(k)) step().kind = k;
+                   });
+        add.reshapes(key + "kind");
+        auto speed = [&add, step, &key] {
+            add.integer(key + "speed", "Speed [%]", [step] { return int(std::lround(step().speed * 100)); },
+                        [step](int v) { step().speed = std::clamp(v, 1, 100) / 100.0; }, 1, 100);
+        };
+        switch (kind) {
+            case S::Kind::Move:
+                coordinate(add, key + "x", "X", [step]() -> std::optional<double>& { return step().x; });
+                coordinate(add, key + "y", "Y", [step]() -> std::optional<double>& { return step().y; });
+                coordinate(add, key + "z", "Z", [step]() -> std::optional<double>& { return step().z; });
+                coordinate(add, key + "rotation", "Rotation", [step]() -> std::optional<double>& { return step().rotation; });
+                speed();
+                break;
+            case S::Kind::SafeZ:
+                for (int k = 0; k < 4; ++k) add.skip();
+                speed();
+                break;
+            case S::Kind::Actuator:
+                add.byName(key + "actuator", "Actuator", named(cell.actuators, "(none)"), [step]() -> std::string& { return step().actuatorId; });
+                add.choice(key + "on", "Switch It", { "on", "off" }, [step] { return std::string(step().on ? "on" : "off"); },
+                           [step](const std::string& v) { step().on = v == "on"; });
+                for (int k = 0; k < 3; ++k) add.skip();
+                break;
+            case S::Kind::Wait:
+                add.integer(key + "waitMs", "Wait [ms]", [step]() -> int& { return step().waitMs; }, 0, 600000);
+                for (int k = 0; k < 4; ++k) add.skip();
+                break;
+            case S::Kind::Ask:
+                add.text(key + "message", "Message", [step]() -> std::string& { return step().message; });
+                for (int k = 0; k < 4; ++k) add.skip();
+                break;
+        }
+        // Its buttons: a step added after it (a move, from where this one goes), it taken away, moved up or down.
+        add.editIconButton(key + "add", "general-add", "Add a step after this one", which + " step added",
+                           [list, i] {
+                               S added;
+                               const S& here = list()[i];
+                               if (here.kind == S::Kind::Move) {
+                                   added.x = here.x;
+                                   added.y = here.y;
+                                   added.z = here.z;
+                                   added.rotation = here.rotation;
+                                   added.speed = here.speed;
+                               }
+                               list().insert(list().begin() + std::ptrdiff_t(i + 1), added);
+                           });
+        add.leading();
+        add.editIconButton(key + "remove", "general-remove", "Delete this step", which + " step " + std::to_string(i + 1) + " deleted",
+                           [list, i] { list().erase(list().begin() + std::ptrdiff_t(i)); });
+        add.leading();
+        add.editIconButton(key + "up", "arrow-up", "Move this step up", which + " step " + std::to_string(i + 1) + " moved up",
+                           [list, i] { std::swap(list()[i - 1], list()[i]); }, i > 0);
+        add.leading();
+        add.editIconButton(key + "down", "arrow-down", "Move this step down", which + " step " + std::to_string(i + 1) + " moved down",
+                           [list, i] { std::swap(list()[i], list()[i + 1]); }, i + 1 < count);
+        add.leading();
+        add.end();
+    }
+    add.endColumns();
+    if (count == 0) {
+        add.row("");
+        add.editIconButton(prefix + "first.add", "general-add", "Add the first step", which + " step added",
+                           [list] { list().push_back(S {}); });
+        add.end();
     }
 }
 

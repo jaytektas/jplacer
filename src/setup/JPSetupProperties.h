@@ -49,6 +49,9 @@ public:
         std::string icon;
         // A button of its own row across the group (OpenPnP's Auto Setup).
         bool        wide = false;
+        // An icon button at the row's start, in the labels' column before its name (a list's row's own add,
+        // delete, up and down), rather than after its settings.
+        bool        leading = false;
     };
     // What a place row's buttons use: the camera on the head, or the tool
     // chosen (a nozzle); and what an axis row takes, an axis's position.

@@ -110,6 +110,8 @@ public:
     void unframed() { rows().back().unframed = true; }
     // Words beside the picture just added (Row::beside), read again on each refresh.
     void beside(std::function<std::string()> words) { rows().back().beside = std::move(words); }
+    // The setting `name` changes which others there are: the form made again after it changes (Form::reshaping).
+    void reshapes(const std::string& name) { m_form.reshaping.push_back(name); }
     // The setting `name` shown greyed: not changeable as things stand (Form::disabled).
     void disable(const std::string& name) { m_form.disabled.push_back(name); }
     // A search's progress across the form, `states` read again on each refresh.
@@ -140,6 +142,15 @@ public:
         button(action, label, "", enabled);
         m_form.edits[action] = { what, std::move(apply) };
     }
+    // The same with an OpenPnP icon (JPOpenPnpIcons) in place of words, and a tooltip.
+    void editIconButton(const std::string& action, const std::string& icon, const std::string& tooltip,
+                        const std::string& what, std::function<void()> apply, bool enabled = true) {
+        editButton(action, action, what, std::move(apply), enabled);
+        rows().back().cells.back().icon = icon;
+        rows().back().cells.back().tooltip = tooltip;
+    }
+    // The icon button just added at the row's start, before its name (Cell::leading).
+    void leading() { rows().back().cells.back().leading = true; }
     // Buttons: (label, action) each; the owner does the action.
     void actions(const std::vector<std::pair<std::string, std::string>>& buttons) {
         Row r;
