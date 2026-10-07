@@ -157,7 +157,9 @@ int JPlacerApp::run() {
     // not worth interrupting for every time jplacer opens.
     if (JPlacerSettings::updatesAtStartup()) m_updater->check(false);
     const int rc = m_window->run();
-    // Kept before an update starts the new copy, which reads them as it starts.
+    // An update about to start the new copy: the machine let go of first (the new copy connects to it), and
+    // the settings kept (it reads them as it starts). The update was downloaded and checked before it was offered.
+    if (m_updater->staged() && m_machine) m_machine->disconnectAndWait();
     JPlacerSettings::save();
     m_updater->installStaged();
     return rc;

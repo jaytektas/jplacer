@@ -263,6 +263,19 @@ void JPCell::disconnect() {
     });
 }
 
+void JPCell::disconnectAndWait() {
+    std::promise<void> done;
+    auto finished = done.get_future();
+    m_thread.post([this, &done] {
+        const bool was = m_connected;
+        if (was) actuateFor(&JPActuatorConfig::disabledActuation);   // as the machine is let go
+        doDisconnect(true);
+        if (was) onConnection.emit(false, std::string());
+        done.set_value();
+    });
+    finished.wait();
+}
+
 std::string JPCell::format(double v, int decimals) {
     char buf[48];
     std::snprintf(buf, sizeof buf, "%.*f", decimals, v);

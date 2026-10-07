@@ -58,6 +58,9 @@ public:
     // All or nothing: if one fails, the others are disconnected again.
     void connect();
     void disconnect();
+    // The same, waited for: the controllers let go of (their ports closed) when it returns, as an update
+    // needs before it starts the new version. Not from the cell's own thread.
+    void disconnectAndWait();
 
     // Send a line as typed to one controller (the console).
     void sendLine(const std::string& driverId, const std::string& line);

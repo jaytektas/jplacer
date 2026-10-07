@@ -2564,6 +2564,13 @@ void JPlacerMachine::disconnect() {
     if (m_cell) m_cell->disconnect();
 }
 
+void JPlacerMachine::disconnectAndWait() {
+    if (m_cell && m_cell->isConnected()) {
+        JLOGC(JPlacerLog::kApp, JLogLevel::Info) << "disconnecting the machine before the update starts the new version";
+        m_cell->disconnectAndWait();
+    }
+}
+
 void JPlacerMachine::home() {
     if (!m_cell || !m_cell->isConnected()) return;
     m_homeFailed = false;

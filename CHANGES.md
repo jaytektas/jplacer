@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Updating disconnects the machine before the new version starts, so the new version can connect to it (the old
+  one still held the controller's port).
 - The Log tab is readable on the dark theme: information in the normal text colour (it was OpenPnP's blue, made
   for a white background), warnings and errors in the theme's warning and danger colours.
 ## 0.1.7

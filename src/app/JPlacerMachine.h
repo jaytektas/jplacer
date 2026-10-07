@@ -91,6 +91,8 @@ public:
     void startWithDefault();
     void connect();
     void disconnect();
+    // The machine let go of (its controllers' ports closed) before returning: before an update starts the new version.
+    void disconnectAndWait();
     void home();                // Machine > Home All Axes
     void park();                // Machine > Park Head
     // A nozzle's Z homed alone, from the park place (JPCell::homeNozzle).
