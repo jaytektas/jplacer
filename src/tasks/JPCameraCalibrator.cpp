@@ -136,13 +136,17 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
         cell.moveAxesAndWait({ { mount.axisX, x0 }, { mount.axisY, y0 } }, o.speed, w);
     };
     int step = 0;
+    // How many moves in all: the first few finding the way, then the grid (as it is clamped below).
+    const int moves = int(kDirectionMoves)
+                    + std::clamp(o.calibrating.columns, kLeastGrid, JPCameraConfig::Calibrating::kMostPlaces)
+                          * std::clamp(o.calibrating.rows, kLeastGrid, JPCameraConfig::Calibrating::kMostPlaces);
     // Moves the camera by (dx, dy) relative to the mark (the tool carrying
     // the mark the other way), finds the mark near where the samples so far
     // put it (around where it first was before there are three) and records it.
     int unmeasured = 0;   // grid places where the mark could not be measured (skipped)
     auto measure = [&](double dx, double dy, const char* phase, bool mayMiss) {
         ++step;
-        if (progress) progress(std::string(phase) + ", move " + std::to_string(step));
+        if (progress) progress(std::string(phase) + ", move " + std::to_string(step) + " of " + std::to_string(moves));
         // In from the lead-in, the same way every time.
         const double lead = std::max(0.0, o.calibrating.leadInMm);
         if (lead > 0 && !cell.moveAxesAndWait({ { mount.axisX, x0 + sign * dx - lead }, { mount.axisY, y0 + sign * dy - lead } },

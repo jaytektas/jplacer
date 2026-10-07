@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- A controller's serial Port is a list of the ports there now, as in OpenPnP (each by its stable name; the one set
+  stays in the list though it is unplugged; another can still be typed).
+- Camera calibration says how many moves in all ("move 12 of 38"), and precise nozzle offsets how many angles
+  ("2 of 6").
 - Updating disconnects the machine before the new version starts, so the new version can connect to it (the old
   one still held the controller's port).
 - The Log tab is readable on the dark theme: information in the normal text colour (it was OpenPnP's blue, made

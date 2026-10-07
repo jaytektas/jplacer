@@ -443,9 +443,11 @@ void JPlacerCameraTasks::calibrateNozzleOffsets(JPCameraPanel& camera, const JPN
         const double da = 360.0 / std::max(1, m_cell.config().nozzleOffsetAngles);
         bool ok = true;
         bool holding = false;   // picked and not yet placed
+        const int angles = std::max(1, m_cell.config().nozzleOffsetAngles);
+        int at = 0;
         for (double angle = -180 + da / 2; angle < 180 && ok; angle += da) {
-            char step[64];
-            std::snprintf(step, sizeof step, "pick and place at %.0f deg", angle);
+            char step[80];
+            std::snprintf(step, sizeof step, "pick and place at %.0f deg, %d of %d", angle, ++at, angles);
             progress(step);
             sumX -= x;
             sumY -= y;

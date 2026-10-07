@@ -3,6 +3,8 @@
 
 #include "JPSetupProperties.h"
 
+#include "machine/JPSerialPorts.h"
+
 #include "camera/JPOnvif.h"
 #include "camera/JPSimulatedUpCamera.h"
 #include "camera/JPWhiteBalance.h"
@@ -440,8 +442,17 @@ void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPF
                         [d](int v) { d().link["port"] = v; }, 1, 65535);
         } else {
             add.group("Serial Port");
-            add.text("port", "Port", [d] { return std::as_const(d().link)["port"].str(); },
-                     [d](const std::string& v) { d().link["port"] = v; }, "long");
+            // As OpenPnP's: the serial ports there now to choose from (by their stable names), the one set kept
+            // among them though it is not plugged in, and any other typed in.
+            Strings ports;
+            for (const JPSerialPorts::Port& p : JPSerialPorts::list()) ports.push_back(p.path);
+            if (const std::string now = std::as_const(d().link)["port"].str();
+                !now.empty() && std::find(ports.begin(), ports.end(), now) == ports.end())
+                ports.push_back(now);
+            add.editableChoice("port", "Port", ports, [d] { return std::as_const(d().link)["port"].str(); },
+                               [d](const std::string& v) { d().link["port"] = v; });
+            add.tip("The serial ports there now (each by its stable name, the same whichever USB socket it is in), "
+                    "and the one set; or type another. The list is read again each time this page is shown.");
             // The rates a serial port takes.
             Strings rates;
             for (int r : { 1200, 4800, 9600, 19200, 38400, 57600, 115200, 230400, 921600 }) rates.push_back(std::to_string(r));
