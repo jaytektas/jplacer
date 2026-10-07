@@ -65,6 +65,8 @@ struct JPCameraConfig {
     std::optional<double> lastFocusDistanceMm;
     bool          suspendDuringTasks = false;
     bool          autoCameraView = false;
+    // A live picture not calibrated for its size crossed out in red, and said (on to begin with).
+    bool          warnUncalibrated = true;
     // OpenPnP's Show in multi camera view?: off, its dock starts closed
     // (a capture card's camera shown through SwitcherCameras, say); View, or
     // anything that looks through it, opens it.
@@ -252,6 +254,7 @@ struct JPCameraConfig {
         }
         c.suspendDuringTasks = j["suspendDuringTasks"].boolean();
         c.autoCameraView = j["autoCameraView"].boolean();
+        c.warnUncalibrated = !j.contains("warnUncalibrated") || j["warnUncalibrated"].boolean();
         c.shownInMultiView = j["shownInMultiView"].boolean(true);
         c.cropWidth      = int(j["crop"]["width"].number(0.0));
         c.cropHeight     = int(j["crop"]["height"].number(0.0));
@@ -333,6 +336,7 @@ struct JPCameraConfig {
         j["autoFocus"]["showDiagnostics"] = autoFocus.showDiagnostics;
         if (suspendDuringTasks) j["suspendDuringTasks"] = true;
         if (autoCameraView) j["autoCameraView"] = true;
+        if (!warnUncalibrated) j["warnUncalibrated"] = false;
         if (!shownInMultiView) j["shownInMultiView"] = false;
         if (cropWidth || cropHeight) {
             j["crop"]["width"] = cropWidth;

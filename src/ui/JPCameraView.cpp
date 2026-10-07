@@ -16,6 +16,10 @@
 inline namespace jf {
 
 namespace {
+
+// The red cross over a view with no picture, or over a live camera not calibrated: this many border widths thick,
+// to be seen at once.
+constexpr float kCrossWidths = 4.f;
 // Each notch of the wheel zooms by this much, by sensitivity (OpenPnP's).
 double zoomPerNotch(JPCameraView::ZoomSensitivity s) {
     switch (s) {
@@ -421,6 +425,12 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     const JStyle& st = JStyle::current();
     buf.pushRectangle(b.x, b.y, b.width, b.height, Colors::DockContentBg, 0.f);
     if (m_tex == kNullTexture || m_w <= 0 || m_h <= 0) {
+        // No picture: OpenPnP's red cross over the whole view (its CameraView with no image).
+        JVectorCanvas none;
+        const JPaint red = JPaint::solid(rgb(Colors::Danger[0], Colors::Danger[1], Colors::Danger[2]));
+        none.drawLine(b.x, b.y, b.x + b.width, b.y + b.height, kCrossWidths * st.borderWidth, red);
+        none.drawLine(b.x + b.width, b.y, b.x, b.y + b.height, kCrossWidths * st.borderWidth, red);
+        none.flush(buf);
         if (!m_message.empty()) {
             const float tw = JTextHelper::measureWidth(m_message);
             JTextHelper::pushText(buf, b.x + std::max(0.f, (b.width - tw) * 0.5f),
@@ -520,6 +530,14 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
         vg.strokeRect(m_dragX - half, m_dragY - half, 2 * half, 2 * half, line, JPaint::solid(d));
     }
 
+    // A live camera not calibrated for its picture size: a red cross over the whole picture, as it cannot be
+    // measured through (its scale, its lens, where it is all unknown), with what is missing said below.
+    if (m_warnUncalibrated && !calibrated && !m_showingStill) {
+        const JPaint red = JPaint::solid(rgb(Colors::Danger[0], Colors::Danger[1], Colors::Danger[2]));
+        vg.drawLine(vx0, vy0, vx1, vy1, kCrossWidths * line, red);
+        vg.drawLine(vx0, vy1, vx1, vy0, kCrossWidths * line, red);
+    }
+
     // The light toggle, while not choosing a place or a selection (as OpenPnP's).
     if (m_hasLight && !m_selecting && !onPicked) drawLightToggle(vg);
 
@@ -531,6 +549,13 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     if (!m_message.empty()) {
         buf.pushRectangle(vx0, vy0, vx1 - vx0, lh + 2 * pad, Colors::OverlayScrim, 0.f);
         JTextHelper::pushText(buf, vx0 + pad, vy0 + pad, m_message, Colors::Warning, vx1 - vx0 - 2 * pad);
+    }
+    // Not calibrated: said, at the top, unless something more pressing is.
+    if (m_warnUncalibrated && !calibrated && !m_showingStill && m_message.empty() && m_prompt.empty()) {
+        char text[96];
+        std::snprintf(text, sizeof text, "Not calibrated for its %d\xC3\x97%d pictures: calibrate it (the target button)", m_w, m_h);
+        buf.pushRectangle(vx0, vy0, vx1 - vx0, lh + 2 * pad, Colors::OverlayScrim, 0.f);
+        JTextHelper::pushText(buf, vx0 + pad, vy0 + pad, text, Colors::Danger, vx1 - vx0 - 2 * pad);
     }
     // What to do (choose a place), over the top.
     if (!m_prompt.empty() && m_message.empty()) {

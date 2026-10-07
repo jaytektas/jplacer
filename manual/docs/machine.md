@@ -663,6 +663,10 @@ homed. With the head's homing mark set (its place and diameter, brought across b
 calibrates over that; on a new machine, with none set, it calibrates over the mark the camera is over now
 (jog it there first), as Issues & Solutions' first vision step does (see below).
 
+A camera view with no picture (the camera off, or giving none) is crossed out in red, as OpenPnP's; a live
+picture from a camera not calibrated for its size is crossed out too, saying so (the camera's **Warn if camera
+calibration is not completed**).
+
 While it runs, the camera's view shows each find as it comes: the picture with a green circle and cross where
 the mark (or, for a camera looking up, the nozzle's tip) was found, the size it was found, and which move of
 how many ("measuring, move 14 of 38"), so a wrong find shows at once.

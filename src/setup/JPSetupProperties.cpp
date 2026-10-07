@@ -2037,6 +2037,9 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
                  "or when a computer vision result is presented.");
     add.tipOf("autoCameraView", "If enabled, the CameraView will be automatically selected whenever a user action is related "
                                 "to the camera or when a computer vision result is presented.");
+    add.flag("warnUncalibrated", "Warn if camera calibration is not completed", [c]() -> bool& { return c().warnUncalibrated; });
+    add.tip("A live picture from this camera, not calibrated for its picture size, crossed out in red and said so over "
+            "it: what is measured through it (its scale, its lens, where it is) cannot be trusted until it is calibrated.");
     add.tipOf("shownInMultiView", "Show this camera in the Camera Panel when mutiple cameras are shown. For example this can be "
                                   "switched off for capture card cameras that are already exposed through SwitcherCameras. "
                                   "(Off, its window starts closed.)");

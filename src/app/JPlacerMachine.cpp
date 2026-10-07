@@ -273,6 +273,7 @@ void JPlacerMachine::buildCameras() {
         // OpenPnP's camera Properties: the preview's rate, held while the machine works, and brought forward.
         JPCameraPanel* panel = d.panel.get();
         d.panel->view().setPreviewFps(c.previewFps);
+        d.panel->view().setWarnUncalibrated(c.warnUncalibrated);
         if (c.suspendDuringTasks)
             d.panel->view().suspended = [this] { return m_cell && (m_cell->isMoving() || (jobRunning && jobRunning())); };
         if (c.autoCameraView) d.panel->view().onPictureShown = [this, panel] { bringForward(*panel); };

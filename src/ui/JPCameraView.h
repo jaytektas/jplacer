@@ -113,6 +113,8 @@ public:
     // The live picture shown at most `fps` times a second (0: every picture),
     // and held while `suspended` says (pictures vision shows still shown).
     void setPreviewFps(double fps) { m_previewFps = fps; }
+    // A live picture not calibrated for its size crossed out and said so (the camera's setting).
+    void setWarnUncalibrated(bool on) { m_warnUncalibrated = on; invalidate(); }
     std::function<bool()> suspended;
     // A picture vision shows (showPicture), for its owner to bring it forward.
     std::function<void()> onPictureShown;
@@ -201,6 +203,7 @@ private:
     // again when the rendering quality changes.
     JPFrame                            m_still;
     bool                               m_showingStill = false;
+    bool                               m_warnUncalibrated = true;
     void upload(const JPFrame& picture);
     std::vector<std::pair<JMenuItem*, JPReticle::Kind>> m_kindItems;
     std::vector<std::pair<JMenuItem*, double>> m_spacingItems, m_sizeItems;

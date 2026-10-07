@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- A camera view with no picture is crossed out in red, as in OpenPnP; a live camera not calibrated for its picture
+  size is crossed out too, saying so (camera setting: Warn if camera calibration is not completed, on by default).
 - Camera calibration shows each find on the camera's view as it goes: a green circle where the mark (or the nozzle
   tip, for the bottom camera) was found, and which move of how many.
 - Moving a nozzle by hand (Position Tool, Move Selected Nozzle to Camera, a jog) brings forward the camera looking
