@@ -182,7 +182,8 @@ bool JPCameraLook::settledNow(JPCameraFeed& feed, JPGrayImage& out, std::string&
             JLOGC(JPlacerLog::kCamera, JLogLevel::Warn)
                 << feed.config().name << ": not settled within " << st.timeoutMs << " ms (" << numbers << ")"
                 << (least > st.threshold ? "; the picture's noise is above the threshold, so it can never settle: raise "
-                                           "Settle Threshold above it (Settle Test)" : "")
+                                           "Denoise (Pixel) until the Settle Test's Here line is under the threshold "
+                                           "(else raise the threshold)" : "")
                 << "; the last picture is used";
         }
     }

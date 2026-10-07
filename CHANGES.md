@@ -12,7 +12,7 @@ notes.
 
 - A camera that does not settle within its Settle Timeout says why: the least difference it saw against its
   threshold, and when the picture's own noise is above the threshold (so it can never settle), that the threshold
-  needs raising. OpenPnP only notes a time-out in its debug log.
+  needs raising: Denoise (Pixel) first. OpenPnP only notes a time-out in its debug log.
 ## 0.1.6
 
 - Calibrate precise nozzle offsets starts where you sized the test object (Feature diameter or Auto-Detect Next):
