@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.16
+
 - Calibrating a nozzle's precise offsets logs each angle's estimate and says in its result how closely they agree,
   so an inconsistent run shows as one.
 - The bottom camera's calibration steps no longer put a box over the camera: what to do is on the camera's line,
@@ -23,6 +25,7 @@ notes.
 - Whole-number settings are sized to their range (a percentage's field is narrower).
 - Nozzle tip loading and unloading no longer make backlash compensation's extra moves: a one-sided axis went its
   Backlash Offset past each changer place and back, which could drive the tip into the slot's wall.
+
 ## 0.1.15
 
 - The Jog panel's nozzle tip button shows whether the tip on the chosen nozzle is calibrated: green when it is
