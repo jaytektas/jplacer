@@ -17,7 +17,7 @@ inline namespace jf {
 // vision, where the light is not always the same. A picture looked at, the
 // exposure scaled by how far its brightness is from the target (a picture
 // grows about as bright as its exposure is long), and looked at again, until
-// it is near enough or the tries are used up. Each look waits out the
+// it is near enough or the tries are used up (each look logged, at Debug). Each look waits out the
 // pictures the device gives before it shows a new setting (JPAutoTune's).
 // Driven from the thread that captures (JPCameraFeed): each picture shown to
 // see(), and step() between.
@@ -27,7 +27,9 @@ public:
     // the one it has); a picture this bright or more is too bright to scale from (its exposure divided by
     // kSaturatedStep instead).
     static constexpr double kNearLevels = 8, kSaturated = 250, kSaturatedStep = 4;
-    static constexpr int    kTries = 4;
+    // Six: the bench's bottom camera, opened after a restart at its stored exposure (three times the one it
+    // wanted), ended four tries 9 levels out (137 at 448; 129 at 418 after): a fifth would have had it.
+    static constexpr int    kTries = 6;
 
     struct Result {
         bool        ok = false;

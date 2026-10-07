@@ -5,6 +5,10 @@
 
 #include "JPAutoTune.h"
 
+#include "common/JPlacerLog.h"
+
+#include <j/core/Log.h>
+
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -67,6 +71,8 @@ std::optional<JPOneShotExposure::Result> JPOneShotExposure::step(JPCaptureSource
     const bool near = std::abs(b - m_target) <= kNearLevels;
     const double next = b >= kSaturated ? m_exposure / kSaturatedStep : m_exposure * m_target / std::max(b, 1.0);
     const bool stuck = std::clamp(std::round(next), m_lo, m_hi) == m_exposure;   // at its least or most
+    JLOGC(JPlacerLog::kCamera, JLogLevel::Debug) << source.describe() << ": exposure " << m_exposure << " gave brightness " << b
+                                                  << " (try " << m_tries << " of " << kTries << ")";
     if (near || stuck || m_tries >= kTries) {
         m_running = false;
         r.ok = near;
