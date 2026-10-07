@@ -52,17 +52,16 @@ public:
     int    rowCount() const override { return int(shown.size()); }
     std::string text(int row, int) const override { return shown[size_t(row)]->line; }
     std::string rowKey(int row) const override { return std::to_string(reinterpret_cast<uintptr_t>(shown[size_t(row)])); }
+    // OpenPnP's colours by level, as the theme has them, readable on its background (OpenPnP's own are for a
+    // white one: its blue Info and its errors' pale band cannot be read on a dark theme): Info and Debug in
+    // the text's own colour, Trace dimmed, warnings and errors in the theme's warning and danger colours.
     const uint8_t* cellInk(int row, int) const override {
         switch (shown[size_t(row)]->level) {
-            case JLogLevel::Trace: return Colors::Success;
-            case JLogLevel::Info:  return Colors::Accent;
-            case JLogLevel::Warn:
+            case JLogLevel::Trace: return Colors::TextSecondary;
+            case JLogLevel::Warn:  return Colors::Warning;
             case JLogLevel::Error: return Colors::Danger;
             default:               return nullptr;
         }
-    }
-    const uint8_t* cellTint(int row, int) const override {
-        return shown[size_t(row)]->level == JLogLevel::Error ? Colors::Warning : nullptr;
     }
 };
 

@@ -2,8 +2,9 @@
 
 The **Log** tab shows what jplacer's log says as it says it, as OpenPnP's Log tab does: one line an
 entry, its time, where it comes from, its level and what it says ("2026-10-05 12:00:00.123 job INFO:
-Job finished without error"), coloured by its level (trace green, information blue, warnings and errors
-red, an error on a background of its own). While the list is at its end it follows the newest entry.
+Job finished without error"), coloured by its level in the theme's colours, readable on its background
+(information and debug in the text's own colour, trace dimmed, warnings in the warning colour, errors in
+the danger colour; OpenPnP's blue and its errors' pale band are for its white background). While the list is at its end it follows the newest entry.
 
 The log is also written to a file as it comes, as OpenPnP's `log/OpenPnP.log`: `log/jplacer.log` in jplacer's
 folder (`~/.config/jplacer`), each entry a line as the tab shows it. Past 10 MB it is moved aside to
