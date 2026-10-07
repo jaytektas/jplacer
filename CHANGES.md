@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.11
+
 - A nozzle tip's Calibration tab is OpenPnP's: no camera button on it (the bottom camera's Calibrate does that
   job), OpenPnP's colour wheel and value bar of the background colours found, with its findings beside them, and
   settings greyed when they do nothing (calibration off, or the background method not using them).
