@@ -379,6 +379,7 @@ public:
     JSignal<bool, std::string>                   onMotion;       // a move or home ended: ok, why not
     JSignal<std::string>                         onWaiting;      // a wait on purpose begun (what, how long), "" when it ends
     JSignal<bool>                                onHomed;
+    JSignal<std::string>                         onParked;       // a head parked in X and Y (its id): not Z, not rotation
     JSignal<>                                    onCalibration;  // a camera's calibration or the squareness changed
     JSignal<std::string, std::string>            onState;        // controller id, its new state
 

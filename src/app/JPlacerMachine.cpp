@@ -819,26 +819,55 @@ void JPlacerMachine::watchCell() {
             if (!homed && onUnhomed) onUnhomed();
             // As OpenPnP's: Machine.AfterDriverHoming once the controllers have homed, then the head's
             // (visual) homing, Machine.AfterHoming, and the park.
-            if (!homed) return;
-            auto afterHoming = [this] {
-                runEvent("Machine.AfterHoming", [this] {
+            if (!homed) {
+                m_finishingHome = false;
+                showState();
+                return;
+            }
+            // Homing goes on past the switches (visual homing, the tips' recalibration, Machine.AfterHoming): the
+            // Home button busy until it is done, as OpenPnP's homing is one.
+            m_finishingHome = true;
+            showState();
+            auto finished = [this] {
+                m_finishingHome = false;
+                showState();
+            };
+            auto afterHoming = [this, finished] {
+                runEvent("Machine.AfterHoming", [this, finished] {
+                    finished();
                     if (m_cell && m_cell->isHomed() && m_cell->config().parkAfterHome) park();
                 });
             };
             // The nozzle tips' runout recalibrated as their Auto Recalibration says, before Machine.AfterHoming.
-            auto recalibrate = [this, afterHoming] {
+            auto recalibrate = [this, afterHoming, finished] {
                 std::vector<std::string> nozzles;
                 if (m_cell)
                     for (const JPNozzleConfig& n : m_cell->config().nozzles) nozzles.push_back(n.id);
-                recalibrateAfterHoming(std::move(nozzles), [afterHoming](bool ok) {
+                recalibrateAfterHoming(std::move(nozzles), [this, afterHoming, finished](bool ok) {
                     if (ok) afterHoming();
+                    else {
+                        m_homeFailed = true;
+                        finished();
+                    }
                 });
             };
-            runEvent("Machine.AfterDriverHoming", [this, recalibrate] {
-                if (!m_cell || !m_cell->isHomed()) return;
+            runEvent("Machine.AfterDriverHoming", [this, recalibrate, finished] {
+                if (!m_cell || !m_cell->isHomed()) {
+                    finished();
+                    return;
+                }
                 if (m_cameraTasks)
-                    m_cameraTasks->visualHome([recalibrate](bool ok) {
-                        if (ok) recalibrate();
+                    // As OpenPnP's: visual homing is the head's homing; failed, the machine is not homed (its
+                    // coordinates are the switches' alone, which the homing fiducial did not confirm).
+                    m_cameraTasks->visualHome([this, recalibrate, finished](bool ok) {
+                        if (ok) {
+                            recalibrate();
+                            return;
+                        }
+                        if (m_cell) m_cell->unhome();
+                        m_homeFailed = true;
+                        m_window.showStatus("Homing failed: visual homing did not finish (the camera says why); not homed", kErrorMs);
+                        finished();
                     });
                 else
                     recalibrate();
@@ -846,6 +875,14 @@ void JPlacerMachine::watchCell() {
         });
     }));
     m_unwatch.push_back(m_cell->onState.connect([onMain](std::string, std::string) { onMain([] {}); }));
+    // Parked in X and Y: the cameras' lights off, until you next do something at a camera (userActionLight).
+    m_unwatch.push_back(m_cell->onParked.connect([this, onMain](std::string) {
+        onMain([this] {
+            m_userLit.clear();
+            m_parkedDark = true;
+            lightCameras();
+        });
+    }));
     // A wait on purpose (the pump coming up to pressure) in the banner while it lasts.
     m_unwatch.push_back(m_cell->onWaiting.connect([this, onMain](std::string what) {
         onMain([this, what] {
@@ -1128,6 +1165,7 @@ void JPlacerMachine::userActionLight(const std::string& cameraId) {
     if (!m_cell || !m_cell->isConnected()) return;
     for (const JPCameraConfig& cam : m_cell->config().cameras)
         if (cam.id == cameraId && cam.light.userAction && !cam.lightActuator().empty()) {
+            m_parkedDark = false;   // something done at a camera again since parking
             m_userLit.insert(cameraId);
             lightCameras();
         }
@@ -2579,7 +2617,7 @@ void JPlacerMachine::showState() {
                              : m_connecting ? "Connecting\xE2\x80\xA6"
                                             : m_cell->config().name + ": not connected. Click to connect.");
 
-    const bool homing = connected && m_cell->isHoming();
+    const bool homing = connected && (m_cell->isHoming() || m_finishingHome);
     m_homeIcon.setEnabled(connected && !homing);
     m_homeIcon.setState(homing ? S::Busy : (connected && m_cell->isHomed()) ? S::Good
                         : (connected && m_homeFailed) ? S::Fault : S::Idle);
@@ -2774,6 +2812,7 @@ void JPlacerMachine::toggleLight(const std::string& light) {
     }
     const auto it = m_lights.find(light);
     const bool on = it == m_lights.end() || !it->second;
+    if (on) m_parkedDark = false;   // switched on by hand: the cameras lit again as they want
     // Switched off by hand: no longer kept on for a move you made near its camera.
     if (!on)
         for (const JPCameraConfig& cam : m_cell->config().cameras)
@@ -2809,7 +2848,7 @@ void JPlacerMachine::lightCameras() {
         if (light.empty()) continue;
         // On screen, or looked at by a move you made (OpenPnP's targeted user action, which leaves it on).
         const bool wanted = c.panel->isRunning() || m_userLit.count(c.panel->camera().id) > 0;
-        lights[light] = lights[light] || (wanted && c.panel->camera().light.userAction);
+        lights[light] = lights[light] || (wanted && c.panel->camera().light.userAction && !m_parkedDark);
         if (!connected) c.panel->setNote("Light off: connect the machine to light this camera.");
     }
     if (!connected) return;

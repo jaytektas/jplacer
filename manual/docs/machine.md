@@ -247,14 +247,18 @@ than their **Max Linear Offset** (0.2 mm to begin with); the last look's correct
 **Auto-Tune when homing?** ticked, the camera is first tuned over the head's primary fiducial (see Machine
 Setup). The line under the camera buttons and
 the status bar say by how much it corrected. Until a camera on the head is calibrated, Home says it homed
-by the switches only.
+by the switches only. Should visual homing fail (the mark not found, the camera not tuned), the homing has
+failed, as OpenPnP's: the machine is not homed (its coordinates are the switches', which the mark did not
+confirm), Home turns red, and the camera's line says why; the tips' recalibration, Machine.AfterHoming and the
+park do not follow.
 
 <!-- src: src/machine/JPGcodeDriver.cpp (connect, unlockForHoming); src/machine/JPCell.cpp (doHome) -->
 
-<!-- src: src/tasks/JPVisualHoming.cpp (run); src/app/JPlacerOpenPnpTabs.cpp (homeFiducialLook); src/app/JPlacerCameraTasks.cpp (visualHome); src/app/JPlacerMachine.cpp (onHomed); src/machine/JPCell.cpp (correctPosition) -->
+<!-- src: src/tasks/JPVisualHoming.cpp (run); src/app/JPlacerOpenPnpTabs.cpp (homeFiducialLook); src/app/JPlacerCameraTasks.cpp (visualHome); src/app/JPlacerMachine.cpp (onHomed, m_finishingHome); src/machine/JPCell.cpp (correctPosition, unhome) -->
 
-The house is grey while the machine is not homed, an amber arc while it homes, and green once homed; a
-failed home turns it red and the status bar says why. A red **ALARM** strip runs across the top of the
+The house is grey while the machine is not homed, an amber arc while it homes (the whole homing: the
+switches, visual homing, the tips' recalibration and Machine.AfterHoming), and green once homed; a failed
+home turns it red and the status bar says why. A red **ALARM** strip runs across the top of the
 window when a controller has stopped on an alarm.
 
 <!-- src: src/machine/JPCell.cpp (doHome); src/app/JPlacerMachine.cpp (showState); src/openpnp/JPOpenPnpMachineImporter.cpp (HOME_COMMAND, visual homing note) -->
@@ -266,7 +270,12 @@ head comes up into its safe zone first, then the head goes to its park place (an
 OpenPnP's), placed by its camera. A park place past a soft limit (often one is set right at the end of
 travel) is gone to as near as the limit allows. It moves at half speed.
 
-<!-- src: src/machine/JPCell.cpp (doPark); src/app/JPlacerMachine.cpp (park, kParkSpeed); src/app/JPlacerMenuBuilder.cpp -->
+Once parked in X and Y (not a Z or rotation park), every camera's light is switched off, on screen or not,
+and kept off until you next do something at a camera: a move to it (a jog, Position Tool, Move Selected
+Nozzle to Camera, a click in its picture) or its light switched on by hand. A camera taking a picture for
+vision still lights itself for it, as its Light settings say.
+
+<!-- src: src/machine/JPCell.cpp (doPark, park, parkAndWait, onParked); src/app/JPlacerMachine.cpp (park, kParkSpeed, onParked, lightCameras, userActionLight); src/app/JPlacerMenuBuilder.cpp -->
 
 #### Backlash
 

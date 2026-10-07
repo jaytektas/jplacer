@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- A failed visual homing fails the homing, as OpenPnP's: the machine is not homed and Home turns red (it showed
+  green, homed by the switches alone). Home stays busy until the whole homing has finished.
+- Parking the head (X and Y) switches every camera's light off, until you next do something at a camera.
 - A camera's Device Settings keep their Min, Max, Default and sliders after Defaults, then Auto-Tune (or any
   camera setting changed) while the camera is not on screen; they went blank until the camera next ran.
 ## 0.1.14

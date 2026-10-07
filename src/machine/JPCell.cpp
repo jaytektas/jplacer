@@ -309,6 +309,7 @@ void JPCell::park(const std::string& headId, double speed) {
         std::string why;
         const bool ok = finished(doPark(headId, speed, why), why);
         m_moving = false;
+        if (ok) onParked.emit(headId);
         onMotion.emit(ok, why);
     });
 }
@@ -1005,7 +1006,9 @@ bool JPCell::discardAndWait(const std::string& nozzleId, double speed, std::stri
 }
 
 bool JPCell::parkAndWait(const std::string& headId, double speed, std::string& why) {
-    return waitFor([&](std::string& w) { return doPark(headId, speed, w); }, why);
+    const bool ok = waitFor([&](std::string& w) { return doPark(headId, speed, w); }, why);
+    if (ok) onParked.emit(headId);
+    return ok;
 }
 
 bool JPCell::moveToolAndWait(const JPMountConfig& mount, std::array<std::optional<double>, 4> to, double speed,

@@ -402,6 +402,10 @@ private:
     void recalibrateAfterHoming(std::vector<std::string> nozzles, std::function<void(bool)> done);
     // By nozzle tip: its last background calibration's problem pictures (BGR, as seen and marked, in pairs).
     std::map<std::string, std::vector<cv::Mat>> m_backgroundProblems;
+    // Homed by the switches, homing goes on (visual homing, recalibration, Machine.AfterHoming).
+    bool                                m_finishingHome = false;
+    // Parked in X and Y: the cameras' lights kept off until you next do something at a camera.
+    bool                                m_parkedDark = false;
     std::map<std::string, bool>         m_lights;   // by actuator id: on or off as last switched
     // Cameras whose light a move you made near them switched on (OpenPnP's targeted user action), kept on until
     // switched off by hand.
