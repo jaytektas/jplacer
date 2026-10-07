@@ -92,7 +92,9 @@ JPIssuesPanel::JPIssuesPanel(JSceneGraph& graph, JPSolutions& solutions, double 
     for (int m = 0; m <= int(S::Milestone::Advanced); ++m) milestones.push_back(S::name(S::Milestone(m)));
     m_milestone = bar->add(std::make_unique<JComboBox>(graph, milestones, 0.f));
     m_milestone->setTooltip(milestone->tooltip());
-    m_milestone->setHSizePolicy(JSizePolicyMode::Expanding, 1);
+    float longest = 0;
+    for (const std::string& name : milestones) longest = std::max(longest, JTextHelper::measureWidth(name));
+    m_milestone->setMinimumSize(longest + st.controlHeight + 2 * st.spacing, st.controlHeight);   // as long as its longest name
     m_milestone->onIndexChanged.connect([this](int i) {
         if (i < 0 || S::Milestone(i) == m_solutions.targetMilestone()) return;
         m_solutions.setTargetMilestone(S::Milestone(i));
@@ -102,7 +104,7 @@ JPIssuesPanel::JPIssuesPanel(JSceneGraph& graph, JPSolutions& solutions, double 
     JLabel* solved = fixedLabel(*bar, "Include Solved?");
     solved->setTooltip("Include already solved solutions, if they can be revisited.\nSome solutions can only be accepted once, "
                        "these will not reappear.");
-    m_showSolved = bar->add(std::make_unique<JCheckBox>(graph, ""));
+    m_showSolved = bar->add(std::make_unique<JCheckBox>(graph, "", st.checkHeight));
     m_showSolved->setChecked(m_solutions.showSolved());
     m_showSolved->onStateChanged.connect([this](bool on) {
         m_solutions.setShowSolved(on);
@@ -111,13 +113,15 @@ JPIssuesPanel::JPIssuesPanel(JSceneGraph& graph, JPSolutions& solutions, double 
     });
     JLabel* dismissed = fixedLabel(*bar, "Include Dismissed?");
     dismissed->setTooltip("Include already dismissed solutions.");
-    m_showDismissed = bar->add(std::make_unique<JCheckBox>(graph, ""));
+    m_showDismissed = bar->add(std::make_unique<JCheckBox>(graph, "", st.checkHeight));
     m_showDismissed->setChecked(m_solutions.showDismissed());
     m_showDismissed->onStateChanged.connect([this](bool on) {
         m_solutions.setShowDismissed(on);
         if (m_solutions.onChanged) m_solutions.onChanged();
         findIssuesAndSolutions();
     });
+    // What is left of the bar, after the checkboxes: the info button kept to the right.
+    bar->add(std::make_unique<JLabel>(graph, ""))->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     JPIconButton* aboutMilestone = bar->add(std::make_unique<JPIconButton>(
         graph, "Milestone Info", "info", "Open the Wiki page about Issues & Solutions and Milestones."));
     aboutMilestone->setLeads(JPIconButton::Leads::Elsewhere);

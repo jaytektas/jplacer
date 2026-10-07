@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Issues & Solutions' bar is tidier: the Milestone box is as wide as its longest milestone, the checkboxes sit
+  beside their labels, and the wiki button is at the right.
 ## 0.1.1
 
 - Issues & Solutions' Milestone is now a box: choose any milestone to go straight to it (back to Calibration
