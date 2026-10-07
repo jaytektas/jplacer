@@ -3,6 +3,8 @@
 
 #include "JPIssueChecks.h"
 
+#include "common/JPWhen.h"
+
 #include "tasks/JPVisionFeature.h"
 
 #include "JPNozzleSolution.h"
@@ -1781,15 +1783,22 @@ void nozzleOffsets(JPSolutions& s, const JPIssueChecks::Context& c) {
                                 const JPMachineLocation& p = *head->rigPrimary;
                                 double ox = p.x - *ax, oy = p.y - *ay;
                                 const double oz = p.z - *az;
+                                bool kept = false;
                                 // Offsets near the old ones (inside the fiducial) may already be calibrated precisely: Z only.
                                 if (std::sqrt(std::pow(before->x - ox, 2) + std::pow(before->y - oy, 2) + std::pow(before->z - oz, 2))
                                     < head->rigPrimaryDiameter * 0.5) {
                                     ox = before->x;
                                     oy = before->y;
+                                    kept = true;
                                 }
                                 x.mount.offsetX = ox;
                                 x.mount.offsetY = oy;
                                 x.mount.offsetZ = oz;
+                                // Its X, Y set roughly (not the ones kept, perhaps precise): when, and how.
+                                if (!kept) {
+                                    x.offsetsWhen = JPWhen::now();
+                                    x.offsetsHow = "roughly, on the primary fiducial";
+                                }
                             }
                         });
                         return true;
@@ -1865,6 +1874,8 @@ void nozzleOffsets(JPSolutions& s, const JPIssueChecks::Context& c) {
                 else std::snprintf(heightText, sizeof heightText, "\n\nTest object Z: %.3f mm (the primary fiducial's; capture it for a thicker "
                                                                   "object).", h.rigPrimary->z);
                 std::string results = heightText;
+                results += "\n\nOffsets last calibrated: " + (n.offsetsWhen.empty() ? std::string("never, in jplacer")
+                                                                                   : JPWhen::withAgo(n.offsetsWhen) + ", " + n.offsetsHow) + ".";
                 if (const auto r = c.nozzleOffsetsResult ? c.nozzleOffsetsResult(nozzleId) : std::nullopt) {
                     char buf[320];
                     std::snprintf(buf, sizeof buf,

@@ -34,6 +34,9 @@ struct JPNozzleConfig {
     // OpenPnP's Dynamic Safe Z: carrying a part, its safe Z raised by the
     // part's height, so the part's bottom is at safe Z (within the safe zone).
     bool                     dynamicSafeZ = false;
+    // When its X, Y offsets were last calibrated (JPWhen's form; by the fiducial roughly, or precisely with a
+    // test object), and how: empty when never, here.
+    std::string              offsetsWhen, offsetsHow;
     // OpenPnP's Tool Changer: tips changed by their load and unload steps
     // (else asked to be changed by hand, as for a tip without steps); and a
     // pick from the Feeders tab changing to a tip that fits the part.
@@ -92,6 +95,8 @@ struct JPNozzleConfig {
         n.vacuumSenseActuatorId = j["vacuumSenseActuator"].str();
         n.pickDwellMs           = int(j["pickDwellMs"].number());
         n.dynamicSafeZ          = j["dynamicSafeZ"].boolean();
+        n.offsetsWhen           = j["offsetsCalibrated"]["when"].str();
+        n.offsetsHow            = j["offsetsCalibrated"]["how"].str();
         n.changerEnabled        = j["changerEnabled"].boolean(true);
         n.tipChangeOnManualPick = j["tipChangeOnManualPick"].boolean();
         n.manualChangeLocation  = JPMachineLocation::fromJson(j["manualChangeLocation"]);
@@ -134,6 +139,10 @@ struct JPNozzleConfig {
         if (!vacuumSenseActuatorId.empty()) j["vacuumSenseActuator"] = vacuumSenseActuatorId;
         if (pickDwellMs) j["pickDwellMs"] = pickDwellMs;
         if (dynamicSafeZ) j["dynamicSafeZ"] = true;
+        if (!offsetsWhen.empty()) {
+            j["offsetsCalibrated"]["when"] = offsetsWhen;
+            j["offsetsCalibrated"]["how"] = offsetsHow;
+        }
         if (!changerEnabled) j["changerEnabled"] = false;
         if (tipChangeOnManualPick) j["tipChangeOnManualPick"] = true;
         if (manualChangeLocation) j["manualChangeLocation"] = manualChangeLocation->toJson();

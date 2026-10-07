@@ -723,11 +723,20 @@ it is focused at), the calibration is made by moving the nozzle instead of the c
 comes up again, whether it worked or not. The tip's size need not be known: the camera's rough scale (an
 imported camera keeps OpenPnP's) is enough to start from.
 
+It goes on, as one calibration and without asking again, when the tip on that nozzle has its calibration
+enabled (its **Enable?**): the tip's **runout** is measured over the camera (the camera's scale now known),
+then **Calibrate Camera Position and Rotation** sends the tip round a circle and sets the camera's true
+position and turn, about the nozzle's axis rather than the tip's end. The first step's position is the
+tip's, off the axis by the runout at the angle the nozzle held; the last step takes that out. With the
+tip's calibration not enabled it stops after the first, saying the position is the tip's. With the camera's
+**Auto-Tune when calibrating?**, it tunes on the tip first. Calibrate the nozzle's offsets (with the top
+camera) before this: the camera's position is found in that nozzle's terms.
+
 A camera looking up sees the machine as a mirror image of one looking down; its turn and whether it is
 mirrored are given against that, so a straight-mounted camera looking up reads as turned 0 and not
 mirrored.
 
-<!-- src: src/app/JPlacerCameraTasks.cpp (calibrateFixed); src/tasks/JPCameraCalibrator.cpp (Options::moving); src/machine/JPCell.cpp (safeZAndWait); src/machine/JPCameraCalibration.cpp (rotationDeg, mirrored) -->
+<!-- src: src/app/JPlacerCameraTasks.cpp (calibrateFixed, onFixedCalibrated, calibrateRunoutCamera); src/app/JPlacerMachine.cpp (onFixedCalibrated, calibrateCameraPosition); src/tasks/JPCameraCalibrator.cpp (Options::moving); src/machine/JPCell.cpp (safeZAndWait); src/machine/JPCameraCalibration.cpp (rotationDeg, mirrored) -->
 
 #### Visual Test
 

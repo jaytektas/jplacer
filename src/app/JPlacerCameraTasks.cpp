@@ -341,7 +341,7 @@ void JPlacerCameraTasks::calibrateRunout(const std::string& nozzleId, RunoutDone
     });
 }
 
-void JPlacerCameraTasks::calibrateRunoutCamera(const std::string& nozzleId, CameraFixDone done) {
+void JPlacerCameraTasks::calibrateRunoutCamera(const std::string& nozzleId, CameraFixDone done, bool ask) {
     const JPNozzleConfig* nozzle = nullptr;
     for (const JPNozzleConfig& n : m_cell.config().nozzles)
         if (n.id == nozzleId) nozzle = &n;
@@ -386,6 +386,10 @@ void JPlacerCameraTasks::calibrateRunoutCamera(const std::string& nozzleId, Came
             if (ok && done) done(id, *fix);
         });
     };
+    if (!ask) {
+        start();
+        return;
+    }
     const JPCameraConfig& cam = camera->camera();
     char body[640];
     std::snprintf(body, sizeof body,
@@ -1009,7 +1013,8 @@ void JPlacerCameraTasks::calibrateFixed(JPCameraPanel& camera, std::function<voi
     const std::string cameraId = cam.id;
     std::weak_ptr<bool> alive = m_alive;
     JPCameraPanel* panel = &camera;
-    JDialog::confirm("Calibrate " + cam.name, body, [this, alive, panel, feed, tool, place, cameraId, finished] {
+    JDialog::confirm("Calibrate " + cam.name, body, [this, alive, panel, feed, tool, place, cameraId, finished,
+                                                     nozzleId = std::string(nozzle->id)] {
         if (const auto a = alive.lock(); !a || !*a) return;
         if (m_busy) {   // another task began while asking
             if (finished) finished(false);
@@ -1060,9 +1065,10 @@ void JPlacerCameraTasks::calibrateFixed(JPCameraPanel& camera, std::function<voi
             *result = *c;
             words = calibrated(feed->config(), *c) + secondWhy;
             return true;
-        }, [this, cameraId, result, finished](bool ok) {
+        }, [this, cameraId, result, finished, nozzleId](bool ok) {
             if (ok) keepCalibration(cameraId, *result);
             if (finished) finished(ok);
+            if (ok && onFixedCalibrated) onFixedCalibrated(cameraId, nozzleId);
         });
     }, [finished] {
         if (finished) finished(false);   // not confirmed

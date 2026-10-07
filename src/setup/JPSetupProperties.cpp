@@ -3,6 +3,8 @@
 
 #include "JPSetupProperties.h"
 
+#include "common/JPWhen.h"
+
 #include "machine/JPSerialPorts.h"
 
 #include "camera/JPOnvif.h"
@@ -686,7 +688,7 @@ void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPF
 
 // What measuring an axis's backlash found, as graphs.
 void backlashResults(JPFormBuilder& add, const JPBacklashCalibration& k) {
-    add.group("Calibrated " + k.when);
+    add.group("Calibrated " + JPWhen::withAgo(k.when));
     char b[96];
     std::snprintf(b, sizeof b, "%.4f mm", k.toleranceMm);
     add.text("backlashTolerance", "Tolerance", [v = std::string(b)] { return v; }, nullptr);
@@ -1074,6 +1076,12 @@ void nozzleForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     add.group("Properties");
     add.text("name", "Name", [n]() -> std::string& { return n().name; }, "name");
     coordinateSystem<JPNozzleConfig>(add, cell, n, "(none)", false, f);
+    // When its offsets were last calibrated: a crash since, and they want doing again.
+    {
+        const std::string when = n().offsetsWhen.empty() ? std::string("never, in jplacer")
+                                                         : JPWhen::withAgo(n().offsetsWhen) + ", " + n().offsetsHow;
+        add.text("offsetsCalibrated", "Offsets Calibrated", [when] { return when; }, nullptr);
+    }
     add.group("Settings");
     add.integer("pickDwellMs", "Pick Dwell Time (ms)", [n]() -> int& { return n().pickDwellMs; }, 0, 60000);
     add.integer("placeDwellMs", "Place Dwell Time (ms)", [n]() -> int& { return n().placeDwellMs; }, 0, 60000);
@@ -1671,9 +1679,9 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
             status = t().name + " on " + n.name + ": ";
             if (const auto it = t().runout.find(n.id); it != t().runout.end()) {
                 char b[120];
-                std::snprintf(b, sizeof b, "runout %.4f mm at %.1f deg (%s)", it->second.radius, it->second.phaseDeg,
+                std::snprintf(b, sizeof b, "runout %.4f mm at %.1f deg (%s), calibrated ", it->second.radius, it->second.phaseDeg,
                               it->second.algorithm.c_str());
-                status += b;
+                status += b + JPWhen::withAgo(it->second.when);
             } else {
                 status += "Uncalibrated";
             }
@@ -1725,7 +1733,7 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
         std::string nozzleName = nozzleId;
         for (const JPNozzleConfig& n : cell.nozzles)
             if (n.id == nozzleId) nozzleName = n.name;
-        add.group("On " + nozzleName + ", " + r.when);
+        add.group("On " + nozzleName + ", " + JPWhen::withAgo(r.when));
         const std::string key = "runout." + nozzleId + ".";
         auto shown = [&add, &key](const std::string& name, const std::string& label, const std::string& value) {
             add.text(key + name, label, [value] { return value; }, nullptr);
@@ -1886,7 +1894,7 @@ void calibrationResults(JPFormBuilder& add, const JPCameraCalibration& cal, bool
     };
     char b[160];
     add.group("Results at " + size);
-    shown("when", "Measured", cal.when);
+    shown("when", "Measured", JPWhen::withAgo(cal.when));
     std::snprintf(b, sizeof b, "%.3f", cal.z);
     shown("z", "At Z", b);
     const double umX = 1000 / cal.scaleX(), umY = 1000 / cal.scaleY();

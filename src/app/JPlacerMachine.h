@@ -386,6 +386,9 @@ private:
     std::string                         m_positionedCamera;   // a camera moved to look somewhere, by name, until there
     // A tip's runout measured on the nozzle it is on, then kept; `done` whether it was, and why not.
     void calibrateTipRunout(const std::string& nozzleId, std::function<void(bool, const std::string&)> done);
+    // OpenPnP's Calibrate Camera Position and Rotation with the tip on `nozzleId`: the camera's position and turn kept.
+    // `ask`: asked first (its own button), not as the last step of the camera's calibration.
+    void calibrateCameraPosition(const std::string& nozzleId, bool ask = true);
     // Once homed, each of `nozzles` in turn (JPlacerMachine::recalibrateAfterHoming); `done` false when one
     // failed with Fail Homing (the machine then unhomed).
     void recalibrateAfterHoming(std::vector<std::string> nozzles, std::function<void(bool)> done);

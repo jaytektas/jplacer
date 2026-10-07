@@ -10,6 +10,11 @@ notes.
 
 ## Unreleased
 
+- The bottom camera's Calibrate does the whole job as one: the camera's scale and lens with the tip over it, then
+  the tip's runout, then the camera's true position and rotation (about the nozzle's axis, not the tip's end),
+  asking only once. With the tip's calibration not enabled it stops after the first and says so.
+- Calibrations show when they were done and how long ago: a nozzle's offsets (new: Offsets Calibrated on its
+  page and in its precise-offsets issue), a tip's runout (its Status), a camera's calibration and an axis's backlash.
 - Cameras can Auto-Tune when calibrating (their own calibration and a nozzle tip's, with the mark or tip over them:
   the time a bottom camera has something to tune on) and for each part in a job: the first part of each kind is
   tuned on and its settings kept for the rest of that kind for the run, without tuning again

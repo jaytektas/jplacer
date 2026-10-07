@@ -99,13 +99,17 @@ public:
     // the tip's on; none when too few pictures) and, failing, why.
     // A task begun ("") and how it ended: "" done, else what failed and why (for a banner that cannot be missed).
     std::function<void(const std::string& failure)> onTaskOutcome;
+    // A camera looking up calibrated with a nozzle's tip held over it (`nozzleId`): for the owner to go on, as one
+    // calibration, with the tip's runout and the camera's true position and rotation.
+    std::function<void(const std::string& cameraId, const std::string& nozzleId)> onFixedCalibrated;
     using RunoutDone = std::function<void(bool ok, const JPRunout&, const std::optional<JPBackgroundCalibration::Result>&,
                                           const std::string& why)>;
     void calibrateRunout(const std::string& nozzleId, RunoutDone done);
     // OpenPnP's Calibrate Camera Position and Rotation with the tip on `nozzleId` (JPRunoutCalibrator::
     // calibrateCamera), asking first. `done` (main thread): where the camera looking up is and how far it is turned.
     using CameraFixDone = std::function<void(const std::string& cameraId, const JPRunoutCalibrator::CameraFix&)>;
-    void calibrateRunoutCamera(const std::string& nozzleId, CameraFixDone done);
+    // `ask`: asked first (its own button); not when it is the last step of a calibration already agreed to.
+    void calibrateRunoutCamera(const std::string& nozzleId, CameraFixDone done, bool ask = true);
     // The settling test: a camera on a head moved (dx, dy) and back, or for a
     // fixed camera `tool` (a nozzle held over it, by hand) moved so, or turned
     // `dc` degrees and back, or (`up`, OpenPnP's) brought over it at Safe Z

@@ -2,6 +2,8 @@
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
 #include "JPlacerMachine.h"
+
+#include "common/JPWhen.h"
 #include "tasks/JPCameraSimulation.h"
 #include "tasks/JPCellJobMachine.h"
 #include "tasks/JPTipSlotVision.h"
@@ -320,6 +322,32 @@ void JPlacerMachine::buildCameras() {
     m_cameraTasks = std::make_unique<JPlacerCameraTasks>(m_window, *m_cell, std::move(panels),
                                                          [this](JPCameraPanel& p) { bringForward(p); }, m_cellPath);
     m_cameraTasks->setScripting(m_scripting);
+    // A camera looking up calibrated with a tip over it: as one calibration, on to the tip's runout (where its
+    // calibration is enabled), then the camera's true position and rotation (about the nozzle's axis, not the
+    // tip's end, which is off it by the runout: what the first step's position was off by).
+    m_cameraTasks->onFixedCalibrated = [this, alive = std::weak_ptr<bool>(m_alive)](const std::string&, const std::string& nozzleId) {
+        if (!m_cell) return;
+        const JPNozzleTipConfig* tip = nullptr;
+        for (const JPNozzleConfig& n : m_cell->config().nozzles)
+            if (n.id == nozzleId)
+                for (const JPNozzleTipConfig& t : m_cell->config().nozzleTips)
+                    if (t.id == n.tipId) tip = &t;
+        if (!tip || !tip->runoutCalibration.enabled) {
+            m_window.showStatus("Camera calibrated; its position is the tip's, runout and all (the tip's calibration is not "
+                                "enabled: enable it for the true position and rotation)", kErrorMs);
+            return;
+        }
+        // The next task once this one has let go (its done is told before it has quite finished).
+        jPostToNextFrame([this, alive, nozzleId] {
+            if (const auto a = alive.lock(); !a || !*a) return;
+            calibrateTipRunout(nozzleId, [this, alive, nozzleId](bool ok, const std::string&) {
+                if (!ok) return;   // said, and in the banner
+                jPostToNextFrame([this, alive, nozzleId] {
+                    if (const auto a = alive.lock(); a && *a) calibrateCameraPosition(nozzleId, false);
+                });
+            });
+        });
+    };
     // A task's failure in the banner, until the next task begins.
     m_cameraTasks->onTaskOutcome = [this](const std::string& failure) {
         m_failure = failure;
@@ -1585,21 +1613,7 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
             m_window.showStatus("Load the tip on a nozzle first: the camera is calibrated with it", kErrorMs);
             return;
         }
-        m_cameraTasks->calibrateRunoutCamera(on->id, [this](const std::string& cameraId, const JPRunoutCalibrator::CameraFix& fix) {
-            if (!m_setup) return;
-            // Its position; its turn into its own calibrations, else (none: as OpenPnP) its picture's rotation.
-            m_setup->change("Camera position and rotation", [&](JPCellConfig& cell) {
-                for (JPCameraConfig& cam : cell.cameras)
-                    if (cam.id == cameraId) {
-                        cam.mount.offsetX = fix.x;
-                        cam.mount.offsetY = fix.y;
-                        if (!cam.calibrations.empty())
-                            for (JPCameraCalibration& c : cam.calibrations) c.turnBy(fix.turnDeg);
-                        else
-                            cam.rotation -= fix.turnDeg;
-                    }
-            });
-        });
+        calibrateCameraPosition(on->id);
     } else if ((action == "autoFocusTest" || action == "adjustCameraZ") && path.rfind("camera:", 0) == 0) {
         const std::string cameraId = path.substr(7);
         const JPMountConfig* nozzleMount = toolMount(JPSetupForm::Tool::Nozzle);
@@ -1889,6 +1903,25 @@ void JPlacerMachine::calibrateTipRunout(const std::string& nozzleId, std::functi
     });
 }
 
+void JPlacerMachine::calibrateCameraPosition(const std::string& nozzleId, bool ask) {
+    if (!m_cameraTasks) return;
+    m_cameraTasks->calibrateRunoutCamera(nozzleId, [this](const std::string& cameraId, const JPRunoutCalibrator::CameraFix& fix) {
+        if (!m_setup) return;
+        // Its position; its turn into its own calibrations, else (none: as OpenPnP) its picture's rotation.
+        m_setup->change("Camera position and rotation", [&](JPCellConfig& cell) {
+            for (JPCameraConfig& cam : cell.cameras)
+                if (cam.id == cameraId) {
+                    cam.mount.offsetX = fix.x;
+                    cam.mount.offsetY = fix.y;
+                    if (!cam.calibrations.empty())
+                        for (JPCameraCalibration& c : cam.calibrations) c.turnBy(fix.turnDeg);
+                    else
+                        cam.rotation -= fix.turnDeg;
+                }
+        });
+    }, ask);
+}
+
 void JPlacerMachine::recalibrateAfterHoming(std::vector<std::string> nozzles, std::function<void(bool)> done) {
     // OpenPnP's ReferenceNozzle.home, nozzle by nozzle: the mounted tip measured again when its Auto
     // Recalibration says (with Fail Homing, failing fails the homing), the others' runout on it forgotten.
@@ -2137,6 +2170,8 @@ void JPlacerMachine::calibratePreciseNozzleOffsets(const std::string& nozzleId, 
                                 << ", " << r.afterY << " (previously " << r.beforeX << ", " << r.beforeY << ")";
                             k.mount.offsetX = r.afterX;
                             k.mount.offsetY = r.afterY;
+                            k.offsetsWhen = JPWhen::now();
+                            k.offsetsHow = "precisely, with the test object";
                             m_offsetsResults[nozzleId] = r;
                         }
                 });
