@@ -39,12 +39,9 @@ std::optional<JPRunout> JPlacerJobHost::measureRunout(JPCell& cell, JPCameraFeed
     return JPRunoutCalibrator::measure(cell, feed, nozzle, tip, &m_machine.scripting(), words, nullptr, background);
 }
 
-void JPlacerJobHost::keepRunout(const std::string& tipId, const std::string& nozzleId, const std::optional<JPRunout>& runout) {
-    m_machine.keepRunout(tipId, nozzleId, runout);
-}
-
-void JPlacerJobHost::keepBackground(const std::string& tipId, const JPBackgroundCalibration::Result& background) {
-    m_machine.keepBackground(tipId, background);
+void JPlacerJobHost::keepRunout(const std::string& tipId, const std::string& nozzleId, const std::optional<JPRunout>& runout,
+                                const std::optional<JPBackgroundCalibration::Result>& background) {
+    m_machine.keepRunout(tipId, nozzleId, runout, background);
 }
 
 } // inline namespace jf

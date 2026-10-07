@@ -51,8 +51,9 @@ public:
     virtual std::optional<JPRunout> measureRunout(JPCell& cell, JPCameraFeed& feed, const JPNozzleConfig& nozzle,
                                                   const JPNozzleTipConfig& tip, std::string& words,
                                                   std::optional<JPBackgroundCalibration::Result>& background) = 0;
-    virtual void keepRunout(const std::string& tipId, const std::string& nozzleId, const std::optional<JPRunout>& runout) = 0;
-    virtual void keepBackground(const std::string& tipId, const JPBackgroundCalibration::Result& background) = 0;
+    // Kept together (one change to the machine): the runout and the background measured with it.
+    virtual void keepRunout(const std::string& tipId, const std::string& nozzleId, const std::optional<JPRunout>& runout,
+                            const std::optional<JPBackgroundCalibration::Result>& background) = 0;
 };
 
 } // inline namespace jf

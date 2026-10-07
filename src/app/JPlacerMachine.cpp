@@ -1938,36 +1938,31 @@ std::string JPlacerMachine::tipChangeRefusal(const std::string& nozzleId, const 
     return m_tipChanges->refusal(nozzleId, tipId);
 }
 
-void JPlacerMachine::keepRunout(const std::string& tipId, const std::string& nozzleId, const std::optional<JPRunout>& r) {
+void JPlacerMachine::keepRunout(const std::string& tipId, const std::string& nozzleId, const std::optional<JPRunout>& r,
+                                const std::optional<JPBackgroundCalibration::Result>& b) {
     if (!m_setup || !m_cell) return;
     std::string nozzleName = nozzleId;
     for (const JPNozzleConfig& n : m_cell->config().nozzles)
         if (n.id == nozzleId) nozzleName = n.name;
+    // The background's problem pictures, for Show Problems.
+    if (b) m_backgroundProblems[tipId] = b->problems;
+    // One change, so the machine takes it once (the runout and the background each a change of its own
+    // remade the machine twice over for one calibration).
     m_setup->change((r ? "Runout on " : "Runout reset on ") + nozzleName, [&](JPCellConfig& cell) {
         for (JPNozzleTipConfig& t : cell.nozzleTips)
             if (t.id == tipId) {
                 if (r) t.runout[nozzleId] = *r;
                 else t.runout.erase(nozzleId);
-            }
-    });
-    m_setup->remakeForm();
-}
-
-void JPlacerMachine::keepBackground(const std::string& tipId, const JPBackgroundCalibration::Result& b) {
-    if (!m_setup) return;
-    // The background's range and what it says, kept with the tip; its problem pictures for Show Problems.
-    m_backgroundProblems[tipId] = b.problems;
-    m_setup->change("Background calibration", [&](JPCellConfig& cell) {
-        for (JPNozzleTipConfig& t : cell.nozzleTips)
-            if (t.id == tipId) {
-                JPNozzleTipConfig::Background& g = t.background;
-                g.minHue = b.minHue;
-                g.maxHue = b.maxHue;
-                g.minSaturation = b.minSaturation;
-                g.maxSaturation = b.maxSaturation;
-                g.minValue = b.minValue;
-                g.maxValue = b.maxValue;
-                g.diagnostics = b.diagnostics;
+                if (b) {
+                    JPNozzleTipConfig::Background& g = t.background;
+                    g.minHue = b->minHue;
+                    g.maxHue = b->maxHue;
+                    g.minSaturation = b->minSaturation;
+                    g.maxSaturation = b->maxSaturation;
+                    g.minValue = b->minValue;
+                    g.maxValue = b->maxValue;
+                    g.diagnostics = b->diagnostics;
+                }
             }
     });
     m_setup->remakeForm();
@@ -1984,10 +1979,7 @@ void JPlacerMachine::calibrateTipRunout(const std::string& nozzleId, std::functi
     m_cameraTasks->calibrateRunout(nozzleId, [this, tipId, nozzleId, done](bool ok, const JPRunout& r,
                                                                                const std::optional<JPBackgroundCalibration::Result>& b,
                                                                                const std::string& why) {
-        if (ok) {
-            keepRunout(tipId, nozzleId, r);
-            if (b) keepBackground(tipId, *b);
-        }
+        if (ok) keepRunout(tipId, nozzleId, r, b);
         if (done) done(ok, why);
     });
 }
@@ -2023,19 +2015,33 @@ void JPlacerMachine::recalibrateAfterHoming(std::vector<std::string> nozzles, st
     const JPNozzleConfig* nozzle = nullptr;
     for (const JPNozzleConfig& n : m_cell->config().nozzles)
         if (n.id == nozzleId) nozzle = &n;
-    const JPNozzleTipConfig* mounted = nullptr;
+    // Read first, then forgotten in one change: a change remakes the cell's configuration, which this walks.
+    bool calibrateMounted = false, failHoming = false;
+    std::vector<std::string> forget;
     if (nozzle)
         for (const JPNozzleTipConfig& t : m_cell->config().nozzleTips) {
             const auto& rc = t.runoutCalibration;
             if (!nozzle->fits(t.id) || (rc.recalibration != "NozzleTipChange" && rc.recalibration != "MachineHome")) continue;
-            if (t.id == nozzle->tipId) mounted = &t;
-            else if (t.runout.count(nozzleId)) keepRunout(t.id, nozzleId, std::nullopt);
+            if (t.id == nozzle->tipId) {
+                calibrateMounted = rc.enabled;
+                failHoming = rc.failHoming;
+            } else if (t.runout.count(nozzleId)) {
+                forget.push_back(t.id);
+            }
         }
-    if (!mounted || !mounted->runoutCalibration.enabled) {
+    if (!forget.empty() && m_setup) {
+        std::string nozzleName = nozzleId;
+        if (nozzle) nozzleName = nozzle->name;
+        m_setup->change("Runout reset on " + nozzleName, [&](JPCellConfig& cell) {
+            for (JPNozzleTipConfig& t : cell.nozzleTips)
+                if (std::find(forget.begin(), forget.end(), t.id) != forget.end()) t.runout.erase(nozzleId);
+        });
+        m_setup->remakeForm();
+    }
+    if (!calibrateMounted) {
         recalibrateAfterHoming(std::move(nozzles), std::move(done));
         return;
     }
-    const bool failHoming = mounted->runoutCalibration.failHoming;
     calibrateTipRunout(nozzleId, [this, nozzles, done, failHoming](bool ok, const std::string& why) mutable {
         if (!ok && failHoming) {
             m_window.showStatus("Homing failed: " + why, kErrorMs);
@@ -2053,6 +2059,22 @@ void JPlacerMachine::setTipOn(const std::string& nozzleId, const std::string& ti
     for (const JPNozzleConfig& n : m_cell->config().nozzles) if (n.id == nozzleId) nozzle = n.name;
     for (const JPNozzleTipConfig& t : m_cell->config().nozzleTips) if (t.id == tipId) tip = t.name;
     JLOGC(JPlacerLog::kCell, JLogLevel::Info) << nozzle << ": " << tip << " on it";
+    // OpenPnP's loadNozzleTip, a tip put on by hand as one the changer loads: its runout forgotten when
+    // its Auto Recalibration says it is measured on each load, and measured again now where it says so
+    // (NozzleTipChange: every load; MachineHome: when not yet measured on this nozzle; NozzleTipChangeInJob:
+    // in a job only). Decided from the tip as it was, before its runout is forgotten; forgotten in the same
+    // change that puts it on (the machine takes it once).
+    bool forget = false, again = false;
+    std::string tipName;
+    for (const JPNozzleTipConfig& t : m_cell->config().nozzleTips) {
+        if (t.id != tipId) continue;
+        const auto rc = t.runoutCalibration;
+        const bool measured = t.runout.count(nozzleId) > 0;
+        forget = (rc.recalibration == "NozzleTipChange" || rc.recalibration == "NozzleTipChangeInJob") && measured;
+        again = rc.enabled && (rc.recalibration == "NozzleTipChange" || (rc.recalibration == "MachineHome" && !measured));
+        tipName = t.name;
+        break;
+    }
     m_setup->change("Tip on " + nozzle + ": " + tip, [&](JPCellConfig& cell) {
         for (JPNozzleConfig& n : cell.nozzles)
             if (n.id == nozzleId) {
@@ -2063,23 +2085,14 @@ void JPlacerMachine::setTipOn(const std::string& nozzleId, const std::string& ti
         if (!tipId.empty())
             for (JPNozzleConfig& n : cell.nozzles)
                 if (n.id != nozzleId && n.tipId == tipId) n.tipId.clear();
+        if (forget)
+            for (JPNozzleTipConfig& t : cell.nozzleTips)
+                if (t.id == tipId) t.runout.erase(nozzleId);
     });
-    // OpenPnP's loadNozzleTip, a tip put on by hand as one the changer loads: its runout forgotten when
-    // its Auto Recalibration says it is measured on each load, and measured again now where it says so
-    // (NozzleTipChange: every load; MachineHome: when not yet measured on this nozzle; NozzleTipChangeInJob:
-    // in a job only). Decided from the tip as it was, before its runout is forgotten.
-    for (const JPNozzleTipConfig& t : m_cell->config().nozzleTips) {
-        if (t.id != tipId) continue;
-        const auto rc = t.runoutCalibration;
-        const bool measured = t.runout.count(nozzleId) > 0;
-        if ((rc.recalibration == "NozzleTipChange" || rc.recalibration == "NozzleTipChangeInJob") && measured)
-            keepRunout(tipId, nozzleId, std::nullopt);
-        const bool again = rc.recalibration == "NozzleTipChange" || (rc.recalibration == "MachineHome" && !measured);
-        if (rc.enabled && again) {
-            if (m_cell->isHomed()) calibrateTipRunout(nozzleId, nullptr);
-            else m_window.showStatus(t.name + " is calibrated once the machine is homed", kStatusMs);
-        }
-        break;
+    if (forget) m_setup->remakeForm();
+    if (again) {
+        if (m_cell->isHomed()) calibrateTipRunout(nozzleId, nullptr);
+        else m_window.showStatus(tipName + " is calibrated once the machine is homed", kStatusMs);
     }
 }
 

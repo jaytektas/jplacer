@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- A nozzle tip's calibration is one step to undo, and the machine takes it once (its runout and its background
+  were two, each remaking Machine Setup and the panels); putting a tip on likewise. Homing forgets other tips'
+  runout in one step too.
+
 - Expose each picture tries up to six exposures, not four: a camera opened after a restart, starting far from its
   exposure, ran out of tries a level short of the brightness wanted (and warned). Each try is in the log at Debug.
 

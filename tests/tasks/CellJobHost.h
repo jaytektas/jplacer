@@ -106,27 +106,23 @@ public:
                                               std::optional<jf::JPBackgroundCalibration::Result>& background) override {
         return jf::JPRunoutCalibrator::measure(cell, feed, nozzle, tip, nullptr, words, nullptr, background);
     }
-    void keepRunout(const std::string& tipId, const std::string& nozzleId, const std::optional<jf::JPRunout>& runout) override {
+    void keepRunout(const std::string& tipId, const std::string& nozzleId, const std::optional<jf::JPRunout>& runout,
+                    const std::optional<jf::JPBackgroundCalibration::Result>& b) override {
         change([&](jf::JPCellConfig& c) {
             for (jf::JPNozzleTipConfig& t : c.nozzleTips)
                 if (t.id == tipId) {
                     if (runout) t.runout[nozzleId] = *runout;
                     else t.runout.erase(nozzleId);
-                }
-        });
-    }
-    void keepBackground(const std::string& tipId, const jf::JPBackgroundCalibration::Result& b) override {
-        change([&](jf::JPCellConfig& c) {
-            for (jf::JPNozzleTipConfig& t : c.nozzleTips)
-                if (t.id == tipId) {
-                    jf::JPNozzleTipConfig::Background& g = t.background;
-                    g.minHue = b.minHue;
-                    g.maxHue = b.maxHue;
-                    g.minSaturation = b.minSaturation;
-                    g.maxSaturation = b.maxSaturation;
-                    g.minValue = b.minValue;
-                    g.maxValue = b.maxValue;
-                    g.diagnostics = b.diagnostics;
+                    if (b) {
+                        jf::JPNozzleTipConfig::Background& g = t.background;
+                        g.minHue = b->minHue;
+                        g.maxHue = b->maxHue;
+                        g.minSaturation = b->minSaturation;
+                        g.maxSaturation = b->maxSaturation;
+                        g.minValue = b->minValue;
+                        g.maxValue = b->maxValue;
+                        g.diagnostics = b->diagnostics;
+                    }
                 }
         });
     }

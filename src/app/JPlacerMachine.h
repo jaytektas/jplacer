@@ -158,10 +158,10 @@ public:
     // The head camera's live picture, brought to the front (a selection is
     // made on it); none when there is no camera on the head.
     JPCameraView* headCameraView();
-    // A tip's runout on a nozzle kept (none: forgotten), and a background calibration's result, through
-    // Machine Setup (a step to undo each).
-    void keepRunout(const std::string& tipId, const std::string& nozzleId, const std::optional<JPRunout>& r);
-    void keepBackground(const std::string& tipId, const JPBackgroundCalibration::Result& b);
+    // A tip's runout on a nozzle kept (none: forgotten), with the background calibration's result measured
+    // with it, through Machine Setup (one step to undo).
+    void keepRunout(const std::string& tipId, const std::string& nozzleId, const std::optional<JPRunout>& r,
+                    const std::optional<JPBackgroundCalibration::Result>& b = std::nullopt);
     // What a nozzle holds (OpenPnP's Nozzle.getPart): the part last picked
     // with it, "" when none (placed or discarded since).
     std::string nozzlePart(const std::string& nozzleId) const;

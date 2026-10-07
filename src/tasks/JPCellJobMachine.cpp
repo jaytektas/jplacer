@@ -355,10 +355,7 @@ bool JPCellJobMachine::calibrateTip(const std::string& nozzleId, std::string& wh
     std::optional<JPBackgroundCalibration::Result> background;
     const auto r = m_host.measureRunout(*c, *feed, *nozzle, *tip, why, background);
     if (!r) return false;
-    m_onMain([&] {
-        m_host.keepRunout(tip->id, nozzleId, *r);
-        if (background) m_host.keepBackground(tip->id, *background);
-    });
+    m_onMain([&] { m_host.keepRunout(tip->id, nozzleId, *r, background); });
     return true;
 }
 

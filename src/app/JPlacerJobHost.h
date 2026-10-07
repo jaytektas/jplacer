@@ -30,8 +30,8 @@ public:
     void        slotScored(const std::string& tipId, double score) override;
     std::optional<JPRunout> measureRunout(JPCell& cell, JPCameraFeed& feed, const JPNozzleConfig& nozzle, const JPNozzleTipConfig& tip,
                                           std::string& words, std::optional<JPBackgroundCalibration::Result>& background) override;
-    void keepRunout(const std::string& tipId, const std::string& nozzleId, const std::optional<JPRunout>& runout) override;
-    void keepBackground(const std::string& tipId, const JPBackgroundCalibration::Result& background) override;
+    void keepRunout(const std::string& tipId, const std::string& nozzleId, const std::optional<JPRunout>& runout,
+                    const std::optional<JPBackgroundCalibration::Result>& background) override;
 
 private:
     JPlacerMachine& m_machine;
