@@ -86,8 +86,19 @@ JPIssuesPanel::JPIssuesPanel(JSceneGraph& graph, JPSolutions& solutions, double 
     milestone->setTooltip("The target milestone for the machine configuration.\nThe milestone filters and sometimes "
                           "influences proposed solutions\nto ensure that basic machine operation is achieved, before more "
                           "advanced,\nmore complex and more difficult solutions are targeted.");
-    m_milestone = bar->add(std::make_unique<JLabel>(graph, " - "));
+    // Any milestone gone to at once: a machine set up long ago, crashed, goes back to Calibration; an imported one
+    // set up in OpenPnP goes straight to where it was.
+    std::vector<std::string> milestones;
+    for (int m = 0; m <= int(S::Milestone::Advanced); ++m) milestones.push_back(S::name(S::Milestone(m)));
+    m_milestone = bar->add(std::make_unique<JComboBox>(graph, milestones, 0.f));
+    m_milestone->setTooltip(milestone->tooltip());
     m_milestone->setHSizePolicy(JSizePolicyMode::Expanding, 1);
+    m_milestone->onIndexChanged.connect([this](int i) {
+        if (i < 0 || S::Milestone(i) == m_solutions.targetMilestone()) return;
+        m_solutions.setTargetMilestone(S::Milestone(i));
+        if (m_solutions.onChanged) m_solutions.onChanged();
+        findIssuesAndSolutions();
+    });
     JLabel* solved = fixedLabel(*bar, "Include Solved?");
     solved->setTooltip("Include already solved solutions, if they can be revisited.\nSome solutions can only be accepted once, "
                        "these will not reappear.");
@@ -236,7 +247,7 @@ std::vector<JPSolutions::Issue*> JPIssuesPanel::selections() const {
 
 void JPIssuesPanel::showMilestone() {
     const S::Milestone m = m_solutions.targetMilestone();
-    m_milestone->setText(S::name(m));
+    m_milestone->setCurrentIndex(int(m));
     m_milestoneText->setText(S::description(m));
 }
 

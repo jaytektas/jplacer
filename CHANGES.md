@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Issues & Solutions' Milestone is now a box: choose any milestone to go straight to it (back to Calibration
+  after a crash, or to where an imported OpenPnP machine already was), not only one step at a time.
 - A nozzle whose Z is a mapped axis (as an imported OpenPnP machine's ZL) now gets its Safe Z from the axis it is
   mapped from, so its nozzle offset issues show in Issues & Solutions.
 - Nozzle offsets are calibrated in Issues & Solutions, as in OpenPnP: "Nozzle N offsets for the primary fiducial"

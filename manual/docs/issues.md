@@ -9,8 +9,12 @@ yellow Suggestion), as OpenPnP's does.
 
 <!-- src: src/setup/JPSolutions.cpp; src/ui/JPIssuesPanel.cpp (updateIndicator); src/app/JPlacerOpenPnpTabs.cpp -->
 
+<!-- src: src/ui/JPIssuesPanel.cpp (the milestone box) -->
+
 **Find Issues & Solutions** checks again (it is also done once when jplacer starts). Beside it, the
-target **Milestone** and what it is for; the ⓘ button opens OpenPnP's wiki page about it. **Include
+target **Milestone**, a box: choose any milestone to go straight to it and search again — back to
+Calibration after a crash, or on to where a machine imported from OpenPnP already was — without working
+through those in between. Under it, what the milestone is for; the ⓘ button opens OpenPnP's wiki page about it. **Include
 Solved?** and **Include Dismissed?** show the issues solved or dismissed before; otherwise they stay away.
 
 The table lists each issue's **Subject** (what it is about), **Severity** (Information, Suggestion,

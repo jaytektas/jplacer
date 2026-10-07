@@ -11,6 +11,7 @@
 
 #include <j/core/JButton.h>
 #include <j/core/JCheckBox.h>
+#include <j/core/JComboBox.h>
 #include <j/core/JContainer.h>
 #include <j/core/JLabel.h>
 #include <j/core/Splitter.h>
@@ -25,7 +26,7 @@
 inline namespace jf {
 
 // The Issues & Solutions tab, as OpenPnP's IssuesAndSolutionsPanel: Find
-// Issues & Solutions, the target Milestone (and what it is for, its wiki
+// Issues & Solutions, the target Milestone (any one chosen at once; what it is for, its wiki
 // page), Include Solved? and Include Dismissed?; the issues found (Subject,
 // Severity, Issue, Solution, State, coloured by severity and state); and the
 // one chosen in full (its subject, issue and solution, more about it, what
@@ -65,7 +66,7 @@ private:
     JSplitter*                 m_split = nullptr;
     std::unique_ptr<JContainer> m_tablePane, m_issuePane;
     JPSetupForm*               m_form = nullptr;
-    JLabel*                    m_milestone = nullptr;
+    JComboBox*                 m_milestone = nullptr;
     JLabel*                    m_milestoneText = nullptr;
     JLabel*                    m_warn = nullptr;
     JCheckBox*                 m_showSolved = nullptr;
