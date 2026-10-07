@@ -364,7 +364,8 @@ nothing is handed to the machine until it is put right: the machine keeps the se
 
 While the machine is moving, changes wait for it to stop. Calibrations and squareness measured while the
 setup was being changed are kept. The camera panels are made again only when a camera, a head or an
-axis changed.
+axis changed, each in its dock where you left it (floating in a window of its own, or docked among the tabs);
+a camera renamed gets a new one, in the cameras' place.
 
 ## Undo and Redo
 
@@ -374,4 +375,4 @@ to where the change was made. What was measured (a camera's calibration, the squ
 the same setting (a number stepped up several times) are one step. A port chosen on the Machine panel
 is a step too. The steps are kept until another cell is opened.
 
-<!-- src: src/ui/JPMachineSetupPanel.cpp (record, handOver, undo, restore, measured); src/ui/JPTextField.cpp; src/ui/JPSetupForm.cpp; src/setup/JPSetupHistory.h; src/app/JPlacerMachine.cpp (applySetup, setPort, undo); src/app/JPlacerMenuBuilder.cpp; src/machine/JPCell.cpp (reconfigure); src/machine/JPGcodeDriver.cpp (setConfig); src/machine/JPCellConfig.cpp (problems) -->
+<!-- src: src/ui/JPMachineSetupPanel.cpp (record, handOver, undo, restore, measured); src/ui/JPTextField.cpp; src/ui/JPSetupForm.cpp; src/setup/JPSetupHistory.h; src/app/JPlacerMachine.cpp (applySetup, setPort, undo, dropPanels, buildCameras); src/app/JPlacerMenuBuilder.cpp; src/machine/JPCell.cpp (reconfigure); src/machine/JPGcodeDriver.cpp (setConfig); src/machine/JPCellConfig.cpp (problems) -->

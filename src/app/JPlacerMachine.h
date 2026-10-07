@@ -313,6 +313,9 @@ private:
     // see JPCell::reconfigure), the panels it changes are made again, and it
     // is kept in the cell file. False when the machine is moving (it is
     // tried again shortly).
+    // A camera's calibration recorded in Machine Setup (a fixed camera's place moved to where it looked, as
+    // OpenPnP's applyCalibrationToMachine); after the task that measured it has ended.
+    void recordCalibration(const std::string& cameraId, const JPCameraCalibration& calibration);
     bool applySetup(JPCellConfig cell);
     // Follow the open cell's signals (the menu, the strip, the status bar).
     void watchCell();
@@ -376,7 +379,10 @@ private:
     struct CameraDock {
         std::unique_ptr<JDockWidget>   dock;
         std::unique_ptr<JPCameraPanel> panel;
+        bool                           kept = false;   // its dock from before the cameras were made again
     };
+    // Between dropPanels and buildCameras of a remaking (Keep::Setup): each camera's dock, by camera id.
+    std::map<std::string, std::unique_ptr<JDockWidget>> m_keptCameraDocks;
     std::map<std::string, JPCameraView::Overlay> m_overlays;   // drawn on every camera (setCameraOverlay)
     std::vector<CameraDock>             m_cameras;   // the window's centre
     JPlacerEstimateZ                    m_estimateZ;   // on one of them, while under way

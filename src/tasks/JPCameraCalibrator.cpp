@@ -146,7 +146,8 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
     int unmeasured = 0;   // grid places where the mark could not be measured (skipped)
     auto measure = [&](double dx, double dy, const char* phase, bool mayMiss) {
         ++step;
-        const std::string stepText = std::string(phase) + ", move " + std::to_string(step) + " of " + std::to_string(moves);
+        const std::string stepText = (o.pass.empty() ? std::string() : o.pass + ", ") + phase + ", move " + std::to_string(step)
+                                   + " of " + std::to_string(moves);
         if (progress) progress(stepText);
         // In from the lead-in, the same way every time.
         const double lead = std::max(0.0, o.calibrating.leadInMm);

@@ -43,6 +43,14 @@ JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCameraCon
     m_save->onClicked.connect([this] { savePicture(); });
     m_calibrate = std::make_unique<JPIconButton>(graph, "Calibrate", &JPIcons::target, "Calibrate the camera");
     m_calibrate->onClicked.connect([this] { if (onCalibrate) onCalibrate(); });
+    // OpenPnP's red X (its Delete's): cancels the task under way on this camera, before its next move.
+    m_cancelTask = std::make_unique<JPIconButton>(graph, "Cancel", "general-remove",
+                                                  "Cancel what is under way on this camera (it stops before its next move)");
+    m_cancelTask->setEnabled(false);
+    m_cancelTask->onClicked.connect([this] {
+        m_cancelTask->setEnabled(false);
+        if (onCancelTask) onCancelTask();
+    });
     m_visualTest = std::make_unique<JPIconButton>(graph, "Visual Test", &JPIcons::check, "Visual test of the calibration");
     m_visualTest->onClicked.connect([this] { if (onVisualTest) onVisualTest(); });
     m_settings = std::make_unique<JPIconButton>(graph, "Camera Settings", &JPIcons::gear,
@@ -198,6 +206,7 @@ void JPCameraPanel::setPowered(bool on) {
 
 void JPCameraPanel::setBusy(bool busy) {
     m_calibrate->setEnabled(!busy);
+    m_cancelTask->setEnabled(busy);
     m_visualTest->setEnabled(!busy);
     // A task needs pictures whether or not anyone is looking.
     m_busy = busy;
@@ -219,7 +228,7 @@ void JPCameraPanel::setFeeding(const std::string& cameraId, bool feeding) {
 }
 
 std::vector<JWidget*> JPCameraPanel::tabTools() const {
-    return { m_asTaken.get(), m_save.get(), m_calibrate.get(), m_visualTest.get(), m_settings.get() };
+    return { m_asTaken.get(), m_save.get(), m_calibrate.get(), m_cancelTask.get(), m_visualTest.get(), m_settings.get() };
 }
 
 void JPCameraPanel::setNote(const std::string& text) {

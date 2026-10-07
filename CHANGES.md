@@ -10,6 +10,14 @@ notes.
 
 ## Unreleased
 
+- A floating camera window stays where you put it: it no longer jumps back into the dock when a camera setting
+  changes (a light switched from it, a calibration recorded).
+- jplacer no longer quits (crashes) at the end of the bottom camera's calibration: when calibrating moved the
+  camera's location, the camera panels were made again while the calibration was still finishing.
+- Cancel during a camera task is a red X button beside Calibrate (live only while the task runs), in place of
+  the box of instructions, which said the step twice.
+- Calibration steps say which pass as well as which move: "pass 1 of 2, measuring, move 14 of 38".
+
 ## 0.1.11
 
 - A nozzle tip's Calibration tab is OpenPnP's: no camera button on it (the bottom camera's Calibrate does that

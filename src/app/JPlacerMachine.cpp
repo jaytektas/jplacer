@@ -142,8 +142,15 @@ JPlacerMachine::~JPlacerMachine() {
 
 void JPlacerMachine::dropPanels(Keep keep) {
     const bool cameras = keep != Keep::SetupAndCameras;
-    if (cameras) {
-        m_cameraTasks.reset();   // a task under way finishes first: it drives the cell and a camera
+    if (cameras && m_cameraTasks) {
+        if (m_cameraTasks->busy()) {
+            m_cameraTasks.reset();   // a task under way finishes first: it drives the cell and a camera
+        } else {
+            // Nothing under way, but this may be called from inside one's end (its result recorded in Machine
+            // Setup remakes the cameras): it lets go of the cameras now, and goes once that end has returned.
+            m_cameraTasks->letGo();
+            jPostToNextFrame([retired = std::shared_ptr<JPlacerCameraTasks>(std::move(m_cameraTasks))] {});
+        }
     }
     for (const auto& u : m_unwatch) u();
     m_unwatch.clear();
@@ -160,7 +167,17 @@ void JPlacerMachine::dropPanels(Keep keep) {
         d.panel.reset();
     }
     if (!cameras) return;
-    for (CameraDock& c : m_cameras) m_layout.remove(c.dock.get());
+    for (CameraDock& c : m_cameras) {
+        if (keep == Keep::Setup) {
+            // Made again for a setting changed: each camera's dock kept where it is (floating or docked, its
+            // place among the tabs) for the camera's new panel (buildCameras).
+            c.dock->setContent(nullptr);
+            c.dock->clearTitleWidgets();
+            m_keptCameraDocks[c.panel->camera().id] = std::move(c.dock);
+        } else {
+            m_layout.remove(c.dock.get());
+        }
+    }
     m_estimateZ.cancel();
     m_cameras.clear();
 }
@@ -305,14 +322,25 @@ void JPlacerMachine::buildCameras() {
             d.panel->view().setLight(true, known == m_lights.end() ? std::nullopt : std::optional(known->second));
             d.panel->view().onToggleLight = [this, light] { toggleLight(light); };
         }
-        d.dock = std::make_unique<JDockWidget>(c.name, 0.f, 0.f, 0.f, 0.f);
+        // Its dock of before, where the person left it (a camera renamed gets a new one, its title its name).
+        if (const auto kept = m_keptCameraDocks.find(c.id); kept != m_keptCameraDocks.end() && kept->second->title() == c.name) {
+            d.dock = std::move(kept->second);
+            m_keptCameraDocks.erase(kept);
+            d.kept = true;
+        } else {
+            d.dock = std::make_unique<JDockWidget>(c.name, 0.f, 0.f, 0.f, 0.f);
+        }
         d.dock->setContent(d.panel.get());
         for (JWidget* tool : d.panel->tabTools()) d.dock->addTitleWidget(tool, JPIconButton::size());
         panels.push_back(d.panel.get());
         d.panel->setPowered(m_cell && m_cell->isConnected());   // opened only while the machine is on
         m_cameras.push_back(std::move(d));
     }
-    for (CameraDock& d : m_cameras) m_layout.add(d.dock.get(), JPlacerLayout::Home::Cameras, d.panel->camera().shownInMultiView);
+    // Docks of cameras gone (or renamed) go; new ones go to the cameras' place.
+    for (auto& [id, dock] : m_keptCameraDocks) m_layout.remove(dock.get());
+    m_keptCameraDocks.clear();
+    for (CameraDock& d : m_cameras)
+        if (!d.kept) m_layout.add(d.dock.get(), JPlacerLayout::Home::Cameras, d.panel->camera().shownInMultiView);
     // The first camera shown in front.
     for (CameraDock& d : m_cameras)
         if (d.panel->camera().shownInMultiView) {
@@ -357,38 +385,14 @@ void JPlacerMachine::buildCameras() {
         return homeFiducialLook ? homeFiducialLook() : std::nullopt;
     };
     // Machine Setup shows it (the cell keeps it: JPlacerMachine::applySetup).
-    m_cameraTasks->onCalibrated = [this](const std::string& cameraId, const JPCameraCalibration& calibration) {
-        if (!m_setup || !m_cell) return;
-        // A fixed camera's place, as OpenPnP's applyCalibrationToMachine: where the middle of its picture looked
-        // (the nozzle's tip, put where its place said) becomes its place, the calibration kept against it. (A
-        // camera on the head keeps its offsets: visual homing and the nozzle offsets are measured by it.)
-        const JPCameraConfig* cam = nullptr;
-        for (const JPCameraConfig& c : m_cell->config().cameras)
-            if (c.id == cameraId) cam = &c;
-        JPCameraCalibration kept = calibration;
-        const bool fixed = cam && cam->mount.headId.empty() && kept.looked;
-        const double dx = fixed ? kept.lookedX : 0, dy = fixed ? kept.lookedY : 0;
-        if (fixed) {
-            kept.lookedX -= dx;
-            kept.lookedY -= dy;
-            kept.secondLookedX -= dx;
-            kept.secondLookedY -= dy;
-            m_cell->setCameraCalibration(cameraId, kept);
-        }
-        m_setup->measured([&](JPCellConfig& cell) {
-            for (JPCameraConfig& c : cell.cameras)
-                if (c.id == cameraId) c.keepCalibration(kept);
-        });
-        if (!fixed || (std::abs(dx) < kLeastPlaceMoveMm && std::abs(dy) < kLeastPlaceMoveMm)) return;
-        const std::string name = cam->name;
-        JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << name << ": its location moved by " << dx << ", " << dy
-                                                    << " (calibrated)";
-        m_setup->change(name + ": Camera Location calibrated", [&](JPCellConfig& cell) {
-            for (JPCameraConfig& c : cell.cameras)
-                if (c.id == cameraId) {
-                    c.mount.offsetX += dx;
-                    c.mount.offsetY += dy;
-                }
+    // On the next frame: recorded in Machine Setup, a camera's calibration (or a fixed camera's place) remakes the
+    // camera panels, and with them the camera tasks, which must have let go of the task that measured it first (it
+    // crashed, the tasks gone from under the task's own end). The cell has it already; what follows (the bottom
+    // camera's runout and position) is posted after this, so it runs on the panels made again.
+    m_cameraTasks->onCalibrated = [this, alive = std::weak_ptr<bool>(m_alive)](const std::string& cameraId,
+                                                                               const JPCameraCalibration& calibration) {
+        jPostToNextFrame([this, alive, cameraId, calibration] {
+            if (const auto a = alive.lock(); a && *a) recordCalibration(cameraId, calibration);
         });
     };
     m_cameraTasks->onTuned = [this](const std::string& cameraId, const JJson& controls) {
@@ -860,6 +864,41 @@ void JPlacerMachine::setPort(const std::string& driverId, const std::string& por
     m_setup->change("Port of " + d->name, [&](JPCellConfig& cell) {
         for (JPDriverConfig& c : cell.drivers)
             if (c.id == driverId) c.link["port"] = port;
+    });
+}
+
+void JPlacerMachine::recordCalibration(const std::string& cameraId, const JPCameraCalibration& calibration) {
+    if (!m_setup || !m_cell) return;
+    // A fixed camera's place, as OpenPnP's applyCalibrationToMachine: where the middle of its picture looked
+    // (the nozzle's tip, put where its place said) becomes its place, the calibration kept against it. (A
+    // camera on the head keeps its offsets: visual homing and the nozzle offsets are measured by it.)
+    const JPCameraConfig* cam = nullptr;
+    for (const JPCameraConfig& c : m_cell->config().cameras)
+        if (c.id == cameraId) cam = &c;
+    JPCameraCalibration kept = calibration;
+    const bool fixed = cam && cam->mount.headId.empty() && kept.looked;
+    const double dx = fixed ? kept.lookedX : 0, dy = fixed ? kept.lookedY : 0;
+    if (fixed) {
+        kept.lookedX -= dx;
+        kept.lookedY -= dy;
+        kept.secondLookedX -= dx;
+        kept.secondLookedY -= dy;
+        m_cell->setCameraCalibration(cameraId, kept);
+    }
+    m_setup->measured([&](JPCellConfig& cell) {
+        for (JPCameraConfig& c : cell.cameras)
+            if (c.id == cameraId) c.keepCalibration(kept);
+    });
+    if (!fixed || (std::abs(dx) < kLeastPlaceMoveMm && std::abs(dy) < kLeastPlaceMoveMm)) return;
+    const std::string name = cam->name;
+    JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << name << ": its location moved by " << dx << ", " << dy
+                                                << " (calibrated)";
+    m_setup->change(name + ": Camera Location calibrated", [&](JPCellConfig& cell) {
+        for (JPCameraConfig& c : cell.cameras)
+            if (c.id == cameraId) {
+                c.mount.offsetX += dx;
+                c.mount.offsetY += dy;
+            }
     });
 }
 

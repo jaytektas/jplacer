@@ -77,13 +77,19 @@ JPlacerCameraTasks::JPlacerCameraTasks(JAppWindow& window, JPCell& cell, std::ve
 }
 
 JPlacerCameraTasks::~JPlacerCameraTasks() {
+    letGo();
+    if (m_worker.joinable()) m_worker.join();
+}
+
+void JPlacerCameraTasks::letGo() {
     *m_alive = false;
     for (JPCameraPanel* panel : m_cameras) {
         panel->onCalibrate   = nullptr;
         panel->onVisualTest  = nullptr;
         panel->onLookAtPixel = nullptr;
+        panel->onCancelTask  = nullptr;
     }
-    if (m_worker.joinable()) m_worker.join();
+    m_cameras.clear();
 }
 
 const JPHeadConfig* JPlacerCameraTasks::head(const JPCameraConfig& camera) const {
@@ -122,20 +128,14 @@ void JPlacerCameraTasks::run(JPCameraPanel& camera, const std::string& name, Tas
             if (const auto a = alive.lock(); a && *a) fn();
         });
     };
-    // OpenPnP's instructions and status while it works (CalibrateCameraProcess's): each step in words, and
-    // Cancel, which stops it before its next move (the one under way ends where it was going); Next not
-    // offered while it works by itself.
+    // The red X beside Calibrate (OpenPnP's Cancel of its CalibrateCameraProcess): it stops before its next
+    // move, the one under way left to end where it was going.
     m_cell.setCancelled(false);
-    auto cancel = [this, panel, name] {
+    panel->onCancelTask = [this, panel, name] {
         m_cell.setCancelled(true);
-        panel->showInstructions(name, "Cancelling: stopping before the next move\xE2\x80\xA6", "Next", nullptr, nullptr);
-        panel->setProceedEnabled(false);
-        panel->setCancelEnabled(false);
+        panel->setNote(name + ": cancelling, stopping before the next move\xE2\x80\xA6");
     };
-    panel->showInstructions(name, name + "\xE2\x80\xA6", "Next", cancel, nullptr);
-    panel->setProceedEnabled(false);
-    panel->setCancelEnabled(true);
-    m_worker = std::thread([this, panel, name, task, done, onMain, cancel] {
+    m_worker = std::thread([this, panel, name, task, done, onMain] {
         // The lights, as the cameras' Light settings say: this camera's on
         // before its pictures, other cameras' off against glare.
         const JPCameraConfig& cam = panel->camera();
@@ -148,13 +148,9 @@ void JPlacerCameraTasks::run(JPCameraPanel& camera, const std::string& name, Tas
         }
         if (!light.empty() && cam.light.beforeCapture) m_cell.switchActuatorAndWait(light, true, lightWhy);
         std::string words;
-        const bool ok = task(words, [this, panel, name, onMain, cancel](const std::string& step) {
-            onMain([this, panel, name, step, cancel] {
-                panel->setNote(name + ": " + step);
-                if (!m_cell.isCancelled()) {
-                    panel->showInstructions(name, step, "Next", cancel, nullptr);
-                    panel->setProceedEnabled(false);
-                }
+        const bool ok = task(words, [this, panel, name, onMain](const std::string& step) {
+            onMain([this, panel, name, step] {
+                if (!m_cell.isCancelled()) panel->setNote(name + ": " + step);
             });
         });
         // Cancelled: said as such, not as a failure.
@@ -166,8 +162,7 @@ void JPlacerCameraTasks::run(JPCameraPanel& camera, const std::string& name, Tas
         onMain([this, panel, name, ok, cancelled, words, done] {
             m_busy = false;
             panel->setBusy(false);
-            panel->hideInstructions();
-            panel->setCancelEnabled(true);
+            panel->onCancelTask = nullptr;
             const std::string text = ok ? words : cancelled ? name + " cancelled" : name + " failed: " + words;
             panel->setNote(text);
             m_window.showStatus(text, kResultMs);
@@ -209,6 +204,10 @@ void JPlacerCameraTasks::calibrate(JPCameraPanel& camera, std::function<void(boo
         o.speed = kTaskSpeed;
         o.calibrating = feed->config().calibrating;
         o.found = finds;
+        // Again over the secondary mark, at another height: a second pass.
+        const bool twoPasses = hasMark && o.calibrating.twoHeights && h.rigSecondary
+                            && std::abs(h.rigSecondary->z - h.homingFiducial->z) >= kLeastHeightGapMm;
+        if (twoPasses) o.pass = "pass 1 of 2";
         if (feed->config().autoTuneCalibrating) {
             progress("Auto-Tune over the mark");
             if (!autoTuneHere(*feed, words)) return false;
@@ -216,12 +215,11 @@ void JPlacerCameraTasks::calibrate(JPCameraPanel& camera, std::function<void(boo
         const auto c = JPCameraCalibrator::run(m_cell, *feed, o, words, progress);
         if (!c) return false;
         *result = *c;
-        // Again over the secondary mark, at another height.
         std::string second;
-        if (hasMark && o.calibrating.twoHeights && h.rigSecondary
-            && std::abs(h.rigSecondary->z - h.homingFiducial->z) >= kLeastHeightGapMm) {
-            progress("moving over the secondary mark");
+        if (twoPasses) {
+            progress("pass 2 of 2, moving over the secondary mark");
             JPCameraCalibrator::Options o2 = o;
+            o2.pass = "pass 2 of 2";
             o2.markDiameterMm = h.rigSecondaryDiameter;
             o2.markZ = h.rigSecondary->z;
             std::string why;
@@ -1040,18 +1038,21 @@ void JPlacerCameraTasks::calibrateFixed(JPCameraPanel& camera, std::function<voi
             o.calibrating = feed->config().calibrating;
             o.moving = &tool;
             o.found = finds;
+            // Again with the tip raised (away from a camera looking up): a second pass.
+            const double raise = o.calibrating.raiseMm;
+            const bool twoPasses = o.calibrating.twoHeights && raise >= kLeastHeightGapMm;
+            if (twoPasses) o.pass = "pass 1 of 2";
             if (feed->config().autoTuneCalibrating) {
                 progress("Auto-Tune on the nozzle's tip");
                 if (!autoTuneHere(*feed, words)) return false;
             }
             c = JPCameraCalibrator::run(m_cell, *feed, o, words, progress);
-            // Again with the tip raised (away from a camera looking up).
-            const double raise = o.calibrating.raiseMm;
-            if (c && o.calibrating.twoHeights && raise >= kLeastHeightGapMm) {
+            if (c && twoPasses) {
                 char said[64];
-                std::snprintf(said, sizeof said, "the nozzle raised %.1f mm", raise);
+                std::snprintf(said, sizeof said, "pass 2 of 2, the nozzle raised %.1f mm", raise);
                 progress(said);
                 JPCameraCalibrator::Options o2 = o;
+                o2.pass = "pass 2 of 2";
                 o2.markZ = place.offsetZ + raise;
                 std::string why;
                 std::optional<JPCameraCalibration> c2;

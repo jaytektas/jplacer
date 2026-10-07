@@ -52,6 +52,9 @@ public:
     std::function<void(bool running)> onRunning;
     // Calibrate and Visual Test pressed: the owner runs them on this camera.
     std::function<void()> onCalibrate;
+    // The red X beside them pressed (offered only while a task runs on this camera, setBusy): the owner
+    // cancels the task. Pressed once, it is greyed while the task winds down.
+    std::function<void()> onCancelTask;
     std::function<void()> onVisualTest;
     // Its settings asked for: the owner shows the camera in Machine Setup.
     std::function<void()> onSettings;
@@ -91,7 +94,6 @@ public:
                           std::function<void()> onCancel, std::function<void()> onProceed);
     void hideInstructions();
     void setProceedEnabled(bool on) { m_instructions->setProceedEnabled(on); }
-    void setCancelEnabled(bool on) { m_instructions->setCancelEnabled(on); }
     // A word about the picture (what a task is doing, why it is dark).
     void setNote(const std::string& text);
     // Write the latest picture to capturesDir. The file written, or empty
@@ -119,7 +121,7 @@ private:
 
     JPCameraFeed                          m_feed;
     JPCameraView*                         m_view = nullptr;
-    std::unique_ptr<JPIconButton>         m_asTaken, m_save, m_calibrate, m_visualTest, m_settings;
+    std::unique_ptr<JPIconButton>         m_asTaken, m_save, m_calibrate, m_cancelTask, m_visualTest, m_settings;
     JLabel*                               m_state = nullptr;
     JLabel*                               m_note  = nullptr;
     CalibrationFor                        m_calibrationFor;

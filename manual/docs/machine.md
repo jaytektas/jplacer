@@ -669,10 +669,11 @@ not calibrated for its size gets the same red X in its top left, in proportion, 
 camera's **Warn if camera calibration is not completed**); not while a task is taking that camera's pictures
 (the camera's own calibration needs it uncalibrated, and the X would come and go between the pictures it shows).
 
-While it runs, the camera's panel shows OpenPnP's instructions and status: the step it is on, **Cancel**, and
-**Next** greyed (it goes on by itself). **Cancel** stops it before its next move (the move under way ends
-where it was going, and up to safe Z still goes); it is said to be cancelled, not failed. The view shows each
-find as it comes: the picture with a green circle and cross where
+While it runs, the line over the picture says which pass of how many (two when it measures at two heights)
+and which move of how many ("pass 1 of 2, measuring, move 14 of 38"), and **Cancel** (OpenPnP's red X,
+beside Calibrate, greyed but while a task runs on that camera) stops it before its next move: the move under
+way ends where it was going, up to safe Z still goes, and it is said to be cancelled, not failed. The view
+shows each find as it comes: the picture with a green circle and cross where
 the mark (or, for a camera looking up, the nozzle's tip) was found, the size it was found, and which move of
 how many ("measuring, move 14 of 38"), so a wrong find shows at once.
 
@@ -705,7 +706,7 @@ and calibrating again at a size replaces only that one. A camera taking pictures
 been calibrated at is shown as taken, and a task that measures with it says it is not calibrated for
 that size.
 
-<!-- src: src/tasks/JPCameraCalibrator.cpp; src/vision/JPCalibrationFit.cpp (fitWithLens); src/common/JPLens.h; src/tasks/JPCameraLook.cpp (calibration); src/machine/JPCameraConfig.h (calibrationFor, keepCalibration); src/app/JPlacerCameraTasks.cpp (calibrate, notReady, kTaskSpeed, run); src/ui/JPCameraPanel.cpp (setBusy, the note, refreshStraightening); src/ui/JPCameraView.cpp (errorCross, setTaskUnderway); src/ui/JPInstructions.cpp; src/machine/JPCell.cpp (setCancelled, waitFor, moveAxesAndWait) -->
+<!-- src: src/tasks/JPCameraCalibrator.cpp; src/vision/JPCalibrationFit.cpp (fitWithLens); src/common/JPLens.h; src/tasks/JPCameraLook.cpp (calibration); src/machine/JPCameraConfig.h (calibrationFor, keepCalibration); src/app/JPlacerCameraTasks.cpp (calibrate, notReady, kTaskSpeed, run); src/ui/JPCameraPanel.cpp (setBusy, the note, refreshStraightening, m_cancelTask); src/ui/JPCameraView.cpp (errorCross, setTaskUnderway); src/tasks/JPCameraCalibrator.h (pass); src/machine/JPCell.cpp (setCancelled, waitFor, moveAxesAndWait) -->
 
 When the head has a **secondary calibration mark** (Machine Setup, the head's Calibration Rig, brought
 across from OpenPnP's calibration rig) at least 1 mm higher or lower than the homing mark, the camera is
@@ -721,8 +722,8 @@ How the camera is measured, and whether at two heights, is set on that tab.
 
 A camera fixed to the machine (one looking up at the nozzles) cannot be moved over a mark, so the mark
 is moved over it: **Calibrate** (the target), in that camera's tab, holds a nozzle's tip over it, at once,
-as OpenPnP's (nothing asked; the nozzle must hold no part and have nothing in its way, and **Cancel** stops
-it). The head's Z comes up into its safe zone, the nozzle goes over the
+as OpenPnP's (nothing asked; the nozzle must hold no part and have nothing in its way, and the red X
+**Cancel** beside Calibrate stops it). The head's Z comes up into its safe zone, the nozzle goes over the
 camera's place and down to the camera's height (both from the camera's offset, where it is and the height
 it is focused at), the calibration is made by moving the nozzle instead of the camera, and the nozzle
 comes up again, whether it worked or not. The tip's size need not be known: the camera's rough scale (an

@@ -42,6 +42,8 @@ public:
         // Each find (on the calibration's thread): the picture, where the mark was found in it and how big
         // (pixels), and the step ("measuring, move 12 of 38"), for it to be shown where it was found.
         std::function<void(const JPGrayImage& picture, double x, double y, double diameterPx, const std::string& step)> found;
+        // Which pass of a calibration made in more than one ("pass 1 of 2"), put before each step; empty: one.
+        std::string pass;
     };
     // Called before each step, in words ("move 3 of 9").
     using Progress = std::function<void(const std::string&)>;
