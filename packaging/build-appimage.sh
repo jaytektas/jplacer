@@ -28,6 +28,10 @@ rm -rf "$APPDIR" "$OUT"
 mkdir -p "$APPDIR/usr/bin"
 
 install -m755 "$BIN" "$APPDIR/usr/bin/jplacer"
+# The unstripped executable kept here (never published), by version: a crash's addresses on a machine running
+# this AppImage (the jplacer (gdb) launcher's backtrace) read back to functions with it. Same build ID.
+mkdir -p "$ROOT/dist/symbols"
+cp "$BIN" "$ROOT/dist/symbols/jplacer-$VERSION"
 strip "$APPDIR/usr/bin/jplacer"
 
 # The user manual travels beside the executable: Help > User Manual opens usr/bin/manual/index.html.
