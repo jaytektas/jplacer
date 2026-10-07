@@ -168,7 +168,8 @@ void JPlacerCameraTasks::calibrate(JPCameraPanel& camera, std::function<void(boo
     const bool hasMark = !here && h.homingFiducial && h.homingFiducialDiameter > 0;
     const std::string cameraId = feed->config().id;
     auto result = std::make_shared<JPCameraCalibration>();
-    run(camera, "Calibrating " + feed->config().name, [this, feed, h, hasMark, result](std::string& words, const auto& progress) {
+    auto finds = showFinds(camera);
+    run(camera, "Calibrating " + feed->config().name, [this, feed, h, hasMark, result, finds](std::string& words, const auto& progress) {
         // Over the mark first, as near as the camera's offset on the head says.
         const JPMountConfig& m = feed->config().mount;
         if (hasMark) {
@@ -182,6 +183,7 @@ void JPlacerCameraTasks::calibrate(JPCameraPanel& camera, std::function<void(boo
         o.markZ = h.homingFiducial ? h.homingFiducial->z : 0;
         o.speed = kTaskSpeed;
         o.calibrating = feed->config().calibrating;
+        o.found = finds;
         const auto c = JPCameraCalibrator::run(m_cell, *feed, o, words, progress);
         if (!c) return false;
         *result = *c;
@@ -508,7 +510,35 @@ JPFrame frameOf(const cv::Mat& bgr) {
     return f;
 }
 
+// A calibration's find drawn on its picture, as vision shows its results: a circle the size it was found and a
+// cross at its centre.
+JPFrame foundFrame(const JPGrayImage& picture, double x, double y, double diameterPx) {
+    cv::Mat gray(picture.height, picture.width, CV_32F, const_cast<float*>(picture.pixels.data()));
+    cv::Mat bytes, bgr;
+    gray.convertTo(bytes, CV_8U);
+    cv::cvtColor(bytes, bgr, cv::COLOR_GRAY2BGR);
+    const cv::Scalar green(0, 255, 0);
+    const cv::Point c(int(std::lround(x)), int(std::lround(y)));
+    const int r = std::max(1, int(std::lround(diameterPx / 2)));
+    cv::circle(bgr, c, r, green, 2);
+    cv::drawMarker(bgr, c, green, cv::MARKER_CROSS, std::max(9, r / 2), 2);
+    return frameOf(bgr);
+}
+
 } // namespace
+
+std::function<void(const JPGrayImage&, double, double, double, const std::string&)> JPlacerCameraTasks::showFinds(JPCameraPanel& camera) {
+    JPCameraPanel* panel = &camera;
+    return [panel, alive = std::weak_ptr<bool>(m_alive)](const JPGrayImage& picture, double x, double y, double diameterPx,
+                                                          const std::string& step) {
+        JPFrame frame = foundFrame(picture, x, y, diameterPx);
+        char text[160];
+        std::snprintf(text, sizeof text, "%s: found at %.1f, %.1f px (%.0f px across)", step.c_str(), x, y, diameterPx);
+        JMainThreadDispatcher::instance().post([alive, panel, frame = std::move(frame), text = std::string(text)] {
+            if (const auto a = alive.lock(); a && *a) panel->view().showPicture(frame, text, kFeatureShownMs);
+        });
+    };
+}
 
 std::optional<std::pair<double, double>> JPlacerCameraTasks::cameraAt(const JPCameraPanel& camera) const {
     const JPMountConfig& m = camera.camera().mount;
@@ -969,7 +999,8 @@ void JPlacerCameraTasks::calibrateFixed(JPCameraPanel& camera, std::function<voi
             return;
         }
         auto result = std::make_shared<JPCameraCalibration>();
-        run(*panel, "Calibrating " + feed->config().name, [this, feed, tool, place, result](std::string& words, const auto& progress) {
+        auto finds = showFinds(*panel);
+        run(*panel, "Calibrating " + feed->config().name, [this, feed, tool, place, result, finds](std::string& words, const auto& progress) {
             progress("the nozzle over the camera");
             const bool over = m_cell.safeZAndWait(tool.headId, kTaskSpeed, words)
                 && m_cell.moveAxesAndWait({ { tool.axisX, place.offsetX - tool.offsetX },
@@ -983,6 +1014,7 @@ void JPlacerCameraTasks::calibrateFixed(JPCameraPanel& camera, std::function<voi
                 o.speed = kTaskSpeed;
                 o.calibrating = feed->config().calibrating;
                 o.moving = &tool;
+                o.found = finds;
                 c = JPCameraCalibrator::run(m_cell, *feed, o, words, progress);
                 // Again with the tip raised (away from a camera looking up).
                 const double raise = o.calibrating.raiseMm;

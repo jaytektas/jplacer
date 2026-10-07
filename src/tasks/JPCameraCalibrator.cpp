@@ -146,7 +146,8 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
     int unmeasured = 0;   // grid places where the mark could not be measured (skipped)
     auto measure = [&](double dx, double dy, const char* phase, bool mayMiss) {
         ++step;
-        if (progress) progress(std::string(phase) + ", move " + std::to_string(step) + " of " + std::to_string(moves));
+        const std::string stepText = std::string(phase) + ", move " + std::to_string(step) + " of " + std::to_string(moves);
+        if (progress) progress(stepText);
         // In from the lead-in, the same way every time.
         const double lead = std::max(0.0, o.calibrating.leadInMm);
         if (lead > 0 && !cell.moveAxesAndWait({ { mount.axisX, x0 + sign * dx - lead }, { mount.axisY, y0 + sign * dy - lead } },
@@ -196,6 +197,7 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
             return false;
         }
         samples.push_back({ dx, dy, m.x, m.y });
+        if (o.found) o.found(img, m.x, m.y, markPx, stepText);
         JLOGC(JPlacerLog::kCamera, JLogLevel::Debug) << "  offset " << dx << ", " << dy << " -> " << m.x << ", " << m.y;
         return true;
     };

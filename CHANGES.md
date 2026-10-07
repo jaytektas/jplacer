@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Camera calibration shows each find on the camera's view as it goes: a green circle where the mark (or the nozzle
+  tip, for the bottom camera) was found, and which move of how many.
 - Moving a nozzle by hand (Position Tool, Move Selected Nozzle to Camera, a jog) brings forward the camera looking
   at where it goes (the nearest within 50 mm) when it has Auto Camera View, as in OpenPnP: over the bottom camera,
   its view.

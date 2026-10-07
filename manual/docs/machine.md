@@ -663,6 +663,10 @@ homed. With the head's homing mark set (its place and diameter, brought across b
 calibrates over that; on a new machine, with none set, it calibrates over the mark the camera is over now
 (jog it there first), as Issues & Solutions' first vision step does (see below).
 
+While it runs, the camera's view shows each find as it comes: the picture with a green circle and cross where
+the mark (or, for a camera looking up, the nozzle's tip) was found, the size it was found, and which move of
+how many ("measuring, move 14 of 38"), so a wrong find shows at once.
+
 1. The camera moves over the homing mark (when there is one).
 2. It finds the mark at whatever size it appears (the scale is not known yet), checking that its edge
    is round nearly all the way round. Neither the mark's diameter nor the camera's rough scale known, the

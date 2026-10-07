@@ -7,6 +7,8 @@
 #include "machine/JPCameraCalibration.h"
 #include "machine/JPCell.h"
 
+#include "vision/JPGrayImage.h"
+
 #include <functional>
 #include <optional>
 #include <string>
@@ -37,6 +39,9 @@ public:
         // by a tool on the head (a nozzle's tip), already in view and in
         // focus: this is that tool.
         const JPMountConfig* moving = nullptr;
+        // Each find (on the calibration's thread): the picture, where the mark was found in it and how big
+        // (pixels), and the step ("measuring, move 12 of 38"), for it to be shown where it was found.
+        std::function<void(const JPGrayImage& picture, double x, double y, double diameterPx, const std::string& step)> found;
     };
     // Called before each step, in words ("move 3 of 9").
     using Progress = std::function<void(const std::string&)>;
