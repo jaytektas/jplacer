@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- Auto-Tune when calibrating? now applies to every calibration that looks through the camera: backlash, the
+  precise nozzle offsets, Feature Diameter, Auto-Detect Next and its measuring, capturing a fiducial and Auto
+  Focus's Test, as well as the camera's and the nozzle tip's own (it tunes once where it looks, not on every
+  click of Auto-Detect Next).
 - A camera's light comes on when you move a tool to it (a jog, Position Tool, Move Selected Nozzle to Camera, a
   click in its picture), as OpenPnP's User Camera Action does, even when the camera is not on screen or its
   Auto Camera View is off; it stays on until you switch it off.

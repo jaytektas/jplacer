@@ -35,6 +35,8 @@ namespace {
 // is not known.
 constexpr double kInitialMaskShare = 1 / 4.0, kCenteringShare = 0.5, kMaskOverDiameter = 1.2;
 constexpr int    kDefaultDetectionPx = 25, kLeastDetectionPx = 4;
+// Tuned for a calibration within this of where the camera was last tuned: not again (tuneForCalibration).
+constexpr double kSameSpotMm = 1.0;
 // How often a step waiting on the person looks whether it was answered (with nothing to show meanwhile).
 constexpr int    kAskPollMs = 50;
 } // namespace
@@ -232,6 +234,7 @@ void JPlacerCameraTasks::calibrate(JPCameraPanel& camera, std::function<void(boo
         if (feed->config().autoTuneCalibrating) {
             progress("Auto-Tune over the mark");
             if (!autoTuneHere(*feed, words)) return false;
+            tunedHere(*feed);
         }
         const auto c = JPCameraCalibrator::run(m_cell, *feed, o, words, progress);
         if (!c) return false;
@@ -314,6 +317,11 @@ void JPlacerCameraTasks::calibrateBacklash(const std::string& axisId,
     if (const JPAxisConfig* a = m_cell.config().axis(axisId)) name = a->name;
     auto result = std::make_shared<JPBacklashCalibrator::Result>();
     run(*camera, "Calibrating " + name + "'s backlash", [this, feed, h, axisId, name, result](std::string& words, const auto& progress) {
+        // Tuned over the mark it measures, first (Auto-Tune when calibrating?).
+        if (feed->config().autoTuneCalibrating) {
+            if (!autoTuneAt(*feed, *h.homingFiducial, words)) return false;
+            tunedHere(*feed);
+        }
         JPBacklashCalibrator::Options o;
         o.markX = h.homingFiducial->x;
         o.markY = h.homingFiducial->y;
@@ -493,6 +501,12 @@ void JPlacerCameraTasks::calibrateNozzleOffsets(JPCameraPanel& camera, const JPN
             return true;
         };
         double x = start.first, y = start.second;
+        // Over the test object, tuned there first (Auto-Tune when calibrating?).
+        if (feed->config().autoTuneCalibrating) {
+            if (!m_cell.moveToolAndWait(cm, { x, y, std::nullopt, std::nullopt }, kTaskSpeed, words)
+                || !tuneForCalibration(*feed, progress, words))
+                return false;
+        }
         progress("finding the test object");
         if (!centreOn(x, y)) return false;
         double sumX = 0, sumY = 0;
@@ -605,7 +619,8 @@ void JPlacerCameraTasks::previewFeature(JPCameraPanel& camera, int px) {
     if (m_busy) return;   // another task's pictures are not to be taken from under it
     if (const auto at = cameraAt(camera)) m_featureAt = at;
     JPCameraPanel* panel = &camera;
-    run(camera, "Feature diameter", [this, panel, px](std::string& words, const auto&) {
+    run(camera, "Feature diameter", [this, panel, px](std::string& words, const auto& progress) {
+        if (!tuneForCalibration(panel->feed(), progress, words)) return false;
         cv::Mat bgr;
         if (!settledColour(panel->feed(), bgr, words)) return false;
         double score = 0;
@@ -630,6 +645,7 @@ void JPlacerCameraTasks::autoDetectFeature(JPCameraPanel& camera, int fromPx, st
     JPCameraPanel* panel = &camera;
     auto result = std::make_shared<std::optional<int>>();
     run(camera, "Auto-Detect Next", [this, panel, fromPx, result](std::string& words, const auto& progress) {
+        if (!tuneForCalibration(panel->feed(), progress, words)) return false;
         cv::Mat bgr;
         if (!settledColour(panel->feed(), bgr, words)) return false;
         progress("trying every diameter");
@@ -663,10 +679,11 @@ void JPlacerCameraTasks::measureFeature(JPCameraPanel& camera, int px, std::func
     JPCameraPanel* panel = &camera;
     auto mm = std::make_shared<std::optional<double>>();
     const auto at = m_featureAt;
-    run(camera, "Measuring the feature", [this, panel, px, mm, at](std::string& words, const auto&) {
+    run(camera, "Measuring the feature", [this, panel, px, mm, at](std::string& words, const auto& progress) {
         // Measured where it was sized (the camera taken back there, if it was moved since).
         if (at && !m_cell.moveToolAndWait(panel->camera().mount, { at->first, at->second, std::nullopt, std::nullopt }, kTaskSpeed, words))
             return false;
+        if (!tuneForCalibration(panel->feed(), progress, words)) return false;
         JPCameraCalibration cal;
         if (!JPCameraLook::calibration(m_cell, panel->feed(), cal, words)) return false;
         cv::Mat bgr;
@@ -703,11 +720,16 @@ void JPlacerCameraTasks::autoFocusTest(JPCameraPanel& camera, const JPNozzleConf
     auto distance = std::make_shared<double>(0);
     JPCameraPanel* panel = &camera;
     std::weak_ptr<bool> alive = m_alive;
-    run(camera, "Auto Focus", [this, panel, t, mount, distance, alive](std::string& words, const auto&) {
+    run(camera, "Auto Focus", [this, panel, t, mount, distance, alive](std::string& words, const auto& progress) {
         JPCameraFeed& feed = panel->feed();
         JPCameraCalibration cal;
         if (!JPCameraLook::calibration(m_cell, feed, cal, words)) return false;
         const JPCameraConfig& cam = feed.config();
+        // Tuned on the tip over the camera at its Z first (Auto-Tune when calibrating?).
+        if (cam.autoTuneCalibrating
+            && (!m_cell.moveToolAndWait(mount, { cam.mount.offsetX, cam.mount.offsetY, cam.mount.offsetZ, std::nullopt }, kTaskSpeed, words)
+                || !tuneForCalibration(feed, progress, words)))
+            return false;
         JPAutoFocus::Request rq;
         rq.tool = mount;
         rq.x = cam.mount.offsetX;
@@ -853,6 +875,7 @@ void JPlacerCameraTasks::captureMark(const std::string& headId, std::function<vo
     }
     auto mark = std::make_shared<Mark>();
     run(*camera, "Finding the homing mark", [this, feed, vx, vy, mark](std::string& words, const auto& progress) {
+        if (!tuneForCalibration(*feed, progress, words)) return false;
         progress("looking for the mark under the camera");
         JPGrayImage img;
         if (!JPCameraLook::settled(*feed, img, words)) return false;
@@ -931,6 +954,33 @@ void JPlacerCameraTasks::visualHome(std::function<void(bool)> done) {
         words = buf;
         return true;
     }, std::move(done));
+}
+
+bool JPlacerCameraTasks::tuneForCalibration(JPCameraFeed& feed, const std::function<void(const std::string&)>& progress,
+                                            std::string& why) {
+    if (!feed.config().autoTuneCalibrating) return true;
+    // Once a spot: a camera on the head where it looks now; tuned there already (Auto-Detect Next clicked again,
+    // the feature then measured where it was sized), not again.
+    const auto at = cameraAt(feed);
+    if (at && m_tunedId == feed.config().id && m_tunedAt
+        && std::hypot(at->first - m_tunedAt->first, at->second - m_tunedAt->second) < kSameSpotMm)
+        return true;
+    if (progress) progress("Auto-Tune (Auto-Tune when calibrating?)");
+    if (!autoTuneHere(feed, why)) return false;
+    m_tunedId = feed.config().id;
+    m_tunedAt = at;
+    return true;
+}
+
+void JPlacerCameraTasks::tunedHere(const JPCameraFeed& feed) {
+    m_tunedId = feed.config().id;
+    m_tunedAt = cameraAt(feed);
+}
+
+std::optional<std::pair<double, double>> JPlacerCameraTasks::cameraAt(const JPCameraFeed& feed) const {
+    for (JPCameraPanel* p : m_cameras)
+        if (&p->feed() == &feed) return cameraAt(*p);
+    return std::nullopt;
 }
 
 bool JPlacerCameraTasks::autoTuneAt(JPCameraFeed& feed, const JPMachineLocation& at, std::string& why) {

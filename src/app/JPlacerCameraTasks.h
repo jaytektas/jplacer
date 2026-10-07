@@ -171,6 +171,13 @@ private:
     // runs over and over on this thread until then (a live search shown); none: it waits.
     // A click on (or drop in) a fixed camera's picture: the nozzle moved so that point comes to its middle.
     void lookAtFixed(JPCameraPanel& camera, double px, double py);
+    // A calibration's camera tuned where it looks now, when its Auto-Tune when calibrating? says so, once a
+    // spot (tuned there already: not again). False with `why` when it could not be.
+    bool tuneForCalibration(JPCameraFeed& feed, const std::function<void(const std::string&)>& progress, std::string& why);
+    // The camera was just tuned where it looks (for tuneForCalibration's once a spot).
+    void tunedHere(const JPCameraFeed& feed);
+    // Where a camera on the head looks now (its feed's).
+    std::optional<std::pair<double, double>> cameraAt(const JPCameraFeed& feed) const;
     bool askOperator(JPCameraPanel* panel, const std::string& title, const std::string& text,
                      const std::function<void()>& meanwhile, const NumberAsk* number = nullptr);
     bool cameraView(const JPCameraConfig& camera, double& x, double& y, std::string& why) const;
@@ -200,6 +207,9 @@ private:
     // A task waiting on the person (askOperator): the picture may move the nozzle meanwhile, the task's.
     std::atomic<bool>                   m_operatorTurn { false };
     std::optional<JPMountConfig>        m_operatorTool;   // main thread's
+    // Where a camera was last tuned for a calibration (tasks' thread: one task at a time).
+    std::string                              m_tunedId;
+    std::optional<std::pair<double, double>> m_tunedAt;
     // Where the camera on the head was (X, Y, its offsets in) when a feature was last sized there (Feature
     // diameter, Auto-Detect Next): the precise nozzle offsets' test object is looked for there first.
     std::optional<std::pair<double, double>> m_featureAt;
