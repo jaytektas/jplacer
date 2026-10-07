@@ -126,9 +126,9 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Runout calibration pipeline (Edit / Reset, nozzleTip properties) | done | OpenPnP's default, imported; the find refined to a fraction of a pixel |
 | Runout calibration (circle divisions, misdetects, offset threshold, Z offset, vision diameter, compensation, Position Tool) | done | measured and compensated; Auto Recalibration on tip change, in jobs and on homing, with Fail Homing; to be tried on the bench with the user there |
 | Runout compensation algorithms (Model, ModelAffine, ModelNoOffset, ModelNoOffsetAffine, ModelCameraOffset, ModelCameraOffsetAffine, Table; the camera offset for its nozzle) | done | imported with OpenPnP's migration and what OpenPnP measured; chosen on the tip's Calibration tab (OpenPnP has no field for it) |
-| Runout: Calibrate Camera Position and Rotation | done | Affine or circle fit, as the algorithm; the turn into jplacer's calibration (else the picture's rotation, as OpenPnP); Excenter Ratio imported |
+| Runout: Calibrate Camera Position and Rotation | done | Affine or circle fit, as the algorithm; the turn into jplacer's calibration (else the picture's rotation, as OpenPnP); Excenter Ratio imported; done by the bottom camera's Calibrate, not on the tip's tab (OpenPnP hides it there with Advanced Calibration, as jplacer's cameras always have) |
 | Nozzle offsets in Issues & Solutions (offsets for the primary/secondary fiducial; Calibrate precise camera ↔ nozzle offsets with Feature diameter, Auto-Detect Next, results) | done | plus Capture Test Object Z (jplacer's own: a test object thicker than paper) |
-| Background calibration (HSV, detail size) | done | with runout calibration; Show Problems as one picture of pairs |
+| Background calibration (HSV, detail size; HsvIndicator wheel and value bar, diagnostics beside it; adaptDialog greying) | done | with runout calibration; Show Problems as one picture of pairs |
 
 ## Cameras
 
@@ -152,6 +152,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Camera view: zoom, reticles (cross, grid, ruler, circle / square), drag / Shift+click to move | done | |
 | Camera view: footprint reticle, image info and histogram, light toggle, Estimate Z, Move Selected Nozzle to Camera, Zoom Sensitivity | done | reticles: none, cross, grid, ruler, circle, square |
 | Camera view: Rendering Quality | done | Low (sharp pixels), High (smoothed), Highest (best scale: whole-number scale, zoom by 2); per camera |
+| Camera view: capture error picture (no image: dark grey, red X top left); camera calibration's Instructions/Status with Cancel | done | the X also over a live uncalibrated camera (jplacer's, can be turned off), not during its own calibration; Cancel for every camera task |
 | Auto focus (up-looking) | done | Focus Sensing Method, the Auto Focus tab, part height by focus in bottom vision |
 | Capture backends (OpenPnpCapture, Webcam, OpenCv, GStreamer, MJPG, ONVIF, Image, Switcher, Neoden4Camera, Neoden4SwitcherCamera) | done | V4L2 (OpenPnpCapture, Webcam, OpenCvCamera by its index and OpenCV properties), MJPG, Image, Switcher, ONVIF, GStreamer (the system's gst-launch-1.0), NeoDen 4 (libneodencam.so loaded at run time; Width, Height and Shift set on the camera, as OpenPnP's fields suggest though its code leaves them), simulated |
 | ImageCamera: Camera Simulation (pixel dimension, units per pixel, offset, Z and Y rotation, viewing scale, distortion, mirrored, source with Browse) and Simulated Calibration Rig (focal length, sensor diagonal, primary and secondary fiducials, focal blur) | done | |

@@ -122,7 +122,20 @@ void JPlacerCameraTasks::run(JPCameraPanel& camera, const std::string& name, Tas
             if (const auto a = alive.lock(); a && *a) fn();
         });
     };
-    m_worker = std::thread([this, panel, name, task, done, onMain] {
+    // OpenPnP's instructions and status while it works (CalibrateCameraProcess's): each step in words, and
+    // Cancel, which stops it before its next move (the one under way ends where it was going); Next not
+    // offered while it works by itself.
+    m_cell.setCancelled(false);
+    auto cancel = [this, panel, name] {
+        m_cell.setCancelled(true);
+        panel->showInstructions(name, "Cancelling: stopping before the next move\xE2\x80\xA6", "Next", nullptr, nullptr);
+        panel->setProceedEnabled(false);
+        panel->setCancelEnabled(false);
+    };
+    panel->showInstructions(name, name + "\xE2\x80\xA6", "Next", cancel, nullptr);
+    panel->setProceedEnabled(false);
+    panel->setCancelEnabled(true);
+    m_worker = std::thread([this, panel, name, task, done, onMain, cancel] {
         // The lights, as the cameras' Light settings say: this camera's on
         // before its pictures, other cameras' off against glare.
         const JPCameraConfig& cam = panel->camera();
@@ -135,18 +148,30 @@ void JPlacerCameraTasks::run(JPCameraPanel& camera, const std::string& name, Tas
         }
         if (!light.empty() && cam.light.beforeCapture) m_cell.switchActuatorAndWait(light, true, lightWhy);
         std::string words;
-        const bool ok = task(words, [panel, name, onMain](const std::string& step) {
-            onMain([panel, name, step] { panel->setNote(name + ": " + step); });
+        const bool ok = task(words, [this, panel, name, onMain, cancel](const std::string& step) {
+            onMain([this, panel, name, step, cancel] {
+                panel->setNote(name + ": " + step);
+                if (!m_cell.isCancelled()) {
+                    panel->showInstructions(name, step, "Next", cancel, nullptr);
+                    panel->setProceedEnabled(false);
+                }
+            });
         });
+        // Cancelled: said as such, not as a failure.
+        const bool cancelled = !ok && m_cell.isCancelled();
+        m_cell.setCancelled(false);
         if (!light.empty() && cam.light.afterCapture) m_cell.switchActuatorAndWait(light, false, lightWhy);
-        JLOGC(JPlacerLog::kCamera, ok ? JLogLevel::Info : JLogLevel::Warn) << name << ": " << words;
-        onMain([this, panel, name, ok, words, done] {
+        JLOGC(JPlacerLog::kCamera, ok || cancelled ? JLogLevel::Info : JLogLevel::Warn) << name << ": "
+                                                                                      << (cancelled ? "cancelled" : words);
+        onMain([this, panel, name, ok, cancelled, words, done] {
             m_busy = false;
             panel->setBusy(false);
-            const std::string text = ok ? words : name + " failed: " + words;
+            panel->hideInstructions();
+            panel->setCancelEnabled(true);
+            const std::string text = ok ? words : cancelled ? name + " cancelled" : name + " failed: " + words;
             panel->setNote(text);
             m_window.showStatus(text, kResultMs);
-            if (onTaskOutcome) onTaskOutcome(ok ? std::string() : text);
+            if (onTaskOutcome) onTaskOutcome(ok || cancelled ? std::string() : text);
             if (done) done(ok);
         });
     });
@@ -341,7 +366,7 @@ void JPlacerCameraTasks::calibrateRunout(const std::string& nozzleId, RunoutDone
     });
 }
 
-void JPlacerCameraTasks::calibrateRunoutCamera(const std::string& nozzleId, CameraFixDone done, bool ask) {
+void JPlacerCameraTasks::calibrateRunoutCamera(const std::string& nozzleId, CameraFixDone done) {
     const JPNozzleConfig* nozzle = nullptr;
     for (const JPNozzleConfig& n : m_cell.config().nozzles)
         if (n.id == nozzleId) nozzle = &n;
@@ -386,18 +411,7 @@ void JPlacerCameraTasks::calibrateRunoutCamera(const std::string& nozzleId, Came
             if (ok && done) done(id, *fix);
         });
     };
-    if (!ask) {
-        start();
-        return;
-    }
-    const JPCameraConfig& cam = camera->camera();
-    char body[640];
-    std::snprintf(body, sizeof body,
-                  "%s's tip %s is sent round a circle over %s (X %.3f, Y %.3f) at Z %.3f, turning as it goes; the camera's "
-                  "position and rotation are set by where it is seen.\n\nThe nozzle must hold no part, and nothing must be in its way.",
-                  nozzle->name.c_str(), tip->name.c_str(), cam.name.c_str(), cam.mount.offsetX, cam.mount.offsetY,
-                  cam.mount.offsetZ + tip->runoutCalibration.zOffset);
-    JDialog::confirm("Calibrate " + cam.name + " Position and Rotation", body, start);
+    start();
 }
 
 void JPlacerCameraTasks::calibrateNozzleOffsets(JPCameraPanel& camera, const JPNozzleConfig& nozzle,
@@ -1003,75 +1017,61 @@ void JPlacerCameraTasks::calibrateFixed(JPCameraPanel& camera, std::function<voi
     }
     // The camera's place is its offset: where it looks, and the height in focus.
     const JPMountConfig& place = cam.mount;
-    char body[640];
-    std::snprintf(body, sizeof body,
-                  "%s is calibrated with a nozzle's tip held over it: %s goes over the camera (X %.3f, Y %.3f), "
-                  "down to Z %.3f, and moves about in a grid a few millimetres across.\n\nThe nozzle must hold no part, "
-                  "and nothing must be in its way.",
-                  cam.name.c_str(), nozzle->name.c_str(), place.offsetX, place.offsetY, place.offsetZ);
     const JPMountConfig tool = nozzle->mount;
     const std::string cameraId = cam.id;
-    std::weak_ptr<bool> alive = m_alive;
     JPCameraPanel* panel = &camera;
-    JDialog::confirm("Calibrate " + cam.name, body, [this, alive, panel, feed, tool, place, cameraId, finished,
-                                                     nozzleId = std::string(nozzle->id)] {
-        if (const auto a = alive.lock(); !a || !*a) return;
-        if (m_busy) {   // another task began while asking
-            if (finished) finished(false);
-            return;
-        }
-        auto result = std::make_shared<JPCameraCalibration>();
-        auto finds = showFinds(*panel);
-        run(*panel, "Calibrating " + feed->config().name, [this, feed, tool, place, result, finds](std::string& words, const auto& progress) {
-            progress("the nozzle over the camera");
-            const bool over = m_cell.safeZAndWait(tool.headId, kTaskSpeed, words)
-                && m_cell.moveAxesAndWait({ { tool.axisX, place.offsetX - tool.offsetX },
-                                            { tool.axisY, place.offsetY - tool.offsetY } }, kTaskSpeed, words)
-                && m_cell.moveAxesAndWait({ { tool.axisZ, place.offsetZ - tool.offsetZ } }, kTaskSpeed, words);
-            std::optional<JPCameraCalibration> c;
-            std::string secondWhy;
-            if (over) {
-                JPCameraCalibrator::Options o;
-                o.markZ = place.offsetZ;
-                o.speed = kTaskSpeed;
-                o.calibrating = feed->config().calibrating;
-                o.moving = &tool;
-                o.found = finds;
-                if (feed->config().autoTuneCalibrating) {
-                    progress("Auto-Tune on the nozzle's tip");
-                    if (!autoTuneHere(*feed, words)) return false;
-                }
-                c = JPCameraCalibrator::run(m_cell, *feed, o, words, progress);
-                // Again with the tip raised (away from a camera looking up).
-                const double raise = o.calibrating.raiseMm;
-                if (c && o.calibrating.twoHeights && raise >= kLeastHeightGapMm) {
-                    char said[64];
-                    std::snprintf(said, sizeof said, "the nozzle raised %.1f mm", raise);
-                    progress(said);
-                    JPCameraCalibrator::Options o2 = o;
-                    o2.markZ = place.offsetZ + raise;
-                    std::string why;
-                    std::optional<JPCameraCalibration> c2;
-                    if (m_cell.moveAxesAndWait({ { tool.axisZ, place.offsetZ + raise - tool.offsetZ } }, kTaskSpeed, why))
-                        c2 = JPCameraCalibrator::run(m_cell, *feed, o2, why, progress);
-                    if (c2) secondHeight(*c, *c2);
-                    else secondWhy = "; raised: " + why;
-                }
+    // As OpenPnP's camera calibration, straight to work (no asking): what it does, and Cancel, on the camera's
+    // instructions while it works.
+    const std::string nozzleId = nozzle->id;
+    auto result = std::make_shared<JPCameraCalibration>();
+    auto finds = showFinds(*panel);
+    run(*panel, "Calibrating " + feed->config().name, [this, feed, tool, place, result, finds](std::string& words, const auto& progress) {
+        progress("the nozzle over the camera");
+        const bool over = m_cell.safeZAndWait(tool.headId, kTaskSpeed, words)
+            && m_cell.moveAxesAndWait({ { tool.axisX, place.offsetX - tool.offsetX },
+                                        { tool.axisY, place.offsetY - tool.offsetY } }, kTaskSpeed, words)
+            && m_cell.moveAxesAndWait({ { tool.axisZ, place.offsetZ - tool.offsetZ } }, kTaskSpeed, words);
+        std::optional<JPCameraCalibration> c;
+        std::string secondWhy;
+        if (over) {
+            JPCameraCalibrator::Options o;
+            o.markZ = place.offsetZ;
+            o.speed = kTaskSpeed;
+            o.calibrating = feed->config().calibrating;
+            o.moving = &tool;
+            o.found = finds;
+            if (feed->config().autoTuneCalibrating) {
+                progress("Auto-Tune on the nozzle's tip");
+                if (!autoTuneHere(*feed, words)) return false;
             }
-            // Up again, whatever happened.
-            std::string up;
-            if (!m_cell.safeZAndWait(tool.headId, kTaskSpeed, up) && words.empty()) words = up;
-            if (!c) return false;
-            *result = *c;
-            words = calibrated(feed->config(), *c) + secondWhy;
-            return true;
-        }, [this, cameraId, result, finished, nozzleId](bool ok) {
-            if (ok) keepCalibration(cameraId, *result);
-            if (finished) finished(ok);
-            if (ok && onFixedCalibrated) onFixedCalibrated(cameraId, nozzleId);
-        });
-    }, [finished] {
-        if (finished) finished(false);   // not confirmed
+            c = JPCameraCalibrator::run(m_cell, *feed, o, words, progress);
+            // Again with the tip raised (away from a camera looking up).
+            const double raise = o.calibrating.raiseMm;
+            if (c && o.calibrating.twoHeights && raise >= kLeastHeightGapMm) {
+                char said[64];
+                std::snprintf(said, sizeof said, "the nozzle raised %.1f mm", raise);
+                progress(said);
+                JPCameraCalibrator::Options o2 = o;
+                o2.markZ = place.offsetZ + raise;
+                std::string why;
+                std::optional<JPCameraCalibration> c2;
+                if (m_cell.moveAxesAndWait({ { tool.axisZ, place.offsetZ + raise - tool.offsetZ } }, kTaskSpeed, why))
+                    c2 = JPCameraCalibrator::run(m_cell, *feed, o2, why, progress);
+                if (c2) secondHeight(*c, *c2);
+                else secondWhy = "; raised: " + why;
+            }
+        }
+        // Up again, whatever happened.
+        std::string up;
+        if (!m_cell.safeZAndWait(tool.headId, kTaskSpeed, up) && words.empty()) words = up;
+        if (!c) return false;
+        *result = *c;
+        words = calibrated(feed->config(), *c) + secondWhy;
+        return true;
+    }, [this, cameraId, result, finished, nozzleId](bool ok) {
+        if (ok) keepCalibration(cameraId, *result);
+        if (finished) finished(ok);
+        if (ok && onFixedCalibrated) onFixedCalibrated(cameraId, nozzleId);
     });
 }
 

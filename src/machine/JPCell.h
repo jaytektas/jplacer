@@ -204,6 +204,13 @@ public:
     // place). What was moving fails with "stopped". False with `why` when no
     // controller's firmware has a way to stop.
     bool stop(bool emergency, std::string& why);
+    // OpenPnP's Cancel for a procedure on a thread of its own (a camera's
+    // calibration): from any thread, every move or procedure waited for from
+    // now on fails at once with "cancelled", the one under way left to end
+    // where it was going (nothing stopped mid-move), until it is cleared.
+    // Up to safe Z (safeZAndWait) still goes: what a cancelled procedure does last.
+    void setCancelled(bool on) { m_cancelled = on; }
+    bool isCancelled() const { return m_cancelled; }
     // A home is under way (from the request until homed or failed).
     bool isHoming() const { return m_homing; }
     // THE MACHINE'S SPEED, as OpenPnP's: a share of full speed (0..1) every
@@ -534,6 +541,7 @@ private:
     std::atomic<bool>                           m_homed{ false };
     std::atomic<bool>                           m_homing{ false };
     std::atomic<bool>                           m_moving{ false };
+    std::atomic<bool>                           m_cancelled{ false };   // setCancelled
     std::map<std::string, PartOnNozzle>         m_nozzleParts;   // by nozzle id; the cell's thread's
     std::mutex                                  m_roamMutex;
     std::map<std::string, std::pair<double, double>> m_roamFrom;   // by tool: where it was left at unsafe Z

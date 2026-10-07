@@ -201,6 +201,9 @@ void JPCameraPanel::setBusy(bool busy) {
     m_visualTest->setEnabled(!busy);
     // A task needs pictures whether or not anyone is looking.
     m_busy = busy;
+    // Its pictures are the task's: one calibrating this camera is not to be crossed out as uncalibrated (its
+    // live pictures between the ones it shows would flash the cross on and off).
+    m_view->setTaskUnderway(busy);
     if (busy && !m_feed.isRunning()) start();
 }
 

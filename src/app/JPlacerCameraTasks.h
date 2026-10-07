@@ -52,9 +52,9 @@ public:
     std::function<void(const std::string& cameraId, const JJson& controls)> onTuned;
 
     // A camera on the head: over the head's homing mark, then measured with
-    // known moves. A fixed camera: a nozzle's tip held over it (asked first,
-    // as a nozzle goes down to it) and moved about.
-    // `finished`: whether it was calibrated (false too when it could not start, or was not confirmed).
+    // known moves. A fixed camera: a nozzle's tip held over it and moved about.
+    // Each, as every camera task (run), with its steps and Cancel on the camera.
+    // `finished`: whether it was calibrated (false too when it could not start, or was cancelled).
     // `here`: a camera on the head calibrated over the mark it is over now, of a size it finds (as when the
     // head has no homing mark yet: a new machine).
     void calibrate(JPCameraPanel& camera, std::function<void(bool ok)> finished = nullptr, bool here = false);
@@ -108,8 +108,8 @@ public:
     // OpenPnP's Calibrate Camera Position and Rotation with the tip on `nozzleId` (JPRunoutCalibrator::
     // calibrateCamera), asking first. `done` (main thread): where the camera looking up is and how far it is turned.
     using CameraFixDone = std::function<void(const std::string& cameraId, const JPRunoutCalibrator::CameraFix&)>;
-    // `ask`: asked first (its own button); not when it is the last step of a calibration already agreed to.
-    void calibrateRunoutCamera(const std::string& nozzleId, CameraFixDone done, bool ask = true);
+    // The last step of the camera looking up's calibration, agreed to at its start: not asked again.
+    void calibrateRunoutCamera(const std::string& nozzleId, CameraFixDone done);
     // The settling test: a camera on a head moved (dx, dy) and back, or for a
     // fixed camera `tool` (a nozzle held over it, by hand) moved so, or turned
     // `dc` degrees and back, or (`up`, OpenPnP's) brought over it at Safe Z

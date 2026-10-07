@@ -81,6 +81,11 @@ public:
         // shown in a square box, or (an illustration) at its own size.
         std::function<std::shared_ptr<const JPFrame>()> image;
         bool ownSize = false;
+        // Kind::Image: drawn without its box (on the form, as OpenPnP's HsvIndicator).
+        bool unframed = false;
+        // Kind::Image: words beside the picture, read again on a refresh;
+        // paragraphs (split by an empty line) with a line between them.
+        std::function<std::string()> beside;
         // Place::Location: the actuator its tool buttons use (OpenPnP's
         // LocationButtonsPanel actuatorName), read when it is shown; none
         // or empty: the nozzle chosen.
@@ -122,6 +127,10 @@ public:
             std::function<void()> apply;
         };
         std::map<std::string, Edit> edits;
+        // Properties (and buttons, by action) shown but not changeable now (OpenPnP's disabled or not
+        // editable fields: a setting that does nothing as the others stand,
+        // or one a calibration sets): greyed.
+        std::vector<std::string> disabled;
     };
 
     // The form for the node at `path` (JPSetupTree); an empty model for a

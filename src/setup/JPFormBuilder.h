@@ -106,6 +106,12 @@ public:
         r.ownSize = ownSize;
         rows().push_back(std::move(r));
     }
+    // The picture just added, drawn without its box.
+    void unframed() { rows().back().unframed = true; }
+    // Words beside the picture just added (Row::beside), read again on each refresh.
+    void beside(std::function<std::string()> words) { rows().back().beside = std::move(words); }
+    // The setting `name` shown greyed: not changeable as things stand (Form::disabled).
+    void disable(const std::string& name) { m_form.disabled.push_back(name); }
     // A search's progress across the form, `states` read again on each refresh.
     void strip(std::function<std::vector<int>()> states) {
         Row r;

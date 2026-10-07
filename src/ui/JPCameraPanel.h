@@ -91,6 +91,7 @@ public:
                           std::function<void()> onCancel, std::function<void()> onProceed);
     void hideInstructions();
     void setProceedEnabled(bool on) { m_instructions->setProceedEnabled(on); }
+    void setCancelEnabled(bool on) { m_instructions->setCancelEnabled(on); }
     // A word about the picture (what a task is doing, why it is dark).
     void setNote(const std::string& text);
     // Write the latest picture to capturesDir. The file written, or empty

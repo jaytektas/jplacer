@@ -924,6 +924,10 @@ bool JPCell::reaches(const JPMountConfig& mount, double x, double y) const {
 }
 
 bool JPCell::waitFor(std::function<bool(std::string&)> work, std::string& why) {
+    if (m_cancelled) {
+        why = "cancelled";
+        return false;
+    }
     if (m_moving.exchange(true)) {
         why = "another move is under way";
         return false;
@@ -975,6 +979,10 @@ bool JPCell::readVacuumAndWait(const std::string& nozzleId, double& level, std::
 }
 
 bool JPCell::onThreadAndWait(const std::function<bool(std::string&)>& work, std::string& why) {
+    if (m_cancelled) {
+        why = "cancelled";
+        return false;
+    }
     std::promise<std::pair<bool, std::string>> done;
     auto result = done.get_future();
     m_thread.post([this, &work, &done] {
@@ -1997,6 +2005,10 @@ void JPCell::roamUnsafeZ(const std::string& toolId, const JPMountConfig& mount, 
 }
 
 bool JPCell::moveAxesAndWait(std::map<std::string, double> targets, double speed, std::string& why, bool squared) {
+    if (m_cancelled) {
+        why = "cancelled";
+        return false;
+    }
     if (m_moving.exchange(true)) {
         why = "another move is under way";
         return false;

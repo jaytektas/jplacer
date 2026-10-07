@@ -84,6 +84,8 @@ private:
     // How wide a control for `p` is, as it is laid out.
     float widthOf(const JProperty& p) const;
     const JProperty* find(const std::string& name) const;
+    // A setting or button shown greyed (Form::disabled).
+    bool greyed(const std::string& name) const;
     // The pages made again from the form shown (to a new width).
     void rebuild();
     // Each page made as tall as its groups came out (see page()).
@@ -95,6 +97,7 @@ private:
     std::vector<JContainer*>               m_contents;   // each page's column of groups
     std::vector<std::function<void()>>     m_pulls;
     bool                                   m_pulling = false;   // refresh() setting controls: not an edit
+    bool                                   m_greying = false;   // making a disabled setting's control (Form::disabled)
     float                                  m_builtWidth = 0;    // the form's width when its pages were made
     bool                                   m_rebuilding = false;
     bool                                   m_openPnpPlaceButtons = false;

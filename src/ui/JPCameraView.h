@@ -114,6 +114,13 @@ public:
     // and held while `suspended` says (pictures vision shows still shown).
     void setPreviewFps(double fps) { m_previewFps = fps; }
     // A live picture not calibrated for its size crossed out and said so (the camera's setting).
+    // A task is taking this camera's pictures (JPCameraPanel::setBusy): the
+    // uncalibrated cross not drawn meanwhile (a task that needs the camera
+    // calibrated refuses to start without it; one calibrating it needs it not).
+    void setTaskUnderway(bool on) {
+        m_taskUnderway = on;
+        invalidate();
+    }
     void setWarnUncalibrated(bool on) { m_warnUncalibrated = on; invalidate(); }
     std::function<bool()> suspended;
     // A picture vision shows (showPicture), for its owner to bring it forward.
@@ -204,6 +211,7 @@ private:
     JPFrame                            m_still;
     bool                               m_showingStill = false;
     bool                               m_warnUncalibrated = true;
+    bool                               m_taskUnderway = false;      // setTaskUnderway
     void upload(const JPFrame& picture);
     std::vector<std::pair<JMenuItem*, JPReticle::Kind>> m_kindItems;
     std::vector<std::pair<JMenuItem*, double>> m_spacingItems, m_sizeItems;

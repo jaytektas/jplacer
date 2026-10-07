@@ -17,9 +17,23 @@ inline namespace jf {
 
 namespace {
 
-// The red cross over a view with no picture, or over a live camera not calibrated: this many border widths thick,
-// to be seen at once.
-constexpr float kCrossWidths = 4.f;
+// OpenPnP's capture error picture (AbstractBroadcastingCamera.getCaptureErrorImage), shown when there is no
+// picture: 640 x 480, dark grey (Java's Color.darkGray), a red X in its top left, from 20 to 100 each way, its
+// strokes 20 wide with Java's square ends. These are the picture's own pixels, not the theme's.
+constexpr float kErrorWidth = 640, kErrorHeight = 480;
+constexpr float kErrorCrossFrom = 20, kErrorCrossTo = 100, kErrorCrossStroke = 20;
+constexpr uint8_t kErrorGrey = 64;
+
+// OpenPnP's red X, on a picture whose top left is at x, y drawn `scale` screen pixels to its pixel (as on its
+// 640-wide error picture): over a view with no picture, and over a live camera not calibrated.
+void errorCross(JVectorCanvas& vg, float x, float y, float scale) {
+    const JPaint red = JPaint::solid(rgb(255, 0, 0));
+    // Square ends: each stroke runs on half its width past its ends.
+    const float reach = kErrorCrossStroke * 0.5f / std::sqrt(2.f);
+    const float a = (kErrorCrossFrom - reach) * scale, z = (kErrorCrossTo + reach) * scale;
+    vg.drawLine(x + a, y + a, x + z, y + z, kErrorCrossStroke * scale, red);
+    vg.drawLine(x + a, y + z, x + z, y + a, kErrorCrossStroke * scale, red);
+}
 // Each notch of the wheel zooms by this much, by sensitivity (OpenPnP's).
 double zoomPerNotch(JPCameraView::ZoomSensitivity s) {
     switch (s) {
@@ -425,11 +439,13 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     const JStyle& st = JStyle::current();
     buf.pushRectangle(b.x, b.y, b.width, b.height, Colors::DockContentBg, 0.f);
     if (m_tex == kNullTexture || m_w <= 0 || m_h <= 0) {
-        // No picture: OpenPnP's red cross over the whole view (its CameraView with no image).
+        // No picture: OpenPnP's capture error picture in its place, fitted to the view as a picture is.
+        const float scale = std::min(b.width / kErrorWidth, b.height / kErrorHeight);
+        const float px = b.x + (b.width - kErrorWidth * scale) * 0.5f, py = b.y + (b.height - kErrorHeight * scale) * 0.5f;
+        const JColor grey = rgb(kErrorGrey, kErrorGrey, kErrorGrey);
+        buf.pushRectangle(px, py, kErrorWidth * scale, kErrorHeight * scale, grey.data(), 0.f);
         JVectorCanvas none;
-        const JPaint red = JPaint::solid(rgb(Colors::Danger[0], Colors::Danger[1], Colors::Danger[2]));
-        none.drawLine(b.x, b.y, b.x + b.width, b.y + b.height, kCrossWidths * st.borderWidth, red);
-        none.drawLine(b.x + b.width, b.y, b.x, b.y + b.height, kCrossWidths * st.borderWidth, red);
+        errorCross(none, px, py, scale);
         none.flush(buf);
         if (!m_message.empty()) {
             const float tw = JTextHelper::measureWidth(m_message);
@@ -530,13 +546,10 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
         vg.strokeRect(m_dragX - half, m_dragY - half, 2 * half, 2 * half, line, JPaint::solid(d));
     }
 
-    // A live camera not calibrated for its picture size: a red cross over the whole picture, as it cannot be
-    // measured through (its scale, its lens, where it is all unknown), with what is missing said below.
-    if (m_warnUncalibrated && !calibrated && !m_showingStill) {
-        const JPaint red = JPaint::solid(rgb(Colors::Danger[0], Colors::Danger[1], Colors::Danger[2]));
-        vg.drawLine(vx0, vy0, vx1, vy1, kCrossWidths * line, red);
-        vg.drawLine(vx0, vy1, vx1, vy0, kCrossWidths * line, red);
-    }
+    // A live camera not calibrated for its picture size: OpenPnP's red X in the picture's top left, as on its
+    // capture error picture (in proportion, the picture taken as 640 wide), as it cannot be measured through
+    // (its scale, its lens, where it is all unknown), with what is missing said beside it.
+    if (m_warnUncalibrated && !calibrated && !m_showingStill && !m_taskUnderway) errorCross(vg, x, y, w / kErrorWidth);
 
     // The light toggle, while not choosing a place or a selection (as OpenPnP's).
     if (m_hasLight && !m_selecting && !onPicked) drawLightToggle(vg);
@@ -551,7 +564,7 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
         JTextHelper::pushText(buf, vx0 + pad, vy0 + pad, m_message, Colors::Warning, vx1 - vx0 - 2 * pad);
     }
     // Not calibrated: said, at the top, unless something more pressing is.
-    if (m_warnUncalibrated && !calibrated && !m_showingStill && m_message.empty() && m_prompt.empty()) {
+    if (m_warnUncalibrated && !calibrated && !m_showingStill && !m_taskUnderway && m_message.empty() && m_prompt.empty()) {
         char text[96];
         std::snprintf(text, sizeof text, "Not calibrated for its %d\xC3\x97%d pictures: calibrate it (the target button)", m_w, m_h);
         buf.pushRectangle(vx0, vy0, vx1 - vx0, lh + 2 * pad, Colors::OverlayScrim, 0.f);

@@ -14,6 +14,7 @@
 #include "JPVisionForms.h"
 
 #include "JPFormBuilder.h"
+#include "JPHsvIndicator.h"
 #include "JPSetupTree.h"
 
 #include "machine/JPMotionControlType.h"
@@ -1647,11 +1648,33 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
 
     add.tab("Calibration");
     // As OpenPnP's ReferenceNozzleTipCalibrationWizard: its Calibration panel (enabled, the tool positioned over
-    // the camera looking up; Calibrate, Reset, Calibrate Camera Position and Rotation; when; Fail Homing?), then
-    // its Nozzle Tip Calibration panel (what the tip is, how it is measured), then Background Calibration.
+    // the camera looking up; Calibrate, Reset; when; Fail Homing?), then its Nozzle Tip Calibration panel (what
+    // the tip is, how it is measured), then Background Calibration. Its Calibrate Camera Position and Rotation is
+    // hidden by OpenPnP once the camera looking up has Advanced Calibration, as jplacer's cameras always do: the
+    // camera's Calibrate sets it. As its adaptDialog: off, everything but Enable? greyed; Fail Homing? only for
+    // the recalibrations on homing; the background's settings greyed as its Method makes them mean nothing.
     add.group("Calibration");
     auto rc = [t]() -> JPNozzleTipConfig::RunoutCalibration& { return t().runoutCalibration; };
     using RC = JPNozzleTipConfig::RunoutCalibration;
+    const bool calibrating = rc().enabled;
+    const std::string method = t().background.method;
+    const bool measuresBackground = calibrating && method != "None", keysColour = calibrating && method == "BrightnessAndKeyColor";
+    f.reshaping.push_back("runoutEnabled");
+    f.reshaping.push_back("runoutRecalibration");
+    f.reshaping.push_back("backgroundMethod");
+    if (!calibrating)
+        for (const char* n : { "positionRunoutTool", "calibrateRunout", "resetRunout", "runoutRecalibration", "runoutFailHoming",
+                               "runoutDivisions", "runoutMisdetects", "runoutOffsetThreshold", "runoutZOffset",
+                               "runoutVisionDiameter", "runoutAlgorithm", "editTipPipeline", "resetTipPipeline", "backgroundMethod" })
+            add.disable(n);
+    if (!measuresBackground)
+        for (const char* n : { "minimumDetailSize", "backgroundValueTol", "showBackgroundProblems" }) add.disable(n);
+    if (!keysColour)
+        for (const char* n : { "backgroundHueTol", "backgroundSaturationTol" }) add.disable(n);
+    // The ranges a calibration found: shown, not edited.
+    for (const char* n : { "backgroundHueMin", "backgroundHueMax", "backgroundSaturationMin", "backgroundSaturationMax",
+                           "backgroundValueMin", "backgroundValueMax" })
+        add.disable(n);
     add.row("Enable?");
     add.flag("runoutEnabled", "", [rc]() -> bool& { return rc().enabled; });
     add.iconButton("positionRunoutTool", "position-nozzle", "Position the tool over the bottom camera.");
@@ -1659,16 +1682,16 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
     add.row("Calibration");
     add.button("calibrateRunout", "Calibrate", "Calibrate the nozzle tip on the nozzle it is on, over the camera looking up.");
     add.button("resetRunout", "Reset", "Forget the calibration on the nozzle it is on.");
-    add.button("calibrateRunoutCamera", "Calibrate Camera Position and Rotation",
-               "Calibrate the bottom vision camera position and rotation according to a pattern of measured nozzle positions.");
     add.end();
     add.choice("runoutRecalibration", "Auto Recalibration", { "NozzleTipChange", "NozzleTipChangeInJob", "MachineHome", "Manual" },
                [rc] { return rc().recalibration; }, [rc](const std::string& v) { rc().recalibration = v; });
     add.tip("Determines when a recalibration is automatically executed: on each nozzle tip change (by the changer or by "
             "hand); on each nozzle tip change but only in Jobs; on each machine homing (and on nozzle tip change when not "
             "yet calibrated); or manually only.");
-    add.flag("runoutFailHoming", "Fail Homing?", [rc]() -> bool& { return rc().failHoming; });
-    add.tip("When the calibration fails during homing, also fail the homing cycle.");
+    if (rc().recalibration == "MachineHome" || rc().recalibration == "NozzleTipChange") {
+        add.flag("runoutFailHoming", "Fail Homing?", [rc]() -> bool& { return rc().failHoming; });
+        add.tip("When the calibration fails during homing, also fail the homing cycle.");
+    }
 
     add.group("Nozzle Tip Calibration");
     {
@@ -1725,10 +1748,8 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
              "camera's focus (plus the Z offset), turned to each of Circle Divisions angles round the circle, its "
              "end found at each (Vision Diameter across; 0: the tip's diameter), and fitted as the Compensation "
              "Algorithm says. With Enable? on, every move of that nozzle is sent the compensation the other way, so "
-             "the tip's centre lands where it is sent at any angle. Reset forgets it for that nozzle. Calibrate Camera "
-             "Position and Rotation (the tip measured first) sends the tip round a circle over the camera looking up, a "
-             "quarter of its picture out, and sets where the camera is and how far its picture is turned from where "
-             "the tip was seen.");
+             "the tip's centre lands where it is sent at any angle. Reset forgets it for that nozzle. The camera "
+             "looking up's own position and rotation are set by its Calibrate, with this tip over it.");
     for (const auto& [nozzleId, r] : t().runout) {
         std::string nozzleName = nozzleId;
         for (const JPNozzleConfig& n : cell.nozzles)
@@ -1791,7 +1812,14 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
             &B::tolSaturation);
     channel("backgroundValue", "Value", "Brightness, Value in the HSV color model", &B::minValue, &B::maxValue, &B::tolValue);
     add.endColumns();
-    add.note(bg().diagnostics.empty() ? std::string("No diagnostics yet.") : bg().diagnostics);
+    // OpenPnP's HsvIndicator, its diagnostics beside it.
+    add.image("", [bg, measuresBackground] {
+        const JPNozzleTipConfig::Background& b = bg();
+        return JPHsvIndicator::picture({ b.minHue, b.maxHue, b.minSaturation, b.maxSaturation, b.minValue, b.maxValue },
+                                       measuresBackground);
+    }, true);
+    add.unframed();
+    add.beside([bg] { return bg().diagnostics.empty() ? std::string("No diagnostics yet.") : bg().diagnostics; });
     add.actionsWithTips({ { "Show Problems", "showBackgroundProblems",
                             "Display the problematic image portions in the camera preview." } });
     add.note("Calibrate (Runout, above) measures the background too: the pictures of the tip all round give the "

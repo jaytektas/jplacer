@@ -25,6 +25,8 @@ public:
              std::function<void()> onCancel, std::function<void()> onProceed);
     // The button that goes on, offered or not (OpenPnP's proceed enabled).
     void setProceedEnabled(bool on) { m_proceed->setEnabled(on); }
+    // Cancel offered or not (once pressed, while what it stops winds down).
+    void setCancelEnabled(bool on) { m_cancel->setEnabled(on); }
     // How tall it is shown; and, at `width`, with room for all its text
     // folded (for a narrow place: a camera's panel), and its text that tall.
     static float height();

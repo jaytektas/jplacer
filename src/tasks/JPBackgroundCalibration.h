@@ -22,7 +22,8 @@ inline namespace jf {
 //    green or blue tip): the darkest value a colour is masked from, and the
 //    key colour's hue, saturation and value box that leaves least masked.
 //
-// What was found is judged in words (the diagnostics), and each picture with
+// What was found is judged in words (the diagnostics: paragraphs, split by
+// an empty line, as OpenPnP's are by a rule), and each picture with
 // pixels the mask would not take is kept twice, as it is and with those
 // pixels in a signal colour (Show Problems).
 class JPBackgroundCalibration {

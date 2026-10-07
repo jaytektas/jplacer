@@ -216,6 +216,10 @@ void JPSetupForm::refresh() {
     m_pulling = false;
 }
 
+bool JPSetupForm::greyed(const std::string& name) const {
+    return std::find(m_form.disabled.begin(), m_form.disabled.end(), name) != m_form.disabled.end();
+}
+
 const JProperty* JPSetupForm::find(const std::string& name) const {
     for (const JProperty& p : m_form.model.all())
         if (p.name == name) return &p;
@@ -291,6 +295,22 @@ float JPSetupForm::widthOf(const JProperty& p) const {
 
 std::unique_ptr<JWidget> JPSetupForm::editor(const JProperty& p, float width) {
     const JStyle& st = JStyle::current();
+    if (!m_greying && greyed(p.name)) {
+        // Not changeable now: its usual control, greyed, showing what it is.
+        JProperty shown = p;
+        shown.set = [](const JVariant&) { return false; };
+        shown.meta.writable = true;
+        m_greying = true;
+        std::unique_ptr<JWidget> control = editor(shown, width);
+        m_greying = false;
+        // The control and all it is made of (a field and its steppers), each drawn as disabled.
+        std::function<void(JWidget&)> grey = [&grey](JWidget& w) {
+            w.setEnabled(false);
+            for (JWidget* c : w.children()) grey(*c);
+        };
+        grey(*control);
+        return control;
+    }
     if (!p.writable() && p.get().isBool()) {
         // A tick box that cannot be changed now: shown greyed, as it stands.
         JProperty shown = p;
@@ -553,14 +573,62 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
                 auto name = box(m_graph, labels, height, JJustifyContent::FlexEnd);
                 name->add(label(m_graph, r.label));
                 row->add(std::move(name));
+                if (r.unframed) {
+                    width -= 2 * st.borderWidth;
+                    height -= 2 * st.borderWidth;
+                }
                 JPImageBox* image = row->add(std::make_unique<JPImageBox>(m_graph, m_hal));
+                image->setFramed(!r.unframed);
                 image->setFixedSize(width, height);
                 auto pull = [image, get = r.image] { image->setImage(get ? get() : nullptr); };
                 pull();
                 m_pulls.push_back(pull);
-                row->setFixedSize(0.f, height);
+                float tallest = height;
+                if (r.beside) {
+                    // Its words beside it, a line between paragraphs (OpenPnP's diagnostics); made again when they change.
+                    const float formWidth = m_graph.getLayoutConst(getNodeId()).boundingBox.width;
+                    const float wordsWidth = std::max(numberWidth() * 4, formWidth - labels - width - 2 * st.spacing
+                                                                             - JPGroupFrame::extraWidth()
+                                                                             - 2 * (st.scrollBarWidth + st.itemPadding));
+                    auto words = std::make_unique<JContainer>(m_graph, 0.f, 0.f);
+                    words->setDirection(JFlexDirection::Column)->setGap(st.spacing)->setAlignItems(JAlignItems::Start);
+                    const std::string text = r.beside();
+                    float wordsHeight = 0;
+                    for (size_t at = 0; at < text.size();) {
+                        const size_t end = text.find("\n\n", at);
+                        std::string para = text.substr(at, end == std::string::npos ? std::string::npos : end - at);
+                        while (!para.empty() && para.back() == '\n') para.pop_back();
+                        at = end == std::string::npos ? text.size() : end + 2;
+                        if (para.empty()) continue;
+                        if (wordsHeight > 0) {
+                            words->add(std::make_unique<JSeparator>(m_graph, JSeparator::JOrientation::Horizontal, wordsWidth));
+                            wordsHeight += 1 + st.spacing;
+                        }
+                        auto l = std::make_unique<JLabel>(m_graph, para, wordsWidth, st.labelHeight);
+                        l->setWordWrap(true);
+                        const float h = std::max(st.labelHeight, l->heightFor(wordsWidth));
+                        l->setVSizePolicy(JSizePolicyMode::Fixed);
+                        l->setSize(wordsWidth, h);
+                        words->add(std::move(l));
+                        wordsHeight += h + st.spacing;
+                    }
+                    words->setFixedSize(wordsWidth, wordsHeight);
+                    row->add(std::move(words));
+                    tallest = std::max(tallest, wordsHeight);
+                    m_pulls.push_back([this, text, get = r.beside] {
+                        if (m_rebuilding || get() == text) return;
+                        m_rebuilding = true;
+                        std::weak_ptr<bool> alive = m_alive;
+                        jPostToNextFrame([this, alive] {
+                            if (!alive.lock()) return;
+                            m_rebuilding = false;
+                            rebuild();
+                        });
+                    });
+                }
+                row->setFixedSize(0.f, tallest);
                 row->setHSizePolicy(JSizePolicyMode::Expanding, 1);
-                place(std::move(row), height);
+                place(std::move(row), tallest);
                 break;
             }
             case Row::Kind::Actions: {
@@ -637,7 +705,7 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
                 for (const JPSetupProperties::Cell& c : r.cells) {
                     if (!c.button || c.icon.empty()) continue;
                     JPIconButton* b = row->add(std::make_unique<JPIconButton>(m_graph, c.label, c.icon, c.tooltip));
-                    b->setEnabled(c.enabled);
+                    b->setEnabled(c.enabled && !greyed(c.property));
                     b->onClicked.connect([this, action = c.property] {
                         if (onAction) onAction(action);
                     });
@@ -675,7 +743,7 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
 
 std::unique_ptr<JButton> JPSetupForm::button(const JPSetupProperties::Cell& c) {
     auto b = JPUiParts::button(m_graph, c.label);
-    b->setEnabled(c.enabled);
+    b->setEnabled(c.enabled && !greyed(c.property));
     if (!c.tooltip.empty()) b->setTooltip(c.tooltip);
     b->onClicked.connect([this, action = c.property] {
         if (onAction) onAction(action);

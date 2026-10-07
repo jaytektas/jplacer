@@ -13,7 +13,8 @@
 inline namespace jf {
 
 // A picture shown whole in a sunken box, its shape kept and centred (as
-// OpenPnP shows a drag feeder's template image): empty, just the box.
+// OpenPnP shows a drag feeder's template image): empty, just the box. Not
+// framed: the picture alone, on what is behind it (OpenPnP's HsvIndicator).
 class JPImageBox : public JWidget {
 public:
     JPImageBox(JSceneGraph& graph, JGpuHal* hal);
@@ -21,6 +22,7 @@ public:
 
     // The picture to show (the same one again changes nothing); null: none.
     void setImage(std::shared_ptr<const JPFrame> image);
+    void setFramed(bool framed);
 
     void populateRenderPrimitives(JPrimitiveBuffer& buf) override;
 
@@ -28,6 +30,7 @@ private:
     JGpuHal*                        m_hal = nullptr;
     std::shared_ptr<const JPFrame>  m_image;
     TextureHandle                   m_tex = kNullTexture;
+    bool                            m_framed = true;
 };
 
 } // inline namespace jf

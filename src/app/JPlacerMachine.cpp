@@ -343,7 +343,7 @@ void JPlacerMachine::buildCameras() {
             calibrateTipRunout(nozzleId, [this, alive, nozzleId](bool ok, const std::string&) {
                 if (!ok) return;   // said, and in the banner
                 jPostToNextFrame([this, alive, nozzleId] {
-                    if (const auto a = alive.lock(); a && *a) calibrateCameraPosition(nozzleId, false);
+                    if (const auto a = alive.lock(); a && *a) calibrateCameraPosition(nozzleId);
                 });
             });
         });
@@ -1603,17 +1603,6 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
             return;
         }
         calibrateTipRunout(on->id, nullptr);
-    } else if (action == "calibrateRunoutCamera" && path.rfind("nozzletip:", 0) == 0) {
-        // OpenPnP's Calibrate Camera Position and Rotation, with the tip on the nozzle it is on.
-        const std::string tipId = path.substr(10);
-        const JPNozzleConfig* on = nullptr;
-        for (const JPNozzleConfig& n : m_cell->config().nozzles)
-            if (n.tipId == tipId) on = &n;
-        if (!on) {
-            m_window.showStatus("Load the tip on a nozzle first: the camera is calibrated with it", kErrorMs);
-            return;
-        }
-        calibrateCameraPosition(on->id);
     } else if ((action == "autoFocusTest" || action == "adjustCameraZ") && path.rfind("camera:", 0) == 0) {
         const std::string cameraId = path.substr(7);
         const JPMountConfig* nozzleMount = toolMount(JPSetupForm::Tool::Nozzle);
@@ -1903,7 +1892,7 @@ void JPlacerMachine::calibrateTipRunout(const std::string& nozzleId, std::functi
     });
 }
 
-void JPlacerMachine::calibrateCameraPosition(const std::string& nozzleId, bool ask) {
+void JPlacerMachine::calibrateCameraPosition(const std::string& nozzleId) {
     if (!m_cameraTasks) return;
     m_cameraTasks->calibrateRunoutCamera(nozzleId, [this](const std::string& cameraId, const JPRunoutCalibrator::CameraFix& fix) {
         if (!m_setup) return;
@@ -1919,7 +1908,7 @@ void JPlacerMachine::calibrateCameraPosition(const std::string& nozzleId, bool a
                         cam.rotation -= fix.turnDeg;
                 }
         });
-    }, ask);
+    });
 }
 
 void JPlacerMachine::recalibrateAfterHoming(std::vector<std::string> nozzles, std::function<void(bool)> done) {

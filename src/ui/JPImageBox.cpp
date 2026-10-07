@@ -26,12 +26,18 @@ void JPImageBox::setImage(std::shared_ptr<const JPFrame> image) {
     invalidate();
 }
 
+void JPImageBox::setFramed(bool framed) {
+    if (framed == m_framed) return;
+    m_framed = framed;
+    invalidate();
+}
+
 void JPImageBox::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     const JRect b = bounds();
     const JStyle& st = JStyle::current();
-    buf.pushRectangle(b.x, b.y, b.width, b.height, Colors::DockContentBg, 0.f, st.borderWidth, Colors::Border);
+    if (m_framed) buf.pushRectangle(b.x, b.y, b.width, b.height, Colors::DockContentBg, 0.f, st.borderWidth, Colors::Border);
     if (m_tex != kNullTexture && m_image) {
-        const float inset = st.borderWidth;
+        const float inset = m_framed ? st.borderWidth : 0.f;
         const float roomW = std::max(0.f, b.width - 2 * inset), roomH = std::max(0.f, b.height - 2 * inset);
         const float scale = std::min(roomW / float(m_image->width), roomH / float(m_image->height));
         const float w = float(m_image->width) * scale, h = float(m_image->height) * scale;

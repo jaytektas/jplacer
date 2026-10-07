@@ -206,7 +206,7 @@ bool JPBackgroundCalibration::finish(double maskRadiusPx, Result& out) const {
         else if (bestMinValue <= kMinMaskValue) r += "possibly too dark.\nCheck camera exposure.\n";
         else r += "quite dark. Perfect!\n";
         if (bestMinValue <= kWorstValue) {
-            r += "The key color is ";
+            r += "\nThe key color is ";   // OpenPnP's <hr/>: a paragraph of its own
             if (hueSpan > kWorstHueSpan)
                 r += "not consistent enough.\nCheck camera white balance.\nClean the nozzle tip. If it is shiny, make it "
                      "dull.\nEliminate light sources that reflect on the nozzle tip.\n";
@@ -214,7 +214,7 @@ bool JPBackgroundCalibration::finish(double maskRadiusPx, Result& out) const {
             else if (hueSpan > 1) r += "very consistent. Perfect!\n";
             else r += "not detectable.\n";
             if (hueSpan <= kWorstHueSpan) {
-                r += "The key color is ";
+                r += "\nThe key color is ";   // OpenPnP's <hr/>: a paragraph of its own
                 if (bestMinSat < kWorstSaturation)
                     r += "not vivid enough.\nCheck camera white balance.\nClean the nozzle tip. If it is shiny, make it "
                          "dull.\nEliminate light sources that reflect on the nozzle tip.\n";

@@ -10,6 +10,15 @@ notes.
 
 ## Unreleased
 
+- A nozzle tip's Calibration tab is OpenPnP's: no camera button on it (the bottom camera's Calibrate does that
+  job), OpenPnP's colour wheel and value bar of the background colours found, with its findings beside them, and
+  settings greyed when they do nothing (calibration off, or the background method not using them).
+- A camera with no picture shows OpenPnP's picture for it: dark grey with a red X in the corner. An uncalibrated
+  live camera gets the same X in its corner, and not while it is being calibrated (it flashed on and off).
+- Camera calibration (and every camera task) shows its steps with a Cancel button, as OpenPnP's; Cancel stops it
+  before the next move and lifts the nozzle. The bottom camera's Calibrate no longer asks first.
+- Greyed-out fields and drop-downs now look greyed.
+
 ## 0.1.10
 
 - The bottom camera's Calibrate does the whole job as one: the camera's scale and lens with the tip over it, then
