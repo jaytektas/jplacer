@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.13
+
 - Preferences > Debugging > Save vision pictures for debugging: while ticked, every vision pipeline run keeps each
   stage's picture in a folder of its own (log/vision, beside the settings) with what each stage found, as OpenPnP
   does at its Debug log level; ImageWriteDebug stages write too (they never did).
