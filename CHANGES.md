@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.1
+
 - Issues & Solutions' Milestone is now a box: choose any milestone to go straight to it (back to Calibration
   after a crash, or to where an imported OpenPnP machine already was), not only one step at a time.
 - A nozzle whose Z is a mapped axis (as an imported OpenPnP machine's ZL) now gets its Safe Z from the axis it is
@@ -21,17 +23,14 @@ notes.
   turns and places it, and shows the result. The test object's height can be captured with the nozzle tip touching
   it (Capture Test Object Z), for anything thicker than paper; it is kept on the head's Calibration Rig. Calibrate
   Precise Offsets has left the nozzle's Machine Setup page.
-
 - Changing a nozzle's X/Y offsets (Calibrate Precise Offsets, or typing them) takes along what depends on them, as
   in OpenPnP: the nozzle tips' runout is forgotten (it was measured against the old offsets), the manual tip change
   location moves with it, an actuator fastened to it gets the new offsets, and for the head's first nozzle the
   camera looking up moves with it. Undo takes them back together.
 - Calibrate Precise Offsets lets the test object go if it fails while holding it, instead of lifting it on vacuum.
-
 - A nozzle tip's Calibration tab has OpenPnP's Calibrate Camera Position and Rotation: the tip, its runout
   measured, is sent round a circle over the camera looking up, and the camera's position and turn are set from
   where it is seen.
-
 - A nozzle tip's runout is fitted and compensated by OpenPnP's algorithms, chosen on its Calibration tab as
   Compensation Algorithm: Model (the axis's offset compensated too), NoOffset (the swing alone), CameraOffset (the
   swing alone, and the camera looking up taken to be off by the axis's offset for that nozzle, where bottom
@@ -39,7 +38,6 @@ notes.
   measured offsets, interpolated). A new tip uses OpenPnP's default, ModelCameraOffsetAffine; a tip set up before
   keeps how it was compensated (ModelNoOffset). An OpenPnP import brings the algorithm and the runout OpenPnP
   measured on each nozzle.
-
 - An OpenPnP machine runs in Simulation Mode as it does in OpenPnP: a G-code controller brought from OpenPnP is
   simulated by OpenPnP's GcodeServer, which takes the commands that controller is set up with (G28 to home, M114,
   M400, ...). A controller OpenPnP simulates (Communications "simulated", or TCP to "GcodeServer") is simulated so
@@ -55,7 +53,6 @@ notes.
   begin with), as in OpenPnP; it gave up beyond 2 mm.
 - In Simulation Mode, the camera looking up sees a nozzle where its axes put it, as in OpenPnP; after visual
   homing it saw the nozzle off by the homing correction, so nozzle tip calibration failed.
-
 - A job's pre-rotation (Pre-Rotate All Nozzles) is no longer a move of its own: as in OpenPnP, each nozzle's turn
   goes with the next move made with the head at safe Z, so the nozzles turn while the head travels. Checked against
   OpenPnP's BasicJobTest: every move and switching of its two-nozzle job, in order.
@@ -65,7 +62,6 @@ notes.
 - A simulated controller made from OpenPnP's NullDriver names its axes as a grblHAL with that many axes does
   (two nozzles: Z, A, B, C), so where each axis is reads back right; a second nozzle's Z was U, which was never
   read back, so it was not raised after a pick. The grblHAL profile reads U and V axes too.
-
 - A new feeder's Pick Retry Count starts at 0, as a new OpenPnP feeder's does (it was 3). Checked against OpenPnP's
   job retry tests (feed and pick retries, an empty feeder failed over, faults counted with Defer), all of which pass.
 - The job planner gives a second nozzle its placement as OpenPnP's does: by the time the head takes to get there
