@@ -70,7 +70,7 @@ void JPlacerPipelines::useCamera(JPPipeline& pipeline, JPCameraFeed* feed, const
 
 void JPlacerPipelines::edit(const std::string& title, std::shared_ptr<JPPipeline> pipeline, std::function<void(const JPPipeline&)> keep,
                             const std::string& original) {
-    const std::string before = original.empty() ? JPXmlWriter::text(pipeline->toXml()) : original;
+    const std::string before = original.empty() ? pipeline->storedText() : original;
     JPlacerPipelineEditorDialog::Owner owner;
     owner.x = m_window.window().screenX();
     owner.y = m_window.window().screenY();
@@ -85,7 +85,7 @@ void JPlacerPipelines::edit(const std::string& title, std::shared_ptr<JPPipeline
         m_window.openModal<JPlacerChoiceDialog>("Closing Pipeline Editor!", "Save pipeline changes?",
                                                 std::vector<std::string> { "Yes", "No", "Cancel" }, 2,
                                                 [this, title, pipeline, keep, before](int chosen) {
-                                                    if (chosen == 0) keep(*pipeline);
+                                                    if (chosen == 0) keep(pipeline->stored());   // as kept: not as it ran
                                                     else if (chosen == 2) edit(title, pipeline, keep, before);
                                                 });
     };

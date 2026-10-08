@@ -11,6 +11,8 @@
 #include "JPStageUtil.h"
 #include "JPVisionUtils.h"
 
+#include "openpnp/JPXmlWriter.h"
+
 #include <cmath>
 #include <sstream>
 
@@ -124,6 +126,14 @@ void JPPipeline::resetToDefaults() {
     }
     m_overrides.clear();
 }
+
+JPPipeline JPPipeline::stored() const {
+    JPPipeline c = *this;
+    c.resetToDefaults();
+    return c;
+}
+
+std::string JPPipeline::storedText() const { return JPXmlWriter::text(stored().toXml()); }
 
 void JPStageRegistry::addParameterStages(std::vector<JPStageType>& types) {
     std::vector<P> numeric = common();

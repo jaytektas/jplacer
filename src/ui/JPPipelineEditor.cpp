@@ -17,7 +17,7 @@ constexpr float kStagesShare = 0.25f;
 
 JPPipelineEditor::JPPipelineEditor(JSceneGraph& graph, JGpuHal* hal, JPPipeline& pipeline, const std::string& original)
     : JContainer(graph, 0.f, 0.f), m_pipeline(pipeline),
-      m_original(original.empty() ? JPXmlWriter::text(pipeline.toXml()) : original) {
+      m_original(original.empty() ? pipeline.storedText() : original) {
     setDirection(JFlexDirection::Column)->setAlignItems(JAlignItems::Stretch);
     m_results = std::make_unique<JPPipelineResultsPanel>(graph, hal, pipeline);
     m_stages = std::make_unique<JPPipelinePanel>(graph, pipeline);
@@ -49,7 +49,8 @@ void JPPipelineEditor::process() {
     m_results->refresh();
 }
 
-bool JPPipelineEditor::isDirty() const { return JPXmlWriter::text(m_pipeline.toXml()) != m_original; }
+// As kept, not as it ran: what its parameter stages wrote into their stages is not an edit.
+bool JPPipelineEditor::isDirty() const { return m_pipeline.storedText() != m_original; }
 
 void JPPipelineEditor::undoEdits() {
     JPXmlElement root;

@@ -128,6 +128,10 @@ public:
     // Every parameter stage's controlled setting back to its default (as
     // OpenPnP does before writing a pipeline), so it is saved unchanged.
     void resetToDefaults();
+    // The pipeline as it is kept: a copy with resetToDefaults() done, so what its parameter stages wrote into
+    // their stages as it ran (a value for this camera) is not kept, and not taken for an edit.
+    JPPipeline stored() const;
+    std::string storedText() const;
     // What the caller controlled of a stage last run (attribute: value), for the editor.
     std::map<std::string, std::string> overrides(const std::string& stageName) const;
 

@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- The pipeline editor no longer asks to save a pipeline that only ran: what its parameter stages set as it ran
+  (such as the fiducial pipeline's maximum distance, in this camera's pixels) is not an edit, and is not saved;
+  a parameter's default is kept in its place, as OpenPnP keeps it.
 ## 0.1.19
 
 - A KiCad placement file in inches (`## Unit = inches`) is read in inches: its positions were taken as
