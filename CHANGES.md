@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.29
+
 - Reticles and footprints on a camera are drawn at the scale of the height it looks at, as OpenPnP's: a
   head camera moved to a placement draws the footprint at the board's height (with a calibration at two
   heights), not at its working plane.
