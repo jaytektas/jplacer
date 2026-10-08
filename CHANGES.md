@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.28
+
 - A camera task (calibrating a camera or a nozzle tip, measuring) no longer has the chosen part's footprint
   drawn over its camera; visual homing draws the homing fiducial's footprint while it looks for the mark.
 - The footprint on a camera with a rotation axis turns with the camera, whatever tool Jog has: a camera
