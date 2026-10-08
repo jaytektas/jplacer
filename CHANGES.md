@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- After an update, the cameras and the machine's serial port come up again: the new version used to start still holding the old one's open cameras, so they were busy.
+
 ## 0.1.29
 
 - Reticles and footprints on a camera are drawn at the scale of the height it looks at, as OpenPnP's: a

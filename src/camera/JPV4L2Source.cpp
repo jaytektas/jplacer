@@ -92,7 +92,7 @@ std::string JPV4L2Source::findDevice(const std::string& name) {
         if (sysName(dev) != name && dev != name) continue;
         // A UVC camera makes two nodes: pictures, and metadata. Take the one
         // that captures pictures.
-        const int fd = ::open(dev.c_str(), O_RDWR | O_NONBLOCK);
+        const int fd = ::open(dev.c_str(), O_RDWR | O_NONBLOCK | O_CLOEXEC);
         if (fd < 0) continue;
         v4l2_capability cap{};
         const bool video = xioctl(fd, VIDIOC_QUERYCAP, &cap) == 0
@@ -122,7 +122,7 @@ bool JPV4L2Source::open(std::string& error) {
         error = "no camera called '" + m_name + "' is plugged in";
         return false;
     }
-    m_fd = ::open(m_path.c_str(), O_RDWR | O_NONBLOCK);
+    m_fd = ::open(m_path.c_str(), O_RDWR | O_NONBLOCK | O_CLOEXEC);
     if (m_fd < 0) {
         error = m_path + ": " + std::strerror(errno);
         return false;
