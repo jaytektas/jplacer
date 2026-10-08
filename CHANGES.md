@@ -10,6 +10,15 @@ notes.
 
 ## Unreleased
 
+- Import Placements > CPL and BOM… imports a board from its placement file and its BOM (and any other table
+  naming designators), as an assembly house takes them: each file's columns guessed from their names and
+  changeable (a "Provider" column can be the manufacturer), saved as a profile for the next file, BOM lines
+  ("R1, R2, R5-R8") joined to the placements, and what does not fit shown before importing (designators in
+  one file only, fields the files disagree on, with which file to take). Each part keeps everything the
+  files said (value, footprint, manufacturer, MPN, supplier, any other column), do-not-place parts are not
+  enabled, and the files are kept with the board.
+- Placements whose part is not chosen yet show the files' name for it, "(to be chosen)".
+
 - Boards have their own parts list, and importing placements no longer fills the library with parts. A
   part the library has is used; with Create Missing Parts, one it lacks becomes the board's own part
   (kept in the board, its name starting with the board's); without, it is kept, not chosen yet, instead

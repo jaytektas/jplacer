@@ -62,6 +62,8 @@ public:
     // File > Import Board: an importer's dialog for the Boards tab's chosen board.
     const std::vector<std::unique_ptr<JPBoardImporter>>& importers() const;
     void importBoard(const JPBoardImporter& importer);
+    // From a placement file and its BOM, into the Boards tab's chosen board (JPlacerCplBomImportDialog).
+    void importCplBom();
 
 private:
     // A script's request of the job (JPlacerMachine::onScriptJobRequest).

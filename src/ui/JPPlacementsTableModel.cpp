@@ -169,7 +169,10 @@ std::string JPPlacementsTableModel::text(int row, int c) const {
     if (!p) return {};
     switch (m_shown[size_t(c)]) {
         case kId:   return p->id;
-        case kPart: return m_config.part(p->partId) ? m_config.part(p->partId)->id : std::string();
+        case kPart:
+            // A part to place with, else (a board part not chosen yet) what the files call it.
+            if (const JPPart* part = m_config.part(p->partId)) return part->id;
+            return p->partId.empty() ? std::string() : p->partId + " (to be chosen)";
         case kSide: return JPSides::name(p->side);
         case kX:    return JPLengthCell::text(p->location.lengthX(), true);
         case kY:    return JPLengthCell::text(p->location.lengthY(), true);

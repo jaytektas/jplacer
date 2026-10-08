@@ -33,6 +33,7 @@ file(GLOB JPLACER_OPENPNP_SRC CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/
 file(GLOB JPLACER_CAMERA_SRC  CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/camera/*.cpp)
 file(GLOB JPLACER_VISION_SRC  CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/vision/*.cpp)
 file(GLOB JPLACER_MODEL_SRC   CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/model/*.cpp)
+file(GLOB JPLACER_IMPORT_SRC  CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/import/*.cpp)
 file(GLOB JPLACER_TASKS_SRC   CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/tasks/*.cpp)
 file(GLOB JPLACER_SETUP_SRC   CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/setup/*.cpp)
 file(GLOB JPLACER_UI_SRC      CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/*.cpp)
@@ -76,6 +77,10 @@ target_include_directories(jplacer_pipeline PUBLIC ${OpenCV_INCLUDE_DIRS})
 # kept in OpenPnP's own files. No GUI, no hardware.
 add_library(jplacer_model STATIC ${JPLACER_MODEL_SRC})
 target_link_libraries(jplacer_model PUBLIC jplacer_openpnp)
+
+# Importing a board from its CAD files (CPL, BOM, other tables): reading, mapping, the join. No widgets.
+add_library(jplacer_import STATIC ${JPLACER_IMPORT_SRC})
+target_link_libraries(jplacer_import PUBLIC jplacer_model)
 # Procedures that drive the machine, its cameras and vision together:
 # calibrating a camera, the visual homing test, finding a board.
 add_library(jplacer_tasks STATIC ${JPLACER_TASKS_SRC})
@@ -88,7 +93,7 @@ add_library(jplacer_setup STATIC ${JPLACER_SETUP_SRC})
 target_link_libraries(jplacer_setup PUBLIC jplacer_machine jplacer_model jplacer_pipeline)
 
 add_library(jplacer_ui STATIC ${JPLACER_UI_SRC})
-target_link_libraries(jplacer_ui PUBLIC jplacer_machine jplacer_camera jplacer_setup jplacer_model jplacer_pipeline)
+target_link_libraries(jplacer_ui PUBLIC jplacer_machine jplacer_camera jplacer_setup jplacer_model jplacer_import jplacer_pipeline)
 target_include_directories(jplacer_ui PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party/nanosvg)
 target_precompile_headers(jplacer_ui PRIVATE <j/core/JWidget.h> <j/core/JStyle.h> <j/core/JContainer.h>)
 
@@ -102,7 +107,7 @@ add_executable(jplacer ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp ${JPLACER_APP_SR
 # restated in a header where the two could drift. The updater compares it with
 # the newest release's tag.
 target_compile_definitions(jplacer PRIVATE JPLACER_VERSION="${JPLACER_FULL_VERSION}")
-target_link_libraries(jplacer PRIVATE jplacer_ui jplacer_setup jplacer_tasks jplacer_model jplacer_vision jplacer_camera jplacer_openpnp jplacer_machine jplacer_common JFramework::platform
+target_link_libraries(jplacer PRIVATE jplacer_ui jplacer_setup jplacer_tasks jplacer_import jplacer_model jplacer_vision jplacer_camera jplacer_openpnp jplacer_machine jplacer_common JFramework::platform
                                       OpenSSL::SSL OpenSSL::Crypto Threads::Threads)
 target_precompile_headers(jplacer PRIVATE ${JPLACER_PCH})
 
@@ -110,7 +115,7 @@ target_precompile_headers(jplacer PRIVATE ${JPLACER_PCH})
 option(JPLACER_TESTS "Build jplacer's tests" ON)
 if(JPLACER_TESTS)
     enable_testing()
-    foreach(module machine openpnp camera vision pipeline model tasks setup)
+    foreach(module machine openpnp camera vision pipeline model import tasks setup)
       file(GLOB tests CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tests/${module}/*.cpp)
       foreach(src ${tests})
         get_filename_component(name ${src} NAME_WE)

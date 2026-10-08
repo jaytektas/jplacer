@@ -72,7 +72,53 @@ set on its own copy (a placement turned off there) is kept unless the same thing
 
 ## Importing placements
 
-Import Placements (and **File > Import Placements**) offers OpenPnP's importers. Each opens a window
+Import Placements (and **File > Import Placements**) offers **CPL and BOM…** first, then OpenPnP's
+importers.
+
+### From the CPL and the BOM
+
+**CPL and BOM…** reads a board from its CAD files as an assembly house takes them: the placement file
+(CPL: each part's designator, position, rotation and side) and, where there is one, the BOM (each part's
+value, footprint, manufacturer, MPN, supplier and so on), and any other table that names designators.
+
+- **Files**: **Choose Placement File…** (or **Change Placement File…**) and **Add BOM or Table…** add
+  them; **Remove** takes out the one chosen. The list shows what each is, how its columns were read
+  (*their names (guessed)*, or the profile used) and its rows. Files may be separated by commas,
+  semicolons, tabs or spaces (KiCad's `.pos`), quoted or not, in UTF-8, UTF-16 or Latin-1; the header
+  row is found among the first lines, after any comments.
+- **Columns of** the file chosen: each column's header, what it holds and its first values. What it holds
+  is guessed from the header by the names tools give it ("Mid X", "Ref-X(mm)" and "PosX" are X; "LCSC Part
+  #" is the supplier's part number) and can be changed: **Designator**, **X**, **Y**, **Rotation**,
+  **Side**, **Do Not Place**, **Value**, **Footprint**, **Package**, **Description**, **Manufacturer**,
+  **MPN**, **Supplier**, **Supplier PN**, **Height**, **Datasheet**, **Quantity**, **Keep as extra** (kept
+  with the part under the column's own name) or **Ignore**. A file's own name for a field is fine: a column
+  called "Provider" can be the **Manufacturer**. For a BOM or table, what it is (**BOM** or **Other
+  table**); the units of its lengths where a cell does not say ("12.5mm" says; a header such as
+  "Ref-X(mil)" sets them); and how its columns are read.
+- **Save Profile…** keeps the file's columns' meanings under a name; the next file of that kind whose
+  header has the same columns is read by it, and it can be chosen for a file.
+- **What it makes**, kept up to date as the choices change: the placements (those not to be placed, the
+  fiducials), the parts (from the library, the board's own, to be chosen), placements no file names a part
+  for, designators in a BOM but not the placement file (not placed) and in the placement file but no BOM,
+  and each field the files disagree on, with examples and **Take *field* from**, the file whose value is
+  used (the placement file for a placement's position; else the first other file that has the field).
+
+A BOM line's designators ("R1, R2, R5-R8") are each joined to the placement of that designator. Parts are
+grouped by manufacturer and MPN where the files give them, else by value and footprint, and each keeps
+every field the files gave it (a supplier part number column that names its supplier, "LCSC Part #", gives
+the supplier). A part is the library's when one is named by its MPN, by OpenPnP's *footprint*-*value*,
+or by its value; else, with **Create Missing Parts** ticked, the board's own; else it is to be chosen
+(its placements show the files' name, "(to be chosen)"). A placement is not to be placed (not enabled)
+when a do-not-place column says so ("DNP", "x" or "yes" in one, "no" in a Populate or Fitted column) or
+its value is "DNP"; FID1, REF1 and the like are fiducials. **Import** brings it into the board chosen as
+the other importers do (Merge or Replace), and the files themselves, every row and how their columns
+were read, are kept in the board.
+
+<!-- src: src/app/JPlacerCplBomImportDialog.cpp; src/import/JPCplBomImport.cpp (build, join, winner, doNotPlace, bottom); src/import/JPImportField.cpp; src/import/JPTableFile.cpp; src/import/JPImportSource.cpp (guess, length, provenance); src/import/JPDesignators.cpp; src/import/JPMappingProfiles.cpp; src/ui/JPBoardPlacementsPanel.cpp (importCplBom, take); src/ui/JPPlacementsTableModel.cpp (data) -->
+
+### OpenPnP's importers
+
+Each of OpenPnP's importers opens a window
 asking for its files (**Browse** finds them) and options, then **Import** reads them; a file left empty
 is passed over. What could not be read is shown, and the window stays.
 

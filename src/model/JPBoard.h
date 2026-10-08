@@ -38,6 +38,9 @@ public:
     // The OpenPnP board file this one was first saved from (JPConfiguration::saveBoard); empty: none. That
     // file opened is this one (what names the old file follows it).
     std::string convertedFrom;
+    // The files it was imported from, each as kept (JPImportSource::provenance): what they said, every row,
+    // and how their columns were read. Added to by each import.
+    std::vector<JJson> provenance;
 
     // The board's parts. One list, the definition's: its instances (a job's boards) share it.
     std::vector<JPBoardPart>&       parts() { return *m_parts; }

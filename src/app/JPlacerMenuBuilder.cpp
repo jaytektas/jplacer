@@ -93,6 +93,11 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
     // Import Placements: OpenPnP's importers, into the Boards tab's chosen board.
     menuStore().push_back(std::make_unique<JMenu>("Import Placements"));
     JMenu* import = menuStore().back().get();
+    import->add(graph, "CPL and BOM…")->onTriggered.connect([&app] {
+        app.tabs().showDock("Boards");
+        app.tabs().importCplBom();
+    });
+    import->addSeparator(graph);
     for (const auto& importer : app.tabs().importers()) {
         const JPBoardImporter* i = importer.get();
         import->add(graph, i->name())->onTriggered.connect([&app, i] {

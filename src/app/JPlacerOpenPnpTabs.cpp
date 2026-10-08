@@ -16,6 +16,7 @@
 #include "JPlacerChildFiducialsDialog.h"
 #include "JPlacerClassSelectionDialog.h"
 #include "JPlacerChoiceDialog.h"
+#include "JPlacerCplBomImportDialog.h"
 #include "JPlacerExistingHolderDialog.h"
 #include "JPlacerPanelArrayDialog.h"
 #include "JPlacerPhotonSlotsDialog.h"
@@ -92,6 +93,9 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     JPBoardPlacementsPanel& placements = m_boards->placements();
     placements.openImporter = [this](const JPBoardImporter& importer, std::function<void(JPBoard&)> imported) {
         m_window.openModal<JPlacerImportDialog>(importer, m_job.configuration(), std::move(imported));
+    };
+    placements.openCplBom = [this](std::function<void(JPBoard&)> imported) {
+        m_window.openModal<JPlacerCplBomImportDialog>(m_job.configuration(), std::move(imported));
     };
     placements.askChoice = [this](const std::string& title, const std::string& question, std::vector<std::string> options,
                                   int cancelIndex, std::function<void(int)> chosen) {
@@ -1083,6 +1087,10 @@ const std::vector<std::unique_ptr<JPBoardImporter>>& JPlacerOpenPnpTabs::importe
 
 void JPlacerOpenPnpTabs::importBoard(const JPBoardImporter& importer) {
     m_boards->placements().importBoard(importer);
+}
+
+void JPlacerOpenPnpTabs::importCplBom() {
+    m_boards->placements().importCplBom();
 }
 
 void JPlacerOpenPnpTabs::confirmSave(JPPlacementsHolder& holder, std::function<void()> then) {

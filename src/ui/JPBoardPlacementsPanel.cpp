@@ -222,6 +222,8 @@ void JPBoardPlacementsPanel::removePlacements() {
 void JPBoardPlacementsPanel::showImportMenu() {
     if (!openMenu) return;
     m_importMenu = std::make_unique<JMenu>("Import Placements");
+    m_importMenu->add(m_graph, "CPL and BOM…")->onTriggered.connect([this] { importCplBom(); });
+    m_importMenu->addSeparator(m_graph);
     for (const auto& importer : m_importers) {
         const JPBoardImporter* i = importer.get();
         m_importMenu->add(m_graph, i->name())->onTriggered.connect([this, i] { importBoard(*i); });
@@ -238,32 +240,46 @@ void JPBoardPlacementsPanel::importBoard(const JPBoardImporter& importer) {
     if (!openImporter) return;
     JPBoard* board = m_board;
     openImporter(importer, [this, board](JPBoard& imported) {
-        if (board != m_board) return;
         // What the import was asked to change in the library (Update Existing Part Heights, Eagle's Update
         // Existing Parts) is changed, whatever comes next; its parts are the board's, taken in merge().
         changed();
-        auto shared = std::make_shared<JPBoard>(imported);
-        if (board->placements.empty() || !askChoice) {
-            merge(*shared);
-            return;
-        }
-        askChoice("The Selected Board Already Has Existing Placements",
-                  "What do you want to do?\n\nSelect Merge to update the existing placements whose IDs match those in "
-                  "the imported set, leave unchanged the existing placements whose IDs do not match any in the "
-                  "imported set, and add the imported placements whose IDs do not match any of the existing "
-                  "placements.\n\nSelect Replace to delete all existing placements and then add all the imported "
-                  "placements.",
-                  { "Merge", "Replace", "Cancel" }, 2, [this, board, shared](int option) {
-                      if (board != m_board || option < 0 || option == 2) return;
-                      if (option == 1) {
-                          JPDefinitionChanges changes(m_config, m_job());
-                          std::vector<std::string> ids;
-                          for (const JPPlacement& p : board->placements) ids.push_back(p.id);
-                          for (const std::string& id : ids) changes.removed(*board, id);
-                      }
-                      merge(*shared);
-                  });
+        take(board, imported);
     });
+}
+
+void JPBoardPlacementsPanel::importCplBom() {
+    if (!m_board) {
+        JDialog::message("Import Failed", "Please select a board to import into.");
+        return;
+    }
+    if (!openCplBom) return;
+    JPBoard* board = m_board;
+    openCplBom([this, board](JPBoard& imported) { take(board, imported); });
+}
+
+void JPBoardPlacementsPanel::take(JPBoard* board, JPBoard& imported) {
+    if (board != m_board) return;
+    auto shared = std::make_shared<JPBoard>(imported);
+    if (board->placements.empty() || !askChoice) {
+        merge(*shared);
+        return;
+    }
+    askChoice("The Selected Board Already Has Existing Placements",
+              "What do you want to do?\n\nSelect Merge to update the existing placements whose IDs match those in "
+              "the imported set, leave unchanged the existing placements whose IDs do not match any in the "
+              "imported set, and add the imported placements whose IDs do not match any of the existing "
+              "placements.\n\nSelect Replace to delete all existing placements and then add all the imported "
+              "placements.",
+              { "Merge", "Replace", "Cancel" }, 2, [this, board, shared](int option) {
+                  if (board != m_board || option < 0 || option == 2) return;
+                  if (option == 1) {
+                      JPDefinitionChanges changes(m_config, m_job());
+                      std::vector<std::string> ids;
+                      for (const JPPlacement& p : board->placements) ids.push_back(p.id);
+                      for (const std::string& id : ids) changes.removed(*board, id);
+                  }
+                  merge(*shared);
+              });
 }
 
 void JPBoardPlacementsPanel::merge(JPBoard& imported) {
@@ -292,6 +308,8 @@ void JPBoardPlacementsPanel::merge(JPBoard& imported) {
         }
     }
     m_board->dropUnusedParts();
+    // The files it came from, kept with the board.
+    for (const JJson& source : imported.provenance) m_board->provenance.push_back(source);
     // Paste pads in the board's units, as OpenPnP puts them.
     for (JPBoardPad pad : imported.solderPastePads) {
         pad.location = pad.location.convertToUnits(m_board->dimensions.units());

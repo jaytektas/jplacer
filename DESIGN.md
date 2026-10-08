@@ -725,8 +725,9 @@ configurations to check against, never inputs to the design.
    1. *Board parts and `.jpboard`* (done): a board's own parts list, each
       placement naming one; importers add nothing to the library; boards
       saved as JSON, OpenPnP's read and never written over.
-   2. *CPL + BOM import*: sources, column mapping and profiles, the join,
-      provenance.
+   2. *CPL + BOM import* (done): sources, column mapping and profiles, the
+      join, provenance. Tables as text (CSV, TSV, KiCad's .pos); spreadsheets
+      (.xlsx) to follow.
    3. *The part picker / matcher* for a board part, in place of the Part
       combo; the matching wizard.
    4. *`library.db`*: identifiers, AKAs, footprints, packagings, migration

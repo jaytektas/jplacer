@@ -197,6 +197,8 @@ JPBoard JPBoard::fromJson(const JJson& j) {
     if (j["placements"].isArray())
         for (const JJson& p : j["placements"].arr()) b.placements.push_back(JPPlacement::fromJson(p));
     if (j["profile"].isObject()) b.profile = JPProfile::fromXml(JPXmlJson::element(j["profile"]));
+    if (j["provenance"].isArray())
+        for (const JJson& p : j["provenance"].arr()) b.provenance.push_back(p);
     if (j["solderPastePads"].isArray())
         for (const JJson& p : j["solderPastePads"].arr()) b.solderPastePads.push_back(JPBoardPad::fromXml(JPXmlJson::element(p)));
     b.syncParts();
@@ -217,6 +219,11 @@ JJson JPBoard::toJson() const {
     for (const JPPlacement& p : placements) ps.push(p.toJson());
     j["placements"] = ps;
     if (profile) j["profile"] = JPXmlJson::from(profile->toXml());
+    if (!provenance.empty()) {
+        JJson sources = JJson::array();
+        for (const JJson& p : provenance) sources.push(p);
+        j["provenance"] = sources;
+    }
     if (!solderPastePads.empty()) {
         JJson pads = JJson::array();
         for (const JPBoardPad& p : solderPastePads) pads.push(JPXmlJson::from(p.toXml()));

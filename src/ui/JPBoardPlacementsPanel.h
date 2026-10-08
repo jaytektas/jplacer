@@ -40,6 +40,8 @@ public:
     std::function<void()> onViewBoard;
     // Opens an importer's dialog; `imported` has what it read.
     std::function<void(const JPBoardImporter&, std::function<void(JPBoard&)> imported)> openImporter;
+    // Opens the CPL and BOM import (JPlacerCplBomImportDialog); `imported` has the board it made.
+    std::function<void(std::function<void(JPBoard&)> imported)> openCplBom;
     // Asks a question with buttons of its own; the index chosen, -1 closed.
     std::function<void(const std::string& title, const std::string& question, std::vector<std::string> options,
                        int cancelIndex, std::function<void(int)> chosen)> askChoice;
@@ -55,6 +57,8 @@ public:
     std::function<void(const JPPlacement*)> onPlacementChosen;
     // Imports into the board shown with `importer` (Import Placements, File
     // > Import Board): an error when no board is chosen.
+    // From the CAD files themselves: a placement file and its BOM (and other tables), into the board shown.
+    void importCplBom();
     void importBoard(const JPBoardImporter& importer);
     const std::vector<std::unique_ptr<JPBoardImporter>>& importers() const { return m_importers; }
 
@@ -63,6 +67,8 @@ private:
     void updateActions();
     void newPlacement();
     void removePlacements();
+    // An import's board into `board` (still the one shown): merged, or after asking, replacing what it has.
+    void take(JPBoard* board, JPBoard& imported);
     void merge(JPBoard& imported);
     void showImportMenu();
     void buildContextMenu();
