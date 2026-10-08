@@ -58,6 +58,8 @@ reference; this document says where jplacer deliberately differs from it.
   self-contained file: outline, fiducials, placements, its **board parts**,
   and the **import provenance**. It works on a machine whose library has
   never seen it.
+  It keeps its **revisions** (rev A, rev B, …), each an upgrade of the one
+  before (see Board revisions).
 - **Board part**: one line of the board's parts list: a BOM line, or (no
   BOM) the placements sharing CAD value and footprint, or one made by hand.
   It keeps every field it was given, as given (value, footprint, MPN,
@@ -198,6 +200,52 @@ from then on.
   only*, and those are what the operator steps through.
 - Later, the same looking down at placed parts (the body, its polarity mark)
   checks the result.
+
+### Board revisions
+
+Boards are revised; a new revision is an **upgrade** of the board, never a
+start from scratch. The new revision's files (CPL, BOM, …) are imported
+against the board as it is, through the same mapping profiles, and
+everything already decided carries over wherever it still holds, so only
+what changed asks for attention.
+
+1. **Pair the placements.** By designator first. Then the leftovers
+   (in the old revision only, in the new only) are paired by footprint and
+   position, which catches **renumbering** (R12 is now R15): a pair found so
+   is a rename and keeps everything.
+2. **Find the board's own move.** When most placements moved by the same
+   offset or turn, the CAD origin moved, not the parts: that is one change
+   ("origin moved 2.00, -1.50 mm"), applied to all, not 300 "moved".
+3. **Sort what is left.** Each placement is one of:
+   - *unchanged*: kept as it was, verified stays verified;
+   - *moved* or *turned* (in the CAD): its part kept, its verified mark
+     cleared, its rotation correction carried over (see below);
+   - *part changed* (another value or MPN, same footprint): matched again
+     (learned AKAs and identifiers usually do it), its position and
+     verified mark kept;
+   - *footprint changed*: matched again and verified again;
+   - *new*: as any import; *removed*: listed, then taken out (a board part
+     left with no placements is dropped from the board, never from the
+     library).
+4. **Board parts** follow their placements: a BOM line whose fields are the
+   same keeps its resolution, alternates and decisions; a changed one is
+   matched again, its old match offered first.
+
+**Corrections are kept as differences from the CAD**, not as absolute
+values: a placement's rotation correction is its verified rotation less the
+CAD's. A part turned in the CAD by 90° in the new revision keeps its
+correction and lands right; only its verified mark asks to be checked.
+
+The upgrade shows one summary to work from: *182 unchanged, 4 moved (to
+verify), 2 parts changed (matched), 1 new part (to match), 3 renamed, 1
+removed*, each count opening its list. The data check before a run then
+names exactly the placements and parts the revision left to do.
+
+The board file keeps its **revisions**: each with its label (rev A, rev B,
+from the user or the file name), its provenance and its placements and
+parts, so the old one can still be opened, compared or built. A job's copy
+names the revision it was made from, and offers the upgrade when the board
+file has a newer one.
 
 ### Ready to run
 
