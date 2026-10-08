@@ -19,7 +19,8 @@ notes.
   time. Holding a setting's arrow while it failed opened box after box until jplacer crashed.
 - A spin box's arrow stops repeating once the mouse button is up, even when its release went to another
   window.
-
+- A message box that cannot be opened (the graphics card out of memory) is written to the log instead of
+  ending jplacer with its work unsaved.
 - A fiducial check tunes the head camera once, on its first fiducial, and keeps that tune for the rest of the
   check, rather than tuning for each fiducial part. It has a tick of its own on the camera's Device Settings,
   **Auto-Tune for fiducial checks?** (tick it if you had relied on Auto-Tune for each part? for fiducials).
