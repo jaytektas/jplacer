@@ -57,6 +57,8 @@ public:
     // cancels the task. Pressed once, it is greyed while the task winds down.
     std::function<void()> onCancelTask;
     std::function<void()> onVisualTest;
+    // Auto-Tune pressed: the owner tunes the camera now and keeps its settings.
+    std::function<void()> onAutoTune;
     // Its settings asked for: the owner shows the camera in Machine Setup.
     std::function<void()> onSettings;
     // The live picture double-clicked at this pixel (of the picture as taken).
@@ -132,7 +134,7 @@ private:
 
     JPCameraFeed                          m_feed;
     JPCameraView*                         m_view = nullptr;
-    std::unique_ptr<JPIconButton>         m_asTaken, m_save, m_calibrate, m_next, m_cancelTask, m_visualTest, m_settings;
+    std::unique_ptr<JPIconButton>         m_asTaken, m_save, m_calibrate, m_next, m_cancelTask, m_visualTest, m_autoTune, m_settings;
     std::function<void()>                 m_onNext;     // askStep's
     float                                 m_noteWidth = -1;   // the width the note was sized for (-1: again)
     JContainer*                           m_stepRow = nullptr;

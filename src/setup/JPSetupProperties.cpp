@@ -2719,6 +2719,10 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
             add.tip("Bottom vision in a job: the first part of each kind tuned on, over the camera (Defaults, then "
                     "Auto-Tune); what it arrived at kept for that part for the run and put back for every one of its "
                     "kind after (no tuning again). A new run tunes afresh.");
+            add.flag("autoTuneFiducials", "Auto-Tune for fiducial checks?", [c]() -> bool& { return c().autoTuneFiducials; });
+            add.tip("A fiducial check (a board's or panel's, a job's before it places, a Test Fiducial Locator): tuned "
+                    "once, over its first fiducial with the light on (Defaults, then Auto-Tune), and that tune kept for "
+                    "the rest of the check.");
             add.flag("exposeEachPicture", "Expose each picture?", [c]() -> bool& { return c().exposeEachPicture; });
             add.tip("Each picture taken for vision (every pipeline's, visual homing's, calibration's) taken with the "
                     "exposure set first for the Brightness below, under the light there is then.");

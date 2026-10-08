@@ -290,6 +290,13 @@ void JPlacerMachine::buildCameras() {
             };
         }
         d.panel->onSettings = [this, id = c.id] { showSetup("camera:" + id); };
+        d.panel->onAutoTune = [this, id = c.id] {
+            if (jobRunning && jobRunning()) {   // the job's own tuning (Auto-Tune for each part?) is not taken from it
+                m_window.showStatus("A job is running: Auto-Tune once it has stopped", kErrorMs);
+                return;
+            }
+            setupAction("camera:" + id, "defaultsAutoTune");
+        };
         d.panel->onRunning = [this, id = c.id, device = c.device["backend"].str() == "switcher" ? c.device["camera"].str() : ""](bool running) {
             // A switcher camera stopped: its device camera need not run for it.
             if (!running && !device.empty())

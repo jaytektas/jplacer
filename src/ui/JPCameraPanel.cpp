@@ -68,6 +68,11 @@ JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCameraCon
     });
     m_visualTest = std::make_unique<JPIconButton>(graph, "Visual Test", &JPIcons::check, "Visual test of the calibration");
     m_visualTest->onClicked.connect([this] { if (onVisualTest) onVisualTest(); });
+    // Tuned now on what it sees, as Machine Setup's Defaults, then Auto-Tune: its properties kept.
+    m_autoTune = std::make_unique<JPIconButton>(graph, "Auto-Tune", &JPIcons::autoTune,
+                                                "Auto-Tune now, on what the camera sees, its light on: its properties "
+                                                "set to the camera's defaults, tuned a moment, then kept");
+    m_autoTune->onClicked.connect([this] { if (onAutoTune) onAutoTune(); });
     m_settings = std::make_unique<JPIconButton>(graph, "Camera Settings", &JPIcons::gear,
                                                 "The camera's settings, in Machine Setup");
     m_settings->setLeads(JPIconButton::Leads::Elsewhere);   // to Machine Setup
@@ -261,7 +266,8 @@ void JPCameraPanel::setFeeding(const std::string& cameraId, bool feeding) {
 }
 
 std::vector<JWidget*> JPCameraPanel::tabTools() const {
-    return { m_asTaken.get(), m_save.get(), m_calibrate.get(), m_next.get(), m_cancelTask.get(), m_visualTest.get(), m_settings.get() };
+    return { m_asTaken.get(), m_save.get(), m_calibrate.get(), m_next.get(), m_cancelTask.get(), m_visualTest.get(), m_autoTune.get(),
+             m_settings.get() };
 }
 
 void JPCameraPanel::askStep(const std::string& line, const std::string& detail, std::function<void()> onNext) {

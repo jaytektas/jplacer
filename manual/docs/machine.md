@@ -537,6 +537,7 @@ at once:
 | disk | **Save the picture** (below). |
 | target | **Calibrate** the camera (below). |
 | tick in a ring | **Visual test** of the calibration (below). |
+| half-filled ring with rays | **Auto-Tune** now, on what the camera sees: as Machine Setup's **Defaults, then Auto-Tune**, with the camera's light on (the machine must be on), its properties kept (one step to undo). Not while a job runs. |
 | gear | **The camera's settings**: Machine Setup, with the camera chosen in its tree. |
 
 <!-- src: src/ui/JPCameraPanel.cpp (tabTools); src/ui/JPIcons.cpp; src/ui/JPIconButton.cpp (setLeads); src/app/JPlacerMachine.cpp (buildCameras); JFramework include/j/core/DockWidget.h (addTitleWidget) -->

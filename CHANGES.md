@@ -10,6 +10,11 @@ notes.
 
 ## Unreleased
 
+- A fiducial check tunes the head camera once, on its first fiducial, and keeps that tune for the rest of the
+  check, rather than tuning for each fiducial part. It has a tick of its own on the camera's Device Settings,
+  **Auto-Tune for fiducial checks?** (tick it if you had relied on Auto-Tune for each part? for fiducials).
+- Each camera has an **Auto-Tune** icon in its tab: tune the camera whenever you choose, its settings kept.
+
 ## 0.1.20
 
 - A camera's Auto-Tune for each part? now also tunes for fiducials (Fiducial Check, a job's fiducials, Test

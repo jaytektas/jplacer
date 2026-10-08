@@ -89,6 +89,9 @@ struct JPCameraConfig {
     // Bottom vision in a job: the first part of each kind tuned on (Defaults, then Auto-Tune, the part over the camera),
     // its settings kept for that part for the run and put back for each of its kind after.
     bool          autoTuneEachPart = false;
+    // A fiducial check (a board's, a panel's, a job's, a test) Auto-Tunes on its first fiducial and keeps that tune
+    // for the rest of the check.
+    bool          autoTuneFiducials = false;
     // Each picture taken for vision (settled: every pipeline's, visual homing's, calibration's) taken with the
     // exposure set first, by hand, for a picture of `exposeBrightness` (0..255): for light that is not always
     // the same (JPOneShotExposure).
@@ -268,6 +271,7 @@ struct JPCameraConfig {
         c.autoTuneOnHoming = j["autoTuneOnHoming"].boolean();
         c.autoTuneCalibrating = j["autoTuneCalibrating"].boolean();
         c.autoTuneEachPart = j["autoTuneEachPart"].boolean();
+        c.autoTuneFiducials = j["autoTuneFiducials"].boolean();
         c.exposeEachPicture = j["exposeEachPicture"].boolean();
         c.exposeBrightness = int(j["exposeBrightness"].number(c.exposeBrightness));
         if (const JJson& t = j["transforms"]; t.isObject()) {
@@ -354,6 +358,7 @@ struct JPCameraConfig {
         if (autoTuneOnHoming) j["autoTuneOnHoming"] = true;
         if (autoTuneCalibrating) j["autoTuneCalibrating"] = true;
         if (autoTuneEachPart) j["autoTuneEachPart"] = true;
+        if (autoTuneFiducials) j["autoTuneFiducials"] = true;
         if (exposeEachPicture) j["exposeEachPicture"] = true;
         j["exposeBrightness"] = exposeBrightness;
         if (rotation != 0 || offsetX || offsetY || scaleWidth || scaleHeight || flipX || flipY) {

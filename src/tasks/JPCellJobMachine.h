@@ -4,6 +4,7 @@
 #pragma once
 
 #include <map>
+#include <optional>
 
 #include "JPJobMachineHost.h"
 #include "machine/JPCameraCalibration.h"
@@ -107,11 +108,18 @@ public:
     bool lookAt(double x, double y, double z, cv::Mat& bgr, JPCameraCalibration& cal, std::string& why);
 
     // A job run begun: the camera settings kept for each part (Auto-Tune for each part?) forgotten, tuned afresh.
-    void newRun() { m_partTunes.clear(); }
+    void newRun() {
+        m_partTunes.clear();
+        m_fiducialTune.reset();
+    }
+    void startFiducialCheck() override { m_fiducialTune.reset(); }
 
 private:
     // Auto-Tune for each part?: tuned on the first of each part, its values put back for those after.
     bool tuneForPart(JPCameraFeed& feed, const std::string& partId, std::string& why);
+    // A fiducial check's tune: made on its first fiducial, put back for the rest (startFiducialCheck).
+    bool tuneForFiducials(JPCameraFeed& feed, std::string& why);
+    std::optional<JJson> m_fiducialTune;
     std::map<std::string, JJson> m_partTunes;   // by part id, for the run
     // The cell's settings as they are now, and its head (the camera's).
     JPCellConfig config() const;
@@ -130,9 +138,9 @@ private:
     // The fiducial found from (viewX, viewY) by its OpenPnP pipeline, nearest (x, y) of its results.
     bool lookByPipeline(double viewX, double viewY, double x, double y, const FiducialLook& lookAt, double& foundX,
                         double& foundY, std::string& why);
-    // `partId`: the fiducial's part, for the camera's Auto-Tune for each part? (none: not tuned).
+    // `fiducial`: a fiducial check's look, the camera tuned for it (Auto-Tune for fiducial checks?).
     bool look(double viewX, double viewY, double x, double y, double diameterMm, double searchMm, double& foundX,
-              double& foundY, std::string& why, const std::string& partId = std::string());
+              double& foundY, std::string& why, bool fiducial = false);
 
     // A part bigger than one look, seen in the shots of `composite` (OpenPnP's
     // vision compositing): the nozzle to each shot, its corners found, then

@@ -191,13 +191,16 @@ public:
         // OpenPnP's averaging: the passes after the first averaged.
         bool   averaging = false;
         // Found by this OpenPnP pipeline (prepared for the fiducial's part), else by jplacer's finder;
-        // `partId`, the fiducial's part, also tunes the camera for it (its Auto-Tune for each part?).
+        // `partId`, the fiducial's part, names it in what is said of the look.
         std::shared_ptr<JPPipeline> pipeline;
         std::string                 partId;
     };
     // The camera over `nominal` (at safe Z), a round mark of `diameterMm`
     // found near there (looked at again, centred, as `look` says), and where
     // it is: `found`.
+    // A fiducial check begins (a board's or panel's, a job's fiducials, a test): the head camera, with its Auto-Tune
+    // for fiducial checks? ticked, is tuned on the first fiducial looked at, and that tune kept for the rest of the check.
+    virtual void startFiducialCheck() {}
     virtual bool locateFiducial(const JPLocation& nominal, double diameterMm, const FiducialLook& look, JPLocation& found,
                                 std::string& why) = 0;
     // A strip's sprocket hole: the camera over `nominal` (with a parallax

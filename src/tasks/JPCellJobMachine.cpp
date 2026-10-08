@@ -595,7 +595,7 @@ bool JPCellJobMachine::locateFiducial(const JPLocation& nominal, double diameter
     const double nx = start.x(), ny = start.y();
     auto once = [&](double vx, double vy, double search, double& fx, double& fy) {
         return lookAt.pipeline ? lookByPipeline(vx, vy, nx, ny, lookAt, fx, fy, why)
-                               : look(vx, vy, x, y, diameterMm, search, fx, fy, why, lookAt.partId);
+                               : look(vx, vy, x, y, diameterMm, search, fx, fy, why, true);
     };
     // OpenPnP's averaging: every pass after the first kept, then averaged.
     double sumX = 0, sumY = 0;
@@ -921,9 +921,8 @@ bool JPCellJobMachine::lookByPipeline(double viewX, double viewY, double x, doub
     JPCameraCalibration cal;
     JPCameraFeed* feed = nullptr;
     if (!headCameraPipeline(viewX, viewY, p, cal, feed, why)) return false;
-    // The camera's Auto-Tune for each part?, as bottom vision does: a fiducial is a part too (tuned on its first
-    // look, the same part's tune put back after).
-    if (feed->config().autoTuneEachPart && !lookAt.partId.empty() && !tuneForPart(*feed, lookAt.partId, why)) return false;
+    // The camera's Auto-Tune for fiducial checks?: tuned on a check's first fiducial, that tune for the rest of it.
+    if (feed->config().autoTuneFiducials && !tuneForFiducials(*feed, why)) return false;
     // As OpenPnP: the fiducial's place told to the stages that look round it.
     p.setProperty("fiducial.center", JPPipelineValue { JPPipelineValue::LocationMm { x, y } });
     p.setProperty("MaskCircle.center", JPPipelineValue { JPPipelineValue::LocationMm { x, y } });
@@ -992,6 +991,27 @@ bool JPCellJobMachine::tuneForPart(JPCameraFeed& feed, const std::string& partId
     return true;
 }
 
+bool JPCellJobMachine::tuneForFiducials(JPCameraFeed& feed, std::string& why) {
+    if (m_fiducialTune) {
+        feed.setControls(*m_fiducialTune);   // put back: the picture then settles as any does
+        return true;
+    }
+    auto told = std::make_shared<std::promise<std::optional<JJson>>>();
+    std::future<std::optional<JJson>> tuned = told->get_future();
+    feed.autoTune(JPCameraFeed::kAutoTuneMs, [told](std::optional<JJson> t) { told->set_value(std::move(t)); });
+    if (tuned.wait_for(std::chrono::milliseconds(kPartTuneWaitMs)) != std::future_status::ready) {
+        why = feed.config().name + " was not tuned on the first fiducial within " + std::to_string(kPartTuneWaitMs / 1000) + " s";
+        return false;
+    }
+    m_fiducialTune = tuned.get();
+    if (!m_fiducialTune) {
+        why = feed.config().name + " could not be tuned on the first fiducial (see the log)";
+        return false;
+    }
+    JLOGC(JPlacerLog::kJob, JLogLevel::Info) << feed.config().name << ": tuned on the first fiducial; kept for the rest of the check";
+    return true;
+}
+
 void JPCellJobMachine::prepare(JPCell& cell, JPCameraFeed& feed) {
     const std::string id = feed.config().id;
     m_onMain([&] { m_host.showCamera(id); });
@@ -1001,7 +1021,7 @@ void JPCellJobMachine::prepare(JPCell& cell, JPCameraFeed& feed) {
 }
 
 bool JPCellJobMachine::look(double viewX, double viewY, double x, double y, double diameterMm, double searchMm,
-                             double& foundX, double& foundY, std::string& why, const std::string& partId) {
+                             double& foundX, double& foundY, std::string& why, bool fiducial) {
     JPCell* c = cell(why);
     if (!c) return false;
     JPCameraFeed* feed = nullptr;
@@ -1014,8 +1034,8 @@ bool JPCellJobMachine::look(double viewX, double viewY, double x, double y, doub
     JPCameraCalibration cal;
     if (!JPCameraLook::calibration(*c, *feed, cal, why)) return false;
     if (!c->moveToolAndWait(feed->config().mount, { viewX, viewY, std::nullopt, std::nullopt }, 1.0, why)) return false;
-    // The camera's Auto-Tune for each part?, as bottom vision does: a fiducial is a part too.
-    if (feed->config().autoTuneEachPart && !partId.empty() && !tuneForPart(*feed, partId, why)) return false;
+    // The camera's Auto-Tune for fiducial checks?: tuned on a check's first fiducial, that tune for the rest of it.
+    if (fiducial && feed->config().autoTuneFiducials && !tuneForFiducials(*feed, why)) return false;
     JPGrayImage img;
     if (!JPCameraLook::settled(*feed, img, why)) return false;
     JPRoundMarkFinder::Request rq;

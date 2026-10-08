@@ -102,6 +102,17 @@ void JPIcons::target(JVectorCanvas& vg, float cx, float cy, float size, const JC
     vg.drawLine(cx + r * 0.6f, cy, cx + out, cy, line, JPaint::solid(ink));
 }
 
+void JPIcons::autoTune(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink) {
+    const float r = size * 0.27f, line = size * kLine, in = size * 0.37f, out = size * 0.48f;
+    vg.strokeCircle(cx, cy, r, line, JPaint::solid(ink));
+    vg.fillPie(cx, cy, r, kPi / 2, kPi * 3 / 2, JPaint::solid(ink));   // the left half: dark and light
+    for (int i = 0; i < 8; ++i) {
+        const float a = kPi / 4 * i;
+        vg.drawLine(cx + in * std::cos(a), cy + in * std::sin(a), cx + out * std::cos(a), cy + out * std::sin(a), line,
+                    JPaint::solid(ink));
+    }
+}
+
 void JPIcons::check(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink) {
     const float r = size * 0.42f, line = size * kLine;
     vg.strokeCircle(cx, cy, r, line, JPaint::solid(ink));
