@@ -12,9 +12,7 @@ notes.
 
 - Dragging the line between two docks resizes those two only: docks stacked with them (a Jog under two
   cameras) keep their size. One of a fixed size beside the line made the others shrink or grow too.
-
 - Every search box has a ✕ at its right end that empties it, showing everything again.
-
 - The cameras show one footprint, the last chosen (a package, or a placement on the Job tab), as
   OpenPnP's: it stays when another tab is shown, until something else is chosen.
 
