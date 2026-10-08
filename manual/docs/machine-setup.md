@@ -371,7 +371,7 @@ a camera renamed gets a new one, in the cameras' place.
 ## Undo and Redo
 
 **Edit ▸ Undo** (Ctrl+Z) and **Edit ▸ Redo** (Ctrl+Y) step back and forward through Machine Setup's
-changes, the machine following; each says what it would undo or redo ("Undo Add Camera"), and takes you
+changes (and the library's, the last made first: see [Parts](parts.md#undo-and-redo)), the machine following; each says what it would undo or redo ("Undo Add Camera"), and takes you
 to where the change was made. What was measured (a camera's calibration, the squareness) is not undone. Changes one after another to
 the same setting (a number stepped up several times) are one step. A port chosen on the Machine panel
 is a step too. The steps are kept until another cell is opened.

@@ -50,14 +50,14 @@ own file.
 
 | Entry | |
 |---|---|
-| **Undo** (Ctrl+Z) | Takes back the last change in Machine Setup; it says which ([Undo and Redo](machine-setup.md#undo-and-redo)). |
-| **Redo** (Ctrl+Y) | Makes the change undone again. |
+| **Undo** (Ctrl+Z) | Takes back the last change made, in Machine Setup or in the library (a part, package, footprint or manufacturer), whichever was made last; it says which ("Undo Delete Part R1"; see [Undo and Redo](machine-setup.md#undo-and-redo) and [Parts](parts.md#undo-and-redo)). |
+| **Redo** (Ctrl+Y) | Makes the change undone last again. |
 | **Add Board/Panel** | **New Board…**, **Existing Board…**, **New Panel…**, **Existing Panel…**: as the Job tab's Add Board/Panel button (see [The Job tab](jobs.md#the-job-tab)). |
 | **Remove Board(s)/Panel(s)** | Takes the boards and panels chosen on the Job tab out of the job. Available while one is chosen. |
 | **Capture Tool Location** | As the Job tab's button: the chosen board or panel is placed where the nozzle is. Available while one is chosen. |
 | **Preferences…** | Opens [Preferences](preferences.md). |
 
-<!-- src: src/app/JPlacerMenuBuilder.cpp (the Edit menu); src/ui/JPJobPanel.cpp (addNew, addExisting, removeSelected, captureTool, setEditItems) -->
+<!-- src: src/app/JPlacerUndo.cpp; src/app/JPlacerMenuBuilder.cpp (the Edit menu); src/ui/JPJobPanel.cpp (addNew, addExisting, removeSelected, captureTool, setEditItems) -->
 
 ## View
 

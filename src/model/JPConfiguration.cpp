@@ -603,6 +603,43 @@ void JPConfiguration::removeFootprint(const std::string& uuid) {
     std::erase_if(m_footprints, [&uuid](const auto& f) { return f->uuid == uuid; });
 }
 
+JPLibraryStore::Contents JPConfiguration::librarySnapshot() const {
+    JPLibraryStore::Contents c;
+    for (const auto& p : m_parts) c.parts.push_back(std::make_shared<JPPart>(*p));
+    for (const auto& k : m_packages) c.packages.push_back(std::make_shared<JPPackage>(*k));
+    for (const auto& f : m_footprints) c.footprints.push_back(std::make_shared<JPLibraryFootprint>(*f));
+    c.manufacturers = m_manufacturers;
+    return c;
+}
+
+void JPConfiguration::restoreLibrary(const JPLibraryStore::Contents& snapshot) {
+    // Each of `from`, made like the snapshot's of its uuid (kept, changed in place) or a copy of it.
+    auto rebuild = [](auto& list, const auto& from) {
+        using Ptr = typename std::decay_t<decltype(list)>::value_type;
+        std::map<std::string, Ptr> byUuid;
+        for (const auto& x : list) byUuid[x->uuid] = x;
+        std::decay_t<decltype(list)> out;
+        for (const auto& x : from) {
+            const auto it = byUuid.find(x->uuid);
+            if (it != byUuid.end()) {
+                *it->second = *x;
+                out.push_back(it->second);
+            } else {
+                out.push_back(std::make_shared<typename Ptr::element_type>(*x));
+            }
+        }
+        list = std::move(out);
+    };
+    rebuild(m_parts, snapshot.parts);
+    rebuild(m_packages, snapshot.packages);
+    rebuild(m_footprints, snapshot.footprints);
+    m_manufacturers = snapshot.manufacturers;
+    m_partsById.clear();
+    for (const auto& p : m_parts) m_partsById[upper(p->id)] = p;
+    m_packagesById.clear();
+    for (const auto& k : m_packages) m_packagesById[upper(k->id)] = k;
+}
+
 JPLibraryStore::Contents JPConfiguration::contents() const {
     JPLibraryStore::Contents c;
     c.parts = m_parts;

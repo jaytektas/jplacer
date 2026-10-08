@@ -2558,21 +2558,14 @@ void JPlacerMachine::ensurePhotonActuator() {
     m_setup->change(std::string("Actuator ") + JPPhotonBus::kDataActuator, [](JPCellConfig& cell) { JPPhotonFeeders::addDataActuator(cell); });
 }
 
-void JPlacerMachine::setEditItems(JMenuItem* undo, JMenuItem* redo) {
-    m_undoItem = undo;
-    m_redoItem = redo;
-    updateEditItems();
-}
+bool JPlacerMachine::canUndo() const { return m_setup && m_setup->canUndo(); }
+bool JPlacerMachine::canRedo() const { return m_setup && m_setup->canRedo(); }
+std::string JPlacerMachine::undoText() const { return m_setup ? m_setup->undoText() : std::string(); }
+std::string JPlacerMachine::redoText() const { return m_setup ? m_setup->redoText() : std::string(); }
+long long JPlacerMachine::undoSerial() const { return m_setup ? m_setup->historySerial() : 0; }
 
 void JPlacerMachine::updateEditItems() {
-    if (m_undoItem) {
-        m_undoItem->setEnabled(m_setup && m_setup->canUndo());
-        m_undoItem->setLabel(m_setup ? m_setup->undoLabel() : "Undo");
-    }
-    if (m_redoItem) {
-        m_redoItem->setEnabled(m_setup && m_setup->canRedo());
-        m_redoItem->setLabel(m_setup ? m_setup->redoLabel() : "Redo");
-    }
+    if (onUndoChanged) onUndoChanged();
 }
 
 void JPlacerMachine::jogAction(const std::string& action) {

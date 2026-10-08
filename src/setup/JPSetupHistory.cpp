@@ -15,7 +15,10 @@ JPSetupHistory::JPSetupHistory(std::function<void(const State&)> restore) : m_re
 
 void JPSetupHistory::record(const std::string& what, const std::string& key, State before, State after) {
     // A run of changes to the same thing shares an id, and the stack joins them.
-    if (key.empty() || key != m_key) ++m_id;
+    if (key.empty() || key != m_key) {
+        ++m_id;
+        ++m_serial;
+    }
     m_key = key;
     auto b = std::make_shared<const State>(std::move(before));
     auto a = std::make_shared<const State>(std::move(after));

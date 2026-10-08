@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- Undo and Redo for the library: a part or package made, changed or deleted, footprints, manufacturers' names
+  and what choosing a part taught the library are each a step (Edit > Undo says which: "Undo Delete Part R1").
+  Undo takes back the last change made, in the library or Machine Setup.
 - Tables: Tab while editing a cell keeps the change and opens the next cell that can be changed, its contents
   chosen ready to type over (Shift+Tab the one before), along the row and on to the next.
 - The Packages and Vision tabs' machine tests (Test Fiducial Locator, Test Alignment, Detect Offsets) did nothing

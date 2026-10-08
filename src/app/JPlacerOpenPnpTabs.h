@@ -12,6 +12,8 @@
 #include "JPlacerStripAutoSetup.h"
 #include "JPlacerTableLinks.h"
 #include "JPlacerVisionTests.h"
+
+#include "setup/JPLibraryHistory.h"
 #include "JPlacerViewerDock.h"
 
 #include "ui/JPBoardsPanel.h"
@@ -72,6 +74,8 @@ public:
     void checkJob();
     // Job > Plan…: the job's part groups in run order (JPlacerPlanDialog).
     void openPlan();
+    // The library's undo and redo (JPlacerUndo steps through it with Machine Setup's).
+    JPLibraryHistory& libraryHistory() { return m_libraryHistory; }
 
 private:
     // A script's request of the job (JPlacerMachine::onScriptJobRequest).
@@ -82,6 +86,8 @@ private:
     void boardMoved(const JPBoard& board, const std::string& from);
     void confirmSaveAll(std::vector<std::string> files, std::function<void()> then);
     void changed();
+    // A change to the library (a part, package, footprint or manufacturer): a step to undo, and saved.
+    void libraryChanged();
     // The machine's default vision settings (bottom vision's, the fiducial locator's).
     std::pair<std::string, std::string> machineVisionDefaults() const;
     // The machine's PhotonFeederData actuator made when a Photon feeder needs it.
@@ -115,6 +121,7 @@ private:
     std::unique_ptr<JDockWidget>     m_logDock;
     std::unique_ptr<JPFeedersPanel>  m_feeders;
     JPlacerPipelines                 m_pipelines;
+    JPLibraryHistory                 m_libraryHistory;
     std::unique_ptr<JDockWidget>     m_feedersDock;
     std::unique_ptr<JPBoardsPanel>   m_boards;
     std::unique_ptr<JDockWidget>     m_boardsDock;

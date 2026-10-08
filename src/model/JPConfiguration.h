@@ -59,6 +59,11 @@ public:
     // The library as JSON, to read (a diagnostics file): each part with its id, UUID, value, description,
     // datasheet, identifiers, AKAs and OpenPnP fields; each package with its AKAs and OpenPnP fields.
     JJson libraryJson() const;
+    // The library, every object a copy of its own (parts, packages, footprints, manufacturers): to go back to.
+    JPLibraryStore::Contents librarySnapshot() const;
+    // The library made `snapshot` again. An object of the same uuid is changed in place (what points at it keeps
+    // pointing at it), the others added, and those not in it taken away; the order is the snapshot's.
+    void restoreLibrary(const JPLibraryStore::Contents& snapshot);
     // Writes the parts, packages, and the boards' and panels' lists.
     bool save(std::string& error) const;
 

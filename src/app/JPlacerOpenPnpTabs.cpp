@@ -77,7 +77,8 @@ constexpr double kAtLocationMm = 0.001;
 }
 
 JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, JPlacerJob& job, JPlacerMachine& machine)
-    : m_window(window), m_job(job), m_machine(machine), m_layout(machine.layout()), m_pipelines(window, machine) {
+    : m_window(window), m_job(job), m_machine(machine), m_layout(machine.layout()), m_pipelines(window, machine),
+      m_libraryHistory(job.configuration(), [this] { m_job.configurationChanged(); }) {
     m_machine.setConfiguration(&job.configuration());
     // As OpenPnP's vision tape and blinds feeders: unhomed, their calibration is no longer true.
     m_machine.onUnhomed = [this] {
@@ -122,7 +123,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
                 else m_job.configuration().giveCopy(*bp);
                 b->syncParts();
                 b->dirty = true;
-                changed();
+                libraryChanged();
             });
     };
     placements.openCplBom = [this](std::function<void(JPBoard&)> imported) {
@@ -181,6 +182,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_jobPanel->onChanged = [this] {
         if (m_jobViewer) m_jobViewer->regenerate();
         m_job.changed();
+        m_libraryHistory.note();   // a part chosen there may have taught the library a name, or added to it
     };
     m_jobPanel->toolLocation = [this, setupTool](JPJobPanel::Tool t) { return m_machine.toolLocation(setupTool(t)); };
     m_jobPanel->moveTool = [this, setupTool](JPJobPanel::Tool t, const JPLocation& at) { m_machine.moveToolTo(setupTool(t), at); };
@@ -285,7 +287,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
                                              JSettings::instance().get<double>(JPlacerSettings::kPartsSplit, kSplit));
     m_parts->openMenu = JPlacerMenuOpener::from(m_window, m_parts.get());
     m_parts->openManufacturers = [this] {
-        m_window.openModal<JPlacerManufacturersDialog>(m_job.configuration(), [this] { m_job.configurationChanged(); });
+        m_window.openModal<JPlacerManufacturersDialog>(m_job.configuration(), [this] { libraryChanged(); });
     };
     m_parts->openReceive = [this](const JPPart& part, std::function<void()> changed) {
         m_window.openModal<JPlacerStockReceiveDialog>(m_job.configuration().stock(), part, std::move(changed));
@@ -293,7 +295,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_parts->openLedger = [this](const std::string& lotUuid, const std::string& partId, std::function<void()> changed) {
         m_window.openModal<JPlacerLotLedgerDialog>(m_job.configuration().stock(), lotUuid, partId, std::move(changed));
     };
-    m_parts->onChanged = [this] { m_job.configurationChanged(); };
+    m_parts->onChanged = [this] { libraryChanged(); };
     m_parts->machineDefaults = [this] { return machineVisionDefaults(); };
     m_parts->editPipeline = [this](const std::string& id, const JPVisionForms::Holder& h) {
         m_pipelines.editVision(m_job.configuration(), id, h.id, "", [this] { m_job.configurationChanged(); });
@@ -321,7 +323,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_packages->onShowFootprint = [this](const JPFootprint* f) {
         m_machine.setCameraOverlay(kFootprintOverlay, f ? JPFootprintOverlay::of(*f) : nullptr);
     };
-    m_packages->onChanged = [this] { m_job.configurationChanged(); };
+    m_packages->onChanged = [this] { libraryChanged(); };
     m_packages->machineDefaults = [this] { return machineVisionDefaults(); };
     m_packages->editPipeline = [this](const std::string& id, const JPVisionForms::Holder& h) {
         m_pipelines.editVision(m_job.configuration(), id, "", h.id, [this] { m_job.configurationChanged(); });
@@ -1065,6 +1067,8 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
             ensurePhotonActuator();
         });
     });
+    // The library as read is where its undo starts.
+    m_libraryHistory.start();
 }
 
 JPlacerOpenPnpTabs::~JPlacerOpenPnpTabs() {
@@ -1127,6 +1131,12 @@ std::pair<std::string, std::string> JPlacerOpenPnpTabs::machineVisionDefaults() 
 }
 
 void JPlacerOpenPnpTabs::changed() {
+    m_job.configurationChanged();
+    m_libraryHistory.note();   // a part chosen on the Boards tab may have taught the library a name, or added to it
+}
+
+void JPlacerOpenPnpTabs::libraryChanged() {
+    m_libraryHistory.note();
     m_job.configurationChanged();
 }
 

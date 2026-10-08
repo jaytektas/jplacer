@@ -140,6 +140,9 @@ public:
     bool canRedo() const { return m_history.canRedo(); }
     // "Undo Add Camera" / "Redo Add Camera", or plain "Undo" / "Redo".
     std::string undoLabel() const;
+    std::string undoText() const { return m_history.undoText(); }
+    std::string redoText() const { return m_history.redoText(); }
+    long long historySerial() const { return m_history.serial(); }
     std::string redoLabel() const;
     void undo();
     void redo();

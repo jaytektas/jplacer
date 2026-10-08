@@ -40,6 +40,9 @@ public:
     // What undo (redo) would take back (do again).
     std::string undoText() const { return m_stack.undoText(); }
     std::string redoText() const { return m_stack.redoText(); }
+    // Steps taken: counts each new step (not one joined to the last, an undo or a redo), to order them among
+    // other histories.
+    long long serial() const { return m_serial; }
     void undo();
     void redo();
 
@@ -52,6 +55,7 @@ private:
     bool                               m_recording = false;   // the change is made already: no restore
     std::string                        m_key;                 // what the last change changed
     int                                m_id = 0;              // its run's merge id
+    long long                          m_serial = 0;
 };
 
 } // inline namespace jf

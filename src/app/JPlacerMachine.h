@@ -65,10 +65,16 @@ public:
 
     // The Machine menu's entries this class enables and disables.
     void setMenuItems(JMenuItem* connect, JMenuItem* disconnect, JMenuItem* home, JMenuItem* park);
-    // Edit's Undo and Redo, which step through Machine Setup's changes.
-    void setEditItems(JMenuItem* undo, JMenuItem* redo);
+    // Machine Setup's changes, stepped through by Edit's Undo and Redo (JPlacerUndo).
+    bool canUndo() const;
+    bool canRedo() const;
+    std::string undoText() const;
+    std::string redoText() const;
+    long long undoSerial() const;   // JPSetupHistory::serial
     void undo();
     void redo();
+    // Machine Setup's steps changed (one taken, undone or done again).
+    std::function<void()> onUndoChanged;
     // The Jog panel's steps, as Preferences > Jog keeps them (the defaults
     // until set): distances in mm or degrees, speeds as shares of full speed.
     static std::vector<double> jogDistances();
@@ -434,8 +440,6 @@ private:
     JMenuItem*                          m_disconnectItem = nullptr;
     JMenuItem*                          m_homeItem       = nullptr;
     JMenuItem*                          m_parkItem       = nullptr;
-    JMenuItem*                          m_undoItem       = nullptr;
-    JMenuItem*                          m_redoItem       = nullptr;
     JPConnectIcon                       m_connectIcon;
     JPHomeIcon                          m_homeIcon;
     JPPositionReadout                   m_position;   // the chosen tool's, in the status bar

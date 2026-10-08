@@ -125,3 +125,16 @@ change to those settings, for everything that uses them. **Specialize for** the 
 named after the part, for this part alone; it says so when the part has its own already.
 
 <!-- src: src/ui/JPPartsPanel.cpp (updateWizards, formFor, libraryPage, libraryAct, act); src/app/JPlacerManufacturersDialog.cpp; src/model/JPPart.h (Packaging, Offer, kPackagingKinds); src/model/JPConfiguration.cpp (manufacturerName, sameManufacturer); src/model/JPPartMatcher.cpp (candidates); src/model/JPLibraryJson.cpp (fingerprint); src/setup/JPVisionForms.cpp (addPage, act) -->
+
+## Undo and Redo
+
+Every change to the library is a step **Edit ▸ Undo** (Ctrl+Z) takes back and **Edit ▸ Redo** (Ctrl+Y)
+makes again: a part or package made, changed or deleted (several deleted at once are one step), a field
+changed on a part's or package's pages, a footprint added, changed or deleted, the manufacturers' names,
+and what choosing a part for a board taught the library (a name remembered, a part added). Each says
+what it would undo or redo: "Undo Delete Part R0603-10k", "Undo Change Package SOT-23", "Undo Delete 3
+Parts", "Undo New Footprint SOT-23-3". A part or package put back by Undo is the same one, its place in the
+list kept. Undo and Redo go through the library's changes and Machine Setup's together, the last made
+first. The last 200 steps are kept. Stock (lots and their ledger) is kept as it is made and is not undone.
+
+<!-- src: src/setup/JPLibraryHistory.cpp (note, describe, undo, redo); src/model/JPConfiguration.cpp (librarySnapshot, restoreLibrary); src/app/JPlacerOpenPnpTabs.cpp (libraryChanged, changed); src/app/JPlacerUndo.cpp; src/app/JPlacerApp.cpp -->

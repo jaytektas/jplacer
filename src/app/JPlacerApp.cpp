@@ -97,6 +97,19 @@ JPlacerApp::JPlacerApp(std::string settingsPath) {
     m_machine = std::make_unique<JPlacerMachine>(*m_window, m_app.sceneGraph());
     if (!m_machine->cell() || m_machine->cell()->config().autoLoadMostRecentJob) m_job->openLast();
     m_tabs = std::make_unique<JPlacerOpenPnpTabs>(*m_window, m_app.sceneGraph(), *m_job, *m_machine);
+    // Undo and Redo step through Machine Setup's changes and the library's in the order they were made.
+    {
+        JPlacerMachine& m = *m_machine;
+        const int machineUndo = m_undo.add({ [&m] { return m.canUndo(); }, [&m] { return m.canRedo(); },
+                                             [&m] { return m.undoText(); }, [&m] { return m.redoText(); },
+                                             [&m] { m.undo(); }, [&m] { m.redo(); }, [&m] { return m.undoSerial(); } });
+        m.onUndoChanged = [this, machineUndo] { m_undo.changed(machineUndo); };
+        JPLibraryHistory& h = m_tabs->libraryHistory();
+        const int libraryUndo = m_undo.add({ [&h] { return h.canUndo(); }, [&h] { return h.canRedo(); },
+                                             [&h] { return h.undoText(); }, [&h] { return h.redoText(); },
+                                             [&h] { h.undo(); }, [&h] { h.redo(); }, [&h] { return h.serial(); } });
+        h.onChanged = [this, libraryUndo] { m_undo.changed(libraryUndo); };
+    }
     m_machine->startWithDefault();   // after the tabs: its feeders go to the Feeders tab
     JMenuManager::instance().setTearOffEnabled(JPlacerSettings::tearOffMenus());
     m_keys = std::make_unique<JPKeyMap>();

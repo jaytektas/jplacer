@@ -12,6 +12,7 @@
 #include "JPlacerJob.h"
 #include "JPlacerMachine.h"
 #include "JPlacerOpenPnpTabs.h"
+#include "JPlacerUndo.h"
 
 #include "ui/JPOpenPnpIcons.h"
 
@@ -50,6 +51,8 @@ public:
     JPlacerJob& job() { return *m_job; }
     JPKeyMap& keys() { return *m_keys; }
     JPlacerOpenPnpTabs& tabs() { return *m_tabs; }
+    // Edit's Undo and Redo, over Machine Setup's and the library's histories.
+    JPlacerUndo& undo() { return m_undo; }
 
 private:
     JGuiApplication              m_app;
@@ -65,6 +68,9 @@ private:
     std::unique_ptr<JPlacerJob> m_job;
     // OpenPnP's icons, drawn for the window's graphics; gone before the window.
     std::unique_ptr<JPOpenPnpIcons> m_icons;
+    // Edit's Undo and Redo: made before the histories it steps through (Machine Setup's, the library's) and gone
+    // after them, so none reports to it once it is gone.
+    JPlacerUndo m_undo;
     // The open cell and its panel; before the window in destruction order.
     std::unique_ptr<JPlacerMachine> m_machine;
     // OpenPnP's tabs (Parts…), in the machine's layout: gone before the machine.

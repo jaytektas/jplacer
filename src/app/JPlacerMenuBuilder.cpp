@@ -111,9 +111,9 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
 
     JMenu* edit = newMenu(window, "Edit");
     // Ctrl+Y redoes: Ctrl+Shift+Z is OpenPnP's Head Safe Z (Machine > Jog).
-    JMenuItem* undo = entry(keys, edit, graph, "edit.undo", "Edit", "Undo", ctrl('Z'), [&app] { app.machine().undo(); });
-    JMenuItem* redo = entry(keys, edit, graph, "edit.redo", "Edit", "Redo", ctrl('Y'), [&app] { app.machine().redo(); });
-    app.machine().setEditItems(undo, redo);
+    JMenuItem* undo = entry(keys, edit, graph, "edit.undo", "Edit", "Undo", ctrl('Z'), [&app] { app.undo().undo(); });
+    JMenuItem* redo = entry(keys, edit, graph, "edit.redo", "Edit", "Redo", ctrl('Y'), [&app] { app.undo().redo(); });
+    app.undo().setItems(undo, redo);
     edit->addSeparator(graph);
     // OpenPnP's: the Job tab's Add Board/Panel, Remove and Capture Tool Location.
     JPJobPanel& jobs = app.tabs().jobPanel();

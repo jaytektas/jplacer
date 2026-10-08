@@ -99,3 +99,8 @@ makes a copy for it alone; **Generalize for** the package takes off the settings
 of the package (after saying which), so they use the package's.
 
 <!-- src: src/ui/JPPackagesPanel.cpp (visionTab, visionAct); src/setup/JPVisionForms.cpp (act, specializedIn) -->
+
+Every change to a package, its footprint and the library's footprints, a package made or deleted, can be
+taken back with **Edit ▸ Undo** and made again with **Edit ▸ Redo** (see [Parts](parts.md#undo-and-redo)).
+
+<!-- src: src/setup/JPLibraryHistory.cpp; src/app/JPlacerOpenPnpTabs.cpp (libraryChanged) -->
