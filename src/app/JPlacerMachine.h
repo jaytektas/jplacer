@@ -118,6 +118,9 @@ public:
     // Drawn over every camera's picture (and the cameras made later) until
     // set again by the same key; null takes it away.
     void setCameraOverlay(const std::string& key, JPCameraView::Overlay overlay);
+    // The tool chosen in Jog's rotation now (its C, as the DRO reads it; 0 without one): what OpenPnP's
+    // CameraView turns its reticles by.
+    double selectedToolRotation() const;
     // The open cell's nozzle tips, id and name; none without a cell.
     std::vector<std::pair<std::string, std::string>> nozzleTips() const;
 

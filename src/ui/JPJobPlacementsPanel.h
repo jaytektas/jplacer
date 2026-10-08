@@ -42,10 +42,11 @@ public:
     // Where a tool is now (machine millimetres), and taking it to a place at safe Z.
     std::function<std::optional<JPLocation>(Tool)> toolLocation;
     std::function<void(Tool, const JPLocation&)> moveTool;
-    // The chosen placement's footprint drawn over the head camera's picture as it is placed (turned by
-    // `rotationDeg`), or none chosen (null): OpenPnP's PackageReticle, and what Verified, Next checks by.
-    // Told when the placement chosen changes, not when the tab is left: it stays until something else is.
-    std::function<void(const JPFootprint* footprint, double rotationDeg)> showFootprint;
+    // The chosen placement's part's package footprint, drawn over the cameras (null: none chosen), as
+    // OpenPnP's linked tables choose its package and so its reticle; turned as the selected tool is (a
+    // camera moved to the placement, to its rotation). Told when the placement chosen changes, not when
+    // the tab is left: it stays until something else is.
+    std::function<void(const JPFootprint* footprint)> showFootprint;
     // The placements placed, of all and of the board shown (the status line).
     std::function<void(int placed, int total, int boardPlaced, int boardTotal)> onCompletion;
 
@@ -95,10 +96,10 @@ private:
     JPIconButton*                       m_editFeeder = nullptr;
     JPIconButton*                       m_turn = nullptr;
     JPIconButton*                       m_verify = nullptr;
-    // The chosen placement's footprint: its board part's (the footprint carried for it), else its part's package's.
+    // The placement's footprint: its part's package's (OpenPnP's reticle is the package's).
     const JPFootprint* footprintOf(const JPPlacement& p) const;
-    // showFootprint told of the chosen placement's when it is not what it was last told (`again`: anyway).
-    void showChosenFootprint(bool again = false);
+    // showFootprint told of the chosen placement's when it is not what it was last told.
+    void showChosenFootprint();
     // The chosen placement turned a quarter (its correction, kept apart from the CAD's rotation).
     void turnChosen();
     // The chosen placement marked verified by the operator; the camera to the next not verified.

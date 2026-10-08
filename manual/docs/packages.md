@@ -55,7 +55,8 @@ Level** for placing.
   it off).
 
 A package chosen, its footprint's pads are drawn over every calibrated camera's picture, centred where the
-camera looks, so a part can be held up to it. The cameras show one footprint, the last chosen: a
+camera looks and turned by the rotation of the tool chosen in Jog (its C, as OpenPnP's reticles turn), so
+a part can be held up to it. The cameras show one footprint, the last chosen: a
 package's, or a placement's on the Job tab (choosing a placement chooses its package too when **View ▸
 Selections in Tables** is **Linked**, as OpenPnP's). It stays when another tab is shown.
 
@@ -94,7 +95,7 @@ In a job, a part whose solution is one of corners is aligned shot by shot: the n
 shot's corners over the camera (without going up to safe Z within the roaming radius), the pipeline
 finds the corners there, and what the shots found is put together.
 
-<!-- src: src/ui/JPPackagesPanel.cpp (nozzleTipsTab, settingsTab, footprintTab, generatePads, compositingTab, showFootprint); src/ui/JPFootprintTableModel.cpp; src/model/JPFootprint.cpp (generate, inUnits); src/model/JPKicadModImporter.cpp; src/ui/JPFootprintOverlay.cpp; src/ui/JPCompositingPreview.cpp; src/tasks/JPVisionComposite.cpp (compute, composeShots, travel, interpret); src/tasks/JPVisionPipelinePrep.cpp (composite, bottom, shot); src/tasks/JPCellJobMachine.cpp (alignPart, alignComposite); src/app/JPlacerOpenPnpTabs.cpp (computeComposite) -->
+<!-- src: src/ui/JPPackagesPanel.cpp (nozzleTipsTab, settingsTab, footprintTab, generatePads, compositingTab, showFootprint); src/ui/JPFootprintTableModel.cpp; src/model/JPFootprint.cpp (generate, inUnits); src/model/JPKicadModImporter.cpp; src/ui/JPFootprintOverlay.cpp; src/app/JPlacerMachine.cpp (selectedToolRotation); src/ui/JPCompositingPreview.cpp; src/tasks/JPVisionComposite.cpp (compute, composeShots, travel, interpret); src/tasks/JPVisionPipelinePrep.cpp (composite, bottom, shot); src/tasks/JPCellJobMachine.cpp (alignPart, alignComposite); src/app/JPlacerOpenPnpTabs.cpp (computeComposite) -->
 
 **Bottom Vision Settings** and **Fiducial Vision Settings** show the vision settings the package uses (its
 own, else the machine's), as on the [Vision](vision.md#the-settings) tab. **Specialize for** the package,

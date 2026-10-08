@@ -171,9 +171,9 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
                                               JSettings::instance().get<double>(JPlacerSettings::kJobSplit, kSplit));
     m_jobPanel->openMenu = JPlacerMenuOpener::from(m_window, m_jobPanel.get());
     // The chosen placement's footprint on the head camera, as it is placed (the Job tab's).
-    // With tables linked the placement's package is chosen first: the placement's, as placed, is shown.
-    m_jobPanel->placements().showFootprint = [this](const JPFootprint* f, double rotationDeg) {
-        showFootprint(&m_jobPanel->placements(), f ? JPFootprintOverlay::of(*f, rotationDeg) : nullptr);
+    // With tables linked the placement's package is chosen first, the same footprint.
+    m_jobPanel->placements().showFootprint = [this](const JPFootprint* f) {
+        showFootprint(&m_jobPanel->placements(), f ? JPFootprintOverlay::of(*f, [this] { return m_machine.selectedToolRotation(); }) : nullptr);
     };
     m_jobPanel->placements().model().openPartPicker = [this](JPBoard& board, const std::string& id,
                                                              std::function<void(const JPPartChoice&)> chosen) {
@@ -321,7 +321,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_packages->openMenu = JPlacerMenuOpener::from(m_window, m_packages.get());
     m_packages->nozzleTips = [this] { return m_machine.nozzleTips(); };
     m_packages->onShowFootprint = [this](const JPFootprint* f) {
-        showFootprint(m_packages.get(), f ? JPFootprintOverlay::of(*f) : nullptr);
+        showFootprint(m_packages.get(), f ? JPFootprintOverlay::of(*f, [this] { return m_machine.selectedToolRotation(); }) : nullptr);
     };
     m_packages->onChanged = [this] { libraryChanged(); };
     m_packages->machineDefaults = [this] { return machineVisionDefaults(); };

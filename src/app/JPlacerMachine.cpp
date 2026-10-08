@@ -658,6 +658,13 @@ void JPlacerMachine::homeNozzle(const std::string& nozzleId) {
     m_cell->homeNozzle(nozzleId, 1.0);   // at the machine's speed
 }
 
+double JPlacerMachine::selectedToolRotation() const {
+    if (!m_jog || !m_cell || !m_cell->isConnected()) return 0;
+    for (const auto& [name, value] : m_jog->where())
+        if (name == "C") return value;
+    return 0;
+}
+
 void JPlacerMachine::setCameraOverlay(const std::string& key, JPCameraView::Overlay overlay) {
     if (overlay) m_overlays[key] = overlay;
     else m_overlays.erase(key);

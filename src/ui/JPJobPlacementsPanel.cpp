@@ -313,28 +313,20 @@ void JPJobPlacementsPanel::moveTo(Tool tool, bool next) {
 }
 
 const JPFootprint* JPJobPlacementsPanel::footprintOf(const JPPlacement& p) const {
-    if (m_location && m_location->kind() == JPPlacementsHolderLocation::Kind::Board && m_location->holder) {
-        const auto* board = static_cast<const JPBoard*>(m_location->holder->definition());
-        if (const JPBoardPart* bp = board->part(p.boardPart); bp && bp->copyFootprint) return &bp->copyFootprint->geometry;
-    }
     const JPPart* part = m_config.part(p.partId);
     const JPPackage* k = part ? m_config.package(part->packageId) : nullptr;
     return k ? &k->footprint : nullptr;
 }
 
-void JPJobPlacementsPanel::showChosenFootprint(bool again) {
+void JPJobPlacementsPanel::showChosenFootprint() {
     if (!showFootprint) return;
     const auto chosen = selections();
-    const bool facingUp = chosen.size() == 1 && m_location && chosen.front()->side == m_location->globalSide();
-    const JPFootprint* f = facingUp ? footprintOf(*chosen.front()) : nullptr;   // a fiducial's as a part's
-    const double turn = f ? m_location->placementLocation(chosen.front()->location).rotation() : 0.0;
+    const JPFootprint* f = chosen.size() == 1 ? footprintOf(*chosen.front()) : nullptr;   // a fiducial's as a part's
     // Told only when what is chosen changes: a refresh choosing it again is not choosing it.
-    const std::string what = f ? std::to_string(reinterpret_cast<uintptr_t>(m_location)) + "|" + chosen.front()->id + "|"
-                                     + std::to_string(turn)
-                               : std::string();
-    if (!again && what == m_footprintShown) return;
+    const std::string what = f ? std::to_string(reinterpret_cast<uintptr_t>(m_location)) + "|" + chosen.front()->id : std::string();
+    if (what == m_footprintShown) return;
     m_footprintShown = what;
-    showFootprint(f, turn);
+    showFootprint(f);
 }
 
 void JPJobPlacementsPanel::turnChosen() {
@@ -347,7 +339,6 @@ void JPJobPlacementsPanel::turnChosen() {
         p.verified = {};
     });
     m_table->refresh();
-    showChosenFootprint(true);
     changed();
 }
 
