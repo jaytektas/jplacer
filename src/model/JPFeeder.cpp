@@ -328,10 +328,12 @@ std::optional<JPLocation> JPFeeder::pickLocation() const {
         const double holes = std::round(pitch / holePitch);
         pitch = holes > 0 ? partPitch.value() / holePitch * pitch / holes : holePitch;
         JPLocation l = pointAlongLine(a, b, JPLength((count - 1) * pitch, partPitch.units()).convertToUnits(a.units()).value());
-        // From the hole to the part: across the tape, and 2 mm along it.
+        // From the hole to the part: across the tape, and along it OpenPnP's Reference Hole To Part Linear
+        // (2 mm, EIA-481's P2, unless auto setup found the first part on a hole: 0).
         const double x = JPLength(tapeWidth.convertToUnits(JPLengthUnit::Millimeters).value() / 2 - 0.5, JPLengthUnit::Millimeters)
                              .convertToUnits(l.units()).value();
-        const double y = JPLength(2, JPLengthUnit::Millimeters).convertToUnits(l.units()).value();
+        const double y = lengthOf("reference-hole-to-part-linear", JPLength(2, JPLengthUnit::Millimeters))
+                             .convertToUnits(l.units()).value();
         double angle = b.angleTo(a) - 90;
         const double r = angle * M_PI / 180;
         l = l.add(JPLocation(l.units(), x * std::cos(r) - y * std::sin(r), x * std::sin(r) + y * std::cos(r), 0, 0));

@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- A strip feeder's Auto Setup takes the click on the first part only to tell its holes: nearer a hole's
+  middle, the part is on the hole; nearer halfway between holes, 2 mm from it. A first part on a hole (2 mm
+  pitch tape) was picked 2 mm off.
 - With tables linked, changing the chosen feeder's part chooses the new part (its package, its footprint
   on the cameras); the old one stayed chosen.
 - Cameras have OpenPnP's rotation handle: drag the circle round the ring to turn the camera (a camera on

@@ -35,6 +35,8 @@ constexpr int kPreviewEveryMs = 400, kPreviewShownMs = 600;
 constexpr int kCompleteMs = 1500;
 // Parts in tape are a multiple of 2 mm apart.
 constexpr double kPartPitchStepMm = 2.0;
+// Half EIA-481's 4 mm hole pitch: where a part between two holes sits from them.
+constexpr double kHalfHoleMm = 2.0;
 // OpenPnP's showHoles colours (BGR): the lines orange, the best yellow, the holes on it blue, the two nearest green.
 const cv::Scalar kLineColour(0, 200, 255), kBestColour(0, 255, 255), kHoleColour(255, 0, 0), kNearColour(0, 255, 0);
 const cv::Scalar kHoleCentreColour(0, 255, 255), kNearCentreColour(255, 0, 255);
@@ -204,6 +206,16 @@ void JPlacerStripAutoSetup::check(const JPLocation& at) {
             f->setLocationOf("reference-hole-location", JPLocation(kMm, ref1.x(), ref1.y(), was1.z(), 0));
             f->setLocationOf("last-hole-location", JPLocation(kMm, ref2.x(), ref2.y(), was2.z(), 0));
             f->setLengthOf("part-pitch", JPLength(kPartPitchStepMm * double(steps), kMm));
+            // The click says where the first part is only to the hole: nearer a hole's middle, the part is on
+            // it (0 along); nearer halfway between holes, it is a half hole pitch (EIA-481's 2 mm) from it.
+            {
+                const double len = std::hypot(m_secondPart.x() - m_firstPart.x(), m_secondPart.y() - m_firstPart.y());
+                const double along = len > 0 ? ((ref1.x() - m_firstPart.x()) * (m_secondPart.x() - m_firstPart.x())
+                                                + (ref1.y() - m_firstPart.y()) * (m_secondPart.y() - m_firstPart.y())) / len
+                                             : 0;
+                const bool onHole = std::abs(along) < kHalfHoleMm / 2;
+                f->setLengthOf("reference-hole-to-part-linear", JPLength(onHole ? 0.0 : kHalfHoleMm, kMm));
+            }
             // Where the first part is picked.
             f->setNumber("feed-count", 1);
             pick = f->pickLocation();

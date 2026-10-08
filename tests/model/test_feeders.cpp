@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
-// Feeders as OpenPnP keeps them: a strip's and a tray's pick locations and
+// Feeders as OpenPnP keeps them: a strip's and a tray's pick locations (a strip's part 2 mm from its hole,
+// or on it when its Reference Hole To Part Linear says 0) and
 // feeds, the feed options, a new feeder, and the feeder a part is taken
 // from (the highest priority, then the closest).
 // Tests check with assert(); a Release build must not compile it away.
@@ -52,6 +53,13 @@ int main() {
     assert(strip.typeName() == "ReferenceStripFeeder" && strip.supportsFeedOptions());
     auto at = strip.pickLocation();
     assert(at && near(at->x(), 103.5) && near(at->y(), 52) && near(at->z(), -20) && near(at->rotation(), 90));
+    // The first part on a hole (2 mm pitch tape, as auto setup finds it): no way along from it.
+    {
+        JPFeeder onHole = parse(kStrip);
+        onHole.setLengthOf("reference-hole-to-part-linear", JPLength(0, JPLengthUnit::Millimeters));
+        const auto first = onHole.pickLocation();
+        assert(first && near(first->x(), 103.5) && near(first->y(), 50));
+    }
     std::string why;
     assert(strip.feed(why) && strip.number("feed-count") == 1);
     assert(strip.feed(why) && strip.feed(why) && strip.number("feed-count") == 3);

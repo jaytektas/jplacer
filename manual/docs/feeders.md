@@ -95,7 +95,10 @@ A strip of cut tape lying on the machine, its parts picked one after the other a
   second part. Then the **Reference Hole Location** and **Next Hole Location** are set from the holes
   beside the two parts (their Z kept), the **Part Pitch** to the distance between the parts rounded to
   2 mm, and the **Feed Count** to 0, and the camera goes to the first part's pick location ("Setup
-  complete!"). The button reads **Cancel Auto Setup** while it runs. It stops with an **Auto Setup
+  complete!"). A click is not where the part is picked: parts in tape lie on a hole's middle or halfway
+  between two holes, and the click says which. Nearer a hole's middle, the first part is on it; nearer
+  halfway, it is 2 mm from it (OpenPnP's Reference Hole To Part Linear, 2 mm to begin with; OpenPnP always
+  takes 2 mm). The parts are picked from the holes, not from the clicks. The button reads **Cancel Auto Setup** while it runs. It stops with an **Auto Setup
   Failure** when the camera is not calibrated, when no hole is found by a part, when the same part is
   clicked twice, or when the holes are on the wrong side for the direction the parts were clicked in ("The
   tape is oriented incorrectly for the feed direction of the components selected"). With a camera
