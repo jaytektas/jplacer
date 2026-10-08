@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.21
+
 - Vision pipelines are given the camera's corrected picture, as in OpenPnP: the lens's bending taken out
   and the machine square to it, once the camera is calibrated. What they find is placed through it. A
   camera's own calibration pipeline still sees the picture as taken.
