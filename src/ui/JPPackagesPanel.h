@@ -89,6 +89,11 @@ private:
     std::unique_ptr<JContainer> nozzleTipsTab(JPPackage& p);
     std::unique_ptr<JContainer> settingsTab(JPPackage& p);
     std::unique_ptr<JContainer> footprintTab(JPPackage& p);
+    // The package's footprints in the library (land patterns, JPLibraryFootprint): each its name, the names
+    // CAD files give it, its zero rotation, its pads; made from the package's own, from a KiCad file.
+    std::unique_ptr<JContainer> footprintsTab(JPPackage& p);
+    // The pages made again after the click that changed what they show.
+    void remakeLater();
     std::unique_ptr<JContainer> compositingTab(JPPackage& p);
     // Its Bottom or Fiducial Vision Settings (its own, else the machine's), to specialize for it.
     std::unique_ptr<JContainer> visionTab(JPPackage& p, JPVisionSettings::Kind kind);
@@ -112,6 +117,7 @@ private:
     JPIconButton*                             m_padMark = nullptr;
     std::string                               m_shown;   // the package whose tabs are shown
     int                                       m_lastTab = 0;
+    std::shared_ptr<bool>                     m_alive = std::make_shared<bool>(true);
 };
 
 } // inline namespace jf

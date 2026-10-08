@@ -22,9 +22,6 @@ class JPPackage {
 public:
     std::string                id;
     std::string                uuid;   // the library's for good (JPUuid); empty until it is in the library
-    // The footprint names CAD tools give it ("C_0603_1608Metric", "C0603"): a board part's footprint by one of
-    // them is this package.
-    std::vector<std::string>   akas;
     std::optional<std::string> description;
     std::optional<std::string> tapeSpecification;
     double                     pickVacuumLevel = 0;

@@ -96,15 +96,25 @@ bool JPConfiguration::load(std::vector<std::string>& problems, std::string& erro
     const fs::path libraryFile = dir / JPLibraryStore::kFile;
     const bool hadLibrary = exists(libraryFile.string());
     if (!m_library.open(libraryFile.string(), error)) return false;
+    bool migrated = false;
     if (hadLibrary) {
-        std::vector<std::shared_ptr<JPPart>> libraryParts;
-        std::vector<std::shared_ptr<JPPackage>> libraryPackages;
-        if (!m_library.load(libraryParts, libraryPackages, m_manufacturers, error)) return false;
-        for (auto& k : libraryPackages) addPackage(std::move(k));
-        for (auto& p : libraryParts) addPart(std::move(p));
+        JPLibraryStore::Contents in;
+        if (!m_library.load(in, error)) return false;
+        for (auto& k : in.packages) addPackage(std::move(k));
+        for (auto& p : in.parts) addPart(std::move(p));
+        for (auto& f : in.footprints) addFootprint(std::move(f));
+        m_manufacturers = std::move(in.manufacturers);
+        // A library of before footprints: the CAD names its packages were known by are their footprints' names.
+        for (const auto& [packageUuid, name] : in.packageNames)
+            for (const auto& k : m_packages)
+                if (k->uuid == packageUuid)
+                    if (JPLibraryFootprint* f = defaultFootprint(k->id, true);
+                        std::find(f->cadNames.begin(), f->cadNames.end(), name) == f->cadNames.end())
+                        f->cadNames.push_back(name);
+        migrated = !in.packageNames.empty();
     }
     const std::string stamp = openPnpStamp();
-    if (!hadLibrary || stamp != m_library.meta("openpnpFiles")) {
+    if (!hadLibrary || migrated || stamp != m_library.meta("openpnpFiles")) {
         int added = 0;
         for (const JPXmlElement& e : packages.children)
             if (e.name == "package" && !libraryPackage(e.attr("id"))) {
@@ -120,7 +130,7 @@ bool JPConfiguration::load(std::vector<std::string>& problems, std::string& erro
             problems.push_back(std::to_string(added) + " part(s) and package(s) of OpenPnP's parts.xml and packages.xml "
                                "the library did not have were added to it");
         std::string why;
-        if (!m_library.save(m_parts, m_packages, m_manufacturers, why) || !m_library.setMeta("openpnpFiles", stamp)) {
+        if (!m_library.save(contents(), why) || !m_library.setMeta("openpnpFiles", stamp)) {
             error = why;
             return false;
         }
@@ -144,7 +154,7 @@ bool JPConfiguration::save(std::string& error) const {
     const fs::path dir(m_directory);
     // The library's parts and packages, to library.db (OpenPnP's parts.xml and packages.xml are not written).
     if (!m_library.isOpen() && !m_library.open((dir / JPLibraryStore::kFile).string(), error)) return false;
-    if (!m_library.save(m_parts, m_packages, m_manufacturers, error)) return false;
+    if (!m_library.save(contents(), error)) return false;
     JPXmlNode boards("openpnp-boards");
     for (const auto& b : m_boards) boards.add(JPXmlNode("board")).text = b->file;
     JPXmlNode panels("openpnp-panels");
@@ -415,6 +425,9 @@ JJson JPConfiguration::libraryJson() const {
     JJson packages = JJson::array();
     for (const auto& k : m_packages) packages.push(JPLibraryJson::package(*k));
     j["packages"] = packages;
+    JJson footprints = JJson::array();
+    for (const auto& f : m_footprints) footprints.push(JPLibraryJson::footprint(*f));
+    j["footprints"] = footprints;
     JJson makers = JJson::array();
     for (const JPManufacturer& m : m_manufacturers) {
         JJson o = JJson::object();
@@ -455,13 +468,23 @@ void JPConfiguration::takeCopy(JPBoardPart& bp) const {
     bp.copyPart = std::make_shared<JPPart>(*p);
     const JPPackage* k = libraryPackage(p->packageId);
     bp.copyPackage = k ? std::make_shared<JPPackage>(*k) : nullptr;
-    bp.fingerprint = JPLibraryJson::fingerprint(*p, k);
+    const JPLibraryFootprint* f = footprintFor(bp, *p);
+    bp.copyFootprint = f ? std::make_shared<JPLibraryFootprint>(*f) : nullptr;
+    bp.fingerprint = JPLibraryJson::fingerprint(*p, k, f);
+}
+
+const JPLibraryFootprint* JPConfiguration::footprintFor(const JPBoardPart& bp, const JPPart& p) const {
+    // The one its CAD footprint names, when it is of the part's package; else the package's first.
+    const std::string cad = !bp.field("footprint").empty() ? bp.field("footprint") : bp.field("package");
+    if (const JPLibraryFootprint* f = footprintNamed(cad); f && upper(f->packageId) == upper(p.packageId)) return f;
+    const auto of = footprintsOf(p.packageId);
+    return of.empty() ? nullptr : of.front();
 }
 
 bool JPConfiguration::differs(const JPBoardPart& bp) const {
     if (bp.state != JPBoardPart::State::Matched || !bp.copyPart) return false;
     const JPPart* p = libraryPartFor(bp);
-    return !p || JPLibraryJson::fingerprint(*p, libraryPackage(p->packageId)) != bp.fingerprint;
+    return !p || JPLibraryJson::fingerprint(*p, libraryPackage(p->packageId), footprintFor(bp, *p)) != bp.fingerprint;
 }
 
 void JPConfiguration::giveCopy(const JPBoardPart& bp) {
@@ -471,6 +494,7 @@ void JPConfiguration::giveCopy(const JPBoardPart& bp) {
         // Not in this library: the copy joins it, as it was.
         auto made = std::make_shared<JPPart>(*bp.copyPart);
         if (bp.copyPackage && !libraryPackage(bp.copyPackage->id)) addPackage(std::make_shared<JPPackage>(*bp.copyPackage));
+        if (bp.copyFootprint && !footprint(bp.copyFootprint->uuid)) addFootprint(std::make_shared<JPLibraryFootprint>(*bp.copyFootprint));
         addPart(made);
         return;
     }
@@ -484,10 +508,14 @@ void JPConfiguration::giveCopy(const JPBoardPart& bp) {
     if (bp.copyPackage)
         if (JPPackage* k = libraryPackage(bp.copyPackage->id)) {
             const std::string uuid = k->uuid;
-            const std::vector<std::string> akas = k->akas;
             *k = *bp.copyPackage;
             k->uuid = uuid;
-            k->akas = akas;
+        }
+    // Its footprint's land pattern and rotation (its names the library's).
+    if (bp.copyFootprint)
+        if (JPLibraryFootprint* f = footprint(bp.copyFootprint->uuid)) {
+            f->geometry = bp.copyFootprint->geometry;
+            f->zeroRotationDeg = bp.copyFootprint->zeroRotationDeg;
         }
 }
 
@@ -508,11 +536,63 @@ bool JPConfiguration::sameManufacturer(const std::string& a, const std::string& 
 JPPackage* JPConfiguration::packageNamed(const std::string& footprint) const {
     if (footprint.empty()) return nullptr;
     if (JPPackage* k = libraryPackage(footprint)) return k;
-    const std::string want = upper(footprint);
-    for (const auto& k : m_packages)
-        for (const std::string& a : k->akas)
-            if (upper(a) == want) return k.get();
+    const JPLibraryFootprint* f = footprintNamed(footprint);
+    return f ? libraryPackage(f->packageId) : nullptr;
+}
+
+JPLibraryFootprint* JPConfiguration::footprint(const std::string& uuid) const {
+    for (const auto& f : m_footprints)
+        if (f->uuid == uuid) return f.get();
     return nullptr;
+}
+
+JPLibraryFootprint* JPConfiguration::footprintNamed(const std::string& name) const {
+    if (name.empty()) return nullptr;
+    const std::string want = upper(name);
+    for (const auto& f : m_footprints) {
+        if (upper(f->name) == want) return f.get();
+        for (const std::string& n : f->cadNames)
+            if (upper(n) == want) return f.get();
+    }
+    return nullptr;
+}
+
+std::vector<JPLibraryFootprint*> JPConfiguration::footprintsOf(const std::string& packageId) const {
+    std::vector<JPLibraryFootprint*> out;
+    for (const auto& f : m_footprints)
+        if (upper(f->packageId) == upper(packageId)) out.push_back(f.get());
+    return out;
+}
+
+JPLibraryFootprint* JPConfiguration::defaultFootprint(const std::string& packageId, bool make) {
+    if (const auto of = footprintsOf(packageId); !of.empty()) return of.front();
+    const JPPackage* k = libraryPackage(packageId);
+    if (!make || !k) return nullptr;
+    auto f = std::make_shared<JPLibraryFootprint>();
+    f->name = k->id;
+    f->packageId = k->id;
+    f->geometry = k->footprint;
+    f->source = "the package's own footprint";
+    addFootprint(f);
+    return m_footprints.back().get();
+}
+
+void JPConfiguration::addFootprint(std::shared_ptr<JPLibraryFootprint> f) {
+    if (f->uuid.empty()) f->uuid = JPUuid::make();
+    m_footprints.push_back(std::move(f));
+}
+
+void JPConfiguration::removeFootprint(const std::string& uuid) {
+    std::erase_if(m_footprints, [&uuid](const auto& f) { return f->uuid == uuid; });
+}
+
+JPLibraryStore::Contents JPConfiguration::contents() const {
+    JPLibraryStore::Contents c;
+    c.parts = m_parts;
+    c.packages = m_packages;
+    c.footprints = m_footprints;
+    c.manufacturers = m_manufacturers;
+    return c;
 }
 
 void JPConfiguration::addPart(std::shared_ptr<JPPart> p) {

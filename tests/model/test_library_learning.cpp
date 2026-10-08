@@ -40,7 +40,8 @@ int main() {
     JPLibraryLearning::learn(config, part, bp, "Ctrl", "2026-10-08T12:00:01");   // once each
     assert(part.akas.size() == 1 && part.akas[0].field == "valueFootprint" && part.akas[0].text == "100n|C_0603_1608Metric");
     assert(part.akas[0].learnedFrom == "Ctrl" && part.identifiers.size() == 2 && part.identifiers[0].org == "Samsung");
-    assert(config.package("C0603")->akas.size() == 1 && config.packageNamed("c_0603_1608metric") == config.package("C0603"));
+    assert(config.footprintsOf("C0603").size() == 1 && config.footprintsOf("C0603")[0]->cadNames.size() == 1);
+    assert(config.packageNamed("c_0603_1608metric") == config.package("C0603"));
 
     // The next board calling it so (by its MPN): taken unasked, and why.
     JPBoardPart next;

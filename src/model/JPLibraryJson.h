@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "JPLibraryFootprint.h"
 #include "JPPackage.h"
 #include "JPPart.h"
 
@@ -23,10 +24,12 @@ public:
     static JPPart    part(const JJson& j);
     static JJson     package(const JPPackage& k);
     static JPPackage package(const JJson& j);
+    static JJson              footprint(const JPLibraryFootprint& f);
+    static JPLibraryFootprint footprint(const JJson& j);
     // A part (with its package, when it has one) reduced to a short text that changes when anything a job
     // places it by changes (its packagings too: how it comes is how it is picked): not its names (AKAs,
     // identifiers are learned, not placed by), its offers, nor its uuid.
-    static std::string fingerprint(const JPPart& p, const JPPackage* k);
+    static std::string fingerprint(const JPPart& p, const JPPackage* k, const JPLibraryFootprint* f = nullptr);
     static JJson       packaging(const JPPart::Packaging& k);
 };
 

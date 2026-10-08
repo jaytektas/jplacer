@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "JPLibraryFootprint.h"
 #include "JPManufacturer.h"
 #include "JPPackage.h"
 #include "JPPart.h"
@@ -25,14 +26,22 @@ inline namespace jf {
 class JPLibraryStore {
 public:
     static constexpr const char* kFile = "library.db";
-    static constexpr int         kSchema = 2;   // 2: packagings, offers, manufacturers
+    static constexpr int         kSchema = 3;   // 2: packagings, offers, manufacturers; 3: footprints
 
     bool open(const std::string& path, std::string& error);
     bool isOpen() const { return m_db.isOpen(); }
-    bool load(std::vector<std::shared_ptr<JPPart>>& parts, std::vector<std::shared_ptr<JPPackage>>& packages,
-              std::vector<JPManufacturer>& manufacturers, std::string& error);
-    bool save(const std::vector<std::shared_ptr<JPPart>>& parts, const std::vector<std::shared_ptr<JPPackage>>& packages,
-              const std::vector<JPManufacturer>& manufacturers, std::string& error);
+    // What the library holds.
+    struct Contents {
+        std::vector<std::shared_ptr<JPPart>>             parts;
+        std::vector<std::shared_ptr<JPPackage>>          packages;
+        std::vector<std::shared_ptr<JPLibraryFootprint>> footprints;
+        std::vector<JPManufacturer>                      manufacturers;
+        // Read from a library of schema 2: the CAD footprint names its packages were known by (package uuid,
+        // name), which are footprints' names now (JPConfiguration moves them). Never written.
+        std::vector<std::pair<std::string, std::string>> packageNames;
+    };
+    bool load(Contents& out, std::string& error);
+    bool save(const Contents& in, std::string& error);
     std::string meta(const std::string& key);
     bool        setMeta(const std::string& key, const std::string& value);
 

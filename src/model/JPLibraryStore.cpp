@@ -28,6 +28,10 @@ CREATE TABLE IF NOT EXISTS packagings(part_uuid TEXT NOT NULL, kind TEXT NOT NUL
 CREATE TABLE IF NOT EXISTS offers(part_uuid TEXT NOT NULL, supplier TEXT, sku TEXT, packaging TEXT, moq INTEGER,
                                   price_breaks TEXT, link TEXT, last_price TEXT, last_when TEXT);
 CREATE TABLE IF NOT EXISTS manufacturers(name TEXT NOT NULL, aka TEXT);
+CREATE TABLE IF NOT EXISTS footprints(uuid TEXT PRIMARY KEY, name TEXT NOT NULL, package_id TEXT, data TEXT NOT NULL,
+                                      zero_rotation REAL, source TEXT);
+CREATE TABLE IF NOT EXISTS footprint_names(footprint_uuid TEXT NOT NULL, name TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS footprint_names_name ON footprint_names(name COLLATE NOCASE);
 CREATE INDEX IF NOT EXISTS identifiers_code ON identifiers(code COLLATE NOCASE);
 CREATE INDEX IF NOT EXISTS akas_text ON akas(text COLLATE NOCASE);
 CREATE INDEX IF NOT EXISTS package_akas_text ON package_akas(text COLLATE NOCASE);
@@ -61,12 +65,12 @@ bool JPLibraryStore::setMeta(const std::string& key, const std::string& value) {
     return m_db.exec("INSERT OR REPLACE INTO meta(key, value) VALUES(?, ?)", { B::from(key), B::from(value) });
 }
 
-bool JPLibraryStore::load(std::vector<std::shared_ptr<JPPart>>& parts, std::vector<std::shared_ptr<JPPackage>>& packages,
-                          std::vector<JPManufacturer>& manufacturers, std::string& error) {
-    parts.clear();
-    packages.clear();
-    manufacturers.clear();
-    std::map<std::string, JPPackage*> packageByUuid;
+bool JPLibraryStore::load(Contents& out, std::string& error) {
+    out = Contents();
+    auto& parts = out.parts;
+    auto& packages = out.packages;
+    auto& manufacturers = out.manufacturers;
+    std::map<std::string, JPLibraryFootprint*> footprintByUuid;
     std::map<std::string, JPPart*> partByUuid;
     auto query = [this](const char* sql, std::function<void(const JDatabase::JRow&)> row) { return m_db.query(sql, {}, row) >= 0; };
     const bool ok =
@@ -75,11 +79,26 @@ bool JPLibraryStore::load(std::vector<std::shared_ptr<JPPart>>& parts, std::vect
             if (!j) return;
             auto k = std::make_shared<JPPackage>(JPPackage::fromXml(JPXmlJson::element(*j)));
             k->uuid = r.text(0);
-            packageByUuid[k->uuid] = k.get();
             packages.push_back(k);
         })
         && query("SELECT package_uuid, text FROM package_akas ORDER BY rowid", [&](const JDatabase::JRow& r) {
-            if (auto it = packageByUuid.find(r.text(0)); it != packageByUuid.end()) it->second->akas.push_back(r.text(1));
+            out.packageNames.emplace_back(r.text(0), r.text(1));
+        })
+        && query("SELECT uuid, name, package_id, data, zero_rotation, source FROM footprints ORDER BY rowid",
+                 [&](const JDatabase::JRow& r) {
+                     const std::optional<JJson> j = JJson::tryParse(r.text(3));
+                     auto f = std::make_shared<JPLibraryFootprint>();
+                     f->uuid = r.text(0);
+                     f->name = r.text(1);
+                     f->packageId = r.text(2);
+                     if (j) f->geometry = JPFootprint::fromXml(JPXmlJson::element(*j));
+                     f->zeroRotationDeg = r.real(4);
+                     f->source = r.text(5);
+                     footprintByUuid[f->uuid] = f.get();
+                     out.footprints.push_back(f);
+                 })
+        && query("SELECT footprint_uuid, name FROM footprint_names ORDER BY rowid", [&](const JDatabase::JRow& r) {
+            if (auto it = footprintByUuid.find(r.text(0)); it != footprintByUuid.end()) it->second->cadNames.push_back(r.text(1));
         })
         && query("SELECT uuid, value, datasheet, data FROM parts ORDER BY rowid", [&](const JDatabase::JRow& r) {
             const std::optional<JJson> j = JJson::tryParse(r.text(3));
@@ -129,12 +148,22 @@ bool JPLibraryStore::load(std::vector<std::shared_ptr<JPPart>>& parts, std::vect
     return true;
 }
 
-bool JPLibraryStore::save(const std::vector<std::shared_ptr<JPPart>>& parts,
-                          const std::vector<std::shared_ptr<JPPackage>>& packages,
-                          const std::vector<JPManufacturer>& manufacturers, std::string& error) {
+bool JPLibraryStore::save(const Contents& in, std::string& error) {
+    const auto& parts = in.parts;
+    const auto& packages = in.packages;
+    const auto& manufacturers = in.manufacturers;
     bool ok = m_db.exec("BEGIN IMMEDIATE");
-    for (const char* table : { "packages", "package_akas", "parts", "identifiers", "akas", "packagings", "offers", "manufacturers" })
+    for (const char* table : { "packages", "package_akas", "parts", "identifiers", "akas", "packagings", "offers", "manufacturers",
+                               "footprints", "footprint_names" })
         ok = ok && m_db.exec(std::string("DELETE FROM ") + table);
+    for (const auto& f : in.footprints) {
+        if (!ok) break;
+        ok = m_db.exec("INSERT INTO footprints(uuid, name, package_id, data, zero_rotation, source) VALUES(?, ?, ?, ?, ?, ?)",
+                       { B::from(f->uuid), B::from(f->name), B::from(f->packageId), B::from(JPXmlJson::from(f->geometry.toXml()).dump()),
+                         B::from(f->zeroRotationDeg), B::from(f->source) });
+        for (const std::string& n : f->cadNames)
+            ok = ok && m_db.exec("INSERT INTO footprint_names(footprint_uuid, name) VALUES(?, ?)", { B::from(f->uuid), B::from(n) });
+    }
     for (const JPManufacturer& m : manufacturers) {
         if (!ok) break;
         // One row with no AKA keeps a name that has none.
@@ -146,8 +175,6 @@ bool JPLibraryStore::save(const std::vector<std::shared_ptr<JPPart>>& parts,
         if (!ok) break;
         ok = m_db.exec("INSERT INTO packages(uuid, id, data) VALUES(?, ?, ?)",
                        { B::from(k->uuid), B::from(k->id), B::from(JPXmlJson::from(k->toXml()).dump()) });
-        for (const std::string& a : k->akas)
-            ok = ok && m_db.exec("INSERT INTO package_akas(package_uuid, text) VALUES(?, ?)", { B::from(k->uuid), B::from(a) });
     }
     for (const auto& p : parts) {
         if (!ok) break;

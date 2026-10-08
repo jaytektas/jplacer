@@ -55,7 +55,7 @@ int main() {
         p->identifiers.push_back({ "mpn", "Samsung", "CL10B104KB8NNNC" });
         p->identifiers.push_back({ "supplierPn", "LCSC", "C14663" });
         p->akas.push_back({ "valueFootprint", "100n|C_0603_1608Metric", "Ctrl.jpboard", "2026-10-08T12:00:00" });
-        c.package("C0603")->akas.push_back("C_0603_1608Metric");
+        c.defaultFootprint("C0603", true)->cadNames.push_back("C_0603_1608Metric");
         p->packagings.push_back({ "Reel", 8, 4, "Paper", 90, 4000, "7 inch" });
         p->offers.push_back({ "LCSC", "C14663", "Reel", 4000, "1: 0.0016, 4000: 0.0011", "https://lcsc.com/C14663", "0.0011", "2026-10-08" });
         c.manufacturers().push_back({ "Texas Instruments", { "TI", "Texas Instruments Inc." } });
@@ -71,7 +71,8 @@ int main() {
         assert(p && p->uuid == uuid && p->value == "100n" && p->name == "Capacitor, X7R" && p->identifiers.size() == 2);
         assert(p->identifiers[0].org == "Samsung" && p->identifiers[1].code == "C14663");
         assert(p->akas.size() == 1 && p->akas[0].text == "100n|C_0603_1608Metric" && p->akas[0].learnedFrom == "Ctrl.jpboard");
-        assert(c.package("C0603")->akas.size() == 1 && std::abs(p->height.value() - 0.8) < 1e-9);
+        assert(c.footprints().size() == 1 && c.footprints()[0]->cadNames.size() == 1 && c.footprints()[0]->packageId == "C0603");
+        assert(c.packageNamed("c_0603_1608metric") == c.package("C0603") && std::abs(p->height.value() - 0.8) < 1e-9);
         assert(p->packagings.size() == 1 && p->packagings[0].kind == "Reel" && p->packagings[0].rotationDeg == 90
                && p->packagings[0].quantity == 4000 && p->packagings[0].note == "7 inch");
         assert(p->offers.size() == 1 && p->offers[0].sku == "C14663" && p->offers[0].moq == 4000 && p->offers[0].lastPrice == "0.0011");

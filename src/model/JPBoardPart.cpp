@@ -51,6 +51,7 @@ JJson JPBoardPart::toJson() const {
             JJson copy = JJson::object();
             copy["part"] = JPLibraryJson::part(*copyPart);
             if (copyPackage) copy["package"] = JPLibraryJson::package(*copyPackage);
+            if (copyFootprint) copy["footprint"] = JPLibraryJson::footprint(*copyFootprint);
             r["copy"] = copy;
             r["fingerprint"] = fingerprint;
         }
@@ -77,6 +78,8 @@ JPBoardPart JPBoardPart::fromJson(const JJson& j) {
         if (r["copy"]["part"].isObject()) {
             p.copyPart = std::make_shared<JPPart>(JPLibraryJson::part(r["copy"]["part"]));
             if (r["copy"]["package"].isObject()) p.copyPackage = std::make_shared<JPPackage>(JPLibraryJson::package(r["copy"]["package"]));
+            if (r["copy"]["footprint"].isObject())
+                p.copyFootprint = std::make_shared<JPLibraryFootprint>(JPLibraryJson::footprint(r["copy"]["footprint"]));
             if (r["fingerprint"].isString()) p.fingerprint = r["fingerprint"].str();
         }
     }

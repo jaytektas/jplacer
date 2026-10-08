@@ -77,6 +77,9 @@ public:
     bool differs(const JPBoardPart& bp) const;
     // The library's part made the board's copy (its placing fields; its names, uuid, id kept).
     void giveCopy(const JPBoardPart& bp);
+    // The library footprint a board part's part is placed with: the one its CAD footprint names, of the part's
+    // package, else that package's first; null when the package has none.
+    const JPLibraryFootprint* footprintFor(const JPBoardPart& bp, const JPPart& part) const;
     // Replaces one of the same id, where it was.
     void addPart(std::shared_ptr<JPPart> part);
     void removePart(const std::string& id);
@@ -94,8 +97,20 @@ public:
     std::string manufacturerName(const std::string& name) const;
     // Whether two names name one manufacturer (either unknown: when they are the same name).
     bool sameManufacturer(const std::string& a, const std::string& b) const;
-    // The library's package a CAD footprint names: by its id, else one of its AKAs (any case); null when none.
+    // The library's package a CAD footprint names: by its id, else by a footprint of it that name names
+    // (footprintNamed); null when none.
     JPPackage* packageNamed(const std::string& footprint) const;
+
+    // The library's footprints (land patterns of its packages: JPLibraryFootprint).
+    const std::vector<std::shared_ptr<JPLibraryFootprint>>& footprints() const { return m_footprints; }
+    JPLibraryFootprint* footprint(const std::string& uuid) const;
+    // The footprint a CAD file's name names: by its name or one of its CAD names (any case); null when none.
+    JPLibraryFootprint* footprintNamed(const std::string& name) const;
+    std::vector<JPLibraryFootprint*> footprintsOf(const std::string& packageId) const;
+    // A package's first footprint; with `make`, one made from the package's own (named after it) when it has none.
+    JPLibraryFootprint* defaultFootprint(const std::string& packageId, bool make);
+    void addFootprint(std::shared_ptr<JPLibraryFootprint> f);
+    void removeFootprint(const std::string& uuid);
     void addPackage(std::shared_ptr<JPPackage> package);
     void removePackage(const std::string& id);
 
@@ -205,12 +220,15 @@ public:
 private:
     // OpenPnP's parts.xml and packages.xml in the folder, as when last changed (a changed one is looked at again).
     std::string openPnpStamp() const;
+    // The library as the store keeps it.
+    JPLibraryStore::Contents contents() const;
     bool convertLegacyJob(JPJob& job, std::string& error);
     static void restoreJobSettings(JPJob& job, JPPanelLocation& l);
     static void saveJobSettings(JPJob& job, JPPanelLocation& l);
     std::shared_ptr<JPPanel> loadPanel(const std::string& path, std::string& error);
 
     std::string                                          m_directory;
+    std::vector<std::shared_ptr<JPLibraryFootprint>>     m_footprints;
     std::vector<JPManufacturer>                          m_manufacturers;
     // The library's file (library.db): written on save (from a const save, so mutable).
     mutable JPLibraryStore                                m_library;

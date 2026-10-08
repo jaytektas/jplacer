@@ -113,29 +113,54 @@ JJson JPLibraryJson::package(const JPPackage& k) {
     JJson o = JJson::object();
     o["id"] = k.id;
     o["uuid"] = k.uuid;
-    JJson akas = JJson::array();
-    for (const std::string& a : k.akas) akas.push(JJson(a));
-    o["akas"] = akas;
     o["openpnp"] = JPXmlJson::from(k.toXml());
     return o;
+}
+
+JJson JPLibraryJson::footprint(const JPLibraryFootprint& f) {
+    JJson o = JJson::object();
+    o["uuid"] = f.uuid;
+    o["name"] = f.name;
+    o["packageId"] = f.packageId;
+    JJson names = JJson::array();
+    for (const std::string& n : f.cadNames) names.push(JJson(n));
+    o["cadNames"] = names;
+    o["zeroRotationDeg"] = f.zeroRotationDeg;
+    if (!f.source.empty()) o["source"] = f.source;
+    o["geometry"] = JPXmlJson::from(f.geometry.toXml());
+    return o;
+}
+
+JPLibraryFootprint JPLibraryJson::footprint(const JJson& j) {
+    JPLibraryFootprint f;
+    auto s = [&j](const char* k) { return j[k].isString() ? j[k].str() : std::string(); };
+    f.uuid = s("uuid");
+    f.name = s("name");
+    f.packageId = s("packageId");
+    if (j["cadNames"].isArray())
+        for (const JJson& n : j["cadNames"].arr())
+            if (n.isString()) f.cadNames.push_back(n.str());
+    f.zeroRotationDeg = j["zeroRotationDeg"].number();
+    f.source = s("source");
+    if (j["geometry"].isObject()) f.geometry = JPFootprint::fromXml(JPXmlJson::element(j["geometry"]));
+    return f;
 }
 
 JPPackage JPLibraryJson::package(const JJson& j) {
     JPPackage k = JPPackage::fromXml(JPXmlJson::element(j["openpnp"]));
     if (j["id"].isString()) k.id = j["id"].str();
     if (j["uuid"].isString()) k.uuid = j["uuid"].str();
-    if (j["akas"].isArray())
-        for (const JJson& a : j["akas"].arr())
-            if (a.isString()) k.akas.push_back(a.str());
     return k;
 }
 
-std::string JPLibraryJson::fingerprint(const JPPart& p, const JPPackage* k) {
+std::string JPLibraryJson::fingerprint(const JPPart& p, const JPPackage* k, const JPLibraryFootprint* f) {
     // What a job places it by: its OpenPnP fields (height, package, speed, vision…), its value, its package's.
     uint64_t h = fnv(JPXmlJson::from(p.toXml()).dump());
     h = fnv("|" + p.value, h);
     for (const auto& k : p.packagings) h = fnv("|" + packaging(k).dump(), h);   // how it comes: how it is picked
     if (k) h = fnv("|" + JPXmlJson::from(k->toXml()).dump(), h);
+    // Its footprint's land pattern and zero rotation (not its names).
+    if (f) h = fnv("|" + JPXmlJson::from(f->geometry.toXml()).dump() + "|" + std::to_string(f->zeroRotationDeg), h);
     char buf[24];
     std::snprintf(buf, sizeof buf, "%016llx", static_cast<unsigned long long>(h));
     return buf;

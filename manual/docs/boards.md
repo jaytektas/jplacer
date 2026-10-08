@@ -42,10 +42,10 @@ A click on a placement's **Part** opens the part picker for its board part, titl
 
 **Use This Part** (Return, or a double-click on one) makes it that library part; with **Remember** ticked
 (as it starts, where the files gave any), the library part keeps the names the files gave (its value and
-footprint, MPN and supplier's part number; its package the footprint), so the next board calling it so is
+footprint, MPN and supplier's part number; its package's footprint the footprint's name), so the next board calling it so is
 matched without asking. **Add to Library** makes a library part from all the files said (named by its MPN,
 else *footprint*-*value*, else its value, numbered when the name is taken; its package the library's of
-that footprint by name or by a name it learned, else a new one) and uses it. **Make It the Board's
+that footprint, by its name or a footprint's CAD name, else a new one) and uses it. **Make It the Board's
 Own** makes a part (and, where the library has no package of its footprint's name, a package) of the
 board's from what the files said, its height too; **Leave to Be Chosen** clears it. Each is for every
 placement of the part, or, with **Only *designator*** ticked, for that placement alone (it gets a part of
@@ -58,9 +58,11 @@ gives each part still to be chosen its best match where the evidence is strong (
 alone); **Only those to choose or review** narrows the list. An import from the CPL and BOM that leaves
 parts to be chosen opens it when the placements are in.
 
-A board keeps a copy of each library part it uses (and its package), taken when the part is chosen, so the
+A board keeps a copy of each library part it uses (its package, and the footprint its CAD footprint is: the
+one of that name, else the package's first), taken when the part is chosen, so the
 board is complete on its own: on a machine whose library lacks the part, the board is placed with its
-copy. When the library's part has changed since (a height, a package; not a name it learned), or the
+copy. When the library's part has changed since (a height, a package, its footprint's pads or zero
+rotation; not a name it learned), or the
 library lacks it, **Is** says so (*differs from the library*, *not in this library*) and it is counted
 to review: **Take the Library's** makes the board's copy the library's part as it is now; **Give the
 Library the Board's** makes the library's part the board's copy (adding it, when the library lacks it).

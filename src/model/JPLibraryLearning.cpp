@@ -41,10 +41,10 @@ void JPLibraryLearning::learn(JPConfiguration& config, JPPart& part, const JPBoa
     }
     addIdentifier(part, "mpn", bp.field("manufacturer"), bp.field("mpn"));
     addIdentifier(part, "supplierPn", bp.field("supplier"), bp.field("supplierPn"));
-    // Its package known by this footprint too.
-    if (JPPackage* k = config.libraryPackage(part.packageId); k && !footprint.empty() && !same(k->id, footprint)
-        && std::none_of(k->akas.begin(), k->akas.end(), [&](const std::string& a) { return same(a, footprint); }))
-        k->akas.push_back(footprint);
+    // Its package's footprint known by this name too (unless a footprint, of any package, has it already).
+    if (!footprint.empty() && config.libraryPackage(part.packageId) && !same(part.packageId, footprint)
+        && !config.footprintNamed(footprint))
+        if (JPLibraryFootprint* f = config.defaultFootprint(part.packageId, true)) f->cadNames.push_back(footprint);
 }
 
 JPPart* JPLibraryLearning::addFrom(JPConfiguration& config, const JPBoardPart& bp, const std::string& from,

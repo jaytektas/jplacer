@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "JPLibraryFootprint.h"
 #include "JPPackage.h"
 #include "JPPart.h"
 
@@ -36,6 +37,7 @@ public:
     // with the library's to tell when that has changed (JPConfiguration::differs).
     std::shared_ptr<JPPart>            copyPart;
     std::shared_ptr<JPPackage>         copyPackage;
+    std::shared_ptr<JPLibraryFootprint> copyFootprint;   // the library footprint its CAD footprint is (its package's)
     std::string                        fingerprint;
     std::shared_ptr<JPPart>            localPart;       // Local: its own part
     std::shared_ptr<JPPackage>         localPackage;    // Local: its own package, when not the library's

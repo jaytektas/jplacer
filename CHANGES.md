@@ -10,6 +10,11 @@ notes.
 
 ## Unreleased
 
+- Footprints are the library's own: land patterns of a package, several to one, each with the names CAD files
+  give it, its zero rotation and its pads, on the Packages tab's new Footprints page (made from the package's
+  footprint, or imported from KiCad). A board's footprint name finds its footprint and through it the package;
+  names learned before are moved onto footprints.
+
 - A library part can list how it comes (cut tape, reel, tray, tube, loose: tape width, pitch, paper or embossed,
   its rotation in the packaging, quantity) and where it is bought (supplier, SKU, packaging, MOQ, price breaks,
   last price, link), on its Library page.

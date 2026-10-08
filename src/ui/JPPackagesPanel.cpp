@@ -17,6 +17,7 @@
 #include "openpnp/JPXmlReader.h"
 #include "openpnp/JPXmlWriter.h"
 
+#include <j/core/JScrollArea.h>
 #include <j/core/Dialog.h>
 #include <j/core/FrameTimer.h>
 #include <j/core/JButton.h>
@@ -188,6 +189,8 @@ void JPPackagesPanel::updateWizards(bool force) {
     m_tabs->addTab("Settings", m_pages.back().get());
     m_pages.push_back(footprintTab(*p));
     m_tabs->addTab("Footprint", m_pages.back().get());
+    m_pages.push_back(footprintsTab(*p));
+    m_tabs->addTab("Footprints", m_pages.back().get());
     m_pages.push_back(compositingTab(*p));
     m_tabs->addTab("Vision Compositing", m_pages.back().get());
     // As OpenPnP's: the bottom vision's and the fiducial locator's pages for the package.
@@ -535,6 +538,144 @@ void JPPackagesPanel::generatePads(JPFootprint::Generator type) {
     } else {
         start();
     }
+}
+
+void JPPackagesPanel::remakeLater() {
+    std::weak_ptr<bool> alive = m_alive;
+    JMainThreadDispatcher::instance().post([this, alive] {
+        if (const auto a = alive.lock(); !a || !*a) return;
+        updateWizards(true);
+    });
+}
+
+std::unique_ptr<JContainer> JPPackagesPanel::footprintsTab(JPPackage& p) {
+    JSceneGraph& g = m_graph;
+    auto page = std::make_unique<JContainer>(g, 0.f, 0.f);
+    JPUiParts::asPanel(*page);
+    // Scrolled: a package may have more footprints than the pane is tall.
+    JScrollArea* list = page->add(std::make_unique<JScrollArea>(g, 0.f, 0.f));
+    list->setVSizePolicy(JSizePolicyMode::Expanding, 1);
+    auto note = std::make_unique<JLabel>(g, "The package's footprints in the library: land patterns of it, each known by the "
+                                            "names CAD files give it (a board's footprint by one of them is this package), its "
+                                            "zero rotation against jplacer's (pin 1 top left) and its pads. The package's own "
+                                            "footprint (the Footprint tab) is what vision measures the part by.", 0.f);
+    note->setWordWrap(true);
+    note->setMinimumSize(0.f, JStyle::current().labelHeight * 3);
+    list->addChildWidget(std::move(note));
+    const std::string packageId = p.id;
+    auto names = [](const std::vector<std::string>& v) {
+        std::string s;
+        for (const std::string& x : v) s += (s.empty() ? "" : ", ") + x;
+        return s;
+    };
+    for (JPLibraryFootprint* f : m_config.footprintsOf(packageId)) {
+        const std::string uuid = f->uuid;
+        auto grid = std::make_unique<JPFieldGrid>(g, 1);
+        grid->text("Name", "Its name in the library (unique in the package)", f->name, [this, uuid](const std::string& t) {
+            JPLibraryFootprint* x = m_config.footprint(uuid);
+            if (!x || t.empty()) return false;
+            x->name = t;
+            changed();
+            return true;
+        });
+        grid->text("CAD Names", "What CAD files call it, commas between (KiCad's \"R_0603_1608Metric\")", names(f->cadNames),
+                   [this, uuid](const std::string& t) {
+                       JPLibraryFootprint* x = m_config.footprint(uuid);
+                       if (!x) return false;
+                       x->cadNames.clear();
+                       std::string cur;
+                       for (const char ch : t + ",") {
+                           if (ch == ',') {
+                               size_t b = 0, e = cur.size();
+                               while (b < e && cur[b] == ' ') ++b;
+                               while (e > b && cur[e - 1] == ' ') --e;
+                               if (e > b) x->cadNames.push_back(cur.substr(b, e - b));
+                               cur.clear();
+                           } else {
+                               cur += ch;
+                           }
+                       }
+                       changed();
+                       return true;
+                   });
+        grid->text("Zero Rotation", "How far a CAD tool's 0° is turned from jplacer's (pin 1 top left), in degrees",
+                   format("%.1f", f->zeroRotationDeg), [this, uuid](const std::string& t) {
+                       double v;
+                       JPLibraryFootprint* x = m_config.footprint(uuid);
+                       if (!x || !toDouble(t, v)) return false;
+                       x->zeroRotationDeg = v;
+                       changed();
+                       return true;
+                   });
+        auto row = JPUiParts::row(g);
+        row->add(std::make_unique<JLabel>(g, std::to_string(f->geometry.pads.size()) + " pad(s)" +
+                                                 (f->source.empty() ? std::string() : ", from " + f->source), 0.f))
+            ->setHSizePolicy(JSizePolicyMode::Expanding, 1);
+        JButton* use = row->add(JPUiParts::button(g, "Use as the Package's"));
+        use->setTooltip("The package's own footprint (what vision measures by) made this one's pads and body");
+        use->onClicked.connect([this, uuid, packageId] {
+            const JPLibraryFootprint* x = m_config.footprint(uuid);
+            JPPackage* k = m_config.package(packageId);
+            if (!x || !k) return;
+            k->footprint = x->geometry;
+            changed();
+            remakeLater();
+        });
+        JButton* remove = row->add(JPUiParts::button(g, "Delete"));
+        remove->setTooltip("Take this footprint out of the library");
+        remove->onClicked.connect([this, uuid] {
+            m_config.removeFootprint(uuid);
+            changed();
+            remakeLater();
+        });
+        grid->widget("", std::move(row));
+        list->addChildWidget(JPFieldGrid::grouped(g, f->name, std::move(grid)));
+    }
+    auto buttons = JPUiParts::row(g);
+    JButton* fromOwn = buttons->add(JPUiParts::button(g, "From the Package's Footprint"));
+    fromOwn->setTooltip("A footprint made from the package's own (the Footprint tab), named after the package");
+    fromOwn->onClicked.connect([this, packageId] {
+        const JPPackage* k = m_config.package(packageId);
+        if (!k) return;
+        auto f = std::make_shared<JPLibraryFootprint>();
+        f->name = packageId;
+        const std::vector<JPLibraryFootprint*> existing = m_config.footprintsOf(packageId);
+        for (int n = 2; std::any_of(existing.begin(), existing.end(), [&f](const JPLibraryFootprint* x) { return x->name == f->name; }); ++n)
+            f->name = packageId + " (" + std::to_string(n) + ")";
+        f->packageId = packageId;
+        f->geometry = k->footprint;
+        f->source = "the package's own footprint";
+        m_config.addFootprint(f);
+        changed();
+        remakeLater();
+    });
+    JButton* kicad = buttons->add(JPUiParts::button(g, "Import KiCad Footprint…"));
+    kicad->setTooltip("A footprint read from a KiCad .kicad_mod file, named and known by its file's name");
+    kicad->onClicked.connect([this, packageId] {
+        std::weak_ptr<bool> alive = m_alive;
+        JDialog::openFile("Import KiCad Footprint", { "kicad_mod" }, [this, alive, packageId](std::string path) {
+            if (const auto a = alive.lock(); !a || !*a) return;
+            std::vector<JPFootprint::Pad> pads;
+            std::string error;
+            if (!JPKicadModImporter::read(path, pads, error)) {
+                JDialog::message("Error", error);
+                return;
+            }
+            auto f = std::make_shared<JPLibraryFootprint>();
+            f->name = std::filesystem::path(path).stem().string();
+            f->cadNames = { f->name };
+            f->packageId = packageId;
+            f->geometry.pads = std::move(pads);
+            f->source = std::filesystem::path(path).filename().string();
+            m_config.addFootprint(f);
+            changed();
+            updateWizards(true);
+        });
+    });
+    buttons->setVSizePolicy(JSizePolicyMode::Fixed);
+    buttons->setSize(0.f, JStyle::current().buttonHeight);
+    list->addChildWidget(std::move(buttons));
+    return page;
 }
 
 std::unique_ptr<JContainer> JPPackagesPanel::compositingTab(JPPackage& p) {

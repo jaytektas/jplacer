@@ -3,9 +3,10 @@
 The **Packages** tab (after Parts, as in OpenPnP) lists every package jplacer knows, as OpenPnP's
 Packages tab does. Packages are kept in the library (`library.db`, see [Parts](parts.md)); OpenPnP's own
 `packages.xml` copied into jplacer's configuration folder brings the packages the library lacks. A package
-is also known by the footprint names boards' files have called it, learned as parts are chosen.
+is the part's body (SOIC-8, R0603, SOT-23); its footprints, the land patterns, are the library's too (see
+the **Footprints** tab below).
 
-<!-- src: src/ui/JPPackagesPanel.cpp; src/app/JPlacerOpenPnpTabs.cpp; src/model/JPConfiguration.h (kPackagesFile) -->
+<!-- src: src/ui/JPPackagesPanel.cpp (footprintsTab); src/app/JPlacerOpenPnpTabs.cpp; src/model/JPConfiguration.h (kPackagesFile); src/model/JPLibraryFootprint.h; src/model/JPConfiguration.cpp (footprintNamed, packageNamed, defaultFootprint, load) -->
 
 ## The toolbar and the table
 
@@ -54,6 +55,18 @@ Level** for placing.
 
 While the Packages tab shows and a package is chosen, its footprint is drawn over every calibrated
 camera's picture, centred where the camera looks, so a part can be held up to it.
+
+**Footprints** lists the package's footprints in the library: land patterns of it, several to a package
+(an R0603's nominal one, a CAD library's). Each has its **Name** (unique in the package), its **CAD
+Names**, what CAD files call it, commas between (a board's footprint by one of them is this package's:
+`R_0603_1608Metric`), its **Zero Rotation**, how far a CAD tool's 0° is turned from jplacer's (pin 1 top
+left), and its pads (how many, and where they came from). **Use as the Package's** makes the package's own
+footprint (the Footprint tab, what vision measures the part by) this one's pads and body; **Delete** takes
+it out of the library. **From the Package's Footprint** makes one from the package's own, named after the
+package; **Import KiCad Footprint…** reads one from a `.kicad_mod` file, named and known by its file's
+name. The names boards' files give a footprint are learned too, as parts are chosen (see [Choosing a
+part](boards.md#choosing-a-part)). A library from before footprints had its packages' CAD names moved onto
+a footprint of each, made from the package's own.
 
 **Vision Compositing** is how bottom vision sees a part too big for one picture, as OpenPnP's: in
 several shots, each of a few of the part's corners, put together into its centre, angle and size.
