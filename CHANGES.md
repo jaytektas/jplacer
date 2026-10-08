@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.25
+
 - A camera's picture takes the room under its note: a hidden row for a calibration step's number kept
   its height there, and the picture was drawn that much smaller.
 
