@@ -914,6 +914,8 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_packages->visionTest = visionTest;
     m_vision->visionTest = visionTest;
     m_parts->setTests(m_visionTests->tests());
+    m_packages->setTests(m_visionTests->tests());
+    m_vision->setTests(m_visionTests->tests());
     // Machine Setup's vision nodes: their default settings' page, as the Vision tab's.
     m_machine.setSetupVisionTests(m_visionTests->tests());
     m_machine.onSetupVisionAction = [this](const std::string& id, const std::string& action) { m_vision->act(id, action); };

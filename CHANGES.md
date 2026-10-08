@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- The Packages and Vision tabs' machine tests (Test Fiducial Locator, Test Alignment, Detect Offsets) did nothing
+  when pressed; they run now, as on the Parts tab.
 - Editing a table cell: text longer than the cell scrolls within it, the caret always in view, instead of running
   on over the columns to its right.
 - jplacer opening maximized (as after an update restarts it) could be drawn at its old size in a corner of the
