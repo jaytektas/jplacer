@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.24
+
 - Dragging the line between two docks resizes those two only: docks stacked with them (a Jog under two
   cameras) keep their size. One of a fixed size beside the line made the others shrink or grow too.
 - Every search box has a ✕ at its right end that empties it, showing everything again.
