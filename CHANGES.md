@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.27
+
 - A fiducial check (and a job's) draws each fiducial's footprint over the cameras as it looks for it.
 
 ## 0.1.26
