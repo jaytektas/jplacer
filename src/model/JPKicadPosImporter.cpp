@@ -3,6 +3,7 @@
 
 #include "JPKicadPosImporter.h"
 
+#include <cctype>
 #include <regex>
 
 inline namespace jf {
@@ -30,13 +31,27 @@ void JPKicadPosImporter::parseFile(const std::string& path, JPSide side, const s
     // C1 100u Capacitors_SMD:c 128.9050 -52.0700 0.0 F.Cu
     static const std::regex kLine(
         R"re((\S+)\s+(.*?)\s+(.*?)\s+(-?\d+\.\d+)\s+(-?\d+\.\d+)\s+(-?\d+\.\d+)\s(.*?))re");
+    // The file's units, as its header says ("## Unit = inches, Angle = deg."; KiCad writes mm or inches):
+    // millimetres until one says otherwise. (OpenPnP took every file as millimetres, so an inch file's
+    // positions came out 25.4 times too small.)
+    static const std::regex kUnit(R"re(\bUnit\s*=\s*(\w+))re", std::regex::icase);
+    double toMm = 1.0;
     for (std::string line : lines(path)) {
         line = trim(line);
-        if (line.empty() || line[0] == '#') continue;
+        if (!line.empty() && line[0] == '#') {
+            std::smatch u;
+            if (std::regex_search(line, u, kUnit)) {
+                std::string w = u[1];
+                for (char& ch : w) ch = char(std::tolower(static_cast<unsigned char>(ch)));
+                toMm = w.rfind("in", 0) == 0 ? 25.4 : w.rfind("mil", 0) == 0 && w.find("met") == std::string::npos ? 0.0254 : 1.0;
+            }
+            continue;
+        }
+        if (line.empty()) continue;
         std::smatch m;
         if (!std::regex_match(line, m, kLine)) throw Failure("No match found");
         const std::string value = m[2], packageName = m[3];
-        double x = number(m[4]), y = number(m[5]), rotation = number(m[6]);
+        double x = number(m[4]) * toMm, y = number(m[5]) * toMm, rotation = number(m[6]);
         if (std::string(m[7]).find("bottom") != std::string::npos) {
             // KiCad gives a bottom part's X from the board's other edge, and
             // its rotation as seen through the board.

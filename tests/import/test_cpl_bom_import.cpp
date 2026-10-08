@@ -59,6 +59,15 @@ int main() {
                                         "## End\n", JPImportSource::Role::Cpl, "k.pos");
         assert(k.table.separator == ' ' && k.table.rows.size() == 1 && k.table.header.size() == 7);
         assert(k.column(I::Designator) == 0 && k.column(I::Footprint) == 2 && k.column(I::X) == 3 && k.column(I::Side) == 6);
+        assert(k.units == JPLengthUnit::Millimeters && k.table.comments.size() == 3);
+        // In inches, as its comment says (KiCad 9): the lengths read as inches.
+        const JPImportSource i = source("### Footprint positions ###\n## Unit = inches, Angle = deg.\n## Side : All\n"
+                                        "# Ref  Val   Package             PosX     PosY     Rot  Side\n"
+                                        "C1     10pF  C_0603_1608Metric   1.7291   2.5463  -90.0  top\n",
+                                        JPImportSource::Role::Cpl, "i.pos");
+        assert(i.units == JPLengthUnit::Inches);
+        double mm = 0;
+        assert(JPImportSource::length(i.table.rows[0][3], i.units, mm) && near(mm, 1.7291 * 25.4));
     }
     // Semicolons, a decimal comma, quoted cells with separators in them; mils from the header.
     {

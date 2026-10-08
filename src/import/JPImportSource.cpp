@@ -7,6 +7,7 @@
 
 #include <cctype>
 #include <cstdlib>
+#include <regex>
 
 inline namespace jf {
 
@@ -28,6 +29,22 @@ bool unitsOf(std::string text, JPLengthUnit& u) {
     if (endsWith(text, "MILS") || endsWith(text, "MIL")) { u = JPLengthUnit::Mils; return true; }
     if (endsWith(text, "MM")) { u = JPLengthUnit::Millimeters; return true; }
     if (endsWith(text, "INCH") || endsWith(text, "IN") || endsWith(text, "\"")) { u = JPLengthUnit::Inches; return true; }
+    return false;
+}
+
+// The units a tool's comment names ("Unit = inches, Angle = deg.", KiCad's .pos); false when none does.
+bool unitsOfComments(const std::vector<std::string>& comments, JPLengthUnit& u) {
+    static const std::regex kUnit(R"re(\bunits?\s*[=:]\s*(inches|inch|in|mils|mil|millimet(?:er|re)s?|mm)\b)re",
+                                  std::regex::icase);
+    for (const std::string& c : comments) {
+        std::smatch m;
+        if (!std::regex_search(c, m, kUnit)) continue;
+        const std::string w = upper(m[1]);
+        u = w.rfind("IN", 0) == 0 ? JPLengthUnit::Inches : w.rfind("MIL", 0) == 0 && w.find("MET") == std::string::npos
+                                                               ? JPLengthUnit::Mils
+                                                               : JPLengthUnit::Millimeters;
+        return true;
+    }
     return false;
 }
 
@@ -61,13 +78,13 @@ void JPImportSource::guess() {
     }
     if (column(I::Footprint) < 0)
         if (const int k = column(I::Package); k >= 0) mapping[size_t(k)] = I::Footprint;
-    // The lengths' units: X's header, else X's first cell, else millimetres.
+    // The lengths' units: X's header, else X's first cell, else what the file's comments say (KiCad's "## Unit =
+    // inches"), else millimetres.
     units = JPLengthUnit::Millimeters;
-    if (const int x = column(I::X); x >= 0) {
-        JPLengthUnit u;
-        if (unitsOf(table.header[size_t(x)], u)) units = u;
-        else if (!table.rows.empty() && unitsOf(table.rows[0][size_t(x)], u)) units = u;
-    }
+    JPLengthUnit u;
+    if (const int x = column(I::X); x >= 0 && unitsOf(table.header[size_t(x)], u)) units = u;
+    else if (x >= 0 && !table.rows.empty() && unitsOf(table.rows[0][size_t(x)], u)) units = u;
+    else if (unitsOfComments(table.comments, u)) units = u;
 }
 
 int JPImportSource::column(JPImportField::Id id) const {

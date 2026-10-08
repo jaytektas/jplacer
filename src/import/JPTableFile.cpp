@@ -183,6 +183,13 @@ bool JPTableFile::parse(const std::string& text, JPTableFile& out, std::string& 
     out.headerLine = bestLine;
     out.header = split(uncommented(all[size_t(bestLine)]), best);
     out.rows.clear();
+    out.comments.clear();
+    for (size_t i = 0; i < all.size(); ++i) {
+        std::string t = trim(all[i]);
+        if (int(i) == bestLine || t.empty() || t[0] != '#') continue;
+        while (!t.empty() && t[0] == '#') t.erase(0, 1);
+        out.comments.push_back(trim(t));
+    }
     for (size_t i = size_t(bestLine) + 1; i < all.size(); ++i) {
         const std::string t = trim(all[i]);
         if (t.empty() || t[0] == '#') continue;

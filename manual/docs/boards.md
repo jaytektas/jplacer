@@ -144,7 +144,7 @@ value, footprint, manufacturer, MPN, supplier and so on), and any other table th
   with the part under the column's own name) or **Ignore**. A file's own name for a field is fine: a column
   called "Provider" can be the **Manufacturer**. For a BOM or table, what it is (**BOM** or **Other
   table**); the units of its lengths where a cell does not say ("12.5mm" says; a header such as
-  "Ref-X(mil)" sets them); and how its columns are read.
+  "Ref-X(mil)" sets them, else a comment line such as KiCad's `## Unit = inches`); and how its columns are read.
 - **Save Profile…** keeps the file's columns' meanings under a name; the next file of that kind whose
   header has the same columns is read by it, and it can be chosen for a file.
 - **What it makes**, kept up to date as the choices change: the placements (those not to be placed, the
@@ -164,7 +164,7 @@ its value is "DNP"; FID1, REF1 and the like are fiducials. **Import** brings it 
 the other importers do (Merge or Replace), and the files themselves, every row and how their columns
 were read, are kept in the board.
 
-<!-- src: src/app/JPlacerCplBomImportDialog.cpp; src/import/JPCplBomImport.cpp (build, join, winner, doNotPlace, bottom); src/import/JPImportField.cpp; src/import/JPTableFile.cpp; src/import/JPImportSource.cpp (guess, length, provenance); src/import/JPDesignators.cpp; src/import/JPMappingProfiles.cpp; src/ui/JPBoardPlacementsPanel.cpp (importCplBom, take); src/ui/JPPlacementsTableModel.cpp (data) -->
+<!-- src: src/app/JPlacerCplBomImportDialog.cpp; src/import/JPCplBomImport.cpp (build, join, winner, doNotPlace, bottom); src/import/JPImportField.cpp; src/import/JPTableFile.cpp; src/import/JPImportSource.cpp (guess, unitsOfComments, length, provenance); src/import/JPTableFile.cpp (comments); src/import/JPDesignators.cpp; src/import/JPMappingProfiles.cpp; src/ui/JPBoardPlacementsPanel.cpp (importCplBom, take); src/ui/JPPlacementsTableModel.cpp (data) -->
 
 ### OpenPnP's importers
 
@@ -178,7 +178,7 @@ is passed over. What could not be read is shown, and the window stays.
 | **Diptrace .csv** | DipTrace's pick and place export: RefDes, Name, X (mm), Y (mm), Side, Rotate, Value. |
 | **CadSoft EAGLE Board** | An EAGLE `.brd` file itself: each element, its package's SMD pads as the package's footprint, and solder paste pads. Options choose the top, the bottom or both, and whether parts' names carry the library's. |
 | **EAGLE mountsmd.ulp** | The `.mnt` (top) and `.mnb` (bottom) files EAGLE's mountsmd.ulp writes. |
-| **KiCAD .pos** | KiCad's `.pos` files, top and bottom. A bottom placement's X and rotation are turned over as OpenPnP turns them. |
+| **KiCAD .pos** | KiCad's `.pos` files, top and bottom, in the units their header names (`## Unit = mm` or `## Unit = inches`; inches made millimetres). A bottom placement's X and rotation are turned over as OpenPnP turns them. |
 | **Labcenter Proteus .pkp** | Proteus's pick and place file, in mm or thou, with or without stock codes. |
 | **Reference CSV** | A CSV file whose header line (found in its first 50 lines; commas or tabs) names the columns the way many CAD tools do. Columns in mils are converted. Placements named FID1, REF2 and so on are fiducials. |
 
@@ -195,7 +195,7 @@ Revision…** makes what was read the board's next revision (see [Revisions](#re
 leaves the board as it was. A part the board already has keeps the choice made for it (importing again
 does not undo it); what the file says about it now is kept with it.
 
-<!-- src: src/model/JPBoardImporter.cpp (all, boardPart); src/model/JPCsvImporter.cpp; src/model/JPKicadPosImporter.cpp; src/model/JPEagleBoardImporter.cpp; src/app/JPlacerImportDialog.cpp; src/ui/JPBoardPlacementsPanel.cpp (importBoard, take, merge); src/model/JPBoard.cpp (takeParts) -->
+<!-- src: src/model/JPBoardImporter.cpp (all, boardPart); src/model/JPCsvImporter.cpp; src/model/JPKicadPosImporter.cpp (parseFile: Unit); src/model/JPEagleBoardImporter.cpp; src/app/JPlacerImportDialog.cpp; src/ui/JPBoardPlacementsPanel.cpp (importBoard, take, merge); src/model/JPBoard.cpp (takeParts) -->
 
 ## Revisions
 

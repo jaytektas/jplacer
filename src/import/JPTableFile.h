@@ -22,6 +22,8 @@ public:
     int                                   headerLine = -1;   // its line in the file (0 based)
     std::vector<std::string>              header;
     std::vector<std::vector<std::string>> rows;
+    // Its comment lines ("#"), their text after the marks: what a tool says of the table ("Unit = inches").
+    std::vector<std::string>              comments;
 
     // False (`error`) when it cannot be read or holds no table.
     static bool read(const std::string& path, JPTableFile& out, std::string& error);

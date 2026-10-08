@@ -111,6 +111,15 @@ int main() {
         // The value alone.
         b = importWith(k, { top, "" }, { true, true, true }, config);
         assert(b.placements.size() == 2 && b.placements[1].partId == "10k");
+        // A file in inches (KiCad 9 writes "## Unit = inches"): its positions in millimetres, 25.4 to the inch.
+        const std::string inches = write("in.pos", "### Footprint positions - created on 2026-10-08T15:11:44+1100 ###\n"
+                                                   "### Printed by KiCad version 9.0.8\n## Unit = inches, Angle = deg.\n"
+                                                   "## Side : All\n# Ref Val Package PosX PosY Rot Side\n"
+                                                   "C1 10pF C_0603_1608Metric 1.7291 2.5463 -90.0000 top\n");
+        b = importWith(k, { inches, "" }, initial(k), config);
+        assert(b.placements.size() == 1 && near(b.placements[0].location.x(), 1.7291 * 25.4)
+               && near(b.placements[0].location.y(), 2.5463 * 25.4)
+               && b.placements[0].location.units() == JPLengthUnit::Millimeters);
         // A line not of the format.
         JPBoard bad;
         std::string error;
