@@ -52,7 +52,8 @@ next cell that can be changed (**Shift+Tab**: the one before), along the row and
 cell opens with what is in it chosen, ready to type over; a choice or tick box is chosen, for F2 or Space. Every
 table edits this way. A height may be typed
 with units (`0.5mm`, `20mil`); without, the part's own units are taken. Package and the vision settings
-open their list on a click. Each change is saved at once.
+open their list on a click: a drop-down under the cell, as wide as its longest name, twelve at a time and
+scrolled for the rest, the one chosen now marked. Each change is saved at once.
 
 Click a column's heading to sort by it; click it again to turn it round. Clicking another heading sorts by
 that first and by the earlier ones after it (up to three); the later ones' arrows are fainter. Choose

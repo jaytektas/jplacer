@@ -896,24 +896,29 @@ bool JPTable::stopEditing(bool keep, bool stayIfRefused) {
 }
 
 void JPTable::openChoices(int r, int c) {
-    if (!openMenu) return;
+    if (!JComboBox::onOpenPopupHook) return;
     const std::vector<std::string> choices = m_model->choices(r, c);
+    if (choices.empty()) return;
     const std::string now = m_model->text(r, c);
-    m_choiceMenu = std::make_unique<JMenu>(m_model->column(c).name);
-    for (size_t i = 0; i < choices.size(); ++i) {
-        JMenuItem* item = m_choiceMenu->add(m_graph, choices[i]);
-        item->setCheckable(true);
-        item->setChecked(choices[i] == now);
-        const int index = int(i);
-        item->onTriggered.connect([this, r, c, index] {
-            if (!m_model || r >= m_model->rowCount()) return;
-            m_model->setChoice(r, c, index);
-            refresh();
-        });
-    }
-    const int v = viewIndexOf(r);
-    const JRect cell = cellRect(v, c);
-    openMenu(m_choiceMenu.get(), cell.x, cell.y + cell.height);
+    // Its list opens under the cell, as wide as its longest choice (never narrower than the cell, nor wider
+    // than the table).
+    JRect cell = cellRect(viewIndexOf(r), c);
+    const JStyle& st = JStyle::current();
+    float widest = 0;
+    for (const std::string& choice : choices) widest = std::max(widest, JTextHelper::measureWidth(choice));
+    const JRect b = bounds();
+    cell.width = std::min(std::max(cell.width, widest + 2 * st.spacing + st.scrollBarWidth), b.width);
+    cell.x = std::min(cell.x, b.x + b.width - cell.width);
+    m_choiceCombo = std::make_unique<JComboBox>(m_graph, choices, cell.width, cell.height);
+    m_choiceCombo->setBounds(cell);
+    for (size_t i = 0; i < choices.size(); ++i)
+        if (choices[i] == now) m_choiceCombo->setCurrentIndex(int(i));
+    m_choiceCombo->onIndexChanged.connect([this, r, c](int index) {
+        if (!m_model || r >= m_model->rowCount() || index < 0) return;
+        m_model->setChoice(r, c, index);
+        refresh();
+    });
+    JComboBox::onOpenPopupHook(m_choiceCombo.get());
 }
 
 } // inline namespace jf

@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- A table's choice (a part's Package, its vision settings, a placement's Type and Side) opens a drop-down
+  under the cell that scrolls, not a menu of every choice that ran off the screen.
+
 - A camera's panel is its picture: the picture's format and what the camera last did are no longer
   written above it, but logged and shown on the status bar. A step waiting on you still says what to do
   above the picture, while it waits.

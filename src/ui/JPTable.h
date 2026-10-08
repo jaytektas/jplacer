@@ -5,6 +5,7 @@
 
 #include "JPTableModel.h"
 
+#include <j/core/JComboBox.h>
 #include <j/core/JControl.h>
 #include <j/core/JTextEditCore.h>
 #include <j/core/MenuSystem.h>
@@ -169,7 +170,9 @@ private:
     int                            m_editRow = -1, m_editColumn = -1;
     float                          m_editScroll = 0;   // how far the edited text is scrolled left (px)
     JTextEditCore                  m_edit;
-    std::unique_ptr<JMenu>         m_choiceMenu;
+    // A Choice cell's list: a combo's dropdown over the cell (as many choices as there are, scrolled past
+    // a dropdown's worth), not a menu of them all (a long list ran off the screen).
+    std::unique_ptr<JComboBox>     m_choiceCombo;
 };
 
 } // inline namespace jf
