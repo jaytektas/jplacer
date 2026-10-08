@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- Job > Plan… shows the job's parts in groups, in the order a run places them, with where each comes from and
+  how many loads the run will ask for. Order them by height, package size, most placements or name, or move a
+  group up or down by hand; the run then places group by group, and asks for parts to load in that order. Kept
+  with the job; jobs without a plan run in Machine Setup's Job Order as before.
 - Load as you go: a job no longer needs every part on a feeder to start. It places what is loaded, then pauses
   and asks for the next part, naming how it comes and the free strip lane to lay it in (one empty, or whose part
   the run is done with, of the right tape width first), and which stock lot it is. Continue loads it there and

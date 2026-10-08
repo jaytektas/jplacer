@@ -100,6 +100,7 @@ public:
         std::string               boardId;   // the board's unique id
         std::string               placementId, partId;
         int                       rank = 0;
+        size_t                    group = 0;   // its part's group's place in the job's plan (JPJobPlan)
         double                    partHeightMm = 0;
         Status                    status = Status::Pending;
         std::string               error;

@@ -20,6 +20,7 @@
 #include "JPlacerCplBomImportDialog.h"
 #include "JPlacerLotLedgerDialog.h"
 #include "JPlacerPartPickerDialog.h"
+#include "JPlacerPlanDialog.h"
 #include "JPlacerRunsDialog.h"
 #include "JPlacerShortagesDialog.h"
 #include "JPlacerStockReceiveDialog.h"
@@ -1143,6 +1144,10 @@ void JPlacerOpenPnpTabs::importBoard(const JPBoardImporter& importer) {
 
 void JPlacerOpenPnpTabs::importCplBom() {
     m_boards->placements().importCplBom();
+}
+
+void JPlacerOpenPnpTabs::openPlan() {
+    m_window.openModal<JPlacerPlanDialog>(m_job.configuration(), m_job.job(), [this] { m_job.changed(); });
 }
 
 void JPlacerOpenPnpTabs::checkJob() {

@@ -71,6 +71,10 @@ public:
     std::map<std::string, bool>                       checkFiducialsStateMap;
     std::map<std::string, JPPlacement::ErrorHandling> errorHandlingStateMap;
     ErrorHandling                                     errorHandling = ErrorHandling::Alert;
+    // jplacer's plan (DESIGN.md, Job execution; JPJobPlan): how the job's part groups are ordered, by a sort
+    // rule (JPJobPlan::kSorts) and the parts moved by hand (in their order; the rest after them, sorted).
+    std::string                                       planSort;
+    std::vector<std::string>                          planOrder;
     std::optional<double>                             version;   // none: an older file
     std::string                                       file;
     bool                                              dirty = false;

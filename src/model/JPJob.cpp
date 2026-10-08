@@ -166,6 +166,11 @@ std::unique_ptr<JPJob> JPJob::fromXml(const JPXmlElement& r) {
     if (const JPXmlElement* ps = r.child("panels"))
         for (const JPXmlElement& e : ps->children) job->legacyPanels.push_back(JPPanel::fromXml(e));
     readMap(r.child("placed-status-map"), job->placedStatusMap);
+    if (const JPXmlElement* plan = r.child("jplacer-plan")) {
+        job->planSort = plan->attr("sort");
+        for (const JPXmlElement& e : plan->children)
+            if (e.name == "part") job->planOrder.push_back(e.attr("id"));
+    }
     readMap(r.child("enabled-state-map"), job->enabledStateMap);
     readMap(r.child("check-fiducials-state-map"), job->checkFiducialsStateMap);
     if (const JPXmlElement* m = r.child("error-handling-state-map"))
@@ -192,6 +197,11 @@ JPXmlNode JPJob::toXml() const {
         e.add(JPXmlNode("error-handling")).text = JPPlacement::errorHandlingName(v);
     }
     n.add(JPXmlNode("error-handling")).text = errorHandling == ErrorHandling::Defer ? "Defer" : "Alert";
+    if (!planSort.empty() || !planOrder.empty()) {
+        JPXmlNode& plan = n.add(JPXmlNode("jplacer-plan"));
+        if (!planSort.empty()) plan.attr("sort", planSort);
+        for (const std::string& id : planOrder) plan.add(JPXmlNode("part")).attr("id", id);
+    }
     return n;
 }
 

@@ -771,7 +771,12 @@ configurations to check against, never inputs to the design.
       loads the lane and lot, skips or stops. Not yet: strip calibration
       on load (the lane's geometry is taken as the new strip's), "load and
       place now" for skipped parts, the lane pointed at by LED or camera).
-   4. *Planner and planner view*, then stages.
+   4. *Planner and planner view* (first cut done: JPJobPlan's groups,
+      sort rules and hand order kept in the job (jplacer-plan); the
+      processor places group by group, the planner given the first groups
+      enough for the nozzles; Job > Plan… with Move Up / Down. Still to
+      come: a dock in the Job workspace with drag, pinning a group to a
+      lane, highlighting on the board view, a time estimate), then stages.
 5. **Vision**: fiducials, bottom alignment, feeder vision.
 6. **Breadth**: remaining feeder types and firmware profiles, panels, other
    importers, lines (conveyor hand-off between cells).

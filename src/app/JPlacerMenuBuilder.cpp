@@ -271,6 +271,8 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
     job->addSeparator(graph);
     entry(keys, job, graph, "job.resetAllPlaced", "Job", "Reset All Placed", none, [&jobPanel] { jobPanel.resetAllPlaced(); })
         ->setTooltip("Reset the Placed status for every placement in the job.");
+    entry(keys, job, graph, "job.plan", "Job", "Plan\xE2\x80\xA6", none, [&app] { app.tabs().openPlan(); })
+        ->setTooltip("The job's parts in groups, in the order a run places them: sort them, or move a group by hand.");
     entry(keys, job, graph, "job.check", "Job", "Check Job\xE2\x80\xA6", none, [&app] { app.tabs().checkJob(); })
         ->setTooltip("The job's data checked as Start checks it: what stops a run, what to check, what to note.");
     entry(keys, job, graph, "job.shortages", "Job", "Shortages\xE2\x80\xA6", none, [&app] { app.tabs().openShortages(); })

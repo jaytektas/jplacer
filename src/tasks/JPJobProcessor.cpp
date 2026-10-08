@@ -2,6 +2,8 @@
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
 #include "JPJobProcessor.h"
+
+#include "model/JPJobPlan.h"
 #include "JPRotationMode.h"
 
 #include "JPAlignRequests.h"
@@ -177,6 +179,7 @@ JPJobProcessor::Step JPJobProcessor::preFlight() {
     status("Checking job for setup errors.");
     const std::vector<JPJobMachine::Nozzle> nozzles = m_machine.nozzles();
     main([&] {
+        const std::map<std::string, size_t> groups = JPJobPlan::order(m_config, m_job);
         for (JPBoardLocation* l : m_job.boardLocations()) {
             if (!l->isEnabled() || !l->holder) continue;
             // A board with an id twice cannot tell its placements apart.
@@ -218,6 +221,7 @@ JPJobProcessor::Step JPJobProcessor::preFlight() {
                 j.placementId = p.id;
                 j.partId = part->id;
                 j.rank = p.rank;
+                if (const auto g = groups.find(part->id); g != groups.end()) j.group = g->second;
                 j.partHeightMm = part->height.convertToUnits(JPLengthUnit::Millimeters).value();
                 m_jobPlacements.push_back(j);
             }
@@ -371,16 +375,22 @@ std::vector<size_t> JPJobProcessor::openPendingWorkable() {
         }
     });
     if (workable.empty() && first) {
-        // Nothing loaded is left to place: the next part no feeder holds is asked for (load as you go), the
-        // lowest first (tall parts last, out of the nozzle's way), then by name.
+        // Nothing loaded is left to place: the next part no feeder holds is asked for (load as you go), in the
+        // plan's order (JPJobPlan).
         if (first->failure.source == Source::Part) {
+            // With no plan (all in group 0), the lowest part first, then by name.
             std::string next;
+            size_t nextGroup = 0;
             double nextHeight = 0;
             main([&] {
                 for (const JobPlacement& j : m_jobPlacements) {
                     if (j.status != Status::Pending || j.rank >= blocked || m_config.findFeeder(j.partId, std::nullopt)) continue;
-                    if (next.empty() || j.partHeightMm < nextHeight || (j.partHeightMm == nextHeight && j.partId < next)) {
+                    const bool before = next.empty() || j.group < nextGroup
+                                        || (j.group == nextGroup && (j.partHeightMm < nextHeight
+                                                                     || (j.partHeightMm == nextHeight && j.partId < next)));
+                    if (before) {
                         next = j.partId;
+                        nextGroup = j.group;
                         nextHeight = j.partHeightMm;
                     }
                 }
@@ -713,6 +723,17 @@ JPJobProcessor::Step JPJobProcessor::plan() {
     std::vector<std::string> plannedTips;
     std::vector<size_t> jobs = ordered(openPendingWorkable(), plannedTips);
     if (jobs.empty()) return Step::Finish;
+    // The plan's groups first (JPJobPlan), the job order within each; and the planner given only the first groups,
+    // as many as give each nozzle a placement, so a group is placed before the next is started. A job with no
+    // plan is one group: the job order alone, all of it.
+    std::stable_sort(jobs.begin(), jobs.end(), [this](size_t a, size_t b) { return m_jobPlacements[a].group < m_jobPlacements[b].group; });
+    const size_t nozzles = std::max<size_t>(1, m_machine.nozzles().size());
+    size_t keep = 0;
+    while (keep < jobs.size() && keep < nozzles) {
+        const size_t group = m_jobPlacements[jobs[keep]].group;
+        while (keep < jobs.size() && m_jobPlacements[jobs[keep]].group == group) ++keep;
+    }
+    jobs.resize(keep);
     std::stable_sort(jobs.begin(), jobs.end(), [this](size_t a, size_t b) { return m_jobPlacements[a].rank < m_jobPlacements[b].rank; });
     m_planned = planner(jobs, plannedTips);
     if (m_planned.empty()) fail(Source::None, "", "Planner failed to plan any placements. Please contact support.");

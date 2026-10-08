@@ -235,11 +235,36 @@ errors there were.
 
 <!-- src: src/tasks/JPJobProcessor.cpp (plannedStep, finish); src/app/JPlacerJobRun.cpp (run); src/app/JPlacerOpenPnpTabs.cpp (showSource); src/model/JPFeeder.cpp (recordJobFault) -->
 
+## The plan
+
+**Job ▸ Plan…** shows the job's placements left to place in groups of one part each, in the order a run
+places them: **#**, the **Part**, how many are **Left**, its **Height**, its **Package**, and where it
+**Comes from** (the feeder holding it, or a load the run will ask for). The line at the top counts the
+parts, the placements and the loads.
+
+**Order by** chooses the order:
+
+- **Machine's job order** (as a job starts): the run orders the placements as Machine Setup's **Job
+  Order** says, as OpenPnP does; the groups are listed by name.
+- **Height**: the lowest parts first, so tall ones are not in the nozzle's way; then the smallest package.
+- **Package size**: the smallest package body first; then the lowest.
+- **Most first**: the groups with the most placements first.
+- **Name**.
+
+**Move Up** and **Move Down** move the chosen group: groups moved by hand come first, in their order, and
+the rest follow as sorted. **Sort Again** drops the order set by hand, and choosing another order sorts
+them all again. With an order chosen or a group moved, the run places group by group: the Job Order
+applies within a group, and a nozzle is given a placement of the next group only when the groups before
+it have none left for it. The plan is kept in the job's file.
+
+<!-- src: src/model/JPJobPlan.cpp; src/app/JPlacerPlanDialog.cpp; src/tasks/JPJobProcessor.cpp (preFlight, plan); src/model/JPJob.cpp (planSort, planOrder) -->
+
 ## Load as you go
 
 A part does not have to be on a feeder for a job to start. The run places every part that is loaded first;
-when only parts no feeder holds are left, it pauses and asks for the next one, the lowest first (tall
-parts last, out of the nozzle's way), then by name. **Load *part*** says what to load, how it comes (the
+when only parts no feeder holds are left, it pauses and asks for the next one: in the plan's order (see
+[The plan](#the-plan)), or with no plan the lowest first (tall parts last, out of the nozzle's way), then
+by name. **Load *part*** says what to load, how it comes (the
 part's first packaging: its tape, pitch and how the part is turned in it), and into which **Lane**: a
 lane is a strip feeder, laid by hand. The lanes offered are those free for it, best first: an empty one (no
 part, or turned off), then one whose part this run no longer needs (said, so it is taken off first); of

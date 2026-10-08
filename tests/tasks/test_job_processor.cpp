@@ -489,6 +489,32 @@ int main() {
     assert(sawAlignedOffset);
     for (auto& h : machine.heads) h.alignRotationWithPart = false;
 
+    // A plan (JPJobPlan): the groups placed in its order. Most first: R1 (two placements) before C1, so the first
+    // cycle is R1's alone (one nozzle: the one T1 tip is on N1, and C1 waits for its group); by name, C1 is in the
+    // first cycle.
+    const int frBefore = config.feeder("FR")->number("feed-count"), fcBefore = config.feeder("FC")->number("feed-count");
+    for (const auto& [sort, firstHasC1] : { std::pair { "Most first", false }, std::pair { "Name", true } }) {
+        job.removeAllPlacedStatus();
+        job.planSort = sort;
+        std::vector<std::string> first;
+        JPJobProcessor::Hooks h = hooks;
+        h.planned = [&first](const std::vector<JPJobProcessor::PlannedPlacement>& step) {
+            if (first.empty())
+                for (const auto& p : step) first.push_back(p.partId);
+        };
+        JPJobProcessor run(config, job, machine, settings, h);
+        JPJobProcessor::Failure f;
+        JPJobProcessor::Result r = JPJobProcessor::Result::More;
+        int steps = 0;
+        while ((r = run.next(f)) == JPJobProcessor::Result::More) assert(++steps < 200);
+        assert(r == JPJobProcessor::Result::Finished && !first.empty());
+        assert((std::find(first.begin(), first.end(), "C1") != first.end()) == firstHasC1);
+        if (!firstHasC1) assert((first == std::vector<std::string> { "R1" }));
+    }
+    job.planSort.clear();
+    config.feeder("FR")->setNumber("feed-count", frBefore);   // the trays as they were
+    config.feeder("FC")->setNumber("feed-count", fcBefore);
+
     // Load as you go: a part with no feeder is not a setup failure. What is loaded is placed first, then the
     // run pauses asking for the part; loaded, it goes on from there.
     job.removeAllPlacedStatus();
