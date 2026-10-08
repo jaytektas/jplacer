@@ -10,6 +10,11 @@ notes.
 
 ## Unreleased
 
+- Runs are recorded: each Start of a job keeps, as it goes, what it fed from which feeder and what it placed,
+  with the boards at their revisions (Job > Runs…). A feeder carries a stock lot (its Stock tab); when a run
+  ends its parts go into the lot's ledger, placed as used and fed-but-not-placed as lost, and a run cut short
+  is written up the next time jplacer opens. A run warns when a lot is running out before the part is all
+  placed.
 - Stock: the Parts tab's new Stock page lists a part's lots (reels, cut tape, trays, tubes, bags), how many each
   holds and where it is kept. Receive Stock… adds a lot; each lot's Ledger… shows every change to it (received,
   used, lost, counted, adjusted) and what it held after each, and Close the Lot takes a used-up lot out of

@@ -66,6 +66,8 @@ public:
     void importCplBom();
     // Job > Shortages…: the job's parts against the stock (JPlacerShortagesDialog).
     void openShortages();
+    // Job > Runs…: the runs of jobs (JPlacerRunsDialog).
+    void openRuns();
 
 private:
     // A script's request of the job (JPlacerMachine::onScriptJobRequest).

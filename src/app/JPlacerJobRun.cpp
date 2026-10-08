@@ -5,12 +5,14 @@
 
 #include "common/JPlacerLog.h"
 #include "model/JPBoardLocation.h"
+#include "model/JPRunLedger.h"
 #include "tasks/JPFiducialLocator.h"
 
 #include <j/core/Dialog.h>
 #include <j/core/Log.h>
 #include <j/core/MainThreadDispatcher.h>
 
+#include <algorithm>
 #include <chrono>
 
 inline namespace jf {
@@ -63,9 +65,32 @@ JPlacerJobRun::~JPlacerJobRun() {
     *m_alive = false;
     m_state = RunState::Stopped;
     join();
+    endRun(JPRunStore::Outcome::Stopped);
     m_machine.jobRunning = nullptr;
     m_machine.onConnectedChanged = nullptr;
     m_job.running = nullptr;
+}
+
+void JPlacerJobRun::beginRun() {
+    endRun(JPRunStore::Outcome::Stopped);   // one left open (a run started again while one was paused)
+    JPRunStore::Run run;
+    run.job = m_job.job().file;
+    for (const JPBoardLocation* l : m_job.job().boardLocations())
+        if (l && l->board()) run.boards.push_back({ l->uniqueId(), l->board()->file, l->board()->revisionLabel() });
+    m_warnedLots.clear();
+    if (m_job.configuration().runs().begin(run)) m_runUuid = run.uuid;
+    else JLOGC(JPlacerLog::kJob, JLogLevel::Warn) << "the run could not be recorded (runs.db): its parts will not reach the ledger";
+}
+
+void JPlacerJobRun::endRun(JPRunStore::Outcome outcome) {
+    if (m_runUuid.empty()) return;
+    JPConfiguration& config = m_job.configuration();
+    config.runs().end(m_runUuid, outcome);
+    std::string why;
+    if (!JPRunLedger::write(config.runs(), config.stock(), m_runUuid, why))
+        JLOGC(JPlacerLog::kJob, JLogLevel::Warn) << "the run's parts could not be written to the stock's ledger: " << why
+                                                 << " (written when jplacer next opens)";
+    m_runUuid.clear();
 }
 
 void JPlacerJobRun::join() {
@@ -183,6 +208,34 @@ void JPlacerJobRun::start(RunState as) {
                 if (onPlaced) onPlaced();
             });
         };
+        // Each part fed and placed, with the lot its feeder carries, recorded as it happens.
+        hooks.material = [this](bool placed, const std::string& feederId, const JPJobProcessor::JobPlacement& j) {
+            if (m_runUuid.empty()) return;
+            JPConfiguration& config = m_job.configuration();
+            const JPStockLot lot = config.stock().lotOnFeeder(feederId);
+            if (placed) {
+                config.runs().placed(m_runUuid, feederId, lot.uuid, j.partId, j.boardId, j.placementId);
+                return;
+            }
+            config.runs().fed(m_runUuid, feederId, lot.uuid, j.partId, j.boardId, j.placementId);
+            if (lot.uuid.empty() || m_warnedLots.count(lot.uuid)) return;
+            // Running out: fewer left by its count than this run still places of the part (said once a lot).
+            const auto taken = config.runs().fedByOpenRuns();
+            const auto t = taken.find(lot.uuid);
+            const long long left = lot.onHand - (t == taken.end() ? 0 : t->second);
+            long long toPlace = 0;
+            for (const JPJobProcessor::JobPlacement& p : m_processor->jobPlacements())
+                toPlace += p.partId == j.partId && p.status == JPJobProcessor::Status::Pending;
+            if (left >= toPlace) return;
+            m_warnedLots.insert(lot.uuid);
+            std::string feederName = feederId;
+            if (const JPFeeder* f = config.feeder(feederId)) feederName = f->name();
+            const std::string said = feederName + ": " + lot.label + " has about " + std::to_string(std::max(0LL, left)) +
+                                     " left by its count, and " + std::to_string(toPlace) + " of " + j.partId +
+                                     " are still to place";
+            JLOGC(JPlacerLog::kJob, JLogLevel::Warn) << said;
+            post([this, said] { m_window.showStatus(said, kStatusMs); });
+        };
         hooks.feedersChanged = [this] {
             post([this] { m_job.configurationChanged(); });
         };
@@ -197,6 +250,7 @@ void JPlacerJobRun::start(RunState as) {
         m_processor = std::make_unique<JPJobProcessor>(m_job.configuration(), m_job.job(), *m_jobMachine, settings, hooks);
         if (const JPCell* c = m_machine.cell()) m_processor->setVision(c->config().vision);
         m_signalSetUp = true;
+        beginRun();
         setState(as);
         run();
     };
@@ -236,6 +290,7 @@ void JPlacerJobRun::run() {
                 m_processor->abort();
                 signal(JobState::Stopped);
                 post([this] {
+                    endRun(JPRunStore::Outcome::Stopped);
                     setState(RunState::Stopped);
                     m_window.showStatus("Job stopped.", kStatusMs);
                 });
@@ -248,13 +303,17 @@ void JPlacerJobRun::run() {
             const JPJobProcessor::Result r = m_processor->next(f);
             if (r == JPJobProcessor::Result::Finished) {
                 signal(JobState::Finished);
-                post([this] { setState(RunState::Stopped); });
+                post([this] {
+                    endRun(JPRunStore::Outcome::Finished);
+                    setState(RunState::Stopped);
+                });
                 return;
             }
             if (r == JPJobProcessor::Result::Failed) {
                 signal(JobState::Error);
                 post([this, f] {
                     // Paused there (stopped, when stopping), then said.
+                    if (m_state == RunState::Stopping) endRun(JPRunStore::Outcome::Stopped);
                     setState(m_state == RunState::Stopping ? RunState::Stopped : RunState::Paused);
                     if (showSource) showSource(f);
                     JDialog::message("Job Error", f.message);

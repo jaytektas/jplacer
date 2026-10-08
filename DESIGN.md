@@ -756,6 +756,17 @@ configurations to check against, never inputs to the design.
    Then the Job and Library workspaces with the board view.
 4. **Feeders and running**: strip lanes and tray feeders first, planner and
    planner view, runner, runs, pre-flight, load-as-you-go, stages.
+   1. *Runs and material* (done): runs.db (JPRunStore) records each run,
+      its boards at their revisions, each feed and place as it happens;
+      a feeder carries a stock lot (the lot's feeder, kept with the stock,
+      not in machine.xml); a run's parts reach the ledger when it ends
+      (JPRunLedger: Used, Lost), an open one when jplacer next opens;
+      a lot running out is said once a run. The runner is still OpenPnP's
+      JPJobProcessor, given a material hook.
+   2. *Pre-flight data check*: one list of what to do before a run.
+   3. *Load as you go*: no feeder is not a pre-flight failure; the run
+      asks for a part when it reaches it, with a free strip lane.
+   4. *Planner and planner view*, then stages.
 5. **Vision**: fiducials, bottom alignment, feeder vision.
 6. **Breadth**: remaining feeder types and firmware profiles, panels, other
    importers, lines (conveyor hand-off between cells).

@@ -87,7 +87,8 @@ change in how it comes is a change to review; a new offer, or a name learned, is
 
 **Stock** is what you have of the part: a lot is one reel, strip of cut tape, tray, tube or bag of it.
 Stock is what you have, not what is loaded on the machine. The page says how many are in stock and in how
-many lots, and lists each open lot: its **Lot** name, **Packaging**, how many it **Holds**, **Where kept**,
+many lots, and lists each open lot: its **Lot** name, **Packaging**, how many it **Holds**, the feeder
+it is loaded **On** (see [Feeders](feeders.md#the-feeders-setup)), **Where kept**,
 **Date code** and **Note** (the name, where kept, date code and note are changed here and kept at once).
 **Receive Stock…** adds a lot: its name on the shelf, packaging, **Supplier** and **SKU** (the part's
 first offer is filled in), **Date code**, **Lot code**, **Where kept**, **Note**, and how it came:

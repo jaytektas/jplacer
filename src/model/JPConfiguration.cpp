@@ -4,6 +4,7 @@
 #include "JPConfiguration.h"
 
 #include "JPLibraryJson.h"
+#include "JPRunLedger.h"
 #include "JPXmlValues.h"
 
 #include "common/JPUuid.h"
@@ -98,7 +99,20 @@ bool JPConfiguration::load(std::vector<std::string>& problems, std::string& erro
     // those files' parts and packages it lacks, when the files changed since it last looked (OpenPnP's copied in).
     const fs::path libraryFile = dir / JPLibraryStore::kFile;
     const bool hadLibrary = exists(libraryFile.string());
-    if (!m_library.open(libraryFile.string(), error) || !m_stock.open(libraryFile.string(), error)) return false;
+    if (!m_library.open(libraryFile.string(), error) || !m_stock.open(libraryFile.string(), error)
+        || !m_runs.open((dir / JPRunStore::kFile).string(), error))
+        return false;
+    // Runs whose parts are not in the ledger yet (jplacer closed or stopped while one ran): written now.
+    {
+        const size_t open = m_runs.unledgered().size();
+        std::string why;
+        const int written = JPRunLedger::writeAll(m_runs, m_stock, why);
+        if (written > 0)
+            JLOGC(JPlacerLog::kJob, JLogLevel::Info) << written << " run(s) not yet in the stock's ledger written to it";
+        if (size_t(written) < open)
+            problems.push_back("The parts of " + std::to_string(open - written) + " run(s) could not be written to the stock's "
+                               "ledger: " + why);
+    }
     bool migrated = false;
     if (hadLibrary) {
         JPLibraryStore::Contents in;

@@ -451,7 +451,7 @@ void JPPartsPanel::stockPage(JPFormBuilder& add, const std::string& partId) {
                                        : std::to_string(onHand) + " in stock, in " + std::to_string(m_lots.size()) + " lot(s).";
     if (closed > 0) about += " " + std::to_string(closed) + " closed lot(s) kept with their ledgers.";
     add.note(about + " Stock is what you have, not what is loaded; a lot's figure is its ledger's.");
-    if (!m_lots.empty()) add.header({ "Lot", "Packaging", "Holds", "Where kept", "Date code", "Note" });
+    if (!m_lots.empty()) add.header({ "Lot", "Packaging", "Holds", "On feeder", "Where kept", "Date code", "Note" });
     for (size_t i = 0; i < m_lots.size(); ++i) {
         const std::string key = "stock.lot" + std::to_string(i) + ".";
         // A lot's own field: shown from what was read, kept at once when changed.
@@ -470,6 +470,8 @@ void JPPartsPanel::stockPage(JPFormBuilder& add, const std::string& partId) {
         field("label", "Lot", &JPStockLot::label);
         add.words(m_lots[i].packaging);
         add.words(std::to_string(m_lots[i].onHand));
+        const JPFeeder* feeder = m_lots[i].feederId.empty() ? nullptr : m_config.feeder(m_lots[i].feederId);
+        add.words(feeder ? feeder->name() : m_lots[i].feederId.empty() ? std::string("-") : std::string("(a feeder now gone)"));
         field("location", "Where kept", &JPStockLot::location);
         field("dateCode", "Date code", &JPStockLot::dateCode);
         field("note", "Note", &JPStockLot::note);

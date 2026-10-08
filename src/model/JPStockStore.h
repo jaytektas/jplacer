@@ -47,11 +47,17 @@ public:
     // A new lot (given a uuid) and the entry that brought it in (received, or counted for one found on the
     // shelf), in one go.
     bool addLot(JPStockLot& lot, JPLedgerEntry first, std::string& error);
-    // A lot's own fields (label, where kept, codes, note, closed); not its on hand.
+    // The open lot loaded on a feeder; an empty uuid when it carries none.
+    JPStockLot lotOnFeeder(const std::string& feederId) const;
+    // A lot loaded on a feeder (any other lot on it taken off); `feederId` empty: taken off its feeder.
+    bool loadLot(const std::string& lotUuid, const std::string& feederId, std::string& error);
+    // A lot's own fields (label, where kept, codes, note, closed); not its on hand. Closed, it is taken off its feeder.
     bool updateLot(const JPStockLot& lot, std::string& error);
     // An entry added to its lot's ledger (given its id and, when it has none, the time); the lot's on hand
     // worked out again.
     bool addEntry(JPLedgerEntry& entry, std::string& error);
+    // Several entries, all kept or none.
+    bool addEntries(std::vector<JPLedgerEntry>& entries, std::string& error);
 
 private:
     // The entry written (inside a transaction of the caller's) and its lot's on hand worked out again.

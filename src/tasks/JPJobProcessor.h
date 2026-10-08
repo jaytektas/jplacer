@@ -55,6 +55,7 @@ public:
         std::optional<double> planningCost;
     };
 
+    struct JobPlacement;
     struct Hooks {
         // Runs `fn` where the model lives (the screen's thread), waiting for it; none: here.
         std::function<void(const std::function<void()>& fn)> onMain;
@@ -67,6 +68,9 @@ public:
         // OpenPnP's scripting events ("Job.Starting", "Nozzle.BeforePick"), with what they are for; a failing
         // script stops the job (false, with why).
         std::function<bool(const std::string& event, const JJson& globals, std::string& why)> event;
+        // Material (DESIGN.md, Stock ledger): a part fed from a feeder for a placement (`placed` false), and a
+        // placement placed with a part from a feeder (`placed` true). Fed and not placed is lost.
+        std::function<void(bool placed, const std::string& feederId, const JobPlacement& j)> material;
         // Each plan made (OpenPnP's PlannerStepResults): what each nozzle is to place, in turn.
         std::function<void(const std::vector<PlannedPlacement>&)> planned;
     };

@@ -8,6 +8,7 @@
 #include "camera/JPImageFile.h"
 #include "common/JPlacerLog.h"
 #include "setup/JPFeederForms.h"
+#include "setup/JPFormBuilder.h"
 #include "model/JPBlindsFeeders.h"
 #include "model/JPPushPullTemplates.h"
 
@@ -483,8 +484,64 @@ JPSetupProperties::Form JPFeedersPanel::formFor() {
     options.fonts = m_fonts;
     options.ocrRegionStep = ocrRegionStep ? ocrRegionStep() : std::string();
     options.cloneChoices = &m_cloneChoices;
-    return JPFeederForms::forFeeder(m_config, m_shown, [](const std::string& why) { JDialog::message("Error", why); },
-                                    options);
+    JPSetupProperties::Form form = JPFeederForms::forFeeder(
+        m_config, m_shown, [](const std::string& why) { JDialog::message("Error", why); }, options);
+    stockTab(form);
+    return form;
+}
+
+void JPFeedersPanel::stockTab(JPSetupProperties::Form& form) {
+    const JPFeeder* f = m_config.feeder(m_shown);
+    const JPPart* part = f ? m_config.libraryPart(f->partId()) : nullptr;
+    if (!f || f->isSlot()) return;
+    JPFormBuilder add(form);
+    add.tab("Stock");
+    add.group("Stock Lot");
+    if (!part) {
+        add.note("Its part is not one of the library's, so it carries no stock lot.");
+        return;
+    }
+    add.note("Which of " + part->id + "'s lots is on this feeder. A run counts what it takes from it into the lot's "
+             "ledger (placed as Used, fed and not placed as Lost), and says when it is running out. Lots are "
+             "received on the Parts tab's Stock page.");
+    const std::string feederId = f->id(), partUuid = part->uuid;
+    auto label = [](const JPStockLot& l) {
+        return l.label + " (" + std::to_string(l.onHand) + (l.location.empty() ? "" : ", " + l.location) + ")";
+    };
+    std::vector<std::string> choices { "None" };
+    for (const JPStockLot& l : m_config.stock().lots(partUuid, false)) choices.push_back(label(l));
+    add.row("Lot");
+    add.choice("stock.lot", "Lot", choices,
+               [this, feederId, label] {
+                   const JPStockLot l = m_config.stock().lotOnFeeder(feederId);
+                   return l.uuid.empty() ? std::string("None") : label(l);
+               },
+               [this, feederId, partUuid, label](const std::string& v) {
+                   std::string error;
+                   const JPStockLot was = m_config.stock().lotOnFeeder(feederId);
+                   bool ok = true;
+                   if (v == "None") ok = was.uuid.empty() || m_config.stock().loadLot(was.uuid, "", error);
+                   else
+                       for (const JPStockLot& l : m_config.stock().lots(partUuid, false))
+                           if (label(l) == v) ok = m_config.stock().loadLot(l.uuid, feederId, error);
+                   if (!ok) JDialog::message("Not Loaded", error);
+               });
+    add.tip("The lot on this feeder; None: what it feeds is not counted against any lot");
+    add.end();
+    add.row("Holds");
+    add.text("stock.holds", "Holds",
+             [this, feederId] {
+                 const JPStockLot l = m_config.stock().lotOnFeeder(feederId);
+                 if (l.uuid.empty()) return std::string("No lot loaded");
+                 const auto taken = m_config.runs().fedByOpenRuns();
+                 const auto t = taken.find(l.uuid);
+                 const long long running = t == taken.end() ? 0 : t->second;
+                 return running > 0 ? std::to_string(l.onHand - running) + " (" + std::to_string(running) +
+                                          " taken by the run under way, " + std::to_string(l.onHand) + " by its ledger)"
+                                    : std::to_string(l.onHand) + " by its ledger";
+             },
+             nullptr);
+    add.end();
 }
 
 std::shared_ptr<const JPFrame> JPFeedersPanel::templateImage() {

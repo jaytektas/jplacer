@@ -67,6 +67,15 @@ there straight, without going up to safe Z first.
 
 <!-- src: src/setup/JPFeederForms.cpp (general, pickLocation, push-pull motion); src/model/JPFeeder.cpp (create); src/ui/JPSetupForm.cpp (locationButtons); src/ui/JPFeedersPanel.cpp (capture, goTo) -->
 
+Beside it, **Stock** says which of the part's stock lots is on the feeder (see [Parts](parts.md#the-parts-tabs)):
+**Lot** offers **None** and the part's open lots (each with what it holds and where it is kept); choosing
+one loads it on this feeder and takes off any other. **Holds** is what the lot holds by its ledger, less
+what a run under way has taken from it. A run counts what the feeder feeds against its lot (see
+[Runs](jobs.md#runs)). A feeder whose part is not one of the library's carries no lot, and a slot
+feeder has no Stock tab (the feeder loaded in it has).
+
+<!-- src: src/ui/JPFeedersPanel.cpp (stockTab); src/model/JPStockStore.cpp (lotOnFeeder, loadLot); src/model/JPRunStore.cpp (fedByOpenRuns) -->
+
 ### Strip feeder
 
 A strip of cut tape lying on the machine, its parts picked one after the other along it.

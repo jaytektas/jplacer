@@ -19,6 +19,7 @@
 #include <future>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <string>
 #include <thread>
 
@@ -75,6 +76,10 @@ private:
     void post(std::function<void()> fn);
     bool ask(const std::string& question);
     void join();
+    // The run record (JPRunStore): begun with the boards at their revisions; ended (Finished or Stopped) and
+    // its parts written to the stock's ledger (JPRunLedger).
+    void beginRun();
+    void endRun(JPRunStore::Outcome outcome);
 
     JAppWindow&                          m_window;
     JPlacerJob&                          m_job;
@@ -91,6 +96,8 @@ private:
     JPlacerSignalers                     m_signalers { m_machine };
     bool                                 m_signalSetUp = false;   // a job set up: Stopped to be signalled first
     std::shared_ptr<bool>                m_alive = std::make_shared<bool>(true);
+    std::string                          m_runUuid;   // the run under way; empty: none
+    std::set<std::string>                m_warnedLots;   // lots this run has said are running out (job thread)
 };
 
 } // inline namespace jf

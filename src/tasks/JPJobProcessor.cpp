@@ -1004,6 +1004,7 @@ JPJobProcessor::Step JPJobProcessor::pick(Planned& p) {
             script("Feeder.BeforeFeed", feedGlobals);
             fed = JPFeederFeed::feed(m_config, feederId, p.nozzleId, m_machine,
                                      [this](const std::function<void()>& fn) { main(fn); }, why, empty);
+            if (fed && m_hooks.material) m_hooks.material(false, feederId, j);
             if (fed) script("Feeder.AfterFeed", feedGlobals);
         }
         if (!fed) {
@@ -1211,6 +1212,7 @@ JPJobProcessor::Step JPJobProcessor::place(Planned& p) {
         if (JPFeeder* f = m_config.feeder(feederId)) f->recordJobSuccess(m_settings.feederFaultWindowSize);
         if (j.board) m_job.storePlacedStatus(*j.board, j.placementId, true);
     });
+    if (m_hooks.material) m_hooks.material(true, feederId, j);
     if (m_hooks.placed) m_hooks.placed();
     script("Job.Placement.Complete", placementGlobals(j));
     return Step::Place;

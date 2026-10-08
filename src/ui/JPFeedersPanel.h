@@ -150,6 +150,8 @@ private:
     void rebuildForm();
     // The shown feeder's form, as it is to be shown now.
     JPSetupProperties::Form formFor();
+    // The Stock tab: the stock lot the feeder carries, chosen among its part's, and what it holds.
+    void stockTab(JPSetupProperties::Form& form);
     // A drag feeder's Select (Confirm while selecting) and Cancel, for its
     // template image or its area of interest (OpenPnP's select, confirm and
     // cancel actions); the camera's selection ended.

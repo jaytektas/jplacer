@@ -122,6 +122,12 @@ void runSampleJob(const char* name, const char* jobFile) {
     hooks.status = [](const std::string& text) { std::fprintf(stderr, "%s\n", text.c_str()); };
     std::atomic<int> placed { 0 };
     hooks.placed = [&] { ++placed; };
+    // Material: a feed for each part taken, a place for each placed, each naming its feeder.
+    int fedParts = 0, placedParts = 0;
+    hooks.material = [&](bool isPlace, const std::string& feederId, const JPJobProcessor::JobPlacement&) {
+        assert(!feederId.empty());
+        ++(isPlace ? placedParts : fedParts);
+    };
     JPJobProcessor processor(config, *job, machine, cellConfig.jobProcessor, hooks);
     processor.setVision(cellConfig.vision);
     JPJobProcessor::Failure failure;
@@ -132,6 +138,7 @@ void runSampleJob(const char* name, const char* jobFile) {
     // Every pick and place checked against the table's picture where the simulated machine had the nozzle.
     std::fprintf(stderr, "%d placed; %d picks and %d places checked\n", placed.load(), host.picksChecked(), host.placesChecked());
     assert(placed > 0 && host.picksChecked() == placed && host.placesChecked() == placed);
+    assert(placedParts == placed && fedParts >= placed);
     cell.disconnect();
     fs::remove_all(dir);
 }

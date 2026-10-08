@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS stock_parts(part_uuid TEXT PRIMARY KEY, attrition REA
 )";
 
 const char* kLotColumns = "uuid, part_uuid, label, packaging, supplier, sku, date_code, lot_code, location, note, created, "
-                          "closed, on_hand";
+                          "closed, on_hand, feeder_id";
 
 JPStockLot lotFrom(const JDatabase::JRow& r) {
     JPStockLot l;
@@ -41,6 +41,7 @@ JPStockLot lotFrom(const JDatabase::JRow& r) {
     l.created = r.text(10);
     l.closed = r.integer(11) != 0;
     l.onHand = r.integer(12);
+    l.feederId = r.isNull(13) ? std::string() : r.text(13);
     return l;
 }
 
@@ -49,6 +50,13 @@ JPStockLot lotFrom(const JDatabase::JRow& r) {
 bool JPStockStore::open(const std::string& path, std::string& error) {
     if (!m_db.open(path) || !m_db.exec(kSchemaSql)) {
         error = "Could not open the stock in " + path;
+        return false;
+    }
+    // A stock kept before lots were loaded on feeders: the column added.
+    bool hasFeeder = false;
+    m_db.query("PRAGMA table_info(stock_lots)", {}, [&hasFeeder](const JDatabase::JRow& r) { hasFeeder |= r.text(1) == "feeder_id"; });
+    if (!hasFeeder && !m_db.exec("ALTER TABLE stock_lots ADD COLUMN feeder_id TEXT")) {
+        error = "Could not bring the stock in " + path + " up to date";
         return false;
     }
     return true;
@@ -136,7 +144,7 @@ bool JPStockStore::addLot(JPStockLot& lot, JPLedgerEntry first, std::string& err
     if (lot.created.empty()) lot.created = JPWhen::now();
     first.lotUuid = lot.uuid;
     const bool ok = m_db.transaction([&] {
-        return m_db.exec(std::string("INSERT INTO stock_lots(") + kLotColumns + ") VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)",
+        return m_db.exec(std::string("INSERT INTO stock_lots(") + kLotColumns + ") VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL)",
                          { B::from(lot.uuid), B::from(lot.partUuid), B::from(lot.label), B::from(lot.packaging),
                            B::from(lot.supplier), B::from(lot.sku), B::from(lot.dateCode), B::from(lot.lotCode),
                            B::from(lot.location), B::from(lot.note), B::from(lot.created), B::from(lot.closed ? 1 : 0) })
@@ -150,12 +158,30 @@ bool JPStockStore::addLot(JPStockLot& lot, JPLedgerEntry first, std::string& err
     return true;
 }
 
+JPStockLot JPStockStore::lotOnFeeder(const std::string& feederId) const {
+    JPStockLot out;
+    if (isOpen() && !feederId.empty())
+        m_db.query(std::string("SELECT ") + kLotColumns + " FROM stock_lots WHERE feeder_id = ? AND closed = 0 LIMIT 1",
+                   { B::from(feederId) }, [&out](const JDatabase::JRow& r) { out = lotFrom(r); });
+    return out;
+}
+
+bool JPStockStore::loadLot(const std::string& lotUuid, const std::string& feederId, std::string& error) {
+    const bool ok = isOpen() && m_db.transaction([&] {
+        return (feederId.empty() || m_db.exec("UPDATE stock_lots SET feeder_id = NULL WHERE feeder_id = ?", { B::from(feederId) }))
+               && m_db.exec("UPDATE stock_lots SET feeder_id = ? WHERE uuid = ?",
+                            { feederId.empty() ? B::null() : B::from(feederId), B::from(lotUuid) });
+    });
+    if (!ok) error = "Could not load the lot on the feeder";
+    return ok;
+}
+
 bool JPStockStore::updateLot(const JPStockLot& lot, std::string& error) {
     if (isOpen() && m_db.exec("UPDATE stock_lots SET label = ?, packaging = ?, supplier = ?, sku = ?, date_code = ?, lot_code = ?, "
-                              "location = ?, note = ?, closed = ? WHERE uuid = ?",
+                              "location = ?, note = ?, closed = ?, feeder_id = CASE WHEN ? THEN NULL ELSE feeder_id END WHERE uuid = ?",
                               { B::from(lot.label), B::from(lot.packaging), B::from(lot.supplier), B::from(lot.sku),
                                 B::from(lot.dateCode), B::from(lot.lotCode), B::from(lot.location), B::from(lot.note),
-                                B::from(lot.closed ? 1 : 0), B::from(lot.uuid) }))
+                                B::from(lot.closed ? 1 : 0), B::from(lot.closed ? 1 : 0), B::from(lot.uuid) }))
         return true;
     error = "Could not change the lot " + lot.label;
     return false;
@@ -164,6 +190,16 @@ bool JPStockStore::updateLot(const JPStockLot& lot, std::string& error) {
 bool JPStockStore::addEntry(JPLedgerEntry& e, std::string& error) {
     const bool ok = isOpen() && m_db.transaction([&] { return insertEntry(e); });
     if (!ok) error = "Could not add to the lot's ledger";
+    return ok;
+}
+
+bool JPStockStore::addEntries(std::vector<JPLedgerEntry>& entries, std::string& error) {
+    const bool ok = isOpen() && m_db.transaction([&] {
+        for (JPLedgerEntry& e : entries)
+            if (!insertEntry(e)) return false;
+        return true;
+    });
+    if (!ok) error = "Could not add to the lots' ledgers";
     return ok;
 }
 

@@ -23,6 +23,7 @@ public:
     std::string location;    // where it is kept
     std::string note;
     std::string created;     // JPWhen::now()
+    std::string feederId;    // the feeder it is loaded on; empty: on the shelf
     bool        closed = false;   // used up or thrown away: kept for its ledger, not counted as stock
     long long   onHand = 0;       // its ledger's sum (JPStockStore keeps it so)
 };

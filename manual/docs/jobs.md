@@ -212,3 +212,26 @@ is tried again later, up to Machine Setup's Max Placement Attempts, or left in e
 errors there were.
 
 <!-- src: src/tasks/JPJobProcessor.cpp (plannedStep, finish); src/app/JPlacerJobRun.cpp (run); src/app/JPlacerOpenPnpTabs.cpp (showSource); src/model/JPFeeder.cpp (recordJobFault) -->
+
+## Runs
+
+Each **Start** of a job begins a **run**, recorded as it goes in `runs.db` beside the library: when it
+started, the job, its boards at their revisions, each part fed (from which feeder, and the stock lot the
+feeder carries) and each placement placed. So a run cut short (jplacer closed, or the computer stopped)
+still says what it used.
+
+When the run ends (finished, or stopped with **Stop**), its parts are written to the stock's ledger, one
+entry of each for every lot its feeders carried: those placed as **Used**, those fed and not placed
+(mis-picked, dropped, discarded) as **Lost**, each with the run as its reference. A run left open is
+written when jplacer next opens, ended as **Interrupted**. A run paused by an error stays open until it is
+resumed and ends, or is stopped.
+
+While a run goes, after each feed from a feeder carrying a lot, if the lot holds fewer by its count than the
+run still has to place of the part, the status line and the log say so once: "Upper Strips - 1: reel A has
+about 15 left by its count, and 40 of C0603-100n are still to place".
+
+**Job ▸ Runs…** lists the newest 200 runs: **Started**, **Ended**, **How** it ended (**Finished**,
+**Stopped**, **Interrupted**, or **Open** while it runs), the **Job**, the **Boards** (each with its
+revision), how many were **Placed**, and whether its parts are in the **Ledger** yet.
+
+<!-- src: src/model/JPRunStore.cpp; src/model/JPRunLedger.cpp (write, writeAll); src/app/JPlacerJobRun.cpp (beginRun, endRun, start); src/tasks/JPJobProcessor.cpp (pick, place: material); src/model/JPConfiguration.cpp (load); src/app/JPlacerRunsDialog.cpp -->
