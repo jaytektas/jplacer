@@ -54,8 +54,10 @@ Level** for placing.
   (asking its name), delete the chosen one (after asking), and move the mark to the chosen pad (or take
   it off).
 
-While the Packages tab shows and a package is chosen, its footprint's pads are drawn over every calibrated
-camera's picture, centred where the camera looks, so a part can be held up to it.
+A package chosen, its footprint's pads are drawn over every calibrated camera's picture, centred where the
+camera looks, so a part can be held up to it. The cameras show one footprint, the last chosen: a
+package's, or a placement's on the Job tab (choosing a placement chooses its package too when **View ▸
+Selections in Tables** is **Linked**, as OpenPnP's). It stays when another tab is shown.
 
 **Footprints** lists the package's footprints in the library: land patterns of it, several to a package
 (an R0603's nominal one, a CAD library's). Each has its **Name** (unique in the package), its **CAD

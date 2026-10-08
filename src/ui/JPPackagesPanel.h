@@ -37,8 +37,10 @@ public:
 
     std::function<void()> onChanged;
     std::function<void(JMenu*, float x, float y)> openMenu;
-    // The chosen package's footprint to draw over the cameras while the tab
-    // shows (null: none), as OpenPnP's PackageVisionWizard draws it.
+    // The chosen package's footprint to draw over the cameras (null: none
+    // chosen), as OpenPnP's PackageVisionWizard draws it: told when another
+    // is chosen (here, or by linked tables) or it is edited, not when the
+    // tab is left.
     std::function<void(const JPFootprint*)> onShowFootprint;
     // The machine's nozzle tips (id, name), for the Nozzle Tips tab.
     std::function<std::vector<std::pair<std::string, std::string>>()> nozzleTips;
@@ -84,7 +86,8 @@ private:
     void copyPackage();
     void pastePackage();
     void changed();
-    void showFootprint();
+    // onShowFootprint told of the chosen package's when another is chosen (`again`: anyway, it changed).
+    void showFootprint(bool again = false);
     // The chosen package's tabs, made afresh.
     std::unique_ptr<JContainer> nozzleTipsTab(JPPackage& p);
     std::unique_ptr<JContainer> settingsTab(JPPackage& p);
@@ -116,6 +119,7 @@ private:
     JPIconButton*                             m_padDelete = nullptr;
     JPIconButton*                             m_padMark = nullptr;
     std::string                               m_shown;   // the package whose tabs are shown
+    std::string                               m_footprintShown;   // the package onShowFootprint was last told of
     int                                       m_lastTab = 0;
     std::shared_ptr<bool>                     m_alive = std::make_shared<bool>(true);
 };

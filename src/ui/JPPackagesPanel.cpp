@@ -124,12 +124,14 @@ JPPackagesPanel::JPPackagesPanel(JSceneGraph& graph, JPConfiguration& config, do
     m_split->addPane(m_tablePane.get(), float(split));
     m_split->addPane(m_tabsPane.get(), float(1 - split));
     updateWizards(true);
-    onVisibilityChanged.connect([this](bool) { showFootprint(); });
 }
 
-void JPPackagesPanel::showFootprint() {
+void JPPackagesPanel::showFootprint(bool again) {
     if (!onShowFootprint) return;
-    const JPPackage* p = isVisible() ? selectedPackage() : nullptr;
+    const JPPackage* p = selectedPackage();
+    const std::string id = p ? p->id : std::string();
+    if (!again && id == m_footprintShown) return;
+    m_footprintShown = id;
     onShowFootprint(p ? &p->footprint : nullptr);
 }
 
@@ -160,7 +162,7 @@ void JPPackagesPanel::selectPackage(const JPPackage* p) {
 }
 
 void JPPackagesPanel::changed() {
-    showFootprint();
+    showFootprint(true);   // its footprint edited: the camera shows it as it is now
     if (m_computeComposite) m_computeComposite();
     if (onChanged) onChanged();
 }

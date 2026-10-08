@@ -16,6 +16,8 @@
 #include <j/core/JStyle.h>
 #include <j/core/JTextHelper.h>
 
+#include <cstdint>
+
 inline namespace jf {
 
 namespace {
@@ -112,8 +114,6 @@ JPJobPlacementsPanel::JPJobPlacementsPanel(JSceneGraph& graph, JPConfiguration& 
         showChosenFootprint();
     });
     m_table->onEditRefused = [](const std::string&) {};
-    // Its footprint on the camera only while the placements are shown.
-    onVisibilityChanged.connect([this](bool) { showChosenFootprint(); });
     m_table->onKey = [this](const JKeyEvent& ke) {
         if (ke.key != JKeyEvent::JKey::Space || ke.ctrl || ke.alt) return false;
         const auto chosen = selections();
@@ -321,12 +321,19 @@ const JPFootprint* JPJobPlacementsPanel::footprintOf(const JPPlacement& p) const
     return k ? &k->footprint : nullptr;
 }
 
-void JPJobPlacementsPanel::showChosenFootprint() {
+void JPJobPlacementsPanel::showChosenFootprint(bool again) {
     if (!showFootprint) return;
     const auto chosen = selections();
-    const bool facingUp = isVisible() && chosen.size() == 1 && m_location && chosen.front()->side == m_location->globalSide();
+    const bool facingUp = chosen.size() == 1 && m_location && chosen.front()->side == m_location->globalSide();
     const JPFootprint* f = facingUp ? footprintOf(*chosen.front()) : nullptr;   // a fiducial's as a part's
-    showFootprint(f, f ? m_location->placementLocation(chosen.front()->location).rotation() : 0.0);
+    const double turn = f ? m_location->placementLocation(chosen.front()->location).rotation() : 0.0;
+    // Told only when what is chosen changes: a refresh choosing it again is not choosing it.
+    const std::string what = f ? std::to_string(reinterpret_cast<uintptr_t>(m_location)) + "|" + chosen.front()->id + "|"
+                                     + std::to_string(turn)
+                               : std::string();
+    if (!again && what == m_footprintShown) return;
+    m_footprintShown = what;
+    showFootprint(f, turn);
 }
 
 void JPJobPlacementsPanel::turnChosen() {
@@ -339,7 +346,7 @@ void JPJobPlacementsPanel::turnChosen() {
         p.verified = {};
     });
     m_table->refresh();
-    showChosenFootprint();
+    showChosenFootprint(true);
     changed();
 }
 

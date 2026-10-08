@@ -71,7 +71,6 @@ namespace {
 constexpr double kSplit = 0.5;   // a table's share before its divider is moved
 // The cameras' overlay for a package's footprint (OpenPnP's reticle key).
 constexpr const char* kFootprintOverlay = "PackageVisionWizard";
-constexpr const char* kPlacementFootprint = "PlacementFootprint";   // the Job tab's chosen placement, as placed
 // The camera within this of a place is there (mm).
 constexpr double kAtLocationMm = 0.001;
 }
@@ -172,8 +171,9 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
                                               JSettings::instance().get<double>(JPlacerSettings::kJobSplit, kSplit));
     m_jobPanel->openMenu = JPlacerMenuOpener::from(m_window, m_jobPanel.get());
     // The chosen placement's footprint on the head camera, as it is placed (the Job tab's).
+    // With tables linked the placement's package is chosen first: the placement's, as placed, is shown.
     m_jobPanel->placements().showFootprint = [this](const JPFootprint* f, double rotationDeg) {
-        m_machine.setCameraOverlay(kPlacementFootprint, f ? JPFootprintOverlay::of(*f, rotationDeg) : nullptr);
+        showFootprint(&m_jobPanel->placements(), f ? JPFootprintOverlay::of(*f, rotationDeg) : nullptr);
     };
     m_jobPanel->placements().model().openPartPicker = [this](JPBoard& board, const std::string& id,
                                                              std::function<void(const JPPartChoice&)> chosen) {
@@ -321,7 +321,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_packages->openMenu = JPlacerMenuOpener::from(m_window, m_packages.get());
     m_packages->nozzleTips = [this] { return m_machine.nozzleTips(); };
     m_packages->onShowFootprint = [this](const JPFootprint* f) {
-        m_machine.setCameraOverlay(kFootprintOverlay, f ? JPFootprintOverlay::of(*f) : nullptr);
+        showFootprint(m_packages.get(), f ? JPFootprintOverlay::of(*f) : nullptr);
     };
     m_packages->onChanged = [this] { libraryChanged(); };
     m_packages->machineDefaults = [this] { return machineVisionDefaults(); };
@@ -1071,6 +1071,12 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_libraryHistory.start();
 }
 
+void JPlacerOpenPnpTabs::showFootprint(const void* from, JPCameraView::Overlay overlay) {
+    if (!overlay && m_footprintFrom != from) return;
+    m_footprintFrom = overlay ? from : nullptr;
+    m_machine.setCameraOverlay(kFootprintOverlay, std::move(overlay));
+}
+
 JPlacerOpenPnpTabs::~JPlacerOpenPnpTabs() {
     *m_alive = false;
     m_autoSetup.reset();   // its look at the camera stopped first
@@ -1095,7 +1101,6 @@ JPlacerOpenPnpTabs::~JPlacerOpenPnpTabs() {
     JPlacerSettings::save();
     m_job.unwatch(m_watch);
     m_machine.setCameraOverlay(kFootprintOverlay, nullptr);
-    m_machine.setCameraOverlay(kPlacementFootprint, nullptr);
     m_layout.remove(m_partsDock.get());
     m_partsDock->setContent(nullptr);
     m_layout.remove(m_packagesDock.get());

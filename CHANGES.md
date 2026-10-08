@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- The cameras show one footprint, the last chosen (a package, or a placement on the Job tab), as
+  OpenPnP's: it stays when another tab is shown, until something else is chosen.
+
 ## 0.1.23
 
 - The Job tab's footprint on the camera is taken off when another tab is shown; it stayed, and showed
