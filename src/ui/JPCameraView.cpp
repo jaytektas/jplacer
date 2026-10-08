@@ -515,16 +515,21 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     const JColor c = rgb(Colors::Accent[0], Colors::Accent[1], Colors::Accent[2]);
     const float cx = x + w * 0.5f, cy = y + h * 0.5f, line = st.borderWidth;
     const bool calibrated = m_cal.valid && m_cal.width == m_w && m_cal.height == m_h;
+    // At the height it looks at now (OpenPnP's viewing plane), to that scale, where the camera is calibrated
+    // at two heights; else as calibrated.
+    JPCameraCalibration seen = m_cal;
+    if (calibrated && viewingPlaneZ)
+        if (const std::optional<double> z = viewingPlaneZ()) seen = m_cal.atHeight(*z);
     JPReticle::Place place;
     if (calibrated)
         place = [&](double xMm, double yMm, float& sx, float& sy) {
             double rx, ry, px, py;
-            if (!m_cal.pixelFor(xMm, yMm, 0, 0, rx, ry) || !shown(rx, ry, px, py)) return false;
+            if (!seen.pixelFor(xMm, yMm, 0, 0, rx, ry) || !shown(rx, ry, px, py)) return false;
             sx = x + float(px) * scale;
             sy = y + float(py) * scale;
             return true;
         };
-    const double pxPerMm = calibrated ? (m_cal.scaleX() + m_cal.scaleY()) / 2 * scale : 0;
+    const double pxPerMm = calibrated ? (seen.scaleX() + seen.scaleY()) / 2 * scale : 0;
     m_reticle.draw(vg, JRect{ vx0, vy0, vx1 - vx0, vy1 - vy0 }, cx, cy, place, pxPerMm, m_reachMm, line,
                    st.spacing, kLeastGap * st.spacing, JPaint::solid(c));
     if (place)

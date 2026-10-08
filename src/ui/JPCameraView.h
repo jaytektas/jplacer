@@ -156,6 +156,9 @@ public:
     // The rotation handle's angle now (degrees); none: no handle. Let go at a new one: onRotateTo.
     std::function<std::optional<double>()> handleRotation;
     std::function<void(double deg)>        onRotateTo;
+    // The height what the camera looks at is at now (OpenPnP's viewing plane Z); none: as calibrated (its
+    // working plane). Reticles and overlays are drawn at the scale there (a calibration at two heights).
+    std::function<std::optional<double>()> viewingPlaneZ;
     // While set, a click is a place chosen (OpenPnP's CameraView action: Auto
     // Setup's "click on the center of the first part"): its pixel of the
     // picture as taken; nothing is looked at meanwhile. With what to do,

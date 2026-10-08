@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- Reticles and footprints on a camera are drawn at the scale of the height it looks at, as OpenPnP's: a
+  head camera moved to a placement draws the footprint at the board's height (with a calibration at two
+  heights), not at its working plane.
 - A strip feeder's Auto Setup takes the click on the first part only to tell its holes: nearer a hole's
   middle, the part is on the hole; nearer halfway between holes, 2 mm from it. A first part on a hole (2 mm
   pitch tape) was picked 2 mm off.

@@ -270,6 +270,7 @@ void JPlacerMachine::buildCameras() {
             return reticleRotation(id);
         };
         d.panel->view().onRotateTo = [this, id = c.id](double deg) { rotateFor(id, deg); };
+        d.panel->view().viewingPlaneZ = [this, id = c.id] { return viewingPlaneZ(id); };
         d.panel->onReticleChanged = [id = c.id](const JPReticle& r) {
             JSettings::instance().set(JPlacerSettings::cameraReticleKey(id), r.toText());
             JPlacerSettings::save();
@@ -685,6 +686,20 @@ double JPlacerMachine::reticleRotation(const std::string& cameraId) const {
     if (!m || !m_cell->isConnected()) return 0;
     // As the DRO reads it: a nozzle holding a part, the part's angle.
     return whereIsMount(m)[3].value_or(0) + m_cell->rotationModeOffsetOf(*m);
+}
+
+std::optional<double> JPlacerMachine::viewingPlaneZ(const std::string& cameraId) const {
+    if (!m_cell || !m_cell->isConnected()) return std::nullopt;
+    for (const JPCameraConfig& cam : m_cell->config().cameras) {
+        if (cam.id != cameraId || cam.mount.axisZ.empty()) continue;
+        const std::optional<double> z = whereIsMount(&cam.mount)[2];
+        const JPAxisConfig* axis = m_cell->config().axis(cam.mount.axisZ);
+        if (!z || !axis) return std::nullopt;
+        // Below its safe Z (the low end of its axis's safe zone): set on purpose.
+        const double safe = (axis->safeZoneLowEnabled ? axis->safeZoneLow : 0.0) + cam.mount.offsetZ;
+        if (*z < safe) return z;
+    }
+    return std::nullopt;
 }
 
 void JPlacerMachine::rotateFor(const std::string& cameraId, double deg) {

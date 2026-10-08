@@ -126,6 +126,10 @@ public:
     // OpenPnP's rotation handle on camera `cameraId`'s view let go at `deg`: what reticleRotation follows
     // there turned to it (at safe Z first, as OpenPnP's).
     void rotateFor(const std::string& cameraId, double deg);
+    // OpenPnP's viewing plane: a camera with a Z axis (a head camera's, virtual or not) below its safe Z
+    // was put there to look at what is at that height (moved to a placement, the board's surface): that
+    // Z, what its reticles are drawn at the scale of; none (its working plane) otherwise.
+    std::optional<double> viewingPlaneZ(const std::string& cameraId) const;
     // The open cell's nozzle tips, id and name; none without a cell.
     std::vector<std::pair<std::string, std::string>> nozzleTips() const;
 
