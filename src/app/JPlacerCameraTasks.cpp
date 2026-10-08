@@ -187,8 +187,7 @@ void JPlacerCameraTasks::run(JPCameraPanel& camera, const std::string& name, Tas
             panel->endStep();   // a step the person was asked to do, left over
             panel->view().setMarks({});
             const std::string text = ok ? words : cancelled ? name + " cancelled" : name + " failed: " + words;
-            panel->setNote(text);
-            m_window.showStatus(text, kResultMs);
+            m_window.showStatus(text, kResultMs);   // logged above
             if (onTaskOutcome) onTaskOutcome(ok || cancelled ? std::string() : text);
             if (done) done(ok);
         });

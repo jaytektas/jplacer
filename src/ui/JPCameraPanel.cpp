@@ -58,7 +58,8 @@ JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCameraCon
     m_cancelTask->setEnabled(false);
     m_cancelTask->onClicked.connect([this] {
         m_cancelTask->setEnabled(false);
-        if (onCancelTask) onCancelTask();
+        // A copy called, as Next's: the handler may let itself go (onCancelTask = nullptr) while it runs.
+        if (auto f = onCancelTask) f();
     });
     // OpenPnP's green start: Next, when a step of a camera task waits on the person (askStep).
     m_next = std::make_unique<JPIconButton>(graph, "Next", "control-start", kNextTip);
@@ -78,16 +79,9 @@ JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCameraCon
     m_settings->setLeads(JPIconButton::Leads::Elsewhere);   // to Machine Setup
     m_settings->onClicked.connect([this] { if (onSettings) onSettings(); });
 
-    // The picture's format.
-    m_state = add(std::make_unique<JLabel>(graph, ""));
-    m_state->setMinWidthFollowsText(true);   // made empty, filled in once the camera runs
-    // What a camera task is doing, or the last thing done: a line of its own,
-    // so a result reads in full.
-    m_note = add(std::make_unique<JLabel>(graph, ""));
-    // Folded to the panel's width, as tall as its text (a step's line, a result in full).
-    m_note->setWordWrap(true);
-    m_note->setVSizePolicy(JSizePolicyMode::Fixed);
-    m_note->setHSizePolicy(JSizePolicyMode::Expanding, 1);
+    // The line a step asks (folded to the panel's width, as tall as its text).
+    m_stepLine = std::make_unique<JLabel>(graph, "");
+    m_stepLine->setWordWrap(true);
     // A number a step asks for (OpenPnP's Detection Diameter), on a row of its own under the note while asked.
     m_stepRow = JPUiParts::row(graph);
     m_stepNumber = m_stepRow->add(std::make_unique<JSpinBox>(graph, 0, 1, JStyle::current().controlHeight * kNumberWidths));
@@ -113,7 +107,6 @@ JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCameraCon
         JMainThreadDispatcher::instance().post([this, alive, running] {
             if (const auto a = alive.lock(); !a || !*a) return;
             const auto mode = m_feed.mode();
-            m_state->setText(running && mode ? mode->describe() : std::string());
             if (running) refreshStraightening();   // by the calibration for its picture size
         });
     }));
@@ -121,7 +114,6 @@ JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCameraCon
         JMainThreadDispatcher::instance().post([this, alive, why] {
             if (const auto a = alive.lock(); !a || !*a) return;
             m_view->setMessage(why);
-            m_state->setText("");
             stopIfHidden();
         });
     }));
@@ -152,15 +144,9 @@ void JPCameraPanel::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     // Drawn, so on screen: the camera runs.
     m_drawn = std::chrono::steady_clock::now();
     if (!m_feed.isRunning()) start();
-    // The instructions as tall as their text folds to at this width.
-    // The note as tall as its text folds to at this width.
-    if (const float w = m_note->bounds().width; w > 0 && w != m_noteWidth) {
-        m_noteWidth = w;
-        m_note->setFixedSize(0.f, std::max(JStyle::current().labelHeight, m_note->heightFor(w)));
-        invalidate();
-    }
-    if (const float w = m_asked->bounds().width; m_instructionsShown && w > 0 && w != m_instructionsWidth) {
-        m_instructionsWidth = w;
+    // What a step asks as tall as its text folds to at this width.
+    if (const float w = m_asked->bounds().width; (m_stepLineShown || m_instructionsShown) && w > 0 && w != m_askedWidth) {
+        m_askedWidth = w;
         fitAsked();
     }
     JContainer::populateRenderPrimitives(buf);
@@ -170,7 +156,6 @@ void JPCameraPanel::start() {
     if (!m_powered) return;   // opened only while the machine is on
     JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Camera: " << m_feed.config().name << " on screen";
     m_view->setMessage("Starting " + m_feed.config().name + "\xE2\x80\xA6");
-    m_state->setText("");
     m_feed.start();
     if (onRunning) onRunning(true);
 }
@@ -270,7 +255,11 @@ std::vector<JWidget*> JPCameraPanel::tabTools() const {
 }
 
 void JPCameraPanel::askStep(const std::string& line, const std::string& detail, std::function<void()> onNext) {
-    setNote(line);
+    setNote(line);   // logged
+    m_stepLine->setText(line);
+    m_stepLineShown = true;
+    m_askedWidth = -1;   // sized to it on the next frame
+    fitAsked();
     m_onNext = std::move(onNext);
     m_next->setTooltip("Next: " + detail);
     m_next->setEnabled(true);
@@ -282,6 +271,7 @@ void JPCameraPanel::endStep() {
     m_next->setTooltip(kNextTip);
     m_next->setEnabled(false);
     m_cancelTask->setEnabled(m_busy);
+    m_stepLineShown = false;
     hideStepNumber();
 }
 
@@ -307,9 +297,9 @@ void JPCameraPanel::hideStepNumber() {
 }
 
 void JPCameraPanel::setNote(const std::string& text) {
-    m_note->setText(text);
-    m_noteWidth = -1;   // sized to it on the next frame
-    invalidate();
+    if (text.empty()) return;
+    JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << text;
+    if (onNote) onNote(text);
 }
 
 std::string JPCameraPanel::savePicture() {
@@ -358,7 +348,7 @@ void JPCameraPanel::showInstructions(const std::string& title, const std::string
                                      std::function<void()> onCancel, std::function<void()> onProceed) {
     m_instructions->set(title, text, proceedLabel, std::move(onCancel), std::move(onProceed));
     m_instructionsShown = true;
-    m_instructionsWidth = -1;   // sized to its text on the next frame
+    m_askedWidth = -1;   // sized to its text on the next frame
     fitAsked();
 }
 
@@ -369,15 +359,24 @@ void JPCameraPanel::hideInstructions() {
 
 void JPCameraPanel::fitAsked() {
     m_asked->clear();
+    const float w = m_askedWidth > 0 ? m_askedWidth : m_asked->bounds().width;
     float h = 0;
+    auto gap = [&h] { if (h > 0) h += JStyle::current().spacing; };
+    if (m_stepLineShown) {
+        m_asked->add(m_stepLine.get());
+        const float lh = std::max(JStyle::current().labelHeight, m_stepLine->heightFor(w));
+        m_stepLine->setFixedSize(0.f, lh);
+        h += lh;
+    }
     if (m_stepShown) {
+        gap();
         m_asked->add(m_stepRow.get());
         h += std::max(JStyle::current().buttonHeight, JStyle::current().controlHeight);   // a row's height (JPUiParts::row)
     }
     if (m_instructionsShown) {
         m_asked->add(m_instructions.get());
-        if (m_stepShown) h += JStyle::current().spacing;
-        h += m_instructionsWidth > 0 ? m_instructions->heightFor(m_instructionsWidth) : JPInstructions::height();
+        gap();
+        h += w > 0 ? m_instructions->heightFor(w) : JPInstructions::height();
     }
     m_asked->setFixedSize(0.f, h);
     invalidate();

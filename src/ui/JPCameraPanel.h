@@ -93,11 +93,11 @@ public:
     // now (each look renews it), as OpenPnP's cameras capture whether shown or not.
     void keepRunning(int ms);
     // A step of a camera task waiting on the person (OpenPnP's instructions, without its box): `line` on the
-    // camera's note line, `detail` (OpenPnP's whole wording) the tooltip of Next, the green start in the
+    // camera's step line (above the picture while asked), `detail` (OpenPnP's whole wording) the tooltip of Next, the green start in the
     // title strip, which `onNext` answers; the red X cancels. endStep: nothing waits.
     void askStep(const std::string& line, const std::string& detail, std::function<void()> onNext);
     void endStep();
-    // A number the step asks for (OpenPnP's Detection Diameter), under the note line; and none.
+    // A number the step asks for (OpenPnP's Detection Diameter), under the step's line; and none.
     void showStepNumber(const std::string& label, int value, int min, int max, std::function<void(int)> changed);
     void hideStepNumber();
     // What the number's label says now (a search's result with it: "found", "not found"), and its tooltip.
@@ -108,12 +108,14 @@ public:
                           std::function<void()> onCancel, std::function<void()> onProceed);
     void hideInstructions();
     void setProceedEnabled(bool on) { m_instructions->setProceedEnabled(on); }
-    // A word about the picture (what a task is doing, why it is dark).
+    // A word about the picture (what a task is doing, why it is dark): logged and given to onNote (the
+    // window's status line), not drawn over the camera's room; empty says nothing.
     void setNote(const std::string& text);
+    std::function<void(const std::string&)> onNote;
     // Write the latest picture to capturesDir. The file written, or empty
-    // with the reason in the note. A camera not running is started first (its
+    // with the reason said (setNote). A camera not running is started first (its
     // light as it is set for you to look at) and a fresh picture saved once
-    // it has given kSaveSkipFrames: empty then, the note saying so.
+    // it has given kSaveSkipFrames: empty then, setNote saying so.
     std::string savePicture();
     // Its tools, as icon buttons for the dock's tab (each JPIconButton::size()
     // wide), in order. Owned here.
@@ -137,27 +139,25 @@ private:
     JPCameraView*                         m_view = nullptr;
     std::unique_ptr<JPIconButton>         m_asTaken, m_save, m_calibrate, m_next, m_cancelTask, m_visualTest, m_autoTune, m_settings;
     std::function<void()>                 m_onNext;     // askStep's
-    float                                 m_noteWidth = -1;   // the width the note was sized for (-1: again)
+    std::unique_ptr<JLabel>               m_stepLine;   // what askStep asks, in m_asked while asked
+    bool                                  m_stepLineShown = false;
     std::unique_ptr<JContainer>           m_stepRow;   // in m_asked while shown
     bool                                  m_stepShown = false;
     JSpinBox*                             m_stepNumber = nullptr;
     JLabel*                               m_stepNumberLabel = nullptr;
     std::function<void(int)>              m_onNumber;
-    JLabel*                               m_state = nullptr;
-    JLabel*                               m_note  = nullptr;
     CalibrationFor                        m_calibrationFor;
     bool                                  m_busy = false;
     bool                                  m_powered = false;
     std::set<std::string>                 m_keptFor;   // keepRunningFor
     bool                                  m_straight = true;   // straightened unless asked otherwise
     std::string                           m_capturesDir;
-    // What a task asks, between the note and the picture: the step's number and the instructions, each
-    // only while shown, the holder as tall as they are (nothing at all while neither is: a hidden row in
-    // the column still took its height, and the picture was that much smaller).
+    // What a task asks, above the picture: the step's line, its number and the instructions, each only
+    // while shown, the holder as tall as they are (nothing at all while none is: the picture has the room).
     JContainer*                           m_asked = nullptr;
     std::unique_ptr<JPInstructions>       m_instructions;
     bool                                  m_instructionsShown = false;
-    float                                 m_instructionsWidth = -1;   // the width they were sized for
+    float                                 m_askedWidth = -1;   // the width m_asked was sized for (-1: again)
     // m_asked holding what is shown, as tall as it.
     void fitAsked();
     std::chrono::steady_clock::time_point m_drawn;         // last drawn

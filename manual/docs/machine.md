@@ -246,11 +246,11 @@ exactly where the head's settings say it is. As OpenPnP's, it looks again, up to
 part's fiducial vision settings' **Max Vision Passes** (3 to begin with), until a look corrects it by less
 than their **Max Linear Offset** (0.2 mm to begin with); the last look's correction stands. With the camera's
 **Auto-Tune when homing?** ticked, the camera is first tuned over the head's primary fiducial (see Machine
-Setup). The line under the camera buttons and
-the status bar say by how much it corrected. Until a camera on the head is calibrated, Home says it homed
+Setup). The status bar (and the log) says by how much it
+corrected. Until a camera on the head is calibrated, Home says it homed
 by the switches only. Should visual homing fail (the mark not found, the camera not tuned), the homing has
 failed, as OpenPnP's: the machine is not homed (its coordinates are the switches', which the mark did not
-confirm), Home turns red, and the camera's line says why; the tips' recalibration, Machine.AfterHoming and the
+confirm), Home turns red, and the status bar says why; the tips' recalibration, Machine.AfterHoming and the
 park do not follow.
 
 <!-- src: src/machine/JPGcodeDriver.cpp (connect, unlockForHoming); src/machine/JPCell.cpp (doHome) -->
@@ -559,7 +559,7 @@ With the eye lit (**as taken**), the picture is shown as the camera takes it; wi
 **straightened**: the lens's bending is taken out and turns it square to the machine, at one scale both ways and centred on what
 the camera looks at, so straight edges on the board look straight and what is drawn over the picture is
 plain geometry. A camera must be calibrated to be straightened; until then it is shown as taken, and the
-line over the picture says so. Straightened, a wide lens's picture no longer fills a rectangle: how much
+status bar and the log say so. Straightened, a wide lens's picture no longer fills a rectangle: how much
 of its bent edge shows is one of the camera's settings in [Machine Setup](machine-setup.md#settings),
 from 0 *cropped* (enlarged until every part of it has picture behind it) to 100 *whole* (all the camera
 sees, with bare edges where the bending was). Each camera keeps the eye's choice for next time. The
@@ -672,7 +672,7 @@ How long each of these is, is the camera's own, in Machine Setup on its General 
 
 **Save the picture** (the disk) writes the camera's latest picture as a PNG (lossless, so it measures the same as
 the live picture did) to `captures/` in jplacer's configuration folder, named after the camera and the
-moment it was taken; the line over the picture names the file. A camera that is not running (its picture
+moment it was taken; the status bar names the file. A camera that is not running (its picture
 hidden behind another tab, say) is started first, its light as for you to look at, and a fresh picture saved
 once it has given ten; not its last one, from when it stopped.
 
@@ -698,7 +698,7 @@ not calibrated for its size gets the same red X in its top left, in proportion, 
 camera's **Warn if camera calibration is not completed**); not while a task is taking that camera's pictures
 (the camera's own calibration needs it uncalibrated, and the X would come and go between the pictures it shows).
 
-While it runs, the line over the picture says which pass of how many (two when it measures at two heights)
+While it runs, the status bar says which pass of how many (two when it measures at two heights)
 and which move of how many ("pass 1 of 2, measuring, move 14 of 38"), and **Cancel** (OpenPnP's red X,
 beside Calibrate, greyed but while a task runs on that camera) stops it before its next move: the move under
 way ends where it was going, up to safe Z still goes, and it is said to be cancelled, not failed. Closing jplacer
@@ -726,8 +726,9 @@ how many ("measuring, move 14 of 38"), so a wrong find shows at once.
 Every move arrives from the same side (see [Backlash](#backlash)), so play in the drives cannot creep
 into the scale, and each picture measured is one taken after the move ended (a camera hands over
 pictures a little late). The head moves at the machine's speed (the Jog panel's **Speed**), as jogs and parks do. While a task runs, its camera's buttons
-are off (and another camera task will not start), and the line over the picture says what it is doing; when it ends, that line
-and the status bar give the result. A calibration is saved in the cell file and used from then on:
+are off (and another camera task will not start), and the status bar says what it is doing, each step logged too; when
+it ends, the status bar gives the result. A camera's panel is its picture: what it says goes to the status bar and the
+log, its room left to the picture. A calibration is saved in the cell file and used from then on:
 whatever is measured in a picture is straightened through the lens first.
 
 A calibration belongs to the picture size it was measured at: at another size a pixel is another size
@@ -752,8 +753,8 @@ How the camera is measured, and whether at two heights, is set on that tab.
 
 A camera fixed to the machine (one looking up at the nozzles) cannot be moved over a mark, so the mark is
 moved over it: **Calibrate** (the target), in that camera's tab, holds a nozzle's tip over it, step by step
-as OpenPnP's camera calibration. Each step waiting on you says what to do on the camera's line under the
-picture's size, folded to the panel's width; **Next** is the green start beside Calibrate in the camera's title
+as OpenPnP's camera calibration. Each step waiting on you says what to do on a line above the picture,
+folded to the panel's width and there only while it waits; **Next** is the green start beside Calibrate in the camera's title
 strip (its tooltip OpenPnP's whole wording), and the red X beside it cancels, at any step. Nothing is laid over
 the picture or takes room from it:
 
@@ -763,7 +764,7 @@ the picture or takes room from it:
    in the middle of the picture (an eighth of its smaller side across). Jog the tip into it, then **Next**.
 3. The tip goes down to the camera's height (the camera's offset: where it is focused). Turn it through 360
    degrees (Jog) and see it stays in the circle, jogging it if not, then **Next**.
-4. **Detection Diameter**: a field under the camera's line; the tip is looked for at that size, all the while,
+4. **Detection Diameter**: a field under the step's line; the tip is looked for at that size, all the while,
    about the middle: a **red** circle that size where it is looked for, **green with a +** where it is found;
    beside the field, "found" or "not found" (pointed at, where, or why not; the log says each change). It starts at the tip's size (its runout **Vision Diameter**, else its
    **Diameter**, through the camera's rough scale; else 25 px, as OpenPnP's): set it until the circle is green

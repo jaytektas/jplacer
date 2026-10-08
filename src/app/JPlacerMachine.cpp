@@ -262,6 +262,8 @@ void JPlacerMachine::buildCameras() {
         };
         d.panel->setReticle(JPReticle::fromText(
             JSettings::instance().get<std::string>(JPlacerSettings::cameraReticleKey(c.id), "")));
+        // What a camera says (a task's steps, why it is dark): on the status line, its room left to the picture.
+        d.panel->onNote = [this](const std::string& text) { m_window.showStatus(text, kStatusMs); };
         d.panel->onReticleChanged = [id = c.id](const JPReticle& r) {
             JSettings::instance().set(JPlacerSettings::cameraReticleKey(id), r.toText());
             JPlacerSettings::save();

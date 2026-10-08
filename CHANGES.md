@@ -10,6 +10,11 @@ notes.
 
 ## Unreleased
 
+- A camera's panel is its picture: the picture's format and what the camera last did are no longer
+  written above it, but logged and shown on the status bar. A step waiting on you still says what to do
+  above the picture, while it waits.
+- Cancelling a camera's calibration at its first step (load the smallest tip) no longer closes jplacer.
+
 ## 0.1.25
 
 - A camera's picture takes the room under its note: a hidden row for a calibration step's number kept
