@@ -14,7 +14,7 @@ key taken off, in [Preferences, Keys](preferences.md#keys); the menu then shows 
 |---|---|
 | **New Job** (Ctrl+N) | Starts an empty job (see [Jobs](jobs.md#new-open-and-save)). |
 | **Open Job…** (Ctrl+O) | Opens a `.job.xml` file. |
-| **Open Recent Job...** | The ten jobs opened or saved last, newest first. |
+| **Open Recent Job...** | The ten jobs opened or saved last, newest first; greyed out while there are none. |
 | **Save Job** (Ctrl+S) | Saves the open job. |
 | **Save Job As…** | Saves the open job to a file you choose. |
 | **Save Configuration** | Saves the parts, packages and the lists of boards and panels, and asks about each board with changes (see [Boards](boards.md#saving-boards)). |
@@ -22,6 +22,29 @@ key taken off, in [Preferences, Keys](preferences.md#keys); the menu then shows 
 | **Quit** | Closes jplacer, after asking about a job with changes and about each board with changes. If an update has been downloaded (and checked against its published checksum), it is installed now: the machine is disconnected first and the settings kept, so the new version starts free to connect to it. |
 
 <!-- src: src/app/JPlacerMenuBuilder.cpp (the File menu); src/app/JPlacerJob.cpp; src/app/JPlacerOpenPnpTabs.cpp; src/app/JPlacerApp.cpp (run, installStaged) -->
+
+### Choosing a file
+
+Every Open, Save As and Browse opens the same file chooser, which can be resized:
+
+- Along the top: **Up** (Alt+Up) and **Home** (Alt+Home), the folder shown as a path you can type or paste
+  into (Ctrl+L; Enter goes there, a file's path opens it, `~` is your home folder), and **New Folder**,
+  which asks for the folder's name in place (Enter makes it, Escape does not).
+- On the left, places to go to: Home, its Desktop, Documents and Downloads, the file system, and drives
+  that are mounted.
+- The folder's **Name**, **Size** and **Modified**, folders first; a header click sorts by that column. A
+  click chooses an entry, and a double-click or Enter opens a folder or takes a file.
+- **Name:** the file's name, or a path to go to.
+- **Show hidden** (Ctrl+H) shows names that start with a dot, such as `~/.openpnp2`. Beside it is the kind
+  of file shown: for a job, **Jobs (\*.job.xml)**, **XML files** or **All files**. Saving adds the kind's
+  ending to a name without it.
+- Saving over a file that is already there asks first: the button turns to **Replace**, and Replace
+  overwrites it.
+
+F5 lists the folder again. The chooser opens in the folder it was last in; Save Job As starts at the job's
+own file.
+
+<!-- src: JFramework include/j/platforms/FileDialogWindow.h; JFramework include/j/io/JFilePlaces.h; JFramework include/j/io/DirectoryListing.h (passesFilter, resolve); src/app/JPlacerJob.cpp (fileRequest, saveAsThen) -->
 
 ## Edit
 

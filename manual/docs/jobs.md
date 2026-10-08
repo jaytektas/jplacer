@@ -33,7 +33,7 @@ The job is edited on the Job tab (below), panels, boards, parts and packages on 
 | **File ▸ New Job** (Ctrl+N) | Starts an empty job. |
 | **File ▸ Open Job…** (Ctrl+O) | Opens a `.job.xml` file. |
 | **File ▸ Save Job** (Ctrl+S) | Saves the job to its file; a job never saved asks where, as Save Job As does. |
-| **File ▸ Save Job As…** | Saves the job to a file you choose; `.job.xml` is added if you leave it off. |
+| **File ▸ Save Job As…** | Saves the job to a file you choose ([the file chooser](menus.md#choosing-a-file) starts at the job's own file); `.job.xml` is added if you leave it off. |
 
 The window's title is *jplacer - * and the job's file name (*Untitled.job.xml* for a job never saved),
 with a **\*** before the name while it has changes that are not saved. The job you had open is opened

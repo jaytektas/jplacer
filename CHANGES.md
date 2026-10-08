@@ -10,6 +10,12 @@ notes.
 
 ## Unreleased
 
+- A new file chooser for every Open, Save As and Browse: a path you can type or paste, New Folder, places
+  (home, Desktop, Documents, Downloads, mounted drives), Size and Modified columns that sort, a real name
+  field, a choice of file type (a job's: Jobs, XML files or All files), and a question before saving over a
+  file. Save Job As starts at the job's own file, and a name typed without `.job.xml` no longer ends up as
+  `name.xml.job.xml`.
+
 - File > Open Recent Job is greyed out while there are no recent jobs, instead of opening an empty sliver.
 
 - A nozzle tip's calibration is one step to undo, and the machine takes it once (its runout and its background

@@ -25,7 +25,14 @@ constexpr int kRecentMost = 10;
 
 constexpr int kStatusMs = 8000;
 // The file dialog filters by the last extension; ".job.xml" is added on save.
-constexpr const char* kFilter = "xml";
+// The picker's file types: OpenPnP's jobs (*.job.xml), then any XML.
+JDialogRequest fileRequest(JDialogRequest::JKind kind, const std::string& title) {
+    JDialogRequest req;
+    req.kind = kind;
+    req.title = title;
+    req.filters = { { "Jobs", { std::string(JPJob::kExtension).substr(1) } }, { "XML files", { "xml" } } };
+    return req;
+}
 
 std::string withExtension(std::string path) {
     std::string lower;
@@ -201,7 +208,8 @@ bool JPlacerJob::openPath(const std::string& path, std::string& error) {
 void JPlacerJob::open() {
     settle([this] {
         std::weak_ptr<bool> alive = m_alive;
-        JDialog::openFile("Open Job", { kFilter }, [this, alive](std::string path) {
+        JDialogRequest req = fileRequest(JDialogRequest::JKind::OpenFile, "Open Job");
+        req.onInput = [this, alive](std::string path) {
             if (const auto a = alive.lock(); !a || !*a) return;
             std::string error;
             if (!openPath(path, error)) {
@@ -210,7 +218,8 @@ void JPlacerJob::open() {
             }
             title();
             notify(Change::Job);
-        });
+        };
+        JDialog::chooseFile(std::move(req));
     });
 }
 
@@ -234,25 +243,15 @@ void JPlacerJob::save() {
 
 void JPlacerJob::saveAsThen(std::function<void()> then) {
     std::weak_ptr<bool> alive = m_alive;
-    JDialog::saveFile("Save Job As...", { kFilter }, [this, alive, then](std::string chosen) {
+    // Begun at the job's own file (its name to save as again); a file already there is replaced only once
+    // the picker has asked.
+    JDialogRequest req = fileRequest(JDialogRequest::JKind::SaveFile, "Save Job As...");
+    req.startPath = m_job->file;
+    req.onInput = [this, alive, then](std::string chosen) {
         if (const auto a = alive.lock(); !a || !*a) return;
-        const std::string path = withExtension(chosen);
-        auto write = [this, path, then] {
-            if (writeTo(path) && then) then();
-        };
-        // A file already there is replaced only when asked.
-        std::error_code ec;
-        if (!std::filesystem::exists(path, ec)) {
-            write();
-            return;
-        }
-        JDialogOptions opts;
-        opts.okLabel = "Yes";
-        opts.cancelLabel = "No";
-        JDialog::confirm("Replace file?",
-                         std::filesystem::path(path).filename().string() + " already exists. Do you want to replace it?",
-                         write, {}, opts);
-    });
+        if (writeTo(withExtension(chosen)) && then) then();
+    };
+    JDialog::chooseFile(std::move(req));
 }
 
 void JPlacerJob::saveAs() {
