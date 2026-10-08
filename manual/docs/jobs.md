@@ -135,6 +135,20 @@ board's origin; **Cancel** puts the board back where it was.
 
 <!-- src: src/ui/JPJobPlacementsPanel.cpp (onEditFeeder, updateActions); src/ui/JPFeedersPanel.cpp (showFeederForPart); src/ui/JPPlacementsTableModel.cpp (status, setLocation) -->
 
+## Shortages
+
+**Job ▸ Shortages…** sets the job's parts against the stock, the parts shortest of stock first. Each row
+gives the **Part**, how many placements are **Left to place** (enabled, on the side facing up, not placed
+yet), the **Attrition** allowed (how many more, at the part's own share, or the share its ledger measured,
+or *not known*), how many are **In stock** in its open lots, how many it is **Short**, its **Lots** (each
+with where it is kept and what it holds) and, when short, where it is bought (**Buy from**: the part's
+offers). A part that is not in the library (the board's own, or not chosen yet) keeps no stock, and says so.
+The line at the top counts the placements, the parts and those short.
+
+Stock never stops a run: the feeders hold what is placed, and a part can be loaded as the run reaches it.
+
+<!-- src: src/model/JPShortages.cpp; src/app/JPlacerShortagesDialog.cpp; src/app/JPlacerMenuBuilder.cpp (job.shortages) -->
+
 ## Running the job
 
 **Start** runs the job, a step after another, until every placement is placed; while it runs the button

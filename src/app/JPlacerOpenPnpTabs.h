@@ -64,6 +64,8 @@ public:
     void importBoard(const JPBoardImporter& importer);
     // From a placement file and its BOM, into the Boards tab's chosen board (JPlacerCplBomImportDialog).
     void importCplBom();
+    // Job > Shortages…: the job's parts against the stock (JPlacerShortagesDialog).
+    void openShortages();
 
 private:
     // A script's request of the job (JPlacerMachine::onScriptJobRequest).

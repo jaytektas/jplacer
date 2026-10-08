@@ -22,6 +22,7 @@
 #include <j/core/JStyle.h>
 #include <j/core/JTextHelper.h>
 
+#include <cstdio>
 #include <cstdlib>
 
 inline namespace jf {
@@ -171,6 +172,7 @@ JPSetupProperties::Form JPPartsPanel::formFor(const JPPart* p) {
     if (p) {
         JPFormBuilder add(form);
         libraryPage(add, p->id);
+        stockPage(add, p->id);
         // Settings: the pick conditions.
         add.tab("Settings");
         add.group("Pick Conditions");
@@ -421,12 +423,109 @@ bool JPPartsPanel::libraryAct(const std::string& action) {
     else if (const long i = index("removeId:"); i >= 0 && size_t(i) < p->identifiers.size()) p->identifiers.erase(p->identifiers.begin() + i);
     else if (const long k = index("removeAka:"); k >= 0 && size_t(k) < p->akas.size()) p->akas.erase(p->akas.begin() + k);
     changed();
+    remakeLater();
+    return true;
+}
+
+void JPPartsPanel::remakeLater() {
     // The page made again after this click (its button is on it).
     std::weak_ptr<bool> alive = m_alive;
     JMainThreadDispatcher::instance().post([this, alive] {
         if (const auto a = alive.lock(); !a || !*a) return;
         m_form->remake(formFor(selectedPart()));   // the tab and where it was scrolled to kept
     });
+}
+
+void JPPartsPanel::stockPage(JPFormBuilder& add, const std::string& partId) {
+    const JPPart* p = m_config.libraryPart(partId);
+    if (!p) return;
+    JPStockStore& stock = m_config.stock();
+    const std::string uuid = p->uuid;
+    m_lots = stock.lots(uuid, false);
+    const size_t closed = stock.lots(uuid, true).size() - m_lots.size();
+    add.tab("Stock");
+    add.group("Stock");
+    long long onHand = 0;
+    for (const JPStockLot& l : m_lots) onHand += l.onHand;
+    std::string about = m_lots.empty() ? std::string("None in stock.")
+                                       : std::to_string(onHand) + " in stock, in " + std::to_string(m_lots.size()) + " lot(s).";
+    if (closed > 0) about += " " + std::to_string(closed) + " closed lot(s) kept with their ledgers.";
+    add.note(about + " Stock is what you have, not what is loaded; a lot's figure is its ledger's.");
+    if (!m_lots.empty()) add.header({ "Lot", "Packaging", "Holds", "Where kept", "Date code", "Note" });
+    for (size_t i = 0; i < m_lots.size(); ++i) {
+        const std::string key = "stock.lot" + std::to_string(i) + ".";
+        // A lot's own field: shown from what was read, kept at once when changed.
+        auto field = [this, &add, &key, i](const char* name, const char* label, std::string JPStockLot::*member) {
+            add.text(key + name, label, [this, i, member] { return i < m_lots.size() ? m_lots[i].*member : std::string(); },
+                     [this, i, member](const std::string& v) {
+                         if (i >= m_lots.size()) return;
+                         JPStockLot l = m_lots[i];
+                         l.*member = v;
+                         std::string error;
+                         if (m_config.stock().updateLot(l, error)) m_lots[i] = l;
+                         else JDialog::message("Not Changed", error);
+                     });
+        };
+        add.row(std::to_string(i + 1));
+        field("label", "Lot", &JPStockLot::label);
+        add.words(m_lots[i].packaging);
+        add.words(std::to_string(m_lots[i].onHand));
+        field("location", "Where kept", &JPStockLot::location);
+        field("dateCode", "Date code", &JPStockLot::dateCode);
+        field("note", "Note", &JPStockLot::note);
+        add.button("stock:ledger:" + std::to_string(i), "Ledger…",
+                   "Every change to this lot, and what it held after each; add what was used, lost or counted");
+        add.end();
+    }
+    add.endColumns();
+    add.wideButton("stock:receive", "Receive Stock…", "A new lot of this part: an order that came in, or one found and counted");
+
+    add.group("Attrition");
+    add.note("How many to allow for parts lost to mis-picks and drops, as a share of those placed: a job's shortages "
+             "add it to what it needs.");
+    add.row("Attrition [%]");
+    add.text("stock.attrition", "Attrition [%]",
+             [this, uuid] {
+                 const auto set = m_config.stock().attritionSet(uuid);
+                 char buf[32] = "";
+                 if (set) std::snprintf(buf, sizeof buf, "%g", *set * 100);
+                 return std::string(buf);
+             },
+             [this, uuid](const std::string& v) {
+                 std::optional<double> rate;
+                 if (!v.empty()) {
+                     char* end = nullptr;
+                     const double percent = std::strtod(v.c_str(), &end);
+                     if (!end || *end != '\0' || percent < 0 || percent > 100) return;
+                     rate = percent / 100;
+                 }
+                 std::string error;
+                 if (!m_config.stock().setAttrition(uuid, rate, error)) JDialog::message("Not Changed", error);
+             });
+    add.tip("Empty: what the ledger measured is used");
+    add.end();
+    const JPStockStore::Attrition a = stock.attrition(uuid);
+    char measured[160];
+    if (a.used > 0)
+        std::snprintf(measured, sizeof measured, "Measured: %lld lost of %lld taken (%.1f %%).", a.lost, a.used + a.lost, a.rate() * 100);
+    else if (a.lost > 0)
+        std::snprintf(measured, sizeof measured, "Not measured yet: none used, so the %lld lost are not a share of anything.", a.lost);
+    else
+        std::snprintf(measured, sizeof measured, "Not measured yet: the ledger has nothing used or lost.");
+    add.note(measured);
+}
+
+bool JPPartsPanel::stockAct(const std::string& action) {
+    if (action.rfind("stock:", 0) != 0) return false;
+    const JPPart* p = selectedPart() ? m_config.libraryPart(selectedPart()->id) : nullptr;
+    if (!p) return true;
+    auto changed = [this] { remakeLater(); };
+    if (action == "stock:receive") {
+        if (openReceive) openReceive(*p, changed);
+    } else if (action.rfind("stock:ledger:", 0) == 0) {
+        const size_t i = std::strtoul(action.c_str() + 13, nullptr, 10);
+        if (i < m_lots.size() && openLedger) openLedger(m_lots[i].uuid, p->id, changed);
+    }
     return true;
 }
 
@@ -456,7 +555,7 @@ bool JPPartsPanel::pipelineAct(const std::string& settingsId, const JPVisionForm
 }
 
 void JPPartsPanel::act(const std::string& action) {
-    if (libraryAct(action)) return;
+    if (libraryAct(action) || stockAct(action)) return;
     const JPPart* p = selectedPart();
     if (!p) return;
     const size_t colon = action.find(':');

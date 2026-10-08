@@ -747,8 +747,12 @@ configurations to check against, never inputs to the design.
       job file recording each board's revision; the board shows one
       revision at a time, so every job open sees the same one; a run's
       record of its revision waits for runs; a changed part's old match is
-      not yet offered first in the picker), stock lots and the ledger, the
-      looking-down check.
+      not yet offered first in the picker), stock lots and the ledger
+      (done: JPStockStore's lots, ledger and part attrition in library.db,
+      written as made; the Parts tab's Stock page, Receive Stock…, a lot's
+      Ledger…; Job > Shortages…; feeders carrying a lot and runs writing
+      Used and Lost entries wait for feeders and runs), the looking-down
+      check.
    Then the Job and Library workspaces with the board view.
 4. **Feeders and running**: strip lanes and tray feeders first, planner and
    planner view, runner, runs, pre-flight, load-as-you-go, stages.

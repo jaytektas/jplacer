@@ -85,6 +85,32 @@ Choosing another kind shows or hides the tape's columns.
 A board's copy of the part (see [Choosing a part](boards.md#choosing-a-part)) counts its packagings: a
 change in how it comes is a change to review; a new offer, or a name learned, is not.
 
+**Stock** is what you have of the part: a lot is one reel, strip of cut tape, tray, tube or bag of it.
+Stock is what you have, not what is loaded on the machine. The page says how many are in stock and in how
+many lots, and lists each open lot: its **Lot** name, **Packaging**, how many it **Holds**, **Where kept**,
+**Date code** and **Note** (the name, where kept, date code and note are changed here and kept at once).
+**Receive Stock…** adds a lot: its name on the shelf, packaging, **Supplier** and **SKU** (the part's
+first offer is filled in), **Date code**, **Lot code**, **Where kept**, **Note**, and how it came:
+**Received** (an order: its **Quantity**, the **Cost** of all of them and the **Order**) or **Counted**
+(found on the shelf). **Receive** is offered once the lot has a name and a quantity.
+
+How many a lot holds is its ledger's: **Ledger…** lists every change to the lot in order, **When**, the
+**Entry**, the **Quantity**, what it **Holds after**, the **Cost**, the **Reference** and the **Note**, so
+a wrong figure shows where it went wrong. Below the list, add an entry: **Used** (taken for a job),
+**Lost** (dropped, mis-picked, thrown away), **Counted** (what it holds, counted now), **Adjusted** (more,
+12, or fewer, -12, by hand) or **Received** (more came in), with its quantity, a reference and a note;
+**Add to Ledger** (or Return) keeps it at once. **Close the Lot** takes a lot used up or thrown away out of
+stock, its ledger kept (the Stock page counts the closed lots); **Reopen the Lot** puts it back.
+
+**Attrition** is how many to allow for parts lost to mis-picks and drops, as a share of those placed;
+a job's shortages add it to what the job needs. Type the part's own **Attrition [%]**, or leave it empty to
+use what the ledger measured: lost of all taken (used and lost), once any have been used. The page says what
+was measured.
+
+Stock is kept in the library's file as each change is made, without saving.
+
+<!-- src: src/ui/JPPartsPanel.cpp (stockPage, stockAct); src/app/JPlacerStockReceiveDialog.cpp; src/app/JPlacerLotLedgerDialog.cpp; src/model/JPStockStore.cpp; src/model/JPLedgerEntry.h (apply); src/model/JPStockLot.h -->
+
 **Settings** holds its **Pick Conditions**: **Feed & Pick Retry
 Count**, how many times the feed and pick is tried again for each placement (the nozzle is cleared, and
 the part discarded, after each failed try).

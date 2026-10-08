@@ -10,6 +10,11 @@ notes.
 
 ## Unreleased
 
+- Stock: the Parts tab's new Stock page lists a part's lots (reels, cut tape, trays, tubes, bags), how many each
+  holds and where it is kept. Receive Stock… adds a lot; each lot's Ledger… shows every change to it (received,
+  used, lost, counted, adjusted) and what it held after each, and Close the Lot takes a used-up lot out of
+  stock. A part's attrition is set there or measured from its ledger. Job > Shortages… sets the job's parts
+  against the stock: left to place, attrition, in stock, short, where kept and where to buy.
 - Boards have revisions. Importing a new revision's files into a board offers New Revision…: the placements are
   paired with the board's (renumbered ones found by footprint and position, a moved CAD origin found and taken
   back), one summary shows what is unchanged, moved, turned, has another part or footprint, is new, renamed or

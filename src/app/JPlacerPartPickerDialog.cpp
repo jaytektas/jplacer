@@ -83,7 +83,6 @@ JPlacerPartPickerDialog::JPlacerPartPickerDialog(const JPConfiguration& config, 
     m_filter->setClearButtonEnabled(true);
     m_filter->setTooltip("Every word must be in the part's name, its package or the package's description; [x] clears it");
     m_filter->onTextChanged.connect([this](const std::string&) { fill(); });
-    add(m_filter);
 
     m_list = m_content->add(std::make_unique<JDataGrid>(g, std::vector<std::string>{ "Part", "Package", "Height", "Why" }));
     m_list->setVSizePolicy(JSizePolicyMode::Expanding, 1);

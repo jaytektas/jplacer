@@ -98,7 +98,7 @@ bool JPConfiguration::load(std::vector<std::string>& problems, std::string& erro
     // those files' parts and packages it lacks, when the files changed since it last looked (OpenPnP's copied in).
     const fs::path libraryFile = dir / JPLibraryStore::kFile;
     const bool hadLibrary = exists(libraryFile.string());
-    if (!m_library.open(libraryFile.string(), error)) return false;
+    if (!m_library.open(libraryFile.string(), error) || !m_stock.open(libraryFile.string(), error)) return false;
     bool migrated = false;
     if (hadLibrary) {
         JPLibraryStore::Contents in;

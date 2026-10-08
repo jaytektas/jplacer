@@ -64,7 +64,6 @@ JPlacerBoardUpgradeDialog::JPlacerBoardUpgradeDialog(JPBoard& board, std::shared
         e->setText(value);
         e->setTooltip(tip);
         e->setHSizePolicy(JSizePolicyMode::Expanding, 1);
-        add(e);
         m_content->add(std::move(row));
         return e;
     };
@@ -88,7 +87,6 @@ JPlacerBoardUpgradeDialog::JPlacerBoardUpgradeDialog(JPBoard& board, std::shared
     m_show->setCurrentIndex(0);
     m_show->setTooltip("Every placement, or only those of one kind of change");
     m_show->onIndexChanged.connect([this](int) { fill(); });
-    add(m_show);
     m_content->add(std::move(showRow));
 
     m_list = m_content->add(std::make_unique<JDataGrid>(g, std::vector<std::string> { "Was", "Now", "Change", "What changed" }));

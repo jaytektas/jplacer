@@ -52,6 +52,10 @@ public:
     void setTests(JPVisionForms::Tests tests) { m_tests = std::move(tests); }
     // Opens the library's manufacturers' names (JPlacerManufacturersDialog).
     std::function<void()> openManufacturers;
+    // Receive Stock… of a library part (JPlacerStockReceiveDialog), and a lot's Ledger… (JPlacerLotLedgerDialog);
+    // `changed` when either kept something.
+    std::function<void(const JPPart&, std::function<void()> changed)> openReceive;
+    std::function<void(const std::string& lotUuid, const std::string& partId, std::function<void()> changed)> openLedger;
     // Opens a menu at window coordinates (a table cell's choices).
     std::function<void(JMenu*, float x, float y)> openMenu;
 
@@ -75,6 +79,12 @@ private:
     void libraryPage(JPFormBuilder& add, const std::string& partId);
     // One of its buttons (add, delete): done (true), else not one of them.
     bool libraryAct(const std::string& action);
+    // The Stock page: the part's lots (their names, where kept, notes changed here, kept at once), on hand,
+    // attrition set and measured; Receive Stock… and each lot's Ledger….
+    void stockPage(JPFormBuilder& add, const std::string& partId);
+    bool stockAct(const std::string& action);
+    // The form made again, after this click, where it was.
+    void remakeLater();
     void updateWizards();
     void newPart();
     void deleteParts();
@@ -84,6 +94,7 @@ private:
     void act(const std::string& action);
 
     std::shared_ptr<bool>              m_alive = std::make_shared<bool>(true);
+    std::vector<JPStockLot>            m_lots;   // the Stock page's lots, as last read
     JPConfiguration&                   m_config;
     JPPartsTableModel                  m_model;
     JPTable*                           m_table = nullptr;

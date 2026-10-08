@@ -115,6 +115,7 @@ What is chosen by a link chooses nothing further. A part with no feeder leaves t
 |---|---|
 | **Start** (**Pause** while the job runs, **Resume** while it is paused; Ctrl+Shift+R), **Step** (Ctrl+Shift+S), **Stop** (Ctrl+Shift+A) | As the Job tab's buttons (see [Running the job](jobs.md#running-the-job)). |
 | **Reset All Placed** | Marks every placement of the job not placed, so the job places them all again. |
+| **Shortages…** | The job's parts against the stock (see [Shortages](jobs.md#shortages)). |
 
 <!-- src: src/app/JPlacerMenuBuilder.cpp (the Job menu); src/ui/JPJobPanel.cpp (setMenuItems, resetAllPlaced, updateJobActions) -->
 

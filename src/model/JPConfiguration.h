@@ -14,6 +14,7 @@
 #include "JPPanel.h"
 #include "JPPanelLocation.h"
 #include "JPLibraryStore.h"
+#include "JPStockStore.h"
 #include "JPPart.h"
 #include "JPVisionSettings.h"
 
@@ -92,6 +93,8 @@ public:
     // The manufacturers the library knows, with their other names.
     const std::vector<JPManufacturer>& manufacturers() const { return m_manufacturers; }
     std::vector<JPManufacturer>&       manufacturers() { return m_manufacturers; }
+    // The library's stock: its lots and their ledger (not open for a configuration read from no folder).
+    JPStockStore& stock() const { return m_stock; }
     // A manufacturer's name as the library has it, by its name or one of its others (any case); the name as
     // given when the library knows it by neither.
     std::string manufacturerName(const std::string& name) const;
@@ -232,6 +235,8 @@ private:
     std::vector<JPManufacturer>                          m_manufacturers;
     // The library's file (library.db): written on save (from a const save, so mutable).
     mutable JPLibraryStore                                m_library;
+    // The library's stock (its lots and ledger, in the same file): written as each change is made.
+    mutable JPStockStore                                  m_stock;
     std::string                                          m_defaults;
     bool                                                 m_tookDefaults = false;
     std::vector<std::shared_ptr<JPPart>>                 m_parts;

@@ -18,7 +18,10 @@
 #include "JPlacerChoiceDialog.h"
 #include "JPlacerBoardUpgradeDialog.h"
 #include "JPlacerCplBomImportDialog.h"
+#include "JPlacerLotLedgerDialog.h"
 #include "JPlacerPartPickerDialog.h"
+#include "JPlacerShortagesDialog.h"
+#include "JPlacerStockReceiveDialog.h"
 #include "JPlacerBoardPartsDialog.h"
 #include "JPlacerManufacturersDialog.h"
 #include "JPlacerExistingHolderDialog.h"
@@ -281,6 +284,12 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_parts->openMenu = JPlacerMenuOpener::from(m_window, m_parts.get());
     m_parts->openManufacturers = [this] {
         m_window.openModal<JPlacerManufacturersDialog>(m_job.configuration(), [this] { m_job.configurationChanged(); });
+    };
+    m_parts->openReceive = [this](const JPPart& part, std::function<void()> changed) {
+        m_window.openModal<JPlacerStockReceiveDialog>(m_job.configuration().stock(), part, std::move(changed));
+    };
+    m_parts->openLedger = [this](const std::string& lotUuid, const std::string& partId, std::function<void()> changed) {
+        m_window.openModal<JPlacerLotLedgerDialog>(m_job.configuration().stock(), lotUuid, partId, std::move(changed));
     };
     m_parts->onChanged = [this] { m_job.configurationChanged(); };
     m_parts->machineDefaults = [this] { return machineVisionDefaults(); };
@@ -1133,6 +1142,10 @@ void JPlacerOpenPnpTabs::importBoard(const JPBoardImporter& importer) {
 
 void JPlacerOpenPnpTabs::importCplBom() {
     m_boards->placements().importCplBom();
+}
+
+void JPlacerOpenPnpTabs::openShortages() {
+    m_window.openModal<JPlacerShortagesDialog>(m_job.configuration(), m_job.job());
 }
 
 void JPlacerOpenPnpTabs::confirmSave(JPPlacementsHolder& holder, std::function<void()> then) {

@@ -271,6 +271,8 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
     job->addSeparator(graph);
     entry(keys, job, graph, "job.resetAllPlaced", "Job", "Reset All Placed", none, [&jobPanel] { jobPanel.resetAllPlaced(); })
         ->setTooltip("Reset the Placed status for every placement in the job.");
+    entry(keys, job, graph, "job.shortages", "Job", "Shortages\xE2\x80\xA6", none, [&app] { app.tabs().openShortages(); })
+        ->setTooltip("The job's parts against the stock: left to place, attrition, in stock, short, where kept.");
     // OpenPnP's descriptions, as its menu entries' tooltips.
     step->setTooltip("Process one step of the job and pause.");
     stop->setTooltip("Stop processing the job.");
