@@ -181,7 +181,8 @@ JPPipelineResultsPanel::JPPipelineResultsPanel(JSceneGraph& graph, JGpuHal* hal,
 
 JPPipelineResultsPanel::~JPPipelineResultsPanel() = default;
 
-void JPPipelineResultsPanel::refresh() {
+void JPPipelineResultsPanel::refresh(const std::string& stopped) {
+    m_stopped = stopped;
     const int n = int(m_pipeline.stages().size());
     // No stages, nothing chosen; the chosen one gone, the first.
     if (n == 0) {
@@ -226,7 +227,8 @@ void JPPipelineResultsPanel::update() {
         }
     }
     m_view->setImage(frame);
-    m_model->setText(result ? modelText(result->model) : std::string());
+    const std::string found = result ? modelText(result->model) : std::string();
+    m_model->setText(m_stopped.empty() ? found : "The pipeline stopped: " + m_stopped + (found.empty() ? "" : "\n\n" + found));
     char times[96] = "";
     if (result) std::snprintf(times, sizeof times, " ( %g ms / %g ms)", result->milliseconds, m_pipeline.totalMilliseconds());
     m_name->setText(result ? m_pipeline.stages()[size_t(at)].name() + times : std::string());

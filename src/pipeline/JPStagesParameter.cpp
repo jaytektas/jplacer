@@ -128,7 +128,9 @@ void JPPipeline::resetToDefaults() {
 }
 
 JPPipeline JPPipeline::stored() const {
-    JPPipeline c = *this;
+    // Its stages only: what it ran with (the camera, properties) and found is not kept.
+    JPPipeline c;
+    c.m_stages = m_stages;
     c.resetToDefaults();
     return c;
 }

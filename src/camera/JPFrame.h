@@ -21,6 +21,9 @@ struct JPFrame {
     // driver hold a few pictures, so one read just after a move can be from
     // before it ended).
     std::chrono::steady_clock::time_point captured;
+    // Already straightened, as vision pipelines are given pictures (JPStraightPicture): a camera view shows it as
+    // it is, not straightened again.
+    bool straightened = false;
 };
 
 } // inline namespace jf

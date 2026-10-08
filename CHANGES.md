@@ -10,6 +10,16 @@ notes.
 
 ## Unreleased
 
+- Vision pipelines are given the camera's corrected picture, as in OpenPnP: the lens's bending taken out
+  and the machine square to it, once the camera is calibrated. What they find is placed through it. A
+  camera's own calibration pipeline still sees the picture as taken.
+- The pipeline editor keeps its camera running while it is open. Before, a camera that had gone off screen
+  made each change wait three seconds and fail, so jplacer seemed frozen.
+- When a pipeline stops in the editor, why is shown with its results instead of in a new message box each
+  time. Holding a setting's arrow while it failed opened box after box until jplacer crashed.
+- A spin box's arrow stops repeating once the mouse button is up, even when its release went to another
+  window.
+
 - A fiducial check tunes the head camera once, on its first fiducial, and keeps that tune for the rest of the
   check, rather than tuning for each fiducial part. It has a tick of its own on the camera's Device Settings,
   **Auto-Tune for fiducial checks?** (tick it if you had relied on Auto-Tune for each part? for fiducials).

@@ -232,7 +232,7 @@ void JPlacerMachine::buildCameras() {
                     if (other.panel->camera().id != id) continue;
                     JPCameraPanel* device = other.panel.get();
                     JMainThreadDispatcher::instance().post([alive, device, switched] {
-                        if (const auto a = alive.lock(); a && *a) device->setFeeding(switched, true);
+                        if (const auto a = alive.lock(); a && *a) device->keepRunningFor(switched, true);
                     });
                     return &device->feed();
                 }
@@ -301,7 +301,7 @@ void JPlacerMachine::buildCameras() {
             // A switcher camera stopped: its device camera need not run for it.
             if (!running && !device.empty())
                 for (const CameraDock& other : m_cameras)
-                    if (other.panel->camera().id == device) other.panel->setFeeding(id, false);
+                    if (other.panel->camera().id == device) other.panel->keepRunningFor(id, false);
             lightCameras();
         };
         if (c.mount.headId.empty()) d.panel->view().onMoveNozzleHere = [this, id = c.id] { moveNozzleToCamera(id); };
@@ -1078,6 +1078,11 @@ void JPlacerMachine::refreshSetupForm() {
 void JPlacerMachine::setConfiguration(JPConfiguration* config) {
     m_configuration = config;
     if (m_setup) m_setup->setConfiguration(config);
+}
+
+void JPlacerMachine::keepCameraRunning(const std::string& cameraId, const std::string& who, bool kept) {
+    for (const CameraDock& d : m_cameras)
+        if (d.panel->camera().id == cameraId) d.panel->keepRunningFor(who, kept);
 }
 
 JPCameraView* JPlacerMachine::cameraViewOf(const JPCameraFeed* feed) {

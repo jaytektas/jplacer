@@ -6,6 +6,7 @@
 #include "camera/JPCameraFeed.h"
 #include "common/JPlacerLog.h"
 #include "pipeline/JPStageUtil.h"
+#include "pipeline/JPStraightPicture.h"
 #include "tasks/JPFeederPipelines.h"
 #include "tasks/JPStripHoles.h"
 #include "ui/JPCameraView.h"
@@ -94,16 +95,9 @@ void JPlacerStripAutoSetup::start(const std::string& feederId) {
         auto p = std::make_shared<JPPipeline>(std::move(*held));
         m_pipelines.useHeadCamera(*p, m_job.configuration().directory());
         JPFeederPipelines::configureForEditing(m_job.configuration(), *f, *p);
-        p->context().capture = [feed](const std::string&, const std::string&, cv::Mat& bgr, std::string& w) {
-            JPFrame live;
-            if (!feed->latest(live, 0) || live.width <= 0) {
-                w = feed->config().name + " gives no picture";
-                return false;
-            }
-            cv::Mat rgba(live.height, live.width, CV_8UC4, live.rgba.data());
-            cv::cvtColor(rgba, bgr, cv::COLOR_RGBA2BGR);
-            return true;
-        };
+        // The live picture (straightened, as useHeadCamera gives it), unsettled.
+        p->context().capture = [take = p->context().capture](const std::string&, const std::string& light, cv::Mat& bgr,
+                                                             std::string& w) { return take("Skip", light, bgr, w); };
         m_previewPipeline = p;
     }
     setStep(Step::FirstPart);
@@ -237,7 +231,9 @@ void JPlacerStripAutoSetup::startPreview() {
     if (!feed || !cell) return;
     JPFrame frame;
     feed->latest(frame, 0);
-    const JPCameraCalibration cal = cell->cameraCalibration(feed->config().id, frame.width, frame.height);
+    // In the pipeline's pictures (straightened, JPPipelineCamera): where the camera looks, and their scale.
+    JPCameraCalibration cal = cell->cameraCalibration(feed->config().id, frame.width, frame.height);
+    if (const auto straight = JPStraightPicture::of(cal, feed->config().looksUp, feed->config().showAll)) cal = straight->calibration();
     double cx = frame.width / 2.0, cy = frame.height / 2.0;
     const JPlacerMachine::Where at = m_machine.whereIs(JPSetupForm::Tool::Camera);
     if (at[0] && at[1]) cal.pixelFor(*at[0], *at[1], *at[0], *at[1], cx, cy);
@@ -278,6 +274,7 @@ void JPlacerStripAutoSetup::startPreview() {
                     picture->width = rgba.cols;
                     picture->height = rgba.rows;
                     picture->rgba.assign(rgba.data, rgba.data + rgba.total() * 4);
+                    picture->straightened = true;   // the pipeline's picture
                     JMainThreadDispatcher::instance().post([this, alive, picture] {
                         if (const auto a = alive.lock(); !a || !*a || !m_previewing) return;
                         if (JPCameraView* view = m_view) view->showPicture(*picture, "", kPreviewShownMs);

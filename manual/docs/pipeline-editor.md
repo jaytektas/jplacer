@@ -22,9 +22,23 @@ Bottom vision and fiducial settings have it too, under **Pipeline ▸ Edit...** 
 tab, a part's or a package's): see [Vision](vision.md#the-pipeline).
 
 The editor opens in a window of its own, nine tenths of the main window's size. The pipeline is run once
-as it opens, and again after every change, so the result of each stage is always the current one.
+as it opens, and again after every change, so the result of each stage is always the current one. Its
+camera is kept running while the editor is open, on screen or not.
 
-<!-- src: src/app/JPlacerPipelineEditorDialog.cpp; src/ui/JPPipelineEditor.cpp (process) -->
+<!-- src: src/app/JPlacerPipelineEditorDialog.cpp; src/ui/JPPipelineEditor.cpp (process); src/app/JPlacerPipelines.cpp (useCamera); src/ui/JPCameraPanel.cpp (keepRunningFor) -->
+
+## The picture it is given
+
+As in OpenPnP, a pipeline is given the camera's picture corrected, once the camera is calibrated: the
+lens's bending taken out and the machine square to the picture, at one scale both ways, centred on the
+point the camera looks at, as the camera's straightened view shows it (its **Crop All Invalid Pixels**
+the same). Edges straight on the board are straight in it, and what the camera does not see is black.
+What a pipeline finds is placed on the machine through that corrected picture. This is so wherever a
+pipeline runs: in a job (fiducials, bottom vision, feeders), in a test, from a script and in this editor.
+A camera not yet calibrated gives its picture as taken. A camera's own calibration pipeline is the
+exception: it measures the lens, so it is given the picture as taken.
+
+<!-- src: src/tasks/JPPipelineCamera.cpp; src/pipeline/JPStraightPicture.cpp; src/tasks/JPCellJobMachine.cpp (headCameraPipeline, cameraPipeline, align); src/tasks/JPPipelineMarkFinder.cpp -->
 
 ## The stages
 
@@ -66,7 +80,10 @@ full-range HSV, the numbers a mask stage wants) and its place in pixels; over so
 found there. For an AffineWarp stage it also gives the place in the stage's length units from the
 camera's centre.
 
-<!-- src: src/ui/JPPipelineResultsPanel.cpp (update, hover); src/pipeline/JPStageUtil.h (toRgba) -->
+When the pipeline stops (no picture from its camera, say), the text below the picture begins with
+why; nothing else interrupts you, so holding a setting's arrow keeps changing it.
+
+<!-- src: src/ui/JPPipelineResultsPanel.cpp (update, hover, refresh); src/pipeline/JPStageUtil.h (toRgba); src/ui/JPPipelineEditor.cpp (process) -->
 
 ## Closing it
 

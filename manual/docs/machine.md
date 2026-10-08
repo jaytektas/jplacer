@@ -564,9 +564,10 @@ of its bent edge shows is one of the camera's settings in [Machine Setup](machin
 from 0 *cropped* (enlarged until every part of it has picture behind it) to 100 *whole* (all the camera
 sees, with bare edges where the bending was). Each camera keeps the eye's choice for next time. The
 straightened picture is drawn by the graphics card where there is one, and by the processor where there
-is not. jplacer measures on the picture as taken, through the lens's calibration, whichever is shown.
+is not. jplacer's own finders measure on the picture as taken, through the lens's calibration, whichever
+is shown; vision pipelines are given the straightened picture (see [Pipeline Editor](pipeline-editor.md#the-picture-it-is-given)).
 
-<!-- src: src/ui/JPCameraPanel.cpp (setView, refreshStraightening); src/ui/JPCameraView.cpp (the mesh); src/camera/JPStraightener.cpp; src/app/JPlacerSettings.cpp (cameraStraightKey); src/machine/JPCameraConfig.h (showAll) -->
+<!-- src: src/ui/JPCameraPanel.cpp (setView, refreshStraightening); src/ui/JPCameraView.cpp (the mesh); src/camera/JPStraightener.cpp; src/tasks/JPPipelineCamera.cpp; src/app/JPlacerSettings.cpp (cameraStraightKey); src/machine/JPCameraConfig.h (showAll) -->
 
 With a camera on the head calibrated and the machine homed, **double-click** anywhere in its picture, or
 **Shift+click** it, and the camera moves to look there: the quickest way to put it over a fiducial or a

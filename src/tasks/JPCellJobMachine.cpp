@@ -3,6 +3,8 @@
 
 #include "JPCellJobMachine.h"
 
+#include "JPPipelineCamera.h"
+
 #include "JPTipSlotVision.h"
 
 #include <opencv2/objdetect.hpp>
@@ -649,28 +651,12 @@ bool JPCellJobMachine::headCameraPipeline(double viewX, double viewY, JPPipeline
     prepare(*c, *feed);
     if (!JPCameraLook::calibration(*c, *feed, cal, why)) return false;
     if (!c->moveToolAndWait(feed->config().mount, { viewX, viewY, std::nullopt, std::nullopt }, 1.0, why)) return false;
-    JPPipeline::Context& ctx = p.context();
-    ctx.capture = [feed](const std::string& settle, const std::string&, cv::Mat& bgr, std::string& w) {
-        JPGrayImage settled;
-        if (settle != "Skip" && !JPCameraLook::settled(*feed, settled, w)) return false;
-        JPFrame frame;
-        if (!feed->latest(frame, 0) || frame.width <= 0) {
-            w = feed->config().name + " gives no picture";
-            return false;
-        }
-        cv::Mat rgba(frame.height, frame.width, CV_8UC4, frame.rgba.data());
-        cv::cvtColor(rgba, bgr, cv::COLOR_RGBA2BGR);
+    // Its pictures straightened, as OpenPnP's pipelines get them; `cal` then theirs, to place what is found.
+    cal = JPPipelineCamera::give(p.context(), *feed, cal, [viewX, viewY](double& x, double& y) {
+        x = viewX;
+        y = viewY;
         return true;
-    };
-    ctx.pixelsPerMmX = cal.scaleX();
-    ctx.pixelsPerMmY = cal.scaleY();
-    ctx.pictureMirrored = cal.pictureMirrored();
-    ctx.pictureTurnDeg = cal.pictureTurnDeg();
-    ctx.cameraWidth = cal.width;
-    ctx.cameraHeight = cal.height;
-    ctx.locationToPixel = [cal, viewX, viewY](double mx, double my, double& px, double& py) {
-        return cal.pixelFor(mx, my, viewX, viewY, px, py);
-    };
+    });
     return true;
 }
 
@@ -695,28 +681,11 @@ bool JPCellJobMachine::cameraPipeline(const std::string& camera, JPPipeline& p, 
     };
     const double vx = m.headId.empty() ? m.offsetX : axis(m.axisX, m.offsetX);
     const double vy = m.headId.empty() ? m.offsetY : axis(m.axisY, m.offsetY);
-    JPPipeline::Context& ctx = p.context();
-    ctx.capture = [feed](const std::string& settle, const std::string&, cv::Mat& bgr, std::string& w) {
-        JPGrayImage settled;
-        if (settle != "Skip" && !JPCameraLook::settled(*feed, settled, w)) return false;
-        JPFrame frame;
-        if (!feed->latest(frame, 0) || frame.width <= 0) {
-            w = feed->config().name + " gives no picture";
-            return false;
-        }
-        cv::Mat rgba(frame.height, frame.width, CV_8UC4, frame.rgba.data());
-        cv::cvtColor(rgba, bgr, cv::COLOR_RGBA2BGR);
+    JPPipelineCamera::give(p.context(), *feed, cal, [vx, vy](double& x, double& y) {
+        x = vx;
+        y = vy;
         return true;
-    };
-    ctx.pixelsPerMmX = cal.scaleX();
-    ctx.pixelsPerMmY = cal.scaleY();
-    ctx.pictureMirrored = cal.pictureMirrored();
-    ctx.pictureTurnDeg = cal.pictureTurnDeg();
-    ctx.cameraWidth = cal.width;
-    ctx.cameraHeight = cal.height;
-    ctx.locationToPixel = [cal, vx, vy](double mx, double my, double& px, double& py) {
-        return cal.pixelFor(mx, my, vx, vy, px, py);
-    };
+    });
     return p.process(why);
 }
 
@@ -727,6 +696,7 @@ void JPCellJobMachine::showOn(const std::string& camera, const cv::Mat& bgr, con
     shown.width = rgba.cols;
     shown.height = rgba.rows;
     shown.rgba.assign(rgba.data, rgba.data + rgba.total() * 4);
+    shown.straightened = true;   // a pipeline's picture (JPPipelineCamera)
     m_onMain([&] {
         m_host.showPicture(m_host.cameraFeed(camera), shown, text, ms);
     });
@@ -740,6 +710,7 @@ void JPCellJobMachine::showWorking(JPPipeline& p, const JPCameraFeed* feed, cons
     shown.width = rgba.cols;
     shown.height = rgba.rows;
     shown.rgba.assign(rgba.data, rgba.data + rgba.total() * 4);
+    shown.straightened = true;   // a pipeline's picture (JPPipelineCamera)
     m_onMain([&] {
         m_host.showPicture(feed, shown, text, ms);
     });
@@ -910,6 +881,7 @@ void JPCellJobMachine::showOnCamera(const cv::Mat& bgr, int ms) {
     shown.width = rgba.cols;
     shown.height = rgba.rows;
     shown.rgba.assign(rgba.data, rgba.data + rgba.total() * 4);
+    shown.straightened = true;   // a pipeline's picture (JPPipelineCamera)
     m_onMain([&] {
         m_host.showPicture(m_host.headCameraFeed(), shown, "", ms);
     });
@@ -1115,33 +1087,18 @@ bool JPCellJobMachine::alignPart(const std::string& nozzleId, const AlignRequest
     // less its tip's camera offset); what is seen measured from where it is set.
     double cameraDx = 0, cameraDy = 0;
     c->cameraOffsetFor(nozzleId, cameraDx, cameraDy);
+    JPCameraCalibration pipelineCal = cal;   // the pipeline's pictures' (straightened), given it below
     double nx = camX - cameraDx, ny = camY - cameraDy, nr = rq.imageAngle;
     // By its pipeline: given the camera looking up, prepared for the part (as OpenPnP's preparePipeline).
     std::optional<JPNozzleTipConfig> tip;
     std::shared_ptr<JPVisionComposite> composite;
     if (rq.pipeline) {
-        JPPipeline::Context& ctx = rq.pipeline->context();
-        ctx.capture = [feed](const std::string& settle, const std::string&, cv::Mat& bgr, std::string& w) {
-            JPGrayImage settled;
-            if (settle != "Skip" && !JPCameraLook::settled(*feed, settled, w)) return false;
-            JPFrame frame;
-            if (!feed->latest(frame, 0) || frame.width <= 0) {
-                w = feed->config().name + " gives no picture";
-                return false;
-            }
-            cv::Mat rgba(frame.height, frame.width, CV_8UC4, frame.rgba.data());
-            cv::cvtColor(rgba, bgr, cv::COLOR_RGBA2BGR);
+        // Its pictures straightened, as OpenPnP's pipelines get them; what it finds placed through pipelineCal.
+        pipelineCal = JPPipelineCamera::give(rq.pipeline->context(), *feed, cal, [camX, camY](double& x, double& y) {
+            x = camX;
+            y = camY;
             return true;
-        };
-        ctx.pixelsPerMmX = cal.scaleX();
-        ctx.pixelsPerMmY = cal.scaleY();
-        ctx.pictureMirrored = cal.pictureMirrored();
-        ctx.pictureTurnDeg = cal.pictureTurnDeg();
-        ctx.cameraWidth = cal.width;
-        ctx.cameraHeight = cal.height;
-        ctx.locationToPixel = [cal, camX, camY](double mx, double my, double& px, double& py) {
-            return cal.pixelFor(mx, my, camX, camY, px, py);
-        };
+        });
         bool prepared = false;
         m_onMain([&] {
             const JPVisionSettings* v = m_config.visionSettings(rq.settingsId);
@@ -1231,7 +1188,7 @@ bool JPCellJobMachine::alignPart(const std::string& nozzleId, const AlignRequest
         // A part seen in several shots (OpenPnP's vision compositing).
         if (composited) {
             if (!alignComposite(*c, nozzle.mount, *rq.pipeline, *composite, tip ? &*tip : nullptr, feed->config().roamingRadiusMm,
-                                cal, camX, camY, z, nx, ny, nr, expected, rq.partId, seen, w))
+                                pipelineCal, camX, camY, z, nx, ny, nr, expected, rq.partId, seen, w))
                 return false;
             JLOGC(JPlacerLog::kJob, JLogLevel::Info) << "seen on " << nozzle.name << " in " << composite->shots().size() << " shots ("
                                                      << JPVisionComposite::solutionName(composite->solution()) << "): "
@@ -1247,7 +1204,7 @@ bool JPCellJobMachine::alignPart(const std::string& nozzleId, const AlignRequest
         JPGrayImage img;
         if (!JPCameraLook::settled(*feed, img, w)) return false;
         if (rq.pipeline) {
-            if (!JPBottomVision::findByPipeline(*rq.pipeline, rq.partId, cal, camX, camY, nx, ny, expected,
+            if (!JPBottomVision::findByPipeline(*rq.pipeline, rq.partId, pipelineCal, camX, camY, nx, ny, expected,
                                                 settings.fullRotation ? 180 : JPBottomVision::kAdjustRange, seen, w))
                 return false;
             showWorking(*rq.pipeline, feed, rq.partId, kShownPipelineMs);

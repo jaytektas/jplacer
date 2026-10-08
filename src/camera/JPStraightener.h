@@ -14,8 +14,9 @@ inline namespace jf {
 // out, and the machine square to the picture at one scale both ways (as a
 // camera looking that way and mounted straight would see it), centred on the
 // point the camera looks at. On it the machine is drawn with plain geometry: a
-// footprint is a scaled, moved copy of itself. jplacer still measures on the
-// picture as taken, through the lens model; this is what a person sees.
+// footprint is a scaled, moved copy of itself. Vision pipelines are given it
+// too (JPStraightPicture); jplacer's own finders measure on the picture as
+// taken, through the lens model.
 //
 // Straightened, a barrel picture no longer fills a rectangle. `showAll`
 // chooses how much is shown: 0 enlarges it until every pixel has picture
@@ -45,6 +46,10 @@ public:
     // A pixel of the picture as taken to where it is in the straightened one,
     // and back. False where there is none.
     bool toStraight(double rawX, double rawY, double& x, double& y) const;
+    // Straightened pixels per mm of the camera's move, along the picture's x and y (signed: looking down, x
+    // runs against the machine's X).
+    double scaleX() const { return m_scaleX; }
+    double scaleY() const { return m_scaleY; }
     bool toRaw(double x, double y, double& rawX, double& rawY) const;
 
 private:

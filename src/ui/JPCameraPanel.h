@@ -85,9 +85,10 @@ public:
     // The machine powered on (connected) or off: the camera is opened only while it is on, and closed
     // and let go of (another program may use it) once it is off.
     void setPowered(bool on);
-    // Feeding switcher camera `cameraId` (JPSwitcherSource) its pictures: it
-    // runs even off screen while any switcher camera on it does.
-    void setFeeding(const std::string& cameraId, bool feeding);
+    // Kept running, shown or not, for `who` until let go of (kept false): a
+    // switcher camera on it (JPSwitcherSource, by its id) while that one runs,
+    // a pipeline editor while it is open.
+    void keepRunningFor(const std::string& who, bool kept);
     // Running for a task that needs its pictures, shown or not, for `ms` from
     // now (each look renews it), as OpenPnP's cameras capture whether shown or not.
     void keepRunning(int ms);
@@ -146,7 +147,7 @@ private:
     CalibrationFor                        m_calibrationFor;
     bool                                  m_busy = false;
     bool                                  m_powered = false;
-    std::set<std::string>                 m_feeding;
+    std::set<std::string>                 m_keptFor;   // keepRunningFor
     bool                                  m_straight = true;   // straightened unless asked otherwise
     std::string                           m_capturesDir;
     JContainer*                           m_instructionsHolder = nullptr;

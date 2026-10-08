@@ -177,7 +177,7 @@ void JPCameraPanel::start() {
 }
 
 void JPCameraPanel::stopIfHidden() {
-    if (m_busy || !m_feeding.empty() || !m_feed.isRunning()) return;
+    if (m_busy || !m_keptFor.empty() || !m_feed.isRunning()) return;
     if (std::chrono::steady_clock::now() < m_keepUntil) return;
     // Hidden: asked to draw a while ago and not drawn since (behind another
     // tab, or closed). Drawn since the last asking: asked again. However long
@@ -215,10 +215,10 @@ void JPCameraPanel::refreshStraightening() {
                                                              : JPCameraCalibration{};
     m_view->setCalibration(cal);
     std::shared_ptr<const JPStraightener> s;
-    if (m_straight && mode)
+    if (mode)
         if (auto made = JPStraightener::make(cal, cam.looksUp, cam.showAll))
             s = std::make_shared<const JPStraightener>(std::move(*made));
-    m_view->setStraightener(s);
+    m_view->setStraightener(s, m_straight);
     if (m_straight && mode && !s)
         setNote(cam.name + " is not calibrated for its " + std::to_string(mode->width) + "\xC3\x97"
                 + std::to_string(mode->height) + " pictures: shown as taken");
@@ -259,10 +259,10 @@ void JPCameraPanel::keepRunning(int ms) {
     if (!m_feed.isRunning()) start();
 }
 
-void JPCameraPanel::setFeeding(const std::string& cameraId, bool feeding) {
-    if (feeding) m_feeding.insert(cameraId);
-    else m_feeding.erase(cameraId);
-    if (feeding && !m_feed.isRunning()) start();
+void JPCameraPanel::keepRunningFor(const std::string& who, bool kept) {
+    if (kept) m_keptFor.insert(who);
+    else m_keptFor.erase(who);
+    if (kept && !m_feed.isRunning()) start();
 }
 
 std::vector<JWidget*> JPCameraPanel::tabTools() const {

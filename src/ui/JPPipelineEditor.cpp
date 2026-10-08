@@ -44,9 +44,10 @@ JPPipelineEditor::JPPipelineEditor(JSceneGraph& graph, JGpuHal* hal, JPPipeline&
 JPPipelineEditor::~JPPipelineEditor() = default;
 
 void JPPipelineEditor::process() {
+    // Run on every edit (a spin box held runs it many times): why it stopped is said with its results, not in
+    // a box of its own each time.
     std::string why;
-    if (!m_pipeline.process(why) && showError) showError("Error", why);
-    m_results->refresh();
+    m_results->refresh(m_pipeline.process(why) ? std::string() : why);
 }
 
 // As kept, not as it ran: what its parameter stages wrote into their stages is not an edit.

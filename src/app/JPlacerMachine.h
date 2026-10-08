@@ -259,6 +259,10 @@ public:
     void refreshSetupForm();
     // The view of a camera's feed, shown; null when it has none.
     JPCameraView* cameraViewOf(const JPCameraFeed* feed);
+    // A camera kept running, shown or not, for `who` until let go of (JPCameraPanel::keepRunningFor).
+    void keepCameraRunning(const std::string& cameraId, const std::string& who, bool kept);
+    // While it is held the machine is there (for what is posted to the main thread to be done later).
+    std::weak_ptr<bool> alive() const { return m_alive; }
     // For a job (JPCellJobMachine): the open cell, the head camera's
     // pictures, why a tip change cannot be made (empty: it can), and the tip
     // now on a nozzle kept (a step in Machine Setup; nothing moves).

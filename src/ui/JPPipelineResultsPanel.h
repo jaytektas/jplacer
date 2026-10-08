@@ -27,8 +27,9 @@ public:
     JPPipelineResultsPanel(JSceneGraph& graph, JGpuHal* hal, JPPipeline& pipeline);
     ~JPPipelineResultsPanel() override;
 
-    // After the pipeline ran: the stage shown kept when it is still there.
-    void refresh();
+    // After the pipeline ran: the stage shown kept when it is still there; `stopped`, why it stopped (empty: it
+    // ran to its end), said above what the stage shown found.
+    void refresh(const std::string& stopped);
     // The stage chosen in the stages (an index), or -1.
     void setSelectedStage(int index);
 
@@ -41,6 +42,7 @@ private:
     JPPipeline&                 m_pipeline;
     int                         m_selected = -1, m_pinned = -1;
     bool                        m_trueColors = true;
+    std::string                 m_stopped;   // refresh
     JLabel*                     m_name = nullptr;
     JPIconButton*               m_first = nullptr;
     JPIconButton*               m_previous = nullptr;

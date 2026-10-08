@@ -145,6 +145,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | White balance (balance, gamma, Overall, Brightest, Mapped Roughly / Finely, curve plot) | done | OpenPnP's sliders (percent) and tips, the graph live; imported from OpenPnP too |
 | Position (head offsets, fixed location, safe Z, roaming radius) | done | |
 | Lens calibration | own way | fitted by Calibrate |
+| Pipelines given the corrected picture (undistorted, rectified, Crop All Invalid Pixels) | done | jplacer's straightened picture, the same one its straightened view shows; what is found placed through it; the calibration pipeline sees the picture as taken |
 | Image transforms (rotate, offset, flip, crop, scale, de-interlace) | done | all of OpenPnP's, in its order, before calibration (calibrate after changing them); imported unless OpenPnP's advanced calibration overrides them |
 | Advanced calibration: pipeline (DetectCircularSymmetry on OpenCV) | done | OpenPnP's default, imported, editable from the page (Edit / Reset Pipeline; OpenPnP has no button for it); the find refined to a fraction of a pixel |
 | Advanced calibration: settings | done | grid, reach, outliers, worst fit, two heights; General Settings (deinterlace, cropped width/height, Default Working Plane Z, the scale taken there); detection diameter: the mark's size is measured from its first find (and checked against the head's mark), never asked for |

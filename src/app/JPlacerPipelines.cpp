@@ -12,11 +12,12 @@
 #include "pipeline/JPPipelineParameter.h"
 #include "pipeline/JPStageUtil.h"
 #include "setup/JPVisionPipelines.h"
-#include "tasks/JPCameraLook.h"
+#include "tasks/JPPipelineCamera.h"
 #include "tasks/JPVisionPipelinePrep.h"
 
 #include <j/core/Dialog.h>
 #include <j/core/FrameTimer.h>
+#include <j/core/MainThreadDispatcher.h>
 
 #include <opencv2/imgproc.hpp>
 
@@ -32,40 +33,41 @@ void JPlacerPipelines::useCamera(JPPipeline& pipeline, JPCameraFeed* feed, const
     JPPipeline::Context& ctx = pipeline.context();
     ctx.configurationDirectory = directory;
     if (!feed) return;
-    // The camera's picture, settled first unless told to skip it.
-    ctx.capture = [feed](const std::string& settle, const std::string&, cv::Mat& bgr, std::string& why) {
-        if (settle != "Skip") {
-            JPGrayImage ignored;
-            if (!JPCameraLook::settled(*feed, ignored, why)) return false;
-        }
-        JPFrame frame;
-        if (!feed->latest(frame, 0) || frame.width <= 0) {
-            why = feed->config().name + " gives no picture";
-            return false;
-        }
-        cv::Mat rgba(frame.height, frame.width, CV_8UC4, frame.rgba.data());
-        cv::cvtColor(rgba, bgr, cv::COLOR_RGBA2BGR);
-        return true;
-    };
+    // Its calibration for the pictures it takes, when it has one.
+    JPCameraCalibration cal;
     JPFrame frame;
-    if (!feed->latest(frame, 0) || frame.width <= 0) return;
-    ctx.cameraWidth = frame.width;
-    ctx.cameraHeight = frame.height;
-    // Its scale and places, when it is calibrated for these pictures.
-    const JPCell* cell = m_machine.cell();
-    if (!cell) return;
-    const JPCameraCalibration cal = cell->cameraCalibration(feed->config().id, frame.width, frame.height);
-    if (!cal.valid) return;
-    ctx.pixelsPerMmX = cal.scaleX();
-    ctx.pixelsPerMmY = cal.scaleY();
-    ctx.pictureMirrored = cal.pictureMirrored();
-    ctx.pictureTurnDeg = cal.pictureTurnDeg();
-    if (feed != m_machine.headCameraFeed()) return;
-    ctx.locationToPixel = [this, cal](double x, double y, double& px, double& py) {
-        const JPlacerMachine::Where at = m_machine.whereIs(JPSetupForm::Tool::Camera);
-        if (!at[0] || !at[1]) return false;
-        return cal.pixelFor(x, y, *at[0], *at[1], px, py);
-    };
+    const bool taking = feed->latest(frame, 0) && frame.width > 0;
+    if (const JPCell* cell = m_machine.cell(); cell && taking)
+        cal = cell->cameraCalibration(feed->config().id, frame.width, frame.height);
+    // Its pictures, straightened where it is calibrated, as a job's pipelines get them; places in them only for the
+    // head's camera, where the head is.
+    JPPipelineCamera::View view;
+    if (feed == m_machine.headCameraFeed())
+        view = [this](double& x, double& y) {
+            const JPlacerMachine::Where at = m_machine.whereIs(JPSetupForm::Tool::Camera);
+            if (!at[0] || !at[1]) return false;
+            x = *at[0];
+            y = *at[1];
+            return true;
+        };
+    JPPipelineCamera::give(ctx, *feed, cal, view);
+    // The camera kept running while the pipeline can take its picture (an editor open, a preview going): run on
+    // the main thread, its picture cannot wait for the camera to be drawn back on screen. Let go of when the
+    // pipeline (and every copy of it) is gone, on the main thread.
+    static int held = 0;
+    const std::string who = "pipeline " + std::to_string(++held), cameraId = feed->config().id;
+    m_machine.keepCameraRunning(cameraId, who, true);
+    std::shared_ptr<void> hold(nullptr, [machine = &m_machine, alive = m_machine.alive(), cameraId, who](void*) {
+        JMainThreadDispatcher::instance().post([machine, alive, cameraId, who] {
+            if (const auto a = alive.lock(); a && *a) machine->keepCameraRunning(cameraId, who, false);
+        });
+    });
+    ctx.capture = [take = std::move(ctx.capture), hold](const std::string& settle, const std::string& light, cv::Mat& bgr,
+                                                         std::string& why) { return take(settle, light, bgr, why); };
+    if (!cal.valid && taking) {   // not calibrated: its size still known
+        ctx.cameraWidth = frame.width;
+        ctx.cameraHeight = frame.height;
+    }
 }
 
 void JPlacerPipelines::edit(const std::string& title, std::shared_ptr<JPPipeline> pipeline, std::function<void(const JPPipeline&)> keep,
@@ -174,6 +176,7 @@ void JPlacerPipelines::previewVision(JPConfiguration& config, const std::string&
     if (!param->effectStage().empty())
         if (const JPPipeline::Result* r = p->result(param->effectStage())) pictures.push_back(frameOf(r->image, r->colorSpace));
     if (param->previewResult()) pictures.push_back(frameOf(p->workingImage(), p->workingColorSpace()));
+    for (JPFrame& f : pictures) f.straightened = true;   // the pipeline's pictures (JPPipelineCamera)
     JPCameraView* view = m_machine.cameraViewOf(feed);
     if (!view || pictures.empty()) return;
     const JPPipelineValue* assigned = p->property(parameter);

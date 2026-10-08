@@ -51,10 +51,13 @@ public:
     // OpenPnP's showFilteredImage: `picture` (as the camera's pixels) shown
     // in place of the live picture for `ms`, `text` over it.
     void showPicture(const JPFrame& picture, const std::string& text, int ms);
-    // Show the picture straightened (JPStraightener, drawn as its mesh), or
-    // as taken (null). Clicks stay in the picture-as-taken's pixels.
-    void setStraightener(std::shared_ptr<const JPStraightener> straightener) {
+    // The camera's straightener (null: not calibrated), and whether its live
+    // picture is shown straightened (drawn as its mesh) or as taken. A picture
+    // shown already straightened (JPFrame::straightened) is placed through it
+    // either way. Clicks stay in the picture-as-taken's pixels.
+    void setStraightener(std::shared_ptr<const JPStraightener> straightener, bool shownStraight) {
         m_straight = std::move(straightener);
+        m_straightShown = shownStraight;
         invalidate();
     }
 
@@ -188,6 +191,10 @@ private:
     std::string                        m_prompt;
     std::string                        m_message;
     std::shared_ptr<const JPStraightener>    m_straight;
+    bool                                     m_straightShown = false;
+    // The straightener the picture on screen is placed through (null: as taken): the live picture shown
+    // straightened, or a picture shown already straightened.
+    const JPStraightener* placing() const;
     // Where a pixel of the picture as taken is shown: straightened when straightening.
     bool shown(double rawX, double rawY, double& x, double& y) const;
     // The pixel of the picture as taken at a point on screen; false off the picture.

@@ -472,8 +472,7 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     // Straightened, the picture is drawn through the straightener's mesh: each
     // grid cell from where it is in the picture as taken (by the GPU where
     // there is one); cells the camera does not see are left out, bare.
-    const bool straight = m_straight && m_straight->width() == m_w && m_straight->height() == m_h;
-    if (straight) {
+    if (placing() && !(m_showingStill && m_still.straightened)) {
         const int cols = m_straight->columns(), rows = m_straight->rows();
         const auto& g = m_straight->grid();
         std::vector<JPrimitiveBuffer::JImageVertex> tris;
@@ -789,9 +788,9 @@ bool JPCameraView::pixelAt(float x, float y, double& px, double& py) const {
     py = (y - m_picY) / m_picScale;
     if (px < 0 || py < 0 || px >= m_w || py >= m_h) return false;
     // Straightened, the pixel clicked is back to the picture as taken.
-    if (m_straight && m_straight->width() == m_w && m_straight->height() == m_h) {
+    if (const JPStraightener* s = placing()) {
         double rx, ry;
-        if (!m_straight->toRaw(px, py, rx, ry)) return false;
+        if (!s->toRaw(px, py, rx, ry)) return false;
         px = rx;
         py = ry;
     }
@@ -804,11 +803,16 @@ void JPCameraView::lookAt(float x, float y) {
 }
 
 bool JPCameraView::shown(double rawX, double rawY, double& x, double& y) const {
-    if (m_straight && m_straight->width() == m_w && m_straight->height() == m_h)
-        return m_straight->toStraight(rawX, rawY, x, y) && x >= 0 && y >= 0 && x < m_w && y < m_h;
+    if (const JPStraightener* s = placing())
+        return s->toStraight(rawX, rawY, x, y) && x >= 0 && y >= 0 && x < m_w && y < m_h;
     x = rawX;
     y = rawY;
     return true;
+}
+
+const JPStraightener* JPCameraView::placing() const {
+    if (!m_straight || m_straight->width() != m_w || m_straight->height() != m_h) return nullptr;
+    return m_straightShown || (m_showingStill && m_still.straightened) ? m_straight.get() : nullptr;
 }
 
 } // inline namespace jf
