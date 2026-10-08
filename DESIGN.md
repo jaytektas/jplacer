@@ -243,9 +243,21 @@ names exactly the placements and parts the revision left to do.
 
 The board file keeps its **revisions**: each with its label (rev A, rev B,
 from the user or the file name), its provenance and its placements and
-parts, so the old one can still be opened, compared or built. A job's copy
-names the revision it was made from, and offers the upgrade when the board
-file has a newer one.
+parts, complete, so any of them can be opened, compared or built.
+
+**Switching revisions.** A job (and the board view) has a revision chooser:
+the board in the job is any of its revisions, newer or older, switched
+either way at any time but during a run. Each revision keeps its own
+decisions, so going back to rev A gives rev A exactly as it was left, and
+forward again rev B as it was. A placement has an identity that lasts
+across revisions (given when the upgrade pairs it), so work done in one
+revision is offered to the others where it still holds: a rotation
+corrected or a part matched on rev B, for a placement unchanged since rev A,
+is applied to rev A too (shown, and undoable); where the placement differs
+it stays with its own revision. Switching re-plans the job: groups whose
+parts are the same keep their order and feeders, and the job's data check
+names what the revision chosen has left to do. A run records the revision
+it built, so its history and the parts it used stay true after a switch.
 
 ### Ready to run
 
