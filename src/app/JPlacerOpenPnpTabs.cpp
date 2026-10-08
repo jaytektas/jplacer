@@ -173,7 +173,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     // The chosen placement's footprint on the head camera, as it is placed (the Job tab's).
     // With tables linked the placement's package is chosen first, the same footprint.
     m_jobPanel->placements().showFootprint = [this](const JPFootprint* f) {
-        showFootprint(&m_jobPanel->placements(), f ? JPFootprintOverlay::of(*f, [this] { return m_machine.selectedToolRotation(); }) : nullptr);
+        showFootprint(&m_jobPanel->placements(), f);
     };
     m_jobPanel->placements().model().openPartPicker = [this](JPBoard& board, const std::string& id,
                                                              std::function<void(const JPPartChoice&)> chosen) {
@@ -321,7 +321,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_packages->openMenu = JPlacerMenuOpener::from(m_window, m_packages.get());
     m_packages->nozzleTips = [this] { return m_machine.nozzleTips(); };
     m_packages->onShowFootprint = [this](const JPFootprint* f) {
-        showFootprint(m_packages.get(), f ? JPFootprintOverlay::of(*f, [this] { return m_machine.selectedToolRotation(); }) : nullptr);
+        showFootprint(m_packages.get(), f);
     };
     m_packages->onChanged = [this] { libraryChanged(); };
     m_packages->machineDefaults = [this] { return machineVisionDefaults(); };
@@ -1005,7 +1005,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_jobRun->onLookingFor = [this](const std::string& partId) {
         const JPPart* part = m_job.configuration().part(partId);
         const JPPackage* k = part ? m_job.configuration().package(part->packageId) : nullptr;
-        if (k) showFootprint(m_jobRun.get(), JPFootprintOverlay::of(k->footprint, [this] { return m_machine.selectedToolRotation(); }));
+        if (k) showFootprint(m_jobRun.get(), &k->footprint);
     };
     m_jobRun->onPlaced = [this] {
         m_jobPanel->placements().refresh();
@@ -1077,10 +1077,17 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_libraryHistory.start();
 }
 
-void JPlacerOpenPnpTabs::showFootprint(const void* from, JPCameraView::Overlay overlay) {
-    if (!overlay && m_footprintFrom != from) return;
-    m_footprintFrom = overlay ? from : nullptr;
-    m_machine.setCameraOverlay(kFootprintOverlay, std::move(overlay));
+void JPlacerOpenPnpTabs::showFootprint(const void* from, const JPFootprint* footprint) {
+    if (!footprint && m_footprintFrom != from) return;
+    m_footprintFrom = footprint ? from : nullptr;
+    if (!footprint) {
+        m_machine.setCameraOverlay(kFootprintOverlay, nullptr);
+        return;
+    }
+    // Each camera's turned as it is: a camera turned to a placement, its footprint with it.
+    m_machine.setCameraOverlay(kFootprintOverlay, [this, f = *footprint](const std::string& cameraId) {
+        return JPFootprintOverlay::of(f, [this, cameraId] { return m_machine.reticleRotation(cameraId); });
+    });
 }
 
 JPlacerOpenPnpTabs::~JPlacerOpenPnpTabs() {

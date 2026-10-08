@@ -86,9 +86,10 @@ private:
     void boardMoved(const JPBoard& board, const std::string& from);
     void confirmSaveAll(std::vector<std::string> files, std::function<void()> then);
     void changed();
-    // The one footprint on the cameras, as OpenPnP's: the last chosen (a package, a placement), from `from`;
-    // null takes it off only when it is `from`'s (one choosing nothing leaves another's showing).
-    void showFootprint(const void* from, JPCameraView::Overlay overlay);
+    // The one footprint on the cameras, as OpenPnP's: the last chosen (a package, a placement, a fiducial
+    // looked for), from `from`, each camera's turned by JPlacerMachine::reticleRotation; null takes it off
+    // only when it is `from`'s (one choosing nothing leaves another's showing).
+    void showFootprint(const void* from, const JPFootprint* footprint);
     // A change to the library (a part, package, footprint or manufacturer): a step to undo, and saved.
     void libraryChanged();
     // The machine's default vision settings (bottom vision's, the fiducial locator's).

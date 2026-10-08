@@ -268,7 +268,7 @@ void JPlacerMachine::buildCameras() {
             JSettings::instance().set(JPlacerSettings::cameraReticleKey(id), r.toText());
             JPlacerSettings::save();
         };
-        for (const auto& [key, overlay] : m_overlays) d.panel->setOverlay(key, overlay);
+        for (const auto& [key, overlay] : m_overlays) d.panel->setOverlay(key, overlay(c.id));
         // How much the wheel zooms, kept from last time.
         {
             using Z = JPCameraView::ZoomSensitivity;
@@ -658,17 +658,20 @@ void JPlacerMachine::homeNozzle(const std::string& nozzleId) {
     m_cell->homeNozzle(nozzleId, 1.0);   // at the machine's speed
 }
 
-double JPlacerMachine::selectedToolRotation() const {
-    if (!m_jog || !m_cell || !m_cell->isConnected()) return 0;
-    for (const auto& [name, value] : m_jog->where())
-        if (name == "C") return value;
+double JPlacerMachine::reticleRotation(const std::string& cameraId) const {
+    if (!m_cell || !m_cell->isConnected()) return 0;
+    for (const JPCameraConfig& cam : m_cell->config().cameras)
+        if (cam.id == cameraId && !cam.mount.axisRotation.empty()) return whereIsMount(&cam.mount)[3].value_or(0);
+    if (m_jog)
+        for (const auto& [name, value] : m_jog->where())
+            if (name == "C") return value;
     return 0;
 }
 
-void JPlacerMachine::setCameraOverlay(const std::string& key, JPCameraView::Overlay overlay) {
+void JPlacerMachine::setCameraOverlay(const std::string& key, OverlayFor overlay) {
     if (overlay) m_overlays[key] = overlay;
     else m_overlays.erase(key);
-    for (CameraDock& c : m_cameras) c.panel->setOverlay(key, overlay);
+    for (CameraDock& c : m_cameras) c.panel->setOverlay(key, overlay ? overlay(c.panel->camera().id) : nullptr);
 }
 
 std::vector<std::pair<std::string, std::string>> JPlacerMachine::nozzleTips() const {

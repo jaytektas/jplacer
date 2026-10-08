@@ -115,12 +115,14 @@ public:
     // A Machine Setup button pressed (`action`, the form's) on the node at `path`: Visual Test, Visual Home,
     // a camera's Start Calibration, a nozzle tip's Calibrate... (also from automation).
     void setupAction(const std::string& path, const std::string& action);
-    // Drawn over every camera's picture (and the cameras made later) until
-    // set again by the same key; null takes it away.
-    void setCameraOverlay(const std::string& key, JPCameraView::Overlay overlay);
-    // The tool chosen in Jog's rotation now (its C, as the DRO reads it; 0 without one): what OpenPnP's
-    // CameraView turns its reticles by.
-    double selectedToolRotation() const;
+    // Drawn over every camera's picture (and the cameras made later), each camera's made for it (`overlay`
+    // given its id), until set again by the same key; null takes it away.
+    using OverlayFor = std::function<JPCameraView::Overlay(const std::string& cameraId)>;
+    void setCameraOverlay(const std::string& key, OverlayFor overlay);
+    // What a reticle on camera `cameraId`'s picture turns by now: a camera with a rotation axis (a head's,
+    // turned to a placement as it is moved there), that axis; one without (looking up at the nozzles),
+    // the tool chosen in Jog (its C, as the DRO reads it), as OpenPnP's CameraView; 0 with neither.
+    double reticleRotation(const std::string& cameraId) const;
     // The open cell's nozzle tips, id and name; none without a cell.
     std::vector<std::pair<std::string, std::string>> nozzleTips() const;
 
@@ -398,7 +400,7 @@ private:
     // Between dropPanels and buildCameras of a remaking (Keep::Setup): each camera's dock, by camera id.
     std::map<std::string, std::unique_ptr<JDockWidget>> m_keptCameraDocks;
     std::map<std::string, JJson>                        m_keptDeviceControls;   // and each feed's deviceControls
-    std::map<std::string, JPCameraView::Overlay> m_overlays;   // drawn on every camera (setCameraOverlay)
+    std::map<std::string, OverlayFor> m_overlays;   // drawn on every camera (setCameraOverlay)
     std::vector<CameraDock>             m_cameras;   // the window's centre
     JPlacerEstimateZ                    m_estimateZ;   // on one of them, while under way
     std::unique_ptr<JPlacerCameraTasks> m_cameraTasks;   // its Calibrate and Visual Test

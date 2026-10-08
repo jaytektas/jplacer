@@ -105,10 +105,10 @@ placement on or off.
 The chosen placement's footprint (a fiducial's too) is drawn over the cameras' pictures: its part's
 package's footprint, its pads and pin 1's mark, not its body, as OpenPnP's package reticle. The cameras
 show one footprint, the last chosen, here or on the Packages tab (or chosen there by **View ▸ Selections
-in Tables ▸ Linked**); it stays when another tab is shown. As OpenPnP's, it is turned by the rotation of
-the tool chosen in Jog, as that is now: take the camera to the placement (**Move Camera To Placement
-Location**), which turns the camera's rotation axis to the placement's rotation, and look: the footprint
-should lie on the board's pads, turned as the part will be placed.
+in Tables ▸ Linked**); it stays when another tab is shown. On a camera with a rotation axis it is turned
+by the camera's rotation, as that is now: take the camera to the placement (**Move Camera To Placement
+Location**), which turns the camera to the placement's rotation whatever tool Jog has, and look: the
+footprint should lie on the board's pads, turned as the part will be placed.
 
 - **Turn 90°** turns the chosen placement a quarter counter-clockwise: a correction to the CAD file's
   rotation (which the placement keeps apart, as it came). Take the camera to it again to see it turned.
@@ -123,7 +123,7 @@ Importing from the CPL and BOM turns a placement by its footprint's **Zero Rotat
 [Packages](packages.md#the-packages-tabs)), where the library's footprint for its part has one: CAD tools
 disagree about which way 0° faces. The CAD file's rotation is kept with it.
 
-<!-- src: src/ui/JPJobPlacementsPanel.cpp (footprintOf, showChosenFootprint, turnChosen, verifyChosen); src/ui/JPFootprintOverlay.cpp; src/app/JPlacerMachine.cpp (selectedToolRotation, moveToolTo); src/ui/JPPlacementsTableModel.cpp (kVerified, setText, applyPart); src/model/JPPlacement.h (cadRotation, Verified); src/import/JPCplBomImport.cpp (build); src/model/JPBoardImporter.cpp (read); src/app/JPlacerOpenPnpTabs.cpp (showFootprint) -->
+<!-- src: src/ui/JPJobPlacementsPanel.cpp (footprintOf, showChosenFootprint, turnChosen, verifyChosen); src/ui/JPFootprintOverlay.cpp; src/app/JPlacerMachine.cpp (reticleRotation, moveToolTo); src/ui/JPPlacementsTableModel.cpp (kVerified, setText, applyPart); src/model/JPPlacement.h (cadRotation, Verified); src/import/JPCplBomImport.cpp (build); src/model/JPBoardImporter.cpp (read); src/app/JPlacerOpenPnpTabs.cpp (showFootprint) -->
 
 The status line shows the placements placed: of the whole job, and of the board chosen.
 

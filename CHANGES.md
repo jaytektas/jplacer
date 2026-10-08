@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- The footprint on a camera with a rotation axis turns with the camera, whatever tool Jog has: a camera
+  taken to a placement shows it turned as the part will be placed. On the camera looking up it follows
+  the nozzle chosen in Jog.
+
 ## 0.1.27
 
 - A fiducial check (and a job's) draws each fiducial's footprint over the cameras as it looks for it.
