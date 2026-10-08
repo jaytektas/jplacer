@@ -190,8 +190,8 @@ public:
         double parallaxAngle = 0;
         // OpenPnP's averaging: the passes after the first averaged.
         bool   averaging = false;
-        // Found by this OpenPnP pipeline (prepared for the fiducial's part,
-        // `partId`), else by jplacer's finder.
+        // Found by this OpenPnP pipeline (prepared for the fiducial's part), else by jplacer's finder;
+        // `partId`, the fiducial's part, also tunes the camera for it (its Auto-Tune for each part?).
         std::shared_ptr<JPPipeline> pipeline;
         std::string                 partId;
     };

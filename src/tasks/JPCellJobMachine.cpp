@@ -595,7 +595,7 @@ bool JPCellJobMachine::locateFiducial(const JPLocation& nominal, double diameter
     const double nx = start.x(), ny = start.y();
     auto once = [&](double vx, double vy, double search, double& fx, double& fy) {
         return lookAt.pipeline ? lookByPipeline(vx, vy, nx, ny, lookAt, fx, fy, why)
-                               : look(vx, vy, x, y, diameterMm, search, fx, fy, why);
+                               : look(vx, vy, x, y, diameterMm, search, fx, fy, why, lookAt.partId);
     };
     // OpenPnP's averaging: every pass after the first kept, then averaged.
     double sumX = 0, sumY = 0;
@@ -921,6 +921,9 @@ bool JPCellJobMachine::lookByPipeline(double viewX, double viewY, double x, doub
     JPCameraCalibration cal;
     JPCameraFeed* feed = nullptr;
     if (!headCameraPipeline(viewX, viewY, p, cal, feed, why)) return false;
+    // The camera's Auto-Tune for each part?, as bottom vision does: a fiducial is a part too (tuned on its first
+    // look, the same part's tune put back after).
+    if (feed->config().autoTuneEachPart && !lookAt.partId.empty() && !tuneForPart(*feed, lookAt.partId, why)) return false;
     // As OpenPnP: the fiducial's place told to the stages that look round it.
     p.setProperty("fiducial.center", JPPipelineValue { JPPipelineValue::LocationMm { x, y } });
     p.setProperty("MaskCircle.center", JPPipelineValue { JPPipelineValue::LocationMm { x, y } });
@@ -998,7 +1001,7 @@ void JPCellJobMachine::prepare(JPCell& cell, JPCameraFeed& feed) {
 }
 
 bool JPCellJobMachine::look(double viewX, double viewY, double x, double y, double diameterMm, double searchMm,
-                             double& foundX, double& foundY, std::string& why) {
+                             double& foundX, double& foundY, std::string& why, const std::string& partId) {
     JPCell* c = cell(why);
     if (!c) return false;
     JPCameraFeed* feed = nullptr;
@@ -1011,6 +1014,8 @@ bool JPCellJobMachine::look(double viewX, double viewY, double x, double y, doub
     JPCameraCalibration cal;
     if (!JPCameraLook::calibration(*c, *feed, cal, why)) return false;
     if (!c->moveToolAndWait(feed->config().mount, { viewX, viewY, std::nullopt, std::nullopt }, 1.0, why)) return false;
+    // The camera's Auto-Tune for each part?, as bottom vision does: a fiducial is a part too.
+    if (feed->config().autoTuneEachPart && !partId.empty() && !tuneForPart(*feed, partId, why)) return false;
     JPGrayImage img;
     if (!JPCameraLook::settled(*feed, img, why)) return false;
     JPRoundMarkFinder::Request rq;

@@ -55,6 +55,7 @@ JPFiducialLocator::PartProblem JPFiducialLocator::partLook(JPConfiguration& conf
     if (diameterMm <= 0) return PartProblem::NoSize;
     // Looked at as its fiducial vision settings say (the part's, its package's, the machine's).
     look = {};
+    look.partId = part.id;   // whose the look is: the camera tuned for it (Auto-Tune for each part?)
     look.averaging = vision.enabledAveraging;
     if (const JPVisionSettings* v = config.inheritedVision(part, JPVisionSettings::Kind::Fiducial, vision.fiducialVisionId)) {
         settingsName = v->name;
@@ -65,7 +66,6 @@ JPFiducialLocator::PartProblem JPFiducialLocator::partLook(JPConfiguration& conf
         look.parallaxAngle = v->real("parallax-angle", 0);
         // By its OpenPnP pipeline, prepared for its part (the camera given it where it is used).
         if (vision.fiducialPipeline) {
-            look.partId = part.id;
             look.pipeline = std::make_shared<JPPipeline>(JPVisionPipelines::of(*v));
             look.pipeline->context().configurationDirectory = config.directory();
             look.pipeline->context().label = "fiducial " + part.id;

@@ -130,8 +130,9 @@ private:
     // The fiducial found from (viewX, viewY) by its OpenPnP pipeline, nearest (x, y) of its results.
     bool lookByPipeline(double viewX, double viewY, double x, double y, const FiducialLook& lookAt, double& foundX,
                         double& foundY, std::string& why);
+    // `partId`: the fiducial's part, for the camera's Auto-Tune for each part? (none: not tuned).
     bool look(double viewX, double viewY, double x, double y, double diameterMm, double searchMm, double& foundX,
-              double& foundY, std::string& why);
+              double& foundY, std::string& why, const std::string& partId = std::string());
 
     // A part bigger than one look, seen in the shots of `composite` (OpenPnP's
     // vision compositing): the nozzle to each shot, its corners found, then
