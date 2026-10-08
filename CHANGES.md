@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.23
+
 - The Job tab's footprint on the camera is taken off when another tab is shown; it stayed, and showed
   with the Packages tab's.
 - The Job tab's footprint shows its pads only, as OpenPnP's: not the part's body.
