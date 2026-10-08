@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- Tooltips show in every dialog window (the pipeline editor's buttons, the part picker, imports, Preferences…);
+  none did before.
+- The pipeline editor no longer asks to save a pipeline you did not change: a stage's setting clicked into and
+  left as it was is no longer written back.
 - Undo and Redo for the library: a part or package made, changed or deleted, footprints, manufacturers' names
   and what choosing a part taught the library are each a step (Edit > Undo says which: "Undo Delete Part R1").
   Undo takes back the last change made, in the library or Machine Setup.

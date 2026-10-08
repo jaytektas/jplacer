@@ -236,6 +236,7 @@ void JPPipelinePanel::refreshProperties() {
                 case Kind::Integer:
                     add.integer(id, label, [stage, a] { return stage().integer(a); },
                                 [stage, a, changed](int v) {
+                                    if (v == stage().integer(a)) return;   // the same: not a change
                                     stage().set(a, std::to_string(v));
                                     changed(a);
                                 },
@@ -244,6 +245,7 @@ void JPPipelinePanel::refreshProperties() {
                 case Kind::Number:
                     add.number(id, label, [stage, a] { return stage().number(a); },
                                [stage, a, changed](double v) {
+                                   if (v == stage().number(a)) return;   // the same: not a change
                                    stage().set(a, JPXmlWriter::number(v));
                                    changed(a);
                                },
@@ -251,12 +253,14 @@ void JPPipelinePanel::refreshProperties() {
                     break;
                 case Kind::Flag:
                     add.flag(id, label, [stage, a] { return stage().flag(a); }, [stage, a, changed](bool on) {
+                        if (on == stage().flag(a)) return;   // the same: not a change
                         stage().set(a, on ? "true" : "false");
                         changed(a);
                     });
                     break;
                 case Kind::Choice:
                     add.choice(id, label, p.choices, [stage, a] { return stage().text(a); }, [stage, a, changed](const std::string& v) {
+                        if (v == stage().text(a)) return;   // the same: not a change
                         stage().set(a, v);
                         changed(a);
                     });
@@ -265,6 +269,7 @@ void JPPipelinePanel::refreshProperties() {
                     add.color(id, label, [stage, a] { return hexOf(stage().color(a)); }, [stage, a, changed](const std::string& hex) {
                         unsigned r = 0, g = 0, b = 0;
                         if (std::sscanf(hex.c_str(), "#%02x%02x%02x", &r, &g, &b) != 3) return;
+                        if (hex == hexOf(stage().color(a))) return;   // the same: not a change
                         // Its transparency kept.
                         stage().setColor(a, int(r), int(g), int(b), int(stage().color(a)[3]));
                         changed(a);
@@ -273,6 +278,7 @@ void JPPipelinePanel::refreshProperties() {
                 case Kind::Text:
                 case Kind::StageName:
                     add.text(id, label, [stage, a] { return stage().text(a); }, [stage, a, changed](const std::string& v) {
+                        if (v == stage().text(a)) return;   // the same: not a change
                         stage().set(a, v);
                         changed(a);
                     });
