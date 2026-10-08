@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.31
+
 - Feeders: with the camera moved to a feeder's pick location, editing its Rotation In Tape turns the camera, and the part's footprint on it, to the new angle.
 
 ## 0.1.30
