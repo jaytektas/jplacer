@@ -14,6 +14,13 @@
 
 inline namespace jf {
 
+namespace {
+
+// OpenPnP's homing fiducial: the part of this id.
+constexpr const char* kHomePart = "FIDUCIAL-HOME";
+
+} // namespace
+
 JPVisualHoming::Result JPVisualHoming::run(JPCell& cell, JPCameraFeed& feed, const JPHeadConfig& head, double speed,
                                            const JPVisualTest::Look* look) {
     Result r;
@@ -39,15 +46,23 @@ JPVisualHoming::Result JPVisualHoming::run(JPCell& cell, JPCameraFeed& feed, con
     return r;
 }
 
+std::optional<JPFootprint> JPVisualHoming::homeFootprint(JPConfiguration& configuration) {
+    const JPPart* part = configuration.part(kHomePart);
+    const JPPackage* k = part ? configuration.package(part->packageId) : nullptr;
+    if (!k || k->footprint.pads.empty()) return std::nullopt;
+    return k->footprint;
+}
+
 std::optional<JPVisualTest::Look> JPVisualHoming::homeLook(JPConfiguration& configuration, const JPVisionConfig& vision) {
-    const JPPart* part = configuration.part("FIDUCIAL-HOME");
+    const JPPart* part = configuration.part(kHomePart);
     if (!part) return std::nullopt;
     double diameter = 0;
     JPJobMachine::FiducialLook look;
     std::string settings;
     if (JPFiducialLocator::partLook(configuration, *part, vision, diameter, look, settings) != JPFiducialLocator::PartProblem::None)
         return std::nullopt;
-    return JPVisualTest::Look { diameter, look.pipeline, look.passes, look.maxLinearOffsetMm, vision.fiducialMaxDistanceMm };
+    return JPVisualTest::Look { diameter, look.pipeline, look.passes, look.maxLinearOffsetMm, vision.fiducialMaxDistanceMm,
+                                homeFootprint(configuration) };
 }
 
 } // inline namespace jf

@@ -38,6 +38,8 @@ public:
     // How the FIDUCIAL-HOME part says the homing fiducial is looked for (its package's fiducial, its vision
     // settings), by the machine's `vision`; none when there is no such part or it cannot be looked for.
     static std::optional<JPVisualTest::Look> homeLook(JPConfiguration& configuration, const JPVisionConfig& vision);
+    // The FIDUCIAL-HOME part's package's footprint (drawn while it is looked for); none without one.
+    static std::optional<JPFootprint> homeFootprint(JPConfiguration& configuration);
 };
 
 } // inline namespace jf

@@ -154,6 +154,9 @@ private:
     // Runs `task` on the worker with `camera` shown and running; its answer
     // (ok, words) comes back on the main thread to `done`. `progress` from the
     // task is shown as it goes.
+    // The homing mark's footprint (`look`'s) on `camera` as its task's own while the task runs (run takes it
+    // away when it ends); none without one.
+    void showLookFootprint(JPCameraPanel& camera, const std::optional<JPVisualTest::Look>& look);
     using Task = std::function<bool(std::string& words, const std::function<void(const std::string&)>& progress)>;
     void run(JPCameraPanel& camera, const std::string& name, Task task, std::function<void(bool)> done = nullptr);
     void calibrateFixed(JPCameraPanel& camera, std::function<void(bool ok)> finished);

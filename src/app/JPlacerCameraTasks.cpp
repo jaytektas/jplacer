@@ -15,6 +15,7 @@
 #include "tasks/JPVisualHoming.h"
 #include "tasks/JPVisualTest.h"
 #include "tasks/JPVisionFeature.h"
+#include "ui/JPFootprintOverlay.h"
 #include "vision/JPRoundMarkFinder.h"
 
 #include <j/core/Dialog.h>
@@ -135,6 +136,21 @@ std::string JPlacerCameraTasks::notReady(const JPCameraPanel* camera, bool needs
     return {};
 }
 
+void JPlacerCameraTasks::showLookFootprint(JPCameraPanel& camera, const std::optional<JPVisualTest::Look>& look) {
+    if (!look || !look->footprint) {
+        camera.view().setTaskOverlay(nullptr);
+        return;
+    }
+    // Turned as the camera is (a camera without a rotation axis: as it is mounted).
+    const std::string axis = camera.camera().mount.axisRotation;
+    camera.view().setTaskOverlay(JPFootprintOverlay::of(*look->footprint, [this, axis] {
+        if (axis.empty()) return 0.0;
+        const auto p = m_cell.positions();
+        const auto at = p.find(axis);
+        return at == p.end() ? 0.0 : at->second;
+    }));
+}
+
 void JPlacerCameraTasks::run(JPCameraPanel& camera, const std::string& name, Task task, std::function<void(bool)> done) {
     if (m_worker.joinable()) m_worker.join();   // the last one has finished: m_busy says so
     m_busy = true;
@@ -183,6 +199,7 @@ void JPlacerCameraTasks::run(JPCameraPanel& camera, const std::string& name, Tas
         onMain([this, panel, name, ok, cancelled, words, done] {
             m_busy = false;
             panel->setBusy(false);
+            panel->view().setTaskOverlay(nullptr);
             panel->onCancelTask = nullptr;
             panel->endStep();   // a step the person was asked to do, left over
             panel->view().setMarks({});
@@ -851,6 +868,7 @@ void JPlacerCameraTasks::visualTest(JPCameraPanel& camera) {
     JPCameraFeed* feed = &camera.feed();
     const JPHeadConfig h = *head(feed->config());
     const auto look = homeFiducialLook ? homeFiducialLook() : std::nullopt;
+    showLookFootprint(camera, look);
     run(camera, "Visual Test", [this, feed, h, look](std::string& words, const auto& progress) {
         progress("looking at the homing mark");
         const JPVisualTest::Result r = JPVisualTest::run(m_cell, *feed, h, kTaskSpeed, look ? &*look : nullptr);
@@ -945,6 +963,7 @@ void JPlacerCameraTasks::visualHome(std::function<void(bool)> done) {
     // switches it for vision, before the homing fiducial is looked for.
     const std::optional<JPMachineLocation> tuneAt =
         camera->camera().autoTuneOnHoming ? (h.rigPrimary ? h.rigPrimary : h.homingFiducial) : std::nullopt;
+    showLookFootprint(*camera, look);
     run(*camera, "Visual homing", [this, feed, h, look, tuneAt](std::string& words, const auto& progress) {
         if (tuneAt) {
             progress("auto-tuning on the primary fiducial");

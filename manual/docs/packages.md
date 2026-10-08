@@ -59,7 +59,9 @@ camera looks, so a part can be held up to it. On a camera with a rotation axis (
 turned by the camera's rotation; on one without (looking up at the nozzles), by the tool chosen in Jog
 (its C, the nozzle's turn). The cameras show one footprint, the last chosen: a
 package's, or a placement's on the Job tab (choosing a placement chooses its package too when **View ▸
-Selections in Tables** is **Linked**, as OpenPnP's). It stays when another tab is shown.
+Selections in Tables** is **Linked**, as OpenPnP's). It stays when another tab is shown. While a camera
+task runs on a camera (calibrating it or a nozzle tip, measuring), that camera does not show it; visual
+homing shows the **FIDUCIAL-HOME** part's footprint while it looks for the homing mark.
 
 **Footprints** lists the package's footprints in the library: land patterns of it, several to a package
 (an R0603's nominal one, a CAD library's). Each has its **Name** (unique in the package), its **CAD
@@ -96,7 +98,7 @@ In a job, a part whose solution is one of corners is aligned shot by shot: the n
 shot's corners over the camera (without going up to safe Z within the roaming radius), the pipeline
 finds the corners there, and what the shots found is put together.
 
-<!-- src: src/ui/JPPackagesPanel.cpp (nozzleTipsTab, settingsTab, footprintTab, generatePads, compositingTab, showFootprint); src/ui/JPFootprintTableModel.cpp; src/model/JPFootprint.cpp (generate, inUnits); src/model/JPKicadModImporter.cpp; src/ui/JPFootprintOverlay.cpp; src/app/JPlacerMachine.cpp (reticleRotation); src/ui/JPCompositingPreview.cpp; src/tasks/JPVisionComposite.cpp (compute, composeShots, travel, interpret); src/tasks/JPVisionPipelinePrep.cpp (composite, bottom, shot); src/tasks/JPCellJobMachine.cpp (alignPart, alignComposite); src/app/JPlacerOpenPnpTabs.cpp (computeComposite) -->
+<!-- src: src/ui/JPPackagesPanel.cpp (nozzleTipsTab, settingsTab, footprintTab, generatePads, compositingTab, showFootprint); src/ui/JPFootprintTableModel.cpp; src/model/JPFootprint.cpp (generate, inUnits); src/model/JPKicadModImporter.cpp; src/ui/JPFootprintOverlay.cpp; src/app/JPlacerMachine.cpp (reticleRotation); src/ui/JPCameraView.cpp (setTaskOverlay); src/ui/JPCompositingPreview.cpp; src/tasks/JPVisionComposite.cpp (compute, composeShots, travel, interpret); src/tasks/JPVisionPipelinePrep.cpp (composite, bottom, shot); src/tasks/JPCellJobMachine.cpp (alignPart, alignComposite); src/app/JPlacerOpenPnpTabs.cpp (computeComposite) -->
 
 **Bottom Vision Settings** and **Fiducial Vision Settings** show the vision settings the package uses (its
 own, else the machine's), as on the [Vision](vision.md#the-settings) tab. **Specialize for** the package,

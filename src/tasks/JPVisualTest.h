@@ -6,9 +6,11 @@
 #include "camera/JPCameraFeed.h"
 #include "machine/JPCell.h"
 #include "machine/JPHeadConfig.h"
+#include "model/JPFootprint.h"
 #include "pipeline/JPPipeline.h"
 
 #include <memory>
+#include <optional>
 
 #include <string>
 
@@ -39,6 +41,8 @@ public:
         // How far from where it should be a pipeline's find may be: the fiducial locator's Max. Distance, as
         // OpenPnP's visual homing (by its fiducial locator) allows.
         double                      maxDistanceMm = 4.0;
+        // Its part's package's footprint, drawn on the camera while it is looked for; none without one.
+        std::optional<JPFootprint>  footprint;
     };
     // `look` none: OpenPnP's "Visual homing is missing the FIDUCIAL-HOME part. Please create it."
     static Result run(JPCell& cell, JPCameraFeed& feed, const JPHeadConfig& head, double speed, const Look* look);

@@ -81,6 +81,10 @@ public:
     // null to take it away.
     using Overlay = std::function<void(JVectorCanvas& vg, const JPReticle::Place& place, float line)>;
     void setOverlay(const std::string& key, Overlay overlay);
+    // A task's own (a homing mark's footprint while visual homing looks for it): drawn while a task is
+    // under way (setTaskUnderway), when the overlays above are not (a part's footprint means nothing to
+    // a nozzle being calibrated). Null: none.
+    void setTaskOverlay(Overlay overlay) { m_taskOverlay = std::move(overlay); invalidate(); }
     // Circles drawn on the picture in its own pixels, calibrated or not (OpenPnP's CalibrateCameraProcess
     // shows its green and red circles so): where, how big across, found (green, else red), and with a + at
     // its middle. Empty: none.
@@ -229,6 +233,7 @@ private:
     bool                               m_showingStill = false;
     bool                               m_warnUncalibrated = true;
     bool                               m_taskUnderway = false;      // setTaskUnderway
+    Overlay                            m_taskOverlay;               // setTaskOverlay
     void upload(const JPFrame& picture);
     std::vector<std::pair<JMenuItem*, JPReticle::Kind>> m_kindItems;
     std::vector<std::pair<JMenuItem*, double>> m_spacingItems, m_sizeItems;

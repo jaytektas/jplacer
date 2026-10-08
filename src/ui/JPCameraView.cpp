@@ -524,7 +524,12 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     m_reticle.draw(vg, JRect{ vx0, vy0, vx1 - vx0, vy1 - vy0 }, cx, cy, place, pxPerMm, m_reachMm, line,
                    st.spacing, kLeastGap * st.spacing, JPaint::solid(c));
     if (place)
-        for (const auto& [key, overlay] : m_overlays) overlay(vg, place, line);
+    {
+        if (!m_taskUnderway)
+            for (const auto& [key, overlay] : m_overlays) overlay(vg, place, line);
+        else if (m_taskOverlay)
+            m_taskOverlay(vg, place, line);
+    }
     // Marks in the picture's own pixels (calibrated or not).
     for (const Mark& mk : m_marks) {
         float sx, sy;
