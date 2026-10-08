@@ -103,8 +103,8 @@ placement on or off.
 ### Verifying placements
 
 While the Job tab shows, the chosen placement's footprint (a fiducial's too) is drawn over the head camera's picture as it
-is placed: turned by its rotation, its pads, pin 1's mark and its body (the footprint its board carries for
-its part, else its package's), as OpenPnP's package reticle. Take the camera to the placement (**Move
+is placed: turned by its rotation, its pads and pin 1's mark, not its body (the footprint its board carries
+for its part, else its package's), as OpenPnP's package reticle. Another tab shown, it is taken off. Take the camera to the placement (**Move
 Camera To Placement Location**) and look: the footprint should lie on the board's pads.
 
 - **Turn 90°** turns the chosen placement a quarter counter-clockwise, the footprint following: a
@@ -120,7 +120,7 @@ Importing from the CPL and BOM turns a placement by its footprint's **Zero Rotat
 [Packages](packages.md#the-packages-tabs)), where the library's footprint for its part has one: CAD tools
 disagree about which way 0° faces. The CAD file's rotation is kept with it.
 
-<!-- src: src/ui/JPJobPlacementsPanel.cpp (footprintOf, showChosenFootprint, turnChosen, verifyChosen); src/ui/JPFootprintOverlay.cpp; src/ui/JPPlacementsTableModel.cpp (kVerified, setText, applyPart); src/model/JPPlacement.h (cadRotation, Verified); src/import/JPCplBomImport.cpp (build); src/model/JPBoardImporter.cpp (read); src/app/JPlacerOpenPnpTabs.cpp (showFootprint) -->
+<!-- src: src/ui/JPJobPlacementsPanel.cpp (footprintOf, showChosenFootprint, turnChosen, verifyChosen); src/ui/JPJobPanel.cpp; src/ui/JPFootprintOverlay.cpp; src/ui/JPPlacementsTableModel.cpp (kVerified, setText, applyPart); src/model/JPPlacement.h (cadRotation, Verified); src/import/JPCplBomImport.cpp (build); src/model/JPBoardImporter.cpp (read); src/app/JPlacerOpenPnpTabs.cpp (showFootprint) -->
 
 The status line shows the placements placed: of the whole job, and of the board chosen.
 

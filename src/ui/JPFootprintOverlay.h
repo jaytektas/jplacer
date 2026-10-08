@@ -14,8 +14,8 @@ inline namespace jf {
 // only when negative) and pin 1's mark, centred where the camera looks, to
 // scale; turned by `rotationDeg` (counter-clockwise) and, `mirrored`, turned
 // over left to right first (a part on a board's underside, seen from above):
-// a placement's footprint as it is placed (OpenPnP's PackageReticle), its
-// body's outline too.
+// a placement's footprint as it is placed. Its pads alone, as OpenPnP draws
+// it: not its body.
 struct JPFootprintOverlay {
     static JPCameraView::Overlay of(const JPFootprint& footprint, double rotationDeg = 0, bool mirrored = false);
 };

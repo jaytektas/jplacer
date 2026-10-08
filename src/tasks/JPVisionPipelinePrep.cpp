@@ -109,7 +109,7 @@ std::shared_ptr<JPVisionComposite> JPVisionPipelinePrep::composite(const JPPacka
     const JPNozzleTipConfig defaults;
     JPVisionComposite::Input in;
     in.packageId = pkg.id;
-    in.footprint = pkg.footprint.inMillimeters();
+    in.footprint = pkg.footprint.inUnits(JPLengthUnit::Millimeters);
     in.compositing = pkg.visionCompositing.value_or(JPVisionCompositing {});
     in.toleranceMm = (tip ? *tip : defaults).maxPickToleranceMm;
     in.maxPartDiameterMm = (tip ? *tip : defaults).maxPartDiameterMm;

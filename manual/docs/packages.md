@@ -40,7 +40,8 @@ Level** for placing.
 
 **Footprint** holds the footprint's **Settings** and its **Pads**:
 
-- **Units** the footprint is in; **Body Width** and **Body Length**.
+- **Units** the footprint is in: another unit chosen, its numbers are converted, so it keeps its size
+  (OpenPnP keeps the numbers); **Body Width** and **Body Length**.
 - **Generate** makes the pads from the numbers beside it: **Dual** (two rows; **Pad count** a multiple of
   2), **Quad** (four sides; a multiple of 4), **BGA** (a square grid; a square number, those within the
   **Inside dimension** left out), or **KiCad**, read from a KiCad footprint file (`.kicad_mod`): its SMD
@@ -53,7 +54,7 @@ Level** for placing.
   (asking its name), delete the chosen one (after asking), and move the mark to the chosen pad (or take
   it off).
 
-While the Packages tab shows and a package is chosen, its footprint is drawn over every calibrated
+While the Packages tab shows and a package is chosen, its footprint's pads are drawn over every calibrated
 camera's picture, centred where the camera looks, so a part can be held up to it.
 
 **Footprints** lists the package's footprints in the library: land patterns of it, several to a package
@@ -91,7 +92,7 @@ In a job, a part whose solution is one of corners is aligned shot by shot: the n
 shot's corners over the camera (without going up to safe Z within the roaming radius), the pipeline
 finds the corners there, and what the shots found is put together.
 
-<!-- src: src/ui/JPPackagesPanel.cpp (nozzleTipsTab, settingsTab, footprintTab, generatePads, compositingTab, showFootprint); src/ui/JPFootprintTableModel.cpp; src/model/JPFootprint.cpp (generate); src/model/JPKicadModImporter.cpp; src/ui/JPFootprintOverlay.cpp; src/ui/JPCompositingPreview.cpp; src/tasks/JPVisionComposite.cpp (compute, composeShots, travel, interpret); src/tasks/JPVisionPipelinePrep.cpp (composite, bottom, shot); src/tasks/JPCellJobMachine.cpp (alignPart, alignComposite); src/app/JPlacerOpenPnpTabs.cpp (computeComposite) -->
+<!-- src: src/ui/JPPackagesPanel.cpp (nozzleTipsTab, settingsTab, footprintTab, generatePads, compositingTab, showFootprint); src/ui/JPFootprintTableModel.cpp; src/model/JPFootprint.cpp (generate, inUnits); src/model/JPKicadModImporter.cpp; src/ui/JPFootprintOverlay.cpp; src/ui/JPCompositingPreview.cpp; src/tasks/JPVisionComposite.cpp (compute, composeShots, travel, interpret); src/tasks/JPVisionPipelinePrep.cpp (composite, bottom, shot); src/tasks/JPCellJobMachine.cpp (alignPart, alignComposite); src/app/JPlacerOpenPnpTabs.cpp (computeComposite) -->
 
 **Bottom Vision Settings** and **Fiducial Vision Settings** show the vision settings the package uses (its
 own, else the machine's), as on the [Vision](vision.md#the-settings) tab. **Specialize for** the package,

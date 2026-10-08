@@ -75,16 +75,16 @@ std::vector<JPFootprint::Outline> JPFootprint::padsOutlines() const {
     return out;
 }
 
-JPFootprint JPFootprint::inMillimeters() const {
+JPFootprint JPFootprint::inUnits(JPLengthUnit to) const {
     JPFootprint f = *this;
-    const double mm = JPLength(1, units).convertToUnits(JPLengthUnit::Millimeters).value();
-    f.units = JPLengthUnit::Millimeters;
-    for (double* v : { &f.bodyWidth, &f.bodyHeight, &f.outerDimension, &f.innerDimension, &f.padPitch, &f.padAcross }) *v *= mm;
+    const double per = JPLength(1, units).convertToUnits(to).value();
+    f.units = to;
+    for (double* v : { &f.bodyWidth, &f.bodyHeight, &f.outerDimension, &f.innerDimension, &f.padPitch, &f.padAcross }) *v *= per;
     for (Pad& p : f.pads) {
-        p.x *= mm;
-        p.y *= mm;
-        p.width *= mm;
-        p.height *= mm;
+        p.x *= per;
+        p.y *= per;
+        p.width *= per;
+        p.height *= per;
     }
     return f;
 }

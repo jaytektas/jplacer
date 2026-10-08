@@ -5,6 +5,7 @@
 // known by the names CAD files give it; a board's footprint finds its footprint and through it its package; a
 // library of before footprints has its packages' CAD names moved onto footprints; kept whole in library.db; a
 // board's copy of a part carries its footprint, and a change to the land pattern (not a name) is one to review.
+// A footprint in another unit keeps its size: its numbers converted.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
@@ -101,5 +102,24 @@ int main() {
         assert(other.copyFootprint && other.copyFootprint->name == "R0603");
     }
     fs::remove_all(dir);
+    // In another unit, the same size.
+    {
+        JPFootprint f;
+        f.units = JPLengthUnit::Millimeters;
+        f.bodyWidth = 2.54;
+        f.padPitch = 1.27;
+        JPFootprint::Pad pad;
+        pad.x = -0.635;
+        pad.width = 0.254;
+        pad.roundness = 50;
+        f.pads.push_back(pad);
+        const JPFootprint mils = f.inUnits(JPLengthUnit::Mils);
+        assert(mils.units == JPLengthUnit::Mils);
+        assert(std::abs(mils.bodyWidth - 100) < 1e-9 && std::abs(mils.padPitch - 50) < 1e-9);
+        assert(std::abs(mils.pads[0].x + 25) < 1e-9 && std::abs(mils.pads[0].width - 10) < 1e-9);
+        assert(mils.pads[0].roundness == 50);
+        const JPFootprint back = mils.inUnits(JPLengthUnit::Millimeters);
+        assert(std::abs(back.bodyWidth - 2.54) < 1e-9 && std::abs(back.pads[0].x + 0.635) < 1e-9);
+    }
     return 0;
 }

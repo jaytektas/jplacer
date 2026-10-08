@@ -113,10 +113,7 @@ JPJobPlacementsPanel::JPJobPlacementsPanel(JSceneGraph& graph, JPConfiguration& 
     });
     m_table->onEditRefused = [](const std::string&) {};
     // Its footprint on the camera only while the placements are shown.
-    onVisibilityChanged.connect([this](bool shown) {
-        if (shown) showChosenFootprint();
-        else if (showFootprint) showFootprint(nullptr, 0);
-    });
+    onVisibilityChanged.connect([this](bool) { showChosenFootprint(); });
     m_table->onKey = [this](const JKeyEvent& ke) {
         if (ke.key != JKeyEvent::JKey::Space || ke.ctrl || ke.alt) return false;
         const auto chosen = selections();
@@ -327,7 +324,7 @@ const JPFootprint* JPJobPlacementsPanel::footprintOf(const JPPlacement& p) const
 void JPJobPlacementsPanel::showChosenFootprint() {
     if (!showFootprint) return;
     const auto chosen = selections();
-    const bool facingUp = chosen.size() == 1 && m_location && chosen.front()->side == m_location->globalSide();
+    const bool facingUp = isVisible() && chosen.size() == 1 && m_location && chosen.front()->side == m_location->globalSide();
     const JPFootprint* f = facingUp ? footprintOf(*chosen.front()) : nullptr;   // a fiducial's as a part's
     showFootprint(f, f ? m_location->placementLocation(chosen.front()->location).rotation() : 0.0);
 }

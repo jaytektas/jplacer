@@ -10,6 +10,11 @@ notes.
 
 ## Unreleased
 
+- The Job tab's footprint on the camera is taken off when another tab is shown; it stayed, and showed
+  with the Packages tab's.
+- The Job tab's footprint shows its pads only, as OpenPnP's: not the part's body.
+- A package's footprint keeps its size when its Units are changed: its numbers are converted.
+
 ## 0.1.22
 
 - Footprints are drawn on the camera again: the chosen package's (Packages tab) and the chosen

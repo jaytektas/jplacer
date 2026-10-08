@@ -378,11 +378,12 @@ std::unique_ptr<JContainer> JPPackagesPanel::footprintTab(JPPackage& p) {
         unitNames.push_back(JPLengthUnits::name(units()[i]));
         if (units()[i] == f.units) now = int(i);
     }
+    // Another unit keeps the footprint its size: its numbers converted (OpenPnP only renames them).
     grid->choice("Units", "", unitNames, now, [this, id](int i) {
         if (JPPackage* k = m_config.package(id)) {
-            k->footprint.units = units()[size_t(i)];
-            m_pads->refresh();
+            k->footprint = k->footprint.inUnits(units()[size_t(i)]);
             changed();
+            remakeLater();
         }
     });
     auto gens = JPUiParts::row(g);

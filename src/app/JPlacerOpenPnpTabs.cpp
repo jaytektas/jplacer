@@ -379,7 +379,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         auto composite = JPVisionPipelinePrep::composite(pkg, *settings, camera, out.cameraWidthMm, out.cameraHeightMm, tip);
         out.composite = composite;
         out.roamingRadiusMm = camera->roamingRadiusMm;
-        out.footprintMm = pkg.footprint.inMillimeters();
+        out.footprintMm = pkg.footprint.inUnits(JPLengthUnit::Millimeters);
         return true;
     };
     m_packagesDock = std::make_unique<JDockWidget>("Packages", 0.f, 0.f, 0.f, 0.f);

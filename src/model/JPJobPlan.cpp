@@ -32,7 +32,7 @@ std::vector<JPJobPlan::Group> JPJobPlan::groups(JPConfiguration& config, const J
                     g.packageId = part->packageId;
                     g.heightMm = part->height.convertToUnits(JPLengthUnit::Millimeters).value();
                     if (const JPPackage* k = config.package(part->packageId)) {
-                        const JPFootprint mm = k->footprint.inMillimeters();
+                        const JPFootprint mm = k->footprint.inUnits(JPLengthUnit::Millimeters);
                         g.bodyMm2 = mm.bodyWidth * mm.bodyHeight;
                     }
                 }
