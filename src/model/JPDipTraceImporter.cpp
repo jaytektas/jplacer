@@ -22,7 +22,7 @@ void JPDipTraceImporter::parse(const std::vector<std::string>& files, const std:
         const double x = number(at(t, 2)), y = number(at(t, 3)), rotation = number(at(t, 5));
         const std::string& layer = at(t, 4);
         p.location = JPLocation(JPLengthUnit::Millimeters, x, y, 0, rotation);
-        if (options[0]) p.partId = findOrMakePart(config, packageName + "-" + value, packageName)->id;
+        assign(out, p, boardPart(config, out, packageName + "-" + value, packageName, value, options[0]));
         p.side = first(layer) == 'T' ? JPSide::Top : JPSide::Bottom;
         out.placements.push_back(p);
     }

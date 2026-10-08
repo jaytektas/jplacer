@@ -277,6 +277,12 @@ std::vector<std::string> JPPlacementsTableModel::choices(int, int c) const {
     return out;
 }
 
+JPBoard* JPPlacementsTableModel::editedBoard() const {
+    if (!m_holder) return nullptr;
+    JPPlacementsHolder* def = m_location ? (m_editDefinition ? m_config.definitionOf(*m_holder) : nullptr) : m_holder;
+    return def && def->kind() == JPPlacementsHolder::Kind::Board ? static_cast<JPBoard*>(def) : nullptr;
+}
+
 void JPPlacementsTableModel::edit(const std::string& id, const std::function<void(JPPlacement&)>& set) {
     if (!m_holder) return;
     if (m_location) {
@@ -352,7 +358,17 @@ void JPPlacementsTableModel::setChoice(int row, int c, int index) {
             const auto parts = partChoices();
             if (size_t(index) < parts.size()) {
                 const std::string partId = parts[size_t(index)]->id;
-                edit(id, [&partId](JPPlacement& q) { q.partId = partId; });
+                // A board's placement names one of the board's parts: that is what is matched to the part.
+                if (JPBoard* board = editedBoard()) {
+                    const std::string key = board->matchPlacement(id, partId);
+                    edit(id, [&key, &partId](JPPlacement& q) {
+                        q.boardPart = key;
+                        q.partId = partId;
+                    });
+                    board->dropUnusedParts();
+                } else {
+                    edit(id, [&partId](JPPlacement& q) { q.partId = partId; });
+                }
             }
             break;
         }

@@ -719,9 +719,21 @@ configurations to check against, never inputs to the design.
    actuators (on/off, values, readings), camera backends and camera view.
 2. **Calibration**: head offsets, units per pixel, lens, nozzle runout; the
    calibration checklist.
-3. **Library and job model**: geometry, library store, packagings, board /
-   job files, CPL + BOM import with mapping, board parts, matching, verifying. Job and
-   Library workspaces with board view.
+3. **Library and job model**, in stages that each leave the app working (the
+   OpenPnP model it grew from is replaced, not run beside it; until
+   `library.db`, `parts.xml` / `packages.xml` are the library):
+   1. *Board parts and `.jpboard`* (done): a board's own parts list, each
+      placement naming one; importers add nothing to the library; boards
+      saved as JSON, OpenPnP's read and never written over.
+   2. *CPL + BOM import*: sources, column mapping and profiles, the join,
+      provenance.
+   3. *The part picker / matcher* for a board part, in place of the Part
+      combo; the matching wizard.
+   4. *`library.db`*: identifiers, AKAs, footprints, packagings, migration
+      from `parts.xml`; matched board parts carry copies and fingerprints.
+   5. *Verifying, revisions, stock*: verified marks, board revisions and
+      switching, stock lots and the ledger, the looking-down check.
+   Then the Job and Library workspaces with the board view.
 4. **Feeders and running**: strip lanes and tray feeders first, planner and
    planner view, runner, runs, pre-flight, load-as-you-go, stages.
 5. **Vision**: fiducials, bottom alignment, feeder vision.

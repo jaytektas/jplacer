@@ -56,14 +56,21 @@ public:
     // Writes the parts, packages, and the boards' and panels' lists.
     bool save(std::string& error) const;
 
+    // The library's parts (parts.xml): every job draws from them. A board's own parts are not among them.
     const std::vector<std::shared_ptr<JPPart>>& parts() const { return m_parts; }
+    // A part to place with, by id: the library's, else a loaded board's own (JPBoardPart, Local).
     JPPart* part(const std::string& id) const;
+    // The library's part of that id only, or null.
+    JPPart* libraryPart(const std::string& id) const;
     // Replaces one of the same id, where it was.
     void addPart(std::shared_ptr<JPPart> part);
     void removePart(const std::string& id);
 
     const std::vector<std::shared_ptr<JPPackage>>& packages() const { return m_packages; }
+    // A package by id: the library's, else a loaded board's own.
     JPPackage* package(const std::string& id) const;
+    // The library's package of that id only, or null.
+    JPPackage* libraryPackage(const std::string& id) const;
     void addPackage(std::shared_ptr<JPPackage> package);
     void removePackage(const std::string& id);
 
@@ -144,7 +151,9 @@ public:
     void addPanel(std::shared_ptr<JPPanel> panel);
     void removeBoard(const JPBoard* board);
     void removePanel(const JPPanel* panel);
-    bool saveBoard(JPBoard& board, std::string& error) const;
+    // Written as jplacer's board file; an OpenPnP one (read from XML) gets a file of its own beside it, its
+    // old path in `movedFrom` (panels naming it follow; a job's locations are the job's to follow).
+    bool saveBoard(JPBoard& board, std::string& error, std::string* movedFrom = nullptr);
     bool savePanel(JPPanel& panel, std::string& error) const;
 
     // A job read, its older form converted (a backup kept beside it), its

@@ -1,0 +1,49 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
+
+#pragma once
+
+#include "JPPackage.h"
+#include "JPPart.h"
+
+#include <j/config/Json.h>
+
+#include <map>
+#include <memory>
+#include <string>
+
+inline namespace jf {
+
+// One line of a board's own parts list (DESIGN.md, Board part): what the
+// files it came from said about it, kept as they said it, and what it is:
+//  * Matched: a part of the library (the parts list every job draws from);
+//  * Local: this board's own part (and, where the library has none, its own
+//    package), on purpose, kept in the board and never in the library;
+//  * Unmatched: only what the files said, not yet anything to place.
+// A board's placements each name one of its board parts. Importing makes
+// board parts; the library is changed only by choosing to.
+class JPBoardPart {
+public:
+    enum class State { Unmatched, Matched, Local };
+
+    std::string                        key;      // unique within its board ("bp-3")
+    std::map<std::string, std::string> fields;   // as imported: "part", "value", "footprint", …
+    State                              state = State::Unmatched;
+    std::string                        libraryPartId;   // Matched: the library part's id
+    std::shared_ptr<JPPart>            localPart;       // Local: its own part
+    std::shared_ptr<JPPackage>         localPackage;    // Local: its own package, when not the library's
+
+    // The part id its placements are placed with: the library part's (matched), its own part's (local), else
+    // the name the files gave it (unmatched: a part that is nowhere, as an unknown part id is).
+    std::string partId() const;
+    // A field as imported, or empty.
+    const std::string& field(const std::string& name) const;
+
+    static const char* stateName(State s);
+    static State       stateFrom(const std::string& s);
+
+    JJson              toJson() const;
+    static JPBoardPart fromJson(const JJson& j);
+};
+
+} // inline namespace jf

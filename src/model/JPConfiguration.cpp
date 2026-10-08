@@ -9,9 +9,10 @@
 #include "openpnp/JPXmlWriter.h"
 
 #include <algorithm>
-#include <cmath>
 #include <cctype>
+#include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <filesystem>
 #include <map>
 #include <tuple>
@@ -353,7 +354,23 @@ int JPConfiguration::placementCount(const std::string& partId) const {
 
 JPPart* JPConfiguration::part(const std::string& id) const {
     const auto it = m_partsById.find(upper(id));
+    if (it != m_partsById.end()) return it->second.get();
+    // Not the library's: a board's own part, by its (board-scoped) id.
+    const std::string k = upper(id);
+    for (const auto& b : m_boards)
+        for (const JPBoardPart& bp : b->parts())
+            if (bp.state == JPBoardPart::State::Local && bp.localPart && upper(bp.localPart->id) == k) return bp.localPart.get();
+    return nullptr;
+}
+
+JPPart* JPConfiguration::libraryPart(const std::string& id) const {
+    const auto it = m_partsById.find(upper(id));
     return it == m_partsById.end() ? nullptr : it->second.get();
+}
+
+JPPackage* JPConfiguration::libraryPackage(const std::string& id) const {
+    const auto it = m_packagesById.find(upper(id));
+    return it == m_packagesById.end() ? nullptr : it->second.get();
 }
 
 void JPConfiguration::addPart(std::shared_ptr<JPPart> p) {
@@ -373,7 +390,13 @@ void JPConfiguration::removePart(const std::string& id) {
 
 JPPackage* JPConfiguration::package(const std::string& id) const {
     const auto it = m_packagesById.find(upper(id));
-    return it == m_packagesById.end() ? nullptr : it->second.get();
+    if (it != m_packagesById.end()) return it->second.get();
+    // A board's own package, by its (board-scoped) id.
+    const std::string k = upper(id);
+    for (const auto& b : m_boards)
+        for (const JPBoardPart& bp : b->parts())
+            if (bp.localPackage && upper(bp.localPackage->id) == k) return bp.localPackage.get();
+    return nullptr;
 }
 
 void JPConfiguration::addPackage(std::shared_ptr<JPPackage> p) {
@@ -395,14 +418,47 @@ std::shared_ptr<JPBoard> JPConfiguration::board(const std::string& path, std::st
     if (!exists(path)) {
         JPBoard b;
         b.name = fs::path(path).filename().string();
-        if (!JPXmlWriter::write(path, b.toXml(), error, false)) return nullptr;
+        if (JPBoard::isJplacerFile(path)) {
+            if (!b.toJson().dumpToFile(path)) {
+                error = "Unable to write " + path;
+                return nullptr;
+            }
+        } else if (!JPXmlWriter::write(path, b.toXml(), error, false)) {
+            return nullptr;
+        }
     }
-    const std::string file = canonical(path);
+    std::string file = canonical(path);
+    // OpenPnP's file that jplacer has saved as its own: that one (a job or panel naming the old file, saved
+    // before it moved, or OpenPnP's, finds the board as it is now).
+    if (!JPBoard::isJplacerFile(file)) {
+        std::error_code ec;
+        for (fs::directory_iterator it(fs::path(file).parent_path(), ec), end; !ec && it != end; it.increment(ec)) {
+            const std::string candidate = it->path().string();
+            if (!JPBoard::isJplacerFile(candidate)) continue;
+            const std::optional<JJson> j = JJson::tryParseFile(candidate);
+            if (j && (*j)["convertedFrom"].isString() && (*j)["convertedFrom"].str() == file) {
+                file = canonical(candidate);
+                break;
+            }
+        }
+    }
     for (const auto& b : m_boards)
         if (b->file == file) return b;
-    JPXmlElement root;
-    if (!JPXmlReader::read(file, root, error)) return nullptr;
-    auto b = std::make_shared<JPBoard>(JPBoard::fromXml(root));
+    std::shared_ptr<JPBoard> b;
+    if (JPBoard::isJplacerFile(file)) {
+        const std::optional<JJson> j = JJson::tryParseFile(file);
+        if (!j || !j->isObject() || !(*j)["format"].isString() || (*j)["format"].str() != JPBoard::kFormat) {
+            error = "Not a jplacer board file: " + file;
+            return nullptr;
+        }
+        b = std::make_shared<JPBoard>(JPBoard::fromJson(*j));
+    } else {
+        JPXmlElement root;
+        if (!JPXmlReader::read(file, root, error)) return nullptr;
+        b = std::make_shared<JPBoard>(JPBoard::fromXml(root));
+        // OpenPnP's placements name library parts by id: each becomes a board part.
+        b->partsFromPlacements([this](const std::string& id) { return libraryPart(id) != nullptr; });
+    }
     b->file = file;
     b->dirty = false;
     m_boards.push_back(b);
@@ -476,8 +532,38 @@ void JPConfiguration::removePanel(const JPPanel* p) {
     std::erase_if(m_panels, [p](const auto& q) { return q.get() == p; });
 }
 
-bool JPConfiguration::saveBoard(JPBoard& b, std::string& error) const {
-    if (!JPXmlWriter::write(b.file, b.toXml(), error, false)) return false;
+bool JPConfiguration::saveBoard(JPBoard& b, std::string& error, std::string* movedFrom) {
+    // jplacer's file, always: an OpenPnP board is written beside it as one (its own name, ".jpboard"), the
+    // OpenPnP file left as it is, and every panel naming it pointed at the new one.
+    if (!JPBoard::isJplacerFile(b.file)) {
+        const std::string from = b.file;
+        std::string stem = fs::path(from).filename().string();
+        for (const char* suffix : { ".board.xml", ".xml" })
+            if (stem.size() > std::strlen(suffix)
+                && upper(stem.substr(stem.size() - std::strlen(suffix))) == upper(suffix)) {
+                stem.resize(stem.size() - std::strlen(suffix));
+                break;
+            }
+        const fs::path dir = fs::path(from).parent_path();
+        fs::path to = dir / (stem + JPBoard::kExtension);
+        for (int n = 2; exists(to.string()); ++n) to = dir / (stem + " (" + std::to_string(n) + ")" + JPBoard::kExtension);
+        b.file = to.string();
+        b.convertedFrom = canonical(from);
+        // Named after its file (as OpenPnP names a board): named after the new one.
+        if (b.name && *b.name == fs::path(from).filename().string()) b.name = to.filename().string();
+        if (movedFrom) *movedFrom = from;
+        for (const auto& p : m_panels)
+            for (auto& c : p->children)
+                if (c->kind() == JPPlacementsHolderLocation::Kind::Board && canonical(c->fileName) == canonical(from)) {
+                    c->fileName = b.file;
+                    p->dirty = true;
+                }
+    }
+    b.dropUnusedParts();   // a part no placement names any more is not kept
+    if (!b.toJson().dumpToFile(b.file)) {
+        error = "Unable to write " + b.file;
+        return false;
+    }
     b.dirty = false;
     return true;
 }

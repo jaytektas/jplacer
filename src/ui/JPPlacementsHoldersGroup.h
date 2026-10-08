@@ -44,6 +44,8 @@ public:
 
 private:
     struct Words;
+    std::vector<std::string> saveExtensions() const;
+    std::vector<std::string> openExtensions() const;
     const Words& words() const;
     std::vector<JPPlacementsHolder*> selections() const;
     void selectionChanged();

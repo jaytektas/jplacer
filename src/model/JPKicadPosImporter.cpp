@@ -49,10 +49,7 @@ void JPKicadPosImporter::parseFile(const std::string& path, JPSide side, const s
         p.location = JPLocation(JPLengthUnit::Millimeters, x, y, 0, rotation);
         if (options[AssignParts]) {
             const std::string partId = options[UseOnlyValueAsPartId] ? value : packageName + "-" + value;
-            if (const JPPart* part = config.part(partId))
-                p.partId = part->id;
-            else if (options[CreateMissingParts])
-                p.partId = findOrMakePart(config, partId, packageName)->id;
+            assign(out, p, boardPart(config, out, partId, packageName, value, options[CreateMissingParts]));
         }
         p.side = side;
         out.placements.push_back(p);

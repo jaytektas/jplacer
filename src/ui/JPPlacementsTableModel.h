@@ -87,6 +87,9 @@ public:
     static const char* statusName(Status s);
 
 private:
+    // The board definition an edit here changes (the board shown, or a job's board where its definition is
+    // edited); null for a panel, or a job's use of a board edited alone.
+    JPBoard* editedBoard() const;
     std::vector<const JPPart*> partChoices() const;
 
     JPConfiguration&              m_config;

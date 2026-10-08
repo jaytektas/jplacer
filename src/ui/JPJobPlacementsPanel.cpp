@@ -249,7 +249,11 @@ void JPJobPlacementsPanel::newPlacement() {
         if (!def) return;
         JPPlacement p;
         p.id = id;
-        p.partId = m_config.parts().front()->id;
+        // As OpenPnP: the library's first part (on a board, as one of the board's parts).
+        if (!m_config.parts().empty()) {
+            p.partId = m_config.parts().front()->id;
+            if (def->kind() == JPPlacementsHolder::Kind::Board) p.boardPart = static_cast<JPBoard*>(def)->useLibraryPart(p.partId);
+        }
         p.location = JPLocation(JPLengthUnit::Millimeters);
         p.side = at->globalSide();
         if (at->kind() == JPPlacementsHolderLocation::Kind::Panel) p.type = JPPlacement::Type::Fiducial;

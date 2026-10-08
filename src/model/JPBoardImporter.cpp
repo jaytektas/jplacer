@@ -204,18 +204,46 @@ std::string JPBoardImporter::upper(std::string s) {
     return s;
 }
 
-JPPart* JPBoardImporter::findOrMakePart(JPConfiguration& config, const std::string& partId, const std::string& packageId) {
-    if (JPPart* p = config.part(partId)) return p;
-    if (!config.package(packageId)) {
-        auto k = std::make_shared<JPPackage>();
-        k->id = packageId;
-        config.addPackage(k);
+std::string JPBoardImporter::boardPart(JPConfiguration& config, JPBoard& out, const std::string& partId,
+                                       const std::string& packageId, const std::string& value, bool create,
+                                       JPPart** part, bool* made) {
+    if (made) *made = false;
+    for (JPBoardPart& bp : out.parts())
+        if (bp.field("part") == partId) {
+            if (part) *part = bp.state == JPBoardPart::State::Matched ? config.libraryPart(bp.libraryPartId) : bp.localPart.get();
+            return bp.key;
+        }
+    JPBoardPart bp;
+    bp.key = out.newPartKey();
+    bp.fields["part"] = partId;
+    if (!packageId.empty()) bp.fields["footprint"] = packageId;
+    if (!value.empty()) bp.fields["value"] = value;
+    JPPart* found = config.libraryPart(partId);
+    if (found) {
+        bp.state = JPBoardPart::State::Matched;
+        bp.libraryPartId = found->id;
+    } else if (create) {
+        bp.state = JPBoardPart::State::Local;
+        bp.localPart = std::make_shared<JPPart>();
+        bp.localPart->id = partId;
+        if (const JPPackage* k = config.libraryPackage(packageId)) {
+            bp.localPart->packageId = k->id;
+        } else {
+            bp.localPackage = std::make_shared<JPPackage>();
+            bp.localPackage->id = packageId;
+            bp.localPart->packageId = packageId;
+        }
+        found = bp.localPart.get();
+        if (made) *made = true;
     }
-    auto p = std::make_shared<JPPart>();
-    p->id = partId;
-    p->packageId = config.package(packageId)->id;
-    config.addPart(p);
-    return config.part(partId);
+    out.parts().push_back(bp);
+    if (part) *part = found;
+    return bp.key;
+}
+
+void JPBoardImporter::assign(const JPBoard& out, JPPlacement& p, const std::string& key) {
+    p.boardPart = key;
+    if (const JPBoardPart* bp = out.part(key)) p.partId = bp->partId();
 }
 
 } // inline namespace jf

@@ -17,8 +17,9 @@ inline namespace jf {
 // Import Board): its name in the menus, its description (the entry's
 // tooltip and its dialog's title), the files its dialog asks for and the
 // options it ticks; and the reading, into a board whose placements are then
-// merged into the chosen one. Parts and packages it makes are added to
-// `config` as it reads, as OpenPnP's do.
+// merged into the chosen one. The parts it names become the board's own
+// parts (JPBoardPart), matched to the library's where it has them; unlike
+// OpenPnP's, it adds nothing to the library.
 class JPBoardImporter {
 public:
     struct File {
@@ -76,9 +77,17 @@ protected:
     static char first(const std::string& s);
     static std::string upper(std::string s);
 
-    // A part by id, else one made with a package of `packageId` (made too
-    // when there is none), as OpenPnP's importers make them.
-    static JPPart* findOrMakePart(JPConfiguration& config, const std::string& partId, const std::string& packageId);
+    // The board part for a part the file names (`partId`, its footprint `packageId`, its `value` where the
+    // file says), in `out`: one already made for it, else made, matched to the library's part of that id
+    // where there is one; else, `create` (Create Missing Parts), the board's own part, with the library's
+    // package of that id or (none) one of its own; else unmatched. Never added to the library: a board's
+    // parts are the board's. Its key; `part` (given) the part its placements use, null when unmatched;
+    // `made` whether this call made the board's own part.
+    static std::string boardPart(JPConfiguration& config, JPBoard& out, const std::string& partId,
+                                 const std::string& packageId, const std::string& value, bool create,
+                                 JPPart** part = nullptr, bool* made = nullptr);
+    // A placement given its board part (`key`, from boardPart).
+    static void assign(const JPBoard& out, JPPlacement& p, const std::string& key);
 };
 
 } // inline namespace jf

@@ -218,17 +218,46 @@ int main() {
         assert(job->boardLocations()[0]->board()->placements.size() == 31);
     }
 
-    // A board saved is the file OpenPnP would read: version, placements, error handling.
+    // OpenPnP's board as it writes it (what a board new at an OpenPnP path starts as): version, placements,
+    // error handling, paste pads.
     {
-        assert(jobs.saveBoard(*board, error));
-        std::ifstream in(boardFile);
-        const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-        assert(text.rfind("<openpnp-board version=\"1.1\" name=\"pnp-test.board.xml\">", 0) == 0);
+        const std::string text = JPXmlWriter::text(board->toXml());
+        assert(text.find("<openpnp-board version=\"1.1\" name=\"pnp-test.board.xml\">") != std::string::npos);
         assert(text.find("<placement version=\"1.4\" side=\"Top\" id=\"R7\" part-id=\"R0201-1K\" type=\"Placement\" enabled=\"false\">") != std::string::npos);
         assert(text.find("<error-handling>Default</error-handling>") != std::string::npos);
         assert(text.find("<board-pad type=\"Paste\" side=\"Top\" name=\"R1-1\">") != std::string::npos);
         assert(text.find("<pad class=\"org.openpnp.model.Pad$RoundRectangle\" units=\"Millimeters\" width=\"1.5\" "
                          "height=\"1.3\" roundness=\"0.0\"/>") != std::string::npos);
+    }
+
+    // Its placements' part ids became its board parts, matched to the library's.
+    {
+        const JPPlacement* r7 = board->find("R7");
+        assert(r7 && board->part(r7->boardPart) && board->part(r7->boardPart)->state == JPBoardPart::State::Matched
+               && board->part(r7->boardPart)->libraryPartId == "R0201-1K" && r7->partId == "R0201-1K");
+    }
+
+    // Saved, it is jplacer's file beside OpenPnP's (which is left exactly as it was), and reads back the same.
+    {
+        std::ifstream before(boardFile);
+        const std::string xml((std::istreambuf_iterator<char>(before)), std::istreambuf_iterator<char>());
+        const size_t placements = board->placements.size(), pads = board->solderPastePads.size();
+        std::string movedFrom;
+        assert(jobs.saveBoard(*board, error, &movedFrom));
+        assert(movedFrom == boardFile && board->file == (dir / "pnp-test" / "pnp-test.jpboard").string());
+        assert(board->name && *board->name == "pnp-test.jpboard");
+        std::ifstream after(boardFile);
+        assert(std::string((std::istreambuf_iterator<char>(after)), std::istreambuf_iterator<char>()) == xml);
+        JPConfiguration fresh(dir.string());
+        auto again = fresh.board(board->file, error);
+        assert(again && again->placements.size() == placements && again->solderPastePads.size() == pads);
+        const JPPlacement* r7 = again->find("R7");
+        assert(r7 && r7->partId == "R0201-1K" && !r7->enabled && again->part(r7->boardPart)->state == JPBoardPart::State::Matched);
+        assert(again->placements[0].location.x() == board->placements[0].location.x());
+        // OpenPnP's file named (a job saved before the board moved): the board as it is now.
+        JPConfiguration other(dir.string());
+        auto followed = other.board(boardFile, error);
+        assert(followed && followed->file == board->file && followed->convertedFrom == JPConfiguration::canonical(boardFile));
     }
 
     fs::remove_all(dir);

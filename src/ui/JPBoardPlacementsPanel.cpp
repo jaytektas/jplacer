@@ -194,7 +194,11 @@ void JPBoardPlacementsPanel::newPlacement() {
         }
         JPPlacement p;
         p.id = id;
-        p.partId = m_config.parts().front()->id;
+        // As OpenPnP: the library's first part, as one of the board's parts.
+        if (!m_config.parts().empty()) {
+            p.partId = m_config.parts().front()->id;
+            p.boardPart = board->useLibraryPart(p.partId);
+        }
         p.location = JPLocation(JPLengthUnit::Millimeters);
         p.side = JPSide::Top;
         JPDefinitionChanges(m_config, m_job()).added(*board, p);
@@ -235,7 +239,8 @@ void JPBoardPlacementsPanel::importBoard(const JPBoardImporter& importer) {
     JPBoard* board = m_board;
     openImporter(importer, [this, board](JPBoard& imported) {
         if (board != m_board) return;
-        // The parts and packages the importer made are kept, whatever comes next.
+        // What the import was asked to change in the library (Update Existing Part Heights, Eagle's Update
+        // Existing Parts) is changed, whatever comes next; its parts are the board's, taken in merge().
         changed();
         auto shared = std::make_shared<JPBoard>(imported);
         if (board->placements.empty() || !askChoice) {
@@ -264,10 +269,19 @@ void JPBoardPlacementsPanel::importBoard(const JPBoardImporter& importer) {
 void JPBoardPlacementsPanel::merge(JPBoard& imported) {
     if (!m_board) return;
     JPDefinitionChanges changes(m_config, m_job());
-    for (const JPPlacement& p : imported.placements) {
+    // The imported board's parts become this board's (those it has kept as they are), then its placements.
+    const std::map<std::string, std::string> keys = m_board->takeParts(imported);
+    auto partOf = [this, &keys](JPPlacement p) {
+        if (const auto k = keys.find(p.boardPart); k != keys.end()) p.boardPart = k->second;
+        if (const JPBoardPart* bp = m_board->part(p.boardPart)) p.partId = bp->partId();
+        return p;
+    };
+    for (const JPPlacement& read : imported.placements) {
+        const JPPlacement p = partOf(read);
         if (m_board->find(p.id)) {
             // Merged: the part, side, location and comments taken from the file.
             changes.placement(*m_board, p.id, [&p](JPPlacement& q) {
+                q.boardPart = p.boardPart;
                 q.partId = p.partId;
                 q.side = p.side;
                 q.location = p.location;
@@ -277,6 +291,7 @@ void JPBoardPlacementsPanel::merge(JPBoard& imported) {
             changes.added(*m_board, p);
         }
     }
+    m_board->dropUnusedParts();
     // Paste pads in the board's units, as OpenPnP puts them.
     for (JPBoardPad pad : imported.solderPastePads) {
         pad.location = pad.location.convertToUnits(m_board->dimensions.units());

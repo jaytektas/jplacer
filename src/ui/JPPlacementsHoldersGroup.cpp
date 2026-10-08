@@ -41,7 +41,7 @@ std::unique_ptr<JSeparator> toolSeparator(JSceneGraph& graph) {
     return std::make_unique<JSeparator>(graph, JSeparator::JOrientation::Vertical, JPIconButton::size());
 }
 
-// A name chosen to save as, given the suffix (".board.xml") when it lacks it.
+// A name chosen to save as, given the suffix (".jpboard") when it lacks it.
 std::string withSuffix(std::string path, const std::string& suffix) {
     std::string lower = path;
     for (char& c : lower) c = char(std::tolower(uint8_t(c)));
@@ -52,9 +52,18 @@ std::string withSuffix(std::string path, const std::string& suffix) {
 
 } // namespace
 
+// What files of this kind are saved as (a board: jplacer's), and what may be opened (a board: OpenPnP's too).
+std::vector<std::string> JPPlacementsHoldersGroup::saveExtensions() const {
+    return m_kind == JPPlacementsHolder::Kind::Board ? std::vector<std::string>{ "jpboard" } : std::vector<std::string>{ "xml" };
+}
+
+std::vector<std::string> JPPlacementsHoldersGroup::openExtensions() const {
+    return m_kind == JPPlacementsHolder::Kind::Board ? std::vector<std::string>{ "jpboard", "xml" } : std::vector<std::string>{ "xml" };
+}
+
 const JPPlacementsHoldersGroup::Words& JPPlacementsHoldersGroup::words() const {
     static const Words board {
-        "Boards", ".board.xml", "Add Board...", "Add a new or existing board", "Create New Board...",
+        "Boards", JPBoard::kExtension, "Add Board...", "Add a new or existing board", "Create New Board...",
         "Save New Board As...", "Unable to create new board", "Existing Board", "Board load failed", "Remove Board",
         "Remove the selected board(s)", "Error Removing Board",
         " because it is either being used by the current job or by a panel that is loaded in the current configuration.",
@@ -170,12 +179,12 @@ void JPPlacementsHoldersGroup::showAddMenu() {
     m_addMenu = std::make_unique<JMenu>(w.add);
     m_addMenu->add(m_graph, w.createNew)->onTriggered.connect([this] {
         const Words& w2 = words();
-        JDialog::saveFile(w2.createNewDialog, { "xml" }, [this](std::string path) {
+        JDialog::saveFile(w2.createNewDialog, saveExtensions(), [this](std::string path) {
             addFile(withSuffix(path, words().suffix), words().createNewError);
         });
     });
     m_addMenu->add(m_graph, w.existing)->onTriggered.connect([this] {
-        JDialog::openFile(words().existing, { "xml" }, [this](std::string path) { addFile(path, words().existingError); });
+        JDialog::openFile(words().existing, openExtensions(), [this](std::string path) { addFile(path, words().existingError); });
     });
     const JRect b = m_graph.getLayoutConst(m_add->getNodeId()).boundingBox;
     openMenu(m_addMenu.get(), b.x + b.width, b.y + b.height);
@@ -254,7 +263,7 @@ void JPPlacementsHoldersGroup::copy() {
     const auto s = selections();
     if (s.size() != 1) return;
     const std::string sourceFile = s.front()->file;
-    JDialog::saveFile(words().copyDialog, { "xml" }, [this, sourceFile](std::string chosen) {
+    JDialog::saveFile(words().copyDialog, saveExtensions(), [this, sourceFile](std::string chosen) {
         std::shared_ptr<JPPlacementsHolder> from;
         for (const auto& k : known())
             if (k->file == sourceFile) from = k;
@@ -266,6 +275,7 @@ void JPPlacementsHoldersGroup::copy() {
         if (m_kind == JPPlacementsHolder::Kind::Board) {
             auto b = std::make_shared<JPBoard>(*static_cast<const JPBoard*>(from.get()));
             b->makeDefinition();
+            b->ownParts();   // its parts its own, not the board's it was copied from
             b->file = path;
             b->name = std::filesystem::path(path).filename().string();
             b->dirty = false;

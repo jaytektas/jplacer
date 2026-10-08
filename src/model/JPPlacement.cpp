@@ -3,6 +3,8 @@
 
 #include "JPPlacement.h"
 
+#include "JPLocationJson.h"
+
 #include "JPLocationXml.h"
 #include "JPSides.h"
 #include "JPXmlValues.h"
@@ -57,6 +59,34 @@ JPXmlNode JPPlacement::toXml() const {
     if (comments) n.add(JPXmlNode("comments")).text = *comments;
     n.add(JPXmlNode("error-handling")).text = errorHandlingName(errorHandling);
     return n;
+}
+
+JPPlacement JPPlacement::fromJson(const JJson& j) {
+    JPPlacement p;
+    if (j["id"].isString()) p.id = j["id"].str();
+    p.side = JPSides::fromName(j["side"].isString() ? j["side"].str() : std::string());
+    if (j["part"].isString()) p.boardPart = j["part"].str();
+    p.type = j["type"].isString() && j["type"].str() == "Fiducial" ? Type::Fiducial : Type::Placement;
+    p.enabled = j["enabled"].boolean(true);
+    p.rank = int(j["rank"].number());
+    p.location = JPLocationJson::from(j["location"]);
+    if (j["comments"].isString()) p.comments = j["comments"].str();
+    if (j["errorHandling"].isString()) p.errorHandling = errorHandlingFrom(j["errorHandling"].str());
+    return p;
+}
+
+JJson JPPlacement::toJson() const {
+    JJson j = JJson::object();
+    j["id"] = id;
+    j["side"] = JPSides::name(side);
+    if (!boardPart.empty()) j["part"] = boardPart;
+    j["type"] = typeName(type);
+    j["enabled"] = enabled;
+    if (rank != 0) j["rank"] = rank;
+    j["location"] = JPLocationJson::to(location);
+    if (comments) j["comments"] = *comments;
+    if (errorHandling != ErrorHandling::Default) j["errorHandling"] = errorHandlingName(errorHandling);
+    return j;
 }
 
 } // inline namespace jf

@@ -1,8 +1,9 @@
 # Parts
 
-The **Parts** tab (in the work area, after Boards, as in OpenPnP) lists every part jplacer knows, as
-OpenPnP's Parts tab does. Parts are kept in `parts.xml` in jplacer's configuration folder; OpenPnP's
-own `parts.xml` can be copied there as it is.
+The **Parts** tab (in the work area, after Boards, as in OpenPnP) lists the library's parts, as
+OpenPnP's Parts tab does: those every job draws from. A board's own parts are kept in the board and are
+not listed here (see [Boards](boards.md#the-boards-parts)). Parts are kept in `parts.xml` in jplacer's
+configuration folder; OpenPnP's own `parts.xml` can be copied there as it is.
 
 <!-- src: src/ui/JPPartsPanel.cpp; src/app/JPlacerOpenPnpTabs.cpp; src/model/JPConfiguration.h (kPartsFile) -->
 

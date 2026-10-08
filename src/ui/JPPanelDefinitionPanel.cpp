@@ -300,8 +300,8 @@ void JPPanelDefinitionPanel::showAddMenu() {
         item->onTriggered.connect(std::move(act));
     };
     entry("Add New Board...", "Create and add a new board to this panel", [this] {
-        JDialog::saveFile("Save New Board As...", { "xml" }, [this](std::string path) {
-            addBoard(withSuffix(path, ".board.xml"), "Unable to create new board");
+        JDialog::saveFile("Save New Board As...", { "jpboard" }, [this](std::string path) {
+            addBoard(withSuffix(path, JPBoard::kExtension), "Unable to create new board");
         });
     });
     entry("Add Existing Board...", "Add an existing board to this panel", [this] {

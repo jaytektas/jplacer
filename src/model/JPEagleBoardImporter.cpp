@@ -121,7 +121,7 @@ void JPEagleBoardImporter::parse(const std::vector<std::string>& files, const st
             (isMin ? minCream : maxCream) = n;
         }
 
-    std::map<std::string, JPPart*> seen;   // parts made or updated once, at their first element
+    std::map<std::string, std::string> seen;   // board parts made (or updated) once, at their first element: their keys
     const JPXmlElement* elements = board->child("elements");
     if (!elements) return;
     for (const JPXmlElement& element : elements->children) {
@@ -148,51 +148,45 @@ void JPEagleBoardImporter::parse(const std::vector<std::string>& files, const st
                                 if (e.name == "smd" || e.name == "pad" || e.name == "polygon") polys.push_back(&e);
             }
 
-        JPPart* part = nullptr;
-        if (create || update) {
+        {
             const std::string value = element.attr("value");
             const std::string pkgId = options[AddLibraryPrefix] ? libraryId + "-" + packageId : packageId;
             const std::string partId = !trim(value).empty() ? pkgId + "-" + value : pkgId;
+            std::string key;
             if (auto s = seen.find(partId); s != seen.end()) {
-                part = s->second;
+                key = s->second;
             } else {
-                part = config.part(partId);
-                JPPackage* pkg = config.package(pkgId);
-                if ((!pkg && create) || (pkg && update)) {
-                    if (!pkg) {
-                        auto made = std::make_shared<JPPackage>();
-                        made->id = pkgId;
-                        config.addPackage(made);
-                        pkg = config.package(pkgId);
-                    }
-                    JPFootprint fp;
-                    for (const JPXmlElement* e : polys) {
-                        if (e->name != "smd") continue;
-                        JPFootprint::Pad p;
-                        p.name = e->attr("name");
-                        p.x = number(e->attr("x"));
-                        p.y = number(e->attr("y"));
-                        p.width = number(e->attr("dx"));
-                        p.height = number(e->attr("dy"));
-                        p.rotation = number(digits(orDefault(*e, "rot", "R0")));
-                        p.roundness = number(orDefault(*e, "roundness", "0"));
-                        fp.pads.push_back(p);
-                    }
-                    pkg->footprint = fp;
+                // The board's part: the library's where it has one; else, Create Missing Parts, the board's own,
+                // its package the library's or (none) one of its own with the pads the board's library draws.
+                JPPart* part = nullptr;
+                bool made = false;
+                key = boardPart(config, out, partId, pkgId, value, create, &part, &made);
+                JPFootprint fp;
+                for (const JPXmlElement* e : polys) {
+                    if (e->name != "smd") continue;
+                    JPFootprint::Pad p;
+                    p.name = e->attr("name");
+                    p.x = number(e->attr("x"));
+                    p.y = number(e->attr("y"));
+                    p.width = number(e->attr("dx"));
+                    p.height = number(e->attr("dy"));
+                    p.rotation = number(digits(orDefault(*e, "rot", "R0")));
+                    p.roundness = number(orDefault(*e, "roundness", "0"));
+                    fp.pads.push_back(p);
                 }
-                if ((!part && create) || (part && update)) {
-                    if (!part) {
-                        auto made = std::make_shared<JPPart>();
-                        made->id = partId;
-                        config.addPart(made);
-                        part = config.part(partId);
+                if (made) {
+                    if (JPBoardPart* bp = out.part(key); bp && bp->localPackage) bp->localPackage->footprint = fp;
+                } else if (part && update) {
+                    // Asked for (Update Existing Parts): the library's part and package from the board.
+                    if (JPPackage* pkg = config.libraryPackage(pkgId)) {
+                        pkg->footprint = fp;
+                        part->packageId = pkg->id;
                     }
-                    part->packageId = pkg ? pkg->id : std::string();
                 }
-                seen[partId] = part;
+                seen[partId] = key;
             }
+            assign(out, placement, key);
         }
-        if (part) placement.partId = part->id;
 
         // Solder paste: each SMD pad that takes cream, sized halfway between
         // the design rules' least and most frame, and where it lies on the

@@ -414,8 +414,8 @@ void JPJobPanel::addNew(bool panel) {
             addPanel(withSuffix(path, ".panel.xml"), "Unable to create new panel");
         });
     else
-        JDialog::saveFile("Save New Board As...", { "xml" }, [this](std::string path) {
-            addBoard(withSuffix(path, ".board.xml"), "Unable to create new board");
+        JDialog::saveFile("Save New Board As...", { "jpboard" }, [this](std::string path) {
+            addBoard(withSuffix(path, JPBoard::kExtension), "Unable to create new board");
         });
 }
 

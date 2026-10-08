@@ -68,6 +68,8 @@ private:
     JJson scriptJobRequest(const JJson& request);
     // Asks about one changed board or panel, saving it on Yes; `then` after any answer.
     void confirmSave(JPPlacementsHolder& holder, std::function<void()> then);
+    // A board saved for the first time as jplacer's file (it was OpenPnP's, `from`): the job follows it.
+    void boardMoved(const JPBoard& board, const std::string& from);
     void confirmSaveAll(std::vector<std::string> files, std::function<void()> then);
     void changed();
     // The machine's default vision settings (bottom vision's, the fiducial locator's).

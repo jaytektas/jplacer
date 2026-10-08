@@ -36,7 +36,7 @@ void JPEagleMountsmdUlpImporter::parseFile(const std::string& path, JPSide side,
             if (!packageId) throw Failure("Cannot invoke \"String.isEmpty()\" because \"packageId\" is null");
             std::string partId = *packageId;
             if (value && !value->empty()) partId += "-" + *value;
-            p.partId = findOrMakePart(config, partId, *packageId)->id;
+            assign(out, p, boardPart(config, out, partId, *packageId, value.value_or(""), true));
         }
         p.side = side;
         out.placements.push_back(p);

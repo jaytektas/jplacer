@@ -22,6 +22,10 @@
 #include "JPlacerImportDialog.h"
 #include "JPlacerMenuOpener.h"
 #include "JPlacerSettings.h"
+
+#include "common/JPlacerLog.h"
+
+#include <j/core/Log.h>
 #include <sstream>
 #include <set>
 #include <j/core/FrameTimer.h>
@@ -47,6 +51,11 @@
 #include <filesystem>
 
 inline namespace jf {
+
+namespace {
+// How long a status message stays (a board saved as jplacer's file).
+constexpr int kStatusMs = 6000;
+}
 
 namespace {
 constexpr double kSplit = 0.5;   // a table's share before its divider is moved
@@ -1084,15 +1093,39 @@ void JPlacerOpenPnpTabs::confirmSave(JPPlacementsHolder& holder, std::function<v
         std::vector<std::string> { "Yes", "No", "Cancel" }, 2, [this, file, then](int choice) {
             if (choice == 0) {
                 std::string error;
-                for (const auto& b : m_job.configuration().boards())
-                    if (b->file == file && !m_job.configuration().saveBoard(*b, error))
+                for (const auto& b : m_job.configuration().boards()) {
+                    if (b->file != file) continue;
+                    std::string movedFrom;
+                    if (!m_job.configuration().saveBoard(*b, error, &movedFrom)) {
                         JDialog::message("Save Error", error);
+                    } else if (!movedFrom.empty()) {
+                        boardMoved(*b, movedFrom);
+                    }
+                }
                 for (const auto& p : m_job.configuration().panels())
                     if (p->file == file && !m_job.configuration().savePanel(*p, error))
                         JDialog::message("Save Error", error);
             }
             if (then) then();
         });
+}
+
+void JPlacerOpenPnpTabs::boardMoved(const JPBoard& board, const std::string& from) {
+    // The job's uses of it name its new file: beside the old one, so only the file's name changes (a name
+    // the job has relative stays relative).
+    const std::string newName = std::filesystem::path(board.file).filename().string();
+    bool changedJob = false;
+    for (JPBoardLocation* l : m_job.job().boardLocations())
+        if (l->holder && l->holder->definition() == &board) {
+            l->fileName = (std::filesystem::path(l->fileName).parent_path() / newName).string();
+            changedJob = true;
+        }
+    if (changedJob) m_job.changed();
+    m_job.configurationKept();   // the boards' list names the new file
+    JLOGC(JPlacerLog::kApp, JLogLevel::Info) << "board " << from << " saved as jplacer's " << board.file
+                                             << " (the OpenPnP file is left as it was)";
+    m_window.showStatus("Saved as " + newName + ": jplacer's board file (" + std::filesystem::path(from).filename().string()
+                            + " is left as it was, for OpenPnP)", kStatusMs);
 }
 
 void JPlacerOpenPnpTabs::confirmSaveAll(std::vector<std::string> files, std::function<void()> then) {

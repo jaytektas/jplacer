@@ -40,7 +40,7 @@ void JPLabcenterProteusImporter::parse(const std::vector<std::string>& files, co
         const double rotation = number(at(t, ind[4]));
         const std::string& layer = at(t, ind[3]);
         p.location = JPLocation(JPLengthUnit::Millimeters, x, y, 0, rotation);
-        if (options[0]) p.partId = findOrMakePart(config, packageName + "-" + value, packageName)->id;
+        assign(out, p, boardPart(config, out, packageName + "-" + value, packageName, value, options[0]));
         p.side = first(layer) == 'T' ? JPSide::Top : JPSide::Bottom;
         out.placements.push_back(p);
     }

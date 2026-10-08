@@ -70,7 +70,9 @@ int main() {
     }
 
     // KiCad: a bottom part's X turned over and its rotation 180 less it;
-    // parts "Package-Value", assigned when there, made when asked.
+    // parts "Package-Value", the board's own (DESIGN.md, Board part): the
+    // library's where it has one, else made on the board when asked, else
+    // kept unmatched; the library itself never added to.
     {
         JPConfiguration config(g_dir.string());
         const std::string top = write("t.pos", "### Module positions ###\n## Unit = mm, Angle = deg.\n"
@@ -80,16 +82,32 @@ int main() {
         const std::string bottom = write("b.pos", "U1 LM358 SOIC-8 -30.5000 12.2500 45.0000 bottom\r\n"
                                                   "U2 LM358 SOIC-8 -40.0000 1.0000 180.0000 bottom\r\n");
         JPKicadPosImporter k;
-        // Not made: no part.
+        // Not made: each placement's board part unmatched, named as the file names it.
         JPBoard b = importWith(k, { top, bottom }, initial(k), config);
-        assert(b.placements.size() == 4 && b.placements[0].partId.empty() && config.parts().empty());
+        assert(b.placements.size() == 4 && b.placements[0].partId == "C_0603-100n" && config.parts().empty());
+        assert(b.parts().size() == 3 && b.part(b.placements[0].boardPart)->state == JPBoardPart::State::Unmatched);
+        assert(b.part(b.placements[0].boardPart)->field("value") == "100n"
+               && b.part(b.placements[0].boardPart)->field("footprint") == "C_0603");
         assert(b.placements[2].id == "U1" && b.placements[2].side == JPSide::Bottom);
         assert(near(b.placements[2].location.x(), 30.5) && near(b.placements[2].location.rotation(), 135));
         assert(b.placements[3].location.rotation() == 0.0 && !std::signbit(b.placements[3].location.rotation()));
-        // Made: SOIC-8-LM358 once, with its package.
+        // Made: the board's own SOIC-8-LM358, once, with a package of its own; nothing in the library.
         b = importWith(k, { top, bottom }, { true, true, false }, config);
-        assert(b.placements[2].partId == "SOIC-8-LM358" && b.placements[3].partId == "SOIC-8-LM358");
-        assert(config.parts().size() == 3 && config.package("SOIC-8") && config.part("SOIC-8-LM358")->packageId == "SOIC-8");
+        assert(b.placements[2].partId == "SOIC-8-LM358" && b.placements[3].boardPart == b.placements[2].boardPart);
+        const JPBoardPart* soic = b.part(b.placements[2].boardPart);
+        assert(soic->state == JPBoardPart::State::Local && soic->localPart->packageId == "SOIC-8"
+               && soic->localPackage && soic->localPackage->id == "SOIC-8");
+        assert(config.parts().empty() && config.packages().empty());
+        // One the library has: matched to it, the library as it was.
+        {
+            auto lm = std::make_shared<JPPart>();
+            lm->id = "SOIC-8-LM358";
+            config.addPart(lm);
+            b = importWith(k, { top, bottom }, { true, true, false }, config);
+            const JPBoardPart* m = b.part(b.placements[2].boardPart);
+            assert(m->state == JPBoardPart::State::Matched && m->libraryPartId == "SOIC-8-LM358" && config.parts().size() == 1);
+            config.removePart("SOIC-8-LM358");
+        }
         // The value alone.
         b = importWith(k, { top, "" }, { true, true, true }, config);
         assert(b.placements.size() == 2 && b.placements[1].partId == "10k");
@@ -117,11 +135,12 @@ int main() {
         assert(b.placements[1].type == JPPlacement::Type::Fiducial && b.placements[1].partId == "FID1MM-");
         assert(b.placements[2].id == "R1, R2" && b.placements[2].side == JPSide::Bottom);
         assert(near(b.placements[2].location.rotation(), 170));
-        assert(near(config.part("C0603-100n")->height.value(), 0.508));
-        // Not made: placements without a part are left out.
+        // The height given to the board's own part made for it; the library left alone.
+        assert(near(b.part(b.placements[0].boardPart)->localPart->height.value(), 0.508) && config.parts().empty());
+        // Not made: kept, their parts unmatched (nothing the file says is thrown away).
         JPConfiguration empty(g_dir.string());
         b = importWith(r, { csv }, { false, false }, empty);
-        assert(b.placements.empty());
+        assert(b.placements.size() == 3 && b.part(b.placements[0].boardPart)->state == JPBoardPart::State::Unmatched);
         // No header.
         JPBoard bad;
         std::string error;
@@ -228,8 +247,10 @@ int main() {
         JPBoard b = importWith(e, { brd }, initial(e), config);
         assert(b.placements.size() == 2 && b.placements[0].partId == "R0603-10k" && b.placements[1].side == JPSide::Bottom);
         assert(near(b.placements[1].location.rotation(), 90));
-        const JPPackage* k = config.package("R0603");
-        assert(k && k->footprint.pads.size() == 2 && near(k->footprint.pads[1].rotation, 90) && near(k->footprint.pads[1].roundness, 20));
+        // The footprint the board's library draws, on the board's own package (the library not added to).
+        const JPPackage* k = b.part(b.placements[0].boardPart)->localPackage.get();
+        assert(config.packages().empty() && k && k->id == "R0603");
+        assert(k->footprint.pads.size() == 2 && near(k->footprint.pads[1].rotation, 90) && near(k->footprint.pads[1].roundness, 20));
         assert(b.solderPastePads.size() == 4 && *b.solderPastePads[0].name == "R1-1");
         assert(near(b.solderPastePads[0].location.x(), 9.15) && near(b.solderPastePads[0].location.y(), 5));
         assert(near(b.solderPastePads[0].pad.height, 1) && near(b.solderPastePads[0].pad.width, 1.1));

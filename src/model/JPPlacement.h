@@ -9,6 +9,8 @@
 #include "openpnp/JPXmlElement.h"
 #include "openpnp/JPXmlNode.h"
 
+#include <j/config/Json.h>
+
 #include <optional>
 #include <string>
 
@@ -25,7 +27,8 @@ public:
     std::string                id;
     JPSide                     side = JPSide::Top;
     JPLocation                 location;
-    std::string                partId;
+    std::string                partId;      // the part it is placed with (its board part's: JPBoard::syncParts)
+    std::string                boardPart;   // its board's part (JPBoardPart::key); empty: none yet
     Type                       type = Type::Placement;
     std::optional<std::string> comments;
     ErrorHandling              errorHandling = ErrorHandling::Default;
@@ -40,6 +43,9 @@ public:
     // enabled.
     static JPPlacement fromXml(const JPXmlElement& e);
     JPXmlNode toXml() const;
+    // In a board file of jplacer's: its board part by key, not a part id.
+    static JPPlacement fromJson(const JJson& j);
+    JJson toJson() const;
 };
 
 } // inline namespace jf

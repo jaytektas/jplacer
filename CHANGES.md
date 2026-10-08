@@ -10,6 +10,15 @@ notes.
 
 ## Unreleased
 
+- Boards have their own parts list, and importing placements no longer fills the library with parts. A
+  part the library has is used; with Create Missing Parts, one it lacks becomes the board's own part
+  (kept in the board, its name starting with the board's); without, it is kept, not chosen yet, instead
+  of the placement being left out. Choosing one placement's part no longer changes the others that share
+  it. Importing again keeps the parts you chose.
+- Boards are saved as jplacer's own `.jpboard` files. An OpenPnP `.board.xml` is still read; when saved, it
+  is written beside it as a `.jpboard` (the job, panels and board list follow), and the `.board.xml` is
+  left as it was for OpenPnP. New boards are `.jpboard`.
+
 - A new file chooser for every Open, Save As and Browse: a path you can type or paste, New Folder, places
   (home, Desktop, Documents, Downloads, mounted drives), Size and Modified columns that sort, a real name
   field, a choice of file type (a job's: Jobs, XML files or All files), and a question before saving over a

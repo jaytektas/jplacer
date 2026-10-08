@@ -185,7 +185,7 @@ Status: **done**, **partial** (what is missing is said), **missing**,
 | Multi-placement manual locate | done | Job tab › Multiple Point Board Location |
 | Board location, side, rotation | done | from fiducials |
 | Panels (arrays, nested) | done | Panels tab |
-| Boards tab (board definitions, placements editing) | done | |
+| Boards tab (board definitions, placements editing) | done | deliberately unlike OpenPnP: a board keeps its own parts list and is saved as `.jpboard` (OpenPnP's `.board.xml` read, never written over); importers add nothing to the library (DESIGN.md, Board part) |
 | Board, panel and job viewers (outlines, origins, fiducials, placements, reticle; right-click Enabled?, Check Fids?, Placed?, Center Camera, Run Fiducial Check) | done | |
 
 ## Parts, packages, vision, feeders, jobs

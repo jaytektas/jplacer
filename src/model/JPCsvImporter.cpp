@@ -115,17 +115,15 @@ void JPCsvImporter::parse(const std::vector<std::string>& files, const std::vect
         const double r = angleNorm(number(without(replaced(as[rotation], ',', '.'), " ")), 180);
 
         const std::string partId = as[package] + "-" + as[value];
-        JPPart* part = config.part(partId);
-        if (!part && options[CreateMissingParts]) {
-            part = findOrMakePart(config, partId, as[package]);
-            part->height = JPLength(z, JPLengthUnit::Millimeters);
-        }
-        if (!part) {
-            JLOGC(JPlacerLog::kBoardImport, JLogLevel::Warn)
-                << "no part for placement " << id << " (" << partId << ") found, skipped.";
-            continue;
-        }
-        if (options[UpdateExistingPartHeights] && height >= 0) part->height = JPLength(z, JPLengthUnit::Millimeters);
+        JPPart* part = nullptr;
+        bool made = false;
+        const std::string key = boardPart(config, out, partId, as[package], as[value], options[CreateMissingParts], &part, &made);
+        if (made) part->height = JPLength(z, JPLengthUnit::Millimeters);
+        if (!part)
+            JLOGC(JPlacerLog::kBoardImport, JLogLevel::Info)
+                << "placement " << id << ": no part " << partId << " in the library: kept, its part to be chosen";
+        // Asked for: the file's height on the library's part too (the one change to the library an import makes).
+        if (part && !made && options[UpdateExistingPartHeights] && height >= 0) part->height = JPLength(z, JPLengthUnit::Millimeters);
 
         JPPlacement p;
         p.id = id;
@@ -135,7 +133,7 @@ void JPCsvImporter::parse(const std::vector<std::string>& files, const std::vect
             if (std::isdigit(uint8_t(u[3]))) p.type = JPPlacement::Type::Fiducial;
         }
         p.location = JPLocation(JPLengthUnit::Millimeters, px, py, 0, r);
-        p.partId = part->id;
+        assign(out, p, key);
         if (comment >= 0) p.comments = as[comment];
         const char c = side >= 0 ? first(upper(as[side])) : 0;
         p.side = c == 'B' || c == 'Y' ? JPSide::Bottom : JPSide::Top;

@@ -8,13 +8,15 @@ OpenPnP.
   which side is up, and what the job sets on them: which placements are placed, which boards and
   placements are enabled, whether each board's fiducials are checked, and how each placement's errors
   are handled.
-- A **board** (`.board.xml`) holds its placements (designator, side, location, rotation, part, type,
-  comments, error handling, enabled), its dimensions and outline, and its solder paste pads. A board
+- A **board** (`.jpboard`; OpenPnP's `.board.xml` is read) holds its placements (designator, side,
+  location, rotation, part, type, comments, error handling, enabled), its own parts list (see
+  [Boards](boards.md#the-boards-parts)), its dimensions and outline, and its solder paste pads. A board
   can be used many times, in one job or several; each use shares the board's file.
 - A **panel** (`.panel.xml`) holds boards and other panels, each where it lies on the panel, the
   panel's own fiducials, and *pseudo-placements*: a placement of one of its boards (a fiducial, say)
   used to line up the whole panel.
-- **Parts** and **packages** are kept in `parts.xml` and `packages.xml`, and the boards and panels in
+- The library's **parts** and **packages** are kept in `parts.xml` and `packages.xml` (a board's own
+  parts are kept in the board), and the boards and panels in
   use are listed in `boards.xml` and `panels.xml`, all in jplacer's configuration folder
   (`~/.config/jplacer`). A part has an id, a name, a height (and the depth it reaches through the
   board), a package, a speed and how many times a pick is tried again. A package has an id, a
