@@ -28,15 +28,27 @@
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <vector>
+
+#include <unistd.h>
 
 struct BottomVisionBench {
     static constexpr double kUpp = 0.0134375, kCamX = 118.799, kCamY = 7.117, kCamZ = 0;
     static constexpr int    kWidth = 640, kHeight = 480;
     static constexpr double kFps = 1000;
     static constexpr int    kGrabMs = 1000;
+
+    static std::string workingCopy(const std::string& dir) {
+        static int made = 0;
+        const std::filesystem::path to = std::filesystem::temp_directory_path() /
+                                         ("jplacer-bottom-vision-bench-" + std::to_string(::getpid()) + "-" + std::to_string(++made));
+        std::filesystem::remove_all(to);
+        std::filesystem::copy(dir, to, std::filesystem::copy_options::recursive);
+        return to.string();
+    }
 
     jf::JPConfiguration           config;
     jf::JPVisionConfig            vision;
@@ -45,7 +57,9 @@ struct BottomVisionBench {
     jf::JPSimulatedUpCamera::Settings up;
     jf::JPCameraCalibration       cal;
 
-    explicit BottomVisionBench(const std::string& dir) : config(dir) {
+    // `dir`'s configuration, read from a copy of it: loading writes the library's and runs' files beside it, and
+    // `dir` may be the shipped defaults.
+    explicit BottomVisionBench(const std::string& dir) : config(workingCopy(dir)) {
         std::vector<std::string> problems;
         std::string error;
         const bool loaded = config.load(problems, error);

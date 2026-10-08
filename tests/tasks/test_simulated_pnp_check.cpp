@@ -14,13 +14,21 @@
 #include "model/JPConfiguration.h"
 #include "tasks/JPSimulatedPnpCheck.h"
 
+#include <filesystem>
 #include <string>
 
+#include <unistd.h>
+
 using namespace jf;
+namespace fs = std::filesystem;
 
 int main() {
     const std::string defaults = std::string(JPLACER_TESTDATA_DIR) + "/../../openpnp-defaults";
-    JPConfiguration config(defaults + "/config");
+    // The shipped defaults, read from a copy: loading writes the library's and runs' files beside them.
+    const fs::path work = fs::temp_directory_path() / ("jplacer-test-simulated-pnp-check-" + std::to_string(::getpid()));
+    fs::remove_all(work);
+    fs::copy(defaults + "/config", work, fs::copy_options::recursive);
+    JPConfiguration config(work.string());
     std::vector<std::string> problems;
     std::string error;
     assert(config.load(problems, error));

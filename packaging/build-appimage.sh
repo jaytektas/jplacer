@@ -44,6 +44,8 @@ cp -r "$ROOT/profiles" "$APPDIR/usr/bin/profiles"
 cp -r "$ROOT/translations" "$APPDIR/usr/bin/translations"
 # OpenPnP's defaults: its configuration and test picture, for a first start (JPlacerPaths::bundled).
 cp -r "$ROOT/openpnp-defaults" "$APPDIR/usr/bin/openpnp-defaults"
+# Only the files kept in the repository: a library or runs database left by a configuration read there is not.
+find "$APPDIR/usr/bin/openpnp-defaults" \( -name '*.db' -o -name '*.db-wal' -o -name '*.db-shm' \) -delete
 # OpenPnP's icons too: JPOpenPnpIcons reads usr/bin/icons.
 cp -r "$ROOT/icons" "$APPDIR/usr/bin/icons"
 # OpenPnP's illustrations too: JPIllustrations reads usr/bin/illustrations.
