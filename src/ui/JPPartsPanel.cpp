@@ -601,6 +601,15 @@ void JPPartsPanel::act(const std::string& action) {
                          run, nullptr, opts);
         return;
     }
+    if (what == "generalize") {
+        // What it goes back to, and that its own stay, said first.
+        const JPVisionForms::Manage m = JPVisionForms::manageFor(m_config, *v, holder);
+        JDialogOptions opts;
+        opts.okLabel = "Yes";
+        opts.cancelLabel = "No";
+        JDialog::confirm(m.generalizeLabel, m.generalizeTip + ".\n\nAre you sure?", run, nullptr, opts);
+        return;
+    }
     // Not while the button clicked is still in its page: the page is made again.
     jPostToNextFrame(run);
 }

@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- Vision settings pages show only the buttons that do something: Specialize while a part or package uses shared
+  settings, Generalize on a package while some of its parts have their own, and on a part with its own, "Use
+  Package …'s Settings" to put it back. The Vision tab shows neither.
 ## 0.1.18
 
 - Fixed a crash: deleting vision settings a part's page was still showing (after Generalize freed them). A part's

@@ -67,27 +67,21 @@ void pipelineControls(JPFormBuilder& add, std::function<JPVisionSettings&()> v, 
 }
 
 void general(JPFormBuilder& add, std::function<JPVisionSettings&()> v, const std::string& usedIn, bool bottom,
-             const JPVisionForms::Holder& holder) {
-    using Kind = JPVisionForms::Holder::Kind;
+             const JPVisionForms::Holder& holder, const JPVisionForms::Manage& manage) {
     const std::string prefix = bottom ? "bottom:" : "fiducial:";
     const std::string what = bottom ? "Bottom Vision Settings" : "Fiducial Vision Settings";
     add.group("General");
     add.text(prefix + "name", "Name", [v] { return v().name; }, [v](const std::string& n) { v().name = n; }, "long");
     add.text(prefix + "assignedTo", "Assigned to", [usedIn] { return usedIn.empty() ? std::string("None") : usedIn; }, nullptr);
     add.row("Manage Settings");
-    // Shown from a part or a package: for it; on the Vision tab nothing is in hand.
-    const std::string kindName = holder.kind == Kind::Part ? "Part" : "Package";
-    if (holder.kind == Kind::None)
-        add.button(prefix + "specialize", "Specialize", "", false);
-    else
+    // Only what can be done here: Specialize while the part or package uses settings it shares; Generalize on a
+    // package while some of its parts have their own, on a part while it has its own.
+    const std::string kindName = holder.kind == JPVisionForms::Holder::Kind::Part ? "Part" : "Package";
+    if (manage.specialize)
         add.button(prefix + "specialize", "Specialize for " + holder.id,
                    "Create a copy of these " + what + " and assign to " + kindName + " " + holder.id);
-    if (holder.kind == Kind::Package)
-        add.button(prefix + "generalize", "Generalize for " + holder.id,
-                   "Generalize these " + what + " for all the Parts with the Package " + holder.id +
-                       ". This will unassign any special " + what + " on Parts.");
-    else
-        add.button(prefix + "generalize", "Generalize", "", false);
+    if (manage.generalize)
+        add.button(prefix + "generalize", manage.generalizeLabel, manage.generalizeTip);
     add.button(prefix + "reset", "Reset to Default");
     add.end();
     add.flag(prefix + "enabled", "Enabled?", [v] { return v().enabled; }, [v](bool on) { v().enabled = on; });
@@ -111,9 +105,9 @@ void general(JPFormBuilder& add, std::function<JPVisionSettings&()> v, const std
 }
 
 void bottomForm(JPFormBuilder& add, std::function<JPVisionSettings&()> v, const std::string& usedIn,
-                const JPVisionForms::Holder& holder, const JPVisionForms::Tests* tests) {
+                const JPVisionForms::Holder& holder, const JPVisionForms::Manage& manage, const JPVisionForms::Tests* tests) {
     add.tab("Bottom Vision Settings");
-    general(add, v, usedIn, true, holder);
+    general(add, v, usedIn, true, holder, manage);
     add.group("Test Alignment");
     add.row("Placement Angle");
     if (tests) {
@@ -153,9 +147,9 @@ void bottomForm(JPFormBuilder& add, std::function<JPVisionSettings&()> v, const 
 }
 
 void fiducialForm(JPFormBuilder& add, std::function<JPVisionSettings&()> v, const std::string& usedIn,
-                  const JPVisionForms::Holder& holder, const JPVisionForms::Tests* tests) {
+                  const JPVisionForms::Holder& holder, const JPVisionForms::Manage& manage, const JPVisionForms::Tests* tests) {
     add.tab("Fiducial Vision Settings");
-    general(add, v, usedIn, false, holder);
+    general(add, v, usedIn, false, holder, manage);
     add.group("Fiducial Locator");
     add.integer("fiducial:max-vision-passes", "Max. Vision Passes", [v] { return v().number("max-vision-passes", 3); },
                 [v](int n) { v().setText("max-vision-passes", std::to_string(n)); }, 1, 100);
@@ -199,8 +193,37 @@ void JPVisionForms::addPage(JPFormBuilder& add, JPConfiguration& config, const s
                             const Holder& holder, const Tests* tests) {
     const JPVisionSettings* v = config.visionSettings(id);
     if (!v) return;
-    if (v->kind == JPVisionSettings::Kind::Bottom) bottomForm(add, finder(config, id), usedIn, holder, tests);
-    else fiducialForm(add, finder(config, id), usedIn, holder, tests);
+    const Manage manage = manageFor(config, *v, holder);
+    if (v->kind == JPVisionSettings::Kind::Bottom) bottomForm(add, finder(config, id), usedIn, holder, manage, tests);
+    else fiducialForm(add, finder(config, id), usedIn, holder, manage, tests);
+}
+
+JPVisionForms::Manage JPVisionForms::manageFor(const JPConfiguration& config, const JPVisionSettings& v, const Holder& holder) {
+    Manage m;
+    const bool bottom = v.kind == JPVisionSettings::Kind::Bottom;
+    const std::string what = bottom ? "bottom vision settings" : "fiducial vision settings";
+    if (holder.kind == Holder::Kind::Part) {
+        const JPPart* part = config.part(holder.id);
+        if (!part) return m;
+        const bool own = (bottom ? part->bottomVisionId : part->fiducialVisionId) == v.id;
+        m.specialize = !own;
+        m.generalize = own;
+        const JPPackage* k = config.package(part->packageId);
+        const bool packageOwn = k && config.visionSettings(bottom ? k->bottomVisionId : k->fiducialVisionId);
+        m.generalizeLabel = packageOwn ? "Use Package " + k->id + "'s Settings" : "Use the Machine's Default Settings";
+        m.generalizeTip = "Part " + holder.id + " goes back to " +
+                          (packageOwn ? "its package " + k->id + "'s " : std::string("the machine's default ")) + what +
+                          "; its own (" + v.name + ") stay on the Vision tab, used by nothing";
+    } else if (holder.kind == Holder::Kind::Package) {
+        const JPPackage* k = config.package(holder.id);
+        if (!k) return m;
+        m.specialize = (bottom ? k->bottomVisionId : k->fiducialVisionId) != v.id;
+        m.generalize = !specializedIn(config, holder, v.kind).empty();
+        m.generalizeLabel = "Generalize for " + holder.id;
+        m.generalizeTip = "Generalize these " + what + " for all the Parts with the Package " + holder.id +
+                          ". This will unassign any special " + what + " on Parts.";
+    }
+    return m;
 }
 
 std::vector<std::string> JPVisionForms::specializedIn(const JPConfiguration& config, const Holder& holder,
@@ -247,6 +270,11 @@ bool JPVisionForms::act(JPConfiguration& config, const std::string& id, const st
         } else if (JPPackage* p = config.package(holder.id)) {
             (bottom ? p->bottomVisionId : p->fiducialVisionId) = newId;
         }
+        return true;
+    }
+    if (action == "generalize" && holder.kind == Holder::Kind::Part) {
+        // The part back on its package's (or the machine's) settings; its own kept, used by nothing.
+        if (JPPart* p = config.part(holder.id)) (bottom ? p->bottomVisionId : p->fiducialVisionId).clear();
         return true;
     }
     if (action == "generalize" && holder.kind == Holder::Kind::Package) {

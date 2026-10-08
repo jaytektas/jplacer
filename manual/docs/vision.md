@@ -37,8 +37,8 @@ Vision Settings -** and **- Footprint Fiducial Vision Settings -**; with none ye
 
 Under the table, the chosen settings' page. **General**: **Name**, **Assigned to**, **Enabled?**, and
 **Reset to Default**, which gives them the values of the machine's default settings of their kind (the
-machine's default itself the stock settings' values), keeping their name, after asking. **Specialize** and **Generalize** are for settings shown from a part or package, so they are
-greyed here.
+machine's default itself the stock settings' values), keeping their name, after asking. Specializing and
+generalizing are done from a part's or package's page (see [Parts](parts.md) and [Packages](packages.md)).
 
 **Bottom Vision Settings** add **Pre-rotate** (Default, AlwaysOn, AlwaysOff), **Rotation** (Adjust, Full),
 **Part size check** (Disabled, BodySize, PadExtents) with its **Size tolerance (%)**, and **Vision Offsets**:

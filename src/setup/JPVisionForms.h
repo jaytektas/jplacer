@@ -32,6 +32,16 @@ public:
         std::string id;
     };
 
+    // Which of Manage Settings' buttons a page shows (Reset to Default always): Specialize, while the part or
+    // package uses settings it shares; Generalize, on a package while some of its parts have their own (all of
+    // them put back), on a part while it has its own (put back on its package's, or the machine's).
+    struct Manage {
+        bool        specialize = false;
+        bool        generalize = false;
+        std::string generalizeLabel, generalizeTip;
+    };
+    static Manage manageFor(const JPConfiguration& config, const JPVisionSettings& v, const Holder& holder);
+
     // What the test buttons work with (JPVisionTests).
     using Tests = JPVisionTests;
     // `usedIn`: what uses it, as Assigned To lists it.

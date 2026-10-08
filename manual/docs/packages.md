@@ -94,9 +94,10 @@ finds the corners there, and what the shots found is put together.
 <!-- src: src/ui/JPPackagesPanel.cpp (nozzleTipsTab, settingsTab, footprintTab, generatePads, compositingTab, showFootprint); src/ui/JPFootprintTableModel.cpp; src/model/JPFootprint.cpp (generate); src/model/JPKicadModImporter.cpp; src/ui/JPFootprintOverlay.cpp; src/ui/JPCompositingPreview.cpp; src/tasks/JPVisionComposite.cpp (compute, composeShots, travel, interpret); src/tasks/JPVisionPipelinePrep.cpp (composite, bottom, shot); src/tasks/JPCellJobMachine.cpp (alignPart, alignComposite); src/app/JPlacerOpenPnpTabs.cpp (computeComposite) -->
 
 **Bottom Vision Settings** and **Fiducial Vision Settings** show the vision settings the package uses (its
-own, else the machine's), as on the [Vision](vision.md#the-settings) tab. **Specialize for** the package
-makes a copy for it alone; **Generalize for** the package takes off the settings of its own of each part
-of the package (after saying which), so they use the package's.
+own, else the machine's), as on the [Vision](vision.md#the-settings) tab. **Specialize for** the package,
+shown while it uses the machine's, makes a copy for it alone; **Generalize for** the package, shown while
+some of its parts have settings of their own, takes those off each of them (after saying which), so they
+use the package's again.
 
 <!-- src: src/ui/JPPackagesPanel.cpp (visionTab, visionAct); src/setup/JPVisionForms.cpp (act, specializedIn) -->
 

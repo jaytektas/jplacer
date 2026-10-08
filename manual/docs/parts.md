@@ -121,10 +121,12 @@ the part discarded, after each failed try).
 
 **Bottom Vision Settings** and **Fiducial Vision Settings** show the vision settings the part uses (its
 own, else its package's, else the machine's), as on the [Vision](vision.md#the-settings) tab: a change is a
-change to those settings, for everything that uses them. **Specialize for** the part makes a copy of them,
-named after the part, for this part alone; it says so when the part has its own already.
+change to those settings, for everything that uses them. While the part uses settings it shares,
+**Specialize for** the part makes a copy of them, named after the part, for this part alone. Once it has
+its own, **Use Package *package*'s Settings** (or **Use the Machine's Default Settings**, its package having
+none) puts it back on those, after asking; its own stay on the Vision tab, used by nothing.
 
-<!-- src: src/ui/JPPartsPanel.cpp (updateWizards, formFor, libraryPage, libraryAct, act); src/app/JPlacerManufacturersDialog.cpp; src/model/JPPart.h (Packaging, Offer, kPackagingKinds); src/model/JPConfiguration.cpp (manufacturerName, sameManufacturer); src/model/JPPartMatcher.cpp (candidates); src/model/JPLibraryJson.cpp (fingerprint); src/setup/JPVisionForms.cpp (addPage, act) -->
+<!-- src: src/ui/JPPartsPanel.cpp (updateWizards, formFor, libraryPage, libraryAct, act); src/app/JPlacerManufacturersDialog.cpp; src/model/JPPart.h (Packaging, Offer, kPackagingKinds); src/model/JPConfiguration.cpp (manufacturerName, sameManufacturer); src/model/JPPartMatcher.cpp (candidates); src/model/JPLibraryJson.cpp (fingerprint); src/setup/JPVisionForms.cpp (addPage, manageFor, act) -->
 
 ## Undo and Redo
 
