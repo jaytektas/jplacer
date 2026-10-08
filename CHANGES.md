@@ -10,12 +10,15 @@ notes.
 
 ## Unreleased
 
+## 0.1.19
+
 - A KiCad placement file in inches (`## Unit = inches`) is read in inches: its positions were taken as
   millimetres (as OpenPnP takes them), 25.4 times too small. Both the KiCAD .pos importer and CPL and BOM read
   the units line.
 - Vision settings pages show only the buttons that do something: Specialize while a part or package uses shared
   settings, Generalize on a package while some of its parts have their own, and on a part with its own, "Use
   Package …'s Settings" to put it back. The Vision tab shows neither.
+
 ## 0.1.18
 
 - Fixed a crash: deleting vision settings a part's page was still showing (after Generalize freed them). A part's
