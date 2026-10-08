@@ -585,6 +585,15 @@ then moves the other way, until the camera is calibrated.
 
 <!-- src: src/ui/JPCameraView.cpp (handleMousePress, handleMouseRelease, lookAt); src/app/JPlacerCameraTasks.cpp (onLookAtPixel, lookAt, lookAtFixed, askOperator) -->
 
+OpenPnP's **rotation handle** is the circle on a ring about the middle of the picture, at the angle it
+turns now (straight up at 0°, counter-clockwise). Drag it round the ring: the ring, where it would turn to
+and a cross turned with it are drawn; let go and it turns there, at safe Z first (hold **Alt** to snap to
+the nearest 45°). It turns what the footprint on that camera turns with: a camera with a rotation axis
+(one on the head), the camera; one without (looking up at the nozzles), the tool chosen in Jog. Without
+either, there is no handle.
+
+<!-- src: src/ui/JPCameraView.cpp (rotationRing, ringRotation, handleMousePress, handleMouseRelease); src/app/JPlacerMachine.cpp (rotationMount, reticleRotation, rotateFor) -->
+
 While a page asks for a **selection** on the head camera's picture (a drag feeder's template image or
 area of interest), a rectangle with a handle at each corner is drawn over it, its size in pixels by it.
 Drag inside it to move it, drag a corner to resize it, or drag anywhere else to draw a new one; the camera

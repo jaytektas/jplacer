@@ -264,6 +264,12 @@ void JPlacerMachine::buildCameras() {
             JSettings::instance().get<std::string>(JPlacerSettings::cameraReticleKey(c.id), "")));
         // What a camera says (a task's steps, why it is dark): on the status line, its room left to the picture.
         d.panel->onNote = [this](const std::string& text) { m_window.showStatus(text, kStatusMs); };
+        // OpenPnP's rotation handle: what the footprint turns with on this camera, turned by dragging it.
+        d.panel->view().handleRotation = [this, id = c.id]() -> std::optional<double> {
+            if (!m_cell || !m_cell->isConnected() || !rotationMount(id)) return std::nullopt;
+            return reticleRotation(id);
+        };
+        d.panel->view().onRotateTo = [this, id = c.id](double deg) { rotateFor(id, deg); };
         d.panel->onReticleChanged = [id = c.id](const JPReticle& r) {
             JSettings::instance().set(JPlacerSettings::cameraReticleKey(id), r.toText());
             JPlacerSettings::save();
@@ -658,14 +664,34 @@ void JPlacerMachine::homeNozzle(const std::string& nozzleId) {
     m_cell->homeNozzle(nozzleId, 1.0);   // at the machine's speed
 }
 
+const JPMountConfig* JPlacerMachine::rotationMount(const std::string& cameraId) const {
+    if (!m_cell) return nullptr;
+    const JPCellConfig& c = m_cell->config();
+    for (const JPCameraConfig& cam : c.cameras)
+        if (cam.id == cameraId && !cam.mount.axisRotation.empty()) return &cam.mount;
+    const std::string tool = m_jog ? m_jog->toolId() : std::string();
+    auto turning = [&tool](const auto& tools) -> const JPMountConfig* {
+        for (const auto& t : tools)
+            if (t.id == tool && !t.mount.axisRotation.empty()) return &t.mount;
+        return nullptr;
+    };
+    if (const JPMountConfig* m = turning(c.nozzles)) return m;
+    if (const JPMountConfig* m = turning(c.cameras)) return m;
+    return turning(c.actuators);
+}
+
 double JPlacerMachine::reticleRotation(const std::string& cameraId) const {
-    if (!m_cell || !m_cell->isConnected()) return 0;
-    for (const JPCameraConfig& cam : m_cell->config().cameras)
-        if (cam.id == cameraId && !cam.mount.axisRotation.empty()) return whereIsMount(&cam.mount)[3].value_or(0);
-    if (m_jog)
-        for (const auto& [name, value] : m_jog->where())
-            if (name == "C") return value;
-    return 0;
+    const JPMountConfig* m = rotationMount(cameraId);
+    if (!m || !m_cell->isConnected()) return 0;
+    // As the DRO reads it: a nozzle holding a part, the part's angle.
+    return whereIsMount(m)[3].value_or(0) + m_cell->rotationModeOffsetOf(*m);
+}
+
+void JPlacerMachine::rotateFor(const std::string& cameraId, double deg) {
+    const JPMountConfig* m = rotationMount(cameraId);
+    if (!m || !readyToMove()) return;
+    m_cell->moveTool(*m, { std::nullopt, std::nullopt, std::nullopt, deg }, 1.0);   // at the machine's speed
+    selectMoved(*m);
 }
 
 void JPlacerMachine::setCameraOverlay(const std::string& key, OverlayFor overlay) {

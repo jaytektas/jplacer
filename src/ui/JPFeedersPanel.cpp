@@ -91,7 +91,10 @@ JPFeedersPanel::JPFeedersPanel(JSceneGraph& graph, JPConfiguration& config, doub
     m_table->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
     m_table->onSelectionChanged.connect([this] {
         selectionChanged();
-        if (const JPFeeder* f = selection(); f && onFeederChosen) onFeederChosen(*f);
+        if (const JPFeeder* f = selection(); f && onFeederChosen) {
+            m_chosenPart = f->partId();
+            onFeederChosen(*f);
+        }
     });
     m_table->onEditRefused = [](const std::string&) {};
     m_form = m_formPane->add(std::make_unique<JPSetupForm>(graph));
@@ -648,6 +651,11 @@ void JPFeedersPanel::cancelSelection() {
 
 void JPFeedersPanel::changed() {
     if (onChanged) onChanged();
+    // The chosen feeder's part changed (its form, its Part cell): told again, its new part's links followed.
+    if (const JPFeeder* f = selection(); f && f->partId() != m_chosenPart) {
+        m_chosenPart = f->partId();
+        if (onFeederChosen) onFeederChosen(*f);
+    }
 }
 
 void JPFeedersPanel::showFeederForPart(const std::string& partId) {

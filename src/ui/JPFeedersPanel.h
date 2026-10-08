@@ -114,7 +114,8 @@ public:
     // OpenPnP's selectFeederForPart: unless the feeder chosen has the part, its
     // feeder chosen (an enabled one first); none made when it has none.
     void selectFeederForPart(const std::string& partId);
-    // One feeder chosen in the table (for the tables linked to it, View > Selections in Tables).
+    // One feeder chosen in the table (for the tables linked to it, View > Selections in Tables), and
+    // again when the chosen one's part is changed (what is linked to it follows its part now).
     std::function<void(const JPFeeder&)> onFeederChosen;
     // OpenPnP's pickFeeder: a feed, then the chosen nozzle's pick at its pick location.
     void pickFrom(JPFeeder& f);
@@ -179,6 +180,7 @@ private:
     std::unique_ptr<JContainer>         m_tablePane, m_formPane;
     JPSetupForm*                        m_form = nullptr;
     std::string                         m_shown;   // the feeder whose setup is shown
+    std::string                         m_chosenPart;   // the chosen feeder's part, as onFeederChosen was told
     JPIconButton*                       m_delete = nullptr;
     JPIconButton*                       m_pick = nullptr;
     JPIconButton*                       m_feed = nullptr;

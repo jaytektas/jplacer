@@ -52,6 +52,10 @@ constexpr size_t kFpsPictures = 24;
 // its sun's disc and rays as shares of that.
 constexpr float  kHistogramHeight = 50.f;
 constexpr float  kLightControls = 1.33f;
+// OpenPnP's rotation handle: its ring 80 % of the way out from the middle, the handle a circle of about
+// two controls across (OpenPnP's 50 px), snapped to the nearest 45 degrees with Alt.
+constexpr float  kRingShare = 0.8f, kHandleControls = 0.9f;
+constexpr double kSnapDeg = 45.0;
 constexpr float  kSunDisc = 0.27f, kRayFrom = 0.36f, kRayTo = 0.5f;
 constexpr int    kRays = 12;
 constexpr double kPi = 3.14159265358979323846;
@@ -568,6 +572,29 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
         vg.strokeRect(m_dragX - half, m_dragY - half, 2 * half, 2 * half, line, JPaint::solid(d));
     }
 
+    // OpenPnP's rotation handle: where the rotation is now (grey); held, the ring, where it would turn to
+    // (the text colour) and a cross turned with it to line things up by.
+    if (float rcx, rcy, ring, handle; rotationRing(rcx, rcy, ring, handle)) {
+        const JColor grey = rgb(Colors::MutedText[0], Colors::MutedText[1], Colors::MutedText[2]);
+        const JColor held = rgb(Colors::ControlText[0], Colors::ControlText[1], Colors::ControlText[2]);
+        float hx, hy;
+        ringPoint(rcx, rcy, ring, *handleRotation(), hx, hy);
+        vg.strokeCircle(hx, hy, handle, line, JPaint::solid(grey));
+        if (m_rotating) {
+            vg.strokeCircle(rcx, rcy, ring, line, JPaint::solid(grey));
+            const double to = ringRotation(rcx, rcy, m_rotX, m_rotY);
+            float tx, ty;
+            ringPoint(rcx, rcy, ring, to, tx, ty);
+            vg.strokeCircle(tx, ty, handle, line, JPaint::solid(held));
+            for (const double across : { 0.0, 90.0 }) {
+                float ax, ay, bx, by;
+                ringPoint(rcx, rcy, ring, to + across, ax, ay);
+                ringPoint(rcx, rcy, ring, to + across + 180.0, bx, by);
+                vg.drawLine(ax, ay, bx, by, line, JPaint::solid(held));
+            }
+        }
+    }
+
     // A live camera not calibrated for its picture size: OpenPnP's red X in the picture's top left, as on its
     // capture error picture (in proportion, the picture taken as 640 wide), as it cannot be measured through
     // (its scale, its lens, where it is all unknown), with what is missing said beside it.
@@ -724,6 +751,18 @@ void JPCameraView::handleMousePress(float x, float y) {
         invalidate();
         return;
     }
+    // The rotation handle: turned when let go.
+    if (float rcx, rcy, ring, handle; rotationRing(rcx, rcy, ring, handle)) {
+        float hx, hy;
+        ringPoint(rcx, rcy, ring, *handleRotation(), hx, hy);
+        if (std::hypot(x - hx, y - hy) <= handle) {
+            m_rotating = true;
+            m_rotX = x;
+            m_rotY = y;
+            invalidate();
+            return;
+        }
+    }
     // A place being chosen: the click is it.
     if (onPicked) {
         double px, py;
@@ -753,6 +792,13 @@ void JPCameraView::handleMouseMove(float x, float y) {
         if (pixelAt(cx, cy, px, py)) dragSelection(px, py);
         return;
     }
+    if (m_rotating) {
+        if (!JWidget::s_leftDown) m_rotating = false;   // let go where this view did not hear it: not turned
+        m_rotX = x;
+        m_rotY = y;
+        invalidate();
+        return;
+    }
     if (!m_pressed) return;
     // The button let go where this view did not hear it: no move.
     if (!JWidget::s_leftDown) {
@@ -779,12 +825,43 @@ void JPCameraView::handleMouseRelease(float x, float y) {
         m_selDragging = false;
         return;
     }
+    if (m_rotating) {
+        m_rotating = false;
+        invalidate();
+        if (float rcx, rcy, ring, handle; rotationRing(rcx, rcy, ring, handle) && onRotateTo)
+            onRotateTo(ringRotation(rcx, rcy, x, y));
+        return;
+    }
     const bool dragged = m_pressed && m_dragging;
     m_pressed = m_dragging = false;
     if (!dragged) return;
     invalidate();
     const JRect b = bounds();
     if (x >= b.x && y >= b.y && x < b.x + b.width && y < b.y + b.height) lookAt(x, y);
+}
+
+bool JPCameraView::rotationRing(float& cx, float& cy, float& ring, float& handle) const {
+    if (!handleRotation || m_selecting || onPicked || !handleRotation()) return false;
+    // On the picture as it is on screen, so all of it is seen.
+    const JRect& b = m_shown;
+    cx = b.x + b.width * 0.5f;
+    cy = b.y + b.height * 0.5f;
+    ring = std::min(b.width, b.height) * 0.5f * kRingShare;
+    handle = JStyle::current().controlHeight * kHandleControls;
+    return ring > handle;
+}
+
+void JPCameraView::ringPoint(float cx, float cy, float ring, double deg, float& x, float& y) {
+    // As OpenPnP's: on screen (y down), 0 up and counter-clockwise.
+    const double a = -(deg + 90.0) * kPi / 180.0;
+    x = cx + ring * float(std::cos(a));
+    y = cy + ring * float(std::sin(a));
+}
+
+double JPCameraView::ringRotation(float cx, float cy, float x, float y) {
+    double a = std::atan2(double(y - cy), double(x - cx)) * 180.0 / kPi;
+    if (JWidget::s_altDown) a = std::round(a / kSnapDeg) * kSnapDeg;
+    return std::remainder(-(a + 90.0), 360.0);
 }
 
 bool JPCameraView::pixelAt(float x, float y, double& px, double& py) const {

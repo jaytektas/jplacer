@@ -123,6 +123,9 @@ public:
     // turned to a placement as it is moved there), that axis; one without (looking up at the nozzles),
     // the tool chosen in Jog (its C, as the DRO reads it), as OpenPnP's CameraView; 0 with neither.
     double reticleRotation(const std::string& cameraId) const;
+    // OpenPnP's rotation handle on camera `cameraId`'s view let go at `deg`: what reticleRotation follows
+    // there turned to it (at safe Z first, as OpenPnP's).
+    void rotateFor(const std::string& cameraId, double deg);
     // The open cell's nozzle tips, id and name; none without a cell.
     std::vector<std::pair<std::string, std::string>> nozzleTips() const;
 
@@ -374,6 +377,9 @@ private:
     // OpenPnP's auto tool select: the tool a panel moved chosen on the Jog panel.
     void selectMoved(const JPMountConfig& mount);
     bool readyToMove();
+    // What turns a reticle on camera `cameraId` (reticleRotation): its own rotation axis, else the Jog
+    // tool's; none when neither has one (no rotation handle then, as OpenPnP's).
+    const JPMountConfig* rotationMount(const std::string& cameraId) const;
     // The nozzle Offset Wizard's two steps: store where the nozzle left its
     // mark; then, the camera over the mark, move the nozzle's offset by the
     // difference (a step in Machine Setup, to undo).

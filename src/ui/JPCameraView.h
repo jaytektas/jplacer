@@ -34,6 +34,9 @@ inline namespace jf {
 // To move the camera to a point in the picture: double-click it, Shift+click
 // it, or drag from anywhere to it (a line shows the move until the button is
 // let go; let go outside the picture and nothing moves).
+// OpenPnP's rotation handle: a circle on a ring about the middle, at the angle
+// handleRotation gives (0 up, counter-clockwise); dragged round the ring and
+// let go, onRotateTo is told the angle there (Alt held: to the nearest 45).
 //
 // Each new frame becomes a GPU texture on the main thread (the feed's signal
 // is re-posted there); the previous texture is released.
@@ -150,6 +153,9 @@ public:
     // A point in the picture asked to be looked at (double-click, Shift+click,
     // drag), at this pixel of the picture as taken.
     std::function<void(double px, double py)> onLookAt;
+    // The rotation handle's angle now (degrees); none: no handle. Let go at a new one: onRotateTo.
+    std::function<std::optional<double>()> handleRotation;
+    std::function<void(double deg)>        onRotateTo;
     // While set, a click is a place chosen (OpenPnP's CameraView action: Auto
     // Setup's "click on the center of the first part"): its pixel of the
     // picture as taken; nothing is looked at meanwhile. With what to do,
@@ -256,6 +262,15 @@ private:
     // A drag to look somewhere: where it started, and where it is now.
     bool                               m_pressed = false, m_dragging = false;
     float                              m_dragX = 0, m_dragY = 0;
+    // The rotation handle held, and where the pointer is.
+    bool                               m_rotating = false;
+    float                              m_rotX = 0, m_rotY = 0;
+    // The rotation handle's ring (its middle, its radius) and the handle's radius; false: no handle.
+    bool rotationRing(float& cx, float& cy, float& ring, float& handle) const;
+    // On screen, the point of the ring at rotation `deg` (0 up, counter-clockwise).
+    static void ringPoint(float cx, float cy, float ring, double deg, float& x, float& y);
+    // The rotation the pointer at (x, y) asks for (Alt: to the nearest 45).
+    static double ringRotation(float cx, float cy, float x, float y);
     // The selection, and what a drag does to it: from where (pixels) and
     // the selection then; the corner held (0..3: top left, top right,
     // bottom right, bottom left), -1 moving it, -2 drawing a new one.

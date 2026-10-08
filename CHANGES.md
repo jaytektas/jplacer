@@ -10,6 +10,11 @@ notes.
 
 ## Unreleased
 
+- With tables linked, changing the chosen feeder's part chooses the new part (its package, its footprint
+  on the cameras); the old one stayed chosen.
+- Cameras have OpenPnP's rotation handle: drag the circle round the ring to turn the camera (a camera on
+  the head) or the Jog tool (the camera looking up), Alt to snap to 45°.
+
 ## 0.1.28
 
 - A camera task (calibrating a camera or a nozzle tip, measuring) no longer has the chosen part's footprint
