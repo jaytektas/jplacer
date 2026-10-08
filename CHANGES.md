@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.26
+
 - The footprint on the cameras turns as OpenPnP's does: by the rotation of the tool chosen in Jog, as it
   is now. A camera taken to a placement turns to the placement's rotation, so the footprint lies as the
   part will be placed; turning a nozzle turns it too. A placement's footprint is its part's package's.
