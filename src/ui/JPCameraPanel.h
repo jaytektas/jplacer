@@ -138,7 +138,8 @@ private:
     std::unique_ptr<JPIconButton>         m_asTaken, m_save, m_calibrate, m_next, m_cancelTask, m_visualTest, m_autoTune, m_settings;
     std::function<void()>                 m_onNext;     // askStep's
     float                                 m_noteWidth = -1;   // the width the note was sized for (-1: again)
-    JContainer*                           m_stepRow = nullptr;
+    std::unique_ptr<JContainer>           m_stepRow;   // in m_asked while shown
+    bool                                  m_stepShown = false;
     JSpinBox*                             m_stepNumber = nullptr;
     JLabel*                               m_stepNumberLabel = nullptr;
     std::function<void(int)>              m_onNumber;
@@ -150,10 +151,15 @@ private:
     std::set<std::string>                 m_keptFor;   // keepRunningFor
     bool                                  m_straight = true;   // straightened unless asked otherwise
     std::string                           m_capturesDir;
-    JContainer*                           m_instructionsHolder = nullptr;
+    // What a task asks, between the note and the picture: the step's number and the instructions, each
+    // only while shown, the holder as tall as they are (nothing at all while neither is: a hidden row in
+    // the column still took its height, and the picture was that much smaller).
+    JContainer*                           m_asked = nullptr;
     std::unique_ptr<JPInstructions>       m_instructions;
     bool                                  m_instructionsShown = false;
     float                                 m_instructionsWidth = -1;   // the width they were sized for
+    // m_asked holding what is shown, as tall as it.
+    void fitAsked();
     std::chrono::steady_clock::time_point m_drawn;         // last drawn
     std::chrono::steady_clock::time_point m_askedToDraw;   // asked to draw since, by a picture (stopIfHidden)
     std::vector<std::function<void()>>    m_unwatch;

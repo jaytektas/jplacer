@@ -89,19 +89,19 @@ JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCameraCon
     m_note->setVSizePolicy(JSizePolicyMode::Fixed);
     m_note->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     // A number a step asks for (OpenPnP's Detection Diameter), on a row of its own under the note while asked.
-    m_stepRow = add(JPUiParts::row(graph));
+    m_stepRow = JPUiParts::row(graph);
     m_stepNumber = m_stepRow->add(std::make_unique<JSpinBox>(graph, 0, 1, JStyle::current().controlHeight * kNumberWidths));
     m_stepNumber->onValueChanged.connect([this](int v) {
         if (auto f = m_onNumber) f(v);
     });
     m_stepNumberLabel = m_stepRow->add(std::make_unique<JLabel>(graph, ""));
-    hideStepNumber();
-    m_instructionsHolder = add(std::make_unique<JContainer>(graph, 0.f, 0.f));
-    m_instructionsHolder->setDirection(JFlexDirection::Column)->setAlignItems(JAlignItems::Stretch);
-    m_instructionsHolder->setVSizePolicy(JSizePolicyMode::Fixed);
-    m_instructionsHolder->setFixedSize(0.f, 0.f);
-    m_instructionsHolder->setHSizePolicy(JSizePolicyMode::Expanding, 1);
+    m_asked = add(std::make_unique<JContainer>(graph, 0.f, 0.f));
+    m_asked->setDirection(JFlexDirection::Column)->setAlignItems(JAlignItems::Stretch);
+    m_asked->setGap(JStyle::current().spacing);
+    m_asked->setVSizePolicy(JSizePolicyMode::Fixed);
+    m_asked->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     m_instructions = std::make_unique<JPInstructions>(graph);
+    hideStepNumber();
     m_view = add(std::make_unique<JPCameraView>(graph, hal));
     m_view->onLookAt = [this](double px, double py) { if (onLookAtPixel) onLookAtPixel(px, py); };
     m_view->onReticleChanged = [this](const JPReticle& r) { if (onReticleChanged) onReticleChanged(r); };
@@ -159,10 +159,9 @@ void JPCameraPanel::populateRenderPrimitives(JPrimitiveBuffer& buf) {
         m_note->setFixedSize(0.f, std::max(JStyle::current().labelHeight, m_note->heightFor(w)));
         invalidate();
     }
-    if (const float w = m_instructionsHolder->bounds().width; m_instructionsShown && w > 0 && w != m_instructionsWidth) {
+    if (const float w = m_asked->bounds().width; m_instructionsShown && w > 0 && w != m_instructionsWidth) {
         m_instructionsWidth = w;
-        m_instructionsHolder->setFixedSize(0.f, m_instructions->heightFor(m_instructionsWidth));
-        invalidate();
+        fitAsked();
     }
     JContainer::populateRenderPrimitives(buf);
 }
@@ -292,9 +291,8 @@ void JPCameraPanel::showStepNumber(const std::string& label, int value, int min,
     m_stepNumber->setRange(min, max);
     m_stepNumber->setValue(value);
     m_onNumber = std::move(changed);
-    m_stepRow->setVisible(true);
-    m_stepRow->setFixedSize(0.f, JStyle::current().controlHeight);
-    invalidate();
+    m_stepShown = true;
+    fitAsked();
 }
 
 void JPCameraPanel::setStepNumberLabel(const std::string& label, const std::string& tooltip) {
@@ -304,9 +302,8 @@ void JPCameraPanel::setStepNumberLabel(const std::string& label, const std::stri
 
 void JPCameraPanel::hideStepNumber() {
     m_onNumber = nullptr;
-    m_stepRow->setVisible(false);
-    m_stepRow->setFixedSize(0.f, 0.f);
-    invalidate();
+    m_stepShown = false;
+    fitAsked();
 }
 
 void JPCameraPanel::setNote(const std::string& text) {
@@ -360,17 +357,29 @@ std::string JPCameraPanel::savePicture() {
 void JPCameraPanel::showInstructions(const std::string& title, const std::string& text, const std::string& proceedLabel,
                                      std::function<void()> onCancel, std::function<void()> onProceed) {
     m_instructions->set(title, text, proceedLabel, std::move(onCancel), std::move(onProceed));
-    if (!m_instructionsShown) m_instructionsHolder->add(m_instructions.get());
     m_instructionsShown = true;
     m_instructionsWidth = -1;   // sized to its text on the next frame
-    m_instructionsHolder->setFixedSize(0.f, JPInstructions::height());
-    invalidate();
+    fitAsked();
 }
 
 void JPCameraPanel::hideInstructions() {
-    m_instructionsHolder->clear();
     m_instructionsShown = false;
-    m_instructionsHolder->setFixedSize(0.f, 0.f);
+    fitAsked();
+}
+
+void JPCameraPanel::fitAsked() {
+    m_asked->clear();
+    float h = 0;
+    if (m_stepShown) {
+        m_asked->add(m_stepRow.get());
+        h += std::max(JStyle::current().buttonHeight, JStyle::current().controlHeight);   // a row's height (JPUiParts::row)
+    }
+    if (m_instructionsShown) {
+        m_asked->add(m_instructions.get());
+        if (m_stepShown) h += JStyle::current().spacing;
+        h += m_instructionsWidth > 0 ? m_instructions->heightFor(m_instructionsWidth) : JPInstructions::height();
+    }
+    m_asked->setFixedSize(0.f, h);
     invalidate();
 }
 
