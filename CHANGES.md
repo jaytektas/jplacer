@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- jplacer opening maximized (as after an update restarts it) could be drawn at its old size in a corner of the
+  window, the rest black, until it was moved.
 - Preferences' General page scrolls: its Updates (Include beta versions) were cut off below the bottom of the
   window.
 - Job > Plan… shows the job's parts in groups, in the order a run places them, with where each comes from and
