@@ -763,7 +763,8 @@ configurations to check against, never inputs to the design.
       (JPRunLedger: Used, Lost), an open one when jplacer next opens;
       a lot running out is said once a run. The runner is still OpenPnP's
       JPJobProcessor, given a material hook.
-   2. *Pre-flight data check*: one list of what to do before a run.
+   2. *Pre-flight data check* (done: JPJobCheck, Stop / Check / Note, on
+      Start and Job > Check Job…; no feeder is a Stop until load as you go).
    3. *Load as you go*: no feeder is not a pre-flight failure; the run
       asks for a part when it reaches it, with a free strip lane.
    4. *Planner and planner view*, then stages.

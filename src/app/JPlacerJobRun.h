@@ -61,6 +61,8 @@ public:
     // The Job tab's Fiducial Check of one board or panel (also the job viewer's):
     // it set by its fiducials (where it is straight in the job), the camera taken to it.
     void fiducialCheck(JPPlacementsHolderLocation* location);
+    // Job > Check Job…: the job's data checked (JPJobCheck), as Start checks it.
+    void checkJob();
 
 private:
     void startPauseResume();
@@ -79,6 +81,8 @@ private:
     // The run record (JPRunStore): begun with the boards at their revisions; ended (Finished or Stopped) and
     // its parts written to the stock's ledger (JPRunLedger).
     void beginRun();
+    // The nozzle tips the machine's nozzles can load.
+    std::vector<std::string> machineTipIds() const;
     void endRun(JPRunStore::Outcome outcome);
 
     JAppWindow&                          m_window;

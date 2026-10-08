@@ -68,6 +68,8 @@ public:
     void openShortages();
     // Job > Runs…: the runs of jobs (JPlacerRunsDialog).
     void openRuns();
+    // Job > Check Job…: the job's data checked before a run (JPlacerJobRun::checkJob).
+    void checkJob();
 
 private:
     // A script's request of the job (JPlacerMachine::onScriptJobRequest).

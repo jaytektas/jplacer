@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- Start checks the job first and lists, once each with everything it is about, what would stop the run (a part
+  not chosen, no package, no nozzle tip that fits, no feeder), what to check (placements not verified, unknown
+  heights, no footprint) and what to note (short of stock); Start Anyway runs it when nothing stops it.
+  Job > Check Job… shows the same list at any time.
 - Runs are recorded: each Start of a job keeps, as it goes, what it fed from which feeder and what it placed,
   with the boards at their revisions (Job > Runs…). A feeder carries a stock lot (its Stock tab); when a run
   ends its parts go into the lot's ledger, placed as used and fed-but-not-placed as lost, and a run cut short

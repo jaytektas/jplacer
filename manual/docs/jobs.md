@@ -161,6 +161,26 @@ how fast. While a job runs, another job or another cell is not opened.
 
 <!-- src: src/app/JPlacerJobRun.cpp (startPauseResume, step, stop, start, run); src/ui/JPJobPanel.cpp (updateJobActions); src/app/JPlacerJob.cpp (settle); src/app/JPlacerMachine.cpp (openCell) -->
 
+**Checking the job.** Before a run starts (and with **Job ▸ Check Job…** at any time), the job's data is
+checked as one list, each thing once with every placement or part it is about (a placement named by its
+board's ID and its own, `Brd1⇒R1`), and where it is put right. Only the placements a run places are looked
+at: enabled, not placed, their side up on an enabled board.
+
+- **Stop**: the run would refuse it: a placement ID used twice on a board; **No part chosen** (the board's
+  part is still to be chosen); a part the library does not have; a part with **No package**; **No nozzle tip
+  on the machine fits its package**; **No enabled feeder holds it**.
+- **Check**: worth putting right first: placements **Not verified on the machine** (see [Verifying
+  placements](#verifying-placements)), parts whose **Height** is not known, parts with **No footprint** to
+  draw or check against.
+- **Note**: parts **Short of stock**, of those whose stock is kept (a part with no lots at all is not).
+
+**Start** with nothing to stop or check runs at once. Otherwise **Check Job** shows the list: with anything
+that stops the run it is not started (**Close**); with only things to check or note, **Start Anyway** runs
+it as it is and **Cancel** does not. Choose a row to see under the list all it is about (the first 60). The
+counts at the top say how many are to put right, to check and to note.
+
+<!-- src: src/model/JPJobCheck.cpp; src/app/JPlacerJobCheckDialog.cpp; src/app/JPlacerJobRun.cpp (start, checkJob, machineTipIds); src/app/JPlacerMenuBuilder.cpp (job.check) -->
+
 A job goes as OpenPnP's does:
 
 1. **Checks.** The placements to place are those enabled, not placed, with their side facing up on an

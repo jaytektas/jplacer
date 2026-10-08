@@ -3,8 +3,11 @@
 
 #include "JPlacerJobRun.h"
 
+#include "JPlacerJobCheckDialog.h"
+
 #include "common/JPlacerLog.h"
 #include "model/JPBoardLocation.h"
+#include "model/JPJobCheck.h"
 #include "model/JPRunLedger.h"
 #include "tasks/JPFiducialLocator.h"
 
@@ -254,6 +257,18 @@ void JPlacerJobRun::start(RunState as) {
         setState(as);
         run();
     };
+    // The job's data checked first: with anything to put right or check, the list, and Start Anyway when
+    // nothing stops it.
+    auto checked = [this, alive, go] {
+        if (const auto a = alive.lock(); !a || !*a) return;
+        std::vector<JPJobCheck::Item> items = JPJobCheck::of(m_job.configuration(), m_job.job(), machineTipIds());
+        if (!JPJobCheck::asks(items)) {
+            go();
+            return;
+        }
+        const bool stops = JPJobCheck::stops(items);
+        m_window.openModal<JPlacerJobCheckDialog>(std::move(items), stops ? std::function<void()>() : std::function<void()>(go));
+    };
     // As OpenPnP: a job placed already is offered to be placed again.
     if (allPlaced(m_job.job())) {
         JDialogOptions opts;
@@ -261,16 +276,29 @@ void JPlacerJobRun::start(RunState as) {
         opts.cancelLabel = "No";
         JDialog::confirm("Reset placement status?",
                          "All placements have been placed already. Reset all placements before starting job?",
-                         [this, alive, go] {
+                         [this, alive, checked] {
                              if (const auto a = alive.lock(); !a || !*a) return;
                              m_job.job().removeAllPlacedStatus();
                              m_job.changed();
-                             go();
+                             checked();
                          },
-                         go, opts);
+                         checked, opts);
         return;
     }
-    go();
+    checked();
+}
+
+std::vector<std::string> JPlacerJobRun::machineTipIds() const {
+    std::vector<std::string> ids;
+    for (const JPJobMachine::Nozzle& n : m_jobMachine->nozzles())
+        for (const std::string& t : n.tipIds)
+            if (std::find(ids.begin(), ids.end(), t) == ids.end()) ids.push_back(t);
+    return ids;
+}
+
+void JPlacerJobRun::checkJob() {
+    m_window.openModal<JPlacerJobCheckDialog>(JPJobCheck::of(m_job.configuration(), m_job.job(), machineTipIds()),
+                                              std::function<void()>());
 }
 
 void JPlacerJobRun::run() {

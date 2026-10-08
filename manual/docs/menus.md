@@ -115,6 +115,7 @@ What is chosen by a link chooses nothing further. A part with no feeder leaves t
 |---|---|
 | **Start** (**Pause** while the job runs, **Resume** while it is paused; Ctrl+Shift+R), **Step** (Ctrl+Shift+S), **Stop** (Ctrl+Shift+A) | As the Job tab's buttons (see [Running the job](jobs.md#running-the-job)). |
 | **Reset All Placed** | Marks every placement of the job not placed, so the job places them all again. |
+| **Check Job…** | The job's data checked as Start checks it (see [Running the job](jobs.md#running-the-job)). |
 | **Shortages…** | The job's parts against the stock (see [Shortages](jobs.md#shortages)). |
 | **Runs…** | The runs of jobs, and whether their parts are in the stock's ledger (see [Runs](jobs.md#runs)). |
 

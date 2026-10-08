@@ -1145,6 +1145,10 @@ void JPlacerOpenPnpTabs::importCplBom() {
     m_boards->placements().importCplBom();
 }
 
+void JPlacerOpenPnpTabs::checkJob() {
+    if (m_jobRun) m_jobRun->checkJob();
+}
+
 void JPlacerOpenPnpTabs::openRuns() {
     m_window.openModal<JPlacerRunsDialog>(m_job.configuration());
 }
