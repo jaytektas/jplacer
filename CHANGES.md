@@ -13,10 +13,8 @@ notes.
 - The footprint on the cameras turns as OpenPnP's does: by the rotation of the tool chosen in Jog, as it
   is now. A camera taken to a placement turns to the placement's rotation, so the footprint lies as the
   part will be placed; turning a nozzle turns it too. A placement's footprint is its part's package's.
-
 - A table's choice (a part's Package, its vision settings, a placement's Type and Side) opens a drop-down
   under the cell that scrolls, not a menu of every choice that ran off the screen.
-
 - A camera's panel is its picture: the picture's format and what the camera last did are no longer
   written above it, but logged and shown on the status bar. A step waiting on you still says what to do
   above the picture, while it waits.
