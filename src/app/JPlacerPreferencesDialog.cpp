@@ -22,6 +22,7 @@
 #include <j/config/Settings.h>
 #include <j/core/Dialog.h>
 #include <j/core/JSpinBox.h>
+#include <j/core/JScrollArea.h>
 #include <j/core/JStyle.h>
 #include <j/core/JTextHelper.h>
 #include <j/core/MainThreadDispatcher.h>
@@ -103,9 +104,12 @@ std::unique_ptr<JContainer> JPlacerPreferencesDialog::generalPage(std::function<
     JSceneGraph& g = graph();
     auto page = std::make_unique<JContainer>(g, 0.f, 0.f);
     JPUiParts::asPanel(*page);
+    // Scrolled: there is more on it than a small window shows (its Updates at the bottom).
+    JScrollArea* body = page->add(std::make_unique<JScrollArea>(g, 0.f, 0.f));
+    body->setVSizePolicy(JSizePolicyMode::Expanding, 1);
     const float widest = std::max(JTextHelper::measureWidth("Theme"), JTextHelper::measureWidth("Interface scale"));
 
-    page->add(heading(g, "Appearance"));
+    body->addChildWidget(heading(g, "Appearance"));
     auto theme = std::make_unique<JComboBox>(g, JPlacerAppearance::themes(), 0.f);
     theme->setCurrentIndex(JPlacerSettings::theme());   // before it is watched: opening changes nothing
     theme->onIndexChanged.connect([](int i) {
@@ -113,7 +117,7 @@ std::unique_ptr<JContainer> JPlacerPreferencesDialog::generalPage(std::function<
         JPlacerSettings::save();
         JPlacerAppearance::applyTheme(i);
     });
-    page->add(labelled(g, "Theme", widest, std::move(theme)));
+    body->addChildWidget(labelled(g, "Theme", widest, std::move(theme)));
 
     std::vector<std::string> scaleNames;
     int scaleAt = 0;
@@ -130,16 +134,16 @@ std::unique_ptr<JContainer> JPlacerPreferencesDialog::generalPage(std::function<
         JPlacerSettings::save();
         onScale(scales[size_t(i)].scale);
     });
-    page->add(labelled(g, "Interface scale", widest, std::move(scale)));
+    body->addChildWidget(labelled(g, "Interface scale", widest, std::move(scale)));
 
-    page->add(heading(g, "General"));
+    body->addChildWidget(heading(g, "General"));
     auto tearOff = std::make_unique<JCheckBox>(g, "Tear-off menus (drag a menu off into its own window)", 0.f);
     tearOff->setChecked(JPlacerSettings::tearOffMenus());
     tearOff->onStateChanged.connect([](bool on) {
         JMenuManager::instance().setTearOffEnabled(on);   // read each time a menu opens
         store(JPlacerSettings::kTearOffMenus, on);
     });
-    page->add(std::move(tearOff));
+    body->addChildWidget(std::move(tearOff));
     if (JPlacerLauncher::supported()) {
         auto launcher = std::make_unique<JCheckBox>(g, "Show jplacer in the applications menu", 0.f);
         launcher->setChecked(JPlacerSettings::launcher());
@@ -147,10 +151,10 @@ std::unique_ptr<JContainer> JPlacerPreferencesDialog::generalPage(std::function<
             if (on) JPlacerLauncher::install(); else JPlacerLauncher::remove();
             store(JPlacerSettings::kLauncher, on);
         });
-        page->add(std::move(launcher));
+        body->addChildWidget(std::move(launcher));
     }
 
-    page->add(heading(g, "Backups"));
+    body->addChildWidget(heading(g, "Backups"));
     // A rolling set: as jplacer starts, its settings and cells are copied, the oldest let go past this many.
     auto kept = std::make_unique<JSpinBox>(g, 0, kMostBackups, 0.f);
     kept->setValue(JSettings::instance().get<int>(JPlacerSettings::kBackupsKept, JPBackups::kKeep));
@@ -158,33 +162,33 @@ std::unique_ptr<JContainer> JPlacerPreferencesDialog::generalPage(std::function<
         JSettings::instance().set(JPlacerSettings::kBackupsKept, n);
         JPlacerSettings::save();
     });
-    page->add(labelled(g, "Backups kept", std::max(widest, JTextHelper::measureWidth("Backups kept")), std::move(kept)));
-    page->add(note("Each time jplacer starts, its settings and machines are copied into the backups folder beside them, "
+    body->addChildWidget(labelled(g, "Backups kept", std::max(widest, JTextHelper::measureWidth("Backups kept")), std::move(kept)));
+    body->addChildWidget(note("Each time jplacer starts, its settings and machines are copied into the backups folder beside them, "
                    "the oldest let go past this many. 0: none taken."));
 
-    page->add(heading(g, "Debugging"));
+    body->addChildWidget(heading(g, "Debugging"));
     auto visionDebug = std::make_unique<JCheckBox>(g, "Save vision pictures for debugging", 0.f);
     visionDebug->setChecked(JPlacerSettings::visionDebug());
     visionDebug->onStateChanged.connect([](bool on) {
         JPVisionDebug::setDirectory(on ? JPlacerPaths::configDir() : std::string());
         store(JPlacerSettings::kVisionDebug, on);
     });
-    page->add(std::move(visionDebug));
-    page->add(note("As OpenPnP does at its Debug log level: every vision pipeline run keeps each stage's picture, a "
+    body->addChildWidget(std::move(visionDebug));
+    body->addChildWidget(note("As OpenPnP does at its Debug log level: every vision pipeline run keeps each stage's picture, a "
                    "folder a run in log/vision beside the settings (" + JPlacerPaths::configDir()
                    + "), with what each stage found; ImageWriteDebug stages write too. It fills the disk: on only "
                      "while looking into a problem."));
 
-    page->add(heading(g, "Updates"));
+    body->addChildWidget(heading(g, "Updates"));
     auto atStartup = std::make_unique<JCheckBox>(g, "Check for updates when jplacer opens", 0.f);
     atStartup->setChecked(JPlacerSettings::updatesAtStartup());
     atStartup->onStateChanged.connect([](bool on) { store(JPlacerSettings::kUpdatesAtStartup, on); });
-    page->add(std::move(atStartup));
+    body->addChildWidget(std::move(atStartup));
     auto beta = std::make_unique<JCheckBox>(g, "Include beta versions", 0.f);
     beta->setChecked(JPlacerSettings::updatesBeta());
     beta->onStateChanged.connect([](bool on) { store(JPlacerSettings::kUpdatesBeta, on); });
-    page->add(std::move(beta));
-    page->add(note("Beta versions get new features first and have had less testing."));
+    body->addChildWidget(std::move(beta));
+    body->addChildWidget(note("Beta versions get new features first and have had less testing."));
     return page;
 }
 

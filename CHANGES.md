@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Preferences' General page scrolls: its Updates (Include beta versions) were cut off below the bottom of the
+  window.
 - Job > Plan… shows the job's parts in groups, in the order a run places them, with where each comes from and
   how many loads the run will ask for. Order them by height, package size, most placements or name, or move a
   group up or down by hand; the run then places group by group, and asks for parts to load in that order. Kept
