@@ -102,7 +102,7 @@ placement on or off.
 
 ### Verifying placements
 
-While the Job tab shows, the chosen placement's footprint is drawn over the head camera's picture as it
+While the Job tab shows, the chosen placement's footprint (a fiducial's too) is drawn over the head camera's picture as it
 is placed: turned by its rotation, its pads, pin 1's mark and its body (the footprint its board carries for
 its part, else its package's), as OpenPnP's package reticle. Take the camera to the placement (**Move
 Camera To Placement Location**) and look: the footprint should lie on the board's pads.

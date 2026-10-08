@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- Footprints are drawn on the camera again: the chosen package's (Packages tab) and the chosen
+  placement's (Job tab) were taken off before the camera drew, so never showed.
+- The Job tab draws a chosen fiducial's footprint on the head camera too, as a part's.
+
 ## 0.1.21
 
 - Vision pipelines are given the camera's corrected picture, as in OpenPnP: the lens's bending taken out

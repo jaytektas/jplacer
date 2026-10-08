@@ -328,7 +328,7 @@ void JPJobPlacementsPanel::showChosenFootprint() {
     if (!showFootprint) return;
     const auto chosen = selections();
     const bool facingUp = chosen.size() == 1 && m_location && chosen.front()->side == m_location->globalSide();
-    const JPFootprint* f = facingUp && chosen.front()->type == JPPlacement::Type::Placement ? footprintOf(*chosen.front()) : nullptr;
+    const JPFootprint* f = facingUp ? footprintOf(*chosen.front()) : nullptr;   // a fiducial's as a part's
     showFootprint(f, f ? m_location->placementLocation(chosen.front()->location).rotation() : 0.0);
 }
 
