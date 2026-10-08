@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.18
+
 - Fixed a crash: deleting vision settings a part's page was still showing (after Generalize freed them). A part's
   vision pages now follow what it uses: after Specialize, Generalize or a delete they show the settings it uses
   now.
@@ -63,18 +65,15 @@ notes.
   checked and goes on to the next. A Verified column shows which are; changing a placement takes its mark off.
 - Importing from the CPL and BOM turns placements by their footprint's zero rotation and keeps the CAD file's
   rotation with each.
-
 - Footprints are the library's own: land patterns of a package, several to one, each with the names CAD files
   give it, its zero rotation and its pads, on the Packages tab's new Footprints page (made from the package's
   footprint, or imported from KiCad). A board's footprint name finds its footprint and through it the package;
   names learned before are moved onto footprints.
-
 - A library part can list how it comes (cut tape, reel, tray, tube, loose: tape width, pitch, paper or embossed,
   its rotation in the packaging, quantity) and where it is bought (supplier, SKU, packaging, MOQ, price breaks,
   last price, link), on its Library page.
 - Manufacturers' Names: the library knows a manufacturer by its other names (TI is Texas Instruments); an MPN the
   library has under another manufacturer is offered but not taken unasked.
-
 - The parts library is kept in its own file, library.db, made from OpenPnP's parts.xml and packages.xml the
   first time (they are left as they are); OpenPnP's files copied in later add the parts the library lacks.
 - A part in the library can carry its value, datasheet, identifiers (MPN with manufacturer, supplier part
@@ -85,7 +84,6 @@ notes.
 - A board keeps a copy of each library part it uses, so it can be placed on a machine whose library lacks the
   part; when the library's part changes, Board's Parts says so and takes either side's.
 - Submit Diagnostics includes the library as text (library.json) in place of parts.xml and packages.xml.
-
 - A placement's Part opens a part picker instead of a list of every part: what the files said about it, the
   library's parts it may be with why (its MPN, supplier part number, name, or the same value written another
   way, 100n as 0.1uF, of the same size), a filter over the whole library, and Use This Part, Make It the
@@ -93,7 +91,6 @@ notes.
 - Board's Parts (on the placements' toolbar) lists a board's parts one a row with their best match; Use Best
   Matches takes every strong one at once. It opens by itself after a CPL and BOM import leaves parts to choose.
 - Dialog buttons are as wide as their labels (long ones were cut short).
-
 - Import Placements > CPL and BOM… imports a board from its placement file and its BOM (and any other table
   naming designators), as an assembly house takes them: each file's columns guessed from their names and
   changeable (a "Provider" column can be the manufacturer), saved as a profile for the next file, BOM lines
@@ -102,7 +99,6 @@ notes.
   files said (value, footprint, manufacturer, MPN, supplier, any other column), do-not-place parts are not
   enabled, and the files are kept with the board.
 - Placements whose part is not chosen yet show the files' name for it, "(to be chosen)".
-
 - Boards have their own parts list, and importing placements no longer fills the library with parts. A
   part the library has is used; with Create Missing Parts, one it lacks becomes the board's own part
   (kept in the board, its name starting with the board's); without, it is kept, not chosen yet, instead
@@ -111,19 +107,15 @@ notes.
 - Boards are saved as jplacer's own `.jpboard` files. An OpenPnP `.board.xml` is still read; when saved, it
   is written beside it as a `.jpboard` (the job, panels and board list follow), and the `.board.xml` is
   left as it was for OpenPnP. New boards are `.jpboard`.
-
 - A new file chooser for every Open, Save As and Browse: a path you can type or paste, New Folder, places
   (home, Desktop, Documents, Downloads, mounted drives), Size and Modified columns that sort, a real name
   field, a choice of file type (a job's: Jobs, XML files or All files), and a question before saving over a
   file. Save Job As starts at the job's own file, and a name typed without `.job.xml` no longer ends up as
   `name.xml.job.xml`.
-
 - File > Open Recent Job is greyed out while there are no recent jobs, instead of opening an empty sliver.
-
 - A nozzle tip's calibration is one step to undo, and the machine takes it once (its runout and its background
   were two, each remaking Machine Setup and the panels); putting a tip on likewise. Homing forgets other tips'
   runout in one step too.
-
 - Expose each picture tries up to six exposures, not four: a camera opened after a restart, starting far from its
   exposure, ran out of tries a level short of the brightness wanted (and warned). Each try is in the log at Debug.
 
