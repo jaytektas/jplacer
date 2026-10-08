@@ -1,0 +1,105 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
+
+#include "JPLibraryJson.h"
+
+#include "openpnp/JPXmlJson.h"
+
+#include <cstdint>
+#include <cstdio>
+
+inline namespace jf {
+
+namespace {
+
+// FNV-1a, 64 bits: the same text gives the same number on every machine and every run.
+uint64_t fnv(const std::string& s, uint64_t h = 1469598103934665603ull) {
+    for (const unsigned char c : s) {
+        h ^= c;
+        h *= 1099511628211ull;
+    }
+    return h;
+}
+
+} // namespace
+
+JJson JPLibraryJson::part(const JPPart& p) {
+    JJson o = JJson::object();
+    o["id"] = p.id;
+    o["uuid"] = p.uuid;
+    if (!p.value.empty()) o["value"] = p.value;
+    if (!p.datasheet.empty()) o["datasheet"] = p.datasheet;
+    JJson ids = JJson::array();
+    for (const auto& i : p.identifiers) {
+        JJson x = JJson::object();
+        x["kind"] = i.kind;
+        x["org"] = i.org;
+        x["code"] = i.code;
+        ids.push(x);
+    }
+    o["identifiers"] = ids;
+    JJson akas = JJson::array();
+    for (const auto& a : p.akas) {
+        JJson x = JJson::object();
+        x["field"] = a.field;
+        x["text"] = a.text;
+        x["learnedFrom"] = a.learnedFrom;
+        x["when"] = a.when;
+        akas.push(x);
+    }
+    o["akas"] = akas;
+    o["openpnp"] = JPXmlJson::from(p.toXml());
+    return o;
+}
+
+JPPart JPLibraryJson::part(const JJson& j) {
+    JPPart p = JPPart::fromXml(JPXmlJson::element(j["openpnp"]));
+    auto str = [&j](const char* k) { return j[k].isString() ? j[k].str() : std::string(); };
+    if (!str("id").empty()) p.id = str("id");
+    p.uuid = str("uuid");
+    p.value = str("value");
+    p.datasheet = str("datasheet");
+    if (j["identifiers"].isArray())
+        for (const JJson& x : j["identifiers"].arr())
+            p.identifiers.push_back({ x["kind"].isString() ? x["kind"].str() : "", x["org"].isString() ? x["org"].str() : "",
+                                      x["code"].isString() ? x["code"].str() : "" });
+    if (j["akas"].isArray())
+        for (const JJson& x : j["akas"].arr())
+            p.akas.push_back({ x["field"].isString() ? x["field"].str() : "", x["text"].isString() ? x["text"].str() : "",
+                               x["learnedFrom"].isString() ? x["learnedFrom"].str() : "",
+                               x["when"].isString() ? x["when"].str() : "" });
+    return p;
+}
+
+JJson JPLibraryJson::package(const JPPackage& k) {
+    JJson o = JJson::object();
+    o["id"] = k.id;
+    o["uuid"] = k.uuid;
+    JJson akas = JJson::array();
+    for (const std::string& a : k.akas) akas.push(JJson(a));
+    o["akas"] = akas;
+    o["openpnp"] = JPXmlJson::from(k.toXml());
+    return o;
+}
+
+JPPackage JPLibraryJson::package(const JJson& j) {
+    JPPackage k = JPPackage::fromXml(JPXmlJson::element(j["openpnp"]));
+    if (j["id"].isString()) k.id = j["id"].str();
+    if (j["uuid"].isString()) k.uuid = j["uuid"].str();
+    if (j["akas"].isArray())
+        for (const JJson& a : j["akas"].arr())
+            if (a.isString()) k.akas.push_back(a.str());
+    return k;
+}
+
+std::string JPLibraryJson::fingerprint(const JPPart& p, const JPPackage* k) {
+    // What a job places it by: its OpenPnP fields (height, package, speed, vision…), its value, its package's.
+    uint64_t h = fnv(JPXmlJson::from(p.toXml()).dump());
+    h = fnv("|" + p.value, h);
+    if (k) h = fnv("|" + JPXmlJson::from(k->toXml()).dump(), h);
+    char buf[24];
+    std::snprintf(buf, sizeof buf, "%016llx", static_cast<unsigned long long>(h));
+    return buf;
+}
+
+} // inline namespace jf

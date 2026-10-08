@@ -1,8 +1,9 @@
 # Packages
 
 The **Packages** tab (after Parts, as in OpenPnP) lists every package jplacer knows, as OpenPnP's
-Packages tab does. Packages are kept in `packages.xml` in jplacer's configuration folder; OpenPnP's own
-`packages.xml` can be copied there as it is.
+Packages tab does. Packages are kept in the library (`library.db`, see [Parts](parts.md)); OpenPnP's own
+`packages.xml` copied into jplacer's configuration folder brings the packages the library lacks. A package
+is also known by the footprint names boards' files have called it, learned as parts are chosen.
 
 <!-- src: src/ui/JPPackagesPanel.cpp; src/app/JPlacerOpenPnpTabs.cpp; src/model/JPConfiguration.h (kPackagesFile) -->
 

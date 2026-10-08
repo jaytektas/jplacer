@@ -21,9 +21,14 @@ public:
     // A candidate this good is strong enough to take without asking (Use Best Matches): every evidence but
     // the value alone.
     static constexpr int kStrong = 50;
+    // A candidate this good is taken as a board comes in, unasked: an identifier, a learned name, OpenPnP's
+    // footprint-value name, a learned value in its package.
+    static constexpr int kAutomatic = 75;
+    // The candidate taken as a board comes in (kAutomatic or better), or null.
+    static JPPart* automatic(const JPConfiguration& config, const JPBoardPart& bp);
 
     struct Candidate {
-        const JPPart* part = nullptr;
+        JPPart*       part = nullptr;
         int           score = 0;   // higher, stronger
         std::string   why;
     };

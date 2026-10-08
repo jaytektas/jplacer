@@ -90,6 +90,18 @@ JPlacerPartPickerDialog::JPlacerPartPickerDialog(const JPConfiguration& config, 
     m_list->onSelectionChanged.connect([this](int i) { m_use->setEnabled(i >= 0 && size_t(i) < m_shown.size()); });
     m_list->onRowActivated.connect([this](int i) { m_activated = i; });
 
+    // What the library could remember of it: the names the files give it.
+    std::string remember;
+    const std::string footprint = !m_part.field("footprint").empty() ? m_part.field("footprint") : m_part.field("package");
+    for (const std::string& s : { m_part.field("value"), footprint, m_part.field("mpn"), m_part.field("supplierPn") })
+        if (!s.empty()) remember += (remember.empty() ? "" : " ") + s;
+    if (!remember.empty()) {
+        m_remember = m_content->add(std::make_unique<JCheckBox>(g, "Remember: \"" + remember + "\" is the part used, the next "
+                                                                   "time a board calls it so", 0.f));
+        m_remember->setChecked(true);
+        m_remember->setTooltip("The library part used keeps these names (value and footprint, MPN, supplier's part number), "
+                               "so the next import matches it without asking");
+    }
     if (!others.empty()) {
         m_onlyThis = m_content->add(std::make_unique<JCheckBox>(g, "Only " + placementId + " (the others keep theirs)", 0.f));
         m_onlyThis->setTooltip("Choose for this placement alone; it gets a part of its own, what the files said kept");
@@ -103,6 +115,10 @@ JPlacerPartPickerDialog::JPlacerPartPickerDialog(const JPConfiguration& config, 
     m_buttons->addButton("Make It the Board's Own", JDialogButtonBox::Role::Action)->onClicked.connect([this] {
         choose(JPPartChoice::Kind::BoardsOwn);
     });
+    JButton* addTo = m_buttons->addButton("Add to Library", JDialogButtonBox::Role::Action);
+    addTo->setTooltip("Make a library part from what the files say (value, footprint, MPN, manufacturer, supplier, "
+                      "description, height) and use it");
+    addTo->onClicked.connect([this] { choose(JPPartChoice::Kind::AddToLibrary); });
     m_buttons->addButton("Cancel", JDialogButtonBox::Role::Reject)->setTooltip("Change nothing");
     m_use = m_buttons->addButton("Use This Part", JDialogButtonBox::Role::Accept);
     m_use->setTooltip("The library's part chosen in the list");
@@ -151,6 +167,7 @@ void JPlacerPartPickerDialog::choose(JPPartChoice::Kind kind) {
     JPPartChoice c;
     c.kind = kind;
     c.onlyThis = m_onlyThis && m_onlyThis->isChecked();
+    c.learn = m_remember && m_remember->isChecked();
     if (kind == JPPartChoice::Kind::Library) {
         const int i = m_list->selectedIndex();
         if (i < 0 || size_t(i) >= m_shown.size()) return;

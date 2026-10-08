@@ -31,15 +31,21 @@ A click on a placement's **Part** opens the part picker for its board part, titl
 
 - which placements share the part, what the files said about it (value, footprint, MPN, manufacturer,
   supplier, the columns kept as extras), and what it is now;
-- the library's parts it may be, best first, each with **Why**: its MPN, its supplier's part number,
-  named by its footprint and value (OpenPnP's naming), named by its value, or the same value written
-  another way (100n is 100nF and 0.1µF; 4k7 is 4.7k; 4R7 is 4.7) of the same size (0603). A part of
+- the library's parts it may be, best first, each with **Why**: an identifier it has (its MPN, its
+  supplier's part number), a value and footprint it learned (and from which board), named by its
+  footprint and value (OpenPnP's naming), a value it learned in its package, named by its value, or the
+  same value written another way in its package or (100n is 100nF and 0.1µF; 4k7 is 4.7k; 4R7 is 4.7) of the same size (0603). A part of
   another value is never offered for its footprint alone. The one it is now, else the best, is chosen;
   when nothing is suggested, nothing is, so Return cannot take a part by chance;
 - a filter, into which typing goes from the start: every word must be in a part's name, its package or
   the package's description, the suggestions kept first; **[x]** clears it.
 
-**Use This Part** (Return, or a double-click on one) makes it that library part; **Make It the Board's
+**Use This Part** (Return, or a double-click on one) makes it that library part; with **Remember** ticked
+(as it starts, where the files gave any), the library part keeps the names the files gave (its value and
+footprint, MPN and supplier's part number; its package the footprint), so the next board calling it so is
+matched without asking. **Add to Library** makes a library part from all the files said (named by its MPN,
+else *footprint*-*value*, else its value, numbered when the name is taken; its package the library's of
+that footprint by name or by a name it learned, else a new one) and uses it. **Make It the Board's
 Own** makes a part (and, where the library has no package of its footprint's name, a package) of the
 board's from what the files said, its height too; **Leave to Be Chosen** clears it. Each is for every
 placement of the part, or, with **Only *designator*** ticked, for that placement alone (it gets a part of
@@ -49,10 +55,20 @@ its own, what the files said kept, and the others keep theirs). **Cancel** and E
 **Value**, **Footprint**, **MPN**, what each **Is** now, and the library's **Best match** with **Why**.
 **Choose…** (or a double-click, or Return) opens the part picker for the part; **Use Best Matches (*n*)**
 gives each part still to be chosen its best match where the evidence is strong (anything but the value
-alone); **Only those to be chosen** narrows the list. An import from the CPL and BOM that leaves parts
-to be chosen opens it when the placements are in.
+alone); **Only those to choose or review** narrows the list. An import from the CPL and BOM that leaves
+parts to be chosen opens it when the placements are in.
 
-<!-- src: src/app/JPlacerPartPickerDialog.cpp; src/app/JPlacerBoardPartsDialog.cpp; src/model/JPPartMatcher.cpp (candidates, valueOf, chipSize, matches, kStrong); src/model/JPBoard.cpp (splitPlacement, makeOwn, placementsOf); src/ui/JPPlacementsTableModel.cpp (pick, applyPart); src/ui/JPBoardPlacementsPanel.cpp (importCplBom, merge) -->
+A board keeps a copy of each library part it uses (and its package), taken when the part is chosen, so the
+board is complete on its own: on a machine whose library lacks the part, the board is placed with its
+copy. When the library's part has changed since (a height, a package; not a name it learned), or the
+library lacks it, **Is** says so (*differs from the library*, *not in this library*) and it is counted
+to review: **Take the Library's** makes the board's copy the library's part as it is now; **Give the
+Library the Board's** makes the library's part the board's copy (adding it, when the library lacks it).
+
+As a board comes in (any import), a part is taken from the library unasked when the evidence is strong:
+an identifier, a name it learned, OpenPnP's *footprint*-*value* name, a value it learned in its package.
+
+<!-- src: src/app/JPlacerPartPickerDialog.cpp; src/app/JPlacerBoardPartsDialog.cpp; src/model/JPPartMatcher.cpp (candidates, valueOf, chipSize, matches, kStrong, kAutomatic, automatic); src/model/JPLibraryLearning.cpp (learn, addFrom); src/model/JPConfiguration.cpp (packageNamed, takeCopy, differs, giveCopy, libraryPartFor, part); src/model/JPLibraryJson.cpp (fingerprint); src/model/JPBoard.cpp (splitPlacement, makeOwn, placementsOf); src/ui/JPPlacementsTableModel.cpp (pick, applyPart); src/ui/JPBoardPlacementsPanel.cpp (importCplBom, merge); src/app/JPlacerOpenPnpTabs.cpp (openBoardParts) -->
 
 ## Boards
 

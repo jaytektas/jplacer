@@ -3,6 +3,8 @@
 
 #include "JPBoardPart.h"
 
+#include "JPLibraryJson.h"
+
 #include "openpnp/JPXmlJson.h"
 
 inline namespace jf {
@@ -42,7 +44,17 @@ JJson JPBoardPart::toJson() const {
     j["fields"] = f;
     JJson r = JJson::object();
     r["state"] = stateName(state);
-    if (state == State::Matched) r["libraryId"] = libraryPartId;
+    if (state == State::Matched) {
+        r["libraryId"] = libraryPartId;
+        if (!libraryUuid.empty()) r["libraryUuid"] = libraryUuid;
+        if (copyPart) {
+            JJson copy = JJson::object();
+            copy["part"] = JPLibraryJson::part(*copyPart);
+            if (copyPackage) copy["package"] = JPLibraryJson::package(*copyPackage);
+            r["copy"] = copy;
+            r["fingerprint"] = fingerprint;
+        }
+    }
     if (state == State::Local) {
         if (localPart) r["part"] = JPXmlJson::from(localPart->toXml());
         if (localPackage) r["package"] = JPXmlJson::from(localPackage->toXml());
@@ -59,7 +71,15 @@ JPBoardPart JPBoardPart::fromJson(const JJson& j) {
             if (v.isString()) p.fields[k] = v.str();
     const JJson& r = j["resolution"];
     p.state = stateFrom(r["state"].isString() ? r["state"].str() : std::string());
-    if (p.state == State::Matched && r["libraryId"].isString()) p.libraryPartId = r["libraryId"].str();
+    if (p.state == State::Matched) {
+        if (r["libraryId"].isString()) p.libraryPartId = r["libraryId"].str();
+        if (r["libraryUuid"].isString()) p.libraryUuid = r["libraryUuid"].str();
+        if (r["copy"]["part"].isObject()) {
+            p.copyPart = std::make_shared<JPPart>(JPLibraryJson::part(r["copy"]["part"]));
+            if (r["copy"]["package"].isObject()) p.copyPackage = std::make_shared<JPPackage>(JPLibraryJson::package(r["copy"]["package"]));
+            if (r["fingerprint"].isString()) p.fingerprint = r["fingerprint"].str();
+        }
+    }
     if (p.state == State::Local) {
         if (r["part"].isObject()) p.localPart = std::make_shared<JPPart>(JPPart::fromXml(JPXmlJson::element(r["part"])));
         if (r["package"].isObject())

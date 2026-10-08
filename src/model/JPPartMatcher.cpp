@@ -12,7 +12,8 @@ inline namespace jf {
 
 namespace {
 
-constexpr int kMpn = 100, kSupplierPn = 90, kFootprintValue = 80, kValueName = 60, kValueAndSize = 50, kValueOnly = 30;
+constexpr int kMpn = 100, kSupplierPn = 90, kLearnedBoth = 85, kFootprintValue = 80, kLearnedValue = 75, kValueName = 60,
+              kValueAndPackage = 55, kValueAndSize = 50, kValueOnly = 30;
 constexpr double kSameValue = 1e-6;   // relative: two values the same
 
 std::string upper(std::string s) {
@@ -96,6 +97,7 @@ std::vector<JPPartMatcher::Candidate> JPPartMatcher::candidates(const JPConfigur
     const std::string value = bp.field("value"), mpn = bp.field("mpn"), supplierPn = bp.field("supplierPn");
     const std::string footprint = !bp.field("footprint").empty() ? bp.field("footprint") : bp.field("package");
     const std::string size = chipSize(footprint);
+    const JPPackage* package = config.packageNamed(footprint);   // the library's package the footprint names
     double v = 0;
     const bool hasValue = valueOf(value, v);
     std::vector<Candidate> out;
@@ -103,7 +105,31 @@ std::vector<JPPartMatcher::Candidate> JPPartMatcher::candidates(const JPConfigur
         Candidate c;
         c.part = p.get();
         const std::string name = p->name.value_or("");
-        if (same(p->id, mpn) || same(name, mpn)) {
+        // What the library knows the part by: its identifiers, and the names it learned.
+        const JPPart::Identifier* byId = nullptr;
+        for (const auto& i : p->identifiers) {
+            if (i.kind == "mpn" && same(i.code, mpn)) {
+                byId = &i;   // the strongest: no need to look further
+                break;
+            }
+            if (i.kind == "supplierPn" && same(i.code, supplierPn) && !byId) byId = &i;
+        }
+        const JPPart::Aka* learned = nullptr;
+        const JPPart::Aka* learnedValue = nullptr;
+        for (const auto& a : p->akas) {
+            if (a.field == "valueFootprint" && !value.empty() && !footprint.empty() && same(a.text, value + "|" + footprint)) learned = &a;
+            if (a.field == "value" && same(a.text, value)) learnedValue = &a;
+        }
+        const bool samePackage = package && same(package->id, p->packageId);
+        if (byId) {
+            c.score = byId->kind == "mpn" ? kMpn : kSupplierPn;
+            c.why = (byId->kind == "mpn" ? "its MPN " : "its supplier's part number ") + byId->code
+                  + (byId->org.empty() ? std::string() : " (" + byId->org + ")");
+        } else if (learned) {
+            c.score = kLearnedBoth;
+            c.why = "learned: value " + value + " and footprint " + footprint
+                  + (learned->learnedFrom.empty() ? std::string() : ", from " + learned->learnedFrom);
+        } else if (same(p->id, mpn) || same(name, mpn)) {
             c.score = kMpn;
             c.why = "its MPN " + mpn;
         } else if (same(p->id, supplierPn) || same(name, supplierPn)) {
@@ -112,17 +138,23 @@ std::vector<JPPartMatcher::Candidate> JPPartMatcher::candidates(const JPConfigur
         } else if (!footprint.empty() && !value.empty() && same(p->id, footprint + "-" + value)) {
             c.score = kFootprintValue;
             c.why = "named by its footprint and value";
+        } else if (learnedValue && samePackage) {
+            c.score = kLearnedValue;
+            c.why = "learned: value " + value + ", its package " + p->packageId;
         } else if (same(p->id, value)) {
             c.score = kValueName;
             c.why = "named by its value";
-        } else if (double pv = 0; hasValue && valueOf(valuePart(p->id), pv) && sameValue(v, pv)) {
+        } else if (double pv = 0; hasValue && valueOf(!p->value.empty() ? p->value : valuePart(p->id), pv) && sameValue(v, pv)) {
             const std::string theirSize = !chipSize(p->packageId).empty() ? chipSize(p->packageId) : chipSize(p->id);
-            if (!size.empty() && theirSize == size) {
+            if (samePackage) {
+                c.score = kValueAndPackage;
+                c.why = "value " + (!p->value.empty() ? p->value : valuePart(p->id)) + " = " + value + ", its package " + p->packageId;
+            } else if (!size.empty() && theirSize == size) {
                 c.score = kValueAndSize;
-                c.why = "value " + valuePart(p->id) + " = " + value + ", size " + size;
+                c.why = "value " + (!p->value.empty() ? p->value : valuePart(p->id)) + " = " + value + ", size " + size;
             } else if (size.empty() || theirSize.empty()) {
                 c.score = kValueOnly;
-                c.why = "value " + valuePart(p->id) + " = " + value;
+                c.why = "value " + (!p->value.empty() ? p->value : valuePart(p->id)) + " = " + value;
             }
         }
         if (c.score > 0) out.push_back(c);
@@ -131,6 +163,11 @@ std::vector<JPPartMatcher::Candidate> JPPartMatcher::candidates(const JPConfigur
         return a.score != b.score ? a.score > b.score : a.part->id < b.part->id;
     });
     return out;
+}
+
+JPPart* JPPartMatcher::automatic(const JPConfiguration& config, const JPBoardPart& bp) {
+    const auto c = candidates(config, bp);
+    return !c.empty() && c.front().score >= kAutomatic ? c.front().part : nullptr;
 }
 
 std::vector<std::string> JPPartMatcher::words(const std::string& filter) {

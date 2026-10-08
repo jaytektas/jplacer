@@ -181,8 +181,14 @@ void JPlacerApp::openPreferences() {
 void JPlacerApp::openDiagnostics() {
     JPlacerDiagnosticsDialog::Sources s;
     s.cellFile = m_machine->cellPath();
-    s.partsFile = (std::filesystem::path(m_job->configuration().directory()) / JPConfiguration::kPartsFile).string();
-    s.packagesFile = (std::filesystem::path(m_job->configuration().directory()) / JPConfiguration::kPackagesFile).string();
+    s.saveLibrary = [this] {
+        // As text beside the diagnostics: the library's own file is a database.
+        const std::filesystem::path dir = std::filesystem::path(JPlacerPaths::configDir()) / "diagnostics";
+        std::error_code ec;
+        std::filesystem::create_directories(dir, ec);
+        const std::string file = (dir / "library.json").string();
+        return m_job->configuration().libraryJson().dumpToFile(file) ? file : std::string();
+    };
     s.logFile = m_logFile->path();
     s.saveJob = [this] {
         m_job->save();

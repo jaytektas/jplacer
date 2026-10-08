@@ -13,6 +13,7 @@
 #include "JPPackage.h"
 #include "JPPanel.h"
 #include "JPPanelLocation.h"
+#include "JPLibraryStore.h"
 #include "JPPart.h"
 #include "JPVisionSettings.h"
 
@@ -53,6 +54,9 @@ public:
     // default's). Boards and panels that cannot be read are left out and
     // named in `problems`.
     bool load(std::vector<std::string>& problems, std::string& error);
+    // The library as JSON, to read (a diagnostics file): each part with its id, UUID, value, description,
+    // datasheet, identifiers, AKAs and OpenPnP fields; each package with its AKAs and OpenPnP fields.
+    JJson libraryJson() const;
     // Writes the parts, packages, and the boards' and panels' lists.
     bool save(std::string& error) const;
 
@@ -62,6 +66,17 @@ public:
     JPPart* part(const std::string& id) const;
     // The library's part of that id only, or null.
     JPPart* libraryPart(const std::string& id) const;
+    // The library's part a matched board part is: by its id, else (renamed since) by its uuid; null when the
+    // library has neither (a board from another machine's library).
+    JPPart* libraryPartFor(const JPBoardPart& bp) const;
+    // A matched board part's copy taken from the library's part (and package) as it is now, with its
+    // fingerprint and uuid. Nothing when the library has no such part.
+    void takeCopy(JPBoardPart& bp) const;
+    // Whether a matched board part's copy is not the library's part as it is now (changed since, or not in
+    // this library at all): to be reviewed.
+    bool differs(const JPBoardPart& bp) const;
+    // The library's part made the board's copy (its placing fields; its names, uuid, id kept).
+    void giveCopy(const JPBoardPart& bp);
     // Replaces one of the same id, where it was.
     void addPart(std::shared_ptr<JPPart> part);
     void removePart(const std::string& id);
@@ -71,6 +86,8 @@ public:
     JPPackage* package(const std::string& id) const;
     // The library's package of that id only, or null.
     JPPackage* libraryPackage(const std::string& id) const;
+    // The library's package a CAD footprint names: by its id, else one of its AKAs (any case); null when none.
+    JPPackage* packageNamed(const std::string& footprint) const;
     void addPackage(std::shared_ptr<JPPackage> package);
     void removePackage(const std::string& id);
 
@@ -178,12 +195,16 @@ public:
     static std::string canonical(const std::string& path);
 
 private:
+    // OpenPnP's parts.xml and packages.xml in the folder, as when last changed (a changed one is looked at again).
+    std::string openPnpStamp() const;
     bool convertLegacyJob(JPJob& job, std::string& error);
     static void restoreJobSettings(JPJob& job, JPPanelLocation& l);
     static void saveJobSettings(JPJob& job, JPPanelLocation& l);
     std::shared_ptr<JPPanel> loadPanel(const std::string& path, std::string& error);
 
     std::string                                          m_directory;
+    // The library's file (library.db): written on save (from a const save, so mutable).
+    mutable JPLibraryStore                                m_library;
     std::string                                          m_defaults;
     bool                                                 m_tookDefaults = false;
     std::vector<std::shared_ptr<JPPart>>                 m_parts;

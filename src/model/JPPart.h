@@ -10,6 +10,7 @@
 
 #include <optional>
 #include <string>
+#include <vector>
 
 inline namespace jf {
 
@@ -19,7 +20,28 @@ inline namespace jf {
 // package's).
 class JPPart {
 public:
-    std::string                id;
+    // A typed, exact name for it (DESIGN.md, Identifier): kind "mpn" (org the manufacturer) or "supplierPn"
+    // (org the supplier); several of each (second sources, alternates).
+    struct Identifier {
+        std::string kind;
+        std::string org;
+        std::string code;
+    };
+    // What a CAD file or BOM may call it (DESIGN.md, AKA): `text` as the `field` gives it ("value", "footprint",
+    // or "valueFootprint": "value|footprint"), and where it was learned (a board, when).
+    struct Aka {
+        std::string field;
+        std::string text;
+        std::string learnedFrom;
+        std::string when;
+    };
+
+    std::string                id;          // unique in the library; what placements, feeders and jobs name it by
+    std::string                uuid;        // the library's for good (JPUuid); empty until it is in the library
+    std::string                value;       // its electrical value as written ("100n"), where it has one
+    std::string                datasheet;   // a link or a file
+    std::vector<Identifier>    identifiers;
+    std::vector<Aka>           akas;
     std::optional<std::string> name;
     JPLength                   height { 0, JPLengthUnit::Millimeters };
     JPLength                   throughBoardDepth { 0, JPLengthUnit::Millimeters };

@@ -731,8 +731,11 @@ configurations to check against, never inputs to the design.
    3. *The part picker / matcher* (done) for a board part, in place of the
       Part combo; the matching wizard (Board's Parts). Learning (a choice's
       CAD strings kept as AKAs) waits for `library.db`.
-   4. *`library.db`*: identifiers, AKAs, footprints, packagings, migration
-      from `parts.xml`; matched board parts carry copies and fingerprints.
+   4. *`library.db`* (done, in part): the library in SQLite, migrated from
+      `parts.xml` / `packages.xml`; part identifiers and AKAs, package AKAs,
+      learning, Add to Library; matched board parts carry copies and
+      fingerprints, reviewed in Board's Parts. Still to come: footprints as
+      their own entity, packagings, supplier offers, manufacturer AKAs.
    5. *Verifying, revisions, stock*: verified marks, board revisions and
       switching, stock lots and the ledger, the looking-down check.
    Then the Job and Library workspaces with the board view.

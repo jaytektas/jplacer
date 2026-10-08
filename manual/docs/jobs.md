@@ -15,8 +15,8 @@ OpenPnP.
 - A **panel** (`.panel.xml`) holds boards and other panels, each where it lies on the panel, the
   panel's own fiducials, and *pseudo-placements*: a placement of one of its boards (a fiducial, say)
   used to line up the whole panel.
-- The library's **parts** and **packages** are kept in `parts.xml` and `packages.xml` (a board's own
-  parts are kept in the board), and the boards and panels in
+- The library's **parts** and **packages** are kept in `library.db` (see [Parts](parts.md); a board's
+  own parts, and a copy of each library part it uses, are kept in the board), and the boards and panels in
   use are listed in `boards.xml` and `panels.xml`, all in jplacer's configuration folder
   (`~/.config/jplacer`). A part has an id, a name, a height (and the depth it reaches through the
   board), a package, a speed and how many times a pick is tried again. A package has an id, a

@@ -18,7 +18,7 @@
 inline namespace jf {
 
 // OpenPnP's Help > Submit Diagnostics: the problem described, and what helps
-// the developers (the machine's cell file, parts.xml, packages.xml, the
+// the developers (the machine's cell file, the library (its parts and packages), the
 // latest log, anonymous system information, the current job, saved first)
 // put together in one file. OpenPnP uploads it to Pastebin; jplacer sends
 // nothing anywhere: the file is written to the diagnostics folder, which is
@@ -31,7 +31,8 @@ public:
     static constexpr size_t kMostLogBytes = 1u << 20;
 
     struct Sources {
-        std::string cellFile, partsFile, packagesFile, logFile;
+        std::string cellFile, logFile;
+        std::function<std::string()> saveLibrary;   // the library written as text (JSON); its file, or empty
         std::function<std::string()> saveJob;   // the job saved; its file, or empty
         std::string version;
     };
@@ -56,7 +57,7 @@ private:
     std::unique_ptr<JContainer>                               m_page;
     std::vector<JLabel*>                                      m_notes;
     JTextArea*                                                m_description = nullptr;
-    JCheckBox *m_cell = nullptr, *m_parts = nullptr, *m_packages = nullptr, *m_log = nullptr, *m_system = nullptr,
+    JCheckBox *m_cell = nullptr, *m_library = nullptr, *m_log = nullptr, *m_system = nullptr,
               *m_job = nullptr;
     std::unique_ptr<JDialogButtonBox>                         m_buttons;
 };

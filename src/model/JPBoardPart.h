@@ -30,6 +30,13 @@ public:
     std::map<std::string, std::string> fields;   // as imported: "part", "value", "footprint", …
     State                              state = State::Unmatched;
     std::string                        libraryPartId;   // Matched: the library part's id
+    std::string                        libraryUuid;     // Matched: the library part's uuid (found by it when renamed)
+    // Matched: the board's copy of the library's part and its package as they were when chosen, and the
+    // copy's fingerprint (JPLibraryJson): placed by on a machine whose library lacks the part, and compared
+    // with the library's to tell when that has changed (JPConfiguration::differs).
+    std::shared_ptr<JPPart>            copyPart;
+    std::shared_ptr<JPPackage>         copyPackage;
+    std::string                        fingerprint;
     std::shared_ptr<JPPart>            localPart;       // Local: its own part
     std::shared_ptr<JPPackage>         localPackage;    // Local: its own package, when not the library's
 

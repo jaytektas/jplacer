@@ -3,6 +3,8 @@
 
 #include "JPBoardImporter.h"
 
+#include "JPPartMatcher.h"
+
 #include "JPAltiumCsvImporter.h"
 #include "JPDipTraceImporter.h"
 #include "JPEagleBoardImporter.h"
@@ -218,10 +220,13 @@ std::string JPBoardImporter::boardPart(JPConfiguration& config, JPBoard& out, co
     bp.fields["part"] = partId;
     if (!packageId.empty()) bp.fields["footprint"] = packageId;
     if (!value.empty()) bp.fields["value"] = value;
+    // The library's part of that name, else one it knows by these names (JPPartMatcher, strong evidence only).
     JPPart* found = config.libraryPart(partId);
+    if (!found) found = JPPartMatcher::automatic(config, bp);
     if (found) {
         bp.state = JPBoardPart::State::Matched;
         bp.libraryPartId = found->id;
+        config.takeCopy(bp);
     } else if (create) {
         bp.state = JPBoardPart::State::Local;
         bp.localPart = std::make_shared<JPPart>();

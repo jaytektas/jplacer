@@ -76,7 +76,9 @@ target_include_directories(jplacer_pipeline PUBLIC ${OpenCV_INCLUDE_DIRS})
 # OpenPnP's model: parts, packages and footprints, boards, panels and jobs,
 # kept in OpenPnP's own files. No GUI, no hardware.
 add_library(jplacer_model STATIC ${JPLACER_MODEL_SRC})
-target_link_libraries(jplacer_model PUBLIC jplacer_openpnp)
+# The library's file is SQLite, linked in (the AppImage carries no copy of it).
+find_library(JPLACER_SQLITE_STATIC NAMES libsqlite3.a REQUIRED)
+target_link_libraries(jplacer_model PUBLIC jplacer_openpnp ${JPLACER_SQLITE_STATIC} ${CMAKE_DL_LIBS} m)
 
 # Importing a board from its CAD files (CPL, BOM, other tables): reading, mapping, the join. No widgets.
 add_library(jplacer_import STATIC ${JPLACER_IMPORT_SRC})

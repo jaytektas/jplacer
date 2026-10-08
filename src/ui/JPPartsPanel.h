@@ -6,6 +6,7 @@
 #include "JPIconButton.h"
 #include "JPPartsTableModel.h"
 #include "JPSetupForm.h"
+#include "setup/JPFormBuilder.h"
 #include "JPTable.h"
 
 #include "model/JPConfiguration.h"
@@ -66,6 +67,12 @@ private:
     // One of the pipeline's buttons or sliders: done (true), else not one of them.
     bool pipelineAct(const std::string& settingsId, const JPVisionForms::Holder& holder, const std::string& what);
     std::vector<JPPart*> selections() const;
+    // The pages for a part (none: no pages).
+    JPSetupProperties::Form formFor(const JPPart* p);
+    // The part's Library page: value, datasheet, identifiers, what boards call it.
+    void libraryPage(JPFormBuilder& add, const std::string& partId);
+    // One of its buttons (add, delete): done (true), else not one of them.
+    bool libraryAct(const std::string& action);
     void updateWizards();
     void newPart();
     void deleteParts();
@@ -74,6 +81,7 @@ private:
     void changed();
     void act(const std::string& action);
 
+    std::shared_ptr<bool>              m_alive = std::make_shared<bool>(true);
     JPConfiguration&                   m_config;
     JPPartsTableModel                  m_model;
     JPTable*                           m_table = nullptr;

@@ -10,6 +10,17 @@ notes.
 
 ## Unreleased
 
+- The parts library is kept in its own file, library.db, made from OpenPnP's parts.xml and packages.xml the
+  first time (they are left as they are); OpenPnP's files copied in later add the parts the library lacks.
+- A part in the library can carry its value, datasheet, identifiers (MPN with manufacturer, supplier part
+  number) and the names boards' files call it, on the Parts tab's new Library page and Value and MPN columns.
+- Choosing a library part for a board's part remembers what the files call it (value and footprint, MPN,
+  supplier part number), so the next board matches without asking; Add to Library makes a library part from
+  everything the files said.
+- A board keeps a copy of each library part it uses, so it can be placed on a machine whose library lacks the
+  part; when the library's part changes, Board's Parts says so and takes either side's.
+- Submit Diagnostics includes the library as text (library.json) in place of parts.xml and packages.xml.
+
 - A placement's Part opens a part picker instead of a list of every part: what the files said about it, the
   library's parts it may be with why (its MPN, supplier part number, name, or the same value written another
   way, 100n as 0.1uF, of the same size), a filter over the whole library, and Use This Part, Make It the

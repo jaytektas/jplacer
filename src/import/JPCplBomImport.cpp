@@ -5,6 +5,8 @@
 
 #include "JPDesignators.h"
 
+#include "model/JPPartMatcher.h"
+
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
@@ -253,13 +255,13 @@ bool JPCplBomImport::build(const JPConfiguration& config, const std::string& whe
             const std::string name = !footprint.empty() && !val.empty() ? footprint + "-" + val
                                    : !val.empty() ? val : !mpn.empty() ? mpn : footprint;
             bp.fields["part"] = !mpn.empty() ? mpn : name;
-            // The library's part, by the names it would have: the MPN, OpenPnP's footprint-value, the value.
-            const JPPart* found = nullptr;
-            for (const std::string& id : { mpn, footprint.empty() || val.empty() ? std::string() : footprint + "-" + val, val })
-                if (!found && !id.empty()) found = config.libraryPart(id);
+            // The library's part, where the evidence is strong (its MPN, a supplier's part number, a name it learned,
+            // OpenPnP's footprint-value): JPPartMatcher. The rest are left to be chosen, with their candidates.
+            const JPPart* found = JPPartMatcher::automatic(config, bp);
             if (found) {
                 bp.state = JPBoardPart::State::Matched;
                 bp.libraryPartId = found->id;
+                config.takeCopy(bp);
                 ++report.matched;
             } else if (createMissing && !bp.fields["part"].empty()) {
                 bp.state = JPBoardPart::State::Local;

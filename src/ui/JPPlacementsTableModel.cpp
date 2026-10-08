@@ -3,6 +3,9 @@
 
 #include "JPPlacementsTableModel.h"
 
+#include "common/JPWhen.h"
+#include "model/JPLibraryLearning.h"
+
 #include "JPLengthCell.h"
 
 #include "model/JPDefinitionChanges.h"
@@ -376,14 +379,29 @@ void JPPlacementsTableModel::applyPart(JPBoard* board, const std::string& placem
     if (!bp) return;
     switch (choice.kind) {
         case JPPartChoice::Kind::Library:
+            if (choice.learn)
+                if (JPPart* part = m_config.libraryPart(choice.libraryId))
+                    JPLibraryLearning::learn(m_config, *part, *bp, board->scopeName(), JPWhen::now());
             bp->state = JPBoardPart::State::Matched;
             bp->libraryPartId = choice.libraryId;
+            bp->libraryUuid.clear();
             bp->localPart.reset();
             bp->localPackage.reset();
+            m_config.takeCopy(*bp);
             break;
+        case JPPartChoice::Kind::AddToLibrary: {
+            const JPPart* made = JPLibraryLearning::addFrom(m_config, *bp, board->scopeName(), JPWhen::now());
+            bp->state = JPBoardPart::State::Matched;
+            bp->libraryPartId = made->id;
+            bp->libraryUuid.clear();
+            bp->localPart.reset();
+            bp->localPackage.reset();
+            m_config.takeCopy(*bp);
+            break;
+        }
         case JPPartChoice::Kind::BoardsOwn: {
             const std::string footprint = !bp->field("footprint").empty() ? bp->field("footprint") : bp->field("package");
-            board->makeOwn(key, m_config.libraryPackage(footprint));
+            board->makeOwn(key, m_config.packageNamed(footprint));
             break;
         }
         case JPPartChoice::Kind::ToBeChosen:

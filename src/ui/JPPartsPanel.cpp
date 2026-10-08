@@ -3,6 +3,8 @@
 
 #include "JPPartsPanel.h"
 
+#include "common/JPWhen.h"
+
 #include "JPVisionPipelineActions.h"
 
 #include "JPFieldGrid.h"
@@ -153,9 +155,14 @@ void JPPartsPanel::updateWizards() {
         return;
     }
     m_shownPart = id;
+    m_form->setForm(formFor(p));
+}
+
+JPSetupProperties::Form JPPartsPanel::formFor(const JPPart* p) {
     JPSetupProperties::Form form;
     if (p) {
         JPFormBuilder add(form);
+        libraryPage(add, p->id);
         // Settings: the pick conditions.
         add.tab("Settings");
         add.group("Pick Conditions");
@@ -185,7 +192,122 @@ void JPPartsPanel::updateWizards() {
             }
         }
     }
-    m_form->setForm(std::move(form));
+    return form;
+}
+
+void JPPartsPanel::libraryPage(JPFormBuilder& add, const std::string& partId) {
+    auto part = [this, partId]() -> JPPart* { return m_config.libraryPart(partId); };
+    const JPPart* p = part();
+    if (!p) return;
+    add.tab("Library");
+    add.group("Part");
+    add.row("Value");
+    add.text("library.value", "Value", [part] { return part() ? part()->value : std::string(); },
+             [part](const std::string& v) {
+                 if (JPPart* q = part()) q->value = v;
+             });
+    add.tip("Its electrical value as written (100n, 4k7): matched to a board's however written (100nF, 0.1uF)");
+    add.row("Datasheet");
+    add.text("library.datasheet", "Datasheet", [part] { return part() ? part()->datasheet : std::string(); },
+             [part](const std::string& v) {
+                 if (JPPart* q = part()) q->datasheet = v;
+             });
+    add.tip("A link to its datasheet, or its file");
+    add.note("Known to the library for good as " + p->uuid + ", whatever it is named.");
+
+    // Identifiers: exact names (an MPN and its manufacturer, a supplier's part number and the supplier).
+    add.group("Identifiers");
+    add.note("A board part with one of these (its MPN, or a supplier's part number) is this part, without asking.");
+    const std::vector<std::string> kinds { "MPN", "Supplier PN" };
+    add.header({ "Kind", "Manufacturer / Supplier", "Code" });
+    for (size_t i = 0; i < p->identifiers.size(); ++i) {
+        const std::string key = "library.id" + std::to_string(i) + ".";
+        auto id = [part, i]() -> JPPart::Identifier* {
+            JPPart* q = part();
+            return q && i < q->identifiers.size() ? &q->identifiers[i] : nullptr;
+        };
+        add.row(std::to_string(i + 1));
+        add.choice(key + "kind", "Kind", kinds, [id] { return std::string(id() && id()->kind == "supplierPn" ? "Supplier PN" : "MPN"); },
+                   [id](const std::string& v) {
+                       if (auto* x = id()) x->kind = v == "Supplier PN" ? "supplierPn" : "mpn";
+                   });
+        add.text(key + "org", "Manufacturer / Supplier", [id] { return id() ? id()->org : std::string(); },
+                 [id](const std::string& v) {
+                     if (auto* x = id()) x->org = v;
+                 });
+        add.text(key + "code", "Code", [id] { return id() ? id()->code : std::string(); },
+                 [id](const std::string& v) {
+                     if (auto* x = id()) x->code = v;
+                 });
+        add.iconButton("library:removeId:" + std::to_string(i), "general-remove", "Delete this identifier");
+        add.leading();
+        add.end();
+    }
+    add.endColumns();
+    add.row("");
+    add.iconButton("library:addId", "general-add", "Add an identifier: an MPN, or a supplier's part number");
+    add.leading();
+    add.words("Add an identifier");
+    add.end();
+
+    // Also known as: what boards' files have called it (learned when a part is chosen for one, or typed).
+    add.group("Also Known As");
+    add.note("What boards' files call it: a board part called so is matched to it. Learned when this part is chosen "
+             "for one with Remember ticked; typed here too.");
+    const std::vector<std::string> fields { "Value and footprint", "Value", "Footprint" };
+    auto fieldLabel = [](const std::string& f) {
+        return std::string(f == "valueFootprint" ? "Value and footprint" : f == "footprint" ? "Footprint" : "Value");
+    };
+    add.header({ "Calls it by", "As (value|footprint)", "Learned from" });
+    for (size_t i = 0; i < p->akas.size(); ++i) {
+        const std::string key = "library.aka" + std::to_string(i) + ".";
+        auto aka = [part, i]() -> JPPart::Aka* {
+            JPPart* q = part();
+            return q && i < q->akas.size() ? &q->akas[i] : nullptr;
+        };
+        add.row(std::to_string(i + 1));
+        add.choice(key + "field", "Calls it by", fields, [aka, fieldLabel] { return aka() ? fieldLabel(aka()->field) : std::string(); },
+                   [aka](const std::string& v) {
+                       if (auto* x = aka()) x->field = v == "Value and footprint" ? "valueFootprint" : v == "Footprint" ? "footprint" : "value";
+                   });
+        add.text(key + "text", "As", [aka] { return aka() ? aka()->text : std::string(); },
+                 [aka](const std::string& v) {
+                     if (auto* x = aka()) x->text = v;
+                 });
+        const JPPart::Aka& a = p->akas[i];
+        add.words(a.learnedFrom.empty() ? std::string("typed") : a.learnedFrom + (a.when.empty() ? "" : ", " + JPWhen::withAgo(a.when)));
+        add.iconButton("library:removeAka:" + std::to_string(i), "general-remove", "Delete this name");
+        add.leading();
+        add.end();
+    }
+    add.endColumns();
+    add.row("");
+    add.iconButton("library:addAka", "general-add", "Add a name boards' files call it by");
+    add.leading();
+    add.words("Add a name");
+    add.end();
+}
+
+bool JPPartsPanel::libraryAct(const std::string& action) {
+    if (action.rfind("library:", 0) != 0) return false;
+    JPPart* p = selectedPart() ? m_config.libraryPart(selectedPart()->id) : nullptr;
+    if (!p) return true;
+    const std::string what = action.substr(8);
+    auto index = [&what](const std::string& prefix) -> long {
+        return what.rfind(prefix, 0) == 0 ? std::strtol(what.c_str() + prefix.size(), nullptr, 10) : -1;
+    };
+    if (what == "addId") p->identifiers.push_back({ "mpn", "", "" });
+    else if (what == "addAka") p->akas.push_back({ "valueFootprint", "", "", "" });
+    else if (const long i = index("removeId:"); i >= 0 && size_t(i) < p->identifiers.size()) p->identifiers.erase(p->identifiers.begin() + i);
+    else if (const long k = index("removeAka:"); k >= 0 && size_t(k) < p->akas.size()) p->akas.erase(p->akas.begin() + k);
+    changed();
+    // The page made again after this click (its button is on it).
+    std::weak_ptr<bool> alive = m_alive;
+    JMainThreadDispatcher::instance().post([this, alive] {
+        if (const auto a = alive.lock(); !a || !*a) return;
+        m_form->remake(formFor(selectedPart()));   // the tab and where it was scrolled to kept
+    });
+    return true;
 }
 
 bool JPPartsPanel::pipelineAct(const std::string& settingsId, const JPVisionForms::Holder& holder, const std::string& what) {
@@ -214,6 +336,7 @@ bool JPPartsPanel::pipelineAct(const std::string& settingsId, const JPVisionForm
 }
 
 void JPPartsPanel::act(const std::string& action) {
+    if (libraryAct(action)) return;
     const JPPart* p = selectedPart();
     if (!p) return;
     const size_t colon = action.find(':');

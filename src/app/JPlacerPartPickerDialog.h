@@ -29,6 +29,10 @@ inline namespace jf {
 // why (JPPartMatcher); a filter (its [x] clears it) to look through the whole
 // library; and what to make it:
 //  * Use This Part (Return, or a double-click on one): the library's part;
+//    With Remember ticked, the library keeps what the files call it (its
+//    value and footprint, MPN, supplier's part number: JPLibraryLearning),
+//    so the next board that calls it so is matched without asking;
+//  * Add to Library: a library part made from all the files said;
 //  * Make It the Board's Own: a part (and package) of the board's, from
 //    what the files said, kept in the board;
 //  * Leave to Be Chosen.
@@ -36,7 +40,7 @@ inline namespace jf {
 // the one placement alone. Escape, Cancel and the [x] change nothing.
 class JPlacerPartPickerDialog : public JDialogWindow {
 public:
-    static constexpr uint32_t kW = 820, kH = 600;
+    static constexpr uint32_t kW = 940, kH = 620;
 
     JPlacerPartPickerDialog(const JPConfiguration& config, const JPBoard& board, const std::string& placementId,
                             std::function<void(const JPPartChoice&)> chosen, JGpuHal& hal, int sx, int sy,
@@ -64,6 +68,7 @@ private:
     JLineEdit*                        m_filter = nullptr;
     JDataGrid*                        m_list = nullptr;
     JCheckBox*                        m_onlyThis = nullptr;
+    JCheckBox*                        m_remember = nullptr;
     std::unique_ptr<JDialogButtonBox> m_buttons;
     JButton*                          m_use = nullptr;
 };

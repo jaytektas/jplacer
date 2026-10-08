@@ -102,7 +102,8 @@ parts are left out or kept exactly as OpenPnP wrote them.
 
 The machine's **feeders** are brought across too, onto the [Feeders](feeders.md) tab, each exactly as
 OpenPnP wrote it; they take the place of the feeders jplacer had. Parts and packages are not imported
-(copy OpenPnP's `parts.xml` and `packages.xml` into jplacer's configuration folder), and neither is
+(copy OpenPnP's `parts.xml` and `packages.xml` into jplacer's configuration folder: the library takes those
+it lacks), and neither is
 OpenPnP's camera calibration: jplacer measures its cameras itself, and the import notes each camera that
 had one.
 

@@ -106,6 +106,15 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
             [&model, b = &board](const std::string& id, const JPPartChoice& choice) { model.applyPart(b, id, choice); },
             [&model, b = &board](const std::string& id, std::function<void(const JPPartChoice&)> chosen) {
                 if (model.openPartPicker) model.openPartPicker(*b, id, std::move(chosen));
+            },
+            [this, b = &board](const std::string& key, bool takeLibrarys) {
+                JPBoardPart* bp = b->part(key);
+                if (!bp) return;
+                if (takeLibrarys) m_job.configuration().takeCopy(*bp);
+                else m_job.configuration().giveCopy(*bp);
+                b->syncParts();
+                b->dirty = true;
+                changed();
             });
     };
     placements.openCplBom = [this](std::function<void(JPBoard&)> imported) {

@@ -13,7 +13,8 @@ inline namespace jf {
 
 namespace {
 
-enum Col { kId, kDescription, kHeight, kDepth, kPackage, kSpeed, kBottomVision, kFiducialVision, kPlacements, kFeeders, kColumns };
+enum Col { kId, kDescription, kValue, kMpn, kHeight, kDepth, kPackage, kSpeed, kBottomVision, kFiducialVision, kPlacements,
+           kFeeders, kColumns };
 
 // OpenPnP's PercentConverter.
 std::string percent(double d) {
@@ -32,6 +33,10 @@ JPTableModel::Column JPPartsTableModel::column(int c) const {
     switch (c) {
         case kId:             return { "ID", "", Kind::Text };
         case kDescription:    return { "Description", "", Kind::Text };
+        case kValue:          return { "Value", "Its electrical value as written (100n, 4k7); the Library page has the rest", Kind::Text };
+        case kMpn:
+            return { "MPN", "Its manufacturer's part number, the first of its identifiers (the Library page has them all)",
+                     Kind::Text };
         case kHeight:         return { "Height", "Part height; the distance between board surface and pick position.", Kind::Text };
         case kDepth:
             return { "Through-Board Depth",
@@ -73,6 +78,11 @@ std::string JPPartsTableModel::text(int row, int c) const {
     switch (c) {
         case kId:          return p->id;
         case kDescription: return p->name.value_or("");
+        case kValue:       return p->value;
+        case kMpn:
+            for (const auto& i : p->identifiers)
+                if (i.kind == "mpn") return i.code;
+            return "";
         case kHeight:      return JPLengthCell::text(p->height, true);
         case kDepth:       return JPLengthCell::text(p->throughBoardDepth, true);
         case kPackage:     return m_config.package(p->packageId) ? m_config.package(p->packageId)->id : std::string();
@@ -104,7 +114,7 @@ double JPPartsTableModel::number(int row, int c) const {
 }
 
 bool JPPartsTableModel::editable(int, int c) const {
-    return c >= kDescription && c <= kFiducialVision;
+    return c >= kDescription && c <= kFiducialVision && c != kMpn;
 }
 
 std::vector<const JPPackage*> JPPartsTableModel::packageChoices() const {
@@ -140,6 +150,9 @@ bool JPPartsTableModel::setText(int row, int c, const std::string& text, std::st
     switch (c) {
         case kDescription:
             p->name = text;
+            break;
+        case kValue:
+            p->value = text;
             break;
         case kHeight:
         case kDepth: {

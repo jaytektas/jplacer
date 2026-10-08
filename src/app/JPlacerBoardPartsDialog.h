@@ -30,15 +30,22 @@ inline namespace jf {
 // number, OpenPnP's footprint-value name, the value by name, or the value and
 // the size), never one on its value alone. Only Those to Be Chosen narrows the
 // list. A choice is made as the placements' Part cell makes it (`apply`).
+// A part whose library part changed since it was chosen, or that this
+// library lacks (a board from another's), says so; Take the Library's makes
+// the board's copy the library's part as it is now, Give the Library the
+// Board's the other way round.
 class JPlacerBoardPartsDialog : public JDialogWindow {
 public:
     static constexpr uint32_t kW = 1000, kH = 620;
 
     using Apply = std::function<void(const std::string& placementId, const JPPartChoice& choice)>;
     using Pick = std::function<void(const std::string& placementId, std::function<void(const JPPartChoice&)> chosen)>;
+    // A part whose library part changed since it was chosen (or is not in this library): the board takes the
+    // library's (`takeLibrarys`), else the library takes the board's copy.
+    using Review = std::function<void(const std::string& key, bool takeLibrarys)>;
 
-    JPlacerBoardPartsDialog(const JPConfiguration& config, const JPBoard& board, Apply apply, Pick pick, JGpuHal& hal,
-                            int sx, int sy, NativeWinHandleType parent);
+    JPlacerBoardPartsDialog(const JPConfiguration& config, const JPBoard& board, Apply apply, Pick pick, Review review,
+                            JGpuHal& hal, int sx, int sy, NativeWinHandleType parent);
 
 protected:
     void layout(float w, float h) override;
@@ -53,6 +60,7 @@ private:
     const JPBoard&           m_board;
     Apply                    m_apply;
     Pick                     m_pick;
+    Review                   m_review;
     std::shared_ptr<bool>    m_alive = std::make_shared<bool>(true);
     std::vector<std::string> m_rowKeys;   // each row's board part
     int                      m_activated = -1;
@@ -65,6 +73,10 @@ private:
     std::unique_ptr<JDialogButtonBox> m_buttons;
     JButton*                          m_choose = nullptr;
     JButton*                          m_best = nullptr;
+    JButton*                          m_takeLibrarys = nullptr;
+    JButton*                          m_giveLibrary = nullptr;
+    void review(bool takeLibrarys);
+    void enableFor(int row);
 };
 
 } // inline namespace jf

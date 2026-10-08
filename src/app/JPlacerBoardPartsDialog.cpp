@@ -22,9 +22,12 @@ std::string designators(const std::vector<std::string>& ids) {
     return s;
 }
 
-std::string now(const JPBoardPart& bp) {
+std::string now(const JPConfiguration& config, const JPBoardPart& bp) {
     switch (bp.state) {
-        case JPBoardPart::State::Matched: return bp.libraryPartId;
+        case JPBoardPart::State::Matched:
+            if (!config.libraryPartFor(bp) && bp.copyPart) return bp.libraryPartId + " (not in this library: the board's copy)";
+            if (config.differs(bp)) return bp.libraryPartId + " (differs from the library)";
+            return bp.libraryPartId;
         case JPBoardPart::State::Local:   return "the board's own: " + bp.partId();
         case JPBoardPart::State::Unmatched: break;
     }
@@ -34,12 +37,13 @@ std::string now(const JPBoardPart& bp) {
 } // namespace
 
 JPlacerBoardPartsDialog::JPlacerBoardPartsDialog(const JPConfiguration& config, const JPBoard& board, Apply apply, Pick pick,
-                                                 JGpuHal& hal, int sx, int sy, NativeWinHandleType parent)
+                                                 Review review, JGpuHal& hal, int sx, int sy, NativeWinHandleType parent)
     : JDialogWindow("Parts of " + board.scopeName(), kW, kH, hal, sx, sy, parent)
     , m_config(config)
     , m_board(board)
     , m_apply(std::move(apply))
-    , m_pick(std::move(pick)) {
+    , m_pick(std::move(pick))
+    , m_review(std::move(review)) {
     setResizable(true, kW * 2 / 3, kH * 2 / 3);
     JSceneGraph& g = graph();
     const JStyle& st = JStyle::current();
@@ -49,10 +53,10 @@ JPlacerBoardPartsDialog::JPlacerBoardPartsDialog(const JPConfiguration& config, 
     m_list = m_content->add(std::make_unique<JDataGrid>(
         g, std::vector<std::string>{ "Placements", "Value", "Footprint", "MPN", "Is", "Best match", "Why" }));
     m_list->setVSizePolicy(JSizePolicyMode::Expanding, 1);
-    m_list->onSelectionChanged.connect([this](int i) { m_choose->setEnabled(i >= 0); });
+    m_list->onSelectionChanged.connect([this](int i) { enableFor(i); });
     m_list->onRowActivated.connect([this](int i) { m_activated = i; });
-    m_onlyToChoose = m_content->add(std::make_unique<JCheckBox>(g, "Only those to be chosen", 0.f));
-    m_onlyToChoose->setTooltip("List only the parts not yet the library's or the board's own");
+    m_onlyToChoose = m_content->add(std::make_unique<JCheckBox>(g, "Only those to choose or review", 0.f));
+    m_onlyToChoose->setTooltip("List only the parts still to be chosen, and those whose library part changed since");
     m_onlyToChoose->onStateChanged.connect([this](bool) { m_refill = true; });
     add(m_content.get());
 
@@ -61,6 +65,12 @@ JPlacerBoardPartsDialog::JPlacerBoardPartsDialog(const JPConfiguration& config, 
     m_best->setTooltip("Each part still to be chosen takes its best match, where the evidence is strong (not the "
                        "value alone)");
     m_best->onClicked.connect([this] { useBest(); });
+    m_takeLibrarys = m_buttons->addButton("Take the Library's", JDialogButtonBox::Role::Action);
+    m_takeLibrarys->setTooltip("The board's copy of the part made the library's part as it is now");
+    m_takeLibrarys->onClicked.connect([this] { this->review(true); });
+    m_giveLibrary = m_buttons->addButton("Give the Library the Board's", JDialogButtonBox::Role::Action);
+    m_giveLibrary->setTooltip("The library's part made the board's copy (added to the library, when it lacks it)");
+    m_giveLibrary->onClicked.connect([this] { this->review(false); });
     m_choose = m_buttons->addButton("Choose…", JDialogButtonBox::Role::Action);
     m_choose->setTooltip("Choose the part chosen in the list, in the part picker");
     m_choose->onClicked.connect([this] { chooseSelected(); });
@@ -75,20 +85,22 @@ void JPlacerBoardPartsDialog::fill() {
     const std::string keepKey = keep >= 0 && size_t(keep) < m_rowKeys.size() ? m_rowKeys[size_t(keep)] : "";
     m_rowKeys.clear();
     std::vector<std::vector<std::string>> rows;
-    int toChoose = 0, strong = 0;
+    int toChoose = 0, strong = 0, toReview = 0;
     for (const JPBoardPart& bp : m_board.parts()) {
         const std::vector<std::string> ids = m_board.placementsOf(bp.key);
         if (ids.empty()) continue;
-        const bool open = bp.state == JPBoardPart::State::Unmatched;
+        const bool differs = m_config.differs(bp);
+        toReview += differs;
+        const bool open = bp.state == JPBoardPart::State::Unmatched || differs;
         const auto c = JPPartMatcher::candidates(m_config, bp);
-        if (open) {
+        if (bp.state == JPBoardPart::State::Unmatched) {
             ++toChoose;
             if (!c.empty() && c.front().score >= JPPartMatcher::kStrong) ++strong;
         }
         if (m_onlyToChoose->isChecked() && !open) continue;
         const bool sameAsNow = bp.state == JPBoardPart::State::Matched && !c.empty() && c.front().part->id == bp.libraryPartId;
         const std::string footprint = !bp.field("footprint").empty() ? bp.field("footprint") : bp.field("package");
-        rows.push_back({ designators(ids), bp.field("value"), footprint, bp.field("mpn"), now(bp),
+        rows.push_back({ designators(ids), bp.field("value"), footprint, bp.field("mpn"), now(m_config, bp),
                          c.empty() || sameAsNow ? "" : c.front().part->id, c.empty() || sameAsNow ? "" : c.front().why });
         m_rowKeys.push_back(bp.key);
     }
@@ -97,13 +109,30 @@ void JPlacerBoardPartsDialog::fill() {
     for (size_t i = 0; i < m_rowKeys.size(); ++i)
         if (m_rowKeys[i] == keepKey) select = int(i);
     m_list->setSelectedIndex(select);
-    m_choose->setEnabled(select >= 0);
+    enableFor(select);
     m_summary->setText(std::to_string(m_board.parts().size()) + " part(s); " + std::to_string(toChoose) + " to be chosen" +
-                       (toChoose ? ", " + std::to_string(strong) + " with a strong match" : std::string()));
+                       (toChoose ? ", " + std::to_string(strong) + " with a strong match" : std::string()) +
+                       (toReview ? "; " + std::to_string(toReview) + " to review (the library's part changed, or is not "
+                                   "in this library)" : std::string()));
     const std::string best = "Use Best Matches (" + std::to_string(strong) + ")";
     m_best->setLabel(best);
     m_best->setSize(std::max(m_best->bounds().width, JButton::labelWidth(best)), btnH());   // its count is in its label
     m_best->setEnabled(strong > 0);
+}
+
+void JPlacerBoardPartsDialog::enableFor(int row) {
+    m_choose->setEnabled(row >= 0);
+    const JPBoardPart* bp = row >= 0 && size_t(row) < m_rowKeys.size() ? m_board.part(m_rowKeys[size_t(row)]) : nullptr;
+    const bool differs = bp && m_config.differs(*bp);
+    m_takeLibrarys->setEnabled(differs && m_config.libraryPartFor(*bp));
+    m_giveLibrary->setEnabled(differs);
+}
+
+void JPlacerBoardPartsDialog::review(bool takeLibrarys) {
+    const int i = m_list->selectedIndex();
+    if (i < 0 || size_t(i) >= m_rowKeys.size() || !m_review) return;
+    m_review(m_rowKeys[size_t(i)], takeLibrarys);
+    m_refill = true;
 }
 
 void JPlacerBoardPartsDialog::chooseSelected() {

@@ -3,8 +3,12 @@
 
 #include "JPConfiguration.h"
 
+#include "JPLibraryJson.h"
 #include "JPXmlValues.h"
 
+#include "common/JPUuid.h"
+
+#include "openpnp/JPXmlJson.h"
 #include "openpnp/JPXmlReader.h"
 #include "openpnp/JPXmlWriter.h"
 
@@ -87,10 +91,40 @@ bool JPConfiguration::load(std::vector<std::string>& problems, std::string& erro
     resolvePhoton();
     for (const JPXmlElement& e : vision.children)
         if (e.name == "vision-settings") m_vision.push_back(JPVisionSettings::fromXml(e));
-    for (const JPXmlElement& e : packages.children)
-        if (e.name == "package") addPackage(std::make_shared<JPPackage>(JPPackage::fromXml(e)));
-    for (const JPXmlElement& e : parts.children)
-        if (e.name == "part") addPart(std::make_shared<JPPart>(JPPart::fromXml(e)));
+    // The library: library.db, else made from OpenPnP's parts.xml and packages.xml (left as they are); then any of
+    // those files' parts and packages it lacks, when the files changed since it last looked (OpenPnP's copied in).
+    const fs::path libraryFile = dir / JPLibraryStore::kFile;
+    const bool hadLibrary = exists(libraryFile.string());
+    if (!m_library.open(libraryFile.string(), error)) return false;
+    if (hadLibrary) {
+        std::vector<std::shared_ptr<JPPart>> libraryParts;
+        std::vector<std::shared_ptr<JPPackage>> libraryPackages;
+        if (!m_library.load(libraryParts, libraryPackages, error)) return false;
+        for (auto& k : libraryPackages) addPackage(std::move(k));
+        for (auto& p : libraryParts) addPart(std::move(p));
+    }
+    const std::string stamp = openPnpStamp();
+    if (!hadLibrary || stamp != m_library.meta("openpnpFiles")) {
+        int added = 0;
+        for (const JPXmlElement& e : packages.children)
+            if (e.name == "package" && !libraryPackage(e.attr("id"))) {
+                addPackage(std::make_shared<JPPackage>(JPPackage::fromXml(e)));
+                ++added;
+            }
+        for (const JPXmlElement& e : parts.children)
+            if (e.name == "part" && !libraryPart(e.attr("id"))) {
+                addPart(std::make_shared<JPPart>(JPPart::fromXml(e)));
+                ++added;
+            }
+        if (hadLibrary && added > 0)
+            problems.push_back(std::to_string(added) + " part(s) and package(s) of OpenPnP's parts.xml and packages.xml "
+                               "the library did not have were added to it");
+        std::string why;
+        if (!m_library.save(m_parts, m_packages, why) || !m_library.setMeta("openpnpFiles", stamp)) {
+            error = why;
+            return false;
+        }
+    }
     for (const JPXmlElement& e : boards.children) {
         const std::string path = JPXmlValues::text(e);
         std::string why;
@@ -108,10 +142,9 @@ bool JPConfiguration::load(std::vector<std::string>& problems, std::string& erro
 
 bool JPConfiguration::save(std::string& error) const {
     const fs::path dir(m_directory);
-    JPXmlNode parts("openpnp-parts");
-    for (const auto& p : m_parts) parts.add(p->toXml());
-    JPXmlNode packages("openpnp-packages");
-    for (const auto& p : m_packages) packages.add(p->toXml());
+    // The library's parts and packages, to library.db (OpenPnP's parts.xml and packages.xml are not written).
+    if (!m_library.isOpen() && !m_library.open((dir / JPLibraryStore::kFile).string(), error)) return false;
+    if (!m_library.save(m_parts, m_packages, error)) return false;
     JPXmlNode boards("openpnp-boards");
     for (const auto& b : m_boards) boards.add(JPXmlNode("board")).text = b->file;
     JPXmlNode panels("openpnp-panels");
@@ -127,9 +160,7 @@ bool JPConfiguration::save(std::string& error) const {
     JPXmlNode vision("openpnp-vision-settings");
     for (const JPVisionSettings& v : m_vision) vision.add(v.toXml());
     if (!JPXmlWriter::write((dir / kVisionFile).string(), vision, error)) return false;
-    return JPXmlWriter::write((dir / kPackagesFile).string(), packages, error)
-        && JPXmlWriter::write((dir / kPartsFile).string(), parts, error)
-        && JPXmlWriter::write((dir / kBoardsFile).string(), boards, error)
+    return JPXmlWriter::write((dir / kBoardsFile).string(), boards, error)
         && JPXmlWriter::write((dir / kPanelsFile).string(), panels, error);
 }
 
@@ -358,8 +389,11 @@ JPPart* JPConfiguration::part(const std::string& id) const {
     // Not the library's: a board's own part, by its (board-scoped) id.
     const std::string k = upper(id);
     for (const auto& b : m_boards)
-        for (const JPBoardPart& bp : b->parts())
+        for (const JPBoardPart& bp : b->parts()) {
             if (bp.state == JPBoardPart::State::Local && bp.localPart && upper(bp.localPart->id) == k) return bp.localPart.get();
+            // A library part this library lacks (a board from another's): the board's copy of it.
+            if (bp.state == JPBoardPart::State::Matched && bp.copyPart && upper(bp.copyPart->id) == k) return bp.copyPart.get();
+        }
     return nullptr;
 }
 
@@ -373,7 +407,92 @@ JPPackage* JPConfiguration::libraryPackage(const std::string& id) const {
     return it == m_packagesById.end() ? nullptr : it->second.get();
 }
 
+JJson JPConfiguration::libraryJson() const {
+    JJson j = JJson::object();
+    JJson parts = JJson::array();
+    for (const auto& p : m_parts) parts.push(JPLibraryJson::part(*p));
+    j["parts"] = parts;
+    JJson packages = JJson::array();
+    for (const auto& k : m_packages) packages.push(JPLibraryJson::package(*k));
+    j["packages"] = packages;
+    return j;
+}
+
+std::string JPConfiguration::openPnpStamp() const {
+    // When OpenPnP's files in the folder were last changed (each's time, or none): one changed, a new look.
+    std::string s;
+    for (const char* f : { kPartsFile, kPackagesFile }) {
+        std::error_code ec;
+        const auto t = fs::last_write_time(fs::path(m_directory) / f, ec);
+        s += std::string(f) + "=" + (ec ? std::string("none") : std::to_string(t.time_since_epoch().count())) + ";";
+    }
+    return s;
+}
+
+JPPart* JPConfiguration::libraryPartFor(const JPBoardPart& bp) const {
+    if (JPPart* p = libraryPart(bp.libraryPartId)) return p;
+    if (!bp.libraryUuid.empty())
+        for (const auto& p : m_parts)
+            if (p->uuid == bp.libraryUuid) return p.get();
+    return nullptr;
+}
+
+void JPConfiguration::takeCopy(JPBoardPart& bp) const {
+    const JPPart* p = libraryPartFor(bp);
+    if (!p) return;
+    bp.libraryPartId = p->id;
+    bp.libraryUuid = p->uuid;
+    bp.copyPart = std::make_shared<JPPart>(*p);
+    const JPPackage* k = libraryPackage(p->packageId);
+    bp.copyPackage = k ? std::make_shared<JPPackage>(*k) : nullptr;
+    bp.fingerprint = JPLibraryJson::fingerprint(*p, k);
+}
+
+bool JPConfiguration::differs(const JPBoardPart& bp) const {
+    if (bp.state != JPBoardPart::State::Matched || !bp.copyPart) return false;
+    const JPPart* p = libraryPartFor(bp);
+    return !p || JPLibraryJson::fingerprint(*p, libraryPackage(p->packageId)) != bp.fingerprint;
+}
+
+void JPConfiguration::giveCopy(const JPBoardPart& bp) {
+    if (!bp.copyPart) return;
+    JPPart* p = libraryPartFor(bp);
+    if (!p) {
+        // Not in this library: the copy joins it, as it was.
+        auto made = std::make_shared<JPPart>(*bp.copyPart);
+        if (bp.copyPackage && !libraryPackage(bp.copyPackage->id)) addPackage(std::make_shared<JPPackage>(*bp.copyPackage));
+        addPart(made);
+        return;
+    }
+    // Its placing fields the copy's; what the library knows it by (id, uuid, names) its own.
+    JPPart updated = *bp.copyPart;
+    updated.id = p->id;
+    updated.uuid = p->uuid;
+    updated.identifiers = p->identifiers;
+    updated.akas = p->akas;
+    *p = updated;
+    if (bp.copyPackage)
+        if (JPPackage* k = libraryPackage(bp.copyPackage->id)) {
+            const std::string uuid = k->uuid;
+            const std::vector<std::string> akas = k->akas;
+            *k = *bp.copyPackage;
+            k->uuid = uuid;
+            k->akas = akas;
+        }
+}
+
+JPPackage* JPConfiguration::packageNamed(const std::string& footprint) const {
+    if (footprint.empty()) return nullptr;
+    if (JPPackage* k = libraryPackage(footprint)) return k;
+    const std::string want = upper(footprint);
+    for (const auto& k : m_packages)
+        for (const std::string& a : k->akas)
+            if (upper(a) == want) return k.get();
+    return nullptr;
+}
+
 void JPConfiguration::addPart(std::shared_ptr<JPPart> p) {
+    if (p->uuid.empty()) p->uuid = JPUuid::make();
     const std::string k = upper(p->id);
     if (const auto it = m_partsById.find(k); it != m_partsById.end())
         *std::find(m_parts.begin(), m_parts.end(), it->second) = p;
@@ -394,12 +513,15 @@ JPPackage* JPConfiguration::package(const std::string& id) const {
     // A board's own package, by its (board-scoped) id.
     const std::string k = upper(id);
     for (const auto& b : m_boards)
-        for (const JPBoardPart& bp : b->parts())
+        for (const JPBoardPart& bp : b->parts()) {
             if (bp.localPackage && upper(bp.localPackage->id) == k) return bp.localPackage.get();
+            if (bp.copyPackage && upper(bp.copyPackage->id) == k) return bp.copyPackage.get();
+        }
     return nullptr;
 }
 
 void JPConfiguration::addPackage(std::shared_ptr<JPPackage> p) {
+    if (p->uuid.empty()) p->uuid = JPUuid::make();
     const std::string k = upper(p->id);
     if (const auto it = m_packagesById.find(k); it != m_packagesById.end())
         *std::find(m_packages.begin(), m_packages.end(), it->second) = p;
@@ -458,6 +580,8 @@ std::shared_ptr<JPBoard> JPConfiguration::board(const std::string& path, std::st
         b = std::make_shared<JPBoard>(JPBoard::fromXml(root));
         // OpenPnP's placements name library parts by id: each becomes a board part.
         b->partsFromPlacements([this](const std::string& id) { return libraryPart(id) != nullptr; });
+        for (JPBoardPart& bp : b->parts())
+            if (bp.state == JPBoardPart::State::Matched) takeCopy(bp);
     }
     b->file = file;
     b->dirty = false;
@@ -560,6 +684,9 @@ bool JPConfiguration::saveBoard(JPBoard& b, std::string& error, std::string* mov
                 }
     }
     b.dropUnusedParts();   // a part no placement names any more is not kept
+    // Every library part it uses carried in it (one matched without its copy yet: the library's now).
+    for (JPBoardPart& bp : b.parts())
+        if (bp.state == JPBoardPart::State::Matched && !bp.copyPart) takeCopy(bp);
     if (!b.toJson().dumpToFile(b.file)) {
         error = "Unable to write " + b.file;
         return false;

@@ -71,8 +71,7 @@ JPlacerDiagnosticsDialog::JPlacerDiagnosticsDialog(Sources sources,
         return p;
     };
     m_cell = check("Machine (its cell file)", true);
-    m_parts = check("parts.xml", true);
-    m_packages = check("packages.xml", true);
+    m_library = check("Library (parts and packages)", true);
     m_log = check("Latest Log File", true);
     m_system = check("Anonymous System Information", true);
     m_job = check("Current Job Data (Job Will Be Saved First)", false);
@@ -114,8 +113,8 @@ std::string JPlacerDiagnosticsDialog::systemInfo(const std::string& version) {
 void JPlacerDiagnosticsDialog::send() {
     std::vector<std::pair<std::string, std::string>> files;
     if (m_cell->isChecked() && !m_sources.cellFile.empty()) files.push_back({ fs::path(m_sources.cellFile).filename().string(), m_sources.cellFile });
-    if (m_parts->isChecked()) files.push_back({ "parts.xml", m_sources.partsFile });
-    if (m_packages->isChecked()) files.push_back({ "packages.xml", m_sources.packagesFile });
+    if (m_library->isChecked() && m_sources.saveLibrary)
+        if (const std::string library = m_sources.saveLibrary(); !library.empty()) files.push_back({ "library.json", library });
     if (m_log->isChecked()) files.push_back({ "Latest Log File", m_sources.logFile });
     if (m_job->isChecked() && m_sources.saveJob)
         if (const std::string job = m_sources.saveJob(); !job.empty()) files.push_back({ fs::path(job).filename().string(), job });
