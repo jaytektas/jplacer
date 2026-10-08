@@ -160,6 +160,11 @@ JPXmlNode JPPlacementsHolderLocation::toXml() const {
         .attr("side", JPSides::name(side))
         .attr("id", id);
     if (!fileName.empty()) n.attr("file-name", fileName);
+    if (kind() == Kind::Board) {
+        const auto& b = static_cast<const JPBoardLocation&>(*this);
+        const std::string revision = b.board() ? b.board()->revisionLabel() : b.revision;
+        if (!revision.empty()) n.attr("revision", revision);
+    }
     n.attr("check-fiducials", V::boolean(checkFiducials)).attr("locally-enabled", V::boolean(locallyEnabled));
     n.add(JPLocationXml::to("location", m_location));
     return n;
@@ -176,6 +181,7 @@ std::unique_ptr<JPPlacementsHolderLocation> JPPlacementsHolderLocation::fromXml(
             for (const JPXmlElement& entry : placed->children)
                 if (entry.children.size() >= 2)
                     b->legacyPlaced[V::text(entry.children[0])] = V::text(entry.children[1]) == "true";
+        if (V::has(e, "revision")) b->revision = e.attr("revision");
         l = std::move(b);
     }
     l->id = e.attr("id");

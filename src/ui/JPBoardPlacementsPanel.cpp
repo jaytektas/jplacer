@@ -8,7 +8,10 @@
 #include "model/JPDefinitionChanges.h"
 #include "model/JPSides.h"
 
+#include "common/JPlacerLog.h"
+
 #include <j/core/Dialog.h>
+#include <j/core/Log.h>
 #include <j/core/JLabel.h>
 #include <j/core/JSeparator.h>
 #include <j/core/JStyle.h>
@@ -22,6 +25,8 @@ namespace {
 
 // OpenPnP's search box is fifteen characters wide.
 constexpr int kSearchColumns = 15;
+constexpr int kRevisionColumns = 8;      // the revision chooser's width, in Ms
+constexpr size_t kCarryListed = 12;      // designators named in the work given, before "and n more"
 
 std::unique_ptr<JSeparator> toolSeparator(JSceneGraph& graph) {
     return std::make_unique<JSeparator>(graph, JSeparator::JOrientation::Vertical, JPIconButton::size());
@@ -76,6 +81,14 @@ JPBoardPlacementsPanel::JPBoardPlacementsPanel(JSceneGraph& graph, JPConfigurati
     m_view->setLeads(JPIconButton::Leads::Elsewhere);
     m_view->onClicked.connect([this] {
         if (m_board && onViewBoard) onViewBoard();
+    });
+    bar->add(toolSeparator(graph));
+    JLabel* revisionLabel = bar->add(std::make_unique<JLabel>(graph, "Revision"));
+    revisionLabel->setFixedSize(JTextHelper::measureWidth("Revision") + st.spacing, st.controlHeight);
+    m_revision = bar->add(std::make_unique<JComboBox>(graph, std::vector<std::string> {}));
+    m_revision->setFixedSize(JTextHelper::measureWidth("M") * kRevisionColumns, st.controlHeight);
+    m_revision->onIndexChanged.connect([this](int i) {
+        if (!m_fillingRevisions) switchRevision(i);
     });
     bar->add(std::make_unique<JContainer>(graph, 0.f, 0.f))->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     JLabel* searchLabel = bar->add(std::make_unique<JLabel>(graph, "Search"));
@@ -158,6 +171,52 @@ void JPBoardPlacementsPanel::refresh() {
     updateActions();
 }
 
+void JPBoardPlacementsPanel::fillRevisions() {
+    m_fillingRevisions = true;
+    std::vector<std::string> labels;
+    if (m_board)
+        for (const JPBoardRevision& r : m_board->revisions()) labels.push_back(r.label);
+    const bool any = !labels.empty();
+    if (!any) labels.push_back("None yet");
+    m_revision->setItems(labels);
+    m_revision->setCurrentIndex(any ? int(m_board->revision()) : 0);
+    m_revision->setEnabled(any);
+    m_revision->setTooltip(any ? "The board's revision shown, here and in the job: each kept as it was left"
+                               : "The board keeps no revisions yet: import a new revision's files (Import Placements) "
+                                 "and choose New Revision");
+    m_fillingRevisions = false;
+}
+
+void JPBoardPlacementsPanel::switchRevision(int index) {
+    if (!m_board || index < 0 || size_t(index) == m_board->revision()) return;
+    JPBoard* board = m_board;
+    const std::string to = board->revisions()[size_t(index)].label;
+    auto carry = std::make_shared<JPRevisionCarry>(board->switchRevision(size_t(index)));
+    JPDefinitionChanges(m_config, m_job()).revisionShown(*board);
+    JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "board " << board->scopeName() << ": " << to << " shown";
+    refresh();
+    changed();
+    if (carry->empty() || !askChoice) return;
+    // The work given, shown, to keep or undo.
+    auto list = [](const std::vector<std::string>& ids) {
+        std::string s;
+        for (size_t i = 0; i < ids.size() && i < kCarryListed; ++i) s += (i ? ", " : "") + ids[i];
+        return ids.size() > kCarryListed ? s + " and " + std::to_string(ids.size() - kCarryListed) + " more" : s;
+    };
+    std::string said = "Placements the same in " + to + " as in " + carry->from + " (where the CAD puts and turns "
+                       "them, and their part) were given the work done on " + carry->from + ":\n";
+    if (!carry->rotations.empty()) said += "\nRotation verified there: " + list(carry->rotations);
+    if (!carry->verified.empty()) said += "\nVerified there: " + list(carry->verified);
+    if (!carry->parts.empty()) said += "\nPart chosen as there: " + list(carry->parts);
+    askChoice("Work Given from " + carry->from, said, { "Keep", "Undo" }, 0, [this, board, carry](int option) {
+        if (option != 1 || board != m_board) return;
+        board->undoCarry(*carry);
+        JPDefinitionChanges(m_config, m_job()).revisionShown(*board);
+        refresh();
+        changed();
+    });
+}
+
 void JPBoardPlacementsPanel::selectPlacement(const std::string& id) {
     m_table->selectRow(id.empty() ? -1 : m_model.rowOf(id));
 }
@@ -171,6 +230,7 @@ std::vector<JPPlacement*> JPBoardPlacementsPanel::selections() const {
 
 void JPBoardPlacementsPanel::updateActions() {
     const bool any = !selections().empty();
+    fillRevisions();
     m_new->setEnabled(m_board != nullptr);
     m_import->setEnabled(m_board != nullptr);
     m_view->setEnabled(m_board != nullptr);
@@ -275,15 +335,29 @@ void JPBoardPlacementsPanel::take(JPBoard* board, JPBoard& imported) {
         merge(*shared);
         return;
     }
-    askChoice("The Selected Board Already Has Existing Placements",
-              "What do you want to do?\n\nSelect Merge to update the existing placements whose IDs match those in "
-              "the imported set, leave unchanged the existing placements whose IDs do not match any in the "
-              "imported set, and add the imported placements whose IDs do not match any of the existing "
-              "placements.\n\nSelect Replace to delete all existing placements and then add all the imported "
-              "placements.",
-              { "Merge", "Replace", "Cancel" }, 2, [this, board, shared](int option) {
-                  if (board != m_board || option < 0 || option == 2) {
+    std::vector<std::string> options { "Merge", "Replace" };
+    std::string question = "What do you want to do?\n\nSelect Merge to update the existing placements whose IDs match "
+                           "those in the imported set, leave unchanged the existing placements whose IDs do not match "
+                           "any in the imported set, and add the imported placements whose IDs do not match any of "
+                           "the existing placements.\n\nSelect Replace to delete all existing placements and then add "
+                           "all the imported placements.";
+    if (openUpgrade) {
+        options.push_back("New Revision…");
+        question += "\n\nSelect New Revision to make the imported set the board's next revision: what changed is "
+                    "shown first, decisions that still hold are kept, and the revision shown now is kept to switch "
+                    "back to.";
+    }
+    options.push_back("Cancel");
+    const int cancel = int(options.size()) - 1;
+    askChoice("The Selected Board Already Has Existing Placements", question, options, cancel,
+              [this, board, shared, cancel](int option) {
+                  if (board != m_board || option < 0 || option == cancel) {
                       m_partsAfterMerge = false;
+                      return;
+                  }
+                  if (option == 2) {
+                      m_partsAfterMerge = false;
+                      upgrade(board, shared);
                       return;
                   }
                   if (option == 1) {
@@ -294,6 +368,23 @@ void JPBoardPlacementsPanel::take(JPBoard* board, JPBoard& imported) {
                   }
                   merge(*shared);
               });
+}
+
+void JPBoardPlacementsPanel::upgrade(JPBoard* board, std::shared_ptr<JPBoard> files) {
+    openUpgrade(*board, std::move(files), [this, board](JPBoardRevision r, std::string current) {
+        if (board != m_board) return;
+        board->addRevision(std::move(r), current);
+        JPDefinitionChanges(m_config, m_job()).revisionShown(*board);
+        JLOGC(JPlacerLog::kUi, JLogLevel::Info)
+            << "board " << board->scopeName() << ": " << board->revisionLabel() << " made: " << board->revisions().back().summary;
+        refresh();
+        changed();
+        // Parts left to choose: the board's parts.
+        if (openBoardParts && std::any_of(board->parts().begin(), board->parts().end(), [](const JPBoardPart& p) {
+                return p.state == JPBoardPart::State::Unmatched;
+            }))
+            openBoardParts(*board);
+    });
 }
 
 void JPBoardPlacementsPanel::merge(JPBoard& imported) {

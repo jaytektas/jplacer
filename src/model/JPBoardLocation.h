@@ -27,9 +27,12 @@ public:
     // An older job's placed marks (by placement id), turned into the job's
     // map when it is converted.
     std::map<std::string, bool> legacyPlaced;
+    // The revision of its board (JPBoard::revisionLabel) the job was saved with, shown when the job is opened;
+    // empty: the board kept no revisions. A job's file keeps the one its board shows.
+    std::string revision;
 
 private:
-    JPBoardLocation(const JPBoardLocation& o) : JPPlacementsHolderLocation(o) {}
+    JPBoardLocation(const JPBoardLocation& o) : JPPlacementsHolderLocation(o), revision(o.revision) {}
 };
 
 } // inline namespace jf

@@ -15,6 +15,11 @@ void JPDefinitionChanges::added(JPPlacementsHolder& def, const JPPlacement& p) {
     def.dirty = true;
 }
 
+void JPDefinitionChanges::revisionShown(JPBoard& def) {
+    for (JPPlacementsHolder* h : m_config.instancesOf(def, m_job))
+        if (h->kind() == JPPlacementsHolder::Kind::Board) static_cast<JPBoard*>(h)->followRevision(def);
+}
+
 void JPDefinitionChanges::removed(JPPlacementsHolder& def, const std::string& id) {
     auto drop = [&id](JPPlacementsHolder& h) {
         std::erase_if(h.placements, [&id](const JPPlacement& p) { return p.id == id; });

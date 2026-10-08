@@ -10,6 +10,12 @@ notes.
 
 ## Unreleased
 
+- Boards have revisions. Importing a new revision's files into a board offers New Revision…: the placements are
+  paired with the board's (renumbered ones found by footprint and position, a moved CAD origin found and taken
+  back), one summary shows what is unchanged, moved, turned, has another part or footprint, is new, renamed or
+  removed, and everything that still holds is kept (rotation corrections, verified marks, chosen parts). The
+  Boards tab's Revision switches between them, each kept as it was left, and offers work done on one to the
+  other where the placement is the same, to keep or undo. A job remembers which revision it builds.
 - The Job tab draws the chosen placement's footprint on the head camera as it is placed (turned by its
   rotation), as OpenPnP's package reticle; Turn 90° corrects a placement's rotation and Verified, Next marks it
   checked and goes on to the next. A Verified column shows which are; changing a placement takes its mark off.

@@ -108,6 +108,9 @@ reference designators do: R2 before R10.
 | **Board's Parts** | The board's parts, one a row, to choose them (see [Choosing a part](#choosing-a-part)). |
 | **View Board** | Opens the board viewer (see [Panels](panels.md#the-viewer)). |
 
+**Revision**, after the buttons, shows which of the board's revisions is shown and switches to another
+(see [Revisions](#revisions)); it says **None yet** until the board has one.
+
 **Search**, at the right, works as on the Parts tab. Right-click for **Set Type**, **Set Side**, **Set
 Enabled** and **Set Error Handling**, each for all the chosen placements. **Space** turns the chosen
 placement on or off.
@@ -187,11 +190,59 @@ A placement is kept either way. The library is changed only where an option says
 Part Heights** (Reference CSV, Altium) and EAGLE's **Update Existing Parts** change the library's parts.
 
 When the board already has placements, it asks: **Merge** updates those with the same IDs (part, side,
-location, comments), keeps the others and adds the new; **Replace** takes them all off first; **Cancel**
+location, comments), keeps the others and adds the new; **Replace** takes them all off first; **New
+Revision…** makes what was read the board's next revision (see [Revisions](#revisions)); **Cancel**
 leaves the board as it was. A part the board already has keeps the choice made for it (importing again
 does not undo it); what the file says about it now is kept with it.
 
-<!-- src: src/model/JPBoardImporter.cpp (all, boardPart); src/model/JPCsvImporter.cpp; src/model/JPKicadPosImporter.cpp; src/model/JPEagleBoardImporter.cpp; src/app/JPlacerImportDialog.cpp; src/ui/JPBoardPlacementsPanel.cpp (importBoard, merge); src/model/JPBoard.cpp (takeParts) -->
+<!-- src: src/model/JPBoardImporter.cpp (all, boardPart); src/model/JPCsvImporter.cpp; src/model/JPKicadPosImporter.cpp; src/model/JPEagleBoardImporter.cpp; src/app/JPlacerImportDialog.cpp; src/ui/JPBoardPlacementsPanel.cpp (importBoard, take, merge); src/model/JPBoard.cpp (takeParts) -->
+
+## Revisions
+
+Boards are revised. When a new revision's files come, you don't start the board again: import them into
+the board (**CPL and BOM…** or any importer) and choose **New Revision…**. Everything already decided
+carries over wherever it still holds, so only what changed asks for attention, and the revision the
+board was is kept, to switch back to.
+
+The new files' placements are paired with the board's: by designator first, then those left over by
+footprint, side and position (within 0.05 mm), which finds a renumbered part (R12 is now R15). When most
+of the placements paired by designator (at least three) moved by the same offset and turn, the CAD's
+origin moved, not the parts: that is one change, **Origin moved 2.00, -1.50 mm**, and the new files'
+positions are taken back by it, so the board's place in a job and its fiducials still hold.
+
+**New Revision of *board*** shows one summary to work from: how many placements are unchanged, moved
+or turned (to verify), have another part (the same footprint), another footprint (to verify), are new,
+renamed or removed, and how many have parts still to choose. **Show** opens each count's list; every
+placement is listed as it **Was** and is **Now**, its **Change**, and **What changed** in words ("moved
+0.50 mm", "turned 90°", "part 100n → 220n", "was R12"). Name **The new revision** (rev B is offered
+after rev A; a label the board has is refused), and, the first time, **The revision shown now**. **Make
+the New Revision** keeps the revision shown and shows the new one; **Cancel** changes nothing.
+
+What the new revision keeps of each placement paired:
+
+- its identity, which lasts across revisions, and what a job set for it (enabled, error handling,
+  rank) and its comments;
+- its rotation correction, as a difference from the CAD's rotation: a part turned 90° on the machine
+  and then 90° in the CAD is placed at 180°. A new footprint takes its own zero rotation instead;
+- its verified mark, unless it moved, turned or has another footprint;
+- its part's choice, where its line of the files is the same (footprint, name, value, MPN,
+  manufacturer, supplier's part number); a changed line is matched again, as any import.
+
+Removed placements are not in the new revision, and a part no placement uses is not in it either; the
+library is never changed. When parts are left to choose, **Board's Parts** opens.
+
+**Switching revisions.** **Revision** shows any of them, newer or older, here and in the job; each is
+kept exactly as it was left. Work done on the one you leave is given to the one you switch to, for each
+placement that is the same in both (the same identity, side, CAD position and rotation, and part line):
+a rotation verified there, a verified mark (only one verified later than this revision's), and a part
+chosen there. **Work Given from *rev*** then names those placements; **Keep** keeps it, **Undo** puts
+the revision back as it was.
+
+The board file keeps every revision, complete: its label, when it was made, its summary, its files, its
+placements and its parts. A job's file records the revision of each of its boards, and opening the job
+shows that revision.
+
+<!-- src: src/model/JPBoardUpgrade.cpp (pairing, findOriginMove, sort, revision); src/model/JPBoard.cpp (addRevision, switchRevision, undoCarry, toJson); src/model/JPBoardRevision.cpp (next); src/model/JPBoardPart.cpp (samePart); src/app/JPlacerBoardUpgradeDialog.cpp; src/ui/JPBoardPlacementsPanel.cpp (take, upgrade, fillRevisions, switchRevision); src/model/JPPlacementsHolderLocation.cpp (toXml); src/model/JPConfiguration.cpp (resolveBoard) -->
 
 ## Saving boards
 

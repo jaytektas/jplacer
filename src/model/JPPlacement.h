@@ -25,6 +25,9 @@ public:
     enum class ErrorHandling { Default, Alert, Defer };
 
     std::string                id;
+    // Who it is across the board's revisions (DESIGN.md, Board revisions): given when an upgrade pairs it,
+    // kept when its designator changes; empty: the board has had no revision made yet.
+    std::string                uid;
     JPSide                     side = JPSide::Top;
     JPLocation                 location;
     std::string                partId;      // the part it is placed with (its board part's: JPBoard::syncParts)

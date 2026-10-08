@@ -16,6 +16,7 @@
 #include "JPlacerChildFiducialsDialog.h"
 #include "JPlacerClassSelectionDialog.h"
 #include "JPlacerChoiceDialog.h"
+#include "JPlacerBoardUpgradeDialog.h"
 #include "JPlacerCplBomImportDialog.h"
 #include "JPlacerPartPickerDialog.h"
 #include "JPlacerBoardPartsDialog.h"
@@ -121,6 +122,10 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     };
     placements.openCplBom = [this](std::function<void(JPBoard&)> imported) {
         m_window.openModal<JPlacerCplBomImportDialog>(m_job.configuration(), std::move(imported));
+    };
+    placements.openUpgrade = [this](JPBoard& board, std::shared_ptr<JPBoard> files,
+                                    std::function<void(JPBoardRevision, std::string)> made) {
+        m_window.openModal<JPlacerBoardUpgradeDialog>(board, std::move(files), std::move(made));
     };
     placements.askChoice = [this](const std::string& title, const std::string& question, std::vector<std::string> options,
                                   int cancelIndex, std::function<void(int)> chosen) {

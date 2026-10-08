@@ -21,6 +21,31 @@ const std::string& JPBoardPart::field(const std::string& name) const {
     return it == fields.end() ? empty : it->second;
 }
 
+const std::string& JPBoardPart::footprintName() const {
+    return !field("footprint").empty() ? field("footprint") : field("package");
+}
+
+bool JPBoardPart::samePart(const JPBoardPart& other) const {
+    if (footprintName() != other.footprintName()) return false;
+    for (const char* f : { "part", "value", "mpn", "manufacturer", "supplierPn" })
+        if (field(f) != other.field(f)) return false;
+    return true;
+}
+
+void JPBoardPart::takeChoice(const JPBoardPart& from) {
+    // Copies of its own: a part or package changed in one revision is not changed in another.
+    auto own = [](const auto& p) { return p ? std::make_shared<std::decay_t<decltype(*p)>>(*p) : nullptr; };
+    state = from.state;
+    libraryPartId = from.libraryPartId;
+    libraryUuid = from.libraryUuid;
+    copyPart = own(from.copyPart);
+    copyPackage = own(from.copyPackage);
+    copyFootprint = own(from.copyFootprint);
+    fingerprint = from.fingerprint;
+    localPart = own(from.localPart);
+    localPackage = own(from.localPackage);
+}
+
 const char* JPBoardPart::stateName(State s) {
     switch (s) {
         case State::Matched: return "matched";

@@ -3,12 +3,15 @@
 
 #include "JPBoard.h"
 
+#include "JPAngles.h"
 #include "JPLocationJson.h"
 #include "JPLocationXml.h"
 
+#include "common/JPUuid.h"
 #include "openpnp/JPXmlJson.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <filesystem>
 #include <set>
@@ -82,7 +85,6 @@ std::string JPBoard::useLibraryPart(const std::string& libraryId) {
 
 std::map<std::string, std::string> JPBoard::takeParts(const JPBoard& from) {
     std::map<std::string, std::string> keys;
-    const std::string prefix = scopeName() + "/";
     for (const JPBoardPart& theirs : from.parts()) {
         JPBoardPart* mine = nullptr;
         for (JPBoardPart& p : *m_parts)
@@ -109,18 +111,22 @@ std::map<std::string, std::string> JPBoard::takeParts(const JPBoard& from) {
         }
         // A board's own part taken from the import: a copy of its own, its ids scoped to this board.
         JPBoardPart& p = *part(key);
-        if (p.state == JPBoardPart::State::Local && p.localPart && p.localPart == theirs.localPart) {
-            p.localPart = std::make_shared<JPPart>(*theirs.localPart);
-            if (p.localPart->id.rfind(prefix, 0) != 0) p.localPart->id = prefix + p.localPart->id;
-            if (theirs.localPackage) {
-                p.localPackage = std::make_shared<JPPackage>(*theirs.localPackage);
-                if (p.localPackage->id.rfind(prefix, 0) != 0) p.localPackage->id = prefix + p.localPackage->id;
-                p.localPart->packageId = p.localPackage->id;
-            }
-        }
+        if (p.state == JPBoardPart::State::Local && p.localPart && p.localPart == theirs.localPart) scopeOwn(p);
         keys[theirs.key] = key;
     }
     return keys;
+}
+
+void JPBoard::scopeOwn(JPBoardPart& p) const {
+    if (p.state != JPBoardPart::State::Local || !p.localPart) return;
+    const std::string prefix = scopeName() + "/";
+    p.localPart = std::make_shared<JPPart>(*p.localPart);
+    if (p.localPart->id.rfind(prefix, 0) != 0) p.localPart->id = prefix + p.localPart->id;
+    if (p.localPackage) {
+        p.localPackage = std::make_shared<JPPackage>(*p.localPackage);
+        if (p.localPackage->id.rfind(prefix, 0) != 0) p.localPackage->id = prefix + p.localPackage->id;
+        p.localPart->packageId = p.localPackage->id;
+    }
 }
 
 std::string JPBoard::scopeName() const {
@@ -234,6 +240,156 @@ void JPBoard::partsFromPlacements(const std::function<bool(const std::string&)>&
     syncParts();
 }
 
+std::string JPBoard::revisionLabel() const {
+    return m_revisions.empty() ? std::string() : m_revisions[m_revision].label;
+}
+
+JPBoardRevision JPBoard::revisionAt(size_t i) const {
+    if (i >= m_revisions.size()) return {};
+    JPBoardRevision r = m_revisions[i];
+    if (i == m_revision) {
+        r.provenance = provenance;
+        r.placements = placements;
+        r.parts.clear();
+        for (const JPBoardPart& p : *m_parts) {
+            JPBoardPart q = p;
+            q.takeChoice(p);
+            r.parts.push_back(q);
+        }
+    }
+    return r;
+}
+
+void JPBoard::giveIdentities() {
+    for (JPPlacement& p : placements)
+        if (p.uid.empty()) p.uid = JPUuid::make();
+}
+
+void JPBoard::keepShown() {
+    if (m_revision < m_revisions.size()) m_revisions[m_revision] = revisionAt(m_revision);
+}
+
+void JPBoard::show(size_t i) {
+    JPBoardRevision& r = m_revisions[i];
+    m_revision = i;
+    provenance = std::move(r.provenance);
+    placements = std::move(r.placements);
+    *m_parts = std::move(r.parts);
+    r.provenance.clear();
+    r.placements.clear();
+    r.parts.clear();
+    syncParts();
+}
+
+void JPBoard::addRevision(JPBoardRevision r, const std::string& currentLabel) {
+    giveIdentities();
+    if (m_revisions.empty()) {
+        JPBoardRevision first;
+        first.label = currentLabel;
+        m_revisions.push_back(first);
+        m_revision = 0;
+    }
+    keepShown();
+    m_revisions.push_back(std::move(r));
+    show(m_revisions.size() - 1);
+    dirty = true;
+}
+
+void JPBoard::showRevision(size_t i) {
+    if (i >= m_revisions.size() || i == m_revision) return;
+    keepShown();
+    show(i);
+}
+
+size_t JPBoard::revisionNamed(const std::string& label) const {
+    for (size_t i = 0; i < m_revisions.size(); ++i)
+        if (m_revisions[i].label == label) return i;
+    return m_revisions.size();
+}
+
+JPRevisionCarry JPBoard::switchRevision(size_t i) {
+    JPRevisionCarry carry;
+    if (i >= m_revisions.size() || i == m_revision) return carry;
+    const JPBoardRevision from = revisionAt(m_revision);
+    showRevision(i);
+    dirty = true;
+    carry.from = from.label;
+    carry.before = revisionAt(i);
+    std::map<std::string, const JPPlacement*> byUid;
+    for (const JPPlacement& p : from.placements)
+        if (!p.uid.empty()) byUid[p.uid] = &p;
+    auto partIn = [](const std::vector<JPBoardPart>& parts, const std::string& key) -> const JPBoardPart* {
+        for (const JPBoardPart& p : parts)
+            if (p.key == key) return &p;
+        return nullptr;
+    };
+    auto samePlace = [](const JPPlacement& a, const JPPlacement& b) {
+        const JPLocation x = a.location.convertToUnits(JPLengthUnit::Millimeters);
+        const JPLocation y = b.location.convertToUnits(JPLengthUnit::Millimeters);
+        constexpr double kSame = 0.001;   // mm, degrees: the same number, as files round it
+        if (std::abs(x.x() - y.x()) > kSame || std::abs(x.y() - y.y()) > kSame) return false;
+        if (a.cadRotation.has_value() != b.cadRotation.has_value()) return false;
+        return !a.cadRotation || std::abs(JPAngles::difference(*a.cadRotation, *b.cadRotation)) <= kSame;
+    };
+    // Each board part here, the one there its placements (the same) were given, and those placements.
+    std::map<std::string, std::set<std::string>> partFrom;
+    std::map<std::string, std::vector<std::string>> partPlacements;
+    for (JPPlacement& t : placements) {
+        const auto s = byUid.find(t.uid);
+        if (t.uid.empty() || s == byUid.end()) continue;
+        const JPPlacement& was = *s->second;
+        const JPBoardPart* sp = partIn(from.parts, was.boardPart);
+        const JPBoardPart* tp = part(t.boardPart);
+        if (was.side != t.side || !samePlace(was, t) || !sp || !tp || !sp->samePart(*tp)) continue;
+        // Work newer than what is here: verified there, and here not verified or verified before (JPWhen's
+        // times sort as they read).
+        if (!was.verified.by.empty() && (t.verified.by.empty() || t.verified.when < was.verified.when)) {
+            if (std::abs(JPAngles::difference(was.location.rotation(), t.location.rotation())) > 1e-6) {
+                t.location = t.location.derive(std::nullopt, std::nullopt, std::nullopt, was.location.rotation());
+                t.verified = was.verified;
+                carry.rotations.push_back(t.id);
+            } else {
+                t.verified = was.verified;
+                carry.verified.push_back(t.id);
+            }
+        }
+        partFrom[tp->key].insert(sp->key);
+        partPlacements[tp->key].push_back(t.id);
+    }
+    for (const auto& [key, fromKeys] : partFrom) {
+        const JPBoardPart* sp = fromKeys.size() == 1 ? partIn(from.parts, *fromKeys.begin()) : nullptr;
+        JPBoardPart* tp = part(key);
+        if (!sp || !tp || sp->state == JPBoardPart::State::Unmatched || sp->partId() == tp->partId()) continue;
+        tp->takeChoice(*sp);
+        for (const std::string& id : partPlacements[key]) carry.parts.push_back(id);
+    }
+    syncParts();
+    return carry;
+}
+
+void JPBoard::undoCarry(const JPRevisionCarry& carry) {
+    placements = carry.before.placements;
+    *m_parts = carry.before.parts;
+    syncParts();
+    dirty = true;
+}
+
+void JPBoard::followRevision(const JPBoard& def) {
+    std::map<std::string, const JPPlacement*> mine;
+    for (const JPPlacement& p : placements) mine[!p.uid.empty() ? p.uid : p.id] = &p;
+    std::vector<JPPlacement> shown = def.placements;
+    for (JPPlacement& p : shown)
+        if (const auto m = mine.find(!p.uid.empty() ? p.uid : p.id); m != mine.end()) {
+            p.enabled = m->second->enabled;
+            p.errorHandling = m->second->errorHandling;
+        }
+    placements = std::move(shown);
+    provenance = def.provenance;
+    m_revisions = def.m_revisions;
+    m_revision = def.m_revision;
+    syncParts();
+}
+
 JPBoard JPBoard::fromJson(const JJson& j) {
     JPBoard b;
     if (j["name"].isString()) b.name = j["name"].str();
@@ -248,6 +404,12 @@ JPBoard JPBoard::fromJson(const JJson& j) {
         for (const JJson& p : j["provenance"].arr()) b.provenance.push_back(p);
     if (j["solderPastePads"].isArray())
         for (const JJson& p : j["solderPastePads"].arr()) b.solderPastePads.push_back(JPBoardPad::fromXml(JPXmlJson::element(p)));
+    // Its revisions: the one shown is the board's own placements and parts.
+    if (j["revisions"].isArray())
+        for (const JJson& r : j["revisions"].arr()) {
+            if (r["shown"].boolean(false)) b.m_revision = b.m_revisions.size();
+            b.m_revisions.push_back(JPBoardRevision::fromJson(r));
+        }
     b.syncParts();
     return b;
 }
@@ -270,6 +432,15 @@ JJson JPBoard::toJson() const {
         JJson sources = JJson::array();
         for (const JJson& p : provenance) sources.push(p);
         j["provenance"] = sources;
+    }
+    if (!m_revisions.empty()) {
+        JJson revs = JJson::array();
+        for (size_t i = 0; i < m_revisions.size(); ++i) {
+            JJson r = m_revisions[i].toJson(i != m_revision);
+            if (i == m_revision) r["shown"] = true;
+            revs.push(r);
+        }
+        j["revisions"] = revs;
     }
     if (!solderPastePads.empty()) {
         JJson pads = JJson::array();

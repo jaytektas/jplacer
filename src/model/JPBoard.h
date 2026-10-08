@@ -5,7 +5,9 @@
 
 #include "JPBoardPad.h"
 #include "JPBoardPart.h"
+#include "JPBoardRevision.h"
 #include "JPPlacementsHolder.h"
+#include "JPRevisionCarry.h"
 
 #include "openpnp/JPXmlElement.h"
 #include "openpnp/JPXmlNode.h"
@@ -59,6 +61,9 @@ public:
     std::map<std::string, std::string> takeParts(const JPBoard& from);
     // What scopes this board's own parts' ids: its file's name without its extension, else its name.
     std::string scopeName() const;
+    // A board's own part from elsewhere (an import) made this board's: its part and package copies of its own,
+    // their ids scoped to this board.
+    void scopeOwn(JPBoardPart& p) const;
     // A placement's part chosen by hand, a library part: its board part matched to it when the placement is
     // its only one, else (the others keep theirs) a board part of its own, the same fields, matched to it;
     // what the files said kept either way. The key the placement is to name (the caller sets it, as an edit).
@@ -79,6 +84,35 @@ public:
     // else unmatched (a part the board names and the library has not).
     void partsFromPlacements(const std::function<bool(const std::string&)>& inLibrary);
 
+    // Its revisions (DESIGN.md, Board revisions), oldest first; none until the first upgrade. The one shown is
+    // revision(): its files, placements and parts are the board's (provenance, placements, parts()); its
+    // entry here keeps only its label, when it was made and its summary.
+    const std::vector<JPBoardRevision>& revisions() const { return m_revisions; }
+    size_t revision() const { return m_revision; }
+    // The shown one's label; empty: no revisions kept.
+    std::string revisionLabel() const;
+    // A revision, complete (the one shown as it is now).
+    JPBoardRevision revisionAt(size_t i) const;
+    // Each placement without an identity across revisions given one.
+    void giveIdentities();
+    // A revision made by an upgrade (JPBoardUpgrade), added and shown. The one shown until now is kept; when the
+    // board kept none, as its first, labelled `currentLabel`.
+    void addRevision(JPBoardRevision r, const std::string& currentLabel);
+    // Revision `i` shown, the one shown until now kept as it is: nothing else changed (the revision a job was
+    // saved with, shown as it is opened).
+    void showRevision(size_t i);
+    // The revision labelled `label`; revisions().size() when there is none.
+    size_t revisionNamed(const std::string& label) const;
+    // Revision `i` shown, the one shown until now kept as it is; given that one's work where it still holds
+    // (JPRevisionCarry): for a placement of the same identity, side, CAD position and rotation, and part, its
+    // verified rotation and mark (verified later than here), and its part's choice.
+    JPRevisionCarry switchRevision(size_t i);
+    // The work carried undone: the revision shown as it was before.
+    void undoCarry(const JPRevisionCarry& carry);
+    // This, an instance of `def`, showing the revision `def` shows: its placements, each keeping what a job
+    // set for it (whether it is enabled, its error handling), found by its identity, else its id.
+    void followRevision(const JPBoard& def);
+
     static JPBoard fromXml(const JPXmlElement& root);
     JPXmlNode toXml() const;
     // jplacer's board file.
@@ -88,6 +122,12 @@ public:
     static bool isJplacerFile(const std::string& path);
 
 private:
+    // The one shown kept in its entry, complete; revision `i`'s taken from its entry and shown.
+    void keepShown();
+    void show(size_t i);
+
+    std::vector<JPBoardRevision>              m_revisions;
+    size_t                                    m_revision = 0;
     std::shared_ptr<std::vector<JPBoardPart>> m_parts = std::make_shared<std::vector<JPBoardPart>>();
 };
 

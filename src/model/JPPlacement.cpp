@@ -64,6 +64,7 @@ JPXmlNode JPPlacement::toXml() const {
 JPPlacement JPPlacement::fromJson(const JJson& j) {
     JPPlacement p;
     if (j["id"].isString()) p.id = j["id"].str();
+    if (j["uid"].isString()) p.uid = j["uid"].str();
     p.side = JPSides::fromName(j["side"].isString() ? j["side"].str() : std::string());
     if (j["part"].isString()) p.boardPart = j["part"].str();
     p.type = j["type"].isString() && j["type"].str() == "Fiducial" ? Type::Fiducial : Type::Placement;
@@ -83,6 +84,7 @@ JPPlacement JPPlacement::fromJson(const JJson& j) {
 JJson JPPlacement::toJson() const {
     JJson j = JJson::object();
     j["id"] = id;
+    if (!uid.empty()) j["uid"] = uid;
     j["side"] = JPSides::name(side);
     if (!boardPart.empty()) j["part"] = boardPart;
     j["type"] = typeName(type);

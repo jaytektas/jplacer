@@ -5,6 +5,7 @@
 
 #include "JPDesignators.h"
 
+#include "model/JPAngles.h"
 #include "model/JPPartMatcher.h"
 
 #include <algorithm>
@@ -294,9 +295,7 @@ bool JPCplBomImport::build(const JPConfiguration& config, const std::string& whe
         if (placed->state == JPBoardPart::State::Matched)
             if (const JPPart* part = config.libraryPartFor(*placed))
                 if (const JPLibraryFootprint* f = config.footprintFor(*placed, *part); f && f->zeroRotationDeg != 0) {
-                    double r = rotation + f->zeroRotationDeg;
-                    while (r > 180) r -= 360;
-                    while (r <= -180) r += 360;
+                    const double r = JPAngles::normalise(rotation + f->zeroRotationDeg);
                     p.location = p.location.derive(std::nullopt, std::nullopt, std::nullopt, r);
                 }
         out.placements.push_back(p);

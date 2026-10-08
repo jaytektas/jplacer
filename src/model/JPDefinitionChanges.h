@@ -40,6 +40,9 @@ public:
     }
     // A placement added to the definition, and a copy of it to each instance.
     void added(JPPlacementsHolder& def, const JPPlacement& p);
+    // The board's revision shown changed (made, switched or work carried undone): each instance shows it
+    // (JPBoard::followRevision).
+    void revisionShown(JPBoard& def);
     // A placement taken from the definition and from each instance.
     void removed(JPPlacementsHolder& def, const std::string& id);
 

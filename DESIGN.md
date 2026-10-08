@@ -741,7 +741,14 @@ configurations to check against, never inputs to the design.
    5. *Verifying, revisions, stock*: verified marks (done: the Job tab's
       footprint on the camera, Turn 90°, Verified, Next; CAD rotation kept,
       footprints' zero rotation applied on import), board revisions and
-      switching, stock lots and the ledger, the looking-down check.
+      switching (done: New Revision… after an import, JPBoardUpgrade's
+      pairing, origin move and summary, revisions in the board file, the
+      Boards tab's Revision chooser with work carried and undoable, the
+      job file recording each board's revision; the board shows one
+      revision at a time, so every job open sees the same one; a run's
+      record of its revision waits for runs; a changed part's old match is
+      not yet offered first in the picker), stock lots and the ledger, the
+      looking-down check.
    Then the Job and Library workspaces with the board view.
 4. **Feeders and running**: strip lanes and tray feeders first, planner and
    planner view, runner, runs, pre-flight, load-as-you-go, stages.

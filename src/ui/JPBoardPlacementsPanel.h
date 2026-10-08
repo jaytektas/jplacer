@@ -11,6 +11,7 @@
 #include "model/JPConfiguration.h"
 #include "model/JPJob.h"
 
+#include <j/core/JComboBox.h>
 #include <j/core/JContainer.h>
 #include <j/core/JLineEdit.h>
 #include <j/core/MenuSystem.h>
@@ -44,6 +45,10 @@ public:
     std::function<void(JPBoard&)> openBoardParts;
     // Opens the CPL and BOM import (JPlacerCplBomImportDialog); `imported` has the board it made.
     std::function<void(std::function<void(JPBoard&)> imported)> openCplBom;
+    // Opens a new revision's upgrade (JPlacerBoardUpgradeDialog) of the board from `files`; `made` has the new
+    // revision and the label of the one shown now (for a board that kept none).
+    std::function<void(JPBoard& board, std::shared_ptr<JPBoard> files,
+                       std::function<void(JPBoardRevision, std::string)> made)> openUpgrade;
     // Asks a question with buttons of its own; the index chosen, -1 closed.
     std::function<void(const std::string& title, const std::string& question, std::vector<std::string> options,
                        int cancelIndex, std::function<void(int)> chosen)> askChoice;
@@ -74,6 +79,11 @@ private:
     // An import's board into `board` (still the one shown): merged, or after asking, replacing what it has.
     void take(JPBoard* board, JPBoard& imported);
     void merge(JPBoard& imported);
+    // An import's board as the board's new revision, after the upgrade's summary.
+    void upgrade(JPBoard* board, std::shared_ptr<JPBoard> files);
+    // The revision chooser: the board's revisions, the one shown chosen.
+    void fillRevisions();
+    void switchRevision(int index);
     void showImportMenu();
     void buildContextMenu();
     void changed();
@@ -90,6 +100,8 @@ private:
     JPIconButton*                                 m_import = nullptr;
     JPIconButton*                                 m_view = nullptr;
     JPIconButton*                                 m_parts = nullptr;
+    JComboBox*                                    m_revision = nullptr;
+    bool                                          m_fillingRevisions = false;
     bool                                          m_partsAfterMerge = false;   // an import left parts to choose
     std::unique_ptr<JMenu>                        m_importMenu;
     std::unique_ptr<JMenu>                        m_contextMenu;

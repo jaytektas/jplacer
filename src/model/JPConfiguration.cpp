@@ -7,10 +7,13 @@
 #include "JPXmlValues.h"
 
 #include "common/JPUuid.h"
+#include "common/JPlacerLog.h"
 
 #include "openpnp/JPXmlJson.h"
 #include "openpnp/JPXmlReader.h"
 #include "openpnp/JPXmlWriter.h"
+
+#include <j/core/Log.h>
 
 #include <algorithm>
 #include <cctype>
@@ -814,6 +817,20 @@ bool JPConfiguration::resolveBoard(JPJob* job, JPBoardLocation& l, std::string& 
     }
     auto def = board(file, error);
     if (!def) return false;
+    // The revision the job was saved with, shown; the board is in the job at one revision only.
+    if (!l.revision.empty() && l.revision != def->revisionLabel()) {
+        const size_t i = def->revisionNamed(l.revision);
+        if (i == def->revisions().size())
+            JLOGC(JPlacerLog::kJob, JLogLevel::Warn)
+                << "board " << file << ": the job was saved with its revision \"" << l.revision
+                << "\", which it does not have; shown at \"" << def->revisionLabel() << "\"";
+        else if (job && job->instanceCount(*def) > 0)
+            JLOGC(JPlacerLog::kJob, JLogLevel::Warn)
+                << "board " << file << ": in the job at \"" << def->revisionLabel() << "\" and at \"" << l.revision
+                << "\"; shown at \"" << def->revisionLabel() << "\" for both";
+        else
+            def->showRevision(i);
+    }
     if (!l.holder || l.holder->definition() != def.get()) l.holder = def->instance();
     return true;
 }

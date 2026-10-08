@@ -47,6 +47,14 @@ public:
     std::string partId() const;
     // A field as imported, or empty.
     const std::string& field(const std::string& name) const;
+    // Its CAD footprint's name: the files' footprint, else their package.
+    const std::string& footprintName() const;
+    // Whether `other` is the same line of the files: the same footprint and the same part (its name, value,
+    // MPN, manufacturer and supplier's part number); a description or a quantity changed does not count.
+    bool samePart(const JPBoardPart& other) const;
+    // What it was chosen to be (its state, library part and copies, its own part and package) given `from`'s,
+    // copies of its own; what the files said is kept.
+    void takeChoice(const JPBoardPart& from);
 
     static const char* stateName(State s);
     static State       stateFrom(const std::string& s);
