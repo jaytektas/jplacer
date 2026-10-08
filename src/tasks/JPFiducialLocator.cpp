@@ -191,6 +191,7 @@ JPFiducialLocator::Result JPFiducialLocator::locate(JPConfiguration& config, JPJ
         done[best] = true;
         Fiducial& f = fiducials[best];
         std::string why;
+        machine.lookingFor(f.placement.partId);
         if (!machine.locateFiducial(f.nominal, f.diameterMm, f.look, f.measured, why)) {
             r.id = f.location->uniqueId();
             r.message = "Unable to locate " + f.placement.id + " on " + f.location->uniqueId() + ": " + why;

@@ -54,6 +54,9 @@ JPlacerJobRun::JPlacerJobRun(JAppWindow& window, JPlacerJob& job, JPlacerMachine
         [this](const std::string& s) {
             post([this, s] { m_window.showStatus(s, kStatusMs); });
         });
+    m_jobMachine->onLookingFor = [this](const std::string& partId) {
+        post([this, partId] { if (onLookingFor) onLookingFor(partId); });
+    };
     panel.onStartPauseResume = [this] { startPauseResume(); };
     panel.onStep = [this] { step(); };
     panel.onStop = [this] { stop(); };

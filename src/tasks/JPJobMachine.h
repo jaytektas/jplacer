@@ -70,6 +70,9 @@ public:
     }
     // Where the head's camera is now; none when it cannot be told.
     virtual std::optional<JPLocation> cameraLocation() const = 0;
+    // A fiducial check about to look for a fiducial of part `partId` (from its own thread): for the cameras
+    // to show its footprint.
+    virtual void lookingFor(const std::string& /*partId*/) {}
     // OpenPnP's TravelCost for routes (JPTravel): the default head's camera's X, Y (and Z, where a controller's)
     // axes; none (the routes by straight-line distance, as OpenPnP's when it cannot make one) when not known.
     virtual std::optional<JPTravel::Cost> travelCost() const { return std::nullopt; }

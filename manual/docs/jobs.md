@@ -82,11 +82,11 @@ Right-click for **Set Side**, **Set Enabled** and **Set Check Fids**.
 | **Move Camera To Board Location**, **Move Camera to the Next Board**, **Move Tool To Board Location** | Take the camera (or the Jog panel's nozzle) to where the board lies, at safe Z; Next chooses the next row first. |
 | **Capture Camera Location** | Sets where the chosen board lies to where the camera is (its X, Y and rotation; its Z kept). |
 | **Capture Tool Location** | Sets the chosen boards' Z to the nozzle's. |
-| **Fiducial Check** | Looks at the chosen board's (or panel's) fiducials with the camera and sets where it lies from them, as the job does; one straight in the job has its X, Y and rotation set too. The camera is then taken to it. |
+| **Fiducial Check** | Looks at the chosen board's (or panel's) fiducials with the camera and sets where it lies from them, as the job does; one straight in the job has its X, Y and rotation set too. The camera is then taken to it. Each fiducial looked for has its package's footprint drawn over the cameras (as a job's check does too), the last chosen footprint until another is. |
 | **Multiple Point Board Location** | Sets where the chosen board lies from placements you jog the camera over (below). |
 | **View Job** | Opens the job viewer (see [Panels](panels.md#the-viewer)), following the boards chosen. |
 
-<!-- src: src/ui/JPJobPanel.cpp (addBoard, addPanel); src/ui/JPLocationsTableModel.cpp; src/app/JPlacerOpenPnpTabs.cpp; src/app/JPlacerMachine.cpp (toolLocation, moveToolTo); src/app/JPlacerJobRun.cpp (fiducialCheck) -->
+<!-- src: src/ui/JPJobPanel.cpp (addBoard, addPanel); src/tasks/JPFiducialLocator.cpp (locate); src/tasks/JPCellJobMachine.h (lookingFor); src/ui/JPLocationsTableModel.cpp; src/app/JPlacerOpenPnpTabs.cpp; src/app/JPlacerMachine.cpp (toolLocation, moveToolTo); src/app/JPlacerJobRun.cpp (fiducialCheck) -->
 
 **Placements**: the chosen board's (or panel's) placements on its side facing up, with **Placed** and
 **Status** (**Ready**, **Missing Part**, **Missing Feeder**, **Part Height**: its height is not known, or

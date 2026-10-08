@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- A fiducial check (and a job's) draws each fiducial's footprint over the cameras as it looks for it.
+
 ## 0.1.26
 
 - The footprint on the cameras turns as OpenPnP's does: by the rotation of the tool chosen in Jog, as it

@@ -48,6 +48,9 @@ public:
     std::optional<double> nozzleRotation(const std::string& nozzleId) const override;
     std::vector<std::pair<std::string, std::string>> tips() const override;
     std::optional<JPLocation> cameraLocation() const override;
+    void lookingFor(const std::string& partId) override { if (onLookingFor) onLookingFor(partId); }
+    // lookingFor's, from the check's thread.
+    std::function<void(const std::string& partId)> onLookingFor;
     std::optional<JPTravel::Cost> travelCost() const override;
     bool cameraReaches(const JPLocation& at) const override;
     TipPush tipPush(const std::string& tipId) const override;

@@ -58,6 +58,8 @@ public:
     std::function<void(const JPJobProcessor::Failure&)> showSource;
     // A placement placed: the placed counts and tables shown again.
     std::function<void()> onPlaced;
+    // A fiducial check (or a job's) about to look for a fiducial of part `partId`: its footprint on the cameras.
+    std::function<void(const std::string& partId)> onLookingFor;
     // The Job tab's Fiducial Check of one board or panel (also the job viewer's):
     // it set by its fiducials (where it is straight in the job), the camera taken to it.
     void fiducialCheck(JPPlacementsHolderLocation* location);

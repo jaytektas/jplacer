@@ -1001,6 +1001,12 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         if (action == "autoSetupCancel") m_autoSetup->cancel();
         else m_autoSetup->start(feederId);
     };
+    // The fiducial a check looks for: its package's footprint on the cameras, as the last chosen.
+    m_jobRun->onLookingFor = [this](const std::string& partId) {
+        const JPPart* part = m_job.configuration().part(partId);
+        const JPPackage* k = part ? m_job.configuration().package(part->packageId) : nullptr;
+        if (k) showFootprint(m_jobRun.get(), JPFootprintOverlay::of(k->footprint, [this] { return m_machine.selectedToolRotation(); }));
+    };
     m_jobRun->onPlaced = [this] {
         m_jobPanel->placements().refresh();
         if (m_jobViewer) m_jobViewer->regenerate();
