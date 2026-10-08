@@ -8,8 +8,8 @@ reference; this document says where jplacer deliberately differs from it.
 
 | OpenPnP | Consequence | jplacer |
 |---|---|---|
-| One global `Configuration` holds every `Part` and `Package`; importers call `cfg.addPart` / `cfg.addPackage` because there is nowhere else to put them | Every board ever imported leaves its parts behind; the library grows into thousands of half-configured entries | Imported parts and packages belong to the job. The library is a separate, curated collection the job draws from |
-| Part id is synthesised as `package + "-" + value` (`KicadPosImporter`) | The id is the only link; a typo or a different CAD naming makes a duplicate part | A job part keeps what the CAD file said (footprint, value); linking it to a library component is a separate, visible choice |
+| One global `Configuration` holds every `Part` and `Package`; importers call `cfg.addPart` / `cfg.addPackage` because there is nowhere else to put them | Every board ever imported leaves its parts behind; the library grows into thousands of half-configured entries | Imported parts belong to the board they came with. The library is a separate, curated collection that boards are matched against, and it changes only when the user creates or learns |
+| Part id is synthesised as `package + "-" + value` (`KicadPosImporter`) | The id is the only link; a typo or a different CAD naming makes a duplicate part | A board part keeps everything the CPL, BOM and other files said; matching it to a library part (by MPN, supplier PN or AKA) is a separate, visible choice |
 | Parts and Packages tabs always list the whole library | When working on a job you scroll past 10,000 things it does not use | The job shows its own parts only. The library is opened on purpose, to find replacements, edit, or add to it |
 | Placed / enabled / check-fiducials state lives in `Job` and `BoardLocation` maps beside the definition | Saving a job saves run state; definition and progress are tangled | A job's definition and its run (progress, failures) are separate objects |
 | Feeder → part by global id; a job cannot tell you what is loaded for it | The user cross-checks Feeders tab against Job tab by eye | The job's parts list shows which feeder carries each part and flags parts with none |
@@ -17,114 +17,262 @@ reference; this document says where jplacer deliberately differs from it.
 
 ## Domain vocabulary
 
-- **Package**: the physical body: footprint geometry (body, pads), height
-  default, compatible nozzle tips, vision settings.
-- **Component**: a buyable thing: value, MPN, supplier numbers (e.g. LCSC
-  `C12234`), its package, height, speed, pick retries, vision overrides,
-  and its packagings. (OpenPnP calls this a Part.)
-- **Packaging**: one way a component comes: tape (width 8/12/16/…, pitch,
-  paper / embossed, **rotation of the part in the tape**), tube, tray. A
-  component may have several. Rotation in the tape is a fact about the
-  packaging, so it is set once in the library, not every time a strip goes
-  on a feeder (OpenPnP keeps it on the feeder, where it is easy to forget).
-- **Library**: the user's maintained collection of packages and components,
-  shared by all jobs. Curated, not a dumping ground.
-- **Job part**: a component as one job uses it: the group of placements
-  sharing (footprint, value) from the CAD file. It is either *local* (its own
-  data, as imported) or *linked* (it uses a library component). Its package is
-  likewise local or a library package.
-- **Board**: a PCB design: outline, fiducials, placements. Reusable across
-  jobs.
+- **Library**: the user's maintained collection, shared by every job and by
+  each of the user's machines. Curated, never a dumping ground: nothing is
+  added to it except by a deliberate act (create, learn).
+- **Library part**: a buyable thing. A permanent id (UUID); a **name** that
+  need not be unique; description; value (kept normalised as well as typed:
+  100n = 100nF = 0.1µF); its package and footprint; height; speed, pick
+  retries, vision overrides; its packagings; datasheet (link, and optionally
+  a local copy); its **identifiers** and **AKAs** (below); its **supplier
+  offers**; attrition. (OpenPnP calls this a Part.)
+- **Identifier**: a typed, exact name for a library part: manufacturer + MPN
+  (several per part: second sources, alternates), supplier + supplier PN
+  (LCSC `C12234`). Manufacturer names have AKAs of their own (TI = Texas
+  Instruments = Texas Instruments Inc.).
+- **AKA** ("also known as"): a free string a CAD file or BOM may call the
+  thing, and which field it matches: the CAD value ("100n"), the CAD
+  footprint ("C_0603_1608Metric"), or the two together; where it was learned
+  (which board, when). Parts, packages and footprints all have AKAs.
+- **Package**: the physical body: body size and height default, compatible
+  nozzle tips, bottom vision settings.
+- **Footprint**: a land pattern of a package, its own entity (one 0603 body,
+  several footprints): pads, pin 1, courtyard, and its **zero rotation** in
+  jplacer's convention (IPC-7351: pin 1 top left; how it sits in tape is the
+  packaging's). It is what the placement reticle draws and what a
+  down-looking check fits against.
+- **Packaging**: one way a part comes: tape (width 8/12/16/…, pitch, paper /
+  embossed, **rotation of the part in the tape**), tube, tray. Set once in the
+  library, not every time a strip goes on a feeder (OpenPnP keeps it on the
+  feeder, where it is easy to forget).
+- **Supplier offer**: where a library part is bought: supplier, SKU, price
+  breaks, MOQ, link, the last price seen.
+- **Stock lot**: one physical lot of a library part: a reel, tray, tube or
+  bag, its quantity, supplier, date code, where it is kept. **Stock** is
+  "do we have it"; it is not "is it loaded".
+- **Stock ledger**: every change to a lot as an entry: received (order,
+  quantity, cost, date), used by a run, lost to a mis-pick or discard,
+  counted and corrected. On hand is the ledger's sum, so a wrong figure shows
+  why. Attrition is measured from it, per part and per feeder.
+- **Board**: a PCB design and everything needed to build it, in one
+  self-contained file: outline, fiducials, placements, its **board parts**,
+  and the **import provenance**. It works on a machine whose library has
+  never seen it.
+- **Board part**: one line of the board's parts list: a BOM line, or (no
+  BOM) the placements sharing CAD value and footprint, or one made by hand.
+  It keeps every field it was given, as given (value, footprint, MPN,
+  manufacturer, description, supplier PN, any extra column by its own name),
+  and its **resolution**:
+  - *unmatched*: only what the files said;
+  - *matched*: a library part's id, the chosen alternates, and a **copy** of
+    that part's package, footprint and settings as they were, with a
+    **fingerprint** of the copy;
+  - *local*: defined in this board only, on purpose.
 - **Placement**: one designator on a board: position, rotation, side, type
-  (place / fiducial), the CAD's footprint and value strings, and the job part
-  it belongs to.
+  (place / fiducial), do-not-place, the board part it belongs to, and
+  **verified**: whether its position and rotation have been checked, and
+  by whom (operator, automatic check, position only).
+- **Import provenance**: each source file the board was made from (CPL, BOM,
+  others), its raw rows, the column mapping used and the profile it came
+  from, the importer, the date. Kept, so a mapping can be changed and the
+  matching run again without importing again.
+- **Mapping profile**: how one CAD tool's or supplier's columns map to
+  jplacer's fields, guessed from header synonyms and confirmed once; and
+  that source's per-footprint rotation corrections, learned from verifying.
 - **Panel**: an arrangement of board instances (rows × columns, gaps, or
-  free), with its own fiducials; panels may nest.
+  free), with its own fiducials; panels may nest. Carries its boards as
+  boards do.
 - **Job**: what is on the machine bed: panel / board instances with their
-  positions, per-instance enables, the job's parts and local packages, job
-  options. Self-contained: it opens and shows correctly with no library.
+  positions and per-instance enables, carrying **copies** of its boards and
+  panels (with a note of each source file, to pull updates from on request),
+  job options and the plan. Self-contained: given a job file, it opens and
+  runs.
 - **Run**: one execution of a job: per placement instance placed / failed /
-  skipped, timings, errors. Kept apart from the job.
+  skipped, timings, errors, parts used. Kept apart from the job; its parts
+  used go to the stock ledger.
 
 ### Relations
 
 ```
-Job (.jpjob)                                         Library (library.db)
-  Board instances ── Placement *──1 JobPart ─linked?─► Component *──1 Package
-                                      │                     ▲
-                                      ├─ local data          │ carries
-                                      └─ Package (local or ──┘   Feeder (machine.json)
-                                         linked library one)
+Job (.jpjob)                                   Library (library.db)
+  Board copies ── Placement *──1 BoardPart ─matched─► LibraryPart *──1 Package
+                                   │  (id + copy +       │  identifiers, AKAs      └─ Footprints
+                                   │   fingerprint)      │  offers, packagings
+                                   ├─ fields as imported │  StockLot *── ledger
+                                   └─ local data         ▲
+                                                         │ carries a lot of
+                                                    Feeder (cell json)
 ```
 
-Everything a job screen shows is reached from the job: placement → job part
-→ (library component) → package. The rest of the library stays out of sight
-until the user goes looking.
+A job runs from its copies, never from the live library: a library edit
+cannot change a job behind the user's back. Everything a job screen shows is
+reached from the job: placement → board part → its copy (and, matched, the
+library part it came from).
 
-### Job parts and the library
+### Import
 
-Import creates job parts and local packages only; the library is not
-touched. Then, per job part, the user (or a remembered rule) decides:
+From the bare minimum to as much as the user has:
 
-- **Link to a library component**: the job part uses the library's data
-  (package, height, vision, speed). Library improvements reach the job.
-- **Keep local**: the job part carries its own data. Fine for one-offs.
-- **Add to library**: turn a local job part (and its package) into library
-  entries and link to them. A deliberate act, never automatic.
-- **Detach**: copy a linked component's data into the job and edit it there
-  without changing the library.
+1. **Sources.** A CPL (placement file) is the minimum: designator, X, Y,
+   rotation, side are the fields to count on; anything more is a bonus. A
+   BOM, and any other table (a supplier order, a second BOM), can be added
+   at import time or later. Without a BOM the user can build the board's
+   parts by hand, as in OpenPnP; with one, nothing has to be typed.
+2. **Mapping.** Each source's columns are mapped to jplacer's fields with a
+   drop-down per column (as LCSC's BOM tool does: a "Provider" column can
+   be the Manufacturer): Designator, X, Y, Rotation, Side, Do Not Place;
+   Value, Footprint, Package, Description, Manufacturer, MPN, Supplier,
+   Supplier PN, Height, Datasheet, Quantity; or **keep as extra** under its
+   own name. Guessed from the headers (a synonym list), confirmed, and saved
+   as a mapping profile, so the next file from the same tool maps itself.
+3. **Join.** BOM rows name their designators ("R1, R2, R5-R8"); ranges are
+   expanded and joined to the CPL. What does not fit is listed, not guessed:
+   designators in one file and not the other; fields the files disagree on
+   (CPL 10k, BOM 10k 1%), with which source wins chosen per field or row.
+4. **Board parts.** Grouped by manufacturer + MPN where given, else by value
+   + footprint. Nothing is thrown away: every field each board part was
+   given stays on it; every source's raw rows stay in the provenance.
+5. **Match**, then **approve** (below).
 
-Swapping a part is the everyday operation. From a job part, **Swap…** offers
-candidates from three sources, best first:
+Importing touches only the board. The library changes only when the user
+creates or learns.
 
-1. **On a feeder now**: components loaded on the machine, matching package /
-   value. Swapping to one of these needs no reel change.
-2. **Library, in stock first**: search pre-filtered to the same package (or
-   its aliases) and value; parts marked in stock (with where the reel is
-   kept) rank above the rest; free search for alternatives.
-3. **Other jobs' local parts**, to reuse a part never added to the library.
+### Matching
 
-**Change packaging…** does the same for how the part arrives. Example:
-the library says 8 mm tape, 4 mm pitch, but that is out of stock and this
-build uses another source on 12 mm tape, 8 mm pitch. The job part gets a
-packaging override for this job only; the run, the lane width and the pick
-pitch all follow it. Because the new source is real, the same dialog offers
-"also add as a packaging of this part in the library" (with its supplier
-number), so next time it is a choice rather than an override.
+Each board part is matched against the library, strongest evidence first:
 
-**Change package** does the same for the footprint: pick a library package,
-another local package, or edit the local one. The CAD footprint string is
-kept, so the change is visible and reversible.
+1. manufacturer + MPN exact (MPN alone when the manufacturer is missing,
+   ranked lower);
+2. supplier PN exact;
+3. an AKA on value + footprint;
+4. normalised value + a footprint AKA;
+5. a footprint AKA alone; description or name, loosely.
 
-Choices are remembered in the library as **rules** (`footprint+value →
-component`, `footprint → package` alias, e.g. `R_0603_1608Metric → 0603`);
-the next import from the same CAD tool links itself, and the user sees which
-parts were auto-linked and can undo it.
+Every candidate says why it matched and from which source ("MPN, from the
+BOM"); evidence that contradicts (the MPN's part is 0402, the CPL's
+footprint 0603) lowers it and is shown. With only the bare CPL, tiers 3–5
+still work.
 
-Feeders hold library components (they outlive any job). So loading a local
-job part onto a feeder offers to add it to the library first. Pre-flight
-lists job parts with no feeder, parts with no package geometry, and parts
-whose nozzle tip is not on the machine.
+The **matching wizard** is a row per board part: a single strong candidate
+chosen already, several ("5 match") left to choose from, with the smart
+filter for a free search. Per row:
+
+- **Use** a library part; **use and learn** (its CAD strings become AKAs,
+  its MPN an identifier, so the next import matches by itself; shown, and
+  undoable);
+- **choose alternates**: approved substitutes (a second source, another
+  brand of the same 0603); the run uses whichever is loaded;
+- **create in library from this**: the new part filled from everything the
+  board part has (MPN, manufacturer, value, description, height,
+  datasheet), its package and footprint by footprint AKA, or created too;
+- **keep local**; **leave unmatched** for now.
+
+The same picker, for one board part, is what the placements' Part field
+opens: changing a part changes it for all its placements. Changing the part
+of one placement alone (a value swap on R7, a do-not-place) gives that
+placement a board part of its own.
+
+**Differs from library.** On opening a board or job, each matched board
+part's fingerprint is compared with the library part now: "3 parts differ
+from your library", each shown side by side, with *update the board*, *update
+the library from the board*, or *keep both*, per item.
+
+### Verifying placements
+
+The footprint's zero rotation and the mapping profile's corrections give a
+placement its first rotation; **the placement's own rotation is the truth**
+from then on.
+
+- **Step-through** (the existing tool): the camera goes to each placement and
+  draws the footprint as a reticle. Stepping on marks it verified by the
+  operator; a correction made there is saved to the placement, and offered
+  to the mapping profile ("all C_0603 from this tool: +90°?").
+- **Automatic check, looking down** (optional, before a run): the
+  footprint's pads drawn at the placement's position and rotation, fitted
+  against the board in the camera (bare or pasted, the pipeline tuned for
+  which) by the same vision used to look up at parts. It verifies position
+  for anything of more than one pad, and rotation where the pad pattern is
+  not symmetric (SOT-23, connectors). For symmetric patterns (two-pad parts,
+  SOIC, QFP, QFN) polarity needs a pin 1 pad that differs or a silkscreen
+  mark the camera can see; without one the placement is marked *position
+  only*, and those are what the operator steps through.
+- Later, the same looking down at placed parts (the body, its polarity mark)
+  checks the result.
+
+### Ready to run
+
+Two different things:
+
+- **The job's data** is checked before a run, as one list that names what to
+  do: board parts unmatched (and not local on purpose), placements not
+  verified, parts with no height, no footprint or no vision settings, no
+  compatible nozzle tip on the machine.
+- **Material is the feeders'.** A part does not have to be loaded to start:
+  the run places what the loaded feeders hold and asks for the rest as it
+  reaches them (load as you go), and a feeder running out asks the same way.
+  A machine that cannot hold every part at once is normal. Stock answers
+  "do we have it, and enough with attrition" in the job's shortage list
+  (with where each lot is kept and, short, the supplier offers); it never
+  stops a run from starting.
+
+A job line reads, for example: *needs 40 + 3 attrition; 3,000 in stock on 2
+reels; reel A in feeder 7, 220 left*. A feeder carries a stock lot, so it
+knows what is left and warns before it runs out ("feeder 7: about 15
+placements left").
 
 ### Settings cascade
 
-Machine defaults → Package → Component. Every inheritable field shows whether
-it is inherited or overridden, and from where; clearing an override returns to
-the inherited value. (OpenPnP's `PartSettingsHolder` does this for vision only
-and hides which level is in effect.)
+Machine defaults → Package → Library part → board part copy. Every
+inheritable field shows whether it is inherited or overridden, and from
+where; clearing an override returns to the inherited value. (OpenPnP's
+`PartSettingsHolder` does this for vision only and hides which level is in
+effect.)
 
 ## Storage
 
 | What | Where | Why |
 |---|---|---|
-| Library: packages, footprints, components, link rules, vision settings | `library.db`, SQLite through `JDatabase` | Thousands of rows, searched and filtered, never loaded wholesale |
-| Board | `*.jpboard`, JSON | Shared between jobs, diffable |
-| Job | `*.jpjob`, JSON; boards by relative path | Holds its job parts and local packages, so it is self-contained; links are library ids |
-| Run history | `runs.db`, SQLite | Append-only progress; resume after a crash |
-| Cells | `cells/<name>.json`; lines in `lines.json` | Hardware configuration, calibration and feeders, one file per machine; which cells are joined by conveyor |
+| Library: parts, identifiers, AKAs, packages, footprints, packagings, offers, stock lots and ledger, mapping profiles | `library.db`, SQLite through `JDatabase`; one per user | Thousands of rows and a growing ledger, searched and filtered, never loaded wholesale |
+| Board | `*.jpboard`, JSON | Self-contained (board parts, copies, provenance); diffable; drops into any job |
+| Job | `*.jpjob`, JSON | Carries copies of its boards and panels (each with its source file noted) and the plan; opens and runs anywhere |
+| Run history | `runs.db`, SQLite | Append-only progress; resume after a crash; parts used, for the ledger |
+| Cells | `cells/<name>.json`; lines in `lines.json` | Hardware configuration, calibration and feeders (each carrying a stock lot), one file per machine |
 | Preferences | `JSettings`, keys in `JPlacerSettings` | As now |
 
-Library ids are UUIDs (`JUuid`), never names, so renaming never breaks a job.
+A board file, in outline (a job carries boards in this shape):
+
+```json
+{
+  "format": "jplacer-board", "version": 1,
+  "name": "Controller rev B", "outline": { "...": "..." }, "fiducials": [ ],
+  "parts": [
+    { "key": "bp-3", "fields": { "value": "100n", "footprint": "C_0603_1608Metric",
+                                 "manufacturer": "Samsung", "mpn": "CL10B104KB8NNNC",
+                                 "supplierPn": "C1591", "extra": { "Voltage": "50V" } },
+      "resolution": { "state": "matched", "libraryId": "5f0c…", "alternates": [ "a91e…" ],
+                      "copy": { "part": { }, "package": { }, "footprint": { } },
+                      "fingerprint": "sha256:…", "matchedBy": "mpn (BOM)" } }
+  ],
+  "placements": [
+    { "designator": "C12", "x": 23.41, "y": 11.05, "rotation": 90, "side": "top",
+      "part": "bp-3", "doNotPlace": false,
+      "verified": { "by": "operator", "when": "2026-10-08T11:20:00" } }
+  ],
+  "provenance": [
+    { "role": "cpl", "file": "ctrl-top-pos.csv", "importer": "KiCad", "when": "…",
+      "profile": "KiCad 8 pos", "mapping": { "Ref": "designator", "PosX": "x", "…": "…" },
+      "rows": [ [ "C12", "100n", "C_0603_1608Metric", "23.41", "11.05", "90", "top" ] ] },
+    { "role": "bom", "file": "ctrl-bom.csv", "mapping": { "Provider": "manufacturer", "…": "…" },
+      "rows": [ ] }
+  ]
+}
+```
+
+Library ids are UUIDs (`JUuid`), never names, so renaming never breaks a
+board, a job or a feeder. OpenPnP's jobs, boards, `parts.xml` and
+`packages.xml` are imported through the same mapping and matching (its part
+ids become AKAs of the library parts made from them); jplacer does not write
+OpenPnP's formats.
 
 ## Machine layer
 
@@ -199,9 +347,10 @@ Within a machine, same capability as OpenPnP's `spi` + `machine/reference`:
 - **Cameras**: capture (V4L2 first), units-per-pixel, lens calibration,
   rotation / flip, settle, light actuators.
 - **Feeders**: one class per type: strip, tray, rotated tray, push-pull, drag,
-  tube, auto / slot (banks), loose-part. A feeder holds a component *and the
-  packaging it was loaded in*; pick rotation and pitch come from the
-  packaging. Strip feeders remember how many parts are left in the strip.
+  tube, auto / slot (banks), loose-part. A feeder holds a library part's
+  **stock lot** *and the packaging it was loaded in*; pick rotation and pitch
+  come from the packaging. It counts the lot down as it feeds (the ledger),
+  so it knows how many are left and warns before it runs out.
 - **Bus feeders** (e.g. Photon on RS-485) speak their own protocol over a
   **pass-through channel**. A channel is provided by a driver (a G-code
   command that carries the packet and returns the reply, such as `M485
@@ -393,14 +542,17 @@ user can rearrange.
 - **The job is the centre.** You open a job and everything you need for it is
   one click from it; nothing unrelated is on screen.
 - **Plain status, one next step.** Every part says in words what it is
-  (*From library*, *This job only*) and what it lacks (*no feeder*, *no
-  footprint*, *tip not fitted*), with the button that fixes it beside it.
-  The words "linked" and "local" are for this document, not the screen.
+  (*From library*, *This board only*, *Not matched*, *Differs from library*)
+  and what it lacks (*no footprint*, *not verified*, *tip not fitted*,
+  *short: 12*), with the button that fixes it beside it. The words "matched"
+  and "local" are for this document, not the screen.
 - **Select once, see everywhere.** Selecting a part, placement or feeder
   highlights it on the board view, in the lists and in the inspector, and the
   camera can go to it.
-- **Ready to run is visible.** The job shows a running count of what stops it
-  from running; pre-flight is that same list, not a surprise at Start.
+- **Ready to run is visible.** The job shows a running count of what in its
+  data stops it from running; pre-flight is that same list, not a surprise at
+  Start. Parts not yet loaded are not on it: the feeders ask for them as the
+  run reaches them.
 - **Edit where you look.** Fields are edited in the inspector; there are no
   separate configuration tabs to hunt for.
 - **Undo** (`JUndoStack`) for every edit to a job or the library.
@@ -411,24 +563,25 @@ user can rearrange.
 ┌ Job tree ─────────┬ Board view / Camera ───────────────┬ Inspector ───────┐
 │ Job               │ PCB rendered from footprints,      │ the selection:   │
 │ ├ Panel 2×3       │ placements coloured by state       │ placement →      │
-│ │ └ Board A ×6    │ (to fix, ready, placed, failed)   │  component →     │
-│ └ Fiducials       │ click = select; double = move cam  │   package        │
+│ │ └ Board A ×6    │ (to fix, ready, placed, failed)   │  board part →    │
+│ └ Fiducials       │ click = select; double = move cam  │   library part   │
 │                   │                                    │ inherited/       │
 │                   │                                    │ overridden fields│
-├ Parts (this job only)────────────────────────────────── ┤ [Swap…]         │
-│ 10k  0603 ×24  RC0603-10K  From library  ✔ feeder S12 │ [Change package…]│
-│ 100n ?    ×8   This job only  ⚠ no footprint [Fix…]  │ [Add to library] │
-│ 4u7  0805 ×2   GRM21-4u7   From library  ⚠ no feeder  │                  │
+├ Parts (the boards' own)──────────────────────────────── ┤ [Choose part…]  │
+│ 10k  0603 ×24  RC0603-10K  From library  stock 3000 S12 │ [Alternates…]   │
+│ 100n ?    ×8   Not matched  ⚠ no footprint  [Match…]   │ [Add to library] │
+│ 4u7  0805 ×2   GRM21-4u7   Differs from library [Review]│                  │
 ├ Placements (filter by part / board / state) ─────────── ┴──────────────────┤
 │ Run bar: Start · Pause · Step · Stop   12/180 placed   Log                 │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- The Parts list is the job's own parts, linked or local; selecting one
-  highlights its placements on the board and in the list.
-- **Swap…** and **Change package…** open the picker: feeder-loaded
-  candidates first, then the library pre-filtered by package and value, with
-  free search. It is the only place the wider library shows inside a job.
+- The Parts list is the boards' own parts (matched, local or not matched);
+  selecting one highlights its placements on the board and in the list.
+- **Choose part…** (and the Part field of a placement) opens the picker for
+  that board part: the matcher's candidates with why each matched, then the
+  library with the smart filter, in-stock and loaded parts ranked first. It
+  is the only place the wider library shows inside a job.
 - Feeders for the job: the machine's feeders filtered to the job's parts,
   with "load onto feeder" from a part.
 
@@ -462,8 +615,9 @@ The plan made visible and editable; the place to prepare a build.
 
 Search-first: the list is empty until you type or choose a filter (package
 family, "used by open job", "unused", "incomplete"). Package editor with a
-footprint preview; component editor; link rules; **where used**
-(which boards and jobs reference this). Import and export of library packs.
+footprint preview; part editor (identifiers, AKAs, offers, datasheet);
+stock lots and their ledger; mapping profiles; **where used** (which boards
+and jobs were matched to this). Import and export of library packs.
 
 ### Machine workspace
 
@@ -479,14 +633,14 @@ Jog and camera are dock widgets available in every workspace.
 src/
   app/        JPlacerApp, menus, preferences, settings (as now)
   geometry/   Length, Location, units, PlacementTransform, affine
-  library/    Package, Footprint, Component, LinkRule, LibraryStore
-  job/        Board, Placement, Panel, Job, JobPart, PartLinker, JobFile
-  import/     KiCadPosImporter, CsvImporter, EagleImporter, ... (no library writes)
+  library/    LibraryPart, Identifier, Aka, Package, Footprint, Packaging, Offer, StockLot, Ledger, LibraryStore
+  job/        Board, Placement, BoardPart, Panel, Job, JobFile, PartMatcher
+  import/     sources (CPL, BOM, tables), MappingProfile, the join; KiCad, CSV, Eagle, ... (no library writes)
   machine/    Machine, axes, drivers, motion, Head, Nozzle, NozzleTip, Camera, Actuator
   feeders/    one class per feeder type
   vision/     pipeline, stages, BottomVision, FiducialLocator
   run/        JobPlanner, Plan, JobRunner, Run, RunStore
-  ui/         workspaces, BoardView, JobPartsPanel, Inspector, PartPicker, JogPanel, CameraView
+  ui/         workspaces, BoardView, BoardPartsPanel, Inspector, PartPicker, MatchingWizard, JogPanel, CameraView
 ```
 
 Model code (`geometry`, `library`, `job`, `import`) has no GUI or hardware
@@ -506,7 +660,7 @@ configurations to check against, never inputs to the design.
 2. **Calibration**: head offsets, units per pixel, lens, nozzle runout; the
    calibration checklist.
 3. **Library and job model**: geometry, library store, packagings, board /
-   job files, KiCad and CSV import, job parts, linking and swapping. Job and
+   job files, CPL + BOM import with mapping, board parts, matching, verifying. Job and
    Library workspaces with board view.
 4. **Feeders and running**: strip lanes and tray feeders first, planner and
    planner view, runner, runs, pre-flight, load-as-you-go, stages.
@@ -516,6 +670,11 @@ configurations to check against, never inputs to the design.
 
 ## Open questions
 
+- Decided with defaults, open to change: one library per user (shared by the
+  user's machines); footprints separate from packages; a job carries copies
+  of its boards (source noted); OpenPnP imported, not exported.
+- Online part data (LCSC, Octopart and the like) as one more import source,
+  filling package, height and datasheet from an MPN: later, not first.
 - Domain class naming: plain names (`Component`, `Package`) in a `jplacer`
   namespace, or a prefix to stay clear of JFramework's `J*` names.
 - OpenCV as a dependency (vision) and V4L2 for capture.
