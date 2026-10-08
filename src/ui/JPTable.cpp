@@ -641,6 +641,8 @@ void JPTable::handleMousePress(float mx, float my) {
         refresh();
     } else if (kind == JPTableModel::Kind::Choice && editable) {
         openChoices(r, c);
+    } else if (kind == JPTableModel::Kind::Picker && editable) {
+        m_model->pick(r, c);
     } else if (JWidget::s_doubleClick) {
         if (editable && kind != JPTableModel::Kind::Boolean) startEditing(r, c, nullptr);
         else onRowActivated.emit(r);
@@ -786,6 +788,7 @@ bool JPTable::handleKeyEvent(const JKeyEvent& ke) {
     const bool editable = m_model->editable(m_lead, m_leadColumn);
     if (ke.key == K::F2 && editable) {
         if (kind == JPTableModel::Kind::Choice) openChoices(m_lead, m_leadColumn);
+        else if (kind == JPTableModel::Kind::Picker) m_model->pick(m_lead, m_leadColumn);
         else if (kind == JPTableModel::Kind::Boolean) {
             m_model->setChecked(m_lead, m_leadColumn, !m_model->checked(m_lead, m_leadColumn));
             refresh();

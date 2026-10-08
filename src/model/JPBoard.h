@@ -63,6 +63,14 @@ public:
     // its only one, else (the others keep theirs) a board part of its own, the same fields, matched to it;
     // what the files said kept either way. The key the placement is to name (the caller sets it, as an edit).
     std::string matchPlacement(const std::string& placementId, const std::string& libraryId);
+    // A board part of the placement's own: its own when no other placement shares it, else a copy (the same
+    // fields and choice) the others do not share. Its key (the caller sets the placement to it, as an edit).
+    std::string splitPlacement(const std::string& placementId);
+    // A board part made the board's own: a part (and, `libraryPackage` null, a package of its own) from what
+    // the files said: its name, its footprint, its height; ids scoped to the board.
+    void makeOwn(const std::string& key, const JPPackage* libraryPackage);
+    // The placements naming a board part.
+    std::vector<std::string> placementsOf(const std::string& key) const;
     // The parts no placement names, taken out.
     void dropUnusedParts();
     // Each placement's part id set from its board part (the one place it is set from).

@@ -40,12 +40,16 @@ public:
     std::function<void()> onViewBoard;
     // Opens an importer's dialog; `imported` has what it read.
     std::function<void(const JPBoardImporter&, std::function<void(JPBoard&)> imported)> openImporter;
+    // Opens a board's parts (JPlacerBoardPartsDialog): Board's Parts, and after an import that left parts to choose.
+    std::function<void(JPBoard&)> openBoardParts;
     // Opens the CPL and BOM import (JPlacerCplBomImportDialog); `imported` has the board it made.
     std::function<void(std::function<void(JPBoard&)> imported)> openCplBom;
     // Asks a question with buttons of its own; the index chosen, -1 closed.
     std::function<void(const std::string& title, const std::string& question, std::vector<std::string> options,
                        int cancelIndex, std::function<void(int)> chosen)> askChoice;
 
+    // Its placements' table model (the tabs give it the part picker).
+    JPPlacementsTableModel& model() { return m_model; }
     // The board whose placements are shown (a definition), or none.
     void setBoard(JPBoard* board);
     JPBoard* board() const { return m_board; }
@@ -85,6 +89,8 @@ private:
     JPIconButton*                                 m_remove = nullptr;
     JPIconButton*                                 m_import = nullptr;
     JPIconButton*                                 m_view = nullptr;
+    JPIconButton*                                 m_parts = nullptr;
+    bool                                          m_partsAfterMerge = false;   // an import left parts to choose
     std::unique_ptr<JMenu>                        m_importMenu;
     std::unique_ptr<JMenu>                        m_contextMenu;
     std::vector<std::unique_ptr<JMenu>>           m_subMenus;

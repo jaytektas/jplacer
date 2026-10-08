@@ -79,7 +79,14 @@ JPTableModel::Column JPPlacementsTableModel::column(int c) const {
     switch (m_shown[size_t(c)]) {
         case kEnabled:  col.name = "Enabled"; col.kind = Kind::Boolean; break;
         case kId:       col.name = "ID"; col.align = Align::Left; break;
-        case kPart:     col.name = "Part"; col.kind = Kind::Choice; col.align = Align::Left; break;
+        case kPart:
+            col.name = "Part";
+            // A board's: chosen in the part picker (its board part); a panel's: from the library's list.
+            col.kind = editedBoard() && openPartPicker ? Kind::Picker : Kind::Choice;
+            col.align = Align::Left;
+            col.tooltip = col.kind == Kind::Picker ? "Click to choose the part: from the library, the board's own, or "
+                                                     "to be chosen" : "";
+            break;
         case kSide:     col.name = "Side"; col.kind = Kind::Choice; break;
         case kX:        col.name = "X"; col.decimalAligned = true; break;
         case kY:        col.name = "Y"; col.decimalAligned = true; break;
@@ -350,6 +357,53 @@ bool JPPlacementsTableModel::setText(int row, int c, const std::string& text, st
             return true;
         default: return false;
     }
+}
+
+void JPPlacementsTableModel::pick(int row, int c) {
+    const JPPlacement* p = placement(row);
+    JPBoard* board = editedBoard();
+    if (!p || !board || !openPartPicker || m_shown[size_t(c)] != kPart) return;
+    const std::string id = p->id;
+    openPartPicker(*board, id, [this, board, id](const JPPartChoice& choice) { applyPart(board, id, choice); });
+}
+
+void JPPlacementsTableModel::applyPart(JPBoard* board, const std::string& placementId, const JPPartChoice& choice) {
+    if (board != editedBoard() || !board->find(placementId)) return;   // the board shown changed meanwhile
+    // The board part to change: the placement's, or (the one alone, or it has none) one of its own.
+    const std::string current = board->find(placementId)->boardPart;
+    const std::string key = choice.onlyThis || current.empty() ? board->splitPlacement(placementId) : current;
+    JPBoardPart* bp = board->part(key);
+    if (!bp) return;
+    switch (choice.kind) {
+        case JPPartChoice::Kind::Library:
+            bp->state = JPBoardPart::State::Matched;
+            bp->libraryPartId = choice.libraryId;
+            bp->localPart.reset();
+            bp->localPackage.reset();
+            break;
+        case JPPartChoice::Kind::BoardsOwn: {
+            const std::string footprint = !bp->field("footprint").empty() ? bp->field("footprint") : bp->field("package");
+            board->makeOwn(key, m_config.libraryPackage(footprint));
+            break;
+        }
+        case JPPartChoice::Kind::ToBeChosen:
+            bp->state = JPBoardPart::State::Unmatched;
+            bp->libraryPartId.clear();
+            bp->localPart.reset();
+            bp->localPackage.reset();
+            break;
+    }
+    // Every placement of it (the one alone: just it) places with what it is now.
+    std::vector<std::string> ids = choice.onlyThis ? std::vector<std::string>{ placementId } : board->placementsOf(key);
+    if (std::find(ids.begin(), ids.end(), placementId) == ids.end()) ids.push_back(placementId);
+    const std::string partId = bp->partId();
+    for (const std::string& id : ids)
+        edit(id, [&key, &partId](JPPlacement& q) {
+            q.boardPart = key;
+            q.partId = partId;
+        });
+    board->dropUnusedParts();
+    if (onChanged) onChanged();
 }
 
 void JPPlacementsTableModel::setChoice(int row, int c, int index) {

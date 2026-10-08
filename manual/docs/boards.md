@@ -20,12 +20,39 @@ the files it came from said about it (the part's name, value and footprint) and 
   It is not on the Parts tab.
 - **Not chosen yet**: only what the file said; its placements cannot be placed until a part is chosen.
 
-Importing never adds to the library. Choosing a placement's **Part** on the placements list makes its
-board part that library part; when other placements share it, the chosen one gets a board part of its
-own (the file's value and footprint kept), and the others keep theirs. A part no placement names any
-more is dropped when the board is saved.
+Importing never adds to the library. A part no placement names any more is dropped when the board is
+saved.
 
-<!-- src: src/model/JPBoardPart.h; src/model/JPBoard.cpp (useLibraryPart, matchPlacement, takeParts, dropUnusedParts, scopeName); src/model/JPConfiguration.cpp (part, package, libraryPart); src/ui/JPPlacementsTableModel.cpp (setChoice) -->
+<!-- src: src/model/JPBoardPart.h; src/model/JPBoard.cpp (useLibraryPart, takeParts, dropUnusedParts, scopeName); src/model/JPConfiguration.cpp (part, package, libraryPart) -->
+
+### Choosing a part
+
+A click on a placement's **Part** opens the part picker for its board part, titled with the placement:
+
+- which placements share the part, what the files said about it (value, footprint, MPN, manufacturer,
+  supplier, the columns kept as extras), and what it is now;
+- the library's parts it may be, best first, each with **Why**: its MPN, its supplier's part number,
+  named by its footprint and value (OpenPnP's naming), named by its value, or the same value written
+  another way (100n is 100nF and 0.1µF; 4k7 is 4.7k; 4R7 is 4.7) of the same size (0603). A part of
+  another value is never offered for its footprint alone. The one it is now, else the best, is chosen;
+  when nothing is suggested, nothing is, so Return cannot take a part by chance;
+- a filter, into which typing goes from the start: every word must be in a part's name, its package or
+  the package's description, the suggestions kept first; **[x]** clears it.
+
+**Use This Part** (Return, or a double-click on one) makes it that library part; **Make It the Board's
+Own** makes a part (and, where the library has no package of its footprint's name, a package) of the
+board's from what the files said, its height too; **Leave to Be Chosen** clears it. Each is for every
+placement of the part, or, with **Only *designator*** ticked, for that placement alone (it gets a part of
+its own, what the files said kept, and the others keep theirs). **Cancel** and Escape change nothing.
+
+**Board's Parts** on the placements' toolbar lists the board's parts one a row: their **Placements**,
+**Value**, **Footprint**, **MPN**, what each **Is** now, and the library's **Best match** with **Why**.
+**Choose…** (or a double-click, or Return) opens the part picker for the part; **Use Best Matches (*n*)**
+gives each part still to be chosen its best match where the evidence is strong (anything but the value
+alone); **Only those to be chosen** narrows the list. An import from the CPL and BOM that leaves parts
+to be chosen opens it when the placements are in.
+
+<!-- src: src/app/JPlacerPartPickerDialog.cpp; src/app/JPlacerBoardPartsDialog.cpp; src/model/JPPartMatcher.cpp (candidates, valueOf, chipSize, matches, kStrong); src/model/JPBoard.cpp (splitPlacement, makeOwn, placementsOf); src/ui/JPPlacementsTableModel.cpp (pick, applyPart); src/ui/JPBoardPlacementsPanel.cpp (importCplBom, merge) -->
 
 ## Boards
 
@@ -50,7 +77,8 @@ tab.
 
 The chosen board's placements, with OpenPnP's columns: **Enabled**, **ID**, **Part**, **Side**, **X**,
 **Y**, **Rot.**, **Type**, **Error Handling**, **Rank** (pointing at it explains it) and **Comments**.
-All but the ID are changed in the table; Part, Side, Type and Error Handling open their list on a click.
+All but the ID are changed in the table; Part opens the part picker on a click (see [Choosing a
+part](#choosing-a-part)), and Side, Type and Error Handling their list.
 X and Y keep their own units when typed without. A fiducial's Type stands out. The ID column sorts as
 reference designators do: R2 before R10.
 
@@ -59,6 +87,7 @@ reference designators do: R2 before R10.
 | **New Placement** (plus) | Asks for the new placement's ID and adds it: the first part, at 0, 0 on the top. There must be a part first; an ID already on the board is refused. |
 | **Remove Placement(s)** (cross) | Takes the chosen placements off the board. |
 | **Import Placements** (with a menu) | Reads placements from a CAD tool's file into the board (see below). |
+| **Board's Parts** | The board's parts, one a row, to choose them (see [Choosing a part](#choosing-a-part)). |
 | **View Board** | Opens the board viewer (see [Panels](panels.md#the-viewer)). |
 
 **Search**, at the right, works as on the Parts tab. Right-click for **Set Type**, **Set Side**, **Set

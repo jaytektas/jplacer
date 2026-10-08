@@ -728,8 +728,9 @@ configurations to check against, never inputs to the design.
    2. *CPL + BOM import* (done): sources, column mapping and profiles, the
       join, provenance. Tables as text (CSV, TSV, KiCad's .pos); spreadsheets
       (.xlsx) to follow.
-   3. *The part picker / matcher* for a board part, in place of the Part
-      combo; the matching wizard.
+   3. *The part picker / matcher* (done) for a board part, in place of the
+      Part combo; the matching wizard (Board's Parts). Learning (a choice's
+      CAD strings kept as AKAs) waits for `library.db`.
    4. *`library.db`*: identifiers, AKAs, footprints, packagings, migration
       from `parts.xml`; matched board parts carry copies and fingerprints.
    5. *Verifying, revisions, stock*: verified marks, board revisions and

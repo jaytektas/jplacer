@@ -20,6 +20,7 @@ public:
         Number,    // compared by number(); drawn on the right
         Boolean,   // a tick box; compared false before true
         Choice,    // one of choices(), picked from a menu; compared as text
+        Picker,    // chosen in a window of the model's own (pick()), opened by a click or F2; compared as text
     };
     // Where a cell's text sits; Auto: numbers right, the rest left.
     enum class Align { Auto, Left, Center, Right };
@@ -80,6 +81,8 @@ public:
     // An edit: false (and why, to be shown) when the value is refused.
     virtual bool setText(int, int, const std::string&, std::string& /*error*/) { return false; }
     virtual void setChoice(int, int, int /*index*/) {}
+    // A Picker cell clicked (or F2): its window opened; what it chooses, the model sets itself.
+    virtual void pick(int, int) {}
     virtual void setChecked(int, int, bool) {}
 };
 

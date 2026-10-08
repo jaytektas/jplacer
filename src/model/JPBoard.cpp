@@ -9,6 +9,7 @@
 #include "openpnp/JPXmlJson.h"
 
 #include <algorithm>
+#include <cstdlib>
 #include <filesystem>
 #include <set>
 
@@ -153,6 +154,52 @@ std::string JPBoard::matchPlacement(const std::string& placementId, const std::s
     to->localPart.reset();
     to->localPackage.reset();
     return to->key;
+}
+
+std::string JPBoard::splitPlacement(const std::string& placementId) {
+    const JPPlacement* placement = find(placementId);
+    if (!placement) return "";
+    JPBoardPart* own = part(placement->boardPart);
+    if (own && placementsOf(own->key).size() == 1) return own->key;
+    JPBoardPart split = own ? *own : JPBoardPart();
+    split.key = newPartKey();
+    if (!own) split.fields["part"] = placement->partId;
+    m_parts->push_back(split);
+    return split.key;
+}
+
+void JPBoard::makeOwn(const std::string& key, const JPPackage* libraryPackage) {
+    JPBoardPart* bp = part(key);
+    if (!bp) return;
+    const std::string prefix = scopeName() + "/";
+    const std::string footprint = !bp->field("footprint").empty() ? bp->field("footprint") : bp->field("package");
+    std::string name = bp->field("part");
+    if (name.empty()) name = !bp->field("mpn").empty() ? bp->field("mpn") : footprint + "-" + bp->field("value");
+    bp->state = JPBoardPart::State::Local;
+    bp->libraryPartId.clear();
+    bp->localPart = std::make_shared<JPPart>();
+    bp->localPart->id = name.rfind(prefix, 0) == 0 ? name : prefix + name;
+    bp->localPackage.reset();
+    if (libraryPackage) {
+        bp->localPart->packageId = libraryPackage->id;
+    } else if (!footprint.empty()) {
+        bp->localPackage = std::make_shared<JPPackage>();
+        bp->localPackage->id = prefix + footprint;
+        bp->localPart->packageId = bp->localPackage->id;
+    }
+    // Its height where the files gave one (millimetres; "1.2mm").
+    if (const std::string h = bp->field("height"); !h.empty()) {
+        char* end = nullptr;
+        const double mm = std::strtod(h.c_str(), &end);
+        if (end != h.c_str()) bp->localPart->height = JPLength(mm, JPLengthUnit::Millimeters);
+    }
+}
+
+std::vector<std::string> JPBoard::placementsOf(const std::string& key) const {
+    std::vector<std::string> out;
+    for (const JPPlacement& p : placements)
+        if (p.boardPart == key) out.push_back(p.id);
+    return out;
 }
 
 void JPBoard::dropUnusedParts() {

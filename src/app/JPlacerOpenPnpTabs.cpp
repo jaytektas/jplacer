@@ -17,6 +17,8 @@
 #include "JPlacerClassSelectionDialog.h"
 #include "JPlacerChoiceDialog.h"
 #include "JPlacerCplBomImportDialog.h"
+#include "JPlacerPartPickerDialog.h"
+#include "JPlacerBoardPartsDialog.h"
 #include "JPlacerExistingHolderDialog.h"
 #include "JPlacerPanelArrayDialog.h"
 #include "JPlacerPhotonSlotsDialog.h"
@@ -94,6 +96,18 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     placements.openImporter = [this](const JPBoardImporter& importer, std::function<void(JPBoard&)> imported) {
         m_window.openModal<JPlacerImportDialog>(importer, m_job.configuration(), std::move(imported));
     };
+    placements.model().openPartPicker = [this](JPBoard& board, const std::string& id, std::function<void(const JPPartChoice&)> chosen) {
+        m_window.openModal<JPlacerPartPickerDialog>(m_job.configuration(), board, id, std::move(chosen));
+    };
+    placements.openBoardParts = [this, &placements](JPBoard& board) {
+        JPPlacementsTableModel& model = placements.model();
+        m_window.openModal<JPlacerBoardPartsDialog>(
+            m_job.configuration(), board,
+            [&model, b = &board](const std::string& id, const JPPartChoice& choice) { model.applyPart(b, id, choice); },
+            [&model, b = &board](const std::string& id, std::function<void(const JPPartChoice&)> chosen) {
+                if (model.openPartPicker) model.openPartPicker(*b, id, std::move(chosen));
+            });
+    };
     placements.openCplBom = [this](std::function<void(JPBoard&)> imported) {
         m_window.openModal<JPlacerCplBomImportDialog>(m_job.configuration(), std::move(imported));
     };
@@ -135,6 +149,10 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_jobPanel = std::make_unique<JPJobPanel>(graph, job.configuration(), [this] { return &m_job.job(); },
                                               JSettings::instance().get<double>(JPlacerSettings::kJobSplit, kSplit));
     m_jobPanel->openMenu = JPlacerMenuOpener::from(m_window, m_jobPanel.get());
+    m_jobPanel->placements().model().openPartPicker = [this](JPBoard& board, const std::string& id,
+                                                             std::function<void(const JPPartChoice&)> chosen) {
+        m_window.openModal<JPlacerPartPickerDialog>(m_job.configuration(), board, id, std::move(chosen));
+    };
     m_jobPanel->onChanged = [this] {
         if (m_jobViewer) m_jobViewer->regenerate();
         m_job.changed();

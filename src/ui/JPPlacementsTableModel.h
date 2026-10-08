@@ -6,6 +6,7 @@
 #include "JPTableModel.h"
 
 #include "model/JPConfiguration.h"
+#include "model/JPPartChoice.h"
 #include "model/JPJob.h"
 
 #include <functional>
@@ -44,6 +45,10 @@ public:
     JPPlacementsHolderLocation* location() const { return m_location; }
     // Whether a feeder holds a part (Status's Missing Feeder).
     std::function<bool(const std::string& partId)> hasFeeder;
+    // Opens the part picker for a board's placement; `chosen` has what was chosen. Set, a board's Part cell
+    // opens it (a panel's keeps its list of the library's parts).
+    std::function<void(JPBoard& board, const std::string& placementId, std::function<void(const JPPartChoice&)> chosen)>
+        openPartPicker;
     // The pseudo-placements worked out again (before the table is shown again).
     void reload();
     bool isPseudo(int row) const;
@@ -70,6 +75,10 @@ public:
     std::vector<std::string> choices(int row, int c) const override;
     bool   setText(int row, int c, const std::string& text, std::string& error) override;
     void   setChoice(int row, int c, int index) override;
+    // A part chosen for `placementId` of `board` (still the board edited), applied: its board part (or, the one
+    // alone, one of its own) made that, every placement of it placed with it (JPDefinitionChanges).
+    void applyPart(JPBoard* board, const std::string& placementId, const JPPartChoice& choice);
+    void   pick(int row, int c) override;
     void   setChecked(int row, int c, bool on) override;
 
     // A job's placement marked placed or not.
@@ -90,6 +99,7 @@ private:
     // The board definition an edit here changes (the board shown, or a job's board where its definition is
     // edited); null for a panel, or a job's use of a board edited alone.
     JPBoard* editedBoard() const;
+
     std::vector<const JPPart*> partChoices() const;
 
     JPConfiguration&              m_config;

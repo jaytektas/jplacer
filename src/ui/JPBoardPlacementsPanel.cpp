@@ -65,6 +65,12 @@ JPBoardPlacementsPanel::JPBoardPlacementsPanel(JSceneGraph& graph, JPConfigurati
     m_import = tool("Import Placements", "import", "Import placements from CAD files");
     m_import->setLeads(JPIconButton::Leads::Menu);
     m_import->onClicked.connect([this] { showImportMenu(); });
+    m_parts = tool("Board's Parts", "footprint-dual", "The board's parts, one each: what the files said, what it is, the "
+                                                      "library's best match; choose them");
+    m_parts->setLeads(JPIconButton::Leads::Elsewhere);
+    m_parts->onClicked.connect([this] {
+        if (m_board && openBoardParts) openBoardParts(*m_board);
+    });
     bar->add(toolSeparator(graph));
     m_view = tool("View Board", "color-true", "View a graphical representation of the selected board.");
     m_view->setLeads(JPIconButton::Leads::Elsewhere);
@@ -254,7 +260,12 @@ void JPBoardPlacementsPanel::importCplBom() {
     }
     if (!openCplBom) return;
     JPBoard* board = m_board;
-    openCplBom([this, board](JPBoard& imported) { take(board, imported); });
+    openCplBom([this, board](JPBoard& imported) {
+        // Parts left to choose: their list once it is merged (after Merge or Replace, when that is asked).
+        m_partsAfterMerge = std::any_of(imported.parts().begin(), imported.parts().end(),
+                                        [](const JPBoardPart& p) { return p.state == JPBoardPart::State::Unmatched; });
+        take(board, imported);
+    });
 }
 
 void JPBoardPlacementsPanel::take(JPBoard* board, JPBoard& imported) {
@@ -271,7 +282,10 @@ void JPBoardPlacementsPanel::take(JPBoard* board, JPBoard& imported) {
               "placements.\n\nSelect Replace to delete all existing placements and then add all the imported "
               "placements.",
               { "Merge", "Replace", "Cancel" }, 2, [this, board, shared](int option) {
-                  if (board != m_board || option < 0 || option == 2) return;
+                  if (board != m_board || option < 0 || option == 2) {
+                      m_partsAfterMerge = false;
+                      return;
+                  }
                   if (option == 1) {
                       JPDefinitionChanges changes(m_config, m_job());
                       std::vector<std::string> ids;
@@ -310,6 +324,10 @@ void JPBoardPlacementsPanel::merge(JPBoard& imported) {
     m_board->dropUnusedParts();
     // The files it came from, kept with the board.
     for (const JJson& source : imported.provenance) m_board->provenance.push_back(source);
+    if (m_partsAfterMerge) {
+        m_partsAfterMerge = false;
+        if (openBoardParts) openBoardParts(*m_board);
+    }
     // Paste pads in the board's units, as OpenPnP puts them.
     for (JPBoardPad pad : imported.solderPastePads) {
         pad.location = pad.location.convertToUnits(m_board->dimensions.units());

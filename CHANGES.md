@@ -10,6 +10,14 @@ notes.
 
 ## Unreleased
 
+- A placement's Part opens a part picker instead of a list of every part: what the files said about it, the
+  library's parts it may be with why (its MPN, supplier part number, name, or the same value written another
+  way, 100n as 0.1uF, of the same size), a filter over the whole library, and Use This Part, Make It the
+  Board's Own or Leave to Be Chosen, for all its placements or that one alone.
+- Board's Parts (on the placements' toolbar) lists a board's parts one a row with their best match; Use Best
+  Matches takes every strong one at once. It opens by itself after a CPL and BOM import leaves parts to choose.
+- Dialog buttons are as wide as their labels (long ones were cut short).
+
 - Import Placements > CPL and BOM… imports a board from its placement file and its BOM (and any other table
   naming designators), as an assembly house takes them: each file's columns guessed from their names and
   changeable (a "Provider" column can be the manufacturer), saved as a profile for the next file, BOM lines
