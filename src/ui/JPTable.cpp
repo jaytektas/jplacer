@@ -754,8 +754,29 @@ bool JPTable::handleKeyEvent(const JKeyEvent& ke) {
         }
         if (ke.key == K::Tab || ke.key == K::BackTab) {
             const bool back = ke.key == K::BackTab || ke.shift;
+            const int row = m_editRow, column = m_editColumn;
             if (!stopEditing(true, true)) return true;
-            m_leadColumn = std::clamp(m_leadColumn + (back ? -1 : 1), 0, m_model->columnCount() - 1);
+            // On to the next cell that can be edited (Shift: the one before), along the row and on to the next
+            // row's, as a spreadsheet goes: a text or number cell opened with its contents chosen, ready to type
+            // over; another kind (a choice, a tick box) chosen, for F2 or Space.
+            const int columns = m_model->columnCount(), rows = int(m_view.size());
+            int v = viewIndexOf(row), c = column;
+            for (int steps = 0; steps < columns * std::max(1, rows) && v >= 0; ++steps) {
+                c += back ? -1 : 1;
+                if (c >= columns) { c = 0; ++v; }
+                if (c < 0) { c = columns - 1; --v; }
+                if (v < 0 || v >= rows) break;
+                const int r = m_view[size_t(v)];
+                if (!m_model->editable(r, c)) continue;
+                m_lead = r;
+                m_leadColumn = c;
+                m_selected = { r };
+                selectionChanged();
+                const JPTableModel::Kind kind = m_model->column(c).kind;
+                if (kind == JPTableModel::Kind::Text || kind == JPTableModel::Kind::Number) startEditing(r, c, nullptr);
+                else ensureVisible(v);
+                break;
+            }
             m_graph.invalidateNode(m_nodeId, DirtySelf);
             return true;
         }

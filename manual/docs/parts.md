@@ -46,7 +46,10 @@ The text is a regular expression: `^C0402` finds parts whose ID starts with C040
 | **Feeders** | How many feeders hold it. |
 
 Everything but the ID, the MPN and the two counts is changed in the table: double-click a cell, press F2, or start
-typing; **Return** or **Tab** keeps the change, **Escape** puts back what was there. A height may be typed
+typing; **Return** keeps the change, **Escape** puts back what was there. **Tab** keeps it and goes on to the
+next cell that can be changed (**Shift+Tab**: the one before), along the row and on to the next: a text or number
+cell opens with what is in it chosen, ready to type over; a choice or tick box is chosen, for F2 or Space. Every
+table edits this way. A height may be typed
 with units (`0.5mm`, `20mil`); without, the part's own units are taken. Package and the vision settings
 open their list on a click. Each change is saved at once.
 

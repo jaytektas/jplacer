@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Tables: Tab while editing a cell keeps the change and opens the next cell that can be changed, its contents
+  chosen ready to type over (Shift+Tab the one before), along the row and on to the next.
 - The Packages and Vision tabs' machine tests (Test Fiducial Locator, Test Alignment, Detect Offsets) did nothing
   when pressed; they run now, as on the Parts tab.
 - Editing a table cell: text longer than the cell scrolls within it, the caret always in view, instead of running
