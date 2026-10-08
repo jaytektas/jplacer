@@ -167,6 +167,7 @@ private:
     // Editing a text cell in place.
     bool                           m_editing = false;
     int                            m_editRow = -1, m_editColumn = -1;
+    float                          m_editScroll = 0;   // how far the edited text is scrolled left (px)
     JTextEditCore                  m_edit;
     std::unique_ptr<JMenu>         m_choiceMenu;
 };

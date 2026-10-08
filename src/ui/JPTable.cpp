@@ -510,16 +510,24 @@ void JPTable::populateRenderPrimitives(JPrimitiveBuffer& buf) {
             const JRect cell = cellRect(v, m_editColumn);
             buf.pushRectangle(cell.x, cell.y, cell.width, cell.height, Colors::Surface1, 0.f, st.borderWidth * 2, Colors::Accent);
             const std::string& t = m_edit.text();
-            const float tx = cell.x + pad, ty = cell.y + (rh - lh) * 0.5f;
+            // Text wider than the cell scrolls along it, the caret always inside (as a text field does).
+            const float room = std::max(1.f, cell.width - 2 * pad);
+            const float caretX = JTextHelper::measureWidth(t.substr(0, m_edit.caret()));
+            const float fullW = JTextHelper::measureWidth(t);
+            if (caretX - m_editScroll > room) m_editScroll = caretX - room;
+            if (caretX < m_editScroll) m_editScroll = caretX;
+            m_editScroll = std::max(0.f, std::min(m_editScroll, std::max(0.f, fullW - room)));
+            const float tx = cell.x + pad - m_editScroll, ty = cell.y + (rh - lh) * 0.5f;
+            buf.pushClip(cell.x + st.borderWidth, cell.y, std::max(0.f, cell.width - 2 * st.borderWidth), cell.height);
             if (m_edit.hasSelection()) {
                 const float x0 = tx + JTextHelper::measureWidth(t.substr(0, m_edit.selectionStart()));
                 const float x1 = tx + JTextHelper::measureWidth(t.substr(0, m_edit.selectionEnd()));
                 uint8_t sel[4] = { Colors::Accent[0], Colors::Accent[1], Colors::Accent[2], 120 };
                 buf.pushRectangle(x0, ty, std::max(1.f, x1 - x0), lh, sel);
             }
-            JTextHelper::pushText(buf, tx, ty, t, Colors::ControlText, std::max(1.f, cell.width - 2 * pad));
-            const float cx = tx + JTextHelper::measureWidth(t.substr(0, m_edit.caret()));
-            buf.pushRectangle(cx, ty, st.borderWidth, lh, Colors::ControlText);
+            JTextHelper::pushText(buf, tx, ty, t, Colors::ControlText, fullW + 1);
+            buf.pushRectangle(tx + caretX, ty, st.borderWidth, lh, Colors::ControlText);
+            buf.popClip();
         }
     }
     // Where a dragged row goes.
@@ -611,7 +619,7 @@ void JPTable::handleMousePress(float mx, float my) {
             const JRect cell = cellRect(v, c);
             const std::string& t = m_edit.text();
             size_t best = 0;
-            const float left = cell.x + JStyle::current().gridCellPadding;
+            const float left = cell.x + JStyle::current().gridCellPadding - m_editScroll;
             float bestD = std::fabs(mx - left);
             for (size_t i = 0; i < t.size();) {
                 i = m_edit.nextCharStart(i);
@@ -831,6 +839,7 @@ void JPTable::startEditing(int r, int c, const std::string* typed) {
     m_editRow = r;
     m_editColumn = c;
     m_leadColumn = c;
+    m_editScroll = 0;
     if (typed) {
         m_edit.setText(*typed);
     } else {
