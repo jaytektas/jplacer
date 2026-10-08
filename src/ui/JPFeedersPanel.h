@@ -147,6 +147,7 @@ private:
     void applyCapture(const JPSetupProperties::Row& row, Where now);
     void goTo(const JPSetupProperties::Row& row, Tool tool, bool straight = false);
     void changed();
+    void followPickRotation();
     // The form made again for the feeder shown (its buttons changed), scrolled as it was.
     void rebuildForm();
     // The shown feeder's form, as it is to be shown now.
@@ -181,6 +182,8 @@ private:
     JPSetupForm*                        m_form = nullptr;
     std::string                         m_shown;   // the feeder whose setup is shown
     std::string                         m_chosenPart;   // the chosen feeder's part, as onFeederChosen was told
+    std::string                         m_cameraAtPickOf;   // the feeder whose pick location the camera was last moved to
+    Where                               m_cameraAtPick;     // where it was moved to
     JPIconButton*                       m_delete = nullptr;
     JPIconButton*                       m_pick = nullptr;
     JPIconButton*                       m_feed = nullptr;

@@ -15,7 +15,7 @@ an OpenPnP machine's feeders in (see [Machine](machine.md#bringing-in-a-machine-
 | **Delete Feeder...** (cross) | Deletes the chosen feeders, after asking. |
 | **Pick...** | Feeds the chosen feeder, then the nozzle chosen on the Jog panel picks its part: up to safe Z, across and turned to the pick location, down, the vacuum on, and up again. |
 | **Feed...** | Feeds the chosen feeder: its count moves on to the next part (a strip with vision on has its hole looked at). |
-| **Move Camera...** | Moves the camera over the chosen feeder's pick location, at safe Z. |
+| **Move Camera...** | Moves the camera over the chosen feeder's pick location, at safe Z, turned to the part's angle there, so a footprint on the camera lies as the part does. While it stays there, an edit that turns the pick (its **Rotation In Tape**, say) turns the camera with it. |
 | **Move Tool...** | Moves the chosen nozzle to the chosen feeder's pick location: up to safe Z, across, and down to the pick height. |
 
 Delete Feeder and the right-click menu work on one feeder or several; the others on one. The machine
@@ -34,7 +34,7 @@ say feeding it is not available.
 **Search**, at the right, shows only the feeders with the text typed anywhere in a row, whatever its case
 (a regular expression, as on the other tabs); its **✕** empties it.
 
-<!-- src: src/ui/JPFeedersPanel.cpp (newFeeder, deleteFeeders, feed, pickFrom, moveToPick, selectionChanged); src/app/JPlacerClassSelectionDialog.cpp; src/model/JPFeeder.cpp (create, classNames, pickLocation, feed, fromXml); src/app/JPlacerMachine.cpp (pickAt, moveToolTo); src/machine/JPCell.cpp (pickAt) -->
+<!-- src: src/ui/JPFeedersPanel.cpp (newFeeder, deleteFeeders, feed, pickFrom, moveToPick, followPickRotation, selectionChanged); src/app/JPlacerClassSelectionDialog.cpp; src/model/JPFeeder.cpp (create, classNames, pickLocation, feed, fromXml); src/app/JPlacerMachine.cpp (pickAt, moveToolTo); src/machine/JPCell.cpp (pickAt) -->
 
 ## The table
 

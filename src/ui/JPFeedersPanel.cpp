@@ -22,6 +22,7 @@
 #include <j/graphics/FontEngine.h>
 
 #include <chrono>
+#include <cmath>
 #include <cstdlib>
 
 inline namespace jf {
@@ -32,6 +33,8 @@ namespace {
 constexpr int kSearchColumns = 15;
 // A selection begun afresh on the camera is this many pixels square (OpenPnP's).
 constexpr int kFirstSelectionPx = 100;
+// The camera still where it was moved: within the machine's reported precision of it.
+constexpr double kStillAtMm = 0.01, kSameDeg = 0.001;
 
 std::unique_ptr<JSeparator> toolSeparator(JSceneGraph& graph) {
     return std::make_unique<JSeparator>(graph, JSeparator::JOrientation::Vertical, JPIconButton::size());
@@ -656,6 +659,26 @@ void JPFeedersPanel::changed() {
         m_chosenPart = f->partId();
         if (onFeederChosen) onFeederChosen(*f);
     }
+    followPickRotation();
+}
+
+void JPFeedersPanel::followPickRotation() {
+    // The camera moved to the chosen feeder's pick location and still there: turned to its rotation edited
+    // (its rotation in the tape, the feeder's), so the footprint it shows turns with it, as moved there again.
+    const JPFeeder* f = selection();
+    if (!f || f->id() != m_cameraAtPickOf || !whereIs || !moveTo) return;
+    const auto pick = f->pickLocation();
+    const Where now = whereIs(Tool::Camera);
+    if (!pick || !now[0] || !now[1] || !now[3]) return;
+    if (std::abs(*now[0] - *m_cameraAtPick[0]) > kStillAtMm || std::abs(*now[1] - *m_cameraAtPick[1]) > kStillAtMm) {
+        m_cameraAtPickOf.clear();
+        return;
+    }
+    const double turned = pick->rotation();
+    if (std::abs(turned - *now[3]) < kSameDeg) return;
+    m_cameraAtPick[3] = turned;
+    JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Camera turned to " << turned << "° with " << f->name() << "'s pick location";
+    moveTo(Tool::Camera, { std::nullopt, std::nullopt, std::nullopt, turned }, false);
 }
 
 void JPFeedersPanel::showFeederForPart(const std::string& partId) {
@@ -751,7 +774,11 @@ void JPFeedersPanel::moveToPick(Tool tool) {
     const JPLocation l = at->convertToUnits(JPLengthUnit::Millimeters);
     // The camera over it at safe Z; the tool down to it, as OpenPnP moves them.
     Where to { l.x(), l.y(), l.z(), l.rotation() };
-    if (tool == Tool::Camera) to[2].reset();
+    if (tool == Tool::Camera) {
+        to[2].reset();
+        m_cameraAtPickOf = f->id();
+        m_cameraAtPick = to;
+    }
     if (moveTo) moveTo(tool, to, false);
 }
 
