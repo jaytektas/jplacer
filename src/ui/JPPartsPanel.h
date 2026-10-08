@@ -85,6 +85,9 @@ private:
     bool stockAct(const std::string& action);
     // The form made again, after this click, where it was.
     void remakeLater();
+    // The vision settings a part's tabs show (its own, its package's, the machine's), in a word: when it changes
+    // (settings deleted, specialized, generalized) the tabs are made again.
+    std::string visionShown(const JPPart* p) const;
     void updateWizards();
     void newPart();
     void deleteParts();
@@ -106,6 +109,7 @@ private:
     JPIconButton*                      m_pick = nullptr;
     JPIconButton*                      m_copy = nullptr;
     std::string                        m_shownPart;   // whose tabs are shown
+    std::string                        m_shownVision; // the vision settings its tabs show (visionShown), to see them change
 };
 
 } // inline namespace jf

@@ -159,12 +159,22 @@ void JPPartsPanel::updateWizards() {
 
     const JPPart* p = selectedPart();
     const std::string id = p ? p->id : std::string();
-    if (id == m_shownPart) {
+    const std::string vision = visionShown(p);
+    if (id == m_shownPart && vision == m_shownVision) {
         m_form->refresh();
         return;
     }
     m_shownPart = id;
+    m_shownVision = vision;
     m_form->setForm(formFor(p));
+}
+
+std::string JPPartsPanel::visionShown(const JPPart* p) const {
+    if (!p) return "";
+    const auto defaults = machineDefaults ? machineDefaults() : std::pair<std::string, std::string> {};
+    const JPVisionSettings* b = m_config.inheritedVision(*p, JPVisionSettings::Kind::Bottom, defaults.first);
+    const JPVisionSettings* f = m_config.inheritedVision(*p, JPVisionSettings::Kind::Fiducial, defaults.second);
+    return (b ? b->id : std::string()) + "|" + (f ? f->id : std::string());
 }
 
 JPSetupProperties::Form JPPartsPanel::formFor(const JPPart* p) {

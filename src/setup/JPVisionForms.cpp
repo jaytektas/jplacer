@@ -19,7 +19,14 @@ namespace {
 using Place = JPSetupProperties::Place;
 
 std::function<JPVisionSettings&()> finder(JPConfiguration& config, const std::string& id) {
-    return [&config, id]() -> JPVisionSettings& { return *config.visionSettings(id); };
+    // Settings deleted while a page still shows them (from the Vision tab, the page on a part's or package's
+    // tab): the page reads and writes a blank set of its own until it is made again, never the settings gone.
+    return [&config, id]() -> JPVisionSettings& {
+        if (JPVisionSettings* v = config.visionSettings(id)) return *v;
+        static JPVisionSettings gone;
+        gone = JPVisionSettings();
+        return gone;
+    };
 }
 
 std::string num(double v) {

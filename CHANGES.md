@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- Fixed a crash: deleting vision settings a part's page was still showing (after Generalize freed them). A part's
+  vision pages now follow what it uses: after Specialize, Generalize or a delete they show the settings it uses
+  now.
 - Tooltips show in every dialog window (the pipeline editor's buttons, the part picker, imports, Preferences…);
   none did before.
 - The pipeline editor no longer asks to save a pipeline you did not change: a stage's setting clicked into and
