@@ -24,8 +24,10 @@ public:
     static JJson     package(const JPPackage& k);
     static JPPackage package(const JJson& j);
     // A part (with its package, when it has one) reduced to a short text that changes when anything a job
-    // places it by changes: not its names (AKAs, identifiers are learned, not placed by) nor its uuid.
+    // places it by changes (its packagings too: how it comes is how it is picked): not its names (AKAs,
+    // identifiers are learned, not placed by), its offers, nor its uuid.
     static std::string fingerprint(const JPPart& p, const JPPackage* k);
+    static JJson       packaging(const JPPart::Packaging& k);
 };
 
 } // inline namespace jf

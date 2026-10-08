@@ -101,6 +101,14 @@ JPPartsPanel::JPPartsPanel(JSceneGraph& graph, JPConfiguration& config, double s
         }
         m_table->refresh();
         changed();
+        // A packaging's kind changed: its row's tape fields come or go.
+        if (property.rfind("library.pkg", 0) == 0 && property.size() > 5 && property.compare(property.size() - 5, 5, ".kind") == 0) {
+            std::weak_ptr<bool> alive = m_alive;
+            JMainThreadDispatcher::instance().post([this, alive] {
+                if (const auto a = alive.lock(); !a || !*a) return;
+                m_form->remake(formFor(selectedPart()));
+            });
+        }
     };
     m_form->onAction = [this](const std::string& action) { act(action); };
     m_split = add(std::make_unique<JSplitter>(graph, JSplitter::JOrientation::Vertical, 0.f, 0.f));
@@ -249,6 +257,8 @@ void JPPartsPanel::libraryPage(JPFormBuilder& add, const std::string& partId) {
     add.leading();
     add.words("Add an identifier");
     add.end();
+    add.wideButton("library:manufacturers", "Manufacturers' Names…",
+                   "The manufacturers the library knows and the other names files give them (TI is Texas Instruments)");
 
     // Also known as: what boards' files have called it (learned when a part is chosen for one, or typed).
     add.group("Also Known As");
@@ -286,6 +296,108 @@ void JPPartsPanel::libraryPage(JPFormBuilder& add, const std::string& partId) {
     add.leading();
     add.words("Add a name");
     add.end();
+
+    // How it comes: tape (cut or reel), tray, tube, loose; the part's rotation as it sits, set once here.
+    add.group("Packagings");
+    add.note("How the part comes. A tape's width, pocket pitch and kind (paper or embossed), and the part's rotation "
+             "as it sits in the packaging (pin 1 against the tape's sprocket holes at 0), set once here.");
+    const std::vector<std::string> packagingKinds(std::begin(JPPart::kPackagingKinds), std::end(JPPart::kPackagingKinds));
+    add.header({ "Kind", "Tape [mm]", "Pitch [mm]", "Tape", "Rotation [°]", "Quantity", "Note" });
+    for (size_t i = 0; i < p->packagings.size(); ++i) {
+        const std::string key = "library.pkg" + std::to_string(i) + ".";
+        auto k = [part, i]() -> JPPart::Packaging* {
+            JPPart* q = part();
+            return q && i < q->packagings.size() ? &q->packagings[i] : nullptr;
+        };
+        const bool tape = p->packagings[i].kind == "Cut tape" || p->packagings[i].kind == "Reel";
+        add.row(std::to_string(i + 1));
+        add.choice(key + "kind", "Kind", packagingKinds, [k] { return k() ? k()->kind : std::string(); },
+                   [k](const std::string& v) {
+                       if (auto* x = k()) x->kind = v;
+                   });
+        if (tape) {
+            add.choice(key + "width", "Tape [mm]", { "8", "12", "16", "24", "32", "44", "56" },
+                       [k] { return k() ? std::to_string(int(k()->tapeWidthMm)) : std::string(); },
+                       [k](const std::string& v) {
+                           if (auto* x = k()) x->tapeWidthMm = std::strtod(v.c_str(), nullptr);
+                       });
+            add.number(key + "pitch", "Pitch [mm]", [k] { return k() ? k()->pitchMm : 0.0; },
+                       [k](double v) {
+                           if (auto* x = k(); x && v > 0) x->pitchMm = v;
+                       }, 1);
+            add.choice(key + "tape", "Tape", { "Paper", "Embossed" }, [k] { return k() ? k()->tapeType : std::string(); },
+                       [k](const std::string& v) {
+                           if (auto* x = k()) x->tapeType = v;
+                       });
+        } else {
+            for (int s = 0; s < 3; ++s) add.skip();
+        }
+        add.number(key + "rotation", "Rotation [°]", [k] { return k() ? k()->rotationDeg : 0.0; },
+                   [k](double v) {
+                       if (auto* x = k()) x->rotationDeg = v;
+                   }, 1);
+        add.integer(key + "quantity", "Quantity", [k] { return k() ? k()->quantity : 0; },
+                    [k](int v) {
+                        if (auto* x = k()) x->quantity = v;
+                    }, 0, 10000000);
+        add.text(key + "note", "Note", [k] { return k() ? k()->note : std::string(); },
+                 [k](const std::string& v) {
+                     if (auto* x = k()) x->note = v;
+                 });
+        add.iconButton("library:removePackaging:" + std::to_string(i), "general-remove", "Delete this packaging");
+        add.leading();
+        add.end();
+    }
+    add.endColumns();
+    add.row("");
+    add.iconButton("library:addPackaging", "general-add", "Add a way the part comes");
+    add.leading();
+    add.words("Add a packaging");
+    add.end();
+
+    // Where it is bought.
+    add.group("Offers");
+    add.note("Where the part is bought: the supplier's part number (SKU), the packaging, the least they sell, their "
+             "price breaks (\"1: 0.0100, 100: 0.0050\"), a link, and the last price seen.");
+    std::vector<std::string> offerPackagings { "" };
+    for (const char* kind : JPPart::kPackagingKinds) offerPackagings.push_back(kind);
+    add.header({ "Supplier", "SKU", "Packaging", "MOQ", "Price breaks", "Last price", "Link" });
+    for (size_t i = 0; i < p->offers.size(); ++i) {
+        const std::string key = "library.offer" + std::to_string(i) + ".";
+        auto o = [part, i]() -> JPPart::Offer* {
+            JPPart* q = part();
+            return q && i < q->offers.size() ? &q->offers[i] : nullptr;
+        };
+        auto field = [&add, o, &key](const char* name, const char* label, std::string JPPart::Offer::*member) {
+            add.text(key + name, label, [o, member] { return o() ? (*o()).*member : std::string(); },
+                     [o, member](const std::string& v) {
+                         if (auto* x = o()) (*x).*member = v;
+                     });
+        };
+        add.row(std::to_string(i + 1));
+        field("supplier", "Supplier", &JPPart::Offer::supplier);
+        field("sku", "SKU", &JPPart::Offer::sku);
+        add.choice(key + "packaging", "Packaging", offerPackagings, [o] { return o() ? o()->packaging : std::string(); },
+                   [o](const std::string& v) {
+                       if (auto* x = o()) x->packaging = v;
+                   });
+        add.integer(key + "moq", "MOQ", [o] { return o() ? o()->moq : 0; },
+                    [o](int v) {
+                        if (auto* x = o()) x->moq = v;
+                    }, 0, 10000000);
+        field("breaks", "Price breaks", &JPPart::Offer::priceBreaks);
+        field("price", "Last price", &JPPart::Offer::lastPrice);
+        field("link", "Link", &JPPart::Offer::link);
+        add.iconButton("library:removeOffer:" + std::to_string(i), "general-remove", "Delete this offer");
+        add.leading();
+        add.end();
+    }
+    add.endColumns();
+    add.row("");
+    add.iconButton("library:addOffer", "general-add", "Add where the part is bought");
+    add.leading();
+    add.words("Add an offer");
+    add.end();
 }
 
 bool JPPartsPanel::libraryAct(const std::string& action) {
@@ -296,7 +408,15 @@ bool JPPartsPanel::libraryAct(const std::string& action) {
     auto index = [&what](const std::string& prefix) -> long {
         return what.rfind(prefix, 0) == 0 ? std::strtol(what.c_str() + prefix.size(), nullptr, 10) : -1;
     };
+    if (what == "manufacturers") {
+        if (openManufacturers) openManufacturers();
+        return true;
+    }
     if (what == "addId") p->identifiers.push_back({ "mpn", "", "" });
+    else if (what == "addPackaging") p->packagings.push_back({});
+    else if (what == "addOffer") p->offers.push_back({});
+    else if (const long i = index("removePackaging:"); i >= 0 && size_t(i) < p->packagings.size()) p->packagings.erase(p->packagings.begin() + i);
+    else if (const long i = index("removeOffer:"); i >= 0 && size_t(i) < p->offers.size()) p->offers.erase(p->offers.begin() + i);
     else if (what == "addAka") p->akas.push_back({ "valueFootprint", "", "", "" });
     else if (const long i = index("removeId:"); i >= 0 && size_t(i) < p->identifiers.size()) p->identifiers.erase(p->identifiers.begin() + i);
     else if (const long k = index("removeAka:"); k >= 0 && size_t(k) < p->akas.size()) p->akas.erase(p->akas.begin() + k);

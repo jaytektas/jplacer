@@ -50,6 +50,8 @@ public:
     // Locator), and what the tests work with (without it, they are not offered).
     std::function<void(const std::string& settingsId, const JPVisionForms::Holder& holder, const std::string& test)> visionTest;
     void setTests(JPVisionForms::Tests tests) { m_tests = std::move(tests); }
+    // Opens the library's manufacturers' names (JPlacerManufacturersDialog).
+    std::function<void()> openManufacturers;
     // Opens a menu at window coordinates (a table cell's choices).
     std::function<void(JMenu*, float x, float y)> openMenu;
 

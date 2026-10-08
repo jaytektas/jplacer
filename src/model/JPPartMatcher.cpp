@@ -12,7 +12,7 @@ inline namespace jf {
 
 namespace {
 
-constexpr int kMpn = 100, kSupplierPn = 90, kLearnedBoth = 85, kFootprintValue = 80, kLearnedValue = 75, kValueName = 60,
+constexpr int kMpn = 100, kSupplierPn = 90, kMpnOtherMaker = 70, kLearnedBoth = 85, kFootprintValue = 80, kLearnedValue = 75, kValueName = 60,
               kValueAndPackage = 55, kValueAndSize = 50, kValueOnly = 30;
 constexpr double kSameValue = 1e-6;   // relative: two values the same
 
@@ -121,10 +121,15 @@ std::vector<JPPartMatcher::Candidate> JPPartMatcher::candidates(const JPConfigur
             if (a.field == "value" && same(a.text, value)) learnedValue = &a;
         }
         const bool samePackage = package && same(package->id, p->packageId);
-        if (byId) {
+        const std::string maker = bp.field("manufacturer");
+        if (byId && byId->kind == "mpn" && !maker.empty() && !byId->org.empty() && !config.sameManufacturer(maker, byId->org)) {
+            // The same code from another maker: a candidate to look at, never taken unasked.
+            c.score = kMpnOtherMaker;
+            c.why = "its MPN " + byId->code + ", but made by " + config.manufacturerName(byId->org) + " (the file says " + maker + ")";
+        } else if (byId) {
             c.score = byId->kind == "mpn" ? kMpn : kSupplierPn;
             c.why = (byId->kind == "mpn" ? "its MPN " : "its supplier's part number ") + byId->code
-                  + (byId->org.empty() ? std::string() : " (" + byId->org + ")");
+                  + (byId->org.empty() ? std::string() : " (" + config.manufacturerName(byId->org) + ")");
         } else if (learned) {
             c.score = kLearnedBoth;
             c.why = "learned: value " + value + " and footprint " + footprint

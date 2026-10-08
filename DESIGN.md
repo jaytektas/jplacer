@@ -734,8 +734,8 @@ configurations to check against, never inputs to the design.
    4. *`library.db`* (done, in part): the library in SQLite, migrated from
       `parts.xml` / `packages.xml`; part identifiers and AKAs, package AKAs,
       learning, Add to Library; matched board parts carry copies and
-      fingerprints, reviewed in Board's Parts. Still to come: footprints as
-      their own entity, packagings, supplier offers, manufacturer AKAs.
+      fingerprints, reviewed in Board's Parts; packagings, supplier offers,
+      manufacturers' names. Still to come: footprints as their own entity.
    5. *Verifying, revisions, stock*: verified marks, board revisions and
       switching, stock lots and the ledger, the looking-down check.
    Then the Job and Library workspaces with the board view.

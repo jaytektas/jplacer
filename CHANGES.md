@@ -10,6 +10,12 @@ notes.
 
 ## Unreleased
 
+- A library part can list how it comes (cut tape, reel, tray, tube, loose: tape width, pitch, paper or embossed,
+  its rotation in the packaging, quantity) and where it is bought (supplier, SKU, packaging, MOQ, price breaks,
+  last price, link), on its Library page.
+- Manufacturers' Names: the library knows a manufacturer by its other names (TI is Texas Instruments); an MPN the
+  library has under another manufacturer is offered but not taken unasked.
+
 - The parts library is kept in its own file, library.db, made from OpenPnP's parts.xml and packages.xml the
   first time (they are left as they are); OpenPnP's files copied in later add the parts the library lacks.
 - A part in the library can carry its value, datasheet, identifiers (MPN with manufacturer, supplier part

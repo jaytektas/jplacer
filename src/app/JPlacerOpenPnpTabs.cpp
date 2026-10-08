@@ -19,6 +19,7 @@
 #include "JPlacerCplBomImportDialog.h"
 #include "JPlacerPartPickerDialog.h"
 #include "JPlacerBoardPartsDialog.h"
+#include "JPlacerManufacturersDialog.h"
 #include "JPlacerExistingHolderDialog.h"
 #include "JPlacerPanelArrayDialog.h"
 #include "JPlacerPhotonSlotsDialog.h"
@@ -268,6 +269,9 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_parts = std::make_unique<JPPartsPanel>(graph, job.configuration(),
                                              JSettings::instance().get<double>(JPlacerSettings::kPartsSplit, kSplit));
     m_parts->openMenu = JPlacerMenuOpener::from(m_window, m_parts.get());
+    m_parts->openManufacturers = [this] {
+        m_window.openModal<JPlacerManufacturersDialog>(m_job.configuration(), [this] { m_job.configurationChanged(); });
+    };
     m_parts->onChanged = [this] { m_job.configurationChanged(); };
     m_parts->machineDefaults = [this] { return machineVisionDefaults(); };
     m_parts->editPipeline = [this](const std::string& id, const JPVisionForms::Holder& h) {

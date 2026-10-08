@@ -23,6 +23,11 @@ CREATE TABLE IF NOT EXISTS parts(uuid TEXT PRIMARY KEY, id TEXT NOT NULL UNIQUE 
 CREATE TABLE IF NOT EXISTS identifiers(part_uuid TEXT NOT NULL, kind TEXT NOT NULL, org TEXT, code TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS akas(part_uuid TEXT NOT NULL, field TEXT NOT NULL, text TEXT NOT NULL, learned_from TEXT,
                                 learned_when TEXT);
+CREATE TABLE IF NOT EXISTS packagings(part_uuid TEXT NOT NULL, kind TEXT NOT NULL, tape_width REAL, pitch REAL,
+                                      tape_type TEXT, rotation REAL, quantity INTEGER, note TEXT);
+CREATE TABLE IF NOT EXISTS offers(part_uuid TEXT NOT NULL, supplier TEXT, sku TEXT, packaging TEXT, moq INTEGER,
+                                  price_breaks TEXT, link TEXT, last_price TEXT, last_when TEXT);
+CREATE TABLE IF NOT EXISTS manufacturers(name TEXT NOT NULL, aka TEXT);
 CREATE INDEX IF NOT EXISTS identifiers_code ON identifiers(code COLLATE NOCASE);
 CREATE INDEX IF NOT EXISTS akas_text ON akas(text COLLATE NOCASE);
 CREATE INDEX IF NOT EXISTS package_akas_text ON package_akas(text COLLATE NOCASE);
@@ -41,7 +46,8 @@ bool JPLibraryStore::open(const std::string& path, std::string& error) {
                 std::to_string(kSchema);
         return false;
     }
-    if (schema.empty()) setMeta("schema", std::to_string(kSchema));
+    // An older one is brought up to this schema: its new tables made above, empty.
+    if (schema.empty() || std::stoi(schema) < kSchema) setMeta("schema", std::to_string(kSchema));
     return true;
 }
 
@@ -56,9 +62,10 @@ bool JPLibraryStore::setMeta(const std::string& key, const std::string& value) {
 }
 
 bool JPLibraryStore::load(std::vector<std::shared_ptr<JPPart>>& parts, std::vector<std::shared_ptr<JPPackage>>& packages,
-                          std::string& error) {
+                          std::vector<JPManufacturer>& manufacturers, std::string& error) {
     parts.clear();
     packages.clear();
+    manufacturers.clear();
     std::map<std::string, JPPackage*> packageByUuid;
     std::map<std::string, JPPart*> partByUuid;
     auto query = [this](const char* sql, std::function<void(const JDatabase::JRow&)> row) { return m_db.query(sql, {}, row) >= 0; };
@@ -91,6 +98,29 @@ bool JPLibraryStore::load(std::vector<std::shared_ptr<JPPart>>& parts, std::vect
         && query("SELECT part_uuid, field, text, learned_from, learned_when FROM akas ORDER BY rowid", [&](const JDatabase::JRow& r) {
             if (auto it = partByUuid.find(r.text(0)); it != partByUuid.end())
                 it->second->akas.push_back({ r.text(1), r.text(2), r.text(3), r.text(4) });
+        })
+        && query("SELECT part_uuid, kind, tape_width, pitch, tape_type, rotation, quantity, note FROM packagings ORDER BY rowid",
+                 [&](const JDatabase::JRow& r) {
+                     if (auto it = partByUuid.find(r.text(0)); it != partByUuid.end())
+                         it->second->packagings.push_back({ r.text(1), r.real(2), r.real(3), r.text(4), r.real(5),
+                                                            int(r.integer(6)), r.text(7) });
+                 })
+        && query("SELECT part_uuid, supplier, sku, packaging, moq, price_breaks, link, last_price, last_when FROM offers ORDER BY rowid",
+                 [&](const JDatabase::JRow& r) {
+                     if (auto it = partByUuid.find(r.text(0)); it != partByUuid.end())
+                         it->second->offers.push_back({ r.text(1), r.text(2), r.text(3), int(r.integer(4)), r.text(5),
+                                                        r.text(6), r.text(7), r.text(8) });
+                 })
+        && query("SELECT name, aka FROM manufacturers ORDER BY rowid", [&](const JDatabase::JRow& r) {
+            const std::string name = r.text(0), aka = r.text(1);
+            JPManufacturer* m = nullptr;
+            for (JPManufacturer& x : manufacturers)
+                if (x.name == name) m = &x;
+            if (!m) {
+                manufacturers.push_back({ name, {} });
+                m = &manufacturers.back();
+            }
+            if (!aka.empty()) m->akas.push_back(aka);
         });
     if (!ok) {
         error = "Reading the library: " + m_db.lastError();
@@ -100,9 +130,18 @@ bool JPLibraryStore::load(std::vector<std::shared_ptr<JPPart>>& parts, std::vect
 }
 
 bool JPLibraryStore::save(const std::vector<std::shared_ptr<JPPart>>& parts,
-                          const std::vector<std::shared_ptr<JPPackage>>& packages, std::string& error) {
-    bool ok = m_db.exec("BEGIN IMMEDIATE") && m_db.exec("DELETE FROM packages") && m_db.exec("DELETE FROM package_akas")
-              && m_db.exec("DELETE FROM parts") && m_db.exec("DELETE FROM identifiers") && m_db.exec("DELETE FROM akas");
+                          const std::vector<std::shared_ptr<JPPackage>>& packages,
+                          const std::vector<JPManufacturer>& manufacturers, std::string& error) {
+    bool ok = m_db.exec("BEGIN IMMEDIATE");
+    for (const char* table : { "packages", "package_akas", "parts", "identifiers", "akas", "packagings", "offers", "manufacturers" })
+        ok = ok && m_db.exec(std::string("DELETE FROM ") + table);
+    for (const JPManufacturer& m : manufacturers) {
+        if (!ok) break;
+        // One row with no AKA keeps a name that has none.
+        ok = m_db.exec("INSERT INTO manufacturers(name, aka) VALUES(?, ?)", { B::from(m.name), B::from("") });
+        for (const std::string& a : m.akas)
+            ok = ok && m_db.exec("INSERT INTO manufacturers(name, aka) VALUES(?, ?)", { B::from(m.name), B::from(a) });
+    }
     for (const auto& k : packages) {
         if (!ok) break;
         ok = m_db.exec("INSERT INTO packages(uuid, id, data) VALUES(?, ?, ?)",
@@ -122,6 +161,16 @@ bool JPLibraryStore::save(const std::vector<std::shared_ptr<JPPart>>& parts,
         for (const auto& a : p->akas)
             ok = ok && m_db.exec("INSERT INTO akas(part_uuid, field, text, learned_from, learned_when) VALUES(?, ?, ?, ?, ?)",
                                  { B::from(p->uuid), B::from(a.field), B::from(a.text), B::from(a.learnedFrom), B::from(a.when) });
+        for (const auto& k : p->packagings)
+            ok = ok && m_db.exec("INSERT INTO packagings(part_uuid, kind, tape_width, pitch, tape_type, rotation, quantity, note) "
+                                 "VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
+                                 { B::from(p->uuid), B::from(k.kind), B::from(k.tapeWidthMm), B::from(k.pitchMm), B::from(k.tapeType),
+                                   B::from(k.rotationDeg), B::from(k.quantity), B::from(k.note) });
+        for (const auto& o : p->offers)
+            ok = ok && m_db.exec("INSERT INTO offers(part_uuid, supplier, sku, packaging, moq, price_breaks, link, last_price, last_when) "
+                                 "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                                 { B::from(p->uuid), B::from(o.supplier), B::from(o.sku), B::from(o.packaging), B::from(o.moq),
+                                   B::from(o.priceBreaks), B::from(o.link), B::from(o.lastPrice), B::from(o.lastWhen) });
     }
     if (!ok) {
         error = "Writing the library: " + m_db.lastError();

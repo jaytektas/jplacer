@@ -43,6 +43,14 @@ int main() {
     assert(!config.differs(bp));
     cap->height = JPLength(0.9, JPLengthUnit::Millimeters);
     assert(config.differs(bp));
+    // An offer is not a change either; how it comes (its rotation in the tape) is.
+    cap->height = JPLength(0.8, JPLengthUnit::Millimeters);
+    cap->offers.push_back({ "LCSC", "C14663", "Reel", 4000, "", "", "", "" });
+    assert(!config.differs(bp));
+    cap->packagings.push_back({ "Reel", 8, 4, "Paper", 90, 4000, "" });
+    assert(config.differs(bp));
+    cap->packagings.clear();
+    cap->height = JPLength(0.9, JPLengthUnit::Millimeters);
     // The library takes the board's: the height back, its names kept.
     config.giveCopy(bp);
     assert(std::abs(cap->height.value() - 0.8) < 1e-9 && cap->akas.size() == 1 && !config.differs(bp));

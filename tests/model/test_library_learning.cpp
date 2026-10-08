@@ -57,6 +57,16 @@ int main() {
     assert(!c.empty() && c.front().part == &part && c.front().why.find("learned") != std::string::npos
            && c.front().why.find("Ctrl") != std::string::npos);
 
+    // The MPN from another maker: offered, never taken unasked; the maker's other name is the same maker.
+    JPBoardPart otherMaker = next;
+    otherMaker.fields["manufacturer"] = "Murata";
+    assert(!JPPartMatcher::automatic(config, otherMaker));
+    assert(JPPartMatcher::candidates(config, otherMaker).front().why.find("Murata") != std::string::npos);
+    config.manufacturers().push_back({ "Samsung Electro-Mechanics", { "Samsung", "SEMCO" } });
+    otherMaker.fields["manufacturer"] = "SEMCO";
+    assert(JPPartMatcher::automatic(config, otherMaker) == &part);
+    assert(config.manufacturerName("semco") == "Samsung Electro-Mechanics" && config.sameManufacturer("Samsung", "SEMCO"));
+
     // A part made from a board part: by its MPN; its package the library's by AKA.
     JPBoardPart other;
     other.fields = { { "value", "10n" }, { "footprint", "C_0603_1608Metric" }, { "mpn", "CL10B103KB8NNNC" }, { "height", "0.8" },

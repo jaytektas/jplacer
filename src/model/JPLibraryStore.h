@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "JPManufacturer.h"
 #include "JPPackage.h"
 #include "JPPart.h"
 
@@ -24,14 +25,14 @@ inline namespace jf {
 class JPLibraryStore {
 public:
     static constexpr const char* kFile = "library.db";
-    static constexpr int         kSchema = 1;
+    static constexpr int         kSchema = 2;   // 2: packagings, offers, manufacturers
 
     bool open(const std::string& path, std::string& error);
     bool isOpen() const { return m_db.isOpen(); }
     bool load(std::vector<std::shared_ptr<JPPart>>& parts, std::vector<std::shared_ptr<JPPackage>>& packages,
-              std::string& error);
+              std::vector<JPManufacturer>& manufacturers, std::string& error);
     bool save(const std::vector<std::shared_ptr<JPPart>>& parts, const std::vector<std::shared_ptr<JPPackage>>& packages,
-              std::string& error);
+              const std::vector<JPManufacturer>& manufacturers, std::string& error);
     std::string meta(const std::string& key);
     bool        setMeta(const std::string& key, const std::string& value);
 

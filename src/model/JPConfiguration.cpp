@@ -99,7 +99,7 @@ bool JPConfiguration::load(std::vector<std::string>& problems, std::string& erro
     if (hadLibrary) {
         std::vector<std::shared_ptr<JPPart>> libraryParts;
         std::vector<std::shared_ptr<JPPackage>> libraryPackages;
-        if (!m_library.load(libraryParts, libraryPackages, error)) return false;
+        if (!m_library.load(libraryParts, libraryPackages, m_manufacturers, error)) return false;
         for (auto& k : libraryPackages) addPackage(std::move(k));
         for (auto& p : libraryParts) addPart(std::move(p));
     }
@@ -120,7 +120,7 @@ bool JPConfiguration::load(std::vector<std::string>& problems, std::string& erro
             problems.push_back(std::to_string(added) + " part(s) and package(s) of OpenPnP's parts.xml and packages.xml "
                                "the library did not have were added to it");
         std::string why;
-        if (!m_library.save(m_parts, m_packages, why) || !m_library.setMeta("openpnpFiles", stamp)) {
+        if (!m_library.save(m_parts, m_packages, m_manufacturers, why) || !m_library.setMeta("openpnpFiles", stamp)) {
             error = why;
             return false;
         }
@@ -144,7 +144,7 @@ bool JPConfiguration::save(std::string& error) const {
     const fs::path dir(m_directory);
     // The library's parts and packages, to library.db (OpenPnP's parts.xml and packages.xml are not written).
     if (!m_library.isOpen() && !m_library.open((dir / JPLibraryStore::kFile).string(), error)) return false;
-    if (!m_library.save(m_parts, m_packages, error)) return false;
+    if (!m_library.save(m_parts, m_packages, m_manufacturers, error)) return false;
     JPXmlNode boards("openpnp-boards");
     for (const auto& b : m_boards) boards.add(JPXmlNode("board")).text = b->file;
     JPXmlNode panels("openpnp-panels");
@@ -415,6 +415,16 @@ JJson JPConfiguration::libraryJson() const {
     JJson packages = JJson::array();
     for (const auto& k : m_packages) packages.push(JPLibraryJson::package(*k));
     j["packages"] = packages;
+    JJson makers = JJson::array();
+    for (const JPManufacturer& m : m_manufacturers) {
+        JJson o = JJson::object();
+        o["name"] = m.name;
+        JJson akas = JJson::array();
+        for (const std::string& a : m.akas) akas.push(JJson(a));
+        o["akas"] = akas;
+        makers.push(o);
+    }
+    j["manufacturers"] = makers;
     return j;
 }
 
@@ -479,6 +489,20 @@ void JPConfiguration::giveCopy(const JPBoardPart& bp) {
             k->uuid = uuid;
             k->akas = akas;
         }
+}
+
+std::string JPConfiguration::manufacturerName(const std::string& name) const {
+    const std::string want = upper(name);
+    for (const JPManufacturer& m : m_manufacturers) {
+        if (upper(m.name) == want) return m.name;
+        for (const std::string& a : m.akas)
+            if (upper(a) == want) return m.name;
+    }
+    return name;
+}
+
+bool JPConfiguration::sameManufacturer(const std::string& a, const std::string& b) const {
+    return upper(manufacturerName(a)) == upper(manufacturerName(b));
 }
 
 JPPackage* JPConfiguration::packageNamed(const std::string& footprint) const {

@@ -68,6 +68,22 @@ Supplier** and **Code** (a board part with one of them is this part, without ask
 As**, what boards' files call it: by **Value and footprint** (written *value*|*footprint*), **Value** or
 **Footprint**, each saying where it was learned and when (or *typed*). Names are learned when this part is
 chosen for a board's part with **Remember** ticked; the plus adds one, the cross deletes one.
+**Manufacturers' Names…** opens the manufacturers the library knows, a row each with its **Name** and its
+other names (commas between: Texas Instruments: TI, Texas Instruments Inc.), **Add a Manufacturer** and the
+cross to delete one; a BOM's manufacturer by any of them is that manufacturer. An MPN the library has under
+another manufacturer is offered but never taken unasked, and says so.
+
+**Packagings**: how the part comes, a row each: **Kind** (**Cut tape**, **Reel**, **Tray**, **Tube**,
+**Loose**); for tape, its width (**Tape [mm]**: 8 to 56), the **Pitch [mm]** between pockets and whether
+it is **Paper** or **Embossed**; the part's **Rotation [°]** as it sits in the packaging (pin 1 against the
+tape's sprocket holes at 0), set once here; **Quantity**, how many a reel, tray or tube holds; a **Note**.
+Choosing another kind shows or hides the tape's columns.
+
+**Offers**: where it is bought, a row each: **Supplier**, **SKU** (their part number), **Packaging**,
+**MOQ** (the least they sell), **Price breaks** (`1: 0.0100, 100: 0.0050`), **Last price** and **Link**.
+
+A board's copy of the part (see [Choosing a part](boards.md#choosing-a-part)) counts its packagings: a
+change in how it comes is a change to review; a new offer, or a name learned, is not.
 
 **Settings** holds its **Pick Conditions**: **Feed & Pick Retry
 Count**, how many times the feed and pick is tried again for each placement (the nozzle is cleared, and
@@ -78,4 +94,4 @@ own, else its package's, else the machine's), as on the [Vision](vision.md#the-s
 change to those settings, for everything that uses them. **Specialize for** the part makes a copy of them,
 named after the part, for this part alone; it says so when the part has its own already.
 
-<!-- src: src/ui/JPPartsPanel.cpp (updateWizards, formFor, libraryPage, libraryAct, act); src/setup/JPVisionForms.cpp (addPage, act) -->
+<!-- src: src/ui/JPPartsPanel.cpp (updateWizards, formFor, libraryPage, libraryAct, act); src/app/JPlacerManufacturersDialog.cpp; src/model/JPPart.h (Packaging, Offer, kPackagingKinds); src/model/JPConfiguration.cpp (manufacturerName, sameManufacturer); src/model/JPPartMatcher.cpp (candidates); src/model/JPLibraryJson.cpp (fingerprint); src/setup/JPVisionForms.cpp (addPage, act) -->

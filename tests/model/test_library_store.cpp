@@ -8,6 +8,7 @@
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
+#include <cmath>
 
 #include "model/JPConfiguration.h"
 
@@ -55,6 +56,9 @@ int main() {
         p->identifiers.push_back({ "supplierPn", "LCSC", "C14663" });
         p->akas.push_back({ "valueFootprint", "100n|C_0603_1608Metric", "Ctrl.jpboard", "2026-10-08T12:00:00" });
         c.package("C0603")->akas.push_back("C_0603_1608Metric");
+        p->packagings.push_back({ "Reel", 8, 4, "Paper", 90, 4000, "7 inch" });
+        p->offers.push_back({ "LCSC", "C14663", "Reel", 4000, "1: 0.0016, 4000: 0.0011", "https://lcsc.com/C14663", "0.0011", "2026-10-08" });
+        c.manufacturers().push_back({ "Texas Instruments", { "TI", "Texas Instruments Inc." } });
         assert(c.save(error));
         assert(read(dir / "parts.xml") == partsXml);   // OpenPnP's file left as it was
     }
@@ -68,6 +72,10 @@ int main() {
         assert(p->identifiers[0].org == "Samsung" && p->identifiers[1].code == "C14663");
         assert(p->akas.size() == 1 && p->akas[0].text == "100n|C_0603_1608Metric" && p->akas[0].learnedFrom == "Ctrl.jpboard");
         assert(c.package("C0603")->akas.size() == 1 && std::abs(p->height.value() - 0.8) < 1e-9);
+        assert(p->packagings.size() == 1 && p->packagings[0].kind == "Reel" && p->packagings[0].rotationDeg == 90
+               && p->packagings[0].quantity == 4000 && p->packagings[0].note == "7 inch");
+        assert(p->offers.size() == 1 && p->offers[0].sku == "C14663" && p->offers[0].moq == 4000 && p->offers[0].lastPrice == "0.0011");
+        assert(c.manufacturers().size() == 1 && c.manufacturers()[0].akas.size() == 2 && c.manufacturerName("ti") == "Texas Instruments");
     }
     // OpenPnP's parts.xml changed (copied in again): what the library lacks is added; what it has is kept.
     std::this_thread::sleep_for(std::chrono::milliseconds(20));

@@ -86,6 +86,14 @@ public:
     JPPackage* package(const std::string& id) const;
     // The library's package of that id only, or null.
     JPPackage* libraryPackage(const std::string& id) const;
+    // The manufacturers the library knows, with their other names.
+    const std::vector<JPManufacturer>& manufacturers() const { return m_manufacturers; }
+    std::vector<JPManufacturer>&       manufacturers() { return m_manufacturers; }
+    // A manufacturer's name as the library has it, by its name or one of its others (any case); the name as
+    // given when the library knows it by neither.
+    std::string manufacturerName(const std::string& name) const;
+    // Whether two names name one manufacturer (either unknown: when they are the same name).
+    bool sameManufacturer(const std::string& a, const std::string& b) const;
     // The library's package a CAD footprint names: by its id, else one of its AKAs (any case); null when none.
     JPPackage* packageNamed(const std::string& footprint) const;
     void addPackage(std::shared_ptr<JPPackage> package);
@@ -203,6 +211,7 @@ private:
     std::shared_ptr<JPPanel> loadPanel(const std::string& path, std::string& error);
 
     std::string                                          m_directory;
+    std::vector<JPManufacturer>                          m_manufacturers;
     // The library's file (library.db): written on save (from a const save, so mutable).
     mutable JPLibraryStore                                m_library;
     std::string                                          m_defaults;

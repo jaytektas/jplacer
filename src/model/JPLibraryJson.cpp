@@ -48,8 +48,37 @@ JJson JPLibraryJson::part(const JPPart& p) {
         akas.push(x);
     }
     o["akas"] = akas;
+    JJson packagings = JJson::array();
+    for (const auto& k : p.packagings) packagings.push(packaging(k));
+    o["packagings"] = packagings;
+    JJson offers = JJson::array();
+    for (const auto& f : p.offers) {
+        JJson x = JJson::object();
+        x["supplier"] = f.supplier;
+        x["sku"] = f.sku;
+        x["packaging"] = f.packaging;
+        x["moq"] = f.moq;
+        x["priceBreaks"] = f.priceBreaks;
+        x["link"] = f.link;
+        x["lastPrice"] = f.lastPrice;
+        x["lastWhen"] = f.lastWhen;
+        offers.push(x);
+    }
+    o["offers"] = offers;
     o["openpnp"] = JPXmlJson::from(p.toXml());
     return o;
+}
+
+JJson JPLibraryJson::packaging(const JPPart::Packaging& k) {
+    JJson x = JJson::object();
+    x["kind"] = k.kind;
+    x["tapeWidthMm"] = k.tapeWidthMm;
+    x["pitchMm"] = k.pitchMm;
+    x["tapeType"] = k.tapeType;
+    x["rotationDeg"] = k.rotationDeg;
+    x["quantity"] = k.quantity;
+    x["note"] = k.note;
+    return x;
 }
 
 JPPart JPLibraryJson::part(const JJson& j) {
@@ -68,6 +97,15 @@ JPPart JPLibraryJson::part(const JJson& j) {
             p.akas.push_back({ x["field"].isString() ? x["field"].str() : "", x["text"].isString() ? x["text"].str() : "",
                                x["learnedFrom"].isString() ? x["learnedFrom"].str() : "",
                                x["when"].isString() ? x["when"].str() : "" });
+    auto s = [](const JJson& x, const char* k) { return x[k].isString() ? x[k].str() : std::string(); };
+    if (j["packagings"].isArray())
+        for (const JJson& x : j["packagings"].arr())
+            p.packagings.push_back({ s(x, "kind"), x["tapeWidthMm"].number(8), x["pitchMm"].number(4), s(x, "tapeType"),
+                                     x["rotationDeg"].number(), int(x["quantity"].number()), s(x, "note") });
+    if (j["offers"].isArray())
+        for (const JJson& x : j["offers"].arr())
+            p.offers.push_back({ s(x, "supplier"), s(x, "sku"), s(x, "packaging"), int(x["moq"].number()), s(x, "priceBreaks"),
+                                 s(x, "link"), s(x, "lastPrice"), s(x, "lastWhen") });
     return p;
 }
 
@@ -96,6 +134,7 @@ std::string JPLibraryJson::fingerprint(const JPPart& p, const JPPackage* k) {
     // What a job places it by: its OpenPnP fields (height, package, speed, vision…), its value, its package's.
     uint64_t h = fnv(JPXmlJson::from(p.toXml()).dump());
     h = fnv("|" + p.value, h);
+    for (const auto& k : p.packagings) h = fnv("|" + packaging(k).dump(), h);   // how it comes: how it is picked
     if (k) h = fnv("|" + JPXmlJson::from(k->toXml()).dump(), h);
     char buf[24];
     std::snprintf(buf, sizeof buf, "%016llx", static_cast<unsigned long long>(h));
