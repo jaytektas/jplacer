@@ -132,6 +132,10 @@ public:
     std::optional<JPLocation> visionExpected(int n) const;
     // Where it was found: the line its parts lie on follows it.
     void setVisionFound(int n, const JPLocation& found);
+    // A strip feeder's tape width (OpenPnP's tape-width; 8 mm when not set).
+    JPLength tapeWidth() const { return lengthOf("tape-width", JPLength(8, JPLengthUnit::Millimeters)); }
+    // Whether it is a lane: a strip feeder a strip of any part is laid in by hand (DESIGN.md, Lanes).
+    bool isLane() const { return typeName() == "ReferenceStripFeeder"; }
     JPLength holeDiameter() const { return lengthOf("hole-diameter", JPLength(1.5, JPLengthUnit::Millimeters)); }
     JPLength holePitch() const { return lengthOf("hole-pitch", JPLength(4, JPLengthUnit::Millimeters)); }
     // A strip's holes as its vision last found them (none: as set), and the

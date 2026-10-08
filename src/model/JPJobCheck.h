@@ -14,10 +14,11 @@ inline namespace jf {
 // The job's data checked before a run (DESIGN.md, Ready to run), as one list naming what to do, each thing once
 // with every placement or part it is about:
 //  * Stop: the run would refuse (a board with an id twice; a placement whose part is not chosen or not known;
-//    a part with no package, or no nozzle tip on the machine that fits it; no enabled feeder holding it);
+//    a part with no package, or no nozzle tip on the machine that fits it);
 //  * Check: worth putting right first (placements not verified, parts of unknown height, parts with no
 //    footprint to draw or check against);
-//  * Note: to know (parts short of stock, of those whose stock is kept).
+//  * Note: to know (parts no feeder holds yet, asked for as the run gets to them; parts short of stock, of those
+//    whose stock is kept).
 // The placements are those a run places: enabled, not placed, their side up on an enabled board.
 class JPJobCheck {
 public:

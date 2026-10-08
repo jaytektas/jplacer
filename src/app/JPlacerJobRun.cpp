@@ -4,11 +4,14 @@
 #include "JPlacerJobRun.h"
 
 #include "JPlacerJobCheckDialog.h"
+#include "JPlacerLoadDialog.h"
 
 #include "common/JPlacerLog.h"
 #include "model/JPBoardLocation.h"
 #include "model/JPJobCheck.h"
+#include "model/JPLaneChoice.h"
 #include "model/JPRunLedger.h"
+#include "setup/JPFeederForms.h"
 #include "tasks/JPFiducialLocator.h"
 
 #include <j/core/Dialog.h>
@@ -288,6 +291,52 @@ void JPlacerJobRun::start(RunState as) {
     checked();
 }
 
+void JPlacerJobRun::askToLoad(const std::string& partId) {
+    std::set<std::string> stillNeeded;
+    for (const JPJobProcessor::JobPlacement& j : m_processor->jobPlacements())
+        if (j.status == JPJobProcessor::Status::Pending || j.status == JPJobProcessor::Status::Processing)
+            stillNeeded.insert(j.partId);
+    JPConfiguration& config = m_job.configuration();
+    JLOGC(JPlacerLog::kJob, JLogLevel::Info) << "load as you go: " << partId << " is needed and no feeder holds it";
+    m_window.showStatus("Load " + partId + ": no feeder holds it.", kStatusMs);
+    std::weak_ptr<bool> alive = m_alive;
+    JPlacerLoadDialog::Actions actions;
+    actions.loaded = [this, alive, partId](const std::string& laneId, const std::string& lotUuid) {
+        if (const auto a = alive.lock(); !a || !*a) return;
+        JPConfiguration& config = m_job.configuration();
+        if (JPFeeder* f = laneId.empty() ? nullptr : config.feeder(laneId)) {
+            const std::string was = f->partId();
+            f->setPartId(partId);
+            f->setEnabled(true);
+            std::string why;
+            if (!JPFeederForms::act(config, laneId, "resetFeedCount", why))
+                JLOGC(JPlacerLog::kJob, JLogLevel::Warn) << f->name() << ": its feed count was not reset: " << why;
+            // The lot laid in it: the one there before comes off.
+            JPStockStore& stock = config.stock();
+            const JPStockLot before = stock.lotOnFeeder(laneId);
+            if (!before.uuid.empty() && before.uuid != lotUuid && !stock.loadLot(before.uuid, "", why))
+                JLOGC(JPlacerLog::kJob, JLogLevel::Warn) << why;
+            if (!lotUuid.empty() && !stock.loadLot(lotUuid, laneId, why)) JLOGC(JPlacerLog::kJob, JLogLevel::Warn) << why;
+            JLOGC(JPlacerLog::kJob, JLogLevel::Info) << "load as you go: " << partId << " loaded on " << f->name()
+                                                     << (was.empty() ? std::string() : ", " + was + " taken off");
+            m_job.configurationChanged();
+        }
+        if (m_state == RunState::Paused) startPauseResume();
+    };
+    actions.skip = [this, alive, partId] {
+        if (const auto a = alive.lock(); !a || !*a) return;
+        if (m_state != RunState::Paused) return;
+        m_processor->skipPart(partId);
+        JLOGC(JPlacerLog::kJob, JLogLevel::Info) << "load as you go: " << partId << " skipped";
+        startPauseResume();
+    };
+    actions.stop = [this, alive] {
+        if (const auto a = alive.lock(); !a || !*a) return;
+        stop();
+    };
+    m_window.openModal<JPlacerLoadDialog>(config, partId, JPLaneChoice::free(config, partId, stillNeeded), std::move(actions));
+}
+
 std::vector<std::string> JPlacerJobRun::machineTipIds() const {
     std::vector<std::string> ids;
     for (const JPJobMachine::Nozzle& n : m_jobMachine->nozzles())
@@ -343,6 +392,10 @@ void JPlacerJobRun::run() {
                     // Paused there (stopped, when stopping), then said.
                     if (m_state == RunState::Stopping) endRun(JPRunStore::Outcome::Stopped);
                     setState(m_state == RunState::Stopping ? RunState::Stopped : RunState::Paused);
+                    if (!f.loadPartId.empty() && m_state == RunState::Paused) {
+                        askToLoad(f.loadPartId);
+                        return;
+                    }
                     if (showSource) showSource(f);
                     JDialog::message("Job Error", f.message);
                 });

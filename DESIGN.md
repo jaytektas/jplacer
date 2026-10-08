@@ -765,8 +765,12 @@ configurations to check against, never inputs to the design.
       JPJobProcessor, given a material hook.
    2. *Pre-flight data check* (done: JPJobCheck, Stop / Check / Note, on
       Start and Job > Check Job…; no feeder is a Stop until load as you go).
-   3. *Load as you go*: no feeder is not a pre-flight failure; the run
-      asks for a part when it reaches it, with a free strip lane.
+   3. *Load as you go* (done: no feeder is a Note; JPJobProcessor asks
+      with Failure::loadPartId once nothing loaded is left, lowest part
+      first; JPLaneChoice offers free strip lanes, width first; the prompt
+      loads the lane and lot, skips or stops. Not yet: strip calibration
+      on load (the lane's geometry is taken as the new strip's), "load and
+      place now" for skipped parts, the lane pointed at by LED or camera).
    4. *Planner and planner view*, then stages.
 5. **Vision**: fiducials, bottom alignment, feeder vision.
 6. **Breadth**: remaining feeder types and firmware profiles, panels, other

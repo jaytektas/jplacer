@@ -81,6 +81,9 @@ private:
     // The run record (JPRunStore): begun with the boards at their revisions; ended (Finished or Stopped) and
     // its parts written to the stock's ledger (JPRunLedger).
     void beginRun();
+    // Load as you go: the run paused for a part no feeder holds; the prompt (JPlacerLoadDialog), and what it
+    // chose done: the part laid in a lane and the run resumed, skipped, or stopped.
+    void askToLoad(const std::string& partId);
     // The nozzle tips the machine's nozzles can load.
     std::vector<std::string> machineTipIds() const;
     void endRun(JPRunStore::Outcome outcome);

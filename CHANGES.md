@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- Load as you go: a job no longer needs every part on a feeder to start. It places what is loaded, then pauses
+  and asks for the next part, naming how it comes and the free strip lane to lay it in (one empty, or whose part
+  the run is done with, of the right tape width first), and which stock lot it is. Continue loads it there and
+  goes on; Skip This Part leaves its placements unplaced and goes on.
 - Start checks the job first and lists, once each with everything it is about, what would stop the run (a part
   not chosen, no package, no nozzle tip that fits, no feeder), what to check (placements not verified, unknown
   heights, no footprint) and what to note (short of stock); Start Anyway runs it when nothing stops it.

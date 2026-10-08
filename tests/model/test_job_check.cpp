@@ -2,8 +2,8 @@
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
 // The job's data checked before a run (DESIGN.md, Ready to run): one list, each thing once with all it is about,
-// stops first: a part not chosen, one the library lacks, no package, no nozzle tip that fits, no feeder; then
-// what to check (not verified, height unknown, no footprint); then notes (short of stock). Placements placed, not
+// stops first: a part not chosen, one the library lacks, no package, no nozzle tip that fits; then what to
+// check (not verified, height unknown, no footprint); then notes (no feeder yet, short of stock). Placements placed, not
 // enabled or on the other side are not looked at.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
@@ -107,8 +107,8 @@ int main() {
     assert(has(find(items, "A part the library does not have"), at + "X1 (GONE)"));
     assert(has(find(items, "No package"), "BARE"));
     assert(has(find(items, "No nozzle tip on the machine fits its package"), "BC847 (SOT23)"));
-    const auto* noFeeder = find(items, "No enabled feeder holds it");
-    assert(has(noFeeder, "BC847") && !has(noFeeder, "R0603-10k"));
+    const auto* noFeeder = find(items, "No feeder holds it yet (the run asks for it to be loaded when it gets to it)");
+    assert(has(noFeeder, "BC847") && !has(noFeeder, "R0603-10k") && noFeeder->level == JPJobCheck::Item::Level::Note);
     // Not verified: R2 and Q1; not R1 (verified), R3 (off), R4 (other side), R5 (placed).
     const auto* unverified = find(items, "Not verified on the machine");
     assert(unverified && unverified->level == JPJobCheck::Item::Level::Check && unverified->which.size() == 3

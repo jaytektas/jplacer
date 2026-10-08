@@ -25,9 +25,12 @@ inline namespace jf {
 // Runs a job, as OpenPnP's ReferencePnpJobProcessor: a step at a time
 // (next()), each step moving the machine (JPJobMachine) and saying what it
 // does. PreFlight gathers the placements to place (enabled, not placed,
-// their side up on an enabled board) and checks each has a part, a package,
-// a nozzle tip that fits and a feeder, then puts the head at safe Z and
-// drops what the nozzles hold. FiducialCheck locates each board and panel
+// their side up on an enabled board) and checks each has a part, a package
+// and a nozzle tip that fits, then puts the head at safe Z and drops what the
+// nozzles hold. A part no feeder holds is not a failure (load as you go,
+// jplacer's): what is loaded is placed first, then the run fails with the
+// part to load (Failure::loadPartId), and goes on once it is loaded or
+// skipped (skipPart). FiducialCheck locates each board and panel
 // whose fiducials are checked (the outer ones first, as many levels as the
 // fiducial level says, then the rest) and sets where it lies from them.
 // Plan orders the placements still to do (by the job order), the lowest rank
@@ -83,6 +86,9 @@ public:
         std::string id;            // the part, feeder, nozzle or tip; a board's unique id
         std::string placementId;   // Placement: the placement, `id` its board's unique id
         bool        interrupting = false;
+        // Load as you go: the part to be loaded on a feeder for the run to go on (no feeder holds it, and
+        // nothing loaded is left to place); empty: not that.
+        std::string loadPartId;
     };
 
     enum class Status { Pending, Processing, Errored, Complete };
@@ -111,6 +117,8 @@ public:
     Result next(Failure& failure);
     // Stopped: the nozzles emptied, the head parked.
     void abort();
+    // Load as you go: a part not loaded set aside, its placements left in error ("Skipped: not loaded").
+    void skipPart(const std::string& partId);
 
     const std::vector<JobPlacement>& jobPlacements() const { return m_jobPlacements; }
     // The machine's vision: bottom vision (on or off, its default settings,

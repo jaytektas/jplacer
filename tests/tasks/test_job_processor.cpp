@@ -5,7 +5,8 @@
 // that only records what it is asked: the setup checked, the board located
 // by its fiducials, each nozzle given a placement (a tip changed where
 // needed), each part fed, picked and placed where the fiducials put the
-// board, then the head parked; a pick that fails deferred and tried again.
+// board, then the head parked; a pick that fails deferred and tried again; a part no feeder holds asked
+// for when the run reaches it (load as you go), loaded or skipped.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
@@ -488,16 +489,40 @@ int main() {
     assert(sawAlignedOffset);
     for (auto& h : machine.heads) h.alignRotationWithPart = false;
 
-    // A part with no feeder: the setup check says so before anything moves.
+    // Load as you go: a part with no feeder is not a setup failure. What is loaded is placed first, then the
+    // run pauses asking for the part; loaded, it goes on from there.
     job.removeAllPlacedStatus();
     machine.shiftX = 0.1;
     config.removeFeeder("FC");
-    machine.log.clear();
     {
         JPJobProcessor run(config, job, machine, settings, hooks);
         JPJobProcessor::Failure f;
-        assert(run.next(f) == JPJobProcessor::Result::Failed);
-        assert(f.message == "No compatible, enabled feeder found for part C1" && machine.log.empty());
+        JPJobProcessor::Result r = JPJobProcessor::Result::More;
+        int steps = 0;
+        while ((r = run.next(f)) == JPJobProcessor::Result::More) assert(++steps < 200);
+        assert(r == JPJobProcessor::Result::Failed && f.loadPartId == "C1" && f.message == "Load C1: no feeder holds it.");
+        assert(run.totalPartsPlaced() == 2);   // both R1s
+        config.addFeeder(tray("FC", "C1", 10, 30));
+        while ((r = run.next(f)) == JPJobProcessor::Result::More) assert(++steps < 400);
+        assert(r == JPJobProcessor::Result::Finished && run.totalPartsPlaced() == 3);
+    }
+    // Skipped: its placements left in error, the run finished without them.
+    job.removeAllPlacedStatus();
+    config.removeFeeder("FC");
+    {
+        JPJobProcessor run(config, job, machine, settings, hooks);
+        JPJobProcessor::Failure f;
+        JPJobProcessor::Result r = JPJobProcessor::Result::More;
+        int steps = 0;
+        while ((r = run.next(f)) == JPJobProcessor::Result::More) assert(++steps < 200);
+        assert(r == JPJobProcessor::Result::Failed && f.loadPartId == "C1");
+        run.skipPart("C1");
+        while ((r = run.next(f)) == JPJobProcessor::Result::More) assert(++steps < 400);
+        assert(r == JPJobProcessor::Result::Finished && run.totalPartsPlaced() == 2);
+        bool skipped = false;
+        for (const auto& j : run.jobPlacements())
+            if (j.placementId == "C1a") skipped = j.status == JPJobProcessor::Status::Errored && j.error == "Skipped: not loaded";
+        assert(skipped);
     }
     return 0;
 }

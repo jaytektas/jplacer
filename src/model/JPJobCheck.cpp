@@ -101,7 +101,8 @@ std::vector<JPJobCheck::Item> JPJobCheck::of(JPConfiguration& config, const JPJo
                 g.add(L::Stop, "No nozzle tip on the machine fits its package", part->id + " (" + package->id + ")",
                       "Packages tab: the package's Nozzle Tips");
             if (!config.findFeeder(part->id, std::nullopt))
-                g.add(L::Stop, "No enabled feeder holds it", part->id, "Feeders tab: a feeder with the part, enabled");
+                g.add(L::Note, "No feeder holds it yet (the run asks for it to be loaded when it gets to it)", part->id,
+                      "Load it when asked, or set a feeder up for it on the Feeders tab");
             if (part->isPartHeightUnknown())
                 g.add(L::Check, "Height not known", part->id, "Parts tab: the part's Height (or probe it)");
             const bool footprint = (bp && bp->copyFootprint && !bp->copyFootprint->geometry.pads.empty())

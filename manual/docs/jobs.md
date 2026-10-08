@@ -168,11 +168,12 @@ at: enabled, not placed, their side up on an enabled board.
 
 - **Stop**: the run would refuse it: a placement ID used twice on a board; **No part chosen** (the board's
   part is still to be chosen); a part the library does not have; a part with **No package**; **No nozzle tip
-  on the machine fits its package**; **No enabled feeder holds it**.
+  on the machine fits its package**.
 - **Check**: worth putting right first: placements **Not verified on the machine** (see [Verifying
   placements](#verifying-placements)), parts whose **Height** is not known, parts with **No footprint** to
   draw or check against.
-- **Note**: parts **Short of stock**, of those whose stock is kept (a part with no lots at all is not).
+- **Note**: parts **No feeder holds yet** (the run asks for them, see [Load as you go](#load-as-you-go));
+  parts **Short of stock**, of those whose stock is kept (a part with no lots at all is not).
 
 **Start** with nothing to stop or check runs at once. Otherwise **Check Job** shows the list: with anything
 that stops the run it is not started (**Close**); with only things to check or note, **Start Anyway** runs
@@ -184,8 +185,9 @@ counts at the top say how many are to put right, to check and to note.
 A job goes as OpenPnP's does:
 
 1. **Checks.** The placements to place are those enabled, not placed, with their side facing up on an
-   enabled board. Each must have a part, the part a package, a nozzle tip that fits the package and a
-   nozzle, and an enabled feeder holding the part; a board with an ID twice is refused. Then the head goes
+   enabled board. Each must have a part, the part a package, and a nozzle tip that fits the package and a
+   nozzle; a board with an ID twice is refused. A part no feeder holds is not refused: it is asked for when
+   the run gets to it (see [Load as you go](#load-as-you-go)). Then the head goes
    to safe Z and anything left on a nozzle is discarded.
 2. **Fiducials.** Each board and panel with **Check Fids?** has its fiducials found by the camera (a
    panel's outermost first), each as a round mark the size of its package's footprint pad, looked at
@@ -232,6 +234,30 @@ is tried again later, up to Machine Setup's Max Placement Attempts, or left in e
 errors there were.
 
 <!-- src: src/tasks/JPJobProcessor.cpp (plannedStep, finish); src/app/JPlacerJobRun.cpp (run); src/app/JPlacerOpenPnpTabs.cpp (showSource); src/model/JPFeeder.cpp (recordJobFault) -->
+
+## Load as you go
+
+A part does not have to be on a feeder for a job to start. The run places every part that is loaded first;
+when only parts no feeder holds are left, it pauses and asks for the next one, the lowest first (tall
+parts last, out of the nozzle's way), then by name. **Load *part*** says what to load, how it comes (the
+part's first packaging: its tape, pitch and how the part is turned in it), and into which **Lane**: a
+lane is a strip feeder, laid by hand. The lanes offered are those free for it, best first: an empty one (no
+part, or turned off), then one whose part this run no longer needs (said, so it is taken off first); of
+each, those of the part's tape width first, and one of another width says so. A lane holding a part the
+run still needs is never offered. Where the part's stock is kept, **Lot** chooses which of its lots is
+being loaded (the only one is chosen already).
+
+- **Continue**: lay the strip as the lane's strips lie, its first part at the lane's first hole. The lane
+  is set to the part, turned on, its feed count started again (and the holes its vision found forgotten),
+  the chosen lot loaded on it (the lot there before taken off), and the run goes on.
+- **Skip This Part**: its placements are left unplaced, in error ("Skipped: not loaded"), and the run goes
+  on; the end of the run counts them with the errors and the log names each.
+- **Stop** stops the run. Escape and the [x] leave it paused: **Resume** asks again.
+
+With no lane free, the prompt says so: set a feeder up for the part on the Feeders tab, then
+**Continue**; or skip it.
+
+<!-- src: src/tasks/JPJobProcessor.cpp (preFlight, openPendingWorkable, skipPart, next); src/model/JPLaneChoice.cpp; src/app/JPlacerLoadDialog.cpp; src/app/JPlacerJobRun.cpp (askToLoad, run); src/model/JPFeeder.h (isLane, tapeWidth) -->
 
 ## Runs
 

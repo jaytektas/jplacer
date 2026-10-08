@@ -111,6 +111,11 @@ JPJobProcessor::Result JPJobProcessor::next(Failure& failure) {
         m_step = run(m_step);
     } catch (const JobError& e) {
         failure = e.failure;
+        // A part to load is the run asking, not something gone wrong: no Job.Error.
+        if (!failure.loadPartId.empty()) {
+            JLOGC(JPlacerLog::kJob, JLogLevel::Info) << "job: " << failure.message;
+            return Result::Failed;
+        }
         JLOGC(JPlacerLog::kJob, JLogLevel::Warn) << "job: " << failure.message;
         // OpenPnP's Job.Error: its scripts told what went wrong.
         if (m_hooks.event) {
@@ -206,8 +211,7 @@ JPJobProcessor::Step JPJobProcessor::preFlight() {
                     fail(Source::Part, part->id,
                          format("No compatible, loadable nozzle tip found for part %s.", part->id.c_str()));
                 }
-                if (!m_config.findFeeder(part->id, std::nullopt))
-                    fail(Source::Part, part->id, "No compatible, enabled feeder found for part " + part->id);
+                // A part no feeder holds yet is asked for as the run reaches it (load as you go).
                 JobPlacement j;
                 j.board = l;
                 j.boardId = l->id;
@@ -366,8 +370,41 @@ std::vector<size_t> JPJobProcessor::openPendingWorkable() {
             }
         }
     });
-    if (workable.empty() && first) throw *first;
+    if (workable.empty() && first) {
+        // Nothing loaded is left to place: the next part no feeder holds is asked for (load as you go), the
+        // lowest first (tall parts last, out of the nozzle's way), then by name.
+        if (first->failure.source == Source::Part) {
+            std::string next;
+            double nextHeight = 0;
+            main([&] {
+                for (const JobPlacement& j : m_jobPlacements) {
+                    if (j.status != Status::Pending || j.rank >= blocked || m_config.findFeeder(j.partId, std::nullopt)) continue;
+                    if (next.empty() || j.partHeightMm < nextHeight || (j.partHeightMm == nextHeight && j.partId < next)) {
+                        next = j.partId;
+                        nextHeight = j.partHeightMm;
+                    }
+                }
+            });
+            if (!next.empty()) {
+                Failure f;
+                f.source = Source::Part;
+                f.id = next;
+                f.loadPartId = next;
+                f.message = "Load " + next + ": no feeder holds it.";
+                throw JobError { f };
+            }
+        }
+        throw *first;
+    }
     return workable;
+}
+
+void JPJobProcessor::skipPart(const std::string& partId) {
+    for (JobPlacement& j : m_jobPlacements)
+        if (j.partId == partId && j.status == Status::Pending) {
+            j.status = Status::Errored;
+            j.error = "Skipped: not loaded";
+        }
 }
 
 bool JPJobProcessor::fits(size_t job, const std::string& tipId) const {
