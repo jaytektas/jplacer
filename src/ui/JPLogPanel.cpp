@@ -104,6 +104,7 @@ JPLogPanel::JPLogPanel(JSceneGraph& graph) : JContainer(graph), m_model(std::mak
     auto filters = JPUiParts::row(graph);
     label(*filters, "Search");
     m_search = filters->add(std::make_unique<JLineEdit>(graph, ""));
+    m_search->setClearButtonEnabled(true);   // the ✕ takes the filter off
     m_search->setFixedSize(JTextHelper::measureWidth("M") * kSearchColumns, st.controlHeight);
     m_search->onTextChanged.connect([this](const std::string&) { filter(); });
     label(*filters, "Log Level:");

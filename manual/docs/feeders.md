@@ -32,7 +32,7 @@ another build of OpenPnP added, read from its machine.xml) is kept and shown, bu
 say feeding it is not available.
 
 **Search**, at the right, shows only the feeders with the text typed anywhere in a row, whatever its case
-(a regular expression, as on the other tabs).
+(a regular expression, as on the other tabs); its **✕** empties it.
 
 <!-- src: src/ui/JPFeedersPanel.cpp (newFeeder, deleteFeeders, feed, pickFrom, moveToPick, selectionChanged); src/app/JPlacerClassSelectionDialog.cpp; src/model/JPFeeder.cpp (create, classNames, pickLocation, feed, fromXml); src/app/JPlacerMachine.cpp (pickAt, moveToolTo); src/machine/JPCell.cpp (pickAt) -->
 

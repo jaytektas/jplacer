@@ -100,6 +100,7 @@ JPJobPlacementsPanel::JPJobPlacementsPanel(JSceneGraph& graph, JPConfiguration& 
     JLabel* searchLabel = bar->add(std::make_unique<JLabel>(graph, "Search"));
     searchLabel->setFixedSize(JTextHelper::measureWidth("Search") + st.spacing, st.controlHeight);
     m_search = bar->add(std::make_unique<JLineEdit>(graph, ""));
+    m_search->setClearButtonEnabled(true);   // the ✕ takes the filter off
     m_search->setFixedSize(JTextHelper::measureWidth("M") * kSearchColumns, st.controlHeight);
     m_search->onTextChanged.connect([this](const std::string& t) { m_table->setFilter(trimmed(t)); });
     add(std::move(bar));

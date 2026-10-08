@@ -21,7 +21,7 @@ level, the same as the Console's **Log**, and kept for next time.
 
 | | |
 |---|---|
-| Search | Only entries with this text in them, whatever its case. |
+| Search | Only entries with this text in them, whatever its case; its **✕** empties it. |
 | Log Level | Only entries of this level and above. |
 | System Output | Entries from the framework and libraries jplacer uses, as well as jplacer's own. |
 | Clear log (✕) | The entries taken away. |
