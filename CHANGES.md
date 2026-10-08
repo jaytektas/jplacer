@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Strip feeder Auto Setup measures the tape's angle and pitch over the whole strip: with Max Feed Count set, the Next Hole Location is the hole by the strip's last part, not the next hole 4 mm on, so a few hundredths off in one look no longer adds up part after part (0.58 mm by the tenth). Each hole is looked at again from the same place beside it, and the log gives the holes' pitch and the tape's angle.
+
 ## 0.1.31
 
 - Feeders: with the camera moved to a feeder's pick location, editing its Rotation In Tape turns the camera, and the part's footprint on it, to the new angle.
