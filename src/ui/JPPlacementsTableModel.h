@@ -23,7 +23,7 @@ inline namespace jf {
 class JPPlacementsTableModel : public JPTableModel {
 public:
     enum Col { kEnabled, kId, kPart, kSide, kX, kY, kRotation, kType, kPlaced, kStatus, kErrorHandling, kRank,
-               kComments, kColumns };
+               kComments, kVerified, kColumns };
 
     JPPlacementsTableModel(JPConfiguration& config, std::function<const JPJob*()> job, std::vector<Col> shown);
 

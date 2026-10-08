@@ -91,6 +91,9 @@ int main() {
     board.dropUnusedParts();
     for (const JPBoardPart& p : board.parts()) assert(p.field("part") != "R0603-10k");
 
+    // A placement's CAD rotation and its verified mark, kept in the file.
+    board.find("C2")->cadRotation = 90;
+    board.find("C2")->verified = { "operator", "2026-10-08T15:00:00" };
     // The file: every part, its fields, its own part and package, read back as they were.
     const JPBoard back = JPBoard::fromJson(JJson::parse(board.toJson().dump()));
     assert(back.parts().size() == board.parts().size() && back.placements.size() == board.placements.size());
@@ -98,6 +101,8 @@ int main() {
     assert(c2->state == JPBoardPart::State::Local && c2->localPart->id == "Controller/C0603-100n"
            && c2->localPackage && c2->localPackage->id == "Controller/C0603" && c2->field("footprint") == "C0603");
     assert(back.find("C2")->partId == "Controller/C0603-100n" && back.find("U1")->partId == "LM358N");
+    assert(back.find("C2")->cadRotation && *back.find("C2")->cadRotation == 90 && back.find("C2")->verified.by == "operator"
+           && back.find("C2")->verified.when == "2026-10-08T15:00:00" && back.find("U1")->verified.by.empty());
     assert(JPBoard::isJplacerFile("a/b.jpboard") && !JPBoard::isJplacerFile("a/b.board.xml"));
     return 0;
 }

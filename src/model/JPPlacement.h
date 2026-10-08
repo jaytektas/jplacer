@@ -29,6 +29,16 @@ public:
     JPLocation                 location;
     std::string                partId;      // the part it is placed with (its board part's: JPBoard::syncParts)
     std::string                boardPart;   // its board's part (JPBoardPart::key); empty: none yet
+    // The rotation its CAD file gave (DESIGN.md, Verifying placements); the location's is the one placed with
+    // (the footprint's zero rotation and any correction made on the machine added). Empty: not known.
+    std::optional<double>      cadRotation;
+    // Its position and rotation checked on the machine: by whom ("operator"; "check", the looking-down check;
+    // "position", position only) and when; empty `by`: not verified.
+    struct Verified {
+        std::string by;
+        std::string when;
+    };
+    Verified                   verified;
     Type                       type = Type::Placement;
     std::optional<std::string> comments;
     ErrorHandling              errorHandling = ErrorHandling::Default;

@@ -100,6 +100,28 @@ a new feeder is made for it. Right-click for **Set Type**,
 **Set Side**, **Set Placed**, **Set Enabled** and **Set Error Handling**; **Space** turns the chosen
 placement on or off.
 
+### Verifying placements
+
+While the Job tab shows, the chosen placement's footprint is drawn over the head camera's picture as it
+is placed: turned by its rotation, its pads, pin 1's mark and its body (the footprint its board carries for
+its part, else its package's), as OpenPnP's package reticle. Take the camera to the placement (**Move
+Camera To Placement Location**) and look: the footprint should lie on the board's pads.
+
+- **Turn 90°** turns the chosen placement a quarter counter-clockwise, the footprint following: a
+  correction to the CAD file's rotation (which the placement keeps apart, as it came).
+- **Verified, Next** marks the chosen placement verified and takes the camera to the next one shown, facing
+  up, not verified yet.
+
+The **Verified** column (here and on the Boards tab) says whether each was, and when (*Yes*, *Position
+only*). Changing a placement's position, rotation or part takes its mark off: what was checked is no longer
+what is placed.
+
+Importing from the CPL and BOM turns a placement by its footprint's **Zero Rotation** (see
+[Packages](packages.md#the-packages-tabs)), where the library's footprint for its part has one: CAD tools
+disagree about which way 0° faces. The CAD file's rotation is kept with it.
+
+<!-- src: src/ui/JPJobPlacementsPanel.cpp (footprintOf, showChosenFootprint, turnChosen, verifyChosen); src/ui/JPFootprintOverlay.cpp; src/ui/JPPlacementsTableModel.cpp (kVerified, setText, applyPart); src/model/JPPlacement.h (cadRotation, Verified); src/import/JPCplBomImport.cpp (build); src/model/JPBoardImporter.cpp (read); src/app/JPlacerOpenPnpTabs.cpp (showFootprint) -->
+
 The status line shows the placements placed: of the whole job, and of the board chosen.
 
 **Multiple Point Board Location** shows its steps across the top of the Job tab, with **Cancel** and

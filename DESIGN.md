@@ -738,7 +738,9 @@ configurations to check against, never inputs to the design.
       manufacturers' names; footprints as their own entity (land patterns of
       a package, CAD names, zero rotation), carried in board copies. The
       zero rotation is kept, not yet applied to imported rotations.
-   5. *Verifying, revisions, stock*: verified marks, board revisions and
+   5. *Verifying, revisions, stock*: verified marks (done: the Job tab's
+      footprint on the camera, Turn 90°, Verified, Next; CAD rotation kept,
+      footprints' zero rotation applied on import), board revisions and
       switching, stock lots and the ledger, the looking-down check.
    Then the Job and Library workspaces with the board view.
 4. **Feeders and running**: strip lanes and tray feeders first, planner and

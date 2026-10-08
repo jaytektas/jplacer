@@ -46,7 +46,7 @@ JPBoardPlacementsPanel::JPBoardPlacementsPanel(JSceneGraph& graph, JPConfigurati
                 JPPlacementsTableModel::kSide, JPPlacementsTableModel::kX, JPPlacementsTableModel::kY,
                 JPPlacementsTableModel::kRotation, JPPlacementsTableModel::kType,
                 JPPlacementsTableModel::kErrorHandling, JPPlacementsTableModel::kRank,
-                JPPlacementsTableModel::kComments })
+                JPPlacementsTableModel::kComments, JPPlacementsTableModel::kVerified })
     , m_importers(JPBoardImporter::all()) {
     setDirection(JFlexDirection::Column)->setAlignItems(JAlignItems::Stretch);
     const JStyle& st = JStyle::current();

@@ -208,6 +208,7 @@ bool JPCplBomImport::build(const JPConfiguration& config, const std::string& whe
         JPPlacement p;
         p.id = d;
         p.location = JPLocation(JPLengthUnit::Millimeters, x, y, 0, rotation);
+        p.cadRotation = rotation;   // the CAD's, kept apart from the one placed with
         p.side = bottom(cpl.cell(row, I::Side)) ? JPSide::Bottom : JPSide::Top;
         if (fiducial(d)) p.type = JPPlacement::Type::Fiducial;
 
@@ -287,6 +288,17 @@ bool JPCplBomImport::build(const JPConfiguration& config, const std::string& whe
         }
         p.boardPart = key;
         p.partId = out.part(key)->partId();
+        // The one placed with turned by its footprint's zero rotation, where the library's footprint for it
+        // says (CAD tools disagree about which way 0° faces).
+        const JPBoardPart* placed = out.part(key);
+        if (placed->state == JPBoardPart::State::Matched)
+            if (const JPPart* part = config.libraryPartFor(*placed))
+                if (const JPLibraryFootprint* f = config.footprintFor(*placed, *part); f && f->zeroRotationDeg != 0) {
+                    double r = rotation + f->zeroRotationDeg;
+                    while (r > 180) r -= 360;
+                    while (r <= -180) r += 360;
+                    p.location = p.location.derive(std::nullopt, std::nullopt, std::nullopt, r);
+                }
         out.placements.push_back(p);
         ++report.placements;
     }

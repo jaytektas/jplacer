@@ -3,6 +3,8 @@
 
 #include "JPJobPlacementsPanel.h"
 
+#include "common/JPWhen.h"
+
 #include "JPUiParts.h"
 
 #include "model/JPDefinitionChanges.h"
@@ -43,7 +45,7 @@ JPJobPlacementsPanel::JPJobPlacementsPanel(JSceneGraph& graph, JPConfiguration& 
                 JPPlacementsTableModel::kSide, JPPlacementsTableModel::kX, JPPlacementsTableModel::kY,
                 JPPlacementsTableModel::kRotation, JPPlacementsTableModel::kType, JPPlacementsTableModel::kPlaced,
                 JPPlacementsTableModel::kStatus, JPPlacementsTableModel::kErrorHandling, JPPlacementsTableModel::kRank,
-                JPPlacementsTableModel::kComments }) {
+                JPPlacementsTableModel::kComments, JPPlacementsTableModel::kVerified }) {
     setAlignItems(JAlignItems::Stretch);
     setVSizePolicy(JSizePolicyMode::Expanding, 1);
     const JStyle& st = JStyle::current();
@@ -70,6 +72,15 @@ JPJobPlacementsPanel::JPJobPlacementsPanel(JSceneGraph& graph, JPConfiguration& 
     m_cameraNext->onClicked.connect([this] { moveTo(Tool::Camera, true); });
     m_toolTo = tool("Move Tool To Placement Location", "position-nozzle", "Position the tool at the placement's location.");
     m_toolTo->onClicked.connect([this] { moveTo(Tool::Nozzle, false); });
+    bar->add(toolSeparator(graph));
+    m_turn = tool("Turn 90°", "rotate-counterclockwise",
+                  "Turn the chosen placement a quarter counter-clockwise: its footprint, drawn on the camera, follows. A "
+                  "correction to the CAD file's rotation, kept as one.");
+    m_turn->onClicked.connect([this] { turnChosen(); });
+    m_verify = tool("Verified, Next", "accept",
+                    "The chosen placement is where its footprint is drawn on the camera, and turned so: mark it verified, "
+                    "and take the camera to the next placement not verified.");
+    m_verify->onClicked.connect([this] { verifyChosen(); });
     bar->add(toolSeparator(graph));
     m_captureCamera = tool("Capture Camera Placement Location", "capture-camera",
                            "Set the placement's location to the camera's current position.");
@@ -98,8 +109,14 @@ JPJobPlacementsPanel::JPJobPlacementsPanel(JSceneGraph& graph, JPConfiguration& 
         updateActions();
         const auto s = selections();
         if (onPlacementChosen) onPlacementChosen(s.size() == 1 ? s.front() : nullptr);
+        showChosenFootprint();
     });
     m_table->onEditRefused = [](const std::string&) {};
+    // Its footprint on the camera only while the placements are shown.
+    onVisibilityChanged.connect([this](bool shown) {
+        if (shown) showChosenFootprint();
+        else if (showFootprint) showFootprint(nullptr, 0);
+    });
     m_table->onKey = [this](const JKeyEvent& ke) {
         if (ke.key != JKeyEvent::JKey::Space || ke.ctrl || ke.alt) return false;
         const auto chosen = selections();
@@ -220,6 +237,8 @@ void JPJobPlacementsPanel::updateActions() {
     m_cameraNext->setEnabled(facingUp);
     m_toolTo->setEnabled(facingUp);
     m_captureCamera->setEnabled(editDefinition && facingUp);
+    m_turn->setEnabled(facingUp && chosen.front()->type == JPPlacement::Type::Placement);
+    m_verify->setEnabled(facingUp);
     m_captureTool->setEnabled(editDefinition && facingUp);
     m_editFeeder->setEnabled(one && chosen.front()->type == JPPlacement::Type::Placement && m_location
                              && m_location->kind() == JPPlacementsHolderLocation::Kind::Board);
@@ -295,6 +314,60 @@ void JPJobPlacementsPanel::moveTo(Tool tool, bool next) {
     moveTool(tool, m_location->placementLocation(chosen.front()->location));
 }
 
+const JPFootprint* JPJobPlacementsPanel::footprintOf(const JPPlacement& p) const {
+    if (m_location && m_location->kind() == JPPlacementsHolderLocation::Kind::Board && m_location->holder) {
+        const auto* board = static_cast<const JPBoard*>(m_location->holder->definition());
+        if (const JPBoardPart* bp = board->part(p.boardPart); bp && bp->copyFootprint) return &bp->copyFootprint->geometry;
+    }
+    const JPPart* part = m_config.part(p.partId);
+    const JPPackage* k = part ? m_config.package(part->packageId) : nullptr;
+    return k ? &k->footprint : nullptr;
+}
+
+void JPJobPlacementsPanel::showChosenFootprint() {
+    if (!showFootprint) return;
+    const auto chosen = selections();
+    const bool facingUp = chosen.size() == 1 && m_location && chosen.front()->side == m_location->globalSide();
+    const JPFootprint* f = facingUp && chosen.front()->type == JPPlacement::Type::Placement ? footprintOf(*chosen.front()) : nullptr;
+    showFootprint(f, f ? m_location->placementLocation(chosen.front()->location).rotation() : 0.0);
+}
+
+void JPJobPlacementsPanel::turnChosen() {
+    const auto chosen = selections();
+    if (chosen.size() != 1) return;
+    double r = chosen.front()->location.rotation() + 90;
+    while (r > 180) r -= 360;
+    m_model.edit(chosen.front()->id, [r](JPPlacement& p) {
+        p.location = p.location.derive(std::nullopt, std::nullopt, std::nullopt, r);
+        p.verified = {};
+    });
+    m_table->refresh();
+    showChosenFootprint();
+    changed();
+}
+
+void JPJobPlacementsPanel::verifyChosen() {
+    const auto chosen = selections();
+    if (chosen.size() != 1 || !m_location) return;
+    const std::string when = JPWhen::now();
+    m_model.edit(chosen.front()->id, [&when](JPPlacement& p) { p.verified = { "operator", when }; });
+    m_table->refresh();
+    changed();
+    // The next placement shown, facing up, not verified yet.
+    const auto rows = m_table->selectedRows();
+    const int from = rows.empty() ? -1 : m_table->viewIndexOf(rows.front());
+    for (int v = from + 1;; ++v) {
+        const int row = m_table->modelRowAt(v);
+        if (row < 0) return;   // none left after it
+        const JPPlacement* p = m_model.placement(row);
+        if (p && p->verified.by.empty() && p->side == m_location->globalSide() && p->type == JPPlacement::Type::Placement) {
+            m_table->selectRow(row);
+            moveTo(Tool::Camera, false);
+            return;
+        }
+    }
+}
+
 void JPJobPlacementsPanel::capture(Tool tool) {
     const auto chosen = selections();
     if (chosen.empty() || !m_location || !toolLocation) return;
@@ -305,7 +378,10 @@ void JPJobPlacementsPanel::capture(Tool tool) {
     }
     // Where the tool is, on the board, at the board's surface.
     const JPLocation local = m_location->placementLocationInverse(*at).derive(std::nullopt, std::nullopt, 0.0, std::nullopt);
-    m_model.edit(chosen.front()->id, [&local](JPPlacement& p) { p.location = local; });
+    m_model.edit(chosen.front()->id, [&local](JPPlacement& p) {
+        p.location = local;
+        p.verified = {};
+    });
     m_table->refresh();
 }
 

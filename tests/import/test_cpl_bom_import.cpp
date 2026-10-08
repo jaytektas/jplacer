@@ -136,6 +136,8 @@ int main() {
     const JPBoardPart* op = board.part(board.find("U1")->boardPart);
     assert(op->state == JPBoardPart::State::Matched && op->libraryPartId == "LM358DR" && board.find("U1")->partId == "LM358DR");
     assert(config.parts().size() == 1 && report.matched == 1);
+    // The CAD's rotation kept with each.
+    assert(c2->cadRotation && *c2->cadRotation == 90);
     // Placements: positions, sides, a fiducial, the do-not-place one not enabled.
     assert(near(c2->location.x(), 12) && near(c2->location.rotation(), 90) && board.find("U1")->side == JPSide::Bottom);
     assert(board.find("FID1")->type == JPPlacement::Type::Fiducial && !board.find("J1")->enabled && c1->enabled);
@@ -147,6 +149,23 @@ int main() {
         JPCplBomImport::Report r2;
         assert(cplWins.build(config, "t", b2, r2, error));
         assert(b2.find("R1")->boardPart == b2.find("R2")->boardPart && b2.part(b2.find("R1")->boardPart)->field("value") == "10K 1%");
+    }
+    // A footprint whose zero rotation is a quarter: the one placed with turned by it, the CAD's kept.
+    {
+        auto pkg = std::make_shared<JPPackage>();
+        pkg->id = "SOIC-8";
+        config.addPackage(pkg);
+        config.part("LM358DR")->packageId = "SOIC-8";
+        auto f = std::make_shared<JPLibraryFootprint>();
+        f->name = "SOIC-8";
+        f->packageId = "SOIC-8";
+        f->zeroRotationDeg = -90;
+        config.addFootprint(f);
+        JPBoard turned;
+        JPCplBomImport::Report rt;
+        assert(imp.build(config, "t", turned, rt, error));
+        const JPPlacement* u1 = turned.find("U1");
+        assert(u1->cadRotation && *u1->cadRotation == 180 && std::abs(u1->location.rotation() - 90) < 1e-9);
     }
     // Create Missing Parts: the board's own, its height from the file.
     {

@@ -72,6 +72,11 @@ JPPlacement JPPlacement::fromJson(const JJson& j) {
     p.location = JPLocationJson::from(j["location"]);
     if (j["comments"].isString()) p.comments = j["comments"].str();
     if (j["errorHandling"].isString()) p.errorHandling = errorHandlingFrom(j["errorHandling"].str());
+    if (j["cadRotation"].isNumber()) p.cadRotation = j["cadRotation"].number();
+    if (j["verified"]["by"].isString()) {
+        p.verified.by = j["verified"]["by"].str();
+        if (j["verified"]["when"].isString()) p.verified.when = j["verified"]["when"].str();
+    }
     return p;
 }
 
@@ -86,6 +91,13 @@ JJson JPPlacement::toJson() const {
     j["location"] = JPLocationJson::to(location);
     if (comments) j["comments"] = *comments;
     if (errorHandling != ErrorHandling::Default) j["errorHandling"] = errorHandlingName(errorHandling);
+    if (cadRotation) j["cadRotation"] = *cadRotation;
+    if (!verified.by.empty()) {
+        JJson v = JJson::object();
+        v["by"] = verified.by;
+        v["when"] = verified.when;
+        j["verified"] = v;
+    }
     return j;
 }
 

@@ -68,6 +68,9 @@ bool JPBoardImporter::read(const std::vector<std::string>& files, const std::vec
     }
     try {
         parse(files, options, config, out);
+        // The rotation each was given, kept apart from the one placed with (corrections on the machine).
+        for (JPPlacement& p : out.placements)
+            if (!p.cadRotation) p.cadRotation = p.location.rotation();
         return true;
     } catch (const std::exception& e) {
         error = e.what();

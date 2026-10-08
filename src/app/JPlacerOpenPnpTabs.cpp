@@ -65,6 +65,7 @@ namespace {
 constexpr double kSplit = 0.5;   // a table's share before its divider is moved
 // The cameras' overlay for a package's footprint (OpenPnP's reticle key).
 constexpr const char* kFootprintOverlay = "PackageVisionWizard";
+constexpr const char* kPlacementFootprint = "PlacementFootprint";   // the Job tab's chosen placement, as placed
 // The camera within this of a place is there (mm).
 constexpr double kAtLocationMm = 0.001;
 }
@@ -159,6 +160,10 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_jobPanel = std::make_unique<JPJobPanel>(graph, job.configuration(), [this] { return &m_job.job(); },
                                               JSettings::instance().get<double>(JPlacerSettings::kJobSplit, kSplit));
     m_jobPanel->openMenu = JPlacerMenuOpener::from(m_window, m_jobPanel.get());
+    // The chosen placement's footprint on the head camera, as it is placed (the Job tab's).
+    m_jobPanel->placements().showFootprint = [this](const JPFootprint* f, double rotationDeg) {
+        m_machine.setCameraOverlay(kPlacementFootprint, f ? JPFootprintOverlay::of(*f, rotationDeg) : nullptr);
+    };
     m_jobPanel->placements().model().openPartPicker = [this](JPBoard& board, const std::string& id,
                                                              std::function<void(const JPPartChoice&)> chosen) {
         m_window.openModal<JPlacerPartPickerDialog>(m_job.configuration(), board, id, std::move(chosen));
@@ -1068,6 +1073,7 @@ JPlacerOpenPnpTabs::~JPlacerOpenPnpTabs() {
     JPlacerSettings::save();
     m_job.unwatch(m_watch);
     m_machine.setCameraOverlay(kFootprintOverlay, nullptr);
+    m_machine.setCameraOverlay(kPlacementFootprint, nullptr);
     m_layout.remove(m_partsDock.get());
     m_partsDock->setContent(nullptr);
     m_layout.remove(m_packagesDock.get());

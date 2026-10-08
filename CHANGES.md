@@ -10,6 +10,12 @@ notes.
 
 ## Unreleased
 
+- The Job tab draws the chosen placement's footprint on the head camera as it is placed (turned by its
+  rotation), as OpenPnP's package reticle; Turn 90° corrects a placement's rotation and Verified, Next marks it
+  checked and goes on to the next. A Verified column shows which are; changing a placement takes its mark off.
+- Importing from the CPL and BOM turns placements by their footprint's zero rotation and keeps the CAD file's
+  rotation with each.
+
 - Footprints are the library's own: land patterns of a package, several to one, each with the names CAD files
   give it, its zero rotation and its pads, on the Packages tab's new Footprints page (made from the package's
   footprint, or imported from KiCad). A board's footprint name finds its footprint and through it the package;

@@ -7,20 +7,27 @@
 
 #include <j/core/JStyle.h>
 
+#include <cmath>
 #include <vector>
 
 inline namespace jf {
 
-JPCameraView::Overlay JPFootprintOverlay::of(const JPFootprint& footprint) {
-    return [f = footprint](JVectorCanvas& vg, const JPReticle::Place& place, float line) {
+JPCameraView::Overlay JPFootprintOverlay::of(const JPFootprint& footprint, double rotationDeg, bool mirrored) {
+    const double a = rotationDeg * M_PI / 180.0, ca = std::cos(a), sa = std::sin(a);
+    return [f = footprint, ca, sa, mirrored, turned = rotationDeg != 0 || mirrored](JVectorCanvas& vg,
+                                                                                    const JPReticle::Place& place, float line) {
         const double mm = JPLength(1, f.units).convertToUnits(JPLengthUnit::Millimeters).value();
         const uint8_t* c = Colors::Warning;
         const JPaint paint = JPaint::solid(rgb(c[0], c[1], c[2]));
-        for (const JPFootprint::Outline& o : f.padsOutlines()) {
+        std::vector<JPFootprint::Outline> outlines = f.padsOutlines();
+        // As placed, its body too (the package's alone shows only its pads, as OpenPnP's does).
+        if (turned && f.bodyWidth > 0 && f.bodyHeight > 0) outlines.push_back(f.bodyOutline());
+        for (const JPFootprint::Outline& o : outlines) {
             std::vector<JVectorCanvas::JVec2> screen;
             for (const JPFootprint::Point& p : o) {
+                const double x = (mirrored ? -p.x : p.x) * mm, y = p.y * mm;
                 float sx, sy;
-                if (!place(p.x * mm, p.y * mm, sx, sy)) break;
+                if (!place(x * ca - y * sa, x * sa + y * ca, sx, sy)) break;
                 screen.push_back({ sx, sy });
             }
             if (screen.size() == o.size()) vg.strokePolyline(screen, line, paint, true);

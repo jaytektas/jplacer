@@ -42,6 +42,9 @@ public:
     // Where a tool is now (machine millimetres), and taking it to a place at safe Z.
     std::function<std::optional<JPLocation>(Tool)> toolLocation;
     std::function<void(Tool, const JPLocation&)> moveTool;
+    // The chosen placement's footprint drawn over the head camera's picture as it is placed (turned by
+    // `rotationDeg`), or none drawn (null): OpenPnP's PackageReticle, and what Verified, Next checks by.
+    std::function<void(const JPFootprint* footprint, double rotationDeg)> showFootprint;
     // The placements placed, of all and of the board shown (the status line).
     std::function<void(int placed, int total, int boardPlaced, int boardTotal)> onCompletion;
 
@@ -88,6 +91,15 @@ private:
     JPIconButton*                       m_captureCamera = nullptr;
     JPIconButton*                       m_captureTool = nullptr;
     JPIconButton*                       m_editFeeder = nullptr;
+    JPIconButton*                       m_turn = nullptr;
+    JPIconButton*                       m_verify = nullptr;
+    // The chosen placement's footprint: its board part's (the footprint carried for it), else its part's package's.
+    const JPFootprint* footprintOf(const JPPlacement& p) const;
+    void showChosenFootprint();
+    // The chosen placement turned a quarter (its correction, kept apart from the CAD's rotation).
+    void turnChosen();
+    // The chosen placement marked verified by the operator; the camera to the next not verified.
+    void verifyChosen();
     std::unique_ptr<JMenu>              m_menu;
     std::vector<std::unique_ptr<JMenu>> m_subMenus;
     JMenuItem*                          m_setType = nullptr;

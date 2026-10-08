@@ -94,6 +94,12 @@ JPTableModel::Column JPPlacementsTableModel::column(int c) const {
         case kX:        col.name = "X"; col.decimalAligned = true; break;
         case kY:        col.name = "Y"; col.decimalAligned = true; break;
         case kRotation: col.name = "Rot."; col.decimalAligned = true; break;
+        case kVerified:
+            col.name = "Verified";
+            col.align = Align::Left;
+            col.tooltip = "Whether its position and rotation were checked on the machine, and by whom: the camera over it, "
+                          "its footprint drawn as placed (the Job tab's Verified, Next)";
+            break;
         case kType:     col.name = "Type"; col.kind = Kind::Choice; break;
         case kPlaced:   col.name = "Placed"; col.kind = Kind::Boolean; break;
         case kStatus:   col.name = "Status"; break;
@@ -187,6 +193,11 @@ std::string JPPlacementsTableModel::text(int row, int c) const {
         case kX:    return JPLengthCell::text(p->location.lengthX(), true);
         case kY:    return JPLengthCell::text(p->location.lengthY(), true);
         case kRotation: return rotationText(p->location.rotation());
+        case kVerified:
+            if (p->verified.by.empty()) return "";
+            return (p->verified.by == "operator" ? std::string("Yes") : p->verified.by == "position" ? std::string("Position only")
+                                                                     : "By the " + p->verified.by)
+                 + (p->verified.when.empty() ? std::string() : " (" + JPWhen::ago(p->verified.when) + ")");
         case kType: return JPPlacement::typeName(p->type);
         case kErrorHandling: return JPPlacement::errorHandlingName(p->errorHandling);
         case kRank: return std::to_string(p->rank);
@@ -260,7 +271,7 @@ bool JPPlacementsTableModel::editable(int row, int c) const {
     if (isPseudo(row) || m_onlyEnabled) return col == kEnabled;
     // A job's: everything for a board used once straight in it, else its own on/off, placed and error handling.
     if (m_location && !m_editDefinition) return col == kEnabled || col == kPlaced || col == kErrorHandling;
-    return col != kId && col != kStatus;
+    return col != kId && col != kStatus && col != kVerified;
 }
 
 std::vector<const JPPart*> JPPlacementsTableModel::partChoices() const {
@@ -331,7 +342,10 @@ bool JPPlacementsTableModel::setText(int row, int c, const std::string& text, st
             if (!length) return false;
             const JPLocation l = p->location.withField(m_shown[size_t(c)] == kX ? JPLocation::Field::X : JPLocation::Field::Y,
                                                        *length, true);
-            edit(id, [&l](JPPlacement& q) { q.location = l; });
+            edit(id, [&l](JPPlacement& q) {
+                q.location = l;
+                q.verified = {};   // where it is, changed: not what was checked
+            });
             return true;
         }
         case kRotation: {
@@ -341,7 +355,10 @@ bool JPPlacementsTableModel::setText(int row, int c, const std::string& text, st
             while (end && *end && std::isspace(uint8_t(*end))) ++end;
             if (t.empty() || !end || *end) return false;
             const JPLocation l = p->location.derive(std::nullopt, std::nullopt, std::nullopt, r);
-            edit(id, [&l](JPPlacement& q) { q.location = l; });
+            edit(id, [&l](JPPlacement& q) {
+                q.location = l;
+                q.verified = {};
+            });
             return true;
         }
         case kRank: {
@@ -417,6 +434,7 @@ void JPPlacementsTableModel::applyPart(JPBoard* board, const std::string& placem
     const std::string partId = bp->partId();
     for (const std::string& id : ids)
         edit(id, [&key, &partId](JPPlacement& q) {
+            if (q.partId != partId) q.verified = {};   // another part: another footprint, not what was checked
             q.boardPart = key;
             q.partId = partId;
         });
