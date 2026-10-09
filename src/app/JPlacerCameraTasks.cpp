@@ -223,29 +223,34 @@ void JPlacerCameraTasks::calibrate(JPCameraPanel& camera, std::function<void(boo
     }
     JPCameraFeed* feed = &camera.feed();
     const JPHeadConfig h = *head(feed->config());
-    // Asked to, or no homing mark yet (a new machine): calibrated over the mark it is over now, of a size it finds.
-    const bool hasMark = !here && h.homingFiducial && h.homingFiducialDiameter > 0;
+    // Over the head's calibration rig's primary mark, as OpenPnP calibrates (its height is the mark's: the homing
+    // mark's Z is not one), else the homing mark. Asked to, or neither yet (a new machine): over the mark it is
+    // over now, of a size it finds.
+    const bool rig = h.rigPrimary && h.rigPrimaryDiameter > 0;
+    const std::optional<JPMachineLocation> mark = rig ? h.rigPrimary : h.homingFiducial;
+    const double markDiameter = rig ? h.rigPrimaryDiameter : h.homingFiducialDiameter;
+    const bool hasMark = !here && mark && markDiameter > 0;
     const std::string cameraId = feed->config().id;
     auto result = std::make_shared<JPCameraCalibration>();
     auto finds = showFinds(camera);
-    run(camera, "Calibrating " + feed->config().name, [this, feed, h, hasMark, result, finds](std::string& words, const auto& progress) {
+    run(camera, "Calibrating " + feed->config().name, [this, feed, h, rig, mark, markDiameter, hasMark, result, finds](std::string& words,
+                                                                                                             const auto& progress) {
         // Over the mark first, as near as the camera's offset on the head says.
         const JPMountConfig& m = feed->config().mount;
         if (hasMark) {
-            progress("moving over the homing mark");
-            if (!m_cell.moveAxesAndWait({ { m.axisX, h.homingFiducial->x - m.offsetX },
-                                          { m.axisY, h.homingFiducial->y - m.offsetY } }, kTaskSpeed, words))
+            progress(rig ? "moving over the calibration rig's primary mark" : "moving over the homing mark");
+            if (!m_cell.moveAxesAndWait({ { m.axisX, mark->x - m.offsetX }, { m.axisY, mark->y - m.offsetY } }, kTaskSpeed, words))
                 return false;
         }
         JPCameraCalibrator::Options o;
-        o.markDiameterMm = hasMark ? h.homingFiducialDiameter : 0;
-        o.markZ = h.homingFiducial ? h.homingFiducial->z : 0;
+        o.markDiameterMm = hasMark ? markDiameter : 0;
+        o.markZ = mark ? mark->z : 0;
         o.speed = kTaskSpeed;
         o.calibrating = feed->config().calibrating;
         o.found = finds;
         // Again over the secondary mark, at another height: a second pass.
         const bool twoPasses = hasMark && o.calibrating.twoHeights && h.rigSecondary
-                            && std::abs(h.rigSecondary->z - h.homingFiducial->z) >= kLeastHeightGapMm;
+                            && std::abs(h.rigSecondary->z - mark->z) >= kLeastHeightGapMm;
         if (twoPasses) o.pass = "pass 1 of 2";
         if (feed->config().autoTuneCalibrating) {
             progress("Auto-Tune over the mark");

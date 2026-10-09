@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- A head camera is calibrated over the head's calibration rig's primary mark, at that mark's height, as OpenPnP does. It was calibrated over the homing mark and took the homing mark's Z (often 0, as it is not used) as the calibration's height, so a camera calibrated at two heights had the wrong distance between them. Calibrate the head camera again.
+
 ## 0.1.32
 
 - Strip feeder Auto Setup follows the holes down the strip to the one by its last part (Max Feed Count) and makes that the Last Hole Location. The pick pitch and the tape's angle come from the line between the two holes, so from holes 4 mm apart a few hundredths off in one look went into every part (0.065 mm was 0.58 mm by the tenth); across the strip it is shared among all its holes. The log gives the holes' pitch and the tape's angle, and warns when there is no Max Feed Count to follow.

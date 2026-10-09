@@ -722,7 +722,9 @@ shows each find as it comes: the picture with a green circle and cross where
 the mark (or, for a camera looking up, the nozzle's tip) was found, the size it was found, and which move of
 how many ("measuring, move 14 of 38"), so a wrong find shows at once.
 
-1. The camera moves over the homing mark (when there is one).
+1. The camera moves over the head's calibration rig's primary mark, as OpenPnP calibrates (Machine Setup, the
+   head's Calibration Rig), and the calibration is at that mark's height; without one, over the homing mark at its
+   height.
 2. It finds the mark at whatever size it appears (the scale is not known yet), checking that its edge
    is round nearly all the way round. Neither the mark's diameter nor the camera's rough scale known, the
    head is first moved a little along X, twice as far each time, until the mark moves clearly in the
@@ -755,7 +757,7 @@ that size.
 <!-- src: src/tasks/JPCameraCalibrator.cpp; src/vision/JPCalibrationFit.cpp (fitWithLens); src/common/JPLens.h; src/tasks/JPCameraLook.cpp (calibration); src/machine/JPCameraConfig.h (calibrationFor, keepCalibration); src/app/JPlacerCameraTasks.cpp (calibrate, notReady, kTaskSpeed, run); src/ui/JPCameraPanel.cpp (setBusy, the note, refreshStraightening, m_cancelTask); src/ui/JPCameraView.cpp (errorCross, setTaskUnderway); src/tasks/JPCameraCalibrator.h (pass); src/app/JPlacerMachine.cpp (~JPlacerMachine); src/machine/JPCell.cpp (setCancelled, waitFor, moveAxesAndWait) -->
 
 When the head has a **secondary calibration mark** (Machine Setup, the head's Calibration Rig, brought
-across from OpenPnP's calibration rig) at least 1 mm higher or lower than the homing mark, the camera is
+across from OpenPnP's calibration rig) at least 1 mm higher or lower than the primary mark, the camera is
 measured again over it. A camera's scale goes as one over its distance from what it looks at, so the two
 scales give where the camera's centre of projection is, its focal length, its field of view in degrees, and
 the scale at any height; the camera's Advanced Calibration tab shows them. Two scales less than 0.1% apart
