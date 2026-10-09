@@ -8,7 +8,6 @@
 #include "pipeline/JPStageUtil.h"
 #include "pipeline/JPStraightPicture.h"
 #include "tasks/JPFeederPipelines.h"
-#include "tasks/JPStripHoleMeasure.h"
 #include "tasks/JPStripHoles.h"
 #include "ui/JPCameraView.h"
 
@@ -36,11 +35,24 @@ constexpr int kPreviewEveryMs = 400, kPreviewShownMs = 600;
 constexpr int kCompleteMs = 1500;
 // Parts in tape are a multiple of 2 mm apart.
 constexpr double kPartPitchStepMm = 2.0;
-// EIA-481's sprocket hole pitch, and half it: where a part between two holes sits from them.
-constexpr double kHolePitchMm = 4.0, kHalfHoleMm = 2.0;
+// Half EIA-481's 4 mm hole pitch: where a part between two holes sits from them.
+constexpr double kHalfHoleMm = 2.0;
 // OpenPnP's showHoles colours (BGR): the lines orange, the best yellow, the holes on it blue, the two nearest green.
 const cv::Scalar kLineColour(0, 200, 255), kBestColour(0, 255, 255), kHoleColour(255, 0, 0), kNearColour(0, 255, 0);
 const cv::Scalar kHoleCentreColour(0, 255, 255), kNearCentreColour(255, 0, 255);
+
+// The holes on the line (machine places), nearest the part first.
+std::vector<JPLocation> holesOf(const JPJobMachine::SeenCircles& seen, double tapeWidthMm) {
+    std::vector<JPStripHoles::Circle> circles;
+    for (const auto& c : seen.circles) circles.push_back({ c.x, c.y, c.diameter });
+    const JPStripHoles::Result r = JPStripHoles::find(circles, { seen.centreX, seen.centreY }, seen.pixelsPerMm, tapeWidthMm);
+    std::vector<JPLocation> out;
+    for (const JPStripHoles::Circle& c : r.inLine) {
+        double x = 0, y = 0;
+        if (seen.toMachine && seen.toMachine(c.x, c.y, x, y)) out.emplace_back(kMm, x, y, 0, 0);
+    }
+    return out;
+}
 
 } // namespace
 
@@ -165,7 +177,7 @@ void JPlacerStripAutoSetup::check(const JPLocation& at) {
         std::string why;
         JPJobMachine::SeenCircles seen;
         if (!machine.positionCamera(at, why) || !machine.seeCircles(at, *pipeline, seen, why)) return failed(why);
-        const std::vector<JPLocation> holes = JPStripHoleMeasure::holesOf(seen, tapeWidthMm);
+        const std::vector<JPLocation> holes = holesOf(seen, tapeWidthMm);
         if (holes.empty()) return failed("No hole found at selected location");
         if (first) {
             onMain([&] {
@@ -184,20 +196,6 @@ void JPlacerStripAutoSetup::check(const JPLocation& at) {
         const long steps =
             std::lround(std::hypot(m_secondPart.x() - m_firstPart.x(), m_secondPart.y() - m_firstPart.y()) / kPartPitchStepMm);
         if (steps == 0) return failed("The same part was selected both times");
-        int parts = 0;
-        onMain([&] {
-            if (const JPFeeder* f = m_job.configuration().feeder(m_feederId)) parts = f->number("max-feed-count");
-        });
-        std::string note;
-        JPStripHoleMeasure::measure(machine, *pipeline, tapeWidthMm, m_firstPart, parts, kPartPitchStepMm * double(steps), ref1, ref2, note);
-        if (!note.empty()) JLOGC(JPlacerLog::kCamera, JLogLevel::Warn) << "Auto Setup: " << note;
-        {
-            const double apart = std::hypot(ref2.x() - ref1.x(), ref2.y() - ref1.y());
-            const double holes = std::max(1.0, std::round(apart / kHolePitchMm));
-            JLOGC(JPlacerLog::kCamera, JLogLevel::Info)
-                << "Auto Setup: holes " << holes << " apart, " << apart / holes << " mm each; the tape at "
-                << std::atan2(ref2.y() - ref1.y(), ref2.x() - ref1.x()) * 180 / M_PI << "°";
-        }
         std::optional<JPLocation> pick;
         onMain([&] {
             JPFeeder* f = m_job.configuration().feeder(m_feederId);
