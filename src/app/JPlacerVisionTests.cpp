@@ -5,6 +5,7 @@
 
 #include "camera/JPCameraFeed.h"
 #include "tasks/JPAlignRequests.h"
+#include "tasks/JPCameraLook.h"
 #include "tasks/JPFiducialLocator.h"
 #include "ui/JPCameraView.h"
 
@@ -131,13 +132,16 @@ void JPlacerVisionTests::align(const std::string& settingsId, const JPVisionForm
             if (!machine.moveNozzle(nozzleId, { r.cameraX - ox, r.cameraY - oy, r.partZ, r.nozzleAngle + turn }, 1.0, false, why))
                 return false;
         }
-        // What it looks like now, the result over it.
-        onMain([&] {
-            JPCameraFeed* feed = m_machine.upCameraFeed();
-            JPFrame frame;
-            if (JPCameraView* view = m_machine.cameraViewOf(feed); view && feed && feed->latest(frame, 0))
-                view->showPicture(frame, text, kResultShownMs);
-        });
+        // What it looks like now, the result over it: a fresh picture once the camera has settled (OpenPnP's
+        // lightSettleAndCapture), not whatever picture came last.
+        JPCameraFeed* feed = nullptr;
+        onMain([&] { feed = m_machine.upCameraFeed(); });
+        JPFrame frame;
+        std::string unsettled;
+        if (feed && JPCameraLook::settled(*feed, frame, unsettled))
+            onMain([&] {
+                if (JPCameraView* view = m_machine.cameraViewOf(feed)) view->showPicture(frame, text, kResultShownMs);
+            });
         if (!detectOffsets) return true;
         // The part centred by hand less where bottom vision centres it: the settings' offsets, added to theirs.
         const std::optional<JPLocation> after = nozzleAt();

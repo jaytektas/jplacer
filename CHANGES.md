@@ -13,7 +13,7 @@ notes.
 - A job no longer flips between the cameras' tabs at every look: as in OpenPnP, a camera's tab comes to the front only to show a vision result, and only when the camera has Auto Camera View ticked.
 - Recycle on the Jog panel comes back as soon as a feeder can take the part back (the feeder enabled again, say); before, it stayed greyed out until the nozzle's part changed.
 - jplacer no longer freezes when Test Alignment (or another machine task, Start or Step) is clicked while a machine task is still under way: the status line says the machine is busy, and the click is not acted on.
-- Test Alignment's Center After Test moves the part straight to the camera's centre at the height it was seen at, in focus and without lifting it, as OpenPnP does; before, it went up to safe height, out of focus and seen off to one side.
+- Test Alignment's Center After Test moves the part straight to the camera's centre at the height it was seen at, in focus and without lifting it, and shows a fresh picture once the camera has settled, as OpenPnP does; before, it went up to safe height, out of focus and seen off to one side.
 - Much faster screen: jplacer had been built with an unoptimised (debug) copy of its drawing code, which made the whole window sluggish (dragging pipeline sliders, scrolling); it now uses the optimised one, and a release refuses to build without it.
 - A nozzle tip is not calibrated while its nozzle holds a part ("Cannot calibrate nozzle tip with part on nozzle …"), as in OpenPnP: before, its runout was measured on the part, and after homing too.
 
