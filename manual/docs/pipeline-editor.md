@@ -25,9 +25,9 @@ tab, a part's or a package's): see [Vision](vision.md#the-pipeline).
 
 The editor opens in a window of its own, nine tenths of the main window's size. The pipeline is run once
 as it opens, and again after every change, so the result of each stage is always the current one. Its
-camera is kept running while the editor is open, on screen or not.
+camera runs, as every camera does while the machine is on, its picture on screen or not.
 
-<!-- src: src/app/JPlacerPipelineEditorDialog.cpp; src/ui/JPPipelineEditor.cpp (process); src/app/JPlacerPipelines.cpp (useCamera); src/ui/JPCameraPanel.cpp (keepRunningFor) -->
+<!-- src: src/app/JPlacerPipelineEditorDialog.cpp; src/ui/JPPipelineEditor.cpp (process); src/app/JPlacerPipelines.cpp (useCamera); src/ui/JPCameraPanel.cpp (setPowered) -->
 
 ## The picture it is given
 
