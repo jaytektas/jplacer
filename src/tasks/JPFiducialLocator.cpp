@@ -30,6 +30,9 @@ constexpr double kStandInFiducialMm = 1.0;
 
 JPLocation mm(const JPLocation& l) { return l.convertToUnits(JPLengthUnit::Millimeters); }
 
+// Fiducials' heights differing by more than this are said not to lie flat (a measurement is good to a few hundredths).
+constexpr double kBoardFlatMm = 0.3;
+
 double distance(const JPLocation& a, const JPLocation& b) {
     const JPLocation x = mm(a), y = mm(b);
     return std::hypot(x.x() - y.x(), x.y() - y.y());
@@ -199,11 +202,12 @@ JPFiducialLocator::Result JPFiducialLocator::locate(JPConfiguration& config, JPJ
                                                  << f.measured.x() << ", " << f.measured.y();
     }
 
-    // Measure Board Z?: each board's or panel's height, at its first fiducial.
+    // Measure Board Z?: each board's or panel's height, the mean of its fiducials' (each found to the whole pixel,
+    // perhaps, so each a little off another way).
     std::map<const JPPlacementsHolderLocation*, double> heights;
-    if (tolerances.vision.measureBoardZ)
+    if (tolerances.vision.measureBoardZ) {
+        std::map<const JPPlacementsHolderLocation*, std::vector<double>> each;
         for (const Fiducial& f : fiducials) {
-            if (heights.count(f.location)) continue;
             double z = 0;
             std::string why;
             if (!machine.fiducialHeight(f.measured, f.look, z, why)) {
@@ -211,10 +215,24 @@ JPFiducialLocator::Result JPFiducialLocator::locate(JPConfiguration& config, JPJ
                 r.message = "Unable to measure the height of " + f.location->uniqueId() + " at " + f.placement.id + ": " + why;
                 return r;
             }
-            heights[f.location] = z;
-            JLOGC(JPlacerLog::kJob, JLogLevel::Info) << f.location->uniqueId() << " is at Z " << z << " (measured at "
-                                                     << f.placement.id << ")";
+            each[f.location].push_back(z);
         }
+        for (const auto& [location, zs] : each) {
+            double sum = 0, low = zs.front(), high = zs.front();
+            for (const double z : zs) {
+                sum += z;
+                low = std::min(low, z);
+                high = std::max(high, z);
+            }
+            heights[location] = sum / double(zs.size());
+            JLOGC(JPlacerLog::kJob, JLogLevel::Info) << location->uniqueId() << " is at Z " << heights[location] << " (its "
+                                                     << zs.size() << " fiducials from " << low << " to " << high << ")";
+            if (high - low > kBoardFlatMm)
+                JLOGC(JPlacerLog::kJob, JLogLevel::Warn)
+                    << location->uniqueId() << ": its fiducials' heights differ by " << high - low
+                    << " mm: the board is not flat or not level, or a fiducial was found where it is not; its Z is their mean";
+        }
+    }
 
     // Each set where its fiducials say, within the tolerances.
     main([&] {

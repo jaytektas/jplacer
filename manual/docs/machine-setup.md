@@ -69,10 +69,11 @@ none), **Rotate parts prior to vision?**, **Max. vision passes**, **Max. linear 
 **Average Matches?** (the passes after the first averaged, with three or more) and **Max. Distance (old
 pipelines only)** (mm, for a pipeline without a maxDistance stage). jplacer's own **Measure Board Z?** (off to
 begin with; OpenPnP keeps the Z a board was given) has a fiducial check set each board's or panel's Z as well, as
-OpenPnP's Estimate Object Z measures a height: the head camera looks at the first fiducial found from 3 mm either
-side of it, along X and then along Y, and how far it seems to move against how far the camera moved gives the
-camera's scale there, and so, by its calibration at two heights, how far away the board is (the log says the
-height found). A camera calibrated at one height cannot tell heights, and the check then fails, saying so.
+OpenPnP's Estimate Object Z measures a height: the head camera looks at each fiducial found from 8 mm either side
+of it, along X and then along Y, and how far it seems to move against how far the camera moved gives the camera's
+scale there, and so, by its calibration at two heights, how far away it is; the board's Z is the mean of its
+fiducials' (the log says each, and warns when they differ by more than 0.3 mm: the board not flat or level, or a
+fiducial found where it is not). A camera calibrated at one height cannot tell heights, and the check then fails, saying so.
 
 Fiducials are found by the vision settings' OpenPnP pipeline (see [Vision](vision.md#the-pipeline)), as
 OpenPnP finds them: the "results" stage's key point nearest where the fiducial should be, shown on the camera's

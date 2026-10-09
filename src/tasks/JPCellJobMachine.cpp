@@ -37,9 +37,10 @@ constexpr int kPartTuneWaitMs = 15000;
 constexpr int kShownPipelineMs = 1500;
 // A part height found by focusing no more than this is the nozzle tip's own (OpenPnP's 0.001 mm).
 constexpr double kLeastFocusedHeightMm = 0.001;
-// How far either side of a fiducial the camera looks from to tell its height: far enough that the scale shows
-// (a hundredth of it is 0.06 mm over the 6 mm between), near enough to stay well inside the picture.
-constexpr double kHeightLookAsideMm = 3.0;
+// How far either side of a fiducial the camera looks from to tell its height: far enough that a fiducial found to
+// the whole pixel still shows the scale (a pixel, 0.04 mm at 25 px/mm, is a quarter of a hundredth over the 16 mm
+// between), near enough to stay inside the picture.
+constexpr double kHeightLookAsideMm = 8.0;
 
 using Where = std::array<std::optional<double>, 4>;
 
@@ -693,8 +694,9 @@ bool JPCellJobMachine::fiducialHeight(const JPLocation& at, const FiducialLook& 
         ratio += (1 - (found[1][i] - found[0][i]) / (2 * d)) / 2;
     }
     z = cal.heightAt(cal.scale() * ratio);
-    JLOGC(JPlacerLog::kJob, JLogLevel::Info) << "fiducial at " << fx << ", " << fy << " seen at " << 100 * (ratio - 1)
-                                             << "% of " << feed->config().name << "'s scale at Z " << cal.z << ": it lies at Z " << z;
+    JLOGC(JPlacerLog::kJob, JLogLevel::Info) << "fiducial at " << fx << ", " << fy << " seen " << 100 * std::abs(ratio - 1) << "% "
+                                             << (ratio < 1 ? "under " : "over ") << feed->config().name << "'s scale at Z "
+                                             << cal.z << ": it lies at Z " << z;
     return true;
 }
 
