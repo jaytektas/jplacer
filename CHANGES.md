@@ -20,6 +20,7 @@ notes.
 - The Jog panel's nozzle list says which part each nozzle holds, as OpenPnP's does.
 - Dragging a camera property's slider (brightness, exposure, ...) sets it on the running camera as it moves: before, every step closed and opened the camera again ("starting TOP_CAMERA") and made the other panels afresh, so the Jog panel jumped about.
 - A camera's Auto-Tune icon works with a job paused, not only with none running.
+- A small jog no longer lifts a nozzle to safe Z after a calibration or task left it low (Unsafe Z Roaming had counted from where an earlier jog had left it, elsewhere).
 - A strip feeder's last parts by the machine's edge are no longer taken for the end of the strip: where the camera cannot reach the spot beside a part it looks at the hole from, it looks straight down on the hole, as OpenPnP does.
 - Every camera opens when the machine connects and keeps running, shown or not, as OpenPnP's do, until the machine is off or jplacer quits; switching between camera tabs shows each at once instead of "offline" while it opened again. A camera that drops off its bus is still opened again by itself.
 
