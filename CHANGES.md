@@ -10,22 +10,16 @@ notes.
 
 ## Unreleased
 
+## 0.1.35
+
 - Drag and Neoden 4 feeders find their template image as OpenPnP does: OpenCV's template matching on the picture in colour (straightened where the camera is calibrated), the best place to the pixel; jplacer's own grey matcher is gone. Like OpenPnP, a poor match is no longer turned away. Camera auto focus and settling now hand on the settled picture itself rather than the next one after it.
-
 - Bottom vision always finds parts with their vision settings' pipeline, as OpenPnP does; Find parts with and jplacer's own part finder are gone. A machine set up in jplacer that used jplacer's finder now uses the bottom vision settings' pipeline, so check it finds your parts (Machine Setup, Bottom Vision Settings, its tests). Each bottom vision look waits for the camera to settle once, not twice.
-
 - Visual homing, Visual Test, nozzle tip calibration and camera calibration find their marks with OpenPnP's pipelines alone, on the colour picture (straightened where the camera is calibrated), as OpenPnP does: jplacer no longer re-measures what a pipeline found, and their pictures shown are in colour. A half-pixel offset between OpenPnP's circle detection and jplacer's calibrations (about 0.02 mm on the bench's top camera, on every circle a pipeline found: fiducials, strip holes, nozzle tips) is gone. The default nozzle tip pipeline finds the tip to an eighth of a pixel.
-
 - A camera's calibration pipeline is OpenPnP's own (DetectCircularSymmetry; Reset Pipeline puts it back), and it also finds the mark for backlash calibration and the homing mark's capture: jplacer's own round mark finder and its DetectRoundMark stage are gone. In simulation a calibration fits to about a tenth of a pixel (it was under a twentieth), backlash to about 0.007 mm, and a nozzle tip to about 0.015 mm (it was 0.003). A calibration that knows its mark's size only roughly now tries every size about it and takes the most symmetrical, instead of searching at the rough size and finding the mark's edge off centre.
-
 - Parts and packages in the library with no vision settings of their own take OpenPnP's from its parts.xml and packages.xml (never replacing ones set in jplacer). A package a board's import had made first had lost them: on the bench, the board's fiducials were found with the machine's default settings instead of their own, so their own Max. Distance and tuning never applied.
-
 - Fiducials are always found by their vision settings' pipeline, as OpenPnP finds them; Find fiducials with and jplacer's own fiducial finder are gone. On the bench's board, with the board's own fiducial settings, the pipeline found all six fiducials 60 times out of 60, within a few hundredths of a millimetre each time; jplacer's finder found 14 of 60. jplacer's finder had also ignored the Max. Distance slider and searched a fixed 4 mm, reaching nearby pads.
-
 - Strip Auto Setup on a strip running past the camera's reach (a soft limit) follows its holes as far as the camera can go and measures the far scale there, and the log says so, where it stopped short and blamed the holes.
-
 - Strip feeders with vision work on clear tape: each feed looks at its hole from a part beside it (one look, as before), out of the camera's own light reflected straight back, finds it with the strip's pipeline as OpenPnP does, and at the camera's scale for the tape's height. On the bench's clear tape, 12 vision feeds out of 12 found their hole, where none did before.
-
 - Strip feeders' Auto-Tune? (on to begin with; it replaces Auto-Tune on Auto Setup?): the head camera is tuned for each feeder's own tape, by its Auto Setup or on its first vision look of a run, and that tune is kept for its picks until Reset, a new run, or the machine connecting. Each head camera look is at the tune meant for it: a feeder's, a fiducial check's, or the camera's own settings; a tune no longer carries over into another look or changes the camera's settings.
 
 ## 0.1.34
