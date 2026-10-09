@@ -20,7 +20,6 @@ void JPlacerJobHost::showPicture(const JPCameraFeed* feed, const JPFrame& frame,
     if (JPCameraView* view = m_machine.visionResultView(feed)) view->showPicture(frame, text, ms);
 }
 
-void JPlacerJobHost::lookWith(const std::string& cameraId) { m_machine.lookWith(cameraId); }
 std::string JPlacerJobHost::nozzlePart(const std::string& nozzleId) const { return m_machine.nozzlePart(nozzleId); }
 void JPlacerJobHost::setNozzlePart(const std::string& nozzleId, const std::string& partId) { m_machine.setNozzlePart(nozzleId, partId); }
 std::string JPlacerJobHost::chosenNozzleId() const { return m_machine.chosenNozzleId(); }

@@ -20,6 +20,7 @@ notes.
 - The Jog panel's nozzle list says which part each nozzle holds, as OpenPnP's does.
 - Dragging a camera property's slider (brightness, exposure, ...) sets it on the running camera as it moves: before, every step closed and opened the camera again ("starting TOP_CAMERA") and made the other panels afresh, so the Jog panel jumped about.
 - A camera's Auto-Tune icon works with a job paused, not only with none running.
+- Every camera opens when the machine connects and keeps running, shown or not, as OpenPnP's do, until the machine is off or jplacer quits; switching between camera tabs shows each at once instead of "offline" while it opened again. A camera that drops off its bus is still opened again by itself.
 
 ## 0.1.36
 

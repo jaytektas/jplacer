@@ -1105,8 +1105,6 @@ void JPCellJobMachine::applyHead(JPCameraFeed& feed, const std::string& key, std
 }
 
 void JPCellJobMachine::prepare(JPCell& cell, JPCameraFeed& feed) {
-    const std::string id = feed.config().id;
-    m_onMain([&] { m_host.lookWith(id); });
     const std::string light = feed.config().lightActuator();
     std::string why;
     if (!light.empty() && feed.config().light.beforeCapture) cell.switchActuatorAndWait(light, true, why);

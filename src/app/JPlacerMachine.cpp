@@ -224,17 +224,13 @@ void JPlacerMachine::buildCameras() {
                 });
             });
         };
-        // OpenPnP's SwitcherCamera: the device camera's feed (started if it is not
-        // showing), and the actuator that switches the multiplexer to this camera.
+        // OpenPnP's SwitcherCamera: the device camera's feed (running while the machine is on, as every camera
+        // is), and the actuator that switches the multiplexer to this camera.
         d.panel->feed().setSwitching({
-            [this, alive, switched = c.id](const std::string& id) -> JPCameraFeed* {
+            [this](const std::string& id) -> JPCameraFeed* {
                 for (const CameraDock& other : m_cameras) {
                     if (other.panel->camera().id != id) continue;
-                    JPCameraPanel* device = other.panel.get();
-                    JMainThreadDispatcher::instance().post([alive, device, switched] {
-                        if (const auto a = alive.lock(); a && *a) device->keepRunningFor(switched, true);
-                    });
-                    return &device->feed();
+                    return &other.panel->feed();
                 }
                 return nullptr;
             },
@@ -308,13 +304,7 @@ void JPlacerMachine::buildCameras() {
             }
             setupAction("camera:" + id, "defaultsAutoTune");
         };
-        d.panel->onRunning = [this, id = c.id, device = c.device["backend"].str() == "switcher" ? c.device["camera"].str() : ""](bool running) {
-            // A switcher camera stopped: its device camera need not run for it.
-            if (!running && !device.empty())
-                for (const CameraDock& other : m_cameras)
-                    if (other.panel->camera().id == device) other.panel->keepRunningFor(id, false);
-            lightCameras();
-        };
+        d.panel->onShown = [this](bool) { lightCameras(); };
         if (c.mount.headId.empty()) d.panel->view().onMoveNozzleHere = [this, id = c.id] { moveNozzleToCamera(id); };
         // OpenPnP's camera Properties: the preview's rate, held while the machine works, and brought forward.
         JPCameraPanel* panel = d.panel.get();
@@ -1047,7 +1037,7 @@ bool JPlacerMachine::applySetup(JPCellConfig cell) {
     std::vector<std::string> inFront;
     if (keep != Keep::SetupAndCameras)
         for (CameraDock& c : m_cameras)
-            if (c.panel->isRunning()) inFront.push_back(c.panel->camera().id);
+            if (c.panel->isShown()) inFront.push_back(c.panel->camera().id);
     // Only cameras' device settings changed (a property's slider dragged, say): set on each camera as it runs,
     // kept in the cell and saved, nothing made again (the panels would be made afresh on every step of a slider).
     {
@@ -1177,11 +1167,6 @@ void JPlacerMachine::refreshSetupForm() {
 void JPlacerMachine::setConfiguration(JPConfiguration* config) {
     m_configuration = config;
     if (m_setup) m_setup->setConfiguration(config);
-}
-
-void JPlacerMachine::keepCameraRunning(const std::string& cameraId, const std::string& who, bool kept) {
-    for (const CameraDock& d : m_cameras)
-        if (d.panel->camera().id == cameraId) d.panel->keepRunningFor(who, kept);
 }
 
 JPCameraView* JPlacerMachine::cameraViewOf(const JPCameraFeed* feed) {
@@ -1687,8 +1672,6 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
                     m_cell->switchActuator(theirs, false);
             }
             if (!light.empty()) m_cell->switchActuator(light, true);
-            // Run, shown or not (its settings page may be over it): the tuning starts once it gives pictures.
-            d.panel->keepRunning(kTaskCameraMs);
             m_window.showStatus(name + ": defaults set, auto-tuning...", kStatusMs);
             std::weak_ptr<bool> alive = m_alive;
             feed->autoTune(JPCameraFeed::kAutoTuneMs, [this, alive, id, name](std::optional<JJson> tuned) {
@@ -1716,8 +1699,6 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
         for (CameraDock& d : m_cameras) {
             if (d.panel->camera().id != id) continue;
             JPCameraFeed* feed = &d.panel->feed();
-            // Run, shown or not (its settings page may be over it); what is asked is done once it is open.
-            d.panel->keepRunning(kTaskCameraMs);
             if (action == "reapplyControls") {
                 feed->reapplyControls();
                 m_window.showStatus(d.panel->camera().name + ": its properties set again", kStatusMs);
@@ -2049,13 +2030,7 @@ void JPlacerMachine::showCamera(const std::string& cameraId) {
     for (CameraDock& d : m_cameras)
         if (d.panel->camera().id == cameraId) {
             bringForward(*d.panel);
-            d.panel->keepRunning(kTaskCameraMs);   // its pictures needed, shown or not
         }
-}
-
-void JPlacerMachine::lookWith(const std::string& cameraId) {
-    for (CameraDock& d : m_cameras)
-        if (d.panel->camera().id == cameraId) d.panel->keepRunning(kTaskCameraMs);
 }
 
 std::string JPlacerMachine::chosenNozzleId() const {
@@ -2993,7 +2968,7 @@ void JPlacerMachine::lightCameras() {
         const std::string light = c.panel->camera().lightActuator();
         if (light.empty()) continue;
         // On screen, or looked at by a move you made (OpenPnP's targeted user action, which leaves it on).
-        const bool wanted = c.panel->isRunning() || m_userLit.count(c.panel->camera().id) > 0;
+        const bool wanted = c.panel->isShown() || m_userLit.count(c.panel->camera().id) > 0;
         lights[light] = lights[light] || (wanted && c.panel->camera().light.userAction && !m_parkedDark);
         if (!connected) c.panel->setNote("Light off: connect the machine to light this camera.");
     }

@@ -27,9 +27,9 @@ inline namespace jf {
 // One camera, live, in a dock of its own: its picture (as taken or
 // straightened), and a line saying what it is doing; its tools (As Taken,
 // Save Picture, Calibrate, Visual Test, its settings) are icons for the
-// dock's tab (tabTools). The camera runs while its panel is on screen (the front tab, or
-// torn out into a window) and stops when it is not, so a camera nobody can see
-// costs nothing; the owner switches its light with it (onRunning).
+// dock's tab (tabTools). The camera runs while the machine is on, shown or not (setPowered); whether
+// its panel is on screen (the front tab, or torn out into a window) is told the owner, who switches its
+// light with it (onShown).
 class JPCameraPanel : public JContainer {
 public:
     // A camera's calibration for pictures width x height (not valid when it
@@ -46,11 +46,11 @@ public:
     JPCameraFeed& feed() { return m_feed; }
     // Its live picture (a selection is made on it).
     JPCameraView& view() { return *m_view; }
-    // Running: on screen, and the camera giving pictures.
-    bool isRunning() const { return m_feed.isRunning(); }
+    // On screen (the front tab, or torn out into a window), as last seen by a picture's coming.
+    bool isShown() const { return m_shown; }
 
-    // The camera started (on screen) or stopped (off it): its light follows.
-    std::function<void(bool running)> onRunning;
+    // Its panel come on screen or gone off it: its light follows.
+    std::function<void(bool shown)> onShown;
     // Calibrate and Visual Test pressed: the owner runs them on this camera.
     std::function<void()> onCalibrate;
     // The red X beside them pressed (offered only while a task runs on this camera, setBusy): the owner
@@ -82,16 +82,10 @@ public:
     // While a task drives the camera: its buttons are off, and it runs even
     // off screen.
     void setBusy(bool busy);
-    // The machine powered on (connected) or off: the camera is opened only while it is on, and closed
-    // and let go of (another program may use it) once it is off.
+    // The machine powered on (connected) or off: the camera is opened as soon as it is on and runs, shown or
+    // not, as OpenPnP's cameras capture from the start whether shown or not (one dropping off its bus is
+    // opened again by its feed); closed and let go of (another program may use it) once it is off.
     void setPowered(bool on);
-    // Kept running, shown or not, for `who` until let go of (kept false): a
-    // switcher camera on it (JPSwitcherSource, by its id) while that one runs,
-    // a pipeline editor while it is open.
-    void keepRunningFor(const std::string& who, bool kept);
-    // Running for a task that needs its pictures, shown or not, for `ms` from
-    // now (each look renews it), as OpenPnP's cameras capture whether shown or not.
-    void keepRunning(int ms);
     // A step of a camera task waiting on the person (OpenPnP's instructions, without its box): `line` on the
     // camera's step line (above the picture while asked), `detail` (OpenPnP's whole wording) the tooltip of Next, the green start in the
     // title strip, which `onNext` answers; the red X cancels. endStep: nothing waits.
@@ -113,8 +107,7 @@ public:
     void setNote(const std::string& text);
     std::function<void(const std::string&)> onNote;
     // Write the latest picture to capturesDir. The file written, or empty
-    // with the reason said (setNote). A camera not running is started first (its
-    // light as it is set for you to look at) and a fresh picture saved once
+    // with the reason said (setNote). A camera still opening has a fresh picture saved once
     // it has given kSaveSkipFrames: empty then, setNote saying so.
     std::string savePicture();
     // Its tools, as icon buttons for the dock's tab (each JPIconButton::size()
@@ -124,16 +117,15 @@ public:
     void populateRenderPrimitives(JPrimitiveBuffer& buf) override;
 
 private:
-    // Asked to draw and not drawn for this long, the camera is stopped.
-    static constexpr int kHiddenMs = 500;
-    // Save Picture on a camera not running: the pictures passed over while it opens and its light comes up, and
-    // how long it is kept running for it.
-    static constexpr int kSaveSkipFrames = 10, kSaveRunMs = 3000;
+    // Save Picture on a camera still opening: the pictures passed over while it opens and its light comes up.
+    static constexpr int kSaveSkipFrames = 10;
     std::optional<uint64_t> m_saveFrom;   // a picture to save, once the feed's count reaches it
-    std::chrono::steady_clock::time_point m_keepUntil {};   // keepRunning
+    // Asked to draw and not drawn for this long, the panel is off screen.
+    static constexpr int kHiddenMs = 500;
 
     void start();
-    void stopIfHidden();
+    // Each picture's coming: whether the panel is on screen (asked to draw, and drawn since), onShown told a change.
+    void checkShown();
 
     JPCameraFeed                          m_feed;
     JPCameraView*                         m_view = nullptr;
@@ -149,7 +141,6 @@ private:
     CalibrationFor                        m_calibrationFor;
     bool                                  m_busy = false;
     bool                                  m_powered = false;
-    std::set<std::string>                 m_keptFor;   // keepRunningFor
     bool                                  m_straight = true;   // straightened unless asked otherwise
     std::string                           m_capturesDir;
     // What a task asks, above the picture: the step's line, its number and the instructions, each only
@@ -160,8 +151,9 @@ private:
     float                                 m_askedWidth = -1;   // the width m_asked was sized for (-1: again)
     // m_asked holding what is shown, as tall as it.
     void fitAsked();
+    bool                                  m_shown = false;
     std::chrono::steady_clock::time_point m_drawn;         // last drawn
-    std::chrono::steady_clock::time_point m_askedToDraw;   // asked to draw since, by a picture (stopIfHidden)
+    std::chrono::steady_clock::time_point m_askedToDraw;   // asked to draw since, by a picture (checkShown)
     std::vector<std::function<void()>>    m_unwatch;
     std::shared_ptr<bool>                 m_alive = std::make_shared<bool>(true);
 };

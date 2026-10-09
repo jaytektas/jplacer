@@ -544,16 +544,17 @@ at once:
 
 <!-- src: src/ui/JPCameraPanel.cpp (tabTools); src/ui/JPIcons.cpp; src/ui/JPIconButton.cpp (setLeads); src/app/JPlacerMachine.cpp (buildCameras); JFramework include/j/core/DockWidget.h (addTitleWidget); src/app/JPlacerJobRun.cpp (jobWorking) -->
 
-A camera is opened only while the machine is on (connected), and closed, and let go of for other programs,
-once it is off: until then its picture says "the machine is off". While the machine is on, a camera runs
-while its picture is on screen and stops half a
-second after it is not (another tab in front, the window minimised), so a camera nobody sees costs
-nothing. A task using a camera brings its tab to the front, and keeps the camera running until it ends.
-A job's vision (fiducials, feeders, bottom vision) keeps its camera running, picture on screen or not, and
-leaves the tabs as they are, as OpenPnP's: a camera's tab comes to the front for the result vision shows on
-it only when the camera has **Auto Camera View?** (Machine Setup, the camera's General Configuration).
+Every camera is opened as soon as the machine is on (connected) and runs, its picture on screen or not, as
+OpenPnP's cameras capture from the start whether shown or not: switching between camera tabs shows each one
+at once. One that drops off its bus is opened again by itself. They are closed, and let go of for other
+programs, once the machine is off (or jplacer quits): until then a camera's picture says "the machine is off".
+A task using a camera brings its tab to the front. A job's vision (fiducials, feeders, bottom vision) leaves
+the tabs as they are, as OpenPnP's: a camera's tab comes to the front for the result vision shows on it only
+when the camera has **Auto Camera View?** (Machine Setup, the camera's General Configuration). A camera's light
+set for **User Camera Action?** is on while its picture is on screen (half a second after it goes behind
+another tab, it goes off).
 
-<!-- src: src/app/JPlacerMachine.cpp (buildCameras, bringForward, lookWith, visionResultView); src/app/JPlacerJobHost.cpp (showPicture); src/ui/JPCameraPanel.cpp (populateRenderPrimitives, stopIfHidden, kHiddenMs, setBusy, setPowered); src/app/JPlacerMachine.cpp (updateMenu) -->
+<!-- src: src/app/JPlacerMachine.cpp (buildCameras, bringForward, visionResultView, lightCameras); src/app/JPlacerJobHost.cpp (showPicture); src/ui/JPCameraPanel.cpp (populateRenderPrimitives, checkShown, kHiddenMs, setBusy, setPowered); src/app/JPlacerMachine.cpp (updateMenu) -->
 
 A camera is found by the name the device gives itself (for example `top: top`), not by the USB socket
 it is plugged into, so moving it to another socket or hub does not lose it. jplacer picks the largest

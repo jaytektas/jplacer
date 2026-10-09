@@ -114,15 +114,12 @@ JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCameraCon
         JMainThreadDispatcher::instance().post([this, alive, why] {
             if (const auto a = alive.lock(); !a || !*a) return;
             m_view->setMessage(why);
-            stopIfHidden();
         });
     }));
-    // Each picture (or failed try at one), a check that the panel is still on
-    // screen: a camera behind another tab, or closed, is stopped.
     m_unwatch.push_back(m_feed.onFrame.connect([this, alive](uint64_t) {
         JMainThreadDispatcher::instance().post([this, alive] {
             if (const auto a = alive.lock(); !a || !*a) return;
-            stopIfHidden();
+            checkShown();
             // Save Picture asked of it while it was not running: the fresh picture, once it has come.
             JPFrame frame;
             if (m_saveFrom && m_feed.latest(frame, 0) && frame.sequence >= *m_saveFrom) {
@@ -141,9 +138,11 @@ JPCameraPanel::~JPCameraPanel() {
 }
 
 void JPCameraPanel::populateRenderPrimitives(JPrimitiveBuffer& buf) {
-    // Drawn, so on screen: the camera runs.
     m_drawn = std::chrono::steady_clock::now();
-    if (!m_feed.isRunning()) start();
+    if (!m_shown) {   // drawn, so on screen
+        m_shown = true;
+        if (onShown) onShown(true);
+    }
     // What a step asks as tall as its text folds to at this width.
     if (const float w = m_asked->bounds().width; (m_stepLineShown || m_instructionsShown) && w > 0 && w != m_askedWidth) {
         m_askedWidth = w;
@@ -154,18 +153,15 @@ void JPCameraPanel::populateRenderPrimitives(JPrimitiveBuffer& buf) {
 
 void JPCameraPanel::start() {
     if (!m_powered) return;   // opened only while the machine is on
-    JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Camera: " << m_feed.config().name << " on screen";
+    JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Camera: " << m_feed.config().name << " opened: the machine is on";
     m_view->setMessage("Starting " + m_feed.config().name + "\xE2\x80\xA6");
     m_feed.start();
-    if (onRunning) onRunning(true);
 }
 
-void JPCameraPanel::stopIfHidden() {
-    if (m_busy || !m_keptFor.empty() || !m_feed.isRunning()) return;
-    if (std::chrono::steady_clock::now() < m_keepUntil) return;
-    // Hidden: asked to draw a while ago and not drawn since (behind another
-    // tab, or closed). Drawn since the last asking: asked again. However long
-    // a camera takes to give its first picture, nothing is judged until then.
+void JPCameraPanel::checkShown() {
+    if (!m_shown) return;
+    // Off screen: asked to draw a while ago and not drawn since (behind another tab, or closed). Drawn since
+    // the last asking: asked again.
     const auto now = std::chrono::steady_clock::now();
     if (std::max(m_drawn, m_view->drawnAt()) >= m_askedToDraw) {
         m_askedToDraw = now;
@@ -173,9 +169,8 @@ void JPCameraPanel::stopIfHidden() {
         return;
     }
     if (now - m_askedToDraw < std::chrono::milliseconds(kHiddenMs)) return;
-    JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Camera: " << m_feed.config().name << " off screen";
-    m_feed.stop();
-    if (onRunning) onRunning(false);
+    m_shown = false;
+    if (onShown) onShown(false);
 }
 
 void JPCameraPanel::setView(bool straight) {
@@ -212,15 +207,12 @@ void JPCameraPanel::setPowered(bool on) {
     if (on && m_powered) return;
     m_powered = on;
     if (on) {
-        // Opened when next drawn (or for a task).
-        m_view->setMessage("");
-        invalidate();
+        if (!m_feed.isRunning()) start();
         return;
     }
     if (m_feed.isRunning()) {
         JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Camera: " << m_feed.config().name << " closed: the machine is off";
         m_feed.stop();
-        if (onRunning) onRunning(false);
     }
     m_view->clearPicture();
     m_view->setMessage(m_feed.config().name + ": the machine is off");
@@ -235,18 +227,6 @@ void JPCameraPanel::setBusy(bool busy) {
     // Its pictures are the task's: one calibrating this camera is not to be crossed out as uncalibrated (its
     // live pictures between the ones it shows would flash the cross on and off).
     m_view->setTaskUnderway(busy);
-    if (busy && !m_feed.isRunning()) start();
-}
-
-void JPCameraPanel::keepRunning(int ms) {
-    m_keepUntil = std::chrono::steady_clock::now() + std::chrono::milliseconds(ms);
-    if (!m_feed.isRunning()) start();
-}
-
-void JPCameraPanel::keepRunningFor(const std::string& who, bool kept) {
-    if (kept) m_keptFor.insert(who);
-    else m_keptFor.erase(who);
-    if (kept && !m_feed.isRunning()) start();
 }
 
 std::vector<JWidget*> JPCameraPanel::tabTools() const {
@@ -305,15 +285,14 @@ void JPCameraPanel::setNote(const std::string& text) {
 std::string JPCameraPanel::savePicture() {
     JPCameraFeed& feed = m_feed;
     JPFrame frame;
-    if (!feed.isRunning()) {
-        // Its last picture is from when it stopped (dark, as likely as not): a fresh one instead.
-        if (!m_powered) {
-            setNote(feed.config().name + ": the machine is off");
-            return {};
-        }
+    if (!m_powered) {
+        setNote(feed.config().name + ": the machine is off");
+        return {};
+    }
+    if (!feed.isRunning() || feed.isLost()) {
+        // Opening (again): a fresh picture once it gives them, not one from before.
         const uint64_t last = feed.latest(frame, 0) ? frame.sequence : 0;
         m_saveFrom = last + kSaveSkipFrames;
-        keepRunning(kSaveRunMs);
         setNote("Saving a picture once " + feed.config().name + " has started\xE2\x80\xA6");
         return {};
     }

@@ -76,7 +76,6 @@ public:
         return nullptr;
     }
     void showPicture(const jf::JPCameraFeed*, const jf::JPFrame&, const std::string&, int) override {}
-    void lookWith(const std::string&) override {}
     std::string nozzlePart(const std::string& nozzleId) const override {
         std::lock_guard lk(m_mutex);
         const auto p = m_parts.find(nozzleId);

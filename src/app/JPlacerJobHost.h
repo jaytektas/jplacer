@@ -20,7 +20,6 @@ public:
     JPCameraFeed* upCameraFeed() const override;
     JPCameraFeed* cameraFeed(const std::string& idOrName) const override;
     void showPicture(const JPCameraFeed* feed, const JPFrame& frame, const std::string& text, int ms) override;
-    void lookWith(const std::string& cameraId) override;
     std::string nozzlePart(const std::string& nozzleId) const override;
     void        setNozzlePart(const std::string& nozzleId, const std::string& partId) override;
     std::string chosenNozzleId() const override;

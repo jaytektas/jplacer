@@ -51,19 +51,6 @@ void JPlacerPipelines::useCamera(JPPipeline& pipeline, JPCameraFeed* feed, const
             return true;
         };
     JPPipelineCamera::give(ctx, *feed, cal, view);
-    // The camera kept running while the pipeline can take its picture (an editor open, a preview going): run on
-    // the main thread, its picture cannot wait for the camera to be drawn back on screen. Let go of when the
-    // pipeline (and every copy of it) is gone, on the main thread.
-    static int held = 0;
-    const std::string who = "pipeline " + std::to_string(++held), cameraId = feed->config().id;
-    m_machine.keepCameraRunning(cameraId, who, true);
-    std::shared_ptr<void> hold(nullptr, [machine = &m_machine, alive = m_machine.alive(), cameraId, who](void*) {
-        JMainThreadDispatcher::instance().post([machine, alive, cameraId, who] {
-            if (const auto a = alive.lock(); a && *a) machine->keepCameraRunning(cameraId, who, false);
-        });
-    });
-    ctx.capture = [take = std::move(ctx.capture), hold](const std::string& settle, const std::string& light, cv::Mat& bgr,
-                                                         std::string& why) { return take(settle, light, bgr, why); };
     if (!cal.valid && taking) {   // not calibrated: its size still known
         ctx.cameraWidth = frame.width;
         ctx.cameraHeight = frame.height;
