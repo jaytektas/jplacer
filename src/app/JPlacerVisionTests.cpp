@@ -124,10 +124,11 @@ void JPlacerVisionTests::align(const std::string& settingsId, const JPVisionForm
                       std::hypot(r.dx, r.dy));
         if (center) {
             // Centred over the camera and turned to the angle, at the height it was seen at (OpenPnP's
-            // getCameraLocationAtPartHeight): in focus, where its reticle is drawn.
+            // getCameraLocationAtPartHeight): in focus, where its reticle is drawn. Straight there, as OpenPnP's
+            // nozzle.moveTo: the part is not lifted.
             const double t = turn * M_PI / 180;
             const double ox = r.dx * std::cos(t) - r.dy * std::sin(t), oy = r.dx * std::sin(t) + r.dy * std::cos(t);
-            if (!machine.moveNozzle(nozzleId, { r.cameraX - ox, r.cameraY - oy, r.partZ, r.nozzleAngle + turn }, 1.0, true, why))
+            if (!machine.moveNozzle(nozzleId, { r.cameraX - ox, r.cameraY - oy, r.partZ, r.nozzleAngle + turn }, 1.0, false, why))
                 return false;
         }
         // What it looks like now, the result over it.
