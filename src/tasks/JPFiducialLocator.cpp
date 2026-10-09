@@ -18,6 +18,7 @@
 #include <cmath>
 #include <cstdio>
 #include <limits>
+#include <map>
 
 inline namespace jf {
 
@@ -198,6 +199,23 @@ JPFiducialLocator::Result JPFiducialLocator::locate(JPConfiguration& config, JPJ
                                                  << f.measured.x() << ", " << f.measured.y();
     }
 
+    // Measure Board Z?: each board's or panel's height, at its first fiducial.
+    std::map<const JPPlacementsHolderLocation*, double> heights;
+    if (tolerances.vision.measureBoardZ)
+        for (const Fiducial& f : fiducials) {
+            if (heights.count(f.location)) continue;
+            double z = 0;
+            std::string why;
+            if (!machine.fiducialHeight(f.measured, f.look, z, why)) {
+                r.id = f.location->uniqueId();
+                r.message = "Unable to measure the height of " + f.location->uniqueId() + " at " + f.placement.id + ": " + why;
+                return r;
+            }
+            heights[f.location] = z;
+            JLOGC(JPlacerLog::kJob, JLogLevel::Info) << f.location->uniqueId() << " is at Z " << z << " (measured at "
+                                                     << f.placement.id << ")";
+        }
+
     // Each set where its fiducials say, within the tolerances.
     main([&] {
         for (JPPlacementsHolderLocation* lp : locations) {
@@ -212,6 +230,13 @@ JPFiducialLocator::Result JPFiducialLocator::locate(JPConfiguration& config, JPJ
                 }
             JPAffineTransform tx = JPFiducialFit::derive(expected, measured);
             if (bottom) tx.scale(-1, 1);
+            // Its height, measured (its location set first: that drops a transform, set after).
+            const auto height = heights.find(&l);
+            if (height != heights.end()) {
+                const JPLocation was = l.location();
+                const double z = JPLength(height->second, JPLengthUnit::Millimeters).convertToUnits(was.units()).value();
+                l.setLocation(was.derive(std::nullopt, std::nullopt, z, std::nullopt));
+            }
             l.setLocalToGlobalTransform(tx);
             JPLocation origin(JPLengthUnit::Millimeters);
             if (bottom && l.holder) origin = mm(l.holder->dimensions).derive(std::nullopt, 0.0, 0.0, 0.0);

@@ -99,6 +99,7 @@ public:
     bool park(std::string& why) override;
     bool locateFiducial(const JPLocation& nominal, const FiducialLook& look, JPLocation& found,
                         std::string& why) override;
+    bool fiducialHeight(const JPLocation& at, const FiducialLook& look, double& z, std::string& why) override;
     bool alignPart(const std::string& nozzleId, const AlignRequest& request, AlignResult& result, std::string& why) override;
     bool locateHole(const JPLocation& nominal, JPPipeline& pipeline, double searchMm, const std::vector<JPLocation>& from,
                     const std::function<void(JPPipeline&)>& configure, JPLocation& found, std::string& why) override;

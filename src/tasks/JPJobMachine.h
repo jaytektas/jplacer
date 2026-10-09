@@ -210,6 +210,14 @@ public:
     // centred, as `look` says), and where it is: `found`. False (and why) without a pipeline, or not found.
     virtual bool locateFiducial(const JPLocation& nominal, const FiducialLook& look, JPLocation& found,
                                 std::string& why) = 0;
+    // The height (Z) of what a fiducial found at `at` lies on, as OpenPnP's Estimate Object Z measures it: the fiducial
+    // looked at from either side of it, along X and along Y, how far it seems to move against how far the camera
+    // moved giving the camera's scale there, and the camera's calibration at two heights the height of that scale.
+    // False (and why) when the camera is calibrated at one height, or the fiducial is not found.
+    virtual bool fiducialHeight(const JPLocation& /*at*/, const FiducialLook& /*look*/, double& /*z*/, std::string& why) {
+        why = "this machine cannot tell heights by its camera";
+        return false;
+    }
     // Bottom vision (OpenPnP's part alignment): the part on the nozzle over
     // the camera looking up, as high as the part (its bottom where the
     // camera is focused), expected at `imageAngle` (the placement's, pre-rotated;

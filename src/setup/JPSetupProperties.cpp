@@ -3372,6 +3372,9 @@ void fiducialLocatorForm(JPCellConfig& cell, JPSetupProperties::Form& f, JPConfi
     add.length("fiducialMaxDistanceMm", "Max. Distance (old pipelines only)", [&v]() -> double& { return v.fiducialMaxDistanceMm; });
     add.tip("Maximum allowed distance between nominal fiducial location and detected location. This only applies where the "
             "vision pipeline does not have a maxDistance stage.");
+    add.flag("measureBoardZ", "Measure Board Z?", [&v]() -> bool& { return v.measureBoardZ; });
+    add.tip("A fiducial check also sets the board's or panel's Z: the head camera (calibrated at two heights) looks at its "
+            "first fiducial from either side, and how far it seems to move gives how far away it is.");
     defaultSettingsTab(add, config, v.fiducialVisionId, false, tests);
 }
 

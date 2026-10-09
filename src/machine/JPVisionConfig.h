@@ -27,6 +27,9 @@ struct JPVisionConfig {
     bool        enabledAveraging    = false;
     // OpenPnP's ReferenceFiducialLocator.maxDistance: for pipelines without a maxDistance stage.
     double      fiducialMaxDistanceMm = 4.0;
+    // A fiducial check sets each board's or panel's Z, measured by the head camera at its first fiducial
+    // (JPJobMachine::fiducialHeight; jplacer's: OpenPnP keeps the Z it was given).
+    bool        measureBoardZ = false;
 
     JJson toJson() const {
         JJson j = JJson::object();
@@ -40,6 +43,7 @@ struct JPVisionConfig {
         j["fiducialVisionId"] = fiducialVisionId;
         j["enabledAveraging"] = enabledAveraging;
         j["fiducialMaxDistanceMm"] = fiducialMaxDistanceMm;
+        j["measureBoardZ"] = measureBoardZ;
         return j;
     }
     static JPVisionConfig fromJson(const JJson& j) {
@@ -55,6 +59,7 @@ struct JPVisionConfig {
         if (j["fiducialVisionId"].isString()) c.fiducialVisionId = j["fiducialVisionId"].str();
         if (j["enabledAveraging"].isBool()) c.enabledAveraging = j["enabledAveraging"].boolean();
         if (j["fiducialMaxDistanceMm"].isNumber()) c.fiducialMaxDistanceMm = j["fiducialMaxDistanceMm"].number();
+        if (j["measureBoardZ"].isBool()) c.measureBoardZ = j["measureBoardZ"].boolean();
         return c;
     }
 };

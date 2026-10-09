@@ -37,6 +37,9 @@ constexpr int kPartTuneWaitMs = 15000;
 constexpr int kShownPipelineMs = 1500;
 // A part height found by focusing no more than this is the nozzle tip's own (OpenPnP's 0.001 mm).
 constexpr double kLeastFocusedHeightMm = 0.001;
+// How far either side of a fiducial the camera looks from to tell its height: far enough that the scale shows
+// (a hundredth of it is 0.06 mm over the 6 mm between), near enough to stay well inside the picture.
+constexpr double kHeightLookAsideMm = 3.0;
 
 using Where = std::array<std::optional<double>, 4>;
 
@@ -650,6 +653,48 @@ bool JPCellJobMachine::locateFiducial(const JPLocation& nominal, const FiducialL
         JLOGC(JPlacerLog::kJob, JLogLevel::Debug) << "fiducial averaged at " << x << ", " << y;
     }
     found = JPLocation(JPLengthUnit::Millimeters, x, y, start.z(), start.rotation());
+    return true;
+}
+
+bool JPCellJobMachine::fiducialHeight(const JPLocation& at, const FiducialLook& look, double& z, std::string& why) {
+    ++m_motions;
+    if (!look.pipeline) {
+        why = "no fiducial vision settings to find it with";
+        return false;
+    }
+    JPCell* c = cell(why);
+    if (!c) return false;
+    JPCameraFeed* feed = nullptr;
+    m_onMain([&] { feed = m_host.headCameraFeed(); });
+    if (!feed) {
+        why = "no camera on the head";
+        return false;
+    }
+    JPCameraCalibration cal;
+    if (!JPCameraLook::calibration(*c, *feed, cal, why)) return false;
+    if (!cal.twoHeights()) {
+        why = feed->config().name + " is calibrated at one height, so it cannot tell heights: calibrate it at two heights";
+        return false;
+    }
+    const JPLocation m = at.convertToUnits(JPLengthUnit::Millimeters);
+    const double fx = m.x(), fy = m.y(), d = kHeightLookAsideMm;
+    // Found from a view point at the calibration's scale, it is put where the view point is plus its offset in the
+    // picture at that scale: off by the offset times (its true scale / the calibration's - 1). From view points 2d
+    // apart, the two finds are then (1 - ratio) * 2d apart.
+    double ratio = 0;
+    for (const bool alongX : { true, false }) {
+        double found[2][2] = {};
+        for (int side = 0; side < 2; ++side) {
+            const double s = side ? d : -d;
+            if (!lookByPipeline(fx + (alongX ? s : 0), fy + (alongX ? 0 : s), fx, fy, look, found[side][0], found[side][1], why))
+                return false;
+        }
+        const int i = alongX ? 0 : 1;
+        ratio += (1 - (found[1][i] - found[0][i]) / (2 * d)) / 2;
+    }
+    z = cal.heightAt(cal.scale() * ratio);
+    JLOGC(JPlacerLog::kJob, JLogLevel::Info) << "fiducial at " << fx << ", " << fy << " seen at " << 100 * (ratio - 1)
+                                             << "% of " << feed->config().name << "'s scale at Z " << cal.z << ": it lies at Z " << z;
     return true;
 }
 
