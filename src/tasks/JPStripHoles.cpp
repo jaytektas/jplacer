@@ -56,15 +56,25 @@ JPStripHoles::Result JPStripHoles::find(std::vector<Circle> circles, P centre, d
     const double pitch = kHolePitchMm * px, minPitch = kHolePitchMm * kLeastPitch * px;
     std::vector<P> points;
     for (const Circle& c : circles) points.push_back({ c.x, c.y });
-    r.lines = JPRansac::lines(points, kIterations, maxToLine, pitch, pitch - minPitch, true);
     // The longest line as far from the part as the holes are (not circles in the part).
-    for (const JPRansac::Line& l : r.lines) {
-        const double d = toSegment(l.a, l.b, centre);
-        if (d >= minDistance && d <= maxDistance) {
-            r.best = l;
-            r.hasBest = true;
-            break;
+    auto best = [&] {
+        for (const JPRansac::Line& l : r.lines) {
+            const double d = toSegment(l.a, l.b, centre);
+            if (d >= minDistance && d <= maxDistance) {
+                r.best = l;
+                r.hasBest = true;
+                return;
+            }
         }
+    };
+    // OpenPnP's: the holes an unbroken run a pitch apart. Every hole on the tape is on every line through two of
+    // them, so one not found among them (a faint one, as clear tape's are) breaks every line: none, then, the
+    // holes are taken with gaps, still on whole pitches and two of them side by side.
+    r.lines = JPRansac::lines(points, kIterations, maxToLine, pitch, pitch - minPitch, true);
+    best();
+    if (!r.hasBest) {
+        r.lines = JPRansac::lines(points, kIterations, maxToLine, pitch, pitch - minPitch, false);
+        best();
     }
     if (!r.hasBest) return r;
     std::vector<Circle> onLine;

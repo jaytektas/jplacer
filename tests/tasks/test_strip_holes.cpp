@@ -33,6 +33,19 @@ int main() {
         const double steps = (c.x - r.inLine[0].x) / 40;
         assert(std::abs(steps - std::round(steps)) < 1e-6 && std::abs(c.y - r.inLine[0].y) < 0.5);
     }
+    // One hole not found (a faint one, as clear tape's): OpenPnP's unbroken run finds no line at all; the holes
+    // either side of the gap are taken, still a whole pitch apart. As on the bench: marks at 212, 312, 513, 616.
+    {
+        std::vector<JPStripHoles::Circle> gap { { 565.5, 212.5, 42 }, { 563.5, 513.5, 44 }, { 562.5, 616.5, 46 }, { 564.5, 312.5, 42 } };
+        const JPStripHoles::Result g = JPStripHoles::find(gap, { 640, 360 }, 25.2, 8);
+        assert(g.hasBest && g.inLine.size() == 4);
+        for (const JPStripHoles::Circle& c : g.inLine) {
+            const double steps = std::hypot(c.x - g.inLine[0].x, c.y - g.inLine[0].y) / (4 * 25.2);
+            assert(std::abs(steps - std::round(steps)) < 1e-6);
+        }
+        // Only scattered marks, none side by side: still none.
+        assert(!JPStripHoles::find({ { 565, 212, 42 }, { 565, 414, 42 }, { 565, 616, 42 } }, { 640, 360 }, 25.2, 8).hasBest);
+    }
     // No line of holes beside it: none.
     assert(!JPStripHoles::find({ { 300, 200, 12 }, { 302, 201, 12 } }, { 300, 200 }, 10, 8).hasBest);
 
