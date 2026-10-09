@@ -15,6 +15,7 @@ notes.
 - jplacer no longer freezes when Test Alignment (or another machine task, Start or Step) is clicked while a machine task is still under way: the status line says the machine is busy, and the click is not acted on.
 - Test Alignment's Center After Test moves the part straight to the camera's centre at the height it was seen at, in focus and without lifting it, as OpenPnP does; before, it went up to safe height, out of focus and seen off to one side.
 - Much faster screen: jplacer had been built with an unoptimised (debug) copy of its drawing code, which made the whole window sluggish (dragging pipeline sliders, scrolling); it now uses the optimised one, and a release refuses to build without it.
+- A nozzle tip is not calibrated while its nozzle holds a part ("Cannot calibrate nozzle tip with part on nozzle …"), as in OpenPnP: before, its runout was measured on the part, and after homing too.
 
 ## 0.1.36
 

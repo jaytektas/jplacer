@@ -333,6 +333,7 @@ bool JPCellJobMachine::calibrateTip(const std::string& nozzleId, std::string& wh
     JPCameraFeed* feed = nullptr;
     std::optional<JPNozzleConfig> nozzle;
     std::optional<JPNozzleTipConfig> tip;
+    std::string part;
     m_onMain([&] {
         feed = m_host.upCameraFeed();
         for (const JPNozzleConfig& n : c->config().nozzles)
@@ -340,7 +341,13 @@ bool JPCellJobMachine::calibrateTip(const std::string& nozzleId, std::string& wh
         if (nozzle)
             for (const JPNozzleTipConfig& t : c->config().nozzleTips)
                 if (t.id == nozzle->tipId) tip = t;
+        part = m_host.nozzlePart(nozzleId);
     });
+    // As OpenPnP's: never with a part on the nozzle.
+    if (!part.empty()) {
+        why = "Cannot calibrate nozzle tip with part on nozzle " + (nozzle ? nozzle->name : nozzleId) + ".";
+        return false;
+    }
     if (!feed) {
         why = "no camera looking up to calibrate the nozzle tip with";
         return false;

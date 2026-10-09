@@ -218,6 +218,15 @@ int main() {
         }
     }
     assert(next == expected.size());
+
+    // As OpenPnP's: a nozzle tip is never calibrated with a part on its nozzle (nothing is sent).
+    const JPNozzleConfig& n1 = cellConfig.nozzles.front();
+    host.setNozzlePart(n1.id, "R-0805-10K");
+    const size_t sentBefore = sent.size();
+    std::string why;
+    assert(!machine.calibrateTip(n1.id, why));
+    assert(why == "Cannot calibrate nozzle tip with part on nozzle " + n1.name + ".");
+    assert(sent.size() == sentBefore);
     cell.disconnect();
     fs::remove_all(dir);
     return 0;

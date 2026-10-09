@@ -2064,9 +2064,20 @@ void JPlacerMachine::calibrateTipRunout(const std::string& nozzleId, std::functi
         if (done) done(false, "no machine is open");
         return;
     }
-    std::string tipId;
+    std::string tipId, name = nozzleId;
     for (const JPNozzleConfig& n : m_cell->config().nozzles)
-        if (n.id == nozzleId) tipId = n.tipId;
+        if (n.id == nozzleId) {
+            tipId = n.tipId;
+            name = n.name;
+        }
+    // As OpenPnP's ReferenceNozzleTipCalibration.calibrate: never with a part on the nozzle (its tip is not what is seen).
+    if (!nozzlePart(nozzleId).empty()) {
+        const std::string why = "Cannot calibrate nozzle tip with part on nozzle " + name + ".";
+        JLOGC(JPlacerLog::kCamera, JLogLevel::Warn) << why;
+        m_window.showStatus(why, kErrorMs);
+        if (done) done(false, why);
+        return;
+    }
     m_cameraTasks->calibrateRunout(nozzleId, [this, tipId, nozzleId, done](bool ok, const JPRunout& r,
                                                                                const std::optional<JPBackgroundCalibration::Result>& b,
                                                                                const std::string& why) {
