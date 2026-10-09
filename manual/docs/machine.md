@@ -436,7 +436,7 @@ nozzle is. **Recycle**, as OpenPnP's, puts the nozzle's part back into an enable
 can take it back, the nearest to the head's camera: a tape or tray feeder that has fed (its count taken
 back), an auto feeder set to Recycle supported, a push-pull, Bamboo or Photon feeder (its next feed then
 skipped), a loose part feeder where its part was found, or a heap (dropped back into the heap along its
-three moves). It is greyed out when no feeder can; the Feeder.BeforeTakeBack and Feeder.AfterTakeBack
+three moves). It is greyed out when no feeder can, and offered again as soon as one can (a feeder enabled, say, or its count changed); the Feeder.BeforeTakeBack and Feeder.AfterTakeBack
 scripting events run round it.
 
 <!-- src: src/ui/JPJogPanel.cpp (specialPage, refreshRecycle); src/model/JPFeeder.cpp (canTakeBackPart, partTakenBack); src/tasks/JPFeederTakeBack.cpp; src/tasks/JPHeapFeeder.cpp (takeBack); src/app/JPlacerOpenPnpTabs.cpp (recycle) -->

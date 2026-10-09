@@ -421,6 +421,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         m_job.configurationChanged();
         ensurePhotonActuator();
         m_machine.setupFeedersChanged();
+        m_machine.refreshRecycle();   // a feeder enabled, its count or part changed: one may now take a part back
     };
     // Machine Setup's Feeders, as OpenPnP's: each feeder's page this tab's, worked by it.
     m_feeders->onPageRemade = [this] { m_machine.setupFeederPageChanged(true); };

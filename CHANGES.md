@@ -11,6 +11,7 @@ notes.
 ## Unreleased
 
 - A job no longer flips between the cameras' tabs at every look: as in OpenPnP, a camera's tab comes to the front only to show a vision result, and only when the camera has Auto Camera View ticked.
+- Recycle on the Jog panel comes back as soon as a feeder can take the part back (the feeder enabled again, say); before, it stayed greyed out until the nozzle's part changed.
 
 ## 0.1.36
 
