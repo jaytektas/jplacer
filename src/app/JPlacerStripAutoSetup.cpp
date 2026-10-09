@@ -107,6 +107,7 @@ void JPlacerStripAutoSetup::cancel() {
 }
 
 void JPlacerStripAutoSetup::fail(const std::string& why) {
+    JLOGC(JPlacerLog::kCamera, JLogLevel::Warn) << "Auto Setup Failure: " << why;
     cancel();
     JDialog::message("Auto Setup Failure", why);
 }
