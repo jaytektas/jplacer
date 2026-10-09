@@ -123,11 +123,12 @@ void JPlacerVisionTests::align(const std::string& settingsId, const JPVisionForm
         std::snprintf(text, sizeof text, "%s  |  X:%.3f Y:%.3f C:%.3f \xCE\x94:%.3f", partId.c_str(), r.dx, r.dy, -turn,
                       std::hypot(r.dx, r.dy));
         if (center) {
-            // Centred over the camera and turned to the angle.
+            // Centred over the camera and turned to the angle, at the height it was seen at (OpenPnP's
+            // getCameraLocationAtPartHeight): in focus, where its reticle is drawn.
             const double t = turn * M_PI / 180;
             const double ox = r.dx * std::cos(t) - r.dy * std::sin(t), oy = r.dx * std::sin(t) + r.dy * std::cos(t);
-            const JPLocation at(JPLengthUnit::Millimeters, r.cameraX - ox, r.cameraY - oy, 0, r.nozzleAngle + turn);
-            if (!machine.positionNozzle(nozzleId, at, why)) return false;
+            if (!machine.moveNozzle(nozzleId, { r.cameraX - ox, r.cameraY - oy, r.partZ, r.nozzleAngle + turn }, 1.0, true, why))
+                return false;
         }
         // What it looks like now, the result over it.
         onMain([&] {

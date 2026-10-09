@@ -54,7 +54,8 @@ measured 1.277mm"), and the **Vision Center Offsets**, taken off what is found, 
 **Test Alignment** aligns the part on the nozzle chosen on the Jog panel over the camera looking up, as a
 job would at the **Placement Angle** (the machine's test alignment angle), and shows what it found on the
 camera ("R1 | X:0.012 Y:-0.034 C:0.512 Δ:0.036"); with **Center After Test** it then moves the part over
-the camera's centre, turned to the angle. The nozzle must hold a part (picked with **Pick** on the Feeders
+the camera's centre, turned to the angle, at the height it was seen at (in focus, its footprint's reticle
+over it), as OpenPnP's. The nozzle must hold a part (picked with **Pick** on the Feeders
 or Parts tab, or by a job), of the part or package the page is for, whose bottom vision these settings
 are; else it says what is wrong ("Nozzle N1 does not have a part loaded"). **Detect Offsets** is for an
 asymmetric part: centre it over the camera by hand first; it aligns and centres the part at 0°, and adds

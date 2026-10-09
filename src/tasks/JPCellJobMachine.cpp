@@ -1236,6 +1236,7 @@ bool JPCellJobMachine::alignPart(const std::string& nozzleId, const AlignRequest
     const JPLocation& o = offset.location;
     result.cameraX = camX;
     result.cameraY = camY;
+    result.partZ = z;
     result.dx = o.x();
     result.dy = o.y();
     result.nozzleAngle = offset.preRotated ? rq.imageAngle - o.rotation() : 0;
