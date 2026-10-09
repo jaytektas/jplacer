@@ -186,7 +186,7 @@ public:
         return true;
     }
     bool park(std::string&) override { return true; }
-    bool locateFiducial(const JPLocation&, double, const FiducialLook&, JPLocation&, std::string&) override { return false; }
+    bool locateFiducial(const JPLocation&, const FiducialLook&, JPLocation&, std::string&) override { return false; }
     bool alignPart(const std::string&, const AlignRequest& rq, AlignResult& r, std::string&) override {
         r.nozzleAngle = rq.imageAngle;
         r.dx = alignDx;

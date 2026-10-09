@@ -33,10 +33,6 @@ namespace {
 // How long a part's Auto-Tune may take (its automatic settings given their moment, then held), at most (ms).
 constexpr int kPartTuneWaitMs = 15000;
 
-// How far from where it should be a fiducial is looked for at first, then
-// once centred on (mm).
-constexpr double kFirstSearchMm = 4.0;
-constexpr double kSearchMm      = 1.0;
 // How long a pipeline's picture of a fiducial found is shown on the camera (OpenPnP's).
 constexpr int kShownPipelineMs = 1500;
 // A part height found by focusing no more than this is the nozzle tip's own (OpenPnP's 0.001 mm).
@@ -577,7 +573,7 @@ bool JPCellJobMachine::park(std::string& why) {
     return c && c->parkAndWait(headId(config()), 1.0, why);
 }
 
-bool JPCellJobMachine::locateFiducial(const JPLocation& nominal, double diameterMm, const FiducialLook& lookAt,
+bool JPCellJobMachine::locateFiducial(const JPLocation& nominal, const FiducialLook& lookAt,
                                        JPLocation& found, std::string& why) {
     ++m_motions;
     const JPLocation start = nominal.convertToUnits(JPLengthUnit::Millimeters);
@@ -593,26 +589,24 @@ bool JPCellJobMachine::locateFiducial(const JPLocation& nominal, double diameter
                 dy = -dy;
             }
         }
-    // One look from a view point: by the pipeline, else by jplacer's finder.
+    // One look from a view point, by its pipeline.
+    if (!lookAt.pipeline) {
+        why = "no fiducial vision settings to find it with";
+        return false;
+    }
     const double nx = start.x(), ny = start.y();
-    auto once = [&](double vx, double vy, double search, double& fx, double& fy) {
-        return lookAt.pipeline ? lookByPipeline(vx, vy, nx, ny, lookAt, fx, fy, why)
-                               : look(vx, vy, x, y, diameterMm, search, fx, fy, why, true);
-    };
+    auto once = [&](double vx, double vy, double& fx, double& fy) { return lookByPipeline(vx, vy, nx, ny, lookAt, fx, fy, why); };
     // OpenPnP's averaging: every pass after the first kept, then averaged.
     double sumX = 0, sumY = 0;
     int kept = 0;
     for (int pass = 0; pass < std::max(1, lookAt.passes); ++pass) {
-        // The first look as far as its Max. Distance says (else jplacer's own reach), the later ones round the find.
-        const double first = lookAt.maxDistanceMm > 0 ? lookAt.maxDistanceMm : kFirstSearchMm;
-        const double search = pass == 0 ? first : std::min(kSearchMm, first);
         double fx = 0, fy = 0;
         if (r == 0) {
-            if (!once(x, y, search, fx, fy)) return false;
+            if (!once(x, y, fx, fy)) return false;
         } else {
             double ax = 0, ay = 0, bx = 0, by = 0;
-            if (!once(x + dx, y + dy, search, ax, ay)) return false;
-            if (!once(x - dx, y - dy, search, bx, by)) return false;
+            if (!once(x + dx, y + dy, ax, ay)) return false;
+            if (!once(x - dx, y - dy, bx, by)) return false;
             fx = (ax + bx) / 2;
             fy = (ay + by) / 2;
             // The next pass from the other side first.
@@ -1050,45 +1044,6 @@ void JPCellJobMachine::prepare(JPCell& cell, JPCameraFeed& feed) {
     const std::string light = feed.config().lightActuator();
     std::string why;
     if (!light.empty() && feed.config().light.beforeCapture) cell.switchActuatorAndWait(light, true, why);
-}
-
-bool JPCellJobMachine::look(double viewX, double viewY, double x, double y, double diameterMm, double searchMm,
-                             double& foundX, double& foundY, std::string& why, bool fiducial) {
-    JPCell* c = cell(why);
-    if (!c) return false;
-    JPCameraFeed* feed = nullptr;
-    m_onMain([&] { feed = m_host.headCameraFeed(); });
-    if (!feed) {
-        why = "no camera on the head";
-        return false;
-    }
-    prepare(*c, *feed);
-    JPCameraCalibration cal;
-    if (!JPCameraLook::calibration(*c, *feed, cal, why)) return false;
-    // A tune put back before the move (the camera's own for a fiducial without its own; a feeder's), its picture
-    // changing while the head travels; one to be made, over what it looks at, after it.
-    if (fiducial && !feed->config().autoTuneFiducials) applyHead(*feed, "", std::nullopt);
-    else if (!fiducial && !m_headTuneFirst) tuneHead(*feed);
-    if (!c->moveToolAndWait(feed->config().mount, { viewX, viewY, std::nullopt, std::nullopt }, 1.0, why)) return false;
-    // The camera's Auto-Tune for fiducial checks?: tuned on a check's first fiducial, that tune for the rest of it.
-    if (fiducial && feed->config().autoTuneFiducials && !tuneForFiducials(*feed, why)) return false;
-    if (!fiducial && m_headTuneFirst) tuneHead(*feed);
-    JPGrayImage img;
-    if (!JPCameraLook::settled(*feed, img, why)) return false;
-    JPRoundMarkFinder::Request rq;
-    if (!cal.pixelFor(x, y, viewX, viewY, rq.expectedX, rq.expectedY)) {
-        why = "the camera's calibration cannot place it in the picture";
-        return false;
-    }
-    const double scale = std::sqrt(cal.scaleX() * cal.scaleY());
-    rq.searchRadius = searchMm * scale;
-    rq.diameter = diameterMm * scale;
-    const JPRoundMark m = JPCameraLook::findTryingHarder(*c, *feed, img, rq);
-    if (!m.found) {
-        why = m.why;
-        return false;
-    }
-    return cal.machinePoint(m.x, m.y, viewX, viewY, foundX, foundY);
 }
 
 bool JPCellJobMachine::locateHole(const JPLocation& nominal, JPPipeline& pipeline, double searchMm, const std::vector<JPLocation>& from,

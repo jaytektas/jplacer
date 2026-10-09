@@ -17,6 +17,7 @@
 #include "model/JPConfiguration.h"
 #include "model/JPJob.h"
 #include "openpnp/JPXmlReader.h"
+#include "model/JPVisionSettings.h"
 #include "tasks/JPJobProcessor.h"
 
 #include <algorithm>
@@ -193,9 +194,11 @@ public:
         return true;
     }
     bool park(std::string&) override { log.push_back("park"); return true; }
-    bool locateFiducial(const JPLocation& nominal, double diameterMm, const FiducialLook&, JPLocation& found,
+    bool locateFiducial(const JPLocation& nominal, const FiducialLook& look, JPLocation& found,
                         std::string& why) override {
-        if (!near(diameterMm, 1.0)) {
+        // By its pipeline, told the fiducial's size (its footprint's).
+        const JPPipelineValue* d = look.pipeline ? look.pipeline->property("fiducial.diameter") : nullptr;
+        if (!d || !near(std::get<JPPipelineValue::LengthMm>(d->value).mm, 1.0)) {
             why = "wrong size";
             return false;
         }
@@ -258,6 +261,8 @@ int main() {
         part->height = JPLength(0.5, JPLengthUnit::Millimeters);
         config.addPart(part);
     }
+    // The machine's fiducial vision settings (fiducials are found by their pipeline).
+    config.addVisionSettings(JPVisionSettings::create(JPVisionSettings::Kind::Fiducial, "FVS_Default"));
     config.addFeeder(tray("FR", "R1", 10, 10));
     config.addFeeder(tray("FC", "C1", 10, 30));
 

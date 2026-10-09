@@ -10,7 +10,7 @@ notes.
 
 ## Unreleased
 
-- A fiducial check with jplacer's own finder searches only as far as the fiducial's vision settings' Max. Distance. It searched a fixed 4 mm whatever that was set to, so it could take a nearby pad for the fiducial.
+- Fiducials are always found by their vision settings' pipeline, as OpenPnP finds them; Find fiducials with and jplacer's own fiducial finder are gone. On the bench's board, with the board's own fiducial settings, the pipeline found all six fiducials 60 times out of 60, within a few hundredths of a millimetre each time; jplacer's finder found 14 of 60. jplacer's finder had also ignored the Max. Distance slider and searched a fixed 4 mm, reaching nearby pads.
 
 - Strip Auto Setup on a strip running past the camera's reach (a soft limit) follows its holes as far as the camera can go and measures the far scale there, and the log says so, where it stopped short and blamed the holes.
 

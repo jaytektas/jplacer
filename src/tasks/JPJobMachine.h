@@ -199,21 +199,17 @@ public:
         double parallaxAngle = 0;
         // OpenPnP's averaging: the passes after the first averaged.
         bool   averaging = false;
-        // How far from where it should be the fiducial may be found (its vision settings' Max. Distance; 0: jplacer's
-        // finder's own first search), for jplacer's finder as for a pipeline's.
-        double maxDistanceMm = 0;
-        // Found by this OpenPnP pipeline (prepared for the fiducial's part), else by jplacer's finder;
-        // `partId`, the fiducial's part, names it in what is said of the look.
+        // Found by this OpenPnP pipeline (prepared for the fiducial's part; none: not found); `partId`, the
+        // fiducial's part, names it in what is said of the look.
         std::shared_ptr<JPPipeline> pipeline;
         std::string                 partId;
     };
-    // The camera over `nominal` (at safe Z), a round mark of `diameterMm`
-    // found near there (looked at again, centred, as `look` says), and where
-    // it is: `found`.
     // A fiducial check begins (a board's or panel's, a job's fiducials, a test): the head camera, with its Auto-Tune
     // for fiducial checks? ticked, is tuned on the first fiducial looked at, and that tune kept for the rest of the check.
     virtual void startFiducialCheck() {}
-    virtual bool locateFiducial(const JPLocation& nominal, double diameterMm, const FiducialLook& look, JPLocation& found,
+    // The camera over `nominal` (at safe Z), the fiducial found near there by `look`'s pipeline (looked at again,
+    // centred, as `look` says), and where it is: `found`. False (and why) without a pipeline, or not found.
+    virtual bool locateFiducial(const JPLocation& nominal, const FiducialLook& look, JPLocation& found,
                                 std::string& why) = 0;
     // Bottom vision (OpenPnP's part alignment): the part on the nozzle over
     // the camera looking up, as high as the part (its bottom where the

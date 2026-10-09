@@ -27,9 +27,8 @@ struct JPVisionConfig {
     bool        enabledAveraging    = false;
     // OpenPnP's ReferenceFiducialLocator.maxDistance: for pipelines without a maxDistance stage.
     double      fiducialMaxDistanceMm = 4.0;
-    // How fiducials and parts are found: by jplacer's own finders (no
-    // tuning), or by the vision settings' OpenPnP pipelines.
-    bool        fiducialPipeline    = false;
+    // How parts are found: by jplacer's own finder (no tuning), or by the vision settings' OpenPnP pipelines.
+    // Fiducials are always found by their pipelines, as OpenPnP finds them.
     bool        bottomPipeline      = false;
 
     JJson toJson() const {
@@ -44,7 +43,6 @@ struct JPVisionConfig {
         j["fiducialVisionId"] = fiducialVisionId;
         j["enabledAveraging"] = enabledAveraging;
         j["fiducialMaxDistanceMm"] = fiducialMaxDistanceMm;
-        j["fiducialPipeline"] = fiducialPipeline;
         j["bottomPipeline"] = bottomPipeline;
         return j;
     }
@@ -61,7 +59,6 @@ struct JPVisionConfig {
         if (j["fiducialVisionId"].isString()) c.fiducialVisionId = j["fiducialVisionId"].str();
         if (j["enabledAveraging"].isBool()) c.enabledAveraging = j["enabledAveraging"].boolean();
         if (j["fiducialMaxDistanceMm"].isNumber()) c.fiducialMaxDistanceMm = j["fiducialMaxDistanceMm"].number();
-        if (j["fiducialPipeline"].isBool()) c.fiducialPipeline = j["fiducialPipeline"].boolean();
         if (j["bottomPipeline"].isBool()) c.bottomPipeline = j["bottomPipeline"].boolean();
         return c;
     }

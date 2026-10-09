@@ -7,8 +7,8 @@ brought over from OpenPnP runs here, and one tuned here runs in OpenPnP. Every s
 
 <!-- src: src/pipeline/JPPipeline.cpp (process); src/pipeline/JPStageRegistry.cpp (the stage groups) -->
 
-jplacer's own finders (fiducials, strip feeder holes, bottom vision) do not use pipelines and need no
-tuning. A pipeline is used where a feeder or setting says so.
+Fiducials and strip feeders' holes are found by their pipelines, as OpenPnP finds them. jplacer's own bottom
+vision finder (Machine Setup's **Find parts with**) does not use one and needs no tuning.
 
 ## Opening it
 

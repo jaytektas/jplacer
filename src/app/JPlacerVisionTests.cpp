@@ -184,7 +184,7 @@ void JPlacerVisionTests::testFiducial(const JPVisionForms::Holder& holder) {
         }
         JPLocation found(JPLengthUnit::Millimeters);
         machine.startFiducialCheck();
-        return machine.locateFiducial(*at, diameter, look, found, why) && machine.positionCamera(found, why);
+        return machine.locateFiducial(*at, look, found, why) && machine.positionCamera(found, why);
     });
 }
 

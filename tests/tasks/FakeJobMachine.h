@@ -60,7 +60,7 @@ public:
         return false;
     }
     bool park(std::string&) override { return true; }
-    bool locateFiducial(const JPLocation&, double, const FiducialLook&, JPLocation&, std::string& why) override {
+    bool locateFiducial(const JPLocation&, const FiducialLook&, JPLocation&, std::string& why) override {
         why = "no camera";
         return false;
     }

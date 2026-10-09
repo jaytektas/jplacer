@@ -3381,7 +3381,6 @@ void fiducialLocatorForm(JPCellConfig& cell, JPSetupProperties::Form& f, JPConfi
     add.length("fiducialMaxDistanceMm", "Max. Distance (old pipelines only)", [&v]() -> double& { return v.fiducialMaxDistanceMm; });
     add.tip("Maximum allowed distance between nominal fiducial location and detected location. This only applies where the "
             "vision pipeline does not have a maxDistance stage.");
-    finder(add, v.fiducialPipeline, "fiducials");
     defaultSettingsTab(add, config, v.fiducialVisionId, false, tests);
 }
 

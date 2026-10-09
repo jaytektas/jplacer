@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
-// How a fiducial is looked at: by jplacer's finder unless the machine finds
-// fiducials by pipeline; then by its vision settings' OpenPnP pipeline,
-// prepared for its part (its footprint, its diameter, where to look, the
-// settings' parameter values) and the averaging the machine asks for.
+// How a fiducial is looked at: by its vision settings' OpenPnP pipeline (as OpenPnP finds fiducials), prepared for
+// its part (its footprint, its diameter, where to look, the settings' parameter values) and the averaging the
+// machine asks for.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
@@ -39,17 +38,10 @@ int main() {
     double diameter = 0;
     JPJobMachine::FiducialLook look;
     std::string settings;
-    // jplacer's finder: no pipeline, but as far as the settings' Max. Distance (their pipeline's parameter, 2 mm), not
-    // its own 4 mm, which reached a nearby pad.
-    assert(JPFiducialLocator::partLook(config, *part, vision, diameter, look, settings) == JPFiducialLocator::PartProblem::None);
-    assert(std::abs(diameter - 1.5) < 1e-9 && !look.pipeline && !look.averaging);
-    assert(std::abs(look.maxDistanceMm - 2.0) < 1e-9);
-
-    // By pipeline, averaging: the stock fiducial pipeline, prepared for FID.
-    vision.fiducialPipeline = true;
+    // By its pipeline (fiducials are always), averaging: the stock fiducial pipeline, prepared for FID.
     vision.enabledAveraging = true;
     assert(JPFiducialLocator::partLook(config, *part, vision, diameter, look, settings) == JPFiducialLocator::PartProblem::None);
-    assert(look.pipeline && look.partId == "FID" && look.averaging);
+    assert(std::abs(diameter - 1.5) < 1e-9 && look.pipeline && look.partId == "FID" && look.averaging);
     JPPipeline& p = *look.pipeline;
     assert(p.stage("results") && p.context().configurationDirectory == dir.string());
     assert(std::abs(std::get<JPPipelineValue::LengthMm>(p.property("fiducial.diameter")->value).mm - 1.5) < 1e-9);

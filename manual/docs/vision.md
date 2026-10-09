@@ -64,10 +64,9 @@ the difference to the **Vision Center Offsets**.
 **Parallax Diameter** and **Parallax Angle**. A fiducial check uses them (see [Jobs](jobs.md#running-the-job)):
 the fiducial is looked at again, centred, up to the passes, until a look moves it less than the max
 linear offset; with a parallax diameter, it is looked at from either side of it, that far apart and
-turned by the angle, and the middle taken. Its first look goes no farther from where the fiducial should be
-than the settings' **Max. Distance** (their pipeline's parameter; for a pipeline without one, the machine's
-Fiducial Locator's), whether a pipeline or jplacer's own finder looks: a pad beyond it is not taken for the
-fiducial. Settings not enabled stop the check. **Test Fiducial Locator**
+turned by the angle, and the middle taken. The fiducial is found by the settings' pipeline, as OpenPnP finds
+it, no farther from where it should be than their **Max. Distance** (their pipeline's parameter; for a pipeline
+without one, the machine's Fiducial Locator's). Settings not enabled stop the check. **Test Fiducial Locator**
 finds the fiducial nearest where the head camera is (the part's or package's footprint; on the Vision
 tab, a round 1 mm fiducial) as a fiducial check would, and moves the camera onto it.
 

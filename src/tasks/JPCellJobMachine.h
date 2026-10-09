@@ -97,7 +97,7 @@ public:
     bool matchTemplate(const JPLocation& at, const std::string& templatePath, const JPTemplateFinder::Area& area,
                        JPLocation& offset, std::string& why) override;
     bool park(std::string& why) override;
-    bool locateFiducial(const JPLocation& nominal, double diameterMm, const FiducialLook& look, JPLocation& found,
+    bool locateFiducial(const JPLocation& nominal, const FiducialLook& look, JPLocation& found,
                         std::string& why) override;
     bool alignPart(const std::string& nozzleId, const AlignRequest& request, AlignResult& result, std::string& why) override;
     bool locateHole(const JPLocation& nominal, JPPipeline& pipeline, double searchMm, const std::vector<JPLocation>& from,
@@ -165,10 +165,6 @@ private:
     // The fiducial found from (viewX, viewY) by its OpenPnP pipeline, nearest (x, y) of its results.
     bool lookByPipeline(double viewX, double viewY, double x, double y, const FiducialLook& lookAt, double& foundX,
                         double& foundY, std::string& why);
-    // `fiducial`: a fiducial check's look, the camera tuned for it (Auto-Tune for fiducial checks?).
-    bool look(double viewX, double viewY, double x, double y, double diameterMm, double searchMm, double& foundX,
-              double& foundY, std::string& why, bool fiducial = false);
-
     // A part bigger than one look, seen in the shots of `composite` (OpenPnP's
     // vision compositing): the nozzle to each shot, its corners found, then
     // put together. `nx`, `ny`, `nr`: where the nozzle is meant to be over

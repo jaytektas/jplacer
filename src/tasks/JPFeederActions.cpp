@@ -244,7 +244,7 @@ bool JPFeederActions::run(JPConfiguration& config, const std::string& feederId, 
         }
         JPLocation found(JPLengthUnit::Millimeters);
         std::string seen;
-        if (!machine.locateFiducial(at, diameter, look, found, seen)) {
+        if (!machine.locateFiducial(at, look, found, seen)) {
             why = "Unable to locate fiducial";
             return false;
         }
