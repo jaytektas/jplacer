@@ -10,7 +10,9 @@ notes.
 
 ## Unreleased
 
-- Strip feeder Auto Setup measures the tape's angle and pitch over the whole strip: with Max Feed Count set, the Next Hole Location is the hole by the strip's last part, not the next hole 4 mm on, so a few hundredths off in one look no longer adds up part after part (0.58 mm by the tenth). Each hole is looked at again from the same place beside it, and the log gives the holes' pitch and the tape's angle.
+- Strip feeders step exactly their Part Pitch (2 or 4 mm, as EIA-481 holds it) from part to part, along the line through their holes. OpenPnP stretches the pitch to how far apart the two holes were measured, so a hole seen 0.065 mm off put the tenth part 0.58 mm off.
+
+- Strip feeder Auto Setup measures the tape's angle over the whole strip: with Max Feed Count set, the Next Hole Location is the hole by the strip's last part, not the next hole 4 mm on, so a few hundredths off in one look turns the tape far less. Each hole is looked at again from the same place beside it, and the log gives the holes' pitch and the tape's angle.
 
 ## 0.1.31
 
