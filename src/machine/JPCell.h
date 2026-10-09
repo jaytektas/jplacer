@@ -331,7 +331,8 @@ public:
     // Keep a camera's calibration, in place of one at the same picture size
     // (the cell's own copy; the owner saves it).
     void setCameraCalibration(const std::string& cameraId, const JPCameraCalibration& calibration);
-    // Keep a capture device's own settings, as Auto-Tune left them (the cell's own copy; the owner saves it).
+    // Keep a capture device's own settings, as Auto-Tune or Machine Setup left them (the cell's own copy; the
+    // owner saves it).
     void setCameraControls(const std::string& cameraId, const JJson& controls);
     // A camera's calibration for pictures width x height; not valid when it
     // has none at that size.

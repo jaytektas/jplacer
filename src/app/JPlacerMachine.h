@@ -135,6 +135,8 @@ public:
 
     // Whether a job is running (no other cell is opened meanwhile).
     std::function<bool()> jobRunning;
+    // A job's step under way (running, pausing or stopping; paused, it is not): the machine is the job's.
+    std::function<bool()> jobWorking;
     // The head's Z probe read over (x, y), its Z to `done`; false without one (JPFeedersPanel::probeZ).
     std::function<bool(double x, double y, std::function<void(double z)> done)> probeZ;
     // The machine connected or disconnected (a job's Start, Step and Stop follow it, as OpenPnP's do): told when

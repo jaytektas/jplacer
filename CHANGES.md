@@ -18,6 +18,8 @@ notes.
 - A nozzle tip is not calibrated while its nozzle holds a part ("Cannot calibrate nozzle tip with part on nozzle …"), as in OpenPnP: before, its runout was measured on the part, and after homing too.
 - A fiducial check can set the board's height too: Machine Setup's Fiducial Locator has Measure Board Z? (off to begin with), and with it the head camera, calibrated at two heights, measures how far away the board is at each of its fiducials, and its Z is their mean. A board left at the wrong Z had its parts let go far above it.
 - The Jog panel's nozzle list says which part each nozzle holds, as OpenPnP's does.
+- Dragging a camera property's slider (brightness, exposure, ...) sets it on the running camera as it moves: before, every step closed and opened the camera again ("starting TOP_CAMERA") and made the other panels afresh, so the Jog panel jumped about.
+- A camera's Auto-Tune icon works with a job paused, not only with none running.
 
 ## 0.1.36
 

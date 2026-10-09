@@ -62,6 +62,9 @@ JPlacerJobRun::JPlacerJobRun(JAppWindow& window, JPlacerJob& job, JPlacerMachine
     panel.onStop = [this] { stop(); };
     panel.onFiducialCheck = [this](JPPlacementsHolderLocation* l) { fiducialCheck(l); };
     machine.jobRunning = [this] { return running(); };
+    machine.jobWorking = [this] {
+        return m_state == RunState::Running || m_state == RunState::Pausing || m_state == RunState::Stopping;
+    };
     job.running = [this] { return running(); };
     machine.onConnectedChanged = [this](bool connected) {
         m_panel.setMachineEnabled(connected);
@@ -79,6 +82,7 @@ JPlacerJobRun::~JPlacerJobRun() {
     join();
     endRun(JPRunStore::Outcome::Stopped);
     m_machine.jobRunning = nullptr;
+    m_machine.jobWorking = nullptr;
     m_machine.onConnectedChanged = nullptr;
     m_job.running = nullptr;
 }

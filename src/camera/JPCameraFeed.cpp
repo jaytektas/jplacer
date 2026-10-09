@@ -104,6 +104,13 @@ void JPCameraFeed::setControls(JJson controls) {
     m_setAsked = std::move(controls);
 }
 
+void JPCameraFeed::keepControls(JJson controls) {
+    std::lock_guard lk(m_mutex);
+    m_keptControls = controls;
+    m_keptChanged = true;
+    m_setAsked = std::move(controls);
+}
+
 void JPCameraFeed::run() {
     // A camera can drop off its bus (a stepper's noise on a USB cable) or
     // hang with no error: either way it is closed and opened again, by its
@@ -138,6 +145,12 @@ void JPCameraFeed::runSource(std::string& why) {
     // Opened with its settings as last tuned, where they were (kept in the cell by whoever asked), and its
     // exposure as last set for a picture (the light most likely as it was).
     JJson device = m_config.device;
+    {
+        std::lock_guard lk(m_mutex);
+        if (m_keptControls) device["controls"] = *m_keptControls;
+        if (m_keptChanged) m_tuned.reset();   // set by hand since it was tuned: the hand's
+        m_keptChanged = false;
+    }
     if (m_tuned) device["controls"] = *m_tuned;
     if (m_exposed) {
         device["controls"]["exposure"]["auto"] = false;
@@ -186,6 +199,8 @@ void JPCameraFeed::runSource(std::string& why) {
         {
             std::lock_guard lk(m_mutex);
             setting.swap(m_setAsked);
+            if (m_keptChanged) m_tuned.reset();   // set by hand since it was tuned: the hand's, on opening again
+            m_keptChanged = false;
         }
         if (setting) {
             source->setControls(*setting);

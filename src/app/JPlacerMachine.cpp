@@ -300,8 +300,10 @@ void JPlacerMachine::buildCameras() {
         }
         d.panel->onSettings = [this, id = c.id] { showSetup("camera:" + id); };
         d.panel->onAutoTune = [this, id = c.id] {
-            if (jobRunning && jobRunning()) {   // the job's own tuning (Auto-Tune for each part?) is not taken from it
-                m_window.showStatus("A job is running: Auto-Tune once it has stopped", kErrorMs);
+            // Not while a job's step is under way (the camera is the job's then); paused, the job's own tunes (Auto-Tune
+            // for each part?, a feeder's) are put back for its looks as before.
+            if (jobWorking && jobWorking()) {
+                m_window.showStatus("The job is running: pause it first", kErrorMs);
                 return;
             }
             setupAction("camera:" + id, "defaultsAutoTune");
@@ -1020,10 +1022,15 @@ bool JPlacerMachine::applySetup(JPCellConfig cell) {
     for (JPCameraConfig& c : cell.cameras) c.calibrations = m_cell->cameraCalibrations(c.id);
     cell.squareness = m_cell->squareness();
     // The cameras are made again only
-    // when what they show changed: where they are, and how they are set up.
+    // when what they show changed: where they are, and how they are set up. A camera's device settings
+    // (brightness, exposure, ...) changed alone are set on it as it runs (JPCameraFeed::keepControls).
     auto seen = [](const JPCellConfig& c) {
         JJson j = JJson::array();
-        for (const JPCameraConfig& x : c.cameras) j.push(x.toJson());
+        for (const JPCameraConfig& x : c.cameras) {
+            JPCameraConfig without = x;
+            if (without.device.isObject()) without.device["controls"] = JJson();
+            j.push(without.toJson());
+        }
         for (const JPHeadConfig& x : c.heads) j.push(x.toJson());
         for (const JPAxisConfig& x : c.axes) j.push(x.toJson());
         return j.dump();
@@ -1041,6 +1048,37 @@ bool JPlacerMachine::applySetup(JPCellConfig cell) {
     if (keep != Keep::SetupAndCameras)
         for (CameraDock& c : m_cameras)
             if (c.panel->isRunning()) inFront.push_back(c.panel->camera().id);
+    // Only cameras' device settings changed (a property's slider dragged, say): set on each camera as it runs,
+    // kept in the cell and saved, nothing made again (the panels would be made afresh on every step of a slider).
+    {
+        auto withoutControls = [](JPCellConfig c) {
+            for (JPCameraConfig& x : c.cameras)
+                if (x.device.isObject()) x.device["controls"] = JJson();
+            return c.toJson().dump();
+        };
+        if (withoutControls(cell) == withoutControls(m_cell->config())) {
+            for (const JPCameraConfig& now : cell.cameras)
+                for (const JPCameraConfig& was : m_cell->config().cameras)
+                    if (now.id == was.id && now.device["controls"].dump() != was.device["controls"].dump()) {
+                        m_cell->setCameraControls(now.id, now.device["controls"]);
+                        for (CameraDock& d : m_cameras)
+                            if (d.panel->camera().id == now.id) d.panel->feed().keepControls(now.device["controls"]);
+                    }
+            if (!m_cell->config().save(m_cellPath, error)) {
+                m_window.showStatus("Machine Setup's changes are in use but not saved: " + error, kErrorMs);
+                return true;
+            }
+            JLOGC(JPlacerLog::kUi, JLogLevel::Debug) << "Machine Setup: camera settings in use and saved to " << m_cellPath;
+            return true;
+        }
+    }
+    // Kept running, a camera whose device settings changed with something else takes them as it runs.
+    if (keep == Keep::SetupAndCameras)
+        for (const JPCameraConfig& now : cell.cameras)
+            for (const JPCameraConfig& was : m_cell->config().cameras)
+                if (now.id == was.id && now.device["controls"].dump() != was.device["controls"].dump())
+                    for (CameraDock& d : m_cameras)
+                        if (d.panel->camera().id == now.id) d.panel->feed().keepControls(now.device["controls"]);
     dropPanels(keep);
     const bool taken = m_cell->reconfigure(cell, error);
     watchCell();
