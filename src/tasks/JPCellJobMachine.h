@@ -100,8 +100,8 @@ public:
     bool locateFiducial(const JPLocation& nominal, double diameterMm, const FiducialLook& look, JPLocation& found,
                         std::string& why) override;
     bool alignPart(const std::string& nozzleId, const AlignRequest& request, AlignResult& result, std::string& why) override;
-    bool locateHole(const JPLocation& nominal, double diameterMm, double searchMm, double parallaxDiameterMm,
-                    double parallaxAngle, JPLocation& found, std::string& why) override;
+    bool locateHole(const JPLocation& nominal, JPPipeline& pipeline, double searchMm, const std::vector<JPLocation>& from,
+                    const std::function<void(JPPipeline&)>& configure, JPLocation& found, std::string& why) override;
 
     // How many times the machine has been moved for the job (OpenPnP's motion
     // history, for Step Next Motion).
@@ -153,8 +153,13 @@ private:
     // `diameterMm` expected at (x, y) within `searchMm`: where it is.
     // The head camera over (viewX, viewY), `pipeline` given its pictures,
     // scale and places there; its calibration and feed.
+    // `atZ`: what it looks at is that high (the scale there, the camera calibrated at two heights).
     bool headCameraPipeline(double viewX, double viewY, JPPipeline& pipeline, JPCameraCalibration& cal, JPCameraFeed*& feed,
-                            std::string& why, bool forFiducial = false);
+                            std::string& why, bool forFiducial = false, std::optional<double> atZ = std::nullopt);
+    // seeCircles, what it looks at `atZ` high.
+    // `configure`: the pipeline set up once it has the camera (none: as it is).
+    bool seeCirclesAt(const JPLocation& at, std::optional<double> atZ, JPPipeline& pipeline, SeenCircles& seen, std::string& why,
+                      const std::function<void(JPPipeline&)>& configure = nullptr);
     // The pipeline's working picture on a camera's view for `ms`, `text` over it.
     void showWorking(JPPipeline& pipeline, const JPCameraFeed* feed, const std::string& text, int ms);
     // The fiducial found from (viewX, viewY) by its OpenPnP pipeline, nearest (x, y) of its results.

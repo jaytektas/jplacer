@@ -132,6 +132,12 @@ public:
     // look (vision off, or near enough to the last found within the
     // extrapolation distance).
     std::optional<JPLocation> visionExpected(int n) const;
+    // A strip's: where the camera looks at a hole from, a part beside it (across the tape as its parts are, half a
+    // hole pitch on along it): out of the camera's own light reflected straight back, which washes the hole under
+    // it out on clear tape. One look, as over the hole: no longer.
+    JPLocation visionView(const JPLocation& hole) const;
+    // A strip's tape height at `l`: the reference hole's Z and its Z Along Strip %'s share for how far along it is.
+    double tapeZ(const JPLocation& l) const;
     // Where it was found: the line its parts lie on follows it.
     void setVisionFound(int n, const JPLocation& found);
     // A strip feeder's tape width (OpenPnP's tape-width; 8 mm when not set).

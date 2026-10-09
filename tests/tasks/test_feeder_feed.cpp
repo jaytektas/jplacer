@@ -197,9 +197,18 @@ public:
     }
     double alignDx = 0, alignDa = 0;
     int    aligns = 0;
-    bool locateHole(const JPLocation& nominal, double diameterMm, double searchMm, double, double, JPLocation& found,
+    bool locateHole(const JPLocation& nominal, JPPipeline& pipeline, double searchMm, const std::vector<JPLocation>& from,
+                    const std::function<void(JPPipeline&)>& configure, JPLocation& found,
                     std::string& why) override {
-        assert(near(diameterMm, 1.5) && near(searchMm, 2));
+        // The strip's pipeline, set up for the camera: told its holes' size and to search round where it should be.
+        configure(pipeline);
+        const auto* d = pipeline.property("sprocketHole.diameter");
+        assert(d && near(std::get<JPPipelineValue::LengthMm>(d->value).mm, 1.5) && near(searchMm, 2));
+        // Looked at once, from a part beside the hole (3.5 mm across the 8 mm tape, 2 mm along): out of the camera's
+        // light reflected straight back.
+        assert(from.size() == 1);
+        const JPLocation v = from.front().convertToUnits(JPLengthUnit::Millimeters), h = nominal.convertToUnits(JPLengthUnit::Millimeters);
+        assert(near(std::hypot(v.x() - h.x(), v.y() - h.y()), std::hypot(3.5, 2.0)));
         ++looks;
         if (!holes) {
             why = "no round mark";

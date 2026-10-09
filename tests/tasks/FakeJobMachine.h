@@ -89,7 +89,8 @@ public:
         why = "no camera";
         return false;
     }
-    bool locateHole(const JPLocation&, double, double, double, double, JPLocation&, std::string& why) override {
+    bool locateHole(const JPLocation&, JPPipeline&, double, const std::vector<JPLocation>&, const std::function<void(JPPipeline&)>&,
+                    JPLocation&, std::string& why) override {
         why = "no camera";
         return false;
     }

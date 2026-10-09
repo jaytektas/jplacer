@@ -3,6 +3,8 @@
 
 #include "JPFeederFeed.h"
 
+#include "tasks/JPFeederPipelines.h"
+
 #include "JPVisionTapeFeeder.h"
 #include "JPBlindsFeeder.h"
 #include "JPHeapFeeder.h"
@@ -414,11 +416,23 @@ bool JPFeederFeed::feed(JPConfiguration& config, const std::string& feederId, co
     }
     for (const int n : checks) {
         std::optional<JPLocation> expected;
+        std::optional<JPPipeline> pipeline;
+        std::optional<JPFeeder> feeder;   // as it is, to set its pipeline up for the camera with
+        std::vector<JPLocation> views;
         double diameter = 0, search = 0, parallaxDiameter = 0, parallaxAngle = 0;
         std::string name;
         main([&] {
             if (const JPFeeder* f = config.feeder(feederId)) {
                 expected = f->visionExpected(n);
+                feeder = *f;
+                // At the tape's height there (the scale for it), looked at from a part beside it.
+                if (expected) {
+                    expected = expected->derive(std::nullopt, std::nullopt,
+                                                JPLength(f->tapeZ(*expected), JPLengthUnit::Millimeters).convertToUnits(expected->units()).value(),
+                                                std::nullopt);
+                    views = { f->visionView(*expected) };
+                }
+                pipeline = JPFeederPipelines::of(*f);
                 diameter = f->holeDiameter().convertToUnits(JPLengthUnit::Millimeters).value();
                 search = f->holePitch().convertToUnits(JPLengthUnit::Millimeters).value() / 2;
                 parallaxDiameter = f->lengthOf("parallax-diameter", JPLength(0, JPLengthUnit::Millimeters))
@@ -429,9 +443,34 @@ bool JPFeederFeed::feed(JPConfiguration& config, const std::string& feederId, co
             }
         });
         if (!expected) continue;
+        if (!pipeline) {
+            why = name + " has no pipeline to find its holes with";
+            return false;
+        }
+        // A parallax diameter set (OpenPnP's): from either side of the hole, that far apart and turned that way, instead.
+        if (parallaxDiameter > 0) {
+            const JPLocation e = expected->convertToUnits(JPLengthUnit::Millimeters);
+            const double r = parallaxDiameter / 2, a = parallaxAngle * M_PI / 180;
+            views = { JPLocation(JPLengthUnit::Millimeters, e.x() + r * std::cos(a), e.y() + r * std::sin(a), e.z(), 0),
+                      JPLocation(JPLengthUnit::Millimeters, e.x() - r * std::cos(a), e.y() - r * std::sin(a), e.z(), 0) };
+        }
+        // The search round the picture's middle: as far as the farthest view is from the hole, and half a pitch more.
+        double farthest = 0;
+        const JPLocation hole = expected->convertToUnits(JPLengthUnit::Millimeters);
+        for (const JPLocation& v : views) {
+            const JPLocation m = v.convertToUnits(JPLengthUnit::Millimeters);
+            farthest = std::max(farthest, std::hypot(m.x() - hole.x(), m.y() - hole.y()));
+        }
+        // Set up as Auto Setup sets it, once it has the camera (its Hough stages' sizes in pixels); then its holes' size,
+        // and the search round the picture's middle.
+        const auto configure = [&config, &feeder, diameter, reach = farthest + search](JPPipeline& p) {
+            JPFeederPipelines::configureForEditing(config, *feeder, p);
+            p.setProperty("sprocketHole.diameter", JPPipelineValue { JPPipelineValue::LengthMm { diameter } });
+            p.setProperty("sprocketHole.maxDistance", JPPipelineValue { JPPipelineValue::LengthMm { reach } });
+        };
         JPLocation found(JPLengthUnit::Millimeters);
         std::string seen;
-        const bool ok = machine.locateHole(*expected, diameter, search, parallaxDiameter, parallaxAngle, found, seen);
+        const bool ok = machine.locateHole(*expected, *pipeline, search, views, configure, found, seen);
         const JPLocation e = expected->convertToUnits(JPLengthUnit::Millimeters);
         if (!ok || std::hypot(found.x() - e.x(), found.y() - e.y()) > kMostOffMm) {
             JLOGC(JPlacerLog::kJob, JLogLevel::Info) << name << ": hole " << n << " not found" << (ok ? "" : ": " + seen);

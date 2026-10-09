@@ -138,15 +138,18 @@ A strip of cut tape lying on the machine, its parts picked one after the other a
   measured is the **Z Along Strip %**; the log says both heights, and warns when the ends differ by 0.2 mm or more.
 - **Vision**: with **Use Vision?** ticked, each feed has the camera look at the hole it feeds from (and at
   the first hole too when picking starts mid-strip), and the parts are picked where the holes were found
-  rather than where the hole locations put them. A hole is looked for within half a hole pitch of where it
-  should be, as a round mark 1.5 mm across, light or dark; not found, or found more than 2 mm off, the
-  strip is taken as finished ("Unable to locate reference hole. End of strip?"). **Extrapolation Distance**:
-  how far along the strip to go before looking again (0: every hole; near the strip's start it looks more
-  often). **Parallax Diameter** and **Parallax Angle**: look at the hole from either side of it, that far
-  apart and turned that way, and take the middle (for clear tape that reflects the camera's light).
-  **Reset Vision** forgets the holes found. **Edit Pipeline...** opens the strip's OpenPnP pipeline in the
-  [Pipeline Editor](pipeline-editor.md), and **Reset Pipeline** puts OpenPnP's default back; jplacer's own
-  hole finder, described here, does not use it.
+  rather than where the hole locations put them. The camera looks from a part beside the hole (across the tape
+  as its parts are, half a hole pitch along), not straight down on it: its own light reflected straight back
+  washes the hole under it out on clear tape. One look, as straight down would be. The strip's pipeline
+  (**Edit Pipeline...**, as OpenPnP's strip feeder) finds the round marks there, at the camera's scale for the
+  tape's height (the Reference Hole Location's Z and its Z Along Strip %, the camera calibrated at two heights),
+  and the hole is the one nearest where it should be, within half a hole pitch; not found, or found more than
+  2 mm off, the strip is taken as finished ("Unable to locate reference hole. End of strip?").
+  **Extrapolation Distance**: how far along the strip to go before looking again (0: every hole; near the
+  strip's start it looks more often). **Parallax Diameter** and **Parallax Angle**: instead, look at the hole
+  from either side of it, that far apart and turned that way, and take the middle. **Reset Vision** forgets the
+  holes found. **Edit Pipeline...** opens the strip's OpenPnP pipeline in the [Pipeline Editor](pipeline-editor.md),
+  and **Reset Pipeline** puts the default back.
 - **Locations**: the **Reference Hole Location**, the hole nearest the first part's centre, in the
   direction the parts continue, with the pick height as its Z; and the **Last Hole Location**, any hole
   further along. **Z Along Strip %** (jplacer's; OpenPnP's strip is level): how much the tape rises along
@@ -157,7 +160,7 @@ A strip of cut tape lying on the machine, its parts picked one after the other a
 The part is picked across the tape from its hole, as EIA-481 tape lays it out: half the tape width less
 0.5 mm across, 2 mm along, then one part pitch further for each part taken.
 
-<!-- src: src/setup/JPFeederForms.cpp (stripForm, act); src/app/JPlacerCameraTasks.cpp (tuneFor); src/app/JPlacerMachine.cpp (tuneHeadCamera); src/tasks/JPCellJobMachine.cpp (tuneHead, useHeadTune); src/tasks/JPFeederFeed.cpp (feed); src/model/JPFeeder.cpp (pickLocation, idealLineLocations, z-along-strip-percent, feed, visionExpected, setVisionFound); src/tasks/JPFeederFeed.cpp; src/tasks/JPCellJobMachine.cpp (locateHole, seeCircles); src/tasks/JPFeederPipelines.cpp; src/app/JPlacerStripAutoSetup.cpp (tapeHeight, kScaleMoveMm); src/tasks/JPStripHoleWalk.cpp (scaleAt, atScale, besideHole, walk); src/app/JPlacerStripAutoSetup.cpp (kLevelMm); src/machine/JPCameraCalibration.cpp (heightAt); src/tasks/JPStripHoles.cpp (find); src/pipeline/JPDefaultPipelines.cpp (stripFeeder); src/vision/JPRansac.cpp -->
+<!-- src: src/setup/JPFeederForms.cpp (stripForm, act); src/app/JPlacerCameraTasks.cpp (tuneFor); src/app/JPlacerMachine.cpp (tuneHeadCamera); src/tasks/JPCellJobMachine.cpp (tuneHead, useHeadTune); src/tasks/JPFeederFeed.cpp (feed); src/model/JPFeeder.cpp (pickLocation, idealLineLocations, z-along-strip-percent, feed, visionExpected, setVisionFound); src/tasks/JPFeederFeed.cpp; src/tasks/JPCellJobMachine.cpp (locateHole, seeCirclesAt); src/model/JPFeeder.cpp (visionView, tapeZ); src/tasks/JPFeederPipelines.cpp; src/app/JPlacerStripAutoSetup.cpp (tapeHeight, kScaleMoveMm); src/tasks/JPStripHoleWalk.cpp (scaleAt, atScale, besideHole, walk); src/app/JPlacerStripAutoSetup.cpp (kLevelMm); src/machine/JPCameraCalibration.cpp (heightAt); src/tasks/JPStripHoles.cpp (find); src/pipeline/JPDefaultPipelines.cpp (stripFeeder); src/vision/JPRansac.cpp -->
 
 ### Tray feeder
 

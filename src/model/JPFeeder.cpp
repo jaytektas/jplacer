@@ -337,17 +337,9 @@ std::optional<JPLocation> JPFeeder::pickLocation() const {
         double angle = b.angleTo(a) - 90;
         const double r = angle * M_PI / 180;
         l = l.add(JPLocation(l.units(), x * std::cos(r) - y * std::sin(r), x * std::sin(r) + y * std::cos(r), 0, 0));
-        // A strip not level: picked higher or lower by how far along it is from the reference hole, at its slope
-        // (jplacer's Z Along Strip, % of the distance; OpenPnP's strip is level, at the reference hole's Z).
-        if (const double slope = real("z-along-strip-percent", 0); slope != 0) {
-            const JPLocation ref = locationOf("reference-hole-location").convertToUnits(l.units());
-            const JPLocation last = locationOf("last-hole-location").convertToUnits(l.units());
-            const double lx = last.x() - ref.x(), ly = last.y() - ref.y(), len = std::hypot(lx, ly);
-            if (len > 0) {
-                const double along = ((l.x() - ref.x()) * lx + (l.y() - ref.y()) * ly) / len;
-                l = l.derive(std::nullopt, std::nullopt, l.z() + slope / 100 * along, std::nullopt);
-            }
-        }
+        // A strip not level: picked higher or lower by how far along it is (jplacer's Z Along Strip %).
+        l = l.derive(std::nullopt, std::nullopt, JPLength(tapeZ(l), JPLengthUnit::Millimeters).convertToUnits(l.units()).value(),
+                     std::nullopt);
         if (flag("standard-eia-481", true)) angle += 90;
         return l.derive(std::nullopt, std::nullopt, std::nullopt, angle + location().rotation());
     }
@@ -448,6 +440,31 @@ std::vector<int> JPFeeder::takeVisionChecks() {
     std::vector<int> out;
     out.swap(m_visionChecks);
     return out;
+}
+
+double JPFeeder::tapeZ(const JPLocation& at) const {
+    const JPLocation ref = locationOf("reference-hole-location").convertToUnits(JPLengthUnit::Millimeters);
+    const JPLocation last = locationOf("last-hole-location").convertToUnits(JPLengthUnit::Millimeters);
+    const JPLocation l = at.convertToUnits(JPLengthUnit::Millimeters);
+    // The strip's slope (OpenPnP's strip is level, at the reference hole's Z).
+    const double slope = real("z-along-strip-percent", 0);
+    const double lx = last.x() - ref.x(), ly = last.y() - ref.y(), len = std::hypot(lx, ly);
+    if (slope == 0 || len == 0) return ref.z();
+    return ref.z() + slope / 100 * ((l.x() - ref.x()) * lx + (l.y() - ref.y()) * ly) / len;
+}
+
+JPLocation JPFeeder::visionView(const JPLocation& hole) const {
+    const auto [a, b] = idealLineLocations();
+    const JPLocation aa = a.convertToUnits(JPLengthUnit::Millimeters), bb = b.convertToUnits(JPLengthUnit::Millimeters);
+    const JPLocation h = hole.convertToUnits(JPLengthUnit::Millimeters);
+    const double len = std::hypot(bb.x() - aa.x(), bb.y() - aa.y());
+    if (len == 0) return h;
+    // Across the tape to its parts, as the pick (OpenPnP's hole to part lateral, turned with the tape).
+    const double across = mm(lengthOf("tape-width", JPLength(8, JPLengthUnit::Millimeters))) / 2 - 0.5;
+    const double r = (bb.angleTo(aa) - 90) * M_PI / 180;
+    const double half = mm(holePitch()) / 2;
+    return JPLocation(JPLengthUnit::Millimeters, h.x() + across * std::cos(r) + (bb.x() - aa.x()) / len * half,
+                      h.y() + across * std::sin(r) + (bb.y() - aa.y()) / len * half, h.z(), 0);
 }
 
 std::optional<JPLocation> JPFeeder::visionExpected(int n) const {

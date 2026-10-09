@@ -294,8 +294,13 @@ public:
     virtual void showOnCamera(const cv::Mat& bgr, int ms) = 0;
     virtual bool alignPart(const std::string& nozzleId, const AlignRequest& request, AlignResult& result,
                            std::string& why) = 0;
-    virtual bool locateHole(const JPLocation& nominal, double diameterMm, double searchMm, double parallaxDiameterMm,
-                            double parallaxAngle, JPLocation& found, std::string& why) = 0;
+    // A strip's sprocket hole where it should be (`nominal`, its Z the tape's height), as OpenPnP's strip feeder finds
+    // it: the strip's `pipeline` run with the head camera over each of `from` (none: over it), at the camera's scale
+    // at the tape's height (calibrated at two heights), the round mark nearest it within `searchMm` in each, those
+    // averaged. `configure`: the pipeline set up for the feeder once it has the camera (its scale known), before it
+    // runs. False (and why): none there.
+    virtual bool locateHole(const JPLocation& nominal, JPPipeline& pipeline, double searchMm, const std::vector<JPLocation>& from,
+                            const std::function<void(JPPipeline&)>& configure, JPLocation& found, std::string& why) = 0;
 };
 
 } // inline namespace jf

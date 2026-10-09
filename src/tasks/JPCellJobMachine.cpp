@@ -639,7 +639,7 @@ bool JPCellJobMachine::locateFiducial(const JPLocation& nominal, double diameter
 }
 
 bool JPCellJobMachine::headCameraPipeline(double viewX, double viewY, JPPipeline& p, JPCameraCalibration& cal, JPCameraFeed*& feed,
-                                           std::string& why, bool forFiducial) {
+                                           std::string& why, bool forFiducial, std::optional<double> atZ) {
     JPCell* c = cell(why);
     if (!c) return false;
     feed = nullptr;
@@ -650,6 +650,7 @@ bool JPCellJobMachine::headCameraPipeline(double viewX, double viewY, JPPipeline
     }
     prepare(*c, *feed);
     if (!JPCameraLook::calibration(*c, *feed, cal, why)) return false;
+    if (atZ) cal = cal.atHeight(*atZ);   // at another height: its scale there (as it is, calibrated at one)
     // A tune put back before the move, its picture changing while the head travels; one to be made, over what it
     // looks at, after it.
     if (forFiducial && !feed->config().autoTuneFiducials) applyHead(*feed, "", std::nullopt);   // the camera's own
@@ -761,11 +762,17 @@ bool JPCellJobMachine::seeRects(const JPLocation& at, JPPipeline& p, int showMs,
 }
 
 bool JPCellJobMachine::seeCircles(const JPLocation& at, JPPipeline& p, SeenCircles& seen, std::string& why) {
+    return seeCirclesAt(at, std::nullopt, p, seen, why);
+}
+
+bool JPCellJobMachine::seeCirclesAt(const JPLocation& at, std::optional<double> atZ, JPPipeline& p, SeenCircles& seen, std::string& why,
+                                    const std::function<void(JPPipeline&)>& configure) {
     ++m_motions;
     const JPLocation m = at.convertToUnits(JPLengthUnit::Millimeters);
     JPCameraCalibration cal;
     JPCameraFeed* feed = nullptr;
-    if (!headCameraPipeline(m.x(), m.y(), p, cal, feed, why)) return false;
+    if (!headCameraPipeline(m.x(), m.y(), p, cal, feed, why, false, atZ)) return false;
+    if (configure) configure(p);
     if (!p.process(why)) return false;
     seen = {};
     if (!cal.pixelFor(m.x(), m.y(), m.x(), m.y(), seen.centreX, seen.centreY)) {
@@ -1082,31 +1089,36 @@ bool JPCellJobMachine::look(double viewX, double viewY, double x, double y, doub
     return cal.machinePoint(m.x, m.y, viewX, viewY, foundX, foundY);
 }
 
-bool JPCellJobMachine::locateHole(const JPLocation& nominal, double diameterMm, double searchMm, double parallaxDiameterMm,
-                                   double parallaxAngle, JPLocation& found, std::string& why) {
-    ++m_motions;
+bool JPCellJobMachine::locateHole(const JPLocation& nominal, JPPipeline& pipeline, double searchMm, const std::vector<JPLocation>& from,
+                                   const std::function<void(JPPipeline&)>& configure, JPLocation& found, std::string& why) {
     const JPLocation n = nominal.convertToUnits(JPLengthUnit::Millimeters);
-    double x = 0, y = 0;
-    if (parallaxDiameterMm == 0) {
-        if (!look(n.x(), n.y(), n.x(), n.y(), diameterMm, searchMm, x, y, why)) return false;
-    } else {
-        // From either side, the nearer first; the two finds averaged.
-        const double r = parallaxDiameterMm / 2, a = parallaxAngle * M_PI / 180;
-        double dx = r * std::cos(a), dy = r * std::sin(a);
-        if (const auto cam = cameraLocation()) {
-            const JPLocation m = cam->convertToUnits(JPLengthUnit::Millimeters);
-            if (std::hypot(n.x() + dx - m.x(), n.y() + dy - m.y()) > std::hypot(n.x() - dx - m.x(), n.y() - dy - m.y())) {
-                dx = -dx;
-                dy = -dy;
+    std::vector<JPLocation> views = from;
+    if (views.empty()) views.push_back(n);
+    double sx = 0, sy = 0;
+    for (const JPLocation& v : views) {
+        // The round mark nearest the hole's place among those the pipeline finds from there, at the tape's scale.
+        SeenCircles seen;
+        if (!seeCirclesAt(v.convertToUnits(JPLengthUnit::Millimeters), n.z(), pipeline, seen, why, configure)) return false;
+        double best = searchMm, x = 0, y = 0;
+        bool any = false;
+        for (const SeenCircles::Circle& c : seen.circles) {
+            double cx = 0, cy = 0;
+            if (!seen.toMachine(c.x, c.y, cx, cy)) continue;
+            if (const double d = std::hypot(cx - n.x(), cy - n.y()); d <= best) {
+                best = d;
+                x = cx;
+                y = cy;
+                any = true;
             }
         }
-        double ax = 0, ay = 0, bx = 0, by = 0;
-        if (!look(n.x() + dx, n.y() + dy, n.x(), n.y(), diameterMm, searchMm, ax, ay, why)) return false;
-        if (!look(n.x() - dx, n.y() - dy, n.x(), n.y(), diameterMm, searchMm, bx, by, why)) return false;
-        x = (ax + bx) / 2;
-        y = (ay + by) / 2;
+        if (!any) {
+            why = seen.circles.empty() ? "no round mark" : "no round mark within " + std::to_string(searchMm) + " mm";
+            return false;
+        }
+        sx += x;
+        sy += y;
     }
-    found = JPLocation(JPLengthUnit::Millimeters, x, y, n.z(), n.rotation());
+    found = JPLocation(JPLengthUnit::Millimeters, sx / double(views.size()), sy / double(views.size()), n.z(), n.rotation());
     return true;
 }
 

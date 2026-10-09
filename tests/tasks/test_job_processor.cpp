@@ -213,7 +213,8 @@ public:
     }
     double alignDx = 0, alignDa = 0;
     int    aligns = 0;
-    bool locateHole(const JPLocation& nominal, double, double, double, double, JPLocation& found, std::string&) override {
+    bool locateHole(const JPLocation& nominal, JPPipeline&, double, const std::vector<JPLocation>&, const std::function<void(JPPipeline&)>&,
+                    JPLocation& found, std::string&) override {
         found = nominal;
         log.push_back("hole");
         return true;
