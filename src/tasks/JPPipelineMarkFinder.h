@@ -7,6 +7,8 @@
 
 #include <opencv2/core.hpp>
 #include "camera/JPFrame.h"
+#include "machine/JPCameraCalibration.h"
+#include "machine/JPCameraConfig.h"
 #include "vision/JPRoundMark.h"
 
 #include <string>
@@ -39,6 +41,15 @@ public:
                             double maxDiameter);
     JPRoundMark findAnySize(const cv::Mat& bgr, double x, double y, double maxDistance, double minDiameter,
                             double maxDiameter);
+
+    // A round mark near (x, y) on the machine, the camera looking from (viewX, viewY), in `frame` as the camera
+    // took it: found by `cam`'s calibration pipeline (OpenPnP's Advanced Calibration's; its own when edited) on the
+    // picture in colour, straightened by `calibration` (as OpenPnP's pipelines are given pictures), within
+    // `searchMm`, `diameterMm` across (0: at any size from `leastMm` to `mostMm`, its size then into it). Where it
+    // is on the machine into mx, my; not found, why (in the mark).
+    static JPRoundMark onMachine(const JPCameraConfig& cam, const JPCameraCalibration& calibration, const JPFrame& frame,
+                                 double x, double y, double viewX, double viewY, double searchMm, double& diameterMm,
+                                 double leastMm, double mostMm, double& mx, double& my);
 
 private:
     void       useCapture();

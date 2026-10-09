@@ -2,14 +2,15 @@
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
 // The simulated camera draws a mark where the machine's geometry puts it, and
-// the round-mark finder finds it there: with the viewpoint a known distance
+// the calibration pipeline finds it there: with the viewpoint a known distance
 // from the mark, the mark appears at centre + M (V - P) for the hidden M.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
 
 #include "camera/JPCameraFeed.h"
-#include "vision/JPRoundMarkFinder.h"
+#include "pipeline/JPDefaultPipelines.h"
+#include "tasks/JPPipelineMarkFinder.h"
 
 #include <atomic>
 #include <chrono>
@@ -39,13 +40,11 @@ int main() {
 
     const double dx = vx - 137.137, dy = vy - 179.265;
     const double ex = 320 + M[0] * dx + M[1] * dy, ey = 240 + M[2] * dx + M[3] * dy;
-    JPRoundMarkFinder::Request rq;
-    rq.expectedX = 320;
-    rq.expectedY = 240;
-    rq.searchRadius = 60;
-    rq.diameter = 1.85 * 25.65;
-    const JPRoundMark m = JPRoundMarkFinder::find(JPGrayImage::fromRgba(f.rgba.data(), f.width, f.height), rq);
+    // Found as the camera's calibration finds it: by OpenPnP's Advanced Calibration pipeline.
+    JPPipelineMarkFinder finder(JPDefaultPipelines::cameraCalibration());
+    const JPRoundMark m = finder.find(f, 320, 240, 60, 1.85 * 25.65);
     assert(m.found);
-    assert(std::abs(m.x - ex) < 0.1 && std::abs(m.y - ey) < 0.1);
+    // Where the scene drew it, to within the pipeline's step (an eighth of a pixel) and the noise.
+    assert(std::abs(m.x - ex) < 0.2 && std::abs(m.y - ey) < 0.2);
     return 0;
 }

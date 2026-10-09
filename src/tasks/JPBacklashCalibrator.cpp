@@ -6,7 +6,7 @@
 #include "JPCameraLook.h"
 
 #include "common/JPlacerLog.h"
-#include "vision/JPRoundMarkFinder.h"
+#include "JPPipelineMarkFinder.h"
 
 #include <j/core/Log.h>
 
@@ -90,7 +90,6 @@ JPBacklashCalibrator::Result JPBacklashCalibrator::run(JPCell& cell, JPCameraFee
     }
     JPCameraCalibration cal;
     if (!JPCameraLook::calibration(cell, feed, cal, r.why)) return r;
-    const double scale = cal.scale();
     const JPAxisConfig::Backlash wasMethod = axis->backlash;
     const double wasOffset = axis->backlashOffset, wasSneak = axis->sneakUpMm, wasSpeed = axis->backlashSpeedFactor;
     const auto wasTable = axis->backlashTable;
@@ -115,32 +114,23 @@ JPBacklashCalibrator::Result JPBacklashCalibrator::run(JPCell& cell, JPCameraFee
     // camera's own error from where it was sent, the other way round.
     auto measure = [&](double at, double& along) {
         const double viewX = alongX ? at + mount.offsetX : o.markX, viewY = alongX ? o.markY : at + mount.offsetY;
-        // The mark in several pictures, once settled, its place the mean.
+        // The mark in several pictures, once settled, its place the mean: by the camera's calibration pipeline.
         double sumX = 0, sumY = 0;
         const int frames = std::max(1, o.frames);
         for (int f = 0; f < frames; ++f) {
-            JPGrayImage img;
-            if (!(f == 0 ? JPCameraLook::settled(feed, img, r.why) : JPCameraLook::taken(feed, img, r.why, 1))) return false;
-            JPRoundMarkFinder::Request rq;
-            if (!cal.pixelFor(o.markX, o.markY, viewX, viewY, rq.expectedX, rq.expectedY)) {
-                rq.expectedX = img.width / 2.0;
-                rq.expectedY = img.height / 2.0;
-            }
-            rq.searchRadius = kSearchMm * scale;
-            rq.diameter = o.markDiameterMm * scale;
-            const JPRoundMark m = JPCameraLook::findTryingHarder(cell, feed, img, rq);
+            JPFrame img;
+            if (!(f == 0 ? JPCameraLook::settled(feed, img, r.why) : JPCameraLook::takenFrame(feed, img, r.why, 1))) return false;
+            double diameter = o.markDiameterMm, fx = 0, fy = 0;
+            const JPRoundMark m = JPPipelineMarkFinder::onMachine(feed.config(), cal, img, o.markX, o.markY, viewX, viewY, kSearchMm,
+                                                                  diameter, 0, 0, fx, fy);
             if (!m.found) {
                 r.why = "the mark was not found: " + m.why;
                 return false;
             }
-            sumX += m.x;
-            sumY += m.y;
+            sumX += fx;
+            sumY += fy;
         }
-        double mx, my;
-        if (!cal.machinePoint(sumX / frames, sumY / frames, viewX, viewY, mx, my)) {
-            r.why = "the mark was seen where the calibration cannot place it";
-            return false;
-        }
+        const double mx = sumX / frames, my = sumY / frames;
         along = alongX ? mx : my;
         return true;
     };

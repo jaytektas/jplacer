@@ -4,6 +4,8 @@
 #include "JPPipelineMarkFinder.h"
 
 #include "openpnp/JPXmlReader.h"
+#include "pipeline/JPDefaultPipelines.h"
+#include "pipeline/JPStraightPicture.h"
 
 #include <opencv2/imgproc.hpp>
 
@@ -147,6 +149,34 @@ JPRoundMark JPPipelineMarkFinder::findAnySize(const cv::Mat& image, double x, do
         if (!best.found || m.symmetry > best.symmetry) best = m;
     }
     return best;
+}
+
+JPRoundMark JPPipelineMarkFinder::onMachine(const JPCameraConfig& cam, const JPCameraCalibration& calibration, const JPFrame& frame,
+                                            double x, double y, double viewX, double viewY, double searchMm, double& diameterMm,
+                                            double leastMm, double mostMm, double& mx, double& my) {
+    cv::Mat bgr = toBgr(frame);
+    JPCameraCalibration cal = calibration;
+    if (const auto straight = JPStraightPicture::of(calibration, cam.looksUp, cam.showAll)) {
+        cv::Mat flat;
+        if (straight->straighten(bgr, flat)) {
+            bgr = flat;
+            cal = straight->calibration();
+        }
+    }
+    JPPipelineMarkFinder finder(cam.calibrationPipeline.empty() ? JPDefaultPipelines::cameraCalibration() : cam.calibrationPipeline);
+    const double scale = cal.scale();
+    double ex = bgr.cols / 2.0, ey = bgr.rows / 2.0;
+    cal.pixelFor(x, y, viewX, viewY, ex, ey);
+    JPRoundMark m = diameterMm > 0 ? finder.find(bgr, ex, ey, searchMm * scale, diameterMm * scale)
+                                   : finder.findAnySize(bgr, ex, ey, searchMm * scale, leastMm * scale, mostMm * scale);
+    if (!m.found) return m;
+    if (!cal.machinePoint(m.x, m.y, viewX, viewY, mx, my)) {
+        m.found = false;
+        m.why = "the camera's calibration cannot place it on the machine";
+        return m;
+    }
+    if (diameterMm <= 0 && scale > 0) diameterMm = m.diameter / scale;
+    return m;
 }
 
 } // inline namespace jf

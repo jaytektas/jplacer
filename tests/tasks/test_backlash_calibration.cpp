@@ -26,6 +26,7 @@ using namespace jf;
 namespace {
 
 constexpr double kPlay = 0.08;
+constexpr double kPipelineStepMm = 2 / 8.0 / 25.96;   // two eighths of a pixel at the camera's scale
 // A stretching drive: the camera lags where the drive is, along the way it
 // goes, by L(s) = -kWound + 2 kWound (1 - e^(-3s/kWindMm)), winding up over
 // about kWindMm. A short move leaves it partly wound: turning then, it starts
@@ -154,10 +155,11 @@ int main() {
     std::fprintf(stderr, "method %s, offset %.4f, tolerance %.4f, worst after %.4f\n", JPAxisConfig::backlashWord(r.method),
                  r.offset, r.data.toleranceMm, r.worstAfterMm);
     assert(r.ok);
-    // The play, found to within the tolerance either way (the mark's centre
-    // is found to a few hundredths of a pixel), the same at every speed.
+    // The play, found to within the calibration pipeline's step either way (it
+    // finds the mark's centre to an eighth of a pixel; each side one find, so
+    // two steps), the same at every speed.
     assert(r.method == JPAxisConfig::Backlash::Directional);
-    assert(std::abs(r.offset - kPlay) <= 2 * r.data.toleranceMm);
+    assert(std::abs(r.offset - kPlay) <= std::max(2 * r.data.toleranceMm, kPipelineStepMm));
     assert(!r.data.byDistance.empty() && r.data.bySpeed.size() == std::size(JPBacklashCalibrator::kSpeeds));
     // A short way in from the other side takes up only that much of the play.
     assert(r.data.byDistance.front().second < kPlay / 2);

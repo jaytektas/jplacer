@@ -8,7 +8,6 @@
 #include "camera/JPCameraFeed.h"
 #include "machine/JPCell.h"
 #include "vision/JPGrayImage.h"
-#include "vision/JPRoundMarkFinder.h"
 
 #include <string>
 
@@ -38,17 +37,6 @@ public:
     // The camera's calibration for the pictures it is taking (waiting for
     // one, to know their size). False (and why) when it has none at that size.
     static bool calibration(JPCell& cell, JPCameraFeed& feed, JPCameraCalibration& out, std::string& why);
-    // A settled picture with the room's light taken out: one with the
-    // camera's light off and one with it on, the first taken from the
-    // second. What is left is what the camera's light lights, whatever the
-    // sun or the room is doing. The light is left on. False (and why) when
-    // the camera has no light to switch.
-    static bool lightOnly(JPCell& cell, JPCameraFeed& feed, JPGrayImage& out, std::string& why);
-    // Find a round mark in `picture` (a settled one); not found there, look
-    // again with the room's light taken out (lightOnly), where the camera has
-    // a light: trying harder before failing.
-    static JPRoundMark findTryingHarder(JPCell& cell, JPCameraFeed& feed, const JPGrayImage& picture,
-                                        const JPRoundMarkFinder::Request& request);
 
     static constexpr int kTimeoutMs = 3000;   // for a picture to arrive at all
     static constexpr int kStartPollMs = 10;   // how often a camera just brought on screen is checked

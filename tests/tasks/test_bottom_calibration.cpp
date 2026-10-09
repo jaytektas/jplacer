@@ -13,7 +13,8 @@
 
 #include "tasks/JPCameraCalibrator.h"
 
-#include "vision/JPRoundMarkFinder.h"
+#include "pipeline/JPDefaultPipelines.h"
+#include "tasks/JPPipelineMarkFinder.h"
 
 #include <chrono>
 #include <cmath>
@@ -113,7 +114,9 @@ int main() {
     o.moving = &nozzle.mount;
     const auto cal = JPCameraCalibrator::run(cell, feed, o, why);
     if (!cal) std::fprintf(stderr, "why: %s\n", why.c_str());
-    assert(cal && cal->valid && cal->rmsPx < 0.05);
+    // Fitted to within OpenPnP's calibration pipeline's step (its DetectCircularSymmetry finds the tip to an
+    // eighth of a pixel).
+    assert(cal && cal->valid && cal->rmsPx < 0.15);
     for (int i = 0; i < 4; ++i) assert(std::abs(cal->pxPerMm[i] - kM[i]) < 0.002 * 30);
     // Looking up, it is the mirror image a straight-mounted up camera sees: not mirrored, barely turned.
     assert(!cal->mirrored(true) && std::abs(cal->rotationDeg(true)) < 0.5);
@@ -123,12 +126,9 @@ int main() {
     JPFrame f;
     const auto from = std::chrono::steady_clock::now() + std::chrono::milliseconds(100);
     while (!(feed.latest(f, 0) && f.captured >= from)) {}
-    JPRoundMarkFinder::Request rq;
-    rq.expectedX = 320;
-    rq.expectedY = 240;
-    rq.searchRadius = 100;
-    rq.diameter = 1.2 * 30;
-    const JPRoundMark tip = JPRoundMarkFinder::find(JPGrayImage::fromRgba(f.rgba.data(), f.width, f.height), rq);
+    // Found as the camera's calibration finds it: by OpenPnP's Advanced Calibration pipeline.
+    JPPipelineMarkFinder finder(JPDefaultPipelines::cameraCalibration());
+    const JPRoundMark tip = finder.find(f, 320, 240, 100, 1.2 * 30);
     assert(tip.found);
     double x, y;
     assert(cal->machinePoint(tip.x, tip.y, kCamX, kCamY, x, y));

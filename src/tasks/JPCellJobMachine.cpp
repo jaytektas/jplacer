@@ -19,7 +19,6 @@
 #include "camera/JPImageFile.h"
 #include "tasks/JPCameraLook.h"
 #include "tasks/JPTipChanger.h"
-#include "vision/JPRoundMarkFinder.h"
 
 #include <j/core/Log.h>
 

@@ -128,8 +128,8 @@ const std::string& JPDefaultPipelines::cameraCalibration() {
     static const std::string xml = R"PIPELINE(<cv-pipeline>
    <stages>
       <cv-stage class="org.openpnp.vision.pipeline.stages.ImageCapture" name="image" enabled="true" default-light="true" settle-option="SettleFullArea" count="1"/>
-      <cv-stage class="org.jplacer.vision.pipeline.stages.DetectRoundMark" name="detect_mark" enabled="true" min-diameter="18" max-diameter="25" max-distance="100" size-tolerance="0.25" min-shape="0.8" polarity="Either" property-name="DetectCircularSymmetry"/>
-      <cv-stage class="org.openpnp.vision.pipeline.stages.ConvertModelToKeyPoints" name="results" enabled="true" model-stage-name="detect_mark"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.DetectCircularSymmetry" name="detect_circle" enabled="true" min-diameter="18" max-diameter="25" max-distance="100" search-width="0" search-height="0" max-target-count="1" min-symmetry="1.2" corr-symmetry="0.0" property-name="DetectCircularSymmetry" outer-margin="0.1" inner-margin="0.1" sub-sampling="8" super-sampling="8" diagnostics="false" heat-map="false"/>
+      <cv-stage class="org.openpnp.vision.pipeline.stages.ConvertModelToKeyPoints" name="results" enabled="true" model-stage-name="detect_circle"/>
    </stages>
 </cv-pipeline>)PIPELINE";
     return xml;

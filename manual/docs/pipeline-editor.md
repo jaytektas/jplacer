@@ -49,13 +49,7 @@ that, its settings, each with its own description as its tooltip. A setting the 
 operation sets each time the pipeline runs is shown, not edited, with "Controlled by pipeline caller"
 and the value it was given.
 
-Besides OpenPnP's stages there is one of jplacer's own, **DetectRoundMark**: the round mark (a fiducial, a
-calibration mark) nearest the nominal centre, measured on its edge all the way round to a fraction of a
-pixel, of the diameter the vision operation sets (within its **size-tolerance**) or any in its range, with
-at least its **min-shape** of its edge round, brighter, darker or either (**polarity**). A camera's
-calibration pipeline uses it to begin with. OpenPnP does not have it: a pipeline using it does not run there.
-
-<!-- src: src/ui/JPPipelinePanel.cpp (Model, refreshProperties); src/ui/JPTable.cpp (row dragging); src/pipeline/JPStagesRoundMark.cpp -->
+<!-- src: src/ui/JPPipelinePanel.cpp (Model, refreshProperties); src/ui/JPTable.cpp (row dragging) -->
 
 | Tool | |
 |---|---|

@@ -16,7 +16,6 @@
 #include "tasks/JPVisualTest.h"
 #include "tasks/JPVisionFeature.h"
 #include "ui/JPFootprintOverlay.h"
-#include "vision/JPRoundMarkFinder.h"
 
 #include <j/core/Dialog.h>
 #include <j/core/Log.h>
@@ -499,18 +498,13 @@ void JPlacerCameraTasks::calibrateNozzleOffsets(JPCameraPanel& camera, const JPN
         auto centreOn = [&](double& x, double& y) {
             for (int pass = 0; pass < kCentrePasses; ++pass) {
                 if (!m_cell.moveToolAndWait(cm, { x, y, std::nullopt, std::nullopt }, kTaskSpeed, words)) return false;
-                JPGrayImage img;
+                JPFrame img;
                 if (!JPCameraLook::settled(*feed, img, words)) return false;
-                double ex = 0, ey = 0;
-                if (!cal.pixelFor(x, y, x, y, ex, ey)) { ex = img.width / 2.0; ey = img.height / 2.0; }
-                JPRoundMarkFinder::Request rq;
-                rq.expectedX = ex;
-                rq.expectedY = ey;
-                rq.searchRadius = rig.rigTestObjectDiameter * scale;
-                rq.diameter = rig.rigTestObjectDiameter * scale;
-                const JPRoundMark found = JPCameraLook::findTryingHarder(m_cell, *feed, img, rq);
-                double fx = 0, fy = 0;
-                if (!found.found || !cal.machinePoint(found.x, found.y, x, y, fx, fy)) {
+                // By the camera's calibration pipeline, as OpenPnP's centerInOnSubjectLocation finds it.
+                double diameter = rig.rigTestObjectDiameter, fx = 0, fy = 0;
+                const JPRoundMark found = JPPipelineMarkFinder::onMachine(feed->config(), cal, img, x, y, x, y,
+                                                                          rig.rigTestObjectDiameter, diameter, 0, 0, fx, fy);
+                if (!found.found) {
                     words = "the test object was not found: " + found.why;
                     return false;
                 }
@@ -908,21 +902,23 @@ void JPlacerCameraTasks::captureMark(const std::string& headId, std::function<vo
     run(*camera, "Finding the homing mark", [this, feed, vx, vy, mark](std::string& words, const auto& progress) {
         if (!tuneForCalibration(*feed, progress, words)) return false;
         progress("looking for the mark under the camera");
-        JPGrayImage img;
+        JPFrame img;
         if (!JPCameraLook::settled(*feed, img, words)) return false;
-        const double side = std::min(img.width, img.height);
-        const JPRoundMark m = JPRoundMarkFinder::findAnySize(img, img.width / 2.0, img.height / 2.0, kMarkSearchShare * side,
-                                                            kLeastMarkShare * side, kMostMarkShare * side);
+        const JPCameraCalibration cal = m_cell.cameraCalibration(feed->config().id, img.width, img.height);
+        if (!cal.valid) {
+            words = feed->config().name + " is not calibrated for its pictures";
+            return false;
+        }
+        // Any size, by the camera's calibration pipeline: the picture's side's shares, in mm at its scale.
+        const double sideMm = std::min(img.width, img.height) / cal.scale();
+        double diameter = 0;
+        const JPRoundMark m = JPPipelineMarkFinder::onMachine(feed->config(), cal, img, vx, vy, vx, vy, kMarkSearchShare * sideMm, diameter,
+                                                              kLeastMarkShare * sideMm, kMostMarkShare * sideMm, mark->x, mark->y);
         if (!m.found) {
             words = "no round mark near the middle of the picture: put the camera over the mark (" + m.why + ")";
             return false;
         }
-        const JPCameraCalibration cal = m_cell.cameraCalibration(feed->config().id, img.width, img.height);
-        if (!cal.valid || !cal.machinePoint(m.x, m.y, vx, vy, mark->x, mark->y)) {
-            words = feed->config().name + " is not calibrated for its pictures";
-            return false;
-        }
-        mark->diameter = m.diameter / cal.scale();
+        mark->diameter = diameter;
         char buf[160];
         std::snprintf(buf, sizeof buf, "The homing mark: %.3f mm across at X %.3f, Y %.3f", mark->diameter, mark->x, mark->y);
         words = buf;

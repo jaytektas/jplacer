@@ -565,8 +565,7 @@ of its bent edge shows is one of the camera's settings in [Machine Setup](machin
 from 0 *cropped* (enlarged until every part of it has picture behind it) to 100 *whole* (all the camera
 sees, with bare edges where the bending was). Each camera keeps the eye's choice for next time. The
 straightened picture is drawn by the graphics card where there is one, and by the processor where there
-is not. jplacer's own finders measure on the picture as taken, through the lens's calibration, whichever
-is shown; vision pipelines are given the straightened picture (see [Pipeline Editor](pipeline-editor.md#the-picture-it-is-given)).
+is not. Whichever is shown, vision pipelines are given the straightened picture (see [Pipeline Editor](pipeline-editor.md#the-picture-it-is-given)).
 
 <!-- src: src/ui/JPCameraPanel.cpp (setView, refreshStraightening); src/ui/JPCameraView.cpp (the mesh); src/camera/JPStraightener.cpp; src/tasks/JPPipelineCamera.cpp; src/app/JPlacerSettings.cpp (cameraStraightKey); src/machine/JPCameraConfig.h (showAll) -->
 
@@ -824,26 +823,16 @@ the machine has lost its place.
 
 #### Finding round marks
 
-A round mark (a fiducial, the homing mark) is found in two steps. A search looks for the most circular
-things of the expected size near where the mark should be, on a reduced copy of the picture so it is
-quick, and keeps the best few: a board is full of round things (holes, vias, pads, round letters,
-reflections of the light). Each is then measured on the full picture: narrow strips are cast out from
-its centre all the way round, each finds where the brightness changes fastest (a change that stands
-well above the strip's own grain), and a circle is fitted through those points. A mark is accepted when its size is the size asked for and its edge is round
-nearly all the way round; of those, the one that fits best wins, and between equally good ones the one
-nearest where the mark should be.
+Every round mark is found by an OpenPnP pipeline, as OpenPnP finds it, on the camera's picture in colour,
+straightened where the camera is calibrated: a fiducial and the homing mark by their fiducial vision settings'
+pipeline, a nozzle's tip by its nozzle tip calibration pipeline, and a camera's calibration mark (camera
+calibration, backlash calibration, the homing mark's capture) by the camera's calibration pipeline, OpenPnP's
+DetectCircularSymmetry to begin with. jplacer does not measure again what a pipeline found: DetectCircularSymmetry
+finds a centre to an eighth of a pixel. A pipeline is told where the mark should be, how far from there to look
+and, where it is known, the mark's size in pixels.
 
-Only the edge is measured, not the inside: shiny copper straight under a camera reflects the camera's
-own dark lens in its middle, and off to the side reflects the light, so the same fiducial looks
-different from place to place. The edge gives the centre and the diameter to a small fraction of a
-pixel, and is not pulled by light falling more on one side. Where it matters which way round the mark
-is, a search can ask for a bright mark (copper on solder mask, a white dot) or a dark one (a hole), so
-that a hole beside a fiducial is not taken for it.
+Where a calibration knows the mark's size only roughly (its size in millimetres at the camera's rough scale), the
+camera's calibration pipeline is run at every size about it and the most symmetrical mark taken, as a size a fifth
+out finds the mark's edge off centre.
 
-When a mark is not found in a picture and the camera has a light, jplacer tries harder before failing:
-it takes one picture with the camera's light off and one with it on, and takes the first from the second.
-What is left is only what the camera's light lights, whatever the sun or the room's lights are doing, and
-the mark is looked for again there. The light is left on. The homing mark (Visual Test, visual homing) is
-looked for this way.
-
-<!-- src: src/vision/JPRoundMarkFinder.cpp (find, measureAt, edgeCircle, polarityMatches, findAnySize); src/tasks/JPCameraLook.cpp (lightOnly, findTryingHarder) -->
+<!-- src: src/tasks/JPPipelineMarkFinder.cpp (find, findAnySize, onMachine); src/tasks/JPCameraCalibrator.cpp; src/tasks/JPBacklashCalibrator.cpp; src/pipeline/JPDefaultPipelines.cpp (cameraCalibration) -->
