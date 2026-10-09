@@ -114,7 +114,7 @@ int main() {
     o.moving = &nozzle.mount;
     o.markDiameterMm = 1.2;   // the tip's; the base round it 3.6
     std::vector<double> sizes;
-    o.found = [&](const JPGrayImage&, double, double, double diameterPx, const std::string&) { sizes.push_back(diameterPx); };
+    o.found = [&](const cv::Mat&, double, double, double diameterPx, const std::string&) { sizes.push_back(diameterPx); };
     const auto cal = JPCameraCalibrator::run(cell, feed, o, why);
     if (!cal) std::fprintf(stderr, "why: %s\n", why.c_str());
     // Every find the tip's size (1.2 mm at 30 px/mm), not the base's (108 px).

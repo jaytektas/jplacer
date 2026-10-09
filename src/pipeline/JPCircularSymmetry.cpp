@@ -56,6 +56,14 @@ double JPCircularSymmetry::ScoreRange::heat(double score) const {
     return std::pow(s, std::log(0.71) / std::log(avg));
 }
 
+std::vector<Circle> JPCircularSymmetry::inPixels(std::vector<Circle> found) {
+    for (Circle& c : found) {
+        c.x -= kPixelCentre;
+        c.y -= kPixelCentre;
+    }
+    return found;
+}
+
 std::vector<Circle> JPCircularSymmetry::find(cv::Mat& image, Search q, ScoreRange& scoreRange) {
     if (image.depth() != CV_8U) throw std::runtime_error("Circular symmetry stage: the image must have 8 bits per channel.");
     if (!image.isContinuous()) image = image.clone();

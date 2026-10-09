@@ -13,6 +13,8 @@
 
 #include <j/core/Log.h>
 
+#include <opencv2/imgproc.hpp>
+
 #include <chrono>
 #include <cmath>
 #include <cstdio>
@@ -46,11 +48,8 @@ constexpr size_t kDirectionMoves = 3;
 // Samples before the lens is fitted for predicting where the next mark is.
 constexpr size_t kLensPredictFrom = 8;
 // Once three marks are measured, a mark is searched for this far from where
-// the fit so far predicts, and measured with this much of its edge round (the
-// mark may be dimmer and bent towards the picture's corners, and still be
-// measured: nothing else is mistaken for it that near).
+// the fit so far predicts (nothing else is mistaken for it that near).
 constexpr double kPredictedSearchPx = 25;
-constexpr double kPredictedMinShape = 0.5;
 // A find further from the fit than the settings' times its spread (and at
 // least so many pixels) is left out; at most one in so many.
 constexpr double kOutlierPx = 1.0;
@@ -95,7 +94,7 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
     JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << feed.config().name << ": calibrating from " << x0 << ", " << y0;
 
     // First look: where is the mark, and how big?
-    JPGrayImage img;
+    JPFrame img;
     if (!JPCameraLook::settled(feed, img, why)) return std::nullopt;
     const double side = std::min(img.width, img.height);
     // The mark found by the camera's calibration pipeline (OpenPnP's Advanced Calibration's, editable).
@@ -133,7 +132,7 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
         // Probed: moved along X until the mark moves clearly, the scale its pixels over the millimetres.
         for (double d = kProbeMm; d <= kProbeMostMm && guessPxPerMm <= 0; d *= 2) {
             if (!cell.moveAxesAndWait({ { mount.axisX, x0 + d }, { mount.axisY, y0 } }, o.speed, why)) return std::nullopt;
-            JPGrayImage probe;
+            JPFrame probe;
             if (!JPCameraLook::settled(feed, probe, why)) return std::nullopt;
             const JPRoundMark m = finder.find(probe, first.x, first.y, kFirstSearch * side, markPx);
             if (m.found && std::hypot(m.x - first.x, m.y - first.y) >= kProbePx) guessPxPerMm = std::hypot(m.x - first.x, m.y - first.y) / d;
@@ -182,17 +181,16 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
                          f->centreY + f->pxPerMm[2] * dx + f->pxPerMm[3] * dy, ex, ey);
             radius = kPredictedSearchPx;
         }
-        const double minShape = radius == kPredictedSearchPx ? kPredictedMinShape : 0;
-        JPRoundMark m = finder.find(img, ex, ey, radius, markPx, minShape);
+        JPRoundMark m = finder.find(img, ex, ey, radius, markPx);
         // More pictures, the mark's place their mean: one picture alone wanders.
         if (m.found) {
             const int frames = std::clamp(o.calibrating.frames, 1, JPCameraConfig::Calibrating::kMostFrames);
             double sx = m.x, sy = m.y;
             int got = 1;
             for (int f = 1; f < frames; ++f) {
-                JPGrayImage more;
-                if (!JPCameraLook::taken(feed, more, why, 1)) return false;
-                const JPRoundMark again = finder.find(more, ex, ey, radius, markPx, minShape);
+                JPFrame more;
+                if (!JPCameraLook::takenFrame(feed, more, why, 1)) return false;
+                const JPRoundMark again = finder.find(more, ex, ey, radius, markPx);
                 if (!again.found) continue;
                 sx += again.x;
                 sy += again.y;
@@ -213,7 +211,11 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
             return false;
         }
         samples.push_back({ dx, dy, m.x, m.y });
-        if (o.found) o.found(img, m.x, m.y, markPx, stepText);
+        if (o.found) {
+            cv::Mat rgba(img.height, img.width, CV_8UC4, img.rgba.data()), bgr;
+            cv::cvtColor(rgba, bgr, cv::COLOR_RGBA2BGR);
+            o.found(bgr, m.x, m.y, markPx, stepText);
+        }
         JLOGC(JPlacerLog::kCamera, JLogLevel::Debug) << "  offset " << dx << ", " << dy << " -> " << m.x << ", " << m.y;
         return true;
     };

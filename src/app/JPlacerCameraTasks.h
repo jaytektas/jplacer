@@ -223,7 +223,7 @@ private:
     std::optional<std::pair<double, double>> m_featureAt;
     std::optional<std::pair<double, double>> cameraAt(const JPCameraPanel& camera) const;
     // A calibration's finds shown on `camera`'s view as they come (JPCameraCalibrator::Options::found).
-    std::function<void(const JPGrayImage&, double, double, double, const std::string&)> showFinds(JPCameraPanel& camera);
+    std::function<void(const cv::Mat&, double, double, double, const std::string&)> showFinds(JPCameraPanel& camera);
     std::shared_ptr<bool>               m_alive = std::make_shared<bool>(true);
 };
 

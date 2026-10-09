@@ -30,6 +30,9 @@ constexpr double kCamX = 60, kCamY = 95;
 constexpr double kOffX = 10, kOffY = -5;
 // The hidden runout: radius, phase, and the axis's offset from where the nozzle's offset says.
 constexpr double kRadius = 0.15, kPhase = 30, kAxisX = 0.04, kAxisY = -0.02;
+// How closely the nozzle tip pipeline (its DetectCircularSymmetry alone, as OpenPnP's) measures the simulated tip
+// (mm): a run's looks scattered up to about a third of a pixel (30 px/mm), and the fit off by up to half that.
+constexpr double kPipelineMm = 0.015, kPipelineSpreadMm = 0.02;
 
 JPCellConfig cellConfig() {
     char camera[512];
@@ -135,8 +138,9 @@ int main() {
     if (!r) std::fprintf(stderr, "why: %s\n", why.c_str());
     assert(r);
     assert(r->points.size() == 8);
-    assert(std::abs(r->radius - kRadius) < 0.003 && std::abs(r->phaseDeg - kPhase) < 1.5);
-    assert(std::abs(r->centreX - kAxisX) < 0.003 && std::abs(r->centreY - kAxisY) < 0.003 && r->rmsMm < 0.003);
+    // As closely as OpenPnP's nozzle tip pipeline (its DetectCircularSymmetry, alone) measures the simulated tip.
+    assert(std::abs(r->radius - kRadius) < kPipelineMm && std::abs(r->phaseDeg - kPhase) < 1.5);
+    assert(std::abs(r->centreX - kAxisX) < kPipelineMm && std::abs(r->centreY - kAxisY) < kPipelineMm && r->rmsMm < kPipelineSpreadMm);
     // Up again after.
     assert(std::abs(cell.positions().at("Z")) <= 1);
 
@@ -161,7 +165,7 @@ int main() {
         double tx, ty;
         const auto p = cell.positions();
         tipAt(p, tx, ty);
-        assert(std::hypot(tx - kAxisX - kCamX, ty - kAxisY - kCamY) < 0.004);
+        assert(std::hypot(tx - kAxisX - kCamX, ty - kAxisY - kCamY) < kPipelineMm);
     }
     // A turn alone keeps the centre where it is.
     moved.clear();
@@ -169,7 +173,7 @@ int main() {
     assert(moved.take());
     double tx, ty;
     tipAt(cell.positions(), tx, ty);
-    assert(std::hypot(tx - kAxisX - kCamX, ty - kAxisY - kCamY) < 0.004);
+    assert(std::hypot(tx - kAxisX - kCamX, ty - kAxisY - kCamY) < kPipelineMm);
 
     // OpenPnP's compensation algorithms, each measured anew: where a move sends the tip, and where the camera
     // looking up is for this nozzle.
@@ -183,7 +187,7 @@ int main() {
         if (!m) std::fprintf(stderr, "%s: %s\n", algorithm.c_str(), why.c_str());
         assert(m && m->algorithm == algorithm);
         if (!m->table())
-            assert(std::abs(m->radius - kRadius) < 0.004 && std::abs(m->centreX - kAxisX) < 0.004 && std::abs(m->centreY - kAxisY) < 0.004);
+            assert(std::abs(m->radius - kRadius) < kPipelineMm && std::abs(m->centreX - kAxisX) < kPipelineMm && std::abs(m->centreY - kAxisY) < kPipelineMm);
         JPCellConfig kept = cell.config();
         kept.nozzleTips.front().runout["N"] = *m;
         assert(cell.reconfigure(kept, why));
@@ -199,7 +203,7 @@ int main() {
             const double ex = kCamX + (whole ? 0 : kAxisX), ey = kCamY + (whole ? 0 : kAxisY);
             const bool between = std::fmod(std::abs(angle), 45.0) != 0;
             // A table is straight between its angles: off the circle there by its sagitta.
-            const double within = algorithm == "Table" && between ? kRadius * (1 - std::cos(M_PI / 8)) + 0.004 : 0.004;
+            const double within = algorithm == "Table" && between ? kRadius * (1 - std::cos(M_PI / 8)) + kPipelineMm : kPipelineMm;
             if (std::hypot(ax - ex, ay - ey) >= within)
                 std::fprintf(stderr, "%s at %g: %g, %g, expected %g, %g\n", algorithm.c_str(), angle, ax, ay, ex, ey);
             assert(std::hypot(ax - ex, ay - ey) < within);
@@ -207,7 +211,7 @@ int main() {
         double cx = 0, cy = 0;
         const bool camera = cell.cameraOffsetFor("N", cx, cy);
         assert(camera == (algorithm.rfind("ModelCameraOffset", 0) == 0));
-        if (camera) assert(std::abs(cx - kAxisX) < 0.004 && std::abs(cy - kAxisY) < 0.004);
+        if (camera) assert(std::abs(cx - kAxisX) < kPipelineMm && std::abs(cy - kAxisY) < kPipelineMm);
     }
 
     // OpenPnP's Calibrate Camera Position and Rotation, for an Affine algorithm and a circle's: the camera set
@@ -239,7 +243,7 @@ int main() {
         if (!fix) std::fprintf(stderr, "%s: %s\n", algorithm, why.c_str());
         assert(fix && fix->points == 8);
         std::fprintf(stderr, "%s: camera at %.4f, %.4f, turned %.3f deg, fit %.4f\n", algorithm, fix->x, fix->y, fix->turnDeg, fix->rmsMm);
-        assert(std::abs(fix->x - (kCamX - kAxisX)) < 0.005 && std::abs(fix->y - (kCamY - kAxisY)) < 0.005);
+        assert(std::abs(fix->x - (kCamX - kAxisX)) < kPipelineMm && std::abs(fix->y - (kCamY - kAxisY)) < kPipelineMm);
         assert(std::abs(fix->turnDeg - 2) < 0.2);   // what it sees, turned from what the calibration says
         // Put right (as the tip's Calibrate Camera Position and Rotation does), measured again.
         JPCellConfig right = cell.config();
@@ -250,7 +254,7 @@ int main() {
         cell.setCameraCalibration("B", turned);
         fix = JPRunoutCalibrator::calibrateCamera(cell, feed, cell.config().nozzles.front(), cell.config().nozzleTips.front(),
                                                   JPRunoutCalibrator::Options{}, why);
-        assert(fix && std::abs(fix->x - (kCamX - kAxisX)) < 0.005 && std::abs(fix->y - (kCamY - kAxisY)) < 0.005);
+        assert(fix && std::abs(fix->x - (kCamX - kAxisX)) < kPipelineMm && std::abs(fix->y - (kCamY - kAxisY)) < kPipelineMm);
         assert(std::abs(fix->turnDeg) < 0.2);
         cell.setCameraCalibration("B", cal);
     }

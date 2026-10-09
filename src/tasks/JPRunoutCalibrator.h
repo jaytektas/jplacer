@@ -10,6 +10,8 @@
 #include "tasks/JPBackgroundCalibration.h"
 #include "vision/JPGrayImage.h"
 
+#include <opencv2/core.hpp>
+
 #include <functional>
 #include <optional>
 #include <string>
@@ -29,7 +31,7 @@ class JPRunoutCalibrator {
 public:
     // Each find (on the calibration's thread): the picture, where the tip's end was found in it and how big
     // (pixels), and the step ("turned to 60 deg (3 of 6)"), for it to be shown where it was found.
-    using Found = std::function<void(const JPGrayImage& picture, double x, double y, double diameterPx, const std::string& step)>;
+    using Found = std::function<void(const cv::Mat& picture, double x, double y, double diameterPx, const std::string& step)>;
     struct Options {
         double speed = 1.0;   // share of the axes' rates
         Found  found;

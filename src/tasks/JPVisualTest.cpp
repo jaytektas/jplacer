@@ -7,21 +7,17 @@
 #include "JPCameraLook.h"
 
 #include "common/JPlacerLog.h"
-#include "vision/JPRoundMarkFinder.h"
+#include "openpnp/JPXmlReader.h"
+#include "pipeline/JPDefaultPipelines.h"
+#include "pipeline/JPStraightPicture.h"
 
 #include <j/core/Log.h>
+
+#include <opencv2/imgproc.hpp>
 
 #include <cmath>
 
 inline namespace jf {
-
-namespace {
-
-// How far from where it should be the mark is looked for by jplacer's finder (mm): the switches put the head
-// within a fraction of this.
-constexpr double kSearchMm = 2.0;
-
-} // namespace
 
 JPVisualTest::Result JPVisualTest::run(JPCell& cell, JPCameraFeed& feed, const JPHeadConfig& head, double speed, const Look* look) {
     Result r;
@@ -46,27 +42,35 @@ JPVisualTest::Result JPVisualTest::run(JPCell& cell, JPCameraFeed& feed, const J
     if (!cell.moveAxesAndWait({ { mount.axisX, viewX - mount.offsetX }, { mount.axisY, viewY - mount.offsetY } },
                               speed, r.why))
         return r;
-    JPGrayImage img;
+    JPFrame img;
     if (!JPCameraLook::settled(feed, img, r.why)) return r;
     if (img.width != cal.width || img.height != cal.height) {
         r.why = feed.config().name + " changed its picture size while in use";
         return r;
     }
     const double scale = std::sqrt(cal.scaleX() * cal.scaleY());
-    // Found as OpenPnP's Fiducial Locator finds it: the part's pipeline (its centre then measured to a fraction
-    // of a pixel close by); without one (fiducials not found by pipeline), jplacer's finder.
-    JPRoundMark m;
-    if (look->pipeline) {
-        JPPipelineMarkFinder finder(*look->pipeline, "fiducial", cal.scaleX(), cal.scaleY());
-        m = finder.find(img, img.width / 2.0, img.height / 2.0, look->maxDistanceMm * scale, look->diameterMm * scale);
-    } else {
-        JPRoundMarkFinder::Request rq;
-        rq.expectedX = img.width / 2.0;
-        rq.expectedY = img.height / 2.0;
-        rq.searchRadius = kSearchMm * scale;
-        rq.diameter = look->diameterMm * scale;
-        m = JPCameraLook::findTryingHarder(cell, feed, img, rq);
+    // Found as OpenPnP's Fiducial Locator finds it: the FIDUCIAL-HOME part's pipeline, else (no fiducial vision
+    // settings at all) the stock fiducial pipeline.
+    JPPipeline pipeline;
+    if (look->pipeline) pipeline = *look->pipeline;
+    else if (JPXmlElement root; JPXmlReader::parse(JPDefaultPipelines::fiducialLocator(), root, r.why)) pipeline = JPPipeline::fromXml(root);
+    // Straightened, as OpenPnP's pipelines are given pictures, and placed by the straightened picture's calibration.
+    cv::Mat bgr;
+    {
+        cv::Mat rgba(img.height, img.width, CV_8UC4, img.rgba.data());
+        cv::cvtColor(rgba, bgr, cv::COLOR_RGBA2BGR);
     }
+    if (const auto straight = JPStraightPicture::of(cal, feed.config().looksUp, feed.config().showAll)) {
+        cv::Mat flat;
+        if (straight->straighten(bgr, flat)) {
+            bgr = flat;
+            cal = straight->calibration();
+        }
+    }
+    JPPipelineMarkFinder finder(std::move(pipeline), "fiducial", cal.scaleX(), cal.scaleY());
+    double ex = bgr.cols / 2.0, ey = bgr.rows / 2.0;
+    cal.pixelFor(viewX, viewY, viewX, viewY, ex, ey);   // where the settings put the mark: the camera's middle
+    const JPRoundMark m = finder.find(bgr, ex, ey, look->maxDistanceMm * scale, look->diameterMm * scale);
     if (!m.found) {
         r.why = "the homing mark was not found: " + m.why;
         return r;

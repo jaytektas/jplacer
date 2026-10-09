@@ -29,6 +29,8 @@ public:
     // camera's Diagnostics, every settle is traced, with its pictures, and
     // handed to the feed's onSettleTrace when no `trace` is asked for.
     static bool settled(JPCameraFeed& feed, JPGrayImage& out, std::string& why, JPSettleTrace* trace = nullptr);
+    // The same, the picture in colour as the camera gave it (as a vision pipeline is given it).
+    static bool settled(JPCameraFeed& feed, JPFrame& out, std::string& why, JPSettleTrace* trace = nullptr);
     // A picture taken at least `afterMs` after the call.
     static bool taken(JPCameraFeed& feed, JPGrayImage& out, std::string& why, int afterMs);
     // The same, the picture as the camera gave it.
@@ -53,10 +55,10 @@ public:
 
 private:
     // settled() without its scripting events.
-    static bool settledNow(JPCameraFeed& feed, JPGrayImage& out, std::string& why, JPSettleTrace* trace);
+    static bool settledNow(JPCameraFeed& feed, JPFrame& out, std::string& why, JPSettleTrace* trace);
     // With the camera's Expose each picture?, the exposure set for its brightness and `out` taken again;
     // false only when it could not be (no exposure to set, the camera stopped). Waited for at most kExposeMs.
-    static bool exposedNow(JPCameraFeed& feed, JPGrayImage& out, std::string& why);
+    static bool exposedNow(JPCameraFeed& feed, JPFrame& out, std::string& why);
     static constexpr int kExposeMs = 3000;
 };
 

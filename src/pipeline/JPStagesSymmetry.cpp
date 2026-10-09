@@ -102,7 +102,7 @@ void JPStageRegistry::addSymmetryStages(std::vector<JPStageType>& types) {
                           q.heatMap = s.flag("heat-map");
                           JPCircularSymmetry::ScoreRange range;
                           Output out;
-                          out.model.value = JPCircularSymmetry::find(mat, q, range);
+                          out.model.value = JPCircularSymmetry::inPixels(JPCircularSymmetry::find(mat, q, range));
                           return out;
                       } });
     types.push_back({ std::string(kStages) + "DetectRectlinearSymmetry", "",

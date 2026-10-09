@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Visual homing, Visual Test, nozzle tip calibration and camera calibration find their marks with OpenPnP's pipelines alone, on the colour picture (straightened where the camera is calibrated), as OpenPnP does: jplacer no longer re-measures what a pipeline found, and their pictures shown are in colour. A half-pixel offset between OpenPnP's circle detection and jplacer's calibrations (about 0.02 mm on the bench's top camera, on every circle a pipeline found: fiducials, strip holes, nozzle tips) is gone. The default nozzle tip pipeline finds the tip to an eighth of a pixel.
+
 - Parts and packages in the library with no vision settings of their own take OpenPnP's from its parts.xml and packages.xml (never replacing ones set in jplacer). A package a board's import had made first had lost them: on the bench, the board's fiducials were found with the machine's default settings instead of their own, so their own Max. Distance and tuning never applied.
 
 - Fiducials are always found by their vision settings' pipeline, as OpenPnP finds them; Find fiducials with and jplacer's own fiducial finder are gone. On the bench's board, with the board's own fiducial settings, the pipeline found all six fiducials 60 times out of 60, within a few hundredths of a millimetre each time; jplacer's finder found 14 of 60. jplacer's finder had also ignored the Max. Distance slider and searched a fixed 4 mm, reaching nearby pads.

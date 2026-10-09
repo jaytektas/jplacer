@@ -73,6 +73,13 @@ bool JPCameraLook::takenFrame(JPCameraFeed& feed, JPFrame& frame, std::string& w
 }
 
 bool JPCameraLook::settled(JPCameraFeed& feed, JPGrayImage& out, std::string& why, JPSettleTrace* trace) {
+    JPFrame frame;
+    if (!settled(feed, frame, why, trace)) return false;
+    out = JPGrayImage::fromRgba(frame.rgba.data(), frame.width, frame.height);
+    return true;
+}
+
+bool JPCameraLook::settled(JPCameraFeed& feed, JPFrame& out, std::string& why, JPSettleTrace* trace) {
     // OpenPnP's settleAndCapture, with its scripting events: settled, then the picture taken.
     auto event = [&feed, &why](const char* name) { return !feed.scriptEvent || feed.scriptEvent(name, why); };
     feed.claim();   // a switcher camera switched in for this
@@ -81,7 +88,7 @@ bool JPCameraLook::settled(JPCameraFeed& feed, JPGrayImage& out, std::string& wh
         && event("Camera.BeforeCapture") && event("Camera.AfterCapture");
 }
 
-bool JPCameraLook::exposedNow(JPCameraFeed& feed, JPGrayImage& out, std::string& why) {
+bool JPCameraLook::exposedNow(JPCameraFeed& feed, JPFrame& out, std::string& why) {
     if (!feed.config().exposeEachPicture) return true;
     // Told on the capture thread; shared, so a late answer has somewhere to go.
     auto told = std::make_shared<std::promise<JPOneShotExposure::Result>>();
@@ -96,16 +103,16 @@ bool JPCameraLook::exposedNow(JPCameraFeed& feed, JPGrayImage& out, std::string&
         why = feed.config().name + " could not be exposed: " + r.why;
         return false;
     }
-    return taken(feed, out, why, 0);
+    return takenFrame(feed, out, why, 0);
 }
 
-bool JPCameraLook::settledNow(JPCameraFeed& feed, JPGrayImage& out, std::string& why, JPSettleTrace* trace) {
+bool JPCameraLook::settledNow(JPCameraFeed& feed, JPFrame& out, std::string& why, JPSettleTrace* trace) {
     const JPCameraConfig::Settle& st = feed.config().settle;
     const bool fixed = st.method == "FixedTime" || st.method.empty();
     // OpenPnP's Diagnostics: every settle traced, its pictures kept, handed to the feed's owner.
     JPSettleTrace kept;
     if (!trace && st.diagnostics && !fixed) trace = &kept;
-    if (fixed && !trace) return taken(feed, out, why, st.timeMs);
+    if (fixed && !trace) return takenFrame(feed, out, why, st.timeMs);
     // Each picture taken since the call against the one before, until still
     // (or, timed, until the time is up).
     const auto start = std::chrono::steady_clock::now();
@@ -189,7 +196,7 @@ bool JPCameraLook::settledNow(JPCameraFeed& feed, JPGrayImage& out, std::string&
     }
     if (trace && st.diagnostics) trace->pictures = pictures;
     if (trace == &kept && feed.onSettleTrace) feed.onSettleTrace(kept);
-    out = JPGrayImage::fromRgba(frame.rgba.data(), frame.width, frame.height);
+    out = frame;
     return true;
 }
 

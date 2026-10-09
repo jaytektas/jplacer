@@ -38,7 +38,7 @@ std::optional<JPVisionFeature::Found> JPVisionFeature::detect(cv::Mat& bgr, int 
     JPCircularSymmetry::ScoreRange range;
     std::vector<JPPipelineModel::Circle> found;
     try {
-        found = JPCircularSymmetry::find(bgr, q, range);
+        found = JPCircularSymmetry::inPixels(JPCircularSymmetry::find(bgr, q, range));
     } catch (const std::exception&) {
         return std::nullopt;
     }

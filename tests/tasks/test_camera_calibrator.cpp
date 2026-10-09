@@ -175,17 +175,19 @@ int main() {
     cell.setCameraCalibration("C", *cal);
     t = JPVisualTest::run(cell, feed, head, 1.0, &look);
     assert(t.found);
-    assert(std::abs(t.markX - kMarkX) < 0.002 && std::abs(t.markY - kMarkY) < 0.002);
-    assert(std::abs(t.offsetX - (kMarkX - kSetX)) < 0.002 && std::abs(t.offsetY - (kMarkY - kSetY)) < 0.002);
+    // To the fiducial pipeline's step: its DetectCircularSymmetry's super-sampling of 8, an eighth of a pixel.
+    constexpr double kStepMm = 1.0 / 8 / 25.6;
+    assert(std::abs(t.markX - kMarkX) < kStepMm && std::abs(t.markY - kMarkY) < kStepMm);
+    assert(std::abs(t.offsetX - (kMarkX - kSetX)) < kStepMm && std::abs(t.offsetY - (kMarkY - kSetY)) < kStepMm);
 
     // Visual homing corrects the coordinates by that, and then the mark
     // measures where its setting says.
     const JPVisualHoming::Result vh = JPVisualHoming::run(cell, feed, head, 1.0, &look);
     if (!vh.ok) std::fprintf(stderr, "visual homing: %s\n", vh.why.c_str());
     assert(vh.ok);
-    assert(std::abs(vh.correctedX - (kMarkX - kSetX)) < 0.003 && std::abs(vh.correctedY - (kMarkY - kSetY)) < 0.003);
+    assert(std::abs(vh.correctedX - (kMarkX - kSetX)) < kStepMm && std::abs(vh.correctedY - (kMarkY - kSetY)) < kStepMm);
     t = JPVisualTest::run(cell, feed, head, 1.0, &look);
-    assert(t.found && std::hypot(t.offsetX, t.offsetY) < 0.005);
+    assert(t.found && std::hypot(t.offsetX, t.offsetY) < 2 * kStepMm);
 
     feed.stop();
     cell.disconnect();

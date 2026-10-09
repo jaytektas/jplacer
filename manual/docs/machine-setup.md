@@ -251,9 +251,10 @@ OpenPnP does for an older one, the divisions, the misdetects allowed, the offset
 it is measured again) and what OpenPnP measured on each nozzle; importing again keeps what jplacer measured
 over it, and the tip's own pipeline. The tip is found in each picture by its **Pipeline**, as OpenPnP's
 (ImageCapture, DetectCircularSymmetry under the `nozzleTip` properties, given where to look, how far and the
-Vision Diameter; one result within the offset threshold, more than one not taken), its centre then measured
-to a fraction of a pixel close by: **Edit** opens it in the pipeline editor on the camera looking up, and
-**Reset** puts OpenPnP's default back.
+Vision Diameter; one result within the offset threshold, more than one not taken), on the camera's picture in
+colour and straightened, as OpenPnP's pipelines are given it: **Edit** opens it in the pipeline editor on the
+camera looking up, and **Reset** puts the default back (OpenPnP's, its circle found to an eighth of a pixel,
+super-sampling 8, where OpenPnP's own default finds it to the whole pixel).
 
 OpenPnP's **Calibrate Camera Position and Rotation** is not on the tab: OpenPnP hides it once the camera
 looking up has Advanced Calibration, as every jplacer camera has. The camera looking up's own **Calibrate**

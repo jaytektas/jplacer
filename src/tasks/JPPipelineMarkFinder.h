@@ -4,7 +4,9 @@
 #pragma once
 
 #include "pipeline/JPPipeline.h"
-#include "vision/JPGrayImage.h"
+
+#include <opencv2/core.hpp>
+#include "camera/JPFrame.h"
 #include "vision/JPRoundMark.h"
 
 #include <string>
@@ -17,9 +19,9 @@ inline namespace jf {
 // to its ImageCapture, the expected centre, distance and diameter set as the
 // properties of `control` ("DetectCircularSymmetry", "nozzleTip"), and the
 // mark the "results" stage's (a keypoint, circle or rotated rectangle; more
-// than one, as OpenPnP: none taken), whose centre is then measured to a
-// fraction of a pixel close by. The pipeline is the camera's or the tip's
-// own (editable; OpenPnP's default unless changed).
+// than one, as OpenPnP: none taken), on the picture in colour as the camera
+// gave it. The pipeline is the camera's or the tip's own (editable; OpenPnP's
+// default unless changed).
 class JPPipelineMarkFinder {
 public:
     explicit JPPipelineMarkFinder(const std::string& pipelineXml, std::string control = "DetectCircularSymmetry");
@@ -27,12 +29,15 @@ public:
     // camera's scale (pixels a millimetre) for what is set in millimetres.
     JPPipelineMarkFinder(JPPipeline prepared, std::string control, double pxPerMmX, double pxPerMmY);
 
-    // Near (x, y), within maxDistance pixels, about `diameter` pixels across; its centre refined where at least
-    // `minShape` of its edge is round (0: JPRoundMarkFinder's own share).
-    JPRoundMark find(const JPGrayImage& image, double x, double y, double maxDistance, double diameter, double minShape = 0);
+    // Near (x, y), within maxDistance pixels, about `diameter` pixels across.
+    JPRoundMark find(const JPFrame& image, double x, double y, double maxDistance, double diameter);
+    // The same in a picture already in BGR (a straightened one, as a pipeline is given it).
+    JPRoundMark find(const cv::Mat& bgr, double x, double y, double maxDistance, double diameter);
     // Its size not known yet (before calibration): sizes from minDiameter to
     // maxDiameter, each a fifth bigger, the most symmetric mark kept.
-    JPRoundMark findAnySize(const JPGrayImage& image, double x, double y, double maxDistance, double minDiameter,
+    JPRoundMark findAnySize(const JPFrame& image, double x, double y, double maxDistance, double minDiameter,
+                            double maxDiameter);
+    JPRoundMark findAnySize(const cv::Mat& bgr, double x, double y, double maxDistance, double minDiameter,
                             double maxDiameter);
 
 private:

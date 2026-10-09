@@ -813,9 +813,9 @@ mirrored.
 **Visual Test** (the tick in a ring) moves a calibrated head camera to look where the head's settings say the homing mark is,
 finds the mark, and says how far it really is from there, in mm in X and Y. As OpenPnP's visual homing, the
 mark is the **FIDUCIAL-HOME** part: its size is its package's pad, and it is found by that part's fiducial
-vision settings' pipeline (the Fiducial Locator's), its centre then measured to a fraction of a pixel close
-by, up to the Fiducial Locator's **Max. Distance** (4 mm to begin with) from where it should be, as OpenPnP's
-visual homing allows; without the part, "Visual homing is missing the FIDUCIAL-HOME part. Please create it."
+vision settings' pipeline (the Fiducial Locator's; with no fiducial vision settings, the stock one), on the
+camera's picture in colour and straightened, as OpenPnP's pipelines are given it, up to the Fiducial Locator's
+**Max. Distance** (4 mm to begin with) from where it should be, as OpenPnP's visual homing allows; without the part, "Visual homing is missing the FIDUCIAL-HOME part. Please create it."
 Visual homing finds it the same way. Nothing is changed: right
 after a visual home it reads within a few hundredths of a millimetre, and any time later it shows whether
 the machine has lost its place.

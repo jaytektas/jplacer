@@ -42,8 +42,13 @@ public:
         bool   diagnostics = false, heatMap = false;
     };
 
-    // The circles found, best first (with their scores). The picture must be 8 bits a channel.
+    // The circles found, best first (with their scores). The picture must be 8 bits a channel. As OpenPnP's
+    // findCircularSymmetry, a pixel's centre half a pixel in (a picture's middle at its width / 2): for jplacer's
+    // pictures and calibrations (a pixel's centre on its index, as OpenCV's), less kPixelCentre (inPixels).
     static std::vector<JPPipelineModel::Circle> find(cv::Mat& image, Search search, ScoreRange& range);
+    static constexpr double kPixelCentre = 0.5;
+    // `found` (OpenPnP's) where jplacer's pixels are.
+    static std::vector<JPPipelineModel::Circle> inPixels(std::vector<JPPipelineModel::Circle> found);
 };
 
 } // inline namespace jf

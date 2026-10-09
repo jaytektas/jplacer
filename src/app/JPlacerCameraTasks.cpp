@@ -612,11 +612,8 @@ JPFrame frameOf(const cv::Mat& bgr) {
 
 // A calibration's find drawn on its picture, as vision shows its results: a circle the size it was found and a
 // cross at its centre.
-JPFrame foundFrame(const JPGrayImage& picture, double x, double y, double diameterPx) {
-    cv::Mat gray(picture.height, picture.width, CV_32F, const_cast<float*>(picture.pixels.data()));
-    cv::Mat bytes, bgr;
-    gray.convertTo(bytes, CV_8U);
-    cv::cvtColor(bytes, bgr, cv::COLOR_GRAY2BGR);
+JPFrame foundFrame(const cv::Mat& picture, double x, double y, double diameterPx) {
+    cv::Mat bgr = picture.clone();
     const cv::Scalar green(0, 255, 0);
     const cv::Point c(int(std::lround(x)), int(std::lround(y)));
     const int r = std::max(1, int(std::lround(diameterPx / 2)));
@@ -627,9 +624,9 @@ JPFrame foundFrame(const JPGrayImage& picture, double x, double y, double diamet
 
 } // namespace
 
-std::function<void(const JPGrayImage&, double, double, double, const std::string&)> JPlacerCameraTasks::showFinds(JPCameraPanel& camera) {
+std::function<void(const cv::Mat&, double, double, double, const std::string&)> JPlacerCameraTasks::showFinds(JPCameraPanel& camera) {
     JPCameraPanel* panel = &camera;
-    return [panel, alive = std::weak_ptr<bool>(m_alive)](const JPGrayImage& picture, double x, double y, double diameterPx,
+    return [panel, alive = std::weak_ptr<bool>(m_alive)](const cv::Mat& picture, double x, double y, double diameterPx,
                                                           const std::string& step) {
         JPFrame frame = foundFrame(picture, x, y, diameterPx);
         char text[160];
@@ -1284,8 +1281,8 @@ void JPlacerCameraTasks::calibrateFixedWith(JPCameraPanel& camera, const JPNozzl
         };
         // The picture's size, for its middle and the green circle (OpenPnP's: a quarter of its smaller side,
         // its centering half of that).
-        JPGrayImage img;
-        if (!JPCameraLook::taken(*feed, img, words, 1)) return false;
+        JPFrame img;
+        if (!JPCameraLook::takenFrame(*feed, img, words, 1)) return false;
         const double cx = (img.width - 1) / 2.0, cy = (img.height - 1) / 2.0, side = std::min(img.width, img.height);
         const double centering = side * kInitialMaskShare * kCenteringShare;
         const auto greenCircle = [&] { marks({ { cx, cy, centering, true, false } }); };
@@ -1310,9 +1307,9 @@ void JPlacerCameraTasks::calibrateFixedWith(JPCameraPanel& camera, const JPNozzl
                 "with the + centered on the fiducial/nozzle tip. When ready, click Next to begin the automated "
                 "calibration collection sequence.",
                 [&] {
-                    JPGrayImage look;
+                    JPFrame look;
                     std::string ignored;
-                    if (!JPCameraLook::taken(*feed, look, ignored, 1)) return;
+                    if (!JPCameraLook::takenFrame(*feed, look, ignored, 1)) return;
                     const double d = *into;
                     const JPRoundMark m = finder.find(look, cx, cy, std::max(side * kInitialMaskShare / 2, d * kMaskOverDiameter), d);
                     marks({ m.found ? JPCameraView::Mark { m.x, m.y, d, true, true } : JPCameraView::Mark { cx, cy, d, false, false } });

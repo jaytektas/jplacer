@@ -13,6 +13,7 @@
 #include "common/JPlacerLog.h"
 #include "JPPipelineMarkFinder.h"
 #include "pipeline/JPDefaultPipelines.h"
+#include "pipeline/JPStraightPicture.h"
 
 #include <j/core/Log.h>
 
@@ -32,13 +33,13 @@ constexpr double kLeastTipMm = 0.2, kMostTipMm = 4.0;
 // The tip's end found in a settled picture by the calibration pipeline (OpenPnP's findCircle): looked for about
 // where it is expected (expectX, expectY, mm), up to the Offset Threshold and its margin; one further than the
 // threshold from there is a misdetect. Where it is on the machine into tx, ty.
-JPRoundMark findTip(JPPipelineMarkFinder& finder, const JPGrayImage& img, const JPCameraCalibration& cal, double camX, double camY,
+JPRoundMark findTip(JPPipelineMarkFinder& finder, const cv::Mat& img, const JPCameraCalibration& cal, double camX, double camY,
                     double expectX, double expectY, double diameter, double searchMm, double thresholdMm, double& tx, double& ty) {
     const double scale = cal.scale();
     double ex, ey;
     if (!cal.pixelFor(expectX, expectY, camX, camY, ex, ey)) {
-        ex = img.width / 2.0;
-        ey = img.height / 2.0;
+        ex = img.cols / 2.0;
+        ey = img.rows / 2.0;
     }
     // By its calibration pipeline (OpenPnP's, editable), under the "nozzleTip" properties.
     JPRoundMark found = diameter > 0 ? finder.find(img, ex, ey, searchMm * scale, diameter * scale)
@@ -55,6 +56,15 @@ JPRoundMark findTip(JPPipelineMarkFinder& finder, const JPGrayImage& img, const 
         found.found = false;
     }
     return found;
+}
+
+// A picture as a vision pipeline is given it (OpenPnP's): in colour, straightened where `straight` is.
+cv::Mat pipelinePicture(const JPFrame& frame, const JPStraightPicture* straight) {
+    cv::Mat rgba(frame.height, frame.width, CV_8UC4, const_cast<uint8_t*>(frame.rgba.data())), bgr;
+    cv::cvtColor(rgba, bgr, cv::COLOR_RGBA2BGR);
+    cv::Mat flat;
+    if (straight && straight->straighten(bgr, flat)) return flat;
+    return bgr;
 }
 
 std::string now() {
@@ -85,6 +95,9 @@ std::optional<JPRunout> JPRunoutCalibrator::run(JPCell& cell, JPCameraFeed& came
     }
     JPCameraCalibration cal;
     if (!JPCameraLook::calibration(cell, camera, cal, why)) return std::nullopt;
+    // Its pictures straightened, as OpenPnP's pipelines are given them; placed by their calibration.
+    const auto straight = JPStraightPicture::of(cal, camera.config().looksUp, camera.config().showAll);
+    if (straight) cal = straight->calibration();
     const JPNozzleTipConfig::RunoutCalibration& k = tip.runoutCalibration;
     const int divisions = std::clamp(k.divisions, JPNozzleTipConfig::RunoutCalibration::kLeastDivisions,
                                      JPNozzleTipConfig::RunoutCalibration::kMostDivisions);
@@ -111,13 +124,14 @@ std::optional<JPRunout> JPRunoutCalibrator::run(JPCell& cell, JPCameraFeed& came
             ok = false;
             break;
         }
-        JPGrayImage img;
+        JPFrame img;
         if (!JPCameraLook::settled(camera, img, why)) {
             ok = false;
             break;
         }
         double tx = 0, ty = 0;
-        const JPRoundMark found = findTip(finder, img, cal, camX, camY, camX, camY, diameter, search, k.offsetThresholdMm, tx, ty);
+        const cv::Mat picture = pipelinePicture(img, straight.get());
+        const JPRoundMark found = findTip(finder, picture, cal, camX, camY, camX, camY, diameter, search, k.offsetThresholdMm, tx, ty);
         if (!found.found) {
             JLOGC(JPlacerLog::kCamera, JLogLevel::Warn) << tip.name << " on " << nozzle.name << " not found at " << angle
                                                         << " deg: " << found.why;
@@ -129,15 +143,13 @@ std::optional<JPRunout> JPRunoutCalibrator::run(JPCell& cell, JPCameraFeed& came
             }
             continue;
         }
-        if (o.found) o.found(img, found.x, found.y, found.diameter, said);
+        if (o.found) o.found(picture, found.x, found.y, found.diameter, said);
         points.push_back({ angle, tx - camX, ty - camY });
         // The picture for the background: the tip's middle blotted out (the smallest part it picks,
         // less the pick tolerance, but no smaller than the tip), blurred to the smallest detail.
         if (background) {
-            JPFrame frame;
-            if (camera.latest(frame, 0) && frame.width > 0) {
-                cv::Mat rgba(frame.height, frame.width, CV_8UC4, frame.rgba.data()), bgr;
-                cv::cvtColor(rgba, bgr, cv::COLOR_RGBA2BGR);
+            if (!picture.empty()) {
+                const cv::Mat& bgr = picture;
                 const double blot = std::max(tip.minPartDiameterMm - 2 * tip.maxPickToleranceMm, tip.diameter);
                 background->add(bgr, found.x, found.y, int(std::ceil(blot * scale * 0.5)),
                                 int(tip.background.minimumDetailSizeMm * scale));
@@ -178,6 +190,9 @@ std::optional<JPRunoutCalibrator::CameraFix> JPRunoutCalibrator::calibrateCamera
     }
     JPCameraCalibration cal;
     if (!JPCameraLook::calibration(cell, camera, cal, why)) return std::nullopt;
+    // Its pictures straightened, as OpenPnP's pipelines are given them; placed by their calibration.
+    const auto straight = JPStraightPicture::of(cal, camera.config().looksUp, camera.config().showAll);
+    if (straight) cal = straight->calibration();
     const JPNozzleTipConfig::RunoutCalibration& k = tip.runoutCalibration;
     const int divisions = std::clamp(k.divisions, JPNozzleTipConfig::RunoutCalibration::kLeastDivisions,
                                      JPNozzleTipConfig::RunoutCalibration::kMostDivisions);
@@ -214,13 +229,14 @@ std::optional<JPRunoutCalibrator::CameraFix> JPRunoutCalibrator::calibrateCamera
             ok = false;
             break;
         }
-        JPGrayImage img;
+        JPFrame img;
         if (!JPCameraLook::settled(camera, img, why)) {
             ok = false;
             break;
         }
         double tx = 0, ty = 0;
-        const JPRoundMark found = findTip(finder, img, cal, camX, camY, sx, sy, diameter, search, k.offsetThresholdMm, tx, ty);
+        const cv::Mat picture = pipelinePicture(img, straight.get());
+        const JPRoundMark found = findTip(finder, picture, cal, camX, camY, sx, sy, diameter, search, k.offsetThresholdMm, tx, ty);
         if (!found.found) {
             JLOGC(JPlacerLog::kCamera, JLogLevel::Warn) << tip.name << " on " << nozzle.name << " not found at " << angle
                                                         << " deg: " << found.why;
@@ -231,7 +247,7 @@ std::optional<JPRunoutCalibrator::CameraFix> JPRunoutCalibrator::calibrateCamera
             }
             continue;
         }
-        if (o.found) o.found(img, found.x, found.y, found.diameter, said);
+        if (o.found) o.found(picture, found.x, found.y, found.diameter, said);
         // Seen from the camera's middle; sent, on the machine.
         seen.emplace_back(JPLengthUnit::Millimeters, tx - camX, ty - camY, 0, angle);
         sent.emplace_back(JPLengthUnit::Millimeters, sx, sy, 0, angle);

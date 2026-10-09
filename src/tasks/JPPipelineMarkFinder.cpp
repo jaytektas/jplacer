@@ -4,7 +4,6 @@
 #include "JPPipelineMarkFinder.h"
 
 #include "openpnp/JPXmlReader.h"
-#include "vision/JPRoundMarkFinder.h"
 
 #include <opencv2/imgproc.hpp>
 
@@ -19,17 +18,12 @@ namespace {
 constexpr const char* kResults = "results";
 // Each size tried a fifth bigger than the last (findAnySize).
 constexpr double kSizeStep = 1.2;
-// The pipeline's find refined to a fraction of a pixel (its DetectCircularSymmetry settles on a
-// 1 / super-sampling grid) within this share of the mark's diameter of it: no other mark that near.
-constexpr double kRefineShare = 0.5;
 
-cv::Mat toBgr(const JPGrayImage& image) {
-    cv::Mat gray(image.height, image.width, CV_8UC1);
-    for (int y = 0; y < image.height; ++y)
-        for (int x = 0; x < image.width; ++x)
-            gray.at<uint8_t>(y, x) = uint8_t(std::clamp(std::lround(image.at(x, y)), 0L, 255L));
+// The picture in colour, as OpenPnP's ImageCapture gives a pipeline it.
+cv::Mat toBgr(const JPFrame& frame) {
+    cv::Mat rgba(frame.height, frame.width, CV_8UC4, const_cast<uint8_t*>(frame.rgba.data()));
     cv::Mat bgr;
-    cv::cvtColor(gray, bgr, cv::COLOR_GRAY2BGR);
+    cv::cvtColor(rgba, bgr, cv::COLOR_RGBA2BGR);
     return bgr;
 }
 
@@ -67,25 +61,31 @@ void JPPipelineMarkFinder::useCapture() {
     };
 }
 
-JPRoundMark JPPipelineMarkFinder::find(const JPGrayImage& image, double x, double y, double maxDistance, double diameter,
-                                       double minShape) {
+JPRoundMark JPPipelineMarkFinder::find(const JPFrame& image, double x, double y, double maxDistance, double diameter) {
+    if (image.width <= 0 || image.height <= 0) {
+        JPRoundMark m;
+        m.why = "no picture";
+        return m;
+    }
+    return find(toBgr(image), x, y, maxDistance, diameter);
+}
+
+JPRoundMark JPPipelineMarkFinder::find(const cv::Mat& bgr, double x, double y, double maxDistance, double diameter) {
     JPRoundMark m;
     if (!m_parsed) {
         m.why = "the camera's calibration pipeline could not be read";
         return m;
     }
-    if (image.width <= 0 || image.height <= 0) {
+    if (bgr.empty()) {
         m.why = "no picture";
         return m;
     }
-    m_picture = toBgr(image);
-    m_pipeline.context().cameraWidth = image.width;
-    m_pipeline.context().cameraHeight = image.height;
+    m_picture = bgr;
+    m_pipeline.context().cameraWidth = bgr.cols;
+    m_pipeline.context().cameraHeight = bgr.rows;
     m_pipeline.setProperty(m_control + ".center", JPPipelineValue { JPPipelineValue::Pixel { x, y } });
     m_pipeline.setProperty(m_control + ".maxDistance", JPPipelineValue { maxDistance });
     m_pipeline.setProperty(m_control + ".diameter", JPPipelineValue { diameter });
-    if (minShape > 0) m_pipeline.setProperty(m_control + ".minShape", JPPipelineValue { minShape });
-    else m_pipeline.removeProperty(m_control + ".minShape");
     std::string why;
     if (!m_pipeline.process(why)) {
         m.why = why;
@@ -120,18 +120,6 @@ JPRoundMark JPPipelineMarkFinder::find(const JPGrayImage& image, double x, doubl
     m.y = spots.front().y;
     m.diameter = spots.front().size > 0 ? spots.front().size : diameter;
     m.confidence = 1;
-    // Its centre to a fraction of a pixel, near where the pipeline found it.
-    JPRoundMarkFinder::Request near;
-    near.expectedX = m.x;
-    near.expectedY = m.y;
-    near.searchRadius = kRefineShare * diameter;
-    near.diameter = diameter;
-    if (minShape > 0) near.minShape = minShape;
-    if (const JPRoundMark fine = JPRoundMarkFinder::find(image, near); fine.found) {
-        m.x = fine.x;
-        m.y = fine.y;
-        m.diameter = fine.diameter;
-    }
     // The symmetry of the circle it came from, where the stage gave one (for choosing among sizes).
     for (const JPPipelineStage& s : m_pipeline.stages())
         if (const JPPipeline::Result* r = m_pipeline.result(s.name()))
@@ -141,7 +129,12 @@ JPRoundMark JPPipelineMarkFinder::find(const JPGrayImage& image, double x, doubl
     return m;
 }
 
-JPRoundMark JPPipelineMarkFinder::findAnySize(const JPGrayImage& image, double x, double y, double maxDistance, double minDiameter,
+JPRoundMark JPPipelineMarkFinder::findAnySize(const JPFrame& image, double x, double y, double maxDistance, double minDiameter,
+                                              double maxDiameter) {
+    return findAnySize(toBgr(image), x, y, maxDistance, minDiameter, maxDiameter);
+}
+
+JPRoundMark JPPipelineMarkFinder::findAnySize(const cv::Mat& image, double x, double y, double maxDistance, double minDiameter,
                                               double maxDiameter) {
     JPRoundMark best;
     best.why = "no round mark found";
