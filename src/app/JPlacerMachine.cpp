@@ -974,7 +974,8 @@ void JPlacerMachine::setPort(const std::string& driverId, const std::string& por
 void JPlacerMachine::recordCalibration(const std::string& cameraId, const JPCameraCalibration& calibration) {
     if (!m_setup || !m_cell) return;
     // A fixed camera's place, as OpenPnP's applyCalibrationToMachine: where the middle of its picture looked
-    // (the nozzle's tip, put where its place said) becomes its place, the calibration kept against it. (A
+    // (measured from its place, the nozzle's tip wherever it was jogged to) becomes its place, the calibration
+    // kept against it. (A
     // camera on the head keeps its offsets: visual homing and the nozzle offsets are measured by it.)
     const JPCameraConfig* cam = nullptr;
     for (const JPCameraConfig& c : m_cell->config().cameras)

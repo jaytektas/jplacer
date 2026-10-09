@@ -20,6 +20,7 @@ notes.
 - The Jog panel's nozzle list says which part each nozzle holds, as OpenPnP's does.
 - Dragging a camera property's slider (brightness, exposure, ...) sets it on the running camera as it moves: before, every step closed and opened the camera again ("starting TOP_CAMERA") and made the other panels afresh, so the Jog panel jumped about.
 - A camera's Auto-Tune icon works with a job paused, not only with none running.
+- Calibrating a camera looking up no longer puts it in the wrong place when the nozzle's tip was jogged into the green circle first: the jog was left out, so the camera was moved by the jog the wrong way and nozzle tip calibrations then failed.
 - The manual's front page says what jplacer does now, how to get a machine going, and lists every chapter; it and the Menus page no longer say features are still to come.
 - Jogging a nozzle that is down (over a camera, during a calibration) no longer lifts it to safe Z: Unsafe Z Roaming applies only to a tool on a virtual Z axis, such as a camera, as in OpenPnP.
 - A strip feeder's last parts by the machine's edge are no longer taken for the end of the strip: where the camera cannot reach the spot beside a part it looks at the hole from, it looks straight down on the hole, as OpenPnP does.

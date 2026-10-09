@@ -120,6 +120,11 @@ int main() {
     for (int i = 0; i < 4; ++i) assert(std::abs(cal->pxPerMm[i] - kM[i]) < 0.002 * 30);
     // Looking up, it is the mirror image a straight-mounted up camera sees: not mirrored, barely turned.
     assert(!cal->mirrored(true) && std::abs(cal->rotationDeg(true)) < 0.5);
+    // Where the picture's middle looks, from the camera's place: the camera is where its place says, though the
+    // tip began 0.3, -0.2 mm off it (as jogged into the green circle), so nothing to move it by.
+    if (std::abs(cal->lookedX) > 0.02 || std::abs(cal->lookedY) > 0.02)
+        std::fprintf(stderr, "looked %f, %f\n", cal->lookedX, cal->lookedY);
+    assert(cal->looked && std::abs(cal->lookedX) < 0.02 && std::abs(cal->lookedY) < 0.02);
 
     // From the tip's pixel, with the camera's place as where it looks: where the nozzle is.
     assert(cell.moveAxesAndWait({ { "X", kCamX - kOffX + 1.1 }, { "Y", kCamY - kOffY - 0.7 } }, 1.0, why));

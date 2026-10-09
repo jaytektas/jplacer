@@ -325,9 +325,11 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
     c.leftOut = leftOut;
     c.unmeasured = unmeasured;
     c.when    = now();
-    // Where the picture's middle looked: the mark (where the camera's place
-    // put it) was at the fit's centre with no move, so the middle saw
-    // M^-1 (centre - middle) from it (straightened pixels).
+    // Where the picture's middle looked, from where the camera's place says it looks: the mark was at the fit's
+    // centre with no move, so the middle saw M^-1 (centre - middle) from the mark (straightened pixels). A camera
+    // on the head was put over the mark at its place; a mark carried by a tool (a nozzle's tip over a camera
+    // looking up) is where the tool was when the calibration began, jogged into view perhaps, not the camera's
+    // place: that difference counts too.
     {
         double u0x, u0y;
         c.lens().undistort(img.width / 2.0, img.height / 2.0, u0x, u0y);
@@ -336,6 +338,10 @@ std::optional<JPCameraCalibration> JPCameraCalibrator::run(JPCell& cell, JPCamer
         const double ex = fit->centreX - u0x, ey = fit->centreY - u0y;
         c.lookedX = (m[3] * ex - m[1] * ey) / d;
         c.lookedY = (m[0] * ey - m[2] * ex) / d;
+        if (o.moving) {
+            c.lookedX += x0 + mount.offsetX - cam.mount.offsetX;
+            c.lookedY += y0 + mount.offsetY - cam.mount.offsetY;
+        }
         c.looked = true;
     }
     // Each measurement against the final fit, for the results' plots.
