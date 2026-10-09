@@ -150,6 +150,10 @@ public:
     // for it to outlive them while what called into it (a task's end) returns.
     void letGo();
 
+    // On a worker: `feed` tuned (Auto-Tune) where it looks now, the values kept, as its Auto-Tune does; false with
+    // `why` when it could not be.
+    bool autoTuneNow(JPCameraFeed& feed, std::string& why);
+
 private:
     // Runs `task` on the worker with `camera` shown and running; its answer
     // (ok, words) comes back on the main thread to `done`. `progress` from the

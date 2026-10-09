@@ -1025,6 +1025,12 @@ bool JPlacerCameraTasks::autoTuneAt(JPCameraFeed& feed, const JPMachineLocation&
     return autoTuneHere(feed, why);
 }
 
+bool JPlacerCameraTasks::autoTuneNow(JPCameraFeed& feed, std::string& why) {
+    if (!autoTuneHere(feed, why)) return false;
+    tunedHere(feed);
+    return true;
+}
+
 bool JPlacerCameraTasks::autoTuneHere(JPCameraFeed& feed, std::string& why) {
     // Told on the capture thread; shared, so a late answer has somewhere to go.
     auto told = std::make_shared<std::promise<std::optional<JJson>>>();

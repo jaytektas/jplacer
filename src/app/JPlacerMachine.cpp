@@ -1959,6 +1959,15 @@ void JPlacerMachine::nozzleOffsetWizard(const std::string& nozzleId, bool storeM
     m_nozzleMark.reset();
 }
 
+bool JPlacerMachine::autoTuneHeadCamera(std::string& why) {
+    JPCameraFeed* feed = headCameraFeed();
+    if (!feed || !m_cameraTasks) {
+        why = "no camera on the head";
+        return false;
+    }
+    return m_cameraTasks->autoTuneNow(*feed, why);
+}
+
 JPCameraFeed* JPlacerMachine::headCameraFeed() const {
     JPCameraPanel* p = m_cameraTasks ? m_cameraTasks->headCamera() : nullptr;
     return p ? &p->feed() : nullptr;

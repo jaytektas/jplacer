@@ -173,8 +173,19 @@ void JPlacerStripAutoSetup::check(const JPLocation& at) {
             return true;
         };
         std::string why;
+        if (!machine.positionCamera(at, why)) return failed(why);
+        // Tuned over the first part first, the feeder says, for the tape's own brightness.
+        bool tune = false;
+        if (first)
+            onMain([&] {
+                const JPFeeder* f = m_job.configuration().feeder(m_feederId);
+                tune = f && f->flag("auto-tune-on-auto-setup", false);
+                if (const auto a = alive.lock(); tune && a && *a)
+                    if (JPCameraView* view = m_view) view->setPrompt("Auto-Tune over the tape...");
+            });
+        if (tune && !m_machine.autoTuneHeadCamera(why)) return failed("Auto-Tune: " + why);
         JPJobMachine::SeenCircles seen;
-        if (!machine.positionCamera(at, why) || !machine.seeCircles(at, *pipeline, seen, why)) return failed(why);
+        if (!machine.seeCircles(at, *pipeline, seen, why)) return failed(why);
         // The tape's own scale, measured here once: the camera is calibrated at another height (its rig's), and
         // a hole seen off the picture's middle at the wrong scale is that much off.
         double tapePxPerMm = 0;
