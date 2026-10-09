@@ -17,6 +17,7 @@ notes.
 - Much faster screen: jplacer had been built with an unoptimised (debug) copy of its drawing code, which made the whole window sluggish (dragging pipeline sliders, scrolling); it now uses the optimised one, and a release refuses to build without it.
 - A nozzle tip is not calibrated while its nozzle holds a part ("Cannot calibrate nozzle tip with part on nozzle …"), as in OpenPnP: before, its runout was measured on the part, and after homing too.
 - A fiducial check can set the board's height too: Machine Setup's Fiducial Locator has Measure Board Z? (off to begin with), and with it the head camera, calibrated at two heights, measures how far away the board is at each of its fiducials, and its Z is their mean. A board left at the wrong Z had its parts let go far above it.
+- The Jog panel's nozzle list says which part each nozzle holds, as OpenPnP's does.
 
 ## 0.1.36
 

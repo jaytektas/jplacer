@@ -337,7 +337,8 @@ three graphs: the play against how far it came in, against speed, and the errors
 ### Jog
 
 Moving the machine by hand, laid out as OpenPnP's Machine Controls. Choose the tool at the top: each
-nozzle (with the tip on it), the camera on the head, and anything else on the head that moves on axes.
+nozzle (with the tip on it, and the part it holds, as OpenPnP's: "Nozzle: N1 - 503L - R_0603-10K (Head: H1)"),
+the camera on the head, and anything else on the head that moves on axes.
 
 **Jog** tab:
 
@@ -378,7 +379,7 @@ the hold is complete, and the reset); Grbl and grblHAL have one.
 A controller whose profile has no hold is reset for Stop as well; one with no reset cannot be stopped
 from jplacer, and the status bar says so.
 
-<!-- src: src/machine/JPGcodeDriver.cpp (halt, ioLoop, onPlaceLost); src/machine/JPCell.cpp (stop, onPlaceLost, parkZ, doParkZ); src/app/JPlacerMachine.cpp (stop); src/ui/JPJogPanel.cpp (act); src/app/JPlacerMenuBuilder.cpp (Stop, Emergency Stop); src/machine/JPFirmwareProfile.cpp (stop); profiles/grblhal.json; profiles/grbl.json -->
+<!-- src: src/machine/JPGcodeDriver.cpp (halt, ioLoop, onPlaceLost); src/machine/JPCell.cpp (stop, onPlaceLost, parkZ, doParkZ); src/app/JPlacerMachine.cpp (stop); src/ui/JPJogPanel.cpp (act, refreshNames); src/app/JPlacerMenuBuilder.cpp (Stop, Emergency Stop); src/machine/JPFirmwareProfile.cpp (stop); profiles/grblhal.json; profiles/grbl.json -->
 
 #### Nozzle tips
 

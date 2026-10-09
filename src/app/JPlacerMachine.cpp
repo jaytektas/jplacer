@@ -481,6 +481,8 @@ void JPlacerMachine::buildPanels(Keep keep) {
         const std::string part = nozzlePart(nozzleId);
         return !part.empty() && canRecycle && canRecycle(part);
     };
+    jog->partOn = [this](const std::string& nozzleId) { return nozzlePart(nozzleId); };
+    jog->refreshNames();
     jog->onChoicesChanged = [this] {
         if (!m_jog) return;
         const JPJogPanel::Choices c = m_jog->choices();
@@ -1119,7 +1121,10 @@ void JPlacerMachine::setNozzlePart(const std::string& nozzleId, const std::strin
                                               : JPPnpChecking::PartOn {};
     m_pnpChecking.hold(nozzleId, part.held.footprint, part.held.heightMm);
     if (m_cell) m_cell->setNozzlePart(nozzleId, part.on);
-    if (m_jog) m_jog->refreshRecycle();
+    if (m_jog) {
+        m_jog->refreshRecycle();
+        m_jog->refreshNames();
+    }
 }
 
 void JPlacerMachine::setSetupVisionTests(JPVisionTests tests) {

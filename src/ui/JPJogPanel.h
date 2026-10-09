@@ -101,6 +101,10 @@ public:
     std::function<bool(const std::string& nozzleId)> canRecycle;
     // Recycle offered or not again (a nozzle's part, or a feeder, changed).
     void refreshRecycle();
+    // The part a nozzle holds (empty: none), named in its entry as OpenPnP's NozzleItem names it; the entries
+    // named again when a nozzle's part changes.
+    std::function<std::string(const std::string& nozzleId)> partOn;
+    void refreshNames();
     // Stop (the move held and dropped) or, `emergency`, reset every controller.
     std::function<void(bool emergency)> onStop;
     // The key an action has now (Preferences > Keys), for the tooltips; "" none.
@@ -142,7 +146,7 @@ public:
 
 private:
     struct Tool {
-        std::string id, label;
+        std::string id, label;   // a nozzle's label without its part (refreshNames adds it)
         const JPMountConfig* mount;
         bool nozzle, camera;
     };

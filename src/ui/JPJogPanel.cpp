@@ -543,6 +543,23 @@ const std::string& JPJogPanel::toolId() const {
     return m_tools.empty() ? none : m_tools[m_tool].id;
 }
 
+void JPJogPanel::refreshNames() {
+    if (!m_toolBox) return;
+    // As OpenPnP's NozzleItem: "Nozzle: N1 - its tip - the part on it (Head: H1)".
+    std::vector<std::string> labels;
+    for (const Tool& t : m_tools) {
+        std::string label = t.label;
+        const std::string part = t.nozzle && partOn ? partOn(t.id) : std::string();
+        if (!part.empty()) {
+            const size_t head = label.rfind(" (Head: ");
+            label.insert(head == std::string::npos ? label.size() : head, " - " + part);
+        }
+        labels.push_back(label);
+    }
+    m_toolBox->setItems(std::move(labels));
+    m_toolBox->setCurrentIndex(int(m_tool));
+}
+
 void JPJogPanel::refreshTipButton() {
     auto* button = static_cast<JPIconButton*>(m_tipButton);
     if (!button) return;
