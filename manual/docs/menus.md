@@ -1,12 +1,12 @@
 # Menus
 
-Entries shown greyed out are features that are not built yet. They are there so you can see where each
-feature will live.
+An entry is greyed out while it cannot be used: the machine's entries until it is connected (and some until
+it is homed), a job's until one is open, one that works on something chosen until it is chosen.
 
 The keys shown are the ones jplacer starts with. Any entry can be given a key of your choosing, or have its
 key taken off, in [Preferences, Keys](preferences.md#keys); the menu then shows that key.
 
-<!-- src: src/app/JPlacerMenuBuilder.cpp (build) -->
+<!-- src: src/app/JPlacerMenuBuilder.cpp (build); src/app/JPlacerMachine.cpp (updateMenu) -->
 
 ## File
 
