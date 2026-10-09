@@ -87,13 +87,15 @@ A strip of cut tape lying on the machine, its parts picked one after the other a
 - **Tape Settings**: **Part Pitch** (from one part to the next) and **Tape Width**, in mm; **Feed
   Count**, the parts taken so far (**Reset** sets it to 0); **Max Feed Count**, the parts on the strip
   (0: no limit), which **Auto Set MaxFeedCount** works out from the hole locations and the part pitch.
-  **Auto-Tune on Auto Setup?** (jplacer's; on to begin with): Auto Setup first tunes the head camera (Defaults,
-  then Auto-Tune) over the first part ("Auto-Tune over the tape..."), for the tape's own brightness: clear tape over
-  a light feeder, white paper beside stainless steel. The feeder keeps that tune for its own looks, Auto Setup's
-  and its vision feeds'; the camera's own settings are not changed. Each look of the head camera is at the tune
-  meant for it, put back when another look had it otherwise: a feeder's at its own, a fiducial check's at the
-  check's, any other at the camera's own settings, so no tune carries over into another look. Not tuned, Auto
-  Setup stops with an **Auto Setup Failure** saying why.
+  **Auto-Tune?** (jplacer's; on to begin with): the head camera tuned (Defaults, then Auto-Tune) for this
+  feeder's tape, the light being what it is now: by Auto Setup over the first part ("Auto-Tune over the tape...";
+  not tuned, Auto Setup stops with an **Auto Setup Failure** saying why), else on the feeder's first vision look of
+  a run, over the hole. White paper beside stainless steel, clear tape over a light feeder: each feeder at its own.
+  The tune is the feeder's for every pick after, while jplacer runs (never saved), until **Reset** (a reloaded
+  strip tunes again on its next look), a new run, or the machine connecting; the camera's own settings are not
+  changed. Each look of the head camera is at the tune meant for it, put back when another look had it otherwise:
+  a feeder's at its own, a fiducial check's at the check's (its camera's **Auto-Tune for fiducial checks?**), any
+  other at the camera's own settings, so no tune carries over into another look.
   **Auto Setup** sets the strip up from two clicks on the camera's view, as OpenPnP's does. The head
   camera's view asks "Click on the center of the first part in the tape."; the camera moves there and the strip's pipeline finds the round marks around it. Among them it takes the
   sprocket holes: a line of marks 4 mm apart, a quarter of the tape width to half the tape width plus

@@ -13,6 +13,7 @@
 #include "model/JPConfiguration.h"
 #include "openpnp/JPXmlReader.h"
 #include "tasks/JPFeederActions.h"
+#include "setup/JPFeederForms.h"
 #include "tasks/JPFeederFeed.h"
 #include "tasks/JPPhotonFeeders.h"
 #include "tasks/JPPhotonPacket.h"
@@ -40,9 +41,11 @@ public:
     // The head camera's tune each feed named for its looks (useHeadTune).
     std::string tuneKey = "unset";
     std::optional<JJson> tune;
-    void useHeadTune(const std::string& key, const std::optional<JJson>& controls) override {
+    bool tuneFirst = false;
+    void useHeadTune(const std::string& key, const std::optional<JJson>& controls, bool first) override {
         tuneKey = key;
         tune = controls;
+        tuneFirst = first;
     }
     std::vector<Nozzle> nozzles() const override { return {}; }
     std::vector<std::pair<std::string, std::string>> tips() const override { return {}; }
@@ -232,16 +235,16 @@ int main() {
     std::string why;
     bool empty = false;
 
-    // The first feed: the first hole looked at, found 0.3 mm off; the part follows it. No tune of its own: its looks
-    // at the camera's own settings (whatever another look had tuned it to).
+    // The first feed: the first hole looked at, found 0.3 mm off; the part follows it. No tune yet this run, its
+    // Auto-Tune? on (as to begin with): tuned on its first look.
     assert(JPFeederFeed::feed(config, "S", "N1", machine, nullptr, why, empty) && machine.looks == 1);
-    assert(machine.tuneKey == "S" && !machine.tune);
+    assert(machine.tuneKey == "S" && !machine.tune && machine.tuneFirst);
     auto at = config.feeder("S")->pickLocation();
     assert(at && near(at->x(), 103.8) && near(at->y(), 52));
-    // Each feed looks at its hole (no extrapolation distance); with a tune of its own (Auto Setup's), at that.
-    config.feeder("S")->setText("camera-tune", R"({"exposure":{"auto":false,"value":1687}})");
+    // Each feed looks at its hole (no extrapolation distance); tuned this run, at that tune, not tuned again.
+    config.feeder("S")->cameraTune = JJson::parse(R"({"exposure":{"auto":false,"value":1687}})");
     assert(JPFeederFeed::feed(config, "S", "N1", machine, nullptr, why, empty) && machine.looks == 2);
-    assert(machine.tuneKey == "S" && machine.tune && (*machine.tune)["exposure"]["value"].number() == 1687);
+    assert(machine.tuneKey == "S" && machine.tune && (*machine.tune)["exposure"]["value"].number() == 1687 && !machine.tuneFirst);
     // Skip next feed: the same part again, no look.
     config.feeder("S")->setFeedOptions(JPFeeder::FeedOptions::SkipNext);
     assert(JPFeederFeed::feed(config, "S", "N1", machine, nullptr, why, empty) && machine.looks == 2);
@@ -260,6 +263,17 @@ int main() {
     machine.looks = 0;
     for (int i = 0; i < 4; ++i) assert(JPFeederFeed::feed(config, "S", "N1", machine, nullptr, why, empty));
     assert(machine.looks < 4);
+    // Reset (a reloaded strip): its tune forgotten, its next first look tunes again.
+    {
+        std::string w;
+        assert(JPFeederForms::act(config, "S", "resetFeedCount", w) && !config.feeder("S")->cameraTune);
+        config.feeder("S")->setNumber("feed-count", 1);
+    }
+    // Its Auto-Tune? off: the camera's own settings, no tuning.
+    config.feeder("S")->setFlag("auto-tune", false);
+    assert(JPFeederFeed::feed(config, "S", "N1", machine, nullptr, why, empty));
+    assert(!machine.tune && !machine.tuneFirst);
+    config.feeder("S")->setFlag("auto-tune", true);
 
     // An auto feeder: its feed actuator on a normal feed, not on a repeated
     // one; its post-pick actuator after the pick.

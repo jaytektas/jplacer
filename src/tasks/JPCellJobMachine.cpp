@@ -649,9 +649,9 @@ bool JPCellJobMachine::headCameraPipeline(double viewX, double viewY, JPPipeline
         return false;
     }
     prepare(*c, *feed);
-    if (!forFiducial) tuneHead(*feed);
     if (!JPCameraLook::calibration(*c, *feed, cal, why)) return false;
     if (!c->moveToolAndWait(feed->config().mount, { viewX, viewY, std::nullopt, std::nullopt }, 1.0, why)) return false;
+    if (!forFiducial) tuneHead(*feed);   // over what it looks at: a tune made on it is for it
     // Its pictures straightened, as OpenPnP's pipelines get them; `cal` then theirs, to place what is found.
     cal = JPPipelineCamera::give(p.context(), *feed, cal, [viewX, viewY](double& x, double& y) {
         x = viewX;
@@ -896,7 +896,7 @@ bool JPCellJobMachine::lookByPipeline(double viewX, double viewY, double x, doub
     if (!headCameraPipeline(viewX, viewY, p, cal, feed, why, true)) return false;
     // The camera's Auto-Tune for fiducial checks?: tuned on a check's first fiducial, that tune for the rest of it.
     if (feed->config().autoTuneFiducials && !tuneForFiducials(*feed, why)) return false;
-    if (!feed->config().autoTuneFiducials) tuneHead(*feed);
+    if (!feed->config().autoTuneFiducials) applyHead(*feed, "", std::nullopt);   // a fiducial at the camera's own
     // As OpenPnP: the fiducial's place told to the stages that look round it.
     p.setProperty("fiducial.center", JPPipelineValue { JPPipelineValue::LocationMm { x, y } });
     p.setProperty("MaskCircle.center", JPPipelineValue { JPPipelineValue::LocationMm { x, y } });
@@ -990,8 +990,35 @@ bool JPCellJobMachine::tuneForFiducials(JPCameraFeed& feed, std::string& why) {
 }
 
 void JPCellJobMachine::tuneHead(JPCameraFeed& feed) {
-    if (m_headApplied == m_headKey) return;
-    std::optional<JJson> controls = m_headTune;
+    // A feeder's first look this run, its Auto-Tune? on: tuned over it, that tune the feeder's for the run. Not
+    // tuned (a camera without settings of its own, say): its looks at the camera's own settings, as said.
+    if (m_headTuneFirst) {
+        m_headTuneFirst = false;
+        auto told = std::make_shared<std::promise<std::optional<JJson>>>();
+        std::future<std::optional<JJson>> tuned = told->get_future();
+        feed.autoTune(JPCameraFeed::kAutoTuneMs, [told](std::optional<JJson> t) { told->set_value(std::move(t)); });
+        std::optional<JJson> made;
+        if (tuned.wait_for(std::chrono::milliseconds(kPartTuneWaitMs)) == std::future_status::ready) made = tuned.get();
+        if (made) {
+            m_headTune = made;
+            m_headApplied = m_headKey;
+            m_onMain([&] {
+                if (JPFeeder* f = m_config.feeder(m_headKey)) f->cameraTune = made;
+            });
+            JLOGC(JPlacerLog::kJob, JLogLevel::Info) << feed.config().name << ": tuned on feeder " << m_headKey
+                                                     << "'s first look; kept for its looks this run";
+            return;
+        }
+        JLOGC(JPlacerLog::kJob, JLogLevel::Warn) << feed.config().name << " could not be tuned on feeder " << m_headKey
+                                                 << "'s first look (see the log); its looks at the camera's own settings";
+        m_headKey.clear();
+        m_headApplied.reset();
+    }
+    applyHead(feed, m_headKey, m_headTune);
+}
+
+void JPCellJobMachine::applyHead(JPCameraFeed& feed, const std::string& key, std::optional<JJson> controls) {
+    if (m_headApplied == key) return;
     // None of its own: the camera's own settings, as kept in the cell (its Auto-Tune's, homing's or calibration's).
     if (!controls) {
         const JPCellConfig c = config();
@@ -999,9 +1026,9 @@ void JPCellJobMachine::tuneHead(JPCameraFeed& feed) {
             if (cam.id == feed.config().id && cam.device["controls"].isObject()) controls = cam.device["controls"];
     }
     if (controls) feed.setControls(*controls);   // the picture then settles as any does
-    m_headApplied = m_headKey;
+    m_headApplied = key;
     JLOGC(JPlacerLog::kCamera, JLogLevel::Debug) << feed.config().name << ": at "
-                                                 << (m_headKey.empty() ? std::string("its own settings") : m_headKey + "'s tune");
+                                                 << (key.empty() ? std::string("its own settings") : "feeder " + key + "'s tune");
 }
 
 void JPCellJobMachine::prepare(JPCell& cell, JPCameraFeed& feed) {
@@ -1029,6 +1056,8 @@ bool JPCellJobMachine::look(double viewX, double viewY, double x, double y, doub
     // The camera's Auto-Tune for fiducial checks?: tuned on a check's first fiducial, that tune for the rest of it.
     if (fiducial && feed->config().autoTuneFiducials) {
         if (!tuneForFiducials(*feed, why)) return false;
+    } else if (fiducial) {
+        applyHead(*feed, "", std::nullopt);   // a fiducial at the camera's own settings
     } else {
         tuneHead(*feed);
     }

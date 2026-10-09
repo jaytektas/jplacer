@@ -174,16 +174,15 @@ void JPlacerStripAutoSetup::check(const JPLocation& at) {
         };
         std::string why;
         if (!machine.positionCamera(at, why)) return failed(why);
-        // Tuned over the first part first, the feeder says, for the tape's own brightness: kept as the feeder's
-        // own tune (for its looks only: Auto Setup's and its vision feeds'), not the camera's settings. Else its
-        // tune as it was (none: the camera's own settings).
+        // Tuned over the first part first, its Auto-Tune? on, for the tape's own brightness: the feeder's tune for
+        // its looks this run (Auto Setup's and its vision feeds'), not the camera's settings. Else its tune as it is
+        // (none: the camera's own settings).
         bool tune = false;
         std::optional<JJson> controls;
         onMain([&] {
             const JPFeeder* f = m_job.configuration().feeder(m_feederId);
-            tune = first && f && f->flag("auto-tune-on-auto-setup", true);
-            if (f && !f->text("camera-tune").empty())
-                if (const JJson j = JJson::parse(f->text("camera-tune")); j.isObject()) controls = j;
+            tune = first && f && f->flag("auto-tune", true);
+            if (f) controls = f->cameraTune;
             if (const auto a = alive.lock(); tune && a && *a)
                 if (JPCameraView* view = m_view) view->setPrompt("Auto-Tune over the tape...");
         });
@@ -191,10 +190,10 @@ void JPlacerStripAutoSetup::check(const JPLocation& at) {
             controls = m_machine.tuneHeadCamera(why);
             if (!controls) return failed("Auto-Tune: " + why);
             onMain([&] {
-                if (JPFeeder* f = m_job.configuration().feeder(m_feederId)) f->setText("camera-tune", controls->dump());
+                if (JPFeeder* f = m_job.configuration().feeder(m_feederId)) f->cameraTune = controls;
             });
         }
-        machine.useHeadTune(m_feederId, controls);
+        machine.useHeadTune(m_feederId, controls, false);
         JPJobMachine::SeenCircles seen;
         if (!machine.seeCircles(at, *pipeline, seen, why)) return failed(why);
         // The tape's own scale, measured here once: the camera is calibrated at another height (its rig's), and

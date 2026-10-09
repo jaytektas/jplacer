@@ -67,6 +67,8 @@ public:
     void checkJob();
 
 private:
+    // Every camera tune made for a run forgotten (parts', fiducials', feeders'): the camera at its own settings.
+    void forgetTunes();
     void startPauseResume();
     void step();
     void stop();

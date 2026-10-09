@@ -132,12 +132,13 @@ void stripForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeed
                "Calculate the Max Feed Count using the feeder's hole locations and part pitch");
     add.end();
     add.endColumns();
-    add.flag("auto-tune-on-auto-setup", "Auto-Tune on Auto Setup?", [f] { return f().flag("auto-tune-on-auto-setup", true); },
-             [f](bool on) { f().setFlag("auto-tune-on-auto-setup", on); });
-    add.tipOf("auto-tune-on-auto-setup",
-              "Auto Setup first tunes the head camera (Defaults, then Auto-Tune) over the first part, for the tape's own "
-              "brightness: clear tape over a light feeder, say. The feeder keeps that tune for its own looks (Auto "
-              "Setup's and its vision feeds'); the camera's own settings are not changed.");
+    add.flag("auto-tune", "Auto-Tune?", [f] { return f().flag("auto-tune", true); },
+             [f](bool on) { f().setFlag("auto-tune", on); });
+    add.tipOf("auto-tune",
+              "The head camera tuned (Defaults, then Auto-Tune) for this feeder's tape on its first vision look of a "
+              "run, and by Auto Setup over the first part: white paper beside stainless steel, clear tape over a light "
+              "feeder. That tune is for this feeder's looks only, until the run ends, the machine connects again, or "
+              "Reset (a reloaded strip tunes again); the camera's own settings are not changed.");
 
     add.group("Vision");
     add.flag("vision-enabled", "Use Vision?", [f] { return f().flag("vision-enabled", false); },
@@ -1692,6 +1693,7 @@ bool JPFeederForms::act(JPConfiguration& config, const std::string& feederId, co
         if (f->typeName() == "ReferenceRotatedTrayFeeder") f->setFlag("legacy-picking-in-progress", false);
         f->visionLocation.reset();   // and what vision found, as OpenPnP's Reset says
         f->visionLocationReference.reset();
+        f->cameraTune.reset();       // reloaded: its first look tunes again
         return true;
     }
     if (action == "newDropBox") {

@@ -10,7 +10,7 @@ notes.
 
 ## Unreleased
 
-- Each look of the head camera is at the tune meant for it: a feeder's at the tune its Auto Setup made, a fiducial check's at the check's, any other at the camera's own settings. A tune no longer carries over into the next look, and a feeder's Auto Setup tune no longer changes the camera's settings, so Auto-Tune on Auto Setup? is now on to begin with.
+- Strip feeders' Auto-Tune? (on to begin with; it replaces Auto-Tune on Auto Setup?): the head camera is tuned for each feeder's own tape, by its Auto Setup or on its first vision look of a run, and that tune is kept for its picks until Reset, a new run, or the machine connecting. Each head camera look is at the tune meant for it: a feeder's, a fiducial check's, or the camera's own settings; a tune no longer carries over into another look or changes the camera's settings.
 
 ## 0.1.34
 

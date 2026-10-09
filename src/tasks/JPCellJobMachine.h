@@ -110,15 +110,21 @@ public:
     // and its calibration for what is at height `z` there.
     bool lookAt(double x, double y, double z, cv::Mat& bgr, JPCameraCalibration& cal, std::string& why);
 
-    // A job run begun: the camera settings kept for each part (Auto-Tune for each part?) forgotten, tuned afresh.
+    // A job run begun, or the machine connected: the camera settings kept for each part (Auto-Tune for each part?)
+    // and a fiducial check forgotten, tuned afresh; the head camera back at its own settings for its next look.
     void newRun() {
         m_partTunes.clear();
         m_fiducialTune.reset();
+        m_headKey.clear();
+        m_headTune.reset();
+        m_headTuneFirst = false;
+        m_headApplied.reset();
     }
     void startFiducialCheck() override { m_fiducialTune.reset(); }
-    void useHeadTune(const std::string& key, const std::optional<JJson>& controls) override {
-        m_headKey = controls ? key : std::string();
+    void useHeadTune(const std::string& feederId, const std::optional<JJson>& controls, bool tuneFirst) override {
+        m_headKey = controls || tuneFirst ? feederId : std::string();
         m_headTune = controls;
+        m_headTuneFirst = !controls && tuneFirst;
     }
 
 private:
@@ -130,8 +136,11 @@ private:
     // The head camera at the tune its looks are to have (useHeadTune), unless it has it already: each tune
     // stays with its own looks, none carried over into another's.
     void tuneHead(JPCameraFeed& feed);
+    // The head camera at feeder `key`'s `controls`, or ("" and none) its own settings, unless it is already.
+    void applyHead(JPCameraFeed& feed, const std::string& key, std::optional<JJson> controls);
     std::string          m_headKey;              // the tune wanted: a feeder's, or "" (the camera's own settings)
     std::optional<JJson> m_headTune;
+    bool                 m_headTuneFirst = false;   // none yet: tuned on its first look
     std::optional<std::string> m_headApplied;    // the tune the camera has now ("fiducials", a feeder's, ""); none: not known
     std::map<std::string, JJson> m_partTunes;   // by part id, for the run
     // The cell's settings as they are now, and its head (the camera's).

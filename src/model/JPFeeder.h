@@ -9,6 +9,8 @@
 #include "openpnp/JPXmlElement.h"
 #include "openpnp/JPXmlNode.h"
 
+#include <j/config/Json.h>
+
 #include <deque>
 #include <optional>
 #include <string>
@@ -141,6 +143,9 @@ public:
     // A strip's holes as its vision last found them (none: as set), and the
     // line its parts lie on.
     std::optional<JPLocation> visionLocation, visionLocationReference;
+    // While jplacer runs: the head camera's tune for this feeder's looks (its Auto-Tune?), made on its first vision
+    // look of a run (or by its Auto Setup); forgotten when a run starts, the machine connects, or its Reset.
+    std::optional<JJson> cameraTune;
     std::pair<JPLocation, JPLocation> idealLineLocations() const;
 
     // A drag or lever feeder (OpenPnP's ReferenceDragFeeder and

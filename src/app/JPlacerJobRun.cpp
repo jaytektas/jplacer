@@ -63,7 +63,10 @@ JPlacerJobRun::JPlacerJobRun(JAppWindow& window, JPlacerJob& job, JPlacerMachine
     panel.onFiducialCheck = [this](JPPlacementsHolderLocation* l) { fiducialCheck(l); };
     machine.jobRunning = [this] { return running(); };
     job.running = [this] { return running(); };
-    machine.onConnectedChanged = [this](bool connected) { m_panel.setMachineEnabled(connected); };
+    machine.onConnectedChanged = [this](bool connected) {
+        m_panel.setMachineEnabled(connected);
+        if (connected) forgetTunes();   // the light may be another now: every tune made afresh
+    };
     panel.setMachineEnabled(machine.isConnected());
     panel.setRunState(RunState::Stopped);
 }
@@ -190,10 +193,15 @@ void JPlacerJobRun::stop() {
     }
 }
 
+void JPlacerJobRun::forgetTunes() {
+    m_jobMachine->newRun();
+    for (JPFeeder& f : m_job.configuration().feeders()) f.cameraTune.reset();
+}
+
 void JPlacerJobRun::start(RunState as) {
     JPCell* cell = m_machine.cell();
-    // A run begun afresh (not resumed): its parts' camera settings tuned anew.
-    if (as == RunState::Running && !running()) m_jobMachine->newRun();
+    // A run begun afresh (not resumed): its parts' and feeders' camera settings tuned anew.
+    if (as == RunState::Running && !running()) forgetTunes();
     if (!cell || !cell->isConnected()) {
         m_window.showStatus("Connect the machine first", kStatusMs);
         return;
