@@ -74,6 +74,9 @@ struct JPCameraCalibration {
     double cameraZ() const;
     double focalPx() const;
     double scaleAt(double atZ) const;
+    // The height at which things look `pxPerMm` (the scale at its own height), on the side of the camera it was
+    // calibrated on; with one height, its own.
+    double heightAt(double pxPerMm) const;
     // This calibration for what is at height `atZ`: its scale there, and
     // where it looks there, as the camera leans (with two heights; else as
     // it is).

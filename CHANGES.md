@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Strip feeder Auto Setup measures the tape's own scale by moving the camera over it, and finds the holes at it: a camera calibrated at its rig's height sees the lower tape smaller, and put holes off the middle of the picture a few hundredths out. With the camera calibrated at two heights, it also sets the Reference Hole Location's Z to the tape's real height (lower it by hand for a spring-loaded tip to press); it no longer asks for the Z first.
+
 - A head camera is calibrated over the head's calibration rig's primary mark, at that mark's height, as OpenPnP does. It was calibrated over the homing mark and took the homing mark's Z (often 0, as it is not used) as the calibration's height, so a camera calibrated at two heights had the wrong distance between them. Calibrate the head camera again.
 
 ## 0.1.32

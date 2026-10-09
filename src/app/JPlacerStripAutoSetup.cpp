@@ -39,6 +39,9 @@ constexpr int kCompleteMs = 1500;
 constexpr double kPartPitchStepMm = 2.0;
 // EIA-481's sprocket hole pitch, and half it: where a part between two holes sits from them.
 constexpr double kHolePitchMm = 4.0, kHalfHoleMm = 2.0;
+// How far the camera moves either way to measure the tape's scale: far enough that half a pixel tells a tenth of
+// a percent over the holes, short of a whole hole pitch both ways (so a hole is told from the next).
+constexpr double kScaleMoveMm = 5.0;
 // OpenPnP's showHoles colours (BGR): the lines orange, the best yellow, the holes on it blue, the two nearest green.
 const cv::Scalar kLineColour(0, 200, 255), kBestColour(0, 255, 255), kHoleColour(255, 0, 0), kNearColour(0, 255, 0);
 const cv::Scalar kHoleCentreColour(0, 255, 255), kNearCentreColour(255, 0, 255);
@@ -66,16 +69,11 @@ void JPlacerStripAutoSetup::start(const std::string& feederId) {
         JDialog::message("Auto Setup Failure", "There is no camera on the head to set the feeder up with.");
         return;
     }
-    // Scaled by height, the reference hole's Z must be known first (OpenPnP's 3D units per pixel).
     JPFrame frame;
     feed->latest(frame, 0);
     const JPCameraCalibration cal = cell->cameraCalibration(feed->config().id, frame.width, frame.height);
     if (!cal.valid) {
         JDialog::message("Auto Setup Failure", feed->config().name + " is not calibrated: calibrate it first.");
-        return;
-    }
-    if (cal.twoHeights() && f->locationOf("reference-hole-location").z() == 0) {
-        JDialog::message("Auto Setup Failure", "Please set the Reference Hole Location Z coordinate first.");
         return;
     }
     m_feederId = feederId;
@@ -174,6 +172,26 @@ void JPlacerStripAutoSetup::check(const JPLocation& at) {
         std::string why;
         JPJobMachine::SeenCircles seen;
         if (!machine.positionCamera(at, why) || !machine.seeCircles(at, *pipeline, seen, why)) return failed(why);
+        // The tape's own scale, measured here once: the camera is calibrated at another height (its rig's), and
+        // a hole seen off the picture's middle at the wrong scale is that much off.
+        double tapePxPerMm = 0;
+        if (first) {
+            onMain([&] {
+                if (const auto a = alive.lock(); a && *a)
+                    if (JPCameraView* view = m_view) view->setPrompt("Measuring the tape's scale...");
+            });
+            const auto scale = JPStripHoleWalk::scaleAt(machine, *pipeline, at, kScaleMoveMm, why);
+            if (!scale) return failed(why);
+            tapePxPerMm = *scale;
+            if (!machine.positionCamera(at, why)) return failed(why);
+            onMain([&] {
+                m_tapePxPerMm = tapePxPerMm;
+                m_calibratedPxPerMm = seen.pixelsPerMm;
+            });
+        } else {
+            onMain([&] { tapePxPerMm = m_tapePxPerMm; });
+        }
+        JPStripHoleWalk::atScale(seen, tapePxPerMm);
         const std::vector<JPLocation> holes = JPStripHoleWalk::holesOf(seen, tapeWidthMm);
         if (holes.empty()) return failed("No hole found at selected location");
         if (first) {
@@ -204,7 +222,7 @@ void JPlacerStripAutoSetup::check(const JPLocation& at) {
         const double partPitchMm = kPartPitchStepMm * double(steps);
         const int holesOn = parts > 1 ? int(std::floor((parts - 1) * partPitchMm / kHolePitchMm)) : 0;
         const JPStripHoleWalk::Walked walked = JPStripHoleWalk::walk(
-            machine, *pipeline, tapeWidthMm, m_firstPart, ref1, ref2, holesOn, stepMm, [&](int hole, int of) {
+            machine, *pipeline, tapeWidthMm, m_firstPart, ref1, ref2, holesOn, stepMm, tapePxPerMm, [&](int hole, int of) {
                 onMain([&] {
                     if (const auto a = alive.lock(); !a || !*a) return;
                     if (JPCameraView* view = m_view)
@@ -235,10 +253,13 @@ void JPlacerStripAutoSetup::check(const JPLocation& at) {
         onMain([&] {
             JPFeeder* f = m_job.configuration().feeder(m_feederId);
             if (!f) return;
-            // The holes found, their Z as they had them.
+            // The holes found. The tape's height from its scale, the camera calibrated at two heights (the
+            // pick height, a little lower for the tip to press, is the user's to set from it); else as it was.
             const JPLocation was1 = f->locationOf("reference-hole-location").convertToUnits(kMm);
             const JPLocation was2 = f->locationOf("last-hole-location").convertToUnits(kMm);
-            f->setLocationOf("reference-hole-location", JPLocation(kMm, ref1.x(), ref1.y(), was1.z(), 0));
+            double z = was1.z();
+            if (const std::optional<double> tape = tapeHeight()) z = *tape;
+            f->setLocationOf("reference-hole-location", JPLocation(kMm, ref1.x(), ref1.y(), z, 0));
             f->setLocationOf("last-hole-location", JPLocation(kMm, ref2.x(), ref2.y(), was2.z(), 0));
             f->setLengthOf("part-pitch", JPLength(kPartPitchStepMm * double(steps), kMm));
             // The click says where the first part is only to the hole: nearer a hole's middle, the part is on
@@ -268,6 +289,32 @@ void JPlacerStripAutoSetup::check(const JPLocation& at) {
         return true;
     });
     if (!started) cancel();
+}
+
+std::optional<double> JPlacerStripAutoSetup::tapeHeight() const {
+    JPCameraFeed* feed = m_machine.headCameraFeed();
+    const JPCell* cell = m_machine.cell();
+    if (!feed || !cell || m_tapePxPerMm <= 0 || m_calibratedPxPerMm <= 0) return std::nullopt;
+    JPFrame frame;
+    feed->latest(frame, 0);
+    const JPCameraCalibration cal = cell->cameraCalibration(feed->config().id, frame.width, frame.height);
+    // The pipeline's pictures are straightened at a scale of their own: the tape's against it, at the calibration's.
+    const double ratio = m_tapePxPerMm / m_calibratedPxPerMm;
+    char said[160];
+    if (!cal.twoHeights()) {
+        std::snprintf(said, sizeof said, "%.3f px/mm, %.2f%% %s the calibration's", m_tapePxPerMm, std::abs(ratio - 1) * 100,
+                      ratio < 1 ? "under" : "over");
+        JLOGC(JPlacerLog::kCamera, JLogLevel::Warn)
+            << "Auto Setup: the tape's scale is " << said << "; " << feed->config().name
+            << " is calibrated at one height, so the tape's height is not known: the Reference Hole Location's Z is left as it was "
+               "(calibrate it at two heights for Auto Setup to set it)";
+        return std::nullopt;
+    }
+    const double z = cal.heightAt(cal.scale() * ratio);
+    std::snprintf(said, sizeof said, "%.3f px/mm (%.2f%% %s the calibration's at Z %.2f): the tape at Z %.2f", m_tapePxPerMm,
+                  std::abs(ratio - 1) * 100, ratio < 1 ? "under" : "over", cal.z, z);
+    JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << "Auto Setup: the tape's scale is " << said;
+    return z;
 }
 
 void JPlacerStripAutoSetup::startPreview() {

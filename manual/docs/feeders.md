@@ -110,8 +110,17 @@ A strip of cut tape lying on the machine, its parts picked one after the other a
   takes 2 mm). The parts are picked from the holes, not from the clicks. The button reads **Cancel Auto Setup** while it runs. It stops with an **Auto Setup
   Failure** when the camera is not calibrated, when no hole is found by a part, when the same part is
   clicked twice, or when the holes are on the wrong side for the direction the parts were clicked in ("The
-  tape is oriented incorrectly for the feed direction of the components selected"). With a camera
-  calibrated at two heights, the reference hole location's Z must be set first.
+  tape is oriented incorrectly for the feed direction of the components selected").
+
+  The camera is calibrated at its rig's height, and the tape is seldom there: lower, it looks smaller, and a
+  hole seen off the middle of the picture is off by that much of how far (1.2% of 6 mm is 0.07 mm), elsewhere
+  from each place the camera looks from. So after the first click ("Measuring the tape's scale...") the camera
+  moves 5 mm either way along X, then along Y, and how far the holes move in the pictures against the machine's
+  moves is the tape's own scale; every hole is found at it. The log gives it against the calibration's. With
+  the camera calibrated at two heights, that scale says how high the tape is, and the **Reference Hole
+  Location**'s Z is set to it: the tape's real height. The pick height is that Z; for a spring-loaded tip to
+  press on the part, lower it by hand. Calibrated at one height, the tape's height is not known: the Z is left
+  as it was, and the log says so.
 - **Vision**: with **Use Vision?** ticked, each feed has the camera look at the hole it feeds from (and at
   the first hole too when picking starts mid-strip), and the parts are picked where the holes were found
   rather than where the hole locations put them. A hole is looked for within half a hole pitch of where it
@@ -130,7 +139,7 @@ A strip of cut tape lying on the machine, its parts picked one after the other a
 The part is picked across the tape from its hole, as EIA-481 tape lays it out: half the tape width less
 0.5 mm across, 2 mm along, then one part pitch further for each part taken.
 
-<!-- src: src/setup/JPFeederForms.cpp (stripForm, act); src/model/JPFeeder.cpp (pickLocation, idealLineLocations, feed, visionExpected, setVisionFound); src/tasks/JPFeederFeed.cpp; src/tasks/JPCellJobMachine.cpp (locateHole, seeCircles); src/tasks/JPFeederPipelines.cpp; src/app/JPlacerStripAutoSetup.cpp; src/tasks/JPStripHoleWalk.cpp; src/tasks/JPStripHoles.cpp; src/vision/JPRansac.cpp -->
+<!-- src: src/setup/JPFeederForms.cpp (stripForm, act); src/model/JPFeeder.cpp (pickLocation, idealLineLocations, feed, visionExpected, setVisionFound); src/tasks/JPFeederFeed.cpp; src/tasks/JPCellJobMachine.cpp (locateHole, seeCircles); src/tasks/JPFeederPipelines.cpp; src/app/JPlacerStripAutoSetup.cpp (tapeHeight, kScaleMoveMm); src/tasks/JPStripHoleWalk.cpp (scaleAt, atScale); src/machine/JPCameraCalibration.cpp (heightAt); src/tasks/JPStripHoles.cpp; src/vision/JPRansac.cpp -->
 
 ### Tray feeder
 
