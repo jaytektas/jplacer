@@ -548,8 +548,11 @@ once it is off: until then its picture says "the machine is off". While the mach
 while its picture is on screen and stops half a
 second after it is not (another tab in front, the window minimised), so a camera nobody sees costs
 nothing. A task using a camera brings its tab to the front, and keeps the camera running until it ends.
+A job's vision (fiducials, feeders, bottom vision) keeps its camera running, picture on screen or not, and
+leaves the tabs as they are, as OpenPnP's: a camera's tab comes to the front for the result vision shows on
+it only when the camera has **Auto Camera View?** (Machine Setup, the camera's General Configuration).
 
-<!-- src: src/app/JPlacerMachine.cpp (buildCameras, bringForward); src/ui/JPCameraPanel.cpp (populateRenderPrimitives, stopIfHidden, kHiddenMs, setBusy, setPowered); src/app/JPlacerMachine.cpp (updateMenu) -->
+<!-- src: src/app/JPlacerMachine.cpp (buildCameras, bringForward, lookWith, visionResultView); src/app/JPlacerJobHost.cpp (showPicture); src/ui/JPCameraPanel.cpp (populateRenderPrimitives, stopIfHidden, kHiddenMs, setBusy, setPowered); src/app/JPlacerMachine.cpp (updateMenu) -->
 
 A camera is found by the name the device gives itself (for example `top: top`), not by the USB socket
 it is plugged into, so moving it to another socket or hub does not lose it. jplacer picks the largest

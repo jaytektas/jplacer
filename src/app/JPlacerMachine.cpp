@@ -1150,6 +1150,15 @@ JPCameraView* JPlacerMachine::cameraViewOf(const JPCameraFeed* feed) {
     return nullptr;
 }
 
+JPCameraView* JPlacerMachine::visionResultView(const JPCameraFeed* feed) {
+    for (const CameraDock& d : m_cameras)
+        if (&d.panel->feed() == feed) {
+            if (d.panel->camera().autoCameraView) bringForward(*d.panel);
+            return &d.panel->view();
+        }
+    return nullptr;
+}
+
 JPlacerMachine::Where JPlacerMachine::whereIs(JPSetupForm::Tool tool) const {
     return whereIsMount(toolMount(tool));
 }
@@ -1999,6 +2008,11 @@ void JPlacerMachine::showCamera(const std::string& cameraId) {
             bringForward(*d.panel);
             d.panel->keepRunning(kTaskCameraMs);   // its pictures needed, shown or not
         }
+}
+
+void JPlacerMachine::lookWith(const std::string& cameraId) {
+    for (CameraDock& d : m_cameras)
+        if (d.panel->camera().id == cameraId) d.panel->keepRunning(kTaskCameraMs);
 }
 
 std::string JPlacerMachine::chosenNozzleId() const {

@@ -270,8 +270,10 @@ public:
     void setupFeedersChanged() { if (m_setup) m_setup->feedersChanged(); }
     void setupFeederPageChanged(bool remade) { if (m_setup) m_setup->feederPageChanged(remade); }
     void refreshSetupForm();
-    // The view of a camera's feed, shown; null when it has none.
+    // The view of a camera's feed, shown; null when it has none. The view a job's vision shows a result on: brought
+    // to the front only when the camera has Auto Camera View? (OpenPnP's CameraView.setCameraViewFilter).
     JPCameraView* cameraViewOf(const JPCameraFeed* feed);
+    JPCameraView* visionResultView(const JPCameraFeed* feed);
     // A camera kept running, shown or not, for `who` until let go of (JPCameraPanel::keepRunningFor).
     void keepCameraRunning(const std::string& cameraId, const std::string& who, bool kept);
     // While it is held the machine is there (for what is posted to the main thread to be done later).
@@ -291,8 +293,10 @@ public:
     JPCameraFeed* upCameraFeed() const;
     // A camera's feed by its id or name; null when there is none.
     JPCameraFeed* cameraFeed(const std::string& idOrName) const;
-    // A camera's picture in front (where its dock is), for a look at it.
+    // A camera's picture in front (where its dock is), for a look at it. A camera kept running for a job's look,
+    // its view left where it is.
     void showCamera(const std::string& cameraId);
+    void lookWith(const std::string& cameraId);
     // The nozzle chosen on the Jog panel (else the first); empty: none. A tool (a nozzle, camera or actuator) chosen there.
     std::string   chosenNozzleId() const;
     void          chooseTool(const std::string& toolId);

@@ -33,9 +33,11 @@ public:
     virtual JPCameraFeed* headCameraFeed() const = 0;
     virtual JPCameraFeed* upCameraFeed() const = 0;
     virtual JPCameraFeed* cameraFeed(const std::string& idOrName) const = 0;
-    // A picture shown on a camera's view for `ms`, `text` over it; a camera's view brought to the front.
+    // A picture shown on a camera's view for `ms`, `text` over it, the view brought to the front only when the
+    // camera has Auto Camera View? (as OpenPnP's vision results); a camera kept running for a look, its view left
+    // where it is.
     virtual void showPicture(const JPCameraFeed* feed, const JPFrame& frame, const std::string& text, int ms) = 0;
-    virtual void showCamera(const std::string& cameraId) = 0;
+    virtual void lookWith(const std::string& cameraId) = 0;
     // The part a nozzle holds, as the machine shows it; the nozzle chosen on the Jog panel.
     virtual std::string nozzlePart(const std::string& nozzleId) const = 0;
     virtual void        setNozzlePart(const std::string& nozzleId, const std::string& partId) = 0;

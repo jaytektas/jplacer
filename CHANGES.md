@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- A job no longer flips between the cameras' tabs at every look: as in OpenPnP, a camera's tab comes to the front only to show a vision result, and only when the camera has Auto Camera View ticked.
+
 ## 0.1.36
 
 - Camera tunes are kept as they should be: the machine's every move had been taken for a fresh connection, forgetting every tune, so a fiducial check tuned the camera before every look (three times a fiducial) instead of once on its first fiducial, and feeders' tunes were forgotten between picks.
