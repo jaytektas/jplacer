@@ -175,12 +175,14 @@ void stripForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeed
     add.end();
     add.tip("The location of another hole after the reference hole. This can be any hole along the tape as long as "
             "it's past the reference hole.");
-    add.row("Z Along Strip");
-    length(add, f, "z-along-strip", "Z Along Strip", 0);
+    add.row("Z Along Strip %");
+    add.number("z-along-strip-percent", "Z Along Strip %", [f] { return f().real("z-along-strip-percent", 0); },
+               [f](double v) { f().setReal("z-along-strip-percent", v); });
     add.end();
-    add.tip("How much higher the tape is at the Last Hole Location than at the Reference Hole Location (lower: less than "
-            "0). Each part is picked that much higher or lower for how far along the strip it is; 0, a level strip. "
-            "Auto Setup measures it with a camera calibrated at two heights.");
+    add.tip("How much the tape rises along the strip, in % of the distance from the Reference Hole Location (falling: "
+            "less than 0; 0, a level strip). Each part is picked that much higher or lower for how far along it is, "
+            "from the Reference Hole Location's Z: lowered for the tip to press, every part is lowered alike. Auto "
+            "Setup measures it with a camera calibrated at two heights.");
 }
 
 // OpenPnP's ReferenceLoosePartFeederConfigurationWizard: its pipeline.

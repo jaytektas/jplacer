@@ -62,6 +62,7 @@ private:
     std::vector<JPLocation>      m_firstHoles;
     // The tape's scale by the first part and by the last; the pictures' calibrated one.
     double                       m_tapePxPerMm = 0, m_lastPxPerMm = 0, m_calibratedPxPerMm = 0;
+    JPLocation                   m_lastScaleAt { JPLengthUnit::Millimeters };   // where it was measured by the last part
     // The live picture of the holes: a worker looking while a click is awaited.
     std::shared_ptr<const JPPipeline> m_previewPipeline;
     std::thread                  m_preview;

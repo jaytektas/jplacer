@@ -65,18 +65,21 @@ int main() {
     assert(strip.feed(why) && strip.feed(why) && strip.number("feed-count") == 3);
     at = strip.pickLocation();
     assert(at && near(at->x(), 103.5) && near(at->y(), 44));
-    // Not level (jplacer's Z Along Strip: the tape 0.8 mm higher by the last hole, 16 mm on): each part picked its
-    // share of that higher, by how far along from the reference hole it is; the reference hole's Z still the base.
+    // Not level (jplacer's Z Along Strip %: the tape rising 5%, 0.8 mm over the 16 mm to the last hole): each part
+    // picked that much higher for how far along from the reference hole it is; the reference hole's Z still the base,
+    // and where the last hole is only its direction.
     {
         JPFeeder tilted = strip;
-        tilted.setLengthOf("z-along-strip", JPLength(0.8, JPLengthUnit::Millimeters));
-        const auto third = tilted.pickLocation();   // 6 mm along: 3/8 of the way
-        assert(third && near(third->x(), 103.5) && near(third->y(), 44) && near(third->z(), -20 + 0.8 * 6 / 16));
+        tilted.setReal("z-along-strip-percent", 5);
+        const auto third = tilted.pickLocation();   // 6 mm along
+        assert(third && near(third->x(), 103.5) && near(third->y(), 44) && near(third->z(), -20 + 0.05 * 6));
         tilted.setNumber("feed-count", 1);
         const auto first = tilted.pickLocation();   // 2 mm before the reference hole
-        assert(first && near(first->z(), -20 - 0.8 * 2 / 16));
+        assert(first && near(first->z(), -20 - 0.05 * 2));
         tilted.setLocationOf("reference-hole-location", JPLocation(JPLengthUnit::Millimeters, 100, 50, -20.3, 0));
-        assert(near(tilted.pickLocation()->z(), -20.3 - 0.8 * 2 / 16));   // lowered by hand: every part as much
+        assert(near(tilted.pickLocation()->z(), -20.3 - 0.05 * 2));   // lowered by hand: every part as much
+        tilted.setLocationOf("last-hole-location", JPLocation(JPLengthUnit::Millimeters, 100, 46, 0, 0));
+        assert(near(tilted.pickLocation()->z(), -20.3 - 0.05 * 2));   // a nearer last hole: the same slope
     }
     // Saved before OpenPnP took the rotation in tape as EIA-481's: brought to
     // it as OpenPnP reads it, its Rotation In Tape 90 less, so it picks as before.

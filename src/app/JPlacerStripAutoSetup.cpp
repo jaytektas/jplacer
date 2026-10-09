@@ -232,6 +232,7 @@ void JPlacerStripAutoSetup::check(const JPLocation& at) {
                     if (JPCameraView* view = m_view) view->setPrompt("Measuring the tape's scale by the last part...");
             });
             const JPLocation beside = JPStripHoleWalk::besideHole(m_firstPart, ref1, ref2, holesOn);
+            onMain([&] { m_lastScaleAt = beside; });
             if (const auto scale = JPStripHoleWalk::scaleAt(machine, *pipeline, beside, kScaleMoveMm, why)) lastPxPerMm = *scale;
             else
                 JLOGC(JPlacerLog::kCamera, JLogLevel::Warn)
@@ -278,15 +279,21 @@ void JPlacerStripAutoSetup::check(const JPLocation& at) {
             double z = was1.z();
             if (const std::optional<double> tape = tapeHeight(m_tapePxPerMm, "by the first part")) {
                 z = *tape;
-                // Not level: how much higher by the last hole, measured where the walk reached it.
-                double rise = 0;
-                if (walked.reached && m_lastPxPerMm > 0)
-                    if (const std::optional<double> far = tapeHeight(m_lastPxPerMm, "by the last part")) rise = *far - z;
-                f->setLengthOf("z-along-strip", JPLength(rise, kMm));
+                // Not level: its slope, from the heights by the first part and by the last (measured where the
+                // walk reached it), over how far apart they were measured.
+                double rise = 0, slope = 0;
+                const double apart = std::hypot(m_lastScaleAt.x() - m_firstPart.x(), m_lastScaleAt.y() - m_firstPart.y());
+                if (walked.reached && m_lastPxPerMm > 0 && apart > 0)
+                    if (const std::optional<double> far = tapeHeight(m_lastPxPerMm, "by the last part")) {
+                        rise = *far - z;
+                        slope = rise / apart * 100;
+                    }
+                f->setReal("z-along-strip-percent", slope);
                 if (std::abs(rise) >= kLevelMm)
                     JLOGC(JPlacerLog::kCamera, JLogLevel::Warn)
                         << "Auto Setup: the strip is not level: the tape " << std::abs(rise) << " mm " << (rise > 0 ? "higher" : "lower")
-                        << " by the last part than by the first; each part is picked its share of that higher or lower (Z Along Strip)";
+                        << " by the last part than by the first, " << apart << " mm on (" << slope
+                        << "%); each part is picked that much higher or lower for how far along it is (Z Along Strip %)";
             }
             f->setLocationOf("reference-hole-location", JPLocation(kMm, ref1.x(), ref1.y(), z, 0));
             f->setLocationOf("last-hole-location", JPLocation(kMm, ref2.x(), ref2.y(), was2.z(), 0));

@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Z Along Strip is now a slope, Z Along Strip %: how much the tape rises in % of the distance along it. It no longer depends on where the Last Hole Location is, and lowering the Reference Hole's Z still lowers every pick alike. A value set by 0.1.33 is not carried over: run Auto Setup again.
+
 ## 0.1.33
 
 - Strip feeders have a Z Along Strip: how much higher the tape is by the Last Hole than by the Reference Hole. Each part is picked its share of that higher or lower; 0 (level, as OpenPnP) to begin with. Auto Setup measures the tape's scale by the last part too, finds the holes along the strip at each place's own scale, and with a camera calibrated at two heights sets Z Along Strip and warns when the strip's ends differ by 0.2 mm or more.
