@@ -322,11 +322,12 @@ std::optional<JPLocation> JPFeeder::pickLocation() const {
         const auto [a, b] = idealLineLocations();
         const JPLength partPitch = lengthOf("part-pitch", JPLength(4, JPLengthUnit::Millimeters));
         const JPLength tapeWidth = lengthOf("tape-width", JPLength(8, JPLengthUnit::Millimeters));
-        // The parts their pitch apart along the line through the holes, as EIA-481 lays them (2 or 4 mm, held to
-        // 0.2 mm over ten sprocket holes). OpenPnP stretches the pitch to the holes' distance apart, a whole
-        // number of hole pitches: from holes 4 mm apart, a few hundredths off in where they were seen (a single
-        // hole pitch is only held to 0.1 mm) went into every part, 0.58 mm by the tenth.
-        JPLocation l = pointAlongLine(a, b, JPLength((count - 1) * partPitch.value(), partPitch.units()).convertToUnits(a.units()).value());
+        const double holePitch = 4;   // EIA-481's, in mm
+        const JPLocation bb = b.convertToUnits(a.units());
+        double pitch = std::hypot(bb.x() - a.x(), bb.y() - a.y());
+        const double holes = std::round(pitch / holePitch);
+        pitch = holes > 0 ? partPitch.value() / holePitch * pitch / holes : holePitch;
+        JPLocation l = pointAlongLine(a, b, JPLength((count - 1) * pitch, partPitch.units()).convertToUnits(a.units()).value());
         // From the hole to the part: across the tape, and along it OpenPnP's Reference Hole To Part Linear
         // (2 mm, EIA-481's P2, unless auto setup found the first part on a hole: 0).
         const double x = JPLength(tapeWidth.convertToUnits(JPLengthUnit::Millimeters).value() / 2 - 0.5, JPLengthUnit::Millimeters)

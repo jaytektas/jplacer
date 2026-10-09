@@ -94,12 +94,11 @@ A strip of cut tape lying on the machine, its parts picked one after the other a
   and its holes. "Now click on the center of the second part in the tape." brings the same look at the
   second part. Then the camera looks at the two holes beside the parts again, each from the same place beside
   it as the first part was clicked (a camera's scale off at the tape's height then moves both alike). The
-  tape's angle is taken from the line through the **Reference Hole Location** and the **Next
+  tape's angle and its pitch are taken from the line through the **Reference Hole Location** and the **Next
   Hole Location**, so with a **Max Feed Count** set (the strip's parts counted), the camera goes on to the hole
   by the strip's last part and that is the Next Hole Location: a few hundredths of a millimetre off in one
   look then shares among all the holes between, where from the next hole, 4 mm on, it went into every part
-  fed in OpenPnP's pitch, and still turns the tape's angle. Not found there, the next hole is kept and the log
-  says so.
+  fed (0.065 mm off is 0.58 mm by the tenth part). Not found there, the next hole is kept and the log says so.
   The log says how many holes apart the two are, the pitch, and the tape's angle. They are set (their Z
   kept), the **Part Pitch** to the distance between the parts rounded to
   2 mm, and the **Feed Count** to 0, and the camera goes to the first part's pick location ("Setup
@@ -124,14 +123,12 @@ A strip of cut tape lying on the machine, its parts picked one after the other a
   hole finder, described here, does not use it.
 - **Locations**: the **Reference Hole Location**, the hole nearest the first part's centre, in the
   direction the parts continue, with the pick height as its Z; and the **Next Hole Location**, any hole
-  further along. Set by hand, take the Next Hole Location far along the strip: the tape's angle comes from
-  the line between the two, so the further apart, the less a little off in either counts.
+  further along. Set by hand, take the Next Hole Location far along the strip: the tape's angle and pitch
+  come from the line between the two, and the pitch is the distance between them shared among the whole
+  holes it spans, so the further apart, the less a little off in either counts.
 
 The part is picked across the tape from its hole, as EIA-481 tape lays it out: half the tape width less
-0.5 mm across, 2 mm along, then one **Part Pitch** further along the line through the holes for each part
-taken: exactly the pitch, as EIA-481 holds it (to 0.2 mm over ten sprocket holes). OpenPnP stretches it to
-how far apart the two holes were found, a whole number of 4 mm hole pitches; from holes 4 mm apart, a few
-hundredths off in where they were seen went into every part (0.065 mm is 0.58 mm by the tenth).
+0.5 mm across, 2 mm along, then one part pitch further for each part taken.
 
 <!-- src: src/setup/JPFeederForms.cpp (stripForm, act); src/model/JPFeeder.cpp (pickLocation, idealLineLocations, feed, visionExpected, setVisionFound); src/tasks/JPFeederFeed.cpp; src/tasks/JPCellJobMachine.cpp (locateHole, seeCircles); src/tasks/JPFeederPipelines.cpp; src/app/JPlacerStripAutoSetup.cpp; src/tasks/JPStripHoleMeasure.cpp; src/tasks/JPStripHoles.cpp; src/vision/JPRansac.cpp -->
 
