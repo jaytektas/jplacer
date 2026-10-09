@@ -1174,8 +1174,6 @@ JPJobProcessor::Step JPJobProcessor::align(Planned& p) {
         JLOGC(JPlacerLog::kJob, JLogLevel::Debug) << "not aligning " << j.partId << ": no enabled bottom vision for it";
         return Step::Align;
     }
-    if (rq.shape.empty() && !rq.pipeline)
-        fail(Source::Part, j.partId, "Part " + j.partId + "'s package has no footprint to align it by.");
     std::string nozzleName = p.nozzleId;
     for (const auto& n : m_machine.nozzles())
         if (n.id == p.nozzleId) nozzleName = n.name;

@@ -3323,14 +3323,6 @@ JPFormBuilder::Named visionChoices(const JPConfiguration* config, JPVisionSettin
 }
 
 // How jplacer finds it: its own finder, or the vision settings' OpenPnP pipeline.
-void finder(JPFormBuilder& add, bool& pipeline, const char* what) {
-    const JPFormBuilder::Strings names { "jplacer", "Pipeline" };
-    add.choice("finder", std::string("Find ") + what + " with", names, [&pipeline] { return std::string(pipeline ? "Pipeline" : "jplacer"); },
-               [&pipeline](const std::string& v) { pipeline = v == "Pipeline"; });
-    add.tip(std::string("jplacer: jplacer's own finder, which needs no tuning. Pipeline: the vision settings' OpenPnP pipeline, "
-                        "tuned with its sliders and the Pipeline Editor (as OpenPnP finds ") + what + ").");
-}
-
 // OpenPnP's ReferenceBottomVisionConfigurationWizard.
 // The machine's default vision settings of a kind, their page as a second tab (OpenPnP's
 // BottomVisionSettingsConfigurationWizard, FiducialVisionSettingsConfigurationWizard), edited in the configuration.
@@ -3362,7 +3354,6 @@ void bottomVisionForm(JPCellConfig& cell, JPSetupProperties::Form& f, JPConfigur
     add.tip("The maximum linear part offset accepted as a good fix i.e. where no additional vision pass is needed.");
     add.number("maxAngularOffset", "Max. angular offset", [&v]() -> double& { return v.maxAngularOffset; });
     add.tip("The maximum angular part offset accepted as a good fix i.e. where no additional vision pass is needed.");
-    finder(add, v.bottomPipeline, "parts");
     defaultSettingsTab(add, config, v.bottomVisionId, true, tests);
 }
 

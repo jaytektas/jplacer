@@ -415,9 +415,7 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
         j.preRotateAllNozzles = flag("pre-rotate-all-nozzles", j.preRotateAllNozzles);
         j.fiducialLevel = int(number("fiducial-level", j.fiducialLevel));
     }
-    // The machine's vision: its bottom vision (the first part alignment) and
-    // fiducial locator, finding as OpenPnP does: by the vision settings' pipelines.
-    c.vision.bottomPipeline = true;
+    // The machine's vision: its bottom vision (the first part alignment) and fiducial locator.
     if (const JPXmlElement* aligns = machine->child("part-alignments"))
         for (const JPXmlElement& a : aligns->children) {
             if (shortClass(a) != "ReferenceBottomVision") continue;
@@ -1572,8 +1570,6 @@ void JPOpenPnpMachineImporter::keepFrom(const JPCellConfig& previous, JPCellConf
                 cam.showAll = was.showAll;
             }
     if (previous.squareness.active()) cell.squareness = previous.squareness;
-    // How parts are found, as chosen here (jplacer's finder or the pipelines).
-    cell.vision.bottomPipeline = previous.vision.bottomPipeline;
     // Which tip is on each nozzle is known here (set by hand, or by
     // loading): OpenPnP's file says what it last believed, which a hand
     // since may have changed. A wrong tip is a crash; it is never taken.

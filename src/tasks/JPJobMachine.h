@@ -8,7 +8,6 @@
 #include "pipeline/JPPipeline.h"
 #include "tasks/JPBottomVision.h"
 #include "tasks/JPTravel.h"
-#include "vision/JPPartFinder.h"
 #include "vision/JPTemplateFinder.h"
 
 #include <j/config/Json.h>
@@ -214,17 +213,14 @@ public:
     // Bottom vision (OpenPnP's part alignment): the part on the nozzle over
     // the camera looking up, as high as the part (its bottom where the
     // camera is focused), expected at `imageAngle` (the placement's, pre-rotated;
-    // else 0); found by its shape (its pads, else its body) within `angleRange`
-    // either way of it, and its offsets worked out as OpenPnP's findOffsets does
-    // (`offsets`: passes, Vision Offset, Max. Pick Tolerance, size check).
+    // else 0); found by its bottom vision settings' OpenPnP pipeline, and its
+    // offsets worked out as OpenPnP's findOffsets does (`offsets`: passes,
+    // Vision Offset, Max. Pick Tolerance, size check).
     struct AlignRequest {
-        std::vector<JPPartFinder::Rect> shape;   // the part's own mm
         double partHeightMm = 0;
         double imageAngle = 0;
-        double angleRange = 10;
         JPBottomVision::Settings offsets;
-        // Found by this OpenPnP pipeline (the part's bottom vision settings'),
-        // prepared for the part and its settings, else by jplacer's finder.
+        // The part's bottom vision settings' pipeline, prepared for the part and its settings.
         std::shared_ptr<JPPipeline> pipeline;
         std::string                 partId, settingsId;
     };

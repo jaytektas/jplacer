@@ -67,7 +67,6 @@ struct BottomVisionBench {
         jf::JPVisionPipelines::ensureStock(config);
         // OpenPnP's default ReferenceBottomVision: enabled, not pre-rotating, by its pipeline.
         vision.preRotate = false;
-        vision.bottomPipeline = true;
         tip.name = "NT1";
         camera.name = "Bottom";
         up.width = kWidth;

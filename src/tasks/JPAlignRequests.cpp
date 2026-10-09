@@ -20,12 +20,7 @@ bool JPAlignRequests::forPart(const JPConfiguration& config, const JPVisionConfi
     const JPPackage* pkg = config.package(part.packageId);
     if (!pkg) return false;
     rq = {};
-    // Its shape: the footprint's pads, else its body.
     const JPFootprint& f = pkg->footprint;
-    auto mmOf = [&f](double d) { return JPLength(d, f.units).convertToUnits(JPLengthUnit::Millimeters).value(); };
-    for (const JPFootprint::Pad& pad : f.pads)
-        rq.shape.push_back({ mmOf(pad.x), mmOf(pad.y), mmOf(pad.width), mmOf(pad.height), pad.rotation });
-    if (rq.shape.empty() && f.bodyWidth > 0 && f.bodyHeight > 0) rq.shape.push_back({ 0, 0, mmOf(f.bodyWidth), mmOf(f.bodyHeight), 0 });
     rq.partHeightMm = partHeightMm;
     const std::string preRotate = v->text("pre-rotate-usage", "Default");
     const bool pre = preRotate == "AlwaysOn" || (preRotate == "Default" && vision.preRotate);
@@ -42,15 +37,12 @@ bool JPAlignRequests::forPart(const JPConfiguration& config, const JPVisionConfi
     o.partCheckSizeMm = JPBottomVision::partCheckSize(*v, f);
     o.checkSizeTolerancePercent = v->number("check-size-tolerance-percent", 20);
     rq.imageAngle = pre ? JPStageUtil::angleNorm(placeAngle, 180) : 0;
-    rq.angleRange = o.fullRotation ? 180 : vision.maxAngularOffset;
-    // By its OpenPnP pipeline, when the machine finds parts so.
-    if (vision.bottomPipeline) {
-        rq.pipeline = std::make_shared<JPPipeline>(JPVisionPipelines::of(*v));
-        rq.pipeline->context().configurationDirectory = config.directory();
-        rq.pipeline->context().label = "bottom vision";
-        rq.partId = part.id;
-        rq.settingsId = v->id;
-    }
+    // Found by its OpenPnP pipeline, as OpenPnP finds parts.
+    rq.pipeline = std::make_shared<JPPipeline>(JPVisionPipelines::of(*v));
+    rq.pipeline->context().configurationDirectory = config.directory();
+    rq.pipeline->context().label = "bottom vision";
+    rq.partId = part.id;
+    rq.settingsId = v->id;
     return true;
 }
 

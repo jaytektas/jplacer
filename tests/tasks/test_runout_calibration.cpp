@@ -159,9 +159,8 @@ int main() {
     assert(cell.reconfigure(next, why));
     const JPMountConfig mount = cell.config().nozzles.front().mount;
     for (double angle : { 0.0, 90.0, -135.0, 170.0 }) {
-        moved.clear();   // the calibrator's own moves said so too
-        cell.moveTool(mount, { kCamX, kCamY, std::nullopt, angle }, 1.0);
-        assert(moved.take());
+        // Waited for itself: a motion signal still on its way from an earlier move must not end the wait.
+        assert(cell.moveToolAndWait(mount, { kCamX, kCamY, std::nullopt, angle }, 1.0, why));
         double tx, ty;
         const auto p = cell.positions();
         tipAt(p, tx, ty);
@@ -195,9 +194,7 @@ int main() {
         const bool whole = algorithm == "Model" || algorithm == "ModelAffine" || algorithm == "Table";
         // At the angles measured, and (a table interpolating) between them.
         for (double angle : { -90.0, 45.0, 0.0, 22.5, -157.5 }) {
-            moved.clear();
-            cell.moveTool(mount, { kCamX, kCamY, std::nullopt, angle }, 1.0);
-            assert(moved.take());
+            assert(cell.moveToolAndWait(mount, { kCamX, kCamY, std::nullopt, angle }, 1.0, why));
             double ax, ay;
             tipAt(cell.positions(), ax, ay);
             const double ex = kCamX + (whole ? 0 : kAxisX), ey = kCamY + (whole ? 0 : kAxisY);

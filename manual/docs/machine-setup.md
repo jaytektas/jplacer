@@ -71,17 +71,15 @@ pipelines only)** (mm, for a pipeline without a maxDistance stage).
 
 Fiducials are found by the vision settings' OpenPnP pipeline (see [Vision](vision.md#the-pipeline)), as
 OpenPnP finds them: the "results" stage's key point nearest where the fiducial should be, shown on the camera's
-view as it is found. Bottom vision has **Find parts with**: **jplacer** (the default for a machine set up
-here) uses jplacer's own finder, which needs no tuning; a machine brought in from OpenPnP finds with its
-pipelines, as OpenPnP does (importing it again keeps what was chosen here); **Pipeline** uses the vision
-settings' OpenPnP pipeline, its rectangle for a part, shown on the camera's view as it is found.
+view as it is found. Parts in bottom vision are found the same way, by the vision settings' OpenPnP pipeline:
+its rectangle for a part, shown on the camera's view as it is found.
 
 Each also has a second tab, **Bottom Vision Settings** or **Fiducial Vision Settings**: the machine's default
 vision settings' own page, as the [Vision](vision.md) tab shows it (its pipeline, sliders and tests), edited
 there too. Those settings belong to the job's configuration, not the machine: they are saved with it, and Undo
 on Machine Setup does not take them back.
 
-<!-- src: src/setup/JPSetupProperties.cpp (bottomVisionForm, fiducialLocatorForm, finder, defaultSettingsTab); src/ui/JPMachineSetupPanel.cpp (changed, formFor); src/machine/JPVisionConfig.h; src/openpnp/JPOpenPnpMachineImporter.cpp (part-alignments, fiducial-locator); src/tasks/JPFiducialLocator.cpp (partLook); src/tasks/JPJobProcessor.cpp (align); src/tasks/JPCellJobMachine.cpp (lookByPipeline, findByPipeline, locateFiducial) -->
+<!-- src: src/setup/JPSetupProperties.cpp (bottomVisionForm, fiducialLocatorForm, defaultSettingsTab); src/ui/JPMachineSetupPanel.cpp (changed, formFor); src/machine/JPVisionConfig.h; src/openpnp/JPOpenPnpMachineImporter.cpp (part-alignments, fiducial-locator); src/tasks/JPFiducialLocator.cpp (partLook); src/tasks/JPJobProcessor.cpp (align); src/tasks/JPCellJobMachine.cpp (lookByPipeline, findByPipeline, locateFiducial) -->
 
 ### Signalers
 

@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Bottom vision always finds parts with their vision settings' pipeline, as OpenPnP does; Find parts with and jplacer's own part finder are gone. A machine set up in jplacer that used jplacer's finder now uses the bottom vision settings' pipeline, so check it finds your parts (Machine Setup, Bottom Vision Settings, its tests). Each bottom vision look waits for the camera to settle once, not twice.
+
 - Visual homing, Visual Test, nozzle tip calibration and camera calibration find their marks with OpenPnP's pipelines alone, on the colour picture (straightened where the camera is calibrated), as OpenPnP does: jplacer no longer re-measures what a pipeline found, and their pictures shown are in colour. A half-pixel offset between OpenPnP's circle detection and jplacer's calibrations (about 0.02 mm on the bench's top camera, on every circle a pipeline found: fiducials, strip holes, nozzle tips) is gone. The default nozzle tip pipeline finds the tip to an eighth of a pixel.
 
 - A camera's calibration pipeline is OpenPnP's own (DetectCircularSymmetry; Reset Pipeline puts it back), and it also finds the mark for backlash calibration and the homing mark's capture: jplacer's own round mark finder and its DetectRoundMark stage are gone. In simulation a calibration fits to about a tenth of a pixel (it was under a twentieth), backlash to about 0.007 mm, and a nozzle tip to about 0.015 mm (it was 0.003). A calibration that knows its mark's size only roughly now tries every size about it and takes the most symmetrical, instead of searching at the rough size and finding the mark's edge off centre.

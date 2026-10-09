@@ -215,8 +215,7 @@ A job goes as OpenPnP's does:
    [Bottom Vision Settings](vision.md#the-settings) are enabled: the nozzle takes the part over the
    camera looking up, its bottom at the camera's focus, turned to the placement's angle (pre-rotated, as
    the settings' Pre-rotate and the machine say; else at 0°), as OpenPnP's bottom vision does. The part
-   is found by its settings' pipeline (or by its package's footprint pads, else its body, drawn as the
-   camera should see them and matched against the picture), turned less than 45° either way of the angle
+   is found by its settings' pipeline, as OpenPnP finds it, turned less than 45° either way of the angle
    wanted (all the way round with Rotation: Full). Pre-rotated, the nozzle is moved and turned by what
    was seen and the part looked at again, until it is off by less than the machine's Max. Linear Offset
    (its corner too, as turned) and Max. Angular Offset, or the machine's passes run out. The settings'
@@ -227,7 +226,7 @@ A job goes as OpenPnP's does:
    what the part is off, and moved by its offset on the nozzle. A part with bottom vision off is placed as
    it was picked.
 
-<!-- src: src/machine/JPJobProcessorConfig.h; src/tasks/JPJobProcessor.cpp (preFlight, plan, ordered, planner, pick, align, place, cleanup); src/vision/JPPartFinder.cpp; src/tasks/JPCellJobMachine.cpp (alignPart); src/tasks/JPBottomVision.cpp (findOffsets); src/tasks/JPAlignRequests.cpp; src/tasks/JPFiducialLocator.cpp; src/model/JPFiducialFit.cpp; src/tasks/JPCellJobMachine.cpp (locateFiducial, changeTip) -->
+<!-- src: src/machine/JPJobProcessorConfig.h; src/tasks/JPJobProcessor.cpp (preFlight, plan, ordered, planner, pick, align, place, cleanup); src/tasks/JPCellJobMachine.cpp (alignPart); src/tasks/JPBottomVision.cpp (findOffsets); src/tasks/JPAlignRequests.cpp; src/tasks/JPFiducialLocator.cpp; src/model/JPFiducialFit.cpp; src/tasks/JPCellJobMachine.cpp (locateFiducial, changeTip) -->
 
 When something fails, the job pauses and says why (**Job Error**); the board, placement, part or feeder
 it is about is chosen on its tab. **Resume** goes on from there. With **Defer Errors** (or a placement's

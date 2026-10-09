@@ -1099,6 +1099,10 @@ bool JPCellJobMachine::alignPart(const std::string& nozzleId, const AlignRequest
         why = "no nozzle " + nozzleId;
         return false;
     }
+    if (!rq.pipeline) {
+        why = "no bottom vision pipeline for " + rq.partId;
+        return false;
+    }
     prepare(*c, *feed);
     JPCameraCalibration cal;
     if (!JPCameraLook::calibration(*c, *feed, cal, why)) return false;
@@ -1111,40 +1115,31 @@ bool JPCellJobMachine::alignPart(const std::string& nozzleId, const AlignRequest
     // less its tip's camera offset); what is seen measured from where it is set.
     double cameraDx = 0, cameraDy = 0;
     c->cameraOffsetFor(nozzleId, cameraDx, cameraDy);
-    JPCameraCalibration pipelineCal = cal;   // the pipeline's pictures' (straightened), given it below
     double nx = camX - cameraDx, ny = camY - cameraDy, nr = rq.imageAngle;
     // By its pipeline: given the camera looking up, prepared for the part (as OpenPnP's preparePipeline).
     std::optional<JPNozzleTipConfig> tip;
     std::shared_ptr<JPVisionComposite> composite;
-    if (rq.pipeline) {
-        // Its pictures straightened, as OpenPnP's pipelines get them; what it finds placed through pipelineCal.
-        pipelineCal = JPPipelineCamera::give(rq.pipeline->context(), *feed, cal, [camX, camY](double& x, double& y) {
-            x = camX;
-            y = camY;
-            return true;
-        });
-        bool prepared = false;
-        m_onMain([&] {
-            const JPVisionSettings* v = m_config.visionSettings(rq.settingsId);
-            JPCellConfig cellConfig;
-            if (const JPCell* cc = m_host.cell()) cellConfig = cc->config();
-            for (const JPNozzleTipConfig& t : cellConfig.nozzleTips)
-                if (t.id == nozzle.tipId) tip = t;
-            prepared = v && JPVisionPipelinePrep::bottom(*rq.pipeline, m_config, *v, rq.partId, "", rq.imageAngle, tip ? &*tip : nullptr,
-                                                         &feed->config(), why, &composite);
-            if (!v) why = "no bottom vision settings " + rq.settingsId;
-        });
-        if (!prepared) return false;
-    }
+    // Its pictures straightened, as OpenPnP's pipelines get them; what it finds placed through pipelineCal.
+    const JPCameraCalibration pipelineCal = JPPipelineCamera::give(rq.pipeline->context(), *feed, cal, [camX, camY](double& x, double& y) {
+        x = camX;
+        y = camY;
+        return true;
+    });
+    bool prepared = false;
+    m_onMain([&] {
+        const JPVisionSettings* v = m_config.visionSettings(rq.settingsId);
+        JPCellConfig cellConfig;
+        if (const JPCell* cc = m_host.cell()) cellConfig = cc->config();
+        for (const JPNozzleTipConfig& t : cellConfig.nozzleTips)
+            if (t.id == nozzle.tipId) tip = t;
+        prepared = v && JPVisionPipelinePrep::bottom(*rq.pipeline, m_config, *v, rq.partId, "", rq.imageAngle, tip ? &*tip : nullptr,
+                                                     &feed->config(), why, &composite);
+        if (!v) why = "no bottom vision settings " + rq.settingsId;
+    });
+    if (!prepared) return false;
     // A part of unknown height: found by focusing on it (OpenPnP's auto focus), over each shot (the
     // centre, without compositing), as high as the tip's tallest part above the camera down to it.
     double partHeight = rq.partHeightMm;
-    if (!tip)
-        m_onMain([&] {
-            if (const JPCell* cc = m_host.cell())
-                for (const JPNozzleTipConfig& t : cc->config().nozzleTips)
-                    if (t.id == nozzle.tipId) tip = t;
-        });
     if (partHeight <= 0) {
         if (feed->config().focusSensingMethod != "AutoFocus" || !tip) {
             why = "Part height unknown and camera " + feed->config().name + " does not support part height sensing.";
@@ -1195,18 +1190,8 @@ bool JPCellJobMachine::alignPart(const std::string& nozzleId, const AlignRequest
     }
     const double z = camZ + partHeight;
     const bool composited = composite && JPVisionComposite::isAdvanced(composite->solution());
-    // jplacer's own finder matches the footprint's shape: its size is the shape's.
-    double shapeX0 = 0, shapeY0 = 0, shapeX1 = 0, shapeY1 = 0;
-    for (const JPPartFinder::Rect& r : rq.shape) {
-        const double a = r.rotation * M_PI / 180, hw = r.width / 2, hh = r.height / 2;
-        const double ex = std::abs(hw * std::cos(a)) + std::abs(hh * std::sin(a)), ey = std::abs(hw * std::sin(a)) + std::abs(hh * std::cos(a));
-        shapeX0 = std::min(shapeX0, r.x - ex);
-        shapeX1 = std::max(shapeX1, r.x + ex);
-        shapeY0 = std::min(shapeY0, r.y - ey);
-        shapeY1 = std::max(shapeY1, r.y + ey);
-    }
     bool partTuned = false;   // this alignment's part tuned on, or its kept values put back
-    const JPBottomVision::Look look = [&](const JPLocation& at, double expected, int pass, JPBottomVision::Seen& seen,
+    const JPBottomVision::Look look = [&](const JPLocation& at, double expected, int, JPBottomVision::Seen& seen,
                                           std::string& w) {
         const double nx = at.x(), ny = at.y(), nr = at.rotation();
         // A part seen in several shots (OpenPnP's vision compositing).
@@ -1225,39 +1210,11 @@ bool JPCellJobMachine::alignPart(const std::string& nozzleId, const AlignRequest
             if (!tuneForPart(*feed, rq.partId, w)) return false;
             partTuned = true;
         }
-        JPGrayImage img;
-        if (!JPCameraLook::settled(*feed, img, w)) return false;
-        if (rq.pipeline) {
-            if (!JPBottomVision::findByPipeline(*rq.pipeline, rq.partId, pipelineCal, camX, camY, nx, ny, expected,
-                                                settings.fullRotation ? 180 : JPBottomVision::kAdjustRange, seen, w))
-                return false;
-            showWorking(*rq.pipeline, feed, rq.partId, kShownPipelineMs);
-            return true;
-        }
-        JPPartFinder::Request fr;
-        if (!cal.pixelFor(nx, ny, camX, camY, fr.expectedX, fr.expectedY)) {
-            w = "the camera's calibration cannot place the nozzle in its picture";
+        // The pipeline's ImageCapture settles the camera, as OpenPnP's.
+        if (!JPBottomVision::findByPipeline(*rq.pipeline, rq.partId, pipelineCal, camX, camY, nx, ny, expected,
+                                            settings.fullRotation ? 180 : JPBottomVision::kAdjustRange, seen, w))
             return false;
-        }
-        fr.angle = expected;
-        fr.angleRange = pass == 0 ? rq.angleRange : std::min(rq.angleRange, 3.0);
-        fr.toMachine = [&cal, camX, camY](double px, double py, double& mx, double& my) {
-            return cal.machinePoint(px, py, camX, camY, mx, my);
-        };
-        const JPPartFinder::Result found = JPPartFinder::find(img, rq.shape, fr);
-        if (!found.found) {
-            w = "the part was not found: " + found.why;
-            return false;
-        }
-        if (!cal.machinePoint(found.x, found.y, camX, camY, seen.x, seen.y)) {
-            w = "the camera's calibration cannot place the part";
-            return false;
-        }
-        seen.angle = found.angle;
-        seen.widthMm = shapeX1 - shapeX0;
-        seen.heightMm = shapeY1 - shapeY0;
-        JLOGC(JPlacerLog::kJob, JLogLevel::Info) << "seen on " << nozzle.name << ": " << seen.x - nx << ", " << seen.y - ny << " mm, "
-                                                 << (seen.angle - nr) << " deg (score " << found.score << ")";
+        showWorking(*rq.pipeline, feed, rq.partId, kShownPipelineMs);
         return true;
     };
     JPBottomVision::Offset offset;

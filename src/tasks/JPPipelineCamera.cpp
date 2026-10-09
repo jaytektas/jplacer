@@ -17,12 +17,10 @@ JPCameraCalibration JPPipelineCamera::give(JPPipeline::Context& ctx, JPCameraFee
         raw.valid ? JPStraightPicture::of(raw, feed.config().looksUp, feed.config().showAll) : nullptr;
     // A picture, settled unless the stage says to skip it; straightened where the camera is calibrated.
     ctx.capture = [f, straight](const std::string& settle, const std::string&, cv::Mat& bgr, std::string& why) {
-        if (settle != "Skip") {
-            JPGrayImage settled;
-            if (!JPCameraLook::settled(*f, settled, why)) return false;
-        }
         JPFrame frame;
-        if (!f->latest(frame, 0) || frame.width <= 0) {
+        if (settle == "Skip") f->latest(frame, 0);
+        else if (!JPCameraLook::settled(*f, frame, why)) return false;
+        if (frame.width <= 0) {
             why = f->config().name + " gives no picture";
             return false;
         }
