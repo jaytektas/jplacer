@@ -552,7 +552,6 @@ private:
     std::map<std::string, PartOnNozzle>         m_nozzleParts;   // by nozzle id; the cell's thread's
     std::mutex                                  m_roamMutex;
     std::map<std::string, std::pair<double, double>> m_roamFrom;   // by tool: where it was left at unsafe Z
-    std::map<std::string, std::pair<double, double>> m_roamLeft;   // by tool: where its last jog took it
     std::map<std::string, bool>                 m_actuated;      // by actuator id: what it was last switched to
     std::map<std::string, std::string>          m_lastHttpUrl;   // by HTTP actuator: the URL asked last
     std::shared_ptr<JPScripting>                m_scripting;

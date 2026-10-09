@@ -1980,25 +1980,18 @@ void JPCell::roamUnsafeZ(const std::string& toolId, const JPMountConfig& mount, 
     std::lock_guard lk(m_roamMutex);
     if (!unsafe) {
         m_roamFrom.erase(toolId);
-        m_roamLeft.erase(toolId);
+        return;
+    }
+    // Where it was left low (or lowered further): roaming from there.
+    if (!m_roamFrom.count(toolId) || targets.count(mount.axisZ)) {
+        m_roamFrom[toolId] = xy(now);
         return;
     }
     std::map<std::string, double> after = now;
     for (const auto& [id, t] : targets) after[id] = t;
-    // Where it was left low (or lowered further), or not where its last jog took it (moved since by a task, a
-    // calibration): roaming from where it is.
-    const auto here = xy(now);
-    const auto left = m_roamLeft.find(toolId);
-    constexpr double kMovedElseMm = 1.0;   // past what runout and backlash compensation leave a jog's target by
-    const bool movedElse = left == m_roamLeft.end()
-                           || std::hypot(here.first - left->second.first, here.second - left->second.second) > kMovedElseMm;
-    if (!m_roamFrom.count(toolId) || targets.count(mount.axisZ) || movedElse) m_roamFrom[toolId] = here;
     const auto [x0, y0] = m_roamFrom[toolId];
     const auto [x1, y1] = xy(after);
-    if (std::hypot(x1 - x0, y1 - y0) <= m_config.unsafeZRoamingMm) {
-        m_roamLeft[toolId] = { x1, y1 };
-        return;
-    }
+    if (std::hypot(x1 - x0, y1 - y0) <= m_config.unsafeZRoamingMm) return;
     // Too far: up to safe Z with this move.
     if (isVirtual) {
         targets[mount.axisZ] = z->homeCoordinate;
@@ -2012,7 +2005,6 @@ void JPCell::roamUnsafeZ(const std::string& toolId, const JPMountConfig& mount, 
     JLOGC(JPlacerLog::kCell, JLogLevel::Info) << "jogged further than " << m_config.unsafeZRoamingMm
                                               << " mm at unsafe Z: up to safe Z";
     m_roamFrom.erase(toolId);
-    m_roamLeft.erase(toolId);
 }
 
 bool JPCell::moveAxesAndWait(std::map<std::string, double> targets, double speed, std::string& why, bool squared) {
