@@ -650,8 +650,12 @@ bool JPCellJobMachine::headCameraPipeline(double viewX, double viewY, JPPipeline
     }
     prepare(*c, *feed);
     if (!JPCameraLook::calibration(*c, *feed, cal, why)) return false;
+    // A tune put back before the move, its picture changing while the head travels; one to be made, over what it
+    // looks at, after it.
+    if (forFiducial && !feed->config().autoTuneFiducials) applyHead(*feed, "", std::nullopt);   // the camera's own
+    else if (!forFiducial && !m_headTuneFirst) tuneHead(*feed);
     if (!c->moveToolAndWait(feed->config().mount, { viewX, viewY, std::nullopt, std::nullopt }, 1.0, why)) return false;
-    if (!forFiducial) tuneHead(*feed);   // over what it looks at: a tune made on it is for it
+    if (!forFiducial && m_headTuneFirst) tuneHead(*feed);
     // Its pictures straightened, as OpenPnP's pipelines get them; `cal` then theirs, to place what is found.
     cal = JPPipelineCamera::give(p.context(), *feed, cal, [viewX, viewY](double& x, double& y) {
         x = viewX;
@@ -896,7 +900,6 @@ bool JPCellJobMachine::lookByPipeline(double viewX, double viewY, double x, doub
     if (!headCameraPipeline(viewX, viewY, p, cal, feed, why, true)) return false;
     // The camera's Auto-Tune for fiducial checks?: tuned on a check's first fiducial, that tune for the rest of it.
     if (feed->config().autoTuneFiducials && !tuneForFiducials(*feed, why)) return false;
-    if (!feed->config().autoTuneFiducials) applyHead(*feed, "", std::nullopt);   // a fiducial at the camera's own
     // As OpenPnP: the fiducial's place told to the stages that look round it.
     p.setProperty("fiducial.center", JPPipelineValue { JPPipelineValue::LocationMm { x, y } });
     p.setProperty("MaskCircle.center", JPPipelineValue { JPPipelineValue::LocationMm { x, y } });
@@ -1052,15 +1055,14 @@ bool JPCellJobMachine::look(double viewX, double viewY, double x, double y, doub
     prepare(*c, *feed);
     JPCameraCalibration cal;
     if (!JPCameraLook::calibration(*c, *feed, cal, why)) return false;
+    // A tune put back before the move (the camera's own for a fiducial without its own; a feeder's), its picture
+    // changing while the head travels; one to be made, over what it looks at, after it.
+    if (fiducial && !feed->config().autoTuneFiducials) applyHead(*feed, "", std::nullopt);
+    else if (!fiducial && !m_headTuneFirst) tuneHead(*feed);
     if (!c->moveToolAndWait(feed->config().mount, { viewX, viewY, std::nullopt, std::nullopt }, 1.0, why)) return false;
     // The camera's Auto-Tune for fiducial checks?: tuned on a check's first fiducial, that tune for the rest of it.
-    if (fiducial && feed->config().autoTuneFiducials) {
-        if (!tuneForFiducials(*feed, why)) return false;
-    } else if (fiducial) {
-        applyHead(*feed, "", std::nullopt);   // a fiducial at the camera's own settings
-    } else {
-        tuneHead(*feed);
-    }
+    if (fiducial && feed->config().autoTuneFiducials && !tuneForFiducials(*feed, why)) return false;
+    if (!fiducial && m_headTuneFirst) tuneHead(*feed);
     JPGrayImage img;
     if (!JPCameraLook::settled(*feed, img, why)) return false;
     JPRoundMarkFinder::Request rq;
