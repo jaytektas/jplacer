@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- Strip feeder Auto Setup follows the holes down the strip to the one by its last part (Max Feed Count) and makes that the Last Hole Location. The pick pitch and the tape's angle come from the line between the two holes, so from holes 4 mm apart a few hundredths off in one look went into every part (0.065 mm was 0.58 mm by the tenth); across the strip it is shared among all its holes. The log gives the holes' pitch and the tape's angle, and warns when there is no Max Feed Count to follow.
+- The strip feeder's Next Hole Location is called Last Hole Location.
+
 ## 0.1.31
 
 - Feeders: with the camera moved to a feeder's pick location, editing its Rotation In Tape turns the camera, and the part's footprint on it, to the new angle.

@@ -168,7 +168,7 @@ void stripForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeed
     add.end();
     add.tip("The location of the hole on the tape closest to the center of the first part, in the direction of tape "
             "continuation, i.e. subsequent parts.");
-    add.row("Next Hole Location", Place::Location);
+    add.row("Last Hole Location", Place::Location);
     coordinate(add, f, "last-hole-location", Axis::X, "X");
     coordinate(add, f, "last-hole-location", Axis::Y, "Y");
     add.skip();   // no Z, its buttons under the reference hole's

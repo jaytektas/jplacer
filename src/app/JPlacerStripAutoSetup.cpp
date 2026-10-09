@@ -8,6 +8,7 @@
 #include "pipeline/JPStageUtil.h"
 #include "pipeline/JPStraightPicture.h"
 #include "tasks/JPFeederPipelines.h"
+#include "tasks/JPStripHoleWalk.h"
 #include "tasks/JPStripHoles.h"
 #include "ui/JPCameraView.h"
 
@@ -21,6 +22,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstdio>
 
 inline namespace jf {
 
@@ -35,24 +37,11 @@ constexpr int kPreviewEveryMs = 400, kPreviewShownMs = 600;
 constexpr int kCompleteMs = 1500;
 // Parts in tape are a multiple of 2 mm apart.
 constexpr double kPartPitchStepMm = 2.0;
-// Half EIA-481's 4 mm hole pitch: where a part between two holes sits from them.
-constexpr double kHalfHoleMm = 2.0;
+// EIA-481's sprocket hole pitch, and half it: where a part between two holes sits from them.
+constexpr double kHolePitchMm = 4.0, kHalfHoleMm = 2.0;
 // OpenPnP's showHoles colours (BGR): the lines orange, the best yellow, the holes on it blue, the two nearest green.
 const cv::Scalar kLineColour(0, 200, 255), kBestColour(0, 255, 255), kHoleColour(255, 0, 0), kNearColour(0, 255, 0);
 const cv::Scalar kHoleCentreColour(0, 255, 255), kNearCentreColour(255, 0, 255);
-
-// The holes on the line (machine places), nearest the part first.
-std::vector<JPLocation> holesOf(const JPJobMachine::SeenCircles& seen, double tapeWidthMm) {
-    std::vector<JPStripHoles::Circle> circles;
-    for (const auto& c : seen.circles) circles.push_back({ c.x, c.y, c.diameter });
-    const JPStripHoles::Result r = JPStripHoles::find(circles, { seen.centreX, seen.centreY }, seen.pixelsPerMm, tapeWidthMm);
-    std::vector<JPLocation> out;
-    for (const JPStripHoles::Circle& c : r.inLine) {
-        double x = 0, y = 0;
-        if (seen.toMachine && seen.toMachine(c.x, c.y, x, y)) out.emplace_back(kMm, x, y, 0, 0);
-    }
-    return out;
-}
 
 } // namespace
 
@@ -165,9 +154,17 @@ void JPlacerStripAutoSetup::check(const JPLocation& at) {
     }
     // Settled for the checks, as the pipeline says.
     pipeline->context().capture = nullptr;
+    // Half the camera's view (its shorter side): how far down the strip each look goes past the last hole found.
+    double stepMm = 0;
+    if (JPCameraFeed* feed = m_machine.headCameraFeed(); feed && m_machine.cell()) {
+        JPFrame frame;
+        feed->latest(frame, 0);
+        const JPCameraCalibration cal = m_machine.cell()->cameraCalibration(feed->config().id, frame.width, frame.height);
+        if (cal.valid) stepMm = std::min(cal.width / std::abs(cal.scaleX()), cal.height / std::abs(cal.scaleY())) / 2;
+    }
     std::weak_ptr<bool> alive = m_alive;
-    const bool started = m_run.machineTask([this, alive, at, first, pipeline, tapeWidthMm](JPJobMachine& machine, const OnMain& onMain,
-                                                                                         std::string&) {
+    const bool started = m_run.machineTask([this, alive, at, first, pipeline, tapeWidthMm, stepMm](JPJobMachine& machine,
+                                                                                                 const OnMain& onMain, std::string&) {
         auto failed = [&](const std::string& w) {
             onMain([&] {
                 if (const auto a = alive.lock(); a && *a) fail(w);
@@ -177,7 +174,7 @@ void JPlacerStripAutoSetup::check(const JPLocation& at) {
         std::string why;
         JPJobMachine::SeenCircles seen;
         if (!machine.positionCamera(at, why) || !machine.seeCircles(at, *pipeline, seen, why)) return failed(why);
-        const std::vector<JPLocation> holes = holesOf(seen, tapeWidthMm);
+        const std::vector<JPLocation> holes = JPStripHoleWalk::holesOf(seen, tapeWidthMm);
         if (holes.empty()) return failed("No hole found at selected location");
         if (first) {
             onMain([&] {
@@ -196,6 +193,44 @@ void JPlacerStripAutoSetup::check(const JPLocation& at) {
         const long steps =
             std::lround(std::hypot(m_secondPart.x() - m_firstPart.x(), m_secondPart.y() - m_firstPart.y()) / kPartPitchStepMm);
         if (steps == 0) return failed("The same part was selected both times");
+        // The tape's angle, and how far apart its holes are (OpenPnP stretches the part pitch to it), come from
+        // the line through the reference and next holes: from holes 4 mm apart, a few hundredths off in one look
+        // go into every part. So the camera follows the holes down the strip to the one by its last part (its
+        // Max Feed Count), and that is the last hole: the look's error shared among all the holes between.
+        int parts = 0;
+        onMain([&] {
+            if (const JPFeeder* f = m_job.configuration().feeder(m_feederId)) parts = f->number("max-feed-count");
+        });
+        const double partPitchMm = kPartPitchStepMm * double(steps);
+        const int holesOn = parts > 1 ? int(std::floor((parts - 1) * partPitchMm / kHolePitchMm)) : 0;
+        const JPStripHoleWalk::Walked walked = JPStripHoleWalk::walk(
+            machine, *pipeline, tapeWidthMm, m_firstPart, ref1, ref2, holesOn, stepMm, [&](int hole, int of) {
+                onMain([&] {
+                    if (const auto a = alive.lock(); !a || !*a) return;
+                    if (JPCameraView* view = m_view)
+                        view->setPrompt("Following the holes down the strip: hole " + std::to_string(hole) + " of " + std::to_string(of) + "...");
+                });
+            });
+        ref2 = walked.last;
+        {
+            const double apart = std::hypot(ref2.x() - ref1.x(), ref2.y() - ref1.y());
+            char said[200];
+            std::snprintf(said, sizeof said, "%d hole%s apart, %.3f mm: %.4f mm a hole; the tape at %.3f°", walked.holes,
+                          walked.holes == 1 ? "" : "s", apart, apart / std::max(1, walked.holes),
+                          std::atan2(ref2.y() - ref1.y(), ref2.x() - ref1.x()) * 180 / M_PI);
+            if (parts <= 1)
+                JLOGC(JPlacerLog::kCamera, JLogLevel::Warn)
+                    << "Auto Setup: no Max Feed Count, so the reference and last holes are " << said
+                    << ". From holes this close, a few hundredths off in one look go into every part: set Max Feed "
+                       "Count and run Auto Setup again to measure them down the strip";
+            else if (!walked.reached)
+                JLOGC(JPlacerLog::kCamera, JLogLevel::Warn)
+                    << "Auto Setup: the holes were followed to hole " << walked.holes << " of the " << holesOn
+                    << " the strip's last part sits by (" << parts << " parts), none found past it; the reference and last holes are "
+                    << said;
+            else
+                JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << "Auto Setup: the reference and last holes are " << said;
+        }
         std::optional<JPLocation> pick;
         onMain([&] {
             JPFeeder* f = m_job.configuration().feeder(m_feederId);

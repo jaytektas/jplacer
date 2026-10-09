@@ -20,7 +20,7 @@ inline namespace jf {
 // Feed and Pick Retry Count) and what the kind adds. A strip feeder has
 // OpenPnP's Tape Settings (Part Pitch, Tape Width, Feed Count and Max Feed
 // Count with their Reset and Auto Set buttons), Vision and Locations (the
-// reference and next hole); a tray its Pick Location (the first part),
+// reference and last hole); a tray its Pick Location (the first part),
 // Offsets, Tray Count and Feed Count; a drag feeder its pin's actuators,
 // feed start and end, and the template its vision looks for; the other
 // kinds their Pick Location.

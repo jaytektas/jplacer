@@ -92,9 +92,18 @@ A strip of cut tape lying on the machine, its parts picked one after the other a
   sprocket holes: a line of marks 4 mm apart, a quarter of the tape width to half the tape width plus
   1.25 mm from the part. While waiting for a click, the camera's view shows the lines found, the best one
   and its holes. "Now click on the center of the second part in the tape." brings the same look at the
-  second part. Then the **Reference Hole Location** and **Next Hole Location** are set from the holes
-  beside the two parts (their Z kept), the **Part Pitch** to the distance between the parts rounded to
-  2 mm, and the **Feed Count** to 0, and the camera goes to the first part's pick location ("Setup
+  second part. The **Reference Hole Location** is the hole by the first part and the **Part Pitch** the
+  distance between the parts rounded to 2 mm. Then, with a **Max Feed Count** set, the camera follows the
+  holes down the strip ("Following the holes down the strip: hole 3 of 9..."), each looked at from beside it
+  as the first part was, half its view at a time, to the hole the strip's last part sits by: that is the
+  **Last Hole Location**. The parts are picked along the line between the two, the Part Pitch stretched to
+  how far apart they are against whole 4 mm hole pitches (OpenPnP's), so from holes 4 mm apart a few
+  hundredths off in one look went into every part (0.065 mm is 0.58 mm by the tenth) and turned the tape's
+  angle; 36 mm apart, it is shared among 9 holes. The log says how many holes apart the two are, the pitch
+  between them and the tape's angle; without a Max Feed Count the last hole is the one by the second part,
+  and the log warns that the pitch and angle come from holes that close. A hole not found on the way ends
+  the walk at the last one found, and the log says so. Their Z is kept,
+  the **Feed Count** set to 0, and the camera goes to the first part's pick location ("Setup
   complete!"). A click is not where the part is picked: parts in tape lie on a hole's middle or halfway
   between two holes, and the click says which. Nearer a hole's middle, the first part is on it; nearer
   halfway, it is 2 mm from it (OpenPnP's Reference Hole To Part Linear, 2 mm to begin with; OpenPnP always
@@ -115,13 +124,13 @@ A strip of cut tape lying on the machine, its parts picked one after the other a
   [Pipeline Editor](pipeline-editor.md), and **Reset Pipeline** puts OpenPnP's default back; jplacer's own
   hole finder, described here, does not use it.
 - **Locations**: the **Reference Hole Location**, the hole nearest the first part's centre, in the
-  direction the parts continue, with the pick height as its Z; and the **Next Hole Location**, any hole
+  direction the parts continue, with the pick height as its Z; and the **Last Hole Location**, any hole
   further along.
 
 The part is picked across the tape from its hole, as EIA-481 tape lays it out: half the tape width less
 0.5 mm across, 2 mm along, then one part pitch further for each part taken.
 
-<!-- src: src/setup/JPFeederForms.cpp (stripForm, act); src/model/JPFeeder.cpp (pickLocation, idealLineLocations, feed, visionExpected, setVisionFound); src/tasks/JPFeederFeed.cpp; src/tasks/JPCellJobMachine.cpp (locateHole, seeCircles); src/tasks/JPFeederPipelines.cpp; src/app/JPlacerStripAutoSetup.cpp; src/tasks/JPStripHoles.cpp; src/vision/JPRansac.cpp -->
+<!-- src: src/setup/JPFeederForms.cpp (stripForm, act); src/model/JPFeeder.cpp (pickLocation, idealLineLocations, feed, visionExpected, setVisionFound); src/tasks/JPFeederFeed.cpp; src/tasks/JPCellJobMachine.cpp (locateHole, seeCircles); src/tasks/JPFeederPipelines.cpp; src/app/JPlacerStripAutoSetup.cpp; src/tasks/JPStripHoleWalk.cpp; src/tasks/JPStripHoles.cpp; src/vision/JPRansac.cpp -->
 
 ### Tray feeder
 
