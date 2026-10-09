@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Camera tunes are kept as they should be: the machine's every move had been taken for a fresh connection, forgetting every tune, so a fiducial check tuned the camera before every look (three times a fiducial) instead of once on its first fiducial, and feeders' tunes were forgotten between picks.
+
 ## 0.1.35
 
 - Drag and Neoden 4 feeders find their template image as OpenPnP does: OpenCV's template matching on the picture in colour (straightened where the camera is calibrated), the best place to the pixel; jplacer's own grey matcher is gone. Like OpenPnP, a poor match is no longer turned away. Camera auto focus and settling now hand on the settled picture itself rather than the next one after it.

@@ -740,7 +740,10 @@ void JPlacerMachine::updateMenu() {
     if (m_disconnectItem) m_disconnectItem->setEnabled(connected);
     if (m_homeItem)       m_homeItem->setEnabled(connected);
     if (m_parkItem)       m_parkItem->setEnabled(connected && m_cell->isHomed());
-    if (onConnectedChanged) onConnectedChanged(connected);
+    if (onConnectedChanged && m_connectedTold != connected) {
+        m_connectedTold = connected;
+        onConnectedChanged(connected);
+    }
     // The cameras opened only while the machine is on, let go of once it is off.
     for (CameraDock& d : m_cameras) d.panel->setPowered(connected);
 }

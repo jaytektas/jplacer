@@ -137,7 +137,8 @@ public:
     std::function<bool()> jobRunning;
     // The head's Z probe read over (x, y), its Z to `done`; false without one (JPFeedersPanel::probeZ).
     std::function<bool(double x, double y, std::function<void(double z)> done)> probeZ;
-    // The machine connected or not (a job's Start, Step and Stop follow it, as OpenPnP's do).
+    // The machine connected or disconnected (a job's Start, Step and Stop follow it, as OpenPnP's do): told when
+    // that changes, not on every change of the machine's state.
     std::function<void(bool connected)> onConnectedChanged;
     // The machine no longer homed (or homed again: it is unhomed first), on the main thread.
     std::function<void()> onUnhomed;
@@ -462,6 +463,7 @@ private:
     JMenuItem*                          m_disconnectItem = nullptr;
     JMenuItem*                          m_homeItem       = nullptr;
     JMenuItem*                          m_parkItem       = nullptr;
+    std::optional<bool>                 m_connectedTold;   // what onConnectedChanged last said
     JPConnectIcon                       m_connectIcon;
     JPHomeIcon                          m_homeIcon;
     JPPositionReadout                   m_position;   // the chosen tool's, in the status bar
