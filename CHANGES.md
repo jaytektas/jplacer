@@ -14,6 +14,7 @@ notes.
 - Recycle on the Jog panel comes back as soon as a feeder can take the part back (the feeder enabled again, say); before, it stayed greyed out until the nozzle's part changed.
 - jplacer no longer freezes when Test Alignment (or another machine task, Start or Step) is clicked while a machine task is still under way: the status line says the machine is busy, and the click is not acted on.
 - Test Alignment's Center After Test leaves the part at the height it was seen at, in focus over the camera, as OpenPnP does; before, it went up to safe height, out of focus and seen off to one side.
+- Much faster screen: jplacer had been built with an unoptimised (debug) copy of its drawing code, which made the whole window sluggish (dragging pipeline sliders, scrolling); it now uses the optimised one, and a release refuses to build without it.
 
 ## 0.1.36
 

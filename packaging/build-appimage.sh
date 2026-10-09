@@ -21,6 +21,14 @@ fail() { echo "build-appimage: $*" >&2; exit 1; }
 command -v appimagetool >/dev/null || fail "no appimagetool on PATH"
 command -v rsvg-convert >/dev/null || fail "no rsvg-convert (apt install librsvg2-bin)"
 [ -x "$BIN" ] || fail "not built: $BIN -- run cmake --build build first"
+# The framework linked in must be an optimised build: a Debug libj_platform.a (it carries debug information)
+# makes the screen's drawing several times slower, the whole UI sluggish.
+JF_DIR=$(sed -n 's/^JFramework_DIR:PATH=//p' "$ROOT/build/CMakeCache.txt")
+JF_LIB="$JF_DIR/../../libj_platform.a"
+[ -f "$JF_LIB" ] || fail "no JFramework library at $JF_LIB"
+if readelf -S "$JF_LIB" 2>/dev/null | grep -q '\.debug_info'; then
+    fail "$(realpath "$JF_LIB") is a Debug build: install a Release libj_platform.a into the SDK first"
+fi
 
 OUT="$DIST/jplacer-$VERSION-x86_64.AppImage"
 APPDIR="$DIST/jplacer.AppDir"
