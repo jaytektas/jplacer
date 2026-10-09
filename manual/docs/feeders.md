@@ -142,7 +142,9 @@ A strip of cut tape lying on the machine, its parts picked one after the other a
   the first hole too when picking starts mid-strip), and the parts are picked where the holes were found
   rather than where the hole locations put them. The camera looks from a part beside the hole (across the tape
   as its parts are, half a hole pitch along), not straight down on it: its own light reflected straight back
-  washes the hole under it out on clear tape. One look, as straight down would be. The strip's pipeline
+  washes the hole under it out on clear tape. One look, as straight down would be. Where that is beyond the
+  camera's reach (a strip's end by the machine's edge, past an axis's soft limit), it looks straight down on the
+  hole instead, as OpenPnP does. The strip's pipeline
   (**Edit Pipeline...**, as OpenPnP's strip feeder) finds the round marks there, at the camera's scale for the
   tape's height (the Reference Hole Location's Z and its Z Along Strip %, the camera calibrated at two heights),
   and the hole is the one nearest where it should be, within half a hole pitch; not found, or found more than

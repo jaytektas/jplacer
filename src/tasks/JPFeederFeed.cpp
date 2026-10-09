@@ -454,6 +454,12 @@ bool JPFeederFeed::feed(JPConfiguration& config, const std::string& feederId, co
             views = { JPLocation(JPLengthUnit::Millimeters, e.x() + r * std::cos(a), e.y() + r * std::sin(a), e.z(), 0),
                       JPLocation(JPLengthUnit::Millimeters, e.x() - r * std::cos(a), e.y() - r * std::sin(a), e.z(), 0) };
         }
+        // Beside the part out of the camera's reach (a strip's end by the machine's edge): from over the hole, as
+        // OpenPnP looks, when the camera reaches that.
+        else if (!views.empty() && !machine.cameraReaches(views.front()) && machine.cameraReaches(*expected)) {
+            JLOGC(JPlacerLog::kJob, JLogLevel::Debug) << name << ": hole " << n << " looked at from over it: beside its part is out of reach";
+            views = { *expected };
+        }
         // The search round the picture's middle: as far as the farthest view is from the hole, and half a pitch more.
         double farthest = 0;
         const JPLocation hole = expected->convertToUnits(JPLengthUnit::Millimeters);
