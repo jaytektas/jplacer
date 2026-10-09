@@ -8,7 +8,7 @@
 #include "pipeline/JPPipeline.h"
 #include "tasks/JPBottomVision.h"
 #include "tasks/JPTravel.h"
-#include "vision/JPTemplateFinder.h"
+#include "pipeline/JPTemplateFinder.h"
 
 #include <j/config/Json.h>
 

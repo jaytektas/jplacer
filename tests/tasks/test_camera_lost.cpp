@@ -49,9 +49,9 @@ int main() {
         feed.start();
         assert(waitFor([&] { return feed.isLost(); }, 8));
         assert(feed.lostWhy().find("no picture") != std::string::npos);
-        JPGrayImage img;
+        JPFrame img;
         std::string why;
-        const bool got = JPCameraLook::taken(feed, img, why, 0);
+        const bool got = JPCameraLook::takenFrame(feed, img, why, 0);
         if (!got) std::fprintf(stderr, "why: %s\n", why.c_str());
         assert(got && img.width == 64 && !feed.isLost());   // back by itself (opened again), and the picture taken
         feed.stop();
@@ -62,9 +62,9 @@ int main() {
         feed.start();
         assert(waitFor([&] { return feed.isLost(); }, 8));
         assert(feed.lostWhy().find("same picture") != std::string::npos);
-        JPGrayImage img;
+        JPFrame img;
         std::string why;
-        assert(JPCameraLook::taken(feed, img, why, 0));
+        assert(JPCameraLook::takenFrame(feed, img, why, 0));
         feed.stop();
     }
     // As the camera is set: hung after 1 s with no picture; not waited for at
@@ -78,9 +78,9 @@ int main() {
         const auto started = std::chrono::steady_clock::now();
         assert(waitFor([&] { return feed.isLost(); }, 8));
         assert(std::chrono::steady_clock::now() - started < std::chrono::milliseconds(2500));
-        JPGrayImage img;
+        JPFrame img;
         std::string why;
-        assert(!JPCameraLook::taken(feed, img, why, 0) && why.find("was lost") != std::string::npos);
+        assert(!JPCameraLook::takenFrame(feed, img, why, 0) && why.find("was lost") != std::string::npos);
         feed.stop();
     }
     // The same picture not counted: a camera frozen on one is not lost.

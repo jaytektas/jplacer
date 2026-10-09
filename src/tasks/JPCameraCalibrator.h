@@ -7,7 +7,6 @@
 #include "machine/JPCameraCalibration.h"
 #include "machine/JPCell.h"
 
-#include "vision/JPGrayImage.h"
 
 #include <opencv2/core.hpp>
 

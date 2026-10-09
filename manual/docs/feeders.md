@@ -215,14 +215,16 @@ an actuator name it says "No actuator name set."
 
 **Vision**: with **Vision Enabled?** ticked, the head camera looks over the pick location for the
 **Template Image** within the **Area of Interest** (X, Y, Width and Height in the camera's pixels), and
-the pick location, and the next drag's start, move by how far from it the template is found. It looks
-before the first drag and after every one. **Select** under the template image, or beside the area of
+the pick location, and the next drag's start, move by how far from it the template is found. It is found
+as OpenPnP finds it: OpenCV's template matching over the area of interest, on the picture in colour
+(straightened where the camera is calibrated), the best place taken to the pixel, however poorly it matches.
+It looks before the first drag and after every one. **Select** under the template image, or beside the area of
 interest, puts a selection on the head camera's picture (see [Machine](machine.md)); **Confirm** takes it
 (the template image is written into OpenPnP's configuration, as OpenPnP keeps it), **Cancel** puts it
 away. **Reset vision offsets** forgets where the template was last found, so the next feed looks again
 first. Without a template image or an area of interest the feed says it is required.
 
-<!-- src: src/setup/JPFeederForms.cpp (pinForm); src/tasks/JPFeederFeed.cpp (pinFeed); src/model/JPFeeder.cpp (pickLocation, templatePath); src/ui/JPFeedersPanel.cpp (selectOnCamera, confirmTemplate); src/tasks/JPCellJobMachine.cpp (moveActuator, matchTemplate); src/vision/JPTemplateFinder.cpp; src/ui/JPSetupForm.cpp (locationButtons) -->
+<!-- src: src/setup/JPFeederForms.cpp (pinForm); src/tasks/JPFeederFeed.cpp (pinFeed); src/model/JPFeeder.cpp (pickLocation, templatePath); src/ui/JPFeedersPanel.cpp (selectOnCamera, confirmTemplate); src/tasks/JPCellJobMachine.cpp (moveActuator, matchTemplate); src/pipeline/JPTemplateFinder.cpp; src/ui/JPSetupForm.cpp (locationButtons) -->
 
 ### Lever feeder
 
@@ -285,7 +287,7 @@ the **Feed Count** with **Reset**. A feed actuates the actuator with the pitch a
 is a drag feeder's (see above), but its **Area of Interest**'s X and Y are from the middle of the camera's
 picture, each kept within 512 pixels, as OpenPnP's; a template not found leaves the pick where it was.
 
-<!-- src: src/setup/JPFeederForms.cpp (neoden4Form, templateVision); src/tasks/JPFeederFeed.cpp (feed); src/tasks/JPFeederActions.cpp (actuate); src/vision/JPTemplateFinder.cpp (placed); src/model/JPFeeder.cpp (pickLocation); src/ui/JPFeedersPanel.cpp (selectOnCamera) -->
+<!-- src: src/setup/JPFeederForms.cpp (neoden4Form, templateVision); src/tasks/JPFeederFeed.cpp (feed); src/tasks/JPFeederActions.cpp (actuate); src/pipeline/JPTemplateFinder.cpp (placed); src/model/JPFeeder.cpp (pickLocation); src/ui/JPFeedersPanel.cpp (selectOnCamera) -->
 
 ### Photon feeder
 

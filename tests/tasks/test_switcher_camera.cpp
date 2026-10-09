@@ -77,12 +77,12 @@ int main() {
     auto last = [&] { std::lock_guard g(lock); return actuated.empty() ? -1.0 : actuated.back(); };
 
     for (int round = 0; round < 3; ++round) {
-        JPGrayImage img;
+        JPFrame img;
         std::string why;
-        assert(JPCameraLook::taken(a, img, why, 0));
+        assert(JPCameraLook::takenFrame(a, img, why, 0));
         assert(img.width == 64 && img.height == 48);
         assert(last() == 1);
-        assert(JPCameraLook::taken(b, img, why, 0));
+        assert(JPCameraLook::takenFrame(b, img, why, 0));
         assert(img.width == 64 && last() == 2);
     }
     // B switched in: A waits, idle, not lost, and does not switch it back.

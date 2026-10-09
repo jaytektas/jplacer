@@ -3,18 +3,17 @@
 
 #pragma once
 
-#include "JPGrayImage.h"
-
 #include <string>
+
+namespace cv { class Mat; }
 
 inline namespace jf {
 
 // Where a template image (a piece of an earlier picture) is in a picture, as
-// OpenPnP's locateTemplateMatches: slid over the area of interest and scored
-// by normalised cross-correlation, so the light's brightness and contrast
-// do not matter; coarse first (both halved while the template is large),
-// then on the full picture near the best, the place found to a fraction of
-// a pixel.
+// OpenPnP's OpenCvVisionProvider.locateTemplateMatches: OpenCV's matchTemplate
+// (TM_CCOEFF) over the area of interest, in colour, the best place taken, to
+// the pixel. As OpenPnP's, nothing is turned away for matching poorly; its
+// score is given for the log.
 class JPTemplateFinder {
 public:
     // The area to look in, in the picture's pixels (none wide or high: all of it).
@@ -28,12 +27,13 @@ public:
     };
     struct Result {
         bool        found = false;
-        double      x = 0, y = 0;   // the template's top left corner, pixels
-        double      score = 0;      // of 1
+        int         x = 0, y = 0;   // the template's top left corner, pixels
+        double      score = 0;      // TM_CCOEFF's best
         std::string why;
     };
 
-    static Result find(const JPGrayImage& image, const JPGrayImage& templ, const Area& area, double minScore = 0.5);
+    // `bgr` and `templ` in colour (BGR).
+    static Result find(const cv::Mat& bgr, const cv::Mat& templ, const Area& area);
 };
 
 } // inline namespace jf

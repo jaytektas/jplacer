@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Drag and Neoden 4 feeders find their template image as OpenPnP does: OpenCV's template matching on the picture in colour (straightened where the camera is calibrated), the best place to the pixel; jplacer's own grey matcher is gone. Like OpenPnP, a poor match is no longer turned away. Camera auto focus and settling now hand on the settled picture itself rather than the next one after it.
+
 - Bottom vision always finds parts with their vision settings' pipeline, as OpenPnP does; Find parts with and jplacer's own part finder are gone. A machine set up in jplacer that used jplacer's finder now uses the bottom vision settings' pipeline, so check it finds your parts (Machine Setup, Bottom Vision Settings, its tests). Each bottom vision look waits for the camera to settle once, not twice.
 
 - Visual homing, Visual Test, nozzle tip calibration and camera calibration find their marks with OpenPnP's pipelines alone, on the colour picture (straightened where the camera is calibrated), as OpenPnP does: jplacer no longer re-measures what a pipeline found, and their pictures shown are in colour. A half-pixel offset between OpenPnP's circle detection and jplacer's calibrations (about 0.02 mm on the bench's top camera, on every circle a pipeline found: fiducials, strip holes, nozzle tips) is gone. The default nozzle tip pipeline finds the tip to an eighth of a pixel.

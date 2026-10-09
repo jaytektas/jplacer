@@ -109,10 +109,9 @@ std::optional<double> JPAutoFocus::run(JPCell& cell, JPCameraFeed& feed, const R
     // The subject's size in pixels, kept within the picture, even.
     JPFrame frame;
     std::string ignored;
-    JPGrayImage settled;
-    if (!JPCameraLook::settled(feed, settled, why)) return std::nullopt;
+    if (!JPCameraLook::settled(feed, frame, why)) return std::nullopt;
     int diameter = int(std::ceil(rq.subjectMaxSizeMm / rq.mmPerPixel));
-    diameter = std::min({ diameter, settled.height - kMarginPx, settled.width - kMarginPx }) & ~1;
+    diameter = std::min({ diameter, frame.height - kMarginPx, frame.width - kMarginPx }) & ~1;
     // Within the Z axis's soft limits, as the tool's Z.
     auto limited = [&](double z) {
         const JPAxisConfig* a = cell.config().axis(rq.tool.axisZ);
@@ -139,7 +138,7 @@ std::optional<double> JPAutoFocus::run(JPCell& cell, JPCameraFeed& feed, const R
         for (int s = 0; s < curveSteps; ++s) {
             const double z = z0 + step * s;
             if (!cell.moveToolStraightAndWait(rq.tool, at(z), speed, why)) return std::nullopt;
-            if (!JPCameraLook::settled(feed, settled, why) || !feed.latest(frame, 0)) {
+            if (!JPCameraLook::settled(feed, frame, why)) {
                 if (why.empty()) why = feed.config().name + " gives no picture";
                 return std::nullopt;
             }

@@ -8,7 +8,6 @@
 #include "machine/JPRunout.h"
 #include "machine/JPScripting.h"
 #include "tasks/JPBackgroundCalibration.h"
-#include "vision/JPGrayImage.h"
 
 #include <opencv2/core.hpp>
 

@@ -10,7 +10,6 @@
 #include "tasks/JPBacklashCalibrator.h"
 #include "tasks/JPRunoutCalibrator.h"
 #include "ui/JPCameraPanel.h"
-#include "vision/JPGrayImage.h"
 
 #include <j/app/JAppWindow.h>
 

@@ -17,6 +17,7 @@
 
 #include "common/JPlacerLog.h"
 #include "camera/JPImageFile.h"
+#include "pipeline/JPStraightPicture.h"
 #include "tasks/JPCameraLook.h"
 #include "tasks/JPTipChanger.h"
 
@@ -535,7 +536,8 @@ bool JPCellJobMachine::matchTemplate(const JPLocation& at, const std::string& te
     ++m_motions;
     JPFrame frame;
     if (!JPImageFile::readPng(templatePath, frame, why)) return false;
-    const JPGrayImage templ = JPGrayImage::fromRgba(frame.rgba.data(), frame.width, frame.height);
+    cv::Mat templ;
+    cv::cvtColor(cv::Mat(frame.height, frame.width, CV_8UC4, frame.rgba.data()), templ, cv::COLOR_RGBA2BGR);
     JPCell* c = cell(why);
     if (!c) return false;
     JPCameraFeed* feed = nullptr;
@@ -549,19 +551,30 @@ bool JPCellJobMachine::matchTemplate(const JPLocation& at, const std::string& te
     if (!JPCameraLook::calibration(*c, *feed, cal, why)) return false;
     const JPLocation m = at.convertToUnits(JPLengthUnit::Millimeters);
     if (!c->moveToolAndWait(feed->config().mount, { m.x(), m.y(), std::nullopt, std::nullopt }, 1.0, why)) return false;
-    JPGrayImage img;
+    // The picture as OpenPnP's camera gives it: settled, in colour, straightened where the camera is calibrated (the
+    // area of interest drawn on it as shown).
+    JPFrame img;
     if (!JPCameraLook::settled(*feed, img, why)) return false;
-    const JPTemplateFinder::Result r = JPTemplateFinder::find(img, templ, area.placed(img.width, img.height));
+    cv::Mat picture;
+    cv::cvtColor(cv::Mat(img.height, img.width, CV_8UC4, img.rgba.data()), picture, cv::COLOR_RGBA2BGR);
+    if (const auto straight = JPStraightPicture::of(cal, feed->config().looksUp, feed->config().showAll)) {
+        cv::Mat flat;
+        if (straight->straighten(picture, flat)) {
+            picture = flat;
+            cal = straight->calibration();
+        }
+    }
+    const JPTemplateFinder::Result r = JPTemplateFinder::find(picture, templ, area.placed(picture.cols, picture.rows));
     if (!r.found) {
         why = r.why;
         return false;
     }
     double fx = 0, fy = 0;
-    if (!cal.machinePoint(r.x + templ.width / 2.0, r.y + templ.height / 2.0, m.x(), m.y(), fx, fy)) {
+    if (!cal.machinePoint(r.x + templ.cols / 2.0, r.y + templ.rows / 2.0, m.x(), m.y(), fx, fy)) {
         why = "the camera's calibration cannot place the match on the machine";
         return false;
     }
-    JLOGC(JPlacerLog::kJob, JLogLevel::Debug) << "template matched at " << fx << ", " << fy << " (score " << r.score << ")";
+    JLOGC(JPlacerLog::kJob, JLogLevel::Debug) << "template matched at " << fx << ", " << fy << " (certainty " << r.score << ")";
     offset = JPLocation(JPLengthUnit::Millimeters, m.x() - fx, m.y() - fy, 0, 0);
     return true;
 }

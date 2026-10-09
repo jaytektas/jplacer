@@ -581,10 +581,9 @@ namespace {
 
 // A settled picture from `feed`, in colour (BGR); false, and why, when there is none.
 bool settledColour(JPCameraFeed& feed, cv::Mat& bgr, std::string& why) {
-    JPGrayImage settled;
-    if (!JPCameraLook::settled(feed, settled, why)) return false;
     JPFrame frame;
-    if (!feed.latest(frame, 0) || frame.width <= 0) {
+    if (!JPCameraLook::settled(feed, frame, why)) return false;
+    if (frame.width <= 0) {
         why = feed.config().name + " gives no picture";
         return false;
     }
@@ -841,7 +840,7 @@ void JPlacerCameraTasks::settleTest(JPCameraPanel& camera, const JPMountConfig* 
             }
         }
         progress("letting it settle");
-        JPGrayImage picture;
+        JPFrame picture;
         if (!JPCameraLook::settled(*feed, picture, words, trace.get())) return false;
         char buf[160];
         if (trace->settledMs >= 0)

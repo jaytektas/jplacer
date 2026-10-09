@@ -21,13 +21,6 @@
 
 inline namespace jf {
 
-bool JPCameraLook::taken(JPCameraFeed& feed, JPGrayImage& out, std::string& why, int afterMs) {
-    JPFrame frame;
-    if (!takenFrame(feed, frame, why, afterMs)) return false;
-    out = JPGrayImage::fromRgba(frame.rgba.data(), frame.width, frame.height);
-    return true;
-}
-
 bool JPCameraLook::takenFrame(JPCameraFeed& feed, JPFrame& frame, std::string& why, int afterMs) {
     // Brought on screen for this, it starts a moment later: waited for.
     for (const auto start = std::chrono::steady_clock::now(); !feed.isRunning();) {
@@ -70,13 +63,6 @@ bool JPCameraLook::takenFrame(JPCameraFeed& feed, JPFrame& frame, std::string& w
     else
         why = feed.config().name + ": no picture taken within " + std::to_string(afterMs + kTimeoutMs) + " ms";
     return false;
-}
-
-bool JPCameraLook::settled(JPCameraFeed& feed, JPGrayImage& out, std::string& why, JPSettleTrace* trace) {
-    JPFrame frame;
-    if (!settled(feed, frame, why, trace)) return false;
-    out = JPGrayImage::fromRgba(frame.rgba.data(), frame.width, frame.height);
-    return true;
 }
 
 bool JPCameraLook::settled(JPCameraFeed& feed, JPFrame& out, std::string& why, JPSettleTrace* trace) {
@@ -201,8 +187,8 @@ bool JPCameraLook::settledNow(JPCameraFeed& feed, JPFrame& out, std::string& why
 }
 
 bool JPCameraLook::calibration(JPCell& cell, JPCameraFeed& feed, JPCameraCalibration& out, std::string& why) {
-    JPGrayImage picture;
-    if (!taken(feed, picture, why, 0)) return false;
+    JPFrame picture;
+    if (!takenFrame(feed, picture, why, 0)) return false;
     out = cell.cameraCalibration(feed.config().id, picture.width, picture.height);
     if (out.valid) return true;
     why = feed.config().name + " is not calibrated for its " + std::to_string(picture.width) + "\xC3\x97"
