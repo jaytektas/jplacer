@@ -120,7 +120,10 @@ A strip of cut tape lying on the machine, its parts picked one after the other a
   the camera calibrated at two heights, that scale says how high the tape is, and the **Reference Hole
   Location**'s Z is set to it: the tape's real height. The pick height is that Z; for a spring-loaded tip to
   press on the part, lower it by hand. Calibrated at one height, the tape's height is not known: the Z is left
-  as it was, and the log says so.
+  as it was, and the log says so. A strip need not be level: with a Max Feed Count, the scale is measured again
+  by the last part ("Measuring the tape's scale by the last part..."), the holes along the strip are found at
+  each look's share between the two, and the difference in height between the ends is the **Z Along Strip**;
+  the log says both heights, and warns when the ends differ by 0.2 mm or more.
 - **Vision**: with **Use Vision?** ticked, each feed has the camera look at the hole it feeds from (and at
   the first hole too when picking starts mid-strip), and the parts are picked where the holes were found
   rather than where the hole locations put them. A hole is looked for within half a hole pitch of where it
@@ -134,12 +137,15 @@ A strip of cut tape lying on the machine, its parts picked one after the other a
   hole finder, described here, does not use it.
 - **Locations**: the **Reference Hole Location**, the hole nearest the first part's centre, in the
   direction the parts continue, with the pick height as its Z; and the **Last Hole Location**, any hole
-  further along.
+  further along. **Z Along Strip** (jplacer's; OpenPnP's strip is level): how much higher the tape is by the
+  Last Hole Location than by the Reference Hole Location, less than 0 for lower; each part is picked its share
+  of that higher or lower for how far along it is, from the Reference Hole Location's Z, so lowering that Z by
+  hand lowers every part's pick alike. 0 to begin with.
 
 The part is picked across the tape from its hole, as EIA-481 tape lays it out: half the tape width less
 0.5 mm across, 2 mm along, then one part pitch further for each part taken.
 
-<!-- src: src/setup/JPFeederForms.cpp (stripForm, act); src/model/JPFeeder.cpp (pickLocation, idealLineLocations, feed, visionExpected, setVisionFound); src/tasks/JPFeederFeed.cpp; src/tasks/JPCellJobMachine.cpp (locateHole, seeCircles); src/tasks/JPFeederPipelines.cpp; src/app/JPlacerStripAutoSetup.cpp (tapeHeight, kScaleMoveMm); src/tasks/JPStripHoleWalk.cpp (scaleAt, atScale); src/machine/JPCameraCalibration.cpp (heightAt); src/tasks/JPStripHoles.cpp; src/vision/JPRansac.cpp -->
+<!-- src: src/setup/JPFeederForms.cpp (stripForm, act); src/model/JPFeeder.cpp (pickLocation, idealLineLocations, z-along-strip, feed, visionExpected, setVisionFound); src/tasks/JPFeederFeed.cpp; src/tasks/JPCellJobMachine.cpp (locateHole, seeCircles); src/tasks/JPFeederPipelines.cpp; src/app/JPlacerStripAutoSetup.cpp (tapeHeight, kScaleMoveMm); src/tasks/JPStripHoleWalk.cpp (scaleAt, atScale, besideHole, walk); src/app/JPlacerStripAutoSetup.cpp (kLevelMm); src/machine/JPCameraCalibration.cpp (heightAt); src/tasks/JPStripHoles.cpp; src/vision/JPRansac.cpp -->
 
 ### Tray feeder
 

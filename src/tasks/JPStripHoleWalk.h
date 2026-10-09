@@ -42,10 +42,14 @@ public:
     // reference. Each look from beside the hole as `firstPart` was from the reference hole, the next hole
     // expected along the line through those found so far, `stepMm` at most past the last (half the camera's
     // view along the tape). `looking(hole, of)` is told before each look.
-    // `pxPerMm`: the tape's scale (0: the camera's calibrated one).
+    // `firstPxPerMm`, `lastPxPerMm`: the tape's scale by the first part and by the last (0: the camera's calibrated
+    // one), each look at its share between them (a strip not level is seen at another scale along it).
     static Walked walk(JPJobMachine& machine, JPPipeline& pipeline, double tapeWidthMm, const JPLocation& firstPart,
-                       const JPLocation& reference, const JPLocation& next, int holesOn, double stepMm, double pxPerMm,
-                       const std::function<void(int hole, int of)>& looking);
+                       const JPLocation& reference, const JPLocation& next, int holesOn, double stepMm, double firstPxPerMm,
+                       double lastPxPerMm, const std::function<void(int hole, int of)>& looking);
+    // Where the camera looks from by the hole `holesOn` hole pitches past `reference` (along the line to `next`), as
+    // `firstPart` is by the reference: to measure the tape's scale by the strip's last part.
+    static JPLocation besideHole(const JPLocation& firstPart, const JPLocation& reference, const JPLocation& next, int holesOn);
 };
 
 } // inline namespace jf

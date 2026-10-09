@@ -42,6 +42,8 @@ constexpr double kHolePitchMm = 4.0, kHalfHoleMm = 2.0;
 // How far the camera moves either way to measure the tape's scale: far enough that half a pixel tells a tenth of
 // a percent over the holes, short of a whole hole pitch both ways (so a hole is told from the next).
 constexpr double kScaleMoveMm = 5.0;
+// A strip whose ends differ by this much is said not to be level (the height from a scale is good to about a tenth).
+constexpr double kLevelMm = 0.2;
 // OpenPnP's showHoles colours (BGR): the lines orange, the best yellow, the holes on it blue, the two nearest green.
 const cv::Scalar kLineColour(0, 200, 255), kBestColour(0, 255, 255), kHoleColour(255, 0, 0), kNearColour(0, 255, 0);
 const cv::Scalar kHoleCentreColour(0, 255, 255), kNearCentreColour(255, 0, 255);
@@ -221,8 +223,24 @@ void JPlacerStripAutoSetup::check(const JPLocation& at) {
         });
         const double partPitchMm = kPartPitchStepMm * double(steps);
         const int holesOn = parts > 1 ? int(std::floor((parts - 1) * partPitchMm / kHolePitchMm)) : 0;
+        // The tape's scale again by the last part: a strip not level is seen at another scale there (and is that
+        // much higher or lower).
+        double lastPxPerMm = 0;
+        if (holesOn > 1) {
+            onMain([&] {
+                if (const auto a = alive.lock(); a && *a)
+                    if (JPCameraView* view = m_view) view->setPrompt("Measuring the tape's scale by the last part...");
+            });
+            const JPLocation beside = JPStripHoleWalk::besideHole(m_firstPart, ref1, ref2, holesOn);
+            if (const auto scale = JPStripHoleWalk::scaleAt(machine, *pipeline, beside, kScaleMoveMm, why)) lastPxPerMm = *scale;
+            else
+                JLOGC(JPlacerLog::kCamera, JLogLevel::Warn)
+                    << "Auto Setup: the tape's scale by the last part was not measured (" << why
+                    << "); the holes along it are found at the first part's, and the strip taken as level";
+        }
+        onMain([&] { m_lastPxPerMm = lastPxPerMm; });
         const JPStripHoleWalk::Walked walked = JPStripHoleWalk::walk(
-            machine, *pipeline, tapeWidthMm, m_firstPart, ref1, ref2, holesOn, stepMm, tapePxPerMm, [&](int hole, int of) {
+            machine, *pipeline, tapeWidthMm, m_firstPart, ref1, ref2, holesOn, stepMm, tapePxPerMm, lastPxPerMm, [&](int hole, int of) {
                 onMain([&] {
                     if (const auto a = alive.lock(); !a || !*a) return;
                     if (JPCameraView* view = m_view)
@@ -258,7 +276,18 @@ void JPlacerStripAutoSetup::check(const JPLocation& at) {
             const JPLocation was1 = f->locationOf("reference-hole-location").convertToUnits(kMm);
             const JPLocation was2 = f->locationOf("last-hole-location").convertToUnits(kMm);
             double z = was1.z();
-            if (const std::optional<double> tape = tapeHeight()) z = *tape;
+            if (const std::optional<double> tape = tapeHeight(m_tapePxPerMm, "by the first part")) {
+                z = *tape;
+                // Not level: how much higher by the last hole, measured where the walk reached it.
+                double rise = 0;
+                if (walked.reached && m_lastPxPerMm > 0)
+                    if (const std::optional<double> far = tapeHeight(m_lastPxPerMm, "by the last part")) rise = *far - z;
+                f->setLengthOf("z-along-strip", JPLength(rise, kMm));
+                if (std::abs(rise) >= kLevelMm)
+                    JLOGC(JPlacerLog::kCamera, JLogLevel::Warn)
+                        << "Auto Setup: the strip is not level: the tape " << std::abs(rise) << " mm " << (rise > 0 ? "higher" : "lower")
+                        << " by the last part than by the first; each part is picked its share of that higher or lower (Z Along Strip)";
+            }
             f->setLocationOf("reference-hole-location", JPLocation(kMm, ref1.x(), ref1.y(), z, 0));
             f->setLocationOf("last-hole-location", JPLocation(kMm, ref2.x(), ref2.y(), was2.z(), 0));
             f->setLengthOf("part-pitch", JPLength(kPartPitchStepMm * double(steps), kMm));
@@ -291,29 +320,29 @@ void JPlacerStripAutoSetup::check(const JPLocation& at) {
     if (!started) cancel();
 }
 
-std::optional<double> JPlacerStripAutoSetup::tapeHeight() const {
+std::optional<double> JPlacerStripAutoSetup::tapeHeight(double tapePxPerMm, const char* where) const {
     JPCameraFeed* feed = m_machine.headCameraFeed();
     const JPCell* cell = m_machine.cell();
-    if (!feed || !cell || m_tapePxPerMm <= 0 || m_calibratedPxPerMm <= 0) return std::nullopt;
+    if (!feed || !cell || tapePxPerMm <= 0 || m_calibratedPxPerMm <= 0) return std::nullopt;
     JPFrame frame;
     feed->latest(frame, 0);
     const JPCameraCalibration cal = cell->cameraCalibration(feed->config().id, frame.width, frame.height);
     // The pipeline's pictures are straightened at a scale of their own: the tape's against it, at the calibration's.
-    const double ratio = m_tapePxPerMm / m_calibratedPxPerMm;
+    const double ratio = tapePxPerMm / m_calibratedPxPerMm;
     char said[160];
     if (!cal.twoHeights()) {
-        std::snprintf(said, sizeof said, "%.3f px/mm, %.2f%% %s the calibration's", m_tapePxPerMm, std::abs(ratio - 1) * 100,
+        std::snprintf(said, sizeof said, "%.3f px/mm, %.2f%% %s the calibration's", tapePxPerMm, std::abs(ratio - 1) * 100,
                       ratio < 1 ? "under" : "over");
         JLOGC(JPlacerLog::kCamera, JLogLevel::Warn)
-            << "Auto Setup: the tape's scale is " << said << "; " << feed->config().name
+            << "Auto Setup: the tape's scale " << where << " is " << said << "; " << feed->config().name
             << " is calibrated at one height, so the tape's height is not known: the Reference Hole Location's Z is left as it was "
                "(calibrate it at two heights for Auto Setup to set it)";
         return std::nullopt;
     }
     const double z = cal.heightAt(cal.scale() * ratio);
-    std::snprintf(said, sizeof said, "%.3f px/mm (%.2f%% %s the calibration's at Z %.2f): the tape at Z %.2f", m_tapePxPerMm,
+    std::snprintf(said, sizeof said, "%.3f px/mm (%.2f%% %s the calibration's at Z %.2f): the tape at Z %.2f", tapePxPerMm,
                   std::abs(ratio - 1) * 100, ratio < 1 ? "under" : "over", cal.z, z);
-    JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << "Auto Setup: the tape's scale is " << said;
+    JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << "Auto Setup: the tape's scale " << where << " is " << said;
     return z;
 }
 

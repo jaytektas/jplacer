@@ -83,9 +83,16 @@ std::optional<double> JPStripHoleWalk::scaleAt(JPJobMachine& machine, JPPipeline
     return pixels / mm;
 }
 
+JPLocation JPStripHoleWalk::besideHole(const JPLocation& firstPart, const JPLocation& reference, const JPLocation& next, int holesOn) {
+    const double dx = next.x() - reference.x(), dy = next.y() - reference.y(), apart = std::hypot(dx, dy);
+    const double holes = std::max(1.0, std::round(apart / kHolePitchMm));
+    const double along = apart > 0 ? double(holesOn) / holes : 0;
+    return JPLocation(kMm, firstPart.x() + dx * along, firstPart.y() + dy * along, 0, 0);
+}
+
 JPStripHoleWalk::Walked JPStripHoleWalk::walk(JPJobMachine& machine, JPPipeline& pipeline, double tapeWidthMm,
                                               const JPLocation& firstPart, const JPLocation& reference, const JPLocation& next,
-                                              int holesOn, double stepMm, double pxPerMm,
+                                              int holesOn, double stepMm, double firstPxPerMm, double lastPxPerMm,
                                               const std::function<void(int, int)>& looking) {
     Walked w;
     w.last = next;
@@ -105,7 +112,7 @@ JPStripHoleWalk::Walked JPStripHoleWalk::walk(JPJobMachine& machine, JPPipeline&
         JPJobMachine::SeenCircles seen;
         std::string why;
         if (!machine.positionCamera(from, why) || !machine.seeCircles(from, pipeline, seen, why)) return w;
-        atScale(seen, pxPerMm);
+        atScale(seen, firstPxPerMm > 0 && lastPxPerMm > 0 ? firstPxPerMm + (lastPxPerMm - firstPxPerMm) * to / holesOn : firstPxPerMm);
         const std::vector<JPLocation> holes = holesOf(seen, tapeWidthMm);
         const auto nearest = std::min_element(holes.begin(), holes.end(), [&](const JPLocation& a, const JPLocation& b) {
             return std::hypot(a.x() - expected.x(), a.y() - expected.y()) < std::hypot(b.x() - expected.x(), b.y() - expected.y());

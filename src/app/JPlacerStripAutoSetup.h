@@ -46,8 +46,8 @@ private:
     void picked(double px, double py);
     void check(const JPLocation& at);
     void fail(const std::string& why);
-    // The tape's height, from its scale (said in the log either way): the camera calibrated at two heights.
-    std::optional<double> tapeHeight() const;
+    // The tape's height `where`, from its scale there (said in the log either way): the camera calibrated at two heights.
+    std::optional<double> tapeHeight(double tapePxPerMm, const char* where) const;
     void startPreview();
     void stopPreview();
 
@@ -60,7 +60,8 @@ private:
     JPCameraView*                m_view = nullptr;   // the head camera's, while it runs
     JPLocation                   m_firstPart { JPLengthUnit::Millimeters }, m_secondPart { JPLengthUnit::Millimeters };
     std::vector<JPLocation>      m_firstHoles;
-    double                       m_tapePxPerMm = 0, m_calibratedPxPerMm = 0;   // the tape's scale; the pictures' calibrated one
+    // The tape's scale by the first part and by the last; the pictures' calibrated one.
+    double                       m_tapePxPerMm = 0, m_lastPxPerMm = 0, m_calibratedPxPerMm = 0;
     // The live picture of the holes: a worker looking while a click is awaited.
     std::shared_ptr<const JPPipeline> m_previewPipeline;
     std::thread                  m_preview;

@@ -337,6 +337,18 @@ std::optional<JPLocation> JPFeeder::pickLocation() const {
         double angle = b.angleTo(a) - 90;
         const double r = angle * M_PI / 180;
         l = l.add(JPLocation(l.units(), x * std::cos(r) - y * std::sin(r), x * std::sin(r) + y * std::cos(r), 0, 0));
+        // A strip not level: picked higher or lower by its share of how far along it is from the reference hole to
+        // the last (jplacer's Z Along Strip; OpenPnP's strip is level, at the reference hole's Z).
+        if (const double rise = lengthOf("z-along-strip", JPLength(0, JPLengthUnit::Millimeters)).convertToUnits(l.units()).value();
+            rise != 0) {
+            const JPLocation ref = locationOf("reference-hole-location").convertToUnits(l.units());
+            const JPLocation last = locationOf("last-hole-location").convertToUnits(l.units());
+            const double lx = last.x() - ref.x(), ly = last.y() - ref.y(), len2 = lx * lx + ly * ly;
+            if (len2 > 0) {
+                const double share = ((l.x() - ref.x()) * lx + (l.y() - ref.y()) * ly) / len2;
+                l = l.derive(std::nullopt, std::nullopt, l.z() + rise * share, std::nullopt);
+            }
+        }
         if (flag("standard-eia-481", true)) angle += 90;
         return l.derive(std::nullopt, std::nullopt, std::nullopt, angle + location().rotation());
     }
