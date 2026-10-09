@@ -96,6 +96,29 @@ int main() {
         std::string error;
         assert(c.load(problems, error) && problems.empty() && c.parts().size() == 2);
     }
+    // OpenPnP's packages.xml gives its packages vision settings the library's have none of (a board's import made
+    // them first): taken; one the library set itself is kept; and its parts' alike.
+    {
+        JPConfiguration c(dir.string());
+        std::vector<std::string> problems;
+        std::string error;
+        assert(c.load(problems, error));
+        c.part("R0603-10k")->fiducialVisionId = "FVS_Mine";
+        assert(c.save(error));
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    write(dir / "packages.xml", "<openpnp-packages><package id=\"C0603\" fiducial-vision-id=\"FVS_Fid\" bottom-vision-id=\"BVS_C\"/>"
+                                "</openpnp-packages>\n");
+    write(dir / "parts.xml", "<openpnp-parts><part id=\"C0603-100n\" package-id=\"C0805\" bottom-vision-id=\"BVS_P\"/>"
+                             "<part id=\"R0603-10k\" package-id=\"C0603\" fiducial-vision-id=\"FVS_Theirs\"/></openpnp-parts>\n");
+    {
+        JPConfiguration c(dir.string());
+        std::vector<std::string> problems;
+        std::string error;
+        assert(c.load(problems, error) && problems.size() == 1 && problems[0].find("3 vision settings link") == 0);
+        assert(c.package("C0603")->fiducialVisionId == "FVS_Fid" && c.package("C0603")->bottomVisionId == "BVS_C");
+        assert(c.part("C0603-100n")->bottomVisionId == "BVS_P" && c.part("R0603-10k")->fiducialVisionId == "FVS_Mine");
+    }
     // A library of a newer jplacer.
     {
         JPLibraryStore s;

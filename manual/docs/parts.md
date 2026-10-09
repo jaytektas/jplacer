@@ -8,7 +8,10 @@ The library is kept in `library.db` in jplacer's configuration folder: its parts
 an ID that stays with it whatever it is named, and what boards' files call it. It is made from OpenPnP's
 `parts.xml` and `packages.xml` the first time jplacer starts without one (those files are left as they
 are). OpenPnP's files copied into the folder later are looked at again: their parts and packages the
-library does not have are added to it (the start says how many); those it has are not changed.
+library does not have are added to it (the start says how many); those it has are not changed, but for
+vision settings: a part or package the library has with no bottom or fiducial vision settings of its own takes
+OpenPnP's (a board's import may have made it first, without them, and its fiducials were then found by the
+machine's default settings); one it has is never replaced. A library made before this takes them once.
 
 <!-- src: src/ui/JPPartsPanel.cpp; src/app/JPlacerOpenPnpTabs.cpp; src/model/JPConfiguration.cpp (load, save, openPnpStamp); src/model/JPLibraryStore.cpp -->
 

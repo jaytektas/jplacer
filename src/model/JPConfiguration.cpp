@@ -31,6 +31,9 @@ namespace fs = std::filesystem;
 
 namespace {
 
+// The library's vision links taken from OpenPnP's files (a library without it has them taken once).
+constexpr const char* kVisionLinks = "1";
+
 std::string upper(const std::string& s) {
     std::string out;
     for (const char c : s) out += char(std::toupper(static_cast<unsigned char>(c)));
@@ -131,23 +134,47 @@ bool JPConfiguration::load(std::vector<std::string>& problems, std::string& erro
         migrated = !in.packageNames.empty();
     }
     const std::string stamp = openPnpStamp();
-    if (!hadLibrary || migrated || stamp != m_library.meta("openpnpFiles")) {
-        int added = 0;
-        for (const JPXmlElement& e : packages.children)
-            if (e.name == "package" && !libraryPackage(e.attr("id"))) {
-                addPackage(std::make_shared<JPPackage>(JPPackage::fromXml(e)));
-                ++added;
+    // Once for a library made before its vision links were taken from OpenPnP's files (kVisionLinks).
+    const bool linksOwed = m_library.meta("visionLinks") != kVisionLinks;
+    if (!hadLibrary || migrated || stamp != m_library.meta("openpnpFiles") || linksOwed) {
+        int added = 0, linked = 0;
+        // A package or part the library has with no vision settings of its own takes OpenPnP's (its own never
+        // replaced): a package made by a board's import before OpenPnP's files were read had none, and its
+        // fiducials were found by the machine's default settings, not their own.
+        auto link = [&linked](std::string& own, const std::string& openpnp) {
+            if (!own.empty() || openpnp.empty()) return;
+            own = openpnp;
+            ++linked;
+        };
+        for (const JPXmlElement& e : packages.children) {
+            if (e.name != "package") continue;
+            if (JPPackage* k = libraryPackage(e.attr("id"))) {
+                link(k->bottomVisionId, e.attr("bottom-vision-id"));
+                link(k->fiducialVisionId, e.attr("fiducial-vision-id"));
+                continue;
             }
-        for (const JPXmlElement& e : parts.children)
-            if (e.name == "part" && !libraryPart(e.attr("id"))) {
-                addPart(std::make_shared<JPPart>(JPPart::fromXml(e)));
-                ++added;
+            addPackage(std::make_shared<JPPackage>(JPPackage::fromXml(e)));
+            ++added;
+        }
+        for (const JPXmlElement& e : parts.children) {
+            if (e.name != "part") continue;
+            if (JPPart* p = libraryPart(e.attr("id"))) {
+                link(p->bottomVisionId, e.attr("bottom-vision-id"));
+                link(p->fiducialVisionId, e.attr("fiducial-vision-id"));
+                continue;
             }
+            addPart(std::make_shared<JPPart>(JPPart::fromXml(e)));
+            ++added;
+        }
+        if (hadLibrary && linked > 0)
+            problems.push_back(std::to_string(linked) + " vision settings link(s) of OpenPnP's parts.xml and packages.xml were given "
+                               "to the library's parts and packages that had none");
         if (hadLibrary && added > 0)
             problems.push_back(std::to_string(added) + " part(s) and package(s) of OpenPnP's parts.xml and packages.xml "
                                "the library did not have were added to it");
         std::string why;
-        if (!m_library.save(contents(), why) || !m_library.setMeta("openpnpFiles", stamp)) {
+        if (!m_library.save(contents(), why) || !m_library.setMeta("openpnpFiles", stamp)
+            || !m_library.setMeta("visionLinks", kVisionLinks)) {
             error = why;
             return false;
         }

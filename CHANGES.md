@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Parts and packages in the library with no vision settings of their own take OpenPnP's from its parts.xml and packages.xml (never replacing ones set in jplacer). A package a board's import had made first had lost them: on the bench, the board's fiducials were found with the machine's default settings instead of their own, so their own Max. Distance and tuning never applied.
+
 - Fiducials are always found by their vision settings' pipeline, as OpenPnP finds them; Find fiducials with and jplacer's own fiducial finder are gone. On the bench's board, with the board's own fiducial settings, the pipeline found all six fiducials 60 times out of 60, within a few hundredths of a millimetre each time; jplacer's finder found 14 of 60. jplacer's finder had also ignored the Max. Distance slider and searched a fixed 4 mm, reaching nearby pads.
 
 - Strip Auto Setup on a strip running past the camera's reach (a soft limit) follows its holes as far as the camera can go and measures the far scale there, and the log says so, where it stopped short and blamed the holes.
