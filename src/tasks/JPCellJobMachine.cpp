@@ -841,6 +841,7 @@ bool JPCellJobMachine::cameraSight(Sight& sight, std::string& why) {
 }
 
 bool JPCellJobMachine::lookAt(double x, double y, double z, cv::Mat& bgr, JPCameraCalibration& cal, std::string& why) {
+    useHeadTune("", std::nullopt, false);   // not a feeder's look: the camera's own settings
     ++m_motions;
     JPPipeline capture;
     JPCameraFeed* feed = nullptr;
