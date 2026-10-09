@@ -10,10 +10,10 @@ notes.
 
 ## Unreleased
 
+## 0.1.33
+
 - Strip feeders have a Z Along Strip: how much higher the tape is by the Last Hole than by the Reference Hole. Each part is picked its share of that higher or lower; 0 (level, as OpenPnP) to begin with. Auto Setup measures the tape's scale by the last part too, finds the holes along the strip at each place's own scale, and with a camera calibrated at two heights sets Z Along Strip and warns when the strip's ends differ by 0.2 mm or more.
-
 - Strip feeder Auto Setup measures the tape's own scale by moving the camera over it, and finds the holes at it: a camera calibrated at its rig's height sees the lower tape smaller, and put holes off the middle of the picture a few hundredths out. With the camera calibrated at two heights, it also sets the Reference Hole Location's Z to the tape's real height (lower it by hand for a spring-loaded tip to press); it no longer asks for the Z first.
-
 - A head camera is calibrated over the head's calibration rig's primary mark, at that mark's height, as OpenPnP does. It was calibrated over the homing mark and took the homing mark's Z (often 0, as it is not used) as the calibration's height, so a camera calibrated at two heights had the wrong distance between them. Calibrate the head camera again.
 
 ## 0.1.32
