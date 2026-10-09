@@ -49,11 +49,16 @@ std::optional<double> JPStripHoleWalk::scaleAt(JPJobMachine& machine, JPPipeline
     double pixels = 0, mm = 0;
     int pairs = 0;
     for (const bool alongX : { true, false }) {
+        // Either side of `at`; by a soft limit (a strip's end near the machine's edge), twice as far to the other side.
+        auto place = [&](double d) { return JPLocation(kMm, at.x() + (alongX ? d : 0), at.y() + (alongX ? 0 : d), 0, 0); };
+        double from = -moveMm, to = moveMm;
+        if (!machine.cameraReaches(place(from))) from = 0, to = 2 * moveMm;
+        else if (!machine.cameraReaches(place(to))) from = -2 * moveMm, to = 0;
+        if (!machine.cameraReaches(place(from)) || !machine.cameraReaches(place(to))) continue;
         JPJobMachine::SeenCircles seen[2];
         for (int side = 0; side < 2; ++side) {
-            const double d = side ? moveMm : -moveMm;
-            const JPLocation from(kMm, at.x() + (alongX ? d : 0), at.y() + (alongX ? 0 : d), 0, 0);
-            if (!machine.positionCamera(from, why) || !machine.seeCircles(from, pipeline, seen[side], why)) return std::nullopt;
+            const JPLocation l = place(side ? to : from);
+            if (!machine.positionCamera(l, why) || !machine.seeCircles(l, pipeline, seen[side], why)) return std::nullopt;
         }
         // Each mark in both pictures: the one in the second nearest where the first puts it on the machine (the same
         // hole: the scale off by a hundredth moves it a fraction of a millimetre, the next hole is a pitch away).
@@ -72,7 +77,7 @@ std::optional<double> JPStripHoleWalk::scaleAt(JPJobMachine& machine, JPPipeline
             }
             if (!match) continue;
             pixels += std::hypot(match->x - a.x, match->y - a.y);
-            mm += 2 * moveMm;
+            mm += to - from;
             ++pairs;
         }
     }

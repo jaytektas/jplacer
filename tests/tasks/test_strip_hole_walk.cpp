@@ -50,6 +50,8 @@ class TapeCamera : public FakeJobMachine {
 public:
     explicit TapeCamera(const Strip& s, bool level = true) : m_strip(s), m_level(level) {}
     int looks = 0;
+    double leastY = -1e9;   // a soft limit: the camera goes no lower in Y
+    bool cameraReaches(const L& at) const override { return at.y() >= leastY; }
     // The scale the tape is seen at under the camera: level, the first part's; else its share towards the last's.
     double tapeScale() const {
         if (m_level) return kTapePxPerMm;
@@ -181,6 +183,11 @@ int main() {
         assert(last && std::abs(*last / kLastTapePxPerMm - 1) < 0.002);
         const auto w = JPStripHoleWalk::walk(tilted, pipeline, 8, kStrip.part(0), reference, next, 9, kStepMm, *first, *last, nullptr);
         assert(w.reached && w.holes == 9 && apart(w.last, kStrip.hole(9)) < 0.03);
+        // The strip's end by a soft limit (as on the bench, 2.6 mm from Y 0): measured twice as far the other way.
+        tilted.leastY = beside.y() - 2.6;
+        tilted.looks = 0;
+        const auto nearLimit = JPStripHoleWalk::scaleAt(tilted, pipeline, beside, 5, why);
+        assert(nearLimit && tilted.looks == 4 && std::abs(*nearLimit / kLastTapePxPerMm - 1) < 0.003);
     }
 
     // A camera calibrated at two heights (Z -23.2 and -12.1, 113 mm above the first): the height a scale is seen

@@ -26,8 +26,8 @@ public:
     static std::vector<JPLocation> holesOf(const JPJobMachine::SeenCircles& seen, double tapeWidthMm);
 
     // The tape's own scale (pixels a mm in the pipeline's pictures), the camera calibrated at another height: the
-    // camera moved `moveMm` either way of `at` along X, then along Y, the holes' moves in the pictures against
-    // the machine's. Nothing (and why) when too few holes were seen in both pictures of a move.
+    // camera moved `moveMm` either way of `at` along X, then along Y (twice as far one way where the other is past
+    // a soft limit), the holes' moves in the pictures against the machine's. Nothing (and why) when too few holes were seen in both pictures of a move.
     static std::optional<double> scaleAt(JPJobMachine& machine, JPPipeline& pipeline, const JPLocation& at, double moveMm,
                                          std::string& why);
     // `seen` at the scale `pxPerMm` (from scaleAt): its pixels' places on the machine, and its scale.

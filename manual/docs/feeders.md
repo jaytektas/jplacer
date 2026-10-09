@@ -115,8 +115,8 @@ A strip of cut tape lying on the machine, its parts picked one after the other a
   The camera is calibrated at its rig's height, and the tape is seldom there: lower, it looks smaller, and a
   hole seen off the middle of the picture is off by that much of how far (1.2% of 6 mm is 0.07 mm), elsewhere
   from each place the camera looks from. So after the first click ("Measuring the tape's scale...") the camera
-  moves 5 mm either way along X, then along Y, and how far the holes move in the pictures against the machine's
-  moves is the tape's own scale; every hole is found at it. The log gives it against the calibration's. With
+  moves 5 mm either way along X, then along Y (by a soft limit, 10 mm the other way), and how far the holes move
+  in the pictures against the machine's moves is the tape's own scale; every hole is found at it. The log gives it against the calibration's. With
   the camera calibrated at two heights, that scale says how high the tape is, and the **Reference Hole
   Location**'s Z is set to it: the tape's real height. The pick height is that Z; for a spring-loaded tip to
   press on the part, lower it by hand. Calibrated at one height, the tape's height is not known: the Z is left
