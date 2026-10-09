@@ -434,7 +434,8 @@ private:
     bool httpRead(const JPActuatorConfig& a, std::string& value, std::string& why);
     std::string word(const JPAxisConfig& a, double value, const JPGcodeDriver& d) const;
     double fromDriver(const JPAxisConfig& a, double value, const std::string& driverId);
-    // OpenPnP's Unsafe Z Roaming, for a jog of a tool: its Z to safe Z with the move when too far from where it was left low.
+    // OpenPnP's Unsafe Z Roaming, for a jog of a tool on a virtual Z (a camera's): its Z to safe Z with the move when
+    // too far from where it was left low. A tool on a real Z axis is left where it is, as OpenPnP leaves it.
     void roamUnsafeZ(const std::string& toolId, const JPMountConfig& mount, const std::map<std::string, double>& now,
                      std::map<std::string, double>& targets);
     bool doHome(std::string& why);

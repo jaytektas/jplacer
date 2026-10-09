@@ -177,9 +177,17 @@ int main() {
         cell.disconnect();
     }
     {
-        // Unsafe Z Roaming: a nozzle left 5 mm below its safe zone stays there
-        // jogged 5 mm, and goes up with the jog that takes it past 10 mm away.
-        JPCell cell(cellConfig(true), profiles());
+        // Unsafe Z Roaming, as OpenPnP's: a camera on a virtual Z left 5 mm below it stays there jogged 5 mm, and
+        // goes up with the jog that takes it past 10 mm away; a nozzle on a real Z is jogged where it is, however far.
+        JPCellConfig config = cellConfig(true);
+        JPAxisConfig zc;
+        zc.id = "ZC";
+        zc.name = "zc";
+        zc.kind = JPAxisConfig::Kind::Virtual;
+        zc.type = JPAxisConfig::Type::Z;
+        config.axes.push_back(zc);
+        config.cameras[0].mount.axisZ = "ZC";
+        JPCell cell(config, profiles());
         Latch connected, motion;
         cell.onConnection.connect([&](bool ok, std::string w) { connected.set(ok, w); });
         cell.onMotion.connect([&](bool ok, std::string w) { motion.set(ok, w); });
@@ -188,12 +196,14 @@ int main() {
         cell.home();
         assert(motion.take().first);
         std::string why;
-        assert(cell.moveAxesAndWait({ { "X", 200 }, { "Y", 100 }, { "ZN", -5 } }, 1.0, why));
+        assert(cell.moveAxesAndWait({ { "X", 200 }, { "Y", 100 }, { "ZN", -5 }, { "ZC", -5 } }, 1.0, why));
         motion.take();
-        cell.jog("N", 5, 0, 0, 0, 1.0);
-        assert(motion.take().first && near(cell.jogBase().at("ZN"), -5));
-        cell.jog("N", 6, 0, 0, 0, 1.0);
-        assert(motion.take().first && near(cell.jogBase().at("ZN"), 0) && near(cell.jogBase().at("X"), 211));
+        cell.jog("C", 5, 0, 0, 0, 1.0);
+        assert(motion.take().first && near(cell.jogBase().at("ZC"), -5));
+        cell.jog("C", 6, 0, 0, 0, 1.0);
+        assert(motion.take().first && near(cell.jogBase().at("ZC"), 0) && near(cell.jogBase().at("X"), 211));
+        cell.jog("N", 11, 0, 0, 0, 1.0);
+        assert(motion.take().first && near(cell.jogBase().at("ZN"), -5) && near(cell.jogBase().at("X"), 222));
         cell.disconnect();
     }
     {

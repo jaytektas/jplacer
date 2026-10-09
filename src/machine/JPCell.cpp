@@ -1968,11 +1968,13 @@ void JPCell::roamUnsafeZ(const std::string& toolId, const JPMountConfig& mount, 
     const JPAxisConfig* z = m_config.axis(mount.axisZ);
     const auto zNow = now.find(mount.axisZ);
     if (!z || zNow == now.end()) return;
-    // Its safe Z: a virtual axis's is its home; any other's, its safe zone.
-    const bool isVirtual = z->kind == JPAxisConfig::Kind::Virtual;
+    // As OpenPnP's MachineControlsPanel: only a tool on a virtual Z axis (a camera's) is taken up; one on a real Z
+    // (a nozzle's) is jogged where it is, however far.
+    if (z->kind != JPAxisConfig::Kind::Virtual) return;
+    // Its safe Z: the virtual axis's home.
     const auto zAt = targets.count(mount.axisZ) ? targets.at(mount.axisZ) : zNow->second;
     constexpr double kSame = 1e-3;   // coordinates this close are the same place
-    const bool unsafe = isVirtual ? zAt < z->homeCoordinate - kSame : !inSafeZone(mount.axisZ, zAt);
+    const bool unsafe = zAt < z->homeCoordinate - kSame;
     auto xy = [&](const std::map<std::string, double>& at) {
         const auto x = at.find(mount.axisX), y = at.find(mount.axisY);
         return std::pair { x == at.end() ? 0.0 : x->second, y == at.end() ? 0.0 : y->second };
@@ -1993,15 +1995,7 @@ void JPCell::roamUnsafeZ(const std::string& toolId, const JPMountConfig& mount, 
     const auto [x1, y1] = xy(after);
     if (std::hypot(x1 - x0, y1 - y0) <= m_config.unsafeZRoamingMm) return;
     // Too far: up to safe Z with this move.
-    if (isVirtual) {
-        targets[mount.axisZ] = z->homeCoordinate;
-    } else {
-        const JPAxisConfig* raw = z->transformed() ? m_config.axis(z->inputAxisId) : z;
-        if (raw && raw->safeZoneLowEnabled) {
-            const auto out = z->transformed() ? z->mapped(raw->safeZoneLow) : std::optional<double>(raw->safeZoneLow);
-            if (out) targets[mount.axisZ] = *out;
-        }
-    }
+    targets[mount.axisZ] = z->homeCoordinate;
     JLOGC(JPlacerLog::kCell, JLogLevel::Info) << "jogged further than " << m_config.unsafeZRoamingMm
                                               << " mm at unsafe Z: up to safe Z";
     m_roamFrom.erase(toolId);
