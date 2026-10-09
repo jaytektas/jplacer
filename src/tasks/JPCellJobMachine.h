@@ -116,6 +116,10 @@ public:
         m_fiducialTune.reset();
     }
     void startFiducialCheck() override { m_fiducialTune.reset(); }
+    void useHeadTune(const std::string& key, const std::optional<JJson>& controls) override {
+        m_headKey = controls ? key : std::string();
+        m_headTune = controls;
+    }
 
 private:
     // Auto-Tune for each part?: tuned on the first of each part, its values put back for those after.
@@ -123,6 +127,12 @@ private:
     // A fiducial check's tune: made on its first fiducial, put back for the rest (startFiducialCheck).
     bool tuneForFiducials(JPCameraFeed& feed, std::string& why);
     std::optional<JJson> m_fiducialTune;
+    // The head camera at the tune its looks are to have (useHeadTune), unless it has it already: each tune
+    // stays with its own looks, none carried over into another's.
+    void tuneHead(JPCameraFeed& feed);
+    std::string          m_headKey;              // the tune wanted: a feeder's, or "" (the camera's own settings)
+    std::optional<JJson> m_headTune;
+    std::optional<std::string> m_headApplied;    // the tune the camera has now ("fiducials", a feeder's, ""); none: not known
     std::map<std::string, JJson> m_partTunes;   // by part id, for the run
     // The cell's settings as they are now, and its head (the camera's).
     JPCellConfig config() const;
@@ -135,7 +145,7 @@ private:
     // The head camera over (viewX, viewY), `pipeline` given its pictures,
     // scale and places there; its calibration and feed.
     bool headCameraPipeline(double viewX, double viewY, JPPipeline& pipeline, JPCameraCalibration& cal, JPCameraFeed*& feed,
-                            std::string& why);
+                            std::string& why, bool forFiducial = false);
     // The pipeline's working picture on a camera's view for `ms`, `text` over it.
     void showWorking(JPPipeline& pipeline, const JPCameraFeed* feed, const std::string& text, int ms);
     // The fiducial found from (viewX, viewY) by its OpenPnP pipeline, nearest (x, y) of its results.

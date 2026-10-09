@@ -87,10 +87,13 @@ A strip of cut tape lying on the machine, its parts picked one after the other a
 - **Tape Settings**: **Part Pitch** (from one part to the next) and **Tape Width**, in mm; **Feed
   Count**, the parts taken so far (**Reset** sets it to 0); **Max Feed Count**, the parts on the strip
   (0: no limit), which **Auto Set MaxFeedCount** works out from the hole locations and the part pitch.
-  **Auto-Tune on Auto Setup?** (jplacer's; off to begin with): Auto Setup first tunes the head camera, its
-  Auto-Tune, over the first part ("Auto-Tune over the tape..."), for the tape's own brightness (clear tape over a
-  light feeder, say); the camera keeps the values, as its Auto-Tune does, so they are what later looks use too.
-  Not tuned, Auto Setup stops with an **Auto Setup Failure** saying why.
+  **Auto-Tune on Auto Setup?** (jplacer's; on to begin with): Auto Setup first tunes the head camera (Defaults,
+  then Auto-Tune) over the first part ("Auto-Tune over the tape..."), for the tape's own brightness: clear tape over
+  a light feeder, white paper beside stainless steel. The feeder keeps that tune for its own looks, Auto Setup's
+  and its vision feeds'; the camera's own settings are not changed. Each look of the head camera is at the tune
+  meant for it, put back when another look had it otherwise: a feeder's at its own, a fiducial check's at the
+  check's, any other at the camera's own settings, so no tune carries over into another look. Not tuned, Auto
+  Setup stops with an **Auto Setup Failure** saying why.
   **Auto Setup** sets the strip up from two clicks on the camera's view, as OpenPnP's does. The head
   camera's view asks "Click on the center of the first part in the tape."; the camera moves there and the strip's pipeline finds the round marks around it. Among them it takes the
   sprocket holes: a line of marks 4 mm apart, a quarter of the tape width to half the tape width plus
@@ -152,7 +155,7 @@ A strip of cut tape lying on the machine, its parts picked one after the other a
 The part is picked across the tape from its hole, as EIA-481 tape lays it out: half the tape width less
 0.5 mm across, 2 mm along, then one part pitch further for each part taken.
 
-<!-- src: src/setup/JPFeederForms.cpp (stripForm, act); src/app/JPlacerCameraTasks.cpp (autoTuneNow); src/app/JPlacerMachine.cpp (autoTuneHeadCamera); src/model/JPFeeder.cpp (pickLocation, idealLineLocations, z-along-strip-percent, feed, visionExpected, setVisionFound); src/tasks/JPFeederFeed.cpp; src/tasks/JPCellJobMachine.cpp (locateHole, seeCircles); src/tasks/JPFeederPipelines.cpp; src/app/JPlacerStripAutoSetup.cpp (tapeHeight, kScaleMoveMm); src/tasks/JPStripHoleWalk.cpp (scaleAt, atScale, besideHole, walk); src/app/JPlacerStripAutoSetup.cpp (kLevelMm); src/machine/JPCameraCalibration.cpp (heightAt); src/tasks/JPStripHoles.cpp (find); src/pipeline/JPDefaultPipelines.cpp (stripFeeder); src/vision/JPRansac.cpp -->
+<!-- src: src/setup/JPFeederForms.cpp (stripForm, act); src/app/JPlacerCameraTasks.cpp (tuneFor); src/app/JPlacerMachine.cpp (tuneHeadCamera); src/tasks/JPCellJobMachine.cpp (tuneHead, useHeadTune); src/tasks/JPFeederFeed.cpp (feed); src/model/JPFeeder.cpp (pickLocation, idealLineLocations, z-along-strip-percent, feed, visionExpected, setVisionFound); src/tasks/JPFeederFeed.cpp; src/tasks/JPCellJobMachine.cpp (locateHole, seeCircles); src/tasks/JPFeederPipelines.cpp; src/app/JPlacerStripAutoSetup.cpp (tapeHeight, kScaleMoveMm); src/tasks/JPStripHoleWalk.cpp (scaleAt, atScale, besideHole, walk); src/app/JPlacerStripAutoSetup.cpp (kLevelMm); src/machine/JPCameraCalibration.cpp (heightAt); src/tasks/JPStripHoles.cpp (find); src/pipeline/JPDefaultPipelines.cpp (stripFeeder); src/vision/JPRansac.cpp -->
 
 ### Tray feeder
 

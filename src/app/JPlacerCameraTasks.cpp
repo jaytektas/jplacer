@@ -1025,26 +1025,24 @@ bool JPlacerCameraTasks::autoTuneAt(JPCameraFeed& feed, const JPMachineLocation&
     return autoTuneHere(feed, why);
 }
 
-bool JPlacerCameraTasks::autoTuneNow(JPCameraFeed& feed, std::string& why) {
-    if (!autoTuneHere(feed, why)) return false;
-    tunedHere(feed);
-    return true;
-}
-
-bool JPlacerCameraTasks::autoTuneHere(JPCameraFeed& feed, std::string& why) {
+std::optional<JJson> JPlacerCameraTasks::tuneFor(JPCameraFeed& feed, std::string& why) {
     // Told on the capture thread; shared, so a late answer has somewhere to go.
     auto told = std::make_shared<std::promise<std::optional<JJson>>>();
     std::future<std::optional<JJson>> tuned = told->get_future();
     feed.autoTune(JPCameraFeed::kAutoTuneMs, [told](std::optional<JJson> t) { told->set_value(std::move(t)); });
     if (tuned.wait_for(std::chrono::milliseconds(kTuneWaitMs)) != std::future_status::ready) {
         why = feed.config().name + " was not tuned within " + std::to_string(kTuneWaitMs / 1000) + " s";
-        return false;
+        return std::nullopt;
     }
-    const std::optional<JJson> controls = tuned.get();
-    if (!controls) {
+    std::optional<JJson> controls = tuned.get();
+    if (!controls)
         why = feed.config().name + " was not tuned (it has no properties of its own, it stopped, or the values found did not give the picture it gave by itself: see the log)";
-        return false;
-    }
+    return controls;
+}
+
+bool JPlacerCameraTasks::autoTuneHere(JPCameraFeed& feed, std::string& why) {
+    const std::optional<JJson> controls = tuneFor(feed, why);
+    if (!controls) return false;
     // Kept in the cell and saved, as a calibration is, on the main thread.
     std::weak_ptr<bool> alive = m_alive;
     JMainThreadDispatcher::instance().post([this, alive, id = feed.config().id, c = *controls] {

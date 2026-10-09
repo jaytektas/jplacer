@@ -174,16 +174,27 @@ void JPlacerStripAutoSetup::check(const JPLocation& at) {
         };
         std::string why;
         if (!machine.positionCamera(at, why)) return failed(why);
-        // Tuned over the first part first, the feeder says, for the tape's own brightness.
+        // Tuned over the first part first, the feeder says, for the tape's own brightness: kept as the feeder's
+        // own tune (for its looks only: Auto Setup's and its vision feeds'), not the camera's settings. Else its
+        // tune as it was (none: the camera's own settings).
         bool tune = false;
-        if (first)
+        std::optional<JJson> controls;
+        onMain([&] {
+            const JPFeeder* f = m_job.configuration().feeder(m_feederId);
+            tune = first && f && f->flag("auto-tune-on-auto-setup", true);
+            if (f && !f->text("camera-tune").empty())
+                if (const JJson j = JJson::parse(f->text("camera-tune")); j.isObject()) controls = j;
+            if (const auto a = alive.lock(); tune && a && *a)
+                if (JPCameraView* view = m_view) view->setPrompt("Auto-Tune over the tape...");
+        });
+        if (tune) {
+            controls = m_machine.tuneHeadCamera(why);
+            if (!controls) return failed("Auto-Tune: " + why);
             onMain([&] {
-                const JPFeeder* f = m_job.configuration().feeder(m_feederId);
-                tune = f && f->flag("auto-tune-on-auto-setup", false);
-                if (const auto a = alive.lock(); tune && a && *a)
-                    if (JPCameraView* view = m_view) view->setPrompt("Auto-Tune over the tape...");
+                if (JPFeeder* f = m_job.configuration().feeder(m_feederId)) f->setText("camera-tune", controls->dump());
             });
-        if (tune && !m_machine.autoTuneHeadCamera(why)) return failed("Auto-Tune: " + why);
+        }
+        machine.useHeadTune(m_feederId, controls);
         JPJobMachine::SeenCircles seen;
         if (!machine.seeCircles(at, *pipeline, seen, why)) return failed(why);
         // The tape's own scale, measured here once: the camera is calibrated at another height (its rig's), and

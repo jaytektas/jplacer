@@ -150,9 +150,9 @@ public:
     // for it to outlive them while what called into it (a task's end) returns.
     void letGo();
 
-    // On a worker: `feed` tuned (Auto-Tune) where it looks now, the values kept, as its Auto-Tune does; false with
-    // `why` when it could not be.
-    bool autoTuneNow(JPCameraFeed& feed, std::string& why);
+    // On a worker: `feed` tuned (Defaults, then Auto-Tune) where it looks now, for a use of its own (a feeder's):
+    // what it arrived at, not kept as the camera's settings; none (and why) when it could not be.
+    std::optional<JJson> tuneFor(JPCameraFeed& feed, std::string& why);
 
 private:
     // Runs `task` on the worker with `camera` shown and running; its answer

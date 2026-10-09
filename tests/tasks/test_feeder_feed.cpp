@@ -37,6 +37,13 @@ public:
     double shiftX = 0.3;
     bool   holes = true;
     int    looks = 0;
+    // The head camera's tune each feed named for its looks (useHeadTune).
+    std::string tuneKey = "unset";
+    std::optional<JJson> tune;
+    void useHeadTune(const std::string& key, const std::optional<JJson>& controls) override {
+        tuneKey = key;
+        tune = controls;
+    }
     std::vector<Nozzle> nozzles() const override { return {}; }
     std::vector<std::pair<std::string, std::string>> tips() const override { return {}; }
     bool cameraReaches(const JPLocation&) const override { return true; }
@@ -225,12 +232,16 @@ int main() {
     std::string why;
     bool empty = false;
 
-    // The first feed: the first hole looked at, found 0.3 mm off; the part follows it.
+    // The first feed: the first hole looked at, found 0.3 mm off; the part follows it. No tune of its own: its looks
+    // at the camera's own settings (whatever another look had tuned it to).
     assert(JPFeederFeed::feed(config, "S", "N1", machine, nullptr, why, empty) && machine.looks == 1);
+    assert(machine.tuneKey == "S" && !machine.tune);
     auto at = config.feeder("S")->pickLocation();
     assert(at && near(at->x(), 103.8) && near(at->y(), 52));
-    // Each feed looks at its hole (no extrapolation distance).
+    // Each feed looks at its hole (no extrapolation distance); with a tune of its own (Auto Setup's), at that.
+    config.feeder("S")->setText("camera-tune", R"({"exposure":{"auto":false,"value":1687}})");
     assert(JPFeederFeed::feed(config, "S", "N1", machine, nullptr, why, empty) && machine.looks == 2);
+    assert(machine.tuneKey == "S" && machine.tune && (*machine.tune)["exposure"]["value"].number() == 1687);
     // Skip next feed: the same part again, no look.
     config.feeder("S")->setFeedOptions(JPFeeder::FeedOptions::SkipNext);
     assert(JPFeederFeed::feed(config, "S", "N1", machine, nullptr, why, empty) && machine.looks == 2);

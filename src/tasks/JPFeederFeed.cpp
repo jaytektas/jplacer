@@ -248,6 +248,7 @@ bool JPFeederFeed::feed(JPConfiguration& config, const std::string& feederId, co
     double actuatorValue = 0;
     bool moveFirst = false;
     std::optional<JPLocation> pickAt;
+    std::string tune;
     main([&] {
         JPFeeder* f = config.feeder(feederId);
         if (!f) {
@@ -261,8 +262,14 @@ bool JPFeederFeed::feed(JPConfiguration& config, const std::string& feederId, co
         actuatorValue = f->real("actuator-value", 0);
         moveFirst = f->flag("move-before-feed", false);
         pickAt = f->pickLocation();
+        tune = f->text("camera-tune");
     });
     if (!fed) return false;
+    // Its vision at its own tune (Auto Setup's), else the camera's own settings: none carried over from another look.
+    std::optional<JJson> controls;
+    if (!tune.empty())
+        if (const JJson j = JJson::parse(tune); j.isObject()) controls = j;
+    machine.useHeadTune(feederId, controls);
     bool pinned = false;
     main([&] {
         if (const JPFeeder* f = config.feeder(feederId))

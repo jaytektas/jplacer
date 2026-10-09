@@ -132,11 +132,12 @@ void stripForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeed
                "Calculate the Max Feed Count using the feeder's hole locations and part pitch");
     add.end();
     add.endColumns();
-    add.flag("auto-tune-on-auto-setup", "Auto-Tune on Auto Setup?", [f] { return f().flag("auto-tune-on-auto-setup", false); },
+    add.flag("auto-tune-on-auto-setup", "Auto-Tune on Auto Setup?", [f] { return f().flag("auto-tune-on-auto-setup", true); },
              [f](bool on) { f().setFlag("auto-tune-on-auto-setup", on); });
     add.tipOf("auto-tune-on-auto-setup",
-              "Auto Setup first tunes the head camera (its Auto-Tune) over the first part, for the tape's own "
-              "brightness: clear tape over a light feeder, say. The camera keeps the values, as its Auto-Tune does.");
+              "Auto Setup first tunes the head camera (Defaults, then Auto-Tune) over the first part, for the tape's own "
+              "brightness: clear tape over a light feeder, say. The feeder keeps that tune for its own looks (Auto "
+              "Setup's and its vision feeds'); the camera's own settings are not changed.");
 
     add.group("Vision");
     add.flag("vision-enabled", "Use Vision?", [f] { return f().flag("vision-enabled", false); },

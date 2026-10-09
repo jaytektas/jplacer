@@ -282,8 +282,9 @@ public:
     // A Neoden4Signaler's beeping (on the main thread).
     JPlacerNeoden4Buzzer& neoden4Buzzer() { return m_neoden4Buzzer; }
     JPCameraFeed* headCameraFeed() const;
-    // On a worker: the head camera tuned (Auto-Tune) where it looks now, the values kept; false with `why`.
-    bool autoTuneHeadCamera(std::string& why);
+    // On a worker: the head camera tuned (Auto-Tune) where it looks now, for a use of its own: what it arrived at,
+    // not kept as the camera's settings; none (and why) when it could not be.
+    std::optional<JJson> tuneHeadCamera(std::string& why);
     // The first camera fixed to the machine (looking up at the nozzles), a
     // calibrated one first; none when there is none.
     JPCameraFeed* upCameraFeed() const;

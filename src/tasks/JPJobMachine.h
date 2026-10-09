@@ -11,6 +11,8 @@
 #include "vision/JPPartFinder.h"
 #include "vision/JPTemplateFinder.h"
 
+#include <j/config/Json.h>
+
 #include <array>
 #include <functional>
 #include <memory>
@@ -73,6 +75,9 @@ public:
     // A fiducial check about to look for a fiducial of part `partId` (from its own thread): for the cameras
     // to show its footprint.
     virtual void lookingFor(const std::string& /*partId*/) {}
+    // The head camera's looks from now on, until told again: at `controls`, a feeder's own tune (named `key`), or
+    // with none, at the camera's own settings; a fiducial check's tune still for its fiducials.
+    virtual void useHeadTune(const std::string& /*key*/, const std::optional<JJson>& /*controls*/) {}
     // OpenPnP's TravelCost for routes (JPTravel): the default head's camera's X, Y (and Z, where a controller's)
     // axes; none (the routes by straight-line distance, as OpenPnP's when it cannot make one) when not known.
     virtual std::optional<JPTravel::Cost> travelCost() const { return std::nullopt; }

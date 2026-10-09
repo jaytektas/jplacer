@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Each look of the head camera is at the tune meant for it: a feeder's at the tune its Auto Setup made, a fiducial check's at the check's, any other at the camera's own settings. A tune no longer carries over into the next look, and a feeder's Auto Setup tune no longer changes the camera's settings, so Auto-Tune on Auto Setup? is now on to begin with.
+
 ## 0.1.34
 
 - Strip feeders have Auto-Tune on Auto Setup?: Auto Setup first tunes the head camera over the first part, for the tape's own brightness. Off to begin with, as the camera keeps the values.
