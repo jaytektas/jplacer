@@ -10,10 +10,10 @@ notes.
 
 ## Unreleased
 
+## 0.1.34
+
 - Strip feeders have Auto-Tune on Auto Setup?: Auto Setup first tunes the head camera over the first part, for the tape's own brightness. Off to begin with, as the camera keeps the values.
-
 - Strips of clear tape set up: their holes are faint, and one not found broke OpenPnP's line of holes, so Auto Setup found none. The holes either side of a missing one are now taken, still on whole 4 mm steps, and the default strip pipeline (and the push-pull and Bamboo feeders' Circular Symmetry one) keeps fainter holes beside a cleanly lit one. Auto Setup's failures are also written to the log.
-
 - Z Along Strip is now a slope, Z Along Strip %: how much the tape rises in % of the distance along it. It no longer depends on where the Last Hole Location is, and lowering the Reference Hole's Z still lowers every pick alike. A value set by 0.1.33 is not carried over: run Auto Setup again.
 
 ## 0.1.33
