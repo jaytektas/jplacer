@@ -109,6 +109,20 @@ void JPlacerJobRun::join() {
     if (m_worker.joinable()) m_worker.join();
 }
 
+bool JPlacerJobRun::taskUnderWay() {
+    if (!m_taskUnderWay) return false;
+    m_window.showStatus("The machine is busy with a task: wait for it to finish", kStatusMs);
+    return true;
+}
+
+void JPlacerJobRun::launchTask(std::function<void()> body) {
+    m_taskUnderWay = true;
+    m_worker = std::thread([this, body = std::move(body)] {
+        body();
+        m_taskUnderWay = false;
+    });
+}
+
 void JPlacerJobRun::post(std::function<void()> fn) {
     std::weak_ptr<bool> alive = m_alive;
     JMainThreadDispatcher::instance().post([alive, fn = std::move(fn)] {
@@ -160,6 +174,7 @@ void JPlacerJobRun::setState(RunState s) {
 }
 
 void JPlacerJobRun::startPauseResume() {
+    if (taskUnderWay()) return;
     switch (m_state.load()) {
         case RunState::Stopped: start(RunState::Running); break;
         case RunState::Paused:
@@ -173,6 +188,7 @@ void JPlacerJobRun::startPauseResume() {
 }
 
 void JPlacerJobRun::step() {
+    if (taskUnderWay()) return;
     if (m_state == RunState::Stopped) {
         start(RunState::Pausing);
     } else if (m_state == RunState::Paused) {
@@ -185,6 +201,7 @@ void JPlacerJobRun::step() {
 void JPlacerJobRun::stop() {
     const RunState was = m_state;
     if (was == RunState::Stopped || was == RunState::Stopping) return;
+    if (was == RunState::Paused && taskUnderWay()) return;
     setState(RunState::Stopping);
     // Running, the worker stops after its step; paused, one is started to stop it.
     if (was == RunState::Paused) {
@@ -213,6 +230,7 @@ void JPlacerJobRun::start(RunState as) {
     std::weak_ptr<bool> alive = m_alive;
     auto go = [this, alive, as] {
         if (const auto a = alive.lock(); !a || !*a) return;
+        if (taskUnderWay()) return;
         join();
         JPJobProcessor::Hooks hooks;
         hooks.onMain = [this](const std::function<void()>& fn) { onMain(fn); };
@@ -432,8 +450,9 @@ bool JPlacerJobRun::machineTask(
         m_window.showStatus(!cell || !cell->isConnected() ? "Connect the machine first" : "Home the machine first", kStatusMs);
         return false;
     }
+    if (taskUnderWay()) return false;
     join();
-    m_worker = std::thread([this, work = std::move(work)] {
+    launchTask([this, work = std::move(work)] {
         std::string why;
         const bool ok = work(*m_jobMachine, [this](const std::function<void()>& fn) { onMain(fn); }, why);
         if (m_quitting) return;
@@ -455,6 +474,7 @@ void JPlacerJobRun::fiducialCheck(JPPlacementsHolderLocation* location) {
         m_window.showStatus(!cell || !cell->isConnected() ? "Connect the machine first" : "Home the machine first", kStatusMs);
         return;
     }
+    if (taskUnderWay()) return;
     join();
     JPFiducialLocator::Tolerances tolerances;
     tolerances.scaling = cell->config().jobProcessor.scalingTolerance;
@@ -463,7 +483,7 @@ void JPlacerJobRun::fiducialCheck(JPPlacementsHolderLocation* location) {
     tolerances.vision = cell->config().vision;
     // The board or panel set by its fiducials (its own location too, straight
     // in the job), then the camera taken to it.
-    m_worker = std::thread([this, location, tolerances] {
+    launchTask([this, location, tolerances] {
         const JPFiducialLocator::Result r = JPFiducialLocator::locate(
             m_job.configuration(), *m_jobMachine, [this](const std::function<void()>& fn) { onMain(fn); }, { location },
             tolerances);

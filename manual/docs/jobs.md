@@ -160,9 +160,12 @@ machine, with Machine Setup's Step Next Motion) and pauses. **Stop** stops it: t
 machine must be connected (the buttons are greyed until it is) and homed. If every placement is placed
 already, Start asks whether to mark them all not placed first. The status line says what the job is
 doing ("Feed …", "Pick … using nozzle N1.", "Placing …"), and at the end how many parts were placed and
-how fast. While a job runs, another job or another cell is not opened.
+how fast. While a job runs, another job or another cell is not opened. While the machine is busy with a
+task of its own (a Test Alignment, a feeder's or a fiducial check's moves, a Recycle), Start, Step, Stop and
+another such task wait their turn: the status line says "The machine is busy with a task: wait for it to
+finish", and nothing else is done.
 
-<!-- src: src/app/JPlacerJobRun.cpp (startPauseResume, step, stop, start, run); src/ui/JPJobPanel.cpp (updateJobActions); src/app/JPlacerJob.cpp (settle); src/app/JPlacerMachine.cpp (openCell) -->
+<!-- src: src/app/JPlacerJobRun.cpp (startPauseResume, step, stop, start, run, machineTask, fiducialCheck, taskUnderWay); src/ui/JPJobPanel.cpp (updateJobActions); src/app/JPlacerJob.cpp (settle); src/app/JPlacerMachine.cpp (openCell) -->
 
 **Checking the job.** Before a run starts (and with **Job ▸ Check Job…** at any time), the job's data is
 checked as one list, each thing once with every placement or part it is about (a placement named by its

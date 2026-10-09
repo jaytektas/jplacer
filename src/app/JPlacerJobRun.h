@@ -47,8 +47,8 @@ public:
     bool running() const { return m_state != JPJobPanel::RunState::Stopped; }
     // OpenPnP's submitUiMachineTask: `work` with the machine, on the job's
     // thread while no job step runs; its failure (false, why) shown as an
-    // Error. Refused while the job runs.
-    // False when it is refused (a job running, the machine not connected or homed; the status line says so).
+    // Error. Refused while the job runs or another task does.
+    // False when it is refused (a job or task running, the machine not connected or homed; the status line says so).
     bool machineTask(std::function<bool(JPJobMachine&, const std::function<void(const std::function<void()>&)>& onMain,
                                         std::string& why)>
                          work);
@@ -82,6 +82,12 @@ private:
     void post(std::function<void()> fn);
     bool ask(const std::string& question);
     void join();
+    // A machine task (or fiducial check) under way: the status line says so (true). The worker is never joined
+    // from the screen's thread while one runs: it may be waiting for the screen (onMain), which would then wait
+    // for it for ever.
+    bool taskUnderWay();
+    // The worker started on `body`, as a machine task: under way until it returns.
+    void launchTask(std::function<void()> body);
     // The run record (JPRunStore): begun with the boards at their revisions; ended (Finished or Stopped) and
     // its parts written to the stock's ledger (JPRunLedger).
     void beginRun();
@@ -103,6 +109,7 @@ private:
     std::thread                          m_worker;
     std::atomic<JPJobPanel::RunState>    m_state { JPJobPanel::RunState::Stopped };
     std::atomic<bool>                    m_quitting { false };
+    std::atomic<bool>                    m_taskUnderWay { false };
     bool                                 m_stepToMotion = true;   // Step Next Motion
     JPlacerSignalers                     m_signalers { m_machine };
     bool                                 m_signalSetUp = false;   // a job set up: Stopped to be signalled first
