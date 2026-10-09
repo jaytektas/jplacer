@@ -183,6 +183,15 @@ int main() {
         assert(last && std::abs(*last / kLastTapePxPerMm - 1) < 0.002);
         const auto w = JPStripHoleWalk::walk(tilted, pipeline, 8, kStrip.part(0), reference, next, 9, kStepMm, *first, *last, nullptr);
         assert(w.reached && w.holes == 9 && apart(w.last, kStrip.hole(9)) < 0.03);
+        // Its last part past a soft limit (as the bench's clear strip, running past Y 0): followed to the farthest hole
+        // the camera can look from beside, and said so; the scale measured by it.
+        {
+            TapeCamera limited(kStrip, false);
+            limited.leastY = kStrip.part(7).y() - 0.5;
+            assert(JPStripHoleWalk::farthestReached(limited, kStrip.part(0), reference, next, 9) == 7);
+            const auto w2 = JPStripHoleWalk::walk(limited, pipeline, 8, kStrip.part(0), reference, next, 9, kStepMm, *first, *last, nullptr);
+            assert(!w2.reached && w2.outOfReach && w2.holes == 7 && apart(w2.last, kStrip.hole(7)) < 0.03);
+        }
         // The strip's end by a soft limit (as on the bench, 2.6 mm from Y 0): measured twice as far the other way.
         tilted.leastY = beside.y() - 2.6;
         tilted.looks = 0;

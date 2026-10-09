@@ -37,6 +37,7 @@ public:
         JPLocation last { JPLengthUnit::Millimeters };   // the farthest hole found
         int        holes = 0;                            // whole hole pitches from the reference hole to it
         bool       reached = false;                      // it is the one asked for
+        bool       outOfReach = false;                   // not reached: the camera cannot go farther (its soft limits)
     };
     // From `reference` and `next` (holes found by the parts clicked), to the hole `holesOn` hole pitches past the
     // reference. Each look from beside the hole as `firstPart` was from the reference hole, the next hole
@@ -50,6 +51,10 @@ public:
     // Where the camera looks from by the hole `holesOn` hole pitches past `reference` (along the line to `next`), as
     // `firstPart` is by the reference: to measure the tape's scale by the strip's last part.
     static JPLocation besideHole(const JPLocation& firstPart, const JPLocation& reference, const JPLocation& next, int holesOn);
+    // The farthest of the holes up to `holesOn` the camera can look from beside (as besideHole), past `next`'s; 0
+    // when none.
+    static int farthestReached(const JPJobMachine& machine, const JPLocation& firstPart, const JPLocation& reference,
+                               const JPLocation& next, int holesOn);
 };
 
 } // inline namespace jf

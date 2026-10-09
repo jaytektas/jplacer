@@ -253,7 +253,9 @@ void JPlacerStripAutoSetup::check(const JPLocation& at) {
                 if (const auto a = alive.lock(); a && *a)
                     if (JPCameraView* view = m_view) view->setPrompt("Measuring the tape's scale by the last part...");
             });
-            const JPLocation beside = JPStripHoleWalk::besideHole(m_firstPart, ref1, ref2, holesOn);
+            // By the last part, or as near it as the camera can go.
+            const int reach = JPStripHoleWalk::farthestReached(machine, m_firstPart, ref1, ref2, holesOn);
+            const JPLocation beside = JPStripHoleWalk::besideHole(m_firstPart, ref1, ref2, reach > 0 ? reach : holesOn);
             onMain([&] { m_lastScaleAt = beside; });
             if (const auto scale = JPStripHoleWalk::scaleAt(machine, *pipeline, beside, kScaleMoveMm, why)) lastPxPerMm = *scale;
             else
@@ -282,6 +284,11 @@ void JPlacerStripAutoSetup::check(const JPLocation& at) {
                     << "Auto Setup: no Max Feed Count, so the reference and last holes are " << said
                     << ". From holes this close, a few hundredths off in one look go into every part: set Max Feed "
                        "Count and run Auto Setup again to measure them down the strip";
+            else if (walked.outOfReach)
+                JLOGC(JPlacerLog::kCamera, JLogLevel::Warn)
+                    << "Auto Setup: the holes were followed to hole " << walked.holes << " of the " << holesOn
+                    << " the strip's last part sits by (" << parts << " parts): the camera cannot go farther (a soft limit), "
+                       "so parts past it cannot be looked at either; the reference and last holes are " << said;
             else if (!walked.reached)
                 JLOGC(JPlacerLog::kCamera, JLogLevel::Warn)
                     << "Auto Setup: the holes were followed to hole " << walked.holes << " of the " << holesOn

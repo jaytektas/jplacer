@@ -95,6 +95,14 @@ JPLocation JPStripHoleWalk::besideHole(const JPLocation& firstPart, const JPLoca
     return JPLocation(kMm, firstPart.x() + dx * along, firstPart.y() + dy * along, 0, 0);
 }
 
+int JPStripHoleWalk::farthestReached(const JPJobMachine& machine, const JPLocation& firstPart, const JPLocation& reference,
+                                     const JPLocation& next, int holesOn) {
+    const int nextHoles = int(std::lround(std::hypot(next.x() - reference.x(), next.y() - reference.y()) / kHolePitchMm));
+    for (int k = holesOn; k > nextHoles; --k)
+        if (machine.cameraReaches(besideHole(firstPart, reference, next, k))) return k;
+    return 0;
+}
+
 JPStripHoleWalk::Walked JPStripHoleWalk::walk(JPJobMachine& machine, JPPipeline& pipeline, double tapeWidthMm,
                                               const JPLocation& firstPart, const JPLocation& reference, const JPLocation& next,
                                               int holesOn, double stepMm, double firstPxPerMm, double lastPxPerMm,
@@ -109,11 +117,21 @@ JPStripHoleWalk::Walked JPStripHoleWalk::walk(JPJobMachine& machine, JPPipeline&
     while (w.holes < holesOn) {
         // Where the hole should be: along the line through the reference and the farthest found, at the pitch they show.
         const double dx = w.last.x() - reference.x(), dy = w.last.y() - reference.y();
-        const int to = std::min(holesOn, w.holes + stride);
+        int to = std::min(holesOn, w.holes + stride);
+        // As far as the camera can go (a strip running past a soft limit): the farthest hole short of it.
+        auto viewOf = [&](int k) {
+            const double along = double(k) / double(w.holes);
+            return JPLocation(kMm, reference.x() + dx * along + besideX, reference.y() + dy * along + besideY, 0, 0);
+        };
+        while (to > w.holes && !machine.cameraReaches(viewOf(to))) --to;
+        if (to == w.holes) {
+            w.outOfReach = true;
+            return w;
+        }
         const double along = double(to) / double(w.holes);
         const JPLocation expected(kMm, reference.x() + dx * along, reference.y() + dy * along, 0, 0);
         if (looking) looking(to, holesOn);
-        const JPLocation from(kMm, expected.x() + besideX, expected.y() + besideY, 0, 0);
+        const JPLocation from = viewOf(to);
         JPJobMachine::SeenCircles seen;
         std::string why;
         if (!machine.positionCamera(from, why) || !machine.seeCircles(from, pipeline, seen, why)) return w;
