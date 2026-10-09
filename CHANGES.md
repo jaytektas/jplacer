@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.36
+
 - Camera tunes are kept as they should be: the machine's every move had been taken for a fresh connection, forgetting every tune, so a fiducial check tuned the camera before every look (three times a fiducial) instead of once on its first fiducial, and feeders' tunes were forgotten between picks.
 
 ## 0.1.35
