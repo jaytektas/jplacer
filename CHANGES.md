@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- A fiducial check with jplacer's own finder searches only as far as the fiducial's vision settings' Max. Distance. It searched a fixed 4 mm whatever that was set to, so it could take a nearby pad for the fiducial.
+
 - Strip Auto Setup on a strip running past the camera's reach (a soft limit) follows its holes as far as the camera can go and measures the far scale there, and the log says so, where it stopped short and blamed the holes.
 
 - Strip feeders with vision work on clear tape: each feed looks at its hole from a part beside it (one look, as before), out of the camera's own light reflected straight back, finds it with the strip's pipeline as OpenPnP does, and at the camera's scale for the tape's height. On the bench's clear tape, 12 vision feeds out of 12 found their hole, where none did before.

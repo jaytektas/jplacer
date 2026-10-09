@@ -39,9 +39,11 @@ int main() {
     double diameter = 0;
     JPJobMachine::FiducialLook look;
     std::string settings;
-    // jplacer's finder: no pipeline.
+    // jplacer's finder: no pipeline, but as far as the settings' Max. Distance (their pipeline's parameter, 2 mm), not
+    // its own 4 mm, which reached a nearby pad.
     assert(JPFiducialLocator::partLook(config, *part, vision, diameter, look, settings) == JPFiducialLocator::PartProblem::None);
     assert(std::abs(diameter - 1.5) < 1e-9 && !look.pipeline && !look.averaging);
+    assert(std::abs(look.maxDistanceMm - 2.0) < 1e-9);
 
     // By pipeline, averaging: the stock fiducial pipeline, prepared for FID.
     vision.fiducialPipeline = true;

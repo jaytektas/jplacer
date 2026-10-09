@@ -603,7 +603,9 @@ bool JPCellJobMachine::locateFiducial(const JPLocation& nominal, double diameter
     double sumX = 0, sumY = 0;
     int kept = 0;
     for (int pass = 0; pass < std::max(1, lookAt.passes); ++pass) {
-        const double search = pass == 0 ? kFirstSearchMm : kSearchMm;
+        // The first look as far as its Max. Distance says (else jplacer's own reach), the later ones round the find.
+        const double first = lookAt.maxDistanceMm > 0 ? lookAt.maxDistanceMm : kFirstSearchMm;
+        const double search = pass == 0 ? first : std::min(kSearchMm, first);
         double fx = 0, fy = 0;
         if (r == 0) {
             if (!once(x, y, search, fx, fy)) return false;

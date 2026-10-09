@@ -6,6 +6,7 @@
 #include "JPVisionPipelinePrep.h"
 
 #include "setup/JPVisionPipelines.h"
+#include "pipeline/JPPipelineAssignments.h"
 
 #include "common/JPlacerLog.h"
 #include "model/JPFiducialFit.h"
@@ -40,6 +41,17 @@ std::string format(const char* fmt, double a, double b, double c) {
     return buf;
 }
 
+// The Max. Distance a fiducial's vision settings give: its pipeline's parameter (assigned, else the parameter's
+// default), else, for a pipeline without one, the locator's (OpenPnP's old pipelines).
+double maxDistanceOf(const JPVisionSettings& v, const JPVisionConfig& vision) {
+    for (const auto& [name, value] : JPPipelineAssignments::fromXml(v.parameterAssignments()))
+        if (name == "maxDistance")
+            if (const auto* l = std::get_if<JPPipelineValue::LengthMm>(&value.value)) return l->mm;
+    JPPipeline p = JPVisionPipelines::of(v);
+    if (const JPPipelineStage* s = p.stage("maxDistance")) return s->number("default-value");
+    return vision.fiducialMaxDistanceMm;
+}
+
 } // namespace
 
 JPFiducialLocator::PartProblem JPFiducialLocator::partLook(JPConfiguration& config, const JPPart& part,
@@ -64,6 +76,7 @@ JPFiducialLocator::PartProblem JPFiducialLocator::partLook(JPConfiguration& conf
         look.maxLinearOffsetMm = v->lengthMm("max-linear-offset", 0.2);
         look.parallaxDiameterMm = v->lengthMm("parallax-diameter", 0);
         look.parallaxAngle = v->real("parallax-angle", 0);
+        look.maxDistanceMm = maxDistanceOf(*v, vision);
         // By its OpenPnP pipeline, prepared for its part (the camera given it where it is used).
         if (vision.fiducialPipeline) {
             look.pipeline = std::make_shared<JPPipeline>(JPVisionPipelines::of(*v));
@@ -97,6 +110,7 @@ JPFiducialLocator::PartProblem JPFiducialLocator::lookFor(JPConfiguration& confi
         look.maxLinearOffsetMm = v->lengthMm("max-linear-offset", 0.2);
         look.parallaxDiameterMm = v->lengthMm("parallax-diameter", 0);
         look.parallaxAngle = v->real("parallax-angle", 0);
+        look.maxDistanceMm = maxDistanceOf(*v, vision);
         if (vision.fiducialPipeline) {
             look.pipeline = std::make_shared<JPPipeline>(JPVisionPipelines::of(*v));
             look.pipeline->context().configurationDirectory = config.directory();
