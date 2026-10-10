@@ -1,0 +1,1158 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Using jplacer, pick-and-place machine control.">
+      
+      
+      
+        <link rel="canonical" href="https://jaytektas.github.io/jplacer/parts.html">
+      
+      
+        <link rel="prev" href="boards.html">
+      
+      
+        <link rel="next" href="packages.html">
+      
+      
+        
+      
+      
+      <link rel="icon" href="img/jplacer.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Parts - jplacer User Manual</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+        <script src="https://unpkg.com/iframe-worker/shim"></script>
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#parts" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="index.html" title="jplacer User Manual" class="md-header__button md-logo" aria-label="jplacer User Manual" data-md-component="logo">
+      
+  <img src="img/jplacer.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            jplacer User Manual
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Parts
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="amber"  aria-label="Light"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Light" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="amber"  aria-label="Dark"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Dark" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jaytektas/jplacer" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jaytektas/jplacer
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="index.html" title="jplacer User Manual" class="md-nav__button md-logo" aria-label="jplacer User Manual" data-md-component="logo">
+      
+  <img src="img/jplacer.png" alt="logo">
+
+    </a>
+    jplacer User Manual
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jaytektas/jplacer" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jaytektas/jplacer
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    jplacer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="getting-started.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="menus.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Menus
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="machine.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Machine
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="machine-setup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Machine Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="jobs.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jobs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="panels.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Panels
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="boards.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Boards
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Parts
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="parts.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Parts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-toolbar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The toolbar
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The table
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-parts-tabs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The part's tabs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#undo-and-redo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Undo and Redo
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="packages.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Packages
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="vision.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vision
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="pipeline-editor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipeline Editor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="feeders.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Feeders
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="issues.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Issues &amp; Solutions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="log.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Log
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="preferences.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preferences
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="updates.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Updates and betas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="whats-new.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    What's new
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="parts">Parts<a class="headerlink" href="#parts" title="Permanent link">&para;</a></h1>
+<p>The <strong>Parts</strong> tab (in the work area, after Boards, as in OpenPnP) lists the library's parts, as
+OpenPnP's Parts tab does: those every job draws from. The library is the only place parts are kept: a
+board's placements point at its parts (see <a href="boards.html#the-boards-parts">Boards</a>).</p>
+<p>The first column, <strong>Source</strong>, is an icon: a board for a part an open board uses (point at it for the
+boards' names; it sorts and searches by them), books on a shelf for one no open board uses. <strong>Show</strong>,
+beside Search, lists <strong>All</strong>, those <strong>Used by open boards</strong>, or one open board's.</p>
+<!-- src: src/ui/JPPartsTableModel.cpp (cellIcon, cellTooltip, displayText, rowShown, showChoices, reload); src/ui/JPSourceColumn.cpp; src/ui/JPPartsPanel.cpp (refresh); src/model/JPCatalog.cpp (parts, boardNames, uses) -->
+
+<p>The library is kept in <code>library.db</code> in jplacer's configuration folder: its parts and packages, each with
+an ID that stays with it whatever it is named, and what boards' files call it. It is made from OpenPnP's
+<code>parts.xml</code> and <code>packages.xml</code> the first time jplacer starts without one (those files are left as they
+are). OpenPnP's files copied into the folder later are looked at again: their parts and packages the
+library does not have are added to it (the start says how many); those it has are not changed, but for
+vision settings: a part or package the library has with no bottom or fiducial vision settings of its own takes
+OpenPnP's (a board's import may have made it first, without them, and its fiducials were then found by the
+machine's default settings); one it has is never replaced. A library made before this takes them once.</p>
+<!-- src: src/ui/JPPartsPanel.cpp; src/app/JPlacerOpenPnpTabs.cpp; src/model/JPConfiguration.cpp (load, save, openPnpStamp); src/model/JPLibraryStore.cpp -->
+
+<h2 id="the-toolbar">The toolbar<a class="headerlink" href="#the-toolbar" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Button</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>New Part...</strong> (plus)</td>
+<td>Asks for the new part's ID and makes it, in the first package. There must be a package first. An ID already used is refused, and asked for again.</td>
+</tr>
+<tr>
+<td><strong>Delete Part</strong> (cross)</td>
+<td>Deletes the chosen parts, after asking.</td>
+</tr>
+<tr>
+<td><strong>Pick Part</strong></td>
+<td>Feeds and picks the chosen part, as the Feeders tab's <strong>Pick...</strong> does, from the feeder OpenPnP would take it from: of the enabled feeders holding it, those of the highest priority, and of those the one closest to the camera. With none, it says no valid feeder was found.</td>
+</tr>
+<tr>
+<td><strong>Copy Part to Clipboard</strong></td>
+<td>Puts the chosen part on the clipboard as text, as OpenPnP's <code>parts.xml</code> writes a part.</td>
+</tr>
+<tr>
+<td><strong>Create Part from Clipboard</strong></td>
+<td>Asks for an ID and makes a part from what the clipboard holds.</td>
+</tr>
+</tbody>
+</table>
+<p>Delete Part works on one part or several; Pick Part and Copy Part on one.</p>
+<p><strong>Search</strong>, at the right, shows only the parts with the text typed anywhere in a row, whatever its case.
+The text is a regular expression: <code>^C0402</code> finds parts whose ID starts with C0402. The <strong>✕</strong> at its right
+end, there while it holds text, empties it and shows every part again.</p>
+<!-- src: src/ui/JPPartsPanel.cpp (newPart, deleteParts, copyPart, pastePart, updateWizards); src/app/JPlacerOpenPnpTabs.cpp (onPickPart); src/model/JPConfiguration.cpp (findFeeder); src/ui/JPTable.cpp (setFilter) -->
+
+<h2 id="the-table">The table<a class="headerlink" href="#the-table" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Source</strong> (an icon)</td>
+<td>Whether an open board uses it, and which (its tooltip).</td>
+</tr>
+<tr>
+<td><strong>ID</strong></td>
+<td>The part's ID.</td>
+</tr>
+<tr>
+<td><strong>Description</strong></td>
+<td>Its name.</td>
+</tr>
+<tr>
+<td><strong>Value</strong></td>
+<td>Its electrical value as written (100n, 4k7); matched to a board's however that is written.</td>
+</tr>
+<tr>
+<td><strong>MPN</strong></td>
+<td>Its manufacturer's part number: the first of its identifiers (the <strong>Library</strong> tab has them all).</td>
+</tr>
+<tr>
+<td><strong>Height</strong></td>
+<td>The distance between the board's surface and where the nozzle picks it, in mm (in its own units, with their name, when those are not mm).</td>
+</tr>
+<tr>
+<td><strong>Through-Board Depth</strong></td>
+<td>How far any of it reaches below the board when placed; added to the height for Dynamic Safe Z. Zero for surface-mount parts.</td>
+</tr>
+<tr>
+<td><strong>Package</strong></td>
+<td>Its package, chosen from a list.</td>
+</tr>
+<tr>
+<td><strong>Speed %</strong></td>
+<td>How fast it is moved, as a share of full speed.</td>
+</tr>
+<tr>
+<td><strong>BottomVision</strong>, <strong>FiducialVision</strong></td>
+<td>The vision settings it uses, chosen from a list; empty: its package's.</td>
+</tr>
+<tr>
+<td><strong>Placements</strong></td>
+<td>How many placements on the known boards use it.</td>
+</tr>
+<tr>
+<td><strong>Feeders</strong></td>
+<td>How many feeders hold it.</td>
+</tr>
+</tbody>
+</table>
+<p>Everything but Source, the ID, the MPN and the two counts is changed in the table: double-click a cell, press F2, or start
+typing; <strong>Return</strong> keeps the change, <strong>Escape</strong> puts back what was there. <strong>Tab</strong> keeps it and goes on to the
+next cell that can be changed (<strong>Shift+Tab</strong>: the one before), along the row and on to the next: a text or number
+cell opens with what is in it chosen, ready to type over; a choice or tick box is chosen, for F2 or Space. Every
+table edits this way. A height may be typed
+with units (<code>0.5mm</code>, <code>20mil</code>); without, the part's own units are taken. Package and the vision settings
+open their list on a click: a drop-down under the cell, as wide as its longest name, twelve at a time and
+scrolled for the rest, the one chosen now marked. Each change is saved at once.</p>
+<p>Click a column's heading to sort by it; click it again to turn it round. Clicking another heading sorts by
+that first and by the earlier ones after it (up to three); the later ones' arrows are fainter. Choose
+several rows with <strong>Shift</strong>+click and <strong>Ctrl</strong>+click; <strong>Ctrl+A</strong> chooses them all, and <strong>Ctrl+C</strong> copies the
+chosen rows, a tab between cells (in the columns' order as shown). Drag a heading's edge to widen a
+column; the columns after it give way.</p>
+<p>Drag a heading sideways to move its column. While it is dragged the table shows how it will look: the
+column floats with the pointer and the others move aside to make its place. Letting go keeps it there;
+<strong>Escape</strong> puts every column back as it was. Right-click a heading for <strong>Reset Columns</strong>: the table's
+columns as they first were (their order and widths, and no sort). Every table works this way, and each
+keeps its columns' order, widths and sort as you leave them, the next time jplacer starts too.</p>
+<!-- src: src/ui/JPPartsTableModel.cpp; src/ui/JPTable.cpp (clickHeader, handleKeyEvent, startEditing, setColumnWidth, previewDrop, endColumnDrag, resetColumns, applyState, keepState); src/app/JPlacerApp.cpp (s_loadState, s_saveState); src/app/JPlacerSettings.h (kTableState); src/ui/JPLengthCell.cpp -->
+
+<h2 id="the-parts-tabs">The part's tabs<a class="headerlink" href="#the-parts-tabs" title="Permanent link">&para;</a></h2>
+<p>Under the table, the chosen part's tabs.</p>
+<p><strong>Library</strong> is what the library keeps of the part for matching it to boards' parts (see <a href="boards.html#choosing-a-part">Choosing a
+part</a>): its <strong>Value</strong> and <strong>Datasheet</strong> (a link or a file), the ID it is known
+by for good; its <strong>Identifiers</strong>, each an <strong>MPN</strong> or a <strong>Supplier PN</strong> with its <strong>Manufacturer /
+Supplier</strong> and <strong>Code</strong> (a board part with one of them is this part, without asking); and <strong>Also Known
+As</strong>, what boards' files call it: by <strong>Value and footprint</strong> (written <em>value</em>|<em>footprint</em>), <strong>Value</strong> or
+<strong>Footprint</strong>, each saying where it was learned and when (or <em>typed</em>). Names are learned when this part is
+chosen for a board's part with <strong>Remember</strong> ticked; the plus adds one, the cross deletes one.
+<strong>Manufacturers' Names…</strong> opens the manufacturers the library knows, a row each with its <strong>Name</strong> and its
+other names (commas between: Texas Instruments: TI, Texas Instruments Inc.), <strong>Add a Manufacturer</strong> and the
+cross to delete one; a BOM's manufacturer by any of them is that manufacturer. An MPN the library has under
+another manufacturer is offered but never taken unasked, and says so.</p>
+<p><strong>Packagings</strong>: how the part comes, a row each: <strong>Kind</strong> (<strong>Cut tape</strong>, <strong>Reel</strong>, <strong>Tray</strong>, <strong>Tube</strong>,
+<strong>Loose</strong>); for tape, its width (<strong>Tape [mm]</strong>: 8 to 56), the <strong>Pitch [mm]</strong> between pockets and whether
+it is <strong>Paper</strong> or <strong>Embossed</strong>; the part's <strong>Rotation [°]</strong> as it sits in the packaging (pin 1 against the
+tape's sprocket holes at 0), set once here; <strong>Quantity</strong>, how many a reel, tray or tube holds; a <strong>Note</strong>.
+Choosing another kind shows or hides the tape's columns.</p>
+<p><strong>Offers</strong>: where it is bought, a row each: <strong>Supplier</strong>, <strong>SKU</strong> (their part number), <strong>Packaging</strong>,
+<strong>MOQ</strong> (the least they sell), <strong>Price breaks</strong> (<code>1: 0.0100, 100: 0.0050</code>), <strong>Last price</strong> and <strong>Link</strong>.</p>
+<p><strong>Stock</strong> is what you have of the part: a lot is one reel, strip of cut tape, tray, tube or bag of it.
+Stock is what you have, not what is loaded on the machine. The page says how many are in stock and in how
+many lots, and lists each open lot: its <strong>Lot</strong> name, <strong>Packaging</strong>, how many it <strong>Holds</strong>, the feeder
+it is loaded <strong>On</strong> (see <a href="feeders.html#the-feeders-setup">Feeders</a>), <strong>Where kept</strong>,
+<strong>Date code</strong> and <strong>Note</strong> (the name, where kept, date code and note are changed here and kept at once).
+<strong>Receive Stock…</strong> adds a lot: its name on the shelf, packaging, <strong>Supplier</strong> and <strong>SKU</strong> (the part's
+first offer is filled in), <strong>Date code</strong>, <strong>Lot code</strong>, <strong>Where kept</strong>, <strong>Note</strong>, and how it came:
+<strong>Received</strong> (an order: its <strong>Quantity</strong>, the <strong>Cost</strong> of all of them and the <strong>Order</strong>) or <strong>Counted</strong>
+(found on the shelf). <strong>Receive</strong> is offered once the lot has a name and a quantity.</p>
+<p>How many a lot holds is its ledger's: <strong>Ledger…</strong> lists every change to the lot in order, <strong>When</strong>, the
+<strong>Entry</strong>, the <strong>Quantity</strong>, what it <strong>Holds after</strong>, the <strong>Cost</strong>, the <strong>Reference</strong> and the <strong>Note</strong>, so
+a wrong figure shows where it went wrong. Below the list, add an entry: <strong>Used</strong> (taken for a job),
+<strong>Lost</strong> (dropped, mis-picked, thrown away), <strong>Counted</strong> (what it holds, counted now), <strong>Adjusted</strong> (more,
+12, or fewer, -12, by hand) or <strong>Received</strong> (more came in), with its quantity, a reference and a note;
+<strong>Add to Ledger</strong> (or Return) keeps it at once. <strong>Close the Lot</strong> takes a lot used up or thrown away out of
+stock, its ledger kept (the Stock page counts the closed lots); <strong>Reopen the Lot</strong> puts it back.</p>
+<p><strong>Attrition</strong> is how many to allow for parts lost to mis-picks and drops, as a share of those placed;
+a job's shortages add it to what the job needs. Type the part's own <strong>Attrition [%]</strong>, or leave it empty to
+use what the ledger measured: lost of all taken (used and lost), once any have been used. The page says what
+was measured.</p>
+<p>Stock is kept in the library's file as each change is made, without saving.</p>
+<!-- src: src/ui/JPPartsPanel.cpp (stockPage, stockAct); src/app/JPlacerStockReceiveDialog.cpp; src/app/JPlacerLotLedgerDialog.cpp; src/model/JPStockStore.cpp; src/model/JPLedgerEntry.h (apply); src/model/JPStockLot.h -->
+
+<p><strong>Settings</strong> holds its <strong>Pick Conditions</strong>: <strong>Feed &amp; Pick Retry
+Count</strong>, how many times the feed and pick is tried again for each placement (the nozzle is cleared, and
+the part discarded, after each failed try).</p>
+<p><strong>Bottom Vision Settings</strong> and <strong>Fiducial Vision Settings</strong> show the vision settings the part uses (its
+own, else its package's, else the machine's), as on the <a href="vision.html#the-settings">Vision</a> tab: a change is a
+change to those settings, for everything that uses them. While the part uses settings it shares,
+<strong>Specialize for</strong> the part makes a copy of them, named after the part, for this part alone. Once it has
+its own, <strong>Use Package <em>package</em>'s Settings</strong> (or <strong>Use the Machine's Default Settings</strong>, its package having
+none) puts it back on those, after asking; its own stay on the Vision tab, used by nothing.</p>
+<!-- src: src/ui/JPPartsPanel.cpp (updateWizards, formFor, libraryPage, libraryAct, act); src/app/JPlacerManufacturersDialog.cpp; src/model/JPPart.h (Packaging, Offer, kPackagingKinds); src/model/JPConfiguration.cpp (manufacturerName, sameManufacturer); src/model/JPPartMatcher.cpp (candidates); src/model/JPLibraryJson.cpp (fingerprint); src/setup/JPVisionForms.cpp (addPage, manageFor, act) -->
+
+<h2 id="undo-and-redo">Undo and Redo<a class="headerlink" href="#undo-and-redo" title="Permanent link">&para;</a></h2>
+<p>Every change to the library is a step <strong>Edit ▸ Undo</strong> (Ctrl+Z) takes back and <strong>Edit ▸ Redo</strong> (Ctrl+Y)
+makes again: a part or package made, changed or deleted (several deleted at once are one step), a field
+changed on a part's or package's pages, a footprint added, changed or deleted, the manufacturers' names,
+and what choosing a part for a board taught the library (a name remembered, a part added). Each says
+what it would undo or redo: "Undo Delete Part R0603-10k", "Undo Change Package SOT-23", "Undo Delete 3
+Parts", "Undo New Footprint SOT-23-3". A part or package put back by Undo is the same one, its place in the
+list kept. Undo and Redo go through the library's changes and Machine Setup's together, the last made
+first. The last 200 steps are kept. Stock (lots and their ledger) is kept as it is made and is not undone.</p>
+<!-- src: src/setup/JPLibraryHistory.cpp (note, describe, undo, redo); src/model/JPConfiguration.cpp (librarySnapshot, restoreLibrary); src/app/JPlacerOpenPnpTabs.cpp (libraryChanged, changed); src/app/JPlacerUndo.cpp; src/app/JPlacerApp.cpp -->
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="boards.html" class="md-footer__link md-footer__link--prev" aria-label="Previous: Boards">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Boards
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="packages.html" class="md-footer__link md-footer__link--next" aria-label="Next: Packages">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Packages
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.top", "navigation.footer", "search.highlight", "search.suggest", "toc.integrate"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

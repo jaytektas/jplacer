@@ -1,0 +1,1479 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Using jplacer, pick-and-place machine control.">
+      
+      
+      
+        <link rel="canonical" href="https://jaytektas.github.io/jplacer/menus.html">
+      
+      
+        <link rel="prev" href="getting-started.html">
+      
+      
+        <link rel="next" href="machine.html">
+      
+      
+        
+      
+      
+      <link rel="icon" href="img/jplacer.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Menus - jplacer User Manual</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+        <script src="https://unpkg.com/iframe-worker/shim"></script>
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#menus" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="index.html" title="jplacer User Manual" class="md-header__button md-logo" aria-label="jplacer User Manual" data-md-component="logo">
+      
+  <img src="img/jplacer.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            jplacer User Manual
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Menus
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="amber"  aria-label="Light"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Light" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="amber"  aria-label="Dark"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Dark" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jaytektas/jplacer" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jaytektas/jplacer
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="index.html" title="jplacer User Manual" class="md-nav__button md-logo" aria-label="jplacer User Manual" data-md-component="logo">
+      
+  <img src="img/jplacer.png" alt="logo">
+
+    </a>
+    jplacer User Manual
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jaytektas/jplacer" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jaytektas/jplacer
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    jplacer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="getting-started.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Menus
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="menus.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Menus
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="File">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#choosing-a-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choosing a file
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#edit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Edit
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#view" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        View
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="View">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#linked-tables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Linked tables
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#machine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Machine
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#job" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Job
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scripts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scripts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#window" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Window
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#help" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Help
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="machine.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Machine
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="machine-setup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Machine Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="jobs.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jobs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="panels.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Panels
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="boards.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Boards
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="parts.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Parts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="packages.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Packages
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="vision.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vision
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="pipeline-editor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipeline Editor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="feeders.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Feeders
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="issues.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Issues &amp; Solutions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="log.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Log
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="preferences.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preferences
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="updates.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Updates and betas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="whats-new.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    What's new
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="menus">Menus<a class="headerlink" href="#menus" title="Permanent link">&para;</a></h1>
+<p>An entry is greyed out while it cannot be used: the machine's entries until it is connected (and some until
+it is homed), a job's until one is open, one that works on something chosen until it is chosen.</p>
+<p>The keys shown are the ones jplacer starts with. Any entry can be given a key of your choosing, or have its
+key taken off, in <a href="preferences.html#keys">Preferences, Keys</a>; the menu then shows that key.</p>
+<!-- src: src/app/JPlacerMenuBuilder.cpp (build); src/app/JPlacerMachine.cpp (updateMenu) -->
+
+<h2 id="file">File<a class="headerlink" href="#file" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Entry</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>New Job</strong> (Ctrl+N)</td>
+<td>Starts an empty job (see <a href="jobs.html#new-open-and-save">Jobs</a>).</td>
+</tr>
+<tr>
+<td><strong>Open Job…</strong> (Ctrl+O)</td>
+<td>Opens a <code>.job.xml</code> file.</td>
+</tr>
+<tr>
+<td><strong>Open Recent Job...</strong></td>
+<td>The ten jobs opened or saved last, newest first; greyed out while there are none.</td>
+</tr>
+<tr>
+<td><strong>Save Job</strong> (Ctrl+S)</td>
+<td>Saves the open job.</td>
+</tr>
+<tr>
+<td><strong>Save Job As…</strong></td>
+<td>Saves the open job to a file you choose.</td>
+</tr>
+<tr>
+<td><strong>Save Configuration</strong></td>
+<td>Saves the parts, packages and the lists of boards and panels, and asks about each board with changes (see <a href="boards.html#saving-boards">Boards</a>).</td>
+</tr>
+<tr>
+<td><strong>Import Placements</strong></td>
+<td><strong>CPL and BOM…</strong> (a board from its placement file and BOM), then OpenPnP's importers, reading placements into the board chosen on the Boards tab (see <a href="boards.html#importing-placements">Boards</a>).</td>
+</tr>
+<tr>
+<td><strong>Quit</strong></td>
+<td>Closes jplacer, after asking about a job with changes and about each board with changes. If an update has been downloaded (and checked against its published checksum), it is installed now: the machine is disconnected first and the settings kept, so the new version starts free to connect to it.</td>
+</tr>
+</tbody>
+</table>
+<!-- src: src/app/JPlacerMenuBuilder.cpp (the File menu); src/app/JPlacerJob.cpp; src/app/JPlacerOpenPnpTabs.cpp; src/app/JPlacerApp.cpp (run, installStaged) -->
+
+<h3 id="choosing-a-file">Choosing a file<a class="headerlink" href="#choosing-a-file" title="Permanent link">&para;</a></h3>
+<p>Every Open, Save As and Browse opens the same file chooser, which can be resized:</p>
+<ul>
+<li>Along the top: <strong>Up</strong> (Alt+Up) and <strong>Home</strong> (Alt+Home), the folder shown as a path you can type or paste
+  into (Ctrl+L; Enter goes there, a file's path opens it, <code>~</code> is your home folder), and <strong>New Folder</strong>,
+  which asks for the folder's name in place (Enter makes it, Escape does not).</li>
+<li>On the left, places to go to: Home, its Desktop, Documents and Downloads, the file system, and drives
+  that are mounted.</li>
+<li>The folder's <strong>Name</strong>, <strong>Size</strong> and <strong>Modified</strong>, folders first; a header click sorts by that column. A
+  click chooses an entry, and a double-click or Enter opens a folder or takes a file.</li>
+<li><strong>Name:</strong> the file's name, or a path to go to.</li>
+<li><strong>Show hidden</strong> (Ctrl+H) shows names that start with a dot, such as <code>~/.openpnp2</code>. Beside it is the kind
+  of file shown: for a job, <strong>Jobs (*.job.xml)</strong>, <strong>XML files</strong> or <strong>All files</strong>. Saving adds the kind's
+  ending to a name without it.</li>
+<li>Saving over a file that is already there asks first: the button turns to <strong>Replace</strong>, and Replace
+  overwrites it.</li>
+</ul>
+<p>F5 lists the folder again. The chooser opens in the folder it was last in; Save Job As starts at the job's
+own file.</p>
+<!-- src: JFramework include/j/platforms/FileDialogWindow.h; JFramework include/j/io/JFilePlaces.h; JFramework include/j/io/DirectoryListing.h (passesFilter, resolve); src/app/JPlacerJob.cpp (fileRequest, saveAsThen) -->
+
+<h2 id="edit">Edit<a class="headerlink" href="#edit" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Entry</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Undo</strong> (Ctrl+Z)</td>
+<td>Takes back the last change made, in Machine Setup or in the library (a part, package, footprint or manufacturer), whichever was made last; it says which ("Undo Delete Part R1"; see <a href="machine-setup.html#undo-and-redo">Undo and Redo</a> and <a href="parts.html#undo-and-redo">Parts</a>).</td>
+</tr>
+<tr>
+<td><strong>Redo</strong> (Ctrl+Y)</td>
+<td>Makes the change undone last again.</td>
+</tr>
+<tr>
+<td><strong>Add Board/Panel</strong></td>
+<td><strong>New Board…</strong>, <strong>Existing Board…</strong>, <strong>New Panel…</strong>, <strong>Existing Panel…</strong>: as the Job tab's Add Board/Panel button (see <a href="jobs.html#the-job-tab">The Job tab</a>).</td>
+</tr>
+<tr>
+<td><strong>Remove Board(s)/Panel(s)</strong></td>
+<td>Takes the boards and panels chosen on the Job tab out of the job. Available while one is chosen.</td>
+</tr>
+<tr>
+<td><strong>Capture Tool Location</strong></td>
+<td>As the Job tab's button: the chosen board or panel is placed where the nozzle is. Available while one is chosen.</td>
+</tr>
+<tr>
+<td><strong>Preferences…</strong></td>
+<td>Opens <a href="preferences.html">Preferences</a>.</td>
+</tr>
+</tbody>
+</table>
+<!-- src: src/app/JPlacerUndo.cpp; src/app/JPlacerMenuBuilder.cpp (the Edit menu); src/ui/JPJobPanel.cpp (addNew, addExisting, removeSelected, captureTool, setEditItems) -->
+
+<h2 id="view">View<a class="headerlink" href="#view" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Entry</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>System Units</strong></td>
+<td><strong>Millimeters</strong> (to start with) or <strong>Inches</strong>, as in OpenPnP: the units every length is shown and typed in (coordinates, offsets, sizes, axis speeds and limits, the position at the foot of the window, tables, the Jog distances), to one more place in inches; rotations stay in degrees. Lengths are kept in millimetres whichever is chosen. The choice takes effect the next time jplacer starts (it says so). A table's length in other units than these is shown in its own, with their name. The Jog distances are kept apart for each (Edit &gt; Preferences, Jog): to start with 0.01 to 100 mm, or 0.001 to 10 in.</td>
+</tr>
+<tr>
+<td><strong>Selections in Tables</strong></td>
+<td><strong>Unlinked</strong> (to start with) or <strong>Linked</strong>. Linked, what you choose in one tab's table chooses what goes with it on the other tabs, as in OpenPnP (see below).</td>
+</tr>
+<tr>
+<td><strong>Language</strong></td>
+<td><strong>English (United States)</strong> (to start with), <strong>Russian</strong>, <strong>Spanish</strong>, <strong>French</strong>, <strong>Italian</strong>, <strong>German</strong> or <strong>Chinese (China)</strong>, as in OpenPnP: OpenPnP's own translations, so whatever jplacer names as OpenPnP does (menus, tabs, panels' titles, labels, buttons, table headings) is shown in that language, and the rest in English. The choice takes effect the next time jplacer starts (it says so). OpenPnP's German, Spanish, French and Italian translations cover little; its Russian and Chinese, most of it.</td>
+</tr>
+</tbody>
+</table>
+<p>Under them, a tick for each panel: each camera, <strong>Jog</strong>, <strong>Actuators</strong>, <strong><a href="parts.html">Parts</a></strong>, <strong><a href="packages.html">Packages</a></strong>,
+<strong>Machine Setup</strong>, <strong>Machine</strong> and <strong>Console</strong>. Untick one to close it; tick it to show it again where it lives (see
+<a href="machine.html#the-machines-panels">The machine's panels</a>).</p>
+<!-- src: src/app/JPlacerMenuBuilder.cpp (View); src/app/JPlacerLayout.cpp (rebuildMenu); src/model/JPSystemUnits.cpp; src/setup/JPFormBuilder.h (length); src/ui/JPLengthCell.cpp; src/ui/JPJogPanel.cpp (defaultDistances, jog); src/app/JPlacerSettings.cpp (jogDistancesKey), src/common/JPTranslations.cpp -->
+
+<h3 id="linked-tables">Linked tables<a class="headerlink" href="#linked-tables" title="Permanent link">&para;</a></h3>
+<p>With <strong>Selections in Tables</strong> set to <strong>Linked</strong>, a choice made in a table on the tab in front chooses, on the
+other tabs:</p>
+<table>
+<thead>
+<tr>
+<th>Chosen</th>
+<th>Also chosen</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A board or panel on the <a href="jobs.html#the-job-tab">Job tab</a></td>
+<td>A board: the board on the Boards tab, and in a panel, that panel and the board in it on the Panels tab. A panel: that panel on the Panels tab.</td>
+</tr>
+<tr>
+<td>A placement on the Job tab</td>
+<td>The same placement on the Boards tab (or the fiducial on the Panels tab), and its part.</td>
+</tr>
+<tr>
+<td>A placement on the <a href="boards.html">Boards</a> tab</td>
+<td>The same placement on the Job tab when it shows that board, and its part.</td>
+</tr>
+<tr>
+<td>A board or panel in a panel on the <a href="panels.html">Panels</a> tab</td>
+<td>It on the Job tab, and a board on the Boards tab.</td>
+</tr>
+<tr>
+<td>A fiducial on the Panels tab</td>
+<td>The same fiducial on the Job tab when it shows that panel.</td>
+</tr>
+<tr>
+<td>A part on the <a href="parts.html">Parts</a> tab</td>
+<td>Its package on the Packages tab, a feeder that holds it on the Feeders tab (an enabled one first), and the vision settings it uses on the Vision tab (of the type that tab shows).</td>
+</tr>
+<tr>
+<td>A feeder on the Feeders tab</td>
+<td>Its part, and so what goes with the part; again when the chosen feeder's part is changed.</td>
+</tr>
+</tbody>
+</table>
+<p>What is chosen by a link chooses nothing further. A part with no feeder leaves the Feeders tab as it was.</p>
+<!-- src: src/app/JPlacerTableLinks.cpp; src/ui/JPFeedersPanel.cpp (selectFeederForPart, changed); src/ui/JPVisionSettingsPanel.cpp (selectFor) -->
+
+<h2 id="machine">Machine<a class="headerlink" href="#machine" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Entry</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Import OpenPnP Machine…</strong></td>
+<td>Makes a cell from an OpenPnP <code>machine.xml</code> (see <a href="machine.html#bringing-in-a-machine-set-up-in-openpnp">Machine</a>).</td>
+</tr>
+<tr>
+<td><strong>Open Cell…</strong></td>
+<td>Opens a cell file.</td>
+</tr>
+<tr>
+<td><strong>Connect</strong></td>
+<td>Connects to the open cell's controllers. Available while a cell is open and not connected.</td>
+</tr>
+<tr>
+<td><strong>Disconnect</strong></td>
+<td>Closes the connections. Available while connected.</td>
+</tr>
+<tr>
+<td><strong>Home All Axes</strong> (Ctrl+H)</td>
+<td>Homes the machine (see <a href="machine.html#homing">Homing</a>). Available while connected.</td>
+</tr>
+<tr>
+<td><strong>Stop</strong> (Escape)</td>
+<td>Holds the move under way and drops what is queued; the position is kept (see <a href="machine.html#stopping-a-move">Stopping a move</a>).</td>
+</tr>
+<tr>
+<td><strong>Emergency Stop</strong></td>
+<td>Resets every controller at once; home again before moving.</td>
+</tr>
+<tr>
+<td><strong>Park Head</strong></td>
+<td>Takes the head out of the way (see <a href="machine.html#parking">Parking</a>). Available once homed.</td>
+</tr>
+<tr>
+<td><strong>Jog</strong></td>
+<td>The <a href="machine.html#jog">Jog panel</a>'s moves, with OpenPnP's keys: <strong>X+</strong> / <strong>X-</strong> (Ctrl+Right / Ctrl+Left), <strong>Y+</strong> / <strong>Y-</strong> (Ctrl+Up / Ctrl+Down), <strong>Z+</strong> / <strong>Z-</strong> (Ctrl+' / Ctrl+/), <strong>Turn Anticlockwise</strong> / <strong>Turn Clockwise</strong> (Ctrl+, / Ctrl+.), <strong>Park C</strong> (the rotation to 0), <strong>Raise</strong> / <strong>Lower Jog Increment</strong> (Ctrl+= / Ctrl+-), <strong>First</strong> to <strong>Fifth Jog Increment</strong> (Ctrl+Shift+F1 to F5: 0.01, 0.1, 1, 10 and 100 mm, or 0.001 to 10 in; the nearest of the distances offered), <strong>Faster</strong> / <strong>Slower</strong>, <strong>Park XY</strong> (Ctrl+Shift+P), <strong>Park Z</strong> (Ctrl+Shift+L), <strong>Head Safe Z</strong> (Ctrl+Shift+Z), <strong>Discard</strong> (Ctrl+Shift+D), <strong>Pick</strong>, <strong>Place</strong>, <strong>Move last selected tool to camera position</strong>, <strong>Move camera to position of selected tool</strong>. With Shift held, a jog moves two steps finer (a hundredth, no finer than the smallest distance), as OpenPnP's. A key is not taken from a text field that uses it.</td>
+</tr>
+<tr>
+<td><strong>Machine Setup…</strong></td>
+<td>Shows <a href="machine-setup.html">Machine Setup</a>, to look at and change what the machine is made of.</td>
+</tr>
+</tbody>
+</table>
+<!-- src: src/app/JPlacerMenuBuilder.cpp (the Machine menu); src/app/JPlacerMachine.cpp (updateMenu); src/ui/JPJogPanel.cpp (act, jog) -->
+
+<h2 id="job">Job<a class="headerlink" href="#job" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Entry</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Start</strong> (<strong>Pause</strong> while the job runs, <strong>Resume</strong> while it is paused; Ctrl+Shift+R), <strong>Step</strong> (Ctrl+Shift+S), <strong>Stop</strong> (Ctrl+Shift+A)</td>
+<td>As the Job tab's buttons (see <a href="jobs.html#running-the-job">Running the job</a>).</td>
+</tr>
+<tr>
+<td><strong>Reset All Placed</strong></td>
+<td>Marks every placement of the job not placed, so the job places them all again.</td>
+</tr>
+<tr>
+<td><strong>Plan…</strong></td>
+<td>The job's parts in groups, in the order a run places them (see <a href="jobs.html#the-plan">The plan</a>).</td>
+</tr>
+<tr>
+<td><strong>Check Job…</strong></td>
+<td>The job's data checked as Start checks it (see <a href="jobs.html#running-the-job">Running the job</a>).</td>
+</tr>
+<tr>
+<td><strong>Shortages…</strong></td>
+<td>The job's parts against the stock (see <a href="jobs.html#shortages">Shortages</a>).</td>
+</tr>
+<tr>
+<td><strong>Runs…</strong></td>
+<td>The runs of jobs, and whether their parts are in the stock's ledger (see <a href="jobs.html#runs">Runs</a>).</td>
+</tr>
+</tbody>
+</table>
+<!-- src: src/app/JPlacerMenuBuilder.cpp (the Job menu); src/ui/JPJobPanel.cpp (setMenuItems, resetAllPlaced, updateJobActions) -->
+
+<h2 id="scripts">Scripts<a class="headerlink" href="#scripts" title="Permanent link">&para;</a></h2>
+<p>As OpenPnP's: the scripts in jplacer's scripts folder (<code>~/.config/jplacer/scripts</code>), by name, each folder a
+submenu of its own (but <strong>Events</strong>, and a folder holding a file named <code>.ignore</code>). Choose one to run it; the status
+line says when it is done, or why it failed, and what it prints goes to the log. Then <strong>Refresh Scripts</strong> (the
+folder read again), <strong>Open Scripts Directory</strong>, and <strong>Clear Scripting Engine Pool</strong>: the interpreters kept by
+the machine's <strong>Pool scripting engines?</strong> end, and events found without scripts are looked for again (greyed when
+there is nothing to clear).</p>
+<p>A script is a Python (<code>.py</code>, run by <code>python3</code>), JavaScript (<code>.js</code>, run by <code>node</code>) or shell (<code>.sh</code>) file, each run
+as a program of its own; with the machine's <strong>Pool scripting engines?</strong> ticked (Machine Setup, the machine's
+General settings, as OpenPnP's), Python and JavaScript scripts are run by interpreters kept from one script to
+the next, faster to start, but what one script leaves behind (a module's state, the working folder) is there
+for the next, and a JavaScript script's asynchronous work is not waited for. It is told
+what it runs for, as JSON in the environment variable <code>JPLACER_GLOBALS</code> (and the event's name in <code>JPLACER_EVENT</code>),
+and, as OpenPnP's scripts have <code>machine</code>, it can ask the machine through the module <code>jplacer</code> that jplacer keeps
+with the scripts (<code>import jplacer</code> in Python, <code>require("jplacer")</code> in JavaScript; the helpers are in the
+scripts folder's <code>.jplacer</code> folder, on the scripts' import paths):</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>positions()</code></td>
+<td>Where each axis is, by name.</td>
+</tr>
+<tr>
+<td><code>location(tool)</code></td>
+<td>Where a nozzle, camera or actuator (by name) is: <code>x</code>, <code>y</code>, <code>z</code>, <code>rotation</code>.</td>
+</tr>
+<tr>
+<td><code>move_to(tool, x, y, z, rotation, speed, straight)</code></td>
+<td>Moves it there (any left out stay), by way of Safe Z unless <code>straight</code>; <code>speed</code> a share of the machine's.</td>
+</tr>
+<tr>
+<td><code>safe_z(head, speed)</code></td>
+<td>The head (the first, when none is named) up to Safe Z.</td>
+</tr>
+<tr>
+<td><code>home()</code></td>
+<td>Homes the machine, waiting for it.</td>
+</tr>
+<tr>
+<td><code>actuate(actuator, value)</code></td>
+<td>Switches an actuator (<code>True</code>/<code>False</code>), or sets it to a number or text.</td>
+</tr>
+<tr>
+<td><code>read(actuator, parameter)</code></td>
+<td>Reads an actuator.</td>
+</tr>
+<tr>
+<td><code>gcode(line, controller)</code></td>
+<td>Sends a line to a controller (the first, when none is named).</td>
+</tr>
+<tr>
+<td><code>message(text)</code></td>
+<td>Shows it in the status bar.</td>
+</tr>
+<tr>
+<td><code>call("dialog", title=…, text=…)</code></td>
+<td>Shows it in a dialog.</td>
+</tr>
+</tbody>
+</table>
+<p>A Python or JavaScript script also finds OpenPnP's own scripting objects, so OpenPnP's scripts run as they are
+(JavaScript as OpenPnP's Java JavaScript, Nashorn, has it: <code>print</code>, <code>load</code>, <code>Packages</code>, <code>JavaImporter</code> with
+<code>with</code>, and <code>for each</code>): <code>machine</code>
+(its <code>defaultHead</code>, <code>heads</code>, <code>feeders</code>, <code>actuators</code>, <code>cameras</code>, <code>getActuatorByName</code>, <code>getFeeder</code>, <code>home</code>), each
+head's <code>nozzles</code>, <code>cameras</code>, <code>actuators</code>, <code>defaultNozzle</code>, <code>defaultCamera</code>, <code>isCarryingPart</code> and <code>moveToSafeZ</code>; a
+nozzle, camera or actuator's <code>name</code>, <code>id</code>, <code>location</code>, <code>moveTo(location)</code> and <code>moveToSafeZ</code>, a nozzle's <code>part</code>,
+<code>pick(part)</code> and <code>place()</code> (where it is), an actuator's <code>actuate</code> and <code>read</code>; a feeder's <code>name</code>, <code>part</code>, <code>enabled</code>,
+<code>getFeedCount</code> and <code>setFeedCount</code>; <code>config</code> (its <code>parts</code> and <code>getPart</code>), <code>scripting</code> (<code>getScriptsDirectory</code>;
+<code>on(event, globals)</code>, the event's scripts run, and <code>execute(script, globals)</code>, a script run, each on an interpreter
+of its own, the globals given to it as its own) and
+<code>gui</code> (its <code>jobTab</code>: the <code>job</code>'s <code>boardLocations</code>, each with its <code>location</code>, <code>side</code> and <code>setEnabled</code>, and
+<code>refresh</code>). Java's bean getters work either way, as in OpenPnP (<code>nozzle.location</code>, <code>nozzle.getLocation()</code>). The
+Java packages they import are there as far as these go: <code>org.openpnp.model</code> (<code>Location</code>, with <code>add</code>, <code>subtract</code>,
+<code>derive</code>, <code>convertToUnits</code> and OpenPnP's <code>toString</code>; <code>LengthUnit</code>), <code>org.openpnp.util.UiUtils</code>
+(<code>submitUiMachineTask</code>: run now, an error shown), <code>Utils2D.calculateBoardPlacementLocation</code> (a place on a board in
+the machine's coordinates), <code>VisionUtils.readQrCode</code> (what a QR code under the camera says), <code>org.openpnp.vision.pipeline.CvPipeline</code> (an OpenPnP pipeline, given as its XML,
+run by jplacer on its <code>camera</code> property's camera where it is, else the head camera: <code>process</code>, then <code>getResult(stage)</code>'s <code>model</code>, OpenPnP's key points,
+rotated rects, circles, points, numbers or text; <code>gui.getCameraViews().getCameraView(camera).showFilteredImage</code> shows
+its working image on the camera), <code>OpenCvUtils.toBufferedImage</code>, <code>javax.swing.JOptionPane</code> (<code>showMessageDialog</code>, in jplacer's
+dialog) and <code>javax.script</code> (the languages jplacer runs). As OpenPnP, jplacer puts OpenPnP's Example scripts in the
+scripts folder's <code>Examples</code> (those not there yet, each time it starts), Python and JavaScript; they run as in
+OpenPnP; Pipeline.js runs its pipeline, then stops on a name it never defines (<code>s</code>), as it does in OpenPnP.</p>
+<p>A request that fails raises <code>jplacer.Error</code> (an <code>Error</code> in JavaScript) with why. Each is a line of JSON written to
+file descriptor 3 (<code>{"call": "moveTo", "tool": "N1", "x": 10}</code>) and its answer a line read from 4 (<code>{"result": …}</code>
+or <code>{"error": "…"}</code>), so a shell script can ask too. A script the machine itself runs (an actuator's, or one at
+Machine.AfterDriverHoming) cannot move it, switch or read actuators, or home it: waiting for the machine there would
+never end, so it is told so.</p>
+<p>The <strong>Events</strong> folder's scripts run at OpenPnP's events, those named the event, or the event, a dot and more
+(<code>Job.Starting.2.py</code>), in name order: <strong>Startup</strong>, <strong>Machine.AfterHoming</strong>, <strong>Job.Starting</strong>, <strong>Job.Finished</strong>,
+<strong>Job.Error</strong> (with the <code>exception</code>), <strong>Job.Placement.Starting</strong>, <strong>Job.Placement.Complete</strong>,
+<strong>Feeder.BeforeFeed</strong>, <strong>Feeder.AfterFeed</strong>, <strong>Nozzle.BeforePick</strong>, <strong>Nozzle.AfterPick</strong>, <strong>Nozzle.BeforePlace</strong>
+and <strong>Nozzle.AfterPlace</strong> (each with the <code>job</code>, <code>board</code>, <code>placement</code> and <code>part</code>, and the <code>feeder</code> or <code>nozzle</code>);
+<strong>Feeder.Fault</strong> (a deferred placement's feeder failing: the <code>feeder</code> and the <code>exception</code>); <strong>Job.BeforeDiscard</strong>
+and <strong>Job.AfterDiscard</strong> (the <code>nozzle</code>); <strong>Vision.PartAlignment.Before</strong> and <strong>Vision.PartAlignment.After</strong> (the
+<code>part</code>, the <code>nozzle</code>, after it the <code>offsets</code> found); <strong>Machine.AfterDriverHoming</strong> (the controllers homed, before
+visual homing and Machine.AfterHoming); <strong>NozzleCalibration.Starting</strong> and <strong>NozzleCalibration.Finished</strong> (runout
+calibration: the <code>nozzle</code> and <code>camera</code>); <strong>Camera.BeforeSettle</strong>, <strong>Camera.AfterSettle</strong>, <strong>Camera.BeforeCapture</strong>
+and <strong>Camera.AfterCapture</strong> (each picture vision takes: the <code>camera</code>); and <strong>Camera.AfterPosition</strong> (a camera
+moved to look somewhere by a button, once it is there). One that fails (exits other than 0, or runs past a
+minute) stops what it runs for, saying why.</p>
+<!-- src: src/app/JPlacerScriptsMenu.cpp; src/machine/JPScriptProcess.h; src/machine/JPScripting.cpp (kPythonServe, kNodeServe, clearPool, kOpenPnpModel, kOpenPnpModelJs, kOpenPnpPackages, helpersDirectory); src/app/JPlacerOpenPnpTabs.cpp (scriptJobRequest); src/app/JPlacerScriptVision.cpp; src/app/JPlacerMachine.cpp (scriptRequest, the Example scripts); openpnp-defaults/scripts; src/tasks/JPJobProcessor.cpp (script, placementGlobals); src/app/JPlacerMachine.cpp (runEvent, moveToolTo); src/app/JPlacerApp.cpp; src/tasks/JPCameraLook.cpp (settled); src/app/JPlacerCameraTasks.cpp (calibrateRunout); src/tasks/JPJobProcessor.cpp (discard, align), src/app/JPlacerMachine.cpp (scriptRequest) -->
+
+<h2 id="window">Window<a class="headerlink" href="#window" title="Permanent link">&para;</a></h2>
+<p>As OpenPnP's:</p>
+<table>
+<thead>
+<tr>
+<th>Entry</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Multiple Window Style</strong></td>
+<td>Ticked, the cameras open in a window of their own, and the machine controls (Jog, Actuators) in another, the main window keeping the rest; unticked, all in the one window. Taken the next time jplacer starts (it says so).</td>
+</tr>
+<tr>
+<td><strong>Change Appearance…</strong></td>
+<td><strong>Appearance Settings</strong>: the <strong>Theme</strong>, the <strong>Font Size</strong> (how big the whole interface is, as Edit &gt; Preferences' interface scale) and <strong>Alternating Rows Style</strong> (every other row of a table shaded; on to begin with). <strong>Apply</strong> shows the choice, <strong>Save</strong> shows and keeps it, <strong>Cancel</strong> puts back what was kept.</td>
+</tr>
+</tbody>
+</table>
+<!-- src: src/app/JPlacerMenuBuilder.cpp (the Window menu); src/app/JPlacerLayout.cpp (place); src/app/JPlacerAppearanceDialog.cpp; src/ui/JPTable.cpp -->
+
+<h2 id="help">Help<a class="headerlink" href="#help" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Entry</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>About jplacer</strong></td>
+<td>The version, copyright and licence.</td>
+</tr>
+<tr>
+<td><strong>Quick Start</strong></td>
+<td>Opens <a href="getting-started.html">Getting started</a> in your web browser.</td>
+</tr>
+<tr>
+<td><strong>Setup and Calibration</strong></td>
+<td>Opens <a href="machine-setup.html">Machine Setup</a> in your web browser.</td>
+</tr>
+<tr>
+<td><strong>User Manual</strong></td>
+<td>Opens this manual in your web browser.</td>
+</tr>
+<tr>
+<td><strong>Change Log</strong></td>
+<td>Opens <a href="whats-new.html">What's new</a>, the change log, in your web browser.</td>
+</tr>
+<tr>
+<td><strong>Submit Diagnostics…</strong></td>
+<td>As OpenPnP's: describe the problem, choose what to include (the machine's cell file, the <strong>Library</strong> written out as text, <code>library.json</code>, the latest log, anonymous system information, the current job, saved first) and <strong>Send</strong>. Where OpenPnP uploads it to Pastebin, jplacer sends nothing anywhere: it writes one file (<code>diagnostics/jplacer-diagnostics-&lt;date&gt;-&lt;time&gt;.txt</code>, each file under its name) and opens its folder, for you to attach to an issue on jplacer's GitHub or wherever you choose.</td>
+</tr>
+<tr>
+<td><strong>Check For Updates…</strong></td>
+<td>Looks for a newer jplacer now, and tells you the answer (see <a href="updates.html">Updates</a>).</td>
+</tr>
+</tbody>
+</table>
+<!-- src: src/app/JPlacerMenuBuilder.cpp (the Help menu); src/app/JPlacerHelpPages.cpp (opening the manual); src/app/JPlacerDiagnosticsDialog.cpp; src/app/JPlacerApp.cpp (openDiagnostics) -->
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="getting-started.html" class="md-footer__link md-footer__link--prev" aria-label="Previous: Getting started">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Getting started
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="machine.html" class="md-footer__link md-footer__link--next" aria-label="Next: Machine">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Machine
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.top", "navigation.footer", "search.highlight", "search.suggest", "toc.integrate"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

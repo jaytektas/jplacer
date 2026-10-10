@@ -1,0 +1,1658 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Using jplacer, pick-and-place machine control.">
+      
+      
+      
+        <link rel="canonical" href="https://jaytektas.github.io/jplacer/feeders.html">
+      
+      
+        <link rel="prev" href="pipeline-editor.html">
+      
+      
+        <link rel="next" href="issues.html">
+      
+      
+        
+      
+      
+      <link rel="icon" href="img/jplacer.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Feeders - jplacer User Manual</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+        <script src="https://unpkg.com/iframe-worker/shim"></script>
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#feeders" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="index.html" title="jplacer User Manual" class="md-header__button md-logo" aria-label="jplacer User Manual" data-md-component="logo">
+      
+  <img src="img/jplacer.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            jplacer User Manual
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Feeders
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="amber"  aria-label="Light"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Light" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="amber"  aria-label="Dark"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Dark" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jaytektas/jplacer" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jaytektas/jplacer
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="index.html" title="jplacer User Manual" class="md-nav__button md-logo" aria-label="jplacer User Manual" data-md-component="logo">
+      
+  <img src="img/jplacer.png" alt="logo">
+
+    </a>
+    jplacer User Manual
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jaytektas/jplacer" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jaytektas/jplacer
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    jplacer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="getting-started.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="menus.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Menus
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="machine.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Machine
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="machine-setup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Machine Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="jobs.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jobs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="panels.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Panels
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="boards.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Boards
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="parts.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Parts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="packages.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Packages
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="vision.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vision
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="pipeline-editor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipeline Editor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Feeders
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="feeders.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Feeders
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-toolbar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The toolbar
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The table
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-feeders-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The feeder's setup
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The feeder&#39;s setup">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#strip-feeder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Strip feeder
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tray-feeder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tray feeder
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rotated-tray-feeder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rotated tray feeder
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#auto-feeder-and-tube-feeder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Auto feeder and tube feeder
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#drag-feeder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Drag feeder
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lever-feeder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lever feeder
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schultz-feeder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schultz feeder
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#slot-feeders" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Slot feeders
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#neoden-4-feeder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Neoden 4 feeder
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#photon-feeder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Photon feeder
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rapid-feeder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rapid feeder
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#push-pull-feeder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Push-pull feeder
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#blinds-feeder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Blinds feeder
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#heap-feeder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Heap feeder
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bamboo-feeder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bamboo feeder
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#loose-part-feeders" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Loose part feeders
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#other-kinds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Other kinds
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#from-the-other-tabs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        From the other tabs
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="issues.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Issues &amp; Solutions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="log.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Log
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="preferences.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preferences
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="updates.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Updates and betas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="whats-new.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    What's new
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="feeders">Feeders<a class="headerlink" href="#feeders" title="Permanent link">&para;</a></h1>
+<p>The <strong>Feeders</strong> tab (in the work area, after Packages, as in OpenPnP) lists the machine's feeders: where
+each part is taken from. Each feeder is kept in <code>feeders.xml</code> in jplacer's configuration folder, exactly
+as OpenPnP keeps it in its <code>machine.xml</code>, whatever its kind; <strong>Machine ▸ Import OpenPnP Machine…</strong> brings
+an OpenPnP machine's feeders in (see <a href="machine.html#bringing-in-a-machine-set-up-in-openpnp">Machine</a>).</p>
+<!-- src: src/ui/JPFeedersPanel.cpp; src/app/JPlacerOpenPnpTabs.cpp (the Feeders dock, onImported); src/model/JPConfiguration.h (kFeedersFile); src/model/JPFeeder.h -->
+
+<h2 id="the-toolbar">The toolbar<a class="headerlink" href="#the-toolbar" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Button</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>New Feeder...</strong> (plus)</td>
+<td>Asks which kind of feeder to make (below), then makes it, holding the first part, turned off and named after its kind. There must be a part first.</td>
+</tr>
+<tr>
+<td><strong>Delete Feeder...</strong> (cross)</td>
+<td>Deletes the chosen feeders, after asking.</td>
+</tr>
+<tr>
+<td><strong>Pick...</strong></td>
+<td>Feeds the chosen feeder, then the nozzle chosen on the Jog panel picks its part: up to safe Z, across and turned to the pick location, down, the vacuum on, and up again.</td>
+</tr>
+<tr>
+<td><strong>Feed...</strong></td>
+<td>Feeds the chosen feeder: its count moves on to the next part (a strip with vision on has its hole looked at).</td>
+</tr>
+<tr>
+<td><strong>Move Camera...</strong></td>
+<td>Moves the camera over the chosen feeder's pick location, at safe Z, turned to the part's angle there, so a footprint on the camera lies as the part does. While it stays there, an edit that turns the pick (its <strong>Rotation In Tape</strong>, say) turns the camera with it.</td>
+</tr>
+<tr>
+<td><strong>Move Tool...</strong></td>
+<td>Moves the chosen nozzle to the chosen feeder's pick location: up to safe Z, across, and down to the pick height.</td>
+</tr>
+</tbody>
+</table>
+<p>Delete Feeder and the right-click menu work on one feeder or several; the others on one. The machine
+must be connected and homed to move. A feed that cannot be made says why: a tray or strip that is
+empty ("Tried to feed part: … Feeder … empty."), or a feeder with no part.</p>
+<p><strong>New Feeder...</strong> offers OpenPnP's kinds, in its order: ReferenceStripFeeder, ReferenceTrayFeeder,
+ReferenceRotatedTrayFeeder, ReferenceDragFeeder, ReferenceLeverFeeder, ReferencePushPullFeeder,
+ReferenceTubeFeeder, ReferenceAutoFeeder, ReferenceSlotAutoFeeder, ReferenceLoosePartFeeder,
+AdvancedLoosePartFeeder, ReferenceHeapFeeder, BlindsFeeder, SchultzFeeder, SlotSchultzFeeder, RapidFeeder,
+Neoden4Feeder, PhotonFeeder and BambooFeederAutoVision. Click one and <strong>Accept</strong>, or double-click it.
+jplacer works out where each of these kinds picks, and feeds it. A kind it does not know (a feeder class
+another build of OpenPnP added, read from its machine.xml) is kept and shown, but <strong>Pick...</strong> and <strong>Feed...</strong>
+say feeding it is not available.</p>
+<p><strong>Search</strong>, at the right, shows only the feeders with the text typed anywhere in a row, whatever its case
+(a regular expression, as on the other tabs); its <strong>✕</strong> empties it.</p>
+<!-- src: src/ui/JPFeedersPanel.cpp (newFeeder, deleteFeeders, feed, pickFrom, moveToPick, followPickRotation, selectionChanged); src/app/JPlacerClassSelectionDialog.cpp; src/model/JPFeeder.cpp (create, classNames, pickLocation, feed, fromXml); src/app/JPlacerMachine.cpp (pickAt, moveToolTo); src/machine/JPCell.cpp (pickAt) -->
+
+<h2 id="the-table">The table<a class="headerlink" href="#the-table" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Name</strong></td>
+<td>The feeder's name, changed in place.</td>
+</tr>
+<tr>
+<td><strong>Part</strong></td>
+<td>The part it holds.</td>
+</tr>
+<tr>
+<td><strong>Type</strong></td>
+<td>Its kind.</td>
+</tr>
+<tr>
+<td><strong>Priority</strong></td>
+<td><strong>High</strong>, <strong>Normal</strong> or <strong>Low</strong>: of the feeders holding a part, those of the highest priority are used. Chosen from a list.</td>
+</tr>
+<tr>
+<td><strong>Faults</strong></td>
+<td>A job's last feeds and picks from it, newest first: <code>X</code> a fault, <code>-</code> none; empty when there were none. jplacer does not run jobs yet, so it stays empty.</td>
+</tr>
+<tr>
+<td><strong>Enabled</strong></td>
+<td>Whether it is used. Greyed while no enabled placement on an enabled board of the job uses its part.</td>
+</tr>
+<tr>
+<td><strong>Feed</strong></td>
+<td><strong>Normal feed</strong>; <strong>Skip next feed</strong> (the next feed picks again where the last one did, then goes back to normal: for tuning a feeder, or after putting a lost part back in its pocket); or <strong>Disable feed</strong> (it always picks where it is). Chosen from a list, for the kinds that offer it (strip, tray, push-pull, auto, Photon and Bamboo feeders).</td>
+</tr>
+</tbody>
+</table>
+<p>Columns sort as on the other tabs; Priority and Feed sort in the order listed above. Right-click a row
+for <strong>Set Enabled</strong> (<strong>Enabled</strong>, <strong>Disabled</strong>) and <strong>Set Feed option</strong>, for every chosen feeder at once.</p>
+<!-- src: src/ui/JPFeedersTableModel.cpp; src/ui/JPFeedersPanel.cpp (buildMenu); src/model/JPFeeder.cpp (summariseJobFaults, supportsFeedOptions, feedOptionsName) -->
+
+<h2 id="the-feeders-setup">The feeder's setup<a class="headerlink" href="#the-feeders-setup" title="Permanent link">&para;</a></h2>
+<p>Under the table, the chosen feeder's <strong>Configuration</strong>. Each change is made as soon as it is entered
+(Return, Tab or leaving the field), so there is no Apply. Every kind has <strong>General Settings</strong>: its
+<strong>Part</strong>, <strong>Feed Retry Count</strong> and <strong>Pick Retry Count</strong> (a new feeder's 3 and 0, as a new OpenPnP feeder's). A
+place has OpenPnP's four buttons after it:
+<strong>Position Camera</strong> and <strong>Position Tool</strong> take the camera, or the nozzle chosen on the Jog panel, to the
+place at safe Z; <strong>Get Camera Coordinates</strong> and <strong>Get Tool Coordinates</strong> set the place from where the
+camera or the nozzle is now (the camera's X and Y; the nozzle's Z as well). A push-pull motion's places
+(a feeder moved by an actuator) also have <strong>Position Actuator (Without Safe Z)</strong>, which takes the actuator
+there straight, without going up to safe Z first.</p>
+<!-- src: src/setup/JPFeederForms.cpp (general, pickLocation, push-pull motion); src/model/JPFeeder.cpp (create); src/ui/JPSetupForm.cpp (locationButtons); src/ui/JPFeedersPanel.cpp (capture, goTo) -->
+
+<p>Beside it, <strong>Stock</strong> says which of the part's stock lots is on the feeder (see <a href="parts.html#the-parts-tabs">Parts</a>):
+<strong>Lot</strong> offers <strong>None</strong> and the part's open lots (each with what it holds and where it is kept); choosing
+one loads it on this feeder and takes off any other. <strong>Holds</strong> is what the lot holds by its ledger, less
+what a run under way has taken from it. A run counts what the feeder feeds against its lot (see
+<a href="jobs.html#runs">Runs</a>). A feeder whose part is not one of the library's carries no lot, and a slot
+feeder has no Stock tab (the feeder loaded in it has).</p>
+<!-- src: src/ui/JPFeedersPanel.cpp (stockTab); src/model/JPStockStore.cpp (lotOnFeeder, loadLot); src/model/JPRunStore.cpp (fedByOpenRuns) -->
+
+<h3 id="strip-feeder">Strip feeder<a class="headerlink" href="#strip-feeder" title="Permanent link">&para;</a></h3>
+<p>A strip of cut tape lying on the machine, its parts picked one after the other along it.</p>
+<ul>
+<li><strong>General Settings</strong> add <strong>Rotation In Tape</strong>: how the part lies in its pocket, looking at the tape
+  with its sprocket holes at the top (0° as the part is drawn in its library; counter-clockwise is
+  positive). A strip saved by an OpenPnP from before that standard (no <code>standard-eia-481</code> in its
+  file) is brought to it as OpenPnP reads it: its Rotation In Tape 90° less, so it picks as before.</li>
+<li><strong>Tape Settings</strong>: <strong>Part Pitch</strong> (from one part to the next) and <strong>Tape Width</strong>, in mm; <strong>Feed
+  Count</strong>, the parts taken so far (<strong>Reset</strong> sets it to 0); <strong>Max Feed Count</strong>, the parts on the strip
+  (0: no limit), which <strong>Auto Set MaxFeedCount</strong> works out from the hole locations and the part pitch.
+  <strong>Auto-Tune?</strong> (jplacer's; on to begin with): the head camera tuned (Defaults, then Auto-Tune) for this
+  feeder's tape, the light being what it is now: by Auto Setup over the first part ("Auto-Tune over the tape...";
+  not tuned, Auto Setup stops with an <strong>Auto Setup Failure</strong> saying why), else on the feeder's first vision look of
+  a run, over the hole. White paper beside stainless steel, clear tape over a light feeder: each feeder at its own.
+  The tune is the feeder's for every pick after, while jplacer runs (never saved), until <strong>Reset</strong> (a reloaded
+  strip tunes again on its next look), a new run, or the machine connecting; the camera's own settings are not
+  changed. Each look of the head camera is at the tune meant for it, put back when another look had it otherwise:
+  a feeder's at its own, a fiducial check's at the check's (its camera's <strong>Auto-Tune for fiducial checks?</strong>), any
+  other at the camera's own settings, so no tune carries over into another look.
+  <strong>Auto Setup</strong> sets the strip up from two clicks on the camera's view, as OpenPnP's does. The head
+  camera's view asks "Click on the center of the first part in the tape."; the camera moves there and the strip's pipeline finds the round marks around it. Among them it takes the
+  sprocket holes: a line of marks 4 mm apart, a quarter of the tape width to half the tape width plus
+  1.25 mm from the part. OpenPnP takes only an unbroken run of them, so one hole not found (a faint one, as
+  clear tape's are) leaves no line at all; jplacer then takes the holes either side of the gap, still on whole
+  4 mm steps along the line and two of them side by side. Its strip pipeline keeps round marks scoring at least
+  0.05 of the best one (OpenPnP's default, 0.2, dropped clear tape's fainter holes beside one lit cleanly). While waiting for a click, the camera's view shows the lines found, the best one
+  and its holes. "Now click on the center of the second part in the tape." brings the same look at the
+  second part. The <strong>Reference Hole Location</strong> is the hole by the first part and the <strong>Part Pitch</strong> the
+  distance between the parts rounded to 2 mm. Then, with a <strong>Max Feed Count</strong> set, the camera follows the
+  holes down the strip ("Following the holes down the strip: hole 3 of 9..."), each looked at from beside it
+  as the first part was, half its view at a time, to the hole the strip's last part sits by: that is the
+  <strong>Last Hole Location</strong>. The parts are picked along the line between the two, the Part Pitch stretched to
+  how far apart they are against whole 4 mm hole pitches (OpenPnP's), so from holes 4 mm apart a few
+  hundredths off in one look went into every part (0.065 mm is 0.58 mm by the tenth) and turned the tape's
+  angle; 36 mm apart, it is shared among 9 holes. The log says how many holes apart the two are, the pitch
+  between them and the tape's angle; without a Max Feed Count the last hole is the one by the second part,
+  and the log warns that the pitch and angle come from holes that close. A hole not found on the way ends
+  the walk at the last one found, and the log says so; a strip running past the camera's reach (a soft limit) is
+  followed as far as it can go, its far scale measured there, and the log says the parts past it cannot be looked
+  at either. Their Z is kept,
+  the <strong>Feed Count</strong> set to 0, and the camera goes to the first part's pick location ("Setup
+  complete!"). A click is not where the part is picked: parts in tape lie on a hole's middle or halfway
+  between two holes, and the click says which. Nearer a hole's middle, the first part is on it; nearer
+  halfway, it is 2 mm from it (OpenPnP's Reference Hole To Part Linear, 2 mm to begin with; OpenPnP always
+  takes 2 mm). The parts are picked from the holes, not from the clicks. The button reads <strong>Cancel Auto Setup</strong> while it runs. It stops with an <strong>Auto Setup
+  Failure</strong> when the camera is not calibrated, when no hole is found by a part, when the same part is
+  clicked twice, or when the holes are on the wrong side for the direction the parts were clicked in ("The
+  tape is oriented incorrectly for the feed direction of the components selected").</li>
+</ul>
+<p>The camera is calibrated at its rig's height, and the tape is seldom there: lower, it looks smaller, and a
+  hole seen off the middle of the picture is off by that much of how far (1.2% of 6 mm is 0.07 mm), elsewhere
+  from each place the camera looks from. So after the first click ("Measuring the tape's scale...") the camera
+  moves 5 mm either way along X, then along Y (by a soft limit, 10 mm the other way), and how far the holes move
+  in the pictures against the machine's moves is the tape's own scale; every hole is found at it. The log gives it against the calibration's. With
+  the camera calibrated at two heights, that scale says how high the tape is, and the <strong>Reference Hole
+  Location</strong>'s Z is set to it: the tape's real height. The pick height is that Z; for a spring-loaded tip to
+  press on the part, lower it by hand. Calibrated at one height, the tape's height is not known: the Z is left
+  as it was, and the log says so. A strip need not be level: with a Max Feed Count, the scale is measured again
+  by the last part ("Measuring the tape's scale by the last part..."), the holes along the strip are found at
+  each look's share between the two, and the difference in height between the ends over how far apart they were
+  measured is the <strong>Z Along Strip %</strong>; the log says both heights, and warns when the ends differ by 0.2 mm or more.
+- <strong>Vision</strong>: with <strong>Use Vision?</strong> ticked, each feed has the camera look at the hole it feeds from (and at
+  the first hole too when picking starts mid-strip), and the parts are picked where the holes were found
+  rather than where the hole locations put them. The camera looks from a part beside the hole (across the tape
+  as its parts are, half a hole pitch along), not straight down on it: its own light reflected straight back
+  washes the hole under it out on clear tape. One look, as straight down would be. Where that is beyond the
+  camera's reach (a strip's end by the machine's edge, past an axis's soft limit), it looks straight down on the
+  hole instead, as OpenPnP does. The strip's pipeline
+  (<strong>Edit Pipeline...</strong>, as OpenPnP's strip feeder) finds the round marks there, at the camera's scale for the
+  tape's height (the Reference Hole Location's Z and its Z Along Strip %, the camera calibrated at two heights),
+  and the hole is the one nearest where it should be, within half a hole pitch; not found, or found more than
+  2 mm off, the strip is taken as finished ("Unable to locate reference hole. End of strip?").
+  <strong>Extrapolation Distance</strong>: how far along the strip to go before looking again (0: every hole; near the
+  strip's start it looks more often). <strong>Parallax Diameter</strong> and <strong>Parallax Angle</strong>: instead, look at the hole
+  from either side of it, that far apart and turned that way, and take the middle. <strong>Reset Vision</strong> forgets the
+  holes found. <strong>Edit Pipeline...</strong> opens the strip's OpenPnP pipeline in the <a href="pipeline-editor.html">Pipeline Editor</a>,
+  and <strong>Reset Pipeline</strong> puts the default back.
+- <strong>Locations</strong>: the <strong>Reference Hole Location</strong>, the hole nearest the first part's centre, in the
+  direction the parts continue, with the pick height as its Z; and the <strong>Last Hole Location</strong>, any hole
+  further along. <strong>Z Along Strip %</strong> (jplacer's; OpenPnP's strip is level): how much the tape rises along
+  the strip, in % of the distance from the Reference Hole Location, less than 0 for falling; each part is picked
+  that much higher or lower for how far along it is, from the Reference Hole Location's Z, so lowering that Z by
+  hand lowers every part's pick alike, and moving the Last Hole Location changes only the direction. 0 to begin with.</p>
+<p>The part is picked across the tape from its hole, as EIA-481 tape lays it out: half the tape width less
+0.5 mm across, 2 mm along, then one part pitch further for each part taken.</p>
+<!-- src: src/setup/JPFeederForms.cpp (stripForm, act); src/app/JPlacerCameraTasks.cpp (tuneFor); src/app/JPlacerMachine.cpp (tuneHeadCamera); src/tasks/JPCellJobMachine.cpp (tuneHead, useHeadTune); src/tasks/JPFeederFeed.cpp (feed); src/model/JPFeeder.cpp (pickLocation, idealLineLocations, z-along-strip-percent, feed, visionExpected, setVisionFound); src/tasks/JPFeederFeed.cpp; src/tasks/JPCellJobMachine.cpp (locateHole, seeCirclesAt); src/model/JPFeeder.cpp (visionView, tapeZ); src/tasks/JPFeederPipelines.cpp; src/app/JPlacerStripAutoSetup.cpp (tapeHeight, kScaleMoveMm); src/tasks/JPStripHoleWalk.cpp (scaleAt, atScale, besideHole, farthestReached, walk); src/app/JPlacerStripAutoSetup.cpp (kLevelMm); src/machine/JPCameraCalibration.cpp (heightAt); src/tasks/JPStripHoles.cpp (find); src/pipeline/JPDefaultPipelines.cpp (stripFeeder); src/vision/JPRansac.cpp -->
+
+<h3 id="tray-feeder">Tray feeder<a class="headerlink" href="#tray-feeder" title="Permanent link">&para;</a></h3>
+<p>Parts in rows and columns in a tray. <strong>Pick Location</strong> is the first part's place. <strong>Offsets</strong> are the
+distances from one part to the next in X and in Y, and <strong>Tray Count</strong> how many there are each way; an
+offset of 0 with more than one part that way is kept, but jplacer says it will fail. <strong>Feed Count</strong> is
+the parts taken so far (<strong>Reset</strong> sets it to 0).</p>
+<!-- src: src/setup/JPFeederForms.cpp (trayForm); src/model/JPFeeder.cpp (pickLocation, feed) -->
+
+<h3 id="rotated-tray-feeder">Rotated tray feeder<a class="headerlink" href="#rotated-tray-feeder" title="Permanent link">&para;</a></h3>
+<p>A tray turned on the machine. <strong>Tray Component Locations</strong>: <strong>Point A</strong> (the first row's first part),
+<strong>Point B</strong> (the first row's last) and <strong>Point C</strong> (the last row's last), each with the location
+buttons. <strong>Tray Parameters</strong>: the <strong>Number of Tray Rows</strong> and <strong>Columns</strong>, the <strong>Feed Count</strong> (<strong>Reset</strong>
+sets it to 0) and the components remaining, the <strong>Component Rotation in Tray</strong> (relative to the row,
+A to B), the <strong>Z Height</strong>, and <strong>Calculate Offsets &amp; Tray Rotation</strong>, which works out the <strong>Column
+Offset</strong>, <strong>Row Offset</strong> and <strong>Tray Rotation</strong> from the three points: it says what is wrong when the points
+and counts do not agree, or the corner at B is not square (within 2.5°). Parts are taken along a row,
+then the next. The <strong>Tray Illustration</strong> under them, OpenPnP's, shows where the three points are and what
+the offsets measure.</p>
+<!-- src: src/setup/JPFeederForms.cpp (rotatedTrayForm, act); src/model/JPFeeder.cpp (pickLocation, feed); src/setup/JPIllustrations.cpp; illustrations/rotatedtrayfeeder.png -->
+
+<h3 id="auto-feeder-and-tube-feeder">Auto feeder and tube feeder<a class="headerlink" href="#auto-feeder-and-tube-feeder" title="Permanent link">&para;</a></h3>
+<p>An <strong>auto feeder</strong> feeds itself when told to: its <strong>Pick Location</strong>, and <strong>Actuators</strong>: the <strong>Feed</strong>
+actuator and the value it is actuated with (a switch on when not 0), the <strong>Post Pick</strong> actuator and its
+value (after each pick), <strong>Move before feed</strong> (the nozzle over the pick location first) and <strong>Recycle
+supported</strong>. <strong>Test feed</strong> and <strong>Test post pick</strong> actuate them. A repeated feed (Skip next feed) does not
+actuate. A <strong>tube feeder</strong> is picked at its pick location with nothing to feed.</p>
+<!-- src: src/setup/JPFeederForms.cpp (autoForm); src/tasks/JPFeederFeed.cpp (feed, postPick); src/tasks/JPCellJobMachine.cpp (actuate); src/app/JPlacerOpenPnpTabs.cpp (machineAction) -->
+
+<h3 id="drag-feeder">Drag feeder<a class="headerlink" href="#drag-feeder" title="Permanent link">&para;</a></h3>
+<p>A tape pulled along by a pin on the head, as OpenPnP's drag feeder. Besides the <strong>General Settings</strong> and
+<strong>Pick Location</strong> every feeder has, a second <strong>General Settings</strong>: the <strong>Part Pitch</strong> (said beside it when
+the part is an 0402: "0402 Part DETECTED"), the <strong>Feed Speed %</strong> the tape is dragged at (of the machine's
+speed), the <strong>Actuator Name</strong> of the pin, and a <strong>Peel Off Actuator Name</strong>. <strong>Locations</strong>: the <strong>Feed
+Start Location</strong> where the pin goes into the tape and the <strong>Feed End Location</strong> it drags it to, X, Y and
+Z; with an actuator named, their tool buttons are <strong>Position Actuator</strong> (a red circle) and <strong>Get Actuator
+Coordinates</strong> (a blue one), which take the pin there at safe Z and take where it is. The <strong>Backoff
+Distance</strong> moves the pin back along the drag before it lets go, to take the tension off it.</p>
+<p>A feed goes up to safe Z, puts the pin over the start, actuates it, lowers it into the tape, drags to the
+end at the feed speed, pulses the peel off actuator, backs off, and lets go. At a 2 mm part pitch one drag
+brings two parts: the first is picked 2 mm back along the tape, and the next feed does not drag. Without
+an actuator name it says "No actuator name set."</p>
+<p><strong>Vision</strong>: with <strong>Vision Enabled?</strong> ticked, the head camera looks over the pick location for the
+<strong>Template Image</strong> within the <strong>Area of Interest</strong> (X, Y, Width and Height in the camera's pixels), and
+the pick location, and the next drag's start, move by how far from it the template is found. It is found
+as OpenPnP finds it: OpenCV's template matching over the area of interest, on the picture in colour
+(straightened where the camera is calibrated), the best place taken to the pixel, however poorly it matches.
+It looks before the first drag and after every one. <strong>Select</strong> under the template image, or beside the area of
+interest, puts a selection on the head camera's picture (see <a href="machine.html">Machine</a>); <strong>Confirm</strong> takes it
+(the template image is written into OpenPnP's configuration, as OpenPnP keeps it), <strong>Cancel</strong> puts it
+away. <strong>Reset vision offsets</strong> forgets where the template was last found, so the next feed looks again
+first. Without a template image or an area of interest the feed says it is required.</p>
+<!-- src: src/setup/JPFeederForms.cpp (pinForm); src/tasks/JPFeederFeed.cpp (pinFeed); src/model/JPFeeder.cpp (pickLocation, templatePath); src/ui/JPFeedersPanel.cpp (selectOnCamera, confirmTemplate); src/tasks/JPCellJobMachine.cpp (moveActuator, matchTemplate); src/pipeline/JPTemplateFinder.cpp; src/ui/JPSetupForm.cpp (locationButtons) -->
+
+<h3 id="lever-feeder">Lever feeder<a class="headerlink" href="#lever-feeder" title="Permanent link">&para;</a></h3>
+<p>A feeder whose lever the head pushes to move the tape on, as OpenPnP's lever feeder. Its page is the drag
+feeder's without the Backoff Distance or the 0402 note: the <strong>Feed Start Location</strong> is where the pin meets
+the lever, the <strong>Feed End Location</strong> where it pushes it to. A feed puts the pin over the start (at the
+height it is), actuates it, pushes to the end at the feed speed, turns the take up (peel off) actuator on,
+lets the lever back to the start, and turns both off: once for every 4 mm of the part pitch, so an 8 mm
+pitch is two pushes. At a 2 mm pitch one push brings two parts. Its vision looks for the template after
+each push only (not before the first), and the 2 mm step to the first of two parts is taken only with
+vision on, as OpenPnP does.</p>
+<!-- src: src/setup/JPFeederForms.cpp (pinForm); src/tasks/JPFeederFeed.cpp (pinFeed); src/model/JPFeeder.cpp (pickLocation) -->
+
+<h3 id="schultz-feeder">Schultz feeder<a class="headerlink" href="#schultz-feeder" title="Permanent link">&para;</a></h3>
+<p>An electric feeder driven through actuators, as OpenPnP's Schultz feeder. Besides the <strong>General Settings</strong>
+and <strong>Pick Location</strong>, its <strong>Actuators</strong>: the <strong>Feeder Number</strong> (the value each actuator is actuated or
+read with), then a row for each actuator, chosen from the machine's, with its button: <strong>Get ID</strong>, <strong>Pre
+Pick</strong> (<em>Test pre pick</em>), <strong>Post Pick</strong> (<em>Test post pick</em>, the feed count read after), <strong>Get Feed Count</strong>,
+<strong>Clear Feed Count</strong>, <strong>Get Pitch</strong>, <strong>Toggle Pitch</strong> (between 2 mm and 4 mm, the pitch read after) and
+<strong>Get Status</strong>. What the Get buttons read is shown beside them; with the machine connected, the ID, feed
+count, pitch and status are read when the feeder is chosen. A feed takes the nozzle over the pick location
+at safe Z and actuates the pre pick actuator; after the pick, the post pick actuator. Without a pre pick
+actuator a feed does nothing, as OpenPnP's.</p>
+<!-- src: src/setup/JPFeederForms.cpp (schultzForm, readsOnShow); src/tasks/JPFeederActions.cpp; src/tasks/JPFeederFeed.cpp (feed, postPick); src/machine/JPCell.cpp (readActuatorAndWait); src/ui/JPFeedersPanel.cpp (showReading) -->
+
+<h3 id="slot-feeders">Slot feeders<a class="headerlink" href="#slot-feeders" title="Permanent link">&para;</a></h3>
+<p>A <strong>slot auto feeder</strong> and a <strong>slot Schultz feeder</strong> are places on the machine that feeders are put into,
+as OpenPnP's ReferenceSlotAutoFeeder and SlotSchultzFeeder. The feeders belong to <strong>banks</strong>: each a name
+and its feeders, each feeder a name, the <strong>Part</strong> it holds and its <strong>Offsets</strong> from the slot. Imported
+from OpenPnP, the banks come with the machine. A slot's name in the table has what is loaded in it after
+it ("Slot 1 (Feeder 7)", or "(None)"); its part is the loaded feeder's, and it is enabled only with a
+feeder holding a part loaded. A feeder can be in one slot at a time: loading it into another takes it out
+of the first.</p>
+<p>Its page: <strong>Slot</strong>, the <strong>Feeder</strong> loaded (chosen from the slot's bank, its name editable beside it), with
+<strong>New</strong> (a new feeder in the bank, loaded) and <strong>Delete</strong> (the loaded feeder taken out of the bank), or for
+a slot Schultz feeder <strong>Load</strong> (the feeder its <strong>Get ID</strong> last read: the bank's of that name, else a new one
+of it, 5 mm left of and 30 mm below the slot) and Delete; its <strong>Location</strong>, with the location buttons (and
+for a slot Schultz feeder, <strong>Update feeder location based on fiducial</strong>: its <strong>Fiducial Part</strong> found near the
+location by the head's camera, as a board's fiducial is, and the location's X and Y set to where it is);
+the <strong>Feed</strong> and <strong>Pick Retry Count</strong>; the <strong>Bank</strong> (choosing another empties the slot), named beside it,
+with <strong>New</strong> and <strong>Delete</strong> (not the only bank: "Can't delete the only bank. There must always be one bank
+defined."). <strong>Feeder</strong>: the loaded feeder's <strong>Offsets</strong>, whose location buttons go to and take places as
+offsets from the slot's location (turned with it), and its <strong>Part</strong>. Then the <strong>Actuators</strong> of an auto feeder
+(each value noted "For Boolean: 1 = True, 0 = False") or of a Schultz feeder. A slot with nothing loaded
+says "No feeder loaded in slot." when fed.</p>
+<!-- src: src/model/JPSlotBanks.cpp; src/model/JPConfiguration.cpp (importFeeders, resolveSlots, loadSlot, setSlotBank); src/model/JPFeeder.cpp (name, enabled, partId, pickLocation, feed); src/setup/JPFeederForms.cpp (slotForm, slotAct); src/tasks/JPFeederActions.cpp (updateLocation); src/ui/JPFeedersPanel.cpp (capture, goTo) -->
+
+<h3 id="neoden-4-feeder">Neoden 4 feeder<a class="headerlink" href="#neoden-4-feeder" title="Permanent link">&para;</a></h3>
+<p>A Neoden 4 machine's own feeder, as OpenPnP's Neoden4Feeder. Besides the <strong>General Settings</strong> and <strong>Pick
+Location</strong>, <strong>Other</strong>: the <strong>Pitch In Tape [mm]</strong> and <strong>Rotation In Tape [deg]</strong> (added to the pick
+location's rotation), the <strong>Actuator Name</strong> with <strong>Actuate</strong> (the actuator actuated with the pitch), and
+the <strong>Feed Count</strong> with <strong>Reset</strong>. A feed actuates the actuator with the pitch and counts. Its <strong>Vision</strong>
+is a drag feeder's (see above), but its <strong>Area of Interest</strong>'s X and Y are from the middle of the camera's
+picture, each kept within 512 pixels, as OpenPnP's; a template not found leaves the pick where it was.</p>
+<!-- src: src/setup/JPFeederForms.cpp (neoden4Form, templateVision); src/tasks/JPFeederFeed.cpp (feed); src/tasks/JPFeederActions.cpp (actuate); src/pipeline/JPTemplateFinder.cpp (placed); src/model/JPFeeder.cpp (pickLocation); src/ui/JPFeedersPanel.cpp (selectOnCamera) -->
+
+<h3 id="photon-feeder">Photon feeder<a class="headerlink" href="#photon-feeder" title="Permanent link">&para;</a></h3>
+<p>An Opulo Photon feeder on its bus, as OpenPnP's PhotonFeeder: commands go as packets through the machine's
+<strong>PhotonFeederData</strong> actuator (its controller's <code>M485</code>). Until it has a hardware id it is "Unconfigured
+PhotonFeeder" and shows only <strong>Global Config</strong>; then its name shows its slot ("Reel 1 (Slot: 5)", or
+"(Slot: None)") and its <strong>Feeder</strong> page has <strong>Info</strong> (Hardware ID, Slot Address and <strong>Find</strong>), <strong>Part</strong>
+(the part, <strong>Part Pitch</strong> with <strong>Feed</strong> and <strong>Feed 1mm</strong>, the retries) and <strong>Location</strong> (the <strong>Slot
+Location</strong>, kept for the slot address, and the <strong>Part Offset</strong> from it, whose location buttons work from
+the slot; <strong>Move While Feeding?</strong>). <strong>Global Config</strong>'s <strong>Search</strong> asks every address up to <strong>Maximum
+Feeder Address To Scan</strong>, a strip showing each as it is asked, found or missing, and adds the feeders it
+finds. A feed finds the feeder's address and sets it up when needed, moves it on by its pitch with the
+nozzle taken over its pick meanwhile, and waits until it says it is done, trying again as OpenPnP does; a
+job finds and sets up the Photon feeders it uses first. When the machine has no PhotonFeederData actuator,
+one is made, as OpenPnP makes it: read through its first G-code controller by <code>M485 {value}</code>, the value its
+reply's <code>rs485-reply: (?&lt;Value&gt;.*)</code> finds (a Machine Setup step, undone like any other).</p>
+<p><strong>Program Feeder Slots ▸ Start Wizard</strong> (the machine connected) programs slots you built yourself: take
+every Photon feeder out and press <strong>Next</strong>; then put a feeder into the slot whose number is shown (change
+it if you like). The feeder is given that slot's address, set up there, and the number moves on to the
+next, for the next slot, until <strong>Finish</strong>. The search's highest address is raised to the last one
+programmed.</p>
+<!-- src: src/app/JPlacerPhotonSlotsDialog.cpp; src/app/JPlacerMachine.cpp (ensurePhotonActuator); src/tasks/JPPhotonFeeders.cpp (addDataActuator); src/tasks/JPPhotonCommands.cpp; src/tasks/JPPhotonPacket.cpp; src/tasks/JPPhotonBus.cpp; src/model/JPPhotonProperties.cpp; src/model/JPFeeder.cpp (name, photonUnconfigured, pickLocation); src/setup/JPFeederForms.cpp (photonForm); src/ui/JPSearchStrip.cpp; src/tasks/JPJobProcessor.cpp (preFlight) -->
+
+<h3 id="rapid-feeder">Rapid feeder<a class="headerlink" href="#rapid-feeder" title="Permanent link">&para;</a></h3>
+<p>A feeder told what to do by its address, as OpenPnP's Rapid feeder: <strong>Rapid Feeder Config</strong> has its
+<strong>Address</strong> and <strong>Pitch</strong>, and a feed sends "address pitch" to the machine's actuator named
+<strong>RAPIDFEEDER</strong>. <strong>Rapid Feeder Scanning</strong>: <strong>Scan</strong> takes the head camera from the <strong>Scan Start</strong> to the
+<strong>Scan End Location</strong> a <strong>Scan Increment</strong> at a time (the end included), reading the QR codes it sees with
+its light on. Each code is a Rapid feeder: the one named by it, else a new one named so (with the first part,
+when it has none); its location is set to where the code was first seen (its Z and rotation kept) and its
+address to the code.</p>
+<!-- src: src/setup/JPFeederForms.cpp (rapidForm); src/tasks/JPFeederFeed.cpp (feed, kRapidActuator); src/tasks/JPRapidScan.cpp; src/tasks/JPCellJobMachine.cpp (readQrCodes) -->
+
+<h3 id="push-pull-feeder">Push-pull feeder<a class="headerlink" href="#push-pull-feeder" title="Permanent link">&para;</a></h3>
+<p>A tape advanced by a lever on the machine that the head's feed actuator pushes and pulls (OpenPnP's
+ReferencePushPullFeeder). Its <strong>Configuration</strong> tab is the Bamboo feeder's (below) for <strong>Locations</strong>, <strong>Tape Settings</strong>
+(the pitches typed in, and a <strong>Multiplier</strong>: actuations per feed, so more parts a feed) and <strong>Vision</strong> (ColorKeyed by
+default); <strong>Snap to Axis?</strong> is ticked by default. Auto-Setup that fails with the feeder's pipeline is tried again with
+each stock pipeline (ColorKeyed, then CircularSymmetry), and keeps the one that works. With the Calibration Trigger at
+None, the holes are taken as set and never calibrated.</p>
+<p>Its <strong>Push-Pull Motion</strong> tab: the <strong>Feed Actuator</strong> (switched on while pushing; its place rows move and capture it) and
+the <strong>Auxiliary Actuator</strong> (on while pulling, as for peeling cover tape); then the <strong>Start</strong>, <strong>Mid 1</strong> to <strong>Mid 3</strong> and
+<strong>End Location</strong> (X, Y, Z and rotation), each with whether it is gone through pushing (↓), when actuating more than once
+(↑↓) and pulling (↑), and between them the <strong>Delay</strong> after reaching each (milliseconds, 5 s at most) and the <strong>Speed</strong>
+pushing down to the next and pulling back up to it. <strong>Vision Calibrate?</strong> moves the places by the vision offset in X and
+Y; <strong>Additive</strong> counts the rotation axis from where it is before each feed (a cover tape spool wound on), and its
+<strong>Reset</strong> calls the rotation 0 now.</p>
+<p>A feed (with no part left of the last): the actuator over the start at safe Z, then each actuation: on, pushed through
+the places ticked to the end, the auxiliary actuator on, pulled back through those ticked to the start, both off; the
+first push and the last pull go all the way, those between only through the places ticked ↑↓. Then up to safe Z and
+calibrated as the trigger says. A repeated feed moves nothing.</p>
+<p><strong>OCR</strong> (in <strong>Vision</strong>) reads the part id printed beside the tape. <strong>Setup OCR Region</strong> takes the camera over the
+holes, then asks on its view, step by step (the feeder's page shows <strong>Next</strong>, then <strong>Finish</strong>, and <strong>Cancel</strong>): move
+the camera where the text is, if it is not in view (jog, or click to look there), click the upper left, upper right
+and lower left corner of the text (a click again takes a corner back), and click to switch between a rectangle and a
+parallelogram. The <strong>OCR Font Name</strong> (or [Barcode], to read a barcode or QR code instead) and <strong>OCR Font Size [pt]</strong>
+are the printed text's; its alphabet is every character of the part ids. What OCR read names a part by its id, whole,
+or as the end of an id after a "-"; on the first line, and up to a space unless a part id has one.</p>
+<p>The <strong>OCR Wrong Part Action</strong> says what happens when the part read is not the feeder's: <strong>None</strong>; <strong>SwapFeeders</strong>
+(the push-pull feeder that has that part takes this one's place, and the other way round, and is turned on);
+<strong>SwapOrCreate</strong> (the same, or, when no feeder has it, a new feeder for it at this place, cloned from this one or its
+template, and this one turned off); <strong>ChangePart</strong>; <strong>ChangePartAndClone</strong> (cloned from the new part's template).
+<strong>Stop after wrong part?</strong> fails with what was done. A feeder with no part takes the part read, cloned from its
+template. <strong>Part by OCR</strong> reads and changes the part; <strong>All Feeder OCR</strong> reads every enabled push-pull feeder with OCR,
+along the shortest way, doing what each says; both end with an <strong>OCR Report</strong>. <strong>Check on Job Start?</strong>: a job first
+reads each uncalibrated feeder it uses, and a wrong part stops it (a feeder without an OCR region then stops it too).
+OCR is read with the holes' calibration when the region needs no camera move, else from the region's place.</p>
+<p><strong>Clone Settings</strong>: <strong>Use this one as Template?</strong>; <strong>Template</strong> says what the feeder would clone from (the template
+whose part shares its tape and reel specification or package, else the most alike: a template, the same feed pitch,
+tape width and part pitch, in the same row, on, nearest), or for a template what it clones to. <strong>Clone from
+Template</strong> (or, for a template, <strong>Clone to Feeders</strong>, every feeder with a compatible part) takes the ticked settings:
+<strong>Location</strong> (the pick location's Z and the options), <strong>Tape</strong>, <strong>Vision</strong> (with the pipeline) and <strong>Push-Pull</strong>, the
+template's lever places moved to this feeder's tape (its X and Y swapped when it is turned). Auto-Setup clones from
+the template first. <strong>+</strong> (beside Auto-Setup) adds one more feeder like this one in its row, as far on as the nearest
+other feeder is (else a tape width and 8 mm down the tape), and sets it up with the camera there.</p>
+<!-- src: src/setup/JPFeederForms.cpp (pushPullForm); src/tasks/JPVisionTapeFeeder.cpp (feedPushPull, autoSetup, performOcr, performOcrOnAll); src/tasks/JPFeederActions.cpp; src/tasks/JPFeederPipelines.cpp (setupOcr); src/model/JPPushPullTemplates.cpp; src/app/JPlacerOcrRegionSetup.cpp; src/ui/JPFeedersPanel.cpp (cloneFromTemplate, cloneToFeeders, plusOne) -->
+
+<h3 id="blinds-feeder">Blinds feeder<a class="headerlink" href="#blinds-feeder" title="Permanent link">&para;</a></h3>
+<p>Tapes side by side in a 3D printed holder (OpenPnP's BlindsFeeder), under a cover with a window (blind) over each pocket
+that a nozzle pushes along the tape to open and close, or a cover pushed ahead of the part being picked. The holder's
+three diamond fiducials make its frame: fiducial 1 its corner, fiducial 2 along the tapes (their length, to whole 2 mm),
+fiducial 3 across them (the holder's extent). Every feeder whose fiducial 1 is the same (within 2 mm) and in the same
+group shares the holder's settings (fiducials, <strong>Normalize</strong>, the cover's calibrated edges for the same tape, vision and
+OCR settings, the pipeline): what one is set to, the others are set to. Setting fiducial 1 of a feeder with none takes
+a holder's settings from a feeder already on it; moving it more than 2 mm moves the whole holder; moving fiducial 2
+turns fiducial 3 with it. Feeders on a holder are numbered across it by their pocket centerline (<strong>Feeder No.</strong>,
+<strong>Feeders Total</strong>).</p>
+<ul>
+<li><strong>Configuration</strong>: the <strong>Part</strong> (<strong>OCR Detect</strong> reads its label and sets it), <strong>Rotation in Tape</strong>, <strong>Part Z</strong>
+  (<strong>Get Tool Z</strong> takes the chosen nozzle's), <strong>Retry Count</strong>; <strong>Tape Settings</strong>: <strong>Tape Length</strong> and <strong>Feeder
+  Extent</strong> (from the fiducials), <strong>Pocket Pitch</strong>, <strong>Pocket Size</strong>, <strong>Pocket Count</strong> (from the length and pitch),
+  <strong>Pocket Centerline</strong> (across the holder from fiducial 1), <strong>First</strong> and <strong>Last Pocket</strong> with parts, <strong>Feed Count</strong>
+  (<strong>Reset</strong> also forgets where the cover is). <strong>Show Features</strong> shows what vision finds from where the camera is:
+  blinds blue, fiducials white, the centerline and pocket lines, the pockets numbered. <strong>Auto Setup</strong>, with the camera
+  over the tape, takes a holder's settings when it is on one and finds the pocket centerline, pitch and size (with a
+  cover other than blinds: only the centerline, from the camera). <strong>Cover Settings</strong>: <strong>Cover Type</strong> (<strong>NoCover</strong>,
+  <strong>BlindsCover</strong>, <strong>PushCover</strong>), <strong>Cover Open/Close</strong> (<strong>Manual</strong>, <strong>CheckOpen</strong>: checked open by vision before each
+  feed, <strong>OpenOnFirstUse</strong>, <strong>OpenOnJobStart</strong>), <strong>Push speed</strong>, <strong>Push Z Offset</strong>, the <strong>Edge Distance Open</strong> and
+  <strong>Closed</strong> the nozzle pushes from, <strong>Open Cover</strong>, <strong>Close Cover</strong>, <strong>Open All Covers</strong>, <strong>Close All Covers</strong> (all
+  the blinds feeders whose covers are not so, the shortest way), and <strong>Calibrate Cover Edges</strong>, which opens and
+  closes the cover, looking where it lies, until it is within half the pocket position tolerance.</li>
+<li><strong>Feeder Array</strong>: the <strong>Feeder Group Name</strong> (choose or type one: a holder renamed, or joined), <strong>Extract 3D-Printing
+  Files...</strong> (OpenPnP's OpenSCAD models for the holder written to a folder, not over files there); the <strong>Fiducial 1</strong>
+  to <strong>3</strong> locations, <strong>Normalize</strong> (trust the holder's whole mm grid over vision) and <strong>Calibrate Fiducials</strong>; <strong>Use
+  Fiducial Vision?</strong> (calibrated by vision on first use; fiducial 2 out of the camera's reach is rebuilt from 1 and 3);
+  the <strong>OCR Action</strong> (<strong>None</strong>, <strong>CheckCorrect</strong>: a wrong part stops, <strong>ChangePart</strong>), <strong>OCR Text Orientation</strong>,
+  <strong>OCR Margin</strong> (where the labels are, before the tapes; negative: after them), <strong>OCR Font</strong> and size, <strong>Set OCR
+  Settings to all</strong> and <strong>Set Pipeline to all</strong> (every other blinds feeder, asked first), <strong>Edit</strong> and <strong>Reset
+  Pipeline</strong>.</li>
+</ul>
+<p>The cover is pushed by a nozzle holding no part with a tip that allows pushing (Machine Setup, nozzle tip, Push and Drag
+Usage), the chosen nozzle first; when none has one, one is loaded (and on a feed, put back). A feed takes the next
+pocket ("empty" past the last), opening the cover as its actuation says. Before a job, the feeders it uses that need it
+are visited: calibrated, opened, their label read; a tip loaded to push is put back, and a part OCR changed stops the
+job ("OCR changed parts: … Please review.").</p>
+<!-- src: src/setup/JPFeederForms.cpp (blindsForm); src/model/JPBlindsFeeders.cpp; src/tasks/JPBlindsFeeder.cpp; src/tasks/JPBlindsVision.cpp; src/tasks/JPJobProcessor.cpp (preFlight); src/app/JPlacerBlindsFiles.cpp; src/ui/JPFeedersPanel.cpp -->
+
+<h3 id="heap-feeder">Heap feeder<a class="headerlink" href="#heap-feeder" title="Permanent link">&para;</a></h3>
+<p>Loose parts in a heap (OpenPnP's ReferenceHeapFeeder), taken out by the nozzle and dropped into a drop box to be looked at.</p>
+<ul>
+<li><strong>Heap</strong>: the <strong>DropBox</strong> it uses (<strong>New</strong>, named "New", and <strong>Delete</strong>, refused for the only box or one another heap
+  uses), its <strong>Name</strong>; the heap's <strong>Center (Top)</strong>, and <strong>Move 1</strong> to <strong>Move 3</strong>, the places the nozzle passes at safe Z
+  between the heap and the drop box so that a part it loses falls nowhere it mixes with others' (towards the heap 3, 2,
+  1; away 1, 2, 3); <strong>Depth</strong> (how far below its top the heap goes); <strong>Last Feed Depth</strong> (where parts were last found,
+  <strong>Reset</strong> to 0 to start at the top); <strong>Max flip attempts</strong>, <strong>Vacuum Difference</strong>, <strong>Part</strong> and <strong>Poke for Parts</strong>;
+  the <strong>Detection Pipeline</strong> (finds parts the right way up) and <strong>Template Pipeline</strong> (makes the part's template image)
+  with <strong>Edit</strong> and <strong>Reset</strong>; <strong>GetSamples</strong> cleans the box and fetches parts into it for the template pipeline.</li>
+<li><strong>DropBox</strong>: its <strong>Center Bottom</strong> and <strong>Drop Location</strong>, its <strong>Parts Pipeline</strong> (finds any part in it), the <strong>Dummy
+  Part</strong> whose nozzle tip and height move parts of unknown origin, and <strong>Clean DropBox</strong>.</li>
+</ul>
+<p>A feed first empties the box when it holds another heap's parts: each part its pipeline finds is picked and taken back
+to its heap through the moves (a little higher to pick from next time), or, its origin unknown, dropped at the discard
+location. Then it looks for a part the right way up three times, from the box's centre and then from over the part,
+and picks it there at the box's bottom plus the part's height. None: a part in the box is picked and dropped again to
+turn it; the box empty, parts are fetched: the nozzle over the heap with its vacuum on, waits 1.3 times its pick dwell,
+takes the vacuum's level, and goes down into the heap (from a third of a part above the last depth) round the corners
+of a 2.25 mm square at a quarter speed, or with <strong>Poke for Parts</strong> down onto a 5 x 5 grid 0.625 mm apart and lifted
+between, until the vacuum rises by the Vacuum Difference; then out through the moves and into the box. Every <strong>Max
+flip attempts</strong> tries, the box's parts are thrown away; after 12 the feed fails ("No parts found."). Reaching the
+heap's depth: "Heap Empty or VacuumDifference wrong."; three part heights below the last depth with nothing: "No
+parts found on three times part height." The nozzle takes a tip the part's package fits first.</p>
+<!-- src: src/setup/JPFeederForms.cpp (heapForm, act); src/tasks/JPHeapFeeder.cpp; src/model/JPDropBoxes.cpp; src/tasks/JPFeederPipelines.cpp (dropBoxOf, ofDropBox); src/tasks/JPFeederActions.cpp -->
+
+<h3 id="bamboo-feeder">Bamboo feeder<a class="headerlink" href="#bamboo-feeder" title="Permanent link">&para;</a></h3>
+<p>A tape advanced by a feed actuator (OpenPnP's BambooFeederAutoVision), its pick location kept true by finding two of its
+sprocket holes with the head camera.</p>
+<ul>
+<li><strong>Tape Settings</strong>: <strong>Part Pitch</strong> and <strong>Feed Pitch</strong> (2 to 32 mm); a feed actuates the feed actuator once for each feed
+  pitch in a part pitch, and the parts it brings (two for 2 mm parts on a 4 mm feed) are picked in turn, the one nearest
+  the reel last. <strong>Discard Parts</strong> skips the rest of a feed. <strong>Rotation in Tape</strong>, <strong>Feed Count</strong> and <strong>Reset Feed Count</strong>
+  (asked first).</li>
+<li><strong>Locations</strong>: the <strong>Pick Location</strong> (the part nearest the reel) and <strong>Hole 1</strong> and <strong>Hole 2 Location</strong>; <strong>Normalize?</strong>
+  puts the pick location on EIA-481's grid from the holes, <strong>Snap to Axis?</strong> takes a tape nearly along X or Y as exactly
+  so. <strong>Auto-Setup with Camera at Pick Location</strong> finds the holes from where the camera is (it asks first unless the
+  pick location is unset), sets all three, and calibrates. <strong>Preview Vision Features</strong> shows on the camera what vision
+  finds from the pick location: holes in green, lines in blue, the parts numbered, crossed out in red when no hole is found.</li>
+<li><strong>Vision</strong>: <strong>Vision Type</strong> (CircularSymmetry or ColorKeyed) chooses the default <strong>Reset Pipeline</strong> puts back;
+  <strong>Edit Pipeline</strong> offers to move the camera over the holes first. The <strong>Calibration Trigger</strong> says when the holes are
+  looked at: never (None), the first time (OnFirstUse), after each tape feed until the <strong>Precision Confidence Limit</strong> is
+  within <strong>Precision wanted</strong> (UntilConfident), or after every tape feed (OnEachTapeFeed). Each calibration looks from
+  between the holes up to three times until the farthest pick moves less than 0.3 mm; the <strong>Precision Average</strong> and
+  <strong>Calibration Count</strong> follow, and <strong>Reset Statistics</strong> clears them. The calibration is forgotten when the holes or pick
+  location are set or the machine is unhomed; a job calibrates the feeders it uses first.</li>
+<li><strong>Actuators</strong>: the <strong>Feed</strong> and <strong>Post Pick</strong> actuators with their values and test buttons, and <strong>Move before feed</strong>.</li>
+</ul>
+<!-- src: src/setup/JPFeederForms.cpp (bambooForm); src/tasks/JPVisionTapeFeeder.cpp; src/tasks/JPFeederVision.cpp; src/model/JPFeederTape.cpp; src/tasks/JPJobProcessor.cpp (preFlight); src/app/JPlacerOpenPnpTabs.cpp (editTapePipeline) -->
+
+<h3 id="loose-part-feeders">Loose part feeders<a class="headerlink" href="#loose-part-feeders" title="Permanent link">&para;</a></h3>
+<p>A <strong>ReferenceLoosePartFeeder</strong> and an <strong>AdvancedLoosePartFeeder</strong> hold parts lying loose in a bin. Their
+<strong>Location</strong> is over the bin, its Z the bin's floor (the part's height is added for the pick, as the part
+lies on it), its rotation added to the part's. To feed, the head camera looks over the location and runs
+the feeder's OpenPnP pipeline (see <a href="pipeline-editor.html">Pipeline Editor</a>); its "results" are the parts it
+found, and the one nearest the camera's centre is looked at again from over it, three looks in all, and
+picked where the last look found it. None found: "Feeder Bin: No parts found." The pipeline's picture is
+shown on the camera's view.</p>
+<ul>
+<li><strong>Vision</strong> (loose part feeder): <strong>Edit Pipeline...</strong> and <strong>Reset Pipeline</strong> (OpenPnP's default back).</li>
+<li>An advanced loose part feeder says it is experimental, as OpenPnP's does, and keeps two pipelines:
+  <strong>Feed Pipeline</strong> (what finds the parts) and <strong>Training Pipeline</strong> (for making a part's template
+  image), each with <strong>Edit...</strong> and <strong>Reset</strong>. Its part's angle is taken the other way round, as OpenPnP
+  takes it, and a part found outside the camera's first view over the location is not picked.</li>
+</ul>
+<p>The editor needs the feeder's part ("Feeder Bin has no part."): its pipelines are titled by it, and its
+stages can read and write the part's template image.</p>
+<!-- src: src/setup/JPFeederForms.cpp (looseForm, advancedLooseForm); src/tasks/JPFeederFeed.cpp (looseFeed); src/tasks/JPFeederPipelines.cpp; src/model/JPFeeder.cpp (pickLocation, partHeightAbovePickLocation); src/tasks/JPCellJobMachine.cpp (seeRects); src/app/JPlacerOpenPnpTabs.cpp (pipelineAction) -->
+
+<h3 id="other-kinds">Other kinds<a class="headerlink" href="#other-kinds" title="Permanent link">&para;</a></h3>
+<p>A kind jplacer does not know: its <strong>General Settings</strong> and <strong>Pick Location</strong>; its own settings are kept as
+OpenPnP wrote them.</p>
+<!-- src: src/setup/JPFeederForms.cpp (forFeeder) -->
+
+<h2 id="from-the-other-tabs">From the other tabs<a class="headerlink" href="#from-the-other-tabs" title="Permanent link">&para;</a></h2>
+<p><strong>Parts ▸ Pick Part</strong> picks from a feeder holding the part (see <a href="parts.html#the-toolbar">Parts</a>), and the
+Job tab's <strong>Edit Placement Feeder</strong> comes here, to the placement's feeder (see <a href="jobs.html">Jobs</a>).</p>
+<!-- src: src/app/JPlacerOpenPnpTabs.cpp (onPickPart, onEditFeeder) -->
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="pipeline-editor.html" class="md-footer__link md-footer__link--prev" aria-label="Previous: Pipeline Editor">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Pipeline Editor
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="issues.html" class="md-footer__link md-footer__link--next" aria-label="Next: Issues &amp;amp; Solutions">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Issues &amp; Solutions
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.top", "navigation.footer", "search.highlight", "search.suggest", "toc.integrate"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

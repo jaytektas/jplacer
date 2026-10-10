@@ -1,0 +1,1056 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Using jplacer, pick-and-place machine control.">
+      
+      
+      
+        <link rel="canonical" href="https://jaytektas.github.io/jplacer/vision.html">
+      
+      
+        <link rel="prev" href="packages.html">
+      
+      
+        <link rel="next" href="pipeline-editor.html">
+      
+      
+        
+      
+      
+      <link rel="icon" href="img/jplacer.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Vision - jplacer User Manual</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+        <script src="https://unpkg.com/iframe-worker/shim"></script>
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#vision" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="index.html" title="jplacer User Manual" class="md-header__button md-logo" aria-label="jplacer User Manual" data-md-component="logo">
+      
+  <img src="img/jplacer.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            jplacer User Manual
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Vision
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="amber"  aria-label="Light"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Light" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="amber"  aria-label="Dark"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Dark" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jaytektas/jplacer" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jaytektas/jplacer
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="index.html" title="jplacer User Manual" class="md-nav__button md-logo" aria-label="jplacer User Manual" data-md-component="logo">
+      
+  <img src="img/jplacer.png" alt="logo">
+
+    </a>
+    jplacer User Manual
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jaytektas/jplacer" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jaytektas/jplacer
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    jplacer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="getting-started.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="menus.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Menus
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="machine.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Machine
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="machine-setup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Machine Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="jobs.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jobs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="panels.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Panels
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="boards.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Boards
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="parts.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Parts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="packages.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Packages
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vision
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="vision.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vision
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-toolbar-and-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The toolbar and table
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The settings
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The pipeline
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="pipeline-editor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipeline Editor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="feeders.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Feeders
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="issues.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Issues &amp; Solutions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="log.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Log
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="preferences.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preferences
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="updates.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Updates and betas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="whats-new.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    What's new
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="vision">Vision<a class="headerlink" href="#vision" title="Permanent link">&para;</a></h1>
+<p>The <strong>Vision</strong> tab (in the work area, after Packages, as in OpenPnP) lists the vision settings parts,
+packages and the machine use: <strong>Bottom Vision Settings</strong> (how a part on the nozzle is looked at from
+below) and <strong>Fiducial Vision Settings</strong> (how a fiducial is found). They are kept in <code>vision-settings.xml</code>
+in jplacer's configuration folder, each exactly as OpenPnP keeps it, pipeline and all: OpenPnP's file can
+be copied there as it is.</p>
+<!-- src: src/ui/JPVisionSettingsPanel.cpp; src/model/JPVisionSettings.cpp; src/model/JPConfiguration.cpp (save, kVisionFile); src/app/JPlacerOpenPnpTabs.cpp (the Vision dock) -->
+
+<h2 id="the-toolbar-and-table">The toolbar and table<a class="headerlink" href="#the-toolbar-and-table" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Button</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>New Settings</strong> (plus)</td>
+<td>Makes new settings of the type shown, named after their kind, and chooses them.</td>
+</tr>
+<tr>
+<td><strong>Delete Settings</strong> (cross)</td>
+<td>Deletes the chosen settings, after asking. Settings in use are not deleted: it says what uses them.</td>
+</tr>
+<tr>
+<td><strong>Copy Vision Settings to Clipboard</strong></td>
+<td>Puts the chosen settings on the clipboard as text.</td>
+</tr>
+<tr>
+<td><strong>Create Vision Settings from Clipboard</strong></td>
+<td>Makes settings from what the clipboard holds, each with a new id; a name already used gets " (Copy)".</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Type</strong>, at the right, chooses which are shown: <strong>BottomVision</strong> or <strong>FiducialVision</strong>.</p>
+<p>The table has <strong>Name</strong> (changed in place, except the stock settings', whose id says "Stock") and
+<strong>Assigned To</strong>: what uses them. That is the stock settings themselves, <strong>Bottom Vision</strong> or <strong>Fiducal
+Locator</strong> for the machine's default (as OpenPnP spells it), then the packages, then the parts, by ID.</p>
+<p>As OpenPnP does each time it starts, jplacer keeps OpenPnP's stock settings there with OpenPnP's stock
+pipelines: bottom vision's <strong>- Stock Bottom Vision Settings -</strong>, <strong>- Rectlinear Symmetry Bottom Vision
+Settings -</strong> and <strong>- Whole Part Body Bottom Vision Settings -</strong>, and the fiducials' <strong>- Stock Fiducial
+Vision Settings -</strong> and <strong>- Footprint Fiducial Vision Settings -</strong>; with none yet, the machine's defaults,
+<strong>- Default Machine Bottom Vision -</strong> and <strong>- Default Machine Fiducial Locator -</strong>, start as the stock ones.</p>
+<!-- src: src/tasks/JPBottomVision.cpp (findOffsets, partSizeCheck, partCheckSize); src/setup/JPVisionForms.cpp (act); src/model/JPVisionSettings.cpp (setValues) -->
+
+<!-- src: src/ui/JPVisionSettingsPanel.cpp (newSettings, deleteSettings, copySettings, pasteSettings, usedIn); src/ui/JPVisionSettingsTableModel.cpp; src/model/JPConfiguration.cpp (visionUsedIn); src/setup/JPVisionPipelines.cpp (ensureStock); src/pipeline/JPDefaultPipelines.cpp -->
+
+<h2 id="the-settings">The settings<a class="headerlink" href="#the-settings" title="Permanent link">&para;</a></h2>
+<p>Under the table, the chosen settings' page. <strong>General</strong>: <strong>Name</strong>, <strong>Assigned to</strong>, <strong>Enabled?</strong>, and
+<strong>Reset to Default</strong>, which gives them the values of the machine's default settings of their kind (the
+machine's default itself the stock settings' values), keeping their name, after asking. Specializing and
+generalizing are done from a part's or package's page (see <a href="parts.html">Parts</a> and <a href="packages.html">Packages</a>).</p>
+<p><strong>Bottom Vision Settings</strong> add <strong>Pre-rotate</strong> (Default, AlwaysOn, AlwaysOff), <strong>Rotation</strong> (Adjust, Full),
+<strong>Part size check</strong> (Disabled, BodySize, PadExtents) with its <strong>Size tolerance (%)</strong>, and <strong>Vision Offsets</strong>:
+<strong>Asymmetric?</strong> (the contacts are off the part's centre by design) and the <strong>Vision Center Offsets</strong>.
+A job uses them all, as OpenPnP's bottom vision does: <strong>Enabled?</strong>, <strong>Pre-rotate</strong> (Default: as the
+machine's bottom vision says), <strong>Rotation</strong> (<strong>Adjust</strong>: the part taken as turned less than 45° either way;
+<strong>Full</strong>: all the way round), the <strong>Part size check</strong> (the part as measured, its width and length, within
+the <strong>Size tolerance</strong> of its body, or of its pads' extent; else the alignment fails, saying which, the
+nominal, the limit and what was measured: "Part R1 width too small: nominal 3.000mm, limit 2.400mm,
+measured 1.277mm"), and the <strong>Vision Center Offsets</strong>, taken off what is found, turned as the part is (see
+<a href="jobs.html#running-the-job">Running the job</a>).</p>
+<p><strong>Test Alignment</strong> aligns the part on the nozzle chosen on the Jog panel over the camera looking up, as a
+job would at the <strong>Placement Angle</strong> (the machine's test alignment angle), and shows what it found on the
+camera ("R1 | X:0.012 Y:-0.034 C:0.512 Δ:0.036"); with <strong>Center After Test</strong> it then moves the part over
+the camera's centre, turned to the angle, at the height it was seen at (in focus, its footprint's reticle
+over it), moving straight there without lifting the part, and shows a fresh picture of it once the camera has
+settled, as OpenPnP's. The nozzle must hold a part (picked with <strong>Pick</strong> on the Feeders
+or Parts tab, or by a job), of the part or package the page is for, whose bottom vision these settings
+are; else it says what is wrong ("Nozzle N1 does not have a part loaded"). <strong>Detect Offsets</strong> is for an
+asymmetric part: centre it over the camera by hand first; it aligns and centres the part at 0°, and adds
+the difference to the <strong>Vision Center Offsets</strong>.</p>
+<p><strong>Fiducial Vision Settings</strong> add the <strong>Fiducial Locator</strong>: <strong>Max. Vision Passes</strong>, <strong>Max. Linear Offset</strong>,
+<strong>Parallax Diameter</strong> and <strong>Parallax Angle</strong>. A fiducial check uses them (see <a href="jobs.html#running-the-job">Jobs</a>):
+the fiducial is looked at again, centred, up to the passes, until a look moves it less than the max
+linear offset; with a parallax diameter, it is looked at from either side of it, that far apart and
+turned by the angle, and the middle taken. The fiducial is found by the settings' pipeline, as OpenPnP finds
+it, no farther from where it should be than their <strong>Max. Distance</strong> (their pipeline's parameter; for a pipeline
+without one, the machine's Fiducial Locator's). Settings not enabled stop the check. <strong>Test Fiducial Locator</strong>
+finds the fiducial nearest where the head camera is (the part's or package's footprint; on the Vision
+tab, a round 1 mm fiducial) as a fiducial check would, and moves the camera onto it.</p>
+<p>A part uses its own settings, else its package's, else the machine's (OpenPnP's part alignment and
+fiducial locator, brought in with an OpenPnP machine).</p>
+<h2 id="the-pipeline">The pipeline<a class="headerlink" href="#the-pipeline" title="Permanent link">&para;</a></h2>
+<p>Both kinds keep OpenPnP's vision pipeline with them (OpenPnP's stock pipeline for the kind until they
+have one of their own). The <strong>Pipeline</strong> row works it as OpenPnP's does: <strong>Edit...</strong> opens it in the
+<a href="pipeline-editor.html">Pipeline Editor</a>; <strong>Reset</strong> puts back the machine's default settings' pipeline (or,
+for the machine's default settings themselves, the stock one), after asking; the copy button puts the
+pipeline on the clipboard as OpenPnP's text, and the paste button replaces it with one from the
+clipboard, after asking.</p>
+<!-- src: src/setup/JPVisionForms.cpp (pipelineControls); src/ui/JPVisionPipelineActions.cpp; src/setup/JPVisionPipelines.cpp -->
+
+<p>Under it, a slider for each of the pipeline's parameters (its <strong>ParameterNumeric</strong> and <strong>ParameterBool</strong>
+stages: a threshold, a least detail size, a search distance), named and explained as the pipeline names
+them. The value is kept with these settings, not in the pipeline, so settings that share a pipeline can
+each tune it. Moving a slider runs the pipeline on the camera and shows the stage the parameter affects,
+then the result, on the camera's view for three seconds each, with the parameter's name and value over
+them ("Threshold = 204").</p>
+<!-- src: src/pipeline/JPPipelineParameter.cpp; src/pipeline/JPPipelineAssignments.cpp; src/app/JPlacerPipelines.cpp (previewVision); src/ui/JPCameraView.cpp (showPicture) -->
+
+<p>The pipeline is run as OpenPnP prepares it: a fiducial's on the head camera, with its package's footprint
+(on the Vision tab, a round 1 mm fiducial); bottom vision's on the camera looking up, with the package of
+the part or package the page is for (on the Vision tab, the part chosen on the Parts tab, else the package
+chosen on the Packages tab) turned by the machine's test alignment angle, over the camera's centre.</p>
+<!-- src: src/tasks/JPVisionPipelinePrep.cpp; src/app/JPlacerPipelines.cpp (prepared) -->
+
+<!-- src: src/setup/JPVisionForms.cpp; src/tasks/JPJobProcessor.cpp (align); src/tasks/JPAlignRequests.cpp; src/tasks/JPFiducialLocator.cpp (FiducialLook, lookFor); src/tasks/JPCellJobMachine.cpp (locateFiducial); src/app/JPlacerVisionTests.cpp; src/app/JPlacerMachine.cpp (nozzlePart); src/model/JPConfiguration.cpp (inheritedVision); src/machine/JPVisionConfig.h -->
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="packages.html" class="md-footer__link md-footer__link--prev" aria-label="Previous: Packages">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Packages
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="pipeline-editor.html" class="md-footer__link md-footer__link--next" aria-label="Next: Pipeline Editor">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Pipeline Editor
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.top", "navigation.footer", "search.highlight", "search.suggest", "toc.integrate"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

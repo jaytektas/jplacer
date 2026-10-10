@@ -1,0 +1,1359 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Using jplacer, pick-and-place machine control.">
+      
+      
+      
+        <link rel="canonical" href="https://jaytektas.github.io/jplacer/jobs.html">
+      
+      
+        <link rel="prev" href="machine-setup.html">
+      
+      
+        <link rel="next" href="panels.html">
+      
+      
+        
+      
+      
+      <link rel="icon" href="img/jplacer.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Jobs - jplacer User Manual</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+        <script src="https://unpkg.com/iframe-worker/shim"></script>
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#jobs" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="index.html" title="jplacer User Manual" class="md-header__button md-logo" aria-label="jplacer User Manual" data-md-component="logo">
+      
+  <img src="img/jplacer.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            jplacer User Manual
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Jobs
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="amber"  aria-label="Light"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Light" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="amber"  aria-label="Dark"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Dark" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jaytektas/jplacer" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jaytektas/jplacer
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="index.html" title="jplacer User Manual" class="md-nav__button md-logo" aria-label="jplacer User Manual" data-md-component="logo">
+      
+  <img src="img/jplacer.png" alt="logo">
+
+    </a>
+    jplacer User Manual
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jaytektas/jplacer" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jaytektas/jplacer
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    jplacer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="getting-started.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="menus.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Menus
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="machine.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Machine
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="machine-setup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Machine Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jobs
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="jobs.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jobs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#new-open-and-save" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        New, open and save
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#older-openpnp-jobs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Older OpenPnP jobs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-job-tab" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Job tab
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The Job tab">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#verifying-placements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verifying placements
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#shortages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shortages
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#running-the-job" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running the job
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The plan
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#load-as-you-go" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Load as you go
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runs
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="panels.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Panels
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="boards.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Boards
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="parts.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Parts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="packages.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Packages
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="vision.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vision
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="pipeline-editor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipeline Editor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="feeders.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Feeders
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="issues.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Issues &amp; Solutions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="log.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Log
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="preferences.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preferences
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="updates.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Updates and betas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="whats-new.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    What's new
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="jobs">Jobs<a class="headerlink" href="#jobs" title="Permanent link">&para;</a></h1>
+<p>jplacer keeps jobs, boards, panels, parts and packages exactly as OpenPnP does, in OpenPnP's own files,
+so a job, board or panel made in OpenPnP opens in jplacer as it is, and one saved by jplacer opens in
+OpenPnP.</p>
+<ul>
+<li>A <strong>job</strong> (<code>.job.xml</code>) holds the boards and panels to be placed, each where it lies on the machine and
+  which side is up, and what the job sets on them: which placements are placed, which boards and
+  placements are enabled, whether each board's fiducials are checked, and how each placement's errors
+  are handled.</li>
+<li>A <strong>board</strong> (<code>.jpboard</code>; OpenPnP's <code>.board.xml</code> is read) holds its placements (designator, side,
+  location, rotation, part, type, comments, error handling, enabled), its parts list, each pointing
+  at a library part (see <a href="boards.html#the-boards-parts">Boards</a>), its dimensions and outline, and its solder paste pads. A board
+  can be used many times, in one job or several; each use shares the board's file.</li>
+<li>A <strong>panel</strong> (<code>.panel.xml</code>) holds boards and other panels, each where it lies on the panel, the
+  panel's own fiducials, and <em>pseudo-placements</em>: a placement of one of its boards (a fiducial, say)
+  used to line up the whole panel.</li>
+<li>The library's <strong>parts</strong> and <strong>packages</strong>, the only ones there are, are kept in <code>library.db</code> (see
+  <a href="parts.html">Parts</a>), in jplacer's configuration
+  folder (<code>~/.config/jplacer</code>). The boards and panels open are the job's (see <a href="boards.html">Boards</a>). A part has an id, a name, a height (and the depth it reaches through the
+  board), a package, a speed and how many times a pick is tried again. A package has an id, a
+  description, a tape specification, vacuum levels, a footprint (its pads and body), the nozzle tips
+  that can pick it, and its vision settings. Parts and packages are found by id whatever its case.</li>
+</ul>
+<p>The job is edited on the Job tab (below), panels, boards, parts and packages on the <a href="panels.html">Panels</a>,
+<a href="boards.html">Boards</a>, <a href="parts.html">Parts</a> and <a href="packages.html">Packages</a> tabs, as in OpenPnP.</p>
+<!-- src: src/model/JPJob.h; src/model/JPBoard.h; src/model/JPPanel.h; src/model/JPPart.h; src/model/JPPackage.h; src/model/JPConfiguration.h -->
+
+<h2 id="new-open-and-save">New, open and save<a class="headerlink" href="#new-open-and-save" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Entry</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>File ▸ New Job</strong> (Ctrl+N)</td>
+<td>Starts an empty job.</td>
+</tr>
+<tr>
+<td><strong>File ▸ Open Job…</strong> (Ctrl+O)</td>
+<td>Opens a <code>.job.xml</code> file.</td>
+</tr>
+<tr>
+<td><strong>File ▸ Save Job</strong> (Ctrl+S)</td>
+<td>Saves the job to its file; a job never saved asks where, as Save Job As does.</td>
+</tr>
+<tr>
+<td><strong>File ▸ Save Job As…</strong></td>
+<td>Saves the job to a file you choose (<a href="menus.html#choosing-a-file">the file chooser</a> starts at the job's own file); <code>.job.xml</code> is added if you leave it off.</td>
+</tr>
+</tbody>
+</table>
+<p>The window's title is <em>jplacer - * and the job's file name (</em>Untitled.job.xml<em> for a job never saved),
+with a </em><em>*</em><em> before the name while it has changes that are not saved. The job you had open is opened
+again, with its boards and panels, the next time jplacer starts, when Machine Setup's </em><em>Auto-load most
+recent job?</em>* is ticked.</p>
+<p>If the job has unsaved changes when you start another job, open one, or close jplacer, you are asked
+<em>Do you want to save your changes?</em> <strong>Yes</strong> saves them first (asking where, for a job never saved),
+<strong>No</strong> lets them go, <strong>Cancel</strong> leaves things as they were. Then each of its boards and panels with
+changes is asked about the same way, as they close with the job. <strong>File ▸ Open Recent Job...</strong> offers the
+ten jobs opened or saved last. Saving over a file that is there asks first whether to replace it.</p>
+<p>A job's boards and panels are found by their file names: as written in the job, else beside the panel
+that holds them, else beside the job.</p>
+<!-- src: src/app/JPlacerJob.cpp (newJob, open, save, saveAs, settle, title, mayClose, recentJobs); src/model/JPConfiguration.cpp (resolveBoard, resolvePanel); src/app/JPlacerMenuBuilder.cpp (the File menu) -->
+
+<h2 id="older-openpnp-jobs">Older OpenPnP jobs<a class="headerlink" href="#older-openpnp-jobs" title="Permanent link">&para;</a></h2>
+<p>A job saved by an older OpenPnP (a list of boards, perhaps one panel of rows and columns of one board) is
+converted when it is opened, as OpenPnP converts it: a copy of the old file is kept beside it as
+<code>name.legacy.job.xml</code>; a panel of rows and columns becomes a panel file of its own (<code>name.panel.xml</code>),
+its boards named <code>Brd[row,column]</code>; what was placed is kept. The job is then marked as changed, so
+saving it writes the new form.</p>
+<!-- src: src/model/JPConfiguration.cpp (convertLegacyJob) -->
+
+<h2 id="the-job-tab">The Job tab<a class="headerlink" href="#the-job-tab" title="Permanent link">&para;</a></h2>
+<p>The <strong>Job</strong> tab (the first in the work area, as in OpenPnP) shows the job's boards and panels and,
+under them, the chosen one's placements.</p>
+<p><strong>Boards</strong>: every board and panel in the job, those on a panel under it and indented, with a board or
+panel mark: <strong>Board/Panel Id</strong>, <strong>Name</strong> (pointing at it shows the file), <strong>Width</strong>, <strong>Length</strong>, <strong>Side</strong>,
+<strong>X</strong>, <strong>Y</strong>, <strong>Z</strong>, <strong>Rot.</strong>, <strong>Enabled?</strong> and <strong>Check Fids?</strong>. Where one lies is shown on green once a
+fiducial check has set it on the machine, on blue when set on its panel. Those straight in the job are
+changed in the table; one on a panel can only be turned on or off and have its fiducial check changed.
+Right-click for <strong>Set Side</strong>, <strong>Set Enabled</strong> and <strong>Set Check Fids</strong>.</p>
+<table>
+<thead>
+<tr>
+<th>Button</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Start</strong> (<strong>Pause</strong>, <strong>Resume</strong>), <strong>Step</strong>, <strong>Stop</strong></td>
+<td>Run the job (see <a href="#running-the-job">Running the job</a>).</td>
+</tr>
+<tr>
+<td><strong>Alert Errors</strong> / <strong>Defer Errors</strong></td>
+<td>Whether a placement's error (one whose error handling is Default) stops the job at once, or is reported at its end. Click to change.</td>
+</tr>
+<tr>
+<td><strong>Add Board/Panel</strong> (plus, with a menu)</td>
+<td><strong>New Board...</strong>, <strong>Existing Board...</strong>, <strong>New Panel...</strong>, <strong>Existing Panel...</strong>: put one in the job, at the machine's <strong>Default Board Location</strong> (<a href="machine-setup.html#settings">Machine Setup</a>).</td>
+</tr>
+<tr>
+<td><strong>Remove Board(s)/Panel(s)</strong> (cross)</td>
+<td>Takes the chosen ones (straight in the job) out of it.</td>
+</tr>
+<tr>
+<td><strong>Move Camera To Board Location</strong>, <strong>Move Camera to the Next Board</strong>, <strong>Move Tool To Board Location</strong></td>
+<td>Take the camera (or the Jog panel's nozzle) to where the board lies, at safe Z; Next chooses the next row first.</td>
+</tr>
+<tr>
+<td><strong>Capture Camera Location</strong></td>
+<td>Sets where the chosen board lies to where the camera is (its X, Y and rotation; its Z kept).</td>
+</tr>
+<tr>
+<td><strong>Capture Tool Location</strong></td>
+<td>Sets the chosen boards' Z to the nozzle's.</td>
+</tr>
+<tr>
+<td><strong>Fiducial Check</strong></td>
+<td>Looks at the chosen board's (or panel's) fiducials with the camera and sets where it lies from them, as the job does; one straight in the job has its X, Y and rotation set too (and its Z, measured, with the Fiducial Locator's <strong>Measure Board Z?</strong>, as a job's check sets it). The camera is then taken to it. Each fiducial looked for has its package's footprint drawn over the cameras (as a job's check does too), the last chosen footprint until another is.</td>
+</tr>
+<tr>
+<td><strong>Multiple Point Board Location</strong></td>
+<td>Sets where the chosen board lies from placements you jog the camera over (below).</td>
+</tr>
+<tr>
+<td><strong>View Job</strong></td>
+<td>Opens the job viewer (see <a href="panels.html#the-viewer">Panels</a>), following the boards chosen.</td>
+</tr>
+</tbody>
+</table>
+<!-- src: src/ui/JPJobPanel.cpp (addBoard, addPanel); src/tasks/JPFiducialLocator.cpp (locate); src/tasks/JPCellJobMachine.h (lookingFor); src/ui/JPLocationsTableModel.cpp; src/app/JPlacerOpenPnpTabs.cpp; src/app/JPlacerMachine.cpp (toolLocation, moveToolTo); src/app/JPlacerJobRun.cpp (fiducialCheck) -->
+
+<p><strong>Placements</strong>: the chosen board's (or panel's) placements on its side facing up, with <strong>Placed</strong> and
+<strong>Status</strong> (<strong>Ready</strong>, <strong>Missing Part</strong>, <strong>Missing Feeder</strong>, <strong>Part Height</strong>: its height is not known, or
+<strong>Disabled</strong>). A board used once, straight in the job, is changed here as on the Boards tab (and New and
+Remove Placement(s) work); otherwise only Enabled, Placed and Error Handling are changed, for this use of
+it alone. <strong>Move Camera To Placement Location</strong> (and <strong>To Next</strong>), <strong>Move Tool To Placement Location</strong>,
+<strong>Capture Camera Placement Location</strong> and <strong>Capture Tool Placement Location</strong> work as the board ones,
+for the chosen placement. <strong>Edit Placement Feeder</strong> (one placement of a board) opens the
+<a href="feeders.html">Feeders</a> tab on the feeder holding its part: an enabled one first, else a disabled one, else
+a new feeder is made for it. Right-click for <strong>Set Type</strong>,
+<strong>Set Side</strong>, <strong>Set Placed</strong>, <strong>Set Enabled</strong> and <strong>Set Error Handling</strong>; <strong>Space</strong> turns the chosen
+placement on or off.</p>
+<h3 id="verifying-placements">Verifying placements<a class="headerlink" href="#verifying-placements" title="Permanent link">&para;</a></h3>
+<p>The chosen placement's footprint (a fiducial's too) is drawn over the cameras' pictures: its part's
+package's footprint, its pads and pin 1's mark, not its body, as OpenPnP's package reticle. The cameras
+show one footprint, the last chosen, here or on the Packages tab (or chosen there by <strong>View ▸ Selections
+in Tables ▸ Linked</strong>); it stays when another tab is shown. On a camera with a rotation axis it is turned
+by the camera's rotation, as that is now: take the camera to the placement (<strong>Move Camera To Placement
+Location</strong>), which turns the camera to the placement's rotation whatever tool Jog has, and look: the
+footprint should lie on the board's pads, turned as the part will be placed.</p>
+<ul>
+<li><strong>Turn 90°</strong> turns the chosen placement a quarter counter-clockwise: a correction to the CAD file's
+  rotation (which the placement keeps apart, as it came). Take the camera to it again to see it turned.</li>
+<li><strong>Verified, Next</strong> marks the chosen placement verified and takes the camera to the next one shown, facing
+  up, not verified yet.</li>
+</ul>
+<p>The <strong>Verified</strong> column (here and on the Boards tab) says whether each was, and when (<em>Yes</em>, <em>Position
+only</em>). Changing a placement's position, rotation or part takes its mark off: what was checked is no longer
+what is placed.</p>
+<p>Importing from the CPL and BOM turns a placement by its footprint's <strong>Zero Rotation</strong> (see
+<a href="packages.html#the-packages-tabs">Packages</a>), where the library's footprint for its part has one: CAD tools
+disagree about which way 0° faces. The CAD file's rotation is kept with it.</p>
+<!-- src: src/ui/JPJobPlacementsPanel.cpp (footprintOf, showChosenFootprint, turnChosen, verifyChosen); src/ui/JPFootprintOverlay.cpp; src/app/JPlacerMachine.cpp (reticleRotation, moveToolTo); src/ui/JPPlacementsTableModel.cpp (kVerified, setText, applyPart); src/model/JPPlacement.h (cadRotation, Verified); src/import/JPCplBomImport.cpp (build); src/model/JPBoardImporter.cpp (read); src/app/JPlacerOpenPnpTabs.cpp (showFootprint) -->
+
+<p>The status line shows the placements placed: of the whole job, and of the board chosen.</p>
+<p><strong>Multiple Point Board Location</strong> shows its steps across the top of the Job tab, with <strong>Cancel</strong> and
+<strong>Next</strong>: choose two or more placements of the board (four, near its corners, is better) and click Next;
+the camera goes near the first; jog its crosshairs over the placement's centre and click Next, and so on
+for each (the shortest way round). The board is then fitted to them as a fiducial check fits it, and
+refused if it scales or shears more than 5 % or moves more than 5 mm. <strong>Finish</strong> takes the camera to the
+board's origin; <strong>Cancel</strong> puts the board back where it was.</p>
+<!-- src: src/ui/JPBoardLocationProcess.cpp; src/ui/JPInstructions.cpp; src/ui/JPJobPanel.cpp (showInstructions) -->
+
+<!-- src: src/ui/JPJobPlacementsPanel.cpp (onEditFeeder, updateActions); src/ui/JPFeedersPanel.cpp (showFeederForPart); src/ui/JPPlacementsTableModel.cpp (status, setLocation) -->
+
+<h2 id="shortages">Shortages<a class="headerlink" href="#shortages" title="Permanent link">&para;</a></h2>
+<p><strong>Job ▸ Shortages…</strong> sets the job's parts against the stock, the parts shortest of stock first. Each row
+gives the <strong>Part</strong>, how many placements are <strong>Left to place</strong> (enabled, on the side facing up, not placed
+yet), the <strong>Attrition</strong> allowed (how many more, at the part's own share, or the share its ledger measured,
+or <em>not known</em>), how many are <strong>In stock</strong> in its open lots, how many it is <strong>Short</strong>, its <strong>Lots</strong> (each
+with where it is kept and what it holds) and, when short, where it is bought (<strong>Buy from</strong>: the part's
+offers). A part not chosen yet keeps no stock, and says so.
+The line at the top counts the placements, the parts and those short.</p>
+<p>Stock never stops a run: the feeders hold what is placed, and a part can be loaded as the run reaches it.</p>
+<!-- src: src/model/JPShortages.cpp; src/app/JPlacerShortagesDialog.cpp; src/app/JPlacerMenuBuilder.cpp (job.shortages) -->
+
+<h2 id="running-the-job">Running the job<a class="headerlink" href="#running-the-job" title="Permanent link">&para;</a></h2>
+<p><strong>Start</strong> runs the job, a step after another, until every placement is placed; while it runs the button
+is <strong>Pause</strong>, which stops it after the step under way, and then <strong>Resume</strong>. <strong>Step</strong> does one step (on to the next that moves the
+machine, with Machine Setup's Step Next Motion) and pauses. <strong>Stop</strong> stops it: the nozzles are emptied at the discard location and the head is parked. The
+machine must be connected (the buttons are greyed until it is) and homed. If every placement is placed
+already, Start asks whether to mark them all not placed first. The status line says what the job is
+doing ("Feed …", "Pick … using nozzle N1.", "Placing …"), and at the end how many parts were placed and
+how fast. While a job runs, another job or another cell is not opened. While the machine is busy with a
+task of its own (a Test Alignment, a feeder's or a fiducial check's moves, a Recycle), Start, Step, Stop and
+another such task are refused: the status line says "The machine is busy with a task: wait for it to
+finish", and the click does nothing (OpenPnP queues it instead).</p>
+<!-- src: src/app/JPlacerJobRun.cpp (startPauseResume, step, stop, start, run, machineTask, fiducialCheck, taskUnderWay); src/ui/JPJobPanel.cpp (updateJobActions); src/app/JPlacerJob.cpp (settle); src/app/JPlacerMachine.cpp (openCell) -->
+
+<p><strong>Checking the job.</strong> Before a run starts (and with <strong>Job ▸ Check Job…</strong> at any time), the job's data is
+checked as one list, each thing once with every placement or part it is about (a placement named by its
+board's ID and its own, <code>Brd1⇒R1</code>), and where it is put right. Only the placements a run places are looked
+at: enabled, not placed, their side up on an enabled board.</p>
+<ul>
+<li><strong>Stop</strong>: the run would refuse it: a placement ID used twice on a board; <strong>No part chosen</strong> (the board's
+  part is still to be chosen); a part the library does not have; a part with <strong>No package</strong>; <strong>No nozzle tip
+  on the machine fits its package</strong>.</li>
+<li><strong>Check</strong>: worth putting right first: placements <strong>Not verified on the machine</strong> (see <a href="#verifying-placements">Verifying
+  placements</a>), parts whose <strong>Height</strong> is not known, parts with <strong>No footprint</strong> to
+  draw or check against.</li>
+<li><strong>Note</strong>: parts <strong>No feeder holds yet</strong> (the run asks for them, see <a href="#load-as-you-go">Load as you go</a>);
+  parts <strong>Short of stock</strong>, of those whose stock is kept (a part with no lots at all is not).</li>
+</ul>
+<p><strong>Start</strong> with nothing to stop or check runs at once. Otherwise <strong>Check Job</strong> shows the list: with anything
+that stops the run it is not started (<strong>Close</strong>); with only things to check or note, <strong>Start Anyway</strong> runs
+it as it is and <strong>Cancel</strong> does not. Choose a row to see under the list all it is about (the first 60). The
+counts at the top say how many are to put right, to check and to note.</p>
+<!-- src: src/model/JPJobCheck.cpp; src/app/JPlacerJobCheckDialog.cpp; src/app/JPlacerJobRun.cpp (start, checkJob, machineTipIds); src/app/JPlacerMenuBuilder.cpp (job.check) -->
+
+<p>A job goes as OpenPnP's does:</p>
+<ol>
+<li><strong>Checks.</strong> The placements to place are those enabled, not placed, with their side facing up on an
+   enabled board. Each must have a part, the part a package, and a nozzle tip that fits the package and a
+   nozzle; a board with an ID twice is refused. A part no feeder holds is not refused: it is asked for when
+   the run gets to it (see <a href="#load-as-you-go">Load as you go</a>). Then the head goes
+   to safe Z and anything left on a nozzle is discarded.</li>
+<li><strong>Fiducials.</strong> Each board and panel with <strong>Check Fids?</strong> has its fiducials found by the camera (a
+   panel's outermost first), each as a round mark the size of its package's footprint pad, looked at
+   again once centred as its <a href="vision.html#the-settings">Fiducial Vision Settings</a> say (by default up to
+   three times, until a look moves it less than 0.2 mm; from either side with a parallax diameter). Where the board lies is fitted to them: with two,
+   moved, turned and scaled; with three or more, fully. A fit that scales or shears more than 5 %, or moves
+   the board more than 5 mm, is refused.</li>
+<li><strong>Planning.</strong> The placements still to do, lowest rank first (a rank ten or more above the lowest
+   waits for it), are ordered as Machine Setup's <strong>Job order</strong> says (by nozzle tip unless set otherwise,
+   see <a href="machine-setup.html#job-processors">Job Processors</a>); each nozzle is given one, with the tip on it if one fits, else a tip that
+   does. A nozzle after the first takes, of those its tip fits, the one quickest for the head to reach from
+   the middle of the picks and the middle of the places already planned (as OpenPnP's planner: the time the
+   head's X and Y axes take, from their speed and acceleration, to where the head goes for that nozzle);
+   with two nozzles, the other way round where that is quicker.</li>
+<li>
+<p><strong>Each cycle</strong>: the nozzle tips changed where needed (by their changer steps), the nozzles turned for
+   the pick, each part fed (retried as the feeder's Feed Retry Count says; an empty feeder is turned off
+   and the next one holding the part used) and picked (retried as its Pick Retry Count says, a part that
+   was not picked discarded), then placed where the board lies, as high as the part, turned to the
+   placement's rotation. Then the next cycle, until all are placed; then the head is parked.</p>
+</li>
+<li>
+<p><strong>Alignment</strong> (bottom vision), when the machine's bottom vision is on and the part's
+   <a href="vision.html#the-settings">Bottom Vision Settings</a> are enabled: the nozzle takes the part over the
+   camera looking up, its bottom at the camera's focus, turned to the placement's angle (pre-rotated, as
+   the settings' Pre-rotate and the machine say; else at 0°), as OpenPnP's bottom vision does. The part
+   is found by its settings' pipeline, as OpenPnP finds it, turned less than 45° either way of the angle
+   wanted (all the way round with Rotation: Full). Pre-rotated, the nozzle is moved and turned by what
+   was seen and the part looked at again, until it is off by less than the machine's Max. Linear Offset
+   (its corner too, as turned) and Max. Angular Offset, or the machine's passes run out. The settings'
+   Vision Center Offsets are taken off what was found; offsets further than the nozzle tip's Max. Pick
+   Tolerance fail it ("Part R1 bottom vision offsets length 0.713mm larger than the allowed Max. Pick
+   Tolerance 0.500mm set on nozzle tip NT1."), as does the Part size check. Each look is tried again up
+   to Max Vision Attempts. The part is then placed with what was found taken off: the nozzle turned by
+   what the part is off, and moved by its offset on the nozzle. A part with bottom vision off is placed as
+   it was picked.</p>
+</li>
+</ol>
+<!-- src: src/machine/JPJobProcessorConfig.h; src/tasks/JPJobProcessor.cpp (preFlight, plan, ordered, planner, pick, align, place, cleanup); src/tasks/JPCellJobMachine.cpp (alignPart); src/tasks/JPBottomVision.cpp (findOffsets); src/tasks/JPAlignRequests.cpp; src/tasks/JPFiducialLocator.cpp; src/model/JPFiducialFit.cpp; src/tasks/JPCellJobMachine.cpp (locateFiducial, changeTip) -->
+
+<p>When something fails, the job pauses and says why (<strong>Job Error</strong>); the board, placement, part or feeder
+it is about is chosen on its tab. <strong>Resume</strong> goes on from there. With <strong>Defer Errors</strong> (or a placement's
+own error handling set to Defer), a placement that fails is put off instead: its feeder's fault is
+counted (shown in the Feeders tab's <strong>Faults</strong>; by default three in its last six feeds turn the feeder off), and it
+is tried again later, up to Machine Setup's Max Placement Attempts, or left in error; the job goes on, and says at its end how many
+errors there were.</p>
+<!-- src: src/tasks/JPJobProcessor.cpp (plannedStep, finish); src/app/JPlacerJobRun.cpp (run); src/app/JPlacerOpenPnpTabs.cpp (showSource); src/model/JPFeeder.cpp (recordJobFault) -->
+
+<h2 id="the-plan">The plan<a class="headerlink" href="#the-plan" title="Permanent link">&para;</a></h2>
+<p><strong>Job ▸ Plan…</strong> shows the job's placements left to place in groups of one part each, in the order a run
+places them: <strong>#</strong>, the <strong>Part</strong>, how many are <strong>Left</strong>, its <strong>Height</strong>, its <strong>Package</strong>, and where it
+<strong>Comes from</strong> (the feeder holding it, or a load the run will ask for). The line at the top counts the
+parts, the placements and the loads.</p>
+<p><strong>Order by</strong> chooses the order:</p>
+<ul>
+<li><strong>Machine's job order</strong> (as a job starts): the run orders the placements as Machine Setup's <strong>Job
+  Order</strong> says, as OpenPnP does; the groups are listed by name.</li>
+<li><strong>Height</strong>: the lowest parts first, so tall ones are not in the nozzle's way; then the smallest package.</li>
+<li><strong>Package size</strong>: the smallest package body first; then the lowest.</li>
+<li><strong>Most first</strong>: the groups with the most placements first.</li>
+<li><strong>Name</strong>.</li>
+</ul>
+<p><strong>Move Up</strong> and <strong>Move Down</strong> move the chosen group: groups moved by hand come first, in their order, and
+the rest follow as sorted. <strong>Sort Again</strong> drops the order set by hand, and choosing another order sorts
+them all again. With an order chosen or a group moved, the run places group by group: the Job Order
+applies within a group, and a nozzle is given a placement of the next group only when the groups before
+it have none left for it. The plan is kept in the job's file.</p>
+<!-- src: src/model/JPJobPlan.cpp; src/app/JPlacerPlanDialog.cpp; src/tasks/JPJobProcessor.cpp (preFlight, plan); src/model/JPJob.cpp (planSort, planOrder) -->
+
+<h2 id="load-as-you-go">Load as you go<a class="headerlink" href="#load-as-you-go" title="Permanent link">&para;</a></h2>
+<p>A part does not have to be on a feeder for a job to start. The run places every part that is loaded first;
+when only parts no feeder holds are left, it pauses and asks for the next one: in the plan's order (see
+<a href="#the-plan">The plan</a>), or with no plan the lowest first (tall parts last, out of the nozzle's way), then
+by name. <strong>Load <em>part</em></strong> says what to load, how it comes (the
+part's first packaging: its tape, pitch and how the part is turned in it), and into which <strong>Lane</strong>: a
+lane is a strip feeder, laid by hand. The lanes offered are those free for it, best first: an empty one (no
+part, or turned off), then one whose part this run no longer needs (said, so it is taken off first); of
+each, those of the part's tape width first, and one of another width says so. A lane holding a part the
+run still needs is never offered. Where the part's stock is kept, <strong>Lot</strong> chooses which of its lots is
+being loaded (the only one is chosen already).</p>
+<ul>
+<li><strong>Continue</strong>: lay the strip as the lane's strips lie, its first part at the lane's first hole. The lane
+  is set to the part, turned on, its feed count started again (and the holes its vision found forgotten),
+  the chosen lot loaded on it (the lot there before taken off), and the run goes on.</li>
+<li><strong>Skip This Part</strong>: its placements are left unplaced, in error ("Skipped: not loaded"), and the run goes
+  on; the end of the run counts them with the errors and the log names each.</li>
+<li><strong>Stop</strong> stops the run. Escape and the [x] leave it paused: <strong>Resume</strong> asks again.</li>
+</ul>
+<p>With no lane free, the prompt says so: set a feeder up for the part on the Feeders tab, then
+<strong>Continue</strong>; or skip it.</p>
+<!-- src: src/tasks/JPJobProcessor.cpp (preFlight, openPendingWorkable, skipPart, next); src/model/JPLaneChoice.cpp; src/app/JPlacerLoadDialog.cpp; src/app/JPlacerJobRun.cpp (askToLoad, run); src/model/JPFeeder.h (isLane, tapeWidth) -->
+
+<h2 id="runs">Runs<a class="headerlink" href="#runs" title="Permanent link">&para;</a></h2>
+<p>Each <strong>Start</strong> of a job begins a <strong>run</strong>, recorded as it goes in <code>runs.db</code> beside the library: when it
+started, the job, its boards at their revisions, each part fed (from which feeder, and the stock lot the
+feeder carries) and each placement placed. So a run cut short (jplacer closed, or the computer stopped)
+still says what it used.</p>
+<p>When the run ends (finished, or stopped with <strong>Stop</strong>), its parts are written to the stock's ledger, one
+entry of each for every lot its feeders carried: those placed as <strong>Used</strong>, those fed and not placed
+(mis-picked, dropped, discarded) as <strong>Lost</strong>, each with the run as its reference. A run left open is
+written when jplacer next opens, ended as <strong>Interrupted</strong>. A run paused by an error stays open until it is
+resumed and ends, or is stopped.</p>
+<p>While a run goes, after each feed from a feeder carrying a lot, if the lot holds fewer by its count than the
+run still has to place of the part, the status line and the log say so once: "Upper Strips - 1: reel A has
+about 15 left by its count, and 40 of C0603-100n are still to place".</p>
+<p><strong>Job ▸ Runs…</strong> lists the newest 200 runs: <strong>Started</strong>, <strong>Ended</strong>, <strong>How</strong> it ended (<strong>Finished</strong>,
+<strong>Stopped</strong>, <strong>Interrupted</strong>, or <strong>Open</strong> while it runs), the <strong>Job</strong>, the <strong>Boards</strong> (each with its
+revision), how many were <strong>Placed</strong>, and whether its parts are in the <strong>Ledger</strong> yet.</p>
+<!-- src: src/model/JPRunStore.cpp; src/model/JPRunLedger.cpp (write, writeAll); src/app/JPlacerJobRun.cpp (beginRun, endRun, start); src/tasks/JPJobProcessor.cpp (pick, place: material); src/model/JPConfiguration.cpp (load); src/app/JPlacerRunsDialog.cpp -->
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="machine-setup.html" class="md-footer__link md-footer__link--prev" aria-label="Previous: Machine Setup">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Machine Setup
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="panels.html" class="md-footer__link md-footer__link--next" aria-label="Next: Panels">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Panels
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.top", "navigation.footer", "search.highlight", "search.suggest", "toc.integrate"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

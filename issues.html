@@ -1,0 +1,1037 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Using jplacer, pick-and-place machine control.">
+      
+      
+      
+        <link rel="canonical" href="https://jaytektas.github.io/jplacer/issues.html">
+      
+      
+        <link rel="prev" href="feeders.html">
+      
+      
+        <link rel="next" href="log.html">
+      
+      
+        
+      
+      
+      <link rel="icon" href="img/jplacer.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Issues & Solutions - jplacer User Manual</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+        <script src="https://unpkg.com/iframe-worker/shim"></script>
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#issues-solutions" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="index.html" title="jplacer User Manual" class="md-header__button md-logo" aria-label="jplacer User Manual" data-md-component="logo">
+      
+  <img src="img/jplacer.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            jplacer User Manual
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Issues &amp; Solutions
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="amber"  aria-label="Light"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Light" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="amber"  aria-label="Dark"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Dark" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jaytektas/jplacer" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jaytektas/jplacer
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="index.html" title="jplacer User Manual" class="md-nav__button md-logo" aria-label="jplacer User Manual" data-md-component="logo">
+      
+  <img src="img/jplacer.png" alt="logo">
+
+    </a>
+    jplacer User Manual
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jaytektas/jplacer" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jaytektas/jplacer
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    jplacer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="getting-started.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="menus.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Menus
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="machine.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Machine
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="machine-setup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Machine Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="jobs.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jobs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="panels.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Panels
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="boards.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Boards
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="parts.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Parts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="packages.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Packages
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="vision.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vision
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="pipeline-editor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipeline Editor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="feeders.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Feeders
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Issues &amp; Solutions
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="issues.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Issues &amp; Solutions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-is-checked" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is checked
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="log.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Log
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="preferences.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preferences
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="updates.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Updates and betas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="whats-new.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    What's new
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="issues-solutions">Issues &amp; Solutions<a class="headerlink" href="#issues-solutions" title="Permanent link">&para;</a></h1>
+<p>The <strong>Issues &amp; Solutions</strong> tab, as OpenPnP's, lists what is wrong with, or could be better in, the
+machine's setup, each with what to do about it. The machine is set up a <strong>milestone</strong> at a time —
+Welcome, Connect, Basics, Kinematics, Vision, Calibration, Production, Advanced — and only what belongs
+to the target milestone and those before it is checked. While an issue more serious than Information is open,
+the tab's title carries a dot in the colour of the severest one (blue Fundamental, red Error, orange Warning,
+yellow Suggestion), as OpenPnP's does.</p>
+<!-- src: src/setup/JPSolutions.cpp; src/ui/JPIssuesPanel.cpp (updateIndicator); src/app/JPlacerOpenPnpTabs.cpp -->
+
+<!-- src: src/ui/JPIssuesPanel.cpp (the milestone box) -->
+
+<p><strong>Find Issues &amp; Solutions</strong> checks again (it is also done once when jplacer starts). Beside it, the
+target <strong>Milestone</strong>, a box: choose any milestone to go straight to it and search again — back to
+Calibration after a crash, or on to where a machine imported from OpenPnP already was — without working
+through those in between. Under it, what the milestone is for; the ⓘ button opens OpenPnP's wiki page about it. <strong>Include
+Solved?</strong> and <strong>Include Dismissed?</strong> show the issues solved or dismissed before; otherwise they stay away.</p>
+<p>The table lists each issue's <strong>Subject</strong> (what it is about), <strong>Severity</strong> (Information, Suggestion,
+Warning, Error, Fundamental; fundamentals first), <strong>Issue</strong>, <strong>Solution</strong> and <strong>State</strong> (Open, Solved,
+Dismissed). The chosen issue is shown in full under it, with what it offers to set and its choices:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Accept</td>
+<td>The solution done (one issue at a time). Some issues only explain: they cannot be accepted.</td>
+</tr>
+<tr>
+<td>Dismiss</td>
+<td>Put away: not shown again (and a solution just accepted undone).</td>
+</tr>
+<tr>
+<td>Reopen</td>
+<td>Back to open (a solution just accepted undone).</td>
+</tr>
+<tr>
+<td>ⓘ</td>
+<td>The issue's page in OpenPnP's wiki.</td>
+</tr>
+</tbody>
+</table>
+<p>After each round, a reminder says to search again: one solution often brings out the next issue.</p>
+<p>The last issue is always <strong>Complete milestone</strong>: accepting it goes on to the next milestone (when issues
+are still open, you are asked first) or, choosing so, back to the previous one. The milestone and what was
+solved or dismissed are kept between sessions.</p>
+<!-- src: src/setup/JPSolutions.cpp (find, setState, addMilestoneIssue); src/app/JPlacerOpenPnpTabs.cpp (the settings kept); src/setup/JPIssueChecks.cpp (welcome); src/setup/JPNozzleSolution.cpp -->
+
+<h2 id="what-is-checked">What is checked<a class="headerlink" href="#what-is-checked" title="Permanent link">&para;</a></h2>
+<p>Each issue says what it is about and what Accept does, in plain words rather than OpenPnP's own; its <strong>Subject</strong> too
+("Nozzle N1", not OpenPnP's "ReferenceNozzle N1"). OpenPnP's name its classes and settings: "Nozzle N offsets for the primary fiducial" is <strong>Set nozzle N approximate offsets and capture
+the primary fiducial height</strong>). Its wiki page is still OpenPnP's, and what was solved or dismissed is remembered by
+OpenPnP's words, so it stays so.</p>
+<!-- src: src/setup/JPIssueChecks.cpp (say); src/setup/JPSolutions.cpp (add, fingerprint) -->
+
+<p>jplacer checks its own Machine Setup where OpenPnP checks its drivers' settings:</p>
+<table>
+<thead>
+<tr>
+<th>Milestone</th>
+<th>Checked</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>any</td>
+<td>Machine Setup's own problems: a part naming another that is not there.</td>
+</tr>
+<tr>
+<td>Welcome</td>
+<td>As OpenPnP's Create nozzles for this head, <strong>Set how many nozzles head H has, and how their Z is driven.</strong> (the first head, with a camera on it): choose the <strong>Number of Nozzle Units</strong> (1 to 8) and the kind, <strong>Standalone</strong> (each nozzle a Z motor of its own), <strong>DualNegated</strong> (a pair on one Z motor, the second moving down as the first moves up) or <strong>DualCam</strong> (a pair pushed down by a cam on one motor), and Accept asks first, as OpenPnP does ("Accepting this solution may change your machine configuration fundamentally … Are you sure?"), and only on Yes makes them: the nozzles, their Z and rotation axes (a new rotation limited to ±180°) and their vacuum valve and sense actuators, those there were reused in order (their settings kept where they stay alike), the rest removed. A nozzle whose valve and sensing were one actuator gets a valve of its own, switching the same output (its command and its index). It starts as what the head has now; past the Welcome milestone it counts as solved.</td>
+</tr>
+<tr>
+<td>Connect</td>
+<td>A controller or a camera still simulated, as OpenPnP's: <strong>Controller N is simulated: make it the real controller.</strong> (OpenPnP's NullDriver issue; Accept makes it a serial controller, its axes, actuators and settings kept: choose its port on its page) and <strong>Camera N is simulated: make it the real USB camera.</strong> (OpenPnP's ImageCamera and SimulatedUpCamera issues; Accept makes it a capture device, its place and calibration kept: choose its Device on its page); Undo makes either the simulation again. As OpenPnP's GcodeDriverSolutions: a Grbl or grblHAL controller on a serial port with flow control (Accept turns it off). And, from what a controller said to M115 as it connected: a Smoothieware without OpenPnP's PnP build, or built for other axes than it has (PAXIS); RepRapFirmware before 3.3; Marlin not reporting rotation axes; a firmware not known to be well supported.</td>
+</tr>
+<tr>
+<td>Basics</td>
+<td>An axis without a controller or a letter (set right in the issue), the letter E, two axes of one controller with the same letter; a nozzle without a Z or a rotation axis; nozzles sharing one. The actuators, as OpenPnP's ActuatorSolutions: each nozzle's vacuum valve (and blow off, when it has one; and, when a nozzle tip senses the vacuum, something to read it), the head's pump control (and Z probe, when it has one), each camera's light (and a switcher camera's switcher): one assigned, a controller for it (unless HTTP or a script works it), and the commands for what it is asked to do (switch, set, read), typed in the issue and set on Accept; a profile actuator's own actuators each. Auto tool select off (Accept turns it on), as OpenPnP's ReferenceMachine; an HTTP actuator reading from a URL without a pattern to find the value by (Accept sets OpenPnP's example, <code>read:(?&lt;Value&gt;-?\d+)</code>), as OpenPnP's HttpActuator. As OpenPnP's ContactProbeNozzle: a nozzle probing by contact sense without its probing actuator, or with one on another controller than its Z's (Accept moves it to the Z's), and the actuator's probing command: for a Grbl or grblHAL, a G38.2 down to below Z's low soft limit by the probe's overshoot (Probe Depth less Start Offset) at the probe speed, suggested and set on Accept; for another controller, said to be missing. A controller allowing pre-move commands, or else not using letter variables (Accept changes it). As OpenPnP's HeadSolutions: on a head, a nozzle (an error), an actuator or another camera on other X or Y axes than the head's first camera (Accept assigns the camera's).</td>
+</tr>
+<tr>
+<td>Kinematics</td>
+<td>The machine not homed (Accept homes it); a Z axis's Safe Z zone invalid, or not set (Accept takes where the nozzle is as its Safe Z); an X or Y axis without soft limits (Accept takes where it is); an axis without a feed rate or acceleration; a nozzle's rotation (turning a whole turn) not wrapping around, or not limited to ±180° (Accept sets it). Each nozzle not aligning its rotation with the part (a suggestion; Accept turns Align with Part on). As OpenPnP's AxisSolutions: a nozzle whose rotation axis is limited to less than 360° (its soft limits, with Limit to Range) not using the LimitedArticulation rotation mode (Accept sets it), and its axis then wrapping around or not limited to range (errors; Accept sets it right); with such a nozzle, bottom vision's Pre-Rotate off (Accept turns it on), and any vision settings whose Pre-rotate is AlwaysOff (listed in the issue; Accept sets them to Default). A controller's Maximum Feed Rate limiting the axes (Accept removes it). As OpenPnP's KinematicSolutions: each nozzle's Safe Z, dynamic (lifted by the part's height) or fixed, chosen in the issue; a Safe Z above 2 mm (unconventional); with dynamic Safe Z, a compatible tip's Max. Part Height taking the nozzle past its Safe Z zone. As OpenPnP's NozzleTipSolutions: a nozzle without a manual tip change location (Accept takes where the nozzle is).</td>
+</tr>
+<tr>
+<td>Vision</td>
+<td>A camera settling by a fixed time (Accept sets the adaptive Euclidean method), one not calibrated (Accept calibrates it, as its Calibrate button does), one without a white balance. As OpenPnP's VisionSolutions: first, a head without its calibration rig's primary fiducial, <strong>Capture the primary fiducial's position, and calibrate camera C over it.</strong> (OpenPnP's Primary calibration fiducial position and initial camera calibration; jog the camera over the primary fiducial; Accept calibrates the camera there and makes the fiducial it finds, its place and diameter, the primary fiducial: a new machine's first vision step, as nothing else is known yet); a head without visual homing (Accept finds the round mark under its camera, makes it the homing mark, its place and width, and turns visual homing on: jog the camera over it first), the calibration rig's two fiducials less than 2 mm apart in Z, and the head's first nozzle's Safe Z not above a rig fiducial. As OpenPnP's CameraSolutions: a Preview FPS over 15 (Accept sets 5), a preview not suspended during tasks (an error for a switcher camera; Accept suspends it), Auto Camera View off (Accept turns it on), and Rendering Quality Low (Accept sets High). And, as OpenPnP's, a capture device's own settings (read from it as it starts): brightness, contrast, gamma, gain, hue, saturation and white balance at their defaults and not automatic, sharpness at its minimum (Accept sets each by hand so), and exposure not automatic (Accept keeps the value it has chosen, set by hand: have it look at a representative, rather bright subject). As OpenPnP's VisionSolutions (in plainer words; what was solved there stays solved), once the calibration rig's primary fiducial X and Y is known: <strong>Set nozzle N approximate offsets and capture the primary fiducial height (coarse nozzle calibration).</strong> for the head's first nozzle, and <strong>Set nozzle N approximate offsets and match its Z to nozzle F (coarse nozzle calibration).</strong>, F the first nozzle, for each other nozzle, once the fiducial's height is known: jog the nozzle down until its tip touches the primary fiducial and Accept. The nozzle's X and Y offsets from the camera are the fiducial's position less where its axes are (X and Y already within half the fiducial of these are kept, as they may already be precise). The first nozzle becomes the reference in Z (its Z offset 0) and the height it touches is kept as the fiducial's; another nozzle's Z offset is set so it reads the same Z there. <strong>Set the secondary fiducial height (probed with nozzle N).</strong>, for the first nozzle only, once the secondary fiducial's X and Y is known: its tip touching the secondary fiducial gives that fiducial's height, the camera's second scale; no nozzle offsets change. Each is refused above Safe Z, or with the two fiducials' heights less than 2 mm apart; Undo puts them back.</td>
+</tr>
+<tr>
+<td>Calibration</td>
+<td>A nozzle tip that no nozzle takes. As OpenPnP's CalibrationSolutions: each head's X and Y backlash, once its camera is calibrated and its homing mark set (Accept measures it with the camera over the mark, and keeps what it finds). Work on the machine that cannot start makes Accept fail, saying why; as OpenPnP's, an issue whose work starts stays open while it runs and is Solved only once it has succeeded (failing, it stays open: Accept tries again). A nozzle tip without a background calibration method: chosen in the issue (Brightness and Key-Color, or Brightness), then Accept calibrates the tip on the nozzle it is loaded on. As OpenPnP's CalibrationSolutions, for each nozzle with its offsets roughly set: <strong>Calibrate nozzle N's precise offsets from the camera (fine nozzle calibration).</strong> (OpenPnP's Calibrate precise camera ↔ nozzle N offsets.) Place the test object on the primary fiducial and target it with the head camera; <strong>Feature diameter</strong> (pixels; to begin with the rig's Test Object by the camera's scale, else 20): each change finds a round feature of that size near the picture's middle and shows it on the camera's view (the green circle and cross-hairs that should hug the object, "Diameter N px - Score S"); <strong>Auto-Detect Next</strong> tries every size and takes the next one bigger, where a round feature is found, that scores best among its neighbours (pressed again, the next; a size where nothing is found counts for nothing, as in OpenPnP, so it does not stop on the picture's noise); <strong>Capture Test Object Z</strong>: the nozzle's Z with its tip touching the object, kept as the rig's Test Object Z (for anything thicker than paper; not captured, the primary fiducial's Z). Accept takes the camera back to where the Feature diameter was last sized (a change of it, or Auto-Detect Next; never sized, where the camera is), measures the object there (its diameter kept as the rig's Test Object), looks for it from there, then the nozzle picks it at six angles round the circle and places it turned 180 degrees, the camera finding it after each (as OpenPnP's: three times over, by the same round-feature search as the Feature diameter's, at the test object's diameter and no more than a tenth bigger or smaller, so a test object with an inner ring is found by the ring of its size; each picture shown on the camera, "Nozzle Offset Calibration N° - Score S"); the offsets change by the average of where it moved (the true axis midway; runout cancels out), with what depends on them; each angle's own estimate is in the log, and the result says how far, at most, any of them is from the average: how much the result can be trusted (estimates far apart: the object slipping, a tip that is worn or loose, the camera not settling); the result (detected, previous, difference) is shown with the issue.</td>
+</tr>
+<tr>
+<td>Production</td>
+<td>The tables not linked between tabs (Accept sets View &gt; Selections in Tables to Linked), as OpenPnP's VisionSolutions.</td>
+</tr>
+<tr>
+<td>Advanced</td>
+<td>G-code not compressed, comments not removed (Accept turns each on); before Advanced, the other way, offered only (never counted as open). Script engines not pooled (Accept ticks the machine's <strong>Pool scripting engines?</strong>).</td>
+</tr>
+<tr>
+<td>any</td>
+<td>A Photon feeder's slot without a location, or without an offset from it.</td>
+</tr>
+</tbody>
+</table>
+<p>Choosing an issue selects its part in Machine Setup, ready there when you open that tab.</p>
+<!-- src: src/setup/JPIssueChecks.cpp; src/app/JPlacerMachine.cpp (showSetupNode, changeSetup, cameraDeviceControls); src/camera/JPV4L2Source.cpp (controls); src/machine/JPGcodeDriver.cpp (identity) ; src/setup/JPIssueChecks.cpp (nozzleOffsets); src/tasks/JPVisionFeature.cpp; src/app/JPlacerCameraTasks.cpp (previewFeature, autoDetectFeature, measureFeature, calibrateNozzleOffsets); src/app/JPlacerMachine.cpp (calibratePreciseNozzleOffsets); src/machine/JPCell.cpp (toolZ) -->
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="feeders.html" class="md-footer__link md-footer__link--prev" aria-label="Previous: Feeders">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Feeders
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="log.html" class="md-footer__link md-footer__link--next" aria-label="Next: Log">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Log
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.top", "navigation.footer", "search.highlight", "search.suggest", "toc.integrate"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
