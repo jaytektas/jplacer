@@ -6,10 +6,12 @@
 #include "JPImportField.h"
 #include "JPTableFile.h"
 
+#include "model/JPFootprint.h"
 #include "model/JPLengthUnit.h"
 
 #include <j/config/Json.h>
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -18,7 +20,8 @@ inline namespace jf {
 // One file a board is imported from (DESIGN.md, Import): what it is (the
 // placement file, a BOM, another table), its table, what each of its
 // columns holds (JPImportField), the units its lengths are in where a cell
-// does not say, and the mapping profile it came from. Kept with the board
+// does not say, and the mapping profile it came from; a board file (a KiCad
+// .kicad_pcb, JPKicadBoardFile) also its footprints. Kept with the board
 // as it was read (provenance), so its mapping can be changed later and the
 // board matched again without importing again.
 class JPImportSource {
@@ -30,6 +33,10 @@ public:
     std::vector<JPImportField::Id> mapping;   // one per header column
     JPLengthUnit                   units = JPLengthUnit::Millimeters;
     std::string                    profile;   // the mapping profile used, if one was
+    // A board file's footprints, by the name its Footprint column gives them, and what reading it found
+    // worth saying (a name drawn two ways).
+    std::map<std::string, JPFootprint> footprints;
+    std::vector<std::string>           notes;
 
     static const char* roleName(Role r);   // "cpl", "bom", "table"
     static const char* roleLabel(Role r);  // "Placement file (CPL)", "BOM", "Other table"

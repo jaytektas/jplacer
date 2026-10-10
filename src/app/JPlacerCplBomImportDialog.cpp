@@ -4,6 +4,7 @@
 #include "JPlacerCplBomImportDialog.h"
 
 #include "common/JPlacerLog.h"
+#include "import/JPKicadBoardFile.h"
 #include "ui/JPGroupFrame.h"
 #include "ui/JPUiParts.h"
 
@@ -183,7 +184,7 @@ void JPlacerCplBomImportDialog::addFile(JPImportSource::Role role) {
     req.kind = JDialogRequest::JKind::OpenFile;
     req.title = role == JPImportSource::Role::Cpl ? "Choose Placement File" : "Add BOM or Table";
     req.filters = role == JPImportSource::Role::Cpl
-                    ? std::vector<JFileFilter>{ { "Placement files", { "csv", "pos", "txt", "tsv", "xy" } } }
+                    ? std::vector<JFileFilter>{ { "Placement files", { "csv", "pos", "txt", "tsv", "xy", "kicad_pcb" } } }
                     : std::vector<JFileFilter>{ { "Tables", { "csv", "txt", "tsv" } } };
     if (!m_import.sources.empty()) req.startPath = std::filesystem::path(m_import.sources.front().table.path).parent_path().string();
     std::weak_ptr<bool> alive = m_alive;
@@ -198,7 +199,9 @@ void JPlacerCplBomImportDialog::addSource(const std::string& path, JPImportSourc
     JPImportSource s;
     s.role = role;
     std::string error;
-    if (!JPTableFile::read(path, s.table, error)) {
+    // A KiCad board is read for its placements and footprints; anything else as a table.
+    const bool board = role == JPImportSource::Role::Cpl && JPKicadBoardFile::is(path);
+    if (board ? !JPKicadBoardFile::read(path, s, error) : !JPTableFile::read(path, s.table, error)) {
         JDialog::message("Cannot Read the File", fileName(path) + ": " + error);
         return;
     }
@@ -206,7 +209,8 @@ void JPlacerCplBomImportDialog::addSource(const std::string& path, JPImportSourc
     else s.guess();
     JLOGC(JPlacerLog::kBoardImport, JLogLevel::Info) << JPImportSource::roleLabel(role) << " " << path << ": "
                                                      << s.table.header.size() << " column(s), " << s.table.rows.size()
-                                                     << " row(s), read by " << (s.profile.empty() ? "guess" : s.profile);
+                                                     << " row(s), read by " << (s.profile.empty() ? "guess" : s.profile)
+                                                     << (board ? ", " + std::to_string(s.footprints.size()) + " footprint(s)" : std::string());
     const bool haveCpl = !m_import.sources.empty() && m_import.sources.front().role == JPImportSource::Role::Cpl;
     if (role == JPImportSource::Role::Cpl) {
         if (haveCpl) m_import.sources.front() = s;
@@ -324,8 +328,9 @@ void JPlacerCplBomImportDialog::fillSummary() {
     };
     const bool haveCpl = !m_import.sources.empty() && m_import.sources.front().role == JPImportSource::Role::Cpl;
     if (!haveCpl) {
-        line("Choose the placement file (CPL, KiCad's .pos): each part's designator, position, rotation and side. Then "
-             "add the BOM, if there is one, for each part's value, footprint, manufacturer, MPN and supplier.");
+        line("Choose the placement file (CPL, KiCad's .pos, or a KiCad board's .kicad_pcb for its footprints too): each "
+             "part's designator, position, rotation and side. Then add the BOM, if there is one, for each part's value, "
+             "footprint, manufacturer, MPN and supplier.");
         m_importButton->setEnabled(false);
         return;
     }
@@ -345,6 +350,8 @@ void JPlacerCplBomImportDialog::fillSummary() {
     if (report.local) parts += ", " + std::to_string(report.local) + " the board's own";
     if (report.unmatched) parts += ", " + std::to_string(report.unmatched) + " to be chosen";
     line(parts);
+    if (report.footprints)
+        line(std::to_string(report.footprints) + " footprint(s) from the board file: the pads of the board's own parts' packages");
     if (report.noPart)
         line(std::to_string(report.noPart) + " placement(s) with no part named (no value, footprint or MPN in any "
              "file): add the BOM, or choose their parts after importing");

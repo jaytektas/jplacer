@@ -88,6 +88,10 @@ bool JPCplBomImport::bottom(const std::string& cell) {
 int JPCplBomImport::winner(JPImportField::Id field) const {
     if (const auto w = winners.find(field); w != winners.end() && w->second >= 0 && size_t(w->second) < sources.size())
         return w->second;
+    // The footprint a board file draws, where one does (it is what is placed); else as the other fields.
+    if (field == I::Footprint)
+        for (size_t i = 0; i < sources.size(); ++i)
+            if (!sources[i].footprints.empty()) return int(i);
     if (!JPImportField::isPlacement(field))
         for (size_t i = 1; i < sources.size(); ++i)
             if (sources[i].column(field) >= 0) return int(i);
@@ -157,6 +161,7 @@ std::string JPCplBomImport::value(const std::map<std::string, std::vector<int>>&
 
 JPCplBomImport::Report JPCplBomImport::check() const {
     Report report;
+    for (const JPImportSource& s : sources) report.problems.insert(report.problems.end(), s.notes.begin(), s.notes.end());
     const auto rows = join(report);
     for (const auto& [d, at] : rows) {
         if (at.empty() || at[0] < 0) continue;
@@ -179,7 +184,18 @@ bool JPCplBomImport::build(const JPConfiguration& config, const std::string& whe
             return false;
         }
     report = Report();
+    for (const JPImportSource& s : sources) report.problems.insert(report.problems.end(), s.notes.begin(), s.notes.end());
     const auto rows = join(report);
+    // The footprint a board file (a KiCad board) draws at a placement (its rows in the files).
+    auto drawn = [this](const std::vector<int>& at) -> const JPFootprint* {
+        for (size_t s = 0; s < sources.size(); ++s) {
+            if (sources[s].footprints.empty() || at[s] < 0) continue;
+            const auto f = sources[s].footprints.find(sources[s].cell(sources[s].table.rows[size_t(at[s])], I::Footprint));
+            if (f != sources[s].footprints.end()) return &f->second;
+        }
+        return nullptr;
+    };
+    std::set<std::string> drawnUsed;
 
     // The extras: every column kept as one, by its header, from whichever file has it.
     struct ExtraColumn { size_t source; int column; std::string key; };
@@ -273,11 +289,21 @@ bool JPCplBomImport::build(const JPConfiguration& config, const std::string& whe
                     double mm = 0;
                     if (JPImportSource::length(h->second, cpl.units, mm)) bp.localPart->height = JPLength(mm, JPLengthUnit::Millimeters);
                 }
-                if (const JPPackage* k = config.libraryPackage(footprint)) {
+                // Its package: one of its own with the footprint the board file draws, where one does (the
+                // library's package's settings kept, where it has one of that name); else the library's; else
+                // one of its own.
+                const JPFootprint* own = drawn(at);
+                const JPPackage* k = config.libraryPackage(footprint);
+                if (k && !own) {
                     bp.localPart->packageId = k->id;
                 } else if (!footprint.empty()) {
-                    bp.localPackage = std::make_shared<JPPackage>();
+                    bp.localPackage = k ? std::make_shared<JPPackage>(*k) : std::make_shared<JPPackage>();
+                    bp.localPackage->uuid.clear();
                     bp.localPackage->id = footprint;
+                    if (own) {
+                        bp.localPackage->footprint = *own;
+                        drawnUsed.insert(footprint);
+                    }
                     bp.localPart->packageId = footprint;
                 }
                 ++report.local;
@@ -301,6 +327,7 @@ bool JPCplBomImport::build(const JPConfiguration& config, const std::string& whe
         out.placements.push_back(p);
         ++report.placements;
     }
+    report.footprints = int(drawnUsed.size());
     for (const JPImportSource& s : sources) out.provenance.push_back(s.provenance(when));
     return true;
 }

@@ -9,6 +9,7 @@ Every change a user would notice adds a line under Unreleased, in the same commi
 notes.
 
 ## Unreleased
+- Import Placements' CPL and BOM can take a KiCad board (.kicad_pcb) as the placement file. The window shows its placements, parts and anything that doesn't match, as for a .pos, and each part the board makes its own gets the footprint drawn on the board itself, pad for pad, top or bottom. A footprint edited on the board is kept as a second, and the window says which parts use it.
 - A camera's Format in Machine Setup lists the formats the camera itself offers, as OpenPnP's does: picture size, frames per second and kind together ("1280 x 720, 30 FPS, MJPG"), every rate it offers; before it was any, MJPG or YUYV with a width and height typed in, and no frame rate.
 - Vision debugging's pictures no longer fill the disk: Preferences has Keep at most (MB) beside Save vision pictures for debugging, 1000 MB to begin with, and the oldest are deleted first as new ones come (0 keeps everything, as before).
 

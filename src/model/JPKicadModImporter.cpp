@@ -49,7 +49,7 @@ double number(const std::string& s) {
 
 } // namespace
 
-std::vector<JPFootprint::Pad> JPKicadModImporter::parse(const std::string& text) {
+std::vector<JPFootprint::Pad> JPKicadModImporter::parse(const std::string& text, const std::string& copper) {
     // OpenPnP's expressions, as its KicadModImporter has them.
     static const std::regex head(R"re(^\(pad\s"?(\w*)"?\s(\w*)\s(\w*))re");
     static const std::regex size(R"re(\(size ([\-0-9.]*) ([\-0-9\.]*)\))re");
@@ -62,9 +62,9 @@ std::vector<JPFootprint::Pad> JPKicadModImporter::parse(const std::string& text)
         if (!std::regex_search(def, m, head)) continue;
         const std::string name = m[1], type = m[2], shape = m[3];
         std::smatch l;
-        const bool topCu = std::regex_search(def, l, layers)
-                           && (l[1].str().find("F.Cu") != std::string::npos || l[1].str().find("*.Cu") != std::string::npos);
-        if (type != "smd" || !topCu) continue;
+        const bool onCopper = std::regex_search(def, l, layers)
+                              && (l[1].str().find(copper) != std::string::npos || l[1].str().find("*.Cu") != std::string::npos);
+        if (type != "smd" || !onCopper) continue;
         JPFootprint::Pad pad;
         pad.name = name;
         if (std::regex_search(def, m, size)) {

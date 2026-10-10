@@ -131,6 +131,17 @@ importers.
 (CPL: each part's designator, position, rotation and side) and, where there is one, the BOM (each part's
 value, footprint, manufacturer, MPN, supplier and so on), and any other table that names designators.
 
+The placement file can also be a KiCad board itself (`.kicad_pcb`, KiCad 5 on), which gives each part's
+footprint as well. It is read as KiCad's own position file would have it: every footprint KiCad would put
+in one (not those marked to be left out of position files), its reference, value, footprint, position in
+millimetres from the board's drill/place file origin, rotation and side, with a **DNP** column for parts
+marked Do Not Populate. Each footprint is taken once, its SMD pads as its library draws them (the
+placement's rotation taken off, and a bottom part's turned back over), whatever the library on this
+computer has now. A footprint changed on the board, so that two parts of the same name have different
+pads, is kept as a second, "*name* (2)", and the window says which parts take it. A board's own part
+(Create Missing Parts) gets a package of the board's own with that footprint's pads; where the library has
+a package of that name, the board's copy keeps the library package's other settings.
+
 - **Files**: **Choose Placement File…** (or **Change Placement File…**) and **Add BOM or Table…** add
   them; **Remove** takes out the one chosen. The list shows what each is, how its columns were read
   (*their names (guessed)*, or the profile used) and its rows. Files may be separated by commas,
@@ -151,7 +162,9 @@ value, footprint, manufacturer, MPN, supplier and so on), and any other table th
   fiducials), the parts (from the library, the board's own, to be chosen), placements no file names a part
   for, designators in a BOM but not the placement file (not placed) and in the placement file but no BOM,
   and each field the files disagree on, with examples and **Take *field* from**, the file whose value is
-  used (the placement file for a placement's position; else the first other file that has the field).
+  used (the placement file for a placement's position, a KiCad board for the footprint; else the first
+  other file that has the field). From a KiCad board, it also says how many footprints the board's own
+  parts take from it.
 
 A BOM line's designators ("R1, R2, R5-R8") are each joined to the placement of that designator. Parts are
 grouped by manufacturer and MPN where the files give them, else by value and footprint, and each keeps
@@ -164,7 +177,7 @@ its value is "DNP"; FID1, REF1 and the like are fiducials. **Import** brings it 
 the other importers do (Merge or Replace), and the files themselves, every row and how their columns
 were read, are kept in the board.
 
-<!-- src: src/app/JPlacerCplBomImportDialog.cpp; src/import/JPCplBomImport.cpp (build, join, winner, doNotPlace, bottom); src/import/JPImportField.cpp; src/import/JPTableFile.cpp; src/import/JPImportSource.cpp (guess, unitsOfComments, length, provenance); src/import/JPTableFile.cpp (comments); src/import/JPDesignators.cpp; src/import/JPMappingProfiles.cpp; src/ui/JPBoardPlacementsPanel.cpp (importCplBom, take); src/ui/JPPlacementsTableModel.cpp (data) -->
+<!-- src: src/app/JPlacerCplBomImportDialog.cpp; src/import/JPKicadBoardFile.cpp; src/import/JPCplBomImport.cpp (build, join, winner, doNotPlace, bottom); src/import/JPImportField.cpp; src/import/JPTableFile.cpp; src/import/JPImportSource.cpp (guess, unitsOfComments, length, provenance); src/import/JPTableFile.cpp (comments); src/import/JPDesignators.cpp; src/import/JPMappingProfiles.cpp; src/ui/JPBoardPlacementsPanel.cpp (importCplBom, take); src/ui/JPPlacementsTableModel.cpp (data) -->
 
 ### OpenPnP's importers
 
