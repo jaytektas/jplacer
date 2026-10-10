@@ -1532,6 +1532,18 @@ bool JPlacerMachine::readyToMove() {
         m_window.showStatus("Home the machine first", kErrorMs);
         return false;
     }
+    // Not under a task's feet: a move clicked while one drives the machine (OpenPnP's waits for the task) is
+    // refused, not slipped in between its moves. Machine Setup's Move Nozzle during a tip's runout
+    // measurement had taken the nozzle off the camera, and the measurement failed.
+    // A calibration waiting on the person (jog the tip into the circle, turn it) leaves the moves to them.
+    const char* busy = m_cameraTasks && m_cameraTasks->busy() && !m_cameraTasks->operatorTurn() ? "a camera task (a calibration) is under way"
+                     : m_tipChanges && m_tipChanges->busy() ? "a nozzle tip change is under way"
+                     : jobWorking && jobWorking() ? "the job is running"
+                     : nullptr;
+    if (busy) {
+        m_window.showStatus(std::string("Not moved: ") + busy + "; wait for it to finish, or stop it", kErrorMs);
+        return false;
+    }
     return true;
 }
 

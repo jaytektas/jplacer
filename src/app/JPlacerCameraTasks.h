@@ -146,6 +146,8 @@ public:
     bool cameraLook(const std::string& cameraId, JPCameraCalibration& calibration, double& viewX, double& viewY) const;
     // A task is under way.
     bool busy() const { return m_busy; }
+    // A task under way waiting on the person (Next), who may move the machine meanwhile (jog, click the picture).
+    bool operatorTurn() const { return m_operatorTurn; }
     // Its cameras let go of (their buttons no longer reach it, nothing posted to it runs), before they go:
     // for it to outlive them while what called into it (a task's end) returns.
     void letGo();

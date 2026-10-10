@@ -296,7 +296,10 @@ row of coordinates ending in four buttons:
 - **Capture Camera** and **Capture Nozzle** set it from where the camera on the head, or the nozzle chosen on
   the Jog panel, is now: one step to undo.
 - **Move Camera** and **Move Nozzle** go there: up to safe Z, across, and, for the nozzle, down to the Z
-  given. The machine must be connected and homed; the speed is the Jog panel's.
+  given. The machine must be connected and homed; the speed is the Jog panel's. While a calibration, a
+  nozzle tip change or a running job is moving the machine, the move is refused ("Not moved: …"), not slipped
+  in between the task's own moves; a calibration waiting for you (to jog the tip into the circle, say) leaves
+  the moves to you.
 
 Where OpenPnP has them, two more follow:
 
