@@ -394,7 +394,8 @@ when it was calibrated. (OpenPnP shows this only on the tip's Calibration tab.) 
   its load steps;
 - **Unload** the tip on it;
 - **Calibrate** the tip on it: its runout measured over the camera looking up, at once (greyed with no tip
-  on the nozzle, or the machine not homed);
+  on the nozzle, or the machine not homed). A measurement that fails, or is cancelled, leaves the tip not
+  calibrated on that nozzle, as in OpenPnP, so the button turns red: its earlier calibration is not kept;
 - **Step Through**: each changer step is shown, with its place and speed, and runs only once you say
   so; stop at any step. On by default, and kept for next time;
 - **Manual Change**: first **Move to Manual Change Location**, the nozzle taken where its tip is changed
@@ -429,7 +430,7 @@ Where nozzles share one Z motor (a see-saw head), homing either homes both, and 
 (with RIGHT)**). It is shown greyed while the nozzle has no home command or the machine is not homed. Each
 nozzle has its own command, so a machine with a motor per nozzle homes each on its own.
 
-<!-- src: src/machine/JPCell.cpp (homeNozzle, doHomeNozzle, nozzlesHomedWith); src/machine/JPNozzleConfig.h (homeCommand); src/ui/JPJogPanel.cpp (showTipMenu, refreshTipButton); src/ui/JPIconButton.cpp (setTone); src/app/JPlacerMachine.cpp (homeNozzle); src/setup/JPSetupProperties.cpp (nozzleForm) -->
+<!-- src: src/machine/JPCell.cpp (homeNozzle, doHomeNozzle, nozzlesHomedWith); src/machine/JPNozzleConfig.h (homeCommand); src/ui/JPJogPanel.cpp (showTipMenu, refreshTipButton); src/ui/JPIconButton.cpp (setTone); src/app/JPlacerMachine.cpp (homeNozzle, calibrateTipRunout); src/setup/JPSetupProperties.cpp (nozzleForm) -->
 
 **Special** tab: **Head Safe Z** (every Z on the head up to safe Z), **Discard** (the nozzle's part to the
 discard location: up, across, down, let go, up again), **Recycle**, and **Pick** and **Place** where the

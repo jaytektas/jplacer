@@ -366,7 +366,7 @@ void JPlacerCameraTasks::calibrateBacklash(const std::string& axisId,
     });
 }
 
-void JPlacerCameraTasks::calibrateRunout(const std::string& nozzleId, RunoutDone done) {
+bool JPlacerCameraTasks::calibrateRunout(const std::string& nozzleId, RunoutDone done) {
     const JPNozzleConfig* nozzle = nullptr;
     for (const JPNozzleConfig& n : m_cell.config().nozzles)
         if (n.id == nozzleId) nozzle = &n;
@@ -387,7 +387,7 @@ void JPlacerCameraTasks::calibrateRunout(const std::string& nozzleId, RunoutDone
     if (!why.empty()) {
         m_window.showStatus("Calibrate runout: " + why, kResultMs);
         if (done) done(false, JPRunout {}, std::nullopt, why);
-        return;
+        return false;
     }
     const JPNozzleConfig n = *nozzle;
     const JPNozzleTipConfig t = *tip;
@@ -413,6 +413,7 @@ void JPlacerCameraTasks::calibrateRunout(const std::string& nozzleId, RunoutDone
     }, [result, background, words, done](bool ok) {
         if (done) done(ok, *result, *background, *words);
     });
+    return true;
 }
 
 void JPlacerCameraTasks::calibrateRunoutCamera(const std::string& nozzleId, CameraFixDone done) {

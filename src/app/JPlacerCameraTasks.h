@@ -108,7 +108,8 @@ public:
     std::function<void(const std::string& cameraId)> onUserAction;
     using RunoutDone = std::function<void(bool ok, const JPRunout&, const std::optional<JPBackgroundCalibration::Result>&,
                                           const std::string& why)>;
-    void calibrateRunout(const std::string& nozzleId, RunoutDone done);
+    // False when refused before it began (busy, not homed, no tip…): `done` has been told why, and nothing was measured.
+    bool calibrateRunout(const std::string& nozzleId, RunoutDone done);
     // OpenPnP's Calibrate Camera Position and Rotation with the tip on `nozzleId` (JPRunoutCalibrator::
     // calibrateCamera), asking first. `done` (main thread): where the camera looking up is and how far it is turned.
     using CameraFixDone = std::function<void(const std::string& cameraId, const JPRunoutCalibrator::CameraFix&)>;

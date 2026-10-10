@@ -2097,10 +2097,14 @@ void JPlacerMachine::calibrateTipRunout(const std::string& nozzleId, std::functi
         if (done) done(false, why);
         return;
     }
-    m_cameraTasks->calibrateRunout(nozzleId, [this, tipId, nozzleId, done](bool ok, const JPRunout& r,
-                                                                               const std::optional<JPBackgroundCalibration::Result>& b,
-                                                                               const std::string& why) {
+    // As OpenPnP's, a measurement that fails leaves the tip uncalibrated (OpenPnP resets it as it begins; here once
+    // it has ended, the machine not remade under a task); one refused before it began leaves it as it was.
+    auto began = std::make_shared<bool>(false);
+    *began = m_cameraTasks->calibrateRunout(nozzleId, [this, tipId, nozzleId, done, began](bool ok, const JPRunout& r,
+                                                                                         const std::optional<JPBackgroundCalibration::Result>& b,
+                                                                                         const std::string& why) {
         if (ok) keepRunout(tipId, nozzleId, r, b);
+        else if (*began) keepRunout(tipId, nozzleId, std::nullopt, std::nullopt);
         if (done) done(ok, why);
     });
 }
