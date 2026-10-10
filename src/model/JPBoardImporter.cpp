@@ -234,6 +234,7 @@ std::string JPBoardImporter::boardPart(JPConfiguration& config, JPBoard& out, co
         bp.state = JPBoardPart::State::Local;
         bp.localPart = std::make_shared<JPPart>();
         bp.localPart->id = partId;
+        bp.localPart->value = value;   // its value as the file wrote it
         if (const JPPackage* k = config.libraryPackage(packageId)) {
             bp.localPart->packageId = k->id;
         } else {

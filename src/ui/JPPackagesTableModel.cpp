@@ -3,19 +3,72 @@
 
 #include "JPPackagesTableModel.h"
 
+#include <j/core/JStyle.h>
+
 #include <algorithm>
 
 inline namespace jf {
 
 namespace {
-enum Col { kId, kDescription, kTape, kBottomVision, kFiducialVision };
+enum Col { kId, kSource, kStatus, kDescription, kTape, kBottomVision, kFiducialVision, kColumns };
 }
 
-JPPackagesTableModel::JPPackagesTableModel(JPConfiguration& config) : m_config(config) {}
+JPPackagesTableModel::JPPackagesTableModel(JPConfiguration& config) : m_config(config) { reload(); }
+
+bool JPPackagesTableModel::rowShown(int row) const {
+    const JPCatalog::Package* e = entry(row);
+    if (!e) return false;
+    if (m_show == kShowAll) return true;
+    if (m_show == kShowLibrary) return !e->board;
+    if (m_show == kShowBoards) return e->board != nullptr;
+    return e->board && e->board->scopeName() == m_show;
+}
+
+std::vector<std::string> JPPackagesTableModel::showChoices() const {
+    std::vector<std::string> out { kShowAll, kShowLibrary, kShowBoards };
+    for (const auto& b : m_config.boards()) out.push_back(b->scopeName());
+    return out;
+}
+
+void JPPackagesTableModel::reload() { m_rows = JPCatalog::packages(m_config); }
+
+int JPPackagesTableModel::columnCount() const { return kColumns; }
+
+bool JPPackagesTableModel::editable(int row, int c) const {
+    const JPCatalog::Package* e = entry(row);
+    return e && JPCatalog::editable(e->status) && c >= kDescription;
+}
+
+std::string JPPackagesTableModel::cellIcon(int row, int c) const {
+    const JPCatalog::Package* e = entry(row);
+    return e && e->board && c == kId ? "board" : std::string();
+}
+
+const uint8_t* JPPackagesTableModel::cellTint(int row, int c) const {
+    const JPCatalog::Package* e = entry(row);
+    if (!e || !e->board) return nullptr;
+    if (c == kSource) return Colors::Accent;
+    if (c != kStatus) return nullptr;
+    switch (e->status) {
+        case JPCatalog::Status::Matched:        return Colors::Success;
+        case JPCatalog::Status::LibraryChanged: return Colors::Warning;
+        default:                                return nullptr;
+    }
+}
+
+std::string JPPackagesTableModel::cellTooltip(int row, int c) const {
+    const JPCatalog::Package* e = entry(row);
+    if (!e) return {};
+    if (c == kStatus) return JPCatalog::statusTip(e->status);
+    if (c == kSource) return e->board ? "The open board " + e->board->scopeName() + "'s" : "The library's";
+    return {};
+}
 
 JPTableModel::Column JPPackagesTableModel::column(int c) const {
     switch (c) {
         case kId:          return { "ID", "", Kind::Text };
+        case kSource:      return { "Source", "Where it lives: the library, or the open board named", Kind::Text };
+        case kStatus:      return { "Status", "How it stands to the library", Kind::Text };
         case kDescription: return { "Description", "", Kind::Text };
         case kTape:
             return { "Tape Specification",
@@ -28,26 +81,34 @@ JPTableModel::Column JPPackagesTableModel::column(int c) const {
     return {};
 }
 
+const JPCatalog::Package* JPPackagesTableModel::entry(int row) const {
+    return row >= 0 && size_t(row) < m_rows.size() ? &m_rows[size_t(row)] : nullptr;
+}
+
 JPPackage* JPPackagesTableModel::package(int row) const {
-    return row >= 0 && size_t(row) < m_config.packages().size() ? m_config.packages()[size_t(row)].get() : nullptr;
+    const JPCatalog::Package* e = entry(row);
+    return e ? e->package() : nullptr;
 }
 
 int JPPackagesTableModel::rowOf(const JPPackage* p) const {
-    for (size_t i = 0; i < m_config.packages().size(); ++i)
-        if (m_config.packages()[i].get() == p) return int(i);
+    for (size_t i = 0; i < m_rows.size(); ++i)
+        if (m_rows[i].package() == p) return int(i);
     return -1;
 }
 
 std::string JPPackagesTableModel::rowKey(int row) const {
-    const JPPackage* p = package(row);
-    return p ? p->id : std::string();
+    const JPCatalog::Package* e = entry(row);
+    return e ? JPCatalog::source(e->board) + "|" + e->name + "|" + JPCatalog::statusName(e->status) : std::string();
 }
 
 std::string JPPackagesTableModel::text(int row, int c) const {
+    const JPCatalog::Package* e = entry(row);
     const JPPackage* p = package(row);
     if (!p) return {};
     switch (c) {
-        case kId:          return p->id;
+        case kId:          return e->name;
+        case kSource:      return JPCatalog::source(e->board);
+        case kStatus:      return JPCatalog::statusName(e->status);
         case kDescription: return p->description.value_or("");
         case kTape:        return p->tapeSpecification.value_or("");
         case kBottomVision: {
@@ -82,21 +143,21 @@ std::vector<std::string> JPPackagesTableModel::choices(int, int c) const {
 
 bool JPPackagesTableModel::setText(int row, int c, const std::string& text, std::string&) {
     JPPackage* p = package(row);
-    if (!p) return false;
+    if (!p || !editable(row, c)) return false;
     if (c == kDescription) p->description = text;
     else if (c == kTape) p->tapeSpecification = text;
     else return false;
-    if (onChanged) onChanged();
+    if (onChanged) onChanged(entry(row)->board.get());
     return true;
 }
 
 void JPPackagesTableModel::setChoice(int row, int c, int index) {
     JPPackage* p = package(row);
-    if (!p || (c != kBottomVision && c != kFiducialVision)) return;
+    if (!p || !editable(row, c) || (c != kBottomVision && c != kFiducialVision)) return;
     const auto vs = visionChoices(c == kBottomVision ? JPVisionSettings::Kind::Bottom : JPVisionSettings::Kind::Fiducial);
     if (index < 0 || size_t(index) >= vs.size()) return;
     (c == kBottomVision ? p->bottomVisionId : p->fiducialVisionId) = vs[size_t(index)] ? vs[size_t(index)]->id : std::string();
-    if (onChanged) onChanged();
+    if (onChanged) onChanged(entry(row)->board.get());
 }
 
 } // inline namespace jf

@@ -285,6 +285,7 @@ bool JPCplBomImport::build(const JPConfiguration& config, const std::string& whe
                 bp.state = JPBoardPart::State::Local;
                 bp.localPart = std::make_shared<JPPart>();
                 bp.localPart->id = bp.fields["part"];
+                bp.localPart->value = val;   // its value as the files wrote it
                 if (const auto h = fields.find("height"); h != fields.end()) {
                     double mm = 0;
                     if (JPImportSource::length(h->second, cpl.units, mm)) bp.localPart->height = JPLength(mm, JPLengthUnit::Millimeters);

@@ -1,8 +1,28 @@
 # Parts
 
 The **Parts** tab (in the work area, after Boards, as in OpenPnP) lists the library's parts, as
-OpenPnP's Parts tab does: those every job draws from. A board's own parts are kept in the board and are
-not listed here (see [Boards](boards.md#the-boards-parts)).
+OpenPnP's Parts tab does: those every job draws from. Under them are the parts of each open board (see
+[Boards](boards.md#the-boards-parts)), so what a board actually carries is in view beside the library's.
+
+## Where a part lives
+
+A board's rows have the board icon before their ID, and their **Source** (the board's name) is tinted;
+the library's say *Library* and are plain. **Status** says how a board's part stands to the library:
+
+| Status | |
+|---|---|
+| **Own** | The board's own part: the library has none. It is changed here like a library part (the board then has changes to save, asked about as boards are), and right-click **Add to Library** copies it (and its package, where the library has none of that name) into the library under its name without the board's, for the next boards; the board keeps its own. |
+| **Matched** (green) | The board's copy of a library part, as the library has it. It is not changed here: change the library's. |
+| **Library changed** (amber) | The board's copy, the library's part changed since. Right-click **Update from Library** (or the button on its page) takes the copy again. |
+| **To be chosen** (red) | A part the board's files named and that has not been chosen yet: only what the files said (its value, its footprint). Choose it on the Boards tab. |
+
+A board's ID is shown without the board's name before it. Only the library's parts are deleted here. A
+board's own part has its **Settings** and vision settings pages, not **Library** or **Stock** (the
+library's); a board's copy, or a part to be chosen, has a page saying what it is.
+
+**Show**, beside Search, lists **All**, the **Library**'s only, the **Boards**' only, or one open board's.
+
+<!-- src: src/ui/JPPartsTableModel.cpp (cellIcon, cellTint, rowShown, showChoices, editable); src/ui/JPPartsPanel.cpp (formFor, addToLibrary, updateFromLibrary, updateWizards, refresh); src/model/JPCatalog.cpp (parts, addToLibrary, updateFromLibrary, statusName); src/app/JPlacerOpenPnpTabs.cpp (boardChanged) -->
 
 The library is kept in `library.db` in jplacer's configuration folder: its parts and packages, each with
 an ID that stays with it whatever it is named, and what boards' files call it. It is made from OpenPnP's
@@ -37,7 +57,9 @@ end, there while it holds text, empties it and shows every part again.
 
 | Column | |
 |---|---|
-| **ID** | The part's ID. |
+| **ID** | The part's ID (a board's without the board's name before it). |
+| **Source** | Where it lives: *Library*, or the open board's name. |
+| **Status** | How a board's part stands to the library (see above); empty for the library's. |
 | **Description** | Its name. |
 | **Value** | Its electrical value as written (100n, 4k7); matched to a board's however that is written. |
 | **MPN** | Its manufacturer's part number: the first of its identifiers (the **Library** tab has them all). |
@@ -49,7 +71,7 @@ end, there while it holds text, empties it and shows every part again.
 | **Placements** | How many placements on the known boards use it. |
 | **Feeders** | How many feeders hold it. |
 
-Everything but the ID, the MPN and the two counts is changed in the table: double-click a cell, press F2, or start
+Everything but the ID, Source, Status, the MPN and the two counts is changed in the table (a board's copy or a part to be chosen not at all): double-click a cell, press F2, or start
 typing; **Return** keeps the change, **Escape** puts back what was there. **Tab** keeps it and goes on to the
 next cell that can be changed (**Shift+Tab**: the one before), along the row and on to the next: a text or number
 cell opens with what is in it chosen, ready to type over; a choice or tick box is chosen, for F2 or Space. Every

@@ -296,6 +296,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         m_window.openModal<JPlacerLotLedgerDialog>(m_job.configuration().stock(), lotUuid, partId, std::move(changed));
     };
     m_parts->onChanged = [this] { libraryChanged(); };
+    m_parts->onBoardChanged = [this](JPBoard& board) { boardChanged(board); };
     m_parts->machineDefaults = [this] { return machineVisionDefaults(); };
     m_parts->editPipeline = [this](const std::string& id, const JPVisionForms::Holder& h) {
         m_pipelines.editVision(m_job.configuration(), id, h.id, "", [this] { m_job.configurationChanged(); });
@@ -324,6 +325,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         showFootprint(m_packages.get(), f);
     };
     m_packages->onChanged = [this] { libraryChanged(); };
+    m_packages->onBoardChanged = [this](JPBoard& board) { boardChanged(board); };
     m_packages->machineDefaults = [this] { return machineVisionDefaults(); };
     m_packages->editPipeline = [this](const std::string& id, const JPVisionForms::Holder& h) {
         m_pipelines.editVision(m_job.configuration(), id, "", h.id, [this] { m_job.configurationChanged(); });
@@ -1155,6 +1157,11 @@ std::pair<std::string, std::string> JPlacerOpenPnpTabs::machineVisionDefaults() 
 void JPlacerOpenPnpTabs::changed() {
     m_job.configurationChanged();
     m_libraryHistory.note();   // a part chosen on the Boards tab may have taught the library a name, or added to it
+}
+
+void JPlacerOpenPnpTabs::boardChanged(JPBoard& board) {
+    board.dirty = true;   // saved as boards are: on Save Configuration, leaving the job, quitting
+    m_job.configurationChanged();
 }
 
 void JPlacerOpenPnpTabs::libraryChanged() {

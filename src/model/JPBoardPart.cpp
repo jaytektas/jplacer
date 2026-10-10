@@ -82,8 +82,10 @@ JJson JPBoardPart::toJson() const {
         }
     }
     if (state == State::Local) {
-        if (localPart) r["part"] = JPXmlJson::from(localPart->toXml());
-        if (localPackage) r["package"] = JPXmlJson::from(localPackage->toXml());
+        // As the library keeps them (JPLibraryJson): all of a part (its value, identifiers, packaging), not only
+        // OpenPnP's.
+        if (localPart) r["part"] = JPLibraryJson::part(*localPart);
+        if (localPackage) r["package"] = JPLibraryJson::package(*localPackage);
     }
     j["resolution"] = r;
     return j;
@@ -109,10 +111,17 @@ JPBoardPart JPBoardPart::fromJson(const JJson& j) {
         }
     }
     if (p.state == State::Local) {
-        if (r["part"].isObject()) p.localPart = std::make_shared<JPPart>(JPPart::fromXml(JPXmlJson::element(r["part"])));
+        // OpenPnP's part and package as XML in JSON (a board saved before: {"tag": …}), else the library's form.
+        auto openpnp = [](const JJson& o) { return o["tag"].isString(); };
+        if (r["part"].isObject())
+            p.localPart = std::make_shared<JPPart>(openpnp(r["part"]) ? JPPart::fromXml(JPXmlJson::element(r["part"]))
+                                                                      : JPLibraryJson::part(r["part"]));
         if (r["package"].isObject())
-            p.localPackage = std::make_shared<JPPackage>(JPPackage::fromXml(JPXmlJson::element(r["package"])));
+            p.localPackage = std::make_shared<JPPackage>(openpnp(r["package"]) ? JPPackage::fromXml(JPXmlJson::element(r["package"]))
+                                                                               : JPLibraryJson::package(r["package"]));
         if (!p.localPart) p.state = State::Unmatched;   // a local part with nothing of its own is not one
+        // One made before a board's own part took its value: the value its files wrote.
+        else if (p.localPart->value.empty()) p.localPart->value = p.field("value");
     }
     return p;
 }

@@ -185,6 +185,7 @@ void JPBoard::makeOwn(const std::string& key, const JPPackage* libraryPackage) {
     bp->libraryPartId.clear();
     bp->localPart = std::make_shared<JPPart>();
     bp->localPart->id = name.rfind(prefix, 0) == 0 ? name : prefix + name;
+    bp->localPart->value = bp->field("value");   // its value as the files wrote it
     bp->localPackage.reset();
     if (libraryPackage) {
         bp->localPart->packageId = libraryPackage->id;

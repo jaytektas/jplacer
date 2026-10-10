@@ -9,6 +9,8 @@ Every change a user would notice adds a line under Unreleased, in the same commi
 notes.
 
 ## Unreleased
+- The Parts and Packages tabs list every open board's parts and packages under the library's, so you can see what a board actually carries. A board's rows have the board icon and a tinted Source (the board's name), and Status says Own, Matched, Library changed or To be chosen. **Show** beside Search lists all, the library's, the boards', or one board's. A board's own part or package is edited there (the board then asks to be saved), right-click **Add to Library** copies it into the library, and **Update from Library** refreshes a board's copy the library has changed.
+- A board's own parts keep their value, identifiers and packaging when the board is saved; before, only what OpenPnP's part file holds was kept, and their Value column was empty.
 
 ## 0.1.40
 

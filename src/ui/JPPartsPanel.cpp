@@ -4,6 +4,7 @@
 #include "JPPartsPanel.h"
 
 #include "common/JPWhen.h"
+#include "common/JPlacerLog.h"
 
 #include "JPVisionPipelineActions.h"
 
@@ -18,10 +19,12 @@
 #include <j/core/Dialog.h>
 #include <j/core/FrameTimer.h>
 #include <j/core/JLabel.h>
+#include <j/core/Log.h>
 #include <j/core/JSeparator.h>
 #include <j/core/JStyle.h>
 #include <j/core/JTextHelper.h>
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 
@@ -49,7 +52,7 @@ JPPartsPanel::JPPartsPanel(JSceneGraph& graph, JPConfiguration& config, double s
     : JContainer(graph), m_config(config), m_model(config) {
     JPUiParts::asPanel(*this);
     const JStyle& st = JStyle::current();
-    m_model.onChanged = [this] { changed(); };
+    m_model.onChanged = [this](JPBoard* board) { changed(board); };
 
     // The toolbar, and the search box at its right.
     auto bar = JPUiParts::row(graph);
@@ -72,6 +75,15 @@ JPPartsPanel::JPPartsPanel(JSceneGraph& graph, JPConfiguration& config, double s
     tool("Create Part from Clipboard", "paste", "Create a new part from a definition on the clipboard.")
         ->onClicked.connect([this] { pastePart(); });
     bar->add(std::make_unique<JContainer>(graph, 0.f, 0.f))->setHSizePolicy(JSizePolicyMode::Expanding, 1);
+    // Show: every row, the library's, the boards', or one board's.
+    JLabel* showLabel = bar->add(std::make_unique<JLabel>(graph, "Show"));
+    showLabel->setFixedSize(JTextHelper::measureWidth("Show") + st.spacing, st.controlHeight);
+    m_show = bar->add(std::make_unique<JComboBox>(graph, m_model.showChoices()));
+    m_show->setTooltip("Which to list: all, the library's, the open boards', or one board's");
+    m_show->onIndexChanged.connect([this](int) {
+        m_model.setShow(m_show->currentText());
+        m_table->refresh();
+    });
     JLabel* searchLabel = bar->add(std::make_unique<JLabel>(graph, "Search"));
     searchLabel->setFixedSize(JTextHelper::measureWidth("Search") + st.spacing, st.controlHeight);
     m_search = bar->add(std::make_unique<JLineEdit>(graph, ""));
@@ -93,6 +105,17 @@ JPPartsPanel::JPPartsPanel(JSceneGraph& graph, JPConfiguration& config, double s
         if (const JPPart* p = selectedPart(); p && onPartChosen) onPartChosen(*p);
     });
     m_table->onEditRefused = [](const std::string&) {};
+    // Right-click: a board's own part copied into the library, a board's copy taken again from it.
+    m_contextMenu = std::make_unique<JMenu>("Parts");
+    m_addToLibrary = m_contextMenu->add(graph, "Add to Library");
+    m_addToLibrary->setTooltip("Copy the board's own part (and its package, where the library has none of that name) into "
+                               "the library; the board keeps its own");
+    m_addToLibrary->onTriggered.connect([this] { addToLibrary(); });
+    m_updateFromLibrary = m_contextMenu->add(graph, "Update from Library");
+    m_updateFromLibrary->setTooltip("Take the board's copy of the library's part again, as the library has it now");
+    m_updateFromLibrary->onTriggered.connect([this] { updateFromLibrary(); });
+    m_table->setContextMenu(m_contextMenu.get());
+    m_table->onContextMenu = [this](int) { updateWizards(); };
     m_form = m_tabsPane->add(std::make_unique<JPSetupForm>(graph));
     m_form->setVSizePolicy(JSizePolicyMode::Expanding, 1);
     m_form->onChanged = [this](const std::string& property) {
@@ -102,13 +125,14 @@ JPPartsPanel::JPPartsPanel(JSceneGraph& graph, JPConfiguration& config, double s
             return;
         }
         m_table->refresh();
-        changed();
+        const JPCatalog::Part* e = selectedEntry();
+        changed(e ? e->board.get() : nullptr);
         // A packaging's kind changed: its row's tape fields come or go.
         if (property.rfind("library.pkg", 0) == 0 && property.size() > 5 && property.compare(property.size() - 5, 5, ".kind") == 0) {
             std::weak_ptr<bool> alive = m_alive;
             JMainThreadDispatcher::instance().post([this, alive] {
                 if (const auto a = alive.lock(); !a || !*a) return;
-                m_form->remake(formFor(selectedPart()));
+                m_form->remake(formFor(selectedEntry()));
             });
         }
     };
@@ -127,8 +151,50 @@ double JPPartsPanel::split() const {
 }
 
 void JPPartsPanel::refresh() {
+    m_model.reload();
+    // Show's boards as open now; one that has closed shows all again.
+    if (const std::vector<std::string> choices = m_model.showChoices(); choices != m_show->items()) {
+        const std::string was = m_show->currentText();
+        m_show->setItems(choices);
+        const auto at = std::find(choices.begin(), choices.end(), was);
+        m_show->setCurrentIndex(at == choices.end() ? 0 : int(at - choices.begin()));
+        m_model.setShow(m_show->currentText());
+    }
     m_table->refresh();
     updateWizards();
+}
+
+JPBoard* JPPartsPanel::selectedBoard() const {
+    const JPCatalog::Part* e = selectedEntry();
+    return e ? e->board.get() : nullptr;
+}
+
+const JPCatalog::Part* JPPartsPanel::selectedEntry() const {
+    const std::vector<int> rows = m_table->selectedRows();
+    return rows.size() == 1 ? m_model.entry(rows.front()) : nullptr;
+}
+
+void JPPartsPanel::addToLibrary() {
+    const JPCatalog::Part* e = selectedEntry();
+    if (!e) return;
+    std::string error;
+    if (!JPCatalog::addToLibrary(m_config, *e, error)) {
+        JDialog::message("Not Added to the Library", error);
+        return;
+    }
+    const std::string name = e->name;
+    JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Parts: " << name << " of " << JPCatalog::source(e->board) << " added to the library";
+    refresh();
+    changed(nullptr);
+}
+
+void JPPartsPanel::updateFromLibrary() {
+    const JPCatalog::Part* e = selectedEntry();
+    if (!e || !e->board) return;
+    JPBoard* board = e->board.get();
+    JPCatalog::updateFromLibrary(m_config, *e);
+    refresh();
+    changed(board);
 }
 
 std::vector<JPPart*> JPPartsPanel::selections() const {
@@ -147,27 +213,38 @@ void JPPartsPanel::selectPart(const JPPart* part) {
     if (selectedPart() != part) m_table->selectRow(m_model.rowOf(part));
 }
 
-void JPPartsPanel::changed() {
-    if (onChanged) onChanged();
+void JPPartsPanel::changed(JPBoard* board) {
+    if (board) {
+        if (onBoardChanged) onBoardChanged(*board);
+    } else if (onChanged) {
+        onChanged();
+    }
 }
 
 void JPPartsPanel::updateWizards() {
     const auto chosen = selections();
-    // As OpenPnP's action groups: one part for Delete, Pick and Copy; several for Delete.
-    m_delete->setEnabled(!chosen.empty());
+    // As OpenPnP's action groups: one part for Delete, Pick and Copy; several for Delete. Only the library's are
+    // deleted here (a board's are its own: the Boards tab's).
+    bool library = !m_table->selectedRows().empty();
+    for (const int r : m_table->selectedRows())
+        if (const JPCatalog::Part* e = m_model.entry(r); !e || e->board) library = false;
+    m_delete->setEnabled(library);
     m_pick->setEnabled(chosen.size() == 1);
     m_copy->setEnabled(chosen.size() == 1);
+    const JPCatalog::Part* e = selectedEntry();
+    m_addToLibrary->setEnabled(e && e->status == JPCatalog::Status::Own);
+    m_updateFromLibrary->setEnabled(e && e->status == JPCatalog::Status::LibraryChanged);
 
-    const JPPart* p = selectedPart();
-    const std::string id = p ? p->id : std::string();
-    const std::string vision = visionShown(p);
+    const int row = m_table->selectedRows().size() == 1 ? m_table->selectedRows().front() : -1;
+    const std::string id = e ? m_model.rowKey(row) : std::string();
+    const std::string vision = visionShown(e ? e->part() : nullptr);
     if (id == m_shownPart && vision == m_shownVision) {
         m_form->refresh();
         return;
     }
     m_shownPart = id;
     m_shownVision = vision;
-    m_form->setForm(formFor(p));
+    m_form->setForm(formFor(e));
 }
 
 std::string JPPartsPanel::visionShown(const JPPart* p) const {
@@ -178,12 +255,26 @@ std::string JPPartsPanel::visionShown(const JPPart* p) const {
     return (b ? b->id : std::string()) + "|" + (f ? f->id : std::string());
 }
 
-JPSetupProperties::Form JPPartsPanel::formFor(const JPPart* p) {
+JPSetupProperties::Form JPPartsPanel::formFor(const JPCatalog::Part* e) {
     JPSetupProperties::Form form;
+    const JPPart* p = e ? e->part() : nullptr;
+    if (e && !JPCatalog::editable(e->status)) {
+        // A board's copy of the library's, or a part to be chosen: what it is, not edited here.
+        JPFormBuilder add(form);
+        add.tab("Board");
+        add.group(JPCatalog::source(e->board) + ": " + e->name);
+        add.note(std::string(JPCatalog::statusName(e->status)) + ". " + JPCatalog::statusTip(e->status) + ".");
+        if (e->status == JPCatalog::Status::LibraryChanged)
+            add.button("updateFromLibrary", "Update from Library", "Take the board's copy again, as the library has it now.");
+        return form;
+    }
     if (p) {
         JPFormBuilder add(form);
-        libraryPage(add, p->id);
-        stockPage(add, p->id);
+        // The library's pages for the library's (a board's own lives in the board: no library page, no stock).
+        if (!e->board) {
+            libraryPage(add, p->id);
+            stockPage(add, p->id);
+        }
         // Settings: the pick conditions.
         add.tab("Settings");
         add.group("Pick Conditions");
@@ -443,7 +534,7 @@ void JPPartsPanel::remakeLater() {
     std::weak_ptr<bool> alive = m_alive;
     JMainThreadDispatcher::instance().post([this, alive] {
         if (const auto a = alive.lock(); !a || !*a) return;
-        m_form->remake(formFor(selectedPart()));   // the tab and where it was scrolled to kept
+        m_form->remake(formFor(selectedEntry()));   // the tab and where it was scrolled to kept
     });
 }
 
@@ -562,12 +653,16 @@ bool JPPartsPanel::pipelineAct(const std::string& settingsId, const JPVisionForm
         m_shownPart.clear();
         updateWizards();
         m_table->refresh();
-        changed();
+        changed(selectedBoard());
     };
     return JPVisionPipelineActions::act(m_config, settingsId, what, hooks);
 }
 
 void JPPartsPanel::act(const std::string& action) {
+    if (action == "updateFromLibrary") {
+        updateFromLibrary();
+        return;
+    }
     if (libraryAct(action) || stockAct(action)) return;
     const JPPart* p = selectedPart();
     if (!p) return;
@@ -588,7 +683,7 @@ void JPPartsPanel::act(const std::string& action) {
             m_shownPart.clear();
             updateWizards();
             m_table->refresh();
-            changed();
+            changed(selectedBoard());
         } else if (!why.empty()) {
             JDialog::message("Error", why);
         }
@@ -633,7 +728,7 @@ void JPPartsPanel::newPart() {
         part->id = id;
         part->packageId = m_config.packages().front()->id;
         m_config.addPart(part);
-        m_table->refresh();
+        refresh();
         selectPart(part.get());
         changed();
     });
@@ -652,7 +747,7 @@ void JPPartsPanel::deleteParts() {
     opts.cancelLabel = "No";
     JDialog::confirm("Delete " + std::to_string(chosen.size()) + " parts?", "Are you sure you want to delete " + ids + "?",
         [this, doomed] {
-            for (const std::string& id : doomed) m_config.removePart(id);
+            for (const std::string& id : doomed) m_config.removePart(id);   // the library's only (updateWizards)
             refresh();
             changed();
         },
@@ -685,7 +780,7 @@ void JPPartsPanel::pastePart() {
         auto part = std::make_shared<JPPart>(JPPart::fromXml(root));
         part->id = id;
         m_config.addPart(part);
-        m_table->refresh();
+        refresh();
         selectPart(part.get());
         changed();
     });

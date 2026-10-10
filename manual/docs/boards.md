@@ -20,13 +20,14 @@ the files it came from said about it (the part's name, value and footprint) and 
 - **From the library**: one of the parts on the Parts tab, which every job draws from.
 - **The board's own**: a part (and, where the library has no such package, a package) kept in the board
   only. Its id starts with the board's name (`sim/C_0603-47n`), so two boards' own parts never mix.
-  It is not on the Parts tab.
+  It is on the Parts tab with the board's name as its Source (see [Parts](parts.md#where-a-part-lives)), and
+  kept whole in the board's file: its value, identifiers and packaging too.
 - **Not chosen yet**: only what the file said; its placements cannot be placed until a part is chosen.
 
 Importing never adds to the library. A part no placement names any more is dropped when the board is
 saved.
 
-<!-- src: src/model/JPBoardPart.h; src/model/JPBoard.cpp (useLibraryPart, takeParts, dropUnusedParts, scopeName); src/model/JPConfiguration.cpp (part, package, libraryPart) -->
+<!-- src: src/model/JPBoardPart.h; src/model/JPBoardPart.cpp (toJson, fromJson); src/model/JPBoard.cpp (useLibraryPart, takeParts, dropUnusedParts, scopeName); src/model/JPConfiguration.cpp (part, package, libraryPart) -->
 
 ### Choosing a part
 
