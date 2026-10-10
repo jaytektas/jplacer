@@ -37,6 +37,8 @@ namespace {
 
 // The most backups Preferences offers to keep.
 constexpr int kMostBackups = 200;
+// Vision debugging's limit: up to 100 GB, in MB.
+constexpr int kMostVisionDebugMb = 100000;
 
 void store(const char* key, bool on) {
     JSettings::instance().set(key, on);
@@ -174,10 +176,19 @@ std::unique_ptr<JContainer> JPlacerPreferencesDialog::generalPage(std::function<
         store(JPlacerSettings::kVisionDebug, on);
     });
     body->addChildWidget(std::move(visionDebug));
+    auto limitMb = std::make_unique<JSpinBox>(g, 0, kMostVisionDebugMb, 0.f);
+    limitMb->setValue(JPlacerSettings::visionDebugLimitMb());
+    limitMb->onValueChanged.connect([](int mb) {
+        JPVisionDebug::setLimit(std::uintmax_t(mb) * JPVisionDebug::kBytesPerMb);
+        JSettings::instance().set(JPlacerSettings::kVisionDebugLimitMb, mb);
+        JPlacerSettings::save();
+    });
+    body->addChildWidget(labelled(g, "Keep at most (MB)", std::max(widest, JTextHelper::measureWidth("Keep at most (MB)")),
+                                  std::move(limitMb)));
     body->addChildWidget(note("As OpenPnP does at its Debug log level: every vision pipeline run keeps each stage's picture, a "
                    "folder a run in log/vision beside the settings (" + JPlacerPaths::configDir()
-                   + "), with what each stage found; ImageWriteDebug stages write too. It fills the disk: on only "
-                     "while looking into a problem."));
+                   + "), with what each stage found; ImageWriteDebug stages write too. Kept to at most this much, the "
+                     "oldest deleted first as new ones come (0: no limit, as OpenPnP keeps them all)."));
 
     body->addChildWidget(heading(g, "Updates"));
     auto atStartup = std::make_unique<JCheckBox>(g, "Check for updates when jplacer opens", 0.f);

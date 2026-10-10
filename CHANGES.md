@@ -9,6 +9,7 @@ Every change a user would notice adds a line under Unreleased, in the same commi
 notes.
 
 ## Unreleased
+- Vision debugging's pictures no longer fill the disk: Preferences has Keep at most (MB) beside Save vision pictures for debugging, 1000 MB to begin with, and the oldest are deleted first as new ones come (0 keeps everything, as before).
 
 ## 0.1.39
 

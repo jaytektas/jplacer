@@ -143,7 +143,9 @@ void JPStageRegistry::addImageStages(std::vector<JPStageType>& types) {
                           std::filesystem::create_directories(dir, ec);
                           const long long nanos = std::chrono::duration_cast<std::chrono::nanoseconds>(
                                                       std::chrono::system_clock::now().time_since_epoch()).count();
-                          JPStageUtil::writePicture(dir + "/" + s.text("prefix") + std::to_string(nanos) + s.text("suffix"), p.workingImage());
+                          const std::string file = dir + "/" + s.text("prefix") + std::to_string(nanos) + s.text("suffix");
+                          JPStageUtil::writePicture(file, p.workingImage());
+                          if (JPVisionDebug::on()) JPVisionDebug::wrote(file);   // counted against its limit
                           return Output {};
                       } });
     types.push_back({ std::string(kStages) + "ImageRecall", "", "", { P { "image-stage-name", Kind::StageName, "", "" } },

@@ -60,6 +60,9 @@ public:
     static constexpr const char* kBackupsKept        = "backups.kept";
     // Vision debugging (JPVisionDebug): every pipeline run's pictures kept under the configuration directory.
     static constexpr const char* kVisionDebug        = "vision.debugPictures";
+    // How much of it is kept (MB; 0: no limit), the oldest let go first.
+    static constexpr const char* kVisionDebugLimitMb = "vision.debugPicturesLimitMb";
+    static constexpr int         kVisionDebugLimitMbDefault = 1000;
     static constexpr const char* kClosedDocks        = "window.closedDocks";
     static constexpr const char* kWindowGeometry     = "window.geometry";
     // OpenPnP's Change Appearance: tables' rows shaded every other one.
@@ -120,6 +123,7 @@ public:
 
     static bool updatesBeta();
     static bool visionDebug();
+    static int  visionDebugLimitMb();
     static bool updatesAtStartup();
     static bool tearOffMenus();
     static bool launcher();

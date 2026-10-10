@@ -51,6 +51,7 @@ JPlacerApp::JPlacerApp(std::string settingsPath) {
     // What this run starts from, copied before it writes anything (JPBackups): a rolling set, as many as
     // Preferences says (none: 0).
     // Vision debugging, as last left (Preferences).
+    JPVisionDebug::setLimit(std::uintmax_t(std::max(0, JPlacerSettings::visionDebugLimitMb())) * JPVisionDebug::kBytesPerMb);
     if (JPlacerSettings::visionDebug()) JPVisionDebug::setDirectory(JPlacerPaths::configDir());
     const int keep = JSettings::instance().get<int>(JPlacerSettings::kBackupsKept, JPBackups::kKeep);
     std::string backupDir, backupWhy = "turned off in Preferences";

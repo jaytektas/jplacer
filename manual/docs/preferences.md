@@ -57,8 +57,13 @@ done. The window can be made bigger by dragging its edge.
     own, `log/vision/<date and time>_<what it was for>/` beside jplacer's settings, numbered in the stages'
     order (`01_<stage>.png`, `02_<stage>.png`…), with `stages.txt` saying each stage's class, how long it took
     and what it found. A pipeline's **ImageWriteDebug** stages write too, into
-    `org.openpnp.vision.pipeline.stages.ImageWriteDebug/` there, as OpenPnP's do. It fills the disk quickly:
-    tick it while looking into a problem, then untick it. Off when jplacer is first installed.
+    `org.openpnp.vision.pipeline.stages.ImageWriteDebug/` there, as OpenPnP's do. Off when jplacer is first
+    installed; ticking and unticking take effect at once.
+
+**Keep at most (MB)**
+:   How much vision debugging keeps, its runs' folders and ImageWriteDebug's pictures together: past it, the
+    oldest are deleted first as new ones come, the newest always kept; lowered, it trims at once. 1000 MB to
+    begin with; 0 keeps everything, as OpenPnP does (a day of it filled 11 GB).
 
 <!-- src: src/pipeline/JPVisionDebug.cpp; src/pipeline/JPPipeline.cpp (process); src/pipeline/JPStagesImage.cpp (ImageWriteDebug); src/app/JPlacerPreferencesDialog.cpp (Debugging); src/app/JPlacerApp.cpp; src/app/JPlacerSettings.h (kVisionDebug) -->
 

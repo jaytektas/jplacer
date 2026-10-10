@@ -68,6 +68,10 @@ bool JPlacerSettings::visionDebug() {
     return JSettings::instance().get<bool>(kVisionDebug, false);
 }
 
+int JPlacerSettings::visionDebugLimitMb() {
+    return JSettings::instance().get<int>(kVisionDebugLimitMb, kVisionDebugLimitMbDefault);
+}
+
 bool JPlacerSettings::updatesBeta() {
     return JSettings::instance().get<bool>(kUpdatesBeta, false);
 }

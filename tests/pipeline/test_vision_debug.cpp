@@ -4,7 +4,9 @@
 // Vision debugging (JPVisionDebug), OpenPnP's Debug-level vision pictures: off, a pipeline run leaves nothing;
 // on, each run leaves a folder of its own under log/vision, named by when and what it was for, holding each
 // stage's picture in order and stages.txt (each stage, its class and what it found), and the pipeline's
-// ImageWriteDebug stage writes into OpenPnP's folder for it.
+// ImageWriteDebug stage writes into OpenPnP's folder for it. Rolling: past its limit the oldest runs and
+// pictures are deleted first, the newest always kept, what was on the disk before counted, and a lower limit
+// trims at once; no limit keeps everything.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
@@ -86,6 +88,27 @@ int main() {
     JPVisionDebug::setDirectory("");
     assert(p.process(why));
     assert(entries(runs) == 1 && entries(writes) == 1);
+
+    // Rolling: on again (what is there counted), a run each time; a limit of about two runs and their pictures.
+    JPVisionDebug::setDirectory(dir.string());
+    const std::uintmax_t one = JPVisionDebug::held();   // the run and the picture already there
+    assert(one > 0);
+    JPVisionDebug::setLimit(one * 2 + one / 2);
+    for (int i = 0; i < 6; ++i) {
+        usleep(2000);   // each a later time than the last
+        assert(p.process(why));
+        assert(JPVisionDebug::held() <= JPVisionDebug::limit());
+    }
+    assert(entries(runs) >= 1 && entries(runs) <= 3 && entries(writes) <= 3);
+    assert(!fs::exists(run));   // the first run, the oldest, gone
+    // Lowered to nothing much: trimmed at once to the newest alone.
+    JPVisionDebug::setLimit(1);
+    assert(entries(runs) + entries(writes) == 1);
+    // No limit: everything kept.
+    JPVisionDebug::setLimit(0);
+    for (int i = 0; i < 3; ++i) assert(p.process(why));
+    assert(entries(runs) + entries(writes) == 7);
+    JPVisionDebug::setDirectory("");
     fs::remove_all(dir);
     return 0;
 }
