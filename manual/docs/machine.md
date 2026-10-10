@@ -297,7 +297,9 @@ Machine Setup):
 With a directional offset taken up, the position shown is the axis's own, without the offset. An imported
 machine keeps OpenPnP's method, offset, sneak-up distance and speed factor. Changing an axis's backlash,
 speed or limits leaves the machine homed: only a change to where an axis is (its kind, controller, letter,
-home coordinate or mapping) needs it homed again.
+home coordinate or mapping) needs it homed again. Such a change does what the machine no longer being homed
+does anywhere: a homing still finishing (visual homing) ends, the house goes grey and **Home** can be clicked,
+and vision strip and blinds feeders drop their calibrations.
 
 A nozzle tip changer's steps (loading and unloading) make no extra backlash moves: no going past a place and
 back (one-sided), no stopping short to sneak up, no distance-aware back-off; a directional offset still
@@ -305,7 +307,7 @@ shifts where each step ends. Among the slots, a one-sided axis would carry the t
 point, into its wall. (OpenPnP compensates changer moves as any other; its own SpeedOverPrecision, which does
 this, it uses only for a heap feeder.)
 
-<!-- src: src/machine/JPAxisConfig.h (Backlash); src/machine/JPCell.cpp (doMove: overshoot, approach, applied; updatePositions; reconfigure; setSpeedOverPrecision); src/tasks/JPTipChanger.cpp (run); src/openpnp/JPOpenPnpMachineImporter.cpp (backlash) -->
+<!-- src: src/machine/JPAxisConfig.h (Backlash); src/machine/JPCell.cpp (doMove: overshoot, approach, applied; updatePositions; reconfigure; setSpeedOverPrecision); src/tasks/JPTipChanger.cpp (run); src/app/JPlacerMachine.cpp (applySetup, unhomed); src/openpnp/JPOpenPnpMachineImporter.cpp (backlash) -->
 
 **Calibrate** on an X or Y axis's Backlash Compensation tab measures its play with the camera that rides on
 it, over the head's homing fiducial (the machine homed, the camera calibrated), compensation off while it
