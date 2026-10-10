@@ -39,9 +39,13 @@ These options are for finding problems:
 
 | Option | What it does |
 |---|---|
+| `--help`, `-h` | Lists these options, the log's categories and where your settings file is, then exits without starting jplacer. |
 | `--verbose`, `-v` | Log more detail. |
 | `--quiet`, `-q` | Log only warnings and errors. |
 | `--trace <category>` | Log everything in one category, such as `updates` or `machine.traffic` (every line sent to and received from the controllers). A wildcard takes a whole area: `--trace 'machine.*'`. |
 | `--settings <file>` | Use another settings file, leaving your own untouched. |
+
+An option jplacer does not know, or `--trace` or `--settings` without what follows it, is refused with the
+list of options, and jplacer does not start.
 
 <!-- src: src/main.cpp (parseArgs); src/common/JPlacerLog.h (the categories) -->
