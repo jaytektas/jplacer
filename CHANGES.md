@@ -9,6 +9,9 @@ Every change a user would notice adds a line under Unreleased, in the same commi
 notes.
 
 ## Unreleased
+- Boards and panels come and go with their job. The Boards and Panels tabs show the open job's (and any you open beside it), not every board ever opened. New Job, Open Job and Open Recent Job close them, asking first about any with changes, and the next job opens its own. jplacer starts with none open, then opens the last job's with that job.
+- Cancel when asked "Save *board*?" now stays put: quitting, removing a board or panel, and leaving a job stop there. Before, Cancel quit or removed it anyway.
+- New Job and opening another job no longer risk crashing jplacer: the job left was freed while the Job tab could still draw it.
 - `jplacer --help` lists the command-line options, the log's categories and where your settings are kept, and exits. An option jplacer doesn't know is refused with that list; before, it was ignored and jplacer started anyway.
 - Import Placements' CPL and BOM can take a KiCad board (.kicad_pcb) as the placement file. The window shows its placements, parts and anything that doesn't match, as for a .pos, and each part the board makes its own gets the footprint drawn on the board itself, pad for pad, top or bottom. A footprint edited on the board is kept as a second, and the window says which parts use it.
 - A camera's Format in Machine Setup lists the formats the camera itself offers, as OpenPnP's does: picture size, frames per second and kind together ("1280 x 720, 30 FPS, MJPG"), every rate it offers; before it was any, MJPG or YUYV with a width and height typed in, and no frame rate.

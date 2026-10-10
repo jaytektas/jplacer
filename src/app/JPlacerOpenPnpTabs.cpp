@@ -1074,6 +1074,8 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
             ensurePhotonActuator();
         });
     });
+    // Leaving the job (new, open, recent): each changed board and panel asked about, as on quitting.
+    m_job.settleBoards = [this](std::function<void()> then) { confirmSaveAll(openFiles(), std::move(then)); };
     // The library as read is where its undo starts.
     m_libraryHistory.start();
 }
@@ -1114,6 +1116,7 @@ JPlacerOpenPnpTabs::~JPlacerOpenPnpTabs() {
     JSettings::instance().set(JPlacerSettings::kJobSplit, m_jobPanel->split());
     JPlacerSettings::save();
     m_job.unwatch(m_watch);
+    m_job.settleBoards = nullptr;
     m_machine.setCameraOverlay(kFootprintOverlay, nullptr);
     m_layout.remove(m_partsDock.get());
     m_partsDock->setContent(nullptr);
@@ -1199,6 +1202,7 @@ void JPlacerOpenPnpTabs::confirmSave(JPPlacementsHolder& holder, std::function<v
     m_window.openModal<JPlacerChoiceDialog>(
         "Save " + name + "?", "Do you want to save your changes to " + name + "?\nIf you don't save, your changes will be lost.",
         std::vector<std::string> { "Yes", "No", "Cancel" }, 2, [this, file, then](int choice) {
+            if (choice == 2 || choice < 0) return;   // Cancel (or closed): nothing goes on
             if (choice == 0) {
                 std::string error;
                 for (const auto& b : m_job.configuration().boards()) {
@@ -1206,13 +1210,15 @@ void JPlacerOpenPnpTabs::confirmSave(JPPlacementsHolder& holder, std::function<v
                     std::string movedFrom;
                     if (!m_job.configuration().saveBoard(*b, error, &movedFrom)) {
                         JDialog::message("Save Error", error);
-                    } else if (!movedFrom.empty()) {
-                        boardMoved(*b, movedFrom);
+                        return;
                     }
+                    if (!movedFrom.empty()) boardMoved(*b, movedFrom);
                 }
                 for (const auto& p : m_job.configuration().panels())
-                    if (p->file == file && !m_job.configuration().savePanel(*p, error))
+                    if (p->file == file && !m_job.configuration().savePanel(*p, error)) {
                         JDialog::message("Save Error", error);
+                        return;
+                    }
             }
             if (then) then();
         });
@@ -1256,10 +1262,14 @@ void JPlacerOpenPnpTabs::confirmSaveAll(std::vector<std::string> files, std::fun
 
 void JPlacerOpenPnpTabs::saveConfiguration(std::function<void()> then) {
     m_job.configurationChanged();
+    confirmSaveAll(openFiles(), std::move(then));
+}
+
+std::vector<std::string> JPlacerOpenPnpTabs::openFiles() const {
     std::vector<std::string> files;
     for (const auto& b : m_job.configuration().boards()) files.push_back(b->file);
     for (const auto& p : m_job.configuration().panels()) files.push_back(p->file);
-    confirmSaveAll(files, std::move(then));
+    return files;
 }
 
 bool JPlacerOpenPnpTabs::mayClose() {

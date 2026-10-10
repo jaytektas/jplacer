@@ -19,8 +19,10 @@ inline namespace jf {
 // parts, packages, boards and panels, kept in jplacer's configuration
 // folder): File > New Job, Open Job…, Save Job and Save Job As…, and the
 // window's title as OpenPnP's ("jplacer - *Untitled.job.xml"). The job open
-// last is opened again at start (JPlacerSettings::kJobFile). Views watch it
-// and are told what changed.
+// last is opened again at start (JPlacerSettings::kJobFile). The boards and
+// panels open are the job's (and those opened beside it): leaving a job
+// closes them all, each with changes asked about first, and the next job
+// opens its own. Views watch it and are told what changed.
 class JPlacerJob {
 public:
     static constexpr const char* kUntitled = "Untitled.job.xml";
@@ -56,6 +58,9 @@ public:
     void changed();
     // A job is running: the job is not left (new, open, recent) until it stops.
     std::function<bool()> running;
+    // Before the job is left: each open board and panel with changes asked about (saved or not); `then` once
+    // all are answered, not when one is cancelled. None: they are left as they are.
+    std::function<void(std::function<void()> then)> settleBoards;
     // After an edit to parts, packages, boards or panels: the configuration
     // saved (said in the status bar when it cannot be), and the views told.
     void configurationChanged();
@@ -72,6 +77,11 @@ public:
 
 private:
     void settle(std::function<void()> then);
+    // The job, then its boards and panels, settled (settle, settleBoards), and `then`.
+    void leave(std::function<void()> then);
+    // `next` the open job; the one left and its boards and panels (closed: JPConfiguration::closeAll) kept
+    // alive until the views have let go of them.
+    void leaveFor(std::unique_ptr<JPJob> next, JPConfiguration::Open closed);
     bool openPath(const std::string& path, std::string& error);
     bool writeTo(const std::string& path);
     void saveAsThen(std::function<void()> then);

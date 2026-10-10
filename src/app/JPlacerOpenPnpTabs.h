@@ -56,7 +56,8 @@ public:
     bool showDock(const std::string& title);
 
     // File > Save Configuration: the configuration, and each changed board
-    // asked about ("Save <file>?" Yes, No, Cancel); `then` runs after.
+    // asked about ("Save <file>?" Yes, No, Cancel); `then` runs after, unless
+    // one is cancelled.
     void saveConfiguration(std::function<void()> then = {});
     // The window may close: false while changed boards are asked about
     // (the window is asked to close again after).
@@ -80,11 +81,14 @@ public:
 private:
     // A script's request of the job (JPlacerMachine::onScriptJobRequest).
     JJson scriptJobRequest(const JJson& request);
-    // Asks about one changed board or panel, saving it on Yes; `then` after any answer.
+    // Asks about one changed board or panel, saving it on Yes; `then` after Yes (saved) or No, not after
+    // Cancel or a save that failed.
     void confirmSave(JPPlacementsHolder& holder, std::function<void()> then);
     // A board saved for the first time as jplacer's file (it was OpenPnP's, `from`): the job follows it.
     void boardMoved(const JPBoard& board, const std::string& from);
     void confirmSaveAll(std::vector<std::string> files, std::function<void()> then);
+    // The open boards' and panels' files.
+    std::vector<std::string> openFiles() const;
     void changed();
     // The one footprint on the cameras, as OpenPnP's: the last chosen (a package, a placement, a fiducial
     // looked for), from `from`, each camera's turned by JPlacerMachine::reticleRotation; null takes it off

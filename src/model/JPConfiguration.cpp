@@ -82,10 +82,9 @@ bool JPConfiguration::load(std::vector<std::string>& problems, std::string& erro
         m_tookDefaults = true;
         return fs::path(m_defaults) / file;
     };
-    JPXmlElement packages, parts, boards, panels, vision, feeders, banks;
-    if (!read(orDefault(kPackagesFile), packages) || !read(orDefault(kPartsFile), parts) || !read(dir / kBoardsFile, boards)
-        || !read(dir / kPanelsFile, panels) || !read(orDefault(kVisionFile), vision) || !read(dir / kFeedersFile, feeders)
-        || !read(dir / kMachinePropertiesFile, banks))
+    JPXmlElement packages, parts, vision, feeders, banks;
+    if (!read(orDefault(kPackagesFile), packages) || !read(orDefault(kPartsFile), parts) || !read(orDefault(kVisionFile), vision)
+        || !read(dir / kFeedersFile, feeders) || !read(dir / kMachinePropertiesFile, banks))
         return false;
     for (const JPXmlElement& e : feeders.children)
         if (e.name == "feeder") m_feeders.push_back(JPFeeder::fromXml(e));
@@ -179,18 +178,6 @@ bool JPConfiguration::load(std::vector<std::string>& problems, std::string& erro
             return false;
         }
     }
-    for (const JPXmlElement& e : boards.children) {
-        const std::string path = JPXmlValues::text(e);
-        std::string why;
-        if (!exists(path)) problems.push_back("Could not load board " + path + ", file is missing.");
-        else if (!board(path, why)) problems.push_back("Could not load board " + path + ", file may be corrupt: " + why);
-    }
-    for (const JPXmlElement& e : panels.children) {
-        const std::string path = JPXmlValues::text(e);
-        std::string why;
-        if (!exists(path)) problems.push_back("Could not load panel " + path + ", file is missing.");
-        else if (!panel(path, why)) problems.push_back("Could not load panel " + path + ", file may be corrupt: " + why);
-    }
     return true;
 }
 
@@ -199,10 +186,6 @@ bool JPConfiguration::save(std::string& error) const {
     // The library's parts and packages, to library.db (OpenPnP's parts.xml and packages.xml are not written).
     if (!m_library.isOpen() && !m_library.open((dir / JPLibraryStore::kFile).string(), error)) return false;
     if (!m_library.save(contents(), error)) return false;
-    JPXmlNode boards("openpnp-boards");
-    for (const auto& b : m_boards) boards.add(JPXmlNode("board")).text = b->file;
-    JPXmlNode panels("openpnp-panels");
-    for (const auto& p : m_panels) panels.add(JPXmlNode("panel")).text = p->file;
     JPXmlNode feeders("feeders");
     for (const JPFeeder& f : m_feeders) feeders.add(f.toXml());
     if (!JPXmlWriter::write((dir / kFeedersFile).string(), feeders, error)) return false;
@@ -213,9 +196,7 @@ bool JPConfiguration::save(std::string& error) const {
     if (!JPXmlWriter::write((dir / kMachinePropertiesFile).string(), properties, error)) return false;
     JPXmlNode vision("openpnp-vision-settings");
     for (const JPVisionSettings& v : m_vision) vision.add(v.toXml());
-    if (!JPXmlWriter::write((dir / kVisionFile).string(), vision, error)) return false;
-    return JPXmlWriter::write((dir / kBoardsFile).string(), boards, error)
-        && JPXmlWriter::write((dir / kPanelsFile).string(), panels, error);
+    return JPXmlWriter::write((dir / kVisionFile).string(), vision, error);
 }
 
 int JPConfiguration::importFeeders(const std::string& machineXml, std::string& error) {
@@ -831,6 +812,18 @@ void JPConfiguration::addPanel(std::shared_ptr<JPPanel> p) {
             return;
         }
     m_panels.push_back(std::move(p));
+}
+
+JPConfiguration::Open JPConfiguration::closeAll() {
+    Open closed { std::move(m_boards), std::move(m_panels) };
+    m_boards.clear();
+    m_panels.clear();
+    return closed;
+}
+
+void JPConfiguration::reopen(Open open) {
+    m_boards = std::move(open.boards);
+    m_panels = std::move(open.panels);
 }
 
 void JPConfiguration::removeBoard(const JPBoard* b) {

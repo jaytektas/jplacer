@@ -16,9 +16,8 @@ OpenPnP.
   panel's own fiducials, and *pseudo-placements*: a placement of one of its boards (a fiducial, say)
   used to line up the whole panel.
 - The library's **parts** and **packages** are kept in `library.db` (see [Parts](parts.md); a board's
-  own parts, and a copy of each library part it uses, are kept in the board), and the boards and panels in
-  use are listed in `boards.xml` and `panels.xml`, all in jplacer's configuration folder
-  (`~/.config/jplacer`). A part has an id, a name, a height (and the depth it reaches through the
+  own parts, and a copy of each library part it uses, are kept in the board), in jplacer's configuration
+  folder (`~/.config/jplacer`). The boards and panels open are the job's (see [Boards](boards.md)). A part has an id, a name, a height (and the depth it reaches through the
   board), a package, a speed and how many times a pick is tried again. A package has an id, a
   description, a tape specification, vacuum levels, a footprint (its pads and body), the nozzle tips
   that can pick it, and its vision settings. Parts and packages are found by id whatever its case.
@@ -39,11 +38,13 @@ The job is edited on the Job tab (below), panels, boards, parts and packages on 
 
 The window's title is *jplacer - * and the job's file name (*Untitled.job.xml* for a job never saved),
 with a **\*** before the name while it has changes that are not saved. The job you had open is opened
-again the next time jplacer starts.
+again, with its boards and panels, the next time jplacer starts, when Machine Setup's **Auto-load most
+recent job?** is ticked.
 
 If the job has unsaved changes when you start another job, open one, or close jplacer, you are asked
 *Do you want to save your changes?* **Yes** saves them first (asking where, for a job never saved),
-**No** lets them go, **Cancel** leaves things as they were. **File ▸ Open Recent Job...** offers the
+**No** lets them go, **Cancel** leaves things as they were. Then each of its boards and panels with
+changes is asked about the same way, as they close with the job. **File ▸ Open Recent Job...** offers the
 ten jobs opened or saved last. Saving over a file that is there asks first whether to replace it.
 
 A job's boards and panels are found by their file names: as written in the job, else beside the panel

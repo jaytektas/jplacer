@@ -13,6 +13,7 @@
 
 #include <j/config/Settings.h>
 #include <j/core/Dialog.h>
+#include <j/core/FrameTimer.h>
 #include <j/core/Log.h>
 
 #include <filesystem>
@@ -140,6 +141,21 @@ void JPlacerJob::settle(std::function<void()> then) {
         });
 }
 
+void JPlacerJob::leave(std::function<void()> then) {
+    settle([this, then] {
+        if (settleBoards) settleBoards(then);
+        else then();
+    });
+}
+
+void JPlacerJob::leaveFor(std::unique_ptr<JPJob> next, JPConfiguration::Open closed) {
+    // The views let go of the job left and its boards on the refresh the next job's notice posts (a frame
+    // later); until then they may still draw them, so they go after it.
+    auto left = std::make_shared<std::pair<std::unique_ptr<JPJob>, JPConfiguration::Open>>(std::move(m_job), std::move(closed));
+    m_job = std::move(next);
+    jPostToNextFrame([left] { jPostToNextFrame([left] {}); });
+}
+
 std::vector<std::string> JPlacerJob::recentJobs() const {
     std::vector<std::string> out;
     for (int i = 0; i < kRecentMost; ++i) {
@@ -163,7 +179,7 @@ void JPlacerJob::addRecent(const std::string& path) {
 }
 
 void JPlacerJob::openRecent(const std::string& path) {
-    settle([this, path] {
+    leave([this, path] {
         std::string error;
         if (!openPath(path, error)) {
             JDialog::message("Job Load Error", error);
@@ -184,8 +200,8 @@ bool JPlacerJob::mayClose() {
 }
 
 void JPlacerJob::newJob() {
-    settle([this] {
-        m_job = std::make_unique<JPJob>();
+    leave([this] {
+        leaveFor(std::make_unique<JPJob>(), m_config.closeAll());
         JSettings::instance().set(JPlacerSettings::kJobFile, std::string());
         JPlacerSettings::save();
         title();
@@ -194,9 +210,15 @@ void JPlacerJob::newJob() {
 }
 
 bool JPlacerJob::openPath(const std::string& path, std::string& error) {
+    // The next job's boards and panels its own, read again (one it shares with this job too: as saved); this
+    // job's open again when it cannot be read.
+    JPConfiguration::Open was = m_config.closeAll();
     auto job = m_config.loadJob(path, error);
-    if (!job) return false;
-    m_job = std::move(job);
+    if (!job) {
+        m_config.reopen(std::move(was));
+        return false;
+    }
+    leaveFor(std::move(job), std::move(was));
     JSettings::instance().set(JPlacerSettings::kJobFile, m_job->file);
     JPlacerSettings::save();
     addRecent(m_job->file);
@@ -206,7 +228,7 @@ bool JPlacerJob::openPath(const std::string& path, std::string& error) {
 }
 
 void JPlacerJob::open() {
-    settle([this] {
+    leave([this] {
         std::weak_ptr<bool> alive = m_alive;
         JDialogRequest req = fileRequest(JDialogRequest::JKind::OpenFile, "Open Job");
         req.onInput = [this, alive](std::string path) {

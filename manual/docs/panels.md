@@ -1,12 +1,12 @@
 # Panels
 
-The **Panels** tab (in the work area, before Boards, as in OpenPnP) lists the panels jplacer knows and,
-under them, the chosen panel's definition, as OpenPnP's Panels tab does. A panel holds boards (and other
+The **Panels** tab (in the work area, before Boards, as in OpenPnP) lists the panels open and, under
+them, the chosen panel's definition, as OpenPnP's Panels tab does. A panel holds boards (and other
 panels), each where it lies on the panel, and the fiducials or placements the panel is aligned by. Each
-panel is its own `.panel.xml` file; the list of them is kept in `panels.xml` in jplacer's configuration
-folder.
+panel is its own `.panel.xml` file. The panels open are the open job's and any you open here while it is
+open; leaving the job closes them, as it closes boards (see [Boards](boards.md)).
 
-<!-- src: src/ui/JPPanelsPanel.cpp; src/app/JPlacerOpenPnpTabs.cpp; src/model/JPConfiguration.h (kPanelsFile) -->
+<!-- src: src/ui/JPPanelsPanel.cpp; src/app/JPlacerOpenPnpTabs.cpp; src/app/JPlacerJob.cpp (leave); src/model/JPConfiguration.cpp (closeAll) -->
 
 ## Panels
 

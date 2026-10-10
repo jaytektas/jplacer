@@ -27,16 +27,14 @@
 inline namespace jf {
 
 // What OpenPnP's Configuration holds besides the machine: the parts and
-// packages (parts.xml, packages.xml), and the boards and panels known
-// (boards.xml, panels.xml list their files), all in one folder; and loading
-// and saving jobs, boards and panels. Parts and packages are found by id
+// packages (parts.xml, packages.xml) in one folder, and the boards and panels
+// open (the open job's, and those opened beside it: none at start; a job
+// brings its own); and loading and saving jobs, boards and panels. Parts and packages are found by id
 // without regard to case, and keep the order they were added in.
 class JPConfiguration {
 public:
     static constexpr const char* kPartsFile    = "parts.xml";
     static constexpr const char* kPackagesFile = "packages.xml";
-    static constexpr const char* kBoardsFile   = "boards.xml";
-    static constexpr const char* kPanelsFile   = "panels.xml";
     // The machine's feeders, as OpenPnP's machine.xml has them (<feeders>).
     static constexpr const char* kFeedersFile  = "feeders.xml";
     static constexpr const char* kVisionFile   = "vision-settings.xml";
@@ -53,8 +51,7 @@ public:
     void setDefaults(std::string directory) { m_defaults = std::move(directory); }
     bool tookDefaults() const { return m_tookDefaults; }
     // Reads what is there (a missing file is an empty list, or the
-    // default's). Boards and panels that cannot be read are left out and
-    // named in `problems`.
+    // default's); what it brought in or could not do, in `problems`.
     bool load(std::vector<std::string>& problems, std::string& error);
     // The library as JSON, to read (a diagnostics file): each part with its id, UUID, value, description,
     // datasheet, identifiers, AKAs and OpenPnP fields; each package with its AKAs and OpenPnP fields.
@@ -64,7 +61,7 @@ public:
     // The library made `snapshot` again. An object of the same uuid is changed in place (what points at it keeps
     // pointing at it), the others added, and those not in it taken away; the order is the snapshot's.
     void restoreLibrary(const JPLibraryStore::Contents& snapshot);
-    // Writes the parts, packages, and the boards' and panels' lists.
+    // Writes the parts, packages, vision settings and feeders.
     bool save(std::string& error) const;
 
     // The library's parts (parts.xml): every job draws from them. A board's own parts are not among them.
@@ -201,6 +198,14 @@ public:
     void addBoard(std::shared_ptr<JPBoard> board);
     void addPanel(std::shared_ptr<JPPanel> panel);
     void removeBoard(const JPBoard* board);
+    // Every open board and panel closed (another job is opened, or none): what was open, to keep alive while
+    // views still point at it, or to have open again (reopen) when the next job cannot be read.
+    struct Open {
+        std::vector<std::shared_ptr<JPBoard>> boards;
+        std::vector<std::shared_ptr<JPPanel>> panels;
+    };
+    Open closeAll();
+    void reopen(Open open);
     void removePanel(const JPPanel* panel);
     // Written as jplacer's board file; an OpenPnP one (read from XML) gets a file of its own beside it, its
     // old path in `movedFrom` (panels naming it follow; a job's locations are the job's to follow).
