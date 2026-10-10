@@ -9,6 +9,9 @@ Every change a user would notice adds a line under Unreleased, in the same commi
 notes.
 
 ## Unreleased
+
+## 0.1.40
+
 - The Machine tab is gone: everything on it is on Machine Setup's pages. A controller's page now also shows its **State** (Idle, Run, Alarm…, or not connected), kept up to date.
 - A controller's **Port** in Machine Setup is a proper port chooser: the serial devices plugged in now, by the name each gives itself, and the one set listed as "(not found)" while it isn't plugged in. Before, it was a list of raw device paths you could type into.
 - Boards and panels come and go with their job. The Boards and Panels tabs show the open job's (and any you open beside it), not every board ever opened. New Job, Open Job and Open Recent Job close them, asking first about any with changes, and the next job opens its own. jplacer starts with none open, then opens the last job's with that job.
