@@ -868,12 +868,10 @@ void JPlacerMachine::watchCell() {
     }));
     m_unwatch.push_back(m_cell->onHomed.connect([this, onMain](bool homed) {
         onMain([this, homed] {
-            if (!homed && onUnhomed) onUnhomed();
             // As OpenPnP's: Machine.AfterDriverHoming once the controllers have homed, then the head's
             // (visual) homing, Machine.AfterHoming, and the park.
             if (!homed) {
-                m_finishingHome = false;
-                showState();
+                unhomed();
                 return;
             }
             // Homing goes on past the switches (visual homing, the tips' recalibration, Machine.AfterHoming): the
@@ -1071,11 +1069,12 @@ bool JPlacerMachine::applySetup(JPCellConfig cell) {
                     for (CameraDock& d : m_cameras)
                         if (d.panel->camera().id == now.id) d.panel->feed().keepControls(now.device["controls"]);
     dropPanels(keep);
+    const bool wasHomed = m_cell->isHomed();
     const bool taken = m_cell->reconfigure(cell, error);
-    // Un-homed by the change (its axes changed): said while nothing listened (dropPanels), so what was finishing a
-    // homing (visual homing, Machine.AfterHoming) is over here.
-    if (!m_cell->isHomed()) m_finishingHome = false;
     watchCell();
+    // Un-homed by the change (its axes changed): the cell said so while nothing listened (dropPanels), so said here,
+    // as its onHomed(false) is (what was finishing a homing over, the feeders' homed calibrations dropped).
+    if (wasHomed && !m_cell->isHomed()) unhomed();
     buildPanels(keep);
     for (const std::string& id : inFront)
         for (CameraDock& c : m_cameras)
@@ -2746,6 +2745,12 @@ void JPlacerMachine::redo() {
     if (m_setup) m_setup->redo();
 }
 
+void JPlacerMachine::unhomed() {
+    if (onUnhomed) onUnhomed();
+    m_finishingHome = false;
+    showState();
+}
+
 void JPlacerMachine::showState() {
     using S = JPStateIcon::State;
     const bool open = m_cell != nullptr, connected = open && m_cell->isConnected();
@@ -2758,9 +2763,7 @@ void JPlacerMachine::showState() {
                              : m_connecting ? "Connecting\xE2\x80\xA6"
                                             : m_cell->config().name + ": not connected. Click to connect.");
 
-    // Finishing (visual homing and what follows) only while the switches' homing still stands: a change of the axes
-    // in Machine Setup un-homes the machine and drops what was finishing, which had left the button greyed for good.
-    const bool homing = connected && (m_cell->isHoming() || (m_finishingHome && m_cell->isHomed()));
+    const bool homing = connected && (m_cell->isHoming() || m_finishingHome);
     m_homeIcon.setEnabled(connected && !homing);
     m_homeIcon.setState(homing ? S::Busy : (connected && m_cell->isHomed()) ? S::Good
                         : (connected && m_homeFailed) ? S::Fault : S::Idle);

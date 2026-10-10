@@ -353,6 +353,8 @@ private:
     // is kept for what is critical (ALARM, CONNECTION LOST) and a failure goes
     // to the status bar.
     void showState();
+    // The machine no longer homed: what listens told (the feeders' homed calibrations), a homing finishing over.
+    void unhomed();
     // What stays when the panels are made again: nothing (another cell),
     // Machine Setup (its changes are what is being taken), or the cameras too
     // (and the Board, which works from them) when their settings did not change.
