@@ -9,6 +9,9 @@ Every change a user would notice adds a line under Unreleased, in the same commi
 notes.
 
 ## Unreleased
+
+## 0.1.37
+
 - Auto-Detect Next (Issues & Solutions, the nozzle offsets' Feature diameter) goes straight to the round feature under the camera: it no longer stops first at sizes where nothing is found at all (41 px, say, on a test object of 166), as OpenPnP does not.
 - Machine Setup keeps your place when the page you are on is updated by the machine: the tab and how far each page is scrolled stay put. Before, it jumped back to the top each time, after every camera move with the camera's settling Diagnostics on (a calibration's every step), and whenever a reading or a result was put on the page.
 - A move asked for while a calibration, a nozzle tip change or a running job is moving the machine (Machine Setup's Move Nozzle, say) is refused with "Not moved: …", instead of slipping in between the task's own moves: one during a tip's runout measurement had taken the nozzle off the camera, and the measurement failed. While a calibration waits for you, you can still move the machine.
