@@ -97,6 +97,9 @@ public:
         // OpenPnP's optional location buttons: Position Tool (Without Safe Z), and
         // Contact Probe Tool (the place's Z found by a contact probing nozzle).
         bool positionNoSafeZ = false;
+        // Position Tool (Without Safe Z) as a nozzle tip change moves: no backlash compensation that goes past
+        // the place and back (OpenPnP's SpeedOverPrecision), so the nozzle cannot be carried into a slot's wall.
+        bool speedOverPrecision = false;
         bool contactProbe = false;
         // Place::Location: what its X, Y, Z and rotation are offsets from
         // (OpenPnP's LocationButtonsPanel baseLocation): taken from where the

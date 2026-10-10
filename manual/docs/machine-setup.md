@@ -303,15 +303,18 @@ row of coordinates ending in four buttons:
 
 Where OpenPnP has them, two more follow:
 
-- **Position Tool (Without Safe Z)**, on a motion test's stops and a tool changer's locations: the nozzle goes
-  there straight, without going up to safe Z first.
+- **Position Tool (Without Safe Z)**, on a motion test's stops and each move of a nozzle tip's loading or
+  unloading steps: the nozzle goes there straight, without going up to safe Z first. On a step it moves as the
+  change itself goes from one step to the next: without the backlash compensation that goes past the place and
+  back (one-sided's, sneaking up's), so the tip is not carried into a slot's wall. (**Move Nozzle** goes up to
+  safe Z, across, then down, compensated as every other move.)
 - **Contact Probe Tool**, on a tool changer's **Touch Location**: as OpenPnP's, after asking (it overwrites
   the Z reference, so places captured before must be captured again), the default probing nozzle (the first
   that probes by contact), its Z calibration forgotten, goes over the place at its Z plus the probe's Start
   Offset by way of safe Z, probes down as far as its Depth, goes back up, and the Z it met is put in the
   place: one step to undo.
 
-<!-- src: src/ui/JPSetupForm.cpp (optionalPlaceButtons); src/setup/JPSetupProperties.cpp; src/ui/JPMachineSetupPanel.cpp (goTo, probe); src/app/JPlacerMachine.cpp (contactProbeAt, probingNozzle) -->
+<!-- src: src/ui/JPSetupForm.cpp (optionalPlaceButtons); src/setup/JPSetupProperties.cpp (changerSteps, stepForm); src/machine/JPCell.cpp (moveToolStraight); src/ui/JPMachineSetupPanel.cpp (goTo, probe); src/app/JPlacerMachine.cpp (contactProbeAt, probingNozzle) -->
 
 A soft limit or safe zone end has the same two kinds of button for its axis: set it from where the axis is,
 or move the axis there.

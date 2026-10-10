@@ -617,8 +617,11 @@ void JPMachineSetupPanel::goTo(const JPSetupProperties::Row& row, JPSetupForm::T
     Where to;
     for (size_t i = 0; i < row.cells.size() && i < to.size(); ++i) to[i] = value(row.cells[i].property);
     if (tool == JPSetupForm::Tool::Camera) to[2].reset();   // a camera stays at safe Z
-    auto& go = straight ? moveToStraight : moveTo;
-    if (go) go(tool, to);
+    if (straight) {
+        if (moveToStraight) moveToStraight(tool, to, row.speedOverPrecision);
+    } else if (moveTo) {
+        moveTo(tool, to);
+    }
 }
 
 void JPMachineSetupPanel::exportGcode(bool toClipboard) {

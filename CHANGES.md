@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- A nozzle tip's loading and unloading steps have Position Tool (Without Safe Z) again on each move, so the
+  nozzle can be taken from one step to the next as the change goes, without lifting to safe Z on the way, and
+  without the backlash compensation that goes past the place and back (as the change itself does).
+
 ## 0.1.43
 
 - Parts and packages now live only in the library: a board's placements point at library parts, and boards no longer keep parts, packages or copies of their own. Create Missing Parts adds the parts (and packages) the library lacks when you take the import (Merge, Replace or New Revision), not while you're only looking at it. A board saved before is converted as it opens: its own parts and packages go into the library, and the log says how many.

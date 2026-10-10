@@ -160,7 +160,7 @@ public:
     // coordinate not given stays as it is). False, the reason shown, when
     // the machine cannot move.
     // `straight`: not by way of safe Z (OpenPnP's Position Tool (Without Safe Z)).
-    bool moveToolTo(JPSetupForm::Tool tool, const Where& at, bool straight = false);
+    bool moveToolTo(JPSetupForm::Tool tool, const Where& at, bool straight = false, bool speedOverPrecision = false);
     // OpenPnP's Contact Probe Tool on a touch location (a contact probe
     // reference): asked first, then the default probing nozzle, its Z
     // calibration forgotten, over `at` (its Start Offset above), probed down

@@ -1845,6 +1845,7 @@ void stepForm(JPCellConfig& cell, const JPSetupTree::Path& p, JPSetupProperties:
             add.group("Location");
             add.header(kXYZR);
             add.row("Location", Place::Location);
+            add.positionNoSafeZ(true);
             coordinate(add, "x", "X", [step]() -> std::optional<double>& { return step().x; });
             coordinate(add, "y", "Y", [step]() -> std::optional<double>& { return step().y; });
             coordinate(add, "z", "Z", [step]() -> std::optional<double>& { return step().z; });
@@ -1888,6 +1889,8 @@ void changerSteps(JPFormBuilder& add, const JPCellConfig& cell, const std::funct
         auto step = [list, i]() -> S& { return list()[i]; };
         const S::Kind kind = step().kind;
         add.row(std::to_string(i + 1), kind == S::Kind::Move ? Place::Location : Place::None);
+        // A move inside the changer goes straight from the step before, as the change does it.
+        if (kind == S::Kind::Move) add.positionNoSafeZ(true);
         add.choice(key + "kind", "Kind", kinds, [step] { return std::string(S::kindName(step().kind)); },
                    [step](const std::string& v) {
                        for (S::Kind k : { S::Kind::Move, S::Kind::SafeZ, S::Kind::Actuator, S::Kind::Wait, S::Kind::Ask })

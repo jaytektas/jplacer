@@ -568,7 +568,9 @@ std::unique_ptr<JPMachineSetupPanel> JPlacerMachine::makeSetup() {
         return i == p.end() ? std::nullopt : std::optional<double>(i->second);
     };
     setup->moveTo = [this](JPSetupForm::Tool tool, const JPMachineSetupPanel::Where& to) { moveToolTo(tool, to); };
-    setup->moveToStraight = [this](JPSetupForm::Tool tool, const JPMachineSetupPanel::Where& to) { moveToolTo(tool, to, true); };
+    setup->moveToStraight = [this](JPSetupForm::Tool tool, const JPMachineSetupPanel::Where& to, bool speedOverPrecision) {
+        moveToolTo(tool, to, true, speedOverPrecision);
+    };
     setup->setHal(&m_window.hal());
     // Template pictures are named by what they hold: one read is kept.
     setup->live.cameraControls = [this](const std::string& cameraId) { return cameraDeviceControls(cameraId); };
@@ -1120,7 +1122,7 @@ bool JPlacerMachine::moveActuatorTo(const std::string& name, const Where& to, bo
         return false;
     }
     if (!readyToMove()) return false;
-    if (straight) m_cell->moveToolStraight(a->mount, to, 1.0);
+    if (straight) m_cell->moveToolStraight(a->mount, to, 1.0, false);
     else m_cell->moveTool(a->mount, to, 1.0);
     selectMoved(a->mount);
     return true;
@@ -1207,14 +1209,14 @@ std::optional<JPLocation> JPlacerMachine::toolLocation(JPSetupForm::Tool tool) c
     return JPLocation(JPLengthUnit::Millimeters, *at[0], *at[1], at[2].value_or(0), at[3].value_or(0));
 }
 
-bool JPlacerMachine::moveToolTo(JPSetupForm::Tool tool, const Where& to, bool straight) {
+bool JPlacerMachine::moveToolTo(JPSetupForm::Tool tool, const Where& to, bool straight, bool speedOverPrecision) {
     const JPMountConfig* m = toolMount(tool);
     if (!m) {
         m_window.showStatus(tool == JPSetupForm::Tool::Camera ? "No camera on a head to move" : "No nozzle to move", kErrorMs);
         return false;
     }
     if (!readyToMove()) return false;
-    if (straight) m_cell->moveToolStraight(*m, to, 1.0);
+    if (straight) m_cell->moveToolStraight(*m, to, 1.0, speedOverPrecision);
     else m_cell->moveTool(*m, to, 1.0);   // at the machine's speed
     selectMoved(*m);
     if (tool == JPSetupForm::Tool::Camera)
