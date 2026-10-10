@@ -9,6 +9,7 @@ Every change a user would notice adds a line under Unreleased, in the same commi
 notes.
 
 ## Unreleased
+- The Home button no longer stays greyed out for good when an axis setting (its Home Coordinate, say) is changed in Machine Setup while a homing is finishing (visual homing): the change un-homes the machine, and the button is free again to home it.
 - Issues & Solutions' "Set how many nozzles" asks "Are you sure?" before it remakes the head's nozzles, as OpenPnP does: an Accept meant for another issue (this one is chosen first after a search) had rebuilt working nozzles without asking.
 - Remaking the nozzles keeps their vacuum working: a nozzle whose valve and sensing were one actuator gets a valve switching the same output. Before, the new valve had no output number and sent "M64 P", which the controller refused (and then refused every move after it).
 
