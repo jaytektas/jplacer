@@ -6,8 +6,9 @@ OpenPnP's Parts tab does: those every job draws from. Under them are the parts o
 
 ## Where a part lives
 
-A board's rows have the board icon before their ID, and their **Source** (the board's name) is tinted;
-the library's say *Library* and are plain. **Status** says how a board's part stands to the library:
+The first column, **Source**, is an icon: books on a shelf for the library's, a board for an open
+board's (point at it for the board's name; it sorts and searches by that name). **Status** says how a
+board's part stands to the library:
 
 | Status | |
 |---|---|
@@ -22,7 +23,7 @@ library's); a board's copy, or a part to be chosen, has a page saying what it is
 
 **Show**, beside Search, lists **All**, the **Library**'s only, the **Boards**' only, or one open board's.
 
-<!-- src: src/ui/JPPartsTableModel.cpp (cellIcon, cellTint, rowShown, showChoices, editable); src/ui/JPPartsPanel.cpp (formFor, addToLibrary, updateFromLibrary, updateWizards, refresh); src/model/JPCatalog.cpp (parts, addToLibrary, updateFromLibrary, statusName); src/app/JPlacerOpenPnpTabs.cpp (boardChanged) -->
+<!-- src: src/ui/JPPartsTableModel.cpp (cellIcon, cellTint, displayText, rowShown, showChoices, editable); src/ui/JPSourceColumn.cpp; src/ui/JPPartsPanel.cpp (formFor, addToLibrary, updateFromLibrary, updateWizards, refresh); src/model/JPCatalog.cpp (parts, addToLibrary, updateFromLibrary, statusName); src/app/JPlacerOpenPnpTabs.cpp (boardChanged) -->
 
 The library is kept in `library.db` in jplacer's configuration folder: its parts and packages, each with
 an ID that stays with it whatever it is named, and what boards' files call it. It is made from OpenPnP's
@@ -57,8 +58,8 @@ end, there while it holds text, empties it and shows every part again.
 
 | Column | |
 |---|---|
+| **Source** (an icon) | Where it lives: the library, or the open board named in its tooltip. |
 | **ID** | The part's ID (a board's without the board's name before it). |
-| **Source** | Where it lives: *Library*, or the open board's name. |
 | **Status** | How a board's part stands to the library (see above); empty for the library's. |
 | **Description** | Its name. |
 | **Value** | Its electrical value as written (100n, 4k7); matched to a board's however that is written. |
@@ -83,9 +84,16 @@ scrolled for the rest, the one chosen now marked. Each change is saved at once.
 Click a column's heading to sort by it; click it again to turn it round. Clicking another heading sorts by
 that first and by the earlier ones after it (up to three); the later ones' arrows are fainter. Choose
 several rows with **Shift**+click and **Ctrl**+click; **Ctrl+A** chooses them all, and **Ctrl+C** copies the
-chosen rows, a tab between cells. Drag a heading's edge to widen a column; the columns after it give way.
+chosen rows, a tab between cells (in the columns' order as shown). Drag a heading's edge to widen a
+column; the columns after it give way.
 
-<!-- src: src/ui/JPPartsTableModel.cpp; src/ui/JPTable.cpp (clickHeader, handleKeyEvent, startEditing, setColumnWidth); src/ui/JPLengthCell.cpp -->
+Drag a heading sideways to move its column. While it is dragged the table shows how it will look: the
+column floats with the pointer and the others move aside to make its place. Letting go keeps it there;
+**Escape** puts every column back as it was. Right-click a heading for **Reset Columns**: the table's
+columns as they first were (their order and widths, and no sort). Every table works this way, and each
+keeps its columns' order, widths and sort as you leave them, the next time jplacer starts too.
+
+<!-- src: src/ui/JPPartsTableModel.cpp; src/ui/JPTable.cpp (clickHeader, handleKeyEvent, startEditing, setColumnWidth, previewDrop, endColumnDrag, resetColumns, applyState, keepState); src/app/JPlacerApp.cpp (s_loadState, s_saveState); src/app/JPlacerSettings.h (kTableState); src/ui/JPLengthCell.cpp -->
 
 ## The part's tabs
 

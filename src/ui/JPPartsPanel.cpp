@@ -79,6 +79,7 @@ JPPartsPanel::JPPartsPanel(JSceneGraph& graph, JPConfiguration& config, double s
     JLabel* showLabel = bar->add(std::make_unique<JLabel>(graph, "Show"));
     showLabel->setFixedSize(JTextHelper::measureWidth("Show") + st.spacing, st.controlHeight);
     m_show = bar->add(std::make_unique<JComboBox>(graph, m_model.showChoices()));
+    m_show->setCurrentIndex(0);   // All
     m_show->setTooltip("Which to list: all, the library's, the open boards', or one board's");
     m_show->onIndexChanged.connect([this](int) {
         m_model.setShow(m_show->currentText());
@@ -98,6 +99,7 @@ JPPartsPanel::JPPartsPanel(JSceneGraph& graph, JPConfiguration& config, double s
     for (JContainer* p : { m_tablePane.get(), m_tabsPane.get() })
         p->setDirection(JFlexDirection::Column)->setAlignItems(JAlignItems::Stretch);
     m_table = m_tablePane->add(std::make_unique<JPTable>(graph));
+    m_table->setStateKey("parts");
     m_table->setModel(&m_model);
     m_table->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
     m_table->onSelectionChanged.connect([this] {

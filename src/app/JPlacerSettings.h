@@ -83,6 +83,10 @@ public:
     // as "job.recent.0" to "job.recent.9" (OpenPnP's JobPanel.recentFiles).
     static constexpr const char* kJobRecent       = "job.recent.";
 
+    // Each table's columns as last left (their order, widths and sort, JPTable's state as JSON text), as
+    // "table.<the table's name>": "table.parts", "table.feeders".
+    static constexpr const char* kTableState      = "table.";
+
     // The Parts tab: the table's share of its height (OpenPnP's PartsPanel.dividerPosition).
     static constexpr const char* kPartsSplit       = "parts.split";
     // The Packages tab's, likewise (PackagesPanel.dividerPosition).

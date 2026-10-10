@@ -157,6 +157,7 @@ JPIssuesPanel::JPIssuesPanel(JSceneGraph& graph, JPSolutions& solutions, double 
     for (JContainer* p : { m_tablePane.get(), m_issuePane.get() })
         p->setDirection(JFlexDirection::Column)->setAlignItems(JAlignItems::Stretch);
     m_table = m_tablePane->add(std::make_unique<JPTable>(graph));
+    m_table->setStateKey("issues");
     m_table->setModel(m_model.get());
     m_table->setVSizePolicy(JSizePolicyMode::Expanding, 1);
     m_table->onSelectionChanged.connect([this] { selectionChanged(); });

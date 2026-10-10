@@ -76,16 +76,147 @@ JPTable::JPTable(JSceneGraph& graph) : JControl(graph, "JPTable") {
     setHSizePolicy(JSizePolicyMode::Expanding, 1);
     setVSizePolicy(JSizePolicyMode::Expanding, 1);
     setContextMenu(nullptr);
+    m_headerMenu = std::make_unique<JMenu>("Columns");
+    JMenuItem* reset = m_headerMenu->add(graph, "Reset Columns");
+    reset->setTooltip("Put this table's columns back as they first were: their order, their widths, no sort");
+    reset->onTriggered.connect([this] { resetColumns(); });
 }
+
+JPTable::~JPTable() = default;
 
 void JPTable::setModel(JPTableModel* model) {
     stopEditing(false);
     m_model = model;
     m_widths.clear();
     m_sortKeys.clear();
+    m_orderNames.clear();   // the order made again for its columns, the kept state taken
     m_selected.clear();
     m_lead = m_anchor = -1;
+    applySort();
     refresh();
+}
+
+void JPTable::setStateKey(const std::string& key) {
+    m_stateKey = key;
+    m_state = s_loadState ? s_loadState(key) : JJson();
+    m_orderNames.clear();
+    m_widths.clear();
+    m_sortKeys.clear();
+    applySort();
+    rebuildView();
+}
+
+void JPTable::resetColumns() {
+    endColumnDrag(false);
+    m_state = JJson();
+    m_orderNames.clear();
+    m_widths.clear();
+    m_sortKeys.clear();
+    keepState();
+    rebuildView();
+}
+
+const std::vector<int>& JPTable::order() const {
+    std::vector<std::string> names;
+    for (int c = 0; m_model && c < m_model->columnCount(); ++c) names.push_back(m_model->column(c).name);
+    if (names != m_orderNames) {
+        m_orderNames = std::move(names);
+        m_order.clear();
+        for (size_t c = 0; c < m_orderNames.size(); ++c) m_order.push_back(int(c));
+        m_widths.clear();
+        applyState();
+    }
+    return m_order;
+}
+
+int JPTable::positionOf(int c) const {
+    const std::vector<int>& o = order();
+    const auto it = std::find(o.begin(), o.end(), c);
+    return it == o.end() ? -1 : int(it - o.begin());
+}
+
+void JPTable::applyState() const {
+    const JJson& state = m_state;   // read only: a missing key is not made
+    if (!state.isObject()) return;
+    std::map<std::string, int> byName;
+    for (size_t c = 0; c < m_orderNames.size(); ++c) byName.emplace(m_orderNames[c], int(c));
+    // The order kept, by name; a column it does not name goes after the one before it in the model's order.
+    if (state["order"].isArray()) {
+        std::vector<int> o;
+        for (const JJson& n : state["order"].arr())
+            if (n.isString())
+                if (const auto it = byName.find(n.str()); it != byName.end() && std::find(o.begin(), o.end(), it->second) == o.end())
+                    o.push_back(it->second);
+        for (int c = 0; c < int(m_orderNames.size()); ++c) {
+            if (std::find(o.begin(), o.end(), c) != o.end()) continue;
+            auto at = o.begin();
+            for (int before = c - 1; before >= 0; --before)
+                if (const auto it = std::find(o.begin(), o.end(), before); it != o.end()) {
+                    at = it + 1;
+                    break;
+                }
+            o.insert(at, c);
+        }
+        m_order = std::move(o);
+    }
+    // The widths kept, as shares of the whole (a column without one takes the average); laid out to the
+    // table's width as it is (materialiseWidths).
+    if (state["widths"].isObject()) {
+        std::vector<float> shares(m_orderNames.size(), 0.f);
+        float sum = 0;
+        int known = 0;
+        for (size_t c = 0; c < m_orderNames.size(); ++c)
+            if (const JJson& w = state["widths"][m_orderNames[c]]; w.isNumber() && w.number() > 0) {
+                shares[c] = float(w.number());
+                sum += shares[c];
+                ++known;
+            }
+        if (known > 0) {
+            const float average = sum / float(known);
+            for (float& w : shares)
+                if (w <= 0) w = average;
+            // A column of the model's own width (an icon's) has it; the shares are the others'.
+            for (size_t c = 0; c < shares.size(); ++c)
+                if (const float own = m_model->column(int(c)).width; own > 0) shares[c] = own;
+            m_widths = std::move(shares);
+        }
+    }
+}
+
+void JPTable::applySort() {
+    const JJson& state = m_state;
+    if (!m_model || !state.isObject() || !state["sort"].isArray()) return;
+    for (const JJson& k : state["sort"].arr()) {
+        if (!k["column"].isString()) continue;
+        for (int c = 0; c < m_model->columnCount(); ++c)
+            if (m_model->column(c).name == k["column"].str() && m_sortKeys.size() < kMostSortKeys)
+                m_sortKeys.push_back({ c, !k["ascending"].isBool() || k["ascending"].boolean() });
+    }
+}
+
+void JPTable::keepState() const {
+    if (!m_model) return;
+    JJson st = JJson::object();
+    JJson o = JJson::array();
+    for (const int c : order()) o.push(JJson(m_orderNames[size_t(c)]));
+    st["order"] = o;
+    const float total = totalColumnsWidth();
+    if (total > 0) {
+        JJson w = JJson::object();
+        for (size_t c = 0; c < m_widths.size() && c < m_orderNames.size(); ++c) w[m_orderNames[c]] = double(m_widths[c] / total);
+        st["widths"] = w;
+    }
+    JJson sort = JJson::array();
+    for (const SortKey& k : m_sortKeys)
+        if (k.column >= 0 && size_t(k.column) < m_orderNames.size()) {
+            JJson key = JJson::object();
+            key["column"] = m_orderNames[size_t(k.column)];
+            key["ascending"] = k.ascending;
+            sort.push(key);
+        }
+    st["sort"] = sort;
+    m_state = st;
+    if (!m_stateKey.empty() && s_saveState) s_saveState(m_stateKey, st);
 }
 
 void JPTable::refresh() {
@@ -237,6 +368,7 @@ void JPTable::materialiseWidths() const {
     // As a Swing table (AUTO_RESIZE_SUBSEQUENT_COLUMNS): the columns always
     // fill the table's width; a new width shares itself out as they stood.
     if (!m_model) return;
+    order();   // the model's columns as they are now, a kept width taken
     const int n = m_model->columnCount();
     const JStyle& st = JStyle::current();
     const float room = bounds().width - st.scrollBarWidth;
@@ -255,10 +387,17 @@ void JPTable::materialiseWidths() const {
             m_widths[size_t(c)] = w > 0 ? w : (shared ? std::max(0.f, room - fixed) / float(shared) : st.gridDefaultColumnWidth);
         }
     }
-    float total = 0;
-    for (const float w : m_widths) total += w;
-    if (total > 0 && std::fabs(total - room) > 0.5f)
-        for (float& w : m_widths) w = std::max(st.gridMinColumnWidth, w * room / total);
+    // A column the model gives a width (an icon's) keeps it; the others share out the rest.
+    float total = 0, fixed = 0;
+    for (int c = 0; c < n; ++c) {
+        total += m_widths[size_t(c)];
+        if (m_model->column(c).width > 0) fixed += m_widths[size_t(c)];
+    }
+    const float shared = total - fixed, shareRoom = room - fixed;
+    if (shared > 0 && shareRoom > 0 && std::fabs(total - room) > 0.5f)
+        for (int c = 0; c < n; ++c)
+            if (m_model->column(c).width <= 0)
+                m_widths[size_t(c)] = std::max(st.gridMinColumnWidth, m_widths[size_t(c)] * shareRoom / shared);
 }
 
 float JPTable::columnWidth(int c) const {
@@ -267,18 +406,22 @@ float JPTable::columnWidth(int c) const {
 }
 
 void JPTable::setColumnWidth(int c, float w) {
-    // The columns after it give or take the difference, as in Swing.
+    // The columns after it (as shown) give or take the difference, as in Swing.
     materialiseWidths();
-    if (c < 0 || size_t(c) + 1 >= m_widths.size()) return;
+    const std::vector<int>& o = order();
+    const int at = positionOf(c);
+    if (at < 0 || size_t(at) + 1 >= o.size() || o.size() != m_widths.size()) return;
     const float least = JStyle::current().gridMinColumnWidth;
     float after = 0;
-    for (size_t i = size_t(c) + 1; i < m_widths.size(); ++i) after += m_widths[i];
-    const float most = m_widths[size_t(c)] + after - least * float(m_widths.size() - size_t(c) - 1);
+    for (size_t i = size_t(at) + 1; i < o.size(); ++i) after += m_widths[size_t(o[i])];
+    const float most = m_widths[size_t(c)] + after - least * float(o.size() - size_t(at) - 1);
     const float now = std::clamp(w, least, std::max(least, most));
     const float give = now - m_widths[size_t(c)];
     m_widths[size_t(c)] = now;
-    for (size_t i = size_t(c) + 1; i < m_widths.size(); ++i)
-        m_widths[i] = std::max(least, m_widths[i] - give * (after > 0 ? m_widths[i] / after : 0));
+    for (size_t i = size_t(at) + 1; i < o.size(); ++i) {
+        float& x = m_widths[size_t(o[i])];
+        x = std::max(least, x - give * (after > 0 ? x / after : 0));
+    }
     m_graph.invalidateNode(m_nodeId, DirtySelf);
 }
 
@@ -292,14 +435,17 @@ float JPTable::totalColumnsWidth() const {
 float JPTable::columnX(int c) const {
     materialiseWidths();
     float x = 0;
-    for (int i = 0; i < c && size_t(i) < m_widths.size(); ++i) x += m_widths[size_t(i)];
+    for (const int o : order()) {
+        if (o == c) break;
+        if (size_t(o) < m_widths.size()) x += m_widths[size_t(o)];
+    }
     return x;
 }
 
 int JPTable::columnAt(float mx) const {
     const JRect b = bounds();
     float x = b.x - m_scrollX;
-    for (int c = 0; m_model && c < m_model->columnCount(); ++c) {
+    for (const int c : order()) {
         const float w = columnWidth(c);
         if (mx >= x && mx < x + w) return c;
         x += w;
@@ -311,7 +457,7 @@ int JPTable::dividerAt(float mx, float my) const {
     const JRect b = bounds();
     if (!m_model || my < b.y || my >= b.y + headerHeight()) return -1;
     float x = b.x - m_scrollX;
-    for (int c = 0; c < m_model->columnCount(); ++c) {
+    for (const int c : order()) {
         x += columnWidth(c);
         if (std::fabs(mx - x) <= JStyle::current().gridResizeGrab) return c;
     }
@@ -377,17 +523,18 @@ void JPTable::populateRenderPrimitives(JPrimitiveBuffer& buf) {
         ensureVisible(viewIndexOf(r));
     }
     clampScroll();
-    const int columns = m_model->columnCount();
     const float hh = headerHeight(), rh = rowHeight(), pad = st.gridCellPadding;
     const float sb = st.scrollBarWidth;
     const float innerW = b.width - sb, innerH = b.height;
     const float lh = JTextHelper::lineHeight();
 
-    // The headings, each with its sort marks.
-    buf.pushClip(b.x, b.y, innerW, innerH);
-    buf.pushRectangle(b.x, b.y, innerW, hh, Colors::Surface3);
-    for (int c = 0; c < (m_headerShown ? columns : 0); ++c) {
-        const float x = b.x + columnX(c) - m_scrollX, w = columnWidth(c);
+    const std::vector<int> shownOrder = order();
+    const int dragged = m_columnDrag ? m_headerPress : -1;
+    // A column dragged: where it floats (with the pointer), and a gap where it would go.
+    const float floatX = m_dragX - m_grabOffset;
+
+    // A heading: its name centred, its sort mark.
+    auto heading = [&](int c, float x, float w) {
         float fade = 1.f;
         int keyIndex = -1;
         for (size_t k = 0; k < m_sortKeys.size(); ++k) {
@@ -409,13 +556,101 @@ void JPTable::populateRenderPrimitives(JPrimitiveBuffer& buf) {
             JArrow::draw(buf, x + w - pad - st.gridSortGlyphWidth * 0.5f, b.y + hh * 0.5f,
                          m_sortKeys[size_t(keyIndex)].ascending ? JArrow::Direction::Up : JArrow::Direction::Down, ink);
         }
-        if (c > 0) buf.pushRectangle(x, b.y, st.borderWidth, hh, Colors::Border);
+    };
+
+    // The headings, each with its sort marks.
+    buf.pushClip(b.x, b.y, innerW, innerH);
+    buf.pushRectangle(b.x, b.y, innerW, hh, Colors::Surface3);
+    for (size_t pos = 0; pos < (m_headerShown ? shownOrder.size() : 0); ++pos) {
+        const int c = shownOrder[pos];
+        const float x = b.x + columnX(c) - m_scrollX, w = columnWidth(c);
+        if (pos > 0) buf.pushRectangle(x, b.y, st.borderWidth, hh, Colors::Border);
+        if (c == dragged) {
+            buf.pushRectangle(x, b.y, w, hh, Colors::Surface2);   // its place, open for it
+            continue;
+        }
+        heading(c, x, w);
     }
     buf.popClip();
 
+    // A cell's contents (its tick box, tint, icon and text) in `cell`.
+    JVectorCanvas vg;
+    auto content = [&](JVectorCanvas& canvas, int r, int c, const JRect& cell, bool chosen) {
+        const float y = cell.y;
+        const JPTableModel::Kind kind = m_model->column(c).kind;
+        if (kind == JPTableModel::Kind::Boolean) {
+            const float s = rh * kTickShare;
+            const float bx = cell.x + (cell.width - s) * 0.5f, by = y + (rh - s) * 0.5f;
+            const bool dimmed = !chosen && m_model->cellDimmed(r, c);
+            canvas.strokeRoundedRect(bx, by, s, s, st.borderWidth * 2, st.borderWidth,
+                                     JPaint::solid(colour(dimmed ? Colors::MutedText : Colors::Border)));
+            if (m_model->checked(r, c)) {
+                canvas.fillRoundedRect(bx, by, s, s, st.borderWidth * 2, JPaint::solid(colour(dimmed ? Colors::MutedText : Colors::Accent)));
+                std::vector<JVectorCanvas::JVec2> tick { { bx + s * 0.22f, by + s * 0.52f }, { bx + s * 0.42f, by + s * 0.72f },
+                                                         { bx + s * 0.78f, by + s * 0.3f } };
+                canvas.strokePolyline(tick, st.borderWidth * 2, JPaint::solid(colour(Colors::HighlightedText)));
+            }
+            return;
+        }
+        const JPTableModel::Column col = m_model->column(c);
+        const uint8_t* ink = Colors::LabelText;
+        if (const uint8_t* fill = m_model->cellTint(r, c)) {
+            const JColor tint = rgba(fill[0], fill[1], fill[2], uint8_t(float(fill[3]) * kHighlightAlpha));
+            buf.pushRectangle(cell.x + st.borderWidth, y, cell.width - st.borderWidth, rh - st.borderWidth, tint.data());
+            ink = Colors::TextPrimary;
+        }
+        if (const uint8_t* own = m_model->cellInk(r, c)) ink = own;
+        float tx = cell.x + pad;
+        const std::string icon = m_model->cellIcon(r, c);
+        // An icon before the text, as tall as a line (alone in its cell: in its middle).
+        if (!icon.empty())
+            if (JPOpenPnpIcons* icons = JPOpenPnpIcons::instance()) {
+                const std::string shown = m_model->displayText(r, c);
+                // Its leading spaces (an indent) before the icon.
+                const size_t lead = shown.find_first_not_of(' ');
+                if (lead == std::string::npos) tx = std::max(tx, cell.x + (cell.width - lh) * 0.5f);
+                else tx += JTextHelper::measureWidth(shown.substr(0, lead));
+                const TextureHandle tex = icons->texture(icon, int(lh * kIconOversample), false);
+                if (tex != kNullTexture) buf.pushImage(tx, y + (rh - lh) * 0.5f, lh, lh, tex);
+                tx += lh + st.spacing * 0.5f;
+            }
+        const float room = std::max(1.f, cell.x + cell.width - pad - tx);
+        std::string full = m_model->displayText(r, c);
+        if (!icon.empty()) {
+            const size_t lead = full.find_first_not_of(' ');
+            full = lead == std::string::npos ? std::string() : full.substr(lead);
+        }
+        if (full.empty()) return;
+        if (col.decimalAligned) {
+            // The point at the same place in every row, the widest number centred.
+            const size_t dot = full.find('.');
+            const std::string whole = full.substr(0, dot);
+            const float wholeW = JTextHelper::measureWidth(kAlignedWhole);
+            const float boxW = wholeW + JTextHelper::measureWidth(kAlignedRest);
+            if (boxW <= cell.width - 2 * pad) {
+                const float dotX = cell.x + (cell.width - boxW) * 0.5f + wholeW;
+                tx = std::max(tx, dotX - JTextHelper::measureWidth(whole));
+            } else {
+                // Too narrow to line up: against the right, as a number.
+                tx = std::max(tx, cell.x + cell.width - pad - JTextHelper::measureWidth(full));
+            }
+            // A hair of slack: the room is worked out from the same text's width.
+            const float fit = cell.x + cell.width - pad - tx + 1.f;
+            JTextHelper::pushText(buf, tx, y + (rh - lh) * 0.5f, elided(full, fit), ink, std::max(1.f, fit));
+            return;
+        }
+        const std::string t = elided(full, room);
+        const float tw = JTextHelper::measureWidth(t);
+        JPTableModel::Align align = col.align;
+        if (align == JPTableModel::Align::Auto)
+            align = kind == JPTableModel::Kind::Number ? JPTableModel::Align::Right : JPTableModel::Align::Left;
+        if (align == JPTableModel::Align::Right) tx = std::max(tx, cell.x + cell.width - pad - tw);
+        else if (align == JPTableModel::Align::Center) tx = std::max(tx, cell.x + (cell.width - tw) * 0.5f);
+        JTextHelper::pushText(buf, tx, y + (rh - lh) * 0.5f, t, ink, room);
+    };
+
     // The rows in view.
     buf.pushClip(b.x, b.y + hh, innerW, innerH - hh);
-    JVectorCanvas vg;
     const int first = std::max(0, int(m_scrollY / rh));
     const int last = std::min(int(m_view.size()) - 1, int((m_scrollY + innerH - hh) / rh) + 1);
     for (int v = first; v <= last; ++v) {
@@ -427,81 +662,41 @@ void JPTable::populateRenderPrimitives(JPrimitiveBuffer& buf) {
             uint8_t sel[4] = { Colors::Accent[0], Colors::Accent[1], Colors::Accent[2], 90 };
             buf.pushRectangle(b.x, y, innerW, rh, sel);
         }
-        for (int c = 0; c < columns; ++c) {
+        for (size_t pos = 0; pos < shownOrder.size(); ++pos) {
+            const int c = shownOrder[pos];
             const JRect cell = cellRect(v, c);
-            if (c > 0) buf.pushRectangle(cell.x, y, st.borderWidth, rh, Colors::GridLine);
+            if (pos > 0) buf.pushRectangle(cell.x, y, st.borderWidth, rh, Colors::GridLine);
+            if (c == dragged) {
+                buf.pushRectangle(cell.x, y, cell.width, rh, Colors::Surface2);   // its place, open for it
+                continue;
+            }
             if (m_editing && r == m_editRow && c == m_editColumn) continue;   // drawn below
-            const JPTableModel::Kind kind = m_model->column(c).kind;
-            if (kind == JPTableModel::Kind::Boolean) {
-                const float s = rh * kTickShare;
-                const float bx = cell.x + (cell.width - s) * 0.5f, by = y + (rh - s) * 0.5f;
-                const bool dimmed = !chosen && m_model->cellDimmed(r, c);
-                vg.strokeRoundedRect(bx, by, s, s, st.borderWidth * 2, st.borderWidth,
-                                     JPaint::solid(colour(dimmed ? Colors::MutedText : Colors::Border)));
-                if (m_model->checked(r, c)) {
-                    vg.fillRoundedRect(bx, by, s, s, st.borderWidth * 2, JPaint::solid(colour(dimmed ? Colors::MutedText : Colors::Accent)));
-                    std::vector<JVectorCanvas::JVec2> tick { { bx + s * 0.22f, by + s * 0.52f }, { bx + s * 0.42f, by + s * 0.72f },
-                                                             { bx + s * 0.78f, by + s * 0.3f } };
-                    vg.strokePolyline(tick, st.borderWidth * 2, JPaint::solid(colour(Colors::HighlightedText)));
-                }
-                continue;
-            }
-            const JPTableModel::Column col = m_model->column(c);
-            const uint8_t* ink = Colors::LabelText;
-            if (const uint8_t* fill = m_model->cellTint(r, c)) {
-                const JColor tint = rgba(fill[0], fill[1], fill[2], uint8_t(float(fill[3]) * kHighlightAlpha));
-                buf.pushRectangle(cell.x + st.borderWidth, y, cell.width - st.borderWidth, rh - st.borderWidth, tint.data());
-                ink = Colors::TextPrimary;
-            }
-            if (const uint8_t* own = m_model->cellInk(r, c)) ink = own;
-            float tx = cell.x + pad;
-            // An icon before the text, as tall as a line.
-            if (const std::string icon = m_model->cellIcon(r, c); !icon.empty())
-                if (JPOpenPnpIcons* icons = JPOpenPnpIcons::instance()) {
-                    const std::string shown = m_model->displayText(r, c);
-                    // Its leading spaces (an indent) before the icon.
-                    const size_t lead = shown.find_first_not_of(' ');
-                    tx += JTextHelper::measureWidth(shown.substr(0, lead == std::string::npos ? shown.size() : lead));
-                    const TextureHandle tex = icons->texture(icon, int(lh * kIconOversample), false);
-                    if (tex != kNullTexture) buf.pushImage(tx, y + (rh - lh) * 0.5f, lh, lh, tex);
-                    tx += lh + st.spacing * 0.5f;
-                }
-            const float room = std::max(1.f, cell.x + cell.width - pad - tx);
-            std::string full = m_model->displayText(r, c);
-            if (!m_model->cellIcon(r, c).empty()) {
-                const size_t lead = full.find_first_not_of(' ');
-                full = lead == std::string::npos ? std::string() : full.substr(lead);
-            }
-            if (col.decimalAligned) {
-                // The point at the same place in every row, the widest number centred.
-                const size_t dot = full.find('.');
-                const std::string whole = full.substr(0, dot);
-                const float wholeW = JTextHelper::measureWidth(kAlignedWhole);
-                const float boxW = wholeW + JTextHelper::measureWidth(kAlignedRest);
-                if (boxW <= cell.width - 2 * pad) {
-                    const float dotX = cell.x + (cell.width - boxW) * 0.5f + wholeW;
-                    tx = std::max(tx, dotX - JTextHelper::measureWidth(whole));
-                } else {
-                    // Too narrow to line up: against the right, as a number.
-                    tx = std::max(tx, cell.x + cell.width - pad - JTextHelper::measureWidth(full));
-                }
-                // A hair of slack: the room is worked out from the same text's width.
-                const float fit = cell.x + cell.width - pad - tx + 1.f;
-                JTextHelper::pushText(buf, tx, y + (rh - lh) * 0.5f, elided(full, fit), ink, std::max(1.f, fit));
-                continue;
-            }
-            const std::string t = elided(full, room);
-            const float tw = JTextHelper::measureWidth(t);
-            JPTableModel::Align align = col.align;
-            if (align == JPTableModel::Align::Auto)
-                align = kind == JPTableModel::Kind::Number ? JPTableModel::Align::Right : JPTableModel::Align::Left;
-            if (align == JPTableModel::Align::Right) tx = std::max(tx, cell.x + cell.width - pad - tw);
-            else if (align == JPTableModel::Align::Center) tx = std::max(tx, cell.x + (cell.width - tw) * 0.5f);
-            JTextHelper::pushText(buf, tx, y + (rh - lh) * 0.5f, t, ink, room);
+            content(vg, r, c, cell, chosen);
         }
         buf.pushRectangle(b.x, y + rh - st.borderWidth, innerW, st.borderWidth, Colors::GridLine);
     }
     vg.flush(buf);
+    buf.popClip();
+
+    // The dragged column, floating with the pointer over the table as it would look: its heading and its cells,
+    // raised as a dragged tab is.
+    if (dragged >= 0) {
+        const float w = columnWidth(dragged);
+        buf.pushClip(b.x, b.y, innerW, innerH);
+        buf.pushRectangle(floatX, b.y, w, innerH, Colors::TabGhostFill, 0.f, st.borderWidth, Colors::TabGhostBorder);
+        if (m_headerShown) heading(dragged, floatX, w);
+        buf.popClip();
+        buf.pushClip(b.x, b.y + hh, innerW, innerH - hh);
+        JVectorCanvas ghost;
+        for (int v = first; v <= last; ++v) {
+            const int r = m_view[size_t(v)];
+            const float y = b.y + hh + float(v) * rh - m_scrollY;
+            content(ghost, r, dragged, JRect { floatX, y, w, rh }, m_selected.count(r) != 0);
+        }
+        ghost.flush(buf);
+        buf.popClip();
+    }
+    buf.pushClip(b.x, b.y + hh, innerW, innerH - hh);
 
     // The cell being edited: its text, the chosen part and the caret.
     if (m_editing) {
@@ -562,6 +757,7 @@ void JPTable::clickHeader(int c) {
     }
     if (m_sortKeys.size() > kMostSortKeys) m_sortKeys.resize(kMostSortKeys);
     rebuildView();
+    keepState();
 }
 
 void JPTable::selectView(int v, bool shift, bool ctrl) {
@@ -603,7 +799,12 @@ void JPTable::handleMousePress(float mx, float my) {
     }
     if (my < b.y + headerHeight()) {
         stopEditing(true);
-        if (const int c = columnAt(mx); c >= 0) clickHeader(c);
+        // A click sorts it, on letting go; moved, the heading is dragged instead.
+        if (const int c = columnAt(mx); c >= 0) {
+            m_headerPress = c;
+            m_headerPressX = mx;
+            m_grabOffset = mx - (b.x + columnX(c) - m_scrollX);
+        }
         return;
     }
     const int v = viewRowAt(my);
@@ -657,11 +858,55 @@ void JPTable::handleMousePress(float mx, float my) {
     }
 }
 
+void JPTable::previewDrop(float mx) {
+    // Its place: among the others, where its middle is.
+    const JRect b = bounds();
+    const int d = m_headerPress;
+    std::vector<int> others;
+    for (const int c : order())
+        if (c != d) others.push_back(c);
+    const float middle = mx - m_grabOffset + columnWidth(d) * 0.5f;
+    float x = b.x - m_scrollX;
+    size_t at = others.size();
+    for (size_t i = 0; i < others.size(); ++i) {
+        const float w = columnWidth(others[i]);
+        if (middle < x + w * 0.5f) {
+            at = i;
+            break;
+        }
+        x += w;
+    }
+    others.insert(others.begin() + long(at), d);
+    m_order = std::move(others);
+}
+
+void JPTable::endColumnDrag(bool keep) {
+    if (!m_columnDrag) {
+        m_headerPress = -1;
+        return;
+    }
+    if (!keep) m_order = m_orderBefore;
+    const bool moved = m_order != m_orderBefore;
+    m_columnDrag = false;
+    m_headerPress = -1;
+    m_graph.invalidateNode(m_nodeId, DirtySelf);
+    if (keep && moved) keepState();
+}
+
 bool JPTable::canDragRows() const {
     return m_model && m_model->reorderable() && m_sortKeys.empty() && !m_filter && int(m_view.size()) == m_model->rowCount();
 }
 
 void JPTable::handleMouseRelease(float mx, float my) {
+    if (m_headerPress >= 0) {
+        if (m_columnDrag) endColumnDrag(true);
+        else {
+            const int c = m_headerPress;
+            m_headerPress = -1;
+            clickHeader(c);
+        }
+    }
+    if (m_resizing >= 0) keepState();
     m_resizing = -1;
     m_draggingV = false;
     const int from = m_rowDrag, before = m_dropBefore;
@@ -678,6 +923,18 @@ void JPTable::handleMouseRelease(float mx, float my) {
 }
 
 void JPTable::handleMouseMove(float mx, float my) {
+    if (m_headerPress >= 0) {
+        if (!m_columnDrag && std::fabs(mx - m_headerPressX) > JStyle::current().doubleClickSlop) {
+            m_columnDrag = true;
+            m_orderBefore = order();
+        }
+        if (m_columnDrag) {
+            m_dragX = mx;
+            previewDrop(mx);
+            m_graph.invalidateNode(m_nodeId, DirtySelf);
+        }
+        return;
+    }
     if (m_resizing >= 0) {
         JWidget::s_hoverCursor = JPlatformCursor::ResizeLeftRight;
         setColumnWidth(m_resizing, m_resizeFromW + (mx - m_resizeFromX));
@@ -727,12 +984,23 @@ bool JPTable::handleScroll(float mx, float my, float wheel) {
 }
 
 void JPTable::prepareContextMenu(float mx, float my) {
+    // Over the headings, the columns' menu; over the rows, the owner's.
+    if (contextMenu() != m_headerMenu.get()) m_rowsMenu = contextMenu();
+    const JRect b = bounds();
+    if (m_headerShown && my >= b.y && my < b.y + headerHeight()) {
+        setContextMenu(m_headerMenu.get());
+        return;
+    }
+    setContextMenu(m_rowsMenu);
     if (onContextMenu) onContextMenu(rowAt(my));
     (void)mx;
 }
 
 void JPTable::onFocusEvent(bool focused) {
-    if (!focused) stopEditing(true);
+    if (!focused) {
+        stopEditing(true);
+        endColumnDrag(false);
+    }
     m_graph.invalidateNode(m_nodeId, DirtySelf);
 }
 
@@ -747,6 +1015,11 @@ void JPTable::moveLead(int v, bool extend) {
 bool JPTable::handleKeyEvent(const JKeyEvent& ke) {
     if (!ke.pressed || !m_model) return false;
     using K = JKeyEvent::JKey;
+    if (m_columnDrag) {
+        // Escape puts every column back; the drag goes on to the end otherwise.
+        if (ke.key == K::Escape) endColumnDrag(false);
+        return true;
+    }
     if (m_editing) {
         if (ke.key == K::Escape) {
             stopEditing(false);
@@ -759,13 +1032,16 @@ bool JPTable::handleKeyEvent(const JKeyEvent& ke) {
             // On to the next cell that can be edited (Shift: the one before), along the row and on to the next
             // row's, as a spreadsheet goes: a text or number cell opened with its contents chosen, ready to type
             // over; another kind (a choice, a tick box) chosen, for F2 or Space.
-            const int columns = m_model->columnCount(), rows = int(m_view.size());
-            int v = viewIndexOf(row), c = column;
+            // Along the columns as they are shown.
+            const std::vector<int> shown = order();
+            const int columns = int(shown.size()), rows = int(m_view.size());
+            int v = viewIndexOf(row), pos = positionOf(column);
             for (int steps = 0; steps < columns * std::max(1, rows) && v >= 0; ++steps) {
-                c += back ? -1 : 1;
-                if (c >= columns) { c = 0; ++v; }
-                if (c < 0) { c = columns - 1; --v; }
+                pos += back ? -1 : 1;
+                if (pos >= columns) { pos = 0; ++v; }
+                if (pos < 0) { pos = columns - 1; --v; }
                 if (v < 0 || v >= rows) break;
+                const int c = shown[size_t(pos)];
                 const int r = m_view[size_t(v)];
                 if (!m_model->editable(r, c)) continue;
                 m_lead = r;
@@ -798,8 +1074,15 @@ bool JPTable::handleKeyEvent(const JKeyEvent& ke) {
         case K::PageDown: moveLead(lead + page, ke.shift); return true;
         case K::Home:     if (ke.ctrl) { moveLead(0, ke.shift); return true; } break;
         case K::End:      if (ke.ctrl) { moveLead(int(m_view.size()) - 1, ke.shift); return true; } break;
-        case K::Left:     m_leadColumn = std::max(0, m_leadColumn - 1); m_graph.invalidateNode(m_nodeId, DirtySelf); return true;
-        case K::Right:    m_leadColumn = std::min(m_model->columnCount() - 1, m_leadColumn + 1); m_graph.invalidateNode(m_nodeId, DirtySelf); return true;
+        case K::Left:
+        case K::Right: {
+            // The next column as shown.
+            const std::vector<int>& shown = order();
+            const int pos = std::clamp(positionOf(m_leadColumn) + (ke.key == K::Left ? -1 : 1), 0, int(shown.size()) - 1);
+            if (pos >= 0) m_leadColumn = shown[size_t(pos)];
+            m_graph.invalidateNode(m_nodeId, DirtySelf);
+            return true;
+        }
         default: break;
     }
     if (ke.ctrl && ke.key == K::A) {
@@ -842,8 +1125,10 @@ bool JPTable::handleKeyEvent(const JKeyEvent& ke) {
 void JPTable::copySelection() const {
     std::string out;
     for (const int r : selectedRows()) {
-        for (int c = 0; c < m_model->columnCount(); ++c) {
-            if (c) out += '\t';
+        bool firstCell = true;
+        for (const int c : order()) {   // as shown
+            if (!firstCell) out += '\t';
+            firstCell = false;
             out += m_model->column(c).kind == JPTableModel::Kind::Boolean ? (m_model->checked(r, c) ? "true" : "false")
                                                                           : m_model->text(r, c);
         }

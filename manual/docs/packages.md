@@ -8,7 +8,7 @@ the **Footprints** tab below).
 
 Under the library's are each open board's packages: its own (with the pads its CAD file drew, from a
 KiCad board's import) and its copies of the library's, shown as on the [Parts](parts.md#where-a-part-lives)
-tab: the board icon, the tinted **Source**, **Status** *Own*, *Matched* or *Library changed*, and **Show**
+tab: the **Source** icon first (the library's or a board's), **Status** *Own*, *Matched* or *Library changed*, and **Show**
 beside Search. A board's own package, edited, is given to every part of the board that shares it, and the
 board has changes to save; it has every tab but **Footprints** (the library's land patterns). A board's
 copy of a library package has a page saying what it is. Only the library's are deleted here.
@@ -30,8 +30,9 @@ copy of a library package has a page saying what it is. Only the library's are d
 
 | Column | |
 |---|---|
+| **Source** (an icon) | Where it lives: the library, or the open board named in its tooltip. |
 | **ID** | The package's ID (a board's without the board's name before it). |
-| **Source**, **Status** | Where it lives, and how a board's stands to the library. |
+| **Status** | How a board's stands to the library. |
 | **Description** | What it is. |
 | **Tape Specification** | Text some feeders read; see the feeder's own notes. |
 | **BottomVision**, **FiducialVision** | The vision settings it uses, chosen from a list. |

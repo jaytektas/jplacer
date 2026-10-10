@@ -3,6 +3,8 @@
 
 #include "JPPackagesTableModel.h"
 
+#include "JPSourceColumn.h"
+
 #include <j/core/JStyle.h>
 
 #include <algorithm>
@@ -10,7 +12,7 @@
 inline namespace jf {
 
 namespace {
-enum Col { kId, kSource, kStatus, kDescription, kTape, kBottomVision, kFiducialVision, kColumns };
+enum Col { kSource, kId, kStatus, kDescription, kTape, kBottomVision, kFiducialVision, kColumns };
 }
 
 JPPackagesTableModel::JPPackagesTableModel(JPConfiguration& config) : m_config(config) { reload(); }
@@ -41,19 +43,21 @@ bool JPPackagesTableModel::editable(int row, int c) const {
 
 std::string JPPackagesTableModel::cellIcon(int row, int c) const {
     const JPCatalog::Package* e = entry(row);
-    return e && e->board && c == kId ? "board" : std::string();
+    return e && c == kSource ? (e->board ? "board-source" : "library") : std::string();
 }
 
 const uint8_t* JPPackagesTableModel::cellTint(int row, int c) const {
     const JPCatalog::Package* e = entry(row);
-    if (!e || !e->board) return nullptr;
-    if (c == kSource) return Colors::Accent;
-    if (c != kStatus) return nullptr;
+    if (!e || !e->board || c != kStatus) return nullptr;
     switch (e->status) {
         case JPCatalog::Status::Matched:        return Colors::Success;
         case JPCatalog::Status::LibraryChanged: return Colors::Warning;
         default:                                return nullptr;
     }
+}
+
+std::string JPPackagesTableModel::displayText(int row, int c) const {
+    return c == kSource ? std::string() : text(row, c);   // its icon alone (its text sorts and searches)
 }
 
 std::string JPPackagesTableModel::cellTooltip(int row, int c) const {
@@ -67,7 +71,7 @@ std::string JPPackagesTableModel::cellTooltip(int row, int c) const {
 JPTableModel::Column JPPackagesTableModel::column(int c) const {
     switch (c) {
         case kId:          return { "ID", "", Kind::Text };
-        case kSource:      return { "Source", "Where it lives: the library, or the open board named", Kind::Text };
+        case kSource:      return JPSourceColumn::column();
         case kStatus:      return { "Status", "How it stands to the library", Kind::Text };
         case kDescription: return { "Description", "", Kind::Text };
         case kTape:

@@ -5,6 +5,7 @@
 
 #include "JPTableModel.h"
 
+#include <j/config/Json.h>
 #include <j/core/JComboBox.h>
 #include <j/core/JControl.h>
 #include <j/core/JTextEditCore.h>
@@ -38,6 +39,13 @@ inline namespace jf {
 //    tick box changes on a click; a choice opens its menu on a click.
 //  - Ctrl+C copies the chosen rows, a tab between cells.
 //  - A column's heading shows its tooltip; drag a heading's edge to widen it.
+//  - COLUMNS: drag a heading sideways to move its column; while it is
+//    dragged the table shows how it will look (the column floating with the
+//    pointer, the others moved aside to make its place), letting go keeps
+//    it, Escape puts every column back. A press that does not move sorts.
+//    Right-click a heading: Reset Columns (the order, widths and sort as
+//    shipped). With a state key, the order, widths and sort are kept (by the
+//    columns' names) and brought back, every table alike.
 //
 // Rows are the model's: what the table reports and is told is always a
 // model row, whatever the sort.
@@ -50,6 +58,13 @@ public:
     static bool alternateRows() { return s_alternateRows; }
 
     void setModel(JPTableModel* model);
+    // Where its columns' order, widths and sort are kept (the app's hooks, s_loadState and s_saveState): brought
+    // back now (and when the model's columns change), kept as they are changed. Every table has one of its own.
+    void setStateKey(const std::string& key);
+    static inline std::function<JJson(const std::string& key)>                  s_loadState;
+    static inline std::function<void(const std::string& key, const JJson& state)> s_saveState;
+    // The columns as shipped: the model's order, widths shared out, no sort.
+    void resetColumns();
     // The model's rows changed: sorted and filtered again, the chosen rows
     // kept (by JPTableModel::rowKey).
     void refresh();
@@ -102,6 +117,7 @@ public:
     void prepareContextMenu(float mx, float my) override;
     void onFocusEvent(bool focused) override;
     void endEdit() override { stopEditing(true); }
+    ~JPTable() override;
 
 private:
     static inline bool s_alternateRows = true;
@@ -119,6 +135,17 @@ private:
     float rowHeight() const;
     float totalColumnsWidth() const;
     float columnX(int c) const;   // from the table's left edge, before scrolling
+    // The model's columns in the order shown (made again, and the kept state taken, when the model's columns
+    // change), and a column's place in it.
+    const std::vector<int>& order() const;
+    int   positionOf(int c) const;
+    // The kept state taken into the order, widths and sort; the state as it is now, kept.
+    void  applyState() const;
+    void  applySort();
+    void  keepState() const;
+    // A heading dragged: the order its place would give; the drag ended (kept or put back).
+    void  previewDrop(float mx);
+    void  endColumnDrag(bool keep);
     int   columnAt(float mx) const;
     int   dividerAt(float mx, float my) const;
     int   viewRowAt(float my) const;
@@ -142,6 +169,20 @@ private:
     void copySelection() const;
 
     JPTableModel*                  m_model = nullptr;
+    std::string                    m_stateKey;
+    mutable JJson                  m_state;           // as kept: order, widths and sort by the columns' names
+    mutable std::vector<int>       m_order;           // view position -> model column
+    mutable std::vector<std::string> m_orderNames;    // the model's columns' names m_order was made for
+    // A heading pressed (a click sorts it) and, moved far enough, dragged: the column, where in it it was taken,
+    // the pointer, and the order to put back.
+    int                            m_headerPress = -1;
+    float                          m_headerPressX = 0;
+    bool                           m_columnDrag = false;
+    float                          m_grabOffset = 0, m_dragX = 0;
+    std::vector<int>               m_orderBefore;
+    // The headings' right-click menu (Reset Columns), and the rows' (the owner's) it stands in for there.
+    std::unique_ptr<JMenu>         m_headerMenu;
+    JMenu*                         m_rowsMenu = nullptr;
     bool                           m_headerShown = true;
     std::vector<int>               m_view;            // view index -> model row
     std::vector<std::string>       m_keys;            // model row -> its key, as last built

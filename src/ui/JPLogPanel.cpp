@@ -127,6 +127,7 @@ JPLogPanel::JPLogPanel(JSceneGraph& graph) : JContainer(graph), m_model(std::mak
     framed("Filter Logging Panel", std::move(filters));
 
     m_table = add(std::make_unique<JPTable>(graph));
+    m_table->setStateKey("log");
     m_table->setHeaderShown(false);
     m_table->setModel(m_model.get());
     m_table->setVSizePolicy(JSizePolicyMode::Expanding, 1);

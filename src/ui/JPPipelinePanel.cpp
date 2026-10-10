@@ -153,6 +153,7 @@ JPPipelinePanel::JPPipelinePanel(JSceneGraph& graph, JPPipeline& pipeline)
     };
     m_tablePane = column();
     m_table = m_tablePane->add(std::make_unique<JPTable>(graph));
+    m_table->setStateKey("pipeline.stages");
     m_table->setModel(m_model.get());
     m_table->setVSizePolicy(JSizePolicyMode::Expanding, 1);
     m_table->setColumnWidth(0, 4 * st.controlHeight);

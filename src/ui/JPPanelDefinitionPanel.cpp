@@ -103,6 +103,7 @@ JPPanelDefinitionPanel::JPPanelDefinitionPanel(JSceneGraph& graph, JPConfigurati
     });
     children->add(std::move(bar));
     m_childTable = children->add(std::make_unique<JPTable>(graph));
+    m_childTable->setStateKey("panel.children");
     m_childTable->setModel(&m_children);
     m_childTable->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
     m_childTable->onSelectionChanged.connect([this] {
@@ -140,6 +141,7 @@ JPPanelDefinitionPanel::JPPanelDefinitionPanel(JSceneGraph& graph, JPConfigurati
     m_useChildren->onClicked.connect([this] { useChildFiducials(); });
     fiducials->add(std::move(fbar));
     m_fiducialTable = fiducials->add(std::make_unique<JPTable>(graph));
+    m_fiducialTable->setStateKey("panel.fiducials");
     m_fiducialTable->setModel(&m_fiducials);
     m_fiducialTable->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
     m_fiducialTable->onSelectionChanged.connect([this] {

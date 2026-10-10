@@ -82,6 +82,15 @@ JPlacerApp::JPlacerApp(std::string settingsPath) {
     }
     JPlacerAppearance::applySaved(*m_window);   // before anything is laid out
     JPTable::setAlternateRows(JSettings::instance().get<bool>(JPlacerSettings::kAlternateRows, true));
+    // Every table's columns as last left: kept in the settings, brought back as it is made.
+    JPTable::s_loadState = [](const std::string& key) {
+        const std::string text = JSettings::instance().get<std::string>(JPlacerSettings::kTableState + key, "");
+        return text.empty() ? JJson() : JJson::tryParse(text).value_or(JJson());
+    };
+    JPTable::s_saveState = [](const std::string& key, const JJson& state) {
+        JSettings::instance().set(JPlacerSettings::kTableState + key, state.dump());
+        JPlacerSettings::save();
+    };
 
     m_updater = std::make_unique<JAppUpdater>(
         *m_window, JAppUpdater::JConfig{ "jplacer", JPLACER_VERSION, kReleasesApi, kUpdateUrlEnv,

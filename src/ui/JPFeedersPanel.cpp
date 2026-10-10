@@ -90,6 +90,7 @@ JPFeedersPanel::JPFeedersPanel(JSceneGraph& graph, JPConfiguration& config, doub
     for (JContainer* p : { m_tablePane.get(), m_formPane.get() })
         p->setDirection(JFlexDirection::Column)->setAlignItems(JAlignItems::Stretch);
     m_table = m_tablePane->add(std::make_unique<JPTable>(graph));
+    m_table->setStateKey("feeders");
     m_table->setModel(&m_model);
     m_table->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
     m_table->onSelectionChanged.connect([this] {

@@ -103,6 +103,7 @@ JPlacerChildFiducialsDialog::JPlacerChildFiducialsDialog(JPConfiguration& config
                 if (a.id == p.id) a.enabled = p.enabled;
     };
     m_table = std::make_unique<JPTable>(g);
+    m_table->setStateKey("panel.childFiducials");
     m_table->setModel(&m_model);
     m_table->onSelectionChanged.connect([this] { m_ok->setEnabled(!m_table->selectedRows().empty()); });
     add(m_table.get());

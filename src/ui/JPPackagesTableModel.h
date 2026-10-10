@@ -17,7 +17,7 @@ inline namespace jf {
 // The Packages tab's table, as OpenPnP's PackagesTableModel (ID,
 // Description, Tape Specification, BottomVision, FiducialVision), of every
 // package open (JPCatalog): the library's and each open board's, Source
-// saying where it lives (a board's marked by the board icon and tinted) and
+// (first, its icon: the library's or a board's) saying where it lives and
 // Status how it stands to the library. The library's and a board's own are
 // edited in place, all but the ID; a board's copies of the library's are not.
 class JPPackagesTableModel : public JPTableModel {
@@ -46,6 +46,7 @@ public:
     std::string    cellIcon(int row, int c) const override;
     const uint8_t* cellTint(int row, int c) const override;
     std::string    cellTooltip(int row, int c) const override;
+    std::string    displayText(int row, int c) const override;
     std::vector<std::string> choices(int row, int c) const override;
     bool   setText(int row, int c, const std::string& text, std::string& error) override;
     void   setChoice(int row, int c, int index) override;

@@ -17,8 +17,8 @@ inline namespace jf {
 // The Parts tab's table, as OpenPnP's PartsTableModel (ID, Description,
 // Height, Through-Board Depth, Package, Speed %, BottomVision,
 // FiducialVision, Placements, Feeders), of every part open (JPCatalog): the
-// library's and each open board's, Source saying where it lives (a board's
-// marked by the board icon and tinted) and Status how it stands to the
+// library's and each open board's, Source (first, its icon: the library's
+// or a board's) saying where it lives and Status how it stands to the
 // library. The library's and a board's own are edited in place, all but the
 // ID and the two counts; a board's copies of the library's are not.
 class JPPartsTableModel : public JPTableModel {
@@ -51,6 +51,7 @@ public:
     std::string    cellIcon(int row, int c) const override;
     const uint8_t* cellTint(int row, int c) const override;
     std::string    cellTooltip(int row, int c) const override;
+    std::string    displayText(int row, int c) const override;
 
     // A row's part (none: a board's part to be chosen), and the whole entry.
     JPPart*                 part(int row) const;

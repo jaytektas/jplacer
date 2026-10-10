@@ -83,6 +83,7 @@ JPVisionSettingsPanel::JPVisionSettingsPanel(JSceneGraph& graph, JPConfiguration
     for (JContainer* p : { m_tablePane.get(), m_formPane.get() })
         p->setDirection(JFlexDirection::Column)->setAlignItems(JAlignItems::Stretch);
     m_table = m_tablePane->add(std::make_unique<JPTable>(graph));
+    m_table->setStateKey("vision");
     m_table->setModel(&m_model);
     m_table->onSelectionChanged.connect([this] { showForm(); });
     m_table->onEditRefused = [](const std::string&) {};

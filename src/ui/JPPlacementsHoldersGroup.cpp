@@ -121,6 +121,7 @@ JPPlacementsHoldersGroup::JPPlacementsHoldersGroup(JSceneGraph& graph, JPConfigu
     });
     add(std::move(bar));
     m_table = add(std::make_unique<JPTable>(graph));
+    m_table->setStateKey(std::string(m_kind == JPPlacementsHolder::Kind::Board ? "boards" : "panels"));
     m_table->setModel(&m_model);
     m_table->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
     m_table->onSelectionChanged.connect([this] { selectionChanged(); });

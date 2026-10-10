@@ -3,6 +3,8 @@
 
 #include "JPPartsTableModel.h"
 
+#include "JPSourceColumn.h"
+
 #include "JPLengthCell.h"
 
 #include <j/core/JStyle.h>
@@ -15,7 +17,7 @@ inline namespace jf {
 
 namespace {
 
-enum Col { kId, kSource, kStatus, kDescription, kValue, kMpn, kHeight, kDepth, kPackage, kSpeed, kBottomVision,
+enum Col { kSource, kId, kStatus, kDescription, kValue, kMpn, kHeight, kDepth, kPackage, kSpeed, kBottomVision,
            kFiducialVision, kPlacements, kFeeders, kColumns };
 
 // OpenPnP's PercentConverter.
@@ -51,7 +53,7 @@ int JPPartsTableModel::columnCount() const { return kColumns; }
 JPTableModel::Column JPPartsTableModel::column(int c) const {
     switch (c) {
         case kId:             return { "ID", "", Kind::Text };
-        case kSource:         return { "Source", "Where it lives: the library, or the open board named", Kind::Text };
+        case kSource:         return JPSourceColumn::column();
         case kStatus:         return { "Status", "How it stands to the library", Kind::Text };
         case kDescription:    return { "Description", "", Kind::Text };
         case kValue:          return { "Value", "Its electrical value as written (100n, 4k7); the Library page has the rest", Kind::Text };
@@ -175,20 +177,22 @@ std::vector<const JPPackage*> JPPartsTableModel::packageChoices(int row) const {
 
 std::string JPPartsTableModel::cellIcon(int row, int c) const {
     const JPCatalog::Part* e = entry(row);
-    return e && e->board && c == kId ? "board" : std::string();
+    return e && c == kSource ? (e->board ? "board-source" : "library") : std::string();
 }
 
 const uint8_t* JPPartsTableModel::cellTint(int row, int c) const {
     const JPCatalog::Part* e = entry(row);
-    if (!e || !e->board) return nullptr;
-    if (c == kSource) return Colors::Accent;
-    if (c != kStatus) return nullptr;
+    if (!e || !e->board || c != kStatus) return nullptr;
     switch (e->status) {
         case JPCatalog::Status::Matched:        return Colors::Success;
         case JPCatalog::Status::LibraryChanged: return Colors::Warning;
         case JPCatalog::Status::ToBeChosen:     return Colors::Danger;
         default:                                return nullptr;
     }
+}
+
+std::string JPPartsTableModel::displayText(int row, int c) const {
+    return c == kSource ? std::string() : text(row, c);   // its icon alone (its text sorts and searches)
 }
 
 std::string JPPartsTableModel::cellTooltip(int row, int c) const {
