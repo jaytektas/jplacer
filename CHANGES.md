@@ -15,7 +15,6 @@ notes.
 - A nozzle tip whose runout measurement fails (or is cancelled) is no longer left showing as calibrated: as in OpenPnP, its earlier calibration is forgotten and the Jog panel's tip button turns red; before, the failure banner showed while the button stayed green.
 - Clicking a box beside a camera's picture no longer acts on the picture: a quick double click on the Detection Diameter's arrows while calibrating the bottom camera, with the picture zoomed in, moved the nozzle as if the picture had been double-clicked there, and the mouse wheel over the box zoomed the picture as well. The Placements viewer's board no longer pans from a drag begun elsewhere in its window.
 - The Jog panel keeps its size: the tool chooser no longer grows to its longest name (a nozzle with a part on it, say) and pushes the Nozzle Tip button out of the panel, and the jog buttons no longer jump in size when a setting is changed (in Issues & Solutions, for one).
-
 - A job no longer flips between the cameras' tabs at every look: as in OpenPnP, a camera's tab comes to the front only to show a vision result, and only when the camera has Auto Camera View ticked.
 - Recycle on the Jog panel comes back as soon as a feeder can take the part back (the feeder enabled again, say); before, it stayed greyed out until the nozzle's part changed.
 - jplacer no longer freezes when Test Alignment (or another machine task, Start or Step) is clicked while a machine task is still under way: the status line says the machine is busy, and the click is not acted on.
