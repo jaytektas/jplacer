@@ -9,7 +9,7 @@
 // Their footprints: the flipped board's the same as the top one's, pad for pad (the rotation and mirror
 // KiCad writes on a board taken off), and one the same as its library's .kicad_mod. A KiCad 5 board; a
 // footprint edited on the board kept as a second; Do Not Populate; and through the CPL and BOM import, the
-// board's own parts' packages given the footprints.
+// packages made for the library given the board's pads (one the library has left as it is).
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
@@ -164,8 +164,8 @@ int main() {
         assert(!JPKicadBoardFile::parse("(kicad_pcb (version 1)", s, error) && !error.empty());
     }
 
-    // Through the CPL and BOM import, Create Missing Parts: the board's own parts' packages carry the footprints
-    // the board draws; one the library has a package of the same name for takes a copy of it with the board's pads.
+    // Through the CPL and BOM import, Create Missing Parts: the packages made for the library carry the footprints
+    // the board draws; one the library has is left as it is.
     {
         const fs::path dir = fs::temp_directory_path() / "jplacer-test-kicad-board";
         fs::create_directories(dir);
@@ -182,14 +182,18 @@ int main() {
         std::string error;
         assert(imp.build(config, "t", b, report, error));
         assert(report.placements == int(top.table.rows.size()) && report.doNotPlace == 1);
-        assert(report.footprints == int(top.footprints.size()) && b.find("FID1")->type == JPPlacement::Type::Fiducial);
+        assert(report.footprints == int(top.footprints.size()) - 1 && b.find("FID1")->type == JPPlacement::Type::Fiducial);
+        // Parts made for the library, matched to; a package the library has kept as it is, the others made with the
+        // pads the board draws.
         const JPBoardPart* u1 = b.part(b.find("U1")->boardPart);
-        assert(u1 && u1->state == JPBoardPart::State::Local && u1->localPackage);
-        assert(u1->localPackage->id == "LQFP-100_14x14mm_P0.5mm" && u1->localPackage->description == "the library's");
-        assert(u1->localPackage->uuid.empty() && u1->localPackage->footprint.pads.size() == 100);
-        assert(lib->footprint.pads.empty());   // the library's left as it was
-        const JPBoardPart* r1 = b.part(b.find("R1")->boardPart);
-        assert(r1 && r1->localPackage && r1->localPackage->footprint.pads.size() == 2);
+        assert(u1 && u1->state == JPBoardPart::State::Matched);
+        assert(lib->footprint.pads.empty() && lib->description == "the library's");   // the library's left as it was
+        const JPPackage* r0603 = nullptr;
+        for (const auto& k : b.madePackages) {
+            assert(k->id != lib->id);
+            if (k->id == "R_0603_1608Metric") r0603 = k.get();
+        }
+        assert(r0603 && r0603->footprint.pads.size() == 2 && int(b.madePackages.size()) == report.footprints);
         // Placed as the .pos of the same board would place it.
         assert(near(b.find("U1")->location.x(), 60.9) && near(b.find("U1")->location.y(), 62.87));
     }

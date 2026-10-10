@@ -81,6 +81,8 @@ private:
     void merge(JPBoard& imported);
     // An import's board as the board's new revision, after the upgrade's summary.
     void upgrade(JPBoard* board, std::shared_ptr<JPBoard> files);
+    // An import taken: the library parts and packages it made (Create Missing Parts) put in the library.
+    void takeMade(const JPBoard& imported);
     // The revision chooser: the board's revisions, the one shown chosen.
     void fillRevisions();
     void switchRevision(int index);

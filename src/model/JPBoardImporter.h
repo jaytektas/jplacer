@@ -17,9 +17,10 @@ inline namespace jf {
 // Import Board): its name in the menus, its description (the entry's
 // tooltip and its dialog's title), the files its dialog asks for and the
 // options it ticks; and the reading, into a board whose placements are then
-// merged into the chosen one. The parts it names become the board's own
-// parts (JPBoardPart), matched to the library's where it has them; unlike
-// OpenPnP's, it adds nothing to the library.
+// merged into the chosen one. The parts it names become the board's parts
+// (JPBoardPart), matched to the library's where it has them, else (Create
+// Missing Parts) to parts made for the library, put there as the import is
+// taken (JPBoard::madeParts).
 class JPBoardImporter {
 public:
     struct File {
@@ -79,13 +80,13 @@ protected:
 
     // The board part for a part the file names (`partId`, its footprint `packageId`, its `value` where the
     // file says), in `out`: one already made for it, else made, matched to the library's part of that id
-    // where there is one; else, `create` (Create Missing Parts), the board's own part, with the library's
-    // package of that id or (none) one of its own; else unmatched. Never added to the library: a board's
-    // parts are the board's. Its key; `part` (given) the part its placements use, null when unmatched;
-    // `made` whether this call made the board's own part.
+    // where there is one; else, `create` (Create Missing Parts), matched to a library part made for it (with
+    // the library's package of that id, or one made too), put in the library as the import is taken
+    // (out.madeParts, madePackages); else unmatched. Its key; `part` (given) the part its placements use, null
+    // when unmatched; `made` whether this call made the part; `madePackage` the package it made, if it did.
     static std::string boardPart(JPConfiguration& config, JPBoard& out, const std::string& partId,
                                  const std::string& packageId, const std::string& value, bool create,
-                                 JPPart** part = nullptr, bool* made = nullptr);
+                                 JPPart** part = nullptr, bool* made = nullptr, JPPackage** madePackage = nullptr);
     // A placement given its board part (`key`, from boardPart).
     static void assign(const JPBoard& out, JPPlacement& p, const std::string& key);
 };

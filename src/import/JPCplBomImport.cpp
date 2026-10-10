@@ -279,35 +279,41 @@ bool JPCplBomImport::build(const JPConfiguration& config, const std::string& whe
             if (found) {
                 bp.state = JPBoardPart::State::Matched;
                 bp.libraryPartId = found->id;
-                config.takeCopy(bp);
+                bp.libraryUuid = found->uuid;
                 ++report.matched;
             } else if (createMissing && !bp.fields["part"].empty()) {
-                bp.state = JPBoardPart::State::Local;
-                bp.localPart = std::make_shared<JPPart>();
-                bp.localPart->id = bp.fields["part"];
-                bp.localPart->value = val;   // its value as the files wrote it
-                if (const auto h = fields.find("height"); h != fields.end()) {
-                    double mm = 0;
-                    if (JPImportSource::length(h->second, cpl.units, mm)) bp.localPart->height = JPLength(mm, JPLengthUnit::Millimeters);
-                }
-                // Its package: one of its own with the footprint the board file draws, where one does (the
-                // library's package's settings kept, where it has one of that name); else the library's; else
-                // one of its own.
-                const JPFootprint* own = drawn(at);
-                const JPPackage* k = config.libraryPackage(footprint);
-                if (k && !own) {
-                    bp.localPart->packageId = k->id;
-                } else if (!footprint.empty()) {
-                    bp.localPackage = k ? std::make_shared<JPPackage>(*k) : std::make_shared<JPPackage>();
-                    bp.localPackage->uuid.clear();
-                    bp.localPackage->id = footprint;
-                    if (own) {
-                        bp.localPackage->footprint = *own;
-                        drawnUsed.insert(footprint);
+                // A part made for the library (put there as the import is taken), from what the files said.
+                const std::string id = bp.fields["part"];
+                bool already = false;
+                for (const auto& m : out.madeParts) already = already || m->id == id;
+                if (!already) {
+                    auto made = std::make_shared<JPPart>();
+                    made->id = id;
+                    made->value = val;   // its value as the files wrote it
+                    if (const auto h = fields.find("height"); h != fields.end()) {
+                        double mm = 0;
+                        if (JPImportSource::length(h->second, cpl.units, mm)) made->height = JPLength(mm, JPLengthUnit::Millimeters);
                     }
-                    bp.localPart->packageId = footprint;
+                    // Its package: the library's of that name; else one made, with the pads the board file draws
+                    // where it does (a KiCad board).
+                    made->packageId = footprint;
+                    bool madePackage = false;
+                    for (const auto& k : out.madePackages) madePackage = madePackage || k->id == footprint;
+                    if (!footprint.empty() && !config.libraryPackage(footprint) && !madePackage) {
+                        auto k = std::make_shared<JPPackage>();
+                        k->id = footprint;
+                        if (const JPFootprint* pads = drawn(at)) {
+                            k->footprint = *pads;
+                            drawnUsed.insert(footprint);
+                        }
+                        out.madePackages.push_back(std::move(k));
+                    }
+                    if (const JPPackage* k = config.libraryPackage(footprint)) made->packageId = k->id;
+                    out.madeParts.push_back(std::move(made));
                 }
-                ++report.local;
+                bp.state = JPBoardPart::State::Matched;
+                bp.libraryPartId = id;
+                ++report.made;
             } else {
                 ++report.unmatched;
             }

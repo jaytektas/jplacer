@@ -29,21 +29,14 @@ inline namespace jf {
 
 // The Packages tab, as OpenPnP's PackagesPanel: a toolbar (New Package…,
 // Delete Package, Copy Package to Clipboard, Create Package from
-// Clipboard), a search box, the packages table (the library's and each open
-// board's, JPPackagesTableModel), and under it the chosen package's tabs:
-// Nozzle Tips, Settings (vacuum and blow off), Footprint (its settings,
-// generators and pads), the library's Footprints (a library package's only)
-// and Vision Compositing. A board's copy of a library package says what it is
-// instead; a board's own, edited, is given to every part of the board that
-// shares it.
+// Clipboard), a search box, the packages table, and under it the chosen
+// package's tabs: Nozzle Tips, Settings (vacuum and blow off), Footprint
+// (its settings, generators and pads) and Vision Compositing.
 class JPPackagesPanel : public JContainer {
 public:
     JPPackagesPanel(JSceneGraph& graph, JPConfiguration& config, double split);
 
-    // A library package changed (to be saved, other views told).
     std::function<void()> onChanged;
-    // An open board's own package changed: the board to be saved.
-    std::function<void(JPBoard&)> onBoardChanged;
     std::function<void(JMenu*, float x, float y)> openMenu;
     // The chosen package's footprint to draw over the cameras (null: none
     // chosen), as OpenPnP's PackageVisionWizard draws it: told when another
@@ -77,8 +70,6 @@ public:
 
     void refresh();
     void selectPackage(const JPPackage* package);
-    // The package of id `packageId` where it lives: a board's, or (no board) the library's.
-    void selectPackage(const JPBoard* board, const std::string& packageId);
     const JPPackage* selectedPackage() const;
     double split() const;
 
@@ -95,12 +86,7 @@ private:
     void deletePackages();
     void copyPackage();
     void pastePackage();
-    // A change to be kept: the chosen package's board (or `board`), else the library's.
     void changed();
-    void changed(JPBoard* board);
-    const JPCatalog::Package* selectedEntry() const;
-    // A board's copy of the library's: what it is.
-    std::unique_ptr<JContainer> copyTab(const JPCatalog::Package& entry);
     // onShowFootprint told of the chosen package's when another is chosen (`again`: anyway, it changed).
     void showFootprint(bool again = false);
     // The chosen package's tabs, made afresh.

@@ -33,8 +33,6 @@ inline namespace jf {
 //    value and footprint, MPN, supplier's part number: JPLibraryLearning),
 //    so the next board that calls it so is matched without asking;
 //  * Add to Library: a library part made from all the files said;
-//  * Make It the Board's Own: a part (and package) of the board's, from
-//    what the files said, kept in the board;
 //  * Leave to Be Chosen.
 // For every placement of the board part, or, Only <designator> ticked, for
 // the one placement alone. Escape, Cancel and the [x] change nothing.

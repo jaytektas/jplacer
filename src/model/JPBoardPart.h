@@ -11,39 +11,41 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 
 inline namespace jf {
 
-// One line of a board's own parts list (DESIGN.md, Board part): what the
-// files it came from said about it, kept as they said it, and what it is:
-//  * Matched: a part of the library (the parts list every job draws from);
-//  * Local: this board's own part (and, where the library has none, its own
-//    package), on purpose, kept in the board and never in the library;
-//  * Unmatched: only what the files said, not yet anything to place.
+// One line of a board's parts list (DESIGN.md, Board part): what the
+// files it came from said about it, kept as they said it, and the library
+// part it is (the library is the only place parts and packages are kept):
+//  * Matched: a part of the library, by its id (and uuid, to find it when renamed);
+//  * Unmatched: only what the files said, not yet a part to place.
 // A board's placements each name one of its board parts. Importing makes
-// board parts; the library is changed only by choosing to.
+// board parts (and, asked to, the library parts the library lacks).
 class JPBoardPart {
 public:
-    enum class State { Unmatched, Matched, Local };
+    enum class State { Unmatched, Matched };
 
     std::string                        key;      // unique within its board ("bp-3")
     std::map<std::string, std::string> fields;   // as imported: "part", "value", "footprint", …
     State                              state = State::Unmatched;
     std::string                        libraryPartId;   // Matched: the library part's id
     std::string                        libraryUuid;     // Matched: the library part's uuid (found by it when renamed)
-    // Matched: the board's copy of the library's part and its package as they were when chosen, and the
-    // copy's fingerprint (JPLibraryJson): placed by on a machine whose library lacks the part, and compared
-    // with the library's to tell when that has changed (JPConfiguration::differs).
-    std::shared_ptr<JPPart>            copyPart;
-    std::shared_ptr<JPPackage>         copyPackage;
-    std::shared_ptr<JPLibraryFootprint> copyFootprint;   // the library footprint its CAD footprint is (its package's)
-    std::string                        fingerprint;
-    std::shared_ptr<JPPart>            localPart;       // Local: its own part
-    std::shared_ptr<JPPackage>         localPackage;    // Local: its own package, when not the library's
 
-    // The part id its placements are placed with: the library part's (matched), its own part's (local), else
-    // the name the files gave it (unmatched: a part that is nowhere, as an unknown part id is).
+    // What a board saved before the library was the only place of parts kept of this one: its own part and
+    // package (`own`), or its copy of the library's part, package and footprint. Read from such a file only, to
+    // be put in the library as the board is opened (JPConfiguration::adoptFormer), then let go.
+    struct Former {
+        bool                                own = false;
+        std::shared_ptr<JPPart>             part;
+        std::shared_ptr<JPPackage>          package;
+        std::shared_ptr<JPLibraryFootprint> footprint;
+    };
+    std::optional<Former> former;
+
+    // The part id its placements are placed with: the library part's (matched), else the name the files gave
+    // it (unmatched: a part that is nowhere, as an unknown part id is).
     std::string partId() const;
     // A field as imported, or empty.
     const std::string& field(const std::string& name) const;
@@ -52,8 +54,7 @@ public:
     // Whether `other` is the same line of the files: the same footprint and the same part (its name, value,
     // MPN, manufacturer and supplier's part number); a description or a quantity changed does not count.
     bool samePart(const JPBoardPart& other) const;
-    // What it was chosen to be (its state, library part and copies, its own part and package) given `from`'s,
-    // copies of its own; what the files said is kept.
+    // What it was chosen to be (its state and library part) given `from`'s; what the files said is kept.
     void takeChoice(const JPBoardPart& from);
 
     static const char* stateName(State s);

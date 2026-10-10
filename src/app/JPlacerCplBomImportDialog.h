@@ -32,7 +32,7 @@ inline namespace jf {
 //    choice of jplacer's fields, guessed from the header, or a profile's),
 //    and its first values; the file's units, its profile, Save Profile….
 //  * What it makes, as the choices are changed: placements, parts (from the
-//    library, the board's own, not chosen yet), what is in one file only,
+//    library, made for it on Import, not chosen yet), what is in one file only,
 //    and each field the files disagree on with which file's to take.
 //  * Create Missing Parts; Cancel and Import.
 // Import builds the board (JPCplBomImport) and hands it to `onImported`.

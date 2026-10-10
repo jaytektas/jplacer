@@ -14,56 +14,51 @@
 
 inline namespace jf {
 
-// The Packages tab's table, as OpenPnP's PackagesTableModel (ID,
-// Description, Tape Specification, BottomVision, FiducialVision), of every
-// package open (JPCatalog): the library's and each open board's, Source
-// (first, its icon: the library's or a board's) saying where it lives and
-// Status how it stands to the library. The library's and a board's own are
-// edited in place, all but the ID; a board's copies of the library's are not.
+// The Packages tab's table, as OpenPnP's PackagesTableModel: ID,
+// Description, Tape Specification, BottomVision, FiducialVision), after
+// Source (JPSourceColumn: the library's icon, or a board's for a package an
+// open board's part is of); all but Source and the ID edited in place.
 class JPPackagesTableModel : public JPTableModel {
 public:
     explicit JPPackagesTableModel(JPConfiguration& config);
 
-    // A package changed: the board it lives in, none the library.
-    std::function<void(JPBoard* board)> onChanged;
-    // The rows read again from the library and the open boards.
-    void reload();
-    // Which rows are shown (Show beside Search): kShowAll, kShowLibrary, kShowBoards, or one board by its name.
-    static constexpr const char* kShowAll = "All";
-    static constexpr const char* kShowLibrary = "Library";
-    static constexpr const char* kShowBoards = "Boards";
-    void setShow(const std::string& show) { m_show = show; }
-    bool rowShown(int row) const override;
-    // What Show offers now: All, Library, Boards, then each open board.
-    std::vector<std::string> showChoices() const;
+    std::function<void()> onChanged;
 
-    int    columnCount() const override;
+    int    columnCount() const override { return 6; }
     Column column(int c) const override;
-    int    rowCount() const override { return int(m_rows.size()); }
+    int    rowCount() const override { return int(m_config.packages().size()); }
     std::string text(int row, int c) const override;
     std::string rowKey(int row) const override;
-    bool   editable(int row, int c) const override;
-    std::string    cellIcon(int row, int c) const override;
-    const uint8_t* cellTint(int row, int c) const override;
-    std::string    cellTooltip(int row, int c) const override;
-    std::string    displayText(int row, int c) const override;
+    bool   editable(int, int c) const override { return c > 1; }   // not Source nor ID
     std::vector<std::string> choices(int row, int c) const override;
     bool   setText(int row, int c, const std::string& text, std::string& error) override;
     void   setChoice(int row, int c, int index) override;
 
-    JPPackage*                package(int row) const;
-    const JPCatalog::Package* entry(int row) const;
-    int                       rowOf(const JPPackage* p) const;
-    // The row of the package of id `packageId` (as kept) where it lives: a board's (its own or its copy), or
-    // (no board) the library's.
-    int                       rowOf(const JPBoard* board, const std::string& packageId) const;
+    // The library's rows read again, with the open boards that use each (the Source column, Show).
+    void reload();
+    // Which rows are shown (Show beside Search): all, those an open board uses, or one board's (by its name).
+    static constexpr const char* kShowAll = "All";
+    static constexpr const char* kShowUsed = "Used by open boards";
+    void setShow(const std::string& show) { m_show = show; }
+    bool rowShown(int row) const override;
+    // What Show offers now: All, Used by open boards, then each open board.
+    std::vector<std::string> showChoices() const;
+    std::string    cellIcon(int row, int c) const override;
+    std::string    cellTooltip(int row, int c) const override;
+    std::string    displayText(int row, int c) const override;
+
+    JPPackage* package(int row) const;
+    int        rowOf(const JPPackage* p) const;
 
 private:
     std::vector<const JPVisionSettings*> visionChoices(JPVisionSettings::Kind kind) const;
 
-    JPConfiguration&                m_config;
-    std::vector<JPCatalog::Package> m_rows;
-    std::string                  m_show = kShowAll;
+    // The open boards using each row (by its place in the library), as last read.
+    const std::vector<std::shared_ptr<JPBoard>>& usedBy(int row) const;
+
+    JPConfiguration&                                   m_config;
+    std::vector<std::vector<std::shared_ptr<JPBoard>>> m_usedBy;
+    std::string                                        m_show = kShowAll;
 };
 
 } // inline namespace jf

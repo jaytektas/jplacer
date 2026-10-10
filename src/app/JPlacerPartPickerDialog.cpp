@@ -75,7 +75,6 @@ JPlacerPartPickerDialog::JPlacerPartPickerDialog(const JPConfiguration& config, 
     note(said.empty() ? "The files said nothing of its part: name " + m_part.field("part") : "The files say: " + said);
     switch (m_part.state) {
         case JPBoardPart::State::Matched: note("Now: the library's " + m_part.libraryPartId); break;
-        case JPBoardPart::State::Local:   note("Now: the board's own " + m_part.partId()); break;
         case JPBoardPart::State::Unmatched: note("Now: to be chosen"); break;
     }
 
@@ -110,9 +109,6 @@ JPlacerPartPickerDialog::JPlacerPartPickerDialog(const JPConfiguration& config, 
     m_buttons = std::make_unique<JDialogButtonBox>(g);
     m_buttons->addButton("Leave to Be Chosen", JDialogButtonBox::Role::Action)->onClicked.connect([this] {
         choose(JPPartChoice::Kind::ToBeChosen);
-    });
-    m_buttons->addButton("Make It the Board's Own", JDialogButtonBox::Role::Action)->onClicked.connect([this] {
-        choose(JPPartChoice::Kind::BoardsOwn);
     });
     JButton* addTo = m_buttons->addButton("Add to Library", JDialogButtonBox::Role::Action);
     addTo->setTooltip("Make a library part from what the files say (value, footprint, MPN, manufacturer, supplier, "

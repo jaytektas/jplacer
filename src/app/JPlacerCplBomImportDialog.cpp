@@ -154,8 +154,8 @@ JPlacerCplBomImportDialog::JPlacerCplBomImportDialog(JPConfiguration& config, st
     m_summary = makes->add(std::make_unique<JScrollArea>(g, 0.f, 0.f));
     m_summary->setVSizePolicy(JSizePolicyMode::Expanding, 1);
     m_create = makes->add(std::make_unique<JCheckBox>(g, "Create Missing Parts", 0.f));
-    m_create->setTooltip("A part the library does not have becomes the board's own (kept in the board, not the library); "
-                         "else it is left for you to choose");
+    m_create->setTooltip("A part the library does not have is made in the library (with its package, where the library "
+                         "has none of that name) when you Import; else it is left for you to choose");
     m_create->onStateChanged.connect([this](bool on) {
         m_import.createMissing = on;
         m_refillSummary = true;
@@ -347,11 +347,11 @@ void JPlacerCplBomImportDialog::fillSummary() {
          (report.doNotPlace ? ", " + std::to_string(report.doNotPlace) + " not to be placed" : std::string()) +
          (report.fiducials ? ", " + std::to_string(report.fiducials) + " fiducial(s)" : std::string()));
     std::string parts = std::to_string(report.parts) + " part(s): " + std::to_string(report.matched) + " from the library";
-    if (report.local) parts += ", " + std::to_string(report.local) + " the board's own";
+    if (report.made) parts += ", " + std::to_string(report.made) + " new, to be added to the library on Import";
     if (report.unmatched) parts += ", " + std::to_string(report.unmatched) + " to be chosen";
     line(parts);
     if (report.footprints)
-        line(std::to_string(report.footprints) + " footprint(s) from the board file: the pads of the board's own parts' packages");
+        line(std::to_string(report.footprints) + " footprint(s) from the board file: the pads of the new packages");
     if (report.noPart)
         line(std::to_string(report.noPart) + " placement(s) with no part named (no value, footprint or MPN in any "
              "file): add the BOM, or choose their parts after importing");
@@ -424,8 +424,8 @@ void JPlacerCplBomImportDialog::runImport() {
         return;
     }
     JLOGC(JPlacerLog::kBoardImport, JLogLevel::Info) << "imported " << report.placements << " placement(s), " << report.parts
-                                                     << " part(s) (" << report.matched << " from the library, " << report.local
-                                                     << " the board's own, " << report.unmatched << " to be chosen) from "
+                                                     << " part(s) (" << report.matched << " from the library, " << report.made
+                                                     << " new for the library, " << report.unmatched << " to be chosen) from "
                                                      << m_import.sources.size() << " file(s)";
     close();
     if (m_onImported) m_onImported(board);

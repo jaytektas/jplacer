@@ -81,7 +81,7 @@ std::vector<JPJobCheck::Item> JPJobCheck::of(JPConfiguration& config, const JPJo
                     g.add(L::Stop, "No part chosen", where, "Boards tab: Board's Parts, or the placement's Part");
                 else
                     g.add(L::Stop, "A part the library does not have", where + " (" + p.partId + ")",
-                          "Boards tab: Board's Parts (choose one the library has, or make it the board's own)");
+                          "Boards tab: Board's Parts (choose one the library has, or Add to Library)");
                 continue;
             }
             if (p.verified.by.empty())
@@ -105,8 +105,8 @@ std::vector<JPJobCheck::Item> JPJobCheck::of(JPConfiguration& config, const JPJo
                       "Load it when asked, or set a feeder up for it on the Feeders tab");
             if (part->isPartHeightUnknown())
                 g.add(L::Check, "Height not known", part->id, "Parts tab: the part's Height (or probe it)");
-            const bool footprint = (bp && bp->copyFootprint && !bp->copyFootprint->geometry.pads.empty())
-                                   || !package->footprint.pads.empty();
+            const JPLibraryFootprint* cad = bp ? config.footprintFor(*bp, *part) : nullptr;
+            const bool footprint = (cad && !cad->geometry.pads.empty()) || !package->footprint.pads.empty();
             if (!footprint)
                 g.add(L::Check, "No footprint to draw or check against", part->id + " (" + package->id + ")",
                       "Packages tab: the package's Footprint, or a library footprint");

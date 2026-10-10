@@ -156,11 +156,12 @@ void JPEagleBoardImporter::parse(const std::vector<std::string>& files, const st
             if (auto s = seen.find(partId); s != seen.end()) {
                 key = s->second;
             } else {
-                // The board's part: the library's where it has one; else, Create Missing Parts, the board's own,
-                // its package the library's or (none) one of its own with the pads the board's library draws.
+                // The board's part: the library's where it has one; else, Create Missing Parts, one made for the
+                // library, its package the library's or (none) one made with the pads the board's library draws.
                 JPPart* part = nullptr;
                 bool made = false;
-                key = boardPart(config, out, partId, pkgId, value, create, &part, &made);
+                JPPackage* madePackage = nullptr;
+                key = boardPart(config, out, partId, pkgId, value, create, &part, &made, &madePackage);
                 JPFootprint fp;
                 for (const JPXmlElement* e : polys) {
                     if (e->name != "smd") continue;
@@ -175,7 +176,8 @@ void JPEagleBoardImporter::parse(const std::vector<std::string>& files, const st
                     fp.pads.push_back(p);
                 }
                 if (made) {
-                    if (JPBoardPart* bp = out.part(key); bp && bp->localPackage) bp->localPackage->footprint = fp;
+                    // A package made for it (the library has none of that name) takes the pads the board draws.
+                    if (madePackage) madePackage->footprint = fp;
                 } else if (part && update) {
                     // Asked for (Update Existing Parts): the library's part and package from the board.
                     if (JPPackage* pkg = config.libraryPackage(pkgId)) {

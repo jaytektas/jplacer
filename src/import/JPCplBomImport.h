@@ -24,9 +24,10 @@ inline namespace jf {
 // The board's parts grouped by manufacturer and MPN where given, else by
 // value and footprint; every field each was given kept with it; matched to
 // the library's part named by its MPN, its footprint-value, or its value,
-// else (Create Missing Parts) the board's own, else not chosen yet. A
-// board's own part's package has the footprint the placement file draws,
-// where it is a board file that does (a KiCad .kicad_pcb).
+// else (Create Missing Parts) to a part made for the library (out.madeParts,
+// put there as the import is taken), else not chosen yet. A package made for
+// one (the library has none of that name) has the footprint the placement
+// file draws, where it is a board file that does (a KiCad .kicad_pcb).
 class JPCplBomImport {
 public:
     struct Conflict {
@@ -39,8 +40,8 @@ public:
         std::vector<std::string> otherOnly;  // named by another file, not in the placement file
         std::vector<Conflict>    conflicts;
         std::vector<std::string> problems;   // rows passed over and why; files that cannot be joined
-        int placements = 0, doNotPlace = 0, fiducials = 0, noPart = 0, parts = 0, matched = 0, local = 0, unmatched = 0;
-        int footprints = 0;   // the board file's footprints the board's own packages take
+        int placements = 0, doNotPlace = 0, fiducials = 0, noPart = 0, parts = 0, matched = 0, made = 0, unmatched = 0;
+        int footprints = 0;   // the board file's footprints the packages made for the library take
     };
 
     std::vector<JPImportSource>          sources;   // [0]: the placement file

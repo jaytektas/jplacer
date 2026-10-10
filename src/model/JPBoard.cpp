@@ -98,35 +98,16 @@ std::map<std::string, std::string> JPBoard::takeParts(const JPBoard& from) {
             // not yet made takes the import's.
             key = mine->key;
             for (const auto& [k, v] : theirs.fields) mine->fields[k] = v;
-            if (mine->state == JPBoardPart::State::Unmatched && theirs.state != JPBoardPart::State::Unmatched) {
-                mine->state = theirs.state;
-                mine->libraryPartId = theirs.libraryPartId;
-                mine->localPart = theirs.localPart;
-                mine->localPackage = theirs.localPackage;
-            }
+            if (mine->state == JPBoardPart::State::Unmatched && theirs.state != JPBoardPart::State::Unmatched)
+                mine->takeChoice(theirs);
         } else {
             JPBoardPart p = theirs;
             p.key = key = newPartKey();
             m_parts->push_back(p);
         }
-        // A board's own part taken from the import: a copy of its own, its ids scoped to this board.
-        JPBoardPart& p = *part(key);
-        if (p.state == JPBoardPart::State::Local && p.localPart && p.localPart == theirs.localPart) scopeOwn(p);
         keys[theirs.key] = key;
     }
     return keys;
-}
-
-void JPBoard::scopeOwn(JPBoardPart& p) const {
-    if (p.state != JPBoardPart::State::Local || !p.localPart) return;
-    const std::string prefix = scopeName() + "/";
-    p.localPart = std::make_shared<JPPart>(*p.localPart);
-    if (p.localPart->id.rfind(prefix, 0) != 0) p.localPart->id = prefix + p.localPart->id;
-    if (p.localPackage) {
-        p.localPackage = std::make_shared<JPPackage>(*p.localPackage);
-        if (p.localPackage->id.rfind(prefix, 0) != 0) p.localPackage->id = prefix + p.localPackage->id;
-        p.localPart->packageId = p.localPackage->id;
-    }
 }
 
 std::string JPBoard::scopeName() const {
@@ -157,8 +138,7 @@ std::string JPBoard::matchPlacement(const std::string& placementId, const std::s
     }
     to->state = JPBoardPart::State::Matched;
     to->libraryPartId = libraryId;
-    to->localPart.reset();
-    to->localPackage.reset();
+    to->libraryUuid.clear();
     return to->key;
 }
 
@@ -174,32 +154,11 @@ std::string JPBoard::splitPlacement(const std::string& placementId) {
     return split.key;
 }
 
-void JPBoard::makeOwn(const std::string& key, const JPPackage* libraryPackage) {
-    JPBoardPart* bp = part(key);
-    if (!bp) return;
-    const std::string prefix = scopeName() + "/";
-    const std::string footprint = !bp->field("footprint").empty() ? bp->field("footprint") : bp->field("package");
-    std::string name = bp->field("part");
-    if (name.empty()) name = !bp->field("mpn").empty() ? bp->field("mpn") : footprint + "-" + bp->field("value");
-    bp->state = JPBoardPart::State::Local;
-    bp->libraryPartId.clear();
-    bp->localPart = std::make_shared<JPPart>();
-    bp->localPart->id = name.rfind(prefix, 0) == 0 ? name : prefix + name;
-    bp->localPart->value = bp->field("value");   // its value as the files wrote it
-    bp->localPackage.reset();
-    if (libraryPackage) {
-        bp->localPart->packageId = libraryPackage->id;
-    } else if (!footprint.empty()) {
-        bp->localPackage = std::make_shared<JPPackage>();
-        bp->localPackage->id = prefix + footprint;
-        bp->localPart->packageId = bp->localPackage->id;
-    }
-    // Its height where the files gave one (millimetres; "1.2mm").
-    if (const std::string h = bp->field("height"); !h.empty()) {
-        char* end = nullptr;
-        const double mm = std::strtod(h.c_str(), &end);
-        if (end != h.c_str()) bp->localPart->height = JPLength(mm, JPLengthUnit::Millimeters);
-    }
+void JPBoard::forEveryPart(const std::function<void(JPBoardPart&)>& f) {
+    for (JPBoardPart& p : *m_parts) f(p);
+    for (size_t i = 0; i < m_revisions.size(); ++i)
+        if (i != m_revision)
+            for (JPBoardPart& p : m_revisions[i].parts) f(p);
 }
 
 std::vector<std::string> JPBoard::placementsOf(const std::string& key) const {

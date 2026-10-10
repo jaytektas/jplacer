@@ -4,7 +4,6 @@
 #include "JPlacerTableLinks.h"
 
 #include "model/JPBoard.h"
-#include "model/JPCatalog.h"
 #include "model/JPPanel.h"
 #include "ui/JPBoardsPanel.h"
 #include "ui/JPFeedersPanel.h"
@@ -37,12 +36,8 @@ JPlacerTableLinks::JPlacerTableLinks(Tabs tabs, JPConfiguration& config, std::fu
     m_tabs.panels.definition().onFiducialChosen = [this](const JPPlacement* f) {
         if (f && leads(m_tabs.panelsDock)) choose([&] { panelFiducialChosen(*f); });
     };
-    m_tabs.parts.onPartChosen = [this](const JPCatalog::Part& e) {
-        if (!leads(m_tabs.partsDock)) return;
-        choose([&] {
-            if (e.board) partAndLinks(e.board.get(), e.boardPartKey, e.part() ? e.part()->id : std::string(), false);
-            else if (e.part()) partAndLinks(nullptr, "", e.part()->id, false);
-        });
+    m_tabs.parts.onPartChosen = [this](const JPPart& part) {
+        if (leads(m_tabs.partsDock)) choose([&] { partAndLinks(part.id, false); });
     };
     m_tabs.feeders.onFeederChosen = [this](const JPFeeder& f) {
         if (!f.partId().empty() && leads(m_tabs.feedersDock)) choose([&] { partAndLinks(f.partId(), true); });
@@ -62,30 +57,10 @@ void JPlacerTableLinks::choose(const std::function<void()>& linkedChoices) {
 }
 
 void JPlacerTableLinks::partAndLinks(const std::string& partId, bool choosePart) {
-    // A board's own part is known by an id of its board's; any other is the library's.
-    for (const JPCatalog::Part& e : JPCatalog::parts(m_config))
-        if (e.board && e.status == JPCatalog::Status::Own && e.part() && e.part()->id == partId) {
-            partAndLinks(e.board.get(), e.boardPartKey, partId, choosePart);
-            return;
-        }
-    partAndLinks(nullptr, "", partId, choosePart);
-}
-
-void JPlacerTableLinks::partAndLinks(const JPBoard* board, const std::string& boardPartKey, const std::string& partId,
-                                     bool choosePart) {
-    const JPBoardPart* bp = board ? board->part(boardPartKey) : nullptr;
-    const JPPart* library = bp ? nullptr : m_config.libraryPart(partId);
-    if (choosePart) m_tabs.parts.selectPart(bp ? board : nullptr, boardPartKey, library);
-    // Its package where the part has it: the board's own, the board's copy of the library's, else the library's.
-    if (bp && bp->state == JPBoardPart::State::Local && bp->localPackage) {
-        m_tabs.packages.selectPackage(board, bp->localPackage->id);
-    } else if (bp && bp->state == JPBoardPart::State::Matched && bp->copyPackage) {
-        m_tabs.packages.selectPackage(board, bp->copyPackage->id);
-    } else if (const JPPart* part = m_config.part(partId)) {
-        m_tabs.packages.selectPackage(nullptr, part->packageId);
-    }
     const JPPart* part = m_config.part(partId);
+    if (choosePart) m_tabs.parts.selectPart(part);
     if (!part) return;
+    m_tabs.packages.selectPackage(m_config.package(part->packageId));
     m_tabs.feeders.selectFeederForPart(part->id);
     m_tabs.vision.selectFor(*part);
 }
@@ -115,10 +90,7 @@ void JPlacerTableLinks::jobPlacementChosen(const JPPlacement* p) {
         m_tabs.panels.selectPanel(static_cast<const JPPanel*>(l->holder->definition()));
         m_tabs.panels.definition().selectFiducial(p ? p->id : "");
     }
-    // A board's placement: its board part, on its board.
-    const auto* board = l->kind() == JPPlacementsHolderLocation::Kind::Board ? static_cast<const JPBoard*>(l->holder->definition()) : nullptr;
-    if (p && board && !p->boardPart.empty()) partAndLinks(board, p->boardPart, p->partId, true);
-    else if (p) partAndLinks(p->partId, true);
+    if (p) partAndLinks(p->partId, true);
 }
 
 void JPlacerTableLinks::boardPlacementChosen(const JPPlacement* p) {
@@ -127,8 +99,7 @@ void JPlacerTableLinks::boardPlacementChosen(const JPPlacement* p) {
     const JPPlacementsHolderLocation* l = m_tabs.job.placements().location();
     const JPBoard* board = m_tabs.boards.placements().board();
     if (l && l->holder && board && l->holder->definition() == board) m_tabs.job.placements().selectPlacement(p->id);
-    if (board && !p->boardPart.empty()) partAndLinks(board, p->boardPart, p->partId, true);
-    else partAndLinks(p->partId, true);
+    partAndLinks(p->partId, true);
 }
 
 void JPlacerTableLinks::panelChildChosen(const JPPlacementsHolderLocation& child) {

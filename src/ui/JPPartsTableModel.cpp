@@ -7,8 +7,6 @@
 
 #include "JPLengthCell.h"
 
-#include <j/core/JStyle.h>
-
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
@@ -17,8 +15,8 @@ inline namespace jf {
 
 namespace {
 
-enum Col { kSource, kId, kStatus, kDescription, kValue, kMpn, kHeight, kDepth, kPackage, kSpeed, kBottomVision,
-           kFiducialVision, kPlacements, kFeeders, kColumns };
+enum Col { kSource, kId, kDescription, kValue, kMpn, kHeight, kDepth, kPackage, kSpeed, kBottomVision, kFiducialVision, kPlacements,
+           kFeeders, kColumns };
 
 // OpenPnP's PercentConverter.
 std::string percent(double d) {
@@ -31,30 +29,49 @@ std::string percent(double d) {
 
 JPPartsTableModel::JPPartsTableModel(JPConfiguration& config) : m_config(config) { reload(); }
 
+void JPPartsTableModel::reload() {
+    m_usedBy.clear();
+    for (const JPCatalog::Part& e : JPCatalog::parts(m_config)) m_usedBy.push_back(e.usedBy);
+}
+
+const std::vector<std::shared_ptr<JPBoard>>& JPPartsTableModel::usedBy(int row) const {
+    static const std::vector<std::shared_ptr<JPBoard>> none;
+    return row >= 0 && size_t(row) < m_usedBy.size() ? m_usedBy[size_t(row)] : none;
+}
+
 bool JPPartsTableModel::rowShown(int row) const {
-    const JPCatalog::Part* e = entry(row);
-    if (!e) return false;
     if (m_show == kShowAll) return true;
-    if (m_show == kShowLibrary) return !e->board;
-    if (m_show == kShowBoards) return e->board != nullptr;
-    return e->board && e->board->scopeName() == m_show;
+    if (m_show == kShowUsed) return !usedBy(row).empty();
+    return JPCatalog::uses(usedBy(row), m_show);
 }
 
 std::vector<std::string> JPPartsTableModel::showChoices() const {
-    std::vector<std::string> out { kShowAll, kShowLibrary, kShowBoards };
+    std::vector<std::string> out { kShowAll, kShowUsed };
     for (const auto& b : m_config.boards()) out.push_back(b->scopeName());
     return out;
 }
 
-void JPPartsTableModel::reload() { m_rows = JPCatalog::parts(m_config); }
+std::string JPPartsTableModel::cellIcon(int row, int c) const {
+    if (c != kSource) return {};
+    return usedBy(row).empty() ? "library" : "board-source";
+}
+
+std::string JPPartsTableModel::cellTooltip(int row, int c) const {
+    if (c != kSource) return {};
+    const std::string boards = JPCatalog::boardNames(usedBy(row));
+    return boards.empty() ? "In the library; no open board uses it" : "In the library; used by the open board(s) " + boards;
+}
+
+std::string JPPartsTableModel::displayText(int row, int c) const {
+    return c == kSource ? std::string() : text(row, c);   // its icon alone (its text sorts and searches)
+}
 
 int JPPartsTableModel::columnCount() const { return kColumns; }
 
 JPTableModel::Column JPPartsTableModel::column(int c) const {
     switch (c) {
-        case kId:             return { "ID", "", Kind::Text };
         case kSource:         return JPSourceColumn::column();
-        case kStatus:         return { "Status", "How it stands to the library", Kind::Text };
+        case kId:             return { "ID", "", Kind::Text };
         case kDescription:    return { "Description", "", Kind::Text };
         case kValue:          return { "Value", "Its electrical value as written (100n, 4k7); the Library page has the rest", Kind::Text };
         case kMpn:
@@ -78,52 +95,32 @@ JPTableModel::Column JPPartsTableModel::column(int c) const {
     return {};
 }
 
-int JPPartsTableModel::rowCount() const { return int(m_rows.size()); }
-
-const JPCatalog::Part* JPPartsTableModel::entry(int row) const {
-    return row >= 0 && size_t(row) < m_rows.size() ? &m_rows[size_t(row)] : nullptr;
-}
+int JPPartsTableModel::rowCount() const { return int(m_config.parts().size()); }
 
 JPPart* JPPartsTableModel::part(int row) const {
-    const JPCatalog::Part* e = entry(row);
-    return e ? e->part() : nullptr;
+    return row >= 0 && size_t(row) < m_config.parts().size() ? m_config.parts()[size_t(row)].get() : nullptr;
 }
 
 int JPPartsTableModel::rowOf(const JPPart* p) const {
-    for (size_t i = 0; i < m_rows.size(); ++i)
-        if (m_rows[i].part() == p) return int(i);
-    return -1;
-}
-
-int JPPartsTableModel::rowOf(const JPBoard* board, const std::string& boardPartKey, const JPPart* libraryPart) const {
-    for (size_t i = 0; i < m_rows.size(); ++i) {
-        const JPCatalog::Part& e = m_rows[i];
-        if (board ? e.board.get() == board && e.boardPartKey == boardPartKey : !e.board && e.part() == libraryPart) return int(i);
-    }
+    for (size_t i = 0; i < m_config.parts().size(); ++i)
+        if (m_config.parts()[i].get() == p) return int(i);
     return -1;
 }
 
 std::string JPPartsTableModel::rowKey(int row) const {
-    const JPCatalog::Part* e = entry(row);
-    return e ? JPCatalog::source(e->board) + "|" + e->name + "|" + JPCatalog::statusName(e->status) : std::string();
+    const JPPart* p = part(row);
+    return p ? p->id : std::string();
 }
 
 std::string JPPartsTableModel::text(int row, int c) const {
-    const JPCatalog::Part* e = entry(row);
-    if (!e) return {};
-    if (c == kId) return e->name;
-    if (c == kSource) return JPCatalog::source(e->board);
-    if (c == kStatus) return JPCatalog::statusName(e->status);
-    const JPPart* p = e->part();
-    if (!p) {
-        // To be chosen: what the board's files said.
-        const JPBoardPart* bp = e->boardPart();
-        if (c == kValue) return bp ? bp->field("value") : std::string();
-        if (c == kPackage) return bp ? bp->footprintName() : std::string();
-        if (c == kPlacements && bp) return std::to_string(e->board->placementsOf(bp->key).size());
-        return {};
-    }
+    const JPPart* p = part(row);
+    if (!p) return {};
     switch (c) {
+        case kSource: {
+            const std::string boards = JPCatalog::boardNames(usedBy(row));
+            return boards.empty() ? std::string("Library") : boards;
+        }
+        case kId:          return p->id;
         case kDescription: return p->name.value_or("");
         case kValue:       return p->value;
         case kMpn:
@@ -132,13 +129,7 @@ std::string JPPartsTableModel::text(int row, int c) const {
             return "";
         case kHeight:      return JPLengthCell::text(p->height, true);
         case kDepth:       return JPLengthCell::text(p->throughBoardDepth, true);
-        case kPackage: {
-            const JPPackage* k = m_config.package(p->packageId);
-            if (!k) return {};
-            // A board's own package by its name on the board.
-            const std::string prefix = e->board ? e->board->scopeName() + "/" : std::string();
-            return !prefix.empty() && k->id.rfind(prefix, 0) == 0 ? k->id.substr(prefix.size()) : k->id;
-        }
+        case kPackage:     return m_config.package(p->packageId) ? m_config.package(p->packageId)->id : std::string();
         case kSpeed:       return percent(p->speed);
         case kBottomVision: {
             const JPVisionSettings* v = m_config.visionSettings(p->bottomVisionId);
@@ -156,8 +147,6 @@ std::string JPPartsTableModel::text(int row, int c) const {
 
 double JPPartsTableModel::number(int row, int c) const {
     if (c == kPlacements) {
-        const JPCatalog::Part* e = entry(row);
-        if (e && !e->part() && e->boardPart()) return double(e->board->placementsOf(e->boardPartKey).size());
         const JPPart* p = part(row);
         return p ? m_config.placementCount(p->id) : 0;
     }
@@ -168,47 +157,15 @@ double JPPartsTableModel::number(int row, int c) const {
     return 0;
 }
 
-bool JPPartsTableModel::editable(int row, int c) const {
-    const JPCatalog::Part* e = entry(row);
-    return e && e->part() && JPCatalog::editable(e->status) && c >= kDescription && c <= kFiducialVision && c != kMpn;
+bool JPPartsTableModel::editable(int, int c) const {
+    return c >= kDescription && c <= kFiducialVision && c != kMpn;
 }
 
-std::vector<const JPPackage*> JPPartsTableModel::packageChoices(int row) const {
+std::vector<const JPPackage*> JPPartsTableModel::packageChoices() const {
     std::vector<const JPPackage*> out;
     for (const auto& k : m_config.packages()) out.push_back(k.get());
-    if (const JPCatalog::Part* e = entry(row); e && e->board && e->status == JPCatalog::Status::Own)
-        for (const JPCatalog::Package& k : JPCatalog::packages(m_config))
-            if (k.board == e->board && k.status == JPCatalog::Status::Own) out.push_back(k.package());
     std::sort(out.begin(), out.end(), [](const JPPackage* a, const JPPackage* b) { return a->id < b->id; });
     return out;
-}
-
-std::string JPPartsTableModel::cellIcon(int row, int c) const {
-    const JPCatalog::Part* e = entry(row);
-    return e && c == kSource ? (e->board ? "board-source" : "library") : std::string();
-}
-
-const uint8_t* JPPartsTableModel::cellTint(int row, int c) const {
-    const JPCatalog::Part* e = entry(row);
-    if (!e || !e->board || c != kStatus) return nullptr;
-    switch (e->status) {
-        case JPCatalog::Status::Matched:        return Colors::Success;
-        case JPCatalog::Status::LibraryChanged: return Colors::Warning;
-        case JPCatalog::Status::ToBeChosen:     return Colors::Danger;
-        default:                                return nullptr;
-    }
-}
-
-std::string JPPartsTableModel::displayText(int row, int c) const {
-    return c == kSource ? std::string() : text(row, c);   // its icon alone (its text sorts and searches)
-}
-
-std::string JPPartsTableModel::cellTooltip(int row, int c) const {
-    const JPCatalog::Part* e = entry(row);
-    if (!e) return {};
-    if (c == kStatus) return JPCatalog::statusTip(e->status);
-    if (c == kSource) return e->board ? "The open board " + e->board->scopeName() + "'s" : "The library's";
-    return {};
 }
 
 std::vector<const JPVisionSettings*> JPPartsTableModel::visionChoices(JPVisionSettings::Kind kind) const {
@@ -220,10 +177,10 @@ std::vector<const JPVisionSettings*> JPPartsTableModel::visionChoices(JPVisionSe
     return out;
 }
 
-std::vector<std::string> JPPartsTableModel::choices(int row, int c) const {
+std::vector<std::string> JPPartsTableModel::choices(int, int c) const {
     std::vector<std::string> out;
     if (c == kPackage)
-        for (const JPPackage* k : packageChoices(row)) out.push_back(k->id);
+        for (const JPPackage* k : packageChoices()) out.push_back(k->id);
     if (c == kBottomVision || c == kFiducialVision)
         for (const JPVisionSettings* v :
              visionChoices(c == kBottomVision ? JPVisionSettings::Kind::Bottom : JPVisionSettings::Kind::Fiducial))
@@ -233,7 +190,7 @@ std::vector<std::string> JPPartsTableModel::choices(int row, int c) const {
 
 bool JPPartsTableModel::setText(int row, int c, const std::string& text, std::string& error) {
     JPPart* p = part(row);
-    if (!p || !editable(row, c)) return false;
+    if (!p) return false;
     switch (c) {
         case kDescription:
             p->name = text;
@@ -265,15 +222,15 @@ bool JPPartsTableModel::setText(int row, int c, const std::string& text, std::st
         }
         default: return false;
     }
-    if (onChanged) onChanged(entry(row)->board.get());
+    if (onChanged) onChanged();
     return true;
 }
 
 void JPPartsTableModel::setChoice(int row, int c, int index) {
     JPPart* p = part(row);
-    if (!p || index < 0 || !editable(row, c)) return;
+    if (!p || index < 0) return;
     if (c == kPackage) {
-        const auto ks = packageChoices(row);
+        const auto ks = packageChoices();
         if (size_t(index) < ks.size()) p->packageId = ks[size_t(index)]->id;
     } else if (c == kBottomVision || c == kFiducialVision) {
         const auto vs = visionChoices(c == kBottomVision ? JPVisionSettings::Kind::Bottom : JPVisionSettings::Kind::Fiducial);
@@ -282,7 +239,7 @@ void JPPartsTableModel::setChoice(int row, int c, int index) {
     } else {
         return;
     }
-    if (onChanged) onChanged(entry(row)->board.get());
+    if (onChanged) onChanged();
 }
 
 } // inline namespace jf

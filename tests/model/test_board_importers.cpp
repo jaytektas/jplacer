@@ -16,6 +16,7 @@
 #include "model/JPLabcenterProteusImporter.h"
 #include "model/JPReferenceCsvImporter.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <filesystem>
@@ -70,9 +71,9 @@ int main() {
     }
 
     // KiCad: a bottom part's X turned over and its rotation 180 less it;
-    // parts "Package-Value", the board's own (DESIGN.md, Board part): the
-    // library's where it has one, else made on the board when asked, else
-    // kept unmatched; the library itself never added to.
+    // parts "Package-Value" (DESIGN.md, Board part): the library's where it
+    // has one, else made for the library when asked (put there as the import
+    // is taken, not by reading), else kept unmatched.
     {
         JPConfiguration config(g_dir.string());
         const std::string top = write("t.pos", "### Module positions ###\n## Unit = mm, Angle = deg.\n"
@@ -91,12 +92,14 @@ int main() {
         assert(b.placements[2].id == "U1" && b.placements[2].side == JPSide::Bottom);
         assert(near(b.placements[2].location.x(), 30.5) && near(b.placements[2].location.rotation(), 135));
         assert(b.placements[3].location.rotation() == 0.0 && !std::signbit(b.placements[3].location.rotation()));
-        // Made: the board's own SOIC-8-LM358, once, with a package of its own; nothing in the library.
+        // Made: SOIC-8-LM358 for the library, once, with a package made too; the library not added to yet.
         b = importWith(k, { top, bottom }, { true, true, false }, config);
         assert(b.placements[2].partId == "SOIC-8-LM358" && b.placements[3].boardPart == b.placements[2].boardPart);
         const JPBoardPart* soic = b.part(b.placements[2].boardPart);
-        assert(soic->state == JPBoardPart::State::Local && soic->localPart->packageId == "SOIC-8"
-               && soic->localPackage && soic->localPackage->id == "SOIC-8");
+        assert(soic->state == JPBoardPart::State::Matched && soic->libraryPartId == "SOIC-8-LM358");
+        assert(b.madeParts.size() == 3 && b.madePackages.size() == 3);
+        const auto madeSoic = std::find_if(b.madeParts.begin(), b.madeParts.end(), [](const auto& p) { return p->id == "SOIC-8-LM358"; });
+        assert(madeSoic != b.madeParts.end() && (*madeSoic)->packageId == "SOIC-8");
         assert(config.parts().empty() && config.packages().empty());
         // One the library has: matched to it, the library as it was.
         {
@@ -144,8 +147,8 @@ int main() {
         assert(b.placements[1].type == JPPlacement::Type::Fiducial && b.placements[1].partId == "FID1MM-");
         assert(b.placements[2].id == "R1, R2" && b.placements[2].side == JPSide::Bottom);
         assert(near(b.placements[2].location.rotation(), 170));
-        // The height given to the board's own part made for it; the library left alone.
-        assert(near(b.part(b.placements[0].boardPart)->localPart->height.value(), 0.508) && config.parts().empty());
+        // The height given to the part made for it; the library not added to yet.
+        assert(!b.madeParts.empty() && near(b.madeParts.front()->height.value(), 0.508) && config.parts().empty());
         // Not made: kept, their parts unmatched (nothing the file says is thrown away).
         JPConfiguration empty(g_dir.string());
         b = importWith(r, { csv }, { false, false }, empty);
@@ -256,8 +259,8 @@ int main() {
         JPBoard b = importWith(e, { brd }, initial(e), config);
         assert(b.placements.size() == 2 && b.placements[0].partId == "R0603-10k" && b.placements[1].side == JPSide::Bottom);
         assert(near(b.placements[1].location.rotation(), 90));
-        // The footprint the board's library draws, on the board's own package (the library not added to).
-        const JPPackage* k = b.part(b.placements[0].boardPart)->localPackage.get();
+        // The footprint the board's library draws, on the package made for the library (not added to yet).
+        const JPPackage* k = b.madePackages.empty() ? nullptr : b.madePackages.front().get();
         assert(config.packages().empty() && k && k->id == "R0603");
         assert(k->footprint.pads.size() == 2 && near(k->footprint.pads[1].rotation, 90) && near(k->footprint.pads[1].roundness, 20));
         assert(b.solderPastePads.size() == 4 && *b.solderPastePads[0].name == "R1-1");

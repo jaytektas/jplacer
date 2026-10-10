@@ -66,10 +66,10 @@ reference; this document says where jplacer deliberately differs from it.
   manufacturer, description, supplier PN, any extra column by its own name),
   and its **resolution**:
   - *unmatched*: only what the files said;
-  - *matched*: a library part's id, the chosen alternates, and a **copy** of
-    that part's package, footprint and settings as they were, with a
-    **fingerprint** of the copy;
-  - *local*: defined in this board only, on purpose.
+  - *matched*: a library part's id (and uuid).
+  Parts and packages live in the library only (decided 2026-10-11): a board
+  keeps no part, package or copy of its own; an import's Create Missing
+  Parts adds to the library as the import is taken.
 - **Placement**: one designator on a board: position, rotation, side, type
   (place / fiducial), do-not-place, the board part it belongs to, and
   **verified**: whether its position and rotation have been checked, and
@@ -98,18 +98,16 @@ reference; this document says where jplacer deliberately differs from it.
 ```
 Job (.jpjob)                                   Library (library.db)
   Board copies ── Placement *──1 BoardPart ─matched─► LibraryPart *──1 Package
-                                   │  (id + copy +       │  identifiers, AKAs      └─ Footprints
-                                   │   fingerprint)      │  offers, packagings
-                                   ├─ fields as imported │  StockLot *── ledger
-                                   └─ local data         ▲
+                                   │  (id, uuid)         │  identifiers, AKAs      └─ Footprints
+                                   │                     │  offers, packagings
+                                   └─ fields as imported │  StockLot *── ledger
+                                                         ▲
                                                          │ carries a lot of
                                                     Feeder (cell json)
 ```
 
-A job runs from its copies, never from the live library: a library edit
-cannot change a job behind the user's back. Everything a job screen shows is
-reached from the job: placement → board part → its copy (and, matched, the
-library part it came from).
+A job places with the library's parts as they are: placement → board part →
+library part → its package.
 
 ### Import
 
@@ -282,7 +280,7 @@ placements left").
 
 ### Settings cascade
 
-Machine defaults → Package → Library part → board part copy. Every
+Machine defaults → Package → Library part. Every
 inheritable field shows whether it is inherited or overridden, and from
 where; clearing an override returns to the inherited value. (OpenPnP's
 `PartSettingsHolder` does this for vision only and hides which level is in
@@ -293,7 +291,7 @@ effect.)
 | What | Where | Why |
 |---|---|---|
 | Library: parts, identifiers, AKAs, packages, footprints, packagings, offers, stock lots and ledger, mapping profiles | `library.db`, SQLite through `JDatabase`; one per user | Thousands of rows and a growing ledger, searched and filtered, never loaded wholesale |
-| Board | `*.jpboard`, JSON | Self-contained (board parts, copies, provenance); diffable; drops into any job |
+| Board | `*.jpboard`, JSON | Its placements, board parts (pointing at library parts), provenance; diffable; drops into any job |
 | Job | `*.jpjob`, JSON | Carries copies of its boards and panels (each with its source file noted) and the plan; opens and runs anywhere |
 | Run history | `runs.db`, SQLite | Append-only progress; resume after a crash; parts used, for the ledger |
 | Cells | `cells/<name>.json`; lines in `lines.json` | Hardware configuration, calibration and feeders (each carrying a stock lot), one file per machine |
@@ -309,9 +307,7 @@ A board file, in outline (a job carries boards in this shape):
     { "key": "bp-3", "fields": { "value": "100n", "footprint": "C_0603_1608Metric",
                                  "manufacturer": "Samsung", "mpn": "CL10B104KB8NNNC",
                                  "supplierPn": "C1591", "extra": { "Voltage": "50V" } },
-      "resolution": { "state": "matched", "libraryId": "5f0c…", "alternates": [ "a91e…" ],
-                      "copy": { "part": { }, "package": { }, "footprint": { } },
-                      "fingerprint": "sha256:…", "matchedBy": "mpn (BOM)" } }
+      "resolution": { "state": "matched", "libraryId": "CL10B104KB8NNNC", "libraryUuid": "5f0c…" } }
   ],
   "placements": [
     { "designator": "C12", "x": 23.41, "y": 11.05, "rotation": 90, "side": "top",

@@ -419,17 +419,7 @@ int JPConfiguration::placementCount(const std::string& partId) const {
 }
 
 JPPart* JPConfiguration::part(const std::string& id) const {
-    const auto it = m_partsById.find(upper(id));
-    if (it != m_partsById.end()) return it->second.get();
-    // Not the library's: a board's own part, by its (board-scoped) id.
-    const std::string k = upper(id);
-    for (const auto& b : m_boards)
-        for (const JPBoardPart& bp : b->parts()) {
-            if (bp.state == JPBoardPart::State::Local && bp.localPart && upper(bp.localPart->id) == k) return bp.localPart.get();
-            // A library part this library lacks (a board from another's): the board's copy of it.
-            if (bp.state == JPBoardPart::State::Matched && bp.copyPart && upper(bp.copyPart->id) == k) return bp.copyPart.get();
-        }
-    return nullptr;
+    return libraryPart(id);
 }
 
 JPPart* JPConfiguration::libraryPart(const std::string& id) const {
@@ -485,19 +475,6 @@ JPPart* JPConfiguration::libraryPartFor(const JPBoardPart& bp) const {
     return nullptr;
 }
 
-void JPConfiguration::takeCopy(JPBoardPart& bp) const {
-    const JPPart* p = libraryPartFor(bp);
-    if (!p) return;
-    bp.libraryPartId = p->id;
-    bp.libraryUuid = p->uuid;
-    bp.copyPart = std::make_shared<JPPart>(*p);
-    const JPPackage* k = libraryPackage(p->packageId);
-    bp.copyPackage = k ? std::make_shared<JPPackage>(*k) : nullptr;
-    const JPLibraryFootprint* f = footprintFor(bp, *p);
-    bp.copyFootprint = f ? std::make_shared<JPLibraryFootprint>(*f) : nullptr;
-    bp.fingerprint = JPLibraryJson::fingerprint(*p, k, f);
-}
-
 const JPLibraryFootprint* JPConfiguration::footprintFor(const JPBoardPart& bp, const JPPart& p) const {
     // The one its CAD footprint names, when it is of the part's package; else the package's first.
     const std::string cad = !bp.field("footprint").empty() ? bp.field("footprint") : bp.field("package");
@@ -506,42 +483,70 @@ const JPLibraryFootprint* JPConfiguration::footprintFor(const JPBoardPart& bp, c
     return of.empty() ? nullptr : of.front();
 }
 
-bool JPConfiguration::differs(const JPBoardPart& bp) const {
-    if (bp.state != JPBoardPart::State::Matched || !bp.copyPart) return false;
-    const JPPart* p = libraryPartFor(bp);
-    return !p || JPLibraryJson::fingerprint(*p, libraryPackage(p->packageId), footprintFor(bp, *p)) != bp.fingerprint;
+int JPConfiguration::takeMade(const JPBoard& imported, int& packagesAdded) {
+    packagesAdded = 0;
+    for (const auto& k : imported.madePackages)
+        if (!libraryPackage(k->id)) {
+            addPackage(std::make_shared<JPPackage>(*k));
+            ++packagesAdded;
+        }
+    int parts = 0;
+    for (const auto& p : imported.madeParts)
+        if (!libraryPart(p->id)) {
+            addPart(std::make_shared<JPPart>(*p));
+            ++parts;
+        }
+    return parts;
 }
 
-void JPConfiguration::giveCopy(const JPBoardPart& bp) {
-    if (!bp.copyPart) return;
-    JPPart* p = libraryPartFor(bp);
-    if (!p) {
-        // Not in this library: the copy joins it, as it was.
-        auto made = std::make_shared<JPPart>(*bp.copyPart);
-        if (bp.copyPackage && !libraryPackage(bp.copyPackage->id)) addPackage(std::make_shared<JPPackage>(*bp.copyPackage));
-        if (bp.copyFootprint && !footprint(bp.copyFootprint->uuid)) addFootprint(std::make_shared<JPLibraryFootprint>(*bp.copyFootprint));
-        addPart(made);
-        return;
+int JPConfiguration::adoptFormer(JPBoard& board, int& packagesAdded) {
+    int partsAdded = 0;
+    packagesAdded = 0;
+    const std::string prefix = board.scopeName() + "/";
+    auto unscoped = [&prefix](const std::string& id) { return id.rfind(prefix, 0) == 0 ? id.substr(prefix.size()) : id; };
+    bool changed = false;
+    board.forEveryPart([&](JPBoardPart& bp) {
+        if (!bp.former) return;
+        JPBoardPart::Former f = std::move(*bp.former);
+        bp.former.reset();
+        changed = true;
+        if (!f.part) return;
+        // A copy of a part the library has: nothing to bring.
+        if (!f.own && libraryPartFor(bp)) return;
+        auto part = std::make_shared<JPPart>(*f.part);
+        part->id = f.own ? unscoped(part->id) : part->id;
+        if (f.package) {
+            auto k = std::make_shared<JPPackage>(*f.package);
+            k->id = f.own ? unscoped(k->id) : k->id;
+            part->packageId = k->id;
+            if (!libraryPackage(k->id)) {
+                k->uuid.clear();
+                addPackage(std::move(k));
+                ++packagesAdded;
+            }
+        } else if (f.own) {
+            part->packageId = unscoped(part->packageId);
+        }
+        if (f.footprint && !footprint(f.footprint->uuid)) addFootprint(std::make_shared<JPLibraryFootprint>(*f.footprint));
+        // The library's part of that name where it has one (the same part, by OpenPnP's naming); else this one.
+        if (const JPPart* there = libraryPart(part->id)) {
+            bp.libraryPartId = there->id;
+            bp.libraryUuid = there->uuid;
+        } else {
+            if (f.own) part->uuid.clear();
+            const std::string id = part->id;
+            addPart(std::move(part));
+            ++partsAdded;
+            bp.libraryPartId = id;
+            bp.libraryUuid = libraryPart(id)->uuid;
+        }
+        bp.state = JPBoardPart::State::Matched;
+    });
+    if (changed) {
+        board.syncParts();
+        board.dirty = true;   // saved with its parts as the library's, when it is next saved
     }
-    // Its placing fields the copy's; what the library knows it by (id, uuid, names) its own.
-    JPPart updated = *bp.copyPart;
-    updated.id = p->id;
-    updated.uuid = p->uuid;
-    updated.identifiers = p->identifiers;
-    updated.akas = p->akas;
-    *p = updated;
-    if (bp.copyPackage)
-        if (JPPackage* k = libraryPackage(bp.copyPackage->id)) {
-            const std::string uuid = k->uuid;
-            *k = *bp.copyPackage;
-            k->uuid = uuid;
-        }
-    // Its footprint's land pattern and rotation (its names the library's).
-    if (bp.copyFootprint)
-        if (JPLibraryFootprint* f = footprint(bp.copyFootprint->uuid)) {
-            f->geometry = bp.copyFootprint->geometry;
-            f->zeroRotationDeg = bp.copyFootprint->zeroRotationDeg;
-        }
+    return partsAdded;
 }
 
 std::string JPConfiguration::manufacturerName(const std::string& name) const {
@@ -674,16 +679,7 @@ void JPConfiguration::removePart(const std::string& id) {
 }
 
 JPPackage* JPConfiguration::package(const std::string& id) const {
-    const auto it = m_packagesById.find(upper(id));
-    if (it != m_packagesById.end()) return it->second.get();
-    // A board's own package, by its (board-scoped) id.
-    const std::string k = upper(id);
-    for (const auto& b : m_boards)
-        for (const JPBoardPart& bp : b->parts()) {
-            if (bp.localPackage && upper(bp.localPackage->id) == k) return bp.localPackage.get();
-            if (bp.copyPackage && upper(bp.copyPackage->id) == k) return bp.copyPackage.get();
-        }
-    return nullptr;
+    return libraryPackage(id);
 }
 
 void JPConfiguration::addPackage(std::shared_ptr<JPPackage> p) {
@@ -746,11 +742,19 @@ std::shared_ptr<JPBoard> JPConfiguration::board(const std::string& path, std::st
         b = std::make_shared<JPBoard>(JPBoard::fromXml(root));
         // OpenPnP's placements name library parts by id: each becomes a board part.
         b->partsFromPlacements([this](const std::string& id) { return libraryPart(id) != nullptr; });
-        for (JPBoardPart& bp : b->parts())
-            if (bp.state == JPBoardPart::State::Matched) takeCopy(bp);
     }
     b->file = file;
     b->dirty = false;
+    // A board saved before the library was the only place of parts: what it kept of its own (and copies of
+    // parts this library lacks) put in the library, the board then pointing at them.
+    int packages = 0;
+    if (const int parts = adoptFormer(*b, packages); parts > 0 || packages > 0 || b->dirty) {
+        std::string why;
+        if ((parts > 0 || packages > 0) && !save(why))
+            JLOGC(JPlacerLog::kApp, JLogLevel::Warn) << "the library was not saved: " << why;
+        JLOGC(JPlacerLog::kApp, JLogLevel::Info) << "board " << b->scopeName() << ": " << parts << " part(s) and " << packages
+                                                 << " package(s) it kept itself put in the library; it now points at the library's";
+    }
     m_boards.push_back(b);
     return b;
 }
@@ -862,9 +866,6 @@ bool JPConfiguration::saveBoard(JPBoard& b, std::string& error, std::string* mov
                 }
     }
     b.dropUnusedParts();   // a part no placement names any more is not kept
-    // Every library part it uses carried in it (one matched without its copy yet: the library's now).
-    for (JPBoardPart& bp : b.parts())
-        if (bp.state == JPBoardPart::State::Matched && !bp.copyPart) takeCopy(bp);
     if (!b.toJson().dumpToFile(b.file)) {
         error = "Unable to write " + b.file;
         return false;

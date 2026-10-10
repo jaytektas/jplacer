@@ -282,7 +282,6 @@ JPBoardRevision JPBoardUpgrade::revision(const std::string& label, const std::st
             q.fields = np.fields;
         } else {
             q = np;
-            m_board.scopeOwn(q);
             while (taken.count("bp-" + std::to_string(next))) ++next;
             q.key = "bp-" + std::to_string(next);
             taken.insert(q.key);

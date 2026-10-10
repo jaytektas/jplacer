@@ -64,23 +64,23 @@ public:
     // Writes the parts, packages, vision settings and feeders.
     bool save(std::string& error) const;
 
-    // The library's parts (parts.xml): every job draws from them. A board's own parts are not among them.
+    // The library's parts: the only parts there are; a board's parts point at them.
     const std::vector<std::shared_ptr<JPPart>>& parts() const { return m_parts; }
-    // A part to place with, by id: the library's, else a loaded board's own (JPBoardPart, Local).
+    // A part by id (the library's: there are no others).
     JPPart* part(const std::string& id) const;
     // The library's part of that id only, or null.
     JPPart* libraryPart(const std::string& id) const;
     // The library's part a matched board part is: by its id, else (renamed since) by its uuid; null when the
-    // library has neither (a board from another machine's library).
+    // library has neither.
     JPPart* libraryPartFor(const JPBoardPart& bp) const;
-    // A matched board part's copy taken from the library's part (and package) as it is now, with its
-    // fingerprint and uuid. Nothing when the library has no such part.
-    void takeCopy(JPBoardPart& bp) const;
-    // Whether a matched board part's copy is not the library's part as it is now (changed since, or not in
-    // this library at all): to be reviewed.
-    bool differs(const JPBoardPart& bp) const;
-    // The library's part made the board's copy (its placing fields; its names, uuid, id kept).
-    void giveCopy(const JPBoardPart& bp);
+    // What a board saved before kept of its parts itself (JPBoardPart::Former) put in the library: its own
+    // parts and packages (by their names without the board's), and copies of parts this library lacks; a part
+    // the library has by that name taken instead. The board's parts then point at them, the board marked
+    // changed. How many parts (and, in `packagesAdded`, packages) it added.
+    int adoptFormer(JPBoard& board, int& packagesAdded);
+    // An import taken: the parts and packages it made (JPBoard::madeParts, madePackages) the library's, each one
+    // it has not got by then. How many parts (and, in `packagesAdded`, packages).
+    int takeMade(const JPBoard& imported, int& packagesAdded);
     // The library footprint a board part's part is placed with: the one its CAD footprint names, of the part's
     // package, else that package's first; null when the package has none.
     const JPLibraryFootprint* footprintFor(const JPBoardPart& bp, const JPPart& part) const;
@@ -89,7 +89,7 @@ public:
     void removePart(const std::string& id);
 
     const std::vector<std::shared_ptr<JPPackage>>& packages() const { return m_packages; }
-    // A package by id: the library's, else a loaded board's own.
+    // A package by id (the library's: there are no others).
     JPPackage* package(const std::string& id) const;
     // The library's package of that id only, or null.
     JPPackage* libraryPackage(const std::string& id) const;

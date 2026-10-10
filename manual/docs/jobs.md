@@ -9,14 +9,14 @@ OpenPnP.
   placements are enabled, whether each board's fiducials are checked, and how each placement's errors
   are handled.
 - A **board** (`.jpboard`; OpenPnP's `.board.xml` is read) holds its placements (designator, side,
-  location, rotation, part, type, comments, error handling, enabled), its own parts list (see
-  [Boards](boards.md#the-boards-parts)), its dimensions and outline, and its solder paste pads. A board
+  location, rotation, part, type, comments, error handling, enabled), its parts list, each pointing
+  at a library part (see [Boards](boards.md#the-boards-parts)), its dimensions and outline, and its solder paste pads. A board
   can be used many times, in one job or several; each use shares the board's file.
 - A **panel** (`.panel.xml`) holds boards and other panels, each where it lies on the panel, the
   panel's own fiducials, and *pseudo-placements*: a placement of one of its boards (a fiducial, say)
   used to line up the whole panel.
-- The library's **parts** and **packages** are kept in `library.db` (see [Parts](parts.md); a board's
-  own parts, and a copy of each library part it uses, are kept in the board), in jplacer's configuration
+- The library's **parts** and **packages**, the only ones there are, are kept in `library.db` (see
+  [Parts](parts.md)), in jplacer's configuration
   folder (`~/.config/jplacer`). The boards and panels open are the job's (see [Boards](boards.md)). A part has an id, a name, a height (and the depth it reaches through the
   board), a package, a speed and how many times a pick is tried again. A package has an id, a
   description, a tape specification, vacuum levels, a footprint (its pads and body), the nozzle tips
@@ -146,7 +146,7 @@ gives the **Part**, how many placements are **Left to place** (enabled, on the s
 yet), the **Attrition** allowed (how many more, at the part's own share, or the share its ledger measured,
 or *not known*), how many are **In stock** in its open lots, how many it is **Short**, its **Lots** (each
 with where it is kept and what it holds) and, when short, where it is bought (**Buy from**: the part's
-offers). A part that is not in the library (the board's own, or not chosen yet) keeps no stock, and says so.
+offers). A part not chosen yet keeps no stock, and says so.
 The line at the top counts the placements, the parts and those short.
 
 Stock never stops a run: the feeders hold what is placed, and a part can be loaded as the run reaches it.

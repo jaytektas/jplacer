@@ -12,8 +12,8 @@ inline namespace jf {
 
 // An OpenPnP XML element as JSON and back, losing nothing: {"tag", "attrs"
 // (in the element's order, as pairs), "text", "children"}. For what a JSON
-// file of jplacer's carries in OpenPnP's shape (a board's own part and
-// package, its profile), read and written by the same code as the XML.
+// file of jplacer's carries in OpenPnP's shape (a part or package of the
+// library's, a profile), read and written by the same code as the XML.
 class JPXmlJson {
 public:
     static JJson from(const JPXmlNode& n);

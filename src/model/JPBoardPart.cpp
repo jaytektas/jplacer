@@ -11,7 +11,6 @@ inline namespace jf {
 
 std::string JPBoardPart::partId() const {
     if (state == State::Matched) return libraryPartId;
-    if (state == State::Local && localPart) return localPart->id;
     return field("part");
 }
 
@@ -33,32 +32,21 @@ bool JPBoardPart::samePart(const JPBoardPart& other) const {
 }
 
 void JPBoardPart::takeChoice(const JPBoardPart& from) {
-    // Copies of its own: a part or package changed in one revision is not changed in another.
-    auto own = [](const auto& p) { return p ? std::make_shared<std::decay_t<decltype(*p)>>(*p) : nullptr; };
     state = from.state;
     libraryPartId = from.libraryPartId;
     libraryUuid = from.libraryUuid;
-    copyPart = own(from.copyPart);
-    copyPackage = own(from.copyPackage);
-    copyFootprint = own(from.copyFootprint);
-    fingerprint = from.fingerprint;
-    localPart = own(from.localPart);
-    localPackage = own(from.localPackage);
 }
 
 const char* JPBoardPart::stateName(State s) {
     switch (s) {
         case State::Matched: return "matched";
-        case State::Local:   return "local";
         case State::Unmatched: break;
     }
     return "unmatched";
 }
 
 JPBoardPart::State JPBoardPart::stateFrom(const std::string& s) {
-    if (s == "matched") return State::Matched;
-    if (s == "local") return State::Local;
-    return State::Unmatched;
+    return s == "matched" ? State::Matched : State::Unmatched;   // "local" (a board's own, before): see fromJson
 }
 
 JJson JPBoardPart::toJson() const {
@@ -72,20 +60,6 @@ JJson JPBoardPart::toJson() const {
     if (state == State::Matched) {
         r["libraryId"] = libraryPartId;
         if (!libraryUuid.empty()) r["libraryUuid"] = libraryUuid;
-        if (copyPart) {
-            JJson copy = JJson::object();
-            copy["part"] = JPLibraryJson::part(*copyPart);
-            if (copyPackage) copy["package"] = JPLibraryJson::package(*copyPackage);
-            if (copyFootprint) copy["footprint"] = JPLibraryJson::footprint(*copyFootprint);
-            r["copy"] = copy;
-            r["fingerprint"] = fingerprint;
-        }
-    }
-    if (state == State::Local) {
-        // As the library keeps them (JPLibraryJson): all of a part (its value, identifiers, packaging), not only
-        // OpenPnP's.
-        if (localPart) r["part"] = JPLibraryJson::part(*localPart);
-        if (localPackage) r["package"] = JPLibraryJson::package(*localPackage);
     }
     j["resolution"] = r;
     return j;
@@ -98,30 +72,37 @@ JPBoardPart JPBoardPart::fromJson(const JJson& j) {
         for (const auto& [k, v] : j["fields"].obj())
             if (v.isString()) p.fields[k] = v.str();
     const JJson& r = j["resolution"];
-    p.state = stateFrom(r["state"].isString() ? r["state"].str() : std::string());
+    const std::string state = r["state"].isString() ? r["state"].str() : std::string();
+    p.state = stateFrom(state);
     if (p.state == State::Matched) {
         if (r["libraryId"].isString()) p.libraryPartId = r["libraryId"].str();
         if (r["libraryUuid"].isString()) p.libraryUuid = r["libraryUuid"].str();
+        // A board saved before: its copy of the library's, for a library without the part.
         if (r["copy"]["part"].isObject()) {
-            p.copyPart = std::make_shared<JPPart>(JPLibraryJson::part(r["copy"]["part"]));
-            if (r["copy"]["package"].isObject()) p.copyPackage = std::make_shared<JPPackage>(JPLibraryJson::package(r["copy"]["package"]));
+            Former f;
+            f.part = std::make_shared<JPPart>(JPLibraryJson::part(r["copy"]["part"]));
+            if (r["copy"]["package"].isObject()) f.package = std::make_shared<JPPackage>(JPLibraryJson::package(r["copy"]["package"]));
             if (r["copy"]["footprint"].isObject())
-                p.copyFootprint = std::make_shared<JPLibraryFootprint>(JPLibraryJson::footprint(r["copy"]["footprint"]));
-            if (r["fingerprint"].isString()) p.fingerprint = r["fingerprint"].str();
+                f.footprint = std::make_shared<JPLibraryFootprint>(JPLibraryJson::footprint(r["copy"]["footprint"]));
+            p.former = std::move(f);
         }
     }
-    if (p.state == State::Local) {
-        // OpenPnP's part and package as XML in JSON (a board saved before: {"tag": …}), else the library's form.
+    if (state == "local") {
+        // A board saved before: its own part and package (OpenPnP's as XML in JSON, {"tag": …}, else the
+        // library's form), to be the library's; to be chosen until they are.
         auto openpnp = [](const JJson& o) { return o["tag"].isString(); };
+        Former f;
+        f.own = true;
         if (r["part"].isObject())
-            p.localPart = std::make_shared<JPPart>(openpnp(r["part"]) ? JPPart::fromXml(JPXmlJson::element(r["part"]))
-                                                                      : JPLibraryJson::part(r["part"]));
+            f.part = std::make_shared<JPPart>(openpnp(r["part"]) ? JPPart::fromXml(JPXmlJson::element(r["part"]))
+                                                                 : JPLibraryJson::part(r["part"]));
         if (r["package"].isObject())
-            p.localPackage = std::make_shared<JPPackage>(openpnp(r["package"]) ? JPPackage::fromXml(JPXmlJson::element(r["package"]))
-                                                                               : JPLibraryJson::package(r["package"]));
-        if (!p.localPart) p.state = State::Unmatched;   // a local part with nothing of its own is not one
-        // One made before a board's own part took its value: the value its files wrote.
-        else if (p.localPart->value.empty()) p.localPart->value = p.field("value");
+            f.package = std::make_shared<JPPackage>(openpnp(r["package"]) ? JPPackage::fromXml(JPXmlJson::element(r["package"]))
+                                                                          : JPLibraryJson::package(r["package"]));
+        if (f.part) {
+            if (f.part->value.empty()) f.part->value = p.field("value");   // made before it took its value
+            p.former = std::move(f);
+        }
     }
     return p;
 }

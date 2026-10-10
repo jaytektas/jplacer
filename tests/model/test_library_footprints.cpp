@@ -76,7 +76,7 @@ int main() {
         assert(f && f->zeroRotationDeg == 90 && f->source == "R_0603.kicad_mod" && f->geometry.pads.size() == 1
                && f->geometry.pads[0].mark && std::abs(f->geometry.pads[0].x + 0.8) < 1e-9);
 
-        // A board's part of that footprint: its copy carries the footprint the CAD name names.
+        // A board's part of that footprint: placed with the footprint its CAD name names.
         auto r = std::make_shared<JPPart>();
         r->id = "R0603-10k";
         r->packageId = "R0603";
@@ -85,21 +85,12 @@ int main() {
         bp.state = JPBoardPart::State::Matched;
         bp.libraryPartId = "R0603-10k";
         bp.fields["footprint"] = "RESC1608X55N";
-        c.takeCopy(bp);
-        assert(bp.copyFootprint && bp.copyFootprint->name == "RESC1608X55N" && !c.differs(bp));
-        // A CAD name learned is not a change; a pad moved is.
-        c.footprintNamed("RESC1608X55N")->cadNames.push_back("R0603_IPC");
-        assert(!c.differs(bp));
-        c.footprintNamed("RESC1608X55N")->geometry.pads[0].x = -0.85;
-        assert(c.differs(bp));
-        // Through the board file and back, the footprint with it.
-        const JPBoardPart back = JPBoardPart::fromJson(JJson::parse(bp.toJson().dump()));
-        assert(back.copyFootprint && back.copyFootprint->zeroRotationDeg == 90 && back.copyFootprint->geometry.pads.size() == 1);
+        const JPLibraryFootprint* named = c.footprintFor(bp, *r);
+        assert(named && named->name == "RESC1608X55N" && named->zeroRotationDeg == 90);
         // A footprint named by no CAD name of the board: the package's first.
         JPBoardPart other = bp;
         other.fields["footprint"] = "something else";
-        c.takeCopy(other);
-        assert(other.copyFootprint && other.copyFootprint->name == "R0603");
+        assert(c.footprintFor(other, *r) && c.footprintFor(other, *r)->name == "R0603");
     }
     fs::remove_all(dir);
     // In another unit, the same size.

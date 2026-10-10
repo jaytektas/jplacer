@@ -23,8 +23,8 @@
 inline namespace jf {
 
 // A board, as OpenPnP's, with its own parts list (DESIGN.md, Board): each
-// placement names one of the board's parts, which is a library part, the
-// board's own, or not yet either. jplacer keeps a board in a JSON file
+// placement names one of the board's parts, which is a library part or not
+// chosen yet (parts and packages are the library's only). jplacer keeps a board in a JSON file
 // (kExtension) that carries all of it; an OpenPnP board file is read (its
 // placements' part ids become its board parts) and never written over.
 class JPBoard : public JPPlacementsHolder {
@@ -43,6 +43,11 @@ public:
     // The files it was imported from, each as kept (JPImportSource::provenance): what they said, every row,
     // and how their columns were read. Added to by each import.
     std::vector<JJson> provenance;
+    // An import's (the board it read, before it is taken): the library parts and packages it made for the
+    // parts the library lacks (Create Missing Parts), put in the library as the import is taken
+    // (JPConfiguration::takeMade); never kept in a board's file.
+    std::vector<std::shared_ptr<JPPart>>    madeParts;
+    std::vector<std::shared_ptr<JPPackage>> madePackages;
 
     // The board's parts. One list, the definition's: its instances (a job's boards) share it.
     std::vector<JPBoardPart>&       parts() { return *m_parts; }
@@ -56,14 +61,11 @@ public:
     // A parts list of its own (a copy of the one it shares): for a board copied to be a board of its own.
     void ownParts() { m_parts = std::make_shared<std::vector<JPBoardPart>>(*m_parts); }
     // Another board's parts brought into this one (an import merged into it): one this board already has
-    // (the same part named) kept as it is, with its choice; the rest added, a board's own part's id scoped
-    // to this board (scopeName()/id). Each of `from`'s keys to this board's, for its placements.
+    // (the same part named) kept as it is, with its choice (one not chosen yet taking the import's); the rest
+    // added. Each of `from`'s keys to this board's, for its placements.
     std::map<std::string, std::string> takeParts(const JPBoard& from);
-    // What scopes this board's own parts' ids: its file's name without its extension, else its name.
+    // Its name as a short word: its file's name without its extension, else its name.
     std::string scopeName() const;
-    // A board's own part from elsewhere (an import) made this board's: its part and package copies of its own,
-    // their ids scoped to this board.
-    void scopeOwn(JPBoardPart& p) const;
     // A placement's part chosen by hand, a library part: its board part matched to it when the placement is
     // its only one, else (the others keep theirs) a board part of its own, the same fields, matched to it;
     // what the files said kept either way. The key the placement is to name (the caller sets it, as an edit).
@@ -71,9 +73,8 @@ public:
     // A board part of the placement's own: its own when no other placement shares it, else a copy (the same
     // fields and choice) the others do not share. Its key (the caller sets the placement to it, as an edit).
     std::string splitPlacement(const std::string& placementId);
-    // A board part made the board's own: a part (and, `libraryPackage` null, a package of its own) from what
-    // the files said: its name, its footprint, its height; ids scoped to the board.
-    void makeOwn(const std::string& key, const JPPackage* libraryPackage);
+    // Every board part it keeps: the shown revision's and every other revision's.
+    void forEveryPart(const std::function<void(JPBoardPart&)>& f);
     // The placements naming a board part.
     std::vector<std::string> placementsOf(const std::string& key) const;
     // The parts no placement names, taken out.

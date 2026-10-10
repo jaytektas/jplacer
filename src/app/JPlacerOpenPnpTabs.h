@@ -96,8 +96,6 @@ private:
     void showFootprint(const void* from, const JPFootprint* footprint);
     // A change to the library (a part, package, footprint or manufacturer): a step to undo, and saved.
     void libraryChanged();
-    // An open board's own part or package changed (the Parts or Packages tab): the board marked changed, views told.
-    void boardChanged(JPBoard& board);
     // The machine's default vision settings (bottom vision's, the fiducial locator's).
     std::pair<std::string, std::string> machineVisionDefaults() const;
     // The machine's PhotonFeederData actuator made when a Photon feeder needs it.

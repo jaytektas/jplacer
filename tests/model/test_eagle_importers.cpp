@@ -56,9 +56,9 @@ void mountsmd(const fs::path& dir, const std::string& top, const std::string& bo
     const size_t topCount = lines(kSamples / top), bottomCount = bottom.empty() ? 0 : lines(kSamples / bottom);
     assert(b.placements.size() == topCount + bottomCount);
     for (size_t i = 0; i < b.placements.size(); ++i) assert((b.placements[i].side == JPSide::Bottom) == (i >= topCount));
-    // Its parts the board's own (Create Missing Parts), the library not added to.
-    assert(!b.parts().empty() && config.parts().empty());
-    for (const JPPlacement& p : b.placements) assert(b.part(p.boardPart) && b.part(p.boardPart)->state == JPBoardPart::State::Local);
+    // Its parts made for the library (Create Missing Parts), the library not added to until it is taken.
+    assert(!b.parts().empty() && config.parts().empty() && !b.madeParts.empty());
+    for (const JPPlacement& p : b.placements) assert(b.part(p.boardPart) && b.part(p.boardPart)->state == JPBoardPart::State::Matched);
 }
 
 } // namespace

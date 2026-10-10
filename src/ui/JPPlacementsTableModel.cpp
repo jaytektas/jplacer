@@ -87,8 +87,8 @@ JPTableModel::Column JPPlacementsTableModel::column(int c) const {
             // A board's: chosen in the part picker (its board part); a panel's: from the library's list.
             col.kind = editedBoard() && openPartPicker ? Kind::Picker : Kind::Choice;
             col.align = Align::Left;
-            col.tooltip = col.kind == Kind::Picker ? "Click to choose the part: from the library, the board's own, or "
-                                                     "to be chosen" : "";
+            col.tooltip = col.kind == Kind::Picker ? "Click to choose the part: from the library, made for the "
+                                                     "library from what the files say, or to be chosen" : "";
             break;
         case kSide:     col.name = "Side"; col.kind = Kind::Choice; break;
         case kX:        col.name = "X"; col.decimalAligned = true; break;
@@ -401,31 +401,19 @@ void JPPlacementsTableModel::applyPart(JPBoard* board, const std::string& placem
                     JPLibraryLearning::learn(m_config, *part, *bp, board->scopeName(), JPWhen::now());
             bp->state = JPBoardPart::State::Matched;
             bp->libraryPartId = choice.libraryId;
-            bp->libraryUuid.clear();
-            bp->localPart.reset();
-            bp->localPackage.reset();
-            m_config.takeCopy(*bp);
+            if (const JPPart* part = m_config.libraryPart(choice.libraryId)) bp->libraryUuid = part->uuid;
             break;
         case JPPartChoice::Kind::AddToLibrary: {
             const JPPart* made = JPLibraryLearning::addFrom(m_config, *bp, board->scopeName(), JPWhen::now());
             bp->state = JPBoardPart::State::Matched;
             bp->libraryPartId = made->id;
-            bp->libraryUuid.clear();
-            bp->localPart.reset();
-            bp->localPackage.reset();
-            m_config.takeCopy(*bp);
-            break;
-        }
-        case JPPartChoice::Kind::BoardsOwn: {
-            const std::string footprint = !bp->field("footprint").empty() ? bp->field("footprint") : bp->field("package");
-            board->makeOwn(key, m_config.packageNamed(footprint));
+            bp->libraryUuid = made->uuid;
             break;
         }
         case JPPartChoice::Kind::ToBeChosen:
             bp->state = JPBoardPart::State::Unmatched;
             bp->libraryPartId.clear();
-            bp->localPart.reset();
-            bp->localPackage.reset();
+            bp->libraryUuid.clear();
             break;
     }
     // Every placement of it (the one alone: just it) places with what it is now.

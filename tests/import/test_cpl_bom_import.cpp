@@ -176,15 +176,22 @@ int main() {
         const JPPlacement* u1 = turned.find("U1");
         assert(u1->cadRotation && *u1->cadRotation == 180 && std::abs(u1->location.rotation() - 90) < 1e-9);
     }
-    // Create Missing Parts: the board's own, its height from the file.
+    // Create Missing Parts: a library part made for it (not in the library until the import is taken), the
+    // board part matched to it; put in the library, it is the library's.
     {
         JPCplBomImport make = imp;
         make.createMissing = true;
         JPBoard b3;
         JPCplBomImport::Report r3;
         assert(make.build(config, "t", b3, r3, error));
-        const JPBoardPart* own = b3.part(b3.find("C1")->boardPart);
-        assert(own->state == JPBoardPart::State::Local && own->localPart->id == "CL10B104KB8NNNC" && config.parts().size() == 1);
+        const JPBoardPart* made = b3.part(b3.find("C1")->boardPart);
+        assert(made->state == JPBoardPart::State::Matched && made->libraryPartId == "CL10B104KB8NNNC" && r3.made > 0);
+        assert(config.parts().size() == 1 && !b3.madeParts.empty());   // the library untouched by building it
+        int packages = 0;
+        assert(config.takeMade(b3, packages) == int(b3.madeParts.size()) && config.libraryPart("CL10B104KB8NNNC"));
+        assert(config.takeMade(b3, packages) == 0);   // taken once
+        for (const auto& p : b3.madeParts) config.removePart(p->id);
+        for (const auto& k : b3.madePackages) config.removePackage(k->id);
     }
     // The files kept with the board: each one's mapping by header and every row, through its JSON.
     assert(board.provenance.size() == 2);

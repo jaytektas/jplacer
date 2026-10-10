@@ -1,29 +1,14 @@
 # Parts
 
 The **Parts** tab (in the work area, after Boards, as in OpenPnP) lists the library's parts, as
-OpenPnP's Parts tab does: those every job draws from. Under them are the parts of each open board (see
-[Boards](boards.md#the-boards-parts)), so what a board actually carries is in view beside the library's.
+OpenPnP's Parts tab does: those every job draws from. The library is the only place parts are kept: a
+board's placements point at its parts (see [Boards](boards.md#the-boards-parts)).
 
-## Where a part lives
+The first column, **Source**, is an icon: a board for a part an open board uses (point at it for the
+boards' names; it sorts and searches by them), books on a shelf for one no open board uses. **Show**,
+beside Search, lists **All**, those **Used by open boards**, or one open board's.
 
-The first column, **Source**, is an icon: books on a shelf for the library's, a board for an open
-board's (point at it for the board's name; it sorts and searches by that name). **Status** says how a
-board's part stands to the library:
-
-| Status | |
-|---|---|
-| **Own** | The board's own part: the library has none. It is changed here like a library part (the board then has changes to save, asked about as boards are), and right-click **Add to Library** copies it (and its package, where the library has none of that name) into the library under its name without the board's, for the next boards; the board keeps its own. |
-| **Matched** (green) | The board's copy of a library part, as the library has it. It is not changed here: change the library's. |
-| **Library changed** (amber) | The board's copy, the library's part changed since. Right-click **Update from Library** (or the button on its page) takes the copy again. |
-| **To be chosen** (red) | A part the board's files named and that has not been chosen yet: only what the files said (its value, its footprint). Choose it on the Boards tab. |
-
-A board's ID is shown without the board's name before it. Only the library's parts are deleted here. A
-board's own part has its **Settings** and vision settings pages, not **Library** or **Stock** (the
-library's); a board's copy, or a part to be chosen, has a page saying what it is.
-
-**Show**, beside Search, lists **All**, the **Library**'s only, the **Boards**' only, or one open board's.
-
-<!-- src: src/ui/JPPartsTableModel.cpp (cellIcon, cellTint, displayText, rowShown, showChoices, editable); src/ui/JPSourceColumn.cpp; src/ui/JPPartsPanel.cpp (formFor, addToLibrary, updateFromLibrary, updateWizards, refresh); src/model/JPCatalog.cpp (parts, addToLibrary, updateFromLibrary, statusName); src/app/JPlacerOpenPnpTabs.cpp (boardChanged) -->
+<!-- src: src/ui/JPPartsTableModel.cpp (cellIcon, cellTooltip, displayText, rowShown, showChoices, reload); src/ui/JPSourceColumn.cpp; src/ui/JPPartsPanel.cpp (refresh); src/model/JPCatalog.cpp (parts, boardNames, uses) -->
 
 The library is kept in `library.db` in jplacer's configuration folder: its parts and packages, each with
 an ID that stays with it whatever it is named, and what boards' files call it. It is made from OpenPnP's
@@ -58,9 +43,8 @@ end, there while it holds text, empties it and shows every part again.
 
 | Column | |
 |---|---|
-| **Source** (an icon) | Where it lives: the library, or the open board named in its tooltip. |
-| **ID** | The part's ID (a board's without the board's name before it). |
-| **Status** | How a board's part stands to the library (see above); empty for the library's. |
+| **Source** (an icon) | Whether an open board uses it, and which (its tooltip). |
+| **ID** | The part's ID. |
 | **Description** | Its name. |
 | **Value** | Its electrical value as written (100n, 4k7); matched to a board's however that is written. |
 | **MPN** | Its manufacturer's part number: the first of its identifiers (the **Library** tab has them all). |
@@ -72,7 +56,7 @@ end, there while it holds text, empties it and shows every part again.
 | **Placements** | How many placements on the known boards use it. |
 | **Feeders** | How many feeders hold it. |
 
-Everything but the ID, Source, Status, the MPN and the two counts is changed in the table (a board's copy or a part to be chosen not at all): double-click a cell, press F2, or start
+Everything but Source, the ID, the MPN and the two counts is changed in the table: double-click a cell, press F2, or start
 typing; **Return** keeps the change, **Escape** puts back what was there. **Tab** keeps it and goes on to the
 next cell that can be changed (**Shift+Tab**: the one before), along the row and on to the next: a text or number
 cell opens with what is in it chosen, ready to type over; a choice or tick box is chosen, for F2 or Space. Every
@@ -119,9 +103,6 @@ Choosing another kind shows or hides the tape's columns.
 
 **Offers**: where it is bought, a row each: **Supplier**, **SKU** (their part number), **Packaging**,
 **MOQ** (the least they sell), **Price breaks** (`1: 0.0100, 100: 0.0050`), **Last price** and **Link**.
-
-A board's copy of the part (see [Choosing a part](boards.md#choosing-a-part)) counts its packagings: a
-change in how it comes is a change to review; a new offer, or a name learned, is not.
 
 **Stock** is what you have of the part: a lot is one reel, strip of cut tape, tray, tube or bag of it.
 Stock is what you have, not what is loaded on the machine. The page says how many are in stock and in how

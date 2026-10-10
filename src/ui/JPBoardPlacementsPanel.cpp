@@ -372,9 +372,18 @@ void JPBoardPlacementsPanel::take(JPBoard* board, JPBoard& imported) {
               });
 }
 
+void JPBoardPlacementsPanel::takeMade(const JPBoard& imported) {
+    int packages = 0;
+    const int parts = m_config.takeMade(imported, packages);
+    if (parts > 0 || packages > 0)
+        JLOGC(JPlacerLog::kBoardImport, JLogLevel::Info) << parts << " part(s) and " << packages
+                                                         << " package(s) the import made added to the library";
+}
+
 void JPBoardPlacementsPanel::upgrade(JPBoard* board, std::shared_ptr<JPBoard> files) {
-    openUpgrade(*board, std::move(files), [this, board](JPBoardRevision r, std::string current) {
+    openUpgrade(*board, files, [this, board, files](JPBoardRevision r, std::string current) {
         if (board != m_board) return;
+        takeMade(*files);   // the parts it made the library's, as the revision is made
         board->addRevision(std::move(r), current);
         JPDefinitionChanges(m_config, m_job()).revisionShown(*board);
         JLOGC(JPlacerLog::kUi, JLogLevel::Info)
@@ -391,6 +400,7 @@ void JPBoardPlacementsPanel::upgrade(JPBoard* board, std::shared_ptr<JPBoard> fi
 
 void JPBoardPlacementsPanel::merge(JPBoard& imported) {
     if (!m_board) return;
+    takeMade(imported);   // the parts and packages it made, the library's
     JPDefinitionChanges changes(m_config, m_job());
     // The imported board's parts become this board's (those it has kept as they are), then its placements.
     const std::map<std::string, std::string> keys = m_board->takeParts(imported);

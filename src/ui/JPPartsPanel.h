@@ -15,7 +15,6 @@
 #include <j/core/JComboBox.h>
 #include <j/core/JContainer.h>
 #include <j/core/JLineEdit.h>
-#include <j/core/MenuSystem.h>
 #include <j/core/Splitter.h>
 
 #include <functional>
@@ -27,22 +26,16 @@ inline namespace jf {
 
 // The Parts tab, as OpenPnP's PartsPanel: a toolbar (New Part…, Delete
 // Part, Pick Part, Copy Part to Clipboard, Create Part from Clipboard), a
-// search box, the parts table (the library's and each open board's,
-// JPPartsTableModel), and under it the chosen part's tabs (Settings: its
-// pick conditions; Bottom Vision Settings and Fiducial Vision Settings:
-// those it uses, JPVisionForms, to specialize for it; the library's also
-// Library and Stock). A board's copy of a library part, or one to be chosen,
-// says what it is instead. Right-click: Add to Library (a board's own),
-// Update from Library (a board's copy the library has changed since).
+// search box, the parts table, and under it the chosen part's tabs
+// (Settings: its pick conditions; Bottom Vision Settings and Fiducial
+// Vision Settings: those it uses, JPVisionForms, to specialize for it).
 class JPPartsPanel : public JContainer {
 public:
     // `split`: the table's share of the height, as last left.
     JPPartsPanel(JSceneGraph& graph, JPConfiguration& config, double split);
 
-    // A library part was added, changed or deleted (to be saved, other views told).
+    // A part was added, changed or deleted (to be saved, other views told).
     std::function<void()> onChanged;
-    // An open board's own part changed (Status Own), or its copy taken again: the board to be saved.
-    std::function<void(JPBoard&)> onBoardChanged;
     // Feed and pick the part from the first feeder that has it.
     std::function<void(const JPPart&)> onPickPart;
     // The machine's default vision settings ids (bottom, fiducial).
@@ -70,11 +63,8 @@ public:
     // The parts changed elsewhere: shown again, the selection kept.
     void refresh();
     void selectPart(const JPPart* part);
-    // A board's part's row (its board part by key), else (no board) the library part's.
-    void selectPart(const JPBoard* board, const std::string& boardPartKey, const JPPart* libraryPart);
-    // One row chosen in the table, the library's or a board's (for the tables linked to it, View > Selections
-    // in Tables).
-    std::function<void(const JPCatalog::Part&)> onPartChosen;
+    // One part chosen in the table (for the tables linked to it, View > Selections in Tables).
+    std::function<void(const JPPart&)> onPartChosen;
     const JPPart* selectedPart() const;
     double split() const;
 
@@ -85,12 +75,7 @@ private:
     bool pipelineAct(const std::string& settingsId, const JPVisionForms::Holder& holder, const std::string& what);
     std::vector<JPPart*> selections() const;
     // The pages for a part (none: no pages).
-    JPSetupProperties::Form formFor(const JPCatalog::Part* entry);
-    // The one row chosen, and the board it lives in (none: several, none, or the library's).
-    const JPCatalog::Part* selectedEntry() const;
-    JPBoard*               selectedBoard() const;
-    void addToLibrary();
-    void updateFromLibrary();
+    JPSetupProperties::Form formFor(const JPPart* p);
     // The part's Library page: value, datasheet, identifiers, what boards call it.
     void libraryPage(JPFormBuilder& add, const std::string& partId);
     // One of its buttons (add, delete): done (true), else not one of them.
@@ -109,8 +94,7 @@ private:
     void deleteParts();
     void copyPart();
     void pastePart();
-    // A change to be kept: the board's (`board`), else the library's.
-    void changed(JPBoard* board = nullptr);
+    void changed();
     void act(const std::string& action);
 
     std::shared_ptr<bool>              m_alive = std::make_shared<bool>(true);
@@ -118,17 +102,14 @@ private:
     JPConfiguration&                   m_config;
     JPPartsTableModel                  m_model;
     JPTable*                           m_table = nullptr;
-    JLineEdit*                         m_search = nullptr;
     JComboBox*                         m_show = nullptr;
+    JLineEdit*                         m_search = nullptr;
     JSplitter*                         m_split = nullptr;
     std::unique_ptr<JContainer>        m_tablePane, m_tabsPane;
     JPSetupForm*                       m_form = nullptr;   // the part's tabs
     JPIconButton*                      m_delete = nullptr;
     JPIconButton*                      m_pick = nullptr;
     JPIconButton*                      m_copy = nullptr;
-    std::unique_ptr<JMenu>             m_contextMenu;
-    JMenuItem*                         m_addToLibrary = nullptr;
-    JMenuItem*                         m_updateFromLibrary = nullptr;
     std::string                        m_shownPart;   // whose tabs are shown
     std::string                        m_shownVision; // the vision settings its tabs show (visionShown), to see them change
 };

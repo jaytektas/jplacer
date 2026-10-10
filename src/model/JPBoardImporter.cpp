@@ -211,11 +211,24 @@ std::string JPBoardImporter::upper(std::string s) {
 
 std::string JPBoardImporter::boardPart(JPConfiguration& config, JPBoard& out, const std::string& partId,
                                        const std::string& packageId, const std::string& value, bool create,
-                                       JPPart** part, bool* made) {
+                                       JPPart** part, bool* made, JPPackage** madePackage) {
     if (made) *made = false;
+    if (madePackage) *madePackage = nullptr;
+    // A part this import made, before it is the library's.
+    auto madeOne = [&out](const std::string& id) -> JPPart* {
+        for (const auto& p : out.madeParts)
+            if (p->id == id) return p.get();
+        return nullptr;
+    };
     for (JPBoardPart& bp : out.parts())
         if (bp.field("part") == partId) {
-            if (part) *part = bp.state == JPBoardPart::State::Matched ? config.libraryPart(bp.libraryPartId) : bp.localPart.get();
+            if (part) {
+                *part = nullptr;
+                if (bp.state == JPBoardPart::State::Matched) {
+                    *part = config.libraryPart(bp.libraryPartId);
+                    if (!*part) *part = madeOne(bp.libraryPartId);
+                }
+            }
             return bp.key;
         }
     JPBoardPart bp;
@@ -229,20 +242,28 @@ std::string JPBoardImporter::boardPart(JPConfiguration& config, JPBoard& out, co
     if (found) {
         bp.state = JPBoardPart::State::Matched;
         bp.libraryPartId = found->id;
-        config.takeCopy(bp);
+        bp.libraryUuid = found->uuid;
     } else if (create) {
-        bp.state = JPBoardPart::State::Local;
-        bp.localPart = std::make_shared<JPPart>();
-        bp.localPart->id = partId;
-        bp.localPart->value = value;   // its value as the file wrote it
+        auto p = std::make_shared<JPPart>();
+        p->id = partId;
+        p->value = value;   // its value as the file wrote it
         if (const JPPackage* k = config.libraryPackage(packageId)) {
-            bp.localPart->packageId = k->id;
+            p->packageId = k->id;
         } else {
-            bp.localPackage = std::make_shared<JPPackage>();
-            bp.localPackage->id = packageId;
-            bp.localPart->packageId = packageId;
+            p->packageId = packageId;
+            bool have = false;
+            for (const auto& k : out.madePackages) have = have || k->id == packageId;
+            if (!have) {
+                auto k = std::make_shared<JPPackage>();
+                k->id = packageId;
+                out.madePackages.push_back(k);
+                if (madePackage) *madePackage = k.get();
+            }
         }
-        found = bp.localPart.get();
+        bp.state = JPBoardPart::State::Matched;
+        bp.libraryPartId = partId;
+        found = p.get();
+        out.madeParts.push_back(std::move(p));
         if (made) *made = true;
     }
     out.parts().push_back(bp);

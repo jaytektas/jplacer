@@ -83,7 +83,7 @@ JPPackagesPanel::JPPackagesPanel(JSceneGraph& graph, JPConfiguration& config, do
     : JContainer(graph), m_config(config), m_model(config) {
     JPUiParts::asPanel(*this);
     const JStyle& st = JStyle::current();
-    m_model.onChanged = [this](JPBoard* board) { changed(board); };
+    m_model.onChanged = [this] { changed(); };
     m_padsModel.onChanged = [this] { changed(); };
     m_tipsModel.onChanged = [this] { changed(); };
 
@@ -102,12 +102,12 @@ JPPackagesPanel::JPPackagesPanel(JSceneGraph& graph, JPConfiguration& config, do
     tool("Create Package from Clipboard", "paste", "Create a new package from a definition on the clipboard.")
         ->onClicked.connect([this] { pastePackage(); });
     bar->add(std::make_unique<JContainer>(graph, 0.f, 0.f))->setHSizePolicy(JSizePolicyMode::Expanding, 1);
-    // Show: every row, the library's, the boards', or one board's.
+    // Show: every row, those an open board uses, or one board's.
     JLabel* showLabel = bar->add(std::make_unique<JLabel>(graph, "Show"));
     showLabel->setFixedSize(JTextHelper::measureWidth("Show") + st.spacing, st.controlHeight);
     m_show = bar->add(std::make_unique<JComboBox>(graph, m_model.showChoices()));
     m_show->setCurrentIndex(0);   // All
-    m_show->setTooltip("Which to list: all, the library's, the open boards', or one board's");
+    m_show->setTooltip("Which to list: all of the library's, those the open boards use, or one board's");
     m_show->onIndexChanged.connect([this](int) {
         m_model.setShow(m_show->currentText());
         m_table->refresh();
@@ -167,11 +167,6 @@ void JPPackagesPanel::refresh() {
     updateWizards(true);
 }
 
-const JPCatalog::Package* JPPackagesPanel::selectedEntry() const {
-    const std::vector<int> rows = m_table->selectedRows();
-    return rows.size() == 1 ? m_model.entry(rows.front()) : nullptr;
-}
-
 std::vector<JPPackage*> JPPackagesPanel::selections() const {
     std::vector<JPPackage*> out;
     for (const int r : m_table->selectedRows())
@@ -184,44 +179,23 @@ const JPPackage* JPPackagesPanel::selectedPackage() const {
     return s.size() == 1 ? s.front() : nullptr;
 }
 
-void JPPackagesPanel::selectPackage(const JPBoard* board, const std::string& packageId) {
-    const int row = m_model.rowOf(board, packageId);
-    if (m_table->selectedRow() != row) m_table->selectRow(row);
-}
-
 void JPPackagesPanel::selectPackage(const JPPackage* p) {
     if (selectedPackage() != p) m_table->selectRow(m_model.rowOf(p));
 }
 
 void JPPackagesPanel::changed() {
-    const JPCatalog::Package* e = selectedEntry();
-    changed(e ? e->board.get() : nullptr);
-}
-
-void JPPackagesPanel::changed(JPBoard* board) {
     showFootprint(true);   // its footprint edited: the camera shows it as it is now
     if (m_computeComposite) m_computeComposite();
-    if (board) {
-        // The board's parts that share the package given the same.
-        if (const JPPackage* k = selectedPackage()) JPCatalog::shareEdit(*board, *k);
-        if (onBoardChanged) onBoardChanged(*board);
-    } else if (onChanged) {
-        onChanged();
-    }
+    if (onChanged) onChanged();
 }
 
 void JPPackagesPanel::updateWizards(bool force) {
     const auto chosen = selections();
-    // Only the library's are deleted here (a board's are its own).
-    bool library = !m_table->selectedRows().empty();
-    for (const int r : m_table->selectedRows())
-        if (const JPCatalog::Package* e = m_model.entry(r); !e || e->board) library = false;
-    m_delete->setEnabled(library);
+    m_delete->setEnabled(!chosen.empty());
     m_copy->setEnabled(chosen.size() == 1);
     showFootprint();
     JPPackage* p = chosen.size() == 1 ? chosen.front() : nullptr;
-    const JPCatalog::Package* e = selectedEntry();
-    const std::string id = p && e ? m_model.rowKey(m_table->selectedRows().front()) : std::string();
+    const std::string id = p ? p->id : std::string();
     if (!force && id == m_shown && (p != nullptr) == !m_pages.empty()) return;
     if (m_tabs->tabCount() > 0) m_lastTab = m_tabs->activeTab();
     while (m_tabs->tabCount() > 0) m_tabs->removeTab(0);
@@ -233,22 +207,14 @@ void JPPackagesPanel::updateWizards(bool force) {
     m_tipsModel.setPackage(nullptr);
     m_shown = id;
     if (!p) return;
-    if (e && !JPCatalog::editable(e->status)) {
-        // A board's copy of the library's package: what it is, not edited here.
-        m_pages.push_back(copyTab(*e));
-        m_tabs->addTab("Board", m_pages.back().get());
-        return;
-    }
     m_pages.push_back(nozzleTipsTab(*p));
     m_tabs->addTab("Nozzle Tips", m_pages.back().get());
     m_pages.push_back(settingsTab(*p));
     m_tabs->addTab("Settings", m_pages.back().get());
     m_pages.push_back(footprintTab(*p));
     m_tabs->addTab("Footprint", m_pages.back().get());
-    if (!e || !e->board) {   // the library's land patterns: the library's packages only
-        m_pages.push_back(footprintsTab(*p));
-        m_tabs->addTab("Footprints", m_pages.back().get());
-    }
+    m_pages.push_back(footprintsTab(*p));
+    m_tabs->addTab("Footprints", m_pages.back().get());
     m_pages.push_back(compositingTab(*p));
     m_tabs->addTab("Vision Compositing", m_pages.back().get());
     // As OpenPnP's: the bottom vision's and the fiducial locator's pages for the package.
@@ -261,22 +227,6 @@ void JPPackagesPanel::updateWizards(bool force) {
         m_tabs->addTab("Fiducial Vision Settings", m_pages.back().get());
     }
     if (m_lastTab >= 0 && m_lastTab < m_tabs->tabCount()) m_tabs->setActiveTab(m_lastTab);
-}
-
-std::unique_ptr<JContainer> JPPackagesPanel::copyTab(const JPCatalog::Package& e) {
-    JPSetupProperties::Form form;
-    JPFormBuilder add(form);
-    add.tab("Board");
-    add.group(JPCatalog::source(e.board) + ": " + e.name);
-    add.note(std::string(JPCatalog::statusName(e.status)) + ". " + JPCatalog::statusTip(e.status) + ".");
-    auto page = std::make_unique<JContainer>(m_graph, 0.f, 0.f);
-    page->setDirection(JFlexDirection::Column)->setAlignItems(JAlignItems::Stretch);
-    page->setVSizePolicy(JSizePolicyMode::Expanding, 1);
-    JPSetupForm* f = page->add(std::make_unique<JPSetupForm>(m_graph));
-    f->setVSizePolicy(JSizePolicyMode::Expanding, 1);
-    f->setSingleTabBar(true);
-    f->setForm(std::move(form));
-    return page;
 }
 
 std::unique_ptr<JContainer> JPPackagesPanel::visionTab(JPPackage& p, JPVisionSettings::Kind kind) {
@@ -885,7 +835,7 @@ void JPPackagesPanel::newPackage() {
         auto k = std::make_shared<JPPackage>();
         k->id = id;
         m_config.addPackage(k);
-        refresh();
+        m_table->refresh();
         selectPackage(k.get());
         changed();
     });
@@ -944,7 +894,7 @@ void JPPackagesPanel::pastePackage() {
         auto k = std::make_shared<JPPackage>(JPPackage::fromXml(root));
         k->id = id;
         m_config.addPackage(k);
-        refresh();
+        m_table->refresh();
         selectPackage(k.get());
         changed();
     });

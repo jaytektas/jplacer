@@ -4,13 +4,14 @@
 // The part picker's matching (DESIGN.md, Matching): component values however written (100n = 100nF =
 // 0.1uF = 0.1µF, 4k7 = 4.7k, 4R7); chip sizes in names; the library's parts a board part may be, best
 // evidence first, each saying why (MPN, supplier PN, footprint-value, value, value and size), a part of
-// another value never offered; the filter's words; a placement split from its board part and a board part
-// made the board's own.
+// another value never offered; the filter's words; a placement split from its board part, and a library part
+// made from what its files said (Add to Library).
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
 #include <cmath>
 
+#include "model/JPLibraryLearning.h"
 #include "model/JPPartMatcher.h"
 
 #include <filesystem>
@@ -68,7 +69,7 @@ int main() {
     assert(JPPartMatcher::matches(config, *config.part("C_0603_1608Metric-10nF"), words));
     assert(!JPPartMatcher::matches(config, *config.part("C0603-100n"), words));
 
-    // A board: C1, C2 of one part; C1 split off alone; the part made the board's own.
+    // A board: C1, C2 of one part; C1 split off alone; a library part made from what the files said.
     JPBoard board;
     board.file = "/work/Ctrl.jpboard";
     JPBoardPart shared;
@@ -85,12 +86,8 @@ int main() {
     assert(own != "bp-1" && board.part(own)->field("value") == "47n" && board.placementsOf("bp-1").size() == 2);
     board.placements[0].boardPart = own;
     assert(board.splitPlacement("C1") == own);   // alone already: its own
-    board.makeOwn(own, nullptr);
-    const JPBoardPart* made = board.part(own);
-    assert(made->state == JPBoardPart::State::Local && made->localPart->id == "Ctrl/C0603-47n");
-    assert(made->localPackage && made->localPackage->id == "Ctrl/C0603" && made->localPart->packageId == "Ctrl/C0603");
-    assert(std::abs(made->localPart->height.value() - 0.9) < 1e-9);
-    board.makeOwn("bp-1", config.libraryPackage("C0603") ? config.libraryPackage("C0603") : nullptr);
+    const JPPart* made = JPLibraryLearning::addFrom(config, *board.part(own), board.scopeName(), "2026-10-11T00:00:00");
+    assert(made && config.libraryPart(made->id) == made && made->value == "47n");
     std::filesystem::remove_all(dir);
     return 0;
 }
