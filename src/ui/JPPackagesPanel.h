@@ -77,6 +77,8 @@ public:
 
     void refresh();
     void selectPackage(const JPPackage* package);
+    // The package of id `packageId` where it lives: a board's, or (no board) the library's.
+    void selectPackage(const JPBoard* board, const std::string& packageId);
     const JPPackage* selectedPackage() const;
     double split() const;
 

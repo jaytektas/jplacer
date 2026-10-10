@@ -104,7 +104,7 @@ JPPartsPanel::JPPartsPanel(JSceneGraph& graph, JPConfiguration& config, double s
     m_table->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
     m_table->onSelectionChanged.connect([this] {
         updateWizards();
-        if (const JPPart* p = selectedPart(); p && onPartChosen) onPartChosen(*p);
+        if (const JPCatalog::Part* e = selectedEntry(); e && onPartChosen) onPartChosen(*e);
     });
     m_table->onEditRefused = [](const std::string&) {};
     // Right-click: a board's own part copied into the library, a board's copy taken again from it.
@@ -213,6 +213,11 @@ const JPPart* JPPartsPanel::selectedPart() const {
 
 void JPPartsPanel::selectPart(const JPPart* part) {
     if (selectedPart() != part) m_table->selectRow(m_model.rowOf(part));
+}
+
+void JPPartsPanel::selectPart(const JPBoard* board, const std::string& boardPartKey, const JPPart* libraryPart) {
+    const int row = m_model.rowOf(board, boardPartKey, libraryPart);
+    if (m_table->selectedRow() != row) m_table->selectRow(row);
 }
 
 void JPPartsPanel::changed(JPBoard* board) {

@@ -95,6 +95,14 @@ int JPPartsTableModel::rowOf(const JPPart* p) const {
     return -1;
 }
 
+int JPPartsTableModel::rowOf(const JPBoard* board, const std::string& boardPartKey, const JPPart* libraryPart) const {
+    for (size_t i = 0; i < m_rows.size(); ++i) {
+        const JPCatalog::Part& e = m_rows[i];
+        if (board ? e.board.get() == board && e.boardPartKey == boardPartKey : !e.board && e.part() == libraryPart) return int(i);
+    }
+    return -1;
+}
+
 std::string JPPartsTableModel::rowKey(int row) const {
     const JPCatalog::Part* e = entry(row);
     return e ? JPCatalog::source(e->board) + "|" + e->name + "|" + JPCatalog::statusName(e->status) : std::string();

@@ -51,7 +51,11 @@ public:
 private:
     // Whether a choice on the tab of `dock` leads: linked, the tab in front, and not a link's own choosing.
     bool leads(const JDockWidget& dock) const;
-    // OpenPnP's selectPartInTableAndUpdateLinks: the part, its package, its feeder and its vision settings.
+    // OpenPnP's selectPartInTableAndUpdateLinks: the part, its package, its feeder and its vision settings,
+    // each where the part lives: a board's part (`board`, its board part `boardPartKey`) its board's rows
+    // (its own package, or its copy of the library's), a library part the library's.
+    void partAndLinks(const JPBoard* board, const std::string& boardPartKey, const std::string& partId, bool choosePart);
+    // A part by id where it lives: a board's own (its id the board's), else the library's.
     void partAndLinks(const std::string& partId, bool choosePart);
     void choose(const std::function<void()>& linkedChoices);
 

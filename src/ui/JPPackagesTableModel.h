@@ -54,6 +54,9 @@ public:
     JPPackage*                package(int row) const;
     const JPCatalog::Package* entry(int row) const;
     int                       rowOf(const JPPackage* p) const;
+    // The row of the package of id `packageId` (as kept) where it lives: a board's (its own or its copy), or
+    // (no board) the library's.
+    int                       rowOf(const JPBoard* board, const std::string& packageId) const;
 
 private:
     std::vector<const JPVisionSettings*> visionChoices(JPVisionSettings::Kind kind) const;

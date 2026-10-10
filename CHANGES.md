@@ -9,6 +9,7 @@ Every change a user would notice adds a line under Unreleased, in the same commi
 notes.
 
 ## Unreleased
+- Linked tables choose a part and its package where they live: a board's placement or part now chooses the board's own part and package on the Parts and Packages tabs, not the library's of the same name; a library part still chooses the library's.
 
 ## 0.1.42
 

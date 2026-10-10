@@ -57,6 +57,8 @@ public:
     JPPart*                 part(int row) const;
     const JPCatalog::Part*  entry(int row) const;
     int                     rowOf(const JPPart* part) const;
+    // A board's part's row (its board part by key), else (no board) the library part's.
+    int                     rowOf(const JPBoard* board, const std::string& boardPartKey, const JPPart* libraryPart) const;
 
 private:
     // The vision settings a column offers, sorted by name, then none.

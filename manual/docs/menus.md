@@ -90,7 +90,11 @@ other tabs:
 
 What is chosen by a link chooses nothing further. A part with no feeder leaves the Feeders tab as it was.
 
-<!-- src: src/app/JPlacerTableLinks.cpp; src/ui/JPFeedersPanel.cpp (selectFeederForPart, changed); src/ui/JPVisionSettingsPanel.cpp (selectFor) -->
+A part and its package are chosen where they live: a board's placement chooses that board's part on the
+Parts tab and the board's package on the Packages tab (its own, or its copy of the library's); a board's
+part on the Parts tab chooses the board's package; a library part, the library's.
+
+<!-- src: src/app/JPlacerTableLinks.cpp (partAndLinks); src/ui/JPPartsTableModel.cpp (rowOf); src/ui/JPPackagesTableModel.cpp (rowOf); src/ui/JPFeedersPanel.cpp (selectFeederForPart, changed); src/ui/JPVisionSettingsPanel.cpp (selectFor) -->
 
 ## Machine
 

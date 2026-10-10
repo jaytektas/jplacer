@@ -100,6 +100,12 @@ int JPPackagesTableModel::rowOf(const JPPackage* p) const {
     return -1;
 }
 
+int JPPackagesTableModel::rowOf(const JPBoard* board, const std::string& packageId) const {
+    for (size_t i = 0; i < m_rows.size(); ++i)
+        if (m_rows[i].board.get() == board && m_rows[i].held && m_rows[i].held->id == packageId) return int(i);
+    return -1;
+}
+
 std::string JPPackagesTableModel::rowKey(int row) const {
     const JPCatalog::Package* e = entry(row);
     return e ? JPCatalog::source(e->board) + "|" + e->name + "|" + JPCatalog::statusName(e->status) : std::string();

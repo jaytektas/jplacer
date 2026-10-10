@@ -184,6 +184,11 @@ const JPPackage* JPPackagesPanel::selectedPackage() const {
     return s.size() == 1 ? s.front() : nullptr;
 }
 
+void JPPackagesPanel::selectPackage(const JPBoard* board, const std::string& packageId) {
+    const int row = m_model.rowOf(board, packageId);
+    if (m_table->selectedRow() != row) m_table->selectRow(row);
+}
+
 void JPPackagesPanel::selectPackage(const JPPackage* p) {
     if (selectedPackage() != p) m_table->selectRow(m_model.rowOf(p));
 }

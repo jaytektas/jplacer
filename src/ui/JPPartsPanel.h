@@ -70,8 +70,11 @@ public:
     // The parts changed elsewhere: shown again, the selection kept.
     void refresh();
     void selectPart(const JPPart* part);
-    // One part chosen in the table (for the tables linked to it, View > Selections in Tables).
-    std::function<void(const JPPart&)> onPartChosen;
+    // A board's part's row (its board part by key), else (no board) the library part's.
+    void selectPart(const JPBoard* board, const std::string& boardPartKey, const JPPart* libraryPart);
+    // One row chosen in the table, the library's or a board's (for the tables linked to it, View > Selections
+    // in Tables).
+    std::function<void(const JPCatalog::Part&)> onPartChosen;
     const JPPart* selectedPart() const;
     double split() const;
 
