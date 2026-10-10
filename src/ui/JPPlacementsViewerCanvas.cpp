@@ -541,6 +541,7 @@ void JPPlacementsViewerCanvas::drawReticleAndScales(JPrimitiveBuffer& buf) {
 // ---- the mouse --------------------------------------------------------------
 
 void JPPlacementsViewerCanvas::handleMousePress(float mx, float my) {
+    if (!isPointInside(mx, my)) return;   // every widget of the window hears a press: only one here pans
     m_pressed = true;
     m_dragX = mx;
     m_dragY = my;

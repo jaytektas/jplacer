@@ -661,8 +661,8 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     buf.popClip();
 }
 
-bool JPCameraView::handleScroll(float, float, float wheel) {
-    if (wheel == 0.f) return false;
+bool JPCameraView::handleScroll(float mx, float my, float wheel) {
+    if (wheel == 0.f || !hitTest(mx, my)) return false;
     // At best scale only whole steps show: a notch zooms by 2 at least.
     const double perNotch = m_quality == RenderingQuality::BestScale ? std::max(2.0, zoomPerNotch(m_sensitivity))
                                                                      : zoomPerNotch(m_sensitivity);
@@ -727,6 +727,9 @@ void JPCameraView::dragSelection(double px, double py) {
 }
 
 void JPCameraView::handleMousePress(float x, float y) {
+    // A press reaches every widget of the panel; only one on this view is its. A zoomed picture runs past the
+    // view's edges, under the step's Detection Diameter: a double click on its arrows moved the nozzle there.
+    if (!hitTest(x, y)) return;
     if (m_selecting) {
         double px, py;
         if (!pixelAt(x, y, px, py)) return;

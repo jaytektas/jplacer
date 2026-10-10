@@ -47,7 +47,8 @@ void JPCompositingPreview::clear() {
     invalidate();
 }
 
-void JPCompositingPreview::handleMousePress(float, float) {
+void JPCompositingPreview::handleMousePress(float mx, float my) {
+    if (!isPointInside(mx, my)) return;   // every widget of the form hears a press: only one here is its
     m_pressed = true;
     invalidate();
 }
