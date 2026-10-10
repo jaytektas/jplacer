@@ -11,6 +11,7 @@ notes.
 ## Unreleased
 - Every table's columns can be moved: drag a heading sideways and the table shows how it will look as you drag, letting go keeps it and Escape puts it back. Every table now remembers its columns' order, widths and sort, including after a restart, and right-click on a heading offers **Reset Columns**.
 - The Parts and Packages tabs' Source is the first column, an icon: books for the library, a board for an open board (its name in the tooltip).
+- Show beside Search on the Parts and Packages tabs no longer starts empty when no job is open; it starts on All.
 
 ## 0.1.41
 
