@@ -89,6 +89,11 @@ std::optional<JPCaptureMode> JPCameraFeed::mode() const {
     return m_mode;
 }
 
+std::vector<JPCaptureMode> JPCameraFeed::modes() const {
+    std::lock_guard lk(m_mutex);
+    return m_modes;
+}
+
 void JPCameraFeed::expose(double target, std::function<void(const JPOneShotExposure::Result&)> done) {
     std::lock_guard lk(m_mutex);
     m_exposeAsked = Expose { target, std::move(done) };
@@ -158,7 +163,12 @@ void JPCameraFeed::runSource(std::string& why) {
     }
     auto source = JPCaptureFactory::create(m_config.name, device, why, context);
     if (!source || !source->open(why)) return;
-    const auto mode = JPCaptureFactory::choose(source->modes(), m_config.device);
+    const std::vector<JPCaptureMode> offered = source->modes();
+    {
+        std::lock_guard lk(m_mutex);
+        m_modes = offered;
+    }
+    const auto mode = JPCaptureFactory::choose(offered, m_config.device);
     if (!mode) {
         why = source->describe() + " offers no picture format jplacer can read";
         return;

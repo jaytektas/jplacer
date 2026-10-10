@@ -16,6 +16,8 @@
 
 #include <j/config/Json.h>
 
+#include <cmath>
+
 inline namespace jf {
 
 std::unique_ptr<JPCaptureSource> JPCaptureFactory::create(const std::string& cameraName, const JJson& device,
@@ -126,17 +128,27 @@ std::optional<JPCaptureMode> JPCaptureFactory::choose(const std::vector<JPCaptur
     if (modes.empty()) return std::nullopt;
     const std::string& format = device["format"].str();
     const int w = int(device["width"].number()), h = int(device["height"].number());
+    const double fps = device["fps"].number();
+    // The mode asked for (Machine Setup's Format): its format, size and rate; a rate it does not list, the one
+    // nearest at that size (the device rounds it).
+    const JPCaptureMode* found = nullptr;
     for (const JPCaptureMode& m : modes)
-        if ((format.empty() || m.format == format) && m.width == w && m.height == h) {
-            JPCaptureMode chosen = m;
-            if (device["fps"].number() > 0) chosen.fps = device["fps"].number();
-            return chosen;
-        }
+        if ((format.empty() || m.format == format) && m.width == w && m.height == h
+            && (!found || (fps > 0 && std::abs(m.fps - fps) < std::abs(found->fps - fps))))
+            found = &m;
+    if (found) {
+        JPCaptureMode chosen = *found;
+        if (fps > 0) chosen.fps = fps;
+        return chosen;
+    }
+    // None asked: the biggest MJPG, at its fastest.
     auto rank = [](const JPCaptureMode& m) { return m.format == "MJPG" ? 1 : 0; };
     const JPCaptureMode* best = &modes.front();
-    for (const JPCaptureMode& m : modes)
-        if (rank(m) > rank(*best) || (rank(m) == rank(*best) && m.width * m.height > best->width * best->height))
+    for (const JPCaptureMode& m : modes) {
+        const long area = long(m.width) * m.height, bestArea = long(best->width) * best->height;
+        if (rank(m) > rank(*best) || (rank(m) == rank(*best) && (area > bestArea || (area == bestArea && m.fps > best->fps))))
             best = &m;
+    }
     return *best;
 }
 

@@ -15,6 +15,11 @@ struct JPCaptureMode {
     int         height = 0;
     double      fps    = 0;
 
+    // As OpenPnP's Format list says it (CaptureFormat.toString): "1280 x 720, 30 FPS, MJPG".
+    std::string openpnpText() const {
+        return std::to_string(width) + " x " + std::to_string(height) + ", " + std::to_string(int(fps + 0.5)) + " FPS, " + format;
+    }
+
     std::string describe() const {
         return format + " " + std::to_string(width) + "\xC3\x97" + std::to_string(height) + " @ "
              + std::to_string(int(fps + 0.5)) + " fps";

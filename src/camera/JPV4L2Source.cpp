@@ -164,11 +164,15 @@ std::vector<JPCaptureMode> JPV4L2Source::modes() const {
             iv.pixel_format = fmt.pixelformat;
             iv.width  = size.discrete.width;
             iv.height = size.discrete.height;
-            double best = 0;
+            // Each rate a mode of its own, as OpenPnP's CaptureDevice.getFormats lists them (fastest first).
+            std::vector<double> rates;
             for (iv.index = 0; xioctl(m_fd, VIDIOC_ENUM_FRAMEINTERVALS, &iv) == 0; ++iv.index)
                 if (iv.type == V4L2_FRMIVAL_TYPE_DISCRETE && iv.discrete.numerator)
-                    best = std::max(best, double(iv.discrete.denominator) / iv.discrete.numerator);
-            out.push_back({ fourccName(fmt.pixelformat), int(size.discrete.width), int(size.discrete.height), best });
+                    rates.push_back(double(iv.discrete.denominator) / iv.discrete.numerator);
+            if (rates.empty()) rates.push_back(0);
+            std::sort(rates.rbegin(), rates.rend());
+            for (const double fps : rates)
+                out.push_back({ fourccName(fmt.pixelformat), int(size.discrete.width), int(size.discrete.height), fps });
         }
     }
     return out;

@@ -170,8 +170,18 @@ int main() {
     assert(cam.model.get("light").toString() == "LIGHT_UP" && !cam.model.find("axisX"));
     assert(cam.model.set("head", JVariant(std::string("H1"))));
     assert(c.cameras[0].mount.headId == "H" && c.cameras[0].mount.axisX == "X" && c.cameras[0].mount.axisY == "Y");
-    cam.model.set("width", JVariant(1280));
-    assert(c.cameras[0].device["width"].number() == 1280);
+    // Its Format, as OpenPnP's: one of the modes the device offers (its size, rate and kind together).
+    JPSetupProperties::Live live;
+    live.cameraModes = [](const std::string&) {
+        return std::vector<JPCaptureMode> { { "MJPG", 1280, 720, 30 }, { "MJPG", 1280, 720, 15 }, { "YUYV", 640, 480, 30 } };
+    };
+    cam = JPSetupProperties::forNode(c, "camera:C", {}, nullptr, nullptr, nullptr, live);
+    assert(cam.model.set("format", JVariant(std::string("1280 x 720, 15 FPS, MJPG"))));
+    assert(c.cameras[0].device["format"].str() == "MJPG" && c.cameras[0].device["width"].number() == 1280
+           && c.cameras[0].device["height"].number() == 720 && c.cameras[0].device["fps"].number() == 15);
+    assert(cam.model.get("format").toString() == "1280 x 720, 15 FPS, MJPG");
+    assert(cam.model.set("format", JVariant(std::string("The largest MJPG, at its fastest"))));
+    assert(c.cameras[0].device["width"].number() == 0 && c.cameras[0].device["format"].str().empty());
     // How much of a straightened picture's edge shows: a percentage here, a share in the cell.
     cam.model.set("showAll", JVariant(40));
     assert(c.cameras[0].showAll == 0.4 && JPCameraConfig::fromJson(c.cameras[0].toJson()).showAll == 0.4);

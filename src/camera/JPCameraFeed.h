@@ -88,6 +88,9 @@ public:
     static constexpr int kHoldMs = 200;   // after switching to manual, before the held values are read
     // The mode it is capturing in, once started.
     std::optional<JPCaptureMode> mode() const;
+    // Every mode the device offers (its formats, sizes and fastest rates), as found when it last started; none
+    // before (OpenPnP's CaptureDevice.getFormats).
+    std::vector<JPCaptureMode> modes() const;
     // Lost (or hung) and being opened again, and why: until its first picture
     // once it is back.
     bool isLost() const { return m_lost; }
@@ -121,6 +124,7 @@ private:
     mutable std::mutex           m_mutex;   // guards the members below
     JPFrame                      m_latest;
     JJson m_deviceControls = JJson::object();   // deviceControls()
+    std::vector<JPCaptureMode> m_modes;            // modes()
     std::atomic<bool> m_reapply { false };       // reapplyControls()
     // autoTune(): asked (guarded by m_mutex), then its steps on the capture thread.
     struct Tune {

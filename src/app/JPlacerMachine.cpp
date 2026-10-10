@@ -583,6 +583,11 @@ std::unique_ptr<JPMachineSetupPanel> JPlacerMachine::makeSetup() {
     setup->setHal(&m_window.hal());
     // Template pictures are named by what they hold: one read is kept.
     setup->live.cameraControls = [this](const std::string& cameraId) { return cameraDeviceControls(cameraId); };
+    setup->live.cameraModes = [this](const std::string& cameraId) {
+        for (const CameraDock& d : m_cameras)
+            if (d.panel->camera().id == cameraId) return d.panel->feed().modes();
+        return std::vector<JPCaptureMode>();
+    };
     setup->live.driverConsole = [this, consoles = m_consoles](const std::string& driverId) {
         if (m_cell)
             for (const JPDriverConfig& d : m_cell->config().drivers)

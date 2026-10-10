@@ -157,6 +157,21 @@ int main() {
     const auto chosen = JPCaptureFactory::choose(modes, asked);
     assert(chosen && chosen->format == "YUYV" && chosen->width == 640);
     assert(!JPCaptureFactory::choose({}, none));
+    // Each rate a mode, as OpenPnP lists a device's formats: none asked, the biggest MJPG at its fastest; asked,
+    // that rate (a rate not listed: the nearest at that size); said as OpenPnP's Format list says it.
+    const std::vector<JPCaptureMode> rates = { { "MJPG", 1280, 720, 30 }, { "MJPG", 1280, 720, 15 }, { "MJPG", 1280, 720, 5 },
+                                               { "YUYV", 1280, 720, 10 } };
+    assert(JPCaptureFactory::choose(rates, none)->fps == 30);
+    JJson slow = JJson::object();
+    slow["format"] = "MJPG";
+    slow["width"]  = 1280;
+    slow["height"] = 720;
+    slow["fps"]    = 15;
+    assert(JPCaptureFactory::choose(rates, slow)->fps == 15);
+    slow["fps"] = 7;
+    const auto nearest = JPCaptureFactory::choose(rates, slow);
+    assert(nearest && nearest->format == "MJPG" && nearest->fps == 7);   // the 5 FPS mode, asked for 7
+    assert(rates.front().openpnpText() == "1280 x 720, 30 FPS, MJPG");
 
     // A simulated camera's feed.
     JPCameraConfig cam;

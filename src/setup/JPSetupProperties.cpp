@@ -2618,18 +2618,45 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
         && !JPSimulatedUpCamera::is(std::as_const(device()))) {
         // A capture device's own format and settings (OpenPnP's OpenPnpCaptureCamera); a picture or simulation has none.
         const bool captureDevice = b == "v4l2" || b.empty();
-        if (captureDevice)
-            add.choice("format", "Format", { "any", "MJPG", "YUYV" },
-                       [device] { const std::string v = std::as_const(device())["format"].str(); return v.empty() ? std::string("any") : v; },
-                       [device](const std::string& v) { device()["format"] = v == "any" ? std::string() : v; });
-        add.header({ "Width", "Height" });
-        add.row("Size");
-        add.integer("width", "Width", [device] { return int(std::as_const(device())["width"].number()); },
-                    [device](int v) { device()["width"] = v; }, 0, 10000);
-        add.integer("height", "Height", [device] { return int(std::as_const(device())["height"].number()); },
-                    [device](int v) { device()["height"] = v; }, 0, 10000);
-        add.end();
-        add.note("0: the largest picture the camera offers.");
+        if (captureDevice) {
+            // OpenPnP's Format: the device's own formats, each its size, rate and kind ("1280 x 720, 30 FPS, MJPG"),
+            // one chosen. Listed once the camera has started (the machine on); the one set kept in the list.
+            static const std::string kLargest = "The largest MJPG, at its fastest";
+            const std::vector<JPCaptureMode> offered = live.cameraModes ? live.cameraModes(c().id) : std::vector<JPCaptureMode>();
+            auto setMode = [device]() -> std::optional<JPCaptureMode> {
+                const JJson& d = std::as_const(device());
+                if (d["width"].number() <= 0 || d["height"].number() <= 0) return std::nullopt;
+                return JPCaptureMode { d["format"].str(), int(d["width"].number()), int(d["height"].number()), d["fps"].number() };
+            };
+            std::vector<std::string> texts { kLargest };
+            for (const JPCaptureMode& m : offered) texts.push_back(m.openpnpText());
+            if (const auto m = setMode(); m && std::find(texts.begin(), texts.end(), m->openpnpText()) == texts.end())
+                texts.push_back(m->openpnpText());
+            add.choice("format", "Format", texts,
+                       [setMode] { const auto m = setMode(); return m ? m->openpnpText() : kLargest; },
+                       [device, offered, setMode](const std::string& v) {
+                           JJson& d = device();
+                           for (const char* k : { "format", "width", "height", "fps" }) d.erase(k);
+                           for (const JPCaptureMode& m : offered)
+                               if (m.openpnpText() == v) {
+                                   d["format"] = m.format;
+                                   d["width"] = m.width;
+                                   d["height"] = m.height;
+                                   d["fps"] = m.fps;
+                               }
+                       });
+            add.tip("The camera's formats as it offers them: picture size, frames per second and kind. Listed once the "
+                    "camera has started (the machine connected).");
+        } else {
+            add.header({ "Width", "Height" });
+            add.row("Size");
+            add.integer("width", "Width", [device] { return int(std::as_const(device())["width"].number()); },
+                        [device](int v) { device()["width"] = v; }, 0, 10000);
+            add.integer("height", "Height", [device] { return int(std::as_const(device())["height"].number()); },
+                        [device](int v) { device()["height"] = v; }, 0, 10000);
+            add.end();
+            add.note("0: the largest picture the camera offers.");
+        }
         // OpenPnP's Capture FPS: how fast the camera gives pictures, measured.
         add.row("Capture FPS");
         char fps[32] = "";

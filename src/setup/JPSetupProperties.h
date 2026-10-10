@@ -7,6 +7,7 @@
 #include "JPVisionTests.h"
 #include "machine/JPMotionTestResult.h"
 
+#include "camera/JPCaptureMode.h"
 #include "camera/JPFrame.h"
 #include "machine/JPCellConfig.h"
 #include "model/JPConfiguration.h"
@@ -150,6 +151,8 @@ public:
         std::function<std::shared_ptr<const JPFrame>(const std::string& fileName)> templatePicture;
         // A camera's device settings as it has them (JPCaptureSource::controls).
         std::function<JJson(const std::string& cameraId)> cameraControls;
+        // The modes a camera's device offers (format, size, fastest rate), as found when it last started.
+        std::function<std::vector<JPCaptureMode>(const std::string& cameraId)> cameraModes;
         // The Z calibration offset of the nozzle a tip is loaded on (OpenPnP's calibrationOffsetZ; none: not calibrated).
         std::function<std::optional<double>(const std::string& nozzleTipId)> zCalibration;
         // A controller's G-code console (OpenPnP's driver Console tab): its traffic, newest last.
