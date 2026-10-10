@@ -9,6 +9,9 @@ Every change a user would notice adds a line under Unreleased, in the same commi
 notes.
 
 ## Unreleased
+
+## 0.1.39
+
 - A change in Machine Setup that un-homes the machine (an axis's Home Coordinate, say) now does everything un-homing does: the Home button is free again (it had stayed greyed out for good when the change came while a homing was finishing), and vision strip and blinds feeders drop their calibrations, as OpenPnP's do when the machine is no longer homed.
 - Issues & Solutions' "Set how many nozzles" asks "Are you sure?" before it remakes the head's nozzles, as OpenPnP does: an Accept meant for another issue (this one is chosen first after a search) had rebuilt working nozzles without asking.
 - Remaking the nozzles keeps their vacuum working: a nozzle whose valve and sensing were one actuator gets a valve switching the same output. Before, the new valve had no output number and sent "M64 P", which the controller refused (and then refused every move after it).
