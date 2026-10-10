@@ -2,10 +2,12 @@
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
 // OpenPnP's VisionSolutions feature detection: a light paper dot 120 pixels across a little off the middle of a
-// noisy picture, with a smaller dot (40 pixels) further out. Detected at about its diameter, it is found where it
+// noisy picture, with a smaller dot (40 pixels) further out, among rows of bright pads round the edges as on a board
+// (their edges give the search a score of its own where it finds no circle). Detected at about its diameter, it is found where it
 // is, its diameter measured, and it scores; asked for at a quarter of its size it is not taken; with diagnostics
 // the picture is drawn on. Auto-Detect Next from small sizes up comes to it (the smaller dot is outside the search),
-// and its next after it is none bigger in the picture (round again to it).
+// and its next after it is none bigger in the picture (round again to it); the first press from the smallest size
+// comes straight to it, not to a size where nothing is found (the search's noise score taken for a peak).
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
@@ -26,6 +28,11 @@ cv::Mat picture() {
     cv::Mat bgr(480, 640, CV_8UC3, cv::Scalar(60, 70, 65));
     cv::circle(bgr, cv::Point(335, 228), 60, cv::Scalar(230, 235, 235), cv::FILLED, cv::LINE_AA);
     cv::circle(bgr, cv::Point(560, 400), 20, cv::Scalar(230, 235, 235), cv::FILLED, cv::LINE_AA);
+    for (int k = 0; k < 40; ++k) {
+        const int along = 20 + k * 15;
+        cv::rectangle(bgr, cv::Rect(along, 8, 7, 34), cv::Scalar(240, 245, 245), cv::FILLED);
+        cv::rectangle(bgr, cv::Rect(along, 438, 7, 34), cv::Scalar(240, 245, 245), cv::FILLED);
+    }
     std::mt19937 rng(3);
     std::normal_distribution<double> noise(0, 4);
     for (int y = 0; y < bgr.rows; ++y)
@@ -71,5 +78,9 @@ int main() {
         at = *next;
     }
     assert(reached);
+    // The first press from the smallest size: the dot, at once.
+    const auto first = JPVisionFeature::next(base, JPVisionFeature::kFirstTriedPx);
+    std::fprintf(stderr, "first press: %d\n", first ? *first : -1);
+    assert(first && std::abs(*first - 120) < 8);
     return 0;
 }

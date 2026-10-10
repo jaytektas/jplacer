@@ -49,15 +49,17 @@ std::optional<JPVisionFeature::Found> JPVisionFeature::detect(cv::Mat& bgr, int 
 
 std::optional<int> JPVisionFeature::next(const cv::Mat& bgr, int fromPx) {
     const int maxD = maxDiameter(bgr.cols, bgr.rows);
-    // Every diameter tried, its score kept (none found: 0).
+    // Every diameter tried, its score kept; none found there: 0, as OpenPnP's (its search throws). The search's
+    // own score where it found nothing is the picture's noise, about 1.2: kept, its wobbles were peaks, and Auto-Detect
+    // Next stopped at sizes with nothing there (41 px, then 106) before the one circle that scored 24.
     std::vector<int> diameters;
     std::vector<double> scores;
     for (double d = kFirstTriedPx; d <= maxD; d = d * std::pow(kFiducialMargin, 0.2) + 1) {
         cv::Mat picture = bgr.clone();
         double score = 0;
-        detect(picture, int(d), kPreviewSearch, true, false, score);
+        const bool found = detect(picture, int(d), kPreviewSearch, true, false, score).has_value();
         diameters.push_back(int(std::lround(d)));
-        scores.push_back(score);
+        scores.push_back(found ? score : 0.0);
     }
     // The next diameter bigger than `fromPx` whose score is the best of the kernel's around it (the kernel's middle
     // after the first); not found: round again from the smallest.
