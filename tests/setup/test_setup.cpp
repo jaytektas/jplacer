@@ -182,6 +182,12 @@ int main() {
     assert(cam.model.get("format").toString() == "1280 x 720, 15 FPS, MJPG");
     assert(cam.model.set("format", JVariant(std::string("The largest MJPG, at its fastest"))));
     assert(c.cameras[0].device["width"].number() == 0 && c.cameras[0].device["format"].str().empty());
+    // Set without a rate (older settings): shown as the listed format it opens in, not as "0 FPS".
+    c.cameras[0].device["format"] = "MJPG";
+    c.cameras[0].device["width"] = 1280;
+    c.cameras[0].device["height"] = 720;
+    cam = JPSetupProperties::forNode(c, "camera:C", {}, nullptr, nullptr, nullptr, live);
+    assert(cam.model.get("format").toString() == "1280 x 720, 30 FPS, MJPG");
     // How much of a straightened picture's edge shows: a percentage here, a share in the cell.
     cam.model.set("showAll", JVariant(40));
     assert(c.cameras[0].showAll == 0.4 && JPCameraConfig::fromJson(c.cameras[0].toJson()).showAll == 0.4);

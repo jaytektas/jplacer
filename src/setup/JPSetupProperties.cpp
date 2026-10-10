@@ -3,6 +3,8 @@
 
 #include "JPSetupProperties.h"
 
+#include "camera/JPCaptureFactory.h"
+
 #include "common/JPWhen.h"
 
 #include "machine/JPSerialPorts.h"
@@ -2623,10 +2625,18 @@ void cameraForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
             // one chosen. Listed once the camera has started (the machine on); the one set kept in the list.
             static const std::string kLargest = "The largest MJPG, at its fastest";
             const std::vector<JPCaptureMode> offered = live.cameraModes ? live.cameraModes(c().id) : std::vector<JPCaptureMode>();
-            auto setMode = [device]() -> std::optional<JPCaptureMode> {
+            // The mode set, as listed: one set without a rate (older settings) is the listed one it opens in.
+            auto setMode = [device, offered]() -> std::optional<JPCaptureMode> {
                 const JJson& d = std::as_const(device());
                 if (d["width"].number() <= 0 || d["height"].number() <= 0) return std::nullopt;
-                return JPCaptureMode { d["format"].str(), int(d["width"].number()), int(d["height"].number()), d["fps"].number() };
+                JPCaptureMode m { d["format"].str(), int(d["width"].number()), int(d["height"].number()), d["fps"].number() };
+                if (const auto opened = JPCaptureFactory::choose(offered, d); opened && opened->width == m.width
+                    && opened->height == m.height && (m.format.empty() || opened->format == m.format))
+                    for (const JPCaptureMode& o : offered)
+                        if (o.format == opened->format && o.width == opened->width && o.height == opened->height
+                            && (m.fps <= 0 || std::abs(o.fps - m.fps) < 0.5))
+                            return o;
+                return m;
             };
             std::vector<std::string> texts { kLargest };
             for (const JPCaptureMode& m : offered) texts.push_back(m.openpnpText());
