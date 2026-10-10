@@ -29,6 +29,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <map>
 
 inline namespace jf {
 
@@ -106,6 +107,8 @@ JPSetupForm::JPSetupForm(JSceneGraph& graph) : JContainer(graph, 0.f, 0.f) {
 }
 
 void JPSetupForm::attachPages(int active) {
+    m_builtTitles.clear();
+    for (const JPSetupProperties::Tab& t : m_form.tabs) m_builtTitles.push_back(t.title);
     while (m_tabs->tabCount() > 0) m_tabs->removeTab(m_tabs->tabCount() - 1);
     m_single->clear();
     // One page, shown where its tab bar would only repeat its title: on its own.
@@ -188,19 +191,25 @@ void JPSetupForm::populateRenderPrimitives(JPrimitiveBuffer& buf) {
 }
 
 void JPSetupForm::rebuild() {
-    const int active = m_tabs->activeTab();
-    std::vector<float> scrolled;
-    for (const auto& p : m_pages)
-        if (const auto* s = dynamic_cast<const JScrollArea*>(p.get())) scrolled.push_back(s->scrollY());
+    // Made again, the place kept: the tab shown and each page's scroll, by the tab's title (a remade form may
+    // have gained or lost a tab).
+    const int was = m_tabs->activeTab();
+    const std::string wasTitle = was >= 0 && size_t(was) < m_builtTitles.size() ? m_builtTitles[size_t(was)] : "";
+    std::map<std::string, float> scrolled;
+    for (size_t i = 0; i < m_pages.size() && i < m_builtTitles.size(); ++i)
+        if (const auto* s = dynamic_cast<const JScrollArea*>(m_pages[i].get())) scrolled[m_builtTitles[i]] = s->scrollY();
     while (m_tabs->tabCount() > 0) m_tabs->removeTab(m_tabs->tabCount() - 1);
     m_single->clear();
     m_pages.clear();
     m_pulls.clear();
     m_contents.clear();
     m_builtWidth = m_graph.getLayoutConst(getNodeId()).boundingBox.width;
+    int active = 0;
     for (size_t i = 0; i < m_form.tabs.size(); ++i) {
         m_pages.push_back(page(m_form.tabs[i]));
-        if (auto* s = dynamic_cast<JScrollArea*>(m_pages.back().get()); s && i < scrolled.size()) s->setScrollY(scrolled[i]);
+        const std::string& title = m_form.tabs[i].title;
+        if (title == wasTitle) active = int(i);
+        if (auto* s = dynamic_cast<JScrollArea*>(m_pages.back().get()); s && scrolled.count(title)) s->setScrollY(scrolled[title]);
     }
     attachPages(active);
 }

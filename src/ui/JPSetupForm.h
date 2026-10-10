@@ -99,6 +99,7 @@ private:
     bool                                   m_pulling = false;   // refresh() setting controls: not an edit
     bool                                   m_greying = false;   // making a disabled setting's control (Form::disabled)
     float                                  m_builtWidth = 0;    // the form's width when its pages were made
+    std::vector<std::string>               m_builtTitles;       // the shown pages' tabs' titles, in order
     bool                                   m_rebuilding = false;
     bool                                   m_openPnpPlaceButtons = false;
     bool                                   m_singleTabBar = true;

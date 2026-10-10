@@ -9,6 +9,7 @@ Every change a user would notice adds a line under Unreleased, in the same commi
 notes.
 
 ## Unreleased
+- Machine Setup keeps your place when the page you are on is updated by the machine: the tab and how far each page is scrolled stay put. Before, it jumped back to the top each time, after every camera move with the camera's settling Diagnostics on (a calibration's every step), and whenever a reading or a result was put on the page.
 - A move asked for while a calibration, a nozzle tip change or a running job is moving the machine (Machine Setup's Move Nozzle, say) is refused with "Not moved: …", instead of slipping in between the task's own moves: one during a tip's runout measurement had taken the nozzle off the camera, and the measurement failed. While a calibration waits for you, you can still move the machine.
 - A nozzle tip whose runout measurement fails (or is cancelled) is no longer left showing as calibrated: as in OpenPnP, its earlier calibration is forgotten and the Jog panel's tip button turns red; before, the failure banner showed while the button stayed green.
 - Clicking a box beside a camera's picture no longer acts on the picture: a quick double click on the Detection Diameter's arrows while calibrating the bottom camera, with the picture zoomed in, moved the nozzle as if the picture had been double-clicked there, and the mouse wheel over the box zoomed the picture as well. The Placements viewer's board no longer pans from a drag begun elsewhere in its window.

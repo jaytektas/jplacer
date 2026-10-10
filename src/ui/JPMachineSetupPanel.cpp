@@ -546,7 +546,7 @@ void JPMachineSetupPanel::remakeForm() {
         m_title->setText(f.title);
         m_labels.clear();
         for (const JProperty& p : f.model.all()) m_labels[p.name] = p.meta.label.empty() ? p.name : p.meta.label;
-        m_form->setForm(std::move(f));
+        m_form->remake(std::move(f));   // the same part's again: its tab and where each page was scrolled to kept
         select(m_selected);   // where it is in the tree now
     });
 }
