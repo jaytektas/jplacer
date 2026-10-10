@@ -447,17 +447,24 @@ void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPF
                         [d](int v) { d().link["port"] = v; }, 1, 65535);
         } else {
             add.group("Serial Port");
-            // As OpenPnP's: the serial ports there now to choose from (by their stable names), the one set kept
-            // among them though it is not plugged in, and any other typed in.
-            Strings ports;
-            for (const JPSerialPorts::Port& p : JPSerialPorts::list()) ports.push_back(p.path);
-            if (const std::string now = std::as_const(d().link)["port"].str();
-                !now.empty() && std::find(ports.begin(), ports.end(), now) == ports.end())
-                ports.push_back(now);
-            add.editableChoice("port", "Port", ports, [d] { return std::as_const(d().link)["port"].str(); },
-                               [d](const std::string& v) { d().link["port"] = v; });
-            add.tip("The serial ports there now (each by its stable name, the same whichever USB socket it is in), "
-                    "and the one set; or type another. The list is read again each time this page is shown.");
+            // The serial ports there now, each by what the device says it is, kept by its stable name (the same
+            // whichever USB socket it is in); the one set, when it is not plugged in now, still shown so it is
+            // not silently lost.
+            JPFormBuilder::Named ports;
+            for (const JPSerialPorts::Port& p : JPSerialPorts::list()) ports.add(p.label, p.path);
+            const std::string now = std::as_const(d().link)["port"].str();
+            const std::string stable = now.empty() ? now : JPSerialPorts::stablePath(now);
+            const bool found = std::find(ports.ids.begin(), ports.ids.end(), stable) != ports.ids.end();
+            if (!now.empty() && !found) ports.add(now + " (not found)", now);
+            add.byName("port", "Port", ports,
+                       [d] {
+                           const std::string v = std::as_const(d().link)["port"].str();
+                           return v.empty() ? v : JPSerialPorts::stablePath(v);
+                       },
+                       [d](const std::string& v) { d().link["port"] = v; });
+            add.tip("The serial ports there now, by what each device says it is (kept by its stable name, the same "
+                    "whichever USB socket it is in); the one set is shown \"(not found)\" while it is not plugged in. "
+                    "The list is read again each time this page is shown.");
             // The rates a serial port takes.
             Strings rates;
             for (int r : { 1200, 4800, 9600, 19200, 38400, 57600, 115200, 230400, 921600 }) rates.push_back(std::to_string(r));
@@ -568,6 +575,9 @@ void driverForm(JPCellConfig& cell, const std::string& id, const std::vector<JPF
     add.button("detectFirmware", "Detect Firmware", "Ask the connected controller again what firmware it runs.");
     add.text("detectedFirmware", "Firmware", [d] { return d().detectedFirmware.empty() ? std::string("(not asked yet: connect)") : d().detectedFirmware; },
              nullptr, "lines");
+    // What the controller says it is doing now (Idle, Run, Alarm…), kept up to date while the page is shown.
+    add.text("controllerState", "State", [state = live.driverState, id] { return state ? state(id) : std::string(); }, nullptr);
+    add.tip("What the controller last said it is doing (Idle, Run, Hold, Alarm…), or that it is not connected.");
 
     // The firmware's commands, each replaceable for this controller (a
     // machine wired its own way homes its own way). Empty: the profile's.

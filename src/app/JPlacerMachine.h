@@ -50,7 +50,7 @@ class JPBoardLocation;
 
 // The machine jplacer is working with: the open cell (cells/<name>.json),
 // its panels, each in a dock of its own where JPlacerLayout puts it (a
-// camera each; Jog, Actuators; Board, Machine Setup, Machine; Console), the
+// camera each; Jog, Actuators; Board, Machine Setup; Console), the
 // chosen tool's position in the status bar, the strip across the window
 // saying what state it is in, and the Machine menu's actions on it.
 //
@@ -336,8 +336,7 @@ private:
     bool openCell(const std::string& path, std::string& error);
     // `tell`: say what was brought in (and what to check) when done.
     void importFrom(const std::string& machineXml, bool tell = true);
-    void setPort(const std::string& driverId, const std::string& port);
-    // A change in Machine Setup (and a port chosen): the running machine
+    // A change in Machine Setup: the running machine
     // takes `cell` (with the calibrations and squareness measured meanwhile,
     // see JPCell::reconfigure), the panels it changes are made again, and it
     // is kept in the cell file. False when the machine is moving (it is

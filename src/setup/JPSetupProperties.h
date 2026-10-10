@@ -155,6 +155,8 @@ public:
         std::function<std::vector<JPCaptureMode>(const std::string& cameraId)> cameraModes;
         // The Z calibration offset of the nozzle a tip is loaded on (OpenPnP's calibrationOffsetZ; none: not calibrated).
         std::function<std::optional<double>(const std::string& nozzleTipId)> zCalibration;
+        // What a controller says it is doing now ("Idle", "Alarm"…), or that it is not connected.
+        std::function<std::string(const std::string& driverId)> driverState;
         // A controller's G-code console (OpenPnP's driver Console tab): its traffic, newest last.
         std::function<std::vector<std::string>(const std::string& driverId)> driverConsole;
     };

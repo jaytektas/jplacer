@@ -160,14 +160,14 @@ coming up to pressure for its Pump On Wait).
 
 USB serial ports are numbered in the order devices happen to start (`ttyACM0`, `ttyACM1`, …), so the
 number a controller had yesterday — or in OpenPnP's configuration — can belong to a different device
-today. For each controller on a serial port, the Machine panel has a **port** list showing the serial
-devices plugged in now, by the name each device gives itself. Choosing one saves it in the cell, using
+today. For each controller on a serial port, its Machine Setup page has a **Port** list showing the
+serial devices plugged in now, by the name each device gives itself. Choosing one saves it in the cell, using
 the device's permanent name (under `/dev/serial/by-id` on Linux), which stays the same whatever order
 devices start in. While connected, the connection stays as it is: the port chosen is used the next
 time you connect (see [Changes are used as you make them](machine-setup.md#changes-are-used-as-you-make-them)); Undo takes the choice back. A port the cell names but that is not plugged in
 is listed as "(not found)".
 
-<!-- src: src/app/JPlacerMachine.cpp (setPort, applySetup); src/machine/JPCell.cpp (connect); src/machine/JPGcodeDriver.cpp (connect, identify, readSettings); profiles/grblhal.json; profiles/grbl.json; profiles/generic.json; src/machine/JPSerialPorts.cpp (stable names); src/ui/JPMachinePanel.cpp (the port list) -->
+<!-- src: src/app/JPlacerMachine.cpp (applySetup); src/machine/JPCell.cpp (connect); src/machine/JPGcodeDriver.cpp (connect, identify, readSettings); profiles/grblhal.json; profiles/grbl.json; profiles/generic.json; src/machine/JPSerialPorts.cpp (stable names); src/setup/JPSetupProperties.cpp (the port list) -->
 
 ### Firmware profiles
 
@@ -217,19 +217,15 @@ again to go back to where the tool is.
 
 <!-- src: src/ui/JPPositionReadout.cpp; src/ui/JPJogPanel.cpp (where); src/app/JPlacerMachine.cpp (the status bar) -->
 
-### Machine
+### A controller's firmware and state
 
-The top line names the cell and says whether it is connected and, when it is, the firmware each
-controller runs and whether the machine is homed. Below are what each controller says it is doing (Idle, Run, Alarm…) and, for each controller on a
-serial port, the port list (see [Choosing the port](#choosing-the-port)).
+Each controller's Machine Setup page shows, under **Firmware**, what firmware it said it runs and its
+**State**: what it says it is doing now (Idle, Run, Hold, Alarm…), or *not connected*, kept up to date
+while the page is shown. Whether the machine is connected and homed shows on the toolbar's connect and
+home buttons and in the strip across the window; what it has been measured for, on each part's own page
+(a camera's calibration, the squareness, the head's homing).
 
-Under **Calibration** is what the machine has been measured for: each camera's calibrations, one for each
-picture size it was measured at (the size, its scale in X and Y, how far it is turned, its lens, how
-closely the measurements fitted, and when), the
-squareness correction, and how it homes. It changes as soon as a
-calibration does.
-
-<!-- src: src/ui/JPMachinePanel.cpp (refresh, refreshCalibration) -->
+<!-- src: src/setup/JPSetupProperties.cpp (driverForm: Firmware, State); src/app/JPlacerMachine.cpp (live.driverState, onState) -->
 
 ### Homing
 

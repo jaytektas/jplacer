@@ -31,7 +31,6 @@
 #include "ui/JPConsolePanel.h"
 #include "ui/JPIcons.h"
 #include "ui/JPJogPanel.h"
-#include "ui/JPMachinePanel.h"
 #include "ui/JPMachineSetupPanel.h"
 #include "ui/JPUiParts.h"
 
@@ -437,15 +436,6 @@ void JPlacerMachine::buildPanels(Keep keep) {
     const bool cameras = keep != Keep::SetupAndCameras;
     if (cameras) buildCameras();
 
-    auto machine = std::make_unique<JPMachinePanel>(m_graph, *m_cell);
-    machine->onPortChosen = [this](const std::string& driverId, const std::string& port) {
-        // Posted: the choice arrives inside the panel's own event, and
-        // applying it makes that panel again.
-        std::weak_ptr<bool> alive = m_alive;
-        JMainThreadDispatcher::instance().post([this, alive, driverId, port] {
-            if (const auto a = alive.lock(); a && *a) setPort(driverId, port);
-        });
-    };
     using Home = JPlacerLayout::Home;
     struct Panel {
         const char*                 title;
@@ -516,7 +506,6 @@ void JPlacerMachine::buildPanels(Keep keep) {
     panels.push_back({ "Actuators", Home::Controls, std::make_unique<JPActuatorPanel>(m_graph, *m_cell) });
     if (keep != Keep::Nothing) panels.push_back({ "Machine Setup", Home::Work, nullptr });   // kept
     else panels.push_back({ "Machine Setup", Home::Work, makeSetup() });
-    panels.push_back({ "Machine",   Home::Work, std::move(machine) });
     auto console = std::make_unique<JPConsolePanel>(m_graph, *m_cell,
                                                     JSettings::instance().get<bool>(JPlacerSettings::kConsoleTraffic, true));
     console->onShowTraffic = [](bool on) {
@@ -587,6 +576,12 @@ std::unique_ptr<JPMachineSetupPanel> JPlacerMachine::makeSetup() {
         for (const CameraDock& d : m_cameras)
             if (d.panel->camera().id == cameraId) return d.panel->feed().modes();
         return std::vector<JPCaptureMode>();
+    };
+    setup->live.driverState = [this](const std::string& driverId) {
+        if (!m_cell || !m_cell->isConnected()) return std::string("not connected");
+        const auto states = m_cell->states();
+        const auto it = states.find(driverId);
+        return it == states.end() || it->second.empty() ? std::string("connected, no state reported yet") : it->second;
     };
     setup->live.driverConsole = [this, consoles = m_consoles](const std::string& driverId) {
         if (m_cell)
@@ -929,7 +924,13 @@ void JPlacerMachine::watchCell() {
             });
         });
     }));
-    m_unwatch.push_back(m_cell->onState.connect([onMain](std::string, std::string) { onMain([] {}); }));
+    // A controller's state on its page (Machine Setup), when that is the page shown: as it changes, and as the
+    // machine connects or disconnects.
+    auto controllerState = [this] {
+        if (m_setupSelected.rfind("driver:", 0) == 0) refreshSetupForm();
+    };
+    m_unwatch.push_back(m_cell->onState.connect([onMain, controllerState](std::string, std::string) { onMain(controllerState); }));
+    m_unwatch.push_back(m_cell->onConnection.connect([onMain, controllerState](bool, std::string) { onMain(controllerState); }));
     // Parked in X and Y: the cameras' lights off, until you next do something at a camera (userActionLight).
     m_unwatch.push_back(m_cell->onParked.connect([this, onMain](std::string) {
         onMain([this] {
@@ -961,17 +962,6 @@ void JPlacerMachine::watchCell() {
             }
         });
     }));
-}
-
-void JPlacerMachine::setPort(const std::string& driverId, const std::string& port) {
-    const JPDriverConfig* d = m_cell->config().driver(driverId);
-    if (!m_setup || !d || d->link["port"].str() == port) return;
-    JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_cellPath << ": controller " << driverId << " now on " << port;
-    // A step in Machine Setup like any other, so Undo takes it back.
-    m_setup->change("Port of " + d->name, [&](JPCellConfig& cell) {
-        for (JPDriverConfig& c : cell.drivers)
-            if (c.id == driverId) c.link["port"] = port;
-    });
 }
 
 void JPlacerMachine::recordCalibration(const std::string& cameraId, const JPCameraCalibration& calibration) {
