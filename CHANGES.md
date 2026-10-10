@@ -9,6 +9,9 @@ Every change a user would notice adds a line under Unreleased, in the same commi
 notes.
 
 ## Unreleased
+
+## 0.1.43
+
 - Parts and packages now live only in the library: a board's placements point at library parts, and boards no longer keep parts, packages or copies of their own. Create Missing Parts adds the parts (and packages) the library lacks when you take the import (Merge, Replace or New Revision), not while you're only looking at it. A board saved before is converted as it opens: its own parts and packages go into the library, and the log says how many.
 - The Parts and Packages tabs list the library; the Source icon shows a board for anything an open board uses, and Show picks All, Used by open boards, or one board. The part picker's Make It the Board's Own, and the Board's Parts window's Take the Library's and Give the Library the Board's, are gone with the board copies.
 
