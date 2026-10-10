@@ -5,7 +5,8 @@
 // simulated controller, a missing or duplicate axis letter, a shared Z,
 // no feed rate, the machine not homed, Safe Z and soft limits not set), and
 // a Safe Z and a soft limit captured from where the axis is on Accept and
-// put back on Reopen.
+// put back on Reopen. The head's nozzle solution, reopened and accepted on a
+// machine past Welcome, changes nothing until it is confirmed, as OpenPnP's.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
@@ -634,6 +635,50 @@ int main() {
         assert(v.setState(*suspend, S::State::Solved, why) && cell.cameras.back().suspendDuringTasks);
         assert(v.setState(*quality, S::State::Solved, why) && smooth);
         assert(v.setState(*fps, S::State::Open, why) && cell.cameras.back().previewFps == 30);   // undone
+    }
+    {
+        // A machine past Welcome (its nozzles made already): the head's nozzle solution shown solved.
+        JPCellConfig made = cell;
+        made.axes[1].letter = "Y";
+        made.axes[2].letter = "Z";
+        JPCameraConfig cam;
+        cam.id = "CAM";
+        cam.name = "Top";
+        cam.mount = { "H", "x", "y", "", "" };
+        made.cameras.push_back(cam);
+        made.nozzles.front().name = "LEFT";
+        JPIssueChecks::Context mc = c;
+        mc.cell = [&made]() -> const JPCellConfig* { return &made; };
+        int changes = 0;
+        mc.changeCell = [&made, &changes](const std::string&, const std::function<void(JPCellConfig&)>& edit) {
+            edit(made);
+            ++changes;
+        };
+        S ms;
+        ms.setChecks(JPIssueChecks::all(mc));
+        std::function<void()> yes;
+        std::string asked;
+        ms.confirm = [&yes, &asked](const std::string& message, std::function<void()> go) {
+            asked = message;
+            yes = std::move(go);
+        };
+        ms.setShowSolved(true);
+        ms.setTargetMilestone(S::Milestone::Basics);
+        ms.find();
+        ms.publish();
+        S::Issue* nozzles = nullptr;
+        for (const auto& i : ms.issues())
+            if (i->issue == "Set how many nozzles head Head has, and how their Z is driven.") nozzles = i.get();
+        assert(nozzles && nozzles->state == S::State::Solved);
+        std::string why;
+        assert(ms.setState(*nozzles, S::State::Open, why) && changes == 0);
+        // Accepted: asked first, nothing changed.
+        assert(!ms.setState(*nozzles, S::State::Solved, why) && why.empty());
+        assert(yes && asked.find("Are you sure?") != std::string::npos);
+        assert(changes == 0 && nozzles->state == S::State::Open && made.nozzles.front().name == "LEFT");
+        // Yes: made, and solved.
+        yes();
+        assert(changes == 1 && nozzles->state == S::State::Solved && made.nozzles.front().name == "N1");
     }
     return 0;
 }

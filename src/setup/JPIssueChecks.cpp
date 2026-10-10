@@ -210,9 +210,34 @@ void welcome(JPSolutions& s, const JPIssueChecks::Context& c) {
     i.properties.push_back(std::move(count));
     const std::string headId = head.id, cameraId = camera->id, text = i.issue;
     // The choice taken on Accept: the published issue's (as the panel sets it). Reopened: only a fresh
-    // choice, as OpenPnP's.
-    i.apply = [c, sp = &s, headId, cameraId, units, text](State to, std::string&) {
+    // choice, as OpenPnP's. Accepted only once confirmed, as OpenPnP's (HeadSolutions.Issue.CreateNozzles.Confirm):
+    // the nozzles and their axes and vacuum actuators are made again, and an Accept meant for another issue (this
+    // one is chosen first after a search) had rebuilt a working machine's nozzles unasked.
+    auto confirmed = std::make_shared<bool>(false);
+    i.apply = [c, sp = &s, headId, cameraId, units, text, confirmed](State to, std::string& why) {
         if (to != State::Solved || !c.changeCell) return true;
+        if (!*confirmed && sp->confirm) {
+            sp->confirm(
+                "Accepting this solution may change your machine configuration fundamentally. The following will happen:\n\n"
+                "- The new solution overwrites your existing nozzle and axis configuration.\n"
+                "- As far as nozzles and axes remain the same type and count, their detail configuration is preserved.\n"
+                "- A nozzle solution can be applied multiple times, you can revisit and expand it.\n"
+                "- Caution: Reopen will not restore the previous configuration, only enable a fresh choice. "
+                "Edit > Undo in Machine Setup restores it.\n\nAre you sure?",
+                [sp, text, confirmed] {
+                    for (const auto& p : sp->issues())
+                        if (p->issue == text) {
+                            *confirmed = true;
+                            std::string ignored;
+                            sp->setState(*p, State::Solved, ignored);
+                            *confirmed = false;
+                            if (sp->onSolutionChanged) sp->onSolutionChanged();
+                            return;
+                        }
+                });
+            why.clear();
+            return false;   // nothing done until the answer is yes
+        }
         JPNozzleSolution::Kind chosen = JPNozzleSolution::Kind::Standalone;
         for (const auto& p : sp->issues())
             if (p->issue == text) JPNozzleSolution::parse(p->choice, chosen);

@@ -4,7 +4,9 @@
 // OpenPnP's nozzle solution: a head's nozzles made as so many units of a
 // kind, the nozzles, axes and actuators there were reused in order (their
 // settings kept), new ones made as OpenPnP makes them, and those left over
-// removed; the head's current kind and units read back.
+// removed; the head's current kind and units read back. A nozzle whose valve
+// and sensing were one actuator, its command naming its output by {index}: the
+// valve made apart switches that same output.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
@@ -95,5 +97,20 @@ int main() {
     size_t zAxes = 0;
     for (const JPAxisConfig& a : c.axes) zAxes += a.type == JPAxisConfig::Type::Z;
     assert(zAxes == 1 && c.actuators.size() == 2 && c.problems().empty());
+    {
+        // One actuator the valve and the sensing (as an OpenPnP machine's often is), "M64 P{index}" on output 3.
+        JPCellConfig shared = cellConfig();
+        JPActuatorConfig& a = shared.actuators.front();
+        a.onCommand = "M64 P{index}";
+        a.offCommand = "M65 P{index}";
+        a.index = "3";
+        shared.nozzles.front().vacuumSenseActuatorId = "V";
+        JPNozzleSolution::apply(shared, "H", "CAM", K::DualNegated, 1);
+        const JPNozzleConfig* n = nozzle(shared, "N1");
+        assert(n && n->vacuumSenseActuatorId == "V" && n->vacuumActuatorId != "V");
+        const JPActuatorConfig* valve = actuator(shared, n->vacuumActuatorId);
+        assert(valve && valve->onCommand == "M64 P{index}" && valve->offCommand == "M65 P{index}");
+        assert(valve->index == "3");   // the same output, not "M64 P"
+    }
     return 0;
 }

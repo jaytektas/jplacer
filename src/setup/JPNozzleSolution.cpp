@@ -181,7 +181,9 @@ void JPNozzleSolution::apply(JPCellConfig& cell, const std::string& headId, cons
                 n.vacuumActuatorId = valve;
                 n.vacuumSenseActuatorId = sense;
             }
-        // A valve made apart from a shared sense actuator: its switching taken from it.
+        // A valve made apart from a shared sense actuator: its switching taken from it (OpenPnP's
+        // assignVacuumActuators, so the command is not lost), and the output its command names with it ({index}):
+        // without it the valve sent "M64 P", which grblHAL refuses (OpenPnP's new actuator, index 0, switches P0).
         JPActuatorConfig* v = nullptr;
         const JPActuatorConfig* s = nullptr;
         for (JPActuatorConfig& a : cell.actuators) {
@@ -191,6 +193,7 @@ void JPNozzleSolution::apply(JPCellConfig& cell, const std::string& headId, cons
         if (v && s && v->onCommand.empty() && !s->onCommand.empty()) {
             v->onCommand = s->onCommand;
             v->offCommand = s->offCommand;
+            if (v->index.empty()) v->index = s->index;
         }
     };
     using K = JPAxisConfig::Kind;
