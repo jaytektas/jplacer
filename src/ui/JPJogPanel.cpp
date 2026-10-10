@@ -136,7 +136,7 @@ JPJogPanel::JPJogPanel(JSceneGraph& graph, JPCell& cell, Choices start) : JConta
     JComboBox* tools = top->add(std::make_unique<JComboBox>(graph, labels, 0.f));
     m_toolBox = tools;
     tools->setHSizePolicy(JSizePolicyMode::Expanding, 1);
-    tools->setMinimumSize(3 * side, JStyle::current().controlHeight);   // a long name is cut short, not the buttons
+    keepToolBoxNarrow();
     tools->setCurrentIndex(int(m_tool));
     auto tip = std::make_unique<JPIconButton>(graph, "Nozzle Tip", &JPIcons::nozzleTip,
                                               "The nozzle's tip: load one, unload it, or say which is on it");
@@ -557,7 +557,15 @@ void JPJogPanel::refreshNames() {
         labels.push_back(label);
     }
     m_toolBox->setItems(std::move(labels));
+    keepToolBoxNarrow();
     m_toolBox->setCurrentIndex(int(m_tool));
+}
+
+void JPJogPanel::keepToolBoxNarrow() {
+    // A long name is cut short, not the buttons. A combo's items set its least width to its longest name,
+    // so this is said again after every change of them: a part's name added to a nozzle's had pushed the
+    // tip's button out of the panel.
+    m_toolBox->setMinimumSize(3 * JStyle::current().buttonHeight, JStyle::current().controlHeight);
 }
 
 void JPJogPanel::refreshTipButton() {

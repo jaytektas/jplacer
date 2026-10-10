@@ -9,6 +9,7 @@ Every change a user would notice adds a line under Unreleased, in the same commi
 notes.
 
 ## Unreleased
+- The Jog panel keeps its size: the tool chooser no longer grows to its longest name (a nozzle with a part on it, say) and pushes the Nozzle Tip button out of the panel, and the jog buttons no longer jump in size when a setting is changed (in Issues & Solutions, for one).
 
 - A job no longer flips between the cameras' tabs at every look: as in OpenPnP, a camera's tab comes to the front only to show a vision result, and only when the camera has Auto Camera View ticked.
 - Recycle on the Jog panel comes back as soon as a feeder can take the part back (the feeder enabled again, say); before, it stayed greyed out until the nozzle's part changed.
