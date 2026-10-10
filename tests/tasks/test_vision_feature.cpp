@@ -7,7 +7,9 @@
 // is, its diameter measured, and it scores; asked for at a quarter of its size it is not taken; with diagnostics
 // the picture is drawn on. Auto-Detect Next from small sizes up comes to it (the smaller dot is outside the search),
 // and its next after it is none bigger in the picture (round again to it); the first press from the smallest size
-// comes straight to it, not to a size where nothing is found (the search's noise score taken for a peak).
+// comes straight to it, not to a size where nothing is found (the search's noise score taken for a peak). A test
+// object of two rings (a dark disc 268 pixels across, a light one 166 across inside it) expected off the middle, as
+// the nozzle offsets' centring looks for it: asked for at either diameter, that ring is found, where it is.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
@@ -82,5 +84,19 @@ int main() {
     const auto first = JPVisionFeature::next(base, JPVisionFeature::kFirstTriedPx);
     std::fprintf(stderr, "first press: %d\n", first ? *first : -1);
     assert(first && std::abs(*first - 120) < 8);
+    {
+        cv::Mat rings(720, 1280, CV_8UC3, cv::Scalar(70, 90, 75));
+        const cv::Point at(700, 330);
+        cv::circle(rings, at, 134, cv::Scalar(25, 25, 25), cv::FILLED, cv::LINE_AA);
+        cv::circle(rings, at, 83, cv::Scalar(200, 200, 195), cv::FILLED, cv::LINE_AA);
+        for (const int d : { 268, 166 }) {
+            cv::Mat p = rings.clone();
+            double score = 0;
+            const auto f = JPVisionFeature::detectAt(p, 690, 345, d, 0, false, false, score);
+            std::fprintf(stderr, "rings at %d px: %s %.1f, %.1f d %.1f score %.2f\n", d, f ? "found" : "none", f ? f->x : 0,
+                         f ? f->y : 0, f ? f->diameter : 0, score);
+            assert(f && std::abs(f->x - 700) < 1.5 && std::abs(f->y - 330) < 1.5 && std::abs(f->diameter - d) < d * 0.06);
+        }
+    }
     return 0;
 }

@@ -9,6 +9,7 @@ Every change a user would notice adds a line under Unreleased, in the same commi
 notes.
 
 ## Unreleased
+- The nozzle offsets calibration finds the test object as OpenPnP does: by the same round-feature search as Issues & Solutions' Feature diameter, at the test object's size (so a test object with a ring inside it is found by the ring of its size), centred on three times over every time, and each look shown on the camera. Before, it used the camera's calibration pipeline and could stop centring early.
 
 ## 0.1.37
 

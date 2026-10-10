@@ -26,6 +26,9 @@ public:
     // and its cross-hairs, or the nominal circle dashed). `rough`: no super-sampling (a preview). The score is set
     // even when nothing is found.
     static std::optional<Found> detect(cv::Mat& bgr, int diameterPx, double extraSearch, bool rough, bool diagnostics, double& score);
+    // The same, expected at (`x`, `y`) in the picture rather than its middle (OpenPnP's expected offsets).
+    static std::optional<Found> detectAt(cv::Mat& bgr, double x, double y, int diameterPx, double extraSearch, bool rough,
+                                         bool diagnostics, double& score);
     // The biggest feature a picture can show (OpenPnP's maxCameraRelativeSubjectDiameter of its smaller side).
     static int maxDiameter(int width, int height) { return int((width < height ? width : height) * kSubjectShare); }
     // Auto-Detect Next from `fromPx`: the diameter (as measured) of the next feature; none when there is none.

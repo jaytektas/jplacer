@@ -15,17 +15,22 @@ inline namespace jf {
 
 std::optional<JPVisionFeature::Found> JPVisionFeature::detect(cv::Mat& bgr, int diameterPx, double extraSearch, bool rough,
                                                               bool diagnostics, double& score) {
+    return detectAt(bgr, bgr.cols / 2, bgr.rows / 2, diameterPx, extraSearch, rough, diagnostics, score);
+}
+
+std::optional<JPVisionFeature::Found> JPVisionFeature::detectAt(cv::Mat& bgr, double x, double y, int diameterPx,
+                                                                double extraSearch, bool rough, bool diagnostics, double& score) {
     score = 0;
     if (bgr.empty() || bgr.depth() != CV_8U || diameterPx < kLeastDiameterPx) return std::nullopt;
     const int side = std::min(bgr.cols, bgr.rows);
-    // OpenPnP's getSubjectPixelLocation, the expected feature at the picture's middle.
+    // OpenPnP's getSubjectPixelLocation, the feature expected at (x, y).
     const int subjectArea = int(side * kFiducialAreaShare);
     const int maxD = int(diameterPx * kFiducialMargin + 1);
     const int minD = int(diameterPx / kFiducialMargin - 1);
     const int search = int(std::max(double(subjectArea), maxD * kFiducialMargin * 2) + side * extraSearch * 2);
     JPCircularSymmetry::Search q;
-    q.xCenter = bgr.cols / 2;
-    q.yCenter = bgr.rows / 2;
+    q.xCenter = int(std::lround(x));
+    q.yCenter = int(std::lround(y));
     q.minDiameter = minD;
     q.maxDiameter = maxD;
     q.searchDiameter = q.searchWidth = q.searchHeight = search;

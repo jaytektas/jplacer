@@ -12,6 +12,7 @@
 #include "tasks/JPCameraLook.h"
 #include "tasks/JPPipelineMarkFinder.h"
 #include "pipeline/JPDefaultPipelines.h"
+#include "pipeline/JPStraightPicture.h"
 #include "tasks/JPVisualHoming.h"
 #include "tasks/JPVisualTest.h"
 #include "tasks/JPVisionFeature.h"
@@ -50,11 +51,11 @@ constexpr double kTaskSpeed = 1.0;
 // How long a feature found is shown on the camera's view (OpenPnP's diagnosticsMilliseconds).
 constexpr int kFeatureShownMs = 4000;
 // OpenPnP's precise nozzle offsets calibration (its angles: the cell's nozzleOffsetAngles): the extra wait after each
-// pick and place, the test object's height (a pseudo part's), and centring on it (passes, near enough).
+// pick and place, the test object's height (a pseudo part's), and how many times it is centred on (OpenPnP's
+// zeroKnowledgeFiducialLocatorPasses).
 constexpr int    kExtraVacuumDwellMs = 300;
 constexpr double kTestObjectHeightMm = 0.01;
 constexpr int    kCentrePasses = 3;
-constexpr double kCentredMm = 0.01;
 // How long each of auto focus's pictures is shown (OpenPnP's 1 s).
 constexpr int kAutoFocusShownMs = 1000;
 // How long Auto-Tune when homing may take, all told (the camera's automatic moment, 6 s at most, then the search).
@@ -68,6 +69,30 @@ constexpr double kLeastMarkShare = 0.02;
 constexpr double kMostMarkShare = 0.4;
 // Two heights closer than this measure the camera's distance too poorly.
 constexpr double kLeastHeightGapMm = 1.0;
+
+// A settled picture from `feed`, in colour (BGR); false, and why, when there is none.
+bool settledColour(JPCameraFeed& feed, cv::Mat& bgr, std::string& why) {
+    JPFrame frame;
+    if (!JPCameraLook::settled(feed, frame, why)) return false;
+    if (frame.width <= 0) {
+        why = feed.config().name + " gives no picture";
+        return false;
+    }
+    cv::Mat rgba(frame.height, frame.width, CV_8UC4, frame.rgba.data());
+    cv::cvtColor(rgba, bgr, cv::COLOR_RGBA2BGR);
+    return true;
+}
+
+JPFrame frameOf(const cv::Mat& bgr) {
+    cv::Mat rgba;
+    cv::cvtColor(bgr, rgba, cv::COLOR_BGR2RGBA);
+    JPFrame f;
+    f.width = rgba.cols;
+    f.height = rgba.rows;
+    f.rgba.assign(rgba.data, rgba.data + rgba.total() * 4);
+    f.captured = std::chrono::steady_clock::now();
+    return f;
+}
 
 } // namespace
 
@@ -488,31 +513,54 @@ void JPlacerCameraTasks::calibrateNozzleOffsets(JPCameraPanel& camera, const JPN
     if (m_featureAt) start = *m_featureAt;
     else if (const auto now = cameraAt(camera)) start = *now;
     auto offsets = std::make_shared<std::pair<double, double>>(0, 0);
-    run(camera, "Calibrating " + nozzle.name + "'s offsets", [this, feed, rig, n, offsets, start](std::string& words, const auto& progress) {
+    JPCameraPanel* panel = &camera;
+    run(camera, "Calibrating " + nozzle.name + "'s offsets", [this, panel, feed, rig, n, offsets, start](std::string& words,
+                                                                                                         const auto& progress) {
         const JPMountConfig& cm = feed->config().mount;
         JPCameraCalibration cal;
         if (!JPCameraLook::calibration(m_cell, *feed, cal, words)) return false;
         const double scale = cal.scale();
         // Picked and placed at the test object's top: captured, else the primary fiducial's Z (a paper-thin object).
         const double z = rig.rigTestObjectZ.value_or(rig.rigPrimary->z);
-        // OpenPnP's centerInOnSubjectLocation: the camera over the test object, until it is centred.
-        auto centreOn = [&](double& x, double& y) {
+        // OpenPnP's centerInOnSubjectLocation: the camera over where the test object is thought to be, and three
+        // times found there by VisionSolutions' circular symmetry at its diameter (shrunk and grown by the fiducial
+        // margin) and the camera taken over it; its picture shown, as OpenPnP's diagnostics. The camera's own
+        // calibration turns the picture's pixels into the machine's millimetres (straightened as it is calibrated).
+        auto centreOn = [&](double& x, double& y, const std::string& shown) {
             for (int pass = 0; pass < kCentrePasses; ++pass) {
                 if (!m_cell.moveToolAndWait(cm, { x, y, std::nullopt, std::nullopt }, kTaskSpeed, words)) return false;
-                JPFrame img;
-                if (!JPCameraLook::settled(*feed, img, words)) return false;
-                // By the camera's calibration pipeline, as OpenPnP's centerInOnSubjectLocation finds it.
-                double diameter = rig.rigTestObjectDiameter, fx = 0, fy = 0;
-                const JPRoundMark found = JPPipelineMarkFinder::onMachine(feed->config(), cal, img, x, y, x, y,
-                                                                          rig.rigTestObjectDiameter, diameter, 0, 0, fx, fy);
-                if (!found.found) {
-                    words = "the test object was not found: " + found.why;
+                cv::Mat bgr;
+                if (!settledColour(*feed, bgr, words)) return false;
+                JPCameraCalibration on = cal;
+                if (const auto straight = JPStraightPicture::of(cal, feed->config().looksUp, feed->config().showAll)) {
+                    cv::Mat flat;
+                    if (straight->straighten(bgr, flat)) {
+                        bgr = flat;
+                        on = straight->calibration();
+                    }
+                }
+                double ex = bgr.cols / 2.0, ey = bgr.rows / 2.0;
+                on.pixelFor(x, y, x, y, ex, ey);
+                const int px = int(std::lround(rig.rigTestObjectDiameter * on.scale()));
+                double score = 0;
+                const auto found = JPVisionFeature::detectAt(bgr, ex, ey, px, 0, false, true, score);
+                char text[96];
+                std::snprintf(text, sizeof text, "%s - Score %.2f", shown.c_str(), score);
+                JMainThreadDispatcher::instance().post([alive = std::weak_ptr<bool>(m_alive), panel, frame = frameOf(bgr),
+                                                        text = std::string(text)] {
+                    if (const auto a = alive.lock(); a && *a) panel->view().showPicture(frame, text, kFeatureShownMs);
+                });
+                if (!found) {
+                    words = "the test object was not found (Subject not found.)";
                     return false;
                 }
-                const double moved = std::hypot(fx - x, fy - y);
+                double fx = 0, fy = 0;
+                if (!on.machinePoint(found->x, found->y, x, y, fx, fy)) {
+                    words = "the test object was found, but the camera's calibration cannot place it on the machine";
+                    return false;
+                }
                 x = fx;
                 y = fy;
-                if (moved < kCentredMm) return true;
             }
             return true;
         };
@@ -524,7 +572,7 @@ void JPlacerCameraTasks::calibrateNozzleOffsets(JPCameraPanel& camera, const JPN
                 return false;
         }
         progress("finding the test object");
-        if (!centreOn(x, y)) return false;
+        if (!centreOn(x, y, "Nozzle Offset Calibration")) return false;
         double sumX = 0, sumY = 0;
         int accumulated = 0;
         const double da = 360.0 / std::max(1, m_cell.config().nozzleOffsetAngles);
@@ -547,7 +595,9 @@ void JPlacerCameraTasks::calibrateNozzleOffsets(JPCameraPanel& camera, const JPN
             ok = ok && m_cell.placeAtAndWait(n.id, { x, y, z + kTestObjectHeightMm, angle + 180 }, kTaskSpeed, words);
             if (ok) holding = false;
             if (ok) std::this_thread::sleep_for(std::chrono::milliseconds(kExtraVacuumDwellMs));
-            ok = ok && centreOn(x, y);
+            char shown[64];
+            std::snprintf(shown, sizeof shown, "Nozzle Offset Calibration %g\xC2\xB0", angle);
+            ok = ok && centreOn(x, y, shown);
             sumX += x;
             sumY += y;
             accumulated += 2;
@@ -579,30 +629,6 @@ void JPlacerCameraTasks::calibrateNozzleOffsets(JPCameraPanel& camera, const JPN
 }
 
 namespace {
-
-// A settled picture from `feed`, in colour (BGR); false, and why, when there is none.
-bool settledColour(JPCameraFeed& feed, cv::Mat& bgr, std::string& why) {
-    JPFrame frame;
-    if (!JPCameraLook::settled(feed, frame, why)) return false;
-    if (frame.width <= 0) {
-        why = feed.config().name + " gives no picture";
-        return false;
-    }
-    cv::Mat rgba(frame.height, frame.width, CV_8UC4, frame.rgba.data());
-    cv::cvtColor(rgba, bgr, cv::COLOR_RGBA2BGR);
-    return true;
-}
-
-JPFrame frameOf(const cv::Mat& bgr) {
-    cv::Mat rgba;
-    cv::cvtColor(bgr, rgba, cv::COLOR_BGR2RGBA);
-    JPFrame f;
-    f.width = rgba.cols;
-    f.height = rgba.rows;
-    f.rgba.assign(rgba.data, rgba.data + rgba.total() * 4);
-    f.captured = std::chrono::steady_clock::now();
-    return f;
-}
 
 // A calibration's find drawn on its picture, as vision shows its results: a circle the size it was found and a
 // cross at its centre.
