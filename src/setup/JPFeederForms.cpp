@@ -384,6 +384,7 @@ void pinForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder
     general(add, config, f, false);
     pickLocation(add, f);
 
+    auto p = [f]() -> JPPinFeeder& { return *f().pinFeeding(); };
     add.group("General Settings");
     // OpenPnP's isPart0402: said beside the pitch.
     const JPPart* part = config.part(f().partId());
@@ -392,37 +393,33 @@ void pinForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder
     // OpenPnP's columns: the settings at the left, the peel-off actuator (and the 0402 note) at the right.
     add.header({ "", "", "" });
     add.row("Part Pitch");
-    length(add, f, "part-pitch", "Part Pitch", 4);
+    add.length("part-pitch", "Part Pitch", [p] { return mm(p().partPitch); }, [p](double v) { p().partPitch = JPLength(v, kMm); });
     if (part0402) add.text("part0402", "", [] { return std::string("0402 Part DETECTED"); }, nullptr);
     add.end();
-    add.number("feed-speed", "Feed Speed %",
-               [f] { return std::strtod(f().childText("feed-speed", "1.0").c_str(), nullptr) * 100; },
-               [f](double v) {
-                   char buf[32];
-                   std::snprintf(buf, sizeof buf, "%g", v / 100);
-                   f().setChildText("feed-speed", buf);
-               }, 1);
+    add.number("feed-speed", "Feed Speed %", [p] { return p().feedSpeed * 100; }, [p](double v) { p().feedSpeed = v / 100; }, 1);
     add.row("Actuator Name");
-    add.text("actuator-name", "Actuator Name", [f] { return f().text("actuator-name"); },
-             [f](const std::string& v) { f().setText("actuator-name", v); });
+    add.text("actuator-name", "Actuator Name", [p] { return p().actuatorName; }, [p](const std::string& v) { p().actuatorName = v; });
     add.words("Peel Off Actuator Name");
-    add.text("peel-off-actuator-name", "Peel Off Actuator Name", [f] { return f().text("peel-off-actuator-name"); },
-             [f](const std::string& v) { f().setText("peel-off-actuator-name", v); });
+    add.text("peel-off-actuator-name", "Peel Off Actuator Name", [p] { return p().peelOffActuatorName; },
+             [p](const std::string& v) { p().peelOffActuatorName = v; });
     add.end();
     add.endColumns();
 
     add.group("Locations");
     add.header({ "X", "Y", "Z" });
-    for (const auto& [label, element] : { std::pair { "Feed Start Location", "feed-start-location" },
-                                          std::pair { "Feed End Location", "feed-end-location" } }) {
+    for (const auto& [label, key, at] : { std::tuple { "Feed Start Location", "feed-start-location", &JPPinFeeder::feedStart },
+                                          std::tuple { "Feed End Location", "feed-end-location", &JPPinFeeder::feedEnd } }) {
+        const Spot spot { key, [p, at = at] { return p().*at; }, [p, at = at](const JPLocation& l) { p().*at = l; } };
         add.row(label, Place::Location);
-        coordinate(add, at(f, element), Axis::X, "X");
-        coordinate(add, at(f, element), Axis::Y, "Y");
-        coordinate(add, at(f, element), Axis::Z, "Z");
-        add.actuator([f] { return f().text("actuator-name"); });
+        coordinate(add, spot, Axis::X, "X");
+        coordinate(add, spot, Axis::Y, "Y");
+        coordinate(add, spot, Axis::Z, "Z");
+        add.actuator([p] { return p().actuatorName; });
         add.end();
     }
-    if (!lever) length(add, f, "backoff-distance", "Backoff Distance", 0);
+    if (!lever)
+        add.length("backoff-distance", "Backoff Distance", [f] { return mm(f().as<JPDragFeeder>()->backoffDistance); },
+                   [f](double v) { f().as<JPDragFeeder>()->backoffDistance = JPLength(v, kMm); });
 
     templateVision(add, f, options, false);
 }
@@ -434,9 +431,9 @@ void pinForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder
 // 0) with its own, and Reset vision offsets.
 void templateVision(JPFormBuilder& add, std::function<JPFeeder&()> f, const JPFeederForms::Options& options, bool fromMiddle) {
     using Selecting = JPFeederForms::Options::Selecting;
+    auto v = [f]() -> JPTemplateVision& { return *f().templateVision(); };
     add.group("Vision");
-    add.flag("vision.enabled", "Vision Enabled?", [f] { return f().attributeAt("vision", "enabled") == "true"; },
-             [f](bool on) { f().setAttributeAt("vision", "enabled", on ? "true" : "false"); });
+    add.flag("vision.enabled", "Vision Enabled?", [v] { return v().enabled; }, [v](bool on) { v().enabled = on; });
     add.image("Template Image", options.templateImage);
     add.row("");
     add.button("selectTemplate", options.selecting == Selecting::Template ? "Confirm" : "Select", "",
@@ -445,13 +442,14 @@ void templateVision(JPFormBuilder& add, std::function<JPFeeder&()> f, const JPFe
     add.end();
     add.header({ "X", "Y", "Width", "Height" });
     add.row("Area of Interest");
-    for (const char* a : { "x", "y", "width", "height" }) {
-        const std::string attr = a;
+    using Side = int JPTemplateVision::Area::*;
+    for (const auto& [name, side] : { std::pair { "x", Side(&JPTemplateVision::Area::x) }, std::pair { "y", Side(&JPTemplateVision::Area::y) },
+                                      std::pair { "width", Side(&JPTemplateVision::Area::width) },
+                                      std::pair { "height", Side(&JPTemplateVision::Area::height) } }) {
+        const std::string attr = name;
         const bool signedPlace = fromMiddle && (attr == "x" || attr == "y");
-        add.integer("vision.area-of-interest." + attr, attr,
-                    [f, attr] { return std::atoi(f().attributeAt("vision/area-of-interest", attr, "0").c_str()); },
-                    [f, attr](int v) { f().setAttributeAt("vision/area-of-interest", attr, std::to_string(v)); },
-                    signedPlace ? -kMostCount : 0, kMostCount);
+        add.integer("vision.area-of-interest." + attr, attr, [v, side = side] { return v().areaOfInterest.*side; },
+                    [v, side = side](int n) { v().areaOfInterest.*side = n; }, signedPlace ? -kMostCount : 0, kMostCount);
     }
     add.button("selectAoi", options.selecting == Selecting::AreaOfInterest ? "Confirm" : "Select", "",
                options.selecting != Selecting::Template);
@@ -466,16 +464,16 @@ void templateVision(JPFormBuilder& add, std::function<JPFeeder&()> f, const JPFe
 void neoden4Form(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f, const JPFeederForms::Options& options) {
     general(add, config, f, false);
     pickLocation(add, f);
+    auto n = [f]() -> JPNeoden4Feeder& { return *f().as<JPNeoden4Feeder>(); };
     add.group("Other");
     add.row("Pitch In Tape");
-    length(add, f, "part-pitch-in-tape", "Pitch In Tape", 4);
-    add.integer("part-rotation-in-tape", "Rotation In Tape [deg]",
-                [f] { return std::atoi(f().childText("part-rotation-in-tape", "0").c_str()); },
-                [f](int v) { f().setChildText("part-rotation-in-tape", std::to_string(v)); }, -kMostCount, kMostCount);
+    add.length("part-pitch-in-tape", "Pitch In Tape", [n] { return mm(n().partPitchInTape); },
+               [n](double v) { n().partPitchInTape = JPLength(v, kMm); });
+    add.integer("part-rotation-in-tape", "Rotation In Tape [deg]", [n] { return n().partRotationInTape; },
+                [n](int v) { n().partRotationInTape = v; }, -kMostCount, kMostCount);
     add.end();
     add.row("Actuator Name");
-    add.text("actuator-name", "Actuator Name", [f] { return f().text("actuator-name"); },
-             [f](const std::string& v) { f().setText("actuator-name", v); });
+    add.text("actuator-name", "Actuator Name", [n] { return n().actuatorName; }, [n](const std::string& v) { n().actuatorName = v; });
     add.button("actuate", "Actuate");
     add.end();
     add.row("Feed Count");

@@ -103,6 +103,21 @@ const JPSchultzFeeder* JPFeeder::schultzFeeding() const {
 
 JPSchultzFeeder* JPFeeder::schultzFeeding() { return const_cast<JPSchultzFeeder*>(std::as_const(*this).schultzFeeding()); }
 
+const JPPinFeeder* JPFeeder::pinFeeding() const {
+    if (const JPDragFeeder* d = as<JPDragFeeder>()) return d;
+    return as<JPLeverFeeder>();
+}
+
+JPPinFeeder* JPFeeder::pinFeeding() { return const_cast<JPPinFeeder*>(std::as_const(*this).pinFeeding()); }
+
+const JPTemplateVision* JPFeeder::templateVision() const {
+    if (const JPPinFeeder* p = pinFeeding()) return &p->vision;
+    if (const JPNeoden4Feeder* n = as<JPNeoden4Feeder>()) return &n->vision;
+    return nullptr;
+}
+
+JPTemplateVision* JPFeeder::templateVision() { return const_cast<JPTemplateVision*>(std::as_const(*this).templateVision()); }
+
 std::string JPFeeder::slotBankId() const {
     if (const JPSlotAutoFeeder* s = as<JPSlotAutoFeeder>()) return s->bankId;
     if (const JPSlotSchultzFeeder* z = as<JPSlotSchultzFeeder>()) return z->bankId;
@@ -131,7 +146,6 @@ namespace {
 struct TapeNames {
     bool        rotationInLocation = false;   // its location's rotation (a strip's Rotation In Tape)
     std::string rotationReal;                 // an attribute in degrees
-    std::string rotationChild;                // a child element's whole degrees (a Neoden4's)
     std::string widthLength;                  // a length element
     std::string pitchLength;                  // a length element
     std::string pitchNumber;                  // a whole-mm attribute (a Photon's)
@@ -149,11 +163,6 @@ TapeNames tapeNames(const std::string& kind) {
     } else if (kind == "BlindsFeeder") {
         t.rotationInLocation = true;
         t.pitchLength = "pocket-pitch";
-    } else if (kind == "Neoden4Feeder") {
-        t.rotationChild = "part-rotation-in-tape";
-        t.pitchLength = "part-pitch-in-tape";
-    } else if (kind == "ReferenceDragFeeder" || kind == "ReferenceLeverFeeder") {
-        t.pitchLength = "part-pitch";
     } else if (kind == "PhotonFeeder") {
         t.pitchNumber = "part-pitch";
     }
@@ -170,12 +179,20 @@ JPFeeder::Tape JPFeeder::tape() const {
         t.pitchMm = r->pitch;
         return t;
     }
+    if (const JPPinFeeder* p = pinFeeding()) {
+        t.pitchMm = mmOf(p->partPitch);
+        return t;
+    }
+    if (const JPNeoden4Feeder* n = as<JPNeoden4Feeder>()) {
+        t.rotationDeg = n->partRotationInTape;
+        t.pitchMm = mmOf(n->partPitchInTape);
+        return t;
+    }
     if (typed()) return t;   // a tray, tube, auto or Schultz feeder: none
     const TapeNames n = tapeNames(typeName());
     constexpr JPLengthUnit kMm = JPLengthUnit::Millimeters;
     if (n.rotationInLocation) t.rotationDeg = m_location.rotation();
     else if (!n.rotationReal.empty()) t.rotationDeg = real(n.rotationReal, 0);
-    else if (!n.rotationChild.empty()) t.rotationDeg = std::atof(childText(n.rotationChild, "0").c_str());
     if (!n.widthLength.empty()) t.widthMm = mmOf(lengthOf(n.widthLength, JPLength(8, kMm)));
     if (!n.pitchLength.empty()) t.pitchMm = mmOf(lengthOf(n.pitchLength, JPLength(4, kMm)));
     else if (!n.pitchNumber.empty()) t.pitchMm = number(n.pitchNumber, 4);
@@ -184,7 +201,7 @@ JPFeeder::Tape JPFeeder::tape() const {
 
 JPFeeder::Tape JPFeeder::kept(const Tape& wanted) const {
     const Tape has = tape();
-    const bool wholeRotation = !typed() && !tapeNames(typeName()).rotationChild.empty();
+    const bool wholeRotation = as<JPNeoden4Feeder>() != nullptr;
     const bool wholePitch = as<JPRapidFeeder>() || (!typed() && !tapeNames(typeName()).pitchNumber.empty());
     auto take = [](const std::optional<double>& keeps, const std::optional<double>& v, bool whole) -> std::optional<double> {
         if (!keeps || !v) return std::nullopt;
@@ -196,17 +213,25 @@ JPFeeder::Tape JPFeeder::kept(const Tape& wanted) const {
 
 void JPFeeder::setTape(const Tape& wanted) {
     const Tape k = kept(wanted);
+    constexpr JPLengthUnit kMm = JPLengthUnit::Millimeters;
     if (JPRapidFeeder* r = as<JPRapidFeeder>()) {
         if (k.pitchMm) r->pitch = int(*k.pitchMm);
         return;
     }
+    if (JPPinFeeder* p = pinFeeding()) {
+        if (k.pitchMm) p->partPitch = JPLength(*k.pitchMm, kMm);
+        return;
+    }
+    if (JPNeoden4Feeder* d = as<JPNeoden4Feeder>()) {
+        if (k.rotationDeg) d->partRotationInTape = int(*k.rotationDeg);
+        if (k.pitchMm) d->partPitchInTape = JPLength(*k.pitchMm, kMm);
+        return;
+    }
     if (typed()) return;
     const TapeNames n = tapeNames(typeName());
-    constexpr JPLengthUnit kMm = JPLengthUnit::Millimeters;
     if (k.rotationDeg) {
         if (n.rotationInLocation) setLocation(m_location.derive(std::nullopt, std::nullopt, std::nullopt, *k.rotationDeg));
         else if (!n.rotationReal.empty()) setReal(n.rotationReal, *k.rotationDeg);
-        else if (!n.rotationChild.empty()) setChildText(n.rotationChild, std::to_string(int(*k.rotationDeg)));
     }
     if (k.widthMm) setLengthOf(n.widthLength, JPLength(*k.widthMm, kMm));
     if (k.pitchMm) {
@@ -225,6 +250,7 @@ bool JPFeeder::autoTune() const {
 int JPFeeder::feedCount() const {
     if (const JPTrayFeeder* t = as<JPTrayFeeder>()) return t->feedCount;
     if (const JPRotatedTrayFeeder* t = as<JPRotatedTrayFeeder>()) return t->feedCount;
+    if (const JPNeoden4Feeder* n = as<JPNeoden4Feeder>()) return n->feedCount;
     if (typed()) return 0;
     const JPXmlNode* n = std::get_if<JPXmlNode>(&m_own);
     const std::string* v = n ? n->get("feed-count") : nullptr;
@@ -234,6 +260,7 @@ int JPFeeder::feedCount() const {
 void JPFeeder::setFeedCount(int n) {
     if (JPTrayFeeder* t = as<JPTrayFeeder>()) t->feedCount = n;
     else if (JPRotatedTrayFeeder* r = as<JPRotatedTrayFeeder>()) r->feedCount = n;
+    else if (JPNeoden4Feeder* d = as<JPNeoden4Feeder>()) d->feedCount = n;
     else if (!typed()) setNumber("feed-count", n);
 }
 
@@ -399,7 +426,6 @@ JPLocation pointAlongLine(const JPLocation& a, const JPLocation& bIn, double dis
     return a.add(JPLocation(a.units(), dx / l * distance, dy / l * distance, 0, 0));
 }
 
-double mm(const JPLength& l) { return l.convertToUnits(JPLengthUnit::Millimeters).value(); }
 
 } // namespace
 
@@ -444,29 +470,20 @@ std::optional<JPLocation> JPFeeder::pickLocation() const {
         return foundPick ? *foundPick : location();
     if (kind == "ReferenceTubeFeeder" || kind == "ReferenceAutoFeeder" || kind == "RapidFeeder" || kind == "SchultzFeeder")
         return location();
-    if (kind == "Neoden4Feeder") {
+    if (const JPNeoden4Feeder* n = as<JPNeoden4Feeder>()) {
         // Turned by its rotation in the tape; moved by where its vision last found the template.
         JPLocation at = location();
-        at = at.derive(std::nullopt, std::nullopt, std::nullopt,
-                       at.rotation() + std::atoi(childText("part-rotation-in-tape", "0").c_str()));
-        if (attributeAt("vision", "enabled") == "true" && templateOffset) at = at.subtract(*templateOffset);
+        at = at.derive(std::nullopt, std::nullopt, std::nullopt, at.rotation() + n->partRotationInTape);
+        if (n->vision.enabled && templateOffset) at = at.subtract(*templateOffset);
         return at;
     }
-    if (kind == "ReferenceLeverFeeder") {
-        // As OpenPnP's: the second part's step only with vision.
+    if (const JPPinFeeder* p = pinFeeding()) {
+        // A lever's second part's step only with vision, as OpenPnP's; a drag's whatever.
+        const bool lever = as<JPLeverFeeder>() != nullptr;
         JPLocation at = location();
-        const double pitch = lengthOf("part-pitch", JPLength(4, JPLengthUnit::Millimeters)).convertToUnits(JPLengthUnit::Millimeters).value();
-        if (attributeAt("vision", "enabled") == "true" && templateOffset) {
-            at = at.subtract(*templateOffset);
-            if (pitch == 2 && nextPartPick) at = at.add(*nextPartPick);
-        }
-        return at;
-    }
-    if (kind == "ReferenceDragFeeder") {
-        JPLocation at = location();
-        const double pitch = lengthOf("part-pitch", JPLength(4, JPLengthUnit::Millimeters)).convertToUnits(JPLengthUnit::Millimeters).value();
-        if (pitch == 2 && nextPartPick) at = at.add(*nextPartPick);
-        if (attributeAt("vision", "enabled") == "true" && templateOffset) at = at.subtract(*templateOffset);
+        const double pitch = mmOf(p->partPitch);
+        if (p->vision.enabled && templateOffset) at = at.subtract(*templateOffset);
+        if (pitch == 2 && nextPartPick && (!lever || (p->vision.enabled && templateOffset))) at = at.add(*nextPartPick);
         return at;
     }
     if (kind == "ReferenceStripFeeder") {
@@ -698,9 +715,9 @@ JPLocation JPFeeder::visionView(const JPLocation& hole) const {
     const double len = std::hypot(bb.x() - aa.x(), bb.y() - aa.y());
     if (len == 0) return h;
     // Across the tape to its parts, as the pick (OpenPnP's hole to part lateral, turned with the tape).
-    const double across = mm(lengthOf("tape-width", JPLength(8, JPLengthUnit::Millimeters))) / 2 - 0.5;
+    const double across = mmOf(lengthOf("tape-width", JPLength(8, JPLengthUnit::Millimeters))) / 2 - 0.5;
     const double r = (bb.angleTo(aa) - 90) * M_PI / 180;
-    const double half = mm(holePitch()) / 2;
+    const double half = mmOf(holePitch()) / 2;
     return JPLocation(JPLengthUnit::Millimeters, h.x() + across * std::cos(r) + (bb.x() - aa.x()) / len * half,
                       h.y() + across * std::sin(r) + (bb.y() - aa.y()) / len * half, h.z(), 0);
 }
@@ -708,8 +725,8 @@ JPLocation JPFeeder::visionView(const JPLocation& hole) const {
 std::optional<JPLocation> JPFeeder::visionExpected(int n) const {
     if (!flag("vision-enabled", false)) return std::nullopt;
     const auto [a, b] = idealLineLocations();
-    const double pitch = mm(lengthOf("part-pitch", JPLength(4, JPLengthUnit::Millimeters)));
-    const double holePitchMm = mm(holePitch());
+    const double pitch = mmOf(lengthOf("part-pitch", JPLength(4, JPLengthUnit::Millimeters)));
+    const double holePitchMm = mmOf(holePitch());
     // Under 4 mm a hole serves two parts: each looked at twice.
     const double along = pitch < 4 ? holePitchMm * double((n - 1) / 2) : pitch * double(n - 1);
     const JPLocation expected = pointAlongLine(a, b, JPLength(along, JPLengthUnit::Millimeters).convertToUnits(a.units()).value());
@@ -722,7 +739,7 @@ std::optional<JPLocation> JPFeeder::visionExpected(int n) const {
     // distance grows with the span measured (OpenPnP's geometric progression).
     const JPLocation aa = a.convertToUnits(JPLengthUnit::Millimeters), bb = b.convertToUnits(JPLengthUnit::Millimeters);
     const double span = std::hypot(bb.x() - aa.x(), bb.y() - aa.y());
-    const double extrapolation = std::min(mm(lengthOf("extrapolation-distance", JPLength(0, JPLengthUnit::Millimeters))) * 1.01,
+    const double extrapolation = std::min(mmOf(lengthOf("extrapolation-distance", JPLength(0, JPLengthUnit::Millimeters))) * 1.01,
                                           span * 0.7);
     if (toVision >= extrapolation) return expected;
     return std::nullopt;
@@ -854,7 +871,8 @@ std::string JPFeeder::templateDirectory(const std::string& configDirectory, cons
 }
 
 std::string JPFeeder::templatePath(const std::string& configDirectory) const {
-    const std::string name = attributeAt("vision", "template-image-name");
+    const JPTemplateVision* v = templateVision();
+    const std::string name = v ? v->templateImageName : std::string();
     return name.empty() ? std::string() : templateDirectory(configDirectory, className()) + "/" + name;
 }
 

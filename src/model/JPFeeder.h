@@ -6,6 +6,9 @@
 #include "JPLength.h"
 #include "JPLocation.h"
 #include "JPAutoFeeder.h"
+#include "JPDragFeeder.h"
+#include "JPLeverFeeder.h"
+#include "JPNeoden4Feeder.h"
 #include "JPRapidFeeder.h"
 #include "JPRotatedTrayFeeder.h"
 #include "JPSchultzFeeder.h"
@@ -73,6 +76,12 @@ public:
     // A Schultz feeder's own, or a slot Schultz feeder's (fed as one); none: another kind.
     JPSchultzFeeder*       schultzFeeding();
     const JPSchultzFeeder* schultzFeeding() const;
+    // A drag or lever feeder's own (what a pin feeder has); none: another kind.
+    JPPinFeeder*       pinFeeding();
+    const JPPinFeeder* pinFeeding() const;
+    // The template vision of a drag, lever or Neoden 4 feeder; none: another kind.
+    JPTemplateVision*       templateVision();
+    const JPTemplateVision* templateVision() const;
     // Whether its kind is typed (its settings its own, none by OpenPnP's name).
     bool typed() const { return !std::holds_alternative<JPXmlNode>(m_own); }
 
@@ -313,7 +322,8 @@ private:
     JPLocation       m_location { JPLengthUnit::Millimeters };
     // Its kind's own settings: OpenPnP's as they are (a kind not typed), else a typed kind's.
     using Own = std::variant<JPXmlNode, JPTrayFeeder, JPTubeFeeder, JPAutoFeeder, JPSlotAutoFeeder, JPSchultzFeeder,
-                             JPSlotSchultzFeeder, JPRotatedTrayFeeder, JPRapidFeeder>;
+                             JPSlotSchultzFeeder, JPRotatedTrayFeeder, JPRapidFeeder, JPDragFeeder, JPLeverFeeder,
+                             JPNeoden4Feeder>;
     Own m_own { JPXmlNode("feeder") };
     std::vector<int> m_visionChecks;
     bool             m_actuate = false;

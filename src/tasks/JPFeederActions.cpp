@@ -206,9 +206,10 @@ bool JPFeederActions::run(JPConfiguration& config, const std::string& feederId, 
         std::string actuator;
         double pitch = 0;
         main([&] {
-            if (const JPFeeder* f = config.feeder(feederId)) {
-                actuator = f->text("actuator-name");
-                pitch = f->lengthOf("part-pitch-in-tape", JPLength(4, JPLengthUnit::Millimeters)).value();
+            const JPFeeder* f = config.feeder(feederId);
+            if (const JPNeoden4Feeder* n = f ? f->as<JPNeoden4Feeder>() : nullptr) {
+                actuator = n->actuatorName;
+                pitch = n->partPitchInTape.value();
             }
         });
         if (machine.actuate(actuator, pitch, why)) return true;

@@ -249,5 +249,42 @@ int main() {
         assert(own && own->address == "FDR07" && own->pitch == 8 && own->scanEnd.x() == 90 && near(own->scanIncrement.value(), 2.5));
         assert(back.pickLocation() && back.pickLocation()->x() == 5 && back.tape().pitchMm == 8.0);
     }
+    // Drag, lever and Neoden 4 feeders: a pin's settings, a drag's backoff, a Neoden 4's pitch and whole-degree
+    // rotation in tape, and their template vision their own, from OpenPnP's and through jplacer's file.
+    {
+        const JPFeeder d = parse(R"(<feeder class="org.openpnp.machine.reference.feeder.ReferenceDragFeeder" id="D" name="D" enabled="true" part-id="R1" actuator-name="Pin" peel-off-actuator-name="Peel">
+   <location units="Millimeters" x="50.0" y="10.0" z="-2.0" rotation="0.0"/>
+   <feed-start-location units="Millimeters" x="40.0" y="10.0" z="-1.0" rotation="0.0"/>
+   <feed-end-location units="Millimeters" x="44.0" y="10.0" z="-1.0" rotation="0.0"/>
+   <part-pitch value="2.0" units="Millimeters"/>
+   <feed-speed>0.5</feed-speed>
+   <backoff-distance value="0.3" units="Millimeters"/>
+   <vision enabled="true" template-image-name="tmpl_1.png"><area-of-interest x="1" y="2" width="30" height="40"/></vision>
+</feeder>)");
+        const JPFeeder back = JPFeeder::fromJson(JJson::parse(d.toJson().dump()));
+        const JPDragFeeder* own = back.as<JPDragFeeder>();
+        assert(own && back.pinFeeding() == own && own->actuatorName == "Pin" && own->peelOffActuatorName == "Peel");
+        assert(own->feedEnd.x() == 44 && near(own->partPitch.value(), 2) && near(own->feedSpeed, 0.5) && near(own->backoffDistance.value(), 0.3));
+        assert(own->vision.enabled && own->vision.templateImageName == "tmpl_1.png" && own->vision.areaOfInterest.height == 40);
+        assert(back.templateVision() == &own->vision && back.tape().pitchMm == 2.0);
+        assert(back.templatePath("/cfg") == "/cfg/" + std::string(JPDragFeeder::kClass) + ".Vision/tmpl_1.png");
+
+        const JPFeeder lever = JPFeeder::fromJson(JJson::parse(JPFeeder::create(JPLeverFeeder::kClass, "R1").toJson().dump()));
+        assert(lever.as<JPLeverFeeder>() && lever.pinFeeding() && !lever.as<JPDragFeeder>());
+
+        const JPFeeder n = parse(R"(<feeder class="org.openpnp.machine.neoden4.Neoden4Feeder" id="N" name="N" enabled="true" part-id="R1" actuator-name="F1" feed-count="2">
+   <location units="Millimeters" x="30.0" y="40.0" z="-1.0" rotation="0.0"/>
+   <part-pitch-in-tape value="2.0" units="Millimeters"/>
+   <part-rotation-in-tape>90</part-rotation-in-tape>
+   <vision enabled="false"/>
+</feeder>)");
+        JPFeeder nb = JPFeeder::fromJson(JJson::parse(n.toJson().dump()));
+        const JPNeoden4Feeder* nown = nb.as<JPNeoden4Feeder>();
+        assert(nown && nown->actuatorName == "F1" && nb.feedCount() == 2 && nown->partRotationInTape == 90);
+        assert(nb.pickLocation() && near(nb.pickLocation()->rotation(), 90) && nb.tape().rotationDeg == 90.0);
+        // Its rotation in tape kept in whole degrees.
+        nb.setTape(JPFeeder::Tape { 44.6, std::nullopt, 4.0 });
+        assert(nb.as<JPNeoden4Feeder>()->partRotationInTape == 45 && near(nb.as<JPNeoden4Feeder>()->partPitchInTape.value(), 4));
+    }
     return 0;
 }

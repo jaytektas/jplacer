@@ -57,22 +57,21 @@ bool JPFeederFeed::pinFeed(JPConfiguration& config, const std::string& feederId,
     int fed = 0;
     main([&] {
         const JPFeeder* f = config.feeder(feederId);
-        if (!f) return;
-        lever = f->typeName() == "ReferenceLeverFeeder";
-        actuator = f->text("actuator-name");
-        peelOff = f->text("peel-off-actuator-name");
-        start = f->locationOf("feed-start-location").convertToUnits(kMm);
-        end = f->locationOf("feed-end-location").convertToUnits(kMm);
+        const JPPinFeeder* p = f ? f->pinFeeding() : nullptr;
+        if (!p) return;
+        lever = f->as<JPLeverFeeder>() != nullptr;
+        actuator = p->actuatorName;
+        peelOff = p->peelOffActuatorName;
+        start = p->feedStart.convertToUnits(kMm);
+        end = p->feedEnd.convertToUnits(kMm);
         location = f->location().convertToUnits(kMm);
-        pitch = f->lengthOf("part-pitch", JPLength(4, kMm)).convertToUnits(kMm).value();
-        speed = std::strtod(f->childText("feed-speed", "1.0").c_str(), nullptr);
-        backoff = f->lengthOf("backoff-distance", JPLength(0, kMm)).convertToUnits(kMm).value();
-        vision = f->attributeAt("vision", "enabled") == "true";
+        pitch = p->partPitch.convertToUnits(kMm).value();
+        speed = p->feedSpeed;
+        if (const JPDragFeeder* d = f->as<JPDragFeeder>()) backoff = d->backoffDistance.convertToUnits(kMm).value();
+        vision = p->vision.enabled;
         templatePath = f->templatePath(config.directory());
-        aoi = { std::atoi(f->attributeAt("vision/area-of-interest", "x", "0").c_str()),
-                std::atoi(f->attributeAt("vision/area-of-interest", "y", "0").c_str()),
-                std::atoi(f->attributeAt("vision/area-of-interest", "width", "0").c_str()),
-                std::atoi(f->attributeAt("vision/area-of-interest", "height", "0").c_str()) };
+        const JPTemplateVision::Area& a = p->vision.areaOfInterest;
+        aoi = { a.x, a.y, a.width, a.height };
         visionOffset = f->templateOffset;
         fed = f->partsFed;
         // OpenPnP's isPart0402: its package's id says C0402 or R0402.
@@ -135,7 +134,8 @@ bool JPFeederFeed::pinFeed(JPConfiguration& config, const std::string& feederId,
         if (part0402) {
             pitch = 2;
             main([&] {
-                if (JPFeeder* f = config.feeder(feederId)) f->setLengthOf("part-pitch", JPLength(2, kMm));
+                if (JPFeeder* f = config.feeder(feederId))
+                    if (JPPinFeeder* p = f->pinFeeding()) p->partPitch = JPLength(2, kMm);
             });
         }
         if (pitch == 2) fed = 2;
@@ -343,17 +343,16 @@ bool JPFeederFeed::feed(JPConfiguration& config, const std::string& feederId, co
     JPTemplateFinder::Area neodenArea;
     main([&] {
         const JPFeeder* f = config.feeder(feederId);
-        if (!f || f->typeName() != "Neoden4Feeder") return;
+        const JPNeoden4Feeder* n = f ? f->as<JPNeoden4Feeder>() : nullptr;
+        if (!n) return;
         neoden = true;
-        neodenActuator = f->text("actuator-name");
-        neodenPitch = f->lengthOf("part-pitch-in-tape", JPLength(4, kMm)).value();
-        neodenVision = f->attributeAt("vision", "enabled") == "true";
+        neodenActuator = n->actuatorName;
+        neodenPitch = n->partPitchInTape.value();
+        neodenVision = n->vision.enabled;
         neodenTemplate = f->templatePath(config.directory());
         neodenAt = f->location();
-        neodenArea = { std::atoi(f->attributeAt("vision/area-of-interest", "x", "0").c_str()),
-                       std::atoi(f->attributeAt("vision/area-of-interest", "y", "0").c_str()),
-                       std::atoi(f->attributeAt("vision/area-of-interest", "width", "0").c_str()),
-                       std::atoi(f->attributeAt("vision/area-of-interest", "height", "0").c_str()), true };
+        const JPTemplateVision::Area& a = n->vision.areaOfInterest;
+        neodenArea = { a.x, a.y, a.width, a.height, true };
     });
     if (neoden) {
         if (neodenActuator.empty()) {

@@ -601,14 +601,11 @@ void JPFeedersPanel::selectOnCamera(JPFeederForms::Options::Selecting what) {
         } else {
             JPCameraView::Selection r = view->selection();
             // A Neoden 4 feeder's is from the picture's middle.
-            if (f->typeName() == "Neoden4Feeder") {
+            if (f->as<JPNeoden4Feeder>()) {
                 r.x -= view->pictureWidth() / 2;
                 r.y -= view->pictureHeight() / 2;
             }
-            f->setAttributeAt("vision/area-of-interest", "x", std::to_string(r.x));
-            f->setAttributeAt("vision/area-of-interest", "y", std::to_string(r.y));
-            f->setAttributeAt("vision/area-of-interest", "width", std::to_string(r.width));
-            f->setAttributeAt("vision/area-of-interest", "height", std::to_string(r.height));
+            if (JPTemplateVision* v = f->templateVision()) v->areaOfInterest = { r.x, r.y, r.width, r.height };
             changed();
         }
         view->setSelectionEnabled(false);
@@ -617,12 +614,11 @@ void JPFeedersPanel::selectOnCamera(JPFeederForms::Options::Selecting what) {
         // Select: from the area of interest as it is (else a start), the template afresh.
         JPCameraView::Selection r { 0, 0, kFirstSelectionPx, kFirstSelectionPx };
         if (what == Selecting::AreaOfInterest) {
-            const JPCameraView::Selection aoi { std::atoi(f->attributeAt("vision/area-of-interest", "x", "0").c_str()),
-                                                std::atoi(f->attributeAt("vision/area-of-interest", "y", "0").c_str()),
-                                                std::atoi(f->attributeAt("vision/area-of-interest", "width", "0").c_str()),
-                                                std::atoi(f->attributeAt("vision/area-of-interest", "height", "0").c_str()) };
+            const JPTemplateVision* v = f->templateVision();
+            const JPTemplateVision::Area a = v ? v->areaOfInterest : JPTemplateVision::Area {};
+            const JPCameraView::Selection aoi { a.x, a.y, a.width, a.height };
             if (aoi.width > 0 && aoi.height > 0) r = aoi;
-            if (aoi.width > 0 && aoi.height > 0 && f->typeName() == "Neoden4Feeder") {
+            if (aoi.width > 0 && aoi.height > 0 && f->as<JPNeoden4Feeder>()) {
                 r.x += view->pictureWidth() / 2;
                 r.y += view->pictureHeight() / 2;
             }
@@ -643,7 +639,9 @@ bool JPFeedersPanel::confirmTemplate(JPFeeder& f, JPCameraView& view) {
         return false;
     }
     // Into OpenPnP's resource file for it: the one it has, else a new one.
-    std::string name = f.attributeAt("vision", "template-image-name");
+    JPTemplateVision* vision = f.templateVision();
+    if (!vision) return false;
+    std::string name = vision->templateImageName;
     if (name.empty())
         name = "tmpl_" + std::to_string(std::chrono::duration_cast<std::chrono::nanoseconds>(
                                             std::chrono::system_clock::now().time_since_epoch()).count()) + ".png";
@@ -655,7 +653,7 @@ bool JPFeedersPanel::confirmTemplate(JPFeeder& f, JPCameraView& view) {
         JDialog::message("Error", error);
         return false;
     }
-    f.setAttributeAt("vision", "template-image-name", name);
+    vision->templateImageName = name;
     changed();
     return true;
 }
