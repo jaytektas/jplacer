@@ -73,6 +73,14 @@ int main() {
     config.addPart(inTray);
     JPFeeder s2 = JPFeeder::create("ReferenceStripFeeder", "");
     assert(JPFeederPackaging::load(config, s2, "QFP") == "rotation 45°");
+    // A Rapid feeder keeps its pitch in whole millimetres: 2.4 mm kept as 2, and that one still matches.
+    auto fine = std::make_shared<JPPart>();
+    fine->id = "FINE";
+    fine->packagings.push_back({ "Reel", 8, 2.4, "", 0, 0, "" });
+    config.addPart(fine);
+    JPFeeder rapid = JPFeeder::create(JPRapidFeeder::kClass, "");
+    assert(JPFeederPackaging::load(config, rapid, "FINE") == "2 mm pitch" && rapid.as<JPRapidFeeder>()->pitch == 2);
+    assert(JPFeederPackaging::matching(rapid, *fine) == 0);
     assert(JPFeederPackaging::labels(*two)[1] == "2: Reel, 12 mm, 8 mm pitch, 180°" && JPFeederPackaging::labels(*inTray)[0] == "1: Tray, 45°");
     std::filesystem::remove_all(dir);
     return 0;

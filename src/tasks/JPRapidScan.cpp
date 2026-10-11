@@ -29,11 +29,12 @@ bool JPRapidScan::scan(JPConfiguration& config, const std::string& feederId, JPJ
     double increment = 0;
     bool known = false;
     main([&] {
-        if (const JPFeeder* f = config.feeder(feederId)) {
+        const JPFeeder* f = config.feeder(feederId);
+        if (const JPRapidFeeder* r = f ? f->as<JPRapidFeeder>() : nullptr) {
             known = true;
-            start = f->locationOf("scan-start-location").convertToUnits(kMm);
-            end = f->locationOf("scan-end-location").convertToUnits(kMm);
-            increment = f->lengthOf("scan-increment", JPLength(4, kMm)).convertToUnits(kMm).value();
+            start = r->scanStart.convertToUnits(kMm);
+            end = r->scanEnd.convertToUnits(kMm);
+            increment = r->scanIncrement.convertToUnits(kMm).value();
         }
     });
     if (!known) {
@@ -75,7 +76,7 @@ bool JPRapidScan::scan(JPConfiguration& config, const std::string& feederId, JPJ
             }
             const JPLocation was = f->location();
             f->setLocation(JPLocation(was.units(), c.at.convertToUnits(was.units()).x(), c.at.convertToUnits(was.units()).y(), was.z(), was.rotation()));
-            f->setText("address", c.text);
+            if (JPRapidFeeder* r = f->as<JPRapidFeeder>()) r->address = c.text;
             if (f->partId().empty() && !config.parts().empty()) f->setPartId(config.parts().front()->id);
         }
     });

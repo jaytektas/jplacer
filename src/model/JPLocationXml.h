@@ -22,6 +22,7 @@ struct JPLocationXml {
     static JPLocation from(const JPXmlNode& n) { return from(JPXmlNode::element(n)); }
     static JPXmlNode  to(const std::string& name, const JPLocation& l);
     static JPLength   lengthFrom(const JPXmlElement& e);
+    static JPLength   lengthFrom(const JPXmlNode& n) { return lengthFrom(JPXmlNode::element(n)); }
     static JPXmlNode  lengthTo(const std::string& name, const JPLength& l);
 };
 

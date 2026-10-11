@@ -125,6 +125,96 @@ void JPFeeder::setSlotFeederId(const std::string& id) {
     if (JPSlotSchultzFeeder* z = as<JPSlotSchultzFeeder>()) z->feederId = id;
 }
 
+namespace {
+
+// Where a kind not typed yet keeps what a packaging gives it, by OpenPnP's names (empty: not kept).
+struct TapeNames {
+    bool        rotationInLocation = false;   // its location's rotation (a strip's Rotation In Tape)
+    std::string rotationReal;                 // an attribute in degrees
+    std::string rotationChild;                // a child element's whole degrees (a Neoden4's)
+    std::string widthLength;                  // a length element
+    std::string pitchLength;                  // a length element
+    std::string pitchNumber;                  // a whole-mm attribute (a Photon's)
+};
+
+TapeNames tapeNames(const std::string& kind) {
+    TapeNames t;
+    if (kind == "ReferenceStripFeeder") {
+        t.rotationInLocation = true;
+        t.widthLength = "tape-width";
+        t.pitchLength = "part-pitch";
+    } else if (kind == "ReferencePushPullFeeder" || kind == "BambooFeederAutoVision") {
+        t.rotationReal = "rotation-in-feeder";
+        t.pitchLength = "part-pitch";
+    } else if (kind == "BlindsFeeder") {
+        t.rotationInLocation = true;
+        t.pitchLength = "pocket-pitch";
+    } else if (kind == "Neoden4Feeder") {
+        t.rotationChild = "part-rotation-in-tape";
+        t.pitchLength = "part-pitch-in-tape";
+    } else if (kind == "ReferenceDragFeeder" || kind == "ReferenceLeverFeeder") {
+        t.pitchLength = "part-pitch";
+    } else if (kind == "PhotonFeeder") {
+        t.pitchNumber = "part-pitch";
+    }
+    return t;
+}
+
+double mmOf(const JPLength& l) { return l.convertToUnits(JPLengthUnit::Millimeters).value(); }
+
+} // namespace
+
+JPFeeder::Tape JPFeeder::tape() const {
+    Tape t;
+    if (const JPRapidFeeder* r = as<JPRapidFeeder>()) {
+        t.pitchMm = r->pitch;
+        return t;
+    }
+    if (typed()) return t;   // a tray, tube, auto or Schultz feeder: none
+    const TapeNames n = tapeNames(typeName());
+    constexpr JPLengthUnit kMm = JPLengthUnit::Millimeters;
+    if (n.rotationInLocation) t.rotationDeg = m_location.rotation();
+    else if (!n.rotationReal.empty()) t.rotationDeg = real(n.rotationReal, 0);
+    else if (!n.rotationChild.empty()) t.rotationDeg = std::atof(childText(n.rotationChild, "0").c_str());
+    if (!n.widthLength.empty()) t.widthMm = mmOf(lengthOf(n.widthLength, JPLength(8, kMm)));
+    if (!n.pitchLength.empty()) t.pitchMm = mmOf(lengthOf(n.pitchLength, JPLength(4, kMm)));
+    else if (!n.pitchNumber.empty()) t.pitchMm = number(n.pitchNumber, 4);
+    return t;
+}
+
+JPFeeder::Tape JPFeeder::kept(const Tape& wanted) const {
+    const Tape has = tape();
+    const bool wholeRotation = !typed() && !tapeNames(typeName()).rotationChild.empty();
+    const bool wholePitch = as<JPRapidFeeder>() || (!typed() && !tapeNames(typeName()).pitchNumber.empty());
+    auto take = [](const std::optional<double>& keeps, const std::optional<double>& v, bool whole) -> std::optional<double> {
+        if (!keeps || !v) return std::nullopt;
+        return whole ? std::round(*v) : *v;
+    };
+    return { take(has.rotationDeg, wanted.rotationDeg, wholeRotation), take(has.widthMm, wanted.widthMm, false),
+             take(has.pitchMm, wanted.pitchMm, wholePitch) };
+}
+
+void JPFeeder::setTape(const Tape& wanted) {
+    const Tape k = kept(wanted);
+    if (JPRapidFeeder* r = as<JPRapidFeeder>()) {
+        if (k.pitchMm) r->pitch = int(*k.pitchMm);
+        return;
+    }
+    if (typed()) return;
+    const TapeNames n = tapeNames(typeName());
+    constexpr JPLengthUnit kMm = JPLengthUnit::Millimeters;
+    if (k.rotationDeg) {
+        if (n.rotationInLocation) setLocation(m_location.derive(std::nullopt, std::nullopt, std::nullopt, *k.rotationDeg));
+        else if (!n.rotationReal.empty()) setReal(n.rotationReal, *k.rotationDeg);
+        else if (!n.rotationChild.empty()) setChildText(n.rotationChild, std::to_string(int(*k.rotationDeg)));
+    }
+    if (k.widthMm) setLengthOf(n.widthLength, JPLength(*k.widthMm, kMm));
+    if (k.pitchMm) {
+        if (!n.pitchLength.empty()) setLengthOf(n.pitchLength, JPLength(*k.pitchMm, kMm));
+        else setNumber(n.pitchNumber, int(*k.pitchMm));
+    }
+}
+
 bool JPFeeder::autoTune() const {
     if (typed()) return false;
     const JPXmlNode& n = std::get<JPXmlNode>(m_own);

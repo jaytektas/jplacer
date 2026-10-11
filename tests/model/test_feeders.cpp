@@ -236,5 +236,18 @@ int main() {
         JPFeeder plain = JPFeeder::create(JPSchultzFeeder::kClass, "R1");
         assert(plain.as<JPSchultzFeeder>() && plain.slotBankId().empty());
     }
+    // A Rapid feeder: its address, pitch and scan its own, from OpenPnP's and through jplacer's file.
+    {
+        const JPFeeder r = parse(R"(<feeder class="org.openpnp.machine.rapidplacer.RapidFeeder" id="RF" name="RF" enabled="true" part-id="R1" address="FDR07" pitch="8">
+   <location units="Millimeters" x="5.0" y="6.0" z="-1.0" rotation="0.0"/>
+   <scan-start-location units="Millimeters" x="10.0" y="0.0" z="0.0" rotation="0.0"/>
+   <scan-end-location units="Millimeters" x="90.0" y="0.0" z="0.0" rotation="0.0"/>
+   <scan-increment value="2.5" units="Millimeters"/>
+</feeder>)");
+        const JPFeeder back = JPFeeder::fromJson(JJson::parse(r.toJson().dump()));
+        const JPRapidFeeder* own = back.as<JPRapidFeeder>();
+        assert(own && own->address == "FDR07" && own->pitch == 8 && own->scanEnd.x() == 90 && near(own->scanIncrement.value(), 2.5));
+        assert(back.pickLocation() && back.pickLocation()->x() == 5 && back.tape().pitchMm == 8.0);
+    }
     return 0;
 }

@@ -756,20 +756,22 @@ void photonForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFee
 void rapidForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f) {
     general(add, config, f, false);
     pickLocation(add, f);
+    auto r = [f]() -> JPRapidFeeder& { return *f().as<JPRapidFeeder>(); };
     add.group("Rapid Feeder Config");
-    add.text("address", "Address", [f] { return f().text("address"); }, [f](const std::string& v) { f().setText("address", v); },
-             "long");
-    add.integer("pitch", "Pitch", [f] { return f().number("pitch", 4); }, [f](int v) { f().setNumber("pitch", v); }, 0, kMostCount);
+    add.text("address", "Address", [r] { return r().address; }, [r](const std::string& v) { r().address = v; }, "long");
+    add.integer("pitch", "Pitch", [r] { return r().pitch; }, [r](int v) { r().pitch = v; }, 0, kMostCount);
     add.group("Rapid Feeder Scanning");
     add.header({ "X", "Y" });
-    for (const auto& [label, element] : { std::pair { "Scan Start Location", "scan-start-location" },
-                                          std::pair { "Scan End Location", "scan-end-location" } }) {
+    for (const auto& [label, key, at] : { std::tuple { "Scan Start Location", "scan-start-location", &JPRapidFeeder::scanStart },
+                                          std::tuple { "Scan End Location", "scan-end-location", &JPRapidFeeder::scanEnd } }) {
+        const Spot spot { key, [r, at = at] { return r().*at; }, [r, at = at](const JPLocation& l) { r().*at = l; } };
         add.row(label, Place::Location);
-        coordinate(add, at(f, element), Axis::X, "X");
-        coordinate(add, at(f, element), Axis::Y, "Y");
+        coordinate(add, spot, Axis::X, "X");
+        coordinate(add, spot, Axis::Y, "Y");
         add.end();
     }
-    length(add, f, "scan-increment", "Scan Increment", 4);
+    add.length("scan-increment", "Scan Increment", [r] { return mm(r().scanIncrement); },
+               [r](double v) { r().scanIncrement = JPLength(v, kMm); });
     add.button("rapidScan", "Scan", "Find the Rapid feeders by their QR codes along the scan, and set them up.");
 }
 

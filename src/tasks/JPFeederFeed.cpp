@@ -398,8 +398,8 @@ bool JPFeederFeed::feed(JPConfiguration& config, const std::string& feederId, co
     // A Rapid feeder: its address and pitch to the RAPIDFEEDER actuator.
     std::string rapid;
     main([&] {
-        if (const JPFeeder* f = config.feeder(feederId); f && f->typeName() == "RapidFeeder")
-            rapid = f->text("address") + " " + std::to_string(f->number("pitch", 4));
+        const JPFeeder* f = config.feeder(feederId);
+        if (const JPRapidFeeder* r = f ? f->as<JPRapidFeeder>() : nullptr) rapid = r->address + " " + std::to_string(r->pitch);
     });
     if (!rapid.empty()) {
         if (machine.actuateText(kRapidActuator, rapid, why)) return true;

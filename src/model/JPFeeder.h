@@ -6,6 +6,7 @@
 #include "JPLength.h"
 #include "JPLocation.h"
 #include "JPAutoFeeder.h"
+#include "JPRapidFeeder.h"
 #include "JPRotatedTrayFeeder.h"
 #include "JPSchultzFeeder.h"
 #include "JPSlotAutoFeeder.h"
@@ -78,6 +79,17 @@ public:
     // Whether the head camera is tuned for its looks on its first look of a run (its Auto-Tune?; a kind with no
     // vision: no).
     bool autoTune() const;
+
+    // What a part's packaging gives it (JPFeederPackaging), where its kind keeps each: the part's rotation in its
+    // tape (degrees), the tape's width and the part pitch (mm); none: its kind keeps none.
+    struct Tape {
+        std::optional<double> rotationDeg, widthMm, pitchMm;
+    };
+    Tape tape() const;
+    // What it would keep of `wanted`: those its kind keeps, rounded where it keeps whole degrees or millimetres.
+    Tape kept(const Tape& wanted) const;
+    // Those of `wanted` its kind keeps set, as kept() keeps them.
+    void setTape(const Tape& wanted);
 
     // How many it has fed (OpenPnP's feedCount, of the kinds that count; 0 for the others).
     int  feedCount() const;
@@ -301,7 +313,7 @@ private:
     JPLocation       m_location { JPLengthUnit::Millimeters };
     // Its kind's own settings: OpenPnP's as they are (a kind not typed), else a typed kind's.
     using Own = std::variant<JPXmlNode, JPTrayFeeder, JPTubeFeeder, JPAutoFeeder, JPSlotAutoFeeder, JPSchultzFeeder,
-                             JPSlotSchultzFeeder, JPRotatedTrayFeeder>;
+                             JPSlotSchultzFeeder, JPRotatedTrayFeeder, JPRapidFeeder>;
     Own m_own { JPXmlNode("feeder") };
     std::vector<int> m_visionChecks;
     bool             m_actuate = false;

@@ -755,11 +755,11 @@ int main() {
         JPFeederActions::Outcome outcome;
         assert(JPFeederActions::run(config, "RB", "rapidScan", m, nullptr, JPVisionConfig {}, outcome, why));
         const JPFeeder* b = config.feeder("RB");
-        assert(near(b->location().x(), 5) && near(b->location().z(), -3) && near(b->location().rotation(), 90) && b->text("address") == "B");
+        assert(near(b->location().x(), 5) && near(b->location().z(), -3) && near(b->location().rotation(), 90) && b->as<JPRapidFeeder>()->address == "B");
         const JPFeeder* a = nullptr;
         for (const JPFeeder& f : config.feeders())
             if (f.typeName() == "RapidFeeder" && f.name() == "A") a = &f;
-        assert(a && near(a->location().x(), 0.5) && a->text("address") == "A" && !a->partId().empty());
+        assert(a && near(a->location().x(), 0.5) && a->as<JPRapidFeeder>()->address == "A" && !a->partId().empty());
         config.removeFeeder(a->id());
         config.removeFeeder("RB");
     }
