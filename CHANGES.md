@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- jplacer opens on the tabs you left in front. With a panel closed (Job, Panels), it always opened on the
+  Console tab.
+
 - Each camera's right-click menu has **Reticle Style…**: the colour and line thickness of its reticle (the
   cross, grid, ruler, circle or square) and of a footprint drawn over the picture, colours from the colour
   chooser, kept with the camera. Shown as you change them.
