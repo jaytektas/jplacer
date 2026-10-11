@@ -153,11 +153,7 @@ struct TapeNames {
 
 TapeNames tapeNames(const std::string& kind) {
     TapeNames t;
-    if (kind == "ReferenceStripFeeder") {
-        t.rotationInLocation = true;
-        t.widthLength = "tape-width";
-        t.pitchLength = "part-pitch";
-    } else if (kind == "ReferencePushPullFeeder" || kind == "BambooFeederAutoVision") {
+    if (kind == "ReferencePushPullFeeder" || kind == "BambooFeederAutoVision") {
         t.rotationReal = "rotation-in-feeder";
         t.pitchLength = "part-pitch";
     } else if (kind == "BlindsFeeder") {
@@ -186,6 +182,12 @@ JPFeeder::Tape JPFeeder::tape() const {
     if (const JPNeoden4Feeder* n = as<JPNeoden4Feeder>()) {
         t.rotationDeg = n->partRotationInTape;
         t.pitchMm = mmOf(n->partPitchInTape);
+        return t;
+    }
+    if (const JPStripFeeder* s = as<JPStripFeeder>()) {
+        t.rotationDeg = m_location.rotation();
+        t.widthMm = mmOf(s->tapeWidth);
+        t.pitchMm = mmOf(s->partPitch);
         return t;
     }
     if (typed()) return t;   // a tray, tube, auto or Schultz feeder: none
@@ -227,6 +229,12 @@ void JPFeeder::setTape(const Tape& wanted) {
         if (k.pitchMm) d->partPitchInTape = JPLength(*k.pitchMm, kMm);
         return;
     }
+    if (JPStripFeeder* s = as<JPStripFeeder>()) {
+        if (k.rotationDeg) setLocation(m_location.derive(std::nullopt, std::nullopt, std::nullopt, *k.rotationDeg));
+        if (k.widthMm) s->tapeWidth = JPLength(*k.widthMm, kMm);
+        if (k.pitchMm) s->partPitch = JPLength(*k.pitchMm, kMm);
+        return;
+    }
     if (typed()) return;
     const TapeNames n = tapeNames(typeName());
     if (k.rotationDeg) {
@@ -241,6 +249,7 @@ void JPFeeder::setTape(const Tape& wanted) {
 }
 
 bool JPFeeder::autoTune() const {
+    if (const JPStripFeeder* s = as<JPStripFeeder>()) return s->autoTune;
     if (typed()) return false;
     const JPXmlNode& n = std::get<JPXmlNode>(m_own);
     const std::string* v = n.get("auto-tune");
@@ -251,6 +260,7 @@ int JPFeeder::feedCount() const {
     if (const JPTrayFeeder* t = as<JPTrayFeeder>()) return t->feedCount;
     if (const JPRotatedTrayFeeder* t = as<JPRotatedTrayFeeder>()) return t->feedCount;
     if (const JPNeoden4Feeder* n = as<JPNeoden4Feeder>()) return n->feedCount;
+    if (const JPStripFeeder* s = as<JPStripFeeder>()) return s->feedCount;
     if (typed()) return 0;
     const JPXmlNode* n = std::get_if<JPXmlNode>(&m_own);
     const std::string* v = n ? n->get("feed-count") : nullptr;
@@ -261,6 +271,7 @@ void JPFeeder::setFeedCount(int n) {
     if (JPTrayFeeder* t = as<JPTrayFeeder>()) t->feedCount = n;
     else if (JPRotatedTrayFeeder* r = as<JPRotatedTrayFeeder>()) r->feedCount = n;
     else if (JPNeoden4Feeder* d = as<JPNeoden4Feeder>()) d->feedCount = n;
+    else if (JPStripFeeder* s = as<JPStripFeeder>()) s->feedCount = n;
     else if (!typed()) setNumber("feed-count", n);
 }
 
@@ -429,8 +440,15 @@ JPLocation pointAlongLine(const JPLocation& a, const JPLocation& bIn, double dis
 
 } // namespace
 
+JPLength JPFeeder::tapeWidth() const {
+    const JPStripFeeder* s = as<JPStripFeeder>();
+    return s ? s->tapeWidth : JPLength(8, JPLengthUnit::Millimeters);
+}
+
 std::pair<JPLocation, JPLocation> JPFeeder::idealLineLocations() const {
-    const JPLocation ref = locationOf("reference-hole-location"), last = locationOf("last-hole-location");
+    const JPStripFeeder* s = as<JPStripFeeder>();
+    if (!s) return { JPLocation(JPLengthUnit::Millimeters), JPLocation(JPLengthUnit::Millimeters) };
+    const JPLocation ref = s->referenceHole, last = s->lastHole;
     if (!visionLocation) return { ref, last };
     JPLocation r = ref, l = last;
     if (visionLocationReference) {
@@ -486,13 +504,13 @@ std::optional<JPLocation> JPFeeder::pickLocation() const {
         if (pitch == 2 && nextPartPick && (!lever || (p->vision.enabled && templateOffset))) at = at.add(*nextPartPick);
         return at;
     }
-    if (kind == "ReferenceStripFeeder") {
+    if (const JPStripFeeder* s = as<JPStripFeeder>()) {
         // Before a feed, the first part (not off the strip's end).
-        const int count = std::max(1, feedCount());
+        const int count = std::max(1, s->feedCount);
         const auto [a, b] = idealLineLocations();
-        const JPLength partPitch = lengthOf("part-pitch", JPLength(4, JPLengthUnit::Millimeters));
-        const JPLength tapeWidth = lengthOf("tape-width", JPLength(8, JPLengthUnit::Millimeters));
-        const double holePitch = 4;   // EIA-481's, in mm
+        const JPLength partPitch = s->partPitch;
+        const JPLength tapeWidth = s->tapeWidth;
+        const double holePitch = JPStripFeeder::kHolePitchMm;
         const JPLocation bb = b.convertToUnits(a.units());
         double pitch = std::hypot(bb.x() - a.x(), bb.y() - a.y());
         const double holes = std::round(pitch / holePitch);
@@ -502,15 +520,14 @@ std::optional<JPLocation> JPFeeder::pickLocation() const {
         // (2 mm, EIA-481's P2, unless auto setup found the first part on a hole: 0).
         const double x = JPLength(tapeWidth.convertToUnits(JPLengthUnit::Millimeters).value() / 2 - 0.5, JPLengthUnit::Millimeters)
                              .convertToUnits(l.units()).value();
-        const double y = lengthOf("reference-hole-to-part-linear", JPLength(2, JPLengthUnit::Millimeters))
-                             .convertToUnits(l.units()).value();
+        const double y = s->referenceHoleToPartLinear.convertToUnits(l.units()).value();
         double angle = b.angleTo(a) - 90;
         const double r = angle * M_PI / 180;
         l = l.add(JPLocation(l.units(), x * std::cos(r) - y * std::sin(r), x * std::sin(r) + y * std::cos(r), 0, 0));
         // A strip not level: picked higher or lower by how far along it is (jplacer's Z Along Strip %).
         l = l.derive(std::nullopt, std::nullopt, JPLength(tapeZ(l), JPLengthUnit::Millimeters).convertToUnits(l.units()).value(),
                      std::nullopt);
-        if (flag("standard-eia-481", true)) angle += 90;
+        if (s->standardEia481) angle += 90;
         return l.derive(std::nullopt, std::nullopt, std::nullopt, angle + location().rotation());
     }
     return std::nullopt;
@@ -564,14 +581,15 @@ JPFeeder JPFeeder::fromXml(const JPXmlElement& e) {
         f.m_location = JPLocationXml::from(*l);
         std::erase_if(own.children, [](const JPXmlNode& c) { return c.name == "location"; });
     }
+    const bool beforeEia481 = !own.get("standard-eia-481");
     f.ownFrom(std::move(own));
-    if (f.typeName() == "ReferenceStripFeeder" && f.text("standard-eia-481").empty()) {
+    if (JPStripFeeder* s = f.as<JPStripFeeder>(); s && beforeEia481) {
         // OpenPnP's angleNorm(rotation - 90, 180): within -180 (exclusive) .. 180.
         double r = f.m_location.rotation() - 90;
         while (r > 180) r -= 360;
         while (r <= -180) r += 360;
         f.m_location = f.m_location.derive(std::nullopt, std::nullopt, std::nullopt, r);
-        f.setFlag("standard-eia-481", true);
+        s->standardEia481 = true;
     }
     return f;
 }
@@ -661,14 +679,15 @@ bool JPFeeder::feed(std::string& why, bool* empty) {
         if (feedOptions() == FeedOptions::SkipNext) setFeedOptions(FeedOptions::Normal);
         return true;
     }
-    if (kind != "ReferenceStripFeeder") {
+    JPStripFeeder* strip = as<JPStripFeeder>();
+    if (!strip) {
         why = "Feeding a " + kind + " is not available yet.";
         return false;
     }
-    if (feedOptions() == FeedOptions::Normal || feedCount() == 0) setFeedCount(feedCount() + 1);
+    if (feedOptions() == FeedOptions::Normal || strip->feedCount == 0) ++strip->feedCount;
     {
-        const int most = number("max-feed-count");
-        if (most > 0 && feedCount() > most) {
+        const int most = strip->maxFeedCount;
+        if (most > 0 && strip->feedCount > most) {
             why = "Tried to feed part: " + partId() + "  Feeder " + name() + " empty.";
             if (empty) *empty = true;
             return false;
@@ -676,8 +695,8 @@ bool JPFeeder::feed(std::string& why, bool* empty) {
     }
     // A strip's vision, as OpenPnP's: the first hole when the first pick is
     // mid-strip, then the hole fed (not when its pick is repeated).
-    if (flag("vision-enabled", false)) {
-        const int count = feedCount();
+    if (strip->visionEnabled) {
+        const int count = strip->feedCount;
         if (count != 1 && !visionLocationReference) m_visionChecks.push_back(1);
         if (feedOptions() == FeedOptions::Normal) m_visionChecks.push_back(count);
     }
@@ -698,11 +717,13 @@ std::vector<int> JPFeeder::takeVisionChecks() {
 }
 
 double JPFeeder::tapeZ(const JPLocation& at) const {
-    const JPLocation ref = locationOf("reference-hole-location").convertToUnits(JPLengthUnit::Millimeters);
-    const JPLocation last = locationOf("last-hole-location").convertToUnits(JPLengthUnit::Millimeters);
+    const JPStripFeeder* s = as<JPStripFeeder>();
+    if (!s) return at.convertToUnits(JPLengthUnit::Millimeters).z();
+    const JPLocation ref = s->referenceHole.convertToUnits(JPLengthUnit::Millimeters);
+    const JPLocation last = s->lastHole.convertToUnits(JPLengthUnit::Millimeters);
     const JPLocation l = at.convertToUnits(JPLengthUnit::Millimeters);
     // The strip's slope (OpenPnP's strip is level, at the reference hole's Z).
-    const double slope = real("z-along-strip-percent", 0);
+    const double slope = s->zAlongStripPercent;
     const double lx = last.x() - ref.x(), ly = last.y() - ref.y(), len = std::hypot(lx, ly);
     if (slope == 0 || len == 0) return ref.z();
     return ref.z() + slope / 100 * ((l.x() - ref.x()) * lx + (l.y() - ref.y()) * ly) / len;
@@ -715,7 +736,7 @@ JPLocation JPFeeder::visionView(const JPLocation& hole) const {
     const double len = std::hypot(bb.x() - aa.x(), bb.y() - aa.y());
     if (len == 0) return h;
     // Across the tape to its parts, as the pick (OpenPnP's hole to part lateral, turned with the tape).
-    const double across = mmOf(lengthOf("tape-width", JPLength(8, JPLengthUnit::Millimeters))) / 2 - 0.5;
+    const double across = mmOf(tapeWidth()) / 2 - 0.5;
     const double r = (bb.angleTo(aa) - 90) * M_PI / 180;
     const double half = mmOf(holePitch()) / 2;
     return JPLocation(JPLengthUnit::Millimeters, h.x() + across * std::cos(r) + (bb.x() - aa.x()) / len * half,
@@ -723,9 +744,10 @@ JPLocation JPFeeder::visionView(const JPLocation& hole) const {
 }
 
 std::optional<JPLocation> JPFeeder::visionExpected(int n) const {
-    if (!flag("vision-enabled", false)) return std::nullopt;
+    const JPStripFeeder* s = as<JPStripFeeder>();
+    if (!s || !s->visionEnabled) return std::nullopt;
     const auto [a, b] = idealLineLocations();
-    const double pitch = mmOf(lengthOf("part-pitch", JPLength(4, JPLengthUnit::Millimeters)));
+    const double pitch = mmOf(s->partPitch);
     const double holePitchMm = mmOf(holePitch());
     // Under 4 mm a hole serves two parts: each looked at twice.
     const double along = pitch < 4 ? holePitchMm * double((n - 1) / 2) : pitch * double(n - 1);
@@ -739,7 +761,7 @@ std::optional<JPLocation> JPFeeder::visionExpected(int n) const {
     // distance grows with the span measured (OpenPnP's geometric progression).
     const JPLocation aa = a.convertToUnits(JPLengthUnit::Millimeters), bb = b.convertToUnits(JPLengthUnit::Millimeters);
     const double span = std::hypot(bb.x() - aa.x(), bb.y() - aa.y());
-    const double extrapolation = std::min(mmOf(lengthOf("extrapolation-distance", JPLength(0, JPLengthUnit::Millimeters))) * 1.01,
+    const double extrapolation = std::min(mmOf(s->extrapolationDistance) * 1.01,
                                           span * 0.7);
     if (toVision >= extrapolation) return expected;
     return std::nullopt;
@@ -913,6 +935,7 @@ auto pipelineOf(F& f, const std::string& element) {
     using Slot = std::conditional_t<std::is_const_v<F>, const std::optional<JPXmlNode>, std::optional<JPXmlNode>>;
     Slot* slot = nullptr;
     if (auto* l = f.template as<JPLoosePartFeeder>()) slot = element == "pipeline" ? &l->pipeline : nullptr;
+    else if (auto* s = f.template as<JPStripFeeder>()) slot = element == "pipeline" ? &s->pipeline : nullptr;
     else if (auto* a = f.template as<JPAdvancedLoosePartFeeder>())
         slot = element == "pipeline" ? &a->pipeline : element == "training-pipeline" ? &a->trainingPipeline : nullptr;
     return slot;

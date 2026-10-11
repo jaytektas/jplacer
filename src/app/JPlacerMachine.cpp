@@ -1686,8 +1686,10 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
         };
         for (JPFeeder& feeder : m_configuration->feeders()) {
             feeder.setLocation(atZ(feeder.location()));
-            for (const char* element : { "reference-hole-location", "last-hole-location" })
-                if (feeder.has(element)) feeder.setLocationOf(element, atZ(feeder.locationOf(element)));
+            if (JPStripFeeder* s = feeder.as<JPStripFeeder>()) {
+                s->referenceHole = atZ(s->referenceHole);
+                s->lastHole = atZ(s->lastHole);
+            }
         }
         if (onSetupConfigurationChanged) onSetupConfigurationChanged();
         if (setBoardsZ) setBoardsZ(z);

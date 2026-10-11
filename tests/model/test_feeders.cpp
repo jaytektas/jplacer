@@ -57,7 +57,7 @@ int main() {
     // The first part on a hole (2 mm pitch tape, as auto setup finds it): no way along from it.
     {
         JPFeeder onHole = parse(kStrip);
-        onHole.setLengthOf("reference-hole-to-part-linear", JPLength(0, JPLengthUnit::Millimeters));
+        onHole.as<JPStripFeeder>()->referenceHoleToPartLinear = JPLength(0, JPLengthUnit::Millimeters);
         const auto first = onHole.pickLocation();
         assert(first && near(first->x(), 103.5) && near(first->y(), 50));
     }
@@ -71,15 +71,15 @@ int main() {
     // and where the last hole is only its direction.
     {
         JPFeeder tilted = strip;
-        tilted.setReal("z-along-strip-percent", 5);
+        tilted.as<JPStripFeeder>()->zAlongStripPercent = 5;
         const auto third = tilted.pickLocation();   // 6 mm along
         assert(third && near(third->x(), 103.5) && near(third->y(), 44) && near(third->z(), -20 + 0.05 * 6));
         tilted.setFeedCount(1);
         const auto first = tilted.pickLocation();   // 2 mm before the reference hole
         assert(first && near(first->z(), -20 - 0.05 * 2));
-        tilted.setLocationOf("reference-hole-location", JPLocation(JPLengthUnit::Millimeters, 100, 50, -20.3, 0));
+        tilted.as<JPStripFeeder>()->referenceHole = JPLocation(JPLengthUnit::Millimeters, 100, 50, -20.3, 0);
         assert(near(tilted.pickLocation()->z(), -20.3 - 0.05 * 2));   // lowered by hand: every part as much
-        tilted.setLocationOf("last-hole-location", JPLocation(JPLengthUnit::Millimeters, 100, 46, 0, 0));
+        tilted.as<JPStripFeeder>()->lastHole = JPLocation(JPLengthUnit::Millimeters, 100, 46, 0, 0);
         assert(near(tilted.pickLocation()->z(), -20.3 - 0.05 * 2));   // a nearer last hole: the same slope
     }
     // Saved before OpenPnP took the rotation in tape as EIA-481's: brought to
@@ -88,7 +88,7 @@ int main() {
         std::string old = kStrip;
         old.replace(old.find(" standard-eia-481=\"true\""), std::string(" standard-eia-481=\"true\"").size(), "");
         JPFeeder legacy = parse(old.c_str());
-        assert(legacy.flag("standard-eia-481", false) && near(legacy.location().rotation(), -90));
+        assert(legacy.as<JPStripFeeder>()->standardEia481 && near(legacy.location().rotation(), -90));
         const auto first = legacy.pickLocation();
         assert(first && near(first->rotation(), 0));
     }
@@ -98,10 +98,16 @@ int main() {
     assert(strip.feed(why) && strip.feedCount() == 4);
     // Past its Max Feed Count: empty.
     assert(!strip.feed(why) && why == "Tried to feed part: R1  Feeder Strip empty.");
-    // A child's text kept, and written back as it was.
-    assert(strip.childText("parallax-angle") == "0.0");
-    strip.setChildText("parallax-angle", "45");
-    assert(strip.childText("parallax-angle") == "45");
+    // Its parallax angle (OpenPnP's element text) its own; and through jplacer's file.
+    assert(strip.as<JPStripFeeder>()->parallaxAngle == 0);
+    strip.as<JPStripFeeder>()->parallaxAngle = 45;
+    {
+        const JPFeeder back = JPFeeder::fromJson(JJson::parse(strip.toJson().dump()));
+        const JPStripFeeder* s = back.as<JPStripFeeder>();
+        assert(s && s->parallaxAngle == 45 && s->referenceHole.x() == 100 && s->lastHole.y() == 34 && s->maxFeedCount == 4);
+        assert(near(s->tapeWidth.value(), 8) && s->standardEia481 && back.feedCount() == strip.feedCount() && s->autoTune);
+        assert(back.pickLocation() && strip.pickLocation() && near(back.pickLocation()->x(), strip.pickLocation()->x()));
+    }
 
     // A tray: Y first while it is no longer than X, then the next column.
     JPFeeder tray = parse(kTray);

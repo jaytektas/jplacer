@@ -14,6 +14,7 @@
 #include "model/JPFeederTape.h"
 #include "model/JPPushPullTemplates.h"
 #include "model/JPRotatedTrayFeeder.h"
+#include "model/JPStripFeeder.h"
 #include "model/JPTrayFeeder.h"
 
 #include <j/core/Log.h>
@@ -182,6 +183,10 @@ void pickLocation(JPFormBuilder& add, std::function<JPFeeder&()> f) {
 
 void stripForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f, bool autoSetupRunning) {
     general(add, config, f, true);
+    auto s = [f]() -> JPStripFeeder& { return *f().as<JPStripFeeder>(); };
+    auto lengthOf = [&add, s](const char* key, const char* label, JPLength JPStripFeeder::* field) {
+        add.length(key, label, [s, field] { return mm(s().*field); }, [s, field](double v) { s().*field = JPLength(v, kMm); });
+    };
 
     add.group("Tape Settings");
     if (autoSetupRunning) add.wideButton("autoSetupCancel", "Cancel Auto Setup");
@@ -189,9 +194,9 @@ void stripForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeed
     // OpenPnP's columns: Part Pitch at the left; Tape Width, Feed Count and Max Feed Count at the right.
     add.header({ "", "", "" });
     add.row("Part Pitch");
-    length(add, f, "part-pitch", "Part Pitch", 4);
+    lengthOf("part-pitch", "Part Pitch", &JPStripFeeder::partPitch);
     add.words("Tape Width");
-    length(add, f, "tape-width", "Tape Width", 8);
+    lengthOf("tape-width", "Tape Width", &JPStripFeeder::tapeWidth);
     add.end();
     add.row("");
     add.skip();
@@ -202,14 +207,14 @@ void stripForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeed
     add.row("");
     add.skip();
     add.words("Max Feed Count", "Max number of parts to feed from this strip.  If set to zero, this setting is ignored.");
-    count(add, f, "max-feed-count", "Max Feed Count", 0);
+    add.integer("max-feed-count", "Max Feed Count", [s] { return s().maxFeedCount; }, [s](int v) { s().maxFeedCount = v; }, 0,
+                kMostCount);
     add.tipOf("max-feed-count", "Max number of parts to feed from this strip.  If set to zero, this setting is ignored.");
     add.button("autoSetMaxFeedCount", "Auto Set MaxFeedCount",
                "Calculate the Max Feed Count using the feeder's hole locations and part pitch");
     add.end();
     add.endColumns();
-    add.flag("auto-tune", "Auto-Tune?", [f] { return f().flag("auto-tune", true); },
-             [f](bool on) { f().setFlag("auto-tune", on); });
+    add.flag("auto-tune", "Auto-Tune?", [s] { return s().autoTune; }, [s](bool on) { s().autoTune = on; });
     add.tipOf("auto-tune",
               "The head camera tuned (Defaults, then Auto-Tune) for this feeder's tape on its first vision look of a "
               "run, and by Auto Setup over the first part: white paper beside stainless steel, clear tape over a light "
@@ -217,24 +222,17 @@ void stripForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeed
               "Reset (a reloaded strip tunes again); the camera's own settings are not changed.");
 
     add.group("Vision");
-    add.flag("vision-enabled", "Use Vision?", [f] { return f().flag("vision-enabled", false); },
-             [f](bool on) { f().setFlag("vision-enabled", on); });
+    add.flag("vision-enabled", "Use Vision?", [s] { return s().visionEnabled; }, [s](bool on) { s().visionEnabled = on; });
     add.row("");
     add.button("editPipeline", "Edit Pipeline...");
     add.button("resetPipeline", "Reset Pipeline");
     add.button("resetVision", "Reset Vision", "Reset all cached hole positions found by vision.");
     add.end();
-    length(add, f, "extrapolation-distance", "Extrapolation Distance", 0);
+    lengthOf("extrapolation-distance", "Extrapolation Distance", &JPStripFeeder::extrapolationDistance);
     add.tip("The maximum tape length before checking vision. If zero, every tape hole will be checked.");
     add.row("Parallax Diameter");
-    length(add, f, "parallax-diameter", "Parallax Diameter", 0);
-    add.number("parallax-angle", "Parallax Angle",
-               [f] { return std::strtod(f().childText("parallax-angle", "0").c_str(), nullptr); },
-               [f](double v) {
-                   char buf[32];
-                   std::snprintf(buf, sizeof buf, "%g", v);
-                   f().setChildText("parallax-angle", buf);
-               });
+    lengthOf("parallax-diameter", "Parallax Diameter", &JPStripFeeder::parallaxDiameter);
+    add.number("parallax-angle", "Parallax Angle", [s] { return s().parallaxAngle; }, [s](double v) { s().parallaxAngle = v; });
     add.end();
     add.tip("When the Parallax Diameter is given, the sprocket hole vision will perform its detection from a "
             "parallax camera view-point on the side of the expected location of the sprocket hole. The distance from "
@@ -244,23 +242,28 @@ void stripForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeed
 
     add.group("Locations");
     add.header({ "X", "Y", "Z" });
+    auto hole = [s](const char* key, JPLocation JPStripFeeder::* field) {
+        return Spot { key, [s, field] { return s().*field; }, [s, field](const JPLocation& l) { s().*field = l; } };
+    };
+    const Spot reference = hole("reference-hole-location", &JPStripFeeder::referenceHole);
+    const Spot last = hole("last-hole-location", &JPStripFeeder::lastHole);
     add.row("Reference Hole Location", Place::Location);
-    coordinate(add, at(f, "reference-hole-location"), Axis::X, "X");
-    coordinate(add, at(f, "reference-hole-location"), Axis::Y, "Y");
-    coordinate(add, at(f, "reference-hole-location"), Axis::Z, "Z");
+    coordinate(add, reference, Axis::X, "X");
+    coordinate(add, reference, Axis::Y, "Y");
+    coordinate(add, reference, Axis::Z, "Z");
     add.end();
     add.tip("The location of the hole on the tape closest to the center of the first part, in the direction of tape "
             "continuation, i.e. subsequent parts.");
     add.row("Last Hole Location", Place::Location);
-    coordinate(add, at(f, "last-hole-location"), Axis::X, "X");
-    coordinate(add, at(f, "last-hole-location"), Axis::Y, "Y");
+    coordinate(add, last, Axis::X, "X");
+    coordinate(add, last, Axis::Y, "Y");
     add.skip();   // no Z, its buttons under the reference hole's
     add.end();
     add.tip("The location of another hole after the reference hole. This can be any hole along the tape as long as "
             "it's past the reference hole.");
     add.row("Z Along Strip %");
-    add.number("z-along-strip-percent", "Z Along Strip %", [f] { return f().real("z-along-strip-percent", 0); },
-               [f](double v) { f().setReal("z-along-strip-percent", v); });
+    add.number("z-along-strip-percent", "Z Along Strip %", [s] { return s().zAlongStripPercent; },
+               [s](double v) { s().zAlongStripPercent = v; });
     add.end();
     add.tip("How much the tape rises along the strip, in % of the distance from the Reference Hole Location (falling: "
             "less than 0; 0, a level strip). Each part is picked that much higher or lower for how far along it is, "
@@ -1798,11 +1801,12 @@ bool JPFeederForms::act(JPConfiguration& config, const std::string& feederId, co
     }
     if (action == "autoSetMaxFeedCount") {
         // As OpenPnP: the holes' distance over the part pitch, and the first.
-        const JPLocation a = f->locationOf("reference-hole-location").convertToUnits(kMm);
-        const JPLocation b = f->locationOf("last-hole-location").convertToUnits(kMm);
-        const double pitch = mm(f->lengthOf("part-pitch", JPLength(4, kMm)));
+        JPStripFeeder* s = f->as<JPStripFeeder>();
+        if (!s) return false;
+        const JPLocation a = s->referenceHole.convertToUnits(kMm), b = s->lastHole.convertToUnits(kMm);
+        const double pitch = mm(s->partPitch);
         if (pitch <= 0) return false;
-        f->setNumber("max-feed-count", 1 + int(std::lround(std::hypot(b.x() - a.x(), b.y() - a.y()) / pitch)));
+        s->maxFeedCount = 1 + int(std::lround(std::hypot(b.x() - a.x(), b.y() - a.y()) / pitch));
         return true;
     }
     return false;

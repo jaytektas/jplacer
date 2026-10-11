@@ -267,8 +267,8 @@ int main() {
     assert(JPFeederFeed::feed(config, "S", "N1", machine, nullptr, why, empty) && machine.looks == 2);
 
     // An extrapolation distance of 12 mm: holes in between not looked at once under way.
-    f.setLengthOf("extrapolation-distance", JPLength(12, JPLengthUnit::Millimeters));
-    f.setLocationOf("last-hole-location", JPLocation(JPLengthUnit::Millimeters, 100, 10, 0, 0));
+    f.as<JPStripFeeder>()->extrapolationDistance = JPLength(12, JPLengthUnit::Millimeters);
+    f.as<JPStripFeeder>()->lastHole = JPLocation(JPLengthUnit::Millimeters, 100, 10, 0, 0);
     machine.looks = 0;
     for (int i = 0; i < 4; ++i) assert(JPFeederFeed::feed(config, "S", "N1", machine, nullptr, why, empty));
     assert(machine.looks < 4);
@@ -279,10 +279,10 @@ int main() {
         config.feeder("S")->setFeedCount(1);
     }
     // Its Auto-Tune? off: the camera's own settings, no tuning.
-    config.feeder("S")->setFlag("auto-tune", false);
+    config.feeder("S")->as<JPStripFeeder>()->autoTune = false;
     assert(JPFeederFeed::feed(config, "S", "N1", machine, nullptr, why, empty));
     assert(!machine.tune && !machine.tuneFirst);
-    config.feeder("S")->setFlag("auto-tune", true);
+    config.feeder("S")->as<JPStripFeeder>()->autoTune = true;
 
     // An auto feeder: its feed actuator on a normal feed, not on a repeated
     // one; its post-pick actuator after the pick.

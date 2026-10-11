@@ -16,6 +16,7 @@
 #include "JPSchultzFeeder.h"
 #include "JPSlotAutoFeeder.h"
 #include "JPSlotSchultzFeeder.h"
+#include "JPStripFeeder.h"
 #include "JPTrayFeeder.h"
 #include "JPTubeFeeder.h"
 
@@ -206,11 +207,12 @@ public:
     // Where it was found: the line its parts lie on follows it.
     void setVisionFound(int n, const JPLocation& found);
     // A strip feeder's tape width (OpenPnP's tape-width; 8 mm when not set).
-    JPLength tapeWidth() const { return lengthOf("tape-width", JPLength(8, JPLengthUnit::Millimeters)); }
+    JPLength tapeWidth() const;
     // Whether it is a lane: a strip feeder a strip of any part is laid in by hand (DESIGN.md, Lanes).
     bool isLane() const { return typeName() == "ReferenceStripFeeder"; }
-    JPLength holeDiameter() const { return lengthOf("hole-diameter", JPLength(1.5, JPLengthUnit::Millimeters)); }
-    JPLength holePitch() const { return lengthOf("hole-pitch", JPLength(4, JPLengthUnit::Millimeters)); }
+    // EIA-481's: 1.5 mm holes, 4 mm apart.
+    static JPLength holeDiameter() { return JPLength(JPStripFeeder::kHoleDiameterMm, JPLengthUnit::Millimeters); }
+    static JPLength holePitch() { return JPLength(JPStripFeeder::kHolePitchMm, JPLengthUnit::Millimeters); }
     // A strip's holes as its vision last found them (none: as set), and the
     // line its parts lie on.
     std::optional<JPLocation> visionLocation, visionLocationReference;
@@ -325,7 +327,7 @@ private:
     // Its kind's own settings: OpenPnP's as they are (a kind not typed), else a typed kind's.
     using Own = std::variant<JPXmlNode, JPTrayFeeder, JPTubeFeeder, JPAutoFeeder, JPSlotAutoFeeder, JPSchultzFeeder,
                              JPSlotSchultzFeeder, JPRotatedTrayFeeder, JPRapidFeeder, JPDragFeeder, JPLeverFeeder,
-                             JPNeoden4Feeder, JPLoosePartFeeder, JPAdvancedLoosePartFeeder>;
+                             JPNeoden4Feeder, JPLoosePartFeeder, JPAdvancedLoosePartFeeder, JPStripFeeder>;
     Own m_own { JPXmlNode("feeder") };
     std::vector<int> m_visionChecks;
     bool             m_actuate = false;

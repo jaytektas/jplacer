@@ -44,13 +44,13 @@ int main() {
     assert(JPFeederPackaging::takes(strip));
     const std::string said = JPFeederPackaging::load(config, strip, "C25804");
     assert(strip.partId() == "C25804" && said == "rotation -90°, 8 mm tape, 4 mm pitch");
-    assert(near(strip.location().rotation(), -90) && near(strip.lengthOf("tape-width", JPLength(0, kMm)).value(), 8)
-           && near(strip.lengthOf("part-pitch", JPLength(0, kMm)).value(), 4));
+    assert(near(strip.location().rotation(), -90) && near(strip.as<JPStripFeeder>()->tapeWidth.value(), 8)
+           && near(strip.as<JPStripFeeder>()->partPitch.value(), 4));
     assert(JPFeederPackaging::matching(strip, *one) == 0);
     // Changed by hand: its own; the same part again keeps it.
-    strip.setLengthOf("part-pitch", JPLength(2, kMm));
+    strip.as<JPStripFeeder>()->partPitch = JPLength(2, kMm);
     assert(JPFeederPackaging::matching(strip, *one) == -1);
-    assert(JPFeederPackaging::load(config, strip, "C25804").empty() && near(strip.lengthOf("part-pitch", JPLength(0, kMm)).value(), 2));
+    assert(JPFeederPackaging::load(config, strip, "C25804").empty() && near(strip.as<JPStripFeeder>()->partPitch.value(), 2));
 
     // Several and none chosen yet: nothing taken; one chosen is kept for the part and taken next time.
     JPFeeder a = JPFeeder::create("ReferenceStripFeeder", "");

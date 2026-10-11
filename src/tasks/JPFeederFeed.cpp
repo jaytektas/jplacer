@@ -437,10 +437,10 @@ bool JPFeederFeed::feed(JPConfiguration& config, const std::string& feederId, co
                 pipeline = JPFeederPipelines::of(*f);
                 diameter = f->holeDiameter().convertToUnits(JPLengthUnit::Millimeters).value();
                 search = f->holePitch().convertToUnits(JPLengthUnit::Millimeters).value() / 2;
-                parallaxDiameter = f->lengthOf("parallax-diameter", JPLength(0, JPLengthUnit::Millimeters))
-                                       .convertToUnits(JPLengthUnit::Millimeters)
-                                       .value();
-                parallaxAngle = std::strtod(f->childText("parallax-angle", "0").c_str(), nullptr);
+                if (const JPStripFeeder* s = f->as<JPStripFeeder>()) {
+                    parallaxDiameter = s->parallaxDiameter.convertToUnits(JPLengthUnit::Millimeters).value();
+                    parallaxAngle = s->parallaxAngle;
+                }
                 name = f->name();
             }
         });

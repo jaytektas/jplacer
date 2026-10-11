@@ -146,7 +146,7 @@ void JPlacerStripAutoSetup::check(const JPLocation& at) {
     std::shared_ptr<JPPipeline> pipeline;
     double tapeWidthMm = 8;
     if (const JPFeeder* f = m_job.configuration().feeder(m_feederId)) {
-        tapeWidthMm = f->lengthOf("tape-width", JPLength(8, kMm)).convertToUnits(kMm).value();
+        tapeWidthMm = f->tapeWidth().convertToUnits(kMm).value();
         if (m_previewPipeline) pipeline = std::make_shared<JPPipeline>(*m_previewPipeline);
     }
     if (!pipeline) {
@@ -241,7 +241,8 @@ void JPlacerStripAutoSetup::check(const JPLocation& at) {
         // Max Feed Count), and that is the last hole: the look's error shared among all the holes between.
         int parts = 0;
         onMain([&] {
-            if (const JPFeeder* f = m_job.configuration().feeder(m_feederId)) parts = f->number("max-feed-count");
+            const JPFeeder* f = m_job.configuration().feeder(m_feederId);
+            if (const JPStripFeeder* s = f ? f->as<JPStripFeeder>() : nullptr) parts = s->maxFeedCount;
         });
         const double partPitchMm = kPartPitchStepMm * double(steps);
         const int holesOn = parts > 1 ? int(std::floor((parts - 1) * partPitchMm / kHolePitchMm)) : 0;
@@ -300,11 +301,12 @@ void JPlacerStripAutoSetup::check(const JPLocation& at) {
         std::optional<JPLocation> pick;
         onMain([&] {
             JPFeeder* f = m_job.configuration().feeder(m_feederId);
-            if (!f) return;
+            JPStripFeeder* s = f ? f->as<JPStripFeeder>() : nullptr;
+            if (!s) return;
             // The holes found. The tape's height from its scale, the camera calibrated at two heights (the
             // pick height, a little lower for the tip to press, is the user's to set from it); else as it was.
-            const JPLocation was1 = f->locationOf("reference-hole-location").convertToUnits(kMm);
-            const JPLocation was2 = f->locationOf("last-hole-location").convertToUnits(kMm);
+            const JPLocation was1 = s->referenceHole.convertToUnits(kMm);
+            const JPLocation was2 = s->lastHole.convertToUnits(kMm);
             double z = was1.z();
             if (const std::optional<double> tape = tapeHeight(m_tapePxPerMm, "by the first part")) {
                 z = *tape;
@@ -317,16 +319,16 @@ void JPlacerStripAutoSetup::check(const JPLocation& at) {
                         rise = *far - z;
                         slope = rise / apart * 100;
                     }
-                f->setReal("z-along-strip-percent", slope);
+                s->zAlongStripPercent = slope;
                 if (std::abs(rise) >= kLevelMm)
                     JLOGC(JPlacerLog::kCamera, JLogLevel::Warn)
                         << "Auto Setup: the strip is not level: the tape " << std::abs(rise) << " mm " << (rise > 0 ? "higher" : "lower")
                         << " by the last part than by the first, " << apart << " mm on (" << slope
                         << "%); each part is picked that much higher or lower for how far along it is (Z Along Strip %)";
             }
-            f->setLocationOf("reference-hole-location", JPLocation(kMm, ref1.x(), ref1.y(), z, 0));
-            f->setLocationOf("last-hole-location", JPLocation(kMm, ref2.x(), ref2.y(), was2.z(), 0));
-            f->setLengthOf("part-pitch", JPLength(kPartPitchStepMm * double(steps), kMm));
+            s->referenceHole = JPLocation(kMm, ref1.x(), ref1.y(), z, 0);
+            s->lastHole = JPLocation(kMm, ref2.x(), ref2.y(), was2.z(), 0);
+            s->partPitch = JPLength(kPartPitchStepMm * double(steps), kMm);
             // The click says where the first part is only to the hole: nearer a hole's middle, the part is on
             // it (0 along); nearer halfway between holes, it is a half hole pitch (EIA-481's 2 mm) from it.
             {
@@ -335,7 +337,7 @@ void JPlacerStripAutoSetup::check(const JPLocation& at) {
                                                 + (ref1.y() - m_firstPart.y()) * (m_secondPart.y() - m_firstPart.y())) / len
                                              : 0;
                 const bool onHole = std::abs(along) < kHalfHoleMm / 2;
-                f->setLengthOf("reference-hole-to-part-linear", JPLength(onHole ? 0.0 : kHalfHoleMm, kMm));
+                s->referenceHoleToPartLinear = JPLength(onHole ? 0.0 : kHalfHoleMm, kMm);
             }
             // Where the first part is picked.
             f->setFeedCount(1);
@@ -398,8 +400,7 @@ void JPlacerStripAutoSetup::startPreview() {
     if (at[0] && at[1]) cal.pixelFor(*at[0], *at[1], *at[0], *at[1], cx, cy);
     const double px = (cal.scaleX() + cal.scaleY()) / 2;
     double tapeWidthMm = 8;
-    if (const JPFeeder* f = m_job.configuration().feeder(m_feederId))
-        tapeWidthMm = f->lengthOf("tape-width", JPLength(8, kMm)).convertToUnits(kMm).value();
+    if (const JPFeeder* f = m_job.configuration().feeder(m_feederId)) tapeWidthMm = f->tapeWidth().convertToUnits(kMm).value();
     m_previewing = true;
     const std::shared_ptr<const JPPipeline> source = m_previewPipeline;
     std::weak_ptr<bool> alive = m_alive;
