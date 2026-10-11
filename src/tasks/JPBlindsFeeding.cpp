@@ -25,13 +25,12 @@ namespace {
 constexpr JPLengthUnit kMm = JPLengthUnit::Millimeters;
 // How long what vision found is shown: looking for a fiducial, otherwise, and a preview.
 constexpr int kFiducialShownMs = 250, kShownMs = 1000, kPreviewShownMs = 2000;
-// OpenPnP's defaults.
-constexpr int    kFidLocMaxPasses = 3, kCoverCalibrationPasses = 3;
-constexpr double kFidLocToleranceMm = 0.5, kPocketPosToleranceMm = 0.1, kEdgeDistanceMm = 2, kPushZOffsetMm = 0.25, kPushSpeed = 0.1,
-                 kSprocketPitchMm = 4;
+// OpenPnP's.
+constexpr int kCoverCalibrationPasses = 3;
 
-double mm(const JPLength& l) { return l.convertToUnits(kMm).value(); }
-double length(const JPFeeder& f, const char* e, double def) { return mm(f.lengthOf(e, JPLength(def, kMm))); }
+// Its blinds feeder's own (the tasks here are a blinds feeder's).
+const JPBlindsFeeder& own(const JPFeeder& f) { return *f.as<JPBlindsFeeder>(); }
+JPBlindsFeeder&       own(JPFeeder& f) { return *f.as<JPBlindsFeeder>(); }
 
 // OpenPnP's NozzleAndTipForPushing: the nozzle that pushes, its tip, and the tip it had when one was loaded for it.
 struct Pusher {
@@ -114,8 +113,8 @@ public:
             return false;
         }
         if (!cameraZ(why)) return false;
-        const int passes = f->number("fid-loc-max-passes", kFidLocMaxPasses);
-        const double tolerance = f->real("fid-loc-tolerance-mm", kFidLocToleranceMm);
+        const int passes = own(*f).fidLocMaxPasses;
+        const double tolerance = own(*f).fidLocToleranceMm;
         for (int i = 0; i < passes; ++i) {
             JPBlindsVision::Found found;
             JPJobMachine::Sight sight;
@@ -147,22 +146,22 @@ public:
         edit([](JPConfiguration&, JPFeeder& x) { x.blinds.calibrating = true; });
         const bool ok = [&] {
             JPLocation l(kMm);
-            if (!locateFiducial(feeder()->locationOf("fiducial-1-location"), l, why)) return false;
+            if (!locateFiducial(own(*feeder()).fiducial1, l, why)) return false;
             edit([&](JPConfiguration& c, JPFeeder&) { JPBlindsFeeders::setFiducial(c, m_id, 1, l); });
-            if (!locateFiducial(feeder()->locationOf("fiducial-3-location"), l, why)) return false;
+            if (!locateFiducial(own(*feeder()).fiducial3, l, why)) return false;
             edit([&](JPConfiguration& c, JPFeeder&) { JPBlindsFeeders::setFiducial(c, m_id, 3, l); });
-            const JPLocation two = feeder()->locationOf("fiducial-2-location");
+            const JPLocation two = own(*feeder()).fiducial2;
             if (m_machine.cameraReaches(two)) {
                 if (!locateFiducial(two, l, why)) return false;
                 edit([&](JPConfiguration& c, JPFeeder&) { JPBlindsFeeders::setFiducial(c, m_id, 2, l); });
             } else {
                 // Out of the camera's reach: rebuilt square from fiducials 1 and 3, a tape length along.
                 edit([&](JPConfiguration& c, JPFeeder& x) {
-                    const JPLocation f1 = x.locationOf("fiducial-1-location").convertToUnits(kMm);
-                    const JPLocation f3 = x.locationOf("fiducial-3-location").convertToUnits(kMm);
+                    const JPLocation f1 = own(x).fiducial1.convertToUnits(kMm);
+                    const JPLocation f3 = own(x).fiducial3.convertToUnits(kMm);
                     const double d = f3.linearDistanceTo(f1);
                     const double yx = (f3.x() - f1.x()) / d, yy = (f3.y() - f1.y()) / d;
-                    const double scale = length(x, "tape-length", 0);
+                    const double scale = own(x).tapeLengthMm;
                     JPBlindsFeeders::setFiducial(c, m_id, 2, f1.add(JPLocation(kMm, yy * scale, -yx * scale, 0, 0)));
                 });
             }
@@ -177,7 +176,7 @@ public:
     bool assertCalibration(std::string& why) {
         const auto f = feeder();
         if (!f) return missing(why);
-        if (f->flag("vision-enabled", true) && !f->blinds.calibrated && !calibrateFiducials(why)) return false;
+        if (own(*f).visionEnabled && !f->blinds.calibrated && !calibrateFiducials(why)) return false;
         edit([](JPConfiguration&, JPFeeder& x) { JPBlindsFeeders::recalculateGeometry(x); });
         return true;
     }
@@ -248,7 +247,7 @@ public:
     bool actuateCover(const std::string& preferred, bool open, bool load, bool restoreTip, std::string& why) {
         const auto f = feeder();
         if (!f) return missing(why);
-        const std::string type = f->text("cover-type", "BlindsCover");
+        const std::string type = own(*f).coverType;
         if (type == "NoCover") {
             why = "Feeder " + f->name() + ": has no cover to actuate.";
             return false;
@@ -270,21 +269,21 @@ public:
         }
         if (!assertCalibration(why)) return false;
         const JPFeeder g = *feeder();
-        const double pitch = length(g, "pocket-pitch", 0), sprocket = length(g, "sprocket-pitch", kSprocketPitchMm);
+        const double pitch = own(g).pocketPitchMm, sprocket = own(g).sprocketPitchMm;
         const double z = g.location().convertToUnits(kMm).z(), rotation = JPBlindsFeeders::pickRotationInTape(g);
-        const double speed = g.real("push-speed", kPushSpeed), pushZ = length(g, "push-Z-offset", kPushZOffsetMm);
+        const double speed = own(g).pushSpeed, pushZ = own(g).pushZOffsetMm;
         auto place = [&](double x, double y, double atZ) {
             const JPLocation m = JPBlindsFeeders::feederToMachine(g, JPLocation(kMm, x, y, atZ, rotation));
             return std::array<std::optional<double>, 4> { m.x(), m.y(), m.z(), m.rotation() };
         };
         if (type == "BlindsCover") {
             // Along the tape from beyond the cover's edge, half a sprocket too far, the tip's edge on the cover's.
-            const double open0 = -length(g, "edge-open-distance", kEdgeDistanceMm) - pitch * 0.5 - sprocket * 0.5 - tip * 0.5;
-            const double close0 = length(g, "edge-closed-distance", kEdgeDistanceMm) + length(g, "tape-length", 0) + pitch * 0.5 + sprocket * 0.5
+            const double open0 = -own(g).edgeOpenDistanceMm - pitch * 0.5 - sprocket * 0.5 - tip * 0.5;
+            const double close0 = own(g).edgeClosedDistanceMm + own(g).tapeLengthMm + pitch * 0.5 + sprocket * 0.5
                                   + tip * 0.5;
-            const double open1 = -length(g, "edge-open-distance", kEdgeDistanceMm) - tip * 0.5;
-            const double close1 = length(g, "edge-closed-distance", kEdgeDistanceMm) + length(g, "tape-length", 0) + tip * 0.5;
-            const double y = length(g, "pocket-centerline", 0);
+            const double open1 = -own(g).edgeOpenDistanceMm - tip * 0.5;
+            const double close1 = own(g).edgeClosedDistanceMm + own(g).tapeLengthMm + tip * 0.5;
+            const double y = own(g).pocketCenterlineMm;
             if (!m_machine.moveNozzle(p.nozzleId, place(open ? open0 : close0, y, z + pushZ), 1.0, true, why)
                 || !m_machine.moveNozzle(p.nozzleId, place(open ? open1 : close1, y, z + pushZ), speed, false, why) || !m_machine.safeZ(why))
                 return false;
@@ -350,7 +349,7 @@ public:
     bool performOcr(const std::string& action, std::string& why) {
         edit([](JPConfiguration&, JPFeeder& x) { JPBlindsFeeders::recalculateGeometry(x); });
         const JPFeeder f = *feeder();
-        const auto corners = JPBlindsFeeders::ocrRegionCorners(f, length(f, "pocket-centerline", 0));
+        const auto corners = JPBlindsFeeders::ocrRegionCorners(f, own(f).pocketCenterlineMm);
         const JPLocation at = JPBlindsFeeders::feederToMachine(f, corners[1].add(corners[2]).multiply(0.5));
         JPBlindsVision::Found found;
         JPJobMachine::Sight sight;
@@ -379,12 +378,11 @@ public:
                                                     std::nullopt));
         });
         auto f = feeder();
-        if (!(f->locationOf("fiducial-1-location").isInitialized() && f->locationOf("fiducial-2-location").isInitialized()
-              && f->locationOf("fiducial-3-location").isInitialized())) {
+        if (!(own(*f).fiducial1.isInitialized() && own(*f).fiducial2.isInitialized() && own(*f).fiducial3.isInitialized())) {
             why = "Feeder " + f->name() + ": Please set the fiducials first (camera center is outside any previously defined fiducial area).";
             return false;
         }
-        if (f->text("cover-type", "BlindsCover") != "BlindsCover") {
+        if (own(*f).coverType != "BlindsCover") {
             // Only the centerline, from the camera, to the whole mm.
             edit([&](JPConfiguration& c, JPFeeder& x) {
                 JPBlindsFeeders::setPocketCenterline(c, m_id, std::floor(JPBlindsFeeders::machineToFeeder(x, *at).y() + 0.5));
@@ -394,9 +392,9 @@ public:
         if (!cameraZ(why)) return false;
         // The specs found freely.
         edit([](JPConfiguration&, JPFeeder& x) {
-            for (const char* e : { "pocket-centerline", "pocket-pitch", "pocket-size" }) x.setLengthOf(e, JPLength(0, kMm));
+            own(x).pocketCenterlineMm = own(x).pocketPitchMm = own(x).pocketSizeMm = 0;
         });
-        const std::string action = f->text("ocr-action", "None");
+        const std::string action = own(*f).ocrAction;
         JPBlindsVision::Found found;
         JPJobMachine::Sight sight;
         if (!look(*at, action, kShownMs, found, sight, why)) return false;
@@ -408,8 +406,8 @@ public:
         edit([&](JPConfiguration& c, JPFeeder&) {
             JPBlindsFeeders::setPocketCenterline(c, m_id, found.pocketCenterlineMm);
             JPFeeder* g = c.feeder(m_id);
-            g->setLengthOf("pocket-pitch", JPLength(found.pocketPitchMm, kMm));
-            g->setLengthOf("pocket-size", JPLength(found.pocketSizeMm, kMm));
+            own(*g).pocketPitchMm = found.pocketPitchMm;
+            own(*g).pocketSizeMm = found.pocketSizeMm;
             JPBlindsFeeders::recalculateGeometry(*g);
         });
         if (action != "None") {
@@ -427,17 +425,17 @@ public:
     bool calibrateCoverEdges(std::string& why) {
         auto f = feeder();
         if (!f) return missing(why);
-        if (f->text("cover-type", "BlindsCover") != "BlindsCover") {
+        if (own(*f).coverType != "BlindsCover") {
             why = "Feeder " + f->name() + ": Only Blinds Cover can be calibrated.";
             return false;
         }
         if (!assertCalibration(why)) return false;
         f = feeder();
-        const double pitch = length(*f, "pocket-pitch", 0), half = pitch * 0.5;
+        const double pitch = own(*f).pocketPitchMm, half = pitch * 0.5;
         const double wantedOpen = JPBlindsFeeders::pocketDistanceMm(*f), wantedClosed = std::fmod(wantedOpen + half, pitch);
-        const double cameraPocket = std::floor((f->number("first-pocket", 1) + f->number("last-pocket", 0)) / 2.0);
+        const double cameraPocket = std::floor((own(*f).firstPocket + own(*f).lastPocket) / 2.0);
         const JPLocation openAt = JPBlindsFeeders::pickLocation(*f, cameraPocket), closedAt = JPBlindsFeeders::pickLocation(*f, cameraPocket - 0.5);
-        const double tolerance = f->real("pocket-pos-tolerance-mm", kPocketPosToleranceMm);
+        const double tolerance = own(*f).pocketPosToleranceMm;
         auto wrap = [&](double offset) {
             if (offset > half) offset -= pitch;
             if (offset < -half) offset += pitch;
@@ -449,13 +447,13 @@ public:
             if (!actuateCover("", true, true, false, why) || !findCoverPosition(openAt, why)) return false;
             const double offsetOpen = wrap(*feeder()->blinds.coverPositionMm - wantedOpen);
             edit([&](JPConfiguration& c, JPFeeder& x) {
-                x.setLengthOf("edge-open-distance", JPLength(length(x, "edge-open-distance", kEdgeDistanceMm) + offsetOpen, kMm));
+                own(x).edgeOpenDistanceMm += offsetOpen;
                 JPBlindsFeeders::propagate(c, m_id);
             });
             if (!actuateCover("", false, true, false, why) || !findCoverPosition(closedAt, why)) return false;
             const double offsetClosed = wrap(*feeder()->blinds.coverPositionMm - wantedClosed);
             edit([&](JPConfiguration& c, JPFeeder& x) {
-                x.setLengthOf("edge-closed-distance", JPLength(length(x, "edge-closed-distance", kEdgeDistanceMm) - offsetClosed, kMm));
+                own(x).edgeClosedDistanceMm -= offsetClosed;
                 JPBlindsFeeders::propagate(c, m_id);
             });
             if (std::abs(offsetOpen) < tolerance * 0.5 && std::abs(offsetClosed) < tolerance * 0.5) break;
@@ -467,13 +465,13 @@ public:
     bool feed(const std::string& nozzleId, std::string& why) {
         auto f = feeder();
         if (!f) return missing(why);
-        if (f->number("first-pocket", 1) + f->feedCount() > f->number("last-pocket", 0)) {
+        if (own(*f).firstPocket + own(*f).feedCount > own(*f).lastPocket) {
             why = "Feeder " + f->name() + " part " + f->partId() + " empty.";
             return false;
         }
         if (!assertCalibration(why)) return false;
         f = feeder();
-        const std::string type = f->text("cover-type", "BlindsCover"), actuation = f->text("cover-actuation", "OpenOnJobStart");
+        const std::string type = own(*f).coverType, actuation = own(*f).coverActuation;
         if (type == "BlindsCover") {
             if (actuation == "CheckOpen") {
                 bool open = false;
@@ -500,7 +498,7 @@ public:
         if (visit) {
             if (!assertCalibration(why)) return false;
             edit([](JPConfiguration&, JPFeeder& x) { x.blinds.ocrChangedPartId.clear(); });
-            if (f->text("cover-actuation", "OpenOnJobStart") == "OpenOnJobStart" && !JPBlindsFeeders::coverState(*feeder(), true)) {
+            if (own(*f).coverActuation == "OpenOnJobStart" && !JPBlindsFeeders::coverState(*feeder(), true)) {
                 // The pusher kept, to put its tip back after all are visited.
                 Pusher p;
                 if (!pusher("", true, p, why)) return false;
@@ -510,7 +508,7 @@ public:
                 });
                 if (!actuateCover("", true, true, false, why)) return false;
             }
-            const std::string action = f->text("ocr-action", "None");
+            const std::string action = own(*f).ocrAction;
             return action == "None" || performOcr(action, why);
         }
         // Visited: a tip loaded to push put back.
@@ -592,7 +590,7 @@ bool JPBlindsFeeding::actuateAllCovers(JPConfiguration& config, const std::strin
         // Each at the end of its cover it is pushed from.
         for (const std::string& id : ids) {
             const JPFeeder* f = config.feeder(id);
-            places.push_back(JPBlindsFeeders::pickLocation(*f, open ? 0 : f->number("pocket-count", 0) + 1));
+            places.push_back(JPBlindsFeeders::pickLocation(*f, open ? 0 : own(*f).pocketCount + 1));
         }
     });
     if (ids.empty()) {

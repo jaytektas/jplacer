@@ -155,9 +155,6 @@ TapeNames tapeNames(const std::string& kind) {
     if (kind == "ReferencePushPullFeeder" || kind == "BambooFeederAutoVision") {
         t.rotationReal = "rotation-in-feeder";
         t.pitchLength = "part-pitch";
-    } else if (kind == "BlindsFeeder") {
-        t.rotationInLocation = true;
-        t.pitchLength = "pocket-pitch";
     }
     return t;
 }
@@ -189,6 +186,11 @@ JPFeeder::Tape JPFeeder::tape() const {
         t.rotationDeg = m_location.rotation();
         t.widthMm = mmOf(s->tapeWidth);
         t.pitchMm = mmOf(s->partPitch);
+        return t;
+    }
+    if (const JPBlindsFeeder* b = as<JPBlindsFeeder>()) {
+        t.rotationDeg = m_location.rotation();
+        t.pitchMm = b->pocketPitchMm;
         return t;
     }
     if (typed()) return t;   // a tray, tube, auto or Schultz feeder: none
@@ -233,6 +235,11 @@ void JPFeeder::setTape(const Tape& wanted) {
         if (k.pitchMm) d->partPitchInTape = JPLength(*k.pitchMm, kMm);
         return;
     }
+    if (JPBlindsFeeder* b = as<JPBlindsFeeder>()) {
+        if (k.rotationDeg) setLocation(m_location.derive(std::nullopt, std::nullopt, std::nullopt, *k.rotationDeg));
+        if (k.pitchMm) b->pocketPitchMm = *k.pitchMm;
+        return;
+    }
     if (JPStripFeeder* s = as<JPStripFeeder>()) {
         if (k.rotationDeg) setLocation(m_location.derive(std::nullopt, std::nullopt, std::nullopt, *k.rotationDeg));
         if (k.widthMm) s->tapeWidth = JPLength(*k.widthMm, kMm);
@@ -262,6 +269,7 @@ int JPFeeder::feedCount() const {
     if (const JPRotatedTrayFeeder* t = as<JPRotatedTrayFeeder>()) return t->feedCount;
     if (const JPNeoden4Feeder* n = as<JPNeoden4Feeder>()) return n->feedCount;
     if (const JPStripFeeder* s = as<JPStripFeeder>()) return s->feedCount;
+    if (const JPBlindsFeeder* b = as<JPBlindsFeeder>()) return b->feedCount;
     if (typed()) return 0;
     const JPXmlNode* n = std::get_if<JPXmlNode>(&m_own);
     const std::string* v = n ? n->get("feed-count") : nullptr;
@@ -273,6 +281,7 @@ void JPFeeder::setFeedCount(int n) {
     else if (JPRotatedTrayFeeder* r = as<JPRotatedTrayFeeder>()) r->feedCount = n;
     else if (JPNeoden4Feeder* d = as<JPNeoden4Feeder>()) d->feedCount = n;
     else if (JPStripFeeder* s = as<JPStripFeeder>()) s->feedCount = n;
+    else if (JPBlindsFeeder* b = as<JPBlindsFeeder>()) b->feedCount = n;
     else if (!typed()) setNumber("feed-count", n);
 }
 
@@ -939,6 +948,7 @@ auto pipelineOf(F& f, const std::string& element) {
     Slot* slot = nullptr;
     if (auto* l = f.template as<JPLoosePartFeeder>()) slot = element == "pipeline" ? &l->pipeline : nullptr;
     else if (auto* s = f.template as<JPStripFeeder>()) slot = element == "pipeline" ? &s->pipeline : nullptr;
+    else if (auto* b = f.template as<JPBlindsFeeder>()) slot = element == "pipeline" ? &b->pipeline : nullptr;
     else if (auto* h = f.template as<JPHeapFeeder>())
         slot = element == "feeder-pipeline" ? &h->feederPipeline : element == "training-pipeline" ? &h->trainingPipeline : nullptr;
     else if (auto* a = f.template as<JPAdvancedLoosePartFeeder>())

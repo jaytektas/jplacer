@@ -319,5 +319,24 @@ int main() {
         assert(own->throwAwayAfterFailedFeeds == 4 && own->requiredVacuumDifference == 90 && own->pokeForParts);
         assert(back.pipeline("feeder-pipeline") && !back.pipeline("training-pipeline"));
     }
+    // A blinds feeder: its holder, tape, cover and OCR settings its own (its Push Z Offset read as OpenPnP keeps it,
+    // push-z-offset), from OpenPnP's and through jplacer's file.
+    {
+        const JPFeeder b = parse(R"(<feeder class="org.openpnp.machine.reference.feeder.BlindsFeeder" id="B" name="B" enabled="true" part-id="R1" normalize="false" vision-enabled="false" feed-count="2" feeder-group-name="LEFT" pocket-count="20" first-pocket="3" last-pocket="18" push-speed="0.2" ocr-action="ChangePart" cover-type="PushCover" cover-actuation="CheckOpen">
+   <location units="Millimeters" x="0.0" y="0.0" z="-5.0" rotation="90.0"/>
+   <fiducial-1-location units="Millimeters" x="10.0" y="10.0" z="0.0" rotation="0.0"/>
+   <tape-length value="80.0" units="Millimeters"/>
+   <pocket-pitch value="4.0" units="Millimeters"/>
+   <push-z-offset value="0.4" units="Millimeters"/>
+   <ocr-margin value="-15.0" units="Millimeters"/>
+</feeder>)");
+        const JPFeeder back = JPFeeder::fromJson(JJson::parse(b.toJson().dump()));
+        const JPBlindsFeeder* own = back.as<JPBlindsFeeder>();
+        assert(own && !own->normalize && !own->visionEnabled && back.feedCount() == 2 && own->feederGroupName == "LEFT");
+        assert(own->pocketCount == 20 && own->firstPocket == 3 && own->lastPocket == 18 && near(own->pushSpeed, 0.2));
+        assert(own->ocrAction == "ChangePart" && own->coverType == "PushCover" && own->coverActuation == "CheckOpen");
+        assert(own->fiducial1.x() == 10 && near(own->tapeLengthMm, 80) && near(own->pocketPitchMm, 4));
+        assert(near(own->pushZOffsetMm, 0.4) && near(own->ocrMarginMm, -15) && back.tape().pitchMm == 4.0);
+    }
     return 0;
 }

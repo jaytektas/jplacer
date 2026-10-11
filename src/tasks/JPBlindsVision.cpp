@@ -45,7 +45,12 @@ double angleNorm(double a) {
     return a;
 }
 
-double mm(const JPLength& l) { return l.convertToUnits(kMm).value(); }
+// A blinds feeder's own (another kind: a new one's, as OpenPnP's defaults).
+const JPBlindsFeeder& blindsOf(const JPFeeder& f) {
+    static const JPBlindsFeeder none;
+    const JPBlindsFeeder* b = f.as<JPBlindsFeeder>();
+    return b ? *b : none;
+}
 
 } // namespace
 
@@ -77,7 +82,7 @@ bool JPBlindsVision::find(const JPFeeder& f, const JPPipeline& pipeline, const J
 
 void JPBlindsVision::find(const JPFeeder& f, const std::vector<cv::RotatedRect>& results, const JPJobMachine::Sight& camera, Found& found) {
     const double scaleX = camera.mmPerPixelX, scaleY = camera.mmPerPixelY;
-    const double w = mm(f.lengthOf("pocket-pitch", JPLength(0, kMm))) * 0.5, h = mm(f.lengthOf("pocket-size", JPLength(0, kMm)));
+    const double w = blindsOf(f).pocketPitchMm * 0.5, h = blindsOf(f).pocketSizeMm;
     double blindMin = std::min(w, h) / kTolerance, blindMax = std::max(w, h) * kTolerance;
     double blindAspect = kTolerance * kTolerance * blindMax / blindMin;
     if (blindMax == 0) {
@@ -93,7 +98,7 @@ void JPBlindsVision::find(const JPFeeder& f, const std::vector<cv::RotatedRect>&
     const double pocketRange = std::max(w, kPocketRangeLeastMm) * kPocketRangeFactor;
     const JPLocation cameraFeeder = JPBlindsFeeders::machineToFeeder(f, camera.at);
     // Before fiducials 1 and 2: anything goes.
-    const bool tolerant = !(f.locationOf("fiducial-1-location").isInitialized() && f.locationOf("fiducial-2-location").isInitialized());
+    const bool tolerant = !(blindsOf(f).fiducial1.isInitialized() && blindsOf(f).fiducial2.isInitialized());
     JPSimpleHistogram upper(kCornerResolution), lower(kCornerResolution);
     auto feederAt = [&](double px, double py) { return JPBlindsFeeders::machineToFeeder(f, camera.toMachine(px, py)); };
     for (const cv::RotatedRect& rect : results) {
@@ -154,7 +159,7 @@ void JPBlindsVision::find(const JPFeeder& f, const std::vector<cv::RotatedRect>&
     }
     found.pocketPitchMm = pitch.maximumKey();
     // The pocket position from the tape's start: the blinds near the camera, modulo the pitch.
-    const double setPitch = mm(f.lengthOf("pocket-pitch", JPLength(0, kMm)));
+    const double setPitch = blindsOf(f).pocketPitchMm;
     const double pitchForPosition = setPitch != 0. ? setPitch : found.pocketPitchMm;
     JPSimpleHistogram distance(kPositionResolution);
     for (const cv::RotatedRect& rect : found.blinds) {
@@ -193,10 +198,10 @@ void JPBlindsVision::draw(cv::Mat& bgr, const JPFeeder& f, const Found& found, c
     rects(found.fiducials, kWhite, kWhite);
     for (const JPRansac::Line& l : found.lines) cv::line(bgr, cv::Point2d(l.a.x, l.a.y), cv::Point2d(l.b.x, l.b.y), kNavy, kLineThickness);
     // The pockets numbered below them, no denser than they can be read.
-    const double pitchMm = mm(f.lengthOf("pocket-pitch", JPLength(0, kMm)));
-    const int count = f.number("pocket-count", 0);
+    const double pitchMm = blindsOf(f).pocketPitchMm;
+    const int count = blindsOf(f).pocketCount;
     if (pitchMm >= 1. && camera.mmPerPixelX > 0) {
-        const double sizeMm = mm(f.lengthOf("pocket-size", JPLength(0, kMm)));
+        const double sizeMm = blindsOf(f).pocketSizeMm;
         double fontScale = 1.0;
         int baseLine = 0;
         const cv::Size size = cv::getTextSize(std::to_string(count), cv::FONT_HERSHEY_PLAIN, fontScale, 2, &baseLine);

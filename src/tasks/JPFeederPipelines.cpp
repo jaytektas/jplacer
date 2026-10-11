@@ -171,9 +171,7 @@ void JPFeederPipelines::setupBlindsOcr(const JPConfiguration& config, const JPFe
     }
     // The label's corners, about the camera.
     const std::array<JPLocation, 3> corners =
-        JPBlindsFeeders::ocrRegionCorners(feeder, feeder.lengthOf("pocket-centerline", JPLength(0, JPLengthUnit::Millimeters))
-                                                      .convertToUnits(JPLengthUnit::Millimeters)
-                                                      .value());
+        JPBlindsFeeders::ocrRegionCorners(feeder, feeder.as<JPBlindsFeeder>() ? feeder.as<JPBlindsFeeder>()->pocketCenterlineMm : 0.0);
     const JPLocation at = cameraAt.convertToUnits(JPLengthUnit::Millimeters);
     auto offset = [&](const JPLocation& c) {
         const JPLocation m = JPBlindsFeeders::feederToMachine(feeder, c);

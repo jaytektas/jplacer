@@ -34,6 +34,10 @@ notes.
   leaves OpenPnP's alone.
 - jplacer no longer counts OpenPnP's default parts and packages as taken in again at every start (which
   saved the configuration each time for nothing).
+- A blinds feeder's **Push Z Offset** is used: its cover was always pushed at the default 0.25 mm,
+  whatever it was set to.
+- An OpenPnP machine saved by an older OpenPnP brings its feeders' retry count in as their feed retries, as
+  OpenPnP does (they had come in as 3 feed and 3 pick retries).
 
 ## 0.1.54
 

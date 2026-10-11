@@ -24,7 +24,7 @@ inline namespace jf {
 // others are set to (propagate).
 class JPBlindsFeeders {
 public:
-    static constexpr const char* kDefaultGroup = "Default";
+    static constexpr const char* kDefaultGroup = JPBlindsFeeder::kDefaultGroup;
     // The holder's frame: machine = [a c; b d] * feeder + (tx, ty), turned by `rotation` (degrees).
     struct Frame {
         double a = 1, b = 0, c = 0, d = 1, tx = 0, ty = 0, rotation = 0;

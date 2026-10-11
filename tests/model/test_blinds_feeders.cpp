@@ -40,13 +40,13 @@ int main() {
     JPBlindsFeeders::setFiducial(c, ida, 2, at(90, 20));
     JPBlindsFeeders::setFiducial(c, ida, 3, at(10, 60));
     JPFeeder* fa = c.feeder(ida);
-    assert(near(fa->lengthOf("tape-length", JPLength(0, kMm)).value(), 80));
-    assert(near(fa->lengthOf("feeder-extent", JPLength(0, kMm)).value(), 40));
+    assert(near(fa->as<JPBlindsFeeder>()->tapeLengthMm, 80));
+    assert(near(fa->as<JPBlindsFeeder>()->feederExtentMm, 40));
     // 4 mm pockets on the centerline 10 mm across: 20 of them, the first 2 mm in.
-    fa->setLengthOf("pocket-pitch", JPLength(4, kMm));
-    fa->setLengthOf("pocket-centerline", JPLength(10, kMm));
+    fa->as<JPBlindsFeeder>()->pocketPitchMm = 4;
+    fa->as<JPBlindsFeeder>()->pocketCenterlineMm = 10;
     JPBlindsFeeders::recalculateGeometry(*fa);
-    assert(fa->number("pocket-count") == 20 && fa->number("first-pocket") == 1 && fa->number("last-pocket") == 20);
+    assert(fa->as<JPBlindsFeeder>()->pocketCount == 20 && fa->as<JPBlindsFeeder>()->firstPocket == 1 && fa->as<JPBlindsFeeder>()->lastPocket == 20);
     assert(near(JPBlindsFeeders::pocketDistanceMm(*fa), 2));
     JPLocation p = JPBlindsFeeders::pickLocation(*fa, 1);
     assert(near(p.x(), 12) && near(p.y(), 30) && near(p.z(), -10) && near(p.rotation(), 180));
@@ -83,16 +83,16 @@ int main() {
     c.addFeeder(std::move(b));
     JPBlindsFeeders::setFiducial(c, idb, 1, at(10, 20));
     JPFeeder* fb = c.feeder(idb);
-    assert(near(fb->locationOf("fiducial-2-location").x(), 90) && near(fb->lengthOf("tape-length", JPLength(0, kMm)).value(), 80));
-    assert(fb->number("feeders-total") == 2 && fb->number("feeder-no") == 1 && c.feeder(ida)->number("feeder-no") == 2);
+    assert(near(fb->as<JPBlindsFeeder>()->fiducial2.x(), 90) && near(fb->as<JPBlindsFeeder>()->tapeLengthMm, 80));
+    assert(fb->as<JPBlindsFeeder>()->feedersTotal == 2 && fb->as<JPBlindsFeeder>()->feederNo == 1 && c.feeder(ida)->as<JPBlindsFeeder>()->feederNo == 2);
     // Fiducial 1 moved 5 mm: the whole holder moves, the other feeder with it.
     JPBlindsFeeders::setFiducial(c, ida, 1, at(15, 20));
-    assert(near(c.feeder(ida)->locationOf("fiducial-2-location").x(), 95) && near(c.feeder(ida)->locationOf("fiducial-3-location").x(), 15));
-    assert(near(c.feeder(idb)->locationOf("fiducial-1-location").x(), 15) && near(c.feeder(idb)->locationOf("fiducial-2-location").x(), 95));
+    assert(near(c.feeder(ida)->as<JPBlindsFeeder>()->fiducial2.x(), 95) && near(c.feeder(ida)->as<JPBlindsFeeder>()->fiducial3.x(), 15));
+    assert(near(c.feeder(idb)->as<JPBlindsFeeder>()->fiducial1.x(), 15) && near(c.feeder(idb)->as<JPBlindsFeeder>()->fiducial2.x(), 95));
     // Fiducial 2 turned 90° about fiducial 1: fiducial 3 turned with it; the frame turned.
     JPBlindsFeeders::setFiducial(c, ida, 2, at(15, 100));
     fa = c.feeder(ida);
-    assert(near(fa->locationOf("fiducial-3-location").x(), -25) && near(fa->locationOf("fiducial-3-location").y(), 20));
+    assert(near(fa->as<JPBlindsFeeder>()->fiducial3.x(), -25) && near(fa->as<JPBlindsFeeder>()->fiducial3.y(), 20));
     p = JPBlindsFeeders::pickLocation(*fa, 1);
     assert(near(p.x(), 15 - 10) && near(p.y(), 20 + 2) && near(p.rotation(), 270));
 

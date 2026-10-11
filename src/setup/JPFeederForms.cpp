@@ -10,6 +10,7 @@
 #include "common/JPlacerLog.h"
 #include "model/JPBlindsFeeders.h"
 #include "model/JPAutoFeeder.h"
+#include "model/JPBlindsFeeder.h"
 #include "model/JPFeederPackaging.h"
 #include "model/JPHeapFeeder.h"
 #include "model/JPFeederTape.h"
@@ -1224,7 +1225,17 @@ void blindsForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFee
         std::snprintf(buf, sizeof buf, "%.3f", v);
         return std::string(buf);
     };
-    auto len = [f](const char* e, double def) { return mm(f().lengthOf(e, JPLength(def, kMm))); };
+    auto bl = [f]() -> JPBlindsFeeder& { return *f().as<JPBlindsFeeder>(); };
+    // A length of its own, in mm.
+    auto mmField = [&add, bl](const char* key, const char* label, double JPBlindsFeeder::* field) {
+        add.length(key, label, [bl, field] { return bl().*field; }, [bl, field](double v) { bl().*field = v; });
+    };
+    auto whole = [&add, bl](const char* key, const char* label, int JPBlindsFeeder::* field) {
+        add.integer(key, label, [bl, field] { return bl().*field; }, [bl, field](int v) { bl().*field = v; }, 0, kMostCount);
+    };
+    auto choice = [&add, bl](const char* key, const char* label, const JPFormBuilder::Strings& values, std::string JPBlindsFeeder::* field) {
+        add.choice(key, label, values, [bl, field] { return bl().*field; }, [bl, field](const std::string& v) { bl().*field = v; });
+    };
     add.group("General Settings");
     add.row("Part");
     partChoice(add, config, f);
@@ -1252,38 +1263,38 @@ void blindsForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFee
     add.group("Tape Settings");
     add.header({ "", "", "" });
     add.row("Tape Length");
-    add.text("tape-length", "Tape Length", [len, shown] { return shown(len("tape-length", 0)); }, nullptr);
+    add.text("tape-length", "Tape Length", [bl, shown] { return shown(bl().tapeLengthMm); }, nullptr);
     add.words("Feeder Extent");
-    add.text("feeder-extent", "Feeder Extent", [len, shown] { return shown(len("feeder-extent", 0)); }, nullptr);
+    add.text("feeder-extent", "Feeder Extent", [bl, shown] { return shown(bl().feederExtentMm); }, nullptr);
     add.button("blindsShowFeatures", "Show Features",
                "Show the features recognized by vision, taking the camera center and/or already set feeder properties into consideration.");
     add.end();
     add.labelTip("Length of the tape.");
     add.row("Pocket Pitch");
-    length(add, f, "pocket-pitch", "Pocket Pitch", 0);
+    mmField("pocket-pitch", "Pocket Pitch", &JPBlindsFeeder::pocketPitchMm);
     add.words("Pocket Size");
-    length(add, f, "pocket-size", "Pocket Size", 0);
+    mmField("pocket-size", "Pocket Size", &JPBlindsFeeder::pocketSizeMm);
     add.button("blindsAutoSetup", "Auto Setup", "Capture the pocket pitch, size and centerline from the current camera position.");
     add.end();
     add.labelTip("Picth of the part pockets in the tape.");
     add.tipOf("pocket-pitch", "Picth of the part pockets in the tape.");
     add.row("Pocket Count");
-    add.text("pocket-count", "Pocket Count", [f] { return std::to_string(f().number("pocket-count", 0)); }, nullptr);
+    add.text("pocket-count", "Pocket Count", [bl] { return std::to_string(bl().pocketCount); }, nullptr);
     add.words("Pocket Centerline");
-    add.length("pocket-centerline", "Pocket Centerline", [len] { return len("pocket-centerline", 0); },
+    add.length("pocket-centerline", "Pocket Centerline", [bl] { return bl().pocketCenterlineMm; },
                [&config, f](double v) { JPBlindsFeeders::setPocketCenterline(config, f().id(), v); });
     add.end();
     add.row("First Pocket");
-    count(add, f, "first-pocket", "First Pocket", 1);
+    whole("first-pocket", "First Pocket", &JPBlindsFeeder::firstPocket);
     add.words("Feeder No.");
-    add.text("feeder-no", "Feeder No.", [f] { return std::to_string(f().number("feeder-no", 0)); }, nullptr);
+    add.text("feeder-no", "Feeder No.", [bl] { return std::to_string(bl().feederNo); }, nullptr);
     add.end();
     add.labelTip("First pocket of the tape that contains a part. Use the Show Features Button to indicate pocket numbers.");
     add.tipOf("first-pocket", "First pocket of the tape that contains a part. Use the Show Features Button to indicate pocket numbers.");
     add.row("Last Pocket");
-    count(add, f, "last-pocket", "Last Pocket", 0);
+    whole("last-pocket", "Last Pocket", &JPBlindsFeeder::lastPocket);
     add.words("Feeders Total");
-    add.text("feeders-total", "Feeders Total", [f] { return std::to_string(f().number("feeders-total", 0)); }, nullptr);
+    add.text("feeders-total", "Feeders Total", [bl] { return std::to_string(bl().feedersTotal); }, nullptr);
     add.end();
     add.labelTip("Last pocket of the tape that contains a part. Use the Show Features Button to indicate pocket numbers.");
     add.tipOf("last-pocket", "Last pocket of the tape that contains a part. Use the Show Features Button to indicate pocket numbers.");
@@ -1298,17 +1309,16 @@ void blindsForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFee
     add.group("Cover Settings");
     add.header({ "", "", "" });
     add.row("Cover Type");
-    add.choice("cover-type", "Cover Type", { "NoCover", "BlindsCover", "PushCover" }, [f] { return f().text("cover-type", "BlindsCover"); },
-               [f](const std::string& v) { f().setText("cover-type", v); });
+    choice("cover-type", "Cover Type", { "NoCover", "BlindsCover", "PushCover" }, &JPBlindsFeeder::coverType);
     add.words("Cover Open/Close");
-    add.choice("cover-actuation", "Cover Open/Close", { "Manual", "CheckOpen", "OpenOnFirstUse", "OpenOnJobStart" },
-               [f] { return f().text("cover-actuation", "OpenOnJobStart"); }, [f](const std::string& v) { f().setText("cover-actuation", v); });
+    choice("cover-actuation", "Cover Open/Close", { "Manual", "CheckOpen", "OpenOnFirstUse", "OpenOnJobStart" },
+           &JPBlindsFeeder::coverActuation);
     add.button("blindsOpenCover", "Open Cover", "Open this cover using the nozzle tip.");
     add.end();
     add.row("Push speed");
-    add.number("push-speed", "Push speed", [f] { return f().real("push-speed", 0.1); }, [f](double v) { f().setReal("push-speed", v); });
+    add.number("push-speed", "Push speed", [bl] { return bl().pushSpeed; }, [bl](double v) { bl().pushSpeed = v; });
     add.words("Push Z Offset");
-    length(add, f, "push-Z-offset", "Push Z Offset", 0.25);
+    mmField("push-z-offset", "Push Z Offset", &JPBlindsFeeder::pushZOffsetMm);
     add.button("blindsCloseCover", "Close Cover", "Close this cover using the nozzle tip.");
     add.end();
     add.labelTip("Speed factor when pushing the cover.");
@@ -1327,9 +1337,9 @@ void blindsForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFee
         add.end();
     }
     add.row("Edge Distance Open");
-    length(add, f, "edge-open-distance", "Edge Distance Open", 2);
+    mmField("edge-open-distance", "Edge Distance Open", &JPBlindsFeeder::edgeOpenDistanceMm);
     add.words("Edge Distance Closed");
-    length(add, f, "edge-closed-distance", "Edge Distance Closed", 2);
+    mmField("edge-closed-distance", "Edge Distance Closed", &JPBlindsFeeder::edgeClosedDistanceMm);
     add.button("blindsCalibrateEdges", "Calibrate Cover Edges", "Calibrate the cover edges against the nozzle tip to get precise open/close positioning.");
     add.end();
     add.labelTip("Distance from sprocket to the edge used for opening the cover (default: 2mm).");
@@ -1351,12 +1361,12 @@ void blindsForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFee
         add.row("Fiducial " + std::to_string(n), Place::Location);
         for (const Axis axis : { Axis::X, Axis::Y })
             add.length(element + (axis == Axis::X ? ".X" : ".Y"), axis == Axis::X ? "X" : "Y",
-                       [f, element, axis] {
-                           const JPLocation l = f().locationOf(element).convertToUnits(kMm);
+                       [bl, axis, n] {
+                           const JPLocation l = bl().fiducial(n).convertToUnits(kMm);
                            return axis == Axis::X ? l.x() : l.y();
                        },
-                       [&config, f, element, axis, n](double v) {
-                           const JPLocation l = f().locationOf(element).convertToUnits(kMm);
+                       [&config, f, bl, axis, n](double v) {
+                           const JPLocation l = bl().fiducial(n).convertToUnits(kMm);
                            JPBlindsFeeders::setFiducial(config, f().id(), n,
                                                         l.derive(axis == Axis::X ? std::optional(v) : std::nullopt,
                                                                  axis == Axis::Y ? std::optional(v) : std::nullopt, std::nullopt, std::nullopt));
@@ -1366,9 +1376,9 @@ void blindsForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFee
     }
     add.endColumns();
     add.row("Normalize");
-    add.flag("normalize", "Normalize", [f] { return f().flag("normalize", true); },
-             [&config, f](bool on) {
-                 f().setFlag("normalize", on);
+    add.flag("normalize", "Normalize", [bl] { return bl().normalize; },
+             [&config, f, bl](bool on) {
+                 bl().normalize = on;
                  JPBlindsFeeders::updateFrame(config, f().id());
              });
     add.button("blindsCalibrateFiducials", "Calibrate Fiducials", "Calibrate the fiducials to redetermine their precise locations.");
@@ -1376,32 +1386,27 @@ void blindsForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFee
     add.tip("Normalize the fiducial distances and shear to the theoretically correct values (whole millimeter square grid). This means "
             "you trust the mechanics of your machine and of your 3D printer over your camera and fiducial vision.");
     add.group("Vision Settings");
-    add.flag("vision-enabled", "Use Fiducial Vision?", [f] { return f().flag("vision-enabled", true); },
-             [f](bool on) { f().setFlag("vision-enabled", on); });
+    add.flag("vision-enabled", "Use Fiducial Vision?", [bl] { return bl().visionEnabled; }, [bl](bool on) { bl().visionEnabled = on; });
     add.tip("Use vision for fiducial calibration when the feeder is first used.\nEven if fiducial vision is disabled, vision will still be "
             "used for setup and cover open checking");
     add.row("OCR Action");
-    add.choice("ocr-action", "OCR Action", { "None", "CheckCorrect", "ChangePart" }, [f] { return f().text("ocr-action", "None"); },
-               [f](const std::string& v) { f().setText("ocr-action", v); });
+    choice("ocr-action", "OCR Action", { "None", "CheckCorrect", "ChangePart" }, &JPBlindsFeeder::ocrAction);
     add.button("blindsOcrToAll", "Set OCR Settings to all", "Set these OCR settings to all the BlindsFeeders on the machine.");
     add.end();
     add.row("OCR Text Orientation");
-    add.choice("ocr-text-orientation", "OCR Text Orientation", { "AwayFromTape", "TowardsTape" },
-               [f] { return f().text("ocr-text-orientation", "AwayFromTape"); }, [f](const std::string& v) { f().setText("ocr-text-orientation", v); });
-    length(add, f, "ocr-margin", "OCR Margin", 20);
+    choice("ocr-text-orientation", "OCR Text Orientation", { "AwayFromTape", "TowardsTape" }, &JPBlindsFeeder::ocrTextOrientation);
+    mmField("ocr-margin", "OCR Margin", &JPBlindsFeeder::ocrMarginMm);
     add.end();
     add.tip("Size of the margin where the OCR/Barcode labels are attached.\nWhen a negative value is given, the labels are assumed to be "
             "located at the end of the feeder.");
     JPFormBuilder::Strings fonts;
-    const std::string font = f().text("ocr-font-name", "Liberation Mono");
+    const std::string font = bl().ocrFontName;
     if (std::find(options.fonts.begin(), options.fonts.end(), font) == options.fonts.end()) fonts.push_back(font);
     fonts.push_back("");
     fonts.insert(fonts.end(), options.fonts.begin(), options.fonts.end());
     add.row("OCR Font");
-    add.choice("ocr-font-name", "OCR Font", fonts, [f] { return f().text("ocr-font-name", "Liberation Mono"); },
-               [f](const std::string& v) { f().setText("ocr-font-name", v); });
-    add.number("ocr-font-size-pt", "Font Size [pt]", [f] { return f().real("ocr-font-size-pt", 7.0); },
-               [f](double v) { f().setReal("ocr-font-size-pt", v); });
+    choice("ocr-font-name", "OCR Font", fonts, &JPBlindsFeeder::ocrFontName);
+    add.number("ocr-font-size-pt", "Font Size [pt]", [bl] { return bl().ocrFontSizePt; }, [bl](double v) { bl().ocrFontSizePt = v; });
     add.end();
     add.tip("Name of the OCR font to be recognized or [Barcode].\nMonospace fonts work much better, allow lower resolution and therefore "
             "faster operation. Use a font where all the used characters are easily distinguishable.");
@@ -1775,22 +1780,25 @@ bool JPFeederForms::act(JPConfiguration& config, const std::string& feederId, co
     if (action == "blindsOcrToAll" || action == "blindsPipelineToAll") {
         // This one's OCR settings (or pipeline) to every other blinds feeder.
         const JPFeeder from = *f;
+        const JPBlindsFeeder* b = from.as<JPBlindsFeeder>();
+        if (!b) return false;
         for (JPFeeder& other : config.feeders()) {
-            if (other.typeName() != "BlindsFeeder" || other.id() == from.id()) continue;
+            JPBlindsFeeder* o = other.as<JPBlindsFeeder>();
+            if (!o || other.id() == from.id()) continue;
             if (action == "blindsPipelineToAll") {
-                if (const JPXmlNode* p = from.pipeline()) other.setPipeline(*p);
+                if (b->pipeline) o->pipeline = b->pipeline;
                 continue;
             }
-            other.setText("ocr-action", from.text("ocr-action", "None"));
-            other.setLengthOf("ocr-margin", from.lengthOf("ocr-margin", JPLength(20, kMm)));
-            other.setText("ocr-font-name", from.text("ocr-font-name", "Liberation Mono"));
-            other.setReal("ocr-font-size-pt", from.real("ocr-font-size-pt", 7.0));
-            other.setText("ocr-text-orientation", from.text("ocr-text-orientation", "AwayFromTape"));
+            o->ocrAction = b->ocrAction;
+            o->ocrMarginMm = b->ocrMarginMm;
+            o->ocrFontName = b->ocrFontName;
+            o->ocrFontSizePt = b->ocrFontSizePt;
+            o->ocrTextOrientation = b->ocrTextOrientation;
         }
         return true;
     }
     if (action == "resetLastFeedDepth") {
-        f->setReal("last-feed-depth", 0);
+        if (JPHeapFeeder* h = f->as<JPHeapFeeder>()) h->lastFeedDepth = 0;
         return true;
     }
     if (action == "discardParts") {

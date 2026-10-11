@@ -12,23 +12,22 @@ inline namespace jf {
 namespace {
 
 constexpr JPLengthUnit kMm = JPLengthUnit::Millimeters;
-constexpr const char* kBlinds = "BlindsFeeder";
 // A place within this of fiducial 1 is on it; the holder reaches this beyond its tape and extent (mm).
 constexpr double kOnFiducialMm = 2, kHolderMarginMm = 1;
 // Fiducials closer than this are not two (mm).
 constexpr double kLeastFiducialDistanceMm = 1;
-// OpenPnP's defaults.
-constexpr double kSprocketPitchMm = 4, kEdgeDistanceMm = 2, kPocketPosToleranceMm = 0.1, kMaxLabelSizeMm = 10,
-                 kTapeCenterOffsetMm = -1.0625, kOcrMarginMm = 20;
 // The names that mean "no group": the holder's place makes it.
 const char* const kLocationGroups[] = { "Default", "DEFAULT", "LOCATION", "NONE", "" };
 
-double mm(const JPLength& l) { return l.convertToUnits(kMm).value(); }
 // Java's Math.round: halves up (not away from zero).
 double javaRound(double v) { return std::floor(v + 0.5); }
-double length(const JPFeeder& f, const char* e, double def) { return mm(f.lengthOf(e, JPLength(def, kMm))); }
-void   setLength(JPFeeder& f, const char* e, double v) { f.setLengthOf(e, JPLength(v, kMm)); }
-JPLocation fid(const JPFeeder& f, int n) { return f.locationOf("fiducial-" + std::to_string(n) + "-location").convertToUnits(kMm); }
+// A blinds feeder's own (another kind: a new one's, as OpenPnP's defaults).
+const JPBlindsFeeder& own(const JPFeeder& f) {
+    static const JPBlindsFeeder none;
+    const JPBlindsFeeder* b = f.as<JPBlindsFeeder>();
+    return b ? *b : none;
+}
+JPLocation fid(const JPFeeder& f, int n) { return own(f).fiducial(n).convertToUnits(kMm); }
 
 bool isLocationGroup(const std::string& name) {
     return std::any_of(std::begin(kLocationGroups), std::end(kLocationGroups), [&name](const char* g) { return name == g; });
@@ -37,7 +36,7 @@ bool isLocationGroup(const std::string& name) {
 std::vector<JPFeeder*> blinds(JPConfiguration& config) {
     std::vector<JPFeeder*> out;
     for (JPFeeder& f : config.feeders())
-        if (f.typeName() == kBlinds) out.push_back(&f);
+        if (f.as<JPBlindsFeeder>()) out.push_back(&f);
     return out;
 }
 
@@ -67,7 +66,7 @@ JPBlindsFeeders::Frame JPBlindsFeeders::frame(const JPFeeder& f) {
     t.tx = origin.x();
     t.ty = origin.y();
     if (!(origin.isInitialized() && f2.isInitialized() && distance > kLeastFiducialDistanceMm)) return t;
-    const bool normalize = f.flag("normalize", true);
+    const bool normalize = own(f).normalize;
     // Not normalized: the distance still a multiple of 2 mm, as the holder's sprockets are.
     if (!normalize) distance = javaRound(distance / 2) * 2;
     const double xx = (f2.x() - origin.x()) / distance, xy = (f2.y() - origin.y()) / distance;
@@ -108,56 +107,57 @@ double JPBlindsFeeders::pixelToFeederAngle(const JPFeeder& f, double pixelAngle)
 
 void JPBlindsFeeders::updateFrame(JPConfiguration& config, const std::string& feederId) {
     JPFeeder* f = config.feeder(feederId);
-    if (!f) return;
+    JPBlindsFeeder* b = f ? f->as<JPBlindsFeeder>() : nullptr;
+    if (!b) return;
     double tape = 0, extent = 0;
     if (!measure(*f, tape, extent)) return;
-    const bool changed = std::abs(length(*f, "tape-length", 0) - tape) > 1e-9 || std::abs(length(*f, "feeder-extent", 0) - extent) > 1e-9;
-    setLength(*f, "tape-length", tape);
-    setLength(*f, "feeder-extent", extent);
+    const bool changed = std::abs(b->tapeLengthMm - tape) > 1e-9 || std::abs(b->feederExtentMm - extent) > 1e-9;
+    b->tapeLengthMm = tape;
+    b->feederExtentMm = extent;
     recalculateGeometry(*f);
     if (changed) propagate(config, feederId);
 }
 
 bool JPBlindsFeeders::isSmallPitch(const JPFeeder& f) {
-    const double pitch = length(f, "pocket-pitch", 0);
-    return pitch > 0 && std::lround(length(f, "sprocket-pitch", kSprocketPitchMm) / pitch) == 2;
+    const double pitch = own(f).pocketPitchMm;
+    return pitch > 0 && std::lround(own(f).sprocketPitchMm / pitch) == 2;
 }
 
 double JPBlindsFeeders::pocketDistanceMm(const JPFeeder& f) {
-    const double pitch = length(f, "pocket-pitch", 0), sprocket = length(f, "sprocket-pitch", kSprocketPitchMm);
+    const double pitch = own(f).pocketPitchMm, sprocket = own(f).sprocketPitchMm;
     if (pitch <= 0) return NAN;
-    const double relative = f.text("cover-type", "BlindsCover") == "BlindsCover" ? 0.25 : 0.5;
+    const double relative = own(f).coverType == "BlindsCover" ? 0.25 : 0.5;
     const double align = sprocket * javaRound(pitch * relative / sprocket - 0.001);
     return sprocket * (isSmallPitch(f) ? 0.0 : 0.5) + align;
 }
 
 void JPBlindsFeeders::recalculateGeometry(JPFeeder& f) {
-    const double pitch = length(f, "pocket-pitch", 0);
-    if (pitch <= 0) return;
-    const int old = f.number("pocket-count", 0);
-    const int count = int(std::floor(length(f, "tape-length", 0) / pitch)) + (isSmallPitch(f) ? 1 : 0);
-    f.setNumber("pocket-count", count);
+    JPBlindsFeeder* b = f.as<JPBlindsFeeder>();
+    if (!b || b->pocketPitchMm <= 0) return;
+    const int old = b->pocketCount;
+    const int count = int(std::floor(b->tapeLengthMm / b->pocketPitchMm)) + (isSmallPitch(f) ? 1 : 0);
+    b->pocketCount = count;
     // The first and last pocket kept within the new count.
-    f.setNumber("first-pocket", std::max(1, std::min(count, f.number("first-pocket", 1))));
-    f.setNumber("last-pocket", std::min(count, std::max(f.number("first-pocket", 1), f.number("last-pocket", 0) - old + count)));
+    b->firstPocket = std::max(1, std::min(count, b->firstPocket));
+    b->lastPocket = std::min(count, std::max(b->firstPocket, b->lastPocket - old + count));
 }
 
 double JPBlindsFeeders::pickRotationInTape(const JPFeeder& f) { return f.location().rotation() + 180.; }
 
 JPLocation JPBlindsFeeders::pickLocation(const JPFeeder& f, double pocket) {
-    const double x = length(f, "pocket-pitch", 0) * (pocket - 1.0) + pocketDistanceMm(f);
-    const double y = length(f, "pocket-centerline", 0);
+    const double x = own(f).pocketPitchMm * (pocket - 1.0) + pocketDistanceMm(f);
+    const double y = own(f).pocketCenterlineMm;
     return feederToMachine(f, JPLocation(kMm, x, y, f.location().convertToUnits(kMm).z(), pickRotationInTape(f)));
 }
 
-int JPBlindsFeeders::fedPocket(const JPFeeder& f) { return f.feedCount() + f.number("first-pocket", 1) - 1; }
+int JPBlindsFeeders::fedPocket(const JPFeeder& f) { return own(f).feedCount + own(f).firstPocket - 1; }
 
 bool JPBlindsFeeders::coverState(const JPFeeder& f, bool open) {
-    const std::string type = f.text("cover-type", "BlindsCover");
+    const std::string& type = own(f).coverType;
     if (type == "NoCover") return open;
     if (!f.blinds.coverPositionMm) return false;
     if (type == "BlindsCover")
-        return (std::abs(*f.blinds.coverPositionMm - pocketDistanceMm(f)) < f.real("pocket-pos-tolerance-mm", kPocketPosToleranceMm)) == open;
+        return (std::abs(*f.blinds.coverPositionMm - pocketDistanceMm(f)) < own(f).pocketPosToleranceMm) == open;
     if (type == "PushCover") return (*f.blinds.coverPositionMm > 0.0) == open;
     return false;
 }
@@ -168,19 +168,19 @@ bool JPBlindsFeeders::isLocationInFeeder(const JPFeeder& f, const JPLocation& lo
     if (f1.linearDistanceTo(location) < kOnFiducialMm) return true;
     if (fiducial1Only) return false;
     const JPLocation l = machineToFeeder(f, location);
-    return l.x() >= -kHolderMarginMm && l.x() <= length(f, "tape-length", 0) + kHolderMarginMm && l.y() >= -kHolderMarginMm
-        && l.y() <= length(f, "feeder-extent", 0) + kHolderMarginMm;
+    return l.x() >= -kHolderMarginMm && l.x() <= own(f).tapeLengthMm + kHolderMarginMm && l.y() >= -kHolderMarginMm
+        && l.y() <= own(f).feederExtentMm + kHolderMarginMm;
 }
 
 std::string JPBlindsFeeders::groupName(const JPFeeder& f) {
-    const std::string name = f.text("feeder-group-name", kDefaultGroup);
+    const std::string& name = own(f).feederGroupName;
     return isLocationGroup(name) ? kDefaultGroup : name;
 }
 
 std::vector<std::string> JPBlindsFeeders::groupNames(const JPConfiguration& config) {
     std::vector<std::string> out { kDefaultGroup };
     for (const JPFeeder& f : config.feeders())
-        if (f.typeName() == kBlinds && std::find(out.begin(), out.end(), groupName(f)) == out.end()) out.push_back(groupName(f));
+        if (f.as<JPBlindsFeeder>() && std::find(out.begin(), out.end(), groupName(f)) == out.end()) out.push_back(groupName(f));
     return out;
 }
 
@@ -189,40 +189,42 @@ std::vector<std::string> JPBlindsFeeders::connected(const JPConfiguration& confi
     const JPFeeder* self = config.feeder(feederId);
     std::vector<const JPFeeder*> list;
     if (!self) return {};
-    const std::string group = self->text("feeder-group-name", kDefaultGroup);
+    const std::string& group = own(*self).feederGroupName;
     for (const JPFeeder& f : config.feeders())
-        if (f.typeName() == kBlinds && isLocationInFeeder(f, location, fiducial1Only) && f.text("feeder-group-name", kDefaultGroup) == group)
+        if (f.as<JPBlindsFeeder>() && isLocationInFeeder(f, location, fiducial1Only) && own(f).feederGroupName == group)
             list.push_back(&f);
-    std::stable_sort(list.begin(), list.end(), [](const JPFeeder* a, const JPFeeder* b) {
-        return length(*a, "pocket-centerline", 0) < length(*b, "pocket-centerline", 0);
-    });
+    std::stable_sort(list.begin(), list.end(),
+                     [](const JPFeeder* a, const JPFeeder* b) { return own(*a).pocketCenterlineMm < own(*b).pocketCenterlineMm; });
     std::vector<std::string> out;
     for (const JPFeeder* f : list) out.push_back(f->id());
     return out;
 }
 
 void JPBlindsFeeders::updateFrom(JPFeeder& to, const JPFeeder& from) {
-    for (int n = 1; n <= 3; ++n) {
-        const std::string e = "fiducial-" + std::to_string(n) + "-location";
-        to.setLocationOf(e, from.locationOf(e));
-    }
-    for (const char* e : { "tape-length", "feeder-extent" }) to.setLengthOf(e, from.lengthOf(e, JPLength(0, kMm)));
-    to.setFlag("normalize", from.flag("normalize", true));
+    JPBlindsFeeder* t = to.as<JPBlindsFeeder>();
+    const JPBlindsFeeder* f = from.as<JPBlindsFeeder>();
+    if (!t || !f) return;
+    t->fiducial1 = f->fiducial1;
+    t->fiducial2 = f->fiducial2;
+    t->fiducial3 = f->fiducial3;
+    t->tapeLengthMm = f->tapeLengthMm;
+    t->feederExtentMm = f->feederExtentMm;
+    t->normalize = f->normalize;
     // The tape shared by two feeders: its cover and its calibrated edges.
-    if (length(to, "pocket-centerline", 0) == length(from, "pocket-centerline", 0)) {
+    if (t->pocketCenterlineMm == f->pocketCenterlineMm) {
         to.blinds.coverPositionMm = from.blinds.coverPositionMm;
-        to.setLengthOf("edge-open-distance", from.lengthOf("edge-open-distance", JPLength(kEdgeDistanceMm, kMm)));
-        to.setLengthOf("edge-closed-distance", from.lengthOf("edge-closed-distance", JPLength(kEdgeDistanceMm, kMm)));
+        t->edgeOpenDistanceMm = f->edgeOpenDistanceMm;
+        t->edgeClosedDistanceMm = f->edgeClosedDistanceMm;
     }
     to.blinds.calibrated = from.blinds.calibrated;
-    to.setFlag("vision-enabled", from.flag("vision-enabled", true));
-    to.setText("feeder-group-name", groupName(from));
-    to.setText("ocr-action", from.text("ocr-action", "None"));
-    to.setLengthOf("ocr-margin", from.lengthOf("ocr-margin", JPLength(kOcrMarginMm, kMm)));
-    to.setText("ocr-font-name", from.text("ocr-font-name", "Liberation Mono"));
-    to.setReal("ocr-font-size-pt", from.real("ocr-font-size-pt", 7.0));
-    to.setText("ocr-text-orientation", from.text("ocr-text-orientation", "AwayFromTape"));
-    if (const JPXmlNode* p = from.pipeline()) to.setPipeline(*p);
+    t->visionEnabled = f->visionEnabled;
+    t->feederGroupName = groupName(from);
+    t->ocrAction = f->ocrAction;
+    t->ocrMarginMm = f->ocrMarginMm;
+    t->ocrFontName = f->ocrFontName;
+    t->ocrFontSizePt = f->ocrFontSizePt;
+    t->ocrTextOrientation = f->ocrTextOrientation;
+    if (f->pipeline) t->pipeline = f->pipeline;
 }
 
 void JPBlindsFeeders::propagate(JPConfiguration& config, const std::string& feederId, const JPLocation& location, bool fiducial1Only) {
@@ -250,7 +252,8 @@ std::string JPBlindsFeeders::adoptFromConnected(JPConfiguration& config, const s
         updateFrom(*f, from);
     }
     // With the holder's frame known, the tape's centerline from the place, to the whole mm.
-    if (fid(*f, 1).isInitialized()) setLength(*f, "pocket-centerline", javaRound(machineToFeeder(*f, location).y()));
+    if (JPBlindsFeeder* b = f->as<JPBlindsFeeder>(); b && fid(*f, 1).isInitialized())
+        b->pocketCenterlineMm = javaRound(machineToFeeder(*f, location).y());
     renumber(config, feederId);
     return templ;
 }
@@ -261,20 +264,20 @@ void JPBlindsFeeders::renumber(JPConfiguration& config, const std::string& feede
     const std::vector<std::string> list = connected(config, feederId, fid(*self, 1), true);
     int no = 0;
     for (const std::string& id : list)
-        if (JPFeeder* f = config.feeder(id)) {
-            f->setNumber("feeders-total", int(list.size()));
-            f->setNumber("feeder-no", ++no);
-        }
+        if (JPFeeder* f = config.feeder(id))
+            if (JPBlindsFeeder* b = f->as<JPBlindsFeeder>()) {
+                b->feedersTotal = int(list.size());
+                b->feederNo = ++no;
+            }
 }
 
 void JPBlindsFeeders::setFiducial(JPConfiguration& config, const std::string& feederId, int n, const JPLocation& location) {
     JPFeeder* f = config.feeder(feederId);
-    if (!f || n < 1 || n > 3) return;
-    const std::string element = "fiducial-" + std::to_string(n) + "-location";
+    if (!f || !f->as<JPBlindsFeeder>() || n < 1 || n > 3) return;
     const JPLocation old = fid(*f, n);
     const JPLocation now = location.convertToUnits(kMm);
     if (old == now) return;
-    f->setLocationOf(element, now);
+    f->as<JPBlindsFeeder>()->fiducial(n) = now;
     if (n == 1) {
         if (!(old.isInitialized() || fid(*f, 2).isInitialized() || fid(*f, 3).isInitialized())) {
             // A first fix: the holder's settings from a feeder already on it.
@@ -287,7 +290,7 @@ void JPBlindsFeeders::setFiducial(JPConfiguration& config, const std::string& fe
                 const JPLocation by = now.subtract(old);
                 if (fid(*f, 2).isInitialized()) {
                     const JPLocation two = fid(*f, 2).add(by);
-                    f->setLocationOf("fiducial-2-location", JPLocation(kMm));
+                    f->as<JPBlindsFeeder>()->fiducial2 = JPLocation(kMm);
                     setFiducial(config, feederId, 2, two);
                 }
                 f = config.feeder(feederId);
@@ -316,15 +319,16 @@ void JPBlindsFeeders::setFiducial(JPConfiguration& config, const std::string& fe
 
 void JPBlindsFeeders::setPocketCenterline(JPConfiguration& config, const std::string& feederId, double v) {
     JPFeeder* f = config.feeder(feederId);
-    if (!f) return;
-    setLength(*f, "pocket-centerline", v);
+    JPBlindsFeeder* b = f ? f->as<JPBlindsFeeder>() : nullptr;
+    if (!b) return;
+    b->pocketCenterlineMm = v;
     renumber(config, feederId);
 }
 
 void JPBlindsFeeders::setGroupName(JPConfiguration& config, const std::string& feederId, const std::string& name) {
     JPFeeder* f = config.feeder(feederId);
-    if (!f || f->text("feeder-group-name", kDefaultGroup) == name) return;
-    const std::string oldName = f->text("feeder-group-name", kDefaultGroup);
+    if (!f || !f->as<JPBlindsFeeder>() || own(*f).feederGroupName == name) return;
+    const std::string oldName = own(*f).feederGroupName;
     std::string proposed = name;
     std::string upper = name;
     std::transform(upper.begin(), upper.end(), upper.begin(), [](unsigned char c) { return char(std::toupper(c)); });
@@ -332,7 +336,7 @@ void JPBlindsFeeders::setGroupName(JPConfiguration& config, const std::string& f
     const std::vector<std::string> connectedNow = connected(config, feederId, fid(*f, 1), true);
     std::vector<std::string> withNew;
     for (const JPFeeder& o : config.feeders())
-        if (o.typeName() == kBlinds && groupName(o) == proposed) withNew.push_back(o.id());
+        if (o.as<JPBlindsFeeder>() && groupName(o) == proposed) withNew.push_back(o.id());
     const std::vector<std::string> names = groupNames(config);
     const bool proposedIsDefault = proposed == kDefaultGroup;
     const bool exists = std::find(names.begin(), names.end(), proposed) != names.end();
@@ -342,9 +346,9 @@ void JPBlindsFeeders::setGroupName(JPConfiguration& config, const std::string& f
         const JPFeeder from = *config.feeder(withNew.front());
         updateFrom(*config.feeder(feederId), from);
     } else if (!unplaced && !proposedIsDefault && !exists) {
-        for (const std::string& id : connectedNow) config.feeder(id)->setText("feeder-group-name", proposed);
+        for (const std::string& id : connectedNow) config.feeder(id)->as<JPBlindsFeeder>()->feederGroupName = proposed;
     } else if (!unplaced && std::find(names.begin(), names.end(), oldName) != names.end() && proposedIsDefault) {
-        config.feeder(feederId)->setText("feeder-group-name", kDefaultGroup);
+        config.feeder(feederId)->as<JPBlindsFeeder>()->feederGroupName = kDefaultGroup;
     }
 }
 
@@ -365,13 +369,13 @@ void JPBlindsFeeders::setCalibrated(JPConfiguration& config, const std::string& 
 }
 
 std::array<JPLocation, 3> JPBlindsFeeders::ocrRegionCorners(const JPFeeder& f, double feederYMm) {
-    const double marginSigned = length(f, "ocr-margin", kOcrMarginMm), margin = std::abs(marginSigned);
-    const double halfLabel = f.real("max-label-size-mm", kMaxLabelSizeMm) * 0.5, offset = f.real("tape-center-offset-mm", kTapeCenterOffsetMm);
+    const JPBlindsFeeder& b = own(f);
+    const double marginSigned = b.ocrMarginMm, margin = std::abs(marginSigned);
+    const double halfLabel = b.maxLabelSizeMm * 0.5, offset = b.tapeCenterOffsetMm;
     const double y0 = feederYMm + offset - halfLabel, y1 = feederYMm + offset + halfLabel;
     // A negative margin: the labels at the holder's far end.
-    const double edge = marginSigned < 0 ? length(f, "tape-length", 0) + length(f, "edge-closed-distance", kEdgeDistanceMm) + margin
-                                         : -length(f, "edge-open-distance", kEdgeDistanceMm);
-    if (f.text("ocr-text-orientation", "AwayFromTape") == "AwayFromTape")
+    const double edge = marginSigned < 0 ? b.tapeLengthMm + b.edgeClosedDistanceMm + margin : -b.edgeOpenDistanceMm;
+    if (b.ocrTextOrientation == "AwayFromTape")
         return { JPLocation(kMm, edge, y0, 0, 0), JPLocation(kMm, edge - margin, y0, 0, 0), JPLocation(kMm, edge, y1, 0, 0) };
     return { JPLocation(kMm, edge - margin, y1, 0, 0), JPLocation(kMm, edge, y1, 0, 0), JPLocation(kMm, edge - margin, y0, 0, 0) };
 }
@@ -379,8 +383,8 @@ std::array<JPLocation, 3> JPBlindsFeeders::ocrRegionCorners(const JPFeeder& f, d
 std::vector<std::string> JPBlindsFeeders::coversToActuate(const JPConfiguration& config, const std::vector<std::string>& actuations, bool open) {
     std::vector<std::string> out;
     for (const JPFeeder& f : config.feeders()) {
-        if (f.typeName() != kBlinds || f.text("cover-type", "BlindsCover") != "BlindsCover") continue;
-        if (std::find(actuations.begin(), actuations.end(), f.text("cover-actuation", "OpenOnJobStart")) == actuations.end()) continue;
+        if (!f.as<JPBlindsFeeder>() || own(f).coverType != "BlindsCover") continue;
+        if (std::find(actuations.begin(), actuations.end(), own(f).coverActuation) == actuations.end()) continue;
         // Enabled ones; and, to close, those known open.
         if (!(f.enabled() || (coverState(f, true) && !open))) continue;
         if (!coverState(f, open)) out.push_back(f.id());
@@ -389,9 +393,9 @@ std::vector<std::string> JPBlindsFeeders::coversToActuate(const JPConfiguration&
 }
 
 std::optional<JPLocation> JPBlindsFeeders::jobPreparationLocation(const JPFeeder& f) {
-    const bool calibrate = f.flag("vision-enabled", true) && !f.blinds.calibrated;
-    const bool ocr = f.text("ocr-action", "None") != "None";
-    const bool open = f.text("cover-actuation", "OpenOnJobStart") == "OpenOnJobStart" && !coverState(f, true);
+    const bool calibrate = own(f).visionEnabled && !f.blinds.calibrated;
+    const bool ocr = own(f).ocrAction != "None";
+    const bool open = own(f).coverActuation == "OpenOnJobStart" && !coverState(f, true);
     if (calibrate || ocr || open) return pickLocation(f, 0);
     return std::nullopt;
 }

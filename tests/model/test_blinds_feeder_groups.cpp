@@ -37,7 +37,7 @@ struct Fiducials {
 };
 
 JPLocation fiducial(const JPFeeder& f, int n) {
-    return f.locationOf("fiducial-" + std::to_string(n) + "-location").convertToUnits(JPLengthUnit::Millimeters);
+    return f.as<JPBlindsFeeder>()->fiducial(n).convertToUnits(JPLengthUnit::Millimeters);
 }
 
 // OpenPnP's BlindsFeederTestCondition: what one feeder should be.
@@ -85,7 +85,7 @@ struct Bench {
             assert(connected.size() == c->connected.size() + 1 || fail("connected count"));
             for (const std::string& other : c->connected)
                 assert(std::count(connected.begin(), connected.end(), other) == 1 || fail("Incorrect feeders connected"));
-            if (c->feederNo >= 0) assert(f.number("feeder-no") == c->feederNo || fail("Feeder number"));
+            if (c->feederNo >= 0) assert(f.as<JPBlindsFeeder>()->feederNo == c->feederNo || fail("Feeder number"));
         }
     }
 };
@@ -141,8 +141,8 @@ void testBlindsFeederBasics() {
     // The pockets: lanes numbered by centerline.
     auto pockets = [&b](const std::string& id, double centerline) {
         B::setPocketCenterline(b.config, id, centerline);
-        b.config.feeder(id)->setLengthOf("pocket-pitch", JPLength(4.0, JPLengthUnit::Millimeters));
-        b.config.feeder(id)->setLengthOf("pocket-size", JPLength(2.8, JPLengthUnit::Millimeters));
+        b.config.feeder(id)->as<JPBlindsFeeder>()->pocketPitchMm = 4.0;
+        b.config.feeder(id)->as<JPBlindsFeeder>()->pocketSizeMm = 2.8;
     };
     c1.feederNo = 2;
     c2.feederNo = 1;

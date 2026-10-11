@@ -7,6 +7,7 @@
 #include "JPLocation.h"
 #include "JPAdvancedLoosePartFeeder.h"
 #include "JPAutoFeeder.h"
+#include "JPBlindsFeeder.h"
 #include "JPDragFeeder.h"
 #include "JPHeapFeeder.h"
 #include "JPLeverFeeder.h"
@@ -332,7 +333,7 @@ private:
     using Own = std::variant<JPXmlNode, JPTrayFeeder, JPTubeFeeder, JPAutoFeeder, JPSlotAutoFeeder, JPSchultzFeeder,
                              JPSlotSchultzFeeder, JPRotatedTrayFeeder, JPRapidFeeder, JPDragFeeder, JPLeverFeeder,
                              JPNeoden4Feeder, JPLoosePartFeeder, JPAdvancedLoosePartFeeder, JPStripFeeder,
-                             JPPhotonFeeder, JPHeapFeeder>;
+                             JPPhotonFeeder, JPHeapFeeder, JPBlindsFeeder>;
     Own m_own { JPXmlNode("feeder") };
     std::vector<int> m_visionChecks;
     bool             m_actuate = false;
