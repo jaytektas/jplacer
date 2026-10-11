@@ -103,9 +103,10 @@ public:
     std::function<bool(double x, double y, std::function<void(double z)> done)> probeZ;
     // Take the camera or nozzle to a place (a coordinate left empty stays),
     // or an axis to a position.
-    std::function<void(JPSetupForm::Tool tool, const Where& to)> moveTo;
-    // Straight there, not by way of Safe Z (OpenPnP's Position Tool (Without Safe Z)); `speedOverPrecision`:
-    // as a nozzle tip change moves (JPCell::setSpeedOverPrecision).
+    // `speedOverPrecision`: without the backlash compensation that goes past the place and back
+    // (JPCell::setSpeedOverPrecision), as a nozzle tip change's step not compensated moves.
+    std::function<void(JPSetupForm::Tool tool, const Where& to, bool speedOverPrecision)> moveTo;
+    // Straight there, not by way of Safe Z (OpenPnP's Position Tool (Without Safe Z)).
     std::function<void(JPSetupForm::Tool tool, const Where& to, bool speedOverPrecision)> moveToStraight;
     // The chosen contact probing nozzle over `at`, probed down: `done` with the Z found.
     std::function<bool(const Where& at, std::function<void(double z)> done)> contactProbeAt;

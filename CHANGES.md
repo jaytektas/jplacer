@@ -10,9 +10,14 @@ notes.
 
 ## Unreleased
 
-- A nozzle tip's loading and unloading steps have Position Tool (Without Safe Z) again on each move, so the
-  nozzle can be taken from one step to the next as the change goes, without lifting to safe Z on the way, and
-  without the backlash compensation that goes past the place and back (as the change itself does).
+- A nozzle tip's loading and unloading steps are all on the tip's Tool Changer tab, no longer a page each in
+  the tree. Each move has Safe Z? (up, across, then down; otherwise straight there) and Backlash? (compensated
+  like every other move; otherwise without going past the place and back, which could push the tip into a
+  slot's wall). Moves saved before keep how they ran: the first by way of safe Z, the rest straight, none
+  compensated. The first move must go by way of safe Z, or the tip shows a problem. Unloading as loading
+  backwards undoes each move the way it went, and its steps are listed on the same tab.
+- Each move's place buttons move as the step does, and Position Tool (Without Safe Z) is back on them, so
+  the nozzle can be taken from one step to the next as the change goes.
 
 ## 0.1.43
 

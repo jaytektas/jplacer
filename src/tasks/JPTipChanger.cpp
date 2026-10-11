@@ -40,7 +40,8 @@ std::string JPTipChanger::describe(const JPCellConfig& cell, const JPChangerStep
             if (s.y) at += " Y " + number(*s.y);
             if (s.z) at += " Z " + number(*s.z);
             if (s.rotation) at += " C " + number(*s.rotation);
-            return "move to" + at + " at " + percent(s.speed);
+            return std::string(s.safeZ ? "by way of safe Z to" : "move to") + at + " at " + percent(s.speed)
+                 + (s.backlash ? ", backlash compensated" : "");
         }
         case K::SafeZ: return "up to safe Z at " + percent(s.speed);
         case K::Actuator: {
@@ -59,12 +60,12 @@ bool JPTipChanger::run(JPCell& cell, const JPCellConfig& names, const JPNozzleCo
                        const Hooks& hooks, std::string& why) {
     using K = JPChangerStep::Kind;
     const JPMountConfig& m = nozzle.mount;
-    // No backlash compensation that moves past a place and back while among the changer's slots (OpenPnP's
-    // SpeedOverPrecision): a one-sided axis would carry the tip its Backlash Offset past a slot's point into
-    // its wall. On again however the steps end.
+    // A move not compensated (JPChangerStep::backlash) goes without the backlash compensation that moves past
+    // a place and back (OpenPnP's SpeedOverPrecision): among the changer's slots a one-sided axis would carry
+    // the tip its Backlash Offset past a slot's point into its wall. Compensated again however the steps end.
     struct Precise {
         JPCell& cell;
-        explicit Precise(JPCell& c) : cell(c) { cell.setSpeedOverPrecision(true); }
+        explicit Precise(JPCell& c) : cell(c) {}
         ~Precise() { cell.setSpeedOverPrecision(false); }
     } precise(cell);
     // A place for the nozzle, as its axes' targets: the nozzle's offset taken off.
@@ -84,7 +85,6 @@ bool JPTipChanger::run(JPCell& cell, const JPCellConfig& names, const JPNozzleCo
         return t.empty() || cell.moveAxesAndWait(std::move(t), speed, why, /*squared=*/false);
     };
 
-    bool firstMove = true;
     for (size_t i = 0; i < steps.size(); ++i) {
         const JPChangerStep& s = steps[i];
         const std::string step = "step " + std::to_string(i + 1) + " of " + std::to_string(steps.size()) + ": "
@@ -104,11 +104,11 @@ bool JPTipChanger::run(JPCell& cell, const JPCellConfig& names, const JPNozzleCo
         bool ok = true;
         switch (s.kind) {
             case K::Move:
-                if (firstMove) {
-                    // In from safe Z: up, across, then down.
+                cell.setSpeedOverPrecision(!s.backlash);
+                if (s.safeZ) {
+                    // By way of safe Z: up, across, then down.
                     ok = cell.safeZAndWait(m.headId, s.speed, why) && moveTo(targets(s, false), s.speed)
                       && (!s.z || moveTo({ { m.axisZ, *s.z - m.offsetZ } }, s.speed));
-                    firstMove = false;
                 } else {
                     ok = moveTo(targets(s, true), s.speed);
                 }

@@ -69,7 +69,7 @@ std::string JPlacerTipChanges::refusal(const std::string& nozzleId, const std::s
     if (!nozzle->fits(tipId)) return tip->name + " does not fit " + nozzle->name;
     for (const JPNozzleConfig& n : c.nozzles)
         if (n.id != nozzleId && n.tipId == tipId) return tip->name + " is on " + n.name;
-    if (tip->loadSteps.empty()) return tip->name + " has no load steps (Machine Setup, under the tip)";
+    if (tip->loadSteps.empty()) return tip->name + " has no load steps (Machine Setup, the tip's Tool Changer tab)";
     if (!tip->problems().empty()) return tip->problems().front();
     return "";
 }

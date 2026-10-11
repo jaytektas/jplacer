@@ -1372,6 +1372,7 @@ bool JPOpenPnpMachineImporter::import(const std::string& machineXml, JPCellConfi
                     if (step.speed)
                         if (const JPXmlElement* sp = x.child(step.speed)) m.speed = number(sp->text);
                     m.openPnpSlot = slot;
+                    m.safeZ = t.loadSteps.empty();   // OpenPnP's moveToLocationAtSafeZ to the first, straight on
                     t.loadSteps.push_back(m);
                 }
                 if (step.actuator)

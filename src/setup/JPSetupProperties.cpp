@@ -1391,10 +1391,14 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
     // in from OpenPnP so): loading, then unloading as loading backwards or steps of its own.
     add.group("Loading");
     changerSteps(add, cell, t, true);
-    add.note("Loading comes in to its first move by way of Safe Z, then takes each step in turn, a move to its place at "
-             "its speed (a share of the machine's); an empty coordinate stays as it is, so a move with no Z keeps the "
-             "height (at Safe Z, to go round the other holders). Then up to Safe Z. Each row's buttons add a step "
-             "after it, delete it, or move it up or down; the steps are also in the tree under the tip.");
+    add.note("Loading takes each step in turn, a move to its place at its speed (a share of the machine's): with Safe Z? "
+             "up to Safe Z, across, then down to its Z; without, straight there, every axis at once. Backlash? "
+             "compensates it as every other move is; without, it goes without the compensation that goes past the "
+             "place and back, which among the changer's slots would carry the tip into a slot's wall. The first move "
+             "goes by way of Safe Z: the nozzle may be anywhere when a change begins. An empty coordinate stays as it "
+             "is, so a move with no Z keeps the height (at Safe Z, to go round the other holders). Then up to Safe Z. "
+             "Each row's buttons add a step after it, delete it, or move it up or down; its place buttons move as the "
+             "step does, compensated or not.");
     add.group("Unloading");
     add.choice("unloading", "Unloading", { "loading backwards", "steps of its own" },
                [t] { return std::string(t().unloadReversesLoad ? "loading backwards" : "steps of its own"); },
@@ -1407,11 +1411,18 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
                    tip.unloadReversesLoad = backwards;
                });
     f.reshaping.push_back("unloading");
-    if (t().unloadReversesLoad)
-        add.note("Unloading takes loading's steps backwards: each move back to where the one before it went, at the speed "
-                 "of the move it undoes, an actuator switched the other way. Choose steps of its own to unload another "
-                 "way (from the park place, by the middle of the machine first, say).");
-    else
+    if (t().unloadReversesLoad) {
+        // What that comes to, to see: changed by changing loading.
+        std::string worked;
+        const std::vector<JPChangerStep> backwards = t().unloadingSteps();
+        for (size_t i = 0; i < backwards.size(); ++i)
+            worked += (i ? "\n" : "") + JPSetupTree::stepLabel(cell, backwards[i], i);
+        add.note("Unloading takes loading's steps backwards: in to where loading's last move went by way of Safe Z, then "
+                 "each move back to where the one before it went, as the move it undoes went (its speed, Safe Z? and "
+                 "Backlash?), an actuator switched the other way. Choose steps of its own to unload another way (from "
+                 "the park place, by the middle of the machine first, say).");
+        if (!worked.empty()) add.note(worked);
+    } else
         changerSteps(add, cell, t, false);
     // OpenPnP's Vision Calibration of the changer slot (JPNozzleTipConfig::VisionCalibration).
     add.group("Vision Calibration");
@@ -1805,72 +1816,6 @@ void coordinate(JPFormBuilder& add, const std::string& name, const std::string& 
              }, "number");
 }
 
-void stepForm(JPCellConfig& cell, const JPSetupTree::Path& p, JPSetupProperties::Form& f) {
-    using S = JPChangerStep;
-    auto tip = finder(cell.nozzleTips, p.owner);
-    const size_t index = size_t(std::strtoul(p.id.c_str(), nullptr, 10));
-    const bool load = p.list == "load";
-    f.title = "Nozzle tip " + tip().name + ": " + (load ? "load" : "unload") + " step " + std::to_string(index + 1);
-    JPFormBuilder add(f);
-    add.tab("Step");
-    add.group("Step");
-    if (!load && tip().unloadReversesLoad) {
-        // Worked out from loading; changed by changing loading.
-        const std::vector<S> steps = tip().unloadingSteps();
-        if (index >= steps.size()) return;
-        const std::string what = JPSetupTree::stepLabel(cell, steps[index], index);
-        add.text("what", "Loading Backwards", [what] { return what.substr(what.find(' ') + 1); }, nullptr);
-        return;
-    }
-    auto step = [tip, load, index]() -> S& {
-        std::vector<S>& steps = load ? tip().loadSteps : tip().unloadSteps;
-        return steps[index];
-    };
-    if (index >= (load ? tip().loadSteps : tip().unloadSteps).size()) return;
-    const Strings kinds{ S::kindName(S::Kind::Move), S::kindName(S::Kind::SafeZ), S::kindName(S::Kind::Actuator),
-                         S::kindName(S::Kind::Wait), S::kindName(S::Kind::Ask) };
-    add.choice("kind", "Kind", kinds, [step] { return std::string(S::kindName(step().kind)); },
-               [step](const std::string& v) {
-                   for (S::Kind k : { S::Kind::Move, S::Kind::SafeZ, S::Kind::Actuator, S::Kind::Wait, S::Kind::Ask })
-                       if (v == S::kindName(k)) step().kind = k;
-               });
-    f.reshaping.push_back("kind");
-    auto speed = [&add, step] {
-        add.integer("speed", "Speed [%]", [step] { return int(std::lround(step().speed * 100)); },
-                    [step](int v) { step().speed = std::clamp(v, 1, 100) / 100.0; }, 1, 100);
-    };
-    switch (step().kind) {
-        case S::Kind::Move:
-            // Where the nozzle doing the change goes, as the axes have it.
-            add.group("Location");
-            add.header(kXYZR);
-            add.row("Location", Place::Location);
-            add.positionNoSafeZ(true);
-            coordinate(add, "x", "X", [step]() -> std::optional<double>& { return step().x; });
-            coordinate(add, "y", "Y", [step]() -> std::optional<double>& { return step().y; });
-            coordinate(add, "z", "Z", [step]() -> std::optional<double>& { return step().z; });
-            coordinate(add, "rotation", "Rotation", [step]() -> std::optional<double>& { return step().rotation; });
-            add.end();
-            add.note("Where the nozzle goes, in the axes' own coordinates. A coordinate left empty stays as it is.");
-            speed();
-            break;
-        case S::Kind::SafeZ:
-            speed();
-            break;
-        case S::Kind::Actuator:
-            add.byName("actuator", "Actuator", named(cell.actuators, "(none)"), [step]() -> std::string& { return step().actuatorId; });
-            add.choice("on", "Switch It", { "on", "off" }, [step] { return std::string(step().on ? "on" : "off"); },
-                       [step](const std::string& v) { step().on = v == "on"; });
-            break;
-        case S::Kind::Wait:
-            add.integer("waitMs", "Wait [ms]", [step]() -> int& { return step().waitMs; }, 0, 600000);
-            break;
-        case S::Kind::Ask:
-            add.text("message", "Message", [step]() -> std::string& { return step().message; }, "long");
-            break;
-    }
-}
-
 // A nozzle tip's loading (or its own unloading) steps as a table, as many as it takes: each step a row, a move
 // its place (the place buttons, a coordinate left empty staying as it is) and the speed it goes there at; the
 // other kinds their own settings. Each row adds a step after it, is deleted, or moves up or down: a step
@@ -1883,14 +1828,14 @@ void changerSteps(JPFormBuilder& add, const JPCellConfig& cell, const std::funct
     const Strings kinds{ S::kindName(S::Kind::Move), S::kindName(S::Kind::SafeZ), S::kindName(S::Kind::Actuator),
                          S::kindName(S::Kind::Wait), S::kindName(S::Kind::Ask) };
     const size_t count = list().size();
-    add.header({ "Kind", "X", "Y", "Z", "Rotation", "Speed [%]" });
+    add.header({ "Kind", "X", "Y", "Z", "Rotation", "Speed [%]", "Safe Z?", "Backlash?" });
     for (size_t i = 0; i < count; ++i) {
         const std::string key = prefix + std::to_string(i) + ".";
         auto step = [list, i]() -> S& { return list()[i]; };
         const S::Kind kind = step().kind;
         add.row(std::to_string(i + 1), kind == S::Kind::Move ? Place::Location : Place::None);
-        // A move inside the changer goes straight from the step before, as the change does it.
-        if (kind == S::Kind::Move) add.positionNoSafeZ(true);
+        // Its place buttons move as the step does: compensated for backlash, or not.
+        if (kind == S::Kind::Move) add.positionNoSafeZ([step] { return !step().backlash; });
         add.choice(key + "kind", "Kind", kinds, [step] { return std::string(S::kindName(step().kind)); },
                    [step](const std::string& v) {
                        for (S::Kind k : { S::Kind::Move, S::Kind::SafeZ, S::Kind::Actuator, S::Kind::Wait, S::Kind::Ask })
@@ -1908,24 +1853,27 @@ void changerSteps(JPFormBuilder& add, const JPCellConfig& cell, const std::funct
                 coordinate(add, key + "z", "Z", [step]() -> std::optional<double>& { return step().z; });
                 coordinate(add, key + "rotation", "Rotation", [step]() -> std::optional<double>& { return step().rotation; });
                 speed();
+                add.flag(key + "safeZ", "Safe Z?", [step]() -> bool& { return step().safeZ; });
+                add.flag(key + "backlash", "Backlash?", [step]() -> bool& { return step().backlash; });
                 break;
             case S::Kind::SafeZ:
                 for (int k = 0; k < 4; ++k) add.skip();
                 speed();
+                for (int k = 0; k < 2; ++k) add.skip();
                 break;
             case S::Kind::Actuator:
                 add.byName(key + "actuator", "Actuator", named(cell.actuators, "(none)"), [step]() -> std::string& { return step().actuatorId; });
                 add.choice(key + "on", "Switch It", { "on", "off" }, [step] { return std::string(step().on ? "on" : "off"); },
                            [step](const std::string& v) { step().on = v == "on"; });
-                for (int k = 0; k < 3; ++k) add.skip();
+                for (int k = 0; k < 5; ++k) add.skip();
                 break;
             case S::Kind::Wait:
                 add.integer(key + "waitMs", "Wait [ms]", [step]() -> int& { return step().waitMs; }, 0, 600000);
-                for (int k = 0; k < 4; ++k) add.skip();
+                for (int k = 0; k < 6; ++k) add.skip();
                 break;
             case S::Kind::Ask:
                 add.text(key + "message", "Message", [step]() -> std::string& { return step().message; });
-                for (int k = 0; k < 4; ++k) add.skip();
+                for (int k = 0; k < 6; ++k) add.skip();
                 break;
         }
         // Its buttons: a step added after it (a move, from where this one goes), it taken away, moved up or down.
@@ -1939,6 +1887,7 @@ void changerSteps(JPFormBuilder& add, const JPCellConfig& cell, const std::funct
                                    added.z = here.z;
                                    added.rotation = here.rotation;
                                    added.speed = here.speed;
+                                   added.backlash = here.backlash;
                                }
                                list().insert(list().begin() + std::ptrdiff_t(i + 1), added);
                            });
@@ -1958,7 +1907,11 @@ void changerSteps(JPFormBuilder& add, const JPCellConfig& cell, const std::funct
     if (count == 0) {
         add.row("");
         add.editIconButton(prefix + "first.add", "general-add", "Add the first step", which + " step added",
-                           [list] { list().push_back(S {}); });
+                           [list] {
+                               S first;
+                               first.safeZ = true;   // a change begins with the nozzle anywhere
+                               list().push_back(first);
+                           });
         add.end();
     }
 }
@@ -3472,7 +3425,6 @@ JPSetupProperties::Form JPSetupProperties::forNode(JPCellConfig& cell, const std
     else if (p.kind == "head" && has(cell.heads, p.id)) headForm(cell, p.id, f);
     else if (p.kind == "nozzle" && has(cell.nozzles, p.id)) nozzleForm(cell, p.id, f);
     else if (p.kind == "nozzletip" && has(cell.nozzleTips, p.id)) nozzleTipForm(cell, p.id, f, live);
-    else if (p.kind == "step" && has(cell.nozzleTips, p.owner)) stepForm(cell, p, f);
     else if (p.kind == "camera" && has(cell.cameras, p.id)) cameraForm(cell, p.id, f, live);
     else if (p.kind == "actuator" && has(cell.actuators, p.id)) actuatorForm(cell, p.id, f);
     else if (p.kind == "signaler" && has(cell.signalers, p.id)) signalerForm(cell, p.id, f);

@@ -617,11 +617,9 @@ void JPMachineSetupPanel::goTo(const JPSetupProperties::Row& row, JPSetupForm::T
     Where to;
     for (size_t i = 0; i < row.cells.size() && i < to.size(); ++i) to[i] = value(row.cells[i].property);
     if (tool == JPSetupForm::Tool::Camera) to[2].reset();   // a camera stays at safe Z
-    if (straight) {
-        if (moveToStraight) moveToStraight(tool, to, row.speedOverPrecision);
-    } else if (moveTo) {
-        moveTo(tool, to);
-    }
+    const bool precise = row.speedOverPrecision && row.speedOverPrecision();
+    auto& go = straight ? moveToStraight : moveTo;
+    if (go) go(tool, to, precise);
 }
 
 void JPMachineSetupPanel::exportGcode(bool toClipboard) {
@@ -677,15 +675,13 @@ void JPMachineSetupPanel::update() {
         { "actuator", "actuator", "general-remove", true }, { "camera", "camera", "general-remove", false },
         { "nozzle", "nozzle", "nozzle-remove", false },     { "nozzletip", "nozzle tip", "nozzletip-remove", false },
         { "signaler", "signaler", "general-remove", false }, { "head", "head", "general-remove", false },
-        { "step", "step", "general-remove", true },
     };
     const std::string what = JPSetupEdits::addable(m_draft, m_selected);
     const std::string kind = JPSetupTree::parse(m_selected).kind;
     const Kind* k = nullptr;
     for (const Kind& c : kKinds)
         if (kind == c.kind) k = &c;
-    // A step of unloading that is loading backwards is shown, not changed.
-    const bool part = k && (kind != "step" || !what.empty());
+    const bool part = k != nullptr;
     auto title = [](std::string s) {
         for (size_t i = 0; i < s.size(); ++i)
             if (i == 0 || s[i - 1] == ' ') s[i] = char(std::toupper(static_cast<unsigned char>(s[i])));

@@ -50,29 +50,6 @@ bool moveIn(std::vector<T>& items, const std::string& id, int by, Same same) {
     return false;
 }
 
-// A tip's list of steps a step path names, when it can be changed (not
-// unloading that is loading backwards); null otherwise.
-template <class Cell>
-auto stepList(Cell& cell, const JPSetupTree::Path& p) -> decltype(&cell.nozzleTips.front().loadSteps) {
-    for (auto& t : cell.nozzleTips) {
-        if (t.id != p.owner) continue;
-        if (p.list == "load") return &t.loadSteps;
-        if (p.list == "unload" && !t.unloadReversesLoad) return &t.unloadSteps;
-    }
-    return nullptr;
-}
-
-// A step's index, or -1.
-long stepIndex(const JPSetupTree::Path& p, const std::vector<JPChangerStep>& steps) {
-    char* end = nullptr;
-    const long i = std::strtol(p.id.c_str(), &end, 10);
-    return end && *end == '\0' && !p.id.empty() && i >= 0 && i < long(steps.size()) ? i : -1;
-}
-
-std::string stepPath(const JPSetupTree::Path& p, long index) {
-    return "step:" + p.owner + ":" + p.list + ":" + std::to_string(index);
-}
-
 // "a, b and c"
 std::string listed(const std::vector<std::string>& names) {
     std::string out;
@@ -86,10 +63,6 @@ std::string listed(const std::vector<std::string>& names) {
 std::string JPSetupEdits::addable(const JPCellConfig& cell, const std::string& path) {
     const JPSetupTree::Path g = JPSetupTree::parse(JPSetupTree::groupOf(cell, path));
     if (g.kind != "group") return {};
-    if (g.id == "load" || g.id == "unload") {
-        JPSetupTree::Path list{ "step", "", g.owner, g.id };
-        return stepList(cell, list) ? "Step" : "";
-    }
     if (g.id == "drivers")   return "Controller";
     if (g.id == "axes")      return "Axis";
     if (g.id == "heads")     return "Head";
@@ -121,16 +94,6 @@ std::vector<std::string> JPSetupEdits::kinds(const JPCellConfig& cell, const std
 std::string JPSetupEdits::add(JPCellConfig& cell, const std::string& path, const std::string& kind) {
     const JPSetupTree::Path g = JPSetupTree::parse(JPSetupTree::groupOf(cell, path));
     if (g.kind != "group") return {};
-    if (g.id == "load" || g.id == "unload") {
-        const JPSetupTree::Path list{ "step", "", g.owner, g.id };
-        std::vector<JPChangerStep>* steps = stepList(cell, list);
-        if (!steps) return {};
-        const JPSetupTree::Path p = JPSetupTree::parse(path);
-        const long after = p.kind == "step" ? stepIndex(p, *steps) : -1;
-        const long at = after >= 0 ? after + 1 : long(steps->size());
-        steps->insert(steps->begin() + at, JPChangerStep{});
-        return stepPath(list, at);
-    }
     if (g.id == "drivers") {
         if (kind != "NullDriver" && kind != "GcodeDriver" && kind != "GcodeAsyncDriver" && kind != "NeoDen4Driver") return {};
         JPDriverConfig d;
@@ -276,15 +239,6 @@ bool JPSetupEdits::remove(JPCellConfig& cell, const std::string& path, std::stri
         for (const JPActuatorConfig& a : cell.actuators)
             if (std::find(a.profileActuators.begin(), a.profileActuators.end(), p.id) != a.profileActuators.end())
                 users.push_back("actuator " + a.name + " (its profiles)");
-    } else if (p.kind == "step") {
-        std::vector<JPChangerStep>* steps = stepList(cell, p);
-        const long i = steps ? stepIndex(p, *steps) : -1;
-        if (i < 0) {
-            why = steps ? "it is not in this cell" : "unloading is loading backwards: change loading, or give it steps of its own";
-            return false;
-        }
-        steps->erase(steps->begin() + i);
-        return true;
     } else if (p.kind == "nozzletip") {
         for (const JPNozzleConfig& n : cell.nozzles)
             if (n.tipId == p.id) users.push_back("nozzle " + n.name + " (it is on it)");
@@ -315,13 +269,6 @@ bool JPSetupEdits::remove(JPCellConfig& cell, const std::string& path, std::stri
 
 std::string JPSetupEdits::move(JPCellConfig& cell, const std::string& path, int by) {
     const JPSetupTree::Path p = JPSetupTree::parse(path);
-    if (p.kind == "step") {
-        std::vector<JPChangerStep>* steps = stepList(cell, p);
-        const long i = steps ? stepIndex(p, *steps) : -1, j = i + by;
-        if (i < 0 || j < 0 || j >= long(steps->size())) return {};
-        std::swap((*steps)[size_t(i)], (*steps)[size_t(j)]);
-        return stepPath(p, j);
-    }
     auto any = [](const auto&, const auto&) { return true; };
     auto sameHead = [](const auto& a, const auto& b) { return a.mount.headId == b.mount.headId; };
     const bool moved = p.kind == "driver"    ? moveIn(cell.drivers, p.id, by, any)

@@ -30,7 +30,8 @@ JPCellConfig cellConfig() {
                          "identity": [ "[VER:1.1f.20250101:]", "[FIRMWARE:grblHAL]" ],
                          "axisLetters": [ "X", "Y", "Z" ] } } } ],
       "heads": [ { "id": "H", "name": "Head" } ],
-      "axes": [ { "id": "X", "name": "x", "kind": "controller", "type": "x", "driver": "D", "letter": "X", "feedratePerSecond": 100 },
+      "axes": [ { "id": "X", "name": "x", "kind": "controller", "type": "x", "driver": "D", "letter": "X", "feedratePerSecond": 100,
+                  "backlash": "oneSided", "backlashOffset": 2 },
                 { "id": "Z", "name": "z", "kind": "controller", "type": "z", "driver": "D", "letter": "Z", "feedratePerSecond": 50,
                   "safeZone": { "low": 0, "high": 0, "lowEnabled": true, "highEnabled": true } } ],
       "nozzles": [ { "id": "N", "name": "Left", "mount": { "head": "H", "axisX": "X", "axisZ": "Z", "offset": { "x": 10, "y": 0, "z": 0 } } } ],
@@ -68,12 +69,14 @@ int main() {
     cell.home();
     assert(until([&] { return cell.isHomed(); }));
 
-    // Loading: in at X 50 and down to Z -5 (the nozzle; X's axis at 40),
-    // the latch, along to X 60, then out.
+    // Loading: in by way of safe Z at X 50 and down to Z -5 (the nozzle; X's
+    // axis at 40), the latch, straight along to X 60, then out. X is one-sided
+    // (2 mm), neither move compensated: neither goes past its place.
     using K = JPChangerStep::Kind;
     std::vector<JPChangerStep> steps(3);
     steps[0].x = 50;
     steps[0].z = -5;
+    steps[0].safeZ = true;
     steps[1].kind = K::Actuator;
     steps[1].actuatorId = "V";
     steps[2].x = 60;
@@ -85,7 +88,7 @@ int main() {
     std::string why;
     const double x0 = cell.jogBase().at("X");
     assert(!JPTipChanger::run(cell, cell.config(), nozzle, steps, "Loading T", true, no, why));
-    assert(asked.size() == 1 && asked[0].find("step 1 of 3: move to X 50 Z -5") != std::string::npos);
+    assert(asked.size() == 1 && asked[0].find("step 1 of 3: by way of safe Z to X 50 Z -5") != std::string::npos);
     assert(why.find("stopped before step 1") == 0 && cell.jogBase().at("X") == x0);
 
     // Run: the Z the controller went through, and where it ended.
@@ -95,17 +98,36 @@ int main() {
         std::lock_guard lk(m);
         if (out && line.rfind("G1 ", 0) == 0) sent.push_back(line);
     });
+    auto taken = [&] {
+        std::lock_guard lk(m);
+        std::vector<std::string> out;
+        out.swap(sent);
+        return out;
+    };
     JPTipChanger::Hooks yes{ [](const std::string&) { return true; }, nullptr };
     assert(JPTipChanger::run(cell, cell.config(), nozzle, steps, "Loading T", true, yes, why));
-    watch();
     // In from safe Z: across first (Z untouched), then down; along; up at the end.
-    std::lock_guard lk(m);
-    assert(sent.size() >= 4);
-    assert(sent[0].find("X40") != std::string::npos && sent[0].find("Z") == std::string::npos);
-    assert(sent[1].find("Z-5") != std::string::npos && sent[1].find("X") == std::string::npos);
-    assert(sent[2].find("X50") != std::string::npos);
-    assert(sent.back().find("Z0") != std::string::npos);
+    std::vector<std::string> lines = taken();
+    assert(lines.size() >= 4);
+    assert(lines[0].find("X40") != std::string::npos && lines[0].find("Z") == std::string::npos);
+    assert(lines[1].find("Z-5") != std::string::npos && lines[1].find("X") == std::string::npos);
+    assert(lines[2].find("X50") != std::string::npos);
+    assert(lines.back().find("Z0") != std::string::npos);
+    for (const std::string& l : lines) assert(l.find("X42") == std::string::npos && l.find("X52") == std::string::npos);
     assert(until([&] { return cell.positions().at("X") == 50 && cell.positions().at("Z") == 0; }));
+
+    // The move along compensated: past its place by the offset, then back in.
+    steps[2].x = 70;
+    steps[2].backlash = true;
+    assert(JPTipChanger::run(cell, cell.config(), nozzle, steps, "Loading T", false, yes, why));
+    lines = taken();
+    watch();
+    size_t past = lines.size();
+    for (size_t i = 0; i < lines.size(); ++i)
+        if (lines[i].find("X62") != std::string::npos) past = i;
+    assert(past + 1 < lines.size() && lines[past + 1].find("X60") != std::string::npos);
+    for (const std::string& l : lines) assert(l.find("X42") == std::string::npos);   // the first still not
+    assert(until([&] { return cell.positions().at("X") == 60; }));
 
     std::puts("test_tip_changer: ok");
     return 0;

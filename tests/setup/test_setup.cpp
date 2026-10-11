@@ -230,35 +230,47 @@ int main() {
     assert(c.problems().empty());
     std::printf("  [OK] settings\n");
 
-    // A tip's changer: steps added after the one selected, moved, set; unloading backwards shown, not changed.
+    // A tip's changer, on the tip's own page (none in the tree): steps added after a row, moved, set, each
+    // move by way of safe Z or not and compensated or not; unloading backwards shown, not changed.
     {
         const JPSetupTree::Node tree = JPSetupTree::build(c);
-        assert(find(tree, "group:load:T") && find(tree, "group:unload:T")->label == "Unload (loading backwards)");
-        assert(JPSetupEdits::addable(c, "group:load:T") == "Step" && JPSetupEdits::addable(c, "group:unload:T").empty());
-        assert(JPSetupEdits::add(c, "group:load:T") == "step:T:load:0");
+        assert(find(tree, "nozzletip:T") && find(tree, "nozzletip:T")->children.empty());
+        auto page = [&c] { return JPSetupProperties::forNode(c, "nozzletip:T", {}); };
+        JPSetupProperties::Form f = page();
+        f.edits.at("loadStepfirst.add").apply();
+        auto& load = c.nozzleTips[0].loadSteps;
+        assert(load.size() == 1 && load[0].safeZ && !load[0].backlash);   // the first by way of safe Z
         assert(c.problems().size() == 1);   // a first move must say where
-        JPSetupProperties::Form s = JPSetupProperties::forNode(c, "step:T:load:0", {});
-        assert(s.model.set("x", JVariant(std::string("-16"))) && s.model.set("y", JVariant(std::string("130"))));
-        assert(s.model.set("z", JVariant(std::string("0"))) && c.problems().empty());
-        s.model.set("z", JVariant(std::string("nonsense")));
-        assert(c.nozzleTips[0].loadSteps[0].z == 0.0);   // not a number: not taken
-        assert(JPSetupEdits::add(c, "step:T:load:0") == "step:T:load:1");
-        s = JPSetupProperties::forNode(c, "step:T:load:1", {});
-        s.model.set("z", JVariant(std::string("-27")));
-        s.model.set("speed", JVariant(50));
-        assert(JPSetupTree::stepLabel(c, c.nozzleTips[0].loadSteps[1], 1) == "2. Move to Z -27 at 50%");
-        assert(JPSetupEdits::add(c, "step:T:load:0") == "step:T:load:1");   // between the two
-        s = JPSetupProperties::forNode(c, "step:T:load:1", {});
-        s.model.set("kind", JVariant(std::string("wait")));
-        assert(JPSetupEdits::move(c, "step:T:load:1", +1) == "step:T:load:2");
-        assert(c.nozzleTips[0].loadSteps[2].kind == JPChangerStep::Kind::Wait);
-        std::string why;
-        assert(!JPSetupEdits::remove(c, "step:T:unload:0", why));
-        assert(JPSetupProperties::forNode(c, "step:T:unload:0", {}).model.get("what").toString() == "Move to X -16, Y 130, Z -27 at 50%");
-        JPSetupProperties::Form tipForm = JPSetupProperties::forNode(c, "nozzletip:T", {});
-        tipForm.model.set("unloading", JVariant(std::string("steps of its own")));
-        assert(c.nozzleTips[0].unloadSteps.size() == 3 && JPSetupEdits::addable(c, "group:unload:T") == "Step");
-        assert(JPSetupEdits::remove(c, "step:T:unload:2", why) && c.nozzleTips[0].unloadSteps.size() == 2);
+        f = page();
+        assert(f.model.set("loadStep0.x", JVariant(std::string("-16"))) && f.model.set("loadStep0.y", JVariant(std::string("130"))));
+        assert(f.model.set("loadStep0.z", JVariant(std::string("0"))) && c.problems().empty());
+        f.model.set("loadStep0.z", JVariant(std::string("nonsense")));
+        assert(load[0].z == 0.0);   // not a number: not taken
+        f.model.set("loadStep0.safeZ", JVariant(false));
+        assert(c.problems().size() == 1);   // the first straight from anywhere
+        f.model.set("loadStep0.safeZ", JVariant(true));
+        f.edits.at("loadStep0.add").apply();
+        assert(load.size() == 2 && !load[1].safeZ && load[1].x == -16.0);   // after it, from where it goes
+        f = page();
+        f.model.set("loadStep1.z", JVariant(std::string("-27")));
+        f.model.set("loadStep1.speed", JVariant(50));
+        f.model.set("loadStep1.backlash", JVariant(true));
+        assert(load[1].backlash);
+        assert(JPSetupTree::stepLabel(c, load[1], 1) == "2. Move to X -16, Y 130, Z -27 at 50%, backlash compensated");
+        f.edits.at("loadStep0.add").apply();   // between the two
+        f = page();
+        f.model.set("loadStep1.kind", JVariant(std::string("wait")));
+        f = page();
+        f.edits.at("loadStep1.down").apply();
+        assert(load[2].kind == JPChangerStep::Kind::Wait && load[1].backlash);
+        // Unloading as loading backwards: no rows of its own to change.
+        f = page();
+        assert(!f.edits.count("unloadStepfirst.add") && !f.edits.count("unloadStep0.remove"));
+        f.model.set("unloading", JVariant(std::string("steps of its own")));
+        assert(c.nozzleTips[0].unloadSteps.size() == 3 && c.nozzleTips[0].unloadSteps[0].safeZ);
+        f = page();
+        f.edits.at("unloadStep2.remove").apply();
+        assert(c.nozzleTips[0].unloadSteps.size() == 2);
     }
     std::printf("  [OK] a tip's changer steps\n");
     // Controllers: Add asks which kind (OpenPnP's driver classes), each named after it.

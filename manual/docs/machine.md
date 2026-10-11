@@ -403,8 +403,8 @@ when it was calibrated. (OpenPnP shows this only on the tip's Calibration tab.) 
 - **Home Z**: the nozzle's Z homed alone (see [Homing a nozzle's Z](#homing-a-nozzles-z)).
 
 The machine must be connected and homed. Each step's place is where the nozzle goes, in the axes' own
-coordinates: the first move of a list comes in from safe Z (up, across, then down), the others go
-straight, and the head ends at safe Z. Each move goes at its step's speed times the machine's speed (the
+coordinates: a move with Safe Z? comes in from safe Z (up, across, then down), one without goes
+straight, each compensated for backlash only with Backlash?, and the head ends at safe Z. Each move goes at its step's speed times the machine's speed (the
 Speed slider). Once a tip is off (or on), the nozzle is recorded as having it (a step to undo in Machine
 Setup); stopped or failed partway, nothing is assumed: look at the nozzle and say which tip is on it
 (Manual Change).

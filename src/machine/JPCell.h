@@ -278,9 +278,10 @@ public:
     // a place in its own coordinates: up to safe Z, across to X, Y and the
     // rotation given, then down to Z when one is given. A coordinate not
     // given stays as it is. Refused while a move is under way.
-    void moveTool(const JPMountConfig& mount, std::array<std::optional<double>, 4> to, double speed);
-    // The same, straight there (not by way of safe Z): OpenPnP's Position Tool (Without Safe Z);
     // `speedOverPrecision`: as setSpeedOverPrecision has it, for that move.
+    void moveTool(const JPMountConfig& mount, std::array<std::optional<double>, 4> to, double speed,
+                  bool speedOverPrecision = false);
+    // The same, straight there (not by way of safe Z): OpenPnP's Position Tool (Without Safe Z).
     void moveToolStraight(const JPMountConfig& mount, std::array<std::optional<double>, 4> to, double speed,
                           bool speedOverPrecision);
     // Move axes to coordinates, by axis id. Checked against soft limits; a

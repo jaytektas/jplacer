@@ -29,14 +29,11 @@ inline namespace jf {
 //
 // Each node has a path naming it: "machine", "driver:<id>", "axis:<id>",
 // "head:<id>", "nozzle:<id>", "nozzletip:<id>", "camera:<id>",
-// "actuator:<id>", "signaler:<id>", "feeder:<id>", "step:<tipId>:<load|unload>:<index>", and for a group
+// "actuator:<id>", "signaler:<id>", "feeder:<id>", and for a group
 // "group:<what>" ("group:drivers", "group:axes", "group:heads",
 // "group:nozzletips", "group:signalers") or, for a group that belongs to a head (or to the
-// machine, an empty head) or a tip, "group:<what>:<owner>"
-// ("group:nozzles:H1", "group:cameras:", "group:load:T1").
-//
-// A tip that unloads by running its loading backwards shows those steps
-// under Unload, to see; they are changed by changing loading.
+// machine, an empty head), "group:<what>:<owner>" ("group:nozzles:H1",
+// "group:cameras:"). A nozzle tip's changer steps are on its own page.
 class JPSetupTree {
 public:
     struct Node {
@@ -50,11 +47,10 @@ public:
     static Node build(const JPCellConfig& cell, const JPConfiguration* config = nullptr);
 
     // A path's parts: its kind ("axis", "group", "machine"), the id after it
-    // (a group's: what it holds; a step's: its index), and whose it is (a
-    // group's head, "" for the machine's, or tip; a step's tip), and a
-    // step's list ("load", "unload").
+    // (a group's: what it holds), and whose it is (a group's head, "" for the
+    // machine's).
     struct Path {
-        std::string kind, id, owner, list;
+        std::string kind, id, owner;
     };
     static Path parse(const std::string& path);
     // The path of the group an item is in ("axis:X" -> "group:axes"); a group

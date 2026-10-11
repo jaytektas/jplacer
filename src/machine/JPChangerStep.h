@@ -16,7 +16,12 @@ inline namespace jf {
 //   Move      the nozzle doing the change to a place: X, Y, Z and rotation,
 //             each left out to stay as it is, in the axes' own coordinates
 //             (not squared: a squareness measured later does not move it),
-//             at `speed` (a share of top speed).
+//             at `speed` (a share of top speed). `safeZ`: by way of safe Z
+//             (up, across, then down to Z), else straight there, every axis
+//             at once. `backlash`: compensated as every other move is; else
+//             without the compensation that goes past the place and back
+//             (OpenPnP's SpeedOverPrecision), which among a changer's slots
+//             would carry the tip into a slot's wall.
 //   SafeZ     the nozzle up to safe Z, at `speed`.
 //   Actuator  an actuator switched on or off (a door, a lock, a valve).
 //   Wait      `waitMs` milliseconds.
@@ -27,6 +32,8 @@ struct JPChangerStep {
     Kind                  kind = Kind::Move;
     std::optional<double> x, y, z, rotation;
     double                speed = 1;
+    bool                  safeZ = false;
+    bool                  backlash = false;
     std::string           actuatorId;
     bool                  on = true;
     int                   waitMs = 0;
@@ -61,6 +68,8 @@ struct JPChangerStep {
         s.z          = coordinate("z");
         s.rotation   = coordinate("rotation");
         s.speed      = j["speed"].number(1.0);
+        s.safeZ      = j["safeZ"].boolean(false);
+        s.backlash   = j["backlash"].boolean(false);
         s.actuatorId = j["actuator"].str();
         s.on         = j["on"].boolean(true);
         s.waitMs     = int(j["waitMs"].number());
@@ -79,6 +88,8 @@ struct JPChangerStep {
                 if (z)        j["z"] = *z;
                 if (rotation) j["rotation"] = *rotation;
                 j["speed"] = speed;
+                j["safeZ"] = safeZ;
+                j["backlash"] = backlash;
                 break;
             case Kind::SafeZ:    j["speed"] = speed; break;
             case Kind::Actuator: j["actuator"] = actuatorId; j["on"] = on; break;

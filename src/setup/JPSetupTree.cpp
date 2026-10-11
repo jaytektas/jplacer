@@ -81,14 +81,6 @@ std::string JPSetupTree::shortNumber(double v) {
 
 namespace {
 
-JPSetupTree::Node steps(const JPCellConfig& cell, const std::string& label, const std::string& tipId,
-                        const std::string& list, const std::vector<JPChangerStep>& items) {
-    JPSetupTree::Node g{ label, "group:" + list + ":" + tipId, {} };
-    for (size_t i = 0; i < items.size(); ++i)
-        g.children.push_back({ JPSetupTree::stepLabel(cell, items[i], i), "step:" + tipId + ":" + list + ":" + std::to_string(i), {} });
-    return g;
-}
-
 bool contains(const JPSetupTree::Node& n, const std::string& path, std::vector<std::string>& labels) {
     labels.push_back(n.label);
     if (n.path == path) return true;
@@ -128,13 +120,8 @@ JPSetupTree::Node JPSetupTree::build(const JPCellConfig& cell, const JPConfigura
     Node loose = group<JPNozzleConfig>("Nozzles", "group:nozzles:", cell.nozzles, "nozzle", fixed);
     if (!loose.children.empty()) root.children.push_back(std::move(loose));
     Node tips{ "Nozzle Tips", "group:nozzletips", {} };
-    for (const JPNozzleTipConfig& t : cell.nozzleTips) {
-        Node tip{ "ReferenceNozzleTip " + labelOf(t.name, t.id), "nozzletip:" + t.id, {} };
-        tip.children.push_back(steps(cell, "Load", t.id, "load", t.loadSteps));
-        tip.children.push_back(t.unloadReversesLoad ? steps(cell, "Unload (loading backwards)", t.id, "unload", t.unloadingSteps())
-                                                    : steps(cell, "Unload", t.id, "unload", t.unloadSteps));
-        tips.children.push_back(std::move(tip));
-    }
+    for (const JPNozzleTipConfig& t : cell.nozzleTips)
+        tips.children.push_back({ "ReferenceNozzleTip " + labelOf(t.name, t.id), "nozzletip:" + t.id, {} });
     root.children.push_back(std::move(tips));
     root.children.push_back(group<JPCameraConfig>("Cameras", "group:cameras:", cell.cameras, "camera", fixed));
     root.children.push_back(group<JPActuatorConfig>("Actuators", "group:actuators:", cell.actuators, "actuator", fixed));
@@ -156,15 +143,6 @@ JPSetupTree::Path JPSetupTree::parse(const std::string& path) {
     p.kind = path.substr(0, a);
     if (a == std::string::npos) return p;
     const std::string rest = path.substr(a + 1);
-    if (p.kind == "step") {
-        // step:<tipId>:<list>:<index>
-        const size_t b = rest.find(':'), c = rest.find(':', b == std::string::npos ? b : b + 1);
-        if (c == std::string::npos) return p;
-        p.owner = rest.substr(0, b);
-        p.list  = rest.substr(b + 1, c - b - 1);
-        p.id    = rest.substr(c + 1);
-        return p;
-    }
     if (p.kind != "group") {
         p.id = rest;
         return p;
@@ -188,7 +166,6 @@ std::string JPSetupTree::groupOf(const JPCellConfig& cell, const std::string& pa
     if (p.kind == "head")     return "group:heads";
     if (p.kind == "nozzletip") return "group:nozzletips";
     if (p.kind == "signaler") return "group:signalers";
-    if (p.kind == "step")     return "group:" + p.list + ":" + p.owner;
     if (p.kind == "nozzle")   return mounted(cell.nozzles, "nozzles");
     if (p.kind == "camera")   return mounted(cell.cameras, "cameras");
     if (p.kind == "actuator") return mounted(cell.actuators, "actuators");
@@ -212,7 +189,8 @@ std::string JPSetupTree::stepLabel(const JPCellConfig& cell, const JPChangerStep
                 { "X", &step.x }, { "Y", &step.y }, { "Z", &step.z }, { "rotation", &step.rotation } };
             for (const auto& [name, v] : parts)
                 if (*v) to += (to.empty() ? " " : ", ") + std::string(name) + " " + shortNumber(**v);
-            return s + (to.empty() ? "Move (nowhere)" : "Move to" + to) + speed;
+            return s + (to.empty() ? "Move (nowhere)" : (step.safeZ ? "By way of Safe Z to" : "Move to") + to) + speed
+                 + (step.backlash ? ", backlash compensated" : "");
         }
         case Kind::SafeZ: return s + "Up to safe Z" + speed;
         case Kind::Actuator: {

@@ -2218,13 +2218,15 @@ void JPCell::moveToolStraight(const JPMountConfig& mount, std::array<std::option
     });
 }
 
-void JPCell::moveTool(const JPMountConfig& mount, std::array<std::optional<double>, 4> to, double speed) {
+void JPCell::moveTool(const JPMountConfig& mount, std::array<std::optional<double>, 4> to, double speed,
+                      bool speedOverPrecision) {
     if (m_moving.exchange(true)) {
         JLOGC(JPlacerLog::kCell, JLogLevel::Debug) << "move refused: one is under way";
         return;
     }
-    m_thread.post([this, mount, to, speed] {
+    m_thread.post([this, mount, to, speed, speedOverPrecision] {
         std::string why;
+        const bool was = m_speedOverPrecision.exchange(speedOverPrecision);
         bool ok = mount.headId.empty() || doSafeZ(mount.headId, speed, why);
         // Tool = axis + its offset on the head (+ its tip's runout at its angle).
         std::map<std::string, double> across;
@@ -2234,6 +2236,7 @@ void JPCell::moveTool(const JPMountConfig& mount, std::array<std::optional<doubl
         compensateRunout(mount, across, false);
         if (ok && !across.empty()) ok = doMove(across, speed, why);
         if (ok && to[2] && !mount.axisZ.empty()) ok = doMove({ { mount.axisZ, *to[2] - zOffsetOf(mount) } }, speed, why);
+        m_speedOverPrecision = was;
         ok = finished(ok, why);
         m_moving = false;
         if (!ok) JLOGC(JPlacerLog::kCell, JLogLevel::Warn) << "move refused: " << why;

@@ -567,7 +567,9 @@ std::unique_ptr<JPMachineSetupPanel> JPlacerMachine::makeSetup() {
         const auto i = p.find(axisId);
         return i == p.end() ? std::nullopt : std::optional<double>(i->second);
     };
-    setup->moveTo = [this](JPSetupForm::Tool tool, const JPMachineSetupPanel::Where& to) { moveToolTo(tool, to); };
+    setup->moveTo = [this](JPSetupForm::Tool tool, const JPMachineSetupPanel::Where& to, bool speedOverPrecision) {
+        moveToolTo(tool, to, false, speedOverPrecision);
+    };
     setup->moveToStraight = [this](JPSetupForm::Tool tool, const JPMachineSetupPanel::Where& to, bool speedOverPrecision) {
         moveToolTo(tool, to, true, speedOverPrecision);
     };
@@ -1217,7 +1219,7 @@ bool JPlacerMachine::moveToolTo(JPSetupForm::Tool tool, const Where& to, bool st
     }
     if (!readyToMove()) return false;
     if (straight) m_cell->moveToolStraight(*m, to, 1.0, speedOverPrecision);
-    else m_cell->moveTool(*m, to, 1.0);   // at the machine's speed
+    else m_cell->moveTool(*m, to, 1.0, speedOverPrecision);   // at the machine's speed
     selectMoved(*m);
     if (tool == JPSetupForm::Tool::Camera)
         for (const JPCameraConfig& cam : m_cell->config().cameras)
