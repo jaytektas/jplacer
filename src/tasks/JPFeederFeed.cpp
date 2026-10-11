@@ -314,11 +314,12 @@ bool JPFeederFeed::feed(JPConfiguration& config, const std::string& feederId, co
     std::optional<JPLocation> schultzAt;
     bool isSchultz = false;
     main([&] {
-        if (const JPFeeder* f = config.feeder(feederId); f && f->feedsAs() == "SchultzFeeder") {
+        const JPFeeder* f = config.feeder(feederId);
+        if (const JPSchultzFeeder* z = f ? f->schultzFeeding() : nullptr) {
             isSchultz = true;
-            schultz = f->text("actuator-name");
+            schultz = z->actuatorName;
             schultzName = f->name();
-            feederNumber = f->real("actuator-value", 0);
+            feederNumber = z->actuatorValue;
             schultzAt = f->pickLocation();
         }
     });
@@ -515,10 +516,10 @@ bool JPFeederFeed::postPick(JPConfiguration& config, const std::string& feederId
             value = f->real("post-pick-actuator-value", 0);
             if (name.empty())
                 JLOGC(JPlacerLog::kJob, JLogLevel::Debug) << "Post pick cancelled. Actuator not set for feeder " << f->name();
-        } else if (f->feedsAs() == "SchultzFeeder") {
+        } else if (const JPSchultzFeeder* z = f->schultzFeeding()) {
             // With its feeder number.
-            name = f->text("post-pick-actuator-name");
-            value = f->real("actuator-value", 0);
+            name = z->postPickActuatorName;
+            value = z->actuatorValue;
         }
     });
     if (emptySlot) {

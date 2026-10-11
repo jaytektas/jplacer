@@ -27,21 +27,21 @@ namespace {
 // attribute (and OpenPnP's name for it in the log), whether it is read
 // (else actuated), and what is read after.
 struct SchultzButton {
-    const char* action;
-    const char* actuator;
-    const char* logName;
-    bool        read;
-    const char* then;
+    const char*                    action;
+    std::string JPSchultzFeeder::* actuator;
+    const char*                    logName;
+    bool                           read;
+    const char*                    then;
 };
-constexpr SchultzButton kSchultz[] = {
-    { "getId", "id-actuator-name", "getIdActuatorName", true, nullptr },
-    { "testFeed", "actuator-name", "actuatorName", false, nullptr },
-    { "testPostPick", "post-pick-actuator-name", "postPickActuatorName", false, "getFeedCount" },
-    { "getFeedCount", "feed-count-actuator-name", "feedCountActuatorName", true, nullptr },
-    { "clearFeedCount", "clear-count-actuator-name", "clearCountActuatorName", false, nullptr },
-    { "getPitch", "pitch-actuator-name", "pitchActuatorName", true, nullptr },
-    { "togglePitch", "toggle-pitch-actuator-name", "togglePitchActuatorName", false, "getPitch" },
-    { "getStatus", "status-actuator-name", "statusActuatorName", true, nullptr },
+const SchultzButton kSchultz[] = {
+    { "getId", &JPSchultzFeeder::idActuatorName, "getIdActuatorName", true, nullptr },
+    { "testFeed", &JPSchultzFeeder::actuatorName, "actuatorName", false, nullptr },
+    { "testPostPick", &JPSchultzFeeder::postPickActuatorName, "postPickActuatorName", false, "getFeedCount" },
+    { "getFeedCount", &JPSchultzFeeder::feedCountActuatorName, "feedCountActuatorName", true, nullptr },
+    { "clearFeedCount", &JPSchultzFeeder::clearCountActuatorName, "clearCountActuatorName", false, nullptr },
+    { "getPitch", &JPSchultzFeeder::pitchActuatorName, "pitchActuatorName", true, nullptr },
+    { "togglePitch", &JPSchultzFeeder::togglePitchActuatorName, "togglePitchActuatorName", false, "getPitch" },
+    { "getStatus", &JPSchultzFeeder::statusActuatorName, "statusActuatorName", true, nullptr },
 };
 
 // "Failed, " and why, its first letter small (OpenPnP's "Failed, unable to find…").
@@ -65,7 +65,7 @@ bool JPFeederActions::run(JPConfiguration& config, const std::string& feederId, 
         if (const JPFeeder* f = config.feeder(feederId)) {
             kind = f->feedsAs();
             name = f->name();
-            feederNumber = f->real("actuator-value", 0);
+            if (const JPSchultzFeeder* z = f->schultzFeeding()) feederNumber = z->actuatorValue;
         }
     });
     if (kind == "RapidFeeder" && action == "rapidScan") {
@@ -226,7 +226,7 @@ bool JPFeederActions::run(JPConfiguration& config, const std::string& feederId, 
         main([&] {
             const JPFeeder* f = config.feeder(feederId);
             if (!f) return;
-            fiducial = f->text("fiducial-part");
+            if (const JPSchultzFeeder* z = f->schultzFeeding()) fiducial = z->fiducialPart;
             at = f->location();
             if (const JPPart* part = config.partNamed(fiducial)) {   // typed in by its name, as OpenPnP's id
                 known = true;
@@ -268,7 +268,8 @@ bool JPFeederActions::run(JPConfiguration& config, const std::string& feederId, 
         if (action != b.action) continue;
         std::string actuator;
         main([&] {
-            if (const JPFeeder* f = config.feeder(feederId)) actuator = f->text(b.actuator);
+            if (const JPFeeder* f = config.feeder(feederId))
+                if (const JPSchultzFeeder* z = f->schultzFeeding()) actuator = (*z).*b.actuator;
         });
         if (actuator.empty()) {
             JLOGC(JPlacerLog::kJob, JLogLevel::Warn) << "No " << b.logName << " specified for feeder " << name << ".";

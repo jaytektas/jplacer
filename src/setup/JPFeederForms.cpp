@@ -497,26 +497,32 @@ void schultzForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFe
 // A Schultz feeder's Actuators group: its feeder number, and its actuators with their buttons.
 void schultzActuators(JPFormBuilder& add, std::function<JPFeeder&()> f, const JPFeederForms::Options& options) {
     add.group("Actuators");
-    add.number("actuator-value", "Feeder Number:", [f] { return f().real("actuator-value", 0); },
-               [f](double v) { f().setReal("actuator-value", v); });
+    auto z = [f]() -> JPSchultzFeeder& { return *f().schultzFeeding(); };
+    add.number("actuator-value", "Feeder Number:", [z] { return z().actuatorValue; }, [z](double v) { z().actuatorValue = v; });
     add.header({ "Actuator" });
     JPFormBuilder::Strings names { "" };
     names.insert(names.end(), options.actuators.begin(), options.actuators.end());
     const auto reading = options.reading;
-    struct Row { const char* label; const char* attribute; const char* action; const char* button; bool shows; const char* note; };
-    for (const Row& r : { Row { "Get ID", "id-actuator-name", "getId", "Get ID", true, nullptr },
-                          Row { "Pre Pick", "actuator-name", "testFeed", "Test pre pick", false, nullptr },
-                          Row { "Post Pick", "post-pick-actuator-name", "testPostPick", "Test post pick", false, nullptr },
-                          Row { "Get Feed Count", "feed-count-actuator-name", "getFeedCount", "Get feed count", true, nullptr },
-                          Row { "Clear Feed Count", "clear-count-actuator-name", "clearFeedCount", "Clear feed count", false, nullptr },
-                          Row { "Get Pitch", "pitch-actuator-name", "getPitch", "Get pitch", true, nullptr },
-                          Row { "Toggle Pitch", "toggle-pitch-actuator-name", "togglePitch", "Toggle pitch", false,
-                                "Toggle between 2 MM and 4 MM" },
-                          Row { "Get Status", "status-actuator-name", "getStatus", "Get status", true, nullptr } }) {
-        const std::string attribute = r.attribute, action = r.action;
+    using Field = std::string JPSchultzFeeder::*;
+    struct Row { const char* label; const char* key; Field field; const char* action; const char* button; bool shows; const char* note; };
+    for (const Row& r : { Row { "Get ID", "id-actuator-name", &JPSchultzFeeder::idActuatorName, "getId", "Get ID", true, nullptr },
+                          Row { "Pre Pick", "actuator-name", &JPSchultzFeeder::actuatorName, "testFeed", "Test pre pick", false, nullptr },
+                          Row { "Post Pick", "post-pick-actuator-name", &JPSchultzFeeder::postPickActuatorName, "testPostPick",
+                                "Test post pick", false, nullptr },
+                          Row { "Get Feed Count", "feed-count-actuator-name", &JPSchultzFeeder::feedCountActuatorName, "getFeedCount",
+                                "Get feed count", true, nullptr },
+                          Row { "Clear Feed Count", "clear-count-actuator-name", &JPSchultzFeeder::clearCountActuatorName,
+                                "clearFeedCount", "Clear feed count", false, nullptr },
+                          Row { "Get Pitch", "pitch-actuator-name", &JPSchultzFeeder::pitchActuatorName, "getPitch", "Get pitch", true,
+                                nullptr },
+                          Row { "Toggle Pitch", "toggle-pitch-actuator-name", &JPSchultzFeeder::togglePitchActuatorName, "togglePitch",
+                                "Toggle pitch", false, "Toggle between 2 MM and 4 MM" },
+                          Row { "Get Status", "status-actuator-name", &JPSchultzFeeder::statusActuatorName, "getStatus", "Get status",
+                                true, nullptr } }) {
+        const std::string action = r.action;
+        const Field field = r.field;
         add.row(r.label);
-        add.choice(attribute, r.label, names, [f, attribute] { return f().text(attribute); },
-                   [f, attribute](const std::string& n) { f().setText(attribute, n); });
+        add.choice(r.key, r.label, names, [z, field] { return z().*field; }, [z, field](const std::string& n) { z().*field = n; });
         add.button(action, r.button);
         if (r.shows)
             add.text(action + ".value", "", [reading, action] { return reading ? reading(action) : std::string(); }, nullptr);
@@ -582,8 +588,8 @@ void slotForm(JPFormBuilder& add, JPConfiguration& config, const std::string& sl
     if (schultz) add.iconButton("updateLocation", "board-fiducial-locate", "Update feeder location based on fiducial");
     add.end();
     if (schultz)
-        add.text("fiducial-part", "Fiducial Part", [f] { return f().text("fiducial-part"); },
-                 [f](const std::string& v) { f().setText("fiducial-part", v); });
+        add.text("fiducial-part", "Fiducial Part", [f] { return f().schultzFeeding()->fiducialPart; },
+                 [f](const std::string& v) { f().schultzFeeding()->fiducialPart = v; });
     add.integer("feed-retry-count", "Feed Retry Count", [f] { return f().feedRetryCount(); },
                 [f](int v) { f().setFeedRetryCount(v); }, 0, kMostCount);
     add.integer("pick-retry-count", "Pick Retry Count", [f] { return f().pickRetryCount(); },

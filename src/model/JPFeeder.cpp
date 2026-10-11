@@ -96,24 +96,33 @@ const JPAutoFeeder* JPFeeder::autoFeeding() const {
 
 JPAutoFeeder* JPFeeder::autoFeeding() { return const_cast<JPAutoFeeder*>(std::as_const(*this).autoFeeding()); }
 
+const JPSchultzFeeder* JPFeeder::schultzFeeding() const {
+    if (const JPSchultzFeeder* z = as<JPSchultzFeeder>()) return z;
+    return as<JPSlotSchultzFeeder>();
+}
+
+JPSchultzFeeder* JPFeeder::schultzFeeding() { return const_cast<JPSchultzFeeder*>(std::as_const(*this).schultzFeeding()); }
+
 std::string JPFeeder::slotBankId() const {
     if (const JPSlotAutoFeeder* s = as<JPSlotAutoFeeder>()) return s->bankId;
-    return text("bank-id");
+    if (const JPSlotSchultzFeeder* z = as<JPSlotSchultzFeeder>()) return z->bankId;
+    return {};
 }
 
 void JPFeeder::setSlotBankId(const std::string& id) {
     if (JPSlotAutoFeeder* s = as<JPSlotAutoFeeder>()) s->bankId = id;
-    else setText("bank-id", id);
+    if (JPSlotSchultzFeeder* z = as<JPSlotSchultzFeeder>()) z->bankId = id;
 }
 
 std::string JPFeeder::slotFeederId() const {
     if (const JPSlotAutoFeeder* s = as<JPSlotAutoFeeder>()) return s->feederId;
-    return text("feeder-id");
+    if (const JPSlotSchultzFeeder* z = as<JPSlotSchultzFeeder>()) return z->feederId;
+    return {};
 }
 
 void JPFeeder::setSlotFeederId(const std::string& id) {
     if (JPSlotAutoFeeder* s = as<JPSlotAutoFeeder>()) s->feederId = id;
-    else setText("feeder-id", id);
+    if (JPSlotSchultzFeeder* z = as<JPSlotSchultzFeeder>()) z->feederId = id;
 }
 
 bool JPFeeder::autoTune() const {

@@ -6,7 +6,9 @@
 #include "JPLength.h"
 #include "JPLocation.h"
 #include "JPAutoFeeder.h"
+#include "JPSchultzFeeder.h"
 #include "JPSlotAutoFeeder.h"
+#include "JPSlotSchultzFeeder.h"
 #include "JPTrayFeeder.h"
 #include "JPTubeFeeder.h"
 
@@ -66,6 +68,9 @@ public:
     // An auto feeder's own, or a slot auto feeder's (fed as one); none: another kind.
     JPAutoFeeder*       autoFeeding();
     const JPAutoFeeder* autoFeeding() const;
+    // A Schultz feeder's own, or a slot Schultz feeder's (fed as one); none: another kind.
+    JPSchultzFeeder*       schultzFeeding();
+    const JPSchultzFeeder* schultzFeeding() const;
     // Whether its kind is typed (its settings its own, none by OpenPnP's name).
     bool typed() const { return !std::holds_alternative<JPXmlNode>(m_own); }
 
@@ -99,7 +104,7 @@ public:
     bool isSlot() const;
     // The kind a slot feeder feeds as (ReferenceAutoFeeder, SchultzFeeder); else its own.
     std::string feedsAs() const;
-    // A slot feeder's bank, and the bank's feeder loaded in it (none: empty).
+    // A slot feeder's bank, and the bank's feeder loaded in it (none: empty; another kind: none).
     std::string slotBankId() const;
     void        setSlotBankId(const std::string& id);
     std::string slotFeederId() const;
@@ -294,7 +299,8 @@ private:
     FeedOptions      m_feedOptions = FeedOptions::Normal;
     JPLocation       m_location { JPLengthUnit::Millimeters };
     // Its kind's own settings: OpenPnP's as they are (a kind not typed), else a typed kind's.
-    using Own = std::variant<JPXmlNode, JPTrayFeeder, JPTubeFeeder, JPAutoFeeder, JPSlotAutoFeeder>;
+    using Own = std::variant<JPXmlNode, JPTrayFeeder, JPTubeFeeder, JPAutoFeeder, JPSlotAutoFeeder, JPSchultzFeeder,
+                             JPSlotSchultzFeeder>;
     Own m_own { JPXmlNode("feeder") };
     std::vector<int> m_visionChecks;
     bool             m_actuate = false;

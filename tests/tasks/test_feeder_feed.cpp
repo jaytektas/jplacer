@@ -418,6 +418,18 @@ int main() {
         assert(machine.actuated.back() == "SlotPost=1");
     }
 
+    // A slot Schultz feeder: fed as a Schultz feeder, its Test pre pick actuated with its feeder number.
+    {
+        JPXmlElement se;
+        std::string error;
+        assert(JPXmlReader::parse(R"(<feeder class="org.openpnp.machine.reference.feeder.SlotSchultzFeeder" id="SZ" name="SZ" enabled="true" part-id="" bank-id="B" feeder-id="" actuator-name="SzPre" actuator-value="6.0"><location units="Millimeters" x="1.0" y="1.0" z="0.0" rotation="0.0"/></feeder>)", se, error));
+        config.addFeeder(JPFeeder::fromXml(se));
+        JPFeederActions::Outcome outcome;
+        machine.actuated.clear();
+        assert(JPFeederActions::run(config, "SZ", "testFeed", machine, nullptr, JPVisionConfig {}, outcome, why));
+        assert(!machine.actuated.empty() && machine.actuated.back() == "SzPre=6");
+    }
+
     // A Schultz feeder: the nozzle over the pick place, its pre pick actuated
     // with its feeder number; post pick too; its buttons read and actuate
     // with it, what they read given back.
@@ -449,11 +461,11 @@ int main() {
         assert(JPFeederActions::run(config, "Z", "togglePitch", machine, nullptr, JPVisionConfig {}, outcome, why));
         assert(readings.size() == 1 && readings[0].first == "getPitch" && readings[0].second == "4");
         // An actuator not there: OpenPnP's words.
-        config.feeder("Z")->setText("status-actuator-name", "Gone");
+        config.feeder("Z")->as<JPSchultzFeeder>()->statusActuatorName = "Gone";
         assert(!JPFeederActions::run(config, "Z", "getStatus", machine, nullptr, JPVisionConfig {}, outcome, why));
         assert(why == "Failed, unable to find an actuator named Gone");
         // None set: nothing done.
-        config.feeder("Z")->setText("actuator-name", "");
+        config.feeder("Z")->as<JPSchultzFeeder>()->actuatorName = "";
         machine.actuated.clear();
         assert(JPFeederFeed::feed(config, "Z", "N1", machine, nullptr, why, empty) && machine.actuated.empty());
     }

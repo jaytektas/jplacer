@@ -202,5 +202,22 @@ int main() {
         assert(b && b->actuatorName == "FEED" && b->actuatorValue == 2.5 && b->postPickActuatorName == "DONE" && b->moveBeforeFeed);
         assert(back.pickLocation() && back.pickLocation()->y() == 4);
     }
+    // A Schultz feeder and a slot Schultz feeder: their actuators, feeder number and fiducial part their own; a
+    // slot's bank and loaded feeder too. From OpenPnP's, and through jplacer's file.
+    {
+        const JPFeeder z = parse(R"(<feeder class="org.openpnp.machine.reference.feeder.SlotSchultzFeeder" version="1.1" id="SZ" name="SZ" enabled="true" part-id="" bank-id="B1" feeder-id="F7" actuator-name="Pre" actuator-value="4.0" post-pick-actuator-name="Post" status-actuator-name="Status" id-actuator-name="Id" fiducial-part="FID-1">
+   <location units="Millimeters" x="0.0" y="0.0" z="0.0" rotation="0.0"/>
+</feeder>)");
+        const JPSlotSchultzFeeder* own = z.as<JPSlotSchultzFeeder>();
+        assert(own && z.schultzFeeding() == own && own->actuatorName == "Pre" && own->actuatorValue == 4);
+        assert(own->statusActuatorName == "Status" && own->idActuatorName == "Id" && own->fiducialPart == "FID-1");
+        assert(z.slotBankId() == "B1" && z.slotFeederId() == "F7" && z.isSlot() && !z.autoFeeding());
+        const JPFeeder back = JPFeeder::fromJson(JJson::parse(z.toJson().dump()));
+        const JPSlotSchultzFeeder* b = back.as<JPSlotSchultzFeeder>();
+        assert(b && b->postPickActuatorName == "Post" && b->actuatorValue == 4 && b->fiducialPart == "FID-1");
+        assert(back.slotBankId() == "B1" && back.slotFeederId() == "F7");
+        JPFeeder plain = JPFeeder::create(JPSchultzFeeder::kClass, "R1");
+        assert(plain.as<JPSchultzFeeder>() && plain.slotBankId().empty());
+    }
     return 0;
 }
