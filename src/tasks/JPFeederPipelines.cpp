@@ -42,9 +42,8 @@ const std::string* defaultOf(const JPFeeder& f, const std::string& element, cons
         if (kind == "BlindsFeeder") return &JPDefaultPipelines::blindsFeeder();
         // By its Vision Type.
         if (kind == "BambooFeederAutoVision" || kind == "ReferencePushPullFeeder") {
-            const std::string fallback = kind == "BambooFeederAutoVision" ? "CircularSymmetry" : "ColorKeyed";
-            return f.text("pipeline-type", fallback) == "ColorKeyed" ? &JPDefaultPipelines::feederVisionColorKeyed()
-                                                                     : &JPDefaultPipelines::feederVisionCircularSymmetry();
+            return f.visionTape()->pipelineType == "ColorKeyed" ? &JPDefaultPipelines::feederVisionColorKeyed()
+                                                                : &JPDefaultPipelines::feederVisionCircularSymmetry();
         }
     }
     if (element == "training-pipeline" && kind == "AdvancedLoosePartFeeder") return &JPDefaultPipelines::advancedLoosePartFeederTraining();
@@ -126,7 +125,7 @@ void JPFeederPipelines::configureForEditing(const JPConfiguration& config, const
             configureTape(feeder, pipeline, true, ctx.cameraWidth, ctx.cameraHeight, 1 / ctx.pixelsPerMmX, 1 / ctx.pixelsPerMmY);
         // A push-pull feeder's OCR as it reads (OpenPnP's getCvPipeline(…, performOcr true, …)).
         if (kind == "ReferencePushPullFeeder") {
-            if (JPPushPullTemplates::ocrRegion(feeder)) setupOcr(config, feeder, pipeline);
+            if (const JPPushPullFeeder* p = feeder.as<JPPushPullFeeder>(); p && p->ocrRegion) setupOcr(config, feeder, pipeline);
             else disableOcr(pipeline);
         }
         return;
@@ -148,7 +147,8 @@ void JPFeederPipelines::configureForEditing(const JPConfiguration& config, const
 }
 
 void JPFeederPipelines::setupOcr(const JPConfiguration& config, const JPFeeder& feeder, JPPipeline& pipeline) {
-    if (const auto region = JPPushPullTemplates::ocrRegion(feeder)) {
+    const JPPushPullFeeder* pushPull = feeder.as<JPPushPullFeeder>();
+    if (const auto region = pushPull ? pushPull->ocrRegion : std::nullopt) {
         auto at = [](const JPLocation& l) {
             const JPLocation m = l.convertToUnits(JPLengthUnit::Millimeters);
             return JPPipelineValue::LocationMm { m.x(), m.y() };
@@ -158,8 +158,8 @@ void JPFeederPipelines::setupOcr(const JPConfiguration& config, const JPFeeder& 
     } else {
         pipeline.removeProperty("regionOfInterest");
     }
-    pipeline.setProperty("SimpleOcr.fontName", JPPipelineValue { feeder.text("ocr-font-name", kOcrFontName) });
-    pipeline.setProperty("SimpleOcr.fontSizePt", JPPipelineValue { feeder.real("ocr-font-size-pt", kOcrFontSizePt) });
+    pipeline.setProperty("SimpleOcr.fontName", JPPipelineValue { pushPull ? pushPull->ocrFontName : std::string(kOcrFontName) });
+    pipeline.setProperty("SimpleOcr.fontSizePt", JPPipelineValue { pushPull ? pushPull->ocrFontSizePt : kOcrFontSizePt });
     pipeline.setProperty("SimpleOcr.alphabet", JPPipelineValue { JPPushPullTemplates::partsAlphabet(config, "\\") });
 }
 
@@ -179,8 +179,9 @@ void JPFeederPipelines::setupBlindsOcr(const JPConfiguration& config, const JPFe
     };
     pipeline.setProperty("regionOfInterest", JPPipelineValue { JPPipelineValue::RegionOfInterest { offset(corners[0]), offset(corners[1]),
                                                                                                    offset(corners[2]), true } });
-    pipeline.setProperty("SimpleOcr.fontName", JPPipelineValue { feeder.text("ocr-font-name", kOcrFontName) });
-    pipeline.setProperty("SimpleOcr.fontSizePt", JPPipelineValue { feeder.real("ocr-font-size-pt", kOcrFontSizePt) });
+    const JPBlindsFeeder* blinds = feeder.as<JPBlindsFeeder>();
+    pipeline.setProperty("SimpleOcr.fontName", JPPipelineValue { blinds ? blinds->ocrFontName : std::string(kOcrFontName) });
+    pipeline.setProperty("SimpleOcr.fontSizePt", JPPipelineValue { blinds ? blinds->ocrFontSizePt : kOcrFontSizePt });
     pipeline.setProperty("SimpleOcr.alphabet", JPPipelineValue { JPPushPullTemplates::partsAlphabet(config, "\\") });
 }
 
@@ -200,8 +201,9 @@ void JPFeederPipelines::configureTape(const JPFeeder& feeder, JPPipeline& pipeli
         range = width > height ? mmPerPixelX * height : mmPerPixelY * width;
     } else {
         // Half the distance between the holes, and a pitch.
-        const JPLocation h1 = feeder.locationOf("hole-1-location").convertToUnits(JPLengthUnit::Millimeters);
-        range = h1.linearDistanceTo(feeder.locationOf("hole-2-location")) * 0.5 + kHolePitchMm;
+        const JPVisionTape* tape = feeder.visionTape();
+        const JPLocation h1 = tape ? tape->hole1.convertToUnits(JPLengthUnit::Millimeters) : JPLocation(JPLengthUnit::Millimeters);
+        range = h1.linearDistanceTo(tape ? tape->hole2 : h1) * 0.5 + kHolePitchMm;
     }
     pipeline.setProperty("sprocketHole.maxDistance", JPPipelineValue { JPPipelineValue::LengthMm { range } });
 }

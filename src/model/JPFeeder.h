@@ -7,6 +7,7 @@
 #include "JPLocation.h"
 #include "JPAdvancedLoosePartFeeder.h"
 #include "JPAutoFeeder.h"
+#include "JPBambooFeeder.h"
 #include "JPBlindsFeeder.h"
 #include "JPDragFeeder.h"
 #include "JPHeapFeeder.h"
@@ -14,6 +15,7 @@
 #include "JPLoosePartFeeder.h"
 #include "JPNeoden4Feeder.h"
 #include "JPPhotonFeeder.h"
+#include "JPPushPullFeeder.h"
 #include "JPRapidFeeder.h"
 #include "JPRotatedTrayFeeder.h"
 #include "JPSchultzFeeder.h"
@@ -40,10 +42,10 @@ inline namespace jf {
 // (ReferenceStripFeeder, ReferenceTrayFeeder…), id, name, enabled, part,
 // retries, priority and feed option, and where it is, each its own; and what
 // its kind adds (a strip's hole locations and pitches, a tray's counts, a
-// vision pipeline): a typed kind's its own (as<JPTrayFeeder>()); the others'
-// as OpenPnP keeps them (by name: text(), number()…). Kept in jplacer's
-// feeders.json (toJson): what every feeder has by name, a typed kind's own
-// under its kind's key ("tray"), the others' under "openpnp" (JPXmlJson).
+// vision pipeline): its kind's own (as<JPTrayFeeder>()), or, for a class
+// jplacer does not know, OpenPnP's settings kept as read. Kept in jplacer's
+// feeders.json (toJson): what every feeder has by name, its kind's own under
+// its kind's key ("tray"), an unknown class's under "openpnp" (JPXmlJson).
 class JPFeeder {
 public:
     // OpenPnP's Feeder.Priority and ReferenceFeeder.FeedOptions, in their order.
@@ -88,11 +90,16 @@ public:
     // The template vision of a drag, lever or Neoden 4 feeder; none: another kind.
     JPTemplateVision*       templateVision();
     const JPTemplateVision* templateVision() const;
-    // Whether its kind is typed (its settings its own, none by OpenPnP's name).
+    // A push-pull or Bamboo feeder's own (what a tape calibrated by its sprocket holes has); none: another kind.
+    JPVisionTape*       visionTape();
+    const JPVisionTape* visionTape() const;
+    // Its hole 1 or 2 set (a vision tape's): as OpenPnP's setHole1Location, its calibration forgotten.
+    void setTapeHole(int n, const JPLocation& l);
+    // Whether its kind is one jplacer knows (else its OpenPnP settings are kept as read).
     bool typed() const { return !std::holds_alternative<JPXmlNode>(m_own); }
 
-    // Whether the head camera is tuned for its looks on its first look of a run (its Auto-Tune?; a kind with no
-    // vision: no).
+    // Whether the head camera is tuned for its looks on its first look of a run: a strip's Auto-Tune?; every other
+    // kind's looks are.
     bool autoTune() const;
 
     // What a part's packaging gives it (JPFeederPackaging), where its kind keeps each: the part's rotation in its
@@ -240,7 +247,7 @@ public:
     // A tape feeder calibrated by its sprocket holes (OpenPnP's
     // BambooFeederAutoVision and ReferencePushPullFeeder), while jplacer runs: how far its pick location
     // is from where vision found it (none: not calibrated); forgotten when its
-    // pick location or holes are set (setLocationOf) or the machine is unhomed.
+    // pick location or holes are set (setLocation, setTapeHole) or the machine is unhomed.
     std::optional<JPLocation> visionOffset;
     // A blinds feeder (OpenPnP's BlindsFeeder), while jplacer runs: where its
     // cover was last seen or left (mm along its tape, OpenPnP's coverPosition;
@@ -255,7 +262,7 @@ public:
     };
     Blinds blinds;
     // Whether it is one (its pick location from JPFeederTape).
-    bool isVisionTape() const { return typeName() == "BambooFeederAutoVision" || typeName() == "ReferencePushPullFeeder"; }
+    bool isVisionTape() const { return visionTape() != nullptr; }
     // OpenPnP's resetVisionOffsets.
     void resetVisionOffsets();
     // Its template image's file (OpenPnP's resource file of the vision's
@@ -275,51 +282,15 @@ public:
     void        recordJobSuccess(int windowSize);
     void        recordJobFault(int faultLimit, int windowSize);
 
-    // Its kind's own values, by their OpenPnP names.
-    std::string text(const std::string& attribute, const std::string& def = {}) const;
-    void        setText(const std::string& attribute, const std::string& value);
-    bool        hasAttribute(const std::string& attribute) const;
-    // An attribute taken away (read as its default again).
-    void        removeAttribute(const std::string& attribute);
-    int         number(const std::string& attribute, int def = 0) const;
-    void        setNumber(const std::string& attribute, int value);
-    double      real(const std::string& attribute, double def = 0) const;
-    void        setReal(const std::string& attribute, double value);
-    bool        flag(const std::string& attribute, bool def = false) const;
-    void        setFlag(const std::string& attribute, bool on);
-    // Whether it has the child element at all (a location never set has none).
-    bool        has(const std::string& element) const { return child(element) != nullptr; }
-    const JPXmlNode* child(const std::string& element) const;
-    // A child element put in (replacing one of its name), or taken away.
-    void        setChild(JPXmlNode node);
-    void        removeChild(const std::string& element);
-    JPLocation  locationOf(const std::string& element) const;
-    void        setLocationOf(const std::string& element, const JPLocation& l);
-    // A child element's text (OpenPnP's <parallax-angle>0.0</parallax-angle>).
-    std::string childText(const std::string& element, const std::string& def = {}) const;
-    // A vision pipeline as OpenPnP wrote it (<pipeline><stages>…, or
-    // another element: an advanced loose part feeder's <training-pipeline>),
-    // or null; and one put in its place (named `element`, where it was).
+    // A vision pipeline of its kind's (OpenPnP's CvPipeline as OpenPnP wrote it: <pipeline><stages>…, or another
+    // element: an advanced loose part feeder's <training-pipeline>, a heap feeder's <feeder-pipeline>), or none;
+    // and one put in its place (named `element`).
     const JPXmlNode* pipeline(const std::string& element = "pipeline") const;
     void             setPipeline(JPXmlNode pipeline, const std::string& element = "pipeline");
-    void        setChildText(const std::string& element, const std::string& value);
-    // An attribute of a child element, by its path ("vision/area-of-interest");
-    // set, the elements are made when missing.
-    std::string attributeAt(const std::string& path, const std::string& attribute, const std::string& def = {}) const;
-    void        setAttributeAt(const std::string& path, const std::string& attribute, const std::string& value);
-    JPLength    lengthOf(const std::string& element, const JPLength& def) const;
-    void        setLengthOf(const std::string& element, const JPLength& l);
 
 private:
     JPFeeder() = default;
     void addJobFault(bool fault, int windowSize);
-    // Its kind's own as OpenPnP keeps them; a typed kind has none (`setting`, asked for by name, logged as a
-    // mistake).
-    const JPXmlNode*   openPnp(const std::string& setting) const;
-    JPXmlNode*         openPnp(const std::string& setting);
-    const std::string* attribute(const std::string& name) const;
-    void               setAttribute(const std::string& name, const std::string& value);
-    void               putChild(JPXmlNode node);
     // Its kind's own made for its class: typed, else OpenPnP's as they are.
     void ownFrom(JPXmlNode own);
 
@@ -333,7 +304,7 @@ private:
     using Own = std::variant<JPXmlNode, JPTrayFeeder, JPTubeFeeder, JPAutoFeeder, JPSlotAutoFeeder, JPSchultzFeeder,
                              JPSlotSchultzFeeder, JPRotatedTrayFeeder, JPRapidFeeder, JPDragFeeder, JPLeverFeeder,
                              JPNeoden4Feeder, JPLoosePartFeeder, JPAdvancedLoosePartFeeder, JPStripFeeder,
-                             JPPhotonFeeder, JPHeapFeeder, JPBlindsFeeder>;
+                             JPPhotonFeeder, JPHeapFeeder, JPBlindsFeeder, JPPushPullFeeder, JPBambooFeeder>;
     Own m_own { JPXmlNode("feeder") };
     std::vector<int> m_visionChecks;
     bool             m_actuate = false;

@@ -110,7 +110,7 @@ bool JPFeederActions::run(JPConfiguration& config, const std::string& feederId, 
         std::optional<JPLocation> at;
         main([&] {
             if (const JPFeeder* f = config.feeder(feederId))
-                at = JPFeederTape::partLocation(0, std::nullopt, JPFeederTape::of(*f), f->real("rotation-in-feeder", 0));
+                at = JPFeederTape::partLocation(0, std::nullopt, JPFeederTape::of(*f), f->visionTape()->rotationInFeeder);
         });
         outcome.changed = true;
         return at && machine.positionCamera(*at, why) && JPVisionTapeFeeder::autoSetup(config, feederId, machine, onMain, why);
@@ -136,22 +136,23 @@ bool JPFeederActions::run(JPConfiguration& config, const std::string& feederId, 
         std::string actuator;
         bool additive = false;
         main([&] {
-            if (const JPFeeder* f = config.feeder(feederId)) {
-                actuator = f->text("actuator-name");
-                additive = f->flag("additive-rotation", true);
+            const JPFeeder* f = config.feeder(feederId);
+            if (const JPPushPullFeeder* p = f ? f->as<JPPushPullFeeder>() : nullptr) {
+                actuator = p->actuatorName;
+                additive = p->additiveRotation;
             }
         });
         return !additive || actuator.empty() || machine.zeroActuatorRotation(actuator, why);
     }
     if (kind == "BambooFeederAutoVision") {
         // Test feed and Test post pick: one actuation with its value (not a whole feed).
-        const std::string key = action == "testFeed" ? "feed-actuator" : "post-pick-actuator";
         std::string actuator;
         double value = 0;
         main([&] {
-            if (const JPFeeder* f = config.feeder(feederId)) {
-                actuator = f->text(key + "-name");
-                value = f->real(key + "-value", 0);
+            const JPFeeder* f = config.feeder(feederId);
+            if (const JPBambooFeeder* b = f ? f->as<JPBambooFeeder>() : nullptr) {
+                actuator = action == "testFeed" ? b->feedActuatorName : b->postPickActuatorName;
+                value = action == "testFeed" ? b->feedActuatorValue : b->postPickActuatorValue;
             }
         });
         if (actuator.empty()) {

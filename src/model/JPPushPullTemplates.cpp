@@ -59,39 +59,43 @@ JPLocation relocatedXy(const JPLocation& l, const JPLocation& from, const JPLoca
 
 JPLocation transformOf(const JPFeeder& f) { return JPFeederTape::transform(std::nullopt, JPFeederTape::of(f)); }
 
+// A push-pull feeder's own (another kind: a new one's).
+const JPPushPullFeeder& own(const JPFeeder& f) {
+    static const JPPushPullFeeder none;
+    const JPPushPullFeeder* p = f.as<JPPushPullFeeder>();
+    return p ? *p : none;
+}
+
 // OpenPnP's setFeederLocation: `templ`'s places (holes and pick location, push-pull places, OCR region) moved from its tape to `to`.
 void setFeederLocation(JPFeeder& f, const JPLocation& to, bool primary, bool pushPull, bool vision, const JPFeeder& templ) {
+    JPPushPullFeeder* p = f.as<JPPushPullFeeder>();
+    if (!p) return;
+    const JPPushPullFeeder& t = own(templ);
     const JPLocation from = transformOf(templ);
     if (primary) {
-        f.setLocationOf("hole-1-location", relocatedXy(templ.locationOf("hole-1-location"), from, to));
-        f.setLocationOf("hole-2-location", relocatedXy(templ.locationOf("hole-2-location"), from, to));
+        f.setTapeHole(1, relocatedXy(t.hole1, from, to));
+        f.setTapeHole(2, relocatedXy(t.hole2, from, to));
     }
     if (pushPull) {
         // Turned: the lever's X and Y swap.
         const bool rotated = std::abs(std::sin((from.rotation() - to.rotation()) * M_PI / 180)) > std::sin(kRotatedDegrees * M_PI / 180);
-        const std::string x = templ.text("calibrate-motion-x", "true"), y = templ.text("calibrate-motion-y", "true");
-        f.setText("calibrate-motion-x", rotated ? y : x);
-        f.setText("calibrate-motion-y", rotated ? x : y);
-        f.setFlag("additive-rotation", templ.flag("additive-rotation", true));
-        for (const char* e : { "feed-start-location", "feed-mid-1-location", "feed-mid-2-location", "feed-mid-3-location", "feed-end-location" })
-            f.setLocationOf(e, relocated(templ.locationOf(e), from, to));
+        p->calibrateMotionX = rotated ? t.calibrateMotionY : t.calibrateMotionX;
+        p->calibrateMotionY = rotated ? t.calibrateMotionX : t.calibrateMotionY;
+        p->additiveRotation = t.additiveRotation;
+        for (JPLocation JPPushPullFeeder::* place : { &JPPushPullFeeder::feedStart, &JPPushPullFeeder::feedMid1, &JPPushPullFeeder::feedMid2,
+                                                      &JPPushPullFeeder::feedMid3, &JPPushPullFeeder::feedEnd })
+            p->*place = relocated(t.*place, from, to);
     }
     if (vision)
-        if (auto region = JPPushPullTemplates::ocrRegion(templ)) {
+        if (std::optional<JPPushPullFeeder::OcrRegion> region = t.ocrRegion) {
             const double by = to.rotation() - from.rotation();
             region->upperLeft = region->upperLeft.rotateXy(by);
             region->upperRight = region->upperRight.rotateXy(by);
             region->lowerLeft = region->lowerLeft.rotateXy(by);
             if (region->offsets) region->offsets = region->offsets->rotateXy(by);
-            JPPushPullTemplates::setOcrRegion(f, region);
+            p->ocrRegion = region;
         }
     if (primary) f.setLocation(relocated(templ.location(), from, to));
-}
-
-// An attribute as the template has it (none: its default).
-void copy(JPFeeder& f, const JPFeeder& t, const std::string& a) {
-    if (t.hasAttribute(a)) f.setText(a, t.text(a));
-    else f.removeAttribute(a);
 }
 
 } // namespace
@@ -118,14 +122,14 @@ std::string JPPushPullTemplates::templateFeeder(const JPConfiguration& config, c
     if (!self) return {};
     std::vector<const JPFeeder*> list = pushPulls(config);
     const std::string compare = compatiblePartId.empty() ? self->partId() : compatiblePartId;
-    const double feedPitch = mm(self->lengthOf("feed-pitch", JPLength(4, kMm)));
-    const double partPitch = mm(self->lengthOf("part-pitch", JPLength(4, kMm)));
+    const double feedPitch = mm(own(*self).feedPitch);
+    const double partPitch = mm(own(*self).partPitch);
     const double width = tapeWidthMm(*self);
     // Ranked by similarity: each test in turn, then nearness.
     auto rank = [&](const JPFeeder* f) {
-        return std::array<int, 7> { compatibleParts(config, compare, f->partId()) ? 0 : 1, f->flag("used-as-template", false) ? 0 : 1,
-                                    mm(f->lengthOf("feed-pitch", JPLength(4, kMm))) == feedPitch ? 0 : 1,
-                                    tapeWidthMm(*f) == width ? 0 : 1, mm(f->lengthOf("part-pitch", JPLength(4, kMm))) == partPitch ? 0 : 1,
+        return std::array<int, 7> { compatibleParts(config, compare, f->partId()) ? 0 : 1, own(*f).usedAsTemplate ? 0 : 1,
+                                    mm(own(*f).feedPitch) == feedPitch ? 0 : 1, tapeWidthMm(*f) == width ? 0 : 1,
+                                    mm(own(*f).partPitch) == partPitch ? 0 : 1,
                                     onSameRow(*self, *f) ? 0 : 1, f->enabled() ? 0 : 1 };
     };
     const JPLocation at = self->location().convertToUnits(kMm);
@@ -153,7 +157,7 @@ std::string JPPushPullTemplates::cloneTemplateStatus(const JPConfiguration& conf
     const JPFeeder* self = config.feeder(feederId);
     if (!self) return {};
     std::string status;
-    if (self->flag("used-as-template", false)) {
+    if (own(*self).usedAsTemplate) {
         status = "Clones to ";
         int n = 0;
         for (const std::string& id : compatibleFeeders(config, feederId)) {
@@ -188,39 +192,54 @@ void JPPushPullTemplates::cloneSettings(JPConfiguration& config, const std::stri
     const JPFeeder* tp = config.feeder(templateId);
     if (!f || !tp) return;
     const JPFeeder t = *tp;   // the list may move as f changes
+    JPPushPullFeeder* p = f->as<JPPushPullFeeder>();
+    const JPPushPullFeeder& o = own(t);
+    if (!p) return;
     if (what.location) {
         // Just the pick location's Z, and the options.
         f->setLocation(f->location().derive(t.location(), false, false, true, false));
-        f->setFlag("normalize-pick-location", t.flag("normalize-pick-location", true));
-        f->setFlag("snap-to-axis", t.flag("snap-to-axis", true));
+        p->normalizePickLocation = o.normalizePickLocation;
+        p->snapToAxis = o.snapToAxis;
     }
     if (what.tape) {
-        f->setLengthOf("part-pitch", t.lengthOf("part-pitch", JPLength(4, kMm)));
-        f->setReal("rotation-in-feeder", t.real("rotation-in-feeder", 0));
-        f->setLengthOf("feed-pitch", t.lengthOf("feed-pitch", JPLength(4, kMm)));
-        f->setNumber("feed-multiplier", t.number("feed-multiplier", 1));
+        p->partPitch = o.partPitch;
+        p->rotationInFeeder = o.rotationInFeeder;
+        p->feedPitch = o.feedPitch;
+        p->feedMultiplier = o.feedMultiplier;
         f->setFeedCount(0);
     }
     if (what.pushPull) {
-        for (const char* a : { "actuator-name", "peel-off-actuator-name", "feed-speed-push-2", "feed-speed-push-3", "feed-speed-push-end",
-                               "feed-speed-pull-3", "feed-speed-pull-2", "feed-speed-pull-1", "feed-speed-pull-0", "included-push-1",
-                               "included-push-2", "included-push-3", "included-push-end", "included-pull-3", "included-pull-2",
-                               "included-pull-1", "included-pull-0", "included-multi-0", "included-multi-1", "included-multi-2",
-                               "included-multi-3", "included-multi-end", "delay-0", "delay-1", "delay-2", "delay-3", "delay-4" })
-            copy(*f, t, a);
-        f->setChildText("feed-speed-push-1", t.childText("feed-speed-push-1", "1.0"));
+        p->actuatorName = o.actuatorName;
+        p->peelOffActuatorName = o.peelOffActuatorName;
+        for (double JPPushPullFeeder::* speed : { &JPPushPullFeeder::feedSpeedPush1, &JPPushPullFeeder::feedSpeedPush2,
+                                                  &JPPushPullFeeder::feedSpeedPush3, &JPPushPullFeeder::feedSpeedPushEnd,
+                                                  &JPPushPullFeeder::feedSpeedPull3, &JPPushPullFeeder::feedSpeedPull2,
+                                                  &JPPushPullFeeder::feedSpeedPull1, &JPPushPullFeeder::feedSpeedPull0 })
+            p->*speed = o.*speed;
+        for (bool JPPushPullFeeder::* in : { &JPPushPullFeeder::includedPush1, &JPPushPullFeeder::includedPush2, &JPPushPullFeeder::includedPush3,
+                                             &JPPushPullFeeder::includedPushEnd, &JPPushPullFeeder::includedPull3, &JPPushPullFeeder::includedPull2,
+                                             &JPPushPullFeeder::includedPull1, &JPPushPullFeeder::includedPull0, &JPPushPullFeeder::includedMulti0,
+                                             &JPPushPullFeeder::includedMulti1, &JPPushPullFeeder::includedMulti2, &JPPushPullFeeder::includedMulti3,
+                                             &JPPushPullFeeder::includedMultiEnd })
+            p->*in = o.*in;
+        for (int JPPushPullFeeder::* delay : { &JPPushPullFeeder::delay0, &JPPushPullFeeder::delay1, &JPPushPullFeeder::delay2,
+                                               &JPPushPullFeeder::delay3, &JPPushPullFeeder::delay4 })
+            p->*delay = o.*delay;
     }
     if (what.vision) {
-        for (const char* a : { "calibration-trigger", "ocr-font-name", "ocr-font-size-pt", "ocr-wrong-part-action",
-                               "ocr-discover-on-job-start", "ocr-stop-after-wrong-part" })
-            copy(*f, t, a);
-        f->setLengthOf("precision-wanted", t.lengthOf("precision-wanted", JPLength(0.1, kMm)));
+        p->calibrationTrigger = o.calibrationTrigger;
+        p->ocrFontName = o.ocrFontName;
+        p->ocrFontSizePt = o.ocrFontSizePt;
+        p->ocrWrongPartAction = o.ocrWrongPartAction;
+        p->ocrDiscoverOnJobStart = o.ocrDiscoverOnJobStart;
+        p->ocrStopAfterWrongPart = o.ocrStopAfterWrongPart;
+        p->precisionWantedMm = o.precisionWantedMm;
         JPFeederTape::resetCalibrationStatistics(*f);
         f->setFeedCount(0);
     }
     if (what.pipeline) {
-        if (const JPXmlNode* p = t.pipeline()) f->setPipeline(*p);
-        f->setText("pipeline-type", t.text("pipeline-type", "ColorKeyed"));
+        if (o.pipeline) p->pipeline = o.pipeline;
+        p->pipelineType = o.pipelineType;
     }
     // The template's places moved to this feeder's tape.
     setFeederLocation(*f, transformOf(*f), false, true, true, t);
@@ -285,7 +304,7 @@ bool JPPushPullTemplates::createInRow(JPConfiguration& config, const std::string
                           .subtract(at);
     if (closest) {
         unit = at.subtract(closest->location()).convertToUnits(kMm);
-        if (self->flag("snap-to-axis", true)) {
+        if (own(*self).snapToAxis) {
             if (std::abs(unit.x()) > kRowToleranceMm && std::abs(unit.y()) <= kRowToleranceMm) unit = unit.multiply(1.0, 0.0, 0.0, 0.0);
             else if (std::abs(unit.y()) > kRowToleranceMm && std::abs(unit.x()) <= kRowToleranceMm) unit = unit.multiply(0.0, 1.0, 0.0, 0.0);
             else {
@@ -303,7 +322,7 @@ bool JPPushPullTemplates::setOcrDetectedPart(JPConfiguration& config, const std:
                                              std::string& why) {
     JPFeeder* f = config.feeder(feederId);
     if (!f) return false;
-    if (f->flag("used-as-template", false)) {
+    if (own(*f).usedAsTemplate) {
         if (!compatibleParts(config, partId, f->partId())) {
             why = "Feeder " + f->name() + " is used as a template and can only be OCR-assigned parts with same tape specification or package.";
             return false;
@@ -313,37 +332,6 @@ bool JPPushPullTemplates::setOcrDetectedPart(JPConfiguration& config, const std:
     }
     f->setPartId(partId);
     return !clone || smartClone(config, feederId, partId, { true, true, true, true, true }, why);
-}
-
-std::optional<JPPushPullTemplates::OcrRegion> JPPushPullTemplates::ocrRegion(const JPFeeder& feeder) {
-    const JPXmlNode* n = feeder.child("ocr-region");
-    if (!n) return std::nullopt;
-    auto location = [n](const char* name) {
-        const JPXmlNode* c = n->child(name);
-        return c ? JPLocationXml::from(*c) : JPLocation(kMm);
-    };
-    OcrRegion r;
-    r.upperLeft = location("upper-left-corner");
-    r.upperRight = location("upper-right-corner");
-    r.lowerLeft = location("lower-left-corner");
-    const std::string* rectify = n->get("rectify");
-    r.rectify = rectify && *rectify == "true";
-    if (n->child("offsets")) r.offsets = location("offsets");
-    return r;
-}
-
-void JPPushPullTemplates::setOcrRegion(JPFeeder& feeder, const std::optional<OcrRegion>& region) {
-    if (!region) {
-        feeder.removeChild("ocr-region");
-        return;
-    }
-    JPXmlNode n("ocr-region");
-    n.attr("rectify", region->rectify ? "true" : "false");
-    n.add(JPLocationXml::to("upper-left-corner", region->upperLeft));
-    n.add(JPLocationXml::to("upper-right-corner", region->upperRight));
-    n.add(JPLocationXml::to("lower-left-corner", region->lowerLeft));
-    if (region->offsets) n.add(JPLocationXml::to("offsets", *region->offsets));
-    feeder.setChild(std::move(n));
 }
 
 bool JPPushPullTemplates::identifyPart(const JPConfiguration& config, const std::string& ocrText, double avgScore,

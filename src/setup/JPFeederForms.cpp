@@ -58,12 +58,6 @@ Spot pick(std::function<JPFeeder&()> f) {
     return { "location", [f] { return f().location(); }, [f](const JPLocation& l) { f().setLocation(l); } };
 }
 
-// A location of its kind's own, by OpenPnP's name.
-Spot at(std::function<JPFeeder&()> f, const std::string& element) {
-    return { element, [f, element] { return f().locationOf(element); },
-             [f, element](const JPLocation& l) { f().setLocationOf(element, l); } };
-}
-
 // A location's coordinate, read and set in millimetres (shown in the System
 // Units; its rotation as it is).
 enum class Axis { X, Y, Z, Rotation };
@@ -79,17 +73,6 @@ void coordinate(JPFormBuilder& add, const Spot& spot, Axis axis, const std::stri
                           axis == Axis::Rotation ? std::optional(v) : std::nullopt));
     };
     add.coordinate(axis == Axis::Rotation, spot.key + "." + label, label, get, set);
-}
-
-void length(JPFormBuilder& add, std::function<JPFeeder&()> f, const std::string& element, const std::string& label,
-            double def) {
-    add.length(element, label, [f, element, def] { return mm(f().lengthOf(element, JPLength(def, kMm))); },
-               [f, element](double v) { f().setLengthOf(element, JPLength(v, kMm)); });
-}
-
-void count(JPFormBuilder& add, std::function<JPFeeder&()> f, const std::string& attribute, const std::string& label, int def) {
-    add.integer(attribute, label, [f, attribute, def] { return f().number(attribute, def); },
-                [f, attribute](int v) { f().setNumber(attribute, v); }, 0, kMostCount);
 }
 
 // Its Feed Count (OpenPnP's, of the kinds that count).
@@ -793,21 +776,23 @@ std::string pitchLabel(const JPLength& l) {
 // calibration statistics) and the feed and post pick actuators.
 void bambooForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f, const std::vector<std::string>& actuators) {
     general(add, config, f, false);
+    auto v = [f]() -> JPVisionTape& { return *f().visionTape(); };
+    auto b = [f]() -> JPBambooFeeder& { return *f().as<JPBambooFeeder>(); };
 
     add.group("Tape Settings");
     const JPFormBuilder::Strings pitches { "2 mm", "4 mm", "8 mm", "12 mm", "16 mm", "20 mm", "24 mm", "28 mm", "32 mm" };
     add.row("Part Pitch");
-    for (const auto& [element, label] : { std::pair { "part-pitch", "Part Pitch" }, std::pair { "feed-pitch", "Feed Pitch" } })
-        add.choice(element, label, pitches, [f, element] { return pitchLabel(f().lengthOf(element, JPLength(4, kMm))); },
-                   [f, element](const std::string& v) { f().setLengthOf(element, JPLength(std::strtod(v.c_str(), nullptr), kMm)); });
+    for (const auto& [element, label, pitch] : { std::tuple { "part-pitch", "Part Pitch", &JPVisionTape::partPitch },
+                                                 std::tuple { "feed-pitch", "Feed Pitch", &JPVisionTape::feedPitch } })
+        add.choice(element, label, pitches, [v, pitch = pitch] { return pitchLabel(v().*pitch); },
+                   [v, pitch = pitch](const std::string& c) { v().*pitch = JPLength(std::strtod(c.c_str(), nullptr), kMm); });
     add.button("discardParts", "Discard Parts",
                "Discard parts left over in the (multi-part) feed cycle.\nStarts with a fresh feed cycle including vision "
                "calibration (if enabled).");
     add.end();
     add.tip("Pitch of the parts in the tape (2mm, 4mm, 8mm, 12mm, etc.)");
     add.row("Rotation in Tape");
-    add.number("rotation-in-feeder", "Rotation in Tape", [f] { return f().real("rotation-in-feeder", 0); },
-               [f](double v) { f().setReal("rotation-in-feeder", v); });
+    add.number("rotation-in-feeder", "Rotation in Tape", [v] { return v().rotationInFeeder; }, [v](double d) { v().rotationInFeeder = d; });
     add.integer("feed-count", "Feed Count", [f] { return f().feedCount(); }, [f](int v) { f().setFeedCount(v); },
                 0, kMostCount);
     add.button("resetFeedCount", "Reset Feed Count", "Reset the feed count e.g. when a tape has been changed.");
@@ -842,27 +827,27 @@ void bambooForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFee
            std::tuple { "Hole 2 Location", "hole-2-location",
                         "Choose Hole 2 further away from the tape reel.\nIf possible choose two holes that bracket the part(s) to be "
                         "picked." } }) {
+        const int n = std::string(element) == "hole-1-location" ? 1 : 2;
+        const Spot hole { element, [v, n] { return n == 1 ? v().hole1 : v().hole2; }, [f, n](const JPLocation& l) { f().setTapeHole(n, l); } };
         add.row(label, Place::Location);
-        coordinate(add, at(f, element), Axis::X, "X");
-        coordinate(add, at(f, element), Axis::Y, "Y");
+        coordinate(add, hole, Axis::X, "X");
+        coordinate(add, hole, Axis::Y, "Y");
         add.skip();
         add.end();
         add.tip(tip);
     }
     add.endColumns();
     add.row("Normalize?");
-    add.flag("normalize-pick-location", "Normalize?", [f] { return f().flag("normalize-pick-location", true); },
-             [f](bool on) { f().setFlag("normalize-pick-location", on); });
-    add.flag("snap-to-axis", "Snap to Axis?", [f] { return f().flag("snap-to-axis", false); },
-             [f](bool on) { f().setFlag("snap-to-axis", on); });
+    add.flag("normalize-pick-location", "Normalize?", [v] { return v().normalizePickLocation; },
+             [v](bool on) { v().normalizePickLocation = on; });
+    add.flag("snap-to-axis", "Snap to Axis?", [v] { return v().snapToAxis; }, [v](bool on) { v().snapToAxis = on; });
     add.end();
     add.tip("Normalize the pick location relative to the sprocket holes according to the EIA-481 standard.");
 
     add.group("Vision");
     add.row("Vision Type");
-    add.choice("pipeline-type", "Vision Type", { "ColorKeyed", "CircularSymmetry" },
-               [f] { return f().text("pipeline-type", "CircularSymmetry"); },
-               [f](const std::string& v) { f().setText("pipeline-type", v); });
+    add.choice("pipeline-type", "Vision Type", { "ColorKeyed", "CircularSymmetry" }, [v] { return v().pipelineType; },
+               [v](const std::string& c) { v().pipelineType = c; });
     add.button("editPipeline", "Edit Pipeline", "Edit the Pipeline to be used for all vision operations of this feeder.");
     add.button("resetPipeline", "Reset Pipeline", "Reset the Pipeline for this feeder to the selected type default.");
     add.end();
@@ -879,15 +864,14 @@ void bambooForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFee
     add.header({ "", "", "", "", "" });
     add.row("Calibration Trigger");
     add.choice("calibration-trigger", "Calibration Trigger", { "None", "OnFirstUse", "UntilConfident", "OnEachTapeFeed" },
-               [f] { return f().text("calibration-trigger", "UntilConfident"); },
-               [f](const std::string& v) { f().setText("calibration-trigger", v); });
+               [v] { return v().calibrationTrigger; }, [v](const std::string& c) { v().calibrationTrigger = c; });
     add.words("Precision Average");
     add.text("precision-average", "Precision Average", [f, shown] { return shown(JPFeederTape::precisionAverage(f())); }, nullptr);
     add.words("Calibration Count");
-    add.text("calibration-count", "Calibration Count", [f] { return std::to_string(f().number("calibration-count", 0)); }, nullptr);
+    add.text("calibration-count", "Calibration Count", [v] { return std::to_string(v().calibrationCount); }, nullptr);
     add.end();
     add.row("Precision wanted");
-    length(add, f, "precision-wanted", "Precision wanted", 0.1);
+    add.length("precision-wanted", "Precision wanted", [v] { return v().precisionWantedMm; }, [v](double d) { v().precisionWantedMm = d; });
     add.words("Precision Confidence Limit");
     add.text("precision-confidence-limit", "Precision Confidence Limit",
              [f, shown] { return shown(JPFeederTape::precisionConfidenceLimit(f())); }, nullptr);
@@ -900,24 +884,26 @@ void bambooForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFee
     add.header({ "Actuator", "Actuator Value" });
     JPFormBuilder::Strings names { "" };
     names.insert(names.end(), actuators.begin(), actuators.end());
-    for (const auto& [row, key, test, testLabel, tip] :
-         { std::tuple { "Feed", "feed-actuator", "testFeed", "Test feed", "Select the actuator for the feed action" },
-           std::tuple { "Post Pick", "post-pick-actuator", "testPostPick", "Test post pick",
+    using Name = std::string JPBambooFeeder::*;
+    using Value = double JPBambooFeeder::*;
+    for (const auto& [row, key, name, value, test, testLabel, tip] :
+         { std::tuple { "Feed", "feed-actuator", Name(&JPBambooFeeder::feedActuatorName), Value(&JPBambooFeeder::feedActuatorValue),
+                        "testFeed", "Test feed", "Select the actuator for the feed action" },
+           std::tuple { "Post Pick", "post-pick-actuator", Name(&JPBambooFeeder::postPickActuatorName),
+                        Value(&JPBambooFeeder::postPickActuatorValue), "testPostPick", "Test post pick",
                         "Select the actuator for the post pick action\nThis is optional: blank selection will skip the post pick "
                         "operation" } }) {
-        const std::string nameAttr = std::string(key) + "-name", valueAttr = std::string(key) + "-value";
         add.row(row);
-        add.choice(nameAttr, std::string(row) + " actuator", names, [f, nameAttr] { return f().text(nameAttr); },
-                   [f, nameAttr](const std::string& n) { f().setText(nameAttr, n); });
-        add.number(valueAttr, std::string(row) + " value", [f, valueAttr] { return f().real(valueAttr, 0); },
-                   [f, valueAttr](double v) { f().setReal(valueAttr, v); });
+        add.choice(std::string(key) + "-name", std::string(row) + " actuator", names, [b, name = name] { return b().*name; },
+                   [b, name = name](const std::string& n) { b().*name = n; });
+        add.number(std::string(key) + "-value", std::string(row) + " value", [b, value = value] { return b().*value; },
+                   [b, value = value](double d) { b().*value = d; });
         add.button(test, testLabel, std::string(test) == "testFeed" ? "Do atomic feed, i.e. not full feed based on Part&Feed pitch." : "");
         add.end();
         add.tip(tip);
     }
     add.endColumns();
-    add.flag("move-before-feed", "Move before feed", [f] { return f().flag("move-before-feed", false); },
-             [f](bool on) { f().setFlag("move-before-feed", on); });
+    add.flag("move-before-feed", "Move before feed", [b] { return b().moveBeforeFeed; }, [b](bool on) { b().moveBeforeFeed = on; });
     add.tip("Move nozzle to pick location before actuating the feed actuator");
 }
 
@@ -928,6 +914,7 @@ void bambooForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFee
 void pushPullForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f, const JPFeederForms::Options& options) {
     const std::vector<std::string>& actuators = options.actuators;
     general(add, config, f, false);
+    auto p = [f]() -> JPPushPullFeeder& { return *f().as<JPPushPullFeeder>(); };
 
     add.group("Locations");
     add.row("");
@@ -945,8 +932,8 @@ void pushPullForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPF
     add.end();
     add.tip("Pick Location of the part. If multiple are produced by a feed operation\nthis must be the last one picked i.e. the "
             "one closest to the the tape reel.");
-    add.flag("normalize-pick-location", "Normalize?", [f] { return f().flag("normalize-pick-location", true); },
-             [f](bool on) { f().setFlag("normalize-pick-location", on); });
+    add.flag("normalize-pick-location", "Normalize?", [p] { return p().normalizePickLocation; },
+             [p](bool on) { p().normalizePickLocation = on; });
     add.tip("Normalize the pick location relative to the sprocket holes according to the EIA-481 standard.");
     for (const auto& [label, element, tip] :
          { std::tuple { "Hole 1 Location", "hole-1-location",
@@ -954,34 +941,33 @@ void pushPullForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPF
            std::tuple { "Hole 2 Location", "hole-2-location",
                         "Choose Hole 2 further away from the tape reel.\nIf possible choose two holes that bracket the part(s) to be "
                         "picked." } }) {
+        const int n = std::string(element) == "hole-1-location" ? 1 : 2;
+        const Spot hole { element, [p, n] { return n == 1 ? p().hole1 : p().hole2; }, [f, n](const JPLocation& l) { f().setTapeHole(n, l); } };
         add.row(label, Place::Location);
-        coordinate(add, at(f, element), Axis::X, "X");
-        coordinate(add, at(f, element), Axis::Y, "Y");
+        coordinate(add, hole, Axis::X, "X");
+        coordinate(add, hole, Axis::Y, "Y");
         add.skip();
         add.end();
         add.tip(tip);
     }
     add.endColumns();
-    add.flag("snap-to-axis", "Snap to Axis?", [f] { return f().flag("snap-to-axis", true); },
-             [f](bool on) { f().setFlag("snap-to-axis", on); });
+    add.flag("snap-to-axis", "Snap to Axis?", [p] { return p().snapToAxis; }, [p](bool on) { p().snapToAxis = on; });
     add.tip("Snap rows of sprocket holes to the Axis parallel.");
 
     add.group("Tape Settings");
     // OpenPnP's columns: Part Pitch and Feed Pitch at the left; Rotation in Tape, Multiplier and Feed Count at the right.
     add.header({ "", "", "" });
     add.row("Part Pitch");
-    length(add, f, "part-pitch", "Part Pitch", 4);
+    add.length("part-pitch", "Part Pitch", [p] { return mm(p().partPitch); }, [p](double v) { p().partPitch = JPLength(v, kMm); });
     add.words("Rotation in Tape");
-    add.number("rotation-in-feeder", "Rotation in Tape", [f] { return f().real("rotation-in-feeder", 0); },
-               [f](double v) { f().setReal("rotation-in-feeder", v); });
+    add.number("rotation-in-feeder", "Rotation in Tape", [p] { return p().rotationInFeeder; }, [p](double v) { p().rotationInFeeder = v; });
     add.end();
     add.labelTip("Pitch of the parts in the tape (2mm, 4mm, 8mm, 12mm, etc.)");
     add.tipOf("part-pitch", "Pitch of the parts in the tape (2mm, 4mm, 8mm, 12mm, etc.)");
     add.row("Feed Pitch");
-    length(add, f, "feed-pitch", "Feed Pitch", 4);
+    add.length("feed-pitch", "Feed Pitch", [p] { return mm(p().feedPitch); }, [p](double v) { p().feedPitch = JPLength(v, kMm); });
     add.words("Multiplier");
-    add.integer("feed-multiplier", "Multiplier", [f] { return f().number("feed-multiplier", 1); },
-                [f](int v) { f().setNumber("feed-multiplier", v); }, 1, kMostCount);
+    add.integer("feed-multiplier", "Multiplier", [p] { return p().feedMultiplier; }, [p](int v) { p().feedMultiplier = v; }, 1, kMostCount);
     add.button("discardParts", "Discard Parts",
                "Discard parts left over in the (multi-part) feed cycle.\nStarts with a fresh feed cycle including vision "
                "calibration (if enabled).");
@@ -1007,15 +993,14 @@ void pushPullForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPF
     add.header({ "", "", "", "", "" });
     add.row("Calibration Trigger");
     add.choice("calibration-trigger", "Calibration Trigger", { "None", "OnFirstUse", "UntilConfident", "OnEachTapeFeed" },
-               [f] { return f().text("calibration-trigger", "UntilConfident"); },
-               [f](const std::string& v) { f().setText("calibration-trigger", v); });
+               [p] { return p().calibrationTrigger; }, [p](const std::string& v) { p().calibrationTrigger = v; });
     add.words("Precision Average");
     add.text("precision-average", "Precision Average", [f, shown] { return shown(JPFeederTape::precisionAverage(f())); }, nullptr);
     add.words("Calibration Count");
-    add.text("calibration-count", "Calibration Count", [f] { return std::to_string(f().number("calibration-count", 0)); }, nullptr);
+    add.text("calibration-count", "Calibration Count", [p] { return std::to_string(p().calibrationCount); }, nullptr);
     add.end();
     add.row("Precision wanted");
-    length(add, f, "precision-wanted", "Precision wanted", 0.1);
+    add.length("precision-wanted", "Precision wanted", [p] { return p().precisionWantedMm; }, [p](double v) { p().precisionWantedMm = v; });
     add.words("Precision Confidence Limit");
     add.text("precision-confidence-limit", "Precision Confidence Limit",
              [f, shown] { return shown(JPFeederTape::precisionConfidenceLimit(f())); }, nullptr);
@@ -1024,17 +1009,15 @@ void pushPullForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPF
     add.tip("Precision wanted i.e. the tolerable pick location offset");
     // OCR: the part in the feeder read, and what to do about a wrong one.
     JPFormBuilder::Strings fonts;
-    const std::string font = f().text("ocr-font-name", "Liberation Mono");
+    const std::string font = p().ocrFontName;
     if (std::find(options.fonts.begin(), options.fonts.end(), font) == options.fonts.end()) fonts.push_back(font);
     fonts.push_back("");
     fonts.insert(fonts.end(), options.fonts.begin(), options.fonts.end());
     add.row("OCR Wrong Part Action");
     add.choice("ocr-wrong-part-action", "OCR Wrong Part Action", { "None", "SwapFeeders", "SwapOrCreate", "ChangePart", "ChangePartAndClone" },
-               [f] { return f().text("ocr-wrong-part-action", "SwapOrCreate"); },
-               [f](const std::string& v) { f().setText("ocr-wrong-part-action", v); });
+               [p] { return p().ocrWrongPartAction; }, [p](const std::string& v) { p().ocrWrongPartAction = v; });
     add.words("OCR Font Name");
-    add.choice("ocr-font-name", "OCR Font Name", fonts, [f] { return f().text("ocr-font-name", "Liberation Mono"); },
-               [f](const std::string& v) { f().setText("ocr-font-name", v); });
+    add.choice("ocr-font-name", "OCR Font Name", fonts, [p] { return p().ocrFontName; }, [p](const std::string& v) { p().ocrFontName = v; });
     if (options.ocrRegionStep.empty()) {
         add.button("setupOcrRegion", "Setup OCR Region", "Moves the camera to the vision location and lets you select the OCR region of interest.");
     } else {
@@ -1054,16 +1037,15 @@ void pushPullForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPF
             "the same between the parts i.e. if you restrict any reloading/rearranging to groups of feeders with the same settings.\n"
             "- ChangePartAndClone: The part in the current feeder is changed but settings are cloned from a template feeder.");
     add.row("Stop after wrong part?");
-    add.flag("ocr-stop-after-wrong-part", "Stop after wrong part?", [f] { return f().flag("ocr-stop-after-wrong-part", false); },
-             [f](bool on) { f().setFlag("ocr-stop-after-wrong-part", on); });
+    add.flag("ocr-stop-after-wrong-part", "Stop after wrong part?", [p] { return p().ocrStopAfterWrongPart; },
+             [p](bool on) { p().ocrStopAfterWrongPart = on; });
     add.words("OCR Font Size [pt]");
-    add.number("ocr-font-size-pt", "OCR Font Size [pt]", [f] { return f().real("ocr-font-size-pt", 7.0); },
-               [f](double v) { f().setReal("ocr-font-size-pt", v); });
+    add.number("ocr-font-size-pt", "OCR Font Size [pt]", [p] { return p().ocrFontSizePt; }, [p](double v) { p().ocrFontSizePt = v; });
     add.button("partByOcr", "Part by OCR", "Perform OCR and assign the recognized part.");
     add.end();
     add.row("Check on Job Start?");
-    add.flag("ocr-discover-on-job-start", "Check on Job Start?", [f] { return f().flag("ocr-discover-on-job-start", true); },
-             [f](bool on) { f().setFlag("ocr-discover-on-job-start", on); });
+    add.flag("ocr-discover-on-job-start", "Check on Job Start?", [p] { return p().ocrDiscoverOnJobStart; },
+             [p](bool on) { p().ocrDiscoverOnJobStart = on; });
     add.skip();
     add.skip();
     add.button("allFeederOcr", "All Feeder OCR", "Go to all the feeders with OCR and rediscover the parts loaded in them.");
@@ -1073,8 +1055,8 @@ void pushPullForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPF
     add.endColumns();
     add.row("");
     add.button("editPipeline", "Edit Pipeline", "Edit the Pipeline to be used for all vision operations of this feeder.");
-    add.choice("pipeline-type", "Vision Type", { "ColorKeyed", "CircularSymmetry" },
-               [f] { return f().text("pipeline-type", "ColorKeyed"); }, [f](const std::string& v) { f().setText("pipeline-type", v); });
+    add.choice("pipeline-type", "Vision Type", { "ColorKeyed", "CircularSymmetry" }, [p] { return p().pipelineType; },
+               [p](const std::string& v) { p().pipelineType = v; });
     add.button("resetPipeline", "Reset Pipeline", "Reset the Pipeline for this feeder to the selected type default.");
     add.end();
     add.tip("Choose the vision type, then press Reset Pipeline to assign the default pipeline of that type. Sprocket holes are "
@@ -1092,12 +1074,11 @@ void pushPullForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPF
             if (choices) (*choices)[key] = on;
         });
     };
-    const bool templ = f().flag("used-as-template", false);
+    const bool templ = p().usedAsTemplate;
     // OpenPnP's columns: the template at the left, what a clone takes at the right.
     add.header({ "", "", "" });
     add.row("Use this one as Template?");
-    add.flag("used-as-template", "Use this one as Template?", [f] { return f().flag("used-as-template", false); },
-             [f](bool on) { f().setFlag("used-as-template", on); });
+    add.flag("used-as-template", "Use this one as Template?", [p] { return p().usedAsTemplate; }, [p](bool on) { p().usedAsTemplate = on; });
     add.words("Clone Location Settings?");
     add.flag("clone.location", "Clone Location Settings?", choice("location"), setChoice("location"));
     if (templ) add.button("cloneToFeeders", "Clone to Feeders", "Clone the settings from this feeder to all compatible feeders.");
@@ -1132,83 +1113,83 @@ void pushPullForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPF
     add.group("Push-Pull Settings");
     JPFormBuilder::Strings names { "" };
     names.insert(names.end(), actuators.begin(), actuators.end());
-    add.choice("actuator-name", "Feed Actuator", names, [f] { return f().text("actuator-name"); },
-               [f](const std::string& n) { f().setText("actuator-name", n); });
+    add.choice("actuator-name", "Feed Actuator", names, [p] { return p().actuatorName; }, [p](const std::string& n) { p().actuatorName = n; });
     add.tip("Actuator for feed signal and for motion");
-    add.choice("peel-off-actuator-name", "Auxiliary Actuator", names, [f] { return f().text("peel-off-actuator-name"); },
-               [f](const std::string& n) { f().setText("peel-off-actuator-name", n); });
+    add.choice("peel-off-actuator-name", "Auxiliary Actuator", names, [p] { return p().peelOffActuatorName; },
+               [p](const std::string& n) { p().peelOffActuatorName = n; });
     add.tip("Actuator for auxiliary purpose (e.g. peeling).");
     add.header({ "X", "Y", "Z", "Rotation", "↓", "↑↓", "↑" });
-    auto flag = [&add, f](const std::string& attr, const std::string& label, bool def) {
-        add.flag(attr, label, [f, attr, def] { return f().flag(attr, def); }, [f, attr](bool on) { f().setFlag(attr, on); });
+    using Flag = bool JPPushPullFeeder::*;
+    auto flag = [&add, p](const std::string& key, const std::string& label, Flag field) {
+        add.flag(key, label, [p, field] { return p().*field; }, [p, field](bool on) { p().*field = on; });
     };
     add.row("Vision Calibrate?");
-    for (const char* axis : { "x", "y" }) {
-        const std::string attr = std::string("calibrate-motion-") + axis;
-        add.flag(attr, std::string("Vision Calibrate ") + axis, [f, attr] { return f().text(attr, "true") == "true"; },
-                 [f, attr](bool on) { f().setText(attr, on ? "true" : "false"); });
-    }
+    flag("calibrate-motion-x", "Vision Calibrate x", &JPPushPullFeeder::calibrateMotionX);
+    flag("calibrate-motion-y", "Vision Calibrate y", &JPPushPullFeeder::calibrateMotionY);
     add.skip();
-    flag("additive-rotation", "Additive", true);
+    flag("additive-rotation", "Additive", &JPPushPullFeeder::additiveRotation);
     add.end();
     add.tip("Apply the offsets obtained from Vision Calibration");
     // A place's row: X, Y, Z, rotation, then its push, multi and pull switches (none: not offered).
-    auto place = [&](const char* label, const char* element, const char* push, const char* multi, const char* pull, bool pushDef,
-                     bool multiDef, bool pullDef) {
+    struct Switch {
+        const char* key;
+        Flag        field;
+    };
+    auto place = [&](const char* label, const char* key, JPLocation JPPushPullFeeder::* at, Switch push, Switch multi, Switch pull) {
+        const Spot spot { key, [p, at] { return p().*at; }, [p, at](const JPLocation& l) { p().*at = l; } };
         add.row(label, Place::Location);
         add.positionNoSafeZ();
-        add.actuator([f] { return f().text("actuator-name"); });
-        coordinate(add, at(f, element), Axis::X, "X");
-        coordinate(add, at(f, element), Axis::Y, "Y");
-        coordinate(add, at(f, element), Axis::Z, "Z");
-        coordinate(add, at(f, element), Axis::Rotation, "Rotation");
-        for (const auto& [attr, def] : { std::pair { push, pushDef }, std::pair { multi, multiDef }, std::pair { pull, pullDef } }) {
-            if (!*attr) {
+        add.actuator([p] { return p().actuatorName; });
+        coordinate(add, spot, Axis::X, "X");
+        coordinate(add, spot, Axis::Y, "Y");
+        coordinate(add, spot, Axis::Z, "Z");
+        coordinate(add, spot, Axis::Rotation, "Rotation");
+        for (const Switch& sw : { push, multi, pull }) {
+            if (!sw.field) {
                 add.skip();
                 continue;
             }
-            flag(attr, attr, def);
+            flag(sw.key, sw.key, sw.field);
         }
         add.end();
     };
     // A step's row between two places, in the places' columns: the delay
     // after the one above (under X), the speeds pushing to the one below
     // (under ↓) and pulling to the one above (under ↑).
-    auto step = [&](const char* delay, const char* push, const char* pull, bool pushElement) {
+    using Speed = double JPPushPullFeeder::*;
+    auto step = [&](const char* delayKey, int JPPushPullFeeder::* delay, const char* pushKey, Speed push, const char* pullKey, Speed pull) {
         add.row("Delay");
-        add.integer(delay, "Delay", [f, delay] { return f().number(delay, 0); }, [f, delay](int v) { f().setNumber(delay, v); }, 0,
-                    kMostCount);
+        add.integer(delayKey, "Delay", [p, delay] { return p().*delay; }, [p, delay](int v) { p().*delay = v; }, 0, kMostCount);
         add.skip();
         add.skip();
-        add.text(std::string(push) + ".label", "", [] { return std::string("Speed ↑↓"); }, nullptr);
-        if (pushElement)
-            add.number(push, "Speed ↓", [f, push] { return std::strtod(f().childText(push, "1").c_str(), nullptr); },
-                       [f, push](double v) {
-                           char buf[32];
-                           std::snprintf(buf, sizeof buf, "%g", v);
-                           f().setChildText(push, buf);
-                       });
-        else
-            add.number(push, "Speed ↓", [f, push] { return f().real(push, 1); }, [f, push](double v) { f().setReal(push, v); });
+        add.text(std::string(pushKey) + ".label", "", [] { return std::string("Speed ↑↓"); }, nullptr);
+        add.number(pushKey, "Speed ↓", [p, push] { return p().*push; }, [p, push](double v) { p().*push = v; });
         add.skip();
-        add.number(pull, "Speed ↑", [f, pull] { return f().real(pull, 1); }, [f, pull](double v) { f().setReal(pull, v); });
+        add.number(pullKey, "Speed ↑", [p, pull] { return p().*pull; }, [p, pull](double v) { p().*pull = v; });
         add.end();
         add.tip("The delay (in milliseconds) after reaching this location");
     };
-    place("Start Location", "feed-start-location", "", "included-multi-0", "included-pull-0", false, true, true);
-    step("delay-0", "feed-speed-push-1", "feed-speed-pull-0", true);
-    place("Mid 1 Location", "feed-mid-1-location", "included-push-1", "included-multi-1", "included-pull-1", false, false, false);
-    step("delay-1", "feed-speed-push-2", "feed-speed-pull-1", false);
-    place("Mid 2 Location", "feed-mid-2-location", "included-push-2", "included-multi-2", "included-pull-2", false, false, false);
-    step("delay-2", "feed-speed-push-3", "feed-speed-pull-2", false);
-    place("Mid 3 Location", "feed-mid-3-location", "included-push-3", "included-multi-3", "included-pull-3", false, false, false);
-    step("delay-3", "feed-speed-push-end", "feed-speed-pull-3", false);
-    place("End Location", "feed-end-location", "included-push-end", "included-multi-end", "", true, true, false);
+    using P = JPPushPullFeeder;
+    const Switch none { "", nullptr };
+    place("Start Location", "feed-start-location", &P::feedStart, none, { "included-multi-0", &P::includedMulti0 },
+          { "included-pull-0", &P::includedPull0 });
+    step("delay-0", &P::delay0, "feed-speed-push-1", &P::feedSpeedPush1, "feed-speed-pull-0", &P::feedSpeedPull0);
+    place("Mid 1 Location", "feed-mid-1-location", &P::feedMid1, { "included-push-1", &P::includedPush1 },
+          { "included-multi-1", &P::includedMulti1 }, { "included-pull-1", &P::includedPull1 });
+    step("delay-1", &P::delay1, "feed-speed-push-2", &P::feedSpeedPush2, "feed-speed-pull-1", &P::feedSpeedPull1);
+    place("Mid 2 Location", "feed-mid-2-location", &P::feedMid2, { "included-push-2", &P::includedPush2 },
+          { "included-multi-2", &P::includedMulti2 }, { "included-pull-2", &P::includedPull2 });
+    step("delay-2", &P::delay2, "feed-speed-push-3", &P::feedSpeedPush3, "feed-speed-pull-2", &P::feedSpeedPull2);
+    place("Mid 3 Location", "feed-mid-3-location", &P::feedMid3, { "included-push-3", &P::includedPush3 },
+          { "included-multi-3", &P::includedMulti3 }, { "included-pull-3", &P::includedPull3 });
+    step("delay-3", &P::delay3, "feed-speed-push-end", &P::feedSpeedPushEnd, "feed-speed-pull-3", &P::feedSpeedPull3);
+    place("End Location", "feed-end-location", &P::feedEnd, { "included-push-end", &P::includedPushEnd },
+          { "included-multi-end", &P::includedMultiEnd }, none);
     add.row("Delay");
-    add.integer("delay-4", "Delay", [f] { return f().number("delay-4", 0); }, [f](int v) { f().setNumber("delay-4", v); }, 0, kMostCount);
+    add.integer("delay-4", "Delay", [p] { return p().delay4; }, [p](int v) { p().delay4 = v; }, 0, kMostCount);
     add.skip();
     add.skip();
-    if (f().flag("additive-rotation", true))
+    if (p().additiveRotation)
         add.button("resetRotation", "Reset",
                    "Reset the current rotation axis to 0° for subsequent\ncapturing/positioning using the location buttons in additive mode.");
     add.end();

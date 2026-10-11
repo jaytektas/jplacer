@@ -136,14 +136,14 @@ int main() {
     assert(near(JPFeederTape::precisionAverage(feeder).value(), 0.2));
     assert(near(JPFeederTape::precisionConfidenceLimit(feeder).value(), std::sqrt(0.1 / std::sqrt(2.0)) * 1.64));
     assert(!JPFeederTape::precisionSufficient(feeder));
-    feeder.setLengthOf("precision-wanted", JPLength(1, kMm));
+    feeder.visionTape()->precisionWantedMm = 1;
     assert(JPFeederTape::precisionSufficient(feeder));
     feeder.visionOffset = JPLocation(kMm);
     JPFeederTape::resetCalibrationStatistics(feeder);
-    assert(feeder.number("calibration-count") == 0 && !feeder.visionOffset);
+    assert(feeder.visionTape()->calibrationCount == 0 && !feeder.visionOffset);
     // Its pick location: the frame's; set again, its calibration forgotten.
-    feeder.setLocationOf("hole-1-location", JPLocation(kMm, 8, 13.5, 0, 0));
-    feeder.setLocationOf("hole-2-location", JPLocation(kMm, 12, 13.5, 0, 0));
+    feeder.setTapeHole(1, JPLocation(kMm, 8, 13.5, 0, 0));
+    feeder.setTapeHole(2, JPLocation(kMm, 12, 13.5, 0, 0));
     feeder.setLocation(JPLocation(kMm, 10, 10, -12, 0));
     feeder.visionOffset = JPLocation(kMm, -0.3, 0.2, 0, 0);
     const auto pick = feeder.pickLocation();
@@ -151,7 +151,7 @@ int main() {
     feeder.setLocation(JPLocation(kMm, 10, 10, -12, 0));
     assert(!feeder.visionOffset);
     // Discard Parts: to the end of the feed cycle (2 mm parts: two a feed).
-    feeder.setLengthOf("part-pitch", JPLength(2, kMm));
+    feeder.visionTape()->partPitch = JPLength(2, kMm);
     feeder.setFeedCount(3);
     JPFeederTape::discardParts(feeder);
     assert(feeder.feedCount() == 4);

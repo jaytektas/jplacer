@@ -18,19 +18,12 @@ inline namespace jf {
 // width, part pitch, being in the same row, being on, then nearness), cloning
 // a template's settings with its places moved to the other's tape (its frame,
 // JPFeederTape), swapping two feeders' places, a new feeder at a place or
-// the next in a row; its OCR region; and naming the part OCR read.
+// the next in a row; and naming the part OCR read.
 class JPPushPullTemplates {
 public:
     // What a clone takes: the pick location's Z and options, the tape, the push-pull motion, the vision settings, the pipeline.
     struct Clone {
         bool location = false, tape = false, pushPull = false, vision = false, pipeline = false;
-    };
-    // OpenPnP's RegionOfInterest: three corners about the camera's centre, and (optionally) where it is from the vision location.
-    struct OcrRegion {
-        JPLocation                upperLeft { JPLengthUnit::Millimeters }, upperRight { JPLengthUnit::Millimeters },
-            lowerLeft { JPLengthUnit::Millimeters };
-        bool                      rectify = false;
-        std::optional<JPLocation> offsets;
     };
 
     // The same package, or the same (set) tape and reel specification.
@@ -62,8 +55,6 @@ public:
     static bool setOcrDetectedPart(JPConfiguration& config, const std::string& feederId, const std::string& partId, bool clone,
                                    std::string& why);
 
-    static std::optional<OcrRegion> ocrRegion(const JPFeeder& feeder);
-    static void                     setOcrRegion(JPFeeder& feeder, const std::optional<OcrRegion>& region);
 
     // OpenPnP's OcrUtils.identifyDetectedPart: the part OCR's text names (its first line; up to a space unless a part id
     // has one; whole, else as the end of one part id after a "-"); false (and why) when none or more than one.

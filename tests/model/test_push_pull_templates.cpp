@@ -35,8 +35,8 @@ void part(JPConfiguration& c, const std::string& id, const std::string& package)
 std::string feeder(JPConfiguration& c, const std::string& partId, double x) {
     JPFeeder f = JPFeeder::create("org.openpnp.machine.reference.feeder.ReferencePushPullFeeder", partId);
     f.setLocation(JPLocation(kMm, x, 10, -5, 0));
-    f.setLocationOf("hole-1-location", JPLocation(kMm, x - 2, 13.5, 0, 0));
-    f.setLocationOf("hole-2-location", JPLocation(kMm, x + 2, 13.5, 0, 0));
+    f.setTapeHole(1, JPLocation(kMm, x - 2, 13.5, 0, 0));
+    f.setTapeHole(2, JPLocation(kMm, x + 2, 13.5, 0, 0));
     f.setEnabled(true);
     const std::string id = f.id();
     c.addFeeder(std::move(f));
@@ -73,7 +73,7 @@ int main() {
     // The template: a compatible part first, even farther than an incompatible one; then one marked a template.
     assert(JPPushPullTemplates::templateFeeder(c, a) == b);
     assert(JPPushPullTemplates::templateFeeder(c, q) == b);   // none compatible: the nearest of the most alike
-    c.feeder(q)->setFlag("used-as-template", true);
+    c.feeder(q)->as<JPPushPullFeeder>()->usedAsTemplate = true;
     assert(JPPushPullTemplates::templateFeeder(c, q) == b);
     assert(JPPushPullTemplates::compatibleFeeders(c, a) == std::vector<std::string> { b });
     assert(JPPushPullTemplates::cloneTemplateStatus(c, a).find("selected by common tape & reel specification 8x4") != std::string::npos);
@@ -81,20 +81,20 @@ int main() {
 
     // A clone: the template's lever places moved to this tape (12 mm along), its tape settings taken.
     JPFeeder* tb = c.feeder(b);
-    tb->setLocationOf("feed-start-location", JPLocation(kMm, 14, 30, -3, 0));
-    tb->setLocationOf("feed-end-location", JPLocation(kMm, 18, 30, -3, 0));
-    tb->setNumber("feed-multiplier", 3);
-    tb->setText("actuator-name", "Lever");
+    tb->as<JPPushPullFeeder>()->feedStart = JPLocation(kMm, 14, 30, -3, 0);
+    tb->as<JPPushPullFeeder>()->feedEnd = JPLocation(kMm, 18, 30, -3, 0);
+    tb->as<JPPushPullFeeder>()->feedMultiplier = 3;
+    tb->as<JPPushPullFeeder>()->actuatorName = "Lever";
     JPPushPullTemplates::cloneSettings(c, a, b, { true, true, true, true, true });
     const JPFeeder* fa = c.feeder(a);
-    assert(near(fa->locationOf("feed-start-location").x(), 2) && near(fa->locationOf("feed-end-location").x(), 6));
-    assert(fa->number("feed-multiplier") == 3 && fa->text("actuator-name") == "Lever");
+    assert(near(fa->as<JPPushPullFeeder>()->feedStart.x(), 2) && near(fa->as<JPPushPullFeeder>()->feedEnd.x(), 6));
+    assert(fa->as<JPPushPullFeeder>()->feedMultiplier == 3 && fa->as<JPPushPullFeeder>()->actuatorName == "Lever");
     assert(near(fa->location().x(), 0));   // its own pick location kept
 
     // Swapped: each at the other's place.
     JPPushPullTemplates::swapOut(c, a, b);
     assert(near(c.feeder(a)->location().x(), 12) && near(c.feeder(b)->location().x(), 0));
-    assert(near(c.feeder(a)->locationOf("hole-1-location").x(), 10));
+    assert(near(c.feeder(a)->visionTape()->hole1.x(), 10));
     JPPushPullTemplates::swapOut(c, a, b);
 
     // The next in the row: as far on as the nearest is.
@@ -102,7 +102,7 @@ int main() {
     assert(JPPushPullTemplates::createInRow(c, b, fresh, why));
     const JPFeeder* n = c.feeder(fresh);
     assert(n && n->typeName() == "ReferencePushPullFeeder" && near(n->location().x(), 24) && near(n->location().y(), 10));
-    assert(near(n->locationOf("hole-2-location").x(), 26) && n->number("feed-multiplier") == 3);
+    assert(near(n->visionTape()->hole2.x(), 26) && n->as<JPPushPullFeeder>()->feedMultiplier == 3);
     // Not in a row along X or Y: refused.
     c.feeder(q)->setLocation(JPLocation(kMm, 30, 20, -5, 0));
     c.removeFeeder(fresh);
@@ -111,14 +111,14 @@ int main() {
     c.feeder(lone)->setLocation(JPLocation(kMm, 35, 25, -5, 0));
     assert(!JPPushPullTemplates::createInRow(c, lone, fresh, why) && why.find("does not form a row in X and Y") != std::string::npos);
 
-    // The OCR region, kept and read back.
-    JPPushPullTemplates::OcrRegion r;
+    // The OCR region, kept and read back through jplacer's file.
+    JPPushPullFeeder::OcrRegion r;
     r.upperLeft = JPLocation(kMm, -2, 1, 0, 0);
     r.upperRight = JPLocation(kMm, 2, 1, 0, 0);
     r.lowerLeft = JPLocation(kMm, -2, -1, 0, 0);
     r.rectify = true;
-    JPPushPullTemplates::setOcrRegion(*c.feeder(a), r);
-    const auto back = JPPushPullTemplates::ocrRegion(*c.feeder(a));
+    c.feeder(a)->as<JPPushPullFeeder>()->ocrRegion = r;
+    const auto back = JPFeeder::fromJson(JJson::parse(c.feeder(a)->toJson().dump())).as<JPPushPullFeeder>()->ocrRegion;
     assert(back && back->rectify && near(back->upperRight.x(), 2) && !back->offsets);
 
     // OCR's text: the first line, up to a space; whole, or the end of a part id after "-".

@@ -9,19 +9,27 @@ inline namespace jf {
 
 namespace {
 constexpr JPLengthUnit kMm = JPLengthUnit::Millimeters;
-// OpenPnP's defaults: the precision wanted, the calibrations needed before trusting it; a normal distribution's 95% factor.
-constexpr double kPrecisionWantedMm = 0.1, kConfidence95 = 1.64;
-constexpr int    kCalibrateMinStatistic = 2;
+// A normal distribution's 95% factor.
+constexpr double kConfidence95 = 1.64;
+
+// Its vision tape's own (another kind: a new one's).
+const JPVisionTape& tapeOf(const JPFeeder& f) {
+    static const JPPushPullFeeder none;
+    const JPVisionTape* t = f.visionTape();
+    return t ? *t : none;
+}
 }
 
 JPFeederTape::Params JPFeederTape::of(const JPFeeder& feeder) {
     Params p;
-    p.partPitch = feeder.lengthOf("part-pitch", JPLength(4, kMm));
-    p.feedPitch = feeder.lengthOf("feed-pitch", JPLength(4, kMm));
-    p.feedMultiplier = std::max(1, feeder.number("feed-multiplier", 1));
+    const JPVisionTape& t = tapeOf(feeder);
+    p.partPitch = t.partPitch;
+    p.feedPitch = t.feedPitch;
+    const JPPushPullFeeder* pushPull = feeder.as<JPPushPullFeeder>();
+    p.feedMultiplier = std::max(1, pushPull ? pushPull->feedMultiplier : 1);
     p.partLocation = feeder.location();
-    p.hole1Location = feeder.locationOf("hole-1-location");
-    p.hole2Location = feeder.locationOf("hole-2-location");
+    p.hole1Location = t.hole1;
+    p.hole2Location = t.hole2;
     return p;
 }
 
@@ -33,43 +41,44 @@ long JPFeederTape::partsPerFeedCycle(const Params& params) {
 }
 
 JPLength JPFeederTape::precisionAverage(const JPFeeder& feeder) {
-    const int count = feeder.number("calibration-count", 0);
-    if (count <= 0) return JPLength(0, kMm);
-    const JPLength sum = feeder.lengthOf("sum-of-errors", JPLength(0, kMm));
-    return JPLength(sum.value() / count, sum.units());
+    const JPVisionTape& t = tapeOf(feeder);
+    if (t.calibrationCount <= 0) return JPLength(0, kMm);
+    return JPLength(t.sumOfErrorsMm / t.calibrationCount, kMm);
 }
 
 JPLength JPFeederTape::precisionConfidenceLimit(const JPFeeder& feeder) {
-    const int count = feeder.number("calibration-count", 0);
+    const JPVisionTape& t = tapeOf(feeder);
+    const int count = t.calibrationCount;
     if (count < 2) return JPLength(0, kMm);
     // The errors are distances about the true holes' centre: zero is their mean.
-    const JPLength squares = feeder.lengthOf("sum-of-error-squares", JPLength(0, kMm));
-    const double variance = squares.value() / (count - 1);
+    const double variance = t.sumOfErrorSquaresMm / (count - 1);
     const double scatter = std::sqrt(variance / std::sqrt(double(count)));
     // 95% confidence, normal distribution.
-    return JPLength(scatter * kConfidence95, squares.units());
+    return JPLength(scatter * kConfidence95, kMm);
 }
 
 bool JPFeederTape::precisionSufficient(const JPFeeder& feeder) {
-    if (feeder.number("calibration-count", 0) < feeder.number("calibrate-min-statistic", kCalibrateMinStatistic)) return false;
-    const double wanted = feeder.lengthOf("precision-wanted", JPLength(kPrecisionWantedMm, kMm)).convertToUnits(kMm).value();
+    const JPVisionTape& t = tapeOf(feeder);
+    if (t.calibrationCount < t.calibrateMinStatistic) return false;
+    const double wanted = t.precisionWantedMm;
     return precisionConfidenceLimit(feeder).convertToUnits(kMm).value() / wanted <= 1.0;
 }
 
 void JPFeederTape::addCalibrationError(JPFeeder& feeder, const JPLength& error) {
-    const JPLength sum = feeder.lengthOf("sum-of-errors", JPLength(0, kMm));
-    feeder.setLengthOf("sum-of-errors", JPLength(sum.value() + error.convertToUnits(sum.units()).value(), sum.units()));
-    // Its units squared, really: its square root is what is used.
-    const JPLength squares = feeder.lengthOf("sum-of-error-squares", JPLength(0, kMm));
-    const double e = error.convertToUnits(squares.units()).value();
-    feeder.setLengthOf("sum-of-error-squares", JPLength(squares.value() + e * e, squares.units()));
-    feeder.setNumber("calibration-count", feeder.number("calibration-count", 0) + 1);
+    JPVisionTape* t = feeder.visionTape();
+    if (!t) return;
+    const double e = error.convertToUnits(kMm).value();
+    t->sumOfErrorsMm += e;
+    // mm squared, really: its square root is what is used.
+    t->sumOfErrorSquaresMm += e * e;
+    ++t->calibrationCount;
 }
 
 void JPFeederTape::resetCalibrationStatistics(JPFeeder& feeder) {
-    feeder.setLengthOf("sum-of-errors", JPLength(0, kMm));
-    feeder.setLengthOf("sum-of-error-squares", JPLength(0, kMm));
-    feeder.setNumber("calibration-count", 0);
+    if (JPVisionTape* t = feeder.visionTape()) {
+        t->sumOfErrorsMm = t->sumOfErrorSquaresMm = 0;
+        t->calibrationCount = 0;
+    }
     feeder.visionOffset.reset();
 }
 

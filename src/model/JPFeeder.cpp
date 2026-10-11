@@ -6,22 +6,17 @@
 #include "JPBlindsFeeders.h"
 #include "JPFeederTape.h"
 
-#include "JPLengthUnits.h"
 #include "JPLocationJson.h"
 #include "JPLocationXml.h"
 #include "JPOpenPnpIds.h"
-#include "JPXmlValues.h"
 
 #include "common/JPlacerLog.h"
 
 #include <j/core/Log.h>
 
 #include "openpnp/JPXmlJson.h"
-#include "openpnp/JPXmlWriter.h"
 
 #include <algorithm>
-#include <chrono>
-#include <cstdio>
 #include <cmath>
 #include <regex>
 #include <type_traits>
@@ -118,6 +113,20 @@ const JPTemplateVision* JPFeeder::templateVision() const {
 
 JPTemplateVision* JPFeeder::templateVision() { return const_cast<JPTemplateVision*>(std::as_const(*this).templateVision()); }
 
+const JPVisionTape* JPFeeder::visionTape() const {
+    if (const JPPushPullFeeder* p = as<JPPushPullFeeder>()) return p;
+    return as<JPBambooFeeder>();
+}
+
+JPVisionTape* JPFeeder::visionTape() { return const_cast<JPVisionTape*>(std::as_const(*this).visionTape()); }
+
+void JPFeeder::setTapeHole(int n, const JPLocation& l) {
+    JPVisionTape* t = visionTape();
+    if (!t) return;
+    (n == 1 ? t->hole1 : t->hole2) = l;
+    visionOffset.reset();
+}
+
 std::string JPFeeder::slotBankId() const {
     if (const JPSlotAutoFeeder* s = as<JPSlotAutoFeeder>()) return s->bankId;
     if (const JPSlotSchultzFeeder* z = as<JPSlotSchultzFeeder>()) return z->bankId;
@@ -141,23 +150,6 @@ void JPFeeder::setSlotFeederId(const std::string& id) {
 }
 
 namespace {
-
-// Where a kind not typed yet keeps what a packaging gives it, by OpenPnP's names (empty: not kept).
-struct TapeNames {
-    bool        rotationInLocation = false;   // its location's rotation (a strip's Rotation In Tape)
-    std::string rotationReal;                 // an attribute in degrees
-    std::string widthLength;                  // a length element
-    std::string pitchLength;                  // a length element
-};
-
-TapeNames tapeNames(const std::string& kind) {
-    TapeNames t;
-    if (kind == "ReferencePushPullFeeder" || kind == "BambooFeederAutoVision") {
-        t.rotationReal = "rotation-in-feeder";
-        t.pitchLength = "part-pitch";
-    }
-    return t;
-}
 
 double mmOf(const JPLength& l) { return l.convertToUnits(JPLengthUnit::Millimeters).value(); }
 
@@ -193,14 +185,11 @@ JPFeeder::Tape JPFeeder::tape() const {
         t.pitchMm = b->pocketPitchMm;
         return t;
     }
-    if (typed()) return t;   // a tray, tube, auto or Schultz feeder: none
-    const TapeNames n = tapeNames(typeName());
-    constexpr JPLengthUnit kMm = JPLengthUnit::Millimeters;
-    if (n.rotationInLocation) t.rotationDeg = m_location.rotation();
-    else if (!n.rotationReal.empty()) t.rotationDeg = real(n.rotationReal, 0);
-    if (!n.widthLength.empty()) t.widthMm = mmOf(lengthOf(n.widthLength, JPLength(8, kMm)));
-    if (!n.pitchLength.empty()) t.pitchMm = mmOf(lengthOf(n.pitchLength, JPLength(4, kMm)));
-    return t;
+    if (const JPVisionTape* v = visionTape()) {
+        t.rotationDeg = v->rotationInFeeder;
+        t.pitchMm = mmOf(v->partPitch);
+    }
+    return t;   // a tray, tube, auto or Schultz feeder, a loose part: none
 }
 
 JPFeeder::Tape JPFeeder::kept(const Tape& wanted) const {
@@ -246,22 +235,15 @@ void JPFeeder::setTape(const Tape& wanted) {
         if (k.pitchMm) s->partPitch = JPLength(*k.pitchMm, kMm);
         return;
     }
-    if (typed()) return;
-    const TapeNames n = tapeNames(typeName());
-    if (k.rotationDeg) {
-        if (n.rotationInLocation) setLocation(m_location.derive(std::nullopt, std::nullopt, std::nullopt, *k.rotationDeg));
-        else if (!n.rotationReal.empty()) setReal(n.rotationReal, *k.rotationDeg);
+    if (JPVisionTape* v = visionTape()) {
+        if (k.rotationDeg) v->rotationInFeeder = *k.rotationDeg;
+        if (k.pitchMm) v->partPitch = JPLength(*k.pitchMm, kMm);
     }
-    if (k.widthMm) setLengthOf(n.widthLength, JPLength(*k.widthMm, kMm));
-    if (k.pitchMm) setLengthOf(n.pitchLength, JPLength(*k.pitchMm, kMm));
 }
 
 bool JPFeeder::autoTune() const {
-    if (const JPStripFeeder* s = as<JPStripFeeder>()) return s->autoTune;
-    if (typed()) return false;
-    const JPXmlNode& n = std::get<JPXmlNode>(m_own);
-    const std::string* v = n.get("auto-tune");
-    return v ? *v == "true" : true;
+    const JPStripFeeder* s = as<JPStripFeeder>();
+    return s ? s->autoTune : true;
 }
 
 int JPFeeder::feedCount() const {
@@ -270,10 +252,8 @@ int JPFeeder::feedCount() const {
     if (const JPNeoden4Feeder* n = as<JPNeoden4Feeder>()) return n->feedCount;
     if (const JPStripFeeder* s = as<JPStripFeeder>()) return s->feedCount;
     if (const JPBlindsFeeder* b = as<JPBlindsFeeder>()) return b->feedCount;
-    if (typed()) return 0;
-    const JPXmlNode* n = std::get_if<JPXmlNode>(&m_own);
-    const std::string* v = n ? n->get("feed-count") : nullptr;
-    return v && !v->empty() ? std::atoi(v->c_str()) : 0;
+    if (const JPVisionTape* t = visionTape()) return t->feedCount;
+    return 0;
 }
 
 void JPFeeder::setFeedCount(int n) {
@@ -282,7 +262,7 @@ void JPFeeder::setFeedCount(int n) {
     else if (JPNeoden4Feeder* d = as<JPNeoden4Feeder>()) d->feedCount = n;
     else if (JPStripFeeder* s = as<JPStripFeeder>()) s->feedCount = n;
     else if (JPBlindsFeeder* b = as<JPBlindsFeeder>()) b->feedCount = n;
-    else if (!typed()) setNumber("feed-count", n);
+    else if (JPVisionTape* t = visionTape()) t->feedCount = n;
 }
 
 const std::vector<std::string>& JPFeeder::classNames() {
@@ -493,7 +473,7 @@ std::optional<JPLocation> JPFeeder::pickLocation() const {
         const JPFeederTape::Params tape = JPFeederTape::of(*this);
         const long cycle = JPFeederTape::partsPerFeedCycle(tape);
         const long partInCycle = ((long(feedCount()) + cycle - 1) % cycle) + 1;
-        return JPFeederTape::partLocation(partInCycle, visionOffset, tape, real("rotation-in-feeder", 0));
+        return JPFeederTape::partLocation(partInCycle, visionOffset, tape, visionTape()->rotationInFeeder);
     }
     // Where its pipeline found the part, else where it is.
     if (kind == "ReferenceLoosePartFeeder" || kind == "AdvancedLoosePartFeeder" || kind == "ReferenceHeapFeeder")
@@ -808,93 +788,6 @@ void JPFeeder::recordJobFault(int faultLimit, int windowSize) {
     if (enabled() && faultLimit > 0 && faults >= faultLimit) m_enabled = false;
 }
 
-const JPXmlNode* JPFeeder::openPnp(const std::string& setting) const {
-    if (const JPXmlNode* n = std::get_if<JPXmlNode>(&m_own)) return n;
-    // A typed kind's settings are its own: one asked for by OpenPnP's name is a mistake here, not a default.
-    JLOGC(JPlacerLog::kFeeders, JLogLevel::Error) << "feeder " << m_id << " (" << typeName() << "): its setting \"" << setting
-                                                  << "\" was asked for by OpenPnP's name, which its kind keeps as its own";
-    return nullptr;
-}
-
-JPXmlNode* JPFeeder::openPnp(const std::string& setting) {
-    return const_cast<JPXmlNode*>(std::as_const(*this).openPnp(setting));
-}
-
-const std::string* JPFeeder::attribute(const std::string& name) const {
-    const JPXmlNode* n = openPnp(name);
-    return n ? n->get(name) : nullptr;
-}
-
-void JPFeeder::setAttribute(const std::string& name, const std::string& value) {
-    if (JPXmlNode* n = openPnp(name)) n->set(name, value);
-}
-
-const JPXmlNode* JPFeeder::child(const std::string& element) const {
-    const JPXmlNode* n = openPnp(element);
-    return n ? n->child(element) : nullptr;
-}
-
-void JPFeeder::putChild(JPXmlNode node) {
-    JPXmlNode* n = openPnp(node.name);
-    if (!n) return;
-    if (JPXmlNode* c = n->child(node.name)) *c = std::move(node);
-    else n->add(std::move(node));
-}
-
-std::string JPFeeder::text(const std::string& attribute, const std::string& def) const {
-    const std::string* v = this->attribute(attribute);
-    return v ? *v : def;
-}
-
-void JPFeeder::setText(const std::string& attribute, const std::string& value) { setAttribute(attribute, value); }
-
-bool JPFeeder::hasAttribute(const std::string& attribute) const { return this->attribute(attribute) != nullptr; }
-
-void JPFeeder::removeAttribute(const std::string& attribute) {
-    if (JPXmlNode* n = openPnp(attribute))
-        std::erase_if(n->attributes, [&attribute](const auto& a) { return a.first == attribute; });
-}
-
-int JPFeeder::number(const std::string& attribute, int def) const {
-    const std::string* v = this->attribute(attribute);
-    return v && !v->empty() ? std::atoi(v->c_str()) : def;
-}
-
-void JPFeeder::setNumber(const std::string& attribute, int value) { setAttribute(attribute, std::to_string(value)); }
-
-double JPFeeder::real(const std::string& attribute, double def) const {
-    const std::string* v = this->attribute(attribute);
-    return v && !v->empty() ? std::strtod(v->c_str(), nullptr) : def;
-}
-
-void JPFeeder::setReal(const std::string& attribute, double value) { setAttribute(attribute, JPXmlWriter::number(value)); }
-
-bool JPFeeder::flag(const std::string& attribute, bool def) const {
-    const std::string* v = this->attribute(attribute);
-    return v ? *v == "true" : def;
-}
-
-void JPFeeder::setFlag(const std::string& attribute, bool on) { setAttribute(attribute, on ? "true" : "false"); }
-
-void JPFeeder::setChild(JPXmlNode node) { putChild(std::move(node)); }
-
-void JPFeeder::removeChild(const std::string& element) {
-    if (JPXmlNode* n = openPnp(element))
-        std::erase_if(n->children, [&element](const JPXmlNode& c) { return c.name == element; });
-}
-
-JPLocation JPFeeder::locationOf(const std::string& element) const {
-    const JPXmlNode* c = child(element);
-    return c ? JPLocationXml::from(*c) : JPLocation(JPLengthUnit::Millimeters);
-}
-
-void JPFeeder::setLocationOf(const std::string& element, const JPLocation& l) {
-    putChild(JPLocationXml::to(element, l));
-    // As OpenPnP's setHole1Location and setHole2Location: the calibration reset.
-    if (isVisionTape() && (element == "hole-1-location" || element == "hole-2-location"))
-        visionOffset.reset();
-}
-
 void JPFeeder::resetVisionOffsets() {
     templateOffset.reset();
     nextPartPick.reset();
@@ -908,34 +801,6 @@ std::string JPFeeder::templatePath(const std::string& configDirectory) const {
     const JPTemplateVision* v = templateVision();
     const std::string name = v ? v->templateImageName : std::string();
     return name.empty() ? std::string() : templateDirectory(configDirectory, className()) + "/" + name;
-}
-
-std::string JPFeeder::attributeAt(const std::string& path, const std::string& attribute, const std::string& def) const {
-    const JPXmlNode* n = openPnp(path + "/" + attribute);
-    size_t from = 0;
-    while (n && from <= path.size()) {
-        const size_t slash = path.find('/', from);
-        n = n->child(path.substr(from, slash == std::string::npos ? std::string::npos : slash - from));
-        if (slash == std::string::npos) break;
-        from = slash + 1;
-    }
-    const std::string* v = n ? n->get(attribute) : nullptr;
-    return v ? *v : def;
-}
-
-void JPFeeder::setAttributeAt(const std::string& path, const std::string& attribute, const std::string& value) {
-    JPXmlNode* n = openPnp(path + "/" + attribute);
-    if (!n) return;
-    size_t from = 0;
-    for (;;) {
-        const size_t slash = path.find('/', from);
-        const std::string name = path.substr(from, slash == std::string::npos ? std::string::npos : slash - from);
-        JPXmlNode* c = n->child(name);
-        n = c ? c : &n->add(JPXmlNode(name));
-        if (slash == std::string::npos) break;
-        from = slash + 1;
-    }
-    n->set(attribute, value);
 }
 
 namespace {
@@ -959,47 +824,16 @@ auto pipelineOf(F& f, const std::string& element) {
 } // namespace
 
 const JPXmlNode* JPFeeder::pipeline(const std::string& element) const {
-    if (!typed()) return child(element);
     const std::optional<JPXmlNode>* slot = pipelineOf(*this, element);
     return slot && *slot ? &**slot : nullptr;
 }
 
 void JPFeeder::setPipeline(JPXmlNode pipeline, const std::string& element) {
     pipeline.name = element;
-    if (!typed()) {
-        putChild(std::move(pipeline));
-        return;
-    }
     if (std::optional<JPXmlNode>* slot = pipelineOf(*this, element)) *slot = std::move(pipeline);
     else
         JLOGC(JPlacerLog::kFeeders, JLogLevel::Error) << "feeder " << m_id << " (" << typeName() << "): it has no pipeline \""
                                                       << element << "\" to set";
-}
-
-std::string JPFeeder::childText(const std::string& element, const std::string& def) const {
-    const JPXmlNode* c = child(element);
-    return c ? c->text : def;
-}
-
-void JPFeeder::setChildText(const std::string& element, const std::string& value) {
-    JPXmlNode fresh(element);
-    if (const JPXmlNode* c = child(element)) fresh = *c;
-    fresh.text = value;
-    putChild(std::move(fresh));
-}
-
-JPLength JPFeeder::lengthOf(const std::string& element, const JPLength& def) const {
-    const JPXmlNode* c = child(element);
-    if (!c || !c->get("value")) return def;
-    JPLengthUnit u = JPLengthUnit::Millimeters;
-    if (const std::string* units = c->get("units")) JPLengthUnits::fromName(*units, u);
-    return JPLength(std::strtod(c->get("value")->c_str(), nullptr), u);
-}
-
-void JPFeeder::setLengthOf(const std::string& element, const JPLength& l) {
-    JPXmlNode fresh(element);
-    fresh.attr("value", JPXmlWriter::number(l.value())).attr("units", JPLengthUnits::name(l.units()));
-    putChild(std::move(fresh));
 }
 
 } // inline namespace jf

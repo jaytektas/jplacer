@@ -700,7 +700,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
             // A Bamboo feeder's to its Vision Type's default, as OpenPnP's asks.
             if (f->isVisionTape()) {
                 JDialog::confirm("Warning",
-                                 "This will reset the pipeline to the " + f->text("pipeline-type", "CircularSymmetry")
+                                 "This will reset the pipeline to the " + f->visionTape()->pipelineType
                                      + " type default. Are you sure?",
                                  [this, feederId] {
                                      if (JPFeeder* kept = m_job.configuration().feeder(feederId); kept && JPFeederPipelines::reset(*kept))
@@ -1332,7 +1332,7 @@ void JPlacerOpenPnpTabs::editFeederPipeline(const std::string& feederId, const s
     // A blinds feeder's OCR as it reads, about where the camera is.
     if (kind == "BlindsFeeder")
         if (const auto at = m_machine.toolLocation(JPSetupForm::Tool::Camera))
-            JPFeederPipelines::setupBlindsOcr(m_job.configuration(), *f, *pipeline, *at, f->text("ocr-action", "None"));
+            JPFeederPipelines::setupBlindsOcr(m_job.configuration(), *f, *pipeline, *at, (f->as<JPBlindsFeeder>() ? f->as<JPBlindsFeeder>()->ocrAction : std::string("None")));
     const std::string title = (loose ? f->partId() : f->name())
                               + (heap ? (training ? " Training-Pipeline" : " Feeder-Pipeline") : training ? " Training Pipeline" : " Pipeline");
     m_pipelines.edit(title, pipeline, [this, feederId, element](const JPPipeline& edited) {
@@ -1348,7 +1348,9 @@ void JPlacerOpenPnpTabs::editTapePipeline(const std::string& feederId) {
     JPFeeder* f = m_job.configuration().feeder(feederId);
     if (!f) return;
     // Its vision location: the middle of its holes (none set: where the camera is).
-    const JPLocation h1 = f->locationOf("hole-1-location"), h2 = f->locationOf("hole-2-location");
+    const JPVisionTape* tape = f->visionTape();
+    if (!tape) return;
+    const JPLocation h1 = tape->hole1, h2 = tape->hole2;
     const std::optional<JPLocation> camera = m_machine.toolLocation(JPSetupForm::Tool::Camera);
     if (!h1.isInitialized() || !h2.isInitialized() || !camera) {
         editFeederPipeline(feederId, "pipeline");

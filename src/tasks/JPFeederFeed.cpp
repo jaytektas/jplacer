@@ -506,13 +506,12 @@ bool JPFeederFeed::postPick(JPConfiguration& config, const std::string& feederId
         const JPFeeder* f = config.feeder(feederId);
         if (!f) return;
         emptySlot = f->isSlot() && !f->slotLoad;
-        const bool bamboo = f->typeName() == "BambooFeederAutoVision";
         if (const JPAutoFeeder* a = f->autoFeeding()) {
             name = a->postPickActuatorName;
             value = a->postPickActuatorValue;
-        } else if (bamboo) {
-            name = f->text("post-pick-actuator-name");
-            value = f->real("post-pick-actuator-value", 0);
+        } else if (const JPBambooFeeder* b = f->as<JPBambooFeeder>()) {
+            name = b->postPickActuatorName;
+            value = b->postPickActuatorValue;
             if (name.empty())
                 JLOGC(JPlacerLog::kJob, JLogLevel::Debug) << "Post pick cancelled. Actuator not set for feeder " << f->name();
         } else if (const JPSchultzFeeder* z = f->schultzFeeding()) {

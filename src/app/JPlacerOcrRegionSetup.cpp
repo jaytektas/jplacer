@@ -3,7 +3,6 @@
 
 #include "JPlacerOcrRegionSetup.h"
 
-#include "model/JPPushPullTemplates.h"
 #include "tasks/JPVisionTapeFeeder.h"
 
 #include <j/core/Dialog.h>
@@ -170,8 +169,9 @@ void JPlacerOcrRegionSetup::next() {
 
 void JPlacerOcrRegionSetup::save() {
     JPFeeder* f = m_job.configuration().feeder(m_feederId);
-    if (!f || m_corners.size() < 3) return;
-    JPPushPullTemplates::OcrRegion r;
+    JPPushPullFeeder* p = f ? f->as<JPPushPullFeeder>() : nullptr;
+    if (!p || m_corners.size() < 3) return;
+    JPPushPullFeeder::OcrRegion r;
     r.upperLeft = m_corners[Step::UpperLeft];
     r.upperRight = m_corners[Step::UpperRight];
     r.lowerLeft = m_corners[Step::LowerLeft];
@@ -182,7 +182,7 @@ void JPlacerOcrRegionSetup::save() {
         const JPLocation moved = end->subtract(*m_startCamera).derive(std::nullopt, std::nullopt, 0.0, 0.0);
         if (moved.linearDistanceTo(JPLocation::origin()) >= kLeastOffsetMm) r.offsets = moved;
     }
-    JPPushPullTemplates::setOcrRegion(*f, r);
+    p->ocrRegion = r;
     if (onFeederChanged) onFeederChanged();
 }
 

@@ -11,6 +11,7 @@
 #include <cassert>
 
 #include "model/JPConfiguration.h"
+#include "model/JPFeederTape.h"
 #include "openpnp/JPXmlReader.h"
 
 #include <cmath>
@@ -337,6 +338,45 @@ int main() {
         assert(own->ocrAction == "ChangePart" && own->coverType == "PushCover" && own->coverActuation == "CheckOpen");
         assert(own->fiducial1.x() == 10 && near(own->tapeLengthMm, 80) && near(own->pocketPitchMm, 4));
         assert(near(own->pushZOffsetMm, 0.4) && near(own->ocrMarginMm, -15) && back.tape().pitchMm == 4.0);
+    }
+    // Push-pull and Bamboo feeders: a vision tape's settings (holes, pitches, rotation, pipeline type, calibration),
+    // a push-pull's motion, OCR and template settings, a Bamboo's actuators, from OpenPnP's and through jplacer's file.
+    {
+        const JPFeeder pp = parse(R"(<feeder class="org.openpnp.machine.reference.feeder.ReferencePushPullFeeder" id="PP" name="PP" enabled="true" part-id="R1" rotation-in-feeder="-90.0" snap-to-axis="false" feed-multiplier="2" feed-speed-push-2="0.5" included-push-1="true" delay-3="40" calibrate-motion-X="false" actuator-name="Lever" ocr-wrong-part-action="ChangePart" calibration-count="2" calibration-trigger="OnEachTapeFeed" used-as-template="true">
+   <location units="Millimeters" x="10.0" y="10.0" z="-1.0" rotation="0.0"/>
+   <hole-1-location units="Millimeters" x="8.0" y="13.5" z="0.0" rotation="0.0"/>
+   <hole-2-location units="Millimeters" x="12.0" y="13.5" z="0.0" rotation="0.0"/>
+   <feed-mid-2-location units="Millimeters" x="3.0" y="4.0" z="0.0" rotation="0.0"/>
+   <part-pitch value="2.0" units="Millimeters"/>
+   <feed-speed-push-1>0.25</feed-speed-push-1>
+   <sum-of-errors value="0.4" units="Millimeters"/>
+   <ocr-region rectify="true"><upper-right-corner units="Millimeters" x="2.0" y="1.0" z="0.0" rotation="0.0"/></ocr-region>
+</feeder>)");
+        const JPFeeder back = JPFeeder::fromJson(JJson::parse(pp.toJson().dump()));
+        const JPPushPullFeeder* p = back.as<JPPushPullFeeder>();
+        assert(p && back.visionTape() == p && back.isVisionTape() && p->rotationInFeeder == -90 && !p->snapToAxis);
+        assert(p->feedMultiplier == 2 && near(p->feedSpeedPush2, 0.5) && near(p->feedSpeedPush1, 0.25) && p->includedPush1);
+        assert(p->delay3 == 40 && !p->calibrateMotionX && p->calibrateMotionY && p->actuatorName == "Lever" && p->usedAsTemplate);
+        assert(p->ocrWrongPartAction == "ChangePart" && p->calibrationCount == 2 && near(p->sumOfErrorsMm, 0.4));
+        assert(p->calibrationTrigger == "OnEachTapeFeed" && p->pipelineType == "ColorKeyed" && p->hole2.x() == 12 && p->feedMid2.y() == 4);
+        assert(p->ocrRegion && p->ocrRegion->rectify && p->ocrRegion->upperRight.x() == 2 && near(p->partPitch.value(), 2));
+        assert(back.tape().rotationDeg == -90.0 && back.tape().pitchMm == 2.0 && JPFeederTape::of(back).feedMultiplier == 2);
+
+        const JPFeeder bamboo = parse(R"(<feeder class="org.openpnp.machine.pandaplacer.BambooFeederAutoVision" id="BB" name="BB" enabled="true" part-id="R1" feed-actuator-name="Feed" feed-actuator-value="2.0" move-before-feed="true">
+   <location units="Millimeters" x="0.0" y="0.0" z="0.0" rotation="0.0"/>
+</feeder>)");
+        const JPFeeder bb = JPFeeder::fromJson(JJson::parse(bamboo.toJson().dump()));
+        const JPBambooFeeder* b = bb.as<JPBambooFeeder>();
+        assert(b && b->feedActuatorName == "Feed" && b->feedActuatorValue == 2 && b->moveBeforeFeed && !b->snapToAxis);
+        assert(b->pipelineType == "CircularSymmetry" && JPFeederTape::of(bb).feedMultiplier == 1);
+    }
+    // A feeder of a class jplacer does not know: kept as read, written back the same.
+    {
+        const JPFeeder unknown = parse(R"(<feeder class="org.example.SomeFeeder" id="U" name="U" enabled="false" part-id="R1" speed="3"><gadget x="1"/></feeder>)");
+        const JJson j = unknown.toJson();
+        assert(!unknown.typed() && j["openpnp"]["speed"].number() == 3 && j["openpnp"]["gadget"]["x"].number() == 1);
+        const JPFeeder back = JPFeeder::fromJson(JJson::parse(j.dump()));
+        assert(!back.typed() && back.toJson().dump() == j.dump() && back.feedCount() == 0 && !back.pickLocation());
     }
     return 0;
 }

@@ -132,7 +132,7 @@ void JPFeedersPanel::cloneFromTemplate(const std::string& feederId) {
     const JPFeeder* f = m_config.feeder(feederId);
     if (!f) return;
     auto& c = m_cloneChoices;
-    if (f->flag("used-as-template", false)) {
+    if ((f->as<JPPushPullFeeder>() && f->as<JPPushPullFeeder>()->usedAsTemplate)) {
         JDialog::message("Error", "This feeder is used as a template and cannot be overwritten.");
         return;
     }
@@ -163,7 +163,7 @@ void JPFeedersPanel::cloneToFeeders(const std::string& feederId) {
     const JPFeeder* f = m_config.feeder(feederId);
     if (!f) return;
     auto& c = m_cloneChoices;
-    if (!f->flag("used-as-template", false)) {
+    if (!(f->as<JPPushPullFeeder>() && f->as<JPPushPullFeeder>()->usedAsTemplate)) {
         JDialog::message("Error", "This feeder is not used as a template.");
         return;
     }
@@ -287,7 +287,7 @@ void JPFeedersPanel::edited(const std::string& property) {
     // name), what its choices list.
     // A push-pull feeder's additive rotation turned on (or its actuator chosen): its rotation counted from where it is, as OpenPnP's.
     if ((property == "additive-rotation" || property == "actuator-name") && machineAction && machineReady && machineReady())
-        if (const JPFeeder* f = m_config.feeder(m_shown); f && f->typeName() == "ReferencePushPullFeeder" && f->flag("additive-rotation", true))
+        if (const JPFeeder* f = m_config.feeder(m_shown); f && f->as<JPPushPullFeeder>() && f->as<JPPushPullFeeder>()->additiveRotation)
             machineAction(m_shown, "resetRotation");
     if (property == "actuator-name" || property.rfind("slot.", 0) == 0 || property == "drop-box-id" || property == "drop-box.name"
         || property == "additive-rotation" || property == "used-as-template" || property == "part" || property == "feeder-group-name"
@@ -377,7 +377,7 @@ void JPFeedersPanel::act(const std::string& action) {
         const JPLocation at = f->location();
         if (action == "autoSetupTape" && (at.x() != 0 || at.y() != 0)) {
             std::string ask = "This may overwrite all your current settings. Are you sure?";
-            if (f->flag("used-as-template", false)) ask += "\n\nThis feeder is marked as template. Are you really, really sure?";
+            if ((f->as<JPPushPullFeeder>() && f->as<JPPushPullFeeder>()->usedAsTemplate)) ask += "\n\nThis feeder is marked as template. Are you really, really sure?";
             JDialog::confirm("Warning", ask, [this, id] {
                 if (machineAction) machineAction(id, "autoSetupTape");
             });
