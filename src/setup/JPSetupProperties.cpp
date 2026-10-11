@@ -1397,8 +1397,8 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
              "place and back, which among the changer's slots would carry the tip into a slot's wall. The first move "
              "goes by way of Safe Z: the nozzle may be anywhere when a change begins. An empty coordinate stays as it "
              "is, so a move with no Z keeps the height (at Safe Z, to go round the other holders). Then up to Safe Z. "
-             "Each row's buttons add a step after it, delete it, or move it up or down; its place buttons move as the "
-             "step does, compensated or not.");
+             "Each row's buttons add a step after it, delete it, or move it up or down; its Move Nozzle moves the "
+             "nozzle as the step is set.");
     add.group("Unloading");
     add.choice("unloading", "Unloading", { "loading backwards", "steps of its own" },
                [t] { return std::string(t().unloadReversesLoad ? "loading backwards" : "steps of its own"); },
@@ -1834,8 +1834,8 @@ void changerSteps(JPFormBuilder& add, const JPCellConfig& cell, const std::funct
         auto step = [list, i]() -> S& { return list()[i]; };
         const S::Kind kind = step().kind;
         add.row(std::to_string(i + 1), kind == S::Kind::Move ? Place::Location : Place::None);
-        // Its place buttons move as the step does: compensated for backlash, or not.
-        if (kind == S::Kind::Move) add.positionNoSafeZ([step] { return !step().backlash; });
+        // Its place buttons move the nozzle as the step does: by way of safe Z or not, compensated or not.
+        if (kind == S::Kind::Move) add.movesAs([step] { return step().safeZ; }, [step] { return step().backlash; });
         add.choice(key + "kind", "Kind", kinds, [step] { return std::string(S::kindName(step().kind)); },
                    [step](const std::string& v) {
                        for (S::Kind k : { S::Kind::Move, S::Kind::SafeZ, S::Kind::Actuator, S::Kind::Wait, S::Kind::Ask })
@@ -1848,6 +1848,7 @@ void changerSteps(JPFormBuilder& add, const JPCellConfig& cell, const std::funct
         };
         switch (kind) {
             case S::Kind::Move:
+                add.placeStartsHere();   // after its Kind
                 coordinate(add, key + "x", "X", [step]() -> std::optional<double>& { return step().x; });
                 coordinate(add, key + "y", "Y", [step]() -> std::optional<double>& { return step().y; });
                 coordinate(add, key + "z", "Z", [step]() -> std::optional<double>& { return step().z; });

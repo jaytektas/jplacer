@@ -820,8 +820,8 @@ void JPFeedersPanel::applyCapture(const JPSetupProperties::Row& row, Where now) 
         now = { off.x(), off.y(), now[2] ? std::optional(off.z()) : std::nullopt, now[3] ? std::optional(off.rotation()) : std::nullopt };
     }
     bool any = false;
-    for (size_t i = 0; i < row.cells.size() && i < now.size(); ++i)
-        if (!row.cells[i].property.empty() && now[i]) any = m_form->set(row.cells[i].property, JVariant(*now[i])) || any;
+    for (size_t i = 0; i < now.size(); ++i)
+        if (const std::string cell = row.placeCell(i); !cell.empty() && now[i]) any = m_form->set(cell, JVariant(*now[i])) || any;
     if (!any) {
         JDialog::message("Error", "Nothing captured: the machine is not connected.");
         return;
@@ -832,9 +832,9 @@ void JPFeedersPanel::applyCapture(const JPSetupProperties::Row& row, Where now) 
 
 void JPFeedersPanel::goTo(const JPSetupProperties::Row& row, Tool tool, bool straight) {
     Where to;
-    for (size_t i = 0; i < row.cells.size() && i < to.size(); ++i) {
-        if (row.cells[i].property.empty()) continue;
-        const JVariant v = m_form->get(row.cells[i].property);
+    for (size_t i = 0; i < to.size(); ++i) {
+        if (row.placeCell(i).empty()) continue;
+        const JVariant v = m_form->get(row.placeCell(i));
         if (v.isDouble() || v.isInt()) to[i] = v.toDouble();
     }
     // Offsets from a base: turned by its rotation, added to it (OpenPnP's

@@ -124,11 +124,14 @@ public:
     // The place row begun moves and captures with the actuator `name` names
     // (when not empty) in place of the nozzle.
     void actuator(std::function<std::string()> name) { rows().back().actuator = std::move(name); }
-    // The place row begun also has OpenPnP's Position Tool (Without Safe Z) button; `speedOverPrecision`:
-    // whether its moves go without backlash compensation (Row::speedOverPrecision).
-    void positionNoSafeZ(std::function<bool()> speedOverPrecision = {}) {
-        rows().back().positionNoSafeZ = true;
-        rows().back().speedOverPrecision = std::move(speedOverPrecision);
+    // The place row begun has its X, Y, Z and rotation from the next cell added on (Row::placeFrom).
+    void placeStartsHere() { rows().back().placeFrom = rows().back().cells.size(); }
+    // The place row begun also has OpenPnP's Position Tool (Without Safe Z) button.
+    void positionNoSafeZ() { rows().back().positionNoSafeZ = true; }
+    // The place row begun moves a nozzle as a tip change's move does (Row::bySafeZ, Row::compensated).
+    void movesAs(std::function<bool()> bySafeZ, std::function<bool()> compensated) {
+        rows().back().bySafeZ = std::move(bySafeZ);
+        rows().back().compensated = std::move(compensated);
     }
     // The place row begun also has OpenPnP's Contact Probe Tool button.
     void contactProbe() { rows().back().contactProbe = true; }

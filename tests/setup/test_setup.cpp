@@ -249,6 +249,18 @@ int main() {
         f.model.set("loadStep0.safeZ", JVariant(false));
         assert(c.problems().size() == 1);   // the first straight from anywhere
         f.model.set("loadStep0.safeZ", JVariant(true));
+        // Its place buttons take X, Y, Z and rotation, not the Kind before them; Move Nozzle goes as it is set,
+        // no straight button of its own.
+        f = page();
+        const JPSetupProperties::Row* row = nullptr;
+        for (const JPSetupProperties::Tab& t : f.tabs)
+            for (const JPSetupProperties::Group& g : t.groups)
+                for (const JPSetupProperties::Row& r : g.rows)
+                    if (!r.cells.empty() && r.cells.front().property == "loadStep0.kind") row = &r;
+        assert(row && row->place == JPSetupProperties::Place::Location && !row->positionNoSafeZ);
+        assert(row->placeCell(0) == "loadStep0.x" && row->placeCell(1) == "loadStep0.y");
+        assert(row->placeCell(2) == "loadStep0.z" && row->placeCell(3) == "loadStep0.rotation");
+        assert(row->bySafeZ && row->bySafeZ() && row->compensated && !row->compensated());
         f.edits.at("loadStep0.add").apply();
         assert(load.size() == 2 && !load[1].safeZ && load[1].x == -16.0);   // after it, from where it goes
         f = page();

@@ -584,10 +584,10 @@ void JPMachineSetupPanel::capture(const JPSetupProperties::Row& row, JPSetupForm
 }
 
 void JPMachineSetupPanel::applyCapture(const JPSetupProperties::Row& row, const Where& now, const std::string& at) {
-    // The row's cells are X, Y, Z and rotation, in that order; an empty one is skipped.
+    // The row's place: X, Y, Z and rotation (Row::placeCell); one it has not, skipped.
     bool any = false;
-    for (size_t i = 0; i < row.cells.size() && i < now.size(); ++i)
-        if (!row.cells[i].property.empty() && now[i]) any = m_form->set(row.cells[i].property, JVariant(*now[i])) || any;
+    for (size_t i = 0; i < now.size(); ++i)
+        if (const std::string cell = row.placeCell(i); !cell.empty() && now[i]) any = m_form->set(cell, JVariant(*now[i])) || any;
     if (!any) {
         setNote("Nothing captured: the machine is not connected, or nothing is chosen to capture from.");
         return;
@@ -615,9 +615,12 @@ void JPMachineSetupPanel::goTo(const JPSetupProperties::Row& row, JPSetupForm::T
         return;
     }
     Where to;
-    for (size_t i = 0; i < row.cells.size() && i < to.size(); ++i) to[i] = value(row.cells[i].property);
+    for (size_t i = 0; i < to.size(); ++i) to[i] = value(row.placeCell(i));
     if (tool == JPSetupForm::Tool::Camera) to[2].reset();   // a camera stays at safe Z
-    const bool precise = row.speedOverPrecision && row.speedOverPrecision();
+    // A tip change's move: the nozzle (or actuator) as the step goes; a camera as any place.
+    const bool asStep = tool != JPSetupForm::Tool::Camera;
+    if (asStep && row.bySafeZ && !row.bySafeZ()) straight = true;
+    const bool precise = asStep && row.compensated && !row.compensated();
     auto& go = straight ? moveToStraight : moveTo;
     if (go) go(tool, to, precise);
 }
@@ -652,16 +655,17 @@ void JPMachineSetupPanel::exportGcode(bool toClipboard) {
 void JPMachineSetupPanel::probe(const JPSetupProperties::Row& row) {
     // Where the row says, its Z probed by the chosen contact probing nozzle, and that Z put in it.
     Where to;
-    for (size_t i = 0; i < row.cells.size() && i < to.size(); ++i) {
-        const JVariant v = m_form->get(row.cells[i].property);
+    for (size_t i = 0; i < to.size(); ++i) {
+        if (row.placeCell(i).empty()) continue;
+        const JVariant v = m_form->get(row.placeCell(i));
         if (v.isDouble() || v.isInt()) to[i] = v.toDouble();
     }
     if (!to[0] || !to[1] || !to[2] || !contactProbeAt) return;
     const std::string at = m_selected;
     const JPSetupProperties::Row r = row;
     contactProbeAt(to, [this, r, at, alive = std::weak_ptr<bool>(m_alive)](double z) {
-        if (const auto a = alive.lock(); !a || !*a || m_selected != at || r.cells.size() < 3) return;
-        if (!m_form->set(r.cells[2].property, JVariant(z))) return;
+        if (const auto a = alive.lock(); !a || !*a || m_selected != at || r.placeCell(2).empty()) return;
+        if (!m_form->set(r.placeCell(2), JVariant(z))) return;
         rebuildTree();
         record("Contact probe " + nameOf(m_draft, at) + ": " + r.label, "", at);
     });

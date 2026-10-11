@@ -10,6 +10,13 @@ notes.
 
 ## Unreleased
 
+- Fixed: on a nozzle tip's Tool Changer tab, a step's Move Nozzle and Capture took the step's coordinates
+  one place along (its X as Y, its Y as Z), because the row starts with Kind. Move Nozzle sent the nozzle to
+  the wrong place, and a Z out of range was refused by the soft limits; Capture would have written into the
+  wrong columns. They now take the step's X, Y, Z and Rotation.
+- A nozzle tip's loading and unloading moves no longer have Position Tool (Without Safe Z): Move Nozzle goes
+  as the step is set, by way of safe Z only with Safe Z? ticked, and backlash compensated only with Backlash?.
+
 ## 0.1.44
 
 - A nozzle tip's loading and unloading steps are all on the tip's Tool Changer tab, no longer a page each in

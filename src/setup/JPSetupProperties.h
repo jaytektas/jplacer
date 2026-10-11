@@ -70,6 +70,13 @@ public:
         Kind        kind = Kind::Fields;
         std::string label;
         std::vector<Cell> cells;
+        // Place::Location: the cell its X is in, Y, Z and rotation in the three after it (a changer step's row
+        // has its Kind before them).
+        size_t      placeFrom = 0;
+        // The property of its place's coordinate `i` (0 X, 1 Y, 2 Z, 3 rotation); empty when it has none.
+        std::string placeCell(size_t i) const {
+            return placeFrom + i < cells.size() ? cells[placeFrom + i].property : std::string();
+        }
         std::string text;                // a note
         std::string tooltip;             // what its label says when pointed at
         Place       place = Place::None; // its cells are X, Y, Z, rotation (Location) or one axis (Axis)
@@ -97,10 +104,12 @@ public:
         // OpenPnP's optional location buttons: Position Tool (Without Safe Z), and
         // Contact Probe Tool (the place's Z found by a contact probing nozzle).
         bool positionNoSafeZ = false;
-        // Place::Location: whether its moves (by way of safe Z or not) go without the backlash compensation that
-        // goes past the place and back (OpenPnP's SpeedOverPrecision), as a nozzle tip change's step not
-        // compensated does, so the nozzle cannot be carried into a slot's wall. None: compensated.
-        std::function<bool()> speedOverPrecision;
+        // Place::Location, a nozzle tip change's move: its place buttons move a nozzle as the step does, by way
+        // of safe Z when `bySafeZ` says so (else straight there), and without the backlash compensation that
+        // goes past the place and back (OpenPnP's SpeedOverPrecision) unless `compensated` says so. None: by
+        // way of safe Z, compensated.
+        std::function<bool()> bySafeZ;
+        std::function<bool()> compensated;
         bool contactProbe = false;
         // Place::Location: what its X, Y, Z and rotation are offsets from
         // (OpenPnP's LocationButtonsPanel baseLocation): taken from where the

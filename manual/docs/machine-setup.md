@@ -302,11 +302,9 @@ row of coordinates ending in four buttons:
 
 Where OpenPnP has them, two more follow:
 
-- **Position Tool (Without Safe Z)**, on a motion test's stops and each move of a nozzle tip's loading or
-  unloading steps: the nozzle goes there straight, without going up to safe Z first. On a step it moves as the
-  change itself goes from one step to the next: without the backlash compensation that goes past the place and
-  back (one-sided's, sneaking up's), so the tip is not carried into a slot's wall. (**Move Nozzle** goes up to
-  safe Z, across, then down, compensated as every other move.)
+- **Position Tool (Without Safe Z)**, on a motion test's stops: the nozzle goes there straight, without
+  going up to safe Z first. A nozzle tip's loading or unloading move has none: its **Move Nozzle** goes as
+  the step is set, by way of safe Z only with **Safe Z?**, compensated for backlash only with **Backlash?**.
 - **Contact Probe Tool**, on a tool changer's **Touch Location**: as OpenPnP's, after asking (it overwrites
   the Z reference, so places captured before must be captured again), the default probing nozzle (the first
   that probes by contact), its Z calibration forgotten, goes over the place at its Z plus the probe's Start
@@ -340,7 +338,7 @@ are not in the tree), run in order, built from
   up to safe Z, across, then down to its Z; without, straight there, every axis at once. **Backlash?**:
   compensated as every other move is; without, it goes without the backlash compensation that goes past
   the place and back (one-sided's, sneaking up's, the distance-aware back-off), which among the slots
-  would carry the tip into a slot's wall. Its place buttons move as it does, compensated or not.
+  would carry the tip into a slot's wall. Its **Move Nozzle** moves the nozzle as the step is set.
 - **safe Z**: the nozzle up to safe Z.
 - **actuator**: switch one on or off (a door, a lock, a valve).
 - **wait**: a number of milliseconds.
