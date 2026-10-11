@@ -193,7 +193,7 @@ bool JPConfiguration::load(std::vector<std::string>& problems, std::string& erro
         || !readJson(dir / kMachinePropertiesFile, kPropertiesFormat, properties, error)
         || !readJson(dir / kVisionFile, kVisionFormat, vision, error))
         return false;
-    for (const JJson& f : std::as_const(feeders)["feeders"].arr()) m_feeders.push_back(JPFeeder::fromXml(JPXmlJson::element("feeder", f)));
+    for (const JJson& f : std::as_const(feeders)["feeders"].arr()) m_feeders.push_back(JPFeeder::fromJson(f));
     for (const JPXmlElement& e : propertyEntries(std::as_const(properties)["properties"])) {
         if (auto b = JPSlotBanks::fromXml(e)) m_slotBanks.push_back(std::move(*b));
         else if (auto d = JPDropBoxes::fromXml(e)) m_dropBoxes = std::move(*d);
@@ -290,7 +290,7 @@ bool JPConfiguration::save(std::string& error) const {
     if (!m_library.isOpen() && !m_library.open((dir / JPLibraryStore::kFile).string(), error)) return false;
     if (!m_library.save(contents(), error)) return false;
     JJson feeders = JJson::array();
-    for (const JPFeeder& f : m_feeders) feeders.push(JPXmlJson::from(f.toXml()));
+    for (const JPFeeder& f : m_feeders) feeders.push(f.toJson());
     std::vector<JPXmlNode> entries;
     for (const JPSlotBanks& b : m_slotBanks) entries.push_back(b.toXml());
     for (JPXmlNode& e : m_photon.toXml()) entries.push_back(std::move(e));

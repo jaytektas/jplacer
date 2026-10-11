@@ -170,7 +170,7 @@ void testFeederFeedRetry() {
     JPFeeder& f1 = b.feeder("F1", 100, 20, -5, 1);
     b.placement("R1", 10, 10, 0);
     b.placement("R2", 20, 20, 0);
-    f1.setNumber("feed-retry-count", 3);
+    f1.setFeedRetryCount(3);
     b.run();
     // The feeder holds 1 part: the first feed succeeds, the second fails, then three retries.
     assert(b.feeds(*b.config.feeder(f1.id())) == 5);
@@ -180,7 +180,7 @@ void testFeederDisable() {
     Bench b;
     const std::string id = b.feeder("F1", 100, 20, -5, 0).id();
     b.placement("R1", 10, 10, 0);
-    b.config.feeder(id)->setNumber("feed-retry-count", 3);
+    b.config.feeder(id)->setFeedRetryCount(3);
     assert(b.config.feeder(id)->enabled());
     b.run();
     assert(!b.config.feeder(id)->enabled());
@@ -190,7 +190,7 @@ void testFeederPickRetry() {
     Bench b;
     const std::string id = b.feeder("F1", 100, 20, -5, 1).id();
     b.placement("R1", 10, 10, 0);
-    b.config.feeder(id)->setNumber("pick-retry-count", 3);
+    b.config.feeder(id)->setPickRetryCount(3);
     b.machine.vacuum = "0";   // the part-on check fails
     b.run();
     assert(b.machine.pickCount == 4);
@@ -202,7 +202,7 @@ void testPartPickRetry() {
     for (const auto& [name, x, parts] : { std::tuple { "F1", 100.0, 1 }, std::tuple { "F2", 110.0, 1 }, std::tuple { "F3", 120.0, 1 },
                                           std::tuple { "F4", 130.0, 0 }, std::tuple { "F5", 140.0, 0 } }) {
         ids.push_back(b.feeder(name, x, 20, -5, parts).id());
-        b.config.feeder(ids.back())->setNumber("feed-retry-count", 0);
+        b.config.feeder(ids.back())->setFeedRetryCount(0);
     }
     b.placement("R1", 10, 10, 0);
     b.config.part("R0402-1k")->pickRetryCount = 3;
@@ -218,7 +218,7 @@ void testPartFailover() {
     std::vector<std::string> ids;
     for (const auto& [name, x] : { std::pair { "F1", 100.0 }, std::pair { "F2", 110.0 }, std::pair { "F3", 120.0 } }) {
         ids.push_back(b.feeder(name, x, 20, -5, 1, true).id());
-        b.config.feeder(ids.back())->setNumber("feed-retry-count", 0);
+        b.config.feeder(ids.back())->setFeedRetryCount(0);
     }
     for (const auto& [name, x] : { std::pair { "F4", 130.0 }, std::pair { "F5", 140.0 } }) b.feeder(name, x, 20, -5, 0);
     b.placement("R1", 10, 10, 0);
@@ -247,8 +247,8 @@ void testPlacementRetryDisablesOneFeeder() {
     Bench b;
     const std::string f1 = b.feeder("F1", 100, 20, -5, 20).id(), f2 = b.feeder("F2", 110, 20, -5, 20).id(),
                       f3 = b.feeder("F3", 120, 20, -5, 20).id();
-    b.config.feeder(f1)->setText("priority", "High");
-    b.config.feeder(f3)->setText("priority", "Low");
+    b.config.feeder(f1)->setPriority(JPFeeder::Priority::High);
+    b.config.feeder(f3)->setPriority(JPFeeder::Priority::Low);
     b.placement("R1", 10, 10, 0);
     b.placement("R2", 20, 20, 0);
     b.job.errorHandling = JPJob::ErrorHandling::Defer;

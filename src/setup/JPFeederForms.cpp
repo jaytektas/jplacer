@@ -40,23 +40,39 @@ std::function<JPFeeder&()> finder(JPConfiguration& config, const std::string& id
     return [&config, id]() -> JPFeeder& { return *config.feeder(id); };
 }
 
+// One of a feeder's locations, read and set; `key` names its fields ("location.X").
+struct Spot {
+    std::string                             key;
+    std::function<JPLocation()>             get;
+    std::function<void(const JPLocation&)>  set;
+};
+
+// Its pick location.
+Spot pick(std::function<JPFeeder&()> f) {
+    return { "location", [f] { return f().location(); }, [f](const JPLocation& l) { f().setLocation(l); } };
+}
+
+// A location of its kind's own, by OpenPnP's name.
+Spot at(std::function<JPFeeder&()> f, const std::string& element) {
+    return { element, [f, element] { return f().locationOf(element); },
+             [f, element](const JPLocation& l) { f().setLocationOf(element, l); } };
+}
+
 // A location's coordinate, read and set in millimetres (shown in the System
 // Units; its rotation as it is).
 enum class Axis { X, Y, Z, Rotation };
-void coordinate(JPFormBuilder& add, std::function<JPFeeder&()> f, const std::string& element, Axis axis,
-                const std::string& label) {
-    auto get = [f, element, axis] {
-        const JPLocation l = f().locationOf(element).convertToUnits(kMm);
+void coordinate(JPFormBuilder& add, const Spot& spot, Axis axis, const std::string& label) {
+    auto get = [spot, axis] {
+        const JPLocation l = spot.get().convertToUnits(kMm);
         return axis == Axis::X ? l.x() : axis == Axis::Y ? l.y() : axis == Axis::Z ? l.z() : l.rotation();
     };
-    auto set = [f, element, axis](double v) {
-        const JPLocation l = f().locationOf(element).convertToUnits(kMm);
-        f().setLocationOf(element, l.derive(axis == Axis::X ? std::optional(v) : std::nullopt,
-                                            axis == Axis::Y ? std::optional(v) : std::nullopt,
-                                            axis == Axis::Z ? std::optional(v) : std::nullopt,
-                                            axis == Axis::Rotation ? std::optional(v) : std::nullopt));
+    auto set = [spot, axis](double v) {
+        const JPLocation l = spot.get().convertToUnits(kMm);
+        spot.set(l.derive(axis == Axis::X ? std::optional(v) : std::nullopt, axis == Axis::Y ? std::optional(v) : std::nullopt,
+                          axis == Axis::Z ? std::optional(v) : std::nullopt,
+                          axis == Axis::Rotation ? std::optional(v) : std::nullopt));
     };
-    add.coordinate(axis == Axis::Rotation, element + "." + label, label, get, set);
+    add.coordinate(axis == Axis::Rotation, spot.key + "." + label, label, get, set);
 }
 
 void length(JPFormBuilder& add, std::function<JPFeeder&()> f, const std::string& element, const std::string& label,
@@ -126,7 +142,7 @@ void general(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder
     partChoice(add, config, f);
     packagingChoice(add, config, f);
     if (rotationInTape) {
-        coordinate(add, f, "location", Axis::Rotation, "Rotation In Tape");
+        coordinate(add, pick(f), Axis::Rotation, "Rotation In Tape");
         add.tip("The Rotation in Tape setting must be interpreted relative to the tape's orientation, regardless of "
                 "how the feeder/tape is oriented on the machine.\n"
                 "1. Look at the neutral upright orientation of the part package/footprint as drawn inside your E-CAD "
@@ -148,10 +164,10 @@ void pickLocation(JPFormBuilder& add, std::function<JPFeeder&()> f) {
     add.group("Pick Location");
     add.header({ "X", "Y", "Z", "Rotation" });
     add.row("", Place::Location);
-    coordinate(add, f, "location", Axis::X, "X");
-    coordinate(add, f, "location", Axis::Y, "Y");
-    coordinate(add, f, "location", Axis::Z, "Z");
-    coordinate(add, f, "location", Axis::Rotation, "Rotation");
+    coordinate(add, pick(f), Axis::X, "X");
+    coordinate(add, pick(f), Axis::Y, "Y");
+    coordinate(add, pick(f), Axis::Z, "Z");
+    coordinate(add, pick(f), Axis::Rotation, "Rotation");
     add.end();
 }
 
@@ -220,15 +236,15 @@ void stripForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeed
     add.group("Locations");
     add.header({ "X", "Y", "Z" });
     add.row("Reference Hole Location", Place::Location);
-    coordinate(add, f, "reference-hole-location", Axis::X, "X");
-    coordinate(add, f, "reference-hole-location", Axis::Y, "Y");
-    coordinate(add, f, "reference-hole-location", Axis::Z, "Z");
+    coordinate(add, at(f, "reference-hole-location"), Axis::X, "X");
+    coordinate(add, at(f, "reference-hole-location"), Axis::Y, "Y");
+    coordinate(add, at(f, "reference-hole-location"), Axis::Z, "Z");
     add.end();
     add.tip("The location of the hole on the tape closest to the center of the first part, in the direction of tape "
             "continuation, i.e. subsequent parts.");
     add.row("Last Hole Location", Place::Location);
-    coordinate(add, f, "last-hole-location", Axis::X, "X");
-    coordinate(add, f, "last-hole-location", Axis::Y, "Y");
+    coordinate(add, at(f, "last-hole-location"), Axis::X, "X");
+    coordinate(add, at(f, "last-hole-location"), Axis::Y, "Y");
     add.skip();   // no Z, its buttons under the reference hole's
     add.end();
     add.tip("The location of another hole after the reference hole. This can be any hole along the tape as long as "
@@ -389,9 +405,9 @@ void pinForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder
     for (const auto& [label, element] : { std::pair { "Feed Start Location", "feed-start-location" },
                                           std::pair { "Feed End Location", "feed-end-location" } }) {
         add.row(label, Place::Location);
-        coordinate(add, f, element, Axis::X, "X");
-        coordinate(add, f, element, Axis::Y, "Y");
-        coordinate(add, f, element, Axis::Z, "Z");
+        coordinate(add, at(f, element), Axis::X, "X");
+        coordinate(add, at(f, element), Axis::Y, "Y");
+        coordinate(add, at(f, element), Axis::Z, "Z");
         add.actuator([f] { return f().text("actuator-name"); });
         add.end();
     }
@@ -549,10 +565,10 @@ void slotForm(JPFormBuilder& add, JPConfiguration& config, const std::string& sl
     add.searchable(JPLibrarySearch::parts(config, parts.ids), JPLibrarySearch::kPartsTable);
     add.header({ "X", "Y", "Z", "Rotation" });
     add.row("Location", Place::Location);
-    coordinate(add, f, "location", Axis::X, "X");
-    coordinate(add, f, "location", Axis::Y, "Y");
-    coordinate(add, f, "location", Axis::Z, "Z");
-    coordinate(add, f, "location", Axis::Rotation, "Rotation");
+    coordinate(add, pick(f), Axis::X, "X");
+    coordinate(add, pick(f), Axis::Y, "Y");
+    coordinate(add, pick(f), Axis::Z, "Z");
+    coordinate(add, pick(f), Axis::Rotation, "Rotation");
     if (schultz) add.iconButton("updateLocation", "board-fiducial-locate", "Update feeder location based on fiducial");
     add.end();
     if (schultz)
@@ -690,10 +706,10 @@ void photonForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFee
         }
         add.end();
         add.row("Part Offset", Place::Location);
-        coordinate(add, f, "offset", Axis::X, "X");
-        coordinate(add, f, "offset", Axis::Y, "Y");
-        coordinate(add, f, "offset", Axis::Z, "Z");
-        coordinate(add, f, "offset", Axis::Rotation, "Rotation");
+        coordinate(add, at(f, "offset"), Axis::X, "X");
+        coordinate(add, at(f, "offset"), Axis::Y, "Y");
+        coordinate(add, at(f, "offset"), Axis::Z, "Z");
+        coordinate(add, at(f, "offset"), Axis::Rotation, "Rotation");
         add.base(slotAt);
         add.end();
         add.flag("move-while-feeding", "Move While Feeding?", [f] { return f().flag("move-while-feeding", true); },
@@ -729,8 +745,8 @@ void rapidForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeed
     for (const auto& [label, element] : { std::pair { "Scan Start Location", "scan-start-location" },
                                           std::pair { "Scan End Location", "scan-end-location" } }) {
         add.row(label, Place::Location);
-        coordinate(add, f, element, Axis::X, "X");
-        coordinate(add, f, element, Axis::Y, "Y");
+        coordinate(add, at(f, element), Axis::X, "X");
+        coordinate(add, at(f, element), Axis::Y, "Y");
         add.end();
     }
     length(add, f, "scan-increment", "Scan Increment", 4);
@@ -786,9 +802,9 @@ void bambooForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFee
     add.end();
     add.header({ "X", "Y", "Z" });
     add.row("Pick Location", Place::Location);
-    coordinate(add, f, "location", Axis::X, "X");
-    coordinate(add, f, "location", Axis::Y, "Y");
-    coordinate(add, f, "location", Axis::Z, "Z");
+    coordinate(add, pick(f), Axis::X, "X");
+    coordinate(add, pick(f), Axis::Y, "Y");
+    coordinate(add, pick(f), Axis::Z, "Z");
     add.end();
     add.tip("Pick Location of the part. If multiple are produced by a feed operation\nthis must be the last one picked i.e. the "
             "one closest to the the tape reel.");
@@ -799,8 +815,8 @@ void bambooForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFee
                         "Choose Hole 2 further away from the tape reel.\nIf possible choose two holes that bracket the part(s) to be "
                         "picked." } }) {
         add.row(label, Place::Location);
-        coordinate(add, f, element, Axis::X, "X");
-        coordinate(add, f, element, Axis::Y, "Y");
+        coordinate(add, at(f, element), Axis::X, "X");
+        coordinate(add, at(f, element), Axis::Y, "Y");
         add.skip();
         add.end();
         add.tip(tip);
@@ -895,9 +911,9 @@ void pushPullForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPF
     add.end();
     add.header({ "X", "Y", "Z" });
     add.row("Pick Location", Place::Location);
-    coordinate(add, f, "location", Axis::X, "X");
-    coordinate(add, f, "location", Axis::Y, "Y");
-    coordinate(add, f, "location", Axis::Z, "Z");
+    coordinate(add, pick(f), Axis::X, "X");
+    coordinate(add, pick(f), Axis::Y, "Y");
+    coordinate(add, pick(f), Axis::Z, "Z");
     add.end();
     add.tip("Pick Location of the part. If multiple are produced by a feed operation\nthis must be the last one picked i.e. the "
             "one closest to the the tape reel.");
@@ -911,8 +927,8 @@ void pushPullForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPF
                         "Choose Hole 2 further away from the tape reel.\nIf possible choose two holes that bracket the part(s) to be "
                         "picked." } }) {
         add.row(label, Place::Location);
-        coordinate(add, f, element, Axis::X, "X");
-        coordinate(add, f, element, Axis::Y, "Y");
+        coordinate(add, at(f, element), Axis::X, "X");
+        coordinate(add, at(f, element), Axis::Y, "Y");
         add.skip();
         add.end();
         add.tip(tip);
@@ -1114,10 +1130,10 @@ void pushPullForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPF
         add.row(label, Place::Location);
         add.positionNoSafeZ();
         add.actuator([f] { return f().text("actuator-name"); });
-        coordinate(add, f, element, Axis::X, "X");
-        coordinate(add, f, element, Axis::Y, "Y");
-        coordinate(add, f, element, Axis::Z, "Z");
-        coordinate(add, f, element, Axis::Rotation, "Rotation");
+        coordinate(add, at(f, element), Axis::X, "X");
+        coordinate(add, at(f, element), Axis::Y, "Y");
+        coordinate(add, at(f, element), Axis::Z, "Z");
+        coordinate(add, at(f, element), Axis::Rotation, "Rotation");
         for (const auto& [attr, def] : { std::pair { push, pushDef }, std::pair { multi, multiDef }, std::pair { pull, pullDef } }) {
             if (!*attr) {
                 add.skip();
@@ -1191,9 +1207,9 @@ void blindsForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFee
     // OpenPnP's columns: a setting at the left, another at the right, a button beyond.
     add.header({ "", "", "" });
     add.row("Rotation in Tape");
-    coordinate(add, f, "location", Axis::Rotation, "Rotation in Tape");
+    coordinate(add, pick(f), Axis::Rotation, "Rotation in Tape");
     add.words("Part Z");
-    coordinate(add, f, "location", Axis::Z, "Part Z");
+    coordinate(add, pick(f), Axis::Z, "Part Z");
     add.button("blindsGetToolZ", "Get Tool Z", "Capture the Z height that the tool is at.");
     add.end();
     const char* const kRotationTip =
@@ -1399,14 +1415,14 @@ void heapForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeede
     add.end();
     add.header({ "X", "Y", "Z" });
     add.row("Center (Top)", Place::Location);
-    coordinate(add, f, "location", Axis::X, "X");
-    coordinate(add, f, "location", Axis::Y, "Y");
-    coordinate(add, f, "location", Axis::Z, "Z");
+    coordinate(add, pick(f), Axis::X, "X");
+    coordinate(add, pick(f), Axis::Y, "Y");
+    coordinate(add, pick(f), Axis::Z, "Z");
     add.end();
     for (const auto& [label, element] : { std::pair { "Move 1", "way-1" }, std::pair { "Move 2", "way-2" }, std::pair { "Move 3", "way-3" } }) {
         add.row(label, Place::Location);
-        coordinate(add, f, element, Axis::X, "X");
-        coordinate(add, f, element, Axis::Y, "Y");
+        coordinate(add, at(f, element), Axis::X, "X");
+        coordinate(add, at(f, element), Axis::Y, "Y");
         add.skip();
         add.end();
     }
@@ -1502,12 +1518,12 @@ void rotatedTrayForm(JPFormBuilder& add, JPConfiguration& config, std::function<
     general(add, config, f, false);
     add.group("Tray Component Locations");
     add.header({ "X", "Y" });
-    for (const auto& [label, element] : { std::pair { "Point A: First Row - First Column", "location" },
-                                          std::pair { "Point B: First Row - Last Column", "first-row-last-component-location" },
-                                          std::pair { "Point C: Last Row - Last Column", "last-component-location" } }) {
+    for (const auto& [label, spot] : { std::pair { "Point A: First Row - First Column", pick(f) },
+                                       std::pair { "Point B: First Row - Last Column", at(f, "first-row-last-component-location") },
+                                       std::pair { "Point C: Last Row - Last Column", at(f, "last-component-location") } }) {
         add.row(label, Place::Location);
-        coordinate(add, f, element, Axis::X, "X");
-        coordinate(add, f, element, Axis::Y, "Y");
+        coordinate(add, spot, Axis::X, "X");
+        coordinate(add, spot, Axis::Y, "Y");
         add.end();
     }
     add.group("Tray Parameters");
@@ -1531,7 +1547,7 @@ void rotatedTrayForm(JPFormBuilder& add, JPConfiguration& config, std::function<
                [f] { return f().real("component-rotation-in-tray", 0); },
                [f](double v) { f().setReal("component-rotation-in-tray", v); });
     add.words("Z Height");
-    coordinate(add, f, "location", Axis::Z, "Z Height");
+    coordinate(add, pick(f), Axis::Z, "Z Height");
     add.end();
     add.tipOf("component-rotation-in-tray", "Rotation of the components relative to the tray's A->B (row) axis");
     add.endColumns();
@@ -1553,7 +1569,7 @@ void rotatedTrayForm(JPFormBuilder& add, JPConfiguration& config, std::function<
     }
     add.end();
     add.endColumns();
-    coordinate(add, f, "location", Axis::Rotation, "Tray Rotation [\u00B0]");
+    coordinate(add, pick(f), Axis::Rotation, "Tray Rotation [\u00B0]");
     add.tip("Angle of the tray's A->B (row) axis relative to the machine's positive X-axis");
     add.group("Tray Illustration");
     add.image("", [] { return JPIllustrations::picture("rotatedtrayfeeder.png"); }, true);

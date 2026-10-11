@@ -189,7 +189,7 @@ void isEnabled() {
         Bench b;
         b.f().setEnabled(true);
         b.setHardwareId(kHardwareId);
-        b.f().setText("part-id", "test-part");
+        b.f().setPartId("test-part");
         assert(!b.f().photonSlot && !b.f().enabled());
     }
     // isEnabledReturnsFalseIfSlotHasNoLocation
@@ -197,7 +197,7 @@ void isEnabled() {
         Bench b;
         b.f().setEnabled(true);
         b.setHardwareId(kHardwareId);
-        b.f().setText("part-id", "test-part");
+        b.f().setPartId("test-part");
         b.setSlotAddress(5);
         assert(!b.f().photonSlotLocation && !b.f().enabled());
     }
@@ -206,7 +206,7 @@ void isEnabled() {
         Bench b;
         b.f().setEnabled(true);
         b.setHardwareId(kHardwareId);
-        b.f().setText("part-id", "test-part");
+        b.f().setPartId("test-part");
         b.setSlotAddress(kFeederAddress);
         b.setSlotLocation(kFeederAddress, kBaseLocation);
         assert(!b.f().enabled());
@@ -216,7 +216,7 @@ void isEnabled() {
         Bench b;
         b.f().setEnabled(true);
         b.setHardwareId(kHardwareId);
-        b.f().setText("part-id", "test-part");
+        b.f().setPartId("test-part");
         b.setSlotAddress(kFeederAddress);
         b.setSlotLocation(kFeederAddress, kBaseLocation);
         b.setOffset(kFeederOffset);

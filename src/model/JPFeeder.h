@@ -20,17 +20,17 @@ inline namespace jf {
 
 // A feeder, as OpenPnP keeps one in its machine's <feeders>: its class
 // (ReferenceStripFeeder, ReferenceTrayFeeder…), id, name, enabled, part,
-// retries, priority and feed option, where it is, and what its kind adds
-// (a strip's hole locations and pitches, a tray's counts, a vision
-// pipeline). The element is kept as read and changed in place, so a feeder
-// is written back exactly as OpenPnP wrote it, whatever its kind.
+// retries, priority and feed option, and where it is, each its own; and what
+// its kind adds (a strip's hole locations and pitches, a tray's counts, a
+// vision pipeline), kept as OpenPnP keeps it (by name: text(), number()…).
+// Kept in jplacer's feeders.json (toJson): what every feeder has by name, its
+// kind's own under "openpnp" (JPXmlJson).
 class JPFeeder {
 public:
     // OpenPnP's Feeder.Priority and ReferenceFeeder.FeedOptions, in their order.
     enum class Priority { High, Normal, Low };
     enum class FeedOptions { Normal, SkipNext, Disable };
 
-    explicit JPFeeder(JPXmlNode element) : m_node(std::move(element)) {}
     // A new feeder of an OpenPnP class (OpenPnP's AbstractFeeder): a new id
     // ("FDR" and the time in nanoseconds, in hex), named after its class,
     // turned off, holding `partId`.
@@ -40,27 +40,33 @@ public:
     static const std::vector<std::string>& classNames();
     // A class's simple name ("org.openpnp…ReferenceStripFeeder": "ReferenceStripFeeder").
     static std::string simpleName(const std::string& className);
-    // As OpenPnP reads it: a strip feeder saved before OpenPnP took a part's
-    // rotation in tape as EIA-481's (no standard-eia-481) brought to it, as
-    // ReferenceStripFeeder.commit does (its Rotation In Tape 90 degrees less).
+    // OpenPnP's <feeder> (a machine.xml's), as OpenPnP reads it: a strip feeder saved before OpenPnP took a
+    // part's rotation in tape as EIA-481's (no standard-eia-481) brought to it, as ReferenceStripFeeder.commit
+    // does (its Rotation In Tape 90 degrees less).
     static JPFeeder fromXml(const JPXmlElement& e);
-    const JPXmlNode& toXml() const { return m_node; }
+    // As jplacer's feeders.json keeps it: {"class", "id", "name", "enabled", "part", "feedRetryCount",
+    // "pickRetryCount", "priority", "feedOptions", "location", "openpnp" (its kind's own)}.
+    static JPFeeder fromJson(const JJson& j);
+    JJson toJson() const;
 
-    std::string className() const;
+    const std::string& className() const { return m_className; }
     // The class's simple name, as OpenPnP's Type column shows it.
     std::string typeName() const;
 
-    std::string id() const { return text("id"); }
+    const std::string& id() const { return m_id; }
+    void setId(const std::string& id) { m_id = id; }
     // A slot feeder's name has what is loaded in it after it, as OpenPnP
     // shows it ("SLOT-1 (Feeder 7)", "(None)"); set, that is taken off again.
     std::string name() const;
     void        setName(const std::string& n);
+    // Its name as kept, without what a slot or Photon feeder shows after it.
+    const std::string& plainName() const { return m_name; }
     // A slot feeder is enabled only with a feeder holding a part loaded in it.
     bool        enabled() const;
     void        setEnabled(bool on);
     // A slot feeder's part is the one its loaded feeder holds (none without one).
     std::string partId() const;
-    void        setPartId(const std::string& id) { setText("part-id", id); }
+    void        setPartId(const std::string& id) { m_partId = id; }
 
     // A SLOT FEEDER (OpenPnP's ReferenceSlotAutoFeeder, SlotSchultzFeeder):
     // a place feeders of a bank (JPSlotBanks) are loaded into, its bank and
@@ -87,18 +93,19 @@ public:
     std::string photonUnconfigured() const;
     // OpenPnP's setHardwareId: its hardware id, and its name too while it is still named as its class.
     void setHardwareId(const std::string& id);
-    int         feedRetryCount() const { return number("feed-retry-count", 3); }
-    void        setFeedRetryCount(int n) { setNumber("feed-retry-count", n); }
-    int         pickRetryCount() const { return number("pick-retry-count", 3); }
-    void        setPickRetryCount(int n) { setNumber("pick-retry-count", n); }
+    int         feedRetryCount() const { return m_feedRetryCount; }
+    void        setFeedRetryCount(int n) { m_feedRetryCount = n; }
+    int         pickRetryCount() const { return m_pickRetryCount; }
+    void        setPickRetryCount(int n) { m_pickRetryCount = n; }
     Priority    priority() const;
     void        setPriority(Priority p);
     // Whether its kind offers the feed options (OpenPnP's supportsFeedOptions).
     bool        supportsFeedOptions() const;
     FeedOptions feedOptions() const;
     void        setFeedOptions(FeedOptions o);
-    JPLocation  location() const { return locationOf("location"); }
-    void        setLocation(const JPLocation& l) { setLocationOf("location", l); }
+    const JPLocation& location() const { return m_location; }
+    // As OpenPnP's setLocation: a tape calibrated by vision forgets its calibration.
+    void        setLocation(const JPLocation& l);
 
     // OpenPnP's canTakeBackPart: whether a part picked from it can be put
     // back (Recycle): a tape or tray one fed from; an auto feeder that says
@@ -203,9 +210,10 @@ public:
     void        recordJobSuccess(int windowSize);
     void        recordJobFault(int faultLimit, int windowSize);
 
-    // Its kind's own values, by their XML names.
+    // Its kind's own values, by their OpenPnP names.
     std::string text(const std::string& attribute, const std::string& def = {}) const;
     void        setText(const std::string& attribute, const std::string& value);
+    bool        hasAttribute(const std::string& attribute) const { return m_node.get(attribute) != nullptr; }
     // An attribute taken away (read as its default again).
     void        removeAttribute(const std::string& attribute);
     int         number(const std::string& attribute, int def = 0) const;
@@ -238,9 +246,17 @@ public:
     void        setLengthOf(const std::string& element, const JPLength& l);
 
 private:
+    JPFeeder() = default;
     void addJobFault(bool fault, int windowSize);
 
-    JPXmlNode        m_node;
+    std::string      m_className, m_id, m_name, m_partId;
+    bool             m_enabled = false;
+    int              m_feedRetryCount = 3, m_pickRetryCount = 3;
+    Priority         m_priority = Priority::Normal;
+    FeedOptions      m_feedOptions = FeedOptions::Normal;
+    JPLocation       m_location { JPLengthUnit::Millimeters };
+    // Its kind's own settings, as OpenPnP keeps them.
+    JPXmlNode        m_node { "feeder" };
     std::vector<int> m_visionChecks;
     bool             m_actuate = false;
     std::deque<bool> m_jobFaults;

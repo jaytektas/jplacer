@@ -91,7 +91,7 @@ int main() {
 
     // A name set as shown has what is loaded taken off.
     s1->setName("Left (F1)");
-    assert(s1->text("name") == "Left" && s1->name() == "Left (F1)");
+    assert(s1->plainName() == "Left" && s1->name() == "Left (F1)");
 
     // Loading F1 into slot 2 takes it out of slot 1.
     config.loadSlot("SLOT-2", "SLOTFDR-1");

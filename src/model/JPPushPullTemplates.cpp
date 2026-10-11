@@ -90,7 +90,7 @@ void setFeederLocation(JPFeeder& f, const JPLocation& to, bool primary, bool pus
 
 // An attribute as the template has it (none: its default).
 void copy(JPFeeder& f, const JPFeeder& t, const std::string& a) {
-    if (const std::string* v = t.toXml().get(a)) f.setText(a, *v);
+    if (t.hasAttribute(a)) f.setText(a, t.text(a));
     else f.removeAttribute(a);
 }
 

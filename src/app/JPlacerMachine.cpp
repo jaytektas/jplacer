@@ -1684,9 +1684,11 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
         auto atZ = [z](const JPLocation& l) {
             return l.derive(std::nullopt, std::nullopt, z / JPLengthUnits::toMillimeters(l.units()), std::nullopt);
         };
-        for (JPFeeder& feeder : m_configuration->feeders())
-            for (const char* element : { "location", "reference-hole-location", "last-hole-location" })
+        for (JPFeeder& feeder : m_configuration->feeders()) {
+            feeder.setLocation(atZ(feeder.location()));
+            for (const char* element : { "reference-hole-location", "last-hole-location" })
                 if (feeder.has(element)) feeder.setLocationOf(element, atZ(feeder.locationOf(element)));
+        }
         if (onSetupConfigurationChanged) onSetupConfigurationChanged();
         if (setBoardsZ) setBoardsZ(z);
         changeSetup("Set Machine Table Z", [z](JPCellConfig& cell) {

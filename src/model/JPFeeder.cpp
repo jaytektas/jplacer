@@ -7,10 +7,12 @@
 #include "JPFeederTape.h"
 
 #include "JPLengthUnits.h"
+#include "JPLocationJson.h"
 #include "JPLocationXml.h"
 #include "JPOpenPnpIds.h"
 #include "JPXmlValues.h"
 
+#include "openpnp/JPXmlJson.h"
 #include "openpnp/JPXmlWriter.h"
 
 #include <algorithm>
@@ -30,18 +32,18 @@ const char* const kFeedOptionsKinds[] = { "ReferenceStripFeeder", "ReferenceTray
 }
 
 JPFeeder JPFeeder::create(const std::string& className, const std::string& partId) {
-    JPXmlNode n("feeder");
+    JPFeeder f;
     // A slot feeder: a "SLOT-" id and named by it, holding no part of its own (OpenPnP's).
     const std::string simple = simpleName(className);
     const bool slot = simple == "ReferenceSlotAutoFeeder" || simple == "SlotSchultzFeeder";
-    const std::string id = JPOpenPnpIds::create(slot ? "SLOT-" : "FDR");
+    f.m_className = className;
+    f.m_id = JPOpenPnpIds::create(slot ? "SLOT-" : "FDR");
+    f.m_name = slot ? f.m_id : simple;
+    f.m_partId = slot ? std::string() : partId;
     // As a new OpenPnP feeder ends up: made at version 1.0, it is migrated as soon as it is made, its feed retries
     // from its retry count (3), its pick retries 0.
-    n.attr("class", className).attr("version", "1.1").attr("id", id)
-        .attr("name", slot ? id : simple).attr("enabled", "false").attr("part-id", slot ? std::string() : partId)
-        .attr("feed-retry-count", "3").attr("pick-retry-count", "0").attr("priority", "Normal");
-    n.add(JPLocationXml::to("location", JPLocation(JPLengthUnit::Millimeters)));
-    return JPFeeder(std::move(n));
+    f.m_pickRetryCount = 0;
+    return f;
 }
 
 const std::vector<std::string>& JPFeeder::classNames() {
@@ -74,8 +76,6 @@ std::string JPFeeder::simpleName(const std::string& className) {
     return dot == std::string::npos ? className : className.substr(dot + 1);
 }
 
-std::string JPFeeder::className() const { return text("class"); }
-
 std::string JPFeeder::typeName() const { return simpleName(className()); }
 
 bool JPFeeder::isSlot() const {
@@ -94,10 +94,10 @@ std::string JPFeeder::name() const {
     if (isPhoton()) {
         // As OpenPnP: "Unconfigured PhotonFeeder" until it has a hardware id; then its slot.
         if (text("hardware-id").empty()) return "Unconfigured " + typeName();
-        return text("name") + " (Slot: " + (photonSlot ? std::to_string(*photonSlot) : std::string("None")) + ")";
+        return m_name + " (Slot: " + (photonSlot ? std::to_string(*photonSlot) : std::string("None")) + ")";
     }
-    if (!isSlot()) return text("name");
-    return text("name") + " (" + (slotLoad ? slotLoad->feederName : std::string("None")) + ")";
+    if (!isSlot()) return m_name;
+    return m_name + " (" + (slotLoad ? slotLoad->feederName : std::string("None")) + ")";
 }
 
 void JPFeeder::setName(const std::string& n) {
@@ -115,12 +115,12 @@ void JPFeeder::setName(const std::string& n) {
         while (!plain.empty() && plain.back() == ' ') plain.pop_back();
         while (!plain.empty() && plain.front() == ' ') plain.erase(0, 1);
     }
-    setText("name", plain);
+    m_name = plain;
 }
 
 bool JPFeeder::enabled() const {
-    const bool on = flag("enabled", false);
-    if (isPhoton()) return on && !text("hardware-id").empty() && !text("part-id").empty() && photonUnconfigured().empty();
+    const bool on = m_enabled;
+    if (isPhoton()) return on && !text("hardware-id").empty() && !m_partId.empty() && photonUnconfigured().empty();
     return isSlot() ? on && slotLoad && !slotLoad->partId.empty() : on;
 }
 
@@ -133,26 +133,23 @@ std::string JPFeeder::photonUnconfigured() const {
 }
 
 void JPFeeder::setHardwareId(const std::string& id) {
-    if (text("name") == typeName()) setText("name", id);
+    if (m_name == typeName()) m_name = id;
     setText("hardware-id", id);
 }
 
 std::string JPFeeder::partId() const {
-    if (!isSlot()) return text("part-id");
+    if (!isSlot()) return m_partId;
     return slotLoad ? slotLoad->partId : std::string();
 }
 
 void JPFeeder::setEnabled(bool on) {
-    setFlag("enabled", on);
+    m_enabled = on;
     if (on) m_jobFaults.clear();   // as OpenPnP: turned on, its faults forgotten
 }
 
-JPFeeder::Priority JPFeeder::priority() const {
-    const std::string p = text("priority", "Normal");
-    return p == "High" ? Priority::High : p == "Low" ? Priority::Low : Priority::Normal;
-}
+JPFeeder::Priority JPFeeder::priority() const { return m_priority; }
 
-void JPFeeder::setPriority(Priority p) { setText("priority", priorityName(p)); }
+void JPFeeder::setPriority(Priority p) { m_priority = p; }
 
 bool JPFeeder::supportsFeedOptions() const {
     const std::string t = typeName();
@@ -183,13 +180,13 @@ void JPFeeder::partTakenBack() {
     }
 }
 
-JPFeeder::FeedOptions JPFeeder::feedOptions() const {
-    const std::string o = text("feed-options", "Normal");
-    return o == "SkipNext" ? FeedOptions::SkipNext : o == "Disable" ? FeedOptions::Disable : FeedOptions::Normal;
-}
+JPFeeder::FeedOptions JPFeeder::feedOptions() const { return m_feedOptions; }
 
-void JPFeeder::setFeedOptions(FeedOptions o) {
-    setText("feed-options", o == FeedOptions::SkipNext ? "SkipNext" : o == FeedOptions::Disable ? "Disable" : "Normal");
+void JPFeeder::setFeedOptions(FeedOptions o) { m_feedOptions = o; }
+
+void JPFeeder::setLocation(const JPLocation& l) {
+    m_location = l;
+    if (isVisionTape()) visionOffset.reset();
 }
 
 const char* JPFeeder::priorityName(Priority p) {
@@ -346,18 +343,93 @@ std::optional<JPLocation> JPFeeder::pickLocation() const {
     return std::nullopt;
 }
 
+namespace {
+
+// OpenPnP's names, and jplacer's file's.
+JPFeeder::Priority priorityFrom(const std::string& p) {
+    return p == "High" ? JPFeeder::Priority::High : p == "Low" ? JPFeeder::Priority::Low : JPFeeder::Priority::Normal;
+}
+
+const char* feedOptionsKey(JPFeeder::FeedOptions o) {
+    return o == JPFeeder::FeedOptions::SkipNext ? "SkipNext" : o == JPFeeder::FeedOptions::Disable ? "Disable" : "Normal";
+}
+
+JPFeeder::FeedOptions feedOptionsFrom(const std::string& o) {
+    return o == "SkipNext" ? JPFeeder::FeedOptions::SkipNext
+           : o == "Disable" ? JPFeeder::FeedOptions::Disable
+                            : JPFeeder::FeedOptions::Normal;
+}
+
+} // namespace
+
 JPFeeder JPFeeder::fromXml(const JPXmlElement& e) {
-    JPFeeder f(JPXmlNode::from(e));
+    JPFeeder f;
+    f.m_node = JPXmlNode::from(e);
+    // What every feeder has taken out of its kind's own.
+    auto take = [&f](const char* attribute, const std::string& def = {}) {
+        const std::string* v = f.m_node.get(attribute);
+        const std::string out = v ? *v : def;
+        f.removeAttribute(attribute);
+        return out;
+    };
+    f.m_className = take("class");
+    f.m_id = take("id");
+    f.m_name = take("name");
+    f.m_enabled = take("enabled", "false") == "true";
+    f.m_partId = take("part-id");
+    f.m_feedRetryCount = std::atoi(take("feed-retry-count", "3").c_str());
+    f.m_pickRetryCount = std::atoi(take("pick-retry-count", "3").c_str());
+    f.m_priority = priorityFrom(take("priority", "Normal"));
+    f.m_feedOptions = feedOptionsFrom(take("feed-options", "Normal"));
+    take("version");   // OpenPnP's file's
+    if (const JPXmlNode* l = f.m_node.child("location")) {
+        JPXmlElement le;
+        le.name = l->name;
+        for (const auto& [k, v] : l->attributes) le.attributes[k] = v;
+        f.m_location = JPLocationXml::from(le);
+        f.removeChild("location");
+    }
     if (f.typeName() == "ReferenceStripFeeder" && f.text("standard-eia-481").empty()) {
         // OpenPnP's angleNorm(rotation - 90, 180): within -180 (exclusive) .. 180.
-        double r = f.location().rotation() - 90;
+        double r = f.m_location.rotation() - 90;
         while (r > 180) r -= 360;
         while (r <= -180) r += 360;
-        const JPLocation l = f.location();
-        f.setLocation(l.derive(std::nullopt, std::nullopt, std::nullopt, r));
+        f.m_location = f.m_location.derive(std::nullopt, std::nullopt, std::nullopt, r);
         f.setFlag("standard-eia-481", true);
     }
     return f;
+}
+
+JPFeeder JPFeeder::fromJson(const JJson& j) {
+    JPFeeder f;
+    f.m_className = j["class"].str();
+    f.m_id = j["id"].str();
+    f.m_name = j["name"].str();
+    f.m_enabled = j["enabled"].boolean(false);
+    f.m_partId = j["part"].str();
+    f.m_feedRetryCount = int(j["feedRetryCount"].number(3));
+    f.m_pickRetryCount = int(j["pickRetryCount"].number(3));
+    f.m_priority = priorityFrom(j["priority"].str());
+    f.m_feedOptions = feedOptionsFrom(j["feedOptions"].str());
+    f.m_location = JPLocationJson::from(j["location"]);
+    f.m_node = JPXmlJson::node("feeder", j["openpnp"]);
+    return f;
+}
+
+JJson JPFeeder::toJson() const {
+    JJson j = JJson::object();
+    j["class"] = m_className;
+    j["id"] = m_id;
+    j["name"] = m_name;
+    j["enabled"] = m_enabled;
+    j["part"] = m_partId;
+    j["feedRetryCount"] = m_feedRetryCount;
+    j["pickRetryCount"] = m_pickRetryCount;
+    j["priority"] = priorityName(m_priority);
+    j["feedOptions"] = feedOptionsKey(m_feedOptions);
+    j["location"] = JPLocationJson::to(m_location);
+    j["openpnp"] = JPXmlJson::from(m_node);
+    return j;
 }
 
 bool JPFeeder::partHeightAbovePickLocation() const {
@@ -516,7 +588,7 @@ void JPFeeder::recordJobFault(int faultLimit, int windowSize) {
     addJobFault(true, windowSize);
     const long faults = std::count(m_jobFaults.begin(), m_jobFaults.end(), true);
     // As OpenPnP: too many faults in the window turns it off.
-    if (enabled() && faultLimit > 0 && faults >= faultLimit) setFlag("enabled", false);
+    if (enabled() && faultLimit > 0 && faults >= faultLimit) m_enabled = false;
 }
 
 std::string JPFeeder::text(const std::string& attribute, const std::string& def) const {
@@ -573,8 +645,8 @@ void JPFeeder::setLocationOf(const std::string& element, const JPLocation& l) {
     JPXmlNode fresh = JPLocationXml::to(element, l);
     if (JPXmlNode* c = m_node.child(element)) *c = fresh;
     else m_node.add(fresh);
-    // As OpenPnP's setLocation, setHole1Location and setHole2Location: the calibration reset.
-    if (isVisionTape() && (element == "location" || element == "hole-1-location" || element == "hole-2-location"))
+    // As OpenPnP's setHole1Location and setHole2Location: the calibration reset.
+    if (isVisionTape() && (element == "hole-1-location" || element == "hole-2-location"))
         visionOffset.reset();
 }
 

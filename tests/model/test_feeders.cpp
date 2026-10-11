@@ -4,7 +4,8 @@
 // Feeders as OpenPnP keeps them: a strip's and a tray's pick locations (a strip's part 2 mm from its hole,
 // or on it when its Reference Hole To Part Linear says 0) and
 // feeds, the feed options, a new feeder, and the feeder a part is taken
-// from (the highest priority, then the closest).
+// from (the highest priority, then the closest); a feeder through jplacer's feeders.json, what every feeder
+// has by name and its kind's own as read.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
@@ -139,12 +140,12 @@ int main() {
     fs::create_directories(dir);
     JPConfiguration config(dir.string());
     JPFeeder near1 = parse(kTray), far1 = parse(kTray), high = parse(kTray), off = parse(kTray);
-    near1.setText("id", "near");
-    far1.setText("id", "far");
+    near1.setId("near");
+    far1.setId("far");
     far1.setLocation(JPLocation(JPLengthUnit::Millimeters, 300, 300, 0, 0));
-    high.setText("id", "high");
+    high.setId("high");
     high.setLocation(JPLocation(JPLengthUnit::Millimeters, 500, 500, 0, 0));
-    off.setText("id", "off");
+    off.setId("off");
     off.setEnabled(false);
     off.setPriority(JPFeeder::Priority::High);
     config.addFeeder(far1);
@@ -159,5 +160,22 @@ int main() {
     assert(config.feederCount("U1") == 4 && config.hasFeeder("U1"));
     config.removeFeeder("high");
     assert(config.feederCount("U1") == 3 && !config.feeder("high"));
+    // Through jplacer's file: what every feeder has, and its kind's own, as they were.
+    {
+        JPFeeder made = parse(kTray);
+        made.setFeedRetryCount(5);
+        made.setPickRetryCount(1);
+        made.setPriority(JPFeeder::Priority::High);
+        made.setFeedOptions(JPFeeder::FeedOptions::SkipNext);
+        const JJson j = JJson::parse(made.toJson().dump(2));
+        assert(j["part"].str() == "U1" && j["location"]["x"].number() == 10 && j["openpnp"]["tray-count-x"].number() == 3);
+        assert(!j["openpnp"].contains("id") && !j["openpnp"].contains("location") && !j["openpnp"].contains("version"));
+        const JPFeeder back = JPFeeder::fromJson(j);
+        assert(back.id() == "FDR2" && back.plainName() == "Tray" && back.enabled() && back.partId() == "U1");
+        assert(back.feedRetryCount() == 5 && back.pickRetryCount() == 1 && back.priority() == JPFeeder::Priority::High);
+        assert(back.feedOptions() == JPFeeder::FeedOptions::SkipNext && back.className() == made.className());
+        assert(back.location() == made.location() && back.number("tray-count-y") == 2);
+        assert(back.locationOf("offsets").x() == 5 && back.pickLocation() && back.pickLocation()->x() == made.pickLocation()->x());
+    }
     return 0;
 }

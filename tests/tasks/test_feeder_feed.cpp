@@ -537,7 +537,7 @@ int main() {
         JPFeeder made = JPFeeder::create("org.openpnp.machine.photon.PhotonFeeder", "R1");
         assert(made.name() == "Unconfigured PhotonFeeder");
         made.setText("hardware-id", idA);
-        made.setText("name", "Reel A");
+        made.setName("Reel A");
         made.setLocationOf("offset", JPLocation(JPLengthUnit::Millimeters, 0, 10, 0, 0));
         const std::string a = made.id();
         config.addFeeder(std::move(made));
@@ -557,7 +557,7 @@ int main() {
         assert(machine.positioned.size() == 1);
         // A name set as shown has its slot taken off.
         fa->setName("Reel A (Slot: 5)");
-        assert(fa->text("name") == "Reel A");
+        assert(fa->plainName() == "Reel A");
 
         // Forgot it was set up: set up again, fed.
         forgetful = true;
@@ -572,7 +572,7 @@ int main() {
                                         why));
         assert((found == std::vector<int> { 5, 6 }));
         const JPFeeder* fb = config.photonFeeder(idB);
-        assert(fb && fb->photonSlot == 6 && fb->text("name") == idB);
+        assert(fb && fb->photonSlot == 6 && fb->plainName() == idB);
         // A gone from the bus: the search takes its address away.
         onBus.erase(5);
         assert(JPPhotonFeeders::findAll(config, machine, nullptr, nullptr, why));
