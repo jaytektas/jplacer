@@ -126,6 +126,13 @@ const std::vector<int>& JPTable::order() const {
         m_widths.clear();
         m_hidden.clear();
         applyState();
+        // A column hidden at first, that the kept layout has never had: hidden.
+        std::set<std::string> known;
+        if (m_state.isObject() && m_state["order"].isArray())
+            for (const JJson& n : m_state["order"].arr())
+                if (n.isString()) known.insert(n.str());
+        for (int c = 0; m_model && c < m_model->columnCount(); ++c)
+            if (m_model->column(c).hiddenAtFirst && !known.count(m_orderNames[size_t(c)])) m_hidden.insert(m_orderNames[size_t(c)]);
         // The hidden ones out of what is shown, kept in their places.
         m_allOrder = m_order;
         std::erase_if(m_order, [this](int c) { return m_hidden.count(m_orderNames[size_t(c)]) > 0; });
@@ -168,8 +175,24 @@ void JPTable::setColumnShown(const std::string& name, bool shown) {
     if (!known || shown == (m_hidden.count(name) == 0)) return;
     if (!shown && order().size() <= 1) return;   // the last one shown stays
     m_allOrder = all;
-    if (shown) m_hidden.erase(name);
-    else m_hidden.insert(name);
+    if (shown) {
+        // Shown again as wide as the others shown are on the whole (its own width, never laid out while it was
+        // hidden, says nothing); the others give it the room.
+        materialiseWidths();
+        float sum = 0;
+        int counted = 0;
+        for (const int c : order())
+            if (m_model->column(c).width <= 0 && size_t(c) < m_widths.size()) {
+                sum += m_widths[size_t(c)];
+                ++counted;
+            }
+        for (int c = 0; c < int(m_orderNames.size()); ++c)
+            if (m_orderNames[size_t(c)] == name && size_t(c) < m_widths.size() && m_model->column(c).width <= 0)
+                m_widths[size_t(c)] = counted ? sum / float(counted) : JStyle::current().gridDefaultColumnWidth;
+        m_hidden.erase(name);
+    } else {
+        m_hidden.insert(name);
+    }
     m_order.clear();
     for (const int c : m_allOrder)
         if (!m_hidden.count(m_orderNames[size_t(c)])) m_order.push_back(c);
@@ -284,8 +307,11 @@ void JPTable::keepState() const {
     st["hidden"] = hidden;
     const float total = totalColumnsWidth();
     if (total > 0) {
+        // The columns shown, as shares of the whole: a hidden one is not laid out, so its width says nothing
+        // (it takes the others' average when it comes back).
         JJson w = JJson::object();
-        for (size_t c = 0; c < m_widths.size() && c < m_orderNames.size(); ++c) w[m_orderNames[c]] = double(m_widths[c] / total);
+        for (const int c : order())
+            if (size_t(c) < m_widths.size()) w[m_orderNames[size_t(c)]] = double(m_widths[size_t(c)] / total);
         st["widths"] = w;
     }
     JJson sort = JJson::array();

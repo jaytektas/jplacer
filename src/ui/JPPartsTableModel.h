@@ -10,7 +10,9 @@
 #include "setup/JPLibrarySearch.h"
 
 #include <functional>
+#include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 inline namespace jf {
@@ -20,7 +22,10 @@ inline namespace jf {
 // FiducialVision, Placements, Feeders), the library's parts (the only ones),
 // after Source (JPSourceColumn: the library's icon, or a board's for a part
 // an open board uses). All but Source, the ID and the two counts are edited
-// in place.
+// in place. Then more about each part, hidden until chosen (a table's
+// Columns…): its Packaging, Suppliers, Manufacturer, Stock and Datasheet,
+// each cell how many and the first of them (all of them when pointed at,
+// and all of them searched and sorted by).
 class JPPartsTableModel : public JPTableModel {
 public:
     explicit JPPartsTableModel(JPConfiguration& config);
@@ -61,11 +66,16 @@ private:
     std::vector<const JPVisionSettings*> visionChoices(JPVisionSettings::Kind kind) const;
     std::vector<const JPPackage*>        packageChoices() const;
 
+    // A column hidden until chosen (more about each part).
+    static Column more(const char* name, const char* tooltip);
+    // A multi-valued cell's values: each short (as the cell shows it) and in full (as its tooltip says it).
+    std::vector<std::pair<std::string, std::string>> values(int row, int c) const;
     // The open boards using each row (by its place in the library), as last read.
     const std::vector<std::shared_ptr<JPBoard>>& usedBy(int row) const;
 
     JPConfiguration&                                   m_config;
     std::vector<std::vector<std::shared_ptr<JPBoard>>> m_usedBy;
+    std::map<std::string, std::vector<JPStockLot>>     m_stock;   // each part's open lots, by its uuid, as last read
     std::string                                        m_show = kShowAll;
 };
 

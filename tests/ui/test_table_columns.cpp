@@ -3,7 +3,7 @@
 
 // A table's columns can be hidden (a toolbar's Columns…) and shown again in their place; which are hidden is
 // kept with the table's order, widths and sort, and brought back by the next table with its key; the last
-// one shown stays; Reset Columns shows them all.
+// one shown stays; Reset Columns shows them all, but for those hidden until chosen.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
@@ -12,6 +12,7 @@
 
 #include <j/core/SceneGraph.h>
 
+#include <algorithm>
 #include <map>
 #include <string>
 #include <vector>
@@ -66,6 +67,36 @@ int main() {
         assert((shown(t) == std::vector<std::string>{ "B", "C" }));
         t.resetColumns();
         assert((shown(t) == std::vector<std::string>{ "A", "B", "C" }));
+    }
+    {
+        // A column hidden until chosen: hidden in a table that has never had it, shown once chosen (and so
+        // kept), hidden again on Reset Columns.
+        struct WithMore : Three {
+            int    columnCount() const override { return 4; }
+            Column column(int c) const override {
+                if (c < 3) return Three::column(c);
+                Column more { "D", "", Kind::Text };
+                more.hiddenAtFirst = true;
+                return more;
+            }
+        } withMore;
+        JPTable t(graph);
+        t.setModel(&withMore);
+        t.setStateKey("more");
+        assert((shown(t) == std::vector<std::string>{ "A", "B", "C" }));
+        t.setColumnShown("D", true);
+        JPTable again(graph);
+        again.setModel(&withMore);
+        again.setStateKey("more");
+        assert((shown(again) == std::vector<std::string>{ "A", "B", "C", "D" }));
+        again.resetColumns();
+        assert((shown(again) == std::vector<std::string>{ "A", "B", "C" }));
+        // A table kept before the column came: the new one comes hidden.
+        JPTable older(graph);
+        older.setModel(&withMore);
+        older.setStateKey("test");
+        const std::vector<std::string> olderShown = shown(older);
+        assert(std::find(olderShown.begin(), olderShown.end(), std::string("D")) == olderShown.end());
     }
     return 0;
 }

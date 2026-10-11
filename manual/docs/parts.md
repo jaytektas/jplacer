@@ -55,8 +55,22 @@ end, there while it holds text, empties it and shows every part again.
 | **BottomVision**, **FiducialVision** | The vision settings it uses, chosen from a list; empty: its package's. |
 | **Placements** | How many placements on the known boards use it. |
 | **Feeders** | How many feeders hold it. |
+| **Packaging** | How it comes: each of its packagings (kind, tape and pitch). Hidden until chosen. |
+| **Suppliers** | Where it is bought: each of its offers (supplier and SKU). Hidden until chosen. |
+| **Manufacturer** | Who makes it: each of its manufacturer's part numbers. Hidden until chosen. |
+| **Stock** | Its stock lots: how many, how many on hand, and how many are on a feeder. Hidden until chosen. |
+| **Datasheet** | Its datasheet's link or file. Hidden until chosen. |
 
-Everything but Source, the ID, the MPN and the two counts is changed in the table: double-click a cell, press F2, or start
+The last five are more about each part, kept out of the way until you show them with **Columns**. A part
+with more than one shows how many in front of the first ("(2) Cut tape 8/4"); point at the cell for all of
+them in full (a packaging's tape, pitch, rotation and how many it holds; an offer's packaging, minimum order,
+prices and link; each lot's on hand and where it is: on a feeder, or kept where it is kept). **Search** and
+sorting go by all of them, so a supplier's SKU finds its part. The table a feeder's **Part** drops has them
+too, shown or hidden for it on its own.
+
+<!-- src: src/ui/JPPartsTableModel.cpp (more, values, displayText, cellTooltip, reload); src/ui/JPTable.cpp (hiddenAtFirst, setColumnShown); src/ui/JPTableModel.h (Column::hiddenAtFirst) -->
+
+Everything but Source, the ID, the MPN, the two counts and the five hidden until chosen is changed in the table: double-click a cell, press F2, or start
 typing; **Return** keeps the change, **Escape** puts back what was there. **Tab** keeps it and goes on to the
 next cell that can be changed (**Shift+Tab**: the one before), along the row and on to the next: a text or number
 cell opens with what is in it chosen, ready to type over; a choice or tick box is chosen, for F2 or Space. Every

@@ -36,6 +36,9 @@ public:
         // Numbers lined up on their decimal points, the column centred (as
         // OpenPnP's lengths and rotations in its aligned format).
         bool        decimalAligned = false;
+        // Hidden until chosen (a table's Columns…): more about each row, kept out of the way of those who do
+        // not want it. Hidden in a table whose kept layout has never had it, and again on Reset Columns.
+        bool        hiddenAtFirst = false;
     };
 
     virtual ~JPTableModel() = default;

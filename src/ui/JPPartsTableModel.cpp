@@ -19,7 +19,7 @@ inline namespace jf {
 namespace {
 
 enum Col { kSource, kId, kDescription, kValue, kMpn, kHeight, kDepth, kPackage, kSpeed, kBottomVision, kFiducialVision, kPlacements,
-           kFeeders, kColumns };
+           kFeeders, kPackagings, kSuppliers, kMakers, kStock, kDatasheet, kColumns };
 
 // OpenPnP's PercentConverter.
 std::string percent(double d) {
@@ -35,6 +35,12 @@ JPPartsTableModel::JPPartsTableModel(JPConfiguration& config) : m_config(config)
 void JPPartsTableModel::reload() {
     m_usedBy.clear();
     for (const JPCatalog::Part& e : JPCatalog::parts(m_config)) m_usedBy.push_back(e.usedBy);
+    // Each part's open lots, read once here (a cell is drawn many times).
+    m_stock.clear();
+    for (const auto& p : m_config.parts())
+        if (!p->uuid.empty())
+            if (std::vector<JPStockLot> lots = m_config.stock().lots(p->uuid, false); !lots.empty())
+                m_stock.emplace(p->uuid, std::move(lots));
 }
 
 const std::vector<std::shared_ptr<JPBoard>>& JPPartsTableModel::usedBy(int row) const {
@@ -60,12 +66,25 @@ std::string JPPartsTableModel::cellIcon(int row, int c) const {
 }
 
 std::string JPPartsTableModel::cellTooltip(int row, int c) const {
+    if (c >= kPackagings) {
+        // Every value in full, a line each.
+        std::string all;
+        for (const auto& [shortForm, full] : values(row, c)) all += (all.empty() ? "" : "\n") + full;
+        return all;
+    }
     if (c != kSource) return {};
     const std::string boards = JPCatalog::boardNames(usedBy(row));
     return boards.empty() ? "In the library; no open board uses it" : "In the library; used by the open board(s) " + boards;
 }
 
 std::string JPPartsTableModel::displayText(int row, int c) const {
+    if (c >= kPackagings) {
+        // The first, after how many there are when there are more (in front, so a narrow column still says
+        // so; all of them when pointed at).
+        const auto v = values(row, c);
+        if (v.empty()) return {};
+        return v.size() == 1 ? v.front().first : "(" + std::to_string(v.size()) + ") " + v.front().first;
+    }
     return c == kSource ? std::string() : text(row, c);   // its icon alone (its text sorts and searches)
 }
 
@@ -94,8 +113,99 @@ JPTableModel::Column JPPartsTableModel::column(int c) const {
         case kFiducialVision: return { "FiducialVision", "", Kind::Choice };
         case kPlacements:     return { "Placements", "", Kind::Number };
         case kFeeders:        return { "Feeders", "", Kind::Number };
+        // More about each part, hidden until chosen (Columns…): how many and the first of each, all of them
+        // when pointed at.
+        case kPackagings:
+            return more("Packaging", "How it comes: each of its Packagings (the Library tab), kind, tape, pitch, rotation");
+        case kSuppliers:      return more("Suppliers", "Where it is bought: each of its Offers (the Library tab), supplier and SKU");
+        case kMakers:
+            return more("Manufacturer", "Who makes it: each of its manufacturer's part numbers (the Library tab's Identifiers)");
+        case kStock:          return more("Stock", "Its stock lots: how many, how many on hand, and where each is (a feeder or the shelf)");
+        case kDatasheet:      return more("Datasheet", "Its datasheet: a link or a file (the Library tab)");
     }
     return {};
+}
+
+JPPartsTableModel::Column JPPartsTableModel::more(const char* name, const char* tooltip) {
+    Column c { name, tooltip, Kind::Text };
+    c.hiddenAtFirst = true;
+    return c;
+}
+
+std::vector<std::pair<std::string, std::string>> JPPartsTableModel::values(int row, int c) const {
+    // Each value, short (as the cell shows it) and in full (as its tooltip says it).
+    std::vector<std::pair<std::string, std::string>> out;
+    const JPPart* p = part(row);
+    if (!p) return out;
+    auto n = [](double v) {
+        char buf[32];
+        std::snprintf(buf, sizeof buf, "%g", v);
+        return std::string(buf);
+    };
+    auto tape = [](const std::string& kind) { return kind == "Cut tape" || kind == "Reel"; };
+    switch (c) {
+        case kPackagings:
+            for (const JPPart::Packaging& k : p->packagings) {
+                std::string shortForm = k.kind, full = k.kind;
+                if (tape(k.kind)) {
+                    shortForm += " " + n(k.tapeWidthMm) + "/" + n(k.pitchMm);
+                    full += ", " + n(k.tapeWidthMm) + " mm " + k.tapeType + " tape, " + n(k.pitchMm) + " mm pitch";
+                }
+                full += ", " + n(k.rotationDeg) + "°";
+                if (k.quantity > 0) full += ", " + std::to_string(k.quantity) + " a " + (k.kind == "Cut tape" ? "strip" : k.kind == "Reel" ? "reel" : "pack");
+                if (!k.note.empty()) full += " (" + k.note + ")";
+                out.push_back({ shortForm, full });
+            }
+            break;
+        case kSuppliers:
+            for (const JPPart::Offer& o : p->offers) {
+                const std::string shortForm = o.supplier + (o.sku.empty() ? "" : " " + o.sku);
+                std::string full = shortForm;
+                if (!o.packaging.empty()) full += ", " + o.packaging;
+                if (o.moq > 0) full += ", MOQ " + std::to_string(o.moq);
+                if (!o.priceBreaks.empty()) full += ", " + o.priceBreaks;
+                if (!o.lastPrice.empty()) full += ", last " + o.lastPrice + (o.lastWhen.empty() ? "" : " (" + o.lastWhen + ")");
+                if (!o.link.empty()) full += ", " + o.link;
+                out.push_back({ shortForm, full });
+            }
+            break;
+        case kMakers:
+            for (const JPPart::Identifier& i : p->identifiers)
+                if (i.kind == "mpn") {
+                    const std::string s = i.org.empty() ? i.code : i.org + " " + i.code;
+                    out.push_back({ s, s });
+                }
+            break;
+        case kStock: {
+            const auto at = m_stock.find(p->uuid);
+            if (at == m_stock.end()) break;
+            long long total = 0;
+            int loaded = 0;
+            for (const JPStockLot& l : at->second) {
+                total += l.onHand;
+                if (!l.feederId.empty()) ++loaded;
+            }
+            // One summary, then each lot in the tooltip.
+            std::string summary = std::to_string(at->second.size()) + (at->second.size() == 1 ? " lot, " : " lots, ")
+                                  + std::to_string(total) + " on hand";
+            if (loaded) summary += ", " + std::to_string(loaded) + " on a feeder";
+            std::string full;
+            for (const JPStockLot& l : at->second) {
+                const JPFeeder* f = l.feederId.empty() ? nullptr : m_config.feeder(l.feederId);
+                std::string s = (l.label.empty() ? std::string("a lot") : l.label) + ": " + std::to_string(l.onHand) + " on hand";
+                if (!l.supplier.empty()) s += ", " + l.supplier + (l.sku.empty() ? "" : " " + l.sku);
+                s += f ? ", on " + f->name() : l.location.empty() ? std::string(", on the shelf") : ", kept at " + l.location;
+                full += (full.empty() ? "" : "\n") + s;
+            }
+            out.push_back({ summary, full });
+            break;
+        }
+        case kDatasheet:
+            if (!p->datasheet.empty()) out.push_back({ p->datasheet, p->datasheet });
+            break;
+        default: break;
+    }
+    return out;
 }
 
 int JPPartsTableModel::rowCount() const { return int(m_config.parts().size()); }
@@ -144,6 +254,12 @@ std::string JPPartsTableModel::text(int row, int c) const {
         }
         case kPlacements: return std::to_string(m_config.placementCount(p->id));
         case kFeeders:    return std::to_string(m_config.feederCount(p->id));
+        case kPackagings: case kSuppliers: case kMakers: case kStock: case kDatasheet: {
+            // Every value, for searching and sorting.
+            std::string all;
+            for (const auto& [shortForm, full] : values(row, c)) all += (all.empty() ? "" : " · ") + shortForm;
+            return all;
+        }
     }
     return {};
 }
