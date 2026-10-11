@@ -2187,7 +2187,12 @@ JPCameraCalibration JPCell::cameraCalibration(const std::string& cameraId, int w
     for (const JPCameraConfig& c : m_config.cameras)
         if (c.id == cameraId) {
             if (const JPCameraCalibration* k = c.calibrationFor(width, height))
-                return c.mount.headId.empty() || !c.workingPlaneZ ? *k : k->atHeight(*c.workingPlaneZ);
+                // At the plane it looks at: a head camera's Default Working Plane; a fixed one's its own Z, where
+                // alignment brings a part's underside (the nozzle at its Z plus the part's height), whatever
+                // height it was calibrated at. (Calibrated at one height: as calibrated.)
+                return c.mount.headId.empty() ? k->atHeight(c.mount.offsetZ)
+                     : c.workingPlaneZ        ? k->atHeight(*c.workingPlaneZ)
+                                              : *k;
             // OpenPnP's simulated cameras not calibrated here: as OpenPnP takes them.
             if (const auto known = c.openPnpCalibration(width, height)) return *known;
         }

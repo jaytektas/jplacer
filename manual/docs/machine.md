@@ -646,12 +646,19 @@ the interface are left out (every second, fifth, tenth and so on is drawn), so a
 full once zoomed in. Each camera keeps its reticle for next time. **Fit the Picture** in the same menu
 undoes the zoom.
 
-Reticles and footprints are drawn in millimetres at the height the camera looks at, as OpenPnP's: a camera
-with a Z axis (one on the head) put below its safe Z, as moving it to a placement puts it at the board's
-surface, looks at that height; otherwise at its **Default Working Plane Z** (else the height it was
-calibrated at). Calibrated at two heights, they are drawn at the scale there, nearer things larger.
+Reticles and footprints are drawn in millimetres at the height the camera looks at: a camera with a Z axis
+(one on the head) put below its safe Z, as moving it to a placement puts it at the board's surface, looks at
+that height; otherwise at its **Default Working Plane Z** (else the height it was calibrated at). A camera
+that does not move (one looking up) looks at what a nozzle over it holds, within its view: the underside of
+the part, the nozzle's Z less the part's height (holding nothing, the tip); with no nozzle over it, at its
+own Z. Calibrated at two heights, they are drawn at the scale there, nearer things larger, so a footprint
+still fits a part raised above the camera's Z.
 
-<!-- src: src/ui/JPReticle.cpp (spacings, sizes, draw, thinned); src/ui/JPCameraView.cpp (buildMenu, prepareContextMenu, kLeastGap, viewingPlaneZ); src/app/JPlacerSettings.cpp (cameraReticleKey); src/app/JPlacerMachine.cpp (viewingPlaneZ) -->
+Bottom vision brings a part's underside to the camera's own Z (the nozzle at the camera's Z plus the part's
+height), and measures it at the camera's scale there: calibrated at two heights, at the camera's Z
+whatever heights it was calibrated at.
+
+<!-- src: src/ui/JPReticle.cpp (spacings, sizes, draw, thinned); src/ui/JPCameraView.cpp (buildMenu, prepareContextMenu, kLeastGap, viewingPlaneZ); src/app/JPlacerSettings.cpp (cameraReticleKey); src/app/JPlacerMachine.cpp (viewingPlaneZ, fixedViewingPlaneZ); src/machine/JPCell.cpp (cameraCalibration); src/tasks/JPCellJobMachine.cpp (alignPart) -->
 
 **Show Image Info**, in the same menu, puts a box at the picture's top left, as OpenPnP's does: the picture's
 **Resolution**, the **Zoom**, the pictures a second (**FPS**, over the last 24) and a **Histogram** of its

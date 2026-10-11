@@ -702,6 +702,7 @@ double JPlacerMachine::reticleRotation(const std::string& cameraId) const {
 std::optional<double> JPlacerMachine::viewingPlaneZ(const std::string& cameraId) const {
     if (!m_cell || !m_cell->isConnected()) return std::nullopt;
     for (const JPCameraConfig& cam : m_cell->config().cameras) {
+        if (cam.id == cameraId && cam.mount.headId.empty()) return fixedViewingPlaneZ(cam);
         if (cam.id != cameraId || cam.mount.axisZ.empty()) continue;
         const std::optional<double> z = whereIsMount(&cam.mount)[2];
         const JPAxisConfig* axis = m_cell->config().axis(cam.mount.axisZ);
@@ -709,6 +710,30 @@ std::optional<double> JPlacerMachine::viewingPlaneZ(const std::string& cameraId)
         // Below its safe Z (the low end of its axis's safe zone): set on purpose.
         const double safe = (axis->safeZoneLowEnabled ? axis->safeZoneLow : 0.0) + cam.mount.offsetZ;
         if (*z < safe) return z;
+    }
+    return std::nullopt;
+}
+
+std::optional<double> JPlacerMachine::fixedViewingPlaneZ(const JPCameraConfig& cam) const {
+    // A camera that does not move (one looking up) sees what a nozzle holds over it: the underside of its part
+    // (the nozzle's Z less the part's height), or the tip itself. Over it: within its view, as calibrated.
+    JPCameraPanel* panel = nullptr;
+    for (const CameraDock& d : m_cameras)
+        if (d.panel->camera().id == cam.id) panel = d.panel.get();
+    const auto mode = panel ? panel->feed().mode() : std::nullopt;
+    if (!mode) return std::nullopt;
+    const JPCameraCalibration cal = m_cell->cameraCalibration(cam.id, mode->width, mode->height);
+    if (!cal.valid || cal.scale() <= 0) return std::nullopt;
+    const double halfW = mode->width / cal.scale() / 2, halfH = mode->height / cal.scale() / 2;
+    for (const JPNozzleConfig& n : m_cell->config().nozzles) {
+        const Where at = whereIsMount(&n.mount);
+        if (!at[0] || !at[1] || !at[2]) continue;
+        if (std::abs(*at[0] - cam.mount.offsetX) > halfW || std::abs(*at[1] - cam.mount.offsetY) > halfH) continue;
+        double z = *at[2];
+        const std::string partId = nozzlePart(n.id);
+        if (const JPPart* part = !partId.empty() && m_configuration ? m_configuration->part(partId) : nullptr)
+            z -= part->height.convertToUnits(JPLengthUnit::Millimeters).value();
+        return z;
     }
     return std::nullopt;
 }

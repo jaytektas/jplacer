@@ -767,6 +767,31 @@ int main() {
         assert(back.calibrations.size() == 2 && back.calibrationFor(640, 480) && back.calibrationFor(640, 480)->rmsPx == 0.3);
     }
     {
+        // A fixed camera looking up, calibrated at two heights (Z 10 and 12) though its own Z is 11: taken at
+        // its own Z, where alignment brings a part's underside; at one height, as calibrated.
+        JPCellConfig c = cellConfig();
+        JPCameraConfig cam;
+        cam.id = "B";
+        cam.name = "bottom";
+        cam.mount.offsetZ = 11;
+        c.cameras.push_back(cam);
+        JPCell cell(c, profiles());
+        JPCameraCalibration k;
+        k.valid = true;
+        k.width = 640;
+        k.height = 480;
+        k.pxPerMm = { 25, 0, 0, 25 };
+        k.z = 10;
+        k.secondZ = 12;   // raised 2 mm: further away, smaller
+        k.secondScale = 25 * 60.0 / 62.0;
+        cell.setCameraCalibration("B", k);
+        const JPCameraCalibration at = cell.cameraCalibration("B", 640, 480);
+        assert(at.z == 11 && std::abs(at.scale() - k.scaleAt(11)) < 1e-9 && at.scale() < 25 && at.scale() > k.secondScale);
+        k.secondScale = 0;
+        cell.setCameraCalibration("B", k);
+        assert(cell.cameraCalibration("B", 640, 480).z == 10 && cell.cameraCalibration("B", 640, 480).scale() == 25);
+    }
+    {
         // OpenPnP's Keep Alive: disconnected, the controller's connection is left
         // open, and connecting again takes it up as it is (not identified again).
         JPCellConfig c = cellConfig();

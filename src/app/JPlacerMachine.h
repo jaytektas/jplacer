@@ -130,6 +130,8 @@ public:
     // was put there to look at what is at that height (moved to a placement, the board's surface): that
     // Z, what its reticles are drawn at the scale of; none (its working plane) otherwise.
     std::optional<double> viewingPlaneZ(const std::string& cameraId) const;
+    // A fixed camera's: the underside of what a nozzle over it holds (its tip, holding nothing); none over it: none.
+    std::optional<double> fixedViewingPlaneZ(const JPCameraConfig& cam) const;
     // The open cell's nozzle tips, id and name; none without a cell.
     std::vector<std::pair<std::string, std::string>> nozzleTips() const;
 
