@@ -3,8 +3,11 @@
 
 #include "JPReticle.h"
 
+#include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <sstream>
 
 inline namespace jf {
@@ -68,10 +71,22 @@ const std::vector<double>& JPReticle::sizes() {
     return all;
 }
 
+JColor JPReticle::ink(const std::string& hex, const uint8_t* theme) {
+    unsigned r = 0, g = 0, b = 0;
+    if (hex.size() == 7 && hex[0] == '#' && std::sscanf(hex.c_str() + 1, "%2x%2x%2x", &r, &g, &b) == 3)
+        return rgb(uint8_t(r), uint8_t(g), uint8_t(b));
+    return rgb(theme[0], theme[1], theme[2]);
+}
+
 std::string JPReticle::toText() const {
     char text[64];
     std::snprintf(text, sizeof text, "%s %g %g", word(kind), spacingMm, sizeMm);
-    return text;
+    std::string out = text;
+    if (lineWidth != 1) out += " line=" + std::to_string(lineWidth);
+    if (!colour.empty()) out += " colour=" + colour;
+    if (footprintWidth != 1) out += " footprint-line=" + std::to_string(footprintWidth);
+    if (!footprintColour.empty()) out += " footprint-colour=" + footprintColour;
+    return out;
 }
 
 JPReticle JPReticle::fromText(const std::string& text) {
@@ -84,6 +99,26 @@ JPReticle JPReticle::fromText(const std::string& text) {
         if (w == word(k)) r.kind = k;
     if (in >> spacing && spacing > 0) r.spacingMm = spacing;
     if (in >> size && size > 0) r.sizeMm = size;
+    // Its style: key=value words.
+    auto width = [](const std::string& v) {
+        const int n = std::atoi(v.c_str());
+        return n >= 1 && n <= kMostWidth ? n : 1;
+    };
+    auto hex = [](const std::string& v) {
+        const bool ok = v.size() == 7 && v[0] == '#'
+                        && std::all_of(v.begin() + 1, v.end(), [](char c) { return std::isxdigit(uint8_t(c)) != 0; });
+        return ok ? v : std::string();
+    };
+    in.clear();
+    for (std::string word; in >> word;) {
+        const size_t eq = word.find('=');
+        if (eq == std::string::npos) continue;
+        const std::string key = word.substr(0, eq), value = word.substr(eq + 1);
+        if (key == "line") r.lineWidth = width(value);
+        else if (key == "colour") r.colour = hex(value);
+        else if (key == "footprint-line") r.footprintWidth = width(value);
+        else if (key == "footprint-colour") r.footprintColour = hex(value);
+    }
     return r;
 }
 

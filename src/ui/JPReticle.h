@@ -25,6 +25,16 @@ struct JPReticle {
     Kind   kind      = Kind::Cross;
     double spacingMm = 1.0;   // between the Grid's lines, the Ruler's marks
     double sizeMm    = 1.0;   // the Circle's diameter, the Square's side
+    // How it is drawn (Reticle Style…): its colour, "#rrggbb" (empty: the theme's accent), and its lines'
+    // width, in the theme's lines (1 to kMostWidth); a footprint drawn over the picture the same (its colour
+    // empty: the theme's warning colour).
+    std::string colour;
+    int         lineWidth = 1;
+    std::string footprintColour;
+    int         footprintWidth = 1;
+    static constexpr int kMostWidth = 4;
+    // The colour `hex` names ("#rrggbb"), else `theme`'s (one of the theme's Colors).
+    static JColor ink(const std::string& hex, const uint8_t* theme);
 
     // Every kind, in the order the menu lists them, and what it calls them.
     static const std::vector<Kind>& kinds();
@@ -35,8 +45,9 @@ struct JPReticle {
     // Drawn in millimetres, so only through a calibration.
     bool toScale() const { return kind != Kind::None && kind != Kind::Cross; }
 
-    // As kept in the settings ("grid 1 1"), and read back; unknown text is
-    // the cross.
+    // As kept in the settings ("grid 1 1", then its style as it differs from the theme's:
+    // "line=2 colour=#ff0000 footprint-line=2 footprint-colour=#00ff00"), and read back; unknown text is
+    // the cross, an unknown or bad style word the theme's.
     std::string toText() const;
     static JPReticle fromText(const std::string& text);
 

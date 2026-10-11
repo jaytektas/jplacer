@@ -15,6 +15,7 @@
 #include <opencv2/imgproc.hpp>
 
 #include "JPlacerClassSelectionDialog.h"
+#include "JPlacerReticleStyleDialog.h"
 #include "JPlacerSettings.h"
 
 #include "camera/JPWhiteBalance.h"
@@ -269,6 +270,18 @@ void JPlacerMachine::buildCameras() {
         d.panel->onReticleChanged = [id = c.id](const JPReticle& r) {
             JSettings::instance().set(JPlacerSettings::cameraReticleKey(id), r.toText());
             JPlacerSettings::save();
+        };
+        // Its Reticle Style window: each change to the camera's view found by its id then (the cameras may
+        // have been made again meanwhile), kept as a reticle chosen from the menu is.
+        d.panel->view().onReticleStyle = [this, id = c.id, name = c.name] {
+            JPCameraPanel* panel = nullptr;
+            for (CameraDock& k : m_cameras)
+                if (k.panel->camera().id == id) panel = k.panel.get();
+            if (!panel) return;
+            m_window.openModal<JPlacerReticleStyleDialog>(name, panel->view().reticle(), [this, id](const JPReticle& r) {
+                for (CameraDock& k : m_cameras)
+                    if (k.panel->camera().id == id) k.panel->view().restyle(r);
+            });
         };
         for (const auto& [key, overlay] : m_overlays) d.panel->setOverlay(key, overlay(c.id));
         // How much the wheel zooms, kept from last time.

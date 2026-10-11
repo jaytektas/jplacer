@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- Each camera's right-click menu has **Reticle Style…**: the colour and line thickness of its reticle (the
+  cross, grid, ruler, circle or square) and of a footprint drawn over the picture, colours from the colour
+  chooser, kept with the camera. Shown as you change them.
+
 ## 0.1.52
 
 - A feeder's **Part** is chosen from a list you can search. Type to narrow it: `lq` finds every LQFP,

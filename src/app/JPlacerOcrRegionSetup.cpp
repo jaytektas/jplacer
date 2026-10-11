@@ -74,7 +74,8 @@ void JPlacerOcrRegionSetup::begin() {
     m_corners.clear();
     m_rectify = false;
     // The corners and the region as it stands, drawn about the camera's centre.
-    m_view->setOverlay(kOverlay, [this, alive = std::weak_ptr<bool>(m_alive)](JVectorCanvas& vg, const JPReticle::Place& place, float line) {
+    m_view->setOverlay(kOverlay, [this, alive = std::weak_ptr<bool>(m_alive)](JVectorCanvas& vg, const JPReticle::Place& place, float line,
+                                                                                   const JPaint&) {
         const auto a = alive.lock();
         if (!a || !*a) return;
         const uint8_t* mark = Colors::Warning;

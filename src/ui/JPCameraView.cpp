@@ -142,6 +142,10 @@ void JPCameraView::buildMenu() {
     }
     m_spacingItem = m_menu->add(g, "Spacing", {}, m_spacingMenu.get());
     m_sizeItem    = m_menu->add(g, "Size", {}, m_sizeMenu.get());
+    // The reticle's and the footprint's colours and line widths, in a window of their own.
+    m_menu->add(g, "Reticle Style…")->onTriggered.connect([this] {
+        if (onReticleStyle) onReticleStyle();
+    });
     m_menu->addSeparator(g);
     m_infoItem = m_menu->add(g, "Show Image Info");
     m_infoItem->setCheckable(true);
@@ -512,8 +516,11 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     // The reticle, the cross through the point the camera is looking at
     // first; in millimetres through the calibration for this picture size.
     JVectorCanvas vg;
-    const JColor c = rgb(Colors::Accent[0], Colors::Accent[1], Colors::Accent[2]);
+    // In its own style (Reticle Style…), else the theme's.
+    const JColor c = JPReticle::ink(m_reticle.colour, Colors::Accent);
     const float cx = x + w * 0.5f, cy = y + h * 0.5f, line = st.borderWidth;
+    const float reticleLine = line * float(m_reticle.lineWidth), footprintLine = line * float(m_reticle.footprintWidth);
+    const JPaint footprintPaint = JPaint::solid(JPReticle::ink(m_reticle.footprintColour, Colors::Warning));
     const bool calibrated = m_cal.valid && m_cal.width == m_w && m_cal.height == m_h;
     // At the height it looks at now (OpenPnP's viewing plane), to that scale, where the camera is calibrated
     // at two heights; else as calibrated.
@@ -530,14 +537,14 @@ void JPCameraView::populateRenderPrimitives(JPrimitiveBuffer& buf) {
             return true;
         };
     const double pxPerMm = calibrated ? (seen.scaleX() + seen.scaleY()) / 2 * scale : 0;
-    m_reticle.draw(vg, JRect{ vx0, vy0, vx1 - vx0, vy1 - vy0 }, cx, cy, place, pxPerMm, m_reachMm, line,
+    m_reticle.draw(vg, JRect{ vx0, vy0, vx1 - vx0, vy1 - vy0 }, cx, cy, place, pxPerMm, m_reachMm, reticleLine,
                    st.spacing, kLeastGap * st.spacing, JPaint::solid(c));
     if (place)
     {
         if (!m_taskUnderway)
-            for (const auto& [key, overlay] : m_overlays) overlay(vg, place, line);
+            for (const auto& [key, overlay] : m_overlays) overlay(vg, place, footprintLine, footprintPaint);
         else if (m_taskOverlay)
-            m_taskOverlay(vg, place, line);
+            m_taskOverlay(vg, place, footprintLine, footprintPaint);
     }
     // Marks in the picture's own pixels (calibrated or not).
     for (const Mark& mk : m_marks) {

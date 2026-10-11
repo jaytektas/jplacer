@@ -78,11 +78,16 @@ public:
     const JPReticle& reticle() const { return m_reticle; }
     // The reticle chosen from the menu.
     std::function<void(const JPReticle&)> onReticleChanged;
+    // Reticle Style… chosen from the menu: its window opened (the owner's), which sets it with restyle.
+    std::function<void()> onReticleStyle;
+    // The reticle changed as if chosen from the menu (shown, and onReticleChanged told): its style set.
+    void restyle(const JPReticle& reticle) { choose(reticle); }
     // Something else drawn over the picture in millimetres, as OpenPnP's
     // named reticles (a package's footprint): drawn through `place` while
     // the camera is calibrated. Set again by the same key to replace it,
-    // null to take it away.
-    using Overlay = std::function<void(JVectorCanvas& vg, const JPReticle::Place& place, float line)>;
+    // null to take it away. `line` and `paint`: the footprint's width and
+    // colour (Reticle Style…), for what draws a footprint.
+    using Overlay = std::function<void(JVectorCanvas& vg, const JPReticle::Place& place, float line, const JPaint& paint)>;
     void setOverlay(const std::string& key, Overlay overlay);
     // A task's own (a homing mark's footprint while visual homing looks for it): drawn while a task is
     // under way (setTaskUnderway), when the overlays above are not (a part's footprint means nothing to

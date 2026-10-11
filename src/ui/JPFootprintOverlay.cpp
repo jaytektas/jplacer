@@ -13,11 +13,10 @@
 inline namespace jf {
 
 JPCameraView::Overlay JPFootprintOverlay::of(const JPFootprint& footprint, std::function<double()> rotationDeg) {
-    return [f = footprint, rotationDeg = std::move(rotationDeg)](JVectorCanvas& vg, const JPReticle::Place& place, float line) {
+    return [f = footprint, rotationDeg = std::move(rotationDeg)](JVectorCanvas& vg, const JPReticle::Place& place, float line,
+                                                              const JPaint& paint) {
         const double a = (rotationDeg ? rotationDeg() : 0.0) * M_PI / 180.0, ca = std::cos(a), sa = std::sin(a);
         const double mm = JPLength(1, f.units).convertToUnits(JPLengthUnit::Millimeters).value();
-        const uint8_t* c = Colors::Warning;
-        const JPaint paint = JPaint::solid(rgb(c[0], c[1], c[2]));
         for (const JPFootprint::Outline& o : f.padsOutlines()) {
             std::vector<JVectorCanvas::JVec2> screen;
             for (const JPFootprint::Point& p : o) {

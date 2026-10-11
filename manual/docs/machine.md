@@ -661,6 +661,18 @@ whatever heights it was calibrated at.
 
 <!-- src: src/ui/JPReticle.cpp (spacings, sizes, draw, thinned); src/ui/JPCameraView.cpp (buildMenu, prepareContextMenu, kLeastGap, viewingPlaneZ); src/app/JPlacerSettings.cpp (cameraReticleKey); src/app/JPlacerMachine.cpp (viewingPlaneZ, fixedViewingPlaneZ); src/machine/JPCell.cpp (cameraCalibration); src/tasks/JPCellJobMachine.cpp (alignPart) -->
 
+**Reticle Style…**, in the same menu, opens a small window for that camera with two rows:
+
+- **Reticle:** the colour and **Line** width of the cross and of the grid, ruler, circle or square.
+- **Footprint:** the colour and **Line** width of a package's footprint drawn over the picture.
+
+A colour comes from the colour chooser; its **✕** puts the theme's colour back, shown as "(scheme)". The
+theme's colours are the accent for the reticle and the warning colour for a footprint. A line is 1 to 4 times
+the theme's line. Each change shows on the camera at once and is kept with the camera's reticle, so there is
+nothing to apply; **Close** (or **Escape**) ends it.
+
+<!-- src: src/app/JPlacerReticleStyleDialog.cpp; src/ui/JPReticle.cpp (toText, fromText, ink); src/ui/JPCameraView.cpp (buildMenu, populateRenderPrimitives); src/ui/JPFootprintOverlay.cpp; src/app/JPlacerMachine.cpp (onReticleStyle) -->
+
 **Show Image Info**, in the same menu, puts a box at the picture's top left, as OpenPnP's does: the picture's
 **Resolution**, the **Zoom**, the pictures a second (**FPS**, over the last 24) and a **Histogram** of its
 red, green and blue levels, each smoothed and scaled to the tallest (the two most extreme levels, usually
