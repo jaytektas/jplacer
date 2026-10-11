@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.49
+
 - The Jog panel's Z park on a camera takes its Z back up to safe Z; it did nothing for a camera's virtual Z.
 
 ## 0.1.48
