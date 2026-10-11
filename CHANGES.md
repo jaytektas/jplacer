@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- A Machine Setup or Feeders tab wider than its pane now scrolls sideways, with a bar along the bottom (or
+  the wheel with Shift held), as a long one scrolls down; its notes wrap to the pane's width. On a narrow
+  window a nozzle tip's Backlash? column and step buttons can be reached.
+
 ## 0.1.45
 
 - Fixed: on a nozzle tip's Tool Changer tab, a step's Move Nozzle and Capture took the step's coordinates

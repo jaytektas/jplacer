@@ -195,9 +195,9 @@ void JPSetupForm::rebuild() {
     // have gained or lost a tab).
     const int was = m_tabs->activeTab();
     const std::string wasTitle = was >= 0 && size_t(was) < m_builtTitles.size() ? m_builtTitles[size_t(was)] : "";
-    std::map<std::string, float> scrolled;
+    std::map<std::string, std::pair<float, float>> scrolled;   // down, across
     for (size_t i = 0; i < m_pages.size() && i < m_builtTitles.size(); ++i)
-        if (const auto* s = dynamic_cast<const JScrollArea*>(m_pages[i].get())) scrolled[m_builtTitles[i]] = s->scrollY();
+        if (const auto* s = dynamic_cast<const JScrollArea*>(m_pages[i].get())) scrolled[m_builtTitles[i]] = { s->scrollY(), s->scrollX() };
     while (m_tabs->tabCount() > 0) m_tabs->removeTab(m_tabs->tabCount() - 1);
     m_single->clear();
     m_pages.clear();
@@ -209,7 +209,10 @@ void JPSetupForm::rebuild() {
         m_pages.push_back(page(m_form.tabs[i]));
         const std::string& title = m_form.tabs[i].title;
         if (title == wasTitle) active = int(i);
-        if (auto* s = dynamic_cast<JScrollArea*>(m_pages.back().get()); s && scrolled.count(title)) s->setScrollY(scrolled[title]);
+        if (auto* s = dynamic_cast<JScrollArea*>(m_pages.back().get()); s && scrolled.count(title)) {
+            s->setScrollY(scrolled[title].first);
+            s->setScrollX(scrolled[title].second);
+        }
     }
     attachPages(active);
 }
@@ -251,6 +254,8 @@ JVariant JPSetupForm::get(const std::string& property) const {
 std::unique_ptr<JWidget> JPSetupForm::page(const JPSetupProperties::Tab& tab) {
     const JStyle& st = JStyle::current();
     auto scroll = std::make_unique<JScrollArea>(m_graph, 0.f, 0.f);
+    // A page wider than its tab (a nozzle tip's changer steps) scrolls across, as a long one scrolls down.
+    scroll->setHorizontalScroll(true);
     auto content = std::make_unique<JContainer>(m_graph, 0.f, 0.f);
     content->setDirection(JFlexDirection::Column)->setGap(2 * st.spacing)->setAlignItems(JAlignItems::Stretch);
     // Clear of the scroll bar and the page's foot, so the groups' frames show whole.
@@ -346,6 +351,8 @@ std::unique_ptr<JWidget> JPSetupForm::editor(const JProperty& p, float width) {
         auto value = std::make_unique<JLabel>(m_graph, p.get().toString(), 0.f, linesHeight(p));
         JLabel* v = value.get();
         v->setWordWrap(true);
+        // It folds, so its whole text is not the least it needs (a page that scrolls across would be that wide).
+        v->setMinimumSize(4 * numberWidth(), 0.f);
         v->setHSizePolicy(JSizePolicyMode::Expanding, 1);
         v->setVSizePolicy(JSizePolicyMode::Fixed);
         m_pulls.push_back([v, get = p.get] { v->setText(get().toString()); });
@@ -549,6 +556,12 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
                 auto note = std::make_unique<JLabel>(m_graph, r.text, width, st.labelHeight);
                 note->setWordWrap(true);
                 const float h = std::max(st.labelHeight, note->heightFor(width));
+                // Folded at that width, which is the least it needs: not its whole text on one line, which
+                // would make a page that scrolls across as wide as its longest note.
+                note->setMinimumSize(width, 0.f);
+                // And kept at it (not stretched across its group), so it reads in the view when a wide table
+                // beside it scrolls the page across.
+                m_graph.getLayout(note->getNodeId()).alignSelf = int(JAlignItems::Start);
                 note->setVSizePolicy(JSizePolicyMode::Fixed);
                 note->setSize(width, h);
                 place(std::move(note), h);
@@ -629,6 +642,7 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
                         auto l = std::make_unique<JLabel>(m_graph, para, wordsWidth, st.labelHeight);
                         l->setWordWrap(true);
                         const float h = std::max(st.labelHeight, l->heightFor(wordsWidth));
+                        l->setMinimumSize(wordsWidth, 0.f);   // folded at that width, as a note is
                         l->setVSizePolicy(JSizePolicyMode::Fixed);
                         l->setSize(wordsWidth, h);
                         words->add(std::move(l));
