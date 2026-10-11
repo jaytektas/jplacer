@@ -15,7 +15,6 @@ notes.
   first ("(2) Cut tape 8/4"); point at the cell for all of them. Search finds a part by any of them (a
   supplier's SKU, say). The feeder Part list's table has them too.
 - A column shown again comes back as wide as the others, not as a sliver.
-
 - **Help ▸ About jplacer** shows the Jaytek logo above jplacer's version, copyright, licence and link, as
   jayecu Studio's About box does, and credits OpenPnP, whose icons, translations, defaults and illustrations
   jplacer carries.
