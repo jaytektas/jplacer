@@ -10,12 +10,13 @@ notes.
 
 ## Unreleased
 
+## 0.1.48
+
 - A camera looking up draws its reticle and the footprint at the height of what a nozzle over it holds (the
   part's underside), so with a calibration at two heights the footprint still fits a part raised above the
   camera's Z.
 - Bottom vision measures a part at the camera's scale at the camera's own Z, where it brings the part's
   underside, even when the camera was calibrated at other heights.
-
 - The Console's Force Upper Case and the controller it sends to, and the Log tab's Search, Log Level and
   System Output, are kept from one run to the next, as the log levels and G-code already were.
 
