@@ -129,6 +129,25 @@ int main() {
     for (const std::string& l : lines) assert(l.find("X42") == std::string::npos);   // the first still not
     assert(until([&] { return cell.positions().at("X") == 60; }));
 
+    // Backlash compensation off (the Jog panel's): every move straight to its place, a compensated step too.
+    cell.setBacklashCompensation(false);
+    watch = cell.onTraffic.connect([&](std::string, bool out, std::string line) {
+        std::lock_guard lk(m);
+        if (out && line.rfind("G1 ", 0) == 0) sent.push_back(line);
+    });
+    steps[2].x = 80;
+    assert(JPTipChanger::run(cell, cell.config(), nozzle, steps, "Loading T", false, yes, why));
+    lines = taken();
+    watch();
+    for (const std::string& l : lines) assert(l.find("X72") == std::string::npos);
+    assert(until([&] { return cell.positions().at("X") == 70; }));
+    cell.setBacklashCompensation(true);
+
+    // The head below safe Z (Z's safe zone is 0), as the Jog panel's Backlash Off Below Safe Z asks; up again.
+    assert(!cell.headBelowSafeZ("H"));
+    assert(cell.moveAxesAndWait({ { "Z", -5.0 } }, 1.0, why, false) && cell.headBelowSafeZ("H") && !cell.headBelowSafeZ(""));
+    assert(cell.safeZAndWait("H", 1.0, why) && !cell.headBelowSafeZ("H"));
+
     std::puts("test_tip_changer: ok");
     return 0;
 }

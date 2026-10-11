@@ -154,6 +154,7 @@ JPJogPanel::JPJogPanel(JSceneGraph& graph, JPCell& cell, Choices start) : JConta
         m_tipButton->setEnabled(m_tools[m_tool].nozzle);
         refreshTipButton();
         refreshRecycle();
+        refreshBacklash();
         if (onChoicesChanged) onChoicesChanged();
     });
     add(std::move(top));
@@ -161,6 +162,7 @@ JPJogPanel::JPJogPanel(JSceneGraph& graph, JPCell& cell, Choices start) : JConta
     m_distanceIndex = std::clamp(start.distance, 0, int(m_distances.size()) - 1);
     m_speedShare = std::clamp(start.speed, 0.0, 1.0);
     m_cell.setSpeed(speed());
+    m_offBelowSafeZ = start.backlashOffBelowSafeZ;
     m_tabs = add(std::make_unique<JTabWidget>(graph, 0.f, 0.f));
     m_tabs->setVSizePolicy(JSizePolicyMode::Expanding, 1);
 
@@ -174,6 +176,8 @@ JPJogPanel::JPJogPanel(JSceneGraph& graph, JPCell& cell, Choices start) : JConta
         return std::string("Home the machine to move it.");
     };
     m_watch.on(cell.onHomed, [this, unhomedNote](bool homed) { m_note->setText(homed ? std::string() : unhomedNote()); });
+    // The head going below safe Z, or back up: Backlash Compensation shown as it now is.
+    m_watch.on(cell.onPositions, [this](std::map<std::string, double>) { refreshBacklash(); });
     if (!cell.isHomed()) m_note->setText(unhomedNote());
     refreshKeys();
 }
@@ -250,7 +254,7 @@ float JPJogPanel::padSizeFor(float width, float height) const {
     v.setCaption("Speed 100%");   // its widest
     const float sliders = d.naturalWidth() + v.naturalWidth();
     const float across = (width - sliders - 8 * st.spacing - st.scrollBarWidth) / 5;
-    const float down = (height - st.labelHeight - 6 * st.spacing) / 4;
+    const float down = (height - st.labelHeight - st.checkHeight - 8 * st.spacing) / 4;   // the Backlash tick below
     return std::clamp(std::min(across, down), 0.9f * st.buttonHeight, 2.5f * st.buttonHeight);
 }
 
@@ -377,7 +381,40 @@ std::unique_ptr<JWidget> JPJogPanel::jogPage(float size) {
         if (onChoicesChanged) onChoicesChanged();
     });
     page->addChildWidget(std::move(block));
+    // Under the pad: whether jogs (and the place buttons' moves) are backlash compensated.
+    const std::string text = "Backlash Compensation";
+    auto backlash = std::make_unique<JCheckBox>(g, text, st.checkHeight + 2 * st.spacing + std::ceil(JTextHelper::measureWidth(text)));
+    m_backlash = backlash.get();
+    m_backlash->onStateChanged.connect([this](bool on) {
+        if (m_showingBacklash) return;
+        m_cell.setBacklashCompensation(on);
+        m_backlashOffForZ = false;
+    });
+    page->addChildWidget(std::move(backlash));
+    refreshBacklash();
     return page;
+}
+
+void JPJogPanel::refreshBacklash() {
+    if (!m_backlash || m_tools.empty()) return;
+    const JPMountConfig* mount = m_tools[m_tool].mount;
+    const bool below = m_offBelowSafeZ && mount && m_cell.headBelowSafeZ(mount->headId);
+    // Off going below safe Z; on again coming back up, when going down is what turned it off.
+    if (below && m_cell.backlashCompensation()) {
+        m_cell.setBacklashCompensation(false);
+        m_backlashOffForZ = true;
+    } else if (!below && m_backlashOffForZ) {
+        m_cell.setBacklashCompensation(true);
+        m_backlashOffForZ = false;
+    }
+    m_showingBacklash = true;
+    m_backlash->setChecked(m_cell.backlashCompensation());
+    m_showingBacklash = false;
+    m_backlash->setEnabled(!below);
+    m_backlash->setTooltip(below ? "Off while the head is below safe Z (Safety: Backlash Off Below Safe Z): every move goes "
+                                   "straight to its place, nothing past it and back; on again once the head is back up"
+                                 : "Every move backlash compensated, as the axes say; off, every move goes straight to its "
+                                   "place (nothing past it and back, as in a changer's slot). On each time jplacer starts");
 }
 
 std::unique_ptr<JWidget> JPJogPanel::specialPage() {
@@ -417,6 +454,18 @@ std::unique_ptr<JWidget> JPJogPanel::safetyPage() {
     check->setChecked(m_boardProtection);
     check->setTooltip("Enable protection of the nozzle jogging closer than 1mm to any loaded board.");
     check->onStateChanged.connect([this](bool on) { m_boardProtection = on; });
+    // Backlash Compensation off by itself while the head is below safe Z (kept for next time).
+    const std::string below = "Backlash Off Below Safe Z";
+    JCheckBox* off = page->add(std::make_unique<JCheckBox>(
+        m_graph, below, st.checkHeight + 2 * st.spacing + std::ceil(JTextHelper::measureWidth(below))));
+    off->setChecked(m_offBelowSafeZ);
+    off->setTooltip("Backlash Compensation turned off while a Z of a tool on the head is below safe Z, and on again once it "
+                    "is back up: down among slots, feeders and boards, a move past the place and back hits something.");
+    off->onStateChanged.connect([this](bool on) {
+        m_offBelowSafeZ = on;
+        refreshBacklash();
+        if (onChoicesChanged) onChoicesChanged();
+    });
     return page;
 }
 
@@ -535,7 +584,8 @@ double JPJogPanel::speed() const    { return std::max({ kLeastSpeed, m_cell.conf
 
 JPJogPanel::Choices JPJogPanel::choices() const {
     if (m_tools.empty()) return {};
-    return { m_tools[m_tool].id, m_distanceIndex, m_speedShare, m_stepThrough, m_distances, m_speeds };
+    return { m_tools[m_tool].id, m_distanceIndex, m_speedShare, m_stepThrough, m_offBelowSafeZ,
+             m_distances, m_speeds };
 }
 
 const std::string& JPJogPanel::toolId() const {

@@ -264,6 +264,10 @@ public:
 
     // Whether `value` of the axis is within its safe zone (OpenPnP's isInSafeZZone; no safe zone: anywhere).
     bool inSafeZone(const std::string& axisId, double value) const;
+    // Whether it is below its safe zone (no safe zone low: never).
+    bool belowSafeZone(const std::string& axisId, double value) const;
+    // Whether a Z of a tool on `headId` is below its safe zone now.
+    bool headBelowSafeZ(const std::string& headId) const;
     // Asked before each jog, on the jogging thread, with the tool jogged and
     // where every axis would then be: false refuses it (the owner says why).
     using JogGuard = std::function<bool(const JPMountConfig& tool, const std::map<std::string, double>& axes)>;
@@ -315,8 +319,10 @@ public:
     void setBacklash(const std::string& axisId, JPAxisConfig::Backlash method, double offset, double sneakUpMm,
                      double speedFactor, std::vector<std::pair<double, double>> table = {}, double approachMm = 0);
     // Backlash compensation on (as each axis says) or off (every move goes
-    // straight to its target): off while the backlash is being measured.
+    // straight to its target): off while the backlash is being measured, or
+    // as the Jog panel's Backlash Compensation says. On to begin with.
     void setBacklashCompensation(bool on) { m_backlashOn = on; }
+    bool backlashCompensation() const { return m_backlashOn; }
     // OpenPnP's MotionOption.SpeedOverPrecision for the moves made while on: no backlash compensation that
     // makes extra moves (one-sided's going past the target and back, sneaking up's stopping short, the
     // distance-aware back-off); a directional offset still shifts where a move ends. For moves among things

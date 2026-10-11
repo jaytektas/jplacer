@@ -8,6 +8,7 @@
 
 #include "machine/JPCell.h"
 
+#include <j/core/JCheckBox.h>
 #include <j/core/JComboBox.h>
 #include <j/core/JButton.h>
 #include <j/core/JContainer.h>
@@ -72,6 +73,7 @@ public:
         int         distance = kDistanceFirst;
         double      speed    = kSpeedFirst;
         bool        stepThrough = true;   // tip changes asked about step by step
+        bool        backlashOffBelowSafeZ = true;   // Backlash Off Below Safe Z (the Safety tab)
         std::vector<double> distances = defaultDistances();
         std::vector<double> speeds    = defaultSpeeds();
     };
@@ -203,6 +205,14 @@ private:
     JLabel*                 m_note  = nullptr;
     JPCellWatch             m_watch;
     bool                    m_boardProtection = true;
+    // Backlash Compensation (the Jog page): the cell's (JPCell::setBacklashCompensation), every move's. With
+    // Backlash Off Below Safe Z (the Safety tab), turned off while the head is below safe Z, and on again once
+    // it is back up if that is what turned it off. Not kept: on each session.
+    JCheckBox*              m_backlash = nullptr;
+    bool                    m_showingBacklash = false;   // the tick set by refreshBacklash, not by a click
+    bool                    m_offBelowSafeZ = true;
+    bool                    m_backlashOffForZ = false;   // off because the head went below safe Z
+    void refreshBacklash();
 };
 
 } // inline namespace jf

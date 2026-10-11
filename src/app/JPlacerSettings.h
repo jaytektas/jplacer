@@ -45,6 +45,7 @@ public:
     static constexpr const char* kJogDistance      = "jog.distance";
     static constexpr const char* kJogSpeed         = "jog.speed";
     static constexpr const char* kJogStepThrough   = "jog.stepThrough";   // tip changes asked step by step
+    static constexpr const char* kJogBacklashOffBelowSafeZ = "jog.backlashOffBelowSafeZ";   // the Safety tab
     // The Jog panel's steps, numbers apart: the distances a press moves (in
     // the System Units, kept apart for each, or degrees) and the speeds (%) a
     // key or Faster / Slower picks.

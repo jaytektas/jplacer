@@ -2422,6 +2422,33 @@ bool JPCell::inSafeZone(const std::string& axisId, double value) const {
     return true;
 }
 
+bool JPCell::belowSafeZone(const std::string& axisId, double value) const {
+    const JPAxisConfig* a = m_config.axis(axisId);
+    if (!a) return false;
+    if (a->transformed()) {
+        const auto raw = a->unmapped(value);
+        a = m_config.axis(a->inputAxisId);
+        if (!a || !raw) return false;
+        value = *raw;
+    }
+    return a->safeZoneLowEnabled && value < a->safeZoneLow - kInterlockTolerance;
+}
+
+bool JPCell::headBelowSafeZ(const std::string& headId) const {
+    if (headId.empty()) return false;
+    const auto now = positions();
+    // Every tool on the head: the X and Y moved carry them all (a camera jogged while a nozzle is in a slot).
+    auto low = [&](const JPMountConfig& m) {
+        if (m.headId != headId || m.axisZ.empty()) return false;
+        const auto at = now.find(m.axisZ);
+        return at != now.end() && belowSafeZone(m.axisZ, at->second);
+    };
+    for (const JPNozzleConfig& n : m_config.nozzles)     if (low(n.mount)) return true;
+    for (const JPCameraConfig& c : m_config.cameras)     if (low(c.mount)) return true;
+    for (const JPActuatorConfig& a : m_config.actuators) if (low(a.mount)) return true;
+    return false;
+}
+
 bool JPCell::doInterlocks(const std::map<std::string, double>& from, const std::map<std::string, double>& to, bool before,
                           double speed, std::string& why) {
     for (const JPActuatorConfig& a : m_config.actuators) {

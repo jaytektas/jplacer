@@ -61,11 +61,12 @@ std::vector<std::pair<double, double>> lagTable(const std::vector<std::pair<doub
     return out;
 }
 
-// Puts the compensation back on, whatever happens.
+// Puts the compensation back as it was, whatever happens.
 struct CompensationOff {
     JPCell& cell;
-    explicit CompensationOff(JPCell& c) : cell(c) { cell.setBacklashCompensation(false); }
-    ~CompensationOff() { cell.setBacklashCompensation(true); }
+    bool    was;
+    explicit CompensationOff(JPCell& c) : cell(c), was(c.backlashCompensation()) { cell.setBacklashCompensation(false); }
+    ~CompensationOff() { cell.setBacklashCompensation(was); }   // the Jog panel's Backlash Compensation
 };
 
 } // namespace

@@ -297,13 +297,18 @@ home coordinate or mapping) needs it homed again. Such a change does what the ma
 does anywhere: a homing still finishing (visual homing) ends, the house goes grey and **Home** can be clicked,
 and vision strip and blinds feeders drop their calibrations.
 
-A nozzle tip changer's steps (loading and unloading) make no extra backlash moves: no going past a place and
-back (one-sided), no stopping short to sneak up, no distance-aware back-off; a directional offset still
-shifts where each step ends. Among the slots, a one-sided axis would carry the tip its offset past a slot's
-point, into its wall. (OpenPnP compensates changer moves as any other; its own SpeedOverPrecision, which does
-this, it uses only for a heap feeder.)
+A nozzle tip changer's move without **Backlash?** (its tip's Tool Changer tab) makes no extra backlash
+moves: no going past a place and back (one-sided), no stopping short to sneak up, no distance-aware
+back-off; a directional offset still shifts where it ends. Among the slots, a one-sided axis would carry the
+tip its offset past a slot's point, into its wall. A move with **Backlash?** is compensated as any other.
 
-<!-- src: src/machine/JPAxisConfig.h (Backlash); src/machine/JPCell.cpp (doMove: overshoot, approach, applied; updatePositions; reconfigure; setSpeedOverPrecision); src/tasks/JPTipChanger.cpp (run); src/app/JPlacerMachine.cpp (applySetup, unhomed); src/openpnp/JPOpenPnpMachineImporter.cpp (backlash) -->
+The Jog panel's **Backlash Compensation** (under the pad) turns every axis's compensation off, or on again,
+for every move from then on: a jog, a place button, a job, a tip change. It is ticked each time jplacer
+starts. With **Backlash Off Below Safe Z** (the Safety tab, ticked to begin with, kept for next time) it is
+turned off as soon as a Z of a tool on the head is below its safe Z, shown unticked and greyed meanwhile, and
+ticked again once every Z is back up, when going down is what turned it off.
+
+<!-- src: src/machine/JPAxisConfig.h (Backlash); src/machine/JPCell.cpp (doMove: overshoot, approach, applied; updatePositions; reconfigure; setSpeedOverPrecision); src/tasks/JPTipChanger.cpp (run); src/ui/JPJogPanel.cpp (jogPage, refreshBacklash, safetyPage); src/machine/JPCell.cpp (setBacklashCompensation, headBelowSafeZ); src/app/JPlacerMachine.cpp (applySetup, unhomed); src/openpnp/JPOpenPnpMachineImporter.cpp (backlash) -->
 
 **Calibrate** on an X or Y axis's Backlash Compensation tab measures its play with the camera that rides on
 it, over the head's homing fiducial (the machine homed, the camera calibrated), compensation off while it
@@ -441,7 +446,8 @@ scripting events run round it.
 
 <!-- src: src/ui/JPJogPanel.cpp (specialPage, refreshRecycle); src/model/JPFeeder.cpp (canTakeBackPart, partTakenBack); src/tasks/JPFeederTakeBack.cpp; src/tasks/JPHeapFeeder.cpp (takeBack); src/app/JPlacerOpenPnpTabs.cpp (recycle) -->
 
-**Safety** tab: **Board Protection**, as OpenPnP's, ticked each time jplacer starts. While it is, a jog is
+**Safety** tab: **Backlash Off Below Safe Z** (see [Backlash](#backlash)), and **Board Protection**, as
+OpenPnP's, ticked each time jplacer starts. While it is, a jog is
 refused (and the status line says which nozzle and which board) when it would leave a nozzle or an actuator
 on the head below its safe Z within 1 mm of an enabled board of the job, seen from above, and not above the
 board's surface: for a nozzle, 1 mm and half its tip's outside diameter, or, holding a part and with a Max.

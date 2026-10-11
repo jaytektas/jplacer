@@ -450,6 +450,7 @@ void JPlacerMachine::buildPanels(Keep keep) {
     choices.distance = settings.get<int>(JPlacerSettings::kJogDistance, JPJogPanel::kDistanceFirst);
     choices.speed = settings.get<double>(JPlacerSettings::kJogSpeed, JPJogPanel::kSpeedFirst);
     choices.stepThrough = settings.get<bool>(JPlacerSettings::kJogStepThrough, true);
+    choices.backlashOffBelowSafeZ = settings.get<bool>(JPlacerSettings::kJogBacklashOffBelowSafeZ, true);
     choices.distances = jogDistances();
     choices.speeds = jogSpeeds();
     auto jog = std::make_unique<JPJogPanel>(m_graph, *m_cell, choices);
@@ -472,6 +473,7 @@ void JPlacerMachine::buildPanels(Keep keep) {
         JSettings::instance().set(JPlacerSettings::kJogDistance, c.distance);
         JSettings::instance().set(JPlacerSettings::kJogSpeed, c.speed);
         JSettings::instance().set(JPlacerSettings::kJogStepThrough, c.stepThrough);
+        JSettings::instance().set(JPlacerSettings::kJogBacklashOffBelowSafeZ, c.backlashOffBelowSafeZ);
         JPlacerSettings::save();
     };
     jog->onChangeTip = [this](const std::string& nozzleId, const std::string& tipId, bool everyStep) {
