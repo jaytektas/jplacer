@@ -10,7 +10,7 @@
 // the offsets are roughly set, its Feature diameter (from the test object's size by the camera's scale; each change
 // previewed), its Auto-Detect Next (the diameter found taken, the issue shown again), and Accept: the calibration
 // with the feature diameter, its result shown with the issue. Capture Test Object Z: the nozzle's Z as it touches the
-// test object, kept as the rig's test object height (shown with the issue; not captured, the primary fiducial's Z).
+// test object, kept as the rig's test object height (typed in or captured; not set, the primary fiducial's Z).
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
@@ -198,8 +198,7 @@ int main() {
     s.find();
     s.publish();
     S::Issue* precise = find(s, "Calibrate precise camera ↔ nozzle LEFT offsets.");
-    assert(precise && precise->properties.size() == 3);
-    assert(precise->extendedDescription.find("Test object Z: -23.600 mm (the primary fiducial's") != std::string::npos);
+    assert(precise && precise->properties.size() == 4);
     S::Property& diameter = precise->properties[0];
     assert(diameter.label == "Feature diameter" && diameter.getNumber() == 225);   // 7.5 mm at 30 px a mm
     assert(diameter.max == 503);   // 0.7 of the 720 px side, cut down as OpenPnP casts it
@@ -209,17 +208,23 @@ int main() {
     s.onSolutionChanged = [&shownAgain] { shownAgain = true; };
     precise->properties[1].action();
     assert(shownAgain && diameter.getNumber() == 244);
-    // The test object's height: the nozzle tip touching it, captured (as a pick takes the nozzle's Z).
-    assert(precise->properties[2].actionLabel == "Capture Test Object Z");
+    // The test object's height: until set, the primary fiducial's; typed in; or the nozzle tip touching it,
+    // captured (as a pick takes the nozzle's Z). The box shows it as set, either way.
+    S::Property& objectZ = precise->properties[2];
+    assert(objectZ.label == "Test Object Z" && objectZ.kind == S::Property::Kind::Length && near(objectZ.getNumber(), -23.6));
+    shownAgain = false;
+    objectZ.setNumber(-23.0);
+    assert(shownAgain && cell.heads[0].rigTestObjectZ && near(*cell.heads[0].rigTestObjectZ, -23.0) && near(objectZ.getNumber(), -23.0));
+    assert(precise->properties[3].actionLabel == "Capture Test Object Z");
     at["zl"] = -22.0;
     shownAgain = false;
-    precise->properties[2].action();
-    assert(shownAgain && cell.heads[0].rigTestObjectZ && near(*cell.heads[0].rigTestObjectZ, -22.4));
+    precise->properties[3].action();
+    assert(shownAgain && cell.heads[0].rigTestObjectZ && near(*cell.heads[0].rigTestObjectZ, -22.4) && near(objectZ.getNumber(), -22.4));
     assert(s.setState(*precise, S::State::Solved, why) && calibratedAt == 244);
     s.find();
     s.publish();
     precise = find(s, "Calibrate precise camera ↔ nozzle LEFT offsets.");
     assert(precise && precise->extendedDescription.find("Detected Nozzle Head Offsets: -19.3000, -62.5600 mm") != std::string::npos);
-    assert(precise->extendedDescription.find("Test object Z: -22.400 mm (captured).") != std::string::npos);
+    assert(near(precise->properties[2].getNumber(), -22.4));   // found again: as captured
     return 0;
 }

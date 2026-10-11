@@ -315,8 +315,10 @@ void JPIssuesPanel::showIssue() {
                                 p.max);
                     break;
                 case S::Property::Kind::Number:
-                case S::Property::Kind::Length:
                     add.number(name, p.label, p.getNumber, p.setNumber);
+                    break;
+                case S::Property::Kind::Length:   // in the System Units, as Machine Setup's lengths
+                    add.length(name, p.label, p.getNumber, p.setNumber);
                     break;
                 case S::Property::Kind::Action:
                     add.button(p.label + "|" + p.actionLabel, p.actionLabel, p.tooltip);

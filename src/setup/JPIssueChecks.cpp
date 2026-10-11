@@ -1878,15 +1878,35 @@ void nozzleOffsets(JPSolutions& s, const JPIssueChecks::Context& c) {
                     });
                 };
                 i.properties.push_back(std::move(next));
-                // The test object's height, captured as the fiducials' are: the nozzle tip touching it.
+                // The test object's height, typed in (a measured or known thickness), or captured as the fiducials'
+                // are: the nozzle tip touching it.
+                // As set now (typed or captured), shown until the issues are found again.
+                auto shownZ = std::make_shared<double>(h.rigTestObjectZ.value_or(h.rigPrimary->z));
+                JPSolutions::Property objectZ;
+                objectZ.kind = JPSolutions::Property::Kind::Length;
+                objectZ.label = "Test Object Z";
+                objectZ.tooltip = "The test object's top, where nozzle " + name + " picks and places it: typed in, or "
+                                  "captured below. Until it is set, the primary fiducial's Z.";
+                objectZ.getNumber = [shownZ] { return *shownZ; };
+                objectZ.setNumber = [c, headId, shownZ, sp = &s](double v) {
+                    if (!c.changeCell) return;
+                    *shownZ = v;
+                    c.changeCell("Test object Z", [&](JPCellConfig& cell) {
+                        for (JPHeadConfig& x : cell.heads)
+                            if (x.id == headId) x.rigTestObjectZ = v;
+                    });
+                    sp->solutionChanged();
+                };
+                i.properties.push_back(std::move(objectZ));
                 JPSolutions::Property capture;
                 capture.kind = JPSolutions::Property::Kind::Action;
                 capture.tooltip = "Jog nozzle " + name + " down until its tip touches the test object, then capture its Z: where "
                                   "the nozzle picks and places it. Not captured: the primary fiducial's Z.";
                 capture.actionLabel = "Capture Test Object Z";
-                capture.action = [c, nozzleId, headId, sp = &s] {
+                capture.action = [c, nozzleId, headId, shownZ, sp = &s] {
                     const auto z = c.nozzleZ ? c.nozzleZ(nozzleId) : std::nullopt;
                     if (!z || !c.changeCell) return;
+                    *shownZ = *z;
                     c.changeCell("Test object Z", [&](JPCellConfig& cell) {
                         for (JPHeadConfig& x : cell.heads)
                             if (x.id == headId) x.rigTestObjectZ = *z;
@@ -1894,12 +1914,7 @@ void nozzleOffsets(JPSolutions& s, const JPIssueChecks::Context& c) {
                     sp->solutionChanged();
                 };
                 i.properties.push_back(std::move(capture));
-                char heightText[160];
-                if (h.rigTestObjectZ) std::snprintf(heightText, sizeof heightText, "\n\nTest object Z: %.3f mm (captured).", *h.rigTestObjectZ);
-                else std::snprintf(heightText, sizeof heightText, "\n\nTest object Z: %.3f mm (the primary fiducial's; capture it for a thicker "
-                                                                  "object).", h.rigPrimary->z);
-                std::string results = heightText;
-                results += "\n\nOffsets last calibrated: " + (n.offsetsWhen.empty() ? std::string("never, in jplacer")
+                std::string results = "\n\nOffsets last calibrated: " + (n.offsetsWhen.empty() ? std::string("never, in jplacer")
                                                                                    : JPWhen::withAgo(n.offsetsWhen) + ", " + n.offsetsHow) + ".";
                 if (const auto r = c.nozzleOffsetsResult ? c.nozzleOffsetsResult(nozzleId) : std::nullopt) {
                     char buf[320];
@@ -1915,7 +1930,7 @@ void nozzleOffsets(JPSolutions& s, const JPIssueChecks::Context& c) {
                     "etc. must be obtained in the OpenPnP Wiki. Press the blue Info button (below) to open the Wiki.\n\nPlace the "
                     "calibration test object onto the calibration primary fiducial.\n\nJog camera " + camera->name + " over the "
                     "test object. Target it with the cross-hairs.\n\nJog nozzle " + name + " down until its tip touches the test "
-                    "object and press Capture Test Object Z (for anything thicker than paper).\n\nAdjust the Feature diameter up and down and see if it is "
+                    "object and press Capture Test Object Z, or type its Z into Test Object Z (for anything thicker than paper).\n\nAdjust the Feature diameter up and down and see if it is "
                     "detected right in the camera view. A green circle and cross-hairs should appear and hug the test object "
                     "contour. Zoom the camera using the scroll-wheel.\n\nCAUTION The nozzle " + name + " will move to the test "
                     "object and perform the calibration pick & place pattern. Make sure to load the right nozzle tip and ready the "
