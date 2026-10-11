@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.47
+
 - Issues & Solutions' precise nozzle offsets have a Test Object Z box: the test object's height can be typed
   in, as well as captured with the nozzle touching it.
 - Tooltips come up when the pointer rests, without needing a small nudge of the mouse first.
