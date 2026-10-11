@@ -16,21 +16,17 @@ notes.
   Loading a part takes its only packaging, or the one last chosen for it, by itself.
 - **Part** is at the top of every feeder's page (the Photon and heap feeders had it further down).
 - A packaging's tape width and pitch keep their decimals (2.5 mm was read back as 2).
-
 - The tables on the Job, Boards, Panels, Parts and Packages tabs have a **Columns** icon at the end of their
   toolbars: tick the columns to show, untick those to hide. Each table keeps its own choice, with its column
   order, widths and sort.
-
 - A feeder's **Part** drops the Parts tab's own table to choose from, every column of it: sort, move and
   widen its columns there, and choose them with its **Columns** icon; it keeps its layout apart from the
   Parts tab's. The box becomes a filter line (its **✕** empties it), with the Parts tab's **Show** beside it
   (All, Used by open boards, each open board). The Parts tab's **Package** (the Packages tab's table), a
   feeder bank slot's part and a panel fiducial's **Part** choose the same way.
 - Tables no longer draw a row scrolled part way up over their column titles.
-
 - jplacer opens on the tabs you left in front. With a panel closed (Job, Panels), it always opened on the
   Console tab.
-
 - Each camera's right-click menu has **Reticle Style…**: the colour and line thickness of its reticle (the
   cross, grid, ruler, circle or square) and of a footprint drawn over the picture, colours from the colour
   chooser, kept with the camera. Shown as you change them.
