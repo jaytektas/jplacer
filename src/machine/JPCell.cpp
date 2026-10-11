@@ -2422,6 +2422,19 @@ bool JPCell::inSafeZone(const std::string& axisId, double value) const {
     return true;
 }
 
+void JPCell::setBacklashCompensation(bool on, const std::string& why) {
+    {
+        std::lock_guard lk(m_backlashWhyMutex);
+        m_backlashWhy = on ? std::string() : why;
+    }
+    if (m_backlashOn.exchange(on) != on) onBacklashCompensation.emit(on);
+}
+
+std::string JPCell::backlashOffBecause() const {
+    std::lock_guard lk(m_backlashWhyMutex);
+    return m_backlashOn ? std::string() : m_backlashWhy;
+}
+
 bool JPCell::belowSafeZone(const std::string& axisId, double value) const {
     const JPAxisConfig* a = m_config.axis(axisId);
     if (!a) return false;

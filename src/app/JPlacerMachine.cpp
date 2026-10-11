@@ -589,6 +589,11 @@ std::unique_ptr<JPMachineSetupPanel> JPlacerMachine::makeSetup() {
         const auto it = states.find(driverId);
         return it == states.end() || it->second.empty() ? std::string("connected, no state reported yet") : it->second;
     };
+    setup->live.backlashOff = [this] {
+        if (!m_cell || m_cell->backlashCompensation()) return std::string();
+        const std::string why = m_cell->backlashOffBecause();
+        return why.empty() ? std::string("turned off") : why;
+    };
     setup->live.driverConsole = [this, consoles = m_consoles](const std::string& driverId) {
         if (m_cell)
             for (const JPDriverConfig& d : m_cell->config().drivers)
@@ -832,6 +837,13 @@ void JPlacerMachine::watchCell() {
             due->store(false);
             if (const auto a = alive.lock(); !a || !*a || !m_setup) return;
             if (m_setupSelected.rfind("driver:", 0) == 0) m_setup->refreshForm();
+        });
+    }));
+    // An axis's page says whether compensation is on now, and why not.
+    m_unwatch.push_back(m_cell->onBacklashCompensation.connect([this, onMain](bool) {
+        onMain([this] {
+            // Made again, not refreshed: the words are longer than the "on" the field was sized for.
+            if (m_setup && m_setupSelected.rfind("axis:", 0) == 0) m_setup->remakeForm();
         });
     }));
     m_unwatch.push_back(m_cell->onCalibration.connect([this, onMain] {

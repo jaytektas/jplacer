@@ -736,7 +736,7 @@ void backlashResults(JPFormBuilder& add, const JPBacklashCalibration& k) {
              "against the mean of them all: each should land within the tolerance of the others.");
 }
 
-void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f) {
+void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f, const JPSetupProperties::Live& live) {
     using A = JPAxisConfig;
     auto a = finder(cell.axes, id);
     f.title = "Axis " + a().name;
@@ -924,6 +924,11 @@ void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
                        if (v == n) a().backlash = m;
                });
     f.reshaping.push_back("backlash");
+    // The method is what the axis does when compensation is on; the machine's may be off for now (the Jog panel).
+    add.text("backlashNow", "Compensation Now", [off = live.backlashOff] {
+        const std::string why = off ? off() : std::string();
+        return why.empty() ? std::string("on") : "off: " + why;
+    }, nullptr);
     const A::Backlash method = a().backlash;
     if (method == A::Backlash::DistanceAware) {
         lin("approachMm", "Least Approach", [a] { return a().approachMm; },
@@ -3422,7 +3427,7 @@ JPSetupProperties::Form JPSetupProperties::forNode(JPCellConfig& cell, const std
     else if (p.kind == "vision" && p.id == "bottom") bottomVisionForm(cell, f, config, tests);
     else if (p.kind == "vision" && p.id == "fiducial") fiducialLocatorForm(cell, f, config, tests);
     else if (p.kind == "driver" && has(cell.drivers, p.id)) driverForm(cell, p.id, profiles, f, live);
-    else if (p.kind == "axis" && has(cell.axes, p.id)) axisForm(cell, p.id, f);
+    else if (p.kind == "axis" && has(cell.axes, p.id)) axisForm(cell, p.id, f, live);
     else if (p.kind == "head" && has(cell.heads, p.id)) headForm(cell, p.id, f);
     else if (p.kind == "nozzle" && has(cell.nozzles, p.id)) nozzleForm(cell, p.id, f);
     else if (p.kind == "nozzletip" && has(cell.nozzleTips, p.id)) nozzleTipForm(cell, p.id, f, live);

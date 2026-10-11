@@ -387,7 +387,7 @@ std::unique_ptr<JWidget> JPJogPanel::jogPage(float size) {
     m_backlash = backlash.get();
     m_backlash->onStateChanged.connect([this](bool on) {
         if (m_showingBacklash) return;
-        m_cell.setBacklashCompensation(on);
+        m_cell.setBacklashCompensation(on, "Backlash Compensation unticked on the Jog panel");
         m_backlashOffForZ = false;
     });
     page->addChildWidget(std::move(backlash));
@@ -401,7 +401,8 @@ void JPJogPanel::refreshBacklash() {
     const bool below = m_offBelowSafeZ && mount && m_cell.headBelowSafeZ(mount->headId);
     // Off going below safe Z; on again coming back up, when going down is what turned it off.
     if (below && m_cell.backlashCompensation()) {
-        m_cell.setBacklashCompensation(false);
+        m_cell.setBacklashCompensation(false, "the head is below safe Z (the Jog panel's Safety: Backlash Off Below Safe Z); "
+                                              "on again once it is back up");
         m_backlashOffForZ = true;
     } else if (!below && m_backlashOffForZ) {
         m_cell.setBacklashCompensation(true);

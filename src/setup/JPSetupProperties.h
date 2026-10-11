@@ -172,6 +172,8 @@ public:
         std::function<std::string(const std::string& driverId)> driverState;
         // A controller's G-code console (OpenPnP's driver Console tab): its traffic, newest last.
         std::function<std::vector<std::string>(const std::string& driverId)> driverConsole;
+        // Why the machine's backlash compensation is off ("" while on: JPCell::backlashOffBecause).
+        std::function<std::string()> backlashOff;
     };
     static Form forNode(JPCellConfig& cell, const std::string& path, const std::vector<JPFirmwareProfile>& profiles,
                         JPConfiguration* config = nullptr, const JPVisionTests* tests = nullptr,

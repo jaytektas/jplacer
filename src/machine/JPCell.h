@@ -321,8 +321,12 @@ public:
     // Backlash compensation on (as each axis says) or off (every move goes
     // straight to its target): off while the backlash is being measured, or
     // as the Jog panel's Backlash Compensation says. On to begin with.
-    void setBacklashCompensation(bool on) { m_backlashOn = on; }
+    // `why`: what turned it off, in words for an axis's page ("the head is
+    // below safe Z"); onBacklashCompensation says it changed.
+    void setBacklashCompensation(bool on, const std::string& why = {});
     bool backlashCompensation() const { return m_backlashOn; }
+    // Why it is off (empty while on).
+    std::string backlashOffBecause() const;
     // OpenPnP's MotionOption.SpeedOverPrecision for the moves made while on: no backlash compensation that
     // makes extra moves (one-sided's going past the target and back, sneaking up's stopping short, the
     // distance-aware back-off); a directional offset still shifts where a move ends. For moves among things
@@ -396,6 +400,7 @@ public:
     JSignal<bool>                                onHomed;
     JSignal<std::string>                         onParked;       // a head parked in X and Y (its id): not Z, not rotation
     JSignal<>                                    onCalibration;  // a camera's calibration or the squareness changed
+    JSignal<bool>                                onBacklashCompensation;   // turned on or off (setBacklashCompensation)
     JSignal<std::string, std::string>            onState;        // controller id, its new state
 
 private:
@@ -615,6 +620,8 @@ private:
     std::map<std::string, double>      m_backlashLag;
     std::map<std::string, double>      m_reported;   // controller axes, as reported
     std::atomic<bool>                  m_backlashOn{ true };
+    mutable std::mutex                 m_backlashWhyMutex;
+    std::string                        m_backlashWhy;   // why it is off
     std::atomic<bool>                  m_speedOverPrecision{ false };   // setSpeedOverPrecision
     std::map<std::string, double>      m_corrected;  // correctPosition's since the last home, summed
     std::map<std::string, std::string> m_firmware;

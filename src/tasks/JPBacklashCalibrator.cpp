@@ -65,8 +65,8 @@ std::vector<std::pair<double, double>> lagTable(const std::vector<std::pair<doub
 struct CompensationOff {
     JPCell& cell;
     bool    was;
-    explicit CompensationOff(JPCell& c) : cell(c), was(c.backlashCompensation()) { cell.setBacklashCompensation(false); }
-    ~CompensationOff() { cell.setBacklashCompensation(was); }   // the Jog panel's Backlash Compensation
+    explicit CompensationOff(JPCell& c) : cell(c), was(c.backlashCompensation()) { cell.setBacklashCompensation(false, "backlash is being calibrated"); }
+    ~CompensationOff() { cell.setBacklashCompensation(was, "Backlash Compensation unticked on the Jog panel"); }
 };
 
 } // namespace
