@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.53
+
 - A feeder takes its part's packaging: under **Part**, **Packaging** lists the ways the part comes (its
   Packagings on the Library tab), and choosing one puts its rotation, tape width and pitch into the feeder's
   settings (a strip feeder's Rotation In Tape, Tape Width and Part Pitch, and the like on other kinds).
