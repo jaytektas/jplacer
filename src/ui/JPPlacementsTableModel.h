@@ -83,8 +83,15 @@ public:
 
     // A job's placement marked placed or not.
     void setPlaced(int row, bool placed);
+    // The same for each of `rows`, the change said once.
+    void setPlacedEach(const std::vector<int>& rows, bool placed);
+    // `set` applied to the placement `id` (and its uses), the change not said.
+    void apply(const std::string& id, const std::function<void(JPPlacement&)>& set);
     // `set` applied to the placement `id`, on the definition and its uses.
     void edit(const std::string& id, const std::function<void(JPPlacement&)>& set);
+    // `set` applied to each of the placements `ids`, then the change said once: a change to many (all of a
+    // board's chosen and disabled) saves and redraws once, not once a placement.
+    void editEach(const std::vector<std::string>& ids, const std::function<void(JPPlacement&)>& set);
 
     // OpenPnP's order for reference designators: those with no digit first,
     // then by the letters before the digits, then by the number.

@@ -309,6 +309,17 @@ JPBoard* JPPlacementsTableModel::editedBoard() const {
 
 void JPPlacementsTableModel::edit(const std::string& id, const std::function<void(JPPlacement&)>& set) {
     if (!m_holder) return;
+    apply(id, set);
+    if (onChanged) onChanged();
+}
+
+void JPPlacementsTableModel::editEach(const std::vector<std::string>& ids, const std::function<void(JPPlacement&)>& set) {
+    if (!m_holder || ids.empty()) return;
+    for (const std::string& id : ids) apply(id, set);
+    if (onChanged) onChanged();
+}
+
+void JPPlacementsTableModel::apply(const std::string& id, const std::function<void(JPPlacement&)>& set) {
     if (m_location) {
         // A job's: the board itself when it may be, else this use of it alone.
         JPPlacementsHolder* def = m_editDefinition ? m_config.definitionOf(*m_holder) : nullptr;
@@ -321,14 +332,21 @@ void JPPlacementsTableModel::edit(const std::string& id, const std::function<voi
     } else {
         JPDefinitionChanges(m_config, m_job()).placement(*m_holder, id, set);
     }
-    if (onChanged) onChanged();
 }
 
 void JPPlacementsTableModel::setPlaced(int row, bool placed) {
-    const JPPlacement* p = placement(row);
-    if (!p || !m_placedJob || !m_location) return;
-    m_placedJob->storePlacedStatus(*m_location, p->id, placed);
-    if (onChanged) onChanged();
+    setPlacedEach({ row }, placed);
+}
+
+void JPPlacementsTableModel::setPlacedEach(const std::vector<int>& rows, bool placed) {
+    if (!m_placedJob || !m_location) return;
+    bool any = false;
+    for (const int row : rows)
+        if (const JPPlacement* p = placement(row)) {
+            m_placedJob->storePlacedStatus(*m_location, p->id, placed);
+            any = true;
+        }
+    if (any && onChanged) onChanged();   // once for all of them
 }
 
 bool JPPlacementsTableModel::setText(int row, int c, const std::string& text, std::string&) {

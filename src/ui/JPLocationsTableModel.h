@@ -56,8 +56,14 @@ public:
     // `set` applied to the child at `row` and the same child of each use of
     // its panel (a change to where it lies, its side, enabled or fiducial check).
     void edit(JPPlacementsHolderLocation* l, const std::function<void(JPPlacementsHolderLocation&)>& set);
+    // `set` applied to each of `ls`, then the change said once.
+    void editEach(const std::vector<JPPlacementsHolderLocation*>& ls, const std::function<void(JPPlacementsHolderLocation&)>& set);
+    // `set` applied to `l` (and the same child of each use of its panel), the change not said.
+    void apply(JPPlacementsHolderLocation* l, const std::function<void(JPPlacementsHolderLocation&)>& set);
     // Its side as seen from the machine, keeping where it lies (OpenPnP's Side column).
     void setSide(JPPlacementsHolderLocation* l, JPSide side);
+    // The same for each of `ls`, the change said once.
+    void setSides(const std::vector<JPPlacementsHolderLocation*>& ls, JPSide side);
 
 private:
     JPConfiguration&                          m_config;

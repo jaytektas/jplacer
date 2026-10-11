@@ -141,7 +141,9 @@ void JPBoardPlacementsPanel::buildContextMenu() {
     };
     auto forChosen = [this](std::function<void(JPPlacement&)> set) {
         return [this, set] {
-            for (const JPPlacement* p : selections()) m_model.edit(p->id, set);
+            std::vector<std::string> ids;
+            for (const JPPlacement* p : selections()) ids.push_back(p->id);
+            m_model.editEach(ids, set);
             m_table->refresh();
         };
     };

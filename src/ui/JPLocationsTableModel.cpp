@@ -186,29 +186,52 @@ std::vector<std::string> JPLocationsTableModel::choices(int, int c) const {
 
 void JPLocationsTableModel::edit(JPPlacementsHolderLocation* l, const std::function<void(JPPlacementsHolderLocation&)>& set) {
     if (!l) return;
+    editEach({ l }, set);
+}
+
+void JPLocationsTableModel::editEach(const std::vector<JPPlacementsHolderLocation*>& ls,
+                                     const std::function<void(JPPlacementsHolderLocation&)>& set) {
+    bool any = false;
+    for (JPPlacementsHolderLocation* l : ls) {
+        if (!l) continue;
+        any = true;
+        apply(l, set);
+    }
+    if (any && onChanged) onChanged();
+}
+
+void JPLocationsTableModel::apply(JPPlacementsHolderLocation* l, const std::function<void(JPPlacementsHolderLocation&)>& set) {
     if (m_mode == Mode::PanelDefinition && m_root && m_root->panel()) {
         const std::string id = l->id;   // a copy: the change may be to the id
         JPDefinitionChanges(m_config, m_job()).child(*m_root->panel(), id, set);
     } else {
         set(*l);
     }
-    if (onChanged) onChanged();
 }
 
 void JPLocationsTableModel::setSide(JPPlacementsHolderLocation* l, JPSide side) {
-    if (!l || side == l->globalSide()) return;
-    // Turned over where it lies (its own panel's children), its transform worked out again.
-    const JPLocation saved = l->globalLocation();
-    l->setGlobalSide(side);
-    if (l->parent == m_root) l->setGlobalLocation(saved);
-    l->setLocalToParentTransform(std::nullopt);
-    const JPSide local = l->side;
-    const JPLocation at = l->location();
-    edit(l, [local, at](JPPlacementsHolderLocation& c) {
-        c.side = local;
-        c.setLocation(at);
-        c.setLocalToParentTransform(std::nullopt);
-    });
+    setSides({ l }, side);
+}
+
+void JPLocationsTableModel::setSides(const std::vector<JPPlacementsHolderLocation*>& ls, JPSide side) {
+    bool any = false;
+    for (JPPlacementsHolderLocation* l : ls) {
+        if (!l || side == l->globalSide()) continue;
+        // Turned over where it lies (its own panel's children), its transform worked out again.
+        const JPLocation saved = l->globalLocation();
+        l->setGlobalSide(side);
+        if (l->parent == m_root) l->setGlobalLocation(saved);
+        l->setLocalToParentTransform(std::nullopt);
+        const JPSide local = l->side;
+        const JPLocation at = l->location();
+        apply(l, [local, at](JPPlacementsHolderLocation& c) {
+            c.side = local;
+            c.setLocation(at);
+            c.setLocalToParentTransform(std::nullopt);
+        });
+        any = true;
+    }
+    if (any && onChanged) onChanged();   // once for all of them
 }
 
 bool JPLocationsTableModel::setText(int row, int c, const std::string& text, std::string&) {

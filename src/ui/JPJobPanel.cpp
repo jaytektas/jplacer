@@ -217,23 +217,26 @@ void JPJobPanel::buildMenu() {
             // Only those straight in the job are turned over.
             JPJob* j = m_job();
             if (!j) return;
+            std::vector<JPPlacementsHolderLocation*> ls;
             for (JPPlacementsHolderLocation* l : selections())
-                if (l->parent == &j->root()) m_model.setSide(l, s);
+                if (l->parent == &j->root()) ls.push_back(l);
+            m_model.setSides(ls, s);
             m_table->refresh();
             m_placements->refresh();
         });
     JMenu* enabled = sub("Set Enabled", "Set the selected board(s) and/or panel(s) Enabled state");
     for (bool on : { true, false })
         enabled->add(g, on ? "Enabled" : "Disabled")->onTriggered.connect([this, on] {
+            std::vector<JPPlacementsHolderLocation*> ls;
             for (JPPlacementsHolderLocation* l : selections())
-                if (l->isParentBranchEnabled()) m_model.edit(l, [on](JPPlacementsHolderLocation& x) { x.locallyEnabled = on; });
+                if (l->isParentBranchEnabled()) ls.push_back(l);
+            m_model.editEach(ls, [on](JPPlacementsHolderLocation& x) { x.locallyEnabled = on; });
             m_table->refresh();
         });
     JMenu* fids = sub("Set Check Fids", "Set the selected board(s) and/or panel(s) Check Fids state");
     for (bool check : { true, false })
         fids->add(g, check ? "Check" : "Don't Check")->onTriggered.connect([this, check] {
-            for (JPPlacementsHolderLocation* l : selections())
-                m_model.edit(l, [check](JPPlacementsHolderLocation& x) { x.checkFiducials = check; });
+            m_model.editEach(selections(), [check](JPPlacementsHolderLocation& x) { x.checkFiducials = check; });
             m_table->refresh();
         });
 }

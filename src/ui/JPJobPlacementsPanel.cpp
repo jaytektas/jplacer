@@ -141,7 +141,9 @@ void JPJobPlacementsPanel::buildMenu() {
     };
     auto forChosen = [this](std::function<void(JPPlacement&)> set) {
         return [this, set] {
-            for (const JPPlacement* p : selections()) m_model.edit(p->id, set);
+            std::vector<std::string> ids;
+            for (const JPPlacement* p : selections()) ids.push_back(p->id);
+            m_model.editEach(ids, set);
             m_table->refresh();
         };
     };
@@ -159,7 +161,7 @@ void JPJobPlacementsPanel::buildMenu() {
     placedItem->setTooltip("Set the selected placement(s) status");
     for (bool on : { true, false })
         placed->add(g, on ? "Placed" : "Not Placed")->onTriggered.connect([this, on] {
-            for (const int r : m_table->selectedRows()) m_model.setPlaced(r, on);
+            m_model.setPlacedEach(m_table->selectedRows(), on);
             m_table->refresh();
         });
     auto [enabled, enabledItem] = sub("Set Enabled");

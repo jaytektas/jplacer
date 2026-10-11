@@ -210,7 +210,9 @@ void JPPanelDefinitionPanel::buildMenus() {
     JMenu* fside = sub(*m_fiducialMenu, "Set Side...", "Sets the side of the selected items");
     for (JPSide s : { JPSide::Bottom, JPSide::Top })
         value(fside, JPSides::name(s), "Set the selected fiducial(s) to side")->onTriggered.connect([this, s] {
-            for (const JPPlacement* p : fiducialSelections()) m_fiducials.edit(p->id, [s](JPPlacement& q) { q.side = s; });
+            std::vector<std::string> ids;
+            for (const JPPlacement* p : fiducialSelections()) ids.push_back(p->id);
+            m_fiducials.editEach(ids, [s](JPPlacement& q) { q.side = s; });
             m_fiducials.reload();
             m_fiducialTable->refresh();
         });
