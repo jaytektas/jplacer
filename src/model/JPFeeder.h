@@ -5,9 +5,11 @@
 
 #include "JPLength.h"
 #include "JPLocation.h"
+#include "JPAdvancedLoosePartFeeder.h"
 #include "JPAutoFeeder.h"
 #include "JPDragFeeder.h"
 #include "JPLeverFeeder.h"
+#include "JPLoosePartFeeder.h"
 #include "JPNeoden4Feeder.h"
 #include "JPRapidFeeder.h"
 #include "JPRotatedTrayFeeder.h"
@@ -291,7 +293,7 @@ public:
     // A vision pipeline as OpenPnP wrote it (<pipeline><stages>…, or
     // another element: an advanced loose part feeder's <training-pipeline>),
     // or null; and one put in its place (named `element`, where it was).
-    const JPXmlNode* pipeline(const std::string& element = "pipeline") const { return child(element); }
+    const JPXmlNode* pipeline(const std::string& element = "pipeline") const;
     void             setPipeline(JPXmlNode pipeline, const std::string& element = "pipeline");
     void        setChildText(const std::string& element, const std::string& value);
     // An attribute of a child element, by its path ("vision/area-of-interest");
@@ -323,7 +325,7 @@ private:
     // Its kind's own settings: OpenPnP's as they are (a kind not typed), else a typed kind's.
     using Own = std::variant<JPXmlNode, JPTrayFeeder, JPTubeFeeder, JPAutoFeeder, JPSlotAutoFeeder, JPSchultzFeeder,
                              JPSlotSchultzFeeder, JPRotatedTrayFeeder, JPRapidFeeder, JPDragFeeder, JPLeverFeeder,
-                             JPNeoden4Feeder>;
+                             JPNeoden4Feeder, JPLoosePartFeeder, JPAdvancedLoosePartFeeder>;
     Own m_own { JPXmlNode("feeder") };
     std::vector<int> m_visionChecks;
     bool             m_actuate = false;

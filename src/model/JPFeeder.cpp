@@ -904,9 +904,38 @@ void JPFeeder::setAttributeAt(const std::string& path, const std::string& attrib
     n->set(attribute, value);
 }
 
+namespace {
+
+// A typed kind's pipeline of OpenPnP's element name (its own: "pipeline"; an advanced loose part feeder's
+// "training-pipeline" too); none: its kind has none of that name.
+template <class F>
+auto pipelineOf(F& f, const std::string& element) {
+    using Slot = std::conditional_t<std::is_const_v<F>, const std::optional<JPXmlNode>, std::optional<JPXmlNode>>;
+    Slot* slot = nullptr;
+    if (auto* l = f.template as<JPLoosePartFeeder>()) slot = element == "pipeline" ? &l->pipeline : nullptr;
+    else if (auto* a = f.template as<JPAdvancedLoosePartFeeder>())
+        slot = element == "pipeline" ? &a->pipeline : element == "training-pipeline" ? &a->trainingPipeline : nullptr;
+    return slot;
+}
+
+} // namespace
+
+const JPXmlNode* JPFeeder::pipeline(const std::string& element) const {
+    if (!typed()) return child(element);
+    const std::optional<JPXmlNode>* slot = pipelineOf(*this, element);
+    return slot && *slot ? &**slot : nullptr;
+}
+
 void JPFeeder::setPipeline(JPXmlNode pipeline, const std::string& element) {
     pipeline.name = element;
-    putChild(std::move(pipeline));
+    if (!typed()) {
+        putChild(std::move(pipeline));
+        return;
+    }
+    if (std::optional<JPXmlNode>* slot = pipelineOf(*this, element)) *slot = std::move(pipeline);
+    else
+        JLOGC(JPlacerLog::kFeeders, JLogLevel::Error) << "feeder " << m_id << " (" << typeName() << "): it has no pipeline \""
+                                                      << element << "\" to set";
 }
 
 std::string JPFeeder::childText(const std::string& element, const std::string& def) const {

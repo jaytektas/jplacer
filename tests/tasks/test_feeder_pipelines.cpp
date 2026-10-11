@@ -4,7 +4,7 @@
 // A strip feeder's pipeline: OpenPnP's default when it holds none (its old
 // ImageCapture "settle-first" read as settling), the one it holds once
 // kept, the default back on reset; what the editor sets on it, in pixels
-// through the camera's scale; and no pipeline for a kind without one.
+// through the camera's scale; no pipeline for a kind without one; a loose part feeder's (typed) its own.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
@@ -50,5 +50,23 @@ int main() {
     // A drag feeder has no pipeline here.
     JPFeeder drag = JPFeeder::create("org.openpnp.machine.reference.feeder.ReferenceDragFeeder", "R1");
     assert(!JPFeederPipelines::of(drag) && !JPFeederPipelines::reset(drag));
+    // A loose part feeder's pipeline its own (its kind typed), kept and reset; an advanced one's training pipeline
+    // beside its feed pipeline; both through jplacer's file.
+    {
+        JPFeeder loose = JPFeeder::create(JPLoosePartFeeder::kClass, "R1");
+        assert(loose.as<JPLoosePartFeeder>() && !loose.pipeline() && JPFeederPipelines::of(loose));
+        JPPipeline mine = *JPFeederPipelines::of(loose);
+        const size_t stages = mine.stages().size();
+        mine.stages().pop_back();
+        loose.setPipeline(mine.toXml());
+        const JPFeeder back = JPFeeder::fromJson(JJson::parse(loose.toJson().dump()));
+        assert(back.pipeline() && JPFeederPipelines::of(back)->stages().size() == stages - 1);
+        assert(JPFeederPipelines::reset(loose) && JPFeederPipelines::of(loose)->stages().size() == stages);
+
+        JPFeeder advanced = JPFeeder::create(JPAdvancedLoosePartFeeder::kClass, "R1");
+        assert(JPFeederPipelines::reset(advanced, "training-pipeline") && advanced.pipeline("training-pipeline") && !advanced.pipeline());
+        const JPFeeder again = JPFeeder::fromJson(JJson::parse(advanced.toJson().dump()));
+        assert(again.pipeline("training-pipeline") && again.pipeline("training-pipeline")->name == "training-pipeline");
+    }
     return 0;
 }
