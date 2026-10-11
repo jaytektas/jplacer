@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.46
+
 - The Jog panel has Backlash Compensation under the pad: unticked, no axis is compensated, for every move,
   so teaching a tip changer's slots no longer carries the nozzle past its place into a wall. It is ticked
   each time jplacer starts. With Backlash Off Below Safe Z (the Safety tab, on to begin with) it is unticked
@@ -17,7 +19,6 @@ notes.
   Compensation tab says whether compensation is on now and, when it is off, why (unticked on the Jog panel,
   the head below safe Z, or backlash being calibrated), so a method set there that is not being used is
   explained.
-
 - A Machine Setup or Feeders tab wider than its pane now scrolls sideways, with a bar along the bottom (or
   the wheel with Shift held), as a long one scrolls down; its notes wrap to the pane's width. On a narrow
   window a nozzle tip's Backlash? column and step buttons can be reached.
