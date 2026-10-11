@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- **Help ▸ About jplacer** shows the Jaytek logo above jplacer's version, copyright, licence and link, as
+  jayecu Studio's About box does.
+
 ## 0.1.53
 
 - A feeder takes its part's packaging: under **Part**, **Packaging** lists the ways the part comes (its

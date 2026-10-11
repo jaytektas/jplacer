@@ -64,6 +64,12 @@ bool JPOpenPnpIcons::darkTheme() {
     return (int(s[0]) * 299 + int(s[1]) * 587 + int(s[2]) * 114) / 1000 < 128;
 }
 
+std::string JPOpenPnpIcons::picture(const std::string& fileName) const {
+    if (m_dir.empty()) return {};
+    const fs::path p = fs::path(m_dir) / fileName;
+    return fs::exists(p) ? p.string() : std::string();
+}
+
 std::string JPOpenPnpIcons::file(const std::string& name, bool dark) const {
     if (m_dir.empty()) return {};
     if (dark) {

@@ -3,6 +3,8 @@
 
 #include "JPlacerApp.h"
 
+#include "JPlacerAbout.h"
+
 #include "common/JPBackups.h"
 #include "pipeline/JPVisionDebug.h"
 
@@ -252,15 +254,6 @@ void JPlacerApp::addJogStepKeys() {
     m_machine->keysChanged();
 }
 
-void JPlacerApp::showAbout() {
-    JDialog::message("About jplacer",
-        "jplacer " JPLACER_VERSION "\n\n"
-        "Pick-and-place machine control.\n\n"
-        "Copyright (C) 2026 Jason Roughley\n"
-        "This program is free software: you can redistribute it and/or modify it under the "
-        "terms of the GNU General Public License, version 3 or later. It comes with ABSOLUTELY "
-        "NO WARRANTY.\n\n"
-        "https://github.com/jaytektas/jplacer");
-}
+void JPlacerApp::showAbout() { JPlacerAbout::show(); }
 
 } // inline namespace jf

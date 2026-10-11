@@ -9,3 +9,7 @@ at a row's height, GPL-3.0 as jplacer is.
 `table-columns.svg` (a table under a tick) is jplacer's own too, for the toolbars' Columns… button that
 chooses a table's columns: OpenPnP's flat 24-pixel style and its action green (`_dark` the brighter green
 of its dark icons), GPL-3.0 as jplacer is.
+
+`jaytek-logo.png` is the Jaytek mark for the About box (Help ▸ About jplacer), the same file jayecu Studio's About
+box shows: made from its 1024-pixel artwork at the size the box draws it (400 pixels wide), as the box draws a
+picture one pixel for each.

@@ -32,6 +32,8 @@ public:
     TextureHandle texture(const std::string& name, int pixels, bool disabled = false);
     // Whether the theme in use is a dark one.
     static bool darkTheme();
+    // A picture shipped with the icons (the About box's logo), by its file name; empty when it is not there.
+    std::string picture(const std::string& fileName) const;
 
 private:
     std::string file(const std::string& name, bool dark) const;
