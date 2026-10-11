@@ -501,7 +501,8 @@ them, or Ctrl+A for all of it, then Ctrl+C; right-click for **Copy**, **Select A
 the last 1000 lines. Type a line in the box and press **Send** or
 Return to send it, as OpenPnP's G-code console does: with **Force Upper Case** (ticked to begin with) in
 capitals, as most controllers want; Up and Down go back through the last 50 lines sent. With more than one
-controller, choose which one from the list beside the box.
+controller, choose which one from the list beside the box. **G-code**, **Force Upper Case** and the
+controller chosen are kept for next time, as the log's levels are.
 
 Over the lines, what is shown:
 

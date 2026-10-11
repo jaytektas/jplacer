@@ -31,11 +31,19 @@ inline namespace jf {
 // while the list is at its end. Ctrl+C copies the entries chosen.
 class JPLogPanel : public JContainer {
 public:
-    explicit JPLogPanel(JSceneGraph& graph);
+    // Its filter as it was left, kept from one run to the next.
+    struct Choices {
+        std::string search;
+        std::string level = "TRACE";   // Log Level: that and above (JPLogLine::levelName)
+        bool        systemOutput = true;
+    };
+    JPLogPanel(JSceneGraph& graph, Choices start);
     ~JPLogPanel() override;
 
-    // The log's levels changed (the Global Log Level): for the owner to keep.
+    Choices choices() const;
+    // The log's levels changed (the Global Log Level), the filter changed: for the owner to keep.
     std::function<void(const JPLogLevels&)> onLogLevels;
+    std::function<void()>                   onChoicesChanged;
 
 private:
     struct Entry {

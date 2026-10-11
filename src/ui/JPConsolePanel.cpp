@@ -57,8 +57,8 @@ std::string shown(JLogLevel l) {
 
 } // namespace
 
-JPConsolePanel::JPConsolePanel(JSceneGraph& graph, JPCell& cell, bool showTraffic)
-    : JContainer(graph), m_cell(cell), m_showTraffic(showTraffic) {
+JPConsolePanel::JPConsolePanel(JSceneGraph& graph, JPCell& cell, Choices start)
+    : JContainer(graph), m_cell(cell), m_showTraffic(start.showTraffic) {
     JPUiParts::asPanel(*this);
 
     // What is shown.
@@ -67,10 +67,10 @@ JPConsolePanel::JPConsolePanel(JSceneGraph& graph, JPCell& cell, bool showTraffi
     const JStyle& st = JStyle::current();
     m_traffic = shows->add(std::make_unique<JCheckBox>(
         graph, "G-code", st.checkHeight + 2 * st.spacing + std::ceil(JTextHelper::measureWidth("G-code"))));
-    m_traffic->setChecked(showTraffic);
+    m_traffic->setChecked(start.showTraffic);
     m_traffic->onStateChanged.connect([this](bool on) {
         m_showTraffic = on;
-        if (onShowTraffic) onShowTraffic(on);
+        if (onChoicesChanged) onChoicesChanged();
         refilter();
     });
     JLabel* log = shows->add(std::make_unique<JLabel>(graph, "Log", std::ceil(JTextHelper::measureWidth("Log")) + st.spacing));
@@ -110,16 +110,24 @@ JPConsolePanel::JPConsolePanel(JSceneGraph& graph, JPCell& cell, bool showTraffi
         std::vector<std::string> names;
         for (const JPDriverConfig& d : cell.config().drivers) names.push_back(d.name);
         m_controller = input->add(std::make_unique<JComboBox>(graph, names));
+        for (size_t i = 0; i < names.size(); ++i)
+            if (names[i] == start.controller) m_controller->setCurrentIndex(int(i));
+        m_controller->onIndexChanged.connect([this](int) {
+            if (onChoicesChanged) onChoicesChanged();
+        });
     }
     m_input = input->add(std::make_unique<JPHistoryLineEdit>(graph, "G-code to send"));
     m_input->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     m_input->onReturnPressed.connect([this] { send(); });
     input->add(JPUiParts::button(graph, "Send"))->onClicked.connect([this] { send(); });
-    // OpenPnP's Force Upper Case: on, as most controllers want their commands.
+    // OpenPnP's Force Upper Case: on to begin with, as most controllers want their commands.
     const std::string upper = "Force Upper Case";
     m_upperCase = input->add(std::make_unique<JCheckBox>(
         graph, upper, st.checkHeight + 2 * st.spacing + std::ceil(JTextHelper::measureWidth(upper))));
-    m_upperCase->setChecked(true);
+    m_upperCase->setChecked(start.upperCase);
+    m_upperCase->onStateChanged.connect([this](bool) {
+        if (onChoicesChanged) onChoicesChanged();
+    });
     add(std::move(input));
 
     m_watch.on(cell.onTraffic, [this](std::string name, bool sent, std::string line) {
@@ -164,6 +172,16 @@ void JPConsolePanel::levelsChanged() {
     m_levels = JPLogLevels::current();
     if (onLogLevels) onLogLevels(m_levels);
     refilter();
+}
+
+JPConsolePanel::Choices JPConsolePanel::choices() const {
+    Choices c;
+    c.showTraffic = m_showTraffic;
+    c.upperCase = m_upperCase && m_upperCase->isChecked();
+    const auto& drivers = m_cell.config().drivers;
+    const size_t which = m_controller ? size_t(std::max(0, m_controller->currentIndex())) : 0;
+    if (which < drivers.size()) c.controller = drivers[which].name;
+    return c;
 }
 
 void JPConsolePanel::showCategories() {

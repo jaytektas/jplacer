@@ -508,10 +508,16 @@ void JPlacerMachine::buildPanels(Keep keep) {
     panels.push_back({ "Actuators", Home::Controls, std::make_unique<JPActuatorPanel>(m_graph, *m_cell) });
     if (keep != Keep::Nothing) panels.push_back({ "Machine Setup", Home::Work, nullptr });   // kept
     else panels.push_back({ "Machine Setup", Home::Work, makeSetup() });
-    auto console = std::make_unique<JPConsolePanel>(m_graph, *m_cell,
-                                                    JSettings::instance().get<bool>(JPlacerSettings::kConsoleTraffic, true));
-    console->onShowTraffic = [](bool on) {
-        JSettings::instance().set(JPlacerSettings::kConsoleTraffic, on);
+    JPConsolePanel::Choices shown;
+    shown.showTraffic = JSettings::instance().get<bool>(JPlacerSettings::kConsoleTraffic, true);
+    shown.upperCase = JSettings::instance().get<bool>(JPlacerSettings::kConsoleUpperCase, true);
+    shown.controller = JSettings::instance().get<std::string>(JPlacerSettings::kConsoleController, "");
+    auto console = std::make_unique<JPConsolePanel>(m_graph, *m_cell, shown);
+    console->onChoicesChanged = [c = console.get()] {
+        const JPConsolePanel::Choices now = c->choices();
+        JSettings::instance().set(JPlacerSettings::kConsoleTraffic, now.showTraffic);
+        JSettings::instance().set(JPlacerSettings::kConsoleUpperCase, now.upperCase);
+        JSettings::instance().set(JPlacerSettings::kConsoleController, now.controller);
         JPlacerSettings::save();
     };
     console->onLogLevels = [](const JPLogLevels& levels) {

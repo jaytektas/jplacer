@@ -65,7 +65,7 @@ public:
     }
 };
 
-JPLogPanel::JPLogPanel(JSceneGraph& graph) : JContainer(graph), m_model(std::make_unique<Model>()) {
+JPLogPanel::JPLogPanel(JSceneGraph& graph, Choices start) : JContainer(graph), m_model(std::make_unique<Model>()) {
     JPUiParts::asPanel(*this);
     const JStyle& st = JStyle::current();
     std::vector<std::string> levels;
@@ -106,14 +106,26 @@ JPLogPanel::JPLogPanel(JSceneGraph& graph) : JContainer(graph), m_model(std::mak
     m_search = filters->add(std::make_unique<JLineEdit>(graph, ""));
     m_search->setClearButtonEnabled(true);   // the ✕ takes the filter off
     m_search->setFixedSize(JTextHelper::measureWidth("M") * kSearchColumns, st.controlHeight);
-    m_search->onTextChanged.connect([this](const std::string&) { filter(); });
+    m_search->setText(start.search);
+    m_search->onTextChanged.connect([this](const std::string&) {
+        filter();
+        if (onChoicesChanged) onChoicesChanged();
+    });
     label(*filters, "Log Level:");
     m_levelFilter = filters->add(std::make_unique<JComboBox>(graph, levels));
-    m_levelFilter->setCurrentIndex(0);   // TRACE: everything
-    m_levelFilter->onIndexChanged.connect([this](int) { filter(); });
+    m_levelFilter->setCurrentIndex(0);   // TRACE: everything, to begin with
+    for (size_t i = 0; i < allLevels().size(); ++i)
+        if (JPLogLine::levelName(allLevels()[i]) == start.level) m_levelFilter->setCurrentIndex(int(i));
+    m_levelFilter->onIndexChanged.connect([this](int) {
+        filter();
+        if (onChoicesChanged) onChoicesChanged();
+    });
     m_systemOut = filters->add(std::make_unique<JCheckBox>(graph, "System Output"));
-    m_systemOut->setChecked(true);
-    m_systemOut->onStateChanged.connect([this](bool) { filter(); });
+    m_systemOut->setChecked(start.systemOutput);
+    m_systemOut->onStateChanged.connect([this](bool) {
+        filter();
+        if (onChoicesChanged) onChoicesChanged();
+    });
     filters->add(std::make_unique<JContainer>(graph, 0.f, 0.f))->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     JPIconButton* clear = filters->add(std::make_unique<JPIconButton>(graph, "Clear", "general-remove", "Clear log"));
     clear->onClicked.connect([this] {
@@ -181,6 +193,15 @@ void JPLogPanel::filter() {
     }
     m_table->refresh();
     if (following) m_table->scrollToEnd();
+}
+
+JPLogPanel::Choices JPLogPanel::choices() const {
+    Choices c;
+    c.search = m_search->text();
+    const int i = m_levelFilter->currentIndex();
+    if (i >= 0 && size_t(i) < allLevels().size()) c.level = JPLogLine::levelName(allLevels()[size_t(i)]);
+    c.systemOutput = m_systemOut->isChecked();
+    return c;
 }
 
 std::string JPLogPanel::filteredText() const {

@@ -40,6 +40,11 @@ public:
     // shows the controllers' traffic.
     static constexpr const char* kLogLevels      = "log.levels";
     static constexpr const char* kConsoleTraffic = "console.traffic";
+    static constexpr const char* kConsoleUpperCase  = "console.upperCase";    // Force Upper Case
+    static constexpr const char* kConsoleController = "console.controller";   // sent to, by name
+    static constexpr const char* kLogSearch       = "log.filter.search";      // the Log tab's filter
+    static constexpr const char* kLogFilterLevel  = "log.filter.level";
+    static constexpr const char* kLogSystemOutput = "log.filter.systemOutput";
     // The Jog panel's choices: the tool, the distance (its index) and the speed (a share).
     static constexpr const char* kJogTool          = "jog.tool";
     static constexpr const char* kJogDistance      = "jog.distance";

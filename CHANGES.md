@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- The Console's Force Upper Case and the controller it sends to, and the Log tab's Search, Log Level and
+  System Output, are kept from one run to the next, as the log levels and G-code already were.
+
 ## 0.1.47
 
 - Issues & Solutions' precise nozzle offsets have a Test Object Z box: the test object's height can be typed

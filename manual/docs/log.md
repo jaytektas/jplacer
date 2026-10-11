@@ -15,9 +15,10 @@ folder (`~/.config/jplacer`), each entry a line as the tab shows it. Past 10 MB 
 **Global Logging Settings ▸ Global Log Level** sets how much the log says at all: it is the log's own
 level, the same as the Console's **Log**, and kept for next time.
 
-<!-- src: src/ui/JPLogPanel.cpp (onLogLevels); src/app/JPlacerOpenPnpTabs.cpp -->
+<!-- src: src/ui/JPLogPanel.cpp (onLogLevels, choices); src/app/JPlacerOpenPnpTabs.cpp -->
 
-**Filter Logging Panel** chooses what is shown of it, not what is logged:
+**Filter Logging Panel** chooses what is shown of it, not what is logged; its Search, Log Level and
+System Output are kept for next time:
 
 | | |
 |---|---|

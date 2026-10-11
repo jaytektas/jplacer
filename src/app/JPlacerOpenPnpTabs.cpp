@@ -866,7 +866,18 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     });
 
     // Log: the log's entries, as OpenPnP's Log tab; its level kept as the Console's is.
-    m_log = std::make_unique<JPLogPanel>(graph);
+    JPLogPanel::Choices logShown;
+    logShown.search = JSettings::instance().get<std::string>(JPlacerSettings::kLogSearch, "");
+    logShown.level = JSettings::instance().get<std::string>(JPlacerSettings::kLogFilterLevel, logShown.level);
+    logShown.systemOutput = JSettings::instance().get<bool>(JPlacerSettings::kLogSystemOutput, true);
+    m_log = std::make_unique<JPLogPanel>(graph, logShown);
+    m_log->onChoicesChanged = [l = m_log.get()] {
+        const JPLogPanel::Choices now = l->choices();
+        JSettings::instance().set(JPlacerSettings::kLogSearch, now.search);
+        JSettings::instance().set(JPlacerSettings::kLogFilterLevel, now.level);
+        JSettings::instance().set(JPlacerSettings::kLogSystemOutput, now.systemOutput);
+        JPlacerSettings::save();
+    };
     m_log->onLogLevels = [](const JPLogLevels& levels) {
         JSettings::instance().set(JPlacerSettings::kLogLevels, levels.toText());
         JPlacerSettings::save();

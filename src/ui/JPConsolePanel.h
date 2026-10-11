@@ -41,11 +41,18 @@ inline namespace jf {
 // the right-click menu: Copy, Select All, Clear) take them to paste.
 class JPConsolePanel : public JContainer {
 public:
-    JPConsolePanel(JSceneGraph& graph, JPCell& cell, bool showTraffic);
+    // What it was left showing and sending with, kept from one run to the next.
+    struct Choices {
+        bool        showTraffic = true;   // G-code
+        bool        upperCase   = true;   // Force Upper Case
+        std::string controller;           // the controller sent to, by name (several: the chooser's)
+    };
+    JPConsolePanel(JSceneGraph& graph, JPCell& cell, Choices start);
     ~JPConsolePanel() override;
 
-    // The traffic shown or not, the log's levels changed: for the owner to keep.
-    std::function<void(bool)>                onShowTraffic;
+    Choices choices() const;
+    // A choice changed, the log's levels changed: for the owner to keep.
+    std::function<void()>                    onChoicesChanged;
     std::function<void(const JPLogLevels&)>  onLogLevels;
     // Opens a menu at (x, y) in the window (the owner's popup).
     std::function<void(JMenu* menu, float x, float y)> openMenu;
