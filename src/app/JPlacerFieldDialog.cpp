@@ -53,7 +53,8 @@ std::string lower(std::string s) {
 } // namespace
 
 JPlacerFieldDialog::JPlacerFieldDialog(JPConfiguration& config, JPJob* job, JPFieldSet::Of of, std::string key,
-                                       std::function<void(const std::string&, bool)> done, JGpuHal& hal, int sx, int sy,
+                                       const std::string& suggested, std::function<void(const std::string&, bool)> done,
+                                       JGpuHal& hal, int sx, int sy,
                                        NativeWinHandleType parent)
     : JDialogWindow(key.empty() ? std::string("Add a Field to ") + JPFieldSet::plural(of) : std::string("Edit a Field of ") + JPFieldSet::plural(of),
                     kW, kH, hal, sx, sy, parent)
@@ -90,7 +91,7 @@ JPlacerFieldDialog::JPlacerFieldDialog(JPConfiguration& config, JPJob* job, JPFi
         raw->onTextChanged.connect([this](const std::string&) { check(); });
         return raw;
     };
-    m_name = line("Name", "What its column's heading says, unique among the fields of " + kind, f ? f->name : std::string());
+    m_name = line("Name", "What its column's heading says, unique among the fields of " + kind, f ? f->name : suggested);
     std::vector<std::string> types;
     for (const JPField::Type t : JPField::types()) types.push_back(JPField::typeLabel(t));
     m_type = grid->widget("Type", std::make_unique<JComboBox>(g, types));
@@ -103,7 +104,7 @@ JPlacerFieldDialog::JPlacerFieldDialog(JPConfiguration& config, JPJob* job, JPFi
     m_choices = line("Choices", "A Choice's choices, commas between (Reel, Cut tape, Tray)", f ? joined(f->choices) : std::string());
     m_matches = line("Import matches", "The headings of a CAD file's or BOM's column the import takes for it, commas between "
                                        "(its name always counts); upper and lower case, spaces and punctuation aside",
-                     f ? joined(f->matches) : std::string());
+                     f ? joined(f->matches) : suggested);
     m_matches->setEnabled(!f || f->imported());
     m_content->add(std::move(grid));
     m_note = m_content->add(std::make_unique<JLabel>(g, "", 0.f));

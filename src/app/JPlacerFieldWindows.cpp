@@ -13,7 +13,9 @@ inline namespace jf {
 JPlacerFieldWindows::JPlacerFieldWindows(JAppWindow& window, JPlacerJob& job, std::function<void()> changed)
     : m_window(window), m_job(job), m_changed(std::move(changed)) {
     JPTable::s_fields = &m_job.configuration().fields();
-    JPTable::s_fieldHooks.add = [this](JPFieldSet::Of of, std::function<void(const std::string&)> added) { add(of, std::move(added)); };
+    JPTable::s_fieldHooks.add = [this](JPFieldSet::Of of, const std::string& name, std::function<void(const std::string&)> added) {
+        add(of, name, std::move(added));
+    };
     JPTable::s_fieldHooks.edit = [this](JPFieldSet::Of of, const std::string& key) { edit(of, key); };
     JPTable::s_fieldHooks.manage = [this](JPFieldSet::Of of) { manage(of); };
 }
@@ -23,8 +25,8 @@ JPlacerFieldWindows::~JPlacerFieldWindows() {
     JPTable::s_fields = nullptr;
 }
 
-void JPlacerFieldWindows::add(JPFieldSet::Of of, std::function<void(const std::string&)> added) {
-    m_window.openModal<JPlacerFieldDialog>(m_job.configuration(), &m_job.job(), of, std::string(),
+void JPlacerFieldWindows::add(JPFieldSet::Of of, const std::string& name, std::function<void(const std::string&)> added) {
+    m_window.openModal<JPlacerFieldDialog>(m_job.configuration(), &m_job.job(), of, std::string(), name,
                                            [this, added = std::move(added)](const std::string& key, bool) {
                                                kept();
                                                if (added) added(key);
@@ -32,7 +34,7 @@ void JPlacerFieldWindows::add(JPFieldSet::Of of, std::function<void(const std::s
 }
 
 void JPlacerFieldWindows::edit(JPFieldSet::Of of, const std::string& key) {
-    m_window.openModal<JPlacerFieldDialog>(m_job.configuration(), &m_job.job(), of, key,
+    m_window.openModal<JPlacerFieldDialog>(m_job.configuration(), &m_job.job(), of, key, std::string(),
                                            [this](const std::string&, bool) { kept(); });
 }
 
@@ -40,7 +42,7 @@ void JPlacerFieldWindows::manage(JPFieldSet::Of of) {
     m_window.openModal<JPlacerFieldsDialog>(
         m_job.configuration(), &m_job.job(), of,
         [this, of](const std::string& key) {
-            if (key.empty()) add(of, nullptr);
+            if (key.empty()) add(of, std::string(), nullptr);
             else edit(of, key);
         },
         [this] { kept(); });

@@ -13,7 +13,10 @@ inline namespace jf {
 // CPL and BOM import: a row for each footprint KiCad would put in its
 // position file (not one excluded from it), as KiCad's .pos has it (Ref,
 // Val, Footprint, PosX, PosY, Rot, Side, in mm from the drill/place file
-// origin, Y up), with a DNP column for the parts marked Do Not Populate.
+// origin, Y up), with a DNP column for the parts marked Do Not Populate,
+// then a column for each of the footprints' own properties (a symbol's
+// fields: Datasheet, LCSC, MPN…); and what its title block says (Title,
+// Revision, Date, Company, Comment n) as what it says about itself.
 // And the board's footprints, each drawn once: a footprint's SMD pads on its
 // copper as its library has them (its placement's rotation taken off, a
 // bottom one turned back over; as JPKicadModImporter reads a .kicad_mod),

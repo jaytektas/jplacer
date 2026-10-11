@@ -87,6 +87,8 @@ public:
     // it has not got by then (a made part's Name the library has by then numbered); and what the board calls each
     // part it is linked to learned by that part (JPLibraryLearning::learnName). How many parts (and, in
     // `packagesAdded`, packages).
+    // (and the values of the fields added the files gave the parts and packages they are linked to, where those
+    // have none yet)
     int takeMade(const JPBoard& imported, int& packagesAdded);
     // The library footprint a board part's part is placed with: the one its CAD footprint names, of the part's
     // package, else that package's first; null when the package has none.

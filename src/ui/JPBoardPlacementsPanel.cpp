@@ -389,6 +389,11 @@ void JPBoardPlacementsPanel::upgrade(JPBoard* board, std::shared_ptr<JPBoard> fi
         takeMade(*files);   // the parts it made the library's, as the revision is made
         board->addRevision(std::move(r), current);
         JPDefinitionChanges(m_config, m_job()).revisionShown(*board);
+        // The board's fields added: the files' where it has no value yet.
+        JPDefinitionChanges(m_config, m_job()).holder(*board, [&files](JPPlacementsHolder& h) {
+            for (const auto& [key, v] : files->custom.all())
+                if (!h.custom.has(key)) h.custom.set(key, v);
+        });
         JLOGC(JPlacerLog::kUi, JLogLevel::Info)
             << "board " << board->scopeName() << ": " << board->revisionLabel() << " made: " << board->revisions().back().summary;
         refresh();
@@ -422,12 +427,20 @@ void JPBoardPlacementsPanel::merge(JPBoard& imported) {
                 q.side = p.side;
                 q.location = p.location;
                 q.comments = p.comments;
+                // The fields added: the file's where the placement has no value yet (one set by hand is kept).
+                for (const auto& [key, v] : p.custom.all())
+                    if (!q.custom.has(key)) q.custom.set(key, v);
             });
         } else {
             changes.added(*m_board, p);
         }
     }
     m_board->dropUnusedParts();
+    // The board's fields added: the files' where it has no value yet.
+    changes.holder(*m_board, [&imported](JPPlacementsHolder& h) {
+        for (const auto& [key, v] : imported.custom.all())
+            if (!h.custom.has(key)) h.custom.set(key, v);
+    });
     // The files it came from, kept with the board.
     for (const JJson& source : imported.provenance) m_board->provenance.push_back(source);
     if (m_partsAfterMerge) {

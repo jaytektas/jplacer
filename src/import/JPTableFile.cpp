@@ -71,10 +71,7 @@ std::string uncommented(const std::string& line) {
 
 int known(const std::vector<std::string>& cells) {
     int n = 0;
-    for (const std::string& c : cells) {
-        const JPImportField::Id id = JPImportField::guess(c);
-        n += id != JPImportField::Id::Extra && id != JPImportField::Id::Ignore;
-    }
+    for (const std::string& c : cells) n += JPImportField::known(c);
     return n;
 }
 

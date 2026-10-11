@@ -17,6 +17,8 @@
 #include <j/core/JLabel.h>
 #include <j/core/JScrollArea.h>
 
+#include "ui/JPGroupFrame.h"
+
 #include <functional>
 #include <memory>
 #include <string>
@@ -29,19 +31,27 @@ inline namespace jf {
 //  * Files: each file, what it is, the profile its columns were read by,
 //    its rows; Choose Placement File…, Add BOM or Table…, Remove.
 //  * Columns of the file chosen: each column's header, what it holds (a
-//    choice of jplacer's fields, guessed from the header, or a profile's),
-//    and its first values; the file's units, its profile, Save Profile….
+//    field of the placement's, the part's, the package's, the board's or the
+//    job's, jplacer's own or one added, guessed from the header, or a
+//    profile's; or a new field of one of those kinds, named after the
+//    column), and its first values; the file's units, its profile, Save
+//    Profile….
+//  * The board's and the job's fields: each one's value for the whole
+//    import, as the files give it (a column's, or what a file says of
+//    itself), or as typed over it.
 //  * What it makes, as the choices are changed: placements, parts (from the
 //    library, made for it on Import, not chosen yet), what is in one file only,
 //    and each field the files disagree on with which file's to take.
 //  * Create Missing Parts; Cancel and Import.
-// Import builds the board (JPCplBomImport) and hands it to `onImported`.
+// Import builds the board (JPCplBomImport) and hands it to `onImported`, and
+// the job's values to `onJobValues` (for the job the board goes into).
 class JPlacerCplBomImportDialog : public JDialogWindow {
 public:
     static constexpr uint32_t kW = 1080, kH = 720;
 
-    JPlacerCplBomImportDialog(JPConfiguration& config, std::function<void(JPBoard&)> onImported, JGpuHal& hal, int sx,
-                              int sy, NativeWinHandleType parent);
+    JPlacerCplBomImportDialog(JPConfiguration& config, std::function<void(JPBoard&)> onImported,
+                              std::function<void(const JPFieldValues&)> onJobValues, JGpuHal& hal, int sx, int sy,
+                              NativeWinHandleType parent);
 
 protected:
     void layout(float w, float h) override;
@@ -54,6 +64,9 @@ private:
     void fillFiles();
     void fillColumns();
     void fillSummary();
+    void fillSingles();
+    // What a column's choice offers: nothing, then every field an import fills.
+    std::vector<JPImportField::Target> choices() const;
     void saveProfile();
     void runImport();
     std::string profilesFile() const;
@@ -61,11 +74,13 @@ private:
     std::shared_ptr<bool>        m_alive = std::make_shared<bool>(true);   // a file chooser's answer after it closed: dropped
     JPConfiguration&             m_config;
     std::function<void(JPBoard&)> m_onImported;
+    std::function<void(const JPFieldValues&)> m_onJobValues;
     JPCplBomImport               m_import;
     JPMappingProfiles            m_profiles;
     int                          m_chosen = 0;
+    unsigned                     m_fieldsVersion = 0;
     // Remade after the event that changed them, not inside it (a choice's own signal would destroy it).
-    bool m_refillColumns = false, m_refillSummary = false, m_refillFiles = false;
+    bool m_refillColumns = false, m_refillSummary = false, m_refillFiles = false, m_refillSingles = false;
 
     std::unique_ptr<JContainer>       m_content;
     JDataGrid*                        m_files = nullptr;
@@ -78,6 +93,8 @@ private:
     JComboBox*                        m_profile = nullptr;
     JScrollArea*                      m_columns = nullptr;
     JScrollArea*                      m_summary = nullptr;
+    JPGroupFrame*                     m_singlesFrame = nullptr;
+    JScrollArea*                      m_singles = nullptr;
     JCheckBox*                        m_create = nullptr;
     std::unique_ptr<JDialogButtonBox> m_buttons;
     JButton*                          m_importButton = nullptr;

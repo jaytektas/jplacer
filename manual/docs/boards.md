@@ -40,7 +40,7 @@ has changes to save.
 A click on a placement's **Part** opens the part picker for its board part, titled with the placement:
 
 - which placements share the part, what the files said about it (value, footprint, MPN, manufacturer,
-  supplier, the columns kept as extras), and what it is now;
+  supplier), and what it is now;
 - the library's parts it may be, best first, each with **Why**: an identifier it has (its MPN, its
   supplier's part number), a value and footprint it learned (and from which board), named by its
   footprint and value (OpenPnP's naming), a value it learned in its package, named by its value, or the
@@ -144,7 +144,10 @@ The placement file can also be a KiCad board itself (`.kicad_pcb`, KiCad 5 on), 
 footprint as well. It is read as KiCad's own position file would have it: every footprint KiCad would put
 in one (not those marked to be left out of position files), its reference, value, footprint, position in
 millimetres from the board's drill/place file origin, rotation and side, with a **DNP** column for parts
-marked Do Not Populate. Each footprint is taken once, its SMD pads as its library draws them (the
+marked Do Not Populate, then a column for each property the footprints carry (a symbol's fields: its
+**Datasheet**, an **LCSC** number, an **MPN**…), to be read into the fields they are. The board's title block
+(its **Title**, **Revision**, **Date**, **Company** and comments) is what the file says about itself, for the
+board's and the job's fields. Each footprint is taken once, its SMD pads as its library draws them (the
 placement's rotation taken off, and a bottom part's turned back over), whatever the library on this
 computer has now. A footprint changed on the board, so that two parts of the same name have different
 pads, is kept as a second, "*name* (2)", and the window says which parts take it. A package made for the
@@ -157,16 +160,26 @@ the library has is left as it is.
   semicolons, tabs or spaces (KiCad's `.pos`), quoted or not, in UTF-8, UTF-16 or Latin-1; the header
   row is found among the first lines, after any comments.
 - **Columns of** the file chosen: each column's header, what it holds and its first values. What it holds
-  is guessed from the header by the names tools give it ("Mid X", "Ref-X(mm)" and "PosX" are X; "LCSC Part
-  #" is the supplier's part number) and can be changed: **Designator**, **X**, **Y**, **Rotation**,
-  **Side**, **Do Not Place**, **Value**, **Footprint**, **Package**, **Description**, **Manufacturer**,
-  **MPN**, **Supplier**, **Supplier PN**, **Height**, **Datasheet**, **Quantity**, **Keep as extra** (kept
-  with the part under the column's own name) or **Ignore**. A file's own name for a field is fine: a column
-  called "Provider" can be the **Manufacturer**. For a BOM or table, what it is (**BOM** or **Other
-  table**); the units of its lengths where a cell does not say ("12.5mm" says; a header such as
-  "Ref-X(mil)" sets them, else a comment line such as KiCad's `## Unit = inches`); and how its columns are read.
+  is a field: the placement's (**Placement ▸ Designator**, **X**, **Y**, **Rotation**, **Side**, **Do Not
+  Place**), the part's (**Part ▸ Value**, **Footprint**, **Package**, **Description**, **Manufacturer**,
+  **MPN**, **Supplier**, **Supplier PN**, **Height**, **Datasheet**, **Quantity**), or any field you added to
+  placements, parts, packages, boards or jobs (see [Fields](tables.md#fields)); or **Ignore**. It is guessed
+  from the header by the headings each field is matched by ("Mid X", "Ref-X(mm)" and "PosX" are X; "LCSC
+  Part #" is the supplier's part number; a field of yours by its name and its **Import matches**), a column
+  no field matches is ignored, and any can be changed. A file's own name for a field is fine: a column
+  called "Provider" can be the **Manufacturer**. **New Placement Field…**, **New Part Field…**, **New
+  Package Field…**, **New Board Field…** and **New Job Field…** at the end of the list make a field of that
+  kind named after the column (and matched by its heading from then on), and the column fills it. For a BOM
+  or table, what it is (**BOM** or **Other table**); the units of its lengths where a cell does not say
+  ("12.5mm" says; a header such as "Ref-X(mil)" sets them, else a comment line such as KiCad's `## Unit =
+  inches`); and how its columns are read.
 - **Save Profile…** keeps the file's columns' meanings under a name; the next file of that kind whose
   header has the same columns is read by it, and it can be chosen for a file.
+- **The Board's and the Job's Fields** (when boards or jobs have fields of yours): each one's value for the
+  whole import, as the files give it (a column's first row, or what a file says about itself, matched by the
+  field's name or **Import matches**: a KiCad board's **Revision**, a tool's `Key = value` comment), and where
+  it came from. Type over it to give another; emptied, the field gets none. The board's go to the board chosen
+  and the job's to the job open, each where it has no value yet.
 - **What it makes**, kept up to date as the choices change: the placements (those not to be placed, the
   fiducials), the parts (from the library, new ones to be added to it on **Import**, to be chosen), placements no file names a part
   for, designators in a BOM but not the placement file (not placed) and in the placement file but no BOM,
@@ -178,7 +191,13 @@ the library has is left as it is.
 A BOM line's designators ("R1, R2, R5-R8") are each joined to the placement of that designator. Parts are
 grouped by manufacturer and MPN where the files give them, else by value and footprint, and each keeps
 every field the files gave it (a supplier part number column that names its supplier, "LCSC Part #", gives
-the supplier). A part is the library's when one is named by its MPN, by OpenPnP's *footprint*-*value*,
+the supplier). A placement's fields of yours are its own row's; a part's and its package's are its first
+placement's row's, and a part made for the library (and a package made with it) has them. A library part,
+or its package, already in the library keeps its own value where it has one, and gets the files' where it
+has none, when the import is taken. **What it makes** says each value its field's type cannot read (not
+taken), each part whose placements' rows disagree (the first taken), each library part whose value the files
+differ from (the library's kept), and a board's or job's column whose rows disagree (the first taken). On a
+**Merge**, a placement keeps the values of yours it has, and takes the files' where it has none. A part is the library's when one is named by its MPN, by OpenPnP's *footprint*-*value*,
 or by its value; else, with **Create Missing Parts** ticked, one made for the library on **Import**; else it is to be chosen
 (its placements show the files' name, "(to be chosen)"). A placement is not to be placed (not enabled)
 when a do-not-place column says so ("DNP", "x" or "yes" in one, "no" in a Populate or Fitted column) or
@@ -186,7 +205,7 @@ its value is "DNP"; FID1, REF1 and the like are fiducials. **Import** brings it 
 the other importers do (Merge or Replace), and the files themselves, every row and how their columns
 were read, are kept in the board.
 
-<!-- src: src/app/JPlacerCplBomImportDialog.cpp; src/import/JPKicadBoardFile.cpp; src/import/JPCplBomImport.cpp (build, join, winner, doNotPlace, bottom); src/import/JPImportField.cpp; src/import/JPTableFile.cpp; src/import/JPImportSource.cpp (guess, unitsOfComments, length, provenance); src/import/JPTableFile.cpp (comments); src/import/JPDesignators.cpp; src/import/JPMappingProfiles.cpp; src/ui/JPBoardPlacementsPanel.cpp (importCplBom, take); src/ui/JPPlacementsTableModel.cpp (data) -->
+<!-- src: src/app/JPlacerCplBomImportDialog.cpp (fillColumns, fillSingles, choices, runImport); src/import/JPKicadBoardFile.cpp (properties, title_block); src/import/JPCplBomImport.cpp (build, join, winner, single, doNotPlace, bottom); src/import/JPImportField.cpp (offered, label, guess); src/model/JPBoardPart.cpp (added); src/model/JPConfiguration.cpp (takeMade); src/app/JPlacerOpenPnpTabs.cpp (openCplBom); src/import/JPTableFile.cpp; src/import/JPImportSource.cpp (guess, unitsOfComments, length, provenance); src/import/JPTableFile.cpp (comments); src/import/JPDesignators.cpp; src/import/JPMappingProfiles.cpp; src/ui/JPBoardPlacementsPanel.cpp (importCplBom, take); src/ui/JPPlacementsTableModel.cpp (data) -->
 
 ### OpenPnP's importers
 

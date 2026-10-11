@@ -256,7 +256,7 @@ JMenu* JPTable::columnsMenu() {
                         + " and by the import");
         add->setEnabled(bool(s_fieldHooks.add));
         add->onTriggered.connect([this, of] {
-            if (s_fieldHooks.add) s_fieldHooks.add(*of, [this](const std::string& key) { fieldAdded(key, std::string()); });
+            if (s_fieldHooks.add) s_fieldHooks.add(*of, std::string(), [this](const std::string& key) { fieldAdded(key, std::string()); });
         });
         JMenuItem* edit = m_columnsMenu->add(m_graph, "Edit Fields…");
         edit->setTooltip("Every field of " + kind + ": rename one, change what an import matches it by, add one, delete "
@@ -1166,7 +1166,7 @@ void JPTable::buildHeaderMenu(int column) {
             add->setTooltip(std::string("A field of your own for ") + JPFieldSet::plural(*of) + ", shown after this column");
             add->setEnabled(bool(s_fieldHooks.add));
             add->onTriggered.connect([this, of, key] {
-                if (s_fieldHooks.add) s_fieldHooks.add(*of, [this, key](const std::string& added) { fieldAdded(added, key); });
+                if (s_fieldHooks.add) s_fieldHooks.add(*of, std::string(), [this, key](const std::string& added) { fieldAdded(added, key); });
             });
             if (field) {
                 JMenuItem* edit = m_headerMenu->add(m_graph, "Edit Field \"" + field->name + "\"…");

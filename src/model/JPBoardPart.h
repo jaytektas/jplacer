@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "JPFields.h"
 #include "JPLibraryFootprint.h"
 #include "JPPackage.h"
 #include "JPPart.h"
@@ -37,6 +38,9 @@ public:
     std::string partId() const;
     // A field as imported, or empty.
     const std::string& field(const std::string& name) const;
+    // What the files said of the fields added to parts ("part:<key>") or to packages ("package:<key>"), each read
+    // as its field's type (as the import kept it: a length in millimetres).
+    JPFieldValues added(const JPFields& fields, JPFieldSet::Of of) const;
     // Its CAD footprint's name: the files' footprint, else their package.
     const std::string& footprintName() const;
     // Whether `other` is the same line of the files: the same footprint and the same part (its name, value,

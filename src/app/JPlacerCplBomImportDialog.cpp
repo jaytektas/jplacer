@@ -6,6 +6,8 @@
 #include "common/JPlacerLog.h"
 #include "import/JPKicadBoardFile.h"
 #include "ui/JPGroupFrame.h"
+#include "ui/JPTable.h"
+#include "ui/JPTextField.h"
 #include "ui/JPUiParts.h"
 
 #include <j/core/Dialog.h>
@@ -55,10 +57,12 @@ std::string now() {
 } // namespace
 
 JPlacerCplBomImportDialog::JPlacerCplBomImportDialog(JPConfiguration& config, std::function<void(JPBoard&)> onImported,
-                                                     JGpuHal& hal, int sx, int sy, NativeWinHandleType parent)
+                                                     std::function<void(const JPFieldValues&)> onJobValues, JGpuHal& hal,
+                                                     int sx, int sy, NativeWinHandleType parent)
     : JDialogWindow("Import Board from CPL and BOM", kW, kH, hal, sx, sy, parent)
     , m_config(config)
-    , m_onImported(std::move(onImported)) {
+    , m_onImported(std::move(onImported))
+    , m_onJobValues(std::move(onJobValues)) {
     setResizable(true, kW * 2 / 3, kH * 2 / 3);
     std::string error;
     if (!m_profiles.load(profilesFile(), error))
@@ -132,13 +136,13 @@ JPlacerCplBomImportDialog::JPlacerCplBomImportDialog(JPConfiguration& config, st
         const std::string name = i == 0 ? std::string() : m_profile->currentText();
         if (name == s.profile) return;
         if (name.empty()) {
-            s.guess();
+            s.guess(m_config.fields());
             s.profile.clear();
         } else {
             for (const auto& p : m_profiles.profiles)
-                if (p.name == name && p.role == s.role) JPMappingProfiles::apply(p, s);
+                if (p.name == name && p.role == s.role) JPMappingProfiles::apply(p, s, m_config.fields());
         }
-        m_refillColumns = m_refillSummary = m_refillFiles = true;
+        m_refillColumns = m_refillSummary = m_refillFiles = m_refillSingles = true;
     });
     JButton* save = settings->add(JPUiParts::button(g, "Save Profile…"));
     save->setTooltip("Keep these columns' meanings under a name: the next file with the same columns is read by it");
@@ -162,6 +166,15 @@ JPlacerCplBomImportDialog::JPlacerCplBomImportDialog(JPConfiguration& config, st
     });
     middle->add(std::move(makes));
     m_content->add(std::move(middle));
+
+    // The board's and the job's fields: a value each for the whole import.
+    auto singles = std::make_unique<JPGroupFrame>(g, "The Board's and the Job's Fields");
+    m_singlesFrame = singles.get();
+    singles->setAlignItems(JAlignItems::Stretch);
+    singles->setVSizePolicy(JSizePolicyMode::Fixed);
+    m_singles = singles->add(std::make_unique<JScrollArea>(g, 0.f, 0.f));
+    m_singles->setVSizePolicy(JSizePolicyMode::Expanding, 1);
+    m_content->add(std::move(singles));
     add(m_content.get());
 
     m_buttons = std::make_unique<JDialogButtonBox>(g);
@@ -172,7 +185,65 @@ JPlacerCplBomImportDialog::JPlacerCplBomImportDialog(JPConfiguration& config, st
     m_buttons->onAccept.connect([this] { runImport(); });
     add(m_buttons.get());
 
-    m_refillFiles = m_refillColumns = m_refillSummary = true;
+    m_refillFiles = m_refillColumns = m_refillSummary = m_refillSingles = true;
+}
+
+std::vector<JPImportField::Target> JPlacerCplBomImportDialog::choices() const {
+    std::vector<JPImportField::Target> out { JPImportField::Target {} };
+    for (const JPImportField::Target& t : JPImportField::offered(m_config.fields())) out.push_back(t);
+    return out;
+}
+
+void JPlacerCplBomImportDialog::fillSingles() {
+    JSceneGraph& g = graph();
+    const JStyle& st = JStyle::current();
+    m_singles->clearChildren();
+    std::vector<JPImportField::Target> fields;
+    for (const JPFieldSet::Of of : { JPFieldSet::Of::Boards, JPFieldSet::Of::Job })
+        for (const JPField* f : m_config.fields().of(of).added()) fields.push_back({ of, f->key });
+    m_singlesFrame->setVisible(!fields.empty());
+    float labelW = 0;
+    for (const auto& t : fields) labelW = std::max(labelW, JTextHelper::measureWidth(JPImportField::label(m_config.fields(), t)));
+    labelW += 2 * st.spacing;
+    for (const JPImportField::Target& t : fields) {
+        auto row = JPUiParts::row(g);
+        row->setVSizePolicy(JSizePolicyMode::Fixed);
+        row->setSize(0.f, st.controlHeight);
+        const std::string label = JPImportField::label(m_config.fields(), t);
+        row->add(std::make_unique<JLabel>(g, label, labelW))->setHSizePolicy(JSizePolicyMode::Fixed);
+        auto& typed = t.of == JPFieldSet::Of::Boards ? m_import.typedBoard : m_import.typedJob;
+        const auto at = typed.find(t.key);
+        const std::string found = m_import.single(m_config.fields(), t);
+        // Where its value comes from.
+        std::string from;
+        if (at != typed.end()) from = at->second.empty() ? "none: emptied" : "as typed";
+        else if (found.empty()) from = "none in the files: type it";
+        else {
+            for (const JPImportSource& s : m_import.sources)
+                if (const int c = s.column(t); c >= 0 && from.empty()) from = "from " + fileName(s.table.path) + "'s " + s.table.header[size_t(c)];
+            if (from.empty())
+                for (const JPImportSource& s : m_import.sources)
+                    for (const auto& [what, said] : s.about)
+                        if (from.empty() && said == found) from = "from what " + fileName(s.table.path) + " says: " + what;
+        }
+        auto edit = std::make_unique<JPTextField>(g);
+        edit->setValue(at != typed.end() ? at->second : found);
+        edit->setTooltip(label + ": the " + (t.of == JPFieldSet::Of::Boards ? "board's" : "job's") + " value, for the whole "
+                         "import; typed over what the files say (empty: none)");
+        edit->setHSizePolicy(JSizePolicyMode::Expanding, 1);
+        edit->onCommitted.connect([this, of = t.of, key = t.key](const std::string& text) {
+            (of == JPFieldSet::Of::Boards ? m_import.typedBoard : m_import.typedJob)[key] = text;
+            m_refillSingles = m_refillSummary = true;
+        });
+        row->add(std::move(edit));
+        JLabel* source = row->add(std::make_unique<JLabel>(g, from, JTextHelper::measureWidth("from what a-long-file-name.kicad_pcb says: Revision")));
+        source->setHSizePolicy(JSizePolicyMode::Fixed);
+        source->setTooltip(from);
+        m_singles->addChildWidget(std::move(row));
+    }
+    // Three rows at most before it scrolls; each row its height and the scroll area's gap after it.
+    const float rows = std::min(3.f, float(fields.size()));
+    m_singlesFrame->setSize(0.f, rows * (st.controlHeight + st.spacing) + st.spacing + JPGroupFrame::extraHeight());
 }
 
 std::string JPlacerCplBomImportDialog::profilesFile() const {
@@ -205,8 +276,8 @@ void JPlacerCplBomImportDialog::addSource(const std::string& path, JPImportSourc
         JDialog::message("Cannot Read the File", fileName(path) + ": " + error);
         return;
     }
-    if (const JPMappingProfiles::Profile* p = m_profiles.best(s.table.header, role)) JPMappingProfiles::apply(*p, s);
-    else s.guess();
+    if (const JPMappingProfiles::Profile* p = m_profiles.best(s.table.header, role)) JPMappingProfiles::apply(*p, s, m_config.fields());
+    else s.guess(m_config.fields());
     JLOGC(JPlacerLog::kBoardImport, JLogLevel::Info) << JPImportSource::roleLabel(role) << " " << path << ": "
                                                      << s.table.header.size() << " column(s), " << s.table.rows.size()
                                                      << " row(s), read by " << (s.profile.empty() ? "guess" : s.profile)
@@ -221,7 +292,7 @@ void JPlacerCplBomImportDialog::addSource(const std::string& path, JPImportSourc
         m_chosen = int(m_import.sources.size()) - 1;
     }
     m_import.winners.clear();
-    m_refillFiles = m_refillColumns = m_refillSummary = true;
+    m_refillFiles = m_refillColumns = m_refillSummary = m_refillSingles = true;
 }
 
 void JPlacerCplBomImportDialog::removeSource() {
@@ -229,7 +300,7 @@ void JPlacerCplBomImportDialog::removeSource() {
     m_import.sources.erase(m_import.sources.begin() + m_chosen);
     m_import.winners.clear();
     m_chosen = std::min(m_chosen, int(m_import.sources.size()) - 1);
-    m_refillFiles = m_refillColumns = m_refillSummary = true;
+    m_refillFiles = m_refillColumns = m_refillSummary = m_refillSingles = true;
 }
 
 void JPlacerCplBomImportDialog::fillFiles() {
@@ -271,9 +342,12 @@ void JPlacerCplBomImportDialog::fillColumns() {
     m_profile->setItems(profiles);
     m_profile->setCurrentIndex(current);
 
-    // One row a column: its header, what it holds, its first values.
+    // One row a column: its header, what it holds (nothing, every field an import fills, or a new field of
+    // one of their kinds, named after it), its first values.
+    const std::vector<JPImportField::Target> targets = choices();
     std::vector<std::string> fields;
-    for (const I f : JPImportField::all()) fields.push_back(JPImportField::label(f));
+    for (const JPImportField::Target& t : targets) fields.push_back(JPImportField::label(m_config.fields(), t));
+    for (const JPFieldSet::Of of : JPImportField::kinds()) fields.push_back(std::string("New ") + JPFieldSet::label(of) + " Field…");
     float headerW = 0;
     for (const std::string& h : s.table.header) headerW = std::max(headerW, JTextHelper::measureWidth(h));
     headerW = std::min(headerW + 2 * st.spacing, JTextHelper::measureWidth("A rather long column header"));
@@ -289,16 +363,36 @@ void JPlacerCplBomImportDialog::fillColumns() {
         header->setTooltip(s.table.header[c]);
         JComboBox* field = row->add(std::make_unique<JComboBox>(g, fields, fieldW));
         field->setHSizePolicy(JSizePolicyMode::Fixed);
-        const auto& all = JPImportField::all();
-        field->setCurrentIndex(int(std::find(all.begin(), all.end(), s.mapping[c]) - all.begin()));
-        field->setTooltip("What this column holds");
-        field->onIndexChanged.connect([this, c](int i) {
-            if (size_t(m_chosen) >= m_import.sources.size() || i < 0 || size_t(i) >= JPImportField::all().size()) return;
+        field->setCurrentIndex(std::max(0, int(std::find(targets.begin(), targets.end(), s.mapping[c]) - targets.begin()) % int(targets.size())));
+        field->setTooltip("What this column holds: a field of the placement's, the part's, the package's, the board's or the "
+                          "job's (the board's and the job's take one value for the whole import), or a new one");
+        field->onIndexChanged.connect([this, c, targets](int i) {
+            if (size_t(m_chosen) >= m_import.sources.size() || i < 0) return;
             JPImportSource& src = m_import.sources[size_t(m_chosen)];
             if (c >= src.mapping.size()) return;
-            src.mapping[c] = JPImportField::all()[size_t(i)];
+            if (size_t(i) >= targets.size()) {
+                // A new field of that kind, named after the column: this column fills it once it is made.
+                const size_t k = size_t(i) - targets.size();
+                if (k >= JPImportField::kinds().size() || !JPTable::s_fieldHooks.add) {
+                    m_refillColumns = true;
+                    return;
+                }
+                const JPFieldSet::Of of = JPImportField::kinds()[k];
+                std::weak_ptr<bool> alive = m_alive;
+                JPTable::s_fieldHooks.add(of, src.table.header[c], [this, alive, source = m_chosen, c, of](const std::string& key) {
+                    if (const auto a = alive.lock(); !a || !*a) return;
+                    if (size_t(source) < m_import.sources.size() && c < m_import.sources[size_t(source)].mapping.size()) {
+                        m_import.sources[size_t(source)].mapping[c] = { of, key };
+                        m_import.sources[size_t(source)].profile.clear();
+                    }
+                    m_refillColumns = m_refillSummary = m_refillFiles = m_refillSingles = true;
+                });
+                m_refillColumns = true;   // the choice shown again as it was until the field is made
+                return;
+            }
+            src.mapping[c] = targets[size_t(i)];
             src.profile.clear();   // a profile's mapping changed is not that profile any more
-            m_refillSummary = m_refillFiles = true;
+            m_refillSummary = m_refillFiles = m_refillSingles = true;
         });
         std::string samples;
         int shown = 0;
@@ -360,13 +454,15 @@ void JPlacerCplBomImportDialog::fillSummary() {
     for (const std::string& p : report.problems) line(p);
 
     // Each field the files disagree on: where, and which file's to take.
-    std::map<I, std::vector<const JPCplBomImport::Conflict*>> byField;
-    for (const auto& c : report.conflicts) byField[c.field].push_back(&c);
+    for (const std::string& n : report.fieldNotes) line(n);
+    std::map<std::string, std::vector<const JPCplBomImport::Conflict*>> byField;
+    for (const auto& c : report.conflicts) byField[c.field.text()].push_back(&c);
     std::vector<std::string> names;
     for (const JPImportSource& s : m_import.sources) names.push_back(fileName(s.table.path));
-    for (const auto& [field, list] : byField) {
-        std::string text = std::string(JPImportField::label(field)) + ": the files disagree for " + std::to_string(list.size())
-                         + " placement(s), as ";
+    for (const auto& [fieldText, list] : byField) {
+        const JPImportField::Target field = list.front()->field;
+        const std::string label = JPImportField::label(m_config.fields(), field);
+        std::string text = label + ": the files disagree for " + std::to_string(list.size()) + " placement(s), as ";
         for (size_t i = 0; i < list.size() && int(i) < kExamples; ++i) {
             text += (i ? "; " : "") + list[i]->designator + " (";
             for (size_t k = 0; k < list[i]->values.size(); ++k)
@@ -377,12 +473,12 @@ void JPlacerCplBomImportDialog::fillSummary() {
         auto row = JPUiParts::row(g);
         row->setVSizePolicy(JSizePolicyMode::Fixed);
         row->setSize(0.f, st.controlHeight);
-        row->add(std::make_unique<JLabel>(g, std::string("Take ") + JPImportField::label(field) + " from", 0.f));
+        row->add(std::make_unique<JLabel>(g, "Take " + label + " from", 0.f));
         JComboBox* from = row->add(std::make_unique<JComboBox>(g, names));
         from->setHSizePolicy(JSizePolicyMode::Expanding, 1);
         from->setCurrentIndex(m_import.winner(field));
-        from->setTooltip("Whose " + std::string(JPImportField::label(field)) + " is taken where they disagree");
-        from->onIndexChanged.connect([this, f = field](int i) {
+        from->setTooltip("Whose " + label + " is taken where they disagree");
+        from->onIndexChanged.connect([this, f = fieldText](int i) {
             if (i < 0) return;
             m_import.winners[f] = i;
             m_refillSummary = true;
@@ -429,6 +525,7 @@ void JPlacerCplBomImportDialog::runImport() {
                                                      << m_import.sources.size() << " file(s)";
     close();
     if (m_onImported) m_onImported(board);
+    if (m_onJobValues && !report.job.empty()) m_onJobValues(report.job);
 }
 
 void JPlacerCplBomImportDialog::layout(float w, float h) {
@@ -453,6 +550,15 @@ void JPlacerCplBomImportDialog::layout(float w, float h) {
     if (m_refillSummary) {
         m_refillSummary = false;
         fillSummary();
+    }
+    if (m_refillSingles) {
+        m_refillSingles = false;
+        fillSingles();
+    }
+    // A field added meanwhile (New … Field…, its own window): the choices offer it.
+    if (m_fieldsVersion != m_config.fields().version()) {
+        m_fieldsVersion = m_config.fields().version();
+        m_refillColumns = m_refillSingles = true;
     }
 }
 

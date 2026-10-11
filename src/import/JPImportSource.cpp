@@ -5,6 +5,7 @@
 
 #include "model/JPLengthUnits.h"
 
+#include <algorithm>
 #include <cctype>
 #include <cstdlib>
 #include <regex>
@@ -68,16 +69,15 @@ const char* JPImportSource::roleLabel(Role r) {
     return "Other table";
 }
 
-void JPImportSource::guess() {
+void JPImportSource::guess(const JPFields& fields) {
     using I = JPImportField::Id;
-    mapping.assign(table.header.size(), I::Ignore);
-    for (size_t i = 0; i < table.header.size(); ++i) {
-        I id = JPImportField::guess(table.header[i]);
-        if (id != I::Extra && id != I::Ignore && column(id) >= 0) id = I::Extra;   // one column per field
-        mapping[i] = id;
-    }
+    mapping.assign(table.header.size(), JPImportField::Target {});
+    for (size_t i = 0; i < table.header.size(); ++i) mapping[i] = JPImportField::guess(fields, table.header[i], mapping);
     if (column(I::Footprint) < 0)
-        if (const int k = column(I::Package); k >= 0) mapping[size_t(k)] = I::Footprint;
+        if (const int k = column(I::Package); k >= 0) mapping[size_t(k)] = JPImportField::target(I::Footprint);
+    // What its comments say of it, after what a reader found (a KiCad board's title block).
+    for (auto& a : aboutOf(table.comments))
+        if (std::none_of(about.begin(), about.end(), [&a](const auto& b) { return b.first == a.first; })) about.push_back(a);
     // The lengths' units: X's header, else X's first cell, else what the file's comments say (KiCad's "## Unit =
     // inches"), else millimetres.
     units = JPLengthUnit::Millimeters;
@@ -88,9 +88,40 @@ void JPImportSource::guess() {
 }
 
 int JPImportSource::column(JPImportField::Id id) const {
+    return id == JPImportField::Id::Ignore ? -1 : column(JPImportField::target(id));
+}
+
+int JPImportSource::column(const JPImportField::Target& t) const {
+    if (t.empty()) return -1;
     for (size_t i = 0; i < mapping.size(); ++i)
-        if (mapping[i] == id) return int(i);
+        if (mapping[i] == t) return int(i);
     return -1;
+}
+
+std::vector<std::pair<std::string, std::string>> JPImportSource::aboutOf(const std::vector<std::string>& comments) {
+    std::vector<std::pair<std::string, std::string>> out;
+    auto trim = [](const std::string& s) {
+        size_t b = 0, e = s.size();
+        while (b < e && (uint8_t(s[b]) <= ' ' || s[b] == '#')) ++b;
+        while (e > b && uint8_t(s[e - 1]) <= ' ') --e;
+        return s.substr(b, e - b);
+    };
+    for (const std::string& c : comments) {
+        // "Unit = mm, Angle = deg.": each part its own.
+        size_t from = 0;
+        while (from <= c.size()) {
+            const size_t comma = c.find(',', from);
+            const std::string part = c.substr(from, comma == std::string::npos ? std::string::npos : comma - from);
+            const size_t at = part.find_first_of("=:");
+            if (at != std::string::npos) {
+                const std::string k = trim(part.substr(0, at)), v = trim(part.substr(at + 1));
+                if (!k.empty() && !v.empty()) out.push_back({ k, v });
+            }
+            if (comma == std::string::npos) break;
+            from = comma + 1;
+        }
+    }
+    return out;
 }
 
 const std::string& JPImportSource::cell(const std::vector<std::string>& row, JPImportField::Id id) const {
@@ -130,10 +161,15 @@ JJson JPImportSource::provenance(const std::string& when) const {
     for (size_t i = 0; i < table.header.size(); ++i) {
         JJson c = JJson::object();
         c["header"] = table.header[i];
-        c["field"] = JPImportField::key(i < mapping.size() ? mapping[i] : JPImportField::Id::Ignore);
+        c["field"] = i < mapping.size() ? mapping[i].text() : std::string();
         cols.push(c);
     }
     j["columns"] = cols;
+    if (!about.empty()) {
+        JJson a = JJson::object();
+        for (const auto& [k, v] : about) a[k] = v;
+        j["about"] = a;
+    }
     JJson rows = JJson::array();
     for (const auto& r : table.rows) {
         JJson row = JJson::array();

@@ -23,7 +23,7 @@ public:
     struct Profile {
         std::string                        name;
         JPImportSource::Role               role = JPImportSource::Role::Cpl;
-        std::map<std::string, std::string> columns;   // header, as the file has it → field key
+        std::map<std::string, std::string> columns;   // header, as the file has it → field (JPImportField::Target::text)
         JPLengthUnit                       units = JPLengthUnit::Millimeters;
     };
 
@@ -35,8 +35,9 @@ public:
 
     // The profile for a file of this header and role, or null.
     const Profile* best(const std::vector<std::string>& header, JPImportSource::Role role) const;
-    // A source mapped by a profile: each column the profile names, as it names it; the rest guessed.
-    static void apply(const Profile& p, JPImportSource& s);
+    // A source mapped by a profile: each column the profile names, as it names it (a field since removed:
+    // nothing); the rest guessed.
+    static void apply(const Profile& p, JPImportSource& s, const JPFields& fields);
     // A source's mapping as a profile called `name`.
     static Profile from(const JPImportSource& s, const std::string& name);
     // Kept, in place of one of the same name.

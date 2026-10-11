@@ -143,13 +143,19 @@ From the bare minimum to as much as the user has:
    BOM, and any other table (a supplier order, a second BOM), can be added
    at import time or later. Without a BOM the user can build the board's
    parts by hand, as in OpenPnP; with one, nothing has to be typed.
-2. **Mapping.** Each source's columns are mapped to jplacer's fields with a
-   drop-down per column (as LCSC's BOM tool does: a "Provider" column can
-   be the Manufacturer): Designator, X, Y, Rotation, Side, Do Not Place;
-   Value, Footprint, Package, Description, Manufacturer, MPN, Supplier,
-   Supplier PN, Height, Datasheet, Quantity; or **keep as extra** under its
-   own name. Guessed from the headers (a synonym list), confirmed, and saved
-   as a mapping profile, so the next file from the same tool maps itself.
+2. **Mapping.** Each source's columns are mapped to fields (see Fields)
+   with a drop-down per column (as LCSC's BOM tool does: a "Provider" column
+   can be the Manufacturer): the placement's (Designator, X, Y, Rotation,
+   Side, Do Not Place), the part's (Value, Footprint, Package, Description,
+   Manufacturer, MPN, Supplier, Supplier PN, Height, Datasheet, Quantity),
+   and every field the user added to placements, parts, packages, boards or
+   the job; or ignored; or a new field of one of those kinds, made from the
+   column. Guessed from the headers (each field's matches), confirmed, and
+   saved as a mapping profile, so the next file from the same tool maps
+   itself. A placement's, a part's and a package's fields take a row's
+   value; the board's and the job's one value for the whole import (a
+   column's first, else what a file says of itself: a KiCad board's title
+   block, a tool's `Key = value` comments; typed over either).
 3. **Join.** BOM rows name their designators ("R1, R2, R5-R8"); ranges are
    expanded and joined to the CPL. What does not fit is listed, not guessed:
    designators in one file and not the other; fields the files disagree on

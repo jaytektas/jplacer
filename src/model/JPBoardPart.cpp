@@ -74,4 +74,17 @@ JPBoardPart JPBoardPart::fromJson(const JJson& j) {
     return p;
 }
 
+JPFieldValues JPBoardPart::added(const JPFields& defs, JPFieldSet::Of of) const {
+    JPFieldValues out;
+    const std::string prefix = of == JPFieldSet::Of::Packages ? "package:" : "part:";
+    for (const auto& [k, text] : fields) {
+        if (k.rfind(prefix, 0) != 0) continue;
+        const JPField* f = defs.of(of).field(k.substr(prefix.size()));
+        JJson v;
+        std::string why;
+        if (f && !f->removed && f->parse(text, v, why)) out.set(f->key, v);
+    }
+    return out;
+}
+
 } // inline namespace jf

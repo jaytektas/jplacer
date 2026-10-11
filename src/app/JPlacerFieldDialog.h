@@ -30,7 +30,9 @@ class JPlacerFieldDialog : public JDialogWindow {
 public:
     static constexpr uint32_t kW = 560, kH = 360;
 
-    JPlacerFieldDialog(JPConfiguration& config, JPJob* job, JPFieldSet::Of of, std::string key,
+    // `key` the field edited (empty: a new one, named `suggested` to begin with and matched by it, an import's
+    // column's heading).
+    JPlacerFieldDialog(JPConfiguration& config, JPJob* job, JPFieldSet::Of of, std::string key, const std::string& suggested,
                        std::function<void(const std::string& key, bool removed)> done, JGpuHal& hal, int sx, int sy,
                        NativeWinHandleType parent);
 

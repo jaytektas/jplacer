@@ -78,7 +78,7 @@ JPlacerJobFieldsDialog::JPlacerJobFieldsDialog(JPConfiguration& config, JPJob& j
     JButton* addField = bar->add(JPUiParts::button(g, "Add Field…"));
     addField->setTooltip("A field of your own for jobs");
     addField->onClicked.connect([] {
-        if (JPTable::s_fieldHooks.add) JPTable::s_fieldHooks.add(JPFieldSet::Of::Job, nullptr);
+        if (JPTable::s_fieldHooks.add) JPTable::s_fieldHooks.add(JPFieldSet::Of::Job, std::string(), nullptr);
     });
     JButton* editFields = bar->add(JPUiParts::button(g, "Edit Fields…"));
     editFields->setTooltip("Rename a field of jobs, change its type or what an import matches it by, or delete it");

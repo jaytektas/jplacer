@@ -5,6 +5,7 @@
 
 #include "model/JPKicadModImporter.h"
 
+#include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstdio>
@@ -131,6 +132,22 @@ std::string field(const Node& fp, const std::string& property, const std::string
     return {};
 }
 
+// A footprint's own properties beyond those the table has its columns for (KiCad 6 on's (property "LCSC"
+// "C1525"), what a symbol's fields carry onto the board), by name: KiCad's own bookkeeping left out.
+std::vector<std::pair<std::string, std::string>> properties(const Node& fp) {
+    std::vector<std::pair<std::string, std::string>> out;
+    for (const Node& n : fp.items) {
+        if (n.head() != "property") continue;
+        const std::string name = n.at(1);
+        if (name.empty() || name == "Reference" || name == "Value" || name == "Footprint" || name == "Sheetfile" ||
+            name == "Sheetname" || name.rfind("ki_", 0) == 0 ||
+            std::none_of(name.begin(), name.end(), [](char c) { return std::isalnum(uint8_t(c)); }))
+            continue;
+        out.push_back({ name, n.at(2) });
+    }
+    return out;
+}
+
 bool samePads(const JPFootprint& a, const JPFootprint& b) {
     if (a.pads.size() != b.pads.size()) return false;
     auto near = [](double x, double y) { return std::fabs(x - y) < 1e-6; };
@@ -191,8 +208,18 @@ bool JPKicadBoardFile::parse(const std::string& source, JPImportSource& out, std
     t.headerLine = 0;
     t.header = { "Ref", "Val", "Footprint", "PosX", "PosY", "Rot", "Side", "DNP" };
     t.comments = { "Unit = mm, Angle = deg." };
+    const size_t own = t.header.size();
     out.footprints.clear();
     out.notes.clear();
+    // What the board says of itself: its title block.
+    out.about.clear();
+    if (const Node* tb = board.child("title_block")) {
+        for (const auto& [head, label] : { std::pair<const char*, const char*> { "title", "Title" }, { "rev", "Revision" },
+                                           { "date", "Date" }, { "company", "Company" } })
+            if (const Node* n = tb->child(head); n && !n->at(1).empty()) out.about.push_back({ label, n->at(1) });
+        for (const Node& n : tb->items)
+            if (n.head() == "comment" && !n.at(2).empty()) out.about.push_back({ "Comment " + n.at(1), n.at(2) });
+    }
     std::map<std::string, std::vector<std::string>> variants;   // a footprint name → the names its ways are kept by
     std::map<std::string, std::string>               firstOf;   // a kept name → the first placement drawn so
 
@@ -209,6 +236,13 @@ bool JPKicadBoardFile::parse(const std::string& source, JPImportSource& out, std
         const double x = at ? number(at->at(1)) : 0, y = at ? number(at->at(2)) : 0, rot = at ? number(at->at(3)) : 0;
         t.rows.push_back({ ref, value, name, text(x - ox), text(oy - y), text(rot), bottom ? "bottom" : "top",
                            attr && attr->has("dnp") ? "yes" : "" });
+        // Its own properties, a column each (one first seen here: a new column, the rows before empty in it).
+        for (const auto& [property, v] : properties(fp)) {
+            size_t at = size_t(std::find(t.header.begin() + long(own), t.header.end(), property) - t.header.begin());
+            if (at == t.header.size()) t.header.push_back(property);
+            t.rows.back().resize(t.header.size());
+            t.rows.back()[at] = v;
+        }
 
         // Its pads as its library draws them: the placement's rotation taken off each pad's (KiCad writes a
         // pad's angle on the board), and a bottom one's mirror (KiCad mirrors its pads across X) undone.
@@ -240,6 +274,7 @@ bool JPKicadBoardFile::parse(const std::string& source, JPImportSource& out, std
         error = "No footprints on the board for a position file";
         return false;
     }
+    for (auto& r : t.rows) r.resize(t.header.size());
     return true;
 }
 

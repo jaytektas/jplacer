@@ -119,7 +119,16 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
             });
     };
     placements.openCplBom = [this](std::function<void(JPBoard&)> imported) {
-        m_window.openModal<JPlacerCplBomImportDialog>(m_job.configuration(), std::move(imported));
+        // The job's values the import gives: the job's where it has none yet.
+        m_window.openModal<JPlacerCplBomImportDialog>(m_job.configuration(), std::move(imported), [this](const JPFieldValues& values) {
+            bool any = false;
+            for (const auto& [key, v] : values.all())
+                if (!m_job.job().custom.has(key)) {
+                    m_job.job().custom.set(key, v);
+                    any = true;
+                }
+            if (any) m_job.changed();
+        });
     };
     placements.openUpgrade = [this](JPBoard& board, std::shared_ptr<JPBoard> files,
                                     std::function<void(JPBoardRevision, std::string)> made) {

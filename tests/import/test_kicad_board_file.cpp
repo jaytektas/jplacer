@@ -39,7 +39,7 @@ JPImportSource board(const std::string& name) {
     const bool ok = JPKicadBoardFile::read((kData / name).string(), s, error);
     if (!ok) std::fprintf(stderr, "%s: %s\n", name.c_str(), error.c_str());
     assert(ok);
-    s.guess();
+    s.guess(JPFields());
     return s;
 }
 
@@ -155,6 +155,34 @@ int main() {
         const JPFootprint& r = s.footprints.at("R_0603_1608Metric");
         assert(r.pads.size() == 2 && near(r.pads[0].x, -0.7875) && near(r.pads[0].rotation, 0) && near(r.pads[0].roundness, 25));
         assert(near(s.footprints.at("R_0603_1608Metric (2)").pads[1].x, 0.9));
+    }
+    // A footprint's own properties a column each, wherever a footprint first has one (rows before and after
+    // without it empty in it), KiCad's bookkeeping and nameless ones left out; the title block what the board
+    // says of itself.
+    {
+        const std::string props = R"((kicad_pcb (version 20240108)
+  (title_block (title "Ctrl") (rev "B") (company "Shop") (comment 1 "first run"))
+  (footprint "R:R_0603" (layer "F.Cu") (at 10 10)
+    (property "Reference" "R1") (property "Value" "10k") (property "Sheetfile" "a.kicad_sch")
+    (property "Height" "0.5") (property "ki_fp_filters" "R_*")
+    (pad "1" smd rect (at -0.8 0) (size 0.8 0.9) (layers "F.Cu")))
+  (footprint "R:R_0603" (layer "F.Cu") (at 20 10)
+    (property "Reference" "R2") (property "Value" "1k") (property "LCSC" "C21190") (property "#" "x")
+    (pad "1" smd rect (at -0.8 0) (size 0.8 0.9) (layers "F.Cu")))
+  (footprint "R:R_0603" (layer "F.Cu") (at 30 10)
+    (property "Reference" "R3") (property "Value" "4k7") (property "LCSC" "C23162") (property "Height" "0.45")
+    (pad "1" smd rect (at -0.8 0) (size 0.8 0.9) (layers "F.Cu")))
+))";
+        JPImportSource s;
+        std::string error;
+        assert(JPKicadBoardFile::parse(props, s, error));
+        assert(s.table.header.size() == 10 && s.table.header[8] == "Height" && s.table.header[9] == "LCSC");
+        for (const auto& row : s.table.rows) assert(row.size() == 10);
+        assert(s.table.rows[0][8] == "0.5" && s.table.rows[0][9].empty() && s.table.rows[1][9] == "C21190" && s.table.rows[2][8] == "0.45");
+        assert(s.about.size() == 4 && s.about[0].first == "Title" && s.about[1] == (std::pair<std::string, std::string>{ "Revision", "B" }));
+        assert(s.about[3] == (std::pair<std::string, std::string>{ "Comment 1", "first run" }));
+        s.guess(JPFields());
+        assert(s.column(JPImportField::Id::Height) == 8 && s.column(JPImportField::Id::SupplierPn) == 9);
     }
     // Not a board: said so.
     {

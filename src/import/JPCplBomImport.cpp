@@ -89,17 +89,43 @@ bool JPCplBomImport::bottom(const std::string& cell) {
     return !v.empty() && (v[0] == 'B' || v == "Y" || v == "YES" || v == "MIRROR" || v == "MIRRORED");
 }
 
-int JPCplBomImport::winner(JPImportField::Id field) const {
-    if (const auto w = winners.find(field); w != winners.end() && w->second >= 0 && size_t(w->second) < sources.size())
+int JPCplBomImport::winner(const JPImportField::Target& field) const {
+    if (const auto w = winners.find(field.text()); w != winners.end() && w->second >= 0 && size_t(w->second) < sources.size())
         return w->second;
     // The footprint a board file draws, where one does (it is what is placed); else as the other fields.
-    if (field == I::Footprint)
+    if (field == JPImportField::target(I::Footprint))
         for (size_t i = 0; i < sources.size(); ++i)
             if (!sources[i].footprints.empty()) return int(i);
-    if (!JPImportField::isPlacement(field))
+    // A placement's from the placement file where it has it; anything else from another file first.
+    if (field.of == JPFieldSet::Of::Placements) {
+        if (!sources.empty() && sources[0].column(field) >= 0) return 0;
         for (size_t i = 1; i < sources.size(); ++i)
             if (sources[i].column(field) >= 0) return int(i);
+        return 0;
+    }
+    for (size_t i = 1; i < sources.size(); ++i)
+        if (sources[i].column(field) >= 0) return int(i);
     return 0;
+}
+
+std::string JPCplBomImport::single(const JPFields& fields, const JPImportField::Target& field) const {
+    // A column's: the winner's first row that says something, else any other file's.
+    const int w = winner(field);
+    for (int pass = 0; pass < 2; ++pass)
+        for (size_t s = 0; s < sources.size(); ++s) {
+            if ((pass == 0) != (int(s) == w)) continue;
+            const int c = sources[s].column(field);
+            if (c < 0) continue;
+            for (const auto& r : sources[s].table.rows)
+                if (size_t(c) < r.size() && !trim(r[size_t(c)]).empty()) return trim(r[size_t(c)]);
+        }
+    // What a file says of itself, by the field's name or its matches.
+    const JPField* f = fields.of(field.of).field(field.key);
+    if (!f) return "";
+    for (const JPImportSource& s : sources)
+        for (const auto& [what, said] : s.about)
+            if (f->matchesHeading(what)) return said;
+    return "";
 }
 
 std::map<std::string, std::vector<int>> JPCplBomImport::join(Report& report) const {
@@ -143,14 +169,15 @@ std::map<std::string, std::vector<int>> JPCplBomImport::join(Report& report) con
 }
 
 std::string JPCplBomImport::value(const std::map<std::string, std::vector<int>>& rows, const std::string& designator,
-                                  JPImportField::Id field, Report* report) const {
+                                  const JPImportField::Target& field, Report* report) const {
     const auto it = rows.find(designator);
     if (it == rows.end()) return "";
     std::vector<std::pair<int, std::string>> said;
     for (size_t s = 0; s < sources.size(); ++s) {
-        const int r = it->second[s];
-        if (r < 0) continue;
-        const std::string v = trim(sources[s].cell(sources[s].table.rows[size_t(r)], field));
+        const int r = it->second[s], c = sources[s].column(field);
+        if (r < 0 || c < 0) continue;
+        const auto& row = sources[s].table.rows[size_t(r)];
+        const std::string v = size_t(c) < row.size() ? trim(row[size_t(c)]) : std::string();
         if (!v.empty()) said.emplace_back(int(s), v);
     }
     if (said.empty()) return "";
@@ -171,6 +198,9 @@ JPCplBomImport::Report JPCplBomImport::check() const {
         if (at.empty() || at[0] < 0) continue;
         ++report.placements;
         for (const I f : kPartFields) value(rows, d, f, &report);
+        for (const JPImportSource& s : sources)
+            for (const JPImportField::Target& t : s.mapping)
+                if (!t.empty() && JPImportField::idOf(t) == I::Ignore && !JPImportField::single(t.of)) value(rows, d, t, &report);
     }
     return report;
 }
@@ -184,7 +214,7 @@ bool JPCplBomImport::build(const JPConfiguration& config, const std::string& whe
     const JPImportSource& cpl = sources[0];
     for (const I need : { I::Designator, I::X, I::Y })
         if (cpl.column(need) < 0) {
-            error = std::string("The placement file has no ") + JPImportField::label(need) + " column: choose which it is";
+            error = std::string("The placement file has no ") + JPImportField::name(need) + " column: choose which it is";
             return false;
         }
     report = Report();
@@ -201,13 +231,23 @@ bool JPCplBomImport::build(const JPConfiguration& config, const std::string& whe
     };
     std::set<std::string> drawnUsed;
 
-    // The extras: every column kept as one, by its header, from whichever file has it.
-    struct ExtraColumn { size_t source; int column; std::string key; };
-    std::vector<ExtraColumn> extras;
-    for (size_t s = 0; s < sources.size(); ++s)
-        for (size_t c = 0; c < sources[s].mapping.size(); ++c)
-            if (sources[s].mapping[c] == I::Extra && !sources[s].table.header[c].empty())
-                extras.push_back({ s, int(c), "extra:" + sources[s].table.header[c] });
+    // The fields added that columns fill: a row's (a placement's, a part's, a package's), and the board's.
+    const JPFields& defs = config.fields();
+    std::vector<JPImportField::Target> added;
+    for (const JPImportSource& src : sources)
+        for (const JPImportField::Target& t : src.mapping)
+            if (!t.empty() && JPImportField::idOf(t) == I::Ignore && defs.of(t.of).has(t.key)
+                && std::find(added.begin(), added.end(), t) == added.end())
+                added.push_back(t);
+    // A value as its field reads it (lengths in the placement file's units where they say none); a note when
+    // it cannot, saying whose it was.
+    auto read = [&](const JPImportField::Target& t, const std::string& text, const std::string& whose, JJson& v) {
+        const JPField* f = defs.of(t.of).field(t.key);
+        std::string why;
+        if (f && f->parse(text, v, why, cpl.units)) return true;
+        report.fieldNotes.push_back(whose + "'s " + JPImportField::label(defs, t) + ": " + why + "; not taken");
+        return false;
+    };
     // A supplier PN column naming its supplier ("LCSC Part #"), where no column gives the supplier.
     std::string impliedSupplier;
     for (const JPImportSource& s : sources)
@@ -238,11 +278,21 @@ bool JPCplBomImport::build(const JPConfiguration& config, const std::string& whe
         for (const I f : kPartFields)
             if (std::string v = value(rows, d, f, &report); !v.empty()) fields[JPImportField::key(f)] = v;
         if (!impliedSupplier.empty() && fields.count("supplierPn") && !fields.count("supplier")) fields["supplier"] = impliedSupplier;
-        for (const ExtraColumn& e : extras) {
-            const int r = at[e.source];
-            if (r < 0) continue;
-            const std::string v = trim(sources[e.source].table.rows[size_t(r)][size_t(e.column)]);
-            if (!v.empty() && !fields.count(e.key)) fields[e.key] = v;
+        // The fields added: a placement's its own; a part's and its package's kept with its board part.
+        for (const JPImportField::Target& t : added) {
+            if (JPImportField::single(t.of)) continue;
+            const std::string v = value(rows, d, t, &report);
+            if (v.empty()) continue;
+            if (t.of == JPFieldSet::Of::Placements) {
+                JJson parsed;
+                if (read(t, v, d, parsed)) p.custom.set(t.key, parsed);
+            } else {
+                // As its field reads it (a length in millimetres), for the library's part and package.
+                JJson parsed;
+                if (read(t, v, d, parsed))
+                    fields[std::string(t.of == JPFieldSet::Of::Parts ? "part:" : "package:") + t.key] =
+                        defs.of(t.of).field(t.key)->text(parsed);
+            }
         }
         // Not placed: a do-not-place column says so (any file's), or the value is "DNP".
         bool dnp = false;
@@ -270,6 +320,20 @@ bool JPCplBomImport::build(const JPConfiguration& config, const std::string& whe
         const std::string group = !mpn.empty() ? "mpn:" + upper(fields.count("manufacturer") ? fields["manufacturer"] : "") + "|" + upper(mpn)
                                                : "vf:" + val + "|" + footprint;
         std::string& key = keyOfGroup[group];
+        // Another placement of a part already made: what its rows say of the part's fields added, against the first's.
+        if (!key.empty())
+            if (const JPBoardPart* first = out.part(key))
+                for (const auto& [k, v] : fields) {
+                    if (k.rfind("part:", 0) != 0 && k.rfind("package:", 0) != 0) continue;
+                    const std::string& had = first->field(k);
+                    if (!had.empty() && !same(had, v)) {
+                        const bool part = k.rfind("part:", 0) == 0;
+                        const JPImportField::Target t { part ? JPFieldSet::Of::Parts : JPFieldSet::Of::Packages,
+                                                        k.substr(k.find(':') + 1) };
+                        report.fieldNotes.push_back(JPImportField::label(defs, t) + ": " + d + " says \"" + v + "\" where "
+                                                    + first->field("part") + "'s first placement says \"" + had + "\"; that is taken");
+                    }
+                }
         if (key.empty()) {
             JPBoardPart bp;
             bp.key = key = out.newPartKey();
@@ -283,7 +347,21 @@ bool JPCplBomImport::build(const JPConfiguration& config, const std::string& whe
             if (found) {
                 bp.state = JPBoardPart::State::Matched;
                 bp.libraryPartId = found->id;
-                        ++report.matched;
+                ++report.matched;
+                // What the files say of its fields added, where the library's part (or its package) has another
+                // value: the library's kept, said.
+                auto differs = [&](JPFieldSet::Of of, const JPFieldValues& library, const std::string& whose) {
+                    const JPFieldValues said = bp.added(defs, of);
+                    for (const auto& [k, v] : said.all()) {
+                        const JJson& had = library.get(k);
+                        if (had.isNull() || had.dump() == v.dump()) continue;
+                        const JPField* f = defs.of(of).field(k);
+                        report.fieldNotes.push_back(whose + "'s " + JPImportField::label(defs, { of, k }) + ": the library has \"" +
+                                                    f->text(had) + "\", the files say \"" + f->text(v) + "\"; the library's is kept");
+                    }
+                };
+                differs(JPFieldSet::Of::Parts, found->custom, found->shownName());
+                if (const JPPackage* k = config.package(found->packageId)) differs(JPFieldSet::Of::Packages, k->custom, k->id);
             } else if (createMissing && !bp.fields["part"].empty()) {
                 // A part made for the library (put there as the import is taken), from what the files said.
                 // Named as the files name it, known for good by a GUID; one made already for that name, that one.
@@ -296,6 +374,7 @@ bool JPCplBomImport::build(const JPConfiguration& config, const std::string& whe
                     made->id = id = JPUuid::make();
                     made->label = name;
                     made->value = val;   // its value as the files wrote it
+                    made->custom = bp.added(defs, JPFieldSet::Of::Parts);
                     JPLibraryLearning::learnName(*made, bp, out.scopeName(), JPWhen::now());
                     if (const auto h = fields.find("height"); h != fields.end()) {
                         double mm = 0;
@@ -309,6 +388,7 @@ bool JPCplBomImport::build(const JPConfiguration& config, const std::string& whe
                     if (!footprint.empty() && !config.libraryPackage(footprint) && !madePackage) {
                         auto k = std::make_shared<JPPackage>();
                         k->id = footprint;
+                        k->custom = bp.added(defs, JPFieldSet::Of::Packages);
                         if (const JPFootprint* pads = drawn(at)) {
                             k->footprint = *pads;
                             drawnUsed.insert(footprint);
@@ -342,6 +422,32 @@ bool JPCplBomImport::build(const JPConfiguration& config, const std::string& whe
         ++report.placements;
     }
     report.footprints = int(drawnUsed.size());
+    // The board's and the job's fields: one value for the whole import, typed over what the files say.
+    for (const JPFieldSet::Of of : { JPFieldSet::Of::Boards, JPFieldSet::Of::Job }) {
+        const auto& typed = of == JPFieldSet::Of::Boards ? typedBoard : typedJob;
+        for (const JPField* f : defs.of(of).added()) {
+            const JPImportField::Target t { of, f->key };
+            std::string v;
+            if (const auto at = typed.find(f->key); at != typed.end()) {
+                v = trim(at->second);
+            } else {
+                v = single(defs, t);
+                // A column's rows that say otherwise: the first taken, said.
+                std::set<std::string> said;
+                for (const JPImportSource& src : sources)
+                    if (const int c = src.column(t); c >= 0)
+                        for (const auto& r : src.table.rows)
+                            if (size_t(c) < r.size() && !trim(r[size_t(c)]).empty()) said.insert(trim(r[size_t(c)]));
+                if (said.size() > 1)
+                    report.fieldNotes.push_back(JPImportField::label(defs, t) + ": the rows say " + std::to_string(said.size()) +
+                                                " different things; \"" + v + "\" is taken");
+            }
+            if (v.empty()) continue;
+            JJson parsed;
+            if (read(t, v, of == JPFieldSet::Of::Boards ? std::string("The board") : std::string("The job"), parsed))
+                (of == JPFieldSet::Of::Boards ? out.custom : report.job).set(f->key, parsed);
+        }
+    }
     for (const JPImportSource& s : sources) out.provenance.push_back(s.provenance(when));
     return true;
 }

@@ -113,7 +113,7 @@ int main() {
     JSceneGraph graph;
     // A field added from one table: shown there after the column asked for; another table of feeders has it
     // hidden until chosen.
-    JPTable::s_fieldHooks.add = [&fields](O of, std::function<void(const std::string&)> added) {
+    JPTable::s_fieldHooks.add = [&fields](O of, const std::string&, std::function<void(const std::string&)> added) {
         JPField f;
         f.name = "Lane";
         const std::string k = fields.of(of).add(f);

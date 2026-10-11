@@ -71,10 +71,10 @@ public:
 
     // The app's fields, every table's (null: none, the models shown as they are).
     static inline JPFields* s_fields = nullptr;
-    // The app's windows for fields: adding one to a kind (`added` told its key, once added), editing one (its
-    // key), and the kind's every field (Edit Fields…).
+    // The app's windows for fields: adding one to a kind (named `name` to begin with, matched by it as a heading;
+    // `added` told its key, once added), editing one (its key), and the kind's every field (Edit Fields…).
     struct FieldHooks {
-        std::function<void(JPFieldSet::Of, std::function<void(const std::string& key)> added)> add;
+        std::function<void(JPFieldSet::Of, const std::string& name, std::function<void(const std::string& key)> added)> add;
         std::function<void(JPFieldSet::Of, const std::string& key)>                           edit;
         std::function<void(JPFieldSet::Of)>                                                   manage;
     };

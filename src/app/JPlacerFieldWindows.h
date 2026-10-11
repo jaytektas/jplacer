@@ -21,7 +21,8 @@ public:
     JPlacerFieldWindows(JAppWindow& window, JPlacerJob& job, std::function<void()> changed);
     ~JPlacerFieldWindows();
 
-    void add(JPFieldSet::Of of, std::function<void(const std::string& key)> added);
+    // A field added to `of`, named `name` to begin with (and matched by it as an import's heading).
+    void add(JPFieldSet::Of of, const std::string& name, std::function<void(const std::string& key)> added);
     void edit(JPFieldSet::Of of, const std::string& key);
     void manage(JPFieldSet::Of of);
 

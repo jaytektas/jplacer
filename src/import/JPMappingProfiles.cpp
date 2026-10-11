@@ -74,11 +74,13 @@ const JPMappingProfiles::Profile* JPMappingProfiles::best(const std::vector<std:
     return found;
 }
 
-void JPMappingProfiles::apply(const Profile& p, JPImportSource& s) {
-    s.guess();
+void JPMappingProfiles::apply(const Profile& p, JPImportSource& s, const JPFields& fields) {
+    s.guess(fields);
     for (size_t i = 0; i < s.table.header.size(); ++i)
-        if (const auto c = p.columns.find(s.table.header[i]); c != p.columns.end())
-            s.mapping[i] = JPImportField::fromKey(c->second);
+        if (const auto c = p.columns.find(s.table.header[i]); c != p.columns.end()) {
+            const JPImportField::Target t = JPImportField::Target::fromText(c->second);
+            s.mapping[i] = !t.empty() && fields.of(t.of).has(t.key) ? t : JPImportField::Target {};
+        }
     s.units = p.units;
     s.profile = p.name;
 }
@@ -89,7 +91,7 @@ JPMappingProfiles::Profile JPMappingProfiles::from(const JPImportSource& s, cons
     p.role = s.role;
     p.units = s.units;
     for (size_t i = 0; i < s.table.header.size() && i < s.mapping.size(); ++i)
-        if (!s.table.header[i].empty()) p.columns[s.table.header[i]] = JPImportField::key(s.mapping[i]);
+        if (!s.table.header[i].empty()) p.columns[s.table.header[i]] = s.mapping[i].text();
     return p;
 }
 

@@ -47,6 +47,14 @@ notes.
   columns can be renamed, and those it can do without removed. The tables are described on a page of their own,
   **Tables**.
 - The Feeders and Vision tabs' tables have **Columns** too.
+- Importing a board from its CPL and BOM offers every field to fill, yours included: a placement's, a part's
+  and its package's from each row, and a board's or the job's one value for the whole import (from a column,
+  from what the file says about itself such as a KiCad board's revision, or typed in the window). **New …
+  Field…** in a column's list makes a field named after the column. Parts and packages the import makes
+  get their values; a library part keeps its own where it has one.
+- A KiCad board read for an import gives its footprints' own properties (LCSC, MPN, Datasheet…) as columns
+  to fill fields with, and its title block for the board's and the job's fields.
+- **Keep as extra** is gone from the import: a column no field matches is ignored, or made a field of its own.
 - A library made by 0.1.55 opens as it is, and keeps the fields you add.
 
 ## 0.1.54

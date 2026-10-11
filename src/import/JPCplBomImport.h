@@ -28,10 +28,18 @@ inline namespace jf {
 // put there as the import is taken), else not chosen yet. A package made for
 // one (the library has none of that name) has the footprint the placement
 // file draws, where it is a board file that does (a KiCad .kicad_pcb).
+// The fields added (JPFields) that columns fill: a placement's from its
+// row; a part's and its package's from its rows (kept with the board part,
+// "part:<key>" and "package:<key>", given to the library's part and package
+// as the import is taken: JPConfiguration::takeMade), what the rows of one
+// part disagree on noted; the board's and the job's one value for the whole
+// import: a column's (the first row's, what the others disagree on noted),
+// else what a file says of itself (about) by the field's name or matches,
+// else what is typed for it (typed, over either).
 class JPCplBomImport {
 public:
     struct Conflict {
-        JPImportField::Id                         field;
+        JPImportField::Target                     field;
         std::string                               designator;
         std::vector<std::pair<int, std::string>>  values;   // source index, what it says
     };
@@ -42,14 +50,26 @@ public:
         std::vector<std::string> problems;   // rows passed over and why; files that cannot be joined
         int placements = 0, doNotPlace = 0, fiducials = 0, noPart = 0, parts = 0, matched = 0, made = 0, unmatched = 0;
         int footprints = 0;   // the board file's footprints the packages made for the library take
+        // What the fields added were not given as they are: a value its type cannot read, a part's rows or the
+        // import's that disagree (the first taken), a library part's or package's value the files differ from
+        // (the library's kept).
+        std::vector<std::string> fieldNotes;
+        // The job's values: for the job the board goes into (those it has no value in yet).
+        JPFieldValues job;
     };
 
     std::vector<JPImportSource>          sources;   // [0]: the placement file
-    std::map<JPImportField::Id, int>     winners;   // a field's source, where chosen; else the default
+    std::map<std::string, int>           winners;   // a field's (Target::text) source, where chosen; else the default
     bool                                 createMissing = false;
+    // A board's or the job's field's value as typed (by its key, the text as typed), over what the files say.
+    std::map<std::string, std::string>   typedBoard, typedJob;
 
     // The source whose value of `field` is taken first.
-    int winner(JPImportField::Id field) const;
+    int winner(const JPImportField::Target& field) const;
+    int winner(JPImportField::Id field) const { return winner(JPImportField::target(field)); }
+    // A board's or the job's field's value for the whole import, as the files give it (a column's first, else
+    // what a file says of itself), not what is typed; empty: none.
+    std::string single(const JPFields& fields, const JPImportField::Target& field) const;
     // The join alone: what the report would say, nothing built.
     Report check() const;
     // The board: placements, parts, provenance (as of `when`). False (`error`) when the placement file
@@ -68,7 +88,11 @@ private:
     std::map<std::string, std::vector<int>> join(Report& report) const;
     // A field of a designator: the winner's, else any other source's; every source's differing value noted.
     std::string value(const std::map<std::string, std::vector<int>>& rows, const std::string& designator,
-                      JPImportField::Id field, Report* report) const;
+                      const JPImportField::Target& field, Report* report) const;
+    std::string value(const std::map<std::string, std::vector<int>>& rows, const std::string& designator,
+                      JPImportField::Id field, Report* report) const {
+        return value(rows, designator, JPImportField::target(field), report);
+    }
 };
 
 } // inline namespace jf
