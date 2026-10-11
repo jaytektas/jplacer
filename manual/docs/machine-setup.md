@@ -296,8 +296,9 @@ row of coordinates ending in four buttons:
 
 - **Capture Camera** and **Capture Nozzle** set it from where the camera on the head, or the nozzle chosen on
   the Jog panel, is now: one step to undo.
-- **Move Camera** and **Move Nozzle** go there: up to safe Z, across, and, for the nozzle, down to the Z
-  given. The machine must be connected and homed; the speed is the Jog panel's. While a calibration, a
+- **Move Camera** and **Move Nozzle** go there: up to safe Z, across, and down to the Z given. A camera's
+  Z (usually a virtual one, which moves nothing) says the height it looks at, so the reticle and footprints are
+  drawn at the scale there; a camera with no Z stays as it is. The machine must be connected and homed; the speed is the Jog panel's. While a calibration, a
   nozzle tip change or a running job is moving the machine, the move is refused ("Not moved: …"), not slipped
   in between the task's own moves; a calibration waiting for you (to jog the tip into the circle, say) leaves
   the moves to you.

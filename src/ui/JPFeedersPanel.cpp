@@ -773,10 +773,10 @@ void JPFeedersPanel::moveToPick(Tool tool) {
         return;
     }
     const JPLocation l = at->convertToUnits(JPLengthUnit::Millimeters);
-    // The camera over it at safe Z; the tool down to it, as OpenPnP moves them.
+    // The camera or the tool to it by way of safe Z, its Z too (a camera's virtual Z the height it looks at), as
+    // OpenPnP moves them.
     Where to { l.x(), l.y(), l.z(), l.rotation() };
     if (tool == Tool::Camera) {
-        to[2].reset();
         m_cameraAtPickOf = f->id();
         m_cameraAtPick = to;
     }
@@ -846,8 +846,8 @@ void JPFeedersPanel::goTo(const JPSetupProperties::Row& row, Tool tool, bool str
                                   .addWithRotation(b);
         to = { at.x(), at.y(), to[2] ? std::optional(at.z()) : std::nullopt, at.rotation() };
     }
-    // A camera stays at safe Z; a place without Z leaves the tool there too.
-    if (tool == Tool::Camera) to[2].reset();
+    // A place without Z leaves the tool's Z as it is; with one, a camera's virtual Z goes there too (the height
+    // it looks at).
     if (tool == Tool::Actuator) {
         if (moveActuatorTo && row.actuator) moveActuatorTo(row.actuator(), to, straight);
         return;

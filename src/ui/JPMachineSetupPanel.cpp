@@ -616,7 +616,8 @@ void JPMachineSetupPanel::goTo(const JPSetupProperties::Row& row, JPSetupForm::T
     }
     Where to;
     for (size_t i = 0; i < to.size(); ++i) to[i] = value(row.placeCell(i));
-    if (tool == JPSetupForm::Tool::Camera) to[2].reset();   // a camera stays at safe Z
+    // A camera too goes to the place's Z, by way of safe Z: a virtual Z then says the height it looks at (the
+    // reticle drawn at that scale), as OpenPnP's moveToLocationAtSafeZ; a camera with no Z stays as it is.
     // A tip change's move: the nozzle (or actuator) as the step goes; a camera as any place.
     const bool asStep = tool != JPSetupForm::Tool::Camera;
     if (asStep && row.bySafeZ && !row.bySafeZ()) straight = true;

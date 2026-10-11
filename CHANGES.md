@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- Moving the camera to a place (Machine Setup's Move Camera, the Feeders tab's) takes its Z there too, as
+  OpenPnP does: a camera's virtual Z then says the height it looks at, and the reticle and footprint are
+  drawn to scale at that height. Before, the camera stayed at safe Z.
+
 ## 0.1.49
 
 - The Jog panel's Z park on a camera takes its Z back up to safe Z; it did nothing for a camera's virtual Z.
