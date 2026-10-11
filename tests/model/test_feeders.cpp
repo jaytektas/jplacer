@@ -292,5 +292,18 @@ int main() {
         nb.setTape(JPFeeder::Tape { 44.6, std::nullopt, 4.0 });
         assert(nb.as<JPNeoden4Feeder>()->partRotationInTape == 45 && near(nb.as<JPNeoden4Feeder>()->partPitchInTape.value(), 4));
     }
+    // A Photon feeder: its hardware id, whole-mm pitch, offset (none: not set up) and Move While Feeding? its own.
+    {
+        const JPFeeder p = parse(R"(<feeder class="org.openpnp.machine.photon.PhotonFeeder" id="P" name="P" enabled="true" part-id="R1" hardware-id="ABC" part-pitch="2" move-while-feeding="false">
+   <location units="Millimeters" x="0.0" y="0.0" z="0.0" rotation="0.0"/>
+   <offset units="Millimeters" x="1.0" y="-2.0" z="0.0" rotation="90.0"/>
+</feeder>)");
+        const JPFeeder back = JPFeeder::fromJson(JJson::parse(p.toJson().dump()));
+        const JPPhotonFeeder* own = back.as<JPPhotonFeeder>();
+        assert(own && back.isPhoton() && back.hardwareId() == "ABC" && own->partPitch == 2 && !own->moveWhileFeeding);
+        assert(own->offset && own->offset->y() == -2 && own->offset->rotation() == 90 && back.tape().pitchMm == 2.0);
+        const JPFeeder fresh = JPFeeder::create(JPPhotonFeeder::kClass, "");
+        assert(!fresh.as<JPPhotonFeeder>()->offset && fresh.name() == "Unconfigured PhotonFeeder");
+    }
     return 0;
 }

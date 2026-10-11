@@ -196,7 +196,7 @@ bool JPFeederActions::run(JPConfiguration& config, const std::string& feederId, 
         int pitch = 1;
         if (action == "photonFeed")
             main([&] {
-                if (const JPFeeder* f = config.feeder(feederId)) pitch = f->number("part-pitch", 4);
+                if (const JPFeeder* f = config.feeder(feederId); f && f->isPhoton()) pitch = f->as<JPPhotonFeeder>()->partPitch;
             });
         outcome.changed = true;
         return JPPhotonFeeders::feed(config, feederId, "", pitch, machine, onMain, why);

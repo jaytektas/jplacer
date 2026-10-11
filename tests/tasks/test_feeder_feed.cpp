@@ -563,9 +563,9 @@ int main() {
 
         JPFeeder made = JPFeeder::create("org.openpnp.machine.photon.PhotonFeeder", "R1");
         assert(made.name() == "Unconfigured PhotonFeeder");
-        made.setText("hardware-id", idA);
+        made.setHardwareId(idA);
         made.setName("Reel A");
-        made.setLocationOf("offset", JPLocation(JPLengthUnit::Millimeters, 0, 10, 0, 0));
+        made.as<JPPhotonFeeder>()->offset = JPLocation(JPLengthUnit::Millimeters, 0, 10, 0, 0);
         const std::string a = made.id();
         config.addFeeder(std::move(made));
         config.photon().setSlotLocation(5, JPLocation(JPLengthUnit::Millimeters, 100, 50, -1, 90));

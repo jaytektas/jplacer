@@ -674,7 +674,8 @@ void slotForm(JPFormBuilder& add, JPConfiguration& config, const std::string& sl
 // shown once it has a hardware id; and Global Config (the search, and the
 // slot programming wizard).
 void photonForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f, const JPFeederForms::Options& options) {
-    if (!f().text("hardware-id").empty()) {
+    auto p = [f]() -> JPPhotonFeeder& { return *f().as<JPPhotonFeeder>(); };
+    if (!p().hardwareId.empty()) {
         add.tab("Feeder");
         // The part first, as on every feeder's page; then what the feeder says of itself.
         const bool slotted = f().photonSlot.has_value();
@@ -682,7 +683,7 @@ void photonForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFee
         partChoice(add, config, f, true);
         packagingChoice(add, config, f);
         add.row("Part Pitch");
-        count(add, f, "part-pitch", "Part Pitch", 4);
+        add.integer("part-pitch", "Part Pitch", [p] { return p().partPitch; }, [p](int v) { p().partPitch = v; }, 0, kMostCount);
         add.button("photonFeed", "Feed", "", slotted);
         add.button("photonFeed1mm", "Feed 1mm", "", slotted);
         add.end();
@@ -692,7 +693,7 @@ void photonForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFee
                     [f](int v) { f().setPickRetryCount(v); }, 0, kMostCount);
 
         add.group("Info");
-        add.text("hardware-id", "Hardware ID: ", [f] { return f().text("hardware-id"); }, nullptr);
+        add.text("hardware-id", "Hardware ID: ", [p] { return p().hardwareId; }, nullptr);
         add.row("Slot Address:");
         add.text("photon.slot", "Slot Address:",
                  [f] { return f().photonSlot ? std::to_string(*f().photonSlot) : std::string(); }, nullptr);
@@ -727,14 +728,16 @@ void photonForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFee
         }
         add.end();
         add.row("Part Offset", Place::Location);
-        coordinate(add, at(f, "offset"), Axis::X, "X");
-        coordinate(add, at(f, "offset"), Axis::Y, "Y");
-        coordinate(add, at(f, "offset"), Axis::Z, "Z");
-        coordinate(add, at(f, "offset"), Axis::Rotation, "Rotation");
+        // Set, it is set up (none until then: not set up yet).
+        const Spot offset { "offset", [p] { return p().offset.value_or(JPLocation(kMm)); }, [p](const JPLocation& l) { p().offset = l; } };
+        coordinate(add, offset, Axis::X, "X");
+        coordinate(add, offset, Axis::Y, "Y");
+        coordinate(add, offset, Axis::Z, "Z");
+        coordinate(add, offset, Axis::Rotation, "Rotation");
         add.base(slotAt);
         add.end();
-        add.flag("move-while-feeding", "Move While Feeding?", [f] { return f().flag("move-while-feeding", true); },
-                 [f](bool on) { f().setFlag("move-while-feeding", on); });
+        add.flag("move-while-feeding", "Move While Feeding?", [p] { return p().moveWhileFeeding; },
+                 [p](bool on) { p().moveWhileFeeding = on; });
         add.tip("move the nozzle above the pick location while feeding the part.");
     }
 
@@ -1610,7 +1613,7 @@ JPSetupProperties::Form JPFeederForms::forFeeder(JPConfiguration& config, const 
     if (!feeder) return form;
     // A Photon feeder's as OpenPnP's getPropertySheetHolderTitle: "Unconfigured PhotonFeeder" until it has a
     // hardware id, then its class and name.
-    form.title = feeder->isPhoton() && !feeder->text("hardware-id").empty() ? feeder->typeName() + " " + feeder->name() : feeder->name();
+    form.title = feeder->isPhoton() && !feeder->hardwareId().empty() ? feeder->typeName() + " " + feeder->name() : feeder->name();
     JPFormBuilder add(form);
     const auto f = finder(config, feederId);
     const std::string kind = feeder->typeName();

@@ -11,6 +11,7 @@
 #include "JPLeverFeeder.h"
 #include "JPLoosePartFeeder.h"
 #include "JPNeoden4Feeder.h"
+#include "JPPhotonFeeder.h"
 #include "JPRapidFeeder.h"
 #include "JPRotatedTrayFeeder.h"
 #include "JPSchultzFeeder.h"
@@ -144,7 +145,7 @@ public:
     // the slot address the bus last found it at (none: not found), set up on
     // the bus or not; the slot's location as the machine keeps it
     // (JPConfiguration::resolvePhoton). Its pick is its offset from that.
-    bool isPhoton() const { return typeName() == "PhotonFeeder"; }
+    bool isPhoton() const { return as<JPPhotonFeeder>() != nullptr; }
     std::optional<int>        photonSlot;
     bool                      photonInitialized = false;
     std::optional<JPLocation> photonSlotLocation;
@@ -152,6 +153,8 @@ public:
     std::string photonUnconfigured() const;
     // OpenPnP's setHardwareId: its hardware id, and its name too while it is still named as its class.
     void setHardwareId(const std::string& id);
+    // A Photon feeder's hardware id (another kind: none).
+    std::string hardwareId() const { return isPhoton() ? as<JPPhotonFeeder>()->hardwareId : std::string(); }
     int         feedRetryCount() const { return m_feedRetryCount; }
     void        setFeedRetryCount(int n) { m_feedRetryCount = n; }
     int         pickRetryCount() const { return m_pickRetryCount; }
@@ -327,7 +330,8 @@ private:
     // Its kind's own settings: OpenPnP's as they are (a kind not typed), else a typed kind's.
     using Own = std::variant<JPXmlNode, JPTrayFeeder, JPTubeFeeder, JPAutoFeeder, JPSlotAutoFeeder, JPSchultzFeeder,
                              JPSlotSchultzFeeder, JPRotatedTrayFeeder, JPRapidFeeder, JPDragFeeder, JPLeverFeeder,
-                             JPNeoden4Feeder, JPLoosePartFeeder, JPAdvancedLoosePartFeeder, JPStripFeeder>;
+                             JPNeoden4Feeder, JPLoosePartFeeder, JPAdvancedLoosePartFeeder, JPStripFeeder,
+                             JPPhotonFeeder>;
     Own m_own { JPXmlNode("feeder") };
     std::vector<int> m_visionChecks;
     bool             m_actuate = false;

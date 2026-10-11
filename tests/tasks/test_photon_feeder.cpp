@@ -84,7 +84,7 @@ struct Bench {
     // The feeder's properties, as OpenPnP's setters.
     void setHardwareId(const std::string& id, const std::string& hw) { f(id).setHardwareId(hw); }
     void setHardwareId(const std::string& hw) { setHardwareId(feeder, hw); }
-    void setOffset(const std::string& id, const JPLocation& l) { f(id).setLocationOf("offset", l); }
+    void setOffset(const std::string& id, const JPLocation& l) { f(id).as<JPPhotonFeeder>()->offset = l; }
     void setOffset(const JPLocation& l) { setOffset(feeder, l); }
     void setSlotAddress(const std::string& id, std::optional<int> a) { config.setPhotonSlot(id, a); }
     void setSlotAddress(std::optional<int> a) { setSlotAddress(feeder, a); }
@@ -92,8 +92,8 @@ struct Bench {
         config.photon().setSlotLocation(address, l);
         config.resolvePhoton();
     }
-    void setPartPitch(int pitch) { f().setNumber("part-pitch", pitch); }
-    void setMoveWhileFeeding(const std::string& id, bool on) { f(id).setFlag("move-while-feeding", on); }
+    void setPartPitch(int pitch) { f().as<JPPhotonFeeder>()->partPitch = pitch; }
+    void setMoveWhileFeeding(const std::string& id, bool on) { f(id).as<JPPhotonFeeder>()->moveWhileFeeding = on; }
     void setMaxRetry(int n) { config.photon().setFeederCommunicationMaxRetry(n); }
 
     // OpenPnP's prepareForJob, feed and findSlotAddress: false, and why, where OpenPnP throws.
@@ -175,7 +175,7 @@ void isEnabled() {
     {
         Bench b;
         b.f().setEnabled(true);
-        assert(b.f().text("hardware-id").empty() && !b.f().enabled());
+        assert(b.f().hardwareId().empty() && !b.f().enabled());
     }
     // isEnabledReturnsFalseIfNoPartIsSet
     {
@@ -451,7 +451,7 @@ void prepareForJob() {
 
 void getPartPitchByDefaultReturnsFourMillimeters() {
     Bench b;
-    assert(b.f().number("part-pitch", 4) == 4);
+    assert(b.f().as<JPPhotonFeeder>()->partPitch == 4);
 }
 
 // A feeder set up to feed: hardware id, pitch 2, offset, slot 5 with a location; not moving the nozzle unless asked.
@@ -588,7 +588,7 @@ void twoFeedersCanNotHaveTheSameAddress() {
         b.setSlotAddress(id, slot);
         b.setSlotLocation(slot, kBaseLocation);
     }
-    b.f(bb).setNumber("part-pitch", 2);
+    b.f(bb).as<JPPhotonFeeder>()->partPitch = 2;
     // Both initialized in their slots.
     JPPhotonPacket initA = b.responses.initializeFeederOk(1, kHardwareId), initB = b.responses.initializeFeederOk(2, hwB);
     b.bus.when(C::initializeFeeder(1, hwA)).reply(initA);
@@ -659,7 +659,7 @@ void findAllFeeders() {
             JPFeeder* byUuid = b.byHardwareId(uuids[address]);
             JPFeeder* byAddress = b.bySlotAddress(address);
             assert(byUuid && byAddress && byUuid->id() == byAddress->id());
-            assert(byUuid->photonSlot == address && byAddress->text("hardware-id") == uuids[address]);
+            assert(byUuid->photonSlot == address && byAddress->hardwareId() == uuids[address]);
         }
         b.bus.verifyInMockedOrder();
     }
@@ -678,7 +678,7 @@ void findAllFeeders() {
         b.findAllFeeders();
         assert(b.f().photonSlot == 2 && b.f().name() == kHardwareId + " (Slot: 2)");
         JPFeeder* made = b.byHardwareId(newUuid);
-        assert(made && made->photonSlot == 1 && made->text("hardware-id") == newUuid && made->name() == newUuid + " (Slot: 1)");
+        assert(made && made->photonSlot == 1 && made->hardwareId() == newUuid && made->name() == newUuid + " (Slot: 1)");
         b.bus.verifyInMockedOrder();
     }
     // findAllFeedersFillsNullHardwareIdFeedersBeforeCreatingNewOnes
@@ -690,9 +690,9 @@ void findAllFeeders() {
         b.bus.when(C::getFeederId(1)).reply(one);
         b.bus.when(C::getFeederId(2)).reply(two);
         b.findAllFeeders();
-        assert(b.f().photonSlot == 1 && b.f().text("hardware-id") == kHardwareId && b.f().name() == kHardwareId + " (Slot: 1)");
+        assert(b.f().photonSlot == 1 && b.f().hardwareId() == kHardwareId && b.f().name() == kHardwareId + " (Slot: 1)");
         JPFeeder* made = b.byHardwareId(newUuid);
-        assert(made && made->photonSlot == 2 && made->text("hardware-id") == newUuid && made->name() == newUuid + " (Slot: 2)");
+        assert(made && made->photonSlot == 2 && made->hardwareId() == newUuid && made->name() == newUuid + " (Slot: 2)");
         b.bus.verifyInMockedOrder();
     }
     // findAllFeedersRemovesFeederAddressIfTimeoutOccurs

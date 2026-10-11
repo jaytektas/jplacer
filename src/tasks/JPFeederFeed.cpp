@@ -385,7 +385,7 @@ bool JPFeederFeed::feed(JPConfiguration& config, const std::string& feederId, co
         JPFeeder* f = config.feeder(feederId);
         if (!f || !f->isPhoton()) return;
         photon = true;
-        photonPitch = f->number("part-pitch", 4);
+        photonPitch = f->as<JPPhotonFeeder>()->partPitch;
         if (f->feedOptions() == JPFeeder::FeedOptions::SkipNext) {
             f->setFeedOptions(JPFeeder::FeedOptions::Normal);
             photonPitch = 0;

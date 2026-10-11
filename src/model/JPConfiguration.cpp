@@ -393,7 +393,7 @@ void JPConfiguration::setPhotonSlot(const std::string& feederId, std::optional<i
 
 JPFeeder* JPConfiguration::photonFeeder(const std::string& hardwareId) {
     for (JPFeeder& f : m_feeders)
-        if (f.isPhoton() && f.text("hardware-id") == hardwareId) return &f;
+        if (f.isPhoton() && f.hardwareId() == hardwareId) return &f;
     return nullptr;
 }
 

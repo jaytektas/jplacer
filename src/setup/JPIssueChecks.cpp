@@ -1022,13 +1022,13 @@ void production(JPSolutions& s, const JPIssueChecks::Context& c) {
     }
     if (!c.config) return;
     for (const JPFeeder& f : c.config->feeders()) {
-        if (!f.isPhoton() || f.text("hardware-id").empty()) continue;
+        if (!f.isPhoton() || f.hardwareId().empty()) continue;
         const std::string subject = "PhotonFeeder " + f.name();
         if (f.photonSlot && !f.photonSlotLocation)
             s.add(plain(subject, "Feeder slot has no configured location",
                         "Select the feeder in the Feeders tab and make sure the slot has a set location", Severity::Error,
                         std::string(kWiki) + "Photon-Feeder#slots-and-feeder-locations"));
-        if (!f.has("offset"))
+        if (!f.as<JPPhotonFeeder>()->offset)
             s.add(plain(subject, "Feeder has no configured offset",
                         "Select the feeder in the Feeders tab and make sure the feeder has an offset location from the slot",
                         Severity::Error, std::string(kWiki) + "Photon-Feeder#slots-and-feeder-locations"));

@@ -148,7 +148,6 @@ struct TapeNames {
     std::string rotationReal;                 // an attribute in degrees
     std::string widthLength;                  // a length element
     std::string pitchLength;                  // a length element
-    std::string pitchNumber;                  // a whole-mm attribute (a Photon's)
 };
 
 TapeNames tapeNames(const std::string& kind) {
@@ -159,8 +158,6 @@ TapeNames tapeNames(const std::string& kind) {
     } else if (kind == "BlindsFeeder") {
         t.rotationInLocation = true;
         t.pitchLength = "pocket-pitch";
-    } else if (kind == "PhotonFeeder") {
-        t.pitchNumber = "part-pitch";
     }
     return t;
 }
@@ -173,6 +170,10 @@ JPFeeder::Tape JPFeeder::tape() const {
     Tape t;
     if (const JPRapidFeeder* r = as<JPRapidFeeder>()) {
         t.pitchMm = r->pitch;
+        return t;
+    }
+    if (const JPPhotonFeeder* p = as<JPPhotonFeeder>()) {
+        t.pitchMm = p->partPitch;
         return t;
     }
     if (const JPPinFeeder* p = pinFeeding()) {
@@ -197,14 +198,13 @@ JPFeeder::Tape JPFeeder::tape() const {
     else if (!n.rotationReal.empty()) t.rotationDeg = real(n.rotationReal, 0);
     if (!n.widthLength.empty()) t.widthMm = mmOf(lengthOf(n.widthLength, JPLength(8, kMm)));
     if (!n.pitchLength.empty()) t.pitchMm = mmOf(lengthOf(n.pitchLength, JPLength(4, kMm)));
-    else if (!n.pitchNumber.empty()) t.pitchMm = number(n.pitchNumber, 4);
     return t;
 }
 
 JPFeeder::Tape JPFeeder::kept(const Tape& wanted) const {
     const Tape has = tape();
     const bool wholeRotation = as<JPNeoden4Feeder>() != nullptr;
-    const bool wholePitch = as<JPRapidFeeder>() || (!typed() && !tapeNames(typeName()).pitchNumber.empty());
+    const bool wholePitch = as<JPRapidFeeder>() || as<JPPhotonFeeder>();
     auto take = [](const std::optional<double>& keeps, const std::optional<double>& v, bool whole) -> std::optional<double> {
         if (!keeps || !v) return std::nullopt;
         return whole ? std::round(*v) : *v;
@@ -218,6 +218,10 @@ void JPFeeder::setTape(const Tape& wanted) {
     constexpr JPLengthUnit kMm = JPLengthUnit::Millimeters;
     if (JPRapidFeeder* r = as<JPRapidFeeder>()) {
         if (k.pitchMm) r->pitch = int(*k.pitchMm);
+        return;
+    }
+    if (JPPhotonFeeder* p = as<JPPhotonFeeder>()) {
+        if (k.pitchMm) p->partPitch = int(*k.pitchMm);
         return;
     }
     if (JPPinFeeder* p = pinFeeding()) {
@@ -242,10 +246,7 @@ void JPFeeder::setTape(const Tape& wanted) {
         else if (!n.rotationReal.empty()) setReal(n.rotationReal, *k.rotationDeg);
     }
     if (k.widthMm) setLengthOf(n.widthLength, JPLength(*k.widthMm, kMm));
-    if (k.pitchMm) {
-        if (!n.pitchLength.empty()) setLengthOf(n.pitchLength, JPLength(*k.pitchMm, kMm));
-        else setNumber(n.pitchNumber, int(*k.pitchMm));
-    }
+    if (k.pitchMm) setLengthOf(n.pitchLength, JPLength(*k.pitchMm, kMm));
 }
 
 bool JPFeeder::autoTune() const {
@@ -322,7 +323,7 @@ std::string JPFeeder::feedsAs() const {
 std::string JPFeeder::name() const {
     if (isPhoton()) {
         // As OpenPnP: "Unconfigured PhotonFeeder" until it has a hardware id; then its slot.
-        if (text("hardware-id").empty()) return "Unconfigured " + typeName();
+        if (as<JPPhotonFeeder>()->hardwareId.empty()) return "Unconfigured " + typeName();
         return m_name + " (Slot: " + (photonSlot ? std::to_string(*photonSlot) : std::string("None")) + ")";
     }
     if (!isSlot()) return m_name;
@@ -349,21 +350,23 @@ void JPFeeder::setName(const std::string& n) {
 
 bool JPFeeder::enabled() const {
     const bool on = m_enabled;
-    if (isPhoton()) return on && !text("hardware-id").empty() && !m_partId.empty() && photonUnconfigured().empty();
+    if (isPhoton()) return on && !as<JPPhotonFeeder>()->hardwareId.empty() && !m_partId.empty() && photonUnconfigured().empty();
     return isSlot() ? on && slotLoad && !slotLoad->partId.empty() : on;
 }
 
 std::string JPFeeder::photonUnconfigured() const {
-    const std::string id = text("hardware-id");
+    const JPPhotonFeeder* p = as<JPPhotonFeeder>();
+    if (!p) return {};
+    const std::string& id = p->hardwareId;
     if (!photonSlot) return "Photon Feeder with address " + id + " has no address. Is it inserted?";
     if (!photonSlotLocation) return "The slot at address " + std::to_string(*photonSlot) + " has no location configured.";
-    if (!child("offset")) return "Photon Feeder with address " + id + " has no location offset.";
+    if (!p->offset) return "Photon Feeder with address " + id + " has no location offset.";
     return {};
 }
 
 void JPFeeder::setHardwareId(const std::string& id) {
     if (m_name == typeName()) m_name = id;
-    setText("hardware-id", id);
+    if (JPPhotonFeeder* p = as<JPPhotonFeeder>()) p->hardwareId = id;
 }
 
 std::string JPFeeder::partId() const {
@@ -472,7 +475,7 @@ std::optional<JPLocation> JPFeeder::pickLocation() const {
     if (isSlot()) return slotLoad ? slotLoad->offsets.offsetWithRotationFrom(location()) : location();
     if (isPhoton()) {
         if (!photonUnconfigured().empty()) return std::nullopt;
-        return locationOf("offset").offsetWithRotationFrom(*photonSlotLocation);
+        return as<JPPhotonFeeder>()->offset->offsetWithRotationFrom(*photonSlotLocation);
     }
     // The pocket fed, in its holder's frame.
     if (kind == "BlindsFeeder") return JPBlindsFeeders::pickLocation(*this, JPBlindsFeeders::fedPocket(*this));

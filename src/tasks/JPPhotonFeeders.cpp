@@ -41,7 +41,7 @@ bool findSlotAddress(const Run& r, const std::string& feederId, bool force, std:
     bool known = false;
     r.main([&] {
         if (const JPFeeder* f = r.config.feeder(feederId)) {
-            id = f->text("hardware-id");
+            id = f->hardwareId();
             known = f->photonSlot.has_value();
         }
     });
@@ -62,7 +62,7 @@ bool initializeIfNeeded(const Run& r, const std::string& feederId, std::string& 
     bool done = false;
     r.main([&] {
         if (const JPFeeder* f = r.config.feeder(feederId)) {
-            id = f->text("hardware-id");
+            id = f->hardwareId();
             slot = f->photonSlot;
             done = f->photonInitialized;
         }
@@ -161,7 +161,7 @@ bool JPPhotonFeeders::feed(JPConfiguration& config, const std::string& feederId,
                 unconfigured = f->photonUnconfigured();
                 slot = f->photonSlot;
                 pick = f->pickLocation();
-                moveWhile = f->flag("move-while-feeding", true);
+                moveWhile = f->as<JPPhotonFeeder>() && f->as<JPPhotonFeeder>()->moveWhileFeeding;
             }
         });
         if (!ready) continue;
@@ -270,7 +270,7 @@ bool JPPhotonFeeders::findAll(JPConfiguration& config, JPJobMachine& machine, co
             if (!f) f = config.photonFeeder("");
             if (!f)
                 for (JPFeeder& added : toAdd)
-                    if (added.text("hardware-id") == uuid) f = &added;
+                    if (added.hardwareId() == uuid) f = &added;
             if (!f) {
                 toAdd.push_back(JPFeeder::create(kPhotonClass, ""));
                 f = &toAdd.back();
