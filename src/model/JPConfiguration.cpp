@@ -350,7 +350,7 @@ JPSlotBanks& JPConfiguration::slotBanks(const std::string& typeName) {
 
 std::string JPConfiguration::slotBankId(const JPFeeder& slot) {
     const std::vector<JPSlotBanks::Bank> banks = slotBanks(slot.typeName()).banks();
-    const std::string own = slot.text("bank-id");
+    const std::string own = slot.slotBankId();
     for (const auto& b : banks)
         if (b.id == own) return own;
     return banks.empty() ? std::string() : banks.back().id;
@@ -362,13 +362,13 @@ void JPConfiguration::resolveSlots() {
     for (JPFeeder& f : m_feeders) {
         if (!f.isSlot()) continue;
         f.slotLoad.reset();
-        const std::string bank = slotBankId(f), feederId = f.text("feeder-id");
+        const std::string bank = slotBankId(f), feederId = f.slotFeederId();
         const auto feeder = feederId.empty() ? std::nullopt : slotBanks(f.typeName()).feeder(bank, feederId);
         if (!feeder) continue;
         auto& holder = loaded[{ f.typeName(), bank, feederId }];
         if (holder) {
             holder->slotLoad.reset();
-            holder->setText("feeder-id", "");
+            holder->setSlotFeederId("");
         }
         holder = &f;
         f.slotLoad = JPFeeder::SlotLoad { feeder->name, feeder->partId, feeder->offsets };
@@ -403,19 +403,19 @@ void JPConfiguration::loadSlot(const std::string& slotId, const std::string& ban
     const std::string bank = slotBankId(*slot);
     if (!bankFeederId.empty())
         for (JPFeeder& other : m_feeders)
-            if (&other != slot && other.typeName() == slot->typeName() && other.text("feeder-id") == bankFeederId
+            if (&other != slot && other.typeName() == slot->typeName() && other.slotFeederId() == bankFeederId
                 && slotBankId(other) == bank)
-                other.setText("feeder-id", "");
-    slot->setText("bank-id", bank);
-    slot->setText("feeder-id", bankFeederId);
+                other.setSlotFeederId("");
+    slot->setSlotBankId(bank);
+    slot->setSlotFeederId(bankFeederId);
     resolveSlots();
 }
 
 void JPConfiguration::setSlotBank(const std::string& slotId, const std::string& bankId) {
     JPFeeder* slot = feeder(slotId);
     if (!slot) return;
-    slot->setText("bank-id", bankId);
-    slot->setText("feeder-id", "");
+    slot->setSlotBankId(bankId);
+    slot->setSlotFeederId("");
     resolveSlots();
 }
 

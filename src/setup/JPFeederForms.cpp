@@ -535,7 +535,7 @@ void slotForm(JPFormBuilder& add, JPConfiguration& config, const std::string& sl
     const std::string kind = f().typeName();
     // The bank and the loaded feeder, found afresh each time.
     auto bank = [&config, f] { return config.slotBankId(f()); };
-    auto loaded = [f] { return f().slotLoad ? f().text("feeder-id") : std::string(); };
+    auto loaded = [f] { return f().slotLoad ? f().slotFeederId() : std::string(); };
     auto banks = [&config, kind]() -> JPSlotBanks& { return config.slotBanks(kind); };
 
     add.group("Slot");
@@ -639,21 +639,24 @@ void slotForm(JPFormBuilder& add, JPConfiguration& config, const std::string& sl
     add.header({ "Actuator", "Actuator Value" });
     JPFormBuilder::Strings names { "" };
     names.insert(names.end(), options.actuators.begin(), options.actuators.end());
-    for (const auto& [row, key, test, testLabel] :
-         { std::tuple { "Feed", "actuator", "testFeed", "Test feed" },
-           std::tuple { "Post Pick", "post-pick-actuator", "testPostPick", "Test post pick" } }) {
-        const std::string nameAttr = std::string(key) + "-name", valueAttr = std::string(key) + "-value";
+    auto a = [f]() -> JPAutoFeeder& { return *f().autoFeeding(); };
+    using Name = std::string JPAutoFeeder::*;
+    using Value = double JPAutoFeeder::*;
+    for (const auto& [row, key, name, value, test, testLabel] :
+         { std::tuple { "Feed", "actuator", Name(&JPAutoFeeder::actuatorName), Value(&JPAutoFeeder::actuatorValue), "testFeed",
+                        "Test feed" },
+           std::tuple { "Post Pick", "post-pick-actuator", Name(&JPAutoFeeder::postPickActuatorName),
+                        Value(&JPAutoFeeder::postPickActuatorValue), "testPostPick", "Test post pick" } }) {
+        const std::string valueKey = std::string(key) + "-value";
         add.row(row);
-        add.choice(nameAttr, std::string(row) + " actuator", names, [f, nameAttr] { return f().text(nameAttr); },
-                   [f, nameAttr](const std::string& n) { f().setText(nameAttr, n); });
-        add.number(valueAttr, std::string(row) + " value", [f, valueAttr] { return f().real(valueAttr, 0); },
-                   [f, valueAttr](double v) { f().setReal(valueAttr, v); });
-        add.text(valueAttr + ".note", "", [] { return std::string("For Boolean: 1 = True, 0 = False"); }, nullptr);
+        add.choice(std::string(key) + "-name", std::string(row) + " actuator", names, [a, name] { return a().*name; },
+                   [a, name](const std::string& n) { a().*name = n; });
+        add.number(valueKey, std::string(row) + " value", [a, value] { return a().*value; }, [a, value](double v) { a().*value = v; });
+        add.text(valueKey + ".note", "", [] { return std::string("For Boolean: 1 = True, 0 = False"); }, nullptr);
         add.button(test, testLabel);
         add.end();
     }
-    add.flag("move-before-feed", "Move before feed", [f] { return f().flag("move-before-feed", false); },
-             [f](bool on) { f().setFlag("move-before-feed", on); });
+    add.flag("move-before-feed", "Move before feed", [a] { return a().moveBeforeFeed; }, [a](bool on) { a().moveBeforeFeed = on; });
     add.tip("Move nozzle to pick location before actuating feed actuator");
 }
 
@@ -1646,7 +1649,7 @@ bool slotAct(JPConfiguration& config, JPFeeder& slot, const std::string& action,
              const std::function<std::string(const std::string&)>& reading, std::string& why) {
     JPSlotBanks& banks = config.slotBanks(slot.typeName());
     const std::string slotId = slot.id(), bank = config.slotBankId(slot);
-    const std::string loaded = slot.slotLoad ? slot.text("feeder-id") : std::string();
+    const std::string loaded = slot.slotLoad ? slot.slotFeederId() : std::string();
     if (action == "newSlotFeeder") {
         config.loadSlot(slotId, banks.addFeeder(bank));
         return true;

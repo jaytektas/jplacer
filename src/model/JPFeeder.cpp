@@ -89,6 +89,33 @@ void JPFeeder::ownFrom(JPXmlNode own) {
     if (!typedFromXml(typeName(), own, m_own)) m_own = std::move(own);
 }
 
+const JPAutoFeeder* JPFeeder::autoFeeding() const {
+    if (const JPAutoFeeder* a = as<JPAutoFeeder>()) return a;
+    return as<JPSlotAutoFeeder>();
+}
+
+JPAutoFeeder* JPFeeder::autoFeeding() { return const_cast<JPAutoFeeder*>(std::as_const(*this).autoFeeding()); }
+
+std::string JPFeeder::slotBankId() const {
+    if (const JPSlotAutoFeeder* s = as<JPSlotAutoFeeder>()) return s->bankId;
+    return text("bank-id");
+}
+
+void JPFeeder::setSlotBankId(const std::string& id) {
+    if (JPSlotAutoFeeder* s = as<JPSlotAutoFeeder>()) s->bankId = id;
+    else setText("bank-id", id);
+}
+
+std::string JPFeeder::slotFeederId() const {
+    if (const JPSlotAutoFeeder* s = as<JPSlotAutoFeeder>()) return s->feederId;
+    return text("feeder-id");
+}
+
+void JPFeeder::setSlotFeederId(const std::string& id) {
+    if (JPSlotAutoFeeder* s = as<JPSlotAutoFeeder>()) s->feederId = id;
+    else setText("feeder-id", id);
+}
+
 bool JPFeeder::autoTune() const {
     if (typed()) return false;
     const JPXmlNode& n = std::get<JPXmlNode>(m_own);
@@ -224,9 +251,7 @@ bool JPFeeder::canTakeBackPart() const {
     if (t == "ReferenceStripFeeder" || t == "ReferenceTrayFeeder" || t == "ReferenceRotatedTrayFeeder" || t == "BlindsFeeder")
         return feedCount() > 0;
     if (t == "ReferenceAutoFeeder") {
-        // A slot's (not typed yet) by OpenPnP's name.
-        const JPAutoFeeder* a = as<JPAutoFeeder>();
-        return (a ? a->recycleSupport : flag("recycle-support", false)) && feedOptions() != FeedOptions::SkipNext;
+        return autoFeeding()->recycleSupport && feedOptions() != FeedOptions::SkipNext;
     }
     if (t == "ReferencePushPullFeeder" || t == "BambooFeederAutoVision") return feedOptions() != FeedOptions::SkipNext;
     if (t == "PhotonFeeder") return feedOptions() == FeedOptions::Normal;

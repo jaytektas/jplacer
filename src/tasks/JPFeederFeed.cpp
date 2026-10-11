@@ -261,14 +261,10 @@ bool JPFeederFeed::feed(JPConfiguration& config, const std::string& feederId, co
         fed = f->feed(why, &empty);
         checks = f->takeVisionChecks();
         actuate = f->takeFeedActuation();
-        if (const JPAutoFeeder* a = f->as<JPAutoFeeder>(); actuate && a) {
+        if (const JPAutoFeeder* a = f->autoFeeding(); actuate && a) {
             actuatorName = a->actuatorName;
             actuatorValue = a->actuatorValue;
             moveFirst = a->moveBeforeFeed;
-        } else if (actuate) {   // a slot auto feeder's (not typed yet)
-            actuatorName = f->text("actuator-name");
-            actuatorValue = f->real("actuator-value", 0);
-            moveFirst = f->flag("move-before-feed", false);
         }
         pickAt = f->pickLocation();
         controls = f->cameraTune;
@@ -511,13 +507,13 @@ bool JPFeederFeed::postPick(JPConfiguration& config, const std::string& feederId
         if (!f) return;
         emptySlot = f->isSlot() && !f->slotLoad;
         const bool bamboo = f->typeName() == "BambooFeederAutoVision";
-        if (const JPAutoFeeder* a = f->as<JPAutoFeeder>()) {
+        if (const JPAutoFeeder* a = f->autoFeeding()) {
             name = a->postPickActuatorName;
             value = a->postPickActuatorValue;
-        } else if (f->feedsAs() == "ReferenceAutoFeeder" || bamboo) {
+        } else if (bamboo) {
             name = f->text("post-pick-actuator-name");
             value = f->real("post-pick-actuator-value", 0);
-            if (name.empty() && bamboo)
+            if (name.empty())
                 JLOGC(JPlacerLog::kJob, JLogLevel::Debug) << "Post pick cancelled. Actuator not set for feeder " << f->name();
         } else if (f->feedsAs() == "SchultzFeeder") {
             // With its feeder number.

@@ -403,6 +403,21 @@ int main() {
         assert(config.feeder("R")->pickLocation()->x() == 5);
     }
 
+    // A slot auto feeder: fed as an auto feeder, its Test feed and Test post pick actuate its own actuators.
+    {
+        JPXmlElement se;
+        std::string error;
+        assert(JPXmlReader::parse(R"(<feeder class="org.openpnp.machine.reference.feeder.ReferenceSlotAutoFeeder" id="SL" name="SL" enabled="true" part-id="" bank-id="B" feeder-id="" actuator-name="SlotFeed" actuator-value="2.0" post-pick-actuator-name="SlotPost" post-pick-actuator-value="1.0"><location units="Millimeters" x="1.0" y="1.0" z="0.0" rotation="0.0"/></feeder>)", se, error));
+        config.addFeeder(JPFeeder::fromXml(se));
+        assert(config.feeder("SL")->as<JPSlotAutoFeeder>() && config.feeder("SL")->slotBankId() == "B");
+        JPFeederActions::Outcome outcome;
+        machine.actuated.clear();
+        assert(JPFeederActions::run(config, "SL", "testFeed", machine, nullptr, JPVisionConfig {}, outcome, why));
+        assert(!machine.actuated.empty() && machine.actuated.back() == "SlotFeed=2");
+        assert(JPFeederActions::run(config, "SL", "testPostPick", machine, nullptr, JPVisionConfig {}, outcome, why));
+        assert(machine.actuated.back() == "SlotPost=1");
+    }
+
     // A Schultz feeder: the nozzle over the pick place, its pre pick actuated
     // with its feeder number; post pick too; its buttons read and actuate
     // with it, what they read given back.

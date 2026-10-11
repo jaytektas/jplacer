@@ -168,7 +168,7 @@ bool JPFeederActions::run(JPConfiguration& config, const std::string& feederId, 
         double value = 0;
         main([&] {
             if (const JPFeeder* f = config.feeder(feederId)) {
-                if (const JPAutoFeeder* a = f->as<JPAutoFeeder>()) {
+                if (const JPAutoFeeder* a = f->autoFeeding()) {
                     actuator = action == "testFeed" ? a->actuatorName : a->postPickActuatorName;
                     value = action == "testFeed" ? a->actuatorValue : a->postPickActuatorValue;
                 }
