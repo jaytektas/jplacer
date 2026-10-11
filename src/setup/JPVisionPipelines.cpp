@@ -4,6 +4,7 @@
 #include "JPVisionPipelines.h"
 
 #include "openpnp/JPXmlReader.h"
+#include "openpnp/JPXmlJson.h"
 #include "openpnp/JPXmlWriter.h"
 #include "pipeline/JPDefaultPipelines.h"
 
@@ -62,8 +63,9 @@ bool JPVisionPipelines::ensureStock(JPConfiguration& config) {
         }
         JPVisionSettings& v = *config.visionSettings(id);
         const JPPipeline want = parse(xml);
-        // Compared as pipelines (each written the same way), not as the text it was read from.
-        if (!v.pipeline() || JPXmlWriter::text(of(v).toXml()) != JPXmlWriter::text(want.toXml())) {
+        // Compared as pipelines in jplacer's JSON (each written the same way, "0.0" and "0" one number), not as
+        // the text it was read from.
+        if (!v.pipeline() || JPXmlJson::from(of(v).toXml()).dump() != JPXmlJson::from(want.toXml()).dump()) {
             set(v, want);
             changed = true;
         }

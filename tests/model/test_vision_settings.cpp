@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
-// Vision settings as OpenPnP keeps them (vision-settings.xml): written back
-// as read, pipeline and all; edited; what uses each (Assigned To); and the
+// Vision settings: OpenPnP's (vision-settings.xml) read while jplacer has none of its own, then kept in
+// jplacer's vision-settings.json and read back as they were, pipeline and all; edited; what uses each (Assigned To); and the
 // settings a part inherits (its own, its package's, the machine's).
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
 
 #include "model/JPConfiguration.h"
+#include "openpnp/JPXmlJson.h"
 
 #include <filesystem>
 #include <fstream>
@@ -56,9 +57,21 @@ int main() {
     std::string error;
     assert(config.load(problems, error));
     assert(config.visionSettings().size() == 4);
-    // Written back as read.
+    // Kept in jplacer's file (OpenPnP's left as it was), and read back from it as they were.
     assert(config.save(error));
-    assert(read(dir / "vision-settings.xml") == kFile);
+    assert(read(dir / "vision-settings.xml") == kFile && fs::exists(dir / JPConfiguration::kVisionFile));
+    {
+        JPConfiguration again(dir.string());
+        std::vector<std::string> p;
+        assert(again.load(p, error) && again.visionSettings().size() == 4);
+        for (size_t i = 0; i < 4; ++i)
+            assert(JPXmlJson::from(again.visionSettings()[i].toXml()).dump()
+                   == JPXmlJson::from(config.visionSettings()[i].toXml()).dump());
+        // OpenPnP's file is not read again once jplacer has its own.
+        { std::ofstream(dir / "vision-settings.xml") << "<openpnp-vision-settings/>"; }
+        JPConfiguration third(dir.string());
+        assert(third.load(p, error) && third.visionSettings().size() == 4);
+    }
 
     // Edited; the stock settings are known as such.
     JPVisionSettings* v = config.visionSettings("BVS1");

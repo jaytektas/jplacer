@@ -18,14 +18,14 @@ inline namespace jf {
 // The open job and the configuration it draws on (OpenPnP's Configuration:
 // parts, packages, boards and panels, kept in jplacer's configuration
 // folder): File > New Job, Open Job…, Save Job and Save Job As…, and the
-// window's title as OpenPnP's ("jplacer - *Untitled.job.xml"). The job open
+// window's title as OpenPnP's ("jplacer - *Untitled.jpjob"). The job open
 // last is opened again at start (JPlacerSettings::kJobFile). The boards and
 // panels open are the job's (and those opened beside it): leaving a job
 // closes them all, each with changes asked about first, and the next job
 // opens its own. Views watch it and are told what changed.
 class JPlacerJob {
 public:
-    static constexpr const char* kUntitled = "Untitled.job.xml";
+    static constexpr const char* kUntitled = "Untitled.jpjob";
 
     enum class Change {
         Job,             // another job, or the job's boards and panels

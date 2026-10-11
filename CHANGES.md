@@ -22,6 +22,18 @@ notes.
   you renamed is still found by the next board.
 - Two library parts that answer to the same name (a 1 % and a 5 % resistor) are both offered when a board
   comes in, and neither is taken without asking.
+- jplacer keeps everything of its own in JSON files: jobs are `.jpjob` and panels `.jppanel` (as boards are
+  `.jpboard`), and the feeders, vision settings and what feeders keep on the machine are JSON files in the
+  configuration folder. OpenPnP's jobs, boards and panels still open as they are; saved, each is written
+  beside OpenPnP's file as jplacer's, and OpenPnP's is left as it was. Start the feeders afresh (import an
+  OpenPnP machine, or set them up again); OpenPnP's vision settings are read until jplacer has its own.
+- Saving the machine, a board or any of jplacer's files writes it whole or not at all, so a crash or a full
+  disk part way never leaves a half-written file. Before, the machine's set-up and a board could be cut
+  short.
+- An older OpenPnP job opened is no longer copied to a backup beside it: jplacer saves its own file and
+  leaves OpenPnP's alone.
+- jplacer no longer counts OpenPnP's default parts and packages as taken in again at every start (which
+  saved the configuration each time for nothing).
 
 ## 0.1.54
 

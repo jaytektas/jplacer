@@ -415,8 +415,8 @@ void JPJobPanel::showAddMenu() {
 
 void JPJobPanel::addNew(bool panel) {
     if (panel)
-        JDialog::saveFile("Save New Panel As...", { "xml" }, [this](std::string path) {
-            addPanel(withSuffix(path, ".panel.xml"), "Unable to create new panel");
+        JDialog::saveFile("Save New Panel As...", { "jppanel" }, [this](std::string path) {
+            addPanel(withSuffix(path, JPPanel::kExtension), "Unable to create new panel");
         });
     else
         JDialog::saveFile("Save New Board As...", { "jpboard" }, [this](std::string path) {

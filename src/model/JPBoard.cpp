@@ -18,10 +18,6 @@
 
 inline namespace jf {
 
-namespace {
-constexpr const char* kVersion = "1.1";
-}
-
 std::shared_ptr<JPPlacementsHolder> JPBoard::instance() const {
     auto b = std::make_shared<JPBoard>(*this);
     b->m_definition = definition();
@@ -39,20 +35,6 @@ JPBoard JPBoard::fromXml(const JPXmlElement& root) {
     if (const JPXmlElement* pads = root.child("solder-paste-pads"))
         for (const JPXmlElement& p : pads->children) b.solderPastePads.push_back(JPBoardPad::fromXml(p));
     return b;
-}
-
-JPXmlNode JPBoard::toXml() const {
-    JPXmlNode n("openpnp-board");
-    n.attr("version", kVersion);
-    if (name) n.attr("name", *name);
-    n.add(JPLocationXml::to("dimensions", dimensions));
-    JPXmlNode& ps = n.add(JPXmlNode("placements"));
-    for (const JPPlacement& p : placements) ps.add(p.toXml());
-    if (profile) n.add(profile->toXml());
-    n.add(JPXmlNode("fiducials"));
-    JPXmlNode& pads = n.add(JPXmlNode("solder-paste-pads"));
-    for (const JPBoardPad& p : solderPastePads) pads.add(p.toXml());
-    return n;
 }
 
 JPBoardPart* JPBoard::part(const std::string& key) {
@@ -358,11 +340,11 @@ JPBoard JPBoard::fromJson(const JJson& j) {
         for (const JJson& p : j["parts"].arr()) b.m_parts->push_back(JPBoardPart::fromJson(p));
     if (j["placements"].isArray())
         for (const JJson& p : j["placements"].arr()) b.placements.push_back(JPPlacement::fromJson(p));
-    if (j["profile"].isObject()) b.profile = JPProfile::fromXml(JPXmlJson::element(j["profile"]));
+    if (j["profile"].isObject()) b.profile = JPProfile::fromXml(JPXmlJson::element("profile", j["profile"]));
     if (j["provenance"].isArray())
         for (const JJson& p : j["provenance"].arr()) b.provenance.push_back(p);
     if (j["solderPastePads"].isArray())
-        for (const JJson& p : j["solderPastePads"].arr()) b.solderPastePads.push_back(JPBoardPad::fromXml(JPXmlJson::element(p)));
+        for (const JJson& p : j["solderPastePads"].arr()) b.solderPastePads.push_back(JPBoardPad::fromXml(JPXmlJson::element("board-pad", p)));
     // Its revisions: the one shown is the board's own placements and parts.
     if (j["revisions"].isArray())
         for (const JJson& r : j["revisions"].arr()) {

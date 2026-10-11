@@ -1221,34 +1221,38 @@ void JPlacerOpenPnpTabs::confirmSave(JPPlacementsHolder& holder, std::function<v
                         JDialog::message("Save Error", error);
                         return;
                     }
-                    if (!movedFrom.empty()) boardMoved(*b, movedFrom);
+                    if (!movedFrom.empty()) holderMoved(*b, movedFrom);
                 }
-                for (const auto& p : m_job.configuration().panels())
-                    if (p->file == file && !m_job.configuration().savePanel(*p, error)) {
+                for (const auto& p : m_job.configuration().panels()) {
+                    if (p->file != file) continue;
+                    std::string movedFrom;
+                    if (!m_job.configuration().savePanel(*p, error, &movedFrom)) {
                         JDialog::message("Save Error", error);
                         return;
                     }
+                    if (!movedFrom.empty()) holderMoved(*p, movedFrom);
+                }
             }
             if (then) then();
         });
 }
 
-void JPlacerOpenPnpTabs::boardMoved(const JPBoard& board, const std::string& from) {
+void JPlacerOpenPnpTabs::holderMoved(const JPPlacementsHolder& holder, const std::string& from) {
     // The job's uses of it name its new file: beside the old one, so only the file's name changes (a name
     // the job has relative stays relative).
-    const std::string newName = std::filesystem::path(board.file).filename().string();
+    const bool board = holder.kind() == JPPlacementsHolder::Kind::Board;
+    const std::string newName = std::filesystem::path(holder.file).filename().string();
     bool changedJob = false;
-    for (JPBoardLocation* l : m_job.job().boardLocations())
-        if (l->holder && l->holder->definition() == &board) {
+    for (JPPlacementsHolderLocation* l : m_job.job().boardAndPanelLocations())
+        if (l->holder && l->holder->definition() == &holder && l != &m_job.job().root()) {
             l->fileName = (std::filesystem::path(l->fileName).parent_path() / newName).string();
             changedJob = true;
         }
     if (changedJob) m_job.changed();
-    m_job.configurationKept();   // the boards' list names the new file
-    JLOGC(JPlacerLog::kApp, JLogLevel::Info) << "board " << from << " saved as jplacer's " << board.file
+    const char* what = board ? "board" : "panel";
+    JLOGC(JPlacerLog::kApp, JLogLevel::Info) << what << " " << from << " saved as jplacer's " << holder.file
                                              << " (the OpenPnP file is left as it was)";
-    m_window.showStatus("Saved as " + newName + ": jplacer's board file (" + std::filesystem::path(from).filename().string()
-                            + " is left as it was, for OpenPnP)", kStatusMs);
+    m_window.showStatus("Saved as jplacer's " + newName, kStatusMs);
 }
 
 void JPlacerOpenPnpTabs::confirmSaveAll(std::vector<std::string> files, std::function<void()> then) {

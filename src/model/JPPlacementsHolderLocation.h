@@ -9,7 +9,8 @@
 #include "JPSide.h"
 
 #include "openpnp/JPXmlElement.h"
-#include "openpnp/JPXmlNode.h"
+
+#include <j/config/Json.h>
 
 #include <memory>
 #include <optional>
@@ -85,8 +86,11 @@ public:
     // The transform OpenPnP works out from the location and side alone.
     JPAffineTransform defaultTransform() const;
 
-    // The <object class="org.openpnp.model.BoardLocation" …> element.
-    JPXmlNode toXml() const;
+    // As a jplacer panel's or job's file keeps it: {"kind": "Board" | "Panel", "id", "file", "side", "revision"
+    // (a board's, when its board keeps revisions), "checkFiducials", "enabled", "location"}.
+    JJson toJson() const;
+    static std::unique_ptr<JPPlacementsHolderLocation> fromJson(const JJson& j);
+    // OpenPnP's <object class="org.openpnp.model.BoardLocation" …> element (a panel's or job's).
     static std::unique_ptr<JPPlacementsHolderLocation> fromXml(const JPXmlElement& e);
 
 protected:

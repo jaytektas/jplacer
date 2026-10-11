@@ -5,12 +5,17 @@
 // holds its own; reset to the machine's default setting's pipeline, or to
 // the stock one when it is the default; copied as OpenPnP's text and pasted
 // back (text that is no pipeline refused); a parameter's value assigned and
-// kept with the setting, the others left as they were.
+// kept with the setting, the others left as they were; the stock settings
+// read back from jplacer's file stock still.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
 
 #include "setup/JPVisionPipelines.h"
+
+#include "model/JPConfiguration.h"
+
+#include <filesystem>
 
 using namespace jf;
 
@@ -57,5 +62,20 @@ int main() {
     assert(values.size() == 2 && std::get<long>(values.at("pThreshold").value) == 150);
     assert(bottom.parameterAssignments() && bottom.toXml().children[0].name == "cv-pipeline"
            && bottom.toXml().children[1].name == "pipeline-parameter-assignments");
+
+    // The stock settings, kept in jplacer's file: read back, they are stock still (not brought up to date at
+    // every start).
+    {
+        const std::filesystem::path dir = std::filesystem::temp_directory_path() / "jplacer-test-vision-pipelines";
+        std::filesystem::remove_all(dir);
+        std::filesystem::create_directories(dir);
+        std::vector<std::string> problems;
+        std::string error;
+        JPConfiguration config(dir.string());
+        assert(config.load(problems, error) && JPVisionPipelines::ensureStock(config) && config.save(error));
+        JPConfiguration again(dir.string());
+        assert(again.load(problems, error) && !again.visionSettings().empty() && !JPVisionPipelines::ensureStock(again));
+        std::filesystem::remove_all(dir);
+    }
     return 0;
 }

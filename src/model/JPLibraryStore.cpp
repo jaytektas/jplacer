@@ -74,7 +74,7 @@ bool JPLibraryStore::load(Contents& out, std::string& error) {
         query("SELECT uuid, data FROM packages ORDER BY rowid", [&](const JDatabase::JRow& r) {
             const std::optional<JJson> j = JJson::tryParse(r.text(1));
             if (!j) return;
-            auto k = std::make_shared<JPPackage>(JPPackage::fromXml(JPXmlJson::element(*j)));
+            auto k = std::make_shared<JPPackage>(JPPackage::fromXml(JPXmlJson::element("package", *j)));
             k->uuid = r.text(0);
             packages.push_back(k);
         })
@@ -85,7 +85,7 @@ bool JPLibraryStore::load(Contents& out, std::string& error) {
                      f->uuid = r.text(0);
                      f->name = r.text(1);
                      f->packageId = r.text(2);
-                     if (j) f->geometry = JPFootprint::fromXml(JPXmlJson::element(*j));
+                     if (j) f->geometry = JPFootprint::fromXml(JPXmlJson::element("footprint", *j));
                      f->zeroRotationDeg = r.real(4);
                      f->source = r.text(5);
                      footprintByUuid[f->uuid] = f.get();
@@ -97,7 +97,7 @@ bool JPLibraryStore::load(Contents& out, std::string& error) {
         && query("SELECT id, label, value, datasheet, last_packaging, data FROM parts ORDER BY rowid", [&](const JDatabase::JRow& r) {
             const std::optional<JJson> j = JJson::tryParse(r.text(5));
             if (!j) return;
-            auto p = std::make_shared<JPPart>(JPPart::fromXml(JPXmlJson::element(*j)));
+            auto p = std::make_shared<JPPart>(JPPart::fromXml(JPXmlJson::element("part", *j)));
             p->id = r.text(0);
             p->label = r.text(1);
             p->value = r.text(2);

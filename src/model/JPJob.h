@@ -9,7 +9,8 @@
 #include "JPPlacement.h"
 
 #include "openpnp/JPXmlElement.h"
-#include "openpnp/JPXmlNode.h"
+
+#include <j/config/Json.h>
 
 #include <map>
 #include <memory>
@@ -19,7 +20,7 @@
 
 inline namespace jf {
 
-// A job, as OpenPnP's Job (a .job.xml file): a root panel holding the
+// A job, as OpenPnP's Job (jplacer's file, kExtension; or OpenPnP's .job.xml, read): a root panel holding the
 // boards and panels to be placed, each where it lies on the machine, and
 // what the job sets on them by unique id ("Pnl1⇒Brd2⇒R1"): which
 // placements are placed, enabled states, fiducial checks and error
@@ -27,7 +28,8 @@ inline namespace jf {
 class JPJob {
 public:
     enum class ErrorHandling { Alert, Defer };
-    static constexpr const char* kExtension = ".job.xml";
+    static constexpr const char* kExtension = ".jpjob";
+    static constexpr const char* kFormat = "jplacer-job";
 
     JPJob();
     JPJob(const JPJob&) = delete;
@@ -75,7 +77,7 @@ public:
     // rule (JPJobPlan::kSorts) and the parts moved by hand (in their order; the rest after them, sorted).
     std::string                                       planSort;
     std::vector<std::string>                          planOrder;
-    std::optional<double>                             version;   // none: an older file
+    std::optional<double>                             version;   // OpenPnP's file's; none: an older one
     std::string                                       file;
     bool                                              dirty = false;
 
@@ -83,9 +85,14 @@ public:
     std::vector<std::unique_ptr<JPBoardLocation>> legacyBoardLocations;
     std::vector<JPPanel>                          legacyPanels;
 
-    // Read: the root panel's children are not resolved yet (JPConfiguration).
+    // Read: the root panel's children are not resolved yet (JPConfiguration). jplacer's file: {"format",
+    // "version", "root" (JPPanel::toJson's, not as a file), "errorHandling", "placed", "enabled",
+    // "checkFiducials", "placementErrorHandling" (by unique id), "plan" {"sort", "order"}}.
+    static std::unique_ptr<JPJob> fromJson(const JJson& j);
+    JJson toJson() const;
+    static bool isJplacerFile(const std::string& path);
+    // OpenPnP's .job.xml.
     static std::unique_ptr<JPJob> fromXml(const JPXmlElement& root);
-    JPXmlNode toXml() const;
 
 private:
     std::shared_ptr<JPPanel>         m_rootPanel;

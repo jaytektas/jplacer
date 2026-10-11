@@ -4,7 +4,7 @@
 // The library's file (DESIGN.md, Storage): made from OpenPnP's parts.xml and packages.xml the first time (they
 // are left as they were); its parts' and packages' ids for good (UUIDs), values, identifiers and AKAs kept;
 // OpenPnP's files changed later bring in only what the library lacks (what it has is not overwritten); a
-// library of a newer jplacer is refused, not read wrongly.
+// library of a newer jplacer is refused, not read wrongly; OpenPnP's defaults are taken once.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
@@ -144,6 +144,25 @@ int main() {
         std::vector<std::string> problems;
         std::string error;
         assert(!c.load(problems, error) && error.find("newer jplacer") != std::string::npos);
+    }
+
+    // OpenPnP's defaults (no parts.xml or packages.xml of its own): taken when the library is made, not again
+    // at the next start (when it has them all).
+    {
+        const fs::path fresh = dir / "fresh", defaults = dir / "defaults";
+        fs::create_directories(fresh);
+        fs::create_directories(defaults);
+        write(defaults / "packages.xml", "<openpnp-packages><package id=\"R0402\"/></openpnp-packages>\n");
+        write(defaults / "parts.xml", "<openpnp-parts><part id=\"R0402-1K\" package-id=\"R0402\"/></openpnp-parts>\n");
+        std::vector<std::string> problems;
+        std::string error;
+        JPConfiguration first(fresh.string());
+        first.setDefaults(defaults.string());
+        assert(first.load(problems, error) && first.tookDefaults() && first.partNamed("R0402-1K"));
+        assert(first.save(error));
+        JPConfiguration second(fresh.string());
+        second.setDefaults(defaults.string());
+        assert(second.load(problems, error) && !second.tookDefaults() && second.parts().size() == 1);
     }
     fs::remove_all(dir);
     return 0;

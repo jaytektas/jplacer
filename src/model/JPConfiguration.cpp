@@ -8,14 +8,13 @@
 
 #include "JPLibraryJson.h"
 #include "JPRunLedger.h"
-#include "JPXmlValues.h"
 
 #include "common/JPUuid.h"
+#include "common/JPWholeFile.h"
 #include "common/JPlacerLog.h"
 
 #include "openpnp/JPXmlJson.h"
 #include "openpnp/JPXmlReader.h"
-#include "openpnp/JPXmlWriter.h"
 
 #include <j/core/Log.h>
 
@@ -27,6 +26,7 @@
 #include <filesystem>
 #include <map>
 #include <tuple>
+#include <utility>
 
 inline namespace jf {
 
@@ -68,6 +68,99 @@ std::string find(const std::string& name, const std::string& parentFile, const s
     return {};
 }
 
+// An OpenPnP file's name without its kind's suffix ("main.board.xml": "main").
+std::string openPnpStem(const std::string& file) {
+    std::string stem = fs::path(file).filename().string();
+    for (const char* suffix : { ".board.xml", ".panel.xml", ".job.xml", ".xml" })
+        if (stem.size() > std::strlen(suffix) && upper(stem.substr(stem.size() - std::strlen(suffix))) == upper(suffix)) {
+            stem.resize(stem.size() - std::strlen(suffix));
+            break;
+        }
+    return stem;
+}
+
+// jplacer's file for OpenPnP's `from`: beside it, its name with `extension` (numbered when that is taken).
+std::string besideAs(const std::string& from, const char* extension) {
+    const std::string stem = openPnpStem(from);
+    const fs::path dir = fs::path(from).parent_path();
+    fs::path to = dir / (stem + extension);
+    for (int n = 2; exists(to.string()); ++n) to = dir / (stem + " (" + std::to_string(n) + ")" + extension);
+    return to.string();
+}
+
+// jplacer's file beside OpenPnP's `file` that was first saved from it (its "convertedFrom"), else `file`.
+std::string convertedOf(const std::string& file, bool (*own)(const std::string&)) {
+    std::error_code ec;
+    for (fs::directory_iterator it(fs::path(file).parent_path(), ec), end; !ec && it != end; it.increment(ec)) {
+        const std::string candidate = it->path().string();
+        if (!own(candidate)) continue;
+        const std::optional<JJson> j = JJson::tryParseFile(candidate);
+        if (j && (*j)["convertedFrom"].str() == file) return JPConfiguration::canonical(candidate);
+    }
+    return file;
+}
+
+// One of jplacer's files (a board, panel or job): JSON of `format`.
+std::optional<JJson> readOwn(const std::string& file, const char* format, const char* what, std::string& error) {
+    std::optional<JJson> j = JJson::tryParseFile(file);
+    if (!j || !j->isObject() || (*j)["format"].str() != format) {
+        error = std::string("Not a jplacer ") + what + " file: " + file;
+        return std::nullopt;
+    }
+    return j;
+}
+
+constexpr const char* kFeedersFormat = "jplacer-feeders";
+constexpr const char* kPropertiesFormat = "jplacer-machine-properties";
+constexpr const char* kVisionFormat = "jplacer-vision-settings";
+
+// One of jplacer's JSON files of the configuration: missing, an empty object; else it must be of `format`.
+bool readJson(const fs::path& p, const char* format, JJson& out, std::string& error) {
+    out = JJson::object();
+    if (!exists(p.string())) return true;
+    std::optional<JJson> j = JJson::tryParseFile(p.string());
+    if (!j || !j->isObject() || (*j)["format"].str() != format) {
+        error = "Not a jplacer " + std::string(format + std::strlen("jplacer-")) + " file: " + p.string();
+        return false;
+    }
+    out = std::move(*j);
+    return true;
+}
+
+bool writeJson(const fs::path& p, const char* format, const char* key, JJson value, std::string& error) {
+    JJson j = JJson::object();
+    j["format"] = format;
+    j["version"] = 1;
+    j[key] = std::move(value);
+    return JPWholeFile::write(p.string(), j, error);
+}
+
+// Machine properties (OpenPnP's <entry><string>name</string><object …/></entry>) as {name: object} and back.
+JJson propertiesJson(const std::vector<JPXmlNode>& entries) {
+    JJson out = JJson::object();
+    for (const JPXmlNode& e : entries) {
+        const JPXmlNode* name = e.child("string");
+        const JPXmlNode* object = e.child("object");
+        if (name && object) out[name->text] = JPXmlJson::from(*object);
+    }
+    return out;
+}
+
+std::vector<JPXmlElement> propertyEntries(const JJson& properties) {
+    std::vector<JPXmlElement> out;
+    for (const auto& [name, object] : properties.obj()) {
+        JPXmlElement e;
+        e.name = "entry";
+        JPXmlElement key;
+        key.name = "string";
+        key.text = name;
+        e.children.push_back(std::move(key));
+        e.children.push_back(JPXmlJson::element("object", object));
+        out.push_back(std::move(e));
+    }
+    return out;
+}
+
 } // namespace
 
 JPConfiguration::JPConfiguration(std::string directory) : m_directory(std::move(directory)) {}
@@ -83,28 +176,36 @@ bool JPConfiguration::load(std::vector<std::string>& problems, std::string& erro
     auto read = [&error](const fs::path& p, JPXmlElement& root) {
         return !exists(p.string()) || JPXmlReader::read(p.string(), root, error);
     };
-    // Not there yet: OpenPnP's default, when there is one.
-    auto orDefault = [this, &dir](const char* file) {
+    // Not there yet: OpenPnP's default, when there is one (`fromDefaults` says so).
+    auto orDefault = [this, &dir](const char* file, bool& fromDefaults) {
         if (m_defaults.empty() || exists((dir / file).string()) || !exists((fs::path(m_defaults) / file).string()))
             return dir / file;
-        m_tookDefaults = true;
+        fromDefaults = true;
         return fs::path(m_defaults) / file;
     };
-    JPXmlElement packages, parts, vision, feeders, banks;
-    if (!read(orDefault(kPackagesFile), packages) || !read(orDefault(kPartsFile), parts) || !read(orDefault(kVisionFile), vision)
-        || !read(dir / kFeedersFile, feeders) || !read(dir / kMachinePropertiesFile, banks))
+    bool libraryDefaults = false, visionDefaults = false;
+    JPXmlElement packages, parts, openPnpVision;
+    JJson feeders, properties, vision;
+    const bool hadVision = exists((dir / kVisionFile).string());
+    if (!read(orDefault(kPackagesFile, libraryDefaults), packages) || !read(orDefault(kPartsFile, libraryDefaults), parts)
+        || (!hadVision && !read(orDefault(kOpenPnpVisionFile, visionDefaults), openPnpVision))
+        || !readJson(dir / kFeedersFile, kFeedersFormat, feeders, error)
+        || !readJson(dir / kMachinePropertiesFile, kPropertiesFormat, properties, error)
+        || !readJson(dir / kVisionFile, kVisionFormat, vision, error))
         return false;
-    for (const JPXmlElement& e : feeders.children)
-        if (e.name == "feeder") m_feeders.push_back(JPFeeder::fromXml(e));
-    for (const JPXmlElement& e : banks.children) {
+    for (const JJson& f : std::as_const(feeders)["feeders"].arr()) m_feeders.push_back(JPFeeder::fromXml(JPXmlJson::element("feeder", f)));
+    for (const JPXmlElement& e : propertyEntries(std::as_const(properties)["properties"])) {
         if (auto b = JPSlotBanks::fromXml(e)) m_slotBanks.push_back(std::move(*b));
         else if (auto d = JPDropBoxes::fromXml(e)) m_dropBoxes = std::move(*d);
         else m_photon.take(e);
     }
     resolveSlots();
     resolvePhoton();
-    for (const JPXmlElement& e : vision.children)
+    for (const JJson& v : std::as_const(vision)["settings"].arr())
+        m_vision.push_back(JPVisionSettings::fromXml(JPXmlJson::element("vision-settings", v)));
+    for (const JPXmlElement& e : openPnpVision.children)
         if (e.name == "vision-settings") m_vision.push_back(JPVisionSettings::fromXml(e));
+    m_tookDefaults = visionDefaults;
     // The library: library.db, else made from OpenPnP's parts.xml and packages.xml (left as they are); then any of
     // those files' parts and packages it lacks, when the files changed since it last looked (OpenPnP's copied in).
     const fs::path libraryFile = dir / JPLibraryStore::kFile;
@@ -166,6 +267,8 @@ bool JPConfiguration::load(std::vector<std::string>& problems, std::string& erro
             addPart(std::move(made));
             ++added;
         }
+        // OpenPnP's defaults taken only when the library took something of them.
+        if (libraryDefaults && (added > 0 || linked > 0)) m_tookDefaults = true;
         if (hadLibrary && linked > 0)
             problems.push_back(std::to_string(linked) + " vision settings link(s) of OpenPnP's parts.xml and packages.xml were given "
                                "to the library's parts and packages that had none");
@@ -186,17 +289,17 @@ bool JPConfiguration::save(std::string& error) const {
     // The library's parts and packages, to library.db (OpenPnP's parts.xml and packages.xml are not written).
     if (!m_library.isOpen() && !m_library.open((dir / JPLibraryStore::kFile).string(), error)) return false;
     if (!m_library.save(contents(), error)) return false;
-    JPXmlNode feeders("feeders");
-    for (const JPFeeder& f : m_feeders) feeders.add(f.toXml());
-    if (!JPXmlWriter::write((dir / kFeedersFile).string(), feeders, error)) return false;
-    JPXmlNode properties("properties");
-    for (const JPSlotBanks& b : m_slotBanks) properties.add(b.toXml());
-    for (JPXmlNode& e : m_photon.toXml()) properties.add(std::move(e));
-    properties.add(m_dropBoxes.toXml());
-    if (!JPXmlWriter::write((dir / kMachinePropertiesFile).string(), properties, error)) return false;
-    JPXmlNode vision("openpnp-vision-settings");
-    for (const JPVisionSettings& v : m_vision) vision.add(v.toXml());
-    return JPXmlWriter::write((dir / kVisionFile).string(), vision, error);
+    JJson feeders = JJson::array();
+    for (const JPFeeder& f : m_feeders) feeders.push(JPXmlJson::from(f.toXml()));
+    std::vector<JPXmlNode> entries;
+    for (const JPSlotBanks& b : m_slotBanks) entries.push_back(b.toXml());
+    for (JPXmlNode& e : m_photon.toXml()) entries.push_back(std::move(e));
+    entries.push_back(m_dropBoxes.toXml());
+    JJson vs = JJson::array();
+    for (const JPVisionSettings& v : m_vision) vs.push(JPXmlJson::from(v.toXml()));
+    return writeJson(dir / kFeedersFile, kFeedersFormat, "feeders", feeders, error)
+           && writeJson(dir / kMachinePropertiesFile, kPropertiesFormat, "properties", propertiesJson(entries), error)
+           && writeJson(dir / kVisionFile, kVisionFormat, "settings", vs, error);
 }
 
 int JPConfiguration::importFeeders(const std::string& machineXml, std::string& error) {
@@ -676,41 +779,24 @@ void JPConfiguration::removePackage(const std::string& id) {
 
 std::shared_ptr<JPBoard> JPConfiguration::board(const std::string& path, std::string& error) {
     if (!exists(path)) {
-        JPBoard b;
-        b.name = fs::path(path).filename().string();
-        if (JPBoard::isJplacerFile(path)) {
-            if (!b.toJson().dumpToFile(path)) {
-                error = "Unable to write " + path;
-                return nullptr;
-            }
-        } else if (!JPXmlWriter::write(path, b.toXml(), error, false)) {
+        if (!JPBoard::isJplacerFile(path)) {
+            error = "Board file not found: " + path;
             return nullptr;
         }
+        JPBoard b;
+        b.name = fs::path(path).filename().string();
+        if (!JPWholeFile::write(path, b.toJson(), error)) return nullptr;
     }
-    std::string file = canonical(path);
     // OpenPnP's file that jplacer has saved as its own: that one (a job or panel naming the old file, saved
     // before it moved, or OpenPnP's, finds the board as it is now).
-    if (!JPBoard::isJplacerFile(file)) {
-        std::error_code ec;
-        for (fs::directory_iterator it(fs::path(file).parent_path(), ec), end; !ec && it != end; it.increment(ec)) {
-            const std::string candidate = it->path().string();
-            if (!JPBoard::isJplacerFile(candidate)) continue;
-            const std::optional<JJson> j = JJson::tryParseFile(candidate);
-            if (j && (*j)["convertedFrom"].isString() && (*j)["convertedFrom"].str() == file) {
-                file = canonical(candidate);
-                break;
-            }
-        }
-    }
+    std::string file = canonical(path);
+    if (!JPBoard::isJplacerFile(file)) file = convertedOf(file, &JPBoard::isJplacerFile);
     for (const auto& b : m_boards)
         if (b->file == file) return b;
     std::shared_ptr<JPBoard> b;
     if (JPBoard::isJplacerFile(file)) {
-        const std::optional<JJson> j = JJson::tryParseFile(file);
-        if (!j || !j->isObject() || !(*j)["format"].isString() || (*j)["format"].str() != JPBoard::kFormat) {
-            error = "Not a jplacer board file: " + file;
-            return nullptr;
-        }
+        const std::optional<JJson> j = readOwn(file, JPBoard::kFormat, "board", error);
+        if (!j) return nullptr;
         b = std::make_shared<JPBoard>(JPBoard::fromJson(*j));
     } else {
         JPXmlElement root;
@@ -732,11 +818,16 @@ std::shared_ptr<JPBoard> JPConfiguration::board(const std::string& path, std::st
 
 std::shared_ptr<JPPanel> JPConfiguration::panel(const std::string& path, std::string& error) {
     if (!exists(path)) {
+        if (!JPPanel::isJplacerFile(path)) {
+            error = "Panel file not found: " + path;
+            return nullptr;
+        }
         JPPanel p;
         p.name = fs::path(path).filename().string();
-        if (!JPXmlWriter::write(path, p.toXml(), error, false)) return nullptr;
+        if (!JPWholeFile::write(path, p.toJson(), error)) return nullptr;
     }
-    const std::string file = canonical(path);
+    std::string file = canonical(path);
+    if (!JPPanel::isJplacerFile(file)) file = convertedOf(file, &JPPanel::isJplacerFile);
     for (const auto& p : m_panels)
         if (p->file == file) return p;
     auto p = loadPanel(file, error);
@@ -751,11 +842,18 @@ void JPConfiguration::linkPartsByName(std::vector<JPPlacement>& placements) cons
 }
 
 std::shared_ptr<JPPanel> JPConfiguration::loadPanel(const std::string& file, std::string& error) {
-    JPXmlElement root;
-    if (!JPXmlReader::read(file, root, error)) return nullptr;
-    auto p = std::make_shared<JPPanel>(JPPanel::fromXml(root));
+    std::shared_ptr<JPPanel> p;
+    if (JPPanel::isJplacerFile(file)) {
+        const std::optional<JJson> j = readOwn(file, JPPanel::kFormat, "panel", error);
+        if (!j) return nullptr;
+        p = std::make_shared<JPPanel>(JPPanel::fromJson(*j));
+    } else {
+        JPXmlElement root;
+        if (!JPXmlReader::read(file, root, error)) return nullptr;
+        p = std::make_shared<JPPanel>(JPPanel::fromXml(root));
+        linkPartsByName(p->placements);
+    }
     p->file = file;
-    linkPartsByName(p->placements);
     for (auto& c : p->children) {
         std::string childFile = c->fileName;
         if (!exists(childFile)) childFile = (fs::path(file).parent_path() / fs::path(childFile).filename()).string();
@@ -816,44 +914,44 @@ void JPConfiguration::removePanel(const JPPanel* p) {
     std::erase_if(m_panels, [p](const auto& q) { return q.get() == p; });
 }
 
+void JPConfiguration::repoint(JPPlacementsHolderLocation::Kind kind, const std::string& from, const std::string& to) {
+    for (const auto& p : m_panels)
+        for (auto& c : p->children)
+            if (c->kind() == kind && canonical(c->fileName) == canonical(from)) {
+                c->fileName = to;
+                p->dirty = true;
+            }
+}
+
 bool JPConfiguration::saveBoard(JPBoard& b, std::string& error, std::string* movedFrom) {
     // jplacer's file, always: an OpenPnP board is written beside it as one (its own name, ".jpboard"), the
     // OpenPnP file left as it is, and every panel naming it pointed at the new one.
     if (!JPBoard::isJplacerFile(b.file)) {
         const std::string from = b.file;
-        std::string stem = fs::path(from).filename().string();
-        for (const char* suffix : { ".board.xml", ".xml" })
-            if (stem.size() > std::strlen(suffix)
-                && upper(stem.substr(stem.size() - std::strlen(suffix))) == upper(suffix)) {
-                stem.resize(stem.size() - std::strlen(suffix));
-                break;
-            }
-        const fs::path dir = fs::path(from).parent_path();
-        fs::path to = dir / (stem + JPBoard::kExtension);
-        for (int n = 2; exists(to.string()); ++n) to = dir / (stem + " (" + std::to_string(n) + ")" + JPBoard::kExtension);
-        b.file = to.string();
+        b.file = besideAs(from, JPBoard::kExtension);
         b.convertedFrom = canonical(from);
         // Named after its file (as OpenPnP names a board): named after the new one.
-        if (b.name && *b.name == fs::path(from).filename().string()) b.name = to.filename().string();
+        if (b.name && *b.name == fs::path(from).filename().string()) b.name = fs::path(b.file).filename().string();
         if (movedFrom) *movedFrom = from;
-        for (const auto& p : m_panels)
-            for (auto& c : p->children)
-                if (c->kind() == JPPlacementsHolderLocation::Kind::Board && canonical(c->fileName) == canonical(from)) {
-                    c->fileName = b.file;
-                    p->dirty = true;
-                }
+        repoint(JPPlacementsHolderLocation::Kind::Board, from, b.file);
     }
     b.dropUnusedParts();   // a part no placement names any more is not kept
-    if (!b.toJson().dumpToFile(b.file)) {
-        error = "Unable to write " + b.file;
-        return false;
-    }
+    if (!JPWholeFile::write(b.file, b.toJson(), error)) return false;
     b.dirty = false;
     return true;
 }
 
-bool JPConfiguration::savePanel(JPPanel& p, std::string& error) const {
-    if (!JPXmlWriter::write(p.file, p.toXml(), error, false)) return false;
+bool JPConfiguration::savePanel(JPPanel& p, std::string& error, std::string* movedFrom) {
+    // As a board: jplacer's file, an OpenPnP panel written beside it as one.
+    if (!JPPanel::isJplacerFile(p.file)) {
+        const std::string from = p.file;
+        p.file = besideAs(from, JPPanel::kExtension);
+        p.convertedFrom = canonical(from);
+        if (p.name && *p.name == fs::path(from).filename().string()) p.name = fs::path(p.file).filename().string();
+        if (movedFrom) *movedFrom = from;
+        repoint(JPPlacementsHolderLocation::Kind::Panel, from, p.file);
+    }
+    if (!JPWholeFile::write(p.file, p.toJson(), error)) return false;
     p.dirty = false;
     return true;
 }
@@ -985,13 +1083,6 @@ void JPConfiguration::saveJobSettings(JPJob& job, JPPanelLocation& l) {
 bool JPConfiguration::convertLegacyJob(JPJob& job, std::string& error) {
     const bool panelised = !job.legacyPanels.empty();
     if (!panelised && job.legacyBoardLocations.empty()) return true;
-    // The older file is kept beside it, as OpenPnP keeps it.
-    const std::string jobFile = job.file;
-    const std::string base = jobFile.size() > 8 && jobFile.ends_with(JPJob::kExtension)
-                                 ? jobFile.substr(0, jobFile.size() - std::string(JPJob::kExtension).size())
-                                 : jobFile;
-    std::error_code ec;
-    fs::copy_file(jobFile, base + ".legacy.job.xml", fs::copy_options::overwrite_existing, ec);
     const std::string delim = JPPlacementsHolderLocation::kIdDelimiter;
 
     if (panelised) {
@@ -1001,7 +1092,7 @@ bool JPConfiguration::convertLegacyJob(JPJob& job, std::string& error) {
         const JPPanel::Legacy legacy = panel->legacy.value_or(JPPanel::Legacy());
         panel->legacy.reset();
         panel->makeDefinition();
-        panel->file = base + ".panel.xml";
+        panel->file = besideAs(job.file, JPPanel::kExtension);
         panel->name = fs::path(panel->file).filename().string();
         const JPLocation rootDims = rootBoard.board()->dimensions.convertToUnits(JPLengthUnit::Millimeters);
         panel->setDimensions(JPLocation::origin().deriveLengths(
@@ -1057,13 +1148,24 @@ bool JPConfiguration::convertLegacyJob(JPJob& job, std::string& error) {
 }
 
 std::unique_ptr<JPJob> JPConfiguration::loadJob(const std::string& path, std::string& error) {
-    JPXmlElement root;
-    if (!JPXmlReader::read(path, root, error)) return nullptr;
-    auto job = JPJob::fromXml(root);
-    job->file = canonical(path);
-    const bool older = !job->version;
-    if (!convertLegacyJob(*job, error)) return nullptr;
-    if (JPPanel* own = job->root().panel()) linkPartsByName(own->placements);
+    std::unique_ptr<JPJob> job;
+    bool older = false;
+    if (JPJob::isJplacerFile(path)) {
+        const std::optional<JJson> j = readOwn(path, JPJob::kFormat, "job", error);
+        if (!j) return nullptr;
+        job = JPJob::fromJson(*j);
+        job->file = canonical(path);
+    } else {
+        // OpenPnP's: its parts named by OpenPnP's ids (the library's Names); an older one's boards and panel made
+        // its root's children.
+        JPXmlElement root;
+        if (!JPXmlReader::read(path, root, error)) return nullptr;
+        job = JPJob::fromXml(root);
+        job->file = canonical(path);
+        older = !job->version;
+        if (!convertLegacyJob(*job, error)) return nullptr;
+        if (JPPanel* own = job->root().panel()) linkPartsByName(own->placements);
+    }
     if (!resolvePanel(job.get(), job->root(), error)) return nullptr;
     restoreJobSettings(*job, job->root());
     job->dirty = older;
@@ -1071,9 +1173,11 @@ std::unique_ptr<JPJob> JPConfiguration::loadJob(const std::string& path, std::st
 }
 
 bool JPConfiguration::saveJob(JPJob& job, const std::string& path, std::string& error) {
+    // jplacer's file, always: an OpenPnP job is written beside it as one, the OpenPnP file left as it is.
+    const std::string file = JPJob::isJplacerFile(path) ? path : besideAs(path, JPJob::kExtension);
     saveJobSettings(job, job.root());
-    if (!JPXmlWriter::write(path, job.toXml(), error, false)) return false;
-    job.file = canonical(path);
+    if (!JPWholeFile::write(file, job.toJson(), error)) return false;
+    job.file = canonical(file);
     job.root().panel()->file = job.file;
     job.dirty = false;
     return true;

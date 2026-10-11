@@ -1,8 +1,8 @@
 # Feeders
 
 The **Feeders** tab (in the work area, after Packages, as in OpenPnP) lists the machine's feeders: where
-each part is taken from. Each feeder is kept in `feeders.xml` in jplacer's configuration folder, exactly
-as OpenPnP keeps it in its `machine.xml`, whatever its kind; **Machine ▸ Import OpenPnP Machine…** brings
+each part is taken from. Each feeder is kept in `feeders.json` in jplacer's configuration folder, as
+OpenPnP keeps it in its `machine.xml`, whatever its kind; **Machine ▸ Import OpenPnP Machine…** brings
 an OpenPnP machine's feeders in (see [Machine](machine.md#bringing-in-a-machine-set-up-in-openpnp)).
 
 <!-- src: src/ui/JPFeedersPanel.cpp; src/app/JPlacerOpenPnpTabs.cpp (the Feeders dock, onImported); src/model/JPConfiguration.h (kFeedersFile); src/model/JPFeeder.h -->

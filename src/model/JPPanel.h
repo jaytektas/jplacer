@@ -8,7 +8,8 @@
 #include "JPPlacementsHolderLocation.h"
 
 #include "openpnp/JPXmlElement.h"
-#include "openpnp/JPXmlNode.h"
+
+#include <j/config/Json.h>
 
 #include <memory>
 #include <optional>
@@ -22,7 +23,7 @@ inline namespace jf {
 class JPBoardLocation;
 class JPPanelLocation;
 
-// A panel, as OpenPnP's Panel (a .panel.xml file, or a job's root): its
+// A panel, as OpenPnP's Panel (jplacer's file, kExtension; or OpenPnP's .panel.xml, read; or a job's root): its
 // children (boards and panels, each where it lies), its own placements
 // (fiducials and the like), and pseudo-placements: placements of a child
 // board used as the panel's own, by unique id ("Brd1⇒FID1").
@@ -40,6 +41,9 @@ public:
         std::vector<JPPlacement> fiducials;
     };
 
+    static constexpr const char* kExtension = ".jppanel";
+    static constexpr const char* kFormat = "jplacer-panel";
+
     JPPanel() = default;
     JPPanel(const JPPanel& o);
     JPPanel& operator=(const JPPanel&) = delete;
@@ -53,6 +57,9 @@ public:
     // its file, as OpenPnP keeps them only in a job).
     std::set<std::string>                                    disabledPseudoPlacements;
     std::optional<Legacy>                                    legacy;
+    // The OpenPnP panel file this one was first saved from (JPConfiguration::savePanel); empty: none. That file
+    // opened is this one.
+    std::string                                              convertedFrom;
 
     // Adds a child, giving it a new id ("Brd1", "Pnl1") when it has none or
     // one already taken. The child it now is.
@@ -84,9 +91,14 @@ public:
     // A pseudo-placement's location on this panel; false when the id names nothing.
     bool pseudoPlacementLocation(const std::string& id, JPPlacement& out) const;
 
+    // As jplacer's file keeps it (`asFile`: with its format, version, name and what it was converted from), or a
+    // job's root: its dimensions, placements (each naming its library part, "libraryPart"), profile, children
+    // and pseudo-placements' ids.
+    static JPPanel fromJson(const JJson& j);
+    JJson toJson(bool asFile = true) const;
+    static bool isJplacerFile(const std::string& path);
+    // OpenPnP's .panel.xml ("openpnp-panel"), or a job's "root-panel".
     static JPPanel fromXml(const JPXmlElement& root);
-    // As a .panel.xml file ("openpnp-panel"), or a job's "root-panel".
-    JPXmlNode toXml(const char* elementName = "openpnp-panel") const;
 };
 
 } // inline namespace jf

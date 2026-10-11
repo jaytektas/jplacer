@@ -3,8 +3,6 @@
 
 #include "JPXmlWriter.h"
 
-#include "common/JPWholeFile.h"
-
 #include <charconv>
 #include <cmath>
 #include <cstdlib>
@@ -56,12 +54,6 @@ std::string JPXmlWriter::text(const JPXmlNode& root) {
     std::string out;
     emit(root, 0, out);
     return out;
-}
-
-bool JPXmlWriter::write(const std::string& path, const JPXmlNode& root, std::string& error, bool finalNewline) {
-    std::string t = text(root);
-    if (!finalNewline && !t.empty()) t.pop_back();
-    return JPWholeFile::write(path, t, error);
 }
 
 std::string JPXmlWriter::number(double v) {

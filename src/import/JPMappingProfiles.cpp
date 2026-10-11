@@ -3,6 +3,8 @@
 
 #include "JPMappingProfiles.h"
 
+#include "common/JPWholeFile.h"
+
 #include "model/JPLengthUnits.h"
 
 #include <algorithm>
@@ -56,11 +58,7 @@ bool JPMappingProfiles::save(const std::string& path, std::string& error) const 
         list.push(o);
     }
     j["profiles"] = list;
-    if (!j.dumpToFile(path)) {
-        error = "Cannot write " + path;
-        return false;
-    }
-    return true;
+    return JPWholeFile::write(path, j, error);
 }
 
 const JPMappingProfiles::Profile* JPMappingProfiles::best(const std::vector<std::string>& header,

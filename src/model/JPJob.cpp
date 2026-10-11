@@ -11,7 +11,6 @@ using V = JPXmlValues;
 
 namespace {
 
-constexpr const char* kVersion = "2.0";
 const std::string kDelimiter = JPPlacementsHolderLocation::kIdDelimiter;
 
 std::string key(const JPPlacementsHolderLocation& l, const std::string& placementId) {
@@ -24,15 +23,14 @@ void readMap(const JPXmlElement* m, std::map<std::string, bool>& out) {
         if (e.children.size() >= 2) out[V::text(e.children[0])] = V::text(e.children[1]) == "true";
 }
 
-JPXmlNode writeMap(const char* name, const std::map<std::string, bool>& m) {
-    JPXmlNode n(name);
-    n.attr("class", "java.util.HashMap");
-    for (const auto& [k, v] : m) {
-        JPXmlNode& e = n.add(JPXmlNode("entry"));
-        e.add(JPXmlNode("string")).text = k;
-        e.add(JPXmlNode("boolean")).text = V::boolean(v);
-    }
-    return n;
+JJson flags(const std::map<std::string, bool>& m) {
+    JJson j = JJson::object();
+    for (const auto& [k, v] : m) j[k] = v;
+    return j;
+}
+
+void readFlags(const JJson& j, std::map<std::string, bool>& out) {
+    for (const auto& [k, v] : j.obj()) out[k] = v.boolean();
 }
 
 } // namespace
@@ -166,11 +164,6 @@ std::unique_ptr<JPJob> JPJob::fromXml(const JPXmlElement& r) {
     if (const JPXmlElement* ps = r.child("panels"))
         for (const JPXmlElement& e : ps->children) job->legacyPanels.push_back(JPPanel::fromXml(e));
     readMap(r.child("placed-status-map"), job->placedStatusMap);
-    if (const JPXmlElement* plan = r.child("jplacer-plan")) {
-        job->planSort = plan->attr("sort");
-        for (const JPXmlElement& e : plan->children)
-            if (e.name == "part") job->planOrder.push_back(e.attr("id"));
-    }
     readMap(r.child("enabled-state-map"), job->enabledStateMap);
     readMap(r.child("check-fiducials-state-map"), job->checkFiducialsStateMap);
     if (const JPXmlElement* m = r.child("error-handling-state-map"))
@@ -182,27 +175,48 @@ std::unique_ptr<JPJob> JPJob::fromXml(const JPXmlElement& r) {
     return job;
 }
 
-JPXmlNode JPJob::toXml() const {
-    JPXmlNode n("openpnp-job");
-    n.attr("version", kVersion);
-    n.add(m_rootPanel->toXml("root-panel"));
-    n.add(writeMap("placed-status-map", placedStatusMap));
-    n.add(writeMap("enabled-state-map", enabledStateMap));
-    n.add(writeMap("check-fiducials-state-map", checkFiducialsStateMap));
-    JPXmlNode& eh = n.add(JPXmlNode("error-handling-state-map"));
-    eh.attr("class", "java.util.HashMap");
-    for (const auto& [k, v] : errorHandlingStateMap) {
-        JPXmlNode& e = eh.add(JPXmlNode("entry"));
-        e.add(JPXmlNode("string")).text = k;
-        e.add(JPXmlNode("error-handling")).text = JPPlacement::errorHandlingName(v);
-    }
-    n.add(JPXmlNode("error-handling")).text = errorHandling == ErrorHandling::Defer ? "Defer" : "Alert";
-    if (!planSort.empty() || !planOrder.empty()) {
-        JPXmlNode& plan = n.add(JPXmlNode("jplacer-plan"));
-        if (!planSort.empty()) plan.attr("sort", planSort);
-        for (const std::string& id : planOrder) plan.add(JPXmlNode("part")).attr("id", id);
-    }
-    return n;
+std::unique_ptr<JPJob> JPJob::fromJson(const JJson& j) {
+    auto job = std::make_unique<JPJob>();
+    job->version = j["version"].number(1);
+    JPPanel panel = JPPanel::fromJson(j["root"]);
+    job->m_rootPanel->dimensions = panel.dimensions;
+    job->m_rootPanel->placements = std::move(panel.placements);
+    job->m_rootPanel->pseudoPlacementIds = std::move(panel.pseudoPlacementIds);
+    for (auto& c : panel.children) job->m_root->addChild(std::move(c));
+    job->errorHandling = j["errorHandling"].str() == "Defer" ? ErrorHandling::Defer : ErrorHandling::Alert;
+    readFlags(j["placed"], job->placedStatusMap);
+    readFlags(j["enabled"], job->enabledStateMap);
+    readFlags(j["checkFiducials"], job->checkFiducialsStateMap);
+    for (const auto& [k, v] : j["placementErrorHandling"].obj())
+        job->errorHandlingStateMap[k] = JPPlacement::errorHandlingFrom(v.str());
+    job->planSort = j["plan"]["sort"].str();
+    for (const JJson& id : j["plan"]["order"].arr()) job->planOrder.push_back(id.str());
+    return job;
 }
+
+JJson JPJob::toJson() const {
+    JJson j = JJson::object();
+    j["format"] = kFormat;
+    j["version"] = 1;
+    j["root"] = m_rootPanel->toJson(false);
+    j["errorHandling"] = errorHandling == ErrorHandling::Defer ? "Defer" : "Alert";
+    j["placed"] = flags(placedStatusMap);
+    j["enabled"] = flags(enabledStateMap);
+    j["checkFiducials"] = flags(checkFiducialsStateMap);
+    JJson eh = JJson::object();
+    for (const auto& [k, v] : errorHandlingStateMap) eh[k] = JPPlacement::errorHandlingName(v);
+    j["placementErrorHandling"] = eh;
+    if (!planSort.empty() || !planOrder.empty()) {
+        JJson plan = JJson::object();
+        if (!planSort.empty()) plan["sort"] = planSort;
+        JJson order = JJson::array();
+        for (const std::string& id : planOrder) order.push(JJson(id));
+        plan["order"] = order;
+        j["plan"] = plan;
+    }
+    return j;
+}
+
+bool JPJob::isJplacerFile(const std::string& path) { return path.ends_with(kExtension); }
 
 } // inline namespace jf

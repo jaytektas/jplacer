@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <j/config/Json.h>
+
 #include <string>
 
 inline namespace jf {
@@ -14,6 +16,10 @@ inline namespace jf {
 class JPWholeFile {
 public:
     static bool write(const std::string& path, const std::string& text, std::string& error);
+    // JSON, indented two spaces, ending in a new line.
+    static bool write(const std::string& path, const JJson& json, std::string& error) {
+        return write(path, json.dump(2) + "\n", error);
+    }
 };
 
 } // inline namespace jf

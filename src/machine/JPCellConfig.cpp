@@ -3,9 +3,10 @@
 
 #include "JPCellConfig.h"
 
+#include "common/JPWholeFile.h"
+
 #include <algorithm>
 #include <cmath>
-#include <filesystem>
 #include <set>
 
 inline namespace jf {
@@ -104,13 +105,7 @@ bool JPCellConfig::load(const std::string& path, std::string& error) {
 }
 
 bool JPCellConfig::save(const std::string& path, std::string& error) const {
-    std::error_code ec;
-    std::filesystem::create_directories(std::filesystem::path(path).parent_path(), ec);
-    if (!toJson().dumpToFile(path)) {
-        error = path + ": could not be written";
-        return false;
-    }
-    return true;
+    return JPWholeFile::write(path, toJson(), error);
 }
 
 const JPAxisConfig* JPCellConfig::axis(const std::string& id) const {

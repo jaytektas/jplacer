@@ -28,10 +28,27 @@ out, untick **Show jplacer in the applications menu** in [Preferences](preferenc
 
 ## Where your settings are kept
 
-jplacer saves its preferences in `~/.config/jplacer/jplacer.json` (or under `$XDG_CONFIG_HOME` when that
-is set).
+jplacer keeps what it knows in its configuration folder, `~/.config/jplacer` (or `jplacer` under
+`$XDG_CONFIG_HOME` when that is set):
 
-<!-- src: src/app/JPlacerSettings.cpp (defaultPath) -->
+| File | What it holds |
+|---|---|
+| `jplacer.json` | Your preferences, and how the window was laid out. |
+| `cells/` | The machine: each cell's set-up and calibration (see [Machine](machine.md)). |
+| `library.db` | The library's parts and packages (see [Parts](parts.md)). |
+| `feeders.json` | The feeders (see [Feeders](feeders.md)). |
+| `vision-settings.json` | The vision settings (see [Vision](vision.md)). |
+| `machine-properties.json` | What feeders keep on the machine: slot feeders' banks, Photon feeders' slots, heap feeders' drop boxes. |
+| `runs.db` | Each run of a job: what it fed and placed, as it went. |
+
+<!-- src: src/app/JPlacerSettings.cpp (defaultPath); src/common/JPlacerPaths.cpp (configDir); src/model/JPConfiguration.h (kFeedersFile, kVisionFile, kMachinePropertiesFile); src/model/JPLibraryStore.h (kFile); src/model/JPRunStore.h (kFile) -->
+
+Each is written whole or not at all: the new file takes the old one's place only once it is complete, so a
+crash or a full disk while saving leaves the old one as it was. The JSON files can be read in any text
+editor. A feeder or a vision setting is written in OpenPnP's shape: an attribute of OpenPnP's is a value
+(`"x": 10.25`, `"enabled": true`), what OpenPnP nests is an object, and what it repeats is a list.
+
+<!-- src: src/common/JPWholeFile.h; src/openpnp/JPXmlJson.h -->
 
 ## Starting it from a terminal
 

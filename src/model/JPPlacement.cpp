@@ -13,10 +13,6 @@ inline namespace jf {
 
 using V = JPXmlValues;
 
-namespace {
-constexpr const char* kVersion = "1.4";
-}
-
 const char* JPPlacement::errorHandlingName(ErrorHandling e) {
     switch (e) {
         case ErrorHandling::Default: return "Default";
@@ -47,18 +43,6 @@ JPPlacement JPPlacement::fromXml(const JPXmlElement& e) {
     if (const JPXmlElement* c = e.child("comments")) p.comments = V::text(*c);
     if (const JPXmlElement* h = e.child("error-handling")) p.errorHandling = errorHandlingFrom(V::text(*h));
     return p;
-}
-
-JPXmlNode JPPlacement::toXml() const {
-    JPXmlNode n("placement");
-    n.attr("version", kVersion).attr("side", JPSides::name(side)).attr("id", id);
-    if (!partId.empty()) n.attr("part-id", partId);
-    n.attr("type", typeName(type)).attr("enabled", V::boolean(enabled));
-    if (rank != 0) n.attr("rank", std::to_string(rank));
-    n.add(JPLocationXml::to("location", location));
-    if (comments) n.add(JPXmlNode("comments")).text = *comments;
-    n.add(JPXmlNode("error-handling")).text = errorHandlingName(errorHandling);
-    return n;
 }
 
 JPPlacement JPPlacement::fromJson(const JJson& j) {

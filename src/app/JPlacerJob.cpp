@@ -25,13 +25,14 @@ namespace {
 constexpr int kRecentMost = 10;
 
 constexpr int kStatusMs = 8000;
-// The file dialog filters by the last extension; ".job.xml" is added on save.
-// The picker's file types: OpenPnP's jobs (*.job.xml), then any XML.
+// The picker's file types: jplacer's jobs (".jpjob", added on save), and OpenPnP's (".job.xml"; the dialog
+// filters by the last extension) to open.
 JDialogRequest fileRequest(JDialogRequest::JKind kind, const std::string& title) {
     JDialogRequest req;
     req.kind = kind;
     req.title = title;
-    req.filters = { { "Jobs", { std::string(JPJob::kExtension).substr(1) } }, { "XML files", { "xml" } } };
+    req.filters = { { "Jobs", { std::string(JPJob::kExtension).substr(1) } } };
+    if (kind == JDialogRequest::JKind::OpenFile) req.filters.push_back({ "OpenPnP jobs", { "xml" } });
     return req;
 }
 
@@ -245,11 +246,18 @@ void JPlacerJob::open() {
     });
 }
 
-bool JPlacerJob::writeTo(const std::string& path) {
+bool JPlacerJob::writeTo(const std::string& asked) {
+    const std::string path = asked;   // often the job's own file, which saving it may change
     std::string error;
     if (!m_config.saveJob(*m_job, path, error)) {
         JDialog::message("Job Save Error", error);
         return false;
+    }
+    if (m_job->file != JPConfiguration::canonical(path)) {
+        const std::string name = std::filesystem::path(m_job->file).filename().string();
+        JLOGC(JPlacerLog::kApp, JLogLevel::Info) << "job " << path << " saved as jplacer's " << m_job->file
+                                                 << " (the OpenPnP file is left as it was)";
+        m_window.showStatus("Saved as jplacer's " + name, kStatusMs);
     }
     JSettings::instance().set(JPlacerSettings::kJobFile, m_job->file);
     JPlacerSettings::save();

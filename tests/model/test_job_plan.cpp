@@ -11,8 +11,6 @@
 
 #include "model/JPBoardLocation.h"
 #include "model/JPJobPlan.h"
-#include "openpnp/JPXmlReader.h"
-#include "openpnp/JPXmlWriter.h"
 
 #include <filesystem>
 
@@ -101,12 +99,7 @@ int main() {
 
     // Kept in the job's file.
     job.planSort = JPJobPlan::kMost;
-    std::string error;
-    const std::string file = (dir / "plan.job.xml").string();
-    assert(JPXmlWriter::write(file, job.toXml(), error, false));
-    JPXmlElement root;
-    assert(JPXmlReader::read(file, root, error));
-    const auto back = JPJob::fromXml(root);
+    const auto back = JPJob::fromJson(JJson::parse(job.toJson().dump(2)));
     assert(back->planSort == JPJobPlan::kMost && back->planOrder == job.planOrder);
     fs::remove_all(dir);
     return 0;

@@ -317,8 +317,8 @@ void JPPanelDefinitionPanel::showAddMenu() {
     });
     m_addMenu->addSeparator(g);
     entry("Add New Panel...", "Create and add a new panel to this panel", [this] {
-        JDialog::saveFile("Save New Panel As...", { "xml" }, [this](std::string path) {
-            addPanel(withSuffix(path, ".panel.xml"), "Unable to create new panel");
+        JDialog::saveFile("Save New Panel As...", { "jppanel" }, [this](std::string path) {
+            addPanel(withSuffix(path, JPPanel::kExtension), "Unable to create new panel");
         });
     });
     entry("Add Existing Panel...", "Add an existing panel to this panel", [this] {

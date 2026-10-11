@@ -35,9 +35,9 @@ JPlacerExistingHolderDialog::JPlacerExistingHolderDialog(const std::string& titl
     m_ok->setEnabled(false);
     m_buttons->addButton("Browse", JDialogButtonBox::Role::Action)->onClicked.connect([this, title, what] {
         close();
-        // A board: jplacer's file, or OpenPnP's (read; saved as jplacer's).
+        // jplacer's file, or OpenPnP's (read; saved as jplacer's).
         const std::vector<std::string> extensions = what == "board" ? std::vector<std::string>{ "jpboard", "xml" }
-                                                                    : std::vector<std::string>{ "xml" };
+                                                                    : std::vector<std::string>{ "jppanel", "xml" };
         JDialog::openFile(title, extensions, [onChosen = m_onChosen](std::string path) {
             if (onChosen) onChosen(path);
         });

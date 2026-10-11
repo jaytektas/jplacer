@@ -52,13 +52,13 @@ std::string withSuffix(std::string path, const std::string& suffix) {
 
 } // namespace
 
-// What files of this kind are saved as (a board: jplacer's), and what may be opened (a board: OpenPnP's too).
+// What files of this kind are saved as (jplacer's), and what may be opened (OpenPnP's too).
 std::vector<std::string> JPPlacementsHoldersGroup::saveExtensions() const {
-    return m_kind == JPPlacementsHolder::Kind::Board ? std::vector<std::string>{ "jpboard" } : std::vector<std::string>{ "xml" };
+    return { std::string(words().suffix).substr(1) };
 }
 
 std::vector<std::string> JPPlacementsHoldersGroup::openExtensions() const {
-    return m_kind == JPPlacementsHolder::Kind::Board ? std::vector<std::string>{ "jpboard", "xml" } : std::vector<std::string>{ "xml" };
+    return { std::string(words().suffix).substr(1), "xml" };
 }
 
 const JPPlacementsHoldersGroup::Words& JPPlacementsHoldersGroup::words() const {
@@ -72,7 +72,7 @@ const JPPlacementsHoldersGroup::Words& JPPlacementsHoldersGroup::words() const {
         "delete them from the file system."
     };
     static const Words panel {
-        "Panels", ".panel.xml", "Add Panel...", "Add a new or existing panel", "Create New Panel...",
+        "Panels", JPPanel::kExtension, "Add Panel...", "Add a new or existing panel", "Create New Panel...",
         "Save New Panel As...", "Unable to create new panel", "Existing Panel", "Panel load failed", "Remove Panel",
         "Remove the selected panels(s)", "Error Removing Panel",
         " because it is either being used by the current job or is a subpanel of another panel that is loaded in the "
@@ -279,6 +279,7 @@ void JPPlacementsHoldersGroup::copy() {
             b->makeDefinition();
             b->ownParts();   // its parts its own, not the board's it was copied from
             b->file = path;
+            b->convertedFrom.clear();   // OpenPnP's file is the original's
             b->name = std::filesystem::path(path).filename().string();
             b->dirty = false;
             saved = m_config.saveBoard(*b, error);
@@ -290,6 +291,7 @@ void JPPlacementsHoldersGroup::copy() {
             // Its children its own, not uses of the panel copied.
             for (auto& c : p->children) c->makeDefinition();
             p->file = path;
+            p->convertedFrom.clear();
             p->name = std::filesystem::path(path).filename().string();
             p->dirty = false;
             saved = m_config.savePanel(*p, error);

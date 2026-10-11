@@ -26,21 +26,24 @@
 
 inline namespace jf {
 
-// What OpenPnP's Configuration holds besides the machine: the parts and
-// packages (parts.xml, packages.xml) in one folder, and the boards and panels
+// What OpenPnP's Configuration holds besides the machine: the library's parts
+// and packages, the feeders and vision settings in one folder, and the boards and panels
 // open (the open job's, and those opened beside it: none at start; a job
 // brings its own); and loading and saving jobs, boards and panels. Parts and packages are found by id
 // without regard to case, and keep the order they were added in.
 class JPConfiguration {
 public:
+    // OpenPnP's parts and packages (copied in, or its defaults): what the library lacks of them taken in.
     static constexpr const char* kPartsFile    = "parts.xml";
     static constexpr const char* kPackagesFile = "packages.xml";
-    // The machine's feeders, as OpenPnP's machine.xml has them (<feeders>).
-    static constexpr const char* kFeedersFile  = "feeders.xml";
-    static constexpr const char* kVisionFile   = "vision-settings.xml";
-    // What feeders keep on the machine (slot feeders' banks, Photon feeders'
-    // slots), as machine.xml's <properties> entries for them.
-    static constexpr const char* kMachinePropertiesFile = "machine-properties.xml";
+    // OpenPnP's vision settings: read (here, else its defaults) while there is no kVisionFile yet.
+    static constexpr const char* kOpenPnpVisionFile = "vision-settings.xml";
+    // jplacer's (JSON; OpenPnP-shaped objects as JPXmlJson writes them): the machine's feeders, as OpenPnP's
+    // machine.xml has them (<feeders>); the vision settings; what feeders keep on the machine (slot feeders'
+    // banks, Photon feeders' slots, heap feeders' drop boxes), as machine.xml's <properties> for them, by name.
+    static constexpr const char* kFeedersFile  = "feeders.json";
+    static constexpr const char* kVisionFile   = "vision-settings.json";
+    static constexpr const char* kMachinePropertiesFile = "machine-properties.json";
 
     explicit JPConfiguration(std::string directory);
 
@@ -211,11 +214,15 @@ public:
     // Written as jplacer's board file; an OpenPnP one (read from XML) gets a file of its own beside it, its
     // old path in `movedFrom` (panels naming it follow; a job's locations are the job's to follow).
     bool saveBoard(JPBoard& board, std::string& error, std::string* movedFrom = nullptr);
-    bool savePanel(JPPanel& panel, std::string& error) const;
+    // As saveBoard: an OpenPnP panel saved as jplacer's beside it (`movedFrom` its file), panels naming it
+    // pointed at the new one.
+    bool savePanel(JPPanel& panel, std::string& error, std::string* movedFrom = nullptr);
 
-    // A job read, its older form converted (a backup kept beside it), its
+    // A job read (jplacer's, or OpenPnP's: an older one's boards and panel made its root's children), its
     // boards and panels found and what it sets on them restored.
     std::unique_ptr<JPJob> loadJob(const std::string& path, std::string& error);
+    // Written to `path` as jplacer's file; OpenPnP's job file is left as it is, the job saved beside it (its
+    // name, ".jpjob"). The job's file is the one written.
     bool saveJob(JPJob& job, const std::string& path, std::string& error);
     // A job's board or panel found from its file name (as given, beside its
     // parent's file, beside the job's) and given an instance of it.
@@ -243,6 +250,8 @@ private:
     static void restoreJobSettings(JPJob& job, JPPanelLocation& l);
     static void saveJobSettings(JPJob& job, JPPanelLocation& l);
     std::shared_ptr<JPPanel> loadPanel(const std::string& path, std::string& error);
+    // Every panel's child of `kind` whose file is `from` now names `to`.
+    void repoint(JPPlacementsHolderLocation::Kind kind, const std::string& from, const std::string& to);
     // OpenPnP's files name a part by its id, which is the part's Name here: each placement naming one so linked to
     // that part's id.
     void linkPartsByName(std::vector<JPPlacement>& placements) const;

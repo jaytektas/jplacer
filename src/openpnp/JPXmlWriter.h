@@ -9,15 +9,12 @@
 
 inline namespace jf {
 
-// Writes a JPXmlNode tree as OpenPnP's files are written: three spaces an
-// indent, an element with no text or children closed in place, a newline at
-// the end; written whole or not at all (JPWholeFile).
+// A JPXmlNode tree as text, as OpenPnP writes its files (what is copied for
+// OpenPnP: a pipeline, a part, vision settings): three spaces an indent, an
+// element with no text or children closed in place, a newline at the end.
 class JPXmlWriter {
 public:
     static std::string text(const JPXmlNode& root);
-    // `finalNewline`: as OpenPnP ends parts.xml and packages.xml; its
-    // boards, panels and jobs end at the root's closing tag.
-    static bool write(const std::string& path, const JPXmlNode& root, std::string& error, bool finalNewline = true);
     // A number as Java prints a double ("1.0", "0.25", "1.0E-4"), which
     // OpenPnP's files hold and its readers expect.
     static std::string number(double v);

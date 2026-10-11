@@ -4,6 +4,7 @@
 #include "JPPlacementsHolderLocation.h"
 
 #include "JPBoardLocation.h"
+#include "JPLocationJson.h"
 #include "JPLocationXml.h"
 #include "JPPanelLocation.h"
 #include "JPSides.h"
@@ -16,7 +17,6 @@ inline namespace jf {
 using V = JPXmlValues;
 
 namespace {
-constexpr const char* kBoardLocationClass = "org.openpnp.model.BoardLocation";
 constexpr const char* kPanelLocationClass = "org.openpnp.model.PanelLocation";
 }
 
@@ -154,20 +154,39 @@ JPLocation JPPlacementsHolderLocation::placementLocationInverse(const JPLocation
     return JPLocation(JPLengthUnit::Millimeters, x, y, p.z() - board.z(), p.rotation() + angleSign * angle).convertToUnits(units);
 }
 
-JPXmlNode JPPlacementsHolderLocation::toXml() const {
-    JPXmlNode n("object");
-    n.attr("class", kind() == Kind::Board ? kBoardLocationClass : kPanelLocationClass)
-        .attr("side", JPSides::name(side))
-        .attr("id", id);
-    if (!fileName.empty()) n.attr("file-name", fileName);
+JJson JPPlacementsHolderLocation::toJson() const {
+    JJson j = JJson::object();
+    j["kind"] = kind() == Kind::Board ? "Board" : "Panel";
+    j["id"] = id;
+    j["file"] = fileName;
+    j["side"] = JPSides::name(side);
     if (kind() == Kind::Board) {
         const auto& b = static_cast<const JPBoardLocation&>(*this);
         const std::string revision = b.board() ? b.board()->revisionLabel() : b.revision;
-        if (!revision.empty()) n.attr("revision", revision);
+        if (!revision.empty()) j["revision"] = revision;
     }
-    n.attr("check-fiducials", V::boolean(checkFiducials)).attr("locally-enabled", V::boolean(locallyEnabled));
-    n.add(JPLocationXml::to("location", m_location));
-    return n;
+    j["checkFiducials"] = checkFiducials;
+    j["enabled"] = locallyEnabled;
+    j["location"] = JPLocationJson::to(m_location);
+    return j;
+}
+
+std::unique_ptr<JPPlacementsHolderLocation> JPPlacementsHolderLocation::fromJson(const JJson& j) {
+    std::unique_ptr<JPPlacementsHolderLocation> l;
+    if (j["kind"].str() == "Panel") {
+        l = std::make_unique<JPPanelLocation>();
+    } else {
+        auto b = std::make_unique<JPBoardLocation>();
+        b->revision = j["revision"].str();
+        l = std::move(b);
+    }
+    l->id = j["id"].str();
+    l->fileName = j["file"].str();
+    l->side = JPSides::fromName(j["side"].str());
+    l->checkFiducials = j["checkFiducials"].boolean(false);
+    l->locallyEnabled = j["enabled"].boolean(true);
+    l->m_location = JPLocationJson::from(j["location"]);
+    return l;
 }
 
 std::unique_ptr<JPPlacementsHolderLocation> JPPlacementsHolderLocation::fromXml(const JPXmlElement& e) {

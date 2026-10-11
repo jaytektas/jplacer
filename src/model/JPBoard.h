@@ -10,7 +10,6 @@
 #include "JPRevisionCarry.h"
 
 #include "openpnp/JPXmlElement.h"
-#include "openpnp/JPXmlNode.h"
 
 #include <j/config/Json.h>
 
@@ -114,8 +113,8 @@ public:
     // set for it (whether it is enabled, its error handling), found by its identity, else its id.
     void followRevision(const JPBoard& def);
 
+    // OpenPnP's .board.xml.
     static JPBoard fromXml(const JPXmlElement& root);
-    JPXmlNode toXml() const;
     // jplacer's board file.
     static JPBoard fromJson(const JJson& j);
     JJson toJson() const;

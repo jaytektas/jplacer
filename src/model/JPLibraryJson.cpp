@@ -83,7 +83,7 @@ JJson JPLibraryJson::packaging(const JPPart::Packaging& k) {
 }
 
 JPPart JPLibraryJson::part(const JJson& j) {
-    JPPart p = JPPart::fromXml(JPXmlJson::element(j["openpnp"]));
+    JPPart p = JPPart::fromXml(JPXmlJson::element("part", j["openpnp"]));
     auto str = [&j](const char* k) { return j[k].isString() ? j[k].str() : std::string(); };
     if (!str("id").empty()) p.id = str("id");
     p.label = str("label");
@@ -144,12 +144,12 @@ JPLibraryFootprint JPLibraryJson::footprint(const JJson& j) {
             if (n.isString()) f.cadNames.push_back(n.str());
     f.zeroRotationDeg = j["zeroRotationDeg"].number();
     f.source = s("source");
-    if (j["geometry"].isObject()) f.geometry = JPFootprint::fromXml(JPXmlJson::element(j["geometry"]));
+    if (j["geometry"].isObject()) f.geometry = JPFootprint::fromXml(JPXmlJson::element("footprint", j["geometry"]));
     return f;
 }
 
 JPPackage JPLibraryJson::package(const JJson& j) {
-    JPPackage k = JPPackage::fromXml(JPXmlJson::element(j["openpnp"]));
+    JPPackage k = JPPackage::fromXml(JPXmlJson::element("package", j["openpnp"]));
     if (j["id"].isString()) k.id = j["id"].str();
     if (j["uuid"].isString()) k.uuid = j["uuid"].str();
     return k;

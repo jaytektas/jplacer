@@ -269,15 +269,15 @@ shows that revision.
 
 ## Saving boards
 
-**File > Save Configuration**, quitting, and leaving the job ask about each board with changes ("Save
+**File > Save Configuration**, quitting, and leaving the job ask about each board and panel with changes ("Save
 *name*?": Yes saves it; No leaves the file as it was; Cancel stops there, and jplacer does not quit or
 leave the job). The parts and packages are saved at once.
 
 A board is saved as jplacer's `.jpboard` file. One read from OpenPnP's `.board.xml` is saved beside it
 under its own name (`sim.board.xml` becomes `sim.jpboard`, a number added if that name is taken), and
-from then on is that file: the job, the panels that use it and the list of boards follow it, and a board
+from then on is that file: the job and the panels that use it follow it, and a board
 named after its file takes the new name. The `.board.xml` is left exactly as it was, so OpenPnP can still
 read it; in jplacer, whatever still names it (a job not saved since, a job of OpenPnP's) opens the
 `.jpboard` made from it instead, so no change is lost.
 
-<!-- src: src/app/JPlacerOpenPnpTabs.cpp (saveConfiguration, mayClose, confirmSave, boardMoved); src/model/JPConfiguration.cpp (saveBoard, board); src/model/JPBoard.h (convertedFrom) -->
+<!-- src: src/app/JPlacerOpenPnpTabs.cpp (saveConfiguration, mayClose, confirmSave, holderMoved); src/model/JPConfiguration.cpp (saveBoard, board, convertedOf); src/model/JPBoard.h (convertedFrom) -->

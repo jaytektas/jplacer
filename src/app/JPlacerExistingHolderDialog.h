@@ -18,8 +18,8 @@
 inline namespace jf {
 
 // OpenPnP's ExistingBoardOrPanelDialog: the boards (or panels) known, one
-// to choose (OK), or Browse for a file of them (".board.xml" or
-// ".panel.xml"), or Cancel. `onChosen` has the file.
+// to choose (OK), or Browse for a file of them (jplacer's ".jpboard" or
+// ".jppanel", or OpenPnP's ".xml"), or Cancel. `onChosen` has the file.
 class JPlacerExistingHolderDialog : public JDialogWindow {
 public:
     static constexpr uint32_t kW = 600, kH = 400;

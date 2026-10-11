@@ -26,9 +26,9 @@ inline namespace jf {
 class JPLibraryStore {
 public:
     static constexpr const char* kFile = "library.db";
-    // 4: a part known by its id (a GUID) with its Name and last packaging chosen; a library of another schema
-    // is refused (start a fresh one).
-    static constexpr int         kSchema = 4;
+    // 5: a part known by its id (a GUID) with its Name and last packaging chosen, its OpenPnP-shaped data as
+    // JPXmlJson writes it; a library of another schema is refused (start a fresh one).
+    static constexpr int         kSchema = 5;
 
     bool open(const std::string& path, std::string& error);
     bool isOpen() const { return m_db.isOpen(); }

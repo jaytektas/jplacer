@@ -1,10 +1,11 @@
 # Jobs
 
-jplacer keeps jobs, boards, panels, parts and packages exactly as OpenPnP does, in OpenPnP's own files,
-so a job, board or panel made in OpenPnP opens in jplacer as it is, and one saved by jplacer opens in
-OpenPnP.
+jplacer keeps jobs, boards and panels in files of its own: a job is a `.jpjob`, a board a `.jpboard` and a
+panel a `.jppanel`. OpenPnP's `.job.xml`, `.board.xml` and `.panel.xml` are read as they are, so a job,
+board or panel made in OpenPnP opens in jplacer; saved, each is written as jplacer's file beside OpenPnP's,
+which is left as it was.
 
-- A **job** (`.job.xml`) holds the boards and panels to be placed, each where it lies on the machine and
+- A **job** (`.jpjob`; OpenPnP's `.job.xml` is read) holds the boards and panels to be placed, each where it lies on the machine and
   which side is up, and what the job sets on them: which placements are placed, which boards and
   placements are enabled, whether each board's fiducials are checked, and how each placement's errors
   are handled.
@@ -12,7 +13,7 @@ OpenPnP.
   location, rotation, part, type, comments, error handling, enabled), its parts list, each pointing
   at a library part (see [Boards](boards.md#the-boards-parts)), its dimensions and outline, and its solder paste pads. A board
   can be used many times, in one job or several; each use shares the board's file.
-- A **panel** (`.panel.xml`) holds boards and other panels, each where it lies on the panel, the
+- A **panel** (`.jppanel`; OpenPnP's `.panel.xml` is read) holds boards and other panels, each where it lies on the panel, the
   panel's own fiducials, and *pseudo-placements*: a placement of one of its boards (a fiducial, say)
   used to line up the whole panel.
 - The library's **parts** and **packages**, the only ones there are, are kept in `library.db` (see
@@ -32,11 +33,15 @@ The job is edited on the Job tab (below), panels, boards, parts and packages on 
 | Entry | |
 |---|---|
 | **File ▸ New Job** (Ctrl+N) | Starts an empty job. |
-| **File ▸ Open Job…** (Ctrl+O) | Opens a `.job.xml` file. |
+| **File ▸ Open Job…** (Ctrl+O) | Opens a `.jpjob` file, or OpenPnP's `.job.xml`. |
 | **File ▸ Save Job** (Ctrl+S) | Saves the job to its file; a job never saved asks where, as Save Job As does. |
-| **File ▸ Save Job As…** | Saves the job to a file you choose ([the file chooser](menus.md#choosing-a-file) starts at the job's own file); `.job.xml` is added if you leave it off. |
+| **File ▸ Save Job As…** | Saves the job to a file you choose ([the file chooser](menus.md#choosing-a-file) starts at the job's own file); `.jpjob` is added if you leave it off. |
 
-The window's title is *jplacer - * and the job's file name (*Untitled.job.xml* for a job never saved),
+A job opened from OpenPnP's `.job.xml` is saved beside it as jplacer's file, under its own name
+(`sim.job.xml` becomes `sim.jpjob`, a number added if that name is taken; the status bar says *Saved as
+jplacer's …*), and from then on the job is that file. The `.job.xml` is left exactly as it was.
+
+The window's title is *jplacer - * and the job's file name (*Untitled.jpjob* for a job never saved),
 with a **\*** before the name while it has changes that are not saved. The job you had open is opened
 again, with its boards and panels, the next time jplacer starts, when Machine Setup's **Auto-load most
 recent job?** is ticked.
@@ -50,15 +55,14 @@ ten jobs opened or saved last. Saving over a file that is there asks first wheth
 A job's boards and panels are found by their file names: as written in the job, else beside the panel
 that holds them, else beside the job.
 
-<!-- src: src/app/JPlacerJob.cpp (newJob, open, save, saveAs, settle, title, mayClose, recentJobs); src/model/JPConfiguration.cpp (resolveBoard, resolvePanel); src/app/JPlacerMenuBuilder.cpp (the File menu) -->
+<!-- src: src/app/JPlacerJob.cpp (newJob, open, save, saveAs, writeTo, settle, title, mayClose, recentJobs); src/app/JPlacerJob.h (kUntitled); src/model/JPConfiguration.cpp (loadJob, saveJob, besideAs, resolveBoard, resolvePanel); src/app/JPlacerMenuBuilder.cpp (the File menu) -->
 
 ## Older OpenPnP jobs
 
 A job saved by an older OpenPnP (a list of boards, perhaps one panel of rows and columns of one board) is
-converted when it is opened, as OpenPnP converts it: a copy of the old file is kept beside it as
-`name.legacy.job.xml`; a panel of rows and columns becomes a panel file of its own (`name.panel.xml`),
-its boards named `Brd[row,column]`; what was placed is kept. The job is then marked as changed, so
-saving it writes the new form.
+converted when it is opened, as OpenPnP converts it: a panel of rows and columns becomes a panel file of its
+own (`name.jppanel`, beside the job), its boards named `Brd[row,column]`; what was placed is kept. The job is
+then marked as changed, so saving it writes it as jplacer's `.jpjob` (the old file is left as it was).
 
 <!-- src: src/model/JPConfiguration.cpp (convertLegacyJob) -->
 

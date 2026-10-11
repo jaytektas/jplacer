@@ -4,10 +4,13 @@
 #include "JPPanel.h"
 
 #include "JPBoardLocation.h"
+#include "JPLocationJson.h"
 #include "JPLocationXml.h"
 #include "JPPanelLocation.h"
 #include "JPSides.h"
 #include "JPXmlValues.h"
+
+#include "openpnp/JPXmlJson.h"
 
 #include <algorithm>
 
@@ -17,7 +20,6 @@ using V = JPXmlValues;
 
 namespace {
 
-constexpr const char* kVersion = "2.0";
 const std::string kDelimiter = JPPlacementsHolderLocation::kIdDelimiter;
 
 double normalizeAngle180(double a) {
@@ -29,7 +31,7 @@ double normalizeAngle180(double a) {
 } // namespace
 
 JPPanel::JPPanel(const JPPanel& o)
-    : JPPlacementsHolder(o), pseudoPlacementIds(o.pseudoPlacementIds), legacy(o.legacy) {
+    : JPPlacementsHolder(o), pseudoPlacementIds(o.pseudoPlacementIds), legacy(o.legacy), convertedFrom(o.convertedFrom) {
     for (const auto& c : o.children) children.push_back(c->instance());
 }
 
@@ -236,19 +238,48 @@ JPPanel JPPanel::fromXml(const JPXmlElement& root) {
     return p;
 }
 
-JPXmlNode JPPanel::toXml(const char* elementName) const {
-    JPXmlNode n(elementName);
-    if (name) n.attr("name", *name);
-    n.attr("version", kVersion);
-    n.add(JPLocationXml::to("dimensions", dimensions));
-    JPXmlNode& ps = n.add(JPXmlNode("placements"));
-    for (const JPPlacement& p : placements) ps.add(p.toXml());
-    if (profile) n.add(profile->toXml());
-    JPXmlNode& cs = n.add(JPXmlNode("children"));
-    for (const auto& c : children) cs.add(c->toXml());
-    JPXmlNode& ids = n.add(JPXmlNode("pseudo-placement-ids"));
-    for (const std::string& id : pseudoPlacementIds) ids.add(JPXmlNode("string")).text = id;
-    return n;
+JPPanel JPPanel::fromJson(const JJson& j) {
+    JPPanel p;
+    if (j["name"].isString()) p.name = j["name"].str();
+    p.convertedFrom = j["convertedFrom"].str();
+    p.dimensions = JPLocationJson::from(j["dimensions"]);
+    for (const JJson& e : j["placements"].arr()) {
+        JPPlacement placement = JPPlacement::fromJson(e);
+        placement.partId = e["libraryPart"].str();
+        p.placements.push_back(std::move(placement));
+    }
+    if (j["profile"].isObject()) p.profile = JPProfile::fromXml(JPXmlJson::element("profile", j["profile"]));
+    for (const JJson& c : j["children"].arr()) p.children.push_back(JPPlacementsHolderLocation::fromJson(c));
+    for (const JJson& id : j["pseudoPlacements"].arr()) p.pseudoPlacementIds.push_back(id.str());
+    return p;
 }
+
+JJson JPPanel::toJson(bool asFile) const {
+    JJson j = JJson::object();
+    if (asFile) {
+        j["format"] = kFormat;
+        j["version"] = 1;
+        if (name) j["name"] = *name;
+        if (!convertedFrom.empty()) j["convertedFrom"] = convertedFrom;
+    }
+    j["dimensions"] = JPLocationJson::to(dimensions);
+    JJson ps = JJson::array();
+    for (const JPPlacement& p : placements) {
+        JJson e = p.toJson();
+        if (!p.partId.empty()) e["libraryPart"] = p.partId;
+        ps.push(e);
+    }
+    j["placements"] = ps;
+    if (profile) j["profile"] = JPXmlJson::from(profile->toXml());
+    JJson cs = JJson::array();
+    for (const auto& c : children) cs.push(c->toJson());
+    j["children"] = cs;
+    JJson ids = JJson::array();
+    for (const std::string& id : pseudoPlacementIds) ids.push(JJson(id));
+    j["pseudoPlacements"] = ids;
+    return j;
+}
+
+bool JPPanel::isJplacerFile(const std::string& path) { return path.ends_with(kExtension); }
 
 } // inline namespace jf

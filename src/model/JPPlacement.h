@@ -7,7 +7,6 @@
 #include "JPSide.h"
 
 #include "openpnp/JPXmlElement.h"
-#include "openpnp/JPXmlNode.h"
 
 #include <j/config/Json.h>
 
@@ -55,7 +54,6 @@ public:
     // Older files' types: "Place" is a placement, "Ignore" a placement not
     // enabled.
     static JPPlacement fromXml(const JPXmlElement& e);
-    JPXmlNode toXml() const;
     // In a board file of jplacer's: its board part by key, not a part id.
     static JPPlacement fromJson(const JJson& j);
     JJson toJson() const;

@@ -2,11 +2,12 @@
 
 The **Vision** tab (in the work area, after Packages, as in OpenPnP) lists the vision settings parts,
 packages and the machine use: **Bottom Vision Settings** (how a part on the nozzle is looked at from
-below) and **Fiducial Vision Settings** (how a fiducial is found). They are kept in `vision-settings.xml`
-in jplacer's configuration folder, each exactly as OpenPnP keeps it, pipeline and all: OpenPnP's file can
-be copied there as it is.
+below) and **Fiducial Vision Settings** (how a fiducial is found). They are kept in `vision-settings.json`
+in jplacer's configuration folder, each as OpenPnP keeps it, pipeline and all. Until there is one, OpenPnP's
+`vision-settings.xml` is read: one copied into the folder, else OpenPnP's defaults; the next save writes
+`vision-settings.json`, and the `.xml` is not read again.
 
-<!-- src: src/ui/JPVisionSettingsPanel.cpp; src/model/JPVisionSettings.cpp; src/model/JPConfiguration.cpp (save, kVisionFile); src/app/JPlacerOpenPnpTabs.cpp (the Vision dock) -->
+<!-- src: src/ui/JPVisionSettingsPanel.cpp; src/model/JPVisionSettings.cpp; src/model/JPConfiguration.cpp (load, save); src/model/JPConfiguration.h (kVisionFile, kOpenPnpVisionFile); src/app/JPlacerOpenPnpTabs.cpp (the Vision dock) -->
 
 ## The toolbar and table
 

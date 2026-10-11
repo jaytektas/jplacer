@@ -84,8 +84,8 @@ private:
     // Asks about one changed board or panel, saving it on Yes; `then` after Yes (saved) or No, not after
     // Cancel or a save that failed.
     void confirmSave(JPPlacementsHolder& holder, std::function<void()> then);
-    // A board saved for the first time as jplacer's file (it was OpenPnP's, `from`): the job follows it.
-    void boardMoved(const JPBoard& board, const std::string& from);
+    // A board or panel saved for the first time as jplacer's file (it was OpenPnP's, `from`): the job follows it.
+    void holderMoved(const JPPlacementsHolder& holder, const std::string& from);
     void confirmSaveAll(std::vector<std::string> files, std::function<void()> then);
     // The open boards' and panels' files.
     std::vector<std::string> openFiles() const;

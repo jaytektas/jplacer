@@ -114,12 +114,11 @@ int main() {
     assert(board->find("FID4")->type == JPPlacement::Type::Fiducial && board->find("FID4")->side == JPSide::Bottom);
     assert(jobs.board(boardFile, error) == board);   // known by its file
 
-    // An older job (version 1): eight boards, converted, a backup beside it.
+    // An older job (version 1): eight boards, converted.
     {
         auto job = jobs.loadJob((dir / "pnp-test" / "pnp-test.job.xml").string(), error);
         if (!job) std::fprintf(stderr, "%s\n", error.c_str());
         assert(job && job->dirty && job->boardLocations().size() == 8);
-        assert(fs::exists(dir / "pnp-test" / "pnp-test.legacy.job.xml"));
         const auto bls = job->boardLocations();
         assert(bls[0]->id == "Brd1" && bls[7]->id == "Brd8" && bls[0]->board()->placements.size() == 30);
         assert(bls[0]->board()->definition() == board.get() && bls[0]->checkFiducials);
@@ -146,14 +145,16 @@ int main() {
         bls[1]->board()->find("R1")->enabled = false;
         bls[2]->locallyEnabled = false;
         assert(job->totalActivePlacements(bls[0]) > 0 && job->totalActivePlacements(bls[2]) == 0);
-        const std::string saved = (dir / "pnp-test" / "saved.job.xml").string();
-        assert(jobs.saveJob(*job, saved, error) && !job->dirty);
+        // Saved as jplacer's file, beside OpenPnP's (left as it was), whatever the name asked for.
+        assert(jobs.saveJob(*job, (dir / "pnp-test" / "saved.job.xml").string(), error) && !job->dirty);
+        const std::string saved = (dir / "pnp-test" / "saved.jpjob").string();
+        assert(job->file == saved && !fs::exists(dir / "pnp-test" / "saved.job.xml"));
         assert(job->enabledStateMap.count("Brd2" + std::string(JPPlacementsHolderLocation::kIdDelimiter) + "R1"));
         // A board straight in the job keeps its own "locally-enabled"; only
         // boards and panels inside panels go in the map, as in OpenPnP.
         assert(!job->enabledStateMap.count("Brd3"));
         auto reread = jobs.loadJob(saved, error);
-        assert(reread && !reread->dirty && reread->boardLocations().size() == 8 && reread->version == 2.0);
+        assert(reread && !reread->dirty && reread->boardLocations().size() == 8 && reread->version == 1);
         const auto rb = reread->boardLocations();
         assert(reread->retrievePlacedStatus(*rb[1], "R1") && !reread->retrievePlacedStatus(*rb[0], "R1"));
         assert(!rb[1]->board()->find("R1")->enabled && rb[0]->board()->find("R1")->enabled && !rb[2]->locallyEnabled);
@@ -204,9 +205,9 @@ int main() {
         const JPLocation onPanel = b->placementLocation(board->find("R1")->location, true);
         const JPLocation viaPanel = pnl1->placementLocation(onPanel);
         assert(near(p.x(), viaPanel.x(), 1e-9) && near(p.y(), viaPanel.y(), 1e-9));
-        // Written as OpenPnP writes it, and read the same.
-        const std::string saved = (dir / "pnp-test" / "panelized-saved.job.xml").string();
-        assert(jobs.saveJob(*job, saved, error));
+        // Written as jplacer's, and read the same.
+        const std::string saved = (dir / "pnp-test" / "panelized-saved.jpjob").string();
+        assert(jobs.saveJob(*job, saved, error) && job->file == saved);
         auto reread = jobs.loadJob(saved, error);
         assert(reread && reread->boardLocations().size() == 8 && reread->panelLocations()[1]->panel()->pseudoPlacements().size() == 4);
     }
@@ -216,20 +217,6 @@ int main() {
         auto job = jobs.loadJob((dir / "EAT001" / "EAT001.job.xml").string(), error);
         assert(job && job->boardLocations().size() == 1 && !job->boardLocations()[0]->checkFiducials);
         assert(job->boardLocations()[0]->board()->placements.size() == 31);
-    }
-
-    // OpenPnP's board as it writes it (what a board new at an OpenPnP path starts as): version, placements,
-    // error handling, paste pads.
-    {
-        const std::string text = JPXmlWriter::text(board->toXml());
-        assert(text.find("<openpnp-board version=\"1.1\" name=\"pnp-test.board.xml\">") != std::string::npos);
-        // Its placements name the library's part by its id (OpenPnP's id for it is the part's Name).
-        assert(text.find("<placement version=\"1.4\" side=\"Top\" id=\"R7\" part-id=\"" + jobs.partNamed("R0201-1K")->id
-                         + "\" type=\"Placement\" enabled=\"false\">") != std::string::npos);
-        assert(text.find("<error-handling>Default</error-handling>") != std::string::npos);
-        assert(text.find("<board-pad type=\"Paste\" side=\"Top\" name=\"R1-1\">") != std::string::npos);
-        assert(text.find("<pad class=\"org.openpnp.model.Pad$RoundRectangle\" units=\"Millimeters\" width=\"1.5\" "
-                         "height=\"1.3\" roundness=\"0.0\"/>") != std::string::npos);
     }
 
     // Its placements' part ids became its board parts, matched to the library's.
@@ -261,6 +248,26 @@ int main() {
         JPConfiguration other(dir.string());
         auto followed = other.board(boardFile, error);
         assert(followed && followed->file == board->file && followed->convertedFrom == JPConfiguration::canonical(boardFile));
+    }
+
+    // OpenPnP's panel saved: jplacer's file beside it (OpenPnP's left as it was), the job naming the new one
+    // once it follows it; OpenPnP's file named again (an OpenPnP job): the panel as it is now.
+    {
+        const std::string panelFile = (dir / "pnp-test" / "pnp-test.panel.xml").string();
+        auto job = jobs.loadJob((dir / "pnp-test" / "pnp-test-panelized.job.xml").string(), error);
+        assert(job);
+        auto panel = jobs.panel(panelFile, error);
+        assert(panel && panel->children.size() == 3);
+        std::string movedFrom;
+        assert(jobs.savePanel(*panel, error, &movedFrom) && movedFrom == panelFile);
+        assert(panel->file == (dir / "pnp-test" / "pnp-test.jppanel").string() && fs::exists(panelFile));
+        JPConfiguration fresh(dir.string());
+        auto again = fresh.panel(panel->file, error);
+        assert(again && again->children.size() == 3 && again->pseudoPlacementIds == panel->pseudoPlacementIds);
+        assert(again->children[0]->fileName == panel->children[0]->fileName);
+        JPConfiguration other(dir.string());
+        auto followed = other.panel(panelFile, error);
+        assert(followed && followed->file == panel->file && followed->convertedFrom == JPConfiguration::canonical(panelFile));
     }
 
     fs::remove_all(dir);
