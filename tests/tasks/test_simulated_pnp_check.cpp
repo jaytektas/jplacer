@@ -32,7 +32,7 @@ int main() {
     std::vector<std::string> problems;
     std::string error;
     assert(config.load(problems, error));
-    const JPPart* r0805 = config.part("R0805-1K");
+    const JPPart* r0805 = config.partNamed("R0805-1K");
     assert(r0805);
     const JPPackage* pkg = config.package(r0805->packageId);
     assert(pkg);

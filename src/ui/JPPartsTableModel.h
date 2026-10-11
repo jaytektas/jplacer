@@ -76,7 +76,7 @@ private:
 
     JPConfiguration&                                   m_config;
     std::vector<std::vector<std::shared_ptr<JPBoard>>> m_usedBy;
-    std::map<std::string, std::vector<JPStockLot>>     m_stock;   // each part's open lots, by its uuid, as last read
+    std::map<std::string, std::vector<JPStockLot>>     m_stock;   // each part's open lots, by its id, as last read
     std::string                                        m_show = kShowAll;
 };
 

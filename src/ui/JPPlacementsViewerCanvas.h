@@ -58,6 +58,8 @@ public:
     // is now), the head camera centred on a place, and a board's or panel's
     // fiducial check.
     std::function<bool(const JPPlacementsHolderLocation* where, const std::string& placementId)> placedOf;
+    // What a part is shown as (its Name), by its id; none: the id as it is.
+    std::function<std::string(const std::string& partId)> partName;
     std::function<void(JPPlacementsHolderLocation* where, const std::string& placementId, bool placed)> onPlacementPlaced;
     std::function<void(const JPLocation& at)> onCenterCamera;
     std::function<void(JPPlacementsHolderLocation* where)> onFiducialCheck;

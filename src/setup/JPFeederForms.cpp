@@ -73,15 +73,21 @@ void count(JPFormBuilder& add, std::function<JPFeeder&()> f, const std::string& 
 // What a feeder's Packaging says while its values are its own (no packaging of the part's has them).
 constexpr const char* kOwnPackaging = "(the feeder's own)";
 
+// The library's parts as a choice lists them: by their Names, kept by their ids; `none`: "" (no part) first.
+JPFormBuilder::Named partNames(const JPConfiguration& config, bool none) {
+    JPFormBuilder::Named n;
+    if (none) n.add("", "");
+    for (const auto& p : config.parts()) n.add(p->shownName(), p->id);
+    return n;
+}
+
 // The feeder's Part, chosen from the library's parts (the Parts tab's table dropped), loaded with its
 // packaging's values (JPFeederPackaging::load); `none`: "" (no part) among them. On the row begun, when one is.
 void partChoice(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f, bool none = false) {
-    JPFormBuilder::Strings ids;
-    if (none) ids.push_back("");
-    for (const auto& p : config.parts()) ids.push_back(p->id);
-    add.choice("part", "Part", ids, [f] { return f().partId(); },
+    const JPFormBuilder::Named parts = partNames(config, none);
+    add.byName("part", "Part", parts, [f] { return f().partId(); },
                [&config, f](const std::string& id) { JPFeederPackaging::load(config, f(), id); });
-    add.searchable(JPLibrarySearch::parts(config, ids), JPLibrarySearch::kPartsTable);
+    add.searchable(JPLibrarySearch::parts(config, parts.ids), JPLibrarySearch::kPartsTable);
     add.reshapes("part");   // its Packaging lists the new part's
 }
 
@@ -530,9 +536,8 @@ void slotForm(JPFormBuilder& add, JPConfiguration& config, const std::string& sl
     }
     add.end();
     // The part of the feeder in the slot, at the page's top as on every feeder's page.
-    JPFormBuilder::Strings parts { "" };
-    for (const auto& p : config.parts()) parts.push_back(p->id);
-    add.choice("slot.part", "Part", parts, [banks, bank, loaded] {
+    const JPFormBuilder::Named parts = partNames(config, true);
+    add.byName("slot.part", "Part", parts, [banks, bank, loaded] {
                    const auto bf = banks().feeder(bank(), loaded());
                    return bf ? bf->partId : std::string();
                },
@@ -541,7 +546,7 @@ void slotForm(JPFormBuilder& add, JPConfiguration& config, const std::string& sl
                    banks().setFeederPart(bank(), loaded(), id);
                    config.resolveSlots();
                });
-    add.searchable(JPLibrarySearch::parts(config, parts), JPLibrarySearch::kPartsTable);
+    add.searchable(JPLibrarySearch::parts(config, parts.ids), JPLibrarySearch::kPartsTable);
     add.header({ "X", "Y", "Z", "Rotation" });
     add.row("Location", Place::Location);
     coordinate(add, f, "location", Axis::X, "X");
@@ -1480,9 +1485,7 @@ void heapForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeede
     add.button("resetDropBoxPipeline", "Reset");
     add.end();
     add.row("Dummy Part");
-    JPFormBuilder::Strings ids;
-    for (const auto& p : config.parts()) ids.push_back(p->id);
-    add.choice("drop-box.dummy-part", "Dummy Part", ids,
+    add.byName("drop-box.dummy-part", "Dummy Part", partNames(config, false),
                [&config, box] {
                    const auto b = config.dropBoxes().box(box());
                    return b ? b->dummyPartId : std::string();

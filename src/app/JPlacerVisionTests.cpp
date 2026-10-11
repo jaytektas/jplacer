@@ -61,7 +61,7 @@ bool JPlacerVisionTests::nozzleWithPart(const std::string& settingsId, const JPV
         return false;
     }
     if (holder.kind == JPVisionForms::Holder::Kind::Part && part->id != holder.id) {
-        why = "Wrong part " + part->id + " on Nozzle " + nozzleName;
+        why = "Wrong part " + part->shownName() + " on Nozzle " + nozzleName;
         return false;
     }
     if (holder.kind == JPVisionForms::Holder::Kind::Package && part->packageId != holder.id) {
@@ -75,7 +75,7 @@ bool JPlacerVisionTests::nozzleWithPart(const std::string& settingsId, const JPV
         return false;
     }
     if (config.inheritedVision(*part, JPVisionSettings::Kind::Bottom, vision.bottomVisionId) != v) {
-        why = "Present Bottom Vision Settings are not effective for part " + part->id + " on Nozzle " + nozzleName + ". "
+        why = "Present Bottom Vision Settings are not effective for part " + part->shownName() + " on Nozzle " + nozzleName + ". "
               + "Assign to Package of Part.";
         return false;
     }

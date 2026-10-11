@@ -197,7 +197,7 @@ JPJobProcessor::Step JPJobProcessor::preFlight() {
                     fail(Source::Placement, l->uniqueId(),
                          format("Part not found for board %s, placement %s.", boardName.c_str(), p.id.c_str()), p.id);
                 const JPPackage* package = m_config.package(part->packageId);
-                if (!package) fail(Source::Part, part->id, format("No package set for part %s.", part->id.c_str()));
+                if (!package) fail(Source::Part, part->id, format("No package set for part %s.", part->shownName().c_str()));
                 // A nozzle tip that fits the package and one of the nozzles.
                 bool tip = false;
                 for (const auto& n : nozzles)
@@ -210,9 +210,9 @@ JPJobProcessor::Step JPJobProcessor::preFlight() {
                              format("No part height sensing method found for part %s. Check camera, contact probe nozzle "
                                     "and compatible, loadable nozzle tips for height sensing settings or set part height "
                                     "manually.",
-                                    part->id.c_str()));
+                                    part->shownName().c_str()));
                     fail(Source::Part, part->id,
-                         format("No compatible, loadable nozzle tip found for part %s.", part->id.c_str()));
+                         format("No compatible, loadable nozzle tip found for part %s.", part->shownName().c_str()));
                 }
                 // A part no feeder holds yet is asked for as the run reaches it (load as you go).
                 JobPlacement j;
@@ -220,6 +220,7 @@ JPJobProcessor::Step JPJobProcessor::preFlight() {
                 j.boardId = l->id;
                 j.placementId = p.id;
                 j.partId = part->id;
+                j.partName = part->shownName();
                 j.rank = p.rank;
                 if (const auto g = groups.find(part->id); g != groups.end()) j.group = g->second;
                 j.partHeightMm = part->height.convertToUnits(JPLengthUnit::Millimeters).value();
@@ -379,7 +380,7 @@ std::vector<size_t> JPJobProcessor::openPendingWorkable() {
         // plan's order (JPJobPlan).
         if (first->failure.source == Source::Part) {
             // With no plan (all in group 0), the lowest part first, then by name.
-            std::string next;
+            std::string next, nextName;
             size_t nextGroup = 0;
             double nextHeight = 0;
             main([&] {
@@ -387,9 +388,10 @@ std::vector<size_t> JPJobProcessor::openPendingWorkable() {
                     if (j.status != Status::Pending || j.rank >= blocked || m_config.findFeeder(j.partId, std::nullopt)) continue;
                     const bool before = next.empty() || j.group < nextGroup
                                         || (j.group == nextGroup && (j.partHeightMm < nextHeight
-                                                                     || (j.partHeightMm == nextHeight && j.partId < next)));
+                                                                     || (j.partHeightMm == nextHeight && j.partName < nextName)));
                     if (before) {
                         next = j.partId;
+                        nextName = j.partName;
                         nextGroup = j.group;
                         nextHeight = j.partHeightMm;
                     }
@@ -435,7 +437,7 @@ std::vector<size_t> JPJobProcessor::byPickLocation(const std::vector<size_t>& in
     // The feeders, in a short way from `start`; each placement numbered by its part's feeder.
     std::vector<size_t> local = in;
     std::stable_sort(local.begin(), local.end(),
-                     [this](size_t a, size_t b) { return m_jobPlacements[a].partId < m_jobPlacements[b].partId; });
+                     [this](size_t a, size_t b) { return m_jobPlacements[a].partName < m_jobPlacements[b].partName; });
     std::vector<std::string> feeders;   // their parts
     std::vector<JPLocation> picks;
     main([&] {
@@ -462,7 +464,7 @@ std::vector<size_t> JPJobProcessor::byPickLocation(const std::vector<size_t>& in
     std::stable_sort(local.begin(), local.end(), [this](size_t a, size_t b) {
         const JobPlacement &x = m_jobPlacements[a], &y = m_jobPlacements[b];
         if (x.feederIndex != y.feederIndex) return x.feederIndex < y.feederIndex;
-        if (x.partId != y.partId) return x.partId < y.partId;
+        if (x.partName != y.partName) return x.partName < y.partName;
         return x.boardId < y.boardId;
     });
     return local;
@@ -502,23 +504,23 @@ std::vector<size_t> JPJobProcessor::ordered(std::vector<size_t> open, std::vecto
         return open;
     };
     switch (m_settings.jobOrder) {
-        case JobOrder::Part: return by([](const JobPlacement& a, const JobPlacement& b) { return a.partId < b.partId; });
+        case JobOrder::Part: return by([](const JobPlacement& a, const JobPlacement& b) { return a.partName < b.partName; });
         case JobOrder::PartHeight:
             return by([](const JobPlacement& a, const JobPlacement& b) {
-                return a.partHeightMm != b.partHeightMm ? a.partHeightMm < b.partHeightMm : a.partId < b.partId;
+                return a.partHeightMm != b.partHeightMm ? a.partHeightMm < b.partHeightMm : a.partName < b.partName;
             });
         case JobOrder::PartBoard:
             return by([](const JobPlacement& a, const JobPlacement& b) {
-                return a.partId != b.partId ? a.partId < b.partId : a.boardId < b.boardId;
+                return a.partName != b.partName ? a.partName < b.partName : a.boardId < b.boardId;
             });
         case JobOrder::HeightPartBoard:
             return by([](const JobPlacement& a, const JobPlacement& b) {
                 if (a.partHeightMm != b.partHeightMm) return a.partHeightMm < b.partHeightMm;
-                return a.partId != b.partId ? a.partId < b.partId : a.boardId < b.boardId;
+                return a.partName != b.partName ? a.partName < b.partName : a.boardId < b.boardId;
             });
         case JobOrder::BoardPart:
             return by([](const JobPlacement& a, const JobPlacement& b) {
-                return a.boardId != b.boardId ? a.boardId < b.boardId : a.partId < b.partId;
+                return a.boardId != b.boardId ? a.boardId < b.boardId : a.partName < b.partName;
             });
         case JobOrder::PickLocation: {
             std::optional<JPLocation> start = m_previousPickStart;

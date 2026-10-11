@@ -30,6 +30,7 @@ public:
 
     struct Group {
         std::string partId, packageId;
+        std::string partName;   // its part's Name: what the plan is put in order by, last
         int         left = 0;          // placements left to place
         double      heightMm = 0;      // 0: not known
         double      bodyMm2 = 0;       // the package's body, width by length; 0: not known

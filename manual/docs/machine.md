@@ -101,13 +101,15 @@ or is reached over the network), or a command that uses something jplacer cannot
 parts are left out or kept exactly as OpenPnP wrote them.
 
 The machine's **feeders** are brought across too, onto the [Feeders](feeders.md) tab, each exactly as
-OpenPnP wrote it; they take the place of the feeders jplacer had. Parts and packages are not imported
+OpenPnP wrote it; they take the place of the feeders jplacer had. OpenPnP names a feeder's part (and a
+slot bank's, and a drop box's dummy part) by OpenPnP's ID for it, which is the library part's **Name** in
+jplacer: each is linked to the library's part of that name. Parts and packages are not imported
 (copy OpenPnP's `parts.xml` and `packages.xml` into jplacer's configuration folder: the library takes those
 it lacks), and neither is
 OpenPnP's camera calibration: jplacer measures its cameras itself, and the import notes each camera that
 had one.
 
-<!-- src: src/openpnp/JPOpenPnpMachineImporter.cpp (what is read, translate, the notes, ReferenceLinearTransformAxis); src/app/JPlacerMachine.cpp (importOpenPnp, importFrom, kOpenPnpDir, kImportedCellFile, onImported); src/app/JPlacerOpenPnpTabs.cpp (onImported); src/model/JPConfiguration.cpp (importFeeders); src/machine/JPVisionConfig.h; JFramework include/j/platforms/FileDialogWindow.h (Show hidden, Ctrl+H) -->
+<!-- src: src/openpnp/JPOpenPnpMachineImporter.cpp (what is read, translate, the notes, ReferenceLinearTransformAxis); src/app/JPlacerMachine.cpp (importOpenPnp, importFrom, kOpenPnpDir, kImportedCellFile, onImported); src/app/JPlacerOpenPnpTabs.cpp (onImported); src/model/JPConfiguration.cpp (importFeeders, linkPartsByName); src/machine/JPVisionConfig.h; JFramework include/j/platforms/FileDialogWindow.h (Show hidden, Ctrl+H) -->
 
 ## Opening a cell
 

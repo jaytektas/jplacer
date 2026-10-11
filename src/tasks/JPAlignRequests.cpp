@@ -26,7 +26,7 @@ bool JPAlignRequests::forPart(const JPConfiguration& config, const JPVisionConfi
     const bool pre = preRotate == "AlwaysOn" || (preRotate == "Default" && vision.preRotate);
     // OpenPnP's findOffsets: pre-rotated to the placement's angle, else looked at 0°.
     JPBottomVision::Settings& o = rq.offsets;
-    o.partId = part.id;
+    o.partName = part.shownName();
     o.preRotate = pre;
     o.wantedAngle = placeAngle;
     o.maxVisionPasses = vision.maxVisionPasses;

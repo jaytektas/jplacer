@@ -74,7 +74,11 @@ JPlacerPartPickerDialog::JPlacerPartPickerDialog(const JPConfiguration& config, 
         if (key.rfind("extra:", 0) == 0) said += (said.empty() ? "" : "  ·  ") + key.substr(6) + " " + value;
     note(said.empty() ? "The files said nothing of its part: name " + m_part.field("part") : "The files say: " + said);
     switch (m_part.state) {
-        case JPBoardPart::State::Matched: note("Now: the library's " + m_part.libraryPartId); break;
+        case JPBoardPart::State::Matched: {
+            const JPPart* now = config.libraryPartFor(m_part);
+            note("Now: the library's " + (now ? now->shownName() : m_part.libraryPartId));
+            break;
+        }
         case JPBoardPart::State::Unmatched: note("Now: to be chosen"); break;
     }
 
@@ -139,14 +143,14 @@ void JPlacerPartPickerDialog::fill() {
             if (std::find(m_shown.begin(), m_shown.end(), p.get()) == m_shown.end()
                 && (words.empty() || JPPartMatcher::matches(m_config, *p, words)))
                 rest.push_back(p.get());
-        std::sort(rest.begin(), rest.end(), [](const JPPart* a, const JPPart* b) { return a->id < b->id; });
+        std::sort(rest.begin(), rest.end(), [](const JPPart* a, const JPPart* b) { return a->shownName() < b->shownName(); });
         for (const JPPart* p : rest) {
             m_shown.push_back(p);
             why.push_back("");
         }
     }
     std::vector<std::vector<std::string>> rows;
-    for (size_t i = 0; i < m_shown.size(); ++i) rows.push_back({ m_shown[i]->id, m_shown[i]->packageId, heightText(*m_shown[i]), why[i] });
+    for (size_t i = 0; i < m_shown.size(); ++i) rows.push_back({ m_shown[i]->shownName(), m_shown[i]->packageId, heightText(*m_shown[i]), why[i] });
     m_list->setRows(rows);
     m_list->scrollToTop();
     // The one it is now, else the best candidate; none when the list holds no candidate (nothing is suggested,

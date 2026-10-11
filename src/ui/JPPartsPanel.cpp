@@ -258,7 +258,7 @@ void JPPartsPanel::libraryPage(JPFormBuilder& add, const std::string& partId) {
                  if (JPPart* q = part()) q->datasheet = v;
              });
     add.tip("A link to its datasheet, or its file");
-    add.note("Known to the library for good as " + p->uuid + ", whatever it is named.");
+    add.note("Known to the library for good as " + p->id + ", whatever it is named.");
 
     // Identifiers: exact names (an MPN and its manufacturer, a supplier's part number and the supplier).
     add.group("Identifiers");
@@ -475,7 +475,7 @@ void JPPartsPanel::stockPage(JPFormBuilder& add, const std::string& partId) {
     const JPPart* p = m_config.libraryPart(partId);
     if (!p) return;
     JPStockStore& stock = m_config.stock();
-    const std::string uuid = p->uuid;
+    const std::string uuid = p->id;
     m_lots = stock.lots(uuid, false);
     const size_t closed = stock.lots(uuid, true).size() - m_lots.size();
     add.tab("Stock");
@@ -711,7 +711,6 @@ void JPPartsPanel::pastePart() {
         auto part = std::make_shared<JPPart>(JPPart::fromXml(root));
         part->id = JPUuid::make();
         part->label = name;
-        part->uuid.clear();   // a part of its own, not the one copied
         m_config.addPart(part);
         m_table->refresh();
         selectPart(part.get());

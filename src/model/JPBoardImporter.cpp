@@ -247,7 +247,6 @@ std::string JPBoardImporter::boardPart(JPConfiguration& config, JPBoard& out, co
     if (found) {
         bp.state = JPBoardPart::State::Matched;
         bp.libraryPartId = found->id;
-        bp.libraryUuid = found->uuid;
     } else if (create) {
         // Known for good by a GUID, named as the file names it (and known by that name: JPLibraryLearning).
         auto p = std::make_shared<JPPart>();

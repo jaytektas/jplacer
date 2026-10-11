@@ -1165,7 +1165,7 @@ bool JPCellJobMachine::alignPart(const std::string& nozzleId, const AlignRequest
         return false;
     }
     if (!rq.pipeline) {
-        why = "no bottom vision pipeline for " + rq.partId;
+        why = "no bottom vision pipeline for " + (m_config.part(rq.partId) ? m_config.part(rq.partId)->shownName() : rq.partId);
         return false;
     }
     prepare(*c, *feed);

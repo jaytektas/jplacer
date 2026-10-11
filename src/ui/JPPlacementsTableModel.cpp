@@ -189,7 +189,7 @@ std::string JPPlacementsTableModel::text(int row, int c) const {
         case kId:   return p->id;
         case kPart:
             // A part to place with, else (a board part not chosen yet) what the files call it.
-            if (const JPPart* part = m_config.part(p->partId)) return part->id;
+            if (const JPPart* part = m_config.part(p->partId)) return part->shownName();
             return p->partId.empty() ? std::string() : p->partId + " (to be chosen)";
         case kSide: return JPSides::name(p->side);
         case kX:    return JPLengthCell::text(p->location.lengthX(), true);
@@ -279,15 +279,18 @@ bool JPPlacementsTableModel::editable(int row, int c) const {
 std::vector<const JPPart*> JPPlacementsTableModel::partChoices() const {
     std::vector<const JPPart*> out;
     for (const auto& p : m_config.parts()) out.push_back(p.get());
-    std::sort(out.begin(), out.end(), [](const JPPart* a, const JPPart* b) { return a->id < b->id; });
+    std::sort(out.begin(), out.end(), [](const JPPart* a, const JPPart* b) { return a->shownName() < b->shownName(); });
     return out;
 }
 
-std::optional<JComboBox::Search> JPPlacementsTableModel::choiceSearch(int row, int c) const {
+std::optional<JComboBox::Search> JPPlacementsTableModel::choiceSearch(int, int c) const {
     // Its parts as the library's are wherever one is chosen (JPLibrarySearch).
     if (m_shown[size_t(c)] == kPart) {
-        JComboBox::Search s = JPLibrarySearch::parts(m_config, choices(row, c));
-        s.table = JPChooserTable::parts(m_config, choices(row, c));
+        // Listed by their Names (choices), searched and tabled by their ids, in the same order.
+        std::vector<std::string> ids;
+        for (const JPPart* p : partChoices()) ids.push_back(p->id);
+        JComboBox::Search s = JPLibrarySearch::parts(m_config, ids);
+        s.table = JPChooserTable::parts(m_config, ids);
         return s;
     }
     return std::nullopt;
@@ -297,7 +300,7 @@ std::vector<std::string> JPPlacementsTableModel::choices(int, int c) const {
     std::vector<std::string> out;
     switch (m_shown[size_t(c)]) {
         case kPart:
-            for (const JPPart* p : partChoices()) out.push_back(p->id);
+            for (const JPPart* p : partChoices()) out.push_back(p->shownName());
             break;
         case kSide:
             for (JPSide s : kSides) out.push_back(JPSides::name(s));
@@ -433,19 +436,16 @@ void JPPlacementsTableModel::applyPart(JPBoard* board, const std::string& placem
             }
             bp->state = JPBoardPart::State::Matched;
             bp->libraryPartId = choice.libraryId;
-            if (const JPPart* part = m_config.libraryPart(choice.libraryId)) bp->libraryUuid = part->uuid;
             break;
         case JPPartChoice::Kind::AddToLibrary: {
             const JPPart* made = JPLibraryLearning::addFrom(m_config, *bp, board->scopeName(), JPWhen::now());
             bp->state = JPBoardPart::State::Matched;
             bp->libraryPartId = made->id;
-            bp->libraryUuid = made->uuid;
             break;
         }
         case JPPartChoice::Kind::ToBeChosen:
             bp->state = JPBoardPart::State::Unmatched;
             bp->libraryPartId.clear();
-            bp->libraryUuid.clear();
             break;
     }
     // Every placement of it (the one alone: just it) places with what it is now.

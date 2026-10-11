@@ -71,7 +71,7 @@ JPFiducialLocator::PartProblem JPFiducialLocator::partLook(JPConfiguration& conf
         // By its OpenPnP pipeline, prepared for its part (the camera given it where it is used).
         look.pipeline = std::make_shared<JPPipeline>(JPVisionPipelines::of(*v));
         look.pipeline->context().configurationDirectory = config.directory();
-        look.pipeline->context().label = "fiducial " + part.id;
+        look.pipeline->context().label = "fiducial " + part.shownName();
         JPVisionPipelinePrep::fiducial(*look.pipeline, config, *v, part.id, part.packageId, 0, vision.fiducialMaxDistanceMm);
     }
     return PartProblem::None;
@@ -163,8 +163,8 @@ JPFiducialLocator::Result JPFiducialLocator::locate(JPConfiguration& config, JPJ
                     r.about = Result::About::Part;
                     r.id = part->id;
                     r.message = problem == PartProblem::NoSize
-                                    ? "Fiducial " + p.id + "'s part " + part->id + " has no footprint pad to give its size."
-                                    : "Part " + part->id + " fiducial vision settings " + settings + " are disabled.";
+                                    ? "Fiducial " + p.id + "'s part " + part->shownName() + " has no footprint pad to give its size."
+                                    : "Part " + part->shownName() + " fiducial vision settings " + settings + " are disabled.";
                     ok = false;
                     return;
                 }

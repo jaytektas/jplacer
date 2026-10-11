@@ -52,7 +52,7 @@ void run(const std::string& dir, const Case& c) {
     settings.setLocationOf("vision-offset", mm(c.visionOffsetX, c.visionOffsetY));
     settings.setText("pre-rotate-usage", c.preRotateUsage);
     if (c.noCompositing) {
-        JPPackage& pkg = *bench.config.package(bench.config.part(c.partId)->packageId);
+        JPPackage& pkg = *bench.config.package(bench.config.partNamed(c.partId)->packageId);
         JPVisionCompositing vc = pkg.visionCompositing.value_or(JPVisionCompositing {});
         vc.compositingMethod = JPVisionCompositing::Method::None;
         pkg.visionCompositing = vc;

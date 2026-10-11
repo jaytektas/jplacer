@@ -29,8 +29,9 @@ std::string laneWords(const JPLaneChoice::Lane& l) {
 JPlacerLoadDialog::JPlacerLoadDialog(const JPConfiguration& config, const std::string& partId,
                                      std::vector<JPLaneChoice::Lane> lanes, Actions actions, JGpuHal& hal, int sx, int sy,
                                      NativeWinHandleType parent)
-    : JDialogWindow("Load " + partId, kW, kH, hal, sx, sy, parent)
+    : JDialogWindow("Load " + (config.part(partId) ? config.part(partId)->shownName() : partId), kW, kH, hal, sx, sy, parent)
     , m_partId(partId)
+    , m_partName(config.part(partId) ? config.part(partId)->shownName() : partId)
     , m_packaging(JPLaneChoice::packagingWords(config, partId))
     , m_lanes(std::move(lanes))
     , m_actions(std::move(actions)) {
@@ -64,7 +65,7 @@ JPlacerLoadDialog::JPlacerLoadDialog(const JPConfiguration& config, const std::s
         m_lane->onIndexChanged.connect([this](int) { describe(); });
     }
     if (const JPPart* part = config.libraryPart(partId)) {
-        const auto lots = config.stock().lots(part->uuid, false);
+        const auto lots = config.stock().lots(part->id, false);
         if (!lots.empty()) {
             std::vector<std::string> names { "None (not counted against a lot)" };
             for (const JPStockLot& l : lots) {
@@ -109,13 +110,13 @@ JPlacerLoadDialog::JPlacerLoadDialog(const JPConfiguration& config, const std::s
 void JPlacerLoadDialog::describe() {
     const int i = m_lane ? m_lane->currentIndex() : -1;
     if (i < 0 || size_t(i) >= m_lanes.size()) {
-        m_what->setText("Load " + m_partId + ": the run has placed what is loaded and needs it next. No lane is free: every strip "
+        m_what->setText("Load " + m_partName + ": the run has placed what is loaded and needs it next. No lane is free: every strip "
                         "lane holds a part this run still needs.");
         m_how->setText("Set a feeder up for it on the Feeders tab, then Continue; or Skip This Part.");
         return;
     }
     const JPLaneChoice::Lane& l = m_lanes[size_t(i)];
-    m_what->setText("Load " + m_partId + (m_packaging.empty() ? "" : " (" + m_packaging + ")") + " into " + l.name +
+    m_what->setText("Load " + m_partName + (m_packaging.empty() ? "" : " (" + m_packaging + ")") + " into " + l.name +
                     (l.removePartId.empty() ? "." : ", taking " + l.removePartId + " off first."));
     m_how->setText("Lay the strip as the lane's strips lie, its first part at the lane's first hole. Continue sets the lane to "
                    "the part, starts its count again, and the run goes on." +

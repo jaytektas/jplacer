@@ -43,7 +43,7 @@ protected:
 private:
     void describe();
 
-    std::string                    m_partId, m_packaging;
+    std::string                    m_partId, m_partName, m_packaging;   // m_partName: what it is shown as
     std::vector<JPLaneChoice::Lane> m_lanes;
     std::vector<std::string>       m_lotUuids;   // the Lot choice's, after None
     Actions                        m_actions;

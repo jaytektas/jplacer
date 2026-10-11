@@ -20,6 +20,7 @@ class JPShortages {
 public:
     struct Line {
         std::string             partId;
+        std::string             partName;      // what it is shown as: the library part's Name, else (none) its id
         std::string             partUuid;      // empty: not a library part (not chosen yet)
         int                     needed = 0;
         int                     attrition = 0; // more to allow, at `rate`

@@ -850,7 +850,7 @@ void JPPackagesPanel::deletePackages() {
     for (const JPPackage* k : chosen)
         for (const auto& part : m_config.parts())
             if (part->packageId == k->id) {
-                JDialog::message("Error", k->id + " cannot be deleted. It is used by " + part->id);
+                JDialog::message("Error", k->id + " cannot be deleted. It is used by " + part->shownName());
                 return;
             }
     std::string ids;

@@ -75,7 +75,7 @@ int main() {
     JPPart* made = JPLibraryLearning::addFrom(config, other, "Ctrl", "now");
     // Named by it, known for good by a GUID (so the name can be changed).
     assert(made && made->label == "CL10B103KB8NNNC" && made->id.size() == 36 && made->packageId == "C0603" && made->value == "10n");
-    assert(made->name == "10n X7R" && std::abs(made->height.value() - 0.8) < 1e-9 && made->uuid.size() == 36);
+    assert(made->name == "10n X7R" && std::abs(made->height.value() - 0.8) < 1e-9);
     assert(made->identifiers.size() == 1 && made->akas.size() == 1);
     // Its name taken: numbered. A footprint the library has no package for: one made.
     JPBoardPart again = other;

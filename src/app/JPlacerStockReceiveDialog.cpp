@@ -28,9 +28,9 @@ bool count(const std::string& text, long long& out) {
 
 JPlacerStockReceiveDialog::JPlacerStockReceiveDialog(JPStockStore& stock, const JPPart& part, std::function<void()> received,
                                                      JGpuHal& hal, int sx, int sy, NativeWinHandleType parent)
-    : JDialogWindow("Receive Stock of " + part.id, kW, kH, hal, sx, sy, parent)
+    : JDialogWindow("Receive Stock of " + part.shownName(), kW, kH, hal, sx, sy, parent)
     , m_stock(stock)
-    , m_partUuid(part.uuid)
+    , m_partUuid(part.id)
     , m_received(std::move(received)) {
     setResizable(true, kW * 2 / 3, kH * 2 / 3);
     JSceneGraph& g = graph();

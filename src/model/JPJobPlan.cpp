@@ -29,6 +29,7 @@ std::vector<JPJobPlan::Group> JPJobPlan::groups(JPConfiguration& config, const J
                 Group g;
                 g.partId = p.partId;
                 if (const JPPart* part = config.part(p.partId)) {
+                    g.partName = part->shownName();
                     g.packageId = part->packageId;
                     g.heightMm = part->height.convertToUnits(JPLengthUnit::Millimeters).value();
                     if (const JPPackage* k = config.package(part->packageId)) {
@@ -51,7 +52,7 @@ std::vector<JPJobPlan::Group> JPJobPlan::groups(JPConfiguration& config, const J
         if ((sort == kHeight || sort == kPackage) && known(a.bodyMm2) != known(b.bodyMm2)) return known(a.bodyMm2) < known(b.bodyMm2);
         if (sort == kPackage && known(a.heightMm) != known(b.heightMm)) return known(a.heightMm) < known(b.heightMm);
         if (sort == kMost && a.left != b.left) return a.left > b.left;
-        return a.partId < b.partId;
+        return a.partName != b.partName ? a.partName < b.partName : a.partId < b.partId;
     });
     // Moved by hand: those parts first, in their order; the rest after, sorted.
     std::stable_partition(out.begin(), out.end(), [&job](const Group& g) {

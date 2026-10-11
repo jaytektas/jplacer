@@ -46,9 +46,11 @@ int main() {
         std::string error;
         assert(c.load(problems, error) && problems.empty());
         assert(fs::exists(dir / JPLibraryStore::kFile) && c.parts().size() == 1 && c.packages().size() == 1);
-        JPPart* p = c.part("C0603-100n");
-        assert(p && p->uuid.size() == 36 && c.package("C0603")->uuid.size() == 36 && p->packageId == "C0603");
-        uuid = p->uuid;
+        // OpenPnP's part: known by a GUID, named by OpenPnP's id.
+        JPPart* p = c.partNamed("C0603-100n");
+        assert(p && p->id.size() == 36 && c.package("C0603")->uuid.size() == 36 && p->packageId == "C0603");
+        uuid = p->id;
+        p->lastPackaging = 0;
         p->value = "100n";
         p->name = "Capacitor, X7R";
         p->datasheet = "https://example.com/cl10.pdf";
@@ -67,8 +69,9 @@ int main() {
         std::vector<std::string> problems;
         std::string error;
         assert(c.load(problems, error) && problems.empty());
-        const JPPart* p = c.part("C0603-100n");
-        assert(p && p->uuid == uuid && p->value == "100n" && p->name == "Capacitor, X7R" && p->identifiers.size() == 2);
+        const JPPart* p = c.part(uuid);
+        assert(p && p->label == "C0603-100n" && p->lastPackaging == 0 && c.partNamed("c0603-100N") == p);
+        assert(p->value == "100n" && p->name == "Capacitor, X7R" && p->identifiers.size() == 2);
         assert(p->identifiers[0].org == "Samsung" && p->identifiers[1].code == "C14663");
         assert(p->akas.size() == 1 && p->akas[0].text == "100n|C_0603_1608Metric" && p->akas[0].learnedFrom == "Ctrl.jpboard");
         assert(c.footprints().size() == 1 && c.footprints()[0]->cadNames.size() == 1 && c.footprints()[0]->packageId == "C0603");
@@ -87,7 +90,7 @@ int main() {
         std::vector<std::string> problems;
         std::string error;
         assert(c.load(problems, error) && problems.size() == 1 && c.parts().size() == 2);
-        assert(c.part("C0603-100n")->packageId == "C0603" && c.part("C0603-100n")->value == "100n" && c.part("R0603-10k"));
+        assert(c.partNamed("C0603-100n")->packageId == "C0603" && c.partNamed("C0603-100n")->value == "100n" && c.partNamed("R0603-10k"));
     }
     {
         // Not looked at again while unchanged.
@@ -103,7 +106,7 @@ int main() {
         std::vector<std::string> problems;
         std::string error;
         assert(c.load(problems, error));
-        c.part("R0603-10k")->fiducialVisionId = "FVS_Mine";
+        c.partNamed("R0603-10k")->fiducialVisionId = "FVS_Mine";
         assert(c.save(error));
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
@@ -117,7 +120,18 @@ int main() {
         std::string error;
         assert(c.load(problems, error) && problems.size() == 1 && problems[0].find("3 vision settings link") == 0);
         assert(c.package("C0603")->fiducialVisionId == "FVS_Fid" && c.package("C0603")->bottomVisionId == "BVS_C");
-        assert(c.part("C0603-100n")->bottomVisionId == "BVS_P" && c.part("R0603-10k")->fiducialVisionId == "FVS_Mine");
+        assert(c.partNamed("C0603-100n")->bottomVisionId == "BVS_P" && c.partNamed("R0603-10k")->fiducialVisionId == "FVS_Mine");
+    }
+    // Renamed, a part keeps its GUID, and the name is kept.
+    {
+        JPConfiguration c(dir.string());
+        std::vector<std::string> problems;
+        std::string error;
+        assert(c.load(problems, error));
+        c.part(uuid)->label = "100n 0603 X7R";
+        assert(c.save(error));
+        JPConfiguration again(dir.string());
+        assert(again.load(problems, error) && again.part(uuid)->label == "100n 0603 X7R" && again.partNamed("100N 0603 x7r"));
     }
     // A library of a newer jplacer.
     {

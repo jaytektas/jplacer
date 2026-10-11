@@ -226,7 +226,7 @@ bool JPFeederActions::run(JPConfiguration& config, const std::string& feederId, 
             if (!f) return;
             fiducial = f->text("fiducial-part");
             at = f->location();
-            if (const JPPart* part = config.part(fiducial)) {
+            if (const JPPart* part = config.partNamed(fiducial)) {   // typed in by its name, as OpenPnP's id
                 known = true;
                 problem = JPFiducialLocator::partLook(config, *part, vision, diameter, look, settings);
             }

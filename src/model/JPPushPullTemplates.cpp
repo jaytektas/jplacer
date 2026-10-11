@@ -361,22 +361,27 @@ bool JPPushPullTemplates::identifyPart(const JPConfiguration& config, const std:
     if (const size_t nl = text.find('\n'); nl != std::string::npos) text = text.substr(0, nl);
     if (const size_t sp = text.find(' '); sp != std::string::npos) {
         bool spaces = false;
-        for (const auto& p : config.parts()) spaces = spaces || p->id.find(' ') != std::string::npos;
+        for (const auto& p : config.parts()) spaces = spaces || p->shownName().find(' ') != std::string::npos;
         if (!spaces) text = text.substr(0, sp);
     }
+    // OpenPnP's match against a part's id, which is the part's Name here: that name, else one ending "-text"
+    // (only one).
     partId.clear();
+    std::string matched;
     for (const auto& p : config.parts()) {
-        if (p->id == text) {
+        const std::string& name = p->shownName();
+        if (name == text) {
             partId = p->id;
             break;
         }
         const std::string tail = "-" + text;
-        if (p->id.size() >= tail.size() && p->id.compare(p->id.size() - tail.size(), tail.size(), tail) == 0) {
+        if (name.size() >= tail.size() && name.compare(name.size() - tail.size(), tail.size(), tail) == 0) {
             if (!partId.empty()) {
-                why = "OCR part id " + text + " on feeder " + feederName + " matches multiple parts " + partId + " and " + p->id;
+                why = "OCR part id " + text + " on feeder " + feederName + " matches multiple parts " + matched + " and " + name;
                 return false;
             }
             partId = p->id;
+            matched = name;
         }
     }
     if (partId.empty()) {

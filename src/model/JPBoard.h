@@ -81,9 +81,9 @@ public:
     void dropUnusedParts();
     // Each placement's part id set from its board part (the one place it is set from).
     void syncParts();
-    // An OpenPnP board's placements' part ids made board parts: matched where `inLibrary` knows the id,
-    // else unmatched (a part the board names and the library has not).
-    void partsFromPlacements(const std::function<bool(const std::string&)>& inLibrary);
+    // An OpenPnP board's placements' part ids made board parts: matched to the library part `libraryId` gives
+    // for the name (its id), else unmatched (empty: a part the board names and the library has not).
+    void partsFromPlacements(const std::function<std::string(const std::string&)>& libraryId);
 
     // Its revisions (DESIGN.md, Board revisions), oldest first; none until the first upgrade. The one shown is
     // revision(): its files, placements and parts are the board's (provenance, placements, parts()); its

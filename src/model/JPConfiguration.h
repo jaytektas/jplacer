@@ -75,11 +75,6 @@ public:
     // The library's part a matched board part is: by its id, else (renamed since) by its uuid; null when the
     // library has neither.
     JPPart* libraryPartFor(const JPBoardPart& bp) const;
-    // What a board saved before kept of its parts itself (JPBoardPart::Former) put in the library: its own
-    // parts and packages (by their names without the board's), and copies of parts this library lacks; a part
-    // the library has by that name taken instead. The board's parts then point at them, the board marked
-    // changed. How many parts (and, in `packagesAdded`, packages) it added.
-    int adoptFormer(JPBoard& board, int& packagesAdded);
     // An import taken: the parts and packages it made (JPBoard::madeParts, madePackages) the library's, each one
     // it has not got by then (a made part's Name the library has by then numbered); and what the board calls each
     // part it is linked to learned by that part (JPLibraryLearning::learnName). How many parts (and, in
@@ -181,7 +176,9 @@ public:
     // The Photon feeder of a hardware id (empty: one not yet given one).
     JPFeeder* photonFeeder(const std::string& hardwareId);
     // The feeders of an OpenPnP machine.xml, in place of these (Machine >
-    // Import OpenPnP Machine); how many, or -1 (and why) when it cannot be read.
+    // Import OpenPnP Machine), each part they name (by OpenPnP's id) linked to
+    // the library's part of that Name; how many, or -1 (and why) when it
+    // cannot be read.
     int importFeeders(const std::string& machineXml, std::string& error);
     // The feeder to take a part from, as OpenPnP's FeederUtils.findFeeder:
     // of the enabled feeders holding it, those of the highest priority, and
@@ -246,6 +243,9 @@ private:
     static void restoreJobSettings(JPJob& job, JPPanelLocation& l);
     static void saveJobSettings(JPJob& job, JPPanelLocation& l);
     std::shared_ptr<JPPanel> loadPanel(const std::string& path, std::string& error);
+    // OpenPnP's files name a part by its id, which is the part's Name here: each placement naming one so linked to
+    // that part's id.
+    void linkPartsByName(std::vector<JPPlacement>& placements) const;
 
     std::string                                          m_directory;
     std::vector<std::shared_ptr<JPLibraryFootprint>>     m_footprints;

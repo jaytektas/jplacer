@@ -2,8 +2,8 @@
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
 // Footprints as the library's own (DESIGN.md, Footprint): land patterns of a package, several to one, each
-// known by the names CAD files give it; a board's footprint finds its footprint and through it its package; a
-// library of before footprints has its packages' CAD names moved onto footprints; kept whole in library.db; a
+// known by the names CAD files give it; a board's footprint finds its footprint and through it its package;
+// kept whole in library.db; a
 // board's copy of a part carries its footprint, and a change to the land pattern (not a name) is one to review.
 // A footprint in another unit keeps its size: its numbers converted.
 // Tests check with assert(); a Release build must not compile it away.
@@ -22,7 +22,7 @@ int main() {
     const fs::path dir = fs::temp_directory_path() / "jplacer-test-library-footprints";
     fs::remove_all(dir);
     fs::create_directories(dir);
-    // A library as schema 2 left it: a package known by a CAD footprint name.
+    // A package whose footprint is known by a CAD footprint name.
     {
         JPConfiguration c(dir.string());
         std::vector<std::string> problems;
@@ -32,19 +32,15 @@ int main() {
         k->id = "R0603";
         k->footprint.bodyWidth = 1.6;
         c.addPackage(k);
+        c.defaultFootprint("R0603", true)->cadNames.push_back("R_0603_1608Metric");
         assert(c.save(error));
-        JDatabase db;
-        assert(db.open((dir / JPLibraryStore::kFile).string()));
-        assert(db.exec("INSERT INTO package_akas(package_uuid, text) VALUES(?, ?)",
-                       { JDatabase::JBind::from(k->uuid), JDatabase::JBind::from("R_0603_1608Metric") }));
-        assert(db.exec("DELETE FROM footprints"));
     }
     {
         JPConfiguration c(dir.string());
         std::vector<std::string> problems;
         std::string error;
         assert(c.load(problems, error));
-        // Moved onto a footprint of the package, made from its own.
+        // A footprint of the package, made from its own, known by that name.
         assert(c.footprints().size() == 1);
         JPLibraryFootprint* f = c.footprints()[0].get();
         assert(f->packageId == "R0603" && f->name == "R0603" && f->cadNames.size() == 1 && f->geometry.bodyWidth == 1.6);

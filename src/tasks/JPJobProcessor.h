@@ -99,6 +99,7 @@ public:
         JPBoardLocation*          board = nullptr;
         std::string               boardId;   // the board's unique id
         std::string               placementId, partId;
+        std::string               partName;   // its part's Name: what parts are put in order by (OpenPnP's id)
         int                       rank = 0;
         size_t                    group = 0;   // its part's group's place in the job's plan (JPJobPlan)
         double                    partHeightMm = 0;

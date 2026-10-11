@@ -34,8 +34,13 @@ namespace fs = std::filesystem;
 
 namespace {
 
+// What each kind is known by for good: a part by its id, a package and a footprint by their uuid.
+const std::string& keyOf(const JPPart& p) { return p.id; }
+const std::string& keyOf(const JPPackage& k) { return k.uuid; }
+const std::string& keyOf(const JPLibraryFootprint& f) { return f.uuid; }
+
+
 // The library's vision links taken from OpenPnP's files (a library without it has them taken once).
-constexpr const char* kVisionLinks = "1";
 
 std::string upper(const std::string& s) {
     std::string out;
@@ -118,7 +123,6 @@ bool JPConfiguration::load(std::vector<std::string>& problems, std::string& erro
             problems.push_back("The parts of " + std::to_string(open - written) + " run(s) could not be written to the stock's "
                                "ledger: " + why);
     }
-    bool migrated = false;
     if (hadLibrary) {
         JPLibraryStore::Contents in;
         if (!m_library.load(in, error)) return false;
@@ -126,19 +130,9 @@ bool JPConfiguration::load(std::vector<std::string>& problems, std::string& erro
         for (auto& p : in.parts) addPart(std::move(p));
         for (auto& f : in.footprints) addFootprint(std::move(f));
         m_manufacturers = std::move(in.manufacturers);
-        // A library of before footprints: the CAD names its packages were known by are their footprints' names.
-        for (const auto& [packageUuid, name] : in.packageNames)
-            for (const auto& k : m_packages)
-                if (k->uuid == packageUuid)
-                    if (JPLibraryFootprint* f = defaultFootprint(k->id, true);
-                        std::find(f->cadNames.begin(), f->cadNames.end(), name) == f->cadNames.end())
-                        f->cadNames.push_back(name);
-        migrated = !in.packageNames.empty();
     }
     const std::string stamp = openPnpStamp();
-    // Once for a library made before its vision links were taken from OpenPnP's files (kVisionLinks).
-    const bool linksOwed = m_library.meta("visionLinks") != kVisionLinks;
-    if (!hadLibrary || migrated || stamp != m_library.meta("openpnpFiles") || linksOwed) {
+    if (!hadLibrary || stamp != m_library.meta("openpnpFiles")) {
         int added = 0, linked = 0;
         // A package or part the library has with no vision settings of its own takes OpenPnP's (its own never
         // replaced): a package made by a board's import before OpenPnP's files were read had none, and its
@@ -160,12 +154,16 @@ bool JPConfiguration::load(std::vector<std::string>& problems, std::string& erro
         }
         for (const JPXmlElement& e : parts.children) {
             if (e.name != "part") continue;
-            if (JPPart* p = libraryPart(e.attr("id"))) {
+            // OpenPnP's id is the name: the library's part of that name, else one made (a GUID its id).
+            if (JPPart* p = partNamed(e.attr("id"))) {
                 link(p->bottomVisionId, e.attr("bottom-vision-id"));
                 link(p->fiducialVisionId, e.attr("fiducial-vision-id"));
                 continue;
             }
-            addPart(std::make_shared<JPPart>(JPPart::fromXml(e)));
+            auto made = std::make_shared<JPPart>(JPPart::fromXml(e));
+            made->label = made->id;
+            made->id = JPUuid::make();
+            addPart(std::move(made));
             ++added;
         }
         if (hadLibrary && linked > 0)
@@ -175,8 +173,7 @@ bool JPConfiguration::load(std::vector<std::string>& problems, std::string& erro
             problems.push_back(std::to_string(added) + " part(s) and package(s) of OpenPnP's parts.xml and packages.xml "
                                "the library did not have were added to it");
         std::string why;
-        if (!m_library.save(contents(), why) || !m_library.setMeta("openpnpFiles", stamp)
-            || !m_library.setMeta("visionLinks", kVisionLinks)) {
+        if (!m_library.save(contents(), why) || !m_library.setMeta("openpnpFiles", stamp)) {
             error = why;
             return false;
         }
@@ -222,6 +219,19 @@ int JPConfiguration::importFeeders(const std::string& machineXml, std::string& e
             else if (auto d = JPDropBoxes::fromXml(e)) m_dropBoxes = std::move(*d);
             else m_photon.take(e);
         }
+    // OpenPnP names a part by its id, which is the part's Name here: each named so linked to that part's id.
+    auto linked = [this](const std::string& name) {
+        const JPPart* p = name.empty() ? nullptr : partNamed(name);
+        return p ? p->id : name;
+    };
+    for (JPFeeder& f : m_feeders)
+        if (!f.isSlot() && !f.partId().empty()) f.setPartId(linked(f.partId()));
+    for (JPSlotBanks& banks : m_slotBanks)
+        for (const JPSlotBanks::Bank& b : banks.banks())
+            for (const JPSlotBanks::Feeder& bf : banks.feeders(b.id))
+                if (!bf.partId.empty()) banks.setFeederPart(b.id, bf.id, linked(bf.partId));
+    for (const JPDropBoxes::Box& b : m_dropBoxes.boxes())
+        if (!b.dummyPartId.empty()) m_dropBoxes.setDummyPart(b.id, linked(b.dummyPartId));
     resolveSlots();
     resolvePhoton();
     return int(m_feeders.size());
@@ -477,13 +487,7 @@ std::string JPConfiguration::openPnpStamp() const {
     return s;
 }
 
-JPPart* JPConfiguration::libraryPartFor(const JPBoardPart& bp) const {
-    if (JPPart* p = libraryPart(bp.libraryPartId)) return p;
-    if (!bp.libraryUuid.empty())
-        for (const auto& p : m_parts)
-            if (p->uuid == bp.libraryUuid) return p.get();
-    return nullptr;
-}
+JPPart* JPConfiguration::libraryPartFor(const JPBoardPart& bp) const { return libraryPart(bp.libraryPartId); }
 
 const JPLibraryFootprint* JPConfiguration::footprintFor(const JPBoardPart& bp, const JPPart& p) const {
     // The one its CAD footprint names, when it is of the part's package; else the package's first.
@@ -517,56 +521,6 @@ int JPConfiguration::takeMade(const JPBoard& imported, int& packagesAdded) {
         if (bp.state == JPBoardPart::State::Matched)
             if (JPPart* part = libraryPartFor(bp)) JPLibraryLearning::learnName(*part, bp, imported.scopeName(), JPWhen::now());
     return parts;
-}
-
-int JPConfiguration::adoptFormer(JPBoard& board, int& packagesAdded) {
-    int partsAdded = 0;
-    packagesAdded = 0;
-    const std::string prefix = board.scopeName() + "/";
-    auto unscoped = [&prefix](const std::string& id) { return id.rfind(prefix, 0) == 0 ? id.substr(prefix.size()) : id; };
-    bool changed = false;
-    board.forEveryPart([&](JPBoardPart& bp) {
-        if (!bp.former) return;
-        JPBoardPart::Former f = std::move(*bp.former);
-        bp.former.reset();
-        changed = true;
-        if (!f.part) return;
-        // A copy of a part the library has: nothing to bring.
-        if (!f.own && libraryPartFor(bp)) return;
-        auto part = std::make_shared<JPPart>(*f.part);
-        part->id = f.own ? unscoped(part->id) : part->id;
-        if (f.package) {
-            auto k = std::make_shared<JPPackage>(*f.package);
-            k->id = f.own ? unscoped(k->id) : k->id;
-            part->packageId = k->id;
-            if (!libraryPackage(k->id)) {
-                k->uuid.clear();
-                addPackage(std::move(k));
-                ++packagesAdded;
-            }
-        } else if (f.own) {
-            part->packageId = unscoped(part->packageId);
-        }
-        if (f.footprint && !footprint(f.footprint->uuid)) addFootprint(std::make_shared<JPLibraryFootprint>(*f.footprint));
-        // The library's part of that name where it has one (the same part, by OpenPnP's naming); else this one.
-        if (const JPPart* there = libraryPart(part->id)) {
-            bp.libraryPartId = there->id;
-            bp.libraryUuid = there->uuid;
-        } else {
-            if (f.own) part->uuid.clear();
-            const std::string id = part->id;
-            addPart(std::move(part));
-            ++partsAdded;
-            bp.libraryPartId = id;
-            bp.libraryUuid = libraryPart(id)->uuid;
-        }
-        bp.state = JPBoardPart::State::Matched;
-    });
-    if (changed) {
-        board.syncParts();
-        board.dirty = true;   // saved with its parts as the library's, when it is next saved
-    }
-    return partsAdded;
 }
 
 std::string JPConfiguration::manufacturerName(const std::string& name) const {
@@ -646,15 +600,15 @@ JPLibraryStore::Contents JPConfiguration::librarySnapshot() const {
 }
 
 void JPConfiguration::restoreLibrary(const JPLibraryStore::Contents& snapshot) {
-    // Each of `from`, made like the snapshot's of its uuid (kept, changed in place) or a copy of it.
+    // Each of `from`, made like the snapshot's of what it is known by for good (kept, changed in place) or a copy.
     auto rebuild = [](auto& list, const auto& from) {
         using Ptr = typename std::decay_t<decltype(list)>::value_type;
-        std::map<std::string, Ptr> byUuid;
-        for (const auto& x : list) byUuid[x->uuid] = x;
+        std::map<std::string, Ptr> byKey;
+        for (const auto& x : list) byKey[keyOf(*x)] = x;
         std::decay_t<decltype(list)> out;
         for (const auto& x : from) {
-            const auto it = byUuid.find(x->uuid);
-            if (it != byUuid.end()) {
+            const auto it = byKey.find(keyOf(*x));
+            if (it != byKey.end()) {
                 *it->second = *x;
                 out.push_back(it->second);
             } else {
@@ -683,7 +637,9 @@ JPLibraryStore::Contents JPConfiguration::contents() const {
 }
 
 void JPConfiguration::addPart(std::shared_ptr<JPPart> p) {
-    if (p->uuid.empty()) p->uuid = JPUuid::make();
+    // Known for good by a GUID, and named (its id, until it is given another name, when it comes with none).
+    if (p->id.empty()) p->id = JPUuid::make();
+    if (p->label.empty()) p->label = p->id;
     const std::string k = upper(p->id);
     if (const auto it = m_partsById.find(k); it != m_partsById.end())
         *std::find(m_parts.begin(), m_parts.end(), it->second) = p;
@@ -760,21 +716,16 @@ std::shared_ptr<JPBoard> JPConfiguration::board(const std::string& path, std::st
         JPXmlElement root;
         if (!JPXmlReader::read(file, root, error)) return nullptr;
         b = std::make_shared<JPBoard>(JPBoard::fromXml(root));
-        // OpenPnP's placements name library parts by id: each becomes a board part.
-        b->partsFromPlacements([this](const std::string& id) { return libraryPart(id) != nullptr; });
+        // OpenPnP's placements name parts by OpenPnP's id: each becomes a board part, linked to the library's
+        // part of that name (or id).
+        b->partsFromPlacements([this](const std::string& name) {
+            const JPPart* p = libraryPart(name);
+            if (!p) p = partNamed(name);
+            return p ? p->id : std::string();
+        });
     }
     b->file = file;
     b->dirty = false;
-    // A board saved before the library was the only place of parts: what it kept of its own (and copies of
-    // parts this library lacks) put in the library, the board then pointing at them.
-    int packages = 0;
-    if (const int parts = adoptFormer(*b, packages); parts > 0 || packages > 0 || b->dirty) {
-        std::string why;
-        if ((parts > 0 || packages > 0) && !save(why))
-            JLOGC(JPlacerLog::kApp, JLogLevel::Warn) << "the library was not saved: " << why;
-        JLOGC(JPlacerLog::kApp, JLogLevel::Info) << "board " << b->scopeName() << ": " << parts << " part(s) and " << packages
-                                                 << " package(s) it kept itself put in the library; it now points at the library's";
-    }
     m_boards.push_back(b);
     return b;
 }
@@ -793,11 +744,18 @@ std::shared_ptr<JPPanel> JPConfiguration::panel(const std::string& path, std::st
     return p;
 }
 
+void JPConfiguration::linkPartsByName(std::vector<JPPlacement>& placements) const {
+    for (JPPlacement& p : placements)
+        if (!p.partId.empty() && !libraryPart(p.partId))
+            if (const JPPart* named = partNamed(p.partId)) p.partId = named->id;
+}
+
 std::shared_ptr<JPPanel> JPConfiguration::loadPanel(const std::string& file, std::string& error) {
     JPXmlElement root;
     if (!JPXmlReader::read(file, root, error)) return nullptr;
     auto p = std::make_shared<JPPanel>(JPPanel::fromXml(root));
     p->file = file;
+    linkPartsByName(p->placements);
     for (auto& c : p->children) {
         std::string childFile = c->fileName;
         if (!exists(childFile)) childFile = (fs::path(file).parent_path() / fs::path(childFile).filename()).string();
@@ -1105,6 +1063,7 @@ std::unique_ptr<JPJob> JPConfiguration::loadJob(const std::string& path, std::st
     job->file = canonical(path);
     const bool older = !job->version;
     if (!convertLegacyJob(*job, error)) return nullptr;
+    if (JPPanel* own = job->root().panel()) linkPartsByName(own->placements);
     if (!resolvePanel(job.get(), job->root(), error)) return nullptr;
     restoreJobSettings(*job, job->root());
     job->dirty = older;

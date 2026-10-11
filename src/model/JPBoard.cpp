@@ -138,7 +138,6 @@ std::string JPBoard::matchPlacement(const std::string& placementId, const std::s
     }
     to->state = JPBoardPart::State::Matched;
     to->libraryPartId = libraryId;
-    to->libraryUuid.clear();
     return to->key;
 }
 
@@ -179,7 +178,7 @@ void JPBoard::syncParts() {
         if (const JPBoardPart* bp = part(p.boardPart)) p.partId = bp->partId();
 }
 
-void JPBoard::partsFromPlacements(const std::function<bool(const std::string&)>& inLibrary) {
+void JPBoard::partsFromPlacements(const std::function<std::string(const std::string&)>& libraryId) {
     for (JPPlacement& p : placements) {
         if (p.partId.empty() || part(p.boardPart)) continue;
         std::string key;
@@ -189,9 +188,9 @@ void JPBoard::partsFromPlacements(const std::function<bool(const std::string&)>&
             JPBoardPart bp;
             bp.key = key = newPartKey();
             bp.fields["part"] = p.partId;
-            if (inLibrary(p.partId)) {
+            if (const std::string id = libraryId(p.partId); !id.empty()) {
                 bp.state = JPBoardPart::State::Matched;
-                bp.libraryPartId = p.partId;
+                bp.libraryPartId = id;
             }
             m_parts->push_back(bp);
         }

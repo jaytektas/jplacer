@@ -11,13 +11,16 @@ beside Search, lists **All**, those **Used by open boards**, or one open board's
 <!-- src: src/ui/JPPartsTableModel.cpp (cellIcon, cellTooltip, displayText, rowShown, showChoices, reload); src/ui/JPSourceColumn.cpp; src/ui/JPPartsPanel.cpp (refresh); src/model/JPCatalog.cpp (parts, boardNames, uses) -->
 
 The library is kept in `library.db` in jplacer's configuration folder: its parts and packages, each with
-an ID that stays with it whatever it is named, and what boards' files call it. It is made from OpenPnP's
-`parts.xml` and `packages.xml` the first time jplacer starts without one (those files are left as they
-are). OpenPnP's files copied into the folder later are looked at again: their parts and packages the
-library does not have are added to it (the start says how many); those it has are not changed, but for
-vision settings: a part or package the library has with no bottom or fiducial vision settings of its own takes
+an ID that stays with it whatever it is named (a part's a GUID), and what boards' files call it. It is made
+from OpenPnP's `parts.xml` and `packages.xml` the first time jplacer starts without one (those files are
+left as they are): each of OpenPnP's parts gets a GUID for its ID and OpenPnP's ID for its **Name**.
+OpenPnP's files copied into the folder later are looked at again: their parts and packages the library does
+not have (by Name) are added to it (the start says how many); those it has are not changed, but for vision
+settings: a part or package the library has with no bottom or fiducial vision settings of its own takes
 OpenPnP's (a board's import may have made it first, without them, and its fiducials were then found by the
-machine's default settings); one it has is never replaced. A library made before this takes them once.
+machine's default settings); one it has is never replaced. A `library.db` of an older jplacer is not read:
+jplacer says so, and starts only once it is removed (delete `library.db`, and `parts.xml` and
+`packages.xml` too for a library with none of OpenPnP's parts in it).
 
 <!-- src: src/ui/JPPartsPanel.cpp; src/app/JPlacerOpenPnpTabs.cpp; src/model/JPConfiguration.cpp (load, save, openPnpStamp); src/model/JPLibraryStore.cpp -->
 
@@ -44,8 +47,8 @@ end, there while it holds text, empties it and shows every part again.
 | Column | |
 |---|---|
 | **Source** (an icon) | Whether an open board uses it, and which (its tooltip). |
-| **ID** | What placements, feeders and jobs know the part by. A new part's is a GUID, made for it; a part from before keeps the ID it had. |
-| **Name** | What the part is called: changed in place, and unique in the library (any case; one taken, or none, is refused). A new part's is where it came from: the name a board gives it, or the name it was made with. A part from before is named by its ID until you change it. |
+| **ID** | What placements, feeders, jobs and stock know the part by: a GUID, made for it. |
+| **Name** | What the part is called, wherever it is shown: changed in place, and unique in the library (any case; one taken, or none, is refused). It starts as where the part came from: the name a board gives it, OpenPnP's ID for it, or the name it was made with. |
 | **Description** | Its name. |
 | **Value** | Its electrical value as written (100n, 4k7); matched to a board's however that is written. |
 | **MPN** | Its manufacturer's part number: the first of its identifiers (the **Library** tab has them all). |

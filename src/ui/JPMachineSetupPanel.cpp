@@ -143,7 +143,7 @@ JPMachineSetupPanel::JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, 
     m_form->onChanged = [this](const std::string& property) { changed(property); };
     // A feeder's Part (its page here, as on the Feeders tab) drops the Parts tab's table.
     m_form->completeSearch = [this](const std::string& table, const std::vector<std::string>& entries, JComboBox::Search& search) {
-        if (table == JPLibrarySearch::kPartsTable && m_config) search.table = JPChooserTable::parts(*m_config, entries);
+        if (table == JPLibrarySearch::kPartsTable && m_config) search.table = JPChooserTable::partsNamed(*m_config, entries);
     };
     m_form->onAction = [this](const std::string& action) {
         // A feeder's page: the Feeders tab works its buttons.

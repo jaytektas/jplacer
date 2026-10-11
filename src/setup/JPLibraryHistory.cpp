@@ -14,26 +14,31 @@ inline namespace jf {
 
 namespace {
 
-// What happened to one kind of thing (parts, packages, footprints): those added, taken away and changed, by uuid,
-// each named by `name`.
+// What each kind is known by for good: a part by its id, a package and a footprint by their uuid.
+const std::string& keyOf(const JPPart& p) { return p.id; }
+const std::string& keyOf(const JPPackage& k) { return k.uuid; }
+const std::string& keyOf(const JPLibraryFootprint& f) { return f.uuid; }
+
+// What happened to one kind of thing (parts, packages, footprints): those added, taken away and changed, by what
+// each is known by for good (keyOf), each named by `name`.
 template <class List, class Name, class Same>
 void kindChanges(const List& before, const List& after, const char* kind, const char* kinds, Name name, Same same,
                  std::vector<std::string>& said) {
     std::map<std::string, const typename List::value_type::element_type*> was;
-    for (const auto& x : before) was[x->uuid] = x.get();
+    for (const auto& x : before) was[keyOf(*x)] = x.get();
     std::vector<std::string> added, changed;
     std::set<std::string> kept;
     for (const auto& x : after) {
-        const auto it = was.find(x->uuid);
+        const auto it = was.find(keyOf(*x));
         if (it == was.end()) added.push_back(name(*x));
         else {
-            kept.insert(x->uuid);
+            kept.insert(keyOf(*x));
             if (!same(*it->second, *x)) changed.push_back(name(*x));
         }
     }
     std::vector<std::string> removed;
     for (const auto& x : before)
-        if (!kept.count(x->uuid)) removed.push_back(name(*x));
+        if (!kept.count(keyOf(*x))) removed.push_back(name(*x));
     auto words = [&](const char* verb, const std::vector<std::string>& ids) {
         if (ids.empty()) return;
         said.push_back(ids.size() == 1 ? std::string(verb) + " " + kind + " " + ids.front()

@@ -10,9 +10,14 @@ notes.
 
 ## Unreleased
 
-- A part has a **Name**, shown beside its ID on the Parts tab and changed in place (unique in the library).
-  A new part's ID is a GUID, made for it, so its name can be changed freely; a part from a board starts
-  with the name the board gives it. Existing parts keep their IDs, named by them until you rename them.
+- A part has a **Name**, shown wherever the part is, and beside its ID on the Parts tab, where it is changed
+  in place (unique in the library). Every part's ID is a GUID, made for it, so its name can be changed
+  freely; a part starts with the name it came with (a board's name for it, OpenPnP's ID, or the name given
+  it). OpenPnP's machine, boards, panels and jobs name parts by OpenPnP's ID, and are linked by Name.
+- The library has a new layout: start with a fresh one. An older `library.db` is refused, saying so; delete
+  it (and OpenPnP's `parts.xml` and `packages.xml` in the same folder, to start without OpenPnP's parts),
+  and the feeders, boards, panels and jobs made with it.
+- A job puts parts in order by their Name, as OpenPnP does by its IDs.
 - A library part always learns what a board calls it when they are linked (its **Also Known As**), so a part
   you renamed is still found by the next board.
 - Two library parts that answer to the same name (a 1 % and a 5 % resistor) are both offered when a board

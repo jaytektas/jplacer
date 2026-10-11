@@ -623,7 +623,9 @@ void JPPlacementsViewerCanvas::prepareContextMenu(float mx, float my) {
         m_menu->add(g, placement->type == JPPlacement::Type::Placement ? "Placement" : "Fiducial")->setEnabled(false);
         m_menu->add(g, "Id:   " + (uniqueId.empty() ? std::string() : uniqueId + JPPlacementsHolderLocation::kIdDelimiter) +
                            placement->id)->setEnabled(false);
-        m_menu->add(g, "Part: " + (placement->partId.empty() ? std::string("unassigned") : placement->partId))->setEnabled(false);
+        const std::string part = placement->partId.empty() ? std::string("unassigned")
+                                 : partName ? partName(placement->partId) : placement->partId;
+        m_menu->add(g, "Part: " + part)->setEnabled(false);
         m_menu->add(g, std::string("Side: ") + JPSides::name(at ? at->globalSide() : JPSide::Top))->setEnabled(false);
         m_menu->addSeparator(g);
         JMenuItem* enabled = m_menu->add(g, "Enabled?");

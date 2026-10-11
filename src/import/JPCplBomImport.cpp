@@ -283,8 +283,7 @@ bool JPCplBomImport::build(const JPConfiguration& config, const std::string& whe
             if (found) {
                 bp.state = JPBoardPart::State::Matched;
                 bp.libraryPartId = found->id;
-                bp.libraryUuid = found->uuid;
-                ++report.matched;
+                        ++report.matched;
             } else if (createMissing && !bp.fields["part"].empty()) {
                 // A part made for the library (put there as the import is taken), from what the files said.
                 // Named as the files name it, known for good by a GUID; one made already for that name, that one.

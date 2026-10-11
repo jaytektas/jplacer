@@ -34,7 +34,6 @@ bool JPBoardPart::samePart(const JPBoardPart& other) const {
 void JPBoardPart::takeChoice(const JPBoardPart& from) {
     state = from.state;
     libraryPartId = from.libraryPartId;
-    libraryUuid = from.libraryUuid;
 }
 
 const char* JPBoardPart::stateName(State s) {
@@ -57,10 +56,7 @@ JJson JPBoardPart::toJson() const {
     j["fields"] = f;
     JJson r = JJson::object();
     r["state"] = stateName(state);
-    if (state == State::Matched) {
-        r["libraryId"] = libraryPartId;
-        if (!libraryUuid.empty()) r["libraryUuid"] = libraryUuid;
-    }
+    if (state == State::Matched) r["libraryId"] = libraryPartId;
     j["resolution"] = r;
     return j;
 }
@@ -74,36 +70,7 @@ JPBoardPart JPBoardPart::fromJson(const JJson& j) {
     const JJson& r = j["resolution"];
     const std::string state = r["state"].isString() ? r["state"].str() : std::string();
     p.state = stateFrom(state);
-    if (p.state == State::Matched) {
-        if (r["libraryId"].isString()) p.libraryPartId = r["libraryId"].str();
-        if (r["libraryUuid"].isString()) p.libraryUuid = r["libraryUuid"].str();
-        // A board saved before: its copy of the library's, for a library without the part.
-        if (r["copy"]["part"].isObject()) {
-            Former f;
-            f.part = std::make_shared<JPPart>(JPLibraryJson::part(r["copy"]["part"]));
-            if (r["copy"]["package"].isObject()) f.package = std::make_shared<JPPackage>(JPLibraryJson::package(r["copy"]["package"]));
-            if (r["copy"]["footprint"].isObject())
-                f.footprint = std::make_shared<JPLibraryFootprint>(JPLibraryJson::footprint(r["copy"]["footprint"]));
-            p.former = std::move(f);
-        }
-    }
-    if (state == "local") {
-        // A board saved before: its own part and package (OpenPnP's as XML in JSON, {"tag": …}, else the
-        // library's form), to be the library's; to be chosen until they are.
-        auto openpnp = [](const JJson& o) { return o["tag"].isString(); };
-        Former f;
-        f.own = true;
-        if (r["part"].isObject())
-            f.part = std::make_shared<JPPart>(openpnp(r["part"]) ? JPPart::fromXml(JPXmlJson::element(r["part"]))
-                                                                 : JPLibraryJson::part(r["part"]));
-        if (r["package"].isObject())
-            f.package = std::make_shared<JPPackage>(openpnp(r["package"]) ? JPPackage::fromXml(JPXmlJson::element(r["package"]))
-                                                                          : JPLibraryJson::package(r["package"]));
-        if (f.part) {
-            if (f.part->value.empty()) f.part->value = p.field("value");   // made before it took its value
-            p.former = std::move(f);
-        }
-    }
+    if (p.state == State::Matched && r["libraryId"].isString()) p.libraryPartId = r["libraryId"].str();
     return p;
 }
 

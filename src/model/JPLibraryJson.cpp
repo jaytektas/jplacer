@@ -27,7 +27,6 @@ JJson JPLibraryJson::part(const JPPart& p) {
     JJson o = JJson::object();
     o["id"] = p.id;
     if (!p.label.empty()) o["label"] = p.label;
-    o["uuid"] = p.uuid;
     if (!p.value.empty()) o["value"] = p.value;
     if (!p.datasheet.empty()) o["datasheet"] = p.datasheet;
     JJson ids = JJson::array();
@@ -88,7 +87,6 @@ JPPart JPLibraryJson::part(const JJson& j) {
     auto str = [&j](const char* k) { return j[k].isString() ? j[k].str() : std::string(); };
     if (!str("id").empty()) p.id = str("id");
     p.label = str("label");
-    p.uuid = str("uuid");
     p.value = str("value");
     p.datasheet = str("datasheet");
     if (j["identifiers"].isArray())

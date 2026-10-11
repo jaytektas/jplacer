@@ -26,7 +26,9 @@ inline namespace jf {
 class JPLibraryStore {
 public:
     static constexpr const char* kFile = "library.db";
-    static constexpr int         kSchema = 3;   // 2: packagings, offers, manufacturers; 3: footprints
+    // 4: a part known by its id (a GUID) with its Name and last packaging chosen; a library of another schema
+    // is refused (start a fresh one).
+    static constexpr int         kSchema = 4;
 
     bool open(const std::string& path, std::string& error);
     bool isOpen() const { return m_db.isOpen(); }
@@ -36,9 +38,6 @@ public:
         std::vector<std::shared_ptr<JPPackage>>          packages;
         std::vector<std::shared_ptr<JPLibraryFootprint>> footprints;
         std::vector<JPManufacturer>                      manufacturers;
-        // Read from a library of schema 2: the CAD footprint names its packages were known by (package uuid,
-        // name), which are footprints' names now (JPConfiguration moves them). Never written.
-        std::vector<std::pair<std::string, std::string>> packageNames;
     };
     bool load(Contents& out, std::string& error);
     bool save(const Contents& in, std::string& error);

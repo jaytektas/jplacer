@@ -27,18 +27,20 @@ std::vector<JPShortages::Line> JPShortages::of(const JPConfiguration& config, co
     const std::map<std::string, long long> onHand = stock.onHandByPart();
     std::vector<Line> out;
     for (auto& [id, line] : byPart) {
-        if (const JPPart* part = config.libraryPart(id); part && !part->uuid.empty()) {
-            line.partUuid = part->uuid;
-            if (const auto set = stock.attritionSet(part->uuid)) {
+        line.partName = id;
+        if (const JPPart* part = config.libraryPart(id)) {
+            line.partName = part->shownName();
+            line.partUuid = part->id;
+            if (const auto set = stock.attritionSet(part->id)) {
                 line.rate = *set;
                 line.rateFrom = Line::Rate::Set;
-            } else if (const JPStockStore::Attrition a = stock.attrition(part->uuid); a.used > 0) {
+            } else if (const JPStockStore::Attrition a = stock.attrition(part->id); a.used > 0) {
                 line.rate = a.rate();
                 line.rateFrom = Line::Rate::Measured;
             }
             line.attrition = int(std::ceil(line.needed * line.rate - 1e-9));
-            if (const auto h = onHand.find(part->uuid); h != onHand.end()) line.inStock = h->second;
-            line.lots = stock.lots(part->uuid, false);
+            if (const auto h = onHand.find(part->id); h != onHand.end()) line.inStock = h->second;
+            line.lots = stock.lots(part->id, false);
             line.shortBy = std::max(0LL, line.needed + line.attrition - line.inStock);
         }
         out.push_back(line);

@@ -19,7 +19,7 @@ inline namespace jf {
 // One line of a board's parts list (DESIGN.md, Board part): what the
 // files it came from said about it, kept as they said it, and the library
 // part it is (the library is the only place parts and packages are kept):
-//  * Matched: a part of the library, by its id (and uuid, to find it when renamed);
+//  * Matched: a part of the library, by its id (a GUID: renaming the part changes nothing here);
 //  * Unmatched: only what the files said, not yet a part to place.
 // A board's placements each name one of its board parts. Importing makes
 // board parts (and, asked to, the library parts the library lacks).
@@ -31,18 +31,6 @@ public:
     std::map<std::string, std::string> fields;   // as imported: "part", "value", "footprint", …
     State                              state = State::Unmatched;
     std::string                        libraryPartId;   // Matched: the library part's id
-    std::string                        libraryUuid;     // Matched: the library part's uuid (found by it when renamed)
-
-    // What a board saved before the library was the only place of parts kept of this one: its own part and
-    // package (`own`), or its copy of the library's part, package and footprint. Read from such a file only, to
-    // be put in the library as the board is opened (JPConfiguration::adoptFormer), then let go.
-    struct Former {
-        bool                                own = false;
-        std::shared_ptr<JPPart>             part;
-        std::shared_ptr<JPPackage>          package;
-        std::shared_ptr<JPLibraryFootprint> footprint;
-    };
-    std::optional<Former> former;
 
     // The part id its placements are placed with: the library part's (matched), else the name the files gave
     // it (unmatched: a part that is nowhere, as an unknown part id is).

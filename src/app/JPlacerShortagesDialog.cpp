@@ -36,7 +36,7 @@ JPlacerShortagesDialog::JPlacerShortagesDialog(const JPConfiguration& config, co
         placements += l.needed;
         if (l.partUuid.empty()) {
             ++notLibrary;
-            rows.push_back({ l.partId, std::to_string(l.needed), "", "", "", "not in the library (no stock kept)", "" });
+            rows.push_back({ l.partName, std::to_string(l.needed), "", "", "", "not in the library (no stock kept)", "" });
             continue;
         }
         shortParts += l.shortBy > 0;
@@ -54,7 +54,7 @@ JPlacerShortagesDialog::JPlacerShortagesDialog(const JPConfiguration& config, co
             if (const JPPart* part = config.libraryPart(l.partId))
                 for (const JPPart::Offer& o : part->offers)
                     buy += (buy.empty() ? "" : "; ") + o.supplier + (o.sku.empty() ? "" : " " + o.sku);
-        rows.push_back({ l.partId, std::to_string(l.needed), rate, std::to_string(l.inStock),
+        rows.push_back({ l.partName, std::to_string(l.needed), rate, std::to_string(l.inStock),
                          l.shortBy > 0 ? std::to_string(l.shortBy) : "", lots, buy });
     }
     m_list->setRows(rows);

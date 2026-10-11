@@ -46,8 +46,7 @@ int main() {
     JPBoardPart mcuA;
     mcuA.key = "bp-2";
     mcuA.state = JPBoardPart::State::Matched;
-    mcuA.libraryPartId = "an old name";
-    mcuA.libraryUuid = mcu->uuid;
+    mcuA.libraryPartId = mcu->id;
     a->parts() = { capA, mcuA };
     JPBoardPart open;
     open.key = "bp-2";

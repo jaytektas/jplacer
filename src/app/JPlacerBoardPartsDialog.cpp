@@ -25,7 +25,8 @@ std::string designators(const std::vector<std::string>& ids) {
 std::string now(const JPConfiguration& config, const JPBoardPart& bp) {
     switch (bp.state) {
         case JPBoardPart::State::Matched:
-            return config.libraryPartFor(bp) ? bp.libraryPartId : bp.libraryPartId + " (not in the library: choose again)";
+            if (const JPPart* p = config.libraryPartFor(bp)) return p->shownName();
+            return bp.libraryPartId + " (not in the library: choose again)";
         case JPBoardPart::State::Unmatched: break;
     }
     return "to be chosen";
@@ -91,7 +92,7 @@ void JPlacerBoardPartsDialog::fill() {
         const bool sameAsNow = bp.state == JPBoardPart::State::Matched && !c.empty() && c.front().part->id == bp.libraryPartId;
         const std::string footprint = !bp.field("footprint").empty() ? bp.field("footprint") : bp.field("package");
         rows.push_back({ designators(ids), bp.field("value"), footprint, bp.field("mpn"), now(m_config, bp),
-                         c.empty() || sameAsNow ? "" : c.front().part->id, c.empty() || sameAsNow ? "" : c.front().why });
+                         c.empty() || sameAsNow ? "" : c.front().part->shownName(), c.empty() || sameAsNow ? "" : c.front().why });
         m_rowKeys.push_back(bp.key);
     }
     m_list->setRows(rows);

@@ -134,7 +134,7 @@ int main() {
     for (const auto& [id, x, y, r] : { std::tuple { "R1", 10.0, 10.0, 45.0 }, std::tuple { "R2", 20.0, 20.0, 90.0 } }) {
         JPPlacement p;
         p.id = id;
-        p.partId = "R-0805-10K";
+        p.partId = config.partNamed("R-0805-10K")->id;   // OpenPnP's part, named by its id
         p.location = JPLocation(JPLengthUnit::Millimeters, x, y, 0, r);
         board->placements.push_back(p);
     }
@@ -221,7 +221,7 @@ int main() {
 
     // As OpenPnP's: a nozzle tip is never calibrated with a part on its nozzle (nothing is sent).
     const JPNozzleConfig& n1 = cellConfig.nozzles.front();
-    host.setNozzlePart(n1.id, "R-0805-10K");
+    host.setNozzlePart(n1.id, config.partNamed("R-0805-10K")->id);
     const size_t sentBefore = sent.size();
     std::string why;
     assert(!machine.calibrateTip(n1.id, why));

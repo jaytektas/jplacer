@@ -37,18 +37,18 @@ int main() {
     int tested = 0;
     for (const auto& p : bench.config.parts()) {
         const JPPart& part = *p;
-        if (part.id.rfind("FID", 0) == 0) continue;
+        if (part.label.rfind("FID", 0) == 0) continue;
         // The size checked, to check that composite vision measures it right.
-        bench.settingsOf(part.id).setText("check-part-size-method", "PadExtents");
-        const bool small = part.id.rfind("SMALL", 0) == 0;
+        bench.settingsOf(part.label).setText("check-part-size-method", "PadExtents");
+        const bool small = part.label.rfind("SMALL", 0) == 0;
         const JPMachineLocation error = small ? JPMachineLocation { 0.05, 0.1, 0, 7 } : JPMachineLocation { 0.25, 0.75, 0, -2 };
         const double maxMm = small ? 0.025 : 0.05, maxDeg = small ? 1.5 : 0.07;
         bench.up.errorOffsets = error;
         JPBottomVision::Offset offset;
         std::string why;
-        const bool found = bench.findOffsets(part.id, 0, offset, why);
+        const bool found = bench.findOffsets(part.label, 0, offset, why);
         const JPLocation& o = offset.location;
-        std::fprintf(stderr, "%s: %s%s offsets %.3f, %.3f, %.3f (picked off %.3f, %.3f, %.3f)\n", part.id.c_str(), found ? "" : "FAILED ",
+        std::fprintf(stderr, "%s: %s%s offsets %.3f, %.3f, %.3f (picked off %.3f, %.3f, %.3f)\n", part.label.c_str(), found ? "" : "FAILED ",
                      why.c_str(), o.x(), o.y(), o.rotation(), error.x, error.y, error.rotation);
         assert(found);
         assert(std::abs(o.x() - error.x) <= maxMm && std::abs(o.y() - error.y) <= maxMm && std::abs(o.rotation() - error.rotation) <= maxDeg);

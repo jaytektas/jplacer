@@ -39,9 +39,8 @@ void JPPartsTableModel::reload() {
     // Each part's open lots, read once here (a cell is drawn many times).
     m_stock.clear();
     for (const auto& p : m_config.parts())
-        if (!p->uuid.empty())
-            if (std::vector<JPStockLot> lots = m_config.stock().lots(p->uuid, false); !lots.empty())
-                m_stock.emplace(p->uuid, std::move(lots));
+        if (std::vector<JPStockLot> lots = m_config.stock().lots(p->id, false); !lots.empty())
+            m_stock.emplace(p->id, std::move(lots));
 }
 
 const std::vector<std::shared_ptr<JPBoard>>& JPPartsTableModel::usedBy(int row) const {
@@ -181,7 +180,7 @@ std::vector<std::pair<std::string, std::string>> JPPartsTableModel::values(int r
                 }
             break;
         case kStock: {
-            const auto at = m_stock.find(p->uuid);
+            const auto at = m_stock.find(p->id);
             if (at == m_stock.end()) break;
             long long total = 0;
             int loaded = 0;

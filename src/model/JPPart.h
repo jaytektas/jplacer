@@ -63,10 +63,8 @@ public:
         std::string lastWhen;
     };
 
-    std::string                id;          // unique in the library; what placements, feeders and jobs name it by (a new part's
-                                            // a GUID: JPUuid)
-    std::string                label;       // what it is called where it is shown (its Name), unique; empty: its id
-    std::string                uuid;        // the library's for good (JPUuid); empty until it is in the library
+    std::string                id;          // a GUID (JPUuid), for good: what placements, feeders, jobs and stock know it by
+    std::string                label;       // what it is called where it is shown (its Name), unique in the library
     std::string                value;       // its electrical value as written ("100n"), where it has one
     std::string                datasheet;   // a link or a file
     std::vector<Identifier>    identifiers;
@@ -86,8 +84,8 @@ public:
     // Height plus the depth through the board: what hangs below a nozzle.
     JPLength heightForSafeZ() const { return height.add(throughBoardDepth); }
     bool     isPartHeightUnknown() const { return height.value() <= 0.0; }
-    // What it is called where it is shown: its Name, else (a part from before it had one) its id.
-    const std::string& shownName() const { return label.empty() ? id : label; }
+    // What it is called where it is shown: its Name.
+    const std::string& shownName() const { return label; }
 
     static JPPart fromXml(const JPXmlElement& e);
     JPXmlNode toXml() const;

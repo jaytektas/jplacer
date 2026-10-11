@@ -69,7 +69,7 @@ int main() {
     std::vector<std::string> problems;
     assert(config.load(problems, error) && problems.empty());
     assert(config.parts().size() == 6 && config.packages().size() == 6);
-    const JPPart* r = config.part("r0805-1k");
+    const JPPart* r = config.partNamed("r0805-1k");
     assert(r && r->packageId == "R0805" && r->height.value() == 1.0 && r->speed == 1.0);
     const JPPackage* k = config.package(r->packageId);
     assert(k && k->footprint.pads.size() == 2 && k->footprint.bodyWidth == 2.0 && k->compatibleNozzleTipIds.size() == 1);
@@ -78,10 +78,10 @@ int main() {
     assert(config.save(error));
     JPConfiguration again((dir / "config").string());
     assert(again.load(problems, error) && again.parts().size() == 6 && again.packages().size() == 6);
-    assert(again.package("R0805")->footprint.pads[1].x == 0.825 && again.part("FIDUCIAL-HOME")->packageId == "FIDUCIAL-1X2");
+    assert(again.package("R0805")->footprint.pads[1].x == 0.825 && again.partNamed("FIDUCIAL-HOME")->packageId == "FIDUCIAL-1X2");
     // A part of the same id replaces it where it was.
     {
-        auto p = std::make_shared<JPPart>(*again.part("R0603-1K"));
+        auto p = std::make_shared<JPPart>(*again.partNamed("R0603-1K"));
         p->height = JPLength(0.8, JPLengthUnit::Millimeters);
         again.addPart(p);
         assert(again.parts().size() == 6 && again.parts()[4]->height.value() == 0.8);
@@ -223,7 +223,9 @@ int main() {
     {
         const std::string text = JPXmlWriter::text(board->toXml());
         assert(text.find("<openpnp-board version=\"1.1\" name=\"pnp-test.board.xml\">") != std::string::npos);
-        assert(text.find("<placement version=\"1.4\" side=\"Top\" id=\"R7\" part-id=\"R0201-1K\" type=\"Placement\" enabled=\"false\">") != std::string::npos);
+        // Its placements name the library's part by its id (OpenPnP's id for it is the part's Name).
+        assert(text.find("<placement version=\"1.4\" side=\"Top\" id=\"R7\" part-id=\"" + jobs.partNamed("R0201-1K")->id
+                         + "\" type=\"Placement\" enabled=\"false\">") != std::string::npos);
         assert(text.find("<error-handling>Default</error-handling>") != std::string::npos);
         assert(text.find("<board-pad type=\"Paste\" side=\"Top\" name=\"R1-1\">") != std::string::npos);
         assert(text.find("<pad class=\"org.openpnp.model.Pad$RoundRectangle\" units=\"Millimeters\" width=\"1.5\" "
@@ -234,7 +236,8 @@ int main() {
     {
         const JPPlacement* r7 = board->find("R7");
         assert(r7 && board->part(r7->boardPart) && board->part(r7->boardPart)->state == JPBoardPart::State::Matched
-               && board->part(r7->boardPart)->libraryPartId == "R0201-1K" && r7->partId == "R0201-1K");
+               && board->part(r7->boardPart)->libraryPartId == jobs.partNamed("R0201-1K")->id
+               && r7->partId == jobs.partNamed("R0201-1K")->id);
     }
 
     // Saved, it is jplacer's file beside OpenPnP's (which is left exactly as it was), and reads back the same.
@@ -252,7 +255,7 @@ int main() {
         auto again = fresh.board(board->file, error);
         assert(again && again->placements.size() == placements && again->solderPastePads.size() == pads);
         const JPPlacement* r7 = again->find("R7");
-        assert(r7 && r7->partId == "R0201-1K" && !r7->enabled && again->part(r7->boardPart)->state == JPBoardPart::State::Matched);
+        assert(r7 && r7->partId == jobs.partNamed("R0201-1K")->id && !r7->enabled && again->part(r7->boardPart)->state == JPBoardPart::State::Matched);
         assert(again->placements[0].location.x() == board->placements[0].location.x());
         // OpenPnP's file named (a job saved before the board moved): the board as it is now.
         JPConfiguration other(dir.string());

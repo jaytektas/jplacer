@@ -86,6 +86,15 @@ JPChooserTable::Maker JPChooserTable::parts(JPConfiguration& config, std::vector
     };
 }
 
+JPChooserTable::Maker JPChooserTable::partsNamed(JPConfiguration& config, const std::vector<std::string>& names) {
+    std::vector<std::string> keys;
+    for (const std::string& n : names) {
+        const JPPart* p = n.empty() ? nullptr : config.partNamed(n);
+        keys.push_back(p ? p->id : n);
+    }
+    return parts(config, std::move(keys));
+}
+
 JPChooserTable::Maker JPChooserTable::packages(JPConfiguration& config, std::vector<std::string> keys) {
     return [&config, keys = std::move(keys)](JSceneGraph& g) -> std::unique_ptr<JComboBox::Search::Table> {
         return std::make_unique<JPChooserTable>(g, std::make_unique<JPPackagesTableModel>(config), keys, kPackages);

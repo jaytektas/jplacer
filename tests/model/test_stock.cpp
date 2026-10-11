@@ -36,8 +36,8 @@ int main() {
         cap->id = "C0603-100n";
         c.addPart(cap);
         assert(c.save(error));
-        partUuid = r->uuid;
-        capUuid = cap->uuid;
+        partUuid = r->id;
+        capUuid = cap->id;
         assert(!partUuid.empty());
 
         // A reel received, then used, lost, counted and adjusted: on hand is the ledger's sum.

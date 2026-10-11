@@ -56,7 +56,11 @@ std::string JPFeedersTableModel::text(int row, int c) const {
     if (!f) return {};
     switch (c) {
         case kName:     return f->name();
-        case kPart:     return f->partId();
+        case kPart: {
+            // Its part by its Name; an id the library has not (a part since removed), as it is.
+            const JPPart* part = m_config.part(f->partId());
+            return part ? part->shownName() : f->partId();
+        }
         case kType:     return f->typeName();
         case kPriority: return JPFeeder::priorityName(f->priority());
         case kFaults:   return f->summariseJobFaults();

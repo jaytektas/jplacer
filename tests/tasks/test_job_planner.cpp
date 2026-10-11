@@ -182,7 +182,8 @@ void testFlexibility() {
 
 void testAllOnePart() {
     Run r;
-    r.forEachPlacement([](JPPlacement& p) { p.partId = "R0201-1K"; });
+    const std::string one = r.bench.config->partNamed("R0201-1K")->id;   // OpenPnP's part, named by its id
+    r.forEachPlacement([&one](JPPlacement& p) { p.partId = one; });
     r.run("testAllOnePart");
     assert(r.tipChanges() == 2);
     assert(near(r.utilisation(), 2.0, 0.01));

@@ -83,17 +83,19 @@ struct BottomVisionBench {
         cal.lensCentreY = kHeight / 2.0;
     }
 
-    jf::JPVisionSettings& settingsOf(const std::string& partId) {
+    // A part by its Name (OpenPnP's id for it).
+    jf::JPVisionSettings& settingsOf(const std::string& name) {
         const jf::JPVisionSettings* v =
-            config.inheritedVision(*config.part(partId), jf::JPVisionSettings::Kind::Bottom, vision.bottomVisionId);
+            config.inheritedVision(*config.partNamed(name), jf::JPVisionSettings::Kind::Bottom, vision.bottomVisionId);
         assert(v);
         return *config.visionSettings(v->id);
     }
 
     // ReferenceBottomVision.findOffsets for the part on the nozzle, placed at `placementAngle`.
-    bool findOffsets(const std::string& partId, double placementAngle, jf::JPBottomVision::Offset& offset, std::string& why) {
+    bool findOffsets(const std::string& name, double placementAngle, jf::JPBottomVision::Offset& offset, std::string& why) {
         using namespace jf;
-        const JPPart& part = *config.part(partId);
+        const JPPart& part = *config.partNamed(name);
+        const std::string& partId = part.id;
         const double heightMm = part.height.convertToUnits(JPLengthUnit::Millimeters).value();
         JPJobMachine::AlignRequest rq;
         const bool aligned = JPAlignRequests::forPart(config, vision, part, heightMm, placementAngle, rq);

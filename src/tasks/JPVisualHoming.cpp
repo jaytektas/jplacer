@@ -16,7 +16,7 @@ inline namespace jf {
 
 namespace {
 
-// OpenPnP's homing fiducial: the part of this id.
+// OpenPnP's homing fiducial: the part of this name.
 constexpr const char* kHomePart = "FIDUCIAL-HOME";
 
 } // namespace
@@ -47,14 +47,14 @@ JPVisualHoming::Result JPVisualHoming::run(JPCell& cell, JPCameraFeed& feed, con
 }
 
 std::optional<JPFootprint> JPVisualHoming::homeFootprint(JPConfiguration& configuration) {
-    const JPPart* part = configuration.part(kHomePart);
+    const JPPart* part = configuration.partNamed(kHomePart);
     const JPPackage* k = part ? configuration.package(part->packageId) : nullptr;
     if (!k || k->footprint.pads.empty()) return std::nullopt;
     return k->footprint;
 }
 
 std::optional<JPVisualTest::Look> JPVisualHoming::homeLook(JPConfiguration& configuration, const JPVisionConfig& vision) {
-    const JPPart* part = configuration.part(kHomePart);
+    const JPPart* part = configuration.partNamed(kHomePart);
     if (!part) return std::nullopt;
     double diameter = 0;
     JPJobMachine::FiducialLook look;

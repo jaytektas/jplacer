@@ -118,7 +118,7 @@ int main() {
     assert(!find(items, "Short of stock (a run asks for it as it goes)"));   // no stock kept: nothing said
     // Stock kept for the 10k (a lot of 1): short by 1 of its 2 left to place (R2 and R1).
     JPStockLot lot;
-    lot.partUuid = r->uuid;
+    lot.partUuid = r->id;
     lot.label = "strip";
     JPLedgerEntry one;
     one.quantity = 1;

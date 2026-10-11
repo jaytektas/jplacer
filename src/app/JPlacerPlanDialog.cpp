@@ -87,7 +87,7 @@ void JPlacerPlanDialog::fill(int select) {
         loads += gr.feederName.empty();
         char height[32] = "not known";
         if (gr.heightMm > 0) std::snprintf(height, sizeof height, "%.2f mm", gr.heightMm);
-        rows.push_back({ std::to_string(i + 1), gr.partId, std::to_string(gr.left), height, gr.packageId,
+        rows.push_back({ std::to_string(i + 1), gr.partName.empty() ? gr.partId : gr.partName, std::to_string(gr.left), height, gr.packageId,
                          gr.feederName.empty() ? std::string("a load (asked for when the run gets to it)") : gr.feederName });
     }
     m_list->setRows(rows);

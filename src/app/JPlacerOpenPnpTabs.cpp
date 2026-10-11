@@ -298,7 +298,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_parts->onPickPart = [this](const JPPart& part) {
         JPFeeder* f = m_job.configuration().findFeeder(part.id, m_machine.toolLocation(JPSetupForm::Tool::Camera));
         if (!f) {
-            JDialog::message("Error", "No valid feeder found for " + part.id);
+            JDialog::message("Error", "No valid feeder found for " + part.shownName());
             return;
         }
         m_feeders->pickFrom(*f);
@@ -1014,6 +1014,13 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         m_jobPanel->placements().refresh();
         if (m_jobViewer) m_jobViewer->regenerate();
     };
+    // The viewers' right-click menus name a placement's part by its Name.
+    for (JPlacerViewerDock* v : { m_jobViewer.get(), m_boardViewer.get(), m_panelViewer.get() })
+        if (v)
+            v->canvas().partName = [this](const std::string& id) {
+                const JPPart* p = m_job.configuration().part(id);
+                return p ? p->shownName() : id;
+            };
     // The job viewer's right-click menu, as OpenPnP's.
     JPPlacementsViewerCanvas& jobCanvas = m_jobViewer->canvas();
     jobCanvas.placedOf = [this](const JPPlacementsHolderLocation* where, const std::string& id) {

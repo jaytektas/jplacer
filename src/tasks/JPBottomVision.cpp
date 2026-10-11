@@ -103,7 +103,7 @@ bool JPBottomVision::offsetsCheck(const Settings& s, const JPLocation& offsets, 
     if (!s.maxPickToleranceMm) return true;
     const double length = offsets.linearDistanceTo(JPLocation::origin());
     if (length > *s.maxPickToleranceMm) {
-        why = "Part " + s.partId + " bottom vision offsets length " + mm(length) + " larger than the allowed Max. Pick Tolerance "
+        why = "Part " + s.partName + " bottom vision offsets length " + mm(length) + " larger than the allowed Max. Pick Tolerance "
             + mm(*s.maxPickToleranceMm) + " set on nozzle tip " + s.tipName + ".";
         return false;
     }
@@ -124,15 +124,15 @@ bool JPBottomVision::partSizeCheck(const Settings& s, const Seen& seen, std::str
     std::string msg;
     bool ok = false;
     if (seen.widthMm > width + widthTolerance)
-        msg = "Part " + s.partId + " width too large: nominal " + mm(width) + ", limit " + mm(width + widthTolerance) + ", measured " + mm(seen.widthMm);
+        msg = "Part " + s.partName + " width too large: nominal " + mm(width) + ", limit " + mm(width + widthTolerance) + ", measured " + mm(seen.widthMm);
     else if (seen.widthMm < width - widthTolerance)
-        msg = "Part " + s.partId + " width too small: nominal " + mm(width) + ", limit " + mm(width - widthTolerance) + ", measured " + mm(seen.widthMm);
+        msg = "Part " + s.partName + " width too small: nominal " + mm(width) + ", limit " + mm(width - widthTolerance) + ", measured " + mm(seen.widthMm);
     else if (seen.heightMm > length + lengthTolerance)
-        msg = "Part " + s.partId + " length too large: nominal " + mm(length) + ", limit " + mm(length + lengthTolerance) + ", measured " + mm(seen.heightMm);
+        msg = "Part " + s.partName + " length too large: nominal " + mm(length) + ", limit " + mm(length + lengthTolerance) + ", measured " + mm(seen.heightMm);
     else if (seen.heightMm < length - lengthTolerance)
-        msg = "Part " + s.partId + " length too small: nominal " + mm(length) + ", limit " + mm(length - lengthTolerance) + ", measured " + mm(seen.heightMm);
+        msg = "Part " + s.partName + " length too small: nominal " + mm(length) + ", limit " + mm(length - lengthTolerance) + ", measured " + mm(seen.heightMm);
     else {
-        msg = "Part " + s.partId + " size ok. Width " + mm(seen.widthMm) + ", Length " + mm(seen.heightMm);
+        msg = "Part " + s.partName + " size ok. Width " + mm(seen.widthMm) + ", Length " + mm(seen.heightMm);
         ok = true;
     }
     JLOGC(JPlacerLog::kJob, JLogLevel::Debug) << msg;

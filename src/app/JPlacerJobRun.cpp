@@ -270,7 +270,7 @@ void JPlacerJobRun::start(RunState as) {
             std::string feederName = feederId;
             if (const JPFeeder* f = config.feeder(feederId)) feederName = f->name();
             const std::string said = feederName + ": " + lot.label + " has about " + std::to_string(std::max(0LL, left)) +
-                                     " left by its count, and " + std::to_string(toPlace) + " of " + j.partId +
+                                     " left by its count, and " + std::to_string(toPlace) + " of " + j.partName +
                                      " are still to place";
             JLOGC(JPlacerLog::kJob, JLogLevel::Warn) << said;
             post([this, said] { m_window.showStatus(said, kStatusMs); });
@@ -330,8 +330,9 @@ void JPlacerJobRun::askToLoad(const std::string& partId) {
         if (j.status == JPJobProcessor::Status::Pending || j.status == JPJobProcessor::Status::Processing)
             stillNeeded.insert(j.partId);
     JPConfiguration& config = m_job.configuration();
-    JLOGC(JPlacerLog::kJob, JLogLevel::Info) << "load as you go: " << partId << " is needed and no feeder holds it";
-    m_window.showStatus("Load " + partId + ": no feeder holds it.", kStatusMs);
+    const std::string name = config.part(partId) ? config.part(partId)->shownName() : partId;
+    JLOGC(JPlacerLog::kJob, JLogLevel::Info) << "load as you go: " << name << " is needed and no feeder holds it";
+    m_window.showStatus("Load " + name + ": no feeder holds it.", kStatusMs);
     std::weak_ptr<bool> alive = m_alive;
     JPlacerLoadDialog::Actions actions;
     actions.loaded = [this, alive, partId](const std::string& laneId, const std::string& lotUuid) {

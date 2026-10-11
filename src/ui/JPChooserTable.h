@@ -33,6 +33,8 @@ public:
     // The dropdown's table maker for a choice whose entries are `keys` (part or package ids, "" none).
     using Maker = std::function<std::unique_ptr<JComboBox::Search::Table>(JSceneGraph&)>;
     static Maker parts(JPConfiguration& config, std::vector<std::string> keys);
+    // The same for a choice that lists parts by their Names (a form's): each the id of the part of that Name.
+    static Maker partsNamed(JPConfiguration& config, const std::vector<std::string>& names);
     static Maker packages(JPConfiguration& config, std::vector<std::string> keys);
 
     JPChooserTable(JSceneGraph& graph, std::unique_ptr<JPTableModel> source, std::vector<std::string> keys,

@@ -29,7 +29,7 @@ class JPVisionSettings;
 class JPBottomVision {
 public:
     struct Settings {
-        std::string partId;
+        std::string partName;   // the part's Name, for what is said of it
         bool        preRotate = false;
         double      wantedAngle = 0;          // pre-rotated: the placement's angle on the machine
         int         maxVisionPasses = 3;

@@ -35,8 +35,8 @@ struct Bench {
         JPVisionPipelines::ensureStock(config);
     }
     JPVisionSettings& machineDefault() { return *config.visionSettings(machine.bottomVisionId); }
-    const JPVisionSettings& inherited(const std::string& partId) {
-        const JPVisionSettings* v = config.inheritedVision(*config.part(partId), Kind::Bottom, machine.bottomVisionId);
+    const JPVisionSettings& inherited(const std::string& name) {   // a part by its Name (OpenPnP's id for it)
+        const JPVisionSettings* v = config.inheritedVision(*config.partNamed(name), Kind::Bottom, machine.bottomVisionId);
         assert(v);
         return *v;
     }
@@ -56,29 +56,29 @@ struct Bench {
 
 void testBottomVisionSettingsInheritance(const std::string& dir) {
     Bench b(dir);
-    JPPart& part = *b.config.part("R0805-1K");
+    JPPart& part = *b.config.partNamed("R0805-1K");
     JPPackage& pkg = *b.config.package(part.packageId);
     assert(part.bottomVisionId.empty());   // Part Bottom Vision should be null
     assert(pkg.bottomVisionId.empty());    // Part Package Bottom Vision should be null
-    b.assertIsDefault(b.inherited(part.id));
+    b.assertIsDefault(b.inherited(part.label));
 
     const std::string custom = b.added("BVS_Custom");
     b.config.visionSettings(custom)->enabled = false;
     pkg.bottomVisionId = custom;
     assert(part.bottomVisionId.empty());
-    assert(!b.inherited(part.id).enabled);   // Part should inherit BottomVisionSettings from Package
+    assert(!b.inherited(part.label).enabled);   // Part should inherit BottomVisionSettings from Package
 
     b.machineDefault().setText("pre-rotate-usage", "AlwaysOn");
-    assert(b.inherited(part.id).text("pre-rotate-usage") == "Default");   // from the package's custom settings
+    assert(b.inherited(part.label).text("pre-rotate-usage") == "Default");   // from the package's custom settings
 
     pkg.bottomVisionId.clear();
-    assert(b.inherited(part.id).text("pre-rotate-usage") == "AlwaysOn");   // the machine's default again
+    assert(b.inherited(part.label).text("pre-rotate-usage") == "AlwaysOn");   // the machine's default again
 }
 
 void testBottomVisionReset(const std::string& dir) {
     Bench b(dir);
-    JPPart& part1 = *b.config.part("R0805-1K");
-    JPPart& part2 = *b.config.part("R0805-2K");
+    JPPart& part1 = *b.config.partNamed("R0805-1K");
+    JPPart& part2 = *b.config.partNamed("R0805-2K");
     JPPackage& pkg = *b.config.package(part1.packageId);
 
     const std::string packageSettings = b.added("BVS_Package");

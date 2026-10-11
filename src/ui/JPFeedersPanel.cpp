@@ -111,7 +111,7 @@ JPFeedersPanel::JPFeedersPanel(JSceneGraph& graph, JPConfiguration& config, doub
     m_form->onChanged = [this](const std::string& property) { edited(property); };
     // A Part drops the Parts tab's table (its own layout: JPChooserTable).
     m_form->completeSearch = [this](const std::string& table, const std::vector<std::string>& entries, JComboBox::Search& search) {
-        if (table == JPLibrarySearch::kPartsTable) search.table = JPChooserTable::parts(m_config, entries);
+        if (table == JPLibrarySearch::kPartsTable) search.table = JPChooserTable::partsNamed(m_config, entries);
     };
     m_form->onAction = [this](const std::string& action) { act(action); };
     m_form->onCapture = [this](const JPSetupProperties::Row& row, Tool t) { capture(row, t); };
@@ -524,10 +524,10 @@ void JPFeedersPanel::stockTab(JPSetupProperties::Form& form) {
         add.note("Its part is not one of the library's, so it carries no stock lot.");
         return;
     }
-    add.note("Which of " + part->id + "'s lots is on this feeder. A run counts what it takes from it into the lot's "
+    add.note("Which of " + part->shownName() + "'s lots is on this feeder. A run counts what it takes from it into the lot's "
              "ledger (placed as Used, fed and not placed as Lost), and says when it is running out. Lots are "
              "received on the Parts tab's Stock page.");
-    const std::string feederId = f->id(), partUuid = part->uuid;
+    const std::string feederId = f->id(), partUuid = part->id;
     auto label = [](const JPStockLot& l) {
         return l.label + " (" + std::to_string(l.onHand) + (l.location.empty() ? "" : ", " + l.location) + ")";
     };
