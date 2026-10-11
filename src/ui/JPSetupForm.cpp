@@ -435,7 +435,29 @@ std::unique_ptr<JWidget> JPSetupForm::editor(const JProperty& p, float width) {
         if (!p.meta.tooltip.empty()) e.widget->setTooltip(p.meta.tooltip);
         return std::move(e.widget);
     }
-    if (p.meta.editor == "editable-choice") {
+    if (p.meta.editor == "search-choice") {
+        // A long list to find in (JPFormBuilder::searchable); a value not in it shown as it is, an entry of its own.
+        std::vector<std::string> items;
+        for (const JVariant& c : p.meta.choices) items.push_back(c.toString());
+        JComboBox::Search search;
+        if (const auto at = m_form.searches.find(p.name); at != m_form.searches.end()) search = at->second;
+        const std::string now = p.get().toString();
+        if (std::find(items.begin(), items.end(), now) == items.end()) {
+            items.push_back(now);
+            search.details.resize(items.size() - 1);
+            search.details.push_back("not in the list");
+        }
+        auto combo = std::make_unique<JComboBox>(m_graph, items);
+        JComboBox* c = combo.get();
+        c->setSearch(std::move(search));
+        c->onTextChanged.connect([set = bound.set](const std::string& t) { set(JVariant(t)); });
+        e.pull = [c, get = p.get] {
+            const auto& items = c->items();
+            const auto at = std::find(items.begin(), items.end(), get().toString());
+            if (at != items.end()) c->setCurrentIndex(int(at - items.begin()));
+        };
+        e.widget = std::move(combo);
+    } else if (p.meta.editor == "editable-choice") {
         // A choice that may also be typed: the choices offered, any name kept (on Return or choosing).
         std::vector<std::string> items;
         for (const JVariant& c : p.meta.choices) items.push_back(c.toString());

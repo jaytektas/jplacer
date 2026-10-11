@@ -67,6 +67,33 @@ there straight, without going up to safe Z first.
 
 <!-- src: src/setup/JPFeederForms.cpp (general, pickLocation, push-pull motion); src/model/JPFeeder.cpp (create); src/ui/JPSetupForm.cpp (locationButtons); src/ui/JPFeedersPanel.cpp (capture, goTo) -->
 
+### Choosing a part
+
+A feeder's **Part** opens a list to search, on a click or as soon as you type on it (what you typed is
+put in the search line). At its top is the search line, then which parts to look in: **All**, **In the
+Job** (the parts the open boards use), and each open board by name. It opens on **In the Job** when the
+job uses any part, otherwise on **All**. Beside each part are its value, its package and the open boards
+that use it.
+
+The list keeps the parts that have every word you type, in any case, and each word must start a word in
+the part. That can be in its ID, name, value, package, the package's description, its MPN or supplier's
+part numbers, or the names the library has learned for it. A word also starts where letters change to
+digits, so `0603` finds `C0603`. `lq` finds every LQFP, and `0603 100n` finds 100 nF parts in 0603.
+
+- **Values:** a value is matched however it is written, so `100n` also finds `0.1u` and `100nF`.
+- **Kinds:** `cap`, `res`, `ind`, `led` and `fid` find the parts whose ID or package starts as IPC-7351 and
+  KiCad's libraries name them: `C_0603`, `R0402`, `L_…`, `LED_0805`, `Fiducial`.
+- **Order:** a part whose ID starts with a word you typed comes first, and so does one whose value is the
+  value typed. The start of the name after a library's prefix also counts (`LQFP-100` in
+  `Package_QFP:LQFP-100_14x14mm`). Of parts that match equally well, one that no feeder holds comes before
+  one a feeder does.
+
+**Up** and **Down** move through what is left, **Return** or a click takes it, and **Escape** leaves the
+part as it was. The list follows the job: opening or closing a job, or a board, makes the page again with
+its boards. The same list chooses a feeder bank slot's part.
+
+<!-- src: src/setup/JPLibrarySearch.cpp; src/model/JPPartMatcher.cpp (searchRank, holdsWord, kKinds); src/setup/JPFeederForms.cpp (general, searchable); src/ui/JPSetupForm.cpp (search-choice); src/ui/JPFeedersPanel.cpp (refresh); src/setup/JPFormBuilder.h (searchable) -->
+
 Beside it, **Stock** says which of the part's stock lots is on the feeder (see [Parts](parts.md#the-parts-tabs)):
 **Lot** offers **None** and the part's open lots (each with what it holds and where it is kept); choosing
 one loads it on this feeder and takes off any other. **Holds** is what the lot holds by its ledger, less

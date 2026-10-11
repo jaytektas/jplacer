@@ -14,6 +14,7 @@
 #include "model/JPLocation.h"
 #include "machine/JPFirmwareProfile.h"
 
+#include <j/core/JComboBox.h>
 #include <j/core/JPropertyModel.h>
 
 #include <functional>
@@ -148,6 +149,8 @@ public:
         // editable fields: a setting that does nothing as the others stand,
         // or one a calibration sets): greyed.
         std::vector<std::string> disabled;
+        // Choices searched as they are chosen (JPFormBuilder::searchable), by property: the search each has.
+        std::map<std::string, JComboBox::Search> searches;
     };
 
     // The form for the node at `path` (JPSetupTree); an empty model for a

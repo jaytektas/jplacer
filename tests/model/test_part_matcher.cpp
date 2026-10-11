@@ -88,6 +88,23 @@ int main() {
     assert(board.splitPlacement("C1") == own);   // alone already: its own
     const JPPart* made = JPLibraryLearning::addFrom(config, *board.part(own), board.scopeName(), "2026-10-11T00:00:00");
     assert(made && config.libraryPart(made->id) == made && made->value == "47n");
+
+    // Searching where a part is chosen (a feeder's Part): every word, in any case, anywhere; a value written
+    // another way; a kind by its footprint's prefix; a start first.
+    part(config, "LQFP-48_STM32", "LQFP-48");
+    part(config, "R_0603_1608Metric-10k", "R_0603_1608Metric");
+    auto rank = [&config](const char* id, const char* typed) { return JPPartMatcher::searchRank(config, *config.part(id), typed); };
+    assert(rank("LQFP-48_STM32", "lq") == 0 && rank("LQFP-48_STM32", "48") == 1 && rank("LQFP-48_STM32", "0603") == -1);
+    assert(rank("C0603-100n", "0603 100n") == 0 && rank("C0603-100n", "0.1u") == 0 && rank("C0603-100n", "0603") == 1 && rank("C0603-100n", "10n") == -1);
+    assert(rank("C0603-100n", "cap") == 1 && rank("R_0603_1608Metric-10k", "res 10k") == 0 && rank("C0603-100n", "res") == -1);
+    assert(rank("C0603-100n", "") == 0 && rank("C0603-100n", "c06") == 0);
+    // A word begins one of the part's (not inside "wordpress").
+    part(config, "Package_QFP:LQFP-100_14x14mm", "Package_QFP:LQFP-100_14x14mm");
+    part(config, "C1206-22u", "C1206");
+    config.part("C1206-22u")->name = "see www.wordpress.com";
+    assert(rank("Package_QFP:LQFP-100_14x14mm", "lq") == 0 && rank("Package_QFP:LQFP-100_14x14mm", "14x14") == 1);
+    assert(rank("C1206-22u", "res") == -1 && rank("C1206-22u", "206") == -1 && rank("C1206-22u", "1206") == 1);
+    assert(rank("C1206-22u", "word") == 1 && rank("LQFP-48_STM32", "stm") == 1);
     std::filesystem::remove_all(dir);
     return 0;
 }

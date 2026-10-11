@@ -11,6 +11,7 @@
 #include "model/JPDefinitionChanges.h"
 #include "model/JPPanel.h"
 #include "model/JPSides.h"
+#include "setup/JPLibrarySearch.h"
 
 #include <j/core/JStyle.h>
 
@@ -279,6 +280,12 @@ std::vector<const JPPart*> JPPlacementsTableModel::partChoices() const {
     for (const auto& p : m_config.parts()) out.push_back(p.get());
     std::sort(out.begin(), out.end(), [](const JPPart* a, const JPPart* b) { return a->id < b->id; });
     return out;
+}
+
+std::optional<JComboBox::Search> JPPlacementsTableModel::choiceSearch(int row, int c) const {
+    // Its parts as the library's are wherever one is chosen (JPLibrarySearch).
+    if (m_shown[size_t(c)] == kPart) return JPLibrarySearch::parts(m_config, choices(row, c));
+    return std::nullopt;
 }
 
 std::vector<std::string> JPPlacementsTableModel::choices(int, int c) const {

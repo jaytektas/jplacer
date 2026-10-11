@@ -181,6 +181,7 @@ private:
     std::unique_ptr<JContainer>         m_tablePane, m_formPane;
     JPSetupForm*                        m_form = nullptr;
     std::string                         m_shown;   // the feeder whose setup is shown
+    std::string                         m_partSources;   // what its Part search showed (JPLibrarySearch::sources)
     std::string                         m_chosenPart;   // the chosen feeder's part, as onFeederChosen was told
     std::string                         m_cameraAtPickOf;   // the feeder whose pick location the camera was last moved to
     Where                               m_cameraAtPick;     // where it was moved to

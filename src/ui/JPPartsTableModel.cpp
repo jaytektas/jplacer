@@ -7,6 +7,8 @@
 
 #include "JPLengthCell.h"
 
+#include "setup/JPLibrarySearch.h"
+
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
@@ -175,6 +177,12 @@ std::vector<const JPVisionSettings*> JPPartsTableModel::visionChoices(JPVisionSe
     std::sort(out.begin(), out.end(), [](const JPVisionSettings* a, const JPVisionSettings* b) { return a->name < b->name; });
     out.push_back(nullptr);
     return out;
+}
+
+std::optional<JComboBox::Search> JPPartsTableModel::choiceSearch(int row, int c) const {
+    // Its packages as the library's are wherever one is chosen (JPLibrarySearch).
+    if (c == kPackage) return JPLibrarySearch::packages(m_config, choices(row, c));
+    return std::nullopt;
 }
 
 std::vector<std::string> JPPartsTableModel::choices(int, int c) const {

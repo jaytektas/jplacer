@@ -50,7 +50,7 @@ end, there while it holds text, empties it and shows every part again.
 | **MPN** | Its manufacturer's part number: the first of its identifiers (the **Library** tab has them all). |
 | **Height** | The distance between the board's surface and where the nozzle picks it, in mm (in its own units, with their name, when those are not mm). |
 | **Through-Board Depth** | How far any of it reaches below the board when placed; added to the height for Dynamic Safe Z. Zero for surface-mount parts. |
-| **Package** | Its package, chosen from a list. |
+| **Package** | Its package, chosen from a list to search. |
 | **Speed %** | How fast it is moved, as a share of full speed. |
 | **BottomVision**, **FiducialVision** | The vision settings it uses, chosen from a list; empty: its package's. |
 | **Placements** | How many placements on the known boards use it. |
@@ -64,6 +64,13 @@ table edits this way. A height may be typed
 with units (`0.5mm`, `20mil`); without, the part's own units are taken. Package and the vision settings
 open their list on a click: a drop-down under the cell, as wide as its longest name, twelve at a time and
 scrolled for the rest, the one chosen now marked. Each change is saved at once.
+
+**Package**'s list is searched as a feeder's part is (see [Choosing a part](feeders.md#choosing-a-part)).
+Beside each package are its description and the open boards that use it, and it has the same **All**, **In
+the Job** and board scopes. Each word you type must start a word in the package's ID or description, and
+`cap`, `res`, `ind`, `led` and `fid` find packages by how their IDs start.
+
+<!-- src: src/ui/JPPartsTableModel.cpp (choiceSearch); src/setup/JPLibrarySearch.cpp (packages); src/model/JPPartMatcher.cpp (packageSearchRank); src/ui/JPTable.cpp (openChoices) -->
 
 Click a column's heading to sort by it; click it again to turn it round. Clicking another heading sorts by
 that first and by the earlier ones after it (up to three); the later ones' arrows are fainter. Choose

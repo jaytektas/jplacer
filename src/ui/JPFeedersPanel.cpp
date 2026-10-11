@@ -9,6 +9,7 @@
 #include "common/JPlacerLog.h"
 #include "setup/JPFeederForms.h"
 #include "setup/JPFormBuilder.h"
+#include "setup/JPLibrarySearch.h"
 #include "model/JPBlindsFeeders.h"
 #include "model/JPPushPullTemplates.h"
 
@@ -24,6 +25,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
+#include <utility>
 
 inline namespace jf {
 
@@ -245,6 +247,9 @@ void JPFeedersPanel::rebuild() {
 void JPFeedersPanel::refresh() {
     m_table->refresh();
     selectionChanged();
+    // A part's search lists the open boards and the parts they use: made again when they change.
+    std::string sources = JPLibrarySearch::sources(m_config);
+    if (sources != std::exchange(m_partSources, sources)) rebuildForm();
 }
 
 std::vector<JPFeeder*> JPFeedersPanel::selections() const {

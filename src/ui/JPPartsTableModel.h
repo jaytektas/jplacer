@@ -35,6 +35,7 @@ public:
     std::string rowKey(int row) const override;
     bool   editable(int row, int c) const override;
     std::vector<std::string> choices(int row, int c) const override;
+    std::optional<JComboBox::Search> choiceSearch(int row, int c) const override;
     bool   setText(int row, int c, const std::string& text, std::string& error) override;
     void   setChoice(int row, int c, int index) override;
 

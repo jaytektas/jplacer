@@ -277,6 +277,16 @@ public:
         p.set = [set](const JVariant& v) { set(v.toString()); return true; };
         put(std::move(p));
     }
+    // The choice just added searched as it is chosen: a search line over its list, `search` saying how.
+    void searchable(JComboBox::Search search) {
+        const std::string name = rows().back().cells.back().property;
+        if (const JProperty* p = m_form.model.find(name)) {
+            JProperty q = *p;
+            q.meta.editor = "search-choice";
+            m_form.model.add(std::move(q));
+        }
+        m_form.searches[name] = std::move(search);
+    }
     // One of `n`, kept as its id.
     void byName(const std::string& name, const std::string& label, const Named& n, std::function<std::string()> get,
                 std::function<void(const std::string&)> set) {

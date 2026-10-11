@@ -48,9 +48,10 @@ pseudo-placement is only turned on or off.
 | **Remove Fiducial(s)...** (cross) | Takes the chosen ones off. |
 | **Use Children Fiducials...** | Lists every fiducial (or placement, or both) of the panel's boards where it lies on the panel; **Hull Only** shows just those on the outermost edge. **Auto Select** chooses the four on each side spanning the most area (those turned off are passed over). **OK** adds the chosen ones. |
 
-Right-click for **Set Side...** and **Set Enabled...**.
+Right-click for **Set Side...** and **Set Enabled...**. A fiducial's **Part** is chosen from the
+library's parts in a list to search, as a feeder's is (see [Choosing a part](feeders.md#choosing-a-part)).
 
-<!-- src: src/ui/JPPanelDefinitionPanel.cpp; src/app/JPlacerChildFiducialsDialog.cpp; src/model/JPPanel.cpp (pseudoPlacements) -->
+<!-- src: src/ui/JPPlacementsTableModel.cpp (choiceSearch); src/ui/JPPanelDefinitionPanel.cpp; src/app/JPlacerChildFiducialsDialog.cpp; src/model/JPPanel.cpp (pseudoPlacements) -->
 
 ## Arrays
 

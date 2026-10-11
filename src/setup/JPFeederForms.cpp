@@ -5,6 +5,7 @@
 #include "JPIllustrations.h"
 
 #include "JPFormBuilder.h"
+#include "JPLibrarySearch.h"
 
 #include "common/JPlacerLog.h"
 #include "model/JPBlindsFeeders.h"
@@ -74,6 +75,7 @@ void general(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder
     JPFormBuilder::Strings ids;
     for (const auto& p : config.parts()) ids.push_back(p->id);
     add.choice("part", "Part", ids, [f] { return f().partId(); }, [f](const std::string& id) { f().setPartId(id); });
+    add.searchable(JPLibrarySearch::parts(config, ids));
     if (rotationInTape) {
         coordinate(add, f, "location", Axis::Rotation, "Rotation In Tape");
         add.tip("The Rotation in Tape setting must be interpreted relative to the tape's orientation, regardless of "
@@ -552,6 +554,7 @@ void slotForm(JPFormBuilder& add, JPConfiguration& config, const std::string& sl
                    banks().setFeederPart(bank(), loaded(), id);
                    config.resolveSlots();
                });
+    add.searchable(JPLibrarySearch::parts(config, parts));
 
     if (schultz) {
         schultzActuators(add, f, options);
@@ -600,6 +603,7 @@ void photonForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFee
         JPFormBuilder::Strings parts { "" };
         for (const auto& p : config.parts()) parts.push_back(p->id);
         add.choice("part", "Part", parts, [f] { return f().text("part-id"); }, [f](const std::string& id) { f().setPartId(id); });
+        add.searchable(JPLibrarySearch::parts(config, parts));
         add.row("Part Pitch");
         count(add, f, "part-pitch", "Part Pitch", 4);
         add.button("photonFeed", "Feed", "", slotted);
@@ -1135,6 +1139,7 @@ void blindsForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFee
     for (const auto& p : config.parts()) ids.push_back(p->id);
     add.row("Part");
     add.choice("part", "Part", ids, [f] { return f().partId(); }, [f](const std::string& id) { f().setPartId(id); });
+    add.searchable(JPLibrarySearch::parts(config, ids));
     add.button("blindsOcrDetect", "OCR Detect", "Try to detect and set the part by OCR.");
     add.end();
     // OpenPnP's columns: a setting at the left, another at the right, a button beyond.
@@ -1387,6 +1392,7 @@ void heapForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeede
     for (const auto& p : config.parts()) ids.push_back(p->id);
     add.row("Part");
     add.choice("part", "Part", ids, [f] { return f().partId(); }, [f](const std::string& id) { f().setPartId(id); });
+    add.searchable(JPLibrarySearch::parts(config, ids));
     add.flag("poke-for-parts", "Poke for Parts", [f] { return f().childText("poke-for-parts", "false") == "true"; },
              [f](bool on) { f().setChildText("poke-for-parts", on ? "true" : "false"); });
     add.end();

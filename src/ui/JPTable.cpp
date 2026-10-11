@@ -1198,6 +1198,7 @@ void JPTable::openChoices(int r, int c) {
     m_choiceCombo->setBounds(cell);
     for (size_t i = 0; i < choices.size(); ++i)
         if (choices[i] == now) m_choiceCombo->setCurrentIndex(int(i));
+    if (auto search = m_model->choiceSearch(r, c)) m_choiceCombo->setSearch(std::move(*search));
     m_choiceCombo->onIndexChanged.connect([this, r, c](int index) {
         if (!m_model || r >= m_model->rowCount() || index < 0) return;
         m_model->setChoice(r, c, index);

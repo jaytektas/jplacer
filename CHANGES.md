@@ -10,6 +10,13 @@ notes.
 
 ## Unreleased
 
+- A feeder's **Part** is chosen from a list you can search. Type to narrow it: `lq` finds every LQFP,
+  `0603 100n` finds 100 nF parts in 0603 (a value however written: `100n` finds `0.1u`), and `cap`, `res`,
+  `ind`, `led` and `fid` find parts by how their footprints are named. Each part shows its value, package
+  and the open boards that use it. **All**, **In the Job** and each open board choose where to look; a feeder
+  starts on **In the Job**, with the parts no feeder holds yet first. The Parts tab's **Package** and a
+  panel fiducial's **Part** are searched the same way.
+
 ## 0.1.51
 
 - Changing many placements or boards at once (Set Enabled, Set Type, Set Side, Set Error Handling, Set

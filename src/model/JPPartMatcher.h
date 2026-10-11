@@ -38,6 +38,16 @@ public:
     // description (any case).
     static std::vector<std::string> words(const std::string& filter);
     static bool matches(const JPConfiguration& config, const JPPart& part, const std::vector<std::string>& words);
+    // How well a part answers what is typed where one is chosen (a feeder's part): every word (any case)
+    // beginning a word of its id, name, value, package, package's description, identifiers or learned names
+    // (where letters turn to digits begins one: C0603 holds 0603); a value the same
+    // value written another way ("100n" finds 0.1u); "cap", "res", "ind", "led" or "fid" a part whose id or
+    // package is named so (C_0603, R0402, LED_0805, Fiducial). 0 when its id (or its name after a library's
+    // "Package_QFP:") starts with a word, a word is its value, or nothing is typed; 1 when it only holds them; -1 when it does not
+    // answer.
+    static int searchRank(const JPConfiguration& config, const JPPart& part, const std::string& typed);
+    // The same for a package: by its id and description, a kind by its id.
+    static int packageSearchRank(const JPPackage& package, const std::string& typed);
     // A component value as a number: SI prefixes (p n u µ m k M G), the prefix as the decimal point ("4k7",
     // "4R7"), a unit after it ignored (F, H, Ω, R, ohm, V); false when it is not one.
     static bool valueOf(const std::string& text, double& v);

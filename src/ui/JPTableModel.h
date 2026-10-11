@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <j/core/JComboBox.h>
+
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -79,6 +81,8 @@ public:
     virtual bool reorderable() const { return false; }
     virtual void reorder(int /*from*/, int /*to*/) {}
     virtual std::vector<std::string> choices(int, int) const { return {}; }
+    // A long list of choices searched as one is chosen (a library's parts): how (JComboBox::Search); none, a plain list.
+    virtual std::optional<JComboBox::Search> choiceSearch(int, int) const { return std::nullopt; }
     // An edit: false (and why, to be shown) when the value is refused.
     virtual bool setText(int, int, const std::string&, std::string& /*error*/) { return false; }
     virtual void setChoice(int, int, int /*index*/) {}

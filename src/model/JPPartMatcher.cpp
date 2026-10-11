@@ -7,6 +7,9 @@
 #include <cctype>
 #include <cmath>
 #include <cstdlib>
+#include <string>
+#include <utility>
+#include <vector>
 
 inline namespace jf {
 
@@ -30,6 +33,19 @@ std::string valuePart(const std::string& id) {
 }
 
 bool sameValue(double a, double b) { return std::abs(a - b) <= kSameValue * std::max(std::abs(a), std::abs(b)); }
+
+// The kinds a word names, by how IPC-7351 (and KiCad's libraries after it) begin a footprint's name.
+const std::vector<std::pair<const char*, const char*>> kKinds {
+    { "CAP", "C" }, { "RES", "R" }, { "IND", "L" }, { "LED", "LED" }, { "FID", "FID" },
+};
+
+// Whether `name` (upper case) is of the kind `prefix` begins: the prefix, then a digit or '_' (or anything,
+// for one of three letters or more: LED, FIDUCIAL).
+bool ofKind(const std::string& name, const std::string& prefix) {
+    if (name.rfind(prefix, 0) != 0) return false;
+    if (prefix.size() >= 3) return true;
+    return name.size() > prefix.size() && (std::isdigit(uint8_t(name[prefix.size()])) || name[prefix.size()] == '_');
+}
 
 } // namespace
 
@@ -194,6 +210,61 @@ bool JPPartMatcher::matches(const JPConfiguration& config, const JPPart& part, c
     std::string text = upper(part.id + " " + part.name.value_or("") + " " + part.packageId);
     if (const JPPackage* k = config.package(part.packageId)) text += " " + upper(k->description.value_or(""));
     return std::all_of(words.begin(), words.end(), [&text](const std::string& w) { return text.find(w) != std::string::npos; });
+}
+
+namespace {
+
+// Whether `text` holds `word` (both upper case) where a word of it begins: after a space or punctuation, or
+// where letters turn to digits or back (C0603 holds 0603 and 06, being typed; 1608METRIC holds METRIC).
+bool holdsWord(const std::string& text, const std::string& word) {
+    auto alnum = [](char c) { return std::isalnum(uint8_t(c)) != 0; };
+    auto digit = [](char c) { return std::isdigit(uint8_t(c)) != 0; };
+    for (size_t at = text.find(word); at != std::string::npos; at = text.find(word, at + 1))
+        if (at == 0 || !alnum(text[at - 1]) || digit(text[at - 1]) != digit(word[0])) return true;
+    return false;
+}
+
+// How well `typed` answers a library entry (searchRank, packageSearchRank): `id` and `text` upper case, `value`
+// the part's value (none: NaN), `kindOf` the names its kind is told by.
+int rankOf(const std::string& id, const std::string& text, double value, const std::vector<std::string>& kindOf,
+           const std::string& typed) {
+    bool starts = false, any = false;
+    size_t at = 0;
+    while ((at = typed.find_first_not_of(" \t", at)) != std::string::npos) {
+        const size_t end = std::min(typed.find_first_of(" \t", at), typed.size());
+        const std::string word = typed.substr(at, end - at), w = upper(word);   // its case kept for a value (m, M)
+        at = end;
+        any = true;
+        bool found = holdsWord(text, w);
+        // Its value, however written, is as good as its name starting so.
+        if (double v = 0; !std::isnan(value) && JPPartMatcher::valueOf(word, v) && sameValue(v, value)) found = starts = true;
+        for (const auto& [kind, prefix] : kKinds)
+            for (const std::string& name : kindOf)
+                if (!found && w == kind) found = ofKind(name, prefix);
+        if (!found) return -1;
+        // Its name starting so: the id's start, or its name's after a library's (Package_QFP:LQFP-100…).
+        const size_t colon = id.find(':');
+        starts = starts || id.rfind(w, 0) == 0 || (colon != std::string::npos && id.compare(colon + 1, w.size(), w) == 0);
+    }
+    return starts || !any ? 0 : 1;
+}
+
+} // namespace
+
+int JPPartMatcher::searchRank(const JPConfiguration& config, const JPPart& part, const std::string& typed) {
+    const std::string id = upper(part.id), package = upper(part.packageId);
+    std::string text = id + " " + upper(part.name.value_or("")) + " " + upper(part.value) + " " + package;
+    if (const JPPackage* k = config.package(part.packageId)) text += " " + upper(k->description.value_or(""));
+    for (const JPPart::Identifier& i : part.identifiers) text += " " + upper(i.code);
+    for (const JPPart::Aka& a : part.akas) text += " " + upper(a.text);
+    double value = 0;
+    if (!valueOf(!part.value.empty() ? part.value : valuePart(part.id), value)) value = std::nan("");
+    return rankOf(id, text, value, { id, package }, typed);
+}
+
+int JPPartMatcher::packageSearchRank(const JPPackage& package, const std::string& typed) {
+    const std::string id = upper(package.id);
+    return rankOf(id, id + " " + upper(package.description.value_or("")), std::nan(""), { id }, typed);
 }
 
 } // inline namespace jf
