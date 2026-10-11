@@ -82,10 +82,19 @@ column; the columns after it give way.
 Drag a heading sideways to move its column. While it is dragged the table shows how it will look: the
 column floats with the pointer and the others move aside to make its place. Letting go keeps it there;
 **Escape** puts every column back as it was. Right-click a heading for **Reset Columns**: the table's
-columns as they first were (their order and widths, and no sort). Every table works this way, and each
+columns as they first were (every one shown, their order and widths, and no sort). Every table works this way, and each
 keeps its columns' order, widths and sort as you leave them, the next time jplacer starts too.
 
 <!-- src: src/ui/JPPartsTableModel.cpp; src/ui/JPTable.cpp (clickHeader, handleKeyEvent, startEditing, setColumnWidth, previewDrop, endColumnDrag, resetColumns, applyState, keepState); src/app/JPlacerApp.cpp (s_loadState, s_saveState); src/app/JPlacerSettings.h (kTableState); src/ui/JPLengthCell.cpp -->
+
+**Columns** (the table icon), at the end of the toolbar's icons after a divider, chooses which columns the
+table shows. It opens a list of every column with a tick for each one shown: click one to hide it or to show
+it again in its place, at the width it had. The last column showing cannot be hidden. **Reset Columns** at
+the bottom shows them all again, as they first were. Which columns are shown is kept with the rest of the
+table's layout, each table its own. Every table on the **Job**, **Boards**, **Panels**, **Parts** and
+**Packages** tabs has it, the footprint's pads too.
+
+<!-- src: src/ui/JPUiParts.cpp (columnsButton); src/ui/JPTable.cpp (columnsMenu, setColumnShown, columnsShown, allColumns, applyState, keepState, materialiseWidths); src/ui/JPPartsPanel.cpp; src/ui/JPPackagesPanel.cpp; src/ui/JPJobPanel.cpp; src/ui/JPJobPlacementsPanel.cpp; src/ui/JPPlacementsHoldersGroup.cpp; src/ui/JPBoardPlacementsPanel.cpp; src/ui/JPPanelDefinitionPanel.cpp -->
 
 ## The part's tabs
 

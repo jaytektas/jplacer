@@ -44,8 +44,10 @@ inline namespace jf {
 //    pointer, the others moved aside to make its place), letting go keeps
 //    it, Escape puts every column back. A press that does not move sorts.
 //    Right-click a heading: Reset Columns (the order, widths and sort as
-//    shipped). With a state key, the order, widths and sort are kept (by the
-//    columns' names) and brought back, every table alike.
+//    shipped). A column can be hidden (columnsMenu, a toolbar's Columns…)
+//    and shown again in its place. With a state key, the order, widths, sort
+//    and hidden columns are kept (by the columns' names) and brought back,
+//    every table alike.
 //
 // Rows are the model's: what the table reports and is told is always a
 // model row, whatever the sort.
@@ -63,8 +65,20 @@ public:
     void setStateKey(const std::string& key);
     static inline std::function<JJson(const std::string& key)>                  s_loadState;
     static inline std::function<void(const std::string& key, const JJson& state)> s_saveState;
-    // The columns as shipped: the model's order, widths shared out, no sort.
+    // The columns as shipped: the model's order, widths shared out, no sort, every one shown.
     void resetColumns();
+    // Which columns are shown: each of the model's, by name, in its place among them (a hidden one keeps its
+    // place and width for when it is shown again).
+    struct ColumnShown {
+        std::string name;
+        bool        shown = true;
+    };
+    std::vector<ColumnShown> columnsShown() const;
+    // `name` shown or hidden, kept with the rest; the last one shown stays.
+    void setColumnShown(const std::string& name, bool shown);
+    // A toolbar's Columns… menu: each column with a tick when it is shown (a click shows or hides it), then
+    // Reset Columns. Made afresh each time it is asked for.
+    JMenu* columnsMenu();
     // The model's rows changed: sorted and filtered again, the chosen rows
     // kept (by JPTableModel::rowKey).
     void refresh();
@@ -138,6 +152,8 @@ private:
     // The model's columns in the order shown (made again, and the kept state taken, when the model's columns
     // change), and a column's place in it.
     const std::vector<int>& order() const;
+    // Every column in its place, the hidden ones put back among those shown.
+    std::vector<int> allColumns() const;
     int   positionOf(int c) const;
     // The kept state taken into the order, widths and sort; the state as it is now, kept.
     void  applyState() const;
@@ -171,7 +187,9 @@ private:
     JPTableModel*                  m_model = nullptr;
     std::string                    m_stateKey;
     mutable JJson                  m_state;           // as kept: order, widths and sort by the columns' names
-    mutable std::vector<int>       m_order;           // view position -> model column
+    mutable std::vector<int>       m_order;           // view position -> model column (the columns shown)
+    mutable std::vector<int>       m_allOrder;        // every column in its place, the hidden ones too, as last made
+    mutable std::set<std::string>  m_hidden;          // the hidden columns, by name
     mutable std::vector<std::string> m_orderNames;    // the model's columns' names m_order was made for
     // A heading pressed (a click sorts it) and, moved far enough, dragged: the column, where in it it was taken,
     // the pointer, and the order to put back.
@@ -182,6 +200,7 @@ private:
     std::vector<int>               m_orderBefore;
     // The headings' right-click menu (Reset Columns), and the rows' (the owner's) it stands in for there.
     std::unique_ptr<JMenu>         m_headerMenu;
+    std::unique_ptr<JMenu>         m_columnsMenu;
     JMenu*                         m_rowsMenu = nullptr;
     bool                           m_headerShown = true;
     std::vector<int>               m_view;            // view index -> model row

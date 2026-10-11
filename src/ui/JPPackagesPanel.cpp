@@ -101,6 +101,7 @@ JPPackagesPanel::JPPackagesPanel(JSceneGraph& graph, JPConfiguration& config, do
     m_copy->onClicked.connect([this] { copyPackage(); });
     tool("Create Package from Clipboard", "paste", "Create a new package from a definition on the clipboard.")
         ->onClicked.connect([this] { pastePackage(); });
+    JPUiParts::columnsButton(graph, *bar, [this] { return m_table; }, &openMenu);
     bar->add(std::make_unique<JContainer>(graph, 0.f, 0.f))->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     // Show: every row, those an open board uses, or one board's.
     JLabel* showLabel = bar->add(std::make_unique<JLabel>(graph, "Show"));
@@ -514,6 +515,7 @@ std::unique_ptr<JContainer> JPPackagesPanel::footprintTab(JPPackage& p) {
     });
     m_padDelete->setEnabled(false);
     m_padMark->setEnabled(false);
+    JPUiParts::columnsButton(g, *bar, [this] { return m_pads; }, &openMenu);
     padsFrame->add(std::move(bar));
     m_padsModel.setFootprint(&f);
     m_pads = padsFrame->add(std::make_unique<JPTable>(g));

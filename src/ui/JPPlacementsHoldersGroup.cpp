@@ -119,6 +119,7 @@ JPPlacementsHoldersGroup::JPPlacementsHoldersGroup(JSceneGraph& graph, JPConfigu
         // Panels in panels: OpenPnP cleans up again until nothing more goes.
         remove(unused, false, m_kind == JPPlacementsHolder::Kind::Panel, false);
     });
+    JPUiParts::columnsButton(graph, *bar, [this] { return m_table; }, &openMenu);
     add(std::move(bar));
     m_table = add(std::make_unique<JPTable>(graph));
     m_table->setStateKey(std::string(m_kind == JPPlacementsHolder::Kind::Board ? "boards" : "panels"));

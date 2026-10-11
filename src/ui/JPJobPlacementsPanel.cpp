@@ -96,6 +96,7 @@ JPJobPlacementsPanel::JPJobPlacementsPanel(JSceneGraph& graph, JPConfiguration& 
     m_editFeeder->onClicked.connect([this] {
         if (const auto chosen = selections(); chosen.size() == 1 && onEditFeeder) onEditFeeder(chosen.front()->partId);
     });
+    JPUiParts::columnsButton(graph, *bar, [this] { return m_table; }, &openMenu);
     bar->add(std::make_unique<JContainer>(graph, 0.f, 0.f))->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     JLabel* searchLabel = bar->add(std::make_unique<JLabel>(graph, "Search"));
     searchLabel->setFixedSize(JTextHelper::measureWidth("Search") + st.spacing, st.controlHeight);

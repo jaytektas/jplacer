@@ -72,6 +72,7 @@ JPPartsPanel::JPPartsPanel(JSceneGraph& graph, JPConfiguration& config, double s
     m_copy->onClicked.connect([this] { copyPart(); });
     tool("Create Part from Clipboard", "paste", "Create a new part from a definition on the clipboard.")
         ->onClicked.connect([this] { pastePart(); });
+    JPUiParts::columnsButton(graph, *bar, [this] { return m_table; }, &openMenu);
     bar->add(std::make_unique<JContainer>(graph, 0.f, 0.f))->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     // Show: every row, those an open board uses, or one board's.
     JLabel* showLabel = bar->add(std::make_unique<JLabel>(graph, "Show"));

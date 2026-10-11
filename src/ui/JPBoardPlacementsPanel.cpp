@@ -82,6 +82,7 @@ JPBoardPlacementsPanel::JPBoardPlacementsPanel(JSceneGraph& graph, JPConfigurati
     m_view->onClicked.connect([this] {
         if (m_board && onViewBoard) onViewBoard();
     });
+    JPUiParts::columnsButton(graph, *bar, [this] { return m_table; }, &openMenu);
     bar->add(toolSeparator(graph));
     JLabel* revisionLabel = bar->add(std::make_unique<JLabel>(graph, "Revision"));
     revisionLabel->setFixedSize(JTextHelper::measureWidth("Revision") + st.spacing, st.controlHeight);

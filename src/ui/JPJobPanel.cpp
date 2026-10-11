@@ -152,6 +152,7 @@ JPJobPanel::JPJobPanel(JSceneGraph& graph, JPConfiguration& config, std::functio
         for (const JPPlacementsHolderLocation* l : selections()) chosen.push_back(l);
         onViewJob(chosen);
     });
+    JPUiParts::columnsButton(graph, *bar, [this] { return m_table; }, &openMenu);
     boards->add(std::move(bar));
     m_table = boards->add(std::make_unique<JPTable>(graph));
     m_table->setStateKey("job.boards");

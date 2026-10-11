@@ -3,8 +3,12 @@
 
 #include "JPUiParts.h"
 
+#include "JPIconButton.h"
+#include "JPTable.h"
+
 #include "model/JPSystemUnits.h"
 
+#include <j/core/JSeparator.h>
 #include <j/core/JStyle.h>
 
 #include <algorithm>
@@ -46,6 +50,21 @@ std::string JPUiParts::angle(double degrees) {
     char buf[32];
     std::snprintf(buf, sizeof buf, "%.3f", degrees);
     return buf;
+}
+
+JPIconButton* JPUiParts::columnsButton(JSceneGraph& graph, JContainer& bar, std::function<JPTable*()> table,
+                                       const std::function<void(JMenu*, float, float)>* open) {
+    bar.add(std::make_unique<JSeparator>(graph, JSeparator::JOrientation::Vertical, JPIconButton::size()));
+    JPIconButton* b = bar.add(std::make_unique<JPIconButton>(
+        graph, "Columns", "table-columns", "Choose which columns this table shows (each table keeps its own)"));
+    b->setLeads(JPIconButton::Leads::Menu);
+    b->onClicked.connect([b, table = std::move(table), open] {
+        JPTable* t = table ? table() : nullptr;
+        if (!t || !open || !*open) return;
+        const JRect r = b->bounds();
+        (*open)(t->columnsMenu(), r.x, r.y + r.height);
+    });
+    return b;
 }
 
 } // inline namespace jf

@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- The tables on the Job, Boards, Panels, Parts and Packages tabs have a **Columns** icon at the end of their
+  toolbars: tick the columns to show, untick those to hide. Each table keeps its own choice, with its column
+  order, widths and sort.
+
 - A feeder's **Part** opens a table of the library's parts to choose from: ID, value, package, height, MPN,
   the open boards using it, the feeders holding it and its description. The box becomes a filter line (its
   **✕** empties it), with the Parts tab's **Show** beside it (All, Used by open boards, each open board).

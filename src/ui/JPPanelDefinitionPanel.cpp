@@ -101,6 +101,7 @@ JPPanelDefinitionPanel::JPPanelDefinitionPanel(JSceneGraph& graph, JPConfigurati
     m_view->onClicked.connect([this] {
         if (panel() && onViewPanel) onViewPanel();
     });
+    JPUiParts::columnsButton(graph, *bar, [this] { return m_childTable; }, &openMenu);
     children->add(std::move(bar));
     m_childTable = children->add(std::make_unique<JPTable>(graph));
     m_childTable->setStateKey("panel.children");
@@ -139,6 +140,7 @@ JPPanelDefinitionPanel::JPPanelDefinitionPanel(JSceneGraph& graph, JPConfigurati
                          "Use children's fiducials/placements for panel alignment");
     m_useChildren->setLeads(JPIconButton::Leads::Elsewhere);
     m_useChildren->onClicked.connect([this] { useChildFiducials(); });
+    JPUiParts::columnsButton(graph, *fbar, [this] { return m_fiducialTable; }, &openMenu);
     fiducials->add(std::move(fbar));
     m_fiducialTable = fiducials->add(std::make_unique<JPTable>(graph));
     m_fiducialTable->setStateKey("panel.fiducials");
