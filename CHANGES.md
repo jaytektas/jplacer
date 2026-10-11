@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.55
+
 - A part has a **Name**, shown wherever the part is, and beside its ID on the Parts tab, where it is changed
   in place (unique in the library). Every part's ID is a GUID, made for it, so its name can be changed
   freely; a part starts with the name it came with (a board's name for it, OpenPnP's ID, or the name given
