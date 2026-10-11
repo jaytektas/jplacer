@@ -9,6 +9,7 @@
 
 #include "common/JPlacerLog.h"
 #include "model/JPBlindsFeeders.h"
+#include "model/JPAutoFeeder.h"
 #include "model/JPFeederPackaging.h"
 #include "model/JPFeederTape.h"
 #include "model/JPPushPullTemplates.h"
@@ -344,27 +345,29 @@ void trayForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeede
 void autoForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f, const std::vector<std::string>& actuators) {
     general(add, config, f, false);
     pickLocation(add, f);
+    auto a = [f]() -> JPAutoFeeder& { return *f().as<JPAutoFeeder>(); };
     add.group("Actuators");
     add.header({ "Actuator", "Actuator Value" });
     JPFormBuilder::Strings names { "" };
     names.insert(names.end(), actuators.begin(), actuators.end());
-    for (const auto& [row, key, test, testLabel] :
-         { std::tuple { "Feed", "actuator", "testFeed", "Test feed" },
-           std::tuple { "Post Pick", "post-pick-actuator", "testPostPick", "Test post pick" } }) {
-        const std::string nameAttr = std::string(key) + "-name", valueAttr = std::string(key) + "-value";
+    using Name = std::string JPAutoFeeder::*;
+    using Value = double JPAutoFeeder::*;
+    for (const auto& [row, key, name, value, test, testLabel] :
+         { std::tuple { "Feed", "actuator", Name(&JPAutoFeeder::actuatorName), Value(&JPAutoFeeder::actuatorValue), "testFeed",
+                        "Test feed" },
+           std::tuple { "Post Pick", "post-pick-actuator", Name(&JPAutoFeeder::postPickActuatorName),
+                        Value(&JPAutoFeeder::postPickActuatorValue), "testPostPick", "Test post pick" } }) {
         add.row(row);
-        add.choice(nameAttr, std::string(row) + " actuator", names, [f, nameAttr] { return f().text(nameAttr); },
-                   [f, nameAttr](const std::string& n) { f().setText(nameAttr, n); });
-        add.number(valueAttr, std::string(row) + " value", [f, valueAttr] { return f().real(valueAttr, 0); },
-                   [f, valueAttr](double v) { f().setReal(valueAttr, v); });
+        add.choice(std::string(key) + "-name", std::string(row) + " actuator", names, [a, name] { return a().*name; },
+                   [a, name](const std::string& n) { a().*name = n; });
+        add.number(std::string(key) + "-value", std::string(row) + " value", [a, value] { return a().*value; },
+                   [a, value](double v) { a().*value = v; });
         add.button(test, testLabel);
         add.end();
     }
-    add.flag("move-before-feed", "Move before feed", [f] { return f().flag("move-before-feed", false); },
-             [f](bool on) { f().setFlag("move-before-feed", on); });
+    add.flag("move-before-feed", "Move before feed", [a] { return a().moveBeforeFeed; }, [a](bool on) { a().moveBeforeFeed = on; });
     add.tip("Move nozzle to pick location before actuating feed actuator");
-    add.flag("recycle-support", "Recycle supported", [f] { return f().flag("recycle-support", false); },
-             [f](bool on) { f().setFlag("recycle-support", on); });
+    add.flag("recycle-support", "Recycle supported", [a] { return a().recycleSupport; }, [a](bool on) { a().recycleSupport = on; });
     add.tip("Support part recycle from part back to feeder");
 }
 

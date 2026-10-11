@@ -223,7 +223,11 @@ bool JPFeeder::canTakeBackPart() const {
     const std::string t = feedsAs();
     if (t == "ReferenceStripFeeder" || t == "ReferenceTrayFeeder" || t == "ReferenceRotatedTrayFeeder" || t == "BlindsFeeder")
         return feedCount() > 0;
-    if (t == "ReferenceAutoFeeder") return flag("recycle-support", false) && feedOptions() != FeedOptions::SkipNext;
+    if (t == "ReferenceAutoFeeder") {
+        // A slot's (not typed yet) by OpenPnP's name.
+        const JPAutoFeeder* a = as<JPAutoFeeder>();
+        return (a ? a->recycleSupport : flag("recycle-support", false)) && feedOptions() != FeedOptions::SkipNext;
+    }
     if (t == "ReferencePushPullFeeder" || t == "BambooFeederAutoVision") return feedOptions() != FeedOptions::SkipNext;
     if (t == "PhotonFeeder") return feedOptions() == FeedOptions::Normal;
     if (t == "ReferenceLoosePartFeeder" || t == "AdvancedLoosePartFeeder") return foundPick.has_value();

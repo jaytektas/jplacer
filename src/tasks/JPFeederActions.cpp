@@ -11,6 +11,7 @@
 #include "JPVisionTapeFeeder.h"
 
 #include "common/JPlacerLog.h"
+#include "model/JPAutoFeeder.h"
 #include "model/JPFeederTape.h"
 
 #include <j/core/Log.h>
@@ -165,11 +166,12 @@ bool JPFeederActions::run(JPConfiguration& config, const std::string& feederId, 
     if (kind == "ReferenceAutoFeeder") {
         std::string actuator;
         double value = 0;
-        const std::string key = action == "testFeed" ? "actuator" : "post-pick-actuator";
         main([&] {
             if (const JPFeeder* f = config.feeder(feederId)) {
-                actuator = f->text(key + "-name");
-                value = f->real(key + "-value", 0);
+                if (const JPAutoFeeder* a = f->as<JPAutoFeeder>()) {
+                    actuator = action == "testFeed" ? a->actuatorName : a->postPickActuatorName;
+                    value = action == "testFeed" ? a->actuatorValue : a->postPickActuatorValue;
+                }
             }
         });
         if (actuator.empty()) {

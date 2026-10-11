@@ -45,7 +45,7 @@ int main() {
     {
         JPFeeder autoFeeder = make("ReferenceAutoFeeder");
         assert(!autoFeeder.canTakeBackPart());
-        autoFeeder.setFlag("recycle-support", true);
+        autoFeeder.as<JPAutoFeeder>()->recycleSupport = true;
         assert(autoFeeder.canTakeBackPart());
         autoFeeder.partTakenBack();
         assert(autoFeeder.feedOptions() == JPFeeder::FeedOptions::SkipNext && !autoFeeder.canTakeBackPart());

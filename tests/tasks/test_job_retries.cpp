@@ -123,7 +123,7 @@ struct Bench {
             f.as<JPTrayFeeder>()->countX = parts;
             f.as<JPTrayFeeder>()->countY = 1;
         } else {
-            f.setText("actuator-name", id);
+            f.as<JPAutoFeeder>()->actuatorName = id;
         }
         machine.partCount[id] = parts;
         config.addFeeder(std::move(f));

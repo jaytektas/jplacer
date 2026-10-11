@@ -5,6 +5,7 @@
 
 #include "JPLength.h"
 #include "JPLocation.h"
+#include "JPAutoFeeder.h"
 #include "JPTrayFeeder.h"
 #include "JPTubeFeeder.h"
 
@@ -284,7 +285,7 @@ private:
     FeedOptions      m_feedOptions = FeedOptions::Normal;
     JPLocation       m_location { JPLengthUnit::Millimeters };
     // Its kind's own settings: OpenPnP's as they are (a kind not typed), else a typed kind's.
-    using Own = std::variant<JPXmlNode, JPTrayFeeder, JPTubeFeeder>;
+    using Own = std::variant<JPXmlNode, JPTrayFeeder, JPTubeFeeder, JPAutoFeeder>;
     Own m_own { JPXmlNode("feeder") };
     std::vector<int> m_visionChecks;
     bool             m_actuate = false;

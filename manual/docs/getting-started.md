@@ -45,12 +45,13 @@ jplacer keeps what it knows in its configuration folder, `~/.config/jplacer` (or
 
 Each is written whole or not at all: the new file takes the old one's place only once it is complete, so a
 crash or a full disk while saving leaves the old one as it was. The JSON files can be read in any text
-editor. Each feeder has its name, part, retries, priority, feed option and pick location by name; a tray
-feeder's own settings too (`"tray": {"countX": 4, "countY": 3, …}`). The other kinds' own settings, and
-the vision settings, are written in OpenPnP's shape: an attribute of OpenPnP's is a value (`"x": 10.25`,
-`"enabled": true`), what OpenPnP nests is an object, and what it repeats is a list.
+editor. Each feeder has its name, part, retries, priority, feed option and pick location by name, and the
+settings its kind adds under the kind's name (a tray's `"tray": {"countX": 4, "countY": 3, …}`, an auto
+feeder's `"auto": {"actuator": …}`). A kind jplacer has no model of its own for yet keeps its settings
+under `"openpnp"`, in OpenPnP's shape, as the vision settings are: an attribute of OpenPnP's is a value
+(`"x": 10.25`, `"enabled": true`), what OpenPnP nests is an object, and what it repeats is a list.
 
-<!-- src: src/common/JPWholeFile.h; src/model/JPFeeder.h (toJson); src/model/JPTrayFeeder.h (toJson); src/openpnp/JPXmlJson.h -->
+<!-- src: src/common/JPWholeFile.h; src/model/JPFeeder.h (toJson, Own); src/model/JPTrayFeeder.h (kKey); src/model/JPAutoFeeder.h (kKey); src/openpnp/JPXmlJson.h -->
 
 ## Starting it from a terminal
 

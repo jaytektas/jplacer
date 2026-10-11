@@ -189,5 +189,18 @@ int main() {
         const JPFeeder back = JPFeeder::fromJson(JJson::parse(j.dump()));
         assert(back.as<JPTubeFeeder>() && back.pickLocation() && back.pickLocation()->x() == 1);
     }
+    // An auto feeder: its actuators, values and options its own, from OpenPnP's and through jplacer's file.
+    {
+        const JPFeeder a = parse(R"(<feeder class="org.openpnp.machine.reference.feeder.ReferenceAutoFeeder" version="1.1" id="A" name="A" enabled="true" part-id="R1" actuator-name="FEED" actuator-value="2.5" post-pick-actuator-name="DONE" post-pick-actuator-value="1.0" move-before-feed="true" recycle-support="true">
+   <location units="Millimeters" x="3.0" y="4.0" z="0.0" rotation="0.0"/>
+</feeder>)");
+        const JPAutoFeeder* own = a.as<JPAutoFeeder>();
+        assert(own && own->actuatorName == "FEED" && own->actuatorValue == 2.5 && own->postPickActuatorName == "DONE");
+        assert(own->postPickActuatorValue == 1 && own->moveBeforeFeed && own->recycleSupport && a.canTakeBackPart());
+        const JPFeeder back = JPFeeder::fromJson(JJson::parse(a.toJson().dump()));
+        const JPAutoFeeder* b = back.as<JPAutoFeeder>();
+        assert(b && b->actuatorName == "FEED" && b->actuatorValue == 2.5 && b->postPickActuatorName == "DONE" && b->moveBeforeFeed);
+        assert(back.pickLocation() && back.pickLocation()->y() == 4);
+    }
     return 0;
 }
