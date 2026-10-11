@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- The Jog panel's Z park on a camera takes its Z back up to safe Z; it did nothing for a camera's virtual Z.
+
 ## 0.1.48
 
 - A camera looking up draws its reticle and the footprint at the height of what a nozzle over it holds (the

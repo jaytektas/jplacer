@@ -836,6 +836,12 @@ void JPCell::parkZ(const JPMountConfig& mount, double speed) {
 bool JPCell::doParkZ(const JPMountConfig& mount, double speed, std::string& why) {
     const JPAxisConfig* z = m_config.axis(mount.axisZ);
     if (z && z->transformed()) z = m_config.axis(z->inputAxisId);
+    // A virtual Z (a camera's): up to its safe Z, its home coordinate (as unsafe Z roaming takes it).
+    if (z && z->kind == JPAxisConfig::Kind::Virtual) {
+        const auto now = jogBase();
+        if (now.count(z->id) && now.at(z->id) == z->homeCoordinate) return true;
+        return doMove({ { z->id, z->homeCoordinate } }, speed, why);
+    }
     if (!z || z->kind != JPAxisConfig::Kind::Controller || !z->safeZoneLowEnabled) return true;
     // Its effective safe Z: the part it carries lifted clear (Dynamic Safe Z), within the zone.
     double target = z->safeZoneLow + dynamicLift(mount);

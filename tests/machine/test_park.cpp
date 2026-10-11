@@ -204,6 +204,11 @@ int main() {
         assert(motion.take().first && near(cell.jogBase().at("ZC"), 0) && near(cell.jogBase().at("X"), 211));
         cell.jog("N", 11, 0, 0, 0, 1.0);
         assert(motion.take().first && near(cell.jogBase().at("ZN"), -5) && near(cell.jogBase().at("X"), 222));
+        // Park Z on the camera: its virtual Z up to its safe Z (its home), where it was left low.
+        assert(cell.moveAxesAndWait({ { "ZC", -7 } }, 1.0, why));
+        motion.take();
+        cell.parkZ(config.cameras[0].mount, 1.0);
+        assert(motion.take().first && near(cell.jogBase().at("ZC"), 0));
         cell.disconnect();
     }
     {

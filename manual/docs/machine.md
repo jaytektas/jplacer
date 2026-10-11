@@ -349,7 +349,8 @@ the camera on the head, and anything else on the head that moves on axes.
 
 - **X/Y**: the arrows move the tool by the distance; the park sign in the middle parks the head.
 - **Z**: up and down by the distance; the park sign between takes the tool's Z to its safe Z (the low end
-  of its Z axis's safe zone), and first every Z on the head into its safe zone, unless the machine's
+  of its Z axis's safe zone; a camera's virtual Z, its home coordinate, as when it is left below it and
+  jogged away), and first every Z on the head into its safe zone, unless the machine's
   **Park all at Safe Z?** is unticked in [Machine Setup](machine-setup.md#settings).
 - **C**: turns the tool either way by the distance (in degrees); the park sign between turns it to 0.
 - Beside Z: put the nozzle where the camera is looking, and put the camera over the nozzle (the nozzle
