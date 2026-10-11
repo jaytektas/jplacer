@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.45
+
 - Fixed: on a nozzle tip's Tool Changer tab, a step's Move Nozzle and Capture took the step's coordinates
   one place along (its X as Y, its Y as Z), because the row starts with Kind. Move Nozzle sent the nozzle to
   the wrong place, and a Z out of range was refused by the soft limits; Capture would have written into the
