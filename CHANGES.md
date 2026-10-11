@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.54
+
 - The Parts table has more columns to show with **Columns** (hidden until chosen): **Packaging**,
   **Suppliers**, **Manufacturer**, **Stock** and **Datasheet**. A part with several shows how many and the
   first ("(2) Cut tape 8/4"); point at the cell for all of them. Search finds a part by any of them (a
