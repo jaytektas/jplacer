@@ -62,6 +62,10 @@ public:
     void populateRenderPrimitives(JPrimitiveBuffer& buf) override;
 
     std::function<void(const std::string& property)> onChanged;
+    // A searched choice's search made whole as its control is made: given the table it drops (Form::searchTables)
+    // and its entries (with a value not in its list), the page puts its table in (JComboBox::Search::table).
+    std::function<void(const std::string& table, const std::vector<std::string>& entries, JComboBox::Search& search)>
+        completeSearch;
     // A button of an Actions row: its action's name.
     std::function<void(const std::string& action)> onAction;
     // A place row's (or an axis row's) take-it-from-the-machine and go-there buttons.

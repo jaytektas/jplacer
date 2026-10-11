@@ -14,10 +14,11 @@ notes.
   toolbars: tick the columns to show, untick those to hide. Each table keeps its own choice, with its column
   order, widths and sort.
 
-- A feeder's **Part** opens a table of the library's parts to choose from: ID, value, package, height, MPN,
-  the open boards using it, the feeders holding it and its description. The box becomes a filter line (its
-  **✕** empties it), with the Parts tab's **Show** beside it (All, Used by open boards, each open board).
-  The Parts tab's **Package**, a feeder bank slot's part and a panel fiducial's **Part** choose the same way.
+- A feeder's **Part** drops the Parts tab's own table to choose from, every column of it: sort, move and
+  widen its columns there, and choose them with its **Columns** icon; it keeps its layout apart from the
+  Parts tab's. The box becomes a filter line (its **✕** empties it), with the Parts tab's **Show** beside it
+  (All, Used by open boards, each open board). The Parts tab's **Package** (the Packages tab's table), a
+  feeder bank slot's part and a panel fiducial's **Part** choose the same way.
 - Tables no longer draw a row scrolled part way up over their column titles.
 
 - jplacer opens on the tabs you left in front. With a panel closed (Job, Panels), it always opened on the

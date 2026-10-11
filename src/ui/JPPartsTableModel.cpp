@@ -5,6 +5,7 @@
 
 #include "JPSourceColumn.h"
 
+#include "JPChooserTable.h"
 #include "JPLengthCell.h"
 
 #include "setup/JPLibrarySearch.h"
@@ -181,7 +182,11 @@ std::vector<const JPVisionSettings*> JPPartsTableModel::visionChoices(JPVisionSe
 
 std::optional<JComboBox::Search> JPPartsTableModel::choiceSearch(int row, int c) const {
     // Its packages as the library's are wherever one is chosen (JPLibrarySearch).
-    if (c == kPackage) return JPLibrarySearch::packages(m_config, choices(row, c));
+    if (c == kPackage) {
+        JComboBox::Search s = JPLibrarySearch::packages(m_config, choices(row, c));
+        s.table = JPChooserTable::packages(m_config, choices(row, c));
+        return s;
+    }
     return std::nullopt;
 }
 

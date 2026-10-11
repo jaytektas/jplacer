@@ -6,6 +6,7 @@
 #include "common/JPWhen.h"
 #include "model/JPLibraryLearning.h"
 
+#include "JPChooserTable.h"
 #include "JPLengthCell.h"
 
 #include "model/JPDefinitionChanges.h"
@@ -284,7 +285,11 @@ std::vector<const JPPart*> JPPlacementsTableModel::partChoices() const {
 
 std::optional<JComboBox::Search> JPPlacementsTableModel::choiceSearch(int row, int c) const {
     // Its parts as the library's are wherever one is chosen (JPLibrarySearch).
-    if (m_shown[size_t(c)] == kPart) return JPLibrarySearch::parts(m_config, choices(row, c));
+    if (m_shown[size_t(c)] == kPart) {
+        JComboBox::Search s = JPLibrarySearch::parts(m_config, choices(row, c));
+        s.table = JPChooserTable::parts(m_config, choices(row, c));
+        return s;
+    }
     return std::nullopt;
 }
 

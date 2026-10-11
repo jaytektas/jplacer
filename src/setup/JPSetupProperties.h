@@ -151,6 +151,9 @@ public:
         std::vector<std::string> disabled;
         // Choices searched as they are chosen (JPFormBuilder::searchable), by property: the search each has.
         std::map<std::string, JComboBox::Search> searches;
+        // …and whose table it drops, by property (JPLibrarySearch::kPartsTable, kPackagesTable), where the page
+        // gives one (JPSetupForm::completeSearch).
+        std::map<std::string, std::string> searchTables;
     };
 
     // The form for the node at `path` (JPSetupTree); an empty model for a

@@ -277,9 +277,11 @@ public:
         p.set = [set](const JVariant& v) { set(v.toString()); return true; };
         put(std::move(p));
     }
-    // The choice just added searched as it is chosen: a search line over its list, `search` saying how.
-    void searchable(JComboBox::Search search) {
+    // The choice just added searched as it is chosen, `search` saying how; `table` the table it drops
+    // (Form::searchTables), none the plain one.
+    void searchable(JComboBox::Search search, const std::string& table = "") {
         const std::string name = rows().back().cells.back().property;
+        if (!table.empty()) m_form.searchTables[name] = table;
         if (const JProperty* p = m_form.model.find(name)) {
             JProperty q = *p;
             q.meta.editor = "search-choice";

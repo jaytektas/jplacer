@@ -75,9 +75,10 @@ box is already in it. To its right is **Show**, the Parts tab's coarse filter: *
 boards**, and each open board by name. It starts on **Used by open boards** when the job uses any part and
 that includes the feeder's part; otherwise it starts on **All**.
 
-The table has each part's **ID**, **Value**, **Package**, **Height**, **MPN**, the open boards that use it
-(**Used By**), how many **Feeders** hold it, and its **Description**. A column is as wide as its widest
-entry, up to three quarters of the box's width; the table scrolls across for the rest.
+The table is the Parts tab's own (see [Parts](parts.md#the-table)), every column of it, sorted, moved and
+widened there as on the tab, but it only chooses: a click on a row takes that part. **Columns** at the very
+right of the filter's row chooses which columns it shows. It keeps its layout (its columns, their order,
+widths and sort) as a table of its own, the same for every feeder and apart from the Parts tab's.
 
 The filter keeps the parts that have every word you type, in any case, and each word must start a word in
 the part. That can be in its ID, name, value, package, the package's description, its MPN or supplier's
@@ -97,7 +98,7 @@ part, and **Escape** or a click outside leaves the part as it was. The table fol
 closing a job, or a board, makes the page again with its boards. The same table chooses a feeder bank
 slot's part.
 
-<!-- src: src/setup/JPLibrarySearch.cpp (parts, scopes); src/model/JPPartMatcher.cpp (searchRank, holdsWord, kKinds); src/setup/JPFeederForms.cpp (general, searchable); src/ui/JPSetupForm.cpp (search-choice); src/ui/JPFeedersPanel.cpp (refresh); src/setup/JPFormBuilder.h (searchable) -->
+<!-- src: src/setup/JPLibrarySearch.cpp (parts, scopes); src/ui/JPChooserTable.cpp; src/model/JPPartMatcher.cpp (searchRank, holdsWord, kKinds); src/setup/JPFeederForms.cpp (general, searchable); src/ui/JPSetupForm.cpp (search-choice, completeSearch); src/ui/JPFeedersPanel.cpp (refresh, completeSearch); src/ui/JPMachineSetupPanel.cpp (completeSearch); src/setup/JPFormBuilder.h (searchable) -->
 
 Beside it, **Stock** says which of the part's stock lots is on the feeder (see [Parts](parts.md#the-parts-tabs)):
 **Lot** offers **None** and the part's open lots (each with what it holds and where it is kept); choosing

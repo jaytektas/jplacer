@@ -3,6 +3,7 @@
 
 #include "JPFeedersPanel.h"
 
+#include "JPChooserTable.h"
 #include "JPUiParts.h"
 
 #include "camera/JPImageFile.h"
@@ -107,6 +108,10 @@ JPFeedersPanel::JPFeedersPanel(JSceneGraph& graph, JPConfiguration& config, doub
     m_form->setOpenPnpPlaceButtons(true);
     m_form->setVSizePolicy(JSizePolicyMode::Expanding, 1);
     m_form->onChanged = [this](const std::string& property) { edited(property); };
+    // A Part drops the Parts tab's table (its own layout: JPChooserTable).
+    m_form->completeSearch = [this](const std::string& table, const std::vector<std::string>& entries, JComboBox::Search& search) {
+        if (table == JPLibrarySearch::kPartsTable) search.table = JPChooserTable::parts(m_config, entries);
+    };
     m_form->onAction = [this](const std::string& action) { act(action); };
     m_form->onCapture = [this](const JPSetupProperties::Row& row, Tool t) { capture(row, t); };
     m_form->onMoveTo = [this](const JPSetupProperties::Row& row, Tool t) { goTo(row, t); };

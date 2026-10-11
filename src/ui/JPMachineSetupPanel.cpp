@@ -3,10 +3,12 @@
 
 #include "JPMachineSetupPanel.h"
 
+#include "JPChooserTable.h"
 #include "JPIcons.h"
 #include "JPUiParts.h"
 
 #include "common/JPlacerLog.h"
+#include "setup/JPLibrarySearch.h"
 #include "setup/JPSetupEdits.h"
 #include "setup/JPSetupProperties.h"
 #include "setup/JPSetupTree.h"
@@ -139,6 +141,10 @@ JPMachineSetupPanel::JPMachineSetupPanel(JSceneGraph& graph, JPCellConfig cell, 
     m_form = m_formPane->add(std::make_unique<JPSetupForm>(graph));
     m_form->setVSizePolicy(JSizePolicyMode::Expanding, 1);
     m_form->onChanged = [this](const std::string& property) { changed(property); };
+    // A feeder's Part (its page here, as on the Feeders tab) drops the Parts tab's table.
+    m_form->completeSearch = [this](const std::string& table, const std::vector<std::string>& entries, JComboBox::Search& search) {
+        if (table == JPLibrarySearch::kPartsTable && m_config) search.table = JPChooserTable::parts(*m_config, entries);
+    };
     m_form->onAction = [this](const std::string& action) {
         // A feeder's page: the Feeders tab works its buttons.
         if (const std::string feeder = shownFeeder(); !feeder.empty()) {

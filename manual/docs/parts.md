@@ -65,13 +65,12 @@ with units (`0.5mm`, `20mil`); without, the part's own units are taken. Package 
 open their list on a click: a drop-down under the cell, as wide as its longest name, twelve at a time and
 scrolled for the rest, the one chosen now marked. Each change is saved at once.
 
-**Package** opens a table of the library's packages instead, filtered and shown as a feeder's part is (see
-[Choosing a part](feeders.md#choosing-a-part)): a filter line where the cell was, **Show** to its right, and
-each package's **ID**, **Description** and the open boards that use it (**Used By**). Each word you type must
-start a word in the package's ID or description, and `cap`, `res`, `ind`, `led` and `fid` find packages by
-how their IDs start.
+**Package** opens the Packages tab's table instead, filtered and chosen from as a feeder's part is (see
+[Choosing a part](feeders.md#choosing-a-part)): a filter line where the cell was, **Show** and **Columns** to its
+right. Each word you type must start a word in the package's ID or description, and `cap`, `res`, `ind`,
+`led` and `fid` find packages by how their IDs start. It keeps its layout as a table of its own.
 
-<!-- src: src/ui/JPPartsTableModel.cpp (choiceSearch); src/setup/JPLibrarySearch.cpp (packages); src/model/JPPartMatcher.cpp (packageSearchRank); src/ui/JPTable.cpp (openChoices) -->
+<!-- src: src/ui/JPPartsTableModel.cpp (choiceSearch); src/ui/JPChooserTable.cpp; src/setup/JPLibrarySearch.cpp (packages); src/model/JPPartMatcher.cpp (packageSearchRank); src/ui/JPTable.cpp (openChoices) -->
 
 Click a column's heading to sort by it; click it again to turn it round. Clicking another heading sorts by
 that first and by the earlier ones after it (up to three); the later ones' arrows are fainter. Choose
@@ -92,7 +91,7 @@ table shows. It opens a list of every column with a tick for each one shown: cli
 it again in its place, at the width it had. The last column showing cannot be hidden. **Reset Columns** at
 the bottom shows them all again, as they first were. Which columns are shown is kept with the rest of the
 table's layout, each table its own. Every table on the **Job**, **Boards**, **Panels**, **Parts** and
-**Packages** tabs has it, the footprint's pads too.
+**Packages** tabs has it, the footprint's pads too, and so does the table a feeder's **Part** drops.
 
 <!-- src: src/ui/JPUiParts.cpp (columnsButton); src/ui/JPTable.cpp (columnsMenu, setColumnShown, columnsShown, allColumns, applyState, keepState, materialiseWidths); src/ui/JPPartsPanel.cpp; src/ui/JPPackagesPanel.cpp; src/ui/JPJobPanel.cpp; src/ui/JPJobPlacementsPanel.cpp; src/ui/JPPlacementsHoldersGroup.cpp; src/ui/JPBoardPlacementsPanel.cpp; src/ui/JPPanelDefinitionPanel.cpp -->
 
