@@ -11,7 +11,10 @@ notes.
 ## Unreleased
 
 - **Help ▸ About jplacer** shows the Jaytek logo above jplacer's version, copyright, licence and link, as
-  jayecu Studio's About box does.
+  jayecu Studio's About box does, and credits OpenPnP, whose icons, translations, defaults and illustrations
+  jplacer carries.
+- The AppImage now carries jplacer's licence, a notice of what comes from OpenPnP and elsewhere, and the
+  licences of OpenCV and nanosvg, which are built in.
 
 ## 0.1.53
 

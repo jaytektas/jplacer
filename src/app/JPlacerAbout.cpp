@@ -58,7 +58,11 @@ void JPlacerAbout::show() {
                "\n"
                "https://github.com/jaytektas/jplacer\n"
                "\n"
-               "Built on JFramework.";
+               "Follows OpenPnP (https://openpnp.org) and carries its icons, translations, defaults and illustrations, "
+               "Copyright (C) Jason von Nieda and the OpenPnP contributors, GPL-3.0-or-later. jplacer is a separate "
+               "project, not made or endorsed by OpenPnP.\n"
+               "\n"
+               "Built on JFramework, with OpenCV (Apache-2.0) and nanosvg (zlib). NOTICE.md says what comes from where.";
     JDialogManager::instance().push(std::move(req));
 }
 

@@ -19,3 +19,10 @@ to beta versions.
 ## License
 
 GPL-3.0-or-later. See [LICENSE](LICENSE).
+
+## Credits
+
+jplacer follows [OpenPnP](https://openpnp.org) and carries some of it (its icons, translations, default
+configuration, illustrations and BlindsFeeder models), under OpenPnP's GPL-3.0-or-later: Copyright (C) Jason von
+Nieda and the OpenPnP contributors. jplacer is a separate project, not made or endorsed by OpenPnP.
+[NOTICE.md](NOTICE.md) says what comes from where, and the licences of what is built in.

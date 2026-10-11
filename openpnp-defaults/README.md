@@ -1,6 +1,6 @@
 # OpenPnP's defaults
 
-What OpenPnP starts with (GPL-3.0, from https://github.com/openpnp/openpnp), used as OpenPnP uses them:
+What OpenPnP starts with (GPL-3.0-or-later, Copyright (C) Jason von Nieda and the OpenPnP contributors, from https://github.com/openpnp/openpnp), used as OpenPnP uses them:
 
 - `config/`: OpenPnP's `src/main/resources/config` (packages, parts, vision settings and its simulated
   machine). A configuration file that is not there yet is read from here (and then saved), and jplacer

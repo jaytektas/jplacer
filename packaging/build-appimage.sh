@@ -60,6 +60,11 @@ cp -r "$ROOT/icons" "$APPDIR/usr/bin/icons"
 cp -r "$ROOT/illustrations" "$APPDIR/usr/bin/illustrations"
 # And its BlindsFeeder OpenSCAD models: a blinds feeder's Extract 3D-Printing Files reads usr/bin/openscad.
 cp -r "$ROOT/openscad" "$APPDIR/usr/bin/openscad"
+# Its licence, its notices (OpenPnP's part in it, what is built in) and the licences of what is built in: a copy
+# of the GPL goes with every copy, and the others' with theirs.
+mkdir -p "$APPDIR/usr/share/doc/jplacer"
+cp "$ROOT/LICENSE" "$ROOT/NOTICE.md" "$APPDIR/usr/share/doc/jplacer/"
+cp -r "$ROOT/licenses" "$APPDIR/usr/share/doc/jplacer/licenses"
 
 # The icon twice: the PNG is what the AppImage itself shows, and both are what jplacer copies into the
 # icon theme when it adds itself to the applications menu (src/app/JPlacerLauncher.cpp).

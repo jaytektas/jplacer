@@ -214,7 +214,7 @@ As OpenPnP's:
 
 | Entry | |
 |---|---|
-| **About jplacer** | The Jaytek logo, then jplacer's version, copyright and licence, its home on GitHub, and what it is built on. |
+| **About jplacer** | The Jaytek logo, then jplacer's version, copyright and licence, its home on GitHub, OpenPnP's part in it (jplacer follows OpenPnP and carries its icons, translations, defaults and illustrations, under OpenPnP's GPL), and what it is built on. The AppImage carries the licences and a notice of what comes from where in `usr/share/doc/jplacer`. |
 | **Quick Start** | Opens [Getting started](getting-started.md) in your web browser. |
 | **Setup and Calibration** | Opens [Machine Setup](machine-setup.md) in your web browser. |
 | **User Manual** | Opens this manual in your web browser. |
