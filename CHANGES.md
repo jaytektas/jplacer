@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.51
+
 - Changing many placements or boards at once (Set Enabled, Set Type, Set Side, Set Error Handling, Set
   Placed, a panel's fiducials' side) no longer freezes jplacer: the change is saved and shown once, not once
   for every placement chosen.
