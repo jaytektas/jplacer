@@ -444,8 +444,14 @@ std::unique_ptr<JWidget> JPSetupForm::editor(const JProperty& p, float width) {
         const std::string now = p.get().toString();
         if (std::find(items.begin(), items.end(), now) == items.end()) {
             items.push_back(now);
-            search.details.resize(items.size() - 1);
-            search.details.push_back("not in the list");
+            // Its row says so, in the column after its name.
+            if (!search.columns.empty()) {
+                search.cells.resize(items.size() - 1);
+                std::vector<std::string> row(search.columns.size());
+                row[0] = now;
+                if (row.size() > 1) row[1] = "not in the list";
+                search.cells.push_back(std::move(row));
+            }
         }
         auto combo = std::make_unique<JComboBox>(m_graph, items);
         JComboBox* c = combo.get();

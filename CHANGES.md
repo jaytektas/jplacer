@@ -10,6 +10,12 @@ notes.
 
 ## Unreleased
 
+- A feeder's **Part** opens a table of the library's parts to choose from: ID, value, package, height, MPN,
+  the open boards using it, the feeders holding it and its description. The box becomes a filter line (its
+  **✕** empties it), with the Parts tab's **Show** beside it (All, Used by open boards, each open board).
+  The Parts tab's **Package**, a feeder bank slot's part and a panel fiducial's **Part** choose the same way.
+- Tables no longer draw a row scrolled part way up over their column titles.
+
 - jplacer opens on the tabs you left in front. With a panel closed (Job, Panels), it always opened on the
   Console tab.
 

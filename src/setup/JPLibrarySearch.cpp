@@ -4,9 +4,11 @@
 #include "JPLibrarySearch.h"
 
 #include "model/JPCatalog.h"
+#include "model/JPLengthUnits.h"
 #include "model/JPPartMatcher.h"
 
 #include <algorithm>
+#include <cstdio>
 #include <map>
 #include <memory>
 #include <set>
@@ -15,17 +17,14 @@ inline namespace jf {
 
 namespace {
 
-// Words joined as a search's detail shows them.
-void put(std::string& detail, const std::string& t) {
-    if (!t.empty()) detail += (detail.empty() ? "" : "  ·  ") + t;
-}
-
-// A search's scopes over `ids`, each entry used by the boards `boards` names: All, In the Job, each open board.
-// An entry past `ids` (the value a choice has now, not in its list) and none ("") are in every scope.
+// A search's coarse filter, as the Parts and Packages tabs' Show: All, Used by open boards, each open
+// board, over `ids`, each entry used by the boards `boards` names; Used by open boards first when the job
+// uses any. An entry past `ids` (the value a choice has now, not in its list) and none ("") are in every one.
 void scopes(JComboBox::Search& s, const JPConfiguration& config, const std::vector<std::string>& ids,
             std::vector<std::vector<std::string>> boards) {
     const bool anyInJob = std::any_of(boards.begin(), boards.end(), [](const auto& b) { return !b.empty(); });
-    s.scopes = { JPLibrarySearch::kAll, JPLibrarySearch::kInTheJob };
+    s.scopesLabel = "Show";
+    s.scopes = { JPLibrarySearch::kShowAll, JPLibrarySearch::kShowUsed };
     for (const auto& b : config.boards()) s.scopes.push_back(b->scopeName());
     s.scope = anyInJob ? 1 : 0;
     s.inScope = [boards = std::move(boards), ids, names = s.scopes](int scope, int i) {
@@ -62,22 +61,33 @@ bool nothingTyped(const std::string& typed) { return typed.find_first_not_of(" \
 
 JComboBox::Search JPLibrarySearch::parts(const JPConfiguration& config, const std::vector<std::string>& ids) {
     std::vector<std::vector<std::string>> boards = boardsOf(JPCatalog::parts(config), ids);
-    std::set<std::string> fed;
+    std::map<std::string, int> feeders;
     for (const JPFeeder& f : config.feeders())
-        if (!f.partId().empty()) fed.insert(f.partId());
+        if (!f.partId().empty()) ++feeders[f.partId()];
 
     JComboBox::Search s;
-    s.placeholder = "Search: id, value, package, MPN (\"lq\", \"0603 100n\", \"cap\")";
+    s.placeholder = "Filter: id, value, package, MPN (\"lq\", \"0603 100n\", \"cap\")";
+    // The long description last, so it does not push the others out of sight.
+    s.columns = { "ID", "Value", "Package", "Height", "MPN", "Used By", "Feeders", "Description" };
     auto held = std::make_shared<std::vector<bool>>();
     for (size_t i = 0; i < ids.size(); ++i) {
-        std::string detail;
-        if (const JPPart* p = ids[i].empty() ? nullptr : config.part(ids[i])) {
-            put(detail, p->value);
-            put(detail, p->packageId);
+        const JPPart* p = ids[i].empty() ? nullptr : config.part(ids[i]);
+        const auto fed = feeders.find(ids[i]);
+        const int holding = fed == feeders.end() ? 0 : fed->second;
+        if (!p) {
+            s.cells.push_back({ ids[i].empty() ? "(none)" : ids[i], "", "", "", "", joined(boards[i]), "", "" });
+        } else {
+            std::string height;
+            if (!p->isPartHeightUnknown()) {
+                char buf[32];
+                std::snprintf(buf, sizeof buf, "%.2f %s", p->height.value(), JPLengthUnits::shortName(p->height.units()));
+                height = buf;
+            }
+            s.cells.push_back({ p->id, p->value, p->packageId, height,
+                                p->identifiers.empty() ? std::string() : p->identifiers.front().code, joined(boards[i]),
+                                holding ? std::to_string(holding) : std::string(), p->name.value_or("") });
         }
-        put(detail, joined(boards[i]));
-        s.details.push_back(ids[i].empty() ? "none" : detail);
-        held->push_back(fed.count(ids[i]) > 0);
+        held->push_back(holding > 0);
     }
     scopes(s, config, ids, std::move(boards));
     s.rank = [&config, ids, held](int i, const std::string& typed) {
@@ -93,12 +103,12 @@ JComboBox::Search JPLibrarySearch::parts(const JPConfiguration& config, const st
 JComboBox::Search JPLibrarySearch::packages(const JPConfiguration& config, const std::vector<std::string>& ids) {
     std::vector<std::vector<std::string>> boards = boardsOf(JPCatalog::packages(config), ids);
     JComboBox::Search s;
-    s.placeholder = "Search: id, description (\"0603\", \"qfp\", \"cap\")";
+    s.placeholder = "Filter: id, description (\"0603\", \"qfp\", \"cap\")";
+    s.columns = { "ID", "Description", "Used By" };
     for (size_t i = 0; i < ids.size(); ++i) {
-        std::string detail;
-        if (const JPPackage* k = ids[i].empty() ? nullptr : config.package(ids[i])) put(detail, k->description.value_or(""));
-        put(detail, joined(boards[i]));
-        s.details.push_back(ids[i].empty() ? "none" : detail);
+        const JPPackage* k = ids[i].empty() ? nullptr : config.package(ids[i]);
+        s.cells.push_back({ ids[i].empty() ? "(none)" : ids[i], k ? k->description.value_or("") : std::string(),
+                            joined(boards[i]) });
     }
     scopes(s, config, ids, std::move(boards));
     s.rank = [&config, ids](int i, const std::string& typed) {

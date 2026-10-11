@@ -65,10 +65,11 @@ with units (`0.5mm`, `20mil`); without, the part's own units are taken. Package 
 open their list on a click: a drop-down under the cell, as wide as its longest name, twelve at a time and
 scrolled for the rest, the one chosen now marked. Each change is saved at once.
 
-**Package**'s list is searched as a feeder's part is (see [Choosing a part](feeders.md#choosing-a-part)).
-Beside each package are its description and the open boards that use it, and it has the same **All**, **In
-the Job** and board scopes. Each word you type must start a word in the package's ID or description, and
-`cap`, `res`, `ind`, `led` and `fid` find packages by how their IDs start.
+**Package** opens a table of the library's packages instead, filtered and shown as a feeder's part is (see
+[Choosing a part](feeders.md#choosing-a-part)): a filter line where the cell was, **Show** to its right, and
+each package's **ID**, **Description** and the open boards that use it (**Used By**). Each word you type must
+start a word in the package's ID or description, and `cap`, `res`, `ind`, `led` and `fid` find packages by
+how their IDs start.
 
 <!-- src: src/ui/JPPartsTableModel.cpp (choiceSearch); src/setup/JPLibrarySearch.cpp (packages); src/model/JPPartMatcher.cpp (packageSearchRank); src/ui/JPTable.cpp (openChoices) -->
 

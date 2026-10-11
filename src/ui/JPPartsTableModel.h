@@ -7,6 +7,7 @@
 
 #include "model/JPCatalog.h"
 #include "model/JPConfiguration.h"
+#include "setup/JPLibrarySearch.h"
 
 #include <functional>
 #include <string>
@@ -42,8 +43,8 @@ public:
     // The library's rows read again, with the open boards that use each (the Source column, Show).
     void reload();
     // Which rows are shown (Show beside Search): all, those an open board uses, or one board's (by its name).
-    static constexpr const char* kShowAll = "All";
-    static constexpr const char* kShowUsed = "Used by open boards";
+    static constexpr const char* kShowAll = JPLibrarySearch::kShowAll;
+    static constexpr const char* kShowUsed = JPLibrarySearch::kShowUsed;
     void setShow(const std::string& show) { m_show = show; }
     bool rowShown(int row) const override;
     // What Show offers now: All, Used by open boards, then each open board.

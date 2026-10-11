@@ -13,16 +13,18 @@
 inline namespace jf {
 
 // How a choice of the library's parts or packages is searched as it is made
-// (JComboBox::Search): beside each its value and package (a part's) or its
-// description (a package's), and the open boards that use it; All, In the
-// Job (what the open boards use) and each open board to look in, In the Job
-// first when the job uses any; found as JPPartMatcher::searchRank and
-// packageSearchRank find. Of parts equally good, one no feeder holds yet
-// comes before one a feeder does.
+// (JComboBox::Search): a table of them (a part's ID, value, package,
+// height, MPN, the open boards using it, the feeders holding it and its
+// description; a package's ID, description and boards), the Parts and Packages tabs'
+// Show beside the filter (All, Used by open boards, each open board; Used by
+// open boards first when the job uses any), found as
+// JPPartMatcher::searchRank and packageSearchRank find. Of parts equally
+// good, one no feeder holds yet comes before one a feeder does.
 class JPLibrarySearch {
 public:
-    static constexpr const char* kAll = "All";
-    static constexpr const char* kInTheJob = "In the Job";
+    // Show's first two choices (the Parts and Packages tabs' too).
+    static constexpr const char* kShowAll = "All";
+    static constexpr const char* kShowUsed = "Used by open boards";
 
     // `ids`: the choice's entries in order, "" for none.
     static JComboBox::Search parts(const JPConfiguration& config, const std::vector<std::string>& ids);
