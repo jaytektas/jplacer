@@ -115,7 +115,8 @@ another manufacturer is offered but never taken unasked, and says so.
 **Loose**); for tape, its width (**Tape [mm]**: 8 to 56), the **Pitch [mm]** between pockets and whether
 it is **Paper** or **Embossed**; the part's **Rotation [°]** as it sits in the packaging (pin 1 against the
 tape's sprocket holes at 0), set once here; **Quantity**, how many a reel, tray or tube holds; a **Note**.
-Choosing another kind shows or hides the tape's columns.
+Choosing another kind shows or hides the tape's columns. A feeder the part is loaded on takes its rotation,
+tape width and pitch from one of these (see [The part's packaging](feeders.md#the-parts-packaging)).
 
 **Offers**: where it is bought, a row each: **Supplier**, **SKU** (their part number), **Packaging**,
 **MOQ** (the least they sell), **Price breaks** (`1: 0.0100, 100: 0.0050`), **Last price** and **Link**.

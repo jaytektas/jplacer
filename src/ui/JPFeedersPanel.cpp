@@ -12,6 +12,7 @@
 #include "setup/JPFormBuilder.h"
 #include "setup/JPLibrarySearch.h"
 #include "model/JPBlindsFeeders.h"
+#include "model/JPFeederPackaging.h"
 #include "model/JPPushPullTemplates.h"
 
 #include <j/core/Dialog.h>
@@ -252,8 +253,12 @@ void JPFeedersPanel::rebuild() {
 void JPFeedersPanel::refresh() {
     m_table->refresh();
     selectionChanged();
-    // A part's search lists the open boards and the parts they use: made again when they change.
+    // A part's search lists the open boards and the parts they use, and its Packaging the part's packagings:
+    // made again when they change.
     std::string sources = JPLibrarySearch::sources(m_config);
+    if (const JPFeeder* f = m_config.feeder(m_shown))
+        if (const JPPart* part = m_config.part(f->partId()))
+            for (const std::string& l : JPFeederPackaging::labels(*part)) sources += "|" + l;
     if (sources != std::exchange(m_partSources, sources)) rebuildForm();
 }
 
@@ -727,7 +732,10 @@ void JPFeedersPanel::newFeeder(const std::string& partId) {
                 [this, partId](std::string className) {
                     if (className.empty()) return;
                     const std::string part = partId.empty() ? m_config.parts().front()->id : partId;
-                    const std::string id = m_config.addFeeder(JPFeeder::create(className, part)).id();
+                    // Loaded with its part as a part chosen on its page is: its packaging's values taken.
+                    JPFeeder made = JPFeeder::create(className, "");
+                    JPFeederPackaging::load(m_config, made, part);
+                    const std::string id = m_config.addFeeder(std::move(made)).id();
                     m_search->setText("");
                     m_table->setFilter("");
                     m_table->refresh();

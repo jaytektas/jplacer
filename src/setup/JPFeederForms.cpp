@@ -9,6 +9,7 @@
 
 #include "common/JPlacerLog.h"
 #include "model/JPBlindsFeeders.h"
+#include "model/JPFeederPackaging.h"
 #include "model/JPFeederTape.h"
 #include "model/JPPushPullTemplates.h"
 
@@ -69,13 +70,55 @@ void count(JPFormBuilder& add, std::function<JPFeeder&()> f, const std::string& 
                 [f, attribute](int v) { f().setNumber(attribute, v); }, 0, kMostCount);
 }
 
-// OpenPnP's General Settings: the part, and the retries.
+// What a feeder's Packaging says while its values are its own (no packaging of the part's has them).
+constexpr const char* kOwnPackaging = "(the feeder's own)";
+
+// The feeder's Part, chosen from the library's parts (the Parts tab's table dropped), loaded with its
+// packaging's values (JPFeederPackaging::load); `none`: "" (no part) among them. On the row begun, when one is.
+void partChoice(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f, bool none = false) {
+    JPFormBuilder::Strings ids;
+    if (none) ids.push_back("");
+    for (const auto& p : config.parts()) ids.push_back(p->id);
+    add.choice("part", "Part", ids, [f] { return f().partId(); },
+               [&config, f](const std::string& id) { JPFeederPackaging::load(config, f(), id); });
+    add.searchable(JPLibrarySearch::parts(config, ids), JPLibrarySearch::kPartsTable);
+    add.reshapes("part");   // its Packaging lists the new part's
+}
+
+// The packaging the feeder's part comes in, where its kind takes one (JPFeederPackaging): each of the part's,
+// choosing one taking its values; shown as the one whose values the feeder has, else as its own.
+void packagingChoice(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f) {
+    if (!JPFeederPackaging::takes(f())) return;
+    const JPPart* part = config.part(f().partId());
+    if (!part) return;
+    const std::string tip = "How the part comes (its Packagings, on the part's Library tab): choosing one puts its rotation, "
+                            "tape width and pitch into this feeder's settings. The part's only one, or the one last chosen "
+                            "for it, is taken when the part is loaded.";
+    if (part->packagings.empty()) {
+        add.text("packaging", "Packaging", [] { return std::string("None (add one on the part's Library tab)"); }, nullptr);
+        add.tip(tip);
+        return;
+    }
+    JPFormBuilder::Strings labels { kOwnPackaging };
+    for (const std::string& l : JPFeederPackaging::labels(*part)) labels.push_back(l);
+    add.choice("packaging", "Packaging", labels,
+               [&config, f, labels] {
+                   const JPPart* p = config.part(f().partId());
+                   const int i = p ? JPFeederPackaging::matching(f(), *p) : -1;
+                   return i >= 0 ? labels[size_t(i) + 1] : std::string(kOwnPackaging);
+               },
+               [&config, f, labels](const std::string& l) {
+                   for (size_t i = 1; i < labels.size(); ++i)
+                       if (labels[i] == l) JPFeederPackaging::choose(config, f(), int(i) - 1);
+               });
+    add.tip(tip);
+}
+
+// OpenPnP's General Settings: the part (and its packaging), and the retries.
 void general(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f, bool rotationInTape) {
     add.group("General Settings");
-    JPFormBuilder::Strings ids;
-    for (const auto& p : config.parts()) ids.push_back(p->id);
-    add.choice("part", "Part", ids, [f] { return f().partId(); }, [f](const std::string& id) { f().setPartId(id); });
-    add.searchable(JPLibrarySearch::parts(config, ids), JPLibrarySearch::kPartsTable);
+    partChoice(add, config, f);
+    packagingChoice(add, config, f);
     if (rotationInTape) {
         coordinate(add, f, "location", Axis::Rotation, "Rotation In Tape");
         add.tip("The Rotation in Tape setting must be interpreted relative to the tape's orientation, regardless of "
@@ -486,6 +529,19 @@ void slotForm(JPFormBuilder& add, JPConfiguration& config, const std::string& sl
         add.button("deleteSlotFeeder", "Delete", "", !loaded().empty());
     }
     add.end();
+    // The part of the feeder in the slot, at the page's top as on every feeder's page.
+    JPFormBuilder::Strings parts { "" };
+    for (const auto& p : config.parts()) parts.push_back(p->id);
+    add.choice("slot.part", "Part", parts, [banks, bank, loaded] {
+                   const auto bf = banks().feeder(bank(), loaded());
+                   return bf ? bf->partId : std::string();
+               },
+               [&config, banks, bank, loaded](const std::string& id) {
+                   if (loaded().empty()) return;
+                   banks().setFeederPart(bank(), loaded(), id);
+                   config.resolveSlots();
+               });
+    add.searchable(JPLibrarySearch::parts(config, parts), JPLibrarySearch::kPartsTable);
     add.header({ "X", "Y", "Z", "Rotation" });
     add.row("Location", Place::Location);
     coordinate(add, f, "location", Axis::X, "X");
@@ -543,18 +599,6 @@ void slotForm(JPFormBuilder& add, JPConfiguration& config, const std::string& sl
     }
     add.base([f] { return std::optional(f().location()); });
     add.end();
-    JPFormBuilder::Strings parts { "" };
-    for (const auto& p : config.parts()) parts.push_back(p->id);
-    add.choice("slot.part", "Part", parts, [banks, bank, loaded] {
-                   const auto bf = banks().feeder(bank(), loaded());
-                   return bf ? bf->partId : std::string();
-               },
-               [&config, banks, bank, loaded](const std::string& id) {
-                   if (loaded().empty()) return;
-                   banks().setFeederPart(bank(), loaded(), id);
-                   config.resolveSlots();
-               });
-    add.searchable(JPLibrarySearch::parts(config, parts), JPLibrarySearch::kPartsTable);
 
     if (schultz) {
         schultzActuators(add, f, options);
@@ -590,20 +634,11 @@ void slotForm(JPFormBuilder& add, JPConfiguration& config, const std::string& sl
 void photonForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f, const JPFeederForms::Options& options) {
     if (!f().text("hardware-id").empty()) {
         add.tab("Feeder");
-        add.group("Info");
-        add.text("hardware-id", "Hardware ID: ", [f] { return f().text("hardware-id"); }, nullptr);
-        add.row("Slot Address:");
-        add.text("photon.slot", "Slot Address:",
-                 [f] { return f().photonSlot ? std::to_string(*f().photonSlot) : std::string(); }, nullptr);
-        add.button("photonFind", "Find");
-        add.end();
-
+        // The part first, as on every feeder's page; then what the feeder says of itself.
         const bool slotted = f().photonSlot.has_value();
         add.group("Part");
-        JPFormBuilder::Strings parts { "" };
-        for (const auto& p : config.parts()) parts.push_back(p->id);
-        add.choice("part", "Part", parts, [f] { return f().text("part-id"); }, [f](const std::string& id) { f().setPartId(id); });
-        add.searchable(JPLibrarySearch::parts(config, parts), JPLibrarySearch::kPartsTable);
+        partChoice(add, config, f, true);
+        packagingChoice(add, config, f);
         add.row("Part Pitch");
         count(add, f, "part-pitch", "Part Pitch", 4);
         add.button("photonFeed", "Feed", "", slotted);
@@ -613,6 +648,14 @@ void photonForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFee
                     [f](int v) { f().setFeedRetryCount(v); }, 0, kMostCount);
         add.integer("pick-retry-count", "Pick Retry Count", [f] { return f().pickRetryCount(); },
                     [f](int v) { f().setPickRetryCount(v); }, 0, kMostCount);
+
+        add.group("Info");
+        add.text("hardware-id", "Hardware ID: ", [f] { return f().text("hardware-id"); }, nullptr);
+        add.row("Slot Address:");
+        add.text("photon.slot", "Slot Address:",
+                 [f] { return f().photonSlot ? std::to_string(*f().photonSlot) : std::string(); }, nullptr);
+        add.button("photonFind", "Find");
+        add.end();
 
         add.group("Location");
         add.header({ "X", "Y", "Z", "Rotation" });
@@ -1135,13 +1178,11 @@ void blindsForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFee
     };
     auto len = [f](const char* e, double def) { return mm(f().lengthOf(e, JPLength(def, kMm))); };
     add.group("General Settings");
-    JPFormBuilder::Strings ids;
-    for (const auto& p : config.parts()) ids.push_back(p->id);
     add.row("Part");
-    add.choice("part", "Part", ids, [f] { return f().partId(); }, [f](const std::string& id) { f().setPartId(id); });
-    add.searchable(JPLibrarySearch::parts(config, ids), JPLibrarySearch::kPartsTable);
+    partChoice(add, config, f);
     add.button("blindsOcrDetect", "OCR Detect", "Try to detect and set the part by OCR.");
     add.end();
+    packagingChoice(add, config, f);
     // OpenPnP's columns: a setting at the left, another at the right, a button beyond.
     add.header({ "", "", "" });
     add.row("Rotation in Tape");
@@ -1337,6 +1378,7 @@ std::string heapBox(JPConfiguration& config, const JPFeeder& f) {
 void heapForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f) {
     auto box = [&config, f] { return heapBox(config, f()); };
     add.group("Heap");
+    partChoice(add, config, f);   // first, as on every feeder's page
     JPFormBuilder::Named boxes;
     for (const JPDropBoxes::Box& b : config.dropBoxes().boxes()) boxes.add(b.name, b.id);
     add.row("DropBox");
@@ -1388,13 +1430,10 @@ void heapForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeede
     add.tipOf("throw-away-drop-box-content-after-failed-feeds",
               "After this numer of feed, mark the parts as disposable. So the next feed is done with new parts.");
     add.endColumns();
-    JPFormBuilder::Strings ids;
-    for (const auto& p : config.parts()) ids.push_back(p->id);
-    add.row("Part");
-    add.choice("part", "Part", ids, [f] { return f().partId(); }, [f](const std::string& id) { f().setPartId(id); });
-    add.searchable(JPLibrarySearch::parts(config, ids), JPLibrarySearch::kPartsTable);
+    add.row("Poke for Parts");
     add.flag("poke-for-parts", "Poke for Parts", [f] { return f().childText("poke-for-parts", "false") == "true"; },
              [f](bool on) { f().setChildText("poke-for-parts", on ? "true" : "false"); });
+    add.bare();
     add.end();
     add.tip("If enabled the nozzle is lifted for each move inside the heap. Reduces the risk to damage (large) parts, but slower.");
     add.row("Detection Pipeline");
@@ -1441,6 +1480,8 @@ void heapForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeede
     add.button("resetDropBoxPipeline", "Reset");
     add.end();
     add.row("Dummy Part");
+    JPFormBuilder::Strings ids;
+    for (const auto& p : config.parts()) ids.push_back(p->id);
     add.choice("drop-box.dummy-part", "Dummy Part", ids,
                [&config, box] {
                    const auto b = config.dropBoxes().box(box());

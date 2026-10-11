@@ -51,6 +51,7 @@ JJson JPLibraryJson::part(const JPPart& p) {
     JJson packagings = JJson::array();
     for (const auto& k : p.packagings) packagings.push(packaging(k));
     o["packagings"] = packagings;
+    if (p.lastPackaging >= 0) o["lastPackaging"] = p.lastPackaging;
     JJson offers = JJson::array();
     for (const auto& f : p.offers) {
         JJson x = JJson::object();
@@ -100,8 +101,9 @@ JPPart JPLibraryJson::part(const JJson& j) {
     auto s = [](const JJson& x, const char* k) { return x[k].isString() ? x[k].str() : std::string(); };
     if (j["packagings"].isArray())
         for (const JJson& x : j["packagings"].arr())
-            p.packagings.push_back({ s(x, "kind"), x["tapeWidthMm"].number(8), x["pitchMm"].number(4), s(x, "tapeType"),
+            p.packagings.push_back({ s(x, "kind"), x["tapeWidthMm"].number(8.0), x["pitchMm"].number(4.0), s(x, "tapeType"),
                                      x["rotationDeg"].number(), int(x["quantity"].number()), s(x, "note") });
+    if (j["lastPackaging"].isNumber()) p.lastPackaging = int(j["lastPackaging"].number());
     if (j["offers"].isArray())
         for (const JJson& x : j["offers"].arr())
             p.offers.push_back({ s(x, "supplier"), s(x, "sku"), s(x, "packaging"), int(x["moq"].number()), s(x, "priceBreaks"),

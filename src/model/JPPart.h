@@ -70,6 +70,7 @@ public:
     std::vector<Identifier>    identifiers;
     std::vector<Aka>           akas;
     std::vector<Packaging>     packagings;
+    int                        lastPackaging = -1;   // the packaging last chosen for a feeder it is loaded on; -1: none
     std::vector<Offer>         offers;
     std::optional<std::string> name;
     JPLength                   height { 0, JPLengthUnit::Millimeters };

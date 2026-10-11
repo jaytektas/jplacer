@@ -10,6 +10,13 @@ notes.
 
 ## Unreleased
 
+- A feeder takes its part's packaging: under **Part**, **Packaging** lists the ways the part comes (its
+  Packagings on the Library tab), and choosing one puts its rotation, tape width and pitch into the feeder's
+  settings (a strip feeder's Rotation In Tape, Tape Width and Part Pitch, and the like on other kinds).
+  Loading a part takes its only packaging, or the one last chosen for it, by itself.
+- **Part** is at the top of every feeder's page (the Photon and heap feeders had it further down).
+- A packaging's tape width and pitch keep their decimals (2.5 mm was read back as 2).
+
 - The tables on the Job, Boards, Panels, Parts and Packages tabs have a **Columns** icon at the end of their
   toolbars: tick the columns to show, untick those to hide. Each table keeps its own choice, with its column
   order, widths and sort.

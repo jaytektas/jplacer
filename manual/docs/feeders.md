@@ -57,7 +57,8 @@ for **Set Enabled** (**Enabled**, **Disabled**) and **Set Feed option**, for eve
 
 Under the table, the chosen feeder's **Configuration**. Each change is made as soon as it is entered
 (Return, Tab or leaving the field), so there is no Apply. Every kind has **General Settings**: its
-**Part**, **Feed Retry Count** and **Pick Retry Count** (a new feeder's 3 and 0, as a new OpenPnP feeder's). A
+**Part**, **Feed Retry Count** and **Pick Retry Count** (a new feeder's 3 and 0, as a new OpenPnP feeder's).
+**Part** is first on every feeder's page (a slot's after the bank feeder in it). A
 place has OpenPnP's four buttons after it:
 **Position Camera** and **Position Tool** take the camera, or the nozzle chosen on the Jog panel, to the
 place at safe Z; **Get Camera Coordinates** and **Get Tool Coordinates** set the place from where the
@@ -66,6 +67,32 @@ camera or the nozzle is now (the camera's X and Y; the nozzle's Z as well). A pu
 there straight, without going up to safe Z first.
 
 <!-- src: src/setup/JPFeederForms.cpp (general, pickLocation, push-pull motion); src/model/JPFeeder.cpp (create); src/ui/JPSetupForm.cpp (locationButtons); src/ui/JPFeedersPanel.cpp (capture, goTo) -->
+
+### The part's packaging
+
+Under **Part**, **Packaging** lists the ways the part comes, as its **Packagings** on the Parts tab's
+**Library** tab give them ("1: Cut tape, 8 mm, 4 mm pitch, -90°"). Choosing one puts the part's rotation in
+it, the tape's width and the pitch between its pockets into this feeder's own settings, wherever its kind
+has them:
+
+| Feeder | Rotation | Tape width | Pitch |
+|---|---|---|---|
+| Strip | **Rotation In Tape** | **Tape Width** | **Part Pitch** |
+| Push-pull, Bamboo | **Rotation in Tape** | | **Part Pitch** |
+| Blinds | **Rotation in Tape** | | **Pocket Pitch** |
+| Neoden4 | **Rotation In Tape** | | **Pitch In Tape** |
+| Drag, Lever | | | **Part Pitch** |
+| Photon, Rapid | | | their pitch |
+
+A tray, tube or loose packaging gives only its rotation. Other kinds have no **Packaging**.
+
+Loading a part (choosing it as **Part**, or making a feeder for it) takes its packaging the same way when
+there is no doubt which: its only one, else the one last chosen for it on any feeder. With several and none
+chosen yet, the feeder's values are left as they are for you to choose. Choosing the same part again changes
+nothing, so the feeder's own corrections stay. **Packaging** shows the packaging whose values the feeder has
+now, or **(the feeder's own)** once they differ; a part with none says to add one on its Library tab.
+
+<!-- src: src/model/JPFeederPackaging.cpp (takesOf, matching, apply, forLoading, load, choose); src/setup/JPFeederForms.cpp (partChoice, packagingChoice); src/ui/JPFeedersPanel.cpp (newFeeder, refresh); src/model/JPLibraryJson.cpp (lastPackaging) -->
 
 ### Choosing a part
 
