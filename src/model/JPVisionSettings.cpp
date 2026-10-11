@@ -117,11 +117,7 @@ void JPVisionSettings::setLengthMm(const std::string& element, double mm) {
 
 JPLocation JPVisionSettings::locationOf(const std::string& element) const {
     const JPXmlNode* c = m_node.child(element);
-    if (!c) return JPLocation(JPLengthUnit::Millimeters);
-    JPXmlElement e;
-    e.name = c->name;
-    for (const auto& [k, v] : c->attributes) e.attributes[k] = v;
-    return JPLocationXml::from(e);
+    return c ? JPLocationXml::from(*c) : JPLocation(JPLengthUnit::Millimeters);
 }
 
 void JPVisionSettings::setLocationOf(const std::string& element, const JPLocation& l) {

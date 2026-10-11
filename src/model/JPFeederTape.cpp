@@ -77,8 +77,8 @@ void JPFeederTape::discardParts(JPFeeder& feeder) {
     Params tape = of(feeder);
     tape.feedMultiplier = 1;
     const long cycle = partsPerFeedCycle(tape);
-    const long count = feeder.number("feed-count", 0);
-    feeder.setNumber("feed-count", int(((count - 1) / cycle + 1) * cycle));
+    const long count = feeder.feedCount();
+    feeder.setFeedCount(int(((count - 1) / cycle + 1) * cycle));
     feeder.visionOffset.reset();
 }
 

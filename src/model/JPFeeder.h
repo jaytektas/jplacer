@@ -5,6 +5,7 @@
 
 #include "JPLength.h"
 #include "JPLocation.h"
+#include "JPTrayFeeder.h"
 
 #include "openpnp/JPXmlElement.h"
 #include "openpnp/JPXmlNode.h"
@@ -14,6 +15,7 @@
 #include <deque>
 #include <optional>
 #include <string>
+#include <variant>
 #include <vector>
 
 inline namespace jf {
@@ -22,9 +24,10 @@ inline namespace jf {
 // (ReferenceStripFeeder, ReferenceTrayFeeder…), id, name, enabled, part,
 // retries, priority and feed option, and where it is, each its own; and what
 // its kind adds (a strip's hole locations and pitches, a tray's counts, a
-// vision pipeline), kept as OpenPnP keeps it (by name: text(), number()…).
-// Kept in jplacer's feeders.json (toJson): what every feeder has by name, its
-// kind's own under "openpnp" (JPXmlJson).
+// vision pipeline): a typed kind's its own (a tray's: tray()); the others' as
+// OpenPnP keeps them (by name: text(), number()…). Kept in jplacer's
+// feeders.json (toJson): what every feeder has by name, a typed kind's own
+// under its kind's key ("tray"), the others' under "openpnp" (JPXmlJson).
 class JPFeeder {
 public:
     // OpenPnP's Feeder.Priority and ReferenceFeeder.FeedOptions, in their order.
@@ -45,13 +48,25 @@ public:
     // does (its Rotation In Tape 90 degrees less).
     static JPFeeder fromXml(const JPXmlElement& e);
     // As jplacer's feeders.json keeps it: {"class", "id", "name", "enabled", "part", "feedRetryCount",
-    // "pickRetryCount", "priority", "feedOptions", "location", "openpnp" (its kind's own)}.
+    // "pickRetryCount", "priority", "feedOptions", "location", and its kind's own: "tray", else "openpnp"}.
     static JPFeeder fromJson(const JJson& j);
     JJson toJson() const;
 
     const std::string& className() const { return m_className; }
     // The class's simple name, as OpenPnP's Type column shows it.
     std::string typeName() const;
+
+    // A tray feeder's own (none: another kind).
+    JPTrayFeeder*       tray() { return std::get_if<JPTrayFeeder>(&m_own); }
+    const JPTrayFeeder* tray() const { return std::get_if<JPTrayFeeder>(&m_own); }
+
+    // Whether the head camera is tuned for its looks on its first look of a run (its Auto-Tune?; a kind with no
+    // vision: no).
+    bool autoTune() const;
+
+    // How many it has fed (OpenPnP's feedCount, of the kinds that count; 0 for the others).
+    int  feedCount() const;
+    void setFeedCount(int n);
 
     const std::string& id() const { return m_id; }
     void setId(const std::string& id) { m_id = id; }
@@ -213,7 +228,7 @@ public:
     // Its kind's own values, by their OpenPnP names.
     std::string text(const std::string& attribute, const std::string& def = {}) const;
     void        setText(const std::string& attribute, const std::string& value);
-    bool        hasAttribute(const std::string& attribute) const { return m_node.get(attribute) != nullptr; }
+    bool        hasAttribute(const std::string& attribute) const;
     // An attribute taken away (read as its default again).
     void        removeAttribute(const std::string& attribute);
     int         number(const std::string& attribute, int def = 0) const;
@@ -223,8 +238,8 @@ public:
     bool        flag(const std::string& attribute, bool def = false) const;
     void        setFlag(const std::string& attribute, bool on);
     // Whether it has the child element at all (a location never set has none).
-    bool        has(const std::string& element) const { return m_node.child(element) != nullptr; }
-    const JPXmlNode* child(const std::string& element) const { return m_node.child(element); }
+    bool        has(const std::string& element) const { return child(element) != nullptr; }
+    const JPXmlNode* child(const std::string& element) const;
     // A child element put in (replacing one of its name), or taken away.
     void        setChild(JPXmlNode node);
     void        removeChild(const std::string& element);
@@ -235,7 +250,7 @@ public:
     // A vision pipeline as OpenPnP wrote it (<pipeline><stages>…, or
     // another element: an advanced loose part feeder's <training-pipeline>),
     // or null; and one put in its place (named `element`, where it was).
-    const JPXmlNode* pipeline(const std::string& element = "pipeline") const { return m_node.child(element); }
+    const JPXmlNode* pipeline(const std::string& element = "pipeline") const { return child(element); }
     void             setPipeline(JPXmlNode pipeline, const std::string& element = "pipeline");
     void        setChildText(const std::string& element, const std::string& value);
     // An attribute of a child element, by its path ("vision/area-of-interest");
@@ -248,6 +263,15 @@ public:
 private:
     JPFeeder() = default;
     void addJobFault(bool fault, int windowSize);
+    // Its kind's own as OpenPnP keeps them; a typed kind has none (`setting`, asked for by name, logged as a
+    // mistake).
+    const JPXmlNode*   openPnp(const std::string& setting) const;
+    JPXmlNode*         openPnp(const std::string& setting);
+    const std::string* attribute(const std::string& name) const;
+    void               setAttribute(const std::string& name, const std::string& value);
+    void               putChild(JPXmlNode node);
+    // Its kind's own made for its class: typed, else OpenPnP's as they are.
+    void ownFrom(JPXmlNode own);
 
     std::string      m_className, m_id, m_name, m_partId;
     bool             m_enabled = false;
@@ -255,8 +279,8 @@ private:
     Priority         m_priority = Priority::Normal;
     FeedOptions      m_feedOptions = FeedOptions::Normal;
     JPLocation       m_location { JPLengthUnit::Millimeters };
-    // Its kind's own settings, as OpenPnP keeps them.
-    JPXmlNode        m_node { "feeder" };
+    // Its kind's own settings.
+    std::variant<JPXmlNode, JPTrayFeeder> m_own { JPXmlNode("feeder") };
     std::vector<int> m_visionChecks;
     bool             m_actuate = false;
     std::deque<bool> m_jobFaults;

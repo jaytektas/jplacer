@@ -150,7 +150,7 @@ JPLocation JPBlindsFeeders::pickLocation(const JPFeeder& f, double pocket) {
     return feederToMachine(f, JPLocation(kMm, x, y, f.location().convertToUnits(kMm).z(), pickRotationInTape(f)));
 }
 
-int JPBlindsFeeders::fedPocket(const JPFeeder& f) { return f.number("feed-count", 0) + f.number("first-pocket", 1) - 1; }
+int JPBlindsFeeders::fedPocket(const JPFeeder& f) { return f.feedCount() + f.number("first-pocket", 1) - 1; }
 
 bool JPBlindsFeeders::coverState(const JPFeeder& f, bool open) {
     const std::string type = f.text("cover-type", "BlindsCover");

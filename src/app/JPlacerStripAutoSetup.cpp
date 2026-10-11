@@ -181,7 +181,7 @@ void JPlacerStripAutoSetup::check(const JPLocation& at) {
         std::optional<JJson> controls;
         onMain([&] {
             const JPFeeder* f = m_job.configuration().feeder(m_feederId);
-            tune = first && f && f->flag("auto-tune", true);
+            tune = first && f && f->autoTune();
             if (f) controls = f->cameraTune;
             if (const auto a = alive.lock(); tune && a && *a)
                 if (JPCameraView* view = m_view) view->setPrompt("Auto-Tune over the tape...");
@@ -338,9 +338,9 @@ void JPlacerStripAutoSetup::check(const JPLocation& at) {
                 f->setLengthOf("reference-hole-to-part-linear", JPLength(onHole ? 0.0 : kHalfHoleMm, kMm));
             }
             // Where the first part is picked.
-            f->setNumber("feed-count", 1);
+            f->setFeedCount(1);
             pick = f->pickLocation();
-            f->setNumber("feed-count", 0);
+            f->setFeedCount(0);
             if (onFeederChanged) onFeederChanged();
         });
         if (pick && !machine.positionCamera(*pick, why)) return failed(why);

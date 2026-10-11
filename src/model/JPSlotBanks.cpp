@@ -15,13 +15,6 @@ constexpr const char* kSchultzKey = "SchultzFeederSlot.banks";
 
 const std::string* attr(const JPXmlNode& n, const std::string& key) { return n.get(key); }
 
-JPXmlElement element(const JPXmlNode& n) {
-    JPXmlElement e;
-    e.name = n.name;
-    for (const auto& [k, v] : n.attributes) e.attributes[k] = v;
-    return e;
-}
-
 } // namespace
 
 std::string JPSlotBanks::keyFor(const std::string& typeName) {
@@ -145,7 +138,7 @@ std::vector<JPSlotBanks::Feeder> JPSlotBanks::feeders(const std::string& bankId)
         out1.id = *id;
         out1.name = attr(f, "name") ? *attr(f, "name") : *id;
         out1.partId = attr(f, "part-id") ? *attr(f, "part-id") : std::string();
-        if (const JPXmlNode* o = f.child("offsets")) out1.offsets = JPLocationXml::from(element(*o));
+        if (const JPXmlNode* o = f.child("offsets")) out1.offsets = JPLocationXml::from(*o);
         out.push_back(std::move(out1));
     }
     return out;

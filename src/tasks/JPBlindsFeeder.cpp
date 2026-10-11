@@ -294,7 +294,7 @@ public:
             // The next pocket uncovered: pushed from behind the cover to it, then down onto the part.
             const JPLocation pick = JPBlindsFeeders::pickLocation(g, JPBlindsFeeders::fedPocket(g) + 1);
             const JPLocation pickFeeder = JPBlindsFeeders::machineToFeeder(g, pick);
-            const bool fresh = g.number("feed-count", 0) == 0 || !JPBlindsFeeders::coverState(g, true);
+            const bool fresh = g.feedCount() == 0 || !JPBlindsFeeders::coverState(g, true);
             const double x0 = fresh ? -pitch * 0.5 - tip : *g.blinds.coverPositionMm - pitch * 0.5 - tip;
             const double x1 = pickFeeder.x() + pitch * 0.5 - tip * 0.5;
             const double y = pickFeeder.y();
@@ -467,7 +467,7 @@ public:
     bool feed(const std::string& nozzleId, std::string& why) {
         auto f = feeder();
         if (!f) return missing(why);
-        if (f->number("first-pocket", 1) + f->number("feed-count", 0) > f->number("last-pocket", 0)) {
+        if (f->number("first-pocket", 1) + f->feedCount() > f->number("last-pocket", 0)) {
             why = "Feeder " + f->name() + " part " + f->partId() + " empty.";
             return false;
         }
@@ -489,7 +489,7 @@ public:
         } else if (type == "PushCover") {
             if (!actuateCover(nozzleId, true, true, true, why)) return false;
         }
-        edit([](JPConfiguration&, JPFeeder& x) { x.setNumber("feed-count", x.number("feed-count", 0) + 1); });
+        edit([](JPConfiguration&, JPFeeder& x) { x.setFeedCount(x.feedCount() + 1); });
         return true;
     }
 

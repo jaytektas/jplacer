@@ -94,13 +94,6 @@ void copy(JPFeeder& f, const JPFeeder& t, const std::string& a) {
     else f.removeAttribute(a);
 }
 
-JPXmlElement element(const JPXmlNode& n) {
-    JPXmlElement e;
-    e.name = n.name;
-    for (const auto& [k, v] : n.attributes) e.attributes[k] = v;
-    return e;
-}
-
 } // namespace
 
 bool JPPushPullTemplates::compatibleParts(const JPConfiguration& config, const std::string& partId1, const std::string& partId2) {
@@ -206,7 +199,7 @@ void JPPushPullTemplates::cloneSettings(JPConfiguration& config, const std::stri
         f->setReal("rotation-in-feeder", t.real("rotation-in-feeder", 0));
         f->setLengthOf("feed-pitch", t.lengthOf("feed-pitch", JPLength(4, kMm)));
         f->setNumber("feed-multiplier", t.number("feed-multiplier", 1));
-        f->setNumber("feed-count", 0);
+        f->setFeedCount(0);
     }
     if (what.pushPull) {
         for (const char* a : { "actuator-name", "peel-off-actuator-name", "feed-speed-push-2", "feed-speed-push-3", "feed-speed-push-end",
@@ -223,7 +216,7 @@ void JPPushPullTemplates::cloneSettings(JPConfiguration& config, const std::stri
             copy(*f, t, a);
         f->setLengthOf("precision-wanted", t.lengthOf("precision-wanted", JPLength(0.1, kMm)));
         JPFeederTape::resetCalibrationStatistics(*f);
-        f->setNumber("feed-count", 0);
+        f->setFeedCount(0);
     }
     if (what.pipeline) {
         if (const JPXmlNode* p = t.pipeline()) f->setPipeline(*p);
@@ -327,7 +320,7 @@ std::optional<JPPushPullTemplates::OcrRegion> JPPushPullTemplates::ocrRegion(con
     if (!n) return std::nullopt;
     auto location = [n](const char* name) {
         const JPXmlNode* c = n->child(name);
-        return c ? JPLocationXml::from(element(*c)) : JPLocation(kMm);
+        return c ? JPLocationXml::from(*c) : JPLocation(kMm);
     };
     OcrRegion r;
     r.upperLeft = location("upper-left-corner");

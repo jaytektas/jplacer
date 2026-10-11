@@ -262,7 +262,7 @@ int main() {
     JPFeeder& f = *config.feeder("S");
     f.visionLocation.reset();
     f.visionLocationReference.reset();
-    f.setNumber("feed-count", 3);
+    f.setFeedCount(3);
     machine.looks = 0;
     assert(JPFeederFeed::feed(config, "S", "N1", machine, nullptr, why, empty) && machine.looks == 2);
 
@@ -276,7 +276,7 @@ int main() {
     {
         std::string w;
         assert(JPFeederForms::act(config, "S", "resetFeedCount", w) && !config.feeder("S")->cameraTune);
-        config.feeder("S")->setNumber("feed-count", 1);
+        config.feeder("S")->setFeedCount(1);
     }
     // Its Auto-Tune? off: the camera's own settings, no tuning.
     config.feeder("S")->setFlag("auto-tune", false);
@@ -458,7 +458,7 @@ int main() {
         assert(machine.actuated.size() == 1 && machine.actuated[0] == "F1=2" && machine.templateLooks == 1);
         auto at = config.feeder("N4")->pickLocation();
         assert(std::abs(at->x() - 29.75) < 1e-9 && std::abs(at->y() - 39.5) < 1e-9 && at->rotation() == 90);
-        assert(config.feeder("N4")->number("feed-count") == 1);
+        assert(config.feeder("N4")->feedCount() == 1);
         // No area of interest: fed all the same.
         config.feeder("N4")->setAttributeAt("vision/area-of-interest", "width", "0");
         assert(JPFeederFeed::feed(config, "N4", "N1", machine, nullptr, why, empty) && machine.templateLooks == 1);
@@ -701,7 +701,7 @@ int main() {
                                                   "Lever=1", "Lever to 24.00,30.00,-3.00,0.00 at 1.00", "Peel=1",
                                                   "Lever to 20.00,30.00,-3.00,0.00 at 0.50", "Peel=0", "Lever=0" };
         assert(m.actuated == pushPull);
-        assert(config.feeder("PP")->number("feed-count") == 1);
+        assert(config.feeder("PP")->feedCount() == 1);
         // Two parts a feed: the first a pitch on towards hole 2, the second at the pick location, without a feed.
         const auto first = config.feeder("PP")->pickLocation();
         m.actuated.clear();
@@ -711,7 +711,7 @@ int main() {
         // Skip next: nothing moves, the same part again.
         config.feeder("PP")->setFeedOptions(JPFeeder::FeedOptions::SkipNext);
         assert(JPFeederFeed::feed(config, "PP", "N1", m, nullptr, why, empty) && m.actuated.empty());
-        assert(config.feeder("PP")->number("feed-count") == 2 && config.feeder("PP")->feedOptions() == JPFeeder::FeedOptions::Normal);
+        assert(config.feeder("PP")->feedCount() == 2 && config.feeder("PP")->feedOptions() == JPFeeder::FeedOptions::Normal);
         config.removeFeeder("PP");
     }
     // A Rapid scan: along the line a scan increment at a time, each QR code a

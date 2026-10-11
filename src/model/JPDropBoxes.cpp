@@ -17,13 +17,6 @@ constexpr const char* kPropertyClass = "org.openpnp.machine.reference.feeder.Ref
 // What OpenPnP names the dummy part when none is chosen.
 constexpr const char* kDummyPart = "HeapFedder-Dummy";
 
-JPXmlElement element(const JPXmlNode& n) {
-    JPXmlElement e;
-    e.name = n.name;
-    for (const auto& [k, v] : n.attributes) e.attributes[k] = v;
-    return e;
-}
-
 } // namespace
 
 JPDropBoxes::JPDropBoxes() {
@@ -85,8 +78,8 @@ std::vector<JPDropBoxes::Box> JPDropBoxes::boxes() const {
             box.id = *id;
             box.name = b.get("name") ? *b.get("name") : *id;
             box.dummyPartId = b.get("dummy-part-id-for-unknown") ? *b.get("dummy-part-id-for-unknown") : kDummyPart;
-            if (const JPXmlNode* l = b.child("center-bottom-location")) box.centerBottom = JPLocationXml::from(element(*l));
-            if (const JPXmlNode* l = b.child("drop-location")) box.drop = JPLocationXml::from(element(*l));
+            if (const JPXmlNode* l = b.child("center-bottom-location")) box.centerBottom = JPLocationXml::from(*l);
+            if (const JPXmlNode* l = b.child("drop-location")) box.drop = JPLocationXml::from(*l);
             out.push_back(std::move(box));
         }
     return out;

@@ -261,12 +261,14 @@ bool JPFeederFeed::feed(JPConfiguration& config, const std::string& feederId, co
         fed = f->feed(why, &empty);
         checks = f->takeVisionChecks();
         actuate = f->takeFeedActuation();
-        actuatorName = f->text("actuator-name");
-        actuatorValue = f->real("actuator-value", 0);
-        moveFirst = f->flag("move-before-feed", false);
+        if (actuate) {   // an auto feeder's
+            actuatorName = f->text("actuator-name");
+            actuatorValue = f->real("actuator-value", 0);
+            moveFirst = f->flag("move-before-feed", false);
+        }
         pickAt = f->pickLocation();
         controls = f->cameraTune;
-        tuneFirst = f->flag("auto-tune", true);
+        tuneFirst = f->autoTune();
     });
     if (!fed) return false;
     // Its vision at its own tune this run (none yet, its Auto-Tune? on: made on its first look), else the camera's
@@ -372,7 +374,7 @@ bool JPFeederFeed::feed(JPConfiguration& config, const std::string& feederId, co
             }
         }
         main([&] {
-            if (JPFeeder* f = config.feeder(feederId)) f->setNumber("feed-count", f->number("feed-count") + 1);
+            if (JPFeeder* f = config.feeder(feederId)) f->setFeedCount(f->feedCount() + 1);
         });
         return true;
     }

@@ -18,6 +18,8 @@ inline namespace jf {
 // <max-pick-tolerance value="…" units="…"/>.
 struct JPLocationXml {
     static JPLocation from(const JPXmlElement& e);
+    // One held as read (an OpenPnP-shaped object's own element).
+    static JPLocation from(const JPXmlNode& n) { return from(JPXmlNode::element(n)); }
     static JPXmlNode  to(const std::string& name, const JPLocation& l);
     static JPLength   lengthFrom(const JPXmlElement& e);
     static JPXmlNode  lengthTo(const std::string& name, const JPLength& l);

@@ -62,8 +62,8 @@ int main() {
         assert(first && near(first->x(), 103.5) && near(first->y(), 50));
     }
     std::string why;
-    assert(strip.feed(why) && strip.number("feed-count") == 1);
-    assert(strip.feed(why) && strip.feed(why) && strip.number("feed-count") == 3);
+    assert(strip.feed(why) && strip.feedCount() == 1);
+    assert(strip.feed(why) && strip.feed(why) && strip.feedCount() == 3);
     at = strip.pickLocation();
     assert(at && near(at->x(), 103.5) && near(at->y(), 44));
     // Not level (jplacer's Z Along Strip %: the tape rising 5%, 0.8 mm over the 16 mm to the last hole): each part
@@ -74,7 +74,7 @@ int main() {
         tilted.setReal("z-along-strip-percent", 5);
         const auto third = tilted.pickLocation();   // 6 mm along
         assert(third && near(third->x(), 103.5) && near(third->y(), 44) && near(third->z(), -20 + 0.05 * 6));
-        tilted.setNumber("feed-count", 1);
+        tilted.setFeedCount(1);
         const auto first = tilted.pickLocation();   // 2 mm before the reference hole
         assert(first && near(first->z(), -20 - 0.05 * 2));
         tilted.setLocationOf("reference-hole-location", JPLocation(JPLengthUnit::Millimeters, 100, 50, -20.3, 0));
@@ -94,8 +94,8 @@ int main() {
     }
     // Skip next feed: the count stays once, then feeds go on as normal.
     strip.setFeedOptions(JPFeeder::FeedOptions::SkipNext);
-    assert(strip.feed(why) && strip.number("feed-count") == 3 && strip.feedOptions() == JPFeeder::FeedOptions::Normal);
-    assert(strip.feed(why) && strip.number("feed-count") == 4);
+    assert(strip.feed(why) && strip.feedCount() == 3 && strip.feedOptions() == JPFeeder::FeedOptions::Normal);
+    assert(strip.feed(why) && strip.feedCount() == 4);
     // Past its Max Feed Count: empty.
     assert(!strip.feed(why) && why == "Tried to feed part: R1  Feeder Strip empty.");
     // A child's text kept, and written back as it was.
@@ -168,14 +168,14 @@ int main() {
         made.setPriority(JPFeeder::Priority::High);
         made.setFeedOptions(JPFeeder::FeedOptions::SkipNext);
         const JJson j = JJson::parse(made.toJson().dump(2));
-        assert(j["part"].str() == "U1" && j["location"]["x"].number() == 10 && j["openpnp"]["tray-count-x"].number() == 3);
-        assert(!j["openpnp"].contains("id") && !j["openpnp"].contains("location") && !j["openpnp"].contains("version"));
+        assert(j["part"].str() == "U1" && j["location"]["x"].number() == 10 && j["tray"]["countX"].number() == 3 && !j.contains("openpnp"));
+        assert(j["tray"]["offsets"]["x"].number() == 5 && j["tray"]["feedCount"].number() == 0);
         const JPFeeder back = JPFeeder::fromJson(j);
         assert(back.id() == "FDR2" && back.plainName() == "Tray" && back.enabled() && back.partId() == "U1");
         assert(back.feedRetryCount() == 5 && back.pickRetryCount() == 1 && back.priority() == JPFeeder::Priority::High);
         assert(back.feedOptions() == JPFeeder::FeedOptions::SkipNext && back.className() == made.className());
-        assert(back.location() == made.location() && back.number("tray-count-y") == 2);
-        assert(back.locationOf("offsets").x() == 5 && back.pickLocation() && back.pickLocation()->x() == made.pickLocation()->x());
+        assert(back.location() == made.location() && back.tray() && back.tray()->countY == 2);
+        assert(back.tray()->offsets.x() == 5 && back.pickLocation() && back.pickLocation()->x() == made.pickLocation()->x());
     }
     return 0;
 }

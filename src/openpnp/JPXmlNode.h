@@ -57,6 +57,18 @@ struct JPXmlNode {
         children.push_back(std::move(child));
         return children.back();
     }
+    // As a read element (its attributes and text; its children too).
+    static JPXmlElement element(const JPXmlNode& n) {
+        JPXmlElement e;
+        e.name = n.name;
+        for (const auto& [k, v] : n.attributes) {
+            e.attributes[k] = v;
+            e.attributeOrder.push_back(k);
+        }
+        e.text = n.text;
+        for (const JPXmlNode& c : n.children) e.children.push_back(element(c));
+        return e;
+    }
     // An element as read, to be written back as it was (its attributes in
     // the file's order).
     static JPXmlNode from(const JPXmlElement& e) {

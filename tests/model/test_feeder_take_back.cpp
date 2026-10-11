@@ -26,21 +26,21 @@ int main() {
     {
         JPFeeder strip = make("ReferenceStripFeeder");
         assert(!strip.canTakeBackPart());
-        strip.setNumber("feed-count", 2);
+        strip.setFeedCount(2);
         assert(strip.canTakeBackPart());
         strip.partTakenBack();
-        assert(strip.number("feed-count") == 1);
+        assert(strip.feedCount() == 1);
         // A skipped feed's count is not taken back.
         strip.setFeedOptions(JPFeeder::FeedOptions::SkipNext);
         strip.partTakenBack();
-        assert(strip.number("feed-count") == 1);
+        assert(strip.feedCount() == 1);
     }
     {
         JPFeeder rotated = make("ReferenceRotatedTrayFeeder");
-        rotated.setNumber("feed-count", 1);
+        rotated.setFeedCount(1);
         rotated.setFeedOptions(JPFeeder::FeedOptions::SkipNext);
         rotated.partTakenBack();
-        assert(rotated.number("feed-count") == 0 && !rotated.canTakeBackPart());
+        assert(rotated.feedCount() == 0 && !rotated.canTakeBackPart());
     }
     {
         JPFeeder autoFeeder = make("ReferenceAutoFeeder");

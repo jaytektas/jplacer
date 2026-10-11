@@ -12,6 +12,10 @@
 #include "JPOpenPnpIds.h"
 #include "JPXmlValues.h"
 
+#include "common/JPlacerLog.h"
+
+#include <j/core/Log.h>
+
 #include "openpnp/JPXmlJson.h"
 #include "openpnp/JPXmlWriter.h"
 
@@ -43,7 +47,32 @@ JPFeeder JPFeeder::create(const std::string& className, const std::string& partI
     // As a new OpenPnP feeder ends up: made at version 1.0, it is migrated as soon as it is made, its feed retries
     // from its retry count (3), its pick retries 0.
     f.m_pickRetryCount = 0;
+    f.ownFrom(JPXmlNode("feeder"));
     return f;
+}
+
+void JPFeeder::ownFrom(JPXmlNode own) {
+    if (typeName() == simpleName(JPTrayFeeder::kClass)) m_own = JPTrayFeeder::fromXml(own);
+    else m_own = std::move(own);
+}
+
+bool JPFeeder::autoTune() const {
+    if (tray()) return false;
+    const JPXmlNode& n = std::get<JPXmlNode>(m_own);
+    const std::string* v = n.get("auto-tune");
+    return v ? *v == "true" : true;
+}
+
+int JPFeeder::feedCount() const {
+    if (const JPTrayFeeder* t = tray()) return t->feedCount;
+    const JPXmlNode* n = std::get_if<JPXmlNode>(&m_own);
+    const std::string* v = n ? n->get("feed-count") : nullptr;
+    return v && !v->empty() ? std::atoi(v->c_str()) : 0;
+}
+
+void JPFeeder::setFeedCount(int n) {
+    if (JPTrayFeeder* t = tray()) t->feedCount = n;
+    else setNumber("feed-count", n);
 }
 
 const std::vector<std::string>& JPFeeder::classNames() {
@@ -128,7 +157,7 @@ std::string JPFeeder::photonUnconfigured() const {
     const std::string id = text("hardware-id");
     if (!photonSlot) return "Photon Feeder with address " + id + " has no address. Is it inserted?";
     if (!photonSlotLocation) return "The slot at address " + std::to_string(*photonSlot) + " has no location configured.";
-    if (!m_node.child("offset")) return "Photon Feeder with address " + id + " has no location offset.";
+    if (!child("offset")) return "Photon Feeder with address " + id + " has no location offset.";
     return {};
 }
 
@@ -159,7 +188,7 @@ bool JPFeeder::supportsFeedOptions() const {
 bool JPFeeder::canTakeBackPart() const {
     const std::string t = feedsAs();
     if (t == "ReferenceStripFeeder" || t == "ReferenceTrayFeeder" || t == "ReferenceRotatedTrayFeeder" || t == "BlindsFeeder")
-        return number("feed-count") > 0;
+        return feedCount() > 0;
     if (t == "ReferenceAutoFeeder") return flag("recycle-support", false) && feedOptions() != FeedOptions::SkipNext;
     if (t == "ReferencePushPullFeeder" || t == "BambooFeederAutoVision") return feedOptions() != FeedOptions::SkipNext;
     if (t == "PhotonFeeder") return feedOptions() == FeedOptions::Normal;
@@ -170,9 +199,9 @@ bool JPFeeder::canTakeBackPart() const {
 void JPFeeder::partTakenBack() {
     const std::string t = feedsAs();
     if (t == "ReferenceStripFeeder" || t == "ReferenceTrayFeeder") {
-        if (feedOptions() == FeedOptions::Normal) setNumber("feed-count", number("feed-count") - 1);
+        if (feedOptions() == FeedOptions::Normal) setFeedCount(feedCount() - 1);
     } else if (t == "ReferenceRotatedTrayFeeder" || t == "BlindsFeeder") {
-        setNumber("feed-count", number("feed-count") - 1);
+        setFeedCount(feedCount() - 1);
     } else if (t == "ReferenceAutoFeeder" || t == "ReferencePushPullFeeder" || t == "BambooFeederAutoVision" || t == "PhotonFeeder") {
         setFeedOptions(FeedOptions::SkipNext);
     } else if (t == "ReferenceLoosePartFeeder" || t == "AdvancedLoosePartFeeder") {
@@ -229,25 +258,10 @@ std::pair<JPLocation, JPLocation> JPFeeder::idealLineLocations() const {
 
 std::optional<JPLocation> JPFeeder::pickLocation() const {
     const std::string kind = typeName();
-    if (kind == "ReferenceTrayFeeder") {
-        const int cx = std::max(number("tray-count-x", 1), 1), cy = std::max(number("tray-count-y", 1), 1);
-        const int count = number("feed-count");
-        int base0 = count - 1;
-        if (count == 0) base0 = 0;
-        else if (count > cx * cy) base0 = cx * cy - 1;   // past the end: the last
-        int px, py;
-        if (cx >= cy) {
-            px = base0 / cy;
-            py = base0 % cy;
-        } else {
-            px = base0 % cx;
-            py = base0 / cx;
-        }
-        return location().add(locationOf("offsets").multiply(px, py, 0.0, 0.0));
-    }
+    if (const JPTrayFeeder* t = tray()) return t->pickLocation(location());
     if (kind == "ReferenceRotatedTrayFeeder") {
         const int cols = std::max(number("tray-count-cols", 1), 1), rows = std::max(number("tray-count-rows", 1), 1);
-        const int count = number("feed-count");
+        const int count = feedCount();
         int base0 = count - 1;
         if (count == 0) base0 = 0;
         else if (count > cols * rows) base0 = cols * rows - 1;   // past the end: the last
@@ -280,7 +294,7 @@ std::optional<JPLocation> JPFeeder::pickLocation() const {
     if (isVisionTape()) {
         const JPFeederTape::Params tape = JPFeederTape::of(*this);
         const long cycle = JPFeederTape::partsPerFeedCycle(tape);
-        const long partInCycle = ((long(number("feed-count")) + cycle - 1) % cycle) + 1;
+        const long partInCycle = ((long(feedCount()) + cycle - 1) % cycle) + 1;
         return JPFeederTape::partLocation(partInCycle, visionOffset, tape, real("rotation-in-feeder", 0));
     }
     // Where its pipeline found the part, else where it is.
@@ -315,7 +329,7 @@ std::optional<JPLocation> JPFeeder::pickLocation() const {
     }
     if (kind == "ReferenceStripFeeder") {
         // Before a feed, the first part (not off the strip's end).
-        const int count = std::max(1, number("feed-count"));
+        const int count = std::max(1, feedCount());
         const auto [a, b] = idealLineLocations();
         const JPLength partPitch = lengthOf("part-pitch", JPLength(4, JPLengthUnit::Millimeters));
         const JPLength tapeWidth = lengthOf("tape-width", JPLength(8, JPLengthUnit::Millimeters));
@@ -364,12 +378,12 @@ JPFeeder::FeedOptions feedOptionsFrom(const std::string& o) {
 
 JPFeeder JPFeeder::fromXml(const JPXmlElement& e) {
     JPFeeder f;
-    f.m_node = JPXmlNode::from(e);
+    JPXmlNode own = JPXmlNode::from(e);
     // What every feeder has taken out of its kind's own.
-    auto take = [&f](const char* attribute, const std::string& def = {}) {
-        const std::string* v = f.m_node.get(attribute);
+    auto take = [&own](const char* attribute, const std::string& def = {}) {
+        const std::string* v = own.get(attribute);
         const std::string out = v ? *v : def;
-        f.removeAttribute(attribute);
+        std::erase_if(own.attributes, [attribute](const auto& a) { return a.first == attribute; });
         return out;
     };
     f.m_className = take("class");
@@ -382,13 +396,11 @@ JPFeeder JPFeeder::fromXml(const JPXmlElement& e) {
     f.m_priority = priorityFrom(take("priority", "Normal"));
     f.m_feedOptions = feedOptionsFrom(take("feed-options", "Normal"));
     take("version");   // OpenPnP's file's
-    if (const JPXmlNode* l = f.m_node.child("location")) {
-        JPXmlElement le;
-        le.name = l->name;
-        for (const auto& [k, v] : l->attributes) le.attributes[k] = v;
-        f.m_location = JPLocationXml::from(le);
-        f.removeChild("location");
+    if (const JPXmlNode* l = own.child("location")) {
+        f.m_location = JPLocationXml::from(*l);
+        std::erase_if(own.children, [](const JPXmlNode& c) { return c.name == "location"; });
     }
+    f.ownFrom(std::move(own));
     if (f.typeName() == "ReferenceStripFeeder" && f.text("standard-eia-481").empty()) {
         // OpenPnP's angleNorm(rotation - 90, 180): within -180 (exclusive) .. 180.
         double r = f.m_location.rotation() - 90;
@@ -412,7 +424,8 @@ JPFeeder JPFeeder::fromJson(const JJson& j) {
     f.m_priority = priorityFrom(j["priority"].str());
     f.m_feedOptions = feedOptionsFrom(j["feedOptions"].str());
     f.m_location = JPLocationJson::from(j["location"]);
-    f.m_node = JPXmlJson::node("feeder", j["openpnp"]);
+    if (f.typeName() == simpleName(JPTrayFeeder::kClass)) f.m_own = JPTrayFeeder::fromJson(j["tray"]);
+    else f.m_own = JPXmlJson::node("feeder", j["openpnp"]);
     return f;
 }
 
@@ -428,7 +441,8 @@ JJson JPFeeder::toJson() const {
     j["priority"] = priorityName(m_priority);
     j["feedOptions"] = feedOptionsKey(m_feedOptions);
     j["location"] = JPLocationJson::to(m_location);
-    j["openpnp"] = JPXmlJson::from(m_node);
+    if (const JPTrayFeeder* t = tray()) j["tray"] = t->toJson();
+    else j["openpnp"] = JPXmlJson::from(std::get<JPXmlNode>(m_own));
     return j;
 }
 
@@ -440,22 +454,24 @@ bool JPFeeder::partHeightAbovePickLocation() const {
 bool JPFeeder::feed(std::string& why, bool* empty) {
     if (empty) *empty = false;
     const std::string kind = typeName();
-    if (kind == "ReferenceTrayFeeder") {
-        const int cx = std::max(number("tray-count-x", 1), 1), cy = std::max(number("tray-count-y", 1), 1);
-        if (number("feed-count") >= cx * cy) {
+    if (JPTrayFeeder* t = tray()) {
+        if (t->empty()) {
             why = "Feeder: " + name() + " (" + partId() + ") - tray empty.";
             if (empty) *empty = true;
             return false;
         }
+        if (feedOptions() == FeedOptions::Normal || t->feedCount == 0) ++t->feedCount;
+        if (feedOptions() == FeedOptions::SkipNext) setFeedOptions(FeedOptions::Normal);
+        return true;
     }
     if (kind == "ReferenceRotatedTrayFeeder") {
         const int cols = std::max(number("tray-count-cols", 1), 1), rows = std::max(number("tray-count-rows", 1), 1);
-        if (number("feed-count") >= cols * rows) {
+        if (feedCount() >= cols * rows) {
             why = name() + " (" + partId() + ") is empty.";
             if (empty) *empty = true;
             return false;
         }
-        setNumber("feed-count", number("feed-count") + 1);
+        setFeedCount(feedCount() + 1);
         return true;
     }
     if (isSlot() && !slotLoad) {
@@ -478,14 +494,14 @@ bool JPFeeder::feed(std::string& why, bool* empty) {
         if (feedOptions() == FeedOptions::SkipNext) setFeedOptions(FeedOptions::Normal);
         return true;
     }
-    if (kind != "ReferenceTrayFeeder" && kind != "ReferenceStripFeeder") {
+    if (kind != "ReferenceStripFeeder") {
         why = "Feeding a " + kind + " is not available yet.";
         return false;
     }
-    if (feedOptions() == FeedOptions::Normal || number("feed-count") == 0) setNumber("feed-count", number("feed-count") + 1);
-    if (kind == "ReferenceStripFeeder") {
+    if (feedOptions() == FeedOptions::Normal || feedCount() == 0) setFeedCount(feedCount() + 1);
+    {
         const int most = number("max-feed-count");
-        if (most > 0 && number("feed-count") > most) {
+        if (most > 0 && feedCount() > most) {
             why = "Tried to feed part: " + partId() + "  Feeder " + name() + " empty.";
             if (empty) *empty = true;
             return false;
@@ -493,8 +509,8 @@ bool JPFeeder::feed(std::string& why, bool* empty) {
     }
     // A strip's vision, as OpenPnP's: the first hole when the first pick is
     // mid-strip, then the hole fed (not when its pick is repeated).
-    if (kind == "ReferenceStripFeeder" && flag("vision-enabled", false)) {
-        const int count = number("feed-count");
+    if (flag("vision-enabled", false)) {
+        const int count = feedCount();
         if (count != 1 && !visionLocationReference) m_visionChecks.push_back(1);
         if (feedOptions() == FeedOptions::Normal) m_visionChecks.push_back(count);
     }
@@ -591,60 +607,88 @@ void JPFeeder::recordJobFault(int faultLimit, int windowSize) {
     if (enabled() && faultLimit > 0 && faults >= faultLimit) m_enabled = false;
 }
 
+const JPXmlNode* JPFeeder::openPnp(const std::string& setting) const {
+    if (const JPXmlNode* n = std::get_if<JPXmlNode>(&m_own)) return n;
+    // A typed kind's settings are its own: one asked for by OpenPnP's name is a mistake here, not a default.
+    JLOGC(JPlacerLog::kFeeders, JLogLevel::Error) << "feeder " << m_id << " (" << typeName() << "): its setting \"" << setting
+                                                  << "\" was asked for by OpenPnP's name, which its kind keeps as its own";
+    return nullptr;
+}
+
+JPXmlNode* JPFeeder::openPnp(const std::string& setting) {
+    return const_cast<JPXmlNode*>(std::as_const(*this).openPnp(setting));
+}
+
+const std::string* JPFeeder::attribute(const std::string& name) const {
+    const JPXmlNode* n = openPnp(name);
+    return n ? n->get(name) : nullptr;
+}
+
+void JPFeeder::setAttribute(const std::string& name, const std::string& value) {
+    if (JPXmlNode* n = openPnp(name)) n->set(name, value);
+}
+
+const JPXmlNode* JPFeeder::child(const std::string& element) const {
+    const JPXmlNode* n = openPnp(element);
+    return n ? n->child(element) : nullptr;
+}
+
+void JPFeeder::putChild(JPXmlNode node) {
+    JPXmlNode* n = openPnp(node.name);
+    if (!n) return;
+    if (JPXmlNode* c = n->child(node.name)) *c = std::move(node);
+    else n->add(std::move(node));
+}
+
 std::string JPFeeder::text(const std::string& attribute, const std::string& def) const {
-    const std::string* v = m_node.get(attribute);
+    const std::string* v = this->attribute(attribute);
     return v ? *v : def;
 }
 
-void JPFeeder::setText(const std::string& attribute, const std::string& value) { m_node.set(attribute, value); }
+void JPFeeder::setText(const std::string& attribute, const std::string& value) { setAttribute(attribute, value); }
+
+bool JPFeeder::hasAttribute(const std::string& attribute) const { return this->attribute(attribute) != nullptr; }
 
 void JPFeeder::removeAttribute(const std::string& attribute) {
-    std::erase_if(m_node.attributes, [&attribute](const auto& a) { return a.first == attribute; });
+    if (JPXmlNode* n = openPnp(attribute))
+        std::erase_if(n->attributes, [&attribute](const auto& a) { return a.first == attribute; });
 }
 
 int JPFeeder::number(const std::string& attribute, int def) const {
-    const std::string* v = m_node.get(attribute);
+    const std::string* v = this->attribute(attribute);
     return v && !v->empty() ? std::atoi(v->c_str()) : def;
 }
 
-void JPFeeder::setNumber(const std::string& attribute, int value) { m_node.set(attribute, std::to_string(value)); }
+void JPFeeder::setNumber(const std::string& attribute, int value) { setAttribute(attribute, std::to_string(value)); }
 
 double JPFeeder::real(const std::string& attribute, double def) const {
-    const std::string* v = m_node.get(attribute);
+    const std::string* v = this->attribute(attribute);
     return v && !v->empty() ? std::strtod(v->c_str(), nullptr) : def;
 }
 
-void JPFeeder::setReal(const std::string& attribute, double value) { m_node.set(attribute, JPXmlWriter::number(value)); }
+void JPFeeder::setReal(const std::string& attribute, double value) { setAttribute(attribute, JPXmlWriter::number(value)); }
 
 bool JPFeeder::flag(const std::string& attribute, bool def) const {
-    const std::string* v = m_node.get(attribute);
+    const std::string* v = this->attribute(attribute);
     return v ? *v == "true" : def;
 }
 
-void JPFeeder::setFlag(const std::string& attribute, bool on) { m_node.set(attribute, on ? "true" : "false"); }
+void JPFeeder::setFlag(const std::string& attribute, bool on) { setAttribute(attribute, on ? "true" : "false"); }
 
-void JPFeeder::setChild(JPXmlNode node) {
-    if (JPXmlNode* c = m_node.child(node.name)) *c = std::move(node);
-    else m_node.add(std::move(node));
-}
+void JPFeeder::setChild(JPXmlNode node) { putChild(std::move(node)); }
 
 void JPFeeder::removeChild(const std::string& element) {
-    std::erase_if(m_node.children, [&element](const JPXmlNode& c) { return c.name == element; });
+    if (JPXmlNode* n = openPnp(element))
+        std::erase_if(n->children, [&element](const JPXmlNode& c) { return c.name == element; });
 }
 
 JPLocation JPFeeder::locationOf(const std::string& element) const {
-    const JPXmlNode* c = m_node.child(element);
-    if (!c) return JPLocation(JPLengthUnit::Millimeters);
-    JPXmlElement e;
-    e.name = c->name;
-    for (const auto& [k, v] : c->attributes) e.attributes[k] = v;
-    return JPLocationXml::from(e);
+    const JPXmlNode* c = child(element);
+    return c ? JPLocationXml::from(*c) : JPLocation(JPLengthUnit::Millimeters);
 }
 
 void JPFeeder::setLocationOf(const std::string& element, const JPLocation& l) {
-    JPXmlNode fresh = JPLocationXml::to(element, l);
-    if (JPXmlNode* c = m_node.child(element)) *c = fresh;
-    else m_node.add(fresh);
+    putChild(JPLocationXml::to(element, l));
     // As OpenPnP's setHole1Location and setHole2Location: the calibration reset.
     if (isVisionTape() && (element == "hole-1-location" || element == "hole-2-location"))
         visionOffset.reset();
@@ -665,7 +709,7 @@ std::string JPFeeder::templatePath(const std::string& configDirectory) const {
 }
 
 std::string JPFeeder::attributeAt(const std::string& path, const std::string& attribute, const std::string& def) const {
-    const JPXmlNode* n = &m_node;
+    const JPXmlNode* n = openPnp(path + "/" + attribute);
     size_t from = 0;
     while (n && from <= path.size()) {
         const size_t slash = path.find('/', from);
@@ -678,7 +722,8 @@ std::string JPFeeder::attributeAt(const std::string& path, const std::string& at
 }
 
 void JPFeeder::setAttributeAt(const std::string& path, const std::string& attribute, const std::string& value) {
-    JPXmlNode* n = &m_node;
+    JPXmlNode* n = openPnp(path + "/" + attribute);
+    if (!n) return;
     size_t from = 0;
     for (;;) {
         const size_t slash = path.find('/', from);
@@ -693,30 +738,23 @@ void JPFeeder::setAttributeAt(const std::string& path, const std::string& attrib
 
 void JPFeeder::setPipeline(JPXmlNode pipeline, const std::string& element) {
     pipeline.name = element;
-    if (JPXmlNode* c = m_node.child(element)) {
-        *c = std::move(pipeline);
-        return;
-    }
-    m_node.add(std::move(pipeline));
+    putChild(std::move(pipeline));
 }
 
 std::string JPFeeder::childText(const std::string& element, const std::string& def) const {
-    const JPXmlNode* c = m_node.child(element);
+    const JPXmlNode* c = child(element);
     return c ? c->text : def;
 }
 
 void JPFeeder::setChildText(const std::string& element, const std::string& value) {
-    if (JPXmlNode* c = m_node.child(element)) {
-        c->text = value;
-        return;
-    }
     JPXmlNode fresh(element);
+    if (const JPXmlNode* c = child(element)) fresh = *c;
     fresh.text = value;
-    m_node.add(std::move(fresh));
+    putChild(std::move(fresh));
 }
 
 JPLength JPFeeder::lengthOf(const std::string& element, const JPLength& def) const {
-    const JPXmlNode* c = m_node.child(element);
+    const JPXmlNode* c = child(element);
     if (!c || !c->get("value")) return def;
     JPLengthUnit u = JPLengthUnit::Millimeters;
     if (const std::string* units = c->get("units")) JPLengthUnits::fromName(*units, u);
@@ -726,8 +764,7 @@ JPLength JPFeeder::lengthOf(const std::string& element, const JPLength& def) con
 void JPFeeder::setLengthOf(const std::string& element, const JPLength& l) {
     JPXmlNode fresh(element);
     fresh.attr("value", JPXmlWriter::number(l.value())).attr("units", JPLengthUnits::name(l.units()));
-    if (JPXmlNode* c = m_node.child(element)) *c = fresh;
-    else m_node.add(fresh);
+    putChild(std::move(fresh));
 }
 
 } // inline namespace jf

@@ -326,7 +326,7 @@ int main() {
     // and place 0.2 lower than it would be; four probes (two feeders, two parts), the rest by the offsets kept.
     {
         // (The trays' counts, the log and what was picked and placed put back after.)
-        const int fr = config.feeder("FR")->number("feed-count"), fc = config.feeder("FC")->number("feed-count");
+        const int fr = config.feeder("FR")->feedCount(), fc = config.feeder("FC")->feedCount();
         const auto log = machine.log;
         const auto picks = machine.picks, places = machine.places;
         job.removeAllPlacedStatus();
@@ -347,8 +347,8 @@ int main() {
         for (const auto& p : machine.picks) assert(std::abs(p.where.z() - (-5.2)) < 1e-9);
         for (const auto& p : machine.places) assert(std::abs(p.where.z() - (1.6 + 0.5 - 0.2)) < 1e-9);
         for (auto& h : machine.heads) h.contactProbe = JPNozzleConfig::ContactProbe {};
-        config.feeder("FR")->setNumber("feed-count", fr);
-        config.feeder("FC")->setNumber("feed-count", fc);
+        config.feeder("FR")->setFeedCount(fr);
+        config.feeder("FC")->setFeedCount(fc);
         machine.log = log;
         machine.picks = picks;
         machine.places = places;
@@ -360,7 +360,7 @@ int main() {
     // 0; LimitedArticulation turns about the middle of its axis's range (here
     // 90 degrees from pick to place, with 15 + 30 to spare: from -67.5 to 22.5).
     // (The trays' counts, the log and what was picked and placed kept for the checks after.)
-    const int frCount = config.feeder("FR")->number("feed-count"), fcCount = config.feeder("FC")->number("feed-count");
+    const int frCount = config.feeder("FR")->feedCount(), fcCount = config.feeder("FC")->feedCount();
     const auto keptLog = machine.log;
     const auto keptPicks = machine.picks, keptPlaces = machine.places;
     for (const auto& [mode, pickTurn, placeTurn] : std::vector<std::tuple<std::string, double, double>> {
@@ -379,8 +379,8 @@ int main() {
         for (const auto& p : machine.places) assert(near(p.where.rotation(), placeTurn, 1e-3));
     }
     for (auto& h : machine.heads) h.rotationMode = "AbsolutePartAngle";
-    config.feeder("FR")->setNumber("feed-count", frCount);
-    config.feeder("FC")->setNumber("feed-count", fcCount);
+    config.feeder("FR")->setFeedCount(frCount);
+    config.feeder("FC")->setFeedCount(fcCount);
     machine.log = keptLog;
     machine.picks = keptPicks;
     machine.places = keptPlaces;
@@ -389,7 +389,7 @@ int main() {
     assert(machine.log.back() == "park");
     assert(statuses.back().rfind("Job finished without error, placed 3 parts", 0) == 0);
     // The trays moved on: the second R1 from the second pocket.
-    assert(config.feeder("FR")->number("feed-count") == 2);
+    assert(config.feeder("FR")->feedCount() == 2);
 
     // Again, nothing left to place: it finishes at once.
     {
@@ -474,8 +474,8 @@ int main() {
     for (auto& h : machine.heads) h.alignRotationWithPart = true;
     job.removeAllPlacedStatus();
     for (const char* id : { "FR", "FC" }) config.feeder(id)->setEnabled(true);
-    config.feeder("FR")->setNumber("feed-count", frCount);
-    config.feeder("FC")->setNumber("feed-count", fcCount);
+    config.feeder("FR")->setFeedCount(frCount);
+    config.feeder("FC")->setFeedCount(fcCount);
     machine.places.clear();
     machine.placedOffsets.clear();
     {
@@ -498,7 +498,7 @@ int main() {
     // A plan (JPJobPlan): the groups placed in its order. Most first: R1 (two placements) before C1, so the first
     // cycle is R1's alone (one nozzle: the one T1 tip is on N1, and C1 waits for its group); by name, C1 is in the
     // first cycle.
-    const int frBefore = config.feeder("FR")->number("feed-count"), fcBefore = config.feeder("FC")->number("feed-count");
+    const int frBefore = config.feeder("FR")->feedCount(), fcBefore = config.feeder("FC")->feedCount();
     for (const auto& [sort, firstHasC1] : { std::pair { "Most first", false }, std::pair { "Name", true } }) {
         job.removeAllPlacedStatus();
         job.planSort = sort;
@@ -518,8 +518,8 @@ int main() {
         if (!firstHasC1) assert((first == std::vector<std::string> { "R1" }));
     }
     job.planSort.clear();
-    config.feeder("FR")->setNumber("feed-count", frBefore);   // the trays as they were
-    config.feeder("FC")->setNumber("feed-count", fcBefore);
+    config.feeder("FR")->setFeedCount(frBefore);   // the trays as they were
+    config.feeder("FC")->setFeedCount(fcBefore);
 
     // Load as you go: a part with no feeder is not a setup failure. What is loaded is placed first, then the
     // run pauses asking for the part; loaded, it goes on from there.

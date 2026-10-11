@@ -12,6 +12,7 @@
 #include "model/JPFeederPackaging.h"
 #include "model/JPFeederTape.h"
 #include "model/JPPushPullTemplates.h"
+#include "model/JPTrayFeeder.h"
 
 #include <j/core/Log.h>
 
@@ -84,6 +85,12 @@ void length(JPFormBuilder& add, std::function<JPFeeder&()> f, const std::string&
 void count(JPFormBuilder& add, std::function<JPFeeder&()> f, const std::string& attribute, const std::string& label, int def) {
     add.integer(attribute, label, [f, attribute, def] { return f().number(attribute, def); },
                 [f, attribute](int v) { f().setNumber(attribute, v); }, 0, kMostCount);
+}
+
+// Its Feed Count (OpenPnP's, of the kinds that count).
+void feedCountField(JPFormBuilder& add, std::function<JPFeeder&()> f) {
+    add.integer("feed-count", "Feed Count", [f] { return f().feedCount(); }, [f](int v) { f().setFeedCount(v); }, 0,
+                kMostCount);
 }
 
 // What a feeder's Packaging says while its values are its own (no packaging of the part's has them).
@@ -187,7 +194,7 @@ void stripForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeed
     add.row("");
     add.skip();
     add.words("Feed Count");
-    count(add, f, "feed-count", "Feed Count", 0);
+    feedCountField(add, f);
     add.button("resetFeedCount", "Reset", "Reset the feed count to zero, and reset all cached hole positions found by vision.");
     add.end();
     add.row("");
@@ -292,13 +299,13 @@ void trayForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeede
               std::function<void(const std::string&)> warn) {
     general(add, config, f, false);
     pickLocation(add, f);
+    auto t = [f]() -> JPTrayFeeder& { return *f().tray(); };
     // As OpenPnP's saveToModel: an offset of 0 with more than one part that way is kept, and said.
-    auto check = [f, warn] {
-        const JPLocation o = f().locationOf("offsets");
+    auto check = [t, warn] {
         if (!warn) return;
-        if (o.x() == 0 && f().number("tray-count-x", 1) > 1)
+        if (t().offsets.x() == 0 && t().countX > 1)
             warn("X offset must be greater than 0 if X tray count is greater than 1 or feed failure will occur.");
-        if (o.y() == 0 && f().number("tray-count-y", 1) > 1)
+        if (t().offsets.y() == 0 && t().countY > 1)
             warn("Y offset must be greater than 0 if Y tray count is greater than 1 or feed failure will occur.");
     };
     add.group("");
@@ -306,29 +313,29 @@ void trayForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeede
     add.row("Offsets");
     for (const Axis a : { Axis::X, Axis::Y })
         add.length(std::string("offsets.") + (a == Axis::X ? "X" : "Y"), a == Axis::X ? "X" : "Y",
-                   [f, a] {
-                       const JPLocation l = f().locationOf("offsets").convertToUnits(kMm);
+                   [t, a] {
+                       const JPLocation l = t().offsets.convertToUnits(kMm);
                        return a == Axis::X ? l.x() : l.y();
                    },
-                   [f, a, check](double v) {
-                       const JPLocation l = f().locationOf("offsets").convertToUnits(kMm);
-                       f().setLocationOf("offsets", l.derive(a == Axis::X ? std::optional(v) : std::nullopt,
-                                                             a == Axis::Y ? std::optional(v) : std::nullopt, std::nullopt,
-                                                             std::nullopt));
+                   [t, a, check](double v) {
+                       const JPLocation l = t().offsets.convertToUnits(kMm);
+                       t().offsets = l.derive(a == Axis::X ? std::optional(v) : std::nullopt,
+                                              a == Axis::Y ? std::optional(v) : std::nullopt, std::nullopt, std::nullopt);
                        check();
                    });
     add.end();
     add.row("Tray Count");
-    for (const char* a : { "tray-count-x", "tray-count-y" })
-        add.integer(a, a[11] == 'x' ? "X" : "Y", [f, a] { return f().number(a, 1); },
-                    [f, a, check](int v) {
-                        f().setNumber(a, v);
+    for (const Axis a : { Axis::X, Axis::Y })
+        add.integer(a == Axis::X ? "tray-count-x" : "tray-count-y", a == Axis::X ? "X" : "Y",
+                    [t, a] { return a == Axis::X ? t().countX : t().countY; },
+                    [t, a, check](int v) {
+                        (a == Axis::X ? t().countX : t().countY) = v;
                         check();
                     },
                     0, kMostCount);
     add.end();
     add.row("Feed Count");
-    count(add, f, "feed-count", "Feed Count", 0);
+    feedCountField(add, f);
     add.button("resetFeedCount", "Reset");
     add.end();
 }
@@ -468,7 +475,7 @@ void neoden4Form(JPFormBuilder& add, JPConfiguration& config, std::function<JPFe
     add.button("actuate", "Actuate");
     add.end();
     add.row("Feed Count");
-    count(add, f, "feed-count", "Feed Count", 0);
+    feedCountField(add, f);
     add.button("resetFeedCount", "Reset");
     add.end();
     templateVision(add, f, options, true);
@@ -780,7 +787,7 @@ void bambooForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFee
     add.row("Rotation in Tape");
     add.number("rotation-in-feeder", "Rotation in Tape", [f] { return f().real("rotation-in-feeder", 0); },
                [f](double v) { f().setReal("rotation-in-feeder", v); });
-    add.integer("feed-count", "Feed Count", [f] { return f().number("feed-count", 0); }, [f](int v) { f().setNumber("feed-count", v); },
+    add.integer("feed-count", "Feed Count", [f] { return f().feedCount(); }, [f](int v) { f().setFeedCount(v); },
                 0, kMostCount);
     add.button("resetFeedCount", "Reset Feed Count", "Reset the feed count e.g. when a tape has been changed.");
     add.end();
@@ -963,7 +970,7 @@ void pushPullForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPF
     add.row("");
     add.skip();
     add.words("Feed Count", "Total feed count of the feeder.");
-    count(add, f, "feed-count", "Feed Count", 0);
+    feedCountField(add, f);
     add.button("resetFeedCount", "Reset Feed Count", "Reset the feed count e.g. when a tape has been changed.");
     add.end();
     add.tipOf("feed-count", "Total feed count of the feeder.");
@@ -1261,7 +1268,7 @@ void blindsForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFee
     add.labelTip("Last pocket of the tape that contains a part. Use the Show Features Button to indicate pocket numbers.");
     add.tipOf("last-pocket", "Last pocket of the tape that contains a part. Use the Show Features Button to indicate pocket numbers.");
     add.row("Feed Count");
-    count(add, f, "feed-count", "Feed Count", 0);
+    feedCountField(add, f);
     add.skip();
     add.skip();
     add.button("blindsResetFeedCount", "Reset", "Reset the Feed Count to 0 (for a newly loaded tape).");
@@ -1535,10 +1542,10 @@ void rotatedTrayForm(JPFormBuilder& add, JPConfiguration& config, std::function<
     count(add, f, "tray-count-cols", "Number of Tray Columns", 1);
     add.end();
     add.row("Feed Count");
-    count(add, f, "feed-count", "Feed Count", 0);
+    feedCountField(add, f);
     add.text("remaining", "Components remaining:", [f] {
         const int total = std::max(f().number("tray-count-rows", 1), 1) * std::max(f().number("tray-count-cols", 1), 1);
-        return "Components remaining: " + std::to_string(std::max(0, total - f().number("feed-count")));
+        return "Components remaining: " + std::to_string(std::max(0, total - f().feedCount()));
     }, nullptr);
     add.button("resetFeedCount", "Reset");
     add.end();
@@ -1755,7 +1762,7 @@ bool JPFeederForms::act(JPConfiguration& config, const std::string& feederId, co
         return true;
     }
     if (action == "resetFeedCount") {
-        f->setNumber("feed-count", 0);
+        f->setFeedCount(0);
         if (f->typeName() == "ReferenceRotatedTrayFeeder") f->setFlag("legacy-picking-in-progress", false);
         f->visionLocation.reset();   // and what vision found, as OpenPnP's Reset says
         f->visionLocationReference.reset();
@@ -1782,7 +1789,7 @@ bool JPFeederForms::act(JPConfiguration& config, const std::string& feederId, co
     }
     if (action == "blindsResetFeedCount") {
         // A newly loaded tape: the cover fumbled with too.
-        f->setNumber("feed-count", 0);
+        f->setFeedCount(0);
         JPBlindsFeeders::setCoverPosition(config, feederId, std::nullopt);
         return true;
     }

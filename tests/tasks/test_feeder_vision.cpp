@@ -152,8 +152,8 @@ int main() {
     assert(!feeder.visionOffset);
     // Discard Parts: to the end of the feed cycle (2 mm parts: two a feed).
     feeder.setLengthOf("part-pitch", JPLength(2, kMm));
-    feeder.setNumber("feed-count", 3);
+    feeder.setFeedCount(3);
     JPFeederTape::discardParts(feeder);
-    assert(feeder.number("feed-count") == 4);
+    assert(feeder.feedCount() == 4);
     return 0;
 }

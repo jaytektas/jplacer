@@ -408,7 +408,7 @@ bool JPVisionTapeFeeder::feed(JPConfiguration& config, const std::string& feeder
         moveFirst = f->flag("move-before-feed", false);
         pickAt = f->pickLocation();
         options = f->feedOptions();
-        count = f->number("feed-count", 0);
+        count = f->feedCount();
         JPFeederTape::Params tape = JPFeederTape::of(*f);
         tape.feedMultiplier = 1;
         cycle = JPFeederTape::partsPerFeedCycle(tape);
@@ -434,7 +434,7 @@ bool JPVisionTapeFeeder::feed(JPConfiguration& config, const std::string& feeder
     main([&] {
         JPFeeder* f = config.feeder(feederId);
         if (!f) return;
-        if (options == JPFeeder::FeedOptions::Normal) f->setNumber("feed-count", f->number("feed-count", 0) + 1);
+        if (options == JPFeeder::FeedOptions::Normal) f->setFeedCount(f->feedCount() + 1);
         if (options == JPFeeder::FeedOptions::SkipNext) f->setFeedOptions(JPFeeder::FeedOptions::Normal);
     });
     return true;
@@ -454,7 +454,7 @@ bool JPVisionTapeFeeder::feedPushPull(JPConfiguration& config, const std::string
         name = f->name();
         options = f->feedOptions();
         if (options == JPFeeder::FeedOptions::SkipNext) f->setFeedOptions(JPFeeder::FeedOptions::Normal);
-        count = f->number("feed-count", 0);
+        count = f->feedCount();
         const JPFeederTape::Params tape = JPFeederTape::of(*f);
         cycle = JPFeederTape::partsPerFeedCycle(tape);
         const double part = mm(tape.partPitch), feedPitch = mm(tape.feedPitch);
@@ -528,7 +528,7 @@ bool JPVisionTapeFeeder::feedPushPull(JPConfiguration& config, const std::string
         if (!machine.safeZ(why) || !assertCalibrated(config, feederId, machine, onMain, true, why)) return false;
     }
     main([&] {
-        if (JPFeeder* f = config.feeder(feederId)) f->setNumber("feed-count", f->number("feed-count", 0) + 1);
+        if (JPFeeder* f = config.feeder(feederId)) f->setFeedCount(f->feedCount() + 1);
     });
     return true;
 }

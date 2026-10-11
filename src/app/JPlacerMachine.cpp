@@ -1671,7 +1671,7 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
         for (JPFeeder& feeder : m_configuration->feeders()) {
             const std::string kind = JPFeeder::simpleName(feeder.className());
             if (kind != "ReferenceStripFeeder" && kind != "BlindsFeeder") continue;
-            feeder.setNumber("feed-count", 0);
+            feeder.setFeedCount(0);
             ++reset;
         }
         if (onSetupConfigurationChanged) onSetupConfigurationChanged();
@@ -2611,7 +2611,7 @@ JJson JPlacerMachine::scriptRequest(const JJson& request) {
                     JJson o = named(f.id(), f.name());
                     o["part"] = f.partId();
                     o["enabled"] = f.enabled();
-                    o["feedCount"] = f.number("feed-count");
+                    o["feedCount"] = f.feedCount();
                     feeders.push(o);
                 }
                 for (const auto& p : m_configuration->parts()) {
@@ -2679,7 +2679,7 @@ JJson JPlacerMachine::scriptRequest(const JJson& request) {
                 for (const JPFeeder& f : m_configuration->feeders())
                     if (f.name() == request["feeder"].str() || f.id() == request["feeder"].str())
                         if (JPFeeder* g = m_configuration->feeder(f.id())) {
-                            g->setNumber("feed-count", request["count"].number());
+                            g->setFeedCount(request["count"].number());
                             found = true;
                         }
                 if (found && onSetupConfigurationChanged) onSetupConfigurationChanged();

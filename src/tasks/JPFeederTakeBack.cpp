@@ -72,7 +72,7 @@ bool JPFeederTakeBack::takeBack(JPConfiguration& config, const std::string& nozz
         // A blinds feeder whose cover is not open: its last feed again, so the pick place is the last free pocket.
         if (type == "BlindsFeeder" && !coverOpen) {
             main([&] {
-                if (JPFeeder* f = config.feeder(feederId)) f->setNumber("feed-count", f->number("feed-count") - 1);
+                if (JPFeeder* f = config.feeder(feederId)) f->setFeedCount(f->feedCount() - 1);
             });
             bool empty = false;
             if (!JPFeederFeed::feed(config, feederId, nozzleId, machine, onMain, why, empty)) return false;
